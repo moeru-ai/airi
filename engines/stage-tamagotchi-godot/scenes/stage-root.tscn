@@ -1,0 +1,14 @@
+[gd_scene load_steps=2 format=3 uid="uid://c4t68p7ibkjxg"]
+
+[ext_resource type="Script" uid="uid://cwngwb6eal55x" path="res://scripts/StageRoot.cs" id="1_k8kx6"]
+
+[node name="Node3D" type="Node3D" unique_id=1704384288]
+script = ExtResource("1_k8kx6")
+
+[node name="EditorPreviewRoot" type="Node3D" parent="." unique_id=1275565450]
+
+[node name="AvatarRoot" type="Node3D" parent="." unique_id=840596041]
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1342789791]
+transform = Transform3D(1, 0, 0, 0, 0.93969274, 0.34201992, 0, -0.34201992, 0.93969274, 0, 1.2, 3.5)
+current = true

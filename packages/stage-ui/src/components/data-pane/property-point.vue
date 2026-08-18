@@ -136,6 +136,7 @@ function stopDrag() {
   </div>
   <div />
   <label
+    v-if="props.xConfig !== undefined"
     h-fit w-full inline-flex items-center rounded-md px="1.5" py="0.5"
     :class="[isDragging === 'x' ? 'bg-red-100/50 dark:bg-red-900/50' : 'bg-neutral-100 dark:bg-neutral-900', props.disabled ? 'opacity-60' : '']"
     transition="colors duration-200 ease-in-out"
@@ -149,9 +150,9 @@ function stopDrag() {
         :value="xNormalized"
         type="number"
         :disabled="props.disabled"
-        :min="props.xConfig?.min"
-        :max="props.xConfig?.max"
-        :step="0.0001"
+        :min="props.xConfig.min"
+        :max="props.xConfig.max"
+        :step="props.xConfig.step"
         max-w-4lh w-full appearance-none bg-transparent text-right font-mono outline-none
         class="[&::-webkit-inner-spin-button]:(m-0 appearance-none)"
         @change="(e) => handleChange('x', e)"
@@ -159,6 +160,7 @@ function stopDrag() {
     </span>
   </label>
   <label
+    v-if="props.yConfig !== undefined"
     h-fit inline-flex items-center rounded-md px="1.5" py="0.5"
     :class="[isDragging === 'y' ? 'bg-blue-100/50 dark:bg-blue-900/50' : 'bg-neutral-100 dark:bg-neutral-900', props.disabled ? 'opacity-60' : '']"
     transition="colors duration-200 ease-in-out"
@@ -172,9 +174,9 @@ function stopDrag() {
         :value="yNormalized"
         type="number"
         :disabled="props.disabled"
-        :min="props.yConfig?.min"
-        :max="props.yConfig?.max"
-        :step="0.0001"
+        :min="props.yConfig.min"
+        :max="props.yConfig.max"
+        :step="props.yConfig.step"
         max-w-4lh w-full appearance-none bg-transparent text-right font-mono outline-none
         class="[&::-webkit-inner-spin-button]:(m-0 appearance-none)"
         @change="(e) => handleChange('y', e)"
@@ -182,6 +184,7 @@ function stopDrag() {
     </span>
   </label>
   <label
+    v-if="props.zConfig !== undefined"
     h-fit inline-flex items-center rounded-md px="1.5" py="0.5"
     :class="[isDragging === 'z' ? 'bg-green-100/50 dark:bg-green-900/50' : 'bg-neutral-100 dark:bg-neutral-900', props.disabled ? 'opacity-60' : '']"
     transition="colors duration-200 ease-in-out"
@@ -195,9 +198,9 @@ function stopDrag() {
         :value="zNormalized"
         type="number"
         :disabled="props.disabled"
-        :min="props.zConfig?.min"
-        :max="props.zConfig?.max"
-        :step="0.0001"
+        :min="props.zConfig.min"
+        :max="props.zConfig.max"
+        :step="props.zConfig.step"
         max-w-4lh w-full appearance-none bg-transparent text-right font-mono outline-none
         class="[&::-webkit-inner-spin-button]:(m-0 appearance-none)"
         @change="(e) => handleChange('z', e)"

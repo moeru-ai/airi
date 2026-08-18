@@ -1,16 +1,35 @@
 <script
   setup
   lang="ts"
-  generic="InputType extends 'number' | string, T = InputType extends 'number' ? (number | undefined) : ((string | undefined))"
+  generic="InputType extends 'number' | InputTypeHTMLAttribute | string, T = InputType extends 'number' ? (number | undefined) : ((string | undefined))"
 >
+import type { InputTypeHTMLAttribute } from 'vue'
+
 import { Input } from '../input'
 
 const props = withDefaults(defineProps<{
   label?: string
   description?: string
   placeholder?: string
+  /**
+   * Marks the field as required: enables native HTML5 `required` validation
+   * on the underlying input and (by default) renders a `*` next to the label.
+   * Use `hideRequiredMark` when the form already conveys required-ness
+   * through other means (e.g. all fields are required).
+   */
   required?: boolean
+  /** Disables editing and focus on the input. */
+  disabled?: boolean
+  /**
+   * Suppress the `*` indicator next to the label without disabling the
+   * underlying HTML5 `required` validation. Useful for forms where every
+   * field is required so the marker would just add noise.
+   *
+   * @default false
+   */
+  hideRequiredMark?: boolean
   type?: InputType
+  autocomplete?: string
   inputClass?: string
   singleLine?: boolean
 }>(), {
@@ -28,7 +47,7 @@ const modelValue = defineModel<T>({ required: false })
           <slot name="label">
             {{ props.label }}
           </slot>
-          <span v-if="props.required" class="text-red-500">*</span>
+          <span v-if="props.required && !props.hideRequiredMark" class="text-red-500">*</span>
         </div>
         <div class="text-xs text-neutral-500 dark:text-neutral-400" text-wrap>
           <slot name="description">
@@ -41,6 +60,9 @@ const modelValue = defineModel<T>({ required: false })
         v-model.number="modelValue"
         :type="props.type"
         :placeholder="props.placeholder"
+        :autocomplete="props.autocomplete"
+        :required="props.required"
+        :disabled="props.disabled"
         :class="props.inputClass"
       />
       <Input
@@ -48,6 +70,9 @@ const modelValue = defineModel<T>({ required: false })
         v-model="modelValue"
         :type="props.type"
         :placeholder="props.placeholder"
+        :autocomplete="props.autocomplete"
+        :required="props.required"
+        :disabled="props.disabled"
         :class="props.inputClass"
       />
       <textarea
@@ -55,6 +80,9 @@ const modelValue = defineModel<T>({ required: false })
         v-model="modelValue as string | undefined"
         :type="props.type"
         :placeholder="props.placeholder"
+        :autocomplete="props.autocomplete"
+        :required="props.required"
+        :disabled="props.disabled"
         :class="[
           props.inputClass,
           'focus:primary-300 dark:focus:primary-400/50 border-2 border-solid border-neutral-100 dark:border-neutral-900',
@@ -62,6 +90,7 @@ const modelValue = defineModel<T>({ required: false })
           'text-disabled:neutral-400 dark:text-disabled:neutral-600',
           'cursor-disabled:not-allowed',
           'w-full rounded-lg px-2 py-1 text-sm outline-none',
+          'text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500',
           'shadow-sm',
           'bg-neutral-50 dark:bg-neutral-950 focus:bg-neutral-50 dark:focus:bg-neutral-900',
         ]"

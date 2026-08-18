@@ -1,0 +1,1 @@
+export { LocalStorageShim } from './shim'

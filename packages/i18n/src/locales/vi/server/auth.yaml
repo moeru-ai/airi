@@ -1,0 +1,200 @@
+electronCallback:
+  title:
+    loading: Đang hoàn thành đăng nhập
+    openingAiri: Đang mở AIRI
+    signedIn: Bạn đã đăng nhập
+    signInFailed: Đăng nhập thất bại
+    finishSignInInAiri: Hoàn tất đăng nhập vào AIRI
+    openAiriToContinue: Mở AIRI để tiếp tục
+  message:
+    checkingResponse: Đang kiểm tra phản hồi đăng nhập của bạn và chuẩn bị chuyển giao cho AIRI.
+    passingToAiri: Đang chuyển thông tin đăng nhập của bạn cho AIRI. Trang này sẽ tự động đóng trong giây lát.
+    syncedAndSafeToClose: Chúng tôi đã thông báo cho ứng dụng AIRI bạn đã đăng nhập từ đó.
+    invalidResponse: Chúng tôi không thể dùng phản hồi đăng nhập này.
+    loopbackUnreachable: Trình duyệt không thể kết nối đến AIRI thông qua cổng callback cục bộ.
+    tryOpenDirectly: We will try opening the local handoff directly. If that still fails, use the button below.
+    automaticHandoffFailed: Automatic handoff did not finish in this browser session.
+  label:
+    signIn: Đăng nhập
+    safeToClose: Bạn có thể đóng tab này rồi đó.
+    whyStillHere: Tại sao tab này lại ở đây?
+  action:
+    openAiriManually: Mở AIRI thủ công
+  hint:
+    closeTabManually: Một số trình duyệt không cho phép trang này tự đóng. Bạn có thể đóng thủ công.
+signIn:
+  title: Đăng nhập
+  step:
+    identify:
+      heading: Đăng nhập
+      description: Nhập email của bạn để đăng nhập hoặc tạo tài khoản.
+    password:
+      heading: Chào mừng trở lại
+      description: Tiếp tục với {email}.
+    create:
+      heading: Tạo tài khoản
+      description: Chúng tôi sẽ tạo tài khoản mới cho {email}.
+  email:
+    label: Email
+    placeholder: you{'@'}example.com
+  password:
+    label: Mật khẩu
+    placeholder: Mật khẩu của bạn
+  newPassword:
+    label: Tạo mật khẩu
+    placeholder: Ít nhất 8 ký tự
+  confirmPassword:
+    label: Xác nhận mật khẩu
+    placeholder: Lặp lại mật khẩu
+  name:
+    label: Tên hiển thị
+    placeholder: Không bắt buộc, mặc định dùng tên trong địa chỉ email
+  action:
+    continue: Tiếp tục
+    signIn: Đăng nhập
+    createAccount: Tạo tài khoản
+    forgotPassword: Quên mật khẩu?
+    useDifferentEmail: Sử dụng email khác
+  divider:
+    or: hoặc
+  error:
+    fallback: Đăng nhập thất bại
+    unknown: Lỗi không xác định đã xảy ra
+    socialOnlyNoPassword: Email này được đăng ký bằng Google hoặc Github. Đăng nhập với nút bên dưới; bạn có thể thêm mật khẩu trong cài đật tài khoản sau khi đăng nhập.
+    passwordMismatch: Mật khẩu không khớp.
+    invalidEmail: Hãy nhập địa chỉ email hợp lệ.
+  footer:
+    prefix: Bằng việc tiếp tục, bạn đồng ý với
+    terms: Điều khoản
+    and: và
+    privacy: Chính sách quyền riêng tư
+verifyEmail:
+  title:
+    pending: Kiểm tra hộp thư của bạn
+    success: Email đã xác thực
+    failed: Xác thực thất bại
+  message:
+    pending: Chúng tôi đã gửi link xác thực tới email của bạn. Mở hộp thư và hoàn thành việc tạo tài khoản - trang này sẽ tự động tiếp tục khi bạn nhấp vào link.
+    pendingWithAddress: Chúng tôi đã gửi link xác thực đến {email}. Mở nó để hoàn thành việc tạo tài khoản — trang này sẽ tự động tiếp tục khi bạn nhấp vào link.
+    success: Email của bạn đã được xác thực và bạn đã đăng nhập. Bạn có thể đóng tab này.
+    failed: Chúng tôi không thể xác thực email ({error}). Hãy thử yêu cầu một link mới.
+  action:
+    backToSignIn: Trở lại đăng nhập
+forgotPassword:
+  title: Đặt lại mật khẩu
+  description: Hãy nhập địa chỉ email đã được liên kết với tài khoản của bạn và chúng tôi sẽ gửi bạn link để thiết lập lại.
+  email:
+    label: Email
+    placeholder: bạn{'@'}example.com
+  action:
+    send: Gửi link đặt lại
+    backToSignIn: Trở lại đăng nhập
+  message:
+    sent: Nếu {email} khớp với một tài khoản, một link để đặt lại đang được gửi.
+  error:
+    fallback: Chúng tôi không thể gửi email khôi phục.
+deleteAccount:
+  title:
+    success: Tài khoản đã bị xóa
+    failed: Không thể xóa tài khoản
+  message:
+    success: Tài khoản của bạn đã được xóa.
+  action:
+    closeTab: Bạn có thể đóng tab này.
+resetPassword:
+  title:
+    default: Đặt mật khẩu mới
+    success: Mật khẩu đã được cập nhật
+  password:
+    label: Mật khẩu mới
+    placeholder: Ít nhất 8 ký tự
+  confirmPassword:
+    label: Xác nhận mật khẩu mới
+    placeholder: Lặp lại mật khẩu mới
+  action:
+    reset: Cập nhật mật khẩu
+    goSignIn: Đi tới đăng nhập
+  message:
+    success: Mật khẩu của bạn đã được cập nhật. Đăng nhập bằng mật khẩu mới của bạn.
+  error:
+    fallback: Chúng tôi không thể cập nhật mật khẩu của bạn.
+    missingToken: Link đặt lại không hợp lệ hoặc đã hết hạn.
+    passwordMismatch: Mật khẩu không khớp.
+profile:
+  title: Hồ sơ tài khoản
+  description: Quản lý ảnh đại diện, tên hiển thị và các tài khoản được liên kết.
+  section:
+    profile: Hồ sơ
+    avatar: Ảnh đại diện
+    password: Mật khẩu
+    linkedAccounts: Các tài khoản đã được liên kết
+  field:
+    email: Email
+    emailVerified: Trạng thái email
+    createdAt: Đã tham gia
+  label:
+    verified: Đã xác thực
+    unverified: Chưa xác thực
+  name:
+    label: Tên hiển thị
+    placeholder: Cách người khác thấy bạn
+  avatar:
+    altText: Ảnh đại diện hồ sơ
+    gravatarNotice: Ảnh đại diện từ Gravatar.
+    gravatarLink: Quản lý trên gravatar.com
+  password:
+    currentLabel: Mật khẩu hiện tại
+    currentPlaceholder: Nhập mật khẩu hiện tại
+    newLabel: Mật khẩu mới
+    newPlaceholder: Ít nhất 8 ký tự
+    confirmLabel: Xác nhận mật khẩu mới
+    confirmPlaceholder: Lặp lại mật khẩu mới của bạn
+    setDescription: Bạn đăng nhập thông qua nhà cung cấp tài khoản mạng xã hội, vì vậy hiện tại chưa có mật khẩu. Chúng tôi sẽ gửi email liên kết bảo mật để giúp bạn đặt mật khẩu.
+    setLinkSent: Kiểm tra {email} để thấy link đặt mật khẩu.
+    setLinkFailed: Chúng tôi không thể gửi link thiết lập mật khẩu.
+  linkedAccounts:
+    description: Đăng nhập AIRI thông qua các nhà cung cấp này. Hủy liên kết để thu hồi quyền truy cập, sau đó liên kết lại một lần nữa để chuyển sang tài khoản khác.
+    status:
+      linked: Đã liên kết
+      notLinked: Chưa được liên kết
+      linkedSince: Đã liên kết vào {date}
+    action:
+      link: Liên kết
+      unlink: Hủy liên kết
+    message:
+      loading: Đang tải các tài khoản đã được liên kết...
+      unlinked: '{provider} đã ngắt kết nối.'
+      linkStarted: Đang chuyển hướng đến {provider}…
+    error:
+      listFailed: Không thể tải các tài khoản đã liên kết.
+      unlinkFailed: Không thể hủy liên kết tài khoản này.
+      linkFailed: Không thể khởi động liên kết luồng (link flow).
+      lastAccount: Đây là phương thức đăng nhập duy nhất của bạn. Đặt mật khẩu trước khi hủy liên kết.
+  action:
+    saveProfile: Lưu thay đổi
+    changePassword: Thay đổi mật khẩu
+    sendSetPasswordLink: Gửi link thiết lập mật khẩu đến email của tôi
+    signOut: Đăng xuất
+  message:
+    loading: Đang tải hồ sơ của bạn...
+    profileSaved: Hồ sơ đã được cập nhật.
+    passwordChanged: Mật khẩu đã được thay đổi. Các phiên khác đã được đăng xuất.
+  error:
+    loadFailed: Chúng tôi không thể tải hồ sơ của bạn.
+    saveFailed: Chúng tôi không thể lưu các thay đổi của bạn.
+    changePasswordFailed: Chúng tôi không thể thay đổi mật khẩu của bạn.
+    signOutFailed: Chúng tôi không thể đăng xuất tài khoản của bạn.
+    passwordMismatch: Mật khẩu không khớp.
+    passwordSameAsCurrent: Mật khẩu mới phải khác mật khẩu hiện tại.
+webCallback:
+  title:
+    signIn: Đăng nhập
+    errorLabel: Đã xảy ra lỗi trong khi đăng nhập
+    loading: Đang đăng nhập...
+  message:
+    missingCodeOrState: Thiếu mã ủy quyền hoặc giá trị trạng thái
+    missingFlowState: Thiếu giá trị trạng thái của luồng OIDC - hãy thử đăng nhập lại
+    tokenExchangeFailed: Trao đổi token thất bại
+    finalizing: Đang hoàn tất quá trình xác thực với AIRI.
+  action:
+    tryAgain: Thử lại

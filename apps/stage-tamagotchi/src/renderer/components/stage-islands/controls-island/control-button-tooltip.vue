@@ -22,7 +22,7 @@ const { side = 'top' } = defineProps<{
             'bg-neutral-50/80 dark:bg-neutral-800/70',
             'w-fit flex items-center self-end justify-center px-1.5 py-1',
             'rounded-lg backdrop-blur-md',
-            'text-xs',
+            'max-w-[min(18rem,calc(100vw-1rem))] break-words text-center text-xs leading-4 whitespace-normal',
           ]"
           :side="side"
           :side-offset="4"

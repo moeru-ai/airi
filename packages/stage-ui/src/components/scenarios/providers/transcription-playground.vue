@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import type { HearingTranscriptionResult } from '../../../stores/modules/hearing'
 
-import { Button, FieldRange, FieldSelect } from '@proj-airi/ui'
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
+import { Button, FieldCombobox, FieldRange } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
 import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { useAudioDevice } from '../../../composables/audio'
 import { useAudioAnalyzer } from '../../../composables/audio/audio-analyzer'
 import { useAudioRecorder } from '../../../composables/audio/audio-recorder'
-import { useAudioDevice } from '../../../composables/audio/device'
 import { LevelMeter, TestDummyMarker, ThresholdMeter } from '../../gadgets'
 
 const props = defineProps<{
@@ -19,7 +20,7 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
-const { audioInputs, selectedAudioInput, stream, stopStream, startStream } = useAudioDevice()
+const { audioInputs, audioInputOptions, selectedAudioInput, stream, stopStream, startStream } = useAudioDevice()
 const { volumeLevel, stopAnalyzer, startAnalyzer } = useAudioAnalyzer()
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 
@@ -75,7 +76,7 @@ async function setupAudioMonitoring() {
   }
   catch (error) {
     console.error('Error setting up audio monitoring:', error)
-    errorMessage.value = error instanceof Error ? error.message : String(error)
+    errorMessage.value = errorMessageFromValue(error)
   }
 }
 
@@ -118,7 +119,7 @@ onStopRecord(async (recording) => {
     }
   }
   catch (err) {
-    errorMessage.value = err instanceof Error ? err.message : String(err)
+    errorMessage.value = errorMessageFromValue(err)
     console.error('Error generating transcription:', errorMessage.value)
   }
 })
@@ -173,14 +174,11 @@ onUnmounted(() => {
 
     <!-- Audio Input Selection -->
     <div mb-2>
-      <FieldSelect
+      <FieldCombobox
         v-model="selectedAudioInput"
         label="Audio Input Device"
         description="Select the audio input device for your hearing module."
-        :options="audioInputs.map(input => ({
-          label: input.label || input.deviceId,
-          value: input.deviceId,
-        }))"
+        :options="audioInputOptions"
         placeholder="Select an audio input device"
         layout="vertical"
         h-fit w-full

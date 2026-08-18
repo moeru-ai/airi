@@ -32,7 +32,7 @@
 
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.14/AIRI-0.9.0-alpha.14-windows-x64-setup.exe">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.11.3/AIRI-0.11.3-windows-x64-setup.exe">
     <picture>
       <source
         width="33%"
@@ -44,11 +44,11 @@
         srcset="./content/public/assets/download-buttons/download-buttons.windows.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.windows.light.en-US.avif" />
+      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.windows.light.en-US.avif" />
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.14/AIRI-0.9.0-alpha.14-darwin-arm64.dmg">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.11.3/AIRI-0.11.3-darwin-arm64.dmg">
     <picture>
       <source
         width="33%"
@@ -60,7 +60,7 @@
         srcset="./content/public/assets/download-buttons/download-buttons.macos.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.macos.light.en-US.avif" />
+      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.macos.light.en-US.avif" />
     </picture>
   </a>
   <a href="https://github.com/moeru-ai/airi/releases/latest">
@@ -75,11 +75,26 @@
         srcset="./content/public/assets/download-buttons/download-buttons.linux.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.linux.light.en-US.avif" />
+      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.linux.light.en-US.avif" />
     </picture>
   </a>
 </p>
 <p float="left" align="center">
+  <a href="https://airi.moeru.ai">
+    <picture>
+      <source
+        width="33%"
+        srcset="./content/public/assets/QR%20code%20button/section.cards.qrcode.dark.kr-KR.png"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="33%"
+        srcset="./content/public/assets/QR%20code%20button/section.cards.qrcode.light.kr-KR.png"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="33%" src="./content/public/assets/QR%20code%20button/section.cards.qrcode.light.kr-KR.png" />
+    </picture>
+  </a>
   <a href="https://airi.moeru.ai">
     <picture>
       <source
@@ -92,22 +107,22 @@
         srcset="./content/public/assets/download-buttons/download-buttons.mobile.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.mobile.light.en-US.avif" />
+      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.mobile.light.en-US.avif" />
     </picture>
   </a>
   <a href="https://airi.moeru.ai">
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.browser.dark.en-US.avif"
+        srcset="./content/public/assets/download-buttons/download-buttons.browser.dark.en-US.png"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.browser.light.en-US.avif"
+        srcset="./content/public/assets/download-buttons/download-buttons.browser.light.en-US.png"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.browser.light.en-US.avif" />
+      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.browser.light.en-US.png" />
     </picture>
   </a>
 </p>
@@ -119,9 +134,28 @@
 
 > [Neuro-sama](https://www.youtube.com/@Neurosama)에서 큰 영감을 받았습니다
 
+> [!TIP]
+> Windows에서는 [winget](https://learn.microsoft.com/windows/package-manager/winget/)으로 AIRI를 설치할 수 있습니다:
+>
+> ```powershell
+> winget install MoeruAI.AIRI
+> ```
+>
+> 또는 [Scoop](https://scoop.sh/)으로 AIRI를 설치할 수 있습니다:
+>
+> ```powershell
+> scoop bucket add airi https://github.com/moeru-ai/airi
+> scoop install airi/airi
+> ```
+>
+> macOS에서는 별도의 커스텀 tap을 추가하지 않고 [Homebrew Cask](https://brew.sh/)로 AIRI를 설치할 수 있습니다:
+>
+> ```sh
+> brew install --cask airi
+> ```
+
 > [!WARNING]
-> **주의:**
-> 본 프로젝트와 관련된 공식 암호화폐나 토큰은 **일절 발행하지 않았습니다**. 관련 정보에 주의하시고 신중하게 판단해 주세요.
+> **주의:** 본 프로젝트와 관련된 공식 암호화폐나 토큰은 **일절 발행하지 않았습니다**. 관련 정보에 주의하시고 신중하게 판단해 주세요.
 
 > [!NOTE]
 >
@@ -143,14 +177,18 @@
 
 그래서 이 프로젝트 AIRI는 여기서 또 다른 가능성을 제시합니다: **언제 어디서나 쉽게, 당신만의 디지털 라이프, 사이버 생명을 가질 수 있도록**.
 
-## 게시한 DevLog 및 최근 업데이트
+## 최근 DevLog와 이야기
 
-- [DevLog @ 2026.01.01](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) — 2026년 1월 1일
-- [DevLog @ 2025.10.20](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) — 2025년 10월 20일
-- [DevLog @ 2025.08.05](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) — 2025년 8월 5일
-- [DevLog @ 2025.08.01](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.01/) — 2025년 8월 1일
-- [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/en/blog/DevLog-2025.07.18/) — 2025년 7월 18일
-- [DreamLog 0x1](https://airi.moeru.ai/docs/en/blog/dreamlog-0x1/) — 2025년 6월 16일
+- [DevLog @ 2026.03.23: 모바일 성능과 게임 엔진 탐색](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.23/) - 2026년 3월 23일
+- [DevLog @ 2026.03.14: VRM 스테이지 수명주기, 캐시, 관측성](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.14/) - 2026년 3월 14일
+- [DevLog @ 2026.02.16: Dome Keeper 데이터 수집과 학습 파이프라인](https://airi.moeru.ai/docs/en/blog/DevLog-2026.02.16/) - 2026년 2월 16일
+- [DevLog @ 2026.01.01: AIRI Pocket과 FlowChat 메모리 실험](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) - 2026년 1월 1일
+- [DevLog @ 2025.10.20: Electron 이전, 새 모델, Moeru AI 업데이트](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) - 2025년 10월 20일
+- [DevLog @ 2025.08.26: airi-factorio의 순수 비전 방향 진척](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.26/) - 2025년 8월 26일
+- [DevLog @ 2025.08.05: AIRI v0.7 릴리스 하이라이트](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) - 2025년 8월 5일
+- [DevLog @ 2025.08.01: 스트리밍 텍스트 애니메이션과 자소 클러스터](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.01/) - 2025년 8월 1일
+- [DevLog @ 2025.07.18: Factorio Learning Environment로 airi-factorio 다시 보기](https://airi.moeru.ai/docs/en/blog/DevLog-2025.07.18/) - 2025년 7월 18일
+- [DreamLog 0x1: Project AIRI의 시작 이야기](https://airi.moeru.ai/docs/en/blog/DreamLog-0x1/) - 2025년 6월 16일
 - ...더 많은 내용은 [문서 사이트](https://airi.moeru.ai/docs/en/)에서
 
 ## 이 프로젝트의 특별한 점은?
@@ -190,13 +228,15 @@
 >
 > **관심이 있으시다면, 여기서 자기소개를 해보시는 건 어떨까요? [Would like to join part of us to build AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
 
-## 현재 진행 상황
+## 현재 진행 상황과 로드맵
 
 구현된 기능
 
 - [x] 두뇌
   - [x] [Minecraft](https://www.minecraft.net) 플레이
   - [x] [Factorio](https://www.factorio.com) 플레이 (진행 중, [PoC 및 데모 제공](https://github.com/moeru-ai/airi-factorio))
+  - [x] [Kerbal Space Program](https://www.kerbalspaceprogram.com/) 플레이 (공지 예정)
+  - [ ] [Helldivers 2](https://www.playstation.com/en-hk/games/helldivers-2/pc/) 함께 플레이 (진행 중)
   - [x] [Telegram](https://telegram.org)에서 채팅
   - [x] [Discord](https://discord.com)에서 채팅
   - [ ] 메모리
@@ -209,7 +249,7 @@
   - [x] 클라이언트 측 음성 인식
   - [x] 클라이언트 측 말하기 감지
 - [x] 입
-  - [x] [ElevenLabs](https://elevenlabs.io/) 음성 합성
+  - [x] [ElevenLabs](https://elevenlabs.io/), Microsoft/Azure Speech, OpenAI 호환 TTS, Alibaba Cloud Model Studio, 로컬 Kokoro TTS를 포함한 다중 제공자 음성 합성
 - [x] 몸
   - [x] VRM 지원
     - [x] VRM 모델 제어
@@ -288,7 +328,7 @@ CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
 sudo pnpm dev:tamagotchi
 ```
 
-그런 다음 Tamagotchi의 `settings/system/general`에서 보안 웹소켓을 활성화하세요.
+그런 다음 Tamagotchi의 `settings/connections`에서 보안 웹소켓을 활성화하세요.
 
 ### 문서 사이트
 
@@ -298,7 +338,7 @@ pnpm dev:docs
 
 ### 배포
 
-`bumpp` 실행 후 `Cargo.toml`의 버전도 업데이트하세요:
+`bumpp`를 실행해 모노레포 버전을 업데이트하세요:
 
 ```shell
 npx bumpp --no-commit --no-tag
@@ -324,7 +364,7 @@ npx bumpp --no-commit --no-tag
 - [x] [Mistral](https://mistral.ai/)
 - [x] [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)
 - [x] [Together.ai](https://www.together.ai/)
-- [x] [Fireworks.ai](https://www.together.ai/)
+- [x] [Fireworks.ai](https://fireworks.ai/)
 - [x] [Novita](https://www.novita.ai/)
 - [x] [Zhipu](https://bigmodel.cn)
 - [x] [SiliconFlow](https://cloud.siliconflow.cn/i/rKXmRobW)
@@ -337,6 +377,7 @@ npx bumpp --no-commit --no-tag
 - [x] [Tencent Cloud](https://cloud.tencent.com/document/product/1729)
 - [ ] [Sparks](https://www.xfyun.cn/doc/spark/Web.html) (PR 환영)
 - [ ] [Volcano Engine](https://www.volcengine.com/experience/ark?utm_term=202502dsinvite&ac=DSASUQY5&rc=2QXCA1VI) (PR 환영)
+- [x] [Xiaomi Mimo](https://platform.xiaomimimo.com)
 
 ## 이 프로젝트에서 탄생한 하위 프로젝트
 
@@ -347,7 +388,6 @@ npx bumpp --no-commit --no-tag
 - [WebAI: Realtime Voice Chat](https://github.com/proj-airi/webai-realtime-voice-chat): VAD + STT + LLM + TTS로 ChatGPT 실시간 음성을 처음부터 구현한 완전한 예제
 - [`@proj-airi/drizzle-duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/drizzle-duckdb-wasm/README.md): DuckDB WASM용 Drizzle ORM 드라이버
 - [`@proj-airi/duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/duckdb-wasm/README.md): 사용하기 쉬운 `@duckdb/duckdb-wasm` 래퍼
-- [`tauri-plugin-mcp`](https://github.com/moeru-ai/airi/blob/main/crates/tauri-plugin-mcp/README.md): MCP 서버와 상호작용하기 위한 Tauri 플러그인
 - [AIRI Factorio](https://github.com/moeru-ai/airi-factorio): AIRI가 Factorio를 플레이할 수 있게 하는 프로젝트
 - [Factorio RCON API](https://github.com/nekomeowww/factorio-rcon-api): Factorio 헤드리스 서버 콘솔용 RESTful API 래퍼
 - [`autorio`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/autorio): Factorio 자동화 라이브러리
@@ -428,7 +468,6 @@ flowchart TD
   XSAI --> F_AGENT
   XSAI --> MC_AGENT
 
-  Core --> TauriMCP("@proj-airi/tauri-plugin-mcp")
   Memory_PGVector("@proj-airi/memory-pgvector") --> Memory
 
   style Core fill:#f9d4d4,stroke:#333,stroke-width:1px
@@ -481,6 +520,30 @@ flowchart TD
 - [mallorbc/whisper_mic](https://github.com/mallorbc/whisper_mic)
 - [`xsai`](https://github.com/moeru-ai/xsai): LLM 및 모델과 상호작용하기 위한 다양한 패키지를 구현, [Vercel AI SDK](https://sdk.vercel.ai/)와 비슷하지만 훨씬 작습니다
 
+## 후원자
+
+<p align="center">
+  <strong>OpenCollective, Patreon, Ko-fi를 통해 Project AIRI를 후원해 주셔서 감사합니다.</strong>
+</p>
+
+<p align="center">
+  <img src="./content/public/assets/sponsors/sponsors.svg" alt="Project AIRI supporters" />
+</p>
+
+## 특별한 감사
+
+Project AIRI에 기여해 주신 모든 기여자분들께 특별한 감사를 드립니다 ❤️
+
+<a href="https://github.com/moeru-ai/airi/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=moeru-ai/airi" />
+</a>
+
 ## 스타 히스토리
 
-[![Star History Chart](https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date)](https://www.star-history.com/#moeru-ai/airi&Date)
+<a href="https://star-history.com/#moeru-ai/airi&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date" />
+  </picture>
+</a>

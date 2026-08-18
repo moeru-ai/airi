@@ -1,4 +1,10 @@
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { onUnmounted, ref } from 'vue'
+
+const amplification = 3 // Amplification factor for volume visualization
+
+const volumeLevel = ref(0) // 0-100
+const error = ref<string>()
 
 export function useAudioAnalyzer() {
   const analyzer = ref<AnalyserNode>()
@@ -6,11 +12,6 @@ export function useAudioAnalyzer() {
   const animationFrame = ref<number>()
 
   const onAnalyzerUpdateHooks = ref<Array<(volumeLevel: number) => void | Promise<void>>>([])
-
-  const volumeLevel = ref(0) // 0-100
-  const error = ref<string>()
-
-  const amplification = 3 // Amplification factor for volume visualization
 
   function onAnalyzerUpdate(callback: (volumeLevel: number) => void | Promise<void>) {
     onAnalyzerUpdateHooks.value.push(callback)
@@ -71,7 +72,7 @@ export function useAudioAnalyzer() {
     }
     catch (err) {
       console.error('Error setting up audio monitoring:', err)
-      error.value = err instanceof Error ? err.message : String(err)
+      error.value = errorMessageFromValue(err)
     }
   }
 

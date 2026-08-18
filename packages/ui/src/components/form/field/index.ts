@@ -1,4 +1,6 @@
 export { default as FieldCheckbox } from './field-checkbox.vue'
+export { default as FieldCombobox } from './field-combobox-select.vue'
+export { default as FieldInputFile } from './field-input-file.vue'
 export { default as FieldInput } from './field-input.vue'
 export { default as FieldKeyValues } from './field-key-values.vue'
 export { default as FieldRange } from './field-range.vue'

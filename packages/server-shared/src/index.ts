@@ -1,1 +1,2 @@
-console.warn('import @proj-airi/server-shared/types instead')
+export * from './errors'
+export * from './types'

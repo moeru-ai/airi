@@ -4,6 +4,7 @@ import type { AuthenticatedPeer } from '../../types'
 
 function globToRegExp(glob: string) {
   const escaped = glob.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+
   const pattern = `^${escaped.replace(/\*/g, '.*')}$`
   return new RegExp(pattern)
 }
@@ -17,7 +18,10 @@ function matchesGlob(glob: string, value?: string) {
 }
 
 export function matchesLabelSelector(selector: string, labels: Record<string, string>) {
-  const [key, value] = selector.split('=', 2)
+  const [rawKey, rawValue] = selector.split('=', 2)
+  const key = rawKey?.trim()
+  const value = rawValue?.trim()
+
   if (!key) {
     return false
   }
@@ -35,31 +39,50 @@ export function matchesLabelSelectors(selectors: string[], labels: Record<string
 
 function getPeerLabels(peer: AuthenticatedPeer) {
   return {
-    ...peer.identity?.plugin?.labels,
+    ...peer.extensionIdentity?.labels,
+    ...peer.identity?.extension.labels,
     ...peer.identity?.labels,
   }
 }
 
-export function matchesRouteExpression(expression: RouteTargetExpression, peer: AuthenticatedPeer) {
+function getPeerExtensionId(peer: AuthenticatedPeer) {
+  return peer.identity?.extension.id ?? peer.extensionIdentity?.id
+}
+
+function matchesExtensionModule(peer: AuthenticatedPeer, moduleName: string) {
+  return [...peer.extensionModules?.values() ?? []]
+    .some(module => module.name === moduleName || module.identity.id === moduleName)
+}
+
+function matchesExtensionModuleGlob(peer: AuthenticatedPeer, glob: string) {
+  return [...peer.extensionModules?.values() ?? []]
+    .some(module => matchesGlob(glob, module.name) || matchesGlob(glob, module.identity.id))
+}
+
+function matchesPeerId(peer: AuthenticatedPeer, peerId: string) {
+  return peer.peer.id === peerId || Boolean(peer.peerIds?.has(peerId))
+}
+
+export function matchesRouteExpression(expression: RouteTargetExpression, peer: AuthenticatedPeer): boolean {
   switch (expression.type) {
     case 'and':
       return expression.all.every(expr => matchesRouteExpression(expr, peer))
     case 'or':
       return expression.any.some(expr => matchesRouteExpression(expr, peer))
     case 'glob': {
-      const pluginId = peer.identity?.plugin?.id
+      const extensionId = getPeerExtensionId(peer)
       const matched = matchesGlob(expression.glob, peer.name)
-        || matchesGlob(expression.glob, pluginId)
+        || matchesGlob(expression.glob, extensionId)
         || matchesGlob(expression.glob, peer.identity?.id)
 
       return expression.inverted ? !matched : matched
     }
     case 'ids': {
-      const matched = expression.ids.includes(peer.peer.id)
+      const matched = expression.ids.some(peerId => matchesPeerId(peer, peerId))
       return expression.inverted ? !matched : matched
     }
     case 'plugin': {
-      const matched = expression.plugins.includes(peer.identity?.plugin?.id ?? '')
+      const matched = expression.plugins.includes(getPeerExtensionId(peer) ?? '')
       return expression.inverted ? !matched : matched
     }
     case 'instance': {
@@ -71,7 +94,7 @@ export function matchesRouteExpression(expression: RouteTargetExpression, peer: 
       return expression.inverted ? !matched : matched
     }
     case 'module': {
-      const matched = expression.modules.includes(peer.name)
+      const matched = expression.modules.some(module => peer.name === module || matchesExtensionModule(peer, module))
       return expression.inverted ? !matched : matched
     }
     case 'source': {
@@ -97,22 +120,24 @@ export function matchesDestination(destination: string | RouteTargetExpression, 
 
   switch (prefix) {
     case 'plugin':
-      return peer.identity?.plugin?.id === value
+      return getPeerExtensionId(peer) === value
     case 'instance':
       return peer.identity?.id === value
     case 'label':
       return matchesLabelSelectors([value], getPeerLabels(peer))
     case 'peer':
-      return peer.peer.id === value
+      return matchesPeerId(peer, value)
     case 'module':
-      return peer.name === value
+      return peer.name === value || matchesExtensionModule(peer, value)
     case 'source':
       return peer.name === value
     default: {
-      const pluginId = peer.identity?.plugin?.id
+      const extensionId = getPeerExtensionId(peer)
+      // REVIEW: Bare/glob destination matching is kept for existing event payloads that do not use module:<name>.
       return matchesGlob(destination, peer.name)
-        || matchesGlob(destination, pluginId)
+        || matchesGlob(destination, extensionId)
         || matchesGlob(destination, peer.identity?.id)
+        || matchesExtensionModuleGlob(peer, destination)
     }
   }
 }

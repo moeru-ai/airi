@@ -1,20 +1,50 @@
 import type { RemovableRef } from '@vueuse/core'
 
+import type { ProviderConfigStep, ProviderMode } from './use-analytics'
+
+import { errorMessageFrom } from '@moeru/std'
 import { useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import { useProvidersStore } from '../stores/providers'
+import { selectProviderMetadata } from '../libs/providers/metadata'
+import { useProviderConfigStore } from '../stores/providers/config'
+import { useProviderStore } from '../stores/providers/provider'
+import { useAnalytics } from './use-analytics'
+
+/**
+ * Classifies provider ids into bounded analytics buckets.
+ */
+function providerModeForAnalytics(providerId: string): ProviderMode {
+  if (!providerId)
+    return 'unknown'
+
+  return providerId.startsWith('official-provider') || providerId.startsWith('vision-official-provider')
+    ? 'official'
+    : 'custom'
+}
 
 export function useProviderValidation(providerId: string) {
   const { t } = useI18n()
   const router = useRouter()
-  const providersStore = useProvidersStore()
-  const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+  const providersStore = useProviderStore()
+  const providerStore = useProviderConfigStore()
+  const {
+    trackProviderConfigFailed,
+    trackProviderConfigStarted,
+    trackProviderConfigSucceeded,
+  } = useAnalytics()
+  const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
 
-  const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
+  const providerMetadata = computed(() => {
+    const definition = providersStore.getProviderDefinition(providerId)
+    return selectProviderMetadata(definition, t, {
+      id: providerId,
+      configured: providerStore.getProvider(providerId)?.status === 'configured',
+    })
+  })
 
   // --- Internal Computed Properties for Credentials ---
   const credentials = computed(() => providers.value[providerId] || {})
@@ -52,6 +82,23 @@ export function useProviderValidation(providerId: string) {
   const isValid = ref(false)
   const validationMessage = ref('')
 
+  // Manual chat ping check state (settings pages only)
+  const hasManualValidators = computed(() => providersStore.hasManualProviderValidators(providerId))
+  const isManualTesting = ref(false)
+  const manualTestPassed = ref(false)
+  const manualTestMessage = ref('')
+
+  /**
+   * Builds the stable provider analytics fields shared by validation events.
+   */
+  function providerConfigAnalyticsBase(step: ProviderConfigStep) {
+    return {
+      provider_id: providerId,
+      provider_mode: providerModeForAnalytics(providerId),
+      step,
+    }
+  }
+
   async function validateConfiguration() {
     if (!providerMetadata.value)
       return
@@ -59,6 +106,7 @@ export function useProviderValidation(providerId: string) {
     isValidating.value++
     validationMessage.value = ''
     const startValidationTimestamp = performance.now()
+    trackProviderConfigStarted(providerConfigAnalyticsBase('settings_auto_validate'))
     let finalValidationMessage = ''
 
     try {
@@ -68,24 +116,43 @@ export function useProviderValidation(providerId: string) {
       if (config.baseUrl)
         config.baseUrl = config.baseUrl.trim()
 
-      const validationResult = await providerMetadata.value.validators.validateProviderConfig(config)
+      // Settings pages always skip chat ping check during automatic validation
+      // to avoid unexpected API billing. Users can trigger it manually.
+      const validationResult = await providersStore.validateProviderConfig(providerId, config, {
+        skipChatPingCheck: true,
+      })
       isValid.value = validationResult.valid
 
-      if (!isValid.value)
+      if (!isValid.value) {
         finalValidationMessage = validationResult.reason
+        trackProviderConfigFailed({
+          ...providerConfigAnalyticsBase('settings_auto_validate'),
+          error_code: 'validation_failed',
+          duration_ms: Math.round(performance.now() - startValidationTimestamp),
+        })
+      }
 
       // When a provider validates successfully on its settings page,
       // mark it as added so it appears in the model selector (e.g. Consciousness module).
       // This fixes providers like LM Studio that use default config and may not
       // need an API key, yet should be selectable after successful validation.
       if (isValid.value) {
-        providersStore.markProviderAdded(providerId)
+        providerStore.markProviderAdded(providerId)
+        trackProviderConfigSucceeded({
+          ...providerConfigAnalyticsBase('settings_auto_validate'),
+          duration_ms: Math.round(performance.now() - startValidationTimestamp),
+        })
       }
     }
     catch (error) {
       isValid.value = false
       finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessageFrom(error) ?? 'Generic error (993b5ad7)',
+      })
+      trackProviderConfigFailed({
+        ...providerConfigAnalyticsBase('settings_auto_validate'),
+        error_code: 'provider_error',
+        duration_ms: Math.round(performance.now() - startValidationTimestamp),
       })
     }
     finally {
@@ -96,13 +163,65 @@ export function useProviderValidation(providerId: string) {
     }
   }
 
-  const debouncedValidateConfiguration = useDebounceFn(() => {
-    const config = credentials.value
-    const hasApiKey = 'apiKey' in config && !!config.apiKey?.trim()
-    const hasBaseUrl = 'baseUrl' in config && !!config.baseUrl?.trim()
-    const hasAccountId = 'accountId' in config && !!config.accountId?.trim()
+  async function runManualTest() {
+    if (!providerMetadata.value)
+      return
 
-    if (!hasApiKey && !hasBaseUrl && !hasAccountId) {
+    isManualTesting.value = true
+    manualTestMessage.value = ''
+    const startedAt = performance.now()
+    trackProviderConfigStarted(providerConfigAnalyticsBase('manual_chat_ping'))
+
+    try {
+      const config = { ...credentials.value }
+      if (config.apiKey)
+        config.apiKey = config.apiKey.trim()
+      if (config.baseUrl)
+        config.baseUrl = config.baseUrl.trim()
+
+      const result = await providersStore.validateProviderConfig(providerId, config, {
+        onlyChatPingCheck: true,
+      })
+      manualTestPassed.value = result.valid
+      if (result.valid) {
+        trackProviderConfigSucceeded({
+          ...providerConfigAnalyticsBase('manual_chat_ping'),
+          duration_ms: Math.round(performance.now() - startedAt),
+        })
+      }
+      else {
+        manualTestMessage.value = result.reason
+        trackProviderConfigFailed({
+          ...providerConfigAnalyticsBase('manual_chat_ping'),
+          error_code: 'validation_failed',
+          duration_ms: Math.round(performance.now() - startedAt),
+        })
+      }
+    }
+    catch (error) {
+      manualTestPassed.value = false
+      manualTestMessage.value = errorMessageFrom(error) ?? 'Generic error (e56ae24f)'
+      trackProviderConfigFailed({
+        ...providerConfigAnalyticsBase('manual_chat_ping'),
+        error_code: 'provider_error',
+        duration_ms: Math.round(performance.now() - startedAt),
+      })
+    }
+    finally {
+      isManualTesting.value = false
+    }
+  }
+
+  const AUTH_FIELDS = ['apiKey', 'baseUrl', 'accountId', 'apiToken', 'accessToken'] as const
+
+  const debouncedValidateConfiguration = useDebounceFn(() => {
+    const config = credentials.value as Record<string, unknown>
+    // Only check auth credential fields — excludes config-only fields like region, endpoint
+    const hasAnyCredential = AUTH_FIELDS.some((field) => {
+      const v = config[field]
+      return v !== null && v !== undefined && String(v).trim() !== ''
+    })
+    if (!hasAnyCredential) {
       isValid.value = false
       validationMessage.value = ''
       isValidating.value = 0
@@ -113,26 +232,43 @@ export function useProviderValidation(providerId: string) {
 
   onMounted(() => {
     providersStore.initializeProvider(providerId)
-    if (Object.keys(credentials.value).some(key => !!credentials.value[key])) {
+    const config = credentials.value as Record<string, unknown>
+    if (AUTH_FIELDS.some((field) => {
+      const v = config[field]
+      return v !== null && v !== undefined && String(v).trim() !== ''
+    })) {
       validateConfiguration()
     }
   })
 
-  watch(credentials, () => {
+  // The synced config store re-applies fresh object snapshots (new references,
+  // identical content) after every synced action. Watching a serialized signature
+  // instead of the deep object prevents equivalent snapshots from re-triggering
+  // validation, which would otherwise loop with markProviderAdded().
+  const credentialsSignature = computed(() => JSON.stringify(credentials.value))
+
+  watch(credentialsSignature, () => {
     debouncedValidateConfiguration()
-  }, { deep: true })
+    // Reset manual test state when credentials actually change
+    manualTestPassed.value = false
+    manualTestMessage.value = ''
+  })
 
   function handleResetSettings() {
-    const defaultOptions = providerMetadata.value?.defaultOptions ? providerMetadata.value.defaultOptions() : {}
+    const defaultOptions = providerMetadata.value?.defaultConfig ?? {}
     providers.value[providerId] = { ...defaultOptions }
     isValid.value = false
     validationMessage.value = ''
     isValidating.value = 0
+    manualTestPassed.value = false
+    manualTestMessage.value = ''
   }
 
   function forceValid() {
     isValid.value = true
     validationMessage.value = ''
+    manualTestPassed.value = true
+    manualTestMessage.value = ''
     providersStore.forceProviderConfigured(providerId)
   }
 
@@ -148,5 +284,11 @@ export function useProviderValidation(providerId: string) {
     validationMessage,
     handleResetSettings,
     forceValid,
+    // Manual test generation
+    hasManualValidators,
+    isManualTesting,
+    manualTestPassed,
+    manualTestMessage,
+    runManualTest,
   }
 }

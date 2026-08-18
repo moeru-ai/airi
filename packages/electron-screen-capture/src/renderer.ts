@@ -8,7 +8,7 @@ import { defineInvoke } from '@moeru/eventa'
 import { screenCaptureCheckMacOSPermission, screenCaptureGetSources, screenCaptureRequestMacOSPermission, screenCaptureResetSource, screenCaptureSetSourceEx } from '.'
 
 export interface SourceOptionsWithRequest {
-  sourcesOptions?: SourcesOptions
+  sourcesOptions: SourcesOptions
   request?: Omit<ScreenCaptureSetSourceRequest, 'options' | 'sourceId'>
 }
 
@@ -27,17 +27,17 @@ export function setupElectronScreenCapture(context: ReturnType<typeof createCont
   async function selectWithSource<R>(
     selectFn: (sources: SerializableDesktopCapturerSource[]) => string | Promise<string>,
     useFn: () => R | Promise<R>,
-    options?: SourceOptionsWithRequest,
+    options: SourceOptionsWithRequest,
   ): Promise<R> {
-    const sources = await getSources(options?.sourcesOptions)
+    const sources = await getSources(options.sourcesOptions)
     const sourceId = await selectFn(sources)
 
     let handle: string | undefined
     try {
       handle = await setSource({
-        options: options?.sourcesOptions,
+        options: options.sourcesOptions,
         sourceId,
-        timeout: options?.request?.timeout,
+        timeout: options.request?.timeout,
       })
       return await useFn()
     }

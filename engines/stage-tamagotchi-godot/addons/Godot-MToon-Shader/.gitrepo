@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/V-Sekai/Godot-MToon-Shader
+	branch = main
+	commit = 268c0d3b19c0885698b7bd39e21a16c9c2af448f
+	parent = ea5d414bf9fd9001f5bce91a1e03a04c887c453c
+	method = merge
+	cmdver = 0.4.6

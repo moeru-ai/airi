@@ -79,6 +79,10 @@ export function useBackgroundThemeColor({
       return waveThemeColor()
     }
 
+    if (selectedOption.value?.kind === BackgroundKind.Transparent) {
+      return isDark.value ? 'rgb(18 18 18 / 0)' : 'rgb(255 255 255 / 0)'
+    }
+
     return sampledColor.value
   })
 
@@ -86,11 +90,11 @@ export function useBackgroundThemeColor({
   const { pause, resume } = useIntervalFn(() => {
     if (visibility.value !== 'visible')
       return
-    if (selectedOption.value?.kind === BackgroundKind.Wave && themeColorsHueDynamic)
+    if (selectedOption.value?.kind === BackgroundKind.Wave && themeColorsHueDynamic.value)
       void updateThemeColor()
   }, 250, { immediate: false })
 
-  watch([() => selectedOption.value?.kind, () => themeColorsHueDynamic], ([kind, dynamic]) => {
+  watch([() => selectedOption.value?.kind, () => themeColorsHueDynamic.value], ([kind, dynamic]) => {
     if (kind === BackgroundKind.Wave && dynamic) {
       void updateThemeColor()
       resume()
@@ -116,6 +120,12 @@ export function useBackgroundThemeColor({
     const token = ++samplingToken
     const optionId = selectedOption.value?.id
     if (selectedOption.value?.kind === BackgroundKind.Wave) {
+      await updateThemeColor()
+      return
+    }
+
+    if (selectedOption.value?.kind === BackgroundKind.Transparent) {
+      sampledColor.value = 'transparent'
       await updateThemeColor()
       return
     }

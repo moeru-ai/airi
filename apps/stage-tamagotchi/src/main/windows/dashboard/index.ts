@@ -4,19 +4,18 @@ import type { InferOutput } from 'valibot'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { NoticeWindowManager } from '../notice'
+import type { SettingsWindowManager } from '../settings'
 
 import { dirname, join, resolve } from 'node:path'
 import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
-
-import clickDragPlugin from 'electron-click-drag-plugin'
 
 import { is } from '@electron-toolkit/utils'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { defu } from 'defu'
-import { BrowserWindow, ipcMain, shell } from 'electron'
+import { BrowserWindow, ipcMain } from 'electron'
 import { isLinux } from 'std-env'
 import { array, number, object, optional, string } from 'valibot'
 
@@ -25,6 +24,7 @@ import icon from '../../../../resources/icon.png?asset'
 import { electronStartDraggingWindow } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
+import { protectPrivilegedWindowNavigation } from '../shared'
 import { setupDashboardWindowElectronInvokes } from './rpc/index.electron'
 
 const appConfigSchema = object({
@@ -41,7 +41,7 @@ const appConfigSchema = object({
 type AppConfig = InferOutput<typeof appConfigSchema>
 
 export async function setupDashboardWindow(params: {
-  settingsWindow: () => Promise<BrowserWindow>
+  settingsWindow: SettingsWindowManager
   chatWindow: () => Promise<BrowserWindow>
   noticeWindow: NoticeWindowManager
   onWindowCreated?: (window: BrowserWindow) => void
@@ -126,12 +126,7 @@ export async function setupDashboardWindow(params: {
   window.on('move', () => handleNewBounds(window.getBounds()))
 
   window.on('ready-to-show', () => window!.show())
-  window.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
-  })
-
-  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/dashboard'))
+  protectPrivilegedWindowNavigation(window)
 
   await setupDashboardWindowElectronInvokes({
     window,
@@ -142,6 +137,10 @@ export async function setupDashboardWindow(params: {
     serverChannel: params.serverChannel,
   })
 
+  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/dashboard', {
+    query: { 'synced-leader': 'false' },
+  }))
+
   /**
    * This is a know issue (or expected behavior maybe) to Electron.
    * We don't use this approach on Linux because it's not working.
@@ -150,6 +149,8 @@ export async function setupDashboardWindow(params: {
    * Workaround: https://github.com/noobfromph/electron-click-drag-plugin
    */
   if (!isLinux) {
+    const { default: clickDragPlugin } = await import('electron-click-drag-plugin')
+
     function handleStartDraggingWindow() {
       try {
         const windowId = window.getNativeWindowHandle()

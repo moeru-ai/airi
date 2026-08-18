@@ -1,0 +1,200 @@
+electronCallback:
+  title:
+    loading: Finalisation de connexion
+    openingAiri: Ouverture d'AIRI
+    signedIn: Vous êtes connecté
+    signInFailed: Échec de la connexion
+    finishSignInInAiri: Terminer la connexion dans AIRI
+    openAiriToContinue: Ouvrez AIRI pour continuer
+  message:
+    checkingResponse: Vérification de votre réponse de connexion et préparation du transfert vers AIRI.
+    passingToAiri: Transmission de votre connexion à AIRI en cours. Cette page devrait se fermer dans un instant.
+    syncedAndSafeToClose: Nous avons notifié le client AIRI depuis lequel vous vous êtes connecté.
+    invalidResponse: Nous n'avons pas pu utiliser cette réponse de connexion.
+    loopbackUnreachable: Le navigateur n'a pas pu joindre AIRI via le port de rappel local.
+    tryOpenDirectly: Nous allons essayer d'ouvrir le transfert local directement. Si cela échoue encore, utilisez le bouton ci-dessous.
+    automaticHandoffFailed: Le transfert automatique ne s'est pas terminé dans cette session de navigateur.
+  label:
+    signIn: Se connecter
+    safeToClose: Vous pouvez fermer cet onglet en toute sécurité.
+    whyStillHere: Pourquoi cet onglet est-il encore là ?
+  action:
+    openAiriManually: Ouvrir AIRI manuellement
+  hint:
+    closeTabManually: Certains navigateurs ne permettent pas à cette page de se fermer automatiquement. Vous pouvez la fermer manuellement.
+signIn:
+  title: Connexion
+  step:
+    identify:
+      heading: Connexion
+      description: Saisissez votre e-mail pour vous connecter ou créer un compte.
+    password:
+      heading: Bon retour
+      description: Continuer en tant que {email}.
+    create:
+      heading: Créez votre compte
+      description: Nous allons créer un nouveau compte pour {email}.
+  email:
+    label: E-mail
+    placeholder: vous{'@'}exemple.com
+  password:
+    label: Mot de passe
+    placeholder: Votre mot de passe
+  newPassword:
+    label: Créer un mot de passe
+    placeholder: Au moins 8 caractères
+  confirmPassword:
+    label: Confirmez le mot de passe
+    placeholder: Confirmez votre mot de passe
+  name:
+    label: Nom d'affichage
+    placeholder: Facultatif, utilisez par défaut votre e-mail
+  action:
+    continue: Continuer
+    signIn: Se connecter
+    createAccount: Créer un compte
+    forgotPassword: Mot de passe oublié ?
+    useDifferentEmail: Utiliser une adresse e-mail différente
+  divider:
+    or: ou
+  error:
+    fallback: Échec de la connexion
+    unknown: Une erreur inconnue s'est produite
+    socialOnlyNoPassword: Cet e-mail a été enregistré avec Google ou GitHub. Connectez-vous avec un bouton ci-dessous, vous pouvez ajouter un mot de passe dans les paramètres du compte après vous être connecté.
+    passwordMismatch: Problème de correspondance des mots de passe.
+    invalidEmail: Veuillez saisir une adresse courriel valide.
+  footer:
+    prefix: En continuant, vous acceptez nos
+    terms: Conditions Générales d'Utilisation
+    and: et
+    privacy: Politique de Confidentialité
+verifyEmail:
+  title:
+    pending: Vérifiez votre boîte de réception
+    success: E-mail vérifié
+    failed: Échec de la vérification
+  message:
+    pending: Nous avons envoyé un lien de vérification à votre adresse e-mail. Ouvrez-le pour terminer la création de votre compte — cette page continuera automatiquement une fois le lien cliqué.
+    pendingWithAddress: Nous avons envoyé un lien de vérification à {email}. Ouvrez-le pour terminer la création de votre compte — cette page se chargera automatiquement une fois que vous aurez cliqué sur le lien.
+    success: Votre adresse e-mail a été vérifiée et vous êtes connecté. Vous pouvez fermer cet onglet.
+    failed: Nous n'avons pas pu vérifier votre e-mail ({error}). Essayez de demander un nouveau lien.
+  action:
+    backToSignIn: Revenir à la page de connexion
+forgotPassword:
+  title: Réinitialisez votre mot de passe
+  description: Saisissez l'adresse e-mail associée à votre compte et nous vous enverrons un lien de réinitialisation.
+  email:
+    label: E-mail
+    placeholder: vous{'@'}exemple.com
+  action:
+    send: Envoyer un lien de réinitialisation
+    backToSignIn: Revenir à la page de connexion
+  message:
+    sent: Si {email} correspond à un compte, un lien de réinitialisation sera bientôt disponible.
+  error:
+    fallback: Nous n'avons pas pu envoyer l'e-mail de réinitialisation.
+deleteAccount:
+  title:
+    success: Compte supprimé
+    failed: Impossible de supprimer le compte
+  message:
+    success: Votre compte a été supprimé.
+  action:
+    closeTab: Vous pouvez fermer cet onglet.
+resetPassword:
+  title:
+    default: Définir un nouveau mot de passe
+    success: Mot de passe modifié avec succès
+  password:
+    label: Nouveau mot de passe
+    placeholder: Au moins 8 caractères
+  confirmPassword:
+    label: Confirmer le nouveau mot de passe
+    placeholder: Répétez votre nouveau mot de passe
+  action:
+    reset: Mettre à jour le mot de passe
+    goSignIn: Aller à la page de connexion
+  message:
+    success: Votre mot de passe a été mis à jour. Connectez-vous avec votre nouveau mot de passe.
+  error:
+    fallback: Nous n'avons pas pu mettre à jour votre mot de passe.
+    missingToken: Le lien de réinitialisation est invalide ou a expiré.
+    passwordMismatch: Les mots de passe ne correspondent pas.
+profile:
+  title: Compte
+  description: Gérez votre avatar, votre nom d'affichage et vos comptes connectés.
+  section:
+    profile: Profil
+    avatar: Image de profil
+    password: Mot de passe
+    linkedAccounts: Comptes connectés
+  field:
+    email: E-mail
+    emailVerified: État du courriel
+    createdAt: Rejoint
+  label:
+    verified: Vérifié
+    unverified: Non vérifié
+  name:
+    label: Nom d'affichage
+    placeholder: Comment les autres vous voient
+  avatar:
+    altText: Image de profil
+    gravatarNotice: Avatar de Gravatar.
+    gravatarLink: Gérer sur gravatar.com
+  password:
+    currentLabel: Mot de passe actuel
+    currentPlaceholder: Entrez votre de masse de passe actuel
+    newLabel: Nouveau mot de passe
+    newPlaceholder: Au moins 8 caractères
+    confirmLabel: Confirmer le nouveau mot de passe
+    confirmPlaceholder: Répétez votre nouveau mot de passe
+    setDescription: Vous vous êtes connecté via un réseau social, donc il n'y a pas encore de mot de passe. Nous vous enverrons un lien sécurisé pour en définir.
+    setLinkSent: Vérifiez {email} pour le lien pour définir votre mot de passe.
+    setLinkFailed: Nous n'avons pas pu envoyer le lien de configuration du mot de passe.
+  linkedAccounts:
+    description: Connectez-vous à AIRI par l'intermédiaire de ces fournisseurs. Déconnectez-vous en pour révoquer l'accès, puis liez à nouveau pour basculer vers un autre compte.
+    status:
+      linked: Relié
+      notLinked: Non relié
+      linkedSince: Lié le {date}
+    action:
+      link: Lien
+      unlink: Dissocier
+    message:
+      loading: Chargement des comptes connectés...
+      unlinked: '{provider} Déconnecté.'
+      linkStarted: Redirection vers {provider}…
+    error:
+      listFailed: Impossible de charger les comptes connectés.
+      unlinkFailed: Impossible de dissocier ce compte.
+      linkFailed: Impossible de démarrer le flux de liaison.
+      lastAccount: C'est votre seule méthode de connexion. Définissez d'abord un mot de passe avant de le dissocier.
+  action:
+    saveProfile: Enregistrer les modifications
+    changePassword: Changer le mot de passe
+    sendSetPasswordLink: Envoyez-moi un lien pour définir mon mot de passe
+    signOut: Se déconnecter
+  message:
+    loading: Chargement de votre profil...
+    profileSaved: Profil mis à jour.
+    passwordChanged: Mot de passe modifié. Les autres sessions ont été déconnectées.
+  error:
+    loadFailed: Nous n'avons pas pu charger votre profil.
+    saveFailed: Nous n'avons pas pu enregistrer vos modifications.
+    changePasswordFailed: Nous n'avons pas pu changer votre mot de passe.
+    signOutFailed: Nous n'avons pas pu vous déconnecter.
+    passwordMismatch: Les mots de passe ne correspondent pas.
+    passwordSameAsCurrent: Le nouveau mot de passe doit être différent du mot de passe actuel.
+webCallback:
+  title:
+    signIn: Se connecter
+    errorLabel: Nous avons rencontré une erreur lors de votre connexion
+    loading: Connexion en cours...
+  message:
+    missingCodeOrState: Code d'autorisation ou état manquant
+    missingFlowState: État du flux OIDC manquant - veuillez réessayer de vous connecter
+    tokenExchangeFailed: L'échange de jetons a échoué
+    finalizing: Finalisation de l'authentification avec AIRI.
+  action:
+    tryAgain: Réessayez

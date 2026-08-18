@@ -13,16 +13,19 @@ import {
   TranscriptionPlayground,
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
+import { getDefinedProvider } from '@proj-airi/stage-ui/libs'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { FieldInput, FieldSelect } from '@proj-airi/ui'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
+import { FieldCombobox, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 
 const providerId = 'openai-compatible-audio-transcription'
 const hearingStore = useHearingStore()
-const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
 
 // Define computed properties for credentials
 const apiKey = computed({
@@ -39,9 +42,7 @@ const baseUrl = computed({
     const stored = providers.value[providerId]?.baseUrl
     if (stored)
       return stored
-    // Use default from provider metadata if available
-    const metadata = providersStore.getProviderMetadata(providerId)
-    return metadata?.defaultOptions?.().baseUrl as string | undefined || ''
+    return providersStore.getDefaultProviderConfig(providerId).baseUrl as string | undefined || ''
   },
   set: (value) => {
     if (!providers.value[providerId])
@@ -78,7 +79,7 @@ async function handleGenerateTranscription(file: File) {
     throw new Error('Failed to initialize transcription provider')
 
   // Get provider configuration
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = providerStore.getProviderConfig(providerId)
 
   // Get model from configuration or use the reactive model value
   const modelToUse = providerConfig.model as string | undefined || model.value
@@ -108,6 +109,21 @@ const {
   handleResetSettings,
   forceValid,
 } = useProviderValidation(providerId)
+
+const apiKeyPlaceholder = computed(() => {
+  const definition = getDefinedProvider(providerId)
+  if (!definition?.createProviderConfig)
+    return 'sk-...'
+
+  const schema = definition.createProviderConfig({ t }) as any
+  const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
+  const apiKeySchema = shape?.apiKey
+  if (!apiKeySchema)
+    return 'sk-...'
+
+  const meta = typeof apiKeySchema.meta === 'function' ? apiKeySchema.meta() : undefined
+  return typeof meta?.placeholderLocalized === 'string' ? meta.placeholderLocalized : 'sk-...'
+})
 
 // Expand Advanced section if there's a base URL validation error
 const shouldExpandAdvanced = computed(() => {
@@ -146,8 +162,7 @@ onMounted(async () => {
   providersStore.initializeProvider(providerId)
   // Initialize baseUrl with default if not set
   if (!providers.value[providerId]?.baseUrl) {
-    const metadata = providersStore.getProviderMetadata(providerId)
-    const defaultBaseUrl = metadata?.defaultOptions?.().baseUrl as string | undefined
+    const defaultBaseUrl = providersStore.getDefaultProviderConfig(providerId).baseUrl as string | undefined
     if (defaultBaseUrl) {
       baseUrl.value = defaultBaseUrl
     }
@@ -174,7 +189,7 @@ watch([apiKey, baseUrl], async ([newApiKey, newBaseUrl]) => {
 
 // Watch model changes to save to provider config
 watch(model, () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = providerStore.getProviderConfig(providerId)
   providerConfig.model = model.value
 })
 </script>
@@ -195,10 +210,10 @@ watch(model, () => {
           <ProviderApiKeyInput
             v-model="apiKey"
             :provider-name="providerMetadata?.localizedName"
-            placeholder="sk-..."
+            :placeholder="apiKeyPlaceholder"
           />
           <!-- Model selection: Use dropdown if models are available, otherwise use text input -->
-          <FieldSelect
+          <FieldCombobox
             v-if="providerModels.length > 0"
             v-model="model"
             label="Model"

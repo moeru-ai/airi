@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AIRI</string>
+    <string name="title_activity_main">AIRI</string>
+    <string name="package_name">ai.moeru.airi_pocket</string>
+    <string name="custom_url_scheme">ai.moeru.airi_pocket</string>
+</resources>

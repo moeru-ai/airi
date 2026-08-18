@@ -64,6 +64,7 @@ async function main() {
   if (argOptions.getBundleName) {
     const filenames = await getFilenames(target, argOptions)
     console.info(filenames[0].releaseArtifactFilename)
+    return
   }
   if (argOptions.getFilename && argOptions.getFilename[0]) {
     const ext = String(argOptions.getFilename[0]).trim()
@@ -74,6 +75,7 @@ async function main() {
       process.exit(1)
     }
     console.info(match.releaseArtifactFilename)
+    return
   }
   if (argOptions.getOutputFilename && argOptions.getOutputFilename[0]) {
     const ext = String(argOptions.getOutputFilename[0]).trim()
@@ -84,10 +86,12 @@ async function main() {
       process.exit(1)
     }
     console.info(match.outputFilename)
+    return
   }
   if (argOptions.getProductName) {
     const electronBuilderConfig = await getElectronBuilderConfig()
     console.info(electronBuilderConfig.productName)
+    return
   }
   if (argOptions.getVersion) {
     const version = await getVersion({ release: argOptions.release, autoTag: argOptions.autoTag, tag: argOptions.tag })

@@ -1,62 +1,608 @@
+import type { LlmStreamingControlCallManifest } from '@proj-airi/pipelines-audio'
+import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { UserMessage } from '@xsai/shared-chat'
 
-import type { ChatStreamEvent, ContextMessage } from '../../../types/chat'
+import type { ChatStreamEventContext, ContextMessage } from '../../../types/chat'
+import type { SparkNotifyPerformanceResult, SparkNotifyReactionOptions } from './spark-notify-reaction'
 
+import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useBroadcastChannel } from '@vueuse/core'
 import { Mutex } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { ref, toRaw, watch } from 'vue'
+import { computed, ref, shallowRef, toRaw, watch } from 'vue'
 
-import { useChatOrchestratorStore } from '../../chat'
-import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME } from '../../chat/constants'
+import { getEventSourceKey, getMetadataSourceLabel } from '../../../utils/event-source'
+import { useLlmStreamingControlStore } from '../../ai/chat-llm/streaming-control'
+import { useCharacterOrchestratorStore } from '../../character'
+import { useChatStore } from '../../chat'
 import { useChatContextStore } from '../../chat/context-store'
 import { useChatSessionStore } from '../../chat/session-store'
 import { useChatStreamStore } from '../../chat/stream-store'
+import { useContextObservabilityStore } from '../../devtools/context-observability'
 import { useConsciousnessStore } from '../../modules/consciousness'
-import { useProvidersStore } from '../../providers'
+import { useProviderStore } from '../../providers/provider'
 import { useModsServerChannelStore } from './channel-server'
+import { createContextChannel } from './context-channel'
+
+export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 'contexts'>>(contexts: C): C {
+  return {
+    ...contexts,
+    contexts: Object.fromEntries(
+      Object
+        .entries(toRaw(contexts.contexts))
+        .map(([key, ctx]) => [
+          key,
+          ctx.map(c => toRaw(c)),
+        ]),
+    ),
+  }
+}
 
 export const useContextBridgeStore = defineStore('mods:api:context-bridge', () => {
+  const consumerRegistrationEvents = [
+    'input:text',
+    'input:text:voice',
+    'input:voice',
+  ] as const
   const mutex = new Mutex()
 
-  const chatOrchestrator = useChatOrchestratorStore()
+  const chatOrchestrator = useChatStore()
   const chatSession = useChatSessionStore()
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
   const serverChannelStore = useModsServerChannelStore()
+  const contextObservability = useContextObservabilityStore()
+  const characterOrchestratorStore = useCharacterOrchestratorStore()
   const consciousnessStore = useConsciousnessStore()
-  const providersStore = useProvidersStore()
+  const providersStore = useProviderStore()
   const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
+  const streamingControl = useLlmStreamingControlStore()
 
-  const { post: broadcastContext, data: incomingContext } = useBroadcastChannel<ContextMessage, ContextMessage>({ name: CONTEXT_CHANNEL_NAME })
-  const { post: broadcastStreamEvent, data: incomingStreamEvent } = useBroadcastChannel<ChatStreamEvent, ChatStreamEvent>({ name: CHAT_STREAM_CHANNEL_NAME })
+  type SparkNotifyBridgeMessage
+    = | {
+      type: 'request'
+      requestId: string
+      fromInstanceId: string
+      payload: SparkNotifyReactionOptions
+      performance?: {
+        callManifests: LlmStreamingControlCallManifest[]
+        timeoutMs?: number
+      }
+    }
+    | {
+      type: 'response'
+      requestId: string
+      toInstanceId: string
+      reaction: string
+      performance?: SparkNotifyPerformanceResult
+    }
+  const SPARK_NOTIFY_BRIDGE_CHANNEL_NAME = 'airi-spark-notify-bridge'
+  const sparkNotifyBridgeInstanceId = `spark-notify-${nanoid()}`
+  const sparkNotifyHostRole = ref<'main' | 'client'>('client')
+  const sparkNotifyBridgeWaiters = new Map<string, {
+    resolve: (result: { reaction: string, performance?: SparkNotifyPerformanceResult }) => Promise<void> | void
+    timeout?: ReturnType<typeof setTimeout>
+  }>()
+  const { post: postSparkNotifyBridgeMessage, data: incomingSparkNotifyBridgeMessage } = useBroadcastChannel<SparkNotifyBridgeMessage, SparkNotifyBridgeMessage>({ name: SPARK_NOTIFY_BRIDGE_CHANNEL_NAME })
 
   const disposeHookFns = ref<Array<() => void>>([])
-  let remoteStreamGuard: { sessionId: string, generation: number } | null = null
+  // Remote stream data belongs to this renderer only. Keeping its visibility
+  // outside the synchronized chat store prevents a follower from publishing
+  // its local runtime state over the elected authority's snapshot.
+  const remoteStreamGuard = shallowRef<{
+    sessionId: string
+    generation: number
+    turnId: string
+    started: boolean
+    completed: boolean
+    refreshing: boolean
+    pendingLiterals: string[]
+  }>()
+  const isReceivingRemoteStream = computed(() => remoteStreamGuard.value?.sessionId === chatSession.activeSessionId)
+  let contextChannel: ReturnType<typeof createContextChannel> | undefined
+  let initialized = false
+
+  function presentRemoteStreamIfActive() {
+    const guard = remoteStreamGuard.value
+    if (!guard || guard.sessionId !== chatSession.activeSessionId)
+      return false
+    if (chatSession.getSessionGenerationValue(guard.sessionId) !== guard.generation)
+      return false
+
+    if (!guard.started) {
+      guard.started = true
+      chatStream.beginStream(guard.turnId)
+    }
+    for (const literal of guard.pendingLiterals.splice(0))
+      chatStream.appendStreamLiteral(literal)
+    if (guard.completed && !guard.refreshing)
+      void refreshCompletedRemoteStream(guard)
+    return true
+  }
+
+  async function refreshCompletedRemoteStream(guard: NonNullable<typeof remoteStreamGuard.value>) {
+    guard.refreshing = true
+    let loaded = false
+    try {
+      loaded = await chatSession.refreshSession(guard.sessionId)
+    }
+    catch (error) {
+      console.warn('[context-bridge] Failed to refresh completed remote stream:', errorMessageFrom(error))
+    }
+    if (remoteStreamGuard.value !== guard)
+      return
+    guard.refreshing = false
+    if (!loaded || guard.sessionId !== chatSession.activeSessionId)
+      return
+    if (chatSession.getSessionGenerationValue(guard.sessionId) !== guard.generation)
+      return
+
+    chatStream.resetStream()
+    remoteStreamGuard.value = undefined
+  }
+
+  function recordContextIngestRejected(options: {
+    channel: 'server' | 'broadcast' | 'input'
+    contextMessage: ContextMessage
+    details?: unknown
+    error: unknown
+    sourceLabel?: string
+  }) {
+    contextObservability.recordLifecycle({
+      phase: 'store-ingest-rejected',
+      channel: options.channel,
+      sourceKey: getEventSourceKey(options.contextMessage),
+      strategy: options.contextMessage.strategy,
+      lane: options.contextMessage.lane,
+      contextId: options.contextMessage.contextId,
+      eventId: options.contextMessage.id,
+      textPreview: options.contextMessage.text,
+      sourceLabel: options.sourceLabel,
+      details: {
+        errorMessage: errorMessageFrom(options.error) ?? 'Unknown context ingest error',
+        event: options.details,
+      },
+    })
+  }
+
+  function ingestContextMessageSafely(options: {
+    channel: 'server' | 'broadcast' | 'input'
+    contextMessage: ContextMessage
+    details?: unknown
+    sourceLabel?: string
+  }) {
+    try {
+      return {
+        ok: true as const,
+        result: chatContext.ingestContextMessage(options.contextMessage),
+      }
+    }
+    catch (error) {
+      recordContextIngestRejected({
+        ...options,
+        error,
+      })
+      return {
+        ok: false as const,
+      }
+    }
+  }
+
+  function withStreamingCallPrompt(options: SparkNotifyReactionOptions, callPrompt: string): SparkNotifyReactionOptions {
+    if (!callPrompt) {
+      return options
+    }
+
+    return {
+      ...options,
+      messageOverride: {
+        ...options.messageOverride,
+        appendSystemInstructions: [
+          ...(options.messageOverride?.appendSystemInstructions ?? []),
+          callPrompt,
+        ],
+      },
+    }
+  }
+
+  async function handleSparkNotifyReactionLocal(options: SparkNotifyReactionOptions, identity?: { id?: string, eventId?: string }) {
+    const event: WebSocketEventOf<'spark:notify'> = {
+      type: 'spark:notify',
+      source: options.source ?? 'plugin-module-host',
+      data: {
+        id: identity?.id ?? nanoid(),
+        eventId: identity?.eventId ?? nanoid(),
+        lane: options.lane,
+        kind: options.kind ?? 'ping',
+        urgency: options.urgency ?? 'immediate',
+        headline: options.headline,
+        note: options.note,
+        payload: options.payload,
+        ttlMs: options.ttlMs,
+        requiresAck: options.requiresAck,
+        destinations: options.destinations?.length ? options.destinations : ['character'],
+        metadata: options.metadata,
+      },
+    }
+
+    try {
+      return await characterOrchestratorStore.handleSparkNotifyWithReaction(event, {
+        fallbackText: options.fallbackResponseText,
+        forceResponse: options.forceResponse,
+        forceTextResponse: options.forceTextResponse,
+        forceSparkCommandResponse: options.forceSparkCommandResponse,
+        messageOverride: options.messageOverride,
+      })
+    }
+    catch (error) {
+      console.warn('[context-bridge] spark:notify handling failed; using fallback', error)
+      return options.fallbackResponseText
+    }
+  }
+
+  function setSparkNotifyHostRole(role: 'main' | 'client') {
+    sparkNotifyHostRole.value = role
+  }
+
+  async function dispatchSparkNotifyReaction(options: SparkNotifyReactionOptions) {
+    if (sparkNotifyHostRole.value === 'main') {
+      return await handleSparkNotifyReactionLocal(options)
+    }
+
+    const requestId = nanoid()
+    return await new Promise<string>((resolve) => {
+      const timeout = setTimeout(() => {
+        sparkNotifyBridgeWaiters.delete(requestId)
+        resolve(options.fallbackResponseText)
+      }, 5000)
+
+      sparkNotifyBridgeWaiters.set(requestId, {
+        resolve: ({ reaction }) => {
+          clearTimeout(timeout)
+          resolve(reaction || options.fallbackResponseText)
+        },
+        timeout,
+      })
+
+      postSparkNotifyBridgeMessage({
+        type: 'request',
+        requestId,
+        fromInstanceId: sparkNotifyBridgeInstanceId,
+        payload: options,
+      })
+    })
+  }
+
+  async function handleSparkNotifyPerformanceLocal(options: SparkNotifyReactionOptions): Promise<SparkNotifyPerformanceResult> {
+    const calls = options.calls ?? []
+
+    if (calls.length === 0) {
+      const reaction = await handleSparkNotifyReactionLocal(options)
+      return {
+        type: 'completed',
+        reaction,
+      }
+    }
+
+    const sparkNotifyId = nanoid()
+    const turn = streamingControl.beginTurn({ turnId: `spark:${sparkNotifyId}` })
+
+    let latestReaction = ''
+    let reactionPromise: Promise<string> | undefined
+    let dispose: (() => void) | undefined
+
+    const calledPromise = new Promise<SparkNotifyPerformanceResult>((resolve) => {
+      const disposers = calls.map(call => turn.on(call.manifest, async (payload) => {
+        await call.handler(payload)
+        const reaction = await (reactionPromise ?? Promise.resolve(latestReaction || options.fallbackResponseText))
+        resolve({
+          type: 'called',
+          name: call.manifest.name,
+          payload,
+          reaction,
+        })
+      }))
+      dispose = () => {
+        for (const item of disposers) {
+          item()
+        }
+      }
+    })
+
+    reactionPromise = handleSparkNotifyReactionLocal(withStreamingCallPrompt(
+      options,
+      turn.renderManifestPrompt(),
+    ), { id: sparkNotifyId })
+      .then((reaction) => {
+        latestReaction = reaction
+        return reaction
+      })
+      .catch(() => {
+        latestReaction = options.fallbackResponseText
+        return options.fallbackResponseText
+      })
+
+    const turnDonePromise = turn.done.then(async (result): Promise<SparkNotifyPerformanceResult> => {
+      const reaction = await (reactionPromise ?? Promise.resolve(latestReaction || options.fallbackResponseText))
+      return {
+        type: result.type === 'cancelled' ? 'cancelled' : 'completed',
+        reaction: reaction || options.fallbackResponseText,
+      }
+    })
+
+    const result = await Promise.race([calledPromise, turnDonePromise])
+    dispose?.()
+    return result
+  }
+
+  async function dispatchSparkNotifyPerformance(options: SparkNotifyReactionOptions): Promise<SparkNotifyPerformanceResult> {
+    const calls = options.calls ?? []
+
+    if (sparkNotifyHostRole.value === 'main') {
+      return await handleSparkNotifyPerformanceLocal(options)
+    }
+
+    if (calls.length === 0) {
+      const reaction = await dispatchSparkNotifyReaction(options)
+      return {
+        type: 'completed',
+        reaction,
+      }
+    }
+
+    const requestId = nanoid()
+    return await new Promise<SparkNotifyPerformanceResult>((resolve) => {
+      const timeout = setTimeout(() => {
+        sparkNotifyBridgeWaiters.delete(requestId)
+        resolve(createFallbackPerformanceResult(options, 'timeout'))
+      }, Math.max(1, options.timeoutMs ?? 5000))
+
+      sparkNotifyBridgeWaiters.set(requestId, {
+        resolve: async ({ reaction, performance }) => {
+          clearTimeout(timeout)
+          if (performance?.type === 'called' && performance.name) {
+            await findPerformanceCall(options, performance.name)?.handler(performance.payload)
+          }
+
+          resolve(performance ?? createFallbackPerformanceResult(options, 'completed', reaction))
+        },
+        timeout,
+      })
+
+      const { calls: _calls, timeoutMs: _timeoutMs, ...payload } = options
+      postSparkNotifyBridgeMessage({
+        type: 'request',
+        requestId,
+        fromInstanceId: sparkNotifyBridgeInstanceId,
+        payload,
+        performance: {
+          callManifests: calls.map(call => call.manifest),
+          timeoutMs: options.timeoutMs,
+        },
+      })
+    })
+  }
+
+  function createFallbackPerformanceResult(
+    options: SparkNotifyReactionOptions,
+    type: Extract<SparkNotifyPerformanceResult['type'], 'completed' | 'timeout'>,
+    reaction?: string,
+  ): SparkNotifyPerformanceResult {
+    return {
+      type,
+      reaction: reaction || options.fallbackResponseText,
+    }
+  }
+
+  function findPerformanceCall(options: SparkNotifyReactionOptions, name: string) {
+    return options.calls?.find(call => call.manifest.name === name)
+  }
+
+  function withContextBridgeLock<T>(key: string, callback: () => Promise<T>) {
+    if (typeof navigator !== 'undefined' && 'locks' in navigator && typeof navigator.locks.request === 'function') {
+      return navigator.locks.request(key, callback)
+    }
+    return callback()
+  }
+
+  async function withContextBridgeExclusiveLock<T>(key: string, callback: () => Promise<T>) {
+    if (typeof navigator !== 'undefined' && 'locks' in navigator && typeof navigator.locks.request === 'function') {
+      // BroadcastChannel delivers the same bridge request to every Stage window.
+      // `ifAvailable` makes non-owning windows skip instead of queueing and replaying
+      // the same spark reaction after the first window finishes.
+      return await navigator.locks.request(key, { ifAvailable: true }, async (lock) => {
+        if (!lock) {
+          return undefined
+        }
+        return await callback()
+      })
+    }
+
+    return await callback()
+  }
 
   async function initialize() {
     await mutex.acquire()
 
     try {
+      if (initialized)
+        return
+
+      contextChannel = createContextChannel()
+
+      const registerConsumers = () => {
+        for (const consumerEvent of consumerRegistrationEvents) {
+          serverChannelStore.send({
+            type: 'module:consumer:register',
+            data: {
+              event: consumerEvent,
+              mode: 'consumer-group',
+              group: 'chat-ingestion',
+            },
+          })
+        }
+      }
+
+      await serverChannelStore.ensureConnected()
+
+      registerConsumers()
+      disposeHookFns.value.push(serverChannelStore.onReconnected(() => registerConsumers()))
+
       let isProcessingRemoteStream = false
 
-      const { stop } = watch(incomingContext, (event) => {
-        if (event)
-          chatContext.ingestContextMessage(event)
+      const stopContextUpdates = contextChannel.onContext((event) => {
+        contextObservability.recordLifecycle({
+          phase: 'broadcast-received',
+          channel: 'broadcast',
+          sourceKey: getEventSourceKey(event),
+          strategy: event.strategy,
+          lane: event.lane,
+          contextId: event.contextId,
+          eventId: event.id,
+          textPreview: event.text,
+          sourceLabel: getMetadataSourceLabel(event.metadata?.source),
+          details: event,
+        })
+        const ingestAttempt = ingestContextMessageSafely({
+          channel: 'broadcast',
+          contextMessage: event,
+          sourceLabel: getMetadataSourceLabel(event.metadata?.source),
+          details: event,
+        })
+        if (ingestAttempt.ok && ingestAttempt.result) {
+          contextObservability.recordLifecycle({
+            phase: 'store-ingested',
+            channel: 'broadcast',
+            sourceKey: ingestAttempt.result.sourceKey,
+            strategy: event.strategy,
+            lane: event.lane,
+            contextId: event.contextId,
+            eventId: event.id,
+            mutation: ingestAttempt.result.mutation,
+            textPreview: event.text,
+            sourceLabel: getMetadataSourceLabel(event.metadata?.source),
+            details: {
+              entryCount: ingestAttempt.result.entryCount,
+              event,
+            },
+          })
+        }
       })
-      disposeHookFns.value.push(stop)
+      disposeHookFns.value.push(stopContextUpdates)
+
+      const { stop: stopSparkNotifyBridgeWatch } = watch(incomingSparkNotifyBridgeMessage, async (event) => {
+        if (!event) {
+          return
+        }
+
+        if (event.type === 'request') {
+          if (sparkNotifyHostRole.value !== 'main' || event.fromInstanceId === sparkNotifyBridgeInstanceId) {
+            return
+          }
+
+          await withContextBridgeExclusiveLock(`context-bridge:spark-notify:${event.requestId}`, async () => {
+            const performance = event.performance?.callManifests.length
+              ? await handleSparkNotifyPerformanceLocal({
+                  ...event.payload,
+                  calls: event.performance.callManifests.map(manifest => ({
+                    manifest,
+                    handler: async () => undefined,
+                  })),
+                  timeoutMs: event.performance.timeoutMs,
+                })
+              : undefined
+            const reaction = performance?.reaction ?? await handleSparkNotifyReactionLocal(event.payload)
+            postSparkNotifyBridgeMessage({
+              type: 'response',
+              requestId: event.requestId,
+              toInstanceId: event.fromInstanceId,
+              reaction,
+              ...(performance ? { performance } : {}),
+            })
+          })
+          return
+        }
+
+        if (event.type === 'response') {
+          if (event.toInstanceId !== sparkNotifyBridgeInstanceId) {
+            return
+          }
+
+          const waiter = sparkNotifyBridgeWaiters.get(event.requestId)
+          if (!waiter) {
+            return
+          }
+
+          sparkNotifyBridgeWaiters.delete(event.requestId)
+          await waiter.resolve({
+            reaction: event.reaction,
+            performance: event.performance,
+          })
+        }
+      })
+      disposeHookFns.value.push(stopSparkNotifyBridgeWatch)
 
       disposeHookFns.value.push(serverChannelStore.onContextUpdate((event) => {
+        contextObservability.recordLifecycle({
+          phase: 'server-received',
+          channel: 'server',
+          sourceKey: getEventSourceKey(event),
+          strategy: event.data.strategy,
+          lane: event.data.lane,
+          contextId: event.data.contextId,
+          eventId: event.data.id,
+          textPreview: event.data.text,
+          sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
+          details: event,
+        })
         const contextMessage: ContextMessage = {
           ...event.data,
           metadata: event.metadata,
           createdAt: Date.now(),
         }
-        chatContext.ingestContextMessage(contextMessage)
-        broadcastContext(toRaw(contextMessage))
+        const ingestAttempt = ingestContextMessageSafely({
+          channel: 'server',
+          contextMessage,
+          sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
+          details: event,
+        })
+        if (!ingestAttempt.ok)
+          return
+
+        if (ingestAttempt.result) {
+          contextObservability.recordLifecycle({
+            phase: 'store-ingested',
+            channel: 'server',
+            sourceKey: ingestAttempt.result.sourceKey,
+            strategy: contextMessage.strategy,
+            lane: contextMessage.lane,
+            contextId: contextMessage.contextId,
+            eventId: contextMessage.id,
+            mutation: ingestAttempt.result.mutation,
+            textPreview: contextMessage.text,
+            sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
+            details: {
+              entryCount: ingestAttempt.result.entryCount,
+              event,
+            },
+          })
+        }
+        void contextChannel?.emitContext(toRaw(contextMessage))
+        contextObservability.recordLifecycle({
+          phase: 'broadcast-posted',
+          channel: 'broadcast',
+          sourceKey: getEventSourceKey(contextMessage),
+          strategy: contextMessage.strategy,
+          lane: contextMessage.lane,
+          contextId: contextMessage.contextId,
+          eventId: contextMessage.id,
+          textPreview: contextMessage.text,
+          sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
+          details: contextMessage,
+        })
       }))
 
       disposeHookFns.value.push(serverChannelStore.onEvent('input:text', async (event) => {
@@ -76,15 +622,63 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             contextId,
           }
         })
+        const acceptedContextUpdates: typeof normalizedContextUpdates = normalizedContextUpdates ? [] : undefined
 
         if (normalizedContextUpdates?.length) {
           const createdAt = Date.now()
           for (const update of normalizedContextUpdates) {
-            chatContext.ingestContextMessage({
+            contextObservability.recordLifecycle({
+              phase: 'input-context-update',
+              channel: 'input',
+              strategy: update.strategy,
+              lane: update.lane,
+              contextId: update.contextId,
+              eventId: update.id,
+              textPreview: update.text,
+              sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
+              details: {
+                inputType: event.type,
+                update,
+              },
+            })
+            const contextMessage: ContextMessage = {
               ...update,
               metadata: event.metadata,
               createdAt,
+            }
+            const ingestAttempt = ingestContextMessageSafely({
+              channel: 'input',
+              contextMessage,
+              sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
+              details: {
+                inputType: event.type,
+                update: contextMessage,
+              },
             })
+            if (!ingestAttempt.ok)
+              continue
+
+            acceptedContextUpdates?.push(update)
+
+            if (ingestAttempt.result) {
+              contextObservability.recordLifecycle({
+                phase: 'store-ingested',
+                channel: 'input',
+                sourceKey: ingestAttempt.result.sourceKey,
+                strategy: contextMessage.strategy,
+                lane: contextMessage.lane,
+                contextId: contextMessage.contextId,
+                eventId: contextMessage.id,
+                mutation: ingestAttempt.result.mutation,
+                textPreview: contextMessage.text,
+                sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
+                details: {
+                  entryCount: ingestAttempt.result.entryCount,
+                  inputType: event.type,
+                  update: contextMessage,
+                },
+              })
+            }
           }
         }
 
@@ -127,7 +721,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           // - https://chromestatus.com/feature/6265472244514816
           // - https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker
           // - https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API
-          navigator.locks.request('context-bridge:event:input:text', async () => {
+          await withContextBridgeLock('context-bridge:event:input:text', async () => {
             try {
               await chatOrchestrator.ingest(messageText, {
                 model: activeModel.value,
@@ -139,7 +733,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                     text,
                     textRaw,
                     overrides,
-                    contextUpdates: normalizedContextUpdates,
+                    contextUpdates: acceptedContextUpdates,
                   },
                 },
               }, targetSessionId)
@@ -156,49 +750,49 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'before-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
+          await contextChannel?.emitStream({ type: 'before-compose', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onAfterMessageComposed(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'after-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
+          await contextChannel?.emitStream({ type: 'after-compose', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onBeforeSend(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'before-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
+          await contextChannel?.emitStream({ type: 'before-send', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onAfterSend(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'after-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
+          await contextChannel?.emitStream({ type: 'after-send', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onTokenLiteral(async (literal, context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'token-literal', literal, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
+          await contextChannel?.emitStream({ type: 'token-literal', literal, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onTokenSpecial(async (special, context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'token-special', special, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
+          await contextChannel?.emitStream({ type: 'token-special', special, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onStreamEnd(async (context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'stream-end', sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
+          await contextChannel?.emitStream({ type: 'stream-end', sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onAssistantResponseEnd(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'assistant-end', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
+          await contextChannel?.emitStream({ type: 'assistant-end', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
 
         chatOrchestrator.onAssistantMessage(async (message, _messageText, context) => {
@@ -247,14 +841,12 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }),
       )
 
-      const { stop: stopIncomingStreamWatch } = watch(incomingStreamEvent, async (event) => {
-        if (!event)
-          return
-
+      const stopIncomingStreamWatch = contextChannel.onStream(async (event) => {
         isProcessingRemoteStream = true
 
         try {
-          // Use the receiver's active session to avoid clobbering chat state when events come from other windows/devtools.
+          // Remote UI state is correlated by session and generation. The
+          // receiver never persists these mirrored stream events.
           switch (event.type) {
             case 'before-compose':
               await chatOrchestrator.emitBeforeMessageComposedHooks(event.message, event.context)
@@ -264,52 +856,99 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               break
             case 'before-send':
               await chatOrchestrator.emitBeforeSendHooks(event.message, event.context)
-              remoteStreamGuard = {
-                sessionId: chatSession.activeSessionId,
-                generation: chatSession.getSessionGenerationValue(),
+              remoteStreamGuard.value = {
+                sessionId: event.sessionId,
+                generation: chatSession.getSessionGenerationValue(event.sessionId),
+                turnId: event.context.turnId,
+                started: false,
+                completed: false,
+                refreshing: false,
+                pendingLiterals: [],
               }
-              chatOrchestrator.sending = true
-              chatStream.beginStream()
+              presentRemoteStreamIfActive()
               break
             case 'after-send':
               await chatOrchestrator.emitAfterSendHooks(event.message, event.context)
               break
             case 'token-literal':
-              if (!remoteStreamGuard)
+              if (!remoteStreamGuard.value)
                 return
-              if (remoteStreamGuard.sessionId !== chatSession.activeSessionId)
+              if (event.sessionId !== remoteStreamGuard.value.sessionId)
                 return
-              if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
+              if (chatSession.getSessionGenerationValue(remoteStreamGuard.value.sessionId) !== remoteStreamGuard.value.generation)
                 return
-              chatStream.appendStreamLiteral(event.literal)
+              remoteStreamGuard.value.pendingLiterals.push(event.literal)
+              if (!presentRemoteStreamIfActive())
+                return
               await chatOrchestrator.emitTokenLiteralHooks(event.literal, event.context)
               break
             case 'token-special':
+              if (!remoteStreamGuard.value || event.sessionId !== remoteStreamGuard.value.sessionId)
+                return
+              if (remoteStreamGuard.value.sessionId !== chatSession.activeSessionId)
+                return
+              if (chatSession.getSessionGenerationValue(remoteStreamGuard.value.sessionId) !== remoteStreamGuard.value.generation)
+                return
               await chatOrchestrator.emitTokenSpecialHooks(event.special, event.context)
               break
             case 'stream-end':
-              if (!remoteStreamGuard)
+              if (!remoteStreamGuard.value)
                 break
-              if (remoteStreamGuard.sessionId !== chatSession.activeSessionId)
-                break
-              if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
-                break
-              await chatOrchestrator.emitStreamEndHooks(event.context)
-              chatStream.finalizeStream()
-              chatOrchestrator.sending = false
-              remoteStreamGuard = null
+              {
+                const guard = remoteStreamGuard.value
+                if (event.sessionId !== guard.sessionId)
+                  break
+                if (guard.sessionId !== chatSession.activeSessionId
+                  && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
+                  break
+                }
+                try {
+                  if (guard.sessionId === chatSession.activeSessionId
+                    && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
+                    await chatOrchestrator.emitStreamEndHooks(event.context)
+                  }
+                }
+                finally {
+                  if (remoteStreamGuard.value === guard) {
+                    if (guard.started
+                      && guard.sessionId === chatSession.activeSessionId
+                      && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
+                      chatStream.resetStream()
+                    }
+                    remoteStreamGuard.value = undefined
+                  }
+                }
+              }
               break
             case 'assistant-end':
-              if (!remoteStreamGuard)
+              if (!remoteStreamGuard.value)
                 break
-              if (remoteStreamGuard.sessionId !== chatSession.activeSessionId)
-                break
-              if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
-                break
-              await chatOrchestrator.emitAssistantResponseEndHooks(event.message, event.context)
-              chatStream.finalizeStream(event.message)
-              chatOrchestrator.sending = false
-              remoteStreamGuard = null
+              {
+                const guard = remoteStreamGuard.value
+                if (event.sessionId !== guard.sessionId)
+                  break
+                if (guard.sessionId !== chatSession.activeSessionId
+                  && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
+                  guard.completed = true
+                  break
+                }
+                try {
+                  if (guard.sessionId === chatSession.activeSessionId
+                    && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
+                    await chatOrchestrator.emitAssistantResponseEndHooks(event.message, event.context)
+                  }
+                }
+                finally {
+                  if (remoteStreamGuard.value === guard) {
+                    if (guard.started
+                      && guard.sessionId === chatSession.activeSessionId
+                      && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
+                      chatStream.resetStream()
+                    }
+                    remoteStreamGuard.value = undefined
+                  }
+                }
+              }
               break
           }
         }
@@ -318,6 +957,20 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }
       })
       disposeHookFns.value.push(stopIncomingStreamWatch)
+      disposeHookFns.value.push(watch(
+        () => chatSession.activeSessionId,
+        () => presentRemoteStreamIfActive(),
+        { flush: 'sync' },
+      ))
+      initialized = true
+    }
+    catch (error) {
+      for (const fn of disposeHookFns.value)
+        fn()
+      disposeHookFns.value = []
+      contextChannel?.dispose(error)
+      contextChannel = undefined
+      throw error
     }
     finally {
       mutex.release()
@@ -328,8 +981,34 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     await mutex.acquire()
 
     try {
+      if (!initialized)
+        return
+
+      for (const consumerEvent of consumerRegistrationEvents) {
+        serverChannelStore.send({
+          type: 'module:consumer:unregister',
+          data: {
+            event: consumerEvent,
+            mode: 'consumer-group',
+            group: 'chat-ingestion',
+          },
+        })
+      }
+
       for (const fn of disposeHookFns.value) {
         fn()
+      }
+
+      contextChannel?.dispose(new Error('Context bridge disposed'))
+      contextChannel = undefined
+
+      initialized = false
+      remoteStreamGuard.value = undefined
+
+      for (const [requestId, waiter] of sparkNotifyBridgeWaiters) {
+        if (waiter.timeout)
+          clearTimeout(waiter.timeout)
+        sparkNotifyBridgeWaiters.delete(requestId)
       }
     }
     finally {
@@ -342,5 +1021,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   return {
     initialize,
     dispose,
+    dispatchSparkNotifyReaction,
+    dispatchSparkNotifyPerformance,
+    isReceivingRemoteStream,
+    setSparkNotifyHostRole,
   }
 })

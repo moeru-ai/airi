@@ -1,0 +1,17 @@
+[
+  {
+    "command": "hold",
+    "permission": "write",
+    "issue_type": "pull-request"
+  },
+  {
+    "command": "unhold",
+    "permission": "write",
+    "issue_type": "pull-request"
+  },
+  {
+    "command": "lgtm",
+    "permission": "write",
+    "issue_type": "pull-request"
+  }
+]

@@ -9,4 +9,4 @@ export type {
   ResizeDirection,
   VibrancyType,
 } from './electron/index'
-export { electron } from './electron/index'
+export { electron, electronEvents } from './electron/index'

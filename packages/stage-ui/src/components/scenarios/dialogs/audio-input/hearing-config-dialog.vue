@@ -1,27 +1,32 @@
 <script setup lang="ts">
-import { useMediaQuery, useResizeObserver, useScreenSafeArea } from '@vueuse/core'
+import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, DialogTrigger, VisuallyHidden } from 'reka-ui'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTrigger } from 'vaul-vue'
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 
 import HearingConfig from './hearing-config.vue'
+
+import { useBreakpoints } from '../../../../composables/use-breakpoints'
+import { useSettingsAudioDevice } from '../../../../stores'
 
 const props = defineProps<{
   overlayDim?: boolean
   overlayBlur?: boolean
   granted?: boolean
-  audioInputs?: MediaDeviceInfo[]
-  volumeLevel?: number
 }>()
 
 const showDialog = defineModel('show', { type: Boolean, default: false, required: false })
-const selectedAudioInput = defineModel<string>('selectedAudioInput')
-const enabled = defineModel<boolean>('enabled', { default: false })
+const autoSend = defineModel<boolean | undefined>('autoSend')
 
-const isDesktop = useMediaQuery('(min-width: 768px)')
+const { isDesktop } = useBreakpoints()
+const { askPermission } = useSettingsAudioDevice()
 const screenSafeArea = useScreenSafeArea()
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
+watch(showDialog, (show) => {
+  if (show)
+    askPermission()
+})
 onMounted(() => screenSafeArea.update())
 </script>
 
@@ -43,11 +48,8 @@ onMounted(() => screenSafeArea.update())
           <DialogTitle>Hearing Input</DialogTitle>
         </VisuallyHidden>
         <HearingConfig
-          v-model:enabled="enabled"
-          v-model:selected-audio-input="selectedAudioInput"
-          :audio-inputs="props.audioInputs"
+          v-model:auto-send="autoSend"
           :granted="props.granted"
-          :volume-level="props.volumeLevel"
         />
         <slot name="extra" />
       </DialogContent>
@@ -59,14 +61,25 @@ onMounted(() => screenSafeArea.update())
     </DrawerTrigger>
     <DrawerPortal>
       <DrawerOverlay class="fixed inset-0" />
-      <DrawerContent class="fixed bottom-0 left-0 right-0 z-1000 mt-20 h-full max-h-67 flex flex-col rounded-t-2xl bg-neutral-50 px-4 pt-4 outline-none backdrop-blur-md dark:bg-neutral-900/95" :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 24)}px` }">
-        <DrawerHandle my-2 />
+      <DrawerContent
+        :class="[
+          'fixed bottom-0 left-0 right-0 z-1000',
+          'mt-20 px-4 pt-4',
+          'flex flex-col',
+          'h-full max-h-80',
+          'rounded-t-[32px] outline-none backdrop-blur-md',
+          'bg-neutral-50/85 dark:bg-neutral-900/90',
+        ]"
+        :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 24)}px` }"
+      >
+        <DrawerHandle
+          :class="[
+            '[div&]:bg-neutral-400 [div&]:dark:bg-neutral-600',
+          ]"
+        />
         <HearingConfig
-          v-model:enabled="enabled"
-          v-model:selected-audio-input="selectedAudioInput"
-          :audio-inputs="props.audioInputs"
+          v-model:auto-send="autoSend"
           :granted="props.granted"
-          :volume-level="props.volumeLevel"
         />
         <slot name="extra" />
       </DrawerContent>

@@ -1,0 +1,200 @@
+electronCallback:
+  title:
+    loading: Finalizando inicio de sesión
+    openingAiri: Abriendo AIRI
+    signedIn: Has iniciado sesión
+    signInFailed: Error al iniciar sesión
+    finishSignInInAiri: Terminar sesión en AIRI
+    openAiriToContinue: Abrir AIRI para continuar
+  message:
+    checkingResponse: Comprobando su respuesta de inicio de sesión y preparando el handoff para AIRI.
+    passingToAiri: Passing your sign-in back to AIRI now. This page should close in a moment.
+    syncedAndSafeToClose: Hemos notificado al cliente de AIRI del que firmó.
+    invalidResponse: No pudimos utilizar esta respuesta de inicio de sesión.
+    loopbackUnreachable: El navegador no pudo acceder a AIRI a través del puerto de devolución de llamada local.
+    tryOpenDirectly: Intentaremos abrir el handoff local directamente. Si esto todavía falla, utilice el botón de abajo.
+    automaticHandoffFailed: El handoff automático no ha finalizado en esta sesión del navegador.
+  label:
+    signIn: Iniciar sesión
+    safeToClose: Es seguro cerrar la pestaña ahora.
+    whyStillHere: '¿Por qué esta pestaña sigue aquí?'
+  action:
+    openAiriManually: Abrir AIRI manualmente
+  hint:
+    closeTabManually: Algunos navegadores no permiten que esta página se cierre automáticamente. Puede cerrarla manualmente.
+signIn:
+  title: Iniciar sesión
+  step:
+    identify:
+      heading: Iniciar sesión
+      description: Introduce tu correo electrónico para iniciar sesión o crear una cuenta.
+    password:
+      heading: Bienvenido de vuelta
+      description: Continuar como {{email}}.
+    create:
+      heading: Crear tu cuenta
+      description: Crearemos una nueva cuenta para {email}.
+  email:
+    label: Correo electrónico
+    placeholder: tú{'@'}ejemplo.com
+  password:
+    label: Contraseña
+    placeholder: Tu contraseña
+  newPassword:
+    label: Crear contraseña
+    placeholder: Mínimo 8 caracteres
+  confirmPassword:
+    label: Confirmar contraseña
+    placeholder: Repetir tu contraseña
+  name:
+    label: Mostrar nombre
+    placeholder: Opcional, por defecto su correo electrónico
+  action:
+    continue: Continuar
+    signIn: Iniciar sesión
+    createAccount: Crear cuenta
+    forgotPassword: '¿Has olvidado la contraseña?'
+    useDifferentEmail: Usar un correo electrónico diferente
+  divider:
+    or: o
+  error:
+    fallback: Error en el inicio de sesión
+    unknown: S produjo un error inesperado
+    socialOnlyNoPassword: This email was registered with Google or GitHub. Sign in with a button below; you can add a password in account settings after signing in.
+    passwordMismatch: Las contraseñas no coinciden.
+    invalidEmail: Por favor, introduzca una dirección de correo electrónico válida.
+  footer:
+    prefix: Al continuar, aceptas nuestros
+    terms: Términos
+    and: 'y'
+    privacy: Política de Privacidad
+verifyEmail:
+  title:
+    pending: Revisa tu bandeja de entrada
+    success: Correo electrónico verificado
+    failed: Falló la verificación
+  message:
+    pending: Hemos enviado un enlace de verificación a tu correo electrónico. Ábrelo para terminar de crear su cuenta — esta página continuará automáticamente una vez que haga clic en el enlace.
+    pendingWithAddress: Hemos enviado un enlace de verificación a {email}. Ábrelo para terminar de crear su cuenta — esta página continuará automáticamente una vez que haga clic en el enlace.
+    success: Tu correo electrónico ha sido verificado y has iniciado sesión. Puedes cerrar esta pestaña.
+    failed: No pudimos verificar tu correo electrónico ({error}). Intenta solicitar un nuevo enlace.
+  action:
+    backToSignIn: Volver al inicio de sesión
+forgotPassword:
+  title: Restablecer contraseña
+  description: Escribe la dirección de email asociada a tu cuenta y te enviaremos un email para iniciar sesión.
+  email:
+    label: Correo electrónico
+    placeholder: tú{'@'}ejemplo.com
+  action:
+    send: Enviar enlace de reinicio
+    backToSignIn: Volver al inicio de sesión
+  message:
+    sent: Si {email} coincide con una cuenta, hay un enlace de restablecimiento en camino.
+  error:
+    fallback: No se pudo enviar el correo electrónico de reinicio.
+deleteAccount:
+  title:
+    success: Cuenta eliminada
+    failed: No se pudo eliminar tu cuenta
+  message:
+    success: Tu cuenta ha sido eliminada.
+  action:
+    closeTab: Puedes cerrar esta pestaña.
+resetPassword:
+  title:
+    default: Establecer nueva contraseña
+    success: Contraseña actualizada
+  password:
+    label: Nueva contraseña
+    placeholder: Mínimo 8 caracteres
+  confirmPassword:
+    label: Confirmar nueva contraseña
+    placeholder: Repetir contraseña
+  action:
+    reset: Actualizar contraseña
+    goSignIn: Ir a iniciar sesión
+  message:
+    success: Su contraseña ha sido actualizada. Inicie sesión con su nueva contraseña.
+  error:
+    fallback: No pudimos actualizar tu contraseña.
+    missingToken: El enlace de reinicio no es válido o ha caducado.
+    passwordMismatch: Las contraseñas no coinciden.
+profile:
+  title: Perfil de cuenta
+  description: Administre su avatar, nombre para mostrar y cuentas conectadas.
+  section:
+    profile: Perfil
+    avatar: Avatar
+    password: Contraseña
+    linkedAccounts: Cuentas conectadas
+  field:
+    email: Correo electrónico
+    emailVerified: Estado del correo electrónico
+    createdAt: Unido
+  label:
+    verified: Verificado
+    unverified: Sin verificar
+  name:
+    label: Nombre para mostrar
+    placeholder: Cómo otros te ven
+  avatar:
+    altText: Avatar de perfil
+    gravatarNotice: Avatar de Gravatar.
+    gravatarLink: Gestionar en gravatar.com
+  password:
+    currentLabel: Contraseña actual
+    currentPlaceholder: Introduce tu contraseña actual
+    newLabel: Nueva contraseña
+    newPlaceholder: Mínimo 8 caracteres
+    confirmLabel: Confirmar nueva contraseña
+    confirmPlaceholder: Repite tu nueva contraseña
+    setDescription: Has iniciado sesión a través de un proveedor social, así que no hay contraseña actual todavía. Te enviaremos un enlace seguro para establecer una.
+    setLinkSent: Revisa {email} para ver el enlace para establecer tu contraseña.
+    setLinkFailed: No se pudo enviar el enlace de configuración de contraseña.
+  linkedAccounts:
+    description: Inicia sesión en AIRI a través de estos proveedores. Desvinculate para revocar el acceso y vuelve a enlazar para cambiar a una cuenta diferente.
+    status:
+      linked: Vinculado
+      notLinked: No vinculado
+      linkedSince: Vinculado el {date}
+    action:
+      link: Vincular
+      unlink: Desvincular
+    message:
+      loading: Cargando cuentas conectadas...
+      unlinked: '{provider} desconectado.'
+      linkStarted: Redirigiendo a {provider}…
+    error:
+      listFailed: No se pudo cargar las cuentas conectadas.
+      unlinkFailed: No se pudo desvincular esta cuenta.
+      linkFailed: No se pudo iniciar el flujo de vinculación.
+      lastAccount: Este es su único método de inicio de sesión. Establezca primero una contraseña antes de desvincularla.
+  action:
+    saveProfile: Guardar cambios
+    changePassword: Cambiar contraseña
+    sendSetPasswordLink: Envíame un enlace para establecer mi contraseña
+    signOut: Cerrar sesión
+  message:
+    loading: Cargando tu perfil...
+    profileSaved: Perfil actualizado.
+    passwordChanged: Contraseña cambiada. Otras sesiones han sido desconectadas.
+  error:
+    loadFailed: No pudimos cargar tu perfil.
+    saveFailed: No pudimos guardar sus cambios.
+    changePasswordFailed: No pudimos cambiar tu contraseña.
+    signOutFailed: No pudimos cerrar la sesión.
+    passwordMismatch: Las contraseñas no coinciden.
+    passwordSameAsCurrent: La nueva contraseña debe ser diferente de la actual.
+webCallback:
+  title:
+    signIn: Iniciar sesión
+    errorLabel: Encontramos un error al iniciar sesión
+    loading: Iniciando sesión...
+  message:
+    missingCodeOrState: Falta el código de autorización o estado
+    missingFlowState: Falta el estado de flujo OIDC - por favor intente iniciar sesión de nuevo
+    tokenExchangeFailed: Fallo en el cambio de token
+    finalizing: Finalizando autenticación con AIRI.
+  action:
+    tryAgain: Inténtalo de nuevo

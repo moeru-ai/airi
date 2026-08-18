@@ -9,6 +9,7 @@
 import type { VRM } from '@pixiv/three-vrm'
 import type {
   Group,
+  Material,
   Object3D,
   PerspectiveCamera,
   ShaderMaterial,
@@ -16,15 +17,22 @@ import type {
   Texture,
   WebGLRenderer,
 } from 'three'
-import type { Ref, WatchStopHandle } from 'vue'
 
-import type { SceneBootstrap, Vec3 } from '../../stores/model-store'
+import type {
+  VrmDisposeHookContext,
+  VrmFrameHookContext,
+  VrmHook,
+  VrmLoadHookContext,
+  VrmMaterialHookContext,
+} from '../../composables/vrm/hooks'
+import type { VrmInteractionColliderSet } from '../../composables/vrm/interaction'
+import type { SceneBootstrap, TrackingMode, Vec3 } from '../../stores/model-store'
 import type { VrmLifecycleReason } from '../../trace'
 import type { ManagedVrmInstance } from './vrm-instance-cache'
 
 import { VRMUtils } from '@pixiv/three-vrm'
 import { useLoop, useTresContext } from '@tresjs/core'
-import { until, useMouse } from '@vueuse/core'
+import { until } from '@vueuse/core'
 import {
   AnimationMixer,
   Box3,
@@ -32,11 +40,9 @@ import {
   Mesh,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
-  Plane,
   Raycaster,
 
   SRGBColorSpace,
-  Vector2,
   Vector3,
 } from 'three'
 import {
@@ -52,6 +58,7 @@ import {
 
 } from 'vue'
 
+import { useVRMEyeFocusFor } from '../../composables/eye-tracking'
 import {
   createIblProbeController,
   injectDiffuseIBL,
@@ -68,6 +75,8 @@ import {
 } from '../../composables/vrm/animation'
 import { loadVrm } from '../../composables/vrm/core'
 import { useVRMEmote } from '../../composables/vrm/expression'
+import { createVrmInteractionColliders } from '../../composables/vrm/interaction'
+import { resolveInternalVrmHooks } from '../../composables/vrm/internal-hooks'
 import { useVRMLipSync } from '../../composables/vrm/lip-sync'
 import {
   createThreeRendererMemorySnapshot,
@@ -100,6 +109,8 @@ import {
 */
 const props = withDefaults(defineProps<{
   currentAudioSource?: AudioBufferSourceNode
+  cursorPosition?: { x: number, y: number }
+  lastCommittedModelSrc?: string
   modelSrc?: string
   idleAnimation: string
   // loadAnimations?: string[]
@@ -111,9 +122,9 @@ const props = withDefaults(defineProps<{
 
   modelOffset: Vec3
   modelRotationY: number
-  lookAtTarget: Vec3
-  trackingMode: string
+  trackingMode: TrackingMode
   eyeHeight: number
+  screenBoundingBox: () => { top: number, left: number, width: number, height: number }
   cameraPosition: Vec3
 
   camera: PerspectiveCamera
@@ -129,9 +140,8 @@ const props = withDefaults(defineProps<{
 */
 const emit = defineEmits<{
   (e: 'loadingProgress', value: number): void
-  (e: 'loadStart'): void
+  (e: 'loadStart', value: 'initial-load' | 'model-reload' | 'model-switch'): void
   (e: 'sceneBootstrap', value: SceneBootstrap): void
-  (e: 'lookAtTarget', value: Vec3): void
 
   (e: 'error', value: unknown): void
   (e: 'loaded', value: string): void
@@ -139,6 +149,7 @@ const emit = defineEmits<{
 
 const {
   currentAudioSource,
+  lastCommittedModelSrc,
   modelSrc,
   idleAnimation,
   // loadAnimations, // TBC
@@ -150,10 +161,7 @@ const {
 
   modelOffset,
   modelRotationY,
-  lookAtTarget,
-  trackingMode,
   eyeHeight,
-  cameraPosition,
 
   camera,
 } = toRefs(props)
@@ -163,22 +171,25 @@ const { renderer, scene } = useTresContext()
 const vrm = shallowRef<VRM>()
 const vrmGroup = shallowRef<Group>()
 const modelLoaded = ref<boolean>(false)
+const interactionColliders = shallowRef<VrmInteractionColliderSet>()
+
 let loadSequence = 0
 // for eye tracking modes
-const { x: mouseX, y: mouseY } = useMouse()
 const raycaster = new Raycaster()
-const mouse = new Vector2()
-const mouseTarget = shallowRef<Vec3>()
-let stopMouseWatch: WatchStopHandle | undefined
-let stopCameraWatch: WatchStopHandle | undefined
 
 // Animation related ref
 const vrmAnimationMixer = ref<AnimationMixer>()
 const { onBeforeRender, stop, start } = useLoop()
 
-type VrmFrameHook = (vrm: VRM, delta: number) => void
-const vrmFrameHook = shallowRef<VrmFrameHook>()
+const vrmHooks: readonly VrmHook[] = resolveInternalVrmHooks()
+type VrmFrameRuntimeHook = (vrm: VRM, delta: number) => void
+const vrmFrameRuntimeHook = shallowRef<VrmFrameRuntimeHook>()
 let disposeBeforeRenderLoop: (() => void | undefined) | undefined
+
+// material type with optional update function for per-frame update, used for three-vrm's MToon material and custom shader materials with IBL injection
+type UpdatableMaterial = Material & {
+  update?: (delta: number) => void
+}
 
 // Expressions
 const blink = useBlink()
@@ -248,9 +259,8 @@ function isLoadRequestCurrent(requestId: number) {
 function disposeDetachedVrm(detachedVrm?: VRM, detachedGroup?: Group) {
   detachedGroup?.removeFromParent()
 
-  if (detachedVrm) {
+  if (detachedVrm)
     VRMUtils.deepDispose(detachedVrm.scene as unknown as Object3D)
-  }
 }
 
 function detachVrmGroup(detachedGroup?: Group) {
@@ -276,6 +286,7 @@ function getActiveManagedVrmInstance() {
   return createManagedVrmInstance({
     emote: vrmEmote.value,
     group: vrmGroup.value,
+    interactionColliders: interactionColliders.value!,
     mixer: vrmAnimationMixer.value,
     vrm: vrm.value,
   })
@@ -286,6 +297,7 @@ function clearActiveManagedVrmRefs() {
   vrmEmote.value = undefined
   vrm.value = undefined
   vrmGroup.value = undefined
+  interactionColliders.value = undefined
 }
 
 function applyManagedVrmInstance(instance: ManagedVrmInstance) {
@@ -293,6 +305,7 @@ function applyManagedVrmInstance(instance: ManagedVrmInstance) {
   vrmGroup.value = instance.group
   vrmAnimationMixer.value = instance.mixer
   vrmEmote.value = instance.emote
+  interactionColliders.value = instance.interactionColliders
 }
 
 function destroyManagedVrmInstance(instance?: ManagedVrmInstance) {
@@ -301,6 +314,7 @@ function destroyManagedVrmInstance(instance?: ManagedVrmInstance) {
 
   instance.emote.dispose()
   instance.mixer.stopAllAction()
+  instance.interactionColliders.dispose()
   disposeDetachedVrm(instance.vrm, instance.group)
 }
 
@@ -324,10 +338,89 @@ function shouldStashVrmResources(reason: VrmLifecycleReason) {
   return reason === 'component-unmount'
 }
 
+function updateManagedVrmMaterials(activeVrm: VRM | undefined, delta: number) {
+  // NOTICE: three-vrm drives MToon per-frame uniforms, including alphaTest used by MASK cutout,
+  // through material.update(delta). Our render loop updates VRM subsystems manually instead of
+  // calling vrm.update(delta), so material updates must be forwarded here as well.
+  activeVrm?.materials?.forEach((material) => {
+    (material as UpdatableMaterial).update?.(delta)
+  })
+}
+
+function runVrmLoadHooks(context: VrmLoadHookContext) {
+  for (const hook of vrmHooks) {
+    hook.onLoad?.(context)
+  }
+}
+
+function runVrmMaterialHooks(context: VrmMaterialHookContext) {
+  for (const hook of vrmHooks) {
+    hook.onMaterial?.(context)
+  }
+}
+
+function runVrmFrameHooks(context: VrmFrameHookContext) {
+  for (const hook of vrmHooks) {
+    try {
+      hook.onFrame?.(context)
+    }
+    catch (error) {
+      console.error(error)
+      emit('error', error)
+    }
+  }
+}
+
+function runVrmFrameRuntimeHook(vrm: VRM, delta: number) {
+  try {
+    vrmFrameRuntimeHook.value?.(vrm, delta)
+  }
+  catch (error) {
+    console.error(error)
+    emit('error', error)
+  }
+}
+
+function runVrmDisposeHooks(context: VrmDisposeHookContext) {
+  for (const hook of vrmHooks) {
+    try {
+      hook.onDispose?.(context)
+    }
+    catch (error) {
+      console.error(error)
+      emit('error', error)
+    }
+  }
+}
+
+function runVrmDisposeHooksForInstance(instance: ManagedVrmInstance | undefined, reason: VrmLifecycleReason) {
+  if (!instance)
+    return
+
+  runVrmDisposeHooks({
+    camera: camera.value,
+    reason,
+    vrm: instance.vrm,
+    vrmGroup: instance.group,
+  })
+}
+
+function destroyManagedVrmInstanceWithHooks(instance: ManagedVrmInstance | undefined, reason: VrmLifecycleReason) {
+  if (!instance)
+    return
+
+  runVrmDisposeHooksForInstance(instance, reason)
+  destroyManagedVrmInstance(instance)
+}
+
 function bindManagedVrmInstanceRenderLoop() {
   disposeBeforeRenderLoop?.()
 
   disposeBeforeRenderLoop = onBeforeRender(({ delta }) => {
+    // Manually update VRM components in the render loop because we manage the render loop on our own.
+    // See:
+    // 1. https://github.com/pixiv/three-vrm/blob/2c4aac612467216e0c8e7dc4500c2fa309208cc7/packages/three-vrm-core/src/VRMCore.ts#L72-L82
+    // 2. https://github.com/pixiv/three-vrm/blob/2c4aac612467216e0c8e7dc4500c2fa309208cc7/packages/three-vrm/src/VRM.ts#L49-L67
     const traceStart = isStageThreeRuntimeTraceEnabled() ? performance.now() : 0
     const tracingEnabled = traceStart > 0
 
@@ -335,16 +428,21 @@ function bindManagedVrmInstanceRenderLoop() {
       vrmAnimationMixer.value?.update(delta)
     })
     const activeVrm = vrm.value
+    const activeVrmGroup = vrmGroup.value
+    updateManagedVrmMaterials(activeVrm, delta)
     const vrmFrameHookMs = measureFrameStep(tracingEnabled, () => {
-      if (activeVrm && vrmFrameHook.value) {
-        try {
-          vrmFrameHook.value(activeVrm, delta)
-        }
-        catch (err) {
-          console.error(err)
-          emit('error', err)
-        }
+      if (activeVrm && activeVrmGroup) {
+        runVrmFrameHooks({
+          camera: camera.value,
+          delta,
+          vrm: activeVrm,
+          vrmGroup: activeVrmGroup,
+        })
       }
+    })
+    const vrmRuntimeHookMs = measureFrameStep(tracingEnabled, () => {
+      if (activeVrm)
+        runVrmFrameRuntimeHook(activeVrm, delta)
     })
     const humanoidMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.humanoid.update()
@@ -354,7 +452,6 @@ function bindManagedVrmInstanceRenderLoop() {
     })
     const blinkAndSaccadeMs = measureFrameStep(tracingEnabled, () => {
       blink.update(activeVrm, delta)
-      idleEyeSaccades.update(activeVrm, lookAtTarget, delta)
     })
     const emoteMs = measureFrameStep(tracingEnabled, () => {
       vrmEmote.value?.update(delta)
@@ -364,6 +461,9 @@ function bindManagedVrmInstanceRenderLoop() {
     })
     const expressionMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.expressionManager?.update()
+    })
+    const nodeConstraintMs = measureFrameStep(tracingEnabled, () => {
+      activeVrm?.nodeConstraintManager?.update()
     })
     const springBoneMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.springBoneManager?.update(delta)
@@ -380,9 +480,11 @@ function bindManagedVrmInstanceRenderLoop() {
         humanoidMs,
         lipSyncMs,
         lookAtMs,
+        nodeConstraintMs,
         springBoneMs,
         ts: traceStart,
         vrmFrameHookMs,
+        vrmRuntimeHookMs,
       })
     }
   }).off
@@ -407,8 +509,9 @@ function componentCleanUp(
 
   const startedAt = performance.now()
   const activeInstance = getActiveManagedVrmInstance()
-  const rendererInstance = getRendererInstance()
   const shouldDestroyResources = shouldDestroyVrmResources(reason)
+  const clearedInstance = shouldDestroyResources ? clearManagedVrmInstance(getManagedVrmScopeKey()) : undefined
+  const rendererInstance = getRendererInstance()
   const hasCleanupWork = !!disposeBeforeRenderLoop
     || !!activeInstance
     || !!airiIblProbe
@@ -430,14 +533,14 @@ function componentCleanUp(
     detachVrmGroup(activeInstance.group)
 
   if (shouldDestroyResources) {
-    destroyManagedVrmInstance(activeInstance)
-    destroyManagedVrmInstance(clearManagedVrmInstance(getManagedVrmScopeKey()))
+    destroyManagedVrmInstanceWithHooks(activeInstance, reason)
+    destroyManagedVrmInstanceWithHooks(clearedInstance, reason)
   }
   else if (shouldStashVrmResources(reason)) {
-    destroyManagedVrmInstance(activeInstance ? stashManagedVrmInstance(activeInstance) : undefined)
+    destroyManagedVrmInstanceWithHooks(activeInstance ? stashManagedVrmInstance(activeInstance) : undefined, reason)
   }
   else {
-    destroyManagedVrmInstance(activeInstance)
+    destroyManagedVrmInstanceWithHooks(activeInstance, reason)
   }
 
   airiIblProbe?.dispose()
@@ -457,40 +560,7 @@ function componentCleanUp(
   }
 }
 
-// look at mouse
-function lookAtMouse(
-  mouseX: number,
-  mouseY: number,
-  camera: Ref<PerspectiveCamera>,
-): Vec3 {
-  mouse.x = (mouseX / window.innerWidth) * 2 - 1
-  mouse.y = -(mouseY / window.innerHeight) * 2 + 1
-
-  // Raycast from the mouse position
-  raycaster.setFromCamera(mouse, camera.value)
-
-  // Create a plane in front of the camera
-  const cameraDirection = new Vector3()
-  camera.value.getWorldDirection(cameraDirection) // Get camera's forward direction
-
-  const plane = new Plane()
-  plane.setFromNormalAndCoplanarPoint(
-    cameraDirection,
-    camera.value.position.clone().add(cameraDirection.multiplyScalar(1)), // 1 unit in front of the camera
-  )
-
-  const intersection = new Vector3()
-  raycaster.ray.intersectPlane(plane, intersection)
-  return { x: intersection.x, y: intersection.y, z: intersection.z }
-}
-
-function defaultTookAt(eyeHeight: number): Vec3 {
-  return {
-    x: 0,
-    y: eyeHeight,
-    z: -100,
-  }
-}
+const defaultTookAt = computed(() => new Vector3(0, eyeHeight.value, -100))
 
 function computeBoundingBox(vrmScene: Object3D) {
   const box = new Box3()
@@ -555,15 +625,30 @@ function buildSceneBootstrap(activeVrm: VRM, cacheHit: boolean): SceneBootstrap 
     cameraDistance: cameraPosition.distanceTo(modelCenter),
     cameraPosition: { x: cameraPosition.x, y: cameraPosition.y, z: cameraPosition.z },
     eyeHeight: eyePositionY,
-    lookAtTarget: defaultTookAt(eyePositionY),
+    lookAtTarget: defaultTookAt.value,
+    modelOffset: {
+      x: bootstrapRoot.position.x,
+      y: bootstrapRoot.position.y,
+      z: bootstrapRoot.position.z,
+    },
     modelOrigin: { x: modelCenter.x, y: modelCenter.y, z: modelCenter.z },
     modelSize: { x: modelSize.x, y: modelSize.y, z: modelSize.z },
   }
 }
 
+function resolveVrmLoadReason(): 'initial-load' | 'model-reload' | 'model-switch' {
+  if (!lastCommittedModelSrc.value)
+    return 'initial-load'
+
+  if (lastCommittedModelSrc.value !== modelSrc.value)
+    return 'model-switch'
+
+  return 'model-reload'
+}
+
 async function loadModel() {
   const requestId = invalidatePendingLoads()
-  const loadReason: VrmLifecycleReason = vrmGroup.value ? 'model-switch' : 'initial-load'
+  const currentLoadReason = resolveVrmLoadReason()
   const loadStartedAt = performance.now()
   let nextVrm: VRM | undefined
   let nextVrmGroup: Group | undefined
@@ -582,36 +667,49 @@ async function loadModel() {
       return
     }
 
+    emit('loadStart', currentLoadReason)
+
     if (isStageThreeRuntimeTraceEnabled()) {
       stageThreeRuntimeTraceContext.emit(stageThreeTraceVrmLoadStartEvent, {
         modelSrc: modelSrc.value,
-        reason: loadReason,
+        reason: currentLoadReason,
         rendererMemory: createThreeRendererMemorySnapshot(getRendererInstance()),
         sceneSummary: createVrmSceneSummarySnapshot(),
         ts: loadStartedAt,
       })
     }
 
-    emit('loadStart')
     modelLoaded.value = false
     const reusableInstance = takeManagedVrmInstance(getManagedVrmScopeKey(), modelSrc.value)
     if (reusableInstance) {
       if (!isManagedVrmInstanceReusable(reusableInstance)) {
-        destroyManagedVrmInstance(reusableInstance)
+        destroyManagedVrmInstanceWithHooks(reusableInstance, currentLoadReason)
       }
       else {
         if (!isLoadRequestCurrent(requestId)) {
-          destroyManagedVrmInstance(stashManagedVrmInstance(reusableInstance))
+          destroyManagedVrmInstanceWithHooks(stashManagedVrmInstance(reusableInstance), currentLoadReason)
           return
         }
+
+        nextVrm = reusableInstance.vrm
+        nextVrmGroup = reusableInstance.group
+        nextVrmAnimationMixer = reusableInstance.mixer
+        nextVrmEmote = reusableInstance.emote
 
         if (!airiIblProbe && scene.value)
           airiIblProbe = createIblProbeController(scene.value)
 
-        if (loadReason === 'model-switch') {
+        if (currentLoadReason === 'model-switch') {
           componentCleanUp('model-switch', { invalidate: false })
         }
 
+        runVrmLoadHooks({
+          cacheHit: true,
+          camera: camera.value,
+          reason: currentLoadReason,
+          vrm: reusableInstance.vrm,
+          vrmGroup: reusableInstance.group,
+        })
         emit('sceneBootstrap', buildSceneBootstrap(reusableInstance.vrm, true))
         commitManagedVrmInstance(reusableInstance)
         didCommitLoad = true
@@ -620,7 +718,7 @@ async function loadModel() {
           stageThreeRuntimeTraceContext.emit(stageThreeTraceVrmLoadEndEvent, {
             durationMs: performance.now() - loadStartedAt,
             modelSrc: modelSrc.value,
-            reason: loadReason,
+            reason: currentLoadReason,
             rendererMemory: createThreeRendererMemorySnapshot(getRendererInstance()),
             sceneSummary: createVrmSceneSummarySnapshot({ mixer: reusableInstance.mixer, vrm: reusableInstance.vrm }),
             ts: performance.now(),
@@ -639,7 +737,7 @@ async function loadModel() {
     })
     if (!_vrmInfo || !_vrmInfo._vrm || !_vrmInfo._vrmGroup) {
       if (isLoadRequestCurrent(requestId)) {
-        emitVrmLoadError(loadReason, loadStartedAt, 'VRM model loading failure')
+        emitVrmLoadError(currentLoadReason, loadStartedAt, 'VRM model loading failure')
         console.warn('VRM model loading failure!')
         emit('error', new Error('VRM model loading failure'))
       }
@@ -657,6 +755,14 @@ async function loadModel() {
       return
     }
 
+    runVrmLoadHooks({
+      cacheHit: false,
+      camera: camera.value,
+      reason: currentLoadReason,
+      vrm: _vrm,
+      vrmGroup: _vrmGroup,
+    })
+
     /*
       * Animation setting
     */
@@ -668,7 +774,7 @@ async function loadModel() {
     }
     if (!clip) {
       disposeDetachedVrm(nextVrm, nextVrmGroup)
-      emitVrmLoadError(loadReason, loadStartedAt, 'No VRM animation loaded')
+      emitVrmLoadError(currentLoadReason, loadStartedAt, 'No VRM animation loaded')
       console.warn('No VRM animation loaded')
       if (isLoadRequestCurrent(requestId))
         emit('error', new Error('No VRM animation loaded'))
@@ -686,12 +792,27 @@ async function loadModel() {
     /*
       * Shader setting
     */
-    // material selection
-    function isMToon(mat: any): boolean {
-      return !!(mat?.isShaderMaterial && mat.userData?.vrmMaterialType === 'MToon'
-      )
-    }
     const isShaderMat = (m: any): m is ShaderMaterial => !!m?.isShaderMaterial
+
+    function configureInjectedShaderMaterial(mat: ShaderMaterial) {
+      if ('toneMapped' in mat)
+        mat.toneMapped = false
+      if ('envMap' in mat && mat.envMap)
+        mat.envMap = null
+
+      // NPR materials usually use sRGB textures.
+      const tex = (mat as any).map as Texture | undefined
+      if (tex && (tex as any).colorSpace !== undefined) {
+        try {
+          (tex as any).colorSpace = SRGBColorSpace
+        }
+        catch (e) {
+          console.warn('Failed to set colorSpace on texture:', e)
+        }
+      }
+
+      injectDiffuseIBL(mat)
+    }
 
     // MToon material sky box lightProbe setting
     if (!airiIblProbe && scene.value)
@@ -701,15 +822,16 @@ async function loadModel() {
     _vrm.scene.traverse((child) => {
       if (child instanceof Mesh && child.material) {
         const material = Array.isArray(child.material) ? child.material : [child.material]
-        material.forEach((mat) => {
+        material.forEach((mat, materialIndex) => {
           if (mat instanceof MeshStandardMaterial || mat instanceof MeshPhysicalMaterial) {
             // Should read envMap intensity from outside props
             mat.envMapIntensity = 1.0
             mat.needsUpdate = true
           }
-          else if (isMToon(mat)) {
-            // --- MToon material, add IBL lightProbe only ---
-            // close tone mapping for NPR materials
+          else if (mat?.isMToonMaterial) {
+            // --- MToon material ---
+            // NOTICE: three-vrm MToon already consumes scene LightProbe irradiance.
+            // Keep it on a single IBL path to avoid double-applying diffuse IBL.
             if ('toneMapped' in mat)
               mat.toneMapped = false
           }
@@ -717,35 +839,34 @@ async function loadModel() {
             // --- Shader material, further IBL injection needed ---
             // TODO: stylised shader injection
             // Lilia: I plan to replace all injected shader code to be my own, so that it can always avoid double injection and unknown user upload VRM injected shader behaviour...
-            if ('toneMapped' in mat)
-              mat.toneMapped = false
-            if ('envMap' in mat && mat.envMap)
-              mat.envMap = null
-            // NPR materials usually use sRGB textures
-            const tex = (mat as any).map as Texture | undefined
-            if (tex && (tex as any).colorSpace !== undefined) {
-              try {
-                (tex as any).colorSpace = SRGBColorSpace
-              }
-              catch (e) {
-                console.warn('Failed to set colorSpace on texture:', e)
-              }
-            }
-            injectDiffuseIBL(mat)
+            configureInjectedShaderMaterial(mat)
           }
+
+          runVrmMaterialHooks({
+            camera: camera.value,
+            material: mat,
+            materialIndex,
+            mesh: child,
+            reason: currentLoadReason,
+            vrm: _vrm,
+            vrmGroup: _vrmGroup,
+          })
         })
       }
     })
 
-    if (loadReason === 'model-switch') {
+    if (currentLoadReason === 'model-switch') {
       componentCleanUp('model-switch', { invalidate: false })
     }
 
     emit('sceneBootstrap', buildSceneBootstrap(_vrm, false))
 
+    const nextInteractionColliders = createVrmInteractionColliders(_vrm)
+
     commitManagedVrmInstance(createManagedVrmInstance({
       emote: nextVrmEmote,
       group: _vrmGroup,
+      interactionColliders: nextInteractionColliders,
       mixer: nextVrmAnimationMixer,
       vrm: _vrm,
     }))
@@ -755,7 +876,7 @@ async function loadModel() {
       stageThreeRuntimeTraceContext.emit(stageThreeTraceVrmLoadEndEvent, {
         durationMs: performance.now() - loadStartedAt,
         modelSrc: modelSrc.value,
-        reason: loadReason,
+        reason: currentLoadReason,
         rendererMemory: createThreeRendererMemorySnapshot(getRendererInstance()),
         sceneSummary: createVrmSceneSummarySnapshot({ mixer: vrmAnimationMixer.value, vrm: _vrm }),
         ts: performance.now(),
@@ -764,17 +885,39 @@ async function loadModel() {
   }
   catch (err) {
     if (!didCommitLoad) {
+      if (nextVrm && nextVrmGroup) {
+        runVrmDisposeHooks({
+          camera: camera.value,
+          reason: currentLoadReason,
+          vrm: nextVrm,
+          vrmGroup: nextVrmGroup,
+        })
+      }
+
+      nextVrmEmote?.dispose()
       nextVrmAnimationMixer?.stopAllAction()
       disposeDetachedVrm(nextVrm, nextVrmGroup)
     }
     if (!isLoadRequestCurrent(requestId))
       return
 
-    emitVrmLoadError(loadReason, loadStartedAt, err)
+    emitVrmLoadError(currentLoadReason, loadStartedAt, err)
     console.error(err)
     emit('error', err)
   }
 }
+
+const focusPos = useVRMEyeFocusFor({
+  cameraPosition: () => props.cameraPosition,
+  context: () => ({
+    camera: camera.value,
+    raycaster,
+    defaultLookAt: defaultTookAt.value,
+  }),
+  screenBoundingBox: props.screenBoundingBox,
+  source: () => props.cursorPosition,
+  trackingMode: () => props.trackingMode,
+})
 
 onMounted(async () => {
   // watch if the model needs to be reloaded
@@ -859,32 +1002,9 @@ onMounted(async () => {
     })
     airiIblProbe?.update(mode, skyBoxIntensity.value, nprIrrSH.value ?? null)
   }, { immediate: true })
-  // update eye tracking mode
-  watch(trackingMode, (newMode) => {
-    stopCameraWatch?.()
-    stopCameraWatch = undefined
-    stopMouseWatch?.()
-    stopMouseWatch = undefined
-    if (newMode === 'camera') {
-      stopCameraWatch = watch(cameraPosition, (newPosition) => {
-        // watch to update look at target to camera
-        emit('lookAtTarget', newPosition)
-      }, { immediate: true, deep: true })
-    }
-    else if (newMode === 'mouse') {
-      stopMouseWatch = watch([mouseX, mouseY], ([newX, newY]) => {
-        mouseTarget.value = lookAtMouse(newX, newY, camera)
-        // watch to update look at target to mouse
-        emit('lookAtTarget', mouseTarget.value)
-      }, { immediate: true, deep: true })
-    }
-    else {
-      emit('lookAtTarget', defaultTookAt(eyeHeight.value))
-    }
+  watch(focusPos, (newPos) => {
+    idleEyeSaccades.instantUpdate(vrm.value, newPos)
   }, { immediate: true })
-  watch(lookAtTarget, (newTarget) => {
-    idleEyeSaccades.instantUpdate(vrm.value, newTarget)
-  }, { deep: true })
 })
 
 onUnmounted(() => {
@@ -899,11 +1019,15 @@ if (import.meta.hot) {
 }
 
 defineExpose({
+  getInteractionColliders: () => interactionColliders.value?.colliders ?? [],
   setExpression(expression: string, intensity = 1) {
     vrmEmote.value?.setEmotionWithResetAfter(expression, 3000, intensity)
   },
-  setVrmFrameHook(hook?: VrmFrameHook) {
-    vrmFrameHook.value = hook
+  // NOTICE: This runtime frame hook is intentionally separate from internal VRM model hooks.
+  // External callers use it for live pose/tracking input; internal hooks remain reserved for
+  // stage-ui-three's own model/material lifecycle extensions.
+  setVrmFrameHook(hook?: VrmFrameRuntimeHook) {
+    vrmFrameRuntimeHook.value = hook
   },
   scene: computed(() => vrm.value?.scene),
   lookAtUpdate(target: Vec3) {

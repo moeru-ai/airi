@@ -15,6 +15,7 @@ doc:
     title: Trang sau
   previous-page:
     title: Trang trước
+  published-at: Published at {date}
 home:
   subtitle: >-
     Một nhân vật chứa linh hồn của AI waifu / VTuber nhân vật ảo để đưa họ vào thế giới của chúng ta.
@@ -36,7 +37,7 @@ pages:
   characters:
     title: Nhân vật
 blog:
-  title: Blog & Nhật ký phát triển
+  title:
   subtitle: Theo dõi hành trình của chúng tôi và nhận các cập nhật mới nhất từ đội ngũ phát triển.
   card:
     post:
@@ -46,4 +47,4 @@ blog:
   categories:
     all: Tất cả
     devlog: Nhật ký phát triển
-    dreamlog: Nhật ký giấc mơ
+    dreamlog:

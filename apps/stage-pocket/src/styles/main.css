@@ -1,3 +1,4 @@
+@import '@proj-airi/ui/main.css';
 @import './transitions.css';
 @import './vue-transitions.css';
 
@@ -29,6 +30,12 @@ body,
 html {
   background: var(--bg-color);
   transition: all 0.3s ease-in-out;
+}
+
+html:has(.airi-native-transparent-surface),
+body:has(.airi-native-transparent-surface),
+#app:has(.airi-native-transparent-surface) {
+  background: transparent !important;
 }
 
 html.dark {

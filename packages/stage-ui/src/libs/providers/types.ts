@@ -27,6 +27,21 @@ export type ProviderInstance
     | ModelProvider
     | ModelProviderWithExtraOptions
 
+/** Validation lifecycle for one serializable provider configuration. */
+export type ProviderValidationStatus = 'unconfigured' | 'validating' | 'configured' | 'invalid' | 'bypassed'
+
+/** Serializable configuration for one provider instance. */
+export interface InferenceServiceProvider {
+  /** Stable provider instance id. */
+  id: string
+  /** Provider definition id from the built-in provider registry. */
+  definitionId: string
+  /** Provider-specific configuration values. */
+  config: Record<string, unknown>
+  /** Current validation state for this provider configuration. */
+  status: ProviderValidationStatus
+}
+
 export function isModelProvider(providerInstance: ProviderInstance): providerInstance is ModelProvider | ModelProviderWithExtraOptions {
   if ('model' in providerInstance && typeof providerInstance.model === 'function') {
     return true
@@ -35,9 +50,24 @@ export function isModelProvider(providerInstance: ProviderInstance): providerIns
   return false
 }
 
+export interface ProviderOnboardingField {
+  key: string
+  type: 'text' | 'password'
+  label: string
+  description?: string
+  placeholder?: string
+  required?: boolean
+  defaultValue?: string
+}
+
 export interface ProviderExtraMethods<TConfig> {
   listModels?: (config: TConfig, provider: ProviderInstance) => Promise<ModelInfo[]>
-  listVoices?: (config: TConfig, provider: ProviderInstance) => Promise<VoiceInfo[]>
+  /**
+   * Returns the voice catalogue. `model` lets providers whose voices vary by
+   * model variant (Volcengine streaming TTS 1.0 vs 2.0 differ in catalogue)
+   * narrow the result. Providers with a single catalogue ignore it.
+   */
+  listVoices?: (config: TConfig, provider: ProviderInstance, model?: string) => Promise<VoiceInfo[]>
   loadModel?: (config: TConfig, provider: ProviderInstance, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
 }
 
@@ -46,6 +76,29 @@ export interface ProviderValidationResult {
   reason: string
   reasonKey: string
   valid: boolean
+}
+
+/**
+ * Validator ID fragment for the chat completions probe.
+ * Matched via `.includes()` against validator instance ids
+ * (e.g. `openai-compatible:check-chat-completions`).
+ */
+export const CHAT_COMPLETIONS_VALIDATOR_ID = 'check-chat-completions'
+
+export enum ProviderValidationCheck {
+  /** Lightweight GET to /models endpoint to check reachability (definition system) */
+  Connectivity = 'connectivity',
+  /** Fetch model list and verify non-empty */
+  ModelList = 'model_list',
+  /** Send generateText ping with fine-grained error handling and caching (definition system) */
+  ChatCompletions = 'chat_completions',
+  /**
+   * @deprecated
+   * Being used in builder system (a deprecated provider creation protocol),
+   * currently used by only OpenAI TTS && OpenAI Transcription.
+   * Send generateText ping with simple pass/fail, fallback to 'test' model (builder system)
+   */
+  Health = 'health',
 }
 
 export interface ProviderValidatorSchedule {
@@ -135,7 +188,14 @@ export interface ProviderDefinition<TConfig extends any = any> {
    */
   isAvailableBy?: () => Promise<boolean> | boolean
 
+  /**
+   * If false, the provider does not require user-provided credentials (e.g. API keys).
+   * Used for built-in providers that authenticate via JWT Bearer tokens.
+   */
+  requiresCredentials?: boolean
+
   createProviderConfig: (contextOptions: { t: ComposerTranslation }) => $ZodType<TConfig>
+  onboardingFields?: (ctx: { t: ComposerTranslation }) => ProviderOnboardingField[]
   createProvider: (config: TConfig) => ProviderInstance
   extraMethods?: ProviderExtraMethods<TConfig>
   validationRequiredWhen?: (config: TConfig) => boolean
@@ -150,7 +210,37 @@ export interface ProviderDefinition<TConfig extends any = any> {
       streamOutput: boolean
       streamInput: boolean
     }
+    /**
+     * Declares the TTS transport this provider speaks. Drives Stage's TTS
+     * session adapter selection (`@proj-airi/stage-ui/libs/speech/tts-session`):
+     *
+     * - `rest` (default when this whole block is absent): the host opens
+     *   a `pipelines-audio` IntentHandle and the provider's `speech()` is
+     *   called per-segment by the speech-pipeline `tts()` callback. This
+     *   matches every OpenAI-shaped HTTP TTS provider.
+     * - `bidirectional-ws`: the host opens one streaming TTS WebSocket
+     *   for the whole LLM intent and forwards raw token chunks without
+     *   client-side segmentation. The provider's `speech()` is unused
+     *   for synthesis on this path (kept only for legacy fallback).
+     *
+     * Designed so a future provider (ElevenLabs streaming, OpenAI Realtime
+     * Voice, etc.) only needs to set this flag — Stage and the session
+     * factory do not need to know each provider's id.
+     */
+    speech?: {
+      transport: 'rest' | 'bidirectional-ws'
+    }
   }
+  /**
+   * When true, hides the "skip chat ping check" checkbox in the UI even
+   * when the provider defines a ChatCompletions validator.
+   *
+   * By default, the checkbox is shown automatically whenever a provider
+   * includes a ChatCompletions runtime validator. Set this to `true` for
+   * providers where skipping that check is not meaningful or has not been
+   * verified yet.
+   */
+  disableChatPingCheckUI?: boolean
   business?: (contextOptions: { t: ComposerTranslation }) => {
     troubleshooting?: {
       validators?: {

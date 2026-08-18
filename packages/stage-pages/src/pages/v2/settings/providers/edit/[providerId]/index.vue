@@ -3,6 +3,9 @@ import type { ProviderValidationStep } from '@proj-airi/stage-ui/libs'
 import type { ZodType } from 'zod'
 import type { $ZodType } from 'zod/v4/core'
 
+// TODO: https://developer.mozilla.org/en-US/docs/Web/API/HTML_Sanitizer_API
+import DOMPurify from 'dompurify'
+
 import { merge } from '@moeru/std'
 import {
   Alert,
@@ -16,8 +19,8 @@ import {
   ProviderValidationDetailsDialog,
 } from '@proj-airi/stage-ui/components'
 import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
-import { useProviderCatalogStore } from '@proj-airi/stage-ui/stores/provider-catalog'
-import { Button, Callout, FieldInput, FieldKeyValues, FieldSelect } from '@proj-airi/ui'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
 import { useCloned, useDebounceFn } from '@vueuse/core'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -28,10 +31,10 @@ const { t } = useI18n()
 const router = useRouter()
 const route = useRoute('v2/settings/providers/edit/[providerId]')
 
-const providerCatalogStore = useProviderCatalogStore()
+const providerStore = useProviderConfigStore()
 
 const providerId = computed(() => route.params.providerId as string)
-const providerConfig = computed(() => providerCatalogStore.configs[providerId.value] || {})
+const providerConfig = computed(() => providerStore.getProvider(providerId.value) || {})
 const providerDefinition = computed(() => getDefinedProvider(providerConfig.value.definitionId))
 const providerSchema = computed(() => providerDefinition.value?.createProviderConfig({ t }) as $ZodType | undefined)
 const providerSchemaDefault = computed(() => getSchemaDefault(providerSchema.value))
@@ -56,7 +59,7 @@ const isEdited = computed(() => {
 })
 
 const canSkipValidation = computed(() => {
-  return !isEdited.value && (providerConfig.value?.validated || providerConfig.value?.validationBypassed)
+  return !isEdited.value && ['configured', 'bypassed'].includes(providerConfig.value?.status)
 })
 
 const isValidating = ref(false)
@@ -68,6 +71,10 @@ const hasValidationFailures = computed(() => validationSteps.value.some(step => 
 const isOllamaProvider = computed(() => providerDefinition.value?.id === 'ollama')
 const shouldShowTroubleshootingOllamaConnectivity = computed(() => {
   return isOllamaProvider.value && validationSteps.value.some(step => step.id === 'openai-compatible:check-connectivity' && step.status === 'invalid')
+})
+const safeOllamaConnectivityTroubleshootingHtml = computed(() => {
+  const content = providerDefinition.value?.business?.({ t }).troubleshooting?.validators?.openaiCompatibleCheckConnectivity?.content
+  return DOMPurify.sanitize(content || '')
 })
 
 function getSchemaShape(schema: $ZodType): Record<string, ZodType> {
@@ -152,6 +159,16 @@ function setFieldValue(key: string, value: unknown) {
   providerConfigEdit.value.config[key] = value
 }
 
+// NOTICE: Bridges the polymorphic `Record<string, unknown>` config store and typed
+// string inputs (ProviderApiKeyInput / ProviderBaseUrlInput / ProviderAccountIdInput /
+// FieldCombobox). The schema layer (createProviderConfig) already guarantees these
+// fields are strings; this is the single boundary point where we coerce. Removable
+// once `InferenceServiceProvider.config` is narrowed per-provider via the schema.
+function getStringField(key: string): string {
+  const value = providerConfigEdit.value?.config?.[key]
+  return typeof value === 'string' ? value : ''
+}
+
 const headerRows = ref<Array<{ key: string, value: string }>>([{ key: '', value: '' }])
 const isSyncingHeaders = ref(false)
 
@@ -160,7 +177,7 @@ function normalizeHeaderRows(headers: Record<string, string>) {
   if (rows.length === 0) {
     rows.push({ key: '', value: '' })
   }
-  else if (rows[rows.length - 1].key !== '' || rows[rows.length - 1].value !== '') {
+  else if (rows.at(-1)!.key !== '' || rows.at(-1)!.value !== '') {
     rows.push({ key: '', value: '' })
   }
   return rows
@@ -178,7 +195,7 @@ watch(providerConfigEdit, (config) => {
 watch(headerRows, (rows) => {
   if (isSyncingHeaders.value)
     return
-  const lastRow = rows[rows.length - 1]
+  const lastRow = rows.at(-1)
   if (!lastRow || lastRow.key.trim().length > 0 || lastRow.value.trim().length > 0) {
     headerRows.value = [...rows, { key: '', value: '' }]
     return
@@ -217,25 +234,40 @@ async function runValidation() {
     return
 
   isValidating.value = true
+  providerStore.setProviderStatus(providerId.value, 'validating')
   validatorEventStates.value = {}
-  const results = await validateProvider(validationPlan, { t }, {
-    onValidatorStart: ({ step }) => {
-      validatorEventStates.value = { ...validatorEventStates.value, [step.id]: 'running' }
-      syncValidationSteps()
-    },
-    onValidatorSuccess: ({ step }) => {
-      validatorEventStates.value = { ...validatorEventStates.value, [step.id]: 'success' }
-      syncValidationSteps()
-    },
-    onValidatorError: ({ step }) => {
-      validatorEventStates.value = { ...validatorEventStates.value, [step.id]: 'error' }
-      syncValidationSteps()
-    },
-  })
-  if (isEdited.value && results.every(step => step.status !== 'invalid')) {
-    commitEditedConfig({ validated: true, validationBypassed: false })
+  try {
+    const results = await validateProvider(validationPlan, { t }, {
+      onValidatorStart: ({ step }) => {
+        validatorEventStates.value = { ...validatorEventStates.value, [step.id]: 'running' }
+        syncValidationSteps()
+      },
+      onValidatorSuccess: ({ step }) => {
+        validatorEventStates.value = { ...validatorEventStates.value, [step.id]: 'success' }
+        syncValidationSteps()
+      },
+      onValidatorError: ({ step }) => {
+        validatorEventStates.value = { ...validatorEventStates.value, [step.id]: 'error' }
+        syncValidationSteps()
+      },
+    })
+    if (results.some(step => step.status === 'invalid')) {
+      providerStore.setProviderStatus(providerId.value, 'invalid')
+      return
+    }
+
+    if (isEdited.value)
+      commitEditedConfig('configured')
+    else
+      providerStore.setProviderStatus(providerId.value, 'configured')
   }
-  isValidating.value = false
+  catch (error) {
+    providerStore.setProviderStatus(providerId.value, 'invalid')
+    throw error
+  }
+  finally {
+    isValidating.value = false
+  }
 }
 
 const debouncedValidation = useDebounceFn(runValidation, 1500)
@@ -259,7 +291,7 @@ watch([providerConfigEdit, providerDefinition], () => {
 }, { deep: true, immediate: true })
 
 onMounted(() => {
-  if (!providerConfig.value.validated) {
+  if (providerConfig.value.status !== 'configured') {
     providerConfigEdit.value.config = merge(providerSchemaDefault.value, providerConfigEdit.value?.config || {})
   }
 })
@@ -285,24 +317,24 @@ function syncValidationSteps() {
   validationSteps.value = [...validationSteps.value]
 }
 
-function commitEditedConfig(options: { validated: boolean, validationBypassed: boolean }) {
+function commitEditedConfig(status: 'configured' | 'bypassed') {
   if (!providerConfigEdit.value)
     return
 
-  providerCatalogStore.commitProviderConfig(providerId.value, { ...providerConfigEdit.value.config }, options)
+  providerStore.updateProviderConfig(providerId.value, { ...providerConfigEdit.value.config }, status)
 }
 
 function handleSaveAnyway() {
   if (!isEdited.value)
     return
 
-  commitEditedConfig({ validated: false, validationBypassed: true })
+  commitEditedConfig('bypassed')
 }
 
 function handleDeleteProvider() {
   const id = providerId.value
   router.push('/v2/settings/providers')
-  setTimeout(() => providerCatalogStore.removeProvider(id), 100)
+  setTimeout(() => providerStore.removeProvider(id), 100)
 }
 </script>
 
@@ -344,7 +376,7 @@ function handleDeleteProvider() {
         <div :class="['flex', 'items-center', 'gap-2']">
           <DropdownMenuRoot>
             <DropdownMenuTrigger as-child :aria-label="t('settings.pages.providers.catalog.edit.actions.more-options')">
-              <Button size="sm" variant="secondary">
+              <Button size="sm">
                 <div :class="['i-solar:menu-dots-bold']" />
               </Button>
             </DropdownMenuTrigger>
@@ -394,28 +426,31 @@ function handleDeleteProvider() {
               <div v-for="field in basicFields" :key="field.key">
                 <ProviderApiKeyInput
                   v-if="field.key === 'apiKey'"
-                  v-model="providerConfigEdit.config[field.key]"
+                  :model-value="getStringField(field.key)"
                   :provider-name="providerDefinition?.nameLocalize({ t }) || providerDefinition?.name || ''"
                   :label="field.label"
                   :description="field.description"
                   :placeholder="field.placeholder"
                   :required="field.required"
+                  @update:model-value="setFieldValue(field.key, $event)"
                 />
                 <ProviderBaseUrlInput
                   v-else-if="field.key === 'baseUrl'"
-                  v-model="providerConfigEdit.config[field.key]"
+                  :model-value="getStringField(field.key)"
                   :label="field.label"
                   :description="field.description"
                   :placeholder="field.placeholder"
                   :required="field.required"
+                  @update:model-value="setFieldValue(field.key, $event)"
                 />
                 <ProviderAccountIdInput
                   v-else-if="field.key === 'accountId'"
-                  v-model="providerConfigEdit.config[field.key]"
+                  :model-value="getStringField(field.key)"
                   :label="field.label"
                   :description="field.description"
                   :placeholder="field.placeholder"
                   :required="field.required"
+                  @update:model-value="setFieldValue(field.key, $event)"
                 />
                 <FieldInput
                   v-else
@@ -449,19 +484,21 @@ function handleDeleteProvider() {
                 />
                 <ProviderBaseUrlInput
                   v-else-if="field.key === 'baseUrl'"
-                  v-model="providerConfigEdit.config[field.key]"
+                  :model-value="getStringField(field.key)"
                   :label="field.label"
                   :description="field.description"
                   :placeholder="field.placeholder"
                   :required="field.required"
+                  @update:model-value="setFieldValue(field.key, $event)"
                 />
-                <FieldSelect
+                <FieldCombobox
                   v-else-if="field.type === 'select'"
-                  v-model="providerConfigEdit.config[field.key]"
+                  :model-value="getStringField(field.key)"
                   :label="field.label"
                   :description="field.description"
                   :placeholder="field.placeholder"
                   :options="field.options"
+                  @update:model-value="setFieldValue(field.key, $event)"
                 />
                 <FieldInput
                   v-else
@@ -481,14 +518,14 @@ function handleDeleteProvider() {
               v-if="shouldShowTroubleshootingOllamaConnectivity && providerDefinition.business?.({ t }).troubleshooting?.validators?.openaiCompatibleCheckConnectivity"
               :label="providerDefinition.business?.({ t }).troubleshooting?.validators?.openaiCompatibleCheckConnectivity?.label"
             >
-              <div v-html="providerDefinition.business?.({ t }).troubleshooting?.validators?.openaiCompatibleCheckConnectivity?.content" />
+              <div v-html="safeOllamaConnectivityTroubleshootingHtml" />
             </Callout>
 
             <div :class="['flex', 'items-center', 'justify-between']">
               <div :class="['text-xs', 'text-neutral-400']">
                 {{ t('settings.pages.providers.catalog.edit.validators.title') }}
               </div>
-              <Button size="sm" variant="secondary" :loading="isValidating" :disabled="isValidating" @click="runValidation">
+              <Button size="sm" :loading="isValidating" :disabled="isValidating" @click="runValidation">
                 {{ t('settings.pages.providers.catalog.edit.validators.actions.validate') }}
               </Button>
             </div>
@@ -510,9 +547,9 @@ function handleDeleteProvider() {
                       {{ step.label }}
                     </div>
                     <div :class="['flex', 'flex-col', 'items-end', 'gap-2']">
-                      <Button
+                      <GhostButton
                         size="sm"
-                        variant="ghost"
+
                         :title="
                           step.status === 'valid' ? t('settings.pages.providers.catalog.edit.validators.status.valid')
                           : step.status === 'invalid' ? t('settings.pages.providers.catalog.edit.validators.status.invalid')
@@ -530,7 +567,7 @@ function handleDeleteProvider() {
                             step.status === 'idle' ? 'i-solar:minus-circle-line-duotone text-neutral-300 dark:text-neutral-600' : '',
                           ]"
                         />
-                      </Button>
+                      </GhostButton>
                     </div>
                   </div>
                 </div>
@@ -551,7 +588,7 @@ function handleDeleteProvider() {
                     <span :class="['text-xs', 'text-neutral-600', 'dark:text-neutral-300']">
                       {{ t('settings.pages.providers.catalog.edit.validation.failed.description') }}
                     </span>
-                    <Button size="sm" variant="caution" @click="handleSaveAnyway">
+                    <Button size="sm" color="orange" variant="primary" @click="handleSaveAnyway">
                       {{ t('settings.pages.providers.catalog.edit.validation.failed.action') }}
                     </Button>
                   </div>

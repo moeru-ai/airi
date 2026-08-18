@@ -79,6 +79,7 @@ export const useCharacterStore = defineStore('character', () => {
       }) satisfies CharacterSparkNotifyReaction
 
       const intent = speechRuntimeStore.openIntent({
+        turnId: `spark:${sparkEventId}`,
         intentId: `spark:${sparkEventId}`,
         ownerId: ownerId.value,
         priority: 'high',

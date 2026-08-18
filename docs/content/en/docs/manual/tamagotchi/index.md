@@ -1,24 +1,22 @@
 ---
-title: Guide to Desktop version
-description: How to use Tamagotchi version of Project AIRI
+title: Desktop Quick Start
+description: How to get started with the Desktop ver.
 ---
 
-## I want to chat, now!
+## Start chatting first
 
-No problem, follow me:
+After installing and starting AIRI, complete the onboarding flow:
 
-- Complete the onboarding process
-
-1. Choose your desired LLM / AI provider (in the demo video, I chose OpenRouter)
-2. Input API Key to interact with LLM / AI (this serve as the brain / soul of your character)
-3. Select the desired Chat model (in the demo video, I chose `DeepSeek V3 0324`)
-4. Disable **Fade on Hover** mode from system tray
-5. Hover to the model UI, click the chat bubble icon, this will bring up the Chat window
-6. Input and Chat!
+1. On the welcome screen, optionally click the <span class="i-lucide:globe inline-block align-[-0.125em]" aria-hidden="true"></span> **globe button** in the upper-right corner to change the interface language.
+2. Select **Setup with your provider**, or select **Sign in** to use the official AIRI provider.
+3. Select a Chat provider such as OpenRouter, OpenAI Compatible, DeepSeek, Ollama, Google Gemini, or Anthropic.
+4. Fill in the API Key, local service address and other necessary information.
+5. Select a chat model, then select **Save and Continue**.
+6. After returning to the main character window, click **Expand** in the Controls Island in the lower-right corner.
+7. Click **Open Chat**, enter the message and send it.
 
 ::: tip Using Ollama locally?
-You will need to set the `OLLAMA_ORIGINS=*` system environment variable and restart the Ollama
-application after finishes.
+By default, Ollama allows requests from the development and packaged-app origins of the Desktop ver. Thus, a local setup does not usually require `OLLAMA_ORIGINS`. If a CORS error occurs from a non-default remote web origin, add that exact origin to `OLLAMA_ORIGINS`. Then restart Ollama. Do not use a wildcard or expose Ollama to the public internet.
 :::
 
 <br />
@@ -27,62 +25,41 @@ application after finishes.
  <source src="/assets/tutorial-basic-setup-providers.mp4" type="video/mp4">
 </video>
 
-<br />
+## What will you see
 
-Well yeah, this is too quick, we bet you haven't figured out what is **Fade on Hover**,
-and how to customize everything, right?
+The Desktop ver. usually consists of these interfaces:
 
-::: warning We are still in early stage of developing it, many things weren't fully available yet
-Some of the features are not really ready, but we are working hard to make them true right now:
+- **Main Character Window**: A desktop-resident character stage supporting Live2D, Spine, VRM, MMD, and Tachie.
+- **Controls Island**: A small group of buttons in the lower-right corner of the main character window.
+- **Chat Window**: A conversation window opened from the Controls Island.
+- **Settings Window**: Configure providers, profiles, models, modules, data, connections, and system options.
+- **System Tray Menu**: Adjust the window size and position, open settings, manage captions and widgets, or quit AIRI.
 
-- Transcriptions
-- Local Speech Synthesis (GPT-SoVITS, IndexTTS, etc.)
-- Singing
-- Configuring Discord from UI (but it works already and requires coding skills to set it up)
-- Configuring Minecraft agent from UI (but it works already and requires coding skills to set it up)
-:::
+If the main character window is hidden, you can bring it back by clicking on the AIRI tray icon or selecting **Show** in the tray menu.
 
-But first...
+## Controls Island
 
-::: tip Thank you!
+The Controls Island is the main entry point for everyday use of the desktop app.
 
-Thank you for downloading and trying it!
-:::
+- Click **Expand** to show more actions.
+- Click **Open Chat** to open the chat window.
+- Click **Open settings** to configure providers, models, modules, profiles, and system settings.
+- Click **Switch Profile** to change the current character card.
+- If needed, you can click **Refresh** to reload the stage.
+- Click the light/dark icon to switch themes.
+- Click the pushpin icon to toggle **Pin on top**.
+- Click the eye icon to toggle **Auto hide** / **Always show**.
+- Click **Open hearing Controls** to open voice-input controls.
+- Drag **Drag to move window** to move the main character window.
 
-After downloaded, start AIRI from anywhere. You will see the user interface consists of two parts:
+## Hide on hover
 
-- Onboarding / Wizard setup guide
-- Model (capable of showing Live2D & VRM models)
+The eye icon controls whether AIRI remains fully interactive or fades out of the way to reduce obstruction while you work.
 
-![](/assets/screenshot-ui.avif)
+- **Always show** keeps the character visible and clickable.
+- **Auto hide** fades the character and interface when the cursor is close, making it easier to click the application below.
 
-We have other options/commands in the system tray, including:
-
-- Show / Hide
-- Open Settings
-- Auto positioning windows
-- etc.
-
-Let's get this started one by one by explaining basic concepts and features.
-
-## Window control
-
-We will go through the following ones:
-
-- How to interact with the model window?
-- How to move the model window?
-- How to resize it?
-
-### Fade on Hover
-
-::: info TL;DR | Cheatsheet
-To toggle this feature (be able to interact with model), use <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="I" inline-block>I</kbd> shortcut.
-
-You can customize the key mapping in [Settings] -> [General] -> [Shortcuts]
-:::
-
-You will discover that when hovering to the model, the Live2D model fade out / disappears
-and you cannot interact with it with cursor.
+When you first enable hide on hover, AIRI displays a short explanation. If it becomes difficult to click AIRI, move the cursor near the Controls Island and click the eye icon again to switch it off.
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-180 translate-x--30 translate-y--2 lg:scale-150 lg:translate-x--40">
@@ -90,53 +67,9 @@ and you cannot interact with it with cursor.
   </video>
 </div>
 
-This is because by default, the **Fade on Hover** feature is enabled: which means,
-whenever cursor hovers on top of the model window, it will fade out and your clicks passed
-through the window entirely.
+## Move and resize
 
-This is a quite powerful feature, you will find it more useful when use it more and more
-while having the companion live by your side. Here are two scenarios we came up with:
-
-#### Browsing CrunchyRoll
-
-<video autoplay loop muted>
-  <source src="/assets/tutorial-demo-browsing-crunchy-roll.mp4" type="video/mp4">
-</video>
-
-#### Browsing Steam
-
-<video autoplay loop muted>
-  <source src="/assets/tutorial-demo-browsing-steam.mp4" type="video/mp4">
-</video>
-
-it's easy to disable this feature.
-
-There are two ways to disable this feature:
-
-- System tray
-- Shortcut
-
-You can toggle this feature through:
-
-1. Right click system tray icon
-2. Click **Window mode**
-3. Click **Fade on hover**
-
-<div rounded-lg overflow-hidden>
-  <video autoplay loop muted class="scale-200 translate-x--35 translate-y--23 lg:scale-180 lg:translate-x--60 lg:translate-y--40">
-    <source src="/assets/tutorial-basic-disable-fade-on-hover.mp4" type="video/mp4">
-  </video>
-</div>
-
-### Move the window
-
-::: info TL;DR | Cheatsheet
-To toggle this feature (be able to interact with model), use <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="N" inline-block>N</kbd> shortcut.
-
-You can customize the key mapping in [Settings] -> [General] -> [Shortcuts]
-:::
-
-<br />
+To move the main character window, drag the move button in the lower-right corner of the Controls Island.
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-225 translate-x--45 translate-y--5 lg:scale-200 lg:translate-x--80 lg:translate-y--5">
@@ -144,15 +77,13 @@ You can customize the key mapping in [Settings] -> [General] -> [Shortcuts]
   </video>
 </div>
 
-### Resize the window
+On Windows, you can drag the edges or corners of a window to resize it. Several common sizes are also provided in the tray menu:
 
-::: info TL;DR | Cheatsheet
-To toggle this feature (be able to interact with model), use <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="A" inline-block>A</kbd> shortcut.
+1. Right-click the AIRI tray icon.
+2. Open **Adjust sizes**.
+3. Select **Recommended (450x600)**, **Full Height**, **Half Height**, or **Full Screen**.
 
-You can customize the key mapping in [Settings] -> [General] -> [Shortcuts]
-:::
-
-<br />
+**Align to** in the same tray menu can move the window to the center or four corners of the screen.
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-160 translate-x--20 lg:scale-150 lg:translate-x--40 lg:translate-y-10">
@@ -160,18 +91,14 @@ You can customize the key mapping in [Settings] -> [General] -> [Shortcuts]
   </video>
 </div>
 
-## Chat
+## Recommended settings to review
 
-There is no direct option/command to summon the Chat window from system tray
-right now, but we might add this in the future, currently, in order to open the
-Chat window, you will need to toggle off the **Fade on Hover** mode.
+After your first chat, review these pages:
 
-::: info TL;DR | Cheatsheet
-Shortcut for Fade on Hover is: <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="I" inline-block>I</kbd>.
-:::
+- **Providers**: Add or edit Chat, Vision, Speech, Transcription, and Artistry providers.
+- **Modules**: Select services for consciousness, speech, hearing, vision, memory, Discord, Minecraft, Factorio, MCP, and other modules.
+- **Models**: Switch between supported 2D/3D models, or import your own.
+- **AIRI Card**: Switch the current character, or create a new character card.
+- **System**: Set the language, theme, usage-analytics settings, and desktop-specific options.
 
-<br />
-
-<video autoplay loop muted>
- <source src="/assets/tutorial-basic-open-chat.mp4" type="video/mp4">
-</video>
+Some modules are experimental and require local source configuration or additional services. See the [complete desktop manual](./setup-and-use/) for detailed instructions.

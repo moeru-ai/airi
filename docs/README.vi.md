@@ -32,7 +32,7 @@
 
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.14/AIRI-0.9.0-alpha.14-windows-x64-setup.exe">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.11.3/AIRI-0.11.3-windows-x64-setup.exe">
     <picture>
       <source
         width="33%"
@@ -48,7 +48,7 @@
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.14/AIRI-0.9.0-alpha.14-darwin-arm64.dmg">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.11.3/AIRI-0.11.3-darwin-arm64.dmg">
     <picture>
       <source
         width="33%"
@@ -84,6 +84,21 @@
     <picture>
       <source
         width="33%"
+        srcset="./content/public/assets/QR%20code%20button/section.cards.qrcode.dark.en-US.png"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="33%"
+        srcset="./content/public/assets/QR%20code%20button/section.cards.qrcode.light.en-US.png"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="33%" src="./content/public/assets/QR%20code%20button/section.cards.qrcode.light.en-US.png" />
+    </picture>
+  </a>
+  <a href="https://airi.moeru.ai">
+    <picture>
+      <source
+        width="33%"
         srcset="./content/public/assets/download-buttons/download-buttons.mobile.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
@@ -99,15 +114,15 @@
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.browser.dark.en-US.avif"
+        srcset="./content/public/assets/download-buttons/download-buttons.browser.dark.en-US.png"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.browser.light.en-US.avif"
+        srcset="./content/public/assets/download-buttons/download-buttons.browser.light.en-US.png"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.browser.light.en-US.avif" />
+      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.browser.light.en-US.png" />
     </picture>
   </a>
 </p>
@@ -119,11 +134,33 @@
 
 > Lấy cảm hứng mạnh mẽ từ [Neuro-sama](https://www.youtube.com/@Neurosama)
 
+> [!TIP]
+> Trên Windows, bạn có thể cài AIRI bằng [winget](https://learn.microsoft.com/windows/package-manager/winget/):
+>
+> ```powershell
+> winget install MoeruAI.AIRI
+> ```
+>
+> Hoặc cài AIRI bằng [Scoop](https://scoop.sh/):
+>
+> ```powershell
+> scoop bucket add airi https://github.com/moeru-ai/airi
+> scoop install airi/airi
+> ```
+>
+> Trên macOS, bạn có thể cài AIRI bằng [Homebrew Cask](https://brew.sh/) mà không cần thêm custom tap:
+>
+> ```sh
+> brew install --cask airi
+> ```
+
 > [!WARNING]
 > **Chú ý:** Chúng tôi **không** phát hành bất kỳ loại tiền điện tử hay token chính thức nào liên quan đến dự án này. Hãy kiểm tra kỹ thông tin trước khi tham gia.
 
 > [!NOTE]
+>
 > Chúng tôi có cả một tổ chức riêng [@proj-airi](https://github.com/proj-airi) cho các dự án con xuất phát từ AIRI. Hãy xem qua nhé!
+>
 > Bao gồm: RAG, hệ thống bộ nhớ, cơ sở dữ liệu nhúng, icon, tiện ích Live2D, và nhiều hơn nữa.
 
 > [!TIP]
@@ -140,16 +177,18 @@ Có lẽ bạn đã biết [Neuro-sama](https://www.youtube.com/@Neurosama). Cô
 
 Do đó, dự án AIRI mang đến một lựa chọn khác: **cho phép bạn sở hữu thực thể số của riêng mình, dễ dàng, mọi lúc, mọi nơi.**
 
----
+## DevLog và câu chuyện gần đây
 
-## DevLogs Đã Đăng & Cập Nhật Gần Đây
-
-- [DevLog @ 2026.01.01](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) ngày 1 tháng 1, 2026
-- [DevLog @ 2025.10.20](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) ngày 20 tháng 10, 2025
-- [DevLog @ 2025.08.05](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) ngày 5 tháng 8, 2025
-- [DevLog @ 2025.08.01](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.01/) ngày 1 tháng 8, 2025
-- [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/en/blog/DevLog-2025.07.18/) ngày 18 tháng 7, 2025
-- [DreamLog 0x1](https://airi.moeru.ai/docs/en/blog/dreamlog-0x1/) ngày 16 tháng 6, 2025
+- [DevLog @ 2026.03.23: Hiệu năng di động và hướng đi với game engine](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.23/) - ngày 23 tháng 3, 2026
+- [DevLog @ 2026.03.14: Vòng đời, bộ nhớ đệm và khả năng quan sát cho sân khấu VRM](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.14/) - ngày 14 tháng 3, 2026
+- [DevLog @ 2026.02.16: Thu thập dữ liệu Dome Keeper và pipeline huấn luyện](https://airi.moeru.ai/docs/en/blog/DevLog-2026.02.16/) - ngày 16 tháng 2, 2026
+- [DevLog @ 2026.01.01: AIRI Pocket và thử nghiệm bộ nhớ trong FlowChat](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) - ngày 1 tháng 1, 2026
+- [DevLog @ 2025.10.20: Chuyển sang Electron, model mới và cập nhật Moeru AI](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) - ngày 20 tháng 10, 2025
+- [DevLog @ 2025.08.26: Tiến triển hướng thị giác thuần túy cho airi-factorio](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.26/) - ngày 26 tháng 8, 2025
+- [DevLog @ 2025.08.05: Điểm nổi bật của AIRI v0.7](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) - ngày 5 tháng 8, 2025
+- [DevLog @ 2025.08.01: Hoạt ảnh văn bản streaming và grapheme cluster](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.01/) - ngày 1 tháng 8, 2025
+- [DevLog @ 2025.07.18: Nghĩ lại về airi-factorio với Factorio Learning Environment](https://airi.moeru.ai/docs/en/blog/DevLog-2025.07.18/) - ngày 18 tháng 7, 2025
+- [DreamLog 0x1: Câu chuyện phía sau Project AIRI](https://airi.moeru.ai/docs/en/blog/DreamLog-0x1/) - ngày 16 tháng 6, 2025
 - ...xem thêm tại [docs page](https://airi.moeru.ai/docs)
 
 ## Dự Án Này Có Gì Đặc Biệt?
@@ -164,6 +203,7 @@ Khác với các dự án VTuber AI mã nguồn mở khác, **アイリ** đư�
 Điều này có nghĩa là **アイリ có thể chạy trên các trình duyệt và thiết bị hiện đại**, kể cả thiết bị di động (đã hỗ trợ PWA). Điều này mở ra nhiều khả năng để chúng tôi (nhà phát triển) nâng VTuber アイリ lên tầm cao mới, đồng thời vẫn để người dùng linh hoạt bật các tính năng cần TCP hoặc công nghệ ngoài Web như kết nối kênh thoại Discord hay chơi Minecraft, Factorio với bạn bè.
 
 > [!NOTE]
+>
 > Chúng tôi vẫn đang ở giai đoạn đầu phát triển và tìm kiếm nhà phát triển tài năng để cùng hiện thực hoá アイリ.
 >
 > Không sao nếu bạn chưa quen Vue.js, TypeScript, hay devtools của dự án này, bạn vẫn có thể tham gia với vai trò hoạ sĩ, nhà thiết kế, hoặc giúp chúng tôi tổ chức buổi livestream đầu tiên.
@@ -171,6 +211,7 @@ Khác với các dự án VTuber AI mã nguồn mở khác, **アイリ** đư�
 > Kể cả bạn là fan của React, Svelte hay Solid, chúng tôi vẫn chào đón. Bạn có thể mở thư mục phụ để thêm tính năng mà bạn muốn thử nghiệm cho アイリ.
 >
 > Các mảng (và dự án liên quan) chúng tôi cần:
+>
 > - Live2D modeller
 > - VRM modeller
 > - Nhà thiết kế avatar VRChat
@@ -187,13 +228,15 @@ Khác với các dự án VTuber AI mã nguồn mở khác, **アイリ** đư�
 >
 > **Nếu bạn hứng thú, hãy giới thiệu bản thân ở đây: [Muốn tham gia cùng chúng tôi xây dựng AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
 
-## Tiến Độ Hiện Tại
+## Tiến độ hiện tại và lộ trình
 
 Khả năng:
 
 - [x] Bộ não
   - [x] Chơi game: [Minecraft](https://www.minecraft.net)
   - [x] Chơi game: [Factorio](https://www.factorio.com) (WIP, [PoC và demo có sẵn](https://github.com/moeru-ai/airi-factorio))
+  - [x] Chơi game: [Kerbal Space Program](https://www.kerbalspaceprogram.com/) (sẽ công bố sau)
+  - [ ] Chơi cùng trong [Helldivers 2](https://www.playstation.com/en-hk/games/helldivers-2/pc/) (đang thực hiện)
   - [x] Trò chuyện trên [Telegram](https://telegram.org)
   - [x] Trò chuyện trên [Discord](https://discord.com)
   - [ ] Bộ nhớ
@@ -206,7 +249,7 @@ Khả năng:
   - [x] Nhận diện giọng nói phía client
   - [x] Phát hiện giọng nói chuyện phía client
 - [x] Giọng nói
-  - [x] Tổng hợp giọng nói bằng [ElevenLabs](https://elevenlabs.io/)
+  - [x] Tổng hợp giọng nói qua nhiều nhà cung cấp, gồm [ElevenLabs](https://elevenlabs.io/), Microsoft/Azure Speech, TTS tương thích OpenAI, Alibaba Cloud Model Studio và Kokoro TTS cục bộ
 - [x] Cơ thể
   - [x] Hỗ trợ VRM
     - [x] Điều khiển model VRM
@@ -226,8 +269,7 @@ Khả năng:
 > Để xem hướng dẫn chi tiết phát triển, tham khảo [CONTRIBUTING.md](../.github/CONTRIBUTING.md)
 
 > [!NOTE]
-> Mặc định, `pnpm dev` sẽ khởi chạy server cho Stage Web (phiên bản trình duyệt).
-> Nếu muốn phát triển bản desktop, hãy đọc [CONTRIBUTING.md](../.github/CONTRIBUTING.md) để cấu hình đúng môi trường.
+> Mặc định, `pnpm dev` sẽ khởi chạy server cho Stage Web (phiên bản trình duyệt). Nếu muốn phát triển bản desktop, hãy đọc [CONTRIBUTING.md](../.github/CONTRIBUTING.md) để cấu hình đúng môi trường.
 
 ```shell
 pnpm i
@@ -252,6 +294,42 @@ Gói Nix dành cho Tamagotchi được bao gồm. Để chạy airi với Nix, t
 nix run github:moeru-ai/airi
 ```
 
+### Stage Pocket (phiên bản di động)
+
+Khởi chạy server phát triển cho phiên bản web Capacitor:
+
+```shell
+pnpm dev:pocket
+```
+
+Kiểm tra địa chỉ IP trong output của lệnh trên:
+
+```shell
+  ROLLDOWN-VITE v7.3.0  ready in 1073 ms
+
+  ➜  Local:   https://localhost:5273/
+  ➜  Network: https://<ip-will-be-here>:5273/
+  ➜  Vue DevTools: Open https://localhost:5273/__devtools__/ as a separate window
+  ➜  Vue DevTools: Press Option(⌥)+Shift(⇧)+D in App to toggle the Vue DevTools
+  ➜  UnoCSS Inspector: https://localhost:5273/__unocss/
+```
+
+Mở project Xcode:
+
+```shell
+CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
+```
+
+Sau đó Xcode sẽ mở, và bạn có thể bấm nút "Run" để chạy app trên iPhone.
+
+Nếu cần kết nối server channel trên Pocket ở chế độ không dây, bạn cần khởi chạy Tamagotchi với quyền root:
+
+```shell
+sudo pnpm dev:tamagotchi
+```
+
+Sau đó bật secure websocket trong `settings/connections` của Tamagotchi.
+
 ### Trang tài liệu
 
 ```shell
@@ -260,7 +338,7 @@ pnpm dev:docs
 
 ### Xuất bản
 
-Vui lòng cập nhật phiên bản trong `Cargo.toml` sau khi chạy `bumpp`:
+Chạy `bumpp` để cập nhật phiên bản monorepo:
 
 ```shell
 npx bumpp --no-commit --no-tag
@@ -294,10 +372,12 @@ npx bumpp --no-commit --no-tag
 - [x] [Baichuan](https://platform.baichuan-ai.com)
 - [x] [Minimax](https://api.minimax.chat/)
 - [x] [Moonshot AI](https://platform.moonshot.cn/)
+- [x] [ModelScope](https://modelscope.cn/docs/model-service/API-Inference/intro)
 - [x] [Player2](https://player2.game/)
 - [x] [Tencent Cloud](https://cloud.tencent.com/document/product/1729)
 - [ ] [Sparks](https://www.xfyun.cn/doc/spark/Web.html) (PR welcome)
 - [ ] [Volcano Engine](https://www.volcengine.com/experience/ark?utm_term=202502dsinvite&ac=DSASUQY5&rc=2QXCA1VI) (PR welcome)
+- [x] [Xiaomi Mimo](https://platform.xiaomimimo.com)
 
 ## Các dự án phụ khác
 
@@ -308,7 +388,6 @@ npx bumpp --no-commit --no-tag
 - [WebAI: Realtime Voice Chat](https://github.com/proj-airi/webai-realtime-voice-chat): Ví dụ đầy đủ về việc triển khai voice realtime của ChatGPT từ đầu với VAD + STT + LLM + TTS.
 - [`@proj-airi/drizzle-duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/drizzle-duckdb-wasm/README.md): Trình điều khiển Drizzle ORM cho DuckDB WASM
 - [`@proj-airi/duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/duckdb-wasm/README.md): Wrapper dễ sử dụng cho `@duckdb/duckdb-wasm`
-- [`tauri-plugin-mcp`](https://github.com/moeru-ai/airi/blob/main/crates/tauri-plugin-mcp/README.md): Plugin Tauri để tương tác với máy chủ MCP.
 - [AIRI Factorio](https://github.com/moeru-ai/airi-factorio): Cho phép AIRI chơi Factorio
 - [Factorio RCON API](https://github.com/nekomeowww/factorio-rcon-api): RESTful API wrapper cho console máy chủ headless Factorio
 - [`autorio`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/autorio): Thư viện tự động hóa Factorio
@@ -389,7 +468,6 @@ flowchart TD
   XSAI --> F_AGENT
   XSAI --> MC_AGENT
 
-  Core --> TauriMCP("@proj-airi/tauri-plugin-mcp")
   Memory_PGVector("@proj-airi/memory-pgvector") --> Memory
 
   style Core fill:#f9d4d4,stroke:#333,stroke-width:1px
@@ -442,6 +520,30 @@ flowchart TD
 - [mallorbc/whisper_mic](https://github.com/mallorbc/whisper_mic)
 - [`xsai`](https://github.com/moeru-ai/xsai): Đã triển khai một số lượng lớn các gói để tương tác với LLM và mô hình, như [Vercel AI SDK](https://sdk.vercel.ai/) nhưng khá nhỏ.
 
+## Nhà tài trợ
+
+<p align="center">
+  <strong>Cảm ơn bạn đã hỗ trợ Project AIRI qua OpenCollective, Patreon và Ko-fi.</strong>
+</p>
+
+<p align="center">
+  <img src="./content/public/assets/sponsors/sponsors.svg" alt="Project AIRI supporters" />
+</p>
+
+## Lời cảm ơn đặc biệt
+
+Đặc biệt cảm ơn tất cả những người đóng góp vì những đóng góp của họ cho Project AIRI ❤️
+
+<a href="https://github.com/moeru-ai/airi/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=moeru-ai/airi" />
+</a>
+
 ## Lịch sử sao nhận được
 
-[![Star History Chart](https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date)](https://www.star-history.com/#moeru-ai/airi&Date)
+<a href="https://star-history.com/#moeru-ai/airi&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date" />
+  </picture>
+</a>

@@ -1,0 +1,15 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+/artifacts/
+
+# .NET build artifacts
+bin/
+obj/
+
+# Godot can scan verification test sources during project imports; these are not stage resources.
+tests/**/*.uid
+
+# Developer-provided local VRM fixtures for editor preview scenes.
+assets/fixtures/vrm/*
+!assets/fixtures/vrm/.gitkeep

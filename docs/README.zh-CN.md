@@ -32,7 +32,7 @@
 
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://static-cn-proj-airi.oss-cn-shanghai.aliyuncs.com/artifacts/apps/desktop/versions/v0.9.0-alpha.14/AIRI-0.9.0-alpha.14-windows-x64-setup.exe">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.11.3/AIRI-0.11.3-windows-x64-setup.exe">
     <picture>
       <source
         width="33%"
@@ -44,11 +44,11 @@
         srcset="./content/public/assets/download-buttons/download-buttons.windows.light.zh-Hans.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.windows.light.zh-Hans.avif" />
+      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.windows.light.zh-Hans.avif" />
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
-  <a href="https://static-cn-proj-airi.oss-cn-shanghai.aliyuncs.com/artifacts/apps/desktop/versions/v0.9.0-alpha.14/AIRI-0.9.0-alpha.14-darwin-arm64.dmg">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.11.3/AIRI-0.11.3-darwin-arm64.dmg">
     <picture>
       <source
         width="33%"
@@ -60,7 +60,7 @@
         srcset="./content/public/assets/download-buttons/download-buttons.macos.light.zh-Hans.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.macos.light.zh-Hans.avif" />
+      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.macos.light.zh-Hans.avif" />
     </picture>
   </a>
   <a href="https://github.com/moeru-ai/airi/releases/latest">
@@ -75,11 +75,26 @@
         srcset="./content/public/assets/download-buttons/download-buttons.linux.light.zh-Hans.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.linux.light.zh-Hans.avif" />
+      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.linux.light.zh-Hans.avif" />
     </picture>
   </a>
 </p>
 <p float="left" align="center">
+  <a href="https://airi.moeru.ai">
+    <picture>
+      <source
+        width="33%"
+        srcset="./content/public/assets/QR%20code%20button/section.cards.qrcode.dark.zh-Hans.png"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="33%"
+        srcset="./content/public/assets/QR%20code%20button/section.cards.qrcode.light.zh-Hans.png"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="33%" src="./content/public/assets/QR%20code%20button/section.cards.qrcode.light.zh-Hans.png" />
+    </picture>
+  </a>
   <a href="https://airi.moeru.ai">
     <picture>
       <source
@@ -92,22 +107,22 @@
         srcset="./content/public/assets/download-buttons/download-buttons.mobile.light.zh-Hans.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.mobile.light.zh-Hans.avif" />
+      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.mobile.light.zh-Hans.avif" />
     </picture>
   </a>
   <a href="https://airi.moeru.ai">
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.browser.dark.zh-Hans.avif"
+        srcset="./content/public/assets/download-buttons/download-buttons.browser.dark.zh-Hans.png"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.browser.light.zh-Hans.avif"
+        srcset="./content/public/assets/download-buttons/download-buttons.browser.light.zh-Hans.png"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.browser.light.zh-Hans.avif" />
+      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.browser.light.zh-Hans.png" />
     </picture>
   </a>
 </p>
@@ -119,9 +134,28 @@
 
 > 深受 [Neuro-sama](https://www.youtube.com/@Neurosama) 启发
 
+> [!TIP]
+> 在 Windows 上，你也可以使用 [winget](https://learn.microsoft.com/windows/package-manager/winget/) 安装 AIRI：
+>
+> ```powershell
+> winget install MoeruAI.AIRI
+> ```
+>
+> 或者使用 [Scoop](https://scoop.sh/) 安装 AIRI：
+>
+> ```powershell
+> scoop bucket add airi https://github.com/moeru-ai/airi
+> scoop install airi/airi
+> ```
+>
+> 在 macOS 上，你无需添加自定义 tap，即可通过 [Homebrew Cask](https://brew.sh/) 安装 AIRI：
+>
+> ```sh
+> brew install --cask airi
+> ```
+
 > [!WARNING]
-> **注意：**
-> 我们**没有发行任何**与本项目关联的加密货币或代币，请注意判断资讯并谨慎行事。
+> **注意：** 我们**没有发行任何**与本项目关联的加密货币或代币，请注意判断资讯并谨慎行事。
 
 > [!NOTE]
 >
@@ -143,14 +177,17 @@
 
 因此，这个项目 AIRI，在这里提供了另一种可能性：**让你轻松拥有自己的数字生命、赛博生命，随时随地**。
 
-## 我们发布的 DevLog & 近期更新
+## 近期 DevLog 与故事
 
-- [DevLog @ 2026.01.01](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2026.01.01/) — 2026 年 1 月 1 日
-- [DevLog @ 2025.10.20](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.10.20/) — 2025 年 10 月 20 日
-- [DevLog @ 2025.08.05](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.08.05/) — 2025 年 8 月 5 日
-- [DevLog @ 2025.08.01](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.08.01/) — 2025 年 8 月 1 日
-- [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.07.18/) — 2025 年 7 月 18 日
-- [DreamLog 0x1](https://airi.moeru.ai/docs/zh-Hans/blog/dreamlog-0x1/) — 2025 年 6 月 16 日
+- [DevLog @ 2026.03.29：在 Godot 中嵌入 WebView](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2026.03.29/) - 2026 年 3 月 29 日
+- [DevLog @ 2026.02.16：Dome Keeper 数据采集与训练流程](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2026.02.16/) - 2026 年 2 月 16 日
+- [DevLog @ 2026.01.01：AIRI Pocket 与 FlowChat 记忆实验](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2026.01.01/) - 2026 年 1 月 1 日
+- [DevLog @ 2025.10.20：Electron 迁移、新模型与 Moeru AI 更新](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.10.20/) - 2025 年 10 月 20 日
+- [DevLog @ 2025.08.26：airi-factorio 的纯视觉方向进展](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.08.26/) - 2025 年 8 月 26 日
+- [DevLog @ 2025.08.05：AIRI v0.7 发布亮点](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.08.05/) - 2025 年 8 月 5 日
+- [DevLog @ 2025.08.01：流式文本动画与字素簇](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.08.01/) - 2025 年 8 月 1 日
+- [DevLog @ 2025.07.18：基于 Factorio Learning Environment 重新思考 airi-factorio](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.07.18/) - 2025 年 7 月 18 日
+- [DreamLog 0x1：Project AIRI 的起源故事](https://airi.moeru.ai/docs/zh-Hans/blog/DreamLog-0x1/) - 2025 年 6 月 16 日
 - ...更多请见[文档站](https://airi.moeru.ai/docs/zh-Hans/)
 
 ## 这个项目有什么特别？
@@ -160,9 +197,9 @@
 > [!TIP]
 > 担心使用 Web 技术会导致性能下降吗？
 >
-> 不用担心，浏览器版本旨在展示我们在浏览器和 webview 里能做到什么，但不会完全依赖它。AIRI 的桌面版默认可用 [NVIDIA CUDA](https://developer.nvidia.com/cuda-toolkit) 和 [Apple Metal](https://developer.apple.com/metal/)（多亏了 HuggingFace 与可爱的 [candle](https://github.com/huggingface/candle) 项目），且无需复杂的依赖管理。考虑到取舍，我们在图形、布局、动画和 WIP 插件系统上部分使用了 Web 技术，方便大家集成。
+> 不用担心，浏览器版本旨在展示我们在浏览器和 webview 里能做到什么，但不会完全依赖它。AIRI 桌面版默认原生支持 [NVIDIA CUDA](https://developer.nvidia.com/cuda-toolkit) 和 [Apple Metal](https://developer.apple.com/metal/)（多亏了 HuggingFace 与可爱的 [candle](https://github.com/huggingface/candle) 项目），且无需复杂的依赖管理。考虑到取舍，我们在图形、布局、动画和 WIP 插件系统上部分使用了 Web 技术，方便大家集成。
 
-这意味着 **アイリ VTuber 能够在现代浏览器和设备上运行**，甚至能够在移动设备上运行（已经完成了 PWA 支持），这为我们（贡献者们）带来了更多的可能性，让我们得以更进一步构建和扩展 アイリ VTuber 的外部功能，而与此同时也不失配置的灵活性——可以有选择地在不同设备上启用会需要 TCP 连接或其他非 Web 技术的功能，例如连接到 Discord 的语音频道一起开黑，或是和朋友们一起玩 Minecraft（我的世界）、Factorio（异星工厂）。
+这意味着 **アイリ VTuber 能够在现代浏览器和设备上运行**，甚至能够在移动设备上运行（已经完成了 PWA 支持），这为我们（贡献者们）带来了更多的可能性，让我们得以更进一步构建和扩展 アイリ VTuber 的外部功能，而与此同时也不失配置的灵活性——可以有选择地在不同设备上启用需要 TCP 连接或其他非 Web 技术的功能，例如连接到 Discord 的语音频道一起开黑，或是和朋友们一起玩 Minecraft（我的世界）、Factorio（异星工厂）。
 
 > [!NOTE]
 >
@@ -170,7 +207,7 @@
 >
 > 即使不熟悉 Vue.js、TypeScript 和所需的其他开发工具也没关系，我们也欢迎艺术家、设计师、运营策划的加入，你甚至可以成为第一个用 アイリ VTuber 直播的博主。
 >
-> 如果你使用的是 React、 Svelte，甚至 Solid 也没关系，您可以自己创建一个子目录，添加您希望在 アイリ VTuber 中看到的功能，或者想实验的功能。
+> 如果你使用的是 React、Svelte，甚至 Solid 也没关系，您可以自己创建一个子目录，添加您希望在 アイリ VTuber 中看到的功能，或者想实验的功能。
 >
 > 我们非常期待以下领域的朋友加入：
 >
@@ -190,12 +227,15 @@
 >
 > **如果你已经感兴趣了，为什么不来这里和大家打个招呼呢？[Would like to join part of us to build AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
 
-## 当前进度
+## 当前进度与路线图
 
 目前已经能做到：
+
 - [x] 大脑
   - [x] 玩 [Minecraft](https://www.minecraft.net)
   - [x] 玩 [Factorio](https://www.factorio.com)（进行中，但已提供 [PoC 和 demo](https://github.com/moeru-ai/airi-factorio)）
+  - [x] 玩 [Kerbal Space Program](https://www.kerbalspaceprogram.com/)（公告待定）
+  - [ ] 协作玩 [Helldivers 2](https://www.playstation.com/en-hk/games/helldivers-2/pc/)（进行中）
   - [x] 在 [Telegram](https://telegram.org) 聊天
   - [x] 在 [Discord](https://discord.com) 聊天
   - [ ] 记忆
@@ -208,7 +248,7 @@
   - [x] 客户端语音识别
   - [x] 客户端说话检测
 - [x] 嘴巴
-  - [x] [ElevenLabs](https://elevenlabs.io/) 语音合成
+  - [x] 多提供商语音合成，包括 [ElevenLabs](https://elevenlabs.io/)、Microsoft/Azure Speech、OpenAI 兼容 TTS、阿里云百炼和本地 Kokoro TTS
 - [x] 身体
   - [x] VRM 支持
     - [x] 控制 VRM 模型
@@ -253,6 +293,42 @@ pnpm dev:tamagotchi
 nix run github:moeru-ai/airi
 ```
 
+### Stage Pocket（移动版）
+
+启动 Capacitor Web 版本的开发服务器：
+
+```shell
+pnpm dev:pocket
+```
+
+从上述命令的输出中查看 IP 地址：
+
+```shell
+  ROLLDOWN-VITE v7.3.0  ready in 1073 ms
+
+  ➜  Local:   https://localhost:5273/
+  ➜  Network: https://<ip-will-be-here>:5273/
+  ➜  Vue DevTools: Open https://localhost:5273/__devtools__/ as a separate window
+  ➜  Vue DevTools: Press Option(⌥)+Shift(⇧)+D in App to toggle the Vue DevTools
+  ➜  UnoCSS Inspector: https://localhost:5273/__unocss/
+```
+
+打开 Xcode 项目：
+
+```shell
+CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
+```
+
+随后 Xcode 会打开，你可以点击 "Run" 按钮在 iPhone 上运行应用。
+
+如果需要在无线模式下连接 Pocket 的 server channel，需要以 root 权限启动 Tamagotchi：
+
+```shell
+sudo pnpm dev:tamagotchi
+```
+
+然后在 Tamagotchi 的 `settings/connections` 中启用 secure websocket。
+
 ### 文档站
 
 ```shell
@@ -261,7 +337,7 @@ pnpm dev:docs
 
 ### 发布
 
-运行 `bumpp` 后，请记得在 `Cargo.toml` 中更新版本号：
+运行 `bumpp` 来更新 monorepo 版本：
 
 ```shell
 npx bumpp --no-commit --no-tag
@@ -278,7 +354,7 @@ npx bumpp --no-commit --no-tag
 - [x] [OpenAI](https://platform.openai.com/docs/guides/gpt/chat-completions-api)
   - [ ] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)（欢迎 PR）
 - [x] [Anthropic Claude](https://anthropic.com)
-  - [ ] [AWS Claude](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)（欢迎 PR）
+  - [ ] [AWS Claude](https://docs.anthropic.com/en/api/claude-on-amazon-bedrock)（欢迎 PR）
 - [x] [深度求索 DeepSeek](https://www.deepseek.com/)
 - [x] [通义千问 Qwen](https://help.aliyun.com/document_detail/2400395.html)
 - [x] [Google Gemini](https://developers.generativeai.google)
@@ -287,7 +363,7 @@ npx bumpp --no-commit --no-tag
 - [x] [Mistral](https://mistral.ai/)
 - [x] [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)
 - [x] [Together.ai](https://www.together.ai/)
-- [x] [Fireworks.ai](https://www.together.ai/)
+- [x] [Fireworks.ai](https://fireworks.ai/)
 - [x] [Novita](https://www.novita.ai/)
 - [x] [智谱](https://bigmodel.cn)
 - [x] [硅基流动](https://cloud.siliconflow.cn/i/rKXmRobW)
@@ -300,6 +376,7 @@ npx bumpp --no-commit --no-tag
 - [x] [腾讯混元](https://cloud.tencent.com/document/product/1729)
 - [ ] [讯飞星火](https://www.xfyun.cn/doc/spark/Web.html)
 - [ ] [火山引擎（豆包）](https://www.volcengine.com/experience/ark?utm_term=202502dsinvite&ac=DSASUQY5&rc=2QXCA1VI)
+- [x] [小米 Mimo](https://platform.xiaomimimo.com)
 
 ## 从这个项目诞生的子项目
 
@@ -310,7 +387,6 @@ npx bumpp --no-commit --no-tag
 - [WebAI: Realtime Voice Chat](https://github.com/proj-airi/webai-realtime-voice-chat)：从零实现 ChatGPT 实时语音（VAD + STT + LLM + TTS）的完整示例
 - [`@proj-airi/drizzle-duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/drizzle-duckdb-wasm/README.md)：DuckDB WASM 的 Drizzle ORM 驱动
 - [`@proj-airi/duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/duckdb-wasm/README.md)：好用的 `@duckdb/duckdb-wasm` 封装
-- [`tauri-plugin-mcp`](https://github.com/moeru-ai/airi/blob/main/crates/tauri-plugin-mcp/README.md)：与 MCP servers 交互的 Tauri 插件
 - [AIRI Factorio](https://github.com/moeru-ai/airi-factorio): 让 AIRI 玩 Factorio
 - [Factorio RCON API](https://github.com/nekomeowww/factorio-rcon-api): Factorio 无头服务器控制台的 RESTful API 封装
 - [`autorio`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/autorio): Factorio 自动化库
@@ -391,7 +467,6 @@ flowchart TD
   XSAI --> F_AGENT
   XSAI --> MC_AGENT
 
-  Core --> TauriMCP("@proj-airi/tauri-plugin-mcp")
   Memory_PGVector("@proj-airi/memory-pgvector") --> Memory
 
   style Core fill:#f9d4d4,stroke:#333,stroke-width:1px
@@ -436,7 +511,7 @@ flowchart TD
 ![Repobeats analytics image](https://repobeats.axiom.co/api/embed/a1d6fe2c13ea2bb53a5154435a71e2431f70c2ee.svg 'Repobeats analytics image')
 
 ## 鸣谢
-
+- [AtomGit](https://gitcode.com/moeru-ai/airi): 在国内托管 AIRI，帮助中国大陆用户更快访问项目与下载 Release。
 - [Reka UI](https://github.com/unovue/reka-ui): 文档站的设计，新的 landing page 也基于此，并感谢他们实现了大量 UI 组件。（shadcn-vue 使用 Reka UI 作为 headless 组件，去看看！）
 - [pixiv/ChatVRM](https://github.com/pixiv/ChatVRM)
 - [josephrocca/ChatVRM-js: A JS conversion/adaptation of parts of the ChatVRM (TypeScript) code for standalone use in OpenCharacters and elsewhere](https://github.com/josephrocca/ChatVRM-js)
@@ -444,6 +519,30 @@ flowchart TD
 - [mallorbc/whisper_mic](https://github.com/mallorbc/whisper_mic)
 - [`xsai`](https://github.com/moeru-ai/xsai)：实现了相当数量的包来与 LLM 和模型交互，像 [Vercel AI SDK](https://sdk.vercel.ai/) 但是更小
 
+## 支持者
+
+<p align="center">
+  <strong>感谢你通过 OpenCollective、Patreon 和 Ko-fi 支持 Project AIRI。</strong>
+</p>
+
+<p align="center">
+  <img src="./content/public/assets/sponsors/sponsors.svg" alt="Project AIRI supporters" />
+</p>
+
+## 特别感谢
+
+特别感谢所有 Contributors 对 Project AIRI 的贡献 ❤️
+
+<a href="https://github.com/moeru-ai/airi/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=moeru-ai/airi" />
+</a>
+
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date)](https://www.star-history.com/#moeru-ai/airi&Date)
+<a href="https://star-history.com/#moeru-ai/airi&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date" />
+  </picture>
+</a>

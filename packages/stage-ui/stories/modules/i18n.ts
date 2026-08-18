@@ -1,37 +1,21 @@
 import messages from '@proj-airi/i18n/locales'
 
+import { resolveSupportedLocale } from '@proj-airi/i18n'
 import { createI18n } from 'vue-i18n'
 
-const languageRemap: Record<string, string> = {
-  'zh-CN': 'zh-Hans',
-  'zh-TW': 'zh-Hans', // TODO: remove this when zh-Hant is supported
-  'zh-HK': 'zh-Hans', // TODO: remove this when zh-Hant is supported
-  'zh-Hant': 'zh-Hans', // TODO: remove this when zh-Hant is supported
-  'en-US': 'en',
-  'en-GB': 'en',
-  'en-AU': 'en',
-  'en': 'en',
-  'es-ES': 'es',
-  'es-MX': 'es',
-  'es-AR': 'es',
-  'es': 'es',
-  'ru': 'ru',
-  'ru-RU': 'ru',
-  'fr': 'fr',
-  'fr-FR': 'fr',
-}
-
 function getLocale() {
-  let language = localStorage.getItem('settings/language')
-  const languages = Object.keys(messages!)
-
-  if (languageRemap[language || 'en'] != null) {
-    language = languageRemap[language || 'en']
+  let language = 'en'
+  // NOTICE: histoire doesn't have localStorage during collection, directly accessing it causes error.
+  if ('localStorage' in globalThis && localStorage != null && 'getItem' in localStorage && typeof localStorage.getItem === 'function') {
+    language = localStorage.getItem('settings/language') || 'en'
   }
-  if (language && languages.includes(language))
-    return language
 
-  return 'en'
+  if (!language) {
+    // Fallback to browser language
+    language = navigator.language || 'en'
+  }
+
+  return resolveSupportedLocale(language, Object.keys(messages!))
 }
 
 export const i18n = createI18n({

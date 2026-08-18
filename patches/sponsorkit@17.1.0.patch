@@ -1,0 +1,22 @@
+diff --git a/dist/shared/sponsorkit.D4Gzyh4z.mjs b/dist/shared/sponsorkit.D4Gzyh4z.mjs
+index f7e74b63ff2ed0b206a184722aa1d61c86963377..e4f29889f5f1518023b6f4822195a53bb597e8c5 100644
+--- a/dist/shared/sponsorkit.D4Gzyh4z.mjs
++++ b/dist/shared/sponsorkit.D4Gzyh4z.mjs
+@@ -1282,7 +1282,7 @@ async function fetchOpenCollectiveSponsors(key, id, slug, githubHandle, includeP
+         method: "POST",
+         body: { query },
+         headers: {
+-          "Api-Key": `${key}`,
++          "Personal-Token": `${key}`,
+           "Content-Type": "application/json"
+         }
+       });
+@@ -1308,7 +1308,7 @@ async function fetchOpenCollectiveSponsors(key, id, slug, githubHandle, includeP
+       method: "POST",
+       body: { query },
+       headers: {
+-        "Api-Key": `${key}`,
++        "Personal-Token": `${key}`,
+         "Content-Type": "application/json"
+       }
+     });

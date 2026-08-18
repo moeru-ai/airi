@@ -9,11 +9,12 @@
     "lokalise.i18n-ally",
     "mikestead.dotenv",
     "redhat.vscode-yaml",
-    "rust-lang.rust-analyzer",
     "streetsidesoftware.code-spell-checker",
     "usernamehw.errorlens",
     "Vue.volar",
     "vitest.explorer",
-    "yzhang.markdown-all-in-one"
+    "yzhang.markdown-all-in-one",
+    "geequlim.godot-tools",
+    "alfish.godot-files"
   ]
 }

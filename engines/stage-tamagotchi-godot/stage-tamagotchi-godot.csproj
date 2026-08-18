@@ -1,0 +1,12 @@
+<Project Sdk="Godot.NET.Sdk/4.7.1">
+  <PropertyGroup>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>StageTamagotchiGodot</RootNamespace>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Keep generated sources and verification harnesses out of the game assembly. -->
+    <Compile Remove=".godot\**\*.cs" />
+    <Compile Remove="tests\**\*.cs" />
+  </ItemGroup>
+</Project>

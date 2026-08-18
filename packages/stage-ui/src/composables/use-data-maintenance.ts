@@ -1,9 +1,10 @@
 import type { ChatSessionsExport } from '../types/chat-session'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { useLive2d } from '@proj-airi/stage-ui-live2d'
+import { useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
+import { useModelStore } from '@proj-airi/stage-ui-three'
 
-import { useChatOrchestratorStore } from '../stores/chat'
+import { useChatStore } from '../stores/chat'
 import { useChatSessionStore } from '../stores/chat/session-store'
 import { useDisplayModelsStore } from '../stores/display-models'
 import { useMcpStore } from '../stores/mcp'
@@ -15,22 +16,26 @@ import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useHearingStore } from '../stores/modules/hearing'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
+import { useWebSearchStore } from '../stores/modules/web-search'
 import { useOnboardingStore } from '../stores/onboarding'
-import { useProvidersStore } from '../stores/providers'
+import { useProviderStore } from '../stores/providers/provider'
 import { useSettings, useSettingsAudioDevice } from '../stores/settings'
 
 export function useDataMaintenance() {
   const chatStore = useChatSessionStore()
-  const chatOrchestrator = useChatOrchestratorStore()
+  const chatOrchestrator = useChatStore()
   const displayModelsStore = useDisplayModelsStore()
-  const providersStore = useProvidersStore()
+  const providersStore = useProviderStore()
   const settingsStore = useSettings()
   const audioSettingsStore = useSettingsAudioDevice()
-  const live2dStore = useLive2d()
+  const live2dParamsStore = useLive2dParams()
+  const live2dSettingsStore = useSettingsLive2d()
+  const threeStore = useModelStore()
   const hearingStore = useHearingStore()
   const speechStore = useSpeechStore()
   const consciousnessStore = useConsciousnessStore()
   const twitterStore = useTwitterStore()
+  const webSearchStore = useWebSearchStore()
   const discordStore = useDiscordStore()
   const factorioStore = useFactorioStore()
   const minecraftStore = useMinecraftStore()
@@ -53,6 +58,7 @@ export function useDataMaintenance() {
     speechStore.resetState()
     consciousnessStore.resetState()
     twitterStore.resetState()
+    webSearchStore.resetState()
     discordStore.resetState()
     factorioStore.resetState()
     minecraftStore.resetState()
@@ -78,12 +84,15 @@ export function useDataMaintenance() {
     if (!isChatSessionsPayload(payload))
       throw new Error('Invalid chat session export format')
     await chatStore.importSessions(payload)
+    return payload
   }
 
   async function resetSettingsState() {
     await settingsStore.resetState()
     audioSettingsStore.resetState()
-    live2dStore.resetState()
+    live2dParamsStore.resetState()
+    live2dSettingsStore.resetState()
+    threeStore.resetModelStore()
     mcpStore.resetState()
     onboardingStore.resetSetupState()
     airiCardStore.resetState()

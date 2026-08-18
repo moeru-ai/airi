@@ -2,22 +2,22 @@
 import type { RemovableRef } from '@vueuse/core'
 
 import {
-  Alert,
   ProviderAccountIdInput,
   ProviderAdvancedSettings,
   ProviderApiKeyInput,
   ProviderBasicSettings,
   ProviderSettingsContainer,
   ProviderSettingsLayout,
+  ProviderValidationAlerts,
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
 const providerId = 'azure-ai-foundry'
-const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const providerStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
 
 // Define computed properties for credentials
 const apiKey = computed({
@@ -66,6 +66,11 @@ const {
   validationMessage,
   handleResetSettings,
   forceValid,
+  hasManualValidators,
+  isManualTesting,
+  manualTestPassed,
+  manualTestMessage,
+  runManualTest,
 } = useProviderValidation(providerId)
 </script>
 
@@ -112,31 +117,18 @@ const {
         />
       </ProviderAdvancedSettings>
 
-      <!-- Validation Status -->
-      <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
-        <template #title>
-          <div class="w-full flex items-center justify-between">
-            <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
-            <button
-              type="button"
-              class="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-600 font-medium transition-colors dark:bg-red-800/30 hover:bg-red-200 dark:text-red-300 dark:hover:bg-red-700/40"
-              @click="forceValid"
-            >
-              {{ t('settings.pages.providers.common.continueAnyway') }}
-            </button>
-          </div>
-        </template>
-        <template v-if="validationMessage" #content>
-          <div class="whitespace-pre-wrap break-all">
-            {{ validationMessage }}
-          </div>
-        </template>
-      </Alert>
-      <Alert v-if="isValid && isValidating === 0" type="success">
-        <template #title>
-          {{ t('settings.dialogs.onboarding.validationSuccess') }}
-        </template>
-      </Alert>
+      <ProviderValidationAlerts
+        :is-valid="isValid"
+        :is-validating="isValidating"
+        :validation-message="validationMessage"
+        :has-manual-validators="hasManualValidators"
+        :is-manual-testing="isManualTesting"
+        :manual-test-passed="manualTestPassed"
+        :manual-test-message="manualTestMessage"
+        :on-run-test="runManualTest"
+        :on-force-valid="forceValid"
+        :on-go-to-model-selection="() => router.push('/settings/modules/consciousness')"
+      />
     </ProviderSettingsContainer>
   </ProviderSettingsLayout>
 </template>

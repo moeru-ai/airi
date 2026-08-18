@@ -22,11 +22,11 @@ So what have we done so far?
 
 1. Wrote a mod to collect data. After installing the mod, you’ll see a `Start YOLO Data Collection` button in the pause menu. Click it to start collecting.
 
-    ![add-button-to-menu](./assets/add-button-to-menu.png)
+    ![add-button-to-menu](./assets/add-button-to-menu.avif)
 
 2. Collected a small amount of data.
 
-    ![some-collected-data](./assets/some-collected-data.png)
+    ![some-collected-data](./assets/some-collected-data.avif)
 
 It’s not much yet, but we already hit quite a few pitfalls and details worth recording — hence this DevLog.
 

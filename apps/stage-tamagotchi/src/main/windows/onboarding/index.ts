@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { safeClose } from '@proj-airi/electron-vueuse/main'
-import { BrowserWindow, ipcMain, shell } from 'electron'
+import { BrowserWindow, ipcMain } from 'electron'
 import { isMacOS } from 'std-env'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -14,18 +14,22 @@ import icon from '../../../../resources/icon.png?asset'
 import { electronOnboardingClose } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { toggleWindowShow } from '../shared'
+import { createAuthService } from '../../services/airi/auth'
+import { protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
 import { setupBaseWindowElectronInvokes } from '../shared/window'
 
 export interface OnboardingWindowManager {
   getWindow: () => Promise<BrowserWindow>
   getAndToggleWindow: () => Promise<BrowserWindow>
+  onClosed: (callback: () => void) => () => void
 }
 
 export function setupOnboardingWindowManager(params: {
   serverChannel: ServerChannel
   i18n: I18n
 }): OnboardingWindowManager {
+  const closeCallbacks = new Set<() => void>()
+
   async function getOnboardingWindow(getWindow: () => Promise<BrowserWindow>) {
     const window = await getWindow()
     await toggleWindowShow(window)
@@ -54,10 +58,7 @@ export function setupOnboardingWindowManager(params: {
     })
 
     newWindow.on('ready-to-show', () => newWindow.show())
-    newWindow.webContents.setWindowOpenHandler((details) => {
-      shell.openExternal(details.url)
-      return { action: 'deny' }
-    })
+    protectPrivilegedWindowNavigation(newWindow)
 
     // TODO: once we refactored eventa to support window-namespaced contexts,
     // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -71,8 +72,20 @@ export function setupOnboardingWindowManager(params: {
     })
 
     await setupBaseWindowElectronInvokes({ context, window: newWindow, i18n: params.i18n, serverChannel: params.serverChannel })
+    createAuthService({ context, window: newWindow })
 
-    await load(newWindow, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/onboarding'))
+    await load(newWindow, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/onboarding', {
+      query: { 'synced-leader': 'false' },
+    }))
+
+    newWindow.on('closed', () => {
+      for (const cb of closeCallbacks) {
+        try {
+          cb()
+        }
+        catch { /* noop */ }
+      }
+    })
 
     return newWindow
   })
@@ -80,5 +93,11 @@ export function setupOnboardingWindowManager(params: {
   return {
     getWindow: async () => reusableWindow.getWindow(),
     getAndToggleWindow: async () => await getOnboardingWindow(reusableWindow.getWindow),
+    onClosed: (callback: () => void) => {
+      closeCallbacks.add(callback)
+      return () => {
+        closeCallbacks.delete(callback)
+      }
+    },
   }
 }

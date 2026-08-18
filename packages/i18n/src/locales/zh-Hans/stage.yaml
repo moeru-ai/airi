@@ -1,11 +1,35 @@
 chat:
+  actions:
+    retry: 重试
   message:
     character-name:
       airi: AIRI
       core-system: 核心系统
       you: 你
   reasoning: 思考
+  sessions:
+    title: 对话
+    new: + 新建
+    empty: 暂无对话
+    cloud-badge: 已同步到云
+    new-chat-fallback: 新建对话
+    delete: 删除对话
+render-error:
+  title: '{renderer} 无法渲染这个模型'
+  description: 模型已经选中，但舞台无法显示它。
+  report-description: |-
+    {renderer} 无法渲染选中的模型。
+    模型 ID：{modelId}
+    错误：{error}
 message: 说点什么...
+send-mode:
+  title: 发送键值
+  enter: Enter
+  ctrl-enter: Ctrl + Enter
+  double-enter: 双击Enter
+speech-output:
+  mute: 静音语音
+  unmute: 恢复语音
 operations:
   load-models: 加载模型
   load-models-status:
@@ -30,4 +54,56 @@ viewers:
       camera: 摄像机
       model:
         title: 模型
+profile-switcher:
+  no-profile: 缺少角色
+  no-profiles: 还没有角色
+  save-as-new: 存为新角色
+  new-profile-name: 角色卡名称
+  manage: 管理角色卡
+promo-banner:
+  items:
+    signin:
+      watermark: 月石
+      fallbackLabel: 月石礼包
+      title: 7日签到
+      eventName: 登录后可以申请星尘、头像框和登录礼物。
+      date: 03/28 - 04/10
+      reward: 最多120个星尘
+      cta: 登录
+    build:
+      watermark: 建造
+      fallbackLabel: 建造奖励
+      title: 补给箱奖励
+      eventName: 完成建造任务即可获得奖励券和双倍材料。
+      date: 03/30 - 04/12
+      reward: 5 张补给券 + 升级材料
+      cta: 查看任务
+    spring:
+      watermark: 春日
+      fallbackLabel: 春日抽奖
+      title: 扭蛋嘉年华
+      eventName: 参与春日抽奖，解锁气泡、挂饰和主题家具。
+      date: 04/01 - 04/18
+      reward: 首抽半价 + 稀有挂饰
+      cta: 立即抽取
+    coupon:
+      watermark: 对话
+      fallbackLabel: 优惠券
+      title: 充值优惠券
+      eventName: 完成聊天互动即可领取扩展包和语音包优惠券。
+      date: 04/02 - 04/20
+      reward: 满 30 减 6 / 满 68 减 15
+      cta: 领取优惠券
+    home:
+      watermark: 首页
+      fallbackLabel: 房间主题
+      title: 春日主题更新
+      eventName: 解锁窗户、书桌和夜灯主题，焕新你的房间。
+      date: 04/05 - 04/22
+      reward: 登录即赠主题抽奖券
+      cta: 查看主题
 waiting: 等待中
+websocket-status:
+  connected: 已连接
+  disconnected: 无网络连接
+  open-settings: 打开连接设置

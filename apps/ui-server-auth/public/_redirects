@@ -1,0 +1,7 @@
+/ /ui/profile 302
+/auth /ui/ 302
+/auth/* /ui/:splat 302
+# Pages canonicalizes explicit /index.html requests. Proxy UI routes to the
+# root asset so the browser keeps the original client-side route.
+/ui / 200
+/ui/* / 200

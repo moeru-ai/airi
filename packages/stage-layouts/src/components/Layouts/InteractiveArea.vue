@@ -2,9 +2,11 @@
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { ChatHistory } from '@proj-airi/stage-ui/components'
-import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
+import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
+import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useDeferredMount } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
@@ -13,13 +15,38 @@ import ChatActionButtons from '../Widgets/ChatActionButtons.vue'
 import ChatArea from '../Widgets/ChatArea.vue'
 import ChatContainer from '../Widgets/ChatContainer.vue'
 
+import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
+
 const { isReady } = useDeferredMount()
-const { sending } = storeToRefs(useChatOrchestratorStore())
-const { messages } = storeToRefs(useChatSessionStore())
+const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(useChatStore())
+const { activeSessionId, messages } = storeToRefs(useChatSessionStore())
 const { streamingMessage } = storeToRefs(useChatStreamStore())
+const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
 
 const isLoading = ref(true)
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+const isActiveSessionSending = computed(() => (
+  (sending.value && activeSendSessionId.value === activeSessionId.value)
+  || isReceivingRemoteStream.value
+))
+const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
+  ? activeStreamingMessage.value
+  : streamingMessage.value)
+const { trackChatMessageDeleted } = useAnalytics()
+const { rerunToolCall } = useChatToolCallRerun()
+
+async function handleDeleteMessage(index: number) {
+  const message = messages.value[index]
+  await useChatSessionStore().deleteMessage({
+    sessionId: activeSessionId.value,
+    messageId: message?.id,
+    index,
+  })
+  trackChatMessageDeleted({
+    source: 'history',
+    message_role: message?.role ?? 'unknown',
+  })
+}
 </script>
 
 <template>
@@ -37,10 +64,12 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
           <ChatHistory
             v-if="isReady"
             :messages="historyMessages"
-            :sending="sending"
-            :streaming-message="streamingMessage"
+            :sending="isActiveSessionSending"
+            :streaming-message="visibleStreamingMessage"
             h-full
             variant="desktop"
+            @delete-message="handleDeleteMessage($event.index)"
+            @tool-call-rerun="rerunToolCall"
             @vue:mounted="isLoading = false"
           />
         </div>

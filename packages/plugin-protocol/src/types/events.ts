@@ -1,3 +1,4 @@
+import type { Eventa } from '@moeru/eventa'
 import type { AssistantMessage, CommonContentPart, Message, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
 import { defineEventa } from '@moeru/eventa'
@@ -27,7 +28,7 @@ export interface PluginIdentity {
    */
   version?: string
   /**
-   * Optional labels attached to the plugin manifest.
+   * Optional labels attached to the extension manifest.
    * Example: { env: "prod", app: "telegram", devtools: "true" }.
    */
   labels?: Record<string, string>
@@ -54,7 +55,72 @@ export interface ModuleIdentity {
   labels?: Record<string, string>
 }
 
-export type MetadataEventSource = ModuleIdentity
+/**
+ * Identifies an extension package/session that is loaded by an extension host.
+ *
+ * Extension identity is the package/session-level scope. Modules registered by
+ * the extension get their own {@link ExtensionModuleIdentity}.
+ */
+export interface ExtensionIdentity {
+  /**
+   * Stable extension identifier from `extension.airi.json`.
+   */
+  id: string
+  /**
+   * Optional semantic version for the extension package.
+   */
+  version?: string
+  /**
+   * Optional runtime session id assigned by the host for this loaded extension.
+   */
+  sessionId?: string
+  /**
+   * Optional labels used for routing, inspection, and policy selectors.
+   */
+  labels?: Record<string, string>
+}
+
+/**
+ * Identifies one runtime module registered by an extension setup function.
+ */
+export interface ExtensionModuleIdentity {
+  /**
+   * Stable module id within one extension session.
+   */
+  id: string
+  /**
+   * Owning extension session identity.
+   */
+  extension: ExtensionIdentity
+  /**
+   * Optional labels used for routing, inspection, and policy selectors.
+   */
+  labels?: Record<string, string>
+}
+
+/**
+ * Identifies a kit API surface that can be used by extension modules.
+ */
+export interface ExtensionKitIdentity {
+  /**
+   * Stable kit id.
+   */
+  id: string
+  /**
+   * Optional semantic version for compatibility checks.
+   */
+  version?: string
+  /**
+   * Optional owner for future extension-provided kits. Host-provided kits omit this field.
+   */
+  ownerExtension?: ExtensionIdentity
+  /**
+   * Optional labels used for routing, inspection, and policy selectors.
+   */
+  labels?: Record<string, string>
+}
+
+export type MetadataEventSource = ModuleIdentity | ExtensionIdentity | ExtensionModuleIdentity | ExtensionKitIdentity
 
 /**
  * Static schema metadata for module configuration.
@@ -343,6 +409,91 @@ export interface ModuleCapability {
   metadata?: Record<string, unknown>
 }
 
+export type ModulePermissionArea = 'apis' | 'resources' | 'capabilities' | 'processors' | 'pipelines'
+
+export interface ModulePermissionSpec<
+  Area extends ModulePermissionArea = ModulePermissionArea,
+  Action extends string = string,
+> {
+  key: string
+  actions: Action[]
+  /**
+   * Human-facing explanation for consent/permission UI.
+   * Prefer i18n key form over raw strings for localization.
+   */
+  reason?: Localizable
+  /**
+   * Optional short display label for permission prompts.
+   * Prefer i18n key form over raw strings for localization.
+   */
+  label?: Localizable
+  required?: boolean
+  metadata?: Record<string, unknown>
+  area?: Area
+}
+
+export interface ModulePermissionDeclaration {
+  apis?: ModulePermissionSpec<'apis', 'invoke' | 'emit'>[]
+  resources?: ModulePermissionSpec<'resources', 'read' | 'write' | 'subscribe'>[]
+  capabilities?: ModulePermissionSpec<'capabilities', 'wait' | 'snapshot'>[]
+  processors?: ModulePermissionSpec<'processors', 'register' | 'execute' | 'manage'>[]
+  pipelines?: ModulePermissionSpec<'pipelines', 'hook' | 'process' | 'emit' | 'manage'>[]
+}
+
+export type ModulePermissionGrant = ModulePermissionDeclaration
+
+/**
+ * Describes a single authorization failure produced by host-side permission checks.
+ *
+ * Protocol expectations:
+ * - `area`, `action`, and `key` identify the denied operation
+ * - `reason` is intended for user-facing or diagnostic context and may be localized
+ * - `recoverable` indicates whether the caller may reasonably retry after obtaining consent,
+ *   reconfiguration, or a state change
+ * - plugins should not treat `reason` as a stable machine-readable code
+ */
+export interface ModulePermissionError {
+  area: ModulePermissionArea
+  action: string
+  key: string
+  reason?: Localizable
+  recoverable?: boolean
+}
+
+export type DeliveryMode = 'broadcast' | 'consumer' | 'consumer-group'
+
+export type DeliverySelectionStrategy = 'first' | 'round-robin' | 'priority' | 'sticky'
+
+export interface DeliveryConfig {
+  mode?: DeliveryMode
+  group?: string
+  required?: boolean
+  selection?: DeliverySelectionStrategy
+  stickyKey?: string
+}
+
+export interface ProtocolEventaMetadata {
+  delivery?: DeliveryConfig
+}
+
+export interface ProtocolEventaInvokeMetadata {
+  delivery?: Partial<DeliveryConfig>
+}
+
+export type ProtocolEventa<P = undefined>
+  = Eventa<P, ProtocolEventaMetadata, ProtocolEventaInvokeMetadata>
+
+function defineProtocolEventa<P = undefined>(
+  id: string,
+  options?: {
+    inheritFrom?: ProtocolEventa<P>
+    metadata?: ProtocolEventaMetadata
+    invokeMetadata?: ProtocolEventaInvokeMetadata
+  },
+): ProtocolEventa<P> {
+  return defineEventa<P, ProtocolEventaMetadata, ProtocolEventaInvokeMetadata>(id, options)
+}
+
 export type RouteTargetExpression
   = | { type: 'and', all: RouteTargetExpression[] }
     | { type: 'or', any: RouteTargetExpression[] }
@@ -357,6 +508,7 @@ export type RouteTargetExpression
 export interface RouteConfig {
   destinations?: Array<string | RouteTargetExpression>
   bypass?: boolean
+  delivery?: DeliveryConfig
 }
 
 export enum MessageHeartbeatKind {
@@ -384,7 +536,7 @@ interface InputSource {
 interface OutputSource {
   'gen-ai:chat': {
     message: UserMessage
-    contexts: Record<string, ContextUpdate<Record<string, any>, string | CommonContentPart[]>[]>
+    contexts: Record<string, ContextUpdate<Record<string, any>, unknown>[]>
     composedMessage: Array<Message>
     input?: InputEventEnvelope
   }
@@ -501,6 +653,57 @@ export type WithOutputSource<Source extends keyof OutputSource> = {
 // 10) module:status (ready)
 // 11) module:status:change (to re-run phases)
 
+interface PeerAuthenticateEvent {
+  token?: string
+  peerId?: string
+}
+
+interface PeerAuthenticatedEvent {
+  authenticated: boolean
+  peerId: string
+}
+
+interface PeerStatusEvent {
+  peerId: string
+  phase: 'connected' | 'authenticated' | 'de-authenticated' | 'closed' | 'failed'
+  reason?: string
+}
+
+interface PeerDeAuthenticatedEvent {
+  peerId: string
+  reason?: string
+}
+
+interface ExtensionAuthenticateEvent {
+  identity: ExtensionIdentity
+  token?: string
+}
+
+interface ExtensionAuthenticatedEvent {
+  identity: ExtensionIdentity
+  authenticated: boolean
+  reason?: string
+}
+
+interface ExtensionAnnounceEvent {
+  identity: ExtensionIdentity
+  permissions?: ModulePermissionDeclaration
+}
+
+interface ExtensionModuleAnnounceEvent<C = undefined> {
+  name: string
+  identity: ExtensionModuleIdentity
+  possibleEvents: Array<(keyof ProtocolEvents<C>)>
+  permissions?: ModulePermissionDeclaration
+  configSchema?: ModuleConfigSchema
+  dependencies?: ModuleDependency[]
+}
+
+interface ExtensionKitAnnounceEvent {
+  identity: ExtensionKitIdentity
+  capabilities?: ModuleCapability[]
+}
+
 interface ModuleAuthenticateEvent {
   token: string
 }
@@ -523,11 +726,11 @@ interface ModuleCompatibilityResultEvent {
   reason?: string
 }
 
-interface RegistryModulesSyncEvent {
+export interface RegistryModulesSyncEvent {
   modules: Array<{
     name: string
     index?: number
-    identity: ModuleIdentity
+    identity: MetadataEventSource
   }>
 }
 
@@ -535,15 +738,20 @@ interface ErrorEvent {
   message: string
 }
 
+interface ErrorPermissionEvent {
+  identity?: ModuleIdentity
+  error: ModulePermissionError
+}
+
 interface ModuleAnnounceEvent<C = undefined> {
   name: string
   identity: ModuleIdentity
   possibleEvents: Array<(keyof ProtocolEvents<C>)>
+  permissions?: ModulePermissionDeclaration
   configSchema?: ModuleConfigSchema
   dependencies?: ModuleDependency[]
 }
-
-interface ModuleAnnouncedEvent {
+export interface ModuleAnnouncedEvent {
   name: string
   index?: number
   identity: ModuleIdentity
@@ -559,14 +767,112 @@ interface ModuleDeAnnouncedEvent {
 interface RegistryModulesHealthUnhealthyEvent {
   name: string
   index?: number
-  identity: ModuleIdentity
+  identity: MetadataEventSource
   reason?: string
 }
 
 interface RegistryModulesHealthHealthyEvent {
   name: string
   index?: number
+  identity: MetadataEventSource
+
+}
+
+/**
+ * Emitted when a module declares the permissions it may need.
+ *
+ * Typical use cases:
+ * - manifest-time declaration for installation, review, and audit surfaces
+ * - runtime declaration when a module can only discover optional integrations later
+ *
+ * Protocol expectations:
+ * - this event communicates intent only and does not grant access
+ * - hosts may record, display, audit, or validate this declaration before any request is approved
+ * - plugins must not assume any declared permission is usable until it appears in current grants
+ * - `source` indicates whether the declaration originated from static manifest data or runtime code
+ */
+interface ModulePermissionsDeclareEvent {
   identity: ModuleIdentity
+  requested: ModulePermissionDeclaration
+  source: 'manifest' | 'runtime'
+}
+
+/**
+ * Emitted when a module actively asks the host to approve some or all declared permissions.
+ *
+ * Typical use cases:
+ * - deferred consent before first use of a sensitive API or resource
+ * - requesting optional capabilities only when a feature is enabled by the user
+ *
+ * Protocol expectations:
+ * - hosts may prompt the user, auto-approve, partially approve, or deny the request
+ * - plugins must treat this as a request for evaluation, not as confirmation of access
+ * - plugins should provide a user-facing `reason` when approval UX needs explanatory context
+ * - the host response may later be expressed through granted, denied, and current permission events
+ */
+interface ModulePermissionsRequestEvent {
+  identity: ModuleIdentity
+  requested: ModulePermissionDeclaration
+  reason?: string
+}
+
+/**
+ * Emitted after the host approves additional permissions for a module.
+ *
+ * Typical use cases:
+ * - notifying the runtime that a previous permission request succeeded
+ * - allowing plugin code to resume or unlock gated features
+ *
+ * Protocol expectations:
+ * - `granted` may be narrower than the corresponding request
+ * - plugins must inspect the granted payload instead of assuming the full request was approved
+ * - `revision` increments when the permission snapshot changes and may be used to invalidate cached state
+ * - hosts may emit this event before or together with an updated current snapshot
+ */
+interface ModulePermissionsGrantedEvent {
+  identity: ModuleIdentity
+  granted: ModulePermissionGrant
+  revision: number
+}
+
+/**
+ * Emitted when some requested permissions are rejected or remain unavailable.
+ *
+ * Typical use cases:
+ * - surfacing partial denials after a consent flow
+ * - explaining why a feature must stay disabled or degraded
+ *
+ * Protocol expectations:
+ * - `denied` describes the requested permissions that are not available after evaluation
+ * - plugins must handle denial gracefully and should provide fallback behavior when feasible
+ * - `reason` is intended for diagnostics or UX context and should not be treated as a stable machine-readable code
+ * - `revision` identifies the permission-state version associated with this denial result
+ */
+interface ModulePermissionsDeniedEvent {
+  identity: ModuleIdentity
+  denied: ModulePermissionDeclaration
+  reason?: string
+  revision: number
+}
+
+/**
+ * Emitted with the module's reconciled current permission snapshot.
+ *
+ * Typical use cases:
+ * - bootstrapping extension runtime state after startup or reload
+ * - synchronizing UI/debug tools with the final requested vs granted view
+ *
+ * Protocol expectations:
+ * - this is the authoritative event for "what is currently allowed"
+ * - `requested` is the normalized declaration baseline known to the host
+ * - `granted` is the currently granted subset that authorization checks should follow
+ * - plugins should prefer this snapshot over local assumptions when reconciling runtime state
+ */
+interface ModulePermissionsCurrentEvent {
+  identity: ModuleIdentity
+  requested: ModulePermissionDeclaration
+  granted: ModulePermissionGrant
+  revision: number
 }
 
 interface ModulePreparedEvent {
@@ -738,6 +1044,19 @@ interface ModuleConfigureEvent<C = undefined> {
   config: C | Record<string, unknown>
 }
 
+interface ModuleConsumerRegisterEvent {
+  event: string
+  mode?: Exclude<DeliveryMode, 'broadcast'>
+  group?: string
+  priority?: number
+}
+
+interface ModuleConsumerUnregisterEvent {
+  event: string
+  mode?: Exclude<DeliveryMode, 'broadcast'>
+  group?: string
+}
+
 interface UiConfigureEvent<C = undefined> {
   moduleName: string
   moduleIndex?: number
@@ -839,6 +1158,25 @@ interface TransportConnectionHeartbeatEvent {
 
 type ContextUpdateEvent = ContextUpdate
 
+export const peerAuthenticate = defineEventa<PeerAuthenticateEvent>('peer:authenticate')
+export const peerAuthenticated = defineEventa<PeerAuthenticatedEvent>('peer:authenticated')
+export const peerStatus = defineEventa<PeerStatusEvent>('peer:status')
+export const peerDeAuthenticated = defineEventa<PeerDeAuthenticatedEvent>('peer:de-authenticated')
+
+export const extensionAuthenticate = defineEventa<ExtensionAuthenticateEvent>('extension:authenticate')
+export const extensionAuthenticated = defineEventa<ExtensionAuthenticatedEvent>('extension:authenticated')
+export const extensionAnnounce = defineEventa<ExtensionAnnounceEvent>('extension:announce')
+export const extensionAnnounced = defineEventa<ExtensionAnnounceEvent>('extension:announced')
+export const extensionDeAnnounced = defineEventa<ExtensionAnnounceEvent & { reason?: string }>('extension:de-announced')
+
+export const extensionModuleAnnounce = defineEventa<ExtensionModuleAnnounceEvent>('extension:module:announce')
+export const extensionModuleAnnounced = defineEventa<ExtensionModuleAnnounceEvent>('extension:module:announced')
+export const extensionModuleDeAnnounced = defineEventa<ExtensionModuleAnnounceEvent & { reason?: string }>('extension:module:de-announced')
+
+export const extensionKitAnnounce = defineEventa<ExtensionKitAnnounceEvent>('extension:kit:announce')
+export const extensionKitAnnounced = defineEventa<ExtensionKitAnnounceEvent>('extension:kit:announced')
+export const extensionKitDeAnnounced = defineEventa<ExtensionKitAnnounceEvent & { reason?: string }>('extension:kit:de-announced')
+
 export const moduleAuthenticate = defineEventa<ModuleAuthenticateEvent>('module:authenticate')
 export const moduleAuthenticated = defineEventa<ModuleAuthenticatedEvent>('module:authenticated')
 export const moduleCompatibilityRequest = defineEventa<ModuleCompatibilityRequestEvent>('module:compatibility:request')
@@ -848,10 +1186,24 @@ export const registryModulesHealthUnhealthy = defineEventa<RegistryModulesHealth
 export const registryModulesHealthHealthy = defineEventa<RegistryModulesHealthHealthyEvent>('registry:modules:health:healthy')
 
 export const error = defineEventa<ErrorEvent>('error')
+/** Permission-check failure event. See `ModulePermissionError`. */
+export const errorPermission = defineEventa<ErrorPermissionEvent>('error:permission')
 
 export const moduleAnnounce = defineEventa<ModuleAnnounceEvent>('module:announce')
 export const moduleAnnounced = defineEventa<ModuleAnnouncedEvent>('module:announced')
 export const moduleDeAnnounced = defineEventa<ModuleDeAnnouncedEvent>('module:de-announced')
+
+/** Permission declaration lifecycle event. See `ModulePermissionsDeclareEvent`. */
+export const modulePermissionsDeclare = defineEventa<ModulePermissionsDeclareEvent>('module:permissions:declare')
+/** Permission request lifecycle event. See `ModulePermissionsRequestEvent`. */
+export const modulePermissionsRequest = defineEventa<ModulePermissionsRequestEvent>('module:permissions:request')
+/** Permission grant lifecycle event. See `ModulePermissionsGrantedEvent`. */
+export const modulePermissionsGranted = defineEventa<ModulePermissionsGrantedEvent>('module:permissions:granted')
+/** Permission denial lifecycle event. See `ModulePermissionsDeniedEvent`. */
+export const modulePermissionsDenied = defineEventa<ModulePermissionsDeniedEvent>('module:permissions:denied')
+/** Current permission snapshot event. See `ModulePermissionsCurrentEvent`. */
+export const modulePermissionsCurrent = defineEventa<ModulePermissionsCurrentEvent>('module:permissions:current')
+
 export const modulePrepared = defineEventa<ModulePreparedEvent>('module:prepared')
 export const moduleConfigurationNeeded = defineEventa<ModuleConfigurationNeededEvent>('module:configuration:needed')
 export const moduleStatus = defineEventa<ModuleStatusEvent>('module:status')
@@ -879,26 +1231,62 @@ export const moduleContributeCapabilityConfigurationCommitStatus = defineEventa<
 export const moduleContributeCapabilityConfigurationConfigured = defineEventa<ModuleContributeCapabilityConfigurationConfiguredEvent>('module:contribute:capability:configuration:configured')
 export const moduleContributeCapabilityActivated = defineEventa<ModuleContributeCapabilityActivatedEvent>('module:contribute:capability:activated')
 
-export const moduleStatusChange = defineEventa<ModuleStatusChangeEvent>('module:status:change')
+export const moduleStatusChange = defineProtocolEventa<ModuleStatusChangeEvent>('module:status:change')
 
-export const moduleConfigure = defineEventa<ModuleConfigureEvent>('module:configure')
+export const moduleConfigure = defineProtocolEventa<ModuleConfigureEvent>('module:configure')
+export const moduleConsumerRegister = defineProtocolEventa<ModuleConsumerRegisterEvent>('module:consumer:register')
+export const moduleConsumerUnregister = defineProtocolEventa<ModuleConsumerUnregisterEvent>('module:consumer:unregister')
 
-export const uiConfigure = defineEventa<UiConfigureEvent>('ui:configure')
+export const uiConfigure = defineProtocolEventa<UiConfigureEvent>('ui:configure')
 
-export const inputText = defineEventa<WebSocketEventInputText>('input:text')
-export const inputTextVoice = defineEventa<WebSocketEventInputTextVoice>('input:text:voice')
-export const inputVoice = defineEventa<WebSocketEventInputVoice>('input:voice')
+export const inputText = defineProtocolEventa<WebSocketEventInputText>('input:text', {
+  metadata: {
+    delivery: {
+      mode: 'consumer-group',
+      group: 'chat-ingestion',
+      selection: 'first',
+    },
+  },
+})
+export const inputTextVoice = defineProtocolEventa<WebSocketEventInputTextVoice>('input:text:voice', {
+  metadata: {
+    delivery: {
+      mode: 'consumer-group',
+      group: 'chat-ingestion',
+      selection: 'first',
+    },
+  },
+})
+export const inputVoice = defineProtocolEventa<WebSocketEventInputVoice>('input:voice', {
+  metadata: {
+    delivery: {
+      mode: 'consumer-group',
+      group: 'chat-ingestion',
+      selection: 'first',
+    },
+  },
+})
 
-export const outputGenAiChatToolCall = defineEventa<OutputGenAiChatToolCallEvent>('output:gen-ai:chat:tool-call')
-export const outputGenAiChatMessage = defineEventa<OutputGenAiChatMessageEvent>('output:gen-ai:chat:message')
-export const outputGenAiChatComplete = defineEventa<OutputGenAiChatCompleteEvent>('output:gen-ai:chat:complete')
+export const outputGenAiChatToolCall = defineProtocolEventa<OutputGenAiChatToolCallEvent>('output:gen-ai:chat:tool-call')
+export const outputGenAiChatMessage = defineProtocolEventa<OutputGenAiChatMessageEvent>('output:gen-ai:chat:message')
+export const outputGenAiChatComplete = defineProtocolEventa<OutputGenAiChatCompleteEvent>('output:gen-ai:chat:complete')
 
-export const sparkNotify = defineEventa<SparkNotifyEvent>('spark:notify')
-export const sparkEmit = defineEventa<SparkEmitEvent>('spark:emit')
-export const sparkCommand = defineEventa<SparkCommandEvent>('spark:command')
+export const sparkNotify = defineProtocolEventa<SparkNotifyEvent>('spark:notify')
+export const sparkEmit = defineProtocolEventa<SparkEmitEvent>('spark:emit')
+export const sparkCommand = defineProtocolEventa<SparkCommandEvent>('spark:command')
 
-export const transportConnectionHeartbeat = defineEventa<TransportConnectionHeartbeatEvent>('transport:connection:heartbeat')
-export const contextUpdate = defineEventa<ContextUpdateEvent>('context:update')
+export const transportConnectionHeartbeat = defineProtocolEventa<TransportConnectionHeartbeatEvent>('transport:connection:heartbeat')
+export const contextUpdate = defineProtocolEventa<ContextUpdateEvent>('context:update')
+
+export const protocolEventMetadataByType = {
+  [inputText.id]: inputText.metadata,
+  [inputTextVoice.id]: inputTextVoice.metadata,
+  [inputVoice.id]: inputVoice.metadata,
+} satisfies Partial<Record<keyof ProtocolEvents, ProtocolEventaMetadata | undefined>>
+
+export function getProtocolEventMetadata(eventType: keyof ProtocolEvents | string) {
+  return protocolEventMetadataByType[eventType as keyof typeof protocolEventMetadataByType]
+}
 
 // Thanks to:
 //
@@ -906,6 +1294,24 @@ export const contextUpdate = defineEventa<ContextUpdateEvent>('context:update')
 // https://www.reddit.com/r/typescript/comments/1064ibt/a_little_hack_for_creating_extensible/
 export interface ProtocolEvents<C = undefined> {
   'error': ErrorEvent
+  'error:permission': ErrorPermissionEvent
+
+  'peer:authenticate': PeerAuthenticateEvent
+  'peer:authenticated': PeerAuthenticatedEvent
+  'peer:status': PeerStatusEvent
+  'peer:de-authenticated': PeerDeAuthenticatedEvent
+
+  'extension:authenticate': ExtensionAuthenticateEvent
+  'extension:authenticated': ExtensionAuthenticatedEvent
+  'extension:announce': ExtensionAnnounceEvent
+  'extension:announced': ExtensionAnnounceEvent
+  'extension:de-announced': ExtensionAnnounceEvent & { reason?: string }
+  'extension:module:announce': ExtensionModuleAnnounceEvent<C>
+  'extension:module:announced': ExtensionModuleAnnounceEvent<C>
+  'extension:module:de-announced': ExtensionModuleAnnounceEvent<C> & { reason?: string }
+  'extension:kit:announce': ExtensionKitAnnounceEvent
+  'extension:kit:announced': ExtensionKitAnnounceEvent
+  'extension:kit:de-announced': ExtensionKitAnnounceEvent & { reason?: string }
 
   'module:authenticate': ModuleAuthenticateEvent
   'module:authenticated': ModuleAuthenticatedEvent
@@ -940,6 +1346,11 @@ export interface ProtocolEvents<C = undefined> {
    * module:announced or module:de-announced, or registry:modules:sync and registry:modules:health:* events for more reliable discovery and tracking.
    */
   'module:announce': ModuleAnnounceEvent<C>
+  'module:permissions:declare': ModulePermissionsDeclareEvent
+  'module:permissions:request': ModulePermissionsRequestEvent
+  'module:permissions:granted': ModulePermissionsGrantedEvent
+  'module:permissions:denied': ModulePermissionsDeniedEvent
+  'module:permissions:current': ModulePermissionsCurrentEvent
   /**
    * Broadcast to all peers when a module successfully announces.
    */
@@ -1028,6 +1439,14 @@ export interface ProtocolEvents<C = undefined> {
    * Push configuration down to module (host → module).
    */
   'module:configure': ModuleConfigureEvent<C>
+  /**
+   * Register the current module instance as a consumer for an event or event group.
+   */
+  'module:consumer:register': ModuleConsumerRegisterEvent
+  /**
+   * Unregister the current module instance from an event consumer registration.
+   */
+  'module:consumer:unregister': ModuleConsumerUnregisterEvent
 
   'ui:configure': UiConfigureEvent<C>
 

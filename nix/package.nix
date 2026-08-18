@@ -1,17 +1,30 @@
 {
   stdenvNoCC,
+  lib,
   callPackage,
-
-  copyDesktopItems,
   makeDesktopItem,
-  makeWrapper,
-  gitMinimal,
-  pnpm,
 
   asar,
-  electron,
+  copyDesktopItems,
+  makeWrapper,
+  gitMinimal,
   nodejs,
+  pnpm_11,
+  pnpmConfigHook,
+
+  electron_41,
+  libxt,
+  libxtst,
 }:
+
+let
+  pnpm = pnpm_11;
+  electron = electron_41;
+  libraryPath = lib.makeLibraryPath [
+    libxt
+    libxtst
+  ];
+in
 
 (callPackage ./common.nix { }).overrideAttrs (final: {
   nativeBuildInputs = [
@@ -20,7 +33,8 @@
     makeWrapper
     gitMinimal
     nodejs
-    pnpm.configHook
+    pnpm
+    pnpmConfigHook
   ];
 
   desktopItems = [
@@ -53,9 +67,8 @@
   buildPhase = ''
     runHook preBuild
 
-    pnpm run build:packages
+    pnpm -F @proj-airi/stage-tamagotchi... run build
     cd apps/stage-tamagotchi
-    pnpm run build
     pnpm exec electron-builder build \
       --dir --${if stdenvNoCC.isLinux then "linux" else "mac"} \
       -c.electronDist="${electron.dist}" \
@@ -79,9 +92,10 @@
     cp -r "$assets"/{vrm,live2d} app/out/renderer/assets
     asar pack app app.asar
 
-    makeWrapper "${electron}/bin/electron" "$out/bin/airi" \
+    makeWrapper "${lib.getExe electron}" "$out/bin/airi" \
       --add-flags "$out/opt/AIRI/resources/app.asar" \
-      --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--enable-wayland-ime=true --wayland-text-input-version=3}}"
+      --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--enable-wayland-ime=true --wayland-text-input-version=3}}" \
+      --prefix LD_LIBRARY_PATH : "${libraryPath}"
 
     runHook postInstall
   '';

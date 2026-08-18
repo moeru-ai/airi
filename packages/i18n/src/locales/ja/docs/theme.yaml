@@ -15,6 +15,7 @@ doc:
     title: 次のページ
   previous-page:
     title: 前のページ
+  published-at: Published at {date}
 home:
   subtitle: >-
     Neuro-samaを再構築し、AIの推しやバーチャルキャラクターを現実の世界へと招く。

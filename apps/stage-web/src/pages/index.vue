@@ -10,15 +10,15 @@ import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&u
 import { BackgroundProvider } from '@proj-airi/stage-layouts/components/Backgrounds'
 import { useBackgroundThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { useBackgroundStore } from '@proj-airi/stage-layouts/stores/background'
-import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
+import { HoloCoupon } from '@proj-airi/stage-ui/components'
+import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
-import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
-import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
+import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
@@ -29,14 +29,13 @@ function handleSettingsOpen(open: boolean) {
   paused.value = open
 }
 
-const positionCursor = useMouse()
-const { scale, position, positionInPercentageString } = storeToRefs(useLive2d())
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = breakpoints.smaller('md')
 
 const backgroundStore = useBackgroundStore()
 const { selectedOption, sampledColor } = storeToRefs(backgroundStore)
 const backgroundSurface = useTemplateRef<InstanceType<typeof BackgroundProvider>>('backgroundSurface')
+const { stageModelRenderer } = storeToRefs(useSettings())
 
 const { syncBackgroundTheme } = useBackgroundThemeColor({ backgroundSurface, selectedOption, sampledColor })
 onMounted(() => syncBackgroundTheme())
@@ -44,14 +43,17 @@ onMounted(() => syncBackgroundTheme())
 // Audio + transcription pipeline (mirrors stage-tamagotchi)
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
-const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
+const { discardRecord, startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
-const { transcribeForRecording } = hearingPipeline
+const { removeStreamingTranscriptionConsumer, stopStreamingTranscription, transcribeForMediaStream, transcribeForRecording } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
-const chatStore = useChatOrchestratorStore()
+const chatStore = useChatStore()
+
+/** Identifies this page in the shared streaming transcription session. */
+const transcriptionConsumerId = 'stage-web:voice-input'
 
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
@@ -64,9 +66,26 @@ const {
   threshold: ref(0.6),
   onSpeechStart: () => handleSpeechStart(),
   onSpeechEnd: () => handleSpeechEnd(),
+  onSpeechCancel: () => handleSpeechCancel(),
 })
 
 let stopOnStopRecord: (() => void) | undefined
+
+async function sendVoiceInputTextToChat(text: string | undefined) {
+  if (!text?.trim())
+    return
+
+  try {
+    const provider = await providersStore.getProviderInstance(activeChatProvider.value)
+    if (!provider || !activeChatModel.value)
+      return
+
+    await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+  }
+  catch (error) {
+    console.error('Failed to send chat from voice:', error)
+  }
+}
 
 async function startAudioInteraction() {
   try {
@@ -74,22 +93,18 @@ async function startAudioInteraction() {
     if (stream.value)
       await startVAD(stream.value)
 
+    if (shouldUseStreamInput.value && stream.value) {
+      await transcribeForMediaStream(stream.value, {
+        consumerId: transcriptionConsumerId,
+        onSentenceEnd: text => void sendVoiceInputTextToChat(text),
+      })
+      return
+    }
+
     // Hook once
     stopOnStopRecord = onStopRecord(async (recording) => {
       const text = await transcribeForRecording(recording)
-      if (!text || !text.trim())
-        return
-
-      try {
-        const provider = await providersStore.getProviderInstance(activeChatProvider.value)
-        if (!provider || !activeChatModel.value)
-          return
-
-        await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
-      }
-      catch (err) {
-        console.error('Failed to send chat from voice:', err)
-      }
+      await sendVoiceInputTextToChat(text)
     })
   }
   catch (e) {
@@ -116,10 +131,17 @@ async function handleSpeechEnd() {
   stopRecord()
 }
 
+async function handleSpeechCancel() {
+  if (!shouldUseStreamInput.value)
+    await discardRecord()
+}
+
 function stopAudioInteraction() {
   try {
+    removeStreamingTranscriptionConsumer(transcriptionConsumerId)
     stopOnStopRecord?.()
     stopOnStopRecord = undefined
+    void stopStreamingTranscription(true)
     disposeVAD()
   }
   catch {}
@@ -148,6 +170,12 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
     }
   }
 })
+
+const { x: mouseX, y: mouseY } = useMouse()
+const cursorPosition = computed(() => ({
+  x: mouseX.value,
+  y: mouseY.value,
+}))
 </script>
 
 <template>
@@ -165,20 +193,26 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
       </div>
       <!-- page -->
       <div relative flex="~ 1 row gap-y-0 gap-x-2 <md:col">
-        <WidgetStage
-          flex-1 min-w="1/2"
-          :paused="paused"
-          :focus-at="{
-            x: positionCursor.x.value,
-            y: positionCursor.y.value,
-          }"
-          :x-offset="`${isMobile ? position.x : position.x - 10}%`"
-          :y-offset="positionInPercentageString.y"
-          :scale="scale"
-        />
+        <div relative flex-1 min-w="1/2">
+          <div
+            absolute left-0 z-15 px-3
+            :class="[
+              stageModelRenderer === 'live2d' ? 'top-0 h-full py-[20vh]' : 'top-1/2 -translate-y-1/2',
+            ]"
+          >
+            <ViewControlSlider />
+          </div>
+          <WidgetStage
+            h-full w-full
+            :cursor-position="cursorPosition"
+            :enable-orbit-controls="!isMobile"
+            :paused="paused"
+          />
+        </div>
         <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />
         <MobileInteractiveArea v-if="isMobile" @settings-open="handleSettingsOpen" />
       </div>
+      <HoloCoupon />
     </div>
   </BackgroundProvider>
 </template>

@@ -1,20 +1,56 @@
+import type { Span } from '@opentelemetry/api'
 import type { MaybeRefOrGetter } from 'vue'
 
+import type { BaseVADConfig } from '../../../libs/audio/vad'
+
 import { merge } from '@moeru/std'
+import { errorMessageFromValue, IOAttributes, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { ref, toRef, watch } from 'vue'
 
+import { startSpan } from '../../../composables/use-io-tracer'
 import { createVAD, createVADStates } from '../../../workers/vad'
 
 interface UseVADOptions {
   threshold?: MaybeRefOrGetter<number>
+  minSilenceDurationMs?: MaybeRefOrGetter<number>
+  speechPadMs?: MaybeRefOrGetter<number>
+  minSpeechDurationMs?: MaybeRefOrGetter<number>
 
   onSpeechStart?: () => void
+  onSpeechAudio?: (event: { buffer: Float32Array }) => void
   onSpeechEnd?: () => void
+  onSpeechCancel?: () => void
+  onSpeechReady?: (event: { buffer: Float32Array, duration: number }) => void
+}
+
+const DEFAULT_VAD_THRESHOLD = 0.52
+const DEFAULT_VAD_MIN_SILENCE_DURATION_MS = 1200
+const DEFAULT_VAD_SPEECH_PAD_MS = 360
+const DEFAULT_VAD_MIN_SPEECH_DURATION_MS = 300
+
+export function resolveVADConfig(
+  threshold?: number,
+  minSilenceDurationMs?: number,
+  speechPadMs?: number,
+  minSpeechDurationMs?: number,
+): Pick<BaseVADConfig, 'speechThreshold' | 'exitThreshold' | 'minSilenceDurationMs' | 'speechPadMs' | 'minSpeechDurationMs'> {
+  const resolvedThreshold = threshold ?? DEFAULT_VAD_THRESHOLD
+
+  return {
+    speechThreshold: resolvedThreshold,
+    exitThreshold: resolvedThreshold * 0.3,
+    minSilenceDurationMs: minSilenceDurationMs ?? DEFAULT_VAD_MIN_SILENCE_DURATION_MS,
+    speechPadMs: speechPadMs ?? DEFAULT_VAD_SPEECH_PAD_MS,
+    minSpeechDurationMs: minSpeechDurationMs ?? DEFAULT_VAD_MIN_SPEECH_DURATION_MS,
+  }
 }
 
 export function useVAD(workerUrl: string, options?: UseVADOptions) {
   const defaultOptions: UseVADOptions = {
-    threshold: ref(0.6),
+    threshold: ref(DEFAULT_VAD_THRESHOLD),
+    minSilenceDurationMs: ref(DEFAULT_VAD_MIN_SILENCE_DURATION_MS),
+    speechPadMs: ref(DEFAULT_VAD_SPEECH_PAD_MS),
+    minSpeechDurationMs: ref(DEFAULT_VAD_MIN_SPEECH_DURATION_MS),
   }
 
   options = merge(defaultOptions, options)
@@ -30,8 +66,22 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
 
   const loaded = ref(false)
   const loading = ref(false)
+  let activeSpan: Span | undefined
+
+  function finishActiveSpan(aborted: boolean) {
+    if (!activeSpan)
+      return
+
+    if (aborted)
+      activeSpan.setAttribute(IOAttributes.VADAborted, true)
+    activeSpan.end()
+    activeSpan = undefined
+  }
 
   const threshold = toRef(options.threshold)
+  const minSilenceDurationMs = toRef(options.minSilenceDurationMs)
+  const speechPadMs = toRef(options.speechPadMs)
+  const minSpeechDurationMs = toRef(options.minSpeechDurationMs)
 
   async function init() {
     if (loaded.value || loading.value || manager.value)
@@ -41,22 +91,47 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
     inferenceError.value = ''
 
     try {
+      const vadConfig = resolveVADConfig(
+        threshold.value,
+        minSilenceDurationMs.value,
+        speechPadMs.value,
+        minSpeechDurationMs.value,
+      )
+
       vad.value = await createVAD({
         sampleRate: 16000,
-        speechThreshold: threshold.value,
-        exitThreshold: (threshold.value ?? 0.6) * 0.3,
-        minSilenceDurationMs: 400,
+        ...vadConfig,
       })
 
       // Set up event handlers
       vad.value.on('speech-start', () => {
+        finishActiveSpan(true)
+        activeSpan = startSpan(IOSpanNames.VoiceActivityDetection, undefined, {
+          [IOAttributes.Subsystem]: IOSubsystems.VAD,
+        })
         isSpeech.value = true
         options?.onSpeechStart?.()
+      })
+
+      vad.value.on('speech-audio', (event) => {
+        options?.onSpeechAudio?.(event)
       })
 
       vad.value.on('speech-end', () => {
         isSpeech.value = false
         options?.onSpeechEnd?.()
+      })
+
+      vad.value.on('speech-cancel', () => {
+        finishActiveSpan(true)
+        isSpeech.value = false
+        options?.onSpeechCancel?.()
+      })
+
+      vad.value.on('speech-ready', (event) => {
+        activeSpan?.setAttribute(IOAttributes.VADAudioDurationMs, event.duration)
+        finishActiveSpan(false)
+        options?.onSpeechReady?.(event)
       })
 
       vad.value.on('debug', ({ data }) => {
@@ -93,7 +168,7 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
       loaded.value = true
     }
     catch (error) {
-      inferenceError.value = error instanceof Error ? error.message : String(error)
+      inferenceError.value = errorMessageFromValue(error)
     }
     finally {
       loading.value = false
@@ -106,6 +181,7 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
   }
 
   function dispose() {
+    finishActiveSpan(true)
     manager.value?.stop()
     manager.value?.dispose()
     manager.value = undefined
@@ -119,8 +195,26 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
   }
 
   watch(threshold, (newVal) => {
-    if (vad.value && newVal) {
+    if (vad.value && newVal !== undefined) {
       vad.value.updateConfig({ speechThreshold: newVal, exitThreshold: newVal * 0.3 })
+    }
+  })
+
+  watch(minSilenceDurationMs, (newVal) => {
+    if (vad.value && newVal !== undefined) {
+      vad.value.updateConfig({ minSilenceDurationMs: newVal })
+    }
+  })
+
+  watch(speechPadMs, (newVal) => {
+    if (vad.value && newVal !== undefined) {
+      vad.value.updateConfig({ speechPadMs: newVal })
+    }
+  })
+
+  watch(minSpeechDurationMs, (newVal) => {
+    if (vad.value && newVal !== undefined) {
+      vad.value.updateConfig({ minSpeechDurationMs: newVal })
     }
   })
 
@@ -132,6 +226,9 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
     loading,
     inferenceError,
     threshold,
+    minSilenceDurationMs,
+    speechPadMs,
+    minSpeechDurationMs,
 
     init,
     start,

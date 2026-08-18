@@ -1,0 +1,9 @@
+version: 9.9.9-update-test.1
+files:
+  - url: AIRI-9.9.9-update-test.1-darwin-arm64.dmg
+    sha512: D6msk0IrWPMUcpjWnMZfEVrY8Qe/yQN4iJO6O6mttkwl5pENCNazyxdvRJX+kOZFujznbCIc+m1z6dokPzHg2A==
+    size: 38
+path: AIRI-9.9.9-update-test.1-darwin-arm64.dmg
+sha512: D6msk0IrWPMUcpjWnMZfEVrY8Qe/yQN4iJO6O6mttkwl5pENCNazyxdvRJX+kOZFujznbCIc+m1z6dokPzHg2A==
+releaseDate: 2026-04-05T17:39:00.050Z
+releaseNotes: Mock update for AIRI local updater verification.

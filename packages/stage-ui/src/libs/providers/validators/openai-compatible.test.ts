@@ -4,6 +4,7 @@ import type { ProviderExtraMethods, ProviderInstance } from '../types'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ProviderValidationCheck } from '../types'
 import { createOpenAICompatibleValidators } from './openai-compatible'
 
 const {
@@ -59,7 +60,7 @@ describe('createOpenAICompatibleValidators', () => {
 
   it('connectivity check uses lightweight fetch instead of generateText', async () => {
     const [connectivityValidator] = getProviderValidators({
-      checks: ['connectivity'],
+      checks: [ProviderValidationCheck.Connectivity],
     })
 
     const result = await connectivityValidator.validator(config, provider, providerExtra, { t: mockT })
@@ -76,7 +77,7 @@ describe('createOpenAICompatibleValidators', () => {
     fetchMock.mockRejectedValue(new TypeError('fetch failed'))
 
     const [connectivityValidator] = getProviderValidators({
-      checks: ['connectivity'],
+      checks: [ProviderValidationCheck.Connectivity],
     })
 
     const result = await connectivityValidator.validator(config, provider, providerExtra, { t: mockT })
@@ -90,7 +91,7 @@ describe('createOpenAICompatibleValidators', () => {
     listModelsMock.mockResolvedValue([])
 
     const [connectivityValidator, chatValidator] = getProviderValidators({
-      checks: ['connectivity', 'chat_completions'],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
     })
 
     const connectivityResult = await connectivityValidator.validator(config, provider, providerExtra, { t: mockT })
@@ -106,7 +107,7 @@ describe('createOpenAICompatibleValidators', () => {
     listModelsMock.mockResolvedValue([])
 
     const [connectivityValidator, chatValidator] = getProviderValidators({
-      checks: ['connectivity', 'chat_completions'],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
       allowValidationWithoutModel: true,
     })
 
@@ -125,5 +126,23 @@ describe('createOpenAICompatibleValidators', () => {
     expect(ids).toContain('openai-compatible:check-connectivity')
     expect(ids).toContain('openai-compatible:check-model-list')
     expect(ids).not.toContain('openai-compatible:check-chat-completions')
+  })
+
+  it('normalizes the selected model id before chat probing', async () => {
+    listModelsMock.mockResolvedValue([
+      { id: 'byteplus/seed-2-0-pro-260328' },
+    ])
+
+    const [, chatValidator] = getProviderValidators({
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
+      normalizeModelId: modelId => modelId.replace(/^byteplus\//, ''),
+    })
+
+    const result = await chatValidator.validator(config, provider, providerExtra, { t: mockT })
+
+    expect(result.valid).toBe(true)
+    expect(generateTextMock).toHaveBeenCalledWith(expect.objectContaining({
+      model: 'seed-2-0-pro-260328',
+    }))
   })
 })

@@ -10,7 +10,7 @@ import { join, resolve } from 'node:path'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { animate, utils } from 'animejs'
-import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen, shell } from 'electron'
+import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen } from 'electron'
 import { debounce, throttle } from 'es-toolkit'
 import { isMacOS } from 'std-env'
 import { boolean, number, object, optional, record, string } from 'valibot'
@@ -22,7 +22,7 @@ import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
-import { setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shared/window'
+import { protectPrivilegedWindowNavigation, setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shared/window'
 
 const captionConfigSchema = object({
   isFollowing: boolean(),
@@ -137,10 +137,7 @@ function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
   }
 
   window.on('ready-to-show', () => window.show())
-  window.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
-  })
+  protectPrivilegedWindowNavigation(window)
 
   return window
 }
@@ -194,9 +191,12 @@ export function setupCaptionWindowManager(params: {
     const settleTo = (toX: number, toY: number) => {
       if (win.isDestroyed())
         return
+      if (!Number.isFinite(toX) || !Number.isFinite(toY))
+        return
+
       const b = win.getBounds()
-      state.x = b.x
-      state.y = b.y
+      state.x = Number.isFinite(b.x) ? b.x : 0
+      state.y = Number.isFinite(b.y) ? b.y : 0
       animation?.pause()
       animation = animate(state, {
         x: toX,
@@ -207,8 +207,13 @@ export function setupCaptionWindowManager(params: {
         onRender: () => {
           if (win.isDestroyed())
             return
+          if (!Number.isFinite(state.x) || !Number.isFinite(state.y))
+            return
+
+          const toX = Math.round(state.x)
+          const toY = Math.round(state.y)
           lastProgrammaticMoveAt = Date.now()
-          win.setPosition(state.x, state.y)
+          win.setPosition(toX, toY)
         },
       })
     }
@@ -219,6 +224,9 @@ export function setupCaptionWindowManager(params: {
     let lastAppliedTy = Number.NaN
 
     const moveThrottled = throttle(() => {
+      if (win.isDestroyed())
+        return
+
       const stored = getConfig()?.matrices[matrixHash]?.relativeToMain ?? initialOffset
       const main = params.mainWindow.getBounds()
       const b = win.getBounds()
@@ -264,6 +272,30 @@ export function setupCaptionWindowManager(params: {
   }
 
   let eventaContext: ReturnType<typeof createContext>['context'] | undefined
+  let currentWindow: BrowserWindow | undefined
+  const visibilityListeners = new Set<() => void>()
+
+  const emitVisibilityChanged = () => {
+    for (const listener of visibilityListeners) {
+      try {
+        listener()
+      }
+      catch {
+      }
+    }
+  }
+
+  function applyIgnoreMouseEvents(win: BrowserWindow, ignore: boolean) {
+    try {
+      if (ignore)
+        win.setIgnoreMouseEvents(true, { forward: true })
+      else
+        win.setIgnoreMouseEvents(false)
+    }
+    catch {
+      // ignore failures during early window lifecycle
+    }
+  }
 
   const reusable = createReusableWindow(async () => {
     // TODO: once we refactored eventa to support window-namespaced contexts,
@@ -272,10 +304,13 @@ export function setupCaptionWindowManager(params: {
     ipcMain.setMaxListeners(0)
 
     const window = createCaptionWindow()
+    currentWindow = window
     const { context } = createContext(ipcMain, window)
     eventaContext = context
 
     await setupBaseWindowElectronInvokes({ context, window, serverChannel: params.serverChannel, i18n: params.i18n })
+
+    applyIgnoreMouseEvents(window, isFollowing)
 
     const cfg = getConfig()
     const saved = cfg?.matrices?.[matrixHash]?.bounds
@@ -304,10 +339,15 @@ export function setupCaptionWindowManager(params: {
 
     window.on('resize', persistBounds)
     window.on('move', persistBounds)
-
-    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/caption'))
+    window.on('show', emitVisibilityChanged)
+    window.on('hide', emitVisibilityChanged)
 
     const cleanupGetAttached = defineInvokeHandler(context, captionGetIsFollowingWindow, async () => isFollowing)
+
+    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/caption', {
+      query: { 'synced-leader': 'false' },
+    }))
+
     try {
       context.emit(captionIsFollowingWindowChanged, isFollowing)
     }
@@ -327,7 +367,11 @@ export function setupCaptionWindowManager(params: {
       catch {
       }
 
+      if (currentWindow === window) {
+        currentWindow = undefined
+      }
       eventaContext = undefined
+      emitVisibilityChanged()
     })
 
     return window
@@ -340,22 +384,26 @@ export function setupCaptionWindowManager(params: {
   async function setFollowWindow(isFollowingWindow: boolean) {
     isFollowing = isFollowingWindow
     const window = await reusable.getWindow()
+
+    applyIgnoreMouseEvents(window, isFollowing)
+
     if (isFollowing) {
-      // Compute and persist current relative offset based on existing positions
       const rel = computeRelativeOffset(window)
-      const cfg = getConfig() ?? { isFollowing, matrices: {} }
-      cfg.matrices[matrixHash] = { ...cfg.matrices[matrixHash], relativeToMain: rel }
-      updateConfig(cfg)
+      const config = getConfig() ?? { isFollowing, matrices: {} }
+      config.isFollowing = isFollowing
+      config.matrices[matrixHash] = { ...config.matrices[matrixHash], relativeToMain: rel }
+      updateConfig(config)
+
       // Start following main without re-docking; keep current position
       followMainWindow(window)
     }
     else {
       detachFromMain()
-    }
 
-    const config = getConfig() ?? { isFollowing, matrices: {} }
-    config.isFollowing = isFollowing
-    updateConfig(config)
+      const config = getConfig() ?? { isFollowing, matrices: {} }
+      config.isFollowing = isFollowing
+      updateConfig(config)
+    }
 
     // Keep window visible after toggle
     window.show()
@@ -380,6 +428,8 @@ export function setupCaptionWindowManager(params: {
   async function resetToSide() {
     const window = await reusable.getWindow()
 
+    applyIgnoreMouseEvents(window, isFollowing)
+
     // Prevent user-move persistence from overwriting our programmatic move
     lastProgrammaticMoveAt = Date.now()
     const initialBounds = computeInitialCaptionBounds({ mainWindow: params.mainWindow })
@@ -396,11 +446,39 @@ export function setupCaptionWindowManager(params: {
     updateConfig(config)
   }
 
+  function isVisible(): boolean {
+    return Boolean(currentWindow && !currentWindow.isDestroyed() && currentWindow.isVisible())
+  }
+
+  async function toggleVisibility() {
+    if (isVisible()) {
+      currentWindow?.hide()
+      return
+    }
+
+    const window = await reusable.getWindow()
+    if (window.isMinimized()) {
+      window.restore()
+    }
+    window.show()
+    window.focus()
+  }
+
+  function onVisibilityChanged(listener: () => void): () => void {
+    visibilityListeners.add(listener)
+    return () => {
+      visibilityListeners.delete(listener)
+    }
+  }
+
   return {
     getWindow,
     setFollowWindow,
     toggleFollowWindow,
     getIsFollowingWindow,
     resetToSide,
+    isVisible,
+    toggleVisibility,
+    onVisibilityChanged,
   }
 }

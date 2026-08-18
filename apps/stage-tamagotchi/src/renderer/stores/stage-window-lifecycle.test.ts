@@ -21,7 +21,7 @@ describe('stage window lifecycle helpers', () => {
       ...createDefaultWindowLifecycleState(),
       reason: 'hide',
       visible: false,
-    })).toBe(true)
+    })).toBe(false)
 
     expect(shouldPauseStageFromLifecycle({
       ...createDefaultWindowLifecycleState(),

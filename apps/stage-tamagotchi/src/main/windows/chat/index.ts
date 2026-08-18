@@ -5,12 +5,13 @@ import type { WidgetsWindowManager } from '../widgets'
 
 import { join, resolve } from 'node:path'
 
-import { BrowserWindow, shell } from 'electron'
+import { BrowserWindow } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
 
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
+import { protectPrivilegedWindowNavigation } from '../shared'
 import { setupChatWindowElectronInvokes } from './rpc/index.electron'
 
 export function setupChatWindowReusableFunc(params: {
@@ -33,12 +34,7 @@ export function setupChatWindowReusableFunc(params: {
     })
 
     window.on('ready-to-show', () => window.show())
-    window.webContents.setWindowOpenHandler((details) => {
-      shell.openExternal(details.url)
-      return { action: 'deny' }
-    })
-
-    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/chat'))
+    protectPrivilegedWindowNavigation(window)
 
     await setupChatWindowElectronInvokes({
       window,
@@ -47,6 +43,13 @@ export function setupChatWindowReusableFunc(params: {
       mcpStdioManager: params.mcpStdioManager,
       i18n: params.i18n,
     })
+
+    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/chat', {
+      query: {
+        'stage-runtime': 'minimal',
+        'synced-leader': 'false',
+      },
+    }))
 
     return window
   }).getWindow

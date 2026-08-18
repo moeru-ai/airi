@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useWebSocketInspectorStore } from '@proj-airi/stage-ui/stores/devtools/websocket-inspector'
-import { Button, FieldCheckbox, Input } from '@proj-airi/ui'
+import { FieldCheckbox, GhostButton, Input } from '@proj-airi/ui'
 import { computed, nextTick, ref, watch } from 'vue'
 
 const store = useWebSocketInspectorStore()
@@ -124,11 +124,11 @@ function payloadClasses(direction: 'incoming' | 'outgoing') {
           placeholder="Filter payload..."
           class="w-64"
         />
-        <Button
+        <GhostButton
           label="Clear"
           icon="i-solar:trash-bin-trash-bold-duotone"
           size="sm"
-          variant="ghost"
+
           @click="store.clear()"
         />
         <div class="flex flex-shrink-0 items-center text-xs">

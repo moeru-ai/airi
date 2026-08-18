@@ -1,5 +1,5 @@
 import type { VRM } from '@pixiv/three-vrm'
-import type { AnimationMixer, Material, WebGLRenderer } from 'three'
+import type { AnimationMixer, Material, Object3D, WebGLRenderer } from 'three'
 
 import type {
   ThreeRendererMemorySnapshot,
@@ -74,7 +74,7 @@ export function createVrmSceneSummarySnapshot(input?: VrmSceneSnapshotInput | VR
   const materials = new Set<Material>()
   const textures = new Set<Texture>()
 
-  activeVrm.scene.traverse((child) => {
+  activeVrm.scene.traverse((child: Object3D) => {
     if (child instanceof Mesh)
       meshCount += 1
 

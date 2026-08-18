@@ -6,6 +6,9 @@ import { computed, ref, watch } from 'vue'
 
 import defaultSkyBoxSrc from '../components/Environment/assets/sky_linekotsi_23_HDRI.hdr?url'
 
+import { DEFAULT_CAMERA_POSITION, useThreeCamera } from './camera'
+import { supportedControl, useThreeViewControl } from './view-control'
+
 // TODO: this is for future type injection features
 // TODO: make a separate type.ts
 export interface Vec3 { x: number, y: number, z: number }
@@ -15,6 +18,7 @@ export interface SceneBootstrap {
   cameraPosition: Vec3
   eyeHeight: number
   lookAtTarget: Vec3
+  modelOffset: Vec3
   modelOrigin: Vec3
   modelSize: Vec3
 }
@@ -76,6 +80,11 @@ interface BroadcastChannelEventShouldUpdateView {
 
 const vrmViewUpdateRuntimeInstanceId = Math.random().toString(36).slice(2, 10)
 let vrmViewUpdateMessageSequence = 0
+const { modelOffset, set: setViewControl } = useThreeViewControl()
+const { cameraDistance, cameraFOV, cameraPosition } = useThreeCamera()
+
+const modelRotationY = useLocalStorage('settings/stage-ui-three/modelRotationY', 0)
+const trackingMode = useLocalStorage<TrackingMode>('settings/stage-ui-three/trackingMode', 'none')
 
 export const useModelStore = defineStore('modelStore', () => {
   const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-stage-ui-three-vrm' })
@@ -130,9 +139,7 @@ export const useModelStore = defineStore('modelStore', () => {
   }
 
   // === Legacy / shared controls ===
-  // REVIEW: `scale` is still shared with non-VRM view controls. The VRM path should
-  // gradually move to `cameraDistance` as the primary user-facing zoom concept.
-  const scale = useLocalStorage('settings/stage-ui-three/scale', 1)
+  const lastCommittedModelSrc = useLocalStorage('settings/stage-ui-three/lastModelSrc', '')
 
   // === Model lifecycle / bootstrap ===
   // These values are recalculated from the currently bound model instance whenever
@@ -141,33 +148,21 @@ export const useModelStore = defineStore('modelStore', () => {
   const modelOrigin = useLocalStorage('settings/stage-ui-three/modelOrigin', { x: 0, y: 0, z: 0 })
   const eyeHeight = useLocalStorage('settings/stage-ui-three/eyeHeight', 0)
 
-  // === User scene settings ===
-  // These values are intended to survive model reloads and direct edits from settings UI.
-  const modelOffset = useLocalStorage('settings/stage-ui-three/modelOffset', { x: 0, y: 0, z: 0 })
-  const modelRotationY = useLocalStorage('settings/stage-ui-three/modelRotationY', 0)
-  const cameraFOV = useLocalStorage('settings/stage-ui-three/cameraFOV', 40)
-  const trackingMode = useLocalStorage('settings/stage-ui-three/trackingMode', 'none' as 'camera' | 'mouse' | 'none')
-
   // === View state ===
-  // `cameraDistance` is the user-facing distance control. `cameraPosition` and
-  // `lookAtTarget` represent the current runtime pose and may be recalculated when
-  // a new model bootstrap is applied.
-  const cameraPosition = useLocalStorage('settings/stage-ui-three/camera-position', { x: 0, y: 0, z: -1 })
-  const cameraDistance = useLocalStorage('settings/stage-ui-three/cameraDistance', 0)
+  /** current runtime pose. may be recalculated when a new model bootstrap is applied. */
   const lookAtTarget = useLocalStorage('settings/stage-ui-three/lookAtTarget', { x: 0, y: 0, z: 0 })
 
   function resetModelStore() {
     scenePhase.value = 'pending'
     sceneTransactionDepth.value = 0
 
+    lastCommittedModelSrc.value = ''
     modelSize.value = { x: 0, y: 0, z: 0 }
     modelOrigin.value = { x: 0, y: 0, z: 0 }
-    modelOffset.value = { x: 0, y: 0, z: 0 }
     modelRotationY.value = 0
 
-    cameraFOV.value = 40
-    cameraPosition.value = { x: 0, y: 0, z: 0 }
-    cameraDistance.value = 0
+    cameraPosition.value = { ...DEFAULT_CAMERA_POSITION }
+    supportedControl.forEach(c => setViewControl(c))
 
     lookAtTarget.value = { x: 0, y: 0, z: 0 }
     trackingMode.value = 'none'
@@ -215,7 +210,7 @@ export const useModelStore = defineStore('modelStore', () => {
     sceneTransactionDepth,
     sceneMutationLocked,
 
-    scale,
+    lastCommittedModelSrc,
 
     modelSize,
     modelOrigin,

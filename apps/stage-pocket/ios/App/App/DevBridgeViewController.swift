@@ -3,9 +3,25 @@ import Capacitor
 import WebKit
 
 class DevBridgeViewController: CAPBridgeViewController {
+    private let hostBridgeName = "airiHostBridge"
+    private lazy var webSocketBridge = HostWebSocketBridge(
+        sessionFactory: URLSessionHostWebSocketSession.init,
+        eventSink: { [weak self] payload in
+            self?.dispatchWebSocketBridgeEvent(payload)
+        }
+    )
+    private lazy var hostBridgeMessageHandler = WeakScriptMessageHandler(delegate: self)
+
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
+        configureTransparentBackground()
         webView?.allowsBackForwardNavigationGestures = true
+        installWebSocketBridge()
+    }
+
+    deinit {
+        bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: hostBridgeName)
+        webSocketBridge.dispose()
     }
 
     #if DEBUG
@@ -19,6 +35,58 @@ class DevBridgeViewController: CAPBridgeViewController {
         }
     }
     #endif
+
+    private func installWebSocketBridge() {
+        guard let webView = bridge?.webView else {
+            print("[HostBridge] Warning: WebView not available during bridge installation")
+            return
+        }
+
+        webView.configuration.userContentController.add(hostBridgeMessageHandler, name: hostBridgeName)
+    }
+
+    private func configureTransparentBackground() {
+        view.isOpaque = false
+        view.backgroundColor = .clear
+
+        guard let webView = bridge?.webView else {
+            return
+        }
+
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        webView.superview?.backgroundColor = .clear
+    }
+
+    private func dispatchWebSocketBridgeEvent(_ payload: String) {
+        guard let webView = bridge?.webView else {
+            return
+        }
+
+        let script = "window.__airiHostBridge?.onNativeMessage(\(payload.javaScriptEscapedStringLiteral))"
+        DispatchQueue.main.async {
+            webView.evaluateJavaScript(script, completionHandler: nil)
+        }
+    }
+}
+
+extension DevBridgeViewController: WKScriptMessageHandler {
+    func userContentController(
+        _ userContentController: WKUserContentController,
+        didReceive message: WKScriptMessage
+    ) {
+        guard message.name == hostBridgeName else {
+            return
+        }
+
+        guard let payload = message.body as? String else {
+            print("[HostBridge] Warning: Unsupported message payload: \(type(of: message.body))")
+            return
+        }
+
+        webSocketBridge.handleCommand(payload)
+    }
 }
 
 #if DEBUG

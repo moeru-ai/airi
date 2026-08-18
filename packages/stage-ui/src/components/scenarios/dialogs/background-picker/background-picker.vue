@@ -103,6 +103,10 @@ watch(selectedOption, async (option) => {
   if (option?.kind === 'wave') {
     previewColor.value = themeColorsHue.toString()
   }
+  else if (option?.kind === 'transparent') {
+    enableBlur.value = false
+    previewColor.value = 'transparent'
+  }
   else if (option) {
     await waitForPreviewReady()
     const result = await colorFromElement(previewRef.value!, {
@@ -170,10 +174,21 @@ async function applySelection(isImport = false) {
 
   busy.value = true
   try {
+    const blur = selectedOption.value.kind === 'image' ? enableBlur.value : false
+
     if (selectedOption.value.kind === 'wave') {
       const color = themeColorsHue.toString()
 
-      const payload = { option: { ...selectedOption.value, blur: enableBlur.value }, color }
+      const payload = { option: { ...selectedOption.value, blur }, color }
+      if (isImport)
+        (emit as any)('import', payload) // TODO: so ugly, need to fix the typing of emit
+      else
+        (emit as any)('apply', payload)
+      return
+    }
+
+    if (selectedOption.value.kind === 'transparent') {
+      const payload = { option: { ...selectedOption.value, blur }, color: 'transparent' }
       if (isImport)
         (emit as any)('import', payload)
       else
@@ -190,7 +205,7 @@ async function applySelection(isImport = false) {
         await new Promise(resolve => setTimeout(resolve, 300))
     }
 
-    const payload = { option: { ...selectedOption.value, blur: enableBlur.value }, color: previewColor.value }
+    const payload = { option: { ...selectedOption.value, blur }, color: previewColor.value }
     if (isImport)
       (emit as any)('import', payload)
     else
@@ -206,7 +221,7 @@ async function applySelection(isImport = false) {
 </script>
 
 <template>
-  <div class="h-full min-h-0 flex flex-col">
+  <div class="h-full min-h-0 flex flex-col py-2">
     <div class="flex-1 overflow-x-hidden overflow-y-auto overscroll-contain p-1 scrollbar-none">
       <div class="flex flex-col gap-4">
         <div class="grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -267,7 +282,7 @@ async function applySelection(isImport = false) {
             Preview
           </p>
           <label
-            v-if="selectedOption?.kind !== 'wave'"
+            v-if="selectedOption?.kind === 'image'"
             class="flex items-center gap-2 pb-2 text-sm text-neutral-700 dark:text-neutral-200"
           >
             <input v-model="enableBlur" type="checkbox" class="accent-primary-500">
@@ -279,7 +294,7 @@ async function applySelection(isImport = false) {
           >
             <div
               class="h-full w-full transition-all duration-300"
-              :class="[(enableBlur && selectedOption?.kind !== 'wave') ? 'blur-md scale-110' : '']"
+              :class="[(enableBlur && selectedOption?.kind === 'image') ? 'blur-md scale-110' : '']"
             >
               <component
                 :is="selectedOption?.component"
@@ -295,7 +310,7 @@ async function applySelection(isImport = false) {
                 Select a background
               </div>
             </div>
-            <BackgroundGradientOverlay v-if="(selectedOption as any)?.kind !== 'wave'" :color="previewColor" />
+            <BackgroundGradientOverlay v-if="selectedOption?.kind === 'image'" :color="previewColor" />
           </div>
         </div>
       </div>

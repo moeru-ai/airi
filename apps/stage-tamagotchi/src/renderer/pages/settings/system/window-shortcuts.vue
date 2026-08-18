@@ -1,154 +1,161 @@
-<!-- <script setup lang="ts">
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { getCurrentWindow } from '@tauri-apps/api/window'
-import { useEventListener } from '@vueuse/core'
-import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+<script setup lang="ts">
+import type { ShortcutAccelerator, ShortcutFailureReason } from '@proj-airi/stage-shared/global-shortcut'
+
+import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { formatAccelerator, ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
+import { Button } from '@proj-airi/ui'
+import { isMacOS } from 'std-env'
+import { computed, onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
 
-import { useShortcutsStore } from '../../../stores/shortcuts'
+import {
+  electronSpotlightShortcutGet,
+  electronSpotlightShortcutSet,
+} from '../../../../shared/eventa'
+import { isSafeSpotlightAccelerator } from '../../../../shared/spotlight-shortcut'
 
-const settings = useSettings()
-
+const getShortcut = useElectronEventaInvoke(electronSpotlightShortcutGet)
+const setShortcut = useElectronEventaInvoke(electronSpotlightShortcutSet)
+const { trackSettingsChanged } = useAnalytics()
 const { t } = useI18n()
-const { shortcuts } = storeToRefs(useShortcutsStore())
+const tt = (key: string) => t(`tamagotchi.settings.pages.system.window-shortcuts.${key}`)
 
-const usePageSpecificTransitionsSettingChanged = ref(false)
+const accelerator = shallowRef<ShortcutAccelerator>()
+const recording = shallowRef(false)
 
-// avoid showing the animation component when the page specific transitions are enabled
-watch(() => [settings.usePageSpecificTransitions, settings.disableTransitions], () => {
-  usePageSpecificTransitionsSettingChanged.value = true
+const shortcutLabel = computed(() => {
+  if (recording.value)
+    return tt('actions.recording')
+  return accelerator.value
+    ? formatAccelerator(accelerator.value).replaceAll('Key', '').replaceAll('Digit', '').replaceAll('+', ' + ')
+    : tt('empty')
 })
 
-const recordingFor = ref<string | null>(null)
-const recordingKeys = ref<{
-  modifier: string[]
-  key: string
-}>({
-  modifier: [],
-  key: '',
-})
-
-// Add function to handle shortcut recording
-function startRecording(shortcut: typeof shortcuts.value[0]) {
-  recordingFor.value = shortcut.type
+function errorKeyForReason(reason: ShortcutFailureReason) {
+  if (reason === ShortcutFailureReasons.Conflict)
+    return 'errors.conflict'
+  if (reason === ShortcutFailureReasons.Invalid)
+    return 'errors.requiresModifier'
+  return 'errors.failed'
 }
 
-onMounted(() => {
-  getCurrentWindow().setMinimizable(false) // to avoid the window from being minimized when the shortcut is being recorded
-})
+function acceleratorFromEvent(event: KeyboardEvent): ShortcutAccelerator | null {
+  if (event.repeat || ['Alt', 'Control', 'Meta', 'Shift'].includes(event.key))
+    return null
 
-onUnmounted(() => {
-  getCurrentWindow().setMinimizable(true)
-})
+  const modifiers: ShortcutAccelerator['modifiers'] = []
+  if (event.metaKey)
+    modifiers.push(isMacOS ? 'cmd' : 'super')
+  if (event.ctrlKey)
+    modifiers.push('ctrl')
+  if (event.altKey)
+    modifiers.push('alt')
+  if (event.shiftKey)
+    modifiers.push('shift')
 
-// Handle key combinations
-useEventListener('keydown', (e) => {
-  if (!recordingFor.value)
-    return
-  if (!e.code.startsWith('Key')) // ignore non-key events
-    return
-  if (e.metaKey)
-    recordingKeys.value.modifier.push('Meta')
-  if (e.ctrlKey)
-    recordingKeys.value.modifier.push('Control')
-  if (e.altKey)
-    recordingKeys.value.modifier.push('Alt')
-  if (e.shiftKey)
-    recordingKeys.value.modifier.push('Shift')
+  return { modifiers, key: event.code }
+}
 
-  if (recordingKeys.value.modifier.length === 0)
-    return
-
-  recordingKeys.value.key = e.code.slice(3)
-  const shortcut = shortcuts.value.find(s => s.type === recordingFor.value)
-  if (shortcut)
-    shortcut.shortcut = `${recordingKeys.value.modifier.join('+')}+${recordingKeys.value.key}`
-  recordingKeys.value = {
-    modifier: [],
-    key: '',
-  }
-  recordingFor.value = null
-}, { passive: false })
-// Add click outside handler to cancel recording
-useEventListener('click', (e) => {
-  if (recordingFor.value) {
-    const target = e.target as HTMLElement
-    if (!target.closest('.shortcut-item')) {
-      recordingFor.value = null
-      recordingKeys.value = {
-        modifier: [],
-        key: '',
-      }
+async function saveShortcut(next: ShortcutAccelerator | null) {
+  try {
+    const result = await setShortcut({ accelerator: next })
+    if (!result.ok) {
+      toast.error(tt(errorKeyForReason(result.reason)))
+      return
     }
+    accelerator.value = result.actualAccelerator ?? next ?? accelerator.value
+    // Value is intentionally coarse (customized / reset) — the exact key
+    // combo is a fingerprinting-adjacent detail no dashboard needs.
+    trackSettingsChanged({
+      setting_name: 'spotlight_shortcut',
+      new_value: next ? 'customized' : 'reset_to_default',
+      source: 'settings',
+    })
+  }
+  catch {
+    toast.error(tt('errors.failed'))
+  }
+}
+
+function recordShortcut(event: KeyboardEvent) {
+  if (!recording.value)
+    return
+
+  event.preventDefault()
+  event.stopPropagation()
+
+  if (event.code === 'Escape') {
+    recording.value = false
+    return
+  }
+
+  const next = acceleratorFromEvent(event)
+  if (!next)
+    return
+  recording.value = false
+  if (!isSafeSpotlightAccelerator(next)) {
+    toast.error(tt('errors.requiresModifier'))
+    return
+  }
+  void saveShortcut(next)
+}
+
+onMounted(async () => {
+  try {
+    accelerator.value = await getShortcut()
+  }
+  catch {
+    toast.error(tt('errors.load'))
   }
 })
-
-const pressKeysMessage = computed(() => {
-  if (recordingKeys.value.modifier.length === 0)
-    return t('tamagotchi.settings.pages.themes.window-shortcuts.press-keys')
-  return `${t('tamagotchi.settings.pages.themes.window-shortcuts.press-keys')}: ${recordingKeys.value.modifier.join('+')}+${recordingKeys.value.key}`
-})
-function isConflict(shortcut: typeof shortcuts.value[0]) {
-  return shortcuts.value.some(s => s.type !== shortcut.type && s.shortcut === shortcut.shortcut)
-}
 </script>
 
 <template>
-  <div pb-2>
-    <div
-      v-for="shortcut in shortcuts" :key="shortcut.type"
-      v-motion
-      mb-2
-      class="w-full flex items-center justify-between rounded-lg px-4 py-3 text-sm outline-none transition-all duration-250 ease-in-out"
-      bg="neutral-50 dark:neutral-800"
-      hover="bg-neutral-200 dark:bg-neutral-700"
-      :initial="{ opacity: 0, y: 10 }"
-      :enter="{ opacity: 1, y: 0 }"
-      :duration="250 + (3 * 10)"
-      :delay="3 * 50"
-      transition="all ease-in-out duration-250"
-      cursor-pointer
-      @click="startRecording(shortcut)"
-    >
-      <span text="xs">
-        {{ t(shortcut.name) }}
-      </span>
-      <div
-        class="shortcut-item flex items-center justify-end gap-x-2 px-2 py-0.5"
-        :class="{ recording: recordingFor === shortcut.type }"
-        text="xs"
-      >
-        <div v-if="recordingFor === shortcut.type" class="pointer-events-none animate-flash animate-count-infinite">
-          {{ pressKeysMessage }}
-        </div>
-        <div v-else class="pointer-events-none">
-          {{ shortcut.shortcut }}
-        </div>
-        <div v-if="isConflict(shortcut)" text="xs" i-solar:danger-square-bold w-4 />
+  <section
+    :class="['flex flex-col gap-4 rounded-lg bg-neutral-50 p-4 dark:bg-neutral-800']"
+    @keydown.capture="recordShortcut"
+  >
+    <div :class="['flex items-start gap-3']">
+      <div :class="['min-w-0 flex-1']">
+        <h2 :class="['text-sm text-neutral-900 font-medium dark:text-neutral-50']">
+          {{ tt('spotlight.title') }}
+        </h2>
+        <p :class="['mt-1 text-xs text-neutral-500 leading-relaxed dark:text-neutral-400']">
+          {{ tt('spotlight.description') }}
+        </p>
       </div>
     </div>
-  </div>
 
-  <div
-    v-motion
-    text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-    fixed top="[65dvh]" right--15 z--1
-    :initial="{ scale: 0.9, opacity: 0, rotate: 30 }"
-    :enter="{ scale: 1, opacity: 1, rotate: 0 }"
-    :duration="250"
-    flex items-center justify-center
-  >
-    <div text="60" i-solar:keyboard-bold-duotone />
-  </div>
-</template> -->
-<template>
-  <slot />
+    <div :class="['flex items-center gap-2']">
+      <button
+        type="button"
+        :class="[
+          'min-h-12 flex-1 rounded-lg border-2 border-solid px-3 py-2 text-left font-mono text-sm transition-colors',
+          'border-neutral-100 bg-neutral-50 text-neutral-900 hover:bg-neutral-100 active:bg-neutral-200',
+          'dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:hover:bg-neutral-900 dark:active:bg-neutral-800',
+        ]"
+        @click="recording = true"
+      >
+        <span :class="recording ? ['animate-pulse animate-duration-2s animate-count-infinite'] : []">
+          {{ shortcutLabel }}
+        </span>
+      </button>
+      <Button
+        size="md"
+        :label="tt('actions.reset')"
+        @click="saveShortcut(null)"
+      />
+    </div>
+  </section>
 </template>
 
-<!-- <route lang="yaml">
+<route lang="yaml">
 meta:
   layout: settings
+  titleKey: tamagotchi.settings.pages.system.window-shortcuts.title
+  subtitleKey: settings.title
   stageTransition:
     name: slide
-</route> -->
+</route>

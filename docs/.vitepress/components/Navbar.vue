@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { useMediaQuery } from '@vueuse/core'
 import { dirname, sep } from 'pathe'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, Separator } from 'reka-ui'
 import { useData, useRoute } from 'vitepress'
@@ -22,6 +23,14 @@ watch(path, () => {
   isPopoverOpen.value = false
 })
 
+// Close the mobile menu when crossing to desktop: its teleported popup loses
+// its anchor once the trigger is hidden by xl:hidden and sticks to the corner.
+const isDesktop = useMediaQuery('(min-width: 1280px)')
+watch(isDesktop, (value) => {
+  if (value)
+    isPopoverOpen.value = false
+})
+
 function isNavLinkActive(link: string, path: string) {
   let normalizedLink = link.toLowerCase()
   normalizedLink = normalizedLink.split(sep).filter(Boolean).length > (site.value.base !== '' ? 3 : 2) ? `${dirname(normalizedLink)}/` : normalizedLink
@@ -33,7 +42,7 @@ function isNavLinkActive(link: string, path: string) {
 
 <template>
   <!-- eslint-disable vue/prefer-separate-static-class -->
-  <nav class="hidden items-center lg:flex">
+  <nav class="hidden items-center xl:flex">
     <template
       v-for="nav in theme.nav"
       :key="nav.text"
@@ -41,9 +50,11 @@ function isNavLinkActive(link: string, path: string) {
       <a
         v-if="nav.link"
         :href="nav.link"
-        class="mx-3 h-full inline-flex items-center py-2 text-nowrap text-sm text-muted-foreground font-semibold hover:text-foreground"
-        transition-colors duration-200 ease-in-out
-        :class="{ '!text-primary': isNavLinkActive(nav.link, path) }"
+        :class="[
+          'mx-3 h-full inline-flex items-center py-2 text-nowrap text-sm text-muted-foreground font-semibold hover:text-foreground',
+          'transition-colors duration-200 ease-in-out',
+          isNavLinkActive(nav.link, path) ? '!text-primary' : '',
+        ]"
       >
         {{ nav.text }}
       </a>
@@ -79,14 +90,18 @@ function isNavLinkActive(link: string, path: string) {
       :href="link.link"
       :aria-label="link.icon"
       target="_blank"
-      class="h-9 w-9 flex flex-shrink-0 items-center justify-center rounded-lg bg-transparent text-xl text-muted-foreground hover:bg-muted hover:text-foreground"
-      transition="colors duration-200 ease-in-out"
+      :class="[
+        'h-9 w-9',
+        'flex flex-shrink-0 items-center justify-center rounded-lg',
+        'bg-transparent text-xl text-muted-foreground hover:bg-muted hover:text-foreground',
+        'transition-colors duration-200 ease-in-out',
+      ]"
     >
       <Icon :icon="`simple-icons:${link.icon}`" />
     </a>
   </nav>
 
-  <div class="lg:hidden">
+  <div class="xl:hidden">
     <DropdownMenuRoot v-model:open="isPopoverOpen">
       <DropdownMenuTrigger class="rounded-lg p-2">
         <Icon icon="lucide:ellipsis" class="text-lg" />
@@ -100,8 +115,8 @@ function isNavLinkActive(link: string, path: string) {
           class="will-change-[transform,opacity] z-10 w-[180px] border rounded-xl p-2 shadow-md backdrop-blur-md data-[state=open]:data-[side=bottom]:animate-slideUpAndFade"
           :class="[
             'bg-white/70 dark:border-white/5 dark:bg-black/70',
+            'transition-colors duration-200 ease-in-out',
           ]"
-          transition="colors duration-200 ease-in-out"
         >
           <nav class="flex flex-col">
             <template
@@ -112,8 +127,10 @@ function isNavLinkActive(link: string, path: string) {
                 v-if="nav.link"
                 as="a"
                 :href="nav.link"
-                class="h-full inline-flex items-center rounded-lg p-2 text-sm text-muted-foreground font-semibold hover:bg-primary/10 hover:text-primary"
-                transition="colors duration-200 ease-in-out"
+                :class="[
+                  'h-full inline-flex items-center rounded-lg p-2 text-sm text-muted-foreground font-semibold hover:bg-primary/10 hover:text-primary',
+                  'transition-colors duration-200 ease-in-out',
+                ]"
               >
                 {{ nav.text }}
               </DropdownMenuItem>
@@ -206,8 +223,10 @@ function isNavLinkActive(link: string, path: string) {
                 :href="link.link"
                 :aria-label="link.icon"
                 target="_blank"
-                class="h-9 w-9 flex items-center justify-center rounded-lg bg-transparent text-xl text-muted-foreground hover:bg-muted hover:text-foreground"
-                transition="colors duration-200 ease-in-out"
+                :class="[
+                  'h-9 w-9 flex items-center justify-center rounded-lg bg-transparent text-xl text-muted-foreground hover:bg-muted hover:text-foreground',
+                  'transition-colors duration-200 ease-in-out',
+                ]"
               >
                 <Icon :icon="`simple-icons:${link.icon}`" />
               </DropdownMenuItem>

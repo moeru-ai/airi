@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ConnectionSettings from './ConnectionSettings.vue'
+import { ConnectionSettings } from '@proj-airi/stage-ui/components'
 </script>
 
 <template>

@@ -1,2 +1,7 @@
-ignore_patterns:
-  - packages/i18n/src/**
+have_fun: false
+code_review:
+  disable: true
+  pull_request_opened:
+    help: false
+    summary: false
+    code_review: false

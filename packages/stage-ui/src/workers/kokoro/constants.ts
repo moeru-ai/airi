@@ -29,6 +29,13 @@ export interface KokoroModel {
  */
 export const KOKORO_MODELS = [
   {
+    id: 'fp16-webgpu',
+    name: 'FP16 (WebGPU)',
+    platform: 'webgpu',
+    quantization: 'fp16',
+    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.fp16-webgpu.description',
+  },
+  {
     id: 'fp32-webgpu',
     name: 'FP32 (WebGPU)',
     platform: 'webgpu',
@@ -81,11 +88,19 @@ export type KokoroQuantization = typeof KOKORO_MODELS[number]['id']
  * Convert Kokoro models to ModelInfo array
  * @param hasWebGPU - Whether WebGPU is available (filters out WebGPU models if false)
  * @param t - Optional translation function for i18n support
+ * @param fp16Supported - Whether fp16 shader operations are supported (filters out fp16-webgpu if false)
  * @returns Array of ModelInfo objects
  */
-export function kokoroModelsToModelInfo(hasWebGPU: boolean, t?: (key: string) => string) {
+export function kokoroModelsToModelInfo(hasWebGPU: boolean, t?: (key: string) => string, fp16Supported?: boolean) {
   return KOKORO_MODELS
-    .filter(model => hasWebGPU || model.platform !== 'webgpu')
+    .filter((model) => {
+      if (model.platform === 'webgpu' && !hasWebGPU)
+        return false
+      // Filter out fp16-webgpu when fp16 is not supported
+      if (model.id === 'fp16-webgpu' && !fp16Supported)
+        return false
+      return true
+    })
     .map(model => ({
       id: model.id,
       name: model.name,
@@ -99,6 +114,9 @@ export function kokoroModelsToModelInfo(hasWebGPU: boolean, t?: (key: string) =>
  * @param hasWebGPU - Whether WebGPU is available
  * @returns The default model to use
  */
-export function getDefaultKokoroModel(hasWebGPU: boolean): KokoroQuantization {
-  return hasWebGPU ? 'fp32-webgpu' : 'q4f16'
+export function getDefaultKokoroModel(hasWebGPU: boolean, fp16Supported?: boolean): KokoroQuantization {
+  if (hasWebGPU) {
+    return fp16Supported ? 'fp16-webgpu' : 'fp32-webgpu'
+  }
+  return 'q4f16'
 }

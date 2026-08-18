@@ -15,6 +15,7 @@ doc:
     title: 다음 페이지
   previous-page:
     title: 이전 페이지
+  published-at: Published at {date}
 home:
   subtitle: >-
     AI waifu/버츄얼 캐릭터의 영혼을 담아 우리 세계로 가져오는 Neuro-sama를 재현합니다.

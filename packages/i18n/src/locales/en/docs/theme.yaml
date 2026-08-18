@@ -15,6 +15,7 @@ doc:
     title: Next page
   previous-page:
     title: Previous page
+  published-at: Published at {date}
 home:
   subtitle: >-
     Re-creating Neuro-sama, a container of souls of AI waifu / virtual

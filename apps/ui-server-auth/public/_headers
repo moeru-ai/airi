@@ -1,0 +1,5 @@
+/assets/*
+  cache-control: public, no-cache
+
+/assets-v2/*
+  cache-control: public, no-cache

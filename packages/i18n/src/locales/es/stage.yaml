@@ -1,11 +1,35 @@
 chat:
+  actions:
+    retry: Reintentar
   message:
     character-name:
       airi: AIRI
       core-system: Sistema Central
       you: Tu
   reasoning: Razonamiento
+  sessions:
+    title: Conversaciones
+    new: + Nuevo
+    empty: No hay conversaciones todavía
+    cloud-badge: Sincronizado en la nube
+    new-chat-fallback: Nuevo Chat
+    delete: Eliminar conversación
+render-error:
+  title: '{renderer} no pudo renderizar este modelo'
+  description: El modelo está seleccionado, pero el escenario no pudo mostrarlo.
+  report-description: |-
+    {renderer} no pudo renderizar el modelo seleccionado.
+    ID del modelo: {modelId}
+    Error: {error}
 message: Dile algo...
+send-mode:
+  title: Enviar tecla
+  enter: Intro
+  ctrl-enter: Ctrl + Intro
+  double-enter: Entrada doble
+speech-output:
+  mute: Silenciar voz
+  unmute: Activar voz
 operations:
   load-models: Cargar Modelos
   load-models-status:
@@ -30,4 +54,56 @@ viewers:
       camera: Cámara
       model:
         title: Modelo
+profile-switcher:
+  no-profile: Sin Perfil
+  no-profiles: Aún no hay perfiles
+  save-as-new: Guardar como Nuevo Perfil
+  new-profile-name: Nombre del perfil
+  manage: Administrar Perfiles
+promo-banner:
+  items:
+    signin:
+      watermark: Luna
+      fallbackLabel: Regalo lunar
+      title: 7 días de inicio de sesión
+      eventName: Inicia sesión para reclamar stardust, marcos de avatar y regalos de lanzamiento.
+      date: 03/28 - 04/10
+      reward: Hasta 120 Stardust
+      cta: Iniciar sesión
+    build:
+      watermark: Construir
+      fallbackLabel: Build Bonus
+      title: Bono de caja de suministro
+      eventName: Termina las tareas de construcción para ganar cupones de bonificación y materiales dobles.
+      date: 03/30 - 04/12
+      reward: 5 Cupones de Suministros + Materiales de Mejora
+      cta: Ver tareas
+    spring:
+      watermark: Primavera
+      fallbackLabel: Dibujo Primaveral
+      title: Cápsula de Carnaval
+      eventName: Join the spring draw to unlock bubbles, charms, and themed furniture.
+      date: 04/01 - 04/18
+      reward: Primera tirada a mitad de precio + Talismán raro
+      cta: Draw Now
+    coupon:
+      watermark: Hablar
+      fallbackLabel: Cupón
+      title: Cupón Top-Up
+      eventName: Termina las interacciones del chat para reclamar cupones para la expansión y los paquetes de voz.
+      date: 04/02 - 04/20
+      reward: Ahorre 6 en 30 / Ahorre 15 en 68
+      cta: Reclamar Cupón
+    home:
+      watermark: Inicio
+      fallbackLabel: Tema de sala
+      title: Actualización del tema primavera
+      eventName: Desbloquea los temas de ventana, escritorio y lámparas nocturnas para actualizar tu habitación.
+      date: 04/05 - 04/22
+      reward: Ticket de Dibujo de Tema gratis al iniciar sesión
+      cta: Ver temas
 waiting: Esperando...
+websocket-status:
+  connected: Conectado
+  disconnected: No hay conexión
+  open-settings: Abrir ajustes de conexión

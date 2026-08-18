@@ -2,13 +2,15 @@ common:
   save: 保存
 animations:
   stage-transitions:
-    title: 是否开启舞台动画
+    title: 是否开启舞台切换动画
   use-page-specific-transitions:
     description: >-
       某些页面会有自己的过场动画，这将覆盖舞台过场动画
     title: 是否使用页面特定过场动画
 dialogs:
   onboarding:
+    official:
+      title: AIRI 官方提供商
     title: 欢迎来到 AIRI！
     description: 让我们设置您的第一个服务来源来开始使用。
     selectProvider: 选择服务来源
@@ -18,29 +20,103 @@ dialogs:
     baseUrl: 基础 URL
     baseUrlHelp: API 端点 URL（如果不确定请使用默认值）
     accountId: 账户 ID
+    validationRunning: 运行测试
     validationSuccess: 配置验证成功
+    validationPartial: 配置部分验证
     validationFailed: 配置验证失败
     validationError: '验证错误：{error}'
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping 测试失败
+    retryPingCheck: 重试
     skipForNow: 暂时跳过
     saveAndContinue: 保存并继续
     next: 下一步
     retry: 重试
+    credentialsSafeLabel: 保证您的 API 密钥和凭据的安全！
+    credentialsSafeLocal: >-
+      AIRI 完全本地运行在您的电脑中，我们绝不窃取您对大模型提供商的凭据。但请牢记，您的 API 密钥属于敏感信息。务必妥善保管，切勿与他人分享。
+    credentialsSafeOpenSource: >-
+      AIRI 在 {github} 开源，如果您想确认我们如何存储您的凭据，您可以自由浏览源码。
+    enableChatCheck: >-
+      允许 AIRI 向第一个可用的聊天模式发送「ping」消息以检查可用性
     start: 开始吧！
+    loginPrompt: 登录并使用 AIRI 官方提供的服务以获得最佳体验。
+    loginAction: 登录
+    setupWithoutSigningIn: 配置您自己的 AI 服务来源
+    flux: Flux 电量
+    buyFlux: 补充 Flux 电量
     select-model: 选择模型
     no-models: 找不到可用模型
     no-models-help: >-
       请返回上一步并检查您的 API Key，或检查网络连接。
+    permissions:
+      title: 权限管理
+      description: 您现在可以授予所需权限，或继续并稍后在系统设置中配置。
+      notificationsTitle: 通知
+      notificationsDescription: 允许提醒以及重要的状态更新。
+      microphoneTitle: 麦克风
+      microphoneDescription: 允许 AIRI 使用麦克风进行语音输入和转写。
+      requestAction: 请求获取
+      optionalHint: 即使没有授予这些权限，您也可以继续。
+      stateGranted: 已授权
+      stateNotGranted: 未授权
+  bug-report:
+    title: Bug 汇报 (´;ω;`)ヾ(･∀･`)
+    subtitle: 坏哦，看起来我们不小心搞砸了一些东西。可以分享一下遇到了什么问题吗？
+    trigger-label: 报告程序错误
+    submit-label: 发送错误报告
+    triage-description: 包括屏幕截图和页面上的上下文来帮助我们对这个问题进行分析。
+    description-placeholder: 复制的步骤，预期的行为和实际行为
+    include-current-page-screenshot: 包含当前页面截图
+    manual-media:
+      label: 手动选择屏幕截图/录屏
+      optional: 可选的。
+    media-files:
+      label: 媒体文件
+      description: '可选：手动选择。'
+      placeholder: 选择屏幕截图或视频文件
+      selected-count: '已选择 {count} 个文件'
+    last-submitted-preview: 提交前预览
 language:
   title: 语言
-  description: >
-    切换显示界面的语言
+  description: |
+    界面语言。你也可以稍后再设置角色语言。
 controls-island:
   icon-size:
     title: 控制岛图标大小
-    description: 调整控制岛屿图标的大小
-    auto: 自动(响应式)
-    large: 大(默认)
+    description: 调整控制岛图标的大小
+    auto: 自动（响应式）
+    large: 大（默认）
     small: 小
+analytics:
+  notice:
+    title: 使用数据及崩溃分析
+    description: >-
+      AIRI 开发者将会收集脱敏的匿名使用数据，以及崩溃及错误细节，以帮助我们了解应用程序是如何使用和提高稳定性的，不会收集任何个人数据。
+    privacyPrefix: 阅读
+    privacyLink: 隐私政策
+    onboardingHint: 您可以稍后在「设置」>「系统」>「通用」中关闭使用数据及崩溃分析。
+    settingsHint: 您可以随时关闭使用数据及崩溃分析。
+  toggle:
+    title: 允许收集使用数据及崩溃分析
+    description: 关闭任何非必要使用数据及崩溃分析的采集与上传
+  disabled:
+    title: 此开发版本的使用数据及崩溃分析功能已禁用
+model-select:
+  panel-callout:
+    support-status-header: 我们同时支持 2D 和 3D 模型
+    support-status: >
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
+    model-type-example: >
+      Neuro-sama 使用由 Live2D Inc 开发的框架驱动的 2D 模型；Grok Ani（Grok Companion 中的角色）则使用由 VRM / MMD 开放格式驱动的 3D 模型。
+  select-model:
+    title: 模型选择器
+    button: 选择模型
+    select: 选择
+    import: 导入
+    remove: 移除
+    confirm: 确认
 live2d:
   change-model:
     from-file: 从文件加载
@@ -65,26 +141,168 @@ live2d:
     change-to-vrm: 切换至3D虚拟形象设定页面（VRM）
   theme-color-from-model:
     title: 从模型提取主题颜色
+    description: >
+      从当前渲染画布提取主要颜色。点击颜色即可应用到 AIRI；如果颜色不理想，请让模型摆出不同姿势后多次提取。
     button-extract:
       title: 提取
-  focus:
-    title: 禁用模型鼠标跟踪
-    button-disable:
-      title: 禁用
-  fps:
-    title: 帧率
-    description: 限制渲染帧率
-    options:
-      unlimited: 无限制
+  animation:
+    title: 动画
+    focus:
+      title: 启用鼠标跟踪
+      description: 鼠标移动时注视光标；光标停止后恢复空闲眼部动作。
+      offset: 眼部偏移（%）
+    force-idle-eye-animation:
+      title: 空闲眼部动作
+      description: 没有活动光标焦点时随机环顾四周。
+    blink-enable:
+      title: 启用眨眼
+      description: 让模型眨眼。
+    auto-blink:
+      title: 自动
+      description: 使用模型默认的眨眼动画
+    force-auto-blink:
+      title: 强制
+      description: 使用外部计时器强制播放眨眼动画
+    blink-mode:
+      title: 眨眼模式
+      description: 选择模型内置眨眼或 AIRI 的强制眨眼计时器。
+    idle-motion:
+      title: 空闲动画
+      no-motion: 没有可用动画
+      placeholder: 选择动画
+      disable-motion: 已禁用
+      disable-motion-description: 禁用空闲动画
+  parameters:
+    title: 模型参数
+    render-scale:
+      title: 渲染缩放
+    fps:
+      title: FPS
+      description: 限制渲染帧率
+      options:
+        unlimited: '∞'
+    shadow: 投影
+    reset-parameters: 重置为默认参数
+  clear-model-cache: 清除模型缓存
+  expressions:
+    title: 表情
+    override-toggle: 表情系统
+    sdk-preset-preserved-notice: >
+      禁用时仍保留 SDK 表情管理器和眨眼功能。
+    no-expression: 此模型没有可用表情。
+    llm-integration-wip: LLM 工具集成尚未接入。
+    save-default: 保存表情默认值
+    reset: 重置所有表情
+    expose-to-llm-toggle: 公开给 LLM
+    expose-to-llm-options:
+      none: 无
+      all: 全部
+      custom: 自定义
 microphone: 麦克风
 models: 模型
 pages:
+  account:
+    title: 账号
+    description: 查看您的个人资料并管理您的帐户
+    notLoggedIn: 登录以查看您的帐户并访问所有功能
+    login: 登录
+    logout: 登出
+    fluxBalance: 剩余通量
+    viewFluxDetails: 查看详情
+    signedInAs: 登录 为
+    profile:
+      tab: 个人资料
+      title: 个人资料
+      description: 管理您的昵称
+      name:
+        label: 昵称
+        placeholder: 别人如何看到你
+      avatar:
+        gravatarNotice: Gravatar头像。
+        gravatarLink: 在 gravatar.com 上管理
+      action:
+        save: 保存更改
+      message:
+        saved: 个人资料已更新
+      error:
+        fallback: 保存失败了，之后再试试？
+    connections:
+      tab: 已关联的帐户
+      title: 已关联的账户
+      description: 可以通过第三方帐户登录至 AIRI。解除关联即可撤回对第三方帐户的授权，也可以通过解除关联来关联至另一个帐户。
+      status:
+        linked: 已关联
+        notLinked: 未关联
+        linkedSince: 关联于 {date}
+      action:
+        link: 关联
+        unlink: 取消关联
+      message:
+        loading: 正在加载已关联的帐户...
+        unlinked: '解除了 {provider} 的关联'
+        linked: '关联到了 {provider}'
+        linkStarted: 正在重定向到 {provider}...
+      error:
+        listFailed: 暂时无法加载已关联的帐户
+        unlinkFailed: 无法解除此帐户的关联
+        linkFailed: 暂时无法开始关联的流程，要之后再试试吗？
+        accountAlreadyLinkedToDifferentUser: 这个 OAuth 帐户已经关联到另一个 AIRI 帐户了。请选择另一个第三方帐户，或者先在另一个 AIRI 帐户中解除关联。
+        oauthCallbackFailed: 暂时无法关联这个 OAuth 帐户。请重试，或选择另一个第三方帐户。
+        lastAccount: 这是你当前唯一的登录方式，请务必先设置密码再解除关联哦
+    security:
+      tab: 安全
+      title: 安全
+      description: 更新密码后，其他已登入的设备将会被自动登出
+      setDescription: 由于先前是通过其他的第三方平台登录的，暂时没有设置的密码，我们将会发送一个安全的重设链接来帮助你设定一个
+      currentPassword:
+        label: 当前密码
+        placeholder: 输入你当前的密码
+      newPassword:
+        label: 新密码
+        placeholder: 最少 8 个字符
+      confirmPassword:
+        label: 确认新密码
+        placeholder: 再次输入新密码
+      action:
+        changePassword: 更新密码
+        sendSetLink: 发送密码重设链接到邮箱
+      message:
+        changed: 密码已更新，其他的设备会话都会自动登出。
+        setLinkSent: 检查 {email} 的收件箱以寻找用于重设密码的链接
+      error:
+        fallback: 暂时无法更新密码
+        setLinkFailed: 暂时无法发送用于重设密码的链接
+        passwordMismatch: 新密码和确认密码不匹配
+        passwordSameAsCurrent: 新密码和当前密码应当是不同的
+    danger:
+      tab: 危险操作
+      title: 危险操作
+      description: 不可逆的账户操作位于此处。
+      deleteAccount:
+        title: 删除帐户
+        description: 永久删除您的帐户和所有个人数据。
+        action: 删除帐户
+        modal:
+          title: 删除账户？
+          warning: 此操作无法撤销。已经激活的订阅将被取消，现存的 Flux 余额均会被清除。
+          confirmEmail:
+            label: 请再次输入电子邮箱以确认删除
+            placeholder: ''
+            mismatch: 邮箱不匹配。
+          confirm: 发送确认邮件
+          cancel: 取消
+        message:
+          emailSent: 请查看 {email} 中的删除链接。
+        error:
+          fallback: 无法开始删除操作，请稍后重试。
   card:
     activate: 激活
     active: 已激活
     active_badge: 当前使用中
+    activation_notice: 已切换到 {name}，当前会话将使用该角色。
     cancel: 取消操作
     save: 保存更改
+    save_and_activate: 保存并激活
     card_not_found: 未找到角色卡
     character: 角色设定
     close: 关闭
@@ -92,6 +310,9 @@ pages:
       provider: 聊天 / 提供商
     consciousness:
       model: 意识 / 模型
+    vision:
+      provider: 视觉 / 提供商
+      model: 视觉 / 模型
     created_by: 创建者
     creator_notes: 创建者笔记
     delete: 删除
@@ -148,6 +369,8 @@ pages:
         scenario: '错误：必须提供一个情境。'
         systemprompt: '错误：请提供系统提示。'
         posthistoryinstructions: '错误：必须提供消息历史后的提示。'
+        invalid_artistry_json: '错误：绘图提供商选项包含无效 JSON。'
+      none: 无
     modules: 模块
     name_asc: 名称 (A-Z)
     name_desc: 名称 (Z-A)
@@ -159,6 +382,7 @@ pages:
     scenario: 场景
     search: 搜索角色卡...
     sort_by: 排序方式
+    body-model: 身体 / 显示模型
     speech:
       provider: 语音 / 提供商
       model: 声音 / 模型
@@ -166,8 +390,14 @@ pages:
     systemprompt: 系统提示词
     title: AIRI 角色卡
     try_different_search: 尝试使用其他关键词搜索
+    export: 导出
+    exported: 卡片包已导出
+    export_failed: 导出卡片包失败
+    imported: 卡片包已导入
+    import_missing_file: 卡片包缺少必需文件
+    import_invalid_file: 卡片包文件无效
     upload: 上传
-    upload_desc: 点击或拖拽文件到此处上传
+    upload_desc: 点击或拖动 AIRI 角色卡包以导入
   memory:
     description: 存放记忆的地方，以及策略
     title: 记忆体
@@ -200,9 +430,14 @@ pages:
         title: 删除所有数据
         description: 清除每个本地设置、提供商配置和模型。
         delete: 删除所有数据
+      desktop-folder:
+        title: 打开应用数据文件夹
+        description: 在文件管理器中打开 AIRI 的数据文件夹。
+        open: 打开文件夹
       desktop:
         title: 重置桌面设置和状态
         description: 清除 AIRI 桌面设置和运行状态。
+        center: 将桌面窗口移至中央
         reset: 重置桌面数据
     confirmations:
       tooltip: 您确定吗？
@@ -216,9 +451,10 @@ pages:
       modules_reset: 重置模块设置。
       providers_reset: 服务端设置重置。
       all_deleted: 已删除所有本地数据。
+      desktop_window_centered: 桌面窗口已移至屏幕中央。
       desktop_reset: 桌面数据重置。
   models:
-    description: 切换角色的 Live2D，VRM 模型
+    description: 切换角色的 Live2D、VRM、Spine 模型
     title: 角色模型
     sections:
       section:
@@ -277,6 +513,67 @@ pages:
             warmup:
               description: 在检测节拍之前进行预热，以提高准确性
               label: 预热
+    artistry:
+      title: 绘图
+      description: 图像生成、场景背景和绘图。
+      page:
+        title: 绘图提供商配置
+        description: 选择用于图像生成的活动后端提供商。角色可以在其角色卡设置中覆盖此选项。
+      providers:
+        none:
+          name: 无
+          description: 全局绕过并禁用图像生成模块。
+        comfyui:
+          name: ComfyUI（本地）
+          description: 使用本地 ComfyUI 实例通过 WSL 生成图像。
+        replicate:
+          name: Replicate.ai（云端）
+          description: 通过 Replicate API 使用云端模型。
+        nanobanana:
+          name: Nano Banana（预览）
+          description: 使用 Google AI Studio 进行图像预览和响应。
+      card:
+        description: 配置 AIRI 生成图像和视觉内容的方式。
+        comfyui_empty: 未配置 ComfyUI 工作流。前往设置 → 提供商 → ComfyUI 上传工作流模板。
+        exposed_fields: '{count} exposed fields'
+        open_on_replicate: Open on Replicate
+        instruction_sync:
+          title: ComfyUI Instruction Sync
+          description: A specialized prompt is ready for your {workflowName} workflow. Applying this will overwrite current widget instructions so the AI knows how to use this specific template.
+          apply: Apply Recommended Prompt
+          keep: Keep Existing
+      provider: Artistry Provider
+      spawn_mode:
+        label: Manifestation Mode (Spawn Mode)
+        description: Choose how images are delivered to the interface.
+        options:
+          bg: Background Environment
+          inline: Inline Chat
+          widget: Overlay Widget
+          bg_widget: Dual (Background + Widget)
+      autonomous:
+        title: Cinematic Autonomy (Autonomous Artist)
+        description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
+        threshold: Manifestation Threshold
+        threshold_description: Use {min} for aggressive scene creation or {max} to require stronger evidence before generating.
+        threshold_min: Always Generate (0%)
+        threshold_max: Strict (100%)
+      model:
+        label: Artistry Model (Optional Override)
+        description: Model identifier if needed by provider
+      prompt-prefix:
+        label: Artistry Prompt Default Prefix
+        description: Pre-pended to every prompt sent to the image generator.
+      options:
+        label: Artistry Provider Options (JSON)
+      widget-instructions:
+        label: Widget System Prompt
+        description: Custom instructions for the AI on how to use the generation capabilities.
+    categories:
+      essential: 基础
+      messaging: Messaging
+      gaming: Gaming
+      artistry: Artistry
     consciousness:
       description: 人格设定、使用的模型等配置
       sections:
@@ -284,7 +581,7 @@ pages:
           provider-model-selection:
             collapse: 折叠
             custom_model_placeholder: 输入自订模型名称
-            current_model_label: 'Current model:'
+            current_model_label: '当前模型：'
             description: 为意识选择合适的 LLM 服务来源
             error: 获取出错啦
             health_check_failed: 健康检查失败
@@ -326,16 +623,33 @@ pages:
       description: 一起玩 Minecraft！
       title: 我的世界 Minecraft
       enable: 启用我的世界集成
-      enable-description: 允许AIRI与我的世界游戏互动
-      server-address: 服务器地址
-      server-address-description: 我的世界服务器的IP地址或主机名
-      server-address-placeholder: 输入服务器地址（例如：localhost或play.example.com）
-      server-port: 服务器端口
-      server-port-description: 我的世界服务器的端口号（默认 25565）
-      username: 用户名
-      username-description: 您在我的世界服务器中的用户名
-      username-placeholder: 输入您的我的世界用户名
+      enable-description: >-
+        在 Chat 界面 中包含 Minecraft 自己的上下文和认知，并保持 Passive runtime visibility 启用。
       configured: 我的世界已正确配置！
+      read-only:
+        title: 只读外壳
+        description: >-
+          目前此 Minecraft 管理界面将作为一个被动的外壳。你可以在这里观察运行状态，但服务配置仍然存在于 Minecraft 服务文件中。
+      setup:
+        title: 配置
+        description: >-
+          你可以在下面的文件中找到设置 Minecraft bot 的说明
+      runtime:
+        title: 可观测
+        connection: 连接
+        latest-context: 最后的 Bot 状态
+        waiting: 等待一个新的 Bot 上下文推送。
+        unknown: 未知
+      debug:
+        title: Minecraft流量
+        empty: 还没有观察到任何 Minecraft 流量。
+        source: '来源: {source}'
+      status:
+        service-online: 服务已上线
+        service-offline: 服务已离线
+        no-runtime-context: 尚未观察到 Bot 状态
+        last-context-seconds: '最后一次 Bot 状态更新：{seconds} 秒之前'
+        last-context-stale: '最后一次 Bot 状态：挂起'
     hearing:
       description: 语音识别
       title: 听觉
@@ -343,6 +657,28 @@ pages:
         section:
           provider-selection:
             description: 选择合适的语音转文本的服务来源
+          playground:
+            current: 当前转写
+            description: 通过当前的听觉管线监听，并在下方保留每一段完成的语音转写。
+            empty: 开始监听，然后对着所选麦克风说话。
+            error-title: 转写错误
+            listening: 正在等待语音……
+            no-transcription: 此段音频中未识别到语音。
+            segment: '语音片段 {number}'
+            start: 开始监听
+            stop: 停止监听
+            title: 听觉测试面板
+            transcribing: 正在转写……
+            transcription-failed: 转写失败。
+          confidence-threshold:
+            title: 置信度阈值
+            description: >-
+              筛选低信任的文字记录以减少语音识别的幻觉。值靠近 0 更严格；拖动到左边以禁用。 仅对支持 Whisper API 的提供者有效（例如，OpenAI，Groq）。
+            disabled: 禁用
+            verbose-json-note: >-
+              注意：如果您的提供商不支持 verbose_json 结果处理，此设置将不会有任何效果。
+            verbose-json-unsupported: >-
+              如果您的提供商没有返回 verbose_json 结果。置信度阈值将不会影响转录。
     memory-long-term:
       description: 长期记忆
       title: 长期记忆
@@ -367,8 +703,14 @@ pages:
               stop:
                 label: 停止
             select-voice:
-              loading: 正在加载模型...
+              loading: 正在加载模型……
               required: 请选择声线
+          voice-pack:
+            description: Select a curated voice for the active character
+            empty: No Voice Packs available
+            error: Error loading Voice Packs
+            loading: Loading Voice Packs...
+            title: Voice Pack
           provider-voice-selection:
             custom_model_placeholder: 输入指定模型名称...
             custom_voice_placeholder: 输入指定声线 ID...
@@ -419,28 +761,128 @@ pages:
       access-token-secret-description: 您的X / Twitter访问令牌密文
       access-token-secret-placeholder: 输入您的X / Twitter访问令牌密文
       configured: X / Twitter已正确配置！
+    web-search:
+      title: 网络搜索
+      description: 让 AIRI 联网搜索最新信息
+      enable: 启用网络搜索
+      enable-description: 允许 AIRI 在对话中联网搜索
+      api-key: Tavily API 密钥
+      api-key-description: 网络搜索由 Tavily 提供支持，可在 tavily.com 免费获取 API 密钥。
+      api-key-placeholder: 输入您的 Tavily API 密钥
+      configured: 网络搜索已就绪！
     mcp-server:
-      description: 连接和管理 MCP 服务器及工具
-      title: MCP 服务器
-      config-path: 配置文件路径
+      title: MCP 集成
+      description: 配置其他 MCP 服务器并将能力拓展至 AIRI
+      config-path: 配置文件
       runtime-title: 运行状态
+      empty: 尚无已配置的 MCP 集成 - 点击「添加服务器」来创建一个，或者通过「编辑 JSON」直接粘贴配置
+      error-title: 坏了
+      success-title: 完成！
+      existing:
+        title: 配置完成
+        description: 在配置文件中记录了 MCP 服务器。点击展开后可以编辑它。
+        empty: 这里什么都还没有哦，在下面添加一个！
+      add:
+        title: 新建
+        description: '填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」'
+        pending-badge: 未保存
+      status:
+        unknown: 未加载
       actions:
-        open-config: 打开 mcp.json
-        apply-and-restart: 保存并重启 stdio MCP
+        open-config: 在文件管理器中查看
+        apply-and-restart: 保存并重启
+        restart: 刷新 MCP 状态
+        add-server: 添加
+        add-env: 添加变量
+        remove: 移除
+        test: 测试
+        edit-json: 编辑 JSON
+        close-json: 关闭
+        format-json: 格式化
+        reset-draft: 重置
+        apply-json: 应用
+        cancel: 取消
+        expand: 展开
+        collapse: 收起
+      fields:
+        identifier:
+          label: 唯一标识符
+          description: 唯一名称，作为 mcp.json 中的键。
+          placeholder: 例如：filesystem
+        command:
+          label: 命令
+          description: 通过 stdio 启动的可执行程序。
+          placeholder: 例如：npx
+        args:
+          label: 命令参数
+          description: 每行一个，按顺序传入。
+          placeholder: "-y\nsome-package-name\n/tmp"
+        cwd:
+          label: 工作目录
+          description: 可选，作为启动进程时使用的当前工作目录。
+          placeholder: 例如 /Users/you/project
+        env:
+          label: 环境变量
+          description: 注入到子进程的环境变量。
+          key-placeholder: 名称
+          value-placeholder: 值
+        enabled:
+          label: 启用
+      json:
+        title: 编辑 mcp.json
+        description: '可以直接修改 JSON，点击「应用」时会自动解析，此时再次点击「保存并重启」就能写到磁盘上啦～'
+        placeholder: 在这里粘贴 mcp.json...
+      test:
+        title: 测试连接
+        description: 我们会临时把它启动一次，看看命令能不能跑、能列出哪些工具
+        pick-server-label: 服务器
+        no-servers: 还没有可以测试的服务器
+        no-server-selected: 先选一个服务器吧
+        server-disabled: '"{name}" 还是禁用状态哦，先在卡片上启用再测试吧'
+        disabled-suffix: 已禁用
+        untitled: 未命名
+        running: 正在测试…
+        success: 连接成功！发现 {count} 个工具，耗时 {ms}ms
+        failure: 连接失败了，耗时 {ms}ms
+      errors:
+        empty-identifier: 服务器 # {index} is missing an identifier.
+        duplicate-identifier: 标识符 "{name}" 重复了，每个服务器要用不同的名字。
+        empty-command: '"{name}" 还没填启动命令。'
+        invalid-shape: mcp.json 结构不对，最外层得有 "mcpServers" 这个字段。
       messages:
-        opened: 配置文件已于{path}打开
-        restarted: >-
-          MCP 服务已重新启动，启动了{started}，未启动{failed}，跳过{skipped}
+        opened: 已经在文件管理器里打开 {path} 啦
+        json-applied: JSON 已经解析完成了，点「保存并重启」就写到磁盘上啦。
+        restarted: 重启好啦！启动了 {started} 个，失败 {failed} 个，跳过 {skipped} 个
+  flux:
+    title: Flux
+    buy: 充值
+    currency: 币种
+    description: 充值 Flux
+    packagesError: 暂时无法获取可用的 Flux 电量包。可以之后再试试吗？
+    checkout:
+      success: 谢谢你！你的 Flux 通量已经更新好啦～
+      canceled: 支付被取消
+      error: 哎呀，出错了，请稍后再试
+    audit:
+      title: 使用记录
+      time: 时间
+      type: 类型
+      detail: 明细
+      amount: 金额
+      typeAddition: 充电
+      typeConsumption: 用量
+      typeInitial: 初始额度
+      typePromo: Promo Grant
+      loading: 加载历史...
+      empty: 暂无消耗记录
+      loadMore: 更多信息
+      delayHint: Flux 电量历史记录是缓慢更新的，可能有延迟
+      ttsRequests: 请求
+    packages:
+      title: Flux 电池包
+      buy: 充值
+      description: 可以选择购入的 Flux 电池包
   providers:
-    explained:
-      chat: 文本生成模型服务来源，例如 OpenRouter, OpenAI, Ollama
-      Speech: 语音（文本转语音）模型服务来源，例如 ElevenLabs, Azure Speech
-      Transcription: >-
-        转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
-    helpinfo:
-      title: 第一次使用？
-      description: >
-        AIRI 需要配置至少一个 {chat} 服务来源，才能正常思考和运作。你可以把它看作是 AIRI 系统中角色的大脑。
     catalog:
       edit:
         config-id-not-found: 未找到服务来源配置。
@@ -475,9 +917,9 @@ pages:
                   value:
                     placeholder: 请求头数值
                 thinking-mode:
-                  label: 思考模式
+                  label: 深度思考模式
                   description: >
-                    Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
+                    控制 Olama 深度思考的开关。GPT-OSS 只支持低/中/高水平。
                   options:
                     auto: 自动（默认服务来源）
                     disable: 禁用
@@ -514,7 +956,7 @@ pages:
                       很抱歉，Ollama 连接检查失败。不要担心，如果是 Ollama，需要额外配置才能通过 Ollama。 您需要在启动 Olama 应用程序或 Ollama CLI 服务器时明确设置 <code>OLLAMA_HOST</code> 详情，请检查 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 集成指南</a>。
     common:
       continueAnyway: 仍然继续
-      goToModelSelection: '选择模型→'
+      goToModelSelection: 选择模型→
       fields:
         field:
           api-key:
@@ -536,6 +978,50 @@ pages:
           title: 基础配置
         voice:
           title: 声音配置
+    labels:
+      recommended: 推荐
+    filters:
+      pricing: 价格
+      deployment: 部署
+      all: 全部
+      free: 免费
+      paid: 付费
+      internal: 内部
+      local: 本地
+      cloud: 云端
+    categories:
+      chat:
+        title: 聊天
+        description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Vision
+        description: Vision model providers for image understanding.
+      speech:
+        title: Speech
+        description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
+      transcription:
+        title: Transcription
+        description: >-
+          Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
+      artistry:
+        title: Artistry
+        description: Image generation and design model providers. e.g. ComfyUI, Replicate.
+        items:
+          comfyui:
+            description: 本地图像生成运行器。
+          replicate:
+            description: 云端模型推理服务。
+          nanobanana:
+            description: Google AI Studio 图像预览。
+    helpinfo:
+      title: 第一次使用？
+      description: >
+        AIRI 需要配置至少一个 {chat} 服务来源，才能正常思考和运作。你可以把它看作是 AIRI 系统中角色的大脑。
+    explained:
+      chat: 文本生成模型服务来源，例如 OpenRouter, OpenAI, Ollama
+      Speech: 语音（文本转语音）模型服务来源，例如 ElevenLabs, Azure Speech
+      Transcription: >-
+        转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
     description: LLM，语音合成，语音识别服务来源等
     provider:
       app-local-audio-transcription:
@@ -553,6 +1039,17 @@ pages:
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
         title: 阿里百炼
+      amazon-bedrock:
+        title: Amazon Bedrock
+        description: aws.amazon.com/bedrock
+        config:
+          api-key:
+            label: Bedrock API 密钥
+            description: Amazon Bedrock API 密钥（在 AWS 控制台 → Bedrock → API Keys 中生成）
+            placeholder: bedrock-...
+          region:
+            label: AWS 区域
+            description: Bedrock 激活的 AWS 区域（例如：us-east-1，us-west-2）
       anthropic:
         description: anthropic.com
         title: Anthropic | Claude
@@ -600,8 +1097,104 @@ pages:
       speech-noop:
         title: 无
         description: 不使用语音合成
+      comfyui:
+        settings:
+          title: ComfyUI（本地）
+          heading: ComfyUI 原生 API
+          description: 连接本地 ComfyUI 并使用自己的工作流。
+          info:
+            what_you_need:
+              label: 所需条件
+              value: 在本地或局域网中运行的 ComfyUI。
+            how_to_export:
+              label: 导出方式
+              value: 启用开发者模式 → “保存（API 格式）”。
+            scope_boundary:
+              label: 责任范围
+              value: 模型下载和节点安装需要您自行完成。
+          connection:
+            title: 连接
+            connected: 已连接
+            failed: 连接失败
+            error_prefix: 错误
+            test: 测试
+            testing: 测试中...
+            unknown_error: 未知连接错误
+            unknown_gpu: 未知 GPU
+            server_url:
+              label: 服务器地址
+              description: ComfyUI 正在运行的地址
+              placeholder: http://localhost:8188
+          cors:
+            title: 检测到 CORS 阻止
+            description: ComfyUI 默认会阻止来自其他应用程序的请求。若要允许 AIRI 连接，必须使用 --enable-cors-header "*" 参数启动 ComfyUI。
+            command: python main.py --enable-cors-header "*"
+          workflows:
+            title: 工作流模板
+            upload: 上传工作流
+            cancel_upload: 取消
+            empty: 尚未上传工作流。点击“上传工作流”从 ComfyUI 导入 workflow_api.json。
+            exposed_parameters: 公开参数
+            summary: '{nodes} 个节点 · {fields} 个公开字段'
+            remove: 移除
+            config_snippet: 绘图配置片段
+            copy_json: 复制 JSON
+            paste_hint: 将其粘贴到 AIRI 角色卡绘图配置中，以覆盖这些节点。
+          upload:
+            prompt: 拖放或选择 workflow_api.json 文件
+            invalid_json: 无效的 JSON
+            workflow_name:
+              label: 工作流名称
+              description: 为此工作流指定易于识别的名称
+              placeholder: 例如：Anime Text2Img
+            select_fields: '选择要公开给 AI 智能体的字段：'
+            fields_exposed: '已公开 {count} 个字段'
+            save: 保存工作流
+      replicate:
+        settings:
+          title: Replicate.ai
+          heading: Replicate.ai 配置
+          description: 配置云端图像生成设置。
+          api_key:
+            label: API 密钥
+            description: 您的 Replicate API 令牌（以 r8_ 开头）
+            placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          default_model:
+            label: 默认模型
+            description: 角色卡未指定模型时使用的备用所有者/模型字符串
+            placeholder: black-forest-labs/flux-schnell
+          aspect_ratio:
+            label: 宽高比
+            description: 默认图像宽高比（例如 16:9、1:1、9:16）
+            placeholder: '16:9'
+          inference_steps:
+            label: 推理步数
+            description: 扩散过程的步数（越低越快，越高质量越好）
+      nanobanana:
+        settings:
+          title: Nano Banana
+          heading: Nano Banana（Google AI Studio）
+          description: 配置 Google Gemini 的原生图像生成能力。
+          api_key:
+            label: API 密钥
+            description: 您的 Google AI Studio API 密钥
+            placeholder: AIpk...
+          preferred_model:
+            label: 首选模型
+            description: 要使用的特定 Gemini 图像预览模型
+          default_resolution:
+            label: 默认分辨率
+            description: 生成图像的目标分辨率
+          model_options:
+            nano_banana_2: Nano Banana 2（Gemini 3.1 Flash Image）
+            nano_banana_pro: Nano Banana Pro（Gemini 3 Pro Image）
+            nano_banana: Nano Banana（Gemini 2.5 Flash Image）
       deepseek:
         description: DeepSeek.com
+        fields:
+          field:
+            thinking-mode:
+              description: 控制 DeepSeek 推理模型是否在聊天请求中启用深度思考。
         title: 深度求索 DeepSeek
       elevenlabs:
         description: Elevenlabs.io
@@ -670,6 +1263,9 @@ pages:
       fireworks:
         description: Fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -692,6 +1288,12 @@ pages:
       minimax-global:
         description: minimax.io
         title: MiniMax Global
+      minimax-speech:
+        description: minimax.io
+        title: MiniMax Speech
+      mimo:
+        description: api.xiaomimimo.com
+        title: Xiaomi MiMo
       mistral:
         description: mistral.ai
         title: Mistral
@@ -710,6 +1312,9 @@ pages:
       openai:
         description: OpenAi.com
         title: OpenAI
+      azure-openai:
+        description: Azure OpenAI API
+        title: Azure OpenAI
       openai-compatible:
         description: OpenAI 兼容 API
         title: OpenAI 兼容 API
@@ -719,8 +1324,14 @@ pages:
       n1n:
         description: n1n.ai - 高性能的 AI API 提供商
         title: n1n
+      openpaths:
+        description: openpaths.io
+        title: OpenPaths
       openrouter:
         description: OpenRouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
+        description: openrouter.ai
         title: OpenRouter
       perplexity:
         description: perplexity.ai
@@ -754,9 +1365,21 @@ pages:
               description: 可在控制台获取的 App ID
               label: App ID
         title: 火山引擎
+      volcengine-coding-plan:
+        description: 火山引擎 Coding Plan
+        title: 火山引擎 Coding Plan
+      byteplus:
+        description: byteplus.com
+        title: BytePlus
+      byteplus-coding-plan:
+        description: BytePlus Coding Plan
+        title: BytePlus Coding Plan
       xai:
         description: X.AI
         title: xAI
+      zai:
+        description: 智谱大模型
+        title: Z.ai
       302-ai:
         description: 302.AI
         title: 302.AI
@@ -772,23 +1395,57 @@ pages:
       browser-web-speech-api:
         description: 浏览器原生STT (需要 Chrome/Edge/Safari)
         title: Web 语音API
+      official:
+        title: AIRI官方提供商
+        description: 登录后即可使用的服务来源
+        speech-title: AIRI 官方语音合成服务
+        speech-description: 登录后即可使用的发声单元服务
+        speech-streaming-title: 官方流式语音服务提供商
+        speech-streaming-description: AIRI 官方低延迟文本转语音服务提供商（双向 WebSocket）。
+        transcription-title: AIRI 官方语音识别服务
+        transcription-description: 登录后即可使用的听觉单元服务
       transcriptions:
         playground:
           title: 实验平台
       aihubmix:
         title: AIHubMix
-        description: https://aihubmix.com (10% off)
+        description: https://aihubmix.com (九折优惠)
     title: 服务来源
   connection:
     description: 配置 WebSocket 服务器连接
     title: 连接
     websocket-url:
-      description: WebSocket 服务器的完整地址(例如，ws://localhost:6121/ws)
-      label: WebSocket 服务器地址
+      description: 此应用连接本地服务器时使用的地址。
+      label: 服务器地址
       placeholder: ws://localhost:6121/ws
-  scene:
-    description: 配置角色所在环境
-    title: 场景
+    server-hostname:
+      label: 向所有设备开放
+      description: 允许本地网络中的其他设备连接此服务器。
+    server-auth-token:
+      label: 配对令牌
+      description: 其他设备使用此令牌与服务器配对。如果此字段为空，AIRI 会生成一个令牌。
+      placeholder: 自动生成
+    qr:
+      title: 配对
+      description: 使用移动应用扫描此二维码。应用会尝试每个本地地址，并保存第一个可用地址。
+      refresh: 刷新
+      image-alt: AIRI 配对二维码
+      candidates: 备选连接地址
+      token-hint: 二维码包含配对令牌。请勿公开分享此二维码。
+      errors:
+        title: 二维码暂不可用
+        unavailable: 无法生成配对二维码
+    qr-scan:
+      title: 快速连接
+      description: 扫描桌面端的配对码以快速配对
+      instructions: 将相机中心位置对准配对码
+      action: 扫描
+      success:
+        title: 连接地址已更新
+        description: '现在配对到的 AIRI 主端 {url}'
+      errors:
+        title: 二维码扫描失败
+        failed: 扫描或连接二维码失败。
   system:
     color-scheme:
       description: 更改舞台的配色方案
@@ -799,6 +1456,9 @@ pages:
     general:
       description: 深色主题、语言等选项
       title: 通用
+    permissions:
+      description: 查看当前权限状态
+      title: 权限管理
     description: 自定义你的舞台外观！
     sections:
       section:
@@ -821,7 +1481,7 @@ pages:
                 title: Markdown Stress
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
               use-magic-keys:
-                title: 使用MagicKeys工具
+                title: useMagicKeys 工具
                 description: 测试快捷键
               audio-record:
                 title: 音频录制
@@ -859,7 +1519,7 @@ pages:
                   将麦克风音频流式传输到阿里云 NLS 并检查实时转写
               performance-playground:
                 title: 性能测试场地
-                description: 'VRM expressions + TTS lip sync playground'
+                description: VRM 表情 + TTS lip sync 实验平台
         theme-presets:
           presets:
             default:
@@ -929,12 +1589,36 @@ pages:
                 中国传统色彩，源自古代纺织品、瓷器和绘画
               title: 中国传统颜色
           title: 预设
-    title: 外观
+    title: 系统
   page:
     developers:
       open-devtools:
         title: 打开开发者工具
         button: 打开
+  credits:
+    buy: 购买
+  scene:
+    title: 场景
+    description: 自定义角色的虚拟环境。
+    beta_label: 场景系统
+    beta_description: 每个角色卡可以从场景库中指定自己偏好的背景。在此设置将作为当前活跃角色的默认背景。
+    background_image:
+      title: 活跃角色背景
+      no_background: 此角色没有活跃背景。上传正方形或横向图片以获得最佳效果。
+      upload: 上传到场景库
+      change: 更换背景
+      clear: 清除默认
+    gallery:
+      title: 场景库
+      empty: 场景库中还没有图片，从上方上传一张吧！
+      set_as_global: 设为角色默认
+      delete: 从场景库删除
+      global_badge: 角色默认
+      active_badge: 当前场景
+      delete_confirm: 确定要删除这张背景吗？
+    tip:
+      label: 提示！
+      description: 使用正方形图片将在竖屏模式下应用<b>封面</b>裁剪，聚焦场景中心。
 sections:
   section:
     general:
@@ -985,10 +1669,101 @@ vrm:
   skybox:
     skybox-intensity: 天空盒光照强度
     skybox-specular-mix: 漫反射/镜面反射混合系数
+spine:
+  title: Spine 设置
+  scale-and-position:
+    title: 缩放与位置
+    scale: 缩放
+    x: X
+    'y': 'Y'
+  theme-color-from-model:
+    title: 从模型提取颜色
+    button-extract:
+      title: 提取
+  animation:
+    title: 动画
+    idle-animation: 空闲动画
+    mix-duration: 混合时长（秒）
+    speed: 动画速度
+  appearance:
+    title: 外观
+  variant:
+    title: 变体
+    current-variant: 当前变体
+  skin:
+    title: 皮肤
+    current-skin: 当前皮肤
+  rendering:
+    title: 渲染
+    max-fps: 最大帧率
+    render-scale: 渲染缩放
+  fps:
+    options:
+      unlimited: 不限
+mmd:
+  title: MMD Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+    rotation: Rotation
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  physics:
+    title: Physics & Rig
+    enabled: Enable physics (hair, skirt, accessories)
+    ik: Enable IK (inverse kinematics)
+    grant: Enable append-bone propagation
+    gravity: Gravity strength
+  gaze:
+    title: Gaze
+    tracking: Looking at
+    options:
+      cursor: Mouse
+      camera: Camera
+      none: Disabled
+  animation:
+    title: Animation
+    idle-motion: Idle Motion
+    import-motion: Import Motion (.vmd)
+    play-once: Preview Animation
+    remove: Remove motion
+    description: >-
+      Import VMD motion files, set one as the looping idle, or play any as a one-shot gesture. Map emotions to motions to play gestures alongside facial expressions.
+  morphs:
+    title: Morphs
+    auto: (auto)
+    revert: Revert to auto
+    no-morphs: This model exposes no morphs.
+    description: >-
+      The renderer auto-detects standard Japanese morph names (あいうえお, まばたき). Override a slot here if your model uses non-standard names.
+  materials:
+    title: Materials
+    no-materials: This model exposes no materials.
+    description: >-
+      Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
+tachie:
+  title: Tachie 设置
+  archive-description: Tachie 模型使用包含情绪命名图片的 .tachie.zip 压缩包。
+  scale-and-position:
+    title: 缩放与位置
+    scale: 缩放
+    x: X
+    'y': 'Y'
+  theme-color-from-model:
+    title: 从模型提取颜色
+    button-extract:
+      title: 提取
+  rendering:
+    title: 渲染
+    render-scale: 渲染缩放
+    shadow: 主题色动态阴影
 websocket-secure-enabled:
-  title: 启用安全 WebSocket (WSS)
-  description: >-
-    启用 WSS（WebSocket Secure）以允许开发模式下移动端（pocket）的 HTTPS 连接。这将自动生成自签名证书。
+  title: 作为安全 WebSocket (WSS) 提供服务
+  description: 使用 WSS 建立安全的移动端连接。AIRI 会创建一个自签名证书。
 wip:
   title: 正在开发中
   description: >-

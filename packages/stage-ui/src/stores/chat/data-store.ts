@@ -2,6 +2,8 @@ import type { SystemMessage } from '@xsai/shared-chat'
 
 import type { ChatHistoryItem } from '../../types/chat'
 
+import { cloneDeep } from 'es-toolkit'
+
 export interface ChatDataAccess {
   getActiveSessionId: () => string
   setActiveSessionId: (sessionId: string) => void
@@ -118,7 +120,7 @@ export function createChatDataStore(access: ChatDataAccess): ChatDataStore {
   }
 
   function getAllSessions() {
-    return JSON.parse(JSON.stringify(access.getSessions())) as Record<string, ChatHistoryItem[]>
+    return cloneDeep(access.getSessions())
   }
 
   function getSessionGenerationValue(sessionId?: string) {

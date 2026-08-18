@@ -1,0 +1,326 @@
+# `@proj-airi/stage-tamagotchi-godot`
+
+Godot-native desktop stage runtime project for `stage-tamagotchi`.
+
+## What It Does
+
+- Hosts the Godot project used as the desktop-only stage runtime baseline.
+- Provides the minimal scene, script, and .NET project structure for G0 stage work.
+- Keeps Godot-owned assets, scenes, scripts, and future add-ons local to one workspace engine.
+
+## What It Is Not
+
+- It is not the Electron host app.
+- It does not own AIRI agent logic or adaptation-layer IPC contracts.
+- It is not a web or mobile renderer package.
+
+## Current Scope
+
+- Desktop-only Godot sidecar runtime exploration for `stage-tamagotchi`.
+- Godot C# project structure and minimal runtime skeleton.
+- Early-stage scene and runtime validation work.
+- G1.1 VRM-only scene input baseline: Electron materializes the selected `.vrm`
+  file, sends its native file path, and Godot imports it at runtime.
+- G1.2 Godot-owned in-process view state: Godot bootstraps camera pose from the
+  loaded avatar, accepts host-origin camera patches, emits view snapshots for
+  the settings UI, and handles local camera input inside the sidecar process.
+- Current sidecar view state starts when the Godot stage process starts and ends
+  when that process exits. The retained store code is not wired into the active
+  runtime path yet.
+- G1.3 fixed stage presentation baseline: sky background, neutral grid ground,
+  center marker, direct light rig, neutral Godot environment post settings, and
+  avatar-only same-frame glow with the current toon color mapping.
+
+## Directory Layout
+
+- `scenes/`: Godot scene files such as the current stage root.
+- `scripts/`: C# runtime scripts attached to Godot nodes.
+- `assets/`: Imported models, textures, materials, and other runtime assets.
+- `addons/`: Godot plugins, editor/runtime add-ons, or vendored third-party Godot extensions.
+
+## When To Use It
+
+- Use it when working on the Godot-backed desktop stage runtime.
+- Use it for Godot scene, asset, rendering, and character-runtime work.
+- Use it as the engine boundary for the desktop Godot stage project itself.
+
+## When Not To Use It
+
+- Do not put Electron main/renderer host logic here.
+- Do not put AIRI agent orchestration or cross-process protocol definitions here.
+- Do not use it as a generic cross-platform stage abstraction package.
+
+## Build
+
+- `pnpm -F @proj-airi/stage-tamagotchi-godot build`
+- `pnpm -F @proj-airi/stage-tamagotchi-godot typecheck`
+- `pnpm -F @proj-airi/stage-tamagotchi-godot test`
+
+The engine uses the .NET 10 SDK, a shared `Directory.Build.props` contract, and the
+`stage-tamagotchi-godot.slnx` solution. The build and typecheck commands compile both the
+Godot runtime and the engine-local verification host; `test` executes that verification host.
+
+## Development Runtime
+
+The Electron development app does not export this project on every dev run. When
+Godot Stage is started from the Tamagotchi settings page, Electron main starts a
+local WebSocket bridge and launches a local Godot engine against this project:
+
+```bash
+godot --path ./engines/stage-tamagotchi-godot -- --airi-ws-url=<runtime-url>
+```
+
+Set `GODOT4` before starting the Electron development app. Dev mode requires an
+explicit Godot executable path and does not auto-discover local installations.
+
+PowerShell:
+
+```powershell
+$env:GODOT4 = "C:\Path\To\Godot_v4.x-stable_mono_win64.exe"
+pnpm dev:tamagotchi
+```
+
+macOS / Linux:
+
+```bash
+GODOT4="/path/to/godot" pnpm dev:tamagotchi
+```
+
+With GodotEnv:
+
+```bash
+GODOT4="$(godotenv godot env path)" pnpm dev:tamagotchi
+```
+
+Keep machine-specific Godot paths outside the repository. The current Electron
+main service reads `process.env.GODOT4`, so the shell or local development
+environment must provide it before starting `pnpm dev:tamagotchi`.
+
+## Editor Static Preview
+
+Use this path when working on camera, lighting, rendering, scene composition,
+animation state-machine experiments, or other stage behavior that should not
+depend on Electron or runtime VRM import.
+
+Place a local `.vrm` file under:
+
+```text
+engines/stage-tamagotchi-godot/assets/fixtures/vrm/
+```
+
+This directory is ignored by git. Do not commit model files.
+
+`EditorPreviewRoot` in `scenes/stage-root.tscn` is intentionally committed as an
+empty node. In the Godot editor, instantiate a local model under that node when
+you need a concrete avatar in the 3D viewport. Keep the local scene change and
+the model file out of commits unless a repo-owned fixture policy is introduced.
+
+Runtime startup hides `EditorPreviewRoot` automatically. Product runtime avatars
+still belong under `AvatarRoot`, where `StageSceneController` applies models
+received from Electron.
+
+This preview does not test `VrmRuntimeImporter.gd`. Use the runtime import path
+for importer and materialized-path bugs.
+
+## VRM Runtime Import
+
+G1.1 vendors V-Sekai Godot add-ons through `git-subrepo` metadata:
+
+- `addons/vrm`: VRM importer add-on, plugin version `2.0.1`,
+  `only-addon` commit `651205484c35f5cd7ba56475ff636e10db8ad674`.
+- `addons/Godot-MToon-Shader`: MToon shader add-on, plugin version `3.4.0`,
+  `main` commit `268c0d3b19c0885698b7bd39e21a16c9c2af448f`.
+
+Runtime import is routed through `scripts/vrm/VrmRuntimeImporter.gd` because the
+Godot editor import plugin is not active when the exported sidecar receives a
+model path from Electron. The current runtime bridge covers the VRM 0.x path by
+wrapping the vendored `addons/vrm/vrm_extension.gd`; it does not yet register the
+vendored VRM 1.0 `addons/vrm/1.0/VRMC_*.gd` extension set.
+
+Godot owns the active avatar node lifetime: a newly imported avatar is added
+under `AvatarRoot` first, then the previous avatar is removed and queued for
+freeing. Failed imports keep the previous avatar visible.
+
+Runtime import details live in [`docs/vrm-runtime-import.md`](docs/vrm-runtime-import.md).
+Vendored add-on local patches and generated metadata differences are tracked in
+[`docs/vendor-patches.md`](docs/vendor-patches.md).
+
+## Default Stage Visuals
+
+G1.3 installs a fixed default presentation preset at runtime. It includes a sky
+environment, a large world-anchored grid ground at `Y=0`, a center `T` marker at
+the world origin, and a fixed directional light rig.
+
+The sky environment reuses the existing stage-ui-three HDRI at
+`packages/stage-ui-three/src/components/Environment/assets/sky_linekotsi_23_HDRI.hdr`
+when the Godot stage runs from a workspace checkout. The HDRI is not copied into
+Godot `assets/`, and the release packaging path for this shared asset remains a
+separate follow-up.
+
+The grid ground is visual-only. It does not move the avatar root away from
+`(0, 0, 0)`, and its shader fades distant grid lines into the horizon color
+without enabling volumetric fog.
+
+The sky is visible as the viewport background, but it is not used as avatar or
+ground ambient/radiance input. `StageVisualPreset` sets ambient light to a fixed
+color, sets sky ambient contribution to `0`, disables reflected light, disables
+Godot Environment Glow, and leaves Godot tonemap/adjustment neutral. The current
+custom color mapping is applied by the stage compositor instead of Godot's
+Environment adjustment controls.
+
+## Avatar Mask, Glow, And Color Mapping
+
+The current avatar presentation path uses stage-owned overlay and compositor
+owners:
+
+1. `StageRenderEffectsRuntime` wires the active camera and loaded avatar into the
+   stage render-effect owners.
+2. `StageMaterialOverlayOwner` records render-effect source claims and assigns
+   the shared avatar mask overlay material to loaded avatar `GeometryInstance3D`
+   nodes.
+3. `StageCompositorOwner` installs the stage post-process compositor effect on
+   the active `Camera3D`.
+4. `StagePostProcessCompositorEffect` runs at `PostTransparent` and applies the
+   ordered scene copy, avatar glow, and final color mapping stages.
+
+This is not Godot Environment Glow and does not use material emission as the
+avatar-style glow source. The color mapping is an independently enabled final
+stage inside the stage post-process compositor. Future avatar-only edge light
+work should establish same-scene visual comparison artifacts before changing the
+pipeline.
+
+Design notes live in [`docs/rendering-effects.md`](docs/rendering-effects.md).
+
+## Material Rendering Check
+
+G1.3 includes a focused runtime material verification scene for the committed
+AvatarSample A/B fixtures:
+
+```powershell
+& $env:GODOT4 --headless --path . `
+  --quit-after 5 `
+  --log-file material-check.log `
+  tests/material-rendering-check/materialRenderingCheck.tscn
+```
+
+This check imports both samples through `VrmRuntimeImporter.gd` and verifies the
+runtime material surface covers MToon, alpha/cutout, transparent materials,
+outline passes, and mesh shadow casters. The current A/B fixtures do not contain
+unlit materials, so this check reports `unlit = 0` and does not treat that as a
+failure.
+
+## Visual Observation
+
+Renderer-facing changes should produce comparable render artifacts before they
+are accepted:
+
+```powershell
+pnpm -F @proj-airi/stage-tamagotchi-godot dump:render-stages
+```
+
+For rim or edge-light shape checks, prefer the upper-body camera preset:
+
+```powershell
+pnpm -F @proj-airi/stage-tamagotchi-godot dump:render-stages:upper-body
+```
+
+The command launches the real `StageRoot` scene through the local WebSocket
+protocol, loads `AvatarSample_A.vrm`, captures the visible Godot window client
+area as the final rendered output, and writes diagnostic render-stage artifacts
+under `artifacts/`.
+
+The Technical Art workflow and acceptance rules live in
+[`docs/technical-art-workflow.md`](docs/technical-art-workflow.md).
+
+## Live Debugging From The Godot Editor
+
+Use this path when Electron is the real host and the model is selected from the
+Tamagotchi settings window, but the running Godot scene needs to be inspected in
+the Godot editor. The detailed workflow lives in
+[`docs/live-debugging.md`](docs/live-debugging.md).
+
+Start the Godot editor against this project:
+
+```powershell
+& $env:GODOT4 -e --path .\engines\stage-tamagotchi-godot
+```
+
+In the Godot editor, enable:
+
+```text
+Debug -> Keep Debug Server Open
+```
+
+Then start the Electron development app with Godot remote debugging enabled:
+
+```powershell
+$env:GODOT_STAGE_REMOTE_DEBUG = "1"
+$env:GODOT_STAGE_REMOTE_DEBUG_URI = "tcp://127.0.0.1:6007"
+nr dev:tamagotchi
+```
+
+`GODOT_STAGE_REMOTE_DEBUG_URI` is optional and defaults to
+`tcp://127.0.0.1:6007`, which is Godot's standard local editor debug endpoint.
+
+When Tamagotchi starts the Godot stage, Electron launches the sidecar with
+`--remote-debug` before Godot's `--` separator. The sidecar still receives
+`--airi-ws-url` after the separator so it can connect back to Electron main.
+
+After selecting a VRM model in the Tamagotchi settings window, inspect the
+running scene in the Godot editor:
+
+```text
+Scene dock -> Remote -> /root/Node3D/AvatarRoot/Avatar_<modelId>
+```
+
+Do not use the editor's Run button for this integration path. The editor-run
+process does not receive Electron's `--airi-ws-url`, so it cannot show the model
+that Tamagotchi materialized and sent over the sidecar WebSocket.
+
+## Exporting
+
+Export presets produce the sidecar runtime that Electron packages for release:
+
+```bash
+godot --headless --export-release "Windows Desktop" out/win/godot-stage.exe
+godot --headless --export-release "Linux" out/linux/godot-stage
+godot --headless --export-release "macOS" out/mac/godot-stage.app
+```
+
+The output directories intentionally match electron-builder's `${os}` names:
+
+- Windows: `out/win`
+- Linux: `out/linux`
+- macOS: `out/mac`
+
+`apps/stage-tamagotchi/electron-builder.config.ts` copies the matching directory
+into `resources/godot-stage` via `extraResources`. To inspect an unpacked
+Electron build locally, run:
+
+```bash
+pnpm -F @proj-airi/stage-tamagotchi run build:unpack
+```
+
+## Notes
+
+### Environment Management
+
+Recommended to use [GodotEnv](https://github.com/chickensoft-games/GodotEnv) to manage Godot versions.
+
+You can use the command below to set current Godot version for this project:
+
+```bash
+godotenv godot use 4.7.1
+```
+
+Then run the Godot editor with the current project:
+
+```bash
+"$(godotenv godot env path)" ./engines/stage-tamagotchi-godot/project.godot
+```
+
+You can also run the game directly from the command line:
+
+```bash
+"$(godotenv godot env path)" --path ./engines/stage-tamagotchi-godot
+```

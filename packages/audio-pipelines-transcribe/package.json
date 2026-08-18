@@ -9,10 +9,7 @@
   },
   "dependencies": {
     "@moeru/std": "catalog:",
+    "@proj-airi/audio": "workspace:^",
     "uncrypto": "catalog:"
-  },
-  "devDependencies": {
-    "@vitest/browser-playwright": "catalog:vitest",
-    "vitest": "catalog:vitest"
   }
 }

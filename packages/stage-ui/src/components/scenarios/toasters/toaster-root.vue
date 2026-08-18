@@ -17,7 +17,15 @@ provide(ToasterRootInjectionKey, {
 </template>
 
 <style>
+[data-sonner-toast=""] {
+  --border-radius: 1rem;
+}
+
 [data-sonner-toast=""] [data-content=""] {
   width: 100%;
+}
+
+li[data-sonner-toast=""][data-styled='true'] {
+  padding: 12px;
 }
 </style>

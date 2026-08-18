@@ -198,6 +198,10 @@ pnpm dev
 > nr dev
 > ```
 
+### UI Storyboard
+
+Browse the live UI component storyboard at [airi.moeru.ai/ui](https://airi.moeru.ai/ui/).
+
 ### Documentation site
 
 ```shell
@@ -217,7 +221,7 @@ pnpm dev:docs
 A Postgres database is required.
 
 ```shell
-cd services/telegram-bot
+cd integrations/telegram-bot
 docker compose up -d
 ```
 
@@ -253,7 +257,7 @@ pnpm -F @proj-airi/telegram-bot start
 ### Discord bot integration
 
 ```shell
-cd services/discord-bot
+cd integrations/discord-bot
 ```
 
 Configure `.env`
@@ -281,7 +285,7 @@ pnpm -F @proj-airi/discord-bot start
 ### Minecraft agent
 
 ```shell
-cd services/minecraft
+cd integrations/minecraft
 ```
 
 Start a Minecraft client, export your world with desired port, and fill-in the port number in `.env.local`.

@@ -12,6 +12,10 @@ const props = defineProps<{
   sourcesOptions: SourcesOptions
 }>()
 
+const emit = defineEmits<{
+  permissionGranted: []
+}>()
+
 const sourcesOptions = toRef(props, 'sourcesOptions')
 
 const hasPermissions = ref(false)
@@ -21,10 +25,12 @@ const { t } = useI18n()
 const {
   getSources,
   setSource,
+  resetSource,
   selectWithSource,
   checkMacOSPermission,
   requestMacOSPermission,
 } = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
+
 const focused = useWindowFocus()
 
 async function checkPermissions() {
@@ -55,6 +61,12 @@ watch(focused, async (isFocused) => {
     await checkPermissions()
   }
 })
+
+watch(hasPermissions, (nextHasPermissions, previousHasPermissions) => {
+  if (nextHasPermissions && !previousHasPermissions) {
+    emit('permissionGranted')
+  }
+})
 </script>
 
 <template>
@@ -62,6 +74,7 @@ watch(focused, async (isFocused) => {
     v-bind="{
       getSources,
       setSource,
+      resetSource,
       selectWithSource,
       hasPermissions,
       checkPermissions,
@@ -96,7 +109,7 @@ watch(focused, async (isFocused) => {
 
         <div flex="~ row gap-2 mt-4 justify-end" w-full>
           <Button
-            variant="secondary"
+
             @click="showDialog = false"
           >
             {{ t('tamagotchi.settings.screen-capture.permissions-prompt.dismiss') }}

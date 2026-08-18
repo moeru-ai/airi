@@ -1,21 +1,23 @@
+import type { SparkNotifyResponseControl } from '@proj-airi/core-agent/agents/spark-notify'
 import type { WebSocketBaseEvent, WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-sdk'
+import type { ChatProvider } from '@xsai-ext/providers/utils'
 
+import { createSparkNotifyAgent, createSparkNotifyReactionPlugin } from '@proj-airi/core-agent/agents/spark-notify'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
 import { useCharacterNotebookStore, useCharacterStore } from '../'
-import { useLLM } from '../../llm'
+import { useLLM } from '../../ai/chat-llm/llm'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useConsciousnessStore } from '../../modules/consciousness'
-import { useProvidersStore } from '../../providers'
-import { setupAgentSparkNotifyHandler } from './agents/event-handler-spark-notify'
+import { useProviderStore } from '../../providers/provider'
 
-export { sparkCommandSchema } from './agents/event-handler-spark-notify'
+export { sparkNotifyCommandSchema } from '@proj-airi/core-agent/agents/spark-notify'
 
 export const useCharacterOrchestratorStore = defineStore('character-orchestrator', () => {
   const { stream } = useLLM()
   const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
-  const providersStore = useProvidersStore()
+  const providersStore = useProviderStore()
   const characterStore = useCharacterStore()
   const notebookStore = useCharacterNotebookStore()
   const { systemPrompt } = storeToRefs(characterStore)
@@ -23,33 +25,48 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
 
   const processing = ref(false)
   const pendingNotifies = ref<Array<WebSocketEventOf<'spark:notify'>>>([])
+
   const scheduledNotifies = ref<Array<{
     event: WebSocketEventOf<'spark:notify'>
+    control?: SparkNotifyResponseControl
     enqueuedAt: number
     nextRunAt: number
     attempts: number
     maxAttempts: number
     reason?: string
   }>>([])
+
   const attentionConfig = ref({
     tickIntervalMs: 2_000,
     taskNotifyWindowMs: 60_000,
     requeueDelayMs: 30_000,
     maxAttempts: 3,
   })
+
   let tickTimer: ReturnType<typeof setInterval> | undefined
-  const sparkNotifyAgent = setupAgentSparkNotifyHandler({
-    stream,
-    getActiveProvider: () => activeProvider.value,
-    getActiveModel: () => activeModel.value,
-    getProviderInstance: name => providersStore.getProviderInstance(name),
-    onReactionDelta: (eventId, text) => characterStore.onSparkNotifyReactionStreamEvent(eventId, text),
-    onReactionEnd: (eventId, text) => characterStore.onSparkNotifyReactionStreamEnd(eventId, text),
-    getSystemPrompt: () => systemPrompt.value,
-    getProcessing: () => processing.value,
-    setProcessing: next => processing.value = next,
-    getPending: () => pendingNotifies.value,
-    setPending: next => pendingNotifies.value = next,
+  let initialized = false
+  const eventUnsubscribes: Array<() => void> = []
+  const sparkNotifyAgent = createSparkNotifyAgent({
+    runner: {
+      run: request => stream(
+        request.selectedChat.model,
+        request.selectedChat.provider,
+        request.messages,
+        {
+          tools: request.tools,
+          supportsTools: request.policy.supportsTools,
+          waitForTools: request.policy.waitForTools,
+          toolChoice: request.policy.toolChoice,
+          onStreamEvent: request.onStreamEvent,
+        },
+      ),
+    },
+    plugins: [
+      createSparkNotifyReactionPlugin({
+        onDelta: (eventId, text) => characterStore.onSparkNotifyReactionStreamEvent(eventId, text),
+        onEnd: (eventId, text) => characterStore.onSparkNotifyReactionStreamEnd(eventId, text),
+      }),
+    ],
   })
 
   function computeNextRunAt(event: WebSocketEventOf<'spark:notify'>, attempts: number) {
@@ -74,43 +91,91 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     pendingNotifies.value = pendingNotifies.value.filter(item => item.data.id !== eventId)
   }
 
-  function enqueueSparkNotify(event: WebSocketEventOf<'spark:notify'>, options?: { reason?: string, nextRunAt?: number, maxAttempts?: number }) {
-    if (!pendingNotifies.value.find(item => item.data.id === event.data.id)) {
-      pendingNotifies.value = [...pendingNotifies.value, event]
+  function enqueueSparkNotify(
+    event: WebSocketEventOf<'spark:notify'>,
+    options?: {
+      reason?: string
+      nextRunAt?: number
+      maxAttempts?: number
+      control?: SparkNotifyResponseControl
+    },
+  ) {
+    if (!pendingNotifies.value.some(item => item.data.id === event.data.id)) {
+      pendingNotifies.value.push(event)
     }
 
-    scheduledNotifies.value = [...scheduledNotifies.value, {
+    scheduledNotifies.value.push({
       event,
+      control: options?.control,
       enqueuedAt: Date.now(),
       nextRunAt: options?.nextRunAt ?? computeNextRunAt(event, 0),
       attempts: 0,
       maxAttempts: options?.maxAttempts ?? attentionConfig.value.maxAttempts,
       reason: options?.reason,
-    }]
+    })
   }
 
-  async function processSparkNotify(event: WebSocketEventOf<'spark:notify'>) {
-    const result = await sparkNotifyAgent.handle(event)
-    if (!result?.commands?.length)
-      return result
+  async function processSparkNotify(event: WebSocketEventOf<'spark:notify'>, control?: SparkNotifyResponseControl) {
+    const providerId = activeProvider.value
+    const model = activeModel.value
+    if (!providerId || !model) {
+      console.warn('Spark notify ignored: missing active provider or model')
+      return undefined
+    }
 
-    for (const command of result.commands) {
-      modsServerChannelStore.send({
-        type: 'spark:command',
-        data: command,
+    const provider = await providersStore.getProviderInstance<ChatProvider>(providerId)
+    processing.value = true
+
+    try {
+      const result = await sparkNotifyAgent.handle({
+        event,
+        selectedChat: {
+          providerId,
+          model,
+          provider,
+        },
+        systemPrompt: systemPrompt.value,
+        control,
       })
-    }
+      if (!result.commands.length)
+        return result
 
-    return result
+      for (const command of result.commands) {
+        modsServerChannelStore.send({
+          type: 'spark:command',
+          data: command,
+        })
+      }
+
+      return result
+    }
+    finally {
+      processing.value = false
+    }
   }
 
-  async function handleIncomingSparkNotify(event: WebSocketEventOf<'spark:notify'>) {
+  async function handleIncomingSparkNotify(event: WebSocketEventOf<'spark:notify'>, control?: SparkNotifyResponseControl) {
     if (event.data.urgency === 'immediate' && !processing.value) {
-      return await processSparkNotify(event)
+      return await processSparkNotify(event, control)
     }
 
-    enqueueSparkNotify(event, { reason: 'spark:notify' })
+    enqueueSparkNotify(event, { reason: 'spark:notify', control })
     return undefined
+  }
+
+  async function handleSparkNotifyWithReaction(
+    event: WebSocketEventOf<'spark:notify'>,
+    options?: SparkNotifyResponseControl & { fallbackText?: string },
+  ) {
+    await handleIncomingSparkNotify(event, options)
+
+    const reaction = [...characterStore.reactions]
+      .reverse()
+      .find(item => item.sourceEventId === event.data.id)
+      ?.message
+      ?.trim()
+
+    return reaction || options?.fallbackText || ''
   }
 
   function enqueueDueTasks(now: number) {
@@ -158,7 +223,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     removePending(next.event.data.id)
 
     try {
-      await processSparkNotify(next.event)
+      await processSparkNotify(next.event, next.control)
     }
     catch (error) {
       if (next.attempts + 1 < next.maxAttempts) {
@@ -198,25 +263,45 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   }
 
   function initialize() {
-    modsServerChannelStore.onEvent('spark:notify', async (event) => {
-      try {
-        await handleIncomingSparkNotify(event)
-      }
-      catch (error) {
-        console.warn('Failed to handle spark:notify event:', error)
-      }
-    })
+    if (initialized)
+      return
 
-    modsServerChannelStore.onEvent('spark:emit', async (event) => {
-      try {
-        await handleSparkEmit(event)
-      }
-      catch (error) {
-        console.warn('Failed to handle spark:emit event:', error)
-      }
-    })
+    initialized = true
+
+    eventUnsubscribes.push(
+      modsServerChannelStore.onEvent('spark:notify', async (event) => {
+        try {
+          await handleIncomingSparkNotify(event)
+        }
+        catch (error) {
+          console.warn('Failed to handle spark:notify event:', error)
+        }
+      }),
+    )
+
+    eventUnsubscribes.push(
+      modsServerChannelStore.onEvent('spark:emit', async (event) => {
+        try {
+          await handleSparkEmit(event)
+        }
+        catch (error) {
+          console.warn('Failed to handle spark:emit event:', error)
+        }
+      }),
+    )
 
     startTicker()
+  }
+
+  function dispose() {
+    stopTicker()
+
+    for (const unsubscribe of eventUnsubscribes) {
+      unsubscribe()
+    }
+
+    eventUnsubscribes.length = 0
+    initialized = false
   }
 
   return {
@@ -228,8 +313,10 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     initialize,
     startTicker,
     stopTicker,
+    dispose,
 
     handleSparkNotify: handleIncomingSparkNotify,
+    handleSparkNotifyWithReaction,
     handleSparkEmit,
   }
 })

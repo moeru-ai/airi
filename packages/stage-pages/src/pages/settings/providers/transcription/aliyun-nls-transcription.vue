@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import type { ServerEvent, ServerEvents } from '@proj-airi/stage-ui/libs/providers/providers/aliyun-nls'
 import type { HearingTranscriptionResult } from '@proj-airi/stage-ui/stores/modules/hearing'
-import type { ServerEvent, ServerEvents } from '@proj-airi/stage-ui/stores/providers/aliyun'
 import type { RemovableRef } from '@vueuse/core'
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import vadWorkletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import {
   Alert,
   ProviderBasicSettings,
@@ -14,8 +15,9 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { Button, FieldInput, FieldSelect } from '@proj-airi/ui'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
+import { Button, FieldCombobox, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, reactive, ref, shallowRef } from 'vue'
 
@@ -33,8 +35,9 @@ const regionOptions = [
 ]
 
 const hearingStore = useHearingStore()
-const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
 
 providersStore.initializeProvider(providerId)
 
@@ -240,7 +243,7 @@ async function startStreaming() {
           },
           onSessionTerminated: async (error?: unknown) => {
             if (error)
-              errorMessage.value = error instanceof Error ? error.message : String(error)
+              errorMessage.value = errorMessageFromValue(error)
             isStreaming.value = false
             transcriptionAbortController.value = undefined
           },
@@ -259,7 +262,7 @@ async function startStreaming() {
     activeTranscription.value = result
     transcriptionTextPromise.value = result.text
       .catch((error) => {
-        errorMessage.value = error instanceof Error ? error.message : String(error)
+        errorMessage.value = errorMessageFromValue(error)
         throw error
       })
 
@@ -283,7 +286,7 @@ async function startStreaming() {
     isStreaming.value = true
   }
   catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : String(error)
+    errorMessage.value = errorMessageFromValue(error)
     await stopStreaming()
   }
 }
@@ -388,7 +391,7 @@ onBeforeUnmount(async () => {
             placeholder="请输入 AppKey"
           />
 
-          <FieldSelect
+          <FieldCombobox
             v-model="credentials.region"
             label="Region"
             :options="regionOptions"
@@ -427,10 +430,10 @@ onBeforeUnmount(async () => {
         <div class="border border-neutral-200/80 rounded-xl bg-neutral-50/60 p-4 dark:border-neutral-700 dark:bg-neutral-900/40">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="space-x-3">
-              <Button :disabled="!canStart" variant="primary" @click="startStreaming">
+              <Button :disabled="!canStart" @click="startStreaming">
                 {{ isRecording ? 'Streaming...' : 'Start Realtime Transcription' }}
               </Button>
-              <Button :disabled="!canStop" variant="secondary" @click="stopStreaming">
+              <Button :disabled="!canStop" @click="stopStreaming">
                 Stop
               </Button>
               <Button

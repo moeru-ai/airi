@@ -4,8 +4,8 @@
     "jsx": "preserve",
     "lib": [
       "DOM",
-      "ESNext",
-      "DOM.AsyncIterable"
+      "DOM.AsyncIterable",
+      "ESNext"
     ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
@@ -18,7 +18,8 @@
     "types": [
       "vitest",
       "vite/client",
-      "unplugin-info/client"
+      "unplugin-info/client",
+      "@webgpu/types"
     ],
     "allowJs": true,
     "strict": true,

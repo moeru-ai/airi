@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { ProviderMetadata } from '../../../../stores/providers'
+import type { ProviderMode } from '../../../../composables/use-analytics'
+import type { ProviderMetadata } from '../../../../libs/providers/metadata'
 import type {
   OnboardingStep,
   OnboardingStepGuard,
@@ -8,32 +9,41 @@ import type {
   ProviderConfigData,
 } from './types'
 
+import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 
 import StepModelSelection from './step-model-selection.vue'
 import StepProviderConfiguration from './step-provider-configuration.vue'
 import StepProviderSelection from './step-provider-selection.vue'
 import StepWelcome from './step-welcome.vue'
 
+import { useAnalytics } from '../../../../composables/use-analytics'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
-import { useProvidersStore } from '../../../../stores/providers'
+import { useProviderConfigStore } from '../../../../stores/providers/config'
+import { useProviderStore } from '../../../../stores/providers/provider'
 
 interface Emits {
   (e: 'configured'): void
   (e: 'skipped'): void
 }
 
-const { extraSteps = [] } = defineProps<{
+const props = withDefaults(defineProps<{
   extraSteps?: OnboardingStep[]
-}>()
+}>(), {
+  extraSteps: () => [],
+})
 const emit = defineEmits<Emits>()
 const step = ref(0)
 const direction = ref<'next' | 'previous'>('next')
 const pendingProviderConfig = ref<ProviderConfigData | null>(null)
+const { trackOnboardingCompleted, trackOnboardingStarted, trackOnboardingStepCompleted } = useAnalytics()
 
-const providersStore = useProvidersStore()
-const { providers, allChatProvidersMetadata } = storeToRefs(providersStore)
+const providersStore = useProviderStore()
+
+const providerStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerStore)
+const { allChatProvidersMetadata } = storeToRefs(providersStore)
 const consciousnessStore = useConsciousnessStore()
 const {
   activeProvider,
@@ -41,7 +51,7 @@ const {
 
 // Popular providers for first-time setup
 const popularProviders = computed(() => {
-  const popular = ['openai', 'anthropic', 'google-generative-ai', 'groq', 'nvidia', 'openrouter-ai', 'ollama', 'deepseek', 'player2', 'openai-compatible']
+  const popular = ['openai', 'azure-openai', 'anthropic', 'amazon-bedrock', 'google-generative-ai', 'groq', 'nvidia', 'openrouter-ai', 'ollama', 'deepseek', 'player2', 'openai-compatible']
   return allChatProvidersMetadata.value
     .filter(provider => popular.includes(provider.id))
     .sort((a, b) => popular.indexOf(a.id) - popular.indexOf(b.id))
@@ -53,6 +63,12 @@ const selectedProviderId = ref('')
 // Computed selected provider
 const selectedProvider = computed(() => {
   return allChatProvidersMetadata.value.find(p => p.id === selectedProviderId.value) || null
+})
+
+const selectedProviderType = computed<ProviderMode>(() => {
+  if (!selectedProviderId.value)
+    return 'unknown'
+  return selectedProviderId.value.startsWith('official-provider') ? 'official' : 'custom'
 })
 
 // Reset validation state when provider changes
@@ -81,6 +97,12 @@ async function saveProviderConfiguration(data: ProviderConfigData) {
     config.baseUrl = data.baseUrl.trim()
   if (data.accountId)
     config.accountId = data.accountId.trim()
+  if (data.customFields) {
+    for (const [key, value] of Object.entries(data.customFields)) {
+      if (value)
+        config[key] = value.trim()
+    }
+  }
 
   providers.value[selectedProvider.value.id] = {
     ...providers.value[selectedProvider.value.id],
@@ -88,18 +110,15 @@ async function saveProviderConfiguration(data: ProviderConfigData) {
   }
 
   activeProvider.value = selectedProvider.value.id
+
   await nextTick()
 
   try {
     await consciousnessStore.loadModelsForProvider(selectedProvider.value.id)
   }
   catch (err) {
-    console.error('error', err)
+    console.error('[onboarding] Failed to load models for provider:', err)
   }
-}
-
-async function handleSave() {
-  emit('configured')
 }
 
 const allSteps = computed<OnboardingStep[]>(() => {
@@ -107,6 +126,9 @@ const allSteps = computed<OnboardingStep[]>(() => {
     {
       id: 'welcome',
       component: StepWelcome,
+      props: () => ({
+        customProviderSetupEnabled: !isCustomProvidersDisabled(),
+      }),
     },
     {
       id: 'provider-selection',
@@ -133,7 +155,7 @@ const allSteps = computed<OnboardingStep[]>(() => {
         return true
       },
     },
-    ...extraSteps.map(step => ({
+    ...props.extraSteps.map(step => ({
       ...step,
       props: () => ({
         ...step.props?.(),
@@ -151,6 +173,16 @@ const allSteps = computed<OnboardingStep[]>(() => {
 const currentStep = computed(() => allSteps.value[step.value] ?? null)
 const isLastStep = computed(() => step.value === allSteps.value.length - 1)
 const currentStepProps = computed(() => currentStep.value?.props?.() ?? {})
+
+async function handleSave() {
+  trackOnboardingStepCompleted(currentStep.value?.id ?? 'unknown')
+  trackOnboardingCompleted({
+    selected_provider_type: selectedProviderType.value,
+    selected_provider_id: selectedProviderId.value || undefined,
+    selected_use_case: 'unknown',
+  })
+  emit('configured')
+}
 
 async function canPassGuard(guard?: OnboardingStepGuard) {
   if (!guard)
@@ -171,6 +203,7 @@ async function navigateNext() {
     return
   }
 
+  trackOnboardingStepCompleted(currentStep.value.id)
   direction.value = 'next'
   step.value++
 }
@@ -185,15 +218,20 @@ async function navigatePrevious() {
   direction.value = 'previous'
   step.value--
 }
+
+onMounted(() => {
+  trackOnboardingStarted({ entry: 'app_start' })
+})
 </script>
 
 <template>
-  <div class="onboarding-step-container" h-full w-full>
+  <div class="onboarding-step-container" min-h-0 flex flex-1 flex-col>
     <Transition :name="direction === 'next' ? 'slide-next' : 'slide-prev'" mode="out-in">
       <component
         :is="currentStep.component"
         v-if="currentStep"
         :key="currentStep.id"
+        class="flex flex-1 flex-col"
         v-bind="currentStepProps"
         :on-next="requestNextStep"
         :on-previous="requestPreviousStep"
@@ -203,10 +241,6 @@ async function navigatePrevious() {
 </template>
 
 <style scoped>
-.onboarding-step-container {
-  overflow-x: hidden;
-}
-
 .slide-next-enter-active,
 .slide-next-leave-active,
 .slide-prev-enter-active,

@@ -1,16 +1,21 @@
 <script setup lang="ts">
 import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
+const airiCardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
-const { persistedChatProvidersMetadata, configuredProviders } = storeToRefs(providersStore)
+const { configuredProviders } = storeToRefs(providerStore)
+const { persistedChatProvidersMetadata } = storeToRefs(providersStore)
 const {
   activeProvider,
   activeModel,
@@ -23,19 +28,40 @@ const {
 } = storeToRefs(consciousnessStore)
 
 const { t } = useI18n()
-const { trackProviderClick } = useAnalytics()
+const { trackOfficialProviderSelected, trackProviderClick } = useAnalytics()
+
+/**
+ * Tracks explicit official chat-provider selection from settings.
+ */
+function trackOfficialProviderSelection(providerId: string, modelId: string) {
+  if (!providerId.startsWith('official-provider'))
+    return
+
+  trackOfficialProviderSelected({
+    provider_id: providerId,
+    provider_mode: 'official',
+    source: 'settings',
+    auto_selected: false,
+    model_id: modelId || 'unknown',
+  })
+}
 
 watch(activeProvider, async (provider, oldProvider) => {
   if (!provider)
     return
 
-  // Reset model when switching providers (but not on initial load)
+  // The consciousness store clears the model selection on provider changes;
+  // the page only tracks the selection and loads the new provider's catalog.
   if (oldProvider !== undefined && oldProvider !== provider) {
-    activeModel.value = ''
+    trackOfficialProviderSelection(provider, activeModel.value)
   }
 
   await consciousnessStore.loadModelsForProvider(provider)
 }, { immediate: true })
+
+watch([activeProvider, activeModel], ([provider, model]) => {
+  void airiCardStore.updateActiveCardConsciousness({ provider, model })
+})
 
 function updateCustomModelName(value: string) {
   customModelName.value = value
@@ -71,8 +97,7 @@ function handleDeleteProvider(providerId: string) {
           <fieldset
             v-if="persistedChatProvidersMetadata.length > 0"
             flex="~ row gap-4"
-            :style="{ 'scrollbar-width': 'none' }"
-            min-w-0 of-x-scroll scroll-smooth
+            min-w-0 overflow-x-auto scroll-smooth
             role="radiogroup"
           >
             <RadioCardSimple
@@ -86,7 +111,7 @@ function handleDeleteProvider(providerId: string) {
               :description="metadata.localizedDescription"
               @click="trackProviderClick(metadata.id, 'consciousness')"
             >
-              <template #topRight>
+              <template v-if="!metadata.id.startsWith('official-provider')" #topRight>
                 <button
                   type="button"
                   class="rounded bg-neutral-100 p-1 text-neutral-600 transition-colors dark:bg-neutral-800/60 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700/60"
@@ -160,36 +185,53 @@ function handleDeleteProvider(providerId: string) {
         </div>
 
         <!-- Error state -->
-        <ErrorContainer
-          v-else-if="activeProviderModelError"
-          :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-          :error="activeProviderModelError"
-        />
+        <template v-else-if="activeProviderModelError">
+          <ErrorContainer
+            :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
+            :error="activeProviderModelError"
+          />
+          <!-- Manual model input fallback when model list fails to load -->
+          <div class="mt-2">
+            <label class="mb-1 block text-sm font-medium">
+              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name') }}
+            </label>
+            <input
+              v-model="activeModel" type="text"
+              class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+              :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+            >
+          </div>
+        </template>
 
-        <!-- Manual model input fallback when model list fails to load -->
-        <div v-if="activeProviderModelError" class="mt-2">
-          <label class="mb-1 block text-sm font-medium">
-            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name') }}
-          </label>
-          <input
-            v-model="activeModel" type="text"
-            class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
-            :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
-          >
-        </div>
+        <!-- No models available - Allow custom model input via search -->
+        <!-- Only show when there are truly no models (not when fetch error occurred) to avoid competing UIs -->
+        <template v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels && !activeProviderModelError">
+          <Alert type="warning">
+            <template #title>
+              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
+            </template>
+            <template #content>
+              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
+            </template>
+          </Alert>
 
-        <!-- No models available -->
-        <Alert
-          v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels"
-          type="warning"
-        >
-          <template #title>
-            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
-          </template>
-          <template #content>
-            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
-          </template>
-        </Alert>
+          <!-- Using the new RadioCardManySelect component - works with empty list for custom input -->
+          <RadioCardManySelect
+            v-model="activeModel"
+            v-model:search-query="modelSearchQuery"
+            :items="[]"
+            :searchable="true"
+            :allow-custom="true"
+            :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
+            :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
+            :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: modelSearchQuery })"
+            :search-results-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
+            :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
+            :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
+            :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
+            @update:custom-value="updateCustomModelName"
+          />
+        </template>
 
         <!-- Using the new RadioCardManySelect component -->
         <template v-else-if="providerModels.length > 0">
@@ -206,6 +248,7 @@ function handleDeleteProvider(providerId: string) {
             :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
             :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
             :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
+            expanded-class="mb-12"
             @update:custom-value="updateCustomModelName"
           />
         </template>

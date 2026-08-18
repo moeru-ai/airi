@@ -12,6 +12,7 @@ import { withRetry } from '@moeru/std'
 import { attemptAsync } from 'es-toolkit'
 import { ofetch } from 'ofetch'
 
+import { errorMessageFromValue } from './error-message'
 import { visionTaskAssets } from './tasks'
 
 const taskSources: Record<keyof VisionTaskAssets, string> = {
@@ -62,7 +63,7 @@ async function downloadAsset(key: string, url: string, outputPath: string) {
     }
   }, {
     onError: (error) => {
-      const message = error instanceof Error ? error.message : String(error)
+      const message = errorMessageFromValue(error)
       console.warn(`Failed to download MediaPipe vision task asset for ${key} (attempt ${attempt}): ${message}`)
     },
   })

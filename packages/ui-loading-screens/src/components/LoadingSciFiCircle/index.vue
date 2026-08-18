@@ -9,6 +9,8 @@ import CircleFadeInAnimation from './assets/circle_blink_in_-_loading_(@proj-air
 import CRT from './CRT.vue'
 import CRTLine from './CRTLine.vue'
 
+import { errorMessageFromValue } from '../../utils/error-message'
+
 interface WriteLineOptions {
   renderSpeed?: number
   pending?: boolean
@@ -307,7 +309,7 @@ async function writeLine<T extends any[]>(
   format: string,
   ...args: [...T, WriteLineOptions?]
 ): Promise<void> {
-  const options = args.length > 0 && typeof args[args.length - 1] === 'object'
+  const options = args.length > 0 && typeof args.at(-1) === 'object'
     ? args.pop() as WriteLineOptions
     : {}
 
@@ -360,7 +362,7 @@ async function writeLine<T extends any[]>(
       }
       catch (error) {
         currentEntry.status = 'error'
-        currentEntry.error = error instanceof Error ? error.message : String(error)
+        currentEntry.error = errorMessageFromValue(error)
         currentEntry.content = `${fullLine} [ ERROR ]`
       }
     }

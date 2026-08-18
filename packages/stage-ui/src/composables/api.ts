@@ -1,16 +1,12 @@
-import type { AppType } from '../../../../apps/server/src/app'
+import type { AppType } from '@proj-airi/api-server/app-type'
 
 import { hc } from 'hono/client'
 
-import { SERVER_URL } from '../libs/auth'
+import { authedFetch } from '../libs/auth-fetch'
+import { SERVER_URL } from '../libs/server'
 
 export const client = hc<AppType>(SERVER_URL, {
-  fetch: (input: RequestInfo | URL, init?: RequestInit) => {
-    const headers = new Headers(init?.headers)
-    return fetch(input, {
-      ...init,
-      headers,
-      credentials: 'include', // Send cookies with request (for sessions, etc)
-    })
-  },
+  fetch: authedFetch,
 })
+
+export type StageApiClient = typeof client

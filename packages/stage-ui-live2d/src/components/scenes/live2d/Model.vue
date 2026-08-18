@@ -5,7 +5,8 @@ import type { PixiLive2DInternalModel } from '../../../composables/live2d'
 
 import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
 import { useTheme } from '@proj-airi/ui'
-import { breakpointsTailwind, until, useBreakpoints, useDebounceFn } from '@vueuse/core'
+import { until } from '@vueuse/core'
+import { animate } from 'animejs'
 import { formatHex } from 'culori'
 import { Mutex } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
@@ -15,15 +16,18 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 
 
 import {
   createBeatSyncController,
-
+  useExpressionController,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
   useMotionUpdatePluginBeatSync,
+  useMotionUpdatePluginExpression,
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginIdleFocus,
+  useMotionUpdatePluginLipSync,
 } from '../../../composables/live2d'
+import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
-import { useLive2d } from '../../../stores/live2d'
+import { useL2dViewControl, useLive2dParams } from '../../../stores'
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
@@ -31,31 +35,37 @@ const props = withDefaults(defineProps<{
 
   app?: Application
   mouthOpenSize?: number
+  nowSpeaking?: boolean
   width: number
   height: number
   paused?: boolean
   focusAt?: { x: number, y: number }
-  disableFocusAt?: boolean
-  xOffset?: number | string
-  yOffset?: number | string
-  scale?: number
+  eyeTracking?: boolean
+  eyeFocusSourceActive?: boolean
   themeColorsHue?: number
   themeColorsHueDynamic?: boolean
   live2dIdleAnimationEnabled?: boolean
+  live2dForceIdleEyeAnimation?: boolean
   live2dAutoBlinkEnabled?: boolean
   live2dForceAutoBlinkEnabled?: boolean
+  live2dExpressionEnabled?: boolean
   live2dShadowEnabled?: boolean
 }>(), {
   mouthOpenSize: 0,
+  nowSpeaking: false,
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
+  eyeTracking: false,
+  eyeFocusSourceActive: false,
   disableFocusAt: false,
   scale: 1,
   themeColorsHue: 220.44,
   themeColorsHueDynamic: false,
   live2dIdleAnimationEnabled: true,
+  live2dForceIdleEyeAnimation: true,
   live2dAutoBlinkEnabled: true,
   live2dForceAutoBlinkEnabled: false,
+  live2dExpressionEnabled: true,
   live2dShadowEnabled: true,
 })
 
@@ -65,23 +75,7 @@ const emits = defineEmits<{
 }>()
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
-
-function parsePropsOffset() {
-  let xOffset = Number.parseFloat(String(props.xOffset)) || 0
-  let yOffset = Number.parseFloat(String(props.yOffset)) || 0
-
-  if (String(props.xOffset).endsWith('%')) {
-    xOffset = (Number.parseFloat(String(props.xOffset).replace('%', '')) / 100) * props.width
-  }
-  if (String(props.yOffset).endsWith('%')) {
-    yOffset = (Number.parseFloat(String(props.yOffset).replace('%', '')) / 100) * props.height
-  }
-
-  return {
-    xOffset,
-    yOffset,
-  }
-}
+const { position, scale } = useL2dViewControl()
 
 const modelSrcRef = toRef(() => props.modelSrc)
 
@@ -91,7 +85,10 @@ let isUnmounted = false
 
 const modelLoadMutex = new Mutex()
 
-const offset = computed(() => parsePropsOffset())
+const offset = computed(() => ({
+  x: (position.value.x / 100) * props.width,
+  y: -(position.value.y / 100) * props.height,
+}))
 
 const pixiApp = toRef(() => props.app)
 const paused = toRef(() => props.paused)
@@ -100,11 +97,10 @@ const model = ref<Live2DModel<PixiLive2DInternalModel>>()
 const initialModelWidth = ref<number>(0)
 const initialModelHeight = ref<number>(0)
 const mouthOpenSize = computed(() => Math.max(0, Math.min(100, props.mouthOpenSize)))
+const nowSpeaking = toRef(() => props.nowSpeaking)
 const lastUpdateTime = ref(0)
 
 const { isDark: dark } = useTheme()
-const breakpoints = useBreakpoints(breakpointsTailwind)
-const isMobile = computed(() => breakpoints.between('sm', 'md').value || breakpoints.smaller('sm').value)
 const dropShadowFilter = shallowRef(new DropShadowFilter({
   alpha: 0.2,
   blur: 0,
@@ -112,35 +108,55 @@ const dropShadowFilter = shallowRef(new DropShadowFilter({
   rotation: 45,
 }))
 
-function getCoreModel() {
-  return model.value!.internalModel.coreModel as any
-}
+let resizeAnimation: ReturnType<typeof animate> | undefined
 
-function setScaleAndPosition() {
+const modelNormalizeParams = useFitModel(
+  () => ({ width: props.width, height: props.height }),
+  () => ({ width: initialModelWidth.value, height: initialModelHeight.value }),
+)
+
+watch([offset, scale, modelNormalizeParams], () => {
+  setScaleAndPosition()
+})
+
+function setScaleAndPosition(animated = false) {
   if (!model.value)
     return
 
-  let offsetFactor = 2.2
-  if (isMobile.value) {
-    offsetFactor = 2.2
+  const normalized = modelNormalizeParams.value
+
+  if (!animated) {
+    model.value.scale.set(normalized.scale * scale.value, normalized.scale * scale.value)
+    model.value.x = normalized.x + offset.value.x
+    model.value.y = normalized.y + offset.value.y
+    return
   }
 
-  const heightScale = (props.height * 0.95 / initialModelHeight.value * offsetFactor)
-  const widthScale = (props.width * 0.95 / initialModelWidth.value * offsetFactor)
-  let scale = Math.min(heightScale, widthScale)
+  resizeAnimation?.pause()
 
-  // Prevent zero or NaN values to fix the "headless" model issue.
-  if (Number.isNaN(scale) || scale <= 0) {
-    scale = 1e-6
+  const current = {
+    scale: model.value.scale.x,
+    x: model.value.x,
+    y: model.value.y,
   }
 
-  model.value.scale.set(scale * props.scale, scale * props.scale)
-
-  model.value.x = (props.width / 2) + offset.value.xOffset
-  model.value.y = props.height + offset.value.yOffset
+  resizeAnimation = animate(current, {
+    scale: normalized.scale * scale.value,
+    x: normalized.x + offset.value.x,
+    y: normalized.y + offset.value.y,
+    duration: 200,
+    ease: 'outQuad',
+    onUpdate: () => {
+      if (!model.value)
+        return
+      model.value.scale.set(current.scale, current.scale)
+      model.value.x = current.x
+      model.value.y = current.y
+    },
+  })
 }
 
-const live2dStore = useLive2d()
+const live2dStore = useLive2dParams()
 const {
   currentMotion,
   availableMotions,
@@ -151,9 +167,23 @@ const {
 const themeColorsHue = toRef(() => props.themeColorsHue)
 const themeColorsHueDynamic = toRef(() => props.themeColorsHueDynamic)
 const live2dIdleAnimationEnabled = toRef(() => props.live2dIdleAnimationEnabled)
+const live2dEyeTrackingEnabled = toRef(() => props.eyeTracking)
+const live2dEyeFocusSourceActive = toRef(() => props.eyeFocusSourceActive)
+const live2dForceIdleEyeAnimation = toRef(() => props.live2dForceIdleEyeAnimation)
 const live2dAutoBlinkEnabled = toRef(() => props.live2dAutoBlinkEnabled)
 const live2dForceAutoBlinkEnabled = toRef(() => props.live2dForceAutoBlinkEnabled)
+const live2dExpressionEnabled = toRef(() => props.live2dExpressionEnabled)
 const live2dShadowEnabled = toRef(() => props.live2dShadowEnabled)
+
+// --- Expression controller
+const internalModelRef = ref<PixiLive2DInternalModel>()
+const expressionController = useExpressionController({
+  internalModel: internalModelRef,
+  modelId: props.modelId,
+})
+// Saved SDK manager references for runtime expression toggle (restore on disable)
+const savedEyeBlink = shallowRef<any>(null)
+const savedExpressionManager = shallowRef<any>(null)
 
 const localCurrentMotion = ref<{ group: string, index: number }>({ group: 'Idle', index: 0 })
 const beatSync = createBeatSyncController({
@@ -193,6 +223,10 @@ async function loadModel() {
 
   // REVIEW: here as await until(...) guarded the pixiApp and stage to be valid.
   if (model.value && pixiApp.value?.stage) {
+    // Dispose expression controller before destroying the old model
+    expressionController.dispose()
+    internalModelRef.value = undefined
+
     try {
       pixiApp.value.stage.removeChild(model.value)
       model.value.destroy()
@@ -307,7 +341,10 @@ async function loadModel() {
       internalModel,
       motionManager,
       modelParameters,
+      live2dEyeTrackingEnabled,
+      live2dEyeFocusSourceActive,
       live2dIdleAnimationEnabled,
+      live2dForceIdleEyeAnimation,
       live2dAutoBlinkEnabled,
       live2dForceAutoBlinkEnabled,
       lastUpdateTime,
@@ -316,7 +353,13 @@ async function loadModel() {
     motionManagerUpdate.register(useMotionUpdatePluginBeatSync(beatSync), 'pre')
     motionManagerUpdate.register(useMotionUpdatePluginIdleDisable(), 'pre')
     motionManagerUpdate.register(useMotionUpdatePluginIdleFocus(), 'post')
-    motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(), 'post')
+    // Both run in 'final' stage (ignores handled state).
+    // Expression first: sets desired parameter values (e.g. closed eyes = 0).
+    // Blink second: reads post-expression eye values, Multiply-modulates on top.
+    // This ensures blink respects expression state (0 × blinkFactor = 0).
+    motionManagerUpdate.register(useMotionUpdatePluginExpression(expressionController), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
 
     const hookedUpdate = motionManager.update as (model: PixiLive2DInternalModel['coreModel'], now: number) => boolean
     motionManager.update = function (model: PixiLive2DInternalModel['coreModel'], now: number) {
@@ -368,6 +411,30 @@ async function loadModel() {
     coreModel.setParameterValueById('ParamBodyAngleZ', modelParameters.value.bodyAngleZ)
     coreModel.setParameterValueById('ParamBreath', modelParameters.value.breath)
 
+    // Save SDK manager references so they can be restored if expression is
+    // toggled off at runtime.
+    savedEyeBlink.value = internalModel.eyeBlink
+    savedExpressionManager.value = motionManager.expressionManager
+
+    // --- Expression controller initialisation (conditional)
+    if (live2dExpressionEnabled.value) {
+      // Disable built-in Cubism expression manager — our expression-controller
+      // replaces it. The SDK's manager runs after motionManager.update() and
+      // would overwrite our final-plugin values every frame.
+      if (motionManager.expressionManager) {
+        ;(motionManager as any).expressionManager = null
+      }
+      // Disable SDK eyeBlink — it runs on frames where motionUpdated=false and
+      // would conflict with expression eye parameter overrides. Our auto-blink
+      // plugin (Force Auto Blink setting) provides the replacement for models
+      // without idle-motion blink curves.
+      if (internalModel.eyeBlink) {
+        ;(internalModel as any).eyeBlink = null
+      }
+
+      internalModelRef.value = internalModel
+    }
+
     emits('modelLoaded')
   }
   catch (error) {
@@ -377,8 +444,45 @@ async function loadModel() {
   finally {
     modelLoading.value = false
     componentState.value = 'mounted'
+    await initExpressionController(internalModelRef.value).catch((err) => {
+      console.warn('[Model.vue] Expression controller initialization failed:', err)
+    })
     modelLoadMutex.release()
   }
+}
+
+/**
+ * Initialise the expression controller by reading expression definitions from
+ * the model settings (model3.json) and parsing each referenced exp3.json file.
+ *
+ * This is intentionally fire-and-forget from loadModel so that a failure in
+ * expression loading does not prevent the model itself from rendering.
+ */
+async function initExpressionController(internalModel?: PixiLive2DInternalModel) {
+  // Dispose any previous state (handles model reloads)
+  expressionController.dispose()
+
+  const settings = internalModel?.settings as any
+  if (!settings)
+    return
+
+  // model3.json stores expressions as { Name, File }[] under settings.expressions
+  const expressionRefs: { Name: string, File: string }[] = settings.expressions ?? []
+  if (expressionRefs.length === 0)
+    return
+
+  // Build a function that can read exp3 files relative to the model root.
+  // For URL-loaded models, resolveURL gives us the full URL. For ZIP-loaded
+  // models the resolved URL points to an in-memory blob/object URL.
+  const readExpFile = async (filePath: string): Promise<string> => {
+    const resolvedUrl: string = settings.resolveURL?.(filePath) ?? filePath
+    const response = await fetch(resolvedUrl)
+    if (!response.ok)
+      throw new Error(`Failed to fetch exp3 file: ${filePath} (${response.status})`)
+    return response.text()
+  }
+
+  await expressionController.initialise(expressionRefs, readExpFile)
 }
 
 async function setMotion(motionName: string, index?: number) {
@@ -397,8 +501,6 @@ async function setMotion(motionName: string, index?: number) {
     console.error('Failed to start motion:', motionName, error)
   }
 }
-
-const handleResize = useDebounceFn(setScaleAndPosition, 100)
 
 const dropShadowColorComputer = ref<HTMLDivElement>()
 const dropShadowAnimationId = ref(0)
@@ -420,13 +522,10 @@ function updateDropShadowFilter() {
   model.value.filters = [dropShadowFilter.value]
 }
 
-watch([() => props.width, () => props.height], handleResize)
 watch(modelSrcRef, async () => await loadModel(), { immediate: true })
 watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
 watch(live2dShadowEnabled, updateDropShadowFilter)
-watch(offset, setScaleAndPosition)
-watch(() => props.scale, setScaleAndPosition)
 
 // TODO: This is hacky!
 function updateDropShadowFilterLoop() {
@@ -449,7 +548,6 @@ watch([themeColorsHueDynamic, live2dShadowEnabled], ([dynamic, shadowEnabled]) =
   }
 }, { immediate: true })
 
-watch(mouthOpenSize, value => getCoreModel().setParameterValueById('ParamMouthOpenY', value))
 watch(currentMotion, value => setMotion(value.group, value.index))
 watch(paused, value => value ? pixiApp.value?.stop() : pixiApp.value?.start())
 
@@ -605,10 +703,37 @@ watch(live2dIdleAnimationEnabled, (enabled) => {
   }
 })
 
+// Watch for expression system toggle — nullify/restore SDK managers at runtime
+watch(live2dExpressionEnabled, (enabled) => {
+  if (!model.value)
+    return
+  const im = model.value.internalModel
+  const mm = im.motionManager
+  if (enabled) {
+    if (mm.expressionManager) {
+      (mm as any).expressionManager = null
+    }
+    if (im.eyeBlink) {
+      (im as any).eyeBlink = null
+    }
+
+    internalModelRef.value = im
+    initExpressionController(im).catch((err) => {
+      console.warn('[Model.vue] Expression controller initialisation failed:', err)
+    })
+  }
+  else {
+    mm.expressionManager = savedExpressionManager.value
+    im.eyeBlink = savedEyeBlink.value
+    expressionController.dispose()
+    internalModelRef.value = undefined
+  }
+})
+
 watch(focusAt, (value) => {
   if (!model.value)
     return
-  if (props.disableFocusAt)
+  if (!props.eyeTracking)
     return
 
   model.value.focus(value.x, value.y)
@@ -625,7 +750,9 @@ onMounted(async () => {
 
 onUnmounted(() => {
   isUnmounted = true
+  resizeAnimation?.pause()
   disposeShouldUpdateView?.()
+  expressionController.dispose()
 })
 
 function listMotionGroups() {
@@ -635,6 +762,9 @@ function listMotionGroups() {
 defineExpose({
   setMotion,
   listMotionGroups,
+  modelNormalizeParams,
+  initialModelHeight,
+  initialModelWidth,
 })
 
 import.meta.hot?.dispose(() => {

@@ -67,7 +67,7 @@ and accessing to local LLMs where you don't need to pay for massive amount
 of tokens for running AIRI.
 
 <div flex gap-2 w-full flex-col justify-center text-base>
-  <a href="../overview/guide/tamagotchi/" w-full flex items-center gap-2 border="2 solid gray-500/10" rounded-lg px-4 py-2>
+  <a href="../manual/tamagotchi/" w-full flex items-center gap-2 border="2 solid gray-500/10" rounded-lg px-4 py-2>
     <div w-full flex items-center gap-2>
       <div flex items-center gap-2 text-2xl>
         <div i-lucide:laptop />
@@ -78,7 +78,7 @@ of tokens for running AIRI.
       How to use?
     </div>
   </a>
-  <a href="../overview/guide/web/" w-full flex items-center gap-2 border="2 solid gray-500/10" rounded-lg px-4 py-2>
+  <a href="../manual/web/" w-full flex items-center gap-2 border="2 solid gray-500/10" rounded-lg px-4 py-2>
     <div w-full flex items-center gap-2>
       <div flex items-center gap-2 text-2xl>
         <div i-lucide:app-window />
@@ -93,6 +93,6 @@ of tokens for running AIRI.
 
 ## Contributing
 
-For guides that help you understand how to contribute to this project, please refer to [Contributing](../overview/contributing/) page.
+For guides that help you understand how to contribute to this project, please refer to [Contributing](../contributing/) page.
 
-For references Contributing help you design and improve the UI of Project AIRI, please refer to [Design Guidelines](../overview/contributing/design-guidelines/resources) page.
+For references to help you design and improve the UI of Project AIRI, please refer to [Design Guidelines](../contributing/design-guidelines/resources) page.

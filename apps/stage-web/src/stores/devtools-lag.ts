@@ -49,7 +49,7 @@ function calcStats(values: number[]) {
   const sorted = [...values].sort((a, b) => a - b)
   const idx = Math.max(0, Math.floor(0.95 * (sorted.length - 1)))
   const p95 = sorted[idx]
-  const latest = values[values.length - 1]
+  const latest = values.at(-1)
 
   return { avg, p95, latest }
 }
@@ -134,7 +134,7 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
     recordingStartedAt.value = performance.now()
     resetRecordingSamples()
 
-    recordingTimeout = setTimeout(() => stopRecording(), 60000)
+    recordingTimeout = setTimeout(stopRecording, 60000)
   }
 
   function stopRecording(): RecordingSnapshot | undefined {

@@ -63,6 +63,10 @@ onMounted(async () => {
 
   containerElementBounding.update()
 })
+
+defineExpose({
+  containerRef,
+})
 </script>
 
 <template>

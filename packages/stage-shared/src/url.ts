@@ -1,14 +1,7 @@
 import { isUrlMode } from './environment'
 
 export function isUrl(url: string) {
-  try {
-    // eslint-disable-next-line no-new
-    new URL(url)
-    return true
-  }
-  catch {
-    return false
-  }
+  return URL.canParse(url)
 }
 
 export function withBase(url: string) {

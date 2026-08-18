@@ -8,14 +8,13 @@ import { listModels } from '@xsai/model'
 import { message } from '@xsai/utils-chat'
 import { Mutex } from 'es-toolkit'
 
-import { isModelProvider } from '../types'
-
-type OpenAICompatibleValidationCheck = 'connectivity' | 'model_list' | 'chat_completions'
+import { isModelProvider, ProviderValidationCheck } from '../types'
 
 interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, baseUrl?: string }> {
-  checks?: OpenAICompatibleValidationCheck[]
+  checks?: ProviderValidationCheck[]
   additionalHeaders?: Record<string, string>
   allowValidationWithoutModel?: boolean
+  normalizeModelId?: (modelId: string) => string
   schedule?: {
     mode: 'once' | 'interval'
     intervalMs?: number
@@ -103,7 +102,7 @@ async function pickValidationModel<TConfig extends { apiKey?: string | null, bas
 export function createOpenAICompatibleValidators<TConfig extends { apiKey?: string, baseUrl?: string }>(
   options?: OpenAICompatibleValidationOptions<TConfig>,
 ): ProviderDefinition<TConfig>['validators'] {
-  const checks = options?.checks ?? ['connectivity', 'model_list']
+  const checks = options?.checks ?? [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList]
   const additionalHeaders = options?.additionalHeaders
   const missingValidationModelReason = 'No model available for validation. Configure a model manually and try again.'
 
@@ -120,8 +119,9 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     providerExtra: ProviderExtraMethods<TConfig> | undefined,
   ): Promise<ChatCheckResult> {
     const model = await pickValidationModel(config, provider, providerExtra)
+    const normalizedModel = model ? options?.normalizeModelId?.(model) ?? model : model
 
-    if (!model) {
+    if (!normalizedModel) {
       if (options?.allowValidationWithoutModel) {
         return { connectivityOk: true, chatOk: true }
       }
@@ -138,7 +138,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
         apiKey: config.apiKey,
         baseURL: config.baseUrl!,
         headers: additionalHeaders,
-        model,
+        model: normalizedModel,
         messages: message.messages(message.user('ping')),
         max_tokens: 1,
       })
@@ -235,7 +235,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     },
   }))
 
-  if (checks.includes('connectivity')) {
+  if (checks.includes(ProviderValidationCheck.Connectivity)) {
     validatorConfig.validateProvider?.push(({ t }) => ({
       id: 'openai-compatible:check-connectivity',
       name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-connectivity.title'),
@@ -286,7 +286,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     }))
   }
 
-  if (checks.includes('chat_completions')) {
+  if (checks.includes(ProviderValidationCheck.ChatCompletions)) {
     validatorConfig.validateProvider?.push(({ t }) => ({
       id: 'openai-compatible:check-chat-completions',
       name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-supports-chat-completion.title'),
@@ -313,7 +313,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     }))
   }
 
-  if (checks.includes('model_list')) {
+  if (checks.includes(ProviderValidationCheck.ModelList)) {
     validatorConfig.validateProvider?.push(({ t }) => ({
       id: 'openai-compatible:check-model-list',
       name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-supports-model-listing.title'),

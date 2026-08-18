@@ -1,35 +1,45 @@
 <script setup lang="ts">
-import { defaultModelParameters, useLive2d } from '@proj-airi/stage-ui-live2d'
+import type { ModelSettingsRuntimeSnapshot } from './runtime'
+
+import { defaultModelParameters, useExpressionStore, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { OPFSCache } from '@proj-airi/stage-ui-live2d/utils/opfs-loader'
-import { Button, Checkbox, FieldRange, SelectTab } from '@proj-airi/ui'
+import { Button, Checkbox, FieldCheckbox, FieldCombobox, FieldRange, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useSettings } from '../../../../stores/settings'
+import { PropertyPoint } from '../../../data-pane'
 import { Section } from '../../../layouts'
 import { ColorPalette } from '../../../widgets'
 
-defineProps<{
+const props = withDefaults(defineProps<{
   palette: string[]
-}>()
+  allowExtractColors?: boolean
+  runtimeSnapshot: ModelSettingsRuntimeSnapshot
+}>(), {
+  allowExtractColors: true,
+})
 defineEmits<{
   (e: 'extractColorsFromModel'): void
 }>()
 
 const { t } = useI18n()
 
-const settings = useSettings()
+const settings = useSettingsLive2d()
 const {
-  live2dDisableFocus,
+  live2dEyeTracking,
+  live2dModelEyeOffset,
   live2dIdleAnimationEnabled,
   live2dAutoBlinkEnabled,
   live2dForceAutoBlinkEnabled,
+  live2dExpressionEnabled,
   live2dShadowEnabled,
   live2dMaxFps,
+  live2dRenderScale,
+  live2dForceIdleEyeAnimation,
 } = storeToRefs(settings)
 
-const live2d = useLive2d()
+const live2d = useLive2dParams()
 const {
   scale,
   position,
@@ -37,44 +47,92 @@ const {
   currentMotion,
 } = storeToRefs(live2d)
 
+const expressionStore = useExpressionStore()
+const { expressions, expressionGroups } = storeToRefs(expressionStore)
+
+/**
+ * Check if an expression group is currently active.
+ * Only considers non-zero exp3 params (zero-valued params are "reset" instructions).
+ * A group is active when at least one of its activation params matches the exp3 value.
+ */
+function isGroupActive(group: { parameters: { parameterId: string, value: number }[] }): boolean {
+  return group.parameters.some((p) => {
+    if (p.value === 0)
+      return false // Skip reset params
+    const entry = expressions.value.get(p.parameterId)
+    return entry != null && entry.currentValue === p.value
+  })
+}
+
 const selectedRuntimeMotion = ref<string>('')
-const selectedRuntimeMotionName = ref<string>('')
-const runtimeMotions = ref<Array<{ name: string, fullPath: string, displayPath: string, group: string, index: number }>>([])
-const showMotionSelector = ref(false)
+const runtimeMotions = ref<Array<{ name: string, displayPath: string, group: string, index: number }>>([])
+const canExtractColors = computed(() => props.runtimeSnapshot.canCapturePreview)
+const runtimeMotionOptions = computed(() => {
+  const options = runtimeMotions.value.map(motion => ({
+    label: motion.name,
+    value: motion.displayPath,
+    description: motion.displayPath,
+  }))
+  if (options.length > 0) {
+    options.unshift({
+      label: t('settings.live2d.animation.idle-motion.disable-motion'),
+      value: '<motion disabled>',
+      description: t('settings.live2d.animation.idle-motion.disable-motion-description'),
+    })
+  }
+  return options
+})
 const fpsOptions = computed(() => [
-  { value: 0, label: t('settings.live2d.fps.options.unlimited') },
-  { value: 60, label: '60' },
   { value: 30, label: '30' },
+  { value: 60, label: '60' },
+  { value: 0, label: t('settings.live2d.parameters.fps.options.unlimited') },
+])
+const blinkModeOptions = computed(() => [
+  {
+    value: 'auto',
+    label: t('settings.live2d.animation.auto-blink.title'),
+    description: t('settings.live2d.animation.auto-blink.description'),
+  },
+  {
+    value: 'force',
+    label: t('settings.live2d.animation.force-auto-blink.title'),
+    description: t('settings.live2d.animation.force-auto-blink.description'),
+  },
+])
+const live2dBlinkMode = computed<'auto' | 'force'>({
+  get() {
+    return live2dForceAutoBlinkEnabled.value ? 'force' : 'auto'
+  },
+  set(mode) {
+    live2dAutoBlinkEnabled.value = true
+    live2dForceAutoBlinkEnabled.value = mode === 'force'
+  },
+})
+
+watch(() => live2d.availableMotions, (motions) => {
+  runtimeMotions.value = motions.map(m => ({
+    name: m.fileName.split('/').pop() || m.fileName,
+    displayPath: m.fileName,
+    group: m.motionName,
+    index: m.motionIndex,
+  }))
+
+  console.info('Available motions:', runtimeMotions.value)
+}, { immediate: true })
+
+const llmModeOptions = computed(() => [
+  { value: 'none', label: t('settings.live2d.expressions.expose-to-llm-options.none') },
+  { value: 'all', label: t('settings.live2d.expressions.expose-to-llm-options.all') },
+  { value: 'custom', label: t('settings.live2d.expressions.expose-to-llm-options.custom') },
 ])
 
 // Get available runtime motions from the model
 onMounted(() => {
-  // Listen for available motions updates
-  watch(() => live2d.availableMotions, (motions) => {
-    // Show all motions with their full paths
-    runtimeMotions.value = motions.map(m => ({
-      name: m.fileName.split('/').pop() || m.fileName,
-      fullPath: m.fileName, // Full path like "hiyori_free_zh/runtime/motions/idle.motion3.json"
-      displayPath: m.fileName, // Show full path for clarity
-      group: m.motionName,
-      index: m.motionIndex,
-    }))
-
-    console.info('Available motions:', runtimeMotions.value)
-  }, { immediate: true })
-
   // Restore selected motion
   const savedPath = localStorage.getItem('selected-runtime-motion')
-  const savedName = localStorage.getItem('selected-runtime-motion-name')
   if (savedPath) {
     selectedRuntimeMotion.value = savedPath
   }
-  if (savedName) {
-    selectedRuntimeMotionName.value = savedName
-  }
-
-  // Add click outside handler
-  document.addEventListener('click', handleClickOutside)
 })
 
 // Function to reset all parameters to default values
@@ -94,12 +152,18 @@ async function clearModelCache() {
   }
 }
 
-// Runtime motion selection handlers
-function handleMotionSelect(motion: any) {
-  selectedRuntimeMotion.value = motion.displayPath // Store full path
-  selectedRuntimeMotionName.value = motion.name // Store just the filename for display
+function handleMotionSelect(selectedMotionPath: string | number | undefined) {
+  if (typeof selectedMotionPath !== 'string') {
+    return
+  }
+
+  const motion = runtimeMotions.value.find(item => item.displayPath === selectedMotionPath)
+  if (!motion) {
+    live2dIdleAnimationEnabled.value = false
+    return
+  }
+
   localStorage.setItem('selected-runtime-motion', motion.displayPath)
-  localStorage.setItem('selected-runtime-motion-name', motion.name)
   localStorage.setItem('selected-runtime-motion-group', motion.group)
   localStorage.setItem('selected-runtime-motion-index', motion.index.toString())
 
@@ -109,28 +173,10 @@ function handleMotionSelect(motion: any) {
   // Set the current motion to the selected runtime motion
   currentMotion.value = { group: motion.group, index: motion.index }
 
-  showMotionSelector.value = false
-
-  console.info('✅ Selected runtime motion:', motion.name)
+  console.info('Selected runtime motion:', motion.name)
   console.info('Full path:', motion.displayPath)
   console.info('Group:', motion.group, 'Index:', motion.index)
 }
-
-function toggleMotionSelector() {
-  showMotionSelector.value = !showMotionSelector.value
-}
-
-// Close dropdown when clicking outside
-function handleClickOutside(event: MouseEvent) {
-  const target = event.target as HTMLElement
-  if (!target.closest('[data-motion-selector]')) {
-    showMotionSelector.value = false
-  }
-}
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
 
 // async function patchMotionMap(source: File, motionMap: Record<string, string>): Promise<File> {
 //   if (!Object.keys(motionMap).length)
@@ -221,6 +267,7 @@ onUnmounted(() => {
     </FieldRange>
   </Section>
   <Section
+    v-if="allowExtractColors"
     :title="t('settings.live2d.theme-color-from-model.title')"
     icon="i-solar:magic-stick-3-bold-duotone"
     inner-class="text-sm"
@@ -232,8 +279,11 @@ onUnmounted(() => {
     size="sm"
     :expand="false"
   >
+    <p text="neutral-500 dark:neutral-400">
+      {{ t('settings.live2d.theme-color-from-model.description') }}
+    </p>
     <ColorPalette class="mb-4 mt-2" :colors="palette.map(hex => ({ hex, name: hex }))" mx-auto />
-    <Button variant="secondary" @click="$emit('extractColorsFromModel')">
+    <Button :disabled="!canExtractColors" @click="$emit('extractColorsFromModel')">
       {{ t('settings.live2d.theme-color-from-model.button-extract.title') }}
     </Button>
   </Section>
@@ -278,23 +328,7 @@ onUnmounted(() => {
     </a>
   </Section> -->
   <Section
-    :title="t('settings.live2d.focus.title')"
-    icon="i-solar:eye-scan-bold-duotone"
-    :class="[
-      'rounded-xl',
-      'bg-white/80  dark:bg-black/75',
-      'backdrop-blur-lg',
-    ]"
-    size="sm"
-    :expand="false"
-  >
-    <Checkbox
-      v-model="live2dDisableFocus"
-      :label="t('settings.live2d.focus.button-disable.title')"
-    />
-  </Section>
-  <Section
-    title="Parameters"
+    :title="t('settings.live2d.animation.title')"
     icon="i-solar:settings-bold-duotone"
     :class="[
       'rounded-xl',
@@ -304,97 +338,122 @@ onUnmounted(() => {
     size="sm"
     :expand="false"
   >
-    <div flex items-center justify-between>
-      <span text-sm text-neutral-600 dark:text-neutral-400>Idle Animation</span>
-      <div data-motion-selector relative flex flex-col items-end gap-1>
-        <button
+    <FieldCheckbox
+      v-model="live2dEyeTracking"
+      :label="t('settings.live2d.animation.focus.title')"
+      :description="t('settings.live2d.animation.focus.description')"
+      placement="right"
+    />
+    <div v-if="live2dEyeTracking" class="grid grid-cols-4">
+      <PropertyPoint
+        v-model:x="live2dModelEyeOffset.x"
+        v-model:y="live2dModelEyeOffset.y"
 
-          :title="selectedRuntimeMotion"
-          flex items-center gap-2 border rounded bg-neutral-100 px-4 py-2 text-sm text-neutral-700 font-medium transition-colors dark:border-neutral-700 dark:bg-neutral-800 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700
-          @click="toggleMotionSelector"
-        >
-          <span max-w-32 truncate>{{ selectedRuntimeMotionName || 'Select Motion' }}</span>
-          <div
-            :class="showMotionSelector ? 'i-solar:alt-arrow-up-line-duotone' : 'i-solar:alt-arrow-down-line-duotone'"
-            text-xs transition-transform
-          />
-        </button>
-
-        <!-- Dropdown menu -->
-        <div
-          v-if="showMotionSelector"
-
-          bg="white dark:neutral-800"
-          border="1 neutral-200 dark:neutral-700"
-          absolute right-0 top-10 z-50 max-h-80 min-w-64 overflow-y-auto rounded-lg shadow-lg
-        >
-          <div v-if="runtimeMotions.length === 0" p-4 text-sm text-neutral-500 dark:text-neutral-400>
-            No motions available
-          </div>
-          <button
-            v-for="motion in runtimeMotions"
-            :key="motion.fullPath"
-            w-full px-4 py-2.5 text-left
-            hover:bg="neutral-100 dark:neutral-700"
-            transition-colors
-            :class="{
-              'bg-neutral-100 dark:bg-neutral-700': selectedRuntimeMotion === motion.displayPath,
-            }"
-            @click="handleMotionSelect(motion)"
-          >
-            <div text-sm text-neutral-900 font-medium dark:text-neutral-100>
-              {{ motion.name }}
-            </div>
-            <div truncate text-xs text-neutral-500 dark:text-neutral-400>
-              {{ motion.displayPath }}
-            </div>
-          </button>
+        :x-config="{ min: -100, max: 100, step: 0.01, label: 'X', formatValue: (val: number) => val?.toFixed(2) }"
+        :y-config="{ min: -100, max: 100, step: 0.01, label: 'Y', formatValue: (val: number) => val?.toFixed(2) }"
+      >
+        <template #label>
+          <p class="text-xs text-neutral-500 dark:text-neutral-400">
+            {{ t('settings.live2d.animation.focus.offset') }}
+          </p>
+        </template>
+      </PropertyPoint>
+    </div>
+    <FieldCheckbox
+      v-model="live2dForceIdleEyeAnimation"
+      :label="t('settings.live2d.animation.force-idle-eye-animation.title')"
+      :description="t('settings.live2d.animation.force-idle-eye-animation.description')"
+      placement="right"
+    />
+    <FieldCheckbox
+      v-model="live2dAutoBlinkEnabled"
+      :label="t('settings.live2d.animation.blink-enable.title')"
+      :description="t('settings.live2d.animation.blink-enable.description')"
+      placement="right"
+    />
+    <label v-if="live2dAutoBlinkEnabled" class="flex flex-wrap gap-4">
+      <div class="flex-1">
+        <div class="flex items-center gap-1 text-sm font-medium">
+          {{ t('settings.live2d.animation.blink-mode.title') }}
+        </div>
+        <div class="text-xs text-neutral-500 dark:text-neutral-400">
+          {{ t('settings.live2d.animation.blink-mode.description') }}
         </div>
       </div>
-    </div>
+      <SelectTab v-model="live2dBlinkMode" :options="blinkModeOptions" size="sm" :class="['shrink-0']" />
+    </label>
+    <FieldCombobox
+      v-model="selectedRuntimeMotion"
+      :label="t('settings.live2d.animation.idle-motion.title')"
+      :options="runtimeMotionOptions"
+      :placeholder="t('settings.live2d.animation.idle-motion.placeholder')"
+      :select-class="['w-full']"
+      :content-min-width="256"
+      @update:model-value="handleMotionSelect"
+    >
+      <template #empty>
+        {{ t('settings.live2d.animation.idle-motion.no-motion') }}
+      </template>
+    </FieldCombobox>
+  </Section>
+  <Section
+    :title="t('settings.live2d.parameters.title')"
+    icon="i-solar:settings-bold-duotone"
+    :class="[
+      'rounded-xl',
+      'bg-white/80  dark:bg-black/75',
+      'backdrop-blur-lg',
+    ]"
+    size="sm"
+    :expand="false"
+  >
+    <FieldRange
+      v-model="live2dRenderScale"
+      as="div"
+      :min="0.5"
+      :max="2"
+      :step="0.25"
+      :label="t('settings.live2d.parameters.render-scale.title')"
+    />
 
-    <div :class="['mt-4', 'flex', 'items-center', 'justify-between']">
-      <div :class="['flex', 'flex-col', 'gap-1']">
-        <span :class="['text-sm', 'text-neutral-600', 'dark:text-neutral-400']">
-          {{ t('settings.live2d.fps.title') }}
-        </span>
-        <span :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
-          {{ t('settings.live2d.fps.description') }}
-        </span>
+    <label class="flex flex-wrap gap-4">
+      <div class="flex-1">
+        <div class="flex items-center gap-1 text-sm font-medium">
+          <slot name="label">
+            {{ t('settings.live2d.parameters.fps.title') }}
+          </slot>
+        </div>
+        <div class="text-xs text-neutral-500 dark:text-neutral-400">
+          <slot name="description">
+            {{ t('settings.live2d.parameters.fps.description') }}
+          </slot>
+        </div>
       </div>
-      <SelectTab v-model="live2dMaxFps" :options="fpsOptions" size="sm" :class="['w-48', 'shrink-0']" />
-    </div>
+      <SelectTab v-model="live2dMaxFps" :options="fpsOptions" size="sm" :class="['shrink-0']" />
+    </label>
 
     <div mt-4 flex items-center justify-between>
-      <span text-sm text-neutral-600 dark:text-neutral-400>Auto Blink</span>
-      <Checkbox v-model="live2dAutoBlinkEnabled" />
-    </div>
-
-    <div mt-3 flex items-center justify-between>
-      <span text-sm text-neutral-600 dark:text-neutral-400>Force Auto Blink (fallback timer)</span>
-      <Checkbox v-model="live2dForceAutoBlinkEnabled" />
-    </div>
-
-    <div mt-4 flex items-center justify-between>
-      <span text-sm text-neutral-600 dark:text-neutral-400>Shadow</span>
+      <span text-sm>{{ t('settings.live2d.parameters.shadow') }}</span>
       <Checkbox v-model="live2dShadowEnabled" />
     </div>
 
-    <button
+    <Button
 
-      mt-4 w-full border rounded bg-neutral-100 px-4 py-2 text-sm text-neutral-700 font-medium transition-colors dark:border-neutral-700 dark:bg-neutral-800 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700
+      class="mt-4 w-full"
       @click="resetToDefaultParameters"
     >
-      Reset To Default Parameters
-    </button>
+      {{ t('settings.live2d.parameters.reset-parameters') }}
+    </Button>
 
-    <button
-      mt-2 w-full border rounded bg-neutral-100 px-4 py-2 text-sm text-neutral-700 font-medium transition-colors dark:border-neutral-700 dark:bg-neutral-800 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700
+    <Button
+
+      class="mt-2 w-full"
       :disabled="clearingCache"
+      :loading="clearingCache"
       @click="clearModelCache"
     >
-      {{ clearingCache ? 'Clearing...' : 'Clear Model Cache' }}
-    </button>
+      {{ t('settings.live2d.clear-model-cache') }}
+    </Button>
 
     <!-- Head Rotation -->
     <div mb-2 mt-4 text-xs text-neutral-500 font-semibold dark:text-neutral-400>
@@ -645,5 +704,83 @@ onUnmounted(() => {
         </div>
       </template>
     </FieldRange>
+  </Section>
+  <Section
+    :title="t('settings.live2d.expressions.title')"
+    icon="i-solar:face-scan-circle-bold-duotone"
+    :class="[
+      'rounded-xl',
+      'bg-white/80  dark:bg-black/75',
+      'backdrop-blur-lg',
+    ]"
+    size="sm"
+    :expand="false"
+  >
+    <div flex items-center justify-between>
+      <span text-sm text-neutral-600 dark:text-neutral-400>{{ t('settings.live2d.expressions.override-toggle') }}</span>
+      <Checkbox v-model="live2dExpressionEnabled" />
+    </div>
+    <div v-if="!live2dExpressionEnabled" py-2 text-xs text-neutral-500 dark:text-neutral-400>
+      {{ t('settings.live2d.expressions.sdk-preset-preserved-notice') }}
+    </div>
+    <template v-else-if="expressionGroups.size === 0">
+      <div py-2 text-sm text-neutral-500 dark:text-neutral-400>
+        {{ t('settings.live2d.expressions.no-expression') }}
+      </div>
+    </template>
+    <template v-else>
+      <!-- Expression preview toggles -->
+      <div flex flex-col gap-2>
+        <div
+          v-for="[groupName, group] in expressionGroups"
+          :key="groupName"
+          flex items-center justify-between
+        >
+          <span text-sm text-neutral-700 dark:text-neutral-300>{{ groupName }}</span>
+          <Checkbox
+            :model-value="isGroupActive(group)"
+            @update:model-value="expressionStore.toggle(groupName)"
+          />
+        </div>
+      </div>
+
+      <div mt-4 flex flex-wrap items-center gap-3>
+        <span whitespace-nowrap text-sm text-neutral-600 dark:text-neutral-400>{{ t('settings.live2d.expressions.expose-to-llm-toggle') }}</span>
+        <SelectTab
+          :model-value="expressionStore.llmMode"
+          :options="llmModeOptions"
+          size="sm"
+          @update:model-value="(v: string) => expressionStore.setLlmMode(v as 'all' | 'none' | 'custom')"
+        />
+      </div>
+      <span v-if="expressionStore.llmMode !== 'none'" text-xs text-neutral-500 dark:text-neutral-400>
+        {{ t('settings.live2d.expressions.llm-integration-wip') }}
+      </span>
+
+      <!-- Custom per-expression LLM toggles (only when mode = 'custom') -->
+      <div v-if="expressionStore.llmMode === 'custom'" mt-2 flex flex-col gap-2 border-l-2 border-neutral-200 pl-3 dark:border-neutral-700>
+        <div
+          v-for="[groupName] in expressionGroups"
+          :key="`llm-${groupName}`"
+          flex items-center justify-between
+        >
+          <span text-xs text-neutral-600 dark:text-neutral-400>{{ groupName }}</span>
+          <Checkbox
+            :model-value="expressionStore.llmExposed.get(groupName) ?? false"
+            @update:model-value="(v: boolean) => expressionStore.setLlmExposed(groupName, v)"
+          />
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div mt-4 flex gap-2>
+        <Button @click="expressionStore.saveDefaults()">
+          {{ t('settings.live2d.expressions.save-default') }}
+        </Button>
+        <Button @click="expressionStore.resetAll()">
+          {{ t('settings.live2d.expressions.reset') }}
+        </Button>
+      </div>
+    </template>
   </Section>
 </template>

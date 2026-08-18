@@ -56,7 +56,7 @@ Such beautiful, and empowers me to continue to improve her.
 ### Memory system
 
 I was working on the refactoring over
-[`telegram-bot`](https://github.com/moeru-ai/airi/tree/main/services/telegram-bot),
+[`telegram-bot`](https://github.com/moeru-ai/airi/tree/main/integrations/telegram-bot),
 for the upcoming memory update for Project AIRI. Which we were planning to implement
 for months.
 
@@ -438,7 +438,7 @@ We're excited to see the community starting to contribute to Project AIRI! Some 
 - **Documentation improvements**: Many community members have been helping to improve our documentation
 
 We're grateful for all the support and contributions. If you'd like to contribute, check out our
-[contributing guidelines](https://github.com/moeru-ai/airi/blob/main/CONTRIBUTING.md).
+[contributing guidelines](https://github.com/moeru-ai/airi/blob/main/.github/CONTRIBUTING.md).
 
 ## What's next
 

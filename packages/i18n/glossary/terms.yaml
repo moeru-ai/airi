@@ -1,0 +1,476 @@
+# AIRI terminology glossary — English source of truth.
+#
+# A generator turns this file into TBX version 3 and sends it to the Crowdin glossary, where
+# the editor marks each term and offers the approved translation.
+#
+# Every field maps to one TBX element and carries the TBX name. schema.ts holds the mapping.
+# AGENTS.md, under "i18n / Glossary", says when a term belongs here and when it does not.
+#
+# This repository owns English. Crowdin owns the other 8 languages, and the translated terms
+# arrive in packages/i18n/glossary/translations/ through a pull request.
+
+# ---------------------------------------------------------------------------------------
+# Names from the documentation
+#
+# These concepts were already in the Crowdin glossary, added by hand. They live here so that
+# this file describes the whole glossary and an upload cannot destroy them.
+# ---------------------------------------------------------------------------------------
+
+- id: neuro-sama
+  subject: documentation
+  translatable: false
+  definition: An AI VTuber made by another developer.
+  note: The hyphenated form is the product's own spelling.
+  terms:
+    - text: Neuro-sama
+      part-of-speech: proper noun
+      status: preferred
+      type: fullForm
+      context: Neuro-sama uses 2D model driven by framework developed by Live2D Inc
+    - text: Neuro Sama
+      part-of-speech: proper noun
+      status: admitted
+      type: variant
+    - text: Neuro
+      part-of-speech: proper noun
+      status: admitted
+      type: shortForm
+
+- id: neko-ayaka
+  subject: documentation
+  translatable: true
+  definition: A maintainer of this project.
+  note: Both name orders name one person.
+  terms:
+    - text: Neko Ayaka
+      part-of-speech: proper noun
+      status: preferred
+      gender: feminine
+      type: fullForm
+      context: (from Neko Ayaka) Good morning! You are finally awake.
+    - text: Ayaka Neko
+      part-of-speech: proper noun
+      status: admitted
+      gender: feminine
+      type: variant
+      note: The reversed name order.
+    - text: Neko
+      part-of-speech: proper noun
+      status: admitted
+      gender: feminine
+      type: shortForm
+      note: 'The short form, as in "always call her Neko for simplicity".'
+
+- id: devlog
+  subject: documentation
+  translatable: false
+  definition: A development log that the project publishes on its documentation site.
+  terms:
+    - text: DevLog
+      part-of-speech: noun
+      status: preferred
+      type: fullForm
+      context: DevLog @ 2025.08.05
+    - text: DevLogs
+      part-of-speech: noun
+      status: admitted
+      type: variant
+      note: The plural; TBX has no plural value, so it is recorded as a variant.
+
+# ---------------------------------------------------------------------------------------
+# Product and editions
+# ---------------------------------------------------------------------------------------
+
+- id: airi
+  subject: product
+  # TODO: open question. Should this concept be translatable? Interface strings in all 8
+  # locales keep "AIRI". But the project uses the Japanese form アイリ in prose, and also in
+  # the English README.
+  translatable: false
+  definition: The application that this project makes, an animated character that speaks, listens, and sees.
+  note: >
+    Keep the Latin letters in every language; only prose may write the Japanese form アイリ.
+  terms:
+    - text: AIRI
+      part-of-speech: proper noun
+      status: preferred
+      context: Welcome to AIRI!
+    - text: Project AIRI
+      part-of-speech: proper noun
+      status: preferred
+      type: fullForm
+      note: The full name, used on first mention.
+
+- id: tamagotchi
+  subject: product
+  translatable: false
+  definition: The internal codename of the desktop edition, whose package is stage-tamagotchi.
+  note: >
+    Keep the Latin letters, write "Desktop ver." in anything an end user reads, and never
+    write "Stage Tamagotchi" with a space.
+  terms:
+    - text: Tamagotchi
+      part-of-speech: proper noun
+      status: preferred
+      context: Desktop ver. (known as stage-tamagotchi internally)
+
+- id: pocket
+  subject: product
+  translatable: false
+  definition: The internal codename of the mobile edition, whose package is stage-pocket.
+  note: >
+    Keep the Latin letters, write "Mobile ver." in anything an end user reads, and never
+    write "Stage Pocket" with a space.
+  terms:
+    - text: Pocket
+      part-of-speech: proper noun
+      status: preferred
+      context: Mobile ver. (known as stage-pocket internally)
+      note: Correct for a developer audience, wrong in the interface.
+    - text: Stage Pocket
+      part-of-speech: proper noun
+      status: deprecated
+      type: variant
+      note: Neither the codename nor the name a user sees.
+
+# ---------------------------------------------------------------------------------------
+# Payment
+# ---------------------------------------------------------------------------------------
+
+- id: flux
+  subject: payment
+  translatable: false
+  definition: The currency inside the application.
+  terms:
+    - text: Flux
+      part-of-speech: proper noun
+      status: preferred
+      context: Payment successful! Your Flux has been topped up.
+
+# ---------------------------------------------------------------------------------------
+# Rendering
+# ---------------------------------------------------------------------------------------
+
+- id: live2d
+  subject: rendering
+  translatable: false
+  definition: A system that animates 2D artwork of a character.
+  terms:
+    - text: Live2D
+      part-of-speech: proper noun
+      status: preferred
+      context: Live2D Settings
+
+- id: vrm
+  subject: rendering
+  translatable: false
+  definition: A file format for a 3D avatar.
+  terms:
+    - text: VRM
+      part-of-speech: proper noun
+      status: preferred
+      context: Enter VRM model URL
+
+- id: mmd
+  subject: rendering
+  translatable: false
+  definition: The MikuMikuDance file format.
+  terms:
+    - text: MMD
+      part-of-speech: proper noun
+      status: preferred
+      context: Remove imported Live2D, VRM, Spine, and MMD models.
+
+- id: spine
+  subject: rendering
+  translatable: false
+  definition: A system for 2D skeletal animation.
+  terms:
+    - text: Spine
+      part-of-speech: proper noun
+      status: preferred
+      context: Spine Settings
+
+- id: tachie
+  subject: rendering
+  translatable: true
+  definition: Artwork that shows a character standing.
+  # TODO: open question. Confirm the Chinese wording with a native reviewer.
+  note: Japanese uses 立ち絵; a language with no such word keeps "Tachie".
+  terms:
+    - text: Tachie
+      part-of-speech: noun
+      status: preferred
+      context: Tachie models use .tachie.zip archives containing emotion-named images.
+
+- id: avatar-model
+  subject: rendering
+  translatable: true
+  definition: The file that holds the appearance of the character, such as a Live2D model or a VRM model.
+  note: Not the LLM model.
+  terms:
+    - text: Model
+      part-of-speech: noun
+      status: preferred
+      context: Remove imported Live2D, VRM, Spine, and MMD models.
+
+- id: motion
+  subject: rendering
+  translatable: true
+  definition: An animation clip that moves the character, such as a wave of the hand.
+  note: A Motion moves the body and an Expression changes the face; use two different words.
+  terms:
+    - text: Motion
+      part-of-speech: noun
+      status: preferred
+      context: Map Motions
+
+- id: expression
+  subject: rendering
+  translatable: true
+  definition: A change of the character's face, such as a smile.
+  note: Use a different word from Motion, which moves the body.
+  terms:
+    - text: Expression
+      part-of-speech: noun
+      status: preferred
+      context: Expressions
+
+- id: motion-map
+  subject: rendering
+  translatable: true
+  definition: The table that connects each emotion to a motion.
+  terms:
+    - text: Motion Map
+      part-of-speech: noun
+      status: preferred
+      context: Edit motion map
+
+# ---------------------------------------------------------------------------------------
+# The application
+# ---------------------------------------------------------------------------------------
+
+- id: stage
+  subject: application
+  translatable: true
+  definition: The surface of the application that shows the character and the widgets.
+  note: This word does not refer to a step in a process.
+  terms:
+    - text: Stage
+      part-of-speech: noun
+      status: preferred
+      context: Disable Stage Transitions
+
+- id: controls-island
+  subject: application
+  translatable: true
+  definition: The group of controls that floats above the stage.
+  note: An invented name; describe the thing rather than translate the two words.
+  terms:
+    - text: Controls Island
+      part-of-speech: noun
+      status: preferred
+      context: Controls Island Icon Size
+
+- id: spotlight
+  subject: application
+  translatable: true
+  definition: A window on the desktop edition that opens with a keyboard shortcut for quick commands.
+  note: Not the macOS function of the same name, so do not copy the Apple translation.
+  terms:
+    - text: Spotlight
+      part-of-speech: noun
+      status: preferred
+      context: Spotlight shortcut
+
+# ---------------------------------------------------------------------------------------
+# Models and providers
+# ---------------------------------------------------------------------------------------
+
+- id: provider
+  subject: providers
+  translatable: true
+  definition: An external service that supplies a model, such as OpenAI, Ollama, or ElevenLabs.
+  terms:
+    - text: Provider
+      part-of-speech: noun
+      status: preferred
+      context: No models were found for this provider
+
+- id: model
+  subject: providers
+  translatable: true
+  definition: A machine-learning model that a provider supplies.
+  terms:
+    - text: Model
+      part-of-speech: noun
+      status: preferred
+      context: Select a model
+
+# ---------------------------------------------------------------------------------------
+# The modules
+#
+# These five names are a family. Translate them as a group, so the result reads as one set
+# of capabilities and not as five unrelated words.
+# ---------------------------------------------------------------------------------------
+
+- id: consciousness
+  subject: modules
+  translatable: true
+  definition: The module that thinks for the character, using a large language model.
+  note: An unusual word for a software feature; it means the module for the language model.
+  terms:
+    - text: Consciousness
+      part-of-speech: noun
+      status: preferred
+      context: Select the suitable LLM provider for consciousness
+
+- id: hearing
+  subject: modules
+  translatable: true
+  definition: The module that changes the speech of the user to text.
+  note: Opposite direction to Speech; not a word for the ear or a medical test.
+  terms:
+    - text: Hearing
+      part-of-speech: noun
+      status: preferred
+      context: Hearing
+
+- id: speech
+  subject: modules
+  translatable: true
+  definition: The module that changes text to the voice of the character.
+  note: Read the note on "Hearing".
+  terms:
+    - text: Speech
+      part-of-speech: noun
+      status: preferred
+      context: Speech
+
+- id: vision
+  subject: modules
+  translatable: true
+  definition: The module that lets the character see images and the screen.
+  note: This is eyesight, not a plan for the future.
+  terms:
+    - text: Vision
+      part-of-speech: noun
+      status: preferred
+      context: Vision
+
+- id: artistry
+  subject: modules
+  translatable: true
+  definition: The module that makes images.
+  note: Translate the definition, not the English word.
+  terms:
+    - text: Artistry
+      part-of-speech: noun
+      status: preferred
+      context: Artistry Provider Configuration
+
+# ---------------------------------------------------------------------------------------
+# Memory
+# ---------------------------------------------------------------------------------------
+
+- id: memory
+  subject: memory
+  translatable: true
+  definition: What the character keeps and can use again in a later conversation.
+  note: >
+    Not the computer's RAM, which the performance overlay means by the same word; use the
+    word for what a person remembers.
+  terms:
+    - text: Memory
+      part-of-speech: noun
+      status: preferred
+      context: Memory
+
+- id: long-term-memory
+  subject: memory
+  translatable: true
+  # TODO: confirm this definition. The module has a settings page and a route, but no
+  # implementation that describes the behavior.
+  definition: The module that holds what the character keeps across many conversations.
+  terms:
+    - text: Long-Term Memory
+      part-of-speech: noun
+      status: preferred
+      context: Long-term memory specific settings and management
+
+- id: short-term-memory
+  subject: memory
+  translatable: true
+  # TODO: confirm this definition. Read the note on "long-term-memory".
+  definition: The module that holds what the character keeps inside the current conversation.
+  terms:
+    - text: Short-Term Memory
+      part-of-speech: noun
+      status: preferred
+      context: Short-term memory specific settings and management
+
+# ---------------------------------------------------------------------------------------
+# The character
+# ---------------------------------------------------------------------------------------
+
+- id: character
+  subject: character
+  translatable: true
+  definition: >
+    A character with everything this product stores for it: the persona, the avatar model,
+    the background, the provider and model of each module, and the prompt of each agent.
+  note: >
+    A rename is in progress, so no term is preferred yet, and the interface still uses
+    "Character" for a smaller thing: a tab inside the card.
+  terms:
+    - text: AIRI Card
+      part-of-speech: noun
+      status: admitted
+      context: Paste this into your AIRI Card artistry config to override these nodes.
+      note: The name in the interface today; translate "Card" and keep "AIRI".
+    - text: Character
+      part-of-speech: noun
+      status: admitted
+      note: The planned name, not yet used for this concept.
+    - text: Profile
+      part-of-speech: noun
+      status: admitted
+      type: variant
+      note: >
+        The stage switcher means this concept; the Account page means the user's own details.
+
+- id: character-card
+  subject: character
+  translatable: true
+  definition: The portable file format for a character, from the wider ecosystem.
+  note: >
+    A user imports it into a Character, which holds more; never shorten it to "Card".
+  terms:
+    - text: Character Card
+      part-of-speech: noun
+      status: preferred
+      context: Configure modules for this character card.
+
+- id: system-prompt
+  subject: character
+  translatable: true
+  definition: The instructions the application sends to the model before the conversation starts.
+  terms:
+    - text: System Prompt
+      part-of-speech: noun
+      status: preferred
+      context: 'Error: Please, provide a system prompt.'
+
+# ---------------------------------------------------------------------------------------
+# Sound
+# ---------------------------------------------------------------------------------------
+
+- id: voice-pack
+  subject: sound
+  translatable: true
+  definition: A prepared voice the user selects for the active character.
+  terms:
+    - text: Voice Pack
+      part-of-speech: noun
+      status: preferred
+      context: No Voice Packs available

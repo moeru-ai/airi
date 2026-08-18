@@ -83,7 +83,10 @@ export function getValidatorsOfProvider(options: {
   const { definition } = options
 
   const configValidators = (definition.validators?.validateConfig || []).map(creator => creator(options.contextOptions))
-  const providerValidators = (definition.validators?.validateProvider || []).map(creator => creator(options.contextOptions))
+  const allProviderValidators = (definition.validators?.validateProvider || []).map(creator => creator(options.contextOptions))
+
+  const providerValidators = allProviderValidators
+
   const steps: ProviderValidationStep[] = [
     ...createConfigValidationSteps(configValidators),
     ...createProviderValidationSteps(providerValidators),
@@ -130,7 +133,7 @@ export async function validateProvider(
     }
     catch (error) {
       step.status = 'invalid'
-      step.reason = errorMessageFrom(error) || 'Unknown error'
+      step.reason = errorMessageFrom(error) ?? 'Unknown error'
       onValidatorError?.({ kind: 'config', index, step, error })
       return { valid: false, reason: step.reason }
     }
@@ -150,34 +153,39 @@ export async function validateProvider(
 
   let providerInstance: ProviderInstance
   try {
-    providerInstance = await definition.createProvider(config as any)
+    providerInstance = await definition.createProvider(config)
   }
   catch (error) {
     for (let i = 0; i < providerValidators.length; i++) {
       const step = steps[providerStepOffset + i]
       step.status = 'invalid'
-      step.reason = error instanceof Error ? error.message : String(error)
+      step.reason = errorMessageFrom(error) ?? 'Unknown error'
     }
     return steps
   }
 
-  await Promise.all(providerValidators.map(async (validatorDefinition, index) => {
-    const step = steps[providerStepOffset + index]
-    step.status = 'validating'
-    step.reason = ''
-    onValidatorStart?.({ kind: 'provider', index, step })
-    try {
-      const result = await validatorDefinition.validator(config, providerInstance as any, providerExtra as any, runContext)
-      step.status = result.valid ? 'valid' : 'invalid'
-      step.reason = result.valid ? '' : result.reason
-      onValidatorSuccess?.({ kind: 'provider', index, step, result })
-    }
-    catch (error) {
-      step.status = 'invalid'
-      step.reason = error instanceof Error ? error.message : String(error)
-      onValidatorError?.({ kind: 'provider', index, step, error })
-    }
-  }))
+  try {
+    await Promise.all(providerValidators.map(async (validatorDefinition, index) => {
+      const step = steps[providerStepOffset + index]
+      step.status = 'validating'
+      step.reason = ''
+      onValidatorStart?.({ kind: 'provider', index, step })
+      try {
+        const result = await validatorDefinition.validator(config, providerInstance, providerExtra as any, runContext)
+        step.status = result.valid ? 'valid' : 'invalid'
+        step.reason = result.valid ? '' : result.reason
+        onValidatorSuccess?.({ kind: 'provider', index, step, result })
+      }
+      catch (error) {
+        step.status = 'invalid'
+        step.reason = errorMessageFrom(error) ?? 'Unknown error'
+        onValidatorError?.({ kind: 'provider', index, step, error })
+      }
+    }))
+  }
+  finally {
+    await (providerInstance as ProviderInstance & { dispose?: () => Promise<void> | void }).dispose?.()
+  }
 
   return steps
 }

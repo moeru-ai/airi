@@ -1,0 +1,53 @@
+{
+  "name": "@proj-airi/minecraft-bot",
+  "type": "module",
+  "private": true,
+  "description": "An intelligent Minecraft bot powered by LLM. AIRI can understand natural language commands, interact with the world, and assist players in various tasks.",
+  "scripts": {
+    "dev": "NODE_OPTIONS=--no-node-snapshot tsx --env-file=.env --env-file-if-exists=.env.local src/main.ts",
+    "start": "NODE_OPTIONS=--no-node-snapshot tsx --env-file=.env --env-file-if-exists=.env.local src/main.ts",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "NODE_OPTIONS=--no-node-snapshot vitest"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "@modelcontextprotocol/sdk": "catalog:",
+    "@moeru/std": "catalog:",
+    "@proj-airi/server-sdk": "workspace:*",
+    "@xsai/generate-text": "catalog:",
+    "@xsai/shared-chat": "catalog:",
+    "alien-signals": "catalog:",
+    "awilix": "catalog:",
+    "canvas": "catalog:",
+    "crossws": "catalog:",
+    "es-toolkit": "catalog:",
+    "eventemitter3": "catalog:",
+    "isolated-vm": "catalog:",
+    "minecraft-data": "catalog:",
+    "mineflayer": "catalog:",
+    "mineflayer-armor-manager": "catalog:",
+    "mineflayer-auto-eat": "catalog:",
+    "mineflayer-collectblock": "catalog:",
+    "mineflayer-pathfinder": "catalog:",
+    "mineflayer-pvp": "catalog:",
+    "mineflayer-tool": "catalog:",
+    "nanoid": "catalog:",
+    "prismarine-block": "catalog:",
+    "prismarine-entity": "catalog:",
+    "prismarine-item": "catalog:",
+    "prismarine-recipe": "catalog:",
+    "prismarine-viewer": "catalog:",
+    "prismarine-windows": "catalog:",
+    "valibot": "catalog:",
+    "vec3": "catalog:",
+    "ws": "catalog:",
+    "yaml": "catalog:",
+    "zod": "catalog:",
+    "zod-to-json-schema": "catalog:"
+  },
+  "devDependencies": {
+    "@types/ws": "catalog:"
+  }
+}

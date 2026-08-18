@@ -7,16 +7,19 @@ import {
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
+import { getDefinedProvider } from '@proj-airi/stage-ui/libs'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldInput, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const speechStore = useSpeechStore()
-const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore)
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerStore)
 const { t } = useI18n()
 
 const defaultVoiceSettings = {
@@ -26,6 +29,7 @@ const defaultVoiceSettings = {
 // Get provider metadata
 const providerId = 'openai-compatible-audio-speech'
 const defaultModel = 'tts-1'
+const defaultVoice = 'alloy'
 
 // Initialize speed from provider config or default
 const speed = ref<number>(
@@ -34,9 +38,12 @@ const speed = ref<number>(
   || defaultVoiceSettings.speed,
 )
 
-// Model selection
+// Model selection (store raw string; empty string is valid while editing — default is applied only at API call)
 const model = computed({
-  get: () => providers.value[providerId]?.model as string | undefined || defaultModel,
+  get: () => {
+    const raw = providers.value[providerId]?.model as string | undefined | null
+    return raw ?? ''
+  },
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -45,7 +52,10 @@ const model = computed({
 })
 
 const voice = computed({
-  get: () => providers.value[providerId]?.voice || 'alloy',
+  get: () => {
+    const raw = providers.value[providerId]?.voice as string | undefined | null
+    return raw ?? ''
+  },
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -65,19 +75,19 @@ watch(
       if (Math.abs(speed.value - newSpeed) > 0.001) // Use small epsilon for float comparison
         speed.value = newSpeed
 
-      // Sync model if it was reset
-      if (!config.model && model.value !== defaultModel)
+      // Sync model if property was cleared externally (undefined/null), not when user sets empty string
+      if (config.model == null && model.value !== defaultModel)
         model.value = defaultModel
 
-      // Sync voice if it was reset
-      if (!config.voice && voice.value !== 'alloy')
-        voice.value = 'alloy'
+      // Sync voice if property was cleared externally (undefined/null), not when user sets empty string
+      if (config.voice == null && voice.value !== defaultVoice)
+        voice.value = defaultVoice
     }
     else {
       // Provider config was reset, reset our local refs to defaults
       speed.value = defaultVoiceSettings.speed
       model.value = defaultModel
-      voice.value = 'alloy'
+      voice.value = defaultVoice
     }
   },
   { deep: true, immediate: true },
@@ -88,16 +98,10 @@ const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
 // Ensure provider config is initialized on mount
 onMounted(() => {
-  if (!providers.value[providerId]) {
-    providers.value[providerId] = {}
-  }
-  // Initialize model and voice if they don't exist
-  if (!providers.value[providerId].model) {
-    providers.value[providerId].model = defaultModel
-  }
-  if (!providers.value[providerId].voice) {
-    providers.value[providerId].voice = 'alloy'
-  }
+  providers.value[providerId] ??= {}
+  // Defaults only when unset (null/undefined); empty strings are kept intentionally
+  providers.value[providerId].model ??= defaultModel
+  providers.value[providerId].voice ??= defaultVoice
 })
 
 // Generate speech with OpenAI-compatible parameters
@@ -108,7 +112,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   }
 
   // Get provider configuration
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = providerStore.getProviderConfig(providerId)
 
   // Use the reactive model computed property (not a local variable)
   const modelToUse = modelId || model.value || defaultModel
@@ -117,7 +121,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     provider,
     modelToUse,
     input,
-    voiceId || (voice.value as string),
+    voiceId || voice.value || defaultVoice,
     {
       ...providerConfig,
       ...defaultVoiceSettings,
@@ -132,22 +136,6 @@ watch(speed, async () => {
   providers.value[providerId].speed = speed.value
 })
 
-watch(model, () => {
-  // Ensure provider config exists
-  if (!providers.value[providerId])
-    providers.value[providerId] = {}
-  // Save model to provider config (this persists to localStorage automatically)
-  providers.value[providerId].model = model.value
-})
-
-watch(voice, () => {
-  // Ensure provider config exists
-  if (!providers.value[providerId])
-    providers.value[providerId] = {}
-  // Save voice to provider config (this persists to localStorage automatically)
-  providers.value[providerId].voice = voice.value
-})
-
 // Use the composable to get validation logic and state
 const {
   isValidating,
@@ -155,6 +143,21 @@ const {
   validationMessage,
   forceValid,
 } = useProviderValidation(providerId)
+
+const apiKeyPlaceholder = computed(() => {
+  const definition = getDefinedProvider(providerId)
+  if (!definition?.createProviderConfig)
+    return 'sk-...'
+
+  const schema = definition.createProviderConfig({ t }) as any
+  const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
+  const apiKeySchema = shape?.apiKey
+  if (!apiKeySchema)
+    return 'sk-...'
+
+  const meta = typeof apiKeySchema.meta === 'function' ? apiKeySchema.meta() : undefined
+  return typeof meta?.placeholderLocalized === 'string' ? meta.placeholderLocalized : 'sk-...'
+})
 </script>
 
 <template>
@@ -162,7 +165,7 @@ const {
     :provider-id="providerId"
     :default-model="defaultModel"
     :additional-settings="defaultVoiceSettings"
-    placeholder="sk-..."
+    :placeholder="apiKeyPlaceholder"
   >
     <!-- Voice settings specific to OpenAI Compatible -->
     <template #voice-settings>

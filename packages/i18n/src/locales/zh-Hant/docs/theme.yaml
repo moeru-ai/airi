@@ -15,6 +15,7 @@ doc:
     title: 下一頁
   previous-page:
     title: 前一頁
+  published-at: Published at {date}
 home:
   subtitle: >-
     模型驅動的靈魂容器，什麼都能做一點的桌寵：讓 Neuro-sama 這樣的虛擬夥伴也成為我們世界中的一份子吧！

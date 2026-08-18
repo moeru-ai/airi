@@ -1,31 +1,50 @@
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
+import type { GodotStageManager } from '../../services/airi/godot-stage'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
+import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
 import type { DevtoolsWindowManager } from '../devtools'
+import type { SpotlightWindowManager } from '../spotlight'
 import type { WidgetsWindowManager } from '../widgets'
 
 import { join, resolve } from 'node:path'
 
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
-import { BrowserWindow, shell } from 'electron'
+import { BrowserWindow } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
 
+import { electronSettingsNavigate } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
+import { protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
 import { setupSettingsWindowInvokes } from './rpc/index.electron'
+
+export interface SettingsWindowManager {
+  getWindow: () => Promise<BrowserWindow>
+  openWindow: (route?: string) => Promise<void>
+}
 
 export function setupSettingsWindowReusableFunc(params: {
   widgetsManager: WidgetsWindowManager
   autoUpdater: AutoUpdater
-  devtoolsMarkdownStressWindow: DevtoolsWindowManager
+  devtoolsWindow: DevtoolsWindowManager
+  getMainWindow?: () => BrowserWindow | undefined
   onWindowCreated?: (window: BrowserWindow) => void
   serverChannel: ServerChannel
+  godotStageManager: GodotStageManager
   mcpStdioManager: McpStdioManager
   i18n: I18n
-}) {
-  return createReusableWindow(async () => {
+  globalShortcut: GlobalShortcutService
+  spotlightWindow: SpotlightWindowManager
+}): SettingsWindowManager {
+  const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
+  const defaultRoute = '/settings'
+  let currentRoute = defaultRoute
+  let settingsContext: Awaited<ReturnType<typeof setupSettingsWindowInvokes>> | undefined
+
+  const reusable = createReusableWindow(async () => {
     const window = new BrowserWindow({
       title: 'Settings',
       width: 600.0,
@@ -43,24 +62,52 @@ export function setupSettingsWindowReusableFunc(params: {
     }
 
     window.on('ready-to-show', () => window.show())
-    window.webContents.setWindowOpenHandler((details) => {
-      shell.openExternal(details.url)
-      return { action: 'deny' }
-    })
+    protectPrivilegedWindowNavigation(window)
 
-    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/settings'))
-    await setupSettingsWindowInvokes({
+    settingsContext = await setupSettingsWindowInvokes({
       settingsWindow: window,
       widgetsManager: params.widgetsManager,
       autoUpdater: params.autoUpdater,
-      devtoolsMarkdownStressWindow: params.devtoolsMarkdownStressWindow,
+      devtoolsWindow: params.devtoolsWindow,
+      getMainWindow: params.getMainWindow,
       serverChannel: params.serverChannel,
+      godotStageManager: params.godotStageManager,
       mcpStdioManager: params.mcpStdioManager,
       i18n: params.i18n,
+      globalShortcut: params.globalShortcut,
+      spotlightWindow: params.spotlightWindow,
+    })
+
+    await load(window, withHashRoute(rendererBase, currentRoute, {
+      query: { 'synced-leader': 'false' },
+    }))
+
+    window.on('closed', () => {
+      if (settingsContext)
+        settingsContext = undefined
     })
 
     initScreenCaptureForWindow(window)
 
     return window
-  }).getWindow
+  })
+
+  async function openWindow(route?: string) {
+    if (route) {
+      currentRoute = route
+    }
+
+    const window = await reusable.getWindow()
+
+    if (route && settingsContext) {
+      settingsContext.emit(electronSettingsNavigate, { route })
+    }
+
+    toggleWindowShow(window)
+  }
+
+  return {
+    getWindow: reusable.getWindow,
+    openWindow,
+  }
 }

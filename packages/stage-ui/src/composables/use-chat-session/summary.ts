@@ -61,7 +61,7 @@ export function getSessionSummary(
     combinedReasoning: allReasoning.join('\n\n'),
     combinedSpeech: allSpeech.join('\n\n'),
     createdAt: messages[0]?.createdAt,
-    lastMessageAt: messages[messages.length - 1]?.createdAt,
+    lastMessageAt: messages.at(-1)?.createdAt,
   }
 }
 

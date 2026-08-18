@@ -4,6 +4,24 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import Alert from '../misc/alert.vue'
 import VoiceCard from './voice-card.vue'
 
+const props = withDefaults(defineProps<Props>(), {
+  columns: 2,
+  searchable: true,
+  searchPlaceholder: 'Search voices...',
+  searchNoResultsTitle: 'No voices found',
+  searchNoResultsDescription: 'Try a different search term',
+  searchResultsText: '{count} of {total} voices',
+  unsupportedVoiceWarningTitle: 'No voices',
+  unsupportedVoiceWarningContent: 'Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub.',
+  customInputPlaceholder: 'Enter custom voice name',
+  expandButtonText: 'Show more',
+  collapseButtonText: 'Show less',
+  playButtonText: 'Play sample',
+  pauseButtonText: 'Pause',
+  showVisualizer: true,
+  listClass: '',
+})
+
 interface VoiceLanguage {
   name: string
   code: string
@@ -45,24 +63,6 @@ interface Props {
   showVisualizer?: boolean
   listClass?: string
 }
-
-const props = withDefaults(defineProps<Props>(), {
-  columns: 2,
-  searchable: true,
-  searchPlaceholder: 'Search voices...',
-  searchNoResultsTitle: 'No voices found',
-  searchNoResultsDescription: 'Try a different search term',
-  searchResultsText: '{count} of {total} voices',
-  unsupportedVoiceWarningTitle: 'No voices',
-  unsupportedVoiceWarningContent: 'Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub.',
-  customInputPlaceholder: 'Enter custom voice name',
-  expandButtonText: 'Show more',
-  collapseButtonText: 'Show less',
-  playButtonText: 'Play sample',
-  pauseButtonText: 'Pause',
-  showVisualizer: true,
-  listClass: '',
-})
 
 const isListExpanded = ref(false)
 const currentlyPlayingId = ref<string>()
@@ -133,7 +133,14 @@ function getAudioElement(voice: Voice): HTMLAudioElement | null {
   }
 
   const audio = new Audio(previewUrl)
-  audio.crossOrigin = 'anonymous' // This is crucial for CORS
+  // NOTICE: crossOrigin='anonymous' is only needed so Web Audio's
+  // createMediaElementSource can read samples for the visualizer. Setting it
+  // forces the browser to enforce CORS on the media fetch — if the preview
+  // host (e.g. Azure CDN) doesn't return Access-Control-Allow-Origin, the
+  // load is rejected with NotSupportedError. Skip it when the visualizer is
+  // off so plain playback works regardless of origin headers.
+  if (props.showVisualizer)
+    audio.crossOrigin = 'anonymous'
   audio.preload = 'auto' // Preload the audio
 
   audio.addEventListener('ended', () => {

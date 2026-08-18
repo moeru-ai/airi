@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Download artifact - metadata
-        uses: dawidd6/action-download-artifact@v12
+        uses: dawidd6/action-download-artifact@v19
         with:
           workflow_conclusion: success
           run_id: ${{ github.event.workflow_run.id }}
@@ -33,12 +33,25 @@ jobs:
       - name: Parse metadata
         id: meta
         run: |
-          source preview-meta/preview_meta
-          echo "PR_NUM=$PR_NUM" >> "$GITHUB_OUTPUT"
-          echo "REPO_FULL_NAME=$REPO_FULL_NAME" >> "$GITHUB_OUTPUT"
-          echo "HEAD_REF=$HEAD_REF" >> "$GITHUB_OUTPUT"
-          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_OUTPUT"
-          echo "BRANCH_NAME=$HEAD_REF" >> "$GITHUB_ENV"
+          node --input-type=module <<'NODE'
+          import { appendFile, readFile } from 'node:fs/promises'
+
+          const metadata = JSON.parse(await readFile('preview-meta/preview-meta.json', 'utf8'))
+          if (
+            !/^\d+$/.test(metadata.prNumber)
+            || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(metadata.repositoryFullName)
+            || !/^[a-f0-9]{40}$/i.test(metadata.headSha)
+          ) {
+            throw new Error('Preview metadata has an invalid shape')
+          }
+
+          await appendFile(process.env.GITHUB_OUTPUT, [
+            `PR_NUM=${metadata.prNumber}`,
+            `REPO_FULL_NAME=${metadata.repositoryFullName}`,
+            `HEAD_SHA=${metadata.headSha}`,
+            '',
+          ].join('\n'))
+          NODE
 
       - name: Find Comment
         if: ${{ always() }}
@@ -62,7 +75,7 @@ jobs:
             |:------------------------|:---------------------------------------------------------------------------------------|
             | 🔭 Waiting for approval | For maintainers, approve [here](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
-            Hey, @nekomeowww, @sumimakito, @luoling8192, @LemonNekoGH, kindly take some time to review and approve this deployment when you are available. Thank you! 🙏
+            Hey, maintainers, kindly take some time to review and approve this deployment when you are available. Thank you! 🙏
 
   on-success:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
@@ -92,7 +105,7 @@ jobs:
 
     steps:
       - name: Download artifact - metadata
-        uses: dawidd6/action-download-artifact@v12
+        uses: dawidd6/action-download-artifact@v19
         with:
           workflow_conclusion: success
           run_id: ${{ github.event.workflow_run.id }}
@@ -103,12 +116,25 @@ jobs:
       - name: Parse metadata
         id: meta
         run: |
-          source preview-meta/preview_meta
-          echo "PR_NUM=$PR_NUM" >> "$GITHUB_OUTPUT"
-          echo "REPO_FULL_NAME=$REPO_FULL_NAME" >> "$GITHUB_OUTPUT"
-          echo "HEAD_REF=$HEAD_REF" >> "$GITHUB_OUTPUT"
-          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_OUTPUT"
-          echo "BRANCH_NAME=$HEAD_REF" >> "$GITHUB_ENV"
+          node --input-type=module <<'NODE'
+          import { appendFile, readFile } from 'node:fs/promises'
+
+          const metadata = JSON.parse(await readFile('preview-meta/preview-meta.json', 'utf8'))
+          if (
+            !/^\d+$/.test(metadata.prNumber)
+            || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(metadata.repositoryFullName)
+            || !/^[a-f0-9]{40}$/i.test(metadata.headSha)
+          ) {
+            throw new Error('Preview metadata has an invalid shape')
+          }
+
+          await appendFile(process.env.GITHUB_OUTPUT, [
+            `PR_NUM=${metadata.prNumber}`,
+            `REPO_FULL_NAME=${metadata.repositoryFullName}`,
+            `HEAD_SHA=${metadata.headSha}`,
+            '',
+          ].join('\n'))
+          NODE
 
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -117,6 +143,8 @@ jobs:
           ref: ${{ steps.meta.outputs.HEAD_SHA }}
           fetch-depth: 1
           persist-credentials: false
+          # https://gh.io/securely-using-pull_request_target
+          allow-unsafe-pr-checkout: true
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -193,7 +221,7 @@ jobs:
       - name: Wrangler Upload
         if: ${{ steps.build.outcome == 'success' }}
         id: wrangler-versions-upload
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v3.14.1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

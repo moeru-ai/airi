@@ -9,6 +9,8 @@ animations:
     title: Использовать переходы для страниц
 dialogs:
   onboarding:
+    official:
+      title: Официальный провайдер AIRI
     title: Добро пожаловать в AIRI!
     description: Давайте настроим вашего первого AI-провайдера, чтобы начать работу.
     selectProvider: Выберите AI-провайдера
@@ -18,29 +20,103 @@ dialogs:
     baseUrl: Базовый URL
     baseUrlHelp: URL конечной точки API (оставьте по умолчанию, если не уверены)
     accountId: ID аккаунта
-    validationSuccess: Configuration validation success
+    validationRunning: Запуск тестов
+    validationSuccess: Успешная проверка конфигурации
+    validationPartial: Конфигурация проверена частично
     validationFailed: Проверка конфигурации не удалась
     validationError: 'Ошибка проверки: {error}'
+    testGeneration: Проверка соединения API
+    testGenerationRunning: Проверка соединения...
+    testGenerationFailed: Проверка соединения не удалась
+    retryPingCheck: Повторить
     skipForNow: Пропустить на сейчас
     saveAndContinue: Сохранить и продолжить
     next: Далее
-    retry: Retry
+    retry: Повторить
+    credentialsSafeLabel: Держите ваши ключи API и учетные данные в безопасности!
+    credentialsSafeLocal: >-
+      AIRI работает исключительно локально в вашем ПК, и мы никогда не похитим ваши учетные данные для ИИ / LLM провайдеров. Но имейте в виду, что ваши ключи API являются конфиденциальной информацией. Убедитесь, что вы храните их в безопасности и никому не передаёте.
+    credentialsSafeOpenSource: >-
+      AIRI имеет открытый исходный код по адресу {github}. Если вы хотите проверить, как мы обрабатываем ваши учётные данные, смело изучайте наш код.
+    enableChatCheck: >-
+      Разрешить airi отправить "ping" сообщение первой доступной чат модели для проверки доступности
     start: Поехали!
+    loginPrompt: Войдите, чтобы использовать официального провайдера AIRI для наилучшего опыта.
+    loginAction: Войти
+    setupWithoutSigningIn: Настройка с вашим провайдером
+    flux: Flux
+    buyFlux: Пополнить Flux
     select-model: Выберите модель
     no-models: Нет доступных моделей
     no-models-help: >-
       Вернитесь на предыдущий шаг и проверьте API-ключ или подключение к сети.
+    permissions:
+      title: Управление разрешениями
+      description: Вы можете предоставить необходимые разрешения сейчас или настроить их позже.
+      notificationsTitle: Оповещения
+      notificationsDescription: Разрешить напоминания и важные обновления статуса.
+      microphoneTitle: Микрофон
+      microphoneDescription: Разрешить AIRI использовать микрофон для голосового ввода и расшифровки речи.
+      requestAction: Запросить доступ
+      optionalHint: Вы можете продолжить, даже если эти разрешения не предоставлены.
+      stateGranted: Предоставлено
+      stateNotGranted: Не предоставлено
+  bug-report:
+    title: Отчет об ошибке (´;ω;`)ヾ(･∀･`)
+    subtitle: Ой, извините, мы сделали что-то не так. Не могли бы вы рассказать нам, что произошло?
+    trigger-label: Сообщить об ошибке
+    submit-label: Отправить сообщение об ошибке
+    triage-description: Добавьте скриншот и контекст страницы, чтобы помочь нам воспроизвести эту проблему.
+    description-placeholder: Шаги воспроизведения, ожидаемого поведения и фактического поведения
+    include-current-page-screenshot: Добавить скриншот текущей страницы
+    manual-media:
+      label: Выберите скриншоты / записи вручную
+      optional: Необязательно.
+    media-files:
+      label: Медиа файлы
+      description: 'Опционально: выбрать вручную.'
+      placeholder: Выберите скриншот или видео файл
+      selected-count: '{count} Файл(ов) выбрано'
+    last-submitted-preview: Предпросмотр последней отправленной полезной нагрузки
 language:
-  title: Language
-  description: >
-    Change the language of the AIRI interface. This will not affect the language of the character's responses.
+  title: Язык
+  description: |
+    Язык интерфейса. Язык персонажей вы сможете настроить позже.
 controls-island:
   icon-size:
-    title: Controls Island Icon Size
-    description: Adjust the size of the controls island icons
-    auto: Auto (responsive)
-    large: Large (default)
-    small: Small
+    title: Размер значка Управления островом
+    description: Отрегулируйте размер значков управления островом
+    auto: Автоматически (отвечает)
+    large: Большой (по умолчанию)
+    small: Маленький
+analytics:
+  notice:
+    title: Аналитика использования
+    description: >-
+      AIRI собирает анонимную аналитику использования, чтобы помочь нам понять, как используется приложение, и улучшить стабильность. Личные данные не собираются.
+    privacyPrefix: Прочтите
+    privacyLink: политика конфиденциальности
+    onboardingHint: Вы можете отключить аналитику позже в Настройках > Система > Общие.
+    settingsHint: Вы можете отключить аналитику в любое время.
+  toggle:
+    title: Включить аналитику использования
+    description: Отключите эту опцию, чтобы отказаться от сбора аналитики.
+  disabled:
+    title: Аналитика отключена для этой разрабатываемой сборки
+model-select:
+  panel-callout:
+    support-status-header: Мы поддерживаем 2D и 3D модели
+    support-status: >
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models), {vrm} (for VRM models), and {mmd} (for MMD models, zipped with their textures) are supported.
+    model-type-example: >
+      Neuro-sama использует 2D модель, основанную на фреймворк, разработанной компанией Live2D Inc, В то время как Grok Ani (в компании Grok) использует 3D-модели, основанные на открытых форматах VRM / MMD.
+  select-model:
+    title: Выбор модели
+    button: Выбрать модель
+    select: Выбрать
+    import: Импорт
+    remove: Удалить
+    confirm: Подтвердить
 live2d:
   change-model:
     from-file: Загрузить из файла
@@ -65,33 +141,178 @@ live2d:
     change-to-vrm: Нажмите здесь, чтобы переключиться на настройки 3D-аватара (VRM)
   theme-color-from-model:
     title: Извлечь цвета из модели
+    description: >
+      Извлечь видимые цвета из холста текущего рендеринга. Нажмите на цвет, чтобы применить его к AIRI. Попытаться извлечь несколько раз, используя модель в разных позах, если цвета не желательны.
     button-extract:
       title: Извлечь
-  focus:
-    title: Отключить слежение за мышью
-    button-disable:
-      title: Отключить
-  fps:
-    title: ФПС
-    description: Limit rendering frame rate
-    options:
-      unlimited: No Limit
+  animation:
+    title: Анимация
+    focus:
+      title: Включить отслеживание мыши
+      description: Посмотрите на курсор во время движения. Изысканное движение глаз возобновляется после остановки курсора.
+      offset: Смещение глаз (%)
+    force-idle-eye-animation:
+      title: Легкое движение глаз
+      description: Случайно смотреть вокруг когда нет активного курсора фокуса.
+    blink-enable:
+      title: Включить моргание
+      description: Пусть модель моргает.
+    auto-blink:
+      title: Авто
+      description: Использовать стандартную анимацию моргания модели
+    force-auto-blink:
+      title: Сила
+      description: Принудительная анимация моргания с внешним таймером
+    blink-mode:
+      title: Режим моргания
+      description: Выберите модель встроенного моргания или принудительного моргания AIRI.
+    idle-motion:
+      title: Анимация бездействия
+      no-motion: Нет доступных анимаций
+      placeholder: Выбрать анимацию
+      disable-motion: Отключено
+      disable-motion-description: Отключить анимацию бездействия
+  parameters:
+    title: Параметры модели
+    render-scale:
+      title: Масштаб рендеринга
+    fps:
+      title: FPS
+      description: Ограничить скорость рендеринга кадров
+      options:
+        unlimited: '∞'
+    shadow: Отбрасывать тень
+    reset-parameters: Сброс к параметрам по умолчанию
+  clear-model-cache: Очистка кеша
+  expressions:
+    title: Выражения
+    override-toggle: Система выражений
+    sdk-preset-preserved-notice: >
+      Диспетчер выражений SDK и моргание глаз сохраняются, если выключены.
+    no-expression: Нет выражений для этой модели.
+    llm-integration-wip: Интеграция инструментов LLM еще не завершена.
+    save-default: Сохранить выражение по умолчанию
+    reset: Сбросить все выражения
+    expose-to-llm-toggle: Распространять в LLM
+    expose-to-llm-options:
+      none: Отсутствует
+      all: Все
+      custom: Пользовательский
 microphone: Микрофон
 models: Модель
 pages:
+  account:
+    title: Аккаунт
+    description: Просматривайте свой профиль и управляйте своей учетной записью
+    notLoggedIn: Войдите, чтобы просмотреть аккаунт и получить доступ ко всем функциям
+    login: Войти
+    logout: Выйти
+    fluxBalance: Баланс Flux
+    viewFluxDetails: Подробнее
+    signedInAs: Вы вошли как
+    profile:
+      tab: Профиль
+      title: Профиль
+      description: Управление вашим публичным именем.
+      name:
+        label: Отображаемое имя
+        placeholder: Как видят вас другие
+      avatar:
+        gravatarNotice: Аватар из Gravatar.
+        gravatarLink: Управление на gravatar.com
+      action:
+        save: Сохранить изменения
+      message:
+        saved: Профиль обновлен.
+      error:
+        fallback: Мы не смогли сохранить ваши изменения.
+    connections:
+      tab: Подключенные аккаунты
+      title: Подключенные аккаунты
+      description: Войдите в AIRI через этих поставщиков. Отмените связь, чтобы отозвать доступ, затем установите связь снова, чтобы переключиться на другую учетную запись.
+      status:
+        linked: Связанно
+        notLinked: Не привязано
+        linkedSince: Связанно в {date}
+      action:
+        link: Связать
+        unlink: Отвязать
+      message:
+        loading: Загрузка подключенных аккаунтов...
+        unlinked: '{provider} отключен.'
+        linked: '{provider} подключен.'
+        linkStarted: Перенаправление на {provider}…
+      error:
+        listFailed: Не удалось загрузить подключенные учетные записи.
+        unlinkFailed: Не удалось отвязать эту учетную запись.
+        linkFailed: Не удалось запустить поток ссылок.
+        accountAlreadyLinkedToDifferentUser: Этот OAuth-аккаунт уже привязан к другому аккаунту AIRI. Выберите другой аккаунт провайдера или сначала отвяжите его от другого аккаунта AIRI.
+        oauthCallbackFailed: Не удалось подключить этот OAuth-аккаунт. Попробуйте еще раз или выберите другой аккаунт провайдера.
+        lastAccount: Это единственный способ входа в систему. Установите пароль перед отсоединением.
+    security:
+      tab: Безопасность
+      title: Безопасность
+      description: Измените пароль. Остальные устройства будут отключены.
+      setDescription: Вы вошли через социального провайдера, так что текущего пароля пока нет. Мы отправим по электронной почте ссылку, чтобы установить его.
+      currentPassword:
+        label: Текущий пароль
+        placeholder: Введите ваш текущий пароль
+      newPassword:
+        label: Новый пароль
+        placeholder: Как минимум 8 символов
+      confirmPassword:
+        label: Подтвердить новый пароль
+        placeholder: Повторите новый пароль
+      action:
+        changePassword: Изменить пароль
+        sendSetLink: Прислать мне ссылку для установки пароля
+      message:
+        changed: Пароль изменен. Другие сессии были отключены.
+        setLinkSent: Проверьте {email} на наличие ссылки для установки пароля.
+      error:
+        fallback: Мы не смогли изменить ваш пароль.
+        setLinkFailed: Не удалось отправить ссылку для установки пароля.
+        passwordMismatch: Пароли не совпадают.
+        passwordSameAsCurrent: Новый пароль должен отличаться от текущего.
+    danger:
+      tab: Опасная зона
+      title: Опасная зона
+      description: Необратимые действия учётных записей здесь.
+      deleteAccount:
+        title: Удалить аккаунт
+        description: Окончательно удалить учетную запись, сеансы и личные данные.
+        action: Удалить аккаунт
+        modal:
+          title: Удалить аккаунт?
+          warning: Это не может быть отменено. Активная подписка будет отменена, Flux баланс сброшен.
+          confirmEmail:
+            label: Введите ваш адрес электронной почты для подтверждения
+            placeholder: ''
+            mismatch: Адрес электронной почты не совпадает.
+          confirm: Отправить письмо с подтверждением
+          cancel: Отмена
+        message:
+          emailSent: Проверьте {email} на наличие ссылки на удаление.
+        error:
+          fallback: Не удалось начать удаление. Повторите попытку позже.
   card:
     activate: Активировать
     active: Активно
     active_badge: Текущая
-    cancel: Cancel action
-    save: Save changes
+    activation_notice: Выбран персонаж {name}. Текущий разговор теперь использует его.
+    cancel: Отменить действие
+    save: Сохранить изменения
+    save_and_activate: Сохранить и активировать
     card_not_found: Карта не найдена
     character: Персонаж
     close: Закрыть
     chat:
-      provider: Chat / Provider
+      provider: Чат / провайдеры
     consciousness:
       model: Сознание / Модель
+    vision:
+      provider: Зрение / Провайдер
+      model: Зрение / Модель
     created_by: создано
     creator_notes: Заметки автора
     delete: Удалить
@@ -101,7 +322,7 @@ pages:
     description_label: Описание
     drop_here: Перетащите сюда для загрузки
     create_card: Создать новую карту
-    edit_card: Edit Card
+    edit_card: Редактировать карточку
     creation:
       identity: Личность
       name: Имя
@@ -119,9 +340,9 @@ pages:
         systemprompt: Вы будете получать сообщения, отвечайте на них как настоящий человек.
         posthistoryinstructions: Не забывайте подражать человеку.
       modules_info: >-
-        Configure modules for this character card. If not set, default module configuration will be used.
-      use_default: Use default
-      use_default_not_configured: Use default (not configured)
+        Настроить модули для этой карты символов. Если не установлено, будет использоваться конфигурация модулей по умолчанию.
+      use_default: Использовать по умолчанию
+      use_default_not_configured: Использовать по умолчанию (не настроено)
       fields_info:
         subtitle: >-
           Здесь можно указать детали о создаваемом персонаже, описать его историю, контекст и то, как он должен отвечать на взаимодействия.
@@ -138,8 +359,8 @@ pages:
         posthistoryinstructions: Укажите, что AI должен учитывать после истории сообщений.
         version: >-
           Версия карты. Увеличьте число, если изменяете предыдущую карту.
-        consciousness_model: Select the consciousness model (AI model) for this character.
-        speech_model: Select the speech synthesis model and voice for this character.
+        consciousness_model: Выберите сознательную модель (AI модель) для этого персонажа.
+        speech_model: Выберите модель синтеза речи и голос для этого персонажа.
       errors:
         name: Имя должно быть корректным и непустым.
         version: 'Ошибка: неверная версия!'
@@ -148,6 +369,8 @@ pages:
         scenario: 'Ошибка: требуется сценарий.'
         systemprompt: 'Ошибка: укажите системный промпт.'
         posthistoryinstructions: 'Ошибка: требуется post-history промпт.'
+        invalid_artistry_json: 'Ошибка: Параметры провайдера Artistry содержат недопустимые JSON.'
+      none: Отсутствует
     modules: Модули
     name_asc: Имя (А-Я)
     name_desc: Имя (Я-А)
@@ -159,66 +382,79 @@ pages:
     scenario: Сценарий
     search: Искать карточки...
     sort_by: Сортировать по
+    body-model: Тело / Модель отображения
     speech:
-      provider: Speech / Provider
+      provider: Речь / Поставщик
       model: Речь / Модель
       voice: Речь / Голос
     systemprompt: Системный промпт
     title: Карта AIRI
     try_different_search: Попробуйте другой поисковый запрос
+    export: Экспорт
+    exported: Пакет карт экспортирован
+    export_failed: Не удалось экспортировать пакет карт
+    imported: Пакет карт импортирован
+    import_missing_file: В пакете карт отсутствуют необходимые файлы
+    import_invalid_file: Неверный файл пакета карт
     upload: Загрузить
-    upload_desc: Нажмите или перетащите файл для загрузки
+    upload_desc: Нажмите или перетащите пакет карт AIRI для импорта
   memory:
     description: Хранилище и организация воспоминаний
     title: Память
   data:
-    title: Data
-    description: Manage stored AIRI data, exports, and resets
+    title: Данные
+    description: Управление сохраненными данными AIRI, экспортом и сбросами
     sections:
       chats:
-        title: Chat sessions
+        title: Чат сеансов
         description: Export or import saved chat sessions.
-        export: Export chats
-        import: Import chats
-        delete: Delete all chat sessions
+        export: Экспорт чатов
+        import: Импорт чатов
+        delete: Удалить все сеансы чата
       models:
-        title: Models
-        description: Remove imported Live2D/VRM models.
-        delete: Delete all models
+        title: Модели
+        description: Remove imported Live2D, VRM, Spine, and MMD models.
+        delete: Удалить все модели
       modules:
-        title: Modules
-        description: Reset module preferences and credentials.
-        reset: Reset module settings
+        title: Модули
+        description: Сбросить настройки модулей и учетные данные.
+        reset: Сбросить настройки модуля
       providers:
-        title: Providers
-        description: Reset all provider settings and credentials.
-        reset: Reset provider settings
+        title: Провайдеры
+        description: Сброс всех настроек провайдера и учетных данных.
+        reset: Сбросить настройки провайдеров
       danger:
-        title: Danger zone
-        description: Irreversible actions. Export what you need before continuing.
+        title: Опасная зона
+        description: Необратимые действия. Выберите, что вам нужно для продолжения.
       all:
-        title: Delete all data
-        description: Wipe every local setting, provider config, and model.
-        delete: Delete all data
+        title: Удалить все данные
+        description: Очистка всех локальных настроек, конфигурации провайдера и модели.
+        delete: Удалить все данные
+      desktop-folder:
+        title: Открыть папку с данными приложения
+        description: Открыть папку с данными AIRI в вашем файловом менеджере.
+        open: Открыть папку
       desktop:
-        title: Reset desktop settings & states
-        description: Clear AIRI desktop settings and runtime state.
-        reset: Reset desktop data
+        title: Сбросить настройки и состояния рабочего стола
+        description: Очистить настройки AIRI рабочего стола и состояние рабочего времени.
+        center: Переместить окно рабочего стола в центр
+        reset: Сбросить данные для рабочего стола
     confirmations:
-      tooltip: Are you sure?
-      'yes': 'Yes'
+      tooltip: Вы уверены?
+      'yes': 'Да'
     status:
-      exported: Chat sessions exported.
-      imported: Chat sessions imported.
-      import_error: Failed to import chat sessions. Please check the file format.
-      chats_deleted: Chat sessions deleted.
-      models_deleted: Models deleted.
-      modules_reset: Module settings reset.
-      providers_reset: Provider settings reset.
-      all_deleted: All local data deleted.
-      desktop_reset: Desktop data reset.
+      exported: Чат сеансов экспортирован.
+      imported: Чат сеансов импортирован.
+      import_error: Не удалось импортировать чаты. Проверьте формат файла.
+      chats_deleted: Чат сеансы удалены.
+      models_deleted: Модели удалены.
+      modules_reset: Настройки модуля сброшены.
+      providers_reset: Настройки провайдера сброшены.
+      all_deleted: Все локальные данные удалены.
+      desktop_window_centered: Окно рабочего стола перемещено в центр экрана.
+      desktop_reset: Данные рабочего стола сброшены.
   models:
-    description: Live2D, VRM и др.
+    description: Live2D, VRM, Spine, MMD, etc.
     title: Модели
     sections:
       section:
@@ -232,51 +468,112 @@ pages:
   modules:
     beat_sync:
       description: Vibe with beats from the audio source
-      title: Beat Sync
+      title: Синхронизировать Beat Sync
       sections:
         audio_source:
           actions:
-            start_screen_capture: Start screen capture
-            stop: Stop
-          description: Select an audio source to detect beats from.
-          title: Audio source
+            start_screen_capture: Запуск захвата экрана
+            stop: Остановить
+          description: Выберите источник звука, из которого будут обнаружены.
+          title: Источник звука
         beat_visualizer:
-          title: Beat visualizer
+          title: Эквалайзер
         parameters:
-          advanced_parameters: Advanced Parameters
-          description: Tweak the beat detection parameters.
-          title: Parameters
+          advanced_parameters: Расширенные параметры
+          description: Настройте параметры определения ударов.
+          title: Параметры
           parameters:
             adaptive_threshold:
               description: >-
-                Whether to apply adaptive thresholds based on signal variance over time.
-              label: Adaptive threshold
+                Применить ли адаптивные пороговые значения, основанные на отклонении сигнала с течением времени.
+              label: Адаптивный порог
             buffer_duration:
-              description: Duration of the internal analysis buffer.
-              label: Buffer duration
+              description: Продолжительность буфера внутреннего анализа.
+              label: Длительность буфера
             envelope_filter_frequency:
               description: >-
-                Frequency for the envelope filter applied to smooth energy changes.
-              label: Envelope filter frequency
+                Частота фильтра конверта, применяемого для плавных изменений энергии.
+              label: Частота фильтрации конвертов
             highpass_filter_frequency:
               description: >-
-                Frequency for the highpass filter applied to reduce low frequencies like sub-bass noises.
-              label: Highpass filter frequency
+                Частота фильтра нижнего прохода, применяемая для снижения высоких частот, таких как вокал.
+              label: Частота фильтра низкого уровня
             lowpass_filter_frequency:
               description: >-
-                Frequency for the lowpass filter applied to reduce high frequencies like vocals.
-              label: Lowpass filter frequency
+                Частота фильтра нижнего прохода, применяемая для снижения высоких частот, таких как вокал.
+              label: Частота фильтра низкого уровня
             min_beat_interval:
-              description: Maximum BPM or minimum interval between detected beats.
-              label: Max BPM / Min beat interval
+              description: Максимальный BPM или минимальный интервал между обнаруженными битами.
+              label: Макс. BPM / мин промежуток бита
             sensitivity:
-              label: Sensitivity
+              label: Чувствительность
             spectral_flux:
-              description: Whether to enable spectral flux-based onset detection.
-              label: Spectral flux
+              description: Включить ли обнаружение спектральных потоков на основе потока.
+              label: Спектральный поток
             warmup:
-              description: Whether to warm up before detecting beats for better accuracy.
-              label: Warmup
+              description: Прогреть ли перед обнаружением ударов для лучшей точности.
+              label: Разминка
+    artistry:
+      title: Artistry
+      description: Генерация изображения, фон сцены и рисование.
+      page:
+        title: Конфигурация поставщика Artistry
+        description: Выберите активный бэкэнд провайдер для создания изображений. Персонажи могут переопределить это в настройках карты.
+      providers:
+        none:
+          name: Отсутствует
+          description: Обход и отключение модуля генерации изображений глобально.
+        comfyui:
+          name: ComfyUI (локальный)
+          description: Используйте локальный экземпляр ComfyUI через WSL для генерации изображений.
+        replicate:
+          name: Replicate.ai (Облачный)
+          description: Использовать облачные модели через Replicate API.
+        nanobanana:
+          name: Nano Banana (Предпросмотр)
+          description: Используйте Google AI Studio для предварительного просмотра изображений и реакций.
+      card:
+        description: Настройте то, как AIRI генерирует изображения и визуальный контент.
+        comfyui_empty: Не настроены процессы ComfyUI. Перейдите в Настройки → Поставщики → ComfyUI для загрузки шаблона рабочего процесса.
+        exposed_fields: '{count} открытых полей'
+        open_on_replicate: Открыть на Replicate
+        instruction_sync:
+          title: Синхронизация инструкций ComfyUI
+          description: Специализированная подсказка готова для вашего рабочего процесса {workflowName}. Применение этого перезапишет инструкции виджета так, чтоб ИИ знал, как использовать этот конкретный шаблон.
+          apply: Применить рекомендованный промпт
+          keep: Сохранить существующий
+      provider: Поставщик Artistry
+      spawn_mode:
+        label: Режим манифеста (Spawn Mode)
+        description: Выберите способ доставки изображений в интерфейс.
+        options:
+          bg: Фоновое окружение
+          inline: Встроенный чат
+          widget: Виджет оверлея
+          bg_widget: Двойной (Background + Widget)
+      autonomous:
+        title: Кинематическая Автономия (Autonomous Artist)
+        description: Если включено, то "Продюсер" будет выполняться параллельно с персонажем, чтобы решить, требуется ли визуальное изображение. Это мешает персонажу забывать о сцене манифеста.
+        threshold: Порог манифестации
+        threshold_description: Используйте {min} для создания агрессивных сцен или {max}, чтобы получить более сильные доказательства перед генерацией.
+        threshold_min: Всегда генерировать (0%)
+        threshold_max: Строгий (100%)
+      model:
+        label: Модель Artistry (опционально)
+        description: Идентификатор модели при необходимости поставщика
+      prompt-prefix:
+        label: Стандартный префикс Artistry по умолчанию
+        description: Приготовиться к каждому запросу, посланному генератору изображений.
+      options:
+        label: Опции поставщика Artistry (JSON)
+      widget-instructions:
+        label: Системный запрос виджета
+        description: Инструкции для ИИ по использованию возможностей генерации.
+    categories:
+      essential: Основные
+      messaging: Сообщения
+      gaming: Игры
+      artistry: Artistry
     consciousness:
       description: Личность, модель сознания и др.
       sections:
@@ -284,12 +581,12 @@ pages:
           provider-model-selection:
             collapse: Свернуть
             custom_model_placeholder: Введите название кастомной модели...
-            current_model_label: 'Current model:'
+            current_model_label: 'Текущая модель:'
             description: Выберите подходящего LLM-провайдера для сознания
             error: Ошибка загрузки моделей
-            health_check_failed: Health check failed
-            no_providers_configured_title: No Providers Configured
-            no_providers_configured_description: Click here to set up your LLM providers
+            health_check_failed: Сбой проверки здоровья
+            no_providers_configured_title: Провайдеры не настроены
+            no_providers_configured_description: Нажмите здесь, чтобы настроить провайдеры LLM
             expand: Развернуть
             loading: Загрузка доступных моделей...
             manual_model_name: Название модели
@@ -304,7 +601,7 @@ pages:
             search_results: Найдено {count} из {total} моделей
             show_less: Показать меньше
             show_more: Показать больше
-            subtitle: Select a default model from the provider
+            subtitle: Выберите модель у провайдера
             title: Модель
       title: Сознание
     description: Мыслительный процесс, зрение, синтез речи, игры и т. д.
@@ -326,23 +623,49 @@ pages:
       description: Играем в Minecraft!
       title: Minecraft
       enable: Включить интеграцию Minecraft
-      enable-description: Разрешить AIRI взаимодействовать с игрой Minecraft
-      server-address: Адрес сервера
-      server-address-description: IP-адрес или имя хоста сервера Minecraft
-      server-address-placeholder: Введите адрес сервера (например, localhost или play.example.com)
-      server-port: Порт сервера
-      server-port-description: Номер порта сервера Minecraft (по умолчанию 25565)
-      username: Имя пользователя
-      username-description: Ваше имя пользователя на сервере Minecraft
-      username-placeholder: Введите ваше имя пользователя Minecraft
+      enable-description: >-
+        Включать самопознание Minecraft в этапы чата и оставить включённой пассивную видимость среды выполнения.
       configured: Minecraft настроен правильно!
+      read-only:
+        title: Оболочка только для чтения
+        description: >-
+          Этап в данный момент предоставляет Minecraft как пассивную оболочку. Статус среды выполнения и трафик видны здесь, но конфигурация сервиса остаётся в файлах сервиса Minecraft.
+      setup:
+        title: Установить
+        description: >-
+          Вы можете найти инструкции по настройке бота в следующем файле
+      runtime:
+        title: Наблюдаемая среда выполнения
+        connection: Подключение
+        latest-context: Последний контекст бота
+        waiting: Ожидание отправки нового контекста от бота.
+        unknown: Неизвестно
+      debug:
+        title: Трафик Minecraft
+        empty: Трафика Minecraft пока не обнаружено.
+        source: 'Источник: {source}'
+      status:
+        service-online: Сервис онлайн
+        service-offline: Сервис офлайн
+        no-runtime-context: Контекст бота пока не обнаружен
+        last-context-seconds: 'Последний контекст бота: {seconds}с назад'
+        last-context-stale: 'Последний контекст бота: устарел'
     hearing:
       description: Настройка распознавания речи
       title: Слух
       sections:
         section:
           provider-selection:
-            description: Select the suitable speech recognition provider
+            description: Выберите подходящего провайдера синтеза речи
+          confidence-threshold:
+            title: Порог уверенности
+            description: >-
+              Отфильтровывать транскрипции с низкой уверенностью, чтобы уменьшить галлюцинации Whisper. Значения ближе к 0 более строгие; перетащите в крайнее левое положение, чтобы отключить. Работает только для провайдеров, поддерживающих Whisper API (например, OpenAI, Groq).
+            disabled: Отключено
+            verbose-json-note: >-
+              Примечание: Если ваш провайдер не поддерживает verbose_json ответы, эта настройка не будет иметь никакого эффекта.
+            verbose-json-unsupported: >-
+              Ваш провайдер не вернул сегменты verbose_json. Фильтрация по уверенности не повлияла на последнюю транскрипцию.
     memory-long-term:
       description: Настройки долговременной памяти
       title: Долговременная память
@@ -367,8 +690,14 @@ pages:
               stop:
                 label: Стоп
             select-voice:
-              loading: Loading model...
+              loading: Загрузка моделей...
               required: Выберите голос
+          voice-pack:
+            description: Выберите голос для активного персонажа
+            empty: Нет доступных голосовых пакетов
+            error: Ошибка загрузки голосовых пакетов
+            loading: Загрузка голосовых пакетов...
+            title: Голосовой пакет
           provider-voice-selection:
             custom_model_placeholder: Введите название кастомной модели...
             custom_voice_placeholder: Введите ID кастомного голоса...
@@ -377,16 +706,16 @@ pages:
             no_models_description: Модели не найдены
             no_voices: Голосов нет
             no_voices_description: Голоса не найдены
-            no_voices_hint: You can enter a custom voice name below.
+            no_voices_hint: Ниже вы можете ввести голосовое имя пользователя.
             pause: Пауза
             play_sample: Воспроизвести пример
             search_models_placeholder: Поиск моделей...
             search_models_results: Найдено {count} из {total} моделей
             search_voices_placeholder: Поиск голосов...
             search_voices_results: Найдено {count} из {total} голосов
-            unsupported_voice_warning_title: No supported voices
+            unsupported_voice_warning_title: Нет поддерживаемых голосов
             unsupported_voice_warning_content: >-
-              Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub at https://github.com/moeru-ai/airi/issues.
+              Попробуйте другую модель или провайдер. Мы работаем над поддержкой всего голоса для этой модели как можно скорее. Если вам это необходимо, пожалуйста, сообщите нам на GitHub по адресу https://github.com/moeru-ai/airi/issues.
             show_less: Показать меньше
             show_more: Показать больше
             title: Провайдер
@@ -419,102 +748,202 @@ pages:
       access-token-secret-description: Ваш секрет токена доступа X / Twitter
       access-token-secret-placeholder: Введите ваш секрет токена доступа X / Twitter
       configured: X / Twitter настроен правильно!
+    web-search:
+      title: Web Search
+      description: Let AIRI search the web for current information
+      enable: Enable Web Search
+      enable-description: Allow AIRI to search the web during chat
+      api-key: Tavily API Key
+      api-key-description: Web search is powered by Tavily. Get a free API key at tavily.com.
+      api-key-placeholder: Enter your Tavily API key
+      configured: Web search is ready to use!
     mcp-server:
-      description: Подключение и управление MCP-сервером и инструментами
-      title: MCP-сервер
-      config-path: Config file path
-      runtime-title: Runtime status
+      title: MCP Сервера
+      description: Настройка MCP серверов и перевод их инструментов в AIRI.
+      config-path: Конфигурационный файл
+      runtime-title: Статус рабочего времени
+      empty: Пока нет MCP серверов — нажмите "Добавить сервер" ниже, чтобы создать его или вставьте конфигурацию через "Редактировать JSON".
+      error-title: Упс
+      success-title: Готово!
+      existing:
+        title: Настроено
+        description: Сервера записаны в mcp.json. Нажмите на любую строку, чтобы развернуть и редактировать его.
+        empty: Здесь пока ничего нет. Добавьте одно ниже!
+      add:
+        title: Новый
+        description: 'Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше.'
+        pending-badge: Не сохранено
+      status:
+        unknown: Не загружен
       actions:
-        open-config: Open mcp.json
-        apply-and-restart: Save and restart stdio MCP
+        open-config: Показать в файловом менеджере
+        apply-and-restart: Сохранить и перезагрузить
+        restart: Перезапустить MCP
+        add-server: Добавить сервер
+        add-env: Добавить переменную
+        remove: Убрать
+        test: Проверка
+        edit-json: Редактировать JSON
+        close-json: Закрыть
+        format-json: Формат
+        reset-draft: Сброс
+        apply-json: Применить
+        cancel: Отменить
+        expand: Развернуть
+        collapse: Свернуть
+      fields:
+        identifier:
+          label: Идентификатор
+          description: Уникальное имя; становится ключом в mcp.json.
+          placeholder: Напр. filesystem
+        command:
+          label: Команда
+          description: Исполняемый файл создан поверх stdio.
+          placeholder: Напр. npx
+        args:
+          label: Аргументы
+          description: По одному на строку, по порядку.
+          placeholder: "-y\nsome-package-name\n/tmp"
+        cwd:
+          label: Рабочая папка
+          description: Необязательный каталог, используемый в качестве рабочего каталога процесса.
+          placeholder: Напр. /Users/you/project
+        env:
+          label: Окружение
+          description: Переменные переданы дочернему процессу.
+          key-placeholder: КЛЮЧ
+          value-placeholder: значение
+        enabled:
+          label: Включено
+      json:
+        title: Редактировать mcp.json
+        description: 'Отредактируйте сырые JSON напрямую. Нажмите «Применить», чтобы загрузить их в форму, затем «Сохранить и перезапустить», чтобы записать их на диск.'
+        placeholder: Вставьте mcp.json здесь…
+      test:
+        title: Проверить подключение
+        description: Мы недолго создадим сервер, чтобы проверить работу команды и увидеть, какие инструменты она раскрывает.
+        pick-server-label: Сервер
+        no-servers: Пока нечего проверять
+        no-server-selected: Сначала выберите сервер.
+        server-disabled: '"{name}" отключён — включите его сначала на карте.'
+        disabled-suffix: отключено
+        untitled: безымянный
+        running: Тестирование
+        success: Подключено! Найдено {count} инструментов за {ms}мс.
+        failure: Сбой соединения после {ms}мс
+      errors:
+        empty-identifier: Server # {index} is missing an identifier.
+        duplicate-identifier: Идентификатор "{name}" используется более одного раза — имена должны быть уникальными.
+        empty-command: '"{name}" отсутствует команда.'
+        invalid-shape: Это не похоже на mcp.json — для root требуется поле "mcpServers".
       messages:
-        opened: Config file opened at {path}
-        restarted: >-
-          MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
+        opened: В файловом менеджере открыта {path}
+        json-applied: JSON применен к форме. Нажмите «Сохранить и перезапустить», чтобы сохранить его на диск.
+        restarted: Все перезапущено! {started} запущен, {failed} не удалось, {skipped} пропущен.
+  flux:
+    title: Flux
+    buy: Пополнить
+    currency: Валюта
+    description: Текущий Flux
+    packagesError: Не удалось загрузить пакеты. Пожалуйста, повторите попытку позже.
+    checkout:
+      success: Платеж выполнен! Ваш Flux пополнился.
+      canceled: Оплата была отменена.
+      error: Что-то пошло не так. Повторите попытку позже.
+    audit:
+      title: История транзакций
+      time: Время
+      type: Тип
+      detail: Сведения
+      amount: Кол-во
+      typeAddition: Пополнение
+      typeConsumption: Использование
+      typeInitial: Начальный грант
+      typePromo: Promo Grant
+      loading: Загрузка истории...
+      empty: Пока нет записей транзакций.
+      loadMore: Загрузить ещё
+      delayHint: Записи об использовании могут задерживаться до 1 минуты
+      ttsRequests: запросы
+    packages:
+      title: Flux пакеты
+      buy: Пополнить
+      description: Пакеты Flux на выбор.
   providers:
-    explained:
-      chat: Провайдеры текстогенерации, напр. OpenRouter, OpenAI, Ollama.
-      Speech: Провайдеры речи (TTS), напр. ElevenLabs, Azure Speech.
-      Transcription: >-
-        Провайдеры транскрипции (STT): Whisper.cpp, OpenAI, Azure Speech.
-    helpinfo:
-      title: Впервые здесь?
-      description: >
-        AIRI требует как минимум одного {chat}-провайдера для корректной работы. Можно считать его "мозгом" персонажей в системе AIRI.
     catalog:
       edit:
-        config-id-not-found: Provider configuration not found.
-        definition-id-not-found: Provider definition not found.
+        config-id-not-found: Конфигурация провайдера не найдена.
+        definition-id-not-found: Определение провайдера не найдено.
         actions:
-          more-options: More options
-          delete: Delete
+          more-options: Дополнительные параметры
+          delete: Удалить
         validation:
           failed:
-            title: Please check your provider settings, validation failed.
+            title: Пожалуйста, проверьте настройки провайдера, проверка не удалась.
             description: >-
-              You can still save the current configuration if you want to proceed.
-            action: Save anyway
+              Вы можете сохранить текущую конфигурацию, если хотите продолжить.
+            action: Сохранить в любом случае
         config:
           common:
             fields:
               field:
                 api-key:
-                  label: API Key
-                  description: API Key used to authorize requests to this provider
-                  placeholder: sk-...
+                  label: API-ключ
+                  description: Ключ API, используемый для авторизации запросов для этого провайдера
+                  placeholder: Sk-....
                 base-url:
-                  label: Base URL
+                  label: Базовый URL
                   description: >-
-                    The base url used to connect to remote service. Often looks like http://localhost:11434/v1 or https://example.com/v1.
+                    Базовый url, используемый для подключения к удаленному сервису. Часто выглядит как http://localhost:11434/v1 или https://example.com/v1.
                   placeholder: Base url...
                 headers:
-                  label: Custom HTTP Headers
-                  description: Add custom HTTP headers
+                  label: Добавить кастомные HTTP-заголовки
+                  description: Добавить кастомные HTTP-заголовки
                   key:
-                    placeholder: Key
+                    placeholder: Ключ
                   value:
-                    placeholder: Value
+                    placeholder: Ценность
                 thinking-mode:
-                  label: Thinking Mode
+                  label: Режим мышления
                   description: >
-                    Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
+                    Контролирует поведение мышления Ollama. GPT-OSS поддерживает только низкие/средние/высокие уровни.
                   options:
-                    auto: Auto (provider default)
-                    disable: Disable
-                    enable: Enable
-                    low: Low
-                    medium: Medium
-                    high: High
+                    auto: Авто (по умолчанию провайдера)
+                    disable: Отключить
+                    enable: Включить
+                    low: Низкая
+                    medium: Средний
+                    high: Высокая
         validators:
           actions:
-            validate: Validate
-          empty: No validation steps available.
+            validate: Подтвердить
+          empty: Нет доступных шагов подтверждения.
           openai-compatible:
             check-config:
-              title: Configuration
+              title: Конфигурация
             check-connectivity:
-              title: Connectivity
+              title: Подключение
             check-supports-model-listing:
-              title: List Models
+              title: Загрузить модели
             check-supports-chat-completion:
-              title: Chat Completion
+              title: Завершение чата
           status:
-            validating: Validating...
-            valid: Passed
-            invalid: Errored
-          title: Checks
+            validating: Проверка...
+            valid: Успешно
+            invalid: Ошибка
+          title: Проверки
         providers:
           provider:
             ollama:
               troubleshooting:
                 validators:
                   openai-compatible-check-connectivity:
-                    label: Extra configuration needed for Ollama
+                    label: Дополнительные настройки необходимы Ollama
                     content: >-
-                      Sorry to hear that Connectivity check failed for Ollama. Don't worry, for Ollama instances, extra configuration is needed for making it pass for Ollama. You need to set <code>OLLAMA_HOST</code> explicitly when start the Ollama application or Ollama CLI server, for detailed information, check <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama integration guide</a>.
+                      К сожалению, произошла проверка соединения для Ollama. Не волнуйтесь, для копий Ollama требуется дополнительная конфигурация для передачи Ollama. Необходимо установить <code>OLLAMA_HOST</code> явно при запуске приложения Ollama или Ollama CLI сервера, для получения подробной информации смотрите руководство по интеграции <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama</a>.
     common:
       continueAnyway: Продолжить всё равно
-      goToModelSelection: 'Select Model →'
+      goToModelSelection: Выберите модель →
       fields:
         field:
           api-key:
@@ -536,6 +965,50 @@ pages:
           title: Базовые
         voice:
           title: Настройки голоса
+    labels:
+      recommended: Рекомендуется
+    filters:
+      pricing: Цены
+      deployment: Развертывание
+      all: Все
+      free: Бесплатно
+      paid: Платно
+      internal: Встроенное
+      local: Локальное
+      cloud: Облачное
+    categories:
+      chat:
+        title: Чат
+        description: Провайдеры текстовых моделей, напр. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Зрение
+        description: Провайдеры моделей зрения для понимания изображений.
+      speech:
+        title: Речь
+        description: Провайдеры речи (text-to-speech), напр. ElevenLabs, Azure Speech.
+      transcription:
+        title: Транскрипция
+        description: >-
+          Провайдеры транскрипции (speech-to-text): Whisper.cpp, OpenAI, Azure Speech
+      artistry:
+        title: Artistry
+        description: Поставщики моделей генерации и создания изображений, например ComfyUI, Replicate.
+        items:
+          comfyui:
+            description: Генерирование локального изображения.
+          replicate:
+            description: Облачный сервис моделей
+          nanobanana:
+            description: Google AI Studio Image Preview.
+    helpinfo:
+      title: Впервые здесь?
+      description: >
+        AIRI требует как минимум одного {chat}-провайдера для корректной работы. Можно считать его "мозгом" персонажей в системе AIRI.
+    explained:
+      chat: Провайдеры текстогенерации, напр. OpenRouter, OpenAI, Ollama.
+      Speech: Провайдеры речи (TTS), напр. ElevenLabs, Azure Speech.
+      Transcription: >-
+        Провайдеры транскрипции (STT): Whisper.cpp, OpenAI, Azure Speech.
     description: LLM-модели, провайдеры речи и др.
     provider:
       app-local-audio-transcription:
@@ -551,10 +1024,21 @@ pages:
         title: Браузер (локально)
         description: https://github.com/moeru-ai/xsai-transformers
       alibaba-cloud-model-studio:
-        description: bailian.console.aliyun.com
+        description: Bailian.console.aliyun.com
         title: Alibaba Cloud Model Studio
+      amazon-bedrock:
+        title: Amazon Bedrock
+        description: aws.amazon.com/bedrock
+        config:
+          api-key:
+            label: Ключ API Bedrock
+            description: Ключ Amazon Bedrock API (создать в консоли AWS → Bedrock → API Keys)
+            placeholder: bedrock-...
+          region:
+            label: Регион AWS
+            description: Регион AWS, где включен Bedrock (например, us-east-1, us-west-2)
       anthropic:
-        description: anthropic.com
+        description: Anthropic.com
         title: Anthropic | Claude
         helpinfo:
           title: Перед началом
@@ -569,20 +1053,20 @@ pages:
               Если провайдер необходим, нужен выделенный прокси-бэкенд (например, Serverless Function)
             part6: или сервисы обхода CORS для снятия ограничений CORS.
       cloudflare-workers-ai:
-        description: cloudflare.com
+        description: Cloudflare.com
         fields:
           field:
             account-id:
               description: ID аккаунта Cloudflare
-              label: Account ID
+              label: ID аккаунта
               placeholder: Ваш Cloudflare Account ID
             api-key:
               placeholder: Введите Cloudflare API Key
         title: Cloudflare Workers AI
       common:
         status:
-          validating: Validating
-          valid: Configuration seems to be valid.
+          validating: Проверка
+          valid: Конфигурация выглядит корректной.
         fields:
           field:
             pitch:
@@ -595,30 +1079,122 @@ pages:
               description: Регулировка громкости речи
               label: Громкость
       deepgram-tts:
-        description: deepgram.com
-        title: Deepgram
+        description: Deepgram.com
+        title: Глупо грамма
       speech-noop:
-        title: None
-        description: No speech output.
+        title: Отсутствует
+        description: Вывод речи отсутствует.
+      comfyui:
+        settings:
+          title: ComfyUI (локальный)
+          heading: ComfyUI нативный API
+          description: Подключитесь к локальному ComfyUI и приносите свои собственные рабочие процессы.
+          info:
+            what_you_need:
+              label: Что вам нужно
+              value: ComfyUI работает локально или в вашей сети.
+            how_to_export:
+              label: Как Экспортировать
+              value: Включить режим Разработчика → "Сохранить (формат API)".
+            scope_boundary:
+              label: Сфера охвата
+              value: Загрузка моделей и установка узлов ваша работа.
+          connection:
+            title: Подключение
+            connected: Подключен
+            failed: Подключиться не удалось
+            error_prefix: Ошибка
+            test: Проверка
+            testing: Тестирование...
+            unknown_error: Неизвестная ошибка соединения
+            unknown_gpu: Неизвестный GPU
+            server_url:
+              label: URL сервера
+              description: Адрес, в котором запущен ComfyUI
+              placeholder: http://localhost:8188
+          cors:
+            title: Обнаружен блок CORS
+            description: ComfyUI по умолчанию блокирует запросы от других приложений. Чтобы разрешить подключение AIRI, вы должны запустить ComfyUI с флагом `--enable-cors-header "*"`.
+            command: python main.py --enable-cors-header "*"
+          workflows:
+            title: Шаблоны рабочего процесса
+            upload: Загрузить рабочий процесс
+            cancel_upload: Отменить
+            empty: Пока нет загруженных рабочих процессов. Нажмите "Загрузить рабочий процесс", чтобы импортировать workflow_api.json из ComfyUI.
+            exposed_parameters: Открытые параметры
+            summary: '{nodes} узлы · {fields} открытые поля'
+            remove: Убрать
+            config_snippet: Фрагмент конфигурации Artistry
+            copy_json: Копировать JSON
+            paste_hint: Вставьте это в конфигурацию AIRI карт для переопределения этих узлов.
+          upload:
+            prompt: Перетащите или выберите файл workflow_api.json
+            invalid_json: Неверный JSON
+            workflow_name:
+              label: Название рабочего процесса
+              description: Дайте этому процессу узнаваемое название
+              placeholder: напр. Anime Text2Img
+            select_fields: 'Выберите поля, чтобы открыть агенту ИИ:'
+            fields_exposed: '{count} Файл(ов) выбрано'
+            save: Сохранить рабочий процесс
+      replicate:
+        settings:
+          title: Replicate.ai
+          heading: Конфигурация Replicate.ai
+          description: Настройте параметры генерации изображений в облаке.
+          api_key:
+            label: API ключ
+            description: Ваш Replicate API токен (начинается с r8_)
+            placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          default_model:
+            label: Модель по умолчанию
+            description: Резервная строка владельца/модели используется, если карта персонажа не указана
+            placeholder: black-forest-labs/flux-schnell
+          aspect_ratio:
+            label: Соотношение сторон
+            description: Соотношение сторон по умолчанию (например, 16:9, 1:1, 9:16)
+            placeholder: '16:9'
+          inference_steps:
+            label: Шаги осмотра
+            description: Количество шагов для процесса распространения (ниже - быстрее, выше - качество)
+      nanobanana:
+        settings:
+          title: Nano Banana
+          heading: Nano Banana (Google AI Studio)
+          description: Настроить возможности генерации изображений Google Gemini.
+          api_key:
+            label: API ключ
+            description: Ваш API ключ Google AI Studio
+            placeholder: AIpk...
+          preferred_model:
+            label: Предпочитаемая модель
+            description: Конкретная модель Gemini image preview для использования
+          default_resolution:
+            label: Разрешение по умолчанию
+            description: Целевое разрешение для сгенерированных изображений
+          model_options:
+            nano_banana_2: Nano Banana 2 (Gemini 3.1 Flash Image)
+            nano_banana_pro: Nano Banana Pro (Gemini 3 Pro Image)
+            nano_banana: Nano Banana (Gemini 2.5 Flash Image)
       deepseek:
-        description: deepseek.com
+        description: Deepseek.com
         title: DeepSeek
       elevenlabs:
-        description: elevenlabs.io
+        description: Elevenlabs.io
         fields:
           field:
             simularity-boost:
               description: Степень сохранения сходства голоса
-              label: Similarity Boost
+              label: Сходство усиления
             speaker-boost:
               description: Усиление схожести с диктором
-              label: Speaker Boost
+              label: Ускорение динамиков
             speed:
               description: Скорость генерации речи
-              label: Speed
+              label: Скорость
             stability:
               description: Стабильность/случайность голоса
-              label: Stability
+              label: Стабильность
             style:
               description: Выразительность/стиль голоса
               label: Style
@@ -643,33 +1219,36 @@ pages:
             error-missing-api-key: Введите API-ключ, чтобы протестировать голос.
         title: ElevenLabs
       kokoro-local:
-        description: Local text-to-speech using Kokoro-82M.
+        description: Локальный синтезатор речи с помощью Kokoro-82M.
         fields:
           field:
             model:
-              label: Model Selection
-              description: Smaller models load faster but may have slightly lower quality.
+              label: Выбор модели
+              description: Маленькие модели загружаются быстрее, но могут иметь немного более низкое качество.
         models:
           fp32-webgpu:
             description: >-
-              Full precision model using WebGPU - Recommended for supported devices
+              Полная точная модель с использованием WebGPU - рекомендуется для поддерживаемых устройств
           fp32:
-            description: Full precision model
+            description: Полная точная модель
           fp16:
-            description: Half precision
+            description: Половина точности
           q8:
-            description: 8-bit quantized
+            description: 8-битный квантованный
           q4:
-            description: 4-bit quantized
+            description: 4-битный квантованный
           q4f16:
-            description: 4-bit with FP16
+            description: 4-битный  FP16
         playground:
-          default-text: Hello! This is a test of the Kokoro text-to-speech system.
-          title: Voice Playground
+          default-text: Привет! Это тест-системы синтеза речи.
+          title: Голосовая платформа
         title: Kokoro TTS (Local)
       fireworks:
-        description: fireworks.ai
+        description: Fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -681,28 +1260,34 @@ pages:
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS
-        callout_indextts2_unavailable_title: Limited Support
-        callout_indextts2_unavailable: Support for IndexTTS2 is currently unavailable. Please use IndexTTS.
+        callout_indextts2_unavailable_title: Ограниченная поддержка
+        callout_indextts2_unavailable: Поддержка IndexTTS2 в настоящее время недоступна. Пожалуйста, используйте IndexTTS.
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
       minimax:
-        description: minimaxi.com
+        description: Minimaxi.com
         title: MiniMax
       minimax-global:
-        description: minimax.io
-        title: MiniMax Global
+        description: Minimax.io
+        title: MiniMax Глобальный
+      minimax-speech:
+        description: Minimax.io
+        title: MiniMax речь
+      mimo:
+        description: api.xiaomimimo.com
+        title: Xiaomi MiMo
       mistral:
-        description: mistral.ai
+        description: Mistral.ai
         title: Mistral
       moonshot:
-        description: moonshot.ai
+        description: Moonshot.ai
         title: Moonshot AI
       modelscope:
-        description: modelscope.cn
-        title: ModelScope
+        description: Modelscope.cn
+        title: Область Модели
       novita:
-        description: novita.ai
+        description: Novita.ai
         title: Novita
       ollama:
         description: ollama.ai
@@ -710,23 +1295,32 @@ pages:
       openai:
         description: openai.com
         title: OpenAI
+      azure-openai:
+        description: Azure OpenAI API
+        title: Azure OpenAI
       openai-compatible:
         description: Совместимый с OpenAI
         title: OpenAI Compatible
       nvidia:
-        description: build.nvidia.com
+        description: Build.nvidia.com
         title: NVIDIA NIM
       n1n:
-        description: n1n.ai - High-performance AI API provider.
+        description: n1n.ai - Высокая производительность AI API провайдера.
         title: n1n
+      openpaths:
+        description: openpaths.io
+        title: OpenPaths
       openrouter:
+        description: Openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:
         description: perplexity.ai
         title: Perplexity
       player2:
-        description: player2.game
+        description: Player2.game
         title: Player2
       together:
         description: together.ai
@@ -735,28 +1329,40 @@ pages:
         description: gemini.google.com
         title: Google Gemini
       groq:
-        description: groq.com
+        description: Groq.com
         title: Groq
       featherless:
-        description: featherless.ai
+        description: Featherless.ai
         title: Featherless AI
       lm-studio:
-        description: lmstudio.ai
+        description: Lmstudio.ai
         title: LM Studio
       vllm:
         description: vllm.ai
         title: vLLM
       volcengine:
-        description: volcengine.com
+        description: Volcengine.com
         fields:
           field:
             appId:
               description: App ID проекта (получается в Console)
-              label: App ID
+              label: Идентификатор приложения (App ID)
         title: Volcano Engine
+      volcengine-coding-plan:
+        description: План кодирования Volcengine
+        title: План кодирования Volcengine
+      byteplus:
+        description: byteplus.com
+        title: BytePlus
+      byteplus-coding-plan:
+        description: План кодирования BytePlus
+        title: План кодирования BytePlus
       xai:
         description: x.ai
         title: xAI
+      zai:
+        description: z.ai
+        title: 智谱大模型
       302-ai:
         description: 302.AI
         title: 302.AI
@@ -764,31 +1370,76 @@ pages:
         description: CometAPI.com
         title: Comet API
       cerebras:
-        description: cerebras.ai
+        description: Cerebras.ai
         title: Cerebras
       aliyun-nls:
         description: Aliyun NLS
         title: Aliyun NLS
       browser-web-speech-api:
-        description: Browser-native STT (requires Chrome/Edge/Safari)
+        description: Браузер  STT (требует Chrome/Edge/Safari)
         title: Web Speech API
+      official:
+        title: Официальный провайдер
+        description: Официальный ИИ провайдер AIRI.
+        speech-title: Официальный провайдер синтеза речи
+        speech-description: Официальный text-to-speech провайдер AIRI.
+        speech-streaming-title: Официальный провайдер синтеза речи
+        speech-streaming-description: Официальный поставщик текстов и речи с низкими задержками AIRI (двунаправленный WebSocket).
+        transcription-title: Официальный провайдер транскрипции
+        transcription-description: Официальный speech-to-text провайдер AIRI.
       transcriptions:
         playground:
           title: Песочница транскрипции
       aihubmix:
         title: AIHubMix
-        description: https://aihubmix.com (10% off)
+        description: https://aihubmix.com (скидка 10%)
     title: Провайдеры
   connection:
-    description: Configure WebSocket server connection
-    title: Connection
+    description: Настроить соединение сервера WebSocket
+    title: Подключение
     websocket-url:
-      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
-      label: WebSocket Server Address
-      placeholder: ws://localhost:6121/ws
-  scene:
-    description: Настройте окружение, в котором живёт персонаж
-    title: Сцена
+      description: Полный адрес сервера WebSocket (например, ws://localhost:6121/ws)
+      label: Адрес сервера WebSocket
+      placeholder: Ws://localhost:6121/ws
+    server-hostname:
+      label: Открыть доступ по сети
+      description: >-
+        Выберите, будет ли шлюз AIRI прослушивать только это устройство или к нему можно будет подключиться из вашей локальной сети.
+      advanced-label: Привязать имя хоста
+      advanced-description: >-
+        Использовать определенное имя хоста или IP-адрес, когда требуется ручная привязка сети.
+      options:
+        this-device: Это устройство
+        all: Все
+        advanced: Дополнительно
+    server-auth-token:
+      label: Токен аутентификации
+      description: >-
+        Токен безопасности, требуемый удалёнными клиентами для подключения к этому шлюзу. Если оставить пустым, AIRI сгенерирует новый токен автоматически.
+      placeholder: Авто-Генерация
+    qr:
+      title: Подключиться из Stage Pocket
+      description: >-
+        Сканируйте этот QR-код из Stage Pocket, чтобы попробовать все доступные адреса локальной сети и сохранить первый рабочий.
+      refresh: Обновить
+      image-alt: QR-код соединения с сервером AIRI
+      candidates: Адреса кандидаты
+      token-hint: >-
+        QR-код включает в себя токен авторизации, чтобы Stage Pocket мог пройти аутентификацию после подключения. Не делитесь этим публично.
+      errors:
+        title: QR-код недоступен
+        unavailable: Не удалось подготовить QR-код подключения.
+    qr-scan:
+      title: Быстрое подключение
+      description: Сканируйте QR-код из Tamagotchi для быстрого подключения
+      instructions: Наведите камеру на QR-код подключения AIRI.
+      action: Сканировать
+      success:
+        title: Подключенный адрес сохранен
+        description: 'Использованный URL: {url}'
+      errors:
+        title: Ошибка сканирования QR-кода
+        failed: Не удалось отсканировать или подключиться с помощью QR-коду.
   system:
     color-scheme:
       description: Изменить цветовую схему сцены
@@ -799,6 +1450,9 @@ pages:
     general:
       description: Тема, языки и др.
       title: Общие
+    permissions:
+      description: Просмотр текущего состояния разрешений.
+      title: Управление разрешениями
     description: Настройте вашу сцену!
     sections:
       section:
@@ -815,126 +1469,150 @@ pages:
           sections:
             section:
               performance-visualizer:
-                title: Performance Visualizer
-                description: Toggle FPS/long task/memory overlay
+                title: Визуализатор производительности
+                description: Переключить FPS/долгую задачу/оверлей памяти
               markdown-stress:
-                title: Markdown Stress
-                description: Stress markdown parsing and rendering with heavy chat payloads
+                title: Нагрузочное тестирование обработки Markdown
+                description: Напряжение парсинг и рендеринга с тяжелыми чатами
               use-magic-keys:
                 title: useMagicKeys Tool
-                description: Test shortcuts
+                description: Тестировать ярлыки
               audio-record:
-                title: Audio Record
-                description: Test Audio related composables
+                title: Запись аудио
+                description: Тест композиций, связанных с аудио
               background-gradient-blending:
-                title: Background Theme color blending
-                description: Test blending & theme
+                title: Смешивание цвета фоновой темы
+                description: Тестовое смешивание & тема
               background-removal:
-                title: Background removal (WebGPU required)
-                description: Utility for background removal
+                title: Удаление фона (требуется WebGPU)
+                description: Утилита для удаления фонового изображения
               chat:
-                title: Chat
-                description: Chat
+                title: Чат
+                description: Чат
               gesture-circle:
-                title: Gesture Circle (Desktop only)
-                description: Test gesture recognition
+                title: Круг жестов (только для рабочего стола)
+                description: Проверить распознавание жестов
               image:
-                title: Image
-                description: Image
+                title: Изображение
+                description: Изображение
               polaroid:
                 title: Polaroid
-                description: Utility for taking shots of models
+                description: Утилита для съемки моделей
               context-flow:
                 description: >-
-                  Inspect incoming context updates and outgoing chat stream events
+                  Проверять обновления контекста входящих и исходящих событий в чате
               websocket-inspector:
-                title: WebSocket Inspector
-                description: Inspect raw WebSocket traffic
+                title: Инспектор WebSocket
+                description: Проверять трафик необработанных WebSocket
               vibrant:
-                title: Color extract
-                description: Test color extraction
+                title: Извлечь цвет
+                description: Извлечение цвета теста
               providers-transcription-realtime-aliyun-nls:
-                title: Aliyun Real-time Transcriber
+                title: Транскрибирую в реальном времени
                 description: >-
-                  Stream microphone audio to Aliyun NLS and inspect live transcripts
+                  Трансляция микрофона на Aliyun NLS и проверка текущих субтитров
               performance-playground:
-                title: Performance Playground
-                description: 'VRM expressions + TTS lip sync playground'
+                title: Игровая площадка производительности
+                description: Выражения VRM + Проводка TTS lip синхронизации
         theme-presets:
           presets:
             default:
               colors:
-                color-1: AIRI Green
-              description: The default greenish theme color, brought by AIRI to you!
-              title: Default Color
+                color-1: AIRI Зеленый
+              description: Стандартный зелёный оттенок AIRI
+              title: Цвет по умолчанию
             morandi:
               colors:
-                color-1: Taupe
-                color-2: Beige
-                color-3: Ash Grey
-                color-4: Light Taupe
-                color-5: Ivory
-                color-6: Olive Grey
-                color-7: Sand
-                color-8: Warm Grey
-              description: Soft, muted tones inspired by Giorgio Morandi's paintings
-              title: Morandi Colors
+                color-1: Серо-коричневый
+                color-2: Бежевый
+                color-3: Пепельно-серый
+                color-4: Легкий Таус
+                color-5: Слоновая кость
+                color-6: Оливковый серый
+                color-7: Песок
+                color-8: Теплый серый
+              description: Приглушённые тона в стиле Джорджо Моранди
+              title: Цвета Моне
             monet:
               colors:
-                color-1: Sky Blue
-                color-2: Mist
-                color-3: Sand
-                color-4: Moss Green
-                color-5: Water Lily
-                color-6: Wheat
-                color-7: Slate Blue
-                color-8: Sage
-              description: Impressionist palette inspired by Claude Monet's works
-              title: Monet Colors
+                color-1: Небесный
+                color-2: Туман
+                color-3: Песок
+                color-4: Зеленый мох
+                color-5: Кувшинка
+                color-6: Пшеница
+                color-7: Серовато-Синий
+                color-8: Мудрец
+              description: Палитра импрессионизма, вдохновлённая Моне
+              title: Цвета Моне
             japanese:
               colors:
-                color-1: Tan
+                color-1: Бронзовый
                 color-2: Warm Taupe
-                color-3: Umber
-                color-4: Coffee
-                color-5: Bronze
-                color-6: Gold
-                color-7: Mustard
-                color-8: Amber
-              description: Traditional Japanese color palette
-              title: Japanese Colors
+                color-3: Умбра
+                color-4: Кофе
+                color-5: Бронза
+                color-6: Золото
+                color-7: Горчичный
+                color-8: Янтарный
+              description: Традиционная японская цветовая палитра
+              title: Японские цвета
             nordic:
               colors:
-                color-1: Nordic Blue
-                color-2: Ice
+                color-1: Скандинавский синий
+                color-2: Лёд
                 color-3: Fjord
-                color-4: Steel
-                color-5: Glacier
-                color-6: Slate
-                color-7: Cloud
-                color-8: Stone
-              description: Scandinavian minimalist color scheme
-              title: Nordic Colors
+                color-4: Сталь
+                color-5: Ледниковый
+                color-6: Сланец
+                color-7: Облако
+                color-8: Камень
+              description: Скандинавская минималистичная схема
+              title: Скандинавские цвета
             chinese:
               colors:
                 color-1: Rosy Dawn
                 color-2: Chinese Red
                 color-3: Smoky Brown
                 color-4: Bamboo Green
-                color-5: Dark Purple
-                color-6: Golden Yellow
-                color-7: Azure Blue
+                color-5: Темно-фиолетовый
+                color-6: Золотисто-Желтый
+                color-7: Лазурно-голубой
                 color-8: Ochre
               description: >-
-                Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
-              title: Chinese Traditional Colors
+                Традиционные китайские цвета, вдохновлённые текстилем, фарфором и живописью
+              title: Китайские традиционные цвета
           title: Наборы цветовых схем
     title: Внешний вид
   page:
     developers:
       open-devtools:
-        title: Open Developer Tools
-        button: Open
+        title: Открыть инструменты разработчика
+        button: Открыть
+  credits:
+    buy: Купить
+  scene:
+    title: Сцены
+    description: Настройте виртуальную среду для персонажей.
+    beta_label: Система сцен
+    beta_description: Каждая карта персонажа указывает свой собственный фон из этой галереи. Установка её здесь будет означать значение по умолчанию для текущего активного персонажа.
+    background_image:
+      title: Активный фон персонажа
+      no_background: Для этого персонажа не активен фон. Загрузите квадрат или альбомное изображение, чтобы получить наилучший результат.
+      upload: Загрузить в галерею
+      change: Изменить фон
+      clear: Сбросить по умолчанию
+    gallery:
+      title: Галерея сцен
+      empty: В галерее пока нет изображений. Загрузите одно выше!
+      set_as_global: Установить как персонаж по умолчанию
+      delete: Удалить из галереи
+      global_badge: Персонаж по умолчанию
+      active_badge: Текущая сцена
+      delete_confirm: Вы уверены, что хотите удалить этот фон?
+    tip:
+      label: Совет!
+      description: Использование квадратного изображения позволит использовать <b>обрезку обложки</b> в портретном режиме, фокусируясь на центре сцены.
 sections:
   section:
     general:
@@ -983,13 +1661,105 @@ vrm:
     button-extract:
       title: Извлечь
   skybox:
-    skybox-intensity: SkyBox Intensity
-    skybox-specular-mix: Specular Mix
+    skybox-intensity: Интенсивность SkyBox
+    skybox-specular-mix: Причудливый микс
+spine:
+  title: Настройки голоса
+  scale-and-position:
+    title: Масштаб и позиция
+    scale: Масштаб
+    x: X
+    'y': 'Y'
+  theme-color-from-model:
+    title: Извлечь цвета из модели
+    button-extract:
+      title: Извлечь
+  animation:
+    title: Анимация
+    idle-animation: Анимация бездействия
+    mix-duration: Длительность смешивания (в секундах)
+    speed: Скорость анимации
+  appearance:
+    title: Внешний вид
+  variant:
+    title: Вариация
+    current-variant: Активный вариант
+  skin:
+    title: Облик
+    current-skin: Текущий облик
+  rendering:
+    title: Рендеринг
+    max-fps: Ограничение кадров в секунду
+    render-scale: Масштаб рендеринга
+  fps:
+    options:
+      unlimited: Без ограничений
+mmd:
+  title: MMD Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+    rotation: Rotation
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  physics:
+    title: Physics & Rig
+    enabled: Enable physics (hair, skirt, accessories)
+    ik: Enable IK (inverse kinematics)
+    grant: Enable append-bone propagation
+    gravity: Gravity strength
+  gaze:
+    title: Gaze
+    tracking: Looking at
+    options:
+      cursor: Mouse
+      camera: Camera
+      none: Disabled
+  animation:
+    title: Animation
+    idle-motion: Idle Motion
+    import-motion: Import Motion (.vmd)
+    play-once: Preview Animation
+    remove: Remove motion
+    description: >-
+      Import VMD motion files, set one as the looping idle, or play any as a one-shot gesture. Map emotions to motions to play gestures alongside facial expressions.
+  morphs:
+    title: Morphs
+    auto: (auto)
+    revert: Revert to auto
+    no-morphs: This model exposes no morphs.
+    description: >-
+      The renderer auto-detects standard Japanese morph names (あいうえお, まばたき). Override a slot here if your model uses non-standard names.
+  materials:
+    title: Materials
+    no-materials: This model exposes no materials.
+    description: >-
+      Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
+tachie:
+  title: Tachie Settings
+  archive-description: Tachie models use .tachie.zip archives containing emotion-named images.
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  rendering:
+    title: Rendering
+    render-scale: Render Scale
+    shadow: Theme-colored drop shadow
 websocket-secure-enabled:
   title: Включить безопасный WebSocket (WSS)
   description: >-
     Включите WSS (WebSocket Secure), чтобы разрешить HTTPS-подключения для мобильных устройств (pocket) в режиме разработки. Это автоматически сгенерирует самоподписанный сертификат.
 wip:
-  title: Work in Progress
+  title: В разработке
   description: >-
-    This feature is currently under development and not yet publicly available. Check back in future updates for this functionality.
+    Эта функция в настоящее время находится в разработке и еще не доступна публично. Проверьте её в будущих обновлениях.

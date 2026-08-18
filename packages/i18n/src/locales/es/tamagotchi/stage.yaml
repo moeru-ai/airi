@@ -15,15 +15,30 @@ docs:
   'open-settings': Abrir configuración
   'open-chat': Abrir Chat
   'refresh': Actualizar
+  'center-main-window': Move to screen center
   'open-hearing-controls': Abrir controles de audición
   'drag-to-move-window': Arrastra para mover la ventana
+  'stop-speaking': Detener voz
+  'speaker-idle': Altavoz
   'switch-to-light-mode': Cambiar a modo claro
   'switch-to-dark-mode': Cambiar a modo oscuro
-  'pin-on-top': Pin on top
-  'unpin-from-top': Unpin from top
-  'close': Close
-  'expand': Expand
-  'collapse': Collapse
+  'pin-on-top': Anclar Arriba
+  'unpin-from-top': Desanclar de la parte superior
+  'switch-profile': Cambiar Perfil
+  'close': Cerrar
+  'expand': Expandir
+  'collapse': Contraer
+  'login': Iniciar sesión
+  'logging-in': Iniciando sesión...
+  'account': Cuenta
+  'logout': Cerrar sesión
+widgets:
+  close: Cerrar widget
+  empty:
+    title: Ningún widget activo
+    description: Los Widgets aparecerán aquí cuando una herramienta o plugin produzca uno.
+  loading: Cargando widget…
+  waiting: Esperando los datos del widget "{id}"…
 notice:
   'fade-on-hover':
     title: Desvanecer al pasar el cursor
@@ -39,3 +54,49 @@ notice:
     preparing: Preparando…
     read-more: Leer más
     preview-title: '¿Qué es esto?'
+about:
+  subtitle: Versión de escritorio.
+  current-version: Versión actual
+  common:
+    cancel: Cancelar
+  links:
+    title: Enlaces
+    home: Inicio
+    documentation: Documentación
+    github: GitHub
+  update:
+    lane:
+      label: Update lane
+      description: Elija la versión del canal a seguir
+      placeholder: Choose update lane
+    channels:
+      auto: Automático
+      stable: Estable
+      alpha: Alfa
+      beta: Beta
+      nightly: Nightly
+      canary: Canary
+    status:
+      downloading: Descargando actualización...
+      error-prefix: Error
+      latest: Actualizado (v{version}).
+      downloaded:
+        windows: Actualización lista para instalar silenciosamente (v{version}).
+        restart: Actualización lista para instalar al reiniciar (v{version}).
+    actions:
+      download: Descargar actualización
+      download-short: Descargar
+      confirm-download: Confirmar descarga
+      check-for-updates: Buscar actualizaciones
+      checking: Verificando...
+      latest-version: Última versión
+      disabled-dev: Actualizaciones desactivadas en Dev
+      managed-by-store: Las actualizaciones se gestionan desde la tienda de aplicaciones
+      retry-check: Reintentar verificación
+      restart-silent: Reiniciar para actualizar silenciosamente
+      restart-install: Reiniciar e instalar actualización
+      confirm-restart: Confirmar reinicio
+    dialog:
+      title: Actualización disponible
+      description: Una nueva versión (v{version}) está disponible.
+      no-release-notes-markdown: _No se proporcionaron notas de lanzamiento._

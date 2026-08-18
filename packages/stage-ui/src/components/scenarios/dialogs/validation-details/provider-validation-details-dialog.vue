@@ -2,10 +2,12 @@
 import type { ProviderValidationStep } from '../../../../libs/providers/validators/run'
 
 import { Button } from '@proj-airi/ui'
-import { useMediaQuery, useResizeObserver, useScreenSafeArea } from '@vueuse/core'
+import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot } from 'vaul-vue'
 import { computed, onMounted } from 'vue'
+
+import { useBreakpoints } from '../../../../composables/use-breakpoints'
 
 const props = withDefaults(defineProps<{
   steps: ProviderValidationStep[]
@@ -17,7 +19,7 @@ const props = withDefaults(defineProps<{
 
 const showDialog = defineModel({ type: Boolean, default: false, required: false })
 
-const isDesktop = useMediaQuery('(min-width: 768px)')
+const { isDesktop } = useBreakpoints()
 const screenSafeArea = useScreenSafeArea()
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
@@ -40,7 +42,7 @@ const selectedSteps = computed(() => {
           <DialogTitle :class="['text-lg', 'font-semibold', 'text-neutral-900', 'dark:text-neutral-100']">
             {{ props.title }}
           </DialogTitle>
-          <Button size="sm" variant="secondary" @click="() => showDialog = false">
+          <Button size="sm" @click="() => showDialog = false">
             Close
           </Button>
         </div>
@@ -79,7 +81,7 @@ const selectedSteps = computed(() => {
           <div :class="['text-lg', 'font-semibold', 'text-neutral-900', 'dark:text-neutral-100']">
             {{ props.title }}
           </div>
-          <Button size="sm" variant="secondary" @click="() => showDialog = false">
+          <Button size="sm" @click="() => showDialog = false">
             Close
           </Button>
         </div>

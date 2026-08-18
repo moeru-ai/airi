@@ -1,3 +1,5 @@
+import type { H3CrossWsApp, H3CrossWsResponse } from '@proj-airi/better-ws/server/h3'
+
 import type { AppOptions } from '..'
 
 import { isIP } from 'node:net'
@@ -5,7 +7,7 @@ import { networkInterfaces } from 'node:os'
 
 import { useLogg } from '@guiiai/logg'
 import { merge } from '@moeru/std'
-import { plugin as ws } from 'crossws/server'
+import { createH3CrossWsPlugin } from '@proj-airi/better-ws/server/h3'
 import { serve } from 'h3'
 
 import { normalizeLoggerConfig, setupApp } from '..'
@@ -32,9 +34,29 @@ export interface Server {
   updateConfig: (newOptions: ServerOptions) => void
 }
 
+function isAddressInUseError(error: unknown) {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && (error as NodeJS.ErrnoException).code === 'EADDRINUSE'
+}
+
+/**
+ * Collects local IP addresses that can be used to reach the server from the LAN.
+ *
+ * Use when:
+ * - Building connection hints for `0.0.0.0` listeners
+ * - Showing reachable addresses in logs or UI
+ *
+ * Expects:
+ * - Virtual interfaces should be ignored to reduce noisy or misleading addresses
+ *
+ * Returns:
+ * - A de-duplicated list of valid IP addresses discovered from the host network interfaces
+ */
 export function getLocalIPs(): string[] {
   const interfaces = networkInterfaces()
-  const addresses: string[] = []
+  const addresses = new Set<string>()
 
   const VIRTUAL_INTERFACE_PREFIXES = [
     'vboxnet',
@@ -63,19 +85,33 @@ export function getLocalIPs(): string[] {
 
       const address = rawAddress.includes('%') ? rawAddress.split('%')[0] : rawAddress
       if (isIP(address))
-        addresses.push(address)
+        addresses.add(address)
     }
   }
 
-  return addresses
+  return [...addresses]
 }
 
+/**
+ * Creates the websocket server controller for the AIRI runtime.
+ *
+ * Use when:
+ * - Starting, stopping, or restarting the standalone runtime server
+ * - Updating bind options between restarts
+ *
+ * Expects:
+ * - The returned controller to manage a single active server instance at a time
+ *
+ * Returns:
+ * - Lifecycle helpers for starting, stopping, restarting, and updating server options
+ */
 export function createServer(opts?: ServerOptions): Server {
-  let options = merge<ServerOptions>({ port: 6121, hostname: '0.0.0.0' }, opts)
+  let options = merge<ServerOptions>({ port: 6121, hostname: '127.0.0.1' }, opts)
 
   const { appLogFormat, appLogLevel } = normalizeLoggerConfig(options)
   const log = useLogg('@proj-airi/server-runtime/server').withLogLevelString(appLogLevel).withFormat(appLogFormat)
   let serverInstance: ServerInstance | null = null
+  let startTask: Promise<void> | null = null
 
   log.withFields({ hasTlsConfig: !!options?.tlsConfig }).log('creating server channel')
 
@@ -99,9 +135,7 @@ export function createServer(opts?: ServerOptions): Server {
         return
       }
 
-      if (!closeActiveConnections) {
-        log.withError(error).error('Error closing WebSocket server')
-      }
+      log.withError(error).error('Error closing WebSocket server')
     }
     finally {
       serverInstance = null
@@ -112,18 +146,22 @@ export function createServer(opts?: ServerOptions): Server {
     if (serverInstance) {
       return
     }
+    if (startTask) {
+      return startTask
+    }
 
-    const secureEnabled = options?.tlsConfig != null
-
-    try {
-      const h3App = setupApp()
+    startTask = (async () => {
+      const secureEnabled = options?.tlsConfig != null
+      const h3App = setupApp(options)
+      const crossWsApp = {
+        fetch: async request => await h3App.app.fetch(request) as H3CrossWsResponse,
+      } satisfies H3CrossWsApp
 
       const port = options.port
       const hostname = options.hostname
 
       const instance = serve(h3App.app, {
-        // @ts-expect-error - the .crossws property wasn't extended in types
-        plugins: [ws({ resolve: async req => (await h3App.app.fetch(req)).crossws })],
+        plugins: [createH3CrossWsPlugin(crossWsApp)],
         port,
         hostname,
         tls: options?.tlsConfig || undefined,
@@ -136,46 +174,47 @@ export function createServer(opts?: ServerOptions): Server {
         },
       })
 
-      serverInstance = {
-        close: async (closeActiveConnections = false) => {
-          log.log('closing all peers')
-          h3App.closeAllPeers()
-          log.log('closing server instance')
-          await instance.close(closeActiveConnections)
-          log.log('server instance closed')
-        },
-      }
+      try {
+        serverInstance = {
+          close: async (closeActiveConnections = false) => {
+            h3App.dispose()
+            log.log('closing server instance')
+            await instance.close(closeActiveConnections)
+            log.log('server instance closed')
+          },
+        }
 
-      const servePromise = instance.serve()
-      if (servePromise instanceof Promise) {
-        servePromise.catch((error) => {
-          const nodejsError = error as NodeJS.ErrnoException
-          if ('code' in nodejsError && nodejsError.code === 'EADDRINUSE') {
-            log.withError(error).warn('Port already in use, assuming server is already running')
-            return
-          }
+        await instance.serve()
 
-          log.withError(error).error('Error serving WebSocket server')
-        })
+        const protocol = secureEnabled ? 'wss' : 'ws'
+        if (hostname === '0.0.0.0') {
+          const ips = getLocalIPs().filter(ip => ip !== '127.0.0.1' && ip !== '::1')
+          const targets = ips.length > 0 ? ips.join(', ') : 'localhost'
+          log.log(`@proj-airi/server-runtime started on ${protocol}://0.0.0.0:${port} (reachable via: ${targets})`)
+        }
+        else {
+          log.log(`@proj-airi/server-runtime started on ${protocol}://${hostname}:${port}`)
+        }
       }
+      catch (error) {
+        serverInstance = null
+        h3App.dispose()
+        await instance.close(true).catch(() => {})
+        if (isAddressInUseError(error)) {
+          log.withError(error).warn('WebSocket server port already in use, assuming an existing listener is available')
+          return
+        }
+        log.withError(error).error('failed to start WebSocket server')
+        throw error
+      }
+    })().finally(() => {
+      startTask = null
+    })
 
-      const protocol = secureEnabled ? 'wss' : 'ws'
-      if (hostname === '0.0.0.0') {
-        const ips = getLocalIPs().filter(ip => ip !== '127.0.0.1' && ip !== '::1')
-        const targets = ips.length > 0 ? ips.join(', ') : 'localhost'
-        log.log(`@proj-airi/server-runtime started on ${protocol}://0.0.0.0:${port} (reachable via: ${targets})`)
-      }
-      else {
-        log.log(`@proj-airi/server-runtime started on ${protocol}://${hostname}:${port}`)
-      }
-    }
-    catch (error) {
-      log.withError(error).error('failed to start WebSocket server')
-    }
+    return startTask
   }
-
   async function stop() {
-    await closeServer()
+    await closeServer(true)
   }
 
   async function restart() {
@@ -184,12 +223,16 @@ export function createServer(opts?: ServerOptions): Server {
     await start()
   }
 
-  async function updateConfig(newOptions: ServerOptions) {
-    options = { ...options, ...newOptions }
+  function updateConfig(newOptions: ServerOptions) {
+    options = merge<ServerOptions>(options, newOptions)
   }
 
   return {
     getConnectionHost: () => {
+      if (options.hostname && options.hostname !== '0.0.0.0' && options.hostname !== '::') {
+        return [options.hostname]
+      }
+
       return getLocalIPs()
     },
     start,
