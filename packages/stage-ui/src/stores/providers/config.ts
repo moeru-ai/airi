@@ -128,6 +128,20 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     addedProviders.value[providerId] = true
   }
 
+  /**
+   * Synchronously replace a provider's config object (by reference, so
+   * `configs`/`providerCredentials` and the localStorage persistence all
+   * pick it up). Unlike `updateProviderConfig`, this is a local mutation
+   * with no remote round-trip — intended for replacing a passively seeded
+   * stale default, not for user edits.
+   */
+  function replaceProviderConfig(providerId: string, config: Record<string, unknown>) {
+    const provider = providers.value[providerId]
+    if (!provider)
+      return
+    provider.config = config
+  }
+
   function unmarkProviderAdded(providerId: string) {
     delete addedProviders.value[providerId]
   }
@@ -234,6 +248,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     getProvider,
     getProviderConfig,
     ensureProvider,
+    replaceProviderConfig,
     markProviderAdded,
     unmarkProviderAdded,
     setProviderStatus,
@@ -254,6 +269,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       'addProvider',
       'removeProvider',
       'updateProviderConfig',
+      'replaceProviderConfig',
       'resetProviders',
     ],
     state: true,

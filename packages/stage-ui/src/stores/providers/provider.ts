@@ -32,6 +32,7 @@ import {
   validateProvider as runProviderValidation,
 } from '../../libs/providers'
 import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
+import { getSchemaDefault } from '../../libs/zod'
 import { useAuthStore } from '../auth'
 import { useSettingsAnalytics } from '../settings/analytics'
 import { useProviderConfigStore } from './config'
@@ -400,6 +401,57 @@ export const useProviderStore = defineStore('provider', () => {
     return {
       ...defaultOptions,
       ...(Object.hasOwn(defaultOptions, 'baseUrl') ? {} : { baseUrl: '' }),
+    }
+  }
+
+  /**
+   * Re-select a provider's default config with current runtime state.
+   *
+   * Capability-dependent defaults (e.g. Kokoro's fp16 model) are computed
+   * from the WebGPU cache at metadata selection time. When the store is set
+   * up before capability detection completes, the cached default is stale;
+   * refreshing it keeps the dirty comparison (isProviderConfigDirty) in sync
+   * with what a later capability-aware seed saves.
+   *
+   * Also replaces a saved config that still equals the stale default: a child
+   * component may have passively seeded the provider before capability
+   * detection ran (e.g. SpeechProviderSettings calling initializeProvider on
+   * direct navigation). Keeping that stale seed would make the page load the
+   * wrong model and shouldListProvider() flag the passive seed as a user edit.
+   * Only a config that exactly matches the stale default is replaced — a real
+   * user edit is never clobbered. Replacement additionally requires the
+   * caller to opt in via `replaceUntouchedSeed` (see below).
+   */
+  function refreshProviderDefaultConfig(providerId: string, options: { replaceUntouchedSeed?: boolean } = {}) {
+    const definition = getProviderDefinition(providerId)
+    const meta = providerMetadata[providerId]
+    if (!definition || !meta)
+      return
+    const previousDefault = getDefaultProviderConfig(providerId)
+    meta.defaultConfig = getSchemaDefault(definition.createProviderConfig({ t })) as Record<string, unknown>
+    const saved = providerCredentials.value[providerId]
+    // Compare only the fields that make up the provider default: child
+    // components may have added passive fields (e.g. SpeechProviderSettings
+    // writing apiKey: '') to the seeded config, which would break a full
+    // JSON equality check. A config whose default fields are untouched is
+    // still the passive seed and safe to replace; any deviation means the
+    // user edited it and it must not be clobbered.
+    //
+    // Value equality alone cannot distinguish a passive seed from a user's
+    // deliberate choice: on a reload with an empty WebGPU cache, a user who
+    // manually picked fp32-webgpu on fp16 hardware has a saved config that
+    // exactly equals the stale default. The caller therefore opts in to
+    // replacement only when it knows the config was created during this
+    // mount (no pre-existing persisted config).
+    const isUntouchedPassiveSeed = saved && options.replaceUntouchedSeed === true
+      && Object.keys(previousDefault)
+        .every((key) => {
+          const savedValue = (saved as Record<string, unknown>)[key]
+          const defaultValue = (previousDefault as Record<string, unknown>)[key]
+          return savedValue === defaultValue
+        })
+    if (isUntouchedPassiveSeed) {
+      providerConfigStore.replaceProviderConfig(providerId, getDefaultProviderConfig(providerId))
     }
   }
 
@@ -972,6 +1024,7 @@ export const useProviderStore = defineStore('provider', () => {
     getProviderDefinition,
     findProviderDefinition,
     getDefaultProviderConfig,
+    refreshProviderDefaultConfig,
     validateProviderConfig,
     hasManualProviderValidators,
     supportsModelListing,
@@ -1011,6 +1064,7 @@ export const useProviderStore = defineStore('provider', () => {
       'deleteProvider',
       'disposeProviderInstance',
       'fetchModelsForProvider',
+      'refreshProviderDefaultConfig',
       'forceProviderConfigured',
       'initializeProvider',
       'listProviderVoices',
