@@ -421,6 +421,8 @@ Dropdown select using reka-ui with grouping and custom rendering.
 | `by` | `string \| ((a: T, b: T) => boolean)?` | — | Custom comparison |
 | `contentMinWidth` | `string \| number?` | `160` | Dropdown min width |
 | `contentWidth` | `string \| number?` | — | Dropdown width |
+| `contentSide` | `'top' \| 'right' \| 'bottom' \| 'left'` | `'bottom'` | Preferred dropdown side before collision handling |
+| `contentAlign` | `'start' \| 'center' \| 'end'` | `'start'` | Preferred dropdown alignment before collision handling |
 | `shape` | `'rounded' \| 'default'` | `'default'` | Shape |
 | `variant` | `'blurry' \| 'default'` | `'default'` | Variant |
 

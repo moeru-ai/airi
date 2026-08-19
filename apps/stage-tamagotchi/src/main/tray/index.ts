@@ -20,10 +20,11 @@ import { isMacOS } from 'std-env'
 import icon from '../../../resources/icon.png?asset'
 import macOSTrayIcon from '../../../resources/tray-icon-macos.png?asset'
 
+import { findDominantDisplayArea } from '../../shared/utils/electron/display'
 import { onAppBeforeQuit } from '../libs/bootkit/lifecycle'
 import { setupInlayWindow } from '../windows/inlay'
 import { Animator } from '../windows/shared/animator'
-import { computeResizedBoundsAnchoredToDominantDisplay, findDominantDisplayArea } from '../windows/shared/display'
+import { computeResizedBoundsAnchoredToDominantDisplay } from '../windows/shared/display'
 import { toggleWindowShow } from '../windows/shared/window'
 
 const RECOMMENDED_WIDTH = 450
