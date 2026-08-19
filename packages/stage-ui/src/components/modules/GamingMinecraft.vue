@@ -54,7 +54,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <div :class="['flex flex-col gap-6']">
+  <div
+    :class="[
+      'h-fit w-full',
+      'flex flex-col gap-4',
+      'rounded-xl bg-neutral-100 p-4 dark:bg-[rgba(0,0,0,0.3)]',
+    ]"
+  >
     <Callout :theme="statusTheme" :label="statusLabel">
       <div :class="['flex flex-col gap-2 text-sm']">
         <div>
@@ -63,8 +69,8 @@ onMounted(() => {
       </div>
     </Callout>
 
-    <div :class="['rounded-2xl border border-neutral-200 bg-neutral-50/80 p-4 dark:border-neutral-800 dark:bg-neutral-900/50']">
-      <div :class="['mb-3 text-sm font-medium text-neutral-900 dark:text-neutral-100']">
+    <div :class="['flex flex-col gap-3']">
+      <div :class="['text-sm font-medium text-neutral-900 dark:text-neutral-100']">
         {{ t('settings.pages.modules.gaming-minecraft.setup.title') }}
       </div>
       <div :class="['flex flex-col gap-2 text-sm text-neutral-600 dark:text-neutral-300']">
@@ -73,8 +79,8 @@ onMounted(() => {
       </div>
     </div>
 
-    <div :class="['rounded-2xl border border-neutral-200 bg-neutral-50/80 p-4 dark:border-neutral-800 dark:bg-neutral-900/50']">
-      <div :class="['mb-3 text-sm font-medium text-neutral-900 dark:text-neutral-100']">
+    <div :class="['flex flex-col gap-3']">
+      <div :class="['text-sm font-medium text-neutral-900 dark:text-neutral-100']">
         {{ t('settings.pages.modules.gaming-minecraft.runtime.title') }}
       </div>
       <div :class="['grid gap-3 text-sm text-neutral-600 dark:text-neutral-300']">
@@ -97,8 +103,8 @@ onMounted(() => {
       </div>
     </div>
 
-    <div :class="['rounded-2xl border border-neutral-200 bg-neutral-50/80 p-4 dark:border-neutral-800 dark:bg-neutral-900/50']">
-      <div :class="['mb-3 text-sm font-medium text-neutral-900 dark:text-neutral-100']">
+    <div :class="['flex flex-col gap-3']">
+      <div :class="['text-sm font-medium text-neutral-900 dark:text-neutral-100']">
         {{ t('settings.pages.modules.gaming-minecraft.debug.title') }}
       </div>
       <div
