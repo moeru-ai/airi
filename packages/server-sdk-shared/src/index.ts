@@ -1,5 +1,7 @@
 import { defineInvokeEventa, defineOutboundEventa } from '@moeru/eventa'
 
+export type { AudioTranscriptionClientControlMessage, AudioTranscriptionServerMessage } from './audio-transcription'
+
 export interface WireMessage {
   id: string
   chatId: string

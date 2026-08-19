@@ -352,7 +352,7 @@ export const providerOfficialTranscription = defineProvider({
   requiresCredentials: false,
   capabilities: {
     transcription: {
-      protocol: 'http',
+      protocol: 'websocket',
       generateOutput: false,
       streamOutput: true,
       streamInput: true,
@@ -362,8 +362,7 @@ export const providerOfficialTranscription = defineProvider({
   createProvider(_config) {
     return {
       transcription: (model: string) => ({
-        baseURL: new URL(`${SERVER_URL}/api/v1/audio/transcriptions/stream`),
-        fetch: withCredentials(),
+        baseURL: new URL(`${SERVER_URL}/api/v1/audio/transcriptions/ws`),
         model,
       }),
     }

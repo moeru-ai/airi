@@ -76,11 +76,10 @@ describe('official transcription provider', () => {
    * @example
    * provider.transcription('auto')
    */
-  it('builds an authenticated streaming transcription request for the server audio surface', () => {
+  it('builds a WebSocket transcription request for the server audio surface', () => {
     const provider = providerOfficialTranscription.createProvider({}) as {
       transcription: (model: string) => {
         baseURL: URL
-        fetch?: typeof fetch
         model: string
       }
     }
@@ -89,8 +88,8 @@ describe('official transcription provider', () => {
 
     expect(OFFICIAL_TRANSCRIPTION_PROVIDER_ID).toBe('official-provider-transcription')
     expect(request.model).toBe('auto')
-    expect(request.baseURL.pathname).toBe('/api/v1/audio/transcriptions/stream')
-    expect(request.fetch).toBeTypeOf('function')
+    expect(request.baseURL.pathname).toBe('/api/v1/audio/transcriptions/ws')
+    expect(providerOfficialTranscription.capabilities?.transcription?.protocol).toBe('websocket')
   })
 
   /**

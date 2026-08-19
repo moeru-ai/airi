@@ -45,7 +45,7 @@ import { registerDbPoolGauge } from './otel/gauges/db-pool'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
 import { registerWsOnlineUsersGauge } from './otel/gauges/ws-online-users'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
-import { createAudioTranscriptionStreamHandler } from './routes/audio-transcription-stream/route'
+import { createAudioTranscriptionWsHandlers } from './routes/audio-transcription-ws'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatWsHandlers } from './routes/chat-ws'
 import { createChatRoutes } from './routes/chats'
@@ -197,15 +197,27 @@ export async function buildApp(deps: AppDeps) {
     })
   }))
 
-  // Realtime ASR proxy. Mounted before the global bodyLimit middleware because
-  // the request body is a live microphone PCM stream rather than a bounded JSON
-  // payload. Auth is resolved manually here for the same reason.
-  app.post('/api/v1/audio/transcriptions/stream', createAudioTranscriptionStreamHandler({
-    db: deps.db,
-    env: deps.env,
+  // Bidirectional ASR proxy. One client connection maps to one Aliyun NLS
+  // session. Auth matches the chat and speech WebSocket routes.
+  const audioTranscriptionWsSetup = createAudioTranscriptionWsHandlers({
     configKV: deps.configKV,
     envelopeCrypto: deps.envelopeCrypto,
     providerCatalogService: deps.providerCatalogService,
+  })
+  app.get('/api/v1/audio/transcriptions/ws', upgradeWebSocket(async (c) => {
+    const token = c.req.query('token')
+    if (!token)
+      return createUnauthorizedWsEvents()
+
+    const session = await resolveRequestAuth(
+      deps.db,
+      deps.env,
+      new Headers({ Authorization: `Bearer ${token}` }),
+    )
+    if (!session?.user)
+      return createUnauthorizedWsEvents()
+
+    return audioTranscriptionWsSetup(session.user.id)
   }))
 
   // Cross-instance config invalidation. The subscriber owns its own
