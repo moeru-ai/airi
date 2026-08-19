@@ -468,7 +468,7 @@ describe('useAnalytics conversation product events', () => {
     const analytics = useAnalytics()
 
     analytics.trackProviderClick('official-provider', 'consciousness')
-    analytics.trackModelSwitched('model-a', 'model-b')
+    analytics.trackModelSwitched('none', 'model-b')
 
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'provider_card_clicked', {
       app_surface: 'web',
@@ -479,7 +479,7 @@ describe('useAnalytics conversation product events', () => {
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'model_switched', {
       app_surface: 'web',
-      from_model: 'model-a',
+      from_model: 'none',
       to_model: 'model-b',
       reason: 'manual',
       trigger_method: 'selection',
@@ -552,6 +552,8 @@ describe('useAnalytics conversation product events', () => {
       message_length: 24,
       has_attachment: false,
       mode: 'text',
+      trigger_method: 'text_input',
+      trigger_type: 'user_action',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'quota_limit_reached', {
       limit_type: 'flux',

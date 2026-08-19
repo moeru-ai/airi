@@ -49,8 +49,8 @@ function selectModel(modelId: string) {
   const previousModelId = activeModel.value
   activeModel.value = modelId
 
-  if (previousModelId && previousModelId !== modelId)
-    trackModelSwitched(previousModelId, modelId)
+  if (previousModelId !== modelId)
+    trackModelSwitched(previousModelId || 'none', modelId)
 }
 
 function handleDeleteProvider(providerId: string) {

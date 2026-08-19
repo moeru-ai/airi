@@ -432,6 +432,8 @@ export function useAnalytics() {
     captureAnalyticsEvent('message_sent', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
+      trigger_method: properties.mode === 'voice' ? 'voice' : 'text_input',
+      trigger_type: 'user_action',
     })
   }
 
