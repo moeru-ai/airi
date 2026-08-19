@@ -46,6 +46,7 @@ function isIndependentEquationList(equations: string[]): boolean {
   return equations.length > 1
     && equations.every(equation => (
       !/\\(?:begin|end)\s*\{/.test(equation)
+      && !/\\(?:newcommand|renewcommand|providecommand|futurelet|[gex]?def|let)\b/.test(equation)
       && /=|\\(?:approx|cong|equiv|geq?|leq?|ne|neq|sim)\b/.test(equation)
       && hasBalancedLatexGroups(equation)
     ))

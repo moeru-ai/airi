@@ -72,6 +72,26 @@ describe('useMarkdown', () => {
     expect(html).toContain('\\frac{\n  a + b\n}{\n  c + d\n}')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2328#discussion_r3812440018
+  it('preserves macro definitions with their dependent equations', () => {
+    // ROOT CAUSE:
+    //
+    // Rendering each line separately discards macros after their definition,
+    // so a later equation in the same fence sees an undefined command.
+    const markdown = [
+      '```latex',
+      String.raw`\newcommand{\foo}{x=1}`,
+      String.raw`\foo=2`,
+      '```',
+    ].join('\n')
+
+    const html = useMarkdown().processSync(markdown)
+
+    expect(html.match(/<math/g) ?? []).toHaveLength(1)
+    expect(html).not.toContain('<merror')
+    expect(html).toContain('\\newcommand{\\foo}{x=1}\n\\foo=2')
+  })
+
   // https://github.com/moeru-ai/airi/discussions/2239
   it('treats a tex fence as display math (Issue #2239)', async () => {
     const markdown = [
