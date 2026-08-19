@@ -43,6 +43,7 @@
   },
   "dependencies": {
     "@moeru/eventa": "catalog:",
-    "@moeru/eventa-v1": "catalog:"
+    "@moeru/eventa-v1": "catalog:",
+    "valibot": "catalog:"
   }
 }

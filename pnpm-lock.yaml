@@ -5637,6 +5637,9 @@ importers:
       '@moeru/eventa-v1':
         specifier: 'catalog:'
         version: '@moeru/eventa@1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)'
+      valibot:
+        specifier: 'catalog:'
+        version: 1.4.2(typescript@5.9.3)
 
   services/computer-use-mcp:
     dependencies:

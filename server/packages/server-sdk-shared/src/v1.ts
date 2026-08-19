@@ -11,6 +11,12 @@ export type {
   SendMessagesResponse,
   WireMessage,
 } from './chat'
+export {
+  parsePullMessagesRequest,
+  parseSendMessagesRequest,
+  PullMessagesRequestSchema,
+  SendMessagesRequestSchema,
+} from './chat'
 
 export const sendMessages = defineInvokeEventa<SendMessagesResponse, SendMessagesRequest>('chat:send-messages')
 export const pullMessages = defineInvokeEventa<PullMessagesResponse, PullMessagesRequest>('chat:pull-messages')
