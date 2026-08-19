@@ -14,7 +14,7 @@ export const providerVolcengineCodingPlan = createArkChatProviderDefinition({
   models: [
     {
       id: 'ark-code-latest',
-      description: 'Uses the model selected in the Coding Plan console, including Auto; changes apply in 3–5 minutes.',
+      descriptionKey: 'settings.pages.providers.provider.volcengine-coding-plan.models.ark-code-latest.description',
     },
     { id: 'doubao-seed-2.1-turbo', contextLength: 256000 },
     { id: 'doubao-seed-2.0-lite', contextLength: 256000 },
@@ -27,13 +27,13 @@ export const providerVolcengineCodingPlan = createArkChatProviderDefinition({
       id: 'doubao-seed-2.0-code',
       contextLength: 256000,
       deprecated: true,
-      description: 'Legacy Coding Plan model scheduled for retirement. Switch to a currently supported model.',
+      descriptionKey: 'settings.pages.providers.provider.volcengine-coding-plan.models.legacy.description',
     },
     {
       id: 'doubao-seed-2.0-pro',
       contextLength: 256000,
       deprecated: true,
-      description: 'Legacy Coding Plan model scheduled for retirement. Switch to a currently supported model.',
+      descriptionKey: 'settings.pages.providers.provider.volcengine-coding-plan.models.legacy.description',
     },
   ],
 })

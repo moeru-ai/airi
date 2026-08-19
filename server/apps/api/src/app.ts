@@ -41,6 +41,7 @@ import { resolveRequestAuth } from './libs/request-auth'
 import { createUnauthorizedWsEvents } from './libs/ws-auth'
 import { sessionMiddleware } from './middlewares/auth'
 import { emitOtelLog, initOtel } from './otel'
+import { registerDbPoolGauge } from './otel/gauges/db-pool'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
 import { registerWsOnlineUsersGauge } from './otel/gauges/ws-online-users'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
@@ -427,7 +428,7 @@ export async function createApp() {
   })
 
   const db = injeca.provide('datastore:db', {
-    dependsOn: { env: parsedEnv, lifecycle },
+    dependsOn: { env: parsedEnv, lifecycle, otel },
     build: async ({ dependsOn }) => {
       const { db: dbInstance, pool } = await initializeExternalDependency(
         'Database',
@@ -449,6 +450,8 @@ export async function createApp() {
         },
       )
 
+      if (dependsOn.otel)
+        registerDbPoolGauge(dependsOn.otel.database.poolConnections, pool)
       dependsOn.lifecycle.appHooks.onStop(() => pool.end())
       return dbInstance
     },

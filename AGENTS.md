@@ -190,6 +190,10 @@ as a first language.
 - Any fallback chain with more than two sources must make precedence explicit.
 - If fallback sources represent different schema versions, compatibility behavior, specificity levels, or user/system overrides, each non-primary branch must explain why that case exists and why it has that priority.
 - Avoid nested ternaries for fallback chains when any branch is non-obvious. Use named intermediate variables or `if` / `else if` blocks so comments can live next to the relevant branch.
+- Do not use a new object or array as a casual fallback. Expressions such as `value ?? {}`, `value ?? []`, `value || {}`, and `value || []` create a new reference each time.
+- Never use an inline object or array fallback in a reactive getter, computed value, watcher source, or Pinia state projection. New references can cause false changes, watcher loops, and state broadcasts.
+- If an immutable empty fallback is valid, reuse a stable module-level value. Freeze the value when consumers must not mutate it.
+- Use `??` only when `null` and `undefined` mean that a value is missing. Use `||` only when `false`, `0`, and an empty string must also select the fallback.
 - Do not keep backward-compatibility fallbacks silently. If a fallback is temporary, mark it with `// NOTICE:` and include the removal condition. If it is permanent, document it as supported policy instead of calling it legacy.
 - If a fallback returns an empty string, stale value, cached value, default value, or ignored result in non-trivial domain/protocol code, explain why that fallback is safe at the return or branch site.
 
@@ -205,6 +209,23 @@ as a first language.
 - When cleanup spans multiple owners, keep the ordering visible and explain why the order matters.
 - When returning a snapshot, fallback value, stale value, or cached value, document freshness semantics at the return site.
 - For watchers, event listeners, and async background work, make ownership and shutdown behavior explicit: what starts and stops the work, whether duplicate starts are allowed, and what happens to in-flight work during unload or dispose.
+
+### Pinia Cross-Window Synchronization
+
+- Treat `pinia-plugin-synced` as snapshot replication and leader-routed RPC. It does not share Vue refs between renderers.
+- Add `synced` only to stores that need cross-window ownership. Synchronize the smallest serializable source-of-truth state.
+- `state: true` sends a full-store proposal after each local mutation. Keep transient and high-frequency state in an unsynchronized store.
+- State, action arguments, and action results must support `structuredClone`.
+- Keep computed values, query status, runtime clients, controllers, pending promises, and component state outside synchronized state.
+- Remote snapshots run local Vue watchers. Never let a watcher on synchronized state write synchronized state or call a synchronized action.
+- Enforce cross-field invariants inside explicit actions before the state commit. Do not repair replicated state with a watcher.
+- Every returned function in a setup store is a Pinia action. Use computed values or pure helpers for read-only projections.
+- List only leader-owned side-effecting actions under `synced.actions`. These actions must be asynchronous, and callers must await them.
+- Unlisted actions run in the caller renderer. Their mutations become full-state proposals when `state: true`.
+- Keep synchronization and persistence as separate boundaries. Give persisted synchronized state one explicit persistence owner.
+- Do not add bidirectional persistence composables or storage-event listeners to synchronized state. Use explicit persistence commands.
+- Set the leadership mode explicitly for every Electron renderer. Utility and minimal windows must use `follower-only`.
+- Add a multi-window regression test for synchronization changes. One remote snapshot must not produce another mutation or action.
 
 ### Readability Refactors
 
