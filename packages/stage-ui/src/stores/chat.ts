@@ -377,8 +377,8 @@ export const useChatStore = defineStore('chat', () => {
       attachments: payload.attachments,
       input: payload.input,
       toolReferences: payload.tools,
-      temperature: payload.temperature ?? consciousnessStore.activeTemperature.value,
-      topP: payload.topP ?? consciousnessStore.activeTopP.value,
+      temperature: payload.temperature ?? consciousnessStore.activeTemperature,
+      topP: payload.topP ?? consciousnessStore.activeTopP,
       // Resolve this function after the request reaches the per-session queue.
       // The history then contains tool names from every earlier queued turn.
       tools: async () => {
