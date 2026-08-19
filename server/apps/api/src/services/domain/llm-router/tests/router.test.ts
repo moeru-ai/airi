@@ -310,7 +310,7 @@ describe('createLlmRouterService', () => {
     expect((metrics.keyExhaustedCount.add as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0)
   })
 
-  it('cross-upstream fallback: upstream A keys all 401, upstream B[0] = 200 → returns 200, A exhaustion counted', async () => {
+  it('cross-upstream fallback: upstream A keys all 401, upstream B[0] = 200 → returns 200 without terminal exhaustion', async () => {
     const { config, crypto } = makeConfig({
       upstreams: [
         { baseURL: 'https://up-a.example/v1', keyIds: ['kA1', 'kA2'] },
@@ -336,7 +336,7 @@ describe('createLlmRouterService', () => {
     expect(res.status).toBe(200)
     expect(fetchImpl.mock.calls.length).toBe(3)
 
-    expect((metrics.keyExhaustedCount.add as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
+    expect((metrics.keyExhaustedCount.add as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0)
     expect((metrics.fallbackCount.add as ReturnType<typeof vi.fn>).mock.calls.length).toBe(2)
   })
 
@@ -370,7 +370,14 @@ describe('createLlmRouterService', () => {
       expect((err as ApiError).details).toMatchObject({ triedKeys: 2, triedUpstreams: 2, lastStatusCode: 401 })
     }
 
-    expect((metrics.keyExhaustedCount.add as ReturnType<typeof vi.fn>).mock.calls.length).toBe(2)
+    const exhaustionCalls = (metrics.keyExhaustedCount.add as ReturnType<typeof vi.fn>).mock.calls
+    expect(exhaustionCalls.length).toBe(1)
+    expect(exhaustionCalls[0][0]).toBe(1)
+    expect(exhaustionCalls[0][1]).toMatchObject({
+      provider: 'up-b.example',
+      status_code: 401,
+      surface: 'chat',
+    })
   })
 
   it('full exhaustion attaches per-attempt cause (bodySnippet for HTTP, errorMessage for network) so operators can debug 502s', async () => {
@@ -966,6 +973,41 @@ describe('createLlmRouterService', () => {
       // the regression: pre-fix this would have been 'timeout' because the
       // adapter's `Error & { status }` was read as undefined.
       expect(fallbackCalls[0][1]).toMatchObject({ reason: '401' })
+    })
+
+    it('records a terminal TTS exhaustion with its final status', async () => {
+      const { config, crypto } = makeTtsConfig({
+        upstreams: [{
+          baseURL: 'https://az.example',
+          keyIds: ['kA1'],
+          adapterParams: { region: 'eastasia' },
+        }],
+      })
+      const fetchImpl = vi.fn(async () => failResponse(451))
+      const metrics = makeMetrics()
+
+      const router = createLlmRouterService({
+        configKV: makeConfigKV(config),
+        envelopeCrypto: crypto,
+        gatewayMetrics: metrics,
+        fetchImpl,
+        redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
+      })
+
+      await expect(router.routeTts({
+        modelName: 'tts-test',
+        input: { text: 'hi', voice: 'en-US-AvaMultilingualNeural' },
+      })).rejects.toMatchObject({ statusCode: 502 })
+
+      const exhaustionCalls = (metrics.keyExhaustedCount.add as ReturnType<typeof vi.fn>).mock.calls
+      expect(exhaustionCalls.length).toBe(1)
+      expect(exhaustionCalls[0][0]).toBe(1)
+      expect(exhaustionCalls[0][1]).toMatchObject({
+        provider: 'az.example',
+        status_code: 451,
+        surface: 'tts',
+      })
     })
 
     it('listTtsVoices deduplicates concurrent cold-cache upstream fetches per model', async () => {
