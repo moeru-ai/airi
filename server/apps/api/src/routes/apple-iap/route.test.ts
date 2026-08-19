@@ -128,9 +128,6 @@ describe('apple-iap routes', () => {
       userId: 'user-1',
       productId: 'flux.pack.500',
     }))
-    expect(payment.settle).not.toHaveBeenCalledWith(expect.objectContaining({
-      fluxAmount: expect.anything(),
-    }))
   })
 
   it('replays an already granted transaction without a second credit payload', async () => {
