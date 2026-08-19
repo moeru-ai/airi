@@ -1,4 +1,5 @@
-import type { PaymentProvider, PaymentService } from '../../services/domain/payment'
+import type { ConfigKVService } from '../../services/adapters/config-kv'
+import type { PaymentService } from '../../services/domain/payment'
 import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'
@@ -6,44 +7,36 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { createStripeRoutes } from '.'
 import { ApiError } from '../../utils/error'
-import { createCheckoutOperation } from './operations/checkout'
 import { createWebhookOperation } from './operations/webhook'
 
 function createMockPayment(overrides: Partial<PaymentService> = {}): PaymentService {
   return {
-    listPacks: vi.fn(async () => []),
-    resolvePack: vi.fn(async () => ({
-      key: 'starter',
-      name: '500 Flux',
-      fluxAmount: 500,
-      recommended: false,
-      providers: { stripe: { priceId: 'price_test_500' } },
-    })),
-    getProviderAccount: vi.fn(async () => null),
-    startPack: vi.fn(async () => ({ kind: 'redirect' as const, url: 'https://checkout.stripe.com/cs_1', paymentOrderId: 'po_1' })),
-    applyConfirmation: vi.fn(async () => ({ applied: true, userId: 'user-1', fluxAmount: 500, balanceAfter: 500 })),
-    cancel: vi.fn(),
+    settle: vi.fn(async () => ({ applied: true, userId: 'user-1', fluxAmount: 500, balanceAfter: 500 })),
     deleteAllForUser: vi.fn(),
     ...overrides,
-  } as PaymentService
+  }
 }
 
-function createMockStripeAdapter(): PaymentProvider {
+function createMockConfigKV(overrides: Partial<ConfigKVService> = {}): ConfigKVService {
   return {
-    create: vi.fn(),
-    listPackages: vi.fn(async () => []),
-    confirmed: vi.fn((native: any) => ({
-      provider: 'stripe' as const,
-      paymentOrderId: native.metadata?.payment_order_id,
-      providerOrderId: native.id,
-      status: native.status === 'expired' ? 'expired' as const : 'paid' as const,
-      amount: native.amount_total,
-      currency: native.currency,
-      providerCustomerId: native.customer,
-    })),
-    cancel: vi.fn(),
-    getStatus: vi.fn(async () => null),
-  }
+    getOptional: vi.fn(async (key: string) => {
+      if (key === 'FLUX_PACKS') {
+        return [{
+          key: 'starter',
+          name: '500 Flux',
+          fluxAmount: 500,
+          recommended: false,
+          providers: { stripe: { priceId: 'price_test_500' } },
+        }]
+      }
+      return null
+    }),
+    getOrThrow: vi.fn(),
+    get: vi.fn(),
+    refresh: vi.fn(),
+    invalidateCache: vi.fn(),
+    ...overrides,
+  } as ConfigKVService
 }
 
 const testEnv = {
@@ -59,12 +52,18 @@ const testUser = { id: 'user-1', name: 'Test User', email: 'test@example.com' }
 function createTestApp(
   payment: PaymentService,
   envOverrides: Record<string, any> = {},
-  stripe: any = { billingPortal: { sessions: { create: vi.fn() } }, webhooks: { constructEvent: vi.fn() } },
+  stripe: any = {
+    prices: { retrieve: vi.fn() },
+    checkout: { sessions: { create: vi.fn() } },
+    webhooks: { constructEvent: vi.fn() },
+  },
+  configKV: ConfigKVService = createMockConfigKV(),
 ) {
   const routes = createStripeRoutes({
     payment,
-    stripeAdapter: createMockStripeAdapter(),
+    db: {} as never,
     stripe: envOverrides.STRIPE_SECRET_KEY === '' ? null : stripe,
+    configKV,
     env: { ...testEnv, ...envOverrides },
   })
   const app = new Hono<HonoEnv>()
@@ -93,18 +92,19 @@ function createTestApp(
 
 describe('stripeRoutes', () => {
   describe('gET /api/v1/stripe/packages', () => {
-    it('returns ConfigKV packs', async () => {
-      const payment = createMockPayment({
-        listPacks: vi.fn(async () => [{
-          packKey: 'starter',
-          stripePriceId: 'price_test_500',
-          label: '500 Flux',
-          defaultCurrency: 'usd',
-          currencies: { usd: '$5.00' },
-          recommended: false,
-        }]),
-      })
-      const app = createTestApp(payment)
+    it('returns ConfigKV packs with Stripe display prices', async () => {
+      const stripe = {
+        prices: {
+          retrieve: vi.fn(async () => ({
+            id: 'price_test_500',
+            currency: 'usd',
+            unit_amount: 500,
+            currency_options: {},
+          })),
+        },
+        webhooks: { constructEvent: vi.fn() },
+      }
+      const app = createTestApp(createMockPayment(), {}, stripe)
 
       const res = await app.request('/api/v1/stripe/packages')
       expect(res.status).toBe(200)
@@ -157,75 +157,6 @@ describe('stripeRoutes', () => {
       const data = await res.json() as any
       expect(data.error).toBe('PLAN_CHECKOUT_UNAVAILABLE')
     })
-
-    it('starts a pack checkout from packKey', async () => {
-      const payment = createMockPayment()
-      const app = createTestApp(payment)
-      const res = await app.fetch(
-        new Request('http://localhost/api/v1/stripe/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ packKey: 'starter', currency: 'usd' }),
-        }),
-        { user: testUser } as any,
-      )
-      expect(res.status).toBe(200)
-      expect(await res.json()).toEqual({ url: 'https://checkout.stripe.com/cs_1' })
-      expect(payment.startPack).toHaveBeenCalledWith(expect.objectContaining({
-        userId: 'user-1',
-        provider: 'stripe',
-        packKey: 'starter',
-      }))
-    })
-
-    it('resolves legacy stripePriceId onto startPack', async () => {
-      const payment = createMockPayment()
-      const app = createTestApp(payment)
-      const res = await app.fetch(
-        new Request('http://localhost/api/v1/stripe/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ stripePriceId: 'price_test_500' }),
-        }),
-        { user: testUser } as any,
-      )
-      expect(res.status).toBe(200)
-      expect(payment.resolvePack).toHaveBeenCalledWith({
-        provider: 'stripe',
-        providerProductId: 'price_test_500',
-      })
-      expect(payment.startPack).toHaveBeenCalledWith(expect.objectContaining({ packKey: 'starter' }))
-    })
-
-    it('stores browser PostHog identity in startContext metadata', async () => {
-      const payment = createMockPayment()
-      const productEventService = { track: vi.fn() }
-      const operation = createCheckoutOperation({
-        payment,
-        env: testEnv,
-        productEventService: productEventService as any,
-      })
-
-      await operation({
-        user: testUser as any,
-        body: { packKey: 'starter' },
-        request: new Request('http://localhost/api/v1/stripe/checkout', {
-          headers: {
-            'x-posthog-distinct-id': 'anon-browser-1',
-            'x-posthog-session-id': 'ph-session-1',
-          },
-        }),
-      })
-
-      expect(payment.startPack).toHaveBeenCalledWith(expect.objectContaining({
-        startContext: expect.objectContaining({
-          metadata: {
-            posthogDistinctId: 'anon-browser-1',
-            posthogSessionId: 'ph-session-1',
-          },
-        }),
-      }))
-    })
   })
 
   describe('gET /api/v1/stripe/orders', () => {
@@ -251,21 +182,13 @@ describe('stripeRoutes', () => {
   })
 
   describe('pOST /api/v1/stripe/portal', () => {
-    it('returns 401 when unauthenticated', async () => {
-      const app = createTestApp(createMockPayment())
-      const res = await app.request('/api/v1/stripe/portal', { method: 'POST' })
-      expect(res.status).toBe(401)
-    })
-
-    it('returns 400 when user has no billing account', async () => {
+    it('returns 404 after the billing portal was removed', async () => {
       const app = createTestApp(createMockPayment())
       const res = await app.fetch(
         new Request('http://localhost/api/v1/stripe/portal', { method: 'POST' }),
         { user: testUser } as any,
       )
-      expect(res.status).toBe(400)
-      const data = await res.json() as any
-      expect(data.error).toBe('NO_CUSTOMER')
+      expect(res.status).toBe(404)
     })
   })
 
@@ -310,7 +233,7 @@ describe('stripeRoutes', () => {
       expect(res.status).toBe(503)
     })
 
-    it('applies confirmation for a paid checkout session', async () => {
+    it('settles a paid checkout session', async () => {
       const checkoutEvent = {
         id: 'evt_checkout_completed',
         type: 'checkout.session.completed',
@@ -333,7 +256,6 @@ describe('stripeRoutes', () => {
         },
       }
       const payment = createMockPayment()
-      const stripeAdapter = createMockStripeAdapter()
       const productEventService = { track: vi.fn() }
       const webhook = createWebhookOperation({
         stripe: {
@@ -342,15 +264,14 @@ describe('stripeRoutes', () => {
           },
         } as any,
         webhookSecret: 'whsec_test',
-        stripeAdapter,
         payment,
         productEventService: productEventService as any,
       })
 
       await webhook({ signature: 'test_sig', body: '{}' })
 
-      expect(stripeAdapter.confirmed).toHaveBeenCalled()
-      expect(payment.applyConfirmation).toHaveBeenCalledWith(expect.objectContaining({
+      expect(payment.settle).toHaveBeenCalledWith(expect.objectContaining({
+        kind: 'claim',
         provider: 'stripe',
         paymentOrderId: 'po_1',
         providerOrderId: 'cs_1',
@@ -365,7 +286,7 @@ describe('stripeRoutes', () => {
       }))
     })
 
-    it('logs subscription events and does not apply confirmation', async () => {
+    it('ignores unknown events and does not settle', async () => {
       const payment = createMockPayment()
       const webhook = createWebhookOperation({
         stripe: {
@@ -378,12 +299,11 @@ describe('stripeRoutes', () => {
           },
         } as any,
         webhookSecret: 'whsec_test',
-        stripeAdapter: createMockStripeAdapter(),
         payment,
       })
 
       await webhook({ signature: 'test_sig', body: '{}' })
-      expect(payment.applyConfirmation).not.toHaveBeenCalled()
+      expect(payment.settle).not.toHaveBeenCalled()
     })
   })
 })

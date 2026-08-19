@@ -1,20 +1,20 @@
 import type Stripe from 'stripe'
 
 import type { RevenueMetrics } from '../../../otel'
-import type { PaymentProvider, PaymentService } from '../../../services/domain/payment'
+import type { PaymentService } from '../../../services/domain/payment'
 import type { ProductEventService } from '../../../services/domain/product-events'
 
 import { useLogger } from '@guiiai/logg'
+import { errorMessageFrom } from '@moeru/std'
 
 import { createBadRequestError, createServiceUnavailableError } from '../../../utils/error'
-import { errorMessageFromUnknown } from '../../../utils/error-message'
+import { claimReceiptFromCheckoutSession } from '../claim'
 
 const logger = useLogger('stripe')
 
 export interface WebhookOperationDeps {
   stripe: Stripe | null
   webhookSecret: string | undefined
-  stripeAdapter: PaymentProvider
   payment: PaymentService
   metrics?: RevenueMetrics | null
   productEventService?: ProductEventService
@@ -26,8 +26,8 @@ export interface WebhookOperationInput {
 }
 
 /**
- * Verifies a Stripe webhook, maps the native event through the Stripe adapter,
- * then calls Payment CORE. Subscription and invoice events are logged only.
+ * Verifies a Stripe webhook, maps a Checkout Session to a claim receipt,
+ * then calls Payment CORE. Unknown events are ignored.
  */
 export function createWebhookOperation(deps: WebhookOperationDeps) {
   return async (input: WebhookOperationInput): Promise<{ received: true }> => {
@@ -42,7 +42,7 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
       event = deps.stripe.webhooks.constructEvent(input.body, input.signature, deps.webhookSecret)
     }
     catch (err: unknown) {
-      throw createBadRequestError(`Webhook Error: ${errorMessageFromUnknown(err)}`, 'WEBHOOK_ERROR')
+      throw createBadRequestError(`Webhook Error: ${errorMessageFrom(err) ?? 'unknown error'}`, 'WEBHOOK_ERROR')
     }
 
     logger.withFields({ type: event.type, id: event.id }).log('Webhook event received')
@@ -56,8 +56,8 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
           break
         }
 
-        const facts = deps.stripeAdapter.confirmed(session)
-        const result = await deps.payment.applyConfirmation(facts)
+        const receipt = claimReceiptFromCheckoutSession(session)
+        const result = await deps.payment.settle(receipt)
         deps.metrics?.stripeCheckoutCompleted.add(1)
         if (session.amount_total != null && session.currency) {
           deps.metrics?.stripeRevenue.add(session.amount_total, {
@@ -89,18 +89,8 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
         break
       }
       case 'checkout.session.expired': {
-        const facts = deps.stripeAdapter.confirmed(event.data.object)
-        await deps.payment.applyConfirmation(facts)
-        break
-      }
-      case 'customer.subscription.created':
-      case 'customer.subscription.updated':
-      case 'customer.subscription.deleted':
-      case 'invoice.created':
-      case 'invoice.updated':
-      case 'invoice.paid':
-      case 'invoice.payment_failed': {
-        logger.withFields({ type: event.type, id: event.id }).log('Ignoring subscription or invoice event until Phase 2')
+        const receipt = claimReceiptFromCheckoutSession(event.data.object)
+        await deps.payment.settle(receipt)
         break
       }
       default:

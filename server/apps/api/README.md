@@ -14,19 +14,22 @@ auth/OIDC routes.
 
 ## Payment
 
-`src/services/domain/payment` owns `payment_order`, `provider_account`,
-provider adapters, and the ConfigKV pack mapping (`FLUX_PACKS`).
+`src/services/domain/payment` owns pack grant and `payment_order` rows.
+CORE exposes `settle` and `deleteAllForUser`.
 
-Each provider keeps its own HTTP paths: Stripe stays on `/api/v1/stripe/*`;
-Apple and Steam add `/api/v1/apple-iap/*` and `/api/v1/steam/*`. CORE never
-sees a raw provider event.
+Checkout, package list, and session mapping live in the Stripe channel
+at `src/routes/stripe`. Each provider keeps its own HTTP paths. Stripe
+stays on `/api/v1/stripe/*`. CORE never sees a raw provider event.
 
-- Claim is the order transition `pending` → `paid`; one transaction writes
-  `credited_at` and calls `creditFlux`. Replay returns `applied: false`.
-- Pack snapshots (`pack_key`, `flux_amount`) live on the order row, not in
-  `provider_data`.
-- `FLUX_PACKS` maps pack key -> Stripe price id + Flux amount; display prices
-  and currencies come from Stripe through the provider adapter.
+- `settle` claims a pending order (`pending` to `paid`). One transaction
+  writes `credited_at` and calls `creditFlux`. Replay returns `applied: false`.
+- Pack snapshots (`pack_key`, `flux_amount`) live on the order row.
+- The Stripe channel reads `FLUX_PACKS` and Stripe Price objects for
+  display prices.
+- `POST /api/v1/stripe/checkout` inserts the pending order, then creates
+  the Checkout Session.
+- `POST /api/v1/stripe/webhook` verifies the signature, maps the session
+  to a `ClaimReceipt`, and calls `settle`.
 
 ## Run locally
 

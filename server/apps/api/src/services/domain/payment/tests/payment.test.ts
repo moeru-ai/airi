@@ -1,6 +1,6 @@
 import type { Database } from '../../../../libs/db'
 import type { ConfigKVService } from '../../../adapters/config-kv'
-import type { FluxPack, PaymentProvider, ProviderCreateInput } from '../types'
+import type { ClaimReceipt } from '../types'
 
 import { eq } from 'drizzle-orm'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -13,69 +13,20 @@ import { createPaymentService } from '../index'
 
 import * as schema from '../../../../schemas'
 
-const starterPack: FluxPack = {
-  key: 'starter',
-  name: '500 Flux',
-  fluxAmount: 500,
-  recommended: false,
-  providers: { stripe: { priceId: 'price_starter' } },
-}
-
-function createTestPaymentProvider(options?: {
-  onCreate?: (input: ProviderCreateInput) => Promise<void> | void
-}): PaymentProvider {
+function createPacksConfigKV(): ConfigKVService {
   return {
-    async create(input) {
-      await options?.onCreate?.(input)
-      return {
-        providerOrderId: `cs_test_${input.paymentOrderId}`,
-        url: `https://checkout.stripe.test/${input.paymentOrderId}`,
-      }
-    },
-    async listPackages(packs) {
-      return packs.map(pack => ({
-        packKey: pack.key,
-        stripePriceId: pack.providers.stripe?.priceId,
-        label: pack.name,
-        defaultCurrency: 'usd',
-        currencies: { usd: '$5.00' },
-        recommended: pack.recommended,
-      }))
-    },
-    confirmed() {
-      throw new Error('test adapter does not map native payloads')
-    },
-    async cancel() {},
-    async getStatus() {
-      return null
-    },
-  }
-}
-
-function createPacksConfigKV(initial: FluxPack[]): ConfigKVService & { setPacks: (packs: FluxPack[]) => void } {
-  let packs = initial
-  return {
-    getOptional: vi.fn(async (key: string) => {
-      if (key === 'FLUX_PACKS')
-        return packs
-      return null
-    }),
+    getOptional: vi.fn(async () => null),
     getOrThrow: vi.fn(),
     get: vi.fn(),
     refresh: vi.fn(),
     invalidateCache: vi.fn(),
-    setPacks(next: FluxPack[]) {
-      packs = next
-    },
-  } as ConfigKVService & { setPacks: (packs: FluxPack[]) => void }
+  } as ConfigKVService
 }
 
 describe('payment CORE', () => {
   let db: Database
   let redis: ReturnType<typeof createTestRedis>
-  let configKV: ReturnType<typeof createPacksConfigKV>
   let payment: ReturnType<typeof createPaymentService>
-  let applyDuringCreate: boolean
 
   beforeAll(async () => {
     db = await mockDB(schema)
@@ -88,34 +39,8 @@ describe('payment CORE', () => {
 
   beforeEach(async () => {
     redis = createTestRedis()
-    configKV = createPacksConfigKV([starterPack])
-    applyDuringCreate = false
-    const billing = createBillingService(db, redis, configKV)
-
-    let service: ReturnType<typeof createPaymentService>
-    const stripe = createTestPaymentProvider({
-      onCreate: async (input) => {
-        if (!applyDuringCreate)
-          return
-        await service.applyConfirmation({
-          provider: 'stripe',
-          paymentOrderId: input.paymentOrderId,
-          providerOrderId: `cs_test_${input.paymentOrderId}`,
-          status: 'paid',
-          amount: 500,
-          currency: 'usd',
-          providerCustomerId: 'cus_test',
-        })
-      },
-    })
-
-    service = createPaymentService({
-      db,
-      billing,
-      configKV,
-      providers: { stripe },
-    })
-    payment = service
+    const billing = createBillingService(db, redis, createPacksConfigKV())
+    payment = createPaymentService({ db, billing })
 
     await db.delete(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-pay-1'))
     await db.delete(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
@@ -123,34 +48,35 @@ describe('payment CORE', () => {
     await db.delete(schema.providerAccount).where(eq(schema.providerAccount.userId, 'user-pay-1'))
   })
 
-  async function startStarterPack() {
-    return payment.startPack({
+  async function insertPendingOrder() {
+    const [order] = await db.insert(schema.paymentOrder).values({
       userId: 'user-pay-1',
       provider: 'stripe',
+      status: 'pending',
       packKey: 'starter',
-      startContext: {
-        currency: 'usd',
-        successUrl: 'https://example.test/success',
-        cancelUrl: 'https://example.test/cancel',
-        customerEmail: 'pay@example.com',
-      },
-    })
+      fluxAmount: 500,
+      currency: 'usd',
+    }).returning()
+    return order!
   }
 
-  it('startPack snapshots the pack and applyConfirmation credits Flux', async () => {
-    const started = await startStarterPack()
-    expect(started.kind).toBe('redirect')
-    expect(started.url).toContain('checkout.stripe.test')
-
-    const result = await payment.applyConfirmation({
+  function paidReceipt(paymentOrderId: string, overrides: Partial<ClaimReceipt> = {}): ClaimReceipt {
+    return {
+      kind: 'claim',
       provider: 'stripe',
-      paymentOrderId: started.paymentOrderId,
-      providerOrderId: `cs_test_${started.paymentOrderId}`,
+      paymentOrderId,
+      providerOrderId: `cs_test_${paymentOrderId}`,
       status: 'paid',
       amount: 500,
       currency: 'usd',
       providerCustomerId: 'cus_test',
-    })
+      ...overrides,
+    }
+  }
+
+  it('settle credits Flux from the pending order snapshot', async () => {
+    const order = await insertPendingOrder()
+    const result = await payment.settle(paidReceipt(order.id))
 
     expect(result).toMatchObject({ applied: true, fluxAmount: 500, balanceAfter: 500 })
 
@@ -159,49 +85,24 @@ describe('payment CORE', () => {
 
     const [ledger] = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-pay-1'))
     expect(ledger?.amount).toBe(500)
-    expect(ledger?.requestId).toBe(started.paymentOrderId)
+    expect(ledger?.requestId).toBe(order.id)
 
-    const [order] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.id, started.paymentOrderId))
-    expect(order?.status).toBe('paid')
-    expect(order?.creditedAt).toBeInstanceOf(Date)
-    expect(order?.packKey).toBe('starter')
-    expect(order?.fluxAmount).toBe(500)
+    const [paid] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.id, order.id))
+    expect(paid?.status).toBe('paid')
+    expect(paid?.creditedAt).toBeInstanceOf(Date)
+    expect(paid?.packKey).toBe('starter')
+    expect(paid?.fluxAmount).toBe(500)
+    expect(paid?.providerOrderId).toBe(`cs_test_${order.id}`)
 
     expect(await redis.get(userFluxRedisKey('user-pay-1'))).toBe('500')
   })
 
-  it('listPacks returns platform price items through the provider', async () => {
-    const items = await payment.listPacks('stripe')
-    expect(items).toEqual([{
-      packKey: 'starter',
-      stripePriceId: 'price_starter',
-      label: '500 Flux',
-      defaultCurrency: 'usd',
-      currencies: { usd: '$5.00' },
-      recommended: false,
-    }])
-  })
+  it('settle replay returns applied false and does not double credit', async () => {
+    const order = await insertPendingOrder()
+    const receipt = paidReceipt(order.id)
 
-  it('resolvePack finds a pack by Stripe price id', async () => {
-    await expect(payment.resolvePack({ provider: 'stripe', providerProductId: 'price_starter' }))
-      .resolves
-      .toMatchObject({ key: 'starter', fluxAmount: 500 })
-    await expect(payment.resolvePack({ provider: 'stripe', providerProductId: 'price_unknown' }))
-      .resolves
-      .toBeNull()
-  })
-
-  it('applyConfirmation replay returns applied false and does not double credit', async () => {
-    const started = await startStarterPack()
-    const facts = {
-      provider: 'stripe' as const,
-      paymentOrderId: started.paymentOrderId,
-      providerOrderId: `cs_test_${started.paymentOrderId}`,
-      status: 'paid' as const,
-    }
-
-    const first = await payment.applyConfirmation(facts)
-    const second = await payment.applyConfirmation(facts)
+    const first = await payment.settle(receipt)
+    const second = await payment.settle(receipt)
 
     expect(first.applied).toBe(true)
     expect(second.applied).toBe(false)
@@ -213,16 +114,10 @@ describe('payment CORE', () => {
     expect(flux?.flux).toBe(500)
   })
 
-  it('credits the snapshot when FLUX_PACKS changes after startPack', async () => {
-    const started = await startStarterPack()
-    configKV.setPacks([{ ...starterPack, fluxAmount: 9999 }])
+  it('credits the snapshot on the pending row when the catalog amount differs', async () => {
+    const order = await insertPendingOrder()
 
-    const result = await payment.applyConfirmation({
-      provider: 'stripe',
-      paymentOrderId: started.paymentOrderId,
-      providerOrderId: `cs_test_${started.paymentOrderId}`,
-      status: 'paid',
-    })
+    const result = await payment.settle(paidReceipt(order.id))
 
     expect(result).toMatchObject({ applied: true, fluxAmount: 500 })
 
@@ -230,28 +125,63 @@ describe('payment CORE', () => {
     expect(flux?.flux).toBe(500)
   })
 
-  it('accepts webhook-before-checkout when the order exists and create has not returned', async () => {
-    applyDuringCreate = true
-    const started = await startStarterPack()
-
-    expect(started.kind).toBe('redirect')
-
-    const [flux] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
-    expect(flux?.flux).toBe(500)
-
-    const [order] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.id, started.paymentOrderId))
-    expect(order?.status).toBe('paid')
-    expect(order?.providerOrderId).toBe(`cs_test_${started.paymentOrderId}`)
-  })
-
-  it('throws when applyConfirmation runs before the order exists so the channel can retry', async () => {
-    await expect(payment.applyConfirmation({
-      provider: 'stripe',
-      paymentOrderId: 'missing-order',
-      providerOrderId: 'cs_test_missing',
-      status: 'paid',
-    })).rejects.toMatchObject({
+  it('throws when settle runs before the order exists so the channel can retry', async () => {
+    await expect(payment.settle(paidReceipt('missing-order'))).rejects.toMatchObject({
       statusCode: 500,
     })
+  })
+
+  it('marks a pending order canceled without crediting Flux', async () => {
+    const order = await insertPendingOrder()
+
+    const result = await payment.settle({
+      kind: 'claim',
+      provider: 'stripe',
+      paymentOrderId: order.id,
+      providerOrderId: `cs_test_${order.id}`,
+      status: 'canceled',
+    })
+
+    expect(result).toEqual({ applied: false })
+
+    const [updated] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.id, order.id))
+    expect(updated?.status).toBe('canceled')
+
+    const ledger = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-pay-1'))
+    expect(ledger).toHaveLength(0)
+  })
+
+  it('marks a pending order expired without crediting Flux', async () => {
+    const order = await insertPendingOrder()
+
+    const result = await payment.settle({
+      kind: 'claim',
+      provider: 'stripe',
+      paymentOrderId: order.id,
+      providerOrderId: `cs_test_${order.id}`,
+      status: 'expired',
+    })
+
+    expect(result).toEqual({ applied: false })
+
+    const [updated] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.id, order.id))
+    expect(updated?.status).toBe('expired')
+  })
+
+  it('deleteAllForUser soft-deletes orders and accounts', async () => {
+    const order = await insertPendingOrder()
+    await db.insert(schema.providerAccount).values({
+      userId: 'user-pay-1',
+      provider: 'stripe',
+      providerCustomerId: 'cus_test',
+    })
+
+    await payment.deleteAllForUser('user-pay-1')
+
+    const [deletedOrder] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.id, order.id))
+    expect(deletedOrder?.deletedAt).toBeInstanceOf(Date)
+
+    const [deletedAccount] = await db.select().from(schema.providerAccount).where(eq(schema.providerAccount.userId, 'user-pay-1'))
+    expect(deletedAccount?.deletedAt).toBeInstanceOf(Date)
   })
 })

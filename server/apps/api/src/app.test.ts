@@ -21,7 +21,6 @@ function createTestDeps() {
     fluxService: {} as never,
     fluxTransactionService: {} as never,
     paymentService: {} as never,
-    stripeAdapter: {} as never,
     stripe: null,
     billingService: {} as never,
     ttsMeter: {} as never,

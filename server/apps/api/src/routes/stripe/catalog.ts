@@ -1,0 +1,99 @@
+import type Stripe from 'stripe'
+
+import type { ConfigKVService } from '../../services/adapters/config-kv'
+import type { FluxPack } from '../../services/domain/payment'
+
+import { useLogger } from '@guiiai/logg'
+
+const logger = useLogger('stripe.catalog')
+
+export interface StripePackListItem {
+  packKey: string
+  stripePriceId?: string
+  label: string
+  defaultCurrency: string
+  currencies: Record<string, string>
+  recommended: boolean
+}
+
+export async function loadFluxPacks(configKV: ConfigKVService): Promise<FluxPack[]> {
+  const packs = await configKV.getOptional('FLUX_PACKS') ?? []
+  return packs.map(pack => ({
+    key: pack.key,
+    name: pack.name,
+    fluxAmount: pack.fluxAmount,
+    recommended: pack.recommended ?? false,
+    providers: pack.providers ?? {},
+  }))
+}
+
+export function findFluxPackByKey(packs: FluxPack[], packKey: string): FluxPack | undefined {
+  return packs.find(pack => pack.key === packKey)
+}
+
+export function findFluxPackByStripePriceId(packs: FluxPack[], priceId: string): FluxPack | undefined {
+  return packs.find(pack => pack.providers.stripe?.priceId === priceId)
+}
+
+export async function listStripePackages(
+  stripe: Stripe | null,
+  packs: FluxPack[],
+): Promise<StripePackListItem[]> {
+  if (!stripe)
+    return []
+
+  const items: StripePackListItem[] = []
+  for (const pack of packs) {
+    const priceId = pack.providers.stripe?.priceId
+    if (!priceId)
+      continue
+
+    let price: Stripe.Price
+    try {
+      price = await stripe.prices.retrieve(priceId, { expand: ['currency_options'] })
+    }
+    catch (error) {
+      logger.withError(error).withFields({ priceId, packKey: pack.key }).warn('Stripe price lookup skipped')
+      continue
+    }
+
+    const currencies: Record<string, string> = {}
+    currencies[price.currency] = formatPrice(price.unit_amount, price.currency)
+    for (const [currency, option] of Object.entries(price.currency_options ?? {})) {
+      currencies[currency] = formatPrice(option.unit_amount, currency)
+    }
+
+    items.push({
+      packKey: pack.key,
+      stripePriceId: price.id,
+      label: pack.name,
+      defaultCurrency: price.currency,
+      currencies,
+      recommended: pack.recommended,
+    })
+  }
+
+  return items
+}
+
+/**
+ * Formats a Stripe smallest-unit amount into a display price string.
+ *
+ * @example
+ * formatPrice(300, 'usd')
+ * // => '$3.00'
+ */
+function formatPrice(unitAmount: number | null, currency: string): string {
+  if (unitAmount == null)
+    return currency.toUpperCase()
+
+  try {
+    const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency })
+    const fractionDigits = formatter.resolvedOptions().minimumFractionDigits ?? 2
+    const amount = unitAmount / (10 ** fractionDigits)
+    return formatter.format(amount)
+  }
+  catch {
+    return `${unitAmount / 100} ${currency.toUpperCase()}`
+  }
+}
