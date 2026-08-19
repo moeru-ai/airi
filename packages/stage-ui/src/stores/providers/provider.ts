@@ -495,7 +495,7 @@ export const useProviderStore = defineStore('provider', () => {
     const provider = await definition.createProvider(config)
     try {
       if (definition.extraMethods?.listModels) {
-        const models = await definition.extraMethods.listModels(config, provider)
+        const models = await definition.extraMethods.listModels(config, provider, { t })
         return normalizeProviderModels(providerId, models)
       }
 
