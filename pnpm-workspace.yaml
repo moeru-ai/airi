@@ -320,6 +320,7 @@ catalog:
   node-vibrant: ^4.0.4
   nprogress: ^0.2.0
   ofetch: ^1.5.1
+  onnxruntime-node: 1.27.0
   onnxruntime-web: ^1.24.3
   opusscript: ^0.1.1
   oxc-minify: ^0.126.0
@@ -475,8 +476,9 @@ packageExtensions:
     peerDependencies:
       vue: '*'
   '@huggingface/transformers':
-    optionalDependencies:
-      'onnxruntime-common': '*'
+    dependencies:
+      onnxruntime-common: '^1.24.3'
+      onnxruntime-node: '1.27.0'
   '@intlify/unplugin-vue-i18n':
     peerDependencies:
       vite: '*'
