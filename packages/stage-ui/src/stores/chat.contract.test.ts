@@ -47,19 +47,10 @@ const llmStreamMock = vi.fn()
 const trackFirstMessageMock = vi.fn()
 const chatAnalyticsMocks = vi.hoisted(() => ({
   trackAiGeneration: vi.fn(),
-  trackAssistantResponseRendered: vi.fn(),
-  trackChatActivationFailed: vi.fn(),
-  trackChatActivationStarted: vi.fn(),
-  trackChatActivationSucceeded: vi.fn(),
-  trackLlmFirstToken: vi.fn(),
-  trackLlmRequestStarted: vi.fn(),
   trackMessageRound: vi.fn(),
   trackMessageRoundFailed: vi.fn(),
-  trackMessageSendStarted: vi.fn(),
   trackMessageSent: vi.fn(),
-  trackSecondTurnStarted: vi.fn(),
 }))
-const trackSecondTurnStartedMock = chatAnalyticsMocks.trackSecondTurnStarted
 const redundantChatAnalyticsMocks = vi.hoisted(() => ({
   trackAssistantResponseCompleted: vi.fn(),
   trackChatFailed: vi.fn(),
@@ -94,25 +85,6 @@ vi.mock('pinia', async () => {
 
 vi.mock('../composables', () => ({
   getConversationAnalyticsSurface: () => 'web',
-  useAnalytics: () => ({
-    trackFirstMessage: trackFirstMessageMock,
-    trackChatFailed: redundantChatAnalyticsMocks.trackChatFailed,
-    trackChatStarted: redundantChatAnalyticsMocks.trackChatStarted,
-    trackMessageSendStarted: chatAnalyticsMocks.trackMessageSendStarted,
-    trackMessageSent: chatAnalyticsMocks.trackMessageSent,
-    trackLlmRequestStarted: chatAnalyticsMocks.trackLlmRequestStarted,
-    trackLlmFirstToken: chatAnalyticsMocks.trackLlmFirstToken,
-    trackAiGeneration: chatAnalyticsMocks.trackAiGeneration,
-    trackAssistantResponseRendered: chatAnalyticsMocks.trackAssistantResponseRendered,
-    trackAssistantResponseCompleted: redundantChatAnalyticsMocks.trackAssistantResponseCompleted,
-    trackMessageRound: chatAnalyticsMocks.trackMessageRound,
-    trackMessageRoundFailed: chatAnalyticsMocks.trackMessageRoundFailed,
-    trackFeatureUsed: redundantChatAnalyticsMocks.trackFeatureUsed,
-    trackChatActivationStarted: chatAnalyticsMocks.trackChatActivationStarted,
-    trackChatActivationSucceeded: chatAnalyticsMocks.trackChatActivationSucceeded,
-    trackChatActivationFailed: chatAnalyticsMocks.trackChatActivationFailed,
-    trackSecondTurnStarted: trackSecondTurnStartedMock,
-  }),
 }))
 
 vi.mock('../libs/analytics', () => ({
@@ -122,38 +94,14 @@ vi.mock('../libs/analytics', () => ({
         case '$ai_generation':
           chatAnalyticsMocks.trackAiGeneration(properties)
           break
-        case 'assistant_response_rendered':
-          chatAnalyticsMocks.trackAssistantResponseRendered(properties)
-          break
-        case 'chat_activation_failed':
-          chatAnalyticsMocks.trackChatActivationFailed(properties)
-          break
-        case 'chat_activation_started':
-          chatAnalyticsMocks.trackChatActivationStarted(properties)
-          break
-        case 'chat_activation_succeeded':
-          chatAnalyticsMocks.trackChatActivationSucceeded(properties)
-          break
-        case 'llm_first_token':
-          chatAnalyticsMocks.trackLlmFirstToken(properties)
-          break
-        case 'llm_request_started':
-          chatAnalyticsMocks.trackLlmRequestStarted(properties)
-          break
         case 'message_round':
           chatAnalyticsMocks.trackMessageRound(properties)
           break
         case 'message_round_failed':
           chatAnalyticsMocks.trackMessageRoundFailed(properties)
           break
-        case 'message_send_started':
-          chatAnalyticsMocks.trackMessageSendStarted(properties)
-          break
         case 'message_sent':
           chatAnalyticsMocks.trackMessageSent(properties)
-          break
-        case 'second_turn_started':
-          chatAnalyticsMocks.trackSecondTurnStarted(properties)
           break
         default:
           return false
@@ -391,7 +339,7 @@ describe('chat store contract', () => {
     expect(sessionMessages['session-2']).toBeUndefined()
   })
 
-  it('forwards one correlation identity across every PostHog chat milestone', async () => {
+  it('forwards one correlation identity across the action and result events', async () => {
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
       await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
@@ -415,13 +363,7 @@ describe('chat store contract', () => {
       round_id: messageProperties.round_id,
       turn_index: 1,
     }
-    expect(chatAnalyticsMocks.trackMessageSendStarted).toHaveBeenCalledWith(expect.objectContaining(correlation))
-    expect(chatAnalyticsMocks.trackLlmRequestStarted).toHaveBeenCalledWith(expect.objectContaining(correlation))
-    expect(chatAnalyticsMocks.trackLlmFirstToken).toHaveBeenCalledWith(expect.objectContaining(correlation))
-    expect(chatAnalyticsMocks.trackAssistantResponseRendered).toHaveBeenCalledWith(expect.objectContaining(correlation))
     expect(chatAnalyticsMocks.trackMessageRound).toHaveBeenCalledWith(expect.objectContaining(correlation))
-    expect(chatAnalyticsMocks.trackChatActivationStarted).toHaveBeenCalledWith(expect.objectContaining(correlation))
-    expect(chatAnalyticsMocks.trackChatActivationSucceeded).toHaveBeenCalledWith(expect.objectContaining(correlation))
   })
 
   it('captures custom-provider usage once and leaves official generation capture to the server', async () => {
@@ -469,7 +411,7 @@ describe('chat store contract', () => {
     })
   })
 
-  it('emits second turn analytics from chat sends', async () => {
+  it('uses turn_index on message_sent instead of a second-turn alias', async () => {
     activeProviderRef.value = 'official-provider'
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
@@ -487,16 +429,13 @@ describe('chat store contract', () => {
       chatProvider: provider,
     })
 
-    expect(trackSecondTurnStartedMock).toHaveBeenCalledTimes(1)
-    expect(trackSecondTurnStartedMock).toHaveBeenCalledWith({
+    expect(chatAnalyticsMocks.trackMessageSent).toHaveBeenLastCalledWith(expect.objectContaining({
       conversation_id: 'session-1',
-      provider_id: 'official-provider',
-      provider_mode: 'official',
-      model_id: 'chat-auto',
       round_id: expect.any(String),
-      source: 'text',
       turn_index: 2,
-    })
+      trigger_method: 'text_input',
+      trigger_type: 'user_action',
+    }))
   })
 
   // ROOT CAUSE:
@@ -539,7 +478,6 @@ describe('chat store contract', () => {
       chatProvider: provider,
     })).rejects.toThrow('later turn rejected')
 
-    expect(chatAnalyticsMocks.trackChatActivationFailed).not.toHaveBeenCalled()
     expect(chatAnalyticsMocks.trackMessageRoundFailed).toHaveBeenCalledWith({
       conversation_id: 'session-1',
       error_code: 'llm_response_failed',
@@ -549,6 +487,8 @@ describe('chat store contract', () => {
       round_id: expect.any(String),
       source: 'text',
       turn_index: 2,
+      trigger_method: 'text_input',
+      trigger_type: 'user_flow_result',
     })
   })
 
@@ -614,7 +554,7 @@ describe('chat store contract', () => {
     })
 
     expect(store.sending).toBe(false)
-    expect(trackFirstMessageMock).toHaveBeenCalledTimes(1)
+    expect(trackFirstMessageMock).toHaveBeenCalledOnce()
     // Datetime is no longer pushed through ingestContextMessage; it is now
     // applied at message-assembly time as a system-prompt anchor + per-message
     // [HH:MM] prefix. ingestContextMessage should still be called for other

@@ -32,11 +32,9 @@ import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } fr
 import StageRenderError from './stage-render-error.vue'
 
 import { useSettingsLive2d } from '../../../../stage-ui-live2d/src/composables/live2d/live2d'
-import { useAnalytics } from '../../composables/use-analytics'
 import { useDuckDb } from '../../composables/use-duck-db'
 import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
-import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
@@ -204,8 +202,6 @@ const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
 const activeCardId = computed(() => activeCard.value?.name ?? 'default')
 const speechRuntimeStore = useSpeechRuntimeStore()
-const { trackOfficialTtsAutoEnabled } = useAnalytics()
-let officialAutoTtsTrackedForTurn = false
 const backgroundStore = useBackgroundStore()
 const { activeBackgroundUrl } = storeToRefs(backgroundStore)
 
@@ -372,11 +368,6 @@ async function playFunction(item: Parameters<Parameters<typeof createPlaybackMan
 
     try {
       source.start(0)
-      if (item.intentId.startsWith('stream-')) {
-        const model = resolveStreamingSessionModel()
-        if (model)
-          trackOfficialAutoTtsForTurn(model)
-      }
     }
     catch {
       stopPlayback()
@@ -397,24 +388,6 @@ const playbackManager = createPlaybackManager<AudioBuffer>({
  */
 function resolveStageVoiceType(): 'official_selected' | 'custom_configured' {
   return activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID || activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID ? 'official_selected' : 'custom_configured'
-}
-
-/**
- * Tracks official auto-TTS once per assistant turn when chat audio is actually used.
- */
-function trackOfficialAutoTtsForTurn(modelId: string) {
-  if (officialAutoTtsTrackedForTurn)
-    return
-  if (activeSpeechProvider.value !== OFFICIAL_SPEECH_PROVIDER_ID && activeSpeechProvider.value !== OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
-    return
-
-  officialAutoTtsTrackedForTurn = true
-  trackOfficialTtsAutoEnabled({
-    tts_provider_id: activeSpeechProvider.value,
-    tts_model_id: modelId,
-    source: 'chat_auto_tts',
-    enabled: true,
-  })
 }
 
 const speechPipeline = createSpeechPipeline<AudioBuffer>({
@@ -536,7 +509,6 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
         return null
 
       const audioBuffer = await audioContext.decodeAudioData(res)
-      trackOfficialAutoTtsForTurn(model)
       return audioBuffer
     }
     catch (err) {
@@ -561,7 +533,6 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
 
 initIOTracer()
 useIOTraceBridge(speechPipeline)
-useSpeechPipelineAnalytics()
 void speechRuntimeStore.registerHost(speechPipeline)
 
 speechPipeline.on('onSpecial', (segment) => {
@@ -828,7 +799,6 @@ watch(speechMuted, (muted) => {
 }, { immediate: true })
 
 chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
-  officialAutoTtsTrackedForTurn = false
   playbackManager.stopAll('new-message')
   resetAssistantSpeechSurface('new-message')
 

@@ -147,6 +147,8 @@ docs/research
 
 docs/ai/context/verifications/
 .playwright-mcp/
+.vitest-attachments
+__screenshots__
 .vishot/
 .alint/
 .alintcache

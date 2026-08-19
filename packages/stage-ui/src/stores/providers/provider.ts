@@ -32,6 +32,7 @@ import {
 } from '../../libs/providers'
 import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
 import { useProviderConfigStore } from './config'
+import { normalizeProviderConfigDefaults } from './config-defaults'
 
 export type { ModelInfo, VoiceInfo } from '../../libs/providers/types'
 
@@ -495,7 +496,7 @@ export const useProviderStore = defineStore('provider', () => {
     const provider = await definition.createProvider(config)
     try {
       if (definition.extraMethods?.listModels) {
-        const models = await definition.extraMethods.listModels(config, provider)
+        const models = await definition.extraMethods.listModels(config, provider, { t })
         return normalizeProviderModels(providerId, models)
       }
 
@@ -836,7 +837,7 @@ export const useProviderStore = defineStore('provider', () => {
       return false
 
     const defaultOptions = getDefaultProviderConfig(providerId)
-    return JSON.stringify(config) !== JSON.stringify(defaultOptions)
+    return JSON.stringify(normalizeProviderConfigDefaults(config, defaultOptions)) !== JSON.stringify(defaultOptions)
   }
 
   function shouldListProvider(providerId: string) {
