@@ -38,7 +38,13 @@ describe('ark chat provider definitions', () => {
     const chatConfig = providerInstance.chat('volcengine-coding-plan/doubao-seed-2.1-turbo')
     expect(chatConfig.model).toBe('doubao-seed-2.1-turbo')
 
-    const listedModels = await provider!.extraMethods!.listModels!(parsedConfig, providerInstance)
+    const descriptions: Record<string, string> = {
+      'settings.pages.providers.provider.volcengine-coding-plan.models.ark-code-latest.description': 'Localized current model description.',
+      'settings.pages.providers.provider.volcengine-coding-plan.models.legacy.description': 'Localized legacy model description.',
+    }
+    const listedModels = await provider!.extraMethods!.listModels!(parsedConfig, providerInstance, {
+      t: input => descriptions[input] ?? input,
+    })
     expect(listedModels.map(model => model.id)).toEqual([
       'volcengine-coding-plan/ark-code-latest',
       'volcengine-coding-plan/doubao-seed-2.1-turbo',
@@ -53,7 +59,7 @@ describe('ark chat provider definitions', () => {
     ])
 
     expect(listedModels[0]).toEqual({
-      description: 'Uses the model selected in the Coding Plan console, including Auto; changes apply in 3–5 minutes.',
+      description: 'Localized current model description.',
       id: 'volcengine-coding-plan/ark-code-latest',
       name: 'ark-code-latest',
       provider: 'volcengine-coding-plan',
@@ -62,7 +68,7 @@ describe('ark chat provider definitions', () => {
       {
         contextLength: 256000,
         deprecated: true,
-        description: 'Legacy Coding Plan model scheduled for retirement. Switch to a currently supported model.',
+        description: 'Localized legacy model description.',
         id: 'volcengine-coding-plan/doubao-seed-2.0-code',
         name: 'doubao-seed-2.0-code',
         provider: 'volcengine-coding-plan',
@@ -70,7 +76,7 @@ describe('ark chat provider definitions', () => {
       {
         contextLength: 256000,
         deprecated: true,
-        description: 'Legacy Coding Plan model scheduled for retirement. Switch to a currently supported model.',
+        description: 'Localized legacy model description.',
         id: 'volcengine-coding-plan/doubao-seed-2.0-pro',
         name: 'doubao-seed-2.0-pro',
         provider: 'volcengine-coding-plan',
