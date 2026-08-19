@@ -142,7 +142,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
         model: normalizedModel,
         messages: message.messages(message.user('ping')),
         ...(options?.chatCompletionTokenParameter === 'max_completion_tokens'
-          ? { maxCompletionTokens: 1 }
+          ? { max_completion_tokens: 1 }
           : { max_tokens: 1 }),
       })
 

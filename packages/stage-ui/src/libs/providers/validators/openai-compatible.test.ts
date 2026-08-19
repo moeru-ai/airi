@@ -163,7 +163,7 @@ describe('createOpenAICompatibleValidators', () => {
     expect(result.valid).toBe(true)
     expect(generateTextMock).toHaveBeenCalledWith(expect.objectContaining({
       model: 'gpt-5',
-      maxCompletionTokens: 1,
+      max_completion_tokens: 1,
     }))
     expect(generateTextMock.mock.calls[0][0]).not.toHaveProperty('max_tokens')
   })
@@ -181,7 +181,7 @@ describe('createOpenAICompatibleValidators', () => {
 
     expect(result.valid).toBe(true)
     expect(generateTextMock).toHaveBeenCalledWith(expect.objectContaining({
-      maxCompletionTokens: 1,
+      max_completion_tokens: 1,
     }))
     expect(generateTextMock.mock.calls[0][0]).not.toHaveProperty('max_tokens')
   })
