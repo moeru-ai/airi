@@ -316,10 +316,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const providerStore = useProviderConfigStore()
   const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
   const {
-    trackAudioDeviceUnavailable,
     trackMicrophonePermissionDenied,
     trackSttFailed,
-    trackSttStarted,
     trackSttSucceeded,
     trackVoiceInputStarted,
   } = useAnalytics()
@@ -424,7 +422,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
     const sttStartedAt = performance.now()
     trackVoiceInputStarted({ stt_provider_id: providerId })
-    trackSttStarted(providerId)
 
     function emitSucceeded(charCount: number, stream: boolean) {
       trackSttSucceeded({
@@ -439,12 +436,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
       trackSttFailed({ provider: providerId, error_code: errorCode })
       if (errorCode === 'permission_denied') {
         trackMicrophonePermissionDenied({
-          stt_provider_id: providerId,
-          error_code: errorCode,
-        })
-      }
-      if (errorCode === 'device_unavailable') {
-        trackAudioDeviceUnavailable({
           stt_provider_id: providerId,
           error_code: errorCode,
         })
@@ -586,7 +577,6 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     onTranscriptionUpdate: (text: string) => streamingConsumers.emitTranscriptionUpdate(text),
   }
   const {
-    trackAudioDeviceUnavailable,
     trackVoiceInputCancelled,
     trackVoiceInputStarted,
   } = useAnalytics()
@@ -1200,10 +1190,6 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
     if (recording.size <= 0) {
       error.value = 'Recording captured from microphone is empty'
-      trackAudioDeviceUnavailable({
-        stt_provider_id: activeTranscriptionProvider.value || 'unknown',
-        error_code: 'device_unavailable',
-      })
       return
     }
 

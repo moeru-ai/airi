@@ -7,7 +7,6 @@ import { watch } from 'vue'
 import { useBuildInfo } from '../../composables/use-build-info'
 import { useAuthStore } from '../../stores/auth'
 import { useAiriCardStore } from '../../stores/modules/airi-card'
-import { useConsciousnessStore } from '../../stores/modules/consciousness'
 import { useSettingsAnalytics } from '../../stores/settings/analytics'
 import {
   captureAnalyticsEvent,
@@ -25,12 +24,7 @@ import {
   appLoadedEvent,
   characterSwitchedEvent,
   firstMessageSentEvent,
-  firstModelSelectedEvent,
-  modelChangedEvent,
-  modelSwitchedEvent,
-  providerSwitchedEvent,
 } from './events/app'
-import { getProviderMode } from './events/chat/types'
 
 export * from './client'
 export * from './events'
@@ -66,7 +60,6 @@ function analyticsSurface(): 'web' | 'desktop' | 'mobile' {
 class Analytics implements AnalyticsRecorder {
   private appStartTime: number | null = null
   private firstMessageRecorded = false
-  private firstModelSelectedRecorded = false
   private initialized = false
 
   initialize(): void {
@@ -136,57 +129,6 @@ class Analytics implements AnalyticsRecorder {
         identifyAnalyticsUser(authStore.user.id)
     })
 
-    const consciousness = useConsciousnessStore()
-    watch(
-      () => ({ provider: consciousness.activeProvider, model: consciousness.activeModel }),
-      (next, previous) => {
-        if (!next.provider || !next.model)
-          return
-
-        if (!previous) {
-          if (!this.firstModelSelectedRecorded && this.emit(firstModelSelectedEvent, { model_id: next.model, provider: next.provider }))
-            this.firstModelSelectedRecorded = true
-          return
-        }
-
-        if (previous.provider === next.provider && previous.model === next.model)
-          return
-
-        if (!this.firstModelSelectedRecorded) {
-          if (this.emit(firstModelSelectedEvent, { model_id: next.model, provider: next.provider }))
-            this.firstModelSelectedRecorded = true
-          return
-        }
-
-        if (previous.provider && previous.provider !== next.provider) {
-          this.emit(providerSwitchedEvent, {
-            from_provider: previous.provider,
-            to_provider: next.provider,
-            from_provider_type: getProviderMode(previous.provider),
-            to_provider_type: getProviderMode(next.provider),
-            reason: 'manual',
-            app_surface: analyticsSurface(),
-          })
-        }
-
-        if (previous.model) {
-          this.emit(modelSwitchedEvent, {
-            from_model: previous.model,
-            to_model: next.model,
-            reason: 'manual',
-          })
-          this.emit(modelChangedEvent, {
-            from_model: previous.model,
-            to_model: next.model,
-            provider: next.provider,
-            reason: 'manual',
-            app_surface: analyticsSurface(),
-          })
-        }
-      },
-      { immediate: true },
-    )
-
     const cardStore = useAiriCardStore()
     watch(() => cardStore.activeCardId, (next, previous) => {
       if (!next || !previous || previous === next)
@@ -214,6 +156,8 @@ class Analytics implements AnalyticsRecorder {
       : Date.now() - this.appStartTime
     const captured = this.emit(firstMessageSentEvent, {
       time_to_first_message_ms: timeToFirstMessageMs,
+      trigger_method: 'message_send',
+      trigger_type: 'user_action',
     })
     if (captured)
       this.firstMessageRecorded = true

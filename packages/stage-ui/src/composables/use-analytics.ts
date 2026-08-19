@@ -22,10 +22,8 @@ export type ConversationAnalyticsSource = 'chat_controls' | 'history' | 'session
 
 export type ProviderMode = 'official' | 'custom' | 'unknown'
 export type ChatActivationFailureStage = 'provider_config' | 'model_list' | 'message_send' | 'llm_response' | 'tts'
-export type ProviderConfigStep = 'settings_auto_validate' | 'manual_chat_ping' | 'onboarding_validate'
 export type VoiceType = 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
 export type VoiceAnalyticsSource = 'settings' | 'onboarding' | 'chat_auto_tts' | 'manual_preview'
-export type OfficialProviderSelectionSource = 'settings' | 'onboarding' | 'default_auto'
 export type OfficialTtsExposureSource = 'settings' | 'onboarding' | 'post_first_chat' | 'chat_controls'
 export type FluxBalanceBucket = 'zero' | '1_100' | '101_1000' | '1001_10000' | '10000_plus' | 'unknown'
 export type FeedbackSource = 'app' | 'discord' | 'qq' | 'github' | 'email' | 'other'
@@ -60,13 +58,6 @@ interface ChatRoundCorrelationProperties {
   turn_index: number
 }
 
-interface ChatActivationBaseProperties extends ChatRoundCorrelationProperties {
-  provider_mode: ProviderMode
-  provider_id: string
-  model_id: string
-  source: 'text' | 'voice'
-}
-
 interface TtsVoiceBaseProperties {
   tts_provider_id: string
   tts_model_id: string
@@ -84,10 +75,9 @@ interface VoiceInputBaseProperties {
   duration_ms?: number
 }
 
-interface ProviderConfigBaseProperties {
+interface ProviderConnectionTestProperties {
   provider_id: string
   provider_mode: ProviderMode
-  step: ProviderConfigStep
 }
 
 interface FeedbackBaseProperties {
@@ -145,6 +135,9 @@ export function useAnalytics() {
     captureAnalyticsEvent('provider_card_clicked', {
       provider_id: providerId,
       module,
+      app_surface: getConversationAnalyticsSurface(),
+      trigger_method: 'provider_card',
+      trigger_type: 'user_action',
     })
   }
 
@@ -330,12 +323,13 @@ export function useAnalytics() {
   function trackModelSwitched(fromModel: string, toModel: string, reason: 'manual' | 'auto' = 'manual') {
     if (!canCapture())
       return
-    captureAnalyticsEvent('model_switched', { from_model: fromModel, to_model: toModel, reason })
-    captureAnalyticsEvent('model_changed', {
+    captureAnalyticsEvent('model_switched', {
       from_model: fromModel,
       to_model: toModel,
       reason,
       app_surface: getConversationAnalyticsSurface(),
+      trigger_method: reason === 'manual' ? 'selection' : 'automatic',
+      trigger_type: reason === 'manual' ? 'user_action' : 'user_flow_result',
     })
   }
 
@@ -348,37 +342,6 @@ export function useAnalytics() {
     if (!canCapture())
       return
     captureAnalyticsEvent('chat_session_started', { model_id: modelId, ...(sessionIndex != null && { session_index: sessionIndex }) })
-  }
-
-  // ─── LLM round events (client-known fields only) ──────────────────────
-  // The server owns HTTP status, token usage, and billing state. It records
-  // these request-level facts in operational telemetry, not product analytics.
-  // These client events supply latency data the server cannot observe.
-
-  function trackMessageSendStarted(properties: ChatRoundCorrelationProperties & { source: 'text' | 'voice', model?: string }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('message_send_started', properties)
-  }
-
-  function trackLlmRequestStarted(properties: ChatRoundCorrelationProperties & { model: string, provider: string, has_voice: boolean }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('llm_request_started', properties)
-  }
-
-  /** First token from a streaming LLM response — perceived responsiveness anchor. */
-  function trackLlmFirstToken(properties: ChatRoundCorrelationProperties & { model: string, ttfb_ms: number }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('llm_first_token', properties)
-  }
-
-  /** Stream finished and the UI has fully rendered the assistant message. */
-  function trackAssistantResponseRendered(properties: ChatRoundCorrelationProperties & { model: string, latency_ms: number }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('assistant_response_rendered', properties)
   }
 
   /** Cost-fact event for one custom-provider generation; content is intentionally excluded. */
@@ -455,53 +418,6 @@ export function useAnalytics() {
     })
   }
 
-  // ─── Chat activation events ──────────────────────────────────────────
-
-  function trackChatActivationStarted(properties: ChatActivationBaseProperties) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('chat_activation_started', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
-  function trackChatActivationSucceeded(properties: ChatActivationBaseProperties & { time_to_first_message_ms?: number }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('chat_activation_succeeded', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
-  function trackChatActivationFailed(properties: ChatActivationBaseProperties & {
-    error_code: string
-    failure_stage: ChatActivationFailureStage
-  }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('chat_activation_failed', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
-  function trackOfficialProviderSelected(properties: {
-    provider_id: string
-    provider_mode: ProviderMode
-    source: OfficialProviderSelectionSource
-    auto_selected: boolean
-    model_id?: string
-  }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('official_provider_selected', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
   function trackMessageSent(properties: ConversationBaseProperties & {
     round_id: string
     turn_index: number
@@ -516,83 +432,34 @@ export function useAnalytics() {
     captureAnalyticsEvent('message_sent', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
+      trigger_method: properties.mode === 'voice' ? 'voice' : 'text_input',
+      trigger_type: 'user_action',
     })
   }
 
-  function trackSecondTurnStarted(properties: ChatActivationBaseProperties) {
+  function trackProviderConnectionTestStarted(properties: ProviderConnectionTestProperties) {
     if (!canCapture())
       return
-    captureAnalyticsEvent('second_turn_started', {
+    captureAnalyticsEvent('provider_connection_test_started', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
+      trigger_method: 'button',
+      trigger_type: 'user_action',
     })
   }
 
-  function trackProviderConfigStarted(properties: ProviderConfigBaseProperties) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('provider_config_started', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
-  function trackProviderConfigSucceeded(properties: ProviderConfigBaseProperties & { duration_ms: number }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('provider_config_succeeded', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-    trackProviderConfigCompleted({
-      ...properties,
-      success: true,
-    })
-    if (properties.provider_mode === 'official') {
-      trackOfficialProviderEnabled({
-        provider_name: properties.provider_id,
-        entry: properties.step === 'onboarding_validate' ? 'onboarding' : 'settings',
-      })
-    }
-  }
-
-  function trackProviderConfigFailed(properties: ProviderConfigBaseProperties & {
-    error_code: string
-    duration_ms: number
-  }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('provider_config_failed', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
-  function trackProviderConfigCompleted(properties: ProviderConfigBaseProperties & {
+  function trackProviderConnectionTestCompleted(properties: ProviderConnectionTestProperties & {
     duration_ms: number
     success: boolean
     error_code?: string
   }) {
     if (!canCapture())
       return
-    captureAnalyticsEvent('provider_config_completed', {
-      ...properties,
-      provider_type: properties.provider_mode,
-      provider_name: properties.provider_id,
-      entry_page: properties.step,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
-  function trackOfficialProviderEnabled(properties: {
-    provider_name: string
-    entry: 'onboarding' | 'settings' | 'chat'
-  }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('official_provider_enabled', {
+    captureAnalyticsEvent('provider_connection_test_completed', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
+      trigger_method: 'button',
+      trigger_type: 'user_flow_result',
     })
   }
 
@@ -708,12 +575,6 @@ export function useAnalytics() {
 
   // ─── STT events ──────────────────────────────────────────────────────
 
-  function trackSttStarted(provider: string) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('stt_started', { provider })
-  }
-
   function trackSttSucceeded(properties: { provider: string, latency_ms: number, char_count: number, stream: boolean }) {
     if (!canCapture())
       return
@@ -732,19 +593,8 @@ export function useAnalytics() {
     captureAnalyticsEvent('voice_input_started', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
-    })
-    captureAnalyticsEvent('voice_input_used', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
-  function trackMicrophonePermissionRequested(properties: VoiceInputBaseProperties) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('microphone_permission_requested', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
+      trigger_method: 'voice',
+      trigger_type: 'user_action',
     })
   }
 
@@ -754,15 +604,8 @@ export function useAnalytics() {
     captureAnalyticsEvent('microphone_permission_denied', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
-  function trackAudioDeviceUnavailable(properties: VoiceInputBaseProperties & { error_code?: 'device_unavailable' | string }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('audio_device_unavailable', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
+      trigger_method: 'voice',
+      trigger_type: 'user_flow_result',
     })
   }
 
@@ -772,6 +615,8 @@ export function useAnalytics() {
     captureAnalyticsEvent('voice_input_cancelled', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
+      trigger_method: 'voice',
+      trigger_type: 'user_flow_result',
     })
   }
 
@@ -813,28 +658,10 @@ export function useAnalytics() {
     captureAnalyticsEvent('ptt_released', { hold_ms: holdMs })
   }
 
-  // ─── TTS events (forwarded from speech bus by use-speech-pipeline-analytics) ─
+  // ─── TTS selection events ────────────────────────────────────────────
   // Selection events use catalog `voice_id` values for adoption analysis.
   // Custom voices must pass `voice_id = custom` from the callsite when the
   // raw provider value is user supplied.
-
-  function trackTtsIntentStarted(properties: { intent_id: string, turn_id?: string }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('tts_intent_started', properties)
-  }
-
-  function trackTtsIntentEnded(properties: { intent_id: string, turn_id?: string, duration_ms: number }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('tts_intent_ended', properties)
-  }
-
-  function trackTtsIntentCancelled(properties: { intent_id: string, turn_id?: string, reason?: string }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('tts_intent_cancelled', properties)
-  }
 
   function trackTtsProviderSelected(properties: TtsVoiceBaseProperties) {
     if (!canCapture())
@@ -842,6 +669,8 @@ export function useAnalytics() {
     captureAnalyticsEvent('tts_provider_selected', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
+      trigger_method: properties.source === 'chat_auto_tts' ? 'automatic' : 'selection',
+      trigger_type: properties.source === 'chat_auto_tts' ? 'user_flow_result' : 'user_action',
     })
   }
 
@@ -948,21 +777,6 @@ export function useAnalytics() {
     })
   }
 
-  function trackProviderSwitched(properties: {
-    from_provider?: string
-    to_provider: string
-    from_provider_type?: ProviderMode
-    to_provider_type: ProviderMode
-    reason: 'manual' | 'auto'
-  }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('provider_switched', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
   function trackSettingsChanged(properties: {
     setting_name: string
     previous_value?: string | number | boolean
@@ -985,18 +799,6 @@ export function useAnalytics() {
     if (!canCapture())
       return
     captureAnalyticsEvent('support_contacted', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
-  function trackOfficialTtsAutoEnabled(properties: Omit<TtsVoiceBaseProperties, 'source'> & {
-    source: Extract<VoiceAnalyticsSource, 'settings' | 'chat_auto_tts'>
-    enabled: boolean
-  }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('official_tts_auto_enabled', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -1245,24 +1047,12 @@ export function useAnalytics() {
     trackModelSwitched,
     trackChatSessionStarted,
 
-    trackMessageSendStarted,
-    trackLlmRequestStarted,
-    trackLlmFirstToken,
-    trackAssistantResponseRendered,
     trackAiGeneration,
     trackMessageRound,
     trackMessageRoundFailed,
     trackMessageSent,
-    trackChatActivationStarted,
-    trackChatActivationSucceeded,
-    trackChatActivationFailed,
-    trackOfficialProviderSelected,
-    trackSecondTurnStarted,
-    trackProviderConfigStarted,
-    trackProviderConfigSucceeded,
-    trackProviderConfigFailed,
-    trackProviderConfigCompleted,
-    trackOfficialProviderEnabled,
+    trackProviderConnectionTestStarted,
+    trackProviderConnectionTestCompleted,
     trackTtsStopClicked,
     trackSpeechMuteToggled,
     trackChatSessionSelected,
@@ -1274,13 +1064,10 @@ export function useAnalytics() {
     trackConversationShared,
     trackConversationDeleted,
 
-    trackSttStarted,
     trackSttSucceeded,
     trackSttFailed,
     trackVoiceInputStarted,
-    trackMicrophonePermissionRequested,
     trackMicrophonePermissionDenied,
-    trackAudioDeviceUnavailable,
     trackVoiceInputCancelled,
     trackBugReportSubmitted,
     trackFeedbackSubmitted,
@@ -1288,22 +1075,17 @@ export function useAnalytics() {
     trackPttPressed,
     trackPttReleased,
 
-    trackTtsIntentStarted,
-    trackTtsIntentEnded,
-    trackTtsIntentCancelled,
     trackTtsProviderSelected,
     trackVoiceSelected,
     trackVoicePreviewPlayed,
     trackVoicePackBound,
     trackAttachmentUploaded,
     trackPresetUsed,
-    trackProviderSwitched,
     trackSettingsChanged,
     trackSupportContacted,
     trackOfficialTtsExposed,
     trackOfficialTtsPreviewStarted,
     trackOfficialTtsPreviewSucceeded,
-    trackOfficialTtsAutoEnabled,
 
     trackAutonomousGenerateText,
 
