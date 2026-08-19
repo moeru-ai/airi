@@ -10,9 +10,13 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { createPeerHooks, wsDisconnectedEvent } from '@moeru/eventa/adapters/websocket/hono'
 import { authenticate } from '@proj-airi/server-sdk-shared/v2'
 
+import { WS_CLOSE_TRY_AGAIN_LATER } from '../../../libs/ws-auth'
 import { registerChatWsPeer } from '../peer'
 import { createChatWsRuntime } from '../runtime'
 import { createChatWsV2Authentication } from './auth'
+import { createChatWsUnauthenticatedPeerLimit } from './unauthenticated-peers'
+
+const MAX_UNAUTHENTICATED_CHAT_WS_CONNECTIONS = 100
 
 /**
  * Creates version-two WebSocket handlers for chat sync and message fanout.
@@ -29,9 +33,22 @@ export function createChatWsV2Handlers(
   runtime?: ChatWsRuntime,
 ) {
   const chatRuntime = runtime ?? createChatWsRuntime(redis, instanceId, metrics)
+  // The v2 upgrade is anonymous by design. Keep a bounded number of peers in
+  // the authentication window so a burst cannot retain unbounded timers and
+  // Eventa contexts in this process.
+  const unauthenticatedPeers = createChatWsUnauthenticatedPeerLimit(MAX_UNAUTHENTICATED_CHAT_WS_CONNECTIONS)
 
   return function setupPeer() {
     let socket: WSContext | undefined
+    let ownsUnauthenticatedSlot = false
+
+    function releaseUnauthenticatedSlot(): void {
+      if (!ownsUnauthenticatedSlot)
+        return
+
+      ownsUnauthenticatedSlot = false
+      unauthenticatedPeers.release()
+    }
 
     const { hooks } = createPeerHooks({
       onContext: (ctx) => {
@@ -39,6 +56,7 @@ export function createChatWsV2Handlers(
           socket,
           resolveUserId,
           onAuthenticated(userId) {
+            releaseUnauthenticatedSlot()
             registerChatWsPeer({ ctx, userId, chatService, runtime: chatRuntime, metrics })
           },
         })
@@ -52,11 +70,27 @@ export function createChatWsV2Handlers(
     })
 
     const originalOnOpen = hooks.onOpen
+    const originalOnClose = hooks.onClose
+    const originalOnError = hooks.onError
     const v2Hooks: WSEvents = {
       ...hooks,
       onOpen(event, ws) {
+        if (!unauthenticatedPeers.tryAcquire()) {
+          ws.close(WS_CLOSE_TRY_AGAIN_LATER, 'too many unauthenticated connections')
+          return
+        }
+
+        ownsUnauthenticatedSlot = true
         socket = ws
         originalOnOpen?.(event, ws)
+      },
+      onClose(event, ws) {
+        releaseUnauthenticatedSlot()
+        originalOnClose?.(event, ws)
+      },
+      onError(event, ws) {
+        releaseUnauthenticatedSlot()
+        originalOnError?.(event, ws)
       },
     }
     return v2Hooks
