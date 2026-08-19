@@ -60,7 +60,7 @@ function createTestApp(deps: {
   })
 
   app.use('*', async (c, next) => {
-    const user = (c.env as { user?: typeof testUser })?.user
+    const user = (c.env as any)?.user
     if (user)
       c.set('user', user)
     await next()

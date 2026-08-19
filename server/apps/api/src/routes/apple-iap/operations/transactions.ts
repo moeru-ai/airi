@@ -10,7 +10,6 @@ import { APPLE_IAP_NAMESPACE_UUID } from '../../../utils/apple-iap'
 import {
   ApiError,
   createBadRequestError,
-  createForbiddenError,
   createServiceUnavailableError,
 } from '../../../utils/error'
 import { evidenceReceiptFromAppleTransaction } from '../claim'
