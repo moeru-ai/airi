@@ -132,12 +132,12 @@ export function useProviderValidation(providerId: string) {
         })
       }
 
-      // When a provider validates successfully on its settings page,
-      // mark it as added so it appears in the model selector (e.g. Consciousness module).
-      // This fixes providers like LM Studio that use default config and may not
-      // need an API key, yet should be selectable after successful validation.
+      // A successful settings-page validation must both list the provider and
+      // transition it to configured. Modules such as Hearing only expose
+      // configured providers, including providers that use default config and
+      // do not require an API key.
       if (isValid.value) {
-        providerStore.markProviderAdded(providerId)
+        providersStore.forceProviderConfigured(providerId)
         trackProviderConfigSucceeded({
           ...providerConfigAnalyticsBase('settings_auto_validate'),
           duration_ms: Math.round(performance.now() - startValidationTimestamp),

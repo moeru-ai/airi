@@ -131,6 +131,12 @@ export function filterTranscriptionByConfidence(
   return segments.filter(s => (s?.avg_logprob ?? -Infinity) >= threshold).map(s => s?.text ?? '').join('').trim()
 }
 
+export function supportsVerboseJsonResponse(providerId: string, model: string): boolean {
+  // OpenAI's GPT transcription models only accept JSON responses. Whisper-1
+  // remains the official OpenAI model that supports verbose_json segments.
+  return providerId !== 'openai-audio-transcription' || model === 'whisper-1'
+}
+
 /**
  * Reads a string field from an unknown response object.
  */
@@ -660,7 +666,12 @@ export const useHearingStore = defineStore('hearing-store', () => {
         throw new Error('File input is required for transcription.')
       }
 
-      const useVerboseJson = !format && confidenceThreshold.value > CONFIDENCE_THRESHOLD_DISABLED
+      const confidenceFilteringRequested = !format && confidenceThreshold.value > CONFIDENCE_THRESHOLD_DISABLED
+      const useVerboseJson = confidenceFilteringRequested && supportsVerboseJsonResponse(providerId, model)
+      if (confidenceFilteringRequested && !useVerboseJson) {
+        verboseJsonNotSupported.value = true
+        console.warn('[Hearing] Confidence filter is enabled but the selected model does not support verbose_json. Filtering has no effect.')
+      }
       const response = await generateTranscription({
         ...provider.transcription(model, options?.providerOptions),
         file: normalizedInput.file,

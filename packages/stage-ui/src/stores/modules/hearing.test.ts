@@ -11,6 +11,7 @@ import {
   resolveStreamTranscriptionExecutor,
   resolveTranscriptionFileName,
   resolveTranscriptionProviderOptions,
+  supportsVerboseJsonResponse,
 } from './hearing'
 
 describe('filterTranscriptionByConfidence', () => {
@@ -106,6 +107,21 @@ describe('resolveOpenAITranscriptionModel', () => {
 
   it('uses the OpenAI default only when the provider has never stored a model', () => {
     expect(resolveOpenAITranscriptionModel({ apiKey: '', baseUrl: '' })).toBe('gpt-4o-transcribe')
+  })
+})
+
+describe('supportsVerboseJsonResponse', () => {
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3809839929
+  it('only enables verbose JSON for the compatible OpenAI transcription model', () => {
+    expect(supportsVerboseJsonResponse('openai-audio-transcription', 'whisper-1')).toBe(true)
+    expect(supportsVerboseJsonResponse('openai-audio-transcription', 'gpt-4o-transcribe')).toBe(false)
+    expect(supportsVerboseJsonResponse('openai-audio-transcription', 'gpt-4o-mini-transcribe')).toBe(false)
+    expect(supportsVerboseJsonResponse('openai-audio-transcription', 'gpt-4o-transcribe-diarize')).toBe(false)
+  })
+
+  it('preserves verbose JSON requests for compatible custom providers', () => {
+    expect(supportsVerboseJsonResponse('funasr-audio-transcription', 'sensevoice')).toBe(true)
+    expect(supportsVerboseJsonResponse('openai-compatible-audio-transcription', 'custom-model')).toBe(true)
   })
 })
 

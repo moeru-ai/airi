@@ -90,6 +90,27 @@ describe('useHearingStore analytics lifecycle', () => {
     })
   }, 10000)
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3809839929
+  it('does not request verbose JSON from OpenAI models that only support JSON', async () => {
+    const { useHearingStore } = await import('./hearing')
+    const hearingStore = useHearingStore()
+    hearingStore.confidenceThreshold = -1
+
+    await hearingStore.transcription(
+      'openai-audio-transcription',
+      {
+        transcription: () => ({}),
+      } as any,
+      'gpt-4o-transcribe',
+      new File(['hello'], 'recording.wav', { type: 'audio/wav' }),
+    )
+
+    expect(transcriptionMock.generateTranscription).toHaveBeenCalledWith(expect.objectContaining({
+      responseFormat: undefined,
+    }))
+    expect(hearingStore.verboseJsonNotSupported).toBe(true)
+  }, 10000)
+
   /**
    * @example
    * await expect(hearingStore.transcription(providerId, provider, model, file)).rejects.toThrow()
