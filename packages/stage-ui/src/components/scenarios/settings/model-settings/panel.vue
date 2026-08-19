@@ -61,7 +61,7 @@ const effectiveRenderer = computed(() => resolveModelSettingsPanelRenderer({
 
 async function handleModelPick(selectedModel: DisplayModel | undefined) {
   stageModelSelected.value = selectedModel?.id ?? ''
-  airiCardStore.updateActiveCardDisplayModel(selectedModel?.id)
+  await airiCardStore.updateActiveCardDisplayModel(selectedModel?.id)
   await settingsStore.updateStageModel()
 }
 </script>

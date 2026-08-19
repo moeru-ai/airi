@@ -35,19 +35,46 @@ describe('ark chat provider definitions', () => {
     expect(parsedConfig.baseUrl).toBe('https://ark.cn-beijing.volces.com/api/coding/v3')
 
     const providerInstance = provider!.createProvider(parsedConfig) as any
-    const chatConfig = providerInstance.chat('volcengine-coding-plan/doubao-seed-2.0-code')
-    expect(chatConfig.model).toBe('doubao-seed-2.0-code')
+    const chatConfig = providerInstance.chat('volcengine-coding-plan/doubao-seed-2.1-turbo')
+    expect(chatConfig.model).toBe('doubao-seed-2.1-turbo')
 
     const listedModels = await provider!.extraMethods!.listModels!(parsedConfig, providerInstance)
     expect(listedModels.map(model => model.id)).toEqual([
+      'volcengine-coding-plan/ark-code-latest',
+      'volcengine-coding-plan/doubao-seed-2.1-turbo',
+      'volcengine-coding-plan/doubao-seed-2.0-lite',
+      'volcengine-coding-plan/minimax-m3',
+      'volcengine-coding-plan/kimi-k2.7-code',
+      'volcengine-coding-plan/glm-5.3',
+      'volcengine-coding-plan/deepseek-v4-flash',
+      'volcengine-coding-plan/deepseek-v4-pro',
       'volcengine-coding-plan/doubao-seed-2.0-code',
       'volcengine-coding-plan/doubao-seed-2.0-pro',
-      'volcengine-coding-plan/doubao-seed-2.0-lite',
-      'volcengine-coding-plan/doubao-seed-code',
-      'volcengine-coding-plan/minimax-m2.5',
-      'volcengine-coding-plan/glm-4.7',
-      'volcengine-coding-plan/deepseek-v3.2',
-      'volcengine-coding-plan/kimi-k2.5',
+    ])
+
+    expect(listedModels[0]).toEqual({
+      description: 'Uses the model selected in the Coding Plan console, including Auto; changes apply in 3–5 minutes.',
+      id: 'volcengine-coding-plan/ark-code-latest',
+      name: 'ark-code-latest',
+      provider: 'volcengine-coding-plan',
+    })
+    expect(listedModels.slice(-2)).toEqual([
+      {
+        contextLength: 256000,
+        deprecated: true,
+        description: 'Legacy Coding Plan model scheduled for retirement. Switch to a currently supported model.',
+        id: 'volcengine-coding-plan/doubao-seed-2.0-code',
+        name: 'doubao-seed-2.0-code',
+        provider: 'volcengine-coding-plan',
+      },
+      {
+        contextLength: 256000,
+        deprecated: true,
+        description: 'Legacy Coding Plan model scheduled for retirement. Switch to a currently supported model.',
+        id: 'volcengine-coding-plan/doubao-seed-2.0-pro',
+        name: 'doubao-seed-2.0-pro',
+        provider: 'volcengine-coding-plan',
+      },
     ])
   })
 

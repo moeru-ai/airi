@@ -13,7 +13,11 @@ export type StageModelRenderer = 'live2d' | 'vrm' | 'spine' | 'tachie' | 'mmd' |
 type BuiltInStageModelRenderer = Exclude<StageModelRenderer, 'godot'>
 
 const useStageModelSelectionStore = defineStore('settings-stage-model-selection', () => {
-  const selected = useLocalStorageManualReset<string>('settings/stage/model', 'preset-live2d-1')
+  // Pinia synchronization owns live cross-window state. localStorage only
+  // loads and saves the durable model selection.
+  const selected = useLocalStorageManualReset<string>('settings/stage/model', 'preset-live2d-1', {
+    listenToStorageChanges: false,
+  })
 
   function resetState() {
     selected.reset()

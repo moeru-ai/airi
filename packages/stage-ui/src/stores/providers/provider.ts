@@ -19,7 +19,7 @@ import { computedAsync, useIntervalFn } from '@vueuse/core'
 import { listModels } from '@xsai/model'
 import { uniqBy } from 'es-toolkit'
 import { defineStore } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
@@ -31,7 +31,6 @@ import {
   validateProvider as runProviderValidation,
 } from '../../libs/providers'
 import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
-import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from './config'
 
 export type { ModelInfo, VoiceInfo } from '../../libs/providers/types'
@@ -43,6 +42,10 @@ export interface ProviderRuntimeState {
   modelStatus: 'idle' | 'loading' | 'ready' | 'error'
   modelError: string | null
 }
+
+/** Stable fallback for reactive consumers when a provider has no cached catalog. */
+const emptyProviderModels: ModelInfo[] = []
+Object.freeze(emptyProviderModels)
 
 // Only the provider data plane crosses renderer boundaries. Async derived refs
 // stay in useProviderStore and recompute locally instead of being patched as
@@ -72,20 +75,15 @@ export const useProviderStore = defineStore('provider', () => {
   const providerStateStore = useProviderStateStore()
   const providerCredentials = computed(() => providerConfigStore.configs)
   const addedProviders = computed(() => providerConfigStore.addedProviders)
-  // Synced state applies fresh object snapshots. Compare serialized values so
-  // an equivalent snapshot does not restart validation and publish more state.
-  const providerCredentialsSignature = computed(() => JSON.stringify(providerCredentials.value))
-  const addedProvidersSignature = computed(() => JSON.stringify(addedProviders.value))
   // Provider instances contain functions and transport handles. Keep this map
   // private so it never enters Pinia state.
   const providerInstanceCache = new Map<string, unknown>()
   const { t } = useI18n()
 
-  const authState = useAuthStore()
   const VISION_PROVIDER_ID_PREFIX = 'vision-'
 
   function getProviderDefinitionId(providerId: string) {
-    const configuredProvider = providerConfigStore.getProvider(providerId)
+    const configuredProvider = providerConfigStore.providers[providerId]
     if (configuredProvider)
       return configuredProvider.definitionId
 
@@ -262,7 +260,7 @@ export const useProviderStore = defineStore('provider', () => {
     initializeProviderRuntimeState(providerId)
     const configString = JSON.stringify(config || {})
     const runtimeState = providerRuntimeState.value[providerId]
-    const configuredProvider = providerConfigStore.getProvider(providerId)
+    const configuredProvider = providerConfigStore.providers[providerId]
     const cacheKey = `${providerId}:${configString}`
     const forceValidation = options.force === true
 
@@ -413,17 +411,6 @@ export const useProviderStore = defineStore('provider', () => {
     await updateConfigurationStatus()
     startPeriodicRuntimeValidation()
   }
-
-  function requestListedProviderValidation() {
-    // Store setup runs before pinia-plugin-synced installs its action wrappers.
-    // Defer the public-store lookup so background validation is routed to the
-    // leader instead of running independently in every renderer.
-    queueMicrotask(() => void useProviderStore().refreshListedProviderValidation())
-  }
-
-  watch(providerCredentialsSignature, requestListedProviderValidation, { immediate: true })
-  watch(addedProvidersSignature, requestListedProviderValidation)
-  watch(() => authState.isAuthenticated, requestListedProviderValidation)
 
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.values(providerConfigStore.providers)
@@ -648,7 +635,7 @@ export const useProviderStore = defineStore('provider', () => {
 
   // Get models for a specific provider
   function getModelsForProvider(providerId: string) {
-    return providerRuntimeState.value[providerId]?.models || []
+    return providerRuntimeState.value[providerId]?.models ?? emptyProviderModels
   }
 
   // Load models for all configured providers
@@ -679,18 +666,14 @@ export const useProviderStore = defineStore('provider', () => {
       await disposeProviderInstance(providerId)
 
       // If the provider is configured and has the capability, refetch its models
-      if (providerConfigStore.getProvider(providerId)?.status === 'configured' && supportsModelListing(providerId)) {
+      if (providerConfigStore.providers[providerId]?.status === 'configured' && supportsModelListing(providerId)) {
         await fetchModelsForProvider(providerId)
       }
     }
   }
 
-  watch(providerCredentialsSignature, () => {
-    queueMicrotask(() => void useProviderStore().refreshModelsForChangedCredentials())
-  }, { immediate: true })
-
   function projectProvider(providerId: string): ProviderMetadata | undefined {
-    const configuredProvider = providerConfigStore.getProvider(providerId)
+    const configuredProvider = providerConfigStore.providers[providerId]
     const metadata = providerMetadata[providerId]
       ?? providerMetadata[configuredProvider?.definitionId ?? '']
 

@@ -877,8 +877,8 @@ catalogs:
       specifier: ^3.0.4
       version: 3.0.4
     pinia-plugin-synced:
-      specifier: ^0.1.0
-      version: 0.1.0
+      specifier: ^0.1.3
+      version: 0.1.3
     pixi-filters:
       specifier: ^4.2.0
       version: 4.2.0
@@ -1493,6 +1493,9 @@ importers:
       '@proj-airi/stage-ui':
         specifier: workspace:^
         version: link:../../packages/stage-ui
+      '@proj-airi/stage-ui-live2d':
+        specifier: workspace:^
+        version: link:../../packages/stage-ui-live2d
       '@proj-airi/stage-ui-three':
         specifier: workspace:^
         version: link:../../packages/stage-ui-three
@@ -4437,7 +4440,7 @@ importers:
         version: 3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3))
       pinia-plugin-synced:
         specifier: 'catalog:'
-        version: 0.1.0(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+        version: 0.1.3(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       posthog-js:
         specifier: 'catalog:'
         version: 1.306.1
@@ -17170,8 +17173,8 @@ packages:
     resolution: {integrity: sha512-uB80kBFb/tfd68bVleG9T5GGsGPjJrLAUpR5PZIrhBnIaRTQRjqdJSsIKkOP6OAIFbj7GOrcudc5pNjZ+geV2g==}
     engines: {node: '>=6'}
 
-  pinia-plugin-synced@0.1.0:
-    resolution: {integrity: sha512-53LEjp6A5ub16fwPdM01ZwYtLF+uG5i3JOfwbA5/m1j7cmiIAdlb4dSd5NcY+fZDw51f/DXWBiLAqV/C1qyKTg==}
+  pinia-plugin-synced@0.1.3:
+    resolution: {integrity: sha512-qisOMMeMClWqHMdJSBZzIGxLQKRTWA2dqF48l++Ys1ay91fOUuT0UcNZWYsrs4eP1MvAR3DMXskknen8iYyq6Q==}
     peerDependencies:
       pinia: '>=3.0.4 <5'
       vue: ^3.5.0
@@ -32941,7 +32944,7 @@ snapshots:
   pify@4.0.1:
     optional: true
 
-  pinia-plugin-synced@0.1.0(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)):
+  pinia-plugin-synced@0.1.3(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)):
     dependencies:
       '@moeru/std': 0.1.0-beta.20
       es-toolkit: 1.50.0

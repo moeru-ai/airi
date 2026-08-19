@@ -7,6 +7,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
+import { isEqual } from 'es-toolkit'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -50,15 +51,19 @@ export const useSpeechStore = defineStore('speech', () => {
   const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)
   const { locale } = useI18n()
 
+  // Pinia synchronization owns live cross-window state. localStorage only
+  // loads and saves durable values for this synchronized store.
+  const persistenceOptions = { listenToStorageChanges: false }
+
   // State
-  const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', 'speech-noop')
-  const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', '')
-  const activeSpeechVoiceId = useLocalStorageManualReset<string>('settings/speech/voice', '')
+  const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', 'speech-noop', persistenceOptions)
+  const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', '', persistenceOptions)
+  const activeSpeechVoiceId = useLocalStorageManualReset<string>('settings/speech/voice', '', persistenceOptions)
   const activeSpeechVoice = refManualReset<VoiceInfo | undefined>(undefined)
 
-  const pitch = useLocalStorageManualReset<number>('settings/speech/pitch', 0)
-  const rate = useLocalStorageManualReset<number>('settings/speech/rate', 1)
-  const ssmlEnabled = useLocalStorageManualReset<boolean>('settings/speech/ssml-enabled', false)
+  const pitch = useLocalStorageManualReset<number>('settings/speech/pitch', 0, persistenceOptions)
+  const rate = useLocalStorageManualReset<number>('settings/speech/rate', 1, persistenceOptions)
+  const ssmlEnabled = useLocalStorageManualReset<boolean>('settings/speech/ssml-enabled', false, persistenceOptions)
   const isLoadingSpeechProviderVoices = refManualReset<boolean>(false)
   const speechProviderError = refManualReset<string | null>(null)
   const availableVoices = refManualReset<Record<string, VoiceInfo[]>>(() => ({}))
@@ -215,34 +220,6 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechProvider.value = 'speech-noop'
   }
 
-  watch(
-    () => providersStore.configuredSpeechProvidersMetadata.map(provider => provider.id),
-    (configuredProviderIds) => {
-      if (!activeSpeechProvider.value || activeSpeechProvider.value === 'speech-noop')
-        return
-
-      // NOTICE: only reset when the provider has actually been validated and found unconfigured.
-      // Skip reset if validation hasn't run yet (validatedCredentialHash is undefined)
-      // to avoid a race condition where immediate watcher fires before async validation completes.
-      const runtimeState = providersStore.providerRuntimeState[activeSpeechProvider.value]
-      if (runtimeState && runtimeState.validatedCredentialHash === undefined)
-        return
-
-      // NOTICE: clear stale selection when the currently selected speech provider
-      // is no longer configured to avoid implicit fallback behavior from persisted state.
-      // NOTE: Do NOT use { immediate: true } here — providers.ts validates credentials
-      // asynchronously on startup, so firing immediately would see an empty
-      // configuredSpeechProvidersMetadata and incorrectly reset activeSpeechProvider
-      // to 'speech-noop', permanently wiping the persisted selection from localStorage.
-      if (!configuredProviderIds.includes(activeSpeechProvider.value)) {
-        activeSpeechProvider.value = 'speech-noop'
-        activeSpeechModel.value = ''
-        activeSpeechVoiceId.value = ''
-        activeSpeechVoice.value = undefined
-      }
-    },
-  )
-
   setupOfficialSpeechAutoPick({
     activeSpeechProvider,
     activeSpeechVoiceId,
@@ -250,34 +227,30 @@ export const useSpeechStore = defineStore('speech', () => {
     uiLocale: locale,
   })
 
-  watch(providerModels, () => {
-    ensureActiveSpeechModel()
-  })
-
   watch([activeSpeechVoiceId, availableVoices], ([voiceId, voices]) => {
-    if (voiceId) {
-      // For OpenAI Compatible, create a custom voice object (no voices available from API)
-      if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
-        // Always update to match voiceId (in case it changed)
-        activeSpeechVoice.value = {
-          id: voiceId,
-          name: voiceId,
-          description: voiceId,
-          previewURL: '',
-          languages: [{ code: 'en', title: 'English' }],
-          provider: activeSpeechProvider.value,
-          gender: 'neutral',
-        }
-      }
-      else {
-        // For other providers, find voice in available voices
-        const foundVoice = voices[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
-        // Only update if we found a voice, or if activeSpeechVoice is not set
-        if (foundVoice || !activeSpeechVoice.value) {
-          activeSpeechVoice.value = foundVoice
-        }
+    if (!voiceId)
+      return
+
+    let nextVoice: VoiceInfo | undefined
+    if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
+      nextVoice = {
+        id: voiceId,
+        name: voiceId,
+        description: voiceId,
+        previewURL: '',
+        languages: [{ code: 'en', title: 'English' }],
+        provider: activeSpeechProvider.value,
+        gender: 'neutral',
       }
     }
+    else {
+      nextVoice = voices[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
+    }
+
+    if (!nextVoice || isEqual(activeSpeechVoice.value, nextVoice))
+      return
+
+    activeSpeechVoice.value = nextVoice
   }, {
     immediate: true,
     deep: true,

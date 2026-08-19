@@ -102,7 +102,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   function getProviderConfig(providerId: string) {
-    return getProvider(providerId)?.config
+    return providers.value[providerId]?.config
   }
 
   function ensureProvider(providerId: string, definitionId: string, config: Record<string, unknown> = {}) {
@@ -133,7 +133,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   function setProviderStatus(providerId: string, status: ProviderValidationStatus) {
-    const provider = getProvider(providerId)
+    const provider = providers.value[providerId]
     if (provider)
       provider.status = status
   }

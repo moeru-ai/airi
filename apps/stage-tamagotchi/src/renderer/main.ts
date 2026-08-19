@@ -50,7 +50,8 @@ const synced = setupSynced({
   leadership: resolveRendererWindowContext().leadership,
 })
 pinia.use(synced.pinia)
-pinia.use(piniaPluginTracing)
+if (import.meta.env.DEV)
+  pinia.use(piniaPluginTracing)
 
 const router = createRouter({
   history: createWebHashHistory(),
