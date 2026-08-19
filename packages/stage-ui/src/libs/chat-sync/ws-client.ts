@@ -55,7 +55,7 @@ const NewMessagesPayloadSchema = v.object({
  * - `idle`: never connected, or `disconnect()` was called and we are not
  *   trying to reconnect.
  * - `connecting`: WebSocket handshake in flight (initial or reconnect attempt).
- * - `open`: socket open and `wsConnectedEvent` fired.
+ * - `open`: socket open and `chat:authenticate` succeeded.
  * - `closed`: lost the socket; auto-reconnect may bring it back to `connecting`.
  */
 export type ChatWsStatus = 'idle' | 'connecting' | 'open' | 'closed'
@@ -152,9 +152,9 @@ export function computeReconnectDelay(retries: number, baseMs: number, maxMs: nu
  *
  * @internal
  */
-export function mapStatus(vue: 'OPEN' | 'CONNECTING' | 'CLOSED', enabled: boolean): ChatWsStatus {
+export function mapStatus(vue: 'OPEN' | 'CONNECTING' | 'CLOSED', enabled: boolean, authenticated = true): ChatWsStatus {
   if (vue === 'OPEN')
-    return 'open'
+    return authenticated ? 'open' : 'connecting'
   if (vue === 'CONNECTING')
     return 'connecting'
   return enabled ? 'closed' : 'idle'
@@ -212,6 +212,9 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
   const tokenRef = computed(options.getToken)
   const urlRef = createChatWsUrlRef(enabled, () => tokenRef.value, options.serverUrl)
   const authenticated = ref(false)
+  // The socket object is the connection generation. Authentication callbacks
+  // must match it before they can update the shared client state.
+  let activeSocket: WebSocket | undefined
 
   // The eventa context is rebuilt on every `onConnected` so RPC + push
   // listeners survive a reconnect by re-binding to the fresh ws.
@@ -287,6 +290,7 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       delay: r => computeReconnectDelay(r, RECONNECT_BASE_MS, RECONNECT_MAX_MS),
     },
     onConnected(rawWs) {
+      activeSocket = rawWs
       const created = createWsContext(rawWs)
       context.value = created.context
       attachContextListeners(created.context)
@@ -300,14 +304,21 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
 
       void defineInvoke(getAuthenticationContext, authenticate)({ token })
         .then(() => {
+          if (activeSocket !== rawWs || context.value !== created.context)
+            return
           authenticated.value = true
         })
         .catch((error) => {
+          if (activeSocket !== rawWs || context.value !== created.context)
+            return
           console.warn('[chat-ws] post-connect authentication failed:', errorMessageFrom(error))
-          rawWs.close(WS_CLOSE_UNAUTHORIZED, 'unauthorized')
         })
     },
-    onDisconnected(_rawWs, ev) {
+    onDisconnected(rawWs, ev) {
+      if (rawWs !== activeSocket)
+        return
+
+      activeSocket = undefined
       disposeContext()
       authenticated.value = false
       // ROOT CAUSE:
@@ -342,8 +353,8 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
   // watcher is idle while the socket is closed, so leaving it attached
   // costs nothing. Use `destroy()` for terminal cleanup.
   const stopStatusWatch = watch(
-    [ws.status, enabled],
-    ([rawStatus, isEnabled]) => notifyStatus(mapStatus(rawStatus, isEnabled)),
+    [ws.status, enabled, authenticated],
+    ([rawStatus, isEnabled, isAuthenticated]) => notifyStatus(mapStatus(rawStatus, isEnabled, isAuthenticated)),
     { immediate: true },
   )
 
@@ -351,7 +362,9 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
     if (!enabled.value || token === previousToken)
       return
 
+    activeSocket = undefined
     authenticated.value = false
+    disposeContext()
     ws.close()
     if (token)
       ws.open()
@@ -378,7 +391,7 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
   const invokePullMessages = defineInvoke(getContext, pullMessages)
 
   return {
-    status: () => mapStatus(ws.status.value, enabled.value),
+    status: () => mapStatus(ws.status.value, enabled.value, authenticated.value),
     connect() {
       if (enabled.value && ws.status.value === 'OPEN')
         return
@@ -395,11 +408,13 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       // Status watcher stays attached so callers can disconnect/connect on
       // the same handle.
       enabled.value = false
+      activeSocket = undefined
       ws.close()
       disposeContext()
     },
     destroy() {
       enabled.value = false
+      activeSocket = undefined
       ws.close()
       disposeContext()
       stopStatusWatch()

@@ -30,6 +30,16 @@ import type { WSEvents } from 'hono/ws'
 export const WS_CLOSE_UNAUTHORIZED = 4001
 
 /**
+ * Standard WebSocket close code for a temporary condition. Clients retry it.
+ */
+export const WS_CLOSE_TRY_AGAIN_LATER = 1013
+
+/**
+ * Standard WebSocket close code for a server-side error. Clients retry it.
+ */
+export const WS_CLOSE_INTERNAL_ERROR = 1011
+
+/**
  * Build a `WSEvents` shape that immediately closes the socket with
  * `WS_CLOSE_UNAUTHORIZED` after the upgrade completes.
  *

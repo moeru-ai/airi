@@ -4,31 +4,21 @@ import type Redis from 'ioredis'
 import type { EngagementMetrics } from '../../../otel'
 import type { ChatService } from '../../../services/domain/chats'
 import type { ChatWsRuntime } from '../runtime'
+import type { ChatWsAuthResolver } from './auth'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createPeerHooks, wsDisconnectedEvent } from '@moeru/eventa/adapters/websocket/hono'
 import { authenticate } from '@proj-airi/server-sdk-shared/v2'
-import * as v from 'valibot'
 
-import { WS_CLOSE_UNAUTHORIZED } from '../../../libs/ws-auth'
 import { registerChatWsPeer } from '../peer'
 import { createChatWsRuntime } from '../runtime'
-
-const chatAuthenticateRequestSchema = v.object({
-  token: v.pipe(v.string(), v.minLength(1)),
-})
-const CHAT_AUTH_TIMEOUT_MS = 15_000
-
-export interface ChatWsAuthResolver {
-  (token: string): Promise<string | null>
-}
+import { createChatWsV2Authentication } from './auth'
 
 /**
  * Creates version-two WebSocket handlers for chat sync and message fanout.
  *
  * `/ws/v2/chat` accepts an anonymous WebSocket upgrade. The client must invoke
- * `chat:authenticate` before the timeout; only then does it join the shared
- * authenticated peer runtime.
+ * `chat:authenticate` before it joins the shared authenticated peer runtime.
  */
 export function createChatWsV2Handlers(
   chatService: ChatService,
@@ -42,42 +32,20 @@ export function createChatWsV2Handlers(
 
   return function setupPeer() {
     let socket: WSContext | undefined
-    let authTimer: ReturnType<typeof setTimeout> | undefined
 
     const { hooks } = createPeerHooks({
       onContext: (ctx) => {
-        let userId: string | undefined
-        const unregisterAuthenticate = defineInvokeHandler(ctx, authenticate, async (request) => {
-          const parsed = v.safeParse(chatAuthenticateRequestSchema, request)
-          if (!parsed.success) {
-            socket?.close(WS_CLOSE_UNAUTHORIZED, 'unauthorized')
-            throw new Error('WebSocket authentication failed')
-          }
-
-          const resolvedUserId = await resolveUserId(parsed.output.token)
-          if (!resolvedUserId) {
-            socket?.close(WS_CLOSE_UNAUTHORIZED, 'unauthorized')
-            throw new Error('WebSocket authentication failed')
-          }
-
-          if (userId)
-            return { userId }
-
-          userId = resolvedUserId
-          if (authTimer)
-            clearTimeout(authTimer)
-          registerChatWsPeer({ ctx, userId, chatService, runtime: chatRuntime, metrics })
-          return { userId }
+        const authentication = createChatWsV2Authentication({
+          socket,
+          resolveUserId,
+          onAuthenticated(userId) {
+            registerChatWsPeer({ ctx, userId, chatService, runtime: chatRuntime, metrics })
+          },
         })
-
-        authTimer = setTimeout(() => {
-          if (!userId)
-            socket?.close(WS_CLOSE_UNAUTHORIZED, 'unauthorized')
-        }, CHAT_AUTH_TIMEOUT_MS)
+        const unregisterAuthenticate = defineInvokeHandler(ctx, authenticate, authentication.authenticate)
 
         ctx.on(wsDisconnectedEvent, () => {
-          if (authTimer)
-            clearTimeout(authTimer)
+          authentication.disconnect()
           unregisterAuthenticate()
         })
       },

@@ -87,6 +87,20 @@ describe('mapStatus', () => {
     expect(mapStatus('OPEN', false)).toBe('open')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2309#discussion_r3796626526
+  // ROOT CAUSE:
+  //
+  // VueUse sets its transport status to OPEN before the Eventa authentication
+  // invoke completes. Publishing open at that point lets chat sync call RPCs
+  // before the client has an authenticated context.
+  //
+  // The client now keeps the public status at connecting until authentication
+  // succeeds for the active socket.
+  it('holds the public status at connecting until authentication succeeds', () => {
+    expect(mapStatus('OPEN', true, false)).toBe('connecting')
+    expect(mapStatus('OPEN', true, true)).toBe('open')
+  })
+
   /**
    * @example
    * VueUse CONNECTING → connecting; same independence from enabled.

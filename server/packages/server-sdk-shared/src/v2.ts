@@ -2,6 +2,8 @@ import type { NewMessagesPayload, PullMessagesRequest, PullMessagesResponse, Sen
 
 import { defineInvokeEventa, defineOutboundEventa } from '@moeru/eventa'
 
+import * as v from 'valibot'
+
 export type {
   MessageRole,
   NewMessagesPayload,
@@ -18,12 +20,19 @@ export {
   SendMessagesRequestSchema,
 } from './chat'
 
-export interface AuthenticateRequest {
-  token: string
-}
+export const AuthenticateRequestSchema = v.object({
+  token: v.pipe(v.string(), v.minLength(1)),
+})
+
+export type AuthenticateRequest = v.InferOutput<typeof AuthenticateRequestSchema>
 
 export interface AuthenticateResponse {
   userId: string
+}
+
+/** Parses a `chat:authenticate` payload at the WebSocket boundary. */
+export function parseAuthenticateRequest(request: unknown): AuthenticateRequest {
+  return v.parse(AuthenticateRequestSchema, request)
 }
 
 export const authenticate = defineInvokeEventa<AuthenticateResponse, AuthenticateRequest>('chat:authenticate')
