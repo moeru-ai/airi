@@ -20,6 +20,37 @@ type MarkdownProcessor = Processor<any, any, any, any, string>
 const processorCache = new Map<string, Promise<MarkdownProcessor>>()
 const langRegex = /```(.{2,})\s/g
 
+function hasBalancedLatexGroups(value: string): boolean {
+  let depth = 0
+
+  for (let index = 0; index < value.length; index++) {
+    if (value[index] === '\\') {
+      index++
+      continue
+    }
+
+    if (value[index] === '{') {
+      depth++
+    }
+    else if (value[index] === '}') {
+      depth--
+      if (depth < 0)
+        return false
+    }
+  }
+
+  return depth === 0
+}
+
+function isIndependentEquationList(equations: string[]): boolean {
+  return equations.length > 1
+    && equations.every(equation => (
+      !/\\(?:begin|end)\s*\{/.test(equation)
+      && /=|\\(?:approx|cong|equiv|geq?|leq?|ne|neq|sim)\b/.test(equation)
+      && hasBalancedLatexGroups(equation)
+    ))
+}
+
 /**
  * Normalizes common chat output before Markdown becomes HTML.
  *
@@ -43,8 +74,12 @@ const remarkChatMath: Plugin<[], Root> = () => (tree, file) => {
       return
 
     // Chat models often put a list of independent equations in one LaTeX
-    // fence. Separate display nodes preserve the vertical list users expect.
-    const mathCodeNodes: RootContent[] = equations.map(value => ({
+    // fence. Only split positively identified equation lists; environments
+    // and expressions continued across physical lines must stay intact.
+    const mathValues = isIndependentEquationList(equations)
+      ? equations
+      : [node.value.trim()]
+    const mathCodeNodes: RootContent[] = mathValues.map(value => ({
       type: 'code',
       lang: 'math',
       meta: null,

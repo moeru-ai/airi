@@ -30,6 +30,48 @@ describe('useMarkdown', () => {
     expect(html).toContain('<annotation encoding="application/x-tex">\\frac{d}{dx}(e^x)=e^x')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2326#discussion_r3812060520
+  it('preserves a multiline LaTeX environment as one display formula', async () => {
+    // ROOT CAUSE:
+    //
+    // Splitting every physical line separates the begin and end commands from
+    // their environment, so KaTeX receives unmatched fragments.
+    const markdown = [
+      '```latex',
+      String.raw`\begin{aligned}`,
+      String.raw`f(x) &= x^2 \\`,
+      String.raw`f'(x) &= 2x`,
+      String.raw`\end{aligned}`,
+      '```',
+    ].join('\n')
+
+    const html = await useMarkdown().process(markdown)
+
+    expect(html.match(/<math/g) ?? []).toHaveLength(1)
+    expect(html).not.toContain('<merror')
+    expect(html).toContain('\\begin{aligned}')
+    expect(html).toContain('\\end{aligned}')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2326#discussion_r3812060520
+  it('preserves a fraction split across physical lines as one display formula', () => {
+    const markdown = [
+      '```latex',
+      String.raw`\frac{`,
+      '  a + b',
+      '}{',
+      '  c + d',
+      '}',
+      '```',
+    ].join('\n')
+
+    const html = useMarkdown().processSync(markdown)
+
+    expect(html.match(/<math/g) ?? []).toHaveLength(1)
+    expect(html).not.toContain('<merror')
+    expect(html).toContain('\\frac{\n  a + b\n}{\n  c + d\n}')
+  })
+
   // https://github.com/moeru-ai/airi/discussions/2239
   it('treats a tex fence as display math (Issue #2239)', async () => {
     const markdown = [
