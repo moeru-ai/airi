@@ -1,6 +1,7 @@
 import type { RehypeShikiOptions } from '@shikijs/rehype'
+import type { Root, RootContent } from 'mdast'
 import type { BundledLanguage } from 'shiki'
-import type { Processor } from 'unified'
+import type { Plugin, Processor } from 'unified'
 
 import rehypeShiki from '@shikijs/rehype'
 import rehypeKatex from 'rehype-katex'
@@ -11,12 +12,71 @@ import RemarkRehype from 'remark-rehype'
 
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
 import { unified } from 'unified'
+import { SKIP, visit } from 'unist-util-visit'
 
 // Define a specific, compatible type for our processor to ensure type safety.
 type MarkdownProcessor = Processor<any, any, any, any, string>
 
 const processorCache = new Map<string, Promise<MarkdownProcessor>>()
 const langRegex = /```(.{2,})\s/g
+
+/**
+ * Normalizes common chat output before Markdown becomes HTML.
+ *
+ * @example
+ * A `latex` fence with two equation lines becomes two display-math nodes,
+ * while `Price is $5 and cost is $10` stays text.
+ */
+const remarkChatMath: Plugin<[], Root> = () => (tree, file) => {
+  const source = String(file)
+
+  visit(tree, 'code', (node, index, parent) => {
+    if (index === undefined || !parent || !['latex', 'tex'].includes(node.lang?.toLowerCase() ?? ''))
+      return
+
+    const equations = node.value
+      .split(/\r?\n/)
+      .map(equation => equation.trim())
+      .filter(Boolean)
+
+    if (equations.length === 0)
+      return
+
+    // Chat models often put a list of independent equations in one LaTeX
+    // fence. Separate display nodes preserve the vertical list users expect.
+    const mathCodeNodes: RootContent[] = equations.map(value => ({
+      type: 'code',
+      lang: 'math',
+      meta: null,
+      value,
+    }))
+
+    parent.children.splice(index, 1, ...mathCodeNodes)
+    return [SKIP, index + mathCodeNodes.length]
+  })
+
+  visit(tree, 'inlineMath', (node, index, parent) => {
+    if (index === undefined || !parent || !/\s$/.test(node.value))
+      return
+
+    const endOffset = node.position?.end.offset
+    // Requiring a multi-letter word separates price prose from single-letter
+    // variables in valid formulas such as `$5 + x $ 7`.
+    const startsWithAmountAndProse = /^\d[\d.,]*\s+\p{L}{2,}(?:\s|$)/u.test(node.value)
+    const followedByAmount = endOffset !== undefined && /^\s*\d/.test(source.slice(endOffset))
+
+    if (!startsWithAmountAndProse || !followedByAmount)
+      return
+
+    // remark-math pairs the dollar signs before two prices. Restore those
+    // delimiters as text without disabling valid single-dollar equations.
+    parent.children[index] = {
+      type: 'text',
+      value: `$${node.value}$`,
+      position: node.position,
+    }
+  })
+}
 
 function extractLangs(markdown: string): BundledLanguage[] {
   const matches = markdown.matchAll(langRegex)
@@ -62,6 +122,7 @@ async function createProcessor(langs: BundledLanguage[]): Promise<MarkdownProces
   return unified()
     .use(RemarkParse)
     .use(remarkMath)
+    .use(remarkChatMath)
     .use(RemarkRehype)
     .use(measuredKatex, { output: 'mathml' })
     .use(rehypeShiki, options)
@@ -84,6 +145,7 @@ export function useMarkdown() {
   const fallbackProcessor = unified()
     .use(RemarkParse)
     .use(remarkMath)
+    .use(remarkChatMath)
     .use(RemarkRehype)
     .use(measuredKatex, { output: 'mathml' })
     .use(RehypeStringify)
