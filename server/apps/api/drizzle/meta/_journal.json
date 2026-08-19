@@ -155,6 +155,13 @@
       "when": 1786864179375,
       "tag": "0021_chilly_starjammers",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1786957404391,
+      "tag": "0022_worthless_shriek",
+      "breakpoints": true
     }
   ]
 }

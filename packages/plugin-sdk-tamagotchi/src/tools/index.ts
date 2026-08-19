@@ -171,7 +171,6 @@ function withNullableValue(schema: JsonSchema): JsonSchema {
 
   if (Array.isArray(next.enum)) {
     next.enum = next.enum.includes(null) ? next.enum : [...next.enum, null]
-    return next
   }
 
   if (Array.isArray(next.type)) {
@@ -181,6 +180,11 @@ function withNullableValue(schema: JsonSchema): JsonSchema {
 
   if (typeof next.type === 'string') {
     next.type = next.type === 'null' ? next.type : [next.type, 'null']
+    return next
+  }
+
+  // An enum without a type already accepts every enum value, including null.
+  if (Array.isArray(next.enum)) {
     return next
   }
 

@@ -1,13 +1,15 @@
 <script setup lang="ts">
+import type { ArtistrySyncPayload } from '@proj-airi/stage-shared'
+
 import { defineInvokeHandler } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { artistrySyncConfig } from '@proj-airi/stage-shared'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
-import { useAuthProviderSync } from '@proj-airi/stage-ui/composables/use-auth-provider-sync'
 import { initializeAnalytics } from '@proj-airi/stage-ui/libs/analytics'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -17,10 +19,18 @@ import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/c
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
+import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { configureAsDefaultsIfEmpty } from '@proj-airi/stage-ui/stores/modules/default'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
+import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
+import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { useTheme } from '@proj-airi/ui'
+import { isEqual } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
@@ -84,8 +94,6 @@ chatSessionStore.setCloudSyncOwnership(syncedPinia.isLeader())
 const isSpotlightWindow = initialRoutePath === '/spotlight'
 const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/')
 
-useAuthProviderSync()
-
 async function refreshPluginRuntimeTools() {
   try {
     await pluginToolsStore.refresh()
@@ -112,6 +120,8 @@ const stopLeadershipListener = syncedPinia.onLeadershipChange((isLeader) => {
 })
 
 function createFullStageRuntime() {
+  const authStore = useAuthStore()
+  const onboardingStore = useOnboardingStore()
   const contextBridgeStore = useContextBridgeStore()
   const displayModelsStore = useDisplayModelsStore()
   const serverChannelSettingsStore = useServerChannelSettingsStore()
@@ -123,6 +133,24 @@ function createFullStageRuntime() {
   const stageWindowLifecycleStore = useStageWindowLifecycleStore()
   const settingsAudioDeviceStore = useSettingsAudioDevice()
   const artistryStore = useArtistryStore()
+  useConsciousnessStore()
+  useHearingStore()
+  useSpeechStore()
+  useSettingsStageModel()
+  useVisionStore()
+
+  let stopAuthenticatedSetup: (() => void) | undefined
+  function registerAuthenticatedSetup() {
+    stopAuthenticatedSetup ??= authStore.onAuthenticated(async () => {
+      if (!syncedPinia.isLeader())
+        return
+
+      if (await configureAsDefaultsIfEmpty())
+        await cardStore.persistActiveCardModuleSelections()
+      await onboardingStore.closeAfterAuthentication()
+    })
+  }
+
   const { activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions } = storeToRefs(artistryStore)
   const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
   const listPlugins = useElectronEventaInvoke(electronPluginList)
@@ -186,16 +214,25 @@ function createFullStageRuntime() {
     inspect: () => inspectPluginHost(),
   })
 
+  let lastSyncedArtistryConfig: ArtistrySyncPayload | undefined
   watch([activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions], () => {
-    if (activeProvider.value) {
-      void syncArtistryConfig({
-        provider: activeProvider.value as string,
-        globals: JSON.parse(JSON.stringify(artistryGlobals.value)),
-        model: activeModel.value,
-        promptPrefix: defaultPromptPrefix.value,
-        options: providerOptions.value,
-      })
-    }
+    if (!activeProvider.value)
+      return
+
+    const config = JSON.parse(JSON.stringify({
+      provider: activeProvider.value,
+      globals: artistryGlobals.value,
+      model: activeModel.value,
+      promptPrefix: defaultPromptPrefix.value,
+      options: providerOptions.value,
+    })) as ArtistrySyncPayload
+    if (isEqual(config, lastSyncedArtistryConfig))
+      return
+
+    // Pinia synchronization applies cloned snapshots in every renderer. Keep
+    // this IPC bridge edge-triggered so equal snapshots do not repeat IO.
+    lastSyncedArtistryConfig = config
+    void syncArtistryConfig(config)
   }, { deep: true, immediate: true })
 
   context.value.on(electronGodotStageStatusChanged, (event) => {
@@ -213,9 +250,10 @@ function createFullStageRuntime() {
   return {
     async initialize() {
       initializeAnalytics()
+      await authStore.initialize()
       await displayModelsStore.initialize()
-      cardStore.startRuntime(syncedPinia)
       await cardStore.initialize()
+      registerAuthenticatedSetup()
 
       await displayModelsStore.loadDisplayModelsFromIndexedDB()
       await settingsStore.initializeStageModel()
@@ -260,7 +298,7 @@ function createFullStageRuntime() {
       inferencePreload.triggerPreload()
     },
     dispose() {
-      cardStore.disposeRuntime()
+      stopAuthenticatedSetup?.()
       contextBridgeStore.dispose()
     },
   }

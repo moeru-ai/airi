@@ -152,3 +152,5 @@ docs/ai/context/verifications/
 # Generated from packages/i18n/glossary/terms.yaml at upload time. Never committed, so it
 # cannot drift from its source.
 packages/i18n/glossary/glossary.tbx
+
+/airi-docs/

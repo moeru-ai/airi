@@ -542,6 +542,17 @@ export function createAuth(
     },
 
     user: {
+      // Keep this server-managed activity field in Better Auth's declared
+      // schema so `better-auth generate` preserves it in auth-shared.
+      // Session creation updates it below; clients must never supply it.
+      additionalFields: {
+        lastSeenAt: {
+          type: 'date',
+          required: false,
+          input: false,
+          returned: true,
+        },
+      },
       changeEmail: {
         enabled: true,
         // NOTICE:
@@ -787,11 +798,6 @@ export function createAuth(
               .set({ lastSeenAt: new Date() })
               .where(eq(authSchema.user.id, session.userId))
               .catch(err => logger.withError(err).withFields({ userId: session.userId }).warn('Failed to update user lastSeenAt; continuing session create'))
-            void resourceApi?.trackAuthEvent({
-              userId: session.userId,
-              action: 'session_started',
-              source: 'better-auth.session.create',
-            })
           },
         },
       },

@@ -241,12 +241,18 @@ export function useProviderValidation(providerId: string) {
     }
   })
 
-  watch(credentials, () => {
+  // The synced config store re-applies fresh object snapshots (new references,
+  // identical content) after every synced action. Watching a serialized signature
+  // instead of the deep object prevents equivalent snapshots from re-triggering
+  // validation, which would otherwise loop with markProviderAdded().
+  const credentialsSignature = computed(() => JSON.stringify(credentials.value))
+
+  watch(credentialsSignature, () => {
     debouncedValidateConfiguration()
-    // Reset manual test state when credentials change
+    // Reset manual test state when credentials actually change
     manualTestPassed.value = false
     manualTestMessage.value = ''
-  }, { deep: true })
+  })
 
   function handleResetSettings() {
     const defaultOptions = providerMetadata.value?.defaultConfig ?? {}

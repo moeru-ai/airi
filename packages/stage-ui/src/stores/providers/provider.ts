@@ -14,15 +14,14 @@ import type { ProviderMetadata, ProviderValidationPlan } from '../../libs/provid
 import type { ModelInfo, ProviderDefinition, ProviderInstance, VoiceInfo } from '../../libs/providers/types'
 
 import { errorMessageFrom } from '@moeru/std'
-import { isCustomProvidersDisabled, isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
+import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { computedAsync, useIntervalFn } from '@vueuse/core'
 import { listModels } from '@xsai/model'
 import { uniqBy } from 'es-toolkit'
 import { defineStore } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { captureAnalyticsEvent, enableAnalytics, isAnalyticsAvailableInBuild } from '../../libs/analytics'
 import {
   CHAT_COMPLETIONS_VALIDATOR_ID,
   getProviderValidationIntervalMs,
@@ -32,81 +31,7 @@ import {
   validateProvider as runProviderValidation,
 } from '../../libs/providers'
 import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
-import { useAuthStore } from '../auth'
-import { useSettingsAnalytics } from '../settings/analytics'
 import { useProviderConfigStore } from './config'
-
-/**
- * Classifies provider ids into bounded analytics buckets.
- */
-function analyticsProviderMode(providerId: string): 'official' | 'custom' | 'unknown' {
-  if (!providerId)
-    return 'unknown'
-  return providerId.startsWith('official-provider') || providerId.startsWith('vision-official-provider') ? 'official' : 'custom'
-}
-
-/**
- * Resolves the current app surface without importing the analytics store.
- */
-function analyticsSurface(): 'web' | 'mobile' | 'electron' {
-  if (isStageTamagotchi())
-    return 'electron'
-
-  if (isStageCapacitor())
-    return 'mobile'
-
-  return 'web'
-}
-
-/**
- * Checks analytics settings and initializes PostHog without loading build metadata.
- */
-function canCaptureProviderAnalytics(): boolean {
-  if (!isAnalyticsAvailableInBuild())
-    return false
-
-  const settingsAnalytics = useSettingsAnalytics()
-  if (!settingsAnalytics.analyticsEnabled)
-    return false
-
-  return enableAnalytics()
-}
-
-/**
- * Emits model-list analytics from the provider store without loading build metadata.
- */
-function trackModelListLoaded(properties: {
-  provider_id: string
-  provider_mode: 'official' | 'custom' | 'unknown'
-  model_count: number
-  duration_ms: number
-}) {
-  if (!canCaptureProviderAnalytics())
-    return
-
-  captureAnalyticsEvent('model_list_loaded', {
-    ...properties,
-    app_surface: analyticsSurface(),
-  })
-}
-
-/**
- * Emits model-list failure analytics from the provider store without loading build metadata.
- */
-function trackModelListFailed(properties: {
-  provider_id: string
-  provider_mode: 'official' | 'custom' | 'unknown'
-  error_code: string
-  duration_ms: number
-}) {
-  if (!canCaptureProviderAnalytics())
-    return
-
-  captureAnalyticsEvent('model_list_failed', {
-    ...properties,
-    app_surface: analyticsSurface(),
-  })
-}
 
 export type { ModelInfo, VoiceInfo } from '../../libs/providers/types'
 
@@ -131,6 +56,10 @@ function cloneModelSnapshot(models: readonly ModelInfo[]): ModelInfo[] {
     ...(capabilities ? { capabilities: [...capabilities] } : {}),
   }))
 }
+
+/** Stable fallback for reactive consumers when a provider has no cached catalog. */
+const emptyProviderModels: ModelInfo[] = []
+Object.freeze(emptyProviderModels)
 
 // Only the provider data plane crosses renderer boundaries. Async derived refs
 // stay in useProviderStore and recompute locally instead of being patched as
@@ -180,20 +109,15 @@ export const useProviderStore = defineStore('provider', () => {
   const providerStateStore = useProviderStateStore()
   const providerCredentials = computed(() => providerConfigStore.configs)
   const addedProviders = computed(() => providerConfigStore.addedProviders)
-  // Synced state applies fresh object snapshots. Compare serialized values so
-  // an equivalent snapshot does not restart validation and publish more state.
-  const providerCredentialsSignature = computed(() => JSON.stringify(providerCredentials.value))
-  const addedProvidersSignature = computed(() => JSON.stringify(addedProviders.value))
   // Provider instances contain functions and transport handles. Keep this map
   // private so it never enters Pinia state.
   const providerInstanceCache = new Map<string, unknown>()
   const { t } = useI18n()
 
-  const authState = useAuthStore()
   const VISION_PROVIDER_ID_PREFIX = 'vision-'
 
   function getProviderDefinitionId(providerId: string) {
-    const configuredProvider = providerConfigStore.getProvider(providerId)
+    const configuredProvider = providerConfigStore.providers[providerId]
     if (configuredProvider)
       return configuredProvider.definitionId
 
@@ -375,7 +299,7 @@ export const useProviderStore = defineStore('provider', () => {
     initializeProviderRuntimeState(providerId)
     const configString = JSON.stringify(config || {})
     const runtimeState = providerRuntimeState.value[providerId]
-    const configuredProvider = providerConfigStore.getProvider(providerId)
+    const configuredProvider = providerConfigStore.providers[providerId]
     const cacheKey = `${providerId}:${configString}`
     const forceValidation = options.force === true
 
@@ -526,17 +450,6 @@ export const useProviderStore = defineStore('provider', () => {
     await updateConfigurationStatus()
     startPeriodicRuntimeValidation()
   }
-
-  function requestListedProviderValidation() {
-    // Store setup runs before pinia-plugin-synced installs its action wrappers.
-    // Defer the public-store lookup so background validation is routed to the
-    // leader instead of running independently in every renderer.
-    queueMicrotask(() => void useProviderStore().refreshListedProviderValidation())
-  }
-
-  watch(providerCredentialsSignature, requestListedProviderValidation, { immediate: true })
-  watch(addedProvidersSignature, requestListedProviderValidation)
-  watch(() => authState.isAuthenticated, requestListedProviderValidation)
 
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.values(providerConfigStore.providers)
@@ -702,7 +615,6 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   async function runModelListRequest(providerId: string): Promise<ModelInfo[]> {
-    const startedAt = Date.now()
     const definition = findProviderDefinition(providerId)
     if (!definition)
       return []
@@ -736,12 +648,6 @@ export const useProviderStore = defineStore('provider', () => {
         }))
 
       if (latestModelListRequestIds.get(providerId) !== requestId) {
-        trackModelListLoaded({
-          provider_id: providerId,
-          provider_mode: analyticsProviderMode(providerId),
-          model_count: normalizedModels.length,
-          duration_ms: Date.now() - startedAt,
-        })
         // Share the current owner's result so callers never consume an old
         // cache or miss a fallback selected from the fresh response.
         return waitForLatestModelListResult(providerId)
@@ -762,22 +668,10 @@ export const useProviderStore = defineStore('provider', () => {
             modelError: null,
           },
         }
-        trackModelListLoaded({
-          provider_id: providerId,
-          provider_mode: analyticsProviderMode(providerId),
-          model_count: normalizedModels.length,
-          duration_ms: Date.now() - startedAt,
-        })
         // Synced action results pass through structuredClone. Return the local
         // array because reading the same array from state returns a Vue proxy.
         return normalizedModels
       }
-      trackModelListLoaded({
-        provider_id: providerId,
-        provider_mode: analyticsProviderMode(providerId),
-        model_count: 0,
-        duration_ms: Date.now() - startedAt,
-      })
       return []
     }
     catch (error) {
@@ -793,13 +687,6 @@ export const useProviderStore = defineStore('provider', () => {
           },
         }
       }
-      trackModelListFailed({
-        provider_id: providerId,
-        provider_mode: analyticsProviderMode(providerId),
-        error_code: 'provider_error',
-        duration_ms: Date.now() - startedAt,
-      })
-
       // Share the current owner's result even when this stale request rejects.
       if (latestModelListRequestIds.get(providerId) !== requestId)
         return waitForLatestModelListResult(providerId)
@@ -821,7 +708,7 @@ export const useProviderStore = defineStore('provider', () => {
 
   // Get models for a specific provider
   function getModelsForProvider(providerId: string) {
-    return providerRuntimeState.value[providerId]?.models || []
+    return providerRuntimeState.value[providerId]?.models ?? emptyProviderModels
   }
 
   // Load models for all configured providers
@@ -852,18 +739,14 @@ export const useProviderStore = defineStore('provider', () => {
       await disposeProviderInstance(providerId)
 
       // If the provider is configured and has the capability, refetch its models
-      if (providerConfigStore.getProvider(providerId)?.status === 'configured' && supportsModelListing(providerId)) {
+      if (providerConfigStore.providers[providerId]?.status === 'configured' && supportsModelListing(providerId)) {
         await fetchModelsForProvider(providerId)
       }
     }
   }
 
-  watch(providerCredentialsSignature, () => {
-    queueMicrotask(() => void useProviderStore().refreshModelsForChangedCredentials())
-  }, { immediate: true })
-
   function projectProvider(providerId: string): ProviderMetadata | undefined {
-    const configuredProvider = providerConfigStore.getProvider(providerId)
+    const configuredProvider = providerConfigStore.providers[providerId]
     const metadata = providerMetadata[providerId]
       ?? providerMetadata[configuredProvider?.definitionId ?? '']
 

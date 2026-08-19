@@ -24,7 +24,7 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
-import { computed, ref, toRaw, watch } from 'vue'
+import { computed, nextTick, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import CardCreationTabArtistry from './tabs/CardCreationTabArtistry.vue'
@@ -98,6 +98,8 @@ const selectedArtistrySpawnMode = ref<'bg' | 'widget' | 'inline' | 'bg_widget'>(
 const selectedArtistryAutonomousEnabled = ref<boolean>(false)
 const selectedArtistryAutonomousThreshold = ref<number>(70)
 const selectedArtistryConfigStr = ref<string>('{\n  \n}')
+let isInitializingModuleSelections = false
+let hasLoadedModuleOptions = false
 
 // Computed: available display model options
 const displayModelOptions = computed(() =>
@@ -193,25 +195,36 @@ const artistryProviderOptions = computed(() => {
   ]
 })
 
-// Load models for current providers on init
-watch(() => [consciousnessProvider.value, visionProvider.value, speechProvider.value], async ([consProvider, visProvider, spProvider]) => {
-  if (consProvider) {
-    await consciousnessStore.loadModelsForProvider(consProvider)
+async function loadSelectedModuleOptions() {
+  if (hasLoadedModuleOptions)
+    return
+
+  hasLoadedModuleOptions = true
+  const loads: Promise<unknown>[] = []
+  if (selectedConsciousnessProvider.value)
+    loads.push(consciousnessStore.loadModelsForProvider(selectedConsciousnessProvider.value))
+
+  if (selectedVisionProvider.value)
+    loads.push(visionStore.loadModelsForProvider(selectedVisionProvider.value))
+
+  if (selectedSpeechProvider.value) {
+    loads.push(speechStore.loadVoicesForProvider(selectedSpeechProvider.value, selectedSpeechModel.value || undefined))
+    if (providersStore.supportsModelListing(selectedSpeechProvider.value))
+      loads.push(providersStore.fetchModelsForProvider(selectedSpeechProvider.value))
   }
-  if (visProvider) {
-    await visionStore.loadModelsForProvider(visProvider)
+
+  try {
+    await Promise.all(loads)
   }
-  if (spProvider) {
-    await speechStore.loadVoicesForProvider(spProvider)
-    if (providersStore.supportsModelListing(spProvider)) {
-      await providersStore.fetchModelsForProvider(spProvider)
-    }
+  catch (error) {
+    hasLoadedModuleOptions = false
+    throw error
   }
-}, { immediate: true })
+}
 
 // Watch consciousness provider changes and reload models
 watch(selectedConsciousnessProvider, async (newProvider, oldProvider) => {
-  if (oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
+  if (props.modelValue && !isInitializingModuleSelections && oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
     await consciousnessStore.loadModelsForProvider(newProvider)
     // Reset model selection to default or empty
     selectedConsciousnessModel.value = ''
@@ -220,7 +233,7 @@ watch(selectedConsciousnessProvider, async (newProvider, oldProvider) => {
 
 // Watch vision provider changes and reload models
 watch(selectedVisionProvider, async (newProvider, oldProvider) => {
-  if (oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
+  if (props.modelValue && !isInitializingModuleSelections && oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
     await visionStore.loadModelsForProvider(newProvider)
     selectedVisionModel.value = ''
   }
@@ -228,7 +241,7 @@ watch(selectedVisionProvider, async (newProvider, oldProvider) => {
 
 // Watch speech provider changes and reload models/voices
 watch(selectedSpeechProvider, async (newProvider, oldProvider) => {
-  if (oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
+  if (props.modelValue && !isInitializingModuleSelections && oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
     await speechStore.loadVoicesForProvider(newProvider)
     if (providersStore.supportsModelListing(newProvider)) {
       await providersStore.fetchModelsForProvider(newProvider)
@@ -243,7 +256,7 @@ watch(selectedSpeechProvider, async (newProvider, oldProvider) => {
 watch(selectedSpeechModel, async (newModel, oldModel) => {
   // Only reset if model actually changed and we're not initializing
   const provider = selectedSpeechProvider.value || speechProvider.value
-  if (oldModel !== undefined && newModel !== oldModel && provider) {
+  if (props.modelValue && !isInitializingModuleSelections && oldModel !== undefined && newModel !== oldModel && provider) {
     // Reload voices for the current provider
     await speechStore.loadVoicesForProvider(provider)
 
@@ -287,6 +300,12 @@ const activeTab = computed({
   },
 })
 
+async function selectTab(tabId: string) {
+  activeTab.value = tabId
+  if (tabId === 'modules')
+    await loadSelectedModuleOptions()
+}
+
 // Reset active tab when dialog opens
 watch(() => props.modelValue, (isOpen) => {
   if (isOpen) {
@@ -302,7 +321,7 @@ watch(() => props.modelValue, (isOpen) => {
 const showError = ref<boolean>(false)
 const errorMessage = ref<string>('')
 
-function saveCard(card: Card, activate: boolean): boolean {
+async function saveCard(card: Card, activate: boolean): Promise<boolean> {
   const draftResult = safeParseAiriCardDraft(toRaw(card), selectedArtistryConfigStr.value)
   if (!draftResult.success) {
     showError.value = true
@@ -342,7 +361,7 @@ function saveCard(card: Card, activate: boolean): boolean {
   let savedCardId: string
   if (isEditMode.value && props.cardId) {
     // Edit mode: update existing card
-    if (!cardStore.updateCard(props.cardId, cardWithModules)) {
+    if (!await cardStore.updateCard(props.cardId, cardWithModules)) {
       showError.value = true
       errorMessage.value = t('settings.pages.card.card_not_found')
       return false
@@ -351,11 +370,11 @@ function saveCard(card: Card, activate: boolean): boolean {
     trackCardEdited({ card_id: props.cardId })
   }
   else {
-    savedCardId = cardStore.addCard(cardWithModules, 'scratch')
+    savedCardId = await cardStore.addCard(cardWithModules, 'scratch')
   }
 
   if (activate)
-    cardStore.activeCardId = savedCardId
+    await cardStore.activateCard(savedCardId)
 
   modelValue.value = false // Close this
   return true
@@ -364,6 +383,22 @@ function saveCard(card: Card, activate: boolean): boolean {
 // Cards data holders :
 
 // Initialize card data - load from existing card if in edit mode
+function createCardDraft(): Card {
+  return {
+    name: t('settings.pages.card.creation.defaults.name'),
+    nickname: undefined,
+    version: '1.0',
+    description: '',
+    notes: undefined,
+    personality: t('settings.pages.card.creation.defaults.personality'),
+    scenario: t('settings.pages.card.creation.defaults.scenario'),
+    systemPrompt: t('settings.pages.card.creation.defaults.systemprompt'),
+    postHistoryInstructions: t('settings.pages.card.creation.defaults.posthistoryinstructions'),
+    greetings: [],
+    messageExample: [],
+  }
+}
+
 function initializeCard(): Card {
   // Extract existing card data if in edit mode
   const existingCard = (isEditMode.value && props.cardId) ? cardStore.getCard(props.cardId) : undefined
@@ -401,30 +436,26 @@ function initializeCard(): Card {
     return { ...toRaw(existingCard) }
   }
 
-  return {
-    name: t('settings.pages.card.creation.defaults.name'),
-    nickname: undefined,
-    version: '1.0',
-    description: '',
-    notes: undefined,
-    personality: t('settings.pages.card.creation.defaults.personality'),
-    scenario: t('settings.pages.card.creation.defaults.scenario'),
-    systemPrompt: t('settings.pages.card.creation.defaults.systemprompt'),
-    postHistoryInstructions: t('settings.pages.card.creation.defaults.posthistoryinstructions'),
-    greetings: [],
-    messageExample: [],
-  }
+  return createCardDraft()
 }
 
-const card = ref<Card>(initializeCard())
+const card = ref<Card>(createCardDraft())
 
 // Reinitialize when cardId changes or dialog opens
-watch(() => [props.modelValue, props.cardId], () => {
-  if (props.modelValue) {
-    showError.value = false
-    errorMessage.value = ''
-    card.value = initializeCard()
-  }
+watch(() => [props.modelValue, props.cardId], async () => {
+  if (!props.modelValue)
+    return
+
+  showError.value = false
+  errorMessage.value = ''
+  hasLoadedModuleOptions = false
+  isInitializingModuleSelections = true
+  card.value = initializeCard()
+  await nextTick()
+  isInitializingModuleSelections = false
+
+  if (props.modelValue && activeTab.value === 'modules')
+    await loadSelectedModuleOptions()
 })
 
 function makeComputed<T extends keyof Card>(key: T) {
@@ -489,7 +520,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                       ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500 dark:border-primary-400'
                       : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300',
                   ]"
-                  @click="activeTab = tab.id"
+                  @click="selectTab(tab.id)"
                 >
                   <div class="flex items-center gap-1">
                     <div :class="tab.icon" />
