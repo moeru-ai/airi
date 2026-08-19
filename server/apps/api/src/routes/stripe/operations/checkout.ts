@@ -74,7 +74,7 @@ export function createCheckoutOperation(deps: CheckoutOperationDeps) {
       feature: 'billing',
       action: 'checkout_started',
       status: 'succeeded',
-      eventId: session.id,
+      eventId: result.paymentOrderId,
       source: 'stripe.checkout',
       metadata: {
         pack_key: resolvedPackKey,
