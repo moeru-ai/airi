@@ -9,9 +9,6 @@ import { exportAiriCardPackage } from '@proj-airi/stage-ui/services/airi-card-im
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
-import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { Button, Select } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import {
@@ -41,17 +38,11 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const { trackSceneBackgroundSet } = useAnalytics()
 const cardStore = useAiriCardStore()
-const consciousnessStore = useConsciousnessStore()
-const speechStore = useSpeechStore()
-const visionStore = useVisionStore()
 const backgroundStore = useBackgroundStore()
 const displayModelsStore = useDisplayModelsStore()
 
 const { removeCard } = cardStore
 const { activeCardId } = storeToRefs(cardStore)
-const { activeProvider: consciousnessProvider, activeModel: defaultConsciousnessModel } = storeToRefs(consciousnessStore)
-const { activeSpeechProvider: speechProvider, activeSpeechModel: defaultSpeechModel, activeSpeechVoiceId: defaultVoiceId } = storeToRefs(speechStore)
-const { activeProvider: visionProvider, activeModel: defaultVisionModel } = storeToRefs(visionStore)
 
 const isRefreshingGallery = ref(false)
 const isExportingCard = shallowRef(false)
@@ -317,15 +308,13 @@ watch(() => props.modelValue, (isOpen) => {
 })
 
 // Helper function to generate placeholder text for default values
-function getDefaultPlaceholder(defaultValue: string | undefined): string {
-  return defaultValue
-    ? `${t('settings.pages.card.creation.use_default')} (${defaultValue})`
-    : t('settings.pages.card.creation.use_default_not_configured')
+function getDefaultPlaceholder(): string {
+  return t('settings.pages.card.creation.inherit_global_settings')
 }
 
 // Helper function to get display value for module settings
-function getModuleDisplayValue(value: string | undefined, defaultValue: string | undefined): string {
-  return value || getDefaultPlaceholder(defaultValue)
+function getModuleDisplayValue(value: string | undefined): string {
+  return value || getDefaultPlaceholder()
 }
 </script>
 
@@ -466,7 +455,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                     {{ t('settings.pages.card.chat.provider') }}
                   </span>
                   <div truncate font-medium>
-                    {{ getModuleDisplayValue(moduleSettings.consciousnessProvider, consciousnessProvider) }}
+                    {{ getModuleDisplayValue(moduleSettings.consciousnessProvider) }}
                   </div>
                 </div>
 
@@ -483,7 +472,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                     {{ t('settings.pages.card.consciousness.model') }}
                   </span>
                   <div truncate font-medium>
-                    {{ getModuleDisplayValue(moduleSettings.consciousness, defaultConsciousnessModel) }}
+                    {{ getModuleDisplayValue(moduleSettings.consciousness) }}
                   </div>
                 </div>
 
@@ -500,7 +489,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                     {{ t('settings.pages.card.vision.provider') }}
                   </span>
                   <div truncate font-medium>
-                    {{ getModuleDisplayValue(moduleSettings.visionProvider, visionProvider) }}
+                    {{ getModuleDisplayValue(moduleSettings.visionProvider) }}
                   </div>
                 </div>
 
@@ -517,7 +506,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                     {{ t('settings.pages.card.vision.model') }}
                   </span>
                   <div truncate font-medium>
-                    {{ getModuleDisplayValue(moduleSettings.vision, defaultVisionModel) }}
+                    {{ getModuleDisplayValue(moduleSettings.vision) }}
                   </div>
                 </div>
 
@@ -534,7 +523,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                     {{ t('settings.pages.card.speech.provider') }}
                   </span>
                   <div truncate font-medium>
-                    {{ getModuleDisplayValue(moduleSettings.speechProvider, speechProvider) }}
+                    {{ getModuleDisplayValue(moduleSettings.speechProvider) }}
                   </div>
                 </div>
 
@@ -551,7 +540,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                     {{ t('settings.pages.card.speech.model') }}
                   </span>
                   <div truncate font-medium>
-                    {{ getModuleDisplayValue(moduleSettings.speech, defaultSpeechModel) }}
+                    {{ getModuleDisplayValue(moduleSettings.speech) }}
                   </div>
                 </div>
 
@@ -568,7 +557,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                     {{ t('settings.pages.card.speech.voice') }}
                   </span>
                   <div truncate font-medium>
-                    {{ getModuleDisplayValue(moduleSettings.voice, defaultVoiceId) }}
+                    {{ getModuleDisplayValue(moduleSettings.voice) }}
                   </div>
                 </div>
               </div>

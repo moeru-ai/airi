@@ -490,10 +490,8 @@ const cardSystemPrompt = makeComputed('systemPrompt')
 const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
 
 // Helper function to generate placeholder text for default values
-function getDefaultPlaceholder(defaultValue: string | undefined): string {
-  return defaultValue
-    ? `${t('settings.pages.card.creation.use_default')} (${defaultValue})`
-    : t('settings.pages.card.creation.use_default_not_configured')
+function getDefaultPlaceholder(): string {
+  return t('settings.pages.card.creation.inherit_global_settings')
 }
 </script>
 
@@ -576,7 +574,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                 <ComboboxSelect
                   v-model="selectedConsciousnessProvider"
                   :options="consciousnessProviderOptions"
-                  :placeholder="getDefaultPlaceholder(consciousnessProvider)"
+                  :placeholder="getDefaultPlaceholder()"
                   class="w-full"
                 />
               </div>
@@ -590,7 +588,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                 <ComboboxSelect
                   v-model="selectedConsciousnessModel"
                   :options="consciousnessModelOptions"
-                  :placeholder="getDefaultPlaceholder(defaultConsciousnessModel)"
+                  :placeholder="getDefaultPlaceholder()"
                   :disabled="!selectedConsciousnessProvider && !consciousnessProvider"
                   class="w-full"
                 />
@@ -605,7 +603,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                 <ComboboxSelect
                   v-model="selectedVisionProvider"
                   :options="visionProviderOptions"
-                  :placeholder="getDefaultPlaceholder(visionProvider)"
+                  :placeholder="getDefaultPlaceholder()"
                   class="w-full"
                 />
               </div>
@@ -619,7 +617,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                 <ComboboxSelect
                   v-model="selectedVisionModel"
                   :options="visionModelOptions"
-                  :placeholder="getDefaultPlaceholder(defaultVisionModel)"
+                  :placeholder="getDefaultPlaceholder()"
                   :disabled="!selectedVisionProvider && !visionProvider"
                   class="w-full"
                 />
@@ -634,7 +632,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                 <ComboboxSelect
                   v-model="selectedSpeechProvider"
                   :options="speechProviderOptions"
-                  :placeholder="getDefaultPlaceholder(speechProvider)"
+                  :placeholder="getDefaultPlaceholder()"
                   class="w-full"
                 />
               </div>
@@ -648,7 +646,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                 <ComboboxSelect
                   v-model="selectedSpeechModel"
                   :options="speechModelOptions"
-                  :placeholder="getDefaultPlaceholder(defaultSpeechModel)"
+                  :placeholder="getDefaultPlaceholder()"
                   :disabled="!selectedSpeechProvider && !speechProvider"
                   class="w-full"
                 />
@@ -663,7 +661,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                 <ComboboxSelect
                   v-model="selectedSpeechVoiceId"
                   :options="speechVoiceOptions"
-                  :placeholder="getDefaultPlaceholder(defaultSpeechVoiceId)"
+                  :placeholder="getDefaultPlaceholder()"
                   :disabled="!selectedSpeechProvider && !speechProvider"
                   class="w-full"
                 />
@@ -678,7 +676,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                 <ComboboxSelect
                   v-model="selectedDisplayModelId"
                   :options="displayModelOptions"
-                  :placeholder="getDefaultPlaceholder(defaultDisplayModelId)"
+                  :placeholder="getDefaultPlaceholder()"
                   class="w-full"
                 />
               </div>
@@ -704,7 +702,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
             v-model:selected-artistry-spawn-mode="selectedArtistrySpawnMode"
             v-model:selected-artistry-config-str="selectedArtistryConfigStr"
             :artistry-provider-options="artistryProviderOptions"
-            :default-artistry-provider-placeholder="getDefaultPlaceholder(defaultArtistryProvider)"
+            :default-artistry-provider-placeholder="getDefaultPlaceholder()"
           />
 
           <div class="ml-auto mr-1 flex flex-row gap-2">

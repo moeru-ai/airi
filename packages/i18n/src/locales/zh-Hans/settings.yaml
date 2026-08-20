@@ -343,6 +343,7 @@ pages:
         为此角色卡配置模块。如未设置，将使用默认模块配置。
       use_default: 使用默认
       use_default_not_configured: 使用默认（未配置）
+      inherit_global_settings: 继承全局设置
       fields_info:
         subtitle: >-
           您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
