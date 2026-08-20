@@ -11,7 +11,7 @@ import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/con
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted } from 'vue'
 
 const hearingStore = useHearingStore()
 const providersStore = useProviderStore()
@@ -23,14 +23,14 @@ const providerId = 'openai-audio-transcription'
 const defaultModel = OPENAI_TRANSCRIPTION_DEFAULT_MODEL
 
 // Model selection
-const model = computed({
-  get: () => resolveOpenAITranscriptionModel(providers.value[providerId]),
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].model = value
-  },
-})
+const model = computed(() => resolveOpenAITranscriptionModel(providers.value[providerId]))
+let modelUpdateTask = Promise.resolve()
+
+function updateModel(value: string | undefined) {
+  const nextTask = modelUpdateTask.then(() => hearingStore.setTranscriptionModelForProvider(providerId, value ?? ''))
+  modelUpdateTask = nextTask.catch(cause => console.warn('Failed to update the transcription model:', cause))
+  return nextTask
+}
 
 // Load models
 const providerModels = computed(() => {
@@ -71,11 +71,6 @@ async function handleGenerateTranscription(file: File) {
     'json',
   )
 }
-
-watch(model, async () => {
-  const providerConfig = providerStore.getProviderConfig(providerId)
-  providerConfig.model = model.value
-})
 </script>
 
 <template>
@@ -86,12 +81,13 @@ watch(model, async () => {
     <template #basic-settings>
       <!-- Model selection -->
       <FieldCombobox
-        v-model="model"
+        :model-value="model"
         label="Model"
         description="Select the transcription model to use"
         :options="providerModels.map(m => ({ value: m.id, label: m.name }))"
         :disabled="isLoadingModels || providerModels.length === 0"
         placeholder="Select a model..."
+        @update:model-value="updateModel"
       />
     </template>
     <template #playground>

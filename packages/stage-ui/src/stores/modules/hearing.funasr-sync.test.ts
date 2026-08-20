@@ -61,6 +61,7 @@ describe('funASR Hearing model synchronization', () => {
 
     const providersStore = useProviderStore()
     const hearingStore = useHearingStore()
+    await hearingStore.initialize()
 
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
@@ -78,6 +79,7 @@ describe('funASR Hearing model synchronization', () => {
     const providerConfigStore = useProviderConfigStore()
     providerConfigStore.getProviderConfig('funasr-audio-transcription')!.model = ''
     const hearingStore = useHearingStore()
+    await hearingStore.initialize()
 
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('')
@@ -86,7 +88,7 @@ describe('funASR Hearing model synchronization', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3792335742
-  it('hydrates the shared OpenAI default for a legacy provider on startup (GitHub #2122)', () => {
+  it('hydrates the shared OpenAI default for a legacy provider on startup (GitHub #2122)', async () => {
     persistedSettings.set('settings/hearing/active-provider', 'openai-audio-transcription')
     persistedSettings.set('settings/hearing/active-model', '')
 
@@ -94,6 +96,7 @@ describe('funASR Hearing model synchronization', () => {
     delete providerConfigStore.getProviderConfig('openai-audio-transcription')!.model
 
     const hearingStore = useHearingStore()
+    await hearingStore.initialize()
 
     expect(hearingStore.activeTranscriptionModel).toBe('gpt-4o-transcribe')
     expect(providerConfigStore.getProviderConfig('openai-audio-transcription')?.model).toBe('gpt-4o-transcribe')
@@ -108,6 +111,7 @@ describe('funASR Hearing model synchronization', () => {
     providerConfig.model = ''
 
     const hearingStore = useHearingStore()
+    await hearingStore.initialize()
     expect(hearingStore.activeTranscriptionModel).toBe('')
 
     providerConfig.model = 'gpt-4o-mini-transcribe'
@@ -124,12 +128,24 @@ describe('funASR Hearing model synchronization', () => {
     expect(hasExplicitlyClearedTranscriptionModel({ model: 'gpt-4o-transcribe' })).toBe(false)
   })
 
+  it('does not reconcile persisted state during store construction', () => {
+    persistedSettings.set('settings/hearing/active-provider', 'openai-audio-transcription')
+    persistedSettings.set('settings/hearing/active-model', '')
+    const providerConfigStore = useProviderConfigStore()
+    delete providerConfigStore.getProviderConfig('openai-audio-transcription')!.model
+
+    const hearingStore = useHearingStore()
+
+    expect(hearingStore.activeTranscriptionModel).toBe('')
+    expect(providerConfigStore.getProviderConfig('openai-audio-transcription')).not.toHaveProperty('model')
+  })
+
   it('restores the FunASR configured model when the provider is selected', async () => {
     const providerConfigStore = useProviderConfigStore()
     const hearingStore = useHearingStore()
 
     providerConfigStore.getProviderConfig('funasr-audio-transcription')!.model = 'paraformer'
-    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await hearingStore.setActiveTranscriptionProvider('funasr-audio-transcription')
 
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('paraformer')
@@ -140,12 +156,12 @@ describe('funASR Hearing model synchronization', () => {
     const providerConfigStore = useProviderConfigStore()
     const hearingStore = useHearingStore()
 
-    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await hearingStore.setActiveTranscriptionProvider('funasr-audio-transcription')
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
     })
 
-    hearingStore.activeTranscriptionModel = 'fun-asr-nano'
+    await hearingStore.setActiveTranscriptionModel('fun-asr-nano')
 
     await vi.waitFor(() => {
       expect(providerConfigStore.getProviderConfig('funasr-audio-transcription')?.model).toBe('fun-asr-nano')
@@ -157,22 +173,22 @@ describe('funASR Hearing model synchronization', () => {
     const providerConfigStore = useProviderConfigStore()
     const hearingStore = useHearingStore()
 
-    hearingStore.activeTranscriptionProvider = 'mimo-audio-transcription'
+    await hearingStore.setActiveTranscriptionProvider('mimo-audio-transcription')
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('mimo-v2-omni')
     })
 
-    hearingStore.activeTranscriptionModel = 'mimo-v2.5'
+    await hearingStore.setActiveTranscriptionModel('mimo-v2.5')
     await vi.waitFor(() => {
       expect(providerConfigStore.getProviderConfig('mimo-audio-transcription')?.model).toBe('mimo-v2.5')
     })
 
-    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await hearingStore.setActiveTranscriptionProvider('funasr-audio-transcription')
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
     })
 
-    hearingStore.activeTranscriptionProvider = 'mimo-audio-transcription'
+    await hearingStore.setActiveTranscriptionProvider('mimo-audio-transcription')
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('mimo-v2.5')
     })
@@ -186,10 +202,10 @@ describe('funASR Hearing model synchronization', () => {
     const providerConfig = providerConfigStore.getProviderConfig(providerId)!
 
     expect(providerConfig).not.toHaveProperty('model')
-    hearingStore.activeTranscriptionProvider = providerId
+    await hearingStore.setActiveTranscriptionProvider(providerId)
     await nextTick()
 
-    hearingStore.activeTranscriptionModel = 'custom/funasr-model'
+    await hearingStore.setActiveTranscriptionModel('custom/funasr-model')
 
     await vi.waitFor(() => {
       expect(providerConfig.model).toBe('custom/funasr-model')
@@ -201,13 +217,34 @@ describe('funASR Hearing model synchronization', () => {
     persistedSettings.set('settings/hearing/active-provider', 'funasr-audio-transcription')
 
     const providersStore = useProviderStore()
-    useHearingStore()
+    const hearingStore = useHearingStore()
+    await hearingStore.initialize()
+    await hearingStore.setActiveTranscriptionModel('paraformer')
 
     await vi.waitFor(() => {
       expect(providersStore.getModelsForProvider('funasr-audio-transcription')).toHaveLength(3)
     })
 
     await providersStore.resetProviderSettings()
+    const initializeProvider = providersStore.initializeProvider.bind(providersStore)
+    let resolveInitialization!: () => void
+    vi.spyOn(providersStore, 'initializeProvider').mockImplementation(((providerId: string) => {
+      return new Promise<void>((resolve) => {
+        resolveInitialization = () => {
+          initializeProvider(providerId)
+          resolve()
+        }
+      })
+    }) as never)
+
+    const reloadPromise = hearingStore.reloadActiveTranscriptionProvider()
+    await Promise.resolve()
+
+    expect(hearingStore.activeTranscriptionModel).toBe('paraformer')
+    expect(useProviderConfigStore().getProviderConfig('funasr-audio-transcription')).toBeUndefined()
+
+    resolveInitialization()
+    await reloadPromise
 
     await vi.waitFor(() => {
       expect(providersStore.getModelsForProvider('funasr-audio-transcription').map(model => model.id)).toEqual([
@@ -215,18 +252,20 @@ describe('funASR Hearing model synchronization', () => {
         'fun-asr-nano',
         'paraformer',
       ])
+      expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
+      expect(useProviderConfigStore().getProviderConfig('funasr-audio-transcription')?.model).toBe('sensevoice')
     })
   })
 
   it('clears the FunASR model when another provider is selected', async () => {
     const hearingStore = useHearingStore()
 
-    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await hearingStore.setActiveTranscriptionProvider('funasr-audio-transcription')
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
     })
 
-    hearingStore.activeTranscriptionProvider = 'openai-compatible-audio-transcription'
+    await hearingStore.setActiveTranscriptionProvider('openai-compatible-audio-transcription')
 
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('')
@@ -246,12 +285,12 @@ describe('funASR Hearing model synchronization', () => {
     delete providerConfigStore.getProviderConfig('openai-audio-transcription')!.model
     const hearingStore = useHearingStore()
 
-    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await hearingStore.setActiveTranscriptionProvider('funasr-audio-transcription')
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
     })
 
-    hearingStore.activeTranscriptionProvider = 'openai-audio-transcription'
+    await hearingStore.setActiveTranscriptionProvider('openai-audio-transcription')
 
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('gpt-4o-transcribe')
@@ -271,12 +310,12 @@ describe('funASR Hearing model synchronization', () => {
     const hearingStore = useHearingStore()
 
     providerConfigStore.getProviderConfig('openai-audio-transcription')!.model = ''
-    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await hearingStore.setActiveTranscriptionProvider('funasr-audio-transcription')
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
     })
 
-    hearingStore.activeTranscriptionProvider = 'openai-audio-transcription'
+    await hearingStore.setActiveTranscriptionProvider('openai-audio-transcription')
 
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('')
@@ -290,8 +329,8 @@ describe('funASR Hearing model synchronization', () => {
   // Both the Hearing store transition watcher and the settings page loaded the destination models.
   // The two uncorrelated requests could resolve from different cache states and leave no active model.
   //
-  // The settings page owns the destination load; the store consumes that single result.
-  it('reuses the settings page model load after leaving FunASR (GitHub #2122)', async () => {
+  // The provider-selection action owns one destination load.
+  it('uses one model load after leaving FunASR (GitHub #2122)', async () => {
     const providersStore = useProviderStore()
     const hearingStore = useHearingStore()
     const fetchModelsForProvider = providersStore.fetchModelsForProvider.bind(providersStore)
@@ -311,13 +350,12 @@ describe('funASR Hearing model synchronization', () => {
       ]
     })
 
-    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await hearingStore.setActiveTranscriptionProvider('funasr-audio-transcription')
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
     })
 
-    hearingStore.activeTranscriptionProvider = 'browser-web-speech-api'
-    await hearingStore.loadModelsForProvider('browser-web-speech-api')
+    await hearingStore.setActiveTranscriptionProvider('browser-web-speech-api')
 
     await vi.waitFor(() => {
       expect(fetchModels.mock.calls.filter(([providerId]) => providerId === 'browser-web-speech-api')).toHaveLength(1)
@@ -352,13 +390,12 @@ describe('funASR Hearing model synchronization', () => {
       }]
     })
 
-    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await hearingStore.setActiveTranscriptionProvider('funasr-audio-transcription')
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
     })
 
-    hearingStore.activeTranscriptionProvider = providerId
-    await hearingStore.loadModelsForProvider(providerId)
+    await hearingStore.setActiveTranscriptionProvider(providerId)
 
     expect(hearingStore.activeTranscriptionModel).toBe('fresh-model')
     expect(providerConfigStore.getProviderConfig(providerId)?.model).toBe('fresh-model')
@@ -383,13 +420,12 @@ describe('funASR Hearing model synchronization', () => {
       return []
     })
 
-    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await hearingStore.setActiveTranscriptionProvider('funasr-audio-transcription')
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
     })
 
-    hearingStore.activeTranscriptionProvider = providerId
-    await hearingStore.loadModelsForProvider(providerId)
+    await hearingStore.setActiveTranscriptionProvider(providerId)
 
     expect(hearingStore.activeTranscriptionModel).toBe('')
     expect(providerConfigStore.getProviderConfig(providerId)).not.toHaveProperty('model')
@@ -420,16 +456,16 @@ describe('funASR Hearing model synchronization', () => {
       return requestCount === 1 ? firstRequest : secondRequest
     })
 
-    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await hearingStore.setActiveTranscriptionProvider('funasr-audio-transcription')
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
     })
 
-    hearingStore.activeTranscriptionProvider = providerId
-    const firstLoad = hearingStore.loadModelsForProvider(providerId)
-    hearingStore.activeTranscriptionProvider = 'openai-compatible-audio-transcription'
-    hearingStore.activeTranscriptionProvider = providerId
-    const secondLoad = hearingStore.loadModelsForProvider(providerId)
+    const firstLoad = hearingStore.setActiveTranscriptionProvider(providerId)
+    await vi.waitFor(() => expect(requestCount).toBe(1))
+    await hearingStore.setActiveTranscriptionProvider('openai-compatible-audio-transcription')
+    const secondLoad = hearingStore.setActiveTranscriptionProvider(providerId)
+    await vi.waitFor(() => expect(requestCount).toBe(2))
 
     resolveFirstRequest([{
       id: 'stale-model',
@@ -460,17 +496,17 @@ describe('funASR Hearing model synchronization', () => {
     const hearingStore = useHearingStore()
 
     providerConfigStore.getProviderConfig('mimo-audio-transcription')!.model = 'mimo-v2.5'
-    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await hearingStore.setActiveTranscriptionProvider('funasr-audio-transcription')
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
     })
 
-    hearingStore.activeTranscriptionProvider = 'openai-audio-transcription'
+    await hearingStore.setActiveTranscriptionProvider('openai-audio-transcription')
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('gpt-4o-transcribe')
     })
 
-    hearingStore.activeTranscriptionProvider = 'mimo-audio-transcription'
+    await hearingStore.setActiveTranscriptionProvider('mimo-audio-transcription')
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('mimo-v2.5')
     })
@@ -480,8 +516,7 @@ describe('funASR Hearing model synchronization', () => {
   it('preserves a model selected with an auth-owned provider transition (GitHub #2122)', async () => {
     const hearingStore = useHearingStore()
 
-    hearingStore.activeTranscriptionProvider = 'official-provider-transcription'
-    hearingStore.activeTranscriptionModel = 'auto'
+    await hearingStore.setActiveTranscriptionProvider('official-provider-transcription', 'auto')
     await nextTick()
 
     expect(hearingStore.activeTranscriptionModel).toBe('auto')
@@ -494,5 +529,55 @@ describe('funASR Hearing model synchronization', () => {
     const hearingStore = useHearingStore()
 
     expect(hearingStore.activeTranscriptionModel).toBe('whisper-1')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3818977523
+  it('does not mutate Hearing after a provider config snapshot', async () => {
+    const providerId = 'openai-audio-transcription'
+    const providerConfigStore = useProviderConfigStore()
+    const hearingStore = useHearingStore()
+    await hearingStore.setActiveTranscriptionProvider(providerId, 'leader-model')
+    await nextTick()
+
+    let hearingMutationCount = 0
+    const stopSubscription = hearingStore.$subscribe(() => {
+      hearingMutationCount++
+    }, { flush: 'sync' })
+    providerConfigStore.$patch((state) => {
+      state.providers[providerId].config = {
+        ...state.providers[providerId].config,
+        model: 'follower-model',
+      }
+    })
+    await nextTick()
+
+    // ROOT CAUSE: A provider snapshot triggered a cross-store watcher that
+    // proposed a second synchronized Hearing snapshot from the follower.
+    expect(hearingMutationCount).toBe(0)
+    expect(hearingStore.activeTranscriptionModel).toBe('leader-model')
+    stopSubscription()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3818977523
+  it('does not mutate provider config after a Hearing snapshot', async () => {
+    const providerId = 'openai-audio-transcription'
+    const providerConfigStore = useProviderConfigStore()
+    const hearingStore = useHearingStore()
+    await hearingStore.setActiveTranscriptionProvider(providerId, 'leader-model')
+    providerConfigStore.getProviderConfig(providerId)!.model = 'leader-model'
+    await nextTick()
+
+    let providerMutationCount = 0
+    const stopSubscription = providerConfigStore.$subscribe(() => {
+      providerMutationCount++
+    }, { flush: 'sync' })
+    hearingStore.$patch({ activeTranscriptionModel: 'follower-model' })
+    await nextTick()
+
+    // ROOT CAUSE: A Hearing snapshot triggered the reciprocal watcher and
+    // proposed a second synchronized provider snapshot from the follower.
+    expect(providerMutationCount).toBe(0)
+    expect(providerConfigStore.getProviderConfig(providerId)?.model).toBe('leader-model')
+    stopSubscription()
   })
 })

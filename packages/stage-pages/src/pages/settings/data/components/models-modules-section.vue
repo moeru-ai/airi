@@ -25,9 +25,9 @@ async function deleteModels() {
   }
 }
 
-function resetModules() {
+async function resetModules() {
   try {
-    resetModulesSettings()
+    await resetModulesSettings()
     trackDataAction({ action: 'modules_settings_reset' })
     emitStatus(t('settings.pages.data.status.modules_reset'))
   }

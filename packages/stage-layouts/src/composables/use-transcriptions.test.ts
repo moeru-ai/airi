@@ -8,13 +8,19 @@ import { nextTick, ref } from 'vue'
 import { useTranscriptions } from './use-transcriptions'
 
 function createMockStore() {
-  return {
-    activeTranscriptionProvider: undefined,
+  const setActiveTranscriptionProvider = vi.fn(async (_providerId: string) => {})
+  const store = {
+    activeTranscriptionProvider: undefined as string | undefined,
     configured: ref(false),
     autoSendEnabled: ref(true),
     autoSendDelay: ref(2000),
     initializeProvider: vi.fn(),
+    setActiveTranscriptionProvider,
   }
+  setActiveTranscriptionProvider.mockImplementation(async (providerId) => {
+    store.activeTranscriptionProvider = providerId
+  })
+  return store
 }
 
 const mockTranscribedContent = 'test content'
@@ -149,6 +155,27 @@ describe('useTranscriptions', () => {
 
       expect(mockProvidersStore.initializeProvider).toHaveBeenCalledWith('browser-web-speech-api')
       expect(mockHearingStore.activeTranscriptionProvider).toBe('browser-web-speech-api')
+    })
+
+    it('waits for synchronized provider initialization before selecting it', async () => {
+      mockHearingStore.configured.value = false
+      mockAudioDevice.enabled.value = true
+
+      let resolveInitialization!: () => void
+      mockProvidersStore.initializeProvider.mockReturnValue(new Promise<void>((resolve) => {
+        resolveInitialization = resolve
+      }))
+
+      const { startStreamingTranscription } = useTranscriptions(createOptions())
+      const startPromise = startStreamingTranscription()
+      await Promise.resolve()
+
+      expect(mockHearingStore.setActiveTranscriptionProvider).not.toHaveBeenCalled()
+
+      resolveInitialization()
+      await startPromise
+
+      expect(mockHearingStore.setActiveTranscriptionProvider).toHaveBeenCalledWith('browser-web-speech-api')
     })
 
     it('should fail gracefully if Web Speech API is not available', async () => {

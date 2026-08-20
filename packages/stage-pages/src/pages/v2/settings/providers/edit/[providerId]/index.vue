@@ -19,6 +19,7 @@ import {
   ProviderValidationDetailsDialog,
 } from '@proj-airi/stage-ui/components'
 import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
 import { useCloned, useDebounceFn } from '@vueuse/core'
@@ -257,7 +258,7 @@ async function runValidation() {
     }
 
     if (isEdited.value)
-      commitEditedConfig('configured')
+      await commitEditedConfig('configured')
     else
       providerStore.setProviderStatus(providerId.value, 'configured')
   }
@@ -317,18 +318,22 @@ function syncValidationSteps() {
   validationSteps.value = [...validationSteps.value]
 }
 
-function commitEditedConfig(status: 'configured' | 'bypassed') {
+async function commitEditedConfig(status: 'configured' | 'bypassed') {
   if (!providerConfigEdit.value)
     return
 
-  providerStore.updateProviderConfig(providerId.value, { ...providerConfigEdit.value.config }, status)
+  const config = { ...providerConfigEdit.value.config }
+  await providerStore.updateProviderConfig(providerId.value, config, status)
+  if (typeof config.model === 'string') {
+    await useHearingStore().setTranscriptionModelForProvider(providerId.value, config.model)
+  }
 }
 
-function handleSaveAnyway() {
+async function handleSaveAnyway() {
   if (!isEdited.value)
     return
 
-  commitEditedConfig('bypassed')
+  await commitEditedConfig('bypassed')
 }
 
 function handleDeleteProvider() {

@@ -51,14 +51,14 @@ const baseUrl = computed({
   },
 })
 
-const model = computed({
-  get: () => providers.value[providerId]?.model || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].model = value
-  },
-})
+const model = computed(() => providers.value[providerId]?.model || '')
+let modelUpdateTask = Promise.resolve()
+
+function updateModel(value: string | undefined) {
+  const nextTask = modelUpdateTask.then(() => hearingStore.setTranscriptionModelForProvider(providerId, value ?? ''))
+  modelUpdateTask = nextTask.catch(cause => console.warn('Failed to update the transcription model:', cause))
+  return nextTask
+}
 
 // Load models
 const providerModels = computed(() => {
@@ -171,7 +171,7 @@ onMounted(async () => {
   const currentModel = model.value
   if (currentModel && !isValidTranscriptionModel(currentModel)) {
     console.warn(`Invalid transcription model "${currentModel}" detected. Resetting to default "whisper-1".`)
-    model.value = 'whisper-1'
+    await updateModel('whisper-1')
   }
   // Load models if API key and base URL are configured
   if (apiKey.value && baseUrl.value) {
@@ -185,12 +185,6 @@ watch([apiKey, baseUrl], async ([newApiKey, newBaseUrl]) => {
   if (newApiKey && newBaseUrl) {
     await providersStore.fetchModelsForProvider(providerId)
   }
-})
-
-// Watch model changes to save to provider config
-watch(model, () => {
-  const providerConfig = providerStore.getProviderConfig(providerId)
-  providerConfig.model = model.value
 })
 </script>
 
@@ -215,19 +209,21 @@ watch(model, () => {
           <!-- Model selection: Use dropdown if models are available, otherwise use text input -->
           <FieldCombobox
             v-if="providerModels.length > 0"
-            v-model="model"
+            :model-value="model"
             label="Model"
             description="Select the transcription model to use"
             :options="providerModels.map(m => ({ value: m.id, label: m.name }))"
             :disabled="isLoadingModels"
             placeholder="Select a model..."
+            @update:model-value="updateModel"
           />
           <FieldInput
             v-else
-            v-model="model"
+            :model-value="model"
             :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name')"
             :description="apiKey && baseUrl ? 'Enter model name manually, or wait for models to load...' : 'Enter the transcription model name (e.g., whisper-1)'"
             :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+            @update:model-value="updateModel"
           />
         </ProviderBasicSettings>
 

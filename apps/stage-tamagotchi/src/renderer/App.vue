@@ -134,7 +134,7 @@ function createFullStageRuntime() {
   const settingsAudioDeviceStore = useSettingsAudioDevice()
   const artistryStore = useArtistryStore()
   useConsciousnessStore()
-  useHearingStore()
+  const hearingStore = useHearingStore()
   useSpeechStore()
   useSettingsStageModel()
   useVisionStore()
@@ -253,6 +253,7 @@ function createFullStageRuntime() {
       await authStore.initialize()
       await displayModelsStore.initialize()
       await cardStore.initialize()
+      await hearingStore.initialize()
       registerAuthenticatedSetup()
 
       await displayModelsStore.loadDisplayModelsFromIndexedDB()

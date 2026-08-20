@@ -45,7 +45,7 @@ const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
 useArtistryStore()
 useConsciousnessStore()
-useHearingStore()
+const hearingStore = useHearingStore()
 useSpeechStore()
 useSettingsStageModel()
 useVisionStore()
@@ -102,6 +102,7 @@ onMounted(async () => {
   await authStore.initialize()
   await displayModelsStore.initialize()
   await cardStore.initialize()
+  await hearingStore.initialize()
   registerAuthenticatedSetup()
 
   if (onboardingStore.needsOnboarding) {

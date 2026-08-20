@@ -3,8 +3,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useAudioAnalyzer, useHearingPlaygroundSegments, useVoiceInputSession } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
-import { CONFIDENCE_THRESHOLD_DISABLED, hasExplicitlyClearedTranscriptionModel, resolveOpenAICompatibleTranscriptionModel, useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { CONFIDENCE_THRESHOLD_DISABLED, useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange } from '@proj-airi/ui'
@@ -34,7 +33,6 @@ const {
   verboseJsonNotSupported,
 } = storeToRefs(hearingStore)
 const providersStore = useProviderStore()
-const providerStore = useProviderConfigStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
 const { trackProviderClick } = useAnalytics()
@@ -61,6 +59,21 @@ let volumeSpeechEndTimer: ReturnType<typeof setTimeout> | undefined
 
 const error = shallowRef('')
 const isMonitoring = shallowRef(false)
+let selectionTask = Promise.resolve()
+
+function queueSelection(action: () => Promise<void>) {
+  const nextTask = selectionTask.then(action)
+  selectionTask = nextTask.catch(cause => console.warn('[Hearing Module] Failed to update transcription selection:', cause))
+  return nextTask
+}
+
+function selectTranscriptionProvider(provider: string) {
+  return queueSelection(() => hearingStore.setActiveTranscriptionProvider(provider))
+}
+
+function selectTranscriptionModel(model: string) {
+  return queueSelection(() => hearingStore.setActiveTranscriptionModel(model))
+}
 
 const {
   current: currentTranscription,
@@ -249,17 +262,7 @@ const speakingIndicatorClass = computed(() => {
 
 function updateCustomModelName(value: string | undefined) {
   const modelValue = value || ''
-  activeCustomModelName.value = modelValue
-  activeTranscriptionModel.value = modelValue
-}
-
-// Sync OpenAI Compatible model from provider config
-function syncOpenAICompatibleSettings() {
-  if (activeTranscriptionProvider.value !== 'openai-compatible-audio-transcription')
-    return
-
-  const providerConfig = providerStore.getProviderConfig(activeTranscriptionProvider.value)
-  updateCustomModelName(resolveOpenAICompatibleTranscriptionModel(providerConfig))
+  return queueSelection(() => hearingStore.setActiveCustomTranscriptionModel(modelValue))
 }
 
 watch([selectedAudioInput, useVADModel], async () => {
@@ -291,23 +294,13 @@ watch(isSpeechVolume, (speaking) => {
 })
 
 const providerTransitionController = createProviderTransitionController({
-  applyProviderState: (provider) => {
-    syncOpenAICompatibleSettings()
-
-    const models = providerModels.value
-    const providerConfig = providerStore.getProviderConfig(provider)
-    if (!hasExplicitlyClearedTranscriptionModel(providerConfig)
-      && models.length > 0
-      && !models.some(model => model.id === activeTranscriptionModel.value)) {
-      activeTranscriptionModel.value = models[0].id
-    }
-  },
+  applyProviderState: () => {},
   clearSegments: clearPlaygroundSegments,
   getActiveProvider: () => activeTranscriptionProvider.value,
   getMonitoring: () => isMonitoring.value,
-  loadModels: provider => hearingStore.loadModelsForProvider(provider),
+  loadModels: async () => {},
   setMonitoring: monitoring => isMonitoring.value = monitoring,
-  shouldLoadModels: provider => provider !== 'funasr-audio-transcription',
+  shouldLoadModels: () => false,
   startMonitoring: setupAudioMonitoring,
   stopMonitoring: stopAudioMonitoring,
 })
@@ -317,7 +310,6 @@ watch(activeTranscriptionProvider, (_provider, previousProvider) => {
 }, { immediate: true })
 
 onMounted(async () => {
-  syncOpenAICompatibleSettings()
   await askPermission()
 })
 
@@ -367,11 +359,12 @@ onUnmounted(() => {
                 v-for="metadata in configuredTranscriptionProvidersMetadata"
                 :id="metadata.id"
                 :key="metadata.id"
-                v-model="activeTranscriptionProvider"
+                :model-value="activeTranscriptionProvider"
                 name="provider"
                 :value="metadata.id"
                 :title="metadata.localizedName || 'Unknown'"
                 :description="metadata.localizedDescription"
+                @update:model-value="selectTranscriptionProvider"
                 @click="trackProviderClick(metadata.id, 'hearing')"
               />
               <RouterLink
@@ -472,8 +465,8 @@ onUnmounted(() => {
             <!-- Using the new RadioCardManySelect component for providers with models -->
             <template v-else-if="providerModels.length > 0 && supportsModelListing">
               <RadioCardManySelect
-                v-model="activeTranscriptionModel"
                 v-model:search-query="transcriptionModelSearchQuery"
+                :model-value="activeTranscriptionModel"
                 :items="sortedProviderModels"
                 :searchable="true"
                 :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
@@ -484,6 +477,7 @@ onUnmounted(() => {
                 :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
                 :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
                 expanded-class="mb-12"
+                @update:model-value="selectTranscriptionModel"
                 @update:custom-value="updateCustomModelName"
               />
             </template>
