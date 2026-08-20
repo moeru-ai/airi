@@ -25,7 +25,6 @@
     "@langfuse/otel": "catalog:",
     "@langfuse/tracing": "catalog:",
     "@moeru/eventa": "catalog:",
-    "@moeru/eventa-v1": "catalog:",
     "@moeru/std": "catalog:",
     "@opentelemetry/api": "catalog:",
     "@opentelemetry/api-logs": "catalog:",

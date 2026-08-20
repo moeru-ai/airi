@@ -1,13 +1,13 @@
 import type { HonoWsInvocableEventContext } from '@moeru/eventa/adapters/websocket/hono'
 
-import type { EngagementMetrics } from '../../../otel'
-import type { ChatService } from '../../../services/domain/chats'
-import type { ChatBroadcastCoordinator } from '../broadcast'
-import type { ChatConnectionRegistry } from '../connection-registry'
+import type { EngagementMetrics } from '../../otel'
+import type { ChatService } from '../../services/domain/chats'
+import type { ChatBroadcastCoordinator } from './broadcast'
+import type { ChatConnectionRegistry } from './connection-registry'
 
 import { useLogger } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
-import { pullMessages, sendMessages } from '@proj-airi/server-sdk-shared/v2'
+import { parsePullMessagesRequest, parseSendMessagesRequest, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared'
 
 const log = useLogger('chat-ws').useGlobalConfig()
 
@@ -20,7 +20,7 @@ export interface RegisterChatRpcHandlersOptions {
   chatService: ChatService
   /** Local websocket registry for same-instance fanout. */
   registry: ChatConnectionRegistry
-  /** Stable id for this connection in the shared version-aware registry. */
+  /** Stable id for this connection in the shared registry. */
   connectionId: string
   /** Redis coordinator for cross-instance fanout. */
   broadcast: ChatBroadcastCoordinator
@@ -29,33 +29,28 @@ export interface RegisterChatRpcHandlersOptions {
 }
 
 /**
- * Registers chat Eventa RPC handlers on one websocket context.
+ * Registers chat RPC handlers that both WebSocket URL versions share.
  *
- * Use when:
- * - A peer context has just been created by the Hono Eventa adapter.
- *
- * Expects:
- * - `chatService` enforces membership and message sequencing.
- *
- * Returns:
- * - Nothing; handlers are attached to the provided context.
+ * The Eventa beta.15 adapter accepts beta.13 envelopes. Parse each request
+ * before the handler reads its fields or calls the chat service.
  */
 export function registerChatRpcHandlers(options: RegisterChatRpcHandlersOptions): void {
   const { ctx, userId, chatService, registry, connectionId, broadcast, metrics } = options
 
   defineInvokeHandler(ctx, sendMessages, async (req) => {
-    log.withFields({ userId, chatId: req!.chatId, count: req!.messages.length }).log('sendMessages')
-    const result = await chatService.pushMessages(userId, req!.chatId, req!.messages)
+    const request = parseSendMessagesRequest(req)
+    log.withFields({ userId, chatId: request.chatId, count: request.messages.length }).log('sendMessages')
+    const result = await chatService.pushMessages(userId, request.chatId, request.messages)
 
-    const wireMessages = await chatService.pullMessages(userId, req!.chatId, result.fromSeq - 1, result.toSeq - result.fromSeq + 1)
+    const wireMessages = await chatService.pullMessages(userId, request.chatId, result.fromSeq - 1, result.toSeq - result.fromSeq + 1)
     const broadcastPayload = {
-      chatId: req!.chatId,
+      chatId: request.chatId,
       messages: wireMessages.messages,
       fromSeq: result.fromSeq,
       toSeq: result.toSeq,
     }
 
-    const members = await chatService.getMembers(req!.chatId)
+    const members = await chatService.getMembers(request.chatId)
     const memberUserIds = members
       .filter(m => m.memberType === 'user' && m.userId != null)
       .map(m => m.userId!)
@@ -71,7 +66,8 @@ export function registerChatRpcHandlers(options: RegisterChatRpcHandlersOptions)
   })
 
   defineInvokeHandler(ctx, pullMessages, async (req) => {
-    log.withFields({ userId, chatId: req!.chatId, afterSeq: req!.afterSeq }).log('pullMessages')
-    return chatService.pullMessages(userId, req!.chatId, req!.afterSeq, req!.limit)
+    const request = parsePullMessagesRequest(req)
+    log.withFields({ userId, chatId: request.chatId, afterSeq: request.afterSeq }).log('pullMessages')
+    return chatService.pullMessages(userId, request.chatId, request.afterSeq, request.limit)
   })
 }

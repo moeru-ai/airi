@@ -1,4 +1,4 @@
-import { parsePullMessagesRequest, parseSendMessagesRequest } from '@proj-airi/server-sdk-shared/v1'
+import { parsePullMessagesRequest, parseSendMessagesRequest } from '@proj-airi/server-sdk-shared'
 import { describe, expect, it } from 'vitest'
 
 describe('v1 chat WebSocket request contracts', () => {

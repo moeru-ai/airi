@@ -246,9 +246,6 @@ catalogs:
     '@moeru/eventa':
       specifier: 1.0.0-beta.15
       version: 1.0.0-beta.15
-    '@moeru/eventa-v1':
-      specifier: npm:@moeru/eventa@1.0.0-beta.13
-      version: 1.0.0-beta.13
     '@moeru/std':
       specifier: 0.1.0-beta.17
       version: 0.1.0-beta.17
@@ -5365,9 +5362,6 @@ importers:
       '@moeru/eventa':
         specifier: 'catalog:'
         version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
-      '@moeru/eventa-v1':
-        specifier: 'catalog:'
-        version: '@moeru/eventa@1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)'
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -5634,9 +5628,6 @@ importers:
       '@moeru/eventa':
         specifier: 'catalog:'
         version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
-      '@moeru/eventa-v1':
-        specifier: 'catalog:'
-        version: '@moeru/eventa@1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)'
       valibot:
         specifier: 'catalog:'
         version: 1.4.2(typescript@5.9.3)
@@ -8243,26 +8234,6 @@ packages:
       electron:
         optional: true
       h3:
-        optional: true
-      web-worker:
-        optional: true
-
-  '@moeru/eventa@1.0.0-beta.13':
-    resolution: {integrity: sha512-zar2haIEkttvDJkBMSv4nEjo3OMhePDwr65nOBJFb6rXLbUjZQ+El6OuPDQZMbuxA+pcKwZhOT6AvamNXxjHfQ==}
-    peerDependencies:
-      '@tauri-apps/api': '>=2'
-      electron: '>=39'
-      h3: '>=2.0.1-rc.22'
-      hono: '>=4.12.25'
-      web-worker: ^1.5.0
-    peerDependenciesMeta:
-      '@tauri-apps/api':
-        optional: true
-      electron:
-        optional: true
-      h3:
-        optional: true
-      hono:
         optional: true
       web-worker:
         optional: true
@@ -23095,16 +23066,6 @@ snapshots:
     optionalDependencies:
       electron: 41.2.1
       h3: 2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22))
-      web-worker: 1.5.0
-
-  '@moeru/eventa@1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)':
-    dependencies:
-      nanoid: 6.0.1
-      picomatch: 4.0.4
-    optionalDependencies:
-      electron: 41.2.1
-      h3: 2.0.1-rc.25
-      hono: 4.11.3
       web-worker: 1.5.0
 
   '@moeru/eventa@1.0.0-beta.15(electron@40.8.5)(h3@2.0.1-rc.25)(web-worker@1.5.0)':

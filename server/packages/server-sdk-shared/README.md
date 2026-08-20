@@ -1,6 +1,6 @@
 # @proj-airi/server-sdk-shared
 
-Versioned Eventa contracts for the hosted chat WebSocket.
+Eventa contracts for the hosted chat WebSocket.
 
 ## Usage
 
@@ -15,10 +15,11 @@ import type { WireMessage } from '@proj-airi/server-sdk-shared'
 import { newMessages, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared'
 ```
 
-The package exports two Eventa contract sets:
+The package uses Eventa `1.0.0-beta.15`. Its WebSocket adapter accepts beta.13
+`id/type/payload` envelopes and sends these fields with current envelopes.
 
-- `@proj-airi/server-sdk-shared/v1` keeps the Eventa `0.3.0` wire format.
-- `@proj-airi/server-sdk-shared/v2` uses Eventa `1.0.0-beta.15`.
+`/ws/chat` keeps query-token authentication for deployed clients. `/ws/v2/chat`
+authenticates after the WebSocket opens.
 
 ## License
 

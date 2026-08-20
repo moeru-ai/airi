@@ -9,7 +9,7 @@ while production deployment configuration remains in `proj-airi/airi-railway`.
 - `apps/api`: resource API, business domains, database migrations, and API runtime.
 - `apps/auth`: standalone Better Auth and OIDC service.
 - `packages/auth-shared`: Auth-owned database schema and principal contracts.
-- `packages/server-sdk-shared`: Versioned Eventa contracts for the hosted chat WebSocket.
+- `packages/server-sdk-shared`: Eventa contracts for the hosted chat WebSocket.
 - `dev/caddy`: local-only public edge routing for the shared Auth/API origin.
 - `docker-compose.yaml`: complete local API + Auth + PostgreSQL + Redis + Caddy stack.
 
