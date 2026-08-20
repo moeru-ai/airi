@@ -102,6 +102,20 @@ interface AppDeps {
   providerCatalogService: ProviderCatalogService
 }
 
+const MAX_UNAUTHENTICATED_CHAT_WS_FRAME_BYTES = 8192
+
+function hasReceiverPayloadLimit(socket: unknown): socket is {
+  _receiver: { _maxPayload: number }
+} {
+  return typeof socket === 'object'
+    && socket !== null
+    && '_receiver' in socket
+    && typeof socket._receiver === 'object'
+    && socket._receiver !== null
+    && '_maxPayload' in socket._receiver
+    && typeof socket._receiver._maxPayload === 'number'
+}
+
 export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
@@ -144,7 +158,19 @@ export async function buildApp(deps: AppDeps) {
   }
 
   // WebSocket setup — must be registered BEFORE bodyLimit middleware
-  const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app })
+  const { injectWebSocket, upgradeWebSocket, wss } = createNodeWebSocket({ app })
+  wss.on('connection', (socket, request) => {
+    if (new URL(request.url ?? '/', 'http://localhost').pathname !== '/ws/v2/chat')
+      return
+
+    // NOTICE:
+    // @hono/node-ws creates one ws server with a 100 MiB default frame limit.
+    // The library has no per-route maxPayload option, so use ws's receiver limit.
+    // Source: @hono/node-ws@1.3.0 dist/index.js; ws@8.20.0 Receiver._maxPayload.
+    // Removal condition: @hono/node-ws supports maxPayload per upgrade route.
+    if (hasReceiverPayloadLimit(socket))
+      socket._receiver._maxPayload = MAX_UNAUTHENTICATED_CHAT_WS_FRAME_BYTES
+  })
   // Per-process stable id used by the chat-ws sub callback to skip echoes of
   // its own publishes. Falls back to a random nanoid when ops do not provide
   // SERVER_INSTANCE_ID, which is fine because we only need uniqueness across

@@ -39,11 +39,15 @@ function createUser(overrides: Partial<RequestAuthSession['user']> = {}): Reques
   }
 }
 
-function createDb(user: RequestAuthSession['user'] | null): Database {
+function createDb(user: RequestAuthSession['user'] | null, failure?: Error): Database {
   return {
     query: {
       user: {
-        findFirst: vi.fn(async () => user),
+        findFirst: vi.fn(async () => {
+          if (failure)
+            throw failure
+          return user
+        }),
       },
     },
   } as unknown as Database
@@ -174,5 +178,24 @@ describe('resolveRequestAuth', () => {
       mockEnv,
       new Headers({ Authorization: 'Bearer subjectless' }),
     )).toBeNull()
+  })
+
+  it('propagates temporary JWKS failures', async () => {
+    mockedJwtVerify.mockRejectedValueOnce(new TypeError('fetch failed'))
+
+    await expect(resolveRequestAuth(
+      createDb(null),
+      mockEnv,
+      new Headers({ Authorization: 'Bearer valid-token' }),
+    )).rejects.toThrow('fetch failed')
+  })
+
+  it('propagates database failures after JWT verification', async () => {
+    mockValidJwt()
+    await expect(resolveRequestAuth(
+      createDb(null, new Error('database unavailable')),
+      mockEnv,
+      new Headers({ Authorization: 'Bearer valid-token' }),
+    )).rejects.toThrow('database unavailable')
   })
 })

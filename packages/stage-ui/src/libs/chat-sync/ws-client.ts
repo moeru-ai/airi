@@ -4,7 +4,7 @@ import type { ComputedRef, Ref } from 'vue'
 import { defineInvoke } from '@moeru/eventa'
 import { createContext as createWsContext, wsErrorEvent } from '@moeru/eventa/adapters/websocket/native'
 import { errorMessageFrom } from '@moeru/std'
-import { authenticate, newMessages, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared/v2'
+import { authenticate, newMessages, parseAuthenticateResponse, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared/v2'
 import { useWebSocket } from '@vueuse/core'
 import { computed, ref, shallowRef, watch } from 'vue'
 
@@ -212,6 +212,8 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
   const tokenRef = computed(options.getToken)
   const urlRef = createChatWsUrlRef(enabled, () => tokenRef.value, options.serverUrl)
   const authenticated = ref(false)
+  let authenticationFailures = 0
+  let reopenAfterDisconnect = false
   // The socket object is the connection generation. Authentication callbacks
   // must match it before they can update the shared client state.
   let activeSocket: WebSocket | undefined
@@ -287,7 +289,11 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
     autoClose: true,
     autoReconnect: {
       retries: RECONNECT_RETRIES,
-      delay: r => computeReconnectDelay(r, RECONNECT_BASE_MS, RECONNECT_MAX_MS),
+      delay: retries => computeReconnectDelay(
+        Math.max(retries, authenticationFailures),
+        RECONNECT_BASE_MS,
+        RECONNECT_MAX_MS,
+      ),
     },
     onConnected(rawWs) {
       activeSocket = rawWs
@@ -303,10 +309,12 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       }
 
       void defineInvoke(getAuthenticationContext, authenticate)({ token })
-        .then(() => {
+        .then((response) => {
+          parseAuthenticateResponse(response)
           if (activeSocket !== rawWs || context.value !== created.context)
             return
           authenticated.value = true
+          authenticationFailures = 0
         })
         .catch((error) => {
           if (activeSocket !== rawWs || context.value !== created.context)
@@ -318,9 +326,14 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       if (rawWs !== activeSocket)
         return
 
+      const wasAuthenticated = authenticated.value
+      const restartForNewToken = reopenAfterDisconnect
+      reopenAfterDisconnect = false
       activeSocket = undefined
       disposeContext()
       authenticated.value = false
+      if (!wasAuthenticated && enabled.value && ev.code !== WS_CLOSE_UNAUTHORIZED)
+        authenticationFailures += 1
       // ROOT CAUSE:
       //
       // useWebSocket's autoReconnect treats every onclose as worth
@@ -333,7 +346,10 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       // onclose path skips the reconnect schedule. A token change below
       // closes the old context and starts a new connection that authenticates
       // with the new token after opening.
-      if (ev.code === WS_CLOSE_UNAUTHORIZED) {
+      if (restartForNewToken && enabled.value && tokenRef.value) {
+        ws.open()
+      }
+      else if (ev.code === WS_CLOSE_UNAUTHORIZED) {
         console.warn('[chat-ws] server rejected auth (4001), pausing reconnect until token rotates')
         ws.close()
       }
@@ -362,12 +378,18 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
     if (!enabled.value || token === previousToken)
       return
 
-    activeSocket = undefined
     authenticated.value = false
     disposeContext()
+    if (ws.status.value === 'CLOSED') {
+      if (token)
+        ws.open()
+      return
+    }
+
+    // Wait for the old close event before opening its replacement. VueUse owns
+    // one status ref, so opening early lets that old close overwrite OPEN.
+    reopenAfterDisconnect = token !== null
     ws.close()
-    if (token)
-      ws.open()
   })
 
   function getContext(): WsEventContext {
