@@ -66,12 +66,18 @@ function hasStandaloneLatexRelation(value: string): boolean {
   return containsRelation && !endsWithOperator
 }
 
+function isLatexContinuationLine(value: string): boolean {
+  const startsWithGroupOrScript = ['{', '[', '_', '^'].includes(value[0] ?? '')
+  const startsWithOperator = /^(?:[-=<>+*/]|\\(?:approx|cdot|cong|div|equiv|geq?|gt|leq?|lt|mp|ne|neq|pm|sim|times)\b)/.test(value)
+
+  return startsWithGroupOrScript || startsWithOperator
+}
+
 function isIndependentEquationList(equations: string[]): boolean {
   return equations.length > 1
     && equations.every((equation, index) => (
-      // A leading group or script marker can continue an argument or atom from
-      // the previous line, so it is not evidence of a standalone formula.
-      (index === 0 || !['{', '[', '_', '^'].includes(equation[0] ?? ''))
+      // Continuation syntax on later lines is not evidence of a standalone formula.
+      (index === 0 || !isLatexContinuationLine(equation))
       && !/\\(?:begin|end)\s*\{/.test(equation)
       && !/\\(?:newcommand|renewcommand|providecommand|futurelet|[gex]?def|let)\b/.test(equation)
       && hasStandaloneLatexRelation(equation)
