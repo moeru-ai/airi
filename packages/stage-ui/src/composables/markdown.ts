@@ -44,8 +44,11 @@ function hasBalancedLatexGroups(value: string): boolean {
 
 function isIndependentEquationList(equations: string[]): boolean {
   return equations.length > 1
-    && equations.every(equation => (
-      !/\\(?:begin|end)\s*\{/.test(equation)
+    && equations.every((equation, index) => (
+      // A leading braced group can be an argument continued from the previous
+      // physical line, so it is not positive evidence of a standalone formula.
+      (index === 0 || !equation.startsWith('{'))
+      && !/\\(?:begin|end)\s*\{/.test(equation)
       && !/\\(?:newcommand|renewcommand|providecommand|futurelet|[gex]?def|let)\b/.test(equation)
       && /=|\\(?:approx|cong|equiv|geq?|leq?|ne|neq|sim)\b/.test(equation)
       && hasBalancedLatexGroups(equation)
@@ -96,9 +99,9 @@ const remarkChatMath: Plugin<[], Root> = () => (tree, file) => {
       return
 
     const endOffset = node.position?.end.offset
-    // Requiring a multi-letter word separates price prose from single-letter
-    // variables in valid formulas such as `$5 + x $ 7`.
-    const startsWithAmountAndProse = /^\d[\d.,]*\s+\p{L}{2,}(?:\s|$)/u.test(node.value)
+    // Price prose must contain at least two words after the amount. Requiring
+    // only one multi-letter token also matches valid units such as 5 ms.
+    const startsWithAmountAndProse = /^\d[\d.,]*(?:\s+\p{L}+){2,}\s*$/u.test(node.value)
     const followedByAmount = endOffset !== undefined && /^\s*\d/.test(source.slice(endOffset))
 
     if (!startsWithAmountAndProse || !followedByAmount)

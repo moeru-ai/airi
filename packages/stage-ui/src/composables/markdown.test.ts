@@ -92,6 +92,26 @@ describe('useMarkdown', () => {
     expect(html).toContain('\\newcommand{\\foo}{x=1}\n\\foo=2')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2328#discussion_r3812513778
+  it('preserves command arguments split across physical lines', () => {
+    // ROOT CAUSE:
+    //
+    // Balanced groups do not prove that a physical line is a complete formula.
+    // A command can consume a braced argument from the following line.
+    const markdown = [
+      '```latex',
+      '\\frac{a=b}',
+      '{c=d}',
+      '```',
+    ].join('\n')
+
+    const html = useMarkdown().processSync(markdown)
+
+    expect(html.match(/<math/g) ?? []).toHaveLength(1)
+    expect(html).not.toContain('<merror')
+    expect(html).toContain('\\frac{a=b}\n{c=d}')
+  })
+
   // https://github.com/moeru-ai/airi/discussions/2239
   it('treats a tex fence as display math (Issue #2239)', async () => {
     const markdown = [
@@ -136,6 +156,18 @@ describe('useMarkdown', () => {
 
     expect(html).toContain('<math')
     expect(html).toContain('<annotation encoding="application/x-tex">5 + x </annotation>')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2328#discussion_r3812513785
+  it('keeps inline math with a multi-letter unit before an amount', () => {
+    // ROOT CAUSE:
+    //
+    // Treating any multi-letter token after a number as prose also matches
+    // valid units such as ms and restores the math delimiters as text.
+    const html = useMarkdown().processSync('At $5 ms $ 10 samples arrived.')
+
+    expect(html).toContain('<math')
+    expect(html).toContain('<annotation encoding="application/x-tex">5 ms </annotation>')
   })
 
   it('keeps separate price formulas when both dollar signs close math', () => {
