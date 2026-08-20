@@ -50,6 +50,7 @@ import { createCharacterRoutes } from './routes/characters'
 import { createChatWsRuntime } from './routes/chat-ws/runtime'
 import { createChatWsV1Handlers } from './routes/chat-ws/v1'
 import { createChatWsV2Handlers } from './routes/chat-ws/v2'
+import { createChatWsPayloadLimit } from './routes/chat-ws/v2/payload-limit'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
 import { createInternalAuthRoutes } from './routes/internal-auth'
@@ -102,6 +103,8 @@ interface AppDeps {
   providerCatalogService: ProviderCatalogService
 }
 
+const MAX_UNAUTHENTICATED_CHAT_WS_FRAME_BYTES = 8192
+
 export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
@@ -144,19 +147,46 @@ export async function buildApp(deps: AppDeps) {
   }
 
   // WebSocket setup — must be registered BEFORE bodyLimit middleware
-  const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app })
+  const { injectWebSocket, upgradeWebSocket, wss } = createNodeWebSocket({ app })
+  const chatWsPayloadLimit = createChatWsPayloadLimit(MAX_UNAUTHENTICATED_CHAT_WS_FRAME_BYTES)
+  wss.on('connection', (socket, request) => {
+    if (new URL(request.url ?? '/', 'http://localhost').pathname !== '/ws/v2/chat')
+      return
+
+    // NOTICE:
+    // @hono/node-ws creates one ws server with a 100 MiB default frame limit.
+    // The library has no per-route maxPayload option, so use ws's receiver limit.
+    // Source: @hono/node-ws@1.3.0 dist/index.js; ws@8.20.0 Receiver._maxPayload.
+    // Removal condition: @hono/node-ws supports maxPayload per upgrade route.
+    chatWsPayloadLimit.restrict(socket)
+  })
   // Per-process stable id used by the chat-ws sub callback to skip echoes of
   // its own publishes. Falls back to a random nanoid when ops do not provide
   // SERVER_INSTANCE_ID, which is fine because we only need uniqueness across
   // simultaneously-running api instances, not across restarts.
   const instanceId = process.env.SERVER_INSTANCE_ID || nanoid()
   const chatWsRuntime = createChatWsRuntime(deps.redis, instanceId, deps.otel?.engagement ?? null)
-  const chatWsV2Setup = createChatWsV2Handlers(deps.chatService, deps.redis, instanceId, deps.otel?.engagement ?? null, chatWsRuntime)
+  const chatWsV2Setup = createChatWsV2Handlers(
+    deps.chatService,
+    deps.redis,
+    instanceId,
+    async (token) => {
+      const session = await resolveRequestAuth(
+        deps.db,
+        deps.env,
+        new Headers({ Authorization: `Bearer ${token}` }),
+      )
+      return session?.user?.id ?? null
+    },
+    deps.otel?.engagement ?? null,
+    chatWsRuntime,
+    chatWsPayloadLimit.restore,
+  )
   const chatWsV1Setup = createChatWsV1Handlers(deps.chatService, deps.redis, instanceId, deps.otel?.engagement ?? null, chatWsRuntime)
 
   // `/ws/chat` keeps query-token authentication for deployed clients. The
   // Eventa beta.15 adapter accepts their beta.13 envelopes. `/ws/v2/chat`
-  // keeps the versioned endpoint for its updated authentication flow.
+  // authenticates after the connection opens.
   app.get('/ws/chat', upgradeWebSocket(async (c) => {
     const token = c.req.query('token')
     if (!token)
@@ -173,21 +203,7 @@ export async function buildApp(deps: AppDeps) {
     return chatWsV1Setup(session.user.id)
   }))
 
-  app.get('/ws/v2/chat', upgradeWebSocket(async (c) => {
-    const token = c.req.query('token')
-    if (!token)
-      return createUnauthorizedWsEvents()
-
-    const session = await resolveRequestAuth(
-      deps.db,
-      deps.env,
-      new Headers({ Authorization: `Bearer ${token}` }),
-    )
-    if (!session?.user)
-      return createUnauthorizedWsEvents()
-
-    return chatWsV2Setup(session.user.id)
-  }))
+  app.get('/ws/v2/chat', upgradeWebSocket(() => chatWsV2Setup()))
 
   // Bidirectional streaming TTS proxy. The handler factory builds one ws-to-ws
   // bridge per connection: client ↔ server/apps/api ↔ unspeech ↔ upstream
