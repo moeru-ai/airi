@@ -7,10 +7,13 @@ import { resolveRequestAuth } from '../request-auth'
 
 vi.mock('jose', () => ({
   createRemoteJWKSet: vi.fn(() => 'mock-jwks'),
+  errors: {
+    JWKSTimeout: class JWKSTimeout extends Error {},
+  },
   jwtVerify: vi.fn(),
 }))
 
-const { createRemoteJWKSet, jwtVerify } = await import('jose')
+const { createRemoteJWKSet, errors, jwtVerify } = await import('jose')
 const mockedCreateRemoteJWKSet = vi.mocked(createRemoteJWKSet)
 const mockedJwtVerify = vi.mocked(jwtVerify)
 
@@ -188,6 +191,17 @@ describe('resolveRequestAuth', () => {
       mockEnv,
       new Headers({ Authorization: 'Bearer valid-token' }),
     )).rejects.toThrow('fetch failed')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2309#discussion_r3818708556
+  it('propagates JWKS timeouts so WebSocket clients can retry', async () => {
+    mockedJwtVerify.mockRejectedValueOnce(new errors.JWKSTimeout())
+
+    await expect(resolveRequestAuth(
+      createDb(null),
+      mockEnv,
+      new Headers({ Authorization: 'Bearer valid-token' }),
+    )).rejects.toBeInstanceOf(errors.JWKSTimeout)
   })
 
   it('propagates database failures after JWT verification', async () => {

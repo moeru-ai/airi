@@ -50,6 +50,7 @@ import { createCharacterRoutes } from './routes/characters'
 import { createChatWsRuntime } from './routes/chat-ws/runtime'
 import { createChatWsV1Handlers } from './routes/chat-ws/v1'
 import { createChatWsV2Handlers } from './routes/chat-ws/v2'
+import { createChatWsPayloadLimit } from './routes/chat-ws/v2/payload-limit'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
 import { createInternalAuthRoutes } from './routes/internal-auth'
@@ -104,18 +105,6 @@ interface AppDeps {
 
 const MAX_UNAUTHENTICATED_CHAT_WS_FRAME_BYTES = 8192
 
-function hasReceiverPayloadLimit(socket: unknown): socket is {
-  _receiver: { _maxPayload: number }
-} {
-  return typeof socket === 'object'
-    && socket !== null
-    && '_receiver' in socket
-    && typeof socket._receiver === 'object'
-    && socket._receiver !== null
-    && '_maxPayload' in socket._receiver
-    && typeof socket._receiver._maxPayload === 'number'
-}
-
 export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
@@ -159,6 +148,7 @@ export async function buildApp(deps: AppDeps) {
 
   // WebSocket setup — must be registered BEFORE bodyLimit middleware
   const { injectWebSocket, upgradeWebSocket, wss } = createNodeWebSocket({ app })
+  const chatWsPayloadLimit = createChatWsPayloadLimit(MAX_UNAUTHENTICATED_CHAT_WS_FRAME_BYTES)
   wss.on('connection', (socket, request) => {
     if (new URL(request.url ?? '/', 'http://localhost').pathname !== '/ws/v2/chat')
       return
@@ -168,8 +158,7 @@ export async function buildApp(deps: AppDeps) {
     // The library has no per-route maxPayload option, so use ws's receiver limit.
     // Source: @hono/node-ws@1.3.0 dist/index.js; ws@8.20.0 Receiver._maxPayload.
     // Removal condition: @hono/node-ws supports maxPayload per upgrade route.
-    if (hasReceiverPayloadLimit(socket))
-      socket._receiver._maxPayload = MAX_UNAUTHENTICATED_CHAT_WS_FRAME_BYTES
+    chatWsPayloadLimit.restrict(socket)
   })
   // Per-process stable id used by the chat-ws sub callback to skip echoes of
   // its own publishes. Falls back to a random nanoid when ops do not provide
@@ -191,6 +180,7 @@ export async function buildApp(deps: AppDeps) {
     },
     deps.otel?.engagement ?? null,
     chatWsRuntime,
+    chatWsPayloadLimit.restore,
   )
   const chatWsV1Setup = createChatWsV1Handlers(deps.chatService, deps.redis, instanceId, deps.otel?.engagement ?? null, chatWsRuntime)
 

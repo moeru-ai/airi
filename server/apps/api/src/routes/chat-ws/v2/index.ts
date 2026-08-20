@@ -53,6 +53,7 @@ export function createChatWsV2Handlers(
   resolveUserId: ChatWsAuthResolver,
   metrics?: EngagementMetrics | null,
   runtime?: ChatWsRuntime,
+  restoreAuthenticatedPayloadLimit?: (socket: unknown) => void,
 ) {
   const chatRuntime = runtime ?? createChatWsRuntime(redis, instanceId, metrics)
   // The v2 upgrade is anonymous by design. Keep a bounded number of peers in
@@ -79,6 +80,8 @@ export function createChatWsV2Handlers(
           socket,
           resolveUserId,
           onAuthenticated(userId) {
+            if (socket)
+              restoreAuthenticatedPayloadLimit?.(socket.raw)
             authenticated = true
             releaseUnauthenticatedSlot()
             registerChatWsPeer({ ctx, userId, chatService, runtime: chatRuntime, metrics })

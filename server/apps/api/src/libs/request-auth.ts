@@ -7,7 +7,7 @@ import { timingSafeEqual } from 'node:crypto'
 
 import { isUserBannedNow } from '@proj-airi/auth-shared'
 import { eq } from 'drizzle-orm'
-import { createRemoteJWKSet, jwtVerify } from 'jose'
+import { createRemoteJWKSet, errors, jwtVerify } from 'jose'
 
 import * as authSchema from '@proj-airi/auth-shared'
 
@@ -113,7 +113,7 @@ async function resolveJWTAccessToken(
   catch (error) {
     // A fetch failure while resolving JWKS is temporary. Let WebSocket auth
     // return its retryable close code instead of treating a valid token as bad.
-    if (error instanceof TypeError)
+    if (error instanceof TypeError || error instanceof errors.JWKSTimeout)
       throw error
     return null
   }

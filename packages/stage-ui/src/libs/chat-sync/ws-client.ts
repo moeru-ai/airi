@@ -320,6 +320,9 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
           if (activeSocket !== rawWs || context.value !== created.context)
             return
           console.warn('[chat-ws] post-connect authentication failed:', errorMessageFrom(error))
+          // Close the native socket, not VueUse's wrapper. The wrapper marks
+          // this as an explicit disconnect and disables the retry schedule.
+          rawWs.close(1011, 'invalid authentication response')
         })
     },
     onDisconnected(rawWs, ev) {
@@ -375,7 +378,7 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
   )
 
   const stopTokenWatch = watch(tokenRef, (token, previousToken) => {
-    if (!enabled.value || token === previousToken)
+    if (!enabled.value || !token || !previousToken || token === previousToken)
       return
 
     authenticated.value = false
