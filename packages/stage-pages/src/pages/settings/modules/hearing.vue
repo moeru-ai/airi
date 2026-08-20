@@ -14,6 +14,8 @@ import { useI18n } from 'vue-i18n'
 
 import HearingPlaygroundTranscripts from './components/hearing-playground-transcripts.vue'
 
+import { createProviderTransitionController } from './composables/provider-transition'
+
 const { t } = useI18n()
 
 const hearingStore = useHearingStore()
@@ -288,33 +290,30 @@ watch(isSpeechVolume, (speaking) => {
   }, useVADMinSilenceDurationMs.value)
 })
 
-watch(activeTranscriptionProvider, async (provider, previousProvider) => {
-  const shouldRestartMonitoring = isMonitoring.value
+const providerTransitionController = createProviderTransitionController({
+  applyProviderState: (provider) => {
+    syncOpenAICompatibleSettings()
 
-  if (shouldRestartMonitoring) {
-    isMonitoring.value = false
-    await stopAudioMonitoring(previousProvider)
-  }
+    const models = providerModels.value
+    const providerConfig = providerStore.getProviderConfig(provider)
+    if (!hasExplicitlyClearedTranscriptionModel(providerConfig)
+      && models.length > 0
+      && !models.some(model => model.id === activeTranscriptionModel.value)) {
+      activeTranscriptionModel.value = models[0].id
+    }
+  },
+  clearSegments: clearPlaygroundSegments,
+  getActiveProvider: () => activeTranscriptionProvider.value,
+  getMonitoring: () => isMonitoring.value,
+  loadModels: provider => hearingStore.loadModelsForProvider(provider),
+  setMonitoring: monitoring => isMonitoring.value = monitoring,
+  shouldLoadModels: provider => provider !== 'funasr-audio-transcription',
+  startMonitoring: setupAudioMonitoring,
+  stopMonitoring: stopAudioMonitoring,
+})
 
-  clearPlaygroundSegments()
-
-  if (!provider)
-    return
-
-  if (provider !== 'funasr-audio-transcription')
-    await hearingStore.loadModelsForProvider(provider)
-  syncOpenAICompatibleSettings()
-
-  const models = providerModels.value
-  const providerConfig = providerStore.getProviderConfig(provider)
-  if (!hasExplicitlyClearedTranscriptionModel(providerConfig)
-    && models.length > 0
-    && !models.some(model => model.id === activeTranscriptionModel.value)) {
-    activeTranscriptionModel.value = models[0].id
-  }
-
-  if (shouldRestartMonitoring)
-    isMonitoring.value = await setupAudioMonitoring()
+watch(activeTranscriptionProvider, (_provider, previousProvider) => {
+  void providerTransitionController.requestTransition(previousProvider)
 }, { immediate: true })
 
 onMounted(async () => {
