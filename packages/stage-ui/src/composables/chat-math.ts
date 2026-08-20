@@ -33,8 +33,12 @@ const remarkChatMath: Plugin<[], Root> = () => (tree) => {
       .map(row => row.trim())
       .filter(Boolean)
 
-    if (rows.length === 0)
-      return
+    if (rows.length === 0) {
+      // Streaming can expose a chat math fence before its first formula row.
+      // Consume the marker instead of rendering an empty code block.
+      parent.children.splice(index, 1)
+      return [SKIP, index]
+    }
 
     const meta = node.meta?.toLowerCase().split(/\s+/).filter(Boolean) ?? []
     const values = meta.includes('block') ? [node.value.trim()] : rows

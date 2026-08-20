@@ -158,6 +158,38 @@ describe('useMarkdown', () => {
     expect(html).toContain('> answer</span>')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2328#discussion_r3819733711
+  it('consumes empty chat math fences without disabling syntax highlighting for PR #2328', async () => {
+    // ROOT CAUSE:
+    //
+    // Empty `latex` and `tex` fences were excluded from Shiki language
+    // loading but remained code nodes, so streaming displayed blank code
+    // blocks before the first formula row arrived.
+    //
+    // Chat math fences must be consumed even before streaming adds a formula.
+    const markdown = [
+      '```latex',
+      '```',
+      '',
+      '```tex',
+      '   ',
+      '```',
+      '',
+      '```typescript',
+      'const answer = 42',
+      '```',
+    ].join('\n')
+
+    const html = await useMarkdown().process(markdown)
+
+    expect(mathNodeCount(html)).toBe(0)
+    expect(html).not.toContain('language-latex')
+    expect(html).not.toContain('language-tex')
+    expect(html).toContain('class="shiki')
+    expect(html).toContain('>const</span>')
+    expect(html).toContain('> answer</span>')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2328#discussion_r3819568323
   it('loads a code language from a fence nested in a blockquote', async () => {
     // ROOT CAUSE:
