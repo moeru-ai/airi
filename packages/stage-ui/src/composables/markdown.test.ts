@@ -152,6 +152,26 @@ describe('useMarkdown', () => {
     expect(html).toContain('y = \\sqrt\n[3]{x = z}')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2328#discussion_r3818250572
+  it('preserves subscript and superscript continuations across physical lines', () => {
+    // ROOT CAUSE:
+    //
+    // A line beginning with a script marker continues the previous atom, but
+    // the equation-list heuristic treated its relation as a standalone row.
+    const markdown = [
+      '```latex',
+      'S = \\sum',
+      '_{i=1}^{n} i = n(n+1)/2',
+      '```',
+    ].join('\n')
+
+    const html = useMarkdown().processSync(markdown)
+
+    expect(html.match(/<math/g) ?? []).toHaveLength(1)
+    expect(html).not.toContain('katex-error')
+    expect(html).toContain('S = \\sum\n_{i=1}^{n} i = n(n+1)/2')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2328#discussion_r3818219929
   it('preserves an equation continued after a trailing relation', () => {
     // ROOT CAUSE:

@@ -69,9 +69,9 @@ function hasStandaloneLatexRelation(value: string): boolean {
 function isIndependentEquationList(equations: string[]): boolean {
   return equations.length > 1
     && equations.every((equation, index) => (
-      // A leading braced or bracketed group can continue an argument from the
-      // previous line, so it is not positive evidence of a standalone formula.
-      (index === 0 || !['{', '['].includes(equation[0] ?? ''))
+      // A leading group or script marker can continue an argument or atom from
+      // the previous line, so it is not evidence of a standalone formula.
+      (index === 0 || !['{', '[', '_', '^'].includes(equation[0] ?? ''))
       && !/\\(?:begin|end)\s*\{/.test(equation)
       && !/\\(?:newcommand|renewcommand|providecommand|futurelet|[gex]?def|let)\b/.test(equation)
       && hasStandaloneLatexRelation(equation)
