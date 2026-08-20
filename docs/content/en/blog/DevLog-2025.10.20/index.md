@@ -18,13 +18,13 @@ Tauri went viral again a couple days ago. We were early adopters back in March, 
 
 ...Finally couldn't hold out anymore—switched fully to Electron over National Day!
 
-<img src="./assets/electron.png" alt="electron.png" />
+<img src="./assets/electron.avif" alt="electron.avif" />
 
 Now, building on the original Electron foundation, we've added Linux support, introduced what we call the Control Island, and it can even overlay on the interface during full-screen mode on macOS.
 
 Compatibility is excellent—I absolutely love it. Yesterday, we finally got the caption overlay working, so now we can have subtitles like Neuro-sama to see what the AI is outputting!
 
-<img src="./assets/control-island.png" alt="control-island.png" />
+<img src="./assets/control-island.avif" alt="control-island.avif" />
 
 <div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
 Control Island
@@ -54,7 +54,7 @@ If you're interested too, come join us in maintaining it! [moeru-ai/three-mmd](h
 
 Remember back in May when we shared our own prompt library? Thanks to RainbowBird hard work and donation, Velin is now officially part of Moeru AI! Almost all of AIRI's prompts are powered by Velin—but no worries about cross-platform capabilities, Velin works great in Node.js environments too!
 
-<img src="./assets/velin.png" alt="velin.png" />
+<img src="./assets/velin.avif" alt="velin.avif" />
 
 ## Eventa: Event-Driven IPC/RPC
 
@@ -70,12 +70,12 @@ Now both Moeru AI and Project AIRI have grown into massive organizations, with o
 
 Total followers across all have exceeded 800 people. This was unimaginable when we first started a year ago—truly, thank you all so much for your support!
 
-<img src="./assets/moeru.png" alt="moeru.png" />
+<img src="./assets/moeru.avif" alt="moeru.avif" />
 <div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
 Moeru AI
 </div>
 
-<img src="./assets/project-airi.png" alt="project-airi.png" />
+<img src="./assets/project-airi.avif" alt="project-airi.avif" />
 <div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
 Project AIRI
 </div>
@@ -88,7 +88,7 @@ Little teaser: Recently teamed up with kwaa to port the well-known TTS model cha
 
 Basically 1:1 recreated the Python model architecture in Rust, hoping to build it into a super streamlined local TTS inference engine leveraging other SOTA TTS models.
 
-<img src="./assets/rust-tts.png" alt="rust-tts.png" />
+<img src="./assets/rust-tts.avif" alt="rust-tts.avif" />
 
 ## Final Words
 

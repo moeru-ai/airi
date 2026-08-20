@@ -937,8 +937,8 @@ catalogs:
       specifier: ^10.0.1
       version: 10.0.1
     reka-ui:
-      specifier: ^2.10.1
-      version: 2.10.1
+      specifier: ^2.10.3
+      version: 2.10.3
     remark-math:
       specifier: ^6.0.0
       version: 6.0.0
@@ -1621,7 +1621,7 @@ importers:
         version: 10.0.1
       reka-ui:
         specifier: 'catalog:'
-        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.3(vue@3.5.32(typescript@5.9.3))
       remark-parse:
         specifier: 'catalog:'
         version: 11.0.0
@@ -1651,7 +1651,7 @@ importers:
         version: 1.4.2(typescript@5.9.3)
       vaul-vue:
         specifier: 'catalog:'
-        version: 0.4.1(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+        version: 0.4.1(reka-ui@2.10.3(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.32(typescript@5.9.3)
@@ -2054,7 +2054,7 @@ importers:
         version: 10.0.1
       reka-ui:
         specifier: 'catalog:'
-        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.3(vue@3.5.32(typescript@5.9.3))
       remark-parse:
         specifier: 'catalog:'
         version: 11.0.0
@@ -2096,7 +2096,7 @@ importers:
         version: 1.4.2(typescript@5.9.3)
       vaul-vue:
         specifier: 'catalog:'
-        version: 0.4.1(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+        version: 0.4.1(reka-ui@2.10.3(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.32(typescript@5.9.3)
@@ -2520,7 +2520,7 @@ importers:
         version: 10.0.1
       reka-ui:
         specifier: 'catalog:'
-        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.3(vue@3.5.32(typescript@5.9.3))
       remark-parse:
         specifier: 'catalog:'
         version: 11.0.0
@@ -2550,7 +2550,7 @@ importers:
         version: 1.4.2(typescript@5.9.3)
       vaul-vue:
         specifier: 'catalog:'
-        version: 0.4.1(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+        version: 0.4.1(reka-ui@2.10.3(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.32(typescript@5.9.3)
@@ -2791,7 +2791,7 @@ importers:
         version: 13.0.0
       vaul-vue:
         specifier: 'catalog:'
-        version: 0.4.1(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+        version: 0.4.1(reka-ui@2.10.3(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.32(typescript@5.9.3)
@@ -2948,7 +2948,7 @@ importers:
         version: 1.306.1
       reka-ui:
         specifier: 'catalog:'
-        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.3(vue@3.5.32(typescript@5.9.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.32(typescript@5.9.3)
@@ -3818,7 +3818,7 @@ importers:
         version: 1.12.0(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)
       '@vishot/mockup-desktop-vue':
         specifier: 'catalog:'
-        version: 0.2.0(@vueuse/core@14.2.1(vue@3.5.32(typescript@5.9.3)))(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue-router@5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+        version: 0.2.0(@vueuse/core@14.2.1(vue@3.5.32(typescript@5.9.3)))(reka-ui@2.10.3(vue@3.5.32(typescript@5.9.3)))(vue-router@5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       '@vishot/renderer-browser':
         specifier: 'catalog:'
         version: 0.2.0(@types/node@25.6.0)(jiti@2.7.0)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
@@ -3830,7 +3830,7 @@ importers:
         version: 4.4.0
       reka-ui:
         specifier: 'catalog:'
-        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.3(vue@3.5.32(typescript@5.9.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.32(typescript@5.9.3)
@@ -3999,7 +3999,7 @@ importers:
         version: 1.306.1
       reka-ui:
         specifier: 'catalog:'
-        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.3(vue@3.5.32(typescript@5.9.3))
       unspeech:
         specifier: catalog:xsai
         version: 0.1.14
@@ -4123,7 +4123,7 @@ importers:
         version: 1.306.1
       reka-ui:
         specifier: 'catalog:'
-        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.3(vue@3.5.32(typescript@5.9.3))
       splitpanes:
         specifier: 'catalog:'
         version: 4.0.4(vue@3.5.32(typescript@5.9.3))
@@ -4449,7 +4449,7 @@ importers:
         version: 10.0.1
       reka-ui:
         specifier: 'catalog:'
-        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.3(vue@3.5.32(typescript@5.9.3))
       remark-math:
         specifier: 'catalog:'
         version: 6.0.0
@@ -4488,7 +4488,7 @@ importers:
         version: 1.4.2(typescript@5.9.3)
       vaul-vue:
         specifier: 'catalog:'
-        version: 0.4.1(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+        version: 0.4.1(reka-ui@2.10.3(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       vue-i18n:
         specifier: 'catalog:'
         version: 11.3.2(vue@3.5.32(typescript@5.9.3))
@@ -5034,7 +5034,7 @@ importers:
         version: 5.2.2(@nuxt/kit@3.20.2(magicast@0.5.2))(vue@3.5.32(typescript@5.9.3))
       reka-ui:
         specifier: 'catalog:'
-        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.3(vue@3.5.32(typescript@5.9.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.32(typescript@5.9.3)
@@ -5228,7 +5228,7 @@ importers:
         version: 1.4.0
       reka-ui:
         specifier: 'catalog:'
-        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.3(vue@3.5.32(typescript@5.9.3))
       stockfish:
         specifier: 'catalog:'
         version: 18.0.7
@@ -17761,8 +17761,8 @@ packages:
   rehype-stringify@10.0.1:
     resolution: {integrity: sha512-k9ecfXHmIPuFVI61B9DeLPN0qFHfawM6RsuX48hoqlaKSF61RskNjSm1lI8PhBEM0MRdLxVVm4WmTqJQccH9mA==}
 
-  reka-ui@2.10.1:
-    resolution: {integrity: sha512-drcOQ4rQtDYAcGCsyQBqQg8QQ+H3B+zDaMJU0h8KPEPMa7g9BHu3zcOi4OB39XJSWizceFoNO0Z9tctSGLOXqg==}
+  reka-ui@2.10.3:
+    resolution: {integrity: sha512-nJGZbwcha8AcP2wbnjodfzsciTKBqp1mIzepC9Pi2xDI/YK3++ej3vpJOSPyxqrkq1Oorj4K+BdJkbVCV6x6ag==}
     peerDependencies:
       vue: '>= 3.4.0'
 
@@ -26490,11 +26490,11 @@ snapshots:
 
   '@vishot/core@0.2.0': {}
 
-  '@vishot/mockup-desktop-vue@0.2.0(@vueuse/core@14.2.1(vue@3.5.32(typescript@5.9.3)))(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue-router@5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))':
+  '@vishot/mockup-desktop-vue@0.2.0(@vueuse/core@14.2.1(vue@3.5.32(typescript@5.9.3)))(reka-ui@2.10.3(vue@3.5.32(typescript@5.9.3)))(vue-router@5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))':
     dependencies:
       '@vishot/core': 0.2.0
       '@vueuse/core': 14.2.1(vue@3.5.32(typescript@5.9.3))
-      reka-ui: 2.10.1(vue@3.5.32(typescript@5.9.3))
+      reka-ui: 2.10.3(vue@3.5.32(typescript@5.9.3))
       vue: 3.5.32(typescript@5.9.3)
       vue-router: 5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
 
@@ -33679,7 +33679,7 @@ snapshots:
       hast-util-to-html: 9.0.5
       unified: 11.0.5
 
-  reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)):
+  reka-ui@2.10.3(vue@3.5.32(typescript@5.9.3)):
     dependencies:
       '@floating-ui/dom': 1.7.4
       '@floating-ui/vue': 1.1.9(vue@3.5.32(typescript@5.9.3))
@@ -35518,10 +35518,10 @@ snapshots:
 
   vary@1.1.2: {}
 
-  vaul-vue@0.4.1(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)):
+  vaul-vue@0.4.1(reka-ui@2.10.3(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)):
     dependencies:
       '@vueuse/core': 10.11.1(vue@3.5.32(typescript@5.9.3))
-      reka-ui: 2.10.1(vue@3.5.32(typescript@5.9.3))
+      reka-ui: 2.10.3(vue@3.5.32(typescript@5.9.3))
       vue: 3.5.32(typescript@5.9.3)
     transitivePeerDependencies:
       - '@vue/composition-api'
