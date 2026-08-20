@@ -59,13 +59,16 @@ function createTestApp(
   },
   configKV: ConfigKVService = createMockConfigKV(),
 ) {
-  const routes = createStripeRoutes({
+  const routes = createStripeRoutes(
     payment,
-    db: {} as never,
-    stripe: envOverrides.STRIPE_SECRET_KEY === '' ? null : stripe,
+    {} as never,
+    envOverrides.STRIPE_SECRET_KEY === '' ? null : stripe,
     configKV,
-    env: { ...testEnv, ...envOverrides },
-  })
+    { ...testEnv, ...envOverrides },
+    null,
+    null,
+    null,
+  )
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -242,18 +245,19 @@ describe('stripeRoutes', () => {
       }
       const payment = createMockPayment()
       const productEventService = { track: vi.fn() }
-      const webhook = createWebhookOperation({
-        stripe: {
+      const webhook = createWebhookOperation(
+        {
           webhooks: {
             constructEvent: vi.fn(() => checkoutEvent),
           },
         } as any,
-        webhookSecret: 'whsec_test',
+        'whsec_test',
         payment,
-        productEventService: productEventService as any,
-      })
+        null,
+        productEventService as any,
+      )
 
-      await webhook({ signature: 'test_sig', body: '{}' })
+      await webhook('test_sig', '{}')
 
       expect(payment.settle).toHaveBeenCalledWith(expect.objectContaining({
         kind: 'claim',
@@ -273,8 +277,8 @@ describe('stripeRoutes', () => {
 
     it('ignores unknown events and does not settle', async () => {
       const payment = createMockPayment()
-      const webhook = createWebhookOperation({
-        stripe: {
+      const webhook = createWebhookOperation(
+        {
           webhooks: {
             constructEvent: vi.fn(() => ({
               id: 'evt_charge',
@@ -283,11 +287,13 @@ describe('stripeRoutes', () => {
             })),
           },
         } as any,
-        webhookSecret: 'whsec_test',
+        'whsec_test',
         payment,
-      })
+        null,
+        null,
+      )
 
-      await webhook({ signature: 'test_sig', body: '{}' })
+      await webhook('test_sig', '{}')
       expect(payment.settle).not.toHaveBeenCalled()
     })
   })

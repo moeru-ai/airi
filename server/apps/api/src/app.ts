@@ -398,16 +398,16 @@ export async function buildApp(deps: AppDeps) {
     /**
      * Stripe routes.
      */
-    .route('/api/v1/stripe', createStripeRoutes({
-      payment: deps.paymentService,
-      db: deps.db,
-      stripe: deps.stripe,
-      configKV: deps.configKV,
-      env: deps.env,
-      metrics: deps.otel?.revenue,
-      rateLimitMetrics: deps.otel?.rateLimit,
-      productEventService: deps.productEventService,
-    }))
+    .route('/api/v1/stripe', createStripeRoutes(
+      deps.paymentService,
+      deps.db,
+      deps.stripe,
+      deps.configKV,
+      deps.env,
+      deps.otel?.revenue ?? null,
+      deps.otel?.rateLimit ?? null,
+      deps.productEventService,
+    ))
 
     /**
      * Catch-all 404 in JSON. Replaces hono's default `text/html` "404 Not
@@ -618,10 +618,7 @@ export async function createApp() {
 
   const paymentService = injeca.provide('services:payment', {
     dependsOn: { db, billingService },
-    build: ({ dependsOn }) => createPaymentService({
-      db: dependsOn.db,
-      billing: dependsOn.billingService,
-    }),
+    build: ({ dependsOn }) => createPaymentService(dependsOn.db, dependsOn.billingService),
   })
 
   // NOTICE:

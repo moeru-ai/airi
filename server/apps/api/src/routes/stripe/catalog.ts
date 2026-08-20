@@ -27,14 +27,6 @@ export async function loadFluxPacks(configKV: ConfigKVService): Promise<FluxPack
   }))
 }
 
-export function findFluxPackByKey(packs: FluxPack[], packKey: string): FluxPack | undefined {
-  return packs.find(pack => pack.key === packKey)
-}
-
-export function findFluxPackByStripePriceId(packs: FluxPack[], priceId: string): FluxPack | undefined {
-  return packs.find(pack => pack.providers.stripe?.priceId === priceId)
-}
-
 export async function listStripePackages(
   stripe: Stripe | null,
   packs: FluxPack[],

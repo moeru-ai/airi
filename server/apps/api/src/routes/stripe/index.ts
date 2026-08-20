@@ -16,56 +16,37 @@ import { listStripePackages, loadFluxPacks } from './catalog'
 import { createCheckoutOperation } from './operations/checkout'
 import { createWebhookOperation } from './operations/webhook'
 
-export interface StripeRouteDeps {
-  payment: PaymentService
-  db: Database
-  stripe: Stripe | null
-  configKV: ConfigKVService
-  env: Env
-  metrics?: RevenueMetrics | null
-  rateLimitMetrics?: RateLimitMetrics | null
-  productEventService?: ProductEventService
-}
-
 /**
  * Creates Stripe HTTP routes for Flux purchase.
  *
  * Paths stay on `/api/v1/stripe`. Checkout lives in this channel.
  * Webhook dispatch maps a session onto Payment CORE `settle`.
  */
-export function createStripeRoutes(deps: StripeRouteDeps) {
-  const checkout = createCheckoutOperation({
-    db: deps.db,
-    stripe: deps.stripe,
-    configKV: deps.configKV,
-    env: deps.env,
-    metrics: deps.metrics,
-    productEventService: deps.productEventService,
-  })
-  const webhook = createWebhookOperation({
-    stripe: deps.stripe,
-    webhookSecret: deps.env.STRIPE_WEBHOOK_SECRET,
-    payment: deps.payment,
-    metrics: deps.metrics,
-    productEventService: deps.productEventService,
-  })
+export function createStripeRoutes(
+  payment: PaymentService,
+  db: Database,
+  stripe: Stripe | null,
+  configKV: ConfigKVService,
+  env: Env,
+  metrics: RevenueMetrics | null,
+  rateLimitMetrics: RateLimitMetrics | null,
+  productEventService: ProductEventService | null,
+) {
+  const checkout = createCheckoutOperation(db, stripe, configKV, env, metrics, productEventService)
+  const webhook = createWebhookOperation(stripe, env.STRIPE_WEBHOOK_SECRET ?? null, payment, metrics, productEventService)
 
   return new Hono<HonoEnv>()
     .get('/packages', async (c) => {
-      const packs = await loadFluxPacks(deps.configKV)
-      return c.json(await listStripePackages(deps.stripe, packs))
+      const packs = await loadFluxPacks(configKV)
+      return c.json(await listStripePackages(stripe, packs))
     })
-    .post('/checkout', authGuard, rateLimiter({ max: 10, windowSec: 60, metrics: deps.rateLimitMetrics, routeLabel: 'stripe.checkout' }), async (c) => {
+    .post('/checkout', authGuard, rateLimiter({ max: 10, windowSec: 60, metrics: rateLimitMetrics, routeLabel: 'stripe.checkout' }), async (c) => {
       const body = await c.req.json()
-      return c.json(await checkout({
-        user: c.get('user')!,
-        body,
-        request: c.req.raw,
-      }))
+      return c.json(await checkout(c.get('user')!, body, c.req.raw))
     })
     .post('/webhook', async (c) => {
       const signature = c.req.header('stripe-signature') ?? null
       const body = signature ? await c.req.text() : ''
-      return c.json(await webhook({ signature, body }))
+      return c.json(await webhook(signature, body))
     })
 }

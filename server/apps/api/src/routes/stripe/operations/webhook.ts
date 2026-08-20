@@ -12,41 +12,34 @@ import { claimReceiptFromCheckoutSession } from '../claim'
 
 const logger = useLogger('stripe')
 
-export interface WebhookOperationDeps {
-  stripe: Stripe | null
-  webhookSecret: string | undefined
-  payment: PaymentService
-  metrics?: RevenueMetrics | null
-  productEventService?: ProductEventService
-}
-
-export interface WebhookOperationInput {
-  signature: string | null
-  body: string
-}
-
 /**
  * Verifies a Stripe webhook, maps a Checkout Session to a claim receipt,
  * then calls Payment CORE. Unknown events are ignored.
  */
-export function createWebhookOperation(deps: WebhookOperationDeps) {
-  return async (input: WebhookOperationInput): Promise<{ received: true }> => {
-    if (!deps.stripe || !deps.webhookSecret)
+export function createWebhookOperation(
+  stripe: Stripe | null,
+  webhookSecret: string | null,
+  payment: PaymentService,
+  metrics: RevenueMetrics | null,
+  productEventService: ProductEventService | null,
+) {
+  return async (signature: string | null, body: string): Promise<{ received: true }> => {
+    if (!stripe || !webhookSecret)
       throw createServiceUnavailableError('Stripe is not configured', 'STRIPE_NOT_CONFIGURED')
 
-    if (!input.signature)
+    if (!signature)
       throw createBadRequestError('No signature', 'MISSING_SIGNATURE')
 
     let event: Stripe.Event
     try {
-      event = deps.stripe.webhooks.constructEvent(input.body, input.signature, deps.webhookSecret)
+      event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
     }
     catch (err: unknown) {
       throw createBadRequestError(`Webhook Error: ${errorMessageFrom(err) ?? 'unknown error'}`, 'WEBHOOK_ERROR')
     }
 
     logger.withFields({ type: event.type, id: event.id }).log('Webhook event received')
-    deps.metrics?.stripeEvents.add(1, { event_type: event.type })
+    metrics?.stripeEvents.add(1, { event_type: event.type })
 
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -57,10 +50,10 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
         }
 
         const receipt = claimReceiptFromCheckoutSession(session)
-        const result = await deps.payment.settle(receipt)
-        deps.metrics?.stripeCheckoutCompleted.add(1)
+        const result = await payment.settle(receipt)
+        metrics?.stripeCheckoutCompleted.add(1)
         if (session.amount_total != null && session.currency) {
-          deps.metrics?.stripeRevenue.add(session.amount_total, {
+          metrics?.stripeRevenue.add(session.amount_total, {
             currency: session.currency,
             source: 'checkout',
           })
@@ -68,7 +61,7 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
         if (result.applied) {
           const posthogDistinctId = session.metadata?.posthogDistinctId
           const posthogSessionId = session.metadata?.posthogSessionId
-          void deps.productEventService?.track({
+          void productEventService?.track({
             userId: result.userId,
             feature: 'billing',
             action: 'payment_completed',
@@ -90,7 +83,7 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
       }
       case 'checkout.session.expired': {
         const receipt = claimReceiptFromCheckoutSession(event.data.object)
-        await deps.payment.settle(receipt)
+        await payment.settle(receipt)
         break
       }
       default:

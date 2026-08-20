@@ -13,11 +13,6 @@ export type { ClaimReceipt, FluxPack, SettleResult } from './types'
 
 const logger = useLogger('payment')
 
-export interface PaymentServiceDeps {
-  db: Database
-  billing: BillingService
-}
-
 /**
  * Payment CORE: pack grant and `payment_order` ownership.
  *
@@ -28,17 +23,19 @@ export interface PaymentServiceDeps {
  * -> {@link createPaymentService} `settle`
  * -> {@link BillingService.creditFlux}
  */
-export function createPaymentService(deps: PaymentServiceDeps) {
+export function createPaymentService(db: Database, billing: BillingService) {
   async function upsertProviderAccount(
     tx: Pick<Database, 'insert' | 'update' | 'select'>,
-    input: { userId: string, provider: string, providerCustomerId: string },
+    userId: string,
+    provider: string,
+    providerCustomerId: string,
   ) {
     const [existing] = await tx
       .select({ id: schema.providerAccount.id })
       .from(schema.providerAccount)
       .where(and(
-        eq(schema.providerAccount.provider, input.provider),
-        eq(schema.providerAccount.providerCustomerId, input.providerCustomerId),
+        eq(schema.providerAccount.provider, provider),
+        eq(schema.providerAccount.providerCustomerId, providerCustomerId),
         isNull(schema.providerAccount.deletedAt),
       ))
       .limit(1)
@@ -46,20 +43,20 @@ export function createPaymentService(deps: PaymentServiceDeps) {
     const now = new Date()
     if (existing) {
       await tx.update(schema.providerAccount)
-        .set({ userId: input.userId, updatedAt: now })
+        .set({ userId, updatedAt: now })
         .where(eq(schema.providerAccount.id, existing.id))
       return
     }
 
     await tx.insert(schema.providerAccount).values({
-      userId: input.userId,
-      provider: input.provider,
-      providerCustomerId: input.providerCustomerId,
+      userId,
+      provider,
+      providerCustomerId,
     })
   }
 
   async function claimExistingOrder(receipt: ClaimReceipt): Promise<SettleResult> {
-    const result = await deps.db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       const [order] = await tx
         .select()
         .from(schema.paymentOrder)
@@ -100,7 +97,7 @@ export function createPaymentService(deps: PaymentServiceDeps) {
           if (!claimed)
             return { applied: false as const }
 
-          const credit = await deps.billing.creditFlux({
+          const credit = await billing.creditFlux({
             userId: order.userId,
             amount: fluxAmount,
             requestId: order.id,
@@ -110,11 +107,7 @@ export function createPaymentService(deps: PaymentServiceDeps) {
           })
 
           if (receipt.providerCustomerId) {
-            await upsertProviderAccount(tx, {
-              userId: order.userId,
-              provider: order.provider,
-              providerCustomerId: receipt.providerCustomerId,
-            })
+            await upsertProviderAccount(tx, order.userId, order.provider, receipt.providerCustomerId)
           }
 
           return {
@@ -151,7 +144,7 @@ export function createPaymentService(deps: PaymentServiceDeps) {
     })
 
     if (result.applied) {
-      await deps.billing.syncFluxCache(result.userId, result.balanceAfter, {
+      await billing.syncFluxCache(result.userId, result.balanceAfter, {
         amount: result.fluxAmount,
         source: 'payment.pack',
       })
@@ -179,14 +172,14 @@ export function createPaymentService(deps: PaymentServiceDeps) {
     async deleteAllForUser(userId: string) {
       const now = new Date()
 
-      await deps.db.update(schema.paymentOrder)
+      await db.update(schema.paymentOrder)
         .set({ deletedAt: now, updatedAt: now })
         .where(and(
           eq(schema.paymentOrder.userId, userId),
           isNull(schema.paymentOrder.deletedAt),
         ))
 
-      await deps.db.update(schema.providerAccount)
+      await db.update(schema.providerAccount)
         .set({ deletedAt: now, updatedAt: now })
         .where(and(
           eq(schema.providerAccount.userId, userId),

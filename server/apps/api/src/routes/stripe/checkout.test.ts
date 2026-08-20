@@ -61,7 +61,7 @@ describe('stripe checkout', () => {
   beforeEach(async () => {
     const redis = createTestRedis()
     const billing = createBillingService(db, redis, createPacksConfigKV([starterPack]))
-    payment = createPaymentService({ db, billing })
+    payment = createPaymentService(db, billing)
 
     await db.delete(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-pay-1'))
     await db.delete(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
@@ -86,18 +86,20 @@ describe('stripe checkout', () => {
       }
     })
 
-    const checkout = createCheckoutOperation({
+    const checkout = createCheckoutOperation(
       db,
-      stripe: { checkout: { sessions: { create } } } as any,
-      configKV: createPacksConfigKV([starterPack]),
-      env: testEnv,
-    })
+      { checkout: { sessions: { create } } } as any,
+      createPacksConfigKV([starterPack]),
+      testEnv,
+      null,
+      null,
+    )
 
-    const result = await checkout({
-      user: testUser as any,
-      body: { packKey: 'starter', currency: 'usd' },
-      request: new Request('http://localhost/api/v1/stripe/checkout'),
-    })
+    const result = await checkout(
+      testUser,
+      { packKey: 'starter', currency: 'usd' },
+      new Request('http://localhost/api/v1/stripe/checkout'),
+    )
 
     expect(result).toEqual({ url: 'https://checkout.stripe.test/cs_test_1' })
 
@@ -116,18 +118,20 @@ describe('stripe checkout', () => {
       currency: 'usd',
     }))
 
-    const checkout = createCheckoutOperation({
+    const checkout = createCheckoutOperation(
       db,
-      stripe: { checkout: { sessions: { create } } } as any,
-      configKV: createPacksConfigKV([starterPack]),
-      env: testEnv,
-    })
+      { checkout: { sessions: { create } } } as any,
+      createPacksConfigKV([starterPack]),
+      testEnv,
+      null,
+      null,
+    )
 
-    await checkout({
-      user: testUser as any,
-      body: { stripePriceId: 'price_starter' },
-      request: new Request('http://localhost/api/v1/stripe/checkout'),
-    })
+    await checkout(
+      testUser,
+      { stripePriceId: 'price_starter' },
+      new Request('http://localhost/api/v1/stripe/checkout'),
+    )
 
     const [order] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.userId, 'user-pay-1'))
     expect(order?.packKey).toBe('starter')
@@ -158,18 +162,20 @@ describe('stripe checkout', () => {
       }
     })
 
-    const checkout = createCheckoutOperation({
+    const checkout = createCheckoutOperation(
       db,
-      stripe: { checkout: { sessions: { create } } } as any,
-      configKV: createPacksConfigKV([starterPack]),
-      env: testEnv,
-    })
+      { checkout: { sessions: { create } } } as any,
+      createPacksConfigKV([starterPack]),
+      testEnv,
+      null,
+      null,
+    )
 
-    await checkout({
-      user: testUser as any,
-      body: { packKey: 'starter' },
-      request: new Request('http://localhost/api/v1/stripe/checkout'),
-    })
+    await checkout(
+      testUser,
+      { packKey: 'starter' },
+      new Request('http://localhost/api/v1/stripe/checkout'),
+    )
 
     const [flux] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
     expect(flux?.flux).toBe(500)
@@ -188,24 +194,25 @@ describe('stripe checkout', () => {
     }))
     const productEventService = { track: vi.fn() }
 
-    const checkout = createCheckoutOperation({
+    const checkout = createCheckoutOperation(
       db,
-      stripe: { checkout: { sessions: { create } } } as any,
-      configKV: createPacksConfigKV([starterPack]),
-      env: testEnv,
-      productEventService: productEventService as any,
-    })
+      { checkout: { sessions: { create } } } as any,
+      createPacksConfigKV([starterPack]),
+      testEnv,
+      null,
+      productEventService as any,
+    )
 
-    await checkout({
-      user: testUser as any,
-      body: { packKey: 'starter' },
-      request: new Request('http://localhost/api/v1/stripe/checkout', {
+    await checkout(
+      testUser,
+      { packKey: 'starter' },
+      new Request('http://localhost/api/v1/stripe/checkout', {
         headers: {
           'x-posthog-distinct-id': 'anon-browser-1',
           'x-posthog-session-id': 'ph-session-1',
         },
       }),
-    })
+    )
 
     expect(create).toHaveBeenCalledWith(expect.objectContaining({
       metadata: expect.objectContaining({
