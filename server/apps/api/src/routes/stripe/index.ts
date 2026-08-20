@@ -1,3 +1,4 @@
+import type Redis from 'ioredis'
 import type Stripe from 'stripe'
 
 import type { Database } from '../../libs/db'
@@ -12,9 +13,9 @@ import { Hono } from 'hono'
 
 import { authGuard } from '../../middlewares/auth'
 import { rateLimiter } from '../../middlewares/rate-limit'
-import { listStripePackages, loadFluxPacks } from './catalog'
 import { createCheckoutOperation } from './operations/checkout'
 import { createWebhookOperation } from './operations/webhook'
+import { listStripePackages, loadFluxPacks } from './price-catalog'
 
 /**
  * Creates Stripe HTTP routes for Flux purchase.
@@ -26,6 +27,7 @@ export function createStripeRoutes(
   payment: PaymentService,
   db: Database,
   stripe: Stripe | null,
+  redis: Redis,
   configKV: ConfigKVService,
   env: Env,
   metrics: RevenueMetrics | null,
@@ -38,7 +40,7 @@ export function createStripeRoutes(
   return new Hono<HonoEnv>()
     .get('/packages', async (c) => {
       const packs = await loadFluxPacks(configKV)
-      return c.json(await listStripePackages(stripe, packs))
+      return c.json(await listStripePackages(stripe, redis, packs))
     })
     .post('/checkout', authGuard, rateLimiter({ max: 10, windowSec: 60, metrics: rateLimitMetrics, routeLabel: 'stripe.checkout' }), async (c) => {
       const body = await c.req.json()

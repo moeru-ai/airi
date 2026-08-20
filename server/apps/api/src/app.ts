@@ -402,6 +402,7 @@ export async function buildApp(deps: AppDeps) {
       deps.paymentService,
       deps.db,
       deps.stripe,
+      deps.redis,
       deps.configKV,
       deps.env,
       deps.otel?.revenue ?? null,

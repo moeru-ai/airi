@@ -6,6 +6,7 @@ import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createStripeRoutes } from '.'
+import { createTestRedis } from '../../libs/tests/redis'
 import { ApiError } from '../../utils/error'
 import { createWebhookOperation } from './operations/webhook'
 
@@ -63,6 +64,7 @@ function createTestApp(
     payment,
     {} as never,
     envOverrides.STRIPE_SECRET_KEY === '' ? null : stripe,
+    createTestRedis(),
     configKV,
     { ...testEnv, ...envOverrides },
     null,

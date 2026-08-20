@@ -1,3 +1,4 @@
+import type Redis from 'ioredis'
 import type Stripe from 'stripe'
 
 import type { ConfigKVService } from '../../services/adapters/config-kv'
@@ -5,7 +6,13 @@ import type { FluxPack } from '../../services/domain/payment'
 
 import { useLogger } from '@guiiai/logg'
 
+import { redisKeyFrom } from '../../utils/redis-keys'
+
 const logger = useLogger('stripe.catalog')
+
+/** Display prices stay 5 minutes old. Same TTL as the previous Stripe price catalog. */
+const PRICES_CACHE_TTL_SEC = 5 * 60
+const PRICES_CACHE_KEY = redisKeyFrom('cache', 'stripe', 'prices')
 
 export interface StripePackListItem {
   packKey: string
@@ -29,10 +36,22 @@ export async function loadFluxPacks(configKV: ConfigKVService): Promise<FluxPack
 
 export async function listStripePackages(
   stripe: Stripe | null,
+  redis: Redis,
   packs: FluxPack[],
 ): Promise<StripePackListItem[]> {
   if (!stripe)
     return []
+
+  const cacheKey = packs.map(pack => pack.providers.stripe?.priceId ?? '').join(',')
+  const cached = await redis.get(PRICES_CACHE_KEY)
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached) as { cacheKey: string, items: StripePackListItem[] }
+      if (parsed.cacheKey === cacheKey)
+        return parsed.items
+    }
+    catch { /* corrupted cache, refetch */ }
+  }
 
   const items: StripePackListItem[] = []
   for (const pack of packs) {
@@ -65,6 +84,7 @@ export async function listStripePackages(
     })
   }
 
+  await redis.set(PRICES_CACHE_KEY, JSON.stringify({ cacheKey, items }), 'EX', PRICES_CACHE_TTL_SEC)
   return items
 }
 

@@ -12,7 +12,7 @@ import { safeParse } from 'valibot'
 
 import { createBadRequestError, createInternalError, createServiceUnavailableError } from '../../../utils/error'
 import { resolveCheckoutRedirectBase } from '../../../utils/origin'
-import { loadFluxPacks } from '../catalog'
+import { loadFluxPacks } from '../price-catalog'
 import { CheckoutBodySchema } from '../schema'
 
 import * as schema from '../../../schemas/payment'
