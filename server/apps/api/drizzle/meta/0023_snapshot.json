@@ -3118,12 +3118,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "subscription_id": {
-          "name": "subscription_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "credited_at": {
           "name": "credited_at",
           "type": "timestamp",

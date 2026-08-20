@@ -8,7 +8,6 @@ CREATE TABLE "payment_order" (
 	"currency" text,
 	"pack_key" text,
 	"flux_amount" bigint,
-	"subscription_id" text,
 	"credited_at" timestamp,
 	"provider_data" jsonb,
 	"created_at" timestamp DEFAULT now() NOT NULL,

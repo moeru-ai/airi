@@ -19,7 +19,6 @@ export const paymentOrder = pgTable('payment_order', {
   currency: text('currency'),
   packKey: text('pack_key'),
   fluxAmount: bigint('flux_amount', { mode: 'number' }),
-  subscriptionId: text('subscription_id'),
   creditedAt: timestamp('credited_at'),
   providerData: jsonb('provider_data').$type<Record<string, unknown>>(),
   createdAt: timestamp('created_at').defaultNow().notNull(),

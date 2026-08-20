@@ -40,7 +40,6 @@ export interface CheckoutOperationInput {
  * Inserts a pending `payment_order`, then creates a Stripe Checkout Session.
  *
  * `{ packKey }` and legacy `{ stripePriceId }` resolve a Flux pack.
- * `{ planKey }` is rejected until subscriptions ship.
  */
 export function createCheckoutOperation(deps: CheckoutOperationDeps) {
   return async (input: CheckoutOperationInput): Promise<{ url: string }> => {
@@ -51,9 +50,7 @@ export function createCheckoutOperation(deps: CheckoutOperationDeps) {
     if (!parsed.success)
       throw createBadRequestError('Invalid checkout request', 'INVALID_REQUEST', parsed.issues)
 
-    const { packKey, planKey, stripePriceId, currency } = parsed.output
-    if (planKey)
-      throw createBadRequestError('Subscription checkout is not available', 'PLAN_CHECKOUT_UNAVAILABLE')
+    const { packKey, stripePriceId, currency } = parsed.output
 
     const packs = await loadFluxPacks(deps.configKV)
     const pack = resolveCheckoutPack(packs, packKey, stripePriceId)

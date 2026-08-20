@@ -142,21 +142,6 @@ describe('stripeRoutes', () => {
       )
       expect(res.status).toBe(400)
     })
-
-    it('returns 400 when planKey is sent', async () => {
-      const app = createTestApp(createMockPayment())
-      const res = await app.fetch(
-        new Request('http://localhost/api/v1/stripe/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ planKey: 'pro' }),
-        }),
-        { user: testUser } as any,
-      )
-      expect(res.status).toBe(400)
-      const data = await res.json() as any
-      expect(data.error).toBe('PLAN_CHECKOUT_UNAVAILABLE')
-    })
   })
 
   describe('gET /api/v1/stripe/orders', () => {
@@ -292,9 +277,9 @@ describe('stripeRoutes', () => {
         stripe: {
           webhooks: {
             constructEvent: vi.fn(() => ({
-              id: 'evt_sub',
-              type: 'customer.subscription.created',
-              data: { object: { id: 'sub_1' } },
+              id: 'evt_charge',
+              type: 'charge.succeeded',
+              data: { object: { id: 'ch_1' } },
             })),
           },
         } as any,
