@@ -328,7 +328,7 @@ catalog:
   pathe: ^2.0.3
   pg: ^8.20.0
   pinia: ^3.0.4
-  pinia-plugin-synced: ^0.1.0
+  pinia-plugin-synced: ^0.1.3
   pixi-filters: ^4.2.0
   pixi-live2d-display: ^0.4.0
   playwright: ^1.60.0

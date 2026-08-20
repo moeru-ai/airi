@@ -1,6 +1,10 @@
 import type { BrowserWindow, Rectangle } from 'electron'
 
+import type { DisplayArea } from '../../../shared/utils/electron/display'
+
 import { screen } from 'electron'
+
+import { findDominantDisplayArea } from '../../../shared/utils/electron/display'
 
 export function currentDisplayBounds(window: BrowserWindow) {
   const bounds = window.getBounds()
@@ -65,20 +69,13 @@ export function centerWindowOnDisplay(window: Pick<BrowserWindow, 'getBounds' | 
   return centeredBounds
 }
 
-export interface ResizableDisplayArea {
-  /** Full display bounds used to decide which physical display owns most of a window. */
-  bounds: Rectangle
-  /** Usable display area used for quadrant anchoring and final window clamping. */
-  workArea: Rectangle
-}
-
 export interface DominantDisplayResizeOptions {
   /** Current window bounds in Electron display coordinates. */
   currentBounds: Rectangle
   /** Desired size before display work-area clamping. */
   targetSize: Pick<Rectangle, 'width' | 'height'>
   /** Displays from Electron screen APIs. */
-  displays: readonly ResizableDisplayArea[]
+  displays: readonly DisplayArea[]
 }
 
 /**
@@ -136,43 +133,6 @@ export function computeResizedBoundsAnchoredToDominantDisplay(options: DominantD
     width,
     height,
   }
-}
-
-/**
- * Finds the display that owns the largest visible share of `bounds`.
- */
-export function findDominantDisplayArea(bounds: Rectangle, displays: readonly ResizableDisplayArea[]): ResizableDisplayArea | undefined {
-  let dominantDisplay: ResizableDisplayArea | undefined
-  let dominantArea = -1
-
-  for (const display of displays) {
-    // Use full display bounds, not workArea. Menu bars and docks shrink
-    // workArea, but they should not change which physical display owns a
-    // cross-screen window.
-    const area = intersectionArea(bounds, display.bounds)
-    if (area > dominantArea) {
-      dominantDisplay = display
-      dominantArea = area
-    }
-  }
-
-  return dominantDisplay
-}
-
-function intersectionArea(a: Rectangle, b: Rectangle): number {
-  // Each side of the overlap rectangle is the inner edge from the two source
-  // rectangles. If the right edge crosses the left edge, or bottom crosses top,
-  // the rectangles do not overlap.
-  const left = Math.max(a.x, b.x)
-  const top = Math.max(a.y, b.y)
-  const right = Math.min(a.x + a.width, b.x + b.width)
-  const bottom = Math.min(a.y + a.height, b.y + b.height)
-
-  if (right <= left || bottom <= top) {
-    return 0
-  }
-
-  return (right - left) * (bottom - top)
 }
 
 function clamp(value: number, min: number, max: number): number {

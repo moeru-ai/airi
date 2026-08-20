@@ -6,18 +6,18 @@ import { buildChatWsUrl, computeReconnectDelay, createChatWsUrlRef, mapStatus, W
 describe('buildChatWsUrl', () => {
   /**
    * @example
-   * "https://api.example.com" + "abc" → "wss://api.example.com/ws/chat?token=abc"
+   * "https://api.example.com" + "abc" → "wss://api.example.com/ws/v2/chat?token=abc"
    */
-  it('upgrades https → wss and appends /ws/chat with token query', () => {
-    expect(buildChatWsUrl('https://api.example.com', 'abc')).toBe('wss://api.example.com/ws/chat?token=abc')
+  it('upgrades https → wss and appends the version-two chat path with a token', () => {
+    expect(buildChatWsUrl('https://api.example.com', 'abc')).toBe('wss://api.example.com/ws/v2/chat?token=abc')
   })
 
   /**
    * @example
-   * "http://localhost:3000" + "tok" → "ws://localhost:3000/ws/chat?token=tok"
+   * "http://localhost:3000" + "tok" → "ws://localhost:3000/ws/v2/chat?token=tok"
    */
   it('upgrades http → ws on plain origins', () => {
-    expect(buildChatWsUrl('http://localhost:3000', 'tok')).toBe('ws://localhost:3000/ws/chat?token=tok')
+    expect(buildChatWsUrl('http://localhost:3000', 'tok')).toBe('ws://localhost:3000/ws/v2/chat?token=tok')
   })
 
   /**
@@ -25,8 +25,8 @@ describe('buildChatWsUrl', () => {
    * Trailing slashes on the server URL must not double up the path.
    */
   it('normalizes trailing slashes', () => {
-    expect(buildChatWsUrl('https://api.example.com/', 'a')).toBe('wss://api.example.com/ws/chat?token=a')
-    expect(buildChatWsUrl('https://api.example.com//', 'a')).toBe('wss://api.example.com/ws/chat?token=a')
+    expect(buildChatWsUrl('https://api.example.com/', 'a')).toBe('wss://api.example.com/ws/v2/chat?token=a')
+    expect(buildChatWsUrl('https://api.example.com//', 'a')).toBe('wss://api.example.com/ws/v2/chat?token=a')
   })
 
   /**
@@ -34,7 +34,7 @@ describe('buildChatWsUrl', () => {
    * URL-unsafe token characters get percent-encoded by URLSearchParams.
    */
   it('encodes tokens safely', () => {
-    expect(buildChatWsUrl('https://api.example.com', 'a b+c=')).toBe('wss://api.example.com/ws/chat?token=a+b%2Bc%3D')
+    expect(buildChatWsUrl('https://api.example.com', 'a b+c=')).toBe('wss://api.example.com/ws/v2/chat?token=a+b%2Bc%3D')
   })
 })
 
@@ -141,26 +141,16 @@ describe('createChatWsUrlRef', () => {
 
   // ROOT CAUSE:
   //
-  // Production wired `getToken: () => localStorage.getItem('auth/v1/token')`.
-  // The Vue `computed` cannot track non-reactive reads (DOM storage,
-  // module-level let, etc.), so the URL froze at first evaluation. After an
-  // OIDC `oauth2/token` refresh wrote a new access token into localStorage,
-  // `useWebSocket` kept reconnecting with the stale token in the query
-  // string, producing an infinite `/ws/chat?token=<old>` → 401 loop until
-  // the user reloaded the tab.
-  //
-  // Fix: callers MUST pass a closure that reads from a reactive source
-  // (Pinia store ref / Vue ref / computed). The two cases below pin the
-  // contract: reactive source rebuilds the URL on rotation; non-reactive
-  // source intentionally does NOT (so future regressions show up here).
-  it('rebuilds url when getToken reads a reactive ref (token rotation)', () => {
+  // The client must read a reactive token source so the client can react to
+  // token rotation. The URL carries the current token for the next upgrade.
+  it('rebuilds the URL when getToken reads a reactive ref (token rotation)', () => {
     const enabled = ref(true)
     const tokenRef = ref<string | null>('old-token')
     const url = createChatWsUrlRef(enabled, () => tokenRef.value, 'https://api.example.com')
 
-    expect(url.value).toBe('wss://api.example.com/ws/chat?token=old-token')
+    expect(url.value).toBe('wss://api.example.com/ws/v2/chat?token=old-token')
     tokenRef.value = 'new-token'
-    expect(url.value).toBe('wss://api.example.com/ws/chat?token=new-token')
+    expect(url.value).toBe('wss://api.example.com/ws/v2/chat?token=new-token')
   })
 
   it('freezes ws URL when getToken is non-reactive (regression guard)', () => {
@@ -170,12 +160,10 @@ describe('createChatWsUrlRef', () => {
     let storage: string | null = 'frozen-token'
     const url = createChatWsUrlRef(enabled, () => storage, 'https://api.example.com')
 
-    expect(url.value).toBe('wss://api.example.com/ws/chat?token=frozen-token')
+    expect(url.value).toBe('wss://api.example.com/ws/v2/chat?token=frozen-token')
     storage = 'rotated-token'
-    // Still the old value — this is what broke production. If this ever
-    // starts returning 'rotated-token' Vue's reactivity model changed and
-    // the contract comment on createChatWsUrlRef can be relaxed.
-    expect(url.value).toBe('wss://api.example.com/ws/chat?token=frozen-token')
+    // Still the old value. This is the stale-token reconnect regression guard.
+    expect(url.value).toBe('wss://api.example.com/ws/v2/chat?token=frozen-token')
   })
 })
 

@@ -877,8 +877,8 @@ catalogs:
       specifier: ^3.0.4
       version: 3.0.4
     pinia-plugin-synced:
-      specifier: ^0.1.0
-      version: 0.1.0
+      specifier: ^0.1.3
+      version: 0.1.3
     pixi-filters:
       specifier: ^4.2.0
       version: 4.2.0
@@ -1496,6 +1496,9 @@ importers:
       '@proj-airi/stage-ui':
         specifier: workspace:^
         version: link:../../packages/stage-ui
+      '@proj-airi/stage-ui-live2d':
+        specifier: workspace:^
+        version: link:../../packages/stage-ui-live2d
       '@proj-airi/stage-ui-three':
         specifier: workspace:^
         version: link:../../packages/stage-ui-three
@@ -3926,12 +3929,6 @@ importers:
         specifier: 'catalog:'
         version: 1.4.2(typescript@5.9.3)
 
-  packages/server-sdk-shared:
-    dependencies:
-      '@moeru/eventa':
-        specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
-
   packages/server-shared:
     dependencies:
       '@proj-airi/plugin-protocol':
@@ -4293,7 +4290,7 @@ importers:
         version: link:../server-sdk
       '@proj-airi/server-sdk-shared':
         specifier: workspace:^
-        version: link:../server-sdk-shared
+        version: link:../../server/packages/server-sdk-shared
       '@proj-airi/stage-shared':
         specifier: workspace:^
         version: link:../stage-shared
@@ -4443,7 +4440,7 @@ importers:
         version: 3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3))
       pinia-plugin-synced:
         specifier: 'catalog:'
-        version: 0.1.0(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+        version: 0.1.3(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       posthog-js:
         specifier: 'catalog:'
         version: 1.306.1
@@ -5433,7 +5430,7 @@ importers:
         version: link:../../packages/auth-shared
       '@proj-airi/server-sdk-shared':
         specifier: workspace:*
-        version: link:../../../packages/server-sdk-shared
+        version: link:../../packages/server-sdk-shared
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.29.4)(pg@8.20.0)(postgres@3.4.9)
@@ -5634,6 +5631,15 @@ importers:
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.29.4)(pg@8.20.0)(postgres@3.4.9)
+
+  server/packages/server-sdk-shared:
+    dependencies:
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+      valibot:
+        specifier: 'catalog:'
+        version: 1.4.2(typescript@5.9.3)
 
   services/computer-use-mcp:
     dependencies:
@@ -6488,6 +6494,7 @@ packages:
 
   '@better-auth/cli@1.4.22':
     resolution: {integrity: sha512-7azgrNiP1zJXMLqoLgCVj3KsZeYWLHeaGMapYlLblS6yU/o5n//sn1HBasRD2z4HBy2Etz/C7V483/mYvRHI2g==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
     hasBin: true
 
   '@better-auth/core@1.4.22':
@@ -17185,8 +17192,8 @@ packages:
     resolution: {integrity: sha512-uB80kBFb/tfd68bVleG9T5GGsGPjJrLAUpR5PZIrhBnIaRTQRjqdJSsIKkOP6OAIFbj7GOrcudc5pNjZ+geV2g==}
     engines: {node: '>=6'}
 
-  pinia-plugin-synced@0.1.0:
-    resolution: {integrity: sha512-53LEjp6A5ub16fwPdM01ZwYtLF+uG5i3JOfwbA5/m1j7cmiIAdlb4dSd5NcY+fZDw51f/DXWBiLAqV/C1qyKTg==}
+  pinia-plugin-synced@0.1.3:
+    resolution: {integrity: sha512-qisOMMeMClWqHMdJSBZzIGxLQKRTWA2dqF48l++Ys1ay91fOUuT0UcNZWYsrs4eP1MvAR3DMXskknen8iYyq6Q==}
     peerDependencies:
       pinia: '>=3.0.4 <5'
       vue: ^3.5.0
@@ -32968,7 +32975,7 @@ snapshots:
   pify@4.0.1:
     optional: true
 
-  pinia-plugin-synced@0.1.0(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)):
+  pinia-plugin-synced@0.1.3(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)):
     dependencies:
       '@moeru/std': 0.1.0-beta.20
       es-toolkit: 1.50.0

@@ -14,6 +14,7 @@ import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provi
 import { getDefinedProvider } from '@proj-airi/stage-ui/libs'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
@@ -21,10 +22,12 @@ import { useRoute } from 'vue-router'
 
 const route = useRoute()
 const providerId = route.params.providerId as string
-const providerStore = useProviderConfigStore()
+const providerConfigStore = useProviderConfigStore()
+const providersStore = useProviderStore()
 const consciousnessStore = useConsciousnessStore()
-const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
+const { configs: providers } = storeToRefs(providerConfigStore) as { configs: RemovableRef<Record<string, any>> }
 const { activeProvider } = storeToRefs(consciousnessStore)
+const providerDefinition = computed(() => providersStore.findProviderDefinition(providerId))
 
 // Define computed properties for credentials
 const apiKey = computed({
@@ -54,7 +57,7 @@ const thinkingMode = computed({
   },
 })
 
-const supportsDeepSeekThinkingMode = computed(() => providerId === 'deepseek')
+const supportsDeepSeekThinkingMode = computed(() => providerDefinition.value?.id === 'deepseek')
 
 // Use the composable to get validation logic and state
 const {
@@ -74,7 +77,7 @@ const {
 } = useProviderValidation(providerId)
 
 const apiKeyPlaceholder = computed(() => {
-  const definition = getDefinedProvider(providerId)
+  const definition = providerDefinition.value ?? getDefinedProvider(providerId)
   if (!definition?.createProviderConfig)
     return 'sk-...'
 

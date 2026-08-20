@@ -421,7 +421,6 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         return { kind: 'ok' as const, response: result.response }
       }
 
-      options.gatewayMetrics?.keyExhaustedCount.add(1, { provider })
       return {
         kind: 'exhausted' as const,
         statuses: result.failures.map(failure => failure.status),
@@ -488,6 +487,12 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       // as internal error rather than synthesizing a fake 502.
       throw new Error(`Router exhausted with no recorded failures for model ${req.modelName}`)
     }
+
+    options.gatewayMetrics?.keyExhaustedCount.add(1, {
+      provider: lastFailure.provider,
+      status_code: typeof lastFailure.status === 'number' ? lastFailure.status : 'timeout',
+      surface: 'chat',
+    })
 
     // Same-status exhaustion: every recorded failure shares one status (or
     // timeout). This is a strong signal of a shared upstream constraint that
@@ -840,7 +845,6 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         }
       }
 
-      options.gatewayMetrics?.keyExhaustedCount.add(1, { provider: providerTag })
       return {
         kind: 'exhausted',
         sawTooManyRequests: result.failures.some(f => f.status === 429),
@@ -934,6 +938,12 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     if (lastFailure == null) {
       throw new Error(`Router exhausted with no recorded failures for tts model ${req.modelName}`)
     }
+
+    options.gatewayMetrics?.keyExhaustedCount.add(1, {
+      provider: lastFailure.provider,
+      status_code: typeof lastFailure.status === 'number' ? lastFailure.status : 'timeout',
+      surface: 'tts',
+    })
 
     const distinctStatuses = new Set(allFailures.map(f => f.status))
     if (distinctStatuses.size === 1) {

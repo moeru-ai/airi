@@ -37,7 +37,8 @@ configureAnalyticsAdapter(async (options) => {
 const pinia = createPinia()
 const synced = setupSynced()
 pinia.use(synced.pinia)
-pinia.use(piniaPluginTracing)
+if (import.meta.env.DEV)
+  pinia.use(piniaPluginTracing)
 
 // TODO: vite-plugin-vue-layouts is long deprecated, replace with another layout solution
 const routeRecords = setupLayouts(routes as RouteRecordRaw[])

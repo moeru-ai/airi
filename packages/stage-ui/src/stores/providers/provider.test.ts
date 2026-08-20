@@ -1,7 +1,9 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 import { OFFICIAL_SPEECH_PROVIDER_ID } from '../../libs/providers/providers/official'
+import { useProviderConfigStore } from './config'
 import { useProviderStore } from './provider'
 
 vi.mock('vue-i18n', () => ({
@@ -37,6 +39,68 @@ describe('provider store synchronization boundary', () => {
     expect(store.$state).not.toHaveProperty('providerRuntimeState')
     expect(store.$state).not.toHaveProperty('providerAvailabilityOverrides')
     expect(store.providerRuntimeState.openai).toEqual(runtimeState)
+  })
+
+  // ROOT CAUSE:
+  //
+  // The provider store installed immediate watchers that called synchronized
+  // background actions. Every renderer created the same watchers, so one
+  // shared state transition produced one routed action per renderer.
+  //
+  // We fixed this by keeping background work behind explicit action calls.
+  it('does not start background provider actions when shared configuration changes', async () => {
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+
+    await nextTick()
+    await new Promise<void>(resolve => queueMicrotask(resolve))
+
+    const refreshValidation = vi.spyOn(store, 'refreshListedProviderValidation').mockResolvedValue()
+    const refreshModels = vi.spyOn(store, 'refreshModelsForChangedCredentials').mockResolvedValue()
+
+    configStore.ensureProvider('openai', 'openai', { apiKey: 'test-key' })
+    await nextTick()
+    await new Promise<void>(resolve => queueMicrotask(resolve))
+
+    expect(refreshValidation).not.toHaveBeenCalled()
+    expect(refreshModels).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  //
+  // Provider metadata projection called the config store's `getProvider`
+  // action once for every registered provider. Pinia tracing and plugins then
+  // processed hundreds of action lifecycle events during renderer startup,
+  // even though each call was only a read.
+  // Internal provider projections now read the reactive provider map directly.
+  it('does not dispatch config actions while projecting provider metadata', async () => {
+    const configStore = useProviderConfigStore()
+    let getProviderCalls = 0
+    configStore.$onAction(({ name }) => {
+      if (name === 'getProvider')
+        getProviderCalls += 1
+    })
+
+    useProviderStore()
+    await nextTick()
+
+    expect(getProviderCalls).toBe(0)
+  })
+
+  // ROOT CAUSE:
+  //
+  // getModelsForProvider created a new empty array for every cache miss.
+  // Reactive consumers observed a false list change after each synced patch.
+  //
+  // We fixed this by returning one frozen fallback until a catalog exists.
+  it('reuses the empty model-list fallback', () => {
+    const store = useProviderStore()
+
+    const first = store.getModelsForProvider('missing-provider')
+    const second = store.getModelsForProvider('missing-provider')
+
+    expect(second).toBe(first)
+    expect(second).toEqual([])
   })
 
   // ROOT CAUSE:

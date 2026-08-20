@@ -40,11 +40,7 @@ function audioDeviceErrorCode(error: unknown): 'permission_denied' | 'device_una
  * Provides microphone device selection, permission requests, and audio stream lifecycle state.
  */
 export function useAudioDevice(requestPermission: boolean = false) {
-  const {
-    trackAudioDeviceUnavailable,
-    trackMicrophonePermissionDenied,
-    trackMicrophonePermissionRequested,
-  } = useAnalytics()
+  const { trackMicrophonePermissionDenied } = useAnalytics()
   const {
     devices,
     audioInputs,
@@ -94,9 +90,6 @@ export function useAudioDevice(requestPermission: boolean = false) {
   })
 
   async function askPermission() {
-    if (!permissionGranted.value)
-      trackMicrophonePermissionRequested({ stt_provider_id: UNKNOWN_STT_PROVIDER_ID })
-
     try {
       const granted = await ensurePermissions()
 
@@ -110,23 +103,11 @@ export function useAudioDevice(requestPermission: boolean = false) {
       }
 
       selectAvailableAudioInput()
-      if (audioInputs.value.length <= 0) {
-        trackAudioDeviceUnavailable({
-          stt_provider_id: UNKNOWN_STT_PROVIDER_ID,
-          error_code: 'device_unavailable',
-        })
-      }
     }
     catch (error) {
       const errorCode = audioDeviceErrorCode(error)
       if (errorCode === 'permission_denied') {
         trackMicrophonePermissionDenied({
-          stt_provider_id: UNKNOWN_STT_PROVIDER_ID,
-          error_code: errorCode,
-        })
-      }
-      else {
-        trackAudioDeviceUnavailable({
           stt_provider_id: UNKNOWN_STT_PROVIDER_ID,
           error_code: errorCode,
         })

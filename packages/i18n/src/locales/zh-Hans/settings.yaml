@@ -1423,29 +1423,23 @@ pages:
     description: 配置 WebSocket 服务器连接
     title: 连接
     websocket-url:
-      description: WebSocket 服务器的完整地址(例如，ws://localhost:6121/ws)
-      label: WebSocket 服务器地址
+      description: 此应用连接本地服务器时使用的地址。
+      label: 服务器地址
       placeholder: ws://localhost:6121/ws
     server-hostname:
-      label: 是否暴露在连接的网络下（WiFi，有线）
-      description: 选择是否只允许此设备与 AIRI 进行配对，或是也允许来自其他本地网络的设备进行配对
-      advanced-label: 会监听的 hostname
-      advanced-description: 当您需要手动绑定时，使用指定的主机名或 IP 地址。
-      options:
-        this-device: 仅此设备
-        all: 本地网络所有人
-        advanced: 高级配置
+      label: 向所有设备开放
+      description: 允许本地网络中的其他设备连接此服务器。
     server-auth-token:
-      label: 认证凭据
-      description: 连接和配对需要安全令牌。如果留空，AIRI 自动生成一个新的令牌。
+      label: 配对令牌
+      description: 其他设备使用此令牌与服务器配对。如果此字段为空，AIRI 会生成一个令牌。
       placeholder: 自动生成
     qr:
-      title: 从 Pocket（口袋）版配对
-      description: 从 Pocket（口袋）版扫描此二维码以进行配对
+      title: 配对
+      description: 使用移动应用扫描此二维码。应用会尝试每个本地地址，并保存第一个可用地址。
       refresh: 刷新
-      image-alt: AIRI 配对码
+      image-alt: AIRI 配对二维码
       candidates: 备选连接地址
-      token-hint: 二维码包含了认证凭据，所以 Pocket（口袋）版可以自动配对，请不要公开分享此二维码。
+      token-hint: 二维码包含配对令牌。请勿公开分享此二维码。
       errors:
         title: 二维码暂不可用
         unavailable: 无法生成配对二维码
@@ -1773,8 +1767,8 @@ tachie:
     render-scale: 渲染缩放
     shadow: 主题色动态阴影
 websocket-secure-enabled:
-  title: 启用安全WebSocket (WSS)
-  description: 启用 WSS (WebSocket Secure) 以便在开发模式下允许移动设备(Pocket) 连接HTTPS 。这将自动生成一个自签名证书。
+  title: 作为安全 WebSocket (WSS) 提供服务
+  description: 使用 WSS 建立安全的移动端连接。AIRI 会创建一个自签名证书。
 wip:
   title: 正在开发中
   description: 此功能正在开发中，尚未公开发布。请在未来的更新中再次查看此功能。
