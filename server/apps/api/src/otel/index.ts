@@ -91,7 +91,7 @@ export interface EngagementMetrics {
    *   scrape instead of leaking forever.
    *
    * Expects:
-   * - Caller (`createChatWsHandlers`) registers exactly one callback via
+   * - Caller (`createChatWsRuntime`) registers exactly one callback via
    *   `addCallback`. Multiple callbacks would double-count.
    */
   wsConnectionsActive: ObservableGauge

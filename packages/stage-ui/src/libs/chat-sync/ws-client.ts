@@ -1,10 +1,10 @@
-import type { NewMessagesPayload, PullMessagesRequest, PullMessagesResponse, SendMessagesRequest, SendMessagesResponse } from '@proj-airi/server-sdk-shared'
+import type { NewMessagesPayload, PullMessagesRequest, PullMessagesResponse, SendMessagesRequest, SendMessagesResponse } from '@proj-airi/server-sdk-shared/v2'
 import type { ComputedRef, Ref } from 'vue'
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext as createWsContext, wsErrorEvent } from '@moeru/eventa/adapters/websocket/native'
 import { errorMessageFrom } from '@moeru/std'
-import { newMessages, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared'
+import { newMessages, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared/v2'
 import { useWebSocket } from '@vueuse/core'
 import { computed, ref, shallowRef, watch } from 'vue'
 
@@ -28,7 +28,7 @@ export const WS_CLOSE_UNAUTHORIZED = 4001
 // The native ws adapter's context type is not directly exported from
 // `@moeru/eventa/adapters/websocket/native`; use the inferred return type so
 // `ctx.on` / `ctx.emit` overloads stay accurate.
-// Source: @moeru/eventa@0.3.0 — adapter exports only `createContext` and the
+// Source: @moeru/eventa@1.0.0-beta.15 — adapter exports only `createContext` and the
 // event constants.
 // Removal condition: the adapter exports a public `EventContext` type.
 type WsEventContext = ReturnType<typeof createWsContext>['context']
@@ -69,7 +69,7 @@ export type ChatWsUnsubscribe = () => void
 export interface CreateChatWsClientOptions {
   /**
    * Base server URL, e.g. `https://api.airi.build`. The client appends
-   * `/ws/chat?token=<jwt>` to build the WebSocket URL.
+   * `/ws/v2/chat` to build the WebSocket URL.
    */
   serverUrl: string
   /**
@@ -103,13 +103,13 @@ export interface ChatWsClient {
 }
 
 /**
- * Build the `/ws/chat?token=<jwt>` URL from a base server URL.
+ * Build the `/ws/v2/chat` URL from a base server URL.
  *
  * Before:
- * - "https://api.airi.build", token="abc"
+ * - "https://api.airi.build"
  *
  * After:
- * - "wss://api.airi.build/ws/chat?token=abc"
+ * - "wss://api.airi.build/ws/v2/chat?token=abc"
  *
  * @internal
  */
@@ -118,7 +118,7 @@ export function buildChatWsUrl(serverUrl: string, token: string): string {
   // serverUrl are normalized cleanly.
   const url = new URL(serverUrl)
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-  url.pathname = `${url.pathname.replace(/\/+$/, '')}/ws/chat`
+  url.pathname = `${url.pathname.replace(/\/+$/, '')}/ws/v2/chat`
   url.searchParams.set('token', token)
   return url.toString()
 }
@@ -166,27 +166,23 @@ export function mapStatus(vue: 'OPEN' | 'CONNECTING' | 'CLOSED', enabled: boolea
  * - The user is signed in and the chat store wants real-time sync.
  *
  * Expects:
- * - `serverUrl` includes scheme (https/http). Token must be a valid JWT;
- *   401s during the WebSocket upgrade close the socket immediately and the
- *   auto-reconnect loop will keep retrying with whatever `getToken()`
- *   returns next.
+ * - `serverUrl` includes scheme (https/http). `getToken()` returns a valid JWT
+ *   when the socket opens. The token is sent as a query parameter during the
+ *   WebSocket upgrade.
  *
  * Returns:
  * - A handle exposing connect/disconnect/destroy, RPC functions, and event
  *   hooks. RPC closures resolve the live `EventContext` per invocation so a
  *   reconnect-induced context swap is transparent. In-flight RPCs reject on
  *   disconnect with `chat-ws: rpc cancelled` so callers do not hang
- *   indefinitely (eventa@0.3.0 does not flush its internal pending maps when
- *   the underlying context is disposed; we wrap each invoke in a race).
+ *   indefinitely. Eventa `1.0.0-beta.15` aborts pending invokes when the
+ *   native WebSocket closes.
  */
 /**
  * Build the reactive ws URL ref `useWebSocket` watches.
  *
  * `getToken` MUST read from a reactive source (Pinia store ref, Vue ref,
- * computed). A non-reactive read (e.g. `localStorage.getItem`) freezes the
- * URL at first evaluation and `useWebSocket` will reconnect forever with
- * the stale token after the next OIDC refresh — verified by
- * `freezes ws URL when getToken is non-reactive` in ws-client.test.ts.
+ * computed). The reactive dependency rebuilds the URL when the token changes.
  */
 export function createChatWsUrlRef(
   enabled: Ref<boolean>,
@@ -274,9 +270,7 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
     }))
   }
 
-  // The url-as-ref form lets useWebSocket reconnect when `urlRef` changes
-  // (token rotation, disconnect intent). VueUse internally compares the
-  // value and reopens; passing `undefined` cleanly closes any open socket.
+  // The URL ref controls the user connection intent and token presence.
   const ws = useWebSocket<string>(urlRef, {
     immediate: false,
     autoClose: true,
@@ -300,9 +294,8 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       // protocol signal for "this token will never succeed without
       // rotation"; calling `ws.close()` here sets
       // useWebSocket's internal `explicitlyClosed` flag so the next
-      // onclose path skips the reconnect schedule. The next time
-      // `urlRef` changes (token refresh), `watch(urlRef, open)` calls
-      // `open()` which resets `explicitlyClosed` to false and re-inits.
+      // onclose path skips the reconnect schedule. A token change below
+      // closes the old context and starts a new connection with the new URL.
       if (ev.code === WS_CLOSE_UNAUTHORIZED) {
         console.warn('[chat-ws] server rejected auth (4001), pausing reconnect until token rotates')
         ws.close()
