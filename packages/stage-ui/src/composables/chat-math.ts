@@ -5,9 +5,27 @@ import remarkMath from 'remark-math'
 
 import { SKIP, visit } from 'unist-util-visit'
 
+const chatMathFenceLanguages = new Set(['latex', 'math', 'tex'])
+
+/**
+ * Checks whether a code-fence language belongs to the AIRI chat math syntax.
+ *
+ * These fences are consumed before syntax highlighting and must not be loaded
+ * as Shiki languages.
+ */
+export function isChatMathFenceLanguage(language: string | undefined): boolean {
+  return chatMathFenceLanguages.has(language?.toLowerCase() ?? '')
+}
+
 const remarkChatMath: Plugin<[], Root> = () => (tree) => {
   visit(tree, 'code', (node, index, parent) => {
-    if (index === undefined || !parent || !['latex', 'tex'].includes(node.lang?.toLowerCase() ?? ''))
+    const language = node.lang?.toLowerCase()
+    if (index === undefined || !parent || !isChatMathFenceLanguage(language))
+      return
+
+    // `math` is the canonical remark-math fence. It must be filtered from
+    // Shiki, but only `latex` and `tex` fences need conversion here.
+    if (language === 'math')
       return
 
     const rows = node.value

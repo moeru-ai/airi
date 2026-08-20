@@ -128,6 +128,36 @@ describe('useMarkdown', () => {
     expect(html).toContain('> answer</span>')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2328#discussion_r3819513359
+  it('keeps syntax highlighting when a message has a math fence', async () => {
+    // ROOT CAUSE:
+    //
+    // A `math` fence is a remark-math marker, not a Shiki language. Loading
+    // it in the rich pipeline made Shiki reject the processor and removed
+    // highlighting from every code block in the message.
+    //
+    // Chat math fence languages must not enter the Shiki language list.
+    const markdown = [
+      '```math',
+      String.raw`\begin{aligned}`,
+      String.raw`x &= 1 \\`,
+      String.raw`y &= 2`,
+      String.raw`\end{aligned}`,
+      '```',
+      '',
+      '```typescript',
+      'const answer = 42',
+      '```',
+    ].join('\n')
+
+    const html = await useMarkdown().process(markdown)
+
+    expect(mathNodeCount(html)).toBe(1)
+    expect(html).toContain('class="shiki')
+    expect(html).toContain('>const</span>')
+    expect(html).toContain('> answer</span>')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2328#discussion_r3812513778
   it('keeps command arguments together in a latex block', () => {
     const markdown = [

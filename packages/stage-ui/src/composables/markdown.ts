@@ -11,7 +11,7 @@ import RemarkRehype from 'remark-rehype'
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
 import { unified } from 'unified'
 
-import { chatMathPreset } from './chat-math'
+import { chatMathPreset, isChatMathFenceLanguage } from './chat-math'
 
 // Define a specific, compatible type for our processor to ensure type safety.
 type MarkdownProcessor = Processor<any, any, any, any, string>
@@ -24,7 +24,7 @@ function extractLangs(markdown: string): BundledLanguage[] {
   const langs = new Set<BundledLanguage>()
   langs.add('python')
   for (const match of matches) {
-    if (match[1])
+    if (match[1] && !isChatMathFenceLanguage(match[1]))
       langs.add(match[1] as BundledLanguage)
   }
   return [...langs]
