@@ -26,7 +26,7 @@ is_openai_compatible: true
 2. 将 API Key 粘贴到基础设置。
 3. 保留默认 Base URL：`https://api.minimax.io/v1/`。
 
-### 3. 配置校验
+## 第三步：验证配置
 
 1. **Ping API**：点击此按钮测试网络是否连通以及 API Key 是否填写正确。
 2. **选择模型**：测试成功后，点击此处选择你想使用的具体模型。

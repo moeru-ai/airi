@@ -66,8 +66,6 @@ onDisconnected((index) => {
 
 > The Gamepad Haptics API is sparse, so check the [compatibility table](https://developer.mozilla.org/en-US/docs/Web/API/GamepadHapticActuator#browser_compatibility) before using.
 
-
-
 ```ts
 import { useGamepad } from '@vueuse/core'
 // ---cut---

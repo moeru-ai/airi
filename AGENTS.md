@@ -19,6 +19,12 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 
 ## Structure & Responsibilities
 
+- **Hosted backend** (`server/`)
+  - `server/apps/api`: Hono resource API and business domains.
+  - `server/apps/auth`: standalone Better Auth and OIDC service.
+  - `server/packages`: backend-private schema and Node infrastructure packages.
+  - `server/dev/caddy`: local-only Auth/API edge routing.
+  - `server/docker-compose.yaml`: complete local backend stack.
 - **Apps**
   - `apps/stage-web`: Web app; composables/stores in `src/composables`, `src/stores`; pages in `src/pages`; devtools in `src/pages/devtools`; router config via `vite.config.ts`.
   - `apps/stage-tamagotchi`: Electron app; renderer pages in `src/renderer/pages`; devtools in `src/renderer/pages/devtools`; settings layout at `src/renderer/layouts/settings.vue`; router config via `electron.vite.config.ts`.
@@ -49,6 +55,7 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - `packages/stage-shared`: Shared logic across stage-ui, stage-ui-three, stage-web, stage-tamagotchi.
 - `packages/ui`: Standardized primitives (inputs/textarea/buttons/layout) built on reka-ui.
 - `packages/i18n`: All translations.
+- Hosted backend: `server/apps/api`, `server/apps/auth`, `server/packages`, and local tooling under `server/dev`.
 - Server channel: `packages/server-runtime`, `packages/server-sdk`, `packages/server-shared` (power `services/` and `plugins/`).
 - Legacy desktop: `crates/` (old Tauri; Electron is current).
 - Pages: `packages/stage-pages` (shared bases); `apps/stage-web/src/pages` and `apps/stage-tamagotchi/src/renderer/pages` for app-specific pages; devtools live in each app’s `.../pages/devtools`.
@@ -82,55 +89,34 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
   - `pnpm -F <package.json name> build`
   - Example: `pnpm -F @proj-airi/stage-tamagotchi build` (typecheck + electron-vite build).
 
+## Before You Start
+
+## Enforced Repository Skills
+
+- For testing, Vitest, regression reproduction, mocks, or test import-boundary work, always use [`enforce-rules-for-vitest` skill](.agents/skills/enforce-rules-for-vitest/SKILL.md).
+- For UnoCSS, Vue styling, UI components, animations, icons, or color-mode work, always use [`enforce-rules-for-unocss` skill](.agents/skills/enforce-rules-for-unocss/SKILL.md).
+- For web or Electron workflows that upload a local file through an HTML input, a dynamically created input, or a file chooser, invoke [`$use-agent-browser-with-input-file`](.agents/skills/use-agent-browser-with-input-file/SKILL.md). Also invoke `$agent-browser`, and invoke `$agent-browser-electron` when the target is Electron.
+- For AIRI Live2D, VRM, or MMD import and rendering tests across stage-web, stage-tamagotchi, or stage-pocket, invoke [`$use-agent-browser-for-airi`](.agents/skills/use-agent-browser-for-airi/SKILL.md). It invokes `$use-agent-browser-with-input-file` for the upload mechanism and adds AIRI-specific routes, state preparation, format behavior, and renderer verification.
+- For editing, writing, refactoring, re-writing code, submitting issues, Pull Requests, and docs, comments, invoke [`$simple-english`](./agents/skills/simple-english/SKILL.md).
+
 ## Development Practices
 
 - Favor clear module boundaries; shared logic goes in `packages/`.
 - Keep runtime entrypoints lean; move heavy logic into services/modules.
-- Prefer functional patterns + DI (`injeca`) for testability.
 - Use Valibot for schema validation; keep schemas close to their consumers.
 - Use Eventa (`@moeru/eventa`) for structured IPC/RPC contracts where needed.
 - Use `errorMessageFrom(error)` from `@moeru/std` to extract error messages instead of manual patterns like `error instanceof Error ? error.message : String(error)`. Pair with `?? 'fallback'` when a default is needed.
 - Do not add backward-compatibility guards. If extended support is required, write refactor docs and spin up another Codex or Claude Code instance via shell command to complete the implementation with clear instructions and the expected post-refactor shape.
 - If the refactor scope is small, do a progressive refactor step by step.
-- When modifying code, always check for opportunities to do small, minimal progressive refactors alongside the change.
-
-## Styling & Components
-
-- Prefer Vue v-bind class arrays for readability when working with UnoCSS & tailwindcss: do `:class="['px-2 py-1','flex items-center','bg-white/50 dark:bg-black/50']"`, don't do `class="px-2 py-1 flex items-center bg-white/50 dark:bg-black/50"`, don't do `px="2" py="1" flex="~ items-center" bg="white/50 dark:black/50"`; avoid long inline `class=""`. Refactor legacy when you touch it.
-- Use/extend UnoCSS shortcuts/rules in `uno.config.ts`; add new shortcuts/rules/plugins there when standardizing styles. Prefer UnoCSS over Tailwind.
-- Check `apps/stage-web/src/styles` for existing animations; reuse or extend before adding new ones. If you need config references, see `apps/stage-web/tsconfig.json` and `uno.config.ts`.
-- Build primitives on `@proj-airi/ui` (reka-ui) instead of raw DOM; see [`docs/ai/context/ui-components.md`](docs/ai/context/ui-components.md) for the full component API reference and `packages/ui/src/components/Form` for implementation patterns.
-- **When adding or updating components in `packages/ui`**, update [`docs/ai/context/ui-components.md`](docs/ai/context/ui-components.md) to reflect the change (props, slots, emits, description).
-- Use Iconify icon sets; avoid bespoke SVGs.
-- Animations: keep intuitive, lively, and readable.
-- `useDark` (VueUse): set `disableTransition: false` or use existing composables in `packages/ui`.
-
-## Testing Practices
-
-- Vitest per project; keep runs targeted for speed.
-- For any investigated bug or issue, try to reproduce it first with a test-only reproduction before changing production code. Prefer a unit test; if that is not possible, use the smallest higher-level automated test that can still reproduce the problem.
-- When an issue reproduction test is possible, include the tracker identifier in the test case name:
-  - GitHub issues: include `Issue #<number>`
-  - Internal bugs tracked in Linear: include the Linear issue key
-- Add the actual report link as a comment directly above the regression test:
-  - GitHub issue URL for GitHub reports
-  - Discord message or thread URL for IM reports
-  - Linear issue URL for internal bugs
-- Mock IPC/services with `vi.fn`/`vi.mock`; do not rely on real Electron runtime.
-- For external providers/services, add both mock-based tests and integration-style tests (with env guards) when feasible. You can mock imports with Vitest.
-- Grow component/e2e coverage progressively (Vitest browser env where possible). Use `expect` and assert mock calls/params.
-- When writing tests, prefer line-by-line `expect` or assertion statements.
-- Avoid writing tests for impossible runtime states, such as `expect` against constants that never change, or asserting object mutations that can only happen inside the same Vitest case setup.
-- Avoid mocking `globalThis` or built-in modules by directly using `Object.defineProperty(...)`. If needed, use `node:worker_threads` to load another worker and simulate that situation, or build a mini CLI to reproduce and verify behavior. For DOM and Web Platform APIs, prefer Vitest browser mode instead of hard-mocking platform internals. If tests already use those patterns, progressively refactor them.
-- Do not use Vitest mocks, hoisting, dynamic imports, `as unknown as`, or test-only alternate import paths to maliciously bypass real import problems. If a test cannot import a module, investigate the actual compile/runtime boundary: package exports, side effects, mixed Node/browser type dependencies, circular imports, and whether the public module shape is wrong. Fix the boundary instead of hiding the failure in the test.
+- For new feature requirements or requirement-related tasks involving `node:*` built-in modules, DOM operations, Vue composables, React hooks, Vite plugins, or GitHub Actions workflows, always do deep research for suitable existing libraries or open source modules first. Before choosing any library, always ask the user to choose and help judge which option is right. Never choose generalized utility libraries on your own (for example, `es-toolkit`, utilities from `github.com/unjs`, or tiny tools from `github.com/tinylib`) without explicit user confirmation. If the user is working spec-driven, list candidate choices in a clear and concise Markdown comparison table.
 
 ## TypeScript / IPC / Tools
 
 - Keep JSON Schemas provider-compliant (explicit `type: object`, required fields; avoid unbounded records).
-- Favor functional patterns + DI (`injeca`); avoid new class hierarchies unless extending browser APIs (classes are harder to mock/test).
+- For Electron, and backend related packages, use `injeca` for dependency management; avoid new class hierarchies unless extending browser APIs (classes are harder to mock/test).
 - Centralize Eventa contracts; use `@moeru/eventa` for all events.
 - Import types from the module or package that owns the contract. Do not redeclare external/public contracts locally just to use a narrower subset, and do not route type imports through local runtime assembly modules when the original side-effect-free type source is available.
-- Do not use inline type imports such as `typeof import('...').x` or `import('...').Type` to avoid normal module boundaries. Export explicit shared types from the owning module, import external contract types from their owning package, or split a dedicated side-effect-free type module when runtime imports would pull in the wrong environment.
+- Omit TypeScript and JavaScript source extensions from relative imports, dynamic imports, and re-exports. Write `./module` instead of `./module.ts` or `./module.js`; keep extensions only when the runtime or asset format requires them.
 - Do not directly modify or override `tsconfig.json` to make an import/type error disappear. First investigate compilation behavior, `package.json` `exports` declarations, type declarations, and whether the dependency exposes the intended browser/node entrypoints.
 - When Node-only and browser-only types are mixed through one import chain, split the type declarations into a neutral type file and keep runtime modules environment-specific. Avoid importing values from modules that carry side effects just to obtain types.
 - If a wrong export or missing export causes an error, trace the full import chain and side-effect chain before changing imports at the leaf. Prefer fixing package/module exports and the owning boundary over adding local workaround imports.
@@ -142,54 +128,72 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 ## i18n
 
 - Add/modify translations in `packages/i18n`; avoid scattering i18n across apps/packages.
+- By default, modify only the English source locale and the locale used by the developer working on the change. Other locale files are managed through the Crowdin integration; direct local edits may be replaced by untranslated source content after the next Crowdin upload or sync. Avoid editing other locales unless explicitly requested.
 
-## CSS/UNO
+### Glossary
 
-- Use/extend UnoCSS shortcuts in `uno.config.ts`.
-- Prefer grouped class arrays for readability; refactor legacy inline strings when possible.
+`packages/i18n/glossary/terms.yaml` gives the approved English term for each product concept.
+`pnpm -F @proj-airi/i18n glossary:build` writes the TBX file that Crowdin imports. `schema.ts`
+documents each field.
+
+- Read `terms.yaml` before you write or change a string that a user sees. Use the term it gives.
+- Do not edit `packages/i18n/glossary/translations/`. The next Crowdin download replaces it.
+- Take terms from the interface. Search the documentation to confirm a term, not to find one.
+
+**Add a term when it prevents one of two failures:**
+
+- A translator who reads only the source string chooses the wrong word.
+- Two translators choose different words, and both words are correct.
+
+**Do not add a term when:**
+
+- It is code. A translated control token, JSON key, file name, or package name breaks the
+  application, and the application shows no error.
+- It is a common English word with its usual meaning, such as "Speed" or "Volume".
+- Its parts each have an entry and it says no more than its parts, such as "VRM model".
+- One feature uses it, and only two translators could disagree about it. But keep a rare term if a
+  translator can get it wrong: `Tachie` occurs two times and is the strongest entry in the file.
+
+`terms.yaml` holds no rationale, because each field must map to a TBX element. Give the reason in
+the pull request.
+
+**Write a definition in one sentence.** Describe the thing, not the word, and put a negative rule in
+the `note`. Keep each sentence short and active: translators read them, and most do not read English
+as a first language.
 
 ## Readability, Naming, and Comments
 
-- File names: camelCase.
-- Prefer names that rely on the module boundary for context instead of repeating package, product, protocol, or transport prefixes inside every symbol. A well-named module should let exported functions use short action-first names; repeat the larger context only when the symbol crosses a boundary where that context is no longer obvious.
-- Name functions after the domain operation they perform, not after the implementation layer that happens to contain them. This keeps call sites readable after refactors and avoids names becoming stale when code moves between files.
-- Avoid names that encode multiple layers of ownership into one symbol. If a name needs several qualifiers to be understandable, reconsider the module boundary or introduce a clearer local concept.
-- Use nouns for resolved domain concepts and verbs for transformations or side effects. When a function derives a policy/configuration from an event or request, name the domain result explicitly so callers understand what decision is being made.
-- Prefer classes for runtime/browser APIs and substantial business modules when the class owns state, lifecycle, or a stable domain boundary. Prefer FP for pure transformations and local helpers.
-- Use dependency injection only at real external boundaries: database, model runtime, queue, Redis/cache, filesystem, network, clock, environment, and feature gates. Do not introduce `Dependencies`/`Deps` objects for internal functions that only call sibling helpers or forward parameters.
-- Comments should reduce reader uncertainty, not increase documentation volume.
-- Write comments where a reader would otherwise ask why this case can happen, why this branch is ignored, why this fallback exists, why this order matters, what state changed here, what external side effect just happened, or what protocol/invariant this line is preserving.
-- Good comments explain hidden intent, constraints, ownership, invariants, ordering, side effects, protocol shape, or non-obvious fallback behavior.
-- Bad comments translate code into English, restate names/types, or exist only to satisfy hover documentation.
-- Important implementation comments should live near the confusing line or branch, not only on exported declarations.
-- For calculation-heavy code, prefer inline comments near the intermediate values and branches that need explanation. Do not rely only on function-level JSDoc when the hard part is a coordinate system, unit conversion, clamp, rounding rule, aggregation, fallback, or precedence decision.
-- Apply this especially to geometry, graphics and shader math, billing or metering, analytics or statistics, UI layout and positioning, ranking or scoring, and normalization code.
-- Format longer comments as short paragraphs separated by blank comment lines. Do not compress background, symptom, rejected alternatives, final rationale, and references into one dense block.
-- For investigation-heavy comments, prefer this order when useful: source/context, observed failure, why the obvious fix is insufficient, chosen fix, and references/removal condition.
-- Do not add broad comments like `// Config`, `// Host`, or `// Update state` unless they explain a non-obvious boundary or transition.
-- Add clear, concise comments for utils, math, OS-interaction, algorithm, shared, and architectural functions that explain non-obvious intent, invariants, constraints, or why the code is needed.
-- When using a workaround, add a `// NOTICE:` comment explaining why, the root cause, and any source context. If validated via `node_modules` inspection or external sources (e.g., GitHub), include relevant line references and links in code-formatted text.
-- When moving/refactoring/fixing/updating code, keep still-accurate comments with the code. Remove obsolete comments rather than preserving their history in source; explain notable removals in review notes when needed.
-- Avoid stubby/hacky scaffolding; prefer small refactors that leave code cleaner.
+### Naming
+
+- Use kebab-case for all file names.
+- Let module boundaries provide context. Avoid repeating package, product, protocol, or transport names in symbols unless the symbol crosses a boundary where that context would otherwise be lost.
+- Name functions after domain operations rather than implementation layers.
+- Use nouns for resolved domain concepts and verbs for transformations or side effects.
+- If a symbol needs several ownership qualifiers to be understandable, reconsider the module boundary or introduce a clearer domain concept.
+
+### Comments
+
+- Comments should explain information the code cannot express clearly: intent, constraints, ownership, invariants, precedence, lifecycle, ordering, side effects, protocol shape, or non-obvious fallbacks.
+- Do not add comments that only restate names, types, or visible operations.
+- Place implementation comments next to the branch, calculation, transition, or side effect they explain.
+- For calculation-heavy code, explain non-obvious coordinate systems, units, conversions, clamps, rounding, aggregation, and precedence beside the relevant intermediate values or branches.
+- Prefer clearer names, types, and structured state over comments that compensate for hidden or encoded concepts.
+- Keep accurate comments when moving code and remove comments that no longer describe current behavior.
+- Format investigation-heavy comments as short paragraphs. When useful, cover context, observed failure, why the obvious fix is insufficient, the chosen fix, and its removal condition or references.
 - Use markers:
-  - `// TODO:` follow-ups
-  - `// REVIEW:` concerns/needs another eye
-  - `// NOTICE:` magic numbers, hacks, important context, external references/links
-
-### JSDoc
-
-- Use JSDoc for public APIs, shared boundaries, exported types, and non-trivial exported functions/classes.
-- Do not use JSDoc as a substitute for explaining complex implementation branches.
-- Do not force `Use when / Expects / Returns` blocks onto internal helpers, object literal methods, simple pass-through methods, or interface/type top-level comments when they only restate names and signatures.
-- For interfaces and type aliases, keep top-level JSDoc short. Put field-specific semantics on fields when the field has non-obvious units, defaults, ownership, lifecycle, freshness, or compatibility behavior.
-- For exported functions/classes that form a real API boundary, JSDoc should explain what the boundary guarantees, when to use it, and what assumptions callers must respect.
-- For internal implementation details, prefer precise names and branch-local comments over large JSDoc blocks.
+  - `// TODO:` for follow-up work.
+  - `// REVIEW:` for concerns that need another opinion.
+  - `// NOTICE:` for workarounds, magic values, external constraints, and other important non-obvious context.
 
 ### Fallbacks and Precedence
 
 - Any fallback chain with more than two sources must make precedence explicit.
 - If fallback sources represent different schema versions, compatibility behavior, specificity levels, or user/system overrides, each non-primary branch must explain why that case exists and why it has that priority.
 - Avoid nested ternaries for fallback chains when any branch is non-obvious. Use named intermediate variables or `if` / `else if` blocks so comments can live next to the relevant branch.
+- Do not use a new object or array as a casual fallback. Expressions such as `value ?? {}`, `value ?? []`, `value || {}`, and `value || []` create a new reference each time.
+- Never use an inline object or array fallback in a reactive getter, computed value, watcher source, or Pinia state projection. New references can cause false changes, watcher loops, and state broadcasts.
+- If an immutable empty fallback is valid, reuse a stable module-level value. Freeze the value when consumers must not mutate it.
+- Use `??` only when `null` and `undefined` mean that a value is missing. Use `||` only when `false`, `0`, and an empty string must also select the fallback.
 - Do not keep backward-compatibility fallbacks silently. If a fallback is temporary, mark it with `// NOTICE:` and include the removal condition. If it is permanent, document it as supported policy instead of calling it legacy.
 - If a fallback returns an empty string, stale value, cached value, default value, or ignored result in non-trivial domain/protocol code, explain why that fallback is safe at the return or branch site.
 
@@ -204,35 +208,45 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - Document what happens to pending requests on timeout, close, unload, dispose, and publish failure.
 - When cleanup spans multiple owners, keep the ordering visible and explain why the order matters.
 - When returning a snapshot, fallback value, stale value, or cached value, document freshness semantics at the return site.
+- For watchers, event listeners, and async background work, make ownership and shutdown behavior explicit: what starts and stops the work, whether duplicate starts are allowed, and what happens to in-flight work during unload or dispose.
 
-### Helper Extraction
+### Pinia Cross-Window Synchronization
 
-- Before extracting a private helper, ask what decision it hides.
-- Keep logic inline when the helper only names a single execution step and is used once.
-- Extract a helper when it owns reusable policy, parsing, normalization, lifecycle, cleanup, error handling, protocol validation, or a cross-call invariant.
-- Do not hide special cases inside generic helpers if doing so moves the explanation away from the branch where readers need it.
-- If a helper manipulates encoded keys, cache ownership, session ownership, filesystem paths, route names, or protocol-shaped data, document the encoding/invariant near the helper or replace the encoding with a clearer structure.
+- Treat `pinia-plugin-synced` as snapshot replication and leader-routed RPC. It does not share Vue refs between renderers.
+- Add `synced` only to stores that need cross-window ownership. Synchronize the smallest serializable source-of-truth state.
+- `state: true` sends a full-store proposal after each local mutation. Keep transient and high-frequency state in an unsynchronized store.
+- State, action arguments, and action results must support `structuredClone`.
+- Keep computed values, query status, runtime clients, controllers, pending promises, and component state outside synchronized state.
+- Remote snapshots run local Vue watchers. Never let a watcher on synchronized state write synchronized state or call a synchronized action.
+- Enforce cross-field invariants inside explicit actions before the state commit. Do not repair replicated state with a watcher.
+- Every returned function in a setup store is a Pinia action. Use computed values or pure helpers for read-only projections.
+- List only leader-owned side-effecting actions under `synced.actions`. These actions must be asynchronous, and callers must await them.
+- Unlisted actions run in the caller renderer. Their mutations become full-state proposals when `state: true`.
+- Keep synchronization and persistence as separate boundaries. Give persisted synchronized state one explicit persistence owner.
+- Do not add bidirectional persistence composables or storage-event listeners to synchronized state. Use explicit persistence commands.
+- Set the leadership mode explicitly for every Electron renderer. Utility and minimal windows must use `follower-only`.
+- Add a multi-window regression test for synchronization changes. One remote snapshot must not produce another mutation or action.
 
 ### Readability Refactors
 
-- If a comment is needed to explain hidden state, encoded data, protocol envelopes, or lifecycle transitions, first consider whether named types, structured state, or a small policy function would make the concept explicit.
 - Readability-only changes should preserve runtime behavior. If behavior changes, add focused tests and document the contract change explicitly.
-- For watchers, event listeners, and async background work, make ownership and shutdown behavior explicit: what starts it, what stops it, whether duplicate starts are allowed, and what happens to in-flight work during unload or dispose.
 
 ## Module Design
 
 - Prefer deep modules over shallow modules. A module should hide a meaningful decision: policy, persistence boundary, protocol/schema contract, scheduling semantics, model prompt contract, domain invariant, or lifecycle concern.
 - Do not split code by execution order alone. A module boundary should represent a stable responsibility that can be understood without reading all sibling files.
 - Keep cohesive domain flows together until there is proven pressure to split. A 200-400 line cohesive module is preferable to several shallow modules that pass the same context/options through each other.
+- Prefer classes for runtime or browser APIs and substantial business modules that own state, lifecycle, or a stable domain boundary. Prefer functions for pure transformations and local helpers.
+- Use dependency injection only at external boundaries such as databases, model runtimes, queues, caches, filesystems, networks, clocks, environments, and feature gates. Do not introduce dependency objects for internal functions that only call sibling helpers or forward parameters.
 - Before creating a new `createXService` or `XDependencies`, verify that `X` adds policy, validation, state, retry/error handling, IO boundary, or a reusable abstraction. If not, keep it as a private helper or inline it.
 - Avoid pass-through services such as `createXService({ yService })` when `X` adds no meaningful policy, validation, state, or abstraction.
-- Do not extract tiny one-call helper functions just to name an implementation step, reduce line count, or make tests easier to write. Keep short logic inline when the helper does not hide a real decision, policy, IO boundary, normalization rule, retry/error handling, lifecycle concern, or reusable domain concept.
-- Extract a helper only when it is reused by multiple production call sites, hides non-trivial branching/IO/parsing/normalization/error policy, names a stable domain concept, or forms part of a public/package API.
+- Keep special cases close to the branch they affect. If a helper manipulates encoded keys, ownership, filesystem paths, routes, or protocol-shaped data, make that invariant explicit in its structure, name, or nearby documentation.
 - Test through stable public behavior. Do not create new exports, dependency bags, or wrapper services only to make private implementation details mockable.
 - Keep reusable domain contracts and rendering/building logic in the package that owns that domain. Runtime entrypoints should wire dependencies and call those boundaries instead of inlining large reusable contracts.
 
 ## PR / Workflow Tips
 
+- When asked to create, open, publish, or prepare a pull request, always use the repo-local `create-pr` skill. For user-visible changes it orchestrates `use-vishot` and the matching runtime variant, then uploads before/after screenshots as GitHub user assets in the PR body.
 - Rebase pulls; branch naming `username/feat/short-name`; clear commit messages (gitmoji is prohibited).
 - Summarize changes, how tested (commands), and follow-ups.
 - Improve legacy you touch; avoid one-off patterns.
@@ -240,7 +254,6 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - Maintain structured `README.md` documentation for each `packages/` and `apps/` entry, covering what it does, how to use it, when to use it, and when not to use it.
 - Always run `pnpm type-check` and `pnpm lint` after finishing a task.
 - Use Conventional Commits for commit messages (e.g., `feat(<package name>): add runner reconnect backoff`).
-- For new feature requirements or requirement-related tasks involving `node:*` built-in modules, DOM operations, Vue composables, React hooks, Vite plugins, or GitHub Actions workflows, always do deep research for suitable existing libraries or open source modules first. Before choosing any library, always ask the user to choose and help judge which option is right. Never choose generalized utility libraries on your own (for example, `es-toolkit`, utilities from `github.com/unjs`, or tiny tools from `github.com/tinylib`) without explicit user confirmation. If the user is working spec-driven, list candidate choices in a clear and concise Markdown comparison table.
 - Before planning or writing new utilities/functions, always search for existing internal implementations first. If the logic could become shared utilities, proactively propose that shared approach to users and developers.
 
 ## TypeScript Coding Regulations
@@ -249,8 +262,7 @@ These guidelines apply to all TypeScript code across the monorepo:
 
 - Do not create commits during implementation for this spec.
 - For implemented modules, use Vitest whenever possible to verify behavior and passing tests.
-- During test implementation, every workaround must include a clear and easy-to-understand `// NOTICE:` comment for reference.
-- Use the following workaround comment format whenever a workaround is introduced:
+- Every workaround must use this `// NOTICE:` format:
   ```ts
   // NOTICE:
   // Why this workaround is needed.
@@ -259,20 +271,12 @@ These guidelines apply to all TypeScript code across the monorepo:
   // Removal condition (when it can be safely deleted).
   ```
 - Prefer type generics wherever possible. Do not use `any`. Only use `as unknown as <target expected type>` when avoiding it is nearly impossible and the type cannot be fixed safely.
-- For public APIs, package-level exports, shared architectural boundaries, and non-trivial exported functions/classes/types, include clear `/** ... */` JSDoc that explains the contract, assumptions, side effects, lifecycle, or return guarantees callers actually need.
+- Use JSDoc for public APIs, package-level exports, shared architectural boundaries, and non-trivial exported functions, classes, and types. Document only contract details that the signature cannot express, such as assumptions, side effects, lifecycle, and return guarantees.
 - Avoid exporting helper functions only to satisfy tests or documentation rules. Keep implementation helpers private unless production code reuses them.
-- Avoid JSDoc on trivial one-line helpers, local projections, and pass-through functions; use precise names instead.
-- Do not use fixed JSDoc section templates for ordinary exported functions/classes/types. Write natural API documentation that explains the contract, non-obvious constraints, side effects, lifecycle expectations, and return guarantees that callers actually need.
-- Keep JSDoc short when the name and type already explain the behavior. Add detail only for information that is not visible from the signature.
-- For functions that include workarounds, include a `NOTICE:` explanation.
-- For exported test helpers or non-obvious reusable test fixtures, include examples when they clarify intended usage. Do not add `@example` comments to ordinary `describe`, `it`, or `expect*` calls.
-- For all exported interfaces, especially configurable options, document:
-  - What each interface/type represents.
-  - Put detailed field semantics on the fields themselves instead of repeating them in one large interface-level comment block.
-  - If the interface or type uses generic parameters, document them with `@param`.
-  - `@default` for every option that has a default value.
-- For interface and type JSDoc, keep the top-level comment focused on what the type represents. Do not use function-style `Use when`, `Expects`, or `Returns` sections on interfaces or type aliases. Put detailed meaning, defaults, and behavioral notes on the individual fields or methods instead of restating every field in the interface-level block.
-- For generic type parameters in JSDoc, use `@param` entries to explain what each type parameter represents.
+- Do not add JSDoc to trivial helpers, local projections, or pass-through functions. Avoid fixed section templates that restate names and signatures; prefer precise names and branch-local comments for implementation details.
+- For exported test helpers or non-obvious reusable test fixtures, include `@example` when it clarifies intended usage.
+- Do not attach JSDoc or `@example` blocks to ordinary `describe`, `it`, or `expect*` calls.
+- For exported interfaces and type aliases, keep the top-level JSDoc focused on what the type represents and put detailed semantics on the relevant fields. Document generic parameters with `@param`, and add `@default` to every option that has a default value.
 - For runner and CLI entrypoints, `/** ... */` JSDoc is required and must include a clear ASCII call-stack diagram using `{@link ...}` references where applicable. For server orchestrators, add the call-stack diagram only when it clarifies a stable architecture boundary; do not add diagrams to shallow glue code.
 - Use this call-stack section format in orchestrator/runner/CLI JSDoc:
   ```ts
@@ -287,20 +291,18 @@ These guidelines apply to all TypeScript code across the monorepo:
    *       -> {@link VievalScheduledTask}[]
    */
   ```
-- Wherever math, OS, exec, process, args, networking, files, or directories are involved, add comments explaining the purpose and why the code is needed when the intent is not obvious from names and local context. For calculation-heavy code, prefer inline comments beside the calculation process over declaration-only JSDoc.
+- For non-obvious OS, exec, process, argument, networking, file, or directory handling, explain the constraint or purpose near the relevant code.
 - Prefer `es-toolkit` first when creating utilities.
 - For error handling, prefer `@moeru/std` patterns whenever possible.
-- For exported normalizers, shared normalizers, or non-obvious local normalizers that normalize outputs, formats, filenames, or values (excluding config default normalization), add `/** ... */` with before/after examples.
+- For exported normalizers, shared normalizers, or non-obvious local normalizers that normalize outputs, formats, filenames, or values (excluding config default normalization), add `/** ... */` JSDoc with an `@example` showing representative input and output.
 - Use this normalizer documentation format:
   ```ts
   /**
    * Normalizes <target>.
    *
-   * Before:
-   * - "ExampleInput"
-   *
-   * After:
-   * - "example-output"
+   * @example
+   * normalizeTarget('ExampleInput')
+   * // => 'example-output'
    */
   ```
 - Do not move everything into constants. One-time or two-time constants should remain near usage (typically near the top after imports) with clear `/** ... */` explaining why.
@@ -328,12 +330,7 @@ These guidelines apply to all TypeScript code across the monorepo:
 
 When reviewing complex TypeScript modules, check:
 
-- Can I identify the module's owned state and external side effects within one screen?
-- Are persisted state, runtime state, cache state, session state, and external side effects separated by names or comments?
-- Are protocol envelopes, route names, ids, and correlation keys named or documented?
-- Are special branches and fallback cases explained next to the branch?
-- Are stale/fresh/cache/snapshot semantics visible at the return site?
-- Are cleanup and dispose semantics explicit?
-- Are helper functions hiding real policy, or just hiding the lines where explanation is needed?
-- Do comments explain why decisions exist, or mostly repeat what the code says?
-- Would a reader understand why this code is shaped this way without opening three neighboring files?
+- Are owned state, external side effects, lifecycle transitions, cleanup, and freshness semantics identifiable without tracing several neighboring files?
+- Are protocol envelopes, correlation keys, isolation rules, and fallback precedence explicit at their decision points?
+- Do module and helper boundaries hide meaningful policy rather than merely forwarding context or obscuring special cases?
+- Do comments explain non-obvious decisions beside the relevant code without restating names, types, or visible operations?

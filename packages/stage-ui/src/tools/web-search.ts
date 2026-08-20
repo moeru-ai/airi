@@ -196,7 +196,7 @@ function formatResults(query: string, results: SearchResult[]): string {
  * Only mount this when an API key is configured — a search with no key can only
  * ever error, so callers gate on the web-search module's `configured` state and
  * simply omit the tool otherwise (see `resolveWebSearchTools` in
- * `stores/llm-tool-resolver.ts`). The returned tool reads the web on the model's
+ * `stores/ai/chat-llm/tool-resolver.ts`). The returned tool reads the web on the model's
  * behalf; results are wrapped as untrusted content and must be paired with
  * {@link WEB_SEARCH_TOOLSET_PROMPT} in the system prompt.
  *

@@ -5,6 +5,8 @@ import { argv, exit } from 'node:process'
 
 import JSZip from 'jszip'
 
+import { decodeZipFileName } from './decode-zip-filename'
+
 /**
  * Enhanced reporting utility to analyze and validate Live2D ZIP structures.
  */
@@ -20,7 +22,7 @@ async function generateReport(zipPath: string) {
   }
 
   const data = fs.readFileSync(zipPath)
-  const zip = await JSZip.loadAsync(data)
+  const zip = await JSZip.loadAsync(data, { decodeFileName: decodeZipFileName })
   const allFiles = Object.keys(zip.files)
 
   const report = {

@@ -170,6 +170,45 @@ describe('kokoro adapter - device loss resilience', () => {
     }))
   })
 
+  it('should not restart the worker when generation is aborted', async () => {
+    const { createKokoroAdapter } = await import('./kokoro')
+    const adapter = createKokoroAdapter()
+
+    const loading = adapter.loadModel('q4', 'webgpu')
+    await vi.waitFor(() => expect(enqueueMock).toHaveBeenCalled())
+
+    const worker = MockWorker.instances.at(-1)!
+    const loadRequest = worker.postMessage.mock.calls.find(([message]) => message.type === 'load-model')?.[0]
+    expect(loadRequest?.requestId).toBeDefined()
+    worker.dispatch('message', {
+      data: {
+        type: 'model-ready',
+        requestId: loadRequest.requestId,
+        device: 'webgpu',
+        metadata: { voices: { af_heart: { name: 'Heart' } } },
+      },
+    })
+    await loading
+    expect(adapter.state).toBe('ready')
+
+    const controller = new AbortController()
+    const generating = adapter.generate('hello', 'af_heart' as any, { signal: controller.signal })
+
+    await vi.waitFor(() => {
+      expect(worker.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'run-inference' }))
+    })
+
+    controller.abort('cancel speech')
+
+    await expect(generating).rejects.toMatchObject({ name: 'AbortError' })
+    expect(adapter.state).toBe('ready')
+    expect(worker.terminate).not.toHaveBeenCalled()
+    expect(worker.postMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'cancel',
+      targetRequestId: expect.any(String),
+    }))
+  })
+
   it('should classify worker device-loss errors before restarting', async () => {
     const { createKokoroAdapter } = await import('./kokoro')
     const adapter = createKokoroAdapter()

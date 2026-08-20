@@ -1,7 +1,8 @@
+import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-export type SpeechOutputStopReason = 'manual-chat'
+export type SpeechOutputStopReason = 'manual-chat' | 'manual-all' | 'muted'
 
 /**
  * Represents a user-requested stop-speaking command for the stage output host.
@@ -14,6 +15,9 @@ export interface SpeechOutputStopRequest {
 }
 
 export const useSpeechOutputControlStore = defineStore('speech-output-control', () => {
+  const speechMuted = useLocalStorage('settings/speech/output-muted', false, {
+    window: typeof window === 'undefined' ? undefined : window,
+  })
   const latestStopRequest = ref<SpeechOutputStopRequest>()
   let nextRequestId = 1
 
@@ -36,8 +40,30 @@ export const useSpeechOutputControlStore = defineStore('speech-output-control', 
     }
   }
 
+  /**
+   * Enables or disables automatic assistant speech output.
+   *
+   * Enabling mute also publishes a stop request so an active Stage host can
+   * cancel synthesis, streaming transport, queued audio, and current playback.
+   */
+  function setSpeechMuted(muted: boolean) {
+    if (speechMuted.value === muted)
+      return
+
+    speechMuted.value = muted
+    if (muted)
+      requestStopSpeaking('muted')
+  }
+
+  function toggleSpeechMuted() {
+    setSpeechMuted(!speechMuted.value)
+  }
+
   return {
     latestStopRequest,
+    speechMuted,
     requestStopSpeaking,
+    setSpeechMuted,
+    toggleSpeechMuted,
   }
 })

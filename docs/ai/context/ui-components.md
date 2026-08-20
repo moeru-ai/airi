@@ -10,6 +10,21 @@ Source: `packages/ui/src/components/`
 
 ## Animations
 
+### AnimatedContent
+
+Behavior-only primitive that animates height, opacity, vertical offset, and an
+inner content blur from an external `data-state="open|closed"` lifecycle. The
+lifecycle owner must keep the primitive mounted until the closing animation
+finishes. It can compose with Reka UI content primitives through `as-child`, but
+does not depend on a specific menu, popover, or presence implementation. Visual
+styling remains caller-owned.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `as` | `PrimitiveProps['as']?` | `'div'` | Element or component rendered as the animated outer container |
+
+**Slots**: `default`
+
 ### TransitionBidirectional
 
 Bidirectional Vue `<Transition>` wrapper with customizable CSS classes.
@@ -88,23 +103,78 @@ Line-clamped content container that expands and collapses when the overflowing c
 
 ## Misc
 
-### Button
+### Avatar
 
-Versatile button with variants, sizes, and states.
+Shared user-avatar primitive built on Reka UI. It retries when `src` changes and
+renders the fallback when the URL is missing, loading, or fails.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `toggled` | `boolean?` | `false` | Toggle state |
+| `src` | `string \| null \| undefined` | `null` | Avatar image URL |
+| `alt` | `string \| null \| undefined` | `null` | Accessible image/fallback description; omit for decorative avatars |
+| `referrerPolicy` | `ImgHTMLAttributes['referrerpolicy']?` | — | Image referrer policy |
+| `crossOrigin` | `ImgHTMLAttributes['crossorigin']?` | — | Image cross-origin mode |
+
+**Slots**: `fallback` (optional override for the built-in user icon)
+
+### BasicButton
+
+Behavioral foundation for custom buttons. It owns disabled/loading behavior,
+press animation, sizing, icon/label rendering, and block layout, but supplies no
+surface, border, shape, or color styling.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
 | `icon` | `string?` | — | UnoCSS/Iconify icon class |
 | `label` | `string?` | — | Button text |
 | `disabled` | `boolean?` | `false` | Disabled state |
 | `loading` | `boolean?` | `false` | Loading state |
-| `variant` | `'primary' \| 'secondary' \| 'secondary-muted' \| 'danger' \| 'caution' \| 'pure' \| 'ghost'` | `'primary'` | Visual variant |
-| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Size |
-| `shape` | `'rounded' \| 'pill' \| 'square'` | `'pill'` | Shape |
+| `size` | `'sm' \| 'md' \| 'lg' \| 'unset'` | `'md'` | Preset size; `unset` leaves sizing to the caller |
 | `block` | `boolean?` | `false` | Full width |
 
 **Slots**: `default` (fallback when no `label`)
+
+`size="unset"` omits the preset padding and text-size classes in `BasicButton`,
+`Button`, and `GhostButton`. Callers must supply any required sizing, including
+fixed dimensions for circular buttons.
+
+### Button
+
+Solid general-purpose action. It has no border and shows offset outlines on
+hover and keyboard focus. Choose a Wind3 color family independently from its
+primary or secondary visual emphasis.
+
+Includes all `BasicButton` props, plus:
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `shape` | `'rect' \| 'rounded' \| 'circle' \| 'parallelogram'` | `'rect'` | Rectangular, pill-like, circular, or rounded angled geometry |
+| `color` | `'neutral' \| 'primary' \| 'cyan' \| 'blue' \| 'green' \| 'lime' \| 'amber' \| 'red' \| 'orange' \| 'purple' \| 'pink'` | `'neutral'` | Wind3 color family; `primary` follows the configured theme hue |
+| `variant` | `'primary' \| 'secondary'` | `'secondary'` | Solid high-emphasis or subtle low-emphasis treatment |
+| `outline` | `boolean?` | `true` | Show the offset outline on hover and keyboard focus |
+
+### GhostButton
+
+Low-emphasis contextual action with a transparent default surface and compact
+spacing. Hover, pressed, and selected states use a subtle primary surface and
+text treatment without an outline. The offset outline is reserved for keyboard
+focus. Includes all `BasicButton` props.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `active` | `boolean?` | `false` | Persist the subtle selected surface for toggle controls |
+
+### IconButton
+
+Minimal icon-only action for controls such as favorite, like, copy, or retry.
+It directly uses `BasicButton`, removes its padding, and does not add a
+background, outline, shape, or forced square dimensions. Supply an accessible
+`aria-label`. Props: `icon`, `disabled`, and `loading`.
+
+### OverlayButton
+
+Translucent, backdrop-blurred action without an outline, intended for floating
+controls such as the Tamagotchi Controls Island. Includes all `BasicButton` props.
 
 ### Callout
 
@@ -156,8 +226,8 @@ Two-stage confirmation button — click once to reveal confirm/cancel.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `variant` | `ButtonVariant` | `'danger'` | Confirm button variant |
-| `cancelVariant` | `ButtonVariant` | `'secondary'` | Cancel button variant |
+| `color` | `ButtonColor` | `'red'` | Confirm button color family |
+| `variant` | `ButtonVariant` | `'primary'` | Confirm button visual emphasis |
 | `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Size |
 | `block` | `boolean?` | `false` | Full width |
 | `disabled` | `boolean?` | `false` | Disabled |
@@ -188,6 +258,7 @@ Basic text/number input.
 | `type` | `InputType?` | — | HTML input type |
 | `variant` | `'primary' \| 'secondary' \| 'primary-dimmed'` | `'primary'` | Visual variant |
 | `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Size |
+| `disabled` | `boolean?` | — | Disable editing and focus |
 
 **v-model**: `modelValue: string | number`
 
@@ -350,6 +421,8 @@ Dropdown select using reka-ui with grouping and custom rendering.
 | `by` | `string \| ((a: T, b: T) => boolean)?` | — | Custom comparison |
 | `contentMinWidth` | `string \| number?` | `160` | Dropdown min width |
 | `contentWidth` | `string \| number?` | — | Dropdown width |
+| `contentSide` | `'top' \| 'right' \| 'bottom' \| 'left'` | `'bottom'` | Preferred dropdown side before collision handling |
+| `contentAlign` | `'start' \| 'center' \| 'end'` | `'start'` | Preferred dropdown alignment before collision handling |
 | `shape` | `'rounded' \| 'default'` | `'default'` | Shape |
 | `variant` | `'blurry' \| 'default'` | `'default'` | Variant |
 
@@ -447,6 +520,7 @@ All Field components wrap a base input with `label`, `description`, and consiste
 | `description` | `string?` | — | Helper text |
 | `placeholder` | `string?` | — | Placeholder |
 | `required` | `boolean?` | — | Required indicator |
+| `disabled` | `boolean?` | — | Disable editing and focus |
 | `type` | `InputType?` | — | Input type |
 | `autocomplete` | `string?` | — | Native autocomplete hint |
 | `inputClass` | `string?` | — | Custom input class |

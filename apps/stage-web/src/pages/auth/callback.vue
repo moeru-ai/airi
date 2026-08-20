@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
-import { applyOIDCTokens, fetchSession, triggerSignIn } from '@proj-airi/stage-ui/libs/auth'
+import { applyOIDCTokens, triggerSignIn } from '@proj-airi/stage-ui/libs/auth'
 import { consumeFlowState, exchangeCodeForTokens } from '@proj-airi/stage-ui/libs/auth-oidc'
 import { Button } from '@proj-airi/ui'
 import { onMounted, ref } from 'vue'
@@ -41,7 +41,6 @@ onMounted(async () => {
   try {
     const tokens = await exchangeCodeForTokens(code, persisted.flowState, persisted.params, state)
     await applyOIDCTokens(tokens, persisted.params.clientId)
-    await fetchSession()
     router.replace('/')
   }
   catch (err) {

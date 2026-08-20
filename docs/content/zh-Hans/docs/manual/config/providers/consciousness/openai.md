@@ -12,7 +12,7 @@ is_openai_compatible: true
 
 ## 第一步：获取 API 密钥
 
-1. 登录所选服务商的管理控制台。
+1. 使用 OpenAI 官方服务时，打开 [OpenAI API Keys](https://platform.openai.com/api-keys) 创建 API Key；使用兼容服务时，打开对应服务商的管理控制台。
 2. 在 API 密钥或开发者设置页面创建 API Key。
 3. 复制密钥并妥善保存。
 
@@ -26,10 +26,10 @@ is_openai_compatible: true
 2. 将 API Key 粘贴到基础设置。
 3. 使用 OpenAI 官方服务时，保留默认 Base URL：`https://api.openai.com/v1`；使用兼容服务时，填写服务商文档提供的 API 根地址，不要附加 `/chat/completions` 路径。
 
-### 3. 配置校验
+## 第三步：验证配置
 
-1. **Ping API**: 点击此按钮测试网络是否连通以及 API Key 是否填写正确。
-2. **选择模型**: 测试成功后，点击此处选择你想要使用的具体模型。
+1. **Ping API**：点击此按钮测试网络是否连通以及 API Key 是否填写正确。
+2. **选择模型**：测试成功后，点击此处选择你想要使用的具体模型。
 
 ## 排查
 

@@ -38,4 +38,4 @@ description: 为 AIRI 配置语音合成（TTS）和语音识别（ASR/STT）
 
 ## 下一步
 
-如需了解 API Key、Base URL 和验证流程的含义，请阅读[通用配置说明](./common.md)。
+如需了解 API Key、Base URL 和验证流程的含义，请阅读[通用配置说明](./common.md)。如需了解如何配置服务商，可展开侧栏“服务商→ 语音合成/语音识别”，并选择您想要的提供商。

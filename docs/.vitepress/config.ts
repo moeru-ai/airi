@@ -1,6 +1,6 @@
 import type { DefaultTheme } from 'vitepress'
 
-import type { ThemeConfig } from './theme/config.ts'
+import type { ThemeConfig } from './theme/config'
 
 import { join, posix, resolve } from 'node:path'
 import { env } from 'node:process'
@@ -15,7 +15,7 @@ import { tasklist } from '@mdit/plugin-tasklist'
 import { defineConfig, postcssIsolateStyles } from 'vitepress'
 
 import { version } from '../../package.json'
-import { webLive } from './constants.ts'
+import { webLive } from './constants'
 import { teamMembers } from './contributors'
 import {
   discord,
@@ -63,13 +63,6 @@ export default defineConfig<ThemeConfig>({
     ['meta', { name: 'twitter:image', content: ogImage }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['link', { rel: 'mask-icon', href: '/logo.svg', color: '#ffffff' }],
-    // Proxying Plausible through Netlify | Plausible docs
-    // https://plausible.io/docs/proxy/guides/netlify
-    ['script', { async: '', src: 'https://plausible.io/js/pa-HI8-_JIBI6d_2IgIr2Tai.js' }],
-    ['script', {}, `
-      window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
-      plausible.init()
-    `],
     ['script', {}, `
       ;(function () {
         const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -144,11 +137,12 @@ export default defineConfig<ThemeConfig>({
           {
             text: 'Manual',
             icon: 'lucide:book-open',
+            link: withBase('/en/docs/manual/'),
             items: [
               {
                 text: 'Quick Start',
                 items: [
-                  { text: 'Desktop Version', link: withBase('/en/docs/manual/tamagotchi/') },
+                  { text: 'Desktop ver.', link: withBase('/en/docs/manual/tamagotchi/') },
                   { text: 'Web Version', link: withBase('/en/docs/manual/web/') },
                 ],
               },
@@ -157,30 +151,131 @@ export default defineConfig<ThemeConfig>({
                 text: 'Configuration',
                 items: [
                   { text: 'Configuration Guide', link: withBase('/en/docs/manual/config/') },
+                  { text: 'Common Setup', link: withBase('/en/docs/manual/config/common') },
+                  { text: 'Feature Configuration', collapsed: true, items: [
+                    { text: 'Chat Models', link: withBase('/en/docs/manual/config/llm') },
+                    { text: 'Audio Input and Output', link: withBase('/en/docs/manual/config/audio') },
+                    { text: 'Vision', link: withBase('/en/docs/manual/config/vision') },
+                    { text: 'Web Search', link: withBase('/en/docs/manual/config/web-search') },
+                  ] },
+                  { text: 'Service Providers', collapsed: true, items: [
+                    { text: 'Chat', collapsed: true, items: [
+                      { text: 'AIRI Official Provider', link: withBase('/en/docs/manual/config/providers/consciousness/official') },
+                      { text: 'AIHubMix', link: withBase('/en/docs/manual/config/providers/consciousness/aihubmix') },
+                      { text: 'Amazon Bedrock', link: withBase('/en/docs/manual/config/providers/consciousness/amazon-bedrock') },
+                      { text: 'Anthropic', link: withBase('/en/docs/manual/config/providers/consciousness/anthropic') },
+                      { text: 'Atlas Cloud', link: withBase('/en/docs/manual/config/providers/consciousness/atlascloud') },
+                      { text: 'Azure AI Foundry', link: withBase('/en/docs/manual/config/providers/consciousness/azure-ai-foundry') },
+                      { text: 'Azure OpenAI', link: withBase('/en/docs/manual/config/providers/consciousness/azure-openai') },
+                      { text: 'BytePlus', link: withBase('/en/docs/manual/config/providers/consciousness/byteplus') },
+                      { text: 'BytePlus Coding Plan', link: withBase('/en/docs/manual/config/providers/consciousness/byteplus-coding-plan') },
+                      { text: 'Cerebras', link: withBase('/en/docs/manual/config/providers/consciousness/cerebras') },
+                      { text: 'Comet API', link: withBase('/en/docs/manual/config/providers/consciousness/comet-api') },
+                      { text: 'Google Gemini', link: withBase('/en/docs/manual/config/providers/consciousness/google-gemini') },
+                      { text: 'xAI', link: withBase('/en/docs/manual/config/providers/consciousness/xai') },
+                      { text: 'Cloudflare Workers AI', link: withBase('/en/docs/manual/config/providers/consciousness/cloudflare-workers-ai') },
+                      { text: 'LM Studio (Local Model)', link: withBase('/en/docs/manual/config/providers/consciousness/lm-studio') },
+                      { text: 'OpenPaths', link: withBase('/en/docs/manual/config/providers/consciousness/openpaths') },
+                      { text: 'OpenRouter', link: withBase('/en/docs/manual/config/providers/consciousness/openrouter') },
+                      { text: 'Ollama', link: withBase('/en/docs/manual/config/providers/consciousness/ollama') },
+                      { text: 'DeepSeek', link: withBase('/en/docs/manual/config/providers/consciousness/deepseek') },
+                      { text: 'OpenAI & Compatible APIs', link: withBase('/en/docs/manual/config/providers/consciousness/openai') },
+                      { text: '302.AI', link: withBase('/en/docs/manual/config/providers/consciousness/302ai') },
+                      { text: 'Fireworks.ai', link: withBase('/en/docs/manual/config/providers/consciousness/fireworks') },
+                      { text: 'Featherless AI', link: withBase('/en/docs/manual/config/providers/consciousness/featherless') },
+                      { text: 'Groq', link: withBase('/en/docs/manual/config/providers/consciousness/groq') },
+                      { text: 'MiniMax', link: withBase('/en/docs/manual/config/providers/consciousness/minimax') },
+                      { text: 'MiniMax Global', link: withBase('/en/docs/manual/config/providers/consciousness/minimax-global') },
+                      { text: 'Mistral', link: withBase('/en/docs/manual/config/providers/consciousness/mistral') },
+                      { text: 'Xiaomi MiMo', link: withBase('/en/docs/manual/config/providers/consciousness/mimo') },
+                      { text: 'ModelScope', link: withBase('/en/docs/manual/config/providers/consciousness/modelscope') },
+                      { text: 'Moonshot AI', link: withBase('/en/docs/manual/config/providers/consciousness/moonshot') },
+                      { text: 'NVIDIA NIM', link: withBase('/en/docs/manual/config/providers/consciousness/nvidia') },
+                      { text: 'n1n', link: withBase('/en/docs/manual/config/providers/consciousness/n1n') },
+                      { text: 'Novita', link: withBase('/en/docs/manual/config/providers/consciousness/novita') },
+                      { text: 'Perplexity', link: withBase('/en/docs/manual/config/providers/consciousness/perplexity') },
+                      { text: 'Together.ai', link: withBase('/en/docs/manual/config/providers/consciousness/together') },
+                      { text: 'Z.ai', link: withBase('/en/docs/manual/config/providers/consciousness/zhipu') },
+                      { text: 'Volcengine Coding Plan', link: withBase('/en/docs/manual/config/providers/consciousness/volcengine-coding-plan') },
+                    ] },
+                    { text: 'Speech', collapsed: true, items: [
+                      { text: 'Official Speech Provider', link: withBase('/en/docs/manual/config/providers/speech/official') },
+                      { text: 'Alibaba Cloud Model Studio', link: withBase('/en/docs/manual/config/providers/speech/alibaba-cloud-model-studio') },
+                      { text: 'Browser (Local)', link: withBase('/en/docs/manual/config/providers/speech/browser-local') },
+                      { text: 'Comet API', link: withBase('/en/docs/manual/config/providers/speech/comet-api') },
+                      { text: 'Deepgram', link: withBase('/en/docs/manual/config/providers/speech/deepgram') },
+                      { text: 'Desktop (Local)', link: withBase('/en/docs/manual/config/providers/speech/desktop-local') },
+                      { text: 'ElevenLabs', link: withBase('/en/docs/manual/config/providers/speech/elevenlabs') },
+                      { text: 'Google Gemini', link: withBase('/en/docs/manual/config/providers/speech/google-gemini') },
+                      { text: 'Bilibili / IndexTTS', link: withBase('/en/docs/manual/config/providers/speech/index-tts') },
+                      { text: 'Kokoro TTS (Local)', link: withBase('/en/docs/manual/config/providers/speech/kokoro') },
+                      { text: 'Microsoft Azure Speech', link: withBase('/en/docs/manual/config/providers/speech/azure-speech') },
+                      { text: 'MiniMax Speech (Unavailable)', link: withBase('/en/docs/manual/config/providers/speech/minimax') },
+                      { text: 'Xiaomi MiMo', link: withBase('/en/docs/manual/config/providers/speech/mimo') },
+                      { text: 'OpenAI & Compatible APIs', link: withBase('/en/docs/manual/config/providers/speech/openai') },
+                      { text: 'OpenRouter', link: withBase('/en/docs/manual/config/providers/speech/openrouter') },
+                      { text: 'Player2', link: withBase('/en/docs/manual/config/providers/speech/player2') },
+                      { text: 'Volcano Engine', link: withBase('/en/docs/manual/config/providers/speech/volcengine') },
+                    ] },
+                    { text: 'Transcription', collapsed: true, items: [
+                      { text: 'Official Transcription Provider', link: withBase('/en/docs/manual/config/providers/transcription/official') },
+                      { text: 'Aliyun NLS', link: withBase('/en/docs/manual/config/providers/transcription/aliyun') },
+                      { text: 'Browser (Local)', link: withBase('/en/docs/manual/config/providers/transcription/browser-local') },
+                      { text: 'Browser Web Speech API', link: withBase('/en/docs/manual/config/providers/transcription/web-speech-api') },
+                      { text: 'Comet API', link: withBase('/en/docs/manual/config/providers/transcription/comet-api') },
+                      { text: 'Desktop (Local)', link: withBase('/en/docs/manual/config/providers/transcription/desktop-local') },
+                      { text: 'Xiaomi MiMo', link: withBase('/en/docs/manual/config/providers/transcription/mimo') },
+                      { text: 'OpenAI & Compatible APIs', link: withBase('/en/docs/manual/config/providers/transcription/openai') },
+                    ] },
+                    { text: 'Artistry', collapsed: true, items: [
+                      { text: 'ComfyUI (Local Workflow)', link: withBase('/en/docs/manual/config/providers/artistry/comfyui') },
+                      { text: 'Nano Banana', link: withBase('/en/docs/manual/config/providers/artistry/nanobanana') },
+                      { text: 'Replicate', link: withBase('/en/docs/manual/config/providers/artistry/replicate') },
+                    ] },
+                  ] },
                 ],
               },
             ],
           },
           {
-            text: 'Contributing',
-            icon: 'lucide:users',
+            text: 'Integration Services',
+            icon: 'lucide:plug',
             items: [
               {
-                text: 'Basic Setup',
+                text: 'Games',
                 items: [
-                  { text: 'Environment Setup & Prerequisites', link: withBase('/en/docs/contributing/') },
+                  { text: 'Minecraft Agent', link: withBase('/en/docs/integrations/minecraft') },
+                  { text: 'Factorio', link: withBase('/en/docs/integrations/factorio') },
+                ],
+              },
+              {
+                text: 'Messaging Platforms',
+                items: [
+                  { text: 'Satori Bot', link: withBase('/en/docs/integrations/satori') },
+                  { text: 'Telegram Bot', link: withBase('/en/docs/integrations/telegram') },
+                  { text: 'Discord Bot', link: withBase('/en/docs/integrations/discord') },
+                  { text: 'X / Twitter (Unavailable)', link: withBase('/en/docs/integrations/x') },
+                ],
+              },
+            ],
+          },
+          {
+            text: 'Developer Guide',
+            icon: 'lucide:code-2',
+            items: [
+              {
+                text: 'Contributing',
+                items: [
+                  { text: 'Development Setup & First Contribution', link: withBase('/en/docs/contributing/') },
                   { text: 'Desktop App', link: withBase('/en/docs/contributing/tamagotchi') },
-                  { text: 'Web UI', link: withBase('/en/docs/contributing/webui') },
+                  { text: 'Web App', link: withBase('/en/docs/contributing/webui') },
                   { text: 'Documentation Site', link: withBase('/en/docs/contributing/docs') },
                 ],
               },
               {
-                text: 'Games & Social Platforms',
+                text: 'Desktop Debugging',
                 items: [
-                  { text: 'Minecraft', link: withBase('/en/docs/contributing/services/minecraft') },
-                  { text: 'Satori Bot', link: withBase('/en/docs/contributing/services/satori') },
-                  { text: 'Telegram Bot', link: withBase('/en/docs/contributing/services/telegram') },
-                  { text: 'Discord Bot', link: withBase('/en/docs/contributing/services/discord') },
+                  { text: 'Developer Tools', link: withBase('/en/docs/contributing/desktop-developer-tools') },
                 ],
               },
               {
@@ -200,11 +295,6 @@ export default defineConfig<ThemeConfig>({
               { text: 'Initial Publish v0.1.0', link: withBase('/en/docs/chronicles/version-v0.1.0/') },
               { text: 'Before Story v0.0.1', link: withBase('/en/docs/chronicles/version-v0.0.1/') },
             ],
-          },
-          {
-            text: 'Characters',
-            icon: 'lucide:scan-face',
-            link: withBase('/en/characters/'),
           },
         ] as (DefaultTheme.SidebarItem & { icon?: string })[],
 
@@ -281,11 +371,20 @@ export default defineConfig<ThemeConfig>({
               { text: '有关 AI VTuber', link: withBase('/zh-Hans/docs/overview/about-ai-vtuber') },
               { text: '有关 Neuro-sama', link: withBase('/zh-Hans/docs/overview/about-neuro-sama') },
               { text: '其他类似项目', link: withBase('/zh-Hans/docs/overview/other-similar-projects') },
+              {
+                text: '编年史',
+                collapsed: true,
+                items: [
+                  { text: '首次公开 v0.1.0', link: withBase('/zh-Hans/docs/chronicles/version-v0.1.0/') },
+                  { text: '先前的故事 v0.0.1', link: withBase('/zh-Hans/docs/chronicles/version-v0.0.1/') },
+                ],
+              },
             ],
           },
           {
             text: '用户手册',
             icon: 'lucide:book-open',
+            link: withBase('/zh-Hans/docs/manual/'),
             items: [
               {
                 text: '快速开始',
@@ -303,17 +402,19 @@ export default defineConfig<ThemeConfig>({
                 items: [
                   { text: '配置指南', link: withBase('/zh-Hans/docs/manual/config/') },
                   { text: '通用说明', link: withBase('/zh-Hans/docs/manual/config/common') },
-                  { text: '聊天模型', link: withBase('/zh-Hans/docs/manual/config/llm') },
-                  { text: '语音输入与输出', link: withBase('/zh-Hans/docs/manual/config/audio') },
-                  { text: '视觉理解', link: withBase('/zh-Hans/docs/manual/config/vision') },
-                  { text: '艺术创作', link: withBase('/zh-Hans/docs/manual/config/providers/artistry/') },
-                  { text: '支持的服务商目录', link: withBase('/zh-Hans/docs/manual/config/providers/catalog') },
-                  { text: '配置服务来源', collapsed: true, items: [
-                    { text: '聊天', collapsed: true, items: [
+                  { text: '功能配置', collapsed: true, items: [
+                    { text: '聊天模型', link: withBase('/zh-Hans/docs/manual/config/llm') },
+                    { text: '语音输入与输出', link: withBase('/zh-Hans/docs/manual/config/audio') },
+                    { text: '视觉理解', link: withBase('/zh-Hans/docs/manual/config/vision') },
+                    { text: '网络搜索', link: withBase('/zh-Hans/docs/manual/config/web-search') },
+                  ] },
+                  { text: '服务商', collapsed: true, items: [
+                    { text: '聊天服务商', collapsed: true, items: [
                       { text: 'AIRI 官方提供商', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/official') },
                       { text: 'AIHubMix', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/aihubmix') },
                       { text: 'Amazon Bedrock', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/amazon-bedrock') },
                       { text: 'Anthropic', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/anthropic') },
+                      { text: 'Atlas Cloud', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/atlascloud') },
                       { text: 'Azure AI Foundry', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/azure-ai-foundry') },
                       { text: 'Azure OpenAI', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/azure-openai') },
                       { text: 'BytePlus', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/byteplus') },
@@ -324,12 +425,13 @@ export default defineConfig<ThemeConfig>({
                       { text: 'xAI', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/xai') },
                       { text: 'Cloudflare Workers AI', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/cloudflare-workers-ai') },
                       { text: 'LM Studio（本地模型）', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/lm-studio') },
+                      { text: 'OpenPaths', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/openpaths') },
                       { text: 'OpenRouter', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/openrouter') },
                       { text: 'Ollama', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/ollama') },
                       { text: '深度求索 DeepSeek', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/deepseek') },
-                      { text: 'OpenAI (和兼容 API)', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/openai') },
+                      { text: 'OpenAI 与兼容 API', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/openai') },
                       { text: '302.ai', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/302ai') },
-                      { text: 'fireworks', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/fireworks') },
+                      { text: 'Fireworks AI', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/fireworks') },
                       { text: 'Featherless.ai', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/featherless') },
                       { text: 'Groq', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/groq') },
                       { text: 'MiniMax', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/minimax') },
@@ -338,7 +440,7 @@ export default defineConfig<ThemeConfig>({
                       { text: '小米 MiMo', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/mimo') },
                       { text: 'ModelScope', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/modelscope') },
                       { text: '月之暗面', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/moonshot') },
-                      { text: 'Nvidia NIM', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/nvidia') },
+                      { text: 'NVIDIA NIM', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/nvidia') },
                       { text: 'n1n', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/n1n') },
                       { text: 'Novita', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/novita') },
                       { text: 'Perplexity', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/perplexity') },
@@ -360,7 +462,7 @@ export default defineConfig<ThemeConfig>({
                       { text: 'Microsoft Azure Speech', link: withBase('/zh-Hans/docs/manual/config/providers/speech/azure-speech') },
                       { text: 'MiniMax Speech', link: withBase('/zh-Hans/docs/manual/config/providers/speech/minimax') },
                       { text: '小米 MiMo', link: withBase('/zh-Hans/docs/manual/config/providers/speech/mimo') },
-                      { text: 'OpenAI (和兼容 API)', link: withBase('/zh-Hans/docs/manual/config/providers/speech/openai') },
+                      { text: 'OpenAI 与兼容 API', link: withBase('/zh-Hans/docs/manual/config/providers/speech/openai') },
                       { text: 'OpenRouter', link: withBase('/zh-Hans/docs/manual/config/providers/speech/openrouter') },
                       { text: 'Player2 Speech', link: withBase('/zh-Hans/docs/manual/config/providers/speech/player2') },
                       { text: '火山引擎', link: withBase('/zh-Hans/docs/manual/config/providers/speech/volcengine') },
@@ -373,60 +475,66 @@ export default defineConfig<ThemeConfig>({
                       { text: 'CometAPI', link: withBase('/zh-Hans/docs/manual/config/providers/transcription/comet-api') },
                       { text: '桌面端本地语音识别', link: withBase('/zh-Hans/docs/manual/config/providers/transcription/desktop-local') },
                       { text: '小米 MiMo', link: withBase('/zh-Hans/docs/manual/config/providers/transcription/mimo') },
-                      { text: 'OpenAI (和兼容 API)', link: withBase('/zh-Hans/docs/manual/config/providers/transcription/openai') },
+                      { text: 'OpenAI 与兼容 API', link: withBase('/zh-Hans/docs/manual/config/providers/transcription/openai') },
                     ] },
-                    { text: '艺术创作', collapsed: true, items: [
+                    { text: '艺术创作服务商', collapsed: true, items: [
                       { text: 'ComfyUI（本地工作流）', link: withBase('/zh-Hans/docs/manual/config/providers/artistry/comfyui') },
-                      { text: 'Replicate', link: withBase('/zh-Hans/docs/manual/config/providers/artistry/replicate') },
                       { text: 'Nano Banana', link: withBase('/zh-Hans/docs/manual/config/providers/artistry/nanobanana') },
+                      { text: 'Replicate', link: withBase('/zh-Hans/docs/manual/config/providers/artistry/replicate') },
                     ] },
                   ] },
                 ],
               },
+            ],
+          },
+          {
+            text: '集成服务',
+            icon: 'lucide:plug',
+            items: [
               {
-                text: '贡献指南',
-                icon: 'lucide:users',
+                text: '游戏',
                 items: [
-                  {
-                    text: '基础配置与开发',
-                    items: [
-                      { text: '环境配置与基础准备', link: withBase('/zh-Hans/docs/contributing/') },
-                      { text: '桌面端', link: withBase('/zh-Hans/docs/contributing/tamagotchi') },
-                      { text: '网页端', link: withBase('/zh-Hans/docs/contributing/webui') },
-                      { text: '文档站', link: withBase('/zh-Hans/docs/contributing/docs') },
-                    ],
-                  },
-                  {
-                    text: '游戏与社交平台',
-                    items: [
-                      { text: 'Minecraft', link: withBase('/zh-Hans/docs/contributing/services/minecraft') },
-                      { text: 'Satori Bot', link: withBase('/zh-Hans/docs/contributing/services/satori') },
-                      { text: 'Telegram Bot', link: withBase('/zh-Hans/docs/contributing/services/telegram') },
-                      { text: 'Discord Bot', link: withBase('/zh-Hans/docs/contributing/services/discord') },
-                    ],
-                  },
-                  {
-                    text: '设计指南',
-                    items: [
-                      { text: '介绍', link: withBase('/zh-Hans/docs/contributing/design-guidelines/') },
-                      { text: '艺术家与开发者 (参考资源)', link: withBase('/zh-Hans/docs/contributing/design-guidelines/resources') },
-                      { text: '工具', link: withBase('/zh-Hans/docs/contributing/design-guidelines/tools') },
-                    ],
-                  },
+                  { text: 'Minecraft 智能体', link: withBase('/zh-Hans/docs/integrations/minecraft') },
+                  { text: '异星工厂', link: withBase('/zh-Hans/docs/integrations/factorio') },
                 ],
               },
               {
-                text: '编年史',
-                icon: 'lucide:calendar-days',
+                text: '消息平台',
                 items: [
-                  { text: '首次公开 v0.1.0', link: withBase('/zh-Hans/docs/chronicles/version-v0.1.0/') },
-                  { text: '先前的故事 v0.0.1', link: withBase('/zh-Hans/docs/chronicles/version-v0.0.1/') },
+                  { text: 'Satori 机器人', link: withBase('/zh-Hans/docs/integrations/satori') },
+                  { text: 'Telegram 机器人', link: withBase('/zh-Hans/docs/integrations/telegram') },
+                  { text: 'Discord 机器人', link: withBase('/zh-Hans/docs/integrations/discord') },
+                  { text: 'X / Twitter', link: withBase('/zh-Hans/docs/integrations/x') },
+                ],
+              },
+            ],
+          },
+          {
+            text: '开发者指南',
+            icon: 'lucide:code-2',
+            items: [
+              {
+                text: '参与贡献',
+                items: [
+                  { text: '开发环境与首次贡献', link: withBase('/zh-Hans/docs/contributing/') },
+                  { text: '桌面端', link: withBase('/zh-Hans/docs/contributing/tamagotchi') },
+                  { text: '网页端', link: withBase('/zh-Hans/docs/contributing/webui') },
+                  { text: '文档站', link: withBase('/zh-Hans/docs/contributing/docs') },
                 ],
               },
               {
-                text: '角色',
-                icon: 'lucide:scan-face',
-                link: withBase('/zh-Hans/characters/'),
+                text: '桌面端调试',
+                items: [
+                  { text: '开发者工具', link: withBase('/zh-Hans/docs/contributing/desktop-developer-tools') },
+                ],
+              },
+              {
+                text: '设计指南',
+                items: [
+                  { text: '介绍', link: withBase('/zh-Hans/docs/contributing/design-guidelines/') },
+                  { text: '艺术家与开发者 (参考资源)', link: withBase('/zh-Hans/docs/contributing/design-guidelines/resources') },
+                  { text: '工具', link: withBase('/zh-Hans/docs/contributing/design-guidelines/tools') },
+                ],
               },
             ],
           },
@@ -510,6 +618,7 @@ export default defineConfig<ThemeConfig>({
           {
             text: 'マニュアル',
             icon: 'lucide:book-open',
+            link: withBase('/ja/docs/manual/'),
             items: [
               {
                 text: 'クイックスタート',
@@ -566,11 +675,6 @@ export default defineConfig<ThemeConfig>({
               { text: '前日譚 v0.0.1', link: withBase('/ja/docs/chronicles/version-v0.0.1/') },
             ],
           },
-          {
-            text: 'キャラクター',
-            icon: 'lucide:scan-face',
-            link: withBase('/ja/characters/'),
-          },
         ] as (DefaultTheme.SidebarItem & { icon?: string })[],
 
         homepage: {
@@ -588,6 +692,245 @@ export default defineConfig<ThemeConfig>({
             {
               text: 'はじめに',
               link: withBase('/ja/docs/overview/'),
+            },
+          ],
+        },
+      },
+    },
+    'ko': {
+      label: '한국어',
+      lang: 'ko',
+      themeConfig: {
+        // https://vitepress.dev/reference/default-theme-config
+        nav: [
+          { text: '문서', link: withBase('/ko/docs/overview/') },
+          { text: '블로그', link: withBase('/ko/blog/') },
+          {
+            text: `v${version}`,
+            items: [
+              { text: '릴리스 노트', link: releases },
+            ],
+          },
+          {
+            text: '소개',
+            items: [
+              { text: '개인정보 처리방침', link: withBase('/ko/about/privacy') },
+              { text: '이용약관', link: withBase('/ko/about/terms') },
+            ],
+          },
+        ],
+        outline: {
+          level: 'deep',
+          label: '이 페이지의 내용',
+        },
+        docFooter: {
+          prev: '이전 페이지',
+          next: '다음 페이지',
+        },
+        editLink: {
+          pattern: 'https://github.com/moeru-ai/airi/edit/main/docs/content/:path',
+          text: 'GitHub에서 이 페이지 편집하기',
+        },
+        lastUpdated: {
+          text: '마지막 업데이트',
+        },
+        darkModeSwitchLabel: '테마',
+        sidebarMenuLabel: '메뉴',
+        returnToTopLabel: '맨 위로',
+        langMenuLabel: '언어 변경',
+        logo: withBase('/favicon.svg'),
+
+        sidebar: [
+          {
+            text: '개요',
+            icon: 'lucide:rocket',
+            items: [
+              { text: '소개', link: withBase('/ko/docs/overview/') },
+              { text: '버전과 다운로드', link: withBase('/ko/docs/overview/versions') },
+              { text: 'AI VTuber 란', link: withBase('/ko/docs/overview/about-ai-vtuber') },
+              { text: 'Neuro-sama 란', link: withBase('/ko/docs/overview/about-neuro-sama') },
+              { text: '비슷한 다른 프로젝트들', link: withBase('/ko/docs/overview/other-similar-projects') },
+            ],
+          },
+          {
+            text: '사용 설명서',
+            icon: 'lucide:book-open',
+            link: withBase('/ko/docs/manual/'),
+            items: [
+              {
+                text: '빠른 시작',
+                items: [
+                  { text: '데스크톱 버전', link: withBase('/ko/docs/manual/tamagotchi/') },
+                  { text: '웹 버전', link: withBase('/ko/docs/manual/web/') },
+                ],
+              },
+              { text: '설치와 사용', link: withBase('/ko/docs/manual/tamagotchi/setup-and-use/') },
+              {
+                text: '설정',
+                items: [
+                  { text: '설정 가이드', link: withBase('/ko/docs/manual/config/') },
+                  { text: '공통 설정', link: withBase('/ko/docs/manual/config/common') },
+                  { text: '기능 설정', collapsed: true, items: [
+                    { text: '채팅 모델', link: withBase('/ko/docs/manual/config/llm') },
+                    { text: '오디오 입출력', link: withBase('/ko/docs/manual/config/audio') },
+                    { text: '비전', link: withBase('/ko/docs/manual/config/vision') },
+                    { text: '웹 검색', link: withBase('/ko/docs/manual/config/web-search') },
+                  ] },
+                  { text: '서비스 제공자', collapsed: true, items: [
+                    { text: '채팅', collapsed: true, items: [
+                      { text: 'AIRI 공식 제공자', link: withBase('/ko/docs/manual/config/providers/consciousness/official') },
+                      { text: 'AIHubMix', link: withBase('/ko/docs/manual/config/providers/consciousness/aihubmix') },
+                      { text: 'Amazon Bedrock', link: withBase('/ko/docs/manual/config/providers/consciousness/amazon-bedrock') },
+                      { text: 'Anthropic', link: withBase('/ko/docs/manual/config/providers/consciousness/anthropic') },
+                      { text: 'Atlas Cloud', link: withBase('/ko/docs/manual/config/providers/consciousness/atlascloud') },
+                      { text: 'Azure AI Foundry', link: withBase('/ko/docs/manual/config/providers/consciousness/azure-ai-foundry') },
+                      { text: 'Azure OpenAI', link: withBase('/ko/docs/manual/config/providers/consciousness/azure-openai') },
+                      { text: 'BytePlus', link: withBase('/ko/docs/manual/config/providers/consciousness/byteplus') },
+                      { text: 'BytePlus Coding Plan', link: withBase('/ko/docs/manual/config/providers/consciousness/byteplus-coding-plan') },
+                      { text: 'Cerebras', link: withBase('/ko/docs/manual/config/providers/consciousness/cerebras') },
+                      { text: 'Comet API', link: withBase('/ko/docs/manual/config/providers/consciousness/comet-api') },
+                      { text: 'Google Gemini', link: withBase('/ko/docs/manual/config/providers/consciousness/google-gemini') },
+                      { text: 'xAI', link: withBase('/ko/docs/manual/config/providers/consciousness/xai') },
+                      { text: 'Cloudflare Workers AI', link: withBase('/ko/docs/manual/config/providers/consciousness/cloudflare-workers-ai') },
+                      { text: 'LM Studio (로컬 모델)', link: withBase('/ko/docs/manual/config/providers/consciousness/lm-studio') },
+                      { text: 'OpenPaths', link: withBase('/ko/docs/manual/config/providers/consciousness/openpaths') },
+                      { text: 'OpenRouter', link: withBase('/ko/docs/manual/config/providers/consciousness/openrouter') },
+                      { text: 'Ollama', link: withBase('/ko/docs/manual/config/providers/consciousness/ollama') },
+                      { text: 'DeepSeek', link: withBase('/ko/docs/manual/config/providers/consciousness/deepseek') },
+                      { text: 'OpenAI & 호환 API', link: withBase('/ko/docs/manual/config/providers/consciousness/openai') },
+                      { text: '302.AI', link: withBase('/ko/docs/manual/config/providers/consciousness/302ai') },
+                      { text: 'Fireworks.ai', link: withBase('/ko/docs/manual/config/providers/consciousness/fireworks') },
+                      { text: 'Featherless AI', link: withBase('/ko/docs/manual/config/providers/consciousness/featherless') },
+                      { text: 'Groq', link: withBase('/ko/docs/manual/config/providers/consciousness/groq') },
+                      { text: 'MiniMax', link: withBase('/ko/docs/manual/config/providers/consciousness/minimax') },
+                      { text: 'MiniMax Global', link: withBase('/ko/docs/manual/config/providers/consciousness/minimax-global') },
+                      { text: 'Mistral', link: withBase('/ko/docs/manual/config/providers/consciousness/mistral') },
+                      { text: 'Xiaomi MiMo', link: withBase('/ko/docs/manual/config/providers/consciousness/mimo') },
+                      { text: 'ModelScope', link: withBase('/ko/docs/manual/config/providers/consciousness/modelscope') },
+                      { text: 'Moonshot AI', link: withBase('/ko/docs/manual/config/providers/consciousness/moonshot') },
+                      { text: 'NVIDIA NIM', link: withBase('/ko/docs/manual/config/providers/consciousness/nvidia') },
+                      { text: 'n1n', link: withBase('/ko/docs/manual/config/providers/consciousness/n1n') },
+                      { text: 'Novita', link: withBase('/ko/docs/manual/config/providers/consciousness/novita') },
+                      { text: 'Perplexity', link: withBase('/ko/docs/manual/config/providers/consciousness/perplexity') },
+                      { text: 'Together.ai', link: withBase('/ko/docs/manual/config/providers/consciousness/together') },
+                      { text: 'Z.ai', link: withBase('/ko/docs/manual/config/providers/consciousness/zhipu') },
+                      { text: 'Volcengine Coding Plan', link: withBase('/ko/docs/manual/config/providers/consciousness/volcengine-coding-plan') },
+                    ] },
+                    { text: '음성 합성', collapsed: true, items: [
+                      { text: '공식 음성 합성 제공자', link: withBase('/ko/docs/manual/config/providers/speech/official') },
+                      { text: 'Alibaba Cloud Model Studio', link: withBase('/ko/docs/manual/config/providers/speech/alibaba-cloud-model-studio') },
+                      { text: '브라우저 (로컬)', link: withBase('/ko/docs/manual/config/providers/speech/browser-local') },
+                      { text: 'Comet API', link: withBase('/ko/docs/manual/config/providers/speech/comet-api') },
+                      { text: 'Deepgram', link: withBase('/ko/docs/manual/config/providers/speech/deepgram') },
+                      { text: '데스크톱 (로컬)', link: withBase('/ko/docs/manual/config/providers/speech/desktop-local') },
+                      { text: 'ElevenLabs', link: withBase('/ko/docs/manual/config/providers/speech/elevenlabs') },
+                      { text: 'Google Gemini', link: withBase('/ko/docs/manual/config/providers/speech/google-gemini') },
+                      { text: 'Bilibili / IndexTTS', link: withBase('/ko/docs/manual/config/providers/speech/index-tts') },
+                      { text: 'Kokoro TTS (로컬)', link: withBase('/ko/docs/manual/config/providers/speech/kokoro') },
+                      { text: 'Microsoft Azure Speech', link: withBase('/ko/docs/manual/config/providers/speech/azure-speech') },
+                      { text: 'MiniMax Speech (사용 불가)', link: withBase('/ko/docs/manual/config/providers/speech/minimax') },
+                      { text: 'Xiaomi MiMo', link: withBase('/ko/docs/manual/config/providers/speech/mimo') },
+                      { text: 'OpenAI & 호환 API', link: withBase('/ko/docs/manual/config/providers/speech/openai') },
+                      { text: 'OpenRouter', link: withBase('/ko/docs/manual/config/providers/speech/openrouter') },
+                      { text: 'Player2', link: withBase('/ko/docs/manual/config/providers/speech/player2') },
+                      { text: 'Volcano Engine', link: withBase('/ko/docs/manual/config/providers/speech/volcengine') },
+                    ] },
+                    { text: '전사', collapsed: true, items: [
+                      { text: '공식 전사 제공자', link: withBase('/ko/docs/manual/config/providers/transcription/official') },
+                      { text: 'Aliyun NLS', link: withBase('/ko/docs/manual/config/providers/transcription/aliyun') },
+                      { text: '브라우저 (로컬)', link: withBase('/ko/docs/manual/config/providers/transcription/browser-local') },
+                      { text: '브라우저 Web Speech API', link: withBase('/ko/docs/manual/config/providers/transcription/web-speech-api') },
+                      { text: 'Comet API', link: withBase('/ko/docs/manual/config/providers/transcription/comet-api') },
+                      { text: '데스크톱 (로컬)', link: withBase('/ko/docs/manual/config/providers/transcription/desktop-local') },
+                      { text: 'Xiaomi MiMo', link: withBase('/ko/docs/manual/config/providers/transcription/mimo') },
+                      { text: 'OpenAI & 호환 API', link: withBase('/ko/docs/manual/config/providers/transcription/openai') },
+                    ] },
+                    { text: 'Artistry', collapsed: true, items: [
+                      { text: 'ComfyUI (로컬 워크플로)', link: withBase('/ko/docs/manual/config/providers/artistry/comfyui') },
+                      { text: 'Nano Banana', link: withBase('/ko/docs/manual/config/providers/artistry/nanobanana') },
+                      { text: 'Replicate', link: withBase('/ko/docs/manual/config/providers/artistry/replicate') },
+                    ] },
+                  ] },
+                ],
+              },
+            ],
+          },
+          {
+            text: '연동 서비스',
+            icon: 'lucide:plug',
+            items: [
+              {
+                text: '게임',
+                items: [
+                  { text: 'Minecraft 에이전트', link: withBase('/ko/docs/integrations/minecraft') },
+                  { text: 'Factorio', link: withBase('/ko/docs/integrations/factorio') },
+                ],
+              },
+              {
+                text: '메시징 플랫폼',
+                items: [
+                  { text: 'Satori 봇', link: withBase('/ko/docs/integrations/satori') },
+                  { text: 'Telegram 봇', link: withBase('/ko/docs/integrations/telegram') },
+                  { text: 'Discord 봇', link: withBase('/ko/docs/integrations/discord') },
+                  { text: 'X / Twitter (사용 불가)', link: withBase('/ko/docs/integrations/x') },
+                ],
+              },
+            ],
+          },
+          {
+            text: '개발자 가이드',
+            icon: 'lucide:code-2',
+            items: [
+              {
+                text: '기여하기',
+                items: [
+                  { text: '개발 환경 설정과 사전 준비', link: withBase('/ko/docs/contributing/') },
+                  { text: '데스크톱 앱', link: withBase('/ko/docs/contributing/tamagotchi') },
+                  { text: '웹 앱', link: withBase('/ko/docs/contributing/webui') },
+                  { text: '문서 사이트', link: withBase('/ko/docs/contributing/docs') },
+                ],
+              },
+              {
+                text: '데스크톱 디버깅',
+                items: [
+                  { text: '개발자 도구', link: withBase('/ko/docs/contributing/desktop-developer-tools') },
+                ],
+              },
+              {
+                text: '디자인 가이드라인',
+                items: [
+                  { text: '소개', link: withBase('/ko/docs/contributing/design-guidelines/') },
+                  { text: '아티스트 & 개발자 (참고 자료)', link: withBase('/ko/docs/contributing/design-guidelines/resources') },
+                  { text: '도구', link: withBase('/ko/docs/contributing/design-guidelines/tools') },
+                ],
+              },
+            ],
+          },
+          {
+            text: '연대기',
+            icon: 'lucide:calendar-days',
+            items: [
+              { text: '첫 공개 v0.1.0', link: withBase('/ko/docs/chronicles/version-v0.1.0/') },
+              { text: '그 이전 이야기 v0.0.1', link: withBase('/ko/docs/chronicles/version-v0.0.1/') },
+            ],
+          },
+        ] as (DefaultTheme.SidebarItem & { icon?: string })[],
+
+        homepage: {
+          buttons: [
+            {
+              text: '라이브 데모 체험하기',
+              link: webLive,
+              primary: true,
+              target: '_self',
+            },
+            {
+              text: '다운로드',
+              link: withBase('/ko/docs/overview/versions'),
+            },
+            {
+              text: '시작하기',
+              link: withBase('/ko/docs/overview/'),
             },
           ],
         },

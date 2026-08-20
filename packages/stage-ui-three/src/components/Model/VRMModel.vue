@@ -25,6 +25,7 @@ import type {
   VrmLoadHookContext,
   VrmMaterialHookContext,
 } from '../../composables/vrm/hooks'
+import type { VrmInteractionColliderSet } from '../../composables/vrm/interaction'
 import type { SceneBootstrap, TrackingMode, Vec3 } from '../../stores/model-store'
 import type { VrmLifecycleReason } from '../../trace'
 import type { ManagedVrmInstance } from './vrm-instance-cache'
@@ -74,6 +75,7 @@ import {
 } from '../../composables/vrm/animation'
 import { loadVrm } from '../../composables/vrm/core'
 import { useVRMEmote } from '../../composables/vrm/expression'
+import { createVrmInteractionColliders } from '../../composables/vrm/interaction'
 import { resolveInternalVrmHooks } from '../../composables/vrm/internal-hooks'
 import { useVRMLipSync } from '../../composables/vrm/lip-sync'
 import {
@@ -169,6 +171,8 @@ const { renderer, scene } = useTresContext()
 const vrm = shallowRef<VRM>()
 const vrmGroup = shallowRef<Group>()
 const modelLoaded = ref<boolean>(false)
+const interactionColliders = shallowRef<VrmInteractionColliderSet>()
+
 let loadSequence = 0
 // for eye tracking modes
 const raycaster = new Raycaster()
@@ -282,6 +286,7 @@ function getActiveManagedVrmInstance() {
   return createManagedVrmInstance({
     emote: vrmEmote.value,
     group: vrmGroup.value,
+    interactionColliders: interactionColliders.value!,
     mixer: vrmAnimationMixer.value,
     vrm: vrm.value,
   })
@@ -292,6 +297,7 @@ function clearActiveManagedVrmRefs() {
   vrmEmote.value = undefined
   vrm.value = undefined
   vrmGroup.value = undefined
+  interactionColliders.value = undefined
 }
 
 function applyManagedVrmInstance(instance: ManagedVrmInstance) {
@@ -299,6 +305,7 @@ function applyManagedVrmInstance(instance: ManagedVrmInstance) {
   vrmGroup.value = instance.group
   vrmAnimationMixer.value = instance.mixer
   vrmEmote.value = instance.emote
+  interactionColliders.value = instance.interactionColliders
 }
 
 function destroyManagedVrmInstance(instance?: ManagedVrmInstance) {
@@ -307,6 +314,7 @@ function destroyManagedVrmInstance(instance?: ManagedVrmInstance) {
 
   instance.emote.dispose()
   instance.mixer.stopAllAction()
+  instance.interactionColliders.dispose()
   disposeDetachedVrm(instance.vrm, instance.group)
 }
 
@@ -853,9 +861,12 @@ async function loadModel() {
 
     emit('sceneBootstrap', buildSceneBootstrap(_vrm, false))
 
+    const nextInteractionColliders = createVrmInteractionColliders(_vrm)
+
     commitManagedVrmInstance(createManagedVrmInstance({
       emote: nextVrmEmote,
       group: _vrmGroup,
+      interactionColliders: nextInteractionColliders,
       mixer: nextVrmAnimationMixer,
       vrm: _vrm,
     }))
@@ -1008,6 +1019,7 @@ if (import.meta.hot) {
 }
 
 defineExpose({
+  getInteractionColliders: () => interactionColliders.value?.colliders ?? [],
   setExpression(expression: string, intensity = 1) {
     vrmEmote.value?.setEmotionWithResetAfter(expression, 3000, intensity)
   },

@@ -3,7 +3,7 @@ import { Callout, FieldCheckbox, FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
-import { useAudioAnalyzer, useAudioDevice } from '../../../../composables'
+import { useAudioAnalyzer } from '../../../../composables'
 import { useSettingsAudioDevice } from '../../../../stores'
 
 const props = withDefaults(defineProps<{
@@ -13,8 +13,8 @@ const props = withDefaults(defineProps<{
 })
 
 const deviceStore = useSettingsAudioDevice()
-const { enabled, selectedAudioInput } = storeToRefs(deviceStore)
-const { audioInputs, permissionGranted, askPermission } = useAudioDevice()
+const { askPermission } = deviceStore
+const { audioInputOptions, enabled, permissionGranted, selectedAudioInput } = storeToRefs(deviceStore)
 const { volumeLevel } = useAudioAnalyzer()
 
 const autoSend = defineModel<boolean | undefined>('autoSend')
@@ -119,7 +119,7 @@ function toggleHearingEnabled() {
         v-model="selectedAudioInput"
         label="Input device"
         description="Select the microphone you want to use."
-        :options="audioInputs.map(device => ({ label: device.label || 'Unknown Device', value: device.deviceId }))"
+        :options="audioInputOptions"
         placeholder="Select microphone"
         layout="vertical"
       />

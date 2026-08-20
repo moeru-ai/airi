@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { SelectContentProps } from 'reka-ui'
+
 import { Select } from '@proj-airi/ui'
 import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -7,7 +9,10 @@ import { useI18n } from 'vue-i18n'
 
 import { useAiriCardStore } from '../../stores/modules/airi-card'
 
-withDefaults(defineProps<Props>(), { placement: 'down' })
+const props = withDefaults(defineProps<Props>(), {
+  contentAlign: 'start',
+  contentSide: 'bottom',
+})
 const emit = defineEmits<{
   (e: 'manage'): void
 }>()
@@ -16,8 +21,12 @@ const MANAGE_PROFILE_ACTION = '__manage-profile__'
 
 type ProfileSelectValue = string | typeof CREATE_PROFILE_ACTION | typeof MANAGE_PROFILE_ACTION
 
+/** Placement preferences for the profile selector and its create form. */
 export interface Props {
-  placement?: 'down' | 'up'
+  /** Horizontal alignment before collision handling. */
+  contentAlign?: Extract<SelectContentProps['align'], 'start' | 'end'>
+  /** Vertical side before collision handling. */
+  contentSide?: Extract<SelectContentProps['side'], 'top' | 'bottom'>
 }
 
 const open = defineModel<boolean>('open', { default: false })
@@ -92,7 +101,7 @@ onClickOutside(containerRef, () => {
   cancelCreate()
 })
 
-function handleSelection(value: ProfileSelectValue) {
+async function handleSelection(value: ProfileSelectValue) {
   if (value === CREATE_PROFILE_ACTION) {
     selectedProfile.value = activeCardId.value
     void showCreateInput()
@@ -105,7 +114,7 @@ function handleSelection(value: ProfileSelectValue) {
     return
   }
 
-  activeCardId.value = value
+  await cardStore.activateCard(value)
 }
 
 async function showCreateInput() {
@@ -117,19 +126,19 @@ async function showCreateInput() {
   nameInputRef.value?.select()
 }
 
-function confirmCreate() {
+async function confirmCreate() {
   const current = activeCard.value
   const name = newProfileName.value.trim()
   if (!current || !name || isDuplicateName.value) {
     return
   }
 
-  const newId = cardStore.addCard({
+  const newId = await cardStore.addCard({
     ...structuredClone(toRaw(current)),
     name,
   }, 'duplicate')
 
-  activeCardId.value = newId
+  await cardStore.activateCard(newId)
   cancelCreate()
 }
 
@@ -164,6 +173,8 @@ function toggleOpen() {
         :options="selectOptions"
         :placeholder="t('stage.profile-switcher.no-profile')"
         :content-min-width="224"
+        :content-side="props.contentSide"
+        :content-align="props.contentAlign"
       >
         <template #value="{ option, placeholder }">
           <div :class="['min-w-0', 'flex', 'items-center', 'gap-2', 'p-1']">
@@ -219,6 +230,8 @@ function toggleOpen() {
       :options="selectOptions"
       :placeholder="t('stage.profile-switcher.no-profile')"
       :content-min-width="224"
+      :content-side="props.contentSide"
+      :content-align="props.contentAlign"
       variant="blurry"
       shape="rounded"
     >
@@ -278,8 +291,13 @@ function toggleOpen() {
       <div
         v-if="creatingNew"
         :class="[
-          'absolute right-0 z-[10011] w-56 rounded-xl border-2 p-2 shadow-sm backdrop-blur-xl',
-          placement === 'up' ? 'bottom-full mb-2 origin-bottom-right' : 'top-full mt-2 origin-top-right',
+          'absolute z-[10011] w-56 rounded-xl border-2 p-2 shadow-sm backdrop-blur-xl',
+          props.contentSide === 'top' ? 'bottom-full mb-2' : 'top-full mt-2',
+          props.contentAlign === 'start' ? 'left-0' : 'right-0',
+          props.contentSide === 'top' && props.contentAlign === 'start' ? 'origin-bottom-left' : '',
+          props.contentSide === 'top' && props.contentAlign === 'end' ? 'origin-bottom-right' : '',
+          props.contentSide === 'bottom' && props.contentAlign === 'start' ? 'origin-top-left' : '',
+          props.contentSide === 'bottom' && props.contentAlign === 'end' ? 'origin-top-right' : '',
           'border-neutral-200 bg-white/95 dark:border-neutral-800 dark:bg-neutral-900/95',
         ]"
       >

@@ -1,22 +1,44 @@
+import type {} from 'pinia-plugin-synced'
+
 import type { DisplayModel } from '../display-models'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset, useEventListener } from '@vueuse/core'
-import { defineStore } from 'pinia'
+import { defineStore, storeToRefs } from 'pinia'
 import { computed, watch } from 'vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 
-export type StageModelRenderer = 'live2d' | 'vrm' | 'spine' | 'godot' | 'disabled' | undefined
+export type StageModelRenderer = 'live2d' | 'vrm' | 'spine' | 'tachie' | 'mmd' | 'godot' | 'disabled' | undefined
 type BuiltInStageModelRenderer = Exclude<StageModelRenderer, 'godot'>
+
+const useStageModelSelectionStore = defineStore('settings-stage-model-selection', () => {
+  // Pinia synchronization owns live cross-window state. localStorage only
+  // loads and saves the durable model selection.
+  const selected = useLocalStorageManualReset<string>('settings/stage/model', 'preset-live2d-1', {
+    listenToStorageChanges: false,
+  })
+
+  function resetState() {
+    selected.reset()
+  }
+
+  return {
+    selected,
+    resetState,
+  }
+}, {
+  synced: {
+    state: true,
+  },
+})
 
 export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const displayModelsStore = useDisplayModelsStore()
+  const stageModelSelectionStore = useStageModelSelectionStore()
+  const { selected: stageModelSelectedState } = storeToRefs(stageModelSelectionStore)
   let stageModelUpdateSequence = 0
-  const stageModelStorageKey = 'settings/stage/model'
   const defaultStageModelId = 'preset-live2d-1'
-
-  const stageModelSelectedState = useLocalStorageManualReset<string>(stageModelStorageKey, defaultStageModelId)
   const stageModelSelected = computed<string>({
     get: () => stageModelSelectedState.value,
     set: (value) => {
@@ -55,6 +77,12 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
         return 'vrm'
       case DisplayModelFormat.SpineZip:
         return 'spine'
+      case DisplayModelFormat.TachieZip:
+        return 'tachie'
+      case DisplayModelFormat.PMXZip:
+      case DisplayModelFormat.PMXDirectory:
+      case DisplayModelFormat.PMD:
+        return 'mmd'
       default:
         return 'disabled'
     }
@@ -136,7 +164,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   async function resetState() {
     revokeStageModelUrl(stageModelSelectedUrl.value)
 
-    stageModelSelectedState.reset()
+    stageModelSelectionStore.resetState()
     stageModelSelectedDisplayModel.reset()
     stageModelSelectedUrl.reset()
     stageModelRenderer.reset()

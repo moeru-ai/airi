@@ -6,6 +6,7 @@ import type { ElectronWindowLifecycleState } from '../../../shared/eventa'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { bounds, startLoopGetBounds } from '@proj-airi/electron-eventa'
 import { createRendererLoop, safeClose } from '@proj-airi/electron-vueuse/main'
+import { isWindows } from 'std-env'
 
 import {
   electron,
@@ -97,7 +98,7 @@ export function createWindowService(params: { context: ReturnType<typeof createC
   })
 
   defineInvokeHandler(params.context, electron.window.setBackgroundMaterial, (backgroundMaterial, options) => {
-    if (backgroundMaterial && params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
+    if (isWindows && backgroundMaterial && params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
       params.window.setBackgroundMaterial(backgroundMaterial[0])
     }
   })

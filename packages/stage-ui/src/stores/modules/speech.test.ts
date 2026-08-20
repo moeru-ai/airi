@@ -1,8 +1,10 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, providerOfficialSpeech } from '../../libs/providers/providers/official'
-import { useProvidersStore } from '../providers'
+import { useProviderConfigStore } from '../providers/config'
+import { useProviderStore } from '../providers/provider'
 import { toSignedPercent, useSpeechStore } from './speech'
 
 const i18nState = vi.hoisted(() => ({
@@ -33,6 +35,92 @@ describe('speech store helpers', () => {
 
   it('formats zero as 0%', () => {
     expect(toSignedPercent(0)).toBe('0%')
+  })
+
+  // ROOT CAUSE:
+  //
+  // The speech store watched its model-list projection even when no UI used
+  // that projection. Each synced provider snapshot invalidated the projection.
+  // The watcher then called getModelsForProvider twice when the cache was empty.
+  //
+  // We fixed this by keeping model selection behind explicit operations. A UI
+  // consumer can still read providerModels when it needs the cached catalog.
+  it('does not query the model cache when only provider state changes', async () => {
+    const providersStore = useProviderStore()
+    vi.spyOn(providersStore, 'listProviderVoices').mockResolvedValue([])
+    const speechStore = useSpeechStore()
+    speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
+    await nextTick()
+
+    let modelQueries = 0
+    providersStore.$onAction(({ name }) => {
+      if (name === 'getModelsForProvider')
+        modelQueries += 1
+    })
+
+    providersStore.providerRuntimeState = {}
+    await nextTick()
+
+    expect(modelQueries).toBe(0)
+  })
+
+  // ROOT CAUSE:
+  //
+  // A synced snapshot replaced the empty voice catalog with another empty
+  // object. The voice watcher then assigned undefined to an undefined ref.
+  // refManualReset reported that no-op assignment as another Pinia mutation.
+  //
+  // We fixed this by writing the selected voice only when a matching voice
+  // exists and its identity differs from the current selection.
+  it('does not publish a second mutation for an unresolved voice', async () => {
+    const providersStore = useProviderStore()
+    vi.spyOn(providersStore, 'listProviderVoices').mockResolvedValue([])
+    const speechStore = useSpeechStore()
+    speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
+    speechStore.activeSpeechVoiceId = 'missing-voice'
+    speechStore.activeSpeechVoice = undefined
+    speechStore.availableVoices = {}
+    await nextTick()
+
+    let mutations = 0
+    speechStore.$subscribe(() => mutations += 1, { flush: 'sync' })
+
+    speechStore.availableVoices = {}
+    await nextTick()
+
+    expect(mutations).toBe(1)
+  })
+
+  // ROOT CAUSE:
+  //
+  // Synced stores arrive in separate snapshots. The speech store can receive
+  // its selected provider before the matching provider configuration snapshot.
+  // A metadata watcher treated this temporary state as provider deletion and
+  // replaced the synchronized selection with speech-noop.
+  //
+  // We fixed this by keeping provider selection command-driven. A provider
+  // configuration snapshot no longer edits the speech module selection.
+  it('keeps the selected provider while provider snapshots are incomplete', async () => {
+    const providersStore = useProviderStore()
+    const providerConfigStore = useProviderConfigStore()
+    vi.spyOn(providersStore, 'listProviderVoices').mockResolvedValue([])
+    const speechStore = useSpeechStore()
+    providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+    providersStore.forceProviderConfigured(OFFICIAL_SPEECH_PROVIDER_ID)
+    speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
+    speechStore.activeSpeechModel = 'auto'
+    await vi.waitFor(() => {
+      expect(providersStore.configuredSpeechProvidersMetadata.map(provider => provider.id)).toContain(OFFICIAL_SPEECH_PROVIDER_ID)
+    })
+
+    providersStore.providerRuntimeState = {}
+    providerConfigStore.providers = {}
+    await vi.waitFor(() => {
+      expect(providersStore.configuredSpeechProvidersMetadata.map(provider => provider.id)).not.toContain(OFFICIAL_SPEECH_PROVIDER_ID)
+    })
+
+    expect(speechStore.activeSpeechProvider).toBe(OFFICIAL_SPEECH_PROVIDER_ID)
+    expect(speechStore.activeSpeechModel).toBe('auto')
   })
 
   /**
@@ -117,12 +205,10 @@ describe('speech store helpers', () => {
    * await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, 'volcengine/seed-tts-2.0')
    */
   it('does not load streaming voices before server availability is confirmed', async () => {
-    const providersStore = useProvidersStore()
+    const providersStore = useProviderStore()
     const speechStore = useSpeechStore()
-    const listVoices = vi.fn(async () => [])
-    const metadata = providersStore.providerMetadata[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID]
-    metadata.capabilities.listVoices = listVoices
-    providersStore.providerRuntimeState[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID].isConfigured = false
+    const listVoices = vi.spyOn(providersStore, 'listProviderVoices')
+    providersStore.setProviderUnconfigured(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
 
     const voices = await speechStore.loadVoicesForProvider(
       OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
@@ -138,11 +224,12 @@ describe('speech store helpers', () => {
    * speechStore.ensureActiveSpeechModel()
    */
   it('keeps a real Voice Pack TTS model selected for the regular official provider', () => {
-    const providersStore = useProvidersStore()
+    const providersStore = useProviderStore()
     const speechStore = useSpeechStore()
     speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
     speechStore.activeSpeechModel = 'volcengine/pool-a'
     speechStore.activeSpeechVoiceId = 'voice-a'
+    providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
     providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = [
       { id: 'volcengine/pool-a', name: 'volcengine/pool-a', provider: OFFICIAL_SPEECH_PROVIDER_ID },
       { id: 'microsoft/v1', name: 'microsoft/v1', provider: OFFICIAL_SPEECH_PROVIDER_ID },
@@ -181,7 +268,7 @@ describe('speech store helpers', () => {
       })
     }) as typeof fetch)
 
-    const providersStore = useProvidersStore()
+    const providersStore = useProviderStore()
     const speechStore = useSpeechStore()
     speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
     speechStore.activeSpeechModel = 'volcengine/seed-tts-2.0'
@@ -193,6 +280,7 @@ describe('speech store helpers', () => {
       languages: [],
     }
     try {
+      providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
       providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
         {},
         providerOfficialSpeech.createProvider({}),
@@ -244,13 +332,14 @@ describe('speech store helpers', () => {
       }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     }) as typeof fetch)
 
-    const providersStore = useProvidersStore()
+    const providersStore = useProviderStore()
     const speechStore = useSpeechStore()
     speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
     speechStore.activeSpeechModel = 'old-model'
     speechStore.activeSpeechVoiceId = 'old-model-voice'
 
     try {
+      providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
       providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
         {},
         providerOfficialSpeech.createProvider({}),
@@ -303,11 +392,12 @@ describe('speech store helpers', () => {
       }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     }) as typeof fetch)
 
-    const providersStore = useProvidersStore()
+    const providersStore = useProviderStore()
     const speechStore = useSpeechStore()
     speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
 
     try {
+      providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
       providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
         {},
         providerOfficialSpeech.createProvider({}),

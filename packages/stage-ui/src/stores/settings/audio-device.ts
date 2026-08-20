@@ -9,7 +9,9 @@ let microphonePermissionStatus: PermissionStatus
 export const useSettingsAudioDevice = defineStore('settings-audio-devices', () => {
   const {
     audioInputs,
+    audioInputOptions,
     deviceConstraints,
+    permissionGranted,
     selectedAudioInput: selectedAudioInputNonPersist,
     startStream: startAudioInputStream,
     stopStream: stopAudioInputStream,
@@ -145,7 +147,9 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
 
   return {
     audioInputs,
+    audioInputOptions,
     deviceConstraints,
+    permissionGranted,
     selectedAudioInput: selectedAudioInputPersist,
     enabled: audioInputEnabled,
 

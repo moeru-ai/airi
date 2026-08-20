@@ -30,7 +30,7 @@ Use RegExp matcher with function body for flexible utilities:
 rules: [
   // Match m-1, m-2, m-100, etc.
   [/^m-(\d+)$/, ([, d]) => ({ margin: `${d / 4}rem` })],
-
+  
   // Access theme and context
   [/^p-(\d+)$/, (match, ctx) => ({ padding: `${match[1] / 4}rem` })],
 ]
@@ -160,7 +160,7 @@ Generates:
 
 Use `symbols.noMerge` to disable.
 
-<!--
+<!-- 
 Source references:
 - https://unocss.dev/config/rules
 -->

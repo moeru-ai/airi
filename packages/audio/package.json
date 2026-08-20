@@ -42,7 +42,8 @@
   "scripts": {
     "dev": "pnpm run build",
     "build": "tsdown",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:run": "vitest run"
   },
   "peerDependencies": {
     "vue": ">=3"

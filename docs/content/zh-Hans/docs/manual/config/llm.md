@@ -15,7 +15,7 @@ description: 为 AIRI 配置聊天服务商和模型
 
 1. 打开 **设置 → 服务商 → 聊天**，选择你要使用的服务商。
 
-   不确定选哪个时，可先从已有的详细指南中选择：[OpenRouter](./providers/consciousness/openrouter.md)、[DeepSeek](./providers/consciousness/deepseek.md)、[OpenAI 兼容 API](./providers/consciousness/openai.md)，或本地的 [Ollama](./providers/consciousness/ollama.md)。完整列表见[支持的服务商目录](./providers/catalog.md)。
+   不确定选哪个时，可先从已有的详细指南中选择：[OpenRouter](./providers/consciousness/openrouter.md)、[DeepSeek](./providers/consciousness/deepseek.md)、[OpenAI 兼容 API](./providers/consciousness/openai.md)，或本地的 [Ollama](./providers/consciousness/ollama.md)。其他聊天服务商可从侧栏“服务商 → 聊天服务商”展开查看。
 
 2. 填写 API Key。若服务商提供了专用的 API 地址，再在高级设置中填写 Base URL；否则保留默认值。
 

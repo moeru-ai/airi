@@ -1,0 +1,17 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "/server/apps/auth/Dockerfile"
+watchPatterns = [
+  "server/apps/auth/**",
+  "server/packages/auth-shared/**",
+  "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+  "tsconfig.json",
+  "patches/**"
+]
+
+[deploy]
+startCommand = "pnpm -F @proj-airi/auth-server start"
+healthcheckPath = "/readyz"
+healthcheckTimeout = 100

@@ -2,18 +2,17 @@
 import type { Card } from '@proj-airi/ccc'
 import type { AiriExtension } from '@proj-airi/stage-ui/stores/modules/airi-card'
 
-import kebabcase from '@stdlib/string-base-kebabcase'
-
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '@proj-airi/stage-ui/constants/prompts/artistry-instruction'
+import { applyAiriCardEditorModules, safeParseAiriCardDraft } from '@proj-airi/stage-ui/services/airi-card-editor'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { Button, FieldInput, FieldValues } from '@proj-airi/ui'
 import { ComboboxSelect } from '@proj-airi/ui/components/form'
@@ -25,7 +24,7 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
-import { computed, ref, toRaw, watch } from 'vue'
+import { computed, nextTick, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import CardCreationTabArtistry from './tabs/CardCreationTabArtistry.vue'
@@ -64,7 +63,7 @@ const cardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
 const visionStore = useVisionStore()
 const speechStore = useSpeechStore()
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
 const displayModelsStore = useDisplayModelsStore()
 const stageModelStore = useSettingsStageModel()
 const artistryStore = useArtistryStore()
@@ -78,6 +77,7 @@ const { activeProvider: defaultArtistryProvider } = storeToRefs(artistryStore)
 
 // Determine if we're in edit mode
 const isEditMode = computed(() => !!props.cardId)
+const isEditingActiveCard = computed(() => isEditMode.value && props.cardId === cardStore.activeCardId)
 
 // Modules configuration
 const selectedConsciousnessProvider = ref<string>('')
@@ -98,6 +98,8 @@ const selectedArtistrySpawnMode = ref<'bg' | 'widget' | 'inline' | 'bg_widget'>(
 const selectedArtistryAutonomousEnabled = ref<boolean>(false)
 const selectedArtistryAutonomousThreshold = ref<number>(70)
 const selectedArtistryConfigStr = ref<string>('{\n  \n}')
+let isInitializingModuleSelections = false
+let hasLoadedModuleOptions = false
 
 // Computed: available display model options
 const displayModelOptions = computed(() =>
@@ -193,26 +195,36 @@ const artistryProviderOptions = computed(() => {
   ]
 })
 
-// Load models for current providers on init
-watch(() => [consciousnessProvider.value, visionProvider.value, speechProvider.value], async ([consProvider, visProvider, spProvider]) => {
-  if (consProvider) {
-    await consciousnessStore.loadModelsForProvider(consProvider)
+async function loadSelectedModuleOptions() {
+  if (hasLoadedModuleOptions)
+    return
+
+  hasLoadedModuleOptions = true
+  const loads: Promise<unknown>[] = []
+  if (selectedConsciousnessProvider.value)
+    loads.push(consciousnessStore.loadModelsForProvider(selectedConsciousnessProvider.value))
+
+  if (selectedVisionProvider.value)
+    loads.push(visionStore.loadModelsForProvider(selectedVisionProvider.value))
+
+  if (selectedSpeechProvider.value) {
+    loads.push(speechStore.loadVoicesForProvider(selectedSpeechProvider.value, selectedSpeechModel.value || undefined))
+    if (providersStore.supportsModelListing(selectedSpeechProvider.value))
+      loads.push(providersStore.fetchModelsForProvider(selectedSpeechProvider.value))
   }
-  if (visProvider) {
-    await visionStore.loadModelsForProvider(visProvider)
+
+  try {
+    await Promise.all(loads)
   }
-  if (spProvider) {
-    await speechStore.loadVoicesForProvider(spProvider)
-    const metadata = providersStore.getProviderMetadata(spProvider)
-    if (metadata?.capabilities.listModels) {
-      await providersStore.fetchModelsForProvider(spProvider)
-    }
+  catch (error) {
+    hasLoadedModuleOptions = false
+    throw error
   }
-}, { immediate: true })
+}
 
 // Watch consciousness provider changes and reload models
 watch(selectedConsciousnessProvider, async (newProvider, oldProvider) => {
-  if (oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
+  if (props.modelValue && !isInitializingModuleSelections && oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
     await consciousnessStore.loadModelsForProvider(newProvider)
     // Reset model selection to default or empty
     selectedConsciousnessModel.value = ''
@@ -221,7 +233,7 @@ watch(selectedConsciousnessProvider, async (newProvider, oldProvider) => {
 
 // Watch vision provider changes and reload models
 watch(selectedVisionProvider, async (newProvider, oldProvider) => {
-  if (oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
+  if (props.modelValue && !isInitializingModuleSelections && oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
     await visionStore.loadModelsForProvider(newProvider)
     selectedVisionModel.value = ''
   }
@@ -229,10 +241,9 @@ watch(selectedVisionProvider, async (newProvider, oldProvider) => {
 
 // Watch speech provider changes and reload models/voices
 watch(selectedSpeechProvider, async (newProvider, oldProvider) => {
-  if (oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
+  if (props.modelValue && !isInitializingModuleSelections && oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
     await speechStore.loadVoicesForProvider(newProvider)
-    const metadata = providersStore.getProviderMetadata(newProvider)
-    if (metadata?.capabilities.listModels) {
+    if (providersStore.supportsModelListing(newProvider)) {
       await providersStore.fetchModelsForProvider(newProvider)
     }
     // Reset model and voice selection
@@ -245,7 +256,7 @@ watch(selectedSpeechProvider, async (newProvider, oldProvider) => {
 watch(selectedSpeechModel, async (newModel, oldModel) => {
   // Only reset if model actually changed and we're not initializing
   const provider = selectedSpeechProvider.value || speechProvider.value
-  if (oldModel !== undefined && newModel !== oldModel && provider) {
+  if (props.modelValue && !isInitializingModuleSelections && oldModel !== undefined && newModel !== oldModel && provider) {
     // Reload voices for the current provider
     await speechStore.loadVoicesForProvider(provider)
 
@@ -289,6 +300,12 @@ const activeTab = computed({
   },
 })
 
+async function selectTab(tabId: string) {
+  activeTab.value = tabId
+  if (tabId === 'modules')
+    await loadSelectedModuleOptions()
+}
+
 // Reset active tab when dialog opens
 watch(() => props.modelValue, (isOpen) => {
   if (isOpen) {
@@ -304,127 +321,60 @@ watch(() => props.modelValue, (isOpen) => {
 const showError = ref<boolean>(false)
 const errorMessage = ref<string>('')
 
-function saveCard(card: Card): boolean {
-  // Before saving, let's validate what the user entered :
-  const rawCard: Card = toRaw(card)
-
-  if (!((rawCard.name?.length ?? 0) > 0)) {
-    // No name
+async function saveCard(card: Card, activate: boolean): Promise<boolean> {
+  const draftResult = safeParseAiriCardDraft(toRaw(card), selectedArtistryConfigStr.value)
+  if (!draftResult.success) {
     showError.value = true
-    errorMessage.value = t('settings.pages.card.creation.errors.name')
+    errorMessage.value = t(`settings.pages.card.creation.errors.${draftResult.error}`)
     return false
-  }
-  else if (!/^(?:\d+\.)+\d+$/.test(rawCard.version)) {
-    // Invalid version
-    showError.value = true
-    errorMessage.value = t('settings.pages.card.creation.errors.version')
-    return false
-  }
-  else if (!((rawCard.description?.length ?? 0) > 0)) {
-    // No description
-    showError.value = true
-    errorMessage.value = t('settings.pages.card.creation.errors.description')
-    return false
-  }
-  else if (!((rawCard.personality?.length ?? 0) > 0)) {
-    // No personality
-    showError.value = true
-    errorMessage.value = t('settings.pages.card.creation.errors.personality')
-    return false
-  }
-  else if (!((rawCard.scenario?.length ?? 0) > 0)) {
-    // No Scenario
-    showError.value = true
-    errorMessage.value = t('settings.pages.card.creation.errors.scenario')
-    return false
-  }
-  else if (!((rawCard.systemPrompt?.length ?? 0) > 0)) {
-    // No sys prompt
-    showError.value = true
-    errorMessage.value = t('settings.pages.card.creation.errors.systemprompt')
-    return false
-  }
-  else if (!((rawCard.postHistoryInstructions?.length ?? 0) > 0)) {
-    // No post history prompt
-    showError.value = true
-    errorMessage.value = t('settings.pages.card.creation.errors.posthistoryinstructions')
-    return false
-  }
-
-  // Validate Artistry JSON if provided
-  if (selectedArtistryConfigStr.value.trim()) {
-    try {
-      const parsed = JSON.parse(selectedArtistryConfigStr.value)
-      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-        throw new Error('Not an object')
-      }
-    }
-    catch {
-      showError.value = true
-      errorMessage.value = t('settings.pages.card.creation.errors.invalid_artistry_json')
-      return false
-    }
   }
 
   showError.value = false
+  const { card: rawCard, artistryOptions } = draftResult.output
 
-  // Build options with final safety parse
-  let artistryOptions: Record<string, any> | undefined
-  if (selectedArtistryConfigStr.value.trim()) {
-    try {
-      artistryOptions = JSON.parse(selectedArtistryConfigStr.value)
-    }
-    catch {
-      // Should not happen due to validation above
-      artistryOptions = undefined
-    }
-  }
-
-  // Build card with modules extension
-  const cardWithModules = {
-    ...rawCard,
-    extensions: {
-      ...rawCard.extensions,
-      airi: {
-        modules: {
-          consciousness: {
-            provider: selectedConsciousnessProvider.value || consciousnessProvider.value,
-            model: selectedConsciousnessModel.value || defaultConsciousnessModel.value,
-          },
-          vision: {
-            provider: selectedVisionProvider.value || visionProvider.value,
-            model: selectedVisionModel.value || defaultVisionModel.value,
-          },
-          speech: {
-            provider: selectedSpeechProvider.value || speechProvider.value,
-            model: selectedSpeechModel.value || defaultSpeechModel.value,
-            voice_id: selectedSpeechVoiceId.value || defaultSpeechVoiceId.value,
-          },
-          displayModelId: selectedDisplayModelId.value || defaultDisplayModelId.value,
-          artistry: {
-            provider: selectedArtistryProvider.value || defaultArtistryProvider.value,
-            model: selectedArtistryModel.value,
-            promptPrefix: selectedArtistryPromptPrefix.value,
-            widgetInstruction: selectedArtistryWidgetInstruction.value,
-            spawnMode: selectedArtistrySpawnMode.value,
-            options: artistryOptions,
-            autonomousEnabled: selectedArtistryAutonomousEnabled.value,
-            autonomousThreshold: selectedArtistryAutonomousThreshold.value,
-          },
-        },
-        agents: {},
-      } as AiriExtension,
+  const cardWithModules = applyAiriCardEditorModules(rawCard, {
+    consciousness: {
+      provider: selectedConsciousnessProvider.value || consciousnessProvider.value,
+      model: selectedConsciousnessModel.value || defaultConsciousnessModel.value,
     },
-  }
+    vision: {
+      provider: selectedVisionProvider.value || visionProvider.value,
+      model: selectedVisionModel.value || defaultVisionModel.value,
+    },
+    speech: {
+      provider: selectedSpeechProvider.value || speechProvider.value,
+      model: selectedSpeechModel.value || defaultSpeechModel.value,
+      voice_id: selectedSpeechVoiceId.value || defaultSpeechVoiceId.value,
+    },
+    displayModelId: selectedDisplayModelId.value || defaultDisplayModelId.value,
+    artistry: {
+      provider: selectedArtistryProvider.value || defaultArtistryProvider.value,
+      model: selectedArtistryModel.value,
+      promptPrefix: selectedArtistryPromptPrefix.value,
+      widgetInstruction: selectedArtistryWidgetInstruction.value,
+      spawnMode: selectedArtistrySpawnMode.value,
+      options: artistryOptions,
+      autonomousEnabled: selectedArtistryAutonomousEnabled.value,
+      autonomousThreshold: selectedArtistryAutonomousThreshold.value,
+    },
+  })
+  let savedCardId: string
   if (isEditMode.value && props.cardId) {
     // Edit mode: update existing card
-    cardStore.updateCard(props.cardId, cardWithModules)
+    if (!await cardStore.updateCard(props.cardId, cardWithModules)) {
+      showError.value = true
+      errorMessage.value = t('settings.pages.card.card_not_found')
+      return false
+    }
+    savedCardId = props.cardId
     trackCardEdited({ card_id: props.cardId })
   }
   else {
-    // Create mode: add new card
-    cardStore.addCard(cardWithModules, 'scratch')
+    savedCardId = await cardStore.addCard(cardWithModules, 'scratch')
   }
+
+  if (activate)
+    await cardStore.activateCard(savedCardId)
 
   modelValue.value = false // Close this
   return true
@@ -433,6 +383,22 @@ function saveCard(card: Card): boolean {
 // Cards data holders :
 
 // Initialize card data - load from existing card if in edit mode
+function createCardDraft(): Card {
+  return {
+    name: t('settings.pages.card.creation.defaults.name'),
+    nickname: undefined,
+    version: '1.0',
+    description: '',
+    notes: undefined,
+    personality: t('settings.pages.card.creation.defaults.personality'),
+    scenario: t('settings.pages.card.creation.defaults.scenario'),
+    systemPrompt: t('settings.pages.card.creation.defaults.systemprompt'),
+    postHistoryInstructions: t('settings.pages.card.creation.defaults.posthistoryinstructions'),
+    greetings: [],
+    messageExample: [],
+  }
+}
+
 function initializeCard(): Card {
   // Extract existing card data if in edit mode
   const existingCard = (isEditMode.value && props.cardId) ? cardStore.getCard(props.cardId) : undefined
@@ -470,51 +436,42 @@ function initializeCard(): Card {
     return { ...toRaw(existingCard) }
   }
 
-  return {
-    name: t('settings.pages.card.creation.defaults.name'),
-    nickname: undefined,
-    version: '1.0',
-    description: '',
-    notes: undefined,
-    personality: t('settings.pages.card.creation.defaults.personality'),
-    scenario: t('settings.pages.card.creation.defaults.scenario'),
-    systemPrompt: t('settings.pages.card.creation.defaults.systemprompt'),
-    postHistoryInstructions: t('settings.pages.card.creation.defaults.posthistoryinstructions'),
-    greetings: [],
-    messageExample: [],
-  }
+  return createCardDraft()
 }
 
-const card = ref<Card>(initializeCard())
+const card = ref<Card>(createCardDraft())
 
 // Reinitialize when cardId changes or dialog opens
-watch(() => [props.modelValue, props.cardId], () => {
-  if (props.modelValue) {
-    card.value = initializeCard()
-  }
+watch(() => [props.modelValue, props.cardId], async () => {
+  if (!props.modelValue)
+    return
+
+  showError.value = false
+  errorMessage.value = ''
+  hasLoadedModuleOptions = false
+  isInitializingModuleSelections = true
+  card.value = initializeCard()
+  await nextTick()
+  isInitializingModuleSelections = false
+
+  if (props.modelValue && activeTab.value === 'modules')
+    await loadSelectedModuleOptions()
 })
 
-function makeComputed<T extends keyof Card>(
-  /*
-  Function used to generate Computed values, with an optional sanitize function
-  */
-  key: T,
-  transform?: (input: string) => string,
-) {
+function makeComputed<T extends keyof Card>(key: T) {
   return computed({
     get: () => {
       return card.value[key] ?? ''
     },
-    set: (val: string) => { // Set,
-      const input = val.trim() // We first trim the value
-      card.value[key] = (input.length > 0
-        ? (transform ? transform(input) : input) // then potentially transform it
-        : '') as Card[T]// or default to empty string value if nothing was given
+    set: (value: string) => {
+      // Preserve in-progress whitespace. Trimming on every input event makes
+      // multi-word names and prompts collapse while the user is typing.
+      card.value[key] = value as Card[T]
     },
   })
 }
 
-const cardName = makeComputed('name', input => kebabcase(input))
+const cardName = makeComputed('name')
 const cardNickname = makeComputed('nickname')
 const cardDescription = makeComputed('description')
 const cardNotes = makeComputed('notes')
@@ -563,7 +520,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                       ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500 dark:border-primary-400'
                       : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300',
                   ]"
-                  @click="activeTab = tab.id"
+                  @click="selectTab(tab.id)"
                 >
                   <div class="flex items-center gap-1">
                     <div :class="tab.icon" />
@@ -591,15 +548,15 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
               <FieldInput v-model="cardName" :label="t('settings.pages.card.creation.name')" :description="t('settings.pages.card.creation.fields_info.name')" :required="true" />
               <FieldInput v-model="cardNickname" :label="t('settings.pages.card.creation.nickname')" :description="t('settings.pages.card.creation.fields_info.nickname')" />
-              <FieldInput v-model="cardDescription" :label="t('settings.pages.card.creation.description')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.description')" />
+              <FieldInput v-model="cardDescription" :label="t('settings.pages.card.creation.description')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.description')" />
               <FieldInput v-model="cardNotes" :label="t('settings.pages.card.creator_notes')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.notes')" />
             </div>
           </div>
           <!-- Behavior -->
           <div v-else-if="activeTab === 'behavior'" class="tab-content ml-auto mr-auto w-95%">
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <FieldInput v-model="cardPersonality" :label="t('settings.pages.card.personality')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.personality')" />
-              <FieldInput v-model="cardScenario" :label="t('settings.pages.card.scenario')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.scenario')" />
+              <FieldInput v-model="cardPersonality" :label="t('settings.pages.card.personality')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.personality')" />
+              <FieldInput v-model="cardScenario" :label="t('settings.pages.card.scenario')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.scenario')" />
               <FieldValues v-model="cardGreetings" :label="t('settings.pages.card.creation.greetings')" :description="t('settings.pages.card.creation.fields_info.greetings')" />
             </div>
           </div>
@@ -730,8 +687,8 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
           <!-- Settings -->
           <div v-else-if="activeTab === 'settings'" class="tab-content ml-auto mr-auto w-95%">
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <FieldInput v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.systemprompt')" />
-              <FieldInput v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.posthistoryinstructions')" />
+              <FieldInput v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.systemprompt')" />
+              <FieldInput v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.posthistoryinstructions')" />
               <FieldInput v-model="cardVersion" :label="t('settings.pages.card.creation.version')" :required="true" :description="t('settings.pages.card.creation.fields_info.version')" />
             </div>
           </div>
@@ -752,18 +709,25 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
 
           <div class="ml-auto mr-1 flex flex-row gap-2">
             <Button
-              variant="secondary"
+
               icon="i-solar:undo-left-bold-duotone"
               :label="t('settings.pages.card.cancel')"
               :disabled="false"
               @click="modelValue = false"
             />
             <Button
-              variant="primary"
               icon="i-solar:check-circle-bold-duotone"
-              :label="isEditMode ? t('settings.pages.card.save') : t('settings.pages.card.creation.create')"
+              :label="t('settings.pages.card.save')"
               :disabled="false"
-              @click="saveCard(card)"
+              @click="saveCard(card, false)"
+            />
+            <Button
+              v-if="!isEditingActiveCard"
+
+              icon="i-solar:play-circle-bold-duotone"
+              :label="t('settings.pages.card.save_and_activate')"
+              :disabled="false"
+              @click="saveCard(card, true)"
             />
           </div>
         </div>

@@ -44,7 +44,7 @@ useSpeechSynthesis({
 ## Type Declarations
 
 ```ts
-export type UseSpeechSynthesisStatus = 'init' | 'play' | 'pause' | 'end'
+export type UseSpeechSynthesisStatus = "init" | "play" | "pause" | "end"
 export interface UseSpeechSynthesisOptions extends ConfigurableWindow {
   /**
    * Language for SpeechSynthesis
@@ -57,13 +57,13 @@ export interface UseSpeechSynthesisOptions extends ConfigurableWindow {
    *
    * @default 1
    */
-  pitch?: MaybeRefOrGetter<SpeechSynthesisUtterance['pitch']>
+  pitch?: MaybeRefOrGetter<SpeechSynthesisUtterance["pitch"]>
   /**
    * Gets and sets the speed at which the utterance will be spoken at.
    *
    * @default 1
    */
-  rate?: MaybeRefOrGetter<SpeechSynthesisUtterance['rate']>
+  rate?: MaybeRefOrGetter<SpeechSynthesisUtterance["rate"]>
   /**
    * Gets and sets the voice that will be used to speak the utterance.
    */
@@ -73,7 +73,7 @@ export interface UseSpeechSynthesisOptions extends ConfigurableWindow {
    *
    * @default 1
    */
-  volume?: MaybeRefOrGetter<SpeechSynthesisUtterance['volume']>
+  volume?: MaybeRefOrGetter<SpeechSynthesisUtterance["volume"]>
   /**
    * Callback function that is called when the boundary event is triggered.
    */

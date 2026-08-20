@@ -5,9 +5,7 @@ const audioDeviceMock = vi.hoisted(() => ({
   ensurePermissions: vi.fn(),
   startStream: vi.fn(),
   stopStream: vi.fn(),
-  trackAudioDeviceUnavailable: vi.fn(),
   trackMicrophonePermissionDenied: vi.fn(),
-  trackMicrophonePermissionRequested: vi.fn(),
 }))
 
 vi.mock('@vueuse/core', async () => {
@@ -31,9 +29,7 @@ vi.mock('@vueuse/core', async () => {
 
 vi.mock('../use-analytics', () => ({
   useAnalytics: () => ({
-    trackAudioDeviceUnavailable: audioDeviceMock.trackAudioDeviceUnavailable,
     trackMicrophonePermissionDenied: audioDeviceMock.trackMicrophonePermissionDenied,
-    trackMicrophonePermissionRequested: audioDeviceMock.trackMicrophonePermissionRequested,
   }),
 }))
 
@@ -42,9 +38,7 @@ describe('useAudioDevice analytics lifecycle', () => {
     if (audioDeviceMock.audioInputsRef)
       audioDeviceMock.audioInputsRef.value = []
     audioDeviceMock.ensurePermissions.mockReset()
-    audioDeviceMock.trackAudioDeviceUnavailable.mockReset()
     audioDeviceMock.trackMicrophonePermissionDenied.mockReset()
-    audioDeviceMock.trackMicrophonePermissionRequested.mockReset()
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
@@ -65,22 +59,13 @@ describe('useAudioDevice analytics lifecycle', () => {
 
     await expect(askPermission()).rejects.toThrow(permissionError)
 
-    expect(audioDeviceMock.trackMicrophonePermissionRequested).toHaveBeenCalledWith({
-      stt_provider_id: 'unknown',
-    })
     expect(audioDeviceMock.trackMicrophonePermissionDenied).toHaveBeenCalledWith({
       stt_provider_id: 'unknown',
       error_code: 'permission_denied',
     })
-    expect(audioDeviceMock.trackAudioDeviceUnavailable).not.toHaveBeenCalled()
   })
 
-  /**
-   * @example
-   * await askPermission()
-   * expect(trackAudioDeviceUnavailable).toHaveBeenCalledWith(expect.objectContaining({ error_code: 'device_unavailable' }))
-   */
-  it('tracks successful permission requests that still expose no microphone devices', async () => {
+  it('does not turn an empty device list into a product event', async () => {
     const { useAudioDevice } = await import('./audio-device')
     audioDeviceMock.ensurePermissions.mockResolvedValue(undefined)
 
@@ -88,13 +73,6 @@ describe('useAudioDevice analytics lifecycle', () => {
 
     await askPermission()
 
-    expect(audioDeviceMock.trackMicrophonePermissionRequested).toHaveBeenCalledWith({
-      stt_provider_id: 'unknown',
-    })
-    expect(audioDeviceMock.trackAudioDeviceUnavailable).toHaveBeenCalledWith({
-      stt_provider_id: 'unknown',
-      error_code: 'device_unavailable',
-    })
     expect(audioDeviceMock.trackMicrophonePermissionDenied).not.toHaveBeenCalled()
   })
 })

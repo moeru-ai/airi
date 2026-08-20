@@ -204,7 +204,15 @@ async function loadModel() {
   await until(modelLoading).not.toBeTruthy()
 
   await modelLoadMutex.acquire()
+  try {
+    await performModelLoad()
+  }
+  finally {
+    modelLoadMutex.release()
+  }
+}
 
+async function performModelLoad() {
   modelLoading.value = true
   componentState.value = 'loading'
 
@@ -447,7 +455,6 @@ async function loadModel() {
     await initExpressionController(internalModelRef.value).catch((err) => {
       console.warn('[Model.vue] Expression controller initialization failed:', err)
     })
-    modelLoadMutex.release()
   }
 }
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ServerForm } from '../mcp-config'
 
-import { Button, FieldInput, FieldKeyValues } from '@proj-airi/ui'
+import { Button, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
 
 defineEmits<{ remove: [] }>()
@@ -55,8 +55,8 @@ const tn = (k: string) => t(`settings.pages.modules.mcp-server.${k}`)
         @remove="(i) => model.envEntries.splice(i, 1)"
       />
       <div class="flex justify-end">
-        <Button
-          variant="ghost" size="sm"
+        <GhostButton
+          size="sm"
           icon="i-solar:add-circle-bold-duotone" :label="tn('actions.add-env')"
           @click="model.envEntries.push({ key: '', value: '' })"
         />
@@ -65,9 +65,10 @@ const tn = (k: string) => t(`settings.pages.modules.mcp-server.${k}`)
 
     <div class="flex justify-end border-t border-neutral-200/70 pt-2 dark:border-neutral-800">
       <Button
-        variant="danger" size="sm"
+        size="sm"
         icon="i-solar:trash-bin-2-bold-duotone" :label="tn('actions.remove')"
-        @click="$emit('remove')"
+        color="red"
+        variant="primary" @click="$emit('remove')"
       />
     </div>
   </div>

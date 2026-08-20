@@ -1,12 +1,11 @@
 import type { ManualRuntime } from './shared/types'
 
-import { defineScenario } from '@proj-airi/vishot-runner-electron'
-
+import { defineStageTamagotchiScenario } from '../../context'
 import { manualCaptureSections } from './manifest'
 import { formatStepFailure, resetScenarioOutputDirectories } from './shared/output'
 import { runCaptureStep } from './shared/steps'
 
-export default defineScenario({
+export default defineStageTamagotchiScenario({
   id: 'demo-controls-settings-chat-websocket',
   async run(context) {
     const mainWindow = await context.stageWindows.waitFor('main')

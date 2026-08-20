@@ -12,10 +12,12 @@
   "license": "MIT",
   "exports": "./src/index.ts",
   "scripts": {
+    "test:run": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@moeru/std": "catalog:",
-    "@proj-airi/vishot-runner-electron": "workspace:^"
+    "@vishot/source-electron": "catalog:",
+    "playwright": "catalog:"
   }
 }

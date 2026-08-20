@@ -105,4 +105,22 @@ describe('isCanvasRegionTransparent', () => {
 
     expect(result).toBe(true)
   })
+
+  it('uses only the exact cursor pixel when the radius is zero', () => {
+    const gl = createGlMock({ hotPixel: { x: 50, y: 49, alpha: 255 } })
+
+    const result = isCanvasRegionTransparent({
+      gl,
+      clientX: 50,
+      clientY: 50,
+      left: 0,
+      top: 0,
+      width: 100,
+      height: 100,
+      radius: 0,
+      threshold: 10,
+    })
+
+    expect(result).toBe(false)
+  })
 })

@@ -1,6 +1,6 @@
 import type { ccv3 } from '@proj-airi/ccc'
 
-import type { AiriCard, AiriExtension } from '../stores/modules/airi-card'
+import type { AiriCard, AiriExtension } from '../types/airiCard'
 
 import JSZip from 'jszip'
 
@@ -17,7 +17,7 @@ describe('airi card package import/export', () => {
     vi.unstubAllGlobals()
   })
 
-  it('exports sanitized packages and restores display models', async () => {
+  it('exports shareable fields, sanitizes runtime state, and restores display models', async () => {
     const displayModelsStore = useDisplayModelsStore()
     const fetch = vi.fn(async () => new Response('preset-vrm-model'))
     vi.stubGlobal('fetch', fetch)
@@ -49,6 +49,32 @@ describe('airi card package import/export', () => {
     expect(airiFrom(imported).modules.displayModelId).toBe('display-model-imported')
   })
 
+  it('applies the share-field whitelist to externally edited package JSON', async () => {
+    const displayModelsStore = useDisplayModelsStore()
+    const source = exportToJSON(createCard('preset-live2d-1'))
+    source.data.extensions.third_party = { token: 'do-not-import' }
+
+    const imported = await importAiriCardPackage({
+      file: await packageFile(source),
+      displayModelsStore,
+    })
+    const airi = airiFrom(imported)
+
+    expect(imported.data).toMatchObject({
+      name: 'AIRI / Test Card',
+      nickname: 'Tester',
+      character_version: '1.2.3',
+      description: 'Description',
+      creator: '',
+      tags: [],
+      mes_example: '',
+    })
+    expect(imported.data.extensions).not.toHaveProperty('third_party')
+    expect(airi.modules).not.toHaveProperty('activeBackgroundId')
+    expect(airi.modules.artistry).not.toHaveProperty('workflowId')
+    expect(airi.agents).toEqual({})
+  })
+
   it('classifies invalid packages', async () => {
     const emptyZip = new JSZip()
     const invalidJsonZip = new JSZip()
@@ -63,6 +89,45 @@ describe('airi card package import/export', () => {
 
     for (const [file, expected] of cases)
       await expect(importAiriCardPackage({ file, displayModelsStore })).rejects.toMatchObject(expected)
+  })
+
+  it('preserves Tachie archives and their compound extension', async () => {
+    const displayModelsStore = useDisplayModelsStore()
+    vi.spyOn(displayModelsStore, 'getDisplayModel').mockResolvedValue({
+      id: 'tachie-model',
+      format: DisplayModelFormat.TachieZip,
+      type: 'file',
+      file: new File(['tachie-model'], 'character.tachie.zip'),
+      name: 'character.tachie.zip',
+      importedAt: 1,
+    })
+    mockAddDisplayModel(displayModelsStore, 'imported-tachie')
+
+    const exported = await exportAiriCardPackage({
+      card: createCard('tachie-model'),
+      displayModelsStore,
+    })
+    const zip = await JSZip.loadAsync(await exported.arrayBuffer())
+    const imported = await importAiriCardPackage({
+      file: new File([exported], 'card.zip'),
+      displayModelsStore,
+    })
+
+    expect(await readJson(zip, 'manifest.json')).toMatchObject({
+      resources: {
+        displayModel: {
+          path: 'models/body-model.tachie.zip',
+          format: DisplayModelFormat.TachieZip,
+          name: 'character.tachie.zip',
+        },
+      },
+    })
+    expect(await zip.file('models/body-model.tachie.zip')?.async('string')).toBe('tachie-model')
+    expect(displayModelsStore.addDisplayModel).toHaveBeenCalledWith(
+      DisplayModelFormat.TachieZip,
+      expect.objectContaining({ name: 'character.tachie.zip' }),
+    )
+    expect(airiFrom(imported).modules.displayModelId).toBe('imported-tachie')
   })
 })
 

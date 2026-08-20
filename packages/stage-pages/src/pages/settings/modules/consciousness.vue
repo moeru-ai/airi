@@ -3,16 +3,19 @@ import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@pr
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
 const airiCardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
-const { persistedChatProvidersMetadata, configuredProviders } = storeToRefs(providersStore)
+const { configuredProviders } = storeToRefs(providerStore)
+const { persistedChatProvidersMetadata } = storeToRefs(providersStore)
 const {
   activeProvider,
   activeModel,
@@ -25,43 +28,29 @@ const {
 } = storeToRefs(consciousnessStore)
 
 const { t } = useI18n()
-const { trackOfficialProviderSelected, trackProviderClick } = useAnalytics()
+const { trackModelSwitched, trackProviderClick } = useAnalytics()
 
-/**
- * Tracks explicit official chat-provider selection from settings.
- */
-function trackOfficialProviderSelection(providerId: string, modelId: string) {
-  if (!providerId.startsWith('official-provider'))
-    return
-
-  trackOfficialProviderSelected({
-    provider_id: providerId,
-    provider_mode: 'official',
-    source: 'settings',
-    auto_selected: false,
-    model_id: modelId || 'unknown',
-  })
-}
-
-watch(activeProvider, async (provider, oldProvider) => {
+watch(activeProvider, async (provider) => {
   if (!provider)
     return
-
-  // The consciousness store clears the model selection on provider changes;
-  // the page only tracks the selection and loads the new provider's catalog.
-  if (oldProvider !== undefined && oldProvider !== provider) {
-    trackOfficialProviderSelection(provider, activeModel.value)
-  }
 
   await consciousnessStore.loadModelsForProvider(provider)
 }, { immediate: true })
 
 watch([activeProvider, activeModel], ([provider, model]) => {
-  airiCardStore.updateActiveCardConsciousness({ provider, model })
+  void airiCardStore.updateActiveCardConsciousness({ provider, model })
 })
 
 function updateCustomModelName(value: string) {
   customModelName.value = value
+}
+
+function selectModel(modelId: string) {
+  const previousModelId = activeModel.value
+  activeModel.value = modelId
+
+  if (previousModelId !== modelId)
+    trackModelSwitched(previousModelId || 'none', modelId)
 }
 
 function handleDeleteProvider(providerId: string) {
@@ -214,8 +203,8 @@ function handleDeleteProvider(providerId: string) {
 
           <!-- Using the new RadioCardManySelect component - works with empty list for custom input -->
           <RadioCardManySelect
-            v-model="activeModel"
             v-model:search-query="modelSearchQuery"
+            :model-value="activeModel"
             :items="[]"
             :searchable="true"
             :allow-custom="true"
@@ -226,6 +215,7 @@ function handleDeleteProvider(providerId: string) {
             :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
             :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
             :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
+            @update:model-value="selectModel"
             @update:custom-value="updateCustomModelName"
           />
         </template>
@@ -233,8 +223,8 @@ function handleDeleteProvider(providerId: string) {
         <!-- Using the new RadioCardManySelect component -->
         <template v-else-if="providerModels.length > 0">
           <RadioCardManySelect
-            v-model="activeModel"
             v-model:search-query="modelSearchQuery"
+            :model-value="activeModel"
             :items="providerModels"
             :searchable="true"
             :allow-custom="true"
@@ -246,6 +236,7 @@ function handleDeleteProvider(providerId: string) {
             :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
             :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
             expanded-class="mb-12"
+            @update:model-value="selectModel"
             @update:custom-value="updateCustomModelName"
           />
         </template>

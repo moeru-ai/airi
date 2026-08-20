@@ -49,7 +49,6 @@ If state needs to change, emit an event, use `v-model` or create a local copy.
 ```vue
 <script setup>
 import { ref } from 'vue'
-
 import UserForm from './UserForm.vue'
 
 const formRef = ref(null)
@@ -63,9 +62,7 @@ function submitForm() {
 
 <template>
   <UserForm ref="formRef" />
-  <button @click="submitForm">
-    Submit
-  </button>
+  <button @click="submitForm">Submit</button>
 </template>
 ```
 
@@ -91,8 +88,7 @@ Prefer props/emits by default. When a parent must call an exposed child method, 
 **BAD:**
 ```vue
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-
+import { ref, onMounted } from 'vue'
 import DialogPanel from './DialogPanel.vue'
 
 const panelRef = ref(null)
@@ -121,7 +117,6 @@ defineExpose({ open })
 <!-- Parent.vue -->
 <script setup lang="ts">
 import { onMounted, useTemplateRef } from 'vue'
-
 import DialogPanel from './DialogPanel.vue'
 
 // Vue 3.5+ with useTemplateRef
@@ -188,7 +183,7 @@ const props = defineProps({ value: String })
 </script>
 
 <template>
-  <input :value="props.value" @input="$emit('input', $event.target.value)">
+  <input :value="props.value" @input="$emit('input', $event.target.value)" />
 </template>
 ```
 
@@ -199,7 +194,7 @@ const model = defineModel({ type: String })
 </script>
 
 <template>
-  <input v-model="model">
+  <input v-model="model" />
 </template>
 ```
 
@@ -214,7 +209,7 @@ const emit = defineEmits(['update:modelValue'])
   <input
     :value="props.modelValue"
     @input="emit('update:modelValue', $event.target.value)"
-  >
+  />
 </template>
 ```
 
@@ -282,27 +277,25 @@ settings?.theme = 'dark'
 **GOOD:**
 ```vue
 <script setup lang="ts">
-import type { InjectionKey } from 'vue'
-
 import { inject, provide } from 'vue'
+import type { InjectionKey } from 'vue'
 
 interface Props {
   userId: string
 }
 
 interface Emits {
-  save: [payload: { id: string, draft: boolean }]
+  save: [payload: { id: string; draft: boolean }]
 }
 
 interface Settings {
   theme: 'light' | 'dark'
 }
 
-const props = defineProps<Props>()
-
-const emit = defineEmits<Emits>()
-
 const settingsKey: InjectionKey<Settings> = Symbol('settings')
+
+const props = defineProps<Props>()
+const emit = defineEmits<Emits>()
 
 provide(settingsKey, { theme: 'light' })
 

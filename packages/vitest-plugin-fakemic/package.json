@@ -1,0 +1,26 @@
+{
+  "name": "@proj-airi/vitest-plugin-fakemic",
+  "type": "module",
+  "version": "0.11.3",
+  "private": true,
+  "description": "Fake microphone test runtime and Vitest integration",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "playwright": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:vitest"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

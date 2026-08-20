@@ -17,6 +17,8 @@ const arkProviderConfigSchema = z.object({
 interface ArkModelSpec {
   id: string
   contextLength?: number
+  deprecated?: boolean
+  descriptionKey?: string
 }
 
 interface ArkProviderDefinitionOptions {
@@ -91,7 +93,7 @@ export function createArkChatProviderDefinition(options: ArkProviderDefinitionOp
     },
 
     extraMethods: {
-      listModels: async () => models.map((model) => {
+      listModels: async (_config, _provider, contextOptions) => models.map((model) => {
         const modelInfo: ModelInfo = {
           id: `${modelPrefix}${model.id}`,
           name: model.id,
@@ -99,6 +101,12 @@ export function createArkChatProviderDefinition(options: ArkProviderDefinitionOp
         }
         if (model.contextLength !== undefined) {
           modelInfo.contextLength = model.contextLength
+        }
+        if (model.deprecated !== undefined) {
+          modelInfo.deprecated = model.deprecated
+        }
+        if (model.descriptionKey !== undefined && contextOptions) {
+          modelInfo.description = contextOptions.t(model.descriptionKey)
         }
         return modelInfo
       }),

@@ -1,4 +1,5 @@
 export const IOSubsystems = {
+  VAD: 'vad',
   ASR: 'asr',
   LLM: 'llm',
   StreamingControl: 'streaming-control',
@@ -9,6 +10,8 @@ export type IOSubsystem = (typeof IOSubsystems)[keyof typeof IOSubsystems]
 
 export const IOSpanNames = {
   InteractionTurn: 'Interaction turn',
+  SpeechTurn: 'Speech turn',
+  VoiceActivityDetection: 'Voice activity detection',
   SpeechRecognition: 'Speech recognition',
   LLMInference: 'LLM inference',
   StreamingControlDispatch: 'Streaming control dispatch',
@@ -26,8 +29,15 @@ export const IOAttributes = {
   Subsystem: `${customPrefix}.subsystem`,
   TooltipKeys: `${customPrefix}.tooltip.keys`,
   LLM_TTFT: `${customPrefix}.llm.time_to_first_token`,
+  VADAudioDurationMs: `${customPrefix}.vad.audio_duration_ms`,
+  VADAborted: `${customPrefix}.vad.aborted`,
   ASRText: `${customPrefix}.asr.text`,
   ASRAbort: `${customPrefix}.asr.abort`,
+  LLMInputMessageCount: `${customPrefix}.llm.input_message_count`,
+  LLMInputMessageRoles: `${customPrefix}.llm.input_message_roles`,
+  LLMInputUserMessageCount: `${customPrefix}.llm.input_user_message_count`,
+  LLMOutputChunkCount: `${customPrefix}.llm.output_chunk_count`,
+  LLMOutputChunkLengths: `${customPrefix}.llm.output_chunk_lengths`,
   LLMTextLength: `${customPrefix}.llm.text_length`,
   StreamingControlCallName: `${customPrefix}.streaming_control.call_name`,
   StreamingControlHandlerCount: `${customPrefix}.streaming_control.handler_count`,
@@ -43,9 +53,11 @@ export const IOAttributes = {
   TTSSegmentId: `${customPrefix}.tts.segment_id`,
   TTSText: `${customPrefix}.tts.text`,
   TTSChunkReason: `${customPrefix}.tts.chunk_reason`,
+  TTSAudioDurationMs: `${customPrefix}.tts.audio_duration_ms`,
   TTSInterrupted: `${customPrefix}.tts.interrupted`,
   TTSInterruptReason: `${customPrefix}.tts.interrupt_reason`,
   TTSCanceled: `${customPrefix}.tts.canceled`,
+  TurnId: `${customPrefix}.turn_id`,
 } as const
 
 export const IOEvents = {

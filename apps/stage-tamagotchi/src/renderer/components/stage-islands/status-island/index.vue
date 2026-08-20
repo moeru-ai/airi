@@ -12,37 +12,23 @@ import ControlButton from '../controls-island/control-button.vue'
 
 import { electronOpenSettings } from '../../../../shared/eventa'
 
+const props = defineProps<{
+  buttonStyle: string
+  iconClass: string
+}>()
+
 const { t } = useI18n()
 const { connected } = storeToRefs(useModsServerChannelStore())
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 
 const { flickerStyle, onAnimationIteration } = useLampFlickerAnimation(() => !connected.value)
 
-const statusIslandSize = {
-  border: 'border-2',
-  icon: 'size-6',
-  padding: 'p-2.5',
-} as const
-
-const buttonStyle = computed(() => {
-  return [
-    statusIslandSize.border,
-    statusIslandSize.padding,
-    'transition-all duration-300 ease-in-out',
-    connected.value
-      ? 'border-emerald-200/60 bg-white/85 hover:bg-emerald-50/90 dark:border-emerald-400/15 dark:bg-neutral-900/75 dark:hover:bg-neutral-900/88'
-      : 'border-amber-300/80 bg-amber-50/90 hover:bg-amber-100/90 dark:border-amber-400/30 dark:bg-amber-950/25 dark:hover:bg-amber-950/38',
-  ]
-})
-
 const iconClasses = computed(() => {
   return [
-    connected.value ? 'i-ph:wifi-high' : `i-ph:wifi-slash ${lampFlickerAnimationClass}`,
-    statusIslandSize.icon,
-    'shrink-0 transition-colors duration-300 ease-in-out',
-    connected.value
-      ? 'text-emerald-600 dark:text-emerald-300'
-      : 'text-amber-600 dark:text-amber-300',
+    'i-mingcute:link-3-line',
+    !connected.value && lampFlickerAnimationClass,
+    props.iconClass,
+    'shrink-0 text-neutral-800 transition-colors duration-300 ease-in-out dark:text-neutral-300',
   ]
 })
 
@@ -58,19 +44,17 @@ const tooltipLabel = computed(() => {
 </script>
 
 <template>
-  <div fixed right-3 top-3 z-20>
-    <ControlButtonTooltip side="left">
-      <ControlButton
-        :button-style="buttonStyle.join(' ')"
-        :aria-label="tooltipLabel"
-        :title="tooltipLabel"
-        @click="openSettings({ route: '/settings/connection' })"
-      >
-        <div :class="iconClasses" :style="flickerStyle" @animationiteration="onAnimationIteration" />
-      </ControlButton>
-      <template #tooltip>
-        {{ tooltipLabel }}
-      </template>
-    </ControlButtonTooltip>
-  </div>
+  <ControlButtonTooltip side="inward">
+    <ControlButton
+      :button-style="props.buttonStyle"
+      :aria-label="tooltipLabel"
+      :title="tooltipLabel"
+      @click="openSettings({ route: '/settings/connection' })"
+    >
+      <div :class="iconClasses" :style="flickerStyle" @animationiteration="onAnimationIteration" />
+    </ControlButton>
+    <template #tooltip>
+      {{ tooltipLabel }}
+    </template>
+  </ControlButtonTooltip>
 </template>

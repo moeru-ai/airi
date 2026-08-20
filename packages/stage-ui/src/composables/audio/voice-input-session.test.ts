@@ -5,6 +5,23 @@ const audioRecorderMock = vi.hoisted(() => ({
   isRecording: undefined as unknown as { value: boolean },
   startRecord: vi.fn(),
   stopRecord: vi.fn(),
+  onStopRecordHook: undefined as ((recording: Blob | undefined) => Promise<void>) | undefined,
+}))
+
+const vadMock = vi.hoisted(() => ({
+  init: vi.fn<() => Promise<void>>(),
+  options: undefined as {
+    onSpeechStart?: () => void
+    onSpeechEnd?: () => void
+    onSpeechCancel?: () => void
+    onSpeechReady?: (event: { buffer: Float32Array, duration: number }) => void
+    minSilenceDurationMs?: number
+  } | undefined,
+  start: vi.fn<() => Promise<void>>(),
+}))
+
+const hearingPipelineMock = vi.hoisted(() => ({
+  transcribeForRecording: vi.fn(async (_recording: Blob | null | undefined) => ''),
 }))
 
 vi.mock('../../workers/vad/process.worklet?worker&url', () => ({
@@ -15,22 +32,27 @@ vi.mock('../../stores/ai/models/vad', async () => {
   const vue = await vi.importActual<typeof import('vue')>('vue')
 
   return {
-    useVAD: () => ({
-      init: vi.fn(),
-      dispose: vi.fn(),
-      start: vi.fn(),
-      loaded: vue.ref(true),
-      isSpeech: vue.ref(false),
-      isSpeechProb: vue.ref(0),
-      isSpeechHistory: vue.ref([]),
-      inferenceError: vue.ref(),
-    }),
+    useVAD: (_workerUrl: string, options: typeof vadMock.options) => {
+      vadMock.options = options
+      return {
+        init: vadMock.init,
+        dispose: vi.fn(),
+        start: vadMock.start,
+        loaded: vue.ref(true),
+        isSpeech: vue.ref(false),
+        isSpeechProb: vue.ref(0),
+        isSpeechHistory: vue.ref([]),
+        inferenceError: vue.ref(),
+        loading: vue.ref(false),
+        minSilenceDurationMs: vue.toRef(options?.minSilenceDurationMs ?? 1200),
+      }
+    },
   }
 })
 
 vi.mock('../../stores/modules/hearing', () => ({
   useHearingSpeechInputPipeline: () => ({
-    transcribeForRecording: vi.fn(async () => ''),
+    transcribeForRecording: hearingPipelineMock.transcribeForRecording,
   }),
 }))
 
@@ -43,7 +65,10 @@ vi.mock('./audio-recorder', async () => {
       isRecording: audioRecorderMock.isRecording,
       startRecord: audioRecorderMock.startRecord,
       stopRecord: audioRecorderMock.stopRecord,
-      onStopRecord: vi.fn(),
+      onStopRecord: vi.fn((hook: (recording: Blob | undefined) => Promise<void>) => {
+        audioRecorderMock.onStopRecordHook = hook
+        return vi.fn()
+      }),
     }),
   }
 })
@@ -57,9 +82,110 @@ function createMediaStream() {
 describe('useVoiceInputSession', () => {
   afterEach(() => {
     audioRecorderMock.isRecording.value = false
+    audioRecorderMock.onStopRecordHook = undefined
+    vadMock.options = undefined
+    vadMock.init.mockReset().mockResolvedValue(undefined)
+    vadMock.start.mockReset().mockResolvedValue(undefined)
     vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.clearAllMocks()
+    audioRecorderMock.startRecord.mockReset()
+    audioRecorderMock.stopRecord.mockReset()
+    hearingPipelineMock.transcribeForRecording.mockReset().mockResolvedValue('')
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2092
+  it('issue #2092 transcribes the padded VAD buffer instead of the recorder-only segment', async () => {
+    const { useVoiceInputSession } = await import('./voice-input-session')
+    const recorderRecording = new Blob(['recorder-only'], { type: 'audio/wav' })
+    const onTranscriptionResult = vi.fn()
+
+    hearingPipelineMock.transcribeForRecording.mockResolvedValueOnce('transcribed')
+    audioRecorderMock.startRecord.mockImplementation(async () => {
+      audioRecorderMock.isRecording.value = true
+    })
+    audioRecorderMock.stopRecord.mockImplementation(async () => {
+      audioRecorderMock.isRecording.value = false
+      await audioRecorderMock.onStopRecordHook?.(recorderRecording)
+    })
+
+    const session = useVoiceInputSession(shallowRef(createMediaStream()), {
+      volumeFallback: { enabled: false },
+      onTranscriptionResult,
+    })
+
+    await expect(session.startSegment('vad')).resolves.toBe(true)
+
+    vadMock.options?.onSpeechEnd?.()
+    vadMock.options?.onSpeechReady?.({
+      buffer: new Float32Array([0.5, -0.5]),
+      duration: 0.125,
+    })
+
+    await vi.waitFor(() => expect(hearingPipelineMock.transcribeForRecording).toHaveBeenCalledOnce())
+
+    const recording = hearingPipelineMock.transcribeForRecording.mock.calls[0]?.[0]
+    expect(recording).toBeInstanceOf(Blob)
+    expect(recording).not.toBe(recorderRecording)
+    expect(recording).toMatchObject({ size: 48, type: 'audio/wav' })
+
+    const wav = new DataView(await recording!.arrayBuffer())
+    expect(String.fromCharCode(...new Uint8Array(wav.buffer, 0, 4))).toBe('RIFF')
+    expect(wav.getUint32(24, true)).toBe(16000)
+    expect(wav.getInt16(44, true)).toBe(16383)
+    expect(wav.getInt16(46, true)).toBe(-16384)
+    expect(onTranscriptionResult).toHaveBeenCalledWith(expect.objectContaining({
+      trigger: 'vad',
+      recording,
+      text: 'transcribed',
+    }))
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2092
+  it.each(['manual', 'volume'] as const)('issue #2092 keeps %s segments on the recorder-provided audio', async (trigger) => {
+    const { useVoiceInputSession } = await import('./voice-input-session')
+    const recorderRecording = new Blob(['manual'], { type: 'audio/wav' })
+
+    audioRecorderMock.startRecord.mockImplementation(async () => {
+      audioRecorderMock.isRecording.value = true
+    })
+    audioRecorderMock.stopRecord.mockImplementation(async () => {
+      audioRecorderMock.isRecording.value = false
+      await audioRecorderMock.onStopRecordHook?.(recorderRecording)
+    })
+
+    const session = useVoiceInputSession(shallowRef(createMediaStream()), {
+      volumeFallback: { enabled: false },
+    })
+
+    await expect(session.startSegment(trigger)).resolves.toBe(true)
+    await expect(session.stopSegment(trigger)).resolves.toBeUndefined()
+    await vi.waitFor(() => expect(hearingPipelineMock.transcribeForRecording).toHaveBeenCalledOnce())
+
+    expect(hearingPipelineMock.transcribeForRecording).toHaveBeenCalledWith(recorderRecording)
+  })
+
+  it('discards a VAD recording when the detected speech is shorter than the minimum duration', async () => {
+    const { useVoiceInputSession } = await import('./voice-input-session')
+
+    audioRecorderMock.startRecord.mockImplementation(async () => {
+      audioRecorderMock.isRecording.value = true
+    })
+    audioRecorderMock.stopRecord.mockImplementation(async () => {
+      audioRecorderMock.isRecording.value = false
+      await audioRecorderMock.onStopRecordHook?.(new Blob(['noise'], { type: 'audio/wav' }))
+    })
+
+    const session = useVoiceInputSession(shallowRef(createMediaStream()), {
+      volumeFallback: { enabled: false },
+    })
+
+    await expect(session.startSegment('vad')).resolves.toBe(true)
+    vadMock.options?.onSpeechCancel?.()
+
+    await vi.waitFor(() => expect(session.activeRecordingTrigger.value).toBeUndefined())
+    expect(audioRecorderMock.stopRecord).toHaveBeenCalledOnce()
+    expect(hearingPipelineMock.transcribeForRecording).not.toHaveBeenCalled()
   })
 
   it('clears the active recorder segment when discarding fails during stop', async () => {
@@ -272,6 +398,7 @@ describe('useVoiceInputSession', () => {
 
     const { useVoiceInputSession } = await import('./voice-input-session')
     const session = useVoiceInputSession(shallowRef(createMediaStream()), {
+      vad: { minSilenceDurationMs: 20 },
       volumeFallback: {
         enabled: true,
         stopDelayMs: 10,
@@ -284,6 +411,12 @@ describe('useVoiceInputSession', () => {
     animationFrames.shift()?.(1000)
     vi.setSystemTime(1011)
     animationFrames.shift()?.(1011)
+    await Promise.resolve()
+
+    expect(stopRecord).not.toHaveBeenCalled()
+
+    vi.setSystemTime(1031)
+    animationFrames.shift()?.(1031)
     await Promise.resolve()
 
     expect(stopRecord).toHaveBeenCalledOnce()

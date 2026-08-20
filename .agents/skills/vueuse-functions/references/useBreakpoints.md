@@ -125,7 +125,7 @@ import { breakpointsTailwind } from '@vueuse/core'
 ## Type Declarations
 
 ```ts
-export * from './breakpoints'
+export * from "./breakpoints"
 export type Breakpoints<K extends string = string> = Record<
   K,
   MaybeRefOrGetter<number | string>
@@ -139,7 +139,7 @@ export interface UseBreakpointsOptions extends ConfigurableWindow {
    *
    * @default "min-width"
    */
-  strategy?: 'min-width' | 'max-width'
+  strategy?: "min-width" | "max-width"
   ssrWidth?: number
 }
 export type UseBreakpointReturn<K extends string = string> = Record<
@@ -160,7 +160,7 @@ export type UseBreakpointReturn<K extends string = string> = Record<
   isSmallerOrEqual: (k: MaybeRefOrGetter<K>) => boolean
   isInBetween: (a: MaybeRefOrGetter<K>, b: MaybeRefOrGetter<K>) => boolean
   current: () => ComputedRef<K[]>
-  active: () => ComputedRef<K | ''>
+  active: () => ComputedRef<K | "">
 }
 /**
  * Reactively viewport breakpoints

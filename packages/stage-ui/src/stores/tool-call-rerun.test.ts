@@ -107,6 +107,44 @@ describe('replaceToolCallResult', () => {
       },
     ])
   })
+
+  it('replaces the matching tool message in the provider transcript', () => {
+    const message = assistantMessage({
+      providerTranscript: [
+        {
+          role: 'assistant',
+          content: '',
+          tool_calls: [
+            {
+              id: 'call-weather',
+              type: 'function',
+              function: { name: 'weather', arguments: '{}' },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          tool_call_id: 'call-weather',
+          content: 'old weather',
+        },
+        {
+          role: 'assistant',
+          content: 'The old result was returned.',
+        },
+      ],
+    })
+
+    const next = replaceToolCallResult(message, {
+      id: 'call-weather',
+      result: 'new weather',
+    })
+
+    expect(next.providerTranscript?.[1]).toEqual({
+      role: 'tool',
+      tool_call_id: 'call-weather',
+      content: 'new weather',
+    })
+  })
 })
 
 describe('executeToolCallRerun', () => {

@@ -116,16 +116,16 @@ presetMini({
 presetMini({
   // Dark mode: 'class' | 'media' | { light: string, dark: string }
   dark: 'class',
-
+  
   // Generate [group=""] instead of .group for attributify
   attributifyPseudo: false,
-
+  
   // CSS variable prefix (default: 'un-')
   variablePrefix: 'un-',
-
+  
   // Utility prefix
   prefix: undefined,
-
+  
   // Preflight generation: true | false | 'on-demand'
   preflight: true,
 })
@@ -136,9 +136,8 @@ presetMini({
 Create custom preset extending mini:
 
 ```ts
-import type { Preset } from 'unocss'
-
 import { presetMini } from 'unocss'
+import type { Preset } from 'unocss'
 
 export const myPreset: Preset = {
   name: 'my-preset',
@@ -148,12 +147,12 @@ export const myPreset: Preset = {
     ['card', { 'border-radius': '8px', 'box-shadow': '0 2px 8px rgba(0,0,0,0.1)' }],
   ],
   shortcuts: {
-    btn: 'px-4 py-2 rounded bg-blue-500 text-white',
+    'btn': 'px-4 py-2 rounded bg-blue-500 text-white',
   },
 }
 ```
 
-<!--
+<!-- 
 Source references:
 - https://unocss.dev/presets/mini
 -->

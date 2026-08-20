@@ -65,7 +65,7 @@ export async function createSparkCommandTool(options: CreateSparkCommandToolOpti
 
         options.sendSparkCommand(command)
 
-        // `destinations` may be undefined: the channel sender (stores/llm.ts sendSparkCommand) deletes
+        // `destinations` may be undefined: the channel sender (stores/ai/chat-llm/llm.ts sendSparkCommand) deletes
         // it to trigger broadcast-to-all-authenticated-peers. Guard the .join so we don't surface
         // "Cannot read properties of undefined (reading 'join')" back to the LLM after a successful send.
         const dests = Array.isArray(command.destinations) && command.destinations.length > 0

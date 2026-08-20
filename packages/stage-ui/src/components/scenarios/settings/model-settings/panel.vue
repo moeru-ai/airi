@@ -15,7 +15,9 @@ import { useI18n } from 'vue-i18n'
 
 import Godot from './godot.vue'
 import Live2D from './live2d.vue'
+import MMD from './mmd.vue'
 import Spine from './spine.vue'
+import Tachie from './tachie.vue'
 import VRM from './vrm.vue'
 
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
@@ -59,7 +61,7 @@ const effectiveRenderer = computed(() => resolveModelSettingsPanelRenderer({
 
 async function handleModelPick(selectedModel: DisplayModel | undefined) {
   stageModelSelected.value = selectedModel?.id ?? ''
-  airiCardStore.updateActiveCardDisplayModel(selectedModel?.id)
+  await airiCardStore.updateActiveCardDisplayModel(selectedModel?.id)
   await settingsStore.updateStageModel()
 }
 </script>
@@ -83,14 +85,20 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
         <template #vrm>
           <code>.vrm</code>
         </template>
+        <template #mmd>
+          <code>.pmx</code>/<code>.pmd</code>
+        </template>
       </i18n-t>
       <p>
         {{ t('settings.model-select.panel-callout.model-type-example') }}
       </p>
+      <p v-if="effectiveRenderer === 'tachie'">
+        {{ t('settings.tachie.archive-description') }}
+      </p>
     </Callout>
     <div :class="['flex flex-wrap items-center gap-2']">
       <ModelSelectorDialog v-model:show="modelSelectorOpen" :selected-model="stageModelSelectedDisplayModel" @pick="handleModelPick">
-        <Button variant="secondary">
+        <Button>
           {{ t('settings.model-select.select-model.button') }}
         </Button>
       </ModelSelectorDialog>
@@ -116,6 +124,20 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
       :palette="palette"
       :runtime-snapshot="runtimeSnapshot"
       @extract-colors-from-model="$emit('extractColorsFromModel')"
+    />
+    <MMD
+      v-if="effectiveRenderer === 'mmd'"
+      :allow-extract-colors="allowExtractColors"
+      :palette="palette"
+      :runtime-snapshot="runtimeSnapshot"
+      @extract-colors-from-model="emit('extractColorsFromModel')"
+    />
+    <Tachie
+      v-if="effectiveRenderer === 'tachie'"
+      :allow-extract-colors="allowExtractColors"
+      :palette="palette"
+      :runtime-snapshot="runtimeSnapshot"
+      @extract-colors-from-model="emit('extractColorsFromModel')"
     />
     <Godot
       v-if="effectiveRenderer === 'godot'"

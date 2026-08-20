@@ -7,7 +7,7 @@ import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useS
 import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
-import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
@@ -22,34 +22,33 @@ import { useRouter } from 'vue-router'
 
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
 
-import { useChatSyncStore } from '../stores/chat-sync'
+import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
+import { artistryToolReferences, widgetToolReferences } from '../stores/tools'
 
 const router = useRouter()
 const messageInput = ref('')
+useHearingInputChannel(messageInput)
 const lastEnterTime = ref(0)
 const attachments = ref<{ type: 'image', data: string, mimeType: string, url: string }[]>([])
 
-const chatOrchestrator = useChatOrchestratorStore()
+const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
-const chatSyncStore = useChatSyncStore()
 const backgroundStore = useBackgroundStore()
 const journalPreviewStore = useJournalPreviewStore()
 const airiCardStore = useAiriCardStore()
 
-const { messages } = storeToRefs(chatSession)
+const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { sending } = storeToRefs(chatOrchestrator)
+const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 const { t } = useI18n()
 const { openImagePreview } = journalPreviewStore
 const isComposing = ref(false)
-const sessionsDrawerOpen = defineModel<boolean>('sessionsDrawerOpen', { default: false })
 const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
 const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
 type SendMode = (typeof SEND_MODES)[number]
-type ToolCallRerunToolset = 'widgets' | 'artistry'
 const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter')
 const toolCallRenderers = {
   image_journal: JournalToolCallBlock,
@@ -90,31 +89,39 @@ async function handleSend() {
 
   const textToSend = messageInput.value
   const attachmentsToSend = attachments.value.map(att => ({ ...att }))
+  // The active session can change while the cross-window request is pending.
+  // Keep one correlation key for both the send and its failure recovery.
+  const targetSessionId = chatSession.activeSessionId
 
   // optimistic clear
   messageInput.value = ''
   attachments.value = []
 
   try {
-    await chatSyncStore.requestIngest({
+    await chatStore.send({
+      sessionId: targetSessionId,
       text: textToSend,
       attachments: attachmentsToSend,
-      toolset: 'artistry',
+      tools: artistryToolReferences,
     })
 
     attachmentsToSend.forEach(att => URL.revokeObjectURL(att.url))
   }
   catch (error) {
-    // restore on failure
-    messageInput.value = textToSend
-    attachments.value = attachmentsToSend
-    chatSession.setSessionMessages(chatSession.activeSessionId, [
-      ...messages.value,
-      {
-        role: 'error',
-        content: errorMessageFrom(error) ?? 'Failed to send message',
-      },
-    ])
+    const errorMessage = errorMessageFrom(error) ?? String(error)
+    const wasCancelledForDeletedSession
+      = errorMessage.includes('Chat session was reset before send could start')
+        || errorMessage.includes('Chat session was removed before send completed')
+    if (!wasCancelledForDeletedSession && chatSession.activeSessionId === targetSessionId) {
+      const currentDraft = messageInput.value
+      messageInput.value = currentDraft ? `${textToSend}\n${currentDraft}` : textToSend
+      attachments.value = [...attachmentsToSend, ...attachments.value]
+    }
+    else {
+      // This window no longer owns a visible attachment preview, so its Blob
+      // URLs must be released instead of surviving until the window closes.
+      attachmentsToSend.forEach(attachment => URL.revokeObjectURL(attachment.url))
+    }
   }
 }
 
@@ -205,10 +212,17 @@ watch(sendMode, () => {
 
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 const assistantLabel = computed(() => activeCard.value?.name?.trim() || undefined)
+const isActiveSessionSending = computed(() => sending.value && activeSendSessionId.value === activeSessionId.value)
+const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
+  ? activeStreamingMessage.value
+  : streamingMessage.value)
 
 async function handleDeleteMessage(index: number) {
   const message = messages.value[index]
-  await chatSyncStore.requestDeleteMessage({ index })
+  await chatSession.deleteMessage({
+    sessionId: chatSession.activeSessionId,
+    index,
+  })
   trackChatMessageDeleted({
     source: 'history',
     message_role: message?.role ?? 'unknown',
@@ -220,34 +234,21 @@ onMounted(() => {
 })
 
 async function handleRetryMessage(index: number) {
-  await chatSyncStore.requestRetry({
+  await chatStore.retry({
     sessionId: chatSession.activeSessionId,
     index,
+    tools: widgetToolReferences,
   })
   trackChatMessageRetried({
     source: 'history',
   })
 }
 
-function resolveToolCallRerunToolset(toolName: string): ToolCallRerunToolset | undefined {
-  // TODO: Stop hardcoding tool names to app-local toolsets. Tool registration
-  // should expose the owning runtime/toolset id so reruns can reuse the exact
-  // source that created the original tool call.
-  if (toolName === 'image_journal' || toolName === 'text_journal')
-    return 'artistry'
-
-  if (toolName === 'stage_widgets' || toolName === 'get_weather')
-    return 'widgets'
-
-  return undefined
-}
-
 async function handleToolCallRerun(payload: { message: ChatHistoryItem, index: number, key: string | number, toolCallId: string, toolName: string, args: string }) {
-  await chatSyncStore.requestToolCallRerun({
+  await chatStore.rerunToolCall({
     sessionId: chatSession.activeSessionId,
     messageId: payload.message.id,
     index: payload.index,
-    toolset: resolveToolCallRerunToolset(payload.toolName),
     toolCallId: payload.toolCallId,
     toolName: payload.toolName,
     args: payload.args,
@@ -256,7 +257,7 @@ async function handleToolCallRerun(payload: { message: ChatHistoryItem, index: n
 
 async function handleCleanupMessages() {
   const messageCount = messages.value.filter(message => message.role !== 'system').length
-  await chatSyncStore.requestCleanup()
+  await chatStore.cleanup(chatSession.activeSessionId)
   trackChatMessagesCleared({
     source: 'chat_controls',
     message_count: messageCount,
@@ -270,8 +271,8 @@ async function handleCleanupMessages() {
       <ChatHistory
         :messages="historyMessages"
         :assistant-label="assistantLabel"
-        :sending="sending"
-        :streaming-message="streamingMessage"
+        :sending="isActiveSessionSending"
+        :streaming-message="visibleStreamingMessage"
         :tool-call-renderers="toolCallRenderers"
         @delete-message="handleDeleteMessage($event.index)"
         @retry-message="handleRetryMessage($event.index)"
@@ -329,17 +330,6 @@ async function handleCleanupMessages() {
       </div>
     </div>
     <div :class="['flex items-center justify-end gap-2 py-1']">
-      <button
-        :class="[
-          'max-h-[10lh] min-h-[1lh] flex items-center justify-center rounded-md p-2 outline-none',
-          'bg-neutral-100 text-lg text-neutral-500 transition-colors transition-transform active:scale-95',
-          'dark:bg-neutral-800 dark:text-neutral-400 hover:text-primary-500 dark:hover:text-primary-400',
-        ]"
-        title="Conversations"
-        @click="sessionsDrawerOpen = true"
-      >
-        <div class="i-solar:chat-line-bold-duotone" />
-      </button>
       <DropdownMenuRoot>
         <DropdownMenuTrigger as-child>
           <button

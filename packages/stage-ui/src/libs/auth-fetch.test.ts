@@ -1,31 +1,26 @@
+import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useAuthStore } from '../stores/auth'
 import { authedFetch } from './auth-fetch'
 
-const authMocks = vi.hoisted(() => ({
-  getAuthToken: vi.fn(() => 'access-token'),
-}))
-
 const posthogMocks = vi.hoisted(() => ({
-  getPosthogIdentitySnapshot: vi.fn<() => { distinctId: string, sessionId: string } | null>(() => ({
+  getAnalyticsIdentitySnapshot: vi.fn<() => { distinctId: string, sessionId: string } | null>(() => ({
     distinctId: 'distinct-1',
     sessionId: 'session-1',
   })),
 }))
 
-vi.mock('./auth', () => ({
-  getAuthToken: authMocks.getAuthToken,
-}))
-
-vi.mock('../stores/analytics/posthog', () => ({
-  getPosthogIdentitySnapshot: posthogMocks.getPosthogIdentitySnapshot,
+vi.mock('./analytics', () => ({
+  getAnalyticsIdentitySnapshot: posthogMocks.getAnalyticsIdentitySnapshot,
 }))
 
 describe('authedFetch', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
-    authMocks.getAuthToken.mockReturnValue('access-token')
-    posthogMocks.getPosthogIdentitySnapshot.mockReturnValue({
+    setActivePinia(createPinia())
+    useAuthStore().token = 'access-token'
+    posthogMocks.getAnalyticsIdentitySnapshot.mockReturnValue({
       distinctId: 'distinct-1',
       sessionId: 'session-1',
     })
@@ -47,7 +42,7 @@ describe('authedFetch', () => {
   })
 
   it('omits PostHog identity headers when analytics has no active identity', async () => {
-    posthogMocks.getPosthogIdentitySnapshot.mockReturnValue(null)
+    posthogMocks.getAnalyticsIdentitySnapshot.mockReturnValue(null)
     const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(async () => new Response('{}', { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
 

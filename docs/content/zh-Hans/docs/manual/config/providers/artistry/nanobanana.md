@@ -25,7 +25,7 @@ Nano Banana 使用 Google AI Studio API Key 生成图片。完成配置后，可
 2. 选择默认模型：`gemini-3.1-flash-image-preview`、`gemini-3-pro-image-preview` 或 `gemini-2.5-flash-image`。
 3. 选择默认分辨率：1K、2K 或 4K。
 
-### 3. 配置校验
+## 第三步：验证配置
 
 1. 打开 **设置 → 艺术**，选择 **Nano Banana**。
 2. 使用一条不含敏感信息的提示词生成图片。

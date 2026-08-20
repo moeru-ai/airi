@@ -1,7 +1,7 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message, Tool } from '@xsai/shared-chat'
 
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { isContentArrayRelatedError, sanitizeMessages, streamFrom } from './llm-service'
 
@@ -29,22 +29,96 @@ const provider = {
 
 function createMockStreamResult(
   steps: Promise<unknown[]> = Promise.resolve([]),
-  totalUsage: Promise<{ prompt_tokens: number, completion_tokens: number, total_tokens: number } | undefined> = Promise.resolve(undefined),
+  totalUsage: Promise<{ inputTokens: number, outputTokens: number, totalTokens: number } | undefined> = Promise.resolve(undefined),
+  messages: Promise<Message[]> = Promise.resolve([]),
 ) {
   return {
     steps,
-    messages: Promise.resolve([]),
+    messages,
     usage: Promise.resolve(undefined),
     totalUsage,
   }
 }
 
-describe('streamFrom tool error capture', () => {
+describe('streamFrom tool errors', () => {
+  beforeEach(() => {
+    streamTextMock.mockReset()
+  })
+
+  it('emits the final xsAI messages after all tool rounds finish', async () => {
+    const onMessages = vi.fn()
+    const finalMessages: Message[] = [
+      { role: 'user', content: 'Check the weather.' },
+      {
+        role: 'assistant',
+        content: '',
+        tool_calls: [
+          {
+            id: 'call-weather',
+            type: 'function',
+            function: { name: 'weather', arguments: '{}' },
+          },
+        ],
+      },
+      { role: 'tool', tool_call_id: 'call-weather', content: 'sunny' },
+      { role: 'assistant', content: 'The weather is sunny.' },
+    ]
+    streamTextMock.mockReturnValueOnce(createMockStreamResult(
+      Promise.resolve([]),
+      Promise.resolve(undefined),
+      Promise.resolve(finalMessages),
+    ))
+
+    await streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: finalMessages.slice(0, 1),
+      options: { onMessages },
+    })
+
+    expect(onMessages).toHaveBeenCalledTimes(1)
+    expect(onMessages).toHaveBeenCalledWith(finalMessages)
+  })
+
+  it('ignores provider errors after steps resolve while final messages are pending', async () => {
+    let onEvent: ((event: unknown) => Promise<void>) | undefined
+    let resolveMessages: ((messages: Message[]) => void) | undefined
+    const messages = new Promise<Message[]>((resolve) => {
+      resolveMessages = resolve
+    })
+
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void> }) => {
+      onEvent = options.onEvent
+      return createMockStreamResult(Promise.resolve([]), Promise.resolve(undefined), messages)
+    })
+
+    // ROOT CAUSE:
+    //
+    // Final message persistence used to delay the steps-settled marker. A late
+    // provider error could then reject a stream whose authoritative steps
+    // promise had already resolved.
+    //
+    // We mark steps settled before awaiting the final transcript, while still
+    // treating transcript persistence failures as real stream failures.
+    const pending = streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'hello' }] as Message[],
+    })
+
+    await vi.waitFor(() => expect(onEvent).toBeTypeOf('function'))
+    await Promise.resolve()
+    await onEvent!({ type: 'error', message: 'stream failed', cause: new Error('stream failed') })
+    resolveMessages?.([])
+
+    await expect(pending).resolves.toBeUndefined()
+  })
+
   it('requests final streaming usage and emits the reported token totals once', async () => {
     const onUsage = vi.fn()
     streamTextMock.mockReturnValueOnce(createMockStreamResult(
       Promise.resolve([]),
-      Promise.resolve({ prompt_tokens: 12, completion_tokens: 8, total_tokens: 20 }),
+      Promise.resolve({ inputTokens: 12, outputTokens: 8, totalTokens: 20 }),
     ))
 
     await streamFrom({
@@ -84,7 +158,7 @@ describe('streamFrom tool error capture', () => {
     const onUsage = vi.fn()
     streamTextMock.mockReturnValueOnce(createMockStreamResult(
       Promise.resolve([]),
-      Promise.resolve({} as { prompt_tokens: number, completion_tokens: number, total_tokens: number }),
+      Promise.resolve({} as { inputTokens: number, outputTokens: number, totalTokens: number }),
     ))
 
     await streamFrom({
@@ -140,11 +214,7 @@ describe('streamFrom tool error capture', () => {
     })).resolves.toBeUndefined()
   })
 
-  /**
-   * @example
-   * await streamFrom({ model, chatProvider, messages, options: { captureToolErrors: true } })
-   */
-  it('keeps captureToolErrors internal while forwarding failed tool calls as tool-error events', async () => {
+  it('maps xsai tool-error results to AIRI tool-error events without wrapping tools', async () => {
     let resolveSteps: ((steps: unknown[]) => void) | undefined
     const events: unknown[] = []
     const failingTool = {
@@ -160,8 +230,8 @@ describe('streamFrom tool error capture', () => {
     } satisfies Tool
 
     streamTextMock.mockImplementationOnce((options: {
-      captureToolErrors?: boolean
       onEvent: (event: unknown) => Promise<void>
+      preToolCall?: unknown
       tools?: Tool[]
     }) => {
       const steps = new Promise<unknown[]>((resolve) => {
@@ -169,19 +239,15 @@ describe('streamFrom tool error capture', () => {
       })
 
       queueMicrotask(async () => {
-        const result = await options.tools?.[0]?.execute({}, {
-          messages: [],
-          toolCallId: 'call-1',
-        })
-
         await options.onEvent({
-          type: 'tool-result',
+          type: 'tool-result.done',
           args: {},
-          result,
+          isError: true,
+          result: 'Tool "play_chess" execution failed: Focus mode does not accept game-state mutation inputs.',
           toolCallId: 'call-1',
           toolName: 'play_chess',
         })
-        await options.onEvent({ type: 'finish', finishReason: 'stop' })
+        await options.onEvent({ type: 'text.delta', delta: 'ok' })
         resolveSteps?.([])
       })
 
@@ -193,7 +259,6 @@ describe('streamFrom tool error capture', () => {
       chatProvider: provider,
       messages: [{ role: 'user', content: 'play chess' }] as Message[],
       options: {
-        captureToolErrors: true,
         tools: [failingTool],
         onStreamEvent: (event) => {
           events.push(event)
@@ -202,16 +267,35 @@ describe('streamFrom tool error capture', () => {
     })
 
     const streamOptions = streamTextMock.mock.calls[0]?.[0]
-    expect(streamOptions.captureToolErrors).toBeUndefined()
-    expect(streamOptions.tools?.[0]).not.toBe(failingTool)
-    expect(failingTool.execute).toHaveBeenCalledTimes(1)
-    expect(events).toContainEqual(expect.objectContaining({
+    expect(streamOptions.preToolCall).toBeUndefined()
+    expect(streamOptions.tools?.[0]).toBe(failingTool)
+    expect(failingTool.execute).not.toHaveBeenCalled()
+    expect(events).toContainEqual({
       type: 'tool-error',
+      args: {},
       isError: true,
+      result: 'Tool "play_chess" execution failed: Focus mode does not accept game-state mutation inputs.',
       toolCallId: 'call-1',
       toolName: 'play_chess',
-      result: expect.stringContaining('Focus mode does not accept game-state mutation inputs.'),
-    }))
+    })
+    expect(events).toContainEqual({ type: 'text-delta', text: 'ok' })
+    expect(events).toContainEqual({ type: 'finish' })
+  })
+
+  it('rejects when the finish listener throws instead of leaving the stream pending', async () => {
+    streamTextMock.mockReturnValueOnce(createMockStreamResult())
+
+    await expect(streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      options: {
+        onStreamEvent: async (event) => {
+          if (event.type === 'finish')
+            throw new Error('finish listener failed')
+        },
+      },
+    })).rejects.toThrow('finish listener failed')
   })
 })
 
