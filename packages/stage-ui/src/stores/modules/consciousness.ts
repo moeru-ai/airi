@@ -42,11 +42,13 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   const activeTemperature = useLocalStorageManualReset<number>(
     'settings/consciousness/active-temperature',
     0.7,
+    persistenceOptions,
   )
 
   const activeTopP = useLocalStorageManualReset<number>(
     'settings/consciousness/active-top-p',
     1.0,
+    persistenceOptions,
   )
 
   const filteredModels = computed(() => {
