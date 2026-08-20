@@ -9,6 +9,7 @@ while production deployment configuration remains in `proj-airi/airi-railway`.
 - `apps/api`: resource API, business domains, database migrations, and API runtime.
 - `apps/auth`: standalone Better Auth and OIDC service.
 - `packages/auth-shared`: Auth-owned database schema and principal contracts.
+- `packages/server-sdk-shared`: Eventa contracts for the hosted chat WebSocket.
 - `dev/caddy`: local-only public edge routing for the shared Auth/API origin.
 - `docker-compose.yaml`: complete local API + Auth + PostgreSQL + Redis + Caddy stack.
 
@@ -63,11 +64,14 @@ migrations. After either service deploys, Railway must receive `200` from that
 service's `/readyz`; deployment success alone is not sufficient evidence that
 the service can reach its required dependencies.
 
-## Not included
+## Package boundaries
 
-Frontend applications remain under `apps/`. Cross-runtime server SDK and
-protocol packages remain under `packages/` because Web, Electron, plugins,
-and independent services consume them.
+Frontend applications remain under `apps/`. Hosted-backend packages that
+define a resource API protocol can live under `server/packages/`, even when a
+frontend consumes their generated contract.
+
+Cross-runtime server SDK and protocol packages remain under `packages/`
+because Web, Electron, plugins, and independent services consume them.
 
 Production Caddy routing, OpenTelemetry Collector configuration, observability
 storage, and Grafana dashboards live in `proj-airi/airi-railway` so deployment

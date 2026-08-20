@@ -519,7 +519,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       id: assistantMessageId,
     }
     beginStream(sessionId, buildingMessage)
-    const sendSource = options.input ? 'voice' : 'text'
+    const hasVoice = options.input?.type === 'input:voice'
+      || options.input?.type === 'input:text:voice'
+    const sendSource = hasVoice ? 'voice' : 'text'
     const activeProvider = deps.getActiveProvider?.() ?? ''
     // The user message is the durable start of a round, so its ID also serves
     // as the correlation key for every telemetry milestone emitted by it.
@@ -754,7 +756,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         ...correlation,
         model: options.model,
         provider: deps.getActiveProvider() || 'unknown',
-        hasVoice: !!options.input,
+        hasVoice,
       })
 
       await deps.llm.stream(options.model, options.chatProvider, newMessages as Message[], {
@@ -916,7 +918,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       deps.onMessageRound?.({
         ...correlation,
         durationMs,
-        hasVoice: !!options.input,
+        hasVoice,
         model: options.model,
         inputTokens: generationUsage.inputTokens,
         outputTokens: generationUsage.outputTokens,

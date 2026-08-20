@@ -44,7 +44,7 @@ const tooltipLabel = computed(() => {
 </script>
 
 <template>
-  <ControlButtonTooltip side="left">
+  <ControlButtonTooltip side="inward">
     <ControlButton
       :button-style="props.buttonStyle"
       :aria-label="tooltipLabel"

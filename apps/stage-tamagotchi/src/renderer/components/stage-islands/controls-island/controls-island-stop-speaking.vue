@@ -18,7 +18,7 @@ const { stopAllSpeaking } = useStopSpeakingButton()
 </script>
 
 <template>
-  <ControlButtonTooltip side="left">
+  <ControlButtonTooltip side="inward">
     <ControlButton :button-style @click="stopAllSpeaking()">
       <Transition name="fade" mode="out-in">
         <div

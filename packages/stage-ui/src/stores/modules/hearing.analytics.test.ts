@@ -3,10 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const analyticsMock = vi.hoisted(() => ({
   allowComposableCall: true,
-  trackAudioDeviceUnavailable: vi.fn(),
   trackMicrophonePermissionDenied: vi.fn(),
   trackSttFailed: vi.fn(),
-  trackSttStarted: vi.fn(),
   trackSttSucceeded: vi.fn(),
   trackVoiceInputCancelled: vi.fn(),
   trackVoiceInputStarted: vi.fn(),
@@ -22,10 +20,8 @@ vi.mock('../../composables/use-analytics', () => ({
       throw new Error('Must be called at the top of a `setup` function')
 
     return {
-      trackAudioDeviceUnavailable: analyticsMock.trackAudioDeviceUnavailable,
       trackMicrophonePermissionDenied: analyticsMock.trackMicrophonePermissionDenied,
       trackSttFailed: analyticsMock.trackSttFailed,
-      trackSttStarted: analyticsMock.trackSttStarted,
       trackSttSucceeded: analyticsMock.trackSttSucceeded,
       trackVoiceInputCancelled: analyticsMock.trackVoiceInputCancelled,
       trackVoiceInputStarted: analyticsMock.trackVoiceInputStarted,
@@ -48,10 +44,8 @@ describe('useHearingStore analytics lifecycle', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     analyticsMock.allowComposableCall = true
-    analyticsMock.trackAudioDeviceUnavailable.mockReset()
     analyticsMock.trackMicrophonePermissionDenied.mockReset()
     analyticsMock.trackSttFailed.mockReset()
-    analyticsMock.trackSttStarted.mockReset()
     analyticsMock.trackSttSucceeded.mockReset()
     analyticsMock.trackVoiceInputCancelled.mockReset()
     analyticsMock.trackVoiceInputStarted.mockReset()
@@ -81,7 +75,6 @@ describe('useHearingStore analytics lifecycle', () => {
     expect(analyticsMock.trackVoiceInputStarted).toHaveBeenCalledWith({
       stt_provider_id: 'openai-compatible-audio-transcription',
     })
-    expect(analyticsMock.trackSttStarted).toHaveBeenCalledWith('openai-compatible-audio-transcription')
     expect(analyticsMock.trackSttSucceeded).toHaveBeenCalledWith({
       provider: 'openai-compatible-audio-transcription',
       latency_ms: expect.any(Number),
@@ -138,6 +131,5 @@ describe('useHearingStore analytics lifecycle', () => {
       stt_provider_id: 'openai-compatible-audio-transcription',
       error_code: 'permission_denied',
     })
-    expect(analyticsMock.trackAudioDeviceUnavailable).not.toHaveBeenCalled()
   }, 10000)
 })

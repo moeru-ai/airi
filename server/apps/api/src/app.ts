@@ -41,12 +41,15 @@ import { resolveRequestAuth } from './libs/request-auth'
 import { createUnauthorizedWsEvents } from './libs/ws-auth'
 import { sessionMiddleware } from './middlewares/auth'
 import { emitOtelLog, initOtel } from './otel'
+import { registerDbPoolGauge } from './otel/gauges/db-pool'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
 import { registerWsOnlineUsersGauge } from './otel/gauges/ws-online-users'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
 import { createAudioTranscriptionStreamHandler } from './routes/audio-transcription-stream/route'
 import { createCharacterRoutes } from './routes/characters'
-import { createChatWsHandlers } from './routes/chat-ws'
+import { createChatWsRuntime } from './routes/chat-ws/runtime'
+import { createChatWsV1Handlers } from './routes/chat-ws/v1'
+import { createChatWsV2Handlers } from './routes/chat-ws/v2'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
 import { createInternalAuthRoutes } from './routes/internal-auth'
@@ -147,8 +150,13 @@ export async function buildApp(deps: AppDeps) {
   // SERVER_INSTANCE_ID, which is fine because we only need uniqueness across
   // simultaneously-running api instances, not across restarts.
   const instanceId = process.env.SERVER_INSTANCE_ID || nanoid()
-  const chatWsSetup = createChatWsHandlers(deps.chatService, deps.redis, instanceId, deps.otel?.engagement ?? null)
+  const chatWsRuntime = createChatWsRuntime(deps.redis, instanceId, deps.otel?.engagement ?? null)
+  const chatWsV2Setup = createChatWsV2Handlers(deps.chatService, deps.redis, instanceId, deps.otel?.engagement ?? null, chatWsRuntime)
+  const chatWsV1Setup = createChatWsV1Handlers(deps.chatService, deps.redis, instanceId, deps.otel?.engagement ?? null, chatWsRuntime)
 
+  // `/ws/chat` keeps query-token authentication for deployed clients. The
+  // Eventa beta.15 adapter accepts their beta.13 envelopes. `/ws/v2/chat`
+  // keeps the versioned endpoint for its updated authentication flow.
   app.get('/ws/chat', upgradeWebSocket(async (c) => {
     const token = c.req.query('token')
     if (!token)
@@ -162,7 +170,23 @@ export async function buildApp(deps: AppDeps) {
     if (!session?.user)
       return createUnauthorizedWsEvents()
 
-    return chatWsSetup(session.user.id)
+    return chatWsV1Setup(session.user.id)
+  }))
+
+  app.get('/ws/v2/chat', upgradeWebSocket(async (c) => {
+    const token = c.req.query('token')
+    if (!token)
+      return createUnauthorizedWsEvents()
+
+    const session = await resolveRequestAuth(
+      deps.db,
+      deps.env,
+      new Headers({ Authorization: `Bearer ${token}` }),
+    )
+    if (!session?.user)
+      return createUnauthorizedWsEvents()
+
+    return chatWsV2Setup(session.user.id)
   }))
 
   // Bidirectional streaming TTS proxy. The handler factory builds one ws-to-ws
@@ -427,7 +451,7 @@ export async function createApp() {
   })
 
   const db = injeca.provide('datastore:db', {
-    dependsOn: { env: parsedEnv, lifecycle },
+    dependsOn: { env: parsedEnv, lifecycle, otel },
     build: async ({ dependsOn }) => {
       const { db: dbInstance, pool } = await initializeExternalDependency(
         'Database',
@@ -449,6 +473,8 @@ export async function createApp() {
         },
       )
 
+      if (dependsOn.otel)
+        registerDbPoolGauge(dependsOn.otel.database.poolConnections, pool)
       dependsOn.lifecycle.appHooks.onStop(() => pool.end())
       return dbInstance
     },

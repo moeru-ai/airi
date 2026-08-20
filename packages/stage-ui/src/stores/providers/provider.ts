@@ -32,6 +32,7 @@ import {
 } from '../../libs/providers'
 import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
 import { useProviderConfigStore } from './config'
+import { normalizeProviderConfigDefaults } from './config-defaults'
 
 export type { ModelInfo, VoiceInfo } from '../../libs/providers/types'
 
@@ -77,13 +78,6 @@ const useProviderStateStore = defineStore('provider-state', () => {
     state: true,
   },
 })
-
-function isProviderConfigDifferentFromDefaults(
-  config: Record<string, unknown>,
-  defaultOptions: Record<string, unknown>,
-) {
-  return JSON.stringify({ ...defaultOptions, ...config }) !== JSON.stringify(defaultOptions)
-}
 
 const PROVIDERS_WITH_SELECTION_IN_FIXED_MODEL_CATALOG = new Set([
   'funasr-audio-transcription',
@@ -538,7 +532,7 @@ export const useProviderStore = defineStore('provider', () => {
     const provider = await definition.createProvider(config)
     try {
       if (definition.extraMethods?.listModels) {
-        const models = await definition.extraMethods.listModels(config, provider)
+        const models = await definition.extraMethods.listModels(config, provider, { t })
         return normalizeProviderModels(providerId, models)
       }
 
@@ -909,7 +903,7 @@ export const useProviderStore = defineStore('provider', () => {
       return false
 
     const defaultOptions = getDefaultProviderConfig(providerId)
-    return isProviderConfigDifferentFromDefaults(config, defaultOptions)
+    return JSON.stringify(normalizeProviderConfigDefaults(config, defaultOptions)) !== JSON.stringify(defaultOptions)
   }
 
   function shouldListProvider(providerId: string) {
