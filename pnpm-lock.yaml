@@ -450,6 +450,9 @@ catalogs:
     '@types/markdown-it':
       specifier: ^14.1.2
       version: 14.1.2
+    '@types/mdast':
+      specifier: ^4.0.4
+      version: 4.0.4
     '@types/node':
       specifier: ^24.12.2
       version: 24.12.2
@@ -4601,6 +4604,9 @@ importers:
       '@types/hast':
         specifier: 'catalog:'
         version: 3.0.4
+      '@types/mdast':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@types/splitpanes':
         specifier: 'catalog:'
         version: 2.2.6

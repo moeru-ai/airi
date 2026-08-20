@@ -200,6 +200,7 @@
     "@types/culori": "catalog:",
     "@types/d3": "catalog:",
     "@types/hast": "catalog:",
+    "@types/mdast": "catalog:",
     "@types/splitpanes": "catalog:",
     "@types/unist": "catalog:",
     "@types/ws": "catalog:",

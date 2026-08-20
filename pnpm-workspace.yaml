@@ -185,6 +185,7 @@ catalog:
   '@types/hast': ^3.0.4
   '@types/ioredis-mock': ^8.2.8
   '@types/markdown-it': ^14.1.2
+  '@types/mdast': ^4.0.4
   '@types/node': ^24.12.2
   '@types/nprogress': ^0.2.3
   '@types/pg': ^8.20.0
