@@ -13,11 +13,13 @@ const props = withDefaults(defineProps<{
   message: ErrorMessage
   label: string
   retryLabel?: string
+  scrollContainer?: HTMLElement | null
   canRetry?: boolean
   showPlaceholder?: boolean
   variant?: 'desktop' | 'mobile'
 }>(), {
   canRetry: false,
+  scrollContainer: null,
   showPlaceholder: false,
   variant: 'desktop',
 })
@@ -31,7 +33,9 @@ const emit = defineEmits<{
 const boxClasses = computed(() => [
   'min-w-0',
   'max-w-full',
-  props.variant === 'mobile' ? 'px-2 py-2 text-sm' : 'px-3 py-3',
+  props.variant === 'mobile'
+    ? ['px-2 py-2 text-sm', 'bg-violet-100/60 backdrop-blur-xl dark:bg-violet-950/60']
+    : ['px-3 py-3', 'bg-violet-100/80 dark:bg-violet-950/80'],
 ])
 const copyText = computed(() => getChatHistoryItemCopyText(props.message as ChatHistoryItem))
 </script>
@@ -47,6 +51,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
       :copy-text="copyText"
       :can-delete="!showPlaceholder"
       :can-retry="canRetry && !showPlaceholder"
+      :scroll-container="scrollContainer"
       @copy="emit('copy')"
       @retry="emit('retry')"
       @delete="emit('delete')"
@@ -55,13 +60,13 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
         <div
           :ref="setMeasuredElement"
           :class="[
+            'chat-message-item-container',
             boxClasses,
             'relative',
             'flex flex-col',
             'min-w-20 rounded-xl',
             'h-unset <sm:h-fit',
             'shadow-sm shadow-violet-200/50 dark:shadow-none',
-            'bg-violet-100/80 dark:bg-violet-950/80',
             (isStageWeb() || isStageCapacitor()) && props.variant === 'mobile' ? 'select-none sm:select-auto' : '',
           ]"
         >

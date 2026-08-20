@@ -398,6 +398,7 @@ catalog:
   vaul-vue: ^0.4.1
   vec3: ^0.2.0
   vieval: ^0.0.5
+  virtua: ^0.50.3
   vite: ^8.0.8
   vite-bundle-visualizer: ^1.2.1
   vite-plugin-inspect: 12.0.0-beta.1
