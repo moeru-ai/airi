@@ -62,9 +62,9 @@ function hasBalancedLatexDelimiters(value: string): boolean {
 function isIndependentEquationList(equations: string[]): boolean {
   return equations.length > 1
     && equations.every((equation, index) => (
-      // A leading braced group can be an argument continued from the previous
-      // physical line, so it is not positive evidence of a standalone formula.
-      (index === 0 || !equation.startsWith('{'))
+      // A leading braced or bracketed group can continue an argument from the
+      // previous line, so it is not positive evidence of a standalone formula.
+      (index === 0 || !['{', '['].includes(equation[0] ?? ''))
       && !/\\(?:begin|end)\s*\{/.test(equation)
       && !/\\(?:newcommand|renewcommand|providecommand|futurelet|[gex]?def|let)\b/.test(equation)
       && /=|\\(?:approx|cong|equiv|geq?|leq?|ne|neq|sim)\b/.test(equation)
@@ -113,17 +113,18 @@ const remarkChatMath: Plugin<[], Root> = () => (tree, file) => {
   })
 
   visit(tree, 'inlineMath', (node, index, parent) => {
-    if (index === undefined || !parent || !/\s$/.test(node.value))
+    if (index === undefined || !parent)
       return
 
     const endOffset = node.position?.end.offset
-    // One-word prose is ambiguous with units such as ms. Accept it only when
-    // it is an explicit conjunction between the two currency amounts.
-    const startsWithAmountAndProse = /^\d[\d.,]*\s+(?:and|or)\s*$/iu.test(node.value)
+    // One-word prose is ambiguous with units such as ms, so only explicit
+    // conjunctions, multi-word prose, and price-range separators are restored.
+    const isCurrencyBridge = /^\d[\d.,]*\s+(?:and|or)\s*$/iu.test(node.value)
       || /^\d[\d.,]*(?:\s+\p{L}+){2,}\s*$/u.test(node.value)
+      || /^\d[\d.,]*\s*[-–—]\s*$/u.test(node.value)
     const followedByAmount = endOffset !== undefined && /^\s*\d/.test(source.slice(endOffset))
 
-    if (!startsWithAmountAndProse || !followedByAmount)
+    if (!isCurrencyBridge || !followedByAmount)
       return
 
     // remark-math pairs the dollar signs before two prices. Restore those

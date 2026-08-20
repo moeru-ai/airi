@@ -132,6 +132,26 @@ describe('useMarkdown', () => {
     expect(html).toContain('\\left(x=1\n\\right)=y')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2328#discussion_r3818173297
+  it('preserves bracketed command arguments split across physical lines', () => {
+    // ROOT CAUSE:
+    //
+    // The continuation guard covered required braced arguments but not optional
+    // bracketed arguments, so the command and its argument rendered separately.
+    const markdown = [
+      '```latex',
+      'y = \\sqrt',
+      '[3]{x = z}',
+      '```',
+    ].join('\n')
+
+    const html = useMarkdown().processSync(markdown)
+
+    expect(html.match(/<math/g) ?? []).toHaveLength(1)
+    expect(html).not.toContain('katex-error')
+    expect(html).toContain('y = \\sqrt\n[3]{x = z}')
+  })
+
   // https://github.com/moeru-ai/airi/discussions/2239
   it('treats a tex fence as display math (Issue #2239)', async () => {
     const markdown = [
@@ -199,6 +219,18 @@ describe('useMarkdown', () => {
     const html = useMarkdown().processSync('Prices are $5 and $10.')
 
     expect(html).toBe('<p>Prices are $5 and $10.</p>')
+    expect(html).not.toContain('<math')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2328#discussion_r3818173295
+  it('keeps a compact currency range as text', () => {
+    // ROOT CAUSE:
+    //
+    // Compact ranges have no whitespace before the second currency delimiter,
+    // so the whitespace gate skipped recovery and rendered the range as math.
+    const html = useMarkdown().processSync('Tickets cost $5-$10.')
+
+    expect(html).toBe('<p>Tickets cost $5-$10.</p>')
     expect(html).not.toContain('<math')
   })
 
