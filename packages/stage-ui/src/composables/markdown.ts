@@ -10,6 +10,7 @@ import RemarkRehype from 'remark-rehype'
 
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
 import { unified } from 'unified'
+import { visit } from 'unist-util-visit'
 
 import { chatMathPreset, isChatMathFenceLanguage } from './chat-math'
 
@@ -17,16 +18,20 @@ import { chatMathPreset, isChatMathFenceLanguage } from './chat-math'
 type MarkdownProcessor = Processor<any, any, any, any, string>
 
 const processorCache = new Map<string, Promise<MarkdownProcessor>>()
-const langRegex = /^[ \t]{0,3}```[ \t]*([^\s`]+)/gm
+// The rich path parses once for language discovery so info strings and fences
+// inside blockquotes or nested lists follow Remark rules instead of a regex.
+const languageParser = unified()
+  .use(RemarkParse)
+  .use(chatMathPreset)
 
 function extractLangs(markdown: string): BundledLanguage[] {
-  const matches = markdown.matchAll(langRegex)
+  const tree = languageParser.parse(markdown)
   const langs = new Set<BundledLanguage>()
   langs.add('python')
-  for (const match of matches) {
-    if (match[1] && !isChatMathFenceLanguage(match[1]))
-      langs.add(match[1] as BundledLanguage)
-  }
+  visit(tree, 'code', (node) => {
+    if (node.lang && !isChatMathFenceLanguage(node.lang))
+      langs.add(node.lang as BundledLanguage)
+  })
   return [...langs]
 }
 

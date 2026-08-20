@@ -158,6 +158,29 @@ describe('useMarkdown', () => {
     expect(html).toContain('> answer</span>')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2328#discussion_r3819568323
+  it('loads a code language from a fence nested in a blockquote', async () => {
+    // ROOT CAUSE:
+    //
+    // A source-text regex only found top-level fences. Remark still parsed a
+    // fence inside a blockquote, but Shiki did not preload its language and
+    // made the complete rich pipeline fall back.
+    //
+    // Language discovery must use the same Markdown AST as rendering.
+    const markdown = [
+      '> ```typescript',
+      '> const answer = 42',
+      '> ```',
+    ].join('\n')
+
+    const html = await useMarkdown().process(markdown)
+
+    expect(html).toContain('<blockquote>')
+    expect(html).toContain('class="shiki')
+    expect(html).toContain('>const</span>')
+    expect(html).toContain('> answer</span>')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2328#discussion_r3812513778
   it('keeps command arguments together in a latex block', () => {
     const markdown = [
