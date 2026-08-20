@@ -152,6 +152,43 @@ describe('useMarkdown', () => {
     expect(html).toContain('y = \\sqrt\n[3]{x = z}')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2328#discussion_r3818219929
+  it('preserves an equation continued after a trailing relation', () => {
+    // ROOT CAUSE:
+    //
+    // A trailing relation matched the standalone-row heuristic even though its
+    // right operand starts on the following physical line.
+    const markdown = [
+      '```latex',
+      'x =',
+      'y = z',
+      '```',
+    ].join('\n')
+
+    const html = useMarkdown().processSync(markdown)
+
+    expect(html.match(/<math/g) ?? []).toHaveLength(1)
+    expect(html).toContain('x =\ny = z')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2328#discussion_r3818219932
+  it('renders literal inequalities as independent rows', () => {
+    // ROOT CAUSE:
+    //
+    // The standalone relation matcher recognized LaTeX commands and equals
+    // signs but omitted literal less-than and greater-than operators.
+    const markdown = [
+      '```latex',
+      'x > 0',
+      'y < 0',
+      '```',
+    ].join('\n')
+
+    const html = useMarkdown().processSync(markdown)
+
+    expect(html.match(/<math/g) ?? []).toHaveLength(2)
+  })
+
   // https://github.com/moeru-ai/airi/discussions/2239
   it('treats a tex fence as display math (Issue #2239)', async () => {
     const markdown = [
@@ -210,6 +247,18 @@ describe('useMarkdown', () => {
     expect(html).toContain('<annotation encoding="application/x-tex">5 ms </annotation>')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2328#discussion_r3818219931
+  it('keeps spaced variable products as inline math', () => {
+    // ROOT CAUSE:
+    //
+    // Treating arbitrary multi-word letter sequences as prose also matches
+    // valid products expressed as adjacent single-letter variables.
+    const html = useMarkdown().processSync('Compare $5 x y $ 10 samples later.')
+
+    expect(html).toContain('<math')
+    expect(html).toContain('<annotation encoding="application/x-tex">5 x y </annotation>')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2328#discussion_r3818140379
   it('keeps two currency amounts joined by one conjunction as text', () => {
     // ROOT CAUSE:
@@ -231,6 +280,18 @@ describe('useMarkdown', () => {
     const html = useMarkdown().processSync('Tickets cost $5-$10.')
 
     expect(html).toBe('<p>Tickets cost $5-$10.</p>')
+    expect(html).not.toContain('<math')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2328#discussion_r3818219933
+  it('keeps a currency range joined by to as text', () => {
+    // ROOT CAUSE:
+    //
+    // The one-word currency bridge recognized conjunctions but omitted the
+    // explicit range connector used between two amounts.
+    const html = useMarkdown().processSync('Tickets cost $5 to $10.')
+
+    expect(html).toBe('<p>Tickets cost $5 to $10.</p>')
     expect(html).not.toContain('<math')
   })
 

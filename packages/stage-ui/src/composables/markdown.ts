@@ -59,6 +59,13 @@ function hasBalancedLatexDelimiters(value: string): boolean {
   return depth === 0
 }
 
+function hasStandaloneLatexRelation(value: string): boolean {
+  const containsRelation = /[=<>]|\\(?:approx|cong|equiv|geq?|gt|leq?|lt|ne|neq|sim)\b/.test(value)
+  const endsWithOperator = /(?:[-=<>+*/]|\\(?:approx|cdot|cong|div|equiv|geq?|gt|leq?|lt|mp|ne|neq|pm|sim|times))\s*$/.test(value)
+
+  return containsRelation && !endsWithOperator
+}
+
 function isIndependentEquationList(equations: string[]): boolean {
   return equations.length > 1
     && equations.every((equation, index) => (
@@ -67,7 +74,7 @@ function isIndependentEquationList(equations: string[]): boolean {
       (index === 0 || !['{', '['].includes(equation[0] ?? ''))
       && !/\\(?:begin|end)\s*\{/.test(equation)
       && !/\\(?:newcommand|renewcommand|providecommand|futurelet|[gex]?def|let)\b/.test(equation)
-      && /=|\\(?:approx|cong|equiv|geq?|leq?|ne|neq|sim)\b/.test(equation)
+      && hasStandaloneLatexRelation(equation)
       && hasBalancedLatexGroups(equation)
       && hasBalancedLatexDelimiters(equation)
     ))
@@ -117,10 +124,9 @@ const remarkChatMath: Plugin<[], Root> = () => (tree, file) => {
       return
 
     const endOffset = node.position?.end.offset
-    // One-word prose is ambiguous with units such as ms, so only explicit
-    // conjunctions, multi-word prose, and price-range separators are restored.
-    const isCurrencyBridge = /^\d[\d.,]*\s+(?:and|or)\s*$/iu.test(node.value)
-      || /^\d[\d.,]*(?:\s+\p{L}+){2,}\s*$/u.test(node.value)
+    // Letter sequences can also be valid variables or units, so prose must
+    // begin with an explicit connector between the two currency amounts.
+    const isCurrencyBridge = /^\d[\d.,]*\s+(?:and|or|to)(?:\s+\p{L}+)*\s*$/iu.test(node.value)
       || /^\d[\d.,]*\s*[-–—]\s*$/u.test(node.value)
     const followedByAmount = endOffset !== undefined && /^\s*\d/.test(source.slice(endOffset))
 
