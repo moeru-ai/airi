@@ -112,6 +112,26 @@ describe('useMarkdown', () => {
     expect(html).toContain('\\frac{a=b}\n{c=d}')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2328#discussion_r3818140362
+  it('preserves paired delimiters split across physical lines', () => {
+    // ROOT CAUSE:
+    //
+    // Balanced braces do not account for LaTeX delimiter commands, so a
+    // cross-line left/right pair was incorrectly treated as two formulas.
+    const markdown = [
+      '```latex',
+      '\\left(x=1',
+      '\\right)=y',
+      '```',
+    ].join('\n')
+
+    const html = useMarkdown().processSync(markdown)
+
+    expect(html.match(/<math/g) ?? []).toHaveLength(1)
+    expect(html).not.toContain('katex-error')
+    expect(html).toContain('\\left(x=1\n\\right)=y')
+  })
+
   // https://github.com/moeru-ai/airi/discussions/2239
   it('treats a tex fence as display math (Issue #2239)', async () => {
     const markdown = [
@@ -168,6 +188,18 @@ describe('useMarkdown', () => {
 
     expect(html).toContain('<math')
     expect(html).toContain('<annotation encoding="application/x-tex">5 ms </annotation>')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2328#discussion_r3818140379
+  it('keeps two currency amounts joined by one conjunction as text', () => {
+    // ROOT CAUSE:
+    //
+    // Requiring two prose words excludes a single conjunction between two
+    // prices, so remark-math consumes both currency delimiters as formula.
+    const html = useMarkdown().processSync('Prices are $5 and $10.')
+
+    expect(html).toBe('<p>Prices are $5 and $10.</p>')
+    expect(html).not.toContain('<math')
   })
 
   it('keeps separate price formulas when both dollar signs close math', () => {

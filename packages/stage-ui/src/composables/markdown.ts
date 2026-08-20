@@ -42,6 +42,23 @@ function hasBalancedLatexGroups(value: string): boolean {
   return depth === 0
 }
 
+function hasBalancedLatexDelimiters(value: string): boolean {
+  let depth = 0
+
+  for (const match of value.matchAll(/\\(left|right)\b/g)) {
+    if (match[1] === 'left') {
+      depth++
+    }
+    else {
+      depth--
+      if (depth < 0)
+        return false
+    }
+  }
+
+  return depth === 0
+}
+
 function isIndependentEquationList(equations: string[]): boolean {
   return equations.length > 1
     && equations.every((equation, index) => (
@@ -52,6 +69,7 @@ function isIndependentEquationList(equations: string[]): boolean {
       && !/\\(?:newcommand|renewcommand|providecommand|futurelet|[gex]?def|let)\b/.test(equation)
       && /=|\\(?:approx|cong|equiv|geq?|leq?|ne|neq|sim)\b/.test(equation)
       && hasBalancedLatexGroups(equation)
+      && hasBalancedLatexDelimiters(equation)
     ))
 }
 
@@ -99,9 +117,10 @@ const remarkChatMath: Plugin<[], Root> = () => (tree, file) => {
       return
 
     const endOffset = node.position?.end.offset
-    // Price prose must contain at least two words after the amount. Requiring
-    // only one multi-letter token also matches valid units such as 5 ms.
-    const startsWithAmountAndProse = /^\d[\d.,]*(?:\s+\p{L}+){2,}\s*$/u.test(node.value)
+    // One-word prose is ambiguous with units such as ms. Accept it only when
+    // it is an explicit conjunction between the two currency amounts.
+    const startsWithAmountAndProse = /^\d[\d.,]*\s+(?:and|or)\s*$/iu.test(node.value)
+      || /^\d[\d.,]*(?:\s+\p{L}+){2,}\s*$/u.test(node.value)
     const followedByAmount = endOffset !== undefined && /^\s*\d/.test(source.slice(endOffset))
 
     if (!startsWithAmountAndProse || !followedByAmount)
