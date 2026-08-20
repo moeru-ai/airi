@@ -340,14 +340,20 @@ describe('createLlmRouterService', () => {
     expect((metrics.fallbackCount.add as ReturnType<typeof vi.fn>).mock.calls.length).toBe(2)
   })
 
-  it('full exhaustion: every upstream + every key 401 → throws 502 BAD_GATEWAY (KTD-1 last-cause = 401 → 502)', async () => {
+  it('full exhaustion: every upstream + every key 401 → returns the final upstream response', async () => {
     const { config, crypto } = makeConfig({
       upstreams: [
         { baseURL: 'https://up-a.example/v1', keyIds: ['kA1'] },
         { baseURL: 'https://up-b.example/v1', keyIds: ['kB1'] },
       ],
     })
-    const fetchImpl = vi.fn(async () => failResponse(401))
+    const fetchImpl = vi.fn(async () => new Response('provider denied', {
+      status: 401,
+      headers: {
+        'content-type': 'text/plain',
+        'retry-after': '30',
+      },
+    }))
     const metrics = makeMetrics()
 
     const router = createLlmRouterService({
@@ -359,16 +365,11 @@ describe('createLlmRouterService', () => {
       concurrencyLedger: makeLedger(),
     })
 
-    try {
-      await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
-      throw new Error('expected throw')
-    }
-    catch (err) {
-      expect(err).toBeInstanceOf(ApiError)
-      expect((err as ApiError).statusCode).toBe(502)
-      expect((err as ApiError).errorCode).toBe('BAD_GATEWAY')
-      expect((err as ApiError).details).toMatchObject({ triedKeys: 2, triedUpstreams: 2, lastStatusCode: 401 })
-    }
+    const response = await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
+    expect(response.status).toBe(401)
+    expect(response.headers.get('content-type')).toBe('text/plain')
+    expect(response.headers.get('retry-after')).toBe('30')
+    await expect(response.text()).resolves.toBe('provider denied')
 
     const exhaustionCalls = (metrics.keyExhaustedCount.add as ReturnType<typeof vi.fn>).mock.calls
     expect(exhaustionCalls.length).toBe(1)
@@ -439,7 +440,7 @@ describe('createLlmRouterService', () => {
     }
   })
 
-  it('same-status exhaustion: all keys 429 → throws 503 + sameStatusExhaustion incremented per provider', async () => {
+  it('same-status exhaustion: all keys 429 → returns 429 and increments sameStatusExhaustion per provider', async () => {
     const { config, crypto } = makeConfig({
       upstreams: [
         { baseURL: 'https://up-a.example/v1', keyIds: ['kA1', 'kA2'] },
@@ -458,7 +459,8 @@ describe('createLlmRouterService', () => {
       concurrencyLedger: makeLedger(),
     })
 
-    await expect(router.route({ modelName: 'openai/gpt-5-mini', body: {} })).rejects.toMatchObject({ statusCode: 503, errorCode: 'SERVICE_UNAVAILABLE' })
+    const response = await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
+    expect(response.status).toBe(429)
 
     const calls = (metrics.sameStatusExhaustion.add as ReturnType<typeof vi.fn>).mock.calls
     expect(calls.length).toBe(2)
@@ -780,10 +782,11 @@ describe('createLlmRouterService', () => {
 
       const router = makeGroupedLlmRouter(fetchImpl)
 
-      await expect(router.route({
+      const response = await router.route({
         modelName: 'openai/gpt-5-mini',
         body: { messages: [] },
-      })).rejects.toBeInstanceOf(ApiError)
+      })
+      expect(response.status).toBe(429)
 
       expect(calledURLs).toEqual([
         'https://api.stepfun.com/step_plan/v1/chat/completions',
@@ -801,10 +804,11 @@ describe('createLlmRouterService', () => {
 
       const router = makeGroupedLlmRouter(fetchImpl)
 
-      await expect(router.route({
+      const response = await router.route({
         modelName: 'openai/gpt-5-mini',
         body: { messages: [] },
-      })).rejects.toBeInstanceOf(ApiError)
+      })
+      expect(response.status).toBe(401)
 
       expect(calledURLs).toEqual([
         'https://api.stepfun.com/step_plan/v1/chat/completions',
@@ -995,10 +999,12 @@ describe('createLlmRouterService', () => {
         concurrencyLedger: makeLedger(),
       })
 
-      await expect(router.routeTts({
+      const response = await router.routeTts({
         modelName: 'tts-test',
         input: { text: 'hi', voice: 'en-US-AvaMultilingualNeural' },
-      })).rejects.toMatchObject({ statusCode: 502 })
+      })
+      expect(response.status).toBe(451)
+      await expect(response.json()).resolves.toEqual({ error: 'bad' })
 
       const exhaustionCalls = (metrics.keyExhaustedCount.add as ReturnType<typeof vi.fn>).mock.calls
       expect(exhaustionCalls.length).toBe(1)
@@ -1323,10 +1329,11 @@ describe('createLlmRouterService', () => {
 
       const router = makeGroupedStepfunRouter(fetchImpl)
 
-      await expect(router.routeTts({
+      const response = await router.routeTts({
         modelName: 'stepfun/stepaudio-2.5-tts',
         input: { text: '你好' },
-      })).rejects.toBeInstanceOf(ApiError)
+      })
+      expect(response.status).toBe(429)
 
       expect(calledProfiles).toEqual(['step-plan', 'step-plan'])
       expect(calledProfiles).not.toContain('default')
@@ -1342,10 +1349,11 @@ describe('createLlmRouterService', () => {
 
       const router = makeGroupedStepfunRouter(fetchImpl)
 
-      await expect(router.routeTts({
+      const response = await router.routeTts({
         modelName: 'stepfun/stepaudio-2.5-tts',
         input: { text: '你好' },
-      })).rejects.toBeInstanceOf(ApiError)
+      })
+      expect(response.status).toBe(401)
 
       expect(calledProfiles).toEqual(['step-plan'])
     })
@@ -1638,10 +1646,11 @@ describe('createLlmRouterService', () => {
 
       const router = makePoolRouter(config, crypto, ledger, fetchImpl)
 
-      await expect(router.routeTts({
+      const response = await router.routeTts({
         modelName: 'tts-pool',
         input: { text: 'hi' },
-      })).rejects.toBeInstanceOf(ApiError)
+      })
+      expect(response.status).toBe(402)
 
       expect(selectedAppIds).toEqual(['plan-b'])
     })
@@ -1728,7 +1737,8 @@ describe('createLlmRouterService', () => {
       const fetchImpl = vi.fn(async () => failResponse(429)) as unknown as typeof fetch
 
       const router = makePoolRouter(config, crypto, ledger, fetchImpl)
-      await expect(router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })).rejects.toBeInstanceOf(ApiError)
+      const response = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
+      expect(response.status).toBe(429)
 
       expect(markSaturated).toHaveBeenCalledWith('app-1', expect.any(Number))
     })
@@ -1743,7 +1753,8 @@ describe('createLlmRouterService', () => {
       const fetchImpl = vi.fn(async () => failResponse(500)) as unknown as typeof fetch
 
       const router = makePoolRouter(config, crypto, ledger, fetchImpl)
-      await expect(router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })).rejects.toBeInstanceOf(ApiError)
+      const response = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
+      expect(response.status).toBe(500)
 
       expect(markSaturated).not.toHaveBeenCalled()
     })
