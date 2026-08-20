@@ -340,7 +340,7 @@ pages:
         systemprompt: 你将收到消息，请像真实人类一样回复。
         posthistoryinstructions: 记得模仿人类的行为。
       modules_info: >-
-        为此角色卡配置模块。如未设置，将使用默认模块配置。
+        配置此角色卡的模块。空字段将继承全局设置。
       use_default: 使用默认
       use_default_not_configured: 使用默认（未配置）
       inherit_global_settings: 继承全局设置
