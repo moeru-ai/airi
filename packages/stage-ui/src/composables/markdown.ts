@@ -17,7 +17,7 @@ import { chatMathPreset } from './chat-math'
 type MarkdownProcessor = Processor<any, any, any, any, string>
 
 const processorCache = new Map<string, Promise<MarkdownProcessor>>()
-const langRegex = /```(.{2,})\s/g
+const langRegex = /^[ \t]{0,3}```[ \t]*([^\s`]+)/gm
 
 function extractLangs(markdown: string): BundledLanguage[] {
   const matches = markdown.matchAll(langRegex)

@@ -100,6 +100,34 @@ describe('useMarkdown', () => {
     expect(html).toContain('x = 1\ny = 2')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2328#discussion_r3819441402
+  it('keeps syntax highlighting when a math fence has metadata', async () => {
+    // ROOT CAUSE:
+    //
+    // The rich pipeline loaded the complete fence info string as a Shiki
+    // language. For example, it tried to load `latex block`. Shiki rejected
+    // that name, and the fallback removed highlighting from unrelated code.
+    //
+    // The language loader must read only the first info-string token.
+    const markdown = [
+      '```latex block',
+      'x = 1',
+      'y = 2',
+      '```',
+      '',
+      '```typescript',
+      'const answer = 42',
+      '```',
+    ].join('\n')
+
+    const html = await useMarkdown().process(markdown)
+
+    expect(mathNodeCount(html)).toBe(1)
+    expect(html).toContain('class="shiki')
+    expect(html).toContain('>const</span>')
+    expect(html).toContain('> answer</span>')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2328#discussion_r3812513778
   it('keeps command arguments together in a latex block', () => {
     const markdown = [
