@@ -4,9 +4,8 @@ import type { VirtualizerHandle } from 'virtua/vue'
 import type { ChatHistoryItem, StreamingAssistantMessage } from '../../../../types/chat'
 import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
 
-import { useResizeObserver } from '@vueuse/core'
 import { Virtualizer } from 'virtua/vue'
-import { computed, nextTick, onScopeDispose, provide, ref, watch } from 'vue'
+import { computed, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChatAssistantItem from './assistant-item.vue'
@@ -15,7 +14,8 @@ import ChatHistoryMessageFrame from './history-message-frame.vue'
 import ChatUserItem from './user-item.vue'
 
 import { useChatHistoryScroll } from '../composables/use-chat-history-scroll'
-import { chatScrollContainerKey } from '../constants'
+import { useChatHistoryTopFade } from '../composables/use-chat-history-top-fade'
+import { useVirtualizerScroll } from '../composables/use-virtualizer-scroll'
 import { getChatHistoryItemKey } from '../utils'
 
 const props = withDefaults(defineProps<{
@@ -44,58 +44,9 @@ const emit = defineEmits<{
 /** Keeps about two mobile viewports ready so fast flicks do not expose an unmounted gap. */
 const CHAT_HISTORY_OVERSCAN = 600
 
-const chatHistoryRef = ref<HTMLDivElement>()
-const virtualizerRef = ref<VirtualizerHandle>()
-provide(chatScrollContainerKey, chatHistoryRef)
-
-let pendingVirtualScroll: { index: number, align: 'start' | 'end' } | undefined
-let pendingVirtualScrollFrame: number | undefined
-
-function flushPendingVirtualScroll() {
-  pendingVirtualScrollFrame = undefined
-
-  const virtualizer = virtualizerRef.value
-  if (!virtualizer || virtualizer.viewportSize <= 0 || !pendingVirtualScroll)
-    return
-
-  const request = pendingVirtualScroll
-  pendingVirtualScroll = undefined
-  virtualizer.scrollToIndex(request.index, { align: request.align })
-}
-
-function schedulePendingVirtualScroll() {
-  if (pendingVirtualScrollFrame != null)
-    return
-
-  const requestFrame = globalThis.requestAnimationFrame?.bind(globalThis)
-  if (!requestFrame) {
-    queueMicrotask(flushPendingVirtualScroll)
-    return
-  }
-
-  pendingVirtualScrollFrame = requestFrame(flushPendingVirtualScroll)
-}
-
-function scrollToVirtualIndex(index: number, align: 'start' | 'end') {
-  pendingVirtualScroll = { index, align }
-
-  const virtualizer = virtualizerRef.value
-  if (virtualizer && virtualizer.viewportSize > 0) {
-    flushPendingVirtualScroll()
-    return
-  }
-
-  // Virtua exposes its handle before ResizeObserver has measured the viewport.
-  // Keep the latest request until that measurement can produce a valid offset.
-  nextTick(schedulePendingVirtualScroll)
-}
-
-useResizeObserver(chatHistoryRef, schedulePendingVirtualScroll)
-watch(virtualizerRef, schedulePendingVirtualScroll, { flush: 'post' })
-onScopeDispose(() => {
-  if (pendingVirtualScrollFrame != null)
-    globalThis.cancelAnimationFrame?.(pendingVirtualScrollFrame)
-})
+const chatHistoryRef = useTemplateRef<HTMLDivElement>('chatHistory')
+const virtualizerRef = useTemplateRef<VirtualizerHandle>('virtualizer')
+const { scrollToIndex } = useVirtualizerScroll(virtualizerRef)
 
 const { t } = useI18n()
 const labels = computed(() => ({
@@ -127,11 +78,14 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
 const topFadeRatio = computed(() => props.variant === 'mobile' ? 0.2 : 0)
 
 useChatHistoryScroll({
-  containerRef: chatHistoryRef,
+  container: chatHistoryRef,
   messages: renderMessages,
   getKey: getChatHistoryItemKey,
-  scrollToIndex: scrollToVirtualIndex,
-  topFadeRatio,
+  scrollToIndex,
+})
+useChatHistoryTopFade({
+  container: chatHistoryRef,
+  fadeRatio: topFadeRatio,
 })
 
 function emitCopyMessage(message: ChatHistoryItem, index: number) {
@@ -174,7 +128,7 @@ function emitToolCallRerun(
 
 <template>
   <div
-    ref="chatHistoryRef"
+    ref="chatHistory"
     :class="[
       'chat-history-list',
       'relative h-full w-full overflow-y-auto rounded-xl',
@@ -183,7 +137,7 @@ function emitToolCallRerun(
     ]"
   >
     <Virtualizer
-      ref="virtualizerRef"
+      ref="virtualizer"
       :data="renderMessages"
       :buffer-size="CHAT_HISTORY_OVERSCAN"
     >
@@ -191,9 +145,7 @@ function emitToolCallRerun(
         <ChatHistoryMessageFrame
           :key="getChatHistoryItemKey(message, index)"
           :variant="variant"
-          :data-chat-message-index="index"
-          :data-chat-message-key="String(getChatHistoryItemKey(message, index))"
-          :data-chat-message-role="message.role"
+          :scroll-container="chatHistoryRef"
         >
           <ChatErrorItem
             v-if="message.role === 'error'"
@@ -202,6 +154,7 @@ function emitToolCallRerun(
             :retry-label="labels.retry"
             :can-retry="renderMessages[index - 1]?.role === 'user'"
             :show-placeholder="sending && index === renderMessages.length - 1"
+            :scroll-container="chatHistoryRef"
             :variant="variant"
             @copy="emitCopyMessage(message, index)"
             @retry="emitRetryMessage(message, index)"
@@ -212,6 +165,7 @@ function emitToolCallRerun(
             :message="message"
             :label="labels.assistant"
             :show-placeholder="shouldShowPlaceholder(message) && showStreamingPlaceholder"
+            :scroll-container="chatHistoryRef"
             :variant="variant"
             :tool-call-renderers="toolCallRenderers"
             @copy="emitCopyMessage(message, index)"
@@ -222,6 +176,7 @@ function emitToolCallRerun(
             v-else-if="message.role === 'user'"
             :message="message"
             :label="labels.user"
+            :scroll-container="chatHistoryRef"
             :variant="variant"
             @copy="emitCopyMessage(message, index)"
             @delete="emitDeleteMessage(message, index)"
@@ -233,7 +188,7 @@ function emitToolCallRerun(
 </template>
 
 <style scoped>
-.chat-history-list--mobile :deep([data-chat-message-surface]) {
+.chat-history-list--mobile :deep(.chat-message-item-container) {
   --chat-top-fade-transparent-stop: -1px;
   --chat-top-fade-opaque-stop: 0px;
 

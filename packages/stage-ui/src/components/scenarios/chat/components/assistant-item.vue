@@ -16,11 +16,13 @@ import { createToolCallResultLookup, resolveToolCallBlockState } from './tool-ca
 const props = withDefaults(defineProps<{
   message: ChatAssistantMessage
   label: string
+  scrollContainer?: HTMLElement | null
   showPlaceholder?: boolean
   variant?: 'desktop' | 'mobile'
   toolCallRenderers?: ChatToolCallRendererRegistry
 }>(), {
   showPlaceholder: false,
+  scrollContainer: null,
   variant: 'desktop',
   toolCallRenderers: () => ({}),
 })
@@ -88,16 +90,17 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
     <ChatActionMenu
       :copy-text="copyText"
       :can-delete="!showPlaceholder"
+      :scroll-container="scrollContainer"
       @copy="emit('copy')"
       @delete="emit('delete')"
     >
       <template #default="{ setMeasuredElement }">
         <div
           :ref="setMeasuredElement"
-          :data-chat-message-surface="props.variant === 'mobile' ? '' : undefined"
           flex="~ col" shadow="sm primary-200/50 dark:none"
           min-w-20 gap-2 rounded-xl h="unset <sm:fit"
           :class="[
+            'chat-message-item-container',
             boxClasses,
             (isStageWeb() || isStageCapacitor()) && props.variant === 'mobile' ? 'select-none sm:select-auto' : '',
           ]"

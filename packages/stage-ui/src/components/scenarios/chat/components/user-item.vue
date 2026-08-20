@@ -11,8 +11,10 @@ import { getChatHistoryItemCopyText } from '../utils'
 const props = withDefaults(defineProps<{
   message: Extract<ChatMessage, { role: 'user' }>
   label: string
+  scrollContainer?: HTMLElement | null
   variant?: 'desktop' | 'mobile'
 }>(), {
+  scrollContainer: null,
   variant: 'desktop',
 })
 
@@ -55,16 +57,17 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
     <ChatActionMenu
       :copy-text="copyText"
       placement="left"
+      :scroll-container="scrollContainer"
       @copy="emit('copy')"
       @delete="emit('delete')"
     >
       <template #default="{ setMeasuredElement }">
         <div
           :ref="setMeasuredElement"
-          :data-chat-message-surface="props.variant === 'mobile' ? '' : undefined"
           flex="~ col" shadow="sm neutral-200/50 dark:none"
           min-w-20 rounded-xl h="unset <sm:fit"
           :class="[
+            'chat-message-item-container',
             boxClasses,
             (isStageWeb() || isStageCapacitor()) && props.variant === 'mobile' ? 'select-none sm:select-auto' : '',
           ]"

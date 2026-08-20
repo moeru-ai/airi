@@ -1,18 +1,17 @@
 <script setup lang="ts">
 import { useElementVisibility } from '@vueuse/core'
-import { computed, inject, useTemplateRef } from 'vue'
+import { computed, useTemplateRef } from 'vue'
 
-import { chatScrollContainerKey } from '../constants'
-
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
+  scrollContainer?: HTMLElement | null
   variant?: 'desktop' | 'mobile'
 }>(), {
+  scrollContainer: null,
   variant: 'desktop',
 })
 
 const messageRef = useTemplateRef<HTMLDivElement>('message')
-const injectedScrollContainer = inject(chatScrollContainerKey, undefined)
-const scrollTarget = computed(() => injectedScrollContainer?.value ?? null)
+const scrollTarget = computed(() => props.scrollContainer)
 const isVisible = useElementVisibility(messageRef, {
   initialValue: false,
   scrollTarget,
@@ -23,11 +22,11 @@ const isVisible = useElementVisibility(messageRef, {
   <div
     ref="message"
     :class="[
+      'chat-message-item',
       'opacity-0 transition-opacity duration-200 ease-out motion-reduce:transition-none',
-      isVisible ? 'opacity-100' : '',
+      isVisible ? 'chat-message-item-visible opacity-100' : '',
       variant === 'mobile' ? 'pb-1' : 'pb-2',
     ]"
-    :data-chat-message-visible="isVisible ? '' : undefined"
   >
     <slot />
   </div>

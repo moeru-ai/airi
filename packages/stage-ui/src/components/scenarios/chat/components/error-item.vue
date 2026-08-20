@@ -13,11 +13,13 @@ const props = withDefaults(defineProps<{
   message: ErrorMessage
   label: string
   retryLabel?: string
+  scrollContainer?: HTMLElement | null
   canRetry?: boolean
   showPlaceholder?: boolean
   variant?: 'desktop' | 'mobile'
 }>(), {
   canRetry: false,
+  scrollContainer: null,
   showPlaceholder: false,
   variant: 'desktop',
 })
@@ -49,6 +51,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
       :copy-text="copyText"
       :can-delete="!showPlaceholder"
       :can-retry="canRetry && !showPlaceholder"
+      :scroll-container="scrollContainer"
       @copy="emit('copy')"
       @retry="emit('retry')"
       @delete="emit('delete')"
@@ -56,8 +59,8 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
       <template #default="{ setMeasuredElement }">
         <div
           :ref="setMeasuredElement"
-          :data-chat-message-surface="props.variant === 'mobile' ? '' : undefined"
           :class="[
+            'chat-message-item-container',
             boxClasses,
             'relative',
             'flex flex-col',
