@@ -31,7 +31,9 @@ const emit = defineEmits<{
 const boxClasses = computed(() => [
   'min-w-0',
   'max-w-full',
-  props.variant === 'mobile' ? 'px-2 py-2 text-sm' : 'px-3 py-3',
+  props.variant === 'mobile'
+    ? ['px-2 py-2 text-sm', 'bg-violet-100/60 backdrop-blur-xl dark:bg-violet-950/60']
+    : ['px-3 py-3', 'bg-violet-100/80 dark:bg-violet-950/80'],
 ])
 const copyText = computed(() => getChatHistoryItemCopyText(props.message as ChatHistoryItem))
 </script>
@@ -54,6 +56,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
       <template #default="{ setMeasuredElement }">
         <div
           :ref="setMeasuredElement"
+          :data-chat-message-surface="props.variant === 'mobile' ? '' : undefined"
           :class="[
             boxClasses,
             'relative',
@@ -61,7 +64,6 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
             'min-w-20 rounded-xl',
             'h-unset <sm:h-fit',
             'shadow-sm shadow-violet-200/50 dark:shadow-none',
-            'bg-violet-100/80 dark:bg-violet-950/80',
             (isStageWeb() || isStageCapacitor()) && props.variant === 'mobile' ? 'select-none sm:select-auto' : '',
           ]"
         >

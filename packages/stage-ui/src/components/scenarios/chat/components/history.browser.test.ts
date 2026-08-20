@@ -9,10 +9,6 @@ import ChatHistory from './history.vue'
 
 import { getChatHistoryItemKey } from '../utils'
 
-vi.mock('../composables/use-chat-history-scroll', () => ({
-  useChatHistoryScroll: () => undefined,
-}))
-
 vi.mock('../../../markdown', () => ({
   MarkdownRenderer: defineComponent({
     name: 'MarkdownRendererStub',
@@ -80,9 +76,10 @@ function createHarness(messages: ChatHistoryItem[]) {
       }
     },
     template: `
-      <div>
+      <div style="height: 480px; width: 480px;">
         <ChatHistory
           :messages="messages"
+          style="height: 100%; width: 100%; overflow-y: auto;"
           @retry-message="handleRetryMessage"
           @tool-call-rerun="handleToolCallRerun"
         />
@@ -93,7 +90,119 @@ function createHarness(messages: ChatHistoryItem[]) {
   })
 }
 
+function createVirtualizedHarness(messages: ChatHistoryItem[]) {
+  return defineComponent({
+    name: 'ChatHistoryVirtualizedHarness',
+    components: {
+      ChatHistory,
+    },
+    setup() {
+      return {
+        messages,
+      }
+    },
+    template: `
+      <div style="height: 240px; width: 320px;">
+        <ChatHistory
+          :messages="messages"
+          variant="mobile"
+          style="height: 100%; width: 100%; overflow-y: auto;"
+        />
+      </div>
+    `,
+  })
+}
+
 describe('chat history', () => {
+  // ROOT CAUSE:
+  //
+  // Rendering every message keeps every backdrop-filter surface alive, even when
+  // most of the history is outside the viewport. Long histories then cost more to
+  // lay out and composite during fast mobile scrolling.
+  //
+  // We virtualize the history and mount only the viewport plus a small overscan area.
+  it('virtualizes long histories and reveals only messages inside the viewport', async () => {
+    const messages: ChatHistoryItem[] = Array.from({ length: 100 }, (_, index) => ({
+      id: `user-${index}`,
+      role: 'user',
+      content: `Message ${index} `.repeat(index % 6 + 1),
+      createdAt: index,
+    }))
+
+    await render(createVirtualizedHarness(messages), {
+      global: {
+        plugins: [createTestI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      const renderedMessages = document.querySelectorAll<HTMLElement>('[data-chat-message-key]')
+      expect(renderedMessages.length).toBeGreaterThan(0)
+      expect(renderedMessages.length).toBeLessThan(messages.length)
+    })
+
+    await vi.waitFor(() => {
+      const renderedIndexes = Array.from(document.querySelectorAll<HTMLElement>('[data-chat-message-index]'))
+        .map(message => Number(message.dataset.chatMessageIndex))
+
+      expect(Math.max(...renderedIndexes)).toBe(99)
+    })
+
+    await vi.waitFor(() => {
+      const renderedMessages = Array.from(document.querySelectorAll<HTMLElement>('[data-chat-message-key]'))
+      const visibleMessages = renderedMessages.filter(message => message.hasAttribute('data-chat-message-visible'))
+      const hiddenMessages = renderedMessages.filter(message => !message.hasAttribute('data-chat-message-visible'))
+
+      expect(visibleMessages.length).toBeGreaterThan(0)
+      expect(hiddenMessages.length).toBeGreaterThan(0)
+      expect(visibleMessages[0].classList.contains('opacity-100')).toBe(true)
+      expect(visibleMessages[0].classList.contains('transition-opacity')).toBe(true)
+      expect(hiddenMessages[0].classList.contains('opacity-0')).toBe(true)
+    })
+
+    const history = document.querySelector<HTMLElement>('.chat-history-list')
+    expect(history).not.toBeNull()
+    if (!history)
+      throw new Error('Expected a chat history viewport.')
+
+    history.scrollTop = 0
+    history.dispatchEvent(new Event('scroll'))
+
+    await vi.waitFor(() => {
+      const renderedIndexes = Array.from(document.querySelectorAll<HTMLElement>('[data-chat-message-index]'))
+        .map(message => Number(message.dataset.chatMessageIndex))
+
+      expect(Math.min(...renderedIndexes)).toBe(0)
+    })
+  })
+
+  it('mounts a stable mask on each mobile message surface', async () => {
+    await render(ChatHistory, {
+      props: {
+        messages: [{ role: 'user', content: 'hello' }],
+        variant: 'mobile',
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createTestI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(document.querySelector('[data-chat-message-surface]')).not.toBeNull()
+    })
+
+    const surface = document.querySelector<HTMLElement>('[data-chat-message-surface]')
+    expect(surface).not.toBeNull()
+    if (!surface)
+      throw new Error('Expected a mobile chat message surface.')
+
+    expect(getComputedStyle(surface).maskImage).not.toBe('none')
+    await vi.waitFor(() => {
+      expect(surface.closest('[data-chat-message-visible]')).not.toBeNull()
+    })
+  })
+
   // ROOT CAUSE:
   //
   // Cross-window synchronization can publish `sending` before it publishes the new stream.
@@ -112,6 +221,7 @@ describe('chat history', () => {
           tool_results: [],
           createdAt: 1710000000000,
         },
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
       },
       global: {
         plugins: [createTestI18n()],

@@ -5,6 +5,9 @@ import { computed, nextTick, onScopeDispose, readonly, shallowRef, watch } from 
 // NOTICE: Keep a small tolerance for "near tail" detection so sub-pixel layout shifts,
 // font swaps, and late content growth do not falsely disengage follow mode.
 const TAIL_THRESHOLD = 24
+const CHAT_MESSAGE_SURFACE_SELECTOR = '[data-chat-message-surface]'
+const TOP_FADE_TRANSPARENT_STOP_PROPERTY = '--chat-top-fade-transparent-stop'
+const TOP_FADE_OPAQUE_STOP_PROPERTY = '--chat-top-fade-opaque-stop'
 
 function scheduleAfterLayoutSettles(task: () => void) {
   const requestFrame = globalThis.requestAnimationFrame?.bind(globalThis)
@@ -33,11 +36,13 @@ interface ChatHistoryScrollOptions<TMessage> {
    *
    * ```ts
    * const chatHistoryRef = ref<HTMLDivElement>()
+   * const virtualizerRef = ref<VirtualizerHandle>()
    *
    * useChatHistoryScroll({
    *   containerRef: chatHistoryRef,
    *   messages,
    *   getKey,
+   *   scrollToIndex: (index, align) => virtualizerRef.value?.scrollToIndex(index, { align }),
    * })
    * ```
    */
@@ -61,16 +66,29 @@ interface ChatHistoryScrollOptions<TMessage> {
    *
    * Use this when messages have IDs, timestamps, or another stable identity that
    * matches the DOM node's `data-chat-message-key`. The composable relies on this
-   * key for two behaviors:
-   *
-   * - detecting whether the tail changed between updates
-   * - locating the newly inserted tail element to align it into view
+   * key to detect whether the tail changed between updates. The rendered DOM
+   * also uses the key for pointer, focus, and selection intent tracking.
    *
    * The returned key should be stable for the lifetime of a rendered message.
    * If the key changes while representing the same message, the composable will
    * treat that as a new tail insertion and may scroll unexpectedly.
    */
   getKey: (message: TMessage, index: number) => string | number
+  /**
+   * Moves the virtualized list to one message without requiring that message to be mounted.
+   *
+   * The caller owns the virtualization library. This composable only chooses the target
+   * index and whether the message start or end should align with the viewport.
+   */
+  scrollToIndex: (index: number, align: 'start' | 'end') => void
+  /**
+   * The share of the viewport used to fade message surfaces at the top edge.
+   *
+   * Set this to `0` to remove the fade. The mask is applied to each message
+   * surface instead of the scroll container so its backdrop blur can still
+   * sample the scene behind the chat history.
+   */
+  topFadeRatio?: Ref<number>
   /**
    * Optional policy hook for vetoing auto-scroll on new tail insertions.
    *
@@ -113,10 +131,10 @@ interface ChatHistoryScrollOptions<TMessage> {
  *
  * How to use:
  *
- * 1. Render the history inside a single scrolling container.
+ * 1. Render the history inside a virtualizer with one scrolling container.
  * 2. Add `data-chat-message-key` to each rendered message wrapper.
- * 3. Pass the container ref, rendered message list, and stable key getter.
- * 4. Optionally provide `shouldScroll` if the caller needs extra veto logic.
+ * 3. Pass the container ref, rendered message list, stable key getter, and index scroll callback.
+ * 4. Optionally provide `shouldScroll` if the caller needs another veto rule.
  *
  * The composable tracks several signals of user intent, including tail proximity,
  * pointer/focus inspection of older messages, and text selection in history.
@@ -127,6 +145,8 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
   containerRef,
   messages,
   getKey,
+  scrollToIndex,
+  topFadeRatio,
   shouldScroll,
 }: ChatHistoryScrollOptions<TMessage>) {
   const isFollowingTail = shallowRef(true)
@@ -134,12 +154,13 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
   const isInspectingOlderMessage = shallowRef(false)
   const isSelectionInspectingHistory = shallowRef(false)
   const isInspectingHistory = computed(() => !isFollowingTail.value || isInspectingOlderMessage.value || isSelectionInspectingHistory.value)
-  const pendingScrollKey = shallowRef<string | number | null>(null)
+  const pendingScrollIndex = shallowRef<number | null>(null)
   const pendingStreamingFollow = shallowRef(false)
   const previousLastMessageKey = shallowRef<string | number | null>(null)
   const stopListening = shallowRef<(() => void) | null>(null)
   const didInitialScroll = shallowRef(false)
   const isProgrammaticScroll = shallowRef(false)
+  let pendingTopFadeFrame: number | undefined
 
   function getContainer() {
     return containerRef.value
@@ -151,6 +172,60 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
       return null
 
     return getKey(messages.value[lastIndex], lastIndex)
+  }
+
+  function setTopFadeStops(surface: HTMLElement, transparentStop: number, opaqueStop: number) {
+    surface.style.setProperty(TOP_FADE_TRANSPARENT_STOP_PROPERTY, `${transparentStop}px`)
+    surface.style.setProperty(TOP_FADE_OPAQUE_STOP_PROPERTY, `${opaqueStop}px`)
+  }
+
+  function setFullyOpaqueTopFadeStops(surface: HTMLElement) {
+    setTopFadeStops(surface, -1, 0)
+  }
+
+  function updateTopFadeMasks() {
+    const container = getContainer()
+    if (!container)
+      return
+
+    const surfaces = container.querySelectorAll<HTMLElement>(CHAT_MESSAGE_SURFACE_SELECTOR)
+    const fadeRatio = topFadeRatio?.value ?? 0
+    const fadeHeight = container.clientHeight * fadeRatio
+    const containerRect = container.getBoundingClientRect()
+    surfaces.forEach((surface) => {
+      const surfaceRect = surface.getBoundingClientRect()
+      const surfaceTop = surfaceRect.top - containerRect.top
+
+      if (fadeHeight <= 0 || surfaceTop >= fadeHeight) {
+        setFullyOpaqueTopFadeStops(surface)
+        return
+      }
+
+      // NOTICE:
+      // Keep the mask declaration mounted while a message crosses the scroll boundary.
+      // Chromium can flash when backdrop-filter and mask layers change during a scroll frame.
+      // Source: https://issues.chromium.org/issues/483220231.
+      // Remove this workaround when browsers provide stable spatial blur without mask layers.
+      const transparentStop = -surfaceTop
+      const opaqueStop = fadeHeight - surfaceTop
+      setTopFadeStops(surface, transparentStop, opaqueStop)
+    })
+  }
+
+  function scheduleTopFadeUpdate() {
+    if (pendingTopFadeFrame != null)
+      return
+
+    const requestFrame = globalThis.requestAnimationFrame?.bind(globalThis)
+    if (!requestFrame) {
+      updateTopFadeMasks()
+      return
+    }
+
+    pendingTopFadeFrame = requestFrame(() => {
+      pendingTopFadeFrame = undefined
+      updateTopFadeMasks()
+    })
   }
 
   /**
@@ -230,34 +305,35 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
 
   function scrollToBottom() {
     const container = getContainer()
-    if (!container)
+    const lastIndex = messages.value.length - 1
+    if (!container || lastIndex < 0)
       return
 
     isProgrammaticScroll.value = true
-    container.scrollTo({ top: container.scrollHeight })
+    scrollToIndex(lastIndex, 'end')
     nextTick(() => {
       isProgrammaticScroll.value = false
       updateFollowingTail()
       syncConversationFollowFromTail()
+      scheduleTopFadeUpdate()
     })
   }
 
-  function findMessageElementByKey(key: string | number) {
-    const container = getContainer()
-    if (!container)
-      return null
+  function scheduleInitialScroll() {
+    if (didInitialScroll.value || !getContainer() || messages.value.length === 0)
+      return
 
-    const messageElements = Array.from(container.querySelectorAll<HTMLElement>('[data-chat-message-key]'))
-    for (const element of messageElements) {
-      if (element.dataset.chatMessageKey === `${key}`)
-        return element
-    }
-
-    return null
+    didInitialScroll.value = true
+    nextTick(() => {
+      scheduleAfterLayoutSettles(() => {
+        scrollToBottom()
+      })
+    })
   }
 
   function bindContainer(container: HTMLDivElement) {
     const handleScroll = () => {
+      scheduleTopFadeUpdate()
       updateFollowingTail()
       if (!isFollowingTail.value && !isProgrammaticScroll.value)
         disengageConversationFollow()
@@ -289,12 +365,48 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
       syncSelectionInspection()
     }
 
+    const resizeObserver = typeof ResizeObserver === 'undefined'
+      ? undefined
+      : new ResizeObserver(scheduleTopFadeUpdate)
+    const observedMessageSurfaces = new Set<HTMLElement>()
+    const syncObservedMessageSurfaces = () => {
+      const currentSurfaces = new Set(
+        Array.from(container.querySelectorAll<HTMLElement>(CHAT_MESSAGE_SURFACE_SELECTOR)),
+      )
+
+      observedMessageSurfaces.forEach((surface) => {
+        if (currentSurfaces.has(surface))
+          return
+
+        resizeObserver?.unobserve(surface)
+        observedMessageSurfaces.delete(surface)
+      })
+
+      currentSurfaces.forEach((surface) => {
+        if (observedMessageSurfaces.has(surface))
+          return
+
+        resizeObserver?.observe(surface)
+        observedMessageSurfaces.add(surface)
+      })
+    }
+    const mutationObserver = typeof MutationObserver === 'undefined'
+      ? undefined
+      : new MutationObserver(() => {
+          syncObservedMessageSurfaces()
+          scheduleTopFadeUpdate()
+        })
+
     container.addEventListener('scroll', handleScroll, { passive: true })
     container.addEventListener('pointerover', handlePointerOver)
     container.addEventListener('pointerout', handlePointerOut)
     container.addEventListener('focusin', handleFocusIn)
     container.addEventListener('focusout', handleFocusOut)
     document.addEventListener('selectionchange', handleSelectionChange)
+    resizeObserver?.observe(container)
+    syncObservedMessageSurfaces()
+    mutationObserver?.observe(container, { childList: true, characterData: true, subtree: true })
+    scheduleTopFadeUpdate()
 
     stopListening.value = () => {
       container.removeEventListener('scroll', handleScroll)
@@ -303,6 +415,9 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
       container.removeEventListener('focusin', handleFocusIn)
       container.removeEventListener('focusout', handleFocusOut)
       document.removeEventListener('selectionchange', handleSelectionChange)
+      resizeObserver?.disconnect()
+      observedMessageSurfaces.clear()
+      mutationObserver?.disconnect()
     }
   }
 
@@ -318,21 +433,14 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
     syncConversationFollowFromTail()
     syncSelectionInspection()
 
-    if (!didInitialScroll.value) {
-      didInitialScroll.value = true
-      nextTick(() => {
-        scheduleAfterLayoutSettles(() => {
-          scrollToBottom()
-        })
-      })
-    }
+    scheduleInitialScroll()
   }, { immediate: true })
 
   watch(messages, (currentMessages) => {
     const currentLastIndex = currentMessages.length - 1
     if (currentLastIndex < 0) {
       previousLastMessageKey.value = null
-      pendingScrollKey.value = null
+      pendingScrollIndex.value = null
       isInspectingOlderMessage.value = false
       isSelectionInspectingHistory.value = false
       return
@@ -342,17 +450,18 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
     const currentLastKey = getKey(currentLastMessage, currentLastIndex)
     const previousTailKey = previousLastMessageKey.value
     previousLastMessageKey.value = currentLastKey
+    scheduleInitialScroll()
 
     // The last key change is the boundary between "a new message arrived" and "the current tail
     // is still streaming more content". Only the first case is allowed to move the viewport.
     if (previousTailKey == null) {
-      pendingScrollKey.value = null
+      pendingScrollIndex.value = null
       pendingStreamingFollow.value = false
       return
     }
 
     if (previousTailKey === currentLastKey) {
-      pendingScrollKey.value = null
+      pendingScrollIndex.value = null
       if (!isFollowingConversation.value || isInspectingOlderMessage.value || isSelectionInspectingHistory.value) {
         pendingStreamingFollow.value = false
         return
@@ -363,7 +472,7 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
     }
 
     if (!isFollowingConversation.value || isInspectingOlderMessage.value || isSelectionInspectingHistory.value) {
-      pendingScrollKey.value = null
+      pendingScrollIndex.value = null
       pendingStreamingFollow.value = false
       return
     }
@@ -376,33 +485,35 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
       isInspectingHistory: isInspectingOlderMessage.value || isSelectionInspectingHistory.value,
     })
     if (shouldScrollResult === false) {
-      pendingScrollKey.value = null
+      pendingScrollIndex.value = null
       pendingStreamingFollow.value = false
       return
     }
 
-    pendingScrollKey.value = currentLastKey
+    pendingScrollIndex.value = currentLastIndex
     pendingStreamingFollow.value = false
   }, { deep: false, immediate: true })
 
-  watch(pendingScrollKey, async (messageKey) => {
-    if (messageKey == null)
+  watch([messages, () => topFadeRatio?.value ?? 0], async () => {
+    await nextTick()
+    scheduleTopFadeUpdate()
+  }, { deep: false, flush: 'post', immediate: true })
+
+  watch(pendingScrollIndex, async (messageIndex) => {
+    if (messageIndex == null)
       return
 
     await nextTick()
 
-    const target = findMessageElementByKey(messageKey)
-    pendingScrollKey.value = null
-    if (!target)
-      return
-
     // Align to the top of the new message so the start of a long reply remains visible.
+    pendingScrollIndex.value = null
     isProgrammaticScroll.value = true
-    target.scrollIntoView({ block: 'start' })
+    scrollToIndex(messageIndex, 'start')
     nextTick(() => {
       isProgrammaticScroll.value = false
       isFollowingConversation.value = true
       updateFollowingTail()
+      scheduleTopFadeUpdate()
     })
   }, { flush: 'post' })
 
@@ -417,6 +528,8 @@ export function useChatHistoryScroll<TMessage extends { role?: string }>({
 
   onScopeDispose(() => {
     stopListening.value?.()
+    if (pendingTopFadeFrame != null)
+      globalThis.cancelAnimationFrame?.(pendingTopFadeFrame)
   })
 
   return {

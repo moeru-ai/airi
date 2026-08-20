@@ -43,7 +43,9 @@ const containerClasses = computed(() => [
 ])
 
 const boxClasses = computed(() => [
-  props.variant === 'mobile' ? 'px-2 pt-2 pb-1 text-sm bg-neutral-100/90 dark:bg-neutral-800/90' : 'px-3 pt-3 pb-2 bg-neutral-100/80 dark:bg-neutral-800/80',
+  props.variant === 'mobile'
+    ? ['px-2 pt-2 pb-1 text-sm', 'bg-neutral-100/60 backdrop-blur-xl dark:bg-neutral-800/60']
+    : ['px-3 pt-3 pb-2', 'bg-neutral-100/80 dark:bg-neutral-800/80'],
 ])
 const copyText = computed(() => getChatHistoryItemCopyText(props.message as ChatHistoryItem))
 </script>
@@ -59,6 +61,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
       <template #default="{ setMeasuredElement }">
         <div
           :ref="setMeasuredElement"
+          :data-chat-message-surface="props.variant === 'mobile' ? '' : undefined"
           flex="~ col" shadow="sm neutral-200/50 dark:none"
           min-w-20 rounded-xl h="unset <sm:fit"
           :class="[

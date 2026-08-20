@@ -1086,6 +1086,9 @@ catalogs:
     vieval:
       specifier: ^0.0.5
       version: 0.0.5
+    virtua:
+      specifier: ^0.50.3
+      version: 0.50.3
     vite:
       specifier: ^8.0.8
       version: 8.0.8
@@ -4492,6 +4495,9 @@ importers:
       vaul-vue:
         specifier: 'catalog:'
         version: 0.4.1(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+      virtua:
+        specifier: 'catalog:'
+        version: 0.50.3(react@19.2.3)(vue@3.5.32(typescript@5.9.3))
       vue-i18n:
         specifier: 'catalog:'
         version: 11.3.2(vue@3.5.32(typescript@5.9.3))
@@ -19340,6 +19346,32 @@ packages:
   vieval@0.0.5:
     resolution: {integrity: sha512-PJ8A+nGD+G9ymYtZUdBEGX5qaYokNoMqvybAnWr2avhUB8giR5wUUC0sCAkB78Sbgt0TgBun0dU6EoaknDQ2sA==}
     hasBin: true
+
+  virtua@0.50.3:
+    resolution: {integrity: sha512-1/5QnIIIMn2ZPhoE3V/OsiOVGroK+2KYzgMeWz8JyAM29pLRoDoQjLXgHl5HdukVc7DXVEWEzSd61wiWOnhg6w==}
+    peerDependencies:
+      '@angular/common': '>=20.0.0'
+      '@angular/core': '>=20.0.0'
+      react: '>=16.14.0'
+      react-dom: '>=16.14.0'
+      solid-js: '>=1.0'
+      svelte: '>=5.0'
+      vue: '>=3.2'
+    peerDependenciesMeta:
+      '@angular/common':
+        optional: true
+      '@angular/core':
+        optional: true
+      react:
+        optional: true
+      react-dom:
+        optional: true
+      solid-js:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
 
   vite-bundle-visualizer@1.2.1:
     resolution: {integrity: sha512-cwz/Pg6+95YbgIDp+RPwEToc4TKxfsFWSG/tsl2DSZd9YZicUag1tQXjJ5xcL7ydvEoaC2FOZeaXOU60t9BRXw==}
@@ -35608,6 +35640,11 @@ snapshots:
       - terser
       - tsx
       - yaml
+
+  virtua@0.50.3(react@19.2.3)(vue@3.5.32(typescript@5.9.3)):
+    optionalDependencies:
+      react: 19.2.3
+      vue: 3.5.32(typescript@5.9.3)
 
   vite-bundle-visualizer@1.2.1(rolldown@1.0.0-rc.16)(rollup@2.80.0):
     dependencies:
