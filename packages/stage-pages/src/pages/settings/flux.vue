@@ -37,7 +37,6 @@ if (isStageTamagotchi())
 
 interface FluxPackage {
   packKey: string
-  stripePriceId?: string
   label: string
   defaultCurrency: string
   currencies: Record<string, string>
