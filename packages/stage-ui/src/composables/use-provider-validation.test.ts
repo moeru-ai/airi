@@ -71,6 +71,40 @@ describe('useProviderValidation', () => {
     expect(configStore.getProvider(providerId)?.status).toBe('configured')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3819332616
+  it('automatically validates providers with provider-specific credential fields', async () => {
+    const providerId = 'aliyun-nls-transcription'
+    const providersStore = useProviderStore()
+    const configStore = useProviderConfigStore()
+    configStore.resetProviders()
+    configStore.ensureProvider(providerId, providerId, {
+      accessKeyId: 'access-key-id',
+      accessKeySecret: 'access-key-secret',
+      appKey: 'app-key',
+      region: 'cn-shanghai',
+    })
+    vi.spyOn(providersStore, 'validateProviderConfig').mockResolvedValue({
+      errors: [],
+      reason: '',
+      valid: true,
+    })
+
+    const app = createApp(defineComponent({
+      setup() {
+        useProviderValidation(providerId)
+        return () => null
+      },
+    }))
+    app.use(pinia)
+    app.mount(document.createElement('div'))
+    unmount = () => app.unmount()
+
+    await vi.waitFor(() => {
+      expect(providersStore.validateProviderConfig).toHaveBeenCalled()
+    }, { timeout: 2000 })
+    expect(configStore.getProvider(providerId)?.status).toBe('configured')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3809925335
   it('marks a listed provider invalid after its credentials are cleared', async () => {
     const providerId = 'funasr-audio-transcription'

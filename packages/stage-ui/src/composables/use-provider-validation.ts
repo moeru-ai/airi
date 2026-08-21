@@ -208,7 +208,16 @@ export function useProviderValidation(providerId: string) {
     }
   }
 
-  const AUTH_FIELDS = ['apiKey', 'baseUrl', 'accountId', 'apiToken', 'accessToken'] as const
+  const AUTH_FIELDS = [
+    'apiKey',
+    'baseUrl',
+    'accountId',
+    'apiToken',
+    'accessToken',
+    'accessKeyId',
+    'accessKeySecret',
+    'appKey',
+  ] as const
 
   const debouncedValidateConfiguration = useDebounceFn((revision: number) => {
     if (revision !== validationRevision)
