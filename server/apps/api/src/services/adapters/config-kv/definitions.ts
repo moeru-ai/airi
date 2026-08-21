@@ -245,7 +245,7 @@ export const configEntrySchemas = {
   // 24h gives users a long-enough window for accumulated dust to settle naturally.
   TTS_DEBT_TTL_SECONDS: optional(number(), 86400),
   // One-time Flux packs. Display prices are preformatted strings keyed by
-  // currency. Provider ids map each pack onto Stripe (and later Apple/Steam).
+  // currency. Provider ids map each pack onto Stripe.
   FLUX_PACKS: optional(array(object({
     key: pipe(string(), nonEmpty('FLUX_PACKS[].key must not be empty')),
     name: pipe(string(), nonEmpty('FLUX_PACKS[].name must not be empty')),

@@ -1,4 +1,4 @@
-export const PAYMENT_PROVIDERS = ['stripe', 'apple_iap', 'steam'] as const
+export const PAYMENT_PROVIDERS = ['stripe'] as const
 
 export type PaymentProviderName = typeof PAYMENT_PROVIDERS[number]
 
