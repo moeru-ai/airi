@@ -4,6 +4,7 @@ import AccountSettingsPage from '@proj-airi/stage-pages/pages/settings/account/a
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { signOut } from '@proj-airi/stage-ui/libs/auth'
 import { useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
 
 import { electronAuthLogout, electronAuthStartLogin } from '../../../../shared/eventa'
 
@@ -16,9 +17,17 @@ async function handleLogin() {
 }
 
 async function handleLogout() {
-  await signOut()
+  try {
+    await signOut()
+  }
+  catch (error) {
+    console.error('[auth] sign-out failed; local state retained', error)
+    toast.error('Sign out failed. Your session was kept; please try again.')
+    return
+  }
+
   await logout()
-  router.push('/settings')
+  await router.push('/settings')
 }
 </script>
 
