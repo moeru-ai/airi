@@ -198,6 +198,8 @@ export async function streamFrom({
         messages: sanitized,
         headers: options?.headers,
         streamOptions: { includeUsage: true },
+        temperature: options?.temperature,
+        topP: options?.topP,
         stopWhen: stepCountAtLeast(10),
         tools,
         toolChoice: options?.toolChoice,

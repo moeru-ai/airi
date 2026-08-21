@@ -21,6 +21,7 @@ export const CharacterCapabilityConfigSchema = object({
   apiBaseUrl: string(),
   llm: optional(object({
     temperature: number(),
+    topP: optional(number()),
     model: string(),
   })),
   tts: optional(object({
@@ -171,6 +172,10 @@ export const UpdateCharacterSchema = object({
   version: optional(string()),
   coverUrl: optional(string()),
   characterId: optional(string()),
+  capabilities: optional(array(object({
+    type: CharacterCapabilityTypeSchema,
+    config: CharacterCapabilityConfigSchema,
+  }))),
 })
 
 // --- Type Exports ---

@@ -62,6 +62,10 @@ export interface ChatOrchestratorSendOptions {
   toolReferences?: ChatToolReference[]
   /** Original transport input metadata used by bridge/devtools observers. */
   input?: ChatStreamEventContext['input']
+  /** Temperature for the LLM request. */
+  temperature?: number
+  /** Top_p for the LLM request. */
+  topP?: number
 }
 
 interface QueuedSend {
@@ -766,6 +770,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           roundId: correlation.roundId,
         },
         tools: options.tools,
+        temperature: options.temperature,
+        topP: options.topP,
         waitForTools: true,
         onMessages: (messages) => {
           const currentTurnMessages = messages.slice(providerInputMessageCount)

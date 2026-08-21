@@ -626,6 +626,10 @@ pages:
             search_results: Found {count} of {total} models
             show_less: Show less
             show_more: Show more
+            temperature_label: Temperature
+            temperature_description: Control the randomness of the model's output. A lower value (e.g. 0.2) results in more deterministic, precise, and analytical output, while a higher value (e.g. 1.0) increases creativity and diversity.
+            top_p_label: Top P
+            top_p_description: Control the diversity of the model's output via nucleus sampling. A lower value (e.g. 0.2) limits the output to only high-probability tokens, while a higher value (e.g. 1.0) includes a broader set of possibilities.
             subtitle: Select a default model from the provider
             title: Model
       title: Consciousness
