@@ -13,9 +13,9 @@ This section is for contributors who want to change source code, documentation, 
 
 - [Git](https://git-scm.com/downloads)
 - [mise](https://mise.jdx.dev/installing-mise.html), or another version manager that reads `.tool-versions`
-- [Corepack](https://github.com/nodejs/corepack), which is included with recent Node.js releases
+- [Corepack](https://github.com/nodejs/corepack), which is included with the pinned Node.js 24.x release. Install it separately if you use Node.js 25 or later.
 
-The repository pins Node.js in [`.tool-versions`](https://github.com/moeru-ai/airi/blob/main/.tool-versions) (currently 24.13.0). Install that pinned version after cloning instead of relying on the version supplied by a system package manager.
+The repository pins Node.js in [`.tool-versions`](https://github.com/moeru-ai/airi/blob/main/.tool-versions) (currently 24.13.0). Install this version after you clone the repository. Do not use a different system version.
 
 <details>
 <summary>Windows setup</summary>
@@ -62,6 +62,12 @@ The repository pins Node.js in [`.tool-versions`](https://github.com/moeru-ai/ai
 ::: tip
 Skip this section if you have not cloned the repository yet.
 :::
+
+If the `upstream` remote is not configured, add the Project AIRI repository before you fetch changes:
+
+```shell
+git remote add upstream https://github.com/moeru-ai/airi.git
+```
 
 Fetch upstream changes and rebase your local `main` branch:
 
@@ -156,14 +162,6 @@ git push -u origin <your-branch-name>
 ```
 
 Your branch should now be available on GitHub.
-
-::: tip
-If this is your first contribution, add the Project AIRI repository as the `upstream` remote:
-
-```shell
-git remote add upstream https://github.com/moeru-ai/airi.git
-```
-:::
 
 ## Create a pull request
 
