@@ -247,6 +247,7 @@ as a first language.
 ## PR / Workflow Tips
 
 - When asked to create, open, publish, or prepare a pull request, always use the repo-local `create-pr` skill. For user-visible changes it orchestrates `use-vishot` and the matching runtime variant, then uploads before/after screenshots as GitHub user assets in the PR body.
+- After you create a pull request, get its review threads, comments, and check status. If a review identifies a confirmed error, fix it, run focused checks, push the update, reply with evidence, and resolve the thread.
 - Rebase pulls; branch naming `username/feat/short-name`; clear commit messages (gitmoji is prohibited).
 - Summarize changes, how tested (commands), and follow-ups.
 - Improve legacy you touch; avoid one-off patterns.

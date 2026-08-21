@@ -281,10 +281,12 @@ describe('createLlmRouterService', () => {
     expect(ctx.upstreamModel).toBe('real/upstream-id')
   })
 
-  it('multi-key fallback: k1=401 then k2=200 → returns 200 and records fallbackCount once', async () => {
+  // https://github.com/moeru-ai/airi/pull/2333#discussion_r3820516102
+  it('pr #2333: multi-key fallback releases the failed chat response before returning success', async () => {
     const { config, crypto } = makeConfig({ upstreams: [{ baseURL: 'https://up-a.example/v1', keyIds: ['k1', 'k2'] }] })
+    const failedResponse = failResponse(401)
     const fetchImpl = vi.fn()
-      .mockResolvedValueOnce(failResponse(401))
+      .mockResolvedValueOnce(failedResponse)
       .mockResolvedValueOnce(happyResponse({ ok: 1 }))
     const metrics = makeMetrics()
 
@@ -299,6 +301,7 @@ describe('createLlmRouterService', () => {
 
     const res = await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
     expect(res.status).toBe(200)
+    expect(failedResponse.bodyUsed).toBe(true)
     expect(fetchImpl.mock.calls.length).toBe(2)
 
     expect((metrics.fallbackCount.add as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
@@ -308,6 +311,36 @@ describe('createLlmRouterService', () => {
 
     expect((metrics.upstreamErrors.add as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
     expect((metrics.keyExhaustedCount.add as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2333#discussion_r3820516102
+  it('pr #2333: caller abort releases earlier failed chat responses', async () => {
+    const { config, crypto } = makeConfig({ upstreams: [{ baseURL: 'https://up-a.example/v1', keyIds: ['k1', 'k2'] }] })
+    const failedResponse = failResponse(401)
+    const callerAbort = new AbortController()
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(failedResponse)
+      .mockImplementationOnce(async () => {
+        callerAbort.abort(new Error('client disconnected'))
+        throw callerAbort.signal.reason
+      })
+
+    const router = createLlmRouterService({
+      configKV: makeConfigKV(config),
+      envelopeCrypto: crypto,
+      gatewayMetrics: null,
+      fetchImpl,
+      redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
+    })
+
+    await expect(router.route({
+      modelName: 'openai/gpt-5-mini',
+      body: {},
+      abortSignal: callerAbort.signal,
+    })).rejects.toThrow('client disconnected')
+
+    expect(failedResponse.bodyUsed).toBe(true)
   })
 
   it('cross-upstream fallback: upstream A keys all 401, upstream B[0] = 200 → returns 200 without terminal exhaustion', async () => {
@@ -827,17 +860,19 @@ describe('createLlmRouterService', () => {
   // walked every key + upstream before surfacing — wasting upstream quota
   // and hiding the actual user-facing 400 behind a 502 mapping.
   //
-  // After patch: ApiError 4xx propagates immediately; ApiError 5xx folds
-  // into the network-failure fallback path using `statusCode`; `Error &
-  // { status }` stays on the existing fallback policy.
+  // After patch: ApiError 4xx propagates immediately. ApiError 5xx uses
+  // `statusCode` and obeys `fallbackHttpCodes`. TtsUpstreamResponseError
+  // stays on the existing fallback policy.
   describe('routeTts adapter error handling', () => {
     function makeTtsConfig(opts: {
       provider?: 'azure'
       upstreams?: Array<{ baseURL: string, keyIds: string[], adapterParams?: Record<string, unknown> }>
+      fallbackHttpCodes?: number[]
     }): { config: RouterConfig, crypto: ReturnType<typeof createEnvelopeCrypto> } {
       const crypto = createEnvelopeCrypto({ masterKey: freshMasterKey() })
       const modelName = 'tts-test'
       const upstreams = opts.upstreams ?? [{ baseURL: 'https://up-a.example', keyIds: ['kA1'] }]
+      const fallbackHttpCodes = opts.fallbackHttpCodes ?? [401, 429, 500, 502, 503, 504]
       const upstreamConfigs = upstreams.map(u => ({
         baseURL: u.baseURL,
         keys: u.keyIds.map((id) => {
@@ -854,14 +889,14 @@ describe('createLlmRouterService', () => {
             [modelName]: {
               provider: opts.provider ?? 'azure',
               upstreams: upstreamConfigs,
-              fallbackTriggers: { httpCodes: [401, 429, 500, 502, 503, 504], onTimeout: true },
+              fallbackTriggers: { httpCodes: fallbackHttpCodes, onTimeout: true },
             },
           },
         },
         defaults: {
           perAttemptTimeoutMs: 5000,
           fullChainTimeoutMs: 10000,
-          fallbackHttpCodes: [401, 429, 500, 502, 503, 504],
+          fallbackHttpCodes,
         },
       } as RouterConfig
       return { config, crypto }
@@ -940,17 +975,52 @@ describe('createLlmRouterService', () => {
       expect((metrics.fallbackCount.add as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
     })
 
-    it('upstream `Error & { status: 401 }` folds into the existing fallback path', async () => {
-      // azure adapter throws `Error & { status: number }` on upstream non-2xx
-      // (see azure.ts:189-194). 401 is in fallbackHttpCodes so we must try
-      // the next key.
+    // https://github.com/moeru-ai/airi/pull/2333#discussion_r3820516115
+    it('pr #2333: apiError 5xx stops key fallback when fallbackHttpCodes excludes the status', async () => {
+      const { config, crypto } = makeTtsConfig({
+        upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1', 'kA2'], adapterParams: { region: 'eastasia' } }],
+        fallbackHttpCodes: [401, 429],
+      })
+      const fetchImpl = vi.fn(async () => {
+        throw new TypeError('network unreachable')
+      })
+
+      const router = createLlmRouterService({
+        configKV: makeConfigKV(config),
+        envelopeCrypto: crypto,
+        gatewayMetrics: null,
+        fetchImpl,
+        redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
+      })
+
+      let caught: unknown
+      try {
+        await router.routeTts({
+          modelName: 'tts-test',
+          input: { text: 'hi', voice: 'en-US-AvaMultilingualNeural' },
+        })
+      }
+      catch (error) {
+        caught = error
+      }
+
+      expect(caught).toBeInstanceOf(ApiError)
+      expect((caught as ApiError).statusCode).toBe(502)
+      expect(fetchImpl).toHaveBeenCalledTimes(1)
+    })
+
+    it('upstream 401 folds into the existing fallback path', async () => {
+      // The Azure adapter throws TtsUpstreamResponseError on upstream non-2xx.
+      // 401 is in fallbackHttpCodes so we must try the next key.
       const { config, crypto } = makeTtsConfig({ upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1', 'kA2'], adapterParams: { region: 'eastasia' } }] })
 
       let callIdx = 0
+      const failedResponse = failResponse(401)
       const fetchImpl = vi.fn(async () => {
         callIdx += 1
         if (callIdx === 1)
-          return failResponse(401)
+          return failedResponse
         return new Response(new Uint8Array([0x01]), { status: 200, headers: { 'content-type': 'audio/mpeg' } })
       })
       const metrics = makeMetrics()
@@ -970,6 +1040,7 @@ describe('createLlmRouterService', () => {
       })
 
       expect(res.status).toBe(200)
+      expect(failedResponse.bodyUsed).toBe(true)
       expect(fetchImpl).toHaveBeenCalledTimes(2)
       const fallbackCalls = (metrics.fallbackCount.add as ReturnType<typeof vi.fn>).mock.calls
       expect(fallbackCalls.length).toBe(1)

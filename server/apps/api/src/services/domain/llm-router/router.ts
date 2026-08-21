@@ -227,8 +227,8 @@ function ttsVoicesCacheKey(provider: string, modelName: string): string {
  * Returns:
  * - `route(req)` — picks an upstream + key, fetches the upstream, walks
  *   fallback on non-2xx until one succeeds or every (upstream, key) has
- *   been tried. Returns a `Response` on the first 2xx; throws `ApiError`
- *   per KTD-1 mapping on full exhaustion.
+ *   been tried. Returns a `Response` on the first 2xx or terminal upstream
+ *   HTTP error. Throws `ApiError` when every attempt fails before a response.
  *
  * The router does NOT open its own OTel span — the route handler in U4
  * owns the span. The router only enriches the *active* span with
@@ -312,6 +312,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         }
 
         if (response.ok) {
+          await Promise.all(failures.map(failure => discardUpstreamResponse(failure.response)))
           // First 2xx wins. Enrich the active span and return.
           trace.getActiveSpan()?.setAttributes({
             [AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_URL]: upstream.baseURL,
@@ -356,6 +357,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         // timeout. The router does NOT fall back on caller-abort: there is
         // no longer a client waiting for a response.
         if (req.abortSignal?.aborted) {
+          await Promise.all(failures.map(failure => discardUpstreamResponse(failure.response)))
           logger.withError(err).withFields({ keyId: key.id }).debug('Caller aborted upstream fetch; propagating without fallback')
           throw err
         }
@@ -553,8 +555,8 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
   /**
    * Run one TTS upstream's key list in order, parallel to {@link dispatchOneUpstream}
    * but delegating actual HTTP to the provider adapter. Adapters surface
-   * upstream non-2xx as `Error & { status: number }`; network failures /
-   * timeouts arrive as plain `Error` with no status.
+   * upstream non-2xx as {@link TtsUpstreamResponseError}; network failures
+   * and timeouts arrive as errors without an upstream response.
    */
   async function dispatchOneTtsUpstream(
     upstream: TtsUpstream,
@@ -614,10 +616,12 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
           [AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID]: key.id,
           [AIRI_ATTR_GEN_AI_GATEWAY_FALLBACK_DEPTH]: attemptIndex,
         })
+        await Promise.all(failures.map(failure => discardUpstreamResponse(failure.response)))
         return { kind: 'ok', contentType: result.contentType, body: result.body, attemptIndex }
       }
       catch (err) {
         if (abortSignal?.aborted) {
+          await Promise.all(failures.map(failure => discardUpstreamResponse(failure.response)))
           logger.withError(err).withFields({ keyId: key.id }).debug('Caller aborted upstream tts fetch; propagating without fallback')
           throw err
         }
@@ -673,6 +677,10 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
           from_key: key.id,
           reason: String(failureStatus),
         })
+        if (typeof rawStatus === 'number' && !fallbackHttpCodes.includes(rawStatus)) {
+          attemptIndex += 1
+          break
+        }
         logger.withError(err).withFields({ keyId: key.id, upstream: upstream.baseURL }).warn('Upstream TTS attempt failed')
       }
       finally {
@@ -682,6 +690,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       attemptIndex += 1
     }
 
+    await Promise.all(failures.slice(0, -1).map(failure => discardUpstreamResponse(failure.response)))
     return { kind: 'exhausted', failures }
   }
 
