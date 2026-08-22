@@ -87,7 +87,6 @@ devtools:
       overlay:
         title: 性能
         move: 移动性能浮窗
-        move-help: 拖动浮窗，或用方向键移动浮窗。
         reset-position: 重置浮窗位置
         record: 录制
         stop: 停止

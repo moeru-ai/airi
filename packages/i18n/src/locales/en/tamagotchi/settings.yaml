@@ -87,7 +87,6 @@ devtools:
       overlay:
         title: Performance
         move: Move performance overlay
-        move-help: Drag or use the arrow keys to move the overlay.
         reset-position: Reset overlay position
         record: Record
         stop: Stop

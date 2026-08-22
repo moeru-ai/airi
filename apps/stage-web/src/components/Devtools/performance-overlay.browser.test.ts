@@ -11,16 +11,6 @@ import { useDevtoolsLagStore } from '../../stores/devtools-lag'
 
 import 'virtual:uno.css'
 
-function createTestI18n() {
-  return createI18n({
-    legacy: false,
-    locale: 'en',
-    messages: {
-      en,
-    },
-  })
-}
-
 describe('performance overlay recording controls', () => {
   it('keeps CSV export separate from stopping a recording', async () => {
     // ROOT CAUSE:
@@ -35,7 +25,16 @@ describe('performance overlay recording controls', () => {
 
     const screen = await render(PerformanceOverlay, {
       global: {
-        plugins: [pinia, createTestI18n()],
+        plugins: [
+          pinia,
+          createI18n({
+            legacy: false,
+            locale: 'en',
+            messages: {
+              en,
+            },
+          }),
+        ],
       },
     })
 

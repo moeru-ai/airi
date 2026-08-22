@@ -3,6 +3,7 @@ import type { LagMetric } from '../../stores/devtools-lag'
 
 import { Button, IconButton } from '@proj-airi/ui'
 import { useDraggable, useElementBounding } from '@vueuse/core'
+import { clamp } from 'es-toolkit/math'
 import { storeToRefs } from 'pinia'
 import { computed, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -124,36 +125,18 @@ function barSeries(metric: LagMetric) {
 }
 
 function clampPosition(nextX = position.value.x, nextY = position.value.y) {
+  const maxX = Math.max(0, boundaryWidth.value - overlayWidth.value)
+  const maxY = Math.max(0, boundaryHeight.value - overlayHeight.value)
+
   position.value = {
-    x: Math.min(Math.max(0, nextX), Math.max(0, boundaryWidth.value - overlayWidth.value)),
-    y: Math.min(Math.max(0, nextY), Math.max(0, boundaryHeight.value - overlayHeight.value)),
+    x: clamp(nextX, 0, maxX),
+    y: clamp(nextY, 0, maxY),
   }
 }
 
 function resetPosition() {
   clampPosition(0, boundaryHeight.value - overlayHeight.value)
   positionInitialized.value = true
-}
-
-function moveWithKeyboard(event: KeyboardEvent) {
-  const distance = event.shiftKey ? 24 : 8
-  let nextX = position.value.x
-  let nextY = position.value.y
-
-  if (event.key === 'ArrowLeft')
-    nextX -= distance
-  else if (event.key === 'ArrowRight')
-    nextX += distance
-  else if (event.key === 'ArrowUp')
-    nextY -= distance
-  else if (event.key === 'ArrowDown')
-    nextY += distance
-  else
-    return
-
-  event.preventDefault()
-  positionInitialized.value = true
-  clampPosition(nextX, nextY)
 }
 </script>
 
@@ -190,12 +173,11 @@ function moveWithKeyboard(event: KeyboardEvent) {
               'shrink-0 touch-none select-none',
               isDragging ? 'cursor-grabbing' : 'cursor-grab',
             ]"
-            @keydown="moveWithKeyboard"
           >
             <IconButton
               icon="i-solar:menu-dots-bold-duotone"
               :aria-label="t('tamagotchi.settings.devtools.pages.performance-visualizer.overlay.move')"
-              :title="t('tamagotchi.settings.devtools.pages.performance-visualizer.overlay.move-help')"
+              :title="t('tamagotchi.settings.devtools.pages.performance-visualizer.overlay.move')"
             />
           </div>
           <div :class="['min-w-0 flex-1 truncate text-xs font-medium text-neutral-200 uppercase tracking-wide']">
