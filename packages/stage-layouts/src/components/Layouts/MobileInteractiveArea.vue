@@ -433,18 +433,6 @@ onUnmounted(() => {
   animation: scan 2s infinite linear;
 }
 
-.chat-history {
-  --gradient: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 20%);
-  -webkit-mask-image: var(--gradient);
-  mask-image: var(--gradient);
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: bottom;
-  mask-position: bottom;
-}
-
 .controls-island-scroll--overflowing {
   --controls-island-mask: linear-gradient(
     to bottom,
