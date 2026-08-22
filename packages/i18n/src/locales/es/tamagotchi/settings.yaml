@@ -49,6 +49,10 @@ devtools:
   pages:
     context-flow:
       title: Flujo de contexto
+    editor:
+      title: AIRI Editor
+      description: Open the standalone AIRI Editor window
+      button: Open Editor
     lag-visualizer:
       title: Visualizador de retraso
     performance-visualizer:

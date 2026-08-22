@@ -50,9 +50,9 @@ devtools:
     context-flow:
       title: Context Flow
     editor:
-      title: AIRI 编辑器
-      description: 打开独立的 AIRI 编辑器窗口
-      button: 打开编辑器
+      title: AIRI Editor
+      description: Open the standalone AIRI Editor window
+      button: Open Editor
     lag-visualizer:
       title: Lag 可视化
     performance-visualizer:

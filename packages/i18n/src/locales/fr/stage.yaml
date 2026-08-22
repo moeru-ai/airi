@@ -15,12 +15,12 @@ chat:
     new-chat-fallback: Nouvelle conversation
     delete: Supprimer conversation
 render-error:
-  title: '{renderer} n’a pas pu afficher ce modèle'
-  description: Le modèle est sélectionné, mais la scène n’a pas pu l’afficher.
+  title: '{renderer} could not render this model'
+  description: The model is selected, but the Stage could not display it.
   report-description: |-
-    {renderer} n’a pas pu afficher le modèle sélectionné.
-    ID du modèle : {modelId}
-    Erreur : {error}
+    {renderer} failed to render the selected model.
+    Model ID: {modelId}
+    Error: {error}
 message: Dites quelque chose...
 send-mode:
   title: Envoyer la clef
@@ -28,8 +28,8 @@ send-mode:
   ctrl-enter: Ctrl + Entrée
   double-enter: Double Entrée
 speech-output:
-  mute: Couper la voix
-  unmute: Réactiver la voix
+  mute: Mute voice
+  unmute: Unmute voice
 operations:
   load-models: Charger les modèles
   load-models-status:
