@@ -24,4 +24,5 @@ menu:
       reset_position: 位置リセット
       devtools: 開発ツール
       troubleshoot_beatsync: BeatSyncのトラブルシューティング…
+      reload: メイン画面を再読み込み
       quit: 終了

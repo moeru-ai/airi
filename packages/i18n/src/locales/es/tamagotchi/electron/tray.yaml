@@ -24,4 +24,5 @@ menu:
       reset_position: Reiniciar Posición
       devtools: Herramientas de Desarrollador
       troubleshoot_beatsync: Solucionar problemas BeatSync...
+      reload: Recargar ventana principal
       quit: Salir
