@@ -14,7 +14,7 @@ import {
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
 import { createTranscriptBuffer } from '@proj-airi/pipelines-audio'
-import { hearingInputChannelName, IS_DEV } from '@proj-airi/stage-shared'
+import { hearingInputChannelName } from '@proj-airi/stage-shared'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
 import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
@@ -35,9 +35,9 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
+import ControlsIslandRoot from '../components/stage-islands/controls-island/controls-island-root.vue'
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
-import StatusIsland from '../components/stage-islands/status-island/index.vue'
 
 import { electronOpenOnboarding } from '../../shared/eventa'
 import { modelSettingsRuntimeSnapshotChannelName } from '../../shared/model-settings-runtime'
@@ -53,7 +53,8 @@ import {
 } from '../utils/voice-input-suppression'
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
-const statusIslandRef = ref<InstanceType<typeof StatusIsland>>()
+const controlsIslandInteractionActive = shallowRef(false)
+const controlsIslandElement = toRef(() => controlsIslandRef.value?.element)
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
@@ -67,10 +68,8 @@ const onboardingStore = useOnboardingStore()
 const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
 
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
-const { isOutside } = useElectronMouseInElement(controlsIslandRef)
-const { isOutside: isOutsideStatusIsland } = useElectronMouseInElement(statusIslandRef)
+const { isOutside } = useElectronMouseInElement(controlsIslandElement)
 const isOutsideFor250Ms = refDebounced(isOutside, 250)
-const isOutsideStatusIslandFor250Ms = refDebounced(isOutsideStatusIsland, 250)
 const { x: relativeMouseX, y: relativeMouseY } = useElectronRelativeMouse()
 // NOTICE: In real-world use cases of Fade on Hover feature, the cursor may move around the edge of the
 // model rapidly, causing flickering effects when checking pixel transparency strictly.
@@ -245,7 +244,7 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
  *     -> {@link handleFadeOnHoverInteractionChange}
  *
  * Upstream:
- * - {@link isOutsideFor250Ms}, {@link isOutsideStatusIslandFor250Ms}, and {@link isAroundWindowBorderFor250Ms}
+ * - {@link isOutsideFor250Ms} and {@link isAroundWindowBorderFor250Ms}
  * - {@link isOutsideWindow}, {@link isTransparent}, and {@link isTransparentForMouseEvents}
  * - {@link hearingDialogOpen}, {@link fadeOnHoverEnabled}, and {@link stagePaused}
  *
@@ -269,7 +268,7 @@ function handleFadeOnHoverInteractionChange() {
     return
   }
 
-  const insideControls = !isOutsideFor250Ms.value || !isOutsideStatusIslandFor250Ms.value
+  const insideControls = !isOutsideFor250Ms.value
   const nearBorder = isAroundWindowBorderFor250Ms.value
 
   if (insideControls || nearBorder) {
@@ -293,7 +292,7 @@ function handleFadeOnHoverInteractionChange() {
 }
 
 watch(
-  [isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, hearingDialogOpen, fadeOnHoverEnabled, stagePaused],
+  [isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, hearingDialogOpen, fadeOnHoverEnabled, stagePaused],
   handleFadeOnHoverInteractionChange,
   { immediate: true },
 )
@@ -816,7 +815,6 @@ const cursorPosition = computed(() => ({
           'transition-opacity duration-250 ease-in-out',
         ]"
       >
-        <StatusIsland v-if="IS_DEV" ref="statusIslandRef" />
         <ResourceStatusIsland />
         <WidgetStage
           ref="widgetStageRef"
@@ -827,7 +825,12 @@ const cursorPosition = computed(() => ({
           :paused="stagePaused"
         />
         <HoloCoupon />
-        <ControlsIsland ref="controlsIslandRef" />
+        <ControlsIslandRoot :frozen="controlsIslandInteractionActive">
+          <ControlsIsland
+            ref="controlsIslandRef"
+            @interaction-change="controlsIslandInteractionActive = $event"
+          />
+        </ControlsIslandRoot>
       </div>
     </div>
     <!-- Loading overlay sits on top, does not hide the stage -->

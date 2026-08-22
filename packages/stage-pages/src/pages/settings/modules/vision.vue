@@ -53,7 +53,7 @@ watch(activeProvider, async (provider, oldProvider) => {
 }, { immediate: true })
 
 watch([activeProvider, activeModel], ([provider, model]) => {
-  airiCardStore.updateActiveCardVision({ provider, model })
+  void airiCardStore.updateActiveCardVision({ provider, model })
 })
 
 function updateCustomModelName(value: string) {

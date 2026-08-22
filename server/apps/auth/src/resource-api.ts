@@ -6,8 +6,8 @@ export type UserDeletionReason = 'user-requested' | 'admin' | 'compliance'
 
 export interface AuthEventInput {
   userId: string
-  action: 'user_signed_up' | 'session_started'
-  source: 'better-auth.user.create' | 'better-auth.session.create'
+  action: 'user_signed_up'
+  source: 'better-auth.user.create'
 }
 
 /**

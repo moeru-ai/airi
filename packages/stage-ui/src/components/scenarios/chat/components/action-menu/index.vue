@@ -20,14 +20,13 @@ import {
   DropdownMenuRoot,
   DropdownMenuTrigger,
 } from 'reka-ui'
-import { computed, inject, reactive, ref, shallowRef, toRef, useTemplateRef, watch } from 'vue'
+import { computed, reactive, ref, shallowRef, toRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useWebHaptics } from 'web-haptics/vue'
 
 import { createChatActionMenuItems, createChatActionMenuTriggerState } from '.'
 import { useBreakpoints } from '../../../../../composables/use-breakpoints'
 import { useElementScroll } from '../../composables/use-element-scroll'
-import { chatScrollContainerKey } from '../../constants'
 
 const props = withDefaults(defineProps<{
   canCopy?: boolean
@@ -36,6 +35,7 @@ const props = withDefaults(defineProps<{
   copyText?: string
   menuLabel?: string
   placement?: 'left' | 'right'
+  scrollContainer?: HTMLElement | null
 }>(), {
   canCopy: true,
   canRetry: false,
@@ -43,6 +43,7 @@ const props = withDefaults(defineProps<{
   copyText: '',
   menuLabel: 'Message actions',
   placement: 'right',
+  scrollContainer: null,
 })
 
 const emit = defineEmits<{
@@ -58,8 +59,7 @@ const measuredElementRef = shallowRef<HTMLElement | null>(null)
 const contextMenuContainerElementRef = useTemplateRef<HTMLElement>('contextMenuContainer')
 const topSentinelRef = useTemplateRef<HTMLDivElement>('topSentinel')
 const bottomSentinelRef = useTemplateRef<HTMLDivElement>('bottomSentinel')
-const injectedScrollContainer = inject(chatScrollContainerKey, undefined)
-const scrollTarget = computed(() => injectedScrollContainer?.value ?? null)
+const scrollTarget = computed(() => props.scrollContainer)
 const contextMenuOpen = shallowRef(false)
 const dropdownMenuOpen = shallowRef(false)
 const {

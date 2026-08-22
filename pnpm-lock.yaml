@@ -384,9 +384,6 @@ catalogs:
     '@proj-airi/drizzle-duckdb-wasm':
       specifier: ^0.5.0
       version: 0.5.0
-    '@proj-airi/drizzle-orm-browser-migrator':
-      specifier: ^0.1.6
-      version: 0.1.6
     '@proj-airi/iconify-meteocons':
       specifier: ^0.1.5
       version: 0.1.5
@@ -396,9 +393,6 @@ catalogs:
     '@proj-airi/unocss-preset-chromatic':
       specifier: ^1.1.1
       version: 1.1.1
-    '@proj-airi/unplugin-drizzle-orm-migrations':
-      specifier: ^0.1.6
-      version: 0.1.6
     '@proj-airi/unplugin-fetch':
       specifier: ^0.2.3
       version: 0.2.3
@@ -456,6 +450,9 @@ catalogs:
     '@types/markdown-it':
       specifier: ^14.1.2
       version: 14.1.2
+    '@types/mdast':
+      specifier: ^4.0.4
+      version: 4.0.4
     '@types/node':
       specifier: ^24.12.2
       version: 24.12.2
@@ -883,8 +880,8 @@ catalogs:
       specifier: ^3.0.4
       version: 3.0.4
     pinia-plugin-synced:
-      specifier: ^0.1.0
-      version: 0.1.0
+      specifier: ^0.1.3
+      version: 0.1.3
     pixi-filters:
       specifier: ^4.2.0
       version: 4.2.0
@@ -1089,6 +1086,9 @@ catalogs:
     vieval:
       specifier: ^0.0.5
       version: 0.0.5
+    virtua:
+      specifier: ^0.50.3
+      version: 0.50.3
     vite:
       specifier: ^8.0.8
       version: 8.0.8
@@ -1499,6 +1499,9 @@ importers:
       '@proj-airi/stage-ui':
         specifier: workspace:^
         version: link:../../packages/stage-ui
+      '@proj-airi/stage-ui-live2d':
+        specifier: workspace:^
+        version: link:../../packages/stage-ui-live2d
       '@proj-airi/stage-ui-three':
         specifier: workspace:^
         version: link:../../packages/stage-ui-three
@@ -3929,12 +3932,6 @@ importers:
         specifier: 'catalog:'
         version: 1.4.2(typescript@5.9.3)
 
-  packages/server-sdk-shared:
-    dependencies:
-      '@moeru/eventa':
-        specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
-
   packages/server-shared:
     dependencies:
       '@proj-airi/plugin-protocol':
@@ -4293,7 +4290,7 @@ importers:
         version: link:../server-sdk
       '@proj-airi/server-sdk-shared':
         specifier: workspace:^
-        version: link:../server-sdk-shared
+        version: link:../../server/packages/server-sdk-shared
       '@proj-airi/stage-shared':
         specifier: workspace:^
         version: link:../stage-shared
@@ -4443,7 +4440,7 @@ importers:
         version: 3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3))
       pinia-plugin-synced:
         specifier: 'catalog:'
-        version: 0.1.0(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+        version: 0.1.3(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       posthog-js:
         specifier: 'catalog:'
         version: 1.306.1
@@ -4498,6 +4495,9 @@ importers:
       vaul-vue:
         specifier: 'catalog:'
         version: 0.4.1(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+      virtua:
+        specifier: 'catalog:'
+        version: 0.50.3(react@19.2.3)(vue@3.5.32(typescript@5.9.3))
       vue-i18n:
         specifier: 'catalog:'
         version: 11.3.2(vue@3.5.32(typescript@5.9.3))
@@ -4610,6 +4610,9 @@ importers:
       '@types/hast':
         specifier: 'catalog:'
         version: 3.0.4
+      '@types/mdast':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@types/splitpanes':
         specifier: 'catalog:'
         version: 2.2.6
@@ -5428,15 +5431,9 @@ importers:
       '@proj-airi/auth-shared':
         specifier: workspace:*
         version: link:../../packages/auth-shared
-      '@proj-airi/drizzle-migration':
-        specifier: workspace:*
-        version: link:../../packages/drizzle-migration
-      '@proj-airi/drizzle-orm-browser-migrator':
-        specifier: 'catalog:'
-        version: 0.1.6(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.29.4)(pg@8.20.0)(postgres@3.4.9))
       '@proj-airi/server-sdk-shared':
         specifier: workspace:*
-        version: link:../../../packages/server-sdk-shared
+        version: link:../../packages/server-sdk-shared
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.29.4)(pg@8.20.0)(postgres@3.4.9)
@@ -5638,11 +5635,14 @@ importers:
         specifier: 'catalog:'
         version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.29.4)(pg@8.20.0)(postgres@3.4.9)
 
-  server/packages/drizzle-migration:
-    devDependencies:
-      '@proj-airi/unplugin-drizzle-orm-migrations':
+  server/packages/server-sdk-shared:
+    dependencies:
+      '@moeru/eventa':
         specifier: 'catalog:'
-        version: 0.1.6(magicast@0.5.2)(vite@6.4.2(@types/node@25.6.0)(jiti@2.7.0)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+      valibot:
+        specifier: 'catalog:'
+        version: 1.4.2(typescript@5.9.3)
 
   services/computer-use-mcp:
     dependencies:
@@ -6497,6 +6497,7 @@ packages:
 
   '@better-auth/cli@1.4.22':
     resolution: {integrity: sha512-7azgrNiP1zJXMLqoLgCVj3KsZeYWLHeaGMapYlLblS6yU/o5n//sn1HBasRD2z4HBy2Etz/C7V483/mYvRHI2g==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
     hasBin: true
 
   '@better-auth/core@1.4.22':
@@ -10137,11 +10138,6 @@ packages:
       web-worker:
         optional: true
 
-  '@proj-airi/drizzle-orm-browser-migrator@0.1.6':
-    resolution: {integrity: sha512-7A7Ay5vSLBer2P+Ydbrl9AktE7geIlh396zB/3a9odwI/1GT89Pljzvjz5SVxG0e17+wMOPLRKnTnCzukL1B9Q==}
-    peerDependencies:
-      drizzle-orm: '>=0.44.0'
-
   '@proj-airi/duckdb-wasm@0.5.0':
     resolution: {integrity: sha512-kI29wDhmgWXQ7dpbBNA2bSK/S4RXBO54hRqOQR8SQPnQB8F2010leUmvdf7kjtFgvIacfAMc0L1BxaOMmnA7ig==}
     peerDependencies:
@@ -10159,14 +10155,6 @@ packages:
 
   '@proj-airi/unocss-preset-chromatic@1.1.1':
     resolution: {integrity: sha512-nZThnWRpxBOQwuJjLq60QKmiuAbhjuqF9CjwnxqXs1d0IeywP/0aVlmnfSoUkTqkmrHH7hqoEOy2i4W2tLMmZg==}
-
-  '@proj-airi/unplugin-drizzle-orm-migrations@0.1.6':
-    resolution: {integrity: sha512-YBlxafvxFLZJxlUm1QDSLdY7Hy1K71OAkg29bzeuzau/VZc1csUp75b9Fdb/RhtZtP2G3WQh8riMho4/gDoWMQ==}
-    peerDependencies:
-      vite: ^2.9.0 || ^3.0.0-0 || ^4.0.0 || ^5.0.0-0 || ^6.0.0-0
-    peerDependenciesMeta:
-      vite:
-        optional: true
 
   '@proj-airi/unplugin-fetch@0.2.3':
     resolution: {integrity: sha512-90I6CfbC7xMSm9/0gl+DJvHmg2Hw9E/7L5rtfXpqMmrRQqd/jhfD1Sb5LjywqTZ3rlFfnb39d051yFGeYigi9A==}
@@ -17201,8 +17189,8 @@ packages:
     resolution: {integrity: sha512-uB80kBFb/tfd68bVleG9T5GGsGPjJrLAUpR5PZIrhBnIaRTQRjqdJSsIKkOP6OAIFbj7GOrcudc5pNjZ+geV2g==}
     engines: {node: '>=6'}
 
-  pinia-plugin-synced@0.1.0:
-    resolution: {integrity: sha512-53LEjp6A5ub16fwPdM01ZwYtLF+uG5i3JOfwbA5/m1j7cmiIAdlb4dSd5NcY+fZDw51f/DXWBiLAqV/C1qyKTg==}
+  pinia-plugin-synced@0.1.3:
+    resolution: {integrity: sha512-qisOMMeMClWqHMdJSBZzIGxLQKRTWA2dqF48l++Ys1ay91fOUuT0UcNZWYsrs4eP1MvAR3DMXskknen8iYyq6Q==}
     peerDependencies:
       pinia: '>=3.0.4 <5'
       vue: ^3.5.0
@@ -19359,6 +19347,32 @@ packages:
     resolution: {integrity: sha512-PJ8A+nGD+G9ymYtZUdBEGX5qaYokNoMqvybAnWr2avhUB8giR5wUUC0sCAkB78Sbgt0TgBun0dU6EoaknDQ2sA==}
     hasBin: true
 
+  virtua@0.50.3:
+    resolution: {integrity: sha512-1/5QnIIIMn2ZPhoE3V/OsiOVGroK+2KYzgMeWz8JyAM29pLRoDoQjLXgHl5HdukVc7DXVEWEzSd61wiWOnhg6w==}
+    peerDependencies:
+      '@angular/common': '>=20.0.0'
+      '@angular/core': '>=20.0.0'
+      react: '>=16.14.0'
+      react-dom: '>=16.14.0'
+      solid-js: '>=1.0'
+      svelte: '>=5.0'
+      vue: '>=3.2'
+    peerDependenciesMeta:
+      '@angular/common':
+        optional: true
+      '@angular/core':
+        optional: true
+      react:
+        optional: true
+      react-dom:
+        optional: true
+      solid-js:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
+
   vite-bundle-visualizer@1.2.1:
     resolution: {integrity: sha512-cwz/Pg6+95YbgIDp+RPwEToc4TKxfsFWSG/tsl2DSZd9YZicUag1tQXjJ5xcL7ydvEoaC2FOZeaXOU60t9BRXw==}
     engines: {node: ^18.19.0 || >=20.6.0}
@@ -19439,46 +19453,6 @@ packages:
       vite: ^4.0.0 || ^5.0.0
       vue: ^3.2.4
       vue-router: ^4.0.11
-
-  vite@6.4.2:
-    resolution: {integrity: sha512-2N/55r4JDJ4gdrCvGgINMy+HH3iRpNIz8K6SFwVsA+JbQScLiC+clmAxBgwiSPgcG9U15QmvqCGWzMbqda5zGQ==}
-    engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
-    hasBin: true
-    peerDependencies:
-      '@types/node': ^18.0.0 || ^20.0.0 || >=22.0.0
-      jiti: '>=1.21.0'
-      less: '*'
-      lightningcss: ^1.21.0
-      sass: '*'
-      sass-embedded: '*'
-      stylus: '*'
-      sugarss: '*'
-      terser: ^5.16.0
-      tsx: ^4.8.1
-      yaml: ^2.4.2
-    peerDependenciesMeta:
-      '@types/node':
-        optional: true
-      jiti:
-        optional: true
-      less:
-        optional: true
-      lightningcss:
-        optional: true
-      sass:
-        optional: true
-      sass-embedded:
-        optional: true
-      stylus:
-        optional: true
-      sugarss:
-        optional: true
-      terser:
-        optional: true
-      tsx:
-        optional: true
-      yaml:
-        optional: true
 
   vite@7.3.2:
     resolution: {integrity: sha512-Bby3NOsna2jsjfLVOHKes8sGwgl4TT0E6vvpYgnAYDIF/tie7MRaFthmKuHx1NSXjiTueXH3do80FMQgvEktRg==}
@@ -24839,11 +24813,6 @@ snapshots:
     transitivePeerDependencies:
       - '@75lb/nature'
 
-  '@proj-airi/drizzle-orm-browser-migrator@0.1.6(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.29.4)(pg@8.20.0)(postgres@3.4.9))':
-    dependencies:
-      '@guiiai/logg': 1.2.11
-      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.29.4)(pg@8.20.0)(postgres@3.4.9)
-
   '@proj-airi/duckdb-wasm@0.5.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.29.4)(pg@8.20.0)(postgres@3.4.9))(web-worker@1.5.0)':
     dependencies:
       '@date-fns/tz': 1.4.1
@@ -24868,16 +24837,6 @@ snapshots:
       '@iconify/types': 2.0.0
 
   '@proj-airi/unocss-preset-chromatic@1.1.1': {}
-
-  '@proj-airi/unplugin-drizzle-orm-migrations@0.1.6(magicast@0.5.2)(vite@6.4.2(@types/node@25.6.0)(jiti@2.7.0)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))':
-    dependencies:
-      c12: 3.3.3(magicast@0.5.2)
-      uncrypto: 0.1.3
-      unplugin: 2.3.11
-    optionalDependencies:
-      vite: 6.4.2(@types/node@25.6.0)(jiti@2.7.0)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
-    transitivePeerDependencies:
-      - magicast
 
   '@proj-airi/unplugin-fetch@0.2.3(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))':
     dependencies:
@@ -33027,7 +32986,7 @@ snapshots:
   pify@4.0.1:
     optional: true
 
-  pinia-plugin-synced@0.1.0(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)):
+  pinia-plugin-synced@0.1.3(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)):
     dependencies:
       '@moeru/std': 0.1.0-beta.20
       es-toolkit: 1.50.0
@@ -35682,6 +35641,11 @@ snapshots:
       - tsx
       - yaml
 
+  virtua@0.50.3(react@19.2.3)(vue@3.5.32(typescript@5.9.3)):
+    optionalDependencies:
+      react: 19.2.3
+      vue: 3.5.32(typescript@5.9.3)
+
   vite-bundle-visualizer@1.2.1(rolldown@1.0.0-rc.16)(rollup@2.80.0):
     dependencies:
       cac: 6.7.14
@@ -35913,25 +35877,6 @@ snapshots:
       vue-router: 5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
     transitivePeerDependencies:
       - supports-color
-
-  vite@6.4.2(@types/node@25.6.0)(jiti@2.7.0)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3):
-    dependencies:
-      esbuild: 0.25.12
-      fdir: 6.5.0(picomatch@4.0.4)
-      picomatch: 4.0.4
-      postcss: 8.5.10
-      rollup: 4.60.1
-      tinyglobby: 0.2.17
-    optionalDependencies:
-      '@types/node': 25.6.0
-      fsevents: 2.3.3
-      jiti: 2.7.0
-      less: 4.6.4
-      lightningcss: 1.32.0
-      terser: 5.46.1
-      tsx: 4.21.0
-      yaml: 2.8.3
-    optional: true
 
   vite@7.3.2(@types/node@24.12.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3):
     dependencies:

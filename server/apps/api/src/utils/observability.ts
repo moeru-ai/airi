@@ -85,10 +85,8 @@ export const METRIC_AIRI_TTS_PREFLIGHT_REJECTIONS = 'airi.billing.tts.preflight_
 // AIRI observability — self-monitoring for the metric pipeline
 export const METRIC_AIRI_OBSERVABILITY_READ_ERRORS = 'airi.observability.read_errors'
 
-// Product analytics — low-cardinality event volume only. User-level product
-// analytics live in Postgres `product_events`; never add user identifiers to
-// this metric's labels.
-export const METRIC_AIRI_PRODUCT_EVENTS = 'airi.product.events'
+// AIRI database — local pg pool capacity and queue state
+export const METRIC_AIRI_DB_POOL_CONNECTIONS = 'airi.db.pool.connections'
 
 // AIRI revenue — actual money in (smallest currency unit, e.g. cents)
 export const METRIC_AIRI_STRIPE_REVENUE = 'airi.stripe.revenue'

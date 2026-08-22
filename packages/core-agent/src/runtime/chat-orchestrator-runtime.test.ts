@@ -500,9 +500,9 @@ describe('createChatOrchestratorRuntime', () => {
       model: 'gpt-test',
       chatProvider: provider,
       input: {
-        type: 'input:text',
+        type: 'input:text:voice',
         data: {
-          text: 'hello from voice',
+          transcription: 'hello from voice',
         },
       },
     })
@@ -577,6 +577,35 @@ describe('createChatOrchestratorRuntime', () => {
       turnIndex: 1,
     }])
     expect(harness.telemetry.chatActivationFailed).toEqual([])
+  })
+
+  // Review: https://github.com/moeru-ai/airi/pull/2325
+  it('pr #2325 treats input:text metadata as text telemetry', async () => {
+    const harness = createHarness()
+
+    await harness.runtime.ingest('hello from text input', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      input: {
+        type: 'input:text',
+        data: {
+          text: 'hello from text input',
+        },
+      },
+    })
+
+    expect(harness.telemetry.messageSendStarted).toEqual([
+      expect.objectContaining({ source: 'text' }),
+    ])
+    expect(harness.telemetry.llmRequestStarted).toEqual([
+      expect.objectContaining({ hasVoice: false }),
+    ])
+    expect(harness.telemetry.messageRound).toEqual([
+      expect.objectContaining({ hasVoice: false }),
+    ])
+    expect(harness.userAppended).toEqual([
+      expect.objectContaining({ source: 'text' }),
+    ])
   })
 
   // ROOT CAUSE:

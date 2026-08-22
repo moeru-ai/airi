@@ -10,10 +10,14 @@ import { useProviderStore } from '../../providers/provider'
 export const useVisionStore = defineStore('vision', () => {
   const providersStore = useProviderStore()
 
-  const activeProvider = useLocalStorageManualReset('settings/vision/active-provider', '')
-  const activeModel = useLocalStorageManualReset('settings/vision/active-model', '')
-  const activeCustomModelName = useLocalStorageManualReset('settings/vision/active-custom-model', '')
-  const ollamaThinkingEnabled = useLocalStorageManualReset('settings/vision/ollama-thinking-enabled', false)
+  // Pinia synchronization owns live cross-window state. localStorage only
+  // loads and saves durable values for this synchronized store.
+  const persistenceOptions = { listenToStorageChanges: false }
+
+  const activeProvider = useLocalStorageManualReset('settings/vision/active-provider', '', persistenceOptions)
+  const activeModel = useLocalStorageManualReset('settings/vision/active-model', '', persistenceOptions)
+  const activeCustomModelName = useLocalStorageManualReset('settings/vision/active-custom-model', '', persistenceOptions)
+  const ollamaThinkingEnabled = useLocalStorageManualReset('settings/vision/ollama-thinking-enabled', false, persistenceOptions)
   const modelSearchQuery = refManualReset('')
 
   const supportsModelListing = computed(() => {

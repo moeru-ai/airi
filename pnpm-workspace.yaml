@@ -163,11 +163,9 @@ catalog:
   '@pnpm/find-workspace-dir': ^1000.1.5
   '@proj-airi/chromatic': ^1.1.1
   '@proj-airi/drizzle-duckdb-wasm': ^0.5.0
-  '@proj-airi/drizzle-orm-browser-migrator': ^0.1.6
   '@proj-airi/iconify-meteocons': ^0.1.5
   '@proj-airi/lobe-icons': ^1.0.19
   '@proj-airi/unocss-preset-chromatic': ^1.1.1
-  '@proj-airi/unplugin-drizzle-orm-migrations': ^0.1.6
   '@proj-airi/unplugin-fetch': ^0.2.3
   '@proj-airi/unplugin-live2d-sdk': ^0.1.7
   '@radix-ui/colors': ^3.0.0
@@ -187,6 +185,7 @@ catalog:
   '@types/hast': ^3.0.4
   '@types/ioredis-mock': ^8.2.8
   '@types/markdown-it': ^14.1.2
+  '@types/mdast': ^4.0.4
   '@types/node': ^24.12.2
   '@types/nprogress': ^0.2.3
   '@types/pg': ^8.20.0
@@ -330,7 +329,7 @@ catalog:
   pathe: ^2.0.3
   pg: ^8.20.0
   pinia: ^3.0.4
-  pinia-plugin-synced: ^0.1.0
+  pinia-plugin-synced: ^0.1.3
   pixi-filters: ^4.2.0
   pixi-live2d-display: ^0.4.0
   playwright: ^1.60.0
@@ -399,6 +398,7 @@ catalog:
   vaul-vue: ^0.4.1
   vec3: ^0.2.0
   vieval: ^0.0.5
+  virtua: ^0.50.3
   vite: ^8.0.8
   vite-bundle-visualizer: ^1.2.1
   vite-plugin-inspect: 12.0.0-beta.1

@@ -316,22 +316,24 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const providerStore = useProviderConfigStore()
   const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
   const {
-    trackAudioDeviceUnavailable,
     trackMicrophonePermissionDenied,
     trackSttFailed,
-    trackSttStarted,
     trackSttSucceeded,
     trackVoiceInputStarted,
   } = useAnalytics()
 
+  // Pinia synchronization owns live cross-window state. localStorage only
+  // loads and saves durable values for this synchronized store.
+  const persistenceOptions = { listenToStorageChanges: false }
+
   // State
-  const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', '')
-  const activeTranscriptionModel = useLocalStorageManualReset('settings/hearing/active-model', '')
-  const activeCustomModelName = useLocalStorageManualReset('settings/hearing/active-custom-model', '')
+  const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', '', persistenceOptions)
+  const activeTranscriptionModel = useLocalStorageManualReset('settings/hearing/active-model', '', persistenceOptions)
+  const activeCustomModelName = useLocalStorageManualReset('settings/hearing/active-custom-model', '', persistenceOptions)
   const transcriptionModelSearchQuery = refManualReset<string>('')
-  const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false)
-  const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000) // Default 2 seconds
-  const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED)
+  const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false, persistenceOptions)
+  const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000, persistenceOptions) // Default 2 seconds
+  const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED, persistenceOptions)
   const verboseJsonNotSupported = ref(false)
 
   watch(activeTranscriptionProvider, () => {
@@ -420,7 +422,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
     const sttStartedAt = performance.now()
     trackVoiceInputStarted({ stt_provider_id: providerId })
-    trackSttStarted(providerId)
 
     function emitSucceeded(charCount: number, stream: boolean) {
       trackSttSucceeded({
@@ -435,12 +436,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
       trackSttFailed({ provider: providerId, error_code: errorCode })
       if (errorCode === 'permission_denied') {
         trackMicrophonePermissionDenied({
-          stt_provider_id: providerId,
-          error_code: errorCode,
-        })
-      }
-      if (errorCode === 'device_unavailable') {
-        trackAudioDeviceUnavailable({
           stt_provider_id: providerId,
           error_code: errorCode,
         })
@@ -582,7 +577,6 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     onTranscriptionUpdate: (text: string) => streamingConsumers.emitTranscriptionUpdate(text),
   }
   const {
-    trackAudioDeviceUnavailable,
     trackVoiceInputCancelled,
     trackVoiceInputStarted,
   } = useAnalytics()
@@ -1196,10 +1190,6 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
     if (recording.size <= 0) {
       error.value = 'Recording captured from microphone is empty'
-      trackAudioDeviceUnavailable({
-        stt_provider_id: activeTranscriptionProvider.value || 'unknown',
-        error_code: 'device_unavailable',
-      })
       return
     }
 

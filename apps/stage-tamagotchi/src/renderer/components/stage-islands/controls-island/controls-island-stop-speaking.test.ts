@@ -1,11 +1,21 @@
 // @vitest-environment jsdom
+import type { ControlsIslandPlacement } from './use-controls-island-placement'
+
 import { describe, expect, it, vi } from 'vitest'
-import { createApp, h, nextTick } from 'vue'
+import { createApp, h, nextTick, shallowRef } from 'vue'
 
 import ControlsIslandStopSpeaking from './controls-island-stop-speaking.vue'
 
+import { controlsIslandPlacementKey } from './use-controls-island-placement'
+
 const nowSpeakingRef = { value: false }
 const stopAllSpeakingMock = vi.fn()
+const placement: ControlsIslandPlacement = {
+  dock: shallowRef('bottom-right'),
+  isLeft: shallowRef(false),
+  isTop: shallowRef(false),
+  motionPhase: shallowRef('idle'),
+}
 
 vi.mock('@proj-airi/stage-ui/stores/audio', () => ({
   useSpeakingStore: () => ({
@@ -48,6 +58,7 @@ describe('controlsIslandStopSpeaking', () => {
         iconClass: 'size-5',
       }),
     })
+    app.provide(controlsIslandPlacementKey, placement)
     app.mount(host)
     return { host, app }
   }

@@ -145,6 +145,8 @@ docs/research
 
 docs/ai/context/verifications/
 .playwright-mcp/
+.vitest-attachments
+__screenshots__
 .vishot/
 .alint/
 .alintcache
@@ -152,3 +154,5 @@ docs/ai/context/verifications/
 # Generated from packages/i18n/glossary/terms.yaml at upload time. Never committed, so it
 # cannot drift from its source.
 packages/i18n/glossary/glossary.tbx
+
+/airi-docs/

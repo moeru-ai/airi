@@ -20,11 +20,16 @@ export interface ComfyUIWorkflowTemplate {
 }
 
 export const useArtistryStore = defineStore('artistry', () => {
+  // Pinia synchronization is the only cross-window state channel. These refs
+  // still load and save durable values, but storage events must not echo a
+  // second copy of the same state between Electron renderers.
+  const persistenceOptions = { listenToStorageChanges: false }
+
   // --- Persistent Global Settings (User Preferences) ---
-  const globalProvider = useLocalStorageManualReset<string>('artistry-provider', 'none')
-  const globalModel = useLocalStorageManualReset<string>('artistry-model', '')
-  const globalPromptPrefix = useLocalStorageManualReset<string>('artistry-prompt-prefix', '')
-  const globalProviderOptions = useLocalStorageManualReset<Record<string, any> | undefined>('artistry-provider-options', undefined)
+  const globalProvider = useLocalStorageManualReset<string>('artistry-provider', 'none', persistenceOptions)
+  const globalModel = useLocalStorageManualReset<string>('artistry-model', '', persistenceOptions)
+  const globalPromptPrefix = useLocalStorageManualReset<string>('artistry-prompt-prefix', '', persistenceOptions)
+  const globalProviderOptions = useLocalStorageManualReset<Record<string, any> | undefined>('artistry-provider-options', undefined, persistenceOptions)
 
   // --- Active settings (transient, can be overridden by cards) ---
   const activeProvider = ref(globalProvider.value)
@@ -36,40 +41,48 @@ export const useArtistryStore = defineStore('artistry', () => {
   const comfyuiServerUrl = useLocalStorageManualReset<string>(
     'artistry-comfyui-server-url',
     'http://localhost:8188',
+    persistenceOptions,
   )
   const comfyuiSavedWorkflows = useLocalStorageManualReset<ComfyUIWorkflowTemplate[]>(
     'artistry-comfyui-saved-workflows',
     [],
+    persistenceOptions,
   )
   const comfyuiActiveWorkflow = useLocalStorageManualReset<string>(
     'artistry-comfyui-active-workflow',
     '',
+    persistenceOptions,
   )
 
   // --- Replicate provider settings ---
-  const replicateApiKey = useLocalStorageManualReset<string>('artistry-replicate-api-key', '')
+  const replicateApiKey = useLocalStorageManualReset<string>('artistry-replicate-api-key', '', persistenceOptions)
   const replicateDefaultModel = useLocalStorageManualReset<string>(
     'artistry-replicate-default-model',
     'black-forest-labs/flux-schnell',
+    persistenceOptions,
   )
   const replicateAspectRatio = useLocalStorageManualReset<string>(
     'artistry-replicate-aspect-ratio',
     '16:9',
+    persistenceOptions,
   )
   const replicateInferenceSteps = useLocalStorageManualReset<number>(
     'artistry-replicate-inference-steps',
     4,
+    persistenceOptions,
   )
 
   // --- Nano Banana (Google AI Studio) provider settings ---
-  const nanobananaApiKey = useLocalStorageManualReset<string>('artistry-nanobanana-api-key', '')
+  const nanobananaApiKey = useLocalStorageManualReset<string>('artistry-nanobanana-api-key', '', persistenceOptions)
   const nanobananaModel = useLocalStorageManualReset<string>(
     'artistry-nanobanana-model',
     'gemini-3.1-flash-image-preview',
+    persistenceOptions,
   )
   const nanobananaResolution = useLocalStorageManualReset<string>(
     'artistry-nanobanana-resolution',
     '1K',
+    persistenceOptions,
   )
 
   /**
@@ -115,7 +128,6 @@ export const useArtistryStore = defineStore('artistry', () => {
   watch(globalProvider, val => activeProvider.value = val)
   watch(globalModel, val => activeModel.value = val)
   watch(globalPromptPrefix, val => defaultPromptPrefix.value = val)
-  watch(globalProviderOptions, val => providerOptions.value = val)
 
   const configured = computed(() => {
     if (!activeProvider.value)

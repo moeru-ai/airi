@@ -11,6 +11,8 @@ export interface PosthogCaptureInput {
   distinctId: string
   event: string
   properties: Record<string, unknown>
+  /** Stable event UUID used by PostHog ingestion for replay deduplication. */
+  uuid?: string
 }
 
 /**
@@ -37,9 +39,8 @@ export interface PosthogSink {
  * generation facts use `captureQueued`, which is buffered by the SDK and
  * flushed on shutdown, so chat completion requests don't wait on PostHog.
  *
- * Capture failures are logged and swallowed — analytics forwarding must
- * never fail the Stripe webhook or auth flow that triggered it. The
- * Postgres `product_events` row is the source of truth either way.
+ * Capture failures are logged and swallowed. Analytics forwarding never
+ * fails the Stripe webhook or auth flow that produced the business fact.
  */
 export function createPosthogSink(options: { projectKey: string, host: string }): PosthogSink {
   const client = new PostHog(options.projectKey, { host: options.host })
@@ -51,6 +52,7 @@ export function createPosthogSink(options: { projectKey: string, host: string })
           distinctId: input.distinctId,
           event: input.event,
           properties: input.properties,
+          ...(input.uuid && { uuid: input.uuid }),
         })
       }
       catch (err) {
@@ -64,6 +66,7 @@ export function createPosthogSink(options: { projectKey: string, host: string })
           distinctId: input.distinctId,
           event: input.event,
           properties: input.properties,
+          ...(input.uuid && { uuid: input.uuid }),
         })
       }
       catch (err) {

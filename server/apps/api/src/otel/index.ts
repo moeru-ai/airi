@@ -14,6 +14,7 @@ import { metrics, trace } from '@opentelemetry/api'
 import { logs, SeverityNumber } from '@opentelemetry/api-logs'
 
 import {
+  METRIC_AIRI_DB_POOL_CONNECTIONS,
   METRIC_AIRI_EMAIL_DURATION,
   METRIC_AIRI_EMAIL_FAILURES,
   METRIC_AIRI_EMAIL_SEND,
@@ -32,7 +33,6 @@ import {
   METRIC_AIRI_GEN_AI_GATEWAY_UPSTREAM_ERRORS,
   METRIC_AIRI_GEN_AI_STREAM_INTERRUPTED,
   METRIC_AIRI_OBSERVABILITY_READ_ERRORS,
-  METRIC_AIRI_PRODUCT_EVENTS,
   METRIC_AIRI_RATE_LIMIT_BLOCKED,
   METRIC_AIRI_STRIPE_REVENUE,
   METRIC_AIRI_TTS_CHARS,
@@ -91,7 +91,7 @@ export interface EngagementMetrics {
    *   scrape instead of leaking forever.
    *
    * Expects:
-   * - Caller (`createChatWsHandlers`) registers exactly one callback via
+   * - Caller (`createChatWsRuntime`) registers exactly one callback via
    *   `addCallback`. Multiple callbacks would double-count.
    */
   wsConnectionsActive: ObservableGauge
@@ -169,12 +169,12 @@ export interface GatewayMetrics {
    */
   upstreamErrors: Counter
   /**
-   * All keys (across all upstreams) failed in a single request — the user gets
-   * a 5xx. Primary alert source for user-facing degradation.
-   * Recommended label: `provider`.
+   * The configured route exhausted every allowed key and upstream in one
+   * request. The user gets a 5xx. Primary alert source for user-facing
+   * degradation. Recommended labels: `provider`, `status_code`, `surface`.
    *
    * Recommended alert:
-   *   `increase(airi_gen_ai_gateway_key_exhausted_total[5m]) > 0` → page on-call.
+   *   Filter to operational status codes before paging on this metric.
    */
   keyExhaustedCount: Counter
   /**
@@ -256,19 +256,13 @@ export interface ObservabilityMetrics {
   metricReadErrors: Counter
 }
 
-export interface ProductMetrics {
+export interface DatabaseMetrics {
   /**
-   * Low-cardinality product event counter.
-   *
-   * Use when:
-   * - Reporting feature/event volume in Prometheus and Grafana.
-   *
-   * Expects:
-   * - Labels stay bounded (`feature`, `action`, `status`, optional
-   *   `source`). Never attach `user_id`, `session_id`, request ids, models
-   *   with unbounded aliases, or free-form error messages here.
+   * Per-process pg pool counts. Labels: `pool_state` (`max`, `total`, `used`,
+   * `idle`, `waiting`). Use `used / max` for capacity and `waiting > 0` for
+   * saturation. Do not use `used / (used + idle)` as a capacity ratio.
    */
-  events: Counter
+  poolConnections: ObservableGauge
 }
 
 export interface OtelInstance {
@@ -277,10 +271,10 @@ export interface OtelInstance {
   revenue: RevenueMetrics
   genAi: GenAiMetrics
   gateway: GatewayMetrics
+  database: DatabaseMetrics
   email: EmailMetrics
   rateLimit: RateLimitMetrics
   observability: ObservabilityMetrics
-  product: ProductMetrics
 }
 
 /**
@@ -481,9 +475,9 @@ export function initOtel(env: Env): OtelInstance | null {
     }),
   }
 
-  const product: ProductMetrics = {
-    events: meter.createCounter(METRIC_AIRI_PRODUCT_EVENTS, {
-      description: 'Low-cardinality product event volume. Distinct users live in Postgres product_events, not Prometheus labels.',
+  const database: DatabaseMetrics = {
+    poolConnections: meter.createObservableGauge(METRIC_AIRI_DB_POOL_CONNECTIONS, {
+      description: 'Local pg pool connections by capacity, use, idle, and waiting state',
     }),
   }
 
@@ -535,11 +529,10 @@ export function initOtel(env: Env): OtelInstance | null {
     email.failures,
     rateLimit.blocked,
     observability.metricReadErrors,
-    product.events,
   ]
   for (const counter of counters) counter.add(0)
 
-  return { auth, engagement, revenue, genAi, gateway, email, rateLimit, observability, product }
+  return { auth, engagement, revenue, genAi, gateway, database, email, rateLimit, observability }
 }
 
 const severityMap: Record<string, SeverityNumber> = {

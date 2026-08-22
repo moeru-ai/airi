@@ -5,9 +5,6 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
-    "@proj-airi/drizzle-migration#build": {
-      "cache": false
-    },
     "@proj-airi/electron-vueuse#build": {
       "dependsOn": ["@proj-airi/electron-eventa#build"],
       "outputs": ["dist/**"]

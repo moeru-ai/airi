@@ -1,7 +1,7 @@
 import type { Session, User } from 'better-auth'
 
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
 import { triggerSignIn } from '../libs/auth'
@@ -23,6 +23,34 @@ vi.mock('../libs/auth-oidc', () => ({
   refreshAccessToken: vi.fn(),
 }))
 
+class MemoryStorage implements Storage {
+  readonly values = new Map<string, string>()
+
+  get length() {
+    return this.values.size
+  }
+
+  clear() {
+    this.values.clear()
+  }
+
+  getItem(key: string) {
+    return this.values.get(key) ?? null
+  }
+
+  key(index: number) {
+    return [...this.values.keys()][index] ?? null
+  }
+
+  removeItem(key: string) {
+    this.values.delete(key)
+  }
+
+  setItem(key: string, value: string) {
+    this.values.set(key, value)
+  }
+}
+
 const user: User = {
   id: 'user-1',
   name: 'AIRI User',
@@ -42,12 +70,20 @@ const session: Session = {
 }
 
 describe('auth store sign-in requests', () => {
+  let storage: MemoryStorage
+
   beforeEach(() => {
+    storage = new MemoryStorage()
+    vi.stubGlobal('localStorage', storage)
     setActivePinia(createPinia())
     vi.mocked(triggerSignIn).mockReset()
     vi.mocked(triggerSignIn).mockResolvedValue()
     vi.mocked(requestAuthSession).mockReset()
     vi.mocked(requestAuthSession).mockResolvedValue({ user, session })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('allows sign-in to be requested again after an external flow is canceled', async () => {
@@ -94,7 +130,43 @@ describe('auth store sign-in requests', () => {
     expect(authStore.idToken).toBe('new-id-token')
     expect(authStore.user).toEqual(user)
     expect(authStore.session).toEqual(session)
+    expect(storage.getItem('auth/v1/token')).toBe('new-access-token')
+    expect(storage.getItem('auth/v1/refresh-token')).toBe('new-refresh-token')
+    expect(storage.getItem('auth/v1/oidc-id-token')).toBe('new-id-token')
+    expect(storage.getItem('auth/v1/oidc-client-id')).toBe('airi-stage-electron')
+    expect(storage.getItem('auth/v1/oidc-token-expiry')).not.toBeNull()
 
     await authStore.clearAllAuthState()
+  })
+
+  it('loads persisted credentials only when the store initializes', async () => {
+    storage.values.set('auth/v1/token', 'persisted-access-token')
+    storage.values.set('auth/v1/refresh-token', 'persisted-refresh-token')
+    storage.values.set('auth/v1/oidc-id-token', 'persisted-id-token')
+    storage.values.set('auth/v1/oidc-client-id', 'airi-stage-web')
+    storage.values.set('auth/v1/oidc-token-expiry', String(Date.now() + 60_000))
+    const authStore = useAuthStore()
+
+    expect(authStore.token).toBeNull()
+
+    await authStore.initialize()
+
+    expect(requestAuthSession).toHaveBeenCalledWith('persisted-access-token')
+    expect(authStore.token).toBe('persisted-access-token')
+  })
+
+  it('does not persist state patches received from another window', async () => {
+    const authStore = useAuthStore()
+
+    // ROOT CAUSE:
+    //
+    // `useLocalStorage` observed every Pinia patch and wrote it to storage.
+    // The storage event then reached another window, whose synced Pinia patch
+    // wrote the same value back. This formed an unbounded cross-window loop.
+    // Auth persistence now runs only inside auth commands.
+    authStore.$patch({ token: 'synced-access-token' })
+    await nextTick()
+
+    expect(storage.values.size).toBe(0)
   })
 })

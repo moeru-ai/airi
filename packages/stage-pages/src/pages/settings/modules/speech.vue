@@ -405,7 +405,7 @@ watch(activeSpeechModel, async (model) => {
 })
 
 watch([activeSpeechProvider, activeSpeechModel, activeSpeechVoiceId], ([provider, model, voiceId]) => {
-  airiCardStore.updateActiveCardSpeech({ provider, model, voice_id: voiceId })
+  void airiCardStore.updateActiveCardSpeech({ provider, model, voice_id: voiceId })
 })
 
 // Function to generate speech

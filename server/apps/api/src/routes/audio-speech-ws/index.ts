@@ -17,8 +17,8 @@ export type { AudioSpeechWsHandlersOptions } from './types'
  * Use when:
  * - Wiring `/api/v1/audio/speech/ws` in {@link app.ts}. The factory returns a
  *   curried `setupPeer(userId)` that produces hono `WSEvents`, mirroring the
- *   shape of {@link createChatWsHandlers} so app.ts wires both routes the
- *   same way.
+ *   shape of the chat websocket version handlers so app.ts wires both routes
+ *   with the same curried setup pattern.
  *
  * Expects:
  * - The route handler has already resolved auth via the `?token=` query

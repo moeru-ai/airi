@@ -29,7 +29,6 @@ function createTestDeps() {
     productEventService: {
       track: vi.fn(async () => undefined),
       trackGeneration: vi.fn(async () => undefined),
-      countDistinctUsersByFeature: vi.fn(async () => []),
     } as never,
     configKV: { getOrThrow: vi.fn() } as never,
     redis: redis as never,

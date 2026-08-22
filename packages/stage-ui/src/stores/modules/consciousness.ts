@@ -10,10 +10,15 @@ import { useProviderStore } from '../providers/provider'
 export const useConsciousnessStore = defineStore('consciousness', () => {
   const providersStore = useProviderStore()
 
+  // Pinia synchronization owns live cross-window state. localStorage remains
+  // durable persistence, but storage events must not reflect state back into
+  // the store and publish another synchronized snapshot.
+  const persistenceOptions = { listenToStorageChanges: false }
+
   // State
-  const activeProvider = useLocalStorageManualReset<string>('settings/consciousness/active-provider', '')
-  const activeModel = useLocalStorageManualReset<string>('settings/consciousness/active-model', '')
-  const activeCustomModelName = useLocalStorageManualReset<string>('settings/consciousness/active-custom-model', '')
+  const activeProvider = useLocalStorageManualReset<string>('settings/consciousness/active-provider', '', persistenceOptions)
+  const activeModel = useLocalStorageManualReset<string>('settings/consciousness/active-model', '', persistenceOptions)
+  const activeCustomModelName = useLocalStorageManualReset<string>('settings/consciousness/active-custom-model', '', persistenceOptions)
   const expandedDescriptions = refManualReset<Record<string, boolean>>(() => ({}))
   const modelSearchQuery = refManualReset<string>('')
 
@@ -61,7 +66,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   // provider's model and chat requests failed upstream with model_not_found.
   //
   // The watcher is synchronous on purpose: call sites assign the provider
-  // first and a new model right after (e.g. use-auth-provider-sync), so a
+  // first and a new model right after, so a
   // deferred reset would wipe the model they just chose. Synchronous flush
   // makes "set provider, then set model" a safe, ordered operation.
   //

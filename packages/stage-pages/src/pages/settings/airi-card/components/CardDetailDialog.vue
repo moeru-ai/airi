@@ -115,8 +115,8 @@ const isActivating = ref(false)
 
 function handleActivate() {
   isActivating.value = true
-  setTimeout(() => {
-    activeCardId.value = props.cardId
+  setTimeout(async () => {
+    await cardStore.activateCard(props.cardId)
     isActivating.value = false
   }, 300)
 }
@@ -149,9 +149,9 @@ function highlightTagToHtml(text: string) {
 // Delete confirmation
 const showDeleteConfirm = ref(false)
 
-function handleDeleteConfirm() {
+async function handleDeleteConfirm() {
   if (selectedCard.value) {
-    removeCard(props.cardId)
+    await removeCard(props.cardId)
     emit('update:modelValue', false)
   }
   showDeleteConfirm.value = false
@@ -180,7 +180,7 @@ const activeBackgroundId = computed({
 
     extension.airi.modules.activeBackgroundId = val
 
-    cardStore.updateCard(props.cardId, {
+    await cardStore.updateCard(props.cardId, {
       ...selectedCard.value,
       extensions: extension,
     })
