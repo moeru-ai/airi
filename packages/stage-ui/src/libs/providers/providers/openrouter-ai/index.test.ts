@@ -1,4 +1,7 @@
+import type { ChatProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { JsonSchema } from 'xsschema'
+
+import type { ChatRequestOptions } from '../../types'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -31,6 +34,19 @@ function getArraySchema(schema?: JsonSchema): JsonSchema | undefined {
 describe('providerOpenRouterAI tool schemas', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
+  })
+
+  it('maps AIRI reasoning modes to OpenRouter request fields', () => {
+    const provider = providerOpenRouterAI.createProvider({
+      apiKey: 'test-key',
+    }) as ChatProviderWithExtraOptions<string, ChatRequestOptions>
+
+    expect(provider.chat('openai/gpt-test', { reasoning: 'disabled' })).toMatchObject({
+      reasoning: { effort: 'none' },
+    })
+    expect(provider.chat('openai/gpt-test', { reasoning: 'enabled' })).toMatchObject({
+      reasoning: { effort: 'medium' },
+    })
   })
 
   it('keeps the canonical nullable anyOf when it sends a chat request', async () => {

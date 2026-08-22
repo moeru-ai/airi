@@ -628,6 +628,10 @@ pages:
             show_more: Show more
             subtitle: Select a default model from the provider
             title: Model
+          model-options:
+            title: Model options
+            thinking:
+              label: Thinking
       title: Consciousness
     description: Thinking, vision, speech synthesis, gaming, etc.
     gaming-factorio:

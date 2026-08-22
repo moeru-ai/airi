@@ -10,6 +10,7 @@ import { useDisplayModelsStore } from '../stores/display-models'
 import { useMcpStore } from '../stores/mcp'
 import { useAiriCardStore } from '../stores/modules/airi-card'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
+import { useConsciousnessSettingsStore } from '../stores/modules/consciousness-settings'
 import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
@@ -34,6 +35,7 @@ export function useDataMaintenance() {
   const hearingStore = useHearingStore()
   const speechStore = useSpeechStore()
   const consciousnessStore = useConsciousnessStore()
+  const consciousnessSettingsStore = useConsciousnessSettingsStore()
   const twitterStore = useTwitterStore()
   const webSearchStore = useWebSearchStore()
   const discordStore = useDiscordStore()
@@ -53,10 +55,11 @@ export function useDataMaintenance() {
     await providersStore.resetProviderSettings()
   }
 
-  function resetModulesSettings() {
+  async function resetModulesSettings() {
     hearingStore.resetState()
     speechStore.resetState()
     consciousnessStore.resetState()
+    await consciousnessSettingsStore.resetState()
     twitterStore.resetState()
     webSearchStore.resetState()
     discordStore.resetState()
@@ -101,7 +104,7 @@ export function useDataMaintenance() {
   async function deleteAllData() {
     await deleteAllModels()
     await resetProvidersSettings()
-    resetModulesSettings()
+    await resetModulesSettings()
     deleteAllChatSessions()
     await resetSettingsState()
   }
@@ -111,7 +114,7 @@ export function useDataMaintenance() {
       return
 
     await resetSettingsState()
-    resetModulesSettings()
+    await resetModulesSettings()
   }
 
   return {

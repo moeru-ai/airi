@@ -11,7 +11,7 @@ import type {
 import type {} from 'pinia-plugin-synced'
 
 import type { ProviderMetadata, ProviderValidationPlan } from '../../libs/providers'
-import type { ModelInfo, ProviderDefinition, ProviderInstance, VoiceInfo } from '../../libs/providers/types'
+import type { ChatRequestOptions, ModelInfo, ProviderDefinition, ProviderInstance, VoiceInfo } from '../../libs/providers/types'
 
 import { errorMessageFrom } from '@moeru/std'
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
@@ -47,6 +47,20 @@ export interface ProviderRuntimeState {
 /** Stable fallback for reactive consumers when a provider has no cached catalog. */
 const emptyProviderModels: ModelInfo[] = []
 Object.freeze(emptyProviderModels)
+
+function withChatRequestOptions(
+  provider: ChatProviderWithExtraOptions<string, ChatRequestOptions>,
+  options: ChatRequestOptions,
+): ChatProvider {
+  const decorated = {
+    ...provider,
+    chat(model: string) {
+      return provider.chat(model, options)
+    },
+  }
+
+  return decorated
+}
 
 // Only the provider data plane crosses renderer boundaries. Async derived refs
 // stay in useProviderStore and recompute locally instead of being patched as
@@ -754,14 +768,31 @@ export const useProviderStore = defineStore('provider', () => {
       throw new Error(`Provider credentials for ${providerId} not found`)
 
     try {
-      const instance = await definition.createProvider(config || {}) as R
+      const instance = await definition.createProvider(config || {})
       providerInstanceCache.set(providerId, instance)
-      return instance
+      return instance as R
     }
     catch (error) {
       console.error(`Error creating provider instance for ${providerId}:`, error)
       throw error
     }
+  }
+
+  /**
+   * Passes AIRI chat options to the provider that owns their wire representation.
+   * The cached base instance remains unchanged for consumers that do not opt in.
+   */
+  async function getChatProviderInstance(
+    providerId: string,
+    options: ChatRequestOptions,
+  ): Promise<ChatProvider> {
+    const provider = await getProviderInstance<ChatProviderWithExtraOptions<string, ChatRequestOptions>>(providerId)
+    const definition = findProviderDefinition(providerId)
+    const reasoning = definition?.capabilities?.chat?.reasoning
+    if (!reasoning?.modes.includes(options.reasoning))
+      return provider
+
+    return withChatRequestOptions(provider, options)
   }
 
   async function disposeProviderInstance(providerId: string) {
@@ -879,6 +910,7 @@ export const useProviderStore = defineStore('provider', () => {
     loadProviderModel,
     loadModelsForConfiguredProviders,
     getProviderInstance,
+    getChatProviderInstance,
     disposeProviderInstance,
     resetProviderSettings,
     forceProviderConfigured,

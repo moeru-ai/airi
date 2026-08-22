@@ -1,3 +1,5 @@
+import type { ChatRequestOptions } from '../../types'
+
 import { createCerebras } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
@@ -23,6 +25,7 @@ export const providerCerebrasAI = defineProvider<CerebrasConfig>({
   description: 'cerebras.ai',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.cerebras.description'),
   tasks: ['chat'],
+  capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
   icon: 'i-lobe-icons:cerebras',
   iconColor: 'i-lobe-icons:cerebras-color',
 
@@ -40,7 +43,17 @@ export const providerCerebrasAI = defineProvider<CerebrasConfig>({
     }),
   }),
   createProvider(config) {
-    return createCerebras(config.apiKey, config.baseUrl)
+    const provider = createCerebras(config.apiKey, config.baseUrl)
+    return {
+      ...provider,
+      chat(model: string, options?: ChatRequestOptions) {
+        const request = provider.chat(model)
+        if (!options?.reasoning)
+          return request
+
+        return { ...request, reasoningEffort: options.reasoning === 'enabled' ? 'medium' : 'none' }
+      },
+    }
   },
 
   validationRequiredWhen(config) {

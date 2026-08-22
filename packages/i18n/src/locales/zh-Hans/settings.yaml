@@ -603,6 +603,10 @@ pages:
             show_more: 收起
             subtitle: 选择一个默认模型
             title: 模型
+          model-options:
+            title: 模型选项
+            thinking:
+              label: 思考
       title: 意识
     description: 思维，视觉，言语综合，游戏等
     gaming-factorio:

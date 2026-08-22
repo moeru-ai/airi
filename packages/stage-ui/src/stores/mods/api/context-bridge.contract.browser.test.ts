@@ -262,6 +262,7 @@ vi.mock('../../modules/consciousness', () => ({
   useConsciousnessStore: () => ({
     activeProvider: activeProviderRef,
     activeModel: activeModelRef,
+    getChatProviderInstance: getProviderInstanceMock,
   }),
 }))
 

@@ -1,3 +1,5 @@
+import type { ChatRequestOptions } from '../../types'
+
 import { createMoonshotai } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
@@ -23,6 +25,7 @@ export const providerMoonshotAI = defineProvider<MoonshotConfig>({
   description: 'moonshot.ai',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.moonshot.description'),
   tasks: ['chat'],
+  capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
   icon: 'i-lobe-icons:moonshot',
 
   createProviderConfig: ({ t }) => moonshotConfigSchema.extend({
@@ -39,7 +42,17 @@ export const providerMoonshotAI = defineProvider<MoonshotConfig>({
     }),
   }),
   createProvider(config) {
-    return createMoonshotai(config.apiKey, config.baseUrl)
+    const provider = createMoonshotai(config.apiKey, config.baseUrl)
+    return {
+      ...provider,
+      chat(model: string, options?: ChatRequestOptions) {
+        const request = provider.chat(model)
+        if (!options?.reasoning)
+          return request
+
+        return { ...request, thinking: { type: options.reasoning } }
+      },
+    }
   },
 
   validationRequiredWhen(config) {

@@ -204,6 +204,9 @@ export interface ProviderDefinition<TConfig extends any = any> {
     validateProvider?: Array<(contextOptions: { t: ComposerTranslation }) => ProviderRuntimeValidator<TConfig>>
   }
   capabilities?: {
+    chat?: {
+      reasoning?: ChatReasoningCapability
+    }
     transcription?: {
       protocol: 'websocket' | 'http'
       generateOutput: boolean
@@ -251,4 +254,19 @@ export interface ProviderDefinition<TConfig extends any = any> {
       }
     }
   }
+}
+
+/** Reasoning modes that AIRI can request from a chat provider. */
+export type ChatReasoningMode = 'disabled' | 'enabled'
+
+/** User-selected options that a provider applies to one chat request. */
+export interface ChatRequestOptions {
+  /** Requested reasoning mode. */
+  reasoning: ChatReasoningMode
+}
+
+/** Describes the reasoning controls that AIRI implements for a provider. */
+export interface ChatReasoningCapability {
+  /** Modes that AIRI can pass to the provider. */
+  modes: readonly ChatReasoningMode[]
 }

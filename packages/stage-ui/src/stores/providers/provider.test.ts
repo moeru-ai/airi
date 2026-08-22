@@ -1,3 +1,5 @@
+import type { ChatProvider } from '@xsai-ext/providers/utils'
+
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
@@ -101,6 +103,25 @@ describe('provider store synchronization boundary', () => {
 
     expect(second).toBe(first)
     expect(second).toEqual([])
+  })
+
+  it('applies provider-owned reasoning options without changing the cached provider', async () => {
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    configStore.ensureProvider('openai', 'openai', {
+      apiKey: 'test-key',
+      baseUrl: 'https://api.openai.com/v1/',
+    })
+
+    const baseProvider = await store.getProviderInstance<ChatProvider>('openai')
+    const reasoningDisabledProvider = await store.getChatProviderInstance('openai', { reasoning: 'disabled' })
+    const reasoningEnabledProvider = await store.getChatProviderInstance('openai', { reasoning: 'enabled' })
+
+    expect(reasoningDisabledProvider).not.toBe(baseProvider)
+    expect(reasoningEnabledProvider).not.toBe(baseProvider)
+    expect(reasoningDisabledProvider.chat('any-model')).toMatchObject({ reasoningEffort: 'none' })
+    expect(reasoningEnabledProvider.chat('any-model')).toMatchObject({ reasoningEffort: 'medium' })
+    expect(baseProvider.chat('any-model')).not.toHaveProperty('reasoningEffort')
   })
 
   // ROOT CAUSE:
