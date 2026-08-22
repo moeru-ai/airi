@@ -298,11 +298,12 @@ const providerTransitionController = createProviderTransitionController({
   clearSegments: clearPlaygroundSegments,
   getActiveProvider: () => activeTranscriptionProvider.value,
   getMonitoring: () => isMonitoring.value,
-  loadModels: async () => {},
   setMonitoring: monitoring => isMonitoring.value = monitoring,
-  shouldLoadModels: () => false,
   startMonitoring: setupAudioMonitoring,
   stopMonitoring: stopAudioMonitoring,
+  waitForProviderReady: async () => {
+    await selectionTask
+  },
 })
 
 watch(activeTranscriptionProvider, (_provider, previousProvider) => {

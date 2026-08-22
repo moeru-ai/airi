@@ -257,7 +257,16 @@ describe('funASR Hearing model synchronization', () => {
     })
   })
 
-  it('clears the FunASR model when another provider is selected', async () => {
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3827031090
+  // ROOT CAUSE:
+  //
+  // The OpenAI-compatible provider has no schema default or model list. The destination resolver
+  // therefore cleared the shared model when the provider config had never stored a model.
+  //
+  // The existing OpenAI-compatible resolver owns the missing-model fallback to `whisper-1`.
+  it('restores the OpenAI-compatible fallback after leaving FunASR (GitHub #2122)', async () => {
+    const providerConfigStore = useProviderConfigStore()
+    delete providerConfigStore.getProviderConfig('openai-compatible-audio-transcription')!.model
     const hearingStore = useHearingStore()
 
     await hearingStore.setActiveTranscriptionProvider('funasr-audio-transcription')
@@ -268,7 +277,8 @@ describe('funASR Hearing model synchronization', () => {
     await hearingStore.setActiveTranscriptionProvider('openai-compatible-audio-transcription')
 
     await vi.waitFor(() => {
-      expect(hearingStore.activeTranscriptionModel).toBe('')
+      expect(hearingStore.activeTranscriptionModel).toBe('whisper-1')
+      expect(providerConfigStore.getProviderConfig('openai-compatible-audio-transcription')?.model).toBe('whisper-1')
     })
   })
 

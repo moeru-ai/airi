@@ -420,10 +420,13 @@ export const useHearingStore = defineStore('hearing-store', () => {
     const defaultOptions = providersStore.getDefaultProviderConfig(providerId)
     const defaultModelValue = (defaultOptions as Record<string, unknown>).model
     const defaultModel = typeof defaultModelValue === 'string' ? defaultModelValue.trim() : ''
+    const openAICompatibleModel = providerId === 'openai-compatible-audio-transcription'
+      ? resolveOpenAICompatibleTranscriptionModel(providerConfig).trim()
+      : ''
     // A list-backed fallback must come from the current refresh. The runtime cache may still belong
     // to credentials or an endpoint that the user has just replaced.
     const listedModel = freshlyListedModels[0]?.id ?? ''
-    const model = defaultModel || listedModel
+    const model = defaultModel || openAICompatibleModel || listedModel
     if (!model)
       return false
 

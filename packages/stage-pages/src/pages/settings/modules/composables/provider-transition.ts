@@ -3,11 +3,10 @@ export interface ProviderTransitionDependencies {
   clearSegments: () => void
   getActiveProvider: () => string | undefined
   getMonitoring: () => boolean
-  loadModels: (provider: string) => Promise<void>
   setMonitoring: (monitoring: boolean) => void
-  shouldLoadModels: (provider: string) => boolean
   startMonitoring: () => Promise<boolean>
   stopMonitoring: (provider?: string) => Promise<void>
+  waitForProviderReady: (provider: string) => Promise<void>
 }
 
 export function createProviderTransitionController(dependencies: ProviderTransitionDependencies) {
@@ -38,11 +37,9 @@ export function createProviderTransitionController(dependencies: ProviderTransit
         return
       }
 
-      if (dependencies.shouldLoadModels(provider)) {
-        await dependencies.loadModels(provider)
-        if (transitionRevision !== revision)
-          continue
-      }
+      await dependencies.waitForProviderReady(provider)
+      if (transitionRevision !== revision)
+        continue
 
       dependencies.applyProviderState(provider)
       if (transitionRevision !== revision)
