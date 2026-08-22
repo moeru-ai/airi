@@ -40,14 +40,14 @@ export interface ClaimReceipt {
 }
 
 /**
- * Evidence-first grant for Apple IAP or Steam.
+ * Evidence-first grant for in-app purchase stores (such as Apple IAP).
  *
  * The channel verifies native proof, then CORE inserts a paid order by
  * `(provider, providerOrderId)` and snapshots flux from the pack catalog.
  */
 export interface EvidenceReceipt {
   kind: 'evidence'
-  provider: 'apple_iap' | 'steam'
+  provider: 'apple_iap'
   providerOrderId: string
   userId: string
   productId: string | number

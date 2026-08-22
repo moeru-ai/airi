@@ -56,8 +56,6 @@ export function createPaymentService(db: Database, billing: BillingService, conf
       switch (receipt.provider) {
         case 'apple_iap':
           return item.providers.appleIap?.productId === String(receipt.productId)
-        case 'steam':
-          return false
         default: {
           const exhaustive: never = receipt.provider
           throw createInternalError(`Unhandled evidence provider: ${String(exhaustive)}`)
