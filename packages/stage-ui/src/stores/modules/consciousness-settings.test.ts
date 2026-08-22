@@ -11,40 +11,40 @@ describe('consciousness settings store', () => {
     setActivePinia(createPinia())
   })
 
-  it('turns model thinking off by default', () => {
+  it('turns model reasoning off by default', () => {
     const store = useConsciousnessSettingsStore()
 
-    expect(store.thinking).toBe(false)
+    expect(store.reasoning).toBe(false)
   })
 
   it('loads the persisted value', () => {
-    localStorage.setItem('settings/consciousness/thinking', 'true')
+    localStorage.setItem('settings/consciousness/reasoning', 'true')
     const store = useConsciousnessSettingsStore()
 
-    expect(store.thinking).toBe(true)
+    expect(store.reasoning).toBe(true)
   })
 
   it('persists changes through store actions', async () => {
     const store = useConsciousnessSettingsStore()
-    await store.setThinking(true)
+    await store.setReasoning(true)
 
-    expect(store.thinking).toBe(true)
-    expect(localStorage.getItem('settings/consciousness/thinking')).toBe('true')
+    expect(store.reasoning).toBe(true)
+    expect(localStorage.getItem('settings/consciousness/reasoning')).toBe('true')
 
     await store.resetState()
 
-    expect(store.thinking).toBe(false)
-    expect(localStorage.getItem('settings/consciousness/thinking')).toBe('false')
+    expect(store.reasoning).toBe(false)
+    expect(localStorage.getItem('settings/consciousness/reasoning')).toBe('false')
   })
 
   it('ignores storage events because Pinia owns cross-window synchronization', () => {
     const store = useConsciousnessSettingsStore()
 
     window.dispatchEvent(new StorageEvent('storage', {
-      key: 'settings/consciousness/thinking',
+      key: 'settings/consciousness/reasoning',
       newValue: 'true',
     }))
 
-    expect(store.thinking).toBe(false)
+    expect(store.reasoning).toBe(false)
   })
 })

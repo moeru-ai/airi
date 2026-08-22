@@ -105,7 +105,7 @@ describe('provider store synchronization boundary', () => {
     expect(second).toEqual([])
   })
 
-  it('applies thinking control without changing the cached base provider', async () => {
+  it('applies provider-owned reasoning options without changing the cached provider', async () => {
     const store = useProviderStore()
     const configStore = useProviderConfigStore()
     configStore.ensureProvider('openai', 'openai', {
@@ -114,12 +114,13 @@ describe('provider store synchronization boundary', () => {
     })
 
     const baseProvider = await store.getProviderInstance<ChatProvider>('openai')
-    const controlledProvider = await store.getChatProviderInstance('openai', { disableThinking: true })
-    const unchangedProvider = await store.getChatProviderInstance('openai', { disableThinking: false })
+    const reasoningDisabledProvider = await store.getChatProviderInstance('openai', { reasoning: 'disabled' })
+    const reasoningEnabledProvider = await store.getChatProviderInstance('openai', { reasoning: 'enabled' })
 
-    expect(controlledProvider).not.toBe(baseProvider)
-    expect(controlledProvider.chat('any-model')).toMatchObject({ reasoningEffort: 'none' })
-    expect(unchangedProvider).toBe(baseProvider)
+    expect(reasoningDisabledProvider).not.toBe(baseProvider)
+    expect(reasoningEnabledProvider).not.toBe(baseProvider)
+    expect(reasoningDisabledProvider.chat('any-model')).toMatchObject({ reasoningEffort: 'none' })
+    expect(reasoningEnabledProvider.chat('any-model')).toMatchObject({ reasoningEffort: 'medium' })
     expect(baseProvider.chat('any-model')).not.toHaveProperty('reasoningEffort')
   })
 

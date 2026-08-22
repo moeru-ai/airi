@@ -11,7 +11,7 @@ import type {
 import type {} from 'pinia-plugin-synced'
 
 import type { ProviderMetadata, ProviderValidationPlan } from '../../libs/providers'
-import type { ModelInfo, ProviderDefinition, ProviderInstance, VoiceInfo } from '../../libs/providers/types'
+import type { ChatRequestOptions, ModelInfo, ProviderDefinition, ProviderInstance, VoiceInfo } from '../../libs/providers/types'
 
 import { errorMessageFrom } from '@moeru/std'
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
@@ -48,21 +48,18 @@ export interface ProviderRuntimeState {
 const emptyProviderModels: ModelInfo[] = []
 Object.freeze(emptyProviderModels)
 
-function withDisabledThinking<TProvider extends ChatProvider>(
-  provider: TProvider,
-  disable: Readonly<Record<string, unknown>>,
-): TProvider {
+function withChatRequestOptions(
+  provider: ChatProviderWithExtraOptions<string, ChatRequestOptions>,
+  options: ChatRequestOptions,
+): ChatProvider {
   const decorated = {
     ...provider,
-    chat(...args: Parameters<TProvider['chat']>) {
-      return {
-        ...Reflect.apply(provider.chat, provider, args),
-        ...disable,
-      }
+    chat(model: string) {
+      return provider.chat(model, options)
     },
   }
 
-  return decorated as TProvider
+  return decorated
 }
 
 // Only the provider data plane crosses renderer boundaries. Async derived refs
@@ -782,19 +779,20 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   /**
-   * Applies a request policy to a chat provider without changing its cached base instance.
-   * Non-consciousness consumers keep the provider's configured behavior unless they opt in.
+   * Passes AIRI chat options to the provider that owns their wire representation.
+   * The cached base instance remains unchanged for consumers that do not opt in.
    */
   async function getChatProviderInstance(
     providerId: string,
-    options: { disableThinking: boolean },
+    options: ChatRequestOptions,
   ): Promise<ChatProvider> {
-    const provider = await getProviderInstance<ChatProvider>(providerId)
-    const thinking = findProviderDefinition(providerId)?.capabilities?.chat?.thinking
-    if (!options.disableThinking || !thinking)
+    const provider = await getProviderInstance<ChatProviderWithExtraOptions<string, ChatRequestOptions>>(providerId)
+    const definition = findProviderDefinition(providerId)
+    const reasoning = definition?.capabilities?.chat?.reasoning
+    if (!reasoning?.modes.includes(options.reasoning))
       return provider
 
-    return withDisabledThinking(provider, thinking.disable)
+    return withChatRequestOptions(provider, options)
   }
 
   async function disposeProviderInstance(providerId: string) {

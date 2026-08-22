@@ -288,7 +288,7 @@ describe('chat store contract', () => {
     })
 
     expect(getChatProviderInstanceMock).toHaveBeenCalledTimes(2)
-    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider', { disableThinking: true })
+    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider', { reasoning: 'disabled' })
     expect(() => structuredClone(result)).not.toThrow()
     expect(resolvedToolNames).toEqual([
       ['stage_widgets'],
@@ -296,9 +296,9 @@ describe('chat store contract', () => {
     ])
   })
 
-  it('passes the current consciousness thinking policy to the chat provider', async () => {
+  it('passes the current consciousness reasoning option to the chat provider', async () => {
     const settings = useConsciousnessSettingsStore()
-    await settings.setThinking(true)
+    await settings.setReasoning(true)
     llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: StreamOptions) => {
       await options.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
     })
@@ -306,8 +306,8 @@ describe('chat store contract', () => {
     const store = useChatStore()
     await store.send({ sessionId: 'session-1', text: 'reply without changing provider defaults' })
 
-    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider', { disableThinking: false })
-    await settings.setThinking(false)
+    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider', { reasoning: 'enabled' })
+    await settings.setReasoning(false)
   })
 
   // https://github.com/moeru-ai/airi/issues/2085

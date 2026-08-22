@@ -1,3 +1,5 @@
+import type { ChatRequestOptions } from '../../types'
+
 import { createOpenAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
@@ -23,7 +25,7 @@ export const providerFeatherlessAI = defineProvider<FeatherlessConfig>({
   description: 'featherless.ai',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.featherless.description'),
   tasks: ['chat'],
-  capabilities: { chat: { thinking: { disable: { chatTemplateKwargs: { enable_thinking: false } } } } },
+  capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
   icon: 'i-lobe-icons:featherless-color',
 
   createProviderConfig: ({ t }) => featherlessConfigSchema.extend({
@@ -40,7 +42,17 @@ export const providerFeatherlessAI = defineProvider<FeatherlessConfig>({
     }),
   }),
   createProvider(config) {
-    return createOpenAI(config.apiKey, config.baseUrl)
+    const provider = createOpenAI(config.apiKey, config.baseUrl)
+    return {
+      ...provider,
+      chat(model: string, options?: ChatRequestOptions) {
+        const request = provider.chat(model)
+        if (!options?.reasoning)
+          return request
+
+        return { ...request, chatTemplateKwargs: { enable_thinking: options.reasoning === 'enabled' } }
+      },
+    }
   },
 
   validationRequiredWhen(config) {

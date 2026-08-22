@@ -6,12 +6,11 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useConsciousnessSettingsStore } from '@proj-airi/stage-ui/stores/modules/consciousness-settings'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
+import { FieldCheckbox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-
-import ConsciousnessModelOptions from './components/consciousness-model-options.vue'
 
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
@@ -20,7 +19,7 @@ const consciousnessStore = useConsciousnessStore()
 const consciousnessSettingsStore = useConsciousnessSettingsStore()
 const { configuredProviders } = storeToRefs(providerStore)
 const { persistedChatProvidersMetadata } = storeToRefs(providersStore)
-const { thinking } = storeToRefs(consciousnessSettingsStore)
+const { reasoning } = storeToRefs(consciousnessSettingsStore)
 const {
   activeProvider,
   activeModel,
@@ -65,8 +64,8 @@ function handleDeleteProvider(providerId: string) {
   providersStore.deleteProvider(providerId)
 }
 
-async function updateThinking(value: boolean) {
-  await consciousnessSettingsStore.setThinking(value)
+async function updateReasoning(value: boolean) {
+  await consciousnessSettingsStore.setReasoning(value)
 }
 </script>
 
@@ -289,11 +288,20 @@ async function updateThinking(value: boolean) {
       </div>
     </div>
 
-    <ConsciousnessModelOptions
+    <section
       v-if="activeProvider && activeModel"
-      :thinking="thinking"
-      @update-thinking="updateThinking"
-    />
+      :class="['flex', 'flex-col', 'gap-4', 'border-t', 'border-neutral-200', 'pt-4', 'dark:border-neutral-800']"
+    >
+      <h2 :class="['text-lg', 'text-neutral-500', 'md:text-2xl', 'dark:text-neutral-400']">
+        {{ t('settings.pages.modules.consciousness.sections.section.model-options.title') }}
+      </h2>
+
+      <FieldCheckbox
+        :model-value="reasoning"
+        :label="t('settings.pages.modules.consciousness.sections.section.model-options.thinking.label')"
+        @update:model-value="updateReasoning"
+      />
+    </section>
   </div>
 
   <div

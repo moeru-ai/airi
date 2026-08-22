@@ -205,7 +205,7 @@ export interface ProviderDefinition<TConfig extends any = any> {
   }
   capabilities?: {
     chat?: {
-      thinking?: ChatThinkingCapability
+      reasoning?: ChatReasoningCapability
     }
     transcription?: {
       protocol: 'websocket' | 'http'
@@ -256,8 +256,17 @@ export interface ProviderDefinition<TConfig extends any = any> {
   }
 }
 
-/** Defines the request fields that turn off thinking for a provider. */
-export interface ChatThinkingCapability {
-  /** AIRI adds these fields when the user turns Thinking off. */
-  disable: Readonly<Record<string, unknown>>
+/** Reasoning modes that AIRI can request from a chat provider. */
+export type ChatReasoningMode = 'disabled' | 'enabled'
+
+/** User-selected options that a provider applies to one chat request. */
+export interface ChatRequestOptions {
+  /** Requested reasoning mode. */
+  reasoning: ChatReasoningMode
+}
+
+/** Describes the reasoning controls that AIRI implements for a provider. */
+export interface ChatReasoningCapability {
+  /** Modes that AIRI can pass to the provider. */
+  modes: readonly ChatReasoningMode[]
 }

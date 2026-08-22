@@ -1,3 +1,5 @@
+import type { ChatRequestOptions } from '../../types'
+
 import { createFireworks } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
@@ -23,7 +25,7 @@ export const providerFireworksAI = defineProvider<FireworksConfig>({
   description: 'fireworks.ai',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.fireworks.description'),
   tasks: ['chat'],
-  capabilities: { chat: { thinking: { disable: { reasoningEffort: 'none' } } } },
+  capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
   icon: 'i-lobe-icons:fireworks',
   iconColor: 'i-lobe-icons:fireworks-color',
 
@@ -41,7 +43,17 @@ export const providerFireworksAI = defineProvider<FireworksConfig>({
     }),
   }),
   createProvider(config) {
-    return createFireworks(config.apiKey, config.baseUrl)
+    const provider = createFireworks(config.apiKey, config.baseUrl)
+    return {
+      ...provider,
+      chat(model: string, options?: ChatRequestOptions) {
+        const request = provider.chat(model)
+        if (!options?.reasoning)
+          return request
+
+        return { ...request, reasoningEffort: options.reasoning === 'enabled' ? 'medium' : 'none' }
+      },
+    }
   },
 
   validationRequiredWhen(config) {

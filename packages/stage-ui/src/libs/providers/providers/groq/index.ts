@@ -1,3 +1,5 @@
+import type { ChatRequestOptions } from '../../types'
+
 import { createOpenAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
@@ -23,7 +25,7 @@ export const providerGroq = defineProvider<GroqConfig>({
   description: 'groq.com',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.groq.description'),
   tasks: ['chat'],
-  capabilities: { chat: { thinking: { disable: { reasoningEffort: 'none' } } } },
+  capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
   icon: 'i-lobe-icons:groq',
 
   createProviderConfig: ({ t }) => groqConfigSchema.extend({
@@ -40,7 +42,17 @@ export const providerGroq = defineProvider<GroqConfig>({
     }),
   }),
   createProvider(config) {
-    return createOpenAI(config.apiKey, config.baseUrl)
+    const provider = createOpenAI(config.apiKey, config.baseUrl)
+    return {
+      ...provider,
+      chat(model: string, options?: ChatRequestOptions) {
+        const request = provider.chat(model)
+        if (!options?.reasoning)
+          return request
+
+        return { ...request, reasoningEffort: options.reasoning === 'enabled' ? 'medium' : 'none' }
+      },
+    }
   },
 
   validationRequiredWhen(config) {

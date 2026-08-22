@@ -1,15 +1,14 @@
 import type {
-  ChatProvider,
   ChatProviderWithExtraOptions,
 } from '@xsai-ext/providers/utils'
 
-import type { ProviderInstance } from '../../types'
+import type { ChatRequestOptions, ProviderInstance } from '../../types'
 
 import { describe, expect, it } from 'vitest'
 
 import { providerDeepSeek } from './index'
 
-type DeepSeekChatProvider = ChatProvider | ChatProviderWithExtraOptions
+type DeepSeekChatProvider = ChatProviderWithExtraOptions<string, ChatRequestOptions>
 
 function isDeepSeekChatProvider(provider: ProviderInstance): provider is DeepSeekChatProvider {
   return 'chat' in provider && typeof provider.chat === 'function'
@@ -50,6 +49,14 @@ describe('providerDeepSeek.createProvider chat options', () => {
 
     expect(provider.chat('deepseek-chat')).toMatchObject({
       thinking: { type: 'enabled' },
+    })
+  })
+
+  it('should prioritize request reasoning over the provider setting', () => {
+    const provider = createDeepSeekChatProvider('enable')
+
+    expect(provider.chat('deepseek-chat', { reasoning: 'disabled' })).toMatchObject({
+      thinking: { type: 'disabled' },
     })
   })
 })

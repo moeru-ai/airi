@@ -58,14 +58,14 @@ describe('consciousness settings synchronization', () => {
     followerStore.$subscribe(() => followerMutations++, { flush: 'sync' })
     followerStore.$onAction(() => followerActions++)
 
-    leaderStore.thinking = true
-    await vi.waitFor(() => expect(followerStore.thinking).toBe(true))
+    leaderStore.reasoning = true
+    await vi.waitFor(() => expect(followerStore.reasoning).toBe(true))
     await new Promise(resolve => setTimeout(resolve, 50))
 
     expect(leaderMutations).toBe(1)
     expect(followerMutations).toBe(1)
     expect(followerActions).toBe(0)
-    expect(localStorage.getItem('settings/consciousness/thinking')).toBeNull()
+    expect(localStorage.getItem('settings/consciousness/reasoning')).toBeNull()
   })
 
   it('persists a follower update through one leader-owned action', async () => {
@@ -83,15 +83,15 @@ describe('consciousness settings synchronization', () => {
 
     let leaderActions = 0
     leaderStore.$onAction(({ name }) => {
-      if (name === 'setThinking')
+      if (name === 'setReasoning')
         leaderActions++
     })
 
-    await followerStore.setThinking(true)
-    await vi.waitFor(() => expect(followerStore.thinking).toBe(true))
+    await followerStore.setReasoning(true)
+    await vi.waitFor(() => expect(followerStore.reasoning).toBe(true))
 
-    expect(leaderStore.thinking).toBe(true)
+    expect(leaderStore.reasoning).toBe(true)
     expect(leaderActions).toBe(1)
-    expect(localStorage.getItem('settings/consciousness/thinking')).toBe('true')
+    expect(localStorage.getItem('settings/consciousness/reasoning')).toBe('true')
   })
 })
