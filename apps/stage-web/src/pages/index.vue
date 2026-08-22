@@ -14,9 +14,7 @@ import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-re
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useConsciousnessSettingsStore } from '@proj-airi/stage-ui/stores/modules/consciousness-settings'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -63,9 +61,7 @@ const { discardRecord, startRecord, stopRecord, onStopRecord } = useAudioRecorde
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { removeStreamingTranscriptionConsumer, stopStreamingTranscription, transcribeForMediaStream, transcribeForRecording } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
-const providersStore = useProviderStore()
 const consciousnessStore = useConsciousnessStore()
-const consciousnessSettingsStore = useConsciousnessSettingsStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 const chatStore = useChatStore()
 
@@ -98,9 +94,7 @@ async function sendVoiceInputTextToChat(text: string | undefined) {
     if (!providerId || !model)
       return
 
-    const provider = await providersStore.getChatProviderInstance(providerId, {
-      reasoning: consciousnessSettingsStore.reasoning ? 'enabled' : 'disabled',
-    })
+    const provider = await consciousnessStore.getChatProviderInstance(providerId)
 
     await chatStore.ingest(text, { model, chatProvider: provider })
   }

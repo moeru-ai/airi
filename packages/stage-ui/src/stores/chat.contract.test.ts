@@ -180,12 +180,6 @@ vi.mock('./ai/chat-llm/tools', () => ({
   }),
 }))
 
-vi.mock('./providers/provider', () => ({
-  useProviderStore: () => ({
-    getChatProviderInstance: getChatProviderInstanceMock,
-  }),
-}))
-
 vi.mock('./ai/chat-llm/toolset-prompts', () => ({
   useLlmToolsetPromptsStore: () => ({
     activeToolsetPrompt: 'Plugin toolset guidance.',
@@ -196,6 +190,9 @@ vi.mock('./modules/consciousness', () => ({
   useConsciousnessStore: () => ({
     activeModel: activeModelRef,
     activeProvider: activeProviderRef,
+    getChatProviderInstance: (providerId: string) => getChatProviderInstanceMock(providerId, {
+      reasoning: useConsciousnessSettingsStore().reasoning ? 'enabled' : 'disabled',
+    }),
   }),
 }))
 
