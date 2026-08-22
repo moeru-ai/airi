@@ -145,4 +145,61 @@ describe('createOpenAICompatibleValidators', () => {
       model: 'seed-2-0-pro-260328',
     }))
   })
+
+  // https://github.com/moeru-ai/airi/issues/1565
+  it('chat probing goes through the provider\'s own fetch so translating providers are checked on their real transport (Issue #1565)', async () => {
+    listModelsMock.mockResolvedValue([
+      { id: 'claude-sonnet-4-5-20250929' },
+    ])
+
+    // Mirrors the Anthropic provider, which rewrites Chat Completions requests
+    // onto the native Messages API inside its fetch. Probing without it would
+    // hit `{baseUrl}chat/completions`, which /v1/messages-only proxies do not serve.
+    const translatingFetch = vi.fn()
+    const translatingProvider: ProviderInstance = {
+      chat: (model: string) => ({
+        apiKey: config.apiKey,
+        baseURL: config.baseUrl,
+        fetch: translatingFetch,
+        model,
+      }),
+      model: () => ({
+        apiKey: config.apiKey,
+        baseURL: config.baseUrl,
+        fetch: translatingFetch,
+      }),
+    } as ProviderInstance
+
+    const [, chatValidator] = getProviderValidators({
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
+    })
+
+    const result = await chatValidator.validator(config, translatingProvider, providerExtra, { t: mockT })
+
+    expect(result.valid).toBe(true)
+    expect(generateTextMock).toHaveBeenCalledWith(expect.objectContaining({
+      fetch: translatingFetch,
+      model: 'claude-sonnet-4-5-20250929',
+    }))
+  })
+
+  it('leaves fetch unset for providers that do not supply one', async () => {
+    listModelsMock.mockResolvedValue([
+      { id: 'gpt-4o' },
+    ])
+
+    const [, chatValidator] = getProviderValidators({
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
+    })
+
+    // `provider` exposes only `model()`, so there is no transport to inherit.
+    const result = await chatValidator.validator(config, provider, providerExtra, { t: mockT })
+
+    expect(result.valid).toBe(true)
+    expect(generateTextMock).toHaveBeenCalledWith(expect.objectContaining({
+      fetch: undefined,
+      baseURL: config.baseUrl,
+      apiKey: config.apiKey,
+    }))
+  })
 })
