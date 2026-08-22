@@ -2,11 +2,16 @@ import type { Buffer } from 'node:buffer'
 
 import type { JWSTransactionDecodedPayload } from '@apple/app-store-server-library'
 
-import { readdir, readFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { Environment, SignedDataVerifier } from '@apple/app-store-server-library'
+import {
+  Environment,
+  SignedDataVerifier,
+  VerificationException,
+  VerificationStatus,
+} from '@apple/app-store-server-library'
 import { useLogger } from '@guiiai/logg'
 
 import { createBadRequestError } from '../../../../utils/error'
@@ -29,6 +34,8 @@ export interface AppleIapVerifierOptions {
   rootCertificatesDir?: string
 }
 
+const ROOT_CA_FILENAMES = ['AppleRootCA-G2.cer', 'AppleRootCA-G3.cer'] as const
+
 /**
  * Creates an Apple IAP StoreKit 2 JWS verifier.
  *
@@ -38,8 +45,6 @@ export interface AppleIapVerifierOptions {
 export async function createAppleIapVerifier(options: AppleIapVerifierOptions) {
   const rootCertificatesDir = options.rootCertificatesDir ?? defaultRootCertificatesDir()
   const rootCertificates = await loadAppleRootCertificates(rootCertificatesDir)
-  if (rootCertificates.length === 0)
-    throw new Error(`No Apple Root CA .cer files found in ${rootCertificatesDir}`)
 
   if (options.env === 'production' && options.appAppleId == null)
     throw new Error('APPLE_APP_APPLE_ID is required when APPLE_IAP_ENV is production')
@@ -58,17 +63,35 @@ export async function createAppleIapVerifier(options: AppleIapVerifierOptions) {
   )
 
   async function verifyTransaction(jws: string): Promise<JWSTransactionDecodedPayload> {
-    let payload: JWSTransactionDecodedPayload
     try {
-      payload = await verifier.verifyAndDecodeTransaction(jws)
+      return await verifier.verifyAndDecodeTransaction(jws)
     }
     catch (error) {
+      if (error instanceof VerificationException) {
+        switch (error.status) {
+          case VerificationStatus.INVALID_APP_IDENTIFIER:
+            throw createBadRequestError('Bundle identifier mismatch', 'BUNDLE_MISMATCH')
+          case VerificationStatus.INVALID_ENVIRONMENT:
+            throw createBadRequestError('Transaction environment mismatch', 'ENVIRONMENT_MISMATCH')
+          case VerificationStatus.OK:
+          case VerificationStatus.VERIFICATION_FAILURE:
+          case VerificationStatus.RETRYABLE_VERIFICATION_FAILURE:
+          case VerificationStatus.INVALID_CHAIN_LENGTH:
+          case VerificationStatus.INVALID_CERTIFICATE:
+          case VerificationStatus.FAILURE:
+            logger.withError(error).warn('JWS transaction verification failed')
+            throw createBadRequestError('Signed transaction failed verification', 'JWS_VERIFICATION_FAILED')
+          default: {
+            const exhaustive: never = error.status
+            logger.withError(error).withField('status', String(exhaustive)).warn('Unhandled verification status')
+            throw createBadRequestError('Signed transaction failed verification', 'JWS_VERIFICATION_FAILED')
+          }
+        }
+      }
+
       logger.withError(error).warn('JWS transaction verification failed')
       throw createBadRequestError('Signed transaction failed verification', 'JWS_VERIFICATION_FAILED')
     }
-
-    assertBundleAndEnvironment(payload.bundleId, payload.environment, options)
-    return payload
   }
 
   return { verifyTransaction }
@@ -79,7 +102,7 @@ export type AppleIapVerifier = Awaited<ReturnType<typeof createAppleIapVerifier>
 /**
  * Maps AIRI Apple IAP env config to Apple's verifier environment.
  */
-export function appleIapEnvironmentToStoreKitEnvironment(env: AppleIapEnv): Environment {
+function appleIapEnvironmentToStoreKitEnvironment(env: AppleIapEnv): Environment {
   if (env === 'production')
     return Environment.PRODUCTION
   if (env === 'xcode')
@@ -87,50 +110,18 @@ export function appleIapEnvironmentToStoreKitEnvironment(env: AppleIapEnv): Envi
   return Environment.SANDBOX
 }
 
-function assertBundleAndEnvironment(
-  bundleId: string | undefined,
-  environment: string | undefined,
-  options: AppleIapVerifierOptions,
-) {
-  if (!bundleId || bundleId !== options.bundleId) {
-    throw createBadRequestError('Bundle identifier mismatch', 'BUNDLE_MISMATCH', {
-      expected: options.bundleId,
-      actual: bundleId,
-    })
-  }
-
-  if (!isEnvironmentAcceptable(environment, options.env)) {
-    throw createBadRequestError('Transaction environment mismatch', 'ENVIRONMENT_MISMATCH', {
-      expected: options.env,
-      actual: environment,
-    })
-  }
-}
-
-/**
- * In sandbox mode, also accept Xcode StoreKit Configuration and LocalTesting
- * payloads so CI and local builds can post JWS against a staging server.
- */
-function isEnvironmentAcceptable(actual: string | undefined, env: AppleIapEnv): boolean {
-  if (env === 'production')
-    return actual === Environment.PRODUCTION
-  return actual === Environment.SANDBOX
-    || actual === Environment.XCODE
-    || actual === Environment.LOCAL_TESTING
-}
-
 async function loadAppleRootCertificates(dir: string): Promise<Buffer[]> {
-  let entries: string[]
-  try {
-    entries = await readdir(dir)
-  }
-  catch (error) {
-    logger.withError(error).withField('dir', dir).error('Failed to read Apple Root CA directory')
-    return []
-  }
-
-  const cerFiles = entries.filter(name => name.endsWith('.cer'))
-  return Promise.all(cerFiles.map(name => readFile(join(dir, name))))
+  return Promise.all(
+    ROOT_CA_FILENAMES.map(async (name) => {
+      try {
+        return await readFile(join(dir, name))
+      }
+      catch (error) {
+        logger.withError(error).withFields({ dir, file: name }).error('Failed to read Apple Root CA certificate')
+        throw new Error(`Failed to read Apple Root CA file ${name} in ${dir}`)
+      }
+    }),
+  )
 }
 
 function defaultRootCertificatesDir(): string {

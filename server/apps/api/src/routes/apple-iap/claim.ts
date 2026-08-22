@@ -9,15 +9,15 @@ import { createInternalError } from '../../utils/error'
  *
  * CORE resolves the pack from `productId`. This mapper does not pass flux.
  */
-export function evidenceReceiptFromAppleTransaction(input: {
-  transaction: JWSTransactionDecodedPayload
-  userId: string
-}): EvidenceReceipt {
-  const transactionId = input.transaction.transactionId
+export function evidenceReceiptFromAppleTransaction(
+  transaction: JWSTransactionDecodedPayload,
+  userId: string,
+): EvidenceReceipt {
+  const transactionId = transaction.transactionId
   if (!transactionId)
     throw createInternalError('Apple transaction is missing transactionId')
 
-  const productId = input.transaction.productId
+  const productId = transaction.productId
   if (!productId)
     throw createInternalError('Apple transaction is missing productId')
 
@@ -25,21 +25,21 @@ export function evidenceReceiptFromAppleTransaction(input: {
     kind: 'evidence',
     provider: 'apple_iap',
     providerOrderId: transactionId,
-    userId: input.userId,
+    userId,
     productId,
-    amount: input.transaction.price ?? undefined,
-    currency: input.transaction.currency ?? undefined,
-    providerCustomerId: input.transaction.appAccountToken,
+    amount: transaction.price ?? undefined,
+    currency: transaction.currency ?? undefined,
+    providerCustomerId: transaction.appAccountToken,
     extras: {
       transactionId,
-      originalTransactionId: input.transaction.originalTransactionId,
+      originalTransactionId: transaction.originalTransactionId,
       productId,
-      bundleId: input.transaction.bundleId,
-      environment: input.transaction.environment,
-      appAccountToken: input.transaction.appAccountToken,
-      purchaseDate: input.transaction.purchaseDate,
-      type: input.transaction.type,
-      webOrderLineItemId: input.transaction.webOrderLineItemId,
+      bundleId: transaction.bundleId,
+      environment: transaction.environment,
+      appAccountToken: transaction.appAccountToken,
+      purchaseDate: transaction.purchaseDate,
+      type: transaction.type,
+      webOrderLineItemId: transaction.webOrderLineItemId,
     },
   }
 }

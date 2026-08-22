@@ -6,9 +6,9 @@ import { Hono } from 'hono'
 import { v5 as uuidv5 } from 'uuid'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { APPLE_IAP_NAMESPACE_UUID } from '../../utils/apple-iap'
 import { ApiError, createInternalError } from '../../utils/error'
 import { createAppleIapRoutes } from './index'
+import { APPLE_IAP_NAMESPACE_UUID } from './operations/transactions'
 
 const testUser = {
   id: 'user-1',
@@ -41,11 +41,11 @@ function createMockVerifier(overrides?: Partial<AppleIapVerifier>): AppleIapVeri
   } as AppleIapVerifier
 }
 
-function createTestApp(deps: {
-  payment: PaymentService
-  verifier: AppleIapVerifier | null
-}) {
-  const routes = createAppleIapRoutes(deps)
+function createTestApp(
+  payment: PaymentService,
+  verifier: AppleIapVerifier | null,
+) {
+  const routes = createAppleIapRoutes(payment, verifier)
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -80,7 +80,7 @@ describe('apple-iap routes', () => {
   })
 
   it('returns 401 when unauthenticated', async () => {
-    const app = createTestApp({ payment, verifier })
+    const app = createTestApp(payment, verifier)
     const res = await app.request('/api/v1/apple-iap/transactions', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -90,7 +90,7 @@ describe('apple-iap routes', () => {
   })
 
   it('returns 503 when the verifier is not configured', async () => {
-    const app = createTestApp({ payment, verifier: null })
+    const app = createTestApp(payment, null)
     const res = await app.fetch(
       new Request('http://localhost/api/v1/apple-iap/transactions', {
         method: 'POST',
@@ -103,7 +103,7 @@ describe('apple-iap routes', () => {
   })
 
   it('grants Flux once and maps a verified transaction onto evidence settle', async () => {
-    const app = createTestApp({ payment, verifier })
+    const app = createTestApp(payment, verifier)
     const res = await app.fetch(
       new Request('http://localhost/api/v1/apple-iap/transactions', {
         method: 'POST',
@@ -134,7 +134,7 @@ describe('apple-iap routes', () => {
     payment = createMockPayment({
       settle: vi.fn(async () => ({ applied: false as const })),
     })
-    const app = createTestApp({ payment, verifier })
+    const app = createTestApp(payment, verifier)
     const res = await app.fetch(
       new Request('http://localhost/api/v1/apple-iap/transactions', {
         method: 'POST',
@@ -158,7 +158,7 @@ describe('apple-iap routes', () => {
         throw new ApiError(400, 'UNKNOWN_PRODUCT', 'Unknown product')
       }),
     })
-    const app = createTestApp({ payment, verifier })
+    const app = createTestApp(payment, verifier)
     const res = await app.fetch(
       new Request('http://localhost/api/v1/apple-iap/transactions', {
         method: 'POST',
@@ -183,7 +183,7 @@ describe('apple-iap routes', () => {
         type: 'Consumable',
       })),
     })
-    const app = createTestApp({ payment, verifier })
+    const app = createTestApp(payment, verifier)
     const res = await app.fetch(
       new Request('http://localhost/api/v1/apple-iap/transactions', {
         method: 'POST',
@@ -205,7 +205,7 @@ describe('apple-iap routes', () => {
         throw createInternalError('Payment order write failed')
       }),
     })
-    const app = createTestApp({ payment, verifier })
+    const app = createTestApp(payment, verifier)
     const res = await app.fetch(
       new Request('http://localhost/api/v1/apple-iap/transactions', {
         method: 'POST',
@@ -219,7 +219,7 @@ describe('apple-iap routes', () => {
   })
 
   it('returns 404 for the removed ASSN notifications route', async () => {
-    const app = createTestApp({ payment, verifier })
+    const app = createTestApp(payment, verifier)
     const res = await app.fetch(
       new Request('http://localhost/api/v1/apple-iap/notifications', {
         method: 'POST',

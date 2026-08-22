@@ -9,12 +9,6 @@ import { authGuard } from '../../middlewares/auth'
 import { rateLimiter } from '../../middlewares/rate-limit'
 import { createTransactionOperation } from './operations/transactions'
 
-export interface AppleIapRouteDeps {
-  payment: PaymentService
-  verifier: AppleIapVerifier | null
-  rateLimitMetrics?: RateLimitMetrics | null
-}
-
 /**
  * Apple IAP channel routes at `/api/v1/apple-iap`.
  *
@@ -24,21 +18,22 @@ export interface AppleIapRouteDeps {
  * - 2xx / 4xx: client finishes the StoreKit transaction.
  * - 5xx: client keeps the transaction unfinished and retries later.
  */
-export function createAppleIapRoutes(deps: AppleIapRouteDeps) {
-  const submitTransaction = createTransactionOperation({
-    payment: deps.payment,
-    verifier: deps.verifier,
-  })
+export function createAppleIapRoutes(
+  payment: PaymentService,
+  verifier: AppleIapVerifier | null,
+  rateLimitMetrics?: RateLimitMetrics | null,
+) {
+  const submitTransaction = createTransactionOperation(payment, verifier)
 
   return new Hono<HonoEnv>()
     .post(
       '/transactions',
       authGuard,
-      rateLimiter({ max: 10, windowSec: 60, metrics: deps.rateLimitMetrics, routeLabel: 'apple-iap.transactions' }),
+      rateLimiter({ max: 10, windowSec: 60, metrics: rateLimitMetrics, routeLabel: 'apple-iap.transactions' }),
       async (c) => {
         const user = c.get('user')!
         const body = await c.req.json().catch(() => null)
-        return c.json(await submitTransaction({ userId: user.id, body }))
+        return c.json(await submitTransaction(user.id, body))
       },
     )
 }

@@ -417,11 +417,11 @@ export async function buildApp(deps: AppDeps) {
     /**
      * Apple IAP routes (StoreKit 2 JWS).
      */
-    .route('/api/v1/apple-iap', createAppleIapRoutes({
-      payment: deps.paymentService,
-      verifier: deps.appleIapVerifier,
-      rateLimitMetrics: deps.otel?.rateLimit,
-    }))
+    .route('/api/v1/apple-iap', createAppleIapRoutes(
+      deps.paymentService,
+      deps.appleIapVerifier,
+      deps.otel?.rateLimit ?? null,
+    ))
 
     /**
      * Catch-all 404 in JSON. Replaces hono's default `text/html` "404 Not
