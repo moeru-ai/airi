@@ -51,14 +51,14 @@ dialogs:
     no-models-help: >-
       请返回上一步并检查您的 API Key，或检查网络连接。
     permissions:
-      title: 权限管理
-      description: 您现在可以授予所需权限，或继续并稍后在系统设置中配置。
+      title: Permission management
+      description: You can grant the required permissions now or continue and configure them later.
       notificationsTitle: 通知
       notificationsDescription: 允许提醒以及重要的状态更新。
-      microphoneTitle: 麦克风
-      microphoneDescription: 允许 AIRI 使用麦克风进行语音输入和转写。
-      requestAction: 请求获取
-      optionalHint: 即使没有授予这些权限，您也可以继续。
+      microphoneTitle: Microphone
+      microphoneDescription: Allow AIRI to use your microphone for voice input and transcription.
+      requestAction: Request access
+      optionalHint: You can continue even if these permissions are not granted.
       stateGranted: 已授权
       stateNotGranted: 未授权
   bug-report:
@@ -299,10 +299,10 @@ pages:
     activate: 激活
     active: 已激活
     active_badge: 当前使用中
-    activation_notice: 已切换到 {name}，当前会话将使用该角色。
+    activation_notice: Switched to {name}. The current conversation now uses this character.
     cancel: 取消操作
     save: 保存更改
-    save_and_activate: 保存并激活
+    save_and_activate: Save and activate
     card_not_found: 未找到角色卡
     character: 角色设定
     close: 关闭
@@ -535,45 +535,45 @@ pages:
       card:
         description: 配置 AIRI 生成图像和视觉内容的方式。
         comfyui_empty: 未配置 ComfyUI 工作流。前往设置 → 提供商 → ComfyUI 上传工作流模板。
-        exposed_fields: '{count} exposed fields'
-        open_on_replicate: Open on Replicate
+        exposed_fields: '投影'
+        open_on_replicate: 重置为默认参数
         instruction_sync:
-          title: ComfyUI Instruction Sync
-          description: A specialized prompt is ready for your {workflowName} workflow. Applying this will overwrite current widget instructions so the AI knows how to use this specific template.
-          apply: Apply Recommended Prompt
-          keep: Keep Existing
-      provider: Artistry Provider
+          title: 清除模型缓存
+          description: 表情
+          apply: 表情系统
+          keep: 禁用后仍会保留 SDK 表情管理器和眨眼功能。
+      provider: 此模型没有可用表情。
       spawn_mode:
-        label: Manifestation Mode (Spawn Mode)
-        description: Choose how images are delivered to the interface.
+        label: LLM 工具集成尚未完成。
+        description: 保存默认表情设置
         options:
-          bg: Background Environment
-          inline: Inline Chat
-          widget: Overlay Widget
-          bg_widget: Dual (Background + Widget)
+          bg: 重置所有表情
+          inline: 向 LLM 公开
+          widget: 无
+          bg_widget: 全部
       autonomous:
-        title: Cinematic Autonomy (Autonomous Artist)
-        description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
-        threshold: Manifestation Threshold
-        threshold_description: Use {min} for aggressive scene creation or {max} to require stronger evidence before generating.
-        threshold_min: Always Generate (0%)
-        threshold_max: Strict (100%)
+        title: 自定义
+        description: 确认新密码
+        threshold: 此处包含不可撤销的账户操作。
+        threshold_description: 删除账户？
+        threshold_min: 邮箱不匹配。
+        threshold_max: 发送确认邮件
       model:
-        label: Artistry Model (Optional Override)
-        description: Model identifier if needed by provider
+        label: 取消
+        description: 请查看 {email} 收件箱中的删除链接。
       prompt-prefix:
-        label: Artistry Prompt Default Prefix
-        description: Pre-pended to every prompt sent to the image generator.
+        label: 无法开始删除操作，请稍后重试。
+        description: 视觉 / 提供商
       options:
-        label: Artistry Provider Options (JSON)
+        label: 视觉 / 模型
       widget-instructions:
-        label: Widget System Prompt
-        description: Custom instructions for the AI on how to use the generation capabilities.
+        label: 错误：绘图服务提供商选项包含无效的 JSON。
+        description: 无
     categories:
       essential: 基础
-      messaging: Messaging
-      gaming: Gaming
-      artistry: Artistry
+      messaging: 导出
+      gaming: 角色卡包已导出
+      artistry: 导出角色卡包失败
     consciousness:
       description: 人格设定、使用的模型等配置
       sections:
@@ -658,18 +658,18 @@ pages:
           provider-selection:
             description: 选择合适的语音转文本的服务来源
           playground:
-            current: 当前转写
-            description: 通过当前的听觉管线监听，并在下方保留每一段完成的语音转写。
-            empty: 开始监听，然后对着所选麦克风说话。
-            error-title: 转写错误
-            listening: 正在等待语音……
-            no-transcription: 此段音频中未识别到语音。
-            segment: '语音片段 {number}'
-            start: 开始监听
-            stop: 停止监听
-            title: 听觉测试面板
-            transcribing: 正在转写……
-            transcription-failed: 转写失败。
+            current: Current transcript
+            description: Listen through the active Hearing pipeline and keep each completed speech segment below.
+            empty: Start monitoring and speak into the selected microphone.
+            error-title: Transcription error
+            listening: Listening for speech…
+            no-transcription: No speech was recognized in this audio.
+            segment: 'Speech segment {number}'
+            start: Start monitoring
+            stop: Stop monitoring
+            title: Hearing playground
+            transcribing: Transcribing…
+            transcription-failed: Transcription failed.
           confidence-threshold:
             title: 置信度阈值
             description: >-
@@ -706,11 +706,11 @@ pages:
               loading: 正在加载模型……
               required: 请选择声线
           voice-pack:
-            description: Select a curated voice for the active character
-            empty: No Voice Packs available
-            error: Error loading Voice Packs
-            loading: Loading Voice Packs...
-            title: Voice Pack
+            description: 角色卡包已导入
+            empty: 角色卡包缺少必需文件
+            error: 角色卡包文件无效
+            loading: 点击或拖放 AIRI 角色卡包以导入
+            title: 将桌面窗口移至中央
           provider-voice-selection:
             custom_model_placeholder: 输入指定模型名称...
             custom_voice_placeholder: 输入指定声线 ID...
@@ -784,7 +784,7 @@ pages:
         empty: 这里什么都还没有哦，在下面添加一个！
       add:
         title: 新建
-        description: '填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」'
+        description: "填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」"
         pending-badge: 未保存
       status:
         unknown: 未加载
@@ -872,7 +872,7 @@ pages:
       typeAddition: 充电
       typeConsumption: 用量
       typeInitial: 初始额度
-      typePromo: Promo Grant
+      typePromo: ComfyUI（本地）
       loading: 加载历史...
       empty: 暂无消耗记录
       loadMore: 更多信息
@@ -992,20 +992,20 @@ pages:
     categories:
       chat:
         title: 聊天
-        description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+        description: 通过 WSL 使用本地 ComfyUI 实例生成图像。
       vision:
-        title: Vision
-        description: Vision model providers for image understanding.
+        title: Replicate.ai（云端）
+        description: 通过 Replicate API 使用云端模型。
       speech:
-        title: Speech
-        description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
+        title: Nano Banana（预览版）
+        description: 使用 Google AI Studio 生成预览图像和反应。
       transcription:
-        title: Transcription
+        title: 配置 AIRI 如何生成图像和视觉内容。
         description: >-
-          Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
+          尚未配置 ComfyUI 工作流。请前往“设置 → 服务提供商 → ComfyUI”上传工作流模板。
       artistry:
-        title: Artistry
-        description: Image generation and design model providers. e.g. ComfyUI, Replicate.
+        title: 绘图
+        description: '{count} 个公开字段'
         items:
           comfyui:
             description: 本地图像生成运行器。
@@ -1194,7 +1194,7 @@ pages:
         fields:
           field:
             thinking-mode:
-              description: 控制 DeepSeek 推理模型是否在聊天请求中启用深度思考。
+              description: Controls whether DeepSeek reasoning models use thinking in chat requests.
         title: 深度求索 DeepSeek
       elevenlabs:
         description: Elevenlabs.io
@@ -1367,6 +1367,11 @@ pages:
         title: 火山引擎
       volcengine-coding-plan:
         description: 火山引擎 Coding Plan
+        models:
+          ark-code-latest:
+            description: Uses the model selected in the Coding Plan console, including Auto; changes apply in 3–5 minutes.
+          legacy:
+            description: Legacy Coding Plan model scheduled for retirement. Switch to a currently supported model.
         title: 火山引擎 Coding Plan
       byteplus:
         description: byteplus.com
@@ -1415,23 +1420,26 @@ pages:
     description: 配置 WebSocket 服务器连接
     title: 连接
     websocket-url:
-      description: 此应用连接本地服务器时使用的地址。
-      label: 服务器地址
+      description: The address that this app uses to connect to the local server.
+      label: Server Address
       placeholder: ws://localhost:6121/ws
     server-hostname:
-      label: 向所有设备开放
-      description: 允许本地网络中的其他设备连接此服务器。
+      label: Expose To All
+      description: Allow other devices on the local network to connect to this server.
     server-auth-token:
-      label: 配对令牌
-      description: 其他设备使用此令牌与服务器配对。如果此字段为空，AIRI 会生成一个令牌。
+      label: Pairing Token
+      description: >-
+        Other devices use this token to pair with this server. AIRI generates a token when this field is empty.
       placeholder: 自动生成
     qr:
-      title: 配对
-      description: 使用移动应用扫描此二维码。应用会尝试每个本地地址，并保存第一个可用地址。
+      title: Pairing
+      description: >-
+        Scan this QR code with the mobile app. The app tries each local address and saves the first working address.
       refresh: 刷新
-      image-alt: AIRI 配对二维码
+      image-alt: AIRI pairing QR code
       candidates: 备选连接地址
-      token-hint: 二维码包含配对令牌。请勿公开分享此二维码。
+      token-hint: >-
+        The QR code includes the pairing token. Do not share the QR code publicly.
       errors:
         title: 二维码暂不可用
         unavailable: 无法生成配对二维码
@@ -1457,8 +1465,8 @@ pages:
       description: 深色主题、语言等选项
       title: 通用
     permissions:
-      description: 查看当前权限状态
-      title: 权限管理
+      description: View current permission status.
+      title: Permission Management
     description: 自定义你的舞台外观！
     sections:
       section:
@@ -1746,24 +1754,25 @@ mmd:
     description: >-
       Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
 tachie:
-  title: Tachie 设置
-  archive-description: Tachie 模型使用包含情绪命名图片的 .tachie.zip 压缩包。
+  title: Tachie Settings
+  archive-description: Tachie models use .tachie.zip archives containing emotion-named images.
   scale-and-position:
-    title: 缩放与位置
-    scale: 缩放
+    title: Scale And Position
+    scale: Scale
     x: X
     'y': 'Y'
   theme-color-from-model:
-    title: 从模型提取颜色
+    title: Extract colors from model
     button-extract:
-      title: 提取
+      title: Extract
   rendering:
-    title: 渲染
-    render-scale: 渲染缩放
-    shadow: 主题色动态阴影
+    title: Rendering
+    render-scale: Render Scale
+    shadow: Theme-colored drop shadow
 websocket-secure-enabled:
-  title: 作为安全 WebSocket (WSS) 提供服务
-  description: 使用 WSS 建立安全的移动端连接。AIRI 会创建一个自签名证书。
+  title: Serve as Secure WebSocket (WSS)
+  description: >-
+    Use WSS for secure mobile connections. AIRI creates a self-signed certificate.
 wip:
   title: 正在开发中
   description: >-

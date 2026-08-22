@@ -49,6 +49,10 @@ devtools:
   pages:
     context-flow:
       title: 컨텍스트 흐름
+    editor:
+      title: AIRI Editor
+      description: Open the standalone AIRI Editor window
+      button: Open Editor
     lag-visualizer:
       title: 로그 비주얼라이저
     performance-visualizer:

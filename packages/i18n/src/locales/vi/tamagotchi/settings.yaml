@@ -49,6 +49,10 @@ devtools:
   pages:
     context-flow:
       title: Luồng ngữ cảnh (Context Flow)
+    editor:
+      title: AIRI Editor
+      description: Open the standalone AIRI Editor window
+      button: Open Editor
     lag-visualizer:
       title: Trình trực quan hóa độ trễ
     performance-visualizer:

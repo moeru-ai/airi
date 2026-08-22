@@ -57,8 +57,11 @@ signIn:
     useDifferentEmail: Sử dụng email khác
   divider:
     or: hoặc
+  message:
+    redirecting: Redirecting to {provider}…
   error:
     fallback: Đăng nhập thất bại
+    providerTimeout: Provider sign-in timed out. Please try again.
     unknown: Lỗi không xác định đã xảy ra
     socialOnlyNoPassword: Email này được đăng ký bằng Google hoặc Github. Đăng nhập với nút bên dưới; bạn có thể thêm mật khẩu trong cài đật tài khoản sau khi đăng nhập.
     passwordMismatch: Mật khẩu không khớp.

@@ -49,6 +49,10 @@ devtools:
   pages:
     context-flow:
       title: 上下文流程
+    editor:
+      title: AIRI Editor
+      description: Open the standalone AIRI Editor window
+      button: Open Editor
     lag-visualizer:
       title: 卡頓可視化
     performance-visualizer:
