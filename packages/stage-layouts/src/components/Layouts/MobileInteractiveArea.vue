@@ -380,9 +380,10 @@ onUnmounted(() => {
           v-model="messageInput"
           :placeholder="t('stage.message')"
           :class="[
+            'font-cute',
             'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full resize-none overflow-y-scroll rounded-[1lh] px-4 py-0.5 outline-none backdrop-blur-md scrollbar-none',
             'border-2 border-solid border-neutral-200/60 bg-neutral-100/80 text-neutral-500 dark:border-neutral-700/60 dark:bg-neutral-950/80 dark:text-neutral-100',
-            'transition-all duration-250 ease-in-out hover:text-neutral-600 placeholder:text-neutral-400 placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out placeholder:hover:text-neutral-500 dark:hover:text-neutral-200 dark:placeholder:text-neutral-300 dark:placeholder:hover:text-neutral-400',
+            'transition-all duration-250 ease-in-out hover:text-neutral-600 placeholder:text-[14px] placeholder:vertical-middle placeholder:leading-6 placeholder:text-neutral-400 placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out placeholder:hover:text-neutral-500 dark:hover:text-neutral-200 dark:placeholder:text-neutral-500 dark:placeholder:hover:text-neutral-400',
             themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : undefined,
           ]"
           default-height="1lh"
@@ -431,18 +432,6 @@ onUnmounted(() => {
 
 .animate-scan {
   animation: scan 2s infinite linear;
-}
-
-.chat-history {
-  --gradient: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 20%);
-  -webkit-mask-image: var(--gradient);
-  mask-image: var(--gradient);
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: bottom;
-  mask-position: bottom;
 }
 
 .controls-island-scroll--overflowing {

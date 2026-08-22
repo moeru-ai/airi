@@ -270,6 +270,7 @@ catalog:
   embla-carousel-vue: 9.0.0-rc02
   es-toolkit: ^1.45.1
   eslint: ^10.2.1
+  eslint-plugin-format: ^2.0.1
   eslint-plugin-oxlint: ^1.60.0
   eventemitter3: ^5.0.4
   fflate: ^0.8.3

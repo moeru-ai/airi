@@ -70,6 +70,7 @@
     "@vitest/coverage-v8": "catalog:vitest",
     "bumpp": "catalog:",
     "eslint": "catalog:",
+    "eslint-plugin-format": "catalog:",
     "eslint-plugin-oxlint": "catalog:",
     "knip": "catalog:",
     "nano-staged": "catalog:",

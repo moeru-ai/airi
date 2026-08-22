@@ -45,6 +45,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
     :class="[
       'flex flex-col',
       variant === 'mobile' ? 'mr-0' : 'mr-12',
+      'font-cute',
     ]"
   >
     <ChatActionMenu

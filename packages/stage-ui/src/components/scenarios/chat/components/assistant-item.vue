@@ -86,7 +86,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
 </script>
 
 <template>
-  <div flex :class="containerClass" class="ph-no-capture">
+  <div flex :class="['font-cute', containerClass]" class="ph-no-capture">
     <ChatActionMenu
       :copy-text="copyText"
       :can-delete="!showPlaceholder"
