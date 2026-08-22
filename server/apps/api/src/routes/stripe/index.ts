@@ -13,9 +13,10 @@ import { Hono } from 'hono'
 
 import { authGuard } from '../../middlewares/auth'
 import { rateLimiter } from '../../middlewares/rate-limit'
+import { loadFluxPacks } from '../../services/domain/payment'
 import { createCheckoutOperation } from './operations/checkout'
 import { createWebhookOperation } from './operations/webhook'
-import { listStripePackages, loadFluxPacks } from './price-catalog'
+import { listStripePackages } from './price-catalog'
 
 /**
  * Creates Stripe HTTP routes for Flux purchase.

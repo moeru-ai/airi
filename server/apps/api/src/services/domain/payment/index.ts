@@ -1,6 +1,7 @@
 import type { Database } from '../../../libs/db'
+import type { ConfigKVService } from '../../adapters/config-kv'
 import type { BillingService } from '../billing/billing-service'
-import type { ClaimReceipt, SettleResult } from './types'
+import type { ClaimReceipt, FluxPack, SettleResult } from './types'
 
 import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull } from 'drizzle-orm'
@@ -12,6 +13,20 @@ import * as schema from '../../../schemas/payment'
 export type { ClaimReceipt, FluxPack, SettleResult } from './types'
 
 const logger = useLogger('payment')
+
+/**
+ * Loads the validated Flux pack catalog from ConfigKV.
+ */
+export async function loadFluxPacks(configKV: ConfigKVService): Promise<FluxPack[]> {
+  const packs = await configKV.getOptional('FLUX_PACKS') ?? []
+  return packs.map(pack => ({
+    key: pack.key,
+    name: pack.name,
+    fluxAmount: pack.fluxAmount,
+    recommended: pack.recommended ?? false,
+    providers: pack.providers ?? {},
+  }))
+}
 
 /**
  * Payment CORE: pack grant and `payment_order` ownership.
@@ -155,14 +170,7 @@ export function createPaymentService(db: Database, billing: BillingService) {
 
   return {
     async settle(receipt: ClaimReceipt): Promise<SettleResult> {
-      switch (receipt.kind) {
-        case 'claim':
-          return claimExistingOrder(receipt)
-        default: {
-          const exhaustive: never = receipt.kind
-          throw createInternalError(`Unhandled payment receipt kind: ${String(exhaustive)}`)
-        }
-      }
+      return claimExistingOrder(receipt)
     },
 
     /**

@@ -10,9 +10,9 @@ import type { ProductEventService } from '../../../services/domain/product-event
 import { and, eq, isNull } from 'drizzle-orm'
 import { safeParse } from 'valibot'
 
+import { loadFluxPacks } from '../../../services/domain/payment'
 import { createBadRequestError, createInternalError, createServiceUnavailableError } from '../../../utils/error'
 import { resolveCheckoutRedirectBase } from '../../../utils/origin'
-import { loadFluxPacks } from '../price-catalog'
 import { CheckoutBodySchema } from '../schema'
 
 import * as schema from '../../../schemas/payment'

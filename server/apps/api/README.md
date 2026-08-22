@@ -24,8 +24,8 @@ stays on `/api/v1/stripe/*`. CORE never sees a raw provider event.
 - `settle` claims a pending order (`pending` to `paid`). One transaction
   writes `credited_at` and calls `creditFlux`. Replay returns `applied: false`.
 - Pack snapshots (`pack_key`, `flux_amount`) live on the order row.
-- The Stripe channel reads `FLUX_PACKS` and Stripe Price objects for
-  display prices.
+- The Stripe channel reads `FLUX_PACKS` through payment CORE and Stripe Price
+  objects for display prices.
 - `POST /api/v1/stripe/checkout` inserts the pending order, then creates
   the Checkout Session.
 - `POST /api/v1/stripe/webhook` verifies the signature, maps the session
@@ -49,30 +49,21 @@ pnpm dev:backend
 For source-level debugging, start `@proj-airi/api-server` and
 `@proj-airi/auth-server` separately instead.
 
-`server/docker-compose.yaml` exposes the local Caddy gateway at `http://localhost:6112` and keeps
-the API and Auth container ports private.
+- `@proj-airi/api-server` (this package): listens on `PORT=3000` (local `https://localhost:3000` or via Caddy edge at `https://dev.airi.moeru.ai/api/v1`).
+- `@proj-airi/auth-server`: listens on `PORT=3001` (local `https://localhost:3001` or via Caddy edge at `https://dev.airi.moeru.ai/api/auth`).
+- `server/dev/caddy`: terminates HTTPS on `dev.airi.moeru.ai` with local mkcert certificates, routing `/api/auth/*` to auth and everything else to api.
+- `server/docker-compose.yaml`: starts Postgres and Redis.
+- `pnpm dev:backend` at the repo root starts Caddy and the containers, then runs both servers under `dotenvx` with `.env.local`.
 
-## Service boundaries
+## Configuration
 
-- `AUTH_SERVER_URL` is Auth's canonical public issuer origin used for JWKS,
-  issuer, and audience validation. It must exactly equal Auth's `PUBLIC_URL`.
-- `/internal/auth/*` is reachable only on the deployment's trusted private
-  network. The public edge must reject `/internal/*` and the API service must
-  not have its own public ingress.
-- `AUTH_SERVER_INTERNAL_URL` optionally sends JWKS fetches directly to Auth on
-  the private network while issuer and audience remain `AUTH_SERVER_URL`.
-- Auth tables and principal types come from `@proj-airi/auth-shared`; no module
-  under `server/apps/auth` is imported.
+Environment variables are validated with Valibot in `src/libs/env.ts`.
 
-## Railway
+Key variables:
 
-Deploy this as the Resource API Railway service with Config File Path
-`/server/apps/api/railway.toml`; keep the service Root Directory at the
-repository root because the Dockerfile copies shared workspace packages. The
-config owns its Dockerfile, start command, `/readyz` healthcheck, and the
-watch patterns for every copied build input.
-
-Set `AUTH_SERVER_INTERNAL_URL` from Auth's Railway private domain. It is only
-the private JWKS route; `AUTH_SERVER_URL` remains the public Auth issuer URL.
-See [`server/README.md`](../../README.md#railway-deployment) for the complete
-cross-service variable and migration contract.
+- `DATABASE_URL`: PostgreSQL connection string.
+- `REDIS_URL`: Redis connection string.
+- `AUTH_JWKS_URL`: URL to fetch the Auth service's public JWKS for OIDC JWT verification (defaults to `http://127.0.0.1:3001/api/auth/jwks`).
+- `AUTH_ISSUER`: Expected `iss` claim on incoming JWTs (defaults to `http://127.0.0.1:3001/api/auth`).
+- `PORT`: HTTP port (defaults to 3000).
+- `HOST`: Bind host (defaults to `0.0.0.0`).

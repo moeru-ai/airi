@@ -1,7 +1,6 @@
 import type Redis from 'ioredis'
 import type Stripe from 'stripe'
 
-import type { ConfigKVService } from '../../services/adapters/config-kv'
 import type { FluxPack } from '../../services/domain/payment'
 
 import { useLogger } from '@guiiai/logg'
@@ -21,17 +20,6 @@ export interface StripePackListItem {
   defaultCurrency: string
   currencies: Record<string, string>
   recommended: boolean
-}
-
-export async function loadFluxPacks(configKV: ConfigKVService): Promise<FluxPack[]> {
-  const packs = await configKV.getOptional('FLUX_PACKS') ?? []
-  return packs.map(pack => ({
-    key: pack.key,
-    name: pack.name,
-    fluxAmount: pack.fluxAmount,
-    recommended: pack.recommended ?? false,
-    providers: pack.providers ?? {},
-  }))
 }
 
 export async function listStripePackages(
