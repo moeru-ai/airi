@@ -120,19 +120,21 @@ export function useProviderValidation(providerId: string) {
       if (revision !== validationRevision)
         return
 
-      isValid.value = validationResult.valid
-
-      if (!isValid.value) {
+      if (!validationResult.valid) {
+        isValid.value = false
         finalValidationMessage = validationResult.reason
         providerStore.setProviderStatus(providerId, 'invalid')
       }
+      else {
+        // A successful settings-page validation must both list the provider and
+        // transition it to configured. Modules such as Hearing only expose
+        // configured providers, including providers that use default config and
+        // do not require an API key.
+        await providersStore.forceProviderConfigured(providerId)
+        if (revision !== validationRevision)
+          return
 
-      // A successful settings-page validation must both list the provider and
-      // transition it to configured. Modules such as Hearing only expose
-      // configured providers, including providers that use default config and
-      // do not require an API key.
-      if (isValid.value) {
-        providersStore.forceProviderConfigured(providerId)
+        isValid.value = true
       }
     }
     catch (error) {
@@ -277,14 +279,17 @@ export function useProviderValidation(providerId: string) {
     manualTestMessage.value = ''
   }
 
-  function forceValid() {
-    validationRevision++
+  async function forceValid() {
+    const revision = ++validationRevision
     isValidating.value = 0
-    isValid.value = true
     validationMessage.value = ''
     manualTestPassed.value = true
     manualTestMessage.value = ''
-    providersStore.forceProviderConfigured(providerId)
+    await providersStore.forceProviderConfigured(providerId)
+    if (revision !== validationRevision)
+      return
+
+    isValid.value = true
   }
 
   return {

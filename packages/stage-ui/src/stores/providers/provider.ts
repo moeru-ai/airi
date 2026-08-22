@@ -473,7 +473,7 @@ export const useProviderStore = defineStore('provider', () => {
     delete providerRuntimeState.value[providerId]
   }
 
-  function forceProviderConfigured(providerId: string) {
+  async function forceProviderConfigured(providerId: string) {
     if (providerRuntimeState.value[providerId]) {
       // Also cache the current config to prevent re-validation from overwriting
       const config = providerCredentials.value[providerId]

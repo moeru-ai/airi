@@ -71,6 +71,53 @@ describe('useProviderValidation', () => {
     expect(configStore.getProvider(providerId)?.status).toBe('configured')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3834871851
+  it('publishes validation success after provider configuration is synchronized (GitHub #2122)', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const configured = deferred<void>()
+    const providersStore = useProviderStore()
+    const configStore = useProviderConfigStore()
+    configStore.resetProviders()
+    vi.spyOn(providersStore, 'validateProviderConfig').mockResolvedValue({
+      errors: [],
+      reason: '',
+      valid: true,
+    })
+    const configureProvider = providersStore.forceProviderConfigured.bind(providersStore)
+    const forceProviderConfigured = vi.spyOn(providersStore, 'forceProviderConfigured')
+      .mockImplementation(async (id) => {
+        await configured.promise
+        await configureProvider(id)
+      })
+    let validation!: ReturnType<typeof useProviderValidation>
+
+    const app = createApp(defineComponent({
+      setup() {
+        validation = useProviderValidation(providerId)
+        return () => null
+      },
+    }))
+    app.use(pinia)
+    app.mount(document.createElement('div'))
+    unmount = () => app.unmount()
+
+    await vi.waitFor(() => {
+      expect(forceProviderConfigured).toHaveBeenCalledWith(providerId)
+    }, { timeout: 2000 })
+
+    // ROOT CAUSE:
+    //
+    // The follower published success before the leader-routed provider action completed.
+    expect(validation.isValid.value).toBe(false)
+    expect(configStore.getProvider(providerId)?.status).not.toBe('configured')
+
+    configured.resolve()
+    await vi.waitFor(() => {
+      expect(validation.isValid.value).toBe(true)
+      expect(configStore.getProvider(providerId)?.status).toBe('configured')
+    })
+  })
+
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3819332616
   it('automatically validates providers with provider-specific credential fields', async () => {
     const providerId = 'aliyun-nls-transcription'

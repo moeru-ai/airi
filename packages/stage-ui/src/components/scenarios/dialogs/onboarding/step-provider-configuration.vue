@@ -178,7 +178,7 @@ async function handleContinueAnyway() {
     accountId: accountId.value,
     customFields: hasOnboardingFields.value ? { ...customFieldValues.value } : undefined,
   })
-  providersStore.forceProviderConfigured(props.selectedProvider.id)
+  await providersStore.forceProviderConfigured(props.selectedProvider.id)
 }
 
 // Placeholder helpers

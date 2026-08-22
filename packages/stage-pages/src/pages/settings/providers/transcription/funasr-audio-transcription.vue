@@ -20,6 +20,8 @@ import { Button, FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 
+import { isFunASRPlaygroundReady } from './funasr-provider-readiness'
+
 const providerId = 'funasr-audio-transcription'
 const hearingStore = useHearingStore()
 const providersStore = useProviderStore()
@@ -54,10 +56,14 @@ const baseUrl = computed({
 
 const model = computed({
   get: () => providerSetting('model', defaultOption('model')),
-  set: value => updateProviderSetting('model', value),
+  set: value => void hearingStore.setTranscriptionModelForProvider(providerId, value),
 })
 
-const playgroundConfigured = computed(() => Boolean(baseUrl.value && model.value))
+const playgroundConfigured = computed(() => isFunASRPlaygroundReady(
+  providerConfigStore.getProvider(providerId)?.status,
+  baseUrl.value,
+  model.value,
+))
 
 async function handleGenerateTranscription(file: File) {
   const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, Record<string, unknown>>>(providerId)
