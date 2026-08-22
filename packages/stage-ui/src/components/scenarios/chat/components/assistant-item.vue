@@ -16,11 +16,13 @@ import { createToolCallResultLookup, resolveToolCallBlockState } from './tool-ca
 const props = withDefaults(defineProps<{
   message: ChatAssistantMessage
   label: string
+  scrollContainer?: HTMLElement | null
   showPlaceholder?: boolean
   variant?: 'desktop' | 'mobile'
   toolCallRenderers?: ChatToolCallRendererRegistry
 }>(), {
   showPlaceholder: false,
+  scrollContainer: null,
   variant: 'desktop',
   toolCallRenderers: () => ({}),
 })
@@ -76,7 +78,9 @@ function getToolCallRenderer(slice: ChatSlices) {
 const showLoader = computed(() => props.showPlaceholder && resolvedSlices.value.length === 0)
 const containerClass = computed(() => props.variant === 'mobile' ? 'mr-0' : 'mr-12')
 const boxClasses = computed(() => [
-  props.variant === 'mobile' ? 'px-2 py-2 text-sm bg-primary-50/90 dark:bg-primary-950/90' : 'px-3 py-3 bg-primary-50/80 dark:bg-primary-950/80',
+  props.variant === 'mobile'
+    ? ['px-2 py-2 text-sm', 'bg-primary-50/60 backdrop-blur-xl dark:bg-primary-950/60']
+    : ['px-3 py-3', 'bg-primary-50/80 dark:bg-primary-950/75'],
 ])
 const copyText = computed(() => getChatHistoryItemCopyText(props.message as ChatHistoryItem))
 </script>
@@ -86,6 +90,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
     <ChatActionMenu
       :copy-text="copyText"
       :can-delete="!showPlaceholder"
+      :scroll-container="scrollContainer"
       @copy="emit('copy')"
       @delete="emit('delete')"
     >
@@ -95,6 +100,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
           flex="~ col" shadow="sm primary-200/50 dark:none"
           min-w-20 gap-2 rounded-xl h="unset <sm:fit"
           :class="[
+            'chat-message-item-container',
             boxClasses,
             (isStageWeb() || isStageCapacitor()) && props.variant === 'mobile' ? 'select-none sm:select-auto' : '',
           ]"

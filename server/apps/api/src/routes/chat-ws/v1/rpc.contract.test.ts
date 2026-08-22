@@ -1,4 +1,5 @@
 import { parsePullMessagesRequest, parseSendMessagesRequest } from '@proj-airi/server-sdk-shared'
+import { parseAuthenticateRequest, parseAuthenticateResponse } from '@proj-airi/server-sdk-shared/v2'
 import { describe, expect, it } from 'vitest'
 
 describe('v1 chat WebSocket request contracts', () => {
@@ -19,5 +20,15 @@ describe('v1 chat WebSocket request contracts', () => {
   it('rejects malformed pull-messages requests', () => {
     expect(() => parsePullMessagesRequest({ chatId: 'chat-1', afterSeq: -1 }))
       .toThrow()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2309#discussion_r3796726614
+  it('rejects malformed authenticate requests from the shared contract', () => {
+    expect(() => parseAuthenticateRequest({ token: '' })).toThrow()
+    expect(() => parseAuthenticateRequest({ token: 'a'.repeat(4097) })).toThrow()
+  })
+
+  it('rejects malformed authenticate responses from the shared contract', () => {
+    expect(() => parseAuthenticateResponse({ userId: '' })).toThrow()
   })
 })

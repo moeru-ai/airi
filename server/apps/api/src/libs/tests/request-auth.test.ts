@@ -7,10 +7,13 @@ import { resolveRequestAuth } from '../request-auth'
 
 vi.mock('jose', () => ({
   createRemoteJWKSet: vi.fn(() => 'mock-jwks'),
+  errors: {
+    JWKSTimeout: class JWKSTimeout extends Error {},
+  },
   jwtVerify: vi.fn(),
 }))
 
-const { createRemoteJWKSet, jwtVerify } = await import('jose')
+const { createRemoteJWKSet, errors, jwtVerify } = await import('jose')
 const mockedCreateRemoteJWKSet = vi.mocked(createRemoteJWKSet)
 const mockedJwtVerify = vi.mocked(jwtVerify)
 
@@ -39,11 +42,15 @@ function createUser(overrides: Partial<RequestAuthSession['user']> = {}): Reques
   }
 }
 
-function createDb(user: RequestAuthSession['user'] | null): Database {
+function createDb(user: RequestAuthSession['user'] | null, failure?: Error): Database {
   return {
     query: {
       user: {
-        findFirst: vi.fn(async () => user),
+        findFirst: vi.fn(async () => {
+          if (failure)
+            throw failure
+          return user
+        }),
       },
     },
   } as unknown as Database
@@ -174,5 +181,35 @@ describe('resolveRequestAuth', () => {
       mockEnv,
       new Headers({ Authorization: 'Bearer subjectless' }),
     )).toBeNull()
+  })
+
+  it('propagates temporary JWKS failures', async () => {
+    mockedJwtVerify.mockRejectedValueOnce(new TypeError('fetch failed'))
+
+    await expect(resolveRequestAuth(
+      createDb(null),
+      mockEnv,
+      new Headers({ Authorization: 'Bearer valid-token' }),
+    )).rejects.toThrow('fetch failed')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2309#discussion_r3818708556
+  it('propagates JWKS timeouts so WebSocket clients can retry', async () => {
+    mockedJwtVerify.mockRejectedValueOnce(new errors.JWKSTimeout())
+
+    await expect(resolveRequestAuth(
+      createDb(null),
+      mockEnv,
+      new Headers({ Authorization: 'Bearer valid-token' }),
+    )).rejects.toBeInstanceOf(errors.JWKSTimeout)
+  })
+
+  it('propagates database failures after JWT verification', async () => {
+    mockValidJwt()
+    await expect(resolveRequestAuth(
+      createDb(null, new Error('database unavailable')),
+      mockEnv,
+      new Headers({ Authorization: 'Bearer valid-token' }),
+    )).rejects.toThrow('database unavailable')
   })
 })

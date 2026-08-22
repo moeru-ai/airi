@@ -185,6 +185,7 @@ catalog:
   '@types/hast': ^3.0.4
   '@types/ioredis-mock': ^8.2.8
   '@types/markdown-it': ^14.1.2
+  '@types/mdast': ^4.0.4
   '@types/node': ^24.12.2
   '@types/nprogress': ^0.2.3
   '@types/pg': ^8.20.0
@@ -397,6 +398,7 @@ catalog:
   vaul-vue: ^0.4.1
   vec3: ^0.2.0
   vieval: ^0.0.5
+  virtua: ^0.50.3
   vite: ^8.0.8
   vite-bundle-visualizer: ^1.2.1
   vite-plugin-inspect: 12.0.0-beta.1
