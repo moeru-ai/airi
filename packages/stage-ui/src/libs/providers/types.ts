@@ -128,6 +128,11 @@ export interface ModelInfo {
   capabilities?: string[]
   contextLength?: number
   deprecated?: boolean
+  /** Discovered thinking controls for this exact provider model. */
+  thinking?: {
+    /** The provider accepts a request mode that stops reasoning computation. */
+    canDisable: boolean
+  }
 }
 
 export interface VoiceInfo {
@@ -204,6 +209,9 @@ export interface ProviderDefinition<TConfig extends any = any> {
     validateProvider?: Array<(contextOptions: { t: ComposerTranslation }) => ProviderRuntimeValidator<TConfig>>
   }
   capabilities?: {
+    chat?: {
+      thinking?: ChatThinkingCapability
+    }
     transcription?: {
       protocol: 'websocket' | 'http'
       generateOutput: boolean
@@ -251,4 +259,13 @@ export interface ProviderDefinition<TConfig extends any = any> {
       }
     }
   }
+}
+
+/** Maps a provider model to safe request fields that stop thinking. */
+export interface ChatThinkingCapability {
+  /**
+   * Returns request fields only when the exact model accepts a true off mode.
+   * Unknown and mandatory-thinking models must return `undefined`.
+   */
+  disable: (model: string, modelInfo?: ModelInfo) => Record<string, unknown> | undefined
 }

@@ -1,6 +1,7 @@
 import { createXiaomi } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
+import { chatThinkingCapabilities } from '../../thinking'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
@@ -24,6 +25,7 @@ export const providerMimo = defineProvider<MimoConfig>({
   description: 'api.xiaomimimo.com',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.mimo.description'),
   tasks: ['chat'],
+  capabilities: { chat: { thinking: chatThinkingCapabilities.mimo } },
   icon: 'i-simple-icons:xiaomi',
 
   createProviderConfig: ({ t }) => mimoConfigSchema.extend({

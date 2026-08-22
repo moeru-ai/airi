@@ -2,6 +2,7 @@ import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { createOpenAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
+import { chatThinkingCapabilities } from '../../thinking'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
@@ -24,6 +25,7 @@ export const providerNvidia = defineProvider<NvidiaConfig>({
   description: 'build.nvidia.com',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.nvidia.description'),
   tasks: ['chat'],
+  capabilities: { chat: { thinking: chatThinkingCapabilities.nvidia } },
   icon: 'i-simple-icons:nvidia',
   isAvailableBy: isStageTamagotchi,
 

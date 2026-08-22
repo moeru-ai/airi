@@ -628,6 +628,15 @@ pages:
             show_more: Show more
             subtitle: Select a default model from the provider
             title: Model
+          thinking:
+            title: Thinking
+            description: Control model reasoning before each response.
+            disable:
+              label: Disable thinking when supported
+              description: AIRI asks compatible providers and models to stop thinking. Models that require thinking keep the provider default.
+            unsupported:
+              title: Thinking cannot be disabled
+              description: The selected provider or model does not expose a safe off mode. AIRI leaves the request unchanged.
       title: Consciousness
     description: Thinking, vision, speech synthesis, gaming, etc.
     gaming-factorio:

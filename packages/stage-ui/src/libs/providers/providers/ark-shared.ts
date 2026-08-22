@@ -3,6 +3,7 @@ import type { ModelInfo } from '../types'
 import { createOpenAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
+import { chatThinkingCapabilities } from '../thinking'
 import { ProviderValidationCheck } from '../types'
 import { createOpenAICompatibleValidators } from '../validators'
 import { defineProvider } from './registry'
@@ -64,6 +65,7 @@ export function createArkChatProviderDefinition(options: ArkProviderDefinitionOp
     description,
     descriptionLocalize: ({ t }) => t(descriptionKey),
     tasks: ['chat'],
+    capabilities: { chat: { thinking: chatThinkingCapabilities.ark } },
     icon,
     iconColor,
 

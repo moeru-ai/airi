@@ -1,6 +1,7 @@
 import { createOpenAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
+import { chatThinkingCapabilities } from '../../thinking'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
@@ -23,6 +24,7 @@ export const providerGroq = defineProvider<GroqConfig>({
   description: 'groq.com',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.groq.description'),
   tasks: ['chat'],
+  capabilities: { chat: { thinking: chatThinkingCapabilities.groq } },
   icon: 'i-lobe-icons:groq',
 
   createProviderConfig: ({ t }) => groqConfigSchema.extend({

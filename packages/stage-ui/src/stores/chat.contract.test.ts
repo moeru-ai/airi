@@ -1,3 +1,4 @@
+import type { StreamOptions } from '@proj-airi/core-agent'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message, Tool } from '@xsai/shared-chat'
 
@@ -13,6 +14,7 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/analytics-headers'
 import { useChatStore } from './chat'
+import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
 
 vi.hoisted(() => {
   ;(globalThis as any).window = {
@@ -65,7 +67,7 @@ const forkSessionMock = vi.fn()
 const ensureSessionMock = vi.fn()
 const loadSessionMock = vi.fn()
 const deleteSessionMock = vi.fn()
-const getProviderInstanceMock = vi.fn()
+const getChatProviderInstanceMock = vi.fn()
 const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
 
 const activeSessionIdRef = ref('session-1')
@@ -180,7 +182,7 @@ vi.mock('./ai/chat-llm/tools', () => ({
 
 vi.mock('./providers/provider', () => ({
   useProviderStore: () => ({
-    getProviderInstance: getProviderInstanceMock,
+    getChatProviderInstance: getChatProviderInstanceMock,
   }),
 }))
 
@@ -241,7 +243,7 @@ describe('chat store contract', () => {
     ensureSessionMock.mockReset()
     loadSessionMock.mockReset().mockResolvedValue(true)
     deleteSessionMock.mockReset().mockResolvedValue(undefined)
-    getProviderInstanceMock.mockReset().mockResolvedValue(provider)
+    getChatProviderInstanceMock.mockReset().mockResolvedValue(provider)
     getToolsByNamesMock.mockReset().mockImplementation(names => names.map(name => ({
       type: 'function',
       function: {
@@ -285,13 +287,27 @@ describe('chat store contract', () => {
       text: 'continue',
     })
 
-    expect(getProviderInstanceMock).toHaveBeenCalledTimes(2)
-    expect(getProviderInstanceMock).toHaveBeenCalledWith('mock-provider')
+    expect(getChatProviderInstanceMock).toHaveBeenCalledTimes(2)
+    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider', { disableThinking: true })
     expect(() => structuredClone(result)).not.toThrow()
     expect(resolvedToolNames).toEqual([
       ['stage_widgets'],
       ['stage_widgets'],
     ])
+  })
+
+  it('passes the current consciousness thinking policy to the chat provider', async () => {
+    const settings = useConsciousnessSettingsStore()
+    settings.disableThinking = false
+    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'reply without changing provider defaults' })
+
+    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider', { disableThinking: false })
+    settings.disableThinking = true
   })
 
   // https://github.com/moeru-ai/airi/issues/2085

@@ -1,11 +1,12 @@
 import { createOllama } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
+import { chatThinkingCapabilities } from '../../thinking'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
-type OllamaThinkValue = boolean | 'high' | 'low' | 'medium'
+type OllamaReasoningEffort = 'high' | 'low' | 'medium' | 'none'
 type OllamaThinkingMode = 'auto' | 'disable' | 'enable' | 'high' | 'low' | 'medium'
 
 const ollamaConfigSchema = z.object({
@@ -37,7 +38,7 @@ function normalizeOllamaThinkingMode(value: unknown): OllamaThinkingMode {
   }
 }
 
-export function resolveOllamaThink(model: string, modeRaw: unknown): OllamaThinkValue | undefined {
+export function resolveOllamaReasoningEffort(model: string, modeRaw: unknown): OllamaReasoningEffort | undefined {
   const mode = normalizeOllamaThinkingMode(modeRaw)
   const isGptOss = isGptOssModel(model)
 
@@ -45,11 +46,10 @@ export function resolveOllamaThink(model: string, modeRaw: unknown): OllamaThink
     case 'auto':
       return undefined
     case 'disable':
-      // NOTICE: GPT-OSS ignores boolean `think`, so "disable" degrades to `low`.
-      return isGptOss ? 'low' : false
+      // NOTICE: GPT-OSS does not accept `none`, so "disable" degrades to `low`.
+      return isGptOss ? 'low' : 'none'
     case 'enable':
-      // NOTICE: GPT-OSS requires levels; map generic "enable" to medium effort.
-      return isGptOss ? 'medium' : true
+      return 'medium'
     case 'low':
     case 'medium':
     case 'high':
@@ -67,6 +67,7 @@ export const providerOllama = defineProvider<OllamaConfig>({
   description: 'Local Ollama server for fast model iteration.',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.ollama.description'),
   tasks: ['chat'],
+  capabilities: { chat: { thinking: chatThinkingCapabilities.ollama } },
   icon: 'i-lobe-icons:ollama',
 
   createProviderConfig: ({ t }) => ollamaConfigSchema.extend({
@@ -124,12 +125,12 @@ export const providerOllama = defineProvider<OllamaConfig>({
       ...baseProvider,
       chat(model: string) {
         const chatOptions = baseProvider.chat(model)
-        const think = resolveOllamaThink(model, config.thinkingMode)
+        const reasoningEffort = resolveOllamaReasoningEffort(model, config.thinkingMode)
 
-        if (think === undefined)
+        if (reasoningEffort === undefined)
           return chatOptions
 
-        return { ...chatOptions, think }
+        return { ...chatOptions, reasoningEffort }
       },
     }
   },

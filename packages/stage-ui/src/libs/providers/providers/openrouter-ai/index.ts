@@ -1,6 +1,7 @@
 import { createOpenRouter } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
+import { chatThinkingCapabilities } from '../../thinking'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
@@ -21,6 +22,19 @@ const openRouterConfigSchema = z.object({
 
 type OpenRouterConfig = z.input<typeof openRouterConfigSchema>
 
+const openRouterModelsResponseSchema = z.object({
+  data: z.array(z.object({
+    id: z.string(),
+    name: z.string().optional(),
+    description: z.string().optional(),
+    context_length: z.number().optional(),
+    reasoning: z.object({
+      mandatory: z.boolean().optional(),
+      supported_efforts: z.array(z.string()).nullable().optional(),
+    }).nullish(),
+  })),
+})
+
 export const providerOpenRouterAI = defineProvider<OpenRouterConfig>({
   id: 'openrouter-ai',
   order: 0,
@@ -29,6 +43,7 @@ export const providerOpenRouterAI = defineProvider<OpenRouterConfig>({
   description: 'openrouter.ai',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.openrouter.description'),
   tasks: ['chat'],
+  capabilities: { chat: { thinking: chatThinkingCapabilities.openRouter } },
   icon: 'i-lobe-icons:openrouter',
 
   createProviderConfig: ({ t }) => openRouterConfigSchema.extend({
@@ -58,6 +73,36 @@ export const providerOpenRouterAI = defineProvider<OpenRouterConfig>({
         },
       }),
     }
+  },
+
+  extraMethods: {
+    async listModels(config) {
+      const baseUrl = config.baseUrl || 'https://openrouter.ai/api/v1/'
+      const response = await fetch(new URL('models', baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`), {
+        headers: {
+          ...OPENROUTER_ATTRIBUTION_HEADERS,
+          Authorization: `Bearer ${config.apiKey}`,
+        },
+      })
+      if (!response.ok)
+        throw new Error(`OpenRouter model listing failed with status ${response.status}.`)
+
+      const { data } = openRouterModelsResponseSchema.parse(await response.json())
+      return data.map((model) => {
+        const supportedEfforts = model.reasoning?.supported_efforts
+        const canDisable = model.reasoning?.mandatory !== true
+          && (supportedEfforts === null || supportedEfforts?.includes('none') === true)
+
+        return {
+          id: model.id,
+          name: model.name ?? model.id,
+          provider: 'openrouter-ai',
+          description: model.description,
+          contextLength: model.context_length,
+          ...(model.reasoning ? { thinking: { canDisable } } : {}),
+        }
+      })
+    },
   },
 
   validationRequiredWhen(config) {

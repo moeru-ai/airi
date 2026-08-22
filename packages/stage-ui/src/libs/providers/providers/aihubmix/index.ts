@@ -1,6 +1,7 @@
 import { createChatProvider, createEmbedProvider, createModelProvider, merge } from '@xsai-ext/providers/utils'
 import { z } from 'zod'
 
+import { chatThinkingCapabilities } from '../../thinking'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
@@ -24,6 +25,7 @@ export const providerAIHubMix = defineProvider<AIHubMixConfig>({
   description: 'AIHubMix',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.aihubmix.description'),
   tasks: ['chat'],
+  capabilities: { chat: { thinking: chatThinkingCapabilities.aiHubMix } },
   icon: 'i-lobe-icons:aihubmix',
   iconColor: 'i-lobe-icons:aihubmix-color',
 

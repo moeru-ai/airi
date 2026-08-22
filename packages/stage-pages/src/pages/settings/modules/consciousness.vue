@@ -3,19 +3,24 @@ import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@pr
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useConsciousnessSettingsStore } from '@proj-airi/stage-ui/stores/modules/consciousness-settings'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { storeToRefs } from 'pinia'
-import { watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
+
+import ConsciousnessThinkingSettings from './components/consciousness-thinking-settings.vue'
 
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const airiCardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
+const consciousnessSettingsStore = useConsciousnessSettingsStore()
 const { configuredProviders } = storeToRefs(providerStore)
 const { persistedChatProvidersMetadata } = storeToRefs(providersStore)
+const { disableThinking } = storeToRefs(consciousnessSettingsStore)
 const {
   activeProvider,
   activeModel,
@@ -29,6 +34,7 @@ const {
 
 const { t } = useI18n()
 const { trackModelSwitched, trackProviderClick } = useAnalytics()
+const canDisableThinking = computed(() => providersStore.supportsDisableThinking(activeProvider.value, activeModel.value))
 
 watch(activeProvider, async (provider) => {
   if (!provider)
@@ -280,6 +286,12 @@ function handleDeleteProvider(providerId: string) {
         </div>
       </div>
     </div>
+
+    <ConsciousnessThinkingSettings
+      v-if="activeProvider && activeModel"
+      v-model="disableThinking"
+      :can-disable-thinking="canDisableThinking"
+    />
   </div>
 
   <div

@@ -82,4 +82,45 @@ describe('providerOpenRouterAI tool schemas', () => {
       { type: 'null' },
     ])
   })
+
+  it('discovers which models expose a safe reasoning off mode', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
+      data: [
+        {
+          id: 'openai/gpt-5.2',
+          name: 'GPT-5.2',
+          reasoning: { mandatory: false, supported_efforts: ['none', 'low', 'high'] },
+        },
+        {
+          id: 'openai/o3',
+          name: 'o3',
+          reasoning: { mandatory: true, supported_efforts: ['low', 'high'] },
+        },
+        {
+          id: 'openai/gpt-4o',
+          name: 'GPT-4o',
+        },
+        {
+          id: 'anthropic/claude-sonnet',
+          name: 'Claude Sonnet',
+          reasoning: { mandatory: false },
+        },
+      ],
+    }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const config = { apiKey: 'test-key' }
+    const provider = providerOpenRouterAI.createProvider(config)
+    const models = await providerOpenRouterAI.extraMethods?.listModels?.(config, provider)
+
+    expect(models).toEqual([
+      expect.objectContaining({ id: 'openai/gpt-5.2', thinking: { canDisable: true } }),
+      expect.objectContaining({ id: 'openai/o3', thinking: { canDisable: false } }),
+      expect.not.objectContaining({ thinking: expect.anything() }),
+      expect.objectContaining({ id: 'anthropic/claude-sonnet', thinking: { canDisable: false } }),
+    ])
+    expect(fetchMock).toHaveBeenCalledWith(new URL('https://openrouter.ai/api/v1/models'), expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: 'Bearer test-key' }),
+    }))
+  })
 })

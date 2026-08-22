@@ -31,6 +31,7 @@ import {
   validateProvider as runProviderValidation,
 } from '../../libs/providers'
 import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
+import { withDisabledThinking } from '../../libs/providers/thinking'
 import { useProviderConfigStore } from './config'
 import { normalizeProviderConfigDefaults } from './config-defaults'
 
@@ -239,6 +240,19 @@ export const useProviderStore = defineStore('provider', () => {
 
   function supportsModelListing(providerId: string) {
     return findProviderDefinition(providerId) !== undefined
+  }
+
+  function resolveDisableThinkingOptions(providerId: string, model: string) {
+    const thinking = findProviderDefinition(providerId)?.capabilities?.chat?.thinking
+    if (!thinking || !model)
+      return undefined
+
+    const modelInfo = getModelsForProvider(providerId).find(candidate => candidate.id === model)
+    return thinking.disable(model, modelInfo)
+  }
+
+  function supportsDisableThinking(providerId: string, model: string) {
+    return resolveDisableThinkingOptions(providerId, model) !== undefined
   }
 
   // Configuration validation functions
@@ -476,6 +490,7 @@ export const useProviderStore = defineStore('provider', () => {
     display_name?: string
     id: string
     name?: string
+    thinking?: ModelInfo['thinking']
   }>) {
     return models.map(model => ({
       id: model.id,
@@ -484,6 +499,7 @@ export const useProviderStore = defineStore('provider', () => {
       description: model.description ?? '',
       contextLength: model.contextLength ?? model.context_length ?? 0,
       deprecated: model.deprecated ?? false,
+      ...(model.thinking ? { thinking: model.thinking } : {}),
     }))
   }
 
@@ -594,6 +610,7 @@ export const useProviderStore = defineStore('provider', () => {
           contextLength: model.contextLength,
           deprecated: model.deprecated,
           provider: providerId,
+          ...(model.thinking ? { thinking: model.thinking } : {}),
         }))
 
       // Transform and store the models
@@ -754,14 +771,33 @@ export const useProviderStore = defineStore('provider', () => {
       throw new Error(`Provider credentials for ${providerId} not found`)
 
     try {
-      const instance = await definition.createProvider(config || {}) as R
+      const instance = await definition.createProvider(config || {})
       providerInstanceCache.set(providerId, instance)
-      return instance
+      return instance as R
     }
     catch (error) {
       console.error(`Error creating provider instance for ${providerId}:`, error)
       throw error
     }
+  }
+
+  /**
+   * Applies a request policy to a chat provider without changing its cached base instance.
+   * Non-consciousness consumers keep the provider's configured behavior unless they opt in.
+   */
+  async function getChatProviderInstance(
+    providerId: string,
+    options: { disableThinking: boolean },
+  ): Promise<ChatProvider> {
+    const provider = await getProviderInstance<ChatProvider>(providerId)
+    const thinking = findProviderDefinition(providerId)?.capabilities?.chat?.thinking
+    if (!options.disableThinking || !thinking)
+      return provider
+
+    return withDisabledThinking(provider, {
+      enabled: () => true,
+      resolve: model => resolveDisableThinkingOptions(providerId, model),
+    })
   }
 
   async function disposeProviderInstance(providerId: string) {
@@ -866,6 +902,7 @@ export const useProviderStore = defineStore('provider', () => {
     validateProviderConfig,
     hasManualProviderValidators,
     supportsModelListing,
+    supportsDisableThinking,
     getTranscriptionFeatures,
     initializeProvider,
     validateProvider,
@@ -879,6 +916,7 @@ export const useProviderStore = defineStore('provider', () => {
     loadProviderModel,
     loadModelsForConfiguredProviders,
     getProviderInstance,
+    getChatProviderInstance,
     disposeProviderInstance,
     resetProviderSettings,
     forceProviderConfigured,

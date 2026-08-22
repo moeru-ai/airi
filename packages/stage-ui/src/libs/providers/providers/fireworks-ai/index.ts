@@ -1,6 +1,7 @@
 import { createFireworks } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
+import { chatThinkingCapabilities } from '../../thinking'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
@@ -23,6 +24,7 @@ export const providerFireworksAI = defineProvider<FireworksConfig>({
   description: 'fireworks.ai',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.fireworks.description'),
   tasks: ['chat'],
+  capabilities: { chat: { thinking: chatThinkingCapabilities.fireworks } },
   icon: 'i-lobe-icons:fireworks',
   iconColor: 'i-lobe-icons:fireworks-color',
 

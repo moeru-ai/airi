@@ -603,6 +603,15 @@ pages:
             show_more: 收起
             subtitle: 选择一个默认模型
             title: 模型
+          thinking:
+            title: 深度思考
+            description: 控制模型在每次回复前的推理过程。
+            disable:
+              label: 在支持时禁用深度思考
+              description: AIRI 会要求兼容的服务来源和模型停止深度思考。必须深度思考的模型会保留服务来源默认值。
+            unsupported:
+              title: 无法禁用深度思考
+              description: 当前服务来源或模型未提供安全的关闭模式。AIRI 不会修改请求。
       title: 意识
     description: 思维，视觉，言语综合，游戏等
     gaming-factorio:

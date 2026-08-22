@@ -1,6 +1,7 @@
 import { createGoogleGenerativeAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
+import { chatThinkingCapabilities } from '../../thinking'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
@@ -24,6 +25,7 @@ export const providerGoogleGenerativeAI = defineProvider<GoogleGenerativeConfig>
   description: 'ai.google.dev',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.google-generative-ai.description'),
   tasks: ['chat'],
+  capabilities: { chat: { thinking: chatThinkingCapabilities.gemini } },
   icon: 'i-lobe-icons:gemini',
   iconColor: 'i-lobe-icons:gemini-color',
 

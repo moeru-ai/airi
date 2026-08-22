@@ -1,6 +1,7 @@
 import { createMoonshotai } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
+import { chatThinkingCapabilities } from '../../thinking'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
@@ -23,6 +24,7 @@ export const providerMoonshotAI = defineProvider<MoonshotConfig>({
   description: 'moonshot.ai',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.moonshot.description'),
   tasks: ['chat'],
+  capabilities: { chat: { thinking: chatThinkingCapabilities.moonshot } },
   icon: 'i-lobe-icons:moonshot',
 
   createProviderConfig: ({ t }) => moonshotConfigSchema.extend({

@@ -1,6 +1,7 @@
 import { createCerebras } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
+import { chatThinkingCapabilities } from '../../thinking'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
@@ -23,6 +24,7 @@ export const providerCerebrasAI = defineProvider<CerebrasConfig>({
   description: 'cerebras.ai',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.cerebras.description'),
   tasks: ['chat'],
+  capabilities: { chat: { thinking: chatThinkingCapabilities.cerebras } },
   icon: 'i-lobe-icons:cerebras',
   iconColor: 'i-lobe-icons:cerebras-color',
 
