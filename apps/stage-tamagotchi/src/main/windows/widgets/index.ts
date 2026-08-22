@@ -17,7 +17,7 @@ import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { safeClose } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen } from 'electron'
 import { clamp } from 'es-toolkit/math'
-import { isMacOS } from 'std-env'
+import { isMacOS, isWindows } from 'std-env'
 import { number, object, optional } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -231,7 +231,7 @@ function createWidgetsWindow() {
       sandbox: false,
     },
     // Top-level overlay style like other overlay windows
-    type: 'panel',
+    type: isMacOS ? 'panel' : undefined,
     ...transparentWindowConfig(),
     ...spotlightLikeWindowConfig(),
   })
@@ -249,7 +249,15 @@ function createWidgetsWindow() {
 
 function applyAlwaysOnTop(window: BrowserWindow, enabled: boolean) {
   if (enabled) {
-    window.setAlwaysOnTop(true, 'screen-saver', 1)
+    if (isMacOS) {
+      window.setAlwaysOnTop(true, 'screen-saver', 1)
+    }
+    else if (isWindows) {
+      window.setAlwaysOnTop(true, 'screen-saver', 1)
+    }
+    else {
+      window.setAlwaysOnTop(true)
+    }
     return
   }
 

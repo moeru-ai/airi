@@ -22,7 +22,7 @@ import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { defu } from 'defu'
 import { BrowserWindow, ipcMain } from 'electron'
-import { isLinux, isMacOS } from 'std-env'
+import { isLinux, isMacOS, isWindows } from 'std-env'
 import { array, number, object, optional, string } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -91,7 +91,7 @@ export async function setupMainWindow(params: {
     //
     // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
     // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
-    type: 'panel',
+    type: isMacOS ? 'panel' : undefined,
     ...transparentWindowConfig(),
   })
 
@@ -161,11 +161,17 @@ export async function setupMainWindow(params: {
   //
   // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
   // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
-  window.setAlwaysOnTop(true, 'screen-saver', 1)
-  window.setFullScreenable(false)
   window.setVisibleOnAllWorkspaces(true)
   if (isMacOS) {
+    window.setAlwaysOnTop(true, 'screen-saver', 1)
+    window.setFullScreenable(false)
     window.setWindowButtonVisibility(false)
+  }
+  else if (isWindows) {
+    window.setAlwaysOnTop(true, 'screen-saver', 1)
+  }
+  else {
+    window.setAlwaysOnTop(true)
   }
 
   window.on('ready-to-show', () => window!.show())

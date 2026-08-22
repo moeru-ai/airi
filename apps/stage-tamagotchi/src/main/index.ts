@@ -78,21 +78,44 @@ if (appUserDataPath) {
 // https://github.com/electron/electron/issues/41763#issuecomment-2051725363
 // https://github.com/electron/electron/issues/41763#issuecomment-3143338995
 if (isLinux) {
-  app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer')
+  // NOTICE: In Electron/Chromium, calling appendSwitch('enable-features', ...) multiple times
+  // overwrites the previous value because commandLine stores switches by key.
+  // All enabled features must be joined into a single comma-separated string.
+  const enabledFeatures = [
+    'SharedArrayBuffer',
+  ]
+
   app.commandLine.appendSwitch('enable-unsafe-webgpu')
-  app.commandLine.appendSwitch('enable-features', 'Vulkan')
 
-  // NOTICE: we need UseOzonePlatform, WaylandWindowDecorations for working on Wayland.
-  // Partially related to https://github.com/electron/electron/issues/41551, since X11 is deprecating now,
-  // we can safely remove the feature flags for Electron once they made it default supported.
-  // Fixes: https://github.com/moeru-ai/airi/issues/757
-  // Ref: https://github.com/mmaura/poe2linuxcompanion/blob/90664607a147ea5ccea28df6139bd95fb0ebab0e/electron/main/index.ts#L28-L46
-  if (env.XDG_SESSION_TYPE === 'wayland') {
-    app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal')
+  // Check explicit command-line switches before falling back to session environment variables.
+  // When running with XWayland (e.g. '--ozone-platform=x11'), session variables like WAYLAND_DISPLAY
+  // are still inherited from the Wayland desktop, but Chromium uses the explicitly specified Ozone backend.
+  const explicitOzonePlatform = app.commandLine.getSwitchValue('ozone-platform')
+  const ozonePlatformHint = app.commandLine.getSwitchValue('ozone-platform-hint')
 
-    app.commandLine.appendSwitch('enable-features', 'UseOzonePlatform')
-    app.commandLine.appendSwitch('enable-features', 'WaylandWindowDecorations')
+  let isWayland = false
+  if (explicitOzonePlatform) {
+    isWayland = explicitOzonePlatform === 'wayland'
   }
+  else if (ozonePlatformHint && ozonePlatformHint !== 'auto') {
+    isWayland = ozonePlatformHint === 'wayland'
+  }
+  else {
+    isWayland = Boolean(env.WAYLAND_DISPLAY || env.XDG_SESSION_TYPE === 'wayland')
+  }
+
+  if (isWayland) {
+    enabledFeatures.push('GlobalShortcutsPortal', 'UseOzonePlatform', 'WaylandWindowDecorations')
+    if (!app.commandLine.hasSwitch('ozone-platform-hint')) {
+      app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
+    }
+  }
+  else {
+    // NOTICE: Vulkan is incompatible with '--ozone-platform=wayland' in Chromium surface factory.
+    enabledFeatures.push('Vulkan')
+  }
+
+  app.commandLine.appendSwitch('enable-features', enabledFeatures.join(','))
 }
 
 app.dock?.setIcon(icon)
