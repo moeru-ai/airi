@@ -84,7 +84,6 @@ function metricDescription(metric: typeof metricControls.value[number]) {
     <section
       :class="[
         'rounded-2xl p-4',
-        'border border-neutral-200/70 dark:border-neutral-700/60',
         'bg-neutral-50/80 dark:bg-neutral-900/50',
       ]"
     >
@@ -120,7 +119,6 @@ function metricDescription(metric: typeof metricControls.value[number]) {
         :key="metric.key"
         :class="[
           'min-w-0 rounded-2xl p-4',
-          'border border-neutral-200/70 dark:border-neutral-700/60',
           'bg-neutral-50/80 dark:bg-neutral-900/50',
         ]"
       >

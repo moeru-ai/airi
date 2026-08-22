@@ -177,7 +177,7 @@ function moveWithKeyboard(event: KeyboardEvent) {
         :class="[
           'pointer-events-auto absolute w-72 max-h-full max-w-full overflow-y-auto rounded-xl p-3',
           'flex flex-col gap-2',
-          'border border-white/10 bg-neutral-950/92 text-sm text-white shadow-xl backdrop-blur-lg',
+          'bg-neutral-950/92 text-sm text-white shadow-xl backdrop-blur-lg',
           'transition-opacity duration-150 ease-out motion-reduce:transition-none',
           positionInitialized ? 'opacity-100' : 'opacity-0',
           isDragging ? 'select-none' : '',
@@ -243,7 +243,7 @@ function moveWithKeyboard(event: KeyboardEvent) {
           </div>
         </div>
 
-        <footer :class="['flex items-center gap-2 border-t border-white/10 pt-2']">
+        <footer :class="['flex items-center gap-2 pt-2']">
           <Button
             size="sm"
             :icon="recording ? 'i-solar:stop-circle-bold-duotone' : 'i-solar:record-circle-bold-duotone'"
