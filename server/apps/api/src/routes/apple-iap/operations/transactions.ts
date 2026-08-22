@@ -1,5 +1,5 @@
 import type { PaymentService } from '../../../services/domain/payment'
-import type { AppleIapVerifier } from '../../../services/domain/payment/adapters/apple-verifier'
+import type { Verifier } from '../verifier'
 
 import { Type } from '@apple/app-store-server-library'
 import { useLogger } from '@guiiai/logg'
@@ -11,7 +11,7 @@ import {
   createBadRequestError,
   createServiceUnavailableError,
 } from '../../../utils/error'
-import { evidenceReceiptFromAppleTransaction } from '../claim'
+import { evidenceReceiptFromTransaction } from '../claim'
 import { SubmitTransactionBodySchema } from '../schema'
 
 const logger = useLogger('apple-iap.transactions')
@@ -36,7 +36,7 @@ export const APPLE_IAP_NAMESPACE_UUID = 'f4e8a0c2-2c6b-4e1b-b2a5-6d7f3b5a8c91' a
  */
 export function createTransactionOperation(
   payment: PaymentService,
-  verifier: AppleIapVerifier | null,
+  verifier: Verifier | null,
 ) {
   return async (userId: string, body: unknown) => {
     if (!verifier)
@@ -77,7 +77,7 @@ export function createTransactionOperation(
       )
     }
 
-    const receipt = evidenceReceiptFromAppleTransaction(payload, userId)
+    const receipt = evidenceReceiptFromTransaction(payload, userId)
     const result = await payment.settle(receipt)
 
     logger.withFields({

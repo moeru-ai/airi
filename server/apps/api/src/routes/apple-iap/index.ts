@@ -1,7 +1,7 @@
 import type { RateLimitMetrics } from '../../otel'
 import type { PaymentService } from '../../services/domain/payment'
-import type { AppleIapVerifier } from '../../services/domain/payment/adapters/apple-verifier'
 import type { HonoEnv } from '../../types/hono'
+import type { Verifier } from './verifier'
 
 import { Hono } from 'hono'
 
@@ -20,7 +20,7 @@ import { createTransactionOperation } from './operations/transactions'
  */
 export function createAppleIapRoutes(
   payment: PaymentService,
-  verifier: AppleIapVerifier | null,
+  verifier: Verifier | null,
   rateLimitMetrics?: RateLimitMetrics | null,
 ) {
   const submitTransaction = createTransactionOperation(payment, verifier)

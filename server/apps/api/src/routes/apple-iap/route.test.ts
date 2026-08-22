@@ -1,6 +1,6 @@
 import type { PaymentService } from '../../services/domain/payment'
-import type { AppleIapVerifier } from '../../services/domain/payment/adapters/apple-verifier'
 import type { HonoEnv } from '../../types/hono'
+import type { Verifier } from './verifier'
 
 import { Hono } from 'hono'
 import { v5 as uuidv5 } from 'uuid'
@@ -28,7 +28,7 @@ function createMockPayment(overrides?: Partial<PaymentService>): PaymentService 
   }
 }
 
-function createMockVerifier(overrides?: Partial<AppleIapVerifier>): AppleIapVerifier {
+function createMockVerifier(overrides?: Partial<Verifier>): Verifier {
   return {
     verifyTransaction: vi.fn(async () => ({
       transactionId: 'txn_1',
@@ -38,12 +38,12 @@ function createMockVerifier(overrides?: Partial<AppleIapVerifier>): AppleIapVeri
       type: 'Consumable',
     })),
     ...overrides,
-  } as AppleIapVerifier
+  } as Verifier
 }
 
 function createTestApp(
   payment: PaymentService,
-  verifier: AppleIapVerifier | null,
+  verifier: Verifier | null,
 ) {
   const routes = createAppleIapRoutes(payment, verifier)
   const app = new Hono<HonoEnv>()
@@ -72,7 +72,7 @@ function createTestApp(
 
 describe('apple-iap routes', () => {
   let payment: PaymentService
-  let verifier: AppleIapVerifier
+  let verifier: Verifier
 
   beforeEach(() => {
     payment = createMockPayment()

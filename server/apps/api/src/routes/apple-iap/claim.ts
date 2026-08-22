@@ -9,7 +9,7 @@ import { createInternalError } from '../../utils/error'
  *
  * CORE resolves the pack from `productId`. This mapper does not pass flux.
  */
-export function evidenceReceiptFromAppleTransaction(
+export function evidenceReceiptFromTransaction(
   transaction: JWSTransactionDecodedPayload,
   userId: string,
 ): EvidenceReceipt {
