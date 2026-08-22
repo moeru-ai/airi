@@ -175,6 +175,14 @@ as a first language.
 
 - Comments should explain information the code cannot express clearly: intent, constraints, ownership, invariants, precedence, lifecycle, ordering, side effects, protocol shape, or non-obvious fallbacks.
 - Do not add comments that only restate names, types, or visible operations.
+- Treat a contract comment as an explanation of the relationship between a producer and its consumers.
+- Explain why a value exists in the system before you explain how the code represents it.
+- Describe the decision, behavior, or invariant that a value controls.
+- If different values select different control-flow or UI paths, describe each observable outcome.
+- When a value crosses a module or component boundary, identify the consumer and how it applies the value.
+- Put representation details after behavior: units, coordinate systems, thresholds, clamps, and source API fields.
+- Put background evidence after the contract: browser behavior, issue links, investigation history, and removal conditions.
+- If the name, type, and surrounding code express the full contract, omit the comment.
 - Place implementation comments next to the branch, calculation, transition, or side effect they explain.
 - For calculation-heavy code, explain non-obvious coordinate systems, units, conversions, clamps, rounding, aggregation, and precedence beside the relevant intermediate values or branches.
 - Prefer clearer names, types, and structured state over comments that compensate for hidden or encoded concepts.

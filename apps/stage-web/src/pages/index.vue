@@ -21,7 +21,7 @@ import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 
 const paused = ref(false)
 
@@ -31,6 +31,23 @@ function handleSettingsOpen(open: boolean) {
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = breakpoints.smaller('md')
+const stageViewportOffset = shallowRef(0)
+// WORKAROUND:
+// NOTICE:
+// Why: A fixed Stage follows Safari's input pan and moves Live2D with the keyboard.
+// Root cause: Safari moves the Visual Viewport before the page receives the new offsetTop value.
+// Source: https://bugs.webkit.org/show_bug.cgi?id=265578
+// Context: packages/stage-layouts/src/browser/adaptive-input.ts
+// Removal condition: Safari keeps fixed content stable during the input pan.
+const stageSurfaceStyle = computed(() => isMobile.value
+  ? {
+      position: 'fixed' as const,
+      inset: '0',
+      height: '100dvh',
+      transform: `translate3d(0, ${stageViewportOffset.value}px, 0)`,
+      willChange: 'transform',
+    }
+  : undefined)
 
 const backgroundStore = useBackgroundStore()
 const { selectedOption, sampledColor } = storeToRefs(backgroundStore)
@@ -183,9 +200,16 @@ const cursorPosition = computed(() => ({
     ref="backgroundSurface"
     class="widgets top-widgets"
     :background="selectedOption"
+    :style="stageSurfaceStyle"
     :top-color="sampledColor"
   >
-    <div relative flex="~ col" z-2 h-100dvh w-100vw of-hidden>
+    <div
+      data-testid="mobile-stage-content"
+      :class="[
+        'relative z-2 h-100dvh w-100vw overflow-hidden',
+        'flex flex-col',
+      ]"
+    >
       <!-- header -->
       <div class="px-0 py-1 md:px-3 md:py-3" w-full gap-2>
         <Header class="hidden md:flex" />
@@ -210,10 +234,17 @@ const cursorPosition = computed(() => ({
           />
         </div>
         <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />
-        <MobileInteractiveArea v-if="isMobile" @settings-open="handleSettingsOpen" />
       </div>
       <HoloCoupon />
     </div>
+    <Teleport to="body">
+      <MobileInteractiveArea
+        v-if="isMobile"
+        keyboard-avoidance
+        @settings-open="handleSettingsOpen"
+        @viewport-offset-change="stageViewportOffset = $event"
+      />
+    </Teleport>
   </BackgroundProvider>
 </template>
 
