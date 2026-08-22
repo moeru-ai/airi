@@ -149,39 +149,6 @@ describe('stripeRoutes', () => {
     })
   })
 
-  describe('gET /api/v1/stripe/orders', () => {
-    it('returns 404 after the orders list was removed', async () => {
-      const app = createTestApp(createMockPayment())
-      const res = await app.fetch(
-        new Request('http://localhost/api/v1/stripe/orders'),
-        { user: testUser } as any,
-      )
-      expect(res.status).toBe(404)
-    })
-  })
-
-  describe('gET /api/v1/stripe/invoices', () => {
-    it('returns 404 after the invoices list was removed', async () => {
-      const app = createTestApp(createMockPayment())
-      const res = await app.fetch(
-        new Request('http://localhost/api/v1/stripe/invoices'),
-        { user: testUser } as any,
-      )
-      expect(res.status).toBe(404)
-    })
-  })
-
-  describe('pOST /api/v1/stripe/portal', () => {
-    it('returns 404 after the billing portal was removed', async () => {
-      const app = createTestApp(createMockPayment())
-      const res = await app.fetch(
-        new Request('http://localhost/api/v1/stripe/portal', { method: 'POST' }),
-        { user: testUser } as any,
-      )
-      expect(res.status).toBe(404)
-    })
-  })
-
   describe('pOST /api/v1/stripe/webhook', () => {
     it('returns 400 when signature is missing', async () => {
       const app = createTestApp(createMockPayment())

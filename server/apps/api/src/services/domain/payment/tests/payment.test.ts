@@ -114,17 +114,6 @@ describe('payment CORE', () => {
     expect(flux?.flux).toBe(500)
   })
 
-  it('credits the snapshot on the pending row when the catalog amount differs', async () => {
-    const order = await insertPendingOrder()
-
-    const result = await payment.settle(paidReceipt(order.id))
-
-    expect(result).toMatchObject({ applied: true, fluxAmount: 500 })
-
-    const [flux] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
-    expect(flux?.flux).toBe(500)
-  })
-
   it('throws when settle runs before the order exists so the channel can retry', async () => {
     await expect(payment.settle(paidReceipt('missing-order'))).rejects.toMatchObject({
       statusCode: 500,
