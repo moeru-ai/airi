@@ -7,8 +7,7 @@ import { defineStore } from 'pinia'
  * Stores request policies for the consciousness module.
  *
  * Consciousness chat request preparation reads this state before inference.
- * When thinking is off, supported providers receive a disable-thinking option.
- * Unknown or mandatory-thinking models keep their provider default.
+ * When thinking is off, each provider applies its declared request fields.
  */
 export const useConsciousnessSettingsStore = defineStore('consciousness-settings', () => {
   const persistenceOptions = { listenToStorageChanges: false }

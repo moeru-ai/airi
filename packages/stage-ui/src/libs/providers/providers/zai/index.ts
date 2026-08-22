@@ -1,7 +1,6 @@
 import { createZai } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
-import { chatThinkingCapabilities } from '../../thinking'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
@@ -24,7 +23,7 @@ export const providerZai = defineProvider<ZaiConfig>({
   description: 'z.ai',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.zai.description'),
   tasks: ['chat'],
-  capabilities: { chat: { thinking: chatThinkingCapabilities.zai } },
+  capabilities: { chat: { thinking: { disable: { thinking: { type: 'disabled' } } } } },
   icon: 'i-lobe-icons:zai',
 
   createProviderConfig: ({ t }) => zaiConfigSchema.extend({

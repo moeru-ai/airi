@@ -1,7 +1,6 @@
 import { createOpenRouter } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
-import { chatThinkingCapabilities } from '../../thinking'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
@@ -30,7 +29,7 @@ export const providerOpenRouterAI = defineProvider<OpenRouterConfig>({
   description: 'openrouter.ai',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.openrouter.description'),
   tasks: ['chat'],
-  capabilities: { chat: { thinking: chatThinkingCapabilities.openRouter } },
+  capabilities: { chat: { thinking: { disable: { reasoning: { effort: 'none' } } } } },
   icon: 'i-lobe-icons:openrouter',
 
   createProviderConfig: ({ t }) => openRouterConfigSchema.extend({

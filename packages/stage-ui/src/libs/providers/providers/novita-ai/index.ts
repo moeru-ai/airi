@@ -1,7 +1,6 @@
 import { createNovita } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
-import { chatThinkingCapabilities } from '../../thinking'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
@@ -24,7 +23,7 @@ export const providerNovitaAI = defineProvider<NovitaConfig>({
   description: 'novita.ai',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.novita.description'),
   tasks: ['chat'],
-  capabilities: { chat: { thinking: chatThinkingCapabilities.novita } },
+  capabilities: { chat: { thinking: { disable: { enableThinking: false } } } },
   icon: 'i-lobe-icons:novita',
   iconColor: 'i-lobe-icons:novita-color',
 

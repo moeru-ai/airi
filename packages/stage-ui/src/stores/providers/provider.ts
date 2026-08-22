@@ -31,7 +31,6 @@ import {
   validateProvider as runProviderValidation,
 } from '../../libs/providers'
 import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
-import { withDisabledThinking } from '../../libs/providers/thinking'
 import { useProviderConfigStore } from './config'
 import { normalizeProviderConfigDefaults } from './config-defaults'
 
@@ -48,6 +47,23 @@ export interface ProviderRuntimeState {
 /** Stable fallback for reactive consumers when a provider has no cached catalog. */
 const emptyProviderModels: ModelInfo[] = []
 Object.freeze(emptyProviderModels)
+
+function withDisabledThinking<TProvider extends ChatProvider>(
+  provider: TProvider,
+  disable: Readonly<Record<string, unknown>>,
+): TProvider {
+  const decorated = {
+    ...provider,
+    chat(...args: Parameters<TProvider['chat']>) {
+      return {
+        ...Reflect.apply(provider.chat, provider, args),
+        ...disable,
+      }
+    },
+  }
+
+  return decorated as TProvider
+}
 
 // Only the provider data plane crosses renderer boundaries. Async derived refs
 // stay in useProviderStore and recompute locally instead of being patched as
@@ -778,10 +794,7 @@ export const useProviderStore = defineStore('provider', () => {
     if (!options.disableThinking || !thinking)
       return provider
 
-    return withDisabledThinking(provider, {
-      disable: thinking.disable,
-      enabled: () => true,
-    })
+    return withDisabledThinking(provider, thinking.disable)
   }
 
   async function disposeProviderInstance(providerId: string) {

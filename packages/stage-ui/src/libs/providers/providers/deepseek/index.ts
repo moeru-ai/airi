@@ -1,7 +1,6 @@
 import { createDeepSeek } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
-import { chatThinkingCapabilities } from '../../thinking'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
@@ -55,7 +54,7 @@ export const providerDeepSeek = defineProvider<DeepSeekConfig>({
   description: 'deepseek.com',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.deepseek.description'),
   tasks: ['chat'],
-  capabilities: { chat: { thinking: chatThinkingCapabilities.deepSeek } },
+  capabilities: { chat: { thinking: { disable: { thinking: { type: 'disabled' } } } } },
   icon: 'i-lobe-icons:deepseek',
   iconColor: 'i-lobe-icons:deepseek-color',
 

@@ -1,7 +1,6 @@
 import { createTogetherAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
-import { chatThinkingCapabilities } from '../../thinking'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
@@ -24,7 +23,7 @@ export const providerTogetherAI = defineProvider<TogetherConfig>({
   description: 'together.ai',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.together.description'),
   tasks: ['chat'],
-  capabilities: { chat: { thinking: chatThinkingCapabilities.together } },
+  capabilities: { chat: { thinking: { disable: { reasoning: { enabled: false } } } } },
   icon: 'i-lobe-icons:together',
   iconColor: 'i-lobe-icons:together-color',
 

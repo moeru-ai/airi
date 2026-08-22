@@ -1,7 +1,6 @@
 import { createOllama } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
-import { chatThinkingCapabilities } from '../../thinking'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
@@ -67,7 +66,7 @@ export const providerOllama = defineProvider<OllamaConfig>({
   description: 'Local Ollama server for fast model iteration.',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.ollama.description'),
   tasks: ['chat'],
-  capabilities: { chat: { thinking: chatThinkingCapabilities.ollama } },
+  capabilities: { chat: { thinking: { disable: { reasoningEffort: 'none' } } } },
   icon: 'i-lobe-icons:ollama',
 
   createProviderConfig: ({ t }) => ollamaConfigSchema.extend({

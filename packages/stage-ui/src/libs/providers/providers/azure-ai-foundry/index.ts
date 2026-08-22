@@ -3,7 +3,6 @@ import type { ModelInfo } from '../../types'
 import { createAzure } from '@xsai-ext/providers/special/create'
 import { z } from 'zod'
 
-import { chatThinkingCapabilities } from '../../thinking'
 import { defineProvider } from '../registry'
 
 const azureAIFoundryConfigSchema = z.object({
@@ -23,7 +22,7 @@ export const providerAzureAIFoundry = defineProvider<AzureAIFoundryConfig>({
   description: 'azure.com',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.azure-ai-foundry.description'),
   tasks: ['chat'],
-  capabilities: { chat: { thinking: chatThinkingCapabilities.openAI } },
+  capabilities: { chat: { thinking: { disable: { reasoningEffort: 'none' } } } },
   icon: 'i-lobe-icons:microsoft',
 
   createProviderConfig: ({ t }) => azureAIFoundryConfigSchema.extend({
