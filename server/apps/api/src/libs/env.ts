@@ -5,7 +5,7 @@ import { env, exit } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
 import { injeca } from 'injeca'
-import { array, check, integer, maxValue, minValue, nonEmpty, object, optional, parse, pipe, string, transform, url } from 'valibot'
+import { array, check, integer, maxValue, minValue, nonEmpty, object, optional, parse, picklist, pipe, string, transform, url } from 'valibot'
 
 const AdditionalTrustedOriginsSchema = pipe(
   string(),
@@ -79,6 +79,19 @@ const EnvSchema = object({
 
   STRIPE_SECRET_KEY: optional(string()),
   STRIPE_WEBHOOK_SECRET: optional(string()),
+
+  // Apple In-App Purchase (StoreKit 2). When APPLE_BUNDLE_ID is
+  // unset, apple-iap routes stay mounted but return 503 APPLE_IAP_DISABLED.
+  APPLE_BUNDLE_ID: optional(string()),
+  APPLE_IAP_ENV: optional(picklist(['sandbox', 'production', 'xcode']), 'sandbox'),
+  // App Store Connect numeric app id. Required when APPLE_IAP_ENV is production.
+  APPLE_APP_APPLE_ID: optional(pipe(
+    string(),
+    nonEmpty('APPLE_APP_APPLE_ID must not be empty when set'),
+    transform(input => Number(input)),
+    integer('APPLE_APP_APPLE_ID must be an integer'),
+    minValue(1, 'APPLE_APP_APPLE_ID must be at least 1'),
+  )),
 
   // LLM/TTS gateway is fully internalised by the in-process router; provider
   // baseURLs live per-upstream inside LLM_ROUTER_CONFIG, and the default chat /

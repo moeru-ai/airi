@@ -10,6 +10,7 @@ export type ClaimStatus = 'paid' | 'canceled' | 'expired'
 
 export interface CatalogProviderIds {
   stripe?: { priceId: string }
+  appleIap?: { productId: string }
 }
 
 export interface FluxPack {
@@ -37,6 +38,26 @@ export interface ClaimReceipt {
   providerCustomerId?: string
   extras?: Record<string, unknown>
 }
+
+/**
+ * Evidence-first grant for in-app purchase stores (such as Apple IAP).
+ *
+ * The channel verifies native proof, then CORE inserts a paid order by
+ * `(provider, providerOrderId)` and snapshots flux from the pack catalog.
+ */
+export interface EvidenceReceipt {
+  kind: 'evidence'
+  provider: 'apple_iap'
+  providerOrderId: string
+  userId: string
+  productId: string | number
+  amount?: number
+  currency?: string
+  providerCustomerId?: string
+  extras?: Record<string, unknown>
+}
+
+export type Receipt = ClaimReceipt | EvidenceReceipt
 
 export type SettleResult
   = | { applied: true, userId: string, fluxAmount: number, balanceAfter: number }
