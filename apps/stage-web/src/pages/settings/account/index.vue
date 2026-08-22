@@ -4,6 +4,7 @@ import AccountSettingsPage from '@proj-airi/stage-pages/pages/settings/account/a
 import { signOut } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -13,8 +14,16 @@ function handleLogin() {
 }
 
 async function handleLogout() {
-  await signOut()
-  router.push('/settings')
+  try {
+    await signOut()
+  }
+  catch (error) {
+    console.error('[auth] sign-out failed; local state retained', error)
+    toast.error('Sign out failed. Your session was kept; please try again.')
+    return
+  }
+
+  await router.push('/settings')
 }
 </script>
 

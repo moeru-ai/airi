@@ -7,6 +7,7 @@ import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
+import { toast } from 'vue-sonner'
 
 const authStore = useAuthStore()
 const { isAuthenticated, user, credits } = storeToRefs(authStore)
@@ -18,6 +19,16 @@ const showDropdown = ref(false)
 const dropdownRef = ref(null)
 
 const formattedCredits = computed(() => credits.value.toLocaleString())
+
+async function handleSignOut() {
+  try {
+    await signOut()
+  }
+  catch (error) {
+    console.error('[auth] sign-out failed; local state retained', error)
+    toast.error('Sign out failed. Your session was kept; please try again.')
+  }
+}
 
 onClickOutside(dropdownRef, () => {
   showDropdown.value = false
@@ -136,7 +147,7 @@ onClickOutside(dropdownRef, () => {
           <div class="py-1">
             <button
               class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-              @click="signOut"
+              @click="handleSignOut"
             >
               <div class="i-solar:logout-3-bold-duotone text-lg transition group-hover:text-red-600 dark:group-hover:text-red-400" />
               Sign out

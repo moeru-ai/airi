@@ -62,6 +62,21 @@ export interface AuthTokenSet {
   clientId: string
 }
 
+// Keep this private: callers depend on the timeout behavior, not the value.
+const SIGN_OUT_REQUEST_TIMEOUT_MS = 8_000
+
+function createSignOutTimeoutSignal(timeoutMs: number): AbortSignal {
+  if (typeof AbortSignal.timeout === 'function')
+    return AbortSignal.timeout(timeoutMs)
+
+  // NOTICE: stage-pocket targets iOS 15, whose WKWebView does not provide
+  // AbortSignal.timeout. Remove this branch when the deployment target moves
+  // to iOS 16+, where the native helper is available.
+  const controller = new AbortController()
+  setTimeout(() => controller.abort(), timeoutMs)
+  return controller.signal
+}
+
 /**
  * Auth store — holds identity state and credits.
  *
@@ -295,6 +310,10 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
+  /**
+   * Rejects when the server sign-out cannot be confirmed; local auth state is
+   * retained so callers can surface the failure and retry safely.
+   */
   async function signOut(): Promise<void> {
     const idTokenHint = idToken.value
     const clientId = oidcClientId.value
@@ -302,25 +321,26 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Delete the server session before local state. A new authorization request
     // can otherwise reuse the server cookie and restore the previous identity.
-    try {
-      if (idTokenHint && clientId) {
-        const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
-        url.searchParams.set('id_token_hint', idTokenHint)
-        url.searchParams.set('client_id', clientId)
-        await fetch(url.toString(), { method: 'GET' })
-      }
-      else if (bearerToken) {
-        const url = new URL('/api/auth/sign-out', SERVER_URL)
-        await fetch(url.toString(), {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${bearerToken}` },
-        })
-      }
+    if (idTokenHint && clientId) {
+      const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
+      url.searchParams.set('id_token_hint', idTokenHint)
+      url.searchParams.set('client_id', clientId)
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        signal: createSignOutTimeoutSignal(SIGN_OUT_REQUEST_TIMEOUT_MS),
+      })
+      if (!response.ok)
+        throw new Error(`OIDC sign-out failed: HTTP ${response.status}`)
     }
-    catch (error) {
-      // A network error cannot preserve local credentials. The server session
-      // expires by its TTL after the local credentials are removed.
-      console.error('Server sign-out failed', errorMessageFrom(error))
+    else if (bearerToken) {
+      const url = new URL('/api/auth/sign-out', SERVER_URL)
+      const response = await fetch(url.toString(), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${bearerToken}` },
+        signal: createSignOutTimeoutSignal(SIGN_OUT_REQUEST_TIMEOUT_MS),
+      })
+      if (!response.ok)
+        throw new Error(`Bearer sign-out failed: HTTP ${response.status}`)
     }
 
     clearAuthState()
