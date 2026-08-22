@@ -8,9 +8,16 @@ import { defineProvider } from '../registry'
 
 const OPENAI_BASE_URL = 'https://api.openai.com/v1/'
 
+/** Default model shared by OpenAI transcription settings and Hearing. */
+export const OPENAI_TRANSCRIPTION_DEFAULT_MODEL = 'gpt-4o-transcribe'
+
 const openAIAudioConfigSchema = z.object({
   apiKey: z.string(),
   baseUrl: z.string().default(OPENAI_BASE_URL),
+})
+
+const openAITranscriptionConfigSchema = openAIAudioConfigSchema.extend({
+  model: z.string().default(OPENAI_TRANSCRIPTION_DEFAULT_MODEL),
 })
 
 const openAICompatibleAudioConfigSchema = z.object({
@@ -19,6 +26,7 @@ const openAICompatibleAudioConfigSchema = z.object({
 })
 
 type OpenAIAudioConfig = z.input<typeof openAIAudioConfigSchema>
+type OpenAITranscriptionConfig = z.input<typeof openAITranscriptionConfigSchema>
 type OpenAICompatibleAudioConfig = z.input<typeof openAICompatibleAudioConfigSchema>
 type AudioConfig = OpenAIAudioConfig | OpenAICompatibleAudioConfig
 
@@ -226,7 +234,7 @@ export const providerOpenAICompatibleAudioSpeech = defineProvider<OpenAICompatib
   },
 })
 
-export const providerOpenAIAudioTranscription = defineProvider<OpenAIAudioConfig>({
+export const providerOpenAIAudioTranscription = defineProvider<OpenAITranscriptionConfig>({
   id: 'openai-audio-transcription',
   name: 'OpenAI',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.openai.title'),
@@ -237,10 +245,12 @@ export const providerOpenAIAudioTranscription = defineProvider<OpenAIAudioConfig
   capabilities: {
     transcription: { protocol: 'http', generateOutput: true, streamOutput: false, streamInput: false },
   },
-  createProviderConfig: ({ t }) => createAudioConfigSchema(openAIAudioConfigSchema, t),
+  createProviderConfig: ({ t }) => createAudioConfigSchema(openAIAudioConfigSchema, t).extend({
+    model: openAITranscriptionConfigSchema.shape.model,
+  }),
   createProvider: createTranscriptionProvider,
   validationRequiredWhen: config => Boolean(config.apiKey?.trim() && config.baseUrl?.trim()),
-  validators: createAudioValidators<OpenAIAudioConfig>(),
+  validators: createAudioValidators<OpenAITranscriptionConfig>(),
   extraMethods: {
     listModels: async () => openAITranscriptionModels,
   },

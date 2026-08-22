@@ -5,12 +5,13 @@ import {
   TranscriptionPlayground,
   TranscriptionProviderSettings,
 } from '@proj-airi/stage-ui/components'
-import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { OPENAI_TRANSCRIPTION_DEFAULT_MODEL } from '@proj-airi/stage-ui/libs/providers/providers/openai-audio'
+import { resolveOpenAITranscriptionModel, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted } from 'vue'
 
 const hearingStore = useHearingStore()
 const providersStore = useProviderStore()
@@ -19,17 +20,17 @@ const { configs: providers } = storeToRefs(providerStore)
 
 // Get provider metadata
 const providerId = 'openai-audio-transcription'
-const defaultModel = 'whisper-1'
+const defaultModel = OPENAI_TRANSCRIPTION_DEFAULT_MODEL
 
 // Model selection
-const model = computed({
-  get: () => providers.value[providerId]?.model as string | undefined || defaultModel,
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].model = value
-  },
-})
+const model = computed(() => resolveOpenAITranscriptionModel(providers.value[providerId]))
+let modelUpdateTask = Promise.resolve()
+
+function updateModel(value: string | undefined) {
+  const nextTask = modelUpdateTask.then(() => hearingStore.setTranscriptionModelForProvider(providerId, value ?? ''))
+  modelUpdateTask = nextTask.catch(cause => console.warn('Failed to update the transcription model:', cause))
+  return nextTask
+}
 
 // Load models
 const providerModels = computed(() => {
@@ -60,7 +61,7 @@ async function handleGenerateTranscription(file: File) {
   const providerConfig = providerStore.getProviderConfig(providerId)
 
   // Get model from configuration or use default
-  const modelToUse = providerConfig.model as string | undefined || defaultModel
+  const modelToUse = resolveOpenAITranscriptionModel(providerConfig)
 
   return await hearingStore.transcription(
     providerId,
@@ -70,11 +71,6 @@ async function handleGenerateTranscription(file: File) {
     'json',
   )
 }
-
-watch(model, async () => {
-  const providerConfig = providerStore.getProviderConfig(providerId)
-  providerConfig.model = model.value
-})
 </script>
 
 <template>
@@ -85,12 +81,13 @@ watch(model, async () => {
     <template #basic-settings>
       <!-- Model selection -->
       <FieldCombobox
-        v-model="model"
+        :model-value="model"
         label="Model"
         description="Select the transcription model to use"
         :options="providerModels.map(m => ({ value: m.id, label: m.name }))"
         :disabled="isLoadingModels || providerModels.length === 0"
         placeholder="Select a model..."
+        @update:model-value="updateModel"
       />
     </template>
     <template #playground>

@@ -51,10 +51,11 @@ export function useDataMaintenance() {
 
   async function resetProvidersSettings() {
     await providersStore.resetProviderSettings()
+    await hearingStore.reloadActiveTranscriptionProvider()
   }
 
-  function resetModulesSettings() {
-    hearingStore.resetState()
+  async function resetModulesSettings() {
+    await hearingStore.resetState()
     speechStore.resetState()
     consciousnessStore.resetState()
     twitterStore.resetState()
@@ -101,7 +102,7 @@ export function useDataMaintenance() {
   async function deleteAllData() {
     await deleteAllModels()
     await resetProvidersSettings()
-    resetModulesSettings()
+    await resetModulesSettings()
     deleteAllChatSessions()
     await resetSettingsState()
   }
@@ -111,7 +112,7 @@ export function useDataMaintenance() {
       return
 
     await resetSettingsState()
-    resetModulesSettings()
+    await resetModulesSettings()
   }
 
   return {

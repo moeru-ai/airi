@@ -44,6 +44,20 @@ export interface ProviderRuntimeState {
   modelError: string | null
 }
 
+function cloneReadyModelSnapshot(runtimeState: ProviderRuntimeState | undefined): ModelInfo[] {
+  if (runtimeState?.modelStatus !== 'ready')
+    return []
+
+  return cloneModelSnapshot(runtimeState.models)
+}
+
+function cloneModelSnapshot(models: readonly ModelInfo[]): ModelInfo[] {
+  return models.map(({ capabilities, ...model }) => ({
+    ...model,
+    ...(capabilities ? { capabilities: [...capabilities] } : {}),
+  }))
+}
+
 /** Stable fallback for reactive consumers when a provider has no cached catalog. */
 const emptyProviderModels: ModelInfo[] = []
 Object.freeze(emptyProviderModels)
@@ -64,6 +78,19 @@ const useProviderStateStore = defineStore('provider-state', () => {
     state: true,
   },
 })
+
+const PROVIDERS_WITH_SELECTION_IN_FIXED_MODEL_CATALOG = new Set([
+  'funasr-audio-transcription',
+  'openai-audio-transcription',
+])
+
+function modelCatalogCredentialHash(providerDefinitionId: string, config: Record<string, unknown>) {
+  if (!PROVIDERS_WITH_SELECTION_IN_FIXED_MODEL_CATALOG.has(providerDefinitionId))
+    return JSON.stringify(config)
+
+  const { model: _selectedModel, ...connectionConfig } = config
+  return JSON.stringify(connectionConfig)
+}
 
 /**
  * Owns executable provider instances and inference-specific runtime state.
@@ -129,6 +156,11 @@ export const useProviderStore = defineStore('provider', () => {
   const providerValidationInFlight = new Map<string, Promise<boolean>>()
   const providerVoiceListInFlight = new Map<string, Promise<VoiceInfo[]>>()
   const providerRevalidationLoops = new Map<string, { pause: () => void, resume: () => void }>()
+  // Model discovery is isolated per provider. Only the newest request may publish
+  // cache or status state; older responses retain no ownership after a new load starts.
+  let nextModelListRequestId = 0
+  const latestModelListRequestIds = new Map<string, number>()
+  const latestModelListRequests = new Map<string, Promise<ModelInfo[]>>()
 
   // Server-driven availability overrides for providers whose visibility can
   // only be decided at runtime from the backend (e.g. the streaming TTS
@@ -436,10 +468,12 @@ export const useProviderStore = defineStore('provider', () => {
 
   function deleteProvider(providerId: string) {
     void providerConfigStore.removeProvider(providerId)
+    latestModelListRequestIds.delete(providerId)
+    latestModelListRequests.delete(providerId)
     delete providerRuntimeState.value[providerId]
   }
 
-  function forceProviderConfigured(providerId: string) {
+  async function forceProviderConfigured(providerId: string) {
     if (providerRuntimeState.value[providerId]) {
       // Also cache the current config to prevent re-validation from overwriting
       const config = providerCredentials.value[providerId]
@@ -461,6 +495,8 @@ export const useProviderStore = defineStore('provider', () => {
 
   async function resetProviderSettings() {
     await providerConfigStore.resetProviders()
+    latestModelListRequestIds.clear()
+    latestModelListRequests.clear()
     providerRuntimeState.value = {}
 
     providerRevalidationLoops.forEach(loop => loop.pause())
@@ -564,8 +600,15 @@ export const useProviderStore = defineStore('provider', () => {
     }
   }
 
-  // Function to fetch models for a specific provider
-  async function fetchModelsForProvider(providerId: string) {
+  async function waitForLatestModelListResult(providerId: string): Promise<ModelInfo[]> {
+    const latestRequest = latestModelListRequests.get(providerId)
+    if (latestRequest)
+      return cloneModelSnapshot(await latestRequest)
+
+    return cloneReadyModelSnapshot(providerRuntimeState.value[providerId])
+  }
+
+  async function runModelListRequest(providerId: string): Promise<ModelInfo[]> {
     const definition = findProviderDefinition(providerId)
     if (!definition)
       return []
@@ -574,6 +617,8 @@ export const useProviderStore = defineStore('provider', () => {
     if (!config && definition.requiresCredentials !== false)
       return []
 
+    const requestId = ++nextModelListRequestId
+    latestModelListRequestIds.set(providerId, requestId)
     initializeProviderRuntimeState(providerId)
     providerRuntimeState.value = {
       ...providerRuntimeState.value,
@@ -595,6 +640,12 @@ export const useProviderStore = defineStore('provider', () => {
           deprecated: model.deprecated,
           provider: providerId,
         }))
+
+      if (latestModelListRequestIds.get(providerId) !== requestId) {
+        // Share the current owner's result so callers never consume an old
+        // cache or miss a fallback selected from the fresh response.
+        return waitForLatestModelListResult(providerId)
+      }
 
       // Transform and store the models
       // A synced snapshot can replace this provider entry while the request is
@@ -620,7 +671,7 @@ export const useProviderStore = defineStore('provider', () => {
     catch (error) {
       console.error(`Error fetching models for ${providerId}:`, error)
       const currentRuntimeState = providerRuntimeState.value[providerId]
-      if (currentRuntimeState) {
+      if (latestModelListRequestIds.get(providerId) === requestId && currentRuntimeState) {
         providerRuntimeState.value = {
           ...providerRuntimeState.value,
           [providerId]: {
@@ -630,8 +681,23 @@ export const useProviderStore = defineStore('provider', () => {
           },
         }
       }
+      // Share the current owner's result even when this stale request rejects.
+      if (latestModelListRequestIds.get(providerId) !== requestId)
+        return waitForLatestModelListResult(providerId)
+
       return []
     }
+  }
+
+  // Function to fetch models for a specific provider
+  function fetchModelsForProvider(providerId: string): Promise<ModelInfo[]> {
+    const request = runModelListRequest(providerId)
+    latestModelListRequests.set(providerId, request)
+
+    return request.finally(() => {
+      if (latestModelListRequests.get(providerId) === request)
+        latestModelListRequests.delete(providerId)
+    })
   }
 
   // Get models for a specific provider
@@ -653,7 +719,7 @@ export const useProviderStore = defineStore('provider', () => {
     const changedProviders: string[] = []
 
     for (const [providerId, currentConfig] of Object.entries(providerCredentials.value)) {
-      const currentHash = JSON.stringify(currentConfig)
+      const currentHash = modelCatalogCredentialHash(getProviderDefinitionId(providerId), currentConfig)
       const previousHash = previousCredentialHashes.get(providerId)
 
       if (currentHash !== previousHash) {

@@ -13,7 +13,7 @@ import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 
 import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
 
@@ -22,11 +22,14 @@ import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
 import { createVadStreamingSession } from '../../libs/audio/vad-streaming-session'
 import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers'
 import { streamWebSpeechAPITranscription } from '../../libs/providers/providers/browser-web-speech-api'
+import { OPENAI_TRANSCRIPTION_DEFAULT_MODEL } from '../../libs/providers/providers/openai-audio'
 import { streamTranscription } from '../../libs/providers/stream-transcription'
 import { useVAD } from '../ai/models/vad'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { StreamingTranscriptionConsumers } from './streaming-transcription-consumers'
+
+const OPENAI_COMPATIBLE_TRANSCRIPTION_DEFAULT_MODEL = 'whisper-1'
 
 function errorMessage(err: unknown): string {
   const msg = errorMessageFromValue(err)
@@ -126,6 +129,12 @@ export function filterTranscriptionByConfidence(
   }
 
   return segments.filter(s => (s?.avg_logprob ?? -Infinity) >= threshold).map(s => s?.text ?? '').join('').trim()
+}
+
+export function supportsVerboseJsonResponse(providerId: string, model: string): boolean {
+  // OpenAI's GPT transcription models only accept JSON responses. Whisper-1
+  // remains the official OpenAI model that supports verbose_json segments.
+  return providerId !== 'openai-audio-transcription' || model === 'whisper-1'
 }
 
 /**
@@ -287,6 +296,41 @@ export function resolveActiveTranscriptionModel(activeModel: string, providerCon
 }
 
 /**
+ * Resolves the model displayed by the OpenAI-compatible transcription settings page.
+ * An explicitly stored empty string is user-owned state; only a missing model receives the UI default.
+ */
+export function resolveOpenAICompatibleTranscriptionModel(providerConfig?: Record<string, unknown>) {
+  if (Object.hasOwn(providerConfig ?? {}, 'model') && typeof providerConfig?.model === 'string')
+    return providerConfig.model
+
+  return OPENAI_COMPATIBLE_TRANSCRIPTION_DEFAULT_MODEL
+}
+
+/**
+ * Resolves the model displayed by the OpenAI transcription settings page.
+ * An own string model, including an explicitly stored empty string, is user-owned state.
+ * Missing or non-string models receive the OpenAI default.
+ */
+export function resolveOpenAITranscriptionModel(providerConfig?: Record<string, unknown>) {
+  if (Object.hasOwn(providerConfig ?? {}, 'model') && typeof providerConfig?.model === 'string')
+    return providerConfig.model
+
+  return OPENAI_TRANSCRIPTION_DEFAULT_MODEL
+}
+
+/**
+ * Returns whether a provider explicitly owns a blank transcription model.
+ *
+ * Missing or non-string model fields are not explicit clearance. A provider
+ * owns the cleared state only when its own string model value trims to empty.
+ */
+export function hasExplicitlyClearedTranscriptionModel(providerConfig?: Record<string, unknown>) {
+  return Object.hasOwn(providerConfig ?? {}, 'model')
+    && typeof providerConfig?.model === 'string'
+    && providerConfig.model.trim() === ''
+}
+
+/**
  * Resolves extra transcription request options from provider config and UI locale.
  *
  * Use when:
@@ -336,9 +380,145 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED, persistenceOptions)
   const verboseJsonNotSupported = ref(false)
 
-  watch(activeTranscriptionProvider, () => {
-    verboseJsonNotSupported.value = false
+  const activeFunASRConfiguredModel = computed(() => {
+    if (activeTranscriptionProvider.value !== 'funasr-audio-transcription')
+      return ''
+
+    const model = providerStore.getProviderConfig('funasr-audio-transcription')?.model
+    return typeof model === 'string' ? model : 'sensevoice'
   })
+
+  // This watcher state belongs to one destination-model request. A newer load for the same
+  // provider replaces the request id, so an older response cannot update the active model.
+  let nextDestinationModelRequestId = 0
+  let pendingDestinationModelRequest: { providerId: string, requestId?: number } | undefined
+  let initialized = false
+
+  function applyActiveTranscriptionModel(providerId: string, model: string) {
+    activeTranscriptionModel.value = model
+    const providerConfig = providerStore.getProviderConfig(providerId)
+    const ownsStoredModel = Object.hasOwn(providerConfig ?? {}, 'model') && typeof providerConfig?.model === 'string'
+    if (!providerConfig || (providerId !== 'openai-compatible-audio-transcription' && !ownsStoredModel))
+      return
+
+    if (providerConfig.model !== model)
+      providerConfig.model = model
+  }
+
+  function syncDestinationModel(providerId: string, freshlyListedModels: readonly { id: string }[] = []) {
+    if (activeTranscriptionProvider.value !== providerId)
+      return false
+
+    const providerConfig = providerStore.getProviderConfig(providerId)
+    const configuredModel = providerConfig?.model
+    const ownsModel = Object.hasOwn(providerConfig ?? {}, 'model') && typeof configuredModel === 'string'
+    if (ownsModel) {
+      applyActiveTranscriptionModel(providerId, configuredModel.trim())
+      return true
+    }
+
+    const defaultOptions = providersStore.getDefaultProviderConfig(providerId)
+    const defaultModelValue = (defaultOptions as Record<string, unknown>).model
+    const defaultModel = typeof defaultModelValue === 'string' ? defaultModelValue.trim() : ''
+    const openAICompatibleModel = providerId === 'openai-compatible-audio-transcription'
+      ? resolveOpenAICompatibleTranscriptionModel(providerConfig).trim()
+      : ''
+    // A list-backed fallback must come from the current refresh. The runtime cache may still belong
+    // to credentials or an endpoint that the user has just replaced.
+    const listedModel = freshlyListedModels[0]?.id ?? ''
+    const model = defaultModel || openAICompatibleModel || listedModel
+    if (!model)
+      return false
+
+    applyActiveTranscriptionModel(providerId, model)
+    if (providerConfig && providerConfig.model !== model)
+      providerConfig.model = model
+    return true
+  }
+
+  async function setActiveTranscriptionProvider(providerId: string, requestedModel?: string) {
+    const previousProviderId = activeTranscriptionProvider.value
+    activeTranscriptionProvider.value = providerId
+    verboseJsonNotSupported.value = false
+    pendingDestinationModelRequest = undefined
+    if (requestedModel !== undefined) {
+      applyActiveTranscriptionModel(providerId, requestedModel)
+      return
+    }
+
+    if (providerId === 'funasr-audio-transcription') {
+      applyActiveTranscriptionModel(providerId, activeFunASRConfiguredModel.value)
+      await loadModelsForProvider(providerId)
+    }
+    else if (providerId) {
+      if (previousProviderId !== providerId)
+        activeTranscriptionModel.value = ''
+      pendingDestinationModelRequest = { providerId }
+      if (syncDestinationModel(providerId))
+        pendingDestinationModelRequest = undefined
+      await loadModelsForProvider(providerId)
+    }
+  }
+
+  async function setActiveTranscriptionModel(model: string) {
+    applyActiveTranscriptionModel(activeTranscriptionProvider.value, model)
+  }
+
+  async function setTranscriptionModelForProvider(providerId: string, model: string) {
+    const providerConfig = providerStore.getProviderConfig(providerId)
+    if (providerConfig && providerConfig.model !== model)
+      providerConfig.model = model
+
+    if (activeTranscriptionProvider.value === providerId && activeTranscriptionModel.value !== model)
+      activeTranscriptionModel.value = model
+  }
+
+  async function setActiveCustomTranscriptionModel(model: string) {
+    activeCustomModelName.value = model
+    applyActiveTranscriptionModel(activeTranscriptionProvider.value, model)
+  }
+
+  async function reloadActiveTranscriptionProvider() {
+    const providerId = activeTranscriptionProvider.value
+    if (!providerId)
+      return
+
+    await providersStore.initializeProvider(providerId)
+    await setActiveTranscriptionProvider(providerId)
+  }
+
+  async function initialize() {
+    // This synchronized action runs once in the elected leader. Store creation
+    // must not reconcile persisted state independently in every window.
+    if (initialized)
+      return
+
+    initialized = true
+    const providerId = activeTranscriptionProvider.value
+    if (!providerId)
+      return
+
+    if (providerId === 'funasr-audio-transcription') {
+      applyActiveTranscriptionModel(providerId, activeFunASRConfiguredModel.value)
+      await loadModelsForProvider(providerId)
+      return
+    }
+
+    const providerConfig = providerStore.getProviderConfig(providerId)
+    const configuredModel = providerConfig?.model
+    const ownsConfiguredModel = Object.hasOwn(providerConfig ?? {}, 'model') && typeof configuredModel === 'string'
+    if (ownsConfiguredModel) {
+      activeTranscriptionModel.value = configuredModel.trim()
+      return
+    }
+
+    if (activeTranscriptionModel.value.trim())
+      return
+
+    pendingDestinationModelRequest = { providerId }
+    if (syncDestinationModel(providerId))
+      pendingDestinationModelRequest = undefined
+  }
 
   // Computed properties
   const availableProvidersMetadata = computed(() => allAudioTranscriptionProvidersMetadata.value)
@@ -361,8 +541,22 @@ export const useHearingStore = defineStore('hearing-store', () => {
   })
 
   async function loadModelsForProvider(provider: string) {
+    const destinationRequest = pendingDestinationModelRequest?.providerId === provider
+      ? { providerId: provider, requestId: ++nextDestinationModelRequestId }
+      : undefined
+    if (destinationRequest)
+      pendingDestinationModelRequest = destinationRequest
+
+    let freshlyListedModels: readonly { id: string }[] = []
     if (providersStore.supportsModelListing(provider)) {
-      await providersStore.fetchModelsForProvider(provider)
+      freshlyListedModels = await providersStore.fetchModelsForProvider(provider)
+    }
+
+    if (destinationRequest
+      && pendingDestinationModelRequest?.providerId === destinationRequest.providerId
+      && pendingDestinationModelRequest.requestId === destinationRequest.requestId
+      && syncDestinationModel(provider, freshlyListedModels)) {
+      pendingDestinationModelRequest = undefined
     }
   }
 
@@ -386,7 +580,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
     // For OpenAI Compatible providers, check provider config as fallback
     let hasProviderModel = false
-    if (activeTranscriptionProvider.value === 'openai-compatible-audio-transcription') {
+    if (activeTranscriptionProvider.value === 'openai-compatible-audio-transcription'
+      || activeTranscriptionProvider.value === 'funasr-audio-transcription') {
       const providerConfig = providerStore.getProviderConfig(activeTranscriptionProvider.value)
       hasProviderModel = !!providerConfig?.model
     }
@@ -394,7 +589,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     return !!activeTranscriptionModel.value || hasProviderModel
   })
 
-  function resetState() {
+  async function resetState() {
     activeTranscriptionProvider.reset()
     activeTranscriptionModel.reset()
     activeCustomModelName.reset()
@@ -496,7 +691,12 @@ export const useHearingStore = defineStore('hearing-store', () => {
         throw new Error('File input is required for transcription.')
       }
 
-      const useVerboseJson = !format && confidenceThreshold.value > CONFIDENCE_THRESHOLD_DISABLED
+      const confidenceFilteringRequested = !format && confidenceThreshold.value > CONFIDENCE_THRESHOLD_DISABLED
+      const useVerboseJson = confidenceFilteringRequested && supportsVerboseJsonResponse(providerId, model)
+      if (confidenceFilteringRequested && !useVerboseJson) {
+        verboseJsonNotSupported.value = true
+        console.warn('[Hearing] Confidence filter is enabled but the selected model does not support verbose_json. Filtering has no effect.')
+      }
       const response = await generateTranscription({
         ...provider.transcription(model, options?.providerOptions),
         file: normalizedInput.file,
@@ -553,12 +753,28 @@ export const useHearingStore = defineStore('hearing-store', () => {
     configured,
 
     transcription,
+    initialize,
+    reloadActiveTranscriptionProvider,
+    setActiveCustomTranscriptionModel,
+    setActiveTranscriptionProvider,
+    setActiveTranscriptionModel,
+    setTranscriptionModelForProvider,
     loadModelsForProvider,
     getModelsForProvider,
     resetState,
   }
 }, {
   synced: {
+    actions: [
+      'initialize',
+      'loadModelsForProvider',
+      'reloadActiveTranscriptionProvider',
+      'resetState',
+      'setActiveCustomTranscriptionModel',
+      'setActiveTranscriptionModel',
+      'setActiveTranscriptionProvider',
+      'setTranscriptionModelForProvider',
+    ],
     state: true,
   },
 })
@@ -1049,12 +1265,12 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           // Try to get models for the provider and select the first one
           const models = await providersStore.getModelsForProvider(providerId)
           if (models.length > 0) {
-            activeTranscriptionModel.value = models[0].id
+            await hearingStore.setActiveTranscriptionModel(models[0].id)
             console.info('Auto-selected Web Speech API model:', models[0].id)
           }
           else {
             // Fallback to default model ID
-            activeTranscriptionModel.value = 'web-speech-api'
+            await hearingStore.setActiveTranscriptionModel('web-speech-api')
             console.info('Auto-selected Web Speech API default model')
           }
         }

@@ -80,6 +80,7 @@ export function useProviderValidation(providerId: string) {
   const isValidating = ref(0)
   const isValid = ref(false)
   const validationMessage = ref('')
+  let validationRevision = 0
 
   // Manual chat ping check state (settings pages only)
   const hasManualValidators = computed(() => providersStore.hasManualProviderValidators(providerId))
@@ -94,11 +95,11 @@ export function useProviderValidation(providerId: string) {
     }
   }
 
-  async function validateConfiguration() {
-    if (!providerMetadata.value)
+  async function validateConfiguration(revision: number) {
+    if (revision !== validationRevision || !providerMetadata.value)
       return
 
-    isValidating.value++
+    isValidating.value = 1
     validationMessage.value = ''
     const startValidationTimestamp = performance.now()
     let finalValidationMessage = ''
@@ -115,29 +116,43 @@ export function useProviderValidation(providerId: string) {
       const validationResult = await providersStore.validateProviderConfig(providerId, config, {
         skipChatPingCheck: true,
       })
-      isValid.value = validationResult.valid
 
-      if (!isValid.value) {
+      if (revision !== validationRevision)
+        return
+
+      if (!validationResult.valid) {
+        isValid.value = false
         finalValidationMessage = validationResult.reason
+        providerStore.setProviderStatus(providerId, 'invalid')
       }
+      else {
+        // A successful settings-page validation must both list the provider and
+        // transition it to configured. Modules such as Hearing only expose
+        // configured providers, including providers that use default config and
+        // do not require an API key.
+        await providersStore.forceProviderConfigured(providerId)
+        if (revision !== validationRevision)
+          return
 
-      // When a provider validates successfully on its settings page,
-      // mark it as added so it appears in the model selector (e.g. Consciousness module).
-      // This fixes providers like LM Studio that use default config and may not
-      // need an API key, yet should be selectable after successful validation.
-      if (isValid.value) {
-        providerStore.markProviderAdded(providerId)
+        isValid.value = true
       }
     }
     catch (error) {
+      if (revision !== validationRevision)
+        return
+
       isValid.value = false
+      providerStore.setProviderStatus(providerId, 'invalid')
       finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
         error: errorMessageFrom(error) ?? 'Generic error (993b5ad7)',
       })
     }
     finally {
       setTimeout(() => {
-        isValidating.value--
+        if (revision !== validationRevision)
+          return
+
+        isValidating.value = 0
         validationMessage.value = finalValidationMessage
       }, Math.max(0, debounceTime - (performance.now() - startValidationTimestamp)))
     }
@@ -195,9 +210,21 @@ export function useProviderValidation(providerId: string) {
     }
   }
 
-  const AUTH_FIELDS = ['apiKey', 'baseUrl', 'accountId', 'apiToken', 'accessToken'] as const
+  const AUTH_FIELDS = [
+    'apiKey',
+    'baseUrl',
+    'accountId',
+    'apiToken',
+    'accessToken',
+    'accessKeyId',
+    'accessKeySecret',
+    'appKey',
+  ] as const
 
-  const debouncedValidateConfiguration = useDebounceFn(() => {
+  const debouncedValidateConfiguration = useDebounceFn((revision: number) => {
+    if (revision !== validationRevision)
+      return
+
     const config = credentials.value as Record<string, unknown>
     // Only check auth credential fields — excludes config-only fields like region, endpoint
     const hasAnyCredential = AUTH_FIELDS.some((field) => {
@@ -206,21 +233,23 @@ export function useProviderValidation(providerId: string) {
     })
     if (!hasAnyCredential) {
       isValid.value = false
+      providerStore.setProviderStatus(providerId, 'invalid')
       validationMessage.value = ''
       isValidating.value = 0
       return
     }
-    validateConfiguration()
+    validateConfiguration(revision)
   }, debounceTime)
 
   onMounted(() => {
     providersStore.initializeProvider(providerId)
+    const revision = ++validationRevision
     const config = credentials.value as Record<string, unknown>
     if (AUTH_FIELDS.some((field) => {
       const v = config[field]
       return v !== null && v !== undefined && String(v).trim() !== ''
     })) {
-      validateConfiguration()
+      debouncedValidateConfiguration(revision)
     }
   })
 
@@ -231,13 +260,16 @@ export function useProviderValidation(providerId: string) {
   const credentialsSignature = computed(() => JSON.stringify(credentials.value))
 
   watch(credentialsSignature, () => {
-    debouncedValidateConfiguration()
+    const revision = ++validationRevision
+    isValidating.value = 0
+    debouncedValidateConfiguration(revision)
     // Reset manual test state when credentials actually change
     manualTestPassed.value = false
     manualTestMessage.value = ''
   })
 
   function handleResetSettings() {
+    validationRevision++
     const defaultOptions = providerMetadata.value?.defaultConfig ?? {}
     providers.value[providerId] = { ...defaultOptions }
     isValid.value = false
@@ -247,12 +279,17 @@ export function useProviderValidation(providerId: string) {
     manualTestMessage.value = ''
   }
 
-  function forceValid() {
-    isValid.value = true
+  async function forceValid() {
+    const revision = ++validationRevision
+    isValidating.value = 0
     validationMessage.value = ''
     manualTestPassed.value = true
     manualTestMessage.value = ''
-    providersStore.forceProviderConfigured(providerId)
+    await providersStore.forceProviderConfigured(providerId)
+    if (revision !== validationRevision)
+      return
+
+    isValid.value = true
   }
 
   return {

@@ -4,7 +4,6 @@ import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple
 import { useAnalytics, useAudioAnalyzer, useHearingPlaygroundSegments, useVoiceInputSession } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { CONFIDENCE_THRESHOLD_DISABLED, useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange } from '@proj-airi/ui'
@@ -13,6 +12,8 @@ import { computed, onMounted, onUnmounted, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import HearingPlaygroundTranscripts from './components/hearing-playground-transcripts.vue'
+
+import { createProviderTransitionController } from './composables/provider-transition'
 
 const { t } = useI18n()
 
@@ -32,7 +33,6 @@ const {
   verboseJsonNotSupported,
 } = storeToRefs(hearingStore)
 const providersStore = useProviderStore()
-const providerStore = useProviderConfigStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
 const { trackProviderClick } = useAnalytics()
@@ -59,6 +59,21 @@ let volumeSpeechEndTimer: ReturnType<typeof setTimeout> | undefined
 
 const error = shallowRef('')
 const isMonitoring = shallowRef(false)
+let selectionTask = Promise.resolve()
+
+function queueSelection(action: () => Promise<void>) {
+  const nextTask = selectionTask.then(action)
+  selectionTask = nextTask.catch(cause => console.warn('[Hearing Module] Failed to update transcription selection:', cause))
+  return nextTask
+}
+
+function selectTranscriptionProvider(provider: string) {
+  return queueSelection(() => hearingStore.setActiveTranscriptionProvider(provider))
+}
+
+function selectTranscriptionModel(model: string) {
+  return queueSelection(() => hearingStore.setActiveTranscriptionModel(model))
+}
 
 const {
   current: currentTranscription,
@@ -247,27 +262,7 @@ const speakingIndicatorClass = computed(() => {
 
 function updateCustomModelName(value: string | undefined) {
   const modelValue = value || ''
-  activeCustomModelName.value = modelValue
-  activeTranscriptionModel.value = modelValue
-}
-
-// Sync OpenAI Compatible model from provider config
-function syncOpenAICompatibleSettings() {
-  if (activeTranscriptionProvider.value !== 'openai-compatible-audio-transcription')
-    return
-
-  const providerConfig = providerStore.getProviderConfig(activeTranscriptionProvider.value)
-  // Always sync model from provider config (override any existing value from previous provider)
-  if (providerConfig?.model) {
-    activeTranscriptionModel.value = providerConfig.model as string
-    updateCustomModelName(providerConfig.model as string)
-  }
-  else {
-    // If no model in provider config, use default
-    const defaultModel = 'whisper-1'
-    activeTranscriptionModel.value = defaultModel
-    updateCustomModelName(defaultModel)
-  }
+  return queueSelection(() => hearingStore.setActiveCustomTranscriptionModel(modelValue))
 }
 
 watch([selectedAudioInput, useVADModel], async () => {
@@ -298,32 +293,24 @@ watch(isSpeechVolume, (speaking) => {
   }, useVADMinSilenceDurationMs.value)
 })
 
-watch(activeTranscriptionProvider, async (provider, previousProvider) => {
-  const shouldRestartMonitoring = isMonitoring.value
+const providerTransitionController = createProviderTransitionController({
+  applyProviderState: () => {},
+  clearSegments: clearPlaygroundSegments,
+  getActiveProvider: () => activeTranscriptionProvider.value,
+  getMonitoring: () => isMonitoring.value,
+  setMonitoring: monitoring => isMonitoring.value = monitoring,
+  startMonitoring: setupAudioMonitoring,
+  stopMonitoring: stopAudioMonitoring,
+  waitForProviderReady: async () => {
+    await selectionTask
+  },
+})
 
-  if (shouldRestartMonitoring) {
-    isMonitoring.value = false
-    await stopAudioMonitoring(previousProvider)
-  }
-
-  clearPlaygroundSegments()
-
-  if (!provider)
-    return
-
-  await hearingStore.loadModelsForProvider(provider)
-  syncOpenAICompatibleSettings()
-
-  const models = providerModels.value
-  if (models.length > 0 && !models.some(model => model.id === activeTranscriptionModel.value))
-    activeTranscriptionModel.value = models[0].id
-
-  if (shouldRestartMonitoring)
-    isMonitoring.value = await setupAudioMonitoring()
+watch(activeTranscriptionProvider, (_provider, previousProvider) => {
+  void providerTransitionController.requestTransition(previousProvider)
 }, { immediate: true })
 
 onMounted(async () => {
-  syncOpenAICompatibleSettings()
   await askPermission()
 })
 
@@ -373,11 +360,12 @@ onUnmounted(() => {
                 v-for="metadata in configuredTranscriptionProvidersMetadata"
                 :id="metadata.id"
                 :key="metadata.id"
-                v-model="activeTranscriptionProvider"
+                :model-value="activeTranscriptionProvider"
                 name="provider"
                 :value="metadata.id"
                 :title="metadata.localizedName || 'Unknown'"
                 :description="metadata.localizedDescription"
+                @update:model-value="selectTranscriptionProvider"
                 @click="trackProviderClick(metadata.id, 'hearing')"
               />
               <RouterLink
@@ -478,8 +466,8 @@ onUnmounted(() => {
             <!-- Using the new RadioCardManySelect component for providers with models -->
             <template v-else-if="providerModels.length > 0 && supportsModelListing">
               <RadioCardManySelect
-                v-model="activeTranscriptionModel"
                 v-model:search-query="transcriptionModelSearchQuery"
+                :model-value="activeTranscriptionModel"
                 :items="sortedProviderModels"
                 :searchable="true"
                 :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
@@ -490,6 +478,7 @@ onUnmounted(() => {
                 :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
                 :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
                 expanded-class="mb-12"
+                @update:model-value="selectTranscriptionModel"
                 @update:custom-value="updateCustomModelName"
               />
             </template>
