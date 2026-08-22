@@ -366,7 +366,7 @@ export const useChatStore = defineStore('chat', () => {
 
     const messageCount = chatSession.getSessionMessages(payload.sessionId).length
     const chatProvider = await providerStore.getChatProviderInstance(providerId, {
-      disableThinking: consciousnessSettingsStore.disableThinking,
+      disableThinking: !consciousnessSettingsStore.thinking,
     })
     if (!chatProvider)
       throw new Error(`Failed to resolve chat provider "${providerId}"`)

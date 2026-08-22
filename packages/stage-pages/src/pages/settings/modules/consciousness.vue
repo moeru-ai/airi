@@ -11,7 +11,7 @@ import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
-import ConsciousnessThinkingSettings from './components/consciousness-thinking-settings.vue'
+import ConsciousnessModelOptions from './components/consciousness-model-options.vue'
 
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
@@ -20,7 +20,7 @@ const consciousnessStore = useConsciousnessStore()
 const consciousnessSettingsStore = useConsciousnessSettingsStore()
 const { configuredProviders } = storeToRefs(providerStore)
 const { persistedChatProvidersMetadata } = storeToRefs(providersStore)
-const { disableThinking } = storeToRefs(consciousnessSettingsStore)
+const { thinking } = storeToRefs(consciousnessSettingsStore)
 const {
   activeProvider,
   activeModel,
@@ -287,9 +287,9 @@ function handleDeleteProvider(providerId: string) {
       </div>
     </div>
 
-    <ConsciousnessThinkingSettings
+    <ConsciousnessModelOptions
       v-if="activeProvider && activeModel"
-      v-model="disableThinking"
+      v-model="thinking"
       :can-disable-thinking="canDisableThinking"
     />
   </div>
