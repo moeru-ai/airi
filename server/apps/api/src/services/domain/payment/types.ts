@@ -27,7 +27,7 @@ export interface FluxPack {
  * The channel maps a verified Checkout Session onto this receipt.
  * CORE claims by `paymentOrderId`.
  */
-export type ClaimReceipt = {
+export interface ClaimReceipt {
   kind: 'claim'
   provider: 'stripe'
   paymentOrderId: string
@@ -45,7 +45,7 @@ export type ClaimReceipt = {
  * The channel verifies native proof, then CORE inserts a paid order by
  * `(provider, providerOrderId)` and snapshots flux from the pack catalog.
  */
-export type EvidenceReceipt = {
+export interface EvidenceReceipt {
   kind: 'evidence'
   provider: 'apple_iap' | 'steam'
   providerOrderId: string
