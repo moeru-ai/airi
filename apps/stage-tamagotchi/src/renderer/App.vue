@@ -145,8 +145,7 @@ function createFullStageRuntime() {
       if (!syncedPinia.isLeader())
         return
 
-      if (await configureAsDefaultsIfEmpty())
-        await cardStore.persistActiveCardModuleSelections()
+      await configureAsDefaultsIfEmpty()
       await onboardingStore.closeAfterAuthentication()
     })
   }
