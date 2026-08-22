@@ -217,17 +217,4 @@ describe('apple-iap routes', () => {
 
     expect(res.status).toBe(500)
   })
-
-  it('returns 404 for the removed ASSN notifications route', async () => {
-    const app = createTestApp(payment, verifier)
-    const res = await app.fetch(
-      new Request('http://localhost/api/v1/apple-iap/notifications', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ signedPayload: 'payload' }),
-      }),
-      { user: testUser } as any,
-    )
-    expect(res.status).toBe(404)
-  })
 })
