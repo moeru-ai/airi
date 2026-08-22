@@ -53,7 +53,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
 </script>
 
 <template>
-  <div v-if="message.role === 'user'" :class="containerClasses" class="ph-no-capture">
+  <div v-if="message.role === 'user'" :class="['font-cute', containerClasses]" class="ph-no-capture">
     <ChatActionMenu
       :copy-text="copyText"
       placement="left"
