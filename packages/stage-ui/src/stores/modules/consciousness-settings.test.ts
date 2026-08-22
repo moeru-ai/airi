@@ -2,7 +2,6 @@
 
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { nextTick } from 'vue'
 
 import { useConsciousnessSettingsStore } from './consciousness-settings'
 
@@ -18,15 +17,21 @@ describe('consciousness settings store', () => {
     expect(store.thinking).toBe(false)
   })
 
-  it('restores the default after the enabled value is persisted', async () => {
+  it('loads the persisted value', () => {
+    localStorage.setItem('settings/consciousness/thinking', 'true')
     const store = useConsciousnessSettingsStore()
-    store.thinking = true
-    await nextTick()
 
+    expect(store.thinking).toBe(true)
+  })
+
+  it('persists changes through store actions', async () => {
+    const store = useConsciousnessSettingsStore()
+    await store.setThinking(true)
+
+    expect(store.thinking).toBe(true)
     expect(localStorage.getItem('settings/consciousness/thinking')).toBe('true')
 
-    store.resetState()
-    await nextTick()
+    await store.resetState()
 
     expect(store.thinking).toBe(false)
     expect(localStorage.getItem('settings/consciousness/thinking')).toBe('false')

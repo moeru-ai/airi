@@ -2,7 +2,14 @@
 import { FieldCheckbox } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
 
-const thinking = defineModel<boolean>({ required: true })
+const props = defineProps<{
+  thinking: boolean
+}>()
+
+const emit = defineEmits<{
+  updateThinking: [value: boolean]
+}>()
+
 const { t } = useI18n()
 </script>
 
@@ -13,8 +20,9 @@ const { t } = useI18n()
     </h2>
 
     <FieldCheckbox
-      v-model="thinking"
+      :model-value="props.thinking"
       :label="t('settings.pages.modules.consciousness.sections.section.model-options.thinking.label')"
+      @update:model-value="emit('updateThinking', $event)"
     />
   </section>
 </template>

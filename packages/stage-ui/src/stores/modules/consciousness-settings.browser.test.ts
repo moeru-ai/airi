@@ -2,7 +2,7 @@ import type { LeadershipMode, SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from 'vue'
 
 import { useConsciousnessSettingsStore } from './consciousness-settings'
@@ -26,6 +26,10 @@ function createSyncedContext(namespace: string, leadership: LeadershipMode) {
 }
 
 describe('consciousness settings synchronization', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
   afterEach(() => {
     for (const context of syncedContexts.splice(0)) {
       context.runtime.dispose()
@@ -61,5 +65,33 @@ describe('consciousness settings synchronization', () => {
     expect(leaderMutations).toBe(1)
     expect(followerMutations).toBe(1)
     expect(followerActions).toBe(0)
+    expect(localStorage.getItem('settings/consciousness/thinking')).toBeNull()
+  })
+
+  it('persists a follower update through one leader-owned action', async () => {
+    const namespace = `consciousness-settings:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+
+    setActivePinia(leaderContext.pinia)
+    const leaderStore = useConsciousnessSettingsStore()
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerStore = useConsciousnessSettingsStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    let leaderActions = 0
+    leaderStore.$onAction(({ name }) => {
+      if (name === 'setThinking')
+        leaderActions++
+    })
+
+    await followerStore.setThinking(true)
+    await vi.waitFor(() => expect(followerStore.thinking).toBe(true))
+
+    expect(leaderStore.thinking).toBe(true)
+    expect(leaderActions).toBe(1)
+    expect(localStorage.getItem('settings/consciousness/thinking')).toBe('true')
   })
 })

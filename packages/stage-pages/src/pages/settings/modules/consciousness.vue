@@ -64,6 +64,10 @@ function handleDeleteProvider(providerId: string) {
   }
   providersStore.deleteProvider(providerId)
 }
+
+async function updateThinking(value: boolean) {
+  await consciousnessSettingsStore.setThinking(value)
+}
 </script>
 
 <template>
@@ -287,7 +291,8 @@ function handleDeleteProvider(providerId: string) {
 
     <ConsciousnessModelOptions
       v-if="activeProvider && activeModel"
-      v-model="thinking"
+      :thinking="thinking"
+      @update-thinking="updateThinking"
     />
   </div>
 
