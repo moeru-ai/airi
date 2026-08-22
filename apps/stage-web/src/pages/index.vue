@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { ChatProvider } from '@xsai-ext/providers/utils'
-
 import Header from '@proj-airi/stage-layouts/components/Layouts/Header.vue'
 import InteractiveArea from '@proj-airi/stage-layouts/components/Layouts/InteractiveArea.vue'
 import MobileHeader from '@proj-airi/stage-layouts/components/Layouts/MobileHeader.vue'
@@ -16,6 +14,7 @@ import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-re
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useConsciousnessSettingsStore } from '@proj-airi/stage-ui/stores/modules/consciousness-settings'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -66,6 +65,7 @@ const { removeStreamingTranscriptionConsumer, stopStreamingTranscription, transc
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const providersStore = useProviderStore()
 const consciousnessStore = useConsciousnessStore()
+const consciousnessSettingsStore = useConsciousnessSettingsStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 const chatStore = useChatStore()
 
@@ -93,11 +93,16 @@ async function sendVoiceInputTextToChat(text: string | undefined) {
     return
 
   try {
-    const provider = await providersStore.getProviderInstance(activeChatProvider.value)
-    if (!provider || !activeChatModel.value)
+    const providerId = activeChatProvider.value
+    const model = activeChatModel.value
+    if (!providerId || !model)
       return
 
-    await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+    const provider = await providersStore.getChatProviderInstance(providerId, {
+      reasoning: consciousnessSettingsStore.reasoning ? 'enabled' : 'disabled',
+    })
+
+    await chatStore.ingest(text, { model, chatProvider: provider })
   }
   catch (error) {
     console.error('Failed to send chat from voice:', error)
