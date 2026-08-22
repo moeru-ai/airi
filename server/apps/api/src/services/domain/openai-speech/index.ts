@@ -28,6 +28,11 @@ const SAFE_RESPONSE_HEADERS = new Set([
   'cache-control',
 ])
 
+const SAFE_ERROR_RESPONSE_HEADERS = new Set([
+  'content-type',
+  'retry-after',
+])
+
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   if (typeof value !== 'object' || value == null || Array.isArray(value))
     return undefined
@@ -199,7 +204,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         .warn('tts speech delivered with upstream error status')
       return new Response(response.body, {
         status: response.status,
-        headers: buildSafeResponseHeaders(response),
+        headers: buildSafeErrorResponseHeaders(response),
       })
     }
 
@@ -379,6 +384,15 @@ function buildSafeResponseHeaders(response: Response): Headers {
   const headers = new Headers()
   response.headers.forEach((value, key) => {
     if (SAFE_RESPONSE_HEADERS.has(key.toLowerCase()))
+      headers.set(key, value)
+  })
+  return headers
+}
+
+function buildSafeErrorResponseHeaders(response: Response): Headers {
+  const headers = new Headers()
+  response.headers.forEach((value, key) => {
+    if (SAFE_ERROR_RESPONSE_HEADERS.has(key.toLowerCase()))
       headers.set(key, value)
   })
   return headers

@@ -15,6 +15,7 @@ Create a reviewable PR from the exact commits intended for publication.
 4. Publish the intended commits through the available GitHub/`gh` workflow.
 5. Compose the PR body with a concise summary, exact verification commands, and the required visual table.
 6. Create the PR, then open it and verify its title, base/head branches, body, and embedded images.
+7. Get the PR review threads, comments, and check status. If a comment identifies a confirmed error, fix it, run focused checks, push the update, reply with evidence, and resolve the thread.
 
 ## Visual Evidence Workflow
 
