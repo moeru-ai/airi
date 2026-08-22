@@ -198,15 +198,20 @@ jobs:
 
       - name: Build (Linux Only) # Linux
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
-        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=${{ (inputs.build_only || inputs.artifacts_only) && 'never' || 'onTagOrDraft' }}
+        run: |
+          mkdir -p "$TMPDIR"
+          pnpm run -F @proj-airi/stage-tamagotchi build
+          pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: --max-old-space-size=3072
+          TMPDIR: ${{ runner.temp }}/electron-builder
 
       - name: Setup Flatpak (Linux Only)
         if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' }}
         run: |
           sudo apt update
-          sudo apt install -y flatpak flatpak-builder elfutils
+          sudo apt install -y dbus-x11 elfutils flatpak flatpak-builder libarchive-tools ostree rpm xvfb
           flatpak --version
           flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
@@ -220,6 +225,35 @@ jobs:
           flatpak build-export ./flatpak-repo ./flatpak
           export FLATPAK_OUTPUT_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-output-filename flatpak)
           flatpak build-bundle ./flatpak-repo dist/${FLATPAK_OUTPUT_NAME} ai.moeru.airi
+
+      - name: Verify Linux Packages
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' }}
+        working-directory: ./apps/stage-tamagotchi
+        run: |
+          DEB_OUTPUT_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-output-filename deb)
+          RPM_OUTPUT_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-output-filename rpm)
+          FLATPAK_OUTPUT_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-output-filename flatpak)
+
+          test -f "dist/${DEB_OUTPUT_NAME}"
+          test -f "dist/${RPM_OUTPUT_NAME}"
+          test -f "dist/${FLATPAK_OUTPUT_NAME}"
+
+          pnpm run verify-linux-package \
+            --deb "dist/${DEB_OUTPUT_NAME}" \
+            --rpm "dist/${RPM_OUTPUT_NAME}" \
+            --flatpak "dist/${FLATPAK_OUTPUT_NAME}" \
+            --arch ${{ matrix.arch }}
+
+      - name: Verify RPM Lifecycle on Fedora
+        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' }}
+        run: |
+          RPM_OUTPUT_NAME=$(cd apps/stage-tamagotchi && pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-output-filename rpm)
+          test -f "apps/stage-tamagotchi/dist/${RPM_OUTPUT_NAME}"
+          docker run --rm --privileged \
+            --volume "$GITHUB_WORKSPACE:/workspace:ro" \
+            fedora:44 \
+            bash /workspace/.github/scripts/verify-fedora-rpm-lifecycle.sh \
+            "/workspace/apps/stage-tamagotchi/dist/${RPM_OUTPUT_NAME}"
 
       # ---------
       # Nightly (schedule) builds only

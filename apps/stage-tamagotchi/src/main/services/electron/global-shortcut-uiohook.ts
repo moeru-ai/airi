@@ -126,8 +126,21 @@ function buildPredicate(acc: ShortcutAccelerator, platform: NodeJS.Platform): { 
   return { predicate, expectedKeycode }
 }
 
-function isNativeWayland(platform: NodeJS.Platform, sessionType: string | undefined): boolean {
-  return platform === 'linux' && sessionType === 'wayland'
+function usesX11OzoneBackend(args: readonly string[]): boolean {
+  return args.some((arg, index) =>
+    arg === '--ozone-platform=x11'
+    || (arg === '--ozone-platform' && args[index + 1] === 'x11'),
+  )
+}
+
+function isNativeWayland(
+  platform: NodeJS.Platform,
+  sessionType: string | undefined,
+  args: readonly string[],
+): boolean {
+  return platform === 'linux'
+    && sessionType === 'wayland'
+    && !usesX11OzoneBackend(args)
 }
 
 function isMacAccessibilityTrusted(platform: NodeJS.Platform, prompt: boolean): boolean {
@@ -145,15 +158,8 @@ export interface UiohookDriverOptions {
   broadcastTriggered: (id: string, phase: 'down' | 'up') => void
   logger: Logger
   /**
-   * Host platform; injected so tests can exercise cross-platform
-   * modifier mapping without stubbing `process`.
-   *
-   * @default process.platform
-   */
-  platform?: NodeJS.Platform
-  /**
    * `XDG_SESSION_TYPE` value used for the Wayland refusal check;
-   * injected for the same reason as `platform`.
+   * injected so compositor-session cases remain explicit.
    *
    * @default process.env.XDG_SESSION_TYPE
    */
@@ -190,9 +196,9 @@ export function createUiohookDriver(options: UiohookDriverOptions): UiohookDrive
   const {
     broadcastTriggered,
     logger,
-    platform = process.platform,
     sessionType = process.env.XDG_SESSION_TYPE,
   } = options
+  const platform = process.platform
   const entries = new Map<string, UiohookEntry>()
   let started = false
   let listenersInstalled = false
@@ -264,7 +270,7 @@ export function createUiohookDriver(options: UiohookDriverOptions): UiohookDrive
     if (entries.has(binding.id))
       return { id: binding.id, ok: false, reason: ShortcutFailureReasons.DuplicateId }
 
-    if (isNativeWayland(platform, sessionType)) {
+    if (isNativeWayland(platform, sessionType, process.argv)) {
       // libuiohook hooks install but never receive events under
       // native Wayland. Refuse rather than register a binding that
       // would silently no-op.

@@ -136,9 +136,14 @@ export async function setupBaseWindowElectronInvokes(params: {
   window: BrowserWindow
   serverChannel: ServerChannel
   i18n: I18n
+  manageWindowInteractivity?: boolean
 }) {
   createScreenService({ context: params.context, window: params.window })
-  createWindowService({ context: params.context, window: params.window })
+  createWindowService({
+    context: params.context,
+    window: params.window,
+    manageWindowInteractivity: params.manageWindowInteractivity,
+  })
   createAppService({ context: params.context, window: params.window })
   createPowerMonitorService({ context: params.context, window: params.window })
   createSystemPreferencesService({ context: params.context, window: params.window })

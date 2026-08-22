@@ -28,6 +28,7 @@ import {
   electronGetServerChannelQrPayload,
 } from '../../../../shared/eventa'
 import { createConfig } from '../../../libs/electron/persistence'
+import { installLinuxCACertificate } from './certificate-trust'
 import { ensureServerChannelConfigDefaults } from './config'
 
 const channelServerConfigSchema = object({
@@ -269,24 +270,12 @@ async function installCACertificate(caCert: string) {
       await x('certutil', ['-addstore', '-f', 'Root', caCertPath], { nodeOptions: { stdio: 'ignore' } })
     }
     else if (platform === 'linux') {
-      const caDir = '/usr/local/share/ca-certificates'
-      const caFileName = 'airi-websocket-ca.crt'
-      try {
-        writeFileSync(join(caDir, caFileName), caCert)
-        await x('update-ca-certificates', [], { nodeOptions: { stdio: 'ignore' } })
-      }
-      catch {
-        const userCaDir = join(env.HOME || '', '.local/share/ca-certificates')
-        try {
-          if (!existsSync(userCaDir)) {
-            await x('mkdir', ['-p', userCaDir], { nodeOptions: { stdio: 'ignore' } })
-          }
-          writeFileSync(join(userCaDir, caFileName), caCert)
-        }
-        catch {
-          // Ignore errors
-        }
-      }
+      const result = await installLinuxCACertificate(caCert, {
+        run: x,
+        writeCertificate: writeFileSync,
+      })
+      if (result.status === 'not-installed')
+        log.withError(result.error).warn(`Failed to install AIRI WebSocket CA certificate from ${caCertPath}`)
     }
   }
   catch (error) {
