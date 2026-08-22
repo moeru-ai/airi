@@ -1,4 +1,6 @@
-import type { PaymentService } from '../../../services/domain/payment'
+import type { JWSTransactionDecodedPayload } from '@apple/app-store-server-library'
+
+import type { EvidenceReceipt, PaymentService } from '../../../services/domain/payment'
 import type { Verifier } from '../verifier'
 
 import { Type } from '@apple/app-store-server-library'
@@ -11,7 +13,6 @@ import {
   createBadRequestError,
   createServiceUnavailableError,
 } from '../../../utils/error'
-import { evidenceReceiptFromTransaction } from '../claim'
 import { SubmitTransactionBodySchema } from '../schema'
 
 const logger = useLogger('apple-iap.transactions')
@@ -24,6 +25,38 @@ const logger = useLogger('apple-iap.transactions')
  * this value without a coordinated client and server release.
  */
 export const APPLE_IAP_NAMESPACE_UUID = 'f4e8a0c2-2c6b-4e1b-b2a5-6d7f3b5a8c91' as const
+
+/**
+ * CORE resolves the pack from `productId`. The receipt does not carry flux.
+ */
+function evidenceReceiptFromTransaction(
+  transaction: JWSTransactionDecodedPayload,
+  userId: string,
+  transactionId: string,
+  productId: string,
+): EvidenceReceipt {
+  return {
+    kind: 'evidence',
+    provider: 'apple_iap',
+    providerOrderId: transactionId,
+    userId,
+    productId,
+    amount: transaction.price ?? undefined,
+    currency: transaction.currency ?? undefined,
+    providerCustomerId: transaction.appAccountToken,
+    extras: {
+      transactionId,
+      originalTransactionId: transaction.originalTransactionId,
+      productId,
+      bundleId: transaction.bundleId,
+      environment: transaction.environment,
+      appAccountToken: transaction.appAccountToken,
+      purchaseDate: transaction.purchaseDate,
+      type: transaction.type,
+      webOrderLineItemId: transaction.webOrderLineItemId,
+    },
+  }
+}
 
 /**
  * Verifies a client-posted StoreKit 2 JWS and settles evidence with CORE.
@@ -77,7 +110,7 @@ export function createTransactionOperation(
       )
     }
 
-    const receipt = evidenceReceiptFromTransaction(payload, userId)
+    const receipt = evidenceReceiptFromTransaction(payload, userId, payload.transactionId, payload.productId)
     const result = await payment.settle(receipt)
 
     logger.withFields({
