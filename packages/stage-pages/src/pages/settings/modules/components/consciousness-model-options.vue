@@ -1,11 +1,6 @@
 <script setup lang="ts">
-import { Alert } from '@proj-airi/stage-ui/components'
 import { FieldCheckbox } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
-
-defineProps<{
-  canDisableThinking: boolean
-}>()
 
 const thinking = defineModel<boolean>({ required: true })
 const { t } = useI18n()
@@ -21,14 +16,5 @@ const { t } = useI18n()
       v-model="thinking"
       :label="t('settings.pages.modules.consciousness.sections.section.model-options.thinking.label')"
     />
-
-    <Alert v-if="!thinking && !canDisableThinking" type="warning">
-      <template #title>
-        {{ t('settings.pages.modules.consciousness.sections.section.model-options.thinking.unsupported.title') }}
-      </template>
-      <template #content>
-        {{ t('settings.pages.modules.consciousness.sections.section.model-options.thinking.unsupported.description') }}
-      </template>
-    </Alert>
   </section>
 </template>

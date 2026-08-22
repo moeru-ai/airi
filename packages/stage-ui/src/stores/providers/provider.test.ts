@@ -118,9 +118,9 @@ describe('provider store synchronization boundary', () => {
     const unchangedProvider = await store.getChatProviderInstance('openai', { disableThinking: false })
 
     expect(controlledProvider).not.toBe(baseProvider)
-    expect(controlledProvider.chat('gpt-5.2')).toMatchObject({ reasoningEffort: 'none' })
+    expect(controlledProvider.chat('any-model')).toMatchObject({ reasoningEffort: 'none' })
     expect(unchangedProvider).toBe(baseProvider)
-    expect(baseProvider.chat('gpt-5.2')).not.toHaveProperty('reasoningEffort')
+    expect(baseProvider.chat('any-model')).not.toHaveProperty('reasoningEffort')
   })
 
   // ROOT CAUSE:

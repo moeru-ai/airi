@@ -7,7 +7,7 @@ import { useConsciousnessSettingsStore } from '@proj-airi/stage-ui/stores/module
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { storeToRefs } from 'pinia'
-import { computed, watch } from 'vue'
+import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
@@ -34,8 +34,6 @@ const {
 
 const { t } = useI18n()
 const { trackModelSwitched, trackProviderClick } = useAnalytics()
-const canDisableThinking = computed(() => providersStore.supportsDisableThinking(activeProvider.value, activeModel.value))
-
 watch(activeProvider, async (provider) => {
   if (!provider)
     return
@@ -290,7 +288,6 @@ function handleDeleteProvider(providerId: string) {
     <ConsciousnessModelOptions
       v-if="activeProvider && activeModel"
       v-model="thinking"
-      :can-disable-thinking="canDisableThinking"
     />
   </div>
 

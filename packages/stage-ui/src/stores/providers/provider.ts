@@ -242,19 +242,6 @@ export const useProviderStore = defineStore('provider', () => {
     return findProviderDefinition(providerId) !== undefined
   }
 
-  function resolveDisableThinkingOptions(providerId: string, model: string) {
-    const thinking = findProviderDefinition(providerId)?.capabilities?.chat?.thinking
-    if (!thinking || !model)
-      return undefined
-
-    const modelInfo = getModelsForProvider(providerId).find(candidate => candidate.id === model)
-    return thinking.disable(model, modelInfo)
-  }
-
-  function supportsDisableThinking(providerId: string, model: string) {
-    return resolveDisableThinkingOptions(providerId, model) !== undefined
-  }
-
   // Configuration validation functions
   async function validateProvider(providerId: string, options: { force?: boolean } = {}): Promise<boolean> {
     const definition = findProviderDefinition(providerId)
@@ -490,7 +477,6 @@ export const useProviderStore = defineStore('provider', () => {
     display_name?: string
     id: string
     name?: string
-    thinking?: ModelInfo['thinking']
   }>) {
     return models.map(model => ({
       id: model.id,
@@ -499,7 +485,6 @@ export const useProviderStore = defineStore('provider', () => {
       description: model.description ?? '',
       contextLength: model.contextLength ?? model.context_length ?? 0,
       deprecated: model.deprecated ?? false,
-      ...(model.thinking ? { thinking: model.thinking } : {}),
     }))
   }
 
@@ -610,7 +595,6 @@ export const useProviderStore = defineStore('provider', () => {
           contextLength: model.contextLength,
           deprecated: model.deprecated,
           provider: providerId,
-          ...(model.thinking ? { thinking: model.thinking } : {}),
         }))
 
       // Transform and store the models
@@ -795,8 +779,8 @@ export const useProviderStore = defineStore('provider', () => {
       return provider
 
     return withDisabledThinking(provider, {
+      disable: thinking.disable,
       enabled: () => true,
-      resolve: model => resolveDisableThinkingOptions(providerId, model),
     })
   }
 
@@ -902,7 +886,6 @@ export const useProviderStore = defineStore('provider', () => {
     validateProviderConfig,
     hasManualProviderValidators,
     supportsModelListing,
-    supportsDisableThinking,
     getTranscriptionFeatures,
     initializeProvider,
     validateProvider,

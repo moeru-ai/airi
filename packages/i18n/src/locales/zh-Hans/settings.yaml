@@ -607,9 +607,6 @@ pages:
             title: 模型选项
             thinking:
               label: 思考
-              unsupported:
-                title: 无法关闭思考
-                description: 当前服务来源或模型不支持此选项。AIRI 不会修改请求。
       title: 意识
     description: 思维，视觉，言语综合，游戏等
     gaming-factorio:

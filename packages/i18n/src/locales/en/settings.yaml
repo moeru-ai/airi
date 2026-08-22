@@ -632,9 +632,6 @@ pages:
             title: Model options
             thinking:
               label: Thinking
-              unsupported:
-                title: Thinking cannot be turned off
-                description: The selected provider or model does not support this option. AIRI leaves the request unchanged.
       title: Consciousness
     description: Thinking, vision, speech synthesis, gaming, etc.
     gaming-factorio:
