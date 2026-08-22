@@ -425,6 +425,7 @@ catalog:
   wxt: ^0.20.24
   xast-util-to-xml: ^4.0.0
   xastscript: ^4.0.0
+  xsai-chromium-prompt: ^0.2.1
   xsschema: 0.5.0-beta.8
   yaml: ^2.8.3
   yauzl: ^3.3.0

@@ -948,6 +948,9 @@ pages:
                     The base url used to connect to remote service. Often looks
                     like http://localhost:11434/v1 or https://example.com/v1.
                   placeholder: Base url...
+                download-model:
+                  label: Download Model
+                  description: Download Chromium Prompt API model
                 headers:
                   label: Custom HTTP Headers
                   description: Add custom HTTP headers
@@ -980,6 +983,9 @@ pages:
               title: List Models
             check-supports-chat-completion:
               title: Chat Completion
+          prompt-api:
+            check-availability:
+              title: Availability
           status:
             validating: Validating...
             valid: Passed
@@ -1455,6 +1461,9 @@ pages:
       browser-web-speech-api:
         description: Browser-native STT (requires Chrome/Edge/Safari)
         title: Web Speech API
+      prompt-api:
+        description: With the Prompt API, you can send natural language requests to the foundation model in Chrome.
+        title: Prompt API
       official:
         title: Official Provider
         description: Official AI provider by AIRI.

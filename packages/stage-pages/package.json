@@ -53,6 +53,7 @@
     "vue-i18n": "catalog:",
     "vue-router": "catalog:",
     "vue-sonner": "catalog:",
+    "xsai-chromium-prompt": "catalog:",
     "xsschema": "catalog:",
     "zod": "catalog:"
   },
