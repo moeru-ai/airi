@@ -1542,7 +1542,7 @@ pages:
             section:
               performance-visualizer:
                 title: Performance Visualizer
-                description: Toggle FPS/long task/memory overlay
+                description: Show FPS, frame time, long tasks, and supported browser memory metrics
               markdown-stress:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads

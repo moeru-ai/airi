@@ -1,111 +1,161 @@
 <script setup lang="ts">
-import { ButtonBar, CheckBar } from '@proj-airi/stage-ui/components'
+import type { LagMetric } from '../../stores/devtools-lag'
+
+import { Button, FieldCheckbox } from '@proj-airi/ui'
 import { useMagicKeys, whenever } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useDevtoolsLagStore } from '../../stores/devtools-lag'
 
+const { n, t } = useI18n()
 const lagStore = useDevtoolsLagStore()
-const { enabled, lastRecording, recording } = storeToRefs(lagStore)
+const { enabled, lastRecording, recording, recordingElapsedMs, supported } = storeToRefs(lagStore)
 
-const recordingLabel = computed(() => recording.value ? 'Stop recording (max 60s)' : 'Start recording')
+const metricDefinitions: Array<{
+  key: LagMetric
+  labelKey: string
+  descriptionKey: string
+  unsupportedKey?: string
+}> = [
+  {
+    key: 'fps',
+    labelKey: 'tamagotchi.settings.devtools.pages.performance-visualizer.metrics.fps.label',
+    descriptionKey: 'tamagotchi.settings.devtools.pages.performance-visualizer.metrics.fps.description',
+  },
+  {
+    key: 'frameDuration',
+    labelKey: 'tamagotchi.settings.devtools.pages.performance-visualizer.metrics.frame-duration.label',
+    descriptionKey: 'tamagotchi.settings.devtools.pages.performance-visualizer.metrics.frame-duration.description',
+  },
+  {
+    key: 'longtask',
+    labelKey: 'tamagotchi.settings.devtools.pages.performance-visualizer.metrics.long-task.label',
+    descriptionKey: 'tamagotchi.settings.devtools.pages.performance-visualizer.metrics.long-task.description',
+    unsupportedKey: 'tamagotchi.settings.devtools.pages.performance-visualizer.metrics.long-task.unsupported',
+  },
+  {
+    key: 'memory',
+    labelKey: 'tamagotchi.settings.devtools.pages.performance-visualizer.metrics.memory.label',
+    descriptionKey: 'tamagotchi.settings.devtools.pages.performance-visualizer.metrics.memory.description',
+    unsupportedKey: 'tamagotchi.settings.devtools.pages.performance-visualizer.metrics.memory.unsupported',
+  },
+]
+
+const metricControls = computed(() => metricDefinitions.map(metric => ({
+  ...metric,
+  supported: supported.value[metric.key],
+})))
+const recordingElapsedSeconds = computed(() => Math.min(60, Math.floor(recordingElapsedMs.value / 1000)))
+const recordingLabel = computed(() => recording.value
+  ? t('tamagotchi.settings.devtools.pages.performance-visualizer.controls.stop-recording', { seconds: recordingElapsedSeconds.value })
+  : t('tamagotchi.settings.devtools.pages.performance-visualizer.controls.start-recording'))
 const hasRecording = computed(() => !!lastRecording.value)
-const allEnabled = computed(() => enabled.value.fps && enabled.value.frameDuration && enabled.value.longtask && enabled.value.memory)
+const allEnabled = computed({
+  get() {
+    const supportedMetrics = metricDefinitions.filter(metric => supported.value[metric.key])
+    return supportedMetrics.length > 0
+      && supportedMetrics.every(metric => enabled.value[metric.key])
+  },
+  set(value: boolean) {
+    lagStore.toggleAll(value)
+  },
+})
 
 const magicKeys = useMagicKeys()
-whenever(magicKeys['ctrl+alt+l'], () => toggleAll(true))
-whenever(magicKeys['ctrl+alt+k'], () => toggleAll(false))
-
-function toggleAll(on: boolean) {
-  lagStore.toggleAll(on)
-}
+whenever(magicKeys['ctrl+alt+l'], () => lagStore.toggleAll(true))
+whenever(magicKeys['ctrl+alt+k'], () => lagStore.toggleAll(false))
 
 function exportCsv() {
   lagStore.exportCsv()
 }
+
+function metricDescription(metric: typeof metricControls.value[number]) {
+  if (metric.supported || !metric.unsupportedKey)
+    return t(metric.descriptionKey)
+
+  return t(metric.unsupportedKey)
+}
 </script>
 
 <template>
-  <div flex="~ col gap-4" pb-6>
-    <div flex="~ col gap-2">
-      <div flex="~ row items-center gap-2">
-        <CheckBar
-          :model-value="allEnabled"
-          icon-on="i-solar:sledgehammer-bold-duotone"
-          icon-off="i-solar:sledgehammer-bold-duotone"
-          text="Enable all metrics"
-          description="Toggle all lag metrics (FPS, frame time, long task, memory)"
-          @update:model-value="value => toggleAll(Boolean(value))"
-        />
-        <ButtonBar
-          :icon="recording ? 'i-solar:stop-circle-bold-duotone' : 'i-solar:recive-bold-duotone'"
-          text="Recording"
-          @click="recording ? lagStore.stopRecording() : lagStore.startRecording()"
-        >
-          {{ recordingLabel }}
-        </ButtonBar>
-        <ButtonBar
-          icon="i-solar:export-bold-duotone"
-          text="Export CSV"
-          :disabled="!hasRecording"
-          @click="exportCsv"
-        >
-          Export last recording
-        </ButtonBar>
-      </div>
+  <div :class="['flex flex-col gap-4', 'pb-6']">
+    <section
+      :class="[
+        'rounded-2xl p-4',
+        'bg-neutral-50/80 dark:bg-neutral-900/50',
+      ]"
+    >
+      <FieldCheckbox
+        v-model="allEnabled"
+        :label="t('tamagotchi.settings.devtools.pages.performance-visualizer.controls.enable-all.label')"
+        :description="t('tamagotchi.settings.devtools.pages.performance-visualizer.controls.enable-all.description')"
+      />
+    </section>
 
-      <div flex="~ col gap-2">
-        <CheckBar
-          v-model="enabled.fps"
-          icon-on="i-solar:activity-bold-duotone"
-          icon-off="i-solar:activity-bold-duotone"
-          text="FPS"
-          description="Collect FPS histogram"
-        />
-        <CheckBar
-          v-model="enabled.frameDuration"
-          icon-on="i-solar:chart-bold-duotone"
-          icon-off="i-solar:chart-bold-duotone"
-          text="Frame time (ms)"
-          description="Collect frame duration histogram"
-        />
-        <CheckBar
-          v-model="enabled.longtask"
-          icon-on="i-solar:timer-bold-duotone"
-          icon-off="i-solar:timer-bold-duotone"
-          text="Long tasks"
-          description="PerformanceObserver('longtask')"
-        />
-        <CheckBar
-          v-model="enabled.memory"
-          icon-on="i-solar:database-bold-duotone"
-          icon-off="i-solar:database-bold-duotone"
-          text="Memory"
-          description="Sample performance.memory every second"
-        />
-      </div>
+    <div :class="['flex flex-wrap items-center gap-2']">
+      <Button
+        :icon="recording ? 'i-solar:stop-circle-bold-duotone' : 'i-solar:record-circle-bold-duotone'"
+        :label="recordingLabel"
+        :color="recording ? 'red' : 'primary'"
+        variant="secondary"
+        @click="lagStore.toggleRecording"
+      />
+      <Button
+        icon="i-solar:export-bold-duotone"
+        :label="t('tamagotchi.settings.devtools.pages.performance-visualizer.controls.export-last-recording')"
+        :disabled="!hasRecording"
+        @click="exportCsv"
+      />
+      <span :class="['text-xs text-neutral-500 dark:text-neutral-400']">
+        {{ t('tamagotchi.settings.devtools.pages.performance-visualizer.recording.limit') }}
+      </span>
     </div>
 
-    <div v-if="hasRecording" flex="~ col gap-2" rounded="lg" border="1 dashed neutral-700" p-3>
-      <div text="sm neutral-200">
-        Last recording
-      </div>
-      <div text="xs neutral-400">
-        Started at {{ lastRecording?.startedAt.toFixed(0) }} ms, duration
-        {{ (lastRecording!.stoppedAt - lastRecording!.startedAt).toFixed(0) }} ms
-      </div>
-      <div text="xs neutral-400">
-        Samples:
-        FPS {{ lastRecording?.samples.fps.length }},
-        Frames {{ lastRecording?.samples.frameDuration.length }},
-        Long tasks {{ lastRecording?.samples.longtask.length }},
-        Memory {{ lastRecording?.samples.memory.length }}
-      </div>
+    <div :class="['grid gap-3', 'md:grid-cols-2']">
+      <section
+        v-for="metric in metricControls"
+        :key="metric.key"
+        :class="[
+          'min-w-0 rounded-2xl p-4',
+          'bg-neutral-50/80 dark:bg-neutral-900/50',
+        ]"
+      >
+        <FieldCheckbox
+          v-model="enabled[metric.key]"
+          :label="t(metric.labelKey)"
+          :description="metricDescription(metric)"
+          :disabled="!metric.supported"
+        />
+      </section>
     </div>
 
-    <div text="xs neutral-500">
-      Overlay is visible when any metric is enabled. Recording caps at 60s.
+    <section
+      v-if="lastRecording"
+      :class="[
+        'flex flex-col gap-2 rounded-2xl p-4',
+        'border border-dashed border-neutral-300 dark:border-neutral-700',
+      ]"
+    >
+      <div :class="['text-sm font-medium text-neutral-800 dark:text-neutral-200']">
+        {{ t('tamagotchi.settings.devtools.pages.performance-visualizer.recording.title') }}
+      </div>
+      <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
+        {{ t('tamagotchi.settings.devtools.pages.performance-visualizer.recording.duration', {
+          duration: n(lastRecording.stoppedAt - lastRecording.startedAt, { maximumFractionDigits: 0 }),
+        }) }}
+      </div>
+      <div :class="['grid gap-1 text-xs text-neutral-500 dark:text-neutral-400', 'sm:grid-cols-2 lg:grid-cols-4']">
+        <span>{{ t('tamagotchi.settings.devtools.pages.performance-visualizer.metrics.fps.label') }}: {{ n(lastRecording.samples.fps.length) }}</span>
+        <span>{{ t('tamagotchi.settings.devtools.pages.performance-visualizer.metrics.frame-duration.label') }}: {{ n(lastRecording.samples.frameDuration.length) }}</span>
+        <span>{{ t('tamagotchi.settings.devtools.pages.performance-visualizer.metrics.long-task.label') }}: {{ n(lastRecording.samples.longtask.length) }}</span>
+        <span>{{ t('tamagotchi.settings.devtools.pages.performance-visualizer.metrics.memory.label') }}: {{ n(lastRecording.samples.memory.length) }}</span>
+      </div>
+    </section>
+
+    <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
+      {{ t('tamagotchi.settings.devtools.pages.performance-visualizer.description') }}
     </div>
   </div>
 </template>

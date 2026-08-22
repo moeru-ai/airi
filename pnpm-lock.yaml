@@ -2491,6 +2491,9 @@ importers:
       embla-carousel-vue:
         specifier: 'catalog:'
         version: 9.0.0-rc02(vue@3.5.32(typescript@5.9.3))
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.50.0
       gpuu:
         specifier: 'catalog:'
         version: 1.0.7
