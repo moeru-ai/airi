@@ -20,7 +20,7 @@ const starterPack: FluxPack = {
   recommended: false,
   providers: {
     stripe: { priceId: 'price_starter' },
-    appleIap: { productId: 'flux.pack.500' },
+    appleIap: { productId: 'ai.moeru.airi.flux.500' },
   },
 }
 
@@ -196,7 +196,7 @@ describe('payment CORE', () => {
       provider: 'apple_iap',
       providerOrderId: 'txn_1',
       userId: 'user-pay-1',
-      productId: 'flux.pack.500',
+      productId: 'ai.moeru.airi.flux.500',
       amount: 4990000,
       currency: 'USD',
       providerCustomerId: 'token-1',

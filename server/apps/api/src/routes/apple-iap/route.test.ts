@@ -33,7 +33,7 @@ function createMockVerifier(overrides?: Partial<Verifier>): Verifier {
     verifyTransaction: vi.fn(async () => ({
       transactionId: 'txn_1',
       originalTransactionId: 'orig_1',
-      productId: 'flux.pack.500',
+      productId: 'ai.moeru.airi.flux.500',
       appAccountToken: matchingToken,
       type: 'Consumable',
     })),
@@ -126,7 +126,7 @@ describe('apple-iap routes', () => {
       provider: 'apple_iap',
       providerOrderId: 'txn_1',
       userId: 'user-1',
-      productId: 'flux.pack.500',
+      productId: 'ai.moeru.airi.flux.500',
     }))
   })
 
@@ -178,7 +178,7 @@ describe('apple-iap routes', () => {
       verifyTransaction: vi.fn(async () => ({
         transactionId: 'txn_1',
         originalTransactionId: 'orig_1',
-        productId: 'flux.pack.500',
+        productId: 'ai.moeru.airi.flux.500',
         appAccountToken: 'other-user-token',
         type: 'Consumable',
       })),
