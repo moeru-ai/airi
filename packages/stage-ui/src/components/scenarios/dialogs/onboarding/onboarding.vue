@@ -42,7 +42,7 @@ const { trackOnboardingCompleted, trackOnboardingStarted, trackOnboardingStepCom
 const providersStore = useProviderStore()
 
 const providerStore = useProviderConfigStore()
-const { configs: providers } = storeToRefs(providerStore)
+const { providers, addedProviders } = storeToRefs(providerStore)
 const { allChatProvidersMetadata } = storeToRefs(providersStore)
 const consciousnessStore = useConsciousnessStore()
 const {
@@ -104,12 +104,29 @@ async function saveProviderConfiguration(data: ProviderConfigData) {
     }
   }
 
-  providers.value[selectedProvider.value.id] = {
-    ...providers.value[selectedProvider.value.id],
-    ...config,
-  }
+  const providerId = selectedProvider.value.id
 
-  activeProvider.value = selectedProvider.value.id
+  // `ensureProvider`/`updateProviderConfig`/`markProviderAdded` are listed
+  // under this store's `synced.actions` (stores/providers/config.ts), which
+  // routes them through pinia-plugin-synced's leader-election RPC — even a
+  // same-window call lands asynchronously, with no promise this function can
+  // await to know it landed. Writing straight to the store's raw `providers`/
+  // `addedProviders` refs is a plain synchronous local mutation (the same
+  // thing those actions do once their round-trip completes), so the config
+  // is guaranteed to be in place before `loadModelsForProvider` reads it
+  // below instead of racing an in-flight sync proposal.
+  providers.value[providerId] = {
+    id: providerId,
+    definitionId: providers.value[providerId]?.definitionId ?? providerId,
+    config: {
+      ...providers.value[providerId]?.config,
+      ...config,
+    },
+    status: 'unconfigured',
+  }
+  addedProviders.value[providerId] = true
+
+  activeProvider.value = providerId
 
   await nextTick()
 
