@@ -3,6 +3,7 @@ import type { ComposerTranslation } from 'vue-i18n'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
+import { providerAliyunNlsTranscription } from './aliyun-nls'
 import { providerBrowserWebSpeechApi } from './browser-web-speech-api'
 import { providerElevenLabs } from './elevenlabs'
 import {
@@ -74,6 +75,26 @@ describe('migrated provider definitions', () => {
       streamOutput: false,
       streamInput: false,
     })
+  })
+
+  it('uses all Aliyun NLS credentials to require automatic validation', () => {
+    // ROOT CAUSE:
+    //
+    // The settings composable used a fixed list of common credential fields.
+    // This list did not include the three Aliyun NLS credential fields.
+    // The provider definition now owns the automatic validation condition.
+    expect(providerAliyunNlsTranscription.validationRequiredWhen?.({
+      accessKeyId: 'test-access-key-id',
+      accessKeySecret: 'test-access-key-secret',
+      appKey: '',
+      region: 'cn-shanghai',
+    })).toBe(false)
+    expect(providerAliyunNlsTranscription.validationRequiredWhen?.({
+      accessKeyId: 'test-access-key-id',
+      accessKeySecret: 'test-access-key-secret',
+      appKey: 'test-app-key',
+      region: 'cn-shanghai',
+    })).toBe(true)
   })
 
   it('keeps the local audio base URL validation in the definition', async () => {
