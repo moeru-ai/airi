@@ -1,3 +1,5 @@
+import type { ChatRequestOptions } from '../../types'
+
 import { createOpenRouter } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
@@ -29,6 +31,7 @@ export const providerOpenRouterAI = defineProvider<OpenRouterConfig>({
   description: 'openrouter.ai',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.openrouter.description'),
   tasks: ['chat'],
+  capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
   icon: 'i-lobe-icons:openrouter',
 
   createProviderConfig: ({ t }) => openRouterConfigSchema.extend({
@@ -48,15 +51,22 @@ export const providerOpenRouterAI = defineProvider<OpenRouterConfig>({
     const base = createOpenRouter(config.apiKey, config.baseUrl)
     return {
       ...base,
-      chat: (model: string) => ({
-        ...base.chat(model),
-        fetch: (input: RequestInfo | URL, init?: RequestInit) => {
-          const headers = new Headers(init?.headers)
-          for (const [k, v] of Object.entries(OPENROUTER_ATTRIBUTION_HEADERS))
-            headers.set(k, v)
-          return globalThis.fetch(input, { ...init, headers })
-        },
-      }),
+      chat(model: string, options?: ChatRequestOptions) {
+        const request = {
+          ...base.chat(model),
+          fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+            const headers = new Headers(init?.headers)
+            for (const [k, v] of Object.entries(OPENROUTER_ATTRIBUTION_HEADERS))
+              headers.set(k, v)
+            return globalThis.fetch(input, { ...init, headers })
+          },
+        }
+
+        if (!options?.reasoning)
+          return request
+
+        return { ...request, reasoning: { effort: options.reasoning === 'enabled' ? 'medium' : 'none' } }
+      },
     }
   },
 

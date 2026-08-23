@@ -152,6 +152,23 @@ describe('funASR Hearing model synchronization', () => {
     })
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3834928542
+  it('rejects invalid FunASR status in Hearing readiness (GitHub #2122)', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const providerConfigStore = useProviderConfigStore()
+    const hearingStore = useHearingStore()
+
+    providerConfigStore.getProviderConfig(providerId)!.model = 'sensevoice'
+    await hearingStore.setActiveTranscriptionProvider(providerId)
+    providerConfigStore.setProviderStatus(providerId, 'invalid')
+
+    expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
+    expect(hearingStore.configured).toBe(false)
+
+    providerConfigStore.setProviderStatus(providerId, 'configured')
+    expect(hearingStore.configured).toBe(true)
+  })
+
   it('persists the active Hearing model into the FunASR provider config', async () => {
     const providerConfigStore = useProviderConfigStore()
     const hearingStore = useHearingStore()

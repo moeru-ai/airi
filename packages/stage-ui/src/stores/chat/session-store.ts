@@ -124,7 +124,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   // I know this nu uh, better than loading all language on rehypeShiki
   const codeBlockSystemPrompt = '- For any programming code block, always specify the programming language that supported on @shikijs/rehype on the rendered markdown, eg. ```python ... ```\n'
-  const mathSyntaxSystemPrompt = '- For any math equation, use LaTeX format, eg: $ x^3 $, always escape dollar sign outside math equation\n'
+  const mathSyntaxSystemPrompt = `${[
+    '- Use $$...$$ for inline math.',
+    '- Use a separate multiline $$ block for each display equation.',
+    '- Use a latex fence for a list of independent one-line equations.',
+    '- Use a math fence for one multiline equation or LaTeX environment.',
+    '- Do not use single dollar signs as math delimiters.',
+  ].join('\n')}\n`
 
   function getCurrentUserId() {
     return userId.value || 'local'

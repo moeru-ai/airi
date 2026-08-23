@@ -2,7 +2,7 @@
 import { defaultControlConfig as threeCtrlConf, supportedControl as threeSupportedControl, useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { defaultControlConfig as l2dCtrlConf, supportedControl as l2dSupportedCtrl, useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
-import { GhostButton } from '@proj-airi/ui'
+import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
@@ -32,12 +32,17 @@ function handleViewControlsToggle(targetMode: string) {
   <div w-full flex flex-1 items-center self-end justify-end gap-2>
     <Transition name="fade">
       <div v-if="controlEnabled?.enabled.value" w-full flex justify-between gap-2>
-        <GhostButton
-          v-for="control in controlEnabled.supported" :key="control"
-          :active="controlEnabled.mode.value === control" w-full @click="handleViewControlsToggle(control)"
+        <Button
+          v-for="control in controlEnabled.supported"
+          :key="control"
+          :aria-pressed="controlEnabled.mode.value === control"
+          :color="controlEnabled.mode.value === control ? 'primary' : 'neutral'"
+          variant="secondary"
+          block
+          @click="handleViewControlsToggle(control)"
         >
           {{ (controlEnabled.conf as any)[control].buttonText }}
-        </GhostButton>
+        </Button>
       </div>
     </Transition>
     <button

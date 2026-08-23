@@ -113,9 +113,9 @@ describe('store character-orchestrator', () => {
     sendSparkCommandMock.mockReset()
     mockedStore(useModsServerChannelStore, pinia).send = sendSparkCommandMock
 
-    const mockGetProviderInstance = vi.fn()
-    mockedStore(useProviderStore, pinia).getProviderInstance = mockGetProviderInstance
-    mockedStore(useProviderStore, pinia).getProviderInstance.mockResolvedValue({ chat: (_model: string) => ({} as any) })
+    const mockGetChatProviderInstance = vi.fn()
+    mockedStore(useProviderStore, pinia).getChatProviderInstance = mockGetChatProviderInstance
+    mockedStore(useProviderStore, pinia).getChatProviderInstance.mockResolvedValue({ chat: (_model: string) => ({} as any) })
 
     const consciousnessStore = useConsciousnessStore(pinia)
     consciousnessStore.activeProvider = 'mock-provider'

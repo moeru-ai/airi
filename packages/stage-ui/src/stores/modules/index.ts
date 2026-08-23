@@ -1,5 +1,6 @@
 export * from './airi-card'
 export * from './consciousness'
+export * from './consciousness-settings'
 export * from './discord'
 export * from './gaming-factorio'
 export * from './gaming-minecraft'

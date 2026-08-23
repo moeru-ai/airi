@@ -71,6 +71,45 @@ describe('useProviderValidation', () => {
     expect(configStore.getProvider(providerId)?.status).toBe('configured')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3834928540
+  it('invalidates cached providers before validation publishes success (GitHub #2122)', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const cacheInvalidated = deferred<void>()
+    const providersStore = useProviderStore()
+    const configStore = useProviderConfigStore()
+    configStore.resetProviders()
+    vi.spyOn(providersStore, 'validateProviderConfig').mockResolvedValue({
+      errors: [],
+      reason: '',
+      valid: true,
+    })
+    const refreshModelsForChangedCredentials = vi.spyOn(providersStore, 'refreshModelsForChangedCredentials')
+      .mockReturnValue(cacheInvalidated.promise)
+    let validation!: ReturnType<typeof useProviderValidation>
+
+    const app = createApp(defineComponent({
+      setup() {
+        validation = useProviderValidation(providerId)
+        return () => null
+      },
+    }))
+    app.use(pinia)
+    app.mount(document.createElement('div'))
+    unmount = () => app.unmount()
+
+    await vi.waitFor(() => {
+      expect(refreshModelsForChangedCredentials).toHaveBeenCalledOnce()
+    }, { timeout: 2000 })
+    expect(validation.isValid.value).toBe(false)
+    expect(configStore.getProvider(providerId)?.status).not.toBe('configured')
+
+    cacheInvalidated.resolve()
+    await vi.waitFor(() => {
+      expect(validation.isValid.value).toBe(true)
+      expect(configStore.getProvider(providerId)?.status).toBe('configured')
+    })
+  })
+
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3834871851
   it('publishes validation success after provider configuration is synchronized (GitHub #2122)', async () => {
     const providerId = 'funasr-audio-transcription'
@@ -190,6 +229,57 @@ describe('useProviderValidation', () => {
       expect(configStore.getProvider(providerId)?.status).toBe('invalid')
     }, { timeout: 2000 })
     expect(configStore.addedProviders[providerId]).toBe(true)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3834928546
+  it('waits for invalid status synchronization after credentials are cleared (GitHub #2122)', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const invalidStatusSynchronized = deferred<void>()
+    const providersStore = useProviderStore()
+    const configStore = useProviderConfigStore()
+    configStore.resetProviders()
+    vi.spyOn(providersStore, 'validateProviderConfig').mockResolvedValue({
+      errors: [],
+      reason: '',
+      valid: true,
+    })
+    let validation!: ReturnType<typeof useProviderValidation>
+
+    const app = createApp(defineComponent({
+      setup() {
+        validation = useProviderValidation(providerId)
+        return () => null
+      },
+    }))
+    app.use(pinia)
+    app.mount(document.createElement('div'))
+    unmount = () => app.unmount()
+
+    await vi.waitFor(() => {
+      expect(configStore.getProvider(providerId)?.status).toBe('configured')
+    })
+
+    const setProviderStatus = vi.spyOn(configStore, 'setProviderStatus')
+      .mockImplementation(async (id, status) => {
+        if (status === 'invalid')
+          await invalidStatusSynchronized.promise
+        configStore.getProvider(id)!.status = status
+      })
+    const config = configStore.getProviderConfig(providerId)!
+    config.apiKey = ''
+    config.baseUrl = ''
+
+    await vi.waitFor(() => {
+      expect(setProviderStatus).toHaveBeenCalledWith(providerId, 'invalid')
+    }, { timeout: 2000 })
+    expect(configStore.getProvider(providerId)?.status).toBe('validating')
+    expect(validation.isValidating.value).toBe(1)
+
+    invalidStatusSynchronized.resolve()
+    await vi.waitFor(() => {
+      expect(configStore.getProvider(providerId)?.status).toBe('invalid')
+      expect(validation.isValidating.value).toBe(0)
+    })
   })
 
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3809925335

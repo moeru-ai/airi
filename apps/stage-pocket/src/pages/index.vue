@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { ChatProvider } from '@xsai-ext/providers/utils'
-
 import Header from '@proj-airi/stage-layouts/components/Layouts/Header.vue'
 import InteractiveArea from '@proj-airi/stage-layouts/components/Layouts/InteractiveArea.vue'
 import MobileHeader from '@proj-airi/stage-layouts/components/Layouts/MobileHeader.vue'
@@ -17,7 +15,6 @@ import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -50,7 +47,6 @@ const { discardRecord, startRecord, stopRecord, onStopRecord } = useAudioRecorde
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { removeStreamingTranscriptionConsumer, transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
-const providersStore = useProviderStore()
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 const chatStore = useChatStore()
@@ -74,6 +70,25 @@ const {
 
 let stopOnStopRecord: (() => void) | undefined
 
+async function sendVoiceInputTextToChat(text: string | undefined) {
+  if (!text?.trim())
+    return
+
+  try {
+    const providerId = activeChatProvider.value
+    const model = activeChatModel.value
+    if (!providerId || !model)
+      return
+
+    const provider = await consciousnessStore.getChatProviderInstance(providerId)
+
+    await chatStore.ingest(text, { model, chatProvider: provider })
+  }
+  catch (error) {
+    console.error('Failed to send chat from voice:', error)
+  }
+}
+
 async function startAudioInteraction() {
   try {
     await initVAD()
@@ -83,19 +98,7 @@ async function startAudioInteraction() {
     // Hook once
     stopOnStopRecord = onStopRecord(async (recording) => {
       const text = await transcribeForRecording(recording)
-      if (!text || !text.trim())
-        return
-
-      try {
-        const provider = await providersStore.getProviderInstance(activeChatProvider.value)
-        if (!provider || !activeChatModel.value)
-          return
-
-        await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
-      }
-      catch (err) {
-        console.error('Failed to send chat from voice:', err)
-      }
+      await sendVoiceInputTextToChat(text)
     })
   }
   catch (e) {
@@ -110,23 +113,7 @@ async function handleSpeechStart() {
     await transcribeForMediaStream(stream.value, {
       consumerId: transcriptionConsumerId,
       onSentenceEnd: (delta) => {
-        const finalText = delta
-        if (!finalText || !finalText.trim()) {
-          return
-        }
-
-        void (async () => {
-          try {
-            const provider = await providersStore.getProviderInstance(activeChatProvider.value)
-            if (!provider || !activeChatModel.value)
-              return
-
-            await chatStore.ingest(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
-          }
-          catch (err) {
-            console.error('Failed to send chat from voice:', err)
-          }
-        })()
+        void sendVoiceInputTextToChat(delta)
       },
     })
     return

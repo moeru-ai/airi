@@ -606,6 +606,21 @@ describe('chat-session-store · cloud deletion', () => {
 })
 
 describe('chat-session-store · active card prompt edits', () => {
+  // https://github.com/moeru-ai/airi/discussions/2239
+  it('adds the AIRI chat math syntax to the system message for Issue #2239', async () => {
+    const store = useChatSessionStore()
+    await store.initialize()
+
+    const content = store.messages[0]?.content
+
+    expect(content).toContain('Use $$...$$ for inline math.')
+    expect(content).toContain('Use a separate multiline $$ block for each display equation.')
+    expect(content).toContain('Use a latex fence for a list of independent one-line equations.')
+    expect(content).toContain('Use a math fence for one multiline equation or LaTeX environment.')
+    expect(content).toContain('Do not use single dollar signs as math delimiters.')
+    expect(content).not.toContain('eg: $ x^3 $')
+  })
+
   // ROOT CAUSE:
   //
   // Editing the active card updates `systemPrompt`, but the session store only

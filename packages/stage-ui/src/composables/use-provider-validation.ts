@@ -111,6 +111,11 @@ export function useProviderValidation(providerId: string) {
       if (config.baseUrl)
         config.baseUrl = config.baseUrl.trim()
 
+      await providerStore.setProviderStatus(providerId, 'validating')
+      await providersStore.refreshModelsForChangedCredentials()
+      if (revision !== validationRevision)
+        return
+
       // Settings pages always skip chat ping check during automatic validation
       // to avoid unexpected API billing. Users can trigger it manually.
       const validationResult = await providersStore.validateProviderConfig(providerId, config, {
@@ -123,7 +128,7 @@ export function useProviderValidation(providerId: string) {
       if (!validationResult.valid) {
         isValid.value = false
         finalValidationMessage = validationResult.reason
-        providerStore.setProviderStatus(providerId, 'invalid')
+        await providerStore.setProviderStatus(providerId, 'invalid')
       }
       else {
         // A successful settings-page validation must both list the provider and
@@ -142,7 +147,7 @@ export function useProviderValidation(providerId: string) {
         return
 
       isValid.value = false
-      providerStore.setProviderStatus(providerId, 'invalid')
+      await providerStore.setProviderStatus(providerId, 'invalid')
       finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
         error: errorMessageFrom(error) ?? 'Generic error (993b5ad7)',
       })
@@ -221,7 +226,7 @@ export function useProviderValidation(providerId: string) {
     'appKey',
   ] as const
 
-  const debouncedValidateConfiguration = useDebounceFn((revision: number) => {
+  const debouncedValidateConfiguration = useDebounceFn(async (revision: number) => {
     if (revision !== validationRevision)
       return
 
@@ -233,7 +238,16 @@ export function useProviderValidation(providerId: string) {
     })
     if (!hasAnyCredential) {
       isValid.value = false
-      providerStore.setProviderStatus(providerId, 'invalid')
+      isValidating.value = 1
+      await providerStore.setProviderStatus(providerId, 'validating')
+      if (revision !== validationRevision)
+        return
+      await providersStore.refreshModelsForChangedCredentials()
+      if (revision !== validationRevision)
+        return
+      await providerStore.setProviderStatus(providerId, 'invalid')
+      if (revision !== validationRevision)
+        return
       validationMessage.value = ''
       isValidating.value = 0
       return
@@ -261,6 +275,7 @@ export function useProviderValidation(providerId: string) {
 
   watch(credentialsSignature, () => {
     const revision = ++validationRevision
+    isValid.value = false
     isValidating.value = 0
     debouncedValidateConfiguration(revision)
     // Reset manual test state when credentials actually change
@@ -285,6 +300,9 @@ export function useProviderValidation(providerId: string) {
     validationMessage.value = ''
     manualTestPassed.value = true
     manualTestMessage.value = ''
+    await providersStore.refreshModelsForChangedCredentials()
+    if (revision !== validationRevision)
+      return
     await providersStore.forceProviderConfigured(providerId)
     if (revision !== validationRevision)
       return

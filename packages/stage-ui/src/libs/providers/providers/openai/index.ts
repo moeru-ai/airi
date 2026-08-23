@@ -1,3 +1,5 @@
+import type { ChatRequestOptions } from '../../types'
+
 import { createOpenAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
@@ -24,6 +26,7 @@ export const providerOpenAI = defineProvider<OpenAICompatibleConfig>({
   description: 'OpenAI',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.openai.description'),
   tasks: ['chat'],
+  capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
   icon: 'i-lobe-icons:openai',
 
   createProviderConfig: ({ t }) => openAICompatibleConfigSchema.extend({
@@ -40,7 +43,17 @@ export const providerOpenAI = defineProvider<OpenAICompatibleConfig>({
     }),
   }),
   createProvider(config) {
-    return createOpenAI(config.apiKey, config.baseUrl)
+    const provider = createOpenAI(config.apiKey, config.baseUrl)
+    return {
+      ...provider,
+      chat(model: string, options?: ChatRequestOptions) {
+        const request = provider.chat(model)
+        if (!options?.reasoning)
+          return request
+
+        return { ...request, reasoningEffort: options.reasoning === 'enabled' ? 'medium' : 'none' }
+      },
+    }
   },
 
   validationRequiredWhen(config) {

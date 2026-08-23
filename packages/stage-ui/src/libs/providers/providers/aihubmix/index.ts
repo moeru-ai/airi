@@ -1,3 +1,5 @@
+import type { ChatRequestOptions } from '../../types'
+
 import { createChatProvider, createEmbedProvider, createModelProvider, merge } from '@xsai-ext/providers/utils'
 import { z } from 'zod'
 
@@ -24,6 +26,7 @@ export const providerAIHubMix = defineProvider<AIHubMixConfig>({
   description: 'AIHubMix',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.aihubmix.description'),
   tasks: ['chat'],
+  capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
   icon: 'i-lobe-icons:aihubmix',
   iconColor: 'i-lobe-icons:aihubmix-color',
 
@@ -41,11 +44,22 @@ export const providerAIHubMix = defineProvider<AIHubMixConfig>({
     }),
   }),
   createProvider(config) {
-    return merge(
+    const provider = merge(
       createChatProvider({ apiKey: config.apiKey, baseURL: config.baseUrl! }),
       createEmbedProvider({ apiKey: config.apiKey, baseURL: config.baseUrl! }),
       createModelProvider({ apiKey: config.apiKey, baseURL: config.baseUrl! }),
     )
+
+    return {
+      ...provider,
+      chat(model: string, options?: ChatRequestOptions) {
+        const request = provider.chat(model)
+        if (!options?.reasoning)
+          return request
+
+        return { ...request, reasoningEffort: options.reasoning === 'enabled' ? 'medium' : 'none' }
+      },
+    }
   },
 
   validationRequiredWhen(config) {
