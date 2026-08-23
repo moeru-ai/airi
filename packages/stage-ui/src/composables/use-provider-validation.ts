@@ -197,16 +197,13 @@ export function useProviderValidation(providerId: string) {
     }
   }
 
-  const AUTH_FIELDS = ['apiKey', 'baseUrl', 'accountId', 'apiToken', 'accessToken'] as const
+  function shouldValidateConfiguration() {
+    const definition = providersStore.getProviderDefinition(providerId)
+    return definition.validationRequiredWhen?.(credentials.value) ?? false
+  }
 
   const debouncedValidateConfiguration = useDebounceFn(() => {
-    const config = credentials.value as Record<string, unknown>
-    // Only check auth credential fields — excludes config-only fields like region, endpoint
-    const hasAnyCredential = AUTH_FIELDS.some((field) => {
-      const v = config[field]
-      return v !== null && v !== undefined && String(v).trim() !== ''
-    })
-    if (!hasAnyCredential) {
+    if (!shouldValidateConfiguration()) {
       isValid.value = false
       providerStore.setProviderStatus(providerId, 'unconfigured')
       validationMessage.value = ''
@@ -218,11 +215,7 @@ export function useProviderValidation(providerId: string) {
 
   onMounted(() => {
     providersStore.initializeProvider(providerId)
-    const config = credentials.value as Record<string, unknown>
-    if (AUTH_FIELDS.some((field) => {
-      const v = config[field]
-      return v !== null && v !== undefined && String(v).trim() !== ''
-    })) {
+    if (shouldValidateConfiguration()) {
       validateConfiguration()
     }
   })
