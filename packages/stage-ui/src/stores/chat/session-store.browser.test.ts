@@ -10,17 +10,9 @@ import { createApp, ref } from 'vue'
 const useTestAuthStore = defineStore('auth', () => {
   const userId = ref('local')
   const token = ref<string | null>(null)
-
-  async function setIdentity(nextUserId: string) {
-    userId.value = nextUserId
-  }
-
-  return { setIdentity, userId, token }
+  return { userId, token }
 }, {
-  synced: {
-    actions: ['setIdentity'],
-    state: true,
-  },
+  synced: { state: true },
 })
 
 const useTestAiriCardStore = defineStore('airi-card', () => {
@@ -121,25 +113,23 @@ afterEach(() => {
 })
 
 describe('chat session synchronization', () => {
-  it('keeps the leader chat snapshot when a new follower receives the auth identity', async () => {
+  it('keeps the leader chat snapshot when new followers receive the auth identity', async () => {
     // ROOT CAUSE:
     //
     // A new settings renderer received the synchronized auth identity after
     // its chat-session store was created. Its local userId watcher cleared the
     // synchronized chat state and proposed that empty snapshot to the leader.
     //
-    // Chat identity work now follows the committed auth action in the leader.
-    // Applying that action's snapshot in a follower does not run another action
-    // or propose another chat mutation.
+    // The follower routes its observed auth transition to the synchronized
+    // identity action. The leader keeps its matching snapshot unchanged.
     const namespace = `chat-session:${crypto.randomUUID()}`
     const leaderContext = createSyncedContext(namespace, 'leader-only')
     await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
 
     setActivePinia(leaderContext.pinia)
     const leaderAuthStore = useTestAuthStore()
+    leaderAuthStore.userId = 'cloud-user'
     const leaderChatStore = useChatSessionStore()
-    await leaderAuthStore.setIdentity('cloud-user')
-    await vi.waitFor(() => expect(leaderChatStore.index).toBeNull())
 
     const session: ChatSessionMeta = {
       sessionId: 'session-a',
@@ -164,25 +154,37 @@ describe('chat session synchronization', () => {
       sessionMetas: { 'session-a': session },
     })
 
-    let leaderActions = 0
+    let leaderIdentityActions = 0
     let leaderMutations = 0
-    leaderChatStore.$onAction(() => leaderActions++)
+    leaderChatStore.$onAction(({ name }) => {
+      if (name === 'activateCurrentUser')
+        leaderIdentityActions++
+    })
     leaderChatStore.$subscribe(() => leaderMutations++)
 
     const followerContext = createSyncedContext(namespace, 'follower-only')
     setActivePinia(followerContext.pinia)
-    const followerAuthStore = useTestAuthStore()
     const followerChatStore = useChatSessionStore()
+    const followerAuthStore = useTestAuthStore()
     await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
     await vi.waitFor(() => expect(followerAuthStore.userId).toBe('cloud-user'))
     await vi.waitFor(() => expect(followerChatStore.sessionMessages['session-a']).toHaveLength(1))
+
+    const secondFollowerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(secondFollowerContext.pinia)
+    const secondFollowerChatStore = useChatSessionStore()
+    const secondFollowerAuthStore = useTestAuthStore()
+    await vi.waitFor(() => expect(secondFollowerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    await vi.waitFor(() => expect(secondFollowerAuthStore.userId).toBe('cloud-user'))
+    await vi.waitFor(() => expect(secondFollowerChatStore.sessionMessages['session-a']).toHaveLength(1))
     await Promise.resolve()
 
     expect(leaderChatStore.sessionMessages['session-a']?.[0]?.id).toBe('message-a')
     expect(followerChatStore.sessionMessages['session-a']?.[0]?.id).toBe('message-a')
     expect(leaderChatStore.index?.userId).toBe('cloud-user')
     expect(followerChatStore.index?.userId).toBe('cloud-user')
-    expect(leaderActions).toBe(0)
+    expect(secondFollowerChatStore.sessionMessages['session-a']?.[0]?.id).toBe('message-a')
+    expect(leaderIdentityActions).toBe(2)
     expect(leaderMutations).toBe(0)
   })
 })

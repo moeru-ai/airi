@@ -9,7 +9,6 @@ import { nextTick, ref } from 'vue'
 const userIdRef = ref<string>('local')
 const activeCardIdRef = ref<string>('default')
 const systemPromptRef = ref<string>('')
-let authActionSubscriber: ((context: { after: (callback: () => void | Promise<void>) => void }) => void) | undefined
 
 const getIndexMock = vi.fn<(uid: string) => Promise<ChatSessionsIndex | null>>()
 const saveIndexMock = vi.fn<(idx: ChatSessionsIndex) => Promise<void>>()
@@ -38,15 +37,7 @@ vi.mock('pinia', async () => {
 })
 
 vi.mock('../auth', () => ({
-  useAuthStore: () => ({
-    userId: userIdRef,
-    $onAction: (subscriber: typeof authActionSubscriber) => {
-      authActionSubscriber = subscriber
-      return () => {
-        authActionSubscriber = undefined
-      }
-    },
-  }),
+  useAuthStore: () => ({ userId: userIdRef }),
 }))
 
 vi.mock('../modules/airi-card', () => ({
@@ -123,7 +114,6 @@ beforeEach(() => {
   userIdRef.value = 'local'
   activeCardIdRef.value = 'default'
   systemPromptRef.value = ''
-  authActionSubscriber = undefined
 
   getIndexMock.mockReset().mockResolvedValue(null)
   saveIndexMock.mockReset().mockResolvedValue(undefined)
@@ -151,15 +141,6 @@ afterEach(() => {
 async function flushMicrotasks(rounds = 8) {
   for (let i = 0; i < rounds; i++)
     await Promise.resolve()
-}
-
-async function changeUserThroughAuthAction(userId: string) {
-  const afterCallbacks: Array<() => void | Promise<void>> = []
-  authActionSubscriber?.({
-    after: callback => afterCallbacks.push(callback),
-  })
-  userIdRef.value = userId
-  await Promise.all(afterCallbacks.map(callback => callback()))
 }
 
 describe('chat-session-store · user swap during in-flight ensureActiveSessionForCharacter', () => {
@@ -243,8 +224,9 @@ describe('chat-session-store · user swap during in-flight ensureActiveSessionFo
     expect(getSessionMock).toHaveBeenCalledWith('sess-A')
     expect(resolveASessionGet).toBeDefined()
 
-    // The leader's auth action changes identity while A's session read is in flight.
-    await changeUserThroughAuthAction('B')
+    // The synchronized auth state changes while A's session read is in flight.
+    userIdRef.value = 'B'
+    await nextTick()
     await flushMicrotasks()
 
     // Resolve A's IDB read AFTER the swap. With the bug, A's IIFE writes
@@ -738,8 +720,8 @@ describe('chat-session-store · synchronized data actions', () => {
     // the empty full-state proposal to the leader and removed chat messages
     // from every window.
     //
-    // A replicated auth snapshot does not run the leader's auth action hook,
-    // so the follower keeps the synchronized chat state unchanged.
+    // The watcher routes the identity transition to an idempotent synchronized
+    // action. The action keeps state that already belongs to the current user.
     const session: ChatSessionMeta = {
       sessionId: 'session-a',
       userId: 'cloud-user',

@@ -62,8 +62,7 @@ const useChatSessionSelectionStore = defineStore('chat-session-selection', () =>
 })
 
 export const useChatSessionStore = defineStore('chat-session', () => {
-  const authStore = useAuthStore()
-  const { userId, token: authToken } = storeToRefs(authStore)
+  const { userId, token: authToken } = storeToRefs(useAuthStore())
   const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
 
   const chatSessionSelection = useChatSessionSelectionStore()
@@ -1085,7 +1084,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return index.value?.userId === currentUserId && hasOnlyCurrentUserSessions
   }
 
-  /** Replaces the leader-owned session state after an auth action changes identity. */
+  /**
+   * Replaces session state after the synchronized auth identity changes.
+   * The synchronization plugin routes this action to the elected renderer.
+   */
   async function activateCurrentUser() {
     if (sessionStateMatchesCurrentUser()) {
       ensureCloudWsClient()
@@ -1605,22 +1607,15 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     void ensureActiveSessionForCharacter()
   })
 
-  // Synchronized auth actions execute in the leader. A replicated auth
-  // snapshot does not run this callback, so followers cannot propose an empty
-  // chat snapshot while they initialize.
-  authStore.$onAction(({ after }) => {
-    const previousUserId = getCurrentUserId()
-    after(async () => {
-      if (!ownsCloudSync || getCurrentUserId() === previousUserId)
-        return
-
-      try {
-        await activateCurrentUser()
-      }
-      catch (error) {
-        console.error('[chat-session] Failed to activate the current user:', error)
-      }
-    })
+  // Each renderer observes the synchronized identity. Route the transition to
+  // the leader so followers never write synchronized chat state directly.
+  watch(userId, async () => {
+    try {
+      await useChatSessionStore().activateCurrentUser()
+    }
+    catch (error) {
+      console.error('[chat-session] Failed to activate the current user:', error)
+    }
   })
 
   // Keep the active conversation aligned with edits to the active card. The
@@ -1664,6 +1659,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     loadSession,
     refreshSession,
     deleteSession,
+    activateCurrentUser,
+
     setCloudSyncOwnership,
 
     cloudSyncReady,
@@ -1672,7 +1669,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 }, {
   synced: {
-    actions: ['createSession', 'deleteMessage', 'importSessions', 'loadSession', 'refreshSession'],
+    actions: ['activateCurrentUser', 'createSession', 'deleteMessage', 'importSessions', 'loadSession', 'refreshSession'],
     state: true,
   },
 })
