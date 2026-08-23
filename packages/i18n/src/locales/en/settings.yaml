@@ -1459,6 +1459,9 @@ pages:
       browser-web-speech-api:
         description: Browser-native STT (requires Chrome/Edge/Safari)
         title: Web Speech API
+        disable: Disable
+        enable: Enable Web Speech API
+        enabled: Enabled — selectable in the Hearing module
       official:
         title: Official Provider
         description: Official AI provider by AIRI.

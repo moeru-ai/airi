@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { RemovableRef } from '@vueuse/core'
+
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import {
   Alert,
@@ -9,6 +11,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { selectProviderMetadata } from '@proj-airi/stage-ui/libs'
 import { streamWebSpeechAPITranscription } from '@proj-airi/stage-ui/libs/providers/providers/browser-web-speech-api'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -24,86 +27,89 @@ const { t } = useI18n()
 const router = useRouter()
 
 const providersStore = useProviderStore()
-
 const providerStore = useProviderConfigStore()
-// `ensureProvider`/`markProviderAdded`/`forceProviderConfigured` are listed under
-// this store's `synced.actions`, which routes them through pinia-plugin-synced's
-// leader-election RPC. In a single-tab session that RPC can go unresolved
-// indefinitely (observed: the entry never landed after 10+ seconds), so this page
-// writes straight to the raw `providers`/`addedProviders` refs instead — the same
-// plain synchronous local mutation those actions perform once (if) their
-// round-trip completes.
-const { providers, addedProviders } = storeToRefs(providerStore)
+// `configs` is a per-provider *config* projection of the store's real `providers`
+// state. Once `ensureProviderEntry` below creates the entry, `configs.value[id]`
+// is a live reference to that entry's `config` object, so nested writes here
+// persist through the normal store — see speech-provider-settings.vue for the
+// same pattern.
+const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
+const hearingStore = useHearingStore()
+const { activeTranscriptionProvider } = storeToRefs(hearingStore)
 
-function ensureProviderEntry() {
-  if (!providers.value[providerId]) {
-    providers.value[providerId] = {
-      id: providerId,
-      definitionId: providerId,
-      config: { language: 'en-US', continuous: true, interimResults: true },
-      status: 'unconfigured',
-    }
+// `providersStore.initializeProvider`/`forceProviderConfigured` call this
+// store's own actions internally without awaiting them, so the effect is lost
+// across pinia-plugin-synced's leader-election RPC boundary — confirmed live:
+// the entry never landed, even awaited, when routed through those wrappers.
+// Calling this store's actions directly instead (each awaited) reliably
+// resolves in a few ms, so route provider changes through the elected leader
+// via the store itself rather than bypassing synchronization.
+async function ensureProviderEntry() {
+  if (!providerStore.getProvider(providerId)) {
+    await providerStore.ensureProvider(providerId, providerId, {
+      language: 'en-US',
+      continuous: true,
+      interimResults: true,
+    })
   }
-  return providers.value[providerId]
 }
-
-ensureProviderEntry()
 
 const providerMetadata = computed(() => selectProviderMetadata(
   providersStore.getProviderDefinition(providerId),
   t,
-  { id: providerId, configured: providers.value[providerId]?.status === 'configured' },
+  { id: providerId, configured: providerStore.getProvider(providerId)?.status === 'configured' },
 ))
 
 // Web Speech API settings (no API key needed, but language and options)
-interface WebSpeechApiSettings {
-  language: string
-  continuous: boolean
-  interimResults: boolean
-}
-
-const settings = computed<WebSpeechApiSettings>(() => {
-  const config = providers.value[providerId]?.config
-  return {
-    language: typeof config?.language === 'string' ? config.language : 'en-US',
-    continuous: typeof config?.continuous === 'boolean' ? config.continuous : true,
-    interimResults: typeof config?.interimResults === 'boolean' ? config.interimResults : true,
-  }
+const settings = computed({
+  get: () => providers.value[providerId] || {},
+  set: (value) => {
+    providers.value[providerId] = value
+  },
 })
 
 const language = computed({
-  get: () => settings.value.language,
-  set: (value: string) => {
-    ensureProviderEntry().config.language = value
+  get: () => settings.value?.language || 'en-US',
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].language = value
   },
 })
 
 const continuous = computed({
-  get: () => settings.value.continuous,
-  set: (value: boolean) => {
-    ensureProviderEntry().config.continuous = value
+  get: () => settings.value?.continuous ?? true,
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].continuous = value
   },
 })
 
 const interimResults = computed({
-  get: () => settings.value.interimResults,
-  set: (value: boolean) => {
-    ensureProviderEntry().config.interimResults = value
+  get: () => settings.value?.interimResults ?? true,
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].interimResults = value
   },
 })
 
-const isProviderEnabled = computed(() => providers.value[providerId]?.status === 'configured')
+const isProviderEnabled = computed(() => providerStore.getProvider(providerId)?.status === 'configured')
 
-function enableProvider() {
-  const provider = ensureProviderEntry()
-  provider.status = 'configured'
-  addedProviders.value[providerId] = true
+async function enableProvider() {
+  await ensureProviderEntry()
+  await providerStore.setProviderStatus(providerId, 'configured')
+  await providerStore.markProviderAdded(providerId)
 }
 
-function disableProvider() {
-  const provider = providers.value[providerId]
-  if (provider)
-    provider.status = 'unconfigured'
+async function disableProvider() {
+  await providerStore.setProviderStatus(providerId, 'unconfigured')
+  // Disabling while this provider is the active Hearing selection would
+  // otherwise leave it persisted as active — the pipeline only checks for a
+  // non-empty provider id, not whether it's still configured.
+  if (activeTranscriptionProvider.value === providerId)
+    activeTranscriptionProvider.value = ''
 }
 
 // Common language options for Web Speech API
@@ -123,7 +129,11 @@ const languageOptions = [
 ]
 
 function handleResetSettings() {
-  ensureProviderEntry().config = { language: 'en-US', continuous: true, interimResults: true }
+  providers.value[providerId] = {
+    language: 'en-US',
+    continuous: true,
+    interimResults: true,
+  }
 }
 
 // Check if Web Speech API is available
@@ -137,7 +147,7 @@ const { askPermission, stopStream, startStream } = settingsAudioDeviceStore
 const { audioInputOptions, selectedAudioInput, stream } = storeToRefs(settingsAudioDeviceStore)
 
 onMounted(async () => {
-  ensureProviderEntry()
+  await ensureProviderEntry()
   await askPermission()
 })
 
@@ -351,13 +361,13 @@ onUnmounted(() => {
         <Alert v-if="isWebSpeechAPIAvailable && isProviderEnabled" type="success">
           <template #title>
             <div class="w-full flex items-center justify-between">
-              <span>Enabled — selectable in the Hearing module</span>
+              <span>{{ t('settings.pages.providers.provider.browser-web-speech-api.enabled') }}</span>
               <button
                 type="button"
                 class="ml-2 rounded bg-green-100 px-2 py-0.5 text-xs text-green-700 font-medium transition-colors dark:bg-green-800/30 hover:bg-green-200 dark:text-green-300 dark:hover:bg-green-700/40"
                 @click="disableProvider"
               >
-                Disable
+                {{ t('settings.pages.providers.provider.browser-web-speech-api.disable') }}
               </button>
             </div>
           </template>
@@ -367,7 +377,7 @@ onUnmounted(() => {
           class="w-full"
           @click="enableProvider"
         >
-          Enable Web Speech API
+          {{ t('settings.pages.providers.provider.browser-web-speech-api.enable') }}
         </Button>
 
         <ProviderBasicSettings
