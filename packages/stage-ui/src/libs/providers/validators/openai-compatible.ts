@@ -29,6 +29,9 @@ function extractStatusCode(error: unknown): number | null {
     return null
 
   const anyError = error as {
+    status?: unknown
+    statusCode?: unknown
+    response?: { status?: unknown }
     cause?: {
       status?: unknown
       statusCode?: unknown
@@ -37,6 +40,11 @@ function extractStatusCode(error: unknown): number | null {
   }
 
   const candidates = [
+    // xsai's APICallError (see @xsai/shared) sets these directly on the
+    // error instance, not under `.cause` — check them first.
+    anyError.statusCode,
+    anyError.status,
+    anyError.response?.status,
     anyError.cause?.status,
     anyError.cause?.statusCode,
     anyError.cause?.response?.status,
