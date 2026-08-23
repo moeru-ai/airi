@@ -1072,9 +1072,36 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     index.value = null
     activeSessionId.value = ''
     cloudSyncReady.value = false
-    // outbox count reflects the prior user; reset to 0 — the next user's
-    // refreshOutboxPendingCount fires from initialize() once they hydrate.
+    // The outbox count belongs to the prior user. The identity action refreshes
+    // this count after it hydrates the next user.
     outboxPendingCount.value = 0
+  }
+
+  function sessionStateMatchesCurrentUser() {
+    const currentUserId = getCurrentUserId()
+    const hasOnlyCurrentUserSessions = Object.values(sessionMetas.value)
+      .every(meta => meta.userId === currentUserId)
+    return index.value?.userId === currentUserId && hasOnlyCurrentUserSessions
+  }
+
+  /**
+   * Replaces session state after the synchronized auth identity changes.
+   * The synchronization plugin routes this action to the elected renderer.
+   */
+  async function activateCurrentUser() {
+    if (sessionStateMatchesCurrentUser()) {
+      ensureCloudWsClient()
+      return
+    }
+
+    teardownCloudWsClient()
+    clearInMemoryState()
+    if (!ready.value && !initializing.value)
+      return
+
+    await ensureActiveSessionForCharacter()
+    await refreshOutboxPendingCount()
+    ensureCloudWsClient()
   }
 
   /**
@@ -1291,12 +1318,17 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
     initializing.value = true
     initializePromise = (async () => {
-      await ensureActiveSessionForCharacter()
+      if (ownsCloudSync)
+        await ensureActiveSessionForCharacter()
+      else
+        selectWindowSessionFromIndex()
+
       ready.value = true
       // Surface any outbox left over from a previous session (closed tab
       // mid-send) before the WS even opens. The drain itself runs after
       // reconcile completes, but the count is observable immediately.
-      await refreshOutboxPendingCount()
+      if (ownsCloudSync)
+        await refreshOutboxPendingCount()
       if (ownsCloudSync)
         ensureCloudWsClient()
     })()
@@ -1320,6 +1352,17 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function hasKnownSession(sessionId: string) {
     return !!sessionMetas.value[sessionId]
       || !!Object.values(index.value?.characters ?? {}).some(character => character.sessions[sessionId])
+  }
+
+  /** Selects the persisted session for this window without changing synchronized session data. */
+  function selectWindowSessionFromIndex() {
+    const currentUserId = getCurrentUserId()
+    if (!index.value || index.value.userId !== currentUserId) {
+      activeSessionId.value = ''
+      return
+    }
+
+    activeSessionId.value = getCharacterIndex(getCurrentCharacterId())?.activeSessionId ?? ''
   }
 
   const messages = computed<ChatHistoryItem[]>({
@@ -1552,40 +1595,33 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     // every follower would fan one deletion out into several empty chats.
   })
 
-  watch([userId, activeCardId], () => {
+  watch([activeCardId, index], () => {
     if (!ready.value)
       return
+
+    if (!ownsCloudSync) {
+      selectWindowSessionFromIndex()
+      return
+    }
+
     void ensureActiveSessionForCharacter()
+  })
+
+  // Each renderer observes the synchronized identity. Route the transition to
+  // the leader so followers never write synchronized chat state directly.
+  watch(userId, async () => {
+    try {
+      await useChatSessionStore().activateCurrentUser()
+    }
+    catch (error) {
+      console.error('[chat-session] Failed to activate the current user:', error)
+    }
   })
 
   // Keep the active conversation aligned with edits to the active card. The
   // active session id is included because card switching resolves the target
   // session asynchronously after the card prompt itself has already changed.
   watch([systemPrompt, activeSessionId], refreshActiveSessionSystemMessage)
-
-  // Auth toggles drive cloud WS lifecycle independently of activeCardId so
-  // a card swap inside a single session does not bounce the socket. The
-  // critical invariant: when the auth user changes, every piece of in-memory
-  // state from the previous user must be cleared BEFORE the new user's WS
-  // and reconcile fire. Otherwise the previous user's sessionMetas would
-  // leak into the new user's drawer, exports, and (worst) into the cloud
-  // reconcile's `localOwnedMetas` snapshot.
-  watch(userId, (next) => {
-    teardownCloudWsClient()
-    clearInMemoryState()
-    if (ownsCloudSync && next && next !== 'local') {
-      ensureCloudWsClient()
-    }
-    // Rehydrate for the new user. We trigger here (instead of relying on the
-    // `[userId, activeCardId]` watcher) because that watcher gates on
-    // `ready.value` — if the swap happens while initialize() is still
-    // awaiting the prior user's hydrate, the gated trigger is dropped and
-    // the new user silently sees no sessions. `clearInMemoryState` already
-    // bumped `ensureActiveEpoch` and freed the singleflight slot, so this
-    // call starts a fresh IIFE that runs alongside (and is unaffected by)
-    // any in-flight stale hydrate.
-    void ensureActiveSessionForCharacter()
-  })
 
   return {
     isReady,
@@ -1623,6 +1659,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     loadSession,
     refreshSession,
     deleteSession,
+    activateCurrentUser,
 
     setCloudSyncOwnership,
 
@@ -1632,7 +1669,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 }, {
   synced: {
-    actions: ['createSession', 'deleteMessage', 'importSessions', 'loadSession', 'refreshSession'],
+    actions: ['activateCurrentUser', 'createSession', 'deleteMessage', 'importSessions', 'loadSession', 'refreshSession'],
     state: true,
   },
 })
