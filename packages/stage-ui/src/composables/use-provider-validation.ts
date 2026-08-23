@@ -116,6 +116,7 @@ export function useProviderValidation(providerId: string) {
         skipChatPingCheck: true,
       })
       isValid.value = validationResult.valid
+      providerStore.setProviderStatus(providerId, isValid.value ? 'configured' : 'invalid')
 
       if (!isValid.value) {
         finalValidationMessage = validationResult.reason
@@ -131,6 +132,7 @@ export function useProviderValidation(providerId: string) {
     }
     catch (error) {
       isValid.value = false
+      providerStore.setProviderStatus(providerId, 'invalid')
       finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
         error: errorMessageFrom(error) ?? 'Generic error (993b5ad7)',
       })
@@ -206,6 +208,7 @@ export function useProviderValidation(providerId: string) {
     })
     if (!hasAnyCredential) {
       isValid.value = false
+      providerStore.setProviderStatus(providerId, 'unconfigured')
       validationMessage.value = ''
       isValidating.value = 0
       return
