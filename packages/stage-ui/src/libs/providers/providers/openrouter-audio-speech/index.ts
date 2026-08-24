@@ -133,7 +133,11 @@ export const providerOpenRouterAudioSpeech = defineProvider<OpenRouterAudioConfi
   icon: 'i-lobe-icons:openrouter',
   createProviderConfig: () => openRouterAudioConfigSchema,
   createProvider(config) {
-    const apiKey = config.apiKey.trim()
+    // `createProvider` also runs for model listing against a freshly-created,
+    // still-credential-less config (e.g. right after ensureProvider, before
+    // the user has entered a key), so apiKey isn't guaranteed to be a string
+    // here despite the schema requiring it once actually configured.
+    const apiKey = (config.apiKey ?? '').trim()
     const baseUrl = normalizeBaseUrl(config.baseUrl)
     return {
       speech: (model?: string) => {

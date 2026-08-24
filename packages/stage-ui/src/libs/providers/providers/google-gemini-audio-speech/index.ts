@@ -123,7 +123,7 @@ export const providerGoogleGeminiAudioSpeech = defineProvider<GoogleGeminiSpeech
   iconColor: 'i-lobe-icons:gemini-color',
   createProviderConfig: () => googleGeminiSpeechConfigSchema,
   createProvider(config) {
-    const apiKey = config.apiKey.trim()
+    const apiKey = (config.apiKey ?? '').trim()
     const baseUrl = normalizeBaseUrl(config.baseUrl)
     return {
       speech: (model?: string, options?: Record<string, unknown>) => ({

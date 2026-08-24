@@ -123,7 +123,7 @@ export const providerDeepgramTts = defineProvider<UnspeechConfig>({
   tasks: ['text-to-speech'],
   icon: 'i-simple-icons:deepgram',
   createProviderConfig: ({ t }) => createUnspeechConfigSchema(unspeechConfigSchema, t),
-  createProvider: config => createUnDeepgram(config.apiKey.trim(), config.baseUrl?.trim() ?? ''),
+  createProvider: config => createUnDeepgram((config.apiKey ?? '').trim(), config.baseUrl?.trim() ?? ''),
   validationRequiredWhen: config => Boolean(config.apiKey?.trim() && config.baseUrl?.trim()),
   validators: createUnspeechValidators('deepgram-tts'),
   extraMethods: {
@@ -133,7 +133,7 @@ export const providerDeepgramTts = defineProvider<UnspeechConfig>({
       { id: 'aura', name: 'Aura (Legacy)', provider: 'deepgram-tts', description: 'Original Aura model', deprecated: true },
     ],
     listVoices: async (config) => {
-      const provider = createUnDeepgram(config.apiKey.trim(), config.baseUrl?.trim() ?? '') as VoiceProviderWithExtraOptions<UnDeepgramOptions>
+      const provider = createUnDeepgram((config.apiKey ?? '').trim(), config.baseUrl?.trim() ?? '') as VoiceProviderWithExtraOptions<UnDeepgramOptions>
       const voices = await listVoices(toListVoicesOptions(provider))
       return voices.map(voice => ({
         id: voice.id,
@@ -156,13 +156,13 @@ export const providerMicrosoftSpeech = defineProvider<MicrosoftSpeechConfig>({
   tasks: ['text-to-speech'],
   iconColor: 'i-lobe-icons:microsoft',
   createProviderConfig: ({ t }) => createUnspeechConfigSchema(microsoftSpeechConfigSchema, t),
-  createProvider: config => createUnMicrosoft(config.apiKey.trim(), config.baseUrl?.trim() ?? ''),
+  createProvider: config => createUnMicrosoft((config.apiKey ?? '').trim(), config.baseUrl?.trim() ?? ''),
   validationRequiredWhen: config => Boolean(config.apiKey?.trim() && config.baseUrl?.trim()),
   validators: createUnspeechValidators('microsoft-speech'),
   extraMethods: {
     listModels: async () => [{ id: 'v1', name: 'v1', provider: 'microsoft-speech', description: '', deprecated: false }],
     listVoices: async (config) => {
-      const provider = createUnMicrosoft(config.apiKey.trim(), config.baseUrl?.trim() ?? '') as VoiceProviderWithExtraOptions<UnMicrosoftOptions>
+      const provider = createUnMicrosoft((config.apiKey ?? '').trim(), config.baseUrl?.trim() ?? '') as VoiceProviderWithExtraOptions<UnMicrosoftOptions>
       const voices = await listVoices(toListVoicesOptions(provider, { region: config.region ?? '' }))
       return voices.map(voice => ({
         id: voice.id,
@@ -185,7 +185,7 @@ export const providerAlibabaCloudModelStudio = defineProvider<UnspeechConfig>({
   tasks: ['text-to-speech'],
   iconColor: 'i-lobe-icons:alibabacloud',
   createProviderConfig: ({ t }) => createUnspeechConfigSchema(unspeechConfigSchema, t),
-  createProvider: config => createUnAlibabaCloud(config.apiKey.trim(), config.baseUrl?.trim() ?? ''),
+  createProvider: config => createUnAlibabaCloud((config.apiKey ?? '').trim(), config.baseUrl?.trim() ?? ''),
   validationRequiredWhen: config => Boolean(config.apiKey?.trim() && config.baseUrl?.trim()),
   validators: createUnspeechValidators('alibaba-cloud-model-studio'),
   extraMethods: {
@@ -194,7 +194,7 @@ export const providerAlibabaCloudModelStudio = defineProvider<UnspeechConfig>({
       { id: 'cosyvoice-v2', name: 'CosyVoice (New)', provider: 'alibaba-cloud-model-studio', description: '', deprecated: false },
     ],
     listVoices: async (config) => {
-      const provider = createUnAlibabaCloud(config.apiKey.trim(), config.baseUrl?.trim() ?? '') as VoiceProviderWithExtraOptions<UnAlibabaCloudOptions>
+      const provider = createUnAlibabaCloud((config.apiKey ?? '').trim(), config.baseUrl?.trim() ?? '') as VoiceProviderWithExtraOptions<UnAlibabaCloudOptions>
       const voices = await listVoices(toListVoicesOptions(provider))
       return voices.map(voice => ({
         id: voice.id,
@@ -218,13 +218,13 @@ export const providerVolcengineSpeech = defineProvider<VolcengineSpeechConfig>({
   tasks: ['text-to-speech'],
   iconColor: 'i-lobe-icons:volcengine',
   createProviderConfig: ({ t }) => createUnspeechConfigSchema(volcengineSpeechConfigSchema, t),
-  createProvider: config => createUnVolcengine(config.apiKey.trim(), config.baseUrl?.trim() ?? ''),
+  createProvider: config => createUnVolcengine((config.apiKey ?? '').trim(), config.baseUrl?.trim() ?? ''),
   validationRequiredWhen: config => Boolean(config.apiKey?.trim() && config.baseUrl?.trim() && config.app?.appId.trim()),
   validators: createUnspeechValidators<VolcengineSpeechConfig>('volcengine', true),
   extraMethods: {
     listModels: async () => [{ id: 'v1', name: 'v1', provider: 'volcano-engine', description: '', deprecated: false }],
     listVoices: async (config) => {
-      const provider = createUnVolcengine(config.apiKey.trim(), config.baseUrl?.trim() ?? '') as VoiceProviderWithExtraOptions<UnVolcengineOptions>
+      const provider = createUnVolcengine((config.apiKey ?? '').trim(), config.baseUrl?.trim() ?? '') as VoiceProviderWithExtraOptions<UnVolcengineOptions>
       const voices = await listVoices(toListVoicesOptions(provider))
       return voices.map(voice => ({
         id: voice.id,

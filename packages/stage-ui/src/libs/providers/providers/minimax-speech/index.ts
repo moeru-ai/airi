@@ -20,7 +20,7 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig>({
   iconColor: 'i-lobe-icons:minimax-color',
   createProviderConfig: () => minimaxSpeechConfigSchema,
   createProvider(config) {
-    const apiKey = config.apiKey.trim()
+    const apiKey = (config.apiKey ?? '').trim()
     const baseUrl = (config.baseUrl || 'https://api.minimax.io').replace(/\/$/, '')
 
     return {

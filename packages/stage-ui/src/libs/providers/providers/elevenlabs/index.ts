@@ -88,7 +88,7 @@ export const providerElevenLabs = defineProvider<ElevenLabsConfig>({
     }),
   }),
   createProvider(config) {
-    return createUnElevenLabs(config.apiKey.trim(), config.baseUrl?.trim() ?? 'https://unspeech.hyp3r.link/v1/') as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+    return createUnElevenLabs((config.apiKey ?? '').trim(), config.baseUrl?.trim() ?? 'https://unspeech.hyp3r.link/v1/') as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
   },
 
   validationRequiredWhen: config => Boolean(config.apiKey?.trim() && config.baseUrl?.trim()),
@@ -103,7 +103,7 @@ export const providerElevenLabs = defineProvider<ElevenLabsConfig>({
       deprecated: false,
     })),
     listVoices: async (config) => {
-      const provider = createUnElevenLabs(config.apiKey.trim(), config.baseUrl?.trim() ?? 'https://unspeech.hyp3r.link/v1/') as VoiceProviderWithExtraOptions<UnElevenLabsOptions>
+      const provider = createUnElevenLabs((config.apiKey ?? '').trim(), config.baseUrl?.trim() ?? 'https://unspeech.hyp3r.link/v1/') as VoiceProviderWithExtraOptions<UnElevenLabsOptions>
       const voices = await listVoices(toListVoicesOptions(provider))
       if (!Array.isArray(voices))
         return []
