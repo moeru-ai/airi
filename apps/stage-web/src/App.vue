@@ -12,7 +12,7 @@ import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/conte
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { configureAsDefaultsIfEmpty } from '@proj-airi/stage-ui/stores/modules/default'
+import { configureAsDefaultsIfEmpty, unconfigureAuthenticationProviders } from '@proj-airi/stage-ui/stores/modules/default'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
@@ -58,6 +58,16 @@ useSettingsStageModel()
 useVisionStore()
 
 let stopAuthenticatedSetup: (() => void) | undefined
+let stopLoggedOutSetup: (() => void) | undefined
+
+async function removeAuthenticationProviderConfiguration() {
+  if (!syncedPinia.isLeader())
+    return
+
+  if (await unconfigureAuthenticationProviders())
+    await cardStore.persistActiveCardModuleSelections()
+}
+
 function registerAuthenticatedSetup() {
   stopAuthenticatedSetup ??= authStore.onAuthenticated(async () => {
     if (!syncedPinia.isLeader())
@@ -67,6 +77,7 @@ function registerAuthenticatedSetup() {
       await cardStore.persistActiveCardModuleSelections()
     await onboardingStore.closeAfterAuthentication()
   })
+  stopLoggedOutSetup ??= authStore.onLogout(removeAuthenticationProviderConfiguration)
 }
 
 const inferencePreload = useInferencePreload()
@@ -118,6 +129,8 @@ onMounted(async () => {
   await displayModelsStore.initialize()
   await cardStore.initialize()
   registerAuthenticatedSetup()
+  if (!authStore.isAuthenticated)
+    await removeAuthenticationProviderConfiguration()
 
   if (onboardingStore.needsOnboarding) {
     onboardingStore.showingSetup = true
@@ -138,6 +151,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   stopAuthenticatedSetup?.()
+  stopLoggedOutSetup?.()
   stopLeadershipListener()
   contextBridgeStore.dispose()
 })

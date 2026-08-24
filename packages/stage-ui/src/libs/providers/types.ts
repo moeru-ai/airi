@@ -29,6 +29,7 @@ export type ProviderInstance
 
 /** Validation lifecycle for one serializable provider configuration. */
 export type ProviderValidationStatus = 'unconfigured' | 'validating' | 'configured' | 'invalid' | 'bypassed'
+export type ProviderConfiguredBy = 'user' | 'authentication'
 
 /** Serializable configuration for one provider instance. */
 export interface InferenceServiceProvider {
@@ -40,6 +41,8 @@ export interface InferenceServiceProvider {
   config: Record<string, unknown>
   /** Current validation state for this provider configuration. */
   status: ProviderValidationStatus
+  /** Lifecycle owner that creates and revokes this provider configuration. */
+  configuredBy: ProviderConfiguredBy
 }
 
 export function isModelProvider(providerInstance: ProviderInstance): providerInstance is ModelProvider | ModelProviderWithExtraOptions {
@@ -193,6 +196,13 @@ export interface ProviderDefinition<TConfig extends any = any> {
    * Used for built-in providers that authenticate via JWT Bearer tokens.
    */
   requiresCredentials?: boolean
+
+  /**
+   * Lifecycle owner for provider configurations created from this definition.
+   *
+   * @default 'user'
+   */
+  configuredBy?: ProviderConfiguredBy
 
   createProviderConfig: (contextOptions: { t: ComposerTranslation }) => $ZodType<TConfig>
   onboardingFields?: (ctx: { t: ComposerTranslation }) => ProviderOnboardingField[]
