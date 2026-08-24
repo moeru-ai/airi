@@ -17,7 +17,7 @@ import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { safeClose } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen } from 'electron'
 import { clamp } from 'es-toolkit/math'
-import { isMacOS, isWindows } from 'std-env'
+import { isMacOS } from 'std-env'
 import { number, object, optional } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -27,7 +27,7 @@ import { normalizeWidgetWindowSize } from '../../../shared/utils/electron/window
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { protectPrivilegedWindowNavigation, spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
+import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
 import { createWidgetIframeRequestCoordinator } from './iframe-request-coordinator'
 import { setupWidgetsWindowInvokes } from './rpc/index.electron'
 
@@ -245,23 +245,6 @@ function createWidgetsWindow() {
   protectPrivilegedWindowNavigation(window)
 
   return window
-}
-
-function applyAlwaysOnTop(window: BrowserWindow, enabled: boolean) {
-  if (enabled) {
-    if (isMacOS) {
-      window.setAlwaysOnTop(true, 'screen-saver', 1)
-    }
-    else if (isWindows) {
-      window.setAlwaysOnTop(true, 'screen-saver', 1)
-    }
-    else {
-      window.setAlwaysOnTop(true)
-    }
-    return
-  }
-
-  window.setAlwaysOnTop(false)
 }
 
 interface WidgetRecord extends WidgetSnapshot {
@@ -520,7 +503,7 @@ export function setupWidgetsWindowManager(params: {
     const window = await getWindowFromContext(context)
     pendingRoute = undefined
     applyWindowLayout(window, snapshot)
-    applyAlwaysOnTop(window, snapshot?.alwaysOnTop ?? false)
+    setWindowAlwaysOnTop(window, snapshot?.alwaysOnTop ?? false)
     if (currentRoute !== route)
       await loadWithRoute(window, route)
     window.show()
@@ -631,7 +614,7 @@ export function setupWidgetsWindowManager(params: {
     const window = context?.window
     if (window && !window.isDestroyed()) {
       applyWindowLayout(window, nextSnapshot)
-      applyAlwaysOnTop(window, nextSnapshot.alwaysOnTop)
+      setWindowAlwaysOnTop(window, nextSnapshot.alwaysOnTop)
     }
 
     eventaContext?.emit(widgetsUpdateEvent, {

@@ -12,7 +12,7 @@ import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { animate, utils } from 'animejs'
 import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen } from 'electron'
 import { debounce, throttle } from 'es-toolkit'
-import { isMacOS, isWindows } from 'std-env'
+import { isMacOS } from 'std-env'
 import { boolean, number, object, optional, record, string } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -22,7 +22,7 @@ import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
-import { protectPrivilegedWindowNavigation, setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shared/window'
+import { protectPrivilegedWindowNavigation, setupBaseWindowElectronInvokes, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared/window'
 
 const captionConfigSchema = object({
   isFollowing: boolean(),
@@ -131,16 +131,10 @@ function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
   // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
   window.setVisibleOnAllWorkspaces(true)
   if (isMacOS) {
-    window.setAlwaysOnTop(true, 'screen-saver', 2)
     window.setFullScreenable(false)
     window.setWindowButtonVisibility(false)
   }
-  else if (isWindows) {
-    window.setAlwaysOnTop(true, 'screen-saver', 2)
-  }
-  else {
-    window.setAlwaysOnTop(true)
-  }
+  setWindowAlwaysOnTop(window, true, 2)
 
   window.on('ready-to-show', () => window.show())
   protectPrivilegedWindowNavigation(window)
