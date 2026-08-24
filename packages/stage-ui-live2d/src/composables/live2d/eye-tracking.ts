@@ -11,31 +11,6 @@ export interface Live2DEyeFocusSource {
   y: number
 }
 
-const live2dModelMouseOffsetRatio = 0.1
-
-/**
- * Maps cursor displacement from the canvas center to a small model offset.
- *
- * @example
- * getLive2DModelMouseOffset({ x: 400, y: 400 }, { left: 0, top: 0, width: 400, height: 400 })
- * // => { x: -20, y: 40 }
- */
-export function getLive2DModelMouseOffset(
-  source: Live2DEyeFocusSource | null | undefined,
-  canvasRect: Pick<DOMRect, 'left' | 'top' | 'width' | 'height'> | undefined,
-): { x: number, y: number } {
-  if (!source || !canvasRect || canvasRect.width <= 0 || canvasRect.height <= 0)
-    return { x: 0, y: 0 }
-
-  const horizontalOffset = source.x - canvasRect.left - canvasRect.width / 2
-  const verticalOffset = source.y - canvasRect.top - canvasRect.height / 2
-
-  return {
-    x: horizontalOffset === 0 ? 0 : -horizontalOffset * live2dModelMouseOffsetRatio,
-    y: verticalOffset * live2dModelMouseOffsetRatio * 2,
-  }
-}
-
 /**
  * Maps a cursor position into the Live2D model driver's eye focus coordinates.
  *

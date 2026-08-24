@@ -33,6 +33,7 @@ type Live2DMotionControlEvent
   }
 
 const neutralPose: Live2DMotionControlPose = Object.freeze({ x: 0, y: 0, headZ: 0, bodyZ: 0 })
+const horizontalModelOffset = 20
 
 function clampAxis(value: number): number {
   return Math.min(1, Math.max(-1, value))
@@ -44,6 +45,29 @@ function normalizePose(pose: Live2DMotionControlPose): Live2DMotionControlPose {
     y: clampAxis(pose.y),
     headZ: clampAxis(pose.headZ),
     bodyZ: clampAxis(pose.bodyZ),
+  }
+}
+
+/**
+ * Maps active joystick motion to the Pixi model position.
+ *
+ * The joystick Y axis points up, while the Pixi Y axis points down.
+ *
+ * @example
+ * getLive2DMotionControlModelOffset({
+ *   active: true,
+ *   ownerId: 'devtool',
+ *   pose: { x: 1, y: 1, headZ: 0, bodyZ: 0 },
+ * })
+ * // => { x: 20, y: -40 }
+ */
+export function getLive2DMotionControlModelOffset(control: Live2DMotionControlState): { x: number, y: number } {
+  if (!control.active)
+    return { x: 0, y: 0 }
+
+  return {
+    x: control.pose.x * horizontalModelOffset,
+    y: -control.pose.y * horizontalModelOffset * 2,
   }
 }
 

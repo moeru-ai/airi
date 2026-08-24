@@ -29,7 +29,7 @@ import {
 } from '../../../composables/live2d'
 import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
-import { useL2dViewControl, useLive2DMotionControl, useLive2dParams } from '../../../stores'
+import { getLive2DMotionControlModelOffset, useL2dViewControl, useLive2DMotionControl, useLive2dParams } from '../../../stores'
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
@@ -42,7 +42,6 @@ const props = withDefaults(defineProps<{
   height: number
   paused?: boolean
   focusAt?: { x: number, y: number }
-  mouseOffset?: { x: number, y: number }
   eyeTracking?: boolean
   eyeFocusSourceActive?: boolean
   themeColorsHue?: number
@@ -58,7 +57,6 @@ const props = withDefaults(defineProps<{
   nowSpeaking: false,
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
-  mouseOffset: () => ({ x: 0, y: 0 }),
   eyeTracking: false,
   eyeFocusSourceActive: false,
   disableFocusAt: false,
@@ -80,6 +78,7 @@ const emits = defineEmits<{
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 const { position, scale } = useL2dViewControl()
+const { control: manualMotionControl } = storeToRefs(useLive2DMotionControl())
 
 const modelSrcRef = toRef(() => props.modelSrc)
 
@@ -89,9 +88,10 @@ let isUnmounted = false
 
 const modelLoadMutex = new Mutex()
 
+const manualControlOffset = computed(() => getLive2DMotionControlModelOffset(manualMotionControl.value))
 const offset = computed(() => ({
-  x: (position.value.x / 100) * props.width + props.mouseOffset.x,
-  y: -(position.value.y / 100) * props.height + props.mouseOffset.y,
+  x: (position.value.x / 100) * props.width + manualControlOffset.value.x,
+  y: -(position.value.y / 100) * props.height + manualControlOffset.value.y,
 }))
 
 const pixiApp = toRef(() => props.app)
@@ -161,7 +161,6 @@ function setScaleAndPosition(animated = false) {
 }
 
 const live2dStore = useLive2dParams()
-const { control: manualMotionControl } = storeToRefs(useLive2DMotionControl())
 const {
   currentMotion,
   availableMotions,
