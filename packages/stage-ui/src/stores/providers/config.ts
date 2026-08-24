@@ -5,7 +5,7 @@ import type { InferenceServiceProvider, ProviderValidationStatus } from '../../l
 import { useMutation, useQuery } from '@pinia/colada'
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed } from 'vue'
+import { computed, toRaw } from 'vue'
 
 import { client } from '../../composables/api'
 import { getDefinedProvider } from '../../libs/providers'
@@ -107,8 +107,16 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
 
   function ensureProvider(providerId: string, definitionId: string, config: Record<string, unknown> = {}) {
     const current = providers.value[providerId]
-    if (current)
-      return current
+    if (current) {
+      // `ensureProvider` is a synced action: its return value is
+      // structured-cloned back to the caller across the leader/follower
+      // BroadcastChannel. `current`, read live off the reactive `providers`
+      // ref, is a Vue Proxy — cloneable state values must be raw. Callers
+      // are expected to invoke this redundantly (see the idempotency
+      // requirement for synced actions), so this branch is hit routinely,
+      // not just on error paths.
+      return toRaw(current)
+    }
 
     const definition = getDefinedProvider(definitionId)
     if (!definition)
@@ -145,17 +153,20 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   async function fetchProviders() {
+    // `fetchProviders` is a synced action: its return value is
+    // structured-cloned back to the caller across the leader/follower
+    // BroadcastChannel, so it cannot be the live reactive `providers` ref.
     try {
       const state = await providersQuery.refetch(true)
       if (state.data) {
         // The server snapshot has the highest priority for ids that exist remotely.
         mergeProviderSnapshot(state.data)
       }
-      return providers.value
+      return toRaw(providers.value)
     }
     catch {
       // The merged local snapshot is authoritative while the remote endpoint is unavailable.
-      return providers.value
+      return toRaw(providers.value)
     }
   }
 
@@ -198,9 +209,13 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     if (!provider)
       return
 
+    // `config` may come from a caller reading a reactive source (e.g.
+    // `getProviderConfig`), and a shallow spread doesn't unwrap nested
+    // reactive values within it. `localProvider` becomes this synced
+    // action's return value on the error path, so it must stay fully raw.
     const localProvider = {
-      ...provider,
-      config: { ...config },
+      ...toRaw(provider),
+      config: toRaw({ ...config }),
       status,
     }
     providers.value[providerId] = localProvider

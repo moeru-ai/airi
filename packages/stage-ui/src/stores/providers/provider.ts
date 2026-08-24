@@ -160,12 +160,12 @@ export const useProviderStore = defineStore('provider', () => {
     providerAvailabilityOverrides.value = { ...providerAvailabilityOverrides.value, [providerId]: available }
   }
 
-  function markProviderAdded(providerId: string) {
-    providerConfigStore.markProviderAdded(providerId)
+  async function markProviderAdded(providerId: string) {
+    await providerConfigStore.markProviderAdded(providerId)
   }
 
-  function unmarkProviderAdded(providerId: string) {
-    providerConfigStore.unmarkProviderAdded(providerId)
+  async function unmarkProviderAdded(providerId: string) {
+    await providerConfigStore.unmarkProviderAdded(providerId)
   }
 
   function findProviderDefinition(providerId: string) {
@@ -352,13 +352,27 @@ export const useProviderStore = defineStore('provider', () => {
     }
   }
 
-  // Initialize provider configurations
-  function initializeProvider(providerId: string) {
+  // Initialize provider configurations.
+  //
+  // `ensureProvider` is a synced action on the provider-config store — a
+  // separate leader-election Tab instance from this store's own. It must be
+  // awaited: this function is itself a synced action, and if it resolves
+  // before the nested call's RPC round-trip lands, the effect is silently
+  // dropped (confirmed live: calling providerConfigStore.ensureProvider
+  // directly and awaiting it lands in a few ms; calling it unawaited from
+  // inside another synced action never lands, even when the caller awaits
+  // this wrapper). stores/modules/default.ts already awaits this function,
+  // expecting it to complete before proceeding.
+  async function initializeProvider(providerId: string) {
+    // Independent of the config entry below — keep it synchronous so callers
+    // that don't (or, being pre-existing code, can't yet) await this function
+    // still get runtime state available immediately, as before.
+    initializeProviderRuntimeState(providerId)
+
     if (!providerCredentials.value[providerId]) {
       const definitionId = getProviderDefinitionId(providerId)
-      providerConfigStore.ensureProvider(providerId, definitionId, getDefaultProviderConfig(providerId))
+      await providerConfigStore.ensureProvider(providerId, definitionId, getDefaultProviderConfig(providerId))
     }
-    initializeProviderRuntimeState(providerId)
   }
 
   function stopRevalidationLoop(providerId: string) {
@@ -453,7 +467,7 @@ export const useProviderStore = defineStore('provider', () => {
     delete providerRuntimeState.value[providerId]
   }
 
-  function forceProviderConfigured(providerId: string) {
+  async function forceProviderConfigured(providerId: string) {
     if (providerRuntimeState.value[providerId]) {
       // Also cache the current config to prevent re-validation from overwriting
       const config = providerCredentials.value[providerId]
@@ -461,8 +475,10 @@ export const useProviderStore = defineStore('provider', () => {
         providerRuntimeState.value[providerId].validatedCredentialHash = JSON.stringify(config)
       }
     }
-    providerConfigStore.setProviderStatus(providerId, 'configured')
-    markProviderAdded(providerId)
+    // See initializeProvider's comment: these are synced actions on a
+    // different store and must be awaited or their effect is dropped.
+    await providerConfigStore.setProviderStatus(providerId, 'configured')
+    await markProviderAdded(providerId)
   }
 
   function setProviderUnconfigured(providerId: string) {
