@@ -53,10 +53,10 @@ devtools:
       title: 卡頓可視化
     live2d-motion:
       title: Live2D 動作控制
-      description: 移動搖桿來控制模型眼睛、頭部與身體的 X 軸和 Y 軸動作。
+      description: 使用搖桿和鍵盤控制模型眼睛、頭部與身體的 X、Y、Z 軸動作。
       joystick-label: Live2D 動作搖桿
-      instructions: 拖曳搖桿，或使用方向鍵或 W、A、S、D 鍵。放開後會恢復一般動作。
-      parameter-note: 搖桿會分別映射至眼睛 ±1、頭部 ±30° 與身體 ±10° 的參數。
+      instructions: 拖曳搖桿，或使用方向鍵控制 X/Y 軸。W/S 也能控制 Y 軸。A/D 讓身體左右傾斜。Q/E 讓頭部左右傾斜。放開按鍵後會平滑回到中央。
+      parameter-note: 搖桿控制 X/Y 軸。A/D 映射至身體 Z 軸 ±10°。Q/E 映射至頭部 Z 軸 ±30°。
       groups:
         eyes: 眼睛
         head: 頭部

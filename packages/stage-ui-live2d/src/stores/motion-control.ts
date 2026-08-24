@@ -2,12 +2,16 @@ import { useBroadcastChannel } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { shallowRef, watch } from 'vue'
 
-/** A normalized two-axis pose for manual Live2D motion control. */
+/** A normalized pose for manual Live2D motion control. */
 export interface Live2DMotionControlPose {
   /** Horizontal position from -1 (left) to 1 (right). */
   x: number
   /** Vertical position from -1 (down) to 1 (up). */
   y: number
+  /** Head roll from -1 (left) to 1 (right). */
+  headZ: number
+  /** Body roll from -1 (left) to 1 (right). */
+  bodyZ: number
 }
 
 /** The active manual control owner and its current normalized pose. */
@@ -28,7 +32,7 @@ type Live2DMotionControlEvent
     ownerId: string
   }
 
-const neutralPose: Live2DMotionControlPose = Object.freeze({ x: 0, y: 0 })
+const neutralPose: Live2DMotionControlPose = Object.freeze({ x: 0, y: 0, headZ: 0, bodyZ: 0 })
 
 function clampAxis(value: number): number {
   return Math.min(1, Math.max(-1, value))
@@ -38,6 +42,8 @@ function normalizePose(pose: Live2DMotionControlPose): Live2DMotionControlPose {
   return {
     x: clampAxis(pose.x),
     y: clampAxis(pose.y),
+    headZ: clampAxis(pose.headZ),
+    bodyZ: clampAxis(pose.bodyZ),
   }
 }
 

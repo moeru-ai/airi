@@ -2,7 +2,7 @@
 import type { Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 
 import { BasicButton } from '@proj-airi/ui'
-import { computed, shallowRef } from 'vue'
+import { computed, onUnmounted, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
@@ -26,9 +26,17 @@ const movementKeys = new Set([
   'ArrowUp',
   'a',
   'd',
+  'e',
+  'q',
   's',
   'w',
 ])
+const neutralPose: Live2DMotionControlPose = Object.freeze({ x: 0, y: 0, headZ: 0, bodyZ: 0 })
+
+let keyboardFrame: number | undefined
+let keyboardFrameTime: number | undefined
+let keyboardOwnsInput = false
+let keyboardPose = neutralPose
 
 const knobStyle = computed(() => ({
   transform: `translate(calc(-50% + ${props.pose.x * 5.75}rem), calc(-50% - ${props.pose.y * 5.75}rem))`,
@@ -44,36 +52,54 @@ const parameterGroups = computed(() => [
     label: t('tamagotchi.settings.devtools.pages.live2d-motion.groups.head'),
     x: props.pose.x * 30,
     y: props.pose.y * 30,
+    z: props.pose.headZ * 30,
   },
   {
     label: t('tamagotchi.settings.devtools.pages.live2d-motion.groups.body'),
     x: props.pose.x * 10,
     y: props.pose.y * 10,
+    z: props.pose.bodyZ * 10,
   },
 ])
 
-function setPosition(pose: Live2DMotionControlPose) {
-  const magnitude = Math.hypot(pose.x, pose.y)
+function setPosition(x: number, y: number) {
+  const magnitude = Math.hypot(x, y)
   const scale = magnitude > 1 ? 1 / magnitude : 1
   inputActive.value = true
-  emit('move', { x: pose.x * scale, y: pose.y * scale })
+  emit('move', {
+    x: x * scale,
+    y: y * scale,
+    headZ: props.pose.headZ,
+    bodyZ: props.pose.bodyZ,
+  })
 }
 
 function setPositionFromPointer(event: PointerEvent) {
   const target = event.currentTarget as HTMLElement
   const bounds = target.getBoundingClientRect()
   const radius = Math.min(bounds.width, bounds.height) / 2
-  setPosition({
-    x: (event.clientX - (bounds.left + bounds.width / 2)) / radius,
-    y: ((bounds.top + bounds.height / 2) - event.clientY) / radius,
-  })
+  setPosition(
+    (event.clientX - (bounds.left + bounds.width / 2)) / radius,
+    ((bounds.top + bounds.height / 2) - event.clientY) / radius,
+  )
 }
 
-function release() {
+function cancelKeyboardFrame() {
+  if (keyboardFrame !== undefined)
+    cancelAnimationFrame(keyboardFrame)
+
+  keyboardFrame = undefined
+  keyboardFrameTime = undefined
+}
+
+function releaseImmediately() {
   if (!inputActive.value)
     return
 
+  cancelKeyboardFrame()
   pressedKeys.clear()
+  keyboardOwnsInput = false
+  keyboardPose = neutralPose
   inputActive.value = false
   emit('release')
 }
@@ -84,7 +110,9 @@ function handlePointerDown(event: PointerEvent) {
 
   const target = event.currentTarget as HTMLElement
   target.setPointerCapture(event.pointerId)
+  cancelKeyboardFrame()
   pressedKeys.clear()
+  keyboardOwnsInput = false
   setPositionFromPointer(event)
 }
 
@@ -100,18 +128,78 @@ function handlePointerEnd(event: PointerEvent) {
   const target = event.currentTarget as HTMLElement
   if (target.hasPointerCapture(event.pointerId))
     target.releasePointerCapture(event.pointerId)
-  release()
+  releaseImmediately()
 }
 
 function keyboardPosition(): Live2DMotionControlPose {
-  const left = pressedKeys.has('ArrowLeft') || pressedKeys.has('a')
-  const right = pressedKeys.has('ArrowRight') || pressedKeys.has('d')
+  const left = pressedKeys.has('ArrowLeft')
+  const right = pressedKeys.has('ArrowRight')
   const down = pressedKeys.has('ArrowDown') || pressedKeys.has('s')
   const up = pressedKeys.has('ArrowUp') || pressedKeys.has('w')
+  const x = Number(right) - Number(left)
+  const y = Number(up) - Number(down)
+  const magnitude = Math.hypot(x, y)
+  const scale = magnitude > 1 ? 1 / magnitude : 1
+
   return {
-    x: Number(right) - Number(left),
-    y: Number(up) - Number(down),
+    x: x * scale,
+    y: y * scale,
+    headZ: Number(pressedKeys.has('e')) - Number(pressedKeys.has('q')),
+    bodyZ: Number(pressedKeys.has('d')) - Number(pressedKeys.has('a')),
   }
+}
+
+function moveAxisTowards(current: number, target: number, maximumStep: number): number {
+  if (Math.abs(target - current) <= maximumStep)
+    return target
+
+  return current + Math.sign(target - current) * maximumStep
+}
+
+function posesMatch(first: Live2DMotionControlPose, second: Live2DMotionControlPose): boolean {
+  return first.x === second.x
+    && first.y === second.y
+    && first.headZ === second.headZ
+    && first.bodyZ === second.bodyZ
+}
+
+function updateKeyboardPose(timestamp: number) {
+  keyboardFrame = undefined
+  const elapsedSeconds = keyboardFrameTime === undefined
+    ? 1 / 60
+    : Math.min((timestamp - keyboardFrameTime) / 1000, 0.1)
+  keyboardFrameTime = timestamp
+
+  // Four normalized units per second gives each key a 250 ms full-range ramp.
+  const maximumStep = elapsedSeconds * 4
+  const target = keyboardPosition()
+  keyboardPose = {
+    x: moveAxisTowards(keyboardPose.x, target.x, maximumStep),
+    y: moveAxisTowards(keyboardPose.y, target.y, maximumStep),
+    headZ: moveAxisTowards(keyboardPose.headZ, target.headZ, maximumStep),
+    bodyZ: moveAxisTowards(keyboardPose.bodyZ, target.bodyZ, maximumStep),
+  }
+  inputActive.value = true
+  emit('move', keyboardPose)
+
+  if (!posesMatch(keyboardPose, target)) {
+    keyboardFrame = requestAnimationFrame(updateKeyboardPose)
+    return
+  }
+
+  keyboardFrameTime = undefined
+  if (pressedKeys.size > 0)
+    return
+
+  keyboardOwnsInput = false
+  keyboardPose = neutralPose
+  inputActive.value = false
+  emit('release')
+}
+
+function scheduleKeyboardUpdate() {
+  if (keyboardFrame === undefined)
+    keyboardFrame = requestAnimationFrame(updateKeyboardPose)
 }
 
 function handleKeyDown(event: KeyboardEvent) {
@@ -120,8 +208,15 @@ function handleKeyDown(event: KeyboardEvent) {
     return
 
   event.preventDefault()
+  if (pressedKeys.has(key))
+    return
+
+  if (!keyboardOwnsInput)
+    keyboardPose = props.pose
+
+  keyboardOwnsInput = true
   pressedKeys.add(key)
-  setPosition(keyboardPosition())
+  scheduleKeyboardUpdate()
 }
 
 function handleKeyUp(event: KeyboardEvent) {
@@ -131,13 +226,31 @@ function handleKeyUp(event: KeyboardEvent) {
 
   event.preventDefault()
   pressedKeys.delete(key)
-  if (pressedKeys.size === 0) {
-    release()
+  scheduleKeyboardUpdate()
+}
+
+function handleBlur() {
+  if (!keyboardOwnsInput) {
+    releaseImmediately()
     return
   }
 
-  setPosition(keyboardPosition())
+  pressedKeys.clear()
+  scheduleKeyboardUpdate()
 }
+
+watch(() => props.disabled, (disabled) => {
+  if (!disabled)
+    return
+
+  cancelKeyboardFrame()
+  pressedKeys.clear()
+  keyboardOwnsInput = false
+  keyboardPose = neutralPose
+  inputActive.value = false
+})
+
+onUnmounted(cancelKeyboardFrame)
 </script>
 
 <template>
@@ -162,7 +275,7 @@ function handleKeyUp(event: KeyboardEvent) {
         @pointercancel="handlePointerEnd"
         @keydown="handleKeyDown"
         @keyup="handleKeyUp"
-        @blur="release"
+        @blur="handleBlur"
         @contextmenu.prevent
       >
         <span :class="['pointer-events-none absolute inset-6 rounded-full', 'border border-neutral-300/60 dark:border-neutral-700/60']" />
@@ -226,6 +339,14 @@ function handleKeyUp(event: KeyboardEvent) {
             <dd :class="['text-right font-mono text-neutral-800 tabular-nums dark:text-neutral-100']">
               {{ group.y.toFixed(2) }}
             </dd>
+            <template v-if="group.z !== undefined">
+              <dt :class="['text-neutral-500 dark:text-neutral-400']">
+                Z
+              </dt>
+              <dd :class="['text-right font-mono text-neutral-800 tabular-nums dark:text-neutral-100']">
+                {{ group.z.toFixed(2) }}
+              </dd>
+            </template>
           </dl>
         </section>
       </div>

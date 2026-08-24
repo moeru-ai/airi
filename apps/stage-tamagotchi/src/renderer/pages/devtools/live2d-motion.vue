@@ -18,7 +18,7 @@ import {
 const { t } = useI18n()
 const motionControl = useLive2DMotionControl()
 const ownerId = crypto.randomUUID()
-const neutralPose: Live2DMotionControlPose = Object.freeze({ x: 0, y: 0 })
+const neutralPose: Live2DMotionControlPose = Object.freeze({ x: 0, y: 0, headZ: 0, bodyZ: 0 })
 const pose = shallowRef<Live2DMotionControlPose>(neutralPose)
 const active = shallowRef(false)
 const importError = shallowRef('')

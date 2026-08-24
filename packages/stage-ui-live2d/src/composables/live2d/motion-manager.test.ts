@@ -187,15 +187,17 @@ describe('live2d motion manager plugins', () => {
     useMotionUpdatePluginManualControl(ref({
       active: true,
       ownerId: 'motion-devtool',
-      pose: { x: 0.5, y: -0.25 },
+      pose: { x: 0.5, y: -0.25, headZ: -0.75, bodyZ: 1 },
     }))(context)
 
     expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamEyeBallX', 0.5)
     expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamEyeBallY', -0.25)
     expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamAngleX', 15)
     expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamAngleY', -7.5)
+    expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamAngleZ', -22.5)
     expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamBodyAngleX', 5)
     expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamBodyAngleY', -2.5)
+    expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamBodyAngleZ', 10)
   })
 
   it('leaves motion parameters unchanged after manual control is released', () => {
@@ -204,7 +206,7 @@ describe('live2d motion manager plugins', () => {
     useMotionUpdatePluginManualControl(ref({
       active: false,
       ownerId: null,
-      pose: { x: 0, y: 0 },
+      pose: { x: 0, y: 0, headZ: 0, bodyZ: 0 },
     }))(context)
 
     expect(context.model.setParameterValueById).not.toHaveBeenCalled()

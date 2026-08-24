@@ -57,10 +57,10 @@ devtools:
       title: Lag Visualizer
     live2d-motion:
       title: Live2D Motion Control
-      description: Move the joystick to control the model's eyes, head, and body on the X and Y axes.
+      description: Use the joystick and keyboard to control eye, head, and body movement on the X, Y, and Z axes.
       joystick-label: Live2D motion joystick
-      instructions: Drag the joystick, or use the arrow keys or W, A, S, and D. Release it to restore normal motion.
-      parameter-note: The joystick maps to eye ±1, head ±30°, and body ±10° parameters.
+      instructions: Drag the joystick, or use the arrow keys for X/Y. W/S also controls Y. A/D tilts the body. Q/E tilts the head. Released keys return smoothly to center.
+      parameter-note: The joystick controls X/Y. A/D maps to body Z ±10°. Q/E maps to head Z ±30°.
       groups:
         eyes: Eyes
         head: Head

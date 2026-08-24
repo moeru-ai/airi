@@ -9,10 +9,12 @@ const live2dMotionSampleSchema = object({
   atMs: pipe(number(), finite(), minValue(0)),
   x: pipe(number(), finite(), minValue(-1), maxValue(1)),
   y: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  headZ: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  bodyZ: pipe(number(), finite(), minValue(-1), maxValue(1)),
 })
 
 const live2dMotionRecordingSchema = object({
-  format: literal('airi-live2d-motion/v1'),
+  format: literal('airi-live2d-motion/v2'),
   durationMs: pipe(number(), finite(), minValue(0)),
   samples: pipe(array(live2dMotionSampleSchema), minLength(1)),
 })
@@ -61,8 +63,8 @@ interface Live2DMotionRecordingController {
  * Parses and validates a Live2D joystick recording at the file boundary.
  *
  * @example
- * parseLive2DMotionRecording('{"format":"airi-live2d-motion/v1","durationMs":0,"samples":[{"atMs":0,"x":0,"y":0}]}')
- * // => { format: 'airi-live2d-motion/v1', durationMs: 0, samples: [{ atMs: 0, x: 0, y: 0 }] }
+ * parseLive2DMotionRecording('{"format":"airi-live2d-motion/v2","durationMs":0,"samples":[{"atMs":0,"x":0,"y":0,"headZ":0,"bodyZ":0}]}')
+ * // => { format: 'airi-live2d-motion/v2', durationMs: 0, samples: [{ atMs: 0, x: 0, y: 0, headZ: 0, bodyZ: 0 }] }
  */
 export function parseLive2DMotionRecording(raw: string): Live2DMotionRecording {
   let input: unknown
@@ -96,8 +98,8 @@ export function parseLive2DMotionRecording(raw: string): Live2DMotionRecording {
  * Serializes a Live2D joystick recording as a readable JSON file.
  *
  * @example
- * stringifyLive2DMotionRecording({ format: 'airi-live2d-motion/v1', durationMs: 0, samples: [{ atMs: 0, x: 0, y: 0 }] })
- * // => '{\n  "format": "airi-live2d-motion/v1", ...\n}\n'
+ * stringifyLive2DMotionRecording({ format: 'airi-live2d-motion/v2', durationMs: 0, samples: [{ atMs: 0, x: 0, y: 0, headZ: 0, bodyZ: 0 }] })
+ * // => '{\n  "format": "airi-live2d-motion/v2", ...\n}\n'
  */
 export function stringifyLive2DMotionRecording(recording: ReadonlyLive2DMotionRecording): string {
   return `${JSON.stringify(recording, null, 2)}\n`
@@ -135,7 +137,13 @@ export function useLive2DMotionRecording(
       return
 
     recording.value = null
-    capturedSamples = [{ atMs: 0, x: initialPose.x, y: initialPose.y }]
+    capturedSamples = [{
+      atMs: 0,
+      x: initialPose.x,
+      y: initialPose.y,
+      headZ: initialPose.headZ,
+      bodyZ: initialPose.bodyZ,
+    }]
     status.value = { type: 'recording', startedAt: now() }
   }
 
@@ -144,10 +152,22 @@ export function useLive2DMotionRecording(
       return
 
     const atMs = Math.max(0, Math.round(now() - status.value.startedAt))
-    const nextSample: Live2DMotionSample = { atMs, x: pose.x, y: pose.y }
+    const nextSample: Live2DMotionSample = {
+      atMs,
+      x: pose.x,
+      y: pose.y,
+      headZ: pose.headZ,
+      bodyZ: pose.bodyZ,
+    }
     const previousSample = capturedSamples.at(-1)
-    if (previousSample?.x === pose.x && previousSample.y === pose.y)
+    if (
+      previousSample?.x === pose.x
+      && previousSample.y === pose.y
+      && previousSample.headZ === pose.headZ
+      && previousSample.bodyZ === pose.bodyZ
+    ) {
       return
+    }
 
     if (previousSample?.atMs === atMs) {
       capturedSamples[capturedSamples.length - 1] = nextSample
@@ -166,7 +186,7 @@ export function useLive2DMotionRecording(
       capturedSamples.at(-1)?.atMs ?? 0,
     )
     recording.value = {
-      format: 'airi-live2d-motion/v1',
+      format: 'airi-live2d-motion/v2',
       durationMs,
       samples: capturedSamples,
     }
@@ -191,7 +211,13 @@ export function useLive2DMotionRecording(
       playbackSampleIndex < recording.value.samples.length
       && recording.value.samples[playbackSampleIndex].atMs <= elapsedMs
     ) {
-      options.applyPose(recording.value.samples[playbackSampleIndex])
+      const sample = recording.value.samples[playbackSampleIndex]
+      options.applyPose({
+        x: sample.x,
+        y: sample.y,
+        headZ: sample.headZ,
+        bodyZ: sample.bodyZ,
+      })
       playbackSampleIndex++
     }
 

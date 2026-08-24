@@ -458,7 +458,7 @@ export function useMotionUpdatePluginExpression(
 }
 
 /**
- * Applies the active manual two-axis pose after normal Live2D motion updates.
+ * Applies the active manual pose after normal Live2D motion updates.
  *
  * The normalized joystick range maps to each standard parameter range. Models
  * that omit one of these parameters ignore that write through the Cubism API.
@@ -470,13 +470,15 @@ export function useMotionUpdatePluginManualControl(
     if (!control.value.active)
       return
 
-    const { x, y } = control.value.pose
+    const { x, y, headZ, bodyZ } = control.value.pose
     ctx.model.setParameterValueById('ParamEyeBallX', x)
     ctx.model.setParameterValueById('ParamEyeBallY', y)
     ctx.model.setParameterValueById('ParamAngleX', x * 30)
     ctx.model.setParameterValueById('ParamAngleY', y * 30)
+    ctx.model.setParameterValueById('ParamAngleZ', headZ * 30)
     ctx.model.setParameterValueById('ParamBodyAngleX', x * 10)
     ctx.model.setParameterValueById('ParamBodyAngleY', y * 10)
+    ctx.model.setParameterValueById('ParamBodyAngleZ', bodyZ * 10)
   }
 }
 
