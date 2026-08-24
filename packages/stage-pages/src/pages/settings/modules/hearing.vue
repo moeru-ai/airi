@@ -33,7 +33,7 @@ const {
 } = storeToRefs(hearingStore)
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
-const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
+const { moduleTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
 const { trackProviderClick } = useAnalytics()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
@@ -364,13 +364,13 @@ onUnmounted(() => {
             See also: https://stackoverflow.com/a/33737340
           -->
             <fieldset
-              v-if="configuredTranscriptionProvidersMetadata.length > 0"
+              v-if="moduleTranscriptionProvidersMetadata.length > 0"
               flex="~ row gap-4"
               min-w-0 overflow-x-auto scroll-smooth
               role="radiogroup"
             >
               <RadioCardSimple
-                v-for="metadata in configuredTranscriptionProvidersMetadata"
+                v-for="metadata in moduleTranscriptionProvidersMetadata"
                 :id="metadata.id"
                 :key="metadata.id"
                 v-model="activeTranscriptionProvider"

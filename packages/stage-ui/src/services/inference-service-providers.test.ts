@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { parse as parseSchema } from 'zod/v4/core'
 
 import { ATLASCLOUD_DEFAULT_BASE_URL, providerAtlasCloud } from '../libs/providers/providers/atlascloud'
+import { OFFICIAL_CHAT_PROVIDER_ID } from '../libs/providers/providers/official'
 import { providerOpenAICompatible } from '../libs/providers/providers/openai-compatible'
 import { inferenceServiceProvidersService } from './inference-service-providers'
 
@@ -21,6 +22,13 @@ describe('services inference-service-providers', () => {
     expect(provider.definitionId).toBe(providerOpenAICompatible.id)
     expect(provider.config).toEqual({})
     expect(provider.status).toBe('unconfigured')
+    expect(provider.configuredBy).toBe('user')
+  })
+
+  it('preserves definition-owned authentication configuration', () => {
+    const provider = inferenceServiceProvidersService.buildLocal(OFFICIAL_CHAT_PROVIDER_ID, {})
+
+    expect(provider.configuredBy).toBe('authentication')
   })
 
   /**
@@ -104,6 +112,7 @@ describe('services inference-service-providers', () => {
         config: { baseUrl: 'https://example.com/v1/' },
         id: 'provider-1',
         status: 'configured',
+        configuredBy: 'user',
       }),
     })
   })
