@@ -54,6 +54,13 @@ export interface UseLive2DMotionManagerUpdateOptions {
   lastUpdateTime: Ref<number>
 }
 
+/**
+ * Disables the periodic breath pass that the Cubism runtime applies after AIRI's motion plugins.
+ */
+export function disableLive2DSdkBreath(internalModel: { breath?: unknown }) {
+  delete internalModel.breath
+}
+
 export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpdateOptions) {
   const {
     internalModel,
