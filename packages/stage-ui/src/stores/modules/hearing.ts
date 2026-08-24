@@ -131,10 +131,10 @@ export function filterTranscriptionByConfidence(
   return segments.filter(s => (s?.avg_logprob ?? -Infinity) >= threshold).map(s => s?.text ?? '').join('').trim()
 }
 
-export function supportsVerboseJsonResponse(providerId: string, model: string): boolean {
+export function supportsVerboseJsonResponse(providerDefinitionId: string, model: string): boolean {
   // OpenAI's GPT transcription models only accept JSON responses. Whisper-1
   // remains the official OpenAI model that supports verbose_json segments.
-  return providerId !== 'openai-audio-transcription' || model === 'whisper-1'
+  return providerDefinitionId !== 'openai-audio-transcription' || model === 'whisper-1'
 }
 
 /**
@@ -394,11 +394,15 @@ export const useHearingStore = defineStore('hearing-store', () => {
   let pendingDestinationModelRequest: { providerId: string, requestId?: number } | undefined
   let initialized = false
 
+  function providerDefinitionId(providerId: string) {
+    return providersStore.findProviderDefinition(providerId)?.id ?? providerId
+  }
+
   function applyActiveTranscriptionModel(providerId: string, model: string) {
     activeTranscriptionModel.value = model
     const providerConfig = providerStore.getProviderConfig(providerId)
     const ownsStoredModel = Object.hasOwn(providerConfig ?? {}, 'model') && typeof providerConfig?.model === 'string'
-    if (!providerConfig || (providerId !== 'openai-compatible-audio-transcription' && !ownsStoredModel))
+    if (!providerConfig || (providerDefinitionId(providerId) !== 'openai-compatible-audio-transcription' && !ownsStoredModel))
       return
 
     if (providerConfig.model !== model)
@@ -420,7 +424,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     const defaultOptions = providersStore.getDefaultProviderConfig(providerId)
     const defaultModelValue = (defaultOptions as Record<string, unknown>).model
     const defaultModel = typeof defaultModelValue === 'string' ? defaultModelValue.trim() : ''
-    const openAICompatibleModel = providerId === 'openai-compatible-audio-transcription'
+    const openAICompatibleModel = providerDefinitionId(providerId) === 'openai-compatible-audio-transcription'
       ? resolveOpenAICompatibleTranscriptionModel(providerConfig).trim()
       : ''
     // A list-backed fallback must come from the current refresh. The runtime cache may still belong
@@ -569,26 +573,28 @@ export const useHearingStore = defineStore('hearing-store', () => {
   }
 
   const configured = computed(() => {
-    if (!activeTranscriptionProvider.value)
+    const providerId = activeTranscriptionProvider.value
+    if (!providerId)
       return false
 
     // Web Speech API doesn't strictly need a model selected (it has a default)
     // but we still check to maintain consistency
-    if (activeTranscriptionProvider.value === 'browser-web-speech-api') {
+    if (providerId === 'browser-web-speech-api') {
       return true // Web Speech API is ready if provider is selected and available
     }
 
+    const definitionId = providerDefinitionId(providerId)
     // For OpenAI Compatible providers, check provider config as fallback
     let hasProviderModel = false
-    if (activeTranscriptionProvider.value === 'funasr-audio-transcription') {
-      const provider = providerStore.getProvider(activeTranscriptionProvider.value)
+    if (definitionId === 'funasr-audio-transcription') {
+      const provider = providerStore.getProvider(providerId)
       if (provider?.status !== 'configured')
         return false
 
       hasProviderModel = !!provider.config.model
     }
-    else if (activeTranscriptionProvider.value === 'openai-compatible-audio-transcription') {
-      const providerConfig = providerStore.getProviderConfig(activeTranscriptionProvider.value)
+    else if (definitionId === 'openai-compatible-audio-transcription') {
+      const providerConfig = providerStore.getProviderConfig(providerId)
       hasProviderModel = !!providerConfig?.model
     }
 
@@ -698,7 +704,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
       }
 
       const confidenceFilteringRequested = !format && confidenceThreshold.value > CONFIDENCE_THRESHOLD_DISABLED
-      const useVerboseJson = confidenceFilteringRequested && supportsVerboseJsonResponse(providerId, model)
+      const definitionId = providerDefinitionId(providerId)
+      const useVerboseJson = confidenceFilteringRequested && supportsVerboseJsonResponse(definitionId, model)
       if (confidenceFilteringRequested && !useVerboseJson) {
         verboseJsonNotSupported.value = true
         console.warn('[Hearing] Confidence filter is enabled but the selected model does not support verbose_json. Filtering has no effect.')

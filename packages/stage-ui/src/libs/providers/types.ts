@@ -198,6 +198,12 @@ export interface ProviderDefinition<TConfig extends any = any> {
   onboardingFields?: (ctx: { t: ComposerTranslation }) => ProviderOnboardingField[]
   createProvider: (config: TConfig) => ProviderInstance
   extraMethods?: ProviderExtraMethods<TConfig>
+  /**
+   * Returns true when the configuration has enough input for automatic validation.
+   * Provider settings keep the status unconfigured while this function returns false.
+   *
+   * @default false
+   */
   validationRequiredWhen?: (config: TConfig) => boolean
   validators?: {
     validateConfig?: Array<(contextOptions: { t: ComposerTranslation }) => ProviderConfigValidator<TConfig>>

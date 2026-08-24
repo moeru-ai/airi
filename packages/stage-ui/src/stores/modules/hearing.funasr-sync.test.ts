@@ -152,6 +152,28 @@ describe('funASR Hearing model synchronization', () => {
     })
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3837554086
+  // ROOT CAUSE:
+  //
+  // A provider instance has a generated id. The destination-model resolver compared that id with
+  // the OpenAI-compatible definition id, so it did not select the documented `whisper-1` fallback.
+  it('restores the OpenAI-compatible fallback for a generated provider (GitHub #2122)', async () => {
+    const providerId = 'generated-openai-compatible-transcription'
+    const providerConfigStore = useProviderConfigStore()
+    const providersStore = useProviderStore()
+    providerConfigStore.ensureProvider(providerId, 'openai-compatible-audio-transcription', {
+      apiKey: 'test-key',
+      baseUrl: 'http://localhost:8000/v1/',
+    })
+    providersStore.initializeProvider(providerId)
+
+    const hearingStore = useHearingStore()
+    await hearingStore.setActiveTranscriptionProvider(providerId)
+
+    expect(hearingStore.activeTranscriptionModel).toBe('whisper-1')
+    expect(providerConfigStore.getProviderConfig(providerId)?.model).toBe('whisper-1')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3834928542
   it('rejects invalid FunASR status in Hearing readiness (GitHub #2122)', async () => {
     const providerId = 'funasr-audio-transcription'
@@ -167,6 +189,29 @@ describe('funASR Hearing model synchronization', () => {
 
     providerConfigStore.setProviderStatus(providerId, 'configured')
     expect(hearingStore.configured).toBe(true)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3837554091
+  // ROOT CAUSE:
+  //
+  // Hearing compared a generated provider id with the FunASR definition id. The invalid provider
+  // therefore remained ready when its selected model was not empty.
+  it('rejects invalid generated FunASR status in Hearing readiness (GitHub #2122)', async () => {
+    const providerId = 'generated-funasr-transcription'
+    const providerConfigStore = useProviderConfigStore()
+    const providersStore = useProviderStore()
+    providerConfigStore.ensureProvider(providerId, 'funasr-audio-transcription', {
+      baseUrl: 'http://localhost:8000/v1/',
+      model: 'sensevoice',
+    })
+    providersStore.initializeProvider(providerId)
+
+    const hearingStore = useHearingStore()
+    await hearingStore.setActiveTranscriptionProvider(providerId)
+    providerConfigStore.setProviderStatus(providerId, 'invalid')
+
+    expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
+    expect(hearingStore.configured).toBe(false)
   })
 
   it('persists the active Hearing model into the FunASR provider config', async () => {

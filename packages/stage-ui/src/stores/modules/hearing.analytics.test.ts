@@ -1,6 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useProviderConfigStore } from '../providers/config'
+
 const analyticsMock = vi.hoisted(() => ({
   allowComposableCall: true,
   trackMicrophonePermissionDenied: vi.fn(),
@@ -94,6 +96,40 @@ describe('useHearingStore analytics lifecycle', () => {
       {
         transcription: () => ({}),
       } as any,
+      'gpt-4o-transcribe',
+      new File(['hello'], 'recording.wav', { type: 'audio/wav' }),
+    )
+
+    expect(transcriptionMock.generateTranscription).toHaveBeenCalledWith(expect.objectContaining({
+      responseFormat: undefined,
+    }))
+    expect(hearingStore.verboseJsonNotSupported).toBe(true)
+  }, 10000)
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3837554088
+  // ROOT CAUSE:
+  //
+  // The format gate compared a generated provider id with the OpenAI definition id. A GPT model
+  // therefore requested `verbose_json`, which the OpenAI API rejects.
+  it('does not request verbose JSON from a generated OpenAI provider (GitHub #2122)', async () => {
+    const providerId = 'generated-openai-transcription'
+    useProviderConfigStore().ensureProvider(providerId, 'openai-audio-transcription', {
+      apiKey: 'test-key',
+      model: 'gpt-4o-transcribe',
+    })
+    const { useHearingStore } = await import('./hearing')
+    const hearingStore = useHearingStore()
+    hearingStore.confidenceThreshold = -1
+    const provider = {
+      transcription: () => ({
+        baseURL: 'http://localhost:8000/v1/',
+        model: 'gpt-4o-transcribe',
+      }),
+    }
+
+    await hearingStore.transcription(
+      providerId,
+      provider,
       'gpt-4o-transcribe',
       new File(['hello'], 'recording.wav', { type: 'audio/wav' }),
     )

@@ -192,7 +192,7 @@ describe('useProviderValidation', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3809925335
-  it('marks a listed provider invalid after its credentials are cleared', async () => {
+  it('marks a listed provider unconfigured after its credentials are cleared', async () => {
     const providerId = 'funasr-audio-transcription'
     const providersStore = useProviderStore()
     const configStore = useProviderConfigStore()
@@ -220,19 +220,20 @@ describe('useProviderValidation', () => {
 
     const config = configStore.getProviderConfig(providerId)
     expect(config).toBeDefined()
-    config!.apiKey = ''
-    config!.baseUrl = ''
+    config!.apiKey = undefined
+    config!.baseUrl = undefined
+    config!.model = undefined
 
     // ROOT CAUSE: Empty credentials stopped local validation state without
     // updating the provider status kept in the shared configuration store.
     await vi.waitFor(() => {
-      expect(configStore.getProvider(providerId)?.status).toBe('invalid')
+      expect(configStore.getProvider(providerId)?.status).toBe('unconfigured')
     }, { timeout: 2000 })
     expect(configStore.addedProviders[providerId]).toBe(true)
   })
 
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3834928546
-  it('waits for invalid status synchronization after credentials are cleared (GitHub #2122)', async () => {
+  it('waits for unconfigured status synchronization after credentials are cleared (GitHub #2122)', async () => {
     const providerId = 'funasr-audio-transcription'
     const invalidStatusSynchronized = deferred<void>()
     const providersStore = useProviderStore()
@@ -261,23 +262,24 @@ describe('useProviderValidation', () => {
 
     const setProviderStatus = vi.spyOn(configStore, 'setProviderStatus')
       .mockImplementation(async (id, status) => {
-        if (status === 'invalid')
+        if (status === 'unconfigured')
           await invalidStatusSynchronized.promise
         configStore.getProvider(id)!.status = status
       })
     const config = configStore.getProviderConfig(providerId)!
-    config.apiKey = ''
-    config.baseUrl = ''
+    config.apiKey = undefined
+    config.baseUrl = undefined
+    config.model = undefined
 
     await vi.waitFor(() => {
-      expect(setProviderStatus).toHaveBeenCalledWith(providerId, 'invalid')
+      expect(setProviderStatus).toHaveBeenCalledWith(providerId, 'unconfigured')
     }, { timeout: 2000 })
     expect(configStore.getProvider(providerId)?.status).toBe('validating')
     expect(validation.isValidating.value).toBe(1)
 
     invalidStatusSynchronized.resolve()
     await vi.waitFor(() => {
-      expect(configStore.getProvider(providerId)?.status).toBe('invalid')
+      expect(configStore.getProvider(providerId)?.status).toBe('unconfigured')
       expect(validation.isValidating.value).toBe(0)
     })
   })
@@ -348,18 +350,19 @@ describe('useProviderValidation', () => {
     configStore.markProviderAdded(providerId)
     const config = configStore.getProviderConfig(providerId)
     expect(config).toBeDefined()
-    config!.apiKey = ''
-    config!.baseUrl = ''
+    config!.apiKey = undefined
+    config!.baseUrl = undefined
+    config!.model = undefined
 
     await vi.waitFor(() => {
-      expect(configStore.getProvider(providerId)?.status).toBe('invalid')
+      expect(configStore.getProvider(providerId)?.status).toBe('unconfigured')
     }, { timeout: 2000 })
     oldValidation.resolve({ errors: [], reason: '', valid: true })
     await new Promise(resolve => setTimeout(resolve, 20))
 
     // ROOT CAUSE: An older request could configure a provider after a newer
-    // credential snapshot had already invalidated it.
-    expect(configStore.getProvider(providerId)?.status).toBe('invalid')
+    // credential snapshot had already marked it unconfigured.
+    expect(configStore.getProvider(providerId)?.status).toBe('unconfigured')
     expect(configStore.addedProviders[providerId]).toBe(true)
   })
 

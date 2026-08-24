@@ -52,8 +52,8 @@ export function useDataMaintenance() {
   }
 
   async function resetProvidersSettings() {
+    await hearingStore.setActiveTranscriptionProvider('', '')
     await providersStore.resetProviderSettings()
-    await hearingStore.reloadActiveTranscriptionProvider()
   }
 
   async function resetModulesSettings() {

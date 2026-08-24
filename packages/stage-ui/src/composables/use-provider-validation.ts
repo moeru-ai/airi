@@ -215,28 +215,16 @@ export function useProviderValidation(providerId: string) {
     }
   }
 
-  const AUTH_FIELDS = [
-    'apiKey',
-    'baseUrl',
-    'accountId',
-    'apiToken',
-    'accessToken',
-    'accessKeyId',
-    'accessKeySecret',
-    'appKey',
-  ] as const
+  function shouldValidateConfiguration() {
+    const definition = providersStore.getProviderDefinition(providerId)
+    return definition.validationRequiredWhen?.(credentials.value) ?? false
+  }
 
   const debouncedValidateConfiguration = useDebounceFn(async (revision: number) => {
     if (revision !== validationRevision)
       return
 
-    const config = credentials.value as Record<string, unknown>
-    // Only check auth credential fields — excludes config-only fields like region, endpoint
-    const hasAnyCredential = AUTH_FIELDS.some((field) => {
-      const v = config[field]
-      return v !== null && v !== undefined && String(v).trim() !== ''
-    })
-    if (!hasAnyCredential) {
+    if (!shouldValidateConfiguration()) {
       isValid.value = false
       isValidating.value = 1
       await providerStore.setProviderStatus(providerId, 'validating')
@@ -245,24 +233,20 @@ export function useProviderValidation(providerId: string) {
       await providersStore.refreshModelsForChangedCredentials()
       if (revision !== validationRevision)
         return
-      await providerStore.setProviderStatus(providerId, 'invalid')
+      await providerStore.setProviderStatus(providerId, 'unconfigured')
       if (revision !== validationRevision)
         return
       validationMessage.value = ''
       isValidating.value = 0
       return
     }
-    validateConfiguration(revision)
+    await validateConfiguration(revision)
   }, debounceTime)
 
   onMounted(() => {
     providersStore.initializeProvider(providerId)
     const revision = ++validationRevision
-    const config = credentials.value as Record<string, unknown>
-    if (AUTH_FIELDS.some((field) => {
-      const v = config[field]
-      return v !== null && v !== undefined && String(v).trim() !== ''
-    })) {
+    if (shouldValidateConfiguration()) {
       debouncedValidateConfiguration(revision)
     }
   })
