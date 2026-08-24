@@ -308,6 +308,7 @@ const providerTransitionController = createProviderTransitionController({
 
 watch(activeTranscriptionProvider, (_provider, previousProvider) => {
   void providerTransitionController.requestTransition(previousProvider)
+    .catch(cause => console.warn('[Hearing Module] Failed to switch transcription provider:', cause))
 }, { immediate: true })
 
 onMounted(async () => {
@@ -315,6 +316,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  providerTransitionController.dispose()
   void stopAudioMonitoring().catch(cause => console.warn('[Hearing Module] Failed to stop playground monitoring:', cause))
 })
 </script>

@@ -1,9 +1,9 @@
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
-import { FUNASR_TRANSCRIPTION_MODELS, providerFunASRAudioTranscription } from './index'
+import { createFunASRModelUpdateQueue, FUNASR_TRANSCRIPTION_MODELS, providerFunASRAudioTranscription } from './index'
 
 const t = (key: string) => key
 
@@ -87,5 +87,56 @@ describe('providerFunASRAudioTranscription', () => {
       baseUrl: '',
       model: 'sensevoice',
     })).toThrow('FunASR Base URL is required')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3842674734
+  it('waits for the latest model update before a playground request (GitHub #2122)', async () => {
+    let persistedModel = 'sensevoice'
+    let resolveUpdate!: () => void
+    const updateGate = new Promise<void>((resolve) => {
+      resolveUpdate = resolve
+    })
+    const queue = createFunASRModelUpdateQueue(async (model) => {
+      await updateGate
+      persistedModel = model
+    }, () => {})
+    const updateTask = queue.update('paraformer')
+    let requestStarted = false
+    const requestTask = queue.runAfterLatest(async () => {
+      requestStarted = true
+      return persistedModel
+    })
+
+    // ROOT CAUSE: The computed setter discarded the synchronized store action promise, so an
+    // Electron follower could read the replicated config before the leader finished the write.
+    await Promise.resolve()
+    expect(requestStarted).toBe(false)
+
+    resolveUpdate()
+    await updateTask
+    await expect(requestTask).resolves.toBe('paraformer')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3842674734
+  it('does not send a playground request after a failed model update (GitHub #2122)', async () => {
+    const updateError = new Error('model update failed')
+    const updateModel = vi.fn()
+      .mockRejectedValueOnce(updateError)
+      .mockResolvedValueOnce(undefined)
+    const reportError = vi.fn()
+    const queue = createFunASRModelUpdateQueue(updateModel, reportError)
+    const request = vi.fn().mockResolvedValue('transcript')
+
+    await expect(queue.update('broken')).rejects.toBe(updateError)
+    await expect(queue.runAfterLatest(request)).rejects.toBe(updateError)
+
+    // ROOT CAUSE: Swallowing the failed synchronized write at the request boundary would let
+    // the playground submit with the stale replicated model.
+    expect(reportError).toHaveBeenCalledWith(updateError)
+    expect(request).not.toHaveBeenCalled()
+
+    await expect(queue.update('paraformer')).resolves.toBeUndefined()
+    await expect(queue.runAfterLatest(request)).resolves.toBe('transcript')
+    expect(request).toHaveBeenCalledTimes(1)
   })
 })

@@ -15,9 +15,13 @@ export function createProviderTransitionController(dependencies: ProviderTransit
   let restartMonitoring = false
   let needsMonitoringStop = false
   let providerToDispose: string | undefined
+  let disposed = false
 
   async function reconcileLatestTransition() {
     while (true) {
+      if (disposed)
+        return
+
       const transitionRevision = revision
       const provider = dependencies.getActiveProvider()
 
@@ -26,6 +30,8 @@ export function createProviderTransitionController(dependencies: ProviderTransit
         needsMonitoringStop = false
         providerToDispose = undefined
         await dependencies.stopMonitoring(disposeProvider)
+        if (disposed)
+          return
         if (transitionRevision !== revision)
           continue
       }
@@ -38,10 +44,14 @@ export function createProviderTransitionController(dependencies: ProviderTransit
       }
 
       await dependencies.waitForProviderReady(provider)
+      if (disposed)
+        return
       if (transitionRevision !== revision)
         continue
 
       dependencies.applyProviderState(provider)
+      if (disposed)
+        return
       if (transitionRevision !== revision)
         continue
 
@@ -49,9 +59,16 @@ export function createProviderTransitionController(dependencies: ProviderTransit
         const monitoringStarted = await dependencies.startMonitoring()
         if (transitionRevision !== revision) {
           if (monitoringStarted) {
-            needsMonitoringStop = true
-            providerToDispose = provider
+            if (disposed) {
+              await dependencies.stopMonitoring(provider)
+            }
+            else {
+              needsMonitoringStop = true
+              providerToDispose = provider
+            }
           }
+          if (disposed)
+            return
           continue
         }
 
@@ -64,6 +81,9 @@ export function createProviderTransitionController(dependencies: ProviderTransit
   }
 
   function requestTransition(previousProvider?: string) {
+    if (disposed)
+      return Promise.resolve()
+
     revision++
     if (dependencies.getMonitoring()) {
       restartMonitoring = true
@@ -82,5 +102,16 @@ export function createProviderTransitionController(dependencies: ProviderTransit
     return transitionTask
   }
 
-  return { requestTransition }
+  function dispose() {
+    if (disposed)
+      return
+
+    disposed = true
+    revision++
+    restartMonitoring = false
+    needsMonitoringStop = false
+    providerToDispose = undefined
+  }
+
+  return { dispose, requestTransition }
 }

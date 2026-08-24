@@ -66,6 +66,46 @@ describe('provider transition controller', () => {
     expect(harness.getMonitoring()).toBe(true)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3842674728
+  it('does not restart monitoring after controller disposal (GitHub #2122)', async () => {
+    const harness = createHarness('B')
+    const transition = harness.controller.requestTransition('A')
+    await vi.waitFor(() => expect(harness.waitForProviderReady).toHaveBeenCalledWith('B'))
+
+    harness.controller.dispose()
+    harness.readinessTasks.get('B')!.resolve()
+    await transition
+
+    // ROOT CAUSE:
+    //
+    // The page cleanup stopped the current microphone session, but the pending provider
+    // transition still owned permission to restart it after provider readiness resolved.
+    expect(harness.applyProviderState).not.toHaveBeenCalled()
+    expect(harness.startMonitoring).not.toHaveBeenCalled()
+    expect(harness.getMonitoring()).toBe(false)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3842674728
+  it('stops monitoring when setup completes after controller disposal (GitHub #2122)', async () => {
+    const harness = createHarness('B')
+    const startTask = deferred()
+    harness.startMonitoring.mockReturnValueOnce(startTask.promise.then(() => true))
+    const transition = harness.controller.requestTransition('A')
+    await vi.waitFor(() => expect(harness.waitForProviderReady).toHaveBeenCalledWith('B'))
+
+    harness.readinessTasks.get('B')!.resolve()
+    await vi.waitFor(() => expect(harness.startMonitoring).toHaveBeenCalledTimes(1))
+    harness.controller.dispose()
+    startTask.resolve()
+    await transition
+
+    // ROOT CAUSE: Setup could finish after page cleanup and create a new microphone session
+    // unless the disposed transition releases the provider session that it just started.
+    expect(harness.stopMonitoring).toHaveBeenCalledTimes(2)
+    expect(harness.stopMonitoring).toHaveBeenLastCalledWith('B')
+    expect(harness.getMonitoring()).toBe(false)
+  })
+
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3809925340
   it('restarts monitoring for the latest provider after A to B to C', async () => {
     const harness = createHarness('B')

@@ -12,7 +12,7 @@ import {
   TranscriptionPlayground,
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
-import { FUNASR_TRANSCRIPTION_MODELS } from '@proj-airi/stage-ui/libs/providers/providers/funasr'
+import { createFunASRModelUpdateQueue, FUNASR_TRANSCRIPTION_MODELS } from '@proj-airi/stage-ui/libs/providers/providers/funasr'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
@@ -27,6 +27,10 @@ const hearingStore = useHearingStore()
 const providersStore = useProviderStore()
 const providerConfigStore = useProviderConfigStore()
 const { configs: providers } = storeToRefs(providerConfigStore)
+const modelUpdateQueue = createFunASRModelUpdateQueue(
+  model => hearingStore.setTranscriptionModelForProvider(providerId, model),
+  cause => console.warn('[FunASR] Failed to update the transcription model:', cause),
+)
 
 function defaultOption(key: string): string {
   const defaults = providersStore.getDefaultProviderConfig(providerId) as Record<string, unknown>
@@ -54,10 +58,11 @@ const baseUrl = computed({
   set: value => updateProviderSetting('baseUrl', value),
 })
 
-const model = computed({
-  get: () => providerSetting('model', defaultOption('model')),
-  set: value => void hearingStore.setTranscriptionModelForProvider(providerId, value),
-})
+const model = computed(() => providerSetting('model', defaultOption('model')))
+
+function updateModel(value: string | undefined) {
+  return modelUpdateQueue.update(value ?? '')
+}
 
 const playgroundConfigured = computed(() => isFunASRPlaygroundReady(
   providerConfigStore.getProvider(providerId)?.status,
@@ -66,11 +71,13 @@ const playgroundConfigured = computed(() => isFunASRPlaygroundReady(
 ))
 
 async function handleGenerateTranscription(file: File) {
-  const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, Record<string, unknown>>>(providerId)
-  if (!provider)
-    throw new Error('Failed to initialize FunASR transcription provider')
+  return await modelUpdateQueue.runAfterLatest(async () => {
+    const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, Record<string, unknown>>>(providerId)
+    if (!provider)
+      throw new Error('Failed to initialize FunASR transcription provider')
 
-  return await hearingStore.transcription(providerId, provider, model.value, file, 'json')
+    return await hearingStore.transcription(providerId, provider, model.value, file, 'json')
+  })
 }
 
 const {
@@ -102,10 +109,11 @@ onMounted(() => providersStore.initializeProvider(providerId))
           :on-reset="handleResetSettings"
         >
           <FieldCombobox
-            v-model="model"
+            :model-value="model"
             :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name')"
             :options="FUNASR_TRANSCRIPTION_MODELS.map(item => ({ value: item.id, label: item.name }))"
             placeholder="sensevoice"
+            @update:model-value="updateModel"
           />
           <ProviderApiKeyInput
             v-model="apiKey"
