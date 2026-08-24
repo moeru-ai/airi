@@ -22,6 +22,7 @@ import icon from '../../resources/icon.png?asset'
 
 import { openDebugger, setupDebugger } from './app/debugger'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
+import { resolveIsWayland } from './app/ozone'
 import { installSingleInstanceGuard } from './app/single-instance'
 import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
@@ -90,19 +91,12 @@ if (isLinux) {
   // Check explicit command-line switches before falling back to session environment variables.
   // When running with XWayland (e.g. '--ozone-platform=x11'), session variables like WAYLAND_DISPLAY
   // are still inherited from the Wayland desktop, but Chromium uses the explicitly specified Ozone backend.
-  const explicitOzonePlatform = app.commandLine.getSwitchValue('ozone-platform')
-  const ozonePlatformHint = app.commandLine.getSwitchValue('ozone-platform-hint')
-
-  let isWayland = false
-  if (explicitOzonePlatform) {
-    isWayland = explicitOzonePlatform === 'wayland'
-  }
-  else if (ozonePlatformHint && ozonePlatformHint !== 'auto') {
-    isWayland = ozonePlatformHint === 'wayland'
-  }
-  else {
-    isWayland = Boolean(env.WAYLAND_DISPLAY || env.XDG_SESSION_TYPE === 'wayland')
-  }
+  // Treat explicit 'auto' as an unresolved platform selection and resolve using session environment variables.
+  const isWayland = resolveIsWayland({
+    explicitOzonePlatform: app.commandLine.getSwitchValue('ozone-platform'),
+    ozonePlatformHint: app.commandLine.getSwitchValue('ozone-platform-hint'),
+    env,
+  })
 
   if (isWayland) {
     enabledFeatures.push('GlobalShortcutsPortal', 'UseOzonePlatform', 'WaylandWindowDecorations')
