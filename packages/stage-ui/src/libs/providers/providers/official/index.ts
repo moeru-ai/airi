@@ -10,9 +10,11 @@ import { SERVER_URL } from '../../../../libs/server'
 import { defineProvider } from '../registry'
 import { createOfficialAudioProvider, createOfficialOpenAIProvider, OFFICIAL_ICON, withCredentials } from './shared'
 
+export const OFFICIAL_CHAT_PROVIDER_ID = 'official-provider'
 export const OFFICIAL_SPEECH_PROVIDER_ID = 'official-provider-speech'
 export const OFFICIAL_SPEECH_STREAMING_PROVIDER_ID = 'official-provider-speech-streaming'
 export const OFFICIAL_TRANSCRIPTION_PROVIDER_ID = 'official-provider-transcription'
+export const OFFICIAL_VISION_PROVIDER_ID = 'vision-official-provider'
 
 // Locale → voice id map recommended by the server, keyed by provider id.
 // Populated by each speech provider's listVoices() from the response's
@@ -63,7 +65,7 @@ function authHeaders(): Record<string, string> {
 }
 
 export const providerOfficialChat = defineProvider({
-  id: 'official-provider',
+  id: OFFICIAL_CHAT_PROVIDER_ID,
   order: -1,
   name: 'Official Provider',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.official.title'),
@@ -72,6 +74,7 @@ export const providerOfficialChat = defineProvider({
   tasks: ['text-generation'],
   icon: OFFICIAL_ICON,
   requiresCredentials: false,
+  configuredBy: 'authentication',
 
   createProviderConfig: () => officialConfigSchema,
   createProvider(_config) {
@@ -92,7 +95,7 @@ export const providerOfficialChat = defineProvider({
       {
         id: 'auto',
         name: 'Auto',
-        provider: 'official-provider',
+        provider: OFFICIAL_CHAT_PROVIDER_ID,
         description: 'Automatically routed by AI Gateway',
       },
     ],
@@ -109,6 +112,7 @@ export const providerOfficialSpeech = defineProvider({
   tasks: ['text-to-speech'],
   icon: OFFICIAL_ICON,
   requiresCredentials: false,
+  configuredBy: 'authentication',
   createProviderConfig: () => officialConfigSchema,
   createProvider(_config) {
     const provider = createOfficialAudioProvider()
@@ -226,6 +230,7 @@ export const providerOfficialSpeechStreaming = defineProvider({
   tasks: ['text-to-speech'],
   icon: OFFICIAL_ICON,
   requiresCredentials: false,
+  configuredBy: 'authentication',
   // Mark this provider as speaking the bidirectional ws TTS protocol so the
   // session adapter (`tts-session.ts`) picks the streaming path without
   // hard-coding provider id. Default for every other provider is `'rest'`.
@@ -350,6 +355,7 @@ export const providerOfficialTranscription = defineProvider({
   tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
   icon: OFFICIAL_ICON,
   requiresCredentials: false,
+  configuredBy: 'authentication',
   capabilities: {
     transcription: {
       protocol: 'http',
