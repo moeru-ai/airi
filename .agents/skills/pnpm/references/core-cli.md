@@ -1,224 +1,185 @@
 ---
 name: pnpm-cli-commands
-description: Essential pnpm commands for package management, running scripts, and workspace operations
+description: Essential pnpm commands for package management, running scripts, workspaces, publishing, and runtimes
 ---
 
 # pnpm CLI Commands
 
-pnpm provides a comprehensive CLI for package management with commands similar to npm/yarn but with unique features.
+pnpm provides a comprehensive CLI. Commands resemble npm/yarn but with unique features.
 
 ## Installation Commands
 
-### Install all dependencies
 ```bash
-pnpm install
-# or
-pnpm i
-```
-
-### Add a dependency
-```bash
-# Production dependency
-pnpm add <pkg>
-
-# Dev dependency
-pnpm add -D <pkg>
-pnpm add --save-dev <pkg>
-
-# Optional dependency
-pnpm add -O <pkg>
-
-# Global package
-pnpm add -g <pkg>
-
-# Specific version
+pnpm install            # install all deps (alias: pnpm i)
+pnpm add <pkg>          # production dependency
+pnpm add -D <pkg>       # devDependency       (also -d)
+pnpm add -O <pkg>       # optionalDependency  (also -o)
+pnpm add -E <pkg>       # exact version       (also -e)
 pnpm add <pkg>@<version>
-pnpm add <pkg>@next
-pnpm add <pkg>@^1.0.0
+pnpm remove <pkg>       # aliases: rm, uninstall, un
+pnpm update             # alias: up
+pnpm update --latest    # ignore semver ranges (-L)
+pnpm update -i          # interactive
 ```
 
-### Remove a dependency
+### Clean / reproducible installs
+
 ```bash
-pnpm remove <pkg>
-pnpm rm <pkg>
-pnpm uninstall <pkg>
-pnpm un <pkg>
+pnpm install --frozen-lockfile   # fail if lockfile would change (auto in CI)
+pnpm ci                          # clean install = pnpm clean + install --frozen-lockfile
+pnpm clean                       # remove node_modules in all workspace projects (alias: purge)
+pnpm clean --lockfile            # also delete pnpm-lock.yaml
 ```
 
-### Update dependencies
-```bash
-# Update all
-pnpm update
-pnpm up
-
-# Update specific package
-pnpm update <pkg>
-
-# Update to latest (ignore semver)
-pnpm update --latest
-pnpm up -L
-
-# Interactive update
-pnpm update --interactive
-pnpm up -i
-```
+> Since v11, an integrity mismatch against the lockfile is a hard error (`ERR_PNPM_TARBALL_INTEGRITY`). Use `pnpm install --update-checksums` only after verifying the new bytes. In CI, pnpm also fails on lockfiles written by a newer pnpm major.
 
 ## Script Commands
 
-### Run scripts
 ```bash
-pnpm run <script>
-# or shorthand
-pnpm <script>
-
-# Pass arguments to script
+pnpm run <script>        # or just: pnpm <script>
 pnpm run build -- --watch
-
-# Run script if exists (no error if missing)
 pnpm run --if-present build
+pnpm set-script test "vitest run"   # add/update a scripts entry (alias: ss)
+pnpm exec <cmd>          # run a local binary, e.g. pnpm exec eslint .
 ```
 
-### Execute binaries
+- **Hidden scripts:** names starting with `.` (e.g. `.helper`) can't be run directly, only called from other scripts.
+- **Built-in vs script conflict:** `clean`, `setup`, `deploy`, `rebuild` prefer a same-named `package.json` script. Force the built-in with `pnpm pm <name>` (e.g. `pnpm pm clean`).
+
+### dlx / pnx — run without installing
+
 ```bash
-# Run local binary
-pnpm exec <command>
-
-# Example
-pnpm exec eslint .
+pnx create-vite my-app          # pnx == pnpm dlx == pnpx
+pnpm dlx degit user/repo dest
+pnx shx@catalog:                # catalog: protocol supported
+pnx --package=@scope/tool tool --help
 ```
 
-### dlx - Run without installing
-```bash
-# Like npx but for pnpm
-pnpm dlx <pkg>
-
-# Examples
-pnpm dlx create-vite my-app
-pnpm dlx degit user/repo my-project
-```
+> `dlx`/`pnx` honor supply-chain settings (`minimumReleaseAge`, `trustPolicy`) and use the global virtual store by default in v11.
 
 ## Workspace Commands
 
-### Run in all packages
 ```bash
-# Run script in all workspace packages
-pnpm -r run <script>
-pnpm --recursive run <script>
-
-# Run in specific packages
+pnpm -r run <script>              # run in all packages (alias: --recursive)
 pnpm --filter <pattern> run <script>
-
-# Examples
 pnpm --filter "./packages/**" run build
-pnpm --filter "!./packages/internal/**" run test
 pnpm --filter "@myorg/*" run lint
+pnpm -r --parallel run dev
 ```
 
 ### Filter patterns
-```bash
-# By package name
-pnpm --filter <pkg-name> <command>
-pnpm --filter "@scope/pkg" build
 
-# By directory
+```bash
+pnpm --filter <pkg-name> <cmd>      # by name (-F shorthand)
 pnpm --filter "./packages/core" test
-
-# Dependencies of a package
-pnpm --filter "...@scope/app" build
-
-# Dependents of a package
-pnpm --filter "@scope/core..." test
-
-# Changed packages since commit/branch
-pnpm --filter "...[origin/main]" build
+pnpm --filter "...@scope/app" build   # package + its dependencies
+pnpm --filter "@scope/core..." test   # package + its dependents
+pnpm --filter "...[origin/main]" build  # changed since git ref
 ```
 
-## Other Useful Commands
+## Patches
 
-### Link packages
 ```bash
-# Link global package
-pnpm link --global
-pnpm link -g
-
-# Use linked package
-pnpm link --global <pkg>
+pnpm patch <pkg>@<version>     # opens an editable copy, prints a path
+pnpm patch-commit <path>       # writes patches/*.patch and records it
+pnpm patch-remove <pkg>@<version>
 ```
 
-### Patch packages
+## Linking local packages
+
 ```bash
-# Create patch for a package
-pnpm patch <pkg>@<version>
-
-# After editing, commit the patch
-pnpm patch-commit <path>
-
-# Remove a patch
-pnpm patch-remove <pkg>
+pnpm link <dir>          # link a path into this project's node_modules (path only!)
+pnpm add -g .            # register the current package's bins globally
 ```
 
-### Store management
+> Breaking in v11: `pnpm link` accepts **only relative/absolute paths** (no global store resolution, no `--global`, no bare `pnpm link`). Use `pnpm add -g .` to expose bins system-wide.
+
+## Global packages (v11 isolated installs)
+
 ```bash
-# Show store path
-pnpm store path
+pnpm add -g typescript prettier   # each gets its own isolated install dir
+pnpm add -g eslint,prettier       # comma = ONE shared install group
+pnpm add -g --allow-build=esbuild esbuild
+pnpm remove -g <pkg>
+pnpm list -g
+pnpm bin -g                       # show global bin dir ($PNPM_HOME/bin)
+```
 
-# Remove unreferenced packages
-pnpm store prune
+> `pnpm install -g` (no args) is not supported. After upgrading to v11 run `pnpm setup` so `$PNPM_HOME/bin` is on PATH.
 
-# Check store integrity
+## Runtimes (Node/Deno/Bun)
+
+```bash
+pnpm runtime set node 22 -g       # install & expose node (alias: rt)
+pnpm runtime set node lts -g
+pnpm runtime set deno 2 -g
+pnpm install --no-runtime         # skip installing devEngines.runtime entries
+```
+
+## Store management
+
+```bash
+pnpm store path        # store location (prints removed size after prune)
+pnpm store prune       # GC unreferenced packages (+ global virtual store links)
 pnpm store status
 ```
 
-### Other commands
+## Inspection / registry
+
 ```bash
-# Clean install (like npm ci)
-pnpm install --frozen-lockfile
-
-# List installed packages
-pnpm list
-pnpm ls
-
-# Why is package installed?
-pnpm why <pkg>
-
-# Outdated packages
+pnpm list                 # alias: ls
+pnpm why <pkg>            # reverse-dependency tree (dedupes subtrees)
+pnpm why --find-by=<finder>   # custom finder from .pnpmfile.mjs
 pnpm outdated
-
-# Audit for vulnerabilities
 pnpm audit
-
-# Rebuild native modules
+pnpm peers check          # report unmet/missing peers from the lockfile
+pnpm view <pkg> [field]   # registry metadata (aliases: info, show)
+pnpm whoami
 pnpm rebuild
+pnpm import               # create pnpm-lock.yaml from npm/yarn lockfile
+pnpm dedupe
+```
 
-# Import from npm/yarn lockfile
-pnpm import
+## Publishing
 
-# Create tarball
+```bash
 pnpm pack
+pnpm publish -r --no-git-checks
+pnpm version patch|minor|major|2.0.0    # bump version, commit + tag (v11)
+pnpm version prerelease --preid beta
+pnpm deprecate <pkg>@<range> "message"
+pnpm dist-tag add <pkg>@<version> <tag>
+pnpm unpublish <pkg>@<version>          # discouraged; prefer deprecate
+pnpm sbom --sbom-format cyclonedx       # SBOM: cyclonedx (1.7) | spdx (2.3)
+pnpm stage publish ...                  # staged publishing (defer 2FA)
+```
 
-# Publish package
-pnpm publish
+## Maintenance & version management
+
+```bash
+pnpm self-update [<version>]   # updates the packageManager pin, or installs globally
+pnpm with current install      # run a specific pnpm version for one command
+pnpm with 11.0.0 install
+pnpm approve-builds [--all]    # review dependency build scripts (writes allowBuilds)
 ```
 
 ## Useful Flags
 
 ```bash
-# Ignore scripts
 pnpm install --ignore-scripts
-
-# Prefer offline (use cache)
 pnpm install --prefer-offline
-
-# Strict peer dependencies
-pnpm install --strict-peer-dependencies
-
-# Production only
-pnpm install --prod
-pnpm install -P
-
-# No optional dependencies
+pnpm install --prod            # -P, omit devDependencies
 pnpm install --no-optional
+pnpm install --strict-peer-dependencies
 ```
+
+## Key Points
+
+- `pnpm ci` = clean + frozen install; CI auto-enables frozen-lockfile.
+- `dlx`/`pnpx` are aliases of `pnx`; global installs are now isolated per package (comma-list to share).
+- `pnpm link` only takes paths; use `pnpm add -g .` for global bins.
+- Manage Node/Deno/Bun with `pnpm runtime set`; skip them at install with `--no-runtime`.
+- New publishing/registry commands: `version`, `view`, `whoami`, `deprecate`, `dist-tag`, `unpublish`, `sbom`, `stage`.
 
 <!--
 Source references:
@@ -226,4 +187,10 @@ Source references:
 - https://pnpm.io/cli/add
 - https://pnpm.io/cli/run
 - https://pnpm.io/filtering
+- https://pnpm.io/cli/link
+- https://pnpm.io/global-packages
+- https://pnpm.io/cli/runtime
+- https://pnpm.io/cli/version
+- https://pnpm.io/cli/with
+- https://pnpm.io/cli/sbom
 -->

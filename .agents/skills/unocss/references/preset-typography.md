@@ -79,9 +79,9 @@ Responsive:
 
 ```ts
 presetTypography({
-  selectorName: 'prose', // Custom selector
+  selectorName: 'prose',      // Custom selector
   cssVarPrefix: '--un-prose', // CSS variable prefix
-  important: false, // Make !important
+  important: false,           // Make !important
   cssExtend: {
     'code': { color: '#8b5cf6' },
     'a:hover': { color: '#f43f5e' },
@@ -89,7 +89,7 @@ presetTypography({
 })
 ```
 
-<!--
+<!-- 
 Source references:
 - https://unocss.dev/presets/typography
 -->

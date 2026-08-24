@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Live2DLipSync, Live2DLipSyncOptions } from '@proj-airi/model-driver-lipsync'
 import type { Profile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
+import type { CaptionChannelEvent } from '@proj-airi/stage-shared'
 import type { VrmInteractionTarget } from '@proj-airi/stage-ui-three'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
@@ -25,29 +26,29 @@ import { useBroadcastChannel } from '@vueuse/core'
 // import { createTransformers } from '@xsai-transformers/embed'
 // import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
 // import { embed } from '@xsai/embed'
-import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+
+import StageRenderError from './stage-render-error.vue'
 
 import { useSettingsLive2d } from '../../../../stage-ui-live2d/src/composables/live2d/live2d'
-import { useAnalytics } from '../../composables/use-analytics'
 import { useDuckDb } from '../../composables/use-duck-db'
 import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
-import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
 import { getSpeechBusContext, speechOutputGetPlaybackState } from '../../services/speech/bus'
+import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
-import { useChatOrchestratorStore } from '../../stores/chat'
-import { useLlmStreamingControlStore } from '../../stores/llm-streaming-control'
+import { useChatStore } from '../../stores/chat'
 import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore } from '../../stores/modules/speech'
-import { useProvidersStore } from '../../stores/providers'
+import { useProviderConfigStore } from '../../stores/providers/config'
+import { useProviderStore } from '../../stores/providers/provider'
 import { useSettings } from '../../stores/settings'
 import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
 import { useSpeechRuntimeStore } from '../../stores/speech-runtime'
@@ -124,21 +125,36 @@ function onVRMInteract(target: VrmInteractionTarget) {
   vrmViewerRef.value?.setExpression(getVrmInteractionExpression(target), 1)
 }
 
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatOrchestratorStore()
+const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
 const chatHookCleanups: Array<() => void> = []
 // WORKAROUND: clear previous handlers on unmount to avoid duplicate calls when this component remounts.
 //             We keep per-hook disposers instead of wiping the global chat hooks to play nicely with
 //             cross-window broadcast wiring.
 
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
+
+const providerStore = useProviderConfigStore()
 const live2dStore = useLive2dParams()
 const showStage = ref(true)
+const stageRenderError = shallowRef<Error>()
 const viewUpdateCleanups: Array<() => void> = []
 
+function handleStageRenderError(error: Error) {
+  stageRenderError.value = error
+}
+
+async function retryStageRenderer() {
+  stageRenderError.value = undefined
+  showStage.value = false
+  await nextTick()
+  showStage.value = true
+}
+
+watch([stageModelRenderer, stageModelSelected, stageModelSelectedUrl], () => {
+  stageRenderError.value = undefined
+})
+
 // Caption + Presentation broadcast channels
-type CaptionChannelEvent
-  = | { type: 'caption-speaker', text: string }
-    | { type: 'caption-assistant', text: string }
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 const assistantCaption = ref('')
 
@@ -186,8 +202,6 @@ const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
 const activeCardId = computed(() => activeCard.value?.name ?? 'default')
 const speechRuntimeStore = useSpeechRuntimeStore()
-const { trackOfficialTtsAutoEnabled } = useAnalytics()
-let officialAutoTtsTrackedForTurn = false
 const backgroundStore = useBackgroundStore()
 const { activeBackgroundUrl } = storeToRefs(backgroundStore)
 
@@ -354,11 +368,6 @@ async function playFunction(item: Parameters<Parameters<typeof createPlaybackMan
 
     try {
       source.start(0)
-      if (item.intentId.startsWith('stream-')) {
-        const model = resolveStreamingSessionModel()
-        if (model)
-          trackOfficialAutoTtsForTurn(model)
-      }
     }
     catch {
       stopPlayback()
@@ -379,24 +388,6 @@ const playbackManager = createPlaybackManager<AudioBuffer>({
  */
 function resolveStageVoiceType(): 'official_selected' | 'custom_configured' {
   return activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID || activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID ? 'official_selected' : 'custom_configured'
-}
-
-/**
- * Tracks official auto-TTS once per assistant turn when chat audio is actually used.
- */
-function trackOfficialAutoTtsForTurn(modelId: string) {
-  if (officialAutoTtsTrackedForTurn)
-    return
-  if (activeSpeechProvider.value !== OFFICIAL_SPEECH_PROVIDER_ID && activeSpeechProvider.value !== OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
-    return
-
-  officialAutoTtsTrackedForTurn = true
-  trackOfficialTtsAutoEnabled({
-    tts_provider_id: activeSpeechProvider.value,
-    tts_model_id: modelId,
-    source: 'chat_auto_tts',
-    enabled: true,
-  })
 }
 
 const speechPipeline = createSpeechPipeline<AudioBuffer>({
@@ -439,7 +430,7 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
     if (!request.text && !request.special)
       return null
 
-    const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+    const providerConfig = providerStore.getProviderConfig(activeSpeechProvider.value)
 
     // For OpenAI Compatible providers, always use provider config for model and voice
     // since these are manually configured in provider settings
@@ -501,30 +492,23 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       // Non-streaming providers only: synth via REST. Streaming provider
       // was already early-returned above; it owns its own ws path opened
       // in `onBeforeMessageComposed`.
-      const providerConfigWithAnalytics = activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID
-        ? {
-            ...speechRequest.providerConfig,
-            extraBody: {
-              ...(speechRequest.providerConfig.extraBody as Record<string, unknown> | undefined),
-              airi_analytics: {
-                trigger: 'auto',
-                source: 'chat_auto_tts',
-                voice_type: resolveStageVoiceType(),
-              },
-            },
-          }
-        : speechRequest.providerConfig
-      const res = await generateSpeech({
-        ...provider.speech(model, providerConfigWithAnalytics),
-        input: speechRequest.input,
-        voice: voice.id,
-      })
+      const res = await speechStore.speech(
+        provider,
+        model,
+        speechRequest.input,
+        voice.id,
+        speechRequest.providerConfig,
+        {
+          trigger: 'auto',
+          source: 'chat_auto_tts',
+          voice_type: resolveStageVoiceType(),
+        },
+      )
 
       if (signal.aborted || !res || res.byteLength === 0)
         return null
 
       const audioBuffer = await audioContext.decodeAudioData(res)
-      trackOfficialAutoTtsForTurn(model)
       return audioBuffer
     }
     catch (err) {
@@ -549,7 +533,6 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
 
 initIOTracer()
 useIOTraceBridge(speechPipeline)
-useSpeechPipelineAnalytics()
 void speechRuntimeStore.registerHost(speechPipeline)
 
 speechPipeline.on('onSpecial', (segment) => {
@@ -816,7 +799,6 @@ watch(speechMuted, (muted) => {
 }, { immediate: true })
 
 chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
-  officialAutoTtsTrackedForTurn = false
   playbackManager.stopAll('new-message')
   resetAssistantSpeechSurface('new-message')
 
@@ -1075,6 +1057,7 @@ defineExpose({
         :live2d-shadow-enabled="live2dShadowEnabled"
         :live2d-max-fps="live2dMaxFps"
         :live2d-render-scale="live2dRenderScale"
+        @error="handleStageRenderError"
       />
       <ThreeScene
         v-if="stageModelRenderer === 'vrm' && showStage"
@@ -1153,6 +1136,14 @@ defineExpose({
           </Callout>
         </div>
       </div>
+
+      <StageRenderError
+        v-if="stageRenderError"
+        :error="stageRenderError"
+        renderer="Live2D"
+        :model-id="stageModelSelected"
+        @retry="retryStageRenderer"
+      />
     </div>
   </div>
 </template>

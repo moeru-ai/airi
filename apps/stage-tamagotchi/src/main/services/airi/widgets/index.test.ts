@@ -39,7 +39,7 @@ describe('createWidgetsService', () => {
     const widgetsManager = createWidgetsManager()
     const window = createWindow(1)
     createWidgetsService({
-      context: context as Parameters<typeof createWidgetsService>[0]['context'],
+      context: context as never,
       widgetsManager,
       window,
     })
@@ -70,7 +70,7 @@ describe('createWidgetsService', () => {
     const widgetsManager = createWidgetsManager()
     const window = createWindow(1)
     createWidgetsService({
-      context: context as Parameters<typeof createWidgetsService>[0]['context'],
+      context: context as never,
       widgetsManager,
       window,
     })

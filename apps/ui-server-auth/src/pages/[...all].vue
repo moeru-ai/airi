@@ -58,7 +58,7 @@ const router = useRouter()
         <Button @click="router.push('/sign-in')">
           Sign in
         </Button>
-        <Button variant="secondary" @click="router.go(-1)">
+        <Button @click="router.go(-1)">
           Go back
         </Button>
       </div>

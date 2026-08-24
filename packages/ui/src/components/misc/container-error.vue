@@ -3,7 +3,7 @@ import { errorCauseFrom, errorMessageFrom, errorNameFrom, errorStackFrom } from 
 import { ScrollAreaCorner, ScrollAreaRoot, ScrollAreaScrollbar, ScrollAreaThumb, ScrollAreaViewport } from 'reka-ui'
 import { computed, shallowRef } from 'vue'
 
-import Button from './button.vue'
+import IconButton from './icon-button.vue'
 
 type HeightPreset = 'sm' | 'md' | 'lg' | 'xl' | 'auto'
 
@@ -161,22 +161,16 @@ async function copyContent() {
     ]"
   >
     <div :class="['absolute right-2 -translate-x-full top-2 z-10']">
-      <Button
+      <IconButton
         v-if="showCopyButton"
-        size="sm"
-        variant="secondary"
-        shape="square"
         icon="i-solar:copy-line-duotone"
         :title="copied ? copiedButtonLabel : copyButtonLabel"
         :aria-label="copied ? copiedButtonLabel : copyButtonLabel"
         @click="copyContent"
       />
 
-      <Button
+      <IconButton
         v-if="showFeedbackButton"
-        size="sm"
-        variant="secondary"
-        shape="square"
         icon="i-solar:square-share-line-line-duotone"
         :title="feedbackButtonLabel"
         :aria-label="feedbackButtonLabel"

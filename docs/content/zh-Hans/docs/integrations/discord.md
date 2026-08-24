@@ -19,10 +19,10 @@ Discord Bot Token、Client ID 和模型 API Key 只应保存在本地 **.env.loc
 ## 配置
 
 ~~~bash
-cp services/discord-bot/.env services/discord-bot/.env.local
+cp integrations/discord-bot/.env integrations/discord-bot/.env.local
 ~~~
 
-编辑 **services/discord-bot/.env.local**，填写 **DISCORD_TOKEN**、**DISCORD_BOT_CLIENT_ID**、聊天模型与语音服务配置。Discord Token 丢失或泄露时，应立即在开发者控制台重置。
+编辑 **integrations/discord-bot/.env.local**，填写 **DISCORD_TOKEN**、**DISCORD_BOT_CLIENT_ID**、聊天模型与语音服务配置。Discord Token 丢失或泄露时，应立即在开发者控制台重置。
 
 ## 启动
 

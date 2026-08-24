@@ -110,7 +110,7 @@ AIRI 的主技术栈是 Vue 3、TypeScript、Vite、Pinia、VueUse、UnoCSS 和 
 - `packages/stage-ui`：网页端、桌面端和移动端共享的核心业务组件、设置页、stores 与 composables；
 - `packages/stage-ui-three` 与 `packages/stage-ui-live2d`：3D / Live2D 舞台相关能力；
 - `packages/server-runtime`、`packages/server-sdk`、`packages/server-shared`：服务通道和外部智能体连接；
-- `services/discord-bot`、`services/telegram-bot`、`services/minecraft`：需要源码配置运行的服务侧实验模块。
+- `integrations/discord-bot`、`integrations/telegram-bot`、`integrations/minecraft`：需要源码配置运行的外部平台集成。
 
 如果你想贡献代码，可以从[开发者指南](../contributing/)开始；如果你想改进界面，请先阅读[设计指南](../contributing/design-guidelines/resources)。
 

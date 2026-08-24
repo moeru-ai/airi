@@ -9,11 +9,11 @@ Overrides let you force specific versions of packages, including transitive depe
 
 ## Basic Syntax
 
-Define overrides in `pnpm-workspace.yaml` (recommended) or `package.json`:
+Define overrides in `pnpm-workspace.yaml`. They can only be set at the **root** of the project.
 
-### In pnpm-workspace.yaml (Recommended)
+> The `pnpm.overrides` field in `package.json` is **no longer read** (pnpm no longer reads any settings from `package.json#pnpm`). Move overrides to `pnpm-workspace.yaml`.
 
-```yaml
+```yaml title="pnpm-workspace.yaml"
 packages:
   - 'packages/*'
 
@@ -22,27 +22,16 @@ overrides:
   lodash: ^4.17.21
 
   # Override specific version range
-  'foo@^1.0.0': ^1.2.3
+  "foo@^1.0.0": ^1.2.3
 
-  # Override nested dependency
-  'express>cookie': ^0.6.0
+  # Override nested dependency (only zoo inside qar@1)
+  "qar@1>zoo": "2"
 
   # Override to different package
-  'underscore': 'npm:lodash@^4.17.21'
-```
+  "underscore": "npm:lodash@^4.17.21"
 
-### In package.json
-
-```json
-{
-  "pnpm": {
-    "overrides": {
-      "lodash": "^4.17.21",
-      "foo@^1.0.0": "^1.2.3",
-      "bar@^2.0.0>qux": "^1.0.0"
-    }
-  }
-}
+  # Reference a catalog so the version stays in sync
+  "react": "catalog:"
 ```
 
 ## Override Patterns
@@ -57,15 +46,15 @@ Forces all lodash installations to use ^4.17.21.
 ### Override specific parent version
 ```yaml
 overrides:
-  'foo@^1.0.0': ^1.2.3
+  "foo@^1.0.0": ^1.2.3
 ```
 Only override foo when the requested version matches ^1.0.0.
 
 ### Override nested dependency
 ```yaml
 overrides:
-  'express>cookie': ^0.6.0
-  'foo@1.x>bar@^2.0.0>qux': ^1.0.0
+  "express>cookie": ^0.6.0
+  "foo@1.x>bar@^2.0.0>qux": ^1.0.0
 ```
 Override cookie only when it's a dependency of express.
 
@@ -74,10 +63,10 @@ Override cookie only when it's a dependency of express.
 overrides:
   # Replace underscore with lodash
   "underscore": "npm:lodash@^4.17.21"
-
+  
   # Use local file
   "some-pkg": "file:./local-pkg"
-
+  
   # Use git
   "some-pkg": "github:user/repo#commit"
 ```
@@ -85,9 +74,23 @@ overrides:
 ### Remove a dependency
 ```yaml
 overrides:
-  'unwanted-pkg': '-'
+  "unwanted-pkg": "-"
+  "foo@1.0.0>bar": "-"   # great for skipping unused optionalDependencies
 ```
 The `-` removes the package entirely.
+
+### Override peer dependencies
+
+Overrides also apply to `peerDependencies`:
+
+```yaml title="pnpm-workspace.yaml"
+overrides:
+  "react-dom>react": "18.1.0"
+```
+
+- Semver ranges, `workspace:`, and `catalog:` keep the entry as a peer dependency.
+- Non-range specifiers (`link:`, `file:`) move it into `dependencies`.
+- `-` removes the peer dependency entirely.
 
 ## Common Use Cases
 
@@ -98,8 +101,8 @@ Force patched version of vulnerable package:
 ```yaml
 overrides:
   # Fix CVE in transitive dependency
-  'minimist': '^1.2.6'
-  'json5': '^2.2.3'
+  "minimist": "^1.2.6"
+  "json5": "^2.2.3"
 ```
 
 ### Deduplicate Dependencies
@@ -108,30 +111,29 @@ Force single version when multiple are installed:
 
 ```yaml
 overrides:
-  'react': '^18.2.0'
-  'react-dom': '^18.2.0'
+  "react": "^18.2.0"
+  "react-dom": "^18.2.0"
 ```
 
 ### Fix Peer Dependency Issues
 
 ```yaml
 overrides:
-  '@types/react': '^18.2.0'
+  "@types/react": "^18.2.0"
 ```
 
 ### Replace Deprecated Package
 
 ```yaml
 overrides:
-  'request': 'npm:@cypress/request@^3.0.0'
+  "request": "npm:@cypress/request@^3.0.0"
 ```
 
 ## Hooks Alternative
 
-For more complex scenarios, use `.pnpmfile.cjs`:
+For more complex scenarios, use `.pnpmfile.mjs`:
 
-```js
-// .pnpmfile.cjs
+```js title=".pnpmfile.mjs"
 function readPackage(pkg, context) {
   // Override dependency version
   if (pkg.dependencies?.lodash) {
@@ -149,11 +151,18 @@ function readPackage(pkg, context) {
   return pkg
 }
 
-module.exports = {
-  hooks: {
-    readPackage
-  }
+export const hooks = {
+  readPackage
 }
+```
+
+Or extend a manifest declaratively with `packageExtensions` (no JS needed):
+
+```yaml title="pnpm-workspace.yaml"
+packageExtensions:
+  react-redux:
+    peerDependencies:
+      react-dom: '*'
 ```
 
 ## Overrides vs Catalogs
@@ -179,6 +188,7 @@ pnpm list lodash --depth=Infinity
 
 <!--
 Source references:
-- https://pnpm.io/package_json#pnpmoverrides
+- https://pnpm.io/settings#overrides
+- https://pnpm.io/settings#packageextensions
 - https://pnpm.io/pnpmfile
 -->

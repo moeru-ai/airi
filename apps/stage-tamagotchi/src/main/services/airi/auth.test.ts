@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import {
+  electronAuthCallback,
+  electronAuthCallbackError,
+} from '../../../shared/eventa'
 import { createAuthService } from './auth'
 
 type InvokeHandler = (payload: unknown, options: unknown) => Promise<void>
@@ -83,27 +87,23 @@ function createLoopback(result: Promise<{ code: string }>, close: () => void, po
 
 function registerAuthService() {
   const windowId = 7
-  const windowAuthManager = {
-    broadcastAuthCallback: vi.fn(),
-    broadcastAuthError: vi.fn(),
-    registerWindow: vi.fn(),
+  const context = {
+    emit: vi.fn(),
   }
   const window = {
-    on: vi.fn(),
     webContents: { id: windowId },
   }
 
   createAuthService({
-    context: {} as never,
+    context: context as never,
     window: window as never,
-    windowAuthManager,
   })
 
   return {
+    context,
     login: mocks.handlers.get('eventa:invoke:electron:auth:start-login')!,
     logout: mocks.handlers.get('eventa:invoke:electron:auth:logout')!,
     options: invokeOptions(windowId),
-    windowAuthManager,
   }
 }
 
@@ -126,7 +126,7 @@ describe('createAuthService', () => {
   })
 
   // https://github.com/moeru-ai/airi/issues/2182
-  it('silences a replaced attempt cancellation without losing the active attempt (Issue #2182)', async () => {
+  it('lets a retry replace an abandoned attempt without publishing its cancellation (Issue #2182)', async () => {
     const firstResult = deferred<{ code: string }>()
     const firstLoopback = createLoopback(
       firstResult.promise,
@@ -146,7 +146,7 @@ describe('createAuthService', () => {
     await flushAsyncHandlers()
 
     expect(firstLoopback.close).toHaveBeenCalledTimes(1)
-    expect(service.windowAuthManager.broadcastAuthError).not.toHaveBeenCalled()
+    expect(service.context.emit).not.toHaveBeenCalledWith(electronAuthCallbackError, expect.anything())
 
     await service.logout(undefined, service.options)
     expect(secondLoopback.close).toHaveBeenCalledTimes(1)
@@ -179,15 +179,14 @@ describe('createAuthService', () => {
 
     expect(firstLoopback.close).toHaveBeenCalledTimes(1)
     expect(mocks.openExternal).toHaveBeenCalledTimes(1)
-    expect(service.windowAuthManager.broadcastAuthCallback).not.toHaveBeenCalled()
-    expect(service.windowAuthManager.broadcastAuthError).not.toHaveBeenCalled()
+    expect(service.context.emit).not.toHaveBeenCalled()
 
     await service.logout(undefined, service.options)
     expect(secondLoopback.close).toHaveBeenCalledTimes(1)
   })
 
   // https://github.com/moeru-ai/airi/issues/2182
-  it('does not publish or clean up a superseded token exchange (Issue #2182)', async () => {
+  it('does not publish or clear the current attempt after a superseded token exchange (Issue #2182)', async () => {
     const firstResult = deferred<{ code: string }>()
     const tokenResponse = deferred<Response>()
     const firstLoopback = createLoopback(firstResult.promise, () => {}, 41001)
@@ -214,14 +213,14 @@ describe('createAuthService', () => {
     }))
     await flushAsyncHandlers()
 
-    expect(service.windowAuthManager.broadcastAuthCallback).not.toHaveBeenCalled()
+    expect(service.context.emit).not.toHaveBeenCalledWith(electronAuthCallback, expect.anything())
 
     await service.logout(undefined, service.options)
     expect(secondLoopback.close).toHaveBeenCalledTimes(1)
   })
 
   // https://github.com/moeru-ai/airi/issues/2182
-  it('still publishes tokens from the active attempt (Issue #2182)', async () => {
+  it('publishes tokens exactly once for the current attempt (Issue #2182)', async () => {
     const result = deferred<{ code: string }>()
     const loopback = createLoopback(result.promise, () => {}, 41001)
     mocks.startLoopbackServer.mockResolvedValueOnce(loopback)
@@ -240,17 +239,17 @@ describe('createAuthService', () => {
     await service.login(undefined, service.options)
     result.resolve({ code: 'active-code' })
 
-    await vi.waitFor(() => expect(service.windowAuthManager.broadcastAuthCallback).toHaveBeenCalledWith({
+    await vi.waitFor(() => expect(service.context.emit).toHaveBeenCalledWith(electronAuthCallback, {
       accessToken: 'active-access-token',
       expiresIn: 3600,
       idToken: undefined,
       refreshToken: 'active-refresh-token',
     }))
-    expect(service.windowAuthManager.broadcastAuthError).not.toHaveBeenCalled()
+    expect(service.context.emit).toHaveBeenCalledTimes(1)
   })
 
   // https://github.com/moeru-ai/airi/issues/2182
-  it('still publishes errors from the active attempt (Issue #2182)', async () => {
+  it('publishes an error exactly once for the current attempt (Issue #2182)', async () => {
     const result = deferred<{ code: string }>()
     const loopback = createLoopback(result.promise, () => {}, 41001)
     mocks.startLoopbackServer.mockResolvedValueOnce(loopback)
@@ -261,12 +260,14 @@ describe('createAuthService', () => {
     await service.login(undefined, service.options)
     result.reject(new Error('OIDC callback timed out'))
 
-    await vi.waitFor(() => expect(service.windowAuthManager.broadcastAuthError).toHaveBeenCalledWith('OIDC callback timed out'))
-    expect(service.windowAuthManager.broadcastAuthCallback).not.toHaveBeenCalled()
+    await vi.waitFor(() => expect(service.context.emit).toHaveBeenCalledWith(electronAuthCallbackError, {
+      error: 'OIDC callback timed out',
+    }))
+    expect(service.context.emit).toHaveBeenCalledTimes(1)
   })
 
   // https://github.com/moeru-ai/airi/issues/2182
-  it('silences cancellation when logout closes the active attempt (Issue #2182)', async () => {
+  it('closes the current attempt on logout without publishing its cancellation (Issue #2182)', async () => {
     const result = deferred<{ code: string }>()
     const loopback = createLoopback(
       result.promise,
@@ -283,7 +284,6 @@ describe('createAuthService', () => {
     await flushAsyncHandlers()
 
     expect(loopback.close).toHaveBeenCalledTimes(1)
-    expect(service.windowAuthManager.broadcastAuthCallback).not.toHaveBeenCalled()
-    expect(service.windowAuthManager.broadcastAuthError).not.toHaveBeenCalled()
+    expect(service.context.emit).not.toHaveBeenCalled()
   })
 })

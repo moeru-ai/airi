@@ -63,7 +63,7 @@ describe('createTrackButtonDirective', () => {
     const app = createApp({
       render: () => withDirectives(
         h('button'),
-        [[directive, { name: 'mcp_server_added' } satisfies TrackButtonEvent]],
+        [[directive, { name: 'mcp_server_updated', action: 'add' } satisfies TrackButtonEvent]],
       ),
     })
 

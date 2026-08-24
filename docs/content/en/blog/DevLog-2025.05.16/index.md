@@ -164,7 +164,7 @@ So [@luoling](https://github.com/luoling8192) made another small demo for this t
 #### Birth of xsAI 🤗 Transformers.js
 
 Because the work we have done for VAD, ASR, Chat, and TTS demos, this gave the
-birth of a new side project called [xsAI 🤗 Transformers.js](https://github.com/proj-airi/xsai-transformers)
+birth of a new side project called [xsAI 🤗 Transformers.js](https://github.com/moeru-ai/xsai-transformers)
 , enabling the simplicity to call the WebGPU powered model inference and serving with
 workers while still keeping the API compatible to our prior succeeded project called
 [xsAI](https://github.com/moeru-ai/xsai).

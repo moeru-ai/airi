@@ -41,9 +41,6 @@ function handleClick() {
 }
 
 function doSigningIn() {
-  if (signingIn.value)
-    return
-
   signingIn.value = true
   startSigningIn()
 }

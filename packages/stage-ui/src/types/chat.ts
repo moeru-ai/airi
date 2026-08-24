@@ -8,6 +8,7 @@ export type {
   ChatSlicesToolCallResult,
   ChatStreamEvent,
   ChatStreamEventContext,
+  ChatToolReference,
   ContextMessage,
   ErrorMessage,
   StreamingAssistantMessage,

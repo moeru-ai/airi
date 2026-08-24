@@ -37,6 +37,14 @@ export interface WatchAtMostReturn {
   count: ShallowRef<number>
 }
 export declare function watchAtMost<
+  T,
+  Immediate extends Readonly<boolean> = false,
+>(
+  sources: WatchSource<T>,
+  cb: WatchCallback<T, Immediate extends true ? T | undefined : T>,
+  options: WatchAtMostOptions<Immediate>,
+): WatchAtMostReturn
+export declare function watchAtMost<
   T extends Readonly<MultiWatchSources>,
   Immediate extends Readonly<boolean> = false,
 >(
@@ -45,11 +53,11 @@ export declare function watchAtMost<
   options: WatchAtMostOptions<Immediate>,
 ): WatchAtMostReturn
 export declare function watchAtMost<
-  T,
+  T extends object,
   Immediate extends Readonly<boolean> = false,
 >(
-  sources: WatchSource<T>,
-  cb: WatchCallback<T, Immediate extends true ? T | undefined : T>,
+  sources: T,
+  cb: WatchCallback<MapSources<T>, MapOldSources<T, Immediate>>,
   options: WatchAtMostOptions<Immediate>,
 ): WatchAtMostReturn
 ```

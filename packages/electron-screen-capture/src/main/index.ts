@@ -144,6 +144,22 @@ function resetScreenCaptureSource() {
   screenCaptureSourceMutexHandle = undefined
 }
 
+/**
+ * Reports whether a renderer-selected capture source is currently being served.
+ *
+ * Use when:
+ * - A permission handler has to tell AIRI's own display capture flow apart from an unsolicited request
+ *
+ * Expects:
+ * - `initScreenCaptureForWindow` installed the invoke handlers that own the selection mutex
+ *
+ * Returns:
+ * - Whether `setDisplayMediaRequestHandler` is currently bound to a source picked by a renderer
+ */
+export function hasSelectedScreenCaptureSource(): boolean {
+  return screenCaptureSourceMutexHandle !== undefined
+}
+
 const initializedWindows = new WeakSet<BrowserWindow>()
 
 // NOTICE: use this to guard to prevent handling destroyed window

@@ -8,7 +8,8 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldCombobox, FieldTextArea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
@@ -25,8 +26,9 @@ interface MimoSpeechProviderConfig {
 }
 
 const speechStore = useSpeechStore()
-const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore)
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerStore)
 const { t } = useI18n()
 
 const defaultVoiceSettings = {
@@ -126,7 +128,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     throw new Error('Failed to initialize speech provider')
   }
 
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = providerStore.getProviderConfig(providerId)
   const modelToUse = modelId || model.value || defaultModel
   const requestConfig = {
     ...providerConfig,

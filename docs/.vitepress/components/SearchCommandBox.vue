@@ -49,10 +49,15 @@ const mark = computedAsync(async () => {
   return markRaw(new Mark(resultsEl.value))
 }, null)
 
-const searchIndex = computedAsync(async () =>
-  markRaw(
+const searchIndex = computedAsync(async () => {
+  // Index loads asynchronously in onMounted; return undefined until ready.
+  const data = searchIndexData.value
+  if (!data)
+    return undefined
+
+  return markRaw(
     MiniSearch.loadJSON<Result>(
-      (await searchIndexData.value[localeIndex.value]?.())?.default,
+      (await data[localeIndex.value]?.())?.default,
       {
         fields: ['title', 'titles', 'text'],
         storeFields: ['title', 'titles'],
@@ -63,8 +68,8 @@ const searchIndex = computedAsync(async () =>
         },
       },
     ),
-  ),
-)
+  )
+})
 
 const cache = new LRUCache(16) // 16 files
 

@@ -14,8 +14,10 @@ import {
   ProviderBasicSettings,
   ProviderSettingsContainer,
 } from '.'
+import { selectProviderMetadata } from '../../../libs/providers/metadata'
 import { useSpeechStore } from '../../../stores/modules/speech'
-import { useProvidersStore } from '../../../stores/providers'
+import { useProviderConfigStore } from '../../../stores/providers/config'
+import { useProviderStore } from '../../../stores/providers/provider'
 
 const props = defineProps<{
   providerId: string
@@ -35,12 +37,15 @@ defineSlots<{
 }>()
 const { t } = useI18n()
 const router = useRouter()
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
 const speechStore = useSpeechStore()
-const { providers } = storeToRefs(providersStore)
+const { configs: providers } = storeToRefs(providerStore)
 
-// Get provider metadata
-const providerMetadata = computed(() => providersStore.getProviderMetadata(props.providerId))
+const providerMetadata = computed(() => {
+  const definition = providersStore.getProviderDefinition(props.providerId)
+  return selectProviderMetadata(definition, t, { id: props.providerId })
+})
 
 // Common provider settings
 const apiKey = computed({
@@ -54,7 +59,7 @@ const apiKey = computed({
 })
 
 const baseUrl = computed({
-  get: () => providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined || '',
+  get: () => providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || '',
   set: (value) => {
     if (!providers.value[props.providerId])
       providers.value[props.providerId] = {}
@@ -88,13 +93,13 @@ onMounted(() => {
 
   // Initialize refs with current values
   apiKey.value = providers.value[props.providerId]?.apiKey as string | undefined || ''
-  baseUrl.value = providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined || ''
+  baseUrl.value = providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || ''
 
   // Initialize voice settings
   initializeVoiceSettings()
 
   // Load voices if provider is configured
-  if (providersStore.configuredProviders[props.providerId]) {
+  if (providerStore.configuredProviders[props.providerId]) {
     speechStore.loadVoicesForProvider(props.providerId)
   }
 })
@@ -103,7 +108,7 @@ const debouncedUpdate = useDebounceFn(() => {
   providers.value[props.providerId] = {
     ...providers.value[props.providerId],
     apiKey: apiKey.value,
-    baseUrl: baseUrl.value || providerMetadata.value?.defaultOptions?.().baseUrl || '',
+    baseUrl: baseUrl.value || providerMetadata.value?.defaultConfig.baseUrl || '',
     voiceSettings: { ...voiceSettings.value },
   }
 }, 1000)
@@ -115,7 +120,7 @@ watch([apiKey, baseUrl], debouncedUpdate)
 watch(voiceSettings, debouncedUpdate, { deep: true })
 
 function handleResetVoiceSettings() {
-  voiceSettings.value = { ...(providerMetadata.value?.defaultOptions?.().voiceSettings as Record<string, unknown>) }
+  voiceSettings.value = { ...(providerMetadata.value?.defaultConfig.voiceSettings as Record<string, unknown>) }
   debouncedUpdate()
 }
 </script>
@@ -155,7 +160,7 @@ function handleResetVoiceSettings() {
         <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
           <ProviderBaseUrlInput
             v-model="baseUrl"
-            :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || ''" required
+            :placeholder="providerMetadata?.defaultConfig.baseUrl as string || ''" required
           />
           <!-- Slot for provider-specific advanced settings -->
           <slot name="advanced-settings" />

@@ -1,4 +1,4 @@
-import { defineStageTamagotchiScenario } from '../context.ts'
+import { defineStageTamagotchiScenario } from '../context'
 
 export default defineStageTamagotchiScenario({
   id: 'demo-hearing-dialog',

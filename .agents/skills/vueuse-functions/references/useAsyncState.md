@@ -9,9 +9,8 @@ Reactive async state. Will not block your setup function and will trigger change
 ## Usage
 
 ```ts
-import axios from 'axios'
-
 import { useAsyncState } from '@vueuse/core'
+import axios from 'axios'
 
 const { state, isReady, isLoading, error } = useAsyncState(
   axios
@@ -64,7 +63,7 @@ async function action(event) {
     Execute now
   </button>
 
-  <button class="button ml-2" @click="event => execute(500, event)">
+  <button class="ml-2 button" @click="event => execute(500, event)">
     Execute with delay
   </button>
 </template>
@@ -114,8 +113,8 @@ export type UseAsyncStateReturn<
   Data,
   Params extends any[],
   Shallow extends boolean,
-> = UseAsyncStateReturnBase<Data, Params, Shallow>
-  & PromiseLike<UseAsyncStateReturnBase<Data, Params, Shallow>>
+> = UseAsyncStateReturnBase<Data, Params, Shallow> &
+  PromiseLike<UseAsyncStateReturnBase<Data, Params, Shallow>>
 export interface UseAsyncStateOptions<Shallow extends boolean, D = any> {
   /**
    * Delay for the first execution of the promise when "immediate" is true. In milliseconds.

@@ -1,0 +1,45 @@
+name: Upload Crowdin Glossary
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  upload-glossary:
+    runs-on: ubuntu-latest
+    steps:
+      # An empty ID fails inside the CLI with an unclear message. Fail here instead.
+      - name: Check Glossary ID
+        run: |
+          if [ -z "${{ vars.CROWDIN_GLOSSARY_ID }}" ]; then
+            echo "::error::Set the CROWDIN_GLOSSARY_ID repository variable. To find the ID, run: crowdin glossary list"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The TBX file is generated, never committed, so it cannot drift from terms.yaml.
+      # The schema also rejects a malformed entry here, before anything reaches Crowdin.
+      - name: Generate TBX File
+        run: pnpm -F @proj-airi/i18n glossary:build
+
+      # NOTICE: Crowdin does not document whether an import merges into the existing
+      # concepts or adds duplicates beside them, and a merge cannot be undone. This
+      # workflow therefore runs on demand only. After each run, compare the concept count
+      # in Crowdin with the number printed above. See https://support.crowdin.com/glossary/
+      - name: Upload Glossary
+        uses: crowdin/github-action@v2
+        with:
+          command: glossary upload
+          command_args: packages/i18n/glossary/glossary.tbx --id=${{ vars.CROWDIN_GLOSSARY_ID }}
+        env:
+          CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}

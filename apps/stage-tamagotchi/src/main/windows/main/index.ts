@@ -2,11 +2,11 @@ import type { Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
 import type { I18n } from '../../libs/i18n'
-import type { WindowAuthManager } from '../../services/airi/auth'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GodotStageManager } from '../../services/airi/godot-stage'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
+import type { EditorWindowManager } from '../editor'
 import type { NoticeWindowManager } from '../notice'
 import type { OnboardingWindowManager } from '../onboarding'
 import type { SettingsWindowManager } from '../settings'
@@ -15,8 +15,6 @@ import type { WidgetsWindowManager } from '../widgets'
 import { dirname, join, resolve } from 'node:path'
 import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
-
-import clickDragPlugin from 'electron-click-drag-plugin'
 
 import { is } from '@electron-toolkit/utils'
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -31,7 +29,7 @@ import icon from '../../../../resources/icon.png?asset'
 
 import { electronStartDraggingWindow } from '../../../shared/eventa'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
-import { baseUrl, getElectronMainDirname, load } from '../../libs/electron/location'
+import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { protectPrivilegedWindowNavigation, transparentWindowConfig } from '../shared'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
@@ -50,6 +48,7 @@ const appConfigSchema = object({
 type AppConfig = InferOutput<typeof appConfigSchema>
 
 export async function setupMainWindow(params: {
+  editorWindow: EditorWindowManager
   settingsWindow: SettingsWindowManager
   chatWindow: () => Promise<BrowserWindow>
   widgetsManager: WidgetsWindowManager
@@ -61,7 +60,6 @@ export async function setupMainWindow(params: {
   mcpStdioManager: McpStdioManager
   i18n: I18n
   onboardingWindowManager: OnboardingWindowManager
-  windowAuthManager: WindowAuthManager
 }) {
   const {
     setup: setupConfig,
@@ -175,6 +173,7 @@ export async function setupMainWindow(params: {
 
   await setupMainWindowElectronInvokes({
     window,
+    editorWindow: params.editorWindow,
     settingsWindow: params.settingsWindow,
     chatWindow: params.chatWindow,
     widgetsManager: params.widgetsManager,
@@ -185,10 +184,11 @@ export async function setupMainWindow(params: {
     mcpStdioManager: params.mcpStdioManager,
     i18n: params.i18n,
     onboardingWindowManager: params.onboardingWindowManager,
-    windowAuthManager: params.windowAuthManager,
   })
 
-  await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')))
+  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/', {
+    query: { 'synced-leader': 'true' },
+  }))
 
   /**
    * This is a know issue (or expected behavior maybe) to Electron.
@@ -198,6 +198,8 @@ export async function setupMainWindow(params: {
    * Workaround: https://github.com/noobfromph/electron-click-drag-plugin
    */
   if (!isLinux) {
+    const { default: clickDragPlugin } = await import('electron-click-drag-plugin')
+
     function handleStartDraggingWindow() {
       try {
         const windowId = window.getNativeWindowHandle()

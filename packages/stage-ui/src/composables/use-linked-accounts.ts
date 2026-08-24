@@ -1,10 +1,13 @@
 import type { Ref } from 'vue'
 
+import type { SteamOAuthStartArgs, SteamOAuthStartResult } from '../libs/steam-auth-client'
+
 import { computed, onMounted, shallowRef, watch } from 'vue'
 
 /**
- * Provider key for the social-link / unlink endpoints. Matches the values
- * better-auth recognises on `/api/auth/link-social` and `/api/auth/unlink-account`.
+ * Provider key for the linked-account actions. OAuth2 providers go through
+ * better-auth's `/link-social`; Steam is OpenID 2.0 and is routed to the
+ * Steam client plugin's dedicated `linkSteam` method instead.
  */
 export type LinkedProviderId = 'google' | 'github' | (string & {})
 
@@ -45,6 +48,19 @@ export interface LinkedAccountsClient {
   }>
   linkSocial: (args: { provider: string, callbackURL: string, errorCallbackURL?: string }) => Promise<{
     data: { url?: string, redirect?: boolean, status?: boolean } | null
+    error: { message?: string, status?: number } | null
+  }>
+  /**
+   * Starts linking the current user to a Steam account.
+   *
+   * Steam's web login is OpenID 2.0, not OAuth2, so better-auth's
+   * `/link-social` can never resolve it as a `socialProviders` entry. The
+   * server steam plugin exposes `/link/steam` instead, and `steamClient()`
+   * surfaces that endpoint as this typed method — callers pass the raw
+   * client rather than wrapping `linkSocial`.
+   */
+  linkSteam: (args: SteamOAuthStartArgs) => Promise<{
+    data: SteamOAuthStartResult | null
     error: { message?: string, status?: number } | null
   }>
 }
@@ -209,13 +225,15 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
 
     try {
       const callbackURL = args.buildCallbackURL ? args.buildCallbackURL() : window.location.href
-      const { data, error: apiError } = await args.client.linkSocial({
-        provider: providerId,
-        callbackURL,
-        errorCallbackURL: callbackURL,
-      })
+      // Steam is OpenID 2.0, not OAuth2 — the server steam plugin exposes a
+      // dedicated `/link/steam` endpoint, surfaced as `linkSteam` by the
+      // client plugin. Every other provider uses `/link-social`.
+      const result = providerId === 'steam'
+        ? await args.client.linkSteam({ callbackURL, errorCallbackURL: callbackURL })
+        : await args.client.linkSocial({ provider: providerId, callbackURL, errorCallbackURL: callbackURL })
+      const { data, error: apiError } = result
       if (apiError)
-        throw new Error(apiError.message ?? 'linkSocial failed')
+        throw new Error(apiError.message ?? 'link failed')
       if (data?.url) {
         args.onLinkStarted?.(providerId)
         window.location.assign(data.url)

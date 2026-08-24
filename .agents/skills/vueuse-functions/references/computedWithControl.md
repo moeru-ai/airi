@@ -80,9 +80,9 @@ export interface ComputedRefWithControl<T>
   extends ComputedRef<T>, ComputedWithControlRefExtra {}
 export interface WritableComputedRefWithControl<T>
   extends WritableComputedRef<T>, ComputedWithControlRefExtra {}
-export type ComputedWithControlRef<T = any>
-  = | ComputedRefWithControl<T>
-    | WritableComputedRefWithControl<T>
+export type ComputedWithControlRef<T = any> =
+  | ComputedRefWithControl<T>
+  | WritableComputedRefWithControl<T>
 export declare function computedWithControl<T>(
   source: WatchSource | MultiWatchSources,
   fn: ComputedGetter<T>,

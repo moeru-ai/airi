@@ -37,8 +37,8 @@ const AsyncComments = defineAsyncComponent({
 <script setup lang="ts">
 import {
   defineAsyncComponent,
-  hydrateOnIdle,
-  hydrateOnVisible
+  hydrateOnVisible,
+  hydrateOnIdle
 } from 'vue'
 
 const AsyncComments = defineAsyncComponent({
@@ -61,7 +61,6 @@ Avoid showing loading UI immediately for components that usually resolve quickly
 ```vue
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
-
 import LoadingSpinner from './LoadingSpinner.vue'
 
 const AsyncDashboard = defineAsyncComponent({
@@ -76,9 +75,8 @@ const AsyncDashboard = defineAsyncComponent({
 ```vue
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
-
-import ErrorDisplay from './ErrorDisplay.vue'
 import LoadingSpinner from './LoadingSpinner.vue'
+import ErrorDisplay from './ErrorDisplay.vue'
 
 const AsyncDashboard = defineAsyncComponent({
   loader: () => import('./Dashboard.vue'),

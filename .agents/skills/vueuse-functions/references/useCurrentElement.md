@@ -53,8 +53,8 @@ export declare function useCurrentElement<
   T extends MaybeElement = MaybeElement,
   R extends VueInstance = VueInstance,
   E extends MaybeElement = MaybeElement extends T
-    ? IsAny<R['$el']> extends false
-      ? R['$el']
+    ? IsAny<R["$el"]> extends false
+      ? R["$el"]
       : T
     : T,
 >(rootComponent?: MaybeElementRef<R>): ComputedRefWithControl<E>

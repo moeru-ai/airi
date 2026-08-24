@@ -41,7 +41,7 @@ const mode = useTextDirection({
 ## Type Declarations
 
 ```ts
-export type UseTextDirectionValue = 'ltr' | 'rtl' | 'auto'
+export type UseTextDirectionValue = "ltr" | "rtl" | "auto"
 export interface UseTextDirectionOptions extends ConfigurableDocument {
   /**
    * CSS Selector for the target element applying to

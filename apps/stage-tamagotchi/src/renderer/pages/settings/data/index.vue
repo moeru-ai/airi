@@ -7,17 +7,16 @@ import ModelsModulesSection from '@proj-airi/stage-pages/pages/settings/data/com
 import StatusBanner from '@proj-airi/stage-pages/pages/settings/data/components/status-banner.vue'
 
 import { createDataSettingsStatusState } from '@proj-airi/stage-pages/pages/settings/data/status'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 
 import DesktopFolderSection from './components/desktop-folder-section.vue'
 import DesktopResetSection from './components/desktop-reset-section.vue'
 
-import { useChatSyncStore } from '../../../stores/chat-sync'
-
 const { statusMessage, statusTone, handleStatus } = createDataSettingsStatusState()
-const chatSync = useChatSyncStore()
+const chatSession = useChatSessionStore()
 
 async function syncImportedChats(payload: ChatSessionsExport) {
-  await chatSync.requestImportSessions(payload)
+  await chatSession.importSessions(payload)
 }
 </script>
 

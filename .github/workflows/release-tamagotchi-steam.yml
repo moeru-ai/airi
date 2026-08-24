@@ -1,0 +1,281 @@
+name: Release Tamagotchi to Steam
+
+permissions:
+  contents: read
+  actions: read
+
+on:
+  release:
+    types:
+      - prereleased
+  workflow_dispatch:
+    inputs:
+      upload_to_steam:
+        description: Upload the completed build to Steam
+        required: true
+        default: false
+        type: boolean
+      release_branch:
+        description: Steam branch to set live
+        required: true
+        default: internal-test
+        type: string
+      build_description:
+        description: Optional Steam build description
+        required: false
+        type: string
+
+concurrency:
+  group: steam-deploy-tamagotchi-${{ github.event_name == 'workflow_dispatch' && inputs.release_branch || 'internal-test' }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build ${{ matrix.depot }} depot
+    runs-on: ${{ matrix.os }}
+    env:
+      VITE_DISTRIBUTION: steam
+      VITE_DISABLE_CUSTOM_PROVIDERS: 'true'
+      VITE_DISABLE_FLUX_PURCHASE: 'true'
+      VITE_ENABLE_POSTHOG: 'false'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - depot: windows
+            os: windows-latest
+            builder-args: --windows --x64
+            arch: x64
+
+          - depot: macos
+            os: macos-26
+            builder-args: --macos --arm64
+            arch: arm64
+
+          - depot: linux
+            os: ubuntu-latest
+            builder-args: --linux --x64
+            arch: x64
+
+    steps:
+      # The Linux desktop build needs more space than the default hosted runner provides.
+      - name: Free Linux disk space
+        if: matrix.depot == 'linux'
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+
+      - uses: actions/checkout@v6
+
+      - name: Select Xcode 26.2
+        if: matrix.depot == 'macos'
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.2.app
+          xcodebuild -version
+
+      - name: Show macOS toolchain
+        if: matrix.depot == 'macos'
+        run: |
+          xcodebuild -version
+          actool --version
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Install macOS system dependencies for node-canvas
+        if: matrix.depot == 'macos'
+        run: brew install pkg-config cairo pango jpeg giflib librsvg
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm run build:packages
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Godot
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: '4.7.1'
+          use-dotnet: true
+          include-templates: true
+
+      - name: Export Godot Stage for Windows
+        if: matrix.depot == 'windows'
+        working-directory: ./engines/stage-tamagotchi-godot
+        shell: bash
+        run: |
+          mkdir -p out/win
+          godot --headless --export-release "Windows Desktop" out/win/godot-stage.exe
+
+      - name: Export Godot Stage for macOS
+        if: matrix.depot == 'macos'
+        working-directory: ./engines/stage-tamagotchi-godot
+        run: |
+          mkdir -p out/mac
+          godot --headless --export-release "macOS" out/mac/godot-stage.app
+
+      - name: Clean Godot Stage for Steam on macOS
+        if: matrix.depot == 'macos'
+        working-directory: ./engines/stage-tamagotchi-godot
+        run: |
+          # NOTICE:
+          # SteamPipe excludes *.pdb files after Electron signs the parent app.
+          # Removing Godot debug symbols and AppleDouble files before signing keeps macOS sealed resources aligned with the installed bundle.
+          # Source/context: Steam internal-test BuildID 24160350 and the game-ci SteamPipe FileExclusion "*.pdb" behavior.
+          # Removal condition: SteamPipe preserves these resources or the embedded Godot bundle no longer contains them.
+          find out/mac/godot-stage.app -name '*.pdb' -delete
+          find out/mac/godot-stage.app -name '._*' -delete
+
+      - name: Export Godot Stage for Linux
+        if: matrix.depot == 'linux'
+        working-directory: ./engines/stage-tamagotchi-godot
+        run: |
+          mkdir -p out/linux
+          godot --headless --export-release "Linux ${{ matrix.arch }}" out/linux/godot-stage
+
+      - name: Build Windows app
+        if: matrix.depot == 'windows'
+        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build macOS app
+        if: matrix.depot == 'macos'
+        run: |
+          echo "$CSC_CONTENT" | base64 --decode > apps/stage-tamagotchi/apple-developer-code-signing.p12
+          export CSC_LINK="./apple-developer-code-signing.p12"
+          pnpm run -F @proj-airi/stage-tamagotchi build
+          pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_CONTENT: ${{ secrets.CSC_CONTENT }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_DEVELOPER_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_DEVELOPER_APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_DEVELOPER_TEAM_ID }}
+
+      - name: Build Linux app
+        if: matrix.depot == 'linux'
+        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package Windows depot
+        if: matrix.depot == 'windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force steam-content/windows | Out-Null
+          Copy-Item apps/stage-tamagotchi/dist/win-unpacked/* steam-content/windows -Recurse -Force
+          tar -cf steam-content-windows.tar -C steam-content windows
+
+      - name: Package macOS depot
+        if: matrix.depot == 'macos'
+        run: |
+          app_path="apps/stage-tamagotchi/dist/mac-arm64/AIRI.app"
+          if [[ ! -d "$app_path" ]]; then
+            echo "::error::No macOS app bundle was produced."
+            exit 1
+          fi
+
+          mkdir -p steam-content/macos
+          ditto --norsrc "$app_path" steam-content/macos/AIRI.app
+          find steam-content/macos -name '._*' -delete
+          COPYFILE_DISABLE=1 tar -cf steam-content-macos.tar -C steam-content macos
+
+      - name: Package Linux depot
+        if: matrix.depot == 'linux'
+        run: |
+          mkdir -p steam-content/linux
+          cp -a apps/stage-tamagotchi/dist/linux-unpacked/. steam-content/linux/
+          tar -cf steam-content-linux.tar -C steam-content linux
+
+      - name: Upload depot artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: steam-content-${{ matrix.depot }}
+          path: steam-content-${{ matrix.depot }}.tar
+          if-no-files-found: error
+          overwrite: true
+
+  deploy:
+    name: Upload to Steam
+    if: ${{ github.event_name == 'release' || inputs.upload_to_steam }}
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      STEAM_APP_ID: '3885340'
+      STEAM_DEBUG_BRANCH: 'false'
+      STEAM_RELEASE_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.release_branch || 'internal-test' }}
+      STEAM_WINDOWS_DEPOT_ID: '3885342'
+    steps:
+      - name: Validate Steam branch
+        env:
+          RELEASE_BRANCH: ${{ env.STEAM_RELEASE_BRANCH }}
+        run: |
+          if [[ ! "$RELEASE_BRANCH" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            echo "::error::Steam release branch may contain only letters, numbers, dots, underscores, and hyphens."
+            exit 1
+          fi
+
+          if [[ "$RELEASE_BRANCH" == "default" ]]; then
+            echo '::error::Steam release branch "default" must be promoted manually.'
+            exit 1
+          fi
+
+      - name: Normalize Steam build description
+        id: metadata
+        uses: actions/github-script@v9
+        env:
+          INPUT_BUILD_DESCRIPTION: ${{ inputs.build_description }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        with:
+          result-encoding: string
+          script: |
+            const source = process.env.RELEASE_TAG || process.env.GITHUB_SHA
+            const fallback = `AIRI ${source} Steam candidate`
+            const normalizedDescription = (process.env.INPUT_BUILD_DESCRIPTION || fallback)
+              .replace(/[\r\n\t]+/g, ' ')
+              .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+              .replaceAll('\\', '/')
+              .replaceAll('"', "'")
+              .replace(/ {2,}/g, ' ')
+              .trim()
+              .slice(0, 512)
+
+            return normalizedDescription || fallback
+
+      - name: Download Steam depots
+        uses: actions/download-artifact@v5
+        with:
+          pattern: steam-content-*
+          path: steam-artifacts
+          merge-multiple: true
+
+      - name: Prepare Steam upload root
+        run: |
+          mkdir -p steam-build
+          tar -xf steam-artifacts/steam-content-windows.tar -C steam-build
+          tar -xf steam-artifacts/steam-content-macos.tar -C steam-build
+          tar -xf steam-artifacts/steam-content-linux.tar -C steam-build
+
+      - name: Deploy desktop builds to Steam
+        uses: game-ci/steam-deploy@v3.2.0
+        with:
+          username: ${{ secrets.STEAM_USERNAME }}
+          configVdf: ${{ secrets.STEAM_CONFIG_VDF }}
+          appId: ${{ env.STEAM_APP_ID }}
+          firstDepotIdOverride: ${{ env.STEAM_WINDOWS_DEPOT_ID }}
+          buildDescription: ${{ steps.metadata.outputs.result }}
+          rootPath: steam-build
+          depot1Path: windows
+          depot2Path: macos
+          depot3Path: linux
+          releaseBranch: ${{ env.STEAM_RELEASE_BRANCH }}
+          debugBranch: ${{ env.STEAM_DEBUG_BRANCH }}

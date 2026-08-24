@@ -49,7 +49,7 @@ const PANEL = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutr
         :disabled="!props.options.length"
       />
       <Button
-        variant="secondary"
+
         size="md"
         :loading="props.running"
         :disabled="props.running || !props.options.length"

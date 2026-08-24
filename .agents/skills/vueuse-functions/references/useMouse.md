@@ -29,7 +29,6 @@ It's also possible to provide a custom extractor function to get the position fr
 
 ```ts twoslash
 import type { UseMouseEventExtractor } from '@vueuse/core'
-
 import { useMouse, useParentElement } from '@vueuse/core'
 
 const parentEl = useParentElement()
@@ -57,8 +56,8 @@ const { x, y, sourceType } = useMouse({ target: parentEl, type: extractor })
 ## Type Declarations
 
 ```ts
-export type UseMouseCoordType = 'page' | 'client' | 'screen' | 'movement'
-export type UseMouseSourceType = 'mouse' | 'touch' | null
+export type UseMouseCoordType = "page" | "client" | "screen" | "movement"
+export type UseMouseSourceType = "mouse" | "touch" | null
 export type UseMouseEventExtractor = (
   event: MouseEvent | Touch,
 ) => [x: number, y: number] | null | undefined

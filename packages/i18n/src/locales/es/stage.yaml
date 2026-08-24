@@ -14,6 +14,13 @@ chat:
     cloud-badge: Sincronizado en la nube
     new-chat-fallback: Nuevo Chat
     delete: Eliminar conversación
+render-error:
+  title: '{renderer} no pudo renderizar este modelo'
+  description: El modelo está seleccionado, pero el escenario no pudo mostrarlo.
+  report-description: |-
+    {renderer} no pudo renderizar el modelo seleccionado.
+    ID del modelo: {modelId}
+    Error: {error}
 message: Dile algo...
 send-mode:
   title: Enviar tecla

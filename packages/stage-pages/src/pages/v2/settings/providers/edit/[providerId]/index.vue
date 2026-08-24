@@ -19,8 +19,8 @@ import {
   ProviderValidationDetailsDialog,
 } from '@proj-airi/stage-ui/components'
 import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
-import { useProviderCatalogStore } from '@proj-airi/stage-ui/stores/provider-catalog'
-import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues } from '@proj-airi/ui'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
 import { useCloned, useDebounceFn } from '@vueuse/core'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -31,10 +31,10 @@ const { t } = useI18n()
 const router = useRouter()
 const route = useRoute('v2/settings/providers/edit/[providerId]')
 
-const providerCatalogStore = useProviderCatalogStore()
+const providerStore = useProviderConfigStore()
 
 const providerId = computed(() => route.params.providerId as string)
-const providerConfig = computed(() => providerCatalogStore.configs[providerId.value] || {})
+const providerConfig = computed(() => providerStore.getProvider(providerId.value) || {})
 const providerDefinition = computed(() => getDefinedProvider(providerConfig.value.definitionId))
 const providerSchema = computed(() => providerDefinition.value?.createProviderConfig({ t }) as $ZodType | undefined)
 const providerSchemaDefault = computed(() => getSchemaDefault(providerSchema.value))
@@ -59,7 +59,7 @@ const isEdited = computed(() => {
 })
 
 const canSkipValidation = computed(() => {
-  return !isEdited.value && (providerConfig.value?.validated || providerConfig.value?.validationBypassed)
+  return !isEdited.value && ['configured', 'bypassed'].includes(providerConfig.value?.status)
 })
 
 const isValidating = ref(false)
@@ -234,25 +234,40 @@ async function runValidation() {
     return
 
   isValidating.value = true
+  providerStore.setProviderStatus(providerId.value, 'validating')
   validatorEventStates.value = {}
-  const results = await validateProvider(validationPlan, { t }, {
-    onValidatorStart: ({ step }) => {
-      validatorEventStates.value = { ...validatorEventStates.value, [step.id]: 'running' }
-      syncValidationSteps()
-    },
-    onValidatorSuccess: ({ step }) => {
-      validatorEventStates.value = { ...validatorEventStates.value, [step.id]: 'success' }
-      syncValidationSteps()
-    },
-    onValidatorError: ({ step }) => {
-      validatorEventStates.value = { ...validatorEventStates.value, [step.id]: 'error' }
-      syncValidationSteps()
-    },
-  })
-  if (isEdited.value && results.every(step => step.status !== 'invalid')) {
-    commitEditedConfig({ validated: true, validationBypassed: false })
+  try {
+    const results = await validateProvider(validationPlan, { t }, {
+      onValidatorStart: ({ step }) => {
+        validatorEventStates.value = { ...validatorEventStates.value, [step.id]: 'running' }
+        syncValidationSteps()
+      },
+      onValidatorSuccess: ({ step }) => {
+        validatorEventStates.value = { ...validatorEventStates.value, [step.id]: 'success' }
+        syncValidationSteps()
+      },
+      onValidatorError: ({ step }) => {
+        validatorEventStates.value = { ...validatorEventStates.value, [step.id]: 'error' }
+        syncValidationSteps()
+      },
+    })
+    if (results.some(step => step.status === 'invalid')) {
+      providerStore.setProviderStatus(providerId.value, 'invalid')
+      return
+    }
+
+    if (isEdited.value)
+      commitEditedConfig('configured')
+    else
+      providerStore.setProviderStatus(providerId.value, 'configured')
   }
-  isValidating.value = false
+  catch (error) {
+    providerStore.setProviderStatus(providerId.value, 'invalid')
+    throw error
+  }
+  finally {
+    isValidating.value = false
+  }
 }
 
 const debouncedValidation = useDebounceFn(runValidation, 1500)
@@ -276,7 +291,7 @@ watch([providerConfigEdit, providerDefinition], () => {
 }, { deep: true, immediate: true })
 
 onMounted(() => {
-  if (!providerConfig.value.validated) {
+  if (providerConfig.value.status !== 'configured') {
     providerConfigEdit.value.config = merge(providerSchemaDefault.value, providerConfigEdit.value?.config || {})
   }
 })
@@ -302,24 +317,24 @@ function syncValidationSteps() {
   validationSteps.value = [...validationSteps.value]
 }
 
-function commitEditedConfig(options: { validated: boolean, validationBypassed: boolean }) {
+function commitEditedConfig(status: 'configured' | 'bypassed') {
   if (!providerConfigEdit.value)
     return
 
-  providerCatalogStore.commitProviderConfig(providerId.value, { ...providerConfigEdit.value.config }, options)
+  providerStore.updateProviderConfig(providerId.value, { ...providerConfigEdit.value.config }, status)
 }
 
 function handleSaveAnyway() {
   if (!isEdited.value)
     return
 
-  commitEditedConfig({ validated: false, validationBypassed: true })
+  commitEditedConfig('bypassed')
 }
 
 function handleDeleteProvider() {
   const id = providerId.value
   router.push('/v2/settings/providers')
-  setTimeout(() => providerCatalogStore.removeProvider(id), 100)
+  setTimeout(() => providerStore.removeProvider(id), 100)
 }
 </script>
 
@@ -361,7 +376,7 @@ function handleDeleteProvider() {
         <div :class="['flex', 'items-center', 'gap-2']">
           <DropdownMenuRoot>
             <DropdownMenuTrigger as-child :aria-label="t('settings.pages.providers.catalog.edit.actions.more-options')">
-              <Button size="sm" variant="secondary">
+              <Button size="sm">
                 <div :class="['i-solar:menu-dots-bold']" />
               </Button>
             </DropdownMenuTrigger>
@@ -510,7 +525,7 @@ function handleDeleteProvider() {
               <div :class="['text-xs', 'text-neutral-400']">
                 {{ t('settings.pages.providers.catalog.edit.validators.title') }}
               </div>
-              <Button size="sm" variant="secondary" :loading="isValidating" :disabled="isValidating" @click="runValidation">
+              <Button size="sm" :loading="isValidating" :disabled="isValidating" @click="runValidation">
                 {{ t('settings.pages.providers.catalog.edit.validators.actions.validate') }}
               </Button>
             </div>
@@ -532,9 +547,9 @@ function handleDeleteProvider() {
                       {{ step.label }}
                     </div>
                     <div :class="['flex', 'flex-col', 'items-end', 'gap-2']">
-                      <Button
+                      <GhostButton
                         size="sm"
-                        variant="ghost"
+
                         :title="
                           step.status === 'valid' ? t('settings.pages.providers.catalog.edit.validators.status.valid')
                           : step.status === 'invalid' ? t('settings.pages.providers.catalog.edit.validators.status.invalid')
@@ -552,7 +567,7 @@ function handleDeleteProvider() {
                             step.status === 'idle' ? 'i-solar:minus-circle-line-duotone text-neutral-300 dark:text-neutral-600' : '',
                           ]"
                         />
-                      </Button>
+                      </GhostButton>
                     </div>
                   </div>
                 </div>
@@ -573,7 +588,7 @@ function handleDeleteProvider() {
                     <span :class="['text-xs', 'text-neutral-600', 'dark:text-neutral-300']">
                       {{ t('settings.pages.providers.catalog.edit.validation.failed.description') }}
                     </span>
-                    <Button size="sm" variant="caution" @click="handleSaveAnyway">
+                    <Button size="sm" color="orange" variant="primary" @click="handleSaveAnyway">
                       {{ t('settings.pages.providers.catalog.edit.validation.failed.action') }}
                     </Button>
                   </div>

@@ -180,7 +180,7 @@ export default defineConfig({
 })
 ```
 
-<!--
+<!-- 
 Source references:
 - https://unocss.dev/guide/config-file
 - https://unocss.dev/config/

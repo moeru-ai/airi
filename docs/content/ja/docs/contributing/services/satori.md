@@ -6,7 +6,7 @@ description: Project AIRI への貢献
 ### Satori Bot / ボット
 
 ```shell
-cd services/satori-bot
+cd integrations/satori-bot
 ```
 
 `.env` ファイルの設定：

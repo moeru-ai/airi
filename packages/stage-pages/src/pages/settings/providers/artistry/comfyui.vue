@@ -6,7 +6,7 @@ import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { errorMessageFrom } from '@moeru/std'
 import { artistryTestComfyUIConnection, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
-import { Button, FieldInput } from '@proj-airi/ui'
+import { Button, FieldInput, GhostButton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -299,7 +299,7 @@ function copyToClipboard(text: string) {
         </div>
         <Button
           class="mb-0.5"
-          variant="primary"
+
           size="md"
           :icon="connectionStatus === 'testing' ? undefined : 'i-solar:plug-circle-bold-duotone'"
           :loading="connectionStatus === 'testing'"
@@ -347,7 +347,7 @@ function copyToClipboard(text: string) {
           {{ t('settings.pages.providers.provider.comfyui.settings.workflows.title') }}
         </h3>
         <Button
-          variant="secondary"
+
           size="sm"
           @click="showUploadSection = !showUploadSection"
         >
@@ -384,14 +384,14 @@ function copyToClipboard(text: string) {
               }) }}
             </div>
           </div>
-          <Button
-            variant="ghost"
+          <GhostButton
+
             size="sm"
             class="!text-red-400 hover:!text-red-500"
             @click="removeWorkflow(wf.id)"
           >
             {{ t('settings.pages.providers.provider.comfyui.settings.workflows.remove') }}
-          </Button>
+          </GhostButton>
         </div>
 
         <!-- Expanded Details -->
@@ -424,7 +424,7 @@ function copyToClipboard(text: string) {
                 {{ t('settings.pages.providers.provider.comfyui.settings.workflows.config_snippet') }}
               </div>
               <Button
-                variant="secondary"
+
                 size="sm"
                 @click="copyToClipboard(generateExampleJson(wf))"
               >
@@ -525,7 +525,7 @@ function copyToClipboard(text: string) {
           <div class="mt-2 flex items-center justify-between">
             <span class="text-xs text-neutral-400">{{ t('settings.pages.providers.provider.comfyui.settings.upload.fields_exposed', { count: totalExposed }) }}</span>
             <Button
-              variant="primary"
+
               size="sm"
               :disabled="!pendingWorkflowName.trim() || totalExposed === 0"
               @click="saveWorkflow"

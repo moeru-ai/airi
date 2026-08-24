@@ -3,7 +3,7 @@ import type { ComfyUIWorkflowTemplate } from '@proj-airi/stage-ui/stores/modules
 
 import { REPLICATE_IMAGEGEN_PRESETS } from '@proj-airi/stage-shared'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
-import { Button, Checkbox, FieldInput, FieldRange, Select } from '@proj-airi/ui'
+import { Button, Checkbox, FieldInput, FieldRange, IconButton, Select } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -171,7 +171,7 @@ function openReplicateModel() {
         <Button
           v-for="model in REPLICATE_IMAGEGEN_PRESETS"
           :key="model.id"
-          variant="secondary"
+
           :class="[
             'h-auto min-h-20 flex flex-col items-center justify-center rounded-xl border p-3 transition-all',
             selectedArtistryModel === model.id
@@ -202,7 +202,7 @@ function openReplicateModel() {
           <Button
             v-for="wf in comfyuiWorkflows"
             :key="wf.id"
-            variant="secondary"
+
             :class="[
               'h-auto min-h-20 flex flex-col items-center justify-center rounded-xl border p-3 transition-all',
               selectedArtistryModel === wf.id
@@ -225,11 +225,8 @@ function openReplicateModel() {
             :description="t('settings.pages.modules.artistry.model.description')"
             placeholder="e.g. black-forest-labs/flux-schnell"
           />
-          <Button
+          <IconButton
             v-if="selectedArtistryProvider === 'replicate' && selectedArtistryModel"
-            variant="ghost"
-            size="sm"
-            shape="square"
             :class="[
               'absolute right-3 top-9',
             ]"
@@ -237,7 +234,7 @@ function openReplicateModel() {
             @click="openReplicateModel"
           >
             <div i-solar:link-round-bold-duotone class="text-xl" />
-          </Button>
+          </IconButton>
         </div>
 
         <div
@@ -253,14 +250,14 @@ function openReplicateModel() {
           </p>
           <div class="flex items-center gap-2">
             <Button
-              variant="primary"
+
               size="sm"
               @click="applyRecommendedInstructions"
             >
               {{ t('settings.pages.modules.artistry.card.instruction_sync.apply') }}
             </Button>
             <Button
-              variant="secondary"
+
               size="sm"
               @click="pendingInstructionWf = null"
             >

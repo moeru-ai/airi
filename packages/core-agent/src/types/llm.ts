@@ -1,5 +1,5 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { CommonContentPart, CompletionToolCall, CompletionToolResult, Message, Tool } from '@xsai/shared-chat'
+import type { CommonContentPart, CompletionToolCall, CompletionToolResult, Message, Tool, ToolChoice } from '@xsai/shared-chat'
 
 /** Describes whether generation usage came from the provider or a local fallback. */
 export type LlmUsageSource = 'reported' | 'estimated' | 'unavailable'
@@ -17,7 +17,7 @@ export type StreamEvent
     | { type: 'reasoning-delta', text: string }
     | ({ type: 'finish' } & any)
     | ({ type: 'tool-call' } & CompletionToolCall)
-    | (CompletionToolResult & { type: 'tool-error' })
+    | (CompletionToolResult & { type: 'tool-error', isError: true })
     | { type: 'tool-result', toolCallId: string, result?: string | CommonContentPart[] }
     | { type: 'error', error: any }
 
@@ -25,6 +25,8 @@ export interface StreamOptions {
   abortSignal?: AbortSignal
   headers?: Record<string, string>
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
+  /** Called once with the final xsAI message list after all tool rounds finish. */
+  onMessages?: (messages: Message[]) => void | Promise<void>
   /** Called once after the full stream, including tool rounds, has settled. */
   onUsage?: (usage: LlmUsage) => void | Promise<void>
   /** Internal correlation kept out of the provider request body. */
@@ -35,7 +37,8 @@ export interface StreamOptions {
   toolsCompatibility?: Map<string, boolean>
   supportsTools?: boolean
   waitForTools?: boolean
-  captureToolErrors?: boolean
+  /** Provider tool-selection directive for one request. */
+  toolChoice?: ToolChoice
   tools?: Tool[] | (() => Promise<Tool[] | undefined>)
   /**
    * Per-model runtime cache of whether the provider accepts content-part arrays

@@ -1,21 +1,26 @@
 <script setup lang="ts">
-import type { ChatAssistantMessage, ChatHistoryItem, ContextMessage } from '../../../../types/chat'
+import type { VirtualizerHandle } from 'virtua/vue'
+
+import type { ChatHistoryItem, StreamingAssistantMessage } from '../../../../types/chat'
 import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
 
-import { computed, provide, ref } from 'vue'
+import { Virtualizer } from 'virtua/vue'
+import { computed, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChatAssistantItem from './assistant-item.vue'
 import ChatErrorItem from './error-item.vue'
+import ChatHistoryMessageFrame from './history-message-frame.vue'
 import ChatUserItem from './user-item.vue'
 
 import { useChatHistoryScroll } from '../composables/use-chat-history-scroll'
-import { chatScrollContainerKey } from '../constants'
+import { useChatHistoryTopFade } from '../composables/use-chat-history-top-fade'
+import { useVirtualizerScroll } from '../composables/use-virtualizer-scroll'
 import { getChatHistoryItemKey } from '../utils'
 
 const props = withDefaults(defineProps<{
   messages: ChatHistoryItem[]
-  streamingMessage?: ChatAssistantMessage & { createdAt?: number }
+  streamingMessage?: StreamingAssistantMessage
   sending?: boolean
   assistantLabel?: string
   userLabel?: string
@@ -36,8 +41,12 @@ const emit = defineEmits<{
   (e: 'toolCallRerun', payload: { message: ChatHistoryItem, index: number, key: string | number, toolCallId: string, toolName: string, args: string }): void
 }>()
 
-const chatHistoryRef = ref<HTMLDivElement>()
-provide(chatScrollContainerKey, chatHistoryRef)
+/** Keeps about two mobile viewports ready so fast flicks do not expose an unmounted gap. */
+const CHAT_HISTORY_OVERSCAN = 600
+
+const chatHistoryRef = useTemplateRef<HTMLDivElement>('chatHistory')
+const virtualizerRef = useTemplateRef<VirtualizerHandle>('virtualizer')
+const { scrollToIndex } = useVirtualizerScroll(virtualizerRef)
 
 const { t } = useI18n()
 const labels = computed(() => ({
@@ -47,35 +56,36 @@ const labels = computed(() => ({
   retry: props.retryLabel ?? t('stage.chat.actions.retry'),
 }))
 
-const streaming = computed<ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number }>(() => props.streamingMessage ?? { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() })
+const streaming = computed<StreamingAssistantMessage>(() => props.streamingMessage ?? { role: 'assistant', content: '', slices: [], tool_results: [] })
 const showStreamingPlaceholder = computed(() => (streaming.value.slices?.length ?? 0) === 0 && !streaming.value.content)
-const streamingTs = computed(() => streaming.value?.createdAt)
 function shouldShowPlaceholder(message: ChatHistoryItem) {
-  const ts = streamingTs.value
-  if (ts == null)
-    return false
-
-  return message.context?.createdAt === ts || message.createdAt === ts
+  return !!streaming.value.id && message.id === streaming.value.id
 }
 const renderMessages = computed<ChatHistoryItem[]>(() => {
   if (!props.sending)
     return props.messages
 
-  const streamTs = streamingTs.value
-  if (!streamTs)
+  const streamId = streaming.value.id
+  if (!streamId)
     return props.messages
 
-  const hasStreamAlready = streamTs && props.messages.some(msg => msg?.role === 'assistant' && msg?.createdAt === streamTs)
+  const hasStreamAlready = props.messages.some(message => message.role === 'assistant' && message.id === streamId)
   if (hasStreamAlready)
     return props.messages
 
   return [...props.messages, streaming.value]
 })
+const topFadeRatio = computed(() => props.variant === 'mobile' ? 0.2 : 0)
 
 useChatHistoryScroll({
-  containerRef: chatHistoryRef,
+  container: chatHistoryRef,
   messages: renderMessages,
   getKey: getChatHistoryItemKey,
+  scrollToIndex,
+})
+useChatHistoryTopFade({
+  container: chatHistoryRef,
+  fadeRatio: topFadeRatio,
 })
 
 function emitCopyMessage(message: ChatHistoryItem, index: number) {
@@ -117,45 +127,82 @@ function emitToolCallRerun(
 </script>
 
 <template>
-  <div ref="chatHistoryRef" v-auto-animate flex="~ col" relative h-full w-full overflow-y-auto rounded-xl px="<sm:2" py="<sm:2" :class="variant === 'mobile' ? 'gap-1' : 'gap-2'">
-    <template v-for="(message, index) in renderMessages" :key="getChatHistoryItemKey(message, index)">
-      <div
-        :data-chat-message-index="index"
-        :data-chat-message-key="String(getChatHistoryItemKey(message, index))"
-        :data-chat-message-role="message.role"
-      >
-        <ChatErrorItem
-          v-if="message.role === 'error'"
-          :message="message"
-          :label="labels.error"
-          :retry-label="labels.retry"
-          :can-retry="renderMessages[index - 1]?.role === 'user'"
-          :show-placeholder="sending && index === renderMessages.length - 1"
+  <div
+    ref="chatHistory"
+    :class="[
+      'chat-history-list',
+      'relative h-full w-full overflow-y-auto rounded-xl',
+      '<sm:px-2 <sm:py-2',
+      variant === 'mobile' ? 'chat-history-list--mobile' : '',
+    ]"
+  >
+    <Virtualizer
+      ref="virtualizer"
+      :data="renderMessages"
+      :buffer-size="CHAT_HISTORY_OVERSCAN"
+    >
+      <template #default="{ item: message, index }">
+        <ChatHistoryMessageFrame
+          :key="getChatHistoryItemKey(message, index)"
           :variant="variant"
-          @copy="emitCopyMessage(message, index)"
-          @retry="emitRetryMessage(message, index)"
-          @delete="emitDeleteMessage(message, index)"
-        />
-        <ChatAssistantItem
-          v-else-if="message.role === 'assistant'"
-          :message="message"
-          :label="labels.assistant"
-          :show-placeholder="shouldShowPlaceholder(message) && showStreamingPlaceholder"
-          :variant="variant"
-          :tool-call-renderers="toolCallRenderers"
-          @copy="emitCopyMessage(message, index)"
-          @delete="emitDeleteMessage(message, index)"
-          @tool-call-rerun="emitToolCallRerun(message, index, $event)"
-        />
-        <ChatUserItem
-          v-else-if="message.role === 'user'"
-          :message="message"
-          :label="labels.user"
-          :variant="variant"
-          @copy="emitCopyMessage(message, index)"
-          @delete="emitDeleteMessage(message, index)"
-        />
-      </div>
-    </template>
+          :scroll-container="chatHistoryRef"
+        >
+          <ChatErrorItem
+            v-if="message.role === 'error'"
+            :message="message"
+            :label="labels.error"
+            :retry-label="labels.retry"
+            :can-retry="renderMessages[index - 1]?.role === 'user'"
+            :show-placeholder="sending && index === renderMessages.length - 1"
+            :scroll-container="chatHistoryRef"
+            :variant="variant"
+            @copy="emitCopyMessage(message, index)"
+            @retry="emitRetryMessage(message, index)"
+            @delete="emitDeleteMessage(message, index)"
+          />
+          <ChatAssistantItem
+            v-else-if="message.role === 'assistant'"
+            :message="message"
+            :label="labels.assistant"
+            :show-placeholder="shouldShowPlaceholder(message) && showStreamingPlaceholder"
+            :scroll-container="chatHistoryRef"
+            :variant="variant"
+            :tool-call-renderers="toolCallRenderers"
+            @copy="emitCopyMessage(message, index)"
+            @delete="emitDeleteMessage(message, index)"
+            @tool-call-rerun="emitToolCallRerun(message, index, $event)"
+          />
+          <ChatUserItem
+            v-else-if="message.role === 'user'"
+            :message="message"
+            :label="labels.user"
+            :scroll-container="chatHistoryRef"
+            :variant="variant"
+            @copy="emitCopyMessage(message, index)"
+            @delete="emitDeleteMessage(message, index)"
+          />
+        </ChatHistoryMessageFrame>
+      </template>
+    </Virtualizer>
   </div>
 </template>
+
+<style scoped>
+.chat-history-list--mobile :deep(.chat-message-item-container) {
+  --chat-top-fade-transparent-stop: -1px;
+  --chat-top-fade-opaque-stop: 0px;
+
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent var(--chat-top-fade-transparent-stop),
+    black var(--chat-top-fade-opaque-stop)
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent var(--chat-top-fade-transparent-stop),
+    black var(--chat-top-fade-opaque-stop)
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+</style>

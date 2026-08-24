@@ -4,7 +4,7 @@ import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-chan
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
-import { Button, Callout, Collapsible } from '@proj-airi/ui'
+import { Callout, Collapsible, GhostButton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { renderSVG } from 'uqr'
 import { computed, shallowRef, watch } from 'vue'
@@ -22,11 +22,13 @@ function handleToggleExpanded(visible: boolean, setVisible: (value: boolean) => 
   if (visible)
     trackDevicePairingQrShown()
 }
-const { authToken, hostname, tlsConfig } = storeToRefs(useServerChannelSettingsStore())
+const { appliedConfig } = storeToRefs(useServerChannelSettingsStore())
 
 const loading = shallowRef(false)
 const payload = shallowRef<ServerChannelQrPayload>()
 const errorMessage = shallowRef('')
+// Only the latest applied-config snapshot can update the rendered QR state.
+let refreshRequestId = 0
 
 const payloadText = computed(() => {
   if (!payload.value) {
@@ -63,22 +65,31 @@ const qrCodeSource = computed(() => {
 })
 
 async function refreshPayload() {
+  const requestId = ++refreshRequestId
   loading.value = true
   errorMessage.value = ''
 
   try {
-    payload.value = await getServerChannelQrPayload()
+    const nextPayload = await getServerChannelQrPayload()
+    if (requestId !== refreshRequestId)
+      return
+
+    payload.value = nextPayload
   }
   catch (error) {
+    if (requestId !== refreshRequestId)
+      return
+
     payload.value = undefined
     errorMessage.value = errorMessageFrom(error) ?? t('settings.pages.connection.qr.errors.unavailable')
   }
   finally {
-    loading.value = false
+    if (requestId === refreshRequestId)
+      loading.value = false
   }
 }
 
-watch([hostname, tlsConfig, authToken], () => {
+watch(appliedConfig, () => {
   void refreshPayload()
 }, { immediate: true })
 </script>
@@ -145,9 +156,9 @@ watch([hostname, tlsConfig, authToken], () => {
           :class="['h-48 w-48']"
         >
 
-        <Button
+        <GhostButton
           size="sm"
-          variant="secondary-muted"
+
           :loading="loading"
           :label="t('settings.pages.connection.qr.refresh')"
           @click="refreshPayload"

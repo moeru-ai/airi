@@ -1,8 +1,20 @@
+import type { LinkedAccountsClient } from './use-linked-accounts'
+
 import { describe, expect, it, vi } from 'vitest'
 import { createSSRApp, ref } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 
 import { useLinkedAccounts } from './use-linked-accounts'
+
+function fakeLinkedAccountsClient(overrides: Partial<LinkedAccountsClient> = {}): LinkedAccountsClient {
+  return {
+    listAccounts: vi.fn(async () => ({ data: [], error: null })),
+    unlinkAccount: vi.fn(async () => ({ data: null, error: null })),
+    linkSocial: vi.fn(async () => ({ data: null, error: null })),
+    linkSteam: vi.fn(async () => ({ data: null, error: null })),
+    ...overrides,
+  }
+}
 
 describe('useLinkedAccounts', () => {
   it('passes the profile page URL as the OAuth link error callback URL', async () => {
@@ -21,6 +33,7 @@ describe('useLinkedAccounts', () => {
             listAccounts: vi.fn(async () => ({ data: [], error: null })),
             unlinkAccount: vi.fn(async () => ({ data: null, error: null })),
             linkSocial,
+            linkSteam: vi.fn(async () => ({ data: null, error: null })),
           },
           isAuthenticated: ref(false),
           describeError: () => '',
@@ -79,6 +92,7 @@ describe('useLinkedAccounts', () => {
             })),
             unlinkAccount,
             linkSocial,
+            linkSteam: vi.fn(async () => ({ data: null, error: null })),
           },
           isAuthenticated: ref(false),
           describeError: () => 'boom',
@@ -124,3 +138,72 @@ describe('useLinkedAccounts', () => {
     expect(onLinkStarted).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('useLinkedAccounts link dispatch', () => {
+  // Steam is OpenID 2.0, not OAuth2 — the composable must call the client's
+  // dedicated `linkSteam` (backed by `/link/steam`) instead of `linkSocial`
+  // (backed by `/link-social`, which only resolves OAuth2 providers).
+  it('routes Steam links through linkSteam and other providers through linkSocial', async () => {
+    const linkSocial = vi.fn(async () => ({
+      data: { status: true, redirect: false },
+      error: null,
+    }))
+    const linkSteam = vi.fn(async () => ({
+      data: { status: true, redirect: false },
+      error: null,
+    }))
+
+    // Separate composable instances: a successful link without a redirect
+    // URL leaves `inFlight` set (the row refreshes in place), so a second
+    // link call on the same instance would be a no-op.
+    const steamHolder = await mountLinkedAccounts(fakeLinkedAccountsClient({ linkSteam }))
+    await steamHolder.link('steam', 'Steam')
+    expect(linkSteam).toHaveBeenCalledTimes(1)
+    expect(linkSteam).toHaveBeenCalledWith({
+      callbackURL: 'https://accounts.airi.build/ui/profile',
+      errorCallbackURL: 'https://accounts.airi.build/ui/profile',
+    })
+    expect(linkSocial).not.toHaveBeenCalled()
+
+    const socialHolder = await mountLinkedAccounts(fakeLinkedAccountsClient({ linkSocial }))
+    await socialHolder.link('google', 'Google')
+    expect(linkSocial).toHaveBeenCalledTimes(1)
+    expect(linkSocial).toHaveBeenCalledWith({
+      provider: 'google',
+      callbackURL: 'https://accounts.airi.build/ui/profile',
+      errorCallbackURL: 'https://accounts.airi.build/ui/profile',
+    })
+    expect(linkSteam).toHaveBeenCalledTimes(1)
+  })
+})
+
+async function mountLinkedAccounts(client: LinkedAccountsClient) {
+  const holder: {
+    linkedAccounts?: ReturnType<typeof useLinkedAccounts>
+  } = {}
+  const app = createSSRApp({
+    setup() {
+      holder.linkedAccounts = useLinkedAccounts({
+        client,
+        isAuthenticated: ref(false),
+        describeError: () => '',
+        buildCallbackURL: () => 'https://accounts.airi.build/ui/profile',
+        messages: {
+          listFailed: 'list failed',
+          unlinkFailed: 'unlink failed',
+          linkFailed: 'link failed',
+          lastAccount: 'last account',
+          unlinked: provider => `${provider} unlinked`,
+          linkStarted: provider => `${provider} link started`,
+        },
+      })
+
+      return () => null
+    },
+  })
+
+  await renderToString(app)
+  if (!holder.linkedAccounts)
+    throw new Error('Expected linked accounts composable to initialize')
+  return holder.linkedAccounts
+}

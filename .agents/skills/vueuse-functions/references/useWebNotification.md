@@ -87,7 +87,7 @@ export interface WebNotificationOptions {
    *
    * @default ''
    */
-  dir?: 'auto' | 'ltr' | 'rtl'
+  dir?: "auto" | "ltr" | "rtl"
   /**
    * The language code of the notification as specified in the constructor's
    * options parameter.
@@ -151,7 +151,7 @@ export interface UseWebNotificationOptions
   requestPermissions?: boolean
 }
 export interface UseWebNotificationReturn extends Supportable {
-  notification: Ref<Notification | null>
+  notification: ShallowRef<Notification | null>
   ensurePermissions: () => Promise<boolean | undefined>
   permissionGranted: ShallowRef<boolean>
   show: (

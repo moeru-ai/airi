@@ -27,6 +27,21 @@ export type ProviderInstance
     | ModelProvider
     | ModelProviderWithExtraOptions
 
+/** Validation lifecycle for one serializable provider configuration. */
+export type ProviderValidationStatus = 'unconfigured' | 'validating' | 'configured' | 'invalid' | 'bypassed'
+
+/** Serializable configuration for one provider instance. */
+export interface InferenceServiceProvider {
+  /** Stable provider instance id. */
+  id: string
+  /** Provider definition id from the built-in provider registry. */
+  definitionId: string
+  /** Provider-specific configuration values. */
+  config: Record<string, unknown>
+  /** Current validation state for this provider configuration. */
+  status: ProviderValidationStatus
+}
+
 export function isModelProvider(providerInstance: ProviderInstance): providerInstance is ModelProvider | ModelProviderWithExtraOptions {
   if ('model' in providerInstance && typeof providerInstance.model === 'function') {
     return true
@@ -46,7 +61,7 @@ export interface ProviderOnboardingField {
 }
 
 export interface ProviderExtraMethods<TConfig> {
-  listModels?: (config: TConfig, provider: ProviderInstance) => Promise<ModelInfo[]>
+  listModels?: (config: TConfig, provider: ProviderInstance, contextOptions?: { t: (input: string) => string }) => Promise<ModelInfo[]>
   /**
    * Returns the voice catalogue. `model` lets providers whose voices vary by
    * model variant (Volcengine streaming TTS 1.0 vs 2.0 differ in catalogue)
@@ -183,12 +198,21 @@ export interface ProviderDefinition<TConfig extends any = any> {
   onboardingFields?: (ctx: { t: ComposerTranslation }) => ProviderOnboardingField[]
   createProvider: (config: TConfig) => ProviderInstance
   extraMethods?: ProviderExtraMethods<TConfig>
+  /**
+   * Returns true when the configuration has enough input for automatic validation.
+   * Provider settings keep the status unconfigured while this function returns false.
+   *
+   * @default false
+   */
   validationRequiredWhen?: (config: TConfig) => boolean
   validators?: {
     validateConfig?: Array<(contextOptions: { t: ComposerTranslation }) => ProviderConfigValidator<TConfig>>
     validateProvider?: Array<(contextOptions: { t: ComposerTranslation }) => ProviderRuntimeValidator<TConfig>>
   }
   capabilities?: {
+    chat?: {
+      reasoning?: ChatReasoningCapability
+    }
     transcription?: {
       protocol: 'websocket' | 'http'
       generateOutput: boolean
@@ -236,4 +260,19 @@ export interface ProviderDefinition<TConfig extends any = any> {
       }
     }
   }
+}
+
+/** Reasoning modes that AIRI can request from a chat provider. */
+export type ChatReasoningMode = 'disabled' | 'enabled'
+
+/** User-selected options that a provider applies to one chat request. */
+export interface ChatRequestOptions {
+  /** Requested reasoning mode. */
+  reasoning: ChatReasoningMode
+}
+
+/** Describes the reasoning controls that AIRI implements for a provider. */
+export interface ChatReasoningCapability {
+  /** Modes that AIRI can pass to the provider. */
+  modes: readonly ChatReasoningMode[]
 }

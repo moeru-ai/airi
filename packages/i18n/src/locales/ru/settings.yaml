@@ -51,16 +51,14 @@ dialogs:
     no-models-help: >-
       Вернитесь на предыдущий шаг и проверьте API-ключ или подключение к сети.
     permissions:
-      title: Оповещения
-      description: Вы можете разрешить уведомления сейчас или продолжить и настроить их позже.
+      title: Управление разрешениями
+      description: Вы можете предоставить необходимые разрешения сейчас или настроить их позже.
       notificationsTitle: Оповещения
       notificationsDescription: Разрешить напоминания и важные обновления статуса.
-      notificationsAction: Запросить разрешение на уведомление
-      notificationsNotGrantedHint: Если отказано, вы можете включить уведомления позже в настройках iOS.
-      openSettings: Открыть настройки iOS
-      optionalHint: Вы можете продолжить, даже если разрешение на уведомление не предоставлено.
-      stateUnknown: Не запрошены
-      stateRequesting: Запрашивается...
+      microphoneTitle: Микрофон
+      microphoneDescription: Разрешить AIRI использовать микрофон для голосового ввода и расшифровки речи.
+      requestAction: Запросить доступ
+      optionalHint: Вы можете продолжить, даже если эти разрешения не предоставлены.
       stateGranted: Предоставлено
       stateNotGranted: Не предоставлено
   bug-report:
@@ -1452,6 +1450,9 @@ pages:
     general:
       description: Тема, языки и др.
       title: Общие
+    permissions:
+      description: Просмотр текущего состояния разрешений.
+      title: Управление разрешениями
     description: Настройте вашу сцену!
     sections:
       section:

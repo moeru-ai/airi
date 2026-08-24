@@ -4,8 +4,9 @@ import {
   ProviderSettingsContainer,
   ProviderSettingsLayout,
 } from '@proj-airi/stage-ui/components'
+import { selectProviderMetadata } from '@proj-airi/stage-ui/libs'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Callout } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
@@ -14,11 +15,11 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
 const { isAuthenticated, credits, needsLogin } = storeToRefs(authStore)
 
 const providerId = 'vision-official-provider'
-const providerMetadata = providersStore.getProviderMetadata(providerId)
+const providerMetadata = selectProviderMetadata(providersStore.getProviderDefinition(providerId), t, { id: providerId })
 const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 
 function handleLogin() {

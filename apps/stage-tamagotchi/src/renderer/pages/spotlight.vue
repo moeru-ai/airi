@@ -2,6 +2,9 @@
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
+import { extractMessageText } from '@proj-airi/stage-ui/libs/chat-sync/wire-message'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useWindowFocus } from '@vueuse/core'
 import { shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -10,14 +13,15 @@ import {
   electronSpotlightHide,
   electronSpotlightShowResultNotification,
 } from '../../shared/eventa'
-import { useChatSyncStore } from '../stores/chat-sync'
+import { artistryToolReferences } from '../stores/tools'
 
 const messageInput = shallowRef('')
 const isComposing = shallowRef(false)
 const sending = shallowRef(false)
 const inputRef = useTemplateRef<HTMLInputElement>('inputRef')
 
-const chatSyncStore = useChatSyncStore()
+const chatStore = useChatStore()
+const chatSession = useChatSessionStore()
 const { trackSpotlightUsed } = useAnalytics()
 const hideSpotlightWindow = useElectronEventaInvoke(electronSpotlightHide)
 const showResultNotification = useElectronEventaInvoke(electronSpotlightShowResultNotification)
@@ -45,9 +49,18 @@ async function handleSend() {
 
   try {
     await hideSpotlightWindow()
-    const result = await chatSyncStore.requestSpotlightIngest({ text })
+    const result = await chatStore.send({
+      sessionId: chatSession.activeSessionId,
+      text,
+      tools: artistryToolReferences,
+    })
+    const assistant = result.messages.findLast(message => message.role === 'assistant')
+    const visibleText = assistant ? extractMessageText(assistant) : ''
+    if (!visibleText.trim())
+      throw new Error('Spotlight returned an empty response')
+
     await showResultNotification({
-      body: result.visibleText.trim(),
+      body: visibleText.trim(),
     })
   }
   catch (error) {

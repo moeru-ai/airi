@@ -14,6 +14,13 @@ chat:
     cloud-badge: Synchronisé dans le cloud
     new-chat-fallback: Nouvelle conversation
     delete: Supprimer conversation
+render-error:
+  title: '{renderer} n’a pas pu afficher ce modèle'
+  description: Le modèle est sélectionné, mais la scène n’a pas pu l’afficher.
+  report-description: |-
+    {renderer} n’a pas pu afficher le modèle sélectionné.
+    ID du modèle : {modelId}
+    Erreur : {error}
 message: Dites quelque chose...
 send-mode:
   title: Envoyer la clef

@@ -1,14 +1,20 @@
 export type {
-  SparkNotifyAgentDeps,
+  CreateSparkNotifyAgentOptions,
+  SparkNotifyAgent,
   SparkNotifyCommandEvent,
+  SparkNotifyHandleRequest,
   SparkNotifyHandleResult,
-  SparkNotifyResponse,
-  SparkTraceCapture,
-} from './handler'
+} from './agent'
 export {
+  createSparkNotifyAgent,
   getSparkNotifyHandlingAgentInstruction,
-  setupAgentSparkNotifyHandler,
-} from './handler'
+} from './agent'
+export {
+  createSparkNotifyBuiltinToolsPlugin,
+  createSparkNotifyObserverPlugin,
+  createSparkNotifyReactionPlugin,
+} from './plugins'
+export type { SparkNotifyReactionSink, SparkNotifyRuntimeObserver } from './plugins'
 export type { SparkNotifyCommandSchema } from './schema'
 export {
   sparkNotifyCommandItemSchema,
@@ -21,8 +27,14 @@ export type {
 export { createSparkNotifyTools } from './tools'
 export type {
   SparkNotifyMessageOverride,
+  SparkNotifyPlugin,
+  SparkNotifyPluginResult,
+  SparkNotifyPluginSession,
   SparkNotifyResponseControl,
+  SparkNotifyRunner,
+  SparkNotifyRunRequest,
+  SparkNotifyRuntimeEvent,
   SparkNotifyRuntimePolicy,
-  SparkNotifyTracingHooks,
-  SparkTraceEvent,
+  SparkNotifySelectedChat,
+  SparkNotifyTurn,
 } from './types'

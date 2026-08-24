@@ -14,6 +14,13 @@ chat:
     cloud-badge: 已同步到云
     new-chat-fallback: 新建对话
     delete: 删除对话
+render-error:
+  title: '{renderer} 无法渲染这个模型'
+  description: 模型已经选中，但舞台无法显示它。
+  report-description: |-
+    {renderer} 无法渲染选中的模型。
+    模型 ID：{modelId}
+    错误：{error}
 message: 说点什么...
 send-mode:
   title: 发送键值

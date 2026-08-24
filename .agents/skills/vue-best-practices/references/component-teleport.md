@@ -26,14 +26,10 @@ When an ancestor has `transform`, `filter`, or `perspective`, fixed-position ove
 ```vue
 <template>
   <div class="animated-container">
-    <button @click="open = true">
-      Open
-    </button>
+    <button @click="open = true">Open</button>
 
     <!-- Broken: fixed positioning is scoped to the transformed parent -->
-    <div v-if="open" class="modal">
-      Modal
-    </div>
+    <div v-if="open" class="modal">Modal</div>
   </div>
 </template>
 
@@ -54,14 +50,10 @@ When an ancestor has `transform`, `filter`, or `perspective`, fixed-position ove
 ```vue
 <template>
   <div class="animated-container">
-    <button @click="open = true">
-      Open
-    </button>
+    <button @click="open = true">Open</button>
 
     <Teleport to="body">
-      <div v-if="open" class="modal">
-        Modal
-      </div>
+      <div v-if="open" class="modal">Modal</div>
     </Teleport>
   </div>
 </template>
@@ -80,9 +72,7 @@ const isMobile = useMediaQuery('(max-width: 768px)')
 
 <template>
   <Teleport to="body" :disabled="isMobile">
-    <nav class="sidebar">
-      Navigation
-    </nav>
+    <nav class="sidebar">Navigation</nav>
   </Teleport>
 </template>
 ```

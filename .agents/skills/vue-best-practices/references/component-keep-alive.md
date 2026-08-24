@@ -85,7 +85,7 @@ Vue 3 has no direct API to remove a specific cached instance. Use keys or dynami
 
 ```vue
 <script setup>
-import { reactive, ref } from 'vue'
+import { ref, reactive } from 'vue'
 
 const currentView = ref('Dashboard')
 const viewKeys = reactive({ Dashboard: 0, Settings: 0 })

@@ -51,5 +51,5 @@ function onFileChange(event) {
  */
 export declare function useObjectUrl(
   object: MaybeRefOrGetter<Blob | MediaSource | null | undefined>,
-): Readonly<Ref<string | undefined, string | undefined>>
+): Readonly<ShallowRef<string | undefined, string | undefined>>
 ```

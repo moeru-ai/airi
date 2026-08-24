@@ -35,6 +35,24 @@ Expected result:
 - `27` raw files in `packages/scenarios-stage-tamagotchi-browser/artifacts/raw`
 - names like `00-stage-tamagotchi.avif` ... `26-devtools-vision-capture.avif`
 
+### Capture a local display model
+
+Use the file-input scenario when the requested evidence must render a local Live2D, VRM, or MMD model instead of a preset:
+
+```bash
+AIRI_DISPLAY_MODEL_FORMAT=vrm \
+AIRI_DISPLAY_MODEL_PATH=/absolute/path/to/avatar.vrm \
+pnpm exec vishot capture \
+  ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/display-model-from-file.ts \
+  --target electron \
+  --app-entrypoint ./apps/stage-tamagotchi/out/main/index.js \
+  --cwd . \
+  --settle-ms 2500 \
+  --output-dir ./.vishot/display-model/vrm
+```
+
+Set `AIRI_DISPLAY_MODEL_FORMAT` to `live2d`, `vrm`, or `mmd`. The scenario skips first-run onboarding in the capture profile, imports and selects the supplied file through the model chooser, captures the main stage, then restores persisted state and removes the imported fixture.
+
 ## Scenario Authoring
 
 ```ts

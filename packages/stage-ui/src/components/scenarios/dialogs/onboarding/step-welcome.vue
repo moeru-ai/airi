@@ -2,7 +2,7 @@
 import type { OnboardingStepNextHandler } from './types'
 
 import { all } from '@proj-airi/i18n'
-import { Button } from '@proj-airi/ui'
+import { AnimatedContent, Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import {
   DropdownMenuContent,
@@ -21,6 +21,7 @@ import { useOnboardingStore } from '../../../../stores/onboarding'
 import { useSettingsGeneral } from '../../../../stores/settings'
 
 interface Props {
+  customProviderSetupEnabled: boolean
   onNext: OnboardingStepNextHandler
 }
 
@@ -54,9 +55,11 @@ function handleLocalSetup() {
             'h-8 w-8',
             'flex items-center justify-center',
             'rounded-lg',
+            'outline-none',
             'text-neutral-500 transition-colors duration-200',
             'hover:bg-neutral-100/80 hover:text-neutral-700',
             'dark:text-neutral-400 dark:hover:bg-neutral-800/80 dark:hover:text-neutral-200',
+            'data-[state=open]:bg-neutral-100/80 dark:data-[state=open]:bg-neutral-800/80',
           ]"
           :aria-label="t('settings.language.title')"
         >
@@ -64,29 +67,32 @@ function handleLocalSetup() {
         </DropdownMenuTrigger>
         <DropdownMenuPortal>
           <DropdownMenuContent
+            as-child
             align="end"
             side="bottom"
             :side-offset="6"
             :class="[
               'z-10000 min-w-36 rounded-xl border p-1 shadow-lg outline-none backdrop-blur-md',
-              'border-neutral-200/80 bg-neutral-100/80 text-neutral-700',
-              'dark:border-neutral-700/60 dark:bg-neutral-800/80 dark:text-neutral-100',
+              'border-neutral-100/80 bg-neutral-100/80 text-neutral-700',
+              'dark:border-neutral-800/60 dark:bg-neutral-800/80 dark:text-neutral-100',
             ]"
           >
-            <DropdownMenuItem
-              v-for="lang in languages"
-              :key="lang.value"
-              :class="[
-                'flex cursor-pointer select-none items-center rounded-lg px-3 py-2',
-                'text-sm leading-none outline-none',
-                'data-[highlighted]:bg-primary-50/80 dark:data-[highlighted]:bg-primary-900/40',
-                'transition-colors duration-150 ease-in-out',
-                lang.value === language ? 'text-primary-500 dark:text-primary-300' : '',
-              ]"
-              @select="() => language = lang.value"
-            >
-              {{ lang.label }}
-            </DropdownMenuItem>
+            <AnimatedContent>
+              <DropdownMenuItem
+                v-for="lang in languages"
+                :key="lang.value"
+                :class="[
+                  'flex cursor-pointer select-none items-center rounded-lg px-3 py-2',
+                  'text-sm leading-none outline-none',
+                  'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
+                  'transition-colors duration-150 ease-in-out',
+                  lang.value === language ? 'text-primary-500 dark:text-primary-300' : '',
+                ]"
+                @select="() => language = lang.value"
+              >
+                {{ lang.label }}
+              </DropdownMenuItem>
+            </AnimatedContent>
           </DropdownMenuContent>
         </DropdownMenuPortal>
       </DropdownMenuRoot>
@@ -99,7 +105,7 @@ function handleLocalSetup() {
         :duration="500"
         :class="['mb-1', 'flex', 'justify-center', 'md:mb-4', 'md:pt-8', 'lg:pt-16']"
       >
-        <img :src="onboardingLogo" max-h="50" aspect-square h-auto w-auto object-cover>
+        <img :src="onboardingLogo" max-h="50" aspect-square h-auto w-auto select-none object-cover>
       </div>
       <h2
         v-motion
@@ -121,24 +127,28 @@ function handleLocalSetup() {
         {{ t('settings.dialogs.onboarding.description') }}
       </p>
     </div>
-    <div :class="['flex', 'flex-col', 'gap-3', 'md:flex-row']">
+    <div :class="['flex', 'flex-col', 'gap-3', 'md:flex-row', 'm-2']">
       <Button
-        v-motion
-        :initial="{ opacity: 0 }"
-        :enter="{ opacity: 1 }"
-        :duration="500"
-        :delay="200"
+        v-motion="{
+          initial: { opacity: 0 },
+          enter: { opacity: 1 },
+          duration: 500,
+          delay: 200,
+        }"
+        color="primary"
+        variant="secondary"
         :label="t('settings.dialogs.onboarding.loginAction')"
         :class="['flex-1']"
         @click="handleLogin"
       />
       <Button
-        v-motion
-        :initial="{ opacity: 0 }"
-        :enter="{ opacity: 1 }"
-        :duration="500"
-        :delay="250"
-        variant="secondary"
+        v-if="props.customProviderSetupEnabled"
+        v-motion="{
+          initial: { opacity: 0 },
+          enter: { opacity: 1 },
+          duration: 500,
+          delay: 250,
+        }"
         :label="t('settings.dialogs.onboarding.setupWithoutSigningIn')"
         :class="['flex-1']"
         @click="handleLocalSetup"

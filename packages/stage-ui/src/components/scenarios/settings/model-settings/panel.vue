@@ -61,7 +61,7 @@ const effectiveRenderer = computed(() => resolveModelSettingsPanelRenderer({
 
 async function handleModelPick(selectedModel: DisplayModel | undefined) {
   stageModelSelected.value = selectedModel?.id ?? ''
-  airiCardStore.updateActiveCardDisplayModel(selectedModel?.id)
+  await airiCardStore.updateActiveCardDisplayModel(selectedModel?.id)
   await settingsStore.updateStageModel()
 }
 </script>
@@ -98,7 +98,7 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
     </Callout>
     <div :class="['flex flex-wrap items-center gap-2']">
       <ModelSelectorDialog v-model:show="modelSelectorOpen" :selected-model="stageModelSelectedDisplayModel" @pick="handleModelPick">
-        <Button variant="secondary">
+        <Button>
           {{ t('settings.model-select.select-model.button') }}
         </Button>
       </ModelSelectorDialog>

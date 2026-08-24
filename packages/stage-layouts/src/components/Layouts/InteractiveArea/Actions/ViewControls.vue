@@ -33,8 +33,13 @@ function handleViewControlsToggle(targetMode: string) {
     <Transition name="fade">
       <div v-if="controlEnabled?.enabled.value" w-full flex justify-between gap-2>
         <Button
-          v-for="control in controlEnabled.supported" :key="control" variant="secondary-muted"
-          :toggled="controlEnabled.mode.value === control" w-full @click="handleViewControlsToggle(control)"
+          v-for="control in controlEnabled.supported"
+          :key="control"
+          :aria-pressed="controlEnabled.mode.value === control"
+          :color="controlEnabled.mode.value === control ? 'primary' : 'neutral'"
+          variant="secondary"
+          block
+          @click="handleViewControlsToggle(control)"
         >
           {{ (controlEnabled.conf as any)[control].buttonText }}
         </Button>

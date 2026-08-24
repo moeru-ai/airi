@@ -138,7 +138,7 @@ const accentClasses = computed(() => {
         <Button
           v-if="secondaryActionLabel"
           block
-          variant="secondary"
+
           @click="emit('secondaryAction')"
         >
           {{ secondaryActionLabel }}

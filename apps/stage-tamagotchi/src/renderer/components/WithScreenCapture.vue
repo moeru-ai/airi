@@ -109,7 +109,7 @@ watch(hasPermissions, (nextHasPermissions, previousHasPermissions) => {
 
         <div flex="~ row gap-2 mt-4 justify-end" w-full>
           <Button
-            variant="secondary"
+
             @click="showDialog = false"
           >
             {{ t('tamagotchi.settings.screen-capture.permissions-prompt.dismiss') }}

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Live2DCanvas, Live2DModel } from '@proj-airi/stage-ui/components/scenes'
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { Live2DCanvas, Live2DModel } from '@proj-airi/stage-ui-live2d/components/scenes/live2d'
+import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { Screen } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
@@ -8,8 +8,8 @@ import { ref, watch } from 'vue'
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 const live2dModelRef = ref<InstanceType<typeof Live2DModel>>()
 
-const settingsStore = useSettings()
-const { stageModelSelectedUrl } = storeToRefs(settingsStore)
+const settingsStore = useSettingsStageModel()
+const { stageModelSelected, stageModelSelectedUrl } = storeToRefs(settingsStore)
 const motion = ref<string>('idle')
 const motionGroupsList = ref<{
   motionName: string
@@ -65,6 +65,7 @@ function handleShot() {
         >
           <Live2DModel
             ref="live2dModelRef"
+            :model-id="stageModelSelected"
             :model-src="stageModelSelectedUrl"
             :app="app"
             :width="width"

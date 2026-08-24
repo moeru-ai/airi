@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProviderSourceDeployment, ProviderSourcePricing } from '@proj-airi/stage-ui/libs/providers/source-metadata'
+import type { ProviderDeployment, ProviderPricing } from '@proj-airi/stage-ui/libs/providers/attributes'
 import type { Ref } from 'vue'
 
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
@@ -7,7 +7,7 @@ import { IconStatusItem, RippleGrid } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -25,8 +25,8 @@ interface ProviderSourceCard {
   localizedName?: string
   localizedDescription?: string
   configured?: boolean
-  pricing?: ProviderSourcePricing
-  deployment?: ProviderSourceDeployment
+  pricing?: ProviderPricing
+  deployment?: ProviderDeployment
   beginnerRecommended?: boolean
 }
 
@@ -41,7 +41,7 @@ interface ProviderBlockConfig {
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
 const artistryStore = useArtistryStore()
 const { lastClickedIndex, setLastClickedIndex } = useRippleGridState()
 const { trackProviderClick } = useAnalytics()

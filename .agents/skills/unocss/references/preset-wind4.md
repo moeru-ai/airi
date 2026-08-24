@@ -92,10 +92,10 @@ presetWind4({
   preflights: {
     // Built-in reset styles
     reset: true,
-
+    
     // Theme CSS variables generation
     theme: 'on-demand', // true | false | 'on-demand'
-
+    
     // @property CSS rules
     property: true,
   },
@@ -241,7 +241,7 @@ Choose **preset-wind3** when:
 - Using presetLegacyCompat
 - Want stable, proven preset
 
-<!--
+<!-- 
 Source references:
 - https://unocss.dev/presets/wind4
 -->

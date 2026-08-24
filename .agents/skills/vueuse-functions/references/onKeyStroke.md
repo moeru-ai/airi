@@ -1,5 +1,6 @@
 ---
 category: Sensors
+variants: onKeyDown, onKeyUp, onKeyPressed
 ---
 
 # onKeyStroke
@@ -143,7 +144,7 @@ onKeyUp('Shift', () => console.log('Shift key up'))
 ```ts
 export type KeyPredicate = (event: KeyboardEvent) => boolean
 export type KeyFilter = true | string | string[] | KeyPredicate
-export type KeyStrokeEventName = 'keydown' | 'keypress' | 'keyup'
+export type KeyStrokeEventName = "keydown" | "keypress" | "keyup"
 export interface OnKeyStrokeOptions {
   eventName?: KeyStrokeEventName
   target?: MaybeRefOrGetter<EventTarget | null | undefined>
@@ -180,7 +181,7 @@ export declare function onKeyStroke(
 export declare function onKeyDown(
   key: KeyFilter,
   handler: (event: KeyboardEvent) => void,
-  options?: Omit<OnKeyStrokeOptions, 'eventName'>,
+  options?: Omit<OnKeyStrokeOptions, "eventName">,
 ): () => void
 /**
  * Listen to the keypress event of the given key.
@@ -193,7 +194,7 @@ export declare function onKeyDown(
 export declare function onKeyPressed(
   key: KeyFilter,
   handler: (event: KeyboardEvent) => void,
-  options?: Omit<OnKeyStrokeOptions, 'eventName'>,
+  options?: Omit<OnKeyStrokeOptions, "eventName">,
 ): () => void
 /**
  * Listen to the keyup event of the given key.
@@ -206,6 +207,6 @@ export declare function onKeyPressed(
 export declare function onKeyUp(
   key: KeyFilter,
   handler: (event: KeyboardEvent) => void,
-  options?: Omit<OnKeyStrokeOptions, 'eventName'>,
+  options?: Omit<OnKeyStrokeOptions, "eventName">,
 ): () => void
 ```

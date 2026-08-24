@@ -1,188 +1,185 @@
 ---
 name: pnpm-configuration
-description: Configuration options via pnpm-workspace.yaml and .npmrc settings
+description: Configuring pnpm via pnpm-workspace.yaml (settings), the global config.yaml, and .npmrc (auth only)
 ---
 
 # pnpm Configuration
 
-pnpm uses two main configuration files: `pnpm-workspace.yaml` for workspace and pnpm-specific settings, and `.npmrc` for npm-compatible and pnpm-specific settings.
+pnpm settings are split into **two** categories. Knowing where each goes is the single most important config concept in current pnpm:
 
-## pnpm-workspace.yaml
+| Category | Stored in | Format |
+|----------|-----------|--------|
+| **All pnpm/install settings** (`nodeLinker`, `hoistPattern`, `autoInstallPeers`, `overrides`, `catalog`, …) | `pnpm-workspace.yaml` (project) and `config.yaml` (global) | YAML, **camelCase** keys |
+| **Auth & registry credentials** (`_authToken`, `cert`, `key`, …) | `.npmrc` (project, gitignored) and global `rc` | INI |
 
-The recommended location for pnpm-specific configurations. Place at project root.
+> **Important changes:** pnpm no longer reads settings from the `pnpm` field of `package.json`, and `.npmrc` is now used **only** for authentication/registry credentials. Everything else belongs in `pnpm-workspace.yaml`. Keys in YAML are **camelCase** (e.g. `nodeLinker`), not the kebab-case used by old `.npmrc` files.
 
-```yaml
-# Define workspace packages
+## pnpm-workspace.yaml (primary config)
+
+Place at the workspace/project root. Even a single-package project uses this file for pnpm settings.
+
+```yaml title="pnpm-workspace.yaml"
+# Workspace packages (omit for a single-package repo)
 packages:
   - 'packages/*'
   - 'apps/*'
-  - '!**/test/**' # Exclude pattern
+  - '!**/test/**'
 
-# Catalog for shared dependency versions
+# Common install settings (camelCase)
+nodeLinker: isolated          # isolated (default) | hoisted | pnp
+autoInstallPeers: true
+strictPeerDependencies: false
+savePrefix: '^'
+saveExact: false
+hoistPattern:
+  - '*eslint*'
+  - '*babel*'
+publicHoistPattern: []
+shamefullyHoist: false
+dedupeDirectDeps: false
+resolutionMode: highest       # highest | time-based | lowest-direct
+
+# Centralized version management
 catalog:
   react: ^18.2.0
-  typescript: ~5.3.0
 
-# Named catalogs for different dependency groups
-catalogs:
-  react17:
-    react: ^17.0.2
-    react-dom: ^17.0.2
-  react18:
-    react: ^18.2.0
-    react-dom: ^18.2.0
-
-# Override resolutions (preferred location)
+# Force dependency versions (root only)
 overrides:
   lodash: ^4.17.21
   'foo@^1.0.0>bar': ^2.0.0
 
-# pnpm settings (alternative to .npmrc)
-settings:
-  auto-install-peers: true
-  strict-peer-dependencies: false
-  link-workspace-packages: true
-  prefer-workspace-packages: true
-  shared-workspace-lockfile: true
+# Extend/patch broken package manifests
+packageExtensions:
+  react-redux:
+    peerDependencies:
+      react-dom: '*'
+
+# Peer dependency rules
+peerDependencyRules:
+  ignoreMissing:
+    - '@babel/*'
+  allowedVersions:
+    react: '17 || 18'
 ```
 
-## .npmrc Settings
+## Global configuration (config.yaml)
 
-pnpm reads settings from `.npmrc` files. Create at project root or user home.
+User-level non-auth settings live in a global YAML `config.yaml`:
 
-### Common pnpm Settings
+- `$XDG_CONFIG_HOME/pnpm/config.yaml` (if set)
+- Linux: `~/.config/pnpm/config.yaml`
+- macOS: `~/Library/Preferences/pnpm/config.yaml`
+- Windows: `~/AppData/Local/pnpm/config/config.yaml`
 
-```ini
-# Automatically install peer dependencies
-auto-install-peers=true
+The companion global `rc` file (same directory, named `rc`) holds only registry/auth settings.
 
-# Fail on peer dependency issues
-strict-peer-dependencies=false
+## Per-project settings in a workspace (packageConfigs)
 
-# Hoist patterns for dependencies
-public-hoist-pattern[]=*types*
-public-hoist-pattern[]=*eslint*
-shamefully-hoist=false
+There are no per-subproject `.npmrc` files anymore. Set per-package config via `packageConfigs` in the root `pnpm-workspace.yaml`:
 
-# Store location
-store-dir=~/.pnpm-store
+```yaml title="pnpm-workspace.yaml"
+packageConfigs:
+  # Map form: keyed by package name
+  project-1:
+    saveExact: true
+  project-2:
+    savePrefix: '~'
+  # Array form: pattern-matched rules
+  # - match: ['project-1', 'project-2']
+  #   modulesDir: node_modules
+  #   saveExact: true
+```
 
-# Virtual store location
-virtual-store-dir=node_modules/.pnpm
+## .npmrc — authentication only
 
-# Lockfile settings
-lockfile=true
-prefer-frozen-lockfile=true
+Keep auth tokens out of the repo (gitignore the project `.npmrc`). Auth files, highest priority first:
 
-# Side effects cache (speeds up rebuilds)
-side-effects-cache=true
+1. `<workspace root>/.npmrc` (project, gitignored)
+2. `<pnpm config>/auth.ini` (written by `pnpm login`)
+3. `~/.npmrc` (fallback for npm compatibility)
 
-# Registry settings
-registry=https://registry.npmjs.org/
+```ini title=".npmrc"
+//registry.npmjs.org/:_authToken=${NPM_TOKEN}
 @myorg:registry=https://npm.myorg.com/
+//npm.myorg.com/:_authToken=${MYORG_TOKEN}
 ```
 
-### Workspace Settings
+Configure registries themselves (non-secret) in `pnpm-workspace.yaml`:
 
-```ini
-# Link workspace packages
-link-workspace-packages=true
-
-# Prefer workspace packages over registry
-prefer-workspace-packages=true
-
-# Single lockfile for all packages
-shared-workspace-lockfile=true
-
-# Save prefix for workspace dependencies
-save-workspace-protocol=rolling
+```yaml title="pnpm-workspace.yaml"
+registries:
+  default: https://registry.npmjs.org/
+  '@my-org': https://private.example.com/
+# Named registry aliases usable as a prefix, e.g. `pnpm add work:@corp/lib`
+namedRegistries:
+  work: https://npm.work.example.com/
 ```
 
-### Node.js Settings
+> Security: since v11, env-variable expansion is disabled for registry/proxy URLs and credential keys in the **project** `.npmrc` (to stop a malicious repo from leaking secrets). Put dynamic-token lines in the user-level auth file instead.
 
-```ini
-# Use specific Node.js version
-use-node-version=20.10.0
-
-# Node.js version file
-node-version-file=.nvmrc
-
-# Manage Node.js versions
-manage-package-manager-versions=true
-```
-
-### Security Settings
-
-```ini
-# Ignore specific scripts
-ignore-scripts=false
-
-# Allow specific build scripts
-onlyBuiltDependencies[]=esbuild
-onlyBuiltDependencies[]=sharp
-
-# Package extensions for missing peer deps
-package-extensions[foo@1].peerDependencies.bar=*
-```
-
-## Configuration Hierarchy
-
-Settings are read in order (later overrides earlier):
-
-1. `/etc/npmrc` - Global config
-2. `~/.npmrc` - User config
-3. `<project>/.npmrc` - Project config
-4. Environment variables: `npm_config_<key>=<value>`
-5. `pnpm-workspace.yaml` settings field
-
-## Environment Variables
+## The `pnpm config` command
 
 ```bash
-# Set config via env
-npm_config_registry=https://registry.npmjs.org/
+# Writes to global config.yaml / rc by default
+pnpm config set nodeVersion 22.0.0
+pnpm config set --location=project nodeVersion 22.0.0   # writes pnpm-workspace.yaml
 
-# pnpm-specific env vars
-PNPM_HOME=~/.local/share/pnpm
+# JSON values create arrays/objects
+pnpm config set --location=project --json allowBuilds '{"react": true}'
+
+# get/list print JSON (no longer INI) since v11
+pnpm config get nodeLinker
+pnpm config get 'allowBuilds.react'
+pnpm config list
 ```
 
-## Package.json Fields
+## Environment variables
 
-pnpm reads specific fields from `package.json`:
+Use `pnpm_config_*` (or `PNPM_CONFIG_*`). pnpm **no longer reads `npm_config_*`**.
+
+```bash
+pnpm_config_save_exact=true pnpm add foo
+```
+
+## Notable settings that changed names
+
+| Old (removed) | Replacement | Notes |
+|---------------|-------------|-------|
+| `onlyBuiltDependencies`, `neverBuiltDependencies`, `ignoredBuiltDependencies`, `onlyBuiltDependenciesFile` | `allowBuilds: { name: true\|false }` | Single map controlling build-script approval. See supply-chain-security. |
+| `managePackageManagerVersions`, `packageManagerStrict`, `packageManagerStrictVersion`, `COREPACK_ENABLE_STRICT` | `pmOnFail: download\|ignore\|warn\|error` | Behavior when running pnpm version ≠ declared one. |
+| `useNodeVersion` | `devEngines.runtime` (in `package.json`) | Runtime pinning. |
+| `auditConfig.ignoreCves` | `auditConfig.ignoreGhsas` | Use GHSA IDs. |
+| `allowNonAppliedPatches` | `allowUnusedPatches` | `ignorePatchFailures` removed (patches now always throw). |
+| `package.json#pnpm` field | `pnpm-workspace.yaml` | No longer read at all. |
+
+## Package Manager / Runtime pinning (package.json)
 
 ```json
 {
-  "pnpm": {
-    "overrides": {
-      "lodash": "^4.17.21"
-    },
-    "peerDependencyRules": {
-      "ignoreMissing": ["@babel/*"],
-      "allowedVersions": {
-        "react": "17 || 18"
-      }
-    },
-    "neverBuiltDependencies": ["fsevents"],
-    "onlyBuiltDependencies": ["esbuild"],
-    "allowedDeprecatedVersions": {
-      "request": "*"
-    },
-    "patchedDependencies": {
-      "express@4.18.2": "patches/express@4.18.2.patch"
-    }
+  "packageManager": "pnpm@10.0.0",
+  "devEngines": {
+    "packageManager": { "name": "pnpm", "version": ">=11.0.0 <12.0.0", "onFail": "download" },
+    "runtime": { "name": "node", "version": "22.x", "onFail": "download" }
   }
 }
 ```
 
-## Key Differences from npm/yarn
+`devEngines.packageManager` supports ranges (resolved version stored in lockfile); `packageManager` requires an exact version. Override `onFail` without editing the manifest via `pmOnFail` / `runtimeOnFail` settings.
 
-1. **Strict by default**: No phantom dependencies
-2. **Workspace protocol**: `workspace:*` for local packages
-3. **Catalogs**: Centralized version management
-4. **Content-addressable store**: Shared across projects
+## Key Points
+
+- All pnpm settings go in `pnpm-workspace.yaml` (camelCase) or global `config.yaml`; `.npmrc` is auth/registry only.
+- `package.json#pnpm` and `npm_config_*` env vars are no longer read.
+- Use `packageConfigs` for per-package settings inside a workspace.
+- Build-script approval is now one `allowBuilds` map; package-manager strictness is one `pmOnFail` setting.
+- `pnpm config get`/`list` output JSON, and `--location=project` writes to `pnpm-workspace.yaml`.
 
 <!--
 Source references:
-- https://pnpm.io/pnpm-workspace_yaml
+- https://pnpm.io/settings
+- https://pnpm.io/configuring
 - https://pnpm.io/npmrc
+- https://pnpm.io/pnpm-workspace_yaml
 - https://pnpm.io/package_json
+- https://pnpm.io/cli/config
 -->

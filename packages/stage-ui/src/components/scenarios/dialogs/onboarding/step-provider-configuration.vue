@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProviderMetadata } from '../../../../stores/providers'
+import type { ProviderMetadata } from '../../../../libs/providers/metadata'
 import type { OnboardingStepNextHandler, OnboardingStepPrevHandler } from './types'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -7,7 +7,7 @@ import { Button, Callout, FieldCheckbox, FieldInput } from '@proj-airi/ui'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useProvidersStore } from '../../../../stores/providers'
+import { useProviderStore } from '../../../../stores/providers/provider'
 import { Alert } from '../../../misc'
 import { ProviderAccountIdInput } from '../../../scenarios/providers'
 
@@ -20,7 +20,7 @@ interface Props {
 
 const props = defineProps<Props>()
 const { t } = useI18n()
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
 
 const apiKey = ref('')
 const baseUrl = ref('')
@@ -39,7 +39,7 @@ function initializeForm() {
   if (!provider)
     return
 
-  const defaultOptions = provider.defaultOptions?.() ?? {}
+  const defaultOptions = provider.defaultConfig
   baseUrl.value = ('baseUrl' in defaultOptions ? String(defaultOptions.baseUrl) : '') || ''
   apiKey.value = ''
   accountId.value = ''
@@ -87,7 +87,7 @@ const needsBaseUrl = computed(() => {
 })
 
 const showChatCheckOption = computed(() => {
-  return props.selectedProvider?.validators.chatPingCheckAvailable
+  return props.selectedProvider ? providersStore.hasManualProviderValidators(props.selectedProvider.id) : false
 })
 
 const canProceed = computed(() => {
@@ -141,8 +141,7 @@ async function validateConfiguration() {
     }
 
     // Validate using provider's validator
-    const metadata = providersStore.getProviderMetadata(props.selectedProvider.id)
-    const validationResult = await metadata.validators.validateProviderConfig(config, {
+    const validationResult = await providersStore.validateProviderConfig(props.selectedProvider.id, config, {
       skipChatPingCheck: !enableChatCheck.value,
     })
     validation.value = validationResult.valid ? 'succeed' : 'failed'
@@ -206,8 +205,10 @@ function getApiKeyPlaceholder(providerId: string): string {
 }
 
 function getBaseUrlPlaceholder(_providerId: string): string {
-  const defaultOptions = props.selectedProvider?.defaultOptions?.() || {}
-  return (defaultOptions as any)?.baseUrl || 'https://api.example.com/v1/'
+  const defaultOptions = props.selectedProvider?.defaultConfig ?? {}
+  return typeof defaultOptions.baseUrl === 'string' && defaultOptions.baseUrl
+    ? defaultOptions.baseUrl
+    : 'https://api.example.com/v1/'
 }
 
 // Initialize on mount

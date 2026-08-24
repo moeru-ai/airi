@@ -335,6 +335,10 @@ export interface CreateReusableTemplateOptions<
    */
   inheritAttrs?: boolean
   /**
+   * Name for the reuse component (useful for devtools).
+   */
+  name?: string
+  /**
    * Props definition for reuse component.
    */
   props?: ComponentObjectPropsOptions<Props>
@@ -349,7 +353,8 @@ export interface CreateReusableTemplateOptions<
  */
 export declare function createReusableTemplate<
   Bindings extends Record<string, any>,
-  MapSlotNameToSlotProps extends ObjectLiteralWithPotentialObjectLiterals = Record<'default', undefined>,
+  MapSlotNameToSlotProps extends ObjectLiteralWithPotentialObjectLiterals =
+    Record<"default", undefined>,
 >(
   options?: CreateReusableTemplateOptions<Bindings>,
 ): ReusableTemplatePair<Bindings, MapSlotNameToSlotProps>

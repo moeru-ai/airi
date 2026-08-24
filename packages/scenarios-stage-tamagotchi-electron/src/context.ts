@@ -1,14 +1,14 @@
 import type { ElectronScenario, ScenarioContext } from '@vishot/source-electron'
 import type { Page } from 'playwright'
 
-import type { StageWindowName, StageWindowSnapshot } from './runtime/windows.ts'
+import type { StageWindowName, StageWindowSnapshot } from './runtime/windows'
 
 import { defineScenario } from '@vishot/source-electron'
 
-import { dismissDialog, dismissDrawer, swipeDownDrawer } from './runtime/overlays.ts'
-import { expandControlsIsland, openChatFromControlsIsland, openHearingFromControlsIsland, openSettingsFromControlsIsland, waitForControlsIslandReady } from './runtime/selectors.ts'
-import { goToSettingsConnectionPage, goToSettingsRoute } from './runtime/settings.ts'
-import { waitForStageWindow } from './runtime/windows.ts'
+import { dismissDialog, dismissDrawer, swipeDownDrawer } from './runtime/overlays'
+import { expandControlsIsland, openChatFromControlsIsland, openHearingFromControlsIsland, openSettingsFromControlsIsland, waitForControlsIslandReady } from './runtime/selectors'
+import { goToSettingsConnectionPage, goToSettingsRoute } from './runtime/settings'
+import { waitForStageWindow } from './runtime/windows'
 
 export interface StageWindowsApi {
   waitFor: (name: StageWindowName, timeout?: number) => Promise<StageWindowSnapshot>

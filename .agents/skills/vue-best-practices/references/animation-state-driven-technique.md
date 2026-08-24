@@ -20,6 +20,17 @@ tags: [vue3, animation, css, transition, style-binding, state, interactive]
 ## Basic Pattern
 
 ```vue
+<template>
+  <div
+    @mousemove="onMousemove"
+    :style="{ backgroundColor: `hsl(${hue}, 80%, 50%)` }"
+    class="interactive-area"
+  >
+    <p>Move your mouse across this div...</p>
+    <p>Hue: {{ hue }}</p>
+  </div>
+</template>
+
 <script setup>
 import { ref } from 'vue'
 
@@ -31,17 +42,6 @@ function onMousemove(e) {
   hue.value = Math.round((e.clientX - rect.left) / rect.width * 360)
 }
 </script>
-
-<template>
-  <div
-    :style="{ backgroundColor: `hsl(${hue}, 80%, 50%)` }"
-    class="interactive-area"
-    @mousemove="onMousemove"
-  >
-    <p>Move your mouse across this div...</p>
-    <p>Hue: {{ hue }}</p>
-  </div>
-</template>
 
 <style>
 .interactive-area {
@@ -60,6 +60,20 @@ function onMousemove(e) {
 ### Following Mouse Position
 
 ```vue
+<template>
+  <div
+    class="container"
+    @mousemove="onMousemove"
+  >
+    <div
+      class="follower"
+      :style="{
+        transform: `translate(${x}px, ${y}px)`
+      }"
+    />
+  </div>
+</template>
+
 <script setup>
 import { ref } from 'vue'
 
@@ -72,20 +86,6 @@ function onMousemove(e) {
   y.value = e.clientY - rect.top
 }
 </script>
-
-<template>
-  <div
-    class="container"
-    @mousemove="onMousemove"
-  >
-    <div
-      class="follower"
-      :style="{
-        transform: `translate(${x}px, ${y}px)`,
-      }"
-    />
-  </div>
-</template>
 
 <style>
 .container {
@@ -110,12 +110,6 @@ function onMousemove(e) {
 ### Progress Animation
 
 ```vue
-<script setup>
-import { ref } from 'vue'
-
-const progress = ref(0)
-</script>
-
 <template>
   <div class="progress-container">
     <div
@@ -124,12 +118,18 @@ const progress = ref(0)
     />
   </div>
   <input
-    v-model.number="progress"
     type="range"
+    v-model.number="progress"
     min="0"
     max="100"
-  >
+  />
 </template>
+
+<script setup>
+import { ref } from 'vue'
+
+const progress = ref(0)
+</script>
 
 <style>
 .progress-container {
@@ -150,8 +150,20 @@ const progress = ref(0)
 ### Scroll-based Animation
 
 ```vue
+<template>
+  <div
+    class="hero"
+    :style="{
+      opacity: heroOpacity,
+      transform: `translateY(${scrollOffset}px)`
+    }"
+  >
+    <h1>Scroll Down</h1>
+  </div>
+</template>
+
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const scrollY = ref(0)
 
@@ -160,7 +172,7 @@ const heroOpacity = computed(() => {
 })
 
 const scrollOffset = computed(() => {
-  return scrollY.value * 0.5 // Parallax effect
+  return scrollY.value * 0.5  // Parallax effect
 })
 
 function handleScroll() {
@@ -176,18 +188,6 @@ onUnmounted(() => {
 })
 </script>
 
-<template>
-  <div
-    class="hero"
-    :style="{
-      opacity: heroOpacity,
-      transform: `translateY(${scrollOffset}px)`,
-    }"
-  >
-    <h1>Scroll Down</h1>
-  </div>
-</template>
-
 <style>
 .hero {
   height: 100vh;
@@ -202,34 +202,32 @@ onUnmounted(() => {
 ### Color Theme Transition
 
 ```vue
+<template>
+  <div
+    class="app"
+    :style="themeStyles"
+  >
+    <button @click="toggleTheme">Toggle Theme</button>
+    <p>Current theme: {{ isDark ? 'Dark' : 'Light' }}</p>
+  </div>
+</template>
+
 <script setup>
-import { computed, ref } from 'vue'
+import { ref, computed } from 'vue'
 
 const isDark = ref(false)
 
 const themeStyles = computed(() => ({
   '--bg-color': isDark.value ? '#1a1a1a' : '#ffffff',
   '--text-color': isDark.value ? '#ffffff' : '#1a1a1a',
-  'backgroundColor': 'var(--bg-color)',
-  'color': 'var(--text-color)'
+  backgroundColor: 'var(--bg-color)',
+  color: 'var(--text-color)'
 }))
 
 function toggleTheme() {
   isDark.value = !isDark.value
 }
 </script>
-
-<template>
-  <div
-    class="app"
-    :style="themeStyles"
-  >
-    <button @click="toggleTheme">
-      Toggle Theme
-    </button>
-    <p>Current theme: {{ isDark ? 'Dark' : 'Light' }}</p>
-  </div>
-</template>
 
 <style>
 .app {
@@ -244,10 +242,16 @@ function toggleTheme() {
 For smooth number animations (counters, stats), use watchers with animation libraries:
 
 ```vue
-<script setup>
-import gsap from 'gsap'
+<template>
+  <div>
+    <input v-model.number="targetNumber" type="number" />
+    <p class="counter">{{ displayNumber.toFixed(0) }}</p>
+  </div>
+</template>
 
-import { computed, reactive, ref, watch } from 'vue'
+<script setup>
+import { computed, ref, reactive, watch } from 'vue'
+import gsap from 'gsap'
 
 const targetNumber = ref(0)
 const tweened = reactive({ value: 0 })
@@ -263,15 +267,6 @@ watch(targetNumber, (newValue) => {
   })
 })
 </script>
-
-<template>
-  <div>
-    <input v-model.number="targetNumber" type="number">
-    <p class="counter">
-      {{ displayNumber.toFixed(0) }}
-    </p>
-  </div>
-</template>
 ```
 
 ## Performance Considerations

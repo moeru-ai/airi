@@ -1,4 +1,4 @@
-import { createPinia, setActivePinia } from 'pinia'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
 
@@ -50,15 +50,18 @@ vi.mock('vue-sonner', () => ({
 
 describe('useServerChannelSettingsStore', async () => {
   const { useServerChannelSettingsStore } = await import('./server-channel')
+  let pinia: ReturnType<typeof createPinia>
 
   beforeEach(() => {
-    setActivePinia(createPinia())
+    pinia = createPinia()
+    setActivePinia(pinia)
     invokeMocks.getConfig.mockClear()
     invokeMocks.applyConfig.mockClear()
     toastError.mockClear()
   })
 
   afterEach(() => {
+    disposePinia(pinia)
     vi.restoreAllMocks()
   })
 
@@ -79,6 +82,58 @@ describe('useServerChannelSettingsStore', async () => {
       expect(store.tlsConfig).toBeNull()
       expect(store.lastApplyError).toBe('apply failed')
       expect(toastError).toHaveBeenCalledWith('apply failed')
+    })
+  })
+
+  it('publishes the applied config only after the main process accepts the change', async () => {
+    let resolveApply: ((config: {
+      authToken: string
+      hostname: string
+      tlsConfig: Record<string, never> | null
+    }) => void) | undefined
+    invokeMocks.applyConfig.mockImplementationOnce(async () => await new Promise((resolve) => {
+      resolveApply = resolve
+    }))
+
+    const store = useServerChannelSettingsStore()
+
+    await vi.waitFor(() => {
+      expect(store.appliedConfig).toEqual({
+        authToken: 'existing-token',
+        hostname: '127.0.0.1',
+        tlsConfig: null,
+      })
+    })
+
+    store.hostname = '0.0.0.0'
+    await nextTick()
+
+    // ROOT CAUSE:
+    //
+    // The QR card watched the optimistic hostname and requested its payload
+    // while the main process still restarted the server with the new config.
+    // The request read the old loopback config and failed. The accepted config
+    // did not change the hostname again, so the QR card never retried.
+    // We fixed this by publishing the accepted config after the IPC request
+    // completes. The QR card watches that accepted snapshot.
+    expect(store.appliedConfig).toEqual({
+      authToken: 'existing-token',
+      hostname: '127.0.0.1',
+      tlsConfig: null,
+    })
+
+    resolveApply?.({
+      authToken: 'existing-token',
+      hostname: '0.0.0.0',
+      tlsConfig: null,
+    })
+
+    await vi.waitFor(() => {
+      expect(store.appliedConfig).toEqual({
+        authToken: 'existing-token',
+        hostname: '0.0.0.0',
+        tlsConfig: null,
+      })
     })
   })
 })

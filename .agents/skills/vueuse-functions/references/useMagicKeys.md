@@ -230,8 +230,8 @@ export interface MagicKeysInternal {
   current: Set<string>
 }
 export type UseMagicKeysReturn<Reactive extends boolean> = Readonly<
-  Record<string, Reactive extends true ? boolean : ComputedRef<boolean>>
-  & MagicKeysInternal
+  Record<string, Reactive extends true ? boolean : ComputedRef<boolean>> &
+    MagicKeysInternal
 >
 /**
  * Reactive keys pressed state, with magical keys combination support.
@@ -241,5 +241,5 @@ export type UseMagicKeysReturn<Reactive extends boolean> = Readonly<
 export declare function useMagicKeys<T extends boolean = false>(
   options?: UseMagicKeysOptions<T>,
 ): UseMagicKeysReturn<T>
-export { DefaultMagicKeysAliasMap } from './aliasMap'
+export { DefaultMagicKeysAliasMap } from "./aliasMap"
 ```

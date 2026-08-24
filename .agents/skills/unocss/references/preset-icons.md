@@ -71,16 +71,16 @@ Icons automatically choose between `mask` (monochrome) and `background-img` (col
 
 ```ts
 presetIcons({
-  scale: 1.2, // Scale relative to font size
-  prefix: 'i-', // Class prefix (default)
-  mode: 'auto', // 'auto' | 'mask' | 'bg'
+  scale: 1.2,              // Scale relative to font size
+  prefix: 'i-',            // Class prefix (default)
+  mode: 'auto',            // 'auto' | 'mask' | 'bg'
   extraProperties: {
     'display': 'inline-block',
     'vertical-align': 'middle',
   },
-  warn: true, // Warn on missing icons
-  autoInstall: true, // Auto-install missing icon sets
-  cdn: 'https://esm.sh/', // CDN for browser usage
+  warn: true,              // Warn on missing icons
+  autoInstall: true,       // Auto-install missing icon sets
+  cdn: 'https://esm.sh/',  // CDN for browser usage
 })
 ```
 
@@ -178,7 +178,7 @@ Use `icon()` in CSS (requires transformer-directives):
 </a>
 ```
 
-<!--
+<!-- 
 Source references:
 - https://unocss.dev/presets/icons
 -->

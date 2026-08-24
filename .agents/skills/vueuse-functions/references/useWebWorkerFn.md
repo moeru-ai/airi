@@ -61,12 +61,12 @@ This function is a Vue port of https://github.com/alewin/useWorker by Alessio Ko
 ## Type Declarations
 
 ```ts
-export type WebWorkerStatus
-  = | 'PENDING'
-    | 'SUCCESS'
-    | 'RUNNING'
-    | 'ERROR'
-    | 'TIMEOUT_EXPIRED'
+export type WebWorkerStatus =
+  | "PENDING"
+  | "SUCCESS"
+  | "RUNNING"
+  | "ERROR"
+  | "TIMEOUT_EXPIRED"
 export interface UseWebWorkerOptions extends ConfigurableWindow {
   /**
    * Number of milliseconds before killing the worker

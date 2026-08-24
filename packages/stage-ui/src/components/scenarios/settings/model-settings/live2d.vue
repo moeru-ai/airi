@@ -283,7 +283,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       {{ t('settings.live2d.theme-color-from-model.description') }}
     </p>
     <ColorPalette class="mb-4 mt-2" :colors="palette.map(hex => ({ hex, name: hex }))" mx-auto />
-    <Button variant="secondary" :disabled="!canExtractColors" @click="$emit('extractColorsFromModel')">
+    <Button :disabled="!canExtractColors" @click="$emit('extractColorsFromModel')">
       {{ t('settings.live2d.theme-color-from-model.button-extract.title') }}
     </Button>
   </Section>
@@ -438,7 +438,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
     </div>
 
     <Button
-      variant="secondary"
+
       class="mt-4 w-full"
       @click="resetToDefaultParameters"
     >
@@ -446,7 +446,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
     </Button>
 
     <Button
-      variant="secondary"
+
       class="mt-2 w-full"
       :disabled="clearingCache"
       :loading="clearingCache"
@@ -774,10 +774,10 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
 
       <!-- Action buttons -->
       <div mt-4 flex gap-2>
-        <Button variant="secondary" @click="expressionStore.saveDefaults()">
+        <Button @click="expressionStore.saveDefaults()">
           {{ t('settings.live2d.expressions.save-default') }}
         </Button>
-        <Button variant="secondary" @click="expressionStore.resetAll()">
+        <Button @click="expressionStore.resetAll()">
           {{ t('settings.live2d.expressions.reset') }}
         </Button>
       </div>

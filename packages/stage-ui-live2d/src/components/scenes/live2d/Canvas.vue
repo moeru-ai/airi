@@ -15,6 +15,10 @@ const props = withDefaults(defineProps<{
   maxFps: 0,
 })
 
+const emit = defineEmits<{
+  error: [error: Error]
+}>()
+
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
 const containerRef = ref<HTMLDivElement>()
@@ -37,6 +41,7 @@ function installRenderGuard(app: Application) {
     catch (error) {
       console.error('[Live2D] Pixi render error.', error)
       app.ticker.stop()
+      emit('error', error instanceof Error ? error : new Error(String(error)))
     }
   }
 
@@ -97,7 +102,18 @@ watch(() => props.maxFps, (limit) => {
     pixiApp.value.ticker.maxFPS = resolveMaxFps(limit)
 })
 
-onMounted(async () => containerRef.value && await initLive2DPixiStage(containerRef.value))
+onMounted(async () => {
+  if (!containerRef.value)
+    return
+
+  try {
+    await initLive2DPixiStage(containerRef.value)
+  }
+  catch (error) {
+    console.error('[Live2D] Failed to initialize Pixi stage.', error)
+    emit('error', error instanceof Error ? error : new Error(String(error)))
+  }
+})
 onUnmounted(() => pixiApp.value?.destroy())
 
 async function captureFrame() {
@@ -110,6 +126,7 @@ async function captureFrame() {
     }
     catch (error) {
       console.error('[Live2D] Pixi render error during capture.', error)
+      emit('error', error instanceof Error ? error : new Error(String(error)))
       return resolve(null)
     }
 

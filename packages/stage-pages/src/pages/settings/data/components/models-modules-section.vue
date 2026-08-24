@@ -25,9 +25,9 @@ async function deleteModels() {
   }
 }
 
-function resetModules() {
+async function resetModules() {
   try {
-    resetModulesSettings()
+    await resetModulesSettings()
     trackDataAction({ action: 'modules_settings_reset' })
     emitStatus(t('settings.pages.data.status.modules_reset'))
   }
@@ -50,7 +50,7 @@ function resetModules() {
           </p>
         </div>
         <div :class="['flex flex-col items-start gap-2']">
-          <DoubleCheckButton variant="danger" @confirm="deleteModels">
+          <DoubleCheckButton @confirm="deleteModels">
             {{ t('settings.pages.data.sections.models.delete') }}
             <template #confirm>
               {{ t('settings.pages.data.confirmations.yes') }}
@@ -72,7 +72,7 @@ function resetModules() {
           </p>
         </div>
         <div :class="['flex flex-col items-start gap-2']">
-          <DoubleCheckButton variant="caution" @confirm="resetModules">
+          <DoubleCheckButton color="orange" @confirm="resetModules">
             {{ t('settings.pages.data.sections.modules.reset') }}
             <template #confirm>
               {{ t('settings.pages.data.confirmations.yes') }}

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { createToolResultError, MarkdownRenderer, normalizeToolResultText } from '@proj-airi/stage-ui/components'
+import { ChatToolCallShell, createToolResultError, MarkdownRenderer, normalizeToolResultText } from '@proj-airi/stage-ui/components'
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
-import { Collapsible, ContainerError } from '@proj-airi/ui'
+import { ContainerError } from '@proj-airi/ui'
 import { computed } from 'vue'
 
 const props = defineProps<{
@@ -125,99 +125,67 @@ function openGeneratedImagePreview() {
 </script>
 
 <template>
-  <Collapsible
-    :class="[
-      'bg-primary-100/40 dark:bg-primary-900/60 rounded-lg px-2 pb-2 pt-2',
-      'flex flex-col gap-2 items-start',
-    ]"
+  <ChatToolCallShell
+    :tool-name="toolName"
+    :state="state"
   >
-    <template #trigger="{ visible, setVisible }">
-      <button
-        :class="[
-          'w-full text-start',
-        ]"
-        @click="setVisible(!visible)"
-      >
-        <div
-          v-if="state === 'executing'"
-          i-eos-icons:loading class="mr-1 inline-block translate-y-0.5 op-50"
-        />
-        <div
-          v-else-if="state === 'error'"
-          i-ph:warning-circle-duotone class="mr-1 inline-block translate-y-0.5 text-red-500"
-        />
-        <div
-          v-else-if="state === 'done'"
-          i-ph:check-circle-duotone class="mr-1 inline-block translate-y-0.5 text-emerald-500"
-        />
-        <div
-          v-else
-          i-solar:sledgehammer-bold-duotone class="mr-1 inline-block translate-y-1 op-50"
-        />
-        <code>{{ toolName }}</code>
-        <span v-if="state === 'error' && resultText" class="ml-2 text-xs text-red-500 op-80">
-          (failed)
-        </span>
-      </button>
+    <template #labelSuffix>
+      <span v-if="state === 'error' && resultText" class="ml-2 text-xs text-red-500 op-80">
+        (failed)
+      </span>
     </template>
-    <div
-      :class="[
-        'rounded-md p-2 w-full',
-        'bg-neutral-100/80 text-sm text-neutral-800 dark:bg-neutral-900/80 dark:text-neutral-200',
-      ]"
-    >
-      <template v-if="resultError">
-        <ContainerError
-          :error="resultError"
-          :include-stack="false"
-          :show-feedback-button="false"
-          height-preset="auto"
-        />
-        <div
-          :class="[
-            'mt-2 whitespace-pre-wrap break-words font-mono',
-          ]"
-        >
-          {{ formattedArgs }}
-        </div>
-      </template>
-      <template v-else-if="isTextJournalCreate">
-        <div class="mb-2 flex items-center gap-2">
-          <div class="i-solar:notebook-bookmark-bold-duotone text-base text-emerald-500" />
-          <div class="rounded-full bg-emerald-500/12 px-2.5 py-1 text-xs text-emerald-700 dark:text-emerald-300">
-            Saved to long-term memory
-          </div>
-        </div>
-        <MarkdownRenderer :content="textJournalMarkdown" />
-      </template>
-      <template v-else-if="isImageJournalCreate">
-        <div class="mb-2 flex items-center gap-2">
-          <div :class="[imageStatusIconClass, 'text-base']" />
-          <div
-            :class="[
-              'rounded-full px-2.5 py-1 text-xs',
-              imageStatusBadgeClass,
-            ]"
-          >
-            {{ imageStatusLabel }}
-          </div>
-        </div>
-        <MarkdownRenderer :content="imageJournalMarkdown" />
 
-        <div
-          v-if="imageJournalResult?.imageUrl"
-          class="mt-4 overflow-hidden border border-primary-500/20 rounded-xl shadow-lg"
-        >
-          <img
-            :src="imageJournalResult.imageUrl"
-            class="w-full cursor-pointer object-contain transition-all active:scale-[0.98] hover:ring-2 hover:ring-primary-500/50"
-            @click="openGeneratedImagePreview"
-          >
-        </div>
-      </template>
-      <div v-else class="whitespace-pre-wrap break-words font-mono">
+    <template v-if="resultError">
+      <ContainerError
+        :error="resultError"
+        :include-stack="false"
+        :show-feedback-button="false"
+        height-preset="auto"
+      />
+      <div
+        :class="[
+          'mt-2 whitespace-pre-wrap break-words font-mono',
+        ]"
+      >
         {{ formattedArgs }}
       </div>
+    </template>
+    <template v-else-if="isTextJournalCreate">
+      <div class="mb-2 flex items-center gap-2">
+        <div class="i-solar:notebook-bookmark-bold-duotone text-base text-emerald-500" />
+        <div class="rounded-full bg-emerald-500/12 px-2.5 py-1 text-xs text-emerald-700 dark:text-emerald-300">
+          Saved to long-term memory
+        </div>
+      </div>
+      <MarkdownRenderer :content="textJournalMarkdown" />
+    </template>
+    <template v-else-if="isImageJournalCreate">
+      <div class="mb-2 flex items-center gap-2">
+        <div :class="[imageStatusIconClass, 'text-base']" />
+        <div
+          :class="[
+            'rounded-full px-2.5 py-1 text-xs',
+            imageStatusBadgeClass,
+          ]"
+        >
+          {{ imageStatusLabel }}
+        </div>
+      </div>
+      <MarkdownRenderer :content="imageJournalMarkdown" />
+
+      <div
+        v-if="imageJournalResult?.imageUrl"
+        class="mt-4 overflow-hidden border border-primary-500/20 rounded-xl shadow-lg"
+      >
+        <img
+          :src="imageJournalResult.imageUrl"
+          class="w-full cursor-pointer object-contain transition-all active:scale-[0.98] hover:ring-2 hover:ring-primary-500/50"
+          @click="openGeneratedImagePreview"
+        >
+      </div>
+    </template>
+    <div v-else class="whitespace-pre-wrap break-words font-mono">
+      {{ formattedArgs }}
     </div>
-  </Collapsible>
+  </ChatToolCallShell>
 </template>

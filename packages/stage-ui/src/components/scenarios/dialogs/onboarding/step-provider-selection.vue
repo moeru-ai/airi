@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProviderMetadata } from '../../../../stores/providers'
+import type { ProviderMetadata } from '../../../../libs/providers/metadata'
 import type { OnboardingStepNextHandler, OnboardingStepPrevHandler } from './types'
 
 import { Button } from '@proj-airi/ui'
@@ -30,7 +30,7 @@ const selectedProviderIdModel = computed({
 </script>
 
 <template>
-  <div h-full flex flex-col gap-4>
+  <div h-full min-h-0 flex flex-col gap-4>
     <div sticky top-0 z-100 flex flex-shrink-0 items-center gap-2>
       <button outline-none @click="props.onPrevious">
         <div class="i-solar:alt-arrow-left-line-duotone h-5 w-5" />
@@ -40,7 +40,7 @@ const selectedProviderIdModel = computed({
       </h2>
       <div class="h-5 w-5" />
     </div>
-    <div class="flex-1 overflow-y-auto">
+    <div class="min-h-0 flex-1 overflow-y-auto">
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <RadioCardDetail
           v-for="provider in props.popularProviders"
@@ -56,6 +56,7 @@ const selectedProviderIdModel = computed({
       </div>
     </div>
     <Button
+      class="flex-shrink-0"
       :label="t('settings.dialogs.onboarding.next')"
       :disabled="!selectedProviderIdModel"
       @click="props.onNext"

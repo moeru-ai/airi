@@ -55,7 +55,7 @@ const { privacyPolicyUrl } = useAnalytics()
     </div>
 
     <Button
-      variant="primary"
+
       :label="t('settings.dialogs.onboarding.next')"
       @click="props.onNext"
     />

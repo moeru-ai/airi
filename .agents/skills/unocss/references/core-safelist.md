@@ -14,9 +14,7 @@ Utilities always included, regardless of detection:
 ```ts
 export default defineConfig({
   safelist: [
-    'p-1',
-    'p-2',
-    'p-3',
+    'p-1', 'p-2', 'p-3',
     // Dynamic generation
     ...Array.from({ length: 4 }, (_, i) => `p-${i + 1}`),
   ],
@@ -42,11 +40,9 @@ safelist: [
 safelist: [
   // Dynamic colors from CMS
   () => ['primary', 'secondary'].flatMap(c => [
-    `bg-${c}`,
-    `text-${c}`,
-    `border-${c}`,
+    `bg-${c}`, `text-${c}`, `border-${c}`,
   ]),
-
+  
   // Component variants
   () => {
     const variants = ['primary', 'danger']
@@ -62,8 +58,8 @@ Utilities never generated:
 
 ```ts
 blocklist: [
-  'p-1', // Exact match
-  /^p-[2-4]$/, // Regex
+  'p-1',           // Exact match
+  /^p-[2-4]$/,     // Regex
 ]
 ```
 
@@ -102,7 +98,7 @@ const sizes = {
 safelist: ['text-sm', 'text-base', 'p-2', 'p-4']
 ```
 
-<!--
+<!-- 
 Source references:
 - https://unocss.dev/config/safelist
 - https://unocss.dev/guide/extracting

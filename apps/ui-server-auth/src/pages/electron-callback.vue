@@ -237,7 +237,7 @@ onMounted(() => {
           v-if="viewModel.primaryActionLabel"
           :disabled="viewModel.primaryActionDisabled"
           :class="['inline-flex']"
-          variant="secondary"
+
           @click="openRelayUrl"
         >
           {{ viewModel.primaryActionLabel }}

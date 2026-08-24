@@ -191,12 +191,12 @@ export type OnClickOutsideHandler<
   T extends OnClickOutsideOptions<boolean> = OnClickOutsideOptions,
 > = (
   event:
-    | (T['detectIframe'] extends true ? FocusEvent : never)
-    | (T['controls'] extends true ? Event : never)
+    | (T["detectIframe"] extends true ? FocusEvent : never)
+    | (T["controls"] extends true ? Event : never)
     | PointerEvent,
 ) => void
-export type OnClickOutsideReturn<Controls extends boolean = false>
-  = Controls extends false
+export type OnClickOutsideReturn<Controls extends boolean = false> =
+  Controls extends false
     ? Fn
     : {
         stop: Fn

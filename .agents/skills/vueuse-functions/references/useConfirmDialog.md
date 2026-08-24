@@ -93,15 +93,15 @@ async function openDialog() {
 ## Type Declarations
 
 ```ts
-export type UseConfirmDialogRevealResult<C, D>
-  = | {
-    data?: C
-    isCanceled: false
-  }
+export type UseConfirmDialogRevealResult<C, D> =
   | {
-    data?: D
-    isCanceled: true
-  }
+      data?: C
+      isCanceled: false
+    }
+  | {
+      data?: D
+      isCanceled: true
+    }
 export interface UseConfirmDialogReturn<RevealData, ConfirmData, CancelData> {
   /**
    * Revealing state

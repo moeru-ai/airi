@@ -91,7 +91,7 @@ Expands to: `text-sm text-gray-600 font-medium font-mono`
 - Nesting is supported
 - Works in class attributes and other extraction sources
 
-<!--
+<!-- 
 Source references:
 - https://unocss.dev/transformers/variant-group
 -->

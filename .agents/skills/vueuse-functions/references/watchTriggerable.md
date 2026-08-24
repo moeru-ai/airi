@@ -73,6 +73,11 @@ export type WatchTriggerableCallback<V = any, OV = any, R = void> = (
   oldValue: OV,
   onCleanup: OnCleanup,
 ) => R
+export declare function watchTriggerable<T, FnReturnT>(
+  source: WatchSource<T>,
+  cb: WatchTriggerableCallback<T, T | undefined, FnReturnT>,
+  options?: WatchWithFilterOptions<boolean>,
+): WatchTriggerableReturn<FnReturnT>
 export declare function watchTriggerable<
   T extends Readonly<MultiWatchSources>,
   FnReturnT,
@@ -83,11 +88,6 @@ export declare function watchTriggerable<
     MapOldSources<T, true>,
     FnReturnT
   >,
-  options?: WatchWithFilterOptions<boolean>,
-): WatchTriggerableReturn<FnReturnT>
-export declare function watchTriggerable<T, FnReturnT>(
-  source: WatchSource<T>,
-  cb: WatchTriggerableCallback<T, T | undefined, FnReturnT>,
   options?: WatchWithFilterOptions<boolean>,
 ): WatchTriggerableReturn<FnReturnT>
 export declare function watchTriggerable<T extends object, FnReturnT>(

@@ -22,6 +22,16 @@ export function isStageTamagotchi(): boolean {
   return import.meta.env.RUNTIME_ENVIRONMENT === 'electron'
 }
 
+export function getStage() {
+  if (isStageTamagotchi())
+    return StageEnvironment.Tamagotchi
+
+  if (isStageCapacitor())
+    return StageEnvironment.Capacitor
+
+  return StageEnvironment.Web
+}
+
 export function isUrlMode(mode: 'file' | 'server'): boolean {
   if (!import.meta.env.URL_MODE) {
     return mode === 'server'

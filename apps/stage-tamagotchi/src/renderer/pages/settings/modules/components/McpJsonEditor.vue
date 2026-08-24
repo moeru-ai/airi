@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Button, Callout } from '@proj-airi/ui'
+import { Button, Callout, GhostButton } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
@@ -34,9 +34,9 @@ const JSON_TEXTAREA = 'w-full rounded-lg border-2 border-solid border-primary-10
         </p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" icon="i-solar:folder-open-bold-duotone" :label="tn('actions.open-config')" @click="emit('openConfig')" />
-        <Button variant="ghost" size="sm" icon="i-solar:restart-line-duotone" :label="tn('actions.reset-draft')" @click="emit('resetDraft')" />
-        <Button variant="ghost" size="sm" icon="i-solar:magic-stick-3-bold-duotone" :label="tn('actions.format-json')" @click="emit('format')" />
+        <GhostButton size="sm" icon="i-solar:folder-open-bold-duotone" :label="tn('actions.open-config')" @click="emit('openConfig')" />
+        <GhostButton size="sm" icon="i-solar:restart-line-duotone" :label="tn('actions.reset-draft')" @click="emit('resetDraft')" />
+        <GhostButton size="sm" icon="i-solar:magic-stick-3-bold-duotone" :label="tn('actions.format-json')" @click="emit('format')" />
       </div>
     </div>
 
@@ -53,8 +53,8 @@ const JSON_TEXTAREA = 'w-full rounded-lg border-2 border-solid border-primary-10
     </Callout>
 
     <div class="flex flex-wrap items-center justify-end gap-2 pt-1">
-      <Button variant="secondary" size="sm" :label="tn('actions.cancel')" @click="emit('close')" />
-      <Button variant="primary" size="sm" icon="i-solar:check-circle-bold-duotone" :label="tn('actions.apply-json')" @click="emit('apply')" />
+      <Button size="sm" :label="tn('actions.cancel')" @click="emit('close')" />
+      <Button size="sm" icon="i-solar:check-circle-bold-duotone" :label="tn('actions.apply-json')" @click="emit('apply')" />
     </div>
   </section>
 </template>

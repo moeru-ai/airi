@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <!-- Keep the Godot assembly and its engine-local verification host on one runtime contract. -->
+    <TargetFramework>net10.0</TargetFramework>
+
+    <!-- Pin C# 14 so a newer SDK cannot silently change the engine language version. -->
+    <LangVersion>14.0</LangVersion>
+  </PropertyGroup>
+</Project>

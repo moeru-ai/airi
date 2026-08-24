@@ -35,6 +35,7 @@ interface LoginAttempt {
   closeLoopback: (() => void) | null
 }
 
+// Object identity prevents stale async work from publishing events or clearing the current attempt.
 let activeLoginAttempt: LoginAttempt | null = null
 
 function cancelLoginAttempt(attempt: LoginAttempt): void {
@@ -46,54 +47,13 @@ function isActiveLoginAttempt(attempt: LoginAttempt): boolean {
   return activeLoginAttempt === attempt && !attempt.cancelled
 }
 
-export interface WindowAuthManager {
-  registerWindow: (params: { context: MainContext, window: BrowserWindow }) => void
-  broadcastAuthCallback: (tokens: TokenExchangeResult) => void
-  broadcastAuthError: (error: string) => void
-}
-
-export function createWindowAuthManagerService(): WindowAuthManager {
-  const authContexts = new Set<MainContext>()
-
-  function broadcastAuthCallback(tokens: TokenExchangeResult): void {
-    for (const context of authContexts) {
-      context.emit(electronAuthCallback, tokens)
-    }
-  }
-
-  function broadcastAuthError(error: string): void {
-    for (const context of authContexts) {
-      context.emit(electronAuthCallbackError, { error })
-    }
-  }
-
-  return {
-    registerWindow(params) {
-      authContexts.add(params.context)
-
-      params.window.on('closed', () => {
-        authContexts.delete(params.context)
-      })
-    },
-
-    broadcastAuthCallback,
-    broadcastAuthError,
-  }
-}
-
 /**
  * Create the auth service IPC handlers for a given window context.
  */
 export function createAuthService(params: {
   context: MainContext
   window: BrowserWindow
-  windowAuthManager: WindowAuthManager
 }): void {
-  params.windowAuthManager.registerWindow({
-    context: params.context,
-    window: params.window,
-  })
-
   defineInvokeHandler(params.context, electronAuthStartLogin, async (_, options) => {
     if (params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id) {
       return
@@ -140,7 +100,7 @@ export function createAuthService(params: {
       url.searchParams.set('prompt', 'login')
       url.searchParams.set('resource', SERVER_URL)
 
-      // Wait for the callback in the background
+      // Wait for the callback in the background.
       loopback.result
         .then(async ({ code }) => {
           if (!isActiveLoginAttempt(attempt))
@@ -150,7 +110,7 @@ export function createAuthService(params: {
           if (!isActiveLoginAttempt(attempt))
             return
 
-          params.windowAuthManager.broadcastAuthCallback(tokens)
+          params.context.emit(electronAuthCallback, tokens)
           log.log('OIDC token exchange successful')
         })
         .catch((err) => {
@@ -158,21 +118,19 @@ export function createAuthService(params: {
             return
 
           log.withError(err).error('OIDC signing in failed')
-          params.windowAuthManager.broadcastAuthError(errorMessageFrom(err) ?? 'OIDC signing in failed')
+          params.context.emit(electronAuthCallbackError, { error: errorMessageFrom(err) ?? 'OIDC signing in failed' })
         })
         .finally(() => {
           if (activeLoginAttempt === attempt)
             activeLoginAttempt = null
         })
 
-      // An attempt may be replaced while its loopback server is starting.
-      // Close that stale server without opening another browser window.
+      // A replacement can arrive while the loopback server starts.
       if (!isActiveLoginAttempt(attempt)) {
         loopback.close()
         return
       }
 
-      // Open system browser
       await shell.openExternal(url.toString())
     }
     catch (err) {
@@ -182,7 +140,7 @@ export function createAuthService(params: {
       cancelLoginAttempt(attempt)
       activeLoginAttempt = null
       log.withError(err).error('Failed to start OIDC signing in flow')
-      params.windowAuthManager.broadcastAuthError(errorMessageFrom(err) ?? 'OIDC signing in failed')
+      params.context.emit(electronAuthCallbackError, { error: errorMessageFrom(err) ?? 'OIDC signing in failed' })
     }
   })
 

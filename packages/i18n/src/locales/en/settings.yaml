@@ -58,16 +58,14 @@ dialogs:
       Please return to the previous step and check your API key, or check the
       network connection.
     permissions:
-      title: Notifications
-      description: You can allow notifications now or continue and set it up later.
+      title: Permission management
+      description: You can grant the required permissions now or continue and configure them later.
       notificationsTitle: Notifications
       notificationsDescription: Allow reminders and important status updates.
-      notificationsAction: Request notification permission
-      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
-      openSettings: Open iOS Settings
-      optionalHint: You can continue even if notification permission is not granted.
-      stateUnknown: Not requested
-      stateRequesting: Requesting...
+      microphoneTitle: Microphone
+      microphoneDescription: Allow AIRI to use your microphone for voice input and transcription.
+      requestAction: Request access
+      optionalHint: You can continue even if these permissions are not granted.
       stateGranted: Granted
       stateNotGranted: Not granted
   bug-report:
@@ -630,6 +628,10 @@ pages:
             show_more: Show more
             subtitle: Select a default model from the provider
             title: Model
+          model-options:
+            title: Model options
+            thinking:
+              label: Thinking
       title: Consciousness
     description: Thinking, vision, speech synthesis, gaming, etc.
     gaming-factorio:
@@ -688,6 +690,19 @@ pages:
         section:
           provider-selection:
             description: Select the suitable speech recognition provider
+          playground:
+            current: Current transcript
+            description: Listen through the active Hearing pipeline and keep each completed speech segment below.
+            empty: Start monitoring and speak into the selected microphone.
+            error-title: Transcription error
+            listening: Listening for speech…
+            no-transcription: No speech was recognized in this audio.
+            segment: 'Speech segment {number}'
+            start: Start monitoring
+            stop: Stop monitoring
+            title: Hearing playground
+            transcribing: Transcribing…
+            transcription-failed: Transcription failed.
           confidence-threshold:
             title: Confidence Threshold
             description: >-
@@ -1234,6 +1249,10 @@ pages:
             nano_banana: Nano Banana (Gemini 2.5 Flash Image)
       deepseek:
         description: deepseek.com
+        fields:
+          field:
+            thinking-mode:
+              description: Controls whether DeepSeek reasoning models use thinking in chat requests.
         title: DeepSeek
       elevenlabs:
         description: elevenlabs.io
@@ -1407,6 +1426,11 @@ pages:
         title: Volcano Engine
       volcengine-coding-plan:
         description: Volcengine Coding Plan
+        models:
+          ark-code-latest:
+            description: Uses the model selected in the Coding Plan console, including Auto; changes apply in 3–5 minutes.
+          legacy:
+            description: Legacy Coding Plan model scheduled for retirement. Switch to a currently supported model.
         title: Volcengine Coding Plan
       byteplus:
         description: byteplus.com
@@ -1455,39 +1479,29 @@ pages:
     description: Configure WebSocket server connection
     title: Connection
     websocket-url:
-      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
-      label: WebSocket Server Address
+      description: The address that this app uses to connect to the local server.
+      label: Server Address
       placeholder: ws://localhost:6121/ws
     server-hostname:
-      label: Expose On Network
-      description: >-
-        Choose whether the AIRI gateway only listens on this device or can be
-        reached from your local network.
-      advanced-label: Bind Hostname
-      advanced-description: >-
-        Use a specific hostname or IP address when you need manual network
-        binding.
-      options:
-        this-device: This device
-        all: All
-        advanced: Advanced
+      label: Expose To All
+      description: Allow other devices on the local network to connect to this server.
     server-auth-token:
-      label: Auth Token
+      label: Pairing Token
       description: >-
-        Security token required by remote clients that connect to this gateway.
-        When left empty, AIRI generates a new token automatically.
+        Other devices use this token to pair with this server. AIRI generates a
+        token when this field is empty.
       placeholder: Auto-generate
     qr:
-      title: Connect from Stage Pocket
+      title: Pairing
       description: >-
-        Scan this QR code from Stage Pocket to try all reachable local network
-        addresses and save the first working one.
+        Scan this QR code with the mobile app. The app tries each local address
+        and saves the first working address.
       refresh: Refresh
-      image-alt: AIRI server channel connection QR code
+      image-alt: AIRI pairing QR code
       candidates: Candidate addresses
       token-hint: >-
-        The QR code includes the auth token so Stage Pocket can authenticate
-        after connecting. Do not share it publicly.
+        The QR code includes the pairing token. Do not share the QR code
+        publicly.
       errors:
         title: QR code unavailable
         unavailable: Failed to prepare the connection QR code.
@@ -1512,6 +1526,9 @@ pages:
     general:
       description: Dark theme, languages, etc.
       title: General
+    permissions:
+      description: View current permission status.
+      title: Permission Management
     description: Customize your stage!
     sections:
       section:
@@ -1529,7 +1546,7 @@ pages:
             section:
               performance-visualizer:
                 title: Performance Visualizer
-                description: Toggle FPS/long task/memory overlay
+                description: Show FPS, frame time, long tasks, and supported browser memory metrics
               markdown-stress:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads
@@ -1826,10 +1843,9 @@ tachie:
     render-scale: Render Scale
     shadow: Theme-colored drop shadow
 websocket-secure-enabled:
-  title: Enable Secure WebSocket (WSS)
+  title: Serve as Secure WebSocket (WSS)
   description: >-
-    Enable WSS (WebSocket Secure) to allow HTTPS connections for mobile (pocket)
-    in development mode. This will automatically generate a self-signed
+    Use WSS for secure mobile connections. AIRI creates a self-signed
     certificate.
 wip:
   title: Work in Progress

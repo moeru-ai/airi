@@ -72,16 +72,16 @@ export interface UseScriptTagOptions extends ConfigurableDocument {
    * @default false
    */
   manual?: boolean
-  crossOrigin?: 'anonymous' | 'use-credentials'
+  crossOrigin?: "anonymous" | "use-credentials"
   referrerPolicy?:
-    | 'no-referrer'
-    | 'no-referrer-when-downgrade'
-    | 'origin'
-    | 'origin-when-cross-origin'
-    | 'same-origin'
-    | 'strict-origin'
-    | 'strict-origin-when-cross-origin'
-    | 'unsafe-url'
+    | "no-referrer"
+    | "no-referrer-when-downgrade"
+    | "origin"
+    | "origin-when-cross-origin"
+    | "same-origin"
+    | "strict-origin"
+    | "strict-origin-when-cross-origin"
+    | "unsafe-url"
   noModule?: boolean
   defer?: boolean
   /**

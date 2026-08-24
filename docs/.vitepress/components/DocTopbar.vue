@@ -6,7 +6,6 @@ import { useScroll } from '@vueuse/core'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, DialogTrigger } from 'reka-ui'
 import { useData, useRoute, withBase } from 'vitepress'
 import { computed, ref, toRefs, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
 
 import DocSidebarItem from '../components/DocSidebarItem.vue'
 
@@ -14,7 +13,6 @@ import { flatten } from '../utils/flatten'
 
 const { path } = toRefs(useRoute())
 const { page, theme } = useData()
-const { t } = useI18n()
 
 const isSidebarOpen = ref(false)
 const sidebar = computed(() => (theme.value.sidebar as (DefaultTheme.SidebarItem & { icon?: string })[]))
@@ -24,17 +22,18 @@ const sectionTabs = computed(() => sidebar.value
     return {
       label: val.text,
       link: flatten(val.items ?? [], 'items').filter(i => !!i?.link)?.[0]?.link ?? val.link,
+      // Highlight by the section's own link; tab.link points at the first
+      // child page and would narrow the highlight to it.
+      highlight: val.link,
       icon: val.icon,
     }
   })
   .filter(i => !!i?.link),
 )
 
-function isCharacterPage(link?: string) {
-  if (!link)
-    return false
-
-  return link.includes('/characters') || link.includes('/characters/')
+function isTabActive(tab: { link?: string, highlight?: string }): boolean {
+  const prefix = (tab.highlight ?? tab.link)?.split('/').slice(0, -1).join('/') ?? ''
+  return withBase(`/${page.value.relativePath}`).includes(prefix)
 }
 
 const { arrivedState } = useScroll(globalThis.window)
@@ -55,28 +54,10 @@ watch(path, () => {
         <div />
 
         <a
-          v-for="tab in sectionTabs.filter(i => !isCharacterPage(i.link))"
+          v-for="tab in sectionTabs"
           :key="tab.label"
           :href="tab.link"
-          :class="{ '!after:bg-primary !text-foreground': withBase(`/${page.relativePath}`).includes(tab.link?.split('/').slice(0, -1).join('/') || '') }"
-          class="relative mx-4 h-full inline-flex items-center py-2 text-sm text-muted-foreground font-semibold after:absolute after:bottom-0 after:h-0.5 after:w-full hover:border-b-muted after:rounded-t-full after:bg-transparent hover:text-foreground after:content-['']"
-          transition-colors duration-200 ease-in-out
-        >
-          <Icon
-            v-if="tab.icon"
-            :icon="tab.icon"
-            class="mr-2 text-lg"
-          />
-          <span>{{ tab.label }}</span>
-        </a>
-      </div>
-
-      <div class="h-full flex items-center">
-        <a
-          v-for="tab in sectionTabs.filter(i => isCharacterPage(i.link))"
-          :key="tab.label"
-          :href="tab.link"
-          :class="{ '!after:bg-primary !text-foreground': withBase(page.relativePath).includes(tab.label?.toLowerCase() ?? '') }"
+          :class="{ '!after:bg-primary !text-foreground': isTabActive(tab) }"
           class="relative mx-4 h-full inline-flex items-center py-2 text-sm text-muted-foreground font-semibold after:absolute after:bottom-0 after:h-0.5 after:w-full hover:border-b-muted after:rounded-t-full after:bg-transparent hover:text-foreground after:content-['']"
           transition-colors duration-200 ease-in-out
         >
@@ -106,7 +87,7 @@ watch(path, () => {
 
         <DialogPortal>
           <DialogOverlay class="fixed inset-0 z-50 bg-black/80 data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
-          <DialogContent class="data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left fixed inset-y-0 left-0 z-50 h-full w-3/4 gap-4 border-r border-muted bg-background pr-0 shadow-lg transition ease-in-out sm:max-w-sm data-[state=closed]:animate-exitToLeft data-[state=open]:animate-enterFromLeft">
+          <DialogContent class="data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left fixed inset-y-0 left-0 z-50 h-full max-w-xs w-5/8 gap-4 border-r border-muted bg-background pr-0 shadow-lg transition ease-in-out data-[state=closed]:animate-exitToLeft data-[state=open]:animate-enterFromLeft">
             <DialogTitle class="sr-only">
               Sidebar menu
             </DialogTitle>
@@ -140,20 +121,6 @@ watch(path, () => {
           </DialogContent>
         </DialogPortal>
       </DialogRoot>
-
-      <div class="h-full flex items-center">
-        <a
-          href="/characters/"
-          :class="{ '!border-b-primary !font-semibold !text-foreground': withBase(page.relativePath).includes('characters') }"
-          class="mx-4 h-full inline-flex items-center gap-2 border-b border-b-transparent py-2 text-sm text-muted-foreground font-medium hover:border-b-muted hover:text-foreground"
-        >
-          <Icon
-            icon="lucide:scan-face"
-            class="text-lg"
-          />
-          {{ t('docs.theme.pages.characters.title') }}
-        </a>
-      </div>
     </div>
   </div>
 </template>

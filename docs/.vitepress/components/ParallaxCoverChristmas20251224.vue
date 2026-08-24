@@ -8,8 +8,6 @@ import { onMounted, shallowRef, useTemplateRef, watchEffect } from 'vue'
 import homeCover from '../assets/home-cover-2025-12-24.avif'
 
 const surfaceRef = useTemplateRef<HTMLImageElement>('surface')
-const silhouetteLayer1Ref = useTemplateRef<HTMLDivElement>('silhouetteLayer1')
-const silhouetteLayer2Ref = useTemplateRef<HTMLDivElement>('silhouetteLayer2')
 
 const shouldReduceMotion = useLocalStorage('docs:settings/reduce-motion', false)
 
@@ -17,8 +15,6 @@ const DURATION = 1200
 const EASE = 'outSine'
 
 const surfaceAnimatable = shallowRef<AnimatableObject>()
-const silhouetteLayer1Animatable = shallowRef<AnimatableObject>()
-const silhouetteLayer2Animatable = shallowRef<AnimatableObject>()
 
 function animateCover(xOffsetRatio: number, yOffsetRatio: number) {
   const referenceWidth = window.innerWidth
@@ -26,14 +22,6 @@ function animateCover(xOffsetRatio: number, yOffsetRatio: number) {
   surfaceAnimatable.value?.x?.(-xOffsetRatio * 0.02 * referenceWidth)
   surfaceAnimatable.value?.y?.(-yOffsetRatio * 0.02 * referenceWidth)
   surfaceAnimatable.value?.z?.(0)
-
-  silhouetteLayer1Animatable.value?.x?.(0.01 * referenceWidth - yOffsetRatio * 0.015 * referenceWidth)
-  silhouetteLayer1Animatable.value?.y?.(0.02 * referenceWidth + xOffsetRatio * 0.015 * referenceWidth)
-  silhouetteLayer1Animatable.value?.z?.(0)
-
-  silhouetteLayer2Animatable.value?.x?.(0.01 * referenceWidth + yOffsetRatio * 0.01 * referenceWidth)
-  silhouetteLayer2Animatable.value?.y?.(-0.01 * referenceWidth - yOffsetRatio * 0.01 * referenceWidth)
-  silhouetteLayer2Animatable.value?.z?.(0)
 }
 
 function onMouseMove(event: MouseEvent) {
@@ -55,8 +43,6 @@ onMounted(() => {
   }
 
   surfaceAnimatable.value = createAnimatable(surfaceRef.value!, animatableConfig)
-  silhouetteLayer1Animatable.value = createAnimatable(silhouetteLayer1Ref.value!, animatableConfig)
-  silhouetteLayer2Animatable.value = createAnimatable(silhouetteLayer2Ref.value!, animatableConfig)
 })
 
 watchEffect((onCleanup) => {

@@ -17,4 +17,9 @@ export const defaultSignInProviders = [
     name: 'GitHub',
     icon: 'i-simple-icons-github',
   },
+  {
+    id: 'steam',
+    name: 'Steam',
+    icon: 'i-simple-icons-steam',
+  },
 ] satisfies SignInProviderDefinition[]

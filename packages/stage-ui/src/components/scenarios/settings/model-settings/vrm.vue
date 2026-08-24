@@ -2,7 +2,7 @@
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
 import { useModelStore } from '@proj-airi/stage-ui-three'
-import { Button, Callout, SelectTab } from '@proj-airi/ui'
+import { Button, Callout, GhostButton, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -94,7 +94,7 @@ const envOptions = computed(() => [
   >
     <template v-if="allowExtractColors">
       <ColorPalette class="mb-4 mt-2" :colors="palette.map(hex => ({ hex, name: hex }))" mx-auto />
-      <Button variant="secondary" :disabled="controlsLocked || !canExtractColors" @click="$emit('extractColorsFromModel')">
+      <Button :disabled="controlsLocked || !canExtractColors" @click="$emit('extractColorsFromModel')">
         {{ t('settings.vrm.theme-color-from-model.button-extract.title') }}
       </Button>
     </template>
@@ -132,11 +132,11 @@ const envOptions = computed(() => [
       </div>
       <div />
       <template v-for="option in trackingOptions" :key="option.value">
-        <Button
+        <GhostButton
           :class="[option.class, 'w-auto']"
           :disabled="controlsLocked"
           size="sm"
-          :variant="trackingMode === option.value ? 'primary' : 'secondary'"
+          :active="trackingMode === option.value"
           :label="option.label"
           @click="trackingMode = option.value"
         />

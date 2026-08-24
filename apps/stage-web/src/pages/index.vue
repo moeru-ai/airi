@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { ChatProvider } from '@xsai-ext/providers/utils'
-
 import Header from '@proj-airi/stage-layouts/components/Layouts/Header.vue'
 import InteractiveArea from '@proj-airi/stage-layouts/components/Layouts/InteractiveArea.vue'
 import MobileHeader from '@proj-airi/stage-layouts/components/Layouts/MobileHeader.vue'
@@ -14,14 +12,13 @@ import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
-import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 
 const paused = ref(false)
 
@@ -31,6 +28,23 @@ function handleSettingsOpen(open: boolean) {
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = breakpoints.smaller('md')
+const stageViewportOffset = shallowRef(0)
+// WORKAROUND:
+// NOTICE:
+// Why: A fixed Stage follows Safari's input pan and moves Live2D with the keyboard.
+// Root cause: Safari moves the Visual Viewport before the page receives the new offsetTop value.
+// Source: https://bugs.webkit.org/show_bug.cgi?id=265578
+// Context: packages/stage-layouts/src/browser/adaptive-input.ts
+// Removal condition: Safari keeps fixed content stable during the input pan.
+const stageSurfaceStyle = computed(() => isMobile.value
+  ? {
+      position: 'fixed' as const,
+      inset: '0',
+      height: '100dvh',
+      transform: `translate3d(0, ${stageViewportOffset.value}px, 0)`,
+      willChange: 'transform',
+    }
+  : undefined)
 
 const backgroundStore = useBackgroundStore()
 const { selectedOption, sampledColor } = storeToRefs(backgroundStore)
@@ -43,14 +57,16 @@ onMounted(() => syncBackgroundTheme())
 // Audio + transcription pipeline (mirrors stage-tamagotchi)
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
-const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
+const { discardRecord, startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
-const { transcribeForRecording } = hearingPipeline
+const { removeStreamingTranscriptionConsumer, stopStreamingTranscription, transcribeForMediaStream, transcribeForRecording } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
-const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
-const chatStore = useChatOrchestratorStore()
+const chatStore = useChatStore()
+
+/** Identifies this page in the shared streaming transcription session. */
+const transcriptionConsumerId = 'stage-web:voice-input'
 
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
@@ -63,9 +79,29 @@ const {
   threshold: ref(0.6),
   onSpeechStart: () => handleSpeechStart(),
   onSpeechEnd: () => handleSpeechEnd(),
+  onSpeechCancel: () => handleSpeechCancel(),
 })
 
 let stopOnStopRecord: (() => void) | undefined
+
+async function sendVoiceInputTextToChat(text: string | undefined) {
+  if (!text?.trim())
+    return
+
+  try {
+    const providerId = activeChatProvider.value
+    const model = activeChatModel.value
+    if (!providerId || !model)
+      return
+
+    const provider = await consciousnessStore.getChatProviderInstance(providerId)
+
+    await chatStore.ingest(text, { model, chatProvider: provider })
+  }
+  catch (error) {
+    console.error('Failed to send chat from voice:', error)
+  }
+}
 
 async function startAudioInteraction() {
   try {
@@ -73,22 +109,18 @@ async function startAudioInteraction() {
     if (stream.value)
       await startVAD(stream.value)
 
+    if (shouldUseStreamInput.value && stream.value) {
+      await transcribeForMediaStream(stream.value, {
+        consumerId: transcriptionConsumerId,
+        onSentenceEnd: text => void sendVoiceInputTextToChat(text),
+      })
+      return
+    }
+
     // Hook once
     stopOnStopRecord = onStopRecord(async (recording) => {
       const text = await transcribeForRecording(recording)
-      if (!text || !text.trim())
-        return
-
-      try {
-        const provider = await providersStore.getProviderInstance(activeChatProvider.value)
-        if (!provider || !activeChatModel.value)
-          return
-
-        await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
-      }
-      catch (err) {
-        console.error('Failed to send chat from voice:', err)
-      }
+      await sendVoiceInputTextToChat(text)
     })
   }
   catch (e) {
@@ -115,10 +147,17 @@ async function handleSpeechEnd() {
   stopRecord()
 }
 
+async function handleSpeechCancel() {
+  if (!shouldUseStreamInput.value)
+    await discardRecord()
+}
+
 function stopAudioInteraction() {
   try {
+    removeStreamingTranscriptionConsumer(transcriptionConsumerId)
     stopOnStopRecord?.()
     stopOnStopRecord = undefined
+    void stopStreamingTranscription(true)
     disposeVAD()
   }
   catch {}
@@ -160,9 +199,16 @@ const cursorPosition = computed(() => ({
     ref="backgroundSurface"
     class="widgets top-widgets"
     :background="selectedOption"
+    :style="stageSurfaceStyle"
     :top-color="sampledColor"
   >
-    <div relative flex="~ col" z-2 h-100dvh w-100vw of-hidden>
+    <div
+      data-testid="mobile-stage-content"
+      :class="[
+        'relative z-2 h-100dvh w-100vw overflow-hidden',
+        'flex flex-col',
+      ]"
+    >
       <!-- header -->
       <div class="px-0 py-1 md:px-3 md:py-3" w-full gap-2>
         <Header class="hidden md:flex" />
@@ -187,10 +233,17 @@ const cursorPosition = computed(() => ({
           />
         </div>
         <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />
-        <MobileInteractiveArea v-if="isMobile" @settings-open="handleSettingsOpen" />
       </div>
       <HoloCoupon />
     </div>
+    <Teleport to="body">
+      <MobileInteractiveArea
+        v-if="isMobile"
+        keyboard-avoidance
+        @settings-open="handleSettingsOpen"
+        @viewport-offset-change="stageViewportOffset = $event"
+      />
+    </Teleport>
   </BackgroundProvider>
 </template>
 

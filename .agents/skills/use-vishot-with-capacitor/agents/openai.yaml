@@ -1,0 +1,4 @@
+interface:
+  display_name: "Use Vishot with Capacitor"
+  short_description: "Capture Capacitor screens with Vishot"
+  default_prompt: "Use $use-vishot-with-capacitor to capture the requested Capacitor UI states."

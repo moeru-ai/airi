@@ -51,12 +51,8 @@ Vue reuses the same DOM element when the tag type does not change. Add `key` so 
 ```vue
 <template>
   <Transition name="fade">
-    <p v-if="isActive">
-      Active
-    </p>
-    <p v-else>
-      Inactive
-    </p>
+    <p v-if="isActive">Active</p>
+    <p v-else>Inactive</p>
   </Transition>
 </template>
 ```
@@ -65,12 +61,8 @@ Vue reuses the same DOM element when the tag type does not change. Add `key` so 
 ```vue
 <template>
   <Transition name="fade" mode="out-in">
-    <p v-if="isActive" key="active">
-      Active
-    </p>
-    <p v-else key="inactive">
-      Inactive
-    </p>
+    <p v-if="isActive" key="active">Active</p>
+    <p v-else key="inactive">Inactive</p>
   </Transition>
 </template>
 ```

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Use Agent Browser with Input Files"
+  short_description: "Automate browser file chooser workflows"
+  default_prompt: "Use $use-agent-browser-with-input-file to upload this local file through the application UI."

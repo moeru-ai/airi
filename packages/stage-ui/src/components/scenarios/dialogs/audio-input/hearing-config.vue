@@ -14,7 +14,7 @@ const props = withDefaults(defineProps<{
 
 const deviceStore = useSettingsAudioDevice()
 const { askPermission } = deviceStore
-const { audioInputs, enabled, permissionGranted, selectedAudioInput } = storeToRefs(deviceStore)
+const { audioInputOptions, enabled, permissionGranted, selectedAudioInput } = storeToRefs(deviceStore)
 const { volumeLevel } = useAudioAnalyzer()
 
 const autoSend = defineModel<boolean | undefined>('autoSend')
@@ -119,7 +119,7 @@ function toggleHearingEnabled() {
         v-model="selectedAudioInput"
         label="Input device"
         description="Select the microphone you want to use."
-        :options="audioInputs.map(device => ({ label: device.label || 'Unknown Device', value: device.deviceId }))"
+        :options="audioInputOptions"
         placeholder="Select microphone"
         layout="vertical"
       />

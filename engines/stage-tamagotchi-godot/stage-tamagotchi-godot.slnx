@@ -1,0 +1,12 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+    <BuildType Name="ExportDebug" />
+    <BuildType Name="ExportRelease" />
+  </Configurations>
+  <Folder Name="/tests/">
+    <Project Path="tests/stage-tamagotchi-godot.tests/stage-tamagotchi-godot.tests.csproj" />
+  </Folder>
+  <Project Path="stage-tamagotchi-godot.csproj" />
+</Solution>

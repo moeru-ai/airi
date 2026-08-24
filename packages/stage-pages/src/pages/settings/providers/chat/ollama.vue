@@ -11,14 +11,16 @@ import {
   ProviderValidationAlerts,
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldCombobox, FieldKeyValues } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 
 const providerId = 'ollama'
-const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
 
 // Define computed properties for credentials
 const baseUrl = computed({
@@ -94,7 +96,7 @@ watch(headers, (headers) => {
 
 async function refetch() {
   try {
-    const validationResult = await providerMetadata.value.validators.validateProviderConfig({
+    const validationResult = await providersStore.validateProviderConfig(providerId, {
       baseUrl: baseUrl.value,
       thinkingMode: thinkingMode.value,
       headers: headers.value.filter(header => header.key !== '').reduce((acc, header) => {
@@ -121,7 +123,7 @@ onMounted(() => {
   providersStore.initializeProvider(providerId)
 
   // Initialize refs with current values
-  baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultOptions?.().baseUrl || ''
+  baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultConfig.baseUrl || ''
 
   // Initialize headers if not already set
   if (!providers.value[providerId]?.headers) {

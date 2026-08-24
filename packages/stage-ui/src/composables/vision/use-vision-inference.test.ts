@@ -12,14 +12,14 @@ vi.mock('pinia', async () => {
   }
 })
 
-vi.mock('../../stores/llm', () => ({
+vi.mock('../../stores/ai/chat-llm/llm', () => ({
   useLLM: () => ({
     stream,
   }),
 }))
 
-vi.mock('../../stores/providers', () => ({
-  useProvidersStore: () => ({
+vi.mock('../../stores/providers/provider', () => ({
+  useProviderStore: () => ({
     getProviderInstance,
   }),
 }))

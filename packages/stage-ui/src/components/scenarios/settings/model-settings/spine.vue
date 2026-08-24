@@ -122,7 +122,7 @@ function handleSkinSelect(skinName: string | number | undefined) {
     :expand="false"
   >
     <ColorPalette class="mb-4 mt-2" :colors="palette.map(hex => ({ hex, name: hex }))" mx-auto />
-    <Button variant="secondary" :disabled="!canExtractColors" @click="$emit('extractColorsFromModel')">
+    <Button :disabled="!canExtractColors" @click="$emit('extractColorsFromModel')">
       {{ t('settings.spine.theme-color-from-model.button-extract.title') }}
     </Button>
   </Section>

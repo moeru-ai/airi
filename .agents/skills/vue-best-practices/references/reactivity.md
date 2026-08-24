@@ -36,14 +36,12 @@ This reference covers the core reactivity decisions for local state, external da
 **Incorrect:**
 ```ts
 import { ref } from 'vue'
-
 const count = ref(0)
 ```
 
 **Correct:**
 ```ts
 import { shallowRef } from 'vue'
-
 const count = shallowRef(0)
 ```
 
@@ -164,7 +162,7 @@ watchEffect(() => {
 
 **GOOD:**
 ```ts
-import { computed, ref } from 'vue'
+import { ref, computed } from 'vue'
 
 const items = ref([{ price: 10 }, { price: 20 }])
 const total = computed(() =>
@@ -176,6 +174,16 @@ const total = computed(() =>
 
 **BAD:**
 ```vue
+<template>
+  <li v-for="item in items.filter(item => item.active)" :key="item.id">
+    {{ item.name }}
+  </li>
+
+  <li v-for="item in getSortedItems()" :key="item.id">
+    {{ item.name }}
+  </li>
+</template>
+
 <script setup>
 import { ref } from 'vue'
 
@@ -188,22 +196,12 @@ function getSortedItems() {
   return [...items.value].sort((a, b) => a.name.localeCompare(b.name))
 }
 </script>
-
-<template>
-  <li v-for="item in items.filter(item => item.active)" :key="item.id">
-    {{ item.name }}
-  </li>
-
-  <li v-for="item in getSortedItems()" :key="item.id">
-    {{ item.name }}
-  </li>
-</template>
 ```
 
 **GOOD:**
 ```vue
 <script setup>
-import { computed, ref } from 'vue'
+import { ref, computed } from 'vue'
 
 const items = ref([
   { id: 1, name: 'B', active: true },
@@ -229,7 +227,7 @@ const visibleItems = computed(() =>
 **BAD:**
 ```vue
 <template>
-  <button :class="{ 'btn': true, 'btn-primary': type === 'primary' && !disabled, 'btn-disabled': disabled }">
+  <button :class="{ btn: true, 'btn-primary': type === 'primary' && !disabled, 'btn-disabled': disabled }">
     {{ label }}
   </button>
 </template>
@@ -247,7 +245,7 @@ const props = defineProps({
 })
 
 const buttonClasses = computed(() => ({
-  'btn': true,
+  btn: true,
   [`btn-${props.type}`]: !props.disabled,
   'btn-disabled': props.disabled
 }))
@@ -274,8 +272,7 @@ const count = ref(0)
 
 const doubled = computed(() => {
   // ❌ side effect
-  if (count.value > 10)
-    console.warn('Too big!')
+  if (count.value > 10) console.warn('Too big!')
   return count.value * 2
 })
 ```
@@ -289,8 +286,7 @@ const count = ref(0)
 const doubled = computed(() => count.value * 2)
 
 watch(count, (value) => {
-  if (value > 10)
-    console.warn('Too big!')
+  if (value > 10) console.warn('Too big!')
 })
 ```
 
@@ -300,7 +296,7 @@ watch(count, (value) => {
 
 **BAD:**
 ```ts
-import { onMounted, ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 
 const userId = ref(1)
 
@@ -309,7 +305,7 @@ function loadUser(id) {
 }
 
 onMounted(() => loadUser(userId.value))
-watch(userId, id => loadUser(id))
+watch(userId, (id) => loadUser(id))
 ```
 
 **GOOD:**
@@ -320,7 +316,7 @@ const userId = ref(1)
 
 watch(
   userId,
-  id => loadUser(id),
+  (id) => loadUser(id),
   { immediate: true }
 )
 ```

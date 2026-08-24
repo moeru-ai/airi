@@ -1,0 +1,4 @@
+interface:
+  display_name: "Enforce UnoCSS Rules"
+  short_description: "Apply AIRI styling and component standards"
+  default_prompt: "Use $enforce-rules-for-unocss to implement or review AIRI UI styling."

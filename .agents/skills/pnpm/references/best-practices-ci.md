@@ -7,6 +7,8 @@ description: Optimizing pnpm for continuous integration and deployment workflows
 
 Best practices for using pnpm in CI/CD environments for fast, reliable builds.
 
+> **CI auto-behaviors:** When pnpm detects a CI environment it switches to **frozen-lockfile** mode automatically and (since v11) **fails on an incompatible lockfile** written by a newer pnpm major instead of rewriting it — keep the CI pnpm version in sync with the one that generated the lockfile. The global virtual store is auto-disabled in CI (no warm cache).
+
 ## GitHub Actions
 
 ### Basic Setup
@@ -24,17 +26,19 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
 
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile   # or: pnpm ci
       - run: pnpm test
       - run: pnpm build
 ```
+
+> `pnpm ci` (aliases `clean-install`, `install-clean`) = `pnpm clean` + `pnpm install --frozen-lockfile`, ideal for fully reproducible CI builds.
 
 ### With Store Caching
 
@@ -43,7 +47,7 @@ For larger projects, cache the pnpm store:
 ```yaml
 - uses: pnpm/action-setup@v4
   with:
-    version: 9
+    version: 10
 
 - name: Get pnpm store directory
   shell: bash
@@ -60,6 +64,8 @@ For larger projects, cache the pnpm store:
 
 - run: pnpm install --frozen-lockfile
 ```
+
+> **Trust:** only cache/restore the pnpm store and cache dir between *trusted* jobs. A store an untrusted job can write to must not be reused by trusted jobs — it is part of pnpm's trust domain.
 
 ### Matrix Testing
 
@@ -124,11 +130,13 @@ build:
 
 ## Docker
 
+> **PATH change (v11):** global pnpm binaries now live in `$PNPM_HOME/bin`. In Docker set `ENV PATH="$PNPM_HOME/bin:$PATH"` (not `$PNPM_HOME`). There is also an official image `ghcr.io/pnpm/pnpm:<version>` (Debian slim, pnpm only — choose Node yourself via `pnpm runtime set node <ver> -g` or `devEngines.runtime`).
+
 ### Multi-Stage Build
 
 ```dockerfile
 # Build stage
-FROM node:20-slim AS builder
+FROM node:24-slim AS builder
 
 # Enable corepack for pnpm
 RUN corepack enable
@@ -214,12 +222,12 @@ pnpm install --frozen-lockfile --ignore-scripts
 
 ## Corepack Integration
 
-Use Corepack to manage pnpm version:
+Use Corepack to pin the pnpm version:
 
 ```json
 // package.json
 {
-  "packageManager": "pnpm@9.0.0"
+  "packageManager": "pnpm@10.0.0"
 }
 ```
 
@@ -228,6 +236,8 @@ Use Corepack to manage pnpm version:
 - run: corepack enable
 - run: pnpm install --frozen-lockfile
 ```
+
+For range-based pinning use `devEngines.packageManager` (resolved version stored in the lockfile). To skip the pin check when version management is external (asdf/mise/Volta), set `pmOnFail: ignore` in `pnpm-workspace.yaml`, or run a one-off with `pnpm with current <cmd>`.
 
 ## Monorepo CI Strategies
 
@@ -271,15 +281,18 @@ jobs:
 
 ## Best Practices Summary
 
-1. **Always use `--frozen-lockfile`** in CI
-2. **Cache the pnpm store** for faster installs
-3. **Use Corepack** for consistent pnpm versions
-4. **Specify `packageManager`** in package.json
+1. **Use `pnpm ci` or `--frozen-lockfile`** in CI
+2. **Cache the pnpm store** (only across trusted jobs)
+3. **Match the CI pnpm major** to the one that wrote the lockfile (CI fails on incompatible lockfiles)
+4. **Pin `packageManager`** (or `devEngines.packageManager`) in package.json
 5. **Use `--filter`** in monorepos to build only what changed
-6. **Multi-stage Docker builds** for smaller images
+6. **Multi-stage Docker builds**; set `PATH=$PNPM_HOME/bin:$PATH`
 
 <!--
 Source references:
 - https://pnpm.io/continuous-integration
+- https://pnpm.io/docker
+- https://pnpm.io/cli/ci
 - https://github.com/pnpm/action-setup
 -->
+

@@ -12,7 +12,6 @@ In Provider Component
 
 ```ts twoslash include main
 import type { InjectionKey, Ref } from 'vue'
-
 import { provide, ref } from 'vue'
 
 interface Item {

@@ -31,6 +31,10 @@ const props = withDefaults(defineProps<{
   themeColorsHueDynamic: false,
 })
 
+const emit = defineEmits<{
+  error: [error: Error]
+}>()
+
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 const componentStateCanvas = defineModel<'pending' | 'loading' | 'mounted'>('canvasState', { default: 'pending' })
 const componentStateModel = defineModel<'pending' | 'loading' | 'mounted'>('modelState', { default: 'pending' })
@@ -102,6 +106,7 @@ defineExpose({
       :resolution="live2dRenderScale"
       :max-fps="live2dMaxFps"
       max-h="100dvh"
+      @error="emit('error', $event)"
     >
       <Live2DModel
         ref="live2dModelRef"
@@ -125,6 +130,7 @@ defineExpose({
         :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
         :live2d-expression-enabled="live2dExpressionEnabled"
         :live2d-shadow-enabled="live2dShadowEnabled"
+        @error="emit('error', $event)"
       />
     </Live2DCanvas>
   </Screen>

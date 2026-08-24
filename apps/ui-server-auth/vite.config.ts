@@ -12,6 +12,16 @@ import VueRouter from 'vue-router/vite'
 
 import { defineConfig } from 'vite'
 
+// NOTICE:
+// Keep this namespace distinct from `/assets/`, where an earlier Pages SPA
+// fallback allowed missing JavaScript URLs to cache index.html as immutable.
+// Root cause: the old asset cache policy outlived the deployment that restored
+// those files, so affected browsers cannot observe corrected response headers.
+// Source/context: `apps/ui-server-auth/public/_headers` and `public/404.html`.
+// Removal condition: keep the namespace permanently; reusing `/assets/` can
+// reactivate poisoned browser entries that remain fresh for up to one year.
+const assetsDirectory = 'assets-v2'
+
 export default defineConfig({
   base: '/',
   optimizeDeps: {
@@ -44,6 +54,7 @@ export default defineConfig({
     },
   },
   build: {
+    assetsDir: assetsDirectory,
     emptyOutDir: true,
     manifest: true,
     outDir: resolve(join(import.meta.dirname, 'dist')),
@@ -58,8 +69,8 @@ export default defineConfig({
           // Keep analytics as the source-domain name, but explicitly map its
           // public URL to a neutral chunk name that filter lists cannot infer.
           return containsAnalyticsModule
-            ? 'assets/chunk-[hash].js'
-            : 'assets/[name]-[hash].js'
+            ? `${assetsDirectory}/chunk-[hash].js`
+            : `${assetsDirectory}/[name]-[hash].js`
         },
       },
     },

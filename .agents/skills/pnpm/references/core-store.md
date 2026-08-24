@@ -16,10 +16,9 @@ pnpm uses a content-addressable store to save disk space and speed up installati
 ### Storage Layout
 
 ```
-~/.pnpm-store/              # Global store (default location)
-└── v3/
-    └── files/
-        └── <hash>/         # Files stored by content hash
+<store-dir>/                # Global content-addressable store (pnpm store path)
+└── files/
+    └── <hash>/             # Files stored by content hash
 
 project/
 └── node_modules/
@@ -53,26 +52,24 @@ pnpm store add <pkg>
 
 ## Configuration
 
+Store/linker settings live in `pnpm-workspace.yaml` (camelCase), not `.npmrc`.
+
 ### Store Location
 
-```ini
-# .npmrc
-store-dir=~/.pnpm-store
-
-# Or use environment variable
-PNPM_HOME=~/.local/share/pnpm
+```yaml title="pnpm-workspace.yaml"
+storeDir: ~/.local/share/pnpm/store
 ```
+
+The default store path is OS-specific (e.g. `~/.local/share/pnpm/store` on Linux, `~/Library/pnpm/store` on macOS). Find it with `pnpm store path`.
 
 ### Virtual Store
 
-The virtual store (`.pnpm` in `node_modules`) contains symlinks to the global store:
+The virtual store (`.pnpm` in `node_modules`) contains hard links to the global store:
 
-```ini
-# Customize virtual store location
-virtual-store-dir=node_modules/.pnpm
-
-# Alternative flat layout
-node-linker=hoisted
+```yaml title="pnpm-workspace.yaml"
+virtualStoreDir: node_modules/.pnpm
+virtualStoreDirMaxLength: 60   # lower this for long-path issues on Windows
+nodeLinker: hoisted            # alternative flat layout
 ```
 
 ## Disk Space Benefits
@@ -91,19 +88,22 @@ du -sh node_modules        # Apparent size
 du -sh --apparent-size node_modules  # With hard links counted
 ```
 
+## Global Virtual Store
+
+With `enableGlobalVirtualStore: true`, projects skip the per-project `node_modules/.pnpm` directory entirely; their `node_modules` contains only symlinks into one shared virtual store at `<store-path>/links/`, keyed by dependency-graph hash. In pnpm v11 it is the default for `pnpm dlx`/`pnx` and global installs; for project installs it is still opt-in. See `features-global-virtual-store` for details and the git-worktrees multi-agent workflow.
+
+```yaml title="pnpm-workspace.yaml"
+enableGlobalVirtualStore: true
+```
+
 ## Node Linker Modes
 
-Configure how `node_modules` is structured:
+Configure how `node_modules` is structured (`nodeLinker` in `pnpm-workspace.yaml`):
 
-```ini
-# Default: Symlinked structure (recommended)
-node-linker=isolated
-
-# Flat node_modules (npm-like, for compatibility)
-node-linker=hoisted
-
-# PnP mode (experimental, like Yarn PnP)
-node-linker=pnp
+```yaml title="pnpm-workspace.yaml"
+nodeLinker: isolated   # default: symlinked virtual store (strict, no phantom deps)
+# nodeLinker: hoisted  # flat node_modules (npm-like) for tools that dislike symlinks
+# nodeLinker: pnp      # Plug'n'Play, no node_modules (set `symlink: false` too)
 ```
 
 ### Isolated Mode (Default)
@@ -120,14 +120,19 @@ node-linker=pnp
 
 ## Side Effects Cache
 
-Cache build outputs for native modules:
+Cache build outputs for native modules (enabled by default):
 
-```ini
-# Enable side effects caching
-side-effects-cache=true
+```yaml title="pnpm-workspace.yaml"
+sideEffectsCache: true
+sideEffectsCacheReadonly: false   # only read the cache, don't create it
+```
 
-# Store side effects in project (instead of global store)
-side-effects-cache-readonly=true
+## Read-only / Frozen Store
+
+`frozenStore: true` (v11.7+) lets `pnpm install` run against a read-only store (Nix store, read-only bind mount, OCI layer). Pair with `--offline --frozen-lockfile`; the store must already contain everything, including approved build outputs.
+
+```bash
+pnpm install --frozen-store --offline --frozen-lockfile
 ```
 
 ## Shared Store Across Machines
@@ -160,20 +165,21 @@ pnpm store prune
 ```
 
 ### Hard link issues (network drives, Docker)
-```ini
-# Use copying instead of hard links
-package-import-method=copy
+```yaml title="pnpm-workspace.yaml"
+# auto (default) tries clone -> hardlink -> copy
+packageImportMethod: copy
 ```
 
 ### Permission issues
 ```bash
-# Fix store permissions
-chmod -R u+w ~/.pnpm-store
+# Fix store permissions (find the path with `pnpm store path`)
+chmod -R u+w "$(pnpm store path)"
 ```
 
 <!--
 Source references:
 - https://pnpm.io/symlinked-node-modules-structure
 - https://pnpm.io/cli/store
-- https://pnpm.io/npmrc#store-dir
+- https://pnpm.io/settings#storedir
+- https://pnpm.io/global-virtual-store
 -->

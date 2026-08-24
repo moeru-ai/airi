@@ -115,8 +115,8 @@ interface Product {
 defineProps<{ products: Product[] }>()
 
 defineSlots<{
-  default: (props: { product: Product, index: number }) => any
-  empty: () => any
+  default(props: { product: Product; index: number }): any
+  empty(): any
 }>()
 </script>
 
@@ -162,7 +162,7 @@ Renderless components are still useful for slot-driven composition, but composab
 ```vue
 <!-- MouseTracker.vue -->
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 const x = ref(0)
 const y = ref(0)
@@ -184,7 +184,7 @@ onUnmounted(() => window.removeEventListener('mousemove', onMove))
 **GOOD:**
 ```ts
 // composables/useMouse.ts
-import { onMounted, onUnmounted, ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 export function useMouse() {
   const x = ref(0)

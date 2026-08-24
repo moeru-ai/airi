@@ -14,6 +14,13 @@ chat:
     cloud-badge: Synced to cloud
     new-chat-fallback: New chat
     delete: Delete conversation
+render-error:
+  title: '{renderer}에서 이 모델을 렌더링할 수 없습니다'
+  description: 모델이 선택되었지만 스테이지에 표시할 수 없습니다.
+  report-description: |-
+    {renderer}에서 선택한 모델을 렌더링하지 못했습니다.
+    모델 ID: {modelId}
+    오류: {error}
 message: 듣고 있어요...
 send-mode:
   title: Send key

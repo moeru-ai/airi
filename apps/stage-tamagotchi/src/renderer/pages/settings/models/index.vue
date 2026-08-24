@@ -16,7 +16,7 @@ import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/el
 import { ModelSettingsPanel } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { Button, Callout } from '@proj-airi/ui'
+import { Callout, GhostButton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
@@ -389,14 +389,14 @@ onUnmounted(() => {
         @patch-godot-view-state="handleGodotViewPatch"
       >
         <template #actions>
-          <Button
-            variant="secondary"
+          <GhostButton
+
             :loading="switchingGodotStage"
-            :toggled="usesGodotStage"
+            :active="usesGodotStage"
             @click="handleGodotStageToggle"
           >
             {{ godotToggleLabel }}
-          </Button>
+          </GhostButton>
         </template>
       </ModelSettingsPanel>
     </div>

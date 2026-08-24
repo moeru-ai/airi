@@ -19,15 +19,15 @@ Telegram Bot Token、数据库连接和模型 API Key 只应保存在本地 **.e
 ## 配置
 
 ~~~bash
-cp services/telegram-bot/.env services/telegram-bot/.env.local
+cp integrations/telegram-bot/.env integrations/telegram-bot/.env.local
 ~~~
 
-编辑 **services/telegram-bot/.env.local**，填写 **TELEGRAM_BOT_TOKEN**、数据库连接、聊天模型与嵌入模型配置。
+编辑 **integrations/telegram-bot/.env.local**，填写 **TELEGRAM_BOT_TOKEN**、数据库连接、聊天模型与嵌入模型配置。
 
 ## 初始化数据库
 
 ~~~bash
-cd services/telegram-bot
+cd integrations/telegram-bot
 docker compose up -d
 cd ../..
 pnpm -F @proj-airi/telegram-bot db:push

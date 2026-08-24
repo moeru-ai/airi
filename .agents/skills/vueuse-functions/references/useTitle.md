@@ -69,33 +69,33 @@ export type UseTitleOptionsBase = {
   restoreOnUnmount?:
     | false
     | ((
-      originalTitle: string,
-      currentTitle: string,
-    ) => string | null | undefined)
+        originalTitle: string,
+        currentTitle: string,
+      ) => string | null | undefined)
 } & (
   | {
-    /**
-     * Observe `document.title` changes using MutationObserve
-     * Cannot be used together with `titleTemplate` option.
-     *
-     * @default false
-     */
-    observe?: boolean
-  }
+      /**
+       * Observe `document.title` changes using MutationObserve
+       * Cannot be used together with `titleTemplate` option.
+       *
+       * @default false
+       */
+      observe?: boolean
+    }
   | {
-    /**
-     * The template string to parse the title (e.g., '%s | My Website')
-     * Cannot be used together with `observe` option.
-     *
-     * @default '%s'
-     */
-    titleTemplate?: MaybeRef<string> | ((title: string) => string)
-  }
+      /**
+       * The template string to parse the title (e.g., '%s | My Website')
+       * Cannot be used together with `observe` option.
+       *
+       * @default '%s'
+       */
+      titleTemplate?: MaybeRef<string> | ((title: string) => string)
+    }
 )
 export type UseTitleOptions = ConfigurableDocument & UseTitleOptionsBase
-export type UseTitleReturn
-  = | ComputedRef<string | null | undefined>
-    | Ref<string | null | undefined>
+export type UseTitleReturn =
+  | ComputedRef<string | null | undefined>
+  | Ref<string | null | undefined>
 /**
  * Reactive document title.
  *

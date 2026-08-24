@@ -10,8 +10,6 @@ import { dirname, join, resolve } from 'node:path'
 import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
-import clickDragPlugin from 'electron-click-drag-plugin'
-
 import { is } from '@electron-toolkit/utils'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
@@ -139,7 +137,9 @@ export async function setupDashboardWindow(params: {
     serverChannel: params.serverChannel,
   })
 
-  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/dashboard'))
+  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/dashboard', {
+    query: { 'synced-leader': 'false' },
+  }))
 
   /**
    * This is a know issue (or expected behavior maybe) to Electron.
@@ -149,6 +149,8 @@ export async function setupDashboardWindow(params: {
    * Workaround: https://github.com/noobfromph/electron-click-drag-plugin
    */
   if (!isLinux) {
+    const { default: clickDragPlugin } = await import('electron-click-drag-plugin')
+
     function handleStartDraggingWindow() {
       try {
         const windowId = window.getNativeWindowHandle()

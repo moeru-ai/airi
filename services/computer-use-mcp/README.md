@@ -323,7 +323,7 @@ Good first demos:
 
 For a management-readable AIRI demo, the Discord settings flow is more representative than a generic hello-world reply:
 
-1. start AIRI desktop and `services/discord-bot`
+1. start AIRI desktop and `integrations/discord-bot`
 2. open `/settings/modules/messaging-discord`
 3. enable the module and save settings
 4. verify that the Discord bot receives the forwarded config from AIRI and reconnects itself

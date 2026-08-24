@@ -17,26 +17,26 @@ const microphoneAccess = usePermission('microphone')
 ## Type Declarations
 
 ```ts
-type DescriptorNamePolyfill
-  = | 'accelerometer'
-    | 'accessibility-events'
-    | 'ambient-light-sensor'
-    | 'background-sync'
-    | 'camera'
-    | 'clipboard-read'
-    | 'clipboard-write'
-    | 'gyroscope'
-    | 'magnetometer'
-    | 'microphone'
-    | 'notifications'
-    | 'payment-handler'
-    | 'persistent-storage'
-    | 'push'
-    | 'speaker'
-    | 'local-fonts'
-export type GeneralPermissionDescriptor
-  = | PermissionDescriptor
-    | {
+type DescriptorNamePolyfill =
+  | "accelerometer"
+  | "accessibility-events"
+  | "ambient-light-sensor"
+  | "background-sync"
+  | "camera"
+  | "clipboard-read"
+  | "clipboard-write"
+  | "gyroscope"
+  | "magnetometer"
+  | "microphone"
+  | "notifications"
+  | "payment-handler"
+  | "persistent-storage"
+  | "push"
+  | "speaker"
+  | "local-fonts"
+export type GeneralPermissionDescriptor =
+  | PermissionDescriptor
+  | {
       name: DescriptorNamePolyfill
     }
 export interface UsePermissionOptions<
@@ -66,13 +66,13 @@ export interface UsePermissionReturnWithControls extends Supportable {
 export declare function usePermission(
   permissionDesc:
     | GeneralPermissionDescriptor
-    | GeneralPermissionDescriptor['name'],
+    | GeneralPermissionDescriptor["name"],
   options?: UsePermissionOptions<false>,
 ): UsePermissionReturn
 export declare function usePermission(
   permissionDesc:
     | GeneralPermissionDescriptor
-    | GeneralPermissionDescriptor['name'],
+    | GeneralPermissionDescriptor["name"],
   options: UsePermissionOptions<true>,
 ): UsePermissionReturnWithControls
 ```

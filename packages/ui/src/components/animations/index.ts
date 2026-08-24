@@ -1,3 +1,4 @@
+export { default as AnimatedContent, type AnimatedContentProps } from './animated-content.vue'
 export { default as TransitionBidirectional } from './transition-bidirectional.vue'
 export {
   /**

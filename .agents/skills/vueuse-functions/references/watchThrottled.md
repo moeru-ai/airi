@@ -80,19 +80,19 @@ export interface WatchThrottledOptions<
   leading?: boolean
 }
 export declare function watchThrottled<
-  T extends Readonly<MultiWatchSources>,
-  Immediate extends Readonly<boolean> = false,
->(
-  sources: [...T],
-  cb: WatchCallback<MapSources<T>, MapOldSources<T, Immediate>>,
-  options?: WatchThrottledOptions<Immediate>,
-): WatchHandle
-export declare function watchThrottled<
   T,
   Immediate extends Readonly<boolean> = false,
 >(
   source: WatchSource<T>,
   cb: WatchCallback<T, Immediate extends true ? T | undefined : T>,
+  options?: WatchThrottledOptions<Immediate>,
+): WatchHandle
+export declare function watchThrottled<
+  T extends Readonly<MultiWatchSources>,
+  Immediate extends Readonly<boolean> = false,
+>(
+  sources: [...T],
+  cb: WatchCallback<MapSources<T>, MapOldSources<T, Immediate>>,
   options?: WatchThrottledOptions<Immediate>,
 ): WatchHandle
 export declare function watchThrottled<

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Use Vishot with Electron"
+  short_description: "Capture Electron windows with Vishot"
+  default_prompt: "Use $use-vishot-with-electron to capture the requested Electron UI states."

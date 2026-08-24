@@ -40,12 +40,22 @@ function audioDeviceErrorCode(error: unknown): 'permission_denied' | 'device_una
  * Provides microphone device selection, permission requests, and audio stream lifecycle state.
  */
 export function useAudioDevice(requestPermission: boolean = false) {
+  const { trackMicrophonePermissionDenied } = useAnalytics()
   const {
-    trackAudioDeviceUnavailable,
-    trackMicrophonePermissionDenied,
-    trackMicrophonePermissionRequested,
-  } = useAnalytics()
-  const { audioInputs, permissionGranted, ensurePermissions } = useDevicesList({ constraints: { audio: true }, requestPermissions: requestPermission })
+    devices,
+    audioInputs,
+    permissionGranted,
+    ensurePermissions,
+  } = useDevicesList({
+    constraints: { audio: true },
+    requestPermissions: requestPermission,
+  })
+  const audioInputOptions = computed(() => audioInputs.value
+    .filter(device => device.deviceId)
+    .map(device => ({
+      label: device.label || device.deviceId,
+      value: device.deviceId,
+    })))
   const selectedAudioInput = ref<string>(audioInputs.value.find(device => device.deviceId === 'default')?.deviceId || '')
   /**
    * Keeps the selected microphone aligned with the currently available device list.
@@ -79,37 +89,32 @@ export function useAudioDevice(requestPermission: boolean = false) {
     selectAvailableAudioInput()
   })
 
-  function askPermission() {
-    trackMicrophonePermissionRequested({ stt_provider_id: UNKNOWN_STT_PROVIDER_ID })
+  async function askPermission() {
+    try {
+      const granted = await ensurePermissions()
 
-    return ensurePermissions()
-      .then(() => nextTick())
-      .then(() => {
-        selectAvailableAudioInput()
-        if (audioInputs.value.length <= 0) {
-          trackAudioDeviceUnavailable({
-            stt_provider_id: UNKNOWN_STT_PROVIDER_ID,
-            error_code: 'device_unavailable',
-          })
-        }
-      })
-      .catch((error) => {
-        const errorCode = audioDeviceErrorCode(error)
-        if (errorCode === 'permission_denied') {
-          trackMicrophonePermissionDenied({
-            stt_provider_id: UNKNOWN_STT_PROVIDER_ID,
-            error_code: errorCode,
-          })
-        }
-        else {
-          trackAudioDeviceUnavailable({
-            stt_provider_id: UNKNOWN_STT_PROVIDER_ID,
-            error_code: errorCode,
-          })
-        }
-        console.error('Error ensuring permissions:', error)
-        throw error // Re-throw so callers can handle the error
-      })
+      if (granted) {
+        // NOTICE:
+        // VueUse starts its post-permission device refresh without awaiting it, so callers can
+        // otherwise observe the anonymous pre-permission list after askPermission() resolves.
+        // Source: `@vueuse/core` 14.2.1 `useDevicesList.ensurePermissions()`.
+        // Remove this refresh when VueUse exposes or awaits its internal device-list update.
+        devices.value = await navigator.mediaDevices.enumerateDevices()
+      }
+
+      selectAvailableAudioInput()
+    }
+    catch (error) {
+      const errorCode = audioDeviceErrorCode(error)
+      if (errorCode === 'permission_denied') {
+        trackMicrophonePermissionDenied({
+          stt_provider_id: UNKNOWN_STT_PROVIDER_ID,
+          error_code: errorCode,
+        })
+      }
+      console.error('Error ensuring permissions:', error)
+      throw error
+    }
   }
 
   async function startStream() {
@@ -138,6 +143,7 @@ export function useAudioDevice(requestPermission: boolean = false) {
 
   return {
     audioInputs,
+    audioInputOptions,
     selectedAudioInput,
     stream,
     deviceConstraints,

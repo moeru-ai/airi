@@ -64,7 +64,7 @@ const subjectRef = useSubject(subject, {
 ```ts
 export interface UseSubjectOptions<I = undefined> extends Omit<
   UseObservableOptions<I>,
-  'initialValue'
+  "initialValue"
 > {}
 export declare function useSubject<H>(
   subject: BehaviorSubject<H>,

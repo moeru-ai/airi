@@ -365,22 +365,20 @@ async function handleChatSendMessage() {
 
     waiting.value = false
 
-    for await (const chunk of response.fullStream) {
-      if (chunk.type === 'text-delta') {
-        streamingMessage.value.content += chunk.text
+    for await (const text of response.textStream) {
+      streamingMessage.value.content += text
 
-        try {
-          if (chunk.text.length > 1) {
-            for (const char of chunk.text) {
-              parser.consume(char)
-            }
-          }
-          else {
-            parser.consume(chunk.text)
+      try {
+        if (text.length > 1) {
+          for (const char of text) {
+            parser.consume(char)
           }
         }
-        catch {
+        else {
+          parser.consume(text)
         }
+      }
+      catch {
       }
     }
   }

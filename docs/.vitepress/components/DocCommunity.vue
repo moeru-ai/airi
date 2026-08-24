@@ -34,12 +34,12 @@ const links = computed(() => [
           transition-colors duration-200 ease-in-out
         >
           <Icon
-            class="text-xl"
+            class="text-lg"
             :icon="link.icon"
           />
           <span>{{ link.label }}</span>
           <Icon
-            class="text-base"
+            class="text-sm"
             icon="lucide:arrow-up-right"
           />
         </a>

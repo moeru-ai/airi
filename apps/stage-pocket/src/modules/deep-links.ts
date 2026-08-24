@@ -2,7 +2,7 @@ import type { URLOpenListenerEvent } from '@capacitor/app'
 import type { Router } from 'vue-router'
 
 import { App } from '@capacitor/app'
-import { applyOIDCTokens, fetchSession } from '@proj-airi/stage-ui/libs/auth'
+import { applyOIDCTokens } from '@proj-airi/stage-ui/libs/auth'
 import { consumeFlowState, exchangeCodeForTokens } from '@proj-airi/stage-ui/libs/auth-oidc'
 
 export function installDeepLinks(router: Router): void {
@@ -25,7 +25,6 @@ export function installDeepLinks(router: Router): void {
         }
         const tokens = await exchangeCodeForTokens(code, persisted.flowState, persisted.params, state)
         await applyOIDCTokens(tokens, persisted.params.clientId)
-        await fetchSession()
         router.replace('/')
       }
     }

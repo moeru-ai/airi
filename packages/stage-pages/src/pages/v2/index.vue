@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterStore } from '@proj-airi/stage-ui/stores/characters'
-import { Button } from '@proj-airi/ui'
+import { GhostButton } from '@proj-airi/ui'
 import { computed, onMounted } from 'vue'
 
 const characterStore = useCharacterStore()
@@ -170,7 +170,7 @@ const characters = computed(() => Array.from(characterStore.characters.values())
                 </div>
                 <div :class="['grid grid-cols-3 items-center']">
                   <div :class="['flex items-center justify-start']">
-                    <Button variant="ghost" size="sm" aria-label="Bookmark" @click="characterStore.bookmark(character.id)">
+                    <GhostButton size="sm" aria-label="Bookmark" @click="characterStore.bookmark(character.id)">
                       <div
                         :class="[
                           character.bookmarked ? 'i-solar-star-bold' : 'i-solar-star-linear',
@@ -186,10 +186,10 @@ const characters = computed(() => Array.from(characterStore.characters.values())
                       >
                         {{ formatCount(character.bookmarks) }}
                       </span>
-                    </Button>
+                    </GhostButton>
                   </div>
                   <div :class="['flex items-center justify-center']">
-                    <Button variant="ghost" size="sm" aria-label="Like" @click="characterStore.like(character.id)">
+                    <GhostButton size="sm" aria-label="Like" @click="characterStore.like(character.id)">
                       <div
                         :class="[
                           character.liked ? 'i-solar-heart-bold' : 'i-solar-heart-outline',
@@ -205,7 +205,7 @@ const characters = computed(() => Array.from(characterStore.characters.values())
                       >
                         {{ formatCount(character.likes) }}
                       </span>
-                    </Button>
+                    </GhostButton>
                   </div>
                   <div :class="['flex items-center justify-end']">
                     <div

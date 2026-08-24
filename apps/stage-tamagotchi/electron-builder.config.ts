@@ -99,7 +99,7 @@ export default {
   ],
   extraResources: [
     {
-      from: '../../engines/stage-tamagotchi-godot/build/${os}',
+      from: '../../engines/stage-tamagotchi-godot/out/${os}',
       to: 'godot-stage',
       filter: ['**/*'],
     },

@@ -22,8 +22,8 @@ usePerformanceObserver({
 ## Type Declarations
 
 ```ts
-export type UsePerformanceObserverOptions = PerformanceObserverInit
-  & ConfigurableWindow & {
+export type UsePerformanceObserverOptions = PerformanceObserverInit &
+  ConfigurableWindow & {
     /**
      * Start the observer immediate.
      *

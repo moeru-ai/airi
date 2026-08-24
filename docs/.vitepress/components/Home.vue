@@ -192,8 +192,12 @@ const buttons = computed(() => theme.value.homepage?.buttons || [])
 
 <style>
 /* Infinite scrolling background pattern via mask */
+/* The SVG only acts as a mask; the pattern color is this background-color.
+   Keep it opaque: the elements already carry `opacity-10`, so an extra
+   translucent alpha would double-dilute it to ~0.8% and become invisible
+   on the light background. `--foreground` is dark in light mode. */
 .bg-icon-pattern {
-  background-color: white;
+  background-color: hsl(var(--foreground));
   -webkit-mask-image: var(--bg-mask-icon-pattern);
   mask-image: var(--bg-mask-icon-pattern);
   -webkit-mask-repeat: repeat;
@@ -205,11 +209,15 @@ const buttons = computed(() => theme.value.homepage?.buttons || [])
   animation: icon-mask-scroll 8s linear infinite;
 }
 
+.dark .bg-icon-pattern {
+  background-color: white;
+}
+
 @keyframes icon-mask-scroll {
   100% { -webkit-mask-position: 256px 256px; mask-position: 256px 256px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bg-ghost-pattern { animation: none; }
+  .bg-icon-pattern { animation: none; }
 }
 </style>

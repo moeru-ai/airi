@@ -6,7 +6,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import { electronOpenDevtoolsWindow, electronOpenMainDevtools } from '../../../../shared/eventa'
+import { electronOpenDevtoolsWindow, electronOpenEditor, electronOpenMainDevtools } from '../../../../shared/eventa'
 
 const { t } = useI18n()
 const settings = useSettings()
@@ -101,12 +101,13 @@ const menu = computed(() => [
 
 const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)
 const openDevtoolsWindow = useElectronEventaInvoke(electronOpenDevtoolsWindow)
+const openEditor = useElectronEventaInvoke(electronOpenEditor)
 </script>
 
 <template>
   <ButtonBar
     v-model="settings.disableTransitions"
-    mb-2
+    :class="['mb-2']"
     icon="i-solar:settings-minimalistic-outline"
     text="settings.pages.page.developers.open-devtools.title"
     transition="all ease-in-out duration-250"
@@ -115,7 +116,17 @@ const openDevtoolsWindow = useElectronEventaInvoke(electronOpenDevtoolsWindow)
     {{ t('settings.pages.page.developers.open-devtools.button') }}
   </ButtonBar>
   <ButtonBar
-    mb-2
+    :class="['mb-2']"
+    icon="i-solar:pen-new-square-bold-duotone"
+    :text="t('tamagotchi.settings.devtools.pages.editor.title')"
+    :description="t('tamagotchi.settings.devtools.pages.editor.description')"
+    transition="all ease-in-out duration-250"
+    @click="openEditor()"
+  >
+    {{ t('tamagotchi.settings.devtools.pages.editor.button') }}
+  </ButtonBar>
+  <ButtonBar
+    :class="['mb-2']"
     icon="i-solar:code-bold-duotone"
     :text="t('tamagotchi.settings.devtools.pages.markdown-stress.title')"
     transition="all ease-in-out duration-250"
@@ -124,7 +135,7 @@ const openDevtoolsWindow = useElectronEventaInvoke(electronOpenDevtoolsWindow)
     {{ t('tamagotchi.settings.devtools.pages.markdown-stress.title') }}
   </ButtonBar>
   <ButtonBar
-    mb-2
+    :class="['mb-2']"
     icon="i-solar:chart-2-bold-duotone"
     :text="t('tamagotchi.settings.devtools.pages.io-tracer.title')"
     transition="all ease-in-out duration-250"
@@ -133,7 +144,7 @@ const openDevtoolsWindow = useElectronEventaInvoke(electronOpenDevtoolsWindow)
     {{ t('tamagotchi.settings.devtools.pages.io-tracer.title') }}
   </ButtonBar>
   <ButtonBar
-    mb-2
+    :class="['mb-2']"
     icon="i-solar:chart-square-bold-duotone"
     :text="t('tamagotchi.settings.devtools.pages.lag-visualizer.title')"
     transition="all ease-in-out duration-250"

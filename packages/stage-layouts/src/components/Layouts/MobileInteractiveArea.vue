@@ -1,25 +1,23 @@
 <script setup lang="ts">
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
 
+import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
-import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea, useTheme } from '@proj-airi/ui'
-import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
@@ -27,26 +25,56 @@ import ViewControls from '../Layouts/InteractiveArea/Actions/ViewControls.vue'
 import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 
+import { useMobileInteractiveAreaLayout } from '../../composables/use-mobile-interactive-area-layout'
 import { useTranscriptions } from '../../composables/use-transcriptions'
 import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
 import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 import { BackgroundDialogPicker } from '../Backgrounds'
 
+interface Props {
+  /**
+   * Enables keyboard measurement and limits the chat layer to the visible viewport.
+   *
+   * @default false
+   */
+  keyboardAvoidance?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  keyboardAvoidance: false,
+})
+const emit = defineEmits<{
+  /** Sends visualViewport.offsetTop so the parent can keep the Stage at the same screen position. */
+  viewportOffsetChange: [offsetTop: number]
+}>()
+
 const { isDark, toggleDark } = useTheme()
-const chatOrchestrator = useChatOrchestratorStore()
+const chatOrchestrator = useChatStore()
 const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
 const { cleanupMessages } = useChatMaintenanceStore()
-const { messages } = storeToRefs(chatSession)
+const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { sending } = storeToRefs(chatOrchestrator)
+const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatOrchestrator)
+const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+const isActiveSessionSending = computed(() => (
+  (sending.value && activeSendSessionId.value === activeSessionId.value)
+  || isReceivingRemoteStream.value
+))
+const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
+  ? activeStreamingMessage.value
+  : streamingMessage.value)
 const { trackChatMessageDeleted, trackChatMessagesCleared } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
 
-function handleDeleteMessage(index: number) {
+async function handleDeleteMessage(index: number) {
   const message = messages.value[index]
-  messages.value = messages.value.filter((_, messageIndex) => messageIndex !== index)
+  await chatSession.deleteMessage({
+    sessionId: activeSessionId.value,
+    messageId: message?.id,
+    index,
+  })
   trackChatMessageDeleted({
     source: 'history',
     message_role: message?.role ?? 'unknown',
@@ -62,22 +90,56 @@ function handleCleanupMessages() {
   })
 }
 
-const messageInput = ref('')
-const isComposing = ref(false)
-const backgroundDialogOpen = ref(false)
-const sessionsDrawerOpen = ref(false)
+const messageInput = shallowRef('')
+const isComposing = shallowRef(false)
+const backgroundDialogOpen = shallowRef(false)
+const sessionsDrawerOpen = shallowRef(false)
+const mobileInteractiveArea = useTemplateRef<HTMLElement>('mobileInteractiveArea')
+const messageComposer = useTemplateRef<HTMLElement>('messageComposer')
+const interactionControls = useTemplateRef<HTMLElement>('interactionControls')
+const controlsIsland = useTemplateRef<HTMLElement>('controlsIsland')
+const controlsIslandContent = useTemplateRef<HTMLElement>('controlsIslandContent')
+const {
+  chatHistoryStyle,
+  controlsIslandOverflowing,
+  controlsIslandStyle,
+  messageComposerStyle,
+  viewportOffsetTop,
+  viewportStyle: mobileInteractiveAreaStyle,
+} = useMobileInteractiveAreaLayout({
+  area: interactionControls,
+  controlsIsland,
+  controlsIslandContent,
+  enabled: () => props.keyboardAvoidance,
+  messageComposer,
+  viewport: mobileInteractiveArea,
+})
 
-const screenSafeArea = useScreenSafeArea()
-const providersStore = useProvidersStore()
-const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
+watch(viewportOffsetTop, offsetTop => emit('viewportOffsetChange', offsetTop), { immediate: true })
 
-useResizeObserver(document.documentElement, () => screenSafeArea.update())
+const mobileInteractiveAreaClass = computed(() => [
+  'pointer-events-none fixed inset-x-0 z-20 w-full',
+  'flex flex-col',
+  props.keyboardAvoidance ? 'top-0' : 'bottom-0',
+])
+const chatHistoryClass = computed(() => [
+  'pointer-events-auto relative z-20',
+  'max-w-[calc(100%_-_3.5rem)] w-full self-start pb-3 pl-3',
+  props.keyboardAvoidance ? undefined : 'max-h-[35dvh]',
+])
+const controlsIslandClass = computed(() => [
+  'controls-island-scroll absolute right-0 translate-y-[-100%]',
+  'max-w-full overflow-y-auto overscroll-contain px-3 py-3 font-sans scrollbar-none',
+  'transition-[height] duration-250 ease-out',
+  controlsIslandOverflowing.value
+    ? 'controls-island-scroll--overflowing'
+    : undefined,
+])
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 const { viewControlsEnabled: l2dViewCtrlEnabled } = useL2dViewControl()
 const { viewControlsEnabled: threeViewCtrlEnabled } = useThreeViewControl()
 const settingsAudioDevice = useSettingsAudioDevice()
 const { enabled, stream } = storeToRefs(settingsAudioDevice)
-const { ingest, onAfterMessageComposed } = chatOrchestrator
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
 const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
@@ -109,24 +171,24 @@ async function handleSend() {
   }
 
   const textToSend = messageInput.value
+  const targetSessionId = chatSession.activeSessionId
   messageInput.value = ''
 
   try {
-    const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-
-    await ingest(textToSend, {
-      chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
-      model: activeModel.value,
-      providerConfig,
+    await chatOrchestrator.send({
+      sessionId: targetSessionId,
+      text: textToSend,
     })
   }
   catch (error) {
-    messageInput.value = textToSend
-    messages.value.pop()
-    messages.value.push({
-      role: 'error',
-      content: (error as Error).message,
-    })
+    const errorMessage = errorMessageFrom(error) ?? String(error)
+    const wasCancelledForDeletedSession
+      = errorMessage.includes('Chat session was reset before send could start')
+        || errorMessage.includes('Chat session was removed before send completed')
+    if (!wasCancelledForDeletedSession && chatSession.activeSessionId === targetSessionId) {
+      const currentDraft = messageInput.value
+      messageInput.value = currentDraft ? `${textToSend}\n${currentDraft}` : textToSend
+    }
   }
 }
 
@@ -156,48 +218,74 @@ watch([enabled, stream], () => {
   setupAnalyzer()
 }, { immediate: true })
 
-onAfterMessageComposed(async () => {
-})
-
 onUnmounted(() => {
   teardownAnalyzer()
-})
-
-onMounted(() => {
-  screenSafeArea.update()
 })
 </script>
 
 <template>
-  <div fixed bottom-0 w-full flex flex-col>
-    <BackgroundDialogPicker v-model="backgroundDialogOpen" />
-    <KeepAlive>
-      <Transition name="fade">
-        <ChatHistory
-          v-if="!threeViewCtrlEnabled && !l2dViewCtrlEnabled"
-          variant="mobile"
-          :messages="historyMessages"
-          :sending="sending"
-          :streaming-message="streamingMessage"
-          max-w="[calc(100%-3.5rem)]"
-          w-full self-start pb-3 pl-3
-          class="chat-history"
-          :class="[
-            'relative z-20',
-          ]"
-          @delete-message="handleDeleteMessage($event.index)"
-          @tool-call-rerun="rerunToolCall"
-        />
-      </Transition>
-    </KeepAlive>
-    <div relative w-full self-end>
+  <div
+    ref="mobileInteractiveArea"
+    data-testid="mobile-interactive-area"
+    :class="mobileInteractiveAreaClass"
+    :style="mobileInteractiveAreaStyle"
+  >
+    <BackgroundDialogPicker v-model="backgroundDialogOpen" class="pointer-events-auto" />
+    <div
+      :class="[
+        'min-h-0 flex flex-1 flex-col justify-end overflow-hidden',
+      ]"
+    >
+      <KeepAlive>
+        <Transition name="fade">
+          <ChatHistory
+            v-if="!threeViewCtrlEnabled && !l2dViewCtrlEnabled"
+            variant="mobile"
+            :messages="historyMessages"
+            :sending="isActiveSessionSending"
+            :streaming-message="visibleStreamingMessage"
+            class="chat-history"
+            :style="chatHistoryStyle"
+            :class="chatHistoryClass"
+            @delete-message="handleDeleteMessage($event.index)"
+            @tool-call-rerun="rerunToolCall"
+          />
+        </Transition>
+      </KeepAlive>
+    </div>
+    <div
+      ref="interactionControls"
+      data-testid="mobile-interaction-controls"
+      :class="[
+        'pointer-events-auto relative w-full shrink-0 self-end',
+        'bg-white dark:bg-neutral-800',
+      ]"
+    >
+      <div
+        data-testid="mobile-composer-underlay"
+        aria-hidden="true"
+        :class="[
+          'pointer-events-none absolute inset-x-0 top-full h-100dvh',
+          'bg-white dark:bg-neutral-800',
+        ]"
+      />
       <div translate-y="[-100%]" absolute left-0 px-3 pb-3 font-sans>
         <div flex="~ col" gap-1>
           <slot name="status" />
         </div>
       </div>
-      <div translate-y="[-100%]" absolute right-0 px-3 pb-3 font-sans>
-        <div flex="~ col" gap-1>
+      <div
+        ref="controlsIsland"
+        data-testid="mobile-controls-island"
+        :class="controlsIslandClass"
+        :style="controlsIslandStyle"
+      >
+        <div
+          ref="controlsIslandContent"
+          :class="[
+            'flex flex-col gap-1',
+          ]"
+        >
           <ActionAbout />
           <div flex="~ col" items-end gap-1>
             <button
@@ -278,17 +366,26 @@ onMounted(() => {
           <ViewControls />
         </div>
       </div>
-      <div bg="white dark:neutral-800" max-h-100dvh max-w-100dvw w-full flex gap-1 overflow-auto px-3 pt-2 :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 12)}px` }">
+      <div
+        ref="messageComposer"
+        data-testid="mobile-message-composer"
+        :class="[
+          'max-h-100dvh max-w-100dvw w-full',
+          'flex gap-1 overflow-auto px-3 pt-2',
+          'bg-white dark:bg-neutral-800',
+        ]"
+        :style="messageComposerStyle"
+      >
         <BasicTextarea
           v-model="messageInput"
           :placeholder="t('stage.message')"
-          border="solid 2 neutral-200/60 dark:neutral-700/60"
-          text="neutral-500 hover:neutral-600 dark:neutral-100 dark:hover:neutral-200 placeholder:neutral-400 placeholder:hover:neutral-500 placeholder:dark:neutral-300 placeholder:dark:hover:neutral-400"
-          bg="neutral-100/80 dark:neutral-950/80"
-          max-h="[10lh]" min-h="[calc(1lh+4px+4px)]"
-          w-full resize-none overflow-y-scroll rounded="[1lh]" px-4 py-0.5 outline-none backdrop-blur-md scrollbar-none
-          transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
-          :class="[themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : '']"
+          :class="[
+            'font-cute',
+            'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full resize-none overflow-y-scroll rounded-[1lh] px-4 py-0.5 outline-none backdrop-blur-md scrollbar-none',
+            'border-2 border-solid border-neutral-200/60 bg-neutral-100/80 text-neutral-500 dark:border-neutral-700/60 dark:bg-neutral-950/80 dark:text-neutral-100',
+            'transition-all duration-250 ease-in-out hover:text-neutral-600 placeholder:text-[14px] placeholder:vertical-middle placeholder:leading-6 placeholder:text-neutral-400 placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out placeholder:hover:text-neutral-500 dark:hover:text-neutral-200 dark:placeholder:text-neutral-500 dark:placeholder:hover:text-neutral-400',
+            themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : undefined,
+          ]"
           default-height="1lh"
           @submit="handleSubmit"
           @compositionstart="isComposing = true"
@@ -337,22 +434,18 @@ onMounted(() => {
   animation: scan 2s infinite linear;
 }
 
-/*
-DO NOT ATTEMPT TO USE backdrop-filter TOGETHER WITH mask-image.
+.controls-island-scroll--overflowing {
+  --controls-island-mask: linear-gradient(
+    to bottom,
+    transparent 0,
+    black 1rem,
+    black calc(100% - 1rem),
+    transparent 100%
+  );
 
-html - Why doesn't blur backdrop-filter work together with mask-image? - Stack Overflow
-https://stackoverflow.com/questions/72780266/why-doesnt-blur-backdrop-filter-work-together-with-mask-image
-*/
-.chat-history {
-  --gradient: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 20%);
-  -webkit-mask-image: var(--gradient);
-  mask-image: var(--gradient);
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
+  -webkit-mask-image: var(--controls-island-mask);
+  mask-image: var(--controls-island-mask);
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
-  -webkit-mask-position: bottom;
-  mask-position: bottom;
-  max-height: 35dvh;
 }
 </style>

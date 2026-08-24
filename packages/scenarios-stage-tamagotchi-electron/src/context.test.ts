@@ -2,7 +2,7 @@ import type { ScenarioContext } from '@vishot/source-electron'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { createStageTamagotchiScenarioContext, defineStageTamagotchiScenario } from './context.ts'
+import { createStageTamagotchiScenarioContext, defineStageTamagotchiScenario } from './context'
 
 function createElectronApp(): ScenarioContext['electronApp'] {
   return Object.assign(Object.create(null), {

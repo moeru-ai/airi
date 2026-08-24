@@ -1,50 +1,37 @@
 ---
-title: Contributing
-description: Contributing to Project AIRI
+title: Development Setup and Your First Contribution
+description: Run Project AIRI locally and submit your first pull request
 ---
 
-Hello! Thank you for your interest in contributing to this project. This guide will help you get started.
+Hello! Thank you for your interest in contributing to Project AIRI. This guide explains how to set up a local development environment, create a branch, and submit your first pull request.
+
+::: info Scope
+This section is for contributors who want to change source code, documentation, or design resources. If you only want to use AIRI, start with the user manual. For the debugging tools built into the app, see [Developer Tools](./desktop-developer-tools).
+:::
 
 ## Prerequisites
 
 - [Git](https://git-scm.com/downloads)
-- [Node.js 23+](https://nodejs.org/en/download/)
-- [corepack](https://github.com/nodejs/corepack)
-- [pnpm](https://pnpm.io/installation)
+- [mise](https://mise.jdx.dev/installing-mise.html), or another version manager that reads `.tool-versions`
+- [Corepack](https://github.com/nodejs/corepack), which is included with recent Node.js releases
+
+The repository pins Node.js in [`.tool-versions`](https://github.com/moeru-ai/airi/blob/main/.tool-versions) (currently 24.13.0). Install that pinned version after cloning instead of relying on the version supplied by a system package manager.
 
 <details>
 <summary>Windows setup</summary>
 
-0. Download [Visual Studio](https://visualstudio.microsoft.com/downloads/), and follow the instructions here: https://rust-lang.github.io/rustup/installation/windows-msvc.html#walkthrough-installing-visual-studio-2022
-
-   > Make sure to install Windows SDK and C++ build tools when installing Visual Studio.
-
-1. Open PowerShell
-2. Install [`scoop`](https://scoop.sh/)
+1. Open PowerShell.
+2. Install [`scoop`](https://scoop.sh/).
 
    ```powershell
    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
    Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
    ```
 
-3. Install `git`, Node.js, `rustup`, `msvc` through `scoop`
+3. Install Git and mise with Scoop.
 
    ```powershell
-   scoop install git nodejs rustup
-
-   # For Rust dependencies
-   # Not required if you are not going to develop on either crates or apps/tamagotchi
-   scoop install main/rust-msvc
-   # Rust & Windows specific
-   rustup toolchain install stable-x86_64-pc-windows-msvc
-   rustup default stable-x86_64-pc-windows-msvc
-   ```
-
-4. Install `pnpm` through `corepack`
-
-   ```powershell
-   corepack enable
-   corepack prepare pnpm@latest --activate
+   scoop install git mise
    ```
 
 </details>
@@ -52,18 +39,11 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 <details>
 <summary>macOS setup</summary>
 
-0. Open Terminal, (or iTerm2, Ghostty, Kitty, etc.)
-1. Install `git`, `node` through `brew`
+1. Open Terminal, iTerm2, Ghostty, Kitty, or another terminal.
+2. Install Git and mise with Homebrew.
 
    ```shell
-   brew install git node
-   ```
-
-2. Install `pnpm` through `corepack`
-
-   ```shell
-   corepack enable
-   corepack prepare pnpm@latest --activate
+   brew install git mise
    ```
 
 </details>
@@ -71,152 +51,130 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 <details>
 <summary>Linux setup</summary>
 
-0. Open Terminal
-1. Follow [nodesource/distributions: NodeSource Node.js Binary Distributions](https://github.com/nodesource/distributions?tab=readme-ov-file#table-of-contents) to install `node`
-2. Follow [Git](https://git-scm.com/downloads/linux) to install `git`
-3. Install `pnpm` through `corepack`
-
-   ```shell
-   corepack enable
-   corepack prepare pnpm@latest --activate
-   ```
-4. If you would love to help to develop the desktop version, you will need those dependencies:
-   ```shell
-   sudo apt install \
-      libssl-dev \
-      libglib2.0-dev \
-      libgtk-3-dev \
-      libjavascriptcoregtk-4.1-dev \
-      libwebkit2gtk-4.1-dev
-   ```
+1. Open a terminal.
+2. Follow the [Git installation instructions for Linux](https://git-scm.com/downloads/linux).
+3. Install mise using the [package or installation method for your distribution](https://mise.jdx.dev/installing-mise.html).
 
 </details>
 
-## If you have already contributed to this project before
+## If you have contributed before
 
-::: warning
-
-If you haven't clone this repository, skip this section.
-
+::: tip
+Skip this section if you have not cloned the repository yet.
 :::
 
-Make sure your local repository is up to date with the upstream repository:
+Fetch upstream changes and rebase your local `main` branch:
 
 ```shell
 git fetch --all
-git checkout main
+git switch main
 git pull upstream main --rebase
 ```
 
-If you have a working branch, to make your branch up to date with the upstream repository:
+If you already have a working branch, update it from `main`:
 
 ```shell
-git checkout <your-branch-name>
+git switch <your-branch-name>
 git rebase main
 ```
 
-## Fork this project
+## Fork the project
 
-Click on the **Fork** button on the top right corner of the [moeru-ai/airi](https://github.com/moeru-ai/airi) page.
+Click **Fork** in the upper-right corner of the [moeru-ai/airi](https://github.com/moeru-ai/airi) repository page to create a copy under your account.
 
-## Clone
+## Clone your fork
 
 ```shell
 git clone https://github.com/<your-github-username>/airi.git
 cd airi
 ```
 
-## Create your working branch
+## Create a working branch
 
 ```shell
-git checkout -b <your-branch-name>
+git switch -c <your-branch-name>
 ```
 
 ## Install dependencies
 
-```shell
-corepack enable
-pnpm install
+From the repository root, install the Node.js version recorded in `.tool-versions`, verify it, enable Corepack, and install dependencies:
 
-# For Rust dependencies
-# Not required if you are not going to develop on either crates or apps/tamagotchi
-cargo fetch
+```shell
+mise install
+mise exec -- node --version
+mise exec -- corepack enable
+mise exec -- pnpm install
+```
+
+The reported Node.js version must match `.tool-versions`. The remaining examples assume that [mise is activated for your shell](https://mise.jdx.dev/dev-tools/shims.html); otherwise, run package-manager commands through `mise exec --`, for example `mise exec -- pnpm typecheck`.
+
+::: tip
+You can optionally install [@antfu/ni](https://github.com/antfu-collective/ni) to simplify package-manager commands:
+
+```shell
+mise exec -- npm install --global @antfu/ni
+```
+
+After installation:
+
+- Use `ni` instead of `pnpm install`, `npm install`, or `yarn install`.
+- Use `nr` instead of `pnpm run`, `npm run`, or `yarn run`.
+
+`ni` detects the package manager used by the repository.
+:::
+
+## Commit your changes
+
+### Validate before committing
+
+Make sure the code passes linting and type checking:
+
+```shell
+pnpm lint
+pnpm typecheck
 ```
 
 ::: tip
-
-We would recommend to install [@antfu/ni](https://github.com/antfu-collective/ni) to make your script simpler.
-
-```shell
-corepack enable
-npm i -g @antfu/ni
-```
-
-Once installed, you can
-
-- use `ni` for `pnpm install`, `npm install` and `yarn install`.
-- use `nr` for `pnpm run`, `npm run` and `yarn run`.
-
-You don't need to care about the package manager, `ni` will help you choose the right one.
-:::
-
-## Choose the application you want to develop on
-
-## Commit
-
-### Before commit
-
-::: warning
-
-Please make sure lint (static checkers) and TypeScript compilers are satisfied:
-
-```shell
-pnpm lint && pnpm typecheck
-```
-
-:::
-
-::: tip
-
-If you have [@antfu/ni](https://github.com/antfu-collective/ni) installed, you can use `nr` to run the commands:
+If you installed [@antfu/ni](https://github.com/antfu-collective/ni), run:
 
 ```shell
 nr lint && nr typecheck
 ```
-
 :::
 
-### Commit
+### Create the commit
 
 ```shell
-git add .
+git add <changed-files>
 git commit -m "<your-commit-message>"
 ```
 
-### Push to your fork repository
+### Push your branch
 
 ```shell
-git push origin <your-branch-name> -u
+git push -u origin <your-branch-name>
 ```
 
-You should be able to browse the branch on your fork repository.
+Your branch should now be available on GitHub.
 
 ::: tip
-
-If this is your first time contributing with this project, you need to add the upstream repository too:
+If this is your first contribution, add the Project AIRI repository as the `upstream` remote:
 
 ```shell
 git remote add upstream https://github.com/moeru-ai/airi.git
 ```
-
 :::
 
-## Creating Pull Request
+## Create a pull request
 
-Navigate to [moeru-ai/airi](https://github.com/moeru-ai/airi) page, click on the **Pull requests** tab, and click on the **New pull request** button, click on the **Compare across forks** link, and select your fork repository.
+Open the [moeru-ai/airi](https://github.com/moeru-ai/airi) repository page:
 
-Review the changes, and click on the **Create pull request** button.
+1. Click **Pull requests**.
+2. Click **New pull request**.
+3. Click **Compare across forks**.
+4. Select your fork and working branch.
+5. Review the changes, then click **Create pull request**.
 
-## Whooo-ya! You made it!
+## You made it!
 
-Congratulations! You made your first contribution to this project. You can now wait for the maintainers to review your pull request.
+Congratulations on submitting your first contribution. The project maintainers can now review your pull request.

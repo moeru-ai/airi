@@ -1,3 +1,5 @@
+import type { ChatRequestOptions } from '../../types'
+
 import { createXiaomi } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
@@ -24,6 +26,7 @@ export const providerMimo = defineProvider<MimoConfig>({
   description: 'api.xiaomimimo.com',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.mimo.description'),
   tasks: ['chat'],
+  capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
   icon: 'i-simple-icons:xiaomi',
 
   createProviderConfig: ({ t }) => mimoConfigSchema.extend({
@@ -40,7 +43,17 @@ export const providerMimo = defineProvider<MimoConfig>({
     }),
   }),
   createProvider(config) {
-    return createXiaomi(config.apiKey, config.baseUrl)
+    const provider = createXiaomi(config.apiKey, config.baseUrl)
+    return {
+      ...provider,
+      chat(model: string, options?: ChatRequestOptions) {
+        const request = provider.chat(model)
+        if (!options?.reasoning)
+          return request
+
+        return { ...request, thinking: { type: options.reasoning } }
+      },
+    }
   },
 
   validationRequiredWhen(config) {
