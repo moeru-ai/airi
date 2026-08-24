@@ -2,8 +2,6 @@
 import { useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 
 import ProviderSettingsLayout from './provider-settings-layout.vue'
 
@@ -13,11 +11,11 @@ import {
   ProviderBaseUrlInput,
   ProviderBasicSettings,
   ProviderSettingsContainer,
+  ProviderValidationAlerts,
 } from '.'
-import { selectProviderMetadata } from '../../../libs/providers/metadata'
+import { useProviderValidation } from '../../../composables/use-provider-validation'
 import { useSpeechStore } from '../../../stores/modules/speech'
 import { useProviderConfigStore } from '../../../stores/providers/config'
-import { useProviderStore } from '../../../stores/providers/provider'
 
 const props = defineProps<{
   providerId: string
@@ -35,17 +33,31 @@ defineSlots<{
   'advanced-settings': (props: any) => any
   'playground': (props: any) => any
 }>()
-const { t } = useI18n()
-const router = useRouter()
-const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const speechStore = useSpeechStore()
 const { configs: providers } = storeToRefs(providerStore)
 
-const providerMetadata = computed(() => {
-  const definition = providersStore.getProviderDefinition(props.providerId)
-  return selectProviderMetadata(definition, t, { id: props.providerId })
-})
+// Nothing here previously transitioned this provider's status to
+// `configured`, so it could never appear as selectable on Settings > Speech
+// no matter what credentials were entered — same class of bug fixed for
+// Web Speech API's transcription page. useProviderValidation owns that
+// transition (auto-validation on credential change, plus the "Continue
+// Anyway" override), matching every chat/vision provider page already.
+const {
+  t,
+  router,
+  providerMetadata,
+  isValidating,
+  isValid,
+  validationMessage,
+  handleResetSettings: handleResetCredentials,
+  forceValid,
+  hasManualValidators,
+  isManualTesting,
+  manualTestPassed,
+  manualTestMessage,
+  runManualTest,
+} = useProviderValidation(props.providerId)
 
 // Common provider settings
 const apiKey = computed({
@@ -71,10 +83,9 @@ const baseUrl = computed({
 // Voice settings as reactive objects to allow for different provider settings
 const voiceSettings = ref<Record<string, any>>({})
 
-// Initialize voice settings with defaults or from provider
 function initializeVoiceSettings() {
   if (providers.value[props.providerId]?.voiceSettings) {
-    voiceSettings.value = { ...(providers.value[props.providerId].voiceSettings as Record<string, any> | undefined) }
+    voiceSettings.value = { ...(providers.value[props.providerId].voiceSettings as Record<string, any>) }
   }
   else {
     // Default values that most providers use
@@ -82,35 +93,40 @@ function initializeVoiceSettings() {
       pitch: 0,
       speed: 1.0,
       volume: 0,
-      // Provider-specific defaults can be set in the onMounted lifecycle
       ...props.additionalSettings,
     }
   }
 }
 
-onMounted(() => {
-  providersStore.initializeProvider(props.providerId)
+onMounted(async () => {
+  // useProviderValidation's own onMounted also ensures this entry, but hook
+  // order between composables and this component isn't something to rely
+  // on — ensureProvider is idempotent, so awaiting it here too guarantees
+  // the entry (and any previously saved voiceSettings) exists before reading it.
+  if (!providerStore.getProvider(props.providerId))
+    await providerStore.ensureProvider(props.providerId, props.providerId, {})
 
-  // Initialize refs with current values
-  apiKey.value = providers.value[props.providerId]?.apiKey as string | undefined || ''
-  baseUrl.value = providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || ''
-
-  // Initialize voice settings
   initializeVoiceSettings()
 
-  // Load voices if provider is configured
-  if (providerStore.configuredProviders[props.providerId]) {
-    speechStore.loadVoicesForProvider(props.providerId)
-  }
+  if (providerStore.configuredProviders[props.providerId])
+    await speechStore.loadVoicesForProvider(props.providerId)
 })
 
 const debouncedUpdate = useDebounceFn(() => {
-  providers.value[props.providerId] = {
-    ...providers.value[props.providerId],
+  // `providers` (this store's `configs` projection) only persists nested
+  // mutations of an existing entry — assigning a whole new object to
+  // `providers.value[id]` replaces a property on the projection's own
+  // (read-only, recomputed) container, not the store's real state, so it
+  // silently never saves. voiceSettings has no other write path, so this
+  // was the one thing on this page that never actually persisted.
+  if (!providers.value[props.providerId])
+    providers.value[props.providerId] = {}
+
+  Object.assign(providers.value[props.providerId], {
     apiKey: apiKey.value,
     baseUrl: baseUrl.value || providerMetadata.value?.defaultConfig.baseUrl || '',
     voiceSettings: { ...voiceSettings.value },
-  }
+  })
 }, 1000)
 
 // Watch all settings and update the provider configuration
@@ -120,6 +136,7 @@ watch([apiKey, baseUrl], debouncedUpdate)
 watch(voiceSettings, debouncedUpdate, { deep: true })
 
 function handleResetVoiceSettings() {
+  handleResetCredentials()
   voiceSettings.value = { ...(providerMetadata.value?.defaultConfig.voiceSettings as Record<string, unknown>) }
   debouncedUpdate()
 }
@@ -165,6 +182,19 @@ function handleResetVoiceSettings() {
           <!-- Slot for provider-specific advanced settings -->
           <slot name="advanced-settings" />
         </ProviderAdvancedSettings>
+
+        <ProviderValidationAlerts
+          :is-valid="isValid"
+          :is-validating="isValidating"
+          :validation-message="validationMessage"
+          :has-manual-validators="hasManualValidators"
+          :is-manual-testing="isManualTesting"
+          :manual-test-passed="manualTestPassed"
+          :manual-test-message="manualTestMessage"
+          :on-run-test="runManualTest"
+          :on-force-valid="forceValid"
+          :on-go-to-model-selection="() => router.push('/settings/modules/speech')"
+        />
       </ProviderSettingsContainer>
 
       <!-- Playground section -->

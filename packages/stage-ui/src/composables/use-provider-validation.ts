@@ -213,8 +213,8 @@ export function useProviderValidation(providerId: string) {
     validateConfiguration()
   }, debounceTime)
 
-  onMounted(() => {
-    providersStore.initializeProvider(providerId)
+  onMounted(async () => {
+    await providersStore.initializeProvider(providerId)
     if (shouldValidateConfiguration()) {
       validateConfiguration()
     }
@@ -243,12 +243,12 @@ export function useProviderValidation(providerId: string) {
     manualTestMessage.value = ''
   }
 
-  function forceValid() {
+  async function forceValid() {
     isValid.value = true
     validationMessage.value = ''
     manualTestPassed.value = true
     manualTestMessage.value = ''
-    providersStore.forceProviderConfigured(providerId)
+    await providersStore.forceProviderConfigured(providerId)
   }
 
   return {
