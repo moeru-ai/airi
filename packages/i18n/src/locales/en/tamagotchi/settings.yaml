@@ -55,6 +55,19 @@ devtools:
       button: Open Editor
     lag-visualizer:
       title: Lag Visualizer
+    live2d-motion:
+      title: Live2D Motion Control
+      description: Move the joystick to control the model's eyes, head, and body on the X and Y axes.
+      joystick-label: Live2D motion joystick
+      instructions: Drag the joystick, or use the arrow keys or W, A, S, and D. Release it to restore normal motion.
+      parameter-note: The joystick maps to eye ±1, head ±30°, and body ±10° parameters.
+      groups:
+        eyes: Eyes
+        head: Head
+        body: Body
+      status:
+        active: Manual control is active
+        released: Normal model motion is active
     performance-visualizer:
       title: Performance Visualizer
       description: Inspect live performance metrics and runtime diagnostics

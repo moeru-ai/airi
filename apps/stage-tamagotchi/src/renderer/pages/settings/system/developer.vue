@@ -62,6 +62,12 @@ const menu = computed(() => [
     to: '/devtools/beat-sync',
   },
   {
+    title: t('tamagotchi.settings.devtools.pages.live2d-motion.title'),
+    description: t('tamagotchi.settings.devtools.pages.live2d-motion.description'),
+    icon: 'i-solar:gamepad-bold-duotone',
+    to: '/devtools/live2d-motion',
+  },
+  {
     title: 'WebSocket Inspector',
     description: 'Inspect raw WebSocket traffic',
     icon: 'i-solar:transfer-horizontal-bold-duotone',

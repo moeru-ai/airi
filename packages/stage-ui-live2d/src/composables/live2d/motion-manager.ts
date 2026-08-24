@@ -1,6 +1,7 @@
 import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display/cubism4'
 import type { Ref } from 'vue'
 
+import type { Live2DMotionControlState } from '../../stores/motion-control'
 import type { BeatSyncController } from './beat-sync'
 import type { useExpressionController } from './expression-controller'
 
@@ -453,6 +454,29 @@ export function useMotionUpdatePluginExpression(
   return (ctx) => {
     // Always apply regardless of handled state – expressions layer on top.
     controller.applyExpressions(ctx.model)
+  }
+}
+
+/**
+ * Applies the active manual two-axis pose after normal Live2D motion updates.
+ *
+ * The normalized joystick range maps to each standard parameter range. Models
+ * that omit one of these parameters ignore that write through the Cubism API.
+ */
+export function useMotionUpdatePluginManualControl(
+  control: Ref<Live2DMotionControlState>,
+): MotionManagerPlugin {
+  return (ctx) => {
+    if (!control.value.active)
+      return
+
+    const { x, y } = control.value.pose
+    ctx.model.setParameterValueById('ParamEyeBallX', x)
+    ctx.model.setParameterValueById('ParamEyeBallY', y)
+    ctx.model.setParameterValueById('ParamAngleX', x * 30)
+    ctx.model.setParameterValueById('ParamAngleY', y * 30)
+    ctx.model.setParameterValueById('ParamBodyAngleX', x * 10)
+    ctx.model.setParameterValueById('ParamBodyAngleY', y * 10)
   }
 }
 

@@ -6,6 +6,7 @@ import { ref } from 'vue'
 import {
   useMotionUpdatePluginAutoEyeBlink,
   useMotionUpdatePluginIdleDisable,
+  useMotionUpdatePluginManualControl,
 } from './motion-manager'
 
 vi.mock('./animation', () => ({
@@ -178,5 +179,34 @@ describe('live2d motion manager plugins', () => {
     expect(context.model.getParameterValueById('ParamEyeROpen')).toBe(1)
 
     randomSpy.mockRestore()
+  })
+
+  it('maps the manual control pose to eye, head, and body parameters', () => {
+    const context = createContext()
+
+    useMotionUpdatePluginManualControl(ref({
+      active: true,
+      ownerId: 'motion-devtool',
+      pose: { x: 0.5, y: -0.25 },
+    }))(context)
+
+    expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamEyeBallX', 0.5)
+    expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamEyeBallY', -0.25)
+    expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamAngleX', 15)
+    expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamAngleY', -7.5)
+    expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamBodyAngleX', 5)
+    expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamBodyAngleY', -2.5)
+  })
+
+  it('leaves motion parameters unchanged after manual control is released', () => {
+    const context = createContext()
+
+    useMotionUpdatePluginManualControl(ref({
+      active: false,
+      ownerId: null,
+      pose: { x: 0, y: 0 },
+    }))(context)
+
+    expect(context.model.setParameterValueById).not.toHaveBeenCalled()
   })
 })

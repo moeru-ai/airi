@@ -51,6 +51,19 @@ devtools:
       title: 上下文流程
     lag-visualizer:
       title: 卡頓可視化
+    live2d-motion:
+      title: Live2D 動作控制
+      description: 移動搖桿來控制模型眼睛、頭部與身體的 X 軸和 Y 軸動作。
+      joystick-label: Live2D 動作搖桿
+      instructions: 拖曳搖桿，或使用方向鍵或 W、A、S、D 鍵。放開後會恢復一般動作。
+      parameter-note: 搖桿會分別映射至眼睛 ±1、頭部 ±30° 與身體 ±10° 的參數。
+      groups:
+        eyes: 眼睛
+        head: 頭部
+        body: 身體
+      status:
+        active: 手動控制已啟用
+        released: 模型一般動作已啟用
     performance-visualizer:
       title: 效能顯示器
       description: 切換 FPS/長任務/記憶體覆蓋

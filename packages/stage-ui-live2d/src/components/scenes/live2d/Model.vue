@@ -24,10 +24,11 @@ import {
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginIdleFocus,
   useMotionUpdatePluginLipSync,
+  useMotionUpdatePluginManualControl,
 } from '../../../composables/live2d'
 import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
-import { useL2dViewControl, useLive2dParams } from '../../../stores'
+import { useL2dViewControl, useLive2DMotionControl, useLive2dParams } from '../../../stores'
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
@@ -157,6 +158,7 @@ function setScaleAndPosition(animated = false) {
 }
 
 const live2dStore = useLive2dParams()
+const { control: manualMotionControl } = storeToRefs(useLive2DMotionControl())
 const {
   currentMotion,
   availableMotions,
@@ -368,6 +370,7 @@ async function performModelLoad() {
     motionManagerUpdate.register(useMotionUpdatePluginExpression(expressionController), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginManualControl(manualMotionControl), 'final')
 
     const hookedUpdate = motionManager.update as (model: PixiLive2DInternalModel['coreModel'], now: number) => boolean
     motionManager.update = function (model: PixiLive2DInternalModel['coreModel'], now: number) {
