@@ -57,6 +57,5 @@
     "appimage",
     "localforage"
   ],
-  "vitest.disableWorkspaceWarning": true,
-  "editor.quickSuggestions": false
+  "vitest.disableWorkspaceWarning": true
 }
