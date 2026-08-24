@@ -148,7 +148,17 @@ describe('provider store synchronization boundary', () => {
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     }
-    useAuthStore().$patch({ user, session })
+    // The auth transition also starts a credit refresh. Keep this provider test
+    // hermetic and wait for the refresh so it cannot leak into the next case.
+    const fetchCredits = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
+      JSON.stringify({ flux: 17 }),
+      { headers: { 'Content-Type': 'application/json' } },
+    ))
+    const authStore = useAuthStore()
+    authStore.$patch({ user, session })
+
+    await vi.waitFor(() => expect(authStore.credits).toBe(17))
+    expect(fetchCredits).toHaveBeenCalledOnce()
 
     expect(store.moduleChatProvidersMetadata.map(provider => provider.id)).toContain('official-provider')
     expect(store.moduleSpeechProvidersMetadata.map(provider => provider.id)).toContain(OFFICIAL_SPEECH_PROVIDER_ID)
