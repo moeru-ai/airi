@@ -7,10 +7,7 @@
 export function resolveIsWayland(params: {
   explicitOzonePlatform?: string
   ozonePlatformHint?: string
-  env?: {
-    WAYLAND_DISPLAY?: string
-    XDG_SESSION_TYPE?: string
-  }
+  env?: Record<string, string | undefined>
 }): boolean {
   if (params.explicitOzonePlatform && params.explicitOzonePlatform !== 'auto') {
     return params.explicitOzonePlatform === 'wayland'
