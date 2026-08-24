@@ -603,6 +603,10 @@ pages:
             show_more: 收起
             subtitle: 选择一个默认模型
             title: 模型
+          model-options:
+            title: 模型选项
+            thinking:
+              label: 思考
       title: 意识
     description: 思维，视觉，言语综合，游戏等
     gaming-factorio:
@@ -1476,7 +1480,7 @@ pages:
             section:
               performance-visualizer:
                 title: 性能可视化工具
-                description: 切换 FPS/长任务/内存叠加
+                description: 显示 FPS、帧时间、长任务和浏览器支持的内存指标
               markdown-stress:
                 title: Markdown Stress
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力

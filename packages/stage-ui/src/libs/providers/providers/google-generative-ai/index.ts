@@ -1,3 +1,5 @@
+import type { ChatRequestOptions } from '../../types'
+
 import { createGoogleGenerativeAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
@@ -24,6 +26,7 @@ export const providerGoogleGenerativeAI = defineProvider<GoogleGenerativeConfig>
   description: 'ai.google.dev',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.google-generative-ai.description'),
   tasks: ['chat'],
+  capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
   icon: 'i-lobe-icons:gemini',
   iconColor: 'i-lobe-icons:gemini-color',
 
@@ -41,7 +44,17 @@ export const providerGoogleGenerativeAI = defineProvider<GoogleGenerativeConfig>
     }),
   }),
   createProvider(config) {
-    return createGoogleGenerativeAI(config.apiKey, config.baseUrl)
+    const provider = createGoogleGenerativeAI(config.apiKey, config.baseUrl)
+    return {
+      ...provider,
+      chat(model: string, options?: ChatRequestOptions) {
+        const request = provider.chat(model)
+        if (!options?.reasoning)
+          return request
+
+        return { ...request, reasoningEffort: options.reasoning === 'enabled' ? 'medium' : 'none' }
+      },
+    }
   },
 
   validationRequiredWhen(config) {

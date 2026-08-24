@@ -57,7 +57,41 @@ devtools:
       title: Lag Visualizer
     performance-visualizer:
       title: Performance Visualizer
-      description: Toggle FPS/long task/memory overlay
+      description: Inspect live performance metrics and runtime diagnostics
+      controls:
+        enable-all:
+          label: Enable all available metrics
+          description: Enable each metric that this browser supports.
+        start-recording: Start recording
+        stop-recording: Stop recording ({seconds}s)
+        export-last-recording: Export last recording
+      metrics:
+        fps:
+          label: FPS
+          description: Frames per second during the last 10 seconds.
+        frame-duration:
+          label: Frame time (ms)
+          description: Time between animation frames during the last 10 seconds.
+        long-task:
+          label: Long tasks
+          description: Main-thread tasks that take at least 50 ms.
+          unsupported: This browser does not expose long-task timing.
+        memory:
+          label: JS heap (MB)
+          description: JavaScript heap usage from Chromium's performance.memory API.
+          unsupported: This browser does not expose JavaScript heap usage.
+      recording:
+        title: Last recording
+        duration: Duration {duration} ms
+        limit: Recording stops after 60 seconds.
+      overlay:
+        title: Performance
+        move: Move performance overlay
+        reset-position: Reset overlay position
+        record: Record
+        stop: Stop
+        export: Export last recording
+        average: avg
     markdown-stress:
       title: Markdown Stress
       description: Stress markdown parsing and rendering with heavy chat payloads

@@ -51,6 +51,7 @@ vi.mock('../../modules/consciousness', () => ({
   useConsciousnessStore: () => ({
     activeProvider: ref(undefined),
     activeModel: ref(undefined),
+    getChatProviderInstance: vi.fn(async () => ({})),
   }),
 }))
 

@@ -6,7 +6,7 @@ import type { ChatActionMenuAction } from '.'
 
 import { errorMessageFromValue, isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { useElementVisibility, useIntervalFn } from '@vueuse/core'
-import { createTimeline } from 'animejs'
+import { animate } from 'animejs'
 import { clamp } from 'es-toolkit'
 import {
   ContextMenuContent,
@@ -20,14 +20,13 @@ import {
   DropdownMenuRoot,
   DropdownMenuTrigger,
 } from 'reka-ui'
-import { computed, inject, reactive, ref, shallowRef, toRef, useTemplateRef, watch } from 'vue'
+import { computed, onUnmounted, reactive, ref, shallowRef, toRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useWebHaptics } from 'web-haptics/vue'
 
 import { createChatActionMenuItems, createChatActionMenuTriggerState } from '.'
 import { useBreakpoints } from '../../../../../composables/use-breakpoints'
 import { useElementScroll } from '../../composables/use-element-scroll'
-import { chatScrollContainerKey } from '../../constants'
 
 const props = withDefaults(defineProps<{
   canCopy?: boolean
@@ -36,6 +35,7 @@ const props = withDefaults(defineProps<{
   copyText?: string
   menuLabel?: string
   placement?: 'left' | 'right'
+  scrollContainer?: HTMLElement | null
 }>(), {
   canCopy: true,
   canRetry: false,
@@ -43,6 +43,7 @@ const props = withDefaults(defineProps<{
   copyText: '',
   menuLabel: 'Message actions',
   placement: 'right',
+  scrollContainer: null,
 })
 
 const emit = defineEmits<{
@@ -58,8 +59,7 @@ const measuredElementRef = shallowRef<HTMLElement | null>(null)
 const contextMenuContainerElementRef = useTemplateRef<HTMLElement>('contextMenuContainer')
 const topSentinelRef = useTemplateRef<HTMLDivElement>('topSentinel')
 const bottomSentinelRef = useTemplateRef<HTMLDivElement>('bottomSentinel')
-const injectedScrollContainer = inject(chatScrollContainerKey, undefined)
-const scrollTarget = computed(() => injectedScrollContainer?.value ?? null)
+const scrollTarget = computed(() => props.scrollContainer)
 const contextMenuOpen = shallowRef(false)
 const dropdownMenuOpen = shallowRef(false)
 const {
@@ -101,11 +101,9 @@ const hasMenuItems = computed(() => menuItems.value.length > 0)
 const forceVisible = computed(() => contextMenuOpen.value || dropdownMenuOpen.value)
 
 const contentClasses = [
-  'z-10000 min-w-36 rounded-xl p-1 shadow-md outline-none',
+  'chat-action-menu-content z-10000 min-w-36 rounded-xl p-1 shadow-md outline-none',
   'border border-neutral-100/70 bg-white/90 text-neutral-700 backdrop-blur-md',
   'dark:border-neutral-900/80 dark:bg-neutral-900/90 dark:text-neutral-100',
-  'data-[side=bottom]:animate-slideUpAndFade data-[side=left]:animate-slideRightAndFade',
-  'data-[side=right]:animate-slideLeftAndFade data-[side=top]:animate-slideDownAndFade',
 ]
 
 const itemClasses = [
@@ -137,6 +135,9 @@ const triggerStyle = computed(() => (
 
 function handleContextMenuOpenChange(open: boolean) {
   contextMenuOpen.value = open
+
+  if (open)
+    animateReleasedState()
 }
 
 function handleDropdownMenuOpenChange(open: boolean) {
@@ -278,42 +279,61 @@ async function handleAction(action: ChatActionMenuAction) {
 }
 
 const pressedAnimatable = reactive({ scale: 100 })
-const tl = createTimeline({ defaults: { duration: 500, autoplay: false } })
-  .add(pressedAnimatable, { scale: 90, ease: 'inOut', autoplay: false })
-  .reset()
+const contextMenuPressOpenDelay = 250
+let scaleAnimation: ReturnType<typeof animate> | undefined
+let gestureReleased = true
+
+function animatePressedState() {
+  gestureReleased = false
+  scaleAnimation?.cancel()
+  scaleAnimation = animate(pressedAnimatable, {
+    scale: 95,
+    duration: contextMenuPressOpenDelay,
+    ease: 'linear',
+  })
+}
+
+function animateReleasedState() {
+  if (gestureReleased)
+    return
+
+  gestureReleased = true
+  scaleAnimation?.cancel()
+  scaleAnimation = animate(pressedAnimatable, {
+    scale: 100,
+    duration: 220,
+    ease: 'inOut(2)',
+  })
+}
 
 const { trigger: triggerTimer, clear: clearTimer } = useSetTimeoutFn(() => {
   trigger('medium')
-  tl.reset()
-}, { delay: 700 })
+}, { delay: contextMenuPressOpenDelay })
 
-watch(isTouching, (val) => {
-  if (val) {
-    if (tl.completed || tl.paused) {
-      tl.restart()
-    }
-    else {
-      tl.play()
-    }
-
+watch(isTouching, (touching) => {
+  if (touching) {
+    animatePressedState()
     triggerTimer()
+    return
   }
-  else {
-    tl.reset()
 
-    clearTimer()
-  }
+  clearTimer()
+  animateReleasedState()
 })
+
+onUnmounted(() => scaleAnimation?.cancel())
 </script>
 
 <template>
-  <ContextMenuRoot @update:open="handleContextMenuOpenChange">
+  <ContextMenuRoot
+    :press-open-delay="contextMenuPressOpenDelay"
+    @update:open="handleContextMenuOpenChange"
+  >
     <ContextMenuTrigger as-child>
       <div
         ref="contextMenuContainer"
         :class="[
           'group/chat-action relative w-fit',
-          'transition-transform duration-150 ease-in-out',
         ]"
         :style="{
           transform: `scale(${pressedAnimatable.scale / 100})`,
@@ -421,3 +441,61 @@ watch(isTouching, (val) => {
     </ContextMenuPortal>
   </ContextMenuRoot>
 </template>
+
+<style>
+.chat-action-menu-content {
+  transform-origin: var(--reka-context-menu-content-transform-origin);
+  will-change: opacity, transform;
+}
+
+.chat-action-menu-content[data-state="open"] {
+  animation: chat-action-menu-elastic-in 220ms linear both;
+}
+
+.chat-action-menu-content[data-state="closed"] {
+  animation: chat-action-menu-out 120ms ease-in both;
+}
+
+@keyframes chat-action-menu-elastic-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+
+  42% {
+    opacity: 1;
+    transform: scale(1.035);
+  }
+
+  64% {
+    transform: scale(0.985);
+  }
+
+  82% {
+    transform: scale(1.006);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes chat-action-menu-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-action-menu-content[data-state] {
+    animation: none;
+  }
+}
+</style>

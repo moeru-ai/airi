@@ -1,71 +1,78 @@
+import type { ChatProviderWithExtraOptions } from '@xsai-ext/providers/utils'
+
+import type { ChatRequestOptions, ProviderInstance } from '../../types'
+
 import { describe, expect, it } from 'vitest'
 
-import { providerOllama, resolveOllamaThink } from './index'
+import { providerOllama, resolveOllamaReasoningEffort } from './index'
 
-describe('providerOllama.resolveOllamaThink', () => {
+type OllamaChatProvider = ChatProviderWithExtraOptions<string, ChatRequestOptions>
+
+function isOllamaChatProvider(provider: ProviderInstance): provider is OllamaChatProvider {
+  return 'chat' in provider && typeof provider.chat === 'function'
+}
+
+function createOllamaChatProvider(thinkingMode: 'auto' | 'disable' | 'enable'): OllamaChatProvider {
+  const provider = providerOllama.createProvider({
+    baseUrl: 'http://localhost:11434/v1/',
+    thinkingMode,
+  })
+  if (!isOllamaChatProvider(provider))
+    throw new Error('Ollama provider must support chat')
+
+  return provider
+}
+
+describe('providerOllama.resolveOllamaReasoningEffort', () => {
   it('should return undefined for auto mode', () => {
-    expect(resolveOllamaThink('qwen3:8b', 'auto')).toBeUndefined()
+    expect(resolveOllamaReasoningEffort('auto')).toBeUndefined()
   })
 
-  it('should map disable/enable to booleans for non gpt-oss models', () => {
-    expect(resolveOllamaThink('qwen3:8b', 'disable')).toBe(false)
-    expect(resolveOllamaThink('qwen3:8b', 'enable')).toBe(true)
-  })
-
-  it('should map disable/enable to levels for gpt-oss models', () => {
-    expect(resolveOllamaThink('gpt-oss:20b', 'disable')).toBe('low')
-    expect(resolveOllamaThink('gpt-oss:20b', 'enable')).toBe('medium')
+  it('should map disable/enable to OpenAI-compatible effort values', () => {
+    expect(resolveOllamaReasoningEffort('disable')).toBe('none')
+    expect(resolveOllamaReasoningEffort('enable')).toBe('medium')
   })
 
   it('should pass level modes through unchanged', () => {
-    expect(resolveOllamaThink('qwen3:8b', 'low')).toBe('low')
-    expect(resolveOllamaThink('qwen3:8b', 'medium')).toBe('medium')
-    expect(resolveOllamaThink('qwen3:8b', 'high')).toBe('high')
+    expect(resolveOllamaReasoningEffort('low')).toBe('low')
+    expect(resolveOllamaReasoningEffort('medium')).toBe('medium')
+    expect(resolveOllamaReasoningEffort('high')).toBe('high')
   })
 
   it('should fallback invalid values to auto mode', () => {
-    expect(resolveOllamaThink('qwen3:8b', 'invalid')).toBeUndefined()
+    expect(resolveOllamaReasoningEffort('invalid')).toBeUndefined()
   })
 })
 
 describe('providerOllama.createProvider chat options', () => {
-  it('should not set think when thinkingMode is auto', () => {
-    const provider = providerOllama.createProvider({
-      baseUrl: 'http://localhost:11434/v1/',
-      thinkingMode: 'auto',
-    }) as any
+  it('should not set reasoning effort when thinkingMode is auto', () => {
+    const provider = createOllamaChatProvider('auto')
 
-    const chatOptions = provider.chat('qwen3:8b') as Record<string, unknown>
-    expect('think' in chatOptions).toBe(false)
+    expect(provider.chat('qwen3:8b')).not.toHaveProperty('reasoningEffort')
   })
 
-  it('should set think=false for non gpt-oss when thinkingMode is disable', () => {
-    const provider = providerOllama.createProvider({
-      baseUrl: 'http://localhost:11434/v1/',
-      thinkingMode: 'disable',
-    }) as any
+  it('should set reasoning effort to none for non gpt-oss when thinkingMode is disable', () => {
+    const provider = createOllamaChatProvider('disable')
 
-    const chatOptions = provider.chat('qwen3:8b') as Record<string, unknown>
-    expect(chatOptions.think).toBe(false)
+    expect(provider.chat('qwen3:8b')).toMatchObject({ reasoningEffort: 'none' })
   })
 
-  it('should set think=medium for gpt-oss when thinkingMode is enable', () => {
-    const provider = providerOllama.createProvider({
-      baseUrl: 'http://localhost:11434/v1/',
-      thinkingMode: 'enable',
-    }) as any
+  it('should set reasoning effort to medium when thinkingMode is enable', () => {
+    const provider = createOllamaChatProvider('enable')
 
-    const chatOptions = provider.chat('gpt-oss:20b') as Record<string, unknown>
-    expect(chatOptions.think).toBe('medium')
+    expect(provider.chat('gpt-oss:20b')).toMatchObject({ reasoningEffort: 'medium' })
   })
 
-  it('should set think=low for gpt-oss when thinkingMode is disable', () => {
-    const provider = providerOllama.createProvider({
-      baseUrl: 'http://localhost:11434/v1/',
-      thinkingMode: 'disable',
-    }) as any
+  it('should set reasoning effort to none when thinkingMode is disable', () => {
+    const provider = createOllamaChatProvider('disable')
 
-    const chatOptions = provider.chat('gpt-oss:20b') as Record<string, unknown>
-    expect(chatOptions.think).toBe('low')
+    expect(provider.chat('gpt-oss:20b')).toMatchObject({ reasoningEffort: 'none' })
+  })
+
+  it('should apply request reasoning without checking the model name', () => {
+    const provider = createOllamaChatProvider('auto')
+
+    expect(provider.chat('llama3.2', { reasoning: 'disabled' })).toMatchObject({ reasoningEffort: 'none' })
+    expect(provider.chat('gpt-oss:20b', { reasoning: 'enabled' })).toMatchObject({ reasoningEffort: 'medium' })
   })
 })

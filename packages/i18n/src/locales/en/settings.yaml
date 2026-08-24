@@ -628,6 +628,10 @@ pages:
             show_more: Show more
             subtitle: Select a default model from the provider
             title: Model
+          model-options:
+            title: Model options
+            thinking:
+              label: Thinking
       title: Consciousness
     description: Thinking, vision, speech synthesis, gaming, etc.
     gaming-factorio:
@@ -1542,7 +1546,7 @@ pages:
             section:
               performance-visualizer:
                 title: Performance Visualizer
-                description: Toggle FPS/long task/memory overlay
+                description: Show FPS, frame time, long tasks, and supported browser memory metrics
               markdown-stress:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads

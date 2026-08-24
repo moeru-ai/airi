@@ -1,3 +1,5 @@
+import type { ChatRequestOptions } from '../../types'
+
 import { createTogetherAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
@@ -23,6 +25,7 @@ export const providerTogetherAI = defineProvider<TogetherConfig>({
   description: 'together.ai',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.together.description'),
   tasks: ['chat'],
+  capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
   icon: 'i-lobe-icons:together',
   iconColor: 'i-lobe-icons:together-color',
 
@@ -40,7 +43,17 @@ export const providerTogetherAI = defineProvider<TogetherConfig>({
     }),
   }),
   createProvider(config) {
-    return createTogetherAI(config.apiKey, config.baseUrl)
+    const provider = createTogetherAI(config.apiKey, config.baseUrl)
+    return {
+      ...provider,
+      chat(model: string, options?: ChatRequestOptions) {
+        const request = provider.chat(model)
+        if (!options?.reasoning)
+          return request
+
+        return { ...request, reasoning: { enabled: options.reasoning === 'enabled' } }
+      },
+    }
   },
 
   validationRequiredWhen(config) {

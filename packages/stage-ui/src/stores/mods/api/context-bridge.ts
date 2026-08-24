@@ -23,7 +23,6 @@ import { useChatSessionStore } from '../../chat/session-store'
 import { useChatStreamStore } from '../../chat/stream-store'
 import { useContextObservabilityStore } from '../../devtools/context-observability'
 import { useConsciousnessStore } from '../../modules/consciousness'
-import { useProviderStore } from '../../providers/provider'
 import { useModsServerChannelStore } from './channel-server'
 import { createContextChannel } from './context-channel'
 
@@ -57,7 +56,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   const contextObservability = useContextObservabilityStore()
   const characterOrchestratorStore = useCharacterOrchestratorStore()
   const consciousnessStore = useConsciousnessStore()
-  const providersStore = useProviderStore()
   const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
   const streamingControl = useLlmStreamingControlStore()
 
@@ -685,10 +683,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         if (activeProvider.value && activeModel.value) {
           let chatProvider: ChatProvider
           try {
-            chatProvider = await providersStore.getProviderInstance<ChatProvider>(activeProvider.value)
+            chatProvider = await consciousnessStore.getChatProviderInstance(activeProvider.value)
           }
           catch (err) {
-            console.error('[context-bridge] getProviderInstance failed for provider:', activeProvider.value, err)
+            console.error('[context-bridge] getChatProviderInstance failed for provider:', activeProvider.value, err)
             return
           }
 
