@@ -2,8 +2,14 @@
 import type { Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 
 import { BasicButton } from '@proj-airi/ui'
-import { computed, reactive, shallowRef } from 'vue'
+import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+const props = defineProps<{
+  pose: Live2DMotionControlPose
+  active: boolean
+  disabled?: boolean
+}>()
 
 const emit = defineEmits<{
   move: [pose: Live2DMotionControlPose]
@@ -11,8 +17,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const position = reactive<Live2DMotionControlPose>({ x: 0, y: 0 })
-const active = shallowRef(false)
+const inputActive = shallowRef(false)
 const pressedKeys = new Set<string>()
 const movementKeys = new Set([
   'ArrowDown',
@@ -26,34 +31,32 @@ const movementKeys = new Set([
 ])
 
 const knobStyle = computed(() => ({
-  transform: `translate(calc(-50% + ${position.x * 5.75}rem), calc(-50% - ${position.y * 5.75}rem))`,
+  transform: `translate(calc(-50% + ${props.pose.x * 5.75}rem), calc(-50% - ${props.pose.y * 5.75}rem))`,
 }))
 
 const parameterGroups = computed(() => [
   {
     label: t('tamagotchi.settings.devtools.pages.live2d-motion.groups.eyes'),
-    x: position.x,
-    y: position.y,
+    x: props.pose.x,
+    y: props.pose.y,
   },
   {
     label: t('tamagotchi.settings.devtools.pages.live2d-motion.groups.head'),
-    x: position.x * 30,
-    y: position.y * 30,
+    x: props.pose.x * 30,
+    y: props.pose.y * 30,
   },
   {
     label: t('tamagotchi.settings.devtools.pages.live2d-motion.groups.body'),
-    x: position.x * 10,
-    y: position.y * 10,
+    x: props.pose.x * 10,
+    y: props.pose.y * 10,
   },
 ])
 
 function setPosition(pose: Live2DMotionControlPose) {
   const magnitude = Math.hypot(pose.x, pose.y)
   const scale = magnitude > 1 ? 1 / magnitude : 1
-  position.x = pose.x * scale
-  position.y = pose.y * scale
-  active.value = true
-  emit('move', { x: position.x, y: position.y })
+  inputActive.value = true
+  emit('move', { x: pose.x * scale, y: pose.y * scale })
 }
 
 function setPositionFromPointer(event: PointerEvent) {
@@ -67,13 +70,11 @@ function setPositionFromPointer(event: PointerEvent) {
 }
 
 function release() {
-  if (!active.value)
+  if (!inputActive.value)
     return
 
   pressedKeys.clear()
-  position.x = 0
-  position.y = 0
-  active.value = false
+  inputActive.value = false
   emit('release')
 }
 
@@ -114,20 +115,22 @@ function keyboardPosition(): Live2DMotionControlPose {
 }
 
 function handleKeyDown(event: KeyboardEvent) {
-  if (!movementKeys.has(event.key))
+  const key = event.key.length === 1 ? event.key.toLowerCase() : event.key
+  if (!movementKeys.has(key))
     return
 
   event.preventDefault()
-  pressedKeys.add(event.key)
+  pressedKeys.add(key)
   setPosition(keyboardPosition())
 }
 
 function handleKeyUp(event: KeyboardEvent) {
-  if (!movementKeys.has(event.key))
+  const key = event.key.length === 1 ? event.key.toLowerCase() : event.key
+  if (!movementKeys.has(key))
     return
 
   event.preventDefault()
-  pressedKeys.delete(event.key)
+  pressedKeys.delete(key)
   if (pressedKeys.size === 0) {
     release()
     return
@@ -144,7 +147,8 @@ function handleKeyUp(event: KeyboardEvent) {
         type="button"
         size="unset"
         :aria-label="t('tamagotchi.settings.devtools.pages.live2d-motion.joystick-label')"
-        :aria-pressed="active"
+        :aria-pressed="props.active"
+        :disabled="props.disabled"
         :class="[
           'relative size-64 touch-none select-none overflow-hidden rounded-full',
           'border border-neutral-300/80 dark:border-neutral-700/80',
@@ -186,13 +190,13 @@ function handleKeyUp(event: KeyboardEvent) {
       <div
         :class="[
           'flex items-center gap-2 rounded-xl px-3 py-2 text-sm',
-          active
+          props.active
             ? 'bg-primary-100 text-primary-800 dark:bg-primary-900/40 dark:text-primary-200'
             : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-900/60 dark:text-neutral-300',
         ]"
       >
-        <span :class="[active ? 'i-solar:gamepad-bold-duotone' : 'i-solar:pause-circle-bold-duotone', 'size-5']" />
-        {{ active
+        <span :class="[props.active ? 'i-solar:gamepad-bold-duotone' : 'i-solar:pause-circle-bold-duotone', 'size-5']" />
+        {{ props.active
           ? t('tamagotchi.settings.devtools.pages.live2d-motion.status.active')
           : t('tamagotchi.settings.devtools.pages.live2d-motion.status.released') }}
       </div>

@@ -68,6 +68,20 @@ devtools:
       status:
         active: Manual control is active
         released: Normal model motion is active
+      recording:
+        actions:
+          record: Record
+          stop-recording: Stop recording
+          play: Play
+          stop-playback: Stop playback
+          export: Export
+          import: Import
+        status:
+          empty: No motion recording
+          recording: Recording motion
+          playing: Playing motion
+          ready: '{count} samples · {duration}'
+        import-error: This file is not a valid AIRI Live2D motion recording.
     performance-visualizer:
       title: Performance Visualizer
       description: Inspect live performance metrics and runtime diagnostics

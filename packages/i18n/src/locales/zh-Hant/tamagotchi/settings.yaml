@@ -64,6 +64,20 @@ devtools:
       status:
         active: 手動控制已啟用
         released: 模型一般動作已啟用
+      recording:
+        actions:
+          record: 錄製
+          stop-recording: 停止錄製
+          play: 播放
+          stop-playback: 停止播放
+          export: 匯出
+          import: 匯入
+        status:
+          empty: 尚無動作錄製
+          recording: 正在錄製動作
+          playing: 正在播放動作
+          ready: '{count} 個取樣 · {duration}'
+        import-error: 此檔案不是有效的 AIRI Live2D 動作錄製檔。
     performance-visualizer:
       title: 效能顯示器
       description: 切換 FPS/長任務/記憶體覆蓋
