@@ -450,11 +450,20 @@ function bindManagedVrmInstanceRenderLoop() {
     const lookAtMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.lookAt?.update?.(delta)
     })
+    const isEmoteActive = vrmEmote.value?.isEmoteActive?.value ?? false
+    const isLipSyncActive = vrmLipSync.isLipSyncActive?.value ?? false
+
     const blinkAndSaccadeMs = measureFrameStep(tracingEnabled, () => {
-      blink.update(activeVrm, delta)
+      // Exclude automatic blinking when an emotional expression is actively being applied
+      if (!isEmoteActive) {
+        blink.update(activeVrm, delta)
+      }
     })
     const emoteMs = measureFrameStep(tracingEnabled, () => {
-      vrmEmote.value?.update(delta)
+      // Suppress emotional expression updates if lip-sync is actively driving the mouth/face
+      if (!isLipSyncActive) {
+        vrmEmote.value?.update(delta)
+      }
     })
     const lipSyncMs = measureFrameStep(tracingEnabled, () => {
       vrmLipSync.update(activeVrm, delta)

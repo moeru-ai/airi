@@ -1,6 +1,6 @@
 import type { VRMCore } from '@pixiv/three-vrm-core'
 
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 interface EmotionState {
   expression?: {
@@ -150,28 +150,40 @@ export function useVRMEmote(vrm: VRMCore) {
     }, ms) as unknown as number
   }
 
+  const isEmoteActive = computed(() => {
+    return currentEmotion.value !== null && currentEmotion.value !== 'neutral'
+  })
+
   const update = (deltaTime: number) => {
-    if (!isTransitioning.value || !currentEmotion.value)
+    if (!currentEmotion.value)
       return
 
-    const emotionState = emotionStates.get(currentEmotion.value)!
-    const blendDuration = emotionState.blendDuration || 0.3
+    if (isTransitioning.value) {
+      const emotionState = emotionStates.get(currentEmotion.value)!
+      const blendDuration = emotionState.blendDuration || 0.3
 
-    transitionProgress.value += deltaTime / blendDuration
-    if (transitionProgress.value >= 1.0) {
-      transitionProgress.value = 1.0
-      isTransitioning.value = false
+      transitionProgress.value += deltaTime / blendDuration
+      if (transitionProgress.value >= 1.0) {
+        transitionProgress.value = 1.0
+        isTransitioning.value = false
+      }
+
+      // Update all expressions with lerp
+      for (const [exprName, targetValue] of targetExpressionValues.value) {
+        const startValue = currentExpressionValues.value.get(exprName) || 0
+        const currentValue = lerp(
+          startValue,
+          targetValue,
+          easeInOutCubic(transitionProgress.value),
+        )
+        vrm.expressionManager?.setValue(exprName, currentValue)
+      }
     }
-
-    // Update all expressions
-    for (const [exprName, targetValue] of targetExpressionValues.value) {
-      const startValue = currentExpressionValues.value.get(exprName) || 0
-      const currentValue = lerp(
-        startValue,
-        targetValue,
-        easeInOutCubic(transitionProgress.value),
-      )
-      vrm.expressionManager?.setValue(exprName, currentValue)
+    else {
+      // Hold target expression values across render frames so other updates don't clear them
+      for (const [exprName, targetValue] of targetExpressionValues.value) {
+        vrm.expressionManager?.setValue(exprName, targetValue)
+      }
     }
   }
 
@@ -191,6 +203,7 @@ export function useVRMEmote(vrm: VRMCore) {
   return {
     currentEmotion,
     isTransitioning,
+    isEmoteActive,
     setEmotion,
     setEmotionWithResetAfter,
     update,

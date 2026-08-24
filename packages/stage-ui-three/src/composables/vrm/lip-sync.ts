@@ -3,7 +3,7 @@ import type { Ref } from 'vue'
 import type { Profile } from 'wlipsync'
 
 import { useAsyncState } from '@vueuse/core'
-import { onUnmounted, watch } from 'vue'
+import { onUnmounted, ref, watch } from 'vue'
 import { createWLipSyncNode } from 'wlipsync'
 
 import profile from '../../assets/lip-sync-profile.json' with { type: 'json' }
@@ -11,6 +11,7 @@ import profile from '../../assets/lip-sync-profile.json' with { type: 'json' }
 import { useAudioContext } from '../../../../stage-ui/src/stores/audio'
 
 export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, AudioBufferSourceNode | undefined>) {
+  const isLipSyncActive = ref(false)
   const { audioContext } = useAudioContext()
   const { state: lipSyncNode, isReady } = useAsyncState(createWLipSyncNode(audioContext, profile as Profile), undefined)
 
@@ -121,7 +122,13 @@ export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, 
       const weight = (smoothState[key] <= 0.01 ? 0 : smoothState[key]) * 0.7
       vrm.expressionManager.setValue(BLENDSHAPE_MAP[key], weight)
     }
+
+    // Update silent flag for external components to check if lip sync is currently active
+    isLipSyncActive.value = !silent
   }
 
-  return { update }
+  return {
+    update,
+    isLipSyncActive,
+  }
 }
