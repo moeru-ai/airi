@@ -68,6 +68,14 @@ export interface ProviderExtraMethods<TConfig> {
    * narrow the result. Providers with a single catalogue ignore it.
    */
   listVoices?: (config: TConfig, provider: ProviderInstance, model?: string) => Promise<VoiceInfo[]>
+  /**
+   * Creates a provider-managed voice from a natural-language description.
+   *
+   * Voice-design providers return the id that can subsequently be selected in
+   * the regular speech request. The provider owns the wire format and response
+   * validation; callers only provide the prompt and requested voice id.
+   */
+  designVoice?: (config: TConfig, provider: ProviderInstance, input: VoiceDesignInput) => Promise<VoiceDesignResult>
   loadModel?: (config: TConfig, provider: ProviderInstance, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
 }
 
@@ -143,6 +151,18 @@ export interface VoiceInfo {
     code: string
     title: string
   }[]
+}
+
+export interface VoiceDesignInput {
+  prompt: string
+  /** Preferred camelCase form used by AIRI callers. */
+  voiceId?: string
+  /** Wire-compatible alias for callers that mirror MiniMax's JSON field. */
+  voice_id?: string
+}
+
+export interface VoiceDesignResult {
+  voiceId: string
 }
 
 // eslint-disable-next-line ts/no-unnecessary-type-constraint

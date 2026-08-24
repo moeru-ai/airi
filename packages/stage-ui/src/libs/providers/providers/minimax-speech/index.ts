@@ -1,3 +1,5 @@
+import type { ProviderInstance, VoiceDesignInput, VoiceDesignResult } from '../../types'
+
 import { z } from 'zod'
 
 import { defineProvider } from '../registry'
@@ -9,30 +11,82 @@ const minimaxSpeechConfigSchema = z.object({
 
 type MinimaxSpeechConfig = z.input<typeof minimaxSpeechConfigSchema>
 
+interface MiniMaxVoiceDesignResponse {
+  voice_id?: unknown
+  base_resp?: {
+    status_code?: unknown
+    status_msg?: unknown
+  }
+}
+
+function normalizeApiBase(baseUrl: string | undefined) {
+  const normalized = (baseUrl || 'https://api.minimax.io').replace(/\/+$/, '')
+  return normalized.endsWith('/v1') ? normalized : `${normalized}/v1`
+}
+
+async function designMinimaxVoice(
+  config: MinimaxSpeechConfig,
+  _provider: ProviderInstance,
+  input: VoiceDesignInput,
+): Promise<VoiceDesignResult> {
+  const apiKey = config.apiKey?.trim() ?? ''
+  if (!apiKey)
+    throw new Error('MiniMax voice design requires an API key.')
+
+  const prompt = input.prompt.trim()
+  const voiceId = (input.voiceId ?? input.voice_id ?? '').trim()
+  if (!prompt)
+    throw new Error('MiniMax voice design requires a prompt.')
+  if (!voiceId)
+    throw new Error('MiniMax voice design requires a voice id.')
+
+  const response = await fetch(`${normalizeApiBase(config.baseUrl)}/voice_design`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ prompt, voice_id: voiceId }),
+  })
+
+  const payload = await response.json().catch(() => ({})) as MiniMaxVoiceDesignResponse
+  const statusCode = payload.base_resp?.status_code
+  if (!response.ok || (typeof statusCode === 'number' && statusCode !== 0)) {
+    const statusMessage = typeof payload.base_resp?.status_msg === 'string' ? `: ${payload.base_resp.status_msg}` : ''
+    throw new Error(`MiniMax voice design request failed: ${response.status} ${response.statusText}${statusMessage}`)
+  }
+
+  const createdVoiceId = typeof payload.voice_id === 'string' ? payload.voice_id.trim() : ''
+  if (!createdVoiceId)
+    throw new Error('MiniMax voice design response missing voice_id.')
+
+  return { voiceId: createdVoiceId }
+}
+
 export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig>({
   id: 'minimax-speech',
   name: 'MiniMax Speech',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.minimax-speech.title'),
   description: 'minimax.io',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.minimax-speech.description'),
-  tasks: ['text-to-speech'],
+  tasks: ['text-to-speech', 'voice-design'],
   icon: 'i-lobe-icons:minimax',
   iconColor: 'i-lobe-icons:minimax-color',
   createProviderConfig: () => minimaxSpeechConfigSchema,
   createProvider(config) {
-    const apiKey = config.apiKey.trim()
-    const baseUrl = (config.baseUrl || 'https://api.minimax.io').replace(/\/$/, '')
+    const apiKey = config.apiKey?.trim() ?? ''
+    const apiBase = normalizeApiBase(config.baseUrl)
 
     return {
       speech: () => ({
-        baseURL: `${baseUrl}/v1/`,
+        baseURL: `${apiBase}/`,
         model: 'speech-2.8-hd',
         fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
           if (!init?.body || typeof init.body !== 'string')
             throw new Error('Invalid request body')
 
           const body = JSON.parse(init.body) as { input?: string, voice?: string, model?: string }
-          const response = await fetch(`${baseUrl}/v1/t2a_v2`, {
+          const response = await fetch(`${apiBase}/t2a_v2`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -133,9 +187,11 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig>({
   },
   extraMethods: {
     listModels: async () => [
-      { id: 'speech-2.8-hd', name: 'Speech 2.8 HD', provider: 'minimax-speech', description: 'High-definition TTS model with natural prosody', deprecated: false },
-      { id: 'speech-2.8-turbo', name: 'Speech 2.8 Turbo', provider: 'minimax-speech', description: 'Fast TTS model for low-latency scenarios', deprecated: false },
+      { id: 'speech-2.8-hd', name: 'Speech 2.8 HD', provider: 'minimax-speech', description: 'High-definition TTS model with natural prosody', deprecated: false, capabilities: ['text-to-speech'] },
+      { id: 'speech-2.8-turbo', name: 'Speech 2.8 Turbo', provider: 'minimax-speech', description: 'Fast TTS model for low-latency scenarios', deprecated: false, capabilities: ['text-to-speech'] },
+      { id: 'voice-design', name: 'MiniMax Voice Design', provider: 'minimax-speech', description: 'Design a voice from a natural-language description', deprecated: false, capabilities: ['voice-design'] },
     ],
+    designVoice: designMinimaxVoice,
     listVoices: async () => [
       { id: 'English_Graceful_Lady', name: 'Graceful Lady', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }] },
       { id: 'English_Insightful_Speaker', name: 'Insightful Speaker', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'en', title: 'English' }] },
