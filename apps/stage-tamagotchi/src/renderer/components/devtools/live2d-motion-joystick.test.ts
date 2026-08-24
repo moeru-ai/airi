@@ -25,12 +25,16 @@ describe('live2DMotionJoystick', () => {
     vi.useRealTimers()
   })
 
-  function mountJoystick(move: (pose: Live2DMotionControlPose) => void, release: () => void) {
+  function mountJoystick(
+    move: (pose: Live2DMotionControlPose) => void,
+    release: () => void,
+    pose: Live2DMotionControlPose = neutralPose,
+  ) {
     const host = document.createElement('div')
     document.body.appendChild(host)
     const app = createApp({
       render: () => h(Live2DMotionJoystick, {
-        pose: neutralPose,
+        pose,
         active: false,
         onMove: move,
         onRelease: release,
@@ -83,6 +87,45 @@ describe('live2DMotionJoystick', () => {
     vi.advanceTimersByTime(300)
 
     expect(move.mock.lastCall?.[0]).toEqual({ x: 0, y: 0, headZ: 1, bodyZ: 1 })
+    mounted.app.unmount()
+    mounted.host.remove()
+  })
+
+  it('preserves the mouse position while tilt keys move', () => {
+    vi.useFakeTimers()
+    const move = vi.fn<(pose: Live2DMotionControlPose) => void>()
+    const release = vi.fn()
+    const mousePose: Live2DMotionControlPose = {
+      x: 0.6,
+      y: -0.4,
+      headZ: 0,
+      bodyZ: 0,
+    }
+    const mounted = mountJoystick(move, release, mousePose)
+
+    // ROOT CAUSE:
+    //
+    // Tilt-only keyboard input previously built a full pose with zero X/Y.
+    // Each smoothing frame moved the active mouse pose toward the center.
+    //
+    // We fixed this by changing only axes that the keyboard controls.
+    mounted.button.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }))
+    mounted.button.dispatchEvent(new KeyboardEvent('keydown', { key: 'q', bubbles: true }))
+    vi.advanceTimersByTime(300)
+
+    expect(move).toHaveBeenCalled()
+    for (const [pose] of move.mock.calls) {
+      expect(pose.x).toBe(mousePose.x)
+      expect(pose.y).toBe(mousePose.y)
+    }
+
+    mounted.button.dispatchEvent(new KeyboardEvent('keyup', { key: 'a', bubbles: true }))
+    mounted.button.dispatchEvent(new KeyboardEvent('keyup', { key: 'q', bubbles: true }))
+    vi.advanceTimersByTime(300)
+
+    expect(move.mock.lastCall?.[0]).toEqual(mousePose)
+    expect(release).not.toHaveBeenCalled()
+
     mounted.app.unmount()
     mounted.host.remove()
   })

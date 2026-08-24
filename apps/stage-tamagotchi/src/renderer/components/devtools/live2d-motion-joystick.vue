@@ -19,23 +19,31 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const inputActive = shallowRef(false)
 const pressedKeys = new Set<string>()
-const movementKeys = new Set([
+const positionKeys = new Set([
   'ArrowDown',
   'ArrowLeft',
   'ArrowRight',
   'ArrowUp',
-  'a',
-  'd',
-  'e',
-  'q',
   's',
   'w',
 ])
+const headRollKeys = new Set([
+  'e',
+  'q',
+])
+const bodyRollKeys = new Set([
+  'a',
+  'd',
+])
+const movementKeys = new Set([...positionKeys, ...headRollKeys, ...bodyRollKeys])
 const neutralPose: Live2DMotionControlPose = Object.freeze({ x: 0, y: 0, headZ: 0, bodyZ: 0 })
 
 let keyboardFrame: number | undefined
 let keyboardFrameTime: number | undefined
 let keyboardOwnsInput = false
+let keyboardOwnsPosition = false
+let keyboardOwnsHeadRoll = false
+let keyboardOwnsBodyRoll = false
 let keyboardPose = neutralPose
 
 const knobStyle = computed(() => ({
@@ -99,6 +107,9 @@ function releaseImmediately() {
   cancelKeyboardFrame()
   pressedKeys.clear()
   keyboardOwnsInput = false
+  keyboardOwnsPosition = false
+  keyboardOwnsHeadRoll = false
+  keyboardOwnsBodyRoll = false
   keyboardPose = neutralPose
   inputActive.value = false
   emit('release')
@@ -113,6 +124,9 @@ function handlePointerDown(event: PointerEvent) {
   cancelKeyboardFrame()
   pressedKeys.clear()
   keyboardOwnsInput = false
+  keyboardOwnsPosition = false
+  keyboardOwnsHeadRoll = false
+  keyboardOwnsBodyRoll = false
   setPositionFromPointer(event)
 }
 
@@ -156,11 +170,17 @@ function moveAxisTowards(current: number, target: number, maximumStep: number): 
   return current + Math.sign(target - current) * maximumStep
 }
 
-function posesMatch(first: Live2DMotionControlPose, second: Live2DMotionControlPose): boolean {
-  return first.x === second.x
-    && first.y === second.y
-    && first.headZ === second.headZ
-    && first.bodyZ === second.bodyZ
+function keyboardAxesMatchTarget(pose: Live2DMotionControlPose, target: Live2DMotionControlPose): boolean {
+  return (!keyboardOwnsPosition || (pose.x === target.x && pose.y === target.y))
+    && (!keyboardOwnsHeadRoll || pose.headZ === target.headZ)
+    && (!keyboardOwnsBodyRoll || pose.bodyZ === target.bodyZ)
+}
+
+function poseIsNeutral(pose: Live2DMotionControlPose): boolean {
+  return pose.x === 0
+    && pose.y === 0
+    && pose.headZ === 0
+    && pose.bodyZ === 0
 }
 
 function updateKeyboardPose(timestamp: number) {
@@ -174,24 +194,34 @@ function updateKeyboardPose(timestamp: number) {
   const maximumStep = elapsedSeconds * 4
   const target = keyboardPosition()
   keyboardPose = {
-    x: moveAxisTowards(keyboardPose.x, target.x, maximumStep),
-    y: moveAxisTowards(keyboardPose.y, target.y, maximumStep),
-    headZ: moveAxisTowards(keyboardPose.headZ, target.headZ, maximumStep),
-    bodyZ: moveAxisTowards(keyboardPose.bodyZ, target.bodyZ, maximumStep),
+    x: keyboardOwnsPosition ? moveAxisTowards(keyboardPose.x, target.x, maximumStep) : props.pose.x,
+    y: keyboardOwnsPosition ? moveAxisTowards(keyboardPose.y, target.y, maximumStep) : props.pose.y,
+    headZ: keyboardOwnsHeadRoll ? moveAxisTowards(keyboardPose.headZ, target.headZ, maximumStep) : props.pose.headZ,
+    bodyZ: keyboardOwnsBodyRoll ? moveAxisTowards(keyboardPose.bodyZ, target.bodyZ, maximumStep) : props.pose.bodyZ,
   }
   inputActive.value = true
   emit('move', keyboardPose)
 
-  if (!posesMatch(keyboardPose, target)) {
+  if (!keyboardAxesMatchTarget(keyboardPose, target)) {
     keyboardFrame = requestAnimationFrame(updateKeyboardPose)
     return
   }
 
   keyboardFrameTime = undefined
+  if (![...pressedKeys].some(key => positionKeys.has(key)))
+    keyboardOwnsPosition = false
+  if (![...pressedKeys].some(key => headRollKeys.has(key)))
+    keyboardOwnsHeadRoll = false
+  if (![...pressedKeys].some(key => bodyRollKeys.has(key)))
+    keyboardOwnsBodyRoll = false
+
   if (pressedKeys.size > 0)
     return
 
   keyboardOwnsInput = false
+  if (!poseIsNeutral(keyboardPose))
+    return
+
   keyboardPose = neutralPose
   inputActive.value = false
   emit('release')
@@ -215,6 +245,12 @@ function handleKeyDown(event: KeyboardEvent) {
     keyboardPose = props.pose
 
   keyboardOwnsInput = true
+  if (positionKeys.has(key))
+    keyboardOwnsPosition = true
+  if (headRollKeys.has(key))
+    keyboardOwnsHeadRoll = true
+  if (bodyRollKeys.has(key))
+    keyboardOwnsBodyRoll = true
   pressedKeys.add(key)
   scheduleKeyboardUpdate()
 }
@@ -246,6 +282,9 @@ watch(() => props.disabled, (disabled) => {
   cancelKeyboardFrame()
   pressedKeys.clear()
   keyboardOwnsInput = false
+  keyboardOwnsPosition = false
+  keyboardOwnsHeadRoll = false
+  keyboardOwnsBodyRoll = false
   keyboardPose = neutralPose
   inputActive.value = false
 })
