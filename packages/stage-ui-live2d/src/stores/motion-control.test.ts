@@ -11,7 +11,6 @@ describe('getLive2DMotionControlModelOffset', () => {
     // model because they only publish manual motion-control events.
     expect(getLive2DMotionControlModelOffset({
       active: true,
-      ownerId: 'devtool',
       pose: { x: 1, y: 1, headZ: 0, bodyZ: 0 },
     })).toEqual({ x: 20, y: -40 })
   })
@@ -19,7 +18,6 @@ describe('getLive2DMotionControlModelOffset', () => {
   it('does not offset the model after joystick release', () => {
     expect(getLive2DMotionControlModelOffset({
       active: false,
-      ownerId: null,
       pose: { x: 1, y: 1, headZ: 0, bodyZ: 0 },
     })).toEqual({ x: 0, y: 0 })
   })

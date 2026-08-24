@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import type { Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
+import type { Live2DMotionControlDynamics, Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 
-import { BasicButton } from '@proj-airi/ui'
-import { computed, onUnmounted, shallowRef, watch } from 'vue'
+import { BasicButton, FieldRange } from '@proj-airi/ui'
+import { computed, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   pose: Live2DMotionControlPose
+  dynamics: Live2DMotionControlDynamics
   active: boolean
   disabled?: boolean
 }>()
@@ -14,6 +15,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   move: [pose: Live2DMotionControlPose]
   release: []
+  updateDynamics: [dynamics: Live2DMotionControlDynamics]
 }>()
 
 const { t } = useI18n()
@@ -36,19 +38,25 @@ const bodyRollKeys = new Set([
   'd',
 ])
 const movementKeys = new Set([...positionKeys, ...headRollKeys, ...bodyRollKeys])
-const neutralPose: Live2DMotionControlPose = Object.freeze({ x: 0, y: 0, headZ: 0, bodyZ: 0 })
 
-let keyboardFrame: number | undefined
-let keyboardFrameTime: number | undefined
 let keyboardOwnsInput = false
 let keyboardOwnsPosition = false
 let keyboardOwnsHeadRoll = false
 let keyboardOwnsBodyRoll = false
-let keyboardPose = neutralPose
 
 const knobStyle = computed(() => ({
   transform: `translate(calc(-50% + ${props.pose.x * 5.75}rem), calc(-50% - ${props.pose.y * 5.75}rem))`,
 }))
+
+const follow = computed({
+  get: () => props.dynamics.follow,
+  set: value => emit('updateDynamics', { ...props.dynamics, follow: value }),
+})
+const inertia = computed({
+  get: () => props.dynamics.inertia,
+  set: value => emit('updateDynamics', { ...props.dynamics, inertia: value }),
+})
+const formatPercent = (value: number) => `${Math.round(value * 100)}%`
 
 const parameterGroups = computed(() => [
   {
@@ -92,25 +100,15 @@ function setPositionFromPointer(event: PointerEvent) {
   )
 }
 
-function cancelKeyboardFrame() {
-  if (keyboardFrame !== undefined)
-    cancelAnimationFrame(keyboardFrame)
-
-  keyboardFrame = undefined
-  keyboardFrameTime = undefined
-}
-
 function releaseImmediately() {
   if (!inputActive.value)
     return
 
-  cancelKeyboardFrame()
   pressedKeys.clear()
   keyboardOwnsInput = false
   keyboardOwnsPosition = false
   keyboardOwnsHeadRoll = false
   keyboardOwnsBodyRoll = false
-  keyboardPose = neutralPose
   inputActive.value = false
   emit('release')
 }
@@ -121,7 +119,6 @@ function handlePointerDown(event: PointerEvent) {
 
   const target = event.currentTarget as HTMLElement
   target.setPointerCapture(event.pointerId)
-  cancelKeyboardFrame()
   pressedKeys.clear()
   keyboardOwnsInput = false
   keyboardOwnsPosition = false
@@ -163,19 +160,6 @@ function keyboardPosition(): Live2DMotionControlPose {
   }
 }
 
-function moveAxisTowards(current: number, target: number, maximumStep: number): number {
-  if (Math.abs(target - current) <= maximumStep)
-    return target
-
-  return current + Math.sign(target - current) * maximumStep
-}
-
-function keyboardAxesMatchTarget(pose: Live2DMotionControlPose, target: Live2DMotionControlPose): boolean {
-  return (!keyboardOwnsPosition || (pose.x === target.x && pose.y === target.y))
-    && (!keyboardOwnsHeadRoll || pose.headZ === target.headZ)
-    && (!keyboardOwnsBodyRoll || pose.bodyZ === target.bodyZ)
-}
-
 function poseIsNeutral(pose: Live2DMotionControlPose): boolean {
   return pose.x === 0
     && pose.y === 0
@@ -183,31 +167,17 @@ function poseIsNeutral(pose: Live2DMotionControlPose): boolean {
     && pose.bodyZ === 0
 }
 
-function updateKeyboardPose(timestamp: number) {
-  keyboardFrame = undefined
-  const elapsedSeconds = keyboardFrameTime === undefined
-    ? 1 / 60
-    : Math.min((timestamp - keyboardFrameTime) / 1000, 0.1)
-  keyboardFrameTime = timestamp
-
-  // Four normalized units per second gives each key a 250 ms full-range ramp.
-  const maximumStep = elapsedSeconds * 4
+function emitKeyboardTarget() {
   const target = keyboardPosition()
-  keyboardPose = {
-    x: keyboardOwnsPosition ? moveAxisTowards(keyboardPose.x, target.x, maximumStep) : props.pose.x,
-    y: keyboardOwnsPosition ? moveAxisTowards(keyboardPose.y, target.y, maximumStep) : props.pose.y,
-    headZ: keyboardOwnsHeadRoll ? moveAxisTowards(keyboardPose.headZ, target.headZ, maximumStep) : props.pose.headZ,
-    bodyZ: keyboardOwnsBodyRoll ? moveAxisTowards(keyboardPose.bodyZ, target.bodyZ, maximumStep) : props.pose.bodyZ,
+  const nextPose = {
+    x: keyboardOwnsPosition ? target.x : props.pose.x,
+    y: keyboardOwnsPosition ? target.y : props.pose.y,
+    headZ: keyboardOwnsHeadRoll ? target.headZ : props.pose.headZ,
+    bodyZ: keyboardOwnsBodyRoll ? target.bodyZ : props.pose.bodyZ,
   }
   inputActive.value = true
-  emit('move', keyboardPose)
+  emit('move', nextPose)
 
-  if (!keyboardAxesMatchTarget(keyboardPose, target)) {
-    keyboardFrame = requestAnimationFrame(updateKeyboardPose)
-    return
-  }
-
-  keyboardFrameTime = undefined
   if (![...pressedKeys].some(key => positionKeys.has(key)))
     keyboardOwnsPosition = false
   if (![...pressedKeys].some(key => headRollKeys.has(key)))
@@ -219,17 +189,11 @@ function updateKeyboardPose(timestamp: number) {
     return
 
   keyboardOwnsInput = false
-  if (!poseIsNeutral(keyboardPose))
+  if (!poseIsNeutral(nextPose))
     return
 
-  keyboardPose = neutralPose
   inputActive.value = false
   emit('release')
-}
-
-function scheduleKeyboardUpdate() {
-  if (keyboardFrame === undefined)
-    keyboardFrame = requestAnimationFrame(updateKeyboardPose)
 }
 
 function handleKeyDown(event: KeyboardEvent) {
@@ -241,9 +205,6 @@ function handleKeyDown(event: KeyboardEvent) {
   if (pressedKeys.has(key))
     return
 
-  if (!keyboardOwnsInput)
-    keyboardPose = props.pose
-
   keyboardOwnsInput = true
   if (positionKeys.has(key))
     keyboardOwnsPosition = true
@@ -252,7 +213,7 @@ function handleKeyDown(event: KeyboardEvent) {
   if (bodyRollKeys.has(key))
     keyboardOwnsBodyRoll = true
   pressedKeys.add(key)
-  scheduleKeyboardUpdate()
+  emitKeyboardTarget()
 }
 
 function handleKeyUp(event: KeyboardEvent) {
@@ -261,8 +222,9 @@ function handleKeyUp(event: KeyboardEvent) {
     return
 
   event.preventDefault()
-  pressedKeys.delete(key)
-  scheduleKeyboardUpdate()
+  if (!pressedKeys.delete(key))
+    return
+  emitKeyboardTarget()
 }
 
 function handleBlur() {
@@ -272,24 +234,20 @@ function handleBlur() {
   }
 
   pressedKeys.clear()
-  scheduleKeyboardUpdate()
+  emitKeyboardTarget()
 }
 
 watch(() => props.disabled, (disabled) => {
   if (!disabled)
     return
 
-  cancelKeyboardFrame()
   pressedKeys.clear()
   keyboardOwnsInput = false
   keyboardOwnsPosition = false
   keyboardOwnsHeadRoll = false
   keyboardOwnsBodyRoll = false
-  keyboardPose = neutralPose
   inputActive.value = false
 })
-
-onUnmounted(cancelKeyboardFrame)
 </script>
 
 <template>
@@ -351,6 +309,31 @@ onUnmounted(cancelKeyboardFrame)
         {{ props.active
           ? t('tamagotchi.settings.devtools.pages.live2d-motion.status.active')
           : t('tamagotchi.settings.devtools.pages.live2d-motion.status.released') }}
+      </div>
+
+      <div :class="['grid gap-4 rounded-2xl border border-neutral-200/80 p-4 dark:border-neutral-800/80', 'bg-white/60 dark:bg-neutral-950/40', 'sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2']">
+        <FieldRange
+          v-model="follow"
+          :label="t('tamagotchi.settings.devtools.pages.live2d-motion.spring.follow.label')"
+          :description="t('tamagotchi.settings.devtools.pages.live2d-motion.spring.follow.description')"
+          :min="0"
+          :max="2"
+          :step="0.01"
+          :default-value="0.6"
+          :format-value="formatPercent"
+          as="div"
+        />
+        <FieldRange
+          v-model="inertia"
+          :label="t('tamagotchi.settings.devtools.pages.live2d-motion.spring.inertia.label')"
+          :description="t('tamagotchi.settings.devtools.pages.live2d-motion.spring.inertia.description')"
+          :min="0"
+          :max="1"
+          :step="0.01"
+          :default-value="0.35"
+          :format-value="formatPercent"
+          as="div"
+        />
       </div>
 
       <div :class="['grid gap-3', 'sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3']">

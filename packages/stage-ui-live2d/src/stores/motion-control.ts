@@ -14,11 +14,20 @@ export interface Live2DMotionControlPose {
   bodyZ: number
 }
 
-/** The active manual control owner and its current normalized pose. */
+/** Spring settings for manual Live2D motion. */
+export interface Live2DMotionControlDynamics {
+  /** Target-following strength from 0 (soft) to 2 (very fast). @default 0.6 */
+  follow: number
+  /** Preserved momentum from 0 (settled) to 1 (bouncy). @default 0.35 */
+  inertia: number
+}
+
+/** The active manual control owner, target pose, and spring settings. */
 export interface Live2DMotionControlState {
   active: boolean
   ownerId: string | null
   pose: Live2DMotionControlPose
+  dynamics: Live2DMotionControlDynamics
 }
 
 type Live2DMotionControlEvent
@@ -26,6 +35,7 @@ type Live2DMotionControlEvent
     type: 'live2d-motion-control-set'
     ownerId: string
     pose: Live2DMotionControlPose
+    dynamics: Live2DMotionControlDynamics
   }
   | {
     type: 'live2d-motion-control-release'
@@ -34,9 +44,19 @@ type Live2DMotionControlEvent
 
 const neutralPose: Live2DMotionControlPose = Object.freeze({ x: 0, y: 0, headZ: 0, bodyZ: 0 })
 const horizontalModelOffset = 20
+/** Default spring settings for the Live2D motion devtool. */
+export const defaultLive2DMotionControlDynamics: Live2DMotionControlDynamics = Object.freeze({ follow: 0.6, inertia: 0.35 })
 
 function clampAxis(value: number): number {
   return Math.min(1, Math.max(-1, value))
+}
+
+function clampUnit(value: number): number {
+  return Math.min(1, Math.max(0, value))
+}
+
+function clampFollow(value: number): number {
+  return Math.min(2, Math.max(0, value))
 }
 
 function normalizePose(pose: Live2DMotionControlPose): Live2DMotionControlPose {
@@ -48,6 +68,13 @@ function normalizePose(pose: Live2DMotionControlPose): Live2DMotionControlPose {
   }
 }
 
+function normalizeDynamics(dynamics: Live2DMotionControlDynamics): Live2DMotionControlDynamics {
+  return {
+    follow: clampFollow(dynamics.follow),
+    inertia: clampUnit(dynamics.inertia),
+  }
+}
+
 /**
  * Maps active joystick motion to the Pixi model position.
  *
@@ -56,12 +83,11 @@ function normalizePose(pose: Live2DMotionControlPose): Live2DMotionControlPose {
  * @example
  * getLive2DMotionControlModelOffset({
  *   active: true,
- *   ownerId: 'devtool',
  *   pose: { x: 1, y: 1, headZ: 0, bodyZ: 0 },
  * })
  * // => { x: 20, y: -40 }
  */
-export function getLive2DMotionControlModelOffset(control: Live2DMotionControlState): { x: number, y: number } {
+export function getLive2DMotionControlModelOffset(control: Pick<Live2DMotionControlState, 'active' | 'pose'>): { x: number, y: number } {
   if (!control.active)
     return { x: 0, y: 0 }
 
@@ -86,6 +112,7 @@ export const useLive2DMotionControl = defineStore('live2d-motion-control', () =>
     active: false,
     ownerId: null,
     pose: neutralPose,
+    dynamics: defaultLive2DMotionControlDynamics,
   })
 
   function applyEvent(event: Live2DMotionControlEvent) {
@@ -94,6 +121,7 @@ export const useLive2DMotionControl = defineStore('live2d-motion-control', () =>
         active: true,
         ownerId: event.ownerId,
         pose: normalizePose(event.pose),
+        dynamics: normalizeDynamics(event.dynamics),
       }
       return
     }
@@ -105,14 +133,16 @@ export const useLive2DMotionControl = defineStore('live2d-motion-control', () =>
       active: false,
       ownerId: null,
       pose: neutralPose,
+      dynamics: control.value.dynamics,
     }
   }
 
-  function setPose(ownerId: string, pose: Live2DMotionControlPose) {
+  function setPose(ownerId: string, pose: Live2DMotionControlPose, dynamics: Live2DMotionControlDynamics) {
     const event: Live2DMotionControlEvent = {
       type: 'live2d-motion-control-set',
       ownerId,
       pose: normalizePose(pose),
+      dynamics: normalizeDynamics(dynamics),
     }
     applyEvent(event)
     post(event)

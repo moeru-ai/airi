@@ -16,6 +16,7 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 
 
 import {
   createBeatSyncController,
+  createLive2DMotionSpring,
   disableLive2DSdkBreath,
   useExpressionController,
   useLive2DMotionManagerUpdate,
@@ -88,7 +89,8 @@ let isUnmounted = false
 
 const modelLoadMutex = new Mutex()
 
-const manualControlOffset = computed(() => getLive2DMotionControlModelOffset(manualMotionControl.value))
+const manualMotionSpring = createLive2DMotionSpring()
+const manualControlOffset = computed(() => getLive2DMotionControlModelOffset(manualMotionSpring.output.value))
 const offset = computed(() => ({
   x: (position.value.x / 100) * props.width + manualControlOffset.value.x,
   y: -(position.value.y / 100) * props.height + manualControlOffset.value.y,
@@ -373,7 +375,7 @@ async function performModelLoad() {
     motionManagerUpdate.register(useMotionUpdatePluginExpression(expressionController), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
-    motionManagerUpdate.register(useMotionUpdatePluginManualControl(manualMotionControl), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginManualControl(manualMotionControl, manualMotionSpring), 'final')
 
     const hookedUpdate = motionManager.update as (model: PixiLive2DInternalModel['coreModel'], now: number) => boolean
     motionManager.update = function (model: PixiLive2DInternalModel['coreModel'], now: number) {

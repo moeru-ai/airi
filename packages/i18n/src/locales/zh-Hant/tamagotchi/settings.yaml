@@ -57,6 +57,13 @@ devtools:
       joystick-label: Live2D 動作搖桿
       instructions: 拖曳搖桿，或使用方向鍵控制 X/Y 軸。W/S 也能控制 Y 軸。A/D 讓身體左右傾斜。Q/E 讓頭部左右傾斜。放開按鍵後會平滑回到中央。
       parameter-note: 搖桿控制 X/Y 軸。A/D 映射至身體 Z 軸 ±10°。Q/E 映射至頭部 Z 軸 ±30°。
+      spring:
+        follow:
+          label: 跟隨
+          description: 控制模型接近搖桿目標的速度。
+        inertia:
+          label: 慣性
+          description: 控制模型保留的動量與過衝幅度。
       groups:
         eyes: 眼睛
         head: 頭部

@@ -3,6 +3,7 @@ import type { MotionManagerPluginContext, PixiLive2DInternalModel } from './moti
 import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
+import { createLive2DMotionSpring } from './motion-control-spring'
 import {
   disableLive2DSdkBreath,
   useMotionUpdatePluginAutoEyeBlink,
@@ -202,23 +203,34 @@ describe('live2d motion manager plugins', () => {
     randomSpy.mockRestore()
   })
 
-  it('maps the manual control pose to eye, head, and body parameters', () => {
-    const context = createContext()
+  it('springs eye, head, and body parameters toward the manual target', () => {
+    const context = createContext({ timeDelta: 1 / 60 })
+    const spring = createLive2DMotionSpring()
 
-    useMotionUpdatePluginManualControl(ref({
+    const plugin = useMotionUpdatePluginManualControl(ref({
       active: true,
       ownerId: 'motion-devtool',
       pose: { x: 0.5, y: -0.25, headZ: -0.75, bodyZ: 1 },
-    }))(context)
+      dynamics: { follow: 0.6, inertia: 0.35 },
+    }), spring)
 
-    expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamEyeBallX', 0.5)
-    expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamEyeBallY', -0.25)
-    expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamAngleX', 15)
-    expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamAngleY', -7.5)
-    expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamAngleZ', -22.5)
-    expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamBodyAngleX', 5)
-    expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamBodyAngleY', -2.5)
-    expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamBodyAngleZ', 10)
+    plugin(context)
+
+    const firstAngleX = context.model.getParameterValueById('ParamAngleX')
+    expect(firstAngleX).toBeGreaterThan(0)
+    expect(firstAngleX).toBeLessThan(15)
+
+    for (let frame = 0; frame < 300; frame += 1)
+      plugin(context)
+
+    expect(context.model.getParameterValueById('ParamEyeBallX')).toBeCloseTo(0.5)
+    expect(context.model.getParameterValueById('ParamEyeBallY')).toBeCloseTo(-0.25)
+    expect(context.model.getParameterValueById('ParamAngleX')).toBeCloseTo(15)
+    expect(context.model.getParameterValueById('ParamAngleY')).toBeCloseTo(-7.5)
+    expect(context.model.getParameterValueById('ParamAngleZ')).toBeCloseTo(-22.5)
+    expect(context.model.getParameterValueById('ParamBodyAngleX')).toBeCloseTo(5)
+    expect(context.model.getParameterValueById('ParamBodyAngleY')).toBeCloseTo(-2.5)
+    expect(context.model.getParameterValueById('ParamBodyAngleZ')).toBeCloseTo(10)
   })
 
   it('leaves motion parameters unchanged after manual control is released', () => {
@@ -228,7 +240,8 @@ describe('live2d motion manager plugins', () => {
       active: false,
       ownerId: null,
       pose: { x: 0, y: 0, headZ: 0, bodyZ: 0 },
-    }))(context)
+      dynamics: { follow: 0.6, inertia: 0.35 },
+    }), createLive2DMotionSpring())(context)
 
     expect(context.model.setParameterValueById).not.toHaveBeenCalled()
   })

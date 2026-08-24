@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
+import type { Live2DMotionControlDynamics, Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 
 import { errorMessageFrom } from '@moeru/std'
-import { useLive2DMotionControl } from '@proj-airi/stage-ui-live2d/stores'
+import { defaultLive2DMotionControlDynamics, useLive2DMotionControl } from '@proj-airi/stage-ui-live2d/stores'
 import { computed, onUnmounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -20,13 +20,20 @@ const motionControl = useLive2DMotionControl()
 const ownerId = crypto.randomUUID()
 const neutralPose: Live2DMotionControlPose = Object.freeze({ x: 0, y: 0, headZ: 0, bodyZ: 0 })
 const pose = shallowRef<Live2DMotionControlPose>(neutralPose)
+const dynamics = shallowRef<Live2DMotionControlDynamics>(defaultLive2DMotionControlDynamics)
 const active = shallowRef(false)
 const importError = shallowRef('')
 
 function publishPose(nextPose: Live2DMotionControlPose) {
   pose.value = nextPose
   active.value = true
-  motionControl.setPose(ownerId, nextPose)
+  motionControl.setPose(ownerId, nextPose, dynamics.value)
+}
+
+function setDynamics(nextDynamics: Live2DMotionControlDynamics) {
+  dynamics.value = nextDynamics
+  if (active.value)
+    motionControl.setPose(ownerId, pose.value, nextDynamics)
 }
 
 function publishRelease() {
@@ -125,10 +132,12 @@ onUnmounted(() => {
 
     <Live2DMotionJoystick
       :pose="pose"
+      :dynamics="dynamics"
       :active="active"
       :disabled="isPlaying"
       @move="setPose"
       @release="release"
+      @update-dynamics="setDynamics"
     />
   </div>
 </template>

@@ -4,6 +4,7 @@ import type { Ref } from 'vue'
 import type { Live2DMotionControlState } from '../../stores/motion-control'
 import type { BeatSyncController } from './beat-sync'
 import type { useExpressionController } from './expression-controller'
+import type { Live2DMotionSpringController } from './motion-control-spring'
 
 import { useLive2DIdleEyeFocus } from './animation'
 
@@ -472,12 +473,14 @@ export function useMotionUpdatePluginExpression(
  */
 export function useMotionUpdatePluginManualControl(
   control: Ref<Live2DMotionControlState>,
+  spring: Live2DMotionSpringController,
 ): MotionManagerPlugin {
   return (ctx) => {
-    if (!control.value.active)
+    const output = spring.step(control.value, ctx.timeDelta)
+    if (!output.active)
       return
 
-    const { x, y, headZ, bodyZ } = control.value.pose
+    const { x, y, headZ, bodyZ } = output.pose
     ctx.model.setParameterValueById('ParamEyeBallX', x)
     ctx.model.setParameterValueById('ParamEyeBallY', y)
     ctx.model.setParameterValueById('ParamAngleX', x * 30)

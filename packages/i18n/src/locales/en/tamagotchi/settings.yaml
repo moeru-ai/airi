@@ -61,6 +61,13 @@ devtools:
       joystick-label: Live2D motion joystick
       instructions: Drag the joystick, or use the arrow keys for X/Y. W/S also controls Y. A/D tilts the body. Q/E tilts the head. Released keys return smoothly to center.
       parameter-note: The joystick controls X/Y. A/D maps to body Z ±10°. Q/E maps to head Z ±30°.
+      spring:
+        follow:
+          label: Follow
+          description: Controls how quickly the model approaches the joystick target.
+        inertia:
+          label: Inertia
+          description: Controls how much momentum and overshoot the model keeps.
       groups:
         eyes: Eyes
         head: Head
