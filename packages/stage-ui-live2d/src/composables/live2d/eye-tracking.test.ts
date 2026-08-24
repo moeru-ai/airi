@@ -76,4 +76,27 @@ describe('useLive2DEyeFocusFor', () => {
 
     expect(focus.value).toEqual({ x: 1000, y: 1000 })
   })
+
+  it('maps cursor displacement to a small model offset with twice the vertical rate', async () => {
+    const { getLive2DModelMouseOffset } = await import('./eye-tracking')
+
+    expect(getLive2DModelMouseOffset(
+      { x: 750, y: 750 },
+      { left: 0, top: 0, width: 1000, height: 1000 },
+    )).toEqual({ x: -10, y: 20 })
+    expect(getLive2DModelMouseOffset(
+      { x: 500, y: 500 },
+      { left: 0, top: 0, width: 1000, height: 1000 },
+    )).toEqual({ x: 0, y: 0 })
+  })
+
+  it('does not offset the model without valid tracking geometry', async () => {
+    const { getLive2DModelMouseOffset } = await import('./eye-tracking')
+
+    expect(getLive2DModelMouseOffset(null, undefined)).toEqual({ x: 0, y: 0 })
+    expect(getLive2DModelMouseOffset(
+      { x: 500, y: 500 },
+      { left: 0, top: 0, width: 0, height: 1000 },
+    )).toEqual({ x: 0, y: 0 })
+  })
 })

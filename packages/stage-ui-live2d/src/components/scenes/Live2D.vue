@@ -3,12 +3,12 @@ import type { Live2DEyeFocusSource } from '../../composables/live2d'
 
 import { Screen } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { onUnmounted, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
 
-import { useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
+import { getLive2DModelMouseOffset, useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
 
 import '../../utils/live2d-zip-loader'
 import '../../utils/live2d-opfs-registration'
@@ -63,6 +63,15 @@ const mouseFocus = useLive2DEyeFocusFor({
     modelHeight: live2dModelRef.value?.initialModelHeight ?? 1000,
   }),
   source: activeCursorPosition,
+})
+const mouseModelOffset = computed(() => {
+  if (!live2dEyeTracking.value)
+    return { x: 0, y: 0 }
+
+  return getLive2DModelMouseOffset(
+    activeCursorPosition.value,
+    live2dCanvasRef.value?.canvasElement()?.getBoundingClientRect(),
+  )
 })
 
 watch(() => props.cursorPosition, (cursorPosition) => {
@@ -120,6 +129,7 @@ defineExpose({
         :height="height"
         :paused="paused"
         :focus-at="mouseFocus"
+        :mouse-offset="mouseModelOffset"
         :eye-tracking="live2dEyeTracking"
         :eye-focus-source-active="!!activeCursorPosition"
         :theme-colors-hue="themeColorsHue"

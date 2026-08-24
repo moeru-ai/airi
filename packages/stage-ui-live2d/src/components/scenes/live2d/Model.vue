@@ -42,6 +42,7 @@ const props = withDefaults(defineProps<{
   height: number
   paused?: boolean
   focusAt?: { x: number, y: number }
+  mouseOffset?: { x: number, y: number }
   eyeTracking?: boolean
   eyeFocusSourceActive?: boolean
   themeColorsHue?: number
@@ -57,6 +58,7 @@ const props = withDefaults(defineProps<{
   nowSpeaking: false,
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
+  mouseOffset: () => ({ x: 0, y: 0 }),
   eyeTracking: false,
   eyeFocusSourceActive: false,
   disableFocusAt: false,
@@ -88,8 +90,8 @@ let isUnmounted = false
 const modelLoadMutex = new Mutex()
 
 const offset = computed(() => ({
-  x: (position.value.x / 100) * props.width,
-  y: -(position.value.y / 100) * props.height,
+  x: (position.value.x / 100) * props.width + props.mouseOffset.x,
+  y: -(position.value.y / 100) * props.height + props.mouseOffset.y,
 }))
 
 const pixiApp = toRef(() => props.app)
