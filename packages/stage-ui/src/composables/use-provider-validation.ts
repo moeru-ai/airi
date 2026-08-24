@@ -112,7 +112,7 @@ export function useProviderValidation(providerId: string) {
         config.baseUrl = config.baseUrl.trim()
 
       await providerStore.setProviderStatus(providerId, 'validating')
-      await providersStore.refreshModelsForChangedCredentials()
+      await providersStore.refreshModelsForChangedCredentials(providerId)
       if (revision !== validationRevision)
         return
 
@@ -230,7 +230,7 @@ export function useProviderValidation(providerId: string) {
       await providerStore.setProviderStatus(providerId, 'validating')
       if (revision !== validationRevision)
         return
-      await providersStore.refreshModelsForChangedCredentials()
+      await providersStore.refreshModelsForChangedCredentials(providerId)
       if (revision !== validationRevision)
         return
       await providerStore.setProviderStatus(providerId, 'unconfigured')
@@ -284,7 +284,7 @@ export function useProviderValidation(providerId: string) {
     validationMessage.value = ''
     manualTestPassed.value = true
     manualTestMessage.value = ''
-    await providersStore.refreshModelsForChangedCredentials()
+    await providersStore.refreshModelsForChangedCredentials(providerId)
     if (revision !== validationRevision)
       return
     await providersStore.forceProviderConfigured(providerId)

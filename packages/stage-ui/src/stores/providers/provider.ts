@@ -729,26 +729,31 @@ export const useProviderStore = defineStore('provider', () => {
   }
   const previousCredentialHashes = new Map<string, string>()
 
-  async function refreshModelsForChangedCredentials() {
+  async function refreshModelsForChangedCredentials(providerId?: string) {
     const changedProviders: string[] = []
+    const providerIds = providerId ? [providerId] : Object.keys(providerCredentials.value)
 
-    for (const [providerId, currentConfig] of Object.entries(providerCredentials.value)) {
-      const currentHash = modelCatalogCredentialHash(getProviderDefinitionId(providerId), currentConfig)
-      const previousHash = previousCredentialHashes.get(providerId)
+    for (const currentProviderId of providerIds) {
+      const currentConfig = providerCredentials.value[currentProviderId]
+      if (!currentConfig)
+        continue
+
+      const currentHash = modelCatalogCredentialHash(getProviderDefinitionId(currentProviderId), currentConfig)
+      const previousHash = previousCredentialHashes.get(currentProviderId)
 
       if (currentHash !== previousHash) {
-        changedProviders.push(providerId)
-        previousCredentialHashes.set(providerId, currentHash)
+        changedProviders.push(currentProviderId)
+        previousCredentialHashes.set(currentProviderId, currentHash)
       }
     }
 
-    for (const providerId of changedProviders) {
+    for (const currentProviderId of changedProviders) {
       // Since credentials changed, dispose the cached instance so new creds take effect.
-      await disposeProviderInstance(providerId)
+      await disposeProviderInstance(currentProviderId)
 
       // If the provider is configured and has the capability, refetch its models
-      if (providerConfigStore.providers[providerId]?.status === 'configured' && supportsModelListing(providerId)) {
-        await fetchModelsForProvider(providerId)
+      if (providerConfigStore.providers[currentProviderId]?.status === 'configured' && supportsModelListing(currentProviderId)) {
+        await fetchModelsForProvider(currentProviderId)
       }
     }
   }

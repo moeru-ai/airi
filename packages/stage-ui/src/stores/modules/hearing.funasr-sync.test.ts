@@ -140,6 +140,35 @@ describe('funASR Hearing model synchronization', () => {
     expect(providerConfigStore.getProviderConfig('openai-audio-transcription')).not.toHaveProperty('model')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3842341589
+  // ROOT CAUSE:
+  //
+  // Initialization restored a persisted provider model but returned before loading that
+  // provider's model catalog, leaving the Hearing model selector empty after a full reload.
+  it('loads the persisted generated provider catalog during Hearing initialization (GitHub #2122)', async () => {
+    const providerId = 'generated-openai-audio-transcription'
+    persistedSettings.set('settings/hearing/active-provider', providerId)
+
+    const providerConfigStore = useProviderConfigStore()
+    providerConfigStore.ensureProvider(providerId, 'openai-audio-transcription', {
+      apiKey: 'test-key',
+      model: 'gpt-4o-transcribe',
+    })
+    const providersStore = useProviderStore()
+    providersStore.initializeProvider(providerId)
+    const fetchModels = vi.spyOn(providersStore, 'fetchModelsForProvider').mockResolvedValue([{
+      id: 'gpt-4o-transcribe',
+      name: 'GPT-4o Transcribe',
+      provider: providerId,
+    }])
+
+    const hearingStore = useHearingStore()
+    await hearingStore.initialize()
+
+    expect(fetchModels).toHaveBeenCalledWith(providerId)
+    expect(hearingStore.activeTranscriptionModel).toBe('gpt-4o-transcribe')
+  })
+
   it('restores the FunASR configured model when the provider is selected', async () => {
     const providerConfigStore = useProviderConfigStore()
     const hearingStore = useHearingStore()

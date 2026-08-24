@@ -71,6 +71,40 @@ describe('useProviderValidation', () => {
     expect(configStore.getProvider(providerId)?.status).toBe('configured')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3842341595
+  // ROOT CAUSE:
+  //
+  // Automatic validation refreshed every provider whose credentials had not been seen in
+  // this process, so opening one settings page could dispose unrelated provider instances.
+  it('refreshes only the provider currently being validated (GitHub #2122)', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const providersStore = useProviderStore()
+    const configStore = useProviderConfigStore()
+    configStore.resetProviders()
+    const refreshModelsForChangedCredentials = vi.spyOn(providersStore, 'refreshModelsForChangedCredentials')
+      .mockResolvedValue()
+    vi.spyOn(providersStore, 'validateProviderConfig').mockResolvedValue({
+      errors: [],
+      reason: '',
+      valid: true,
+    })
+
+    const app = createApp(defineComponent({
+      setup() {
+        useProviderValidation(providerId)
+        return () => null
+      },
+    }))
+    app.use(pinia)
+    app.mount(document.createElement('div'))
+    unmount = () => app.unmount()
+
+    await vi.waitFor(() => {
+      expect(providersStore.validateProviderConfig).toHaveBeenCalled()
+    })
+    expect(refreshModelsForChangedCredentials).toHaveBeenCalledWith(providerId)
+  })
+
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3834928540
   it('invalidates cached providers before validation publishes success (GitHub #2122)', async () => {
     const providerId = 'funasr-audio-transcription'

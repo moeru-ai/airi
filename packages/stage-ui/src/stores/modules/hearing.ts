@@ -513,6 +513,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     const ownsConfiguredModel = Object.hasOwn(providerConfig ?? {}, 'model') && typeof configuredModel === 'string'
     if (ownsConfiguredModel) {
       activeTranscriptionModel.value = configuredModel.trim()
+      await loadModelsForProvider(providerId)
       return
     }
 
