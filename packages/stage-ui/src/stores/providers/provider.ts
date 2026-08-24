@@ -31,6 +31,7 @@ import {
   validateProvider as runProviderValidation,
 } from '../../libs/providers'
 import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
+import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from './config'
 import { normalizeProviderConfigDefaults } from './config-defaults'
 
@@ -113,6 +114,7 @@ function modelCatalogCredentialHash(providerDefinitionId: string, config: Record
  * configuration remains in {@link useProviderConfigStore}.
  */
 export const useProviderStore = defineStore('provider', () => {
+  const authStore = useAuthStore()
   const providerConfigStore = useProviderConfigStore()
   const providerStateStore = useProviderStateStore()
   const providerCredentials = computed(() => providerConfigStore.configs)
@@ -785,10 +787,17 @@ export const useProviderStore = defineStore('provider', () => {
       .filter(d => providerMetadata[d.id])
       .map(d => projectProvider(d.id))
       .filter(metadata => metadata !== undefined)
+    // Vision providers reuse chat definitions under separate instance ids.
+    // Include these generated definitions before configured custom instances.
+    const visionDefinitions = definedProviders
+      .filter(definition => providerMetadata[definition.id]?.category === 'chat')
+      .map(definition => projectProvider(`${VISION_PROVIDER_ID_PREFIX}${definition.id}`))
+      .filter(metadata => metadata !== undefined)
+    const definitionIds = new Set([...definitions, ...visionDefinitions].map(metadata => metadata.id))
 
     const configuredInstances: ProviderMetadata[] = []
     for (const providerId of Object.keys(providerConfigStore.providers)) {
-      if (providerMetadata[providerId])
+      if (definitionIds.has(providerId))
         continue
 
       const metadata = projectProvider(providerId)
@@ -796,7 +805,7 @@ export const useProviderStore = defineStore('provider', () => {
         configuredInstances.push(metadata)
     }
 
-    return [...definitions, ...configuredInstances]
+    return [...definitions, ...visionDefinitions, ...configuredInstances]
   })
 
   function getTranscriptionFeatures(providerId: string) {
@@ -946,6 +955,57 @@ export const useProviderStore = defineStore('provider', () => {
     return !!addedProviders.value[providerId] || isProviderConfigDirty(providerId)
   }
 
+  function isProviderAvailableWithoutConfiguration(providerId: string) {
+    return providerConfiguredBy(providerId) !== 'authentication'
+      && getProviderDefinition(providerId).requiresCredentials === false
+  }
+
+  function providerConfiguredBy(providerId: string) {
+    const configuredProvider = providerConfigStore.providers[providerId]
+    if (configuredProvider)
+      return configuredProvider.configuredBy
+
+    return getProviderDefinition(providerId).configuredBy ?? 'user'
+  }
+
+  function isProviderConfiguredForModule(providerId: string) {
+    return providerConfigStore.configuredProviders[providerId]
+      && (providerConfiguredBy(providerId) !== 'authentication' || authStore.isAuthenticated)
+  }
+
+  // Authentication-owned providers do not require a user-supplied API key,
+  // but they do require an authenticated session. Browser and local providers
+  // remain available without a persisted configuration record.
+  const moduleChatProvidersMetadata = computed(() => {
+    return allChatProvidersMetadata.value.filter(metadata =>
+      isProviderConfiguredForModule(metadata.id)
+      || (providerConfiguredBy(metadata.id) !== 'authentication' && shouldListProvider(metadata.id))
+      || isProviderAvailableWithoutConfiguration(metadata.id),
+    )
+  })
+
+  const moduleSpeechProvidersMetadata = computed(() => {
+    return allAudioSpeechProvidersMetadata.value.filter(metadata =>
+      isProviderConfiguredForModule(metadata.id)
+      || isProviderAvailableWithoutConfiguration(metadata.id),
+    )
+  })
+
+  const moduleTranscriptionProvidersMetadata = computed(() => {
+    return allAudioTranscriptionProvidersMetadata.value.filter(metadata =>
+      isProviderConfiguredForModule(metadata.id)
+      || isProviderAvailableWithoutConfiguration(metadata.id),
+    )
+  })
+
+  const moduleVisionProvidersMetadata = computed(() => {
+    return allVisionProvidersMetadata.value.filter(metadata =>
+      isProviderConfiguredForModule(metadata.id)
+      || (providerConfiguredBy(metadata.id) !== 'authentication' && shouldListProvider(metadata.id))
+      || isProviderAvailableWithoutConfiguration(metadata.id),
+    )
+  })
+
   const persistedProvidersMetadata = computed(() => {
     return availableProvidersMetadata.value.filter(metadata => shouldListProvider(metadata.id))
   })
@@ -996,6 +1056,10 @@ export const useProviderStore = defineStore('provider', () => {
     configuredSpeechProvidersMetadata,
     configuredTranscriptionProvidersMetadata,
     configuredVisionProvidersMetadata,
+    moduleChatProvidersMetadata,
+    moduleSpeechProvidersMetadata,
+    moduleTranscriptionProvidersMetadata,
+    moduleVisionProvidersMetadata,
     persistedChatProvidersMetadata,
     persistedVisionProvidersMetadata,
   }

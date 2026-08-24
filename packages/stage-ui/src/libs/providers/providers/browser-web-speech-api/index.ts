@@ -1,4 +1,3 @@
-import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { z } from 'zod'
 
 import { defineProvider } from '../registry'
@@ -39,9 +38,7 @@ export const providerBrowserWebSpeechApi = defineProvider({
     },
   },
 
-  // Electron uses Chromium, but it does not include the Google API keys that
-  // the Web Speech API needs. The provider only works in browser contexts.
-  isAvailableBy: () => !isStageTamagotchi() && isWebSpeechApiAvailable(),
+  isAvailableBy: isWebSpeechApiAvailable,
   createProviderConfig: () => webSpeechApiConfigSchema,
   createProvider: createWebSpeechAPIProvider,
   validationRequiredWhen: () => false,
