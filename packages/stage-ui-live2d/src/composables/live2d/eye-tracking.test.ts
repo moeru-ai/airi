@@ -80,13 +80,19 @@ describe('useLive2DEyeFocusFor', () => {
   it('maps cursor displacement to a small model offset with twice the vertical rate', async () => {
     const { getLive2DModelMouseOffset } = await import('./eye-tracking')
 
+    // ROOT CAUSE:
+    //
+    // A 0.04 ratio moved the model only 8 px from the center to the edge of a
+    // 400 px canvas. The transform was active, but the movement was hard to see.
+    // Use 20 px horizontal travel and twice that vertical travel for the same
+    // cursor displacement.
     expect(getLive2DModelMouseOffset(
-      { x: 750, y: 750 },
-      { left: 0, top: 0, width: 1000, height: 1000 },
-    )).toEqual({ x: -10, y: 20 })
+      { x: 400, y: 400 },
+      { left: 0, top: 0, width: 400, height: 400 },
+    )).toEqual({ x: -20, y: 40 })
     expect(getLive2DModelMouseOffset(
-      { x: 500, y: 500 },
-      { left: 0, top: 0, width: 1000, height: 1000 },
+      { x: 200, y: 200 },
+      { left: 0, top: 0, width: 400, height: 400 },
     )).toEqual({ x: 0, y: 0 })
   })
 
