@@ -244,8 +244,8 @@ catalogs:
       specifier: 0.1.0-beta.19
       version: 0.1.0-beta.19
     '@moeru/eventa':
-      specifier: 1.0.0-beta.15
-      version: 1.0.0-beta.15
+      specifier: 1.0.0
+      version: 1.0.0
     '@moeru/std':
       specifier: 0.1.0-beta.17
       version: 0.1.0-beta.17
@@ -549,6 +549,21 @@ catalogs:
     '@wxt-dev/module-vue':
       specifier: ^1.0.3
       version: 1.0.3
+    '@xsai-apple-speech/transcription':
+      specifier: 0.1.3
+      version: 0.1.3
+    '@xsai-apple-speech/transcription-electron-plugin':
+      specifier: 0.1.3
+      version: 0.1.3
+    '@xsai-apple-speech/transcription-native':
+      specifier: 0.1.3
+      version: 0.1.3
+    '@xsai-apple-speech/transcription-native-darwin-arm64':
+      specifier: 0.1.3
+      version: 0.1.3
+    '@xsai-apple-speech/transcription-native-darwin-x64':
+      specifier: 0.1.3
+      version: 0.1.3
     '@xsai-ext/providers':
       specifier: 0.5.0-beta.8
       version: 0.5.0-beta.8
@@ -744,9 +759,6 @@ catalogs:
     histoire:
       specifier: 1.0.0-beta.1
       version: 1.0.0-beta.1
-    hono:
-      specifier: 4.11.3
-      version: 4.11.3
     hono-rate-limiter:
       specifier: ^0.5.3
       version: 0.5.3
@@ -1203,6 +1215,7 @@ catalogs:
 overrides:
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
+  hono: 4.13.4
   is-core-module: npm:@nolyfill/is-core-module@^1.0.39
   isarray: npm:@nolyfill/isarray@^1.0.44
   onnxruntime-web: npm:onnxruntime-web@^1.24.3
@@ -1465,7 +1478,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22)))(hono@4.13.4)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -1871,7 +1884,7 @@ importers:
         version: 11.3.2
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22)))(hono@4.13.4)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -1953,6 +1966,15 @@ importers:
       '@vueuse/shared':
         specifier: 'catalog:'
         version: 14.2.1(vue@3.5.32(typescript@5.9.3))
+      '@xsai-apple-speech/transcription':
+        specifier: 'catalog:'
+        version: 0.1.3(@xsai/generate-transcription@0.5.0-beta.8)
+      '@xsai-apple-speech/transcription-electron-plugin':
+        specifier: 'catalog:'
+        version: 0.1.3(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22)))(hono@4.13.4)(web-worker@1.5.0)
+      '@xsai-apple-speech/transcription-native':
+        specifier: 'catalog:'
+        version: 0.1.3(@xsai/generate-transcription@0.5.0-beta.8)
       '@xsai-ext/providers':
         specifier: 'catalog:'
         version: 0.5.0-beta.8
@@ -2335,6 +2357,13 @@ importers:
       yauzl:
         specifier: 'catalog:'
         version: 3.3.0
+    optionalDependencies:
+      '@xsai-apple-speech/transcription-native-darwin-arm64':
+        specifier: 'catalog:'
+        version: 0.1.3
+      '@xsai-apple-speech/transcription-native-darwin-x64':
+        specifier: 'catalog:'
+        version: 0.1.3
 
   apps/stage-web:
     dependencies:
@@ -2352,7 +2381,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22)))(hono@4.13.4)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2498,8 +2527,8 @@ importers:
         specifier: 'catalog:'
         version: 1.0.7
       hono:
-        specifier: 'catalog:'
-        version: 4.11.3
+        specifier: 4.13.4
+        version: 4.13.4
       html2canvas:
         specifier: 'catalog:'
         version: 1.4.1
@@ -2740,7 +2769,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.13.4)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3477,7 +3506,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22)))(hono@4.13.4)(web-worker@1.5.0)
       crossws:
         specifier: 'catalog:'
         version: 0.4.5(srvx@0.11.22)
@@ -3613,7 +3642,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@40.8.5)(h3@2.0.1-rc.25)(web-worker@1.5.0)
+        version: 1.0.0(electron@40.8.5)(h3@2.0.1-rc.25)(hono@4.13.4)(web-worker@1.5.0)
       builder-util-runtime:
         specifier: 'catalog:'
         version: 9.5.1
@@ -3641,7 +3670,7 @@ importers:
         version: 3.0.2(electron@41.2.1)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.13.4)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3659,7 +3688,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@40.8.5)(h3@2.0.1-rc.25)(web-worker@1.5.0)
+        version: 1.0.0(electron@40.8.5)(h3@2.0.1-rc.25)(hono@4.13.4)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3766,7 +3795,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.13.4)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3778,7 +3807,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.13.4)(web-worker@1.5.0)
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.5.0-beta.8
@@ -3787,7 +3816,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.13.4)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3809,7 +3838,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.13.4)(web-worker@1.5.0)
       '@proj-airi/plugin-sdk':
         specifier: workspace:*
         version: link:../plugin-sdk
@@ -3951,7 +3980,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.13.4)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4066,10 +4095,13 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.13.4)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@proj-airi/audio':
+        specifier: workspace:^
+        version: link:../audio
       '@proj-airi/ccc':
         specifier: workspace:*
         version: link:../ccc
@@ -4215,7 +4247,7 @@ importers:
         version: 3.0.2(electron@41.2.1)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.13.4)(web-worker@1.5.0)
       '@nekopaw/tempora':
         specifier: 'catalog:'
         version: 0.4.0-alpha.1
@@ -4242,7 +4274,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22)))(hono@4.13.4)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4339,6 +4371,12 @@ importers:
       '@vueuse/shared':
         specifier: 'catalog:'
         version: 14.2.1(vue@3.5.32(typescript@5.9.3))
+      '@xsai-apple-speech/transcription':
+        specifier: 'catalog:'
+        version: 0.1.3(@xsai/generate-transcription@0.5.0-beta.8)
+      '@xsai-apple-speech/transcription-electron-plugin':
+        specifier: 'catalog:'
+        version: 0.1.3(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22)))(hono@4.13.4)(web-worker@1.5.0)
       '@xsai-ext/providers':
         specifier: 'catalog:'
         version: 0.5.0-beta.8
@@ -4415,8 +4453,8 @@ importers:
         specifier: 'catalog:'
         version: 1.0.7
       hono:
-        specifier: 'catalog:'
-        version: 4.11.3
+        specifier: 4.13.4
+        version: 4.13.4
       html2canvas:
         specifier: 'catalog:'
         version: 1.4.1
@@ -4946,7 +4984,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.13.4)(web-worker@1.5.0)
       '@pixiv/three-vrm':
         specifier: 'catalog:'
         version: 3.5.2(@types/three@0.184.0)(three@0.184.0)
@@ -5225,7 +5263,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.13.4)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -5322,7 +5360,7 @@ importers:
         version: 1.2.4
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.13.4)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -5367,13 +5405,13 @@ importers:
         version: 1.2.11
       '@hono/node-server':
         specifier: 'catalog:'
-        version: 1.19.14(hono@4.11.3)
+        version: 1.19.14(hono@4.13.4)
       '@hono/node-ws':
         specifier: 'catalog:'
-        version: 1.3.0(@hono/node-server@1.19.14(hono@4.11.3))(bufferutil@4.1.0)(hono@4.11.3)(utf-8-validate@5.0.10)
+        version: 1.3.0(@hono/node-server@1.19.14(hono@4.13.4))(bufferutil@4.1.0)(hono@4.13.4)(utf-8-validate@5.0.10)
       '@hono/otel':
         specifier: 'catalog:'
-        version: 1.1.2(hono@4.11.3)
+        version: 1.1.2(hono@4.13.4)
       '@langfuse/otel':
         specifier: 'catalog:'
         version: 5.4.0(@opentelemetry/api@1.9.1)(@opentelemetry/core@2.7.0(@opentelemetry/api@1.9.1))(@opentelemetry/exporter-trace-otlp-http@0.215.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.7.0(@opentelemetry/api@1.9.1))
@@ -5382,7 +5420,7 @@ importers:
         version: 5.4.0(@opentelemetry/api@1.9.1)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.13.4)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -5453,11 +5491,11 @@ importers:
         specifier: 'catalog:'
         version: 1.50.0
       hono:
-        specifier: 'catalog:'
-        version: 4.11.3
+        specifier: 4.13.4
+        version: 4.13.4
       hono-rate-limiter:
         specifier: 'catalog:'
-        version: 0.5.3(hono@4.11.3)(unstorage@1.17.5(aws4fetch@1.0.20)(idb-keyval@6.2.2)(ioredis@5.10.1))
+        version: 0.5.3(hono@4.13.4)(unstorage@1.17.5(aws4fetch@1.0.20)(idb-keyval@6.2.2)(ioredis@5.10.1))
       injeca:
         specifier: 'catalog:'
         version: 0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.11)
@@ -5527,7 +5565,7 @@ importers:
         version: 1.2.11
       '@hono/node-server':
         specifier: 'catalog:'
-        version: 1.19.14(hono@4.11.3)
+        version: 1.19.14(hono@4.13.4)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -5589,11 +5627,11 @@ importers:
         specifier: 'catalog:'
         version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.29.4)(pg@8.20.0)(postgres@3.4.9)
       hono:
-        specifier: 'catalog:'
-        version: 4.11.3
+        specifier: 4.13.4
+        version: 4.13.4
       hono-rate-limiter:
         specifier: 'catalog:'
-        version: 0.5.3(hono@4.11.3)(unstorage@1.17.5(aws4fetch@1.0.20)(idb-keyval@6.2.2)(ioredis@5.10.1))
+        version: 0.5.3(hono@4.13.4)(unstorage@1.17.5(aws4fetch@1.0.20)(idb-keyval@6.2.2)(ioredis@5.10.1))
       injeca:
         specifier: 'catalog:'
         version: 0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@6.0.1)
@@ -5648,7 +5686,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.13.4)(web-worker@1.5.0)
       valibot:
         specifier: 'catalog:'
         version: 1.4.2(typescript@5.9.3)
@@ -7674,7 +7712,7 @@ packages:
     resolution: {integrity: sha512-GwtvgtXxnWsucXvbQXkRgqksiH2Qed37H9xHZocE5sA3N8O8O8/8FA3uclQXxXVzc9XBZuEOMK7+r02FmSpHtw==}
     engines: {node: '>=18.14.1'}
     peerDependencies:
-      hono: ^4
+      hono: 4.13.4
 
   '@hono/node-ws@1.3.0':
     resolution: {integrity: sha512-ju25YbbvLuXdqBCmLZLqnNYu1nbHIQjoyUqA8ApZOeL1k4skuiTcw5SW77/5SUYo2Xi2NVBJoVlfQurnKEp03Q==}
@@ -7682,12 +7720,12 @@ packages:
     deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
     peerDependencies:
       '@hono/node-server': ^1.19.2
-      hono: ^4.6.0
+      hono: 4.13.4
 
   '@hono/otel@1.1.2':
     resolution: {integrity: sha512-UaBMKPGaQTj4sjvpGqQ+57eolTwMI2znzxV/QBUF99XxhcmqtqaZX95flXpGgWb+lnlinlCy23Y1sZ8+TzzM9A==}
     peerDependencies:
-      hono: '>=4.0.0'
+      hono: 4.13.4
 
   '@huggingface/jinja@0.5.3':
     resolution: {integrity: sha512-asqfZ4GQS0hD876Uw4qiUb7Tr/V5Q+JZuo2L+BtdrD4U40QU58nIRq3ZSgAzJgT874VLjhGVacaYfrdpXtEvtA==}
@@ -8268,13 +8306,13 @@ packages:
       web-worker:
         optional: true
 
-  '@moeru/eventa@1.0.0-beta.15':
-    resolution: {integrity: sha512-isjbOHeQuZJmlYJAQ6C28awXa4lpSdSEi/YPHrMuZQADHKDDu6O2R2oUclBiLVWM0Ut8R4WJFY8uLRuZP6Hq6g==}
+  '@moeru/eventa@1.0.0':
+    resolution: {integrity: sha512-7Tz42aRNR5V3kzFuQb5evaAQ9szSxWq0sEBOQJ30KzR+0vCDd2d2XHh6oGQyQvF/HTQgk9w8JlgBti/xAeFG4A==}
     peerDependencies:
       '@tauri-apps/api': '>=2'
       electron: '>=39'
       h3: '>=2.0.1-rc.22'
-      hono: '>=4.12.25'
+      hono: 4.13.4
       web-worker: ^1.5.0
     peerDependenciesMeta:
       '@tauri-apps/api':
@@ -12385,6 +12423,32 @@ packages:
     engines: {node: '>=10.0.0'}
     deprecated: this version has critical issues, please update to the latest version
 
+  '@xsai-apple-speech/transcription-electron-plugin@0.1.3':
+    resolution: {integrity: sha512-GdFvuzli/lUh3hOJTBEBR0QfhDww9avWEaOsjpaPL8m8HooDwLcfFHpW4t1jKC6gy4rOdQYDd2ftSj/cJ2kHdg==}
+    peerDependencies:
+      electron: '>=39'
+    peerDependenciesMeta:
+      electron:
+        optional: true
+
+  '@xsai-apple-speech/transcription-native-darwin-arm64@0.1.3':
+    resolution: {integrity: sha512-8j8wYmAX5wyajhm713LqKyFaAYAdT5aP89PeeLz1i2wxjDRtiQCAuDaoDxsNJ8ToD/slROvT+WD95vOsWQJFeA==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@xsai-apple-speech/transcription-native-darwin-x64@0.1.3':
+    resolution: {integrity: sha512-R5U5qI7rU7NSNO/xdapBwB8tMYghHV99eP+mUF7uIrU0I2rMz9wO6HrOm7v3a8mDoK5eqx6KNJzpGjiaeUNMuQ==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@xsai-apple-speech/transcription-native@0.1.3':
+    resolution: {integrity: sha512-XqrWBElWpVn4CxocBC7F1/baAoOei+aZouC9vHElQ4dfKUD3HVu9KgMwS3x8lRmnV+8KaH0R1skhCahfP0/nVg==}
+
+  '@xsai-apple-speech/transcription@0.1.3':
+    resolution: {integrity: sha512-QHFZJcqgP53Lpo4wrtiTzL/FKmuVAlkXqZYV/Ml8x4L+03SKnCETcoi+CH2j4Xmp5IibY7zUjPUC6uZiloc2Mg==}
+    peerDependencies:
+      '@xsai/generate-transcription': '>=0.5.0-beta.8 <0.6.0'
+
   '@xsai-ext/providers@0.4.4':
     resolution: {integrity: sha512-PVk3IFOPzPyvss9zY6IO6pJ890F5B6LWGWuhU6DzofWMTnqcUzm0hR2Ml/Qo8kZa3Qy/DZkUT0O1T+5g/fZkWw==}
 
@@ -15422,18 +15486,14 @@ packages:
   hono-rate-limiter@0.5.3:
     resolution: {integrity: sha512-M0DxbVMpPELEzLi0AJg1XyBHLGJXz7GySjsPoK+gc5YeeBsdGDGe+2RvVuCAv8ydINiwlbxqYMNxUEyYfRji/A==}
     peerDependencies:
-      hono: ^4.10.8
+      hono: 4.13.4
       unstorage: ^1.17.3
     peerDependenciesMeta:
       unstorage:
         optional: true
 
-  hono@4.11.3:
-    resolution: {integrity: sha512-PmQi306+M/ct/m5s66Hrg+adPnkD5jiO6IjA7WhWw0gSBSo1EcRegwuI1deZ+wd5pzCGynCcn2DprnE4/yEV4w==}
-    engines: {node: '>=16.9.0'}
-
-  hono@4.12.2:
-    resolution: {integrity: sha512-gJnaDHXKDayjt8ue0n8Gs0A007yKXj4Xzb8+cNjZeYsSzzwKc0Lr+OZgYwVfB0pHfUs17EPoLvrOsEaJ9mj+Tg==}
+  hono@4.13.4:
+    resolution: {integrity: sha512-AGEwKIyRMHRv1t8Wjwa3LHxQ61X5CqrdFT+4BRNTpqS5aJNnpl5WLjADb7vFlJzI/8uK7T5QLVApCMQKNa3LgQ==}
     engines: {node: '>=16.9.0'}
 
   hookable@5.5.3:
@@ -22575,28 +22635,24 @@ snapshots:
 
   '@histoire/vendors@1.0.0-beta.1': {}
 
-  '@hono/node-server@1.19.14(hono@4.11.3)':
+  '@hono/node-server@1.19.14(hono@4.13.4)':
     dependencies:
-      hono: 4.11.3
+      hono: 4.13.4
 
-  '@hono/node-server@1.19.14(hono@4.12.2)':
+  '@hono/node-ws@1.3.0(@hono/node-server@1.19.14(hono@4.13.4))(bufferutil@4.1.0)(hono@4.13.4)(utf-8-validate@5.0.10)':
     dependencies:
-      hono: 4.12.2
-
-  '@hono/node-ws@1.3.0(@hono/node-server@1.19.14(hono@4.11.3))(bufferutil@4.1.0)(hono@4.11.3)(utf-8-validate@5.0.10)':
-    dependencies:
-      '@hono/node-server': 1.19.14(hono@4.11.3)
-      hono: 4.11.3
+      '@hono/node-server': 1.19.14(hono@4.13.4)
+      hono: 4.13.4
       ws: 8.20.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  '@hono/otel@1.1.2(hono@4.11.3)':
+  '@hono/otel@1.1.2(hono@4.13.4)':
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/semantic-conventions': 1.40.0
-      hono: 4.11.3
+      hono: 4.13.4
 
   '@huggingface/jinja@0.5.3': {}
 
@@ -23232,7 +23288,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)':
     dependencies:
-      '@hono/node-server': 1.19.14(hono@4.12.2)
+      '@hono/node-server': 1.19.14(hono@4.13.4)
       ajv: 8.18.0
       ajv-formats: 3.0.1(ajv@8.18.0)
       content-type: 1.0.5
@@ -23242,7 +23298,7 @@ snapshots:
       eventsource-parser: 3.0.6
       express: 5.2.1
       express-rate-limit: 8.2.1(express@5.2.1)
-      hono: 4.12.2
+      hono: 4.13.4
       jose: 6.2.2
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -23282,33 +23338,34 @@ snapshots:
       h3: 2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22))
       web-worker: 1.5.0
 
-  '@moeru/eventa@1.0.0-beta.15(electron@40.8.5)(h3@2.0.1-rc.25)(web-worker@1.5.0)':
+  '@moeru/eventa@1.0.0(electron@40.8.5)(h3@2.0.1-rc.25)(hono@4.13.4)(web-worker@1.5.0)':
     dependencies:
       nanoid: 6.0.1
       picomatch: 4.0.4
     optionalDependencies:
       electron: 40.8.5
       h3: 2.0.1-rc.25
+      hono: 4.13.4
       web-worker: 1.5.0
 
-  '@moeru/eventa@1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22)))(hono@4.12.2)(web-worker@1.5.0)':
+  '@moeru/eventa@1.0.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22)))(hono@4.13.4)(web-worker@1.5.0)':
     dependencies:
       nanoid: 6.0.1
       picomatch: 4.0.4
     optionalDependencies:
       electron: 41.2.1
       h3: 2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22))
-      hono: 4.12.2
+      hono: 4.13.4
       web-worker: 1.5.0
 
-  '@moeru/eventa@1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)':
+  '@moeru/eventa@1.0.0(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.13.4)(web-worker@1.5.0)':
     dependencies:
       nanoid: 6.0.1
       picomatch: 4.0.4
     optionalDependencies:
       electron: 41.2.1
       h3: 2.0.1-rc.25
-      hono: 4.11.3
+      hono: 4.13.4
       web-worker: 1.5.0
 
   '@moeru/std@0.1.0-beta.1': {}
@@ -27530,6 +27587,40 @@ snapshots:
 
   '@xmldom/xmldom@0.8.11': {}
 
+  '@xsai-apple-speech/transcription-electron-plugin@0.1.3(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22)))(hono@4.13.4)(web-worker@1.5.0)':
+    dependencies:
+      '@moeru/eventa': 1.0.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22)))(hono@4.13.4)(web-worker@1.5.0)
+      '@xsai-apple-speech/transcription': 0.1.3(@xsai/generate-transcription@0.5.0-beta.8)
+      '@xsai/generate-transcription': 0.5.0-beta.8
+    optionalDependencies:
+      electron: 41.2.1
+    transitivePeerDependencies:
+      - '@tauri-apps/api'
+      - h3
+      - hono
+      - web-worker
+
+  '@xsai-apple-speech/transcription-native-darwin-arm64@0.1.3':
+    optional: true
+
+  '@xsai-apple-speech/transcription-native-darwin-x64@0.1.3':
+    optional: true
+
+  '@xsai-apple-speech/transcription-native@0.1.3(@xsai/generate-transcription@0.5.0-beta.8)':
+    dependencies:
+      '@moeru/std': 0.1.0-beta.17
+      '@xsai-apple-speech/transcription': 0.1.3(@xsai/generate-transcription@0.5.0-beta.8)
+    optionalDependencies:
+      '@xsai-apple-speech/transcription-native-darwin-arm64': 0.1.3
+      '@xsai-apple-speech/transcription-native-darwin-x64': 0.1.3
+    transitivePeerDependencies:
+      - '@xsai/generate-transcription'
+
+  '@xsai-apple-speech/transcription@0.1.3(@xsai/generate-transcription@0.5.0-beta.8)':
+    dependencies:
+      '@xsai/generate-transcription': 0.5.0-beta.8
+      '@xsai/shared': 0.5.0-beta.8
+
   '@xsai-ext/providers@0.4.4':
     dependencies:
       '@xsai/shared': 0.4.4
@@ -30926,15 +31017,13 @@ snapshots:
       - utf-8-validate
       - yaml
 
-  hono-rate-limiter@0.5.3(hono@4.11.3)(unstorage@1.17.5(aws4fetch@1.0.20)(idb-keyval@6.2.2)(ioredis@5.10.1)):
+  hono-rate-limiter@0.5.3(hono@4.13.4)(unstorage@1.17.5(aws4fetch@1.0.20)(idb-keyval@6.2.2)(ioredis@5.10.1)):
     dependencies:
-      hono: 4.11.3
+      hono: 4.13.4
     optionalDependencies:
       unstorage: 1.17.5(aws4fetch@1.0.20)(idb-keyval@6.2.2)(ioredis@5.10.1)
 
-  hono@4.11.3: {}
-
-  hono@4.12.2: {}
+  hono@4.13.4: {}
 
   hookable@5.5.3: {}
 

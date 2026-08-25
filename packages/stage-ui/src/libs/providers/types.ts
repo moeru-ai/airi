@@ -12,6 +12,7 @@ import type {
 } from '@xsai-ext/providers/utils'
 import type { ProgressInfo } from '@xsai-transformers/shared/types'
 import type { MaybePromise } from 'clustr'
+import type { Component } from 'vue'
 import type { ComposerTranslation } from 'vue-i18n'
 import type { $ZodType } from 'zod/v4/core'
 
@@ -214,6 +215,12 @@ export interface ProviderDefinition<TConfig extends any = any> {
    */
   configuredBy?: ProviderConfiguredBy
 
+  /** Provider-owned controls for module settings pages. */
+  views?: {
+    /** Lazily loads additional controls shown for this Provider in the Hearing module. */
+    hearing?: () => Promise<{ default: Component }>
+  }
+
   /** Builds the validation schema and its UI metadata for the current draft. */
   createProviderConfig: (contextOptions: ProviderConfigContext<TConfig>) => MaybePromise<$ZodType<TConfig>>
   onboardingFields?: (ctx: { t: ComposerTranslation }) => MaybePromise<ProviderOnboardingField[]>
@@ -235,7 +242,7 @@ export interface ProviderDefinition<TConfig extends any = any> {
       reasoning?: ChatReasoningCapability
     }
     transcription?: {
-      protocol: 'websocket' | 'http'
+      protocol: 'websocket' | 'http' | 'native'
       generateOutput: boolean
       streamOutput: boolean
       streamInput: boolean

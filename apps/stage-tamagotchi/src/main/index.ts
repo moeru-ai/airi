@@ -28,6 +28,7 @@ import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
+import { setupAppleSpeechTranscriptionService } from './services/airi/apple-speech-transcription'
 import { setupServerChannel } from './services/airi/channel-server'
 import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupBuiltInServer } from './services/airi/http-server'
@@ -165,6 +166,11 @@ app.whenReady().then(async () => {
     build: async () => setupGodotStageManager(),
   })
 
+  const appleSpeechTranscription = injeca.provide('modules:apple-speech-transcription', {
+    dependsOn: { lifecycle },
+    build: ({ dependsOn }) => setupAppleSpeechTranscriptionService(dependsOn),
+  })
+
   const mcpStdioManager = injeca.provide('modules:mcp-stdio-manager', {
     build: async () => setupMcpStdioManager(),
   })
@@ -226,7 +232,7 @@ app.whenReady().then(async () => {
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { editorWindow, settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager },
+    dependsOn: { editorWindow, settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, appleSpeechTranscription },
     build: async ({ dependsOn }) => setupMainWindow({
       ...dependsOn,
       onWindowCreated: (window) => {
