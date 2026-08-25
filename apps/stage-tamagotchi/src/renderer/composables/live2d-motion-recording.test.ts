@@ -32,7 +32,7 @@ describe('live2D motion recording', () => {
     controller.stopRecording()
 
     expect(controller.recording.value).toEqual({
-      format: 'airi-live2d-motion/v3',
+      format: 'airi-live2d-motion/v4',
       durationMs: 100,
       samples: [
         { atMs: 0, ...pose() },
@@ -59,7 +59,7 @@ describe('live2D motion recording', () => {
     })
 
     controller.loadRecording(parseLive2DMotionRecording(JSON.stringify({
-      format: 'airi-live2d-motion/v3',
+      format: 'airi-live2d-motion/v4',
       durationMs: 200,
       samples: [
         { atMs: 0, ...pose() },
@@ -87,7 +87,7 @@ describe('live2D motion recording', () => {
 
   it('round-trips the versioned JSON format', () => {
     const recording = parseLive2DMotionRecording(JSON.stringify({
-      format: 'airi-live2d-motion/v3',
+      format: 'airi-live2d-motion/v4',
       durationMs: 50,
       samples: [
         { atMs: 0, ...pose() },
@@ -100,7 +100,7 @@ describe('live2D motion recording', () => {
 
   it('rejects samples outside the normalized joystick range', () => {
     expect(() => parseLive2DMotionRecording(JSON.stringify({
-      format: 'airi-live2d-motion/v3',
+      format: 'airi-live2d-motion/v4',
       durationMs: 10,
       samples: [{ atMs: 0, ...pose({ headZ: 1.1 }) }],
     }))).toThrow('The file is not an AIRI Live2D motion recording.')
@@ -108,7 +108,7 @@ describe('live2D motion recording', () => {
 
   it('rejects samples that are not in time order', () => {
     expect(() => parseLive2DMotionRecording(JSON.stringify({
-      format: 'airi-live2d-motion/v3',
+      format: 'airi-live2d-motion/v4',
       durationMs: 20,
       samples: [
         { atMs: 0, ...pose() },

@@ -116,6 +116,23 @@ describe('live2DMotionJoystick', () => {
     mounted.host.remove()
   })
 
+  it('maps W and S to opposite mouth shapes without moving Y', () => {
+    const move = vi.fn<(pose: Live2DMotionControlPose) => void>()
+    const mounted = mountJoystick(move, vi.fn())
+
+    mounted.button.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', bubbles: true }))
+    expect(move.mock.lastCall?.[0].mouthForm).toBe(1)
+    expect(move.mock.lastCall?.[0].headY).toBe(0)
+
+    mounted.button.dispatchEvent(new KeyboardEvent('keyup', { key: 'w', bubbles: true }))
+    mounted.button.dispatchEvent(new KeyboardEvent('keydown', { key: 's', bubbles: true }))
+    expect(move.mock.lastCall?.[0].mouthForm).toBe(-1)
+    expect(move.mock.lastCall?.[0].headY).toBe(0)
+
+    mounted.app.unmount()
+    mounted.host.remove()
+  })
+
   it('preserves the mouse position while tilt keys move', () => {
     const move = vi.fn<(pose: Live2DMotionControlPose) => void>()
     const release = vi.fn()

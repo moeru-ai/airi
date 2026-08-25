@@ -247,6 +247,7 @@ describe('live2d motion manager plugins', () => {
         bodyX: -0.5,
         bodyY: 0.75,
         bodyZ: 1,
+        mouthForm: -0.25,
       },
       dynamics: { follow: 0.6, inertia: 0.35 },
     }), spring)
@@ -268,6 +269,7 @@ describe('live2d motion manager plugins', () => {
     expect(context.model.getParameterValueById('ParamBodyAngleX')).toBeCloseTo(-5)
     expect(context.model.getParameterValueById('ParamBodyAngleY')).toBeCloseTo(7.5)
     expect(context.model.getParameterValueById('ParamBodyAngleZ')).toBeCloseTo(10)
+    expect(context.model.getParameterValueById('ParamMouthForm')).toBeCloseTo(-0.25)
   })
 
   it('leaves motion parameters unchanged after manual control is released', () => {

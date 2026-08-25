@@ -22,7 +22,7 @@ export interface Live2DMotionSpringController {
 const settledPositionThreshold = 0.001
 const settledVelocityThreshold = 0.001
 const maximumStepSeconds = 1 / 120
-const poseAxes = ['eyeX', 'eyeY', 'headX', 'headY', 'headZ', 'bodyX', 'bodyY', 'bodyZ', 'offsetX', 'offsetY'] as const
+const poseAxes = ['eyeX', 'eyeY', 'headX', 'headY', 'headZ', 'bodyX', 'bodyY', 'bodyZ', 'mouthForm', 'offsetX', 'offsetY'] as const
 
 function stepAxis(options: {
   current: number

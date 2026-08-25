@@ -27,8 +27,6 @@ const positionKeys = new Set([
   'ArrowLeft',
   'ArrowRight',
   'ArrowUp',
-  's',
-  'w',
 ])
 const headRollKeys = new Set([
   'e',
@@ -38,13 +36,19 @@ const bodyXKeys = new Set([
   'a',
   'd',
 ])
-const movementKeys = new Set([...positionKeys, ...headRollKeys, ...bodyXKeys])
+const mouthFormKeys = new Set([
+  's',
+  'w',
+])
+const movementKeys = new Set([...positionKeys, ...headRollKeys, ...bodyXKeys, ...mouthFormKeys])
 
 let keyboardOwnsInput = false
 let keyboardOwnsPosition = false
 let keyboardOwnsHeadRoll = false
 let keyboardOwnsBodyX = false
 let keyboardBodyXBase = 0
+let keyboardOwnsMouthForm = false
+let keyboardMouthFormBase = 0
 
 const knobStyle = computed(() => ({
   transform: `translate(calc(-50% + ${props.pose.headX * 5.75}rem), calc(-50% - ${props.pose.headY * 5.75}rem))`,
@@ -117,6 +121,8 @@ function releaseImmediately() {
   keyboardOwnsHeadRoll = false
   keyboardOwnsBodyX = false
   keyboardBodyXBase = 0
+  keyboardOwnsMouthForm = false
+  keyboardMouthFormBase = 0
   inputActive.value = false
   emit('release')
 }
@@ -153,8 +159,8 @@ function handlePointerEnd(event: PointerEvent) {
 function keyboardPosition(): Live2DMotionControlPose {
   const left = pressedKeys.has('ArrowLeft')
   const right = pressedKeys.has('ArrowRight')
-  const down = pressedKeys.has('ArrowDown') || pressedKeys.has('s')
-  const up = pressedKeys.has('ArrowUp') || pressedKeys.has('w')
+  const down = pressedKeys.has('ArrowDown')
+  const up = pressedKeys.has('ArrowUp')
   const x = Number(right) - Number(left)
   const y = Number(up) - Number(down)
   const magnitude = Math.hypot(x, y)
@@ -175,6 +181,8 @@ function keyboardPosition(): Live2DMotionControlPose {
 
   if ([...pressedKeys].some(key => bodyXKeys.has(key)))
     pose.bodyX = Number(pressedKeys.has('d')) - Number(pressedKeys.has('a'))
+  if ([...pressedKeys].some(key => mouthFormKeys.has(key)))
+    pose.mouthForm = Number(pressedKeys.has('w')) - Number(pressedKeys.has('s'))
 
   return pose
 }
@@ -186,6 +194,7 @@ function poseIsNeutral(pose: Live2DMotionControlPose): boolean {
 function emitKeyboardTarget() {
   const target = keyboardPosition()
   const bodyXKeyActive = [...pressedKeys].some(key => bodyXKeys.has(key))
+  const mouthFormKeyActive = [...pressedKeys].some(key => mouthFormKeys.has(key))
   const nextPose = {
     eyeX: keyboardOwnsPosition ? target.eyeX : props.pose.eyeX,
     eyeY: keyboardOwnsPosition ? target.eyeY : props.pose.eyeY,
@@ -197,6 +206,9 @@ function emitKeyboardTarget() {
       : (keyboardOwnsPosition ? target.bodyX : props.pose.bodyX),
     bodyY: keyboardOwnsPosition ? target.bodyY : props.pose.bodyY,
     bodyZ: props.pose.bodyZ,
+    mouthForm: keyboardOwnsMouthForm
+      ? (mouthFormKeyActive ? target.mouthForm : keyboardMouthFormBase)
+      : props.pose.mouthForm,
     offsetX: keyboardOwnsPosition ? target.offsetX : props.pose.offsetX,
     offsetY: keyboardOwnsPosition ? target.offsetY : props.pose.offsetY,
   }
@@ -209,6 +221,8 @@ function emitKeyboardTarget() {
     keyboardOwnsHeadRoll = false
   if (!bodyXKeyActive)
     keyboardOwnsBodyX = false
+  if (!mouthFormKeyActive)
+    keyboardOwnsMouthForm = false
 
   if (pressedKeys.size > 0)
     return
@@ -238,6 +252,10 @@ function handleKeyDown(event: KeyboardEvent) {
   if (bodyXKeys.has(key) && !keyboardOwnsBodyX) {
     keyboardBodyXBase = props.pose.bodyX
     keyboardOwnsBodyX = true
+  }
+  if (mouthFormKeys.has(key) && !keyboardOwnsMouthForm) {
+    keyboardMouthFormBase = props.pose.mouthForm
+    keyboardOwnsMouthForm = true
   }
   pressedKeys.add(key)
   emitKeyboardTarget()
@@ -274,6 +292,8 @@ watch(() => props.disabled, (disabled) => {
   keyboardOwnsHeadRoll = false
   keyboardOwnsBodyX = false
   keyboardBodyXBase = 0
+  keyboardOwnsMouthForm = false
+  keyboardMouthFormBase = 0
   inputActive.value = false
 })
 </script>
