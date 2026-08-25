@@ -145,4 +145,30 @@ describe('createOpenAICompatibleValidators', () => {
       model: 'seed-2-0-pro-260328',
     }))
   })
+
+  it('uses a provider-compatible output limit for chat probing', async () => {
+    listModelsMock.mockResolvedValue([
+      { id: 'meta-llama/test-model' },
+    ])
+
+    const [chatValidator] = await getProviderValidators({
+      checks: [ProviderValidationCheck.ChatCompletions],
+    })
+
+    const result = await chatValidator.validator(config, provider, providerExtra, { t: mockT })
+
+    // ROOT CAUSE:
+    //
+    // The chat probe requested one output token. Some providers reject requests
+    // with fewer than 16 output tokens.
+    //
+    // max_tokens: 1
+    //
+    // The probe now uses the minimum that these providers accept.
+    // max_tokens: 16
+    expect(result.valid).toBe(true)
+    expect(generateTextMock).toHaveBeenCalledWith(expect.objectContaining({
+      max_tokens: 16,
+    }))
+  })
 })
