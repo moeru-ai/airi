@@ -1,20 +1,14 @@
 <script setup lang="ts">
 import type { Live2DMotionControlDynamics, Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 
-import { errorMessageFrom } from '@moeru/std'
 import { defaultLive2DMotionControlDynamics, neutralLive2DMotionControlPose, useLive2DMotionControl } from '@proj-airi/stage-ui-live2d/stores'
-import { computed, onUnmounted, shallowRef } from 'vue'
+import { onUnmounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Live2DMotionJoystick from '../../components/devtools/live2d-motion-joystick.vue'
 import Live2DMotionKeyframeEditor from '../../components/devtools/live2d-motion-keyframe-editor.vue'
-import Live2DMotionRecordingControls from '../../components/devtools/live2d-motion-recording-controls.vue'
 
-import {
-  parseLive2DMotionRecording,
-  stringifyLive2DMotionRecording,
-  useLive2DMotionRecording,
-} from '../../composables/live2d-motion-recording'
+import { useLive2DMotionRecording } from '../../composables/live2d-motion-recording'
 
 const { t } = useI18n()
 const motionControl = useLive2DMotionControl()
@@ -23,7 +17,6 @@ const neutralPose = neutralLive2DMotionControlPose
 const pose = shallowRef<Live2DMotionControlPose>(neutralPose)
 const dynamics = shallowRef<Live2DMotionControlDynamics>(defaultLive2DMotionControlDynamics)
 const active = shallowRef(false)
-const importError = shallowRef('')
 const editorPlaying = shallowRef(false)
 
 function publishPose(nextPose: Live2DMotionControlPose) {
@@ -48,8 +41,6 @@ const recordingController = useLive2DMotionRecording({
   applyPose: publishPose,
   releasePose: publishRelease,
 })
-const isPlaying = computed(() => recordingController.status.value.type === 'playing')
-const recorderBusy = computed(() => recordingController.status.value.type !== 'idle')
 
 function setPose(nextPose: Live2DMotionControlPose) {
   publishPose(nextPose)
@@ -62,48 +53,12 @@ function release() {
 }
 
 function toggleRecording() {
-  importError.value = ''
   if (recordingController.status.value.type === 'recording') {
     recordingController.stopRecording()
     return
   }
 
   recordingController.startRecording(pose.value)
-}
-
-function togglePlayback() {
-  importError.value = ''
-  if (recordingController.status.value.type === 'playing') {
-    recordingController.stopPlayback()
-    return
-  }
-
-  recordingController.startPlayback()
-}
-
-function exportRecording() {
-  if (!recordingController.recording.value)
-    return
-
-  const json = stringifyLive2DMotionRecording(recordingController.recording.value)
-  const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }))
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = `airi-live2d-motion-${Date.now()}.json`
-  anchor.click()
-  URL.revokeObjectURL(url)
-}
-
-async function importRecording(file: File) {
-  try {
-    const recording = parseLive2DMotionRecording(await file.text())
-    recordingController.loadRecording(recording)
-    importError.value = ''
-  }
-  catch (error) {
-    console.error('[Live2D motion control] Failed to import recording', errorMessageFrom(error))
-    importError.value = t('tamagotchi.settings.devtools.pages.live2d-motion.recording.import-error')
-  }
 }
 
 onUnmounted(() => {
@@ -123,32 +78,23 @@ onUnmounted(() => {
       </p>
     </div>
 
-    <Live2DMotionRecordingControls
-      :status="recordingController.status.value"
-      :recording="recordingController.recording.value"
-      :import-error="importError"
-      @toggle-recording="toggleRecording"
-      @toggle-playback="togglePlayback"
-      @export-recording="exportRecording"
-      @import-recording="importRecording"
-    />
-
-    <Live2DMotionKeyframeEditor
-      :disabled="recorderBusy"
-      :recording="recordingController.recording.value"
-      @pose="setPose"
-      @playback="editorPlaying = $event"
-      @recording="recordingController.loadRecording"
-    />
-
     <Live2DMotionJoystick
       :pose="pose"
       :dynamics="dynamics"
       :active="active"
-      :disabled="isPlaying || editorPlaying"
+      :disabled="editorPlaying"
       @move="setPose"
       @release="release"
       @update-dynamics="setDynamics"
+    />
+
+    <Live2DMotionKeyframeEditor
+      :recording="recordingController.recording.value"
+      :recording-active="recordingController.status.value.type === 'recording'"
+      @pose="setPose"
+      @playback="editorPlaying = $event"
+      @recording="recordingController.loadRecording"
+      @toggle-recording="toggleRecording"
     />
   </div>
 </template>

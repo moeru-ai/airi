@@ -75,6 +75,39 @@ describe('live2DMotionJoystick', () => {
     mounted.host.remove()
   })
 
+  it('starts pointer control without using removed keyboard state', () => {
+    const move = vi.fn<(pose: Live2DMotionControlPose) => void>()
+    const mounted = mountJoystick(move, vi.fn())
+    mounted.button.setPointerCapture = vi.fn()
+    vi.spyOn(mounted.button, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 200,
+      right: 200,
+      bottom: 200,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    })
+    const event = new MouseEvent('pointerdown', {
+      bubbles: true,
+      button: 0,
+      clientX: 150,
+      clientY: 50,
+    })
+    Object.defineProperties(event, {
+      isPrimary: { value: true },
+      pointerId: { value: 1 },
+    })
+
+    expect(() => mounted.button.dispatchEvent(event)).not.toThrow()
+    expect(move).toHaveBeenCalledWith(expect.objectContaining({ headX: 0.5, headY: 0.5 }))
+
+    mounted.app.unmount()
+    mounted.host.remove()
+  })
+
   it('maps A and Q to left body X and head roll targets', () => {
     const move = vi.fn<(pose: Live2DMotionControlPose) => void>()
     const release = vi.fn()

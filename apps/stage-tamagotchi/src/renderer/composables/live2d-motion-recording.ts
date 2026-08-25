@@ -128,6 +128,14 @@ export function useLive2DMotionRecording(
   let playbackFrame: number | undefined
   let playbackSampleIndex = 0
 
+  function publishCapturedRecording(durationMs: number) {
+    recording.value = {
+      format: 'airi-live2d-motion/v6',
+      durationMs,
+      samples: [...capturedSamples],
+    }
+  }
+
   function stopPlayback() {
     if (status.value.type !== 'playing')
       return
@@ -145,12 +153,12 @@ export function useLive2DMotionRecording(
     if (status.value.type !== 'idle')
       return
 
-    recording.value = null
     capturedSamples = [{
       atMs: 0,
       ...initialPose,
     }]
     status.value = { type: 'recording', startedAt: now() }
+    publishCapturedRecording(0)
   }
 
   function recordPose(pose: Live2DMotionControlPose) {
@@ -164,15 +172,18 @@ export function useLive2DMotionRecording(
     }
     const previousSample = capturedSamples.at(-1)
     if (previousSample && Object.entries(pose).every(([axis, value]) => previousSample[axis as keyof Live2DMotionControlPose] === value)) {
+      publishCapturedRecording(atMs)
       return
     }
 
     if (previousSample?.atMs === atMs) {
       capturedSamples[capturedSamples.length - 1] = nextSample
+      publishCapturedRecording(atMs)
       return
     }
 
     capturedSamples.push(nextSample)
+    publishCapturedRecording(atMs)
   }
 
   function stopRecording() {
@@ -183,11 +194,7 @@ export function useLive2DMotionRecording(
       Math.round(now() - status.value.startedAt),
       capturedSamples.at(-1)?.atMs ?? 0,
     )
-    recording.value = {
-      format: 'airi-live2d-motion/v6',
-      durationMs,
-      samples: capturedSamples,
-    }
+    publishCapturedRecording(durationMs)
     capturedSamples = []
     status.value = { type: 'idle' }
   }

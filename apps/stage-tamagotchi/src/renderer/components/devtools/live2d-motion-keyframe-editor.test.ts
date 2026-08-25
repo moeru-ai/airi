@@ -2,7 +2,7 @@
 
 import { neutralLive2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createApp, h, nextTick } from 'vue'
+import { createApp, h, nextTick, shallowRef } from 'vue'
 
 import Live2DMotionKeyframeEditor from './live2d-motion-keyframe-editor.vue'
 
@@ -15,17 +15,26 @@ describe('live2DMotionKeyframeEditor', () => {
     document.body.replaceChildren()
   })
 
-  function mountEditor(options: { recording?: object, onRecording?: (recording: object) => void } = {}) {
+  function mountEditor(options: {
+    recording?: object
+    recordingActive?: boolean
+    onRecording?: (recording: object) => void
+    onToggleRecording?: () => void
+  } = {}) {
     const host = document.createElement('div')
     document.body.appendChild(host)
+    const recording = shallowRef(options.recording)
+    const recordingActive = shallowRef(options.recordingActive ?? false)
     const app = createApp({
       render: () => h(Live2DMotionKeyframeEditor, {
-        recording: options.recording,
+        recording: recording.value,
+        recordingActive: recordingActive.value,
         onRecording: options.onRecording,
+        onToggleRecording: options.onToggleRecording,
       }),
     })
     app.mount(host)
-    return { app, host }
+    return { app, host, recording, recordingActive }
   }
 
   function findButton(host: HTMLElement, text: string) {
@@ -47,6 +56,49 @@ describe('live2DMotionKeyframeEditor', () => {
     expect(mounted.host.textContent).toContain('.tracks.mouthForm')
     expect(mounted.host.textContent).toContain('.tracks.mouthOpen')
 
+    mounted.app.unmount()
+  })
+
+  it('owns recording and streams captured samples into the source timeline', async () => {
+    const onToggleRecording = vi.fn()
+    const mounted = mountEditor({
+      recordingActive: true,
+      onToggleRecording,
+      recording: {
+        format: 'airi-live2d-motion/v6',
+        durationMs: 25,
+        samples: [
+          { atMs: 0, ...neutralLive2DMotionControlPose },
+          { atMs: 25, ...neutralLive2DMotionControlPose, headX: 0.25 },
+        ],
+      },
+    })
+
+    expect(mounted.host.textContent).toContain('0.03s / 0.03s')
+    findButton(mounted.host, 'tamagotchi.settings.devtools.pages.live2d-motion.recording.actions.stop-recording').click()
+    expect(onToggleRecording).toHaveBeenCalledOnce()
+
+    mounted.recording.value = {
+      format: 'airi-live2d-motion/v6',
+      durationMs: 100,
+      samples: [
+        { atMs: 0, ...neutralLive2DMotionControlPose },
+        { atMs: 25, ...neutralLive2DMotionControlPose, headX: 0.25 },
+        { atMs: 100, ...neutralLive2DMotionControlPose, headX: 0.75 },
+      ],
+    }
+    await nextTick()
+
+    expect(mounted.host.textContent).toContain('0.10s / 0.10s')
+
+    mounted.recordingActive.value = false
+    mounted.recording.value = {
+      ...mounted.recording.value,
+      durationMs: 110,
+    }
+    await nextTick()
+
+    expect(mounted.host.querySelector<HTMLButtonElement>('[title="tamagotchi.settings.devtools.pages.live2d-motion.editor.undo"]')?.disabled).toBe(true)
     mounted.app.unmount()
   })
 

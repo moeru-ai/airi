@@ -150,7 +150,14 @@ function handlePointerDown(event: PointerEvent) {
   keyboardOwnsInput = false
   keyboardOwnsPosition = false
   keyboardOwnsHeadRoll = false
-  keyboardOwnsBodyRoll = false
+  keyboardOwnsBodyX = false
+  keyboardBodyXBase = 0
+  keyboardOwnsMouthForm = false
+  keyboardMouthFormBase = 0
+  keyboardOwnsMouthOpen = false
+  keyboardMouthOpenBase = 0
+  keyboardOwnsEyeSquint = false
+  keyboardEyeSquintBase = 0
   setPositionFromPointer(event)
 }
 

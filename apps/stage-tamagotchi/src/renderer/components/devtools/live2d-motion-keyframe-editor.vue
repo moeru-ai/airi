@@ -35,11 +35,13 @@ import {
 const props = defineProps<{
   disabled?: boolean
   recording?: ReadonlyLive2DMotionRecording | null
+  recordingActive?: boolean
 }>()
 const emit = defineEmits<{
   pose: [pose: Live2DMotionControlPose]
   playback: [playing: boolean]
   recording: [recording: Live2DMotionRecording]
+  toggleRecording: []
 }>()
 const { t } = useI18n()
 
@@ -63,6 +65,7 @@ let lastEmittedRecordingJson = ''
 
 const currentTime = computed(() => `${(playheadMs.value / 1000).toFixed(2)}s`)
 const duration = computed(() => `${(project.value.durationMs / 1000).toFixed(2)}s`)
+const editingDisabled = computed(() => props.disabled || props.recordingActive)
 
 function publish(atMs = playheadMs.value) {
   playheadMs.value = Math.min(project.value.durationMs, Math.max(0, atMs))
@@ -224,8 +227,8 @@ async function importProject(event: Event) {
     selectedOverlayId.value = nextProject.overlays[0]?.id
     activeTrack.value = nextProject.overlays[0]?.trackId ?? 'headX'
     resetViewport()
-    clear()
     commit()
+    clear()
     publish()
     emitBakedRecording()
     importError.value = ''
@@ -245,11 +248,14 @@ watch(() => props.recording, (recording) => {
   }
 
   project.value = createLive2DMotionProject(recording)
-  playheadMs.value = 0
+  playheadMs.value = props.recordingActive ? recording.durationMs : 0
   selectedOverlayId.value = undefined
   resetViewport()
-  clear()
+  if (props.recordingActive)
+    return
+
   commit()
+  clear()
 }, { immediate: true })
 
 onUnmounted(() => {
@@ -270,23 +276,32 @@ onUnmounted(() => {
         </p>
       </div>
       <div :class="['flex flex-wrap items-center gap-1']">
-        <BasicButton :disabled="props.disabled" @click="togglePlayback">
+        <BasicButton
+          :disabled="props.disabled || playing"
+          @click="emit('toggleRecording')"
+        >
+          <span :class="props.recordingActive ? 'i-solar:stop-circle-bold' : 'i-solar:record-circle-bold'" />
+          {{ props.recordingActive
+            ? t('tamagotchi.settings.devtools.pages.live2d-motion.recording.actions.stop-recording')
+            : t('tamagotchi.settings.devtools.pages.live2d-motion.recording.actions.record') }}
+        </BasicButton>
+        <BasicButton :disabled="editingDisabled" @click="togglePlayback">
           <span :class="playing ? 'i-solar:pause-bold' : 'i-solar:play-bold'" />
           {{ playing ? t('tamagotchi.settings.devtools.pages.live2d-motion.editor.pause') : t('tamagotchi.settings.devtools.pages.live2d-motion.editor.play') }}
         </BasicButton>
-        <BasicButton size="sm" :disabled="props.disabled || !canUndo" :title="t('tamagotchi.settings.devtools.pages.live2d-motion.editor.undo')" @click="runHistoryAction(undo)">
+        <BasicButton size="sm" :disabled="editingDisabled || !canUndo" :title="t('tamagotchi.settings.devtools.pages.live2d-motion.editor.undo')" @click="runHistoryAction(undo)">
           <span :class="['i-solar:undo-left-round-linear']" />
         </BasicButton>
-        <BasicButton size="sm" :disabled="props.disabled || !canRedo" :title="t('tamagotchi.settings.devtools.pages.live2d-motion.editor.redo')" @click="runHistoryAction(redo)">
+        <BasicButton size="sm" :disabled="editingDisabled || !canRedo" :title="t('tamagotchi.settings.devtools.pages.live2d-motion.editor.redo')" @click="runHistoryAction(redo)">
           <span :class="['i-solar:undo-right-round-linear']" />
         </BasicButton>
-        <BasicButton size="sm" :disabled="props.disabled" @click="resetViewport">
+        <BasicButton size="sm" :disabled="editingDisabled" @click="resetViewport">
           <span :class="['i-solar:magnifer-zoom-out-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.reset-view') }}
         </BasicButton>
-        <BasicButton size="sm" :disabled="props.disabled" @click="exportProject">
+        <BasicButton size="sm" :disabled="editingDisabled" @click="exportProject">
           <span :class="['i-solar:download-minimalistic-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.export-project') }}
         </BasicButton>
-        <BasicButton size="sm" :disabled="props.disabled" @click="openImportPicker">
+        <BasicButton size="sm" :disabled="editingDisabled" @click="openImportPicker">
           <span :class="['i-solar:upload-minimalistic-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.import-project') }}
         </BasicButton>
       </div>
@@ -307,7 +322,7 @@ onUnmounted(() => {
         :duration-ms="project.durationMs"
         :playhead-ms="playheadMs"
         :viewport="viewport"
-        :disabled="props.disabled"
+        :disabled="editingDisabled"
         @scrub="publish"
         @viewport="viewport = $event"
       />
@@ -324,7 +339,7 @@ onUnmounted(() => {
         :selected-overlay-id="selectedOverlayId"
         :playhead-ms="playheadMs"
         :viewport="viewport"
-        :disabled="props.disabled"
+        :disabled="editingDisabled"
         @activate="selectTrack(trackId)"
         @add-overlay="addOverlay(trackId, $event)"
         @select-overlay="selectedOverlayId = $event"

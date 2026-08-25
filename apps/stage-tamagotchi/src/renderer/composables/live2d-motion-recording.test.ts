@@ -23,8 +23,23 @@ describe('live2D motion recording', () => {
     })
 
     controller.startRecording(pose())
+    expect(controller.recording.value).toEqual({
+      format: 'airi-live2d-motion/v6',
+      durationMs: 0,
+      samples: [{ atMs: 0, ...pose() }],
+    })
+
     now = 125
     controller.recordPose(pose({ headX: 0.5, headY: -0.25, headZ: -0.5, bodyZ: 0.75 }))
+    expect(controller.recording.value).toEqual({
+      format: 'airi-live2d-motion/v6',
+      durationMs: 25,
+      samples: [
+        { atMs: 0, ...pose() },
+        { atMs: 25, ...pose({ headX: 0.5, headY: -0.25, headZ: -0.5, bodyZ: 0.75 }) },
+      ],
+    })
+
     now = 175
     controller.recordPose(pose({ headX: 0.5, headY: -0.25, headZ: -0.5, bodyZ: 0.75 }))
     now = 200
