@@ -311,12 +311,14 @@ pnpm dev:tamagotchi
 Start the development server for the capacitor:
 
 ```shell
-pnpm dev:pocket:ios --target <DEVICE_ID_OR_SIMULATOR_NAME>
+pnpm dev:pocket:ios --target "<DEVICE_ID_OR_SIMULATOR_NAME>"
 # Or
-CAPACITOR_DEVICE_ID_IOS=<DEVICE_ID_OR_SIMULATOR_NAME> pnpm dev:pocket:ios
+CAPACITOR_DEVICE_ID_IOS="<DEVICE_ID_OR_SIMULATOR_NAME>" pnpm dev:pocket:ios
 ```
 
-You can see the list of available devices and simulators by running `pnpm exec cap run ios --list`.
+Quote the target: simulator names such as `iPhone 16 Pro` contain spaces.
+
+You can see the list of available devices and simulators by running `pnpm -F @proj-airi/stage-pocket exec cap run ios --list`. `@capacitor/cli` is declared in `apps/stage-pocket`, so `cap` does not resolve from the repository root.
 
 If you need to connect server channel on pocket in wireless mode, you need to start tamagotchi as root:
 
