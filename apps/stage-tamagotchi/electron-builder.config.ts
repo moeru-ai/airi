@@ -211,6 +211,9 @@ export default {
         NSMicrophoneUsageDescription: 'AIRI requires microphone access for voice interaction',
       },
       {
+        NSSpeechRecognitionUsageDescription: 'AIRI uses Apple Speech to transcribe voice interactions on this device',
+      },
+      {
         NSCameraUsageDescription: 'AIRI requires camera access for vision understanding',
       },
     ],

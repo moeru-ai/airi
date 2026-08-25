@@ -526,6 +526,15 @@ function handleDeleteProvider() {
                   :required="field.required"
                   @update:model-value="setFieldValue(field.key, $event)"
                 />
+                <FieldCombobox
+                  v-else-if="field.type === 'select'"
+                  :model-value="getStringField(field.key)"
+                  :label="field.label"
+                  :description="field.description"
+                  :placeholder="field.placeholder"
+                  :options="field.options"
+                  @update:model-value="setFieldValue(field.key, $event)"
+                />
                 <FieldInput
                   v-else
                   v-model="providerConfigEdit.config[field.key]"

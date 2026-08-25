@@ -28,6 +28,7 @@ export default defineConfig({
           // them into ESM and causing issues in runtime.
           'electron-click-drag-plugin',
           'uiohook-napi',
+          '@xsai-apple-speech/transcription-native',
         ],
       },
     },
