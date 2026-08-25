@@ -61,6 +61,20 @@ devtools:
       joystick-label: Live2D motion joystick
       instructions: Drag the joystick, or use the arrow keys for X/Y. W/S also controls Y. A/D tilts the body. Q/E tilts the head. Released keys return smoothly to center.
       parameter-note: The joystick controls X/Y. A/D maps to body Z ±10°. Q/E maps to head Z ±30°.
+      editor:
+        title: Keyframe editor
+        instructions: Drag points to shape the selected curve. Double-click empty space to add a point. Double-click a point to delete it.
+        play: Play timeline
+        pause: Pause timeline
+        tracks:
+          eyeX: Eye X
+          eyeY: Eye Y
+          headX: Head X
+          headY: Head Y
+          headZ: Head Z
+          bodyX: Body X
+          bodyY: Body Y
+          bodyZ: Body Z
       spring:
         follow:
           label: Follow

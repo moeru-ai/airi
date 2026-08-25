@@ -4,14 +4,20 @@ import { shallowRef, watch } from 'vue'
 
 /** A normalized pose for manual Live2D motion control. */
 export interface Live2DMotionControlPose {
-  /** Horizontal position from -1 (left) to 1 (right). */
-  x: number
-  /** Vertical position from -1 (down) to 1 (up). */
-  y: number
+  eyeX: number
+  eyeY: number
+  headX: number
+  headY: number
   /** Head roll from -1 (left) to 1 (right). */
   headZ: number
+  bodyX: number
+  bodyY: number
   /** Body roll from -1 (left) to 1 (right). */
   bodyZ: number
+  /** Joystick-only horizontal model translation. */
+  offsetX: number
+  /** Joystick-only vertical model translation. */
+  offsetY: number
 }
 
 /** Spring settings for manual Live2D motion. */
@@ -42,7 +48,18 @@ type Live2DMotionControlEvent
     ownerId: string
   }
 
-const neutralPose: Live2DMotionControlPose = Object.freeze({ x: 0, y: 0, headZ: 0, bodyZ: 0 })
+export const neutralLive2DMotionControlPose: Live2DMotionControlPose = Object.freeze({
+  eyeX: 0,
+  eyeY: 0,
+  headX: 0,
+  headY: 0,
+  headZ: 0,
+  bodyX: 0,
+  bodyY: 0,
+  bodyZ: 0,
+  offsetX: 0,
+  offsetY: 0,
+})
 const horizontalModelOffset = 20
 /** Default spring settings for the Live2D motion devtool. */
 export const defaultLive2DMotionControlDynamics: Live2DMotionControlDynamics = Object.freeze({ follow: 0.6, inertia: 0.35 })
@@ -61,10 +78,16 @@ function clampFollow(value: number): number {
 
 function normalizePose(pose: Live2DMotionControlPose): Live2DMotionControlPose {
   return {
-    x: clampAxis(pose.x),
-    y: clampAxis(pose.y),
+    eyeX: clampAxis(pose.eyeX),
+    eyeY: clampAxis(pose.eyeY),
+    headX: clampAxis(pose.headX),
+    headY: clampAxis(pose.headY),
     headZ: clampAxis(pose.headZ),
+    bodyX: clampAxis(pose.bodyX),
+    bodyY: clampAxis(pose.bodyY),
     bodyZ: clampAxis(pose.bodyZ),
+    offsetX: clampAxis(pose.offsetX),
+    offsetY: clampAxis(pose.offsetY),
   }
 }
 
@@ -83,7 +106,7 @@ function normalizeDynamics(dynamics: Live2DMotionControlDynamics): Live2DMotionC
  * @example
  * getLive2DMotionControlModelOffset({
  *   active: true,
- *   pose: { x: 1, y: 1, headZ: 0, bodyZ: 0 },
+ *   pose: { ...neutralLive2DMotionControlPose, offsetX: 1, offsetY: 1 },
  * })
  * // => { x: 20, y: -40 }
  */
@@ -92,8 +115,8 @@ export function getLive2DMotionControlModelOffset(control: Pick<Live2DMotionCont
     return { x: 0, y: 0 }
 
   return {
-    x: control.pose.x * horizontalModelOffset,
-    y: -control.pose.y * horizontalModelOffset * 2,
+    x: control.pose.offsetX * horizontalModelOffset,
+    y: -control.pose.offsetY * horizontalModelOffset * 2,
   }
 }
 
@@ -111,7 +134,7 @@ export const useLive2DMotionControl = defineStore('live2d-motion-control', () =>
   const control = shallowRef<Live2DMotionControlState>({
     active: false,
     ownerId: null,
-    pose: neutralPose,
+    pose: neutralLive2DMotionControlPose,
     dynamics: defaultLive2DMotionControlDynamics,
   })
 
@@ -132,7 +155,7 @@ export const useLive2DMotionControl = defineStore('live2d-motion-control', () =>
     control.value = {
       active: false,
       ownerId: null,
-      pose: neutralPose,
+      pose: neutralLive2DMotionControlPose,
       dynamics: control.value.dynamics,
     }
   }

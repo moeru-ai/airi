@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Live2DMotionControlDynamics, Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 
+import { neutralLive2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 import { BasicButton, FieldRange } from '@proj-airi/ui'
 import { computed, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -45,7 +46,7 @@ let keyboardOwnsHeadRoll = false
 let keyboardOwnsBodyRoll = false
 
 const knobStyle = computed(() => ({
-  transform: `translate(calc(-50% + ${props.pose.x * 5.75}rem), calc(-50% - ${props.pose.y * 5.75}rem))`,
+  transform: `translate(calc(-50% + ${props.pose.headX * 5.75}rem), calc(-50% - ${props.pose.headY * 5.75}rem))`,
 }))
 
 const follow = computed({
@@ -61,19 +62,19 @@ const formatPercent = (value: number) => `${Math.round(value * 100)}%`
 const parameterGroups = computed(() => [
   {
     label: t('tamagotchi.settings.devtools.pages.live2d-motion.groups.eyes'),
-    x: props.pose.x,
-    y: props.pose.y,
+    x: props.pose.eyeX,
+    y: props.pose.eyeY,
   },
   {
     label: t('tamagotchi.settings.devtools.pages.live2d-motion.groups.head'),
-    x: props.pose.x * 30,
-    y: props.pose.y * 30,
+    x: props.pose.headX * 30,
+    y: props.pose.headY * 30,
     z: props.pose.headZ * 30,
   },
   {
     label: t('tamagotchi.settings.devtools.pages.live2d-motion.groups.body'),
-    x: props.pose.x * 10,
-    y: props.pose.y * 10,
+    x: props.pose.bodyX * 10,
+    y: props.pose.bodyY * 10,
     z: props.pose.bodyZ * 10,
   },
 ])
@@ -83,10 +84,15 @@ function setPosition(x: number, y: number) {
   const scale = magnitude > 1 ? 1 / magnitude : 1
   inputActive.value = true
   emit('move', {
-    x: x * scale,
-    y: y * scale,
-    headZ: props.pose.headZ,
-    bodyZ: props.pose.bodyZ,
+    ...props.pose,
+    eyeX: x * scale,
+    eyeY: y * scale,
+    headX: x * scale,
+    headY: y * scale,
+    bodyX: x * scale,
+    bodyY: y * scale,
+    offsetX: x * scale,
+    offsetY: y * scale,
   })
 }
 
@@ -153,27 +159,37 @@ function keyboardPosition(): Live2DMotionControlPose {
   const scale = magnitude > 1 ? 1 / magnitude : 1
 
   return {
-    x: x * scale,
-    y: y * scale,
+    ...neutralLive2DMotionControlPose,
+    eyeX: x * scale,
+    eyeY: y * scale,
+    headX: x * scale,
+    headY: y * scale,
+    bodyX: x * scale,
+    bodyY: y * scale,
+    offsetX: x * scale,
+    offsetY: y * scale,
     headZ: Number(pressedKeys.has('e')) - Number(pressedKeys.has('q')),
     bodyZ: Number(pressedKeys.has('d')) - Number(pressedKeys.has('a')),
   }
 }
 
 function poseIsNeutral(pose: Live2DMotionControlPose): boolean {
-  return pose.x === 0
-    && pose.y === 0
-    && pose.headZ === 0
-    && pose.bodyZ === 0
+  return Object.values(pose).every(value => value === 0)
 }
 
 function emitKeyboardTarget() {
   const target = keyboardPosition()
   const nextPose = {
-    x: keyboardOwnsPosition ? target.x : props.pose.x,
-    y: keyboardOwnsPosition ? target.y : props.pose.y,
+    eyeX: keyboardOwnsPosition ? target.eyeX : props.pose.eyeX,
+    eyeY: keyboardOwnsPosition ? target.eyeY : props.pose.eyeY,
+    headX: keyboardOwnsPosition ? target.headX : props.pose.headX,
+    headY: keyboardOwnsPosition ? target.headY : props.pose.headY,
     headZ: keyboardOwnsHeadRoll ? target.headZ : props.pose.headZ,
+    bodyX: keyboardOwnsPosition ? target.bodyX : props.pose.bodyX,
+    bodyY: keyboardOwnsPosition ? target.bodyY : props.pose.bodyY,
     bodyZ: keyboardOwnsBodyRoll ? target.bodyZ : props.pose.bodyZ,
+    offsetX: keyboardOwnsPosition ? target.offsetX : props.pose.offsetX,
+    offsetY: keyboardOwnsPosition ? target.offsetY : props.pose.offsetY,
   }
   inputActive.value = true
   emit('move', nextPose)

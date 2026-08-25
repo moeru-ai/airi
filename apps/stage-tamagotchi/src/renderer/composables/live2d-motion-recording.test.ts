@@ -1,5 +1,6 @@
 import type { Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 
+import { neutralLive2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
@@ -7,6 +8,10 @@ import {
   stringifyLive2DMotionRecording,
   useLive2DMotionRecording,
 } from './live2d-motion-recording'
+
+function pose(overrides: Partial<Live2DMotionControlPose> = {}): Live2DMotionControlPose {
+  return { ...neutralLive2DMotionControlPose, ...overrides }
+}
 
 describe('live2D motion recording', () => {
   it('records changed poses with elapsed timestamps', () => {
@@ -17,22 +22,22 @@ describe('live2D motion recording', () => {
       now: () => now,
     })
 
-    controller.startRecording({ x: 0, y: 0, headZ: 0, bodyZ: 0 })
+    controller.startRecording(pose())
     now = 125
-    controller.recordPose({ x: 0.5, y: -0.25, headZ: -0.5, bodyZ: 0.75 })
+    controller.recordPose(pose({ headX: 0.5, headY: -0.25, headZ: -0.5, bodyZ: 0.75 }))
     now = 175
-    controller.recordPose({ x: 0.5, y: -0.25, headZ: -0.5, bodyZ: 0.75 })
+    controller.recordPose(pose({ headX: 0.5, headY: -0.25, headZ: -0.5, bodyZ: 0.75 }))
     now = 200
-    controller.recordPose({ x: 0, y: 0, headZ: 0, bodyZ: 0 })
+    controller.recordPose(pose())
     controller.stopRecording()
 
     expect(controller.recording.value).toEqual({
-      format: 'airi-live2d-motion/v2',
+      format: 'airi-live2d-motion/v3',
       durationMs: 100,
       samples: [
-        { atMs: 0, x: 0, y: 0, headZ: 0, bodyZ: 0 },
-        { atMs: 25, x: 0.5, y: -0.25, headZ: -0.5, bodyZ: 0.75 },
-        { atMs: 100, x: 0, y: 0, headZ: 0, bodyZ: 0 },
+        { atMs: 0, ...pose() },
+        { atMs: 25, ...pose({ headX: 0.5, headY: -0.25, headZ: -0.5, bodyZ: 0.75 }) },
+        { atMs: 100, ...pose() },
       ],
     })
   })
@@ -54,24 +59,24 @@ describe('live2D motion recording', () => {
     })
 
     controller.loadRecording(parseLive2DMotionRecording(JSON.stringify({
-      format: 'airi-live2d-motion/v2',
+      format: 'airi-live2d-motion/v3',
       durationMs: 200,
       samples: [
-        { atMs: 0, x: 0, y: 0, headZ: 0, bodyZ: 0 },
-        { atMs: 50, x: 0.5, y: 0.25, headZ: -0.5, bodyZ: 0.5 },
-        { atMs: 150, x: -1, y: 1, headZ: 1, bodyZ: -1 },
+        { atMs: 0, ...pose() },
+        { atMs: 50, ...pose({ headX: 0.5, headY: 0.25, headZ: -0.5, bodyZ: 0.5 }) },
+        { atMs: 150, ...pose({ headX: -1, headY: 1, headZ: 1, bodyZ: -1 }) },
       ],
     })))
 
     controller.startPlayback()
-    expect(appliedPoses).toEqual([{ x: 0, y: 0, headZ: 0, bodyZ: 0 }])
+    expect(appliedPoses).toEqual([pose()])
 
     now = 1150
     nextFrame?.(now)
     expect(appliedPoses).toEqual([
-      { x: 0, y: 0, headZ: 0, bodyZ: 0 },
-      { x: 0.5, y: 0.25, headZ: -0.5, bodyZ: 0.5 },
-      { x: -1, y: 1, headZ: 1, bodyZ: -1 },
+      pose(),
+      pose({ headX: 0.5, headY: 0.25, headZ: -0.5, bodyZ: 0.5 }),
+      pose({ headX: -1, headY: 1, headZ: 1, bodyZ: -1 }),
     ])
 
     now = 1200
@@ -82,11 +87,11 @@ describe('live2D motion recording', () => {
 
   it('round-trips the versioned JSON format', () => {
     const recording = parseLive2DMotionRecording(JSON.stringify({
-      format: 'airi-live2d-motion/v2',
+      format: 'airi-live2d-motion/v3',
       durationMs: 50,
       samples: [
-        { atMs: 0, x: 0, y: 0, headZ: 0, bodyZ: 0 },
-        { atMs: 50, x: 1, y: -1, headZ: -1, bodyZ: 1 },
+        { atMs: 0, ...pose() },
+        { atMs: 50, ...pose({ headX: 1, headY: -1, headZ: -1, bodyZ: 1 }) },
       ],
     }))
 
@@ -95,20 +100,20 @@ describe('live2D motion recording', () => {
 
   it('rejects samples outside the normalized joystick range', () => {
     expect(() => parseLive2DMotionRecording(JSON.stringify({
-      format: 'airi-live2d-motion/v2',
+      format: 'airi-live2d-motion/v3',
       durationMs: 10,
-      samples: [{ atMs: 0, x: 0, y: 0, headZ: 1.1, bodyZ: 0 }],
+      samples: [{ atMs: 0, ...pose({ headZ: 1.1 }) }],
     }))).toThrow('The file is not an AIRI Live2D motion recording.')
   })
 
   it('rejects samples that are not in time order', () => {
     expect(() => parseLive2DMotionRecording(JSON.stringify({
-      format: 'airi-live2d-motion/v2',
+      format: 'airi-live2d-motion/v3',
       durationMs: 20,
       samples: [
-        { atMs: 0, x: 0, y: 0, headZ: 0, bodyZ: 0 },
-        { atMs: 20, x: 1, y: 0, headZ: 0, bodyZ: 0 },
-        { atMs: 10, x: 0, y: 0, headZ: 0, bodyZ: 0 },
+        { atMs: 0, ...pose() },
+        { atMs: 20, ...pose({ headX: 1 }) },
+        { atMs: 10, ...pose() },
       ],
     }))).toThrow('The motion samples must be in time order.')
   })

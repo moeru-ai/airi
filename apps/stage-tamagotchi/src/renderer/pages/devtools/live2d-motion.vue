@@ -2,11 +2,12 @@
 import type { Live2DMotionControlDynamics, Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 
 import { errorMessageFrom } from '@moeru/std'
-import { defaultLive2DMotionControlDynamics, useLive2DMotionControl } from '@proj-airi/stage-ui-live2d/stores'
+import { defaultLive2DMotionControlDynamics, neutralLive2DMotionControlPose, useLive2DMotionControl } from '@proj-airi/stage-ui-live2d/stores'
 import { computed, onUnmounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Live2DMotionJoystick from '../../components/devtools/live2d-motion-joystick.vue'
+import Live2DMotionKeyframeEditor from '../../components/devtools/live2d-motion-keyframe-editor.vue'
 import Live2DMotionRecordingControls from '../../components/devtools/live2d-motion-recording-controls.vue'
 
 import {
@@ -18,11 +19,12 @@ import {
 const { t } = useI18n()
 const motionControl = useLive2DMotionControl()
 const ownerId = crypto.randomUUID()
-const neutralPose: Live2DMotionControlPose = Object.freeze({ x: 0, y: 0, headZ: 0, bodyZ: 0 })
+const neutralPose = neutralLive2DMotionControlPose
 const pose = shallowRef<Live2DMotionControlPose>(neutralPose)
 const dynamics = shallowRef<Live2DMotionControlDynamics>(defaultLive2DMotionControlDynamics)
 const active = shallowRef(false)
 const importError = shallowRef('')
+const editorPlaying = shallowRef(false)
 
 function publishPose(nextPose: Live2DMotionControlPose) {
   pose.value = nextPose
@@ -47,6 +49,7 @@ const recordingController = useLive2DMotionRecording({
   releasePose: publishRelease,
 })
 const isPlaying = computed(() => recordingController.status.value.type === 'playing')
+const recorderBusy = computed(() => recordingController.status.value.type !== 'idle')
 
 function setPose(nextPose: Live2DMotionControlPose) {
   publishPose(nextPose)
@@ -130,11 +133,17 @@ onUnmounted(() => {
       @import-recording="importRecording"
     />
 
+    <Live2DMotionKeyframeEditor
+      :disabled="recorderBusy"
+      @pose="setPose"
+      @playback="editorPlaying = $event"
+    />
+
     <Live2DMotionJoystick
       :pose="pose"
       :dynamics="dynamics"
       :active="active"
-      :disabled="isPlaying"
+      :disabled="isPlaying || editorPlaying"
       @move="setPose"
       @release="release"
       @update-dynamics="setDynamics"

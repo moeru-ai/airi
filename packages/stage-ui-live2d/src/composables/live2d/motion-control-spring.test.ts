@@ -2,13 +2,14 @@ import type { Live2DMotionControlState } from '../../stores/motion-control'
 
 import { describe, expect, it } from 'vitest'
 
+import { neutralLive2DMotionControlPose } from '../../stores/motion-control'
 import { createLive2DMotionSpring } from './motion-control-spring'
 
 function createControl(overrides: Partial<Live2DMotionControlState> = {}): Live2DMotionControlState {
   return {
     active: true,
     ownerId: 'devtool',
-    pose: { x: 1, y: -0.5, headZ: 0.75, bodyZ: -1 },
+    pose: { ...neutralLive2DMotionControlPose, headX: 1, headY: -0.5, headZ: 0.75, bodyZ: -1 },
     dynamics: { follow: 0.6, inertia: 0.35 },
     ...overrides,
   }
@@ -20,10 +21,10 @@ describe('live2D motion spring', () => {
 
     const first = spring.step(createControl(), 1 / 60)
 
-    expect(first.pose.x).toBeGreaterThan(0)
-    expect(first.pose.x).toBeLessThan(1)
-    expect(first.pose.y).toBeLessThan(0)
-    expect(first.pose.y).toBeGreaterThan(-0.5)
+    expect(first.pose.headX).toBeGreaterThan(0)
+    expect(first.pose.headX).toBeLessThan(1)
+    expect(first.pose.headY).toBeLessThan(0)
+    expect(first.pose.headY).toBeGreaterThan(-0.5)
   })
 
   it('uses follow to control how quickly the output approaches the target', () => {
@@ -35,21 +36,21 @@ describe('live2D motion spring', () => {
       fast.step(createControl({ dynamics: { follow: 1.8, inertia: 0.35 } }), 1 / 60)
     }
 
-    expect(fast.output.value.pose.x).toBeGreaterThan(slow.output.value.pose.x)
+    expect(fast.output.value.pose.headX).toBeGreaterThan(slow.output.value.pose.headX)
   })
 
   it('uses inertia to preserve more movement after the target returns to center', () => {
-    const lowInertia = createLive2DMotionSpring({ x: 1, y: 0, headZ: 0, bodyZ: 0 })
-    const highInertia = createLive2DMotionSpring({ x: 1, y: 0, headZ: 0, bodyZ: 0 })
+    const lowInertia = createLive2DMotionSpring({ ...neutralLive2DMotionControlPose, headX: 1 })
+    const highInertia = createLive2DMotionSpring({ ...neutralLive2DMotionControlPose, headX: 1 })
 
     lowInertia.step(createControl({ active: false, dynamics: { follow: 0.6, inertia: 0 } }), 1 / 30)
     highInertia.step(createControl({ active: false, dynamics: { follow: 0.6, inertia: 1 } }), 1 / 30)
 
-    expect(highInertia.output.value.pose.x).toBeGreaterThan(lowInertia.output.value.pose.x)
+    expect(highInertia.output.value.pose.headX).toBeGreaterThan(lowInertia.output.value.pose.headX)
   })
 
   it('settles at neutral after manual control is released', () => {
-    const spring = createLive2DMotionSpring({ x: 1, y: -1, headZ: 1, bodyZ: -1 })
+    const spring = createLive2DMotionSpring({ ...neutralLive2DMotionControlPose, headX: 1, headY: -1, headZ: 1, bodyZ: -1 })
     const released = createControl({ active: false })
 
     for (let frame = 0; frame < 600; frame += 1)
@@ -57,7 +58,7 @@ describe('live2D motion spring', () => {
 
     expect(spring.output.value).toEqual({
       active: false,
-      pose: { x: 0, y: 0, headZ: 0, bodyZ: 0 },
+      pose: neutralLive2DMotionControlPose,
     })
   })
 })

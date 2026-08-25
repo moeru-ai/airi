@@ -7,14 +7,20 @@ import { readonly, shallowRef } from 'vue'
 
 const live2dMotionSampleSchema = object({
   atMs: pipe(number(), finite(), minValue(0)),
-  x: pipe(number(), finite(), minValue(-1), maxValue(1)),
-  y: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  eyeX: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  eyeY: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  headX: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  headY: pipe(number(), finite(), minValue(-1), maxValue(1)),
   headZ: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  bodyX: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  bodyY: pipe(number(), finite(), minValue(-1), maxValue(1)),
   bodyZ: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  offsetX: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  offsetY: pipe(number(), finite(), minValue(-1), maxValue(1)),
 })
 
 const live2dMotionRecordingSchema = object({
-  format: literal('airi-live2d-motion/v2'),
+  format: literal('airi-live2d-motion/v3'),
   durationMs: pipe(number(), finite(), minValue(0)),
   samples: pipe(array(live2dMotionSampleSchema), minLength(1)),
 })
@@ -63,8 +69,8 @@ interface Live2DMotionRecordingController {
  * Parses and validates a Live2D joystick recording at the file boundary.
  *
  * @example
- * parseLive2DMotionRecording('{"format":"airi-live2d-motion/v2","durationMs":0,"samples":[{"atMs":0,"x":0,"y":0,"headZ":0,"bodyZ":0}]}')
- * // => { format: 'airi-live2d-motion/v2', durationMs: 0, samples: [{ atMs: 0, x: 0, y: 0, headZ: 0, bodyZ: 0 }] }
+ * parseLive2DMotionRecording('{"format":"airi-live2d-motion/v3", ...}')
+ * // => a validated recording
  */
 export function parseLive2DMotionRecording(raw: string): Live2DMotionRecording {
   let input: unknown
@@ -98,8 +104,8 @@ export function parseLive2DMotionRecording(raw: string): Live2DMotionRecording {
  * Serializes a Live2D joystick recording as a readable JSON file.
  *
  * @example
- * stringifyLive2DMotionRecording({ format: 'airi-live2d-motion/v2', durationMs: 0, samples: [{ atMs: 0, x: 0, y: 0, headZ: 0, bodyZ: 0 }] })
- * // => '{\n  "format": "airi-live2d-motion/v2", ...\n}\n'
+ * stringifyLive2DMotionRecording({ format: 'airi-live2d-motion/v3', ... })
+ * // => readable JSON ending with a newline
  */
 export function stringifyLive2DMotionRecording(recording: ReadonlyLive2DMotionRecording): string {
   return `${JSON.stringify(recording, null, 2)}\n`
@@ -139,10 +145,7 @@ export function useLive2DMotionRecording(
     recording.value = null
     capturedSamples = [{
       atMs: 0,
-      x: initialPose.x,
-      y: initialPose.y,
-      headZ: initialPose.headZ,
-      bodyZ: initialPose.bodyZ,
+      ...initialPose,
     }]
     status.value = { type: 'recording', startedAt: now() }
   }
@@ -154,18 +157,10 @@ export function useLive2DMotionRecording(
     const atMs = Math.max(0, Math.round(now() - status.value.startedAt))
     const nextSample: Live2DMotionSample = {
       atMs,
-      x: pose.x,
-      y: pose.y,
-      headZ: pose.headZ,
-      bodyZ: pose.bodyZ,
+      ...pose,
     }
     const previousSample = capturedSamples.at(-1)
-    if (
-      previousSample?.x === pose.x
-      && previousSample.y === pose.y
-      && previousSample.headZ === pose.headZ
-      && previousSample.bodyZ === pose.bodyZ
-    ) {
+    if (previousSample && Object.entries(pose).every(([axis, value]) => previousSample[axis as keyof Live2DMotionControlPose] === value)) {
       return
     }
 
@@ -186,7 +181,7 @@ export function useLive2DMotionRecording(
       capturedSamples.at(-1)?.atMs ?? 0,
     )
     recording.value = {
-      format: 'airi-live2d-motion/v2',
+      format: 'airi-live2d-motion/v3',
       durationMs,
       samples: capturedSamples,
     }
@@ -212,11 +207,9 @@ export function useLive2DMotionRecording(
       && recording.value.samples[playbackSampleIndex].atMs <= elapsedMs
     ) {
       const sample = recording.value.samples[playbackSampleIndex]
+      const { atMs: _atMs, ...pose } = sample
       options.applyPose({
-        x: sample.x,
-        y: sample.y,
-        headZ: sample.headZ,
-        bodyZ: sample.bodyZ,
+        ...pose,
       })
       playbackSampleIndex++
     }

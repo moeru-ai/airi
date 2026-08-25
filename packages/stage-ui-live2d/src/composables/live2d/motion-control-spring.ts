@@ -4,6 +4,8 @@ import type { Live2DMotionControlPose, Live2DMotionControlState } from '../../st
 
 import { shallowRef } from 'vue'
 
+import { neutralLive2DMotionControlPose } from '../../stores/motion-control'
+
 export interface Live2DMotionSpringOutput {
   /** True while the spring follows a target or settles at neutral. */
   active: boolean
@@ -17,11 +19,10 @@ export interface Live2DMotionSpringController {
   step: (control: Live2DMotionControlState, elapsedSeconds: number) => Live2DMotionSpringOutput
 }
 
-const neutralPose: Live2DMotionControlPose = Object.freeze({ x: 0, y: 0, headZ: 0, bodyZ: 0 })
 const settledPositionThreshold = 0.001
 const settledVelocityThreshold = 0.001
 const maximumStepSeconds = 1 / 120
-const poseAxes = ['x', 'y', 'headZ', 'bodyZ'] as const
+const poseAxes = ['eyeX', 'eyeY', 'headX', 'headY', 'headZ', 'bodyX', 'bodyY', 'bodyZ', 'offsetX', 'offsetY'] as const
 
 function stepAxis(options: {
   current: number
@@ -53,16 +54,16 @@ function poseIsSettled(pose: Live2DMotionControlPose, velocity: Live2DMotionCont
  * `follow` increases spring stiffness. `inertia` increases mass and reduces
  * damping, which preserves velocity and permits more overshoot.
  */
-export function createLive2DMotionSpring(initialPose: Live2DMotionControlPose = neutralPose): Live2DMotionSpringController {
+export function createLive2DMotionSpring(initialPose: Live2DMotionControlPose = neutralLive2DMotionControlPose): Live2DMotionSpringController {
   let pose = { ...initialPose }
-  let velocity = { ...neutralPose }
+  let velocity = { ...neutralLive2DMotionControlPose }
   const output = shallowRef<Live2DMotionSpringOutput>({
-    active: !poseIsSettled(pose, velocity, neutralPose),
+    active: !poseIsSettled(pose, velocity, neutralLive2DMotionControlPose),
     pose: { ...pose },
   })
 
   function step(control: Live2DMotionControlState, elapsedSeconds: number): Live2DMotionSpringOutput {
-    const target = control.active ? control.pose : neutralPose
+    const target = control.active ? control.pose : neutralLive2DMotionControlPose
     const stiffness = 30 + control.dynamics.follow * 190
     const mass = 0.75 + control.dynamics.inertia * 2.25
     const dampingRatio = 1 - control.dynamics.inertia * 0.75
@@ -90,7 +91,7 @@ export function createLive2DMotionSpring(initialPose: Live2DMotionControlPose = 
     const settled = poseIsSettled(pose, velocity, target)
     if (settled) {
       pose = { ...target }
-      velocity = { ...neutralPose }
+      velocity = { ...neutralLive2DMotionControlPose }
     }
 
     output.value = {

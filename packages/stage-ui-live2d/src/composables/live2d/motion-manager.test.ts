@@ -3,6 +3,7 @@ import type { MotionManagerPluginContext, PixiLive2DInternalModel } from './moti
 import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
+import { neutralLive2DMotionControlPose } from '../../stores/motion-control'
 import { createLive2DMotionSpring } from './motion-control-spring'
 import {
   disableLive2DSdkBreath,
@@ -236,7 +237,17 @@ describe('live2d motion manager plugins', () => {
     const plugin = useMotionUpdatePluginManualControl(ref({
       active: true,
       ownerId: 'motion-devtool',
-      pose: { x: 0.5, y: -0.25, headZ: -0.75, bodyZ: 1 },
+      pose: {
+        ...neutralLive2DMotionControlPose,
+        eyeX: 0.25,
+        eyeY: -0.5,
+        headX: 0.5,
+        headY: -0.25,
+        headZ: -0.75,
+        bodyX: -0.5,
+        bodyY: 0.75,
+        bodyZ: 1,
+      },
       dynamics: { follow: 0.6, inertia: 0.35 },
     }), spring)
 
@@ -249,13 +260,13 @@ describe('live2d motion manager plugins', () => {
     for (let frame = 0; frame < 300; frame += 1)
       plugin(context)
 
-    expect(context.model.getParameterValueById('ParamEyeBallX')).toBeCloseTo(0.5)
-    expect(context.model.getParameterValueById('ParamEyeBallY')).toBeCloseTo(-0.25)
+    expect(context.model.getParameterValueById('ParamEyeBallX')).toBeCloseTo(0.25)
+    expect(context.model.getParameterValueById('ParamEyeBallY')).toBeCloseTo(-0.5)
     expect(context.model.getParameterValueById('ParamAngleX')).toBeCloseTo(15)
     expect(context.model.getParameterValueById('ParamAngleY')).toBeCloseTo(-7.5)
     expect(context.model.getParameterValueById('ParamAngleZ')).toBeCloseTo(-22.5)
-    expect(context.model.getParameterValueById('ParamBodyAngleX')).toBeCloseTo(5)
-    expect(context.model.getParameterValueById('ParamBodyAngleY')).toBeCloseTo(-2.5)
+    expect(context.model.getParameterValueById('ParamBodyAngleX')).toBeCloseTo(-5)
+    expect(context.model.getParameterValueById('ParamBodyAngleY')).toBeCloseTo(7.5)
     expect(context.model.getParameterValueById('ParamBodyAngleZ')).toBeCloseTo(10)
   })
 
@@ -265,7 +276,7 @@ describe('live2d motion manager plugins', () => {
     useMotionUpdatePluginManualControl(ref({
       active: false,
       ownerId: null,
-      pose: { x: 0, y: 0, headZ: 0, bodyZ: 0 },
+      pose: neutralLive2DMotionControlPose,
       dynamics: { follow: 0.6, inertia: 0.35 },
     }), createLive2DMotionSpring())(context)
 
