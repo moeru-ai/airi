@@ -62,6 +62,7 @@ export const providerOpenAI = defineProvider<OpenAICompatibleConfig>({
   validators: {
     ...createOpenAICompatibleValidators({
       checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
+      chatCompletionTokenParameter: 'max_completion_tokens',
     }),
   },
 })
