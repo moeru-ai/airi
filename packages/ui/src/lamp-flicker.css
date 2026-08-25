@@ -1,7 +1,5 @@
 /**
  * Opacity “lamp flicker” for offline / warning icons.
- * Timing is driven by useLampFlickerAnimation (@proj-airi/stage-ui) via
- * --lamp-flicker-delay and --lamp-flicker-duration.
  * Loaded via @proj-airi/ui/main.css (import from app `styles/main.css`).
  */
 @keyframes lamp-flicker-keyframes {
@@ -78,11 +76,7 @@
 }
 
 .lamp-flicker-animation {
-  animation-delay: var(--lamp-flicker-delay, 0s);
-  animation-duration: var(--lamp-flicker-duration, 6.4s);
-  animation-iteration-count: infinite;
-  animation-name: lamp-flicker-keyframes;
-  animation-timing-function: ease-in-out;
+  animation: lamp-flicker-keyframes 6.4s ease-in-out infinite;
   filter: drop-shadow(0 0 0.14rem rgb(251 191 36 / 0.18));
   will-change: opacity;
 }
