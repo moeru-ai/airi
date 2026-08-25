@@ -5,7 +5,7 @@ import type { Live2DMotionRecording, ReadonlyLive2DMotionRecording } from './liv
 import { neutralLive2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 import { array, finite, literal, maxValue, minLength, minValue, number, object, picklist, pipe, safeParse, string } from 'valibot'
 
-export const live2dMotionEditableTrackIds = [
+export const live2dMotionPoseEditableTrackIds = [
   'eyeX',
   'eyeY',
   'eyeOpen',
@@ -19,12 +19,25 @@ export const live2dMotionEditableTrackIds = [
   'mouthOpen',
 ] as const
 
-export const live2dMotionTrackIds = [...live2dMotionEditableTrackIds, 'offsetX', 'offsetY'] as const
+export const live2dMotionViewTargetTrackIds = ['viewTargetX', 'viewTargetY'] as const
+export const live2dMotionEditableTrackIds = [...live2dMotionViewTargetTrackIds, ...live2dMotionPoseEditableTrackIds] as const
+export const live2dMotionTrackIds = [...live2dMotionPoseEditableTrackIds, 'offsetX', 'offsetY'] as const
 
 export type Live2DMotionTrackId = typeof live2dMotionTrackIds[number]
 export type Live2DMotionEditableTrackId = typeof live2dMotionEditableTrackIds[number]
+export type Live2DMotionViewTargetTrackId = typeof live2dMotionViewTargetTrackIds[number]
 export type Live2DMotionOverlayBlendMode = 'add' | 'replace'
 type DirectLive2DMotionTrackId = Exclude<Live2DMotionTrackId, 'eyeOpen'>
+
+export interface Live2DMotionEyeViewTarget {
+  x?: number
+  y?: number
+}
+
+export interface Live2DMotionEditorFrame {
+  pose: Live2DMotionControlPose
+  eyeView?: Live2DMotionEyeViewTarget
+}
 
 export interface Live2DMotionKeyframe {
   id: string
@@ -96,8 +109,13 @@ const motionProjectSchema = object({
 })
 
 const unitValueTracks = new Set<Live2DMotionTrackId>(['eyeOpen', 'mouthOpen'])
+const viewTargetTracks = new Set<Live2DMotionEditableTrackId>(live2dMotionViewTargetTrackIds)
 
-export function getLive2DMotionTrackRange(trackId: Live2DMotionTrackId): readonly [number, number] {
+export function isLive2DMotionViewTargetTrackId(trackId: Live2DMotionEditableTrackId): trackId is Live2DMotionViewTargetTrackId {
+  return viewTargetTracks.has(trackId)
+}
+
+export function getLive2DMotionTrackRange(trackId: Live2DMotionEditableTrackId | Live2DMotionTrackId): readonly [number, number] {
   return unitValueTracks.has(trackId) ? [0, 1] : [-1, 1]
 }
 
@@ -120,6 +138,10 @@ function clampTrackValue(trackId: Live2DMotionTrackId, value: number): number {
   return Math.min(maximum, Math.max(minimum, value))
 }
 
+function clampViewTarget(value: number): number {
+  return Math.min(1, Math.max(-1, value))
+}
+
 export function evaluateLive2DMotionKeyframes(points: readonly Live2DMotionKeyframe[], atMs: number): number {
   if (points.length === 0)
     return 0
@@ -137,6 +159,22 @@ export function evaluateLive2DMotionKeyframes(points: readonly Live2DMotionKeyfr
 
   const progress = (atMs - left.atMs) / (right.atMs - left.atMs)
   return left.value + (right.value - left.value) * progress
+}
+
+function evaluateHeldLive2DMotionKeyframes(points: readonly Live2DMotionKeyframe[], atMs: number): number {
+  if (points.length === 0)
+    return 0
+  if (atMs < points[0].atMs)
+    return points[0].value
+
+  const rightIndex = points.findIndex(point => point.atMs > atMs)
+  return rightIndex < 0 ? points.at(-1)!.value : points[rightIndex - 1].value
+}
+
+function evaluateOverlay(overlay: Live2DMotionOverlay, atMs: number): number {
+  return isLive2DMotionViewTargetTrackId(overlay.trackId)
+    ? evaluateHeldLive2DMotionKeyframes(overlay.points, atMs)
+    : evaluateLive2DMotionKeyframes(overlay.points, atMs)
 }
 
 export function evaluateLive2DMotionRecording(recording: ReadonlyLive2DMotionRecording, atMs: number): Live2DMotionControlPose {
@@ -184,12 +222,92 @@ export function createDefaultLive2DMotionProject(durationMs = 4000): Live2DMotio
   })
 }
 
+/**
+ * Crops a project to a timeline range and moves the retained range to time zero.
+ * The function interpolates source and overlay values at both crop boundaries.
+ */
+export function cropLive2DMotionProject(
+  project: Live2DMotionProject,
+  startMs: number,
+  endMs: number,
+): Live2DMotionProject {
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || startMs < 0 || endMs > project.durationMs || startMs >= endMs)
+    throw new Error('The crop range is outside the motion timeline.')
+
+  const durationMs = endMs - startMs
+  const sourceTimes = [...new Set([
+    startMs,
+    ...project.source.samples
+      .map(sample => sample.atMs)
+      .filter(atMs => atMs > startMs && atMs < endMs),
+    endMs,
+  ])]
+  const source: Live2DMotionRecording = {
+    format: 'airi-live2d-motion/v6',
+    durationMs,
+    samples: sourceTimes.map(atMs => ({
+      atMs: atMs - startMs,
+      ...evaluateLive2DMotionRecording(project.source, atMs),
+    })),
+  }
+
+  const overlays = project.overlays
+    .filter(overlay => overlay.endMs >= startMs && overlay.startMs <= endMs)
+    .map((overlay) => {
+      const croppedStartMs = Math.max(startMs, overlay.startMs)
+      const croppedEndMs = Math.min(endMs, overlay.endMs)
+      const pointTimes = overlay.points.length === 0
+        ? []
+        : [...new Set([
+            croppedStartMs,
+            ...overlay.points
+              .map(point => point.atMs)
+              .filter(atMs => atMs > croppedStartMs && atMs < croppedEndMs),
+            croppedEndMs,
+          ])]
+
+      return {
+        ...overlay,
+        startMs: croppedStartMs - startMs,
+        endMs: croppedEndMs - startMs,
+        points: pointTimes.map(atMs => ({
+          id: overlay.points.find(point => point.atMs === atMs)?.id ?? crypto.randomUUID(),
+          atMs: atMs - startMs,
+          value: evaluateOverlay(overlay, atMs),
+        })),
+      }
+    })
+
+  return {
+    ...project,
+    durationMs,
+    source,
+    overlays,
+  }
+}
+
 export function createLive2DMotionOverlay(
   trackId: Live2DMotionEditableTrackId,
   durationMs: number,
   atMs: number,
   blendMode: Live2DMotionOverlayBlendMode = 'add',
 ): Live2DMotionOverlay {
+  if (isLive2DMotionViewTargetTrackId(trackId)) {
+    return {
+      id: crypto.randomUUID(),
+      name: `L${Date.now().toString(36).slice(-4).toUpperCase()}`,
+      trackId,
+      blendMode: 'replace',
+      weight: 1,
+      startMs: 0,
+      endMs: durationMs,
+      points: [
+        { id: crypto.randomUUID(), atMs: 0, value: 0 },
+        { id: crypto.randomUUID(), atMs: durationMs, value: 0 },
+      ],
+    }
+  }
+
   const defaultSpan = Math.max(250, Math.min(durationMs, durationMs / 3))
   const startMs = Math.max(0, Math.min(durationMs - defaultSpan, atMs - defaultSpan / 2))
   const endMs = Math.min(durationMs, startMs + defaultSpan)
@@ -213,11 +331,11 @@ export function createLive2DMotionOverlay(
 export function evaluateLive2DMotionProject(project: Live2DMotionProject, atMs: number): Live2DMotionControlPose {
   const pose = evaluateLive2DMotionRecording(project.source, atMs)
   for (const overlay of project.overlays) {
-    if (atMs < overlay.startMs || atMs > overlay.endMs || overlay.points.length === 0)
+    if (isLive2DMotionViewTargetTrackId(overlay.trackId) || atMs < overlay.startMs || atMs > overlay.endMs || overlay.points.length === 0)
       continue
 
     const sourceValue = getLive2DMotionTrackValue(pose, overlay.trackId)
-    const overlayValue = evaluateLive2DMotionKeyframes(overlay.points, atMs)
+    const overlayValue = evaluateOverlay(overlay, atMs)
     const value = overlay.blendMode === 'add'
       ? sourceValue + overlayValue * overlay.weight
       : sourceValue + (overlayValue - sourceValue) * overlay.weight
@@ -226,13 +344,39 @@ export function evaluateLive2DMotionProject(project: Live2DMotionProject, atMs: 
   return pose
 }
 
+/** Evaluates sparse fixation keys without adding them to the dense pose recording. */
+export function evaluateLive2DMotionEyeView(project: Live2DMotionProject, atMs: number): Live2DMotionEyeViewTarget | undefined {
+  const target: Live2DMotionEyeViewTarget = {}
+  for (const overlay of project.overlays) {
+    if (!isLive2DMotionViewTargetTrackId(overlay.trackId) || atMs < overlay.startMs || atMs > overlay.endMs || overlay.points.length === 0)
+      continue
+
+    const value = clampViewTarget(evaluateOverlay(overlay, atMs) * overlay.weight)
+    if (overlay.trackId === 'viewTargetX')
+      target.x = value
+    else
+      target.y = value
+  }
+
+  return target.x === undefined && target.y === undefined ? undefined : target
+}
+
+export function evaluateLive2DMotionEditorFrame(project: Live2DMotionProject, atMs: number): Live2DMotionEditorFrame {
+  return {
+    pose: evaluateLive2DMotionProject(project, atMs),
+    eyeView: evaluateLive2DMotionEyeView(project, atMs),
+  }
+}
+
 /** Bakes the non-destructive project into the portable dense recording format. */
 export function createLive2DMotionRecordingFromProject(project: Live2DMotionProject): Live2DMotionRecording {
   const sampleTimes = [...new Set([
     0,
     project.durationMs,
     ...project.source.samples.map(sample => sample.atMs),
-    ...project.overlays.flatMap(overlay => [overlay.startMs, overlay.endMs, ...overlay.points.map(point => point.atMs)]),
+    ...project.overlays
+      .filter(overlay => !isLive2DMotionViewTargetTrackId(overlay.trackId))
+      .flatMap(overlay => [overlay.startMs, overlay.endMs, ...overlay.points.map(point => point.atMs)]),
   ])].sort((left, right) => left - right)
 
   return {
@@ -242,15 +386,15 @@ export function createLive2DMotionRecordingFromProject(project: Live2DMotionProj
   }
 }
 
-export function getLive2DMotionSourcePoints(project: Live2DMotionProject, trackId: Live2DMotionTrackId): Live2DMotionKeyframe[] {
+export function getLive2DMotionSourcePoints(project: Live2DMotionProject, trackId: Live2DMotionEditableTrackId): Live2DMotionKeyframe[] {
   return project.source.samples.map((sample, index) => ({
     id: `source-${trackId}-${index}`,
     atMs: sample.atMs,
-    value: getLive2DMotionTrackValue(sample, trackId),
+    value: isLive2DMotionViewTargetTrackId(trackId) ? 0 : getLive2DMotionTrackValue(sample, trackId),
   }))
 }
 
-export function getLive2DMotionCompositePoints(project: Live2DMotionProject, trackId: Live2DMotionTrackId): Live2DMotionKeyframe[] {
+export function getLive2DMotionCompositePoints(project: Live2DMotionProject, trackId: Live2DMotionEditableTrackId): Live2DMotionKeyframe[] {
   const times = [...new Set([
     ...project.source.samples.map(sample => sample.atMs),
     ...project.overlays
@@ -260,7 +404,9 @@ export function getLive2DMotionCompositePoints(project: Live2DMotionProject, tra
   return times.map(atMs => ({
     id: `composite-${trackId}-${atMs}`,
     atMs,
-    value: getLive2DMotionTrackValue(evaluateLive2DMotionProject(project, atMs), trackId),
+    value: isLive2DMotionViewTargetTrackId(trackId)
+      ? (evaluateLive2DMotionEyeView(project, atMs)?.[trackId === 'viewTargetX' ? 'x' : 'y'] ?? 0)
+      : getLive2DMotionTrackValue(evaluateLive2DMotionProject(project, atMs), trackId),
   }))
 }
 

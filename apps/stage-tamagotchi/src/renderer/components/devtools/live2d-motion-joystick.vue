@@ -42,6 +42,7 @@ const mouthFormKeys = new Set([
 ])
 const mouthOpenKeys = new Set([' '])
 const eyeSquintKeys = new Set([
+  'c',
   'f',
   'r',
 ])
@@ -205,7 +206,9 @@ function keyboardPosition(): Live2DMotionControlPose {
     pose.mouthForm = Number(pressedKeys.has('w')) - Number(pressedKeys.has('s'))
   if (pressedKeys.has(' '))
     pose.mouthOpen = 1
-  if (pressedKeys.has('f'))
+  if (pressedKeys.has('c'))
+    pose.eyeSquint = 1
+  else if (pressedKeys.has('f'))
     pose.eyeSquint = 2 / 3
   else if (pressedKeys.has('r'))
     pose.eyeSquint = 1 / 3

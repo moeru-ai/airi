@@ -166,6 +166,22 @@ describe('live2DMotionJoystick', () => {
     mounted.host.remove()
   })
 
+  it('maps C to fully closed eyes', () => {
+    const move = vi.fn<(pose: Live2DMotionControlPose) => void>()
+    const release = vi.fn()
+    const mounted = mountJoystick(move, release)
+
+    mounted.button.dispatchEvent(new KeyboardEvent('keydown', { key: 'C', bubbles: true }))
+
+    expect(move.mock.lastCall?.[0].eyeSquint).toBe(1)
+
+    mounted.button.dispatchEvent(new KeyboardEvent('keyup', { key: 'C', bubbles: true }))
+
+    expect(release).toHaveBeenCalledOnce()
+    mounted.app.unmount()
+    mounted.host.remove()
+  })
+
   it('preserves the mouse position while tilt keys move', () => {
     const move = vi.fn<(pose: Live2DMotionControlPose) => void>()
     const release = vi.fn()

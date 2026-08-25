@@ -55,28 +55,47 @@ devtools:
       title: Live2D 動作控制
       description: 使用搖桿和鍵盤控制模型眼睛、頭部與身體的 X、Y、Z 軸動作。
       joystick-label: Live2D 動作搖桿
-      instructions: 拖曳搖桿，或使用方向鍵控制 X/Y 軸。R 讓眼睛微瞇。F 讓眼睛更瞇。W/S 改變嘴型。空白鍵張開嘴巴。A/D 控制身體 X 軸。Q/E 讓頭部左右傾斜。放開按鍵後會平滑回到中央。
-      parameter-note: 搖桿控制 X/Y 軸。R 映射至 1/3 瞇眼。F 映射至 2/3 瞇眼。W/S 映射至嘴型 ±1。空白鍵映射至嘴巴張開 1。A/D 映射至身體 X 軸 ±10°。Q/E 映射至頭部 Z 軸 ±30°。
+      instructions: 拖曳搖桿，或使用方向鍵控制 X/Y 軸。R 讓眼睛微瞇。F 讓眼睛更瞇。C 閉上眼睛。W/S 改變嘴型。空白鍵張開嘴巴。A/D 控制身體 X 軸。Q/E 讓頭部左右傾斜。放開按鍵後會平滑回到中央。
+      parameter-note: 搖桿控制 X/Y 軸。R 映射至 1/3 瞇眼。F 映射至 2/3 瞇眼。C 映射至完全閉眼。W/S 映射至嘴型 ±1。空白鍵映射至嘴巴張開 1。A/D 映射至身體 X 軸 ±10°。Q/E 映射至頭部 Z 軸 ±30°。
+      eye-view:
+        prototype: 原型
+        title: 固定視線
+        description: 先設定視線目標，再使用搖桿或產生的動作移動頭部。眼睛會反向抵銷頭部動作，以持續注視目標。
+        pad-label: 固定視線目標
+        actions:
+          enable: 啟用注視
+          disable: 停用注視
+          center: 目標置中
+        counter:
+          label: 頭部抵銷強度
+          description: 眼睛抵銷頭部 X/Y 軸動作的程度。1× 時，頭部動作會產生等量反向的眼睛動作。
+        values:
+          target: 目標
+          output: 眼睛輸出
       editor:
         title: 動作編輯器
-        instructions: 灰色曲線是原始動作。在軌道標題新增稀疏疊加層。選取軌道以展開，然後拖曳控制點與範圍控制柄。
+        instructions: 灰色曲線是原始動作。新增動作疊加層或視線目標關鍵影格。選取軌道後，拖曳其控制點。
         play: 播放時間軸
         pause: 暫停時間軸
         undo: 復原
         redo: 重做
+        crop-to-view: 裁切至檢視範圍
         reset-view: 重設檢視
         export-project: 匯出專案
         import-project: 匯入專案
         import-error: 此檔案不是有效的 AIRI Live2D 動作專案。
         timeline-label: 動作時間軸
-        timeline-help: 拖曳尺規可搜尋時間。使用滾輪縮放。按住 Shift 並拖曳可平移。在所選疊加層按兩下可新增控制點。
+        timeline-help: 拖曳尺規可搜尋時間。使用滾輪縮放。按住 Shift 並拖曳可平移。在所選曲線按兩下可新增控制點。每個視線目標關鍵影格會持續至下一個關鍵影格。
         overlay-count: '{count} 個疊加層'
         controls:
           add: 相加
           replace: 取代
+          create-keyframes: 建立關鍵影格
           weight: 權重
           remove: 移除
         tracks:
+          viewTargetX: 視線目標 X
+          viewTargetY: 視線目標 Y
           eyeX: 眼睛 X
           eyeY: 眼睛 Y
           eyeOpen: 眼睛張開
@@ -88,6 +107,72 @@ devtools:
           bodyZ: 身體 Z
           mouthForm: 嘴型
           mouthOpen: 嘴巴張開
+      var:
+        prototype: 原型
+        title: VAR 待機動作產生器
+        question: 以目前動作擬合的殘差驅動 VAR，能否產生有說服力的新待機動作？
+        actions:
+          fit: 擬合目前動作
+          refit: 重新擬合目前動作
+          generate: 產生動作
+          stop: 停止產生
+          new-seed: 新種子
+        order:
+          label: VAR 階數
+          description: 每次預測使用的先前 30 FPS 影格數。數值越高，擬合所需時間越長。
+        residual:
+          label: 殘差強度
+          description: 調整取樣擬合誤差。零會產生通常逐漸接近平均值的確定性預測。
+        diagnostics:
+          source: 來源
+          model: 模型
+          fit: 擬合
+          run: 已產生動作
+        status:
+          no-source: 請先匯入或錄製動作
+          source-ready: '{count} 個取樣 · {duration}s'
+          fit-failed: VAR 擬合失敗。
+        values:
+          frames: '{count} 個影格'
+          model: '{channels} 個通道 · {features} 個項目'
+          fit: '{frames} 個影格 · RMSE {error} · {duration}ms'
+          run: '種子 {seed} · {duration}'
+      ar-hmm:
+        prototype: 比較
+        title: AR-HMM 待機動作產生器
+        question: 各狀態的自迴歸與學得的轉換，能否比單一全域 VAR 產生更有說服力的待機動作？
+        actions:
+          fit: 擬合目前動作
+          refit: 重新擬合目前動作
+          generate: 產生動作
+          stop: 停止產生
+          new-seed: 新種子
+        states:
+          label: 隱藏狀態
+          description: 從姿勢與速度學習的動作狀態數量。狀態越多，擬合所需時間越長。
+        order:
+          label: AR 階數
+          description: 每個狀態使用的先前 30 FPS 影格數。數值越高，擬合所需時間越長。
+        residual:
+          label: 創新強度
+          description: 調整每個隱藏狀態學得的高斯雜訊。
+        diagnostics:
+          source: 來源
+          model: 模型
+          fit: 擬合
+          states: 狀態占比
+          run: 已產生動作
+        status:
+          no-source: 請先匯入或錄製動作
+          source-ready: '{count} 個取樣 · {duration}s'
+          fit-failed: AR-HMM 擬合失敗。
+        values:
+          count: '{count} 個狀態'
+          frames: '{count} 個影格'
+          model: '{states} 個狀態 · {channels} 個通道 · {features} 個項目'
+          fit: 'log p/影格 {likelihood} · {duration}ms'
+          states: '{occupancy} · 停留 {dwell}s'
+          run: '狀態 {state} · 種子 {seed} · {duration}'
       spring:
         follow:
           label: 跟隨

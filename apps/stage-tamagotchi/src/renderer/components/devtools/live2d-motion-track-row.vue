@@ -10,7 +10,7 @@ import type {
 } from '../../composables/live2d-motion-keyframes'
 
 import { BasicButton, Range, Select } from '@proj-airi/ui'
-import { curveLinear, drag, line, pointer, scaleLinear, select } from 'd3'
+import { curveLinear, curveStepAfter, drag, line, pointer, scaleLinear, select } from 'd3'
 import { computed, nextTick, onMounted, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -18,6 +18,7 @@ import {
   getLive2DMotionCompositePoints,
   getLive2DMotionSourcePoints,
   getLive2DMotionTrackRange,
+  isLive2DMotionViewTargetTrackId,
 } from '../../composables/live2d-motion-keyframes'
 
 const props = defineProps<{
@@ -52,6 +53,7 @@ const sourcePoints = computed(() => getLive2DMotionSourcePoints(props.project, p
 const compositePoints = computed(() => getLive2DMotionCompositePoints(props.project, props.trackId))
 const overlays = computed(() => props.project.overlays.filter(overlay => overlay.trackId === props.trackId))
 const selectedOverlay = computed(() => overlays.value.find(overlay => overlay.id === props.selectedOverlayId))
+const viewTargetTrack = computed(() => isLive2DMotionViewTargetTrackId(props.trackId))
 const zeroY = computed(() => yScale.value(0))
 const playheadX = computed(() => xScale.value(props.playheadMs))
 const blendOptions = [
@@ -69,7 +71,7 @@ function pathFor(points: readonly Live2DMotionKeyframe[]) {
   return line<Live2DMotionKeyframe>()
     .x(point => xScale.value(point.atMs))
     .y(point => yScale.value(point.value))
-    .curve(curveLinear)(points) ?? ''
+    .curve(viewTargetTrack.value ? curveStepAfter : curveLinear)(points) ?? ''
 }
 
 function clientToPoint(event: PointerEvent | MouseEvent) {
@@ -82,7 +84,9 @@ function clientToPoint(event: PointerEvent | MouseEvent) {
 }
 
 function addPoint(event: MouseEvent) {
-  if (!props.active || props.disabled || !selectedOverlay.value || event.target !== graph.value)
+  if (!props.active || props.disabled || !selectedOverlay.value)
+    return
+  if (event.target instanceof SVGElement && event.target.closest('.motion-overlay-point, .motion-overlay-handle'))
     return
   const point = clientToPoint(event)
   if (point.atMs < selectedOverlay.value.startMs || point.atMs > selectedOverlay.value.endMs)
@@ -194,41 +198,50 @@ onMounted(installDragBehaviors)
           :style="{ borderColor: colorForOverlay(overlay.id), color: colorForOverlay(overlay.id) }"
           @click.stop="emit('selectOverlay', overlay.id)"
         >
-          {{ overlay.name }} · {{ overlay.blendMode }}
+          {{ viewTargetTrack ? label : `${overlay.name} · ${overlay.blendMode}` }}
         </button>
       </div>
 
       <div v-if="active" :class="['grid grid-cols-2 gap-1']">
-        <BasicButton size="sm" :disabled="disabled" :class="['min-w-0 px-1!']" @click.stop="emit('addOverlay', 'add')">
-          <span :class="['i-solar:add-circle-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.add') }}
-        </BasicButton>
-        <BasicButton size="sm" :disabled="disabled" :class="['min-w-0 px-1!']" @click.stop="emit('addOverlay', 'replace')">
-          <span :class="['i-solar:add-circle-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.replace') }}
-        </BasicButton>
+        <template v-if="viewTargetTrack">
+          <BasicButton size="sm" :disabled="disabled || overlays.length > 0" :class="['col-span-2 min-w-0 px-1!']" @click.stop="emit('addOverlay', 'replace')">
+            <span :class="['i-solar:add-circle-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.create-keyframes') }}
+          </BasicButton>
+        </template>
+        <template v-else>
+          <BasicButton size="sm" :disabled="disabled" :class="['min-w-0 px-1!']" @click.stop="emit('addOverlay', 'add')">
+            <span :class="['i-solar:add-circle-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.add') }}
+          </BasicButton>
+          <BasicButton size="sm" :disabled="disabled" :class="['min-w-0 px-1!']" @click.stop="emit('addOverlay', 'replace')">
+            <span :class="['i-solar:add-circle-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.replace') }}
+          </BasicButton>
+        </template>
       </div>
 
       <div v-if="active && selectedOverlay" :class="['flex flex-col gap-2 border-t border-neutral-200/70 pt-2 dark:border-neutral-800/70']" @click.stop>
-        <Select
-          :model-value="selectedOverlay.blendMode"
-          :options="blendOptions"
-          :disabled="disabled"
-          :class="['w-full!']"
-          @update:model-value="updateBlendMode"
-        />
-        <label :class="['flex flex-col gap-1 text-xs text-neutral-500']">
-          <span>{{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.weight') }} {{ selectedOverlay.weight.toFixed(2) }}</span>
-          <Range
-            :model-value="selectedOverlay.weight"
-            :min="0"
-            :max="1"
-            :step="0.05"
+        <template v-if="!viewTargetTrack">
+          <Select
+            :model-value="selectedOverlay.blendMode"
+            :options="blendOptions"
             :disabled="disabled"
-            @update:model-value="updateWeight"
+            :class="['w-full!']"
+            @update:model-value="updateBlendMode"
           />
-        </label>
-        <span :class="['font-mono text-xs text-neutral-500']">
-          {{ (selectedOverlay.startMs / 1000).toFixed(2) }}s–{{ (selectedOverlay.endMs / 1000).toFixed(2) }}s
-        </span>
+          <label :class="['flex flex-col gap-1 text-xs text-neutral-500']">
+            <span>{{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.weight') }} {{ selectedOverlay.weight.toFixed(2) }}</span>
+            <Range
+              :model-value="selectedOverlay.weight"
+              :min="0"
+              :max="1"
+              :step="0.05"
+              :disabled="disabled"
+              @update:model-value="updateWeight"
+            />
+          </label>
+          <span :class="['font-mono text-xs text-neutral-500']">
+            {{ (selectedOverlay.startMs / 1000).toFixed(2) }}s–{{ (selectedOverlay.endMs / 1000).toFixed(2) }}s
+          </span>
+        </template>
         <BasicButton size="sm" :disabled="disabled" :class="['w-full']" @click="emit('removeOverlay', selectedOverlay.id)">
           <span :class="['i-solar:trash-bin-trash-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.remove') }}
         </BasicButton>
@@ -264,6 +277,7 @@ onMounted(installDragBehaviors)
 
       <g v-if="active && selectedOverlay">
         <rect
+          v-if="!viewTargetTrack"
           class="motion-overlay-handle cursor-ew-resize"
           :data-overlay-id="selectedOverlay.id"
           data-edge="start"
@@ -275,6 +289,7 @@ onMounted(installDragBehaviors)
           opacity="0.22"
         />
         <rect
+          v-if="!viewTargetTrack"
           class="motion-overlay-handle cursor-ew-resize"
           :data-overlay-id="selectedOverlay.id"
           data-edge="end"

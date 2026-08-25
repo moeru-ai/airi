@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import type { Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
-
 import type {
   Live2DMotionEditableTrackId,
+  Live2DMotionEditorFrame,
   Live2DMotionKeyframe,
   Live2DMotionOverlay,
   Live2DMotionOverlayBlendMode,
@@ -24,7 +23,8 @@ import {
   createLive2DMotionOverlay,
   createLive2DMotionProject,
   createLive2DMotionRecordingFromProject,
-  evaluateLive2DMotionProject,
+  cropLive2DMotionProject,
+  evaluateLive2DMotionEditorFrame,
   insertLive2DMotionKeyframe,
   live2dMotionEditableTrackIds,
   moveLive2DMotionKeyframe,
@@ -38,7 +38,7 @@ const props = defineProps<{
   recordingActive?: boolean
 }>()
 const emit = defineEmits<{
-  pose: [pose: Live2DMotionControlPose]
+  frame: [frame: Live2DMotionEditorFrame]
   playback: [playing: boolean]
   recording: [recording: Live2DMotionRecording]
   toggleRecording: []
@@ -66,10 +66,14 @@ let lastEmittedRecordingJson = ''
 const currentTime = computed(() => `${(playheadMs.value / 1000).toFixed(2)}s`)
 const duration = computed(() => `${(project.value.durationMs / 1000).toFixed(2)}s`)
 const editingDisabled = computed(() => props.disabled || props.recordingActive)
+const canCrop = computed(() => {
+  const [startMs, endMs] = viewport.value
+  return endMs - startMs >= 1 && (startMs > 0.5 || endMs < project.value.durationMs - 0.5)
+})
 
 function publish(atMs = playheadMs.value) {
   playheadMs.value = Math.min(project.value.durationMs, Math.max(0, atMs))
-  emit('pose', evaluateLive2DMotionProject(project.value, playheadMs.value))
+  emit('frame', evaluateLive2DMotionEditorFrame(project.value, playheadMs.value))
 }
 
 function emitBakedRecording() {
@@ -187,8 +191,11 @@ function togglePlayback() {
 }
 
 function runHistoryAction(action: () => void) {
+  const previousDurationMs = project.value.durationMs
   action()
   nextTick(() => {
+    if (project.value.durationMs !== previousDurationMs)
+      resetViewport()
     publish()
     emitBakedRecording()
   })
@@ -197,6 +204,21 @@ function runHistoryAction(action: () => void) {
 function resetViewport() {
   viewport.value = [0, project.value.durationMs]
   rulerKey.value++
+}
+
+function cropToViewport() {
+  const [startMs, endMs] = viewport.value
+  if (!canCrop.value)
+    return
+
+  project.value = cropLive2DMotionProject(project.value, startMs, endMs)
+  playheadMs.value = Math.min(project.value.durationMs, Math.max(0, playheadMs.value - startMs))
+  if (!project.value.overlays.some(overlay => overlay.id === selectedOverlayId.value))
+    selectedOverlayId.value = project.value.overlays.find(overlay => overlay.trackId === activeTrack.value)?.id
+  resetViewport()
+  publish()
+  commit()
+  emitBakedRecording()
 }
 
 function exportProject() {
@@ -294,6 +316,9 @@ onUnmounted(() => {
         </BasicButton>
         <BasicButton size="sm" :disabled="editingDisabled || !canRedo" :title="t('tamagotchi.settings.devtools.pages.live2d-motion.editor.redo')" @click="runHistoryAction(redo)">
           <span :class="['i-solar:undo-right-round-linear']" />
+        </BasicButton>
+        <BasicButton size="sm" :disabled="editingDisabled || playing || !canCrop" @click="cropToViewport">
+          <span :class="['i-solar:scissors-bold-duotone']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.crop-to-view') }}
         </BasicButton>
         <BasicButton size="sm" :disabled="editingDisabled" @click="resetViewport">
           <span :class="['i-solar:magnifer-zoom-out-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.reset-view') }}

@@ -1,5 +1,8 @@
 // @vitest-environment jsdom
 
+import type { Live2DMotionEditorFrame } from '../../composables/live2d-motion-keyframes'
+import type { Live2DMotionRecording, ReadonlyLive2DMotionRecording } from '../../composables/live2d-motion-recording'
+
 import { neutralLive2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, h, nextTick, shallowRef } from 'vue'
@@ -16,9 +19,10 @@ describe('live2DMotionKeyframeEditor', () => {
   })
 
   function mountEditor(options: {
-    recording?: object
+    recording?: ReadonlyLive2DMotionRecording
     recordingActive?: boolean
-    onRecording?: (recording: object) => void
+    onFrame?: (frame: Live2DMotionEditorFrame) => void
+    onRecording?: (recording: Live2DMotionRecording) => void
     onToggleRecording?: () => void
   } = {}) {
     const host = document.createElement('div')
@@ -29,6 +33,7 @@ describe('live2DMotionKeyframeEditor', () => {
       render: () => h(Live2DMotionKeyframeEditor, {
         recording: recording.value,
         recordingActive: recordingActive.value,
+        onFrame: options.onFrame,
         onRecording: options.onRecording,
         onToggleRecording: options.onToggleRecording,
       }),
@@ -46,8 +51,8 @@ describe('live2DMotionKeyframeEditor', () => {
     const rulerRow = mounted.host.querySelector<HTMLElement>('[data-testid="motion-timeline-ruler-row"]')!
     const trackList = mounted.host.querySelector<HTMLElement>('[data-testid="motion-timeline-track-list"]')!
 
-    expect(mounted.host.querySelectorAll('article')).toHaveLength(11)
-    expect(mounted.host.querySelectorAll('svg')).toHaveLength(12)
+    expect(mounted.host.querySelectorAll('article')).toHaveLength(13)
+    expect(mounted.host.querySelectorAll('svg')).toHaveLength(14)
     expect(mounted.host.querySelectorAll('article[data-active="true"]')).toHaveLength(1)
     expect(rulerRow.classList).toContain('grid-cols-[calc(12rem+0.75rem)_minmax(0,1fr)]')
     expect(rulerRow.classList).toContain('pr-3')
@@ -55,6 +60,8 @@ describe('live2DMotionKeyframeEditor', () => {
     expect(mounted.host.textContent).toContain('.tracks.eyeOpen')
     expect(mounted.host.textContent).toContain('.tracks.mouthForm')
     expect(mounted.host.textContent).toContain('.tracks.mouthOpen')
+    expect(mounted.host.textContent).toContain('.tracks.viewTargetX')
+    expect(mounted.host.textContent).toContain('.tracks.viewTargetY')
 
     mounted.app.unmount()
   })
@@ -136,6 +143,41 @@ describe('live2DMotionKeyframeEditor', () => {
     mounted.app.unmount()
   })
 
+  it('creates sparse held view-target keyframes and emits them with the pose', async () => {
+    const onFrame = vi.fn<(frame: Live2DMotionEditorFrame) => void>()
+    const mounted = mountEditor({ onFrame })
+
+    findButton(mounted.host, 'tamagotchi.settings.devtools.pages.live2d-motion.editor.tracks.viewTargetX').click()
+    await nextTick()
+    findButton(mounted.host, 'tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.create-keyframes').click()
+    await nextTick()
+
+    const activeGraph = mounted.host.querySelector<SVGSVGElement>('article[data-active="true"] svg')!
+    vi.spyOn(activeGraph, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 1000,
+      height: 300,
+      right: 1000,
+      bottom: 300,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    })
+    const heldCurve = activeGraph.querySelector<SVGPathElement>('g path')!
+    heldCurve.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, clientX: 400, clientY: 50 }))
+    await nextTick()
+
+    expect(activeGraph.querySelectorAll('.motion-overlay-point')).toHaveLength(3)
+
+    activeGraph.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 500, clientY: 150 }))
+    await nextTick()
+
+    expect(onFrame.mock.lastCall?.[0].eyeView?.x).toBeGreaterThan(0)
+    expect(onFrame.mock.lastCall?.[0].pose).toEqual(neutralLive2DMotionControlPose)
+    mounted.app.unmount()
+  })
+
   it('keeps a loaded dense recording locked beneath overlays', async () => {
     const mounted = mountEditor({
       recording: {
@@ -152,7 +194,45 @@ describe('live2DMotionKeyframeEditor', () => {
 
     expect(mounted.host.querySelectorAll('.motion-overlay-point')).toHaveLength(0)
     expect(mounted.host.textContent).toContain('0.00s / 2.00s')
-    expect(mounted.host.querySelectorAll('article path')).toHaveLength(22)
+    expect(mounted.host.querySelectorAll('article path')).toHaveLength(26)
+
+    mounted.app.unmount()
+  })
+
+  it('crops the visible timeline range and keeps the edit in history', async () => {
+    const onRecording = vi.fn()
+    const mounted = mountEditor({
+      onRecording,
+      recording: {
+        format: 'airi-live2d-motion/v6',
+        durationMs: 1000,
+        samples: [
+          { atMs: 0, ...neutralLive2DMotionControlPose },
+          { atMs: 500, ...neutralLive2DMotionControlPose, headX: 0.5 },
+          { atMs: 1000, ...neutralLive2DMotionControlPose, headX: 1 },
+        ],
+      },
+    })
+    await nextTick()
+
+    const cropButton = findButton(mounted.host, 'tamagotchi.settings.devtools.pages.live2d-motion.editor.crop-to-view')
+    expect(cropButton.disabled).toBe(true)
+
+    const ruler = mounted.host.querySelector<SVGSVGElement>('svg[aria-label="tamagotchi.settings.devtools.pages.live2d-motion.editor.timeline-label"]')!
+    ruler.dispatchEvent(new WheelEvent('wheel', { bubbles: true, clientX: 500, deltaY: -500 }))
+    await nextTick()
+
+    expect(cropButton.disabled).toBe(false)
+    cropButton.click()
+    await nextTick()
+
+    expect(onRecording.mock.lastCall?.[0].durationMs).toBeLessThan(1000)
+    expect(mounted.host.querySelector<HTMLButtonElement>('[title="tamagotchi.settings.devtools.pages.live2d-motion.editor.undo"]')?.disabled).toBe(false)
+
+    mounted.host.querySelector<HTMLButtonElement>('[title="tamagotchi.settings.devtools.pages.live2d-motion.editor.undo"]')?.click()
+    await nextTick()
+    await nextTick()
+    expect(onRecording.mock.lastCall?.[0].durationMs).toBe(1000)
 
     mounted.app.unmount()
   })

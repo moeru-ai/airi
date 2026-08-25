@@ -59,28 +59,47 @@ devtools:
       title: Live2D Motion Control
       description: Use the joystick and keyboard to control eye, head, and body movement on the X, Y, and Z axes.
       joystick-label: Live2D motion joystick
-      instructions: Drag the joystick, or use the arrow keys for X/Y. R adds a slight squint. F adds a stronger squint. W/S changes the mouth shape. Space opens the mouth. A/D moves the body on X. Q/E tilts the head. Released keys return smoothly to center.
-      parameter-note: The joystick controls X/Y. R maps to 1/3 squint. F maps to 2/3 squint. W/S maps to mouth form ±1. Space maps to mouth open 1. A/D maps to body X ±10°. Q/E maps to head Z ±30°.
+      instructions: Drag the joystick, or use the arrow keys for X/Y. R adds a slight squint. F adds a stronger squint. C closes the eyes. W/S changes the mouth shape. Space opens the mouth. A/D moves the body on X. Q/E tilts the head. Released keys return smoothly to center.
+      parameter-note: The joystick controls X/Y. R maps to 1/3 squint. F maps to 2/3 squint. C maps to fully closed eyes. W/S maps to mouth form ±1. Space maps to mouth open 1. A/D maps to body X ±10°. Q/E maps to head Z ±30°.
+      eye-view:
+        prototype: Prototype
+        title: Latched eye view
+        description: Set a view target once, then move the head with the joystick or a generated motion. The eyes counter the head movement to keep looking at that target.
+        pad-label: Latched eye view target
+        actions:
+          enable: Enable fixation
+          disable: Disable fixation
+          center: Center target
+        counter:
+          label: Head counter strength
+          description: How much head X/Y movement the eyes cancel. At 1×, equal head movement produces equal eye movement in the opposite direction.
+        values:
+          target: Target
+          output: Eye output
       editor:
         title: Motion editor
-        instructions: The gray curve is the source. Add sparse overlays in a track header. Select a track to expand it, then drag points and span handles.
+        instructions: The gray curve is the source. Add motion overlays or view-target keyframes. Select a track, then drag its points.
         play: Play timeline
         pause: Pause timeline
         undo: Undo
         redo: Redo
+        crop-to-view: Crop to view
         reset-view: Reset view
         export-project: Export project
         import-project: Import project
         import-error: This file is not a valid AIRI Live2D motion project.
         timeline-label: Motion timeline
-        timeline-help: Drag the ruler to scrub. Use the wheel to zoom. Hold Shift and drag to pan. Double-click a selected overlay to add a point.
+        timeline-help: Drag the ruler to scrub. Use the wheel to zoom. Hold Shift and drag to pan. Double-click a selected curve to add a point. Each view-target key holds until the next key.
         overlay-count: '{count} overlays'
         controls:
           add: Add
           replace: Replace
+          create-keyframes: Create keyframes
           weight: Weight
           remove: Remove
         tracks:
+          viewTargetX: View target X
+          viewTargetY: View target Y
           eyeX: Eye X
           eyeY: Eye Y
           eyeOpen: Eye open
@@ -92,6 +111,72 @@ devtools:
           bodyZ: Body Z
           mouthForm: Mouth shape
           mouthOpen: Mouth open
+      var:
+        prototype: Prototype
+        title: VAR idle-motion generator
+        question: Can a residual-driven VAR fitted to the current motion generate a convincing new idle motion?
+        actions:
+          fit: Fit current motion
+          refit: Refit current motion
+          generate: Generate motion
+          stop: Stop generation
+          new-seed: New seed
+        order:
+          label: VAR order
+          description: Number of previous 30 FPS frames that each prediction uses. Higher values take longer to fit.
+        residual:
+          label: Residual strength
+          description: Scales sampled fit errors. Zero makes a deterministic forecast, which usually settles near the mean.
+        diagnostics:
+          source: Source
+          model: Model
+          fit: Fit
+          run: Generated run
+        status:
+          no-source: Import or record a motion first
+          source-ready: '{count} samples · {duration}s'
+          fit-failed: The VAR fit failed.
+        values:
+          frames: '{count} frames'
+          model: '{channels} channels · {features} terms'
+          fit: '{frames} frames · RMSE {error} · {duration}ms'
+          run: 'seed {seed} · {duration}'
+      ar-hmm:
+        prototype: Comparison
+        title: AR-HMM idle-motion generator
+        question: Can state-specific autoregressions and learned transitions produce more convincing idle motion than one global VAR?
+        actions:
+          fit: Fit current motion
+          refit: Refit current motion
+          generate: Generate motion
+          stop: Stop generation
+          new-seed: New seed
+        states:
+          label: Hidden states
+          description: Number of motion regimes learned from pose and velocity. More states take longer to fit.
+        order:
+          label: AR order
+          description: Number of previous 30 FPS frames that each state uses. Higher values take longer to fit.
+        residual:
+          label: Innovation strength
+          description: Scales the Gaussian noise learned for each hidden state.
+        diagnostics:
+          source: Source
+          model: Model
+          fit: Fit
+          states: State occupancy
+          run: Generated run
+        status:
+          no-source: Import or record a motion first
+          source-ready: '{count} samples · {duration}s'
+          fit-failed: The AR-HMM fit failed.
+        values:
+          count: '{count} states'
+          frames: '{count} frames'
+          model: '{states} states · {channels} channels · {features} terms'
+          fit: 'log p/frame {likelihood} · {duration}ms'
+          states: '{occupancy} · dwell {dwell}s'
+          run: 'state {state} · seed {seed} · {duration}'
       spring:
         follow:
           label: Follow
