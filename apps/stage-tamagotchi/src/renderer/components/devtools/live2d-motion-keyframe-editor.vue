@@ -2,49 +2,65 @@
 import type { Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 
 import type { Live2DMotionKeyframe, Live2DMotionKeyframeTracks, Live2DMotionTrackId } from '../../composables/live2d-motion-keyframes'
+import type { Live2DMotionRecording, ReadonlyLive2DMotionRecording } from '../../composables/live2d-motion-recording'
 
 import { BasicButton } from '@proj-airi/ui'
-import { computed, onUnmounted, shallowRef } from 'vue'
+import { computed, onUnmounted, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
   createDefaultLive2DMotionTracks,
+  createLive2DMotionRecordingFromTracks,
+  createLive2DMotionTracksFromRecording,
   evaluateLive2DMotionTracks,
   insertLive2DMotionKeyframe,
-  live2dMotionTrackIds,
+  live2dMotionEditableTrackIds,
   moveLive2DMotionKeyframe,
 } from '../../composables/live2d-motion-keyframes'
 
-const props = defineProps<{ disabled?: boolean }>()
+const props = defineProps<{
+  disabled?: boolean
+  recording?: ReadonlyLive2DMotionRecording | null
+}>()
 const emit = defineEmits<{
   pose: [pose: Live2DMotionControlPose]
   playback: [playing: boolean]
+  recording: [recording: Live2DMotionRecording]
 }>()
 const { t } = useI18n()
 
-const durationMs = 4000
-const tracks = shallowRef<Live2DMotionKeyframeTracks>(createDefaultLive2DMotionTracks(durationMs))
+const durationMs = shallowRef(4000)
+const tracks = shallowRef<Live2DMotionKeyframeTracks>(createDefaultLive2DMotionTracks(durationMs.value))
 const selectedTrack = shallowRef<Live2DMotionTrackId>('headX')
 const playheadMs = shallowRef(0)
 const playing = shallowRef(false)
 let animationFrame: number | undefined
 let playbackStartedAt = 0
 let playbackStartMs = 0
+let lastEmittedRecording: Live2DMotionRecording | undefined
+
+const unitValueTracks = new Set<Live2DMotionTrackId>(['eyeOpen', 'mouthOpen'])
 
 const points = computed(() => tracks.value[selectedTrack.value])
 const polyline = computed(() => points.value.map(point => `${timeToX(point.atMs)},${valueToY(point.value)}`).join(' '))
 
 function timeToX(atMs: number) {
-  return (atMs / durationMs) * 1000
+  if (durationMs.value === 0)
+    return 0
+  return (atMs / durationMs.value) * 1000
 }
 function valueToY(value: number) {
+  if (unitValueTracks.has(selectedTrack.value))
+    return (1 - value) * 560
   return (1 - value) * 280
 }
+const zeroY = computed(() => unitValueTracks.has(selectedTrack.value) ? 560 : 280)
 function clientToPoint(event: MouseEvent | PointerEvent, target: SVGSVGElement) {
   const bounds = target.getBoundingClientRect()
+  const verticalProgress = Math.min(1, Math.max(0, (event.clientY - bounds.top) / bounds.height))
   return {
-    atMs: Math.round(Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width)) * durationMs),
-    value: Math.min(1, Math.max(-1, 1 - ((event.clientY - bounds.top) / bounds.height) * 2)),
+    atMs: Math.round(Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width)) * durationMs.value),
+    value: unitValueTracks.has(selectedTrack.value) ? 1 - verticalProgress : 1 - verticalProgress * 2,
   }
 }
 function publish(atMs = playheadMs.value) {
@@ -54,6 +70,8 @@ function publish(atMs = playheadMs.value) {
 function replaceTrack(next: Live2DMotionKeyframe[]) {
   tracks.value = { ...tracks.value, [selectedTrack.value]: next }
   publish()
+  lastEmittedRecording = createLive2DMotionRecordingFromTracks(tracks.value, durationMs.value)
+  emit('recording', lastEmittedRecording)
 }
 function addPoint(event: MouseEvent) {
   if (props.disabled)
@@ -104,11 +122,11 @@ function scrub(event: PointerEvent) {
 function playbackFrame(now: number) {
   const elapsed = now - playbackStartedAt
   const next = playbackStartMs + elapsed
-  if (next >= durationMs) {
+  if (next >= durationMs.value) {
     playing.value = false
     emit('playback', false)
     animationFrame = undefined
-    publish(durationMs)
+    publish(durationMs.value)
     return
   }
   publish(next)
@@ -123,12 +141,26 @@ function togglePlayback() {
     animationFrame = undefined
     return
   }
-  playbackStartMs = playheadMs.value >= durationMs ? 0 : playheadMs.value
+  playbackStartMs = playheadMs.value >= durationMs.value ? 0 : playheadMs.value
   playbackStartedAt = performance.now()
   playing.value = true
   emit('playback', true)
   animationFrame = requestAnimationFrame(playbackFrame)
 }
+
+watch(() => props.recording, (recording) => {
+  if (!recording)
+    return
+  if (recording === lastEmittedRecording) {
+    lastEmittedRecording = undefined
+    return
+  }
+
+  durationMs.value = recording.durationMs
+  tracks.value = createLive2DMotionTracksFromRecording(recording)
+  playheadMs.value = 0
+}, { immediate: true })
+
 onUnmounted(() => {
   if (animationFrame !== undefined)
     cancelAnimationFrame(animationFrame)
@@ -154,7 +186,7 @@ onUnmounted(() => {
     </div>
     <div :class="['mb-3 flex flex-wrap gap-1']">
       <BasicButton
-        v-for="trackId in live2dMotionTrackIds"
+        v-for="trackId in live2dMotionEditableTrackIds"
         :key="trackId"
         size="sm"
         :class="selectedTrack === trackId ? 'bg-primary-500! text-white!' : ''"
@@ -170,7 +202,7 @@ onUnmounted(() => {
       @pointerdown="scrub"
       @dblclick="addPoint"
     >
-      <line x1="0" y1="280" x2="1000" y2="280" stroke="currentColor" :class="['text-neutral-300 dark:text-neutral-700']" />
+      <line x1="0" :y1="zeroY" x2="1000" :y2="zeroY" stroke="currentColor" :class="['text-neutral-300 dark:text-neutral-700']" />
       <polyline :points="polyline" fill="none" stroke="currentColor" stroke-width="3" vector-effect="non-scaling-stroke" :class="['text-primary-500']" />
       <line :x1="timeToX(playheadMs)" y1="0" :x2="timeToX(playheadMs)" y2="560" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" :class="['text-amber-500']" />
       <circle
@@ -187,7 +219,7 @@ onUnmounted(() => {
       />
     </svg>
     <div :class="['mt-2 text-right font-mono text-xs text-neutral-500']">
-      {{ (playheadMs / 1000).toFixed(2) }}s / 4.00s
+      {{ (playheadMs / 1000).toFixed(2) }}s / {{ (durationMs / 1000).toFixed(2) }}s
     </div>
   </section>
 </template>

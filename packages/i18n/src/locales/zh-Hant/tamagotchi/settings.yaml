@@ -65,12 +65,15 @@ devtools:
         tracks:
           eyeX: 眼睛 X
           eyeY: 眼睛 Y
+          eyeOpen: 眼睛張開
           headX: 頭部 X
           headY: 頭部 Y
           headZ: 頭部 Z
           bodyX: 身體 X
           bodyY: 身體 Y
           bodyZ: 身體 Z
+          mouthForm: 嘴型
+          mouthOpen: 嘴巴張開
       spring:
         follow:
           label: 跟隨

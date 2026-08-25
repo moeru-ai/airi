@@ -135,8 +135,10 @@ onUnmounted(() => {
 
     <Live2DMotionKeyframeEditor
       :disabled="recorderBusy"
+      :recording="recordingController.recording.value"
       @pose="setPose"
       @playback="editorPlaying = $event"
+      @recording="recordingController.loadRecording"
     />
 
     <Live2DMotionJoystick

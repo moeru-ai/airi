@@ -1,7 +1,10 @@
+import { neutralLive2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
   createDefaultLive2DMotionTracks,
+  createLive2DMotionRecordingFromTracks,
+  createLive2DMotionTracksFromRecording,
   evaluateLive2DMotionTracks,
   insertLive2DMotionKeyframe,
   moveLive2DMotionKeyframe,
@@ -19,7 +22,36 @@ describe('live2D motion keyframes', () => {
     expect(pose.headX).toBe(0)
     expect(pose.bodyY).toBe(0.5)
     expect(pose.eyeX).toBe(0)
+    expect(pose.eyeSquint).toBe(0)
+    expect(pose.mouthForm).toBe(0)
+    expect(pose.mouthOpen).toBe(0)
     expect(pose.offsetX).toBe(0)
+  })
+
+  it('round-trips recorded motion through editable tracks', () => {
+    const recording = {
+      format: 'airi-live2d-motion/v6' as const,
+      durationMs: 1000,
+      samples: [
+        { atMs: 0, ...neutralLive2DMotionControlPose },
+        {
+          atMs: 1000,
+          ...neutralLive2DMotionControlPose,
+          eyeSquint: 0.75,
+          mouthForm: -0.5,
+          mouthOpen: 1,
+          offsetX: 0.25,
+          offsetY: -0.5,
+        },
+      ],
+    }
+
+    const tracks = createLive2DMotionTracksFromRecording(recording)
+
+    expect(tracks.eyeOpen.map(point => point.value)).toEqual([1, 0.25])
+    expect(tracks.mouthForm.map(point => point.value)).toEqual([0, -0.5])
+    expect(tracks.mouthOpen.map(point => point.value)).toEqual([0, 1])
+    expect(createLive2DMotionRecordingFromTracks(tracks, recording.durationMs)).toEqual(recording)
   })
 
   it('keeps inserted and dragged points in timeline order', () => {

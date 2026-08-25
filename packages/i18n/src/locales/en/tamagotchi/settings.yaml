@@ -69,12 +69,15 @@ devtools:
         tracks:
           eyeX: Eye X
           eyeY: Eye Y
+          eyeOpen: Eye open
           headX: Head X
           headY: Head Y
           headZ: Head Z
           bodyX: Body X
           bodyY: Body Y
           bodyZ: Body Z
+          mouthForm: Mouth shape
+          mouthOpen: Mouth open
       spring:
         follow:
           label: Follow

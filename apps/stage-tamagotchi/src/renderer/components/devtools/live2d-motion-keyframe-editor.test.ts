@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { neutralLive2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, h, nextTick } from 'vue'
 
@@ -14,10 +15,15 @@ describe('live2DMotionKeyframeEditor', () => {
     document.body.replaceChildren()
   })
 
-  function mountEditor() {
+  function mountEditor(options: { recording?: object, onRecording?: (recording: object) => void } = {}) {
     const host = document.createElement('div')
     document.body.appendChild(host)
-    const app = createApp({ render: () => h(Live2DMotionKeyframeEditor) })
+    const app = createApp({
+      render: () => h(Live2DMotionKeyframeEditor, {
+        recording: options.recording,
+        onRecording: options.onRecording,
+      }),
+    })
     app.mount(host)
     const graph = host.querySelector('svg')!
     vi.spyOn(graph, 'getBoundingClientRect').mockReturnValue({
@@ -46,6 +52,34 @@ describe('live2DMotionKeyframeEditor', () => {
     await nextTick()
     expect(mounted.graph.querySelectorAll('circle')).toHaveLength(2)
 
+    mounted.app.unmount()
+  })
+
+  it('loads recorded samples and exposes the new facial tracks', async () => {
+    const onRecording = vi.fn()
+    const mounted = mountEditor({
+      recording: {
+        format: 'airi-live2d-motion/v6',
+        durationMs: 2000,
+        samples: [
+          { atMs: 0, ...neutralLive2DMotionControlPose },
+          { atMs: 1000, ...neutralLive2DMotionControlPose, headX: 0.5 },
+          { atMs: 2000, ...neutralLive2DMotionControlPose },
+        ],
+      },
+      onRecording,
+    })
+
+    expect(mounted.graph.querySelectorAll('circle')).toHaveLength(3)
+    expect(mounted.host.textContent).toContain('.tracks.eyeOpen')
+    expect(mounted.host.textContent).toContain('.tracks.mouthForm')
+    expect(mounted.host.textContent).toContain('.tracks.mouthOpen')
+    expect(mounted.host.textContent).toContain('2.00s')
+
+    mounted.graph.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, clientX: 500, clientY: 50 }))
+    await nextTick()
+    expect(onRecording).toHaveBeenCalledOnce()
+    expect(onRecording.mock.lastCall?.[0]).toMatchObject({ format: 'airi-live2d-motion/v6', durationMs: 2000 })
     mounted.app.unmount()
   })
 
