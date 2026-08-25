@@ -60,7 +60,7 @@ describe('live2DMotionKeyframeEditor', () => {
     await nextTick()
 
     expect(point.getAttribute('cx')).toBe('250')
-    expect(point.getAttribute('cy')).toBe('25')
+    expect(point.getAttribute('cy')).toBe('70')
     mounted.app.unmount()
   })
 })

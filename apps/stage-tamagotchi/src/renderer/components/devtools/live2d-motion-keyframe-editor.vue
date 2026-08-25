@@ -38,7 +38,7 @@ function timeToX(atMs: number) {
   return (atMs / durationMs) * 1000
 }
 function valueToY(value: number) {
-  return (1 - value) * 100
+  return (1 - value) * 280
 }
 function clientToPoint(event: MouseEvent | PointerEvent, target: SVGSVGElement) {
   const bounds = target.getBoundingClientRect()
@@ -164,21 +164,21 @@ onUnmounted(() => {
       </BasicButton>
     </div>
     <svg
-      viewBox="0 0 1000 200"
+      viewBox="0 0 1000 560"
       preserveAspectRatio="none"
       :class="['h-52 w-full touch-none select-none rounded-lg bg-neutral-100 dark:bg-neutral-900']"
       @pointerdown="scrub"
       @dblclick="addPoint"
     >
-      <line x1="0" y1="100" x2="1000" y2="100" stroke="currentColor" :class="['text-neutral-300 dark:text-neutral-700']" />
+      <line x1="0" y1="280" x2="1000" y2="280" stroke="currentColor" :class="['text-neutral-300 dark:text-neutral-700']" />
       <polyline :points="polyline" fill="none" stroke="currentColor" stroke-width="3" vector-effect="non-scaling-stroke" :class="['text-primary-500']" />
-      <line :x1="timeToX(playheadMs)" y1="0" :x2="timeToX(playheadMs)" y2="200" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" :class="['text-amber-500']" />
+      <line :x1="timeToX(playheadMs)" y1="0" :x2="timeToX(playheadMs)" y2="560" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" :class="['text-amber-500']" />
       <circle
         v-for="point in points"
         :key="point.id"
         :cx="timeToX(point.atMs)"
         :cy="valueToY(point.value)"
-        r="8"
+        r="14"
         fill="currentColor"
         vector-effect="non-scaling-stroke"
         :class="['cursor-grab text-primary-500 active:cursor-grabbing']"
