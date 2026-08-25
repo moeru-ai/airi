@@ -58,10 +58,24 @@ devtools:
       instructions: 拖曳搖桿，或使用方向鍵控制 X/Y 軸。R 讓眼睛微瞇。F 讓眼睛更瞇。W/S 改變嘴型。空白鍵張開嘴巴。A/D 控制身體 X 軸。Q/E 讓頭部左右傾斜。放開按鍵後會平滑回到中央。
       parameter-note: 搖桿控制 X/Y 軸。R 映射至 1/3 瞇眼。F 映射至 2/3 瞇眼。W/S 映射至嘴型 ±1。空白鍵映射至嘴巴張開 1。A/D 映射至身體 X 軸 ±10°。Q/E 映射至頭部 Z 軸 ±30°。
       editor:
-        title: 關鍵影格編輯器
-        instructions: 拖曳控制點來調整所選曲線。在空白處按兩下可新增控制點；在控制點上按兩下可刪除。
+        title: 動作編輯器
+        instructions: 灰色曲線是原始動作。在軌道標題新增稀疏疊加層。選取軌道以展開，然後拖曳控制點與範圍控制柄。
         play: 播放時間軸
         pause: 暫停時間軸
+        undo: 復原
+        redo: 重做
+        reset-view: 重設檢視
+        export-project: 匯出專案
+        import-project: 匯入專案
+        import-error: 此檔案不是有效的 AIRI Live2D 動作專案。
+        timeline-label: 動作時間軸
+        timeline-help: 拖曳尺規可搜尋時間。使用滾輪縮放。按住 Shift 並拖曳可平移。在所選疊加層按兩下可新增控制點。
+        overlay-count: '{count} 個疊加層'
+        controls:
+          add: 相加
+          replace: 取代
+          weight: 權重
+          remove: 移除
         tracks:
           eyeX: 眼睛 X
           eyeY: 眼睛 Y
