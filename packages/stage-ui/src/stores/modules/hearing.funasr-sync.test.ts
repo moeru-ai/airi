@@ -169,6 +169,37 @@ describe('funASR Hearing model synchronization', () => {
     expect(hearingStore.activeTranscriptionModel).toBe('gpt-4o-transcribe')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3849324778
+  // ROOT CAUSE:
+  //
+  // CometAPI stores its model only in Hearing state. Initialization returned as soon as it
+  // found that persisted model, before loading the selected provider's runtime catalog.
+  it('loads a catalog when only Hearing has the persisted model (GitHub #2122)', async () => {
+    const providerId = 'comet-api-transcription'
+    persistedSettings.set('settings/hearing/active-provider', providerId)
+    persistedSettings.set('settings/hearing/active-model', 'whisper-1')
+
+    const providerConfigStore = useProviderConfigStore()
+    providerConfigStore.ensureProvider(providerId, providerId, {
+      apiKey: 'test-key',
+      baseUrl: 'https://api.cometapi.com/v1/',
+    })
+    const providersStore = useProviderStore()
+    providersStore.initializeProvider(providerId)
+    const fetchModels = vi.spyOn(providersStore, 'fetchModelsForProvider').mockResolvedValue([{
+      id: 'whisper-1',
+      name: 'Whisper',
+      provider: providerId,
+    }])
+
+    const hearingStore = useHearingStore()
+    await hearingStore.initialize()
+
+    expect(fetchModels).toHaveBeenCalledWith(providerId)
+    expect(hearingStore.activeTranscriptionModel).toBe('whisper-1')
+    expect(providerConfigStore.getProviderConfig(providerId)).not.toHaveProperty('model')
+  })
+
   it('restores the FunASR configured model when the provider is selected', async () => {
     const providerConfigStore = useProviderConfigStore()
     const hearingStore = useHearingStore()

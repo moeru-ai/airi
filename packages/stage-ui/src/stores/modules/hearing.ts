@@ -517,8 +517,10 @@ export const useHearingStore = defineStore('hearing-store', () => {
       return
     }
 
-    if (activeTranscriptionModel.value.trim())
+    if (activeTranscriptionModel.value.trim()) {
+      await loadModelsForProvider(providerId)
       return
+    }
 
     pendingDestinationModelRequest = { providerId }
     if (syncDestinationModel(providerId))
