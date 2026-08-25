@@ -22,6 +22,7 @@ interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, b
   skipApiKeyCheck?: boolean
   connectivityFailureReason?: (input: { config: TConfig, error: unknown, errorMessage: string }) => string
   modelListFailureReason?: (input: { config: TConfig, error: unknown, errorMessage: string }) => string
+  chatCompletionTokenParameter?: 'max_tokens' | 'max_completion_tokens'
 }
 
 function extractStatusCode(error: unknown): number | null {
@@ -145,7 +146,9 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
         // OpenRouter documents this minimum for some upstream providers.
         // Source/context: https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request
         // Removal condition: All supported providers accept lower limits, or the probe learns each model's minimum.
-        max_tokens: 16,
+        ...(options?.chatCompletionTokenParameter === 'max_completion_tokens'
+          ? { max_completion_tokens: 16 }
+          : { max_tokens: 16 }),
       })
 
       return { connectivityOk: true, chatOk: true }
