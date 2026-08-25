@@ -16,6 +16,7 @@ import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea, useTheme } from '@proj-airi/ui'
+import { onLongPress } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -32,6 +33,8 @@ import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 import { BackgroundDialogPicker } from '../Backgrounds'
 
 interface Props {
+  /** Displays the message composer as a detached floating bubble. @default false */
+  floating?: boolean
   /**
    * Enables keyboard measurement and limits the chat layer to the visible viewport.
    *
@@ -41,6 +44,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  floating: false,
   keyboardAvoidance: false,
 })
 const emit = defineEmits<{
@@ -92,10 +96,15 @@ function handleCleanupMessages() {
 
 const messageInput = shallowRef('')
 const isComposing = shallowRef(false)
+const inputBubblePhase = shallowRef<'idle' | 'dragging' | 'docking' | 'docked'>('idle')
+const inputBubbleOffsetX = shallowRef(0)
+const inputBubbleOffsetY = shallowRef(0)
+const inputBubbleMorphDuration = shallowRef(220)
 const backgroundDialogOpen = shallowRef(false)
 const sessionsDrawerOpen = shallowRef(false)
 const mobileInteractiveArea = useTemplateRef<HTMLElement>('mobileInteractiveArea')
 const messageComposer = useTemplateRef<HTMLElement>('messageComposer')
+const inputBubble = useTemplateRef<HTMLElement>('inputBubble')
 const interactionControls = useTemplateRef<HTMLElement>('interactionControls')
 const controlsIsland = useTemplateRef<HTMLElement>('controlsIsland')
 const controlsIslandContent = useTemplateRef<HTMLElement>('controlsIslandContent')
@@ -128,12 +137,14 @@ const chatHistoryClass = computed(() => [
   props.keyboardAvoidance ? undefined : 'max-h-[35dvh]',
 ])
 const controlsIslandClass = computed(() => [
-  'controls-island-scroll absolute right-0 translate-y-[-100%]',
+  'absolute right-0 translate-y-[-100%]',
   'max-w-full overflow-y-auto overscroll-contain px-3 py-3 font-sans scrollbar-none',
   'transition-[height] duration-250 ease-out',
-  controlsIslandOverflowing.value
-    ? 'controls-island-scroll--overflowing'
-    : undefined,
+  controlsIslandOverflowing.value && [
+    '[-webkit-mask-image:linear-gradient(to_bottom,transparent_0,black_1rem,black_calc(100%_-_1rem),transparent_100%)]',
+    '[mask-image:linear-gradient(to_bottom,transparent_0,black_1rem,black_calc(100%_-_1rem),transparent_100%)]',
+    '[-webkit-mask-repeat:no-repeat] [mask-repeat:no-repeat]',
+  ],
 ])
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 const { viewControlsEnabled: l2dViewCtrlEnabled } = useL2dViewControl()
@@ -157,7 +168,168 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription } =
   },
 )
 const { showStopSpeakingButton, speechMuted, stopSpeakingFromChat, toggleSpeechMuted } = useStopSpeakingButton()
+const inputBubbleAvailable = computed(() => props.floating
+  && !messageInput.value.trim()
+  && !isComposing.value
+  && !showStopSpeakingButton.value)
+const inputBubbleDocked = computed(() => inputBubblePhase.value === 'docking'
+  || inputBubblePhase.value === 'docked')
+const inputBubbleTransitionClass = computed(() => {
+  if (inputBubblePhase.value === 'dragging')
+    return 'transition-none'
+  if (inputBubblePhase.value === 'docking')
+    return 'transition-[width,max-width,transform] ease-input-bubble-spring motion-reduce:transition-none'
+
+  return 'transition-[width,max-width,transform] duration-320 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none'
+})
+const inputBubbleClass = computed(() => [
+  'group relative mx-auto min-h-10 flex origin-center',
+  inputBubbleTransitionClass.value,
+  props.floating && !inputBubbleDocked.value && (inputBubbleAvailable.value ? 'max-w-[70%] focus-within:max-w-full' : 'max-w-full'),
+  (inputBubbleAvailable.value || inputBubbleDocked.value) && 'touch-none select-none focus-within:touch-auto focus-within:select-text',
+  inputBubbleDocked.value
+    ? [
+        'h-10 max-w-10 w-10 cursor-pointer rounded-xl border-2 border-solid backdrop-blur-md',
+        'border-neutral-100/60 bg-neutral-50/70 dark:border-neutral-800/30 dark:bg-neutral-800/70',
+      ]
+    : 'w-full',
+])
+const inputBubbleMorphStyle = computed(() => inputBubblePhase.value === 'docking'
+  ? { transitionDuration: `${inputBubbleMorphDuration.value}ms` }
+  : undefined)
+const inputBubbleStyle = computed(() => {
+  if (!props.floating)
+    return undefined
+
+  const scale = inputBubblePhase.value === 'dragging' ? 0.98 : 1
+  return {
+    transform: `translate3d(${inputBubbleOffsetX.value}px, ${inputBubbleOffsetY.value}px, 0) scale(${scale})`,
+    transitionDuration: inputBubbleMorphStyle.value?.transitionDuration,
+  }
+})
 const toggleTranscription = () => isListening.value ? stopStreamingTranscription() : startStreamingTranscription()
+
+let inputBubbleGesture: {
+  pointerId: number
+  startX: number
+  startY: number
+} | undefined
+function focusMessageInput() {
+  messageComposer.value?.querySelector<HTMLTextAreaElement>('textarea')?.focus()
+}
+
+function resetInputBubble() {
+  inputBubbleOffsetX.value = 0
+  inputBubbleOffsetY.value = 0
+  inputBubblePhase.value = 'idle'
+}
+
+function dockInputBubble() {
+  const bubble = inputBubble.value
+  const controls = controlsIslandContent.value
+  const target = controls?.querySelector<HTMLElement>('button, a')
+  if (!bubble || !controls || !target) {
+    resetInputBubble()
+    return
+  }
+
+  const bubbleRect = bubble.getBoundingClientRect()
+  const targetRect = target.getBoundingClientRect()
+  const gap = Number.parseFloat(getComputedStyle(controls).rowGap) || 0
+  const travelX = targetRect.left + targetRect.width / 2 - bubbleRect.left - bubbleRect.width / 2
+  const travelY = targetRect.top - gap - targetRect.height / 2 - bubbleRect.top - bubbleRect.height / 2
+  const targetX = inputBubbleOffsetX.value + travelX
+  const targetY = inputBubbleOffsetY.value + travelY
+  const distance = Math.hypot(travelX, travelY)
+  const flightDuration = 500 + 40 * Math.sqrt(distance)
+
+  inputBubbleOffsetX.value = targetX
+  inputBubbleOffsetY.value = targetY
+  inputBubbleMorphDuration.value = flightDuration
+  inputBubblePhase.value = 'docking'
+}
+
+function handleInputBubbleTransitionEnd(event: TransitionEvent) {
+  if (inputBubblePhase.value !== 'docking'
+    || event.target !== event.currentTarget
+    || event.propertyName !== 'transform') {
+    return
+  }
+
+  inputBubblePhase.value = 'docked'
+}
+
+function canStartInputBubbleGesture() {
+  return inputBubblePhase.value === 'idle'
+    && inputBubbleAvailable.value
+    && !inputBubble.value?.querySelector('textarea')?.matches(':focus')
+}
+
+onLongPress(inputBubble, () => {
+  if (inputBubbleGesture && canStartInputBubbleGesture())
+    inputBubblePhase.value = 'dragging'
+}, { delay: 500, distanceThreshold: 10, modifiers: { prevent: true } })
+
+function handleInputBubblePointer(event: PointerEvent) {
+  if (event.type === 'pointerdown') {
+    if (!canStartInputBubbleGesture() && !inputBubbleDocked.value)
+      return
+
+    event.preventDefault()
+    if (event.isTrusted && event.currentTarget instanceof HTMLElement)
+      event.currentTarget.setPointerCapture(event.pointerId)
+
+    const gesture: NonNullable<typeof inputBubbleGesture> = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+    }
+    inputBubbleGesture = gesture
+    return
+  }
+
+  const gesture = inputBubbleGesture
+  if (!gesture || gesture.pointerId !== event.pointerId)
+    return
+
+  const offsetX = event.clientX - gesture.startX
+  const offsetY = event.clientY - gesture.startY
+  if (event.type === 'pointermove') {
+    if (inputBubblePhase.value === 'dragging') {
+      inputBubbleOffsetX.value = offsetX
+      inputBubbleOffsetY.value = offsetY
+    }
+    else if (Math.hypot(offsetX, offsetY) >= 10) {
+      inputBubbleGesture = undefined
+    }
+    return
+  }
+
+  inputBubbleGesture = undefined
+  if (event.type === 'pointercancel') {
+    if (inputBubblePhase.value === 'dragging')
+      resetInputBubble()
+    return
+  }
+  if (inputBubbleDocked.value) {
+    restoreInputBubble()
+    return
+  }
+  if (inputBubblePhase.value !== 'dragging') {
+    focusMessageInput()
+    return
+  }
+
+  if (-offsetY >= 64 && -offsetY > Math.abs(offsetX))
+    dockInputBubble()
+  else
+    resetInputBubble()
+}
+
+function restoreInputBubble() {
+  resetInputBubble()
+  setTimeout(focusMessageInput, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 320)
+}
 
 async function handleSubmit() {
   if (!isMobileDevice()) {
@@ -258,10 +430,11 @@ onUnmounted(() => {
       data-testid="mobile-interaction-controls"
       :class="[
         'pointer-events-auto relative w-full shrink-0 self-end',
-        'bg-white dark:bg-neutral-800',
+        props.floating ? 'bg-transparent' : 'bg-white dark:bg-neutral-800',
       ]"
     >
       <div
+        v-if="!props.floating"
         data-testid="mobile-composer-underlay"
         aria-hidden="true"
         :class="[
@@ -371,26 +544,55 @@ onUnmounted(() => {
         data-testid="mobile-message-composer"
         :class="[
           'max-h-100dvh max-w-100dvw w-full',
-          'flex gap-1 overflow-auto px-3 pt-2',
-          'bg-white dark:bg-neutral-800',
+          'flex gap-1 px-3 pt-2',
+          props.floating
+            ? 'overflow-visible bg-transparent'
+            : 'overflow-auto bg-white dark:bg-neutral-800',
         ]"
         :style="messageComposerStyle"
       >
-        <BasicTextarea
-          v-model="messageInput"
-          :placeholder="t('stage.message')"
-          :class="[
-            'font-cute',
-            'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full resize-none overflow-y-scroll rounded-[1lh] px-4 py-0.5 outline-none backdrop-blur-md scrollbar-none',
-            'border-2 border-solid border-neutral-200/60 bg-neutral-100/80 text-neutral-500 dark:border-neutral-700/60 dark:bg-neutral-950/80 dark:text-neutral-100',
-            'transition-all duration-250 ease-in-out hover:text-neutral-600 placeholder:text-[14px] placeholder:vertical-middle placeholder:leading-6 placeholder:text-neutral-400 placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out placeholder:hover:text-neutral-500 dark:hover:text-neutral-200 dark:placeholder:text-neutral-500 dark:placeholder:hover:text-neutral-400',
-            themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : undefined,
-          ]"
-          default-height="1lh"
-          @submit="handleSubmit"
-          @compositionstart="isComposing = true"
-          @compositionend="isComposing = false"
-        />
+        <div
+          ref="inputBubble"
+          data-testid="mobile-input-bubble"
+          :class="inputBubbleClass"
+          :style="inputBubbleStyle"
+          @pointercancel="handleInputBubblePointer"
+          @pointerdown="handleInputBubblePointer"
+          @pointermove="handleInputBubblePointer"
+          @pointerup="handleInputBubblePointer"
+          @transitionend="handleInputBubbleTransitionEnd"
+        >
+          <BasicTextarea
+            v-model="messageInput"
+            :placeholder="t('stage.message')"
+            :readonly="inputBubbleDocked"
+            :class="[
+              'font-cute',
+              'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full resize-none overflow-y-scroll scrollbar-none',
+              'border-2 border-solid px-4 py-0.5 outline-none backdrop-blur-md',
+              'text-neutral-500 dark:text-neutral-100',
+              inputBubbleDocked
+                ? 'opacity-0'
+                : 'rounded-[1lh] border-neutral-200/60 bg-neutral-100/80 dark:border-neutral-700/60 dark:bg-neutral-950/80',
+              'transition-all duration-250 ease-in-out hover:text-neutral-600 dark:hover:text-neutral-200',
+              'placeholder:text-[14px] placeholder:vertical-middle placeholder:leading-6 placeholder:text-neutral-400',
+              'placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out placeholder:hover:text-neutral-500 dark:placeholder:text-neutral-500 dark:placeholder:hover:text-neutral-400',
+              inputBubbleAvailable || inputBubbleDocked ? 'pointer-events-none group-focus-within:pointer-events-auto' : undefined,
+              themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : undefined,
+            ]"
+            default-height="1lh"
+            @submit="handleSubmit"
+            @compositionstart="isComposing = true"
+            @compositionend="isComposing = false"
+          />
+          <div
+            aria-hidden="true"
+            class="pointer-events-none absolute inset-0 flex items-center justify-center text-neutral-500 transition-opacity duration-200 dark:text-neutral-400 motion-reduce:transition-none"
+            :class="inputBubbleDocked ? 'opacity-100' : 'opacity-0'"
+          >
+            <div class="i-solar:keyboard-bold-duotone size-5" />
+          </div>
+        </div>
         <button
           v-if="showStopSpeakingButton"
           data-testid="stop-speaking-button"
@@ -419,33 +621,3 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-@keyframes scan {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(400%);
-  }
-}
-
-.animate-scan {
-  animation: scan 2s infinite linear;
-}
-
-.controls-island-scroll--overflowing {
-  --controls-island-mask: linear-gradient(
-    to bottom,
-    transparent 0,
-    black 1rem,
-    black calc(100% - 1rem),
-    transparent 100%
-  );
-
-  -webkit-mask-image: var(--controls-island-mask);
-  mask-image: var(--controls-island-mask);
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-}
-</style>
