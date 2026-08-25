@@ -36,8 +36,8 @@ describe('providerOpenRouterAI tool schemas', () => {
     vi.unstubAllGlobals()
   })
 
-  it('maps AIRI reasoning modes to OpenRouter request fields', () => {
-    const provider = providerOpenRouterAI.createProvider({
+  it('maps AIRI reasoning modes to OpenRouter request fields', async () => {
+    const provider = await providerOpenRouterAI.createProvider({
       apiKey: 'test-key',
     }) as ChatProviderWithExtraOptions<string, ChatRequestOptions>
 
@@ -56,7 +56,7 @@ describe('providerOpenRouterAI tool schemas', () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response('{}'))
     vi.stubGlobal('fetch', fetchMock)
 
-    const provider = providerOpenRouterAI.createProvider({
+    const provider = await providerOpenRouterAI.createProvider({
       apiKey: 'test-key',
     })
     if (!('chat' in provider))

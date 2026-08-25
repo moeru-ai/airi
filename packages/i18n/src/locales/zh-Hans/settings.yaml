@@ -901,6 +901,9 @@ pages:
               如果你想要继续，你仍然可以保存当前的配置。
             action: 仍要保存
         config:
+          loading: 正在加载服务来源设置……
+          load-error: 无法加载服务来源设置。
+          retry: 重试
           common:
             fields:
               field:

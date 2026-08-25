@@ -35,8 +35,8 @@ describe('services inference-service-providers', () => {
    * @example
    * const provider = inferenceServiceProvidersService.buildLocal('atlascloud', { apiKey: '...' })
    */
-  it('lists Atlas Cloud as a built-in OpenAI-compatible provider', () => {
-    const schema = providerAtlasCloud.createProviderConfig({ t: (key: string) => key })
+  it('lists Atlas Cloud as a built-in OpenAI-compatible provider', async () => {
+    const schema = await providerAtlasCloud.createProviderConfig({ t: (key: string) => key })
 
     expect(providerAtlasCloud.name).toBe('Atlas Cloud')
     expect(parseSchema(schema, { apiKey: 'test-key' })).toEqual({
