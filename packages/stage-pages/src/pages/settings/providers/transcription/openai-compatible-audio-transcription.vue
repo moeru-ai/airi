@@ -21,7 +21,13 @@ import { FieldCombobox, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 
-const providerId = 'openai-compatible-audio-transcription'
+import {
+  createOpenAICompatibleAudioTranscriptionController,
+  isValidOpenAICompatibleTranscriptionModel,
+  OPENAI_COMPATIBLE_AUDIO_TRANSCRIPTION_PROVIDER_ID,
+} from './openai-compatible-audio-transcription'
+
+const providerId = OPENAI_COMPATIBLE_AUDIO_TRANSCRIPTION_PROVIDER_ID
 const hearingStore = useHearingStore()
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
@@ -52,13 +58,24 @@ const baseUrl = computed({
 })
 
 const model = computed(() => providers.value[providerId]?.model || '')
-let modelUpdateTask = Promise.resolve()
 
-function updateModel(value: string | undefined) {
-  const nextTask = modelUpdateTask.then(() => hearingStore.setTranscriptionModelForProvider(providerId, value ?? ''))
-  modelUpdateTask = nextTask.catch(cause => console.warn('Failed to update the transcription model:', cause))
-  return nextTask
-}
+const {
+  generateTranscription: handleGenerateTranscription,
+  updateModel,
+} = createOpenAICompatibleAudioTranscriptionController({
+  getProvider: () => providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId),
+  getProviderConfig: () => providerStore.getProviderConfig(providerId),
+  readReactiveModel: () => model.value,
+  reportModelSaveError: cause => console.warn('Failed to update the transcription model:', cause),
+  saveModel: model => hearingStore.setTranscriptionModelForProvider(providerId, model),
+  transcribe: (provider, model, file) => hearingStore.transcription(
+    providerId,
+    provider,
+    model,
+    file,
+    'json',
+  ),
+})
 
 // Load models
 const providerModels = computed(() => {
@@ -71,32 +88,6 @@ const isLoadingModels = computed(() => {
 
 // Check if API key is configured
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
-
-// Generate transcription
-async function handleGenerateTranscription(file: File) {
-  const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
-  if (!provider)
-    throw new Error('Failed to initialize transcription provider')
-
-  // Get provider configuration
-  const providerConfig = providerStore.getProviderConfig(providerId)
-
-  // Get model from configuration or use the reactive model value
-  const modelToUse = providerConfig.model as string | undefined || model.value
-
-  // Validate model - throw error if no valid model configured
-  if (!modelToUse || !isValidTranscriptionModel(modelToUse)) {
-    throw new Error(`Invalid or missing transcription model. Please configure a valid model in the provider settings.`)
-  }
-
-  return await hearingStore.transcription(
-    providerId,
-    provider,
-    modelToUse,
-    file,
-    'json',
-  )
-}
 
 // Use the composable to get validation logic and state
 const {
@@ -134,29 +125,6 @@ const shouldExpandAdvanced = computed(() => {
   return message.includes('base url') || message.includes('baseurl')
 })
 
-// Valid transcription models (OpenAI doesn't provide an API to list these)
-const VALID_TRANSCRIPTION_MODELS = [
-  'whisper-1',
-  'gpt-4o-transcribe',
-  'gpt-4o-mini-transcribe',
-  'gpt-4o-mini-transcribe-2025-12-15',
-  'gpt-4o-transcribe-diarize',
-]
-
-// Check if a model is a valid transcription model
-function isValidTranscriptionModel(modelName: string | undefined | null): boolean {
-  if (!modelName)
-    return false
-  // Check if it's a known transcription model
-  if (VALID_TRANSCRIPTION_MODELS.includes(modelName))
-    return true
-  // Allow custom models that might be transcription-compatible
-  // But reject obvious chat models
-  if (modelName.includes('gpt-4') && !modelName.includes('transcribe') && !modelName.includes('whisper'))
-    return false
-  return true
-}
-
 // Initialize provider settings on mount
 onMounted(async () => {
   providersStore.initializeProvider(providerId)
@@ -169,7 +137,7 @@ onMounted(async () => {
   }
   // Validate and reset model if it's invalid (e.g., a chat model)
   const currentModel = model.value
-  if (currentModel && !isValidTranscriptionModel(currentModel)) {
+  if (currentModel && !isValidOpenAICompatibleTranscriptionModel(currentModel)) {
     console.warn(`Invalid transcription model "${currentModel}" detected. Resetting to default "whisper-1".`)
     await updateModel('whisper-1')
   }

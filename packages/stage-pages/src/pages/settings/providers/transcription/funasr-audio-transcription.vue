@@ -12,7 +12,8 @@ import {
   TranscriptionPlayground,
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
-import { createFunASRModelUpdateQueue, FUNASR_TRANSCRIPTION_MODELS } from '@proj-airi/stage-ui/libs/providers/providers/funasr'
+import { createTranscriptionModelUpdateQueue } from '@proj-airi/stage-ui/libs/providers'
+import { FUNASR_TRANSCRIPTION_MODELS } from '@proj-airi/stage-ui/libs/providers/providers/funasr'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
@@ -27,7 +28,7 @@ const hearingStore = useHearingStore()
 const providersStore = useProviderStore()
 const providerConfigStore = useProviderConfigStore()
 const { configs: providers } = storeToRefs(providerConfigStore)
-const modelUpdateQueue = createFunASRModelUpdateQueue(
+const modelUpdateQueue = createTranscriptionModelUpdateQueue(
   model => hearingStore.setTranscriptionModelForProvider(providerId, model),
   cause => console.warn('[FunASR] Failed to update the transcription model:', cause),
 )

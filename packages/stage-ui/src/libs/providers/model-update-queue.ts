@@ -1,15 +1,15 @@
-export interface FunASRModelUpdateQueue {
+export interface TranscriptionModelUpdateQueue {
   runAfterLatest: <Result>(action: () => Promise<Result>) => Promise<Result>
   update: (model: string) => Promise<void>
 }
 
 /**
- * Serializes FunASR model writes and keeps the latest write awaitable by playground requests.
+ * Serializes transcription model writes and keeps the latest write awaitable by playground requests.
  */
-export function createFunASRModelUpdateQueue(
+export function createTranscriptionModelUpdateQueue(
   updateModel: (model: string) => Promise<void>,
   onError: (cause: unknown) => void,
-): FunASRModelUpdateQueue {
+): TranscriptionModelUpdateQueue {
   let settledTask = Promise.resolve()
   let latestTask = settledTask
 

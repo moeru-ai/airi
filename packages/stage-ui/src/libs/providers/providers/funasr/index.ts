@@ -5,8 +5,6 @@ import { z } from 'zod'
 
 import { defineProvider } from '../registry'
 
-export { createFunASRModelUpdateQueue } from './model-update-queue'
-
 const FUNASR_BASE_URL = 'http://localhost:8000/v1/'
 
 const funASRConfigSchema = z.object({

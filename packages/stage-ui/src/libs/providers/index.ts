@@ -1,5 +1,6 @@
 export * from './attributes'
 export * from './metadata'
+export * from './model-update-queue'
 export * from './providers'
 export * from './types'
 export * from './validators'

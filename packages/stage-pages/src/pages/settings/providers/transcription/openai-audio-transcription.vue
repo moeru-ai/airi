@@ -13,24 +13,38 @@ import { FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 
+import {
+  createOpenAIAudioTranscriptionController,
+  OPENAI_AUDIO_TRANSCRIPTION_PROVIDER_ID,
+} from './openai-audio-transcription'
+
 const hearingStore = useHearingStore()
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const { configs: providers } = storeToRefs(providerStore)
 
 // Get provider metadata
-const providerId = 'openai-audio-transcription'
+const providerId = OPENAI_AUDIO_TRANSCRIPTION_PROVIDER_ID
 const defaultModel = OPENAI_TRANSCRIPTION_DEFAULT_MODEL
+const {
+  generateTranscription: handleGenerateTranscription,
+  updateModel,
+} = createOpenAIAudioTranscriptionController({
+  getProvider: () => providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId),
+  getProviderConfig: () => providerStore.getProviderConfig(providerId),
+  reportModelSaveError: cause => console.warn('Failed to update the transcription model:', cause),
+  saveModel: model => hearingStore.setTranscriptionModelForProvider(providerId, model),
+  transcribe: (provider, model, file) => hearingStore.transcription(
+    providerId,
+    provider,
+    model,
+    file,
+    'json',
+  ),
+})
 
 // Model selection
 const model = computed(() => resolveOpenAITranscriptionModel(providers.value[providerId]))
-let modelUpdateTask = Promise.resolve()
-
-function updateModel(value: string | undefined) {
-  const nextTask = modelUpdateTask.then(() => hearingStore.setTranscriptionModelForProvider(providerId, value ?? ''))
-  modelUpdateTask = nextTask.catch(cause => console.warn('Failed to update the transcription model:', cause))
-  return nextTask
-}
 
 // Load models
 const providerModels = computed(() => {
@@ -50,27 +64,6 @@ onMounted(async () => {
   await providersStore.fetchModelsForProvider(providerId)
 })
 
-// Generate transcription
-async function handleGenerateTranscription(file: File) {
-  const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
-  if (!provider) {
-    throw new Error('Failed to initialize transcription provider')
-  }
-
-  // Get provider configuration
-  const providerConfig = providerStore.getProviderConfig(providerId)
-
-  // Get model from configuration or use default
-  const modelToUse = resolveOpenAITranscriptionModel(providerConfig)
-
-  return await hearingStore.transcription(
-    providerId,
-    provider,
-    modelToUse,
-    file,
-    'json',
-  )
-}
 </script>
 
 <template>

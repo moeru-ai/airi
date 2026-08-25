@@ -28,6 +28,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
+import { commitProviderConfigEdit } from './provider-config-commit'
+
 const { t } = useI18n()
 const router = useRouter()
 const route = useRoute('v2/settings/providers/edit/[providerId]')
@@ -322,11 +324,15 @@ async function commitEditedConfig(status: 'configured' | 'bypassed') {
   if (!providerConfigEdit.value)
     return
 
-  const config = { ...providerConfigEdit.value.config }
-  await providerStore.updateProviderConfig(providerId.value, config, status)
-  if (typeof config.model === 'string') {
-    await useHearingStore().setTranscriptionModelForProvider(providerId.value, config.model)
+  const commit = {
+    config: { ...providerConfigEdit.value.config },
+    providerId: providerId.value,
+    status,
   }
+  await commitProviderConfigEdit(commit, {
+    setTranscriptionModelForProvider: (id, model) => useHearingStore().setTranscriptionModelForProvider(id, model),
+    updateProviderConfig: (id, config, nextStatus) => providerStore.updateProviderConfig(id, config, nextStatus),
+  })
 }
 
 async function handleSaveAnyway() {
