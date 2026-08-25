@@ -48,6 +48,7 @@ const activeTrack = shallowRef<Live2DMotionEditableTrackId>('headX')
 const selectedOverlayId = shallowRef<string>()
 const playheadMs = shallowRef(0)
 const viewport = shallowRef<readonly [number, number]>([0, project.value.durationMs])
+const rulerKey = shallowRef(0)
 const playing = shallowRef(false)
 const importError = shallowRef('')
 const importFileInput = useTemplateRef<HTMLInputElement>('importFileInput')
@@ -58,7 +59,7 @@ const { canRedo, canUndo, clear, commit, redo, undo } = useManualRefHistory(proj
 let animationFrame: number | undefined
 let playbackStartedAt = 0
 let playbackStartMs = 0
-let lastEmittedRecording: Live2DMotionRecording | undefined
+let lastEmittedRecordingJson = ''
 
 const currentTime = computed(() => `${(playheadMs.value / 1000).toFixed(2)}s`)
 const duration = computed(() => `${(project.value.durationMs / 1000).toFixed(2)}s`)
@@ -69,8 +70,9 @@ function publish(atMs = playheadMs.value) {
 }
 
 function emitBakedRecording() {
-  lastEmittedRecording = createLive2DMotionRecordingFromProject(project.value)
-  emit('recording', lastEmittedRecording)
+  const recording = createLive2DMotionRecordingFromProject(project.value)
+  lastEmittedRecordingJson = JSON.stringify(recording)
+  emit('recording', recording)
 }
 
 function replaceProject(nextProject: Live2DMotionProject, saveHistory: boolean) {
@@ -191,6 +193,7 @@ function runHistoryAction(action: () => void) {
 
 function resetViewport() {
   viewport.value = [0, project.value.durationMs]
+  rulerKey.value++
 }
 
 function exportProject() {
@@ -236,8 +239,8 @@ async function importProject(event: Event) {
 watch(() => props.recording, (recording) => {
   if (!recording)
     return
-  if (recording === lastEmittedRecording) {
-    lastEmittedRecording = undefined
+  if (JSON.stringify(recording) === lastEmittedRecordingJson) {
+    lastEmittedRecordingJson = ''
     return
   }
 
@@ -294,6 +297,7 @@ onUnmounted(() => {
         {{ currentTime }} / {{ duration }}
       </div>
       <Live2DMotionTimelineRuler
+        :key="rulerKey"
         :duration-ms="project.durationMs"
         :playhead-ms="playheadMs"
         :viewport="viewport"

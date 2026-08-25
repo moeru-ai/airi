@@ -37,7 +37,7 @@ describe('live2DMotionKeyframeEditor', () => {
 
     expect(mounted.host.querySelectorAll('article')).toHaveLength(11)
     expect(mounted.host.querySelectorAll('svg')).toHaveLength(12)
-    expect(mounted.host.querySelectorAll('svg.h-56')).toHaveLength(1)
+    expect(mounted.host.querySelectorAll('article[data-active="true"]')).toHaveLength(1)
     expect(mounted.host.textContent).toContain('.tracks.eyeOpen')
     expect(mounted.host.textContent).toContain('.tracks.mouthForm')
     expect(mounted.host.textContent).toContain('.tracks.mouthOpen')
@@ -51,7 +51,7 @@ describe('live2DMotionKeyframeEditor', () => {
 
     findButton(mounted.host, 'tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.add').click()
     await nextTick()
-    const activeGraph = mounted.host.querySelector<SVGSVGElement>('svg.h-56')!
+    const activeGraph = mounted.host.querySelector<SVGSVGElement>('article[data-active="true"] svg')!
     vi.spyOn(activeGraph, 'getBoundingClientRect').mockReturnValue({
       left: 0,
       top: 0,

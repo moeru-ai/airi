@@ -3,6 +3,7 @@ import type { Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 import type { Live2DMotionRecording, ReadonlyLive2DMotionRecording } from './live2d-motion-recording'
 
 import { neutralLive2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
+import { array, finite, literal, maxValue, minLength, minValue, number, object, picklist, pipe, safeParse, string } from 'valibot'
 
 export const live2dMotionEditableTrackIds = [
   'eyeX',
@@ -50,6 +51,49 @@ export interface Live2DMotionProject {
   source: Live2DMotionRecording
   overlays: Live2DMotionOverlay[]
 }
+
+const motionProjectSampleSchema = object({
+  atMs: pipe(number(), finite(), minValue(0)),
+  eyeX: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  eyeY: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  eyeSquint: pipe(number(), finite(), minValue(0), maxValue(1)),
+  headX: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  headY: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  headZ: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  bodyX: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  bodyY: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  bodyZ: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  mouthForm: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  mouthOpen: pipe(number(), finite(), minValue(0), maxValue(1)),
+  offsetX: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  offsetY: pipe(number(), finite(), minValue(-1), maxValue(1)),
+})
+
+const motionProjectKeyframeSchema = object({
+  id: string(),
+  atMs: pipe(number(), finite(), minValue(0)),
+  value: pipe(number(), finite()),
+})
+
+const motionProjectSchema = object({
+  format: literal('airi-live2d-motion-project/v1'),
+  durationMs: pipe(number(), finite(), minValue(0)),
+  source: object({
+    format: literal('airi-live2d-motion/v6'),
+    durationMs: pipe(number(), finite(), minValue(0)),
+    samples: pipe(array(motionProjectSampleSchema), minLength(1)),
+  }),
+  overlays: array(object({
+    id: string(),
+    name: string(),
+    trackId: picklist(live2dMotionEditableTrackIds),
+    blendMode: picklist(['add', 'replace']),
+    weight: pipe(number(), finite(), minValue(0), maxValue(1)),
+    startMs: pipe(number(), finite(), minValue(0)),
+    endMs: pipe(number(), finite(), minValue(0)),
+    points: array(motionProjectKeyframeSchema),
+  })),
+})
 
 const unitValueTracks = new Set<Live2DMotionTrackId>(['eyeOpen', 'mouthOpen'])
 
@@ -120,7 +164,11 @@ export function createLive2DMotionProject(recording: ReadonlyLive2DMotionRecordi
   return {
     format: 'airi-live2d-motion-project/v1',
     durationMs: recording.durationMs,
-    source: structuredClone(recording) as Live2DMotionRecording,
+    source: {
+      format: recording.format,
+      durationMs: recording.durationMs,
+      samples: recording.samples.map(sample => ({ ...sample })),
+    },
     overlays: [],
   }
 }
@@ -246,22 +294,30 @@ export function parseLive2DMotionProject(raw: string): Live2DMotionProject {
     throw new Error('The file does not contain valid JSON.')
   }
 
-  if (!input || typeof input !== 'object' || !('format' in input) || input.format !== 'airi-live2d-motion-project/v1')
+  const result = safeParse(motionProjectSchema, input)
+  if (!result.success)
     throw new Error('The file is not an AIRI Live2D motion project.')
 
-  const project = input as Live2DMotionProject
-  if (!Number.isFinite(project.durationMs) || project.durationMs < 0 || !Array.isArray(project.overlays))
-    throw new Error('The motion project timeline is invalid.')
-  if (project.source?.format !== 'airi-live2d-motion/v6' || project.source.durationMs !== project.durationMs)
+  const project = result.output
+  if (project.source.durationMs !== project.durationMs)
     throw new Error('The motion project source is invalid.')
 
+  if (project.source.samples[0].atMs !== 0 || project.source.samples.at(-1)!.atMs > project.durationMs)
+    throw new Error('The motion project source timeline is invalid.')
+  for (let index = 1; index < project.source.samples.length; index++) {
+    if (project.source.samples[index].atMs < project.source.samples[index - 1].atMs)
+      throw new Error('The motion project source samples are not in time order.')
+  }
+
   for (const overlay of project.overlays) {
-    if (!live2dMotionEditableTrackIds.includes(overlay.trackId) || !['add', 'replace'].includes(overlay.blendMode))
-      throw new Error('The motion project contains an invalid overlay.')
-    if (overlay.startMs < 0 || overlay.endMs > project.durationMs || overlay.startMs > overlay.endMs || !Array.isArray(overlay.points))
+    if (overlay.endMs > project.durationMs || overlay.startMs > overlay.endMs)
       throw new Error('The motion project contains an invalid overlay span.')
-    if (overlay.points.some(point => !Number.isFinite(point.atMs) || !Number.isFinite(point.value) || point.atMs < overlay.startMs || point.atMs > overlay.endMs))
+    if (overlay.points.some(point => point.atMs < overlay.startMs || point.atMs > overlay.endMs))
       throw new Error('The motion project contains an invalid overlay point.')
+    for (let index = 1; index < overlay.points.length; index++) {
+      if (overlay.points[index].atMs < overlay.points[index - 1].atMs)
+        throw new Error('The motion project overlay points are not in time order.')
+    }
   }
   return structuredClone(project)
 }

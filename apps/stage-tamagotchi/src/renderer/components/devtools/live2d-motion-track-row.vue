@@ -10,7 +10,7 @@ import type {
 } from '../../composables/live2d-motion-keyframes'
 
 import { BasicButton, Range, Select } from '@proj-airi/ui'
-import { curveMonotoneX, drag, line, pointer, scaleLinear, select } from 'd3'
+import { curveLinear, drag, line, pointer, scaleLinear, select } from 'd3'
 import { computed, nextTick, onMounted, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -45,7 +45,7 @@ const { t } = useI18n()
 
 const graph = useTemplateRef<SVGSVGElement>('graph')
 const width = 1000
-const graphHeight = computed(() => props.active ? 220 : 62)
+const graphHeight = computed(() => props.active ? 300 : 62)
 const xScale = computed(() => scaleLinear().domain(props.viewport).range([0, width]))
 const yScale = computed(() => scaleLinear().domain(getLive2DMotionTrackRange(props.trackId)).range([graphHeight.value - 12, 12]))
 const sourcePoints = computed(() => getLive2DMotionSourcePoints(props.project, props.trackId))
@@ -69,7 +69,7 @@ function pathFor(points: readonly Live2DMotionKeyframe[]) {
   return line<Live2DMotionKeyframe>()
     .x(point => xScale.value(point.atMs))
     .y(point => yScale.value(point.value))
-    .curve(curveMonotoneX)(points) ?? ''
+    .curve(curveLinear)(points) ?? ''
 }
 
 function clientToPoint(event: PointerEvent | MouseEvent) {
@@ -168,51 +168,55 @@ onMounted(installDragBehaviors)
 
 <template>
   <article
+    :data-active="active"
+    :style="{ height: `${graphHeight}px` }"
     :class="[
-      'overflow-hidden rounded-lg border transition-colors',
+      'grid grid-cols-[12rem_minmax(0,1fr)] overflow-hidden rounded-lg border transition-colors',
       active
         ? 'border-primary-400/70 bg-primary-50/30 dark:border-primary-600/70 dark:bg-primary-950/10'
         : 'border-neutral-200/80 bg-neutral-50/60 dark:border-neutral-800/80 dark:bg-neutral-950/30',
     ]"
     @click="emit('activate')"
   >
-    <header :class="['flex min-h-12 flex-wrap items-center gap-2 px-3 py-2']">
-      <button :class="['min-w-24 text-left text-sm font-semibold text-neutral-800 dark:text-neutral-100']" @click="emit('activate')">
+    <header :class="['flex min-h-16 flex-col items-stretch gap-2 px-3 py-2']">
+      <button :class="['text-left text-sm font-semibold text-neutral-800 dark:text-neutral-100']" @click="emit('activate')">
         {{ label }}
       </button>
 
-      <button
-        v-for="overlay in overlays"
-        :key="overlay.id"
-        :class="[
-          'rounded-full border px-2 py-1 text-xs font-medium',
-          overlay.id === selectedOverlayId ? 'bg-white shadow-sm dark:bg-neutral-800' : 'opacity-70',
-        ]"
-        :style="{ borderColor: colorForOverlay(overlay.id), color: colorForOverlay(overlay.id) }"
-        @click.stop="emit('selectOverlay', overlay.id)"
-      >
-        {{ overlay.name }} · {{ overlay.blendMode }}
-      </button>
+      <div v-if="overlays.length" :class="['flex flex-col gap-1']">
+        <button
+          v-for="overlay in overlays"
+          :key="overlay.id"
+          :class="[
+            'truncate rounded-md border px-2 py-1 text-left text-xs font-medium',
+            overlay.id === selectedOverlayId ? 'bg-white shadow-sm dark:bg-neutral-800' : 'opacity-70',
+          ]"
+          :style="{ borderColor: colorForOverlay(overlay.id), color: colorForOverlay(overlay.id) }"
+          @click.stop="emit('selectOverlay', overlay.id)"
+        >
+          {{ overlay.name }} · {{ overlay.blendMode }}
+        </button>
+      </div>
 
-      <div v-if="active" :class="['ml-auto flex items-center gap-1']">
-        <BasicButton size="sm" :disabled="disabled" @click.stop="emit('addOverlay', 'add')">
+      <div v-if="active" :class="['grid grid-cols-2 gap-1']">
+        <BasicButton size="sm" :disabled="disabled" :class="['min-w-0 px-1!']" @click.stop="emit('addOverlay', 'add')">
           <span :class="['i-solar:add-circle-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.add') }}
         </BasicButton>
-        <BasicButton size="sm" :disabled="disabled" @click.stop="emit('addOverlay', 'replace')">
+        <BasicButton size="sm" :disabled="disabled" :class="['min-w-0 px-1!']" @click.stop="emit('addOverlay', 'replace')">
           <span :class="['i-solar:add-circle-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.replace') }}
         </BasicButton>
       </div>
 
-      <div v-if="active && selectedOverlay" :class="['basis-full flex flex-wrap items-center gap-3 border-t border-neutral-200/70 pt-2 dark:border-neutral-800/70']" @click.stop>
+      <div v-if="active && selectedOverlay" :class="['flex flex-col gap-2 border-t border-neutral-200/70 pt-2 dark:border-neutral-800/70']" @click.stop>
         <Select
           :model-value="selectedOverlay.blendMode"
           :options="blendOptions"
           :disabled="disabled"
-          :class="['w-28!']"
+          :class="['w-full!']"
           @update:model-value="updateBlendMode"
         />
-        <label :class="['flex min-w-44 flex-1 items-center gap-2 text-xs text-neutral-500']">
-          {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.weight') }} {{ selectedOverlay.weight.toFixed(2) }}
+        <label :class="['flex flex-col gap-1 text-xs text-neutral-500']">
+          <span>{{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.weight') }} {{ selectedOverlay.weight.toFixed(2) }}</span>
           <Range
             :model-value="selectedOverlay.weight"
             :min="0"
@@ -225,7 +229,7 @@ onMounted(installDragBehaviors)
         <span :class="['font-mono text-xs text-neutral-500']">
           {{ (selectedOverlay.startMs / 1000).toFixed(2) }}s–{{ (selectedOverlay.endMs / 1000).toFixed(2) }}s
         </span>
-        <BasicButton size="sm" :disabled="disabled" @click="emit('removeOverlay', selectedOverlay.id)">
+        <BasicButton size="sm" :disabled="disabled" :class="['w-full']" @click="emit('removeOverlay', selectedOverlay.id)">
           <span :class="['i-solar:trash-bin-trash-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.remove') }}
         </BasicButton>
       </div>
@@ -236,8 +240,8 @@ onMounted(installDragBehaviors)
       :viewBox="`0 0 1000 ${graphHeight}`"
       preserveAspectRatio="none"
       :class="[
-        'w-full touch-none select-none border-t border-neutral-200/70 bg-white dark:border-neutral-800/70 dark:bg-neutral-950',
-        active ? 'h-56 cursor-crosshair' : 'h-16 cursor-pointer',
+        'h-full w-full touch-none select-none border-l border-neutral-200/70 bg-white dark:border-neutral-800/70 dark:bg-neutral-950',
+        active ? 'cursor-crosshair' : 'cursor-pointer',
       ]"
       @pointerdown="scrub"
       @dblclick="addPoint"
