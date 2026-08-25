@@ -41,7 +41,11 @@ const mouthFormKeys = new Set([
   'w',
 ])
 const mouthOpenKeys = new Set([' '])
-const movementKeys = new Set([...positionKeys, ...headRollKeys, ...bodyXKeys, ...mouthFormKeys, ...mouthOpenKeys])
+const eyeSquintKeys = new Set([
+  'f',
+  'r',
+])
+const movementKeys = new Set([...positionKeys, ...headRollKeys, ...bodyXKeys, ...mouthFormKeys, ...mouthOpenKeys, ...eyeSquintKeys])
 
 let keyboardOwnsInput = false
 let keyboardOwnsPosition = false
@@ -52,6 +56,8 @@ let keyboardOwnsMouthForm = false
 let keyboardMouthFormBase = 0
 let keyboardOwnsMouthOpen = false
 let keyboardMouthOpenBase = 0
+let keyboardOwnsEyeSquint = false
+let keyboardEyeSquintBase = 0
 
 const knobStyle = computed(() => ({
   transform: `translate(calc(-50% + ${props.pose.headX * 5.75}rem), calc(-50% - ${props.pose.headY * 5.75}rem))`,
@@ -128,6 +134,8 @@ function releaseImmediately() {
   keyboardMouthFormBase = 0
   keyboardOwnsMouthOpen = false
   keyboardMouthOpenBase = 0
+  keyboardOwnsEyeSquint = false
+  keyboardEyeSquintBase = 0
   inputActive.value = false
   emit('release')
 }
@@ -190,6 +198,10 @@ function keyboardPosition(): Live2DMotionControlPose {
     pose.mouthForm = Number(pressedKeys.has('w')) - Number(pressedKeys.has('s'))
   if (pressedKeys.has(' '))
     pose.mouthOpen = 1
+  if (pressedKeys.has('f'))
+    pose.eyeSquint = 2 / 3
+  else if (pressedKeys.has('r'))
+    pose.eyeSquint = 1 / 3
 
   return pose
 }
@@ -203,6 +215,7 @@ function emitKeyboardTarget() {
   const bodyXKeyActive = [...pressedKeys].some(key => bodyXKeys.has(key))
   const mouthFormKeyActive = [...pressedKeys].some(key => mouthFormKeys.has(key))
   const mouthOpenKeyActive = pressedKeys.has(' ')
+  const eyeSquintKeyActive = [...pressedKeys].some(key => eyeSquintKeys.has(key))
   const nextPose = {
     eyeX: keyboardOwnsPosition ? target.eyeX : props.pose.eyeX,
     eyeY: keyboardOwnsPosition ? target.eyeY : props.pose.eyeY,
@@ -220,6 +233,9 @@ function emitKeyboardTarget() {
     mouthOpen: keyboardOwnsMouthOpen
       ? (mouthOpenKeyActive ? target.mouthOpen : keyboardMouthOpenBase)
       : props.pose.mouthOpen,
+    eyeSquint: keyboardOwnsEyeSquint
+      ? (eyeSquintKeyActive ? target.eyeSquint : keyboardEyeSquintBase)
+      : props.pose.eyeSquint,
     offsetX: keyboardOwnsPosition ? target.offsetX : props.pose.offsetX,
     offsetY: keyboardOwnsPosition ? target.offsetY : props.pose.offsetY,
   }
@@ -236,6 +252,8 @@ function emitKeyboardTarget() {
     keyboardOwnsMouthForm = false
   if (!mouthOpenKeyActive)
     keyboardOwnsMouthOpen = false
+  if (!eyeSquintKeyActive)
+    keyboardOwnsEyeSquint = false
 
   if (pressedKeys.size > 0)
     return
@@ -273,6 +291,10 @@ function handleKeyDown(event: KeyboardEvent) {
   if (mouthOpenKeys.has(key) && !keyboardOwnsMouthOpen) {
     keyboardMouthOpenBase = props.pose.mouthOpen
     keyboardOwnsMouthOpen = true
+  }
+  if (eyeSquintKeys.has(key) && !keyboardOwnsEyeSquint) {
+    keyboardEyeSquintBase = props.pose.eyeSquint
+    keyboardOwnsEyeSquint = true
   }
   pressedKeys.add(key)
   emitKeyboardTarget()
@@ -313,6 +335,8 @@ watch(() => props.disabled, (disabled) => {
   keyboardMouthFormBase = 0
   keyboardOwnsMouthOpen = false
   keyboardMouthOpenBase = 0
+  keyboardOwnsEyeSquint = false
+  keyboardEyeSquintBase = 0
   inputActive.value = false
 })
 </script>

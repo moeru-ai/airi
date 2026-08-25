@@ -6,6 +6,8 @@ import { shallowRef, watch } from 'vue'
 export interface Live2DMotionControlPose {
   eyeX: number
   eyeY: number
+  /** Squint amount from 0 (open) to 1 (closed). */
+  eyeSquint: number
   headX: number
   headY: number
   /** Head roll from -1 (left) to 1 (right). */
@@ -55,6 +57,7 @@ type Live2DMotionControlEvent
 export const neutralLive2DMotionControlPose: Live2DMotionControlPose = Object.freeze({
   eyeX: 0,
   eyeY: 0,
+  eyeSquint: 0,
   headX: 0,
   headY: 0,
   headZ: 0,
@@ -86,6 +89,7 @@ function normalizePose(pose: Live2DMotionControlPose): Live2DMotionControlPose {
   return {
     eyeX: clampAxis(pose.eyeX),
     eyeY: clampAxis(pose.eyeY),
+    eyeSquint: clampUnit(pose.eyeSquint),
     headX: clampAxis(pose.headX),
     headY: clampAxis(pose.headY),
     headZ: clampAxis(pose.headZ),

@@ -480,9 +480,12 @@ export function useMotionUpdatePluginManualControl(
     if (!output.active)
       return
 
-    const { eyeX, eyeY, headX, headY, headZ, bodyX, bodyY, bodyZ, mouthForm, mouthOpen } = output.pose
+    const { eyeX, eyeY, eyeSquint, headX, headY, headZ, bodyX, bodyY, bodyZ, mouthForm, mouthOpen } = output.pose
     ctx.model.setParameterValueById('ParamEyeBallX', eyeX)
     ctx.model.setParameterValueById('ParamEyeBallY', eyeY)
+    const remainingEyeOpen = 1 - eyeSquint
+    ctx.model.setParameterValueById('ParamEyeLOpen', ctx.model.getParameterValueById('ParamEyeLOpen') * remainingEyeOpen)
+    ctx.model.setParameterValueById('ParamEyeROpen', ctx.model.getParameterValueById('ParamEyeROpen') * remainingEyeOpen)
     ctx.model.setParameterValueById('ParamAngleX', headX * 30)
     ctx.model.setParameterValueById('ParamAngleY', headY * 30)
     ctx.model.setParameterValueById('ParamAngleZ', headZ * 30)
