@@ -1,7 +1,7 @@
-import type { ComposerTranslation } from 'vue-i18n'
+import type { MaybePromise } from 'clustr'
 import type { $ZodType } from 'zod/v4/core'
 
-import type { ProviderDefinition } from '../types'
+import type { ProviderConfigContext, ProviderDefinition } from '../types'
 
 import { orderBy } from 'es-toolkit'
 
@@ -17,7 +17,9 @@ export function getDefinedProvider(id: string): ProviderDefinition | undefined {
   return providerRegistry.get(id)
 }
 
-export function defineProvider<T>(definition: { createProviderConfig: (contextOptions: { t: ComposerTranslation }) => $ZodType<T> } & ProviderDefinition<T>): ProviderDefinition<T> {
+export function defineProvider<T>(definition: {
+  createProviderConfig: (contextOptions: ProviderConfigContext<T>) => MaybePromise<$ZodType<T>>
+} & ProviderDefinition<T>): ProviderDefinition<T> {
   const provider = {
     ...definition,
   }
