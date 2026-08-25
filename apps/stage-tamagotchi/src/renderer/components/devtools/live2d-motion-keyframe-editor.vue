@@ -292,7 +292,13 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div :class="['grid grid-cols-[7.5rem_minmax(0,1fr)] border-y border-neutral-200/80 dark:border-neutral-800/80']">
+    <div
+      data-testid="motion-timeline-ruler-row"
+      :class="[
+        'grid grid-cols-[calc(12rem+0.75rem)_minmax(0,1fr)] pr-3',
+        'border-y border-neutral-200/80 dark:border-neutral-800/80',
+      ]"
+    >
       <div :class="['flex items-center px-3 font-mono text-xs text-neutral-500']">
         {{ currentTime }} / {{ duration }}
       </div>
@@ -307,7 +313,7 @@ onUnmounted(() => {
       />
     </div>
 
-    <div :class="['max-h-[52rem] space-y-2 overflow-y-auto p-3']">
+    <div data-testid="motion-timeline-track-list" :class="['max-h-[52rem] space-y-2 overflow-y-auto p-3']">
       <Live2DMotionTrackRow
         v-for="trackId in live2dMotionEditableTrackIds"
         :key="trackId"

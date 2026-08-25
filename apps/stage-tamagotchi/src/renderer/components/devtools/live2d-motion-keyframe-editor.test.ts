@@ -34,10 +34,15 @@ describe('live2DMotionKeyframeEditor', () => {
 
   it('shows all tracks on one shared timeline and expands the active track', () => {
     const mounted = mountEditor()
+    const rulerRow = mounted.host.querySelector<HTMLElement>('[data-testid="motion-timeline-ruler-row"]')!
+    const trackList = mounted.host.querySelector<HTMLElement>('[data-testid="motion-timeline-track-list"]')!
 
     expect(mounted.host.querySelectorAll('article')).toHaveLength(11)
     expect(mounted.host.querySelectorAll('svg')).toHaveLength(12)
     expect(mounted.host.querySelectorAll('article[data-active="true"]')).toHaveLength(1)
+    expect(rulerRow.classList).toContain('grid-cols-[calc(12rem+0.75rem)_minmax(0,1fr)]')
+    expect(rulerRow.classList).toContain('pr-3')
+    expect(trackList.classList).toContain('p-3')
     expect(mounted.host.textContent).toContain('.tracks.eyeOpen')
     expect(mounted.host.textContent).toContain('.tracks.mouthForm')
     expect(mounted.host.textContent).toContain('.tracks.mouthOpen')
