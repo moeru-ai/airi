@@ -53,12 +53,12 @@ function release() {
 }
 
 function toggleRecording() {
-  if (recordingController.status.value.type === 'recording') {
+  if (recordingController.status.value.type === 'armed' || recordingController.status.value.type === 'recording') {
     recordingController.stopRecording()
     return
   }
 
-  recordingController.startRecording(pose.value)
+  recordingController.startRecording()
 }
 
 onUnmounted(() => {
@@ -90,7 +90,7 @@ onUnmounted(() => {
 
     <Live2DMotionKeyframeEditor
       :recording="recordingController.recording.value"
-      :recording-active="recordingController.status.value.type === 'recording'"
+      :recording-active="recordingController.status.value.type === 'armed' || recordingController.status.value.type === 'recording'"
       @pose="setPose"
       @playback="editorPlaying = $event"
       @recording="recordingController.loadRecording"

@@ -40,6 +40,7 @@ export type ReadonlyLive2DMotionRecording = DeepReadonly<Live2DMotionRecording>
 /** The active lifecycle state of the motion recorder. */
 export type Live2DMotionRecordingStatus
   = | { type: 'idle' }
+    | { type: 'armed' }
     | { type: 'recording', startedAt: number }
     | { type: 'playing', startedAt: number }
 
@@ -59,7 +60,7 @@ interface UseLive2DMotionRecordingOptions {
 interface Live2DMotionRecordingController {
   status: DeepReadonly<ShallowRef<Live2DMotionRecordingStatus>>
   recording: DeepReadonly<ShallowRef<Live2DMotionRecording | null>>
-  startRecording: (initialPose: Live2DMotionControlPose) => void
+  startRecording: () => void
   recordPose: (pose: Live2DMotionControlPose) => void
   stopRecording: () => void
   startPlayback: () => void
@@ -149,19 +150,25 @@ export function useLive2DMotionRecording(
     options.releasePose()
   }
 
-  function startRecording(initialPose: Live2DMotionControlPose) {
+  function startRecording() {
     if (status.value.type !== 'idle')
       return
 
-    capturedSamples = [{
-      atMs: 0,
-      ...initialPose,
-    }]
-    status.value = { type: 'recording', startedAt: now() }
-    publishCapturedRecording(0)
+    capturedSamples = []
+    status.value = { type: 'armed' }
   }
 
   function recordPose(pose: Live2DMotionControlPose) {
+    if (status.value.type === 'armed') {
+      capturedSamples = [{
+        atMs: 0,
+        ...pose,
+      }]
+      status.value = { type: 'recording', startedAt: now() }
+      publishCapturedRecording(0)
+      return
+    }
+
     if (status.value.type !== 'recording')
       return
 
@@ -187,6 +194,12 @@ export function useLive2DMotionRecording(
   }
 
   function stopRecording() {
+    if (status.value.type === 'armed') {
+      capturedSamples = []
+      status.value = { type: 'idle' }
+      return
+    }
+
     if (status.value.type !== 'recording')
       return
 

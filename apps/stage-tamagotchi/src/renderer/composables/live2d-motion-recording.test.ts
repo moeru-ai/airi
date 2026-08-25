@@ -22,39 +22,67 @@ describe('live2D motion recording', () => {
       now: () => now,
     })
 
-    controller.startRecording(pose())
-    expect(controller.recording.value).toEqual({
-      format: 'airi-live2d-motion/v6',
-      durationMs: 0,
-      samples: [{ atMs: 0, ...pose() }],
-    })
+    controller.startRecording()
+    expect(controller.status.value).toEqual({ type: 'armed' })
+    expect(controller.recording.value).toBeNull()
 
     now = 125
     controller.recordPose(pose({ headX: 0.5, headY: -0.25, headZ: -0.5, bodyZ: 0.75 }))
     expect(controller.recording.value).toEqual({
       format: 'airi-live2d-motion/v6',
+      durationMs: 0,
+      samples: [
+        { atMs: 0, ...pose({ headX: 0.5, headY: -0.25, headZ: -0.5, bodyZ: 0.75 }) },
+      ],
+    })
+
+    now = 150
+    controller.recordPose(pose({ headX: 0.75, headY: -0.25, headZ: -0.5, bodyZ: 0.75 }))
+    expect(controller.recording.value).toEqual({
+      format: 'airi-live2d-motion/v6',
       durationMs: 25,
       samples: [
-        { atMs: 0, ...pose() },
-        { atMs: 25, ...pose({ headX: 0.5, headY: -0.25, headZ: -0.5, bodyZ: 0.75 }) },
+        { atMs: 0, ...pose({ headX: 0.5, headY: -0.25, headZ: -0.5, bodyZ: 0.75 }) },
+        { atMs: 25, ...pose({ headX: 0.75, headY: -0.25, headZ: -0.5, bodyZ: 0.75 }) },
       ],
     })
 
     now = 175
-    controller.recordPose(pose({ headX: 0.5, headY: -0.25, headZ: -0.5, bodyZ: 0.75 }))
+    controller.recordPose(pose({ headX: 0.75, headY: -0.25, headZ: -0.5, bodyZ: 0.75 }))
     now = 200
     controller.recordPose(pose())
     controller.stopRecording()
 
     expect(controller.recording.value).toEqual({
       format: 'airi-live2d-motion/v6',
-      durationMs: 100,
+      durationMs: 75,
       samples: [
-        { atMs: 0, ...pose() },
-        { atMs: 25, ...pose({ headX: 0.5, headY: -0.25, headZ: -0.5, bodyZ: 0.75 }) },
-        { atMs: 100, ...pose() },
+        { atMs: 0, ...pose({ headX: 0.5, headY: -0.25, headZ: -0.5, bodyZ: 0.75 }) },
+        { atMs: 25, ...pose({ headX: 0.75, headY: -0.25, headZ: -0.5, bodyZ: 0.75 }) },
+        { atMs: 75, ...pose() },
       ],
     })
+  })
+
+  it('keeps the existing recording when armed recording stops before input', () => {
+    const controller = useLive2DMotionRecording({
+      applyPose: vi.fn(),
+      releasePose: vi.fn(),
+    })
+    const existing = parseLive2DMotionRecording(JSON.stringify({
+      format: 'airi-live2d-motion/v6',
+      durationMs: 50,
+      samples: [{ atMs: 0, ...pose({ headX: 0.5 }) }],
+    }))
+    controller.loadRecording(existing)
+
+    controller.startRecording()
+    expect(controller.status.value).toEqual({ type: 'armed' })
+    expect(controller.recording.value).toEqual(existing)
+
+    controller.stopRecording()
+    expect(controller.status.value).toEqual({ type: 'idle' })
+    expect(controller.recording.value).toEqual(existing)
   })
 
   it('plays each due sample and releases control at the recording end', () => {
