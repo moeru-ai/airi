@@ -56,7 +56,7 @@ devtools:
       description: 使用搖桿和鍵盤控制模型眼睛、頭部與身體的 X、Y、Z 軸動作。
       joystick-label: Live2D 動作搖桿
       instructions: 拖曳搖桿，或使用方向鍵控制 X/Y 軸。W/S 也能控制 Y 軸。A/D 讓身體左右傾斜。Q/E 讓頭部左右傾斜。放開按鍵後會平滑回到中央。
-      parameter-note: 搖桿控制 X/Y 軸。A/D 映射至身體 Z 軸 ±10°。Q/E 映射至頭部 Z 軸 ±30°。
+      parameter-note: 搖桿控制 X/Y 軸。A/D 映射至身體 X 軸 ±10°。Q/E 映射至頭部 Z 軸 ±30°。
       editor:
         title: 關鍵影格編輯器
         instructions: 拖曳控制點來調整所選曲線。在空白處按兩下可新增控制點；在控制點上按兩下可刪除。

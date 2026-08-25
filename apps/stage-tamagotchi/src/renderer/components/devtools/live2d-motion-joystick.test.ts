@@ -75,14 +75,14 @@ describe('live2DMotionJoystick', () => {
     mounted.host.remove()
   })
 
-  it('maps A and Q to left body and head targets', () => {
+  it('maps A and Q to left body X and head roll targets', () => {
     const move = vi.fn<(pose: Live2DMotionControlPose) => void>()
     const release = vi.fn()
     const mounted = mountJoystick(move, release)
 
     mounted.button.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }))
     mounted.button.dispatchEvent(new KeyboardEvent('keydown', { key: 'q', bubbles: true }))
-    expect(move.mock.lastCall?.[0]).toEqual({ ...neutralPose, headZ: -1, bodyZ: -1 })
+    expect(move.mock.lastCall?.[0]).toEqual({ ...neutralPose, headZ: -1, bodyX: -1 })
 
     mounted.button.dispatchEvent(new KeyboardEvent('keyup', { key: 'a', bubbles: true }))
     mounted.button.dispatchEvent(new KeyboardEvent('keyup', { key: 'q', bubbles: true }))
@@ -92,14 +92,26 @@ describe('live2DMotionJoystick', () => {
     mounted.host.remove()
   })
 
-  it('maps D and E to right body and head roll', () => {
+  it('maps D and E to right body X and head roll', () => {
     const move = vi.fn<(pose: Live2DMotionControlPose) => void>()
     const mounted = mountJoystick(move, vi.fn())
 
     mounted.button.dispatchEvent(new KeyboardEvent('keydown', { key: 'D', bubbles: true }))
     mounted.button.dispatchEvent(new KeyboardEvent('keydown', { key: 'E', bubbles: true }))
 
-    expect(move.mock.lastCall?.[0]).toEqual({ ...neutralPose, headZ: 1, bodyZ: 1 })
+    expect(move.mock.lastCall?.[0]).toEqual({ ...neutralPose, headZ: 1, bodyX: 1 })
+    mounted.app.unmount()
+    mounted.host.remove()
+  })
+
+  it('keeps body X coupled to position keys when A and D are idle', () => {
+    const move = vi.fn<(pose: Live2DMotionControlPose) => void>()
+    const mounted = mountJoystick(move, vi.fn())
+
+    mounted.button.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+
+    expect(move.mock.lastCall?.[0].headX).toBe(1)
+    expect(move.mock.lastCall?.[0].bodyX).toBe(1)
     mounted.app.unmount()
     mounted.host.remove()
   })
@@ -115,6 +127,7 @@ describe('live2DMotionJoystick', () => {
       headY: -0.4,
       bodyX: 0.6,
       bodyY: -0.4,
+      bodyZ: 0.35,
       offsetX: 0.6,
       offsetY: -0.4,
     }
@@ -133,6 +146,7 @@ describe('live2DMotionJoystick', () => {
     for (const [pose] of move.mock.calls) {
       expect(pose.headX).toBe(mousePose.headX)
       expect(pose.headY).toBe(mousePose.headY)
+      expect(pose.bodyZ).toBe(mousePose.bodyZ)
     }
 
     mounted.button.dispatchEvent(new KeyboardEvent('keyup', { key: 'a', bubbles: true }))
