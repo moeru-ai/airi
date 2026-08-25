@@ -344,7 +344,7 @@ export function useMotionUpdatePluginAutoEyeBlink(
     // logic from main so that hookUpdate returns the same handled state and
     // the SDK eyeBlink/motion pipeline is not disrupted.
     if (!live2dExpressionEnabled?.value) {
-      if (!ctx.isIdleMotion || ctx.handled)
+      if (!ctx.isIdleMotion || (ctx.handled && !ctx.live2dForceAutoBlinkEnabled.value))
         return
 
       const baseLeft = clamp01(ctx.modelParameters.value.leftEyeOpen)

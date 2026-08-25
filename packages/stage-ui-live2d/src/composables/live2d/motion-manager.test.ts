@@ -159,6 +159,32 @@ describe('live2d motion manager plugins', () => {
     expect(context.handled).toBe(true)
   })
 
+  it('applies force blink after the SDK handles an idle-motion frame', () => {
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0)
+    const context = createContext({
+      live2dAutoBlinkEnabled: ref(true),
+      live2dForceAutoBlinkEnabled: ref(true),
+      timeDelta: 4,
+      handled: true,
+    })
+    const plugin = useMotionUpdatePluginAutoEyeBlink(ref(false))
+
+    // ROOT CAUSE:
+    //
+    // The SDK marks normal idle-motion frames as handled. The final blink
+    // plug-in returned on handled frames, so force mode never advanced.
+    //
+    // We fixed this by letting force mode run after an SDK-handled frame.
+    plugin(context)
+    context.timeDelta = 0.075
+    plugin(context)
+
+    expect(context.model.getParameterValueById('ParamEyeLOpen')).toBe(0)
+    expect(context.model.getParameterValueById('ParamEyeROpen')).toBe(0)
+
+    randomSpy.mockRestore()
+  })
+
   /**
    * @example
    * expect(context.model.getParameterValueById('ParamEyeLOpen')).toBeLessThan(1)
