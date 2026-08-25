@@ -4,6 +4,7 @@ import type { OnboardingStepNextHandler, OnboardingStepPrevHandler } from './typ
 
 import { errorMessageFrom } from '@moeru/std'
 import { Button, Callout, FieldCheckbox, FieldInput } from '@proj-airi/ui'
+import { computedAsync } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -86,9 +87,12 @@ const needsBaseUrl = computed(() => {
   return props.selectedProvider.id !== 'cloudflare-workers-ai'
 })
 
-const showChatCheckOption = computed(() => {
-  return props.selectedProvider ? providersStore.hasManualProviderValidators(props.selectedProvider.id) : false
-})
+const showChatCheckOption = computedAsync(
+  async () => props.selectedProvider
+    ? await providersStore.hasManualProviderValidators(props.selectedProvider.id)
+    : false,
+  false,
+)
 
 const canProceed = computed(() => {
   if (!props.selectedProviderId)

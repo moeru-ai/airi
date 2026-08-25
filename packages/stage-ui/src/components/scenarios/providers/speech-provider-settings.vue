@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useDebounceFn } from '@vueuse/core'
+import { computedAsync, useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -42,10 +42,10 @@ const providerStore = useProviderConfigStore()
 const speechStore = useSpeechStore()
 const { configs: providers } = storeToRefs(providerStore)
 
-const providerMetadata = computed(() => {
+const providerMetadata = computedAsync(async () => {
   const definition = providersStore.getProviderDefinition(props.providerId)
-  return selectProviderMetadata(definition, t, { id: props.providerId })
-})
+  return await selectProviderMetadata(definition, t, { id: props.providerId })
+}, undefined)
 
 // Common provider settings
 const apiKey = computed({
@@ -88,8 +88,8 @@ function initializeVoiceSettings() {
   }
 }
 
-onMounted(() => {
-  providersStore.initializeProvider(props.providerId)
+onMounted(async () => {
+  await providersStore.initializeProvider(props.providerId)
 
   // Initialize refs with current values
   apiKey.value = providers.value[props.providerId]?.apiKey as string | undefined || ''
@@ -127,7 +127,7 @@ function handleResetVoiceSettings() {
 
 <template>
   <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName"
+    :provider-name="providerMetadata?.localizedName ?? ''"
     :provider-icon="providerMetadata?.icon"
     :provider-icon-color="providerMetadata?.iconColor"
     :on-back="() => router.back()"
@@ -140,7 +140,7 @@ function handleResetVoiceSettings() {
           :description="t('settings.pages.providers.common.section.basic.description')"
           :on-reset="handleResetVoiceSettings"
         >
-          <ProviderApiKeyInput v-model="apiKey" :provider-name="providerMetadata?.localizedName" :placeholder="props.placeholder || 'API Key'" />
+          <ProviderApiKeyInput v-model="apiKey" :provider-name="providerMetadata?.localizedName ?? ''" :placeholder="props.placeholder || 'API Key'" />
           <!-- Slot for provider-specific basic settings -->
           <slot name="basic-settings" />
         </ProviderBasicSettings>

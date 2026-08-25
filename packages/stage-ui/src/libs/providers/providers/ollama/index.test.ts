@@ -12,8 +12,8 @@ function isOllamaChatProvider(provider: ProviderInstance): provider is OllamaCha
   return 'chat' in provider && typeof provider.chat === 'function'
 }
 
-function createOllamaChatProvider(thinkingMode: 'auto' | 'disable' | 'enable'): OllamaChatProvider {
-  const provider = providerOllama.createProvider({
+async function createOllamaChatProvider(thinkingMode: 'auto' | 'disable' | 'enable'): Promise<OllamaChatProvider> {
+  const provider = await providerOllama.createProvider({
     baseUrl: 'http://localhost:11434/v1/',
     thinkingMode,
   })
@@ -45,32 +45,32 @@ describe('providerOllama.resolveOllamaReasoningEffort', () => {
 })
 
 describe('providerOllama.createProvider chat options', () => {
-  it('should not set reasoning effort when thinkingMode is auto', () => {
-    const provider = createOllamaChatProvider('auto')
+  it('should not set reasoning effort when thinkingMode is auto', async () => {
+    const provider = await createOllamaChatProvider('auto')
 
     expect(provider.chat('qwen3:8b')).not.toHaveProperty('reasoningEffort')
   })
 
-  it('should set reasoning effort to none for non gpt-oss when thinkingMode is disable', () => {
-    const provider = createOllamaChatProvider('disable')
+  it('should set reasoning effort to none for non gpt-oss when thinkingMode is disable', async () => {
+    const provider = await createOllamaChatProvider('disable')
 
     expect(provider.chat('qwen3:8b')).toMatchObject({ reasoningEffort: 'none' })
   })
 
-  it('should set reasoning effort to medium when thinkingMode is enable', () => {
-    const provider = createOllamaChatProvider('enable')
+  it('should set reasoning effort to medium when thinkingMode is enable', async () => {
+    const provider = await createOllamaChatProvider('enable')
 
     expect(provider.chat('gpt-oss:20b')).toMatchObject({ reasoningEffort: 'medium' })
   })
 
-  it('should set reasoning effort to none when thinkingMode is disable', () => {
-    const provider = createOllamaChatProvider('disable')
+  it('should set reasoning effort to none when thinkingMode is disable', async () => {
+    const provider = await createOllamaChatProvider('disable')
 
     expect(provider.chat('gpt-oss:20b')).toMatchObject({ reasoningEffort: 'none' })
   })
 
-  it('should apply request reasoning without checking the model name', () => {
-    const provider = createOllamaChatProvider('auto')
+  it('should apply request reasoning without checking the model name', async () => {
+    const provider = await createOllamaChatProvider('auto')
 
     expect(provider.chat('llama3.2', { reasoning: 'disabled' })).toMatchObject({ reasoningEffort: 'none' })
     expect(provider.chat('gpt-oss:20b', { reasoning: 'enabled' })).toMatchObject({ reasoningEffort: 'medium' })

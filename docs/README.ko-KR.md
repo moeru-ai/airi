@@ -208,7 +208,7 @@
 >
 > Vue.js, TypeScript 또는 이 프로젝트에 필요한 개발 도구에 익숙하지 않아도 괜찮습니다. 아티스트, 디자이너로 참여하거나, 첫 번째 라이브 스트리밍을 시작하는 데 도움을 줄 수도 있습니다.
 >
-> React, Svelte, 심지어 Solid를 주로 사용하시더라도 환영합니다. アイリ VTuber에서 보고 싶은 기능을 추가하거나 실험하고 싶은 기능을 위한 하위 디렉토리를 만들 수 있습니다.
+> React, Svelte, 심지어 Solid를 주로 사용하시더라도 환영합니다. アイリ VTuber에서 보고 싶은 기능을 추가하거나 실험하고 싶은 기능을 위한 하위 디렉터리를 만들 수 있습니다.
 >
 > 저희가 찾고 있는 분야 (및 관련 프로젝트):
 >
@@ -296,31 +296,17 @@ nix run github:moeru-ai/airi
 
 ### Stage Pocket (모바일 버전)
 
-Capacitor 웹 버전의 개발 서버를 시작합니다:
+Capacitor 개발 서버를 시작합니다:
 
 ```shell
-pnpm dev:pocket
+pnpm dev:pocket:ios --target "<DEVICE_ID_OR_SIMULATOR_NAME>"
+# 또는
+CAPACITOR_DEVICE_ID_IOS="<DEVICE_ID_OR_SIMULATOR_NAME>" pnpm dev:pocket:ios
 ```
 
-위 명령어 출력에서 IP 주소를 확인하세요:
+`iPhone 16 Pro`처럼 시뮬레이터 이름에는 공백이 들어가므로 대상 이름은 따옴표로 감싸세요.
 
-```shell
-  ROLLDOWN-VITE v7.3.0  ready in 1073 ms
-
-  ➜  Local:   https://localhost:5273/
-  ➜  Network: https://<ip-will-be-here>:5273/
-  ➜  Vue DevTools: Open https://localhost:5273/__devtools__/ as a separate window
-  ➜  Vue DevTools: Press Option(⌥)+Shift(⇧)+D in App to toggle the Vue DevTools
-  ➜  UnoCSS Inspector: https://localhost:5273/__unocss/
-```
-
-Xcode 프로젝트를 엽니다:
-
-```shell
-CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
-```
-
-그러면 Xcode가 열리고 "Run" 버튼을 클릭하여 iPhone에서 앱을 실행할 수 있습니다.
+`pnpm -F @proj-airi/stage-pocket exec cap run ios --list`를 실행하면 사용 가능한 기기와 시뮬레이터 목록을 확인할 수 있습니다. `@capacitor/cli`는 `apps/stage-pocket`에만 선언되어 있어서 저장소 루트에서는 `cap`이 resolve되지 않습니다.
 
 무선 모드에서 Pocket의 서버 채널에 연결해야 하는 경우, Tamagotchi를 루트 권한으로 시작해야 합니다:
 

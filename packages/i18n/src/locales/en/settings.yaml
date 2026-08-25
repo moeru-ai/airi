@@ -939,6 +939,9 @@ pages:
               proceed.
             action: Save anyway
         config:
+          loading: Loading provider settings...
+          load-error: Failed to load provider settings.
+          retry: Retry
           common:
             fields:
               field:
