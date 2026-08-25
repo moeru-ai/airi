@@ -140,7 +140,12 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
         headers: additionalHeaders,
         model: normalizedModel,
         messages: message.messages(message.user('ping')),
-        max_tokens: 1,
+        // NOTICE:
+        // Some OpenAI-compatible providers reject output limits below 16.
+        // OpenRouter documents this minimum for some upstream providers.
+        // Source/context: https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request
+        // Removal condition: All supported providers accept lower limits, or the probe learns each model's minimum.
+        max_tokens: 16,
       })
 
       return { connectivityOk: true, chatOk: true }
