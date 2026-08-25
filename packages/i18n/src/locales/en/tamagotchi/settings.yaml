@@ -59,8 +59,8 @@ devtools:
       title: Live2D Motion Control
       description: Use the joystick and keyboard to control eye, head, and body movement on the X, Y, and Z axes.
       joystick-label: Live2D motion joystick
-      instructions: Drag the joystick, or use the arrow keys for X/Y. W/S changes the mouth shape. A/D moves the body on X. Q/E tilts the head. Released keys return smoothly to center.
-      parameter-note: The joystick controls X/Y. W/S maps to mouth form ±1. A/D maps to body X ±10°. Q/E maps to head Z ±30°.
+      instructions: Drag the joystick, or use the arrow keys for X/Y. W/S changes the mouth shape. Space opens the mouth. A/D moves the body on X. Q/E tilts the head. Released keys return smoothly to center.
+      parameter-note: The joystick controls X/Y. W/S maps to mouth form ±1. Space maps to mouth open 1. A/D maps to body X ±10°. Q/E maps to head Z ±30°.
       editor:
         title: Keyframe editor
         instructions: Drag points to shape the selected curve. Double-click empty space to add a point. Double-click a point to delete it.

@@ -40,7 +40,8 @@ const mouthFormKeys = new Set([
   's',
   'w',
 ])
-const movementKeys = new Set([...positionKeys, ...headRollKeys, ...bodyXKeys, ...mouthFormKeys])
+const mouthOpenKeys = new Set([' '])
+const movementKeys = new Set([...positionKeys, ...headRollKeys, ...bodyXKeys, ...mouthFormKeys, ...mouthOpenKeys])
 
 let keyboardOwnsInput = false
 let keyboardOwnsPosition = false
@@ -49,6 +50,8 @@ let keyboardOwnsBodyX = false
 let keyboardBodyXBase = 0
 let keyboardOwnsMouthForm = false
 let keyboardMouthFormBase = 0
+let keyboardOwnsMouthOpen = false
+let keyboardMouthOpenBase = 0
 
 const knobStyle = computed(() => ({
   transform: `translate(calc(-50% + ${props.pose.headX * 5.75}rem), calc(-50% - ${props.pose.headY * 5.75}rem))`,
@@ -123,6 +126,8 @@ function releaseImmediately() {
   keyboardBodyXBase = 0
   keyboardOwnsMouthForm = false
   keyboardMouthFormBase = 0
+  keyboardOwnsMouthOpen = false
+  keyboardMouthOpenBase = 0
   inputActive.value = false
   emit('release')
 }
@@ -183,6 +188,8 @@ function keyboardPosition(): Live2DMotionControlPose {
     pose.bodyX = Number(pressedKeys.has('d')) - Number(pressedKeys.has('a'))
   if ([...pressedKeys].some(key => mouthFormKeys.has(key)))
     pose.mouthForm = Number(pressedKeys.has('w')) - Number(pressedKeys.has('s'))
+  if (pressedKeys.has(' '))
+    pose.mouthOpen = 1
 
   return pose
 }
@@ -195,6 +202,7 @@ function emitKeyboardTarget() {
   const target = keyboardPosition()
   const bodyXKeyActive = [...pressedKeys].some(key => bodyXKeys.has(key))
   const mouthFormKeyActive = [...pressedKeys].some(key => mouthFormKeys.has(key))
+  const mouthOpenKeyActive = pressedKeys.has(' ')
   const nextPose = {
     eyeX: keyboardOwnsPosition ? target.eyeX : props.pose.eyeX,
     eyeY: keyboardOwnsPosition ? target.eyeY : props.pose.eyeY,
@@ -209,6 +217,9 @@ function emitKeyboardTarget() {
     mouthForm: keyboardOwnsMouthForm
       ? (mouthFormKeyActive ? target.mouthForm : keyboardMouthFormBase)
       : props.pose.mouthForm,
+    mouthOpen: keyboardOwnsMouthOpen
+      ? (mouthOpenKeyActive ? target.mouthOpen : keyboardMouthOpenBase)
+      : props.pose.mouthOpen,
     offsetX: keyboardOwnsPosition ? target.offsetX : props.pose.offsetX,
     offsetY: keyboardOwnsPosition ? target.offsetY : props.pose.offsetY,
   }
@@ -223,6 +234,8 @@ function emitKeyboardTarget() {
     keyboardOwnsBodyX = false
   if (!mouthFormKeyActive)
     keyboardOwnsMouthForm = false
+  if (!mouthOpenKeyActive)
+    keyboardOwnsMouthOpen = false
 
   if (pressedKeys.size > 0)
     return
@@ -256,6 +269,10 @@ function handleKeyDown(event: KeyboardEvent) {
   if (mouthFormKeys.has(key) && !keyboardOwnsMouthForm) {
     keyboardMouthFormBase = props.pose.mouthForm
     keyboardOwnsMouthForm = true
+  }
+  if (mouthOpenKeys.has(key) && !keyboardOwnsMouthOpen) {
+    keyboardMouthOpenBase = props.pose.mouthOpen
+    keyboardOwnsMouthOpen = true
   }
   pressedKeys.add(key)
   emitKeyboardTarget()
@@ -294,6 +311,8 @@ watch(() => props.disabled, (disabled) => {
   keyboardBodyXBase = 0
   keyboardOwnsMouthForm = false
   keyboardMouthFormBase = 0
+  keyboardOwnsMouthOpen = false
+  keyboardMouthOpenBase = 0
   inputActive.value = false
 })
 </script>

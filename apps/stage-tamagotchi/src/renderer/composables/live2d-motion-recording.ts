@@ -16,12 +16,13 @@ const live2dMotionSampleSchema = object({
   bodyY: pipe(number(), finite(), minValue(-1), maxValue(1)),
   bodyZ: pipe(number(), finite(), minValue(-1), maxValue(1)),
   mouthForm: pipe(number(), finite(), minValue(-1), maxValue(1)),
+  mouthOpen: pipe(number(), finite(), minValue(0), maxValue(1)),
   offsetX: pipe(number(), finite(), minValue(-1), maxValue(1)),
   offsetY: pipe(number(), finite(), minValue(-1), maxValue(1)),
 })
 
 const live2dMotionRecordingSchema = object({
-  format: literal('airi-live2d-motion/v4'),
+  format: literal('airi-live2d-motion/v5'),
   durationMs: pipe(number(), finite(), minValue(0)),
   samples: pipe(array(live2dMotionSampleSchema), minLength(1)),
 })
@@ -70,7 +71,7 @@ interface Live2DMotionRecordingController {
  * Parses and validates a Live2D joystick recording at the file boundary.
  *
  * @example
- * parseLive2DMotionRecording('{"format":"airi-live2d-motion/v4", ...}')
+ * parseLive2DMotionRecording('{"format":"airi-live2d-motion/v5", ...}')
  * // => a validated recording
  */
 export function parseLive2DMotionRecording(raw: string): Live2DMotionRecording {
@@ -105,7 +106,7 @@ export function parseLive2DMotionRecording(raw: string): Live2DMotionRecording {
  * Serializes a Live2D joystick recording as a readable JSON file.
  *
  * @example
- * stringifyLive2DMotionRecording({ format: 'airi-live2d-motion/v4', ... })
+ * stringifyLive2DMotionRecording({ format: 'airi-live2d-motion/v5', ... })
  * // => readable JSON ending with a newline
  */
 export function stringifyLive2DMotionRecording(recording: ReadonlyLive2DMotionRecording): string {
@@ -182,7 +183,7 @@ export function useLive2DMotionRecording(
       capturedSamples.at(-1)?.atMs ?? 0,
     )
     recording.value = {
-      format: 'airi-live2d-motion/v4',
+      format: 'airi-live2d-motion/v5',
       durationMs,
       samples: capturedSamples,
     }

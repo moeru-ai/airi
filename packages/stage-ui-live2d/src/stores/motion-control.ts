@@ -16,6 +16,8 @@ export interface Live2DMotionControlPose {
   bodyZ: number
   /** Mouth shape from -1 to 1. */
   mouthForm: number
+  /** Mouth opening from 0 (closed) to 1 (open). */
+  mouthOpen: number
   /** Joystick-only horizontal model translation. */
   offsetX: number
   /** Joystick-only vertical model translation. */
@@ -60,6 +62,7 @@ export const neutralLive2DMotionControlPose: Live2DMotionControlPose = Object.fr
   bodyY: 0,
   bodyZ: 0,
   mouthForm: 0,
+  mouthOpen: 0,
   offsetX: 0,
   offsetY: 0,
 })
@@ -90,6 +93,7 @@ function normalizePose(pose: Live2DMotionControlPose): Live2DMotionControlPose {
     bodyY: clampAxis(pose.bodyY),
     bodyZ: clampAxis(pose.bodyZ),
     mouthForm: clampAxis(pose.mouthForm),
+    mouthOpen: clampUnit(pose.mouthOpen),
     offsetX: clampAxis(pose.offsetX),
     offsetY: clampAxis(pose.offsetY),
   }
