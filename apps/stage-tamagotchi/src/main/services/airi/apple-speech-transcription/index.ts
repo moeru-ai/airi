@@ -2,14 +2,15 @@ import type { Lifecycle } from 'injeca'
 
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { setupAppleSpeechTranscription } from '@xsai-apple-speech/transcription-electron-plugin/main'
-import { createAppleSpeechProvider } from '@xsai-apple-speech/transcription-native'
 import { ipcMain } from 'electron'
+import { isMacOS } from 'std-env'
 
 /**
  * Registers the app-wide Apple Speech transport and its native Provider.
  *
  * The Electron main process owns native work. Renderer Providers communicate
  * with it through the Eventa handlers registered by the xsAI plugin.
+ * Non-macOS hosts return an inactive service without loading the native package.
  *
  * Call stack:
  *
@@ -18,7 +19,11 @@ import { ipcMain } from 'electron'
  *     -> {@link setupAppleSpeechTranscription}
  *       -> {@link createAppleSpeechProvider}
  */
-export function setupAppleSpeechTranscriptionService(options: { lifecycle: Lifecycle }) {
+export async function setupAppleSpeechTranscriptionService(options: { lifecycle: Lifecycle }) {
+  if (!isMacOS)
+    return { dispose: () => Promise.resolve() }
+
+  const { createAppleSpeechProvider } = await import('@xsai-apple-speech/transcription-native')
   const eventa = createContext(ipcMain)
   const setup = setupAppleSpeechTranscription({
     context: eventa.context,
