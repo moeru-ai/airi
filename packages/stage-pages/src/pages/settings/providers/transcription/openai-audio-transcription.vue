@@ -63,7 +63,6 @@ onMounted(async () => {
   await providersStore.loadModelsForConfiguredProviders()
   await providersStore.fetchModelsForProvider(providerId)
 })
-
 </script>
 
 <template>
