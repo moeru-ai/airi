@@ -457,6 +457,8 @@ allowBuilds:
   '@ax-llm/ax': false
   '@discordjs/opus': true
   '@ffmpeg-installer/darwin-arm64': true
+  '@ffmpeg-installer/darwin-x64': true
+  '@ffmpeg-installer/linux-arm64': true
   '@ffmpeg-installer/linux-x64': true
   '@napi-rs/image': true
   '@parcel/watcher': true

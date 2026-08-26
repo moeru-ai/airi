@@ -2765,9 +2765,6 @@ importers:
       '@formkit/auto-animate':
         specifier: 'catalog:'
         version: 0.10.0(vue@3.5.41(typescript@6.0.3))
-      '@huggingface/transformers':
-        specifier: 'catalog:'
-        version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
         version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
