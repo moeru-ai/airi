@@ -177,6 +177,64 @@ devtools:
           fit: 'log p/frame {likelihood} · {duration}ms'
           states: '{occupancy} · dwell {dwell}s'
           run: 'state {state} · seed {seed} · {duration}'
+      output-filter:
+        prototype: Prototype
+        title: Generator output filter
+        question: Can EMA smoothing and a change cutoff remove generator jitter before the existing spring receives the pose?
+        actions:
+          enable: Enable filter
+          disable: Disable filter
+          reset: Reset state
+        smoothing:
+          label: EMA smoothing
+          description: Blends each accepted target with the previous output. Higher values remove more jitter but add more delay.
+        cutoff:
+          label: Change cutoff
+          description: Holds a channel until its cumulative normalized change reaches this value.
+        diagnostics:
+          status: Status
+          input-change: Raw change MAE
+          output-change: Filtered change MAE
+          cutoff-tracks: Held channels
+        status:
+          waiting: Waiting for a generator
+          filtering: Filtering generator output
+          bypassed: Passing raw generator output
+      breath:
+        prototype: Prototype
+        title: Manual breath
+        question: Can a tunable sine-like inhale and exhale curve replace Cubism breath without entering motion recordings?
+        actions:
+          enable: Enable breath
+          disable: Disable breath
+          reset: Reset cycle
+        cycle:
+          label: Breath duration
+          description: Sets the time for one inhale and exhale, before the exhaled dwell.
+        inhale:
+          label: Inhale share
+          description: Sets the part of the breath duration used to inhale. The remaining time is the exhale.
+        dwell:
+          label: Exhaled dwell
+          description: Holds ParamBreath at the minimum before the next inhale.
+        minimum:
+          label: Minimum
+          description: Sets the lowest value written to ParamBreath.
+        maximum:
+          label: Maximum
+          description: Sets the highest value written to ParamBreath.
+        diagnostics:
+          status: Status
+          stage: Stage
+          phase: Cycle progress
+          output: ParamBreath output
+        status:
+          active: Manual breath is active
+          disabled: Manual breath is disabled
+        stage:
+          inhale: Inhale
+          exhale: Exhale
+          dwell: Exhaled dwell
       spring:
         follow:
           label: Follow

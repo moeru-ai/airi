@@ -173,6 +173,64 @@ devtools:
           fit: 'log p/影格 {likelihood} · {duration}ms'
           states: '{occupancy} · 停留 {dwell}s'
           run: '狀態 {state} · 種子 {seed} · {duration}'
+      output-filter:
+        prototype: 原型
+        title: 產生器輸出濾波器
+        question: EMA 平滑與變化截止值能否在既有彈簧接收姿勢前，移除產生器的抖動？
+        actions:
+          enable: 啟用濾波器
+          disable: 停用濾波器
+          reset: 重設狀態
+        smoothing:
+          label: EMA 平滑
+          description: 將每個接受的目標與上一個輸出混合。數值越高，移除的抖動越多，但延遲也越長。
+        cutoff:
+          label: 變化截止值
+          description: 在累積的正規化變化達到此值前，保持通道的上一個目標。
+        diagnostics:
+          status: 狀態
+          input-change: 原始變化 MAE
+          output-change: 濾波後變化 MAE
+          cutoff-tracks: 保持的通道
+        status:
+          waiting: 等待產生器
+          filtering: 正在濾波產生器輸出
+          bypassed: 正在傳遞原始產生器輸出
+      breath:
+        prototype: 原型
+        title: 手動呼吸
+        question: 可調整的類正弦吸氣與呼氣曲線，能否取代 Cubism 呼吸，且不寫入動作錄製？
+        actions:
+          enable: 啟用呼吸
+          disable: 停用呼吸
+          reset: 重設週期
+        cycle:
+          label: 呼吸時間
+          description: 設定一次吸氣與呼氣的時間，不包含呼氣後停留。
+        inhale:
+          label: 吸氣占比
+          description: 設定呼吸時間中用於吸氣的比例。剩餘時間用於呼氣。
+        dwell:
+          label: 呼氣後停留
+          description: 在下一次吸氣前，將 ParamBreath 保持在最小值。
+        minimum:
+          label: 最小值
+          description: 設定寫入 ParamBreath 的最低值。
+        maximum:
+          label: 最大值
+          description: 設定寫入 ParamBreath 的最高值。
+        diagnostics:
+          status: 狀態
+          stage: 階段
+          phase: 週期進度
+          output: ParamBreath 輸出
+        status:
+          active: 手動呼吸運作中
+          disabled: 手動呼吸已停用
+        stage:
+          inhale: 吸氣
+          exhale: 呼氣
+          dwell: 呼氣後停留
       spring:
         follow:
           label: 跟隨

@@ -42,6 +42,35 @@ export interface Live2DMotionControlState {
   dynamics: Live2DMotionControlDynamics
 }
 
+/** Settings for the manual render-time breath curve. */
+export interface Live2DBreathControlOptions {
+  /** Length of the inhale and exhale spans, in seconds. @default 3.2 */
+  cycleSeconds: number
+  /** Time held at the minimum after each exhale, in seconds. @default 1.2 */
+  exhaleDwellSeconds: number
+  /** Lowest value written to `ParamBreath`. @default 0 */
+  minimum: number
+  /** Highest value written to `ParamBreath`. @default 0.5 */
+  maximum: number
+  /** Fraction of the inhale and exhale spans used to inhale. @default 0.4 */
+  inhaleRatio: number
+}
+
+/** The active manual breath owner and its shared phase origin. */
+export interface Live2DBreathControlState {
+  active: boolean
+  ownerId: string | null
+  startedAtMs: number
+  options: Live2DBreathControlOptions
+}
+
+/** One sampled point from the manual breath curve. */
+export interface Live2DBreathSample {
+  phase: number
+  stage: 'inhale' | 'exhale' | 'dwell'
+  value: number
+}
+
 type Live2DMotionControlEvent
   = | {
     type: 'live2d-motion-control-set'
@@ -51,6 +80,16 @@ type Live2DMotionControlEvent
   }
   | {
     type: 'live2d-motion-control-release'
+    ownerId: string
+  }
+  | {
+    type: 'live2d-breath-control-set'
+    ownerId: string
+    startedAtMs: number
+    options: Live2DBreathControlOptions
+  }
+  | {
+    type: 'live2d-breath-control-release'
     ownerId: string
   }
 
@@ -68,6 +107,14 @@ export const neutralLive2DMotionControlPose: Live2DMotionControlPose = Object.fr
   mouthOpen: 0,
   offsetX: 0,
   offsetY: 0,
+})
+/** Default settings for the manual Live2D breath curve. */
+export const defaultLive2DBreathControlOptions: Live2DBreathControlOptions = Object.freeze({
+  cycleSeconds: 3.2,
+  exhaleDwellSeconds: 1.2,
+  minimum: 0,
+  maximum: 0.5,
+  inhaleRatio: 0.4,
 })
 const horizontalModelOffset = 20
 /** Default spring settings for the Live2D motion devtool. */
@@ -110,6 +157,75 @@ function normalizeDynamics(dynamics: Live2DMotionControlDynamics): Live2DMotionC
   }
 }
 
+function normalizeBreathOptions(options: Live2DBreathControlOptions): Live2DBreathControlOptions {
+  const cycleSeconds = Number.isFinite(options.cycleSeconds)
+    ? Math.min(30, Math.max(0.5, options.cycleSeconds))
+    : defaultLive2DBreathControlOptions.cycleSeconds
+  const exhaleDwellSeconds = Number.isFinite(options.exhaleDwellSeconds)
+    ? Math.min(30, Math.max(0, options.exhaleDwellSeconds))
+    : defaultLive2DBreathControlOptions.exhaleDwellSeconds
+  const minimum = Number.isFinite(options.minimum)
+    ? clampUnit(options.minimum)
+    : defaultLive2DBreathControlOptions.minimum
+  const requestedMaximum = Number.isFinite(options.maximum)
+    ? clampUnit(options.maximum)
+    : defaultLive2DBreathControlOptions.maximum
+  const inhaleRatio = Number.isFinite(options.inhaleRatio)
+    ? Math.min(0.9, Math.max(0.1, options.inhaleRatio))
+    : defaultLive2DBreathControlOptions.inhaleRatio
+
+  return {
+    cycleSeconds,
+    exhaleDwellSeconds,
+    minimum,
+    maximum: Math.max(minimum, requestedMaximum),
+    inhaleRatio,
+  }
+}
+
+/**
+ * Samples the manual breath curve.
+ *
+ * The curve uses one half-cosine for the inhale and one for the exhale. It
+ * then holds the minimum value before the next inhale. The separate spans keep
+ * both transitions smooth when the inhale ratio changes.
+ */
+export function sampleLive2DBreath(options: Live2DBreathControlOptions, elapsedSeconds: number): Live2DBreathSample {
+  const normalized = normalizeBreathOptions(options)
+  const safeElapsedSeconds = Number.isFinite(elapsedSeconds) ? Math.max(0, elapsedSeconds) : 0
+  const repeatSeconds = normalized.cycleSeconds + normalized.exhaleDwellSeconds
+  const elapsedInRepeat = safeElapsedSeconds % repeatSeconds
+  const phase = elapsedInRepeat / repeatSeconds
+
+  if (elapsedInRepeat >= normalized.cycleSeconds) {
+    return {
+      phase,
+      stage: 'dwell',
+      value: normalized.minimum,
+    }
+  }
+
+  const breathPhase = elapsedInRepeat / normalized.cycleSeconds
+
+  if (breathPhase < normalized.inhaleRatio) {
+    const inhaleProgress = breathPhase / normalized.inhaleRatio
+    const curve = (1 - Math.cos(Math.PI * inhaleProgress)) / 2
+    return {
+      phase,
+      stage: 'inhale',
+      value: normalized.minimum + (normalized.maximum - normalized.minimum) * curve,
+    }
+  }
+
+  const exhaleProgress = (breathPhase - normalized.inhaleRatio) / (1 - normalized.inhaleRatio)
+  const curve = (1 + Math.cos(Math.PI * exhaleProgress)) / 2
+  return {
+    phase,
+    stage: 'exhale',
+    value: normalized.minimum + (normalized.maximum - normalized.minimum) * curve,
+  }
+}
+
 /**
  * Maps active joystick motion to the Pixi model position.
  *
@@ -149,6 +265,12 @@ export const useLive2DMotionControl = defineStore('live2d-motion-control', () =>
     pose: neutralLive2DMotionControlPose,
     dynamics: defaultLive2DMotionControlDynamics,
   })
+  const breathControl = shallowRef<Live2DBreathControlState>({
+    active: false,
+    ownerId: null,
+    startedAtMs: 0,
+    options: defaultLive2DBreathControlOptions,
+  })
 
   function applyEvent(event: Live2DMotionControlEvent) {
     if (event.type === 'live2d-motion-control-set') {
@@ -161,14 +283,37 @@ export const useLive2DMotionControl = defineStore('live2d-motion-control', () =>
       return
     }
 
-    if (control.value.ownerId !== event.ownerId)
+    if (event.type === 'live2d-motion-control-release') {
+      if (control.value.ownerId !== event.ownerId)
+        return
+
+      control.value = {
+        active: false,
+        ownerId: null,
+        pose: neutralLive2DMotionControlPose,
+        dynamics: control.value.dynamics,
+      }
+      return
+    }
+
+    if (event.type === 'live2d-breath-control-set') {
+      breathControl.value = {
+        active: true,
+        ownerId: event.ownerId,
+        startedAtMs: event.startedAtMs,
+        options: normalizeBreathOptions(event.options),
+      }
+      return
+    }
+
+    if (breathControl.value.ownerId !== event.ownerId)
       return
 
-    control.value = {
+    breathControl.value = {
       active: false,
       ownerId: null,
-      pose: neutralLive2DMotionControlPose,
-      dynamics: control.value.dynamics,
+      startedAtMs: 0,
+      options: breathControl.value.options,
     }
   }
 
@@ -192,6 +337,26 @@ export const useLive2DMotionControl = defineStore('live2d-motion-control', () =>
     post(event)
   }
 
+  function setBreath(ownerId: string, options: Live2DBreathControlOptions, startedAtMs = Date.now()) {
+    const event: Live2DMotionControlEvent = {
+      type: 'live2d-breath-control-set',
+      ownerId,
+      startedAtMs,
+      options: normalizeBreathOptions(options),
+    }
+    applyEvent(event)
+    post(event)
+  }
+
+  function releaseBreath(ownerId: string) {
+    const event: Live2DMotionControlEvent = {
+      type: 'live2d-breath-control-release',
+      ownerId,
+    }
+    applyEvent(event)
+    post(event)
+  }
+
   watch(data, (event) => {
     if (event)
       applyEvent(event)
@@ -199,7 +364,10 @@ export const useLive2DMotionControl = defineStore('live2d-motion-control', () =>
 
   return {
     control,
+    breathControl,
     setPose,
     release,
+    setBreath,
+    releaseBreath,
   }
 })

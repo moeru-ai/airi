@@ -22,6 +22,7 @@ import {
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
   useMotionUpdatePluginBeatSync,
+  useMotionUpdatePluginBreathControl,
   useMotionUpdatePluginExpression,
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginIdleFocus,
@@ -79,7 +80,10 @@ const emits = defineEmits<{
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 const { position, scale } = useL2dViewControl()
-const { control: manualMotionControl } = storeToRefs(useLive2DMotionControl())
+const {
+  breathControl: manualBreathControl,
+  control: manualMotionControl,
+} = storeToRefs(useLive2DMotionControl())
 
 const modelSrcRef = toRef(() => props.modelSrc)
 
@@ -376,6 +380,7 @@ async function performModelLoad() {
     motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginManualControl(manualMotionControl, manualMotionSpring), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginBreathControl(manualBreathControl), 'final')
 
     const hookedUpdate = motionManager.update as (model: PixiLive2DInternalModel['coreModel'], now: number) => boolean
     motionManager.update = function (model: PixiLive2DInternalModel['coreModel'], now: number) {

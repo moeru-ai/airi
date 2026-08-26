@@ -8,6 +8,7 @@ import { createLive2DMotionSpring } from './motion-control-spring'
 import {
   disableLive2DSdkBreath,
   useMotionUpdatePluginAutoEyeBlink,
+  useMotionUpdatePluginBreathControl,
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginManualControl,
 } from './motion-manager'
@@ -89,6 +90,42 @@ describe('live2d motion manager plugins', () => {
     internalModel.breath?.updateParameters()
 
     expect(updateParameters).not.toHaveBeenCalled()
+  })
+
+  it('applies manual breath after motion and restores the configured value on release', () => {
+    const context = createContext({
+      modelParameters: ref({
+        breath: 0.2,
+        leftEyeOpen: 1,
+        rightEyeOpen: 1,
+      }),
+    })
+    const breathControl = ref({
+      active: true,
+      ownerId: 'motion-devtool',
+      startedAtMs: 1_000,
+      options: {
+        cycleSeconds: 4,
+        exhaleDwellSeconds: 0,
+        minimum: 0.1,
+        maximum: 0.7,
+        inhaleRatio: 0.25,
+      },
+    })
+    const plugin = useMotionUpdatePluginBreathControl(breathControl, () => 2_000)
+
+    plugin(context)
+
+    expect(context.model.setParameterValueById).toHaveBeenLastCalledWith('ParamBreath', 0.7)
+
+    breathControl.value = {
+      ...breathControl.value,
+      active: false,
+      ownerId: null,
+    }
+    plugin(context)
+
+    expect(context.model.setParameterValueById).toHaveBeenLastCalledWith('ParamBreath', 0.2)
   })
 
   /**

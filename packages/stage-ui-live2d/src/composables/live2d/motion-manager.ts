@@ -1,11 +1,12 @@
 import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display/cubism4'
 import type { Ref } from 'vue'
 
-import type { Live2DMotionControlState } from '../../stores/motion-control'
+import type { Live2DBreathControlState, Live2DMotionControlState } from '../../stores/motion-control'
 import type { BeatSyncController } from './beat-sync'
 import type { useExpressionController } from './expression-controller'
 import type { Live2DMotionSpringController } from './motion-control-spring'
 
+import { sampleLive2DBreath } from '../../stores/motion-control'
 import { useLive2DIdleEyeFocus } from './animation'
 
 type CubismModel = Cubism4InternalModel['coreModel']
@@ -60,6 +61,34 @@ export interface UseLive2DMotionManagerUpdateOptions {
  */
 export function disableLive2DSdkBreath(internalModel: { breath?: unknown }) {
   delete internalModel.breath
+}
+
+/**
+ * Applies AIRI's manual breath curve after normal motion updates.
+ *
+ * A release restores the configured static breath value once. Normal model
+ * motion can own the parameter again on later frames.
+ */
+export function useMotionUpdatePluginBreathControl(
+  control: Ref<Live2DBreathControlState>,
+  nowMs: () => number = Date.now,
+): MotionManagerPlugin {
+  let activeOwnerId: string | null = null
+
+  return (ctx) => {
+    const state = control.value
+    if (!state.active) {
+      if (activeOwnerId !== null)
+        ctx.model.setParameterValueById('ParamBreath', ctx.modelParameters.value.breath)
+      activeOwnerId = null
+      return
+    }
+
+    activeOwnerId = state.ownerId
+    const elapsedSeconds = Math.max(0, nowMs() - state.startedAtMs) / 1000
+    const sample = sampleLive2DBreath(state.options, elapsedSeconds)
+    ctx.model.setParameterValueById('ParamBreath', sample.value)
+  }
 }
 
 export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpdateOptions) {
