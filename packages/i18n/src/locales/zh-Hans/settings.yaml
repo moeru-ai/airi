@@ -703,12 +703,26 @@ pages:
       sections:
         section:
           playground:
+            default-text: 你好！我是你的 AI 助手
             buttons:
               stop:
                 label: 停止
             select-voice:
               loading: 正在加载模型……
               required: 请选择声线
+          voice-configuration:
+            title: 声线配置
+            description: 自定义 AI 助手说话的方式
+            current-voice: 当前声线：{voice}
+            pitch:
+              label: 音调
+              description: 调整声线的音调
+            enable-ssml:
+              label: 启用 SSML
+              description: 启用语音合成标记语言（SSML）以更好地控制语音输出
+            no-providers:
+              title: 尚未配置语音服务来源
+              description: 点击此处设置语音服务来源
           voice-pack:
             description: Select a curated voice for the active character
             empty: No Voice Packs available

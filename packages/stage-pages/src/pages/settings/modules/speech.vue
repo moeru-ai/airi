@@ -30,6 +30,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
+import DoubaoVoiceSettingsPanel from '../providers/speech/doubao-speech/voice-settings-panel.vue'
+
 const { t } = useI18n()
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
@@ -44,6 +46,7 @@ const {
   pitch,
   isLoadingSpeechProviderVoices,
   supportsModelListing,
+  supportsSSML,
   providerModels,
   isLoadingActiveProviderModels,
   activeProviderModelError,
@@ -65,7 +68,7 @@ const {
 
 const voiceSearchQuery = ref('')
 const useSSML = ref(false)
-const testText = ref('Hello, my name is AI Assistant')
+const testText = ref(t('settings.pages.modules.speech.sections.section.playground.default-text'))
 const ssmlText = ref('')
 const isGenerating = ref(false)
 const audioUrl = ref('')
@@ -310,6 +313,27 @@ function selectSpeechModel(modelOptionId: string) {
   }
 
   activeSpeechModel.value = nextModel
+
+  // The Doubao provider settings page reads the model from
+  // `config.resourceId`; write the selection back so both pages show the same
+  // model.
+  if (nextProvider === 'doubao-speech') {
+    const config = providerStore.getProviderConfig('doubao-speech')
+    if (config)
+      config.resourceId = nextModel
+  }
+}
+
+// The Doubao provider settings page owns the model selection in
+// `config.resourceId`. Adopt it here so this page and the provider page
+// always show the same model.
+function syncDoubaoResourceIdFromConfig() {
+  if (activeSpeechProvider.value !== 'doubao-speech')
+    return
+
+  const resourceId = providerStore.getProviderConfig('doubao-speech')?.resourceId as string | undefined
+  if (resourceId && activeSpeechModel.value !== resourceId)
+    activeSpeechModel.value = resourceId
 }
 
 /**
@@ -361,6 +385,7 @@ function syncOpenAICompatibleSettings() {
 onMounted(async () => {
   await providersStore.loadModelsForConfiguredProviders()
   speechStore.ensureActiveSpeechModel()
+  syncDoubaoResourceIdFromConfig()
   await speechStore.loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined)
   syncOpenAICompatibleSettings()
   trackOfficialTtsExposure()
@@ -387,6 +412,7 @@ watch(activeSpeechProvider, async (newProvider, oldProvider) => {
   // load model-scoped (the server only returns recommended voices for an
   // explicit ?model=). No-op for other providers / when a model is selected.
   speechStore.ensureActiveSpeechModel()
+  syncDoubaoResourceIdFromConfig()
   await speechStore.loadVoicesForProvider(newProvider, activeSpeechModel.value || undefined)
   trackOfficialTtsExposure(newProvider, currentTtsModelId())
 
@@ -669,9 +695,8 @@ function handleDeleteProvider(providerId: string) {
             >
               <div i-solar:warning-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
               <div class="flex flex-col">
-                <span class="font-medium">No Speech Providers Configured</span>
-                <span class="text-sm text-neutral-400 dark:text-neutral-500">Click here to set up your speech
-                  providers</span>
+                <span class="font-medium">{{ t('settings.pages.modules.speech.sections.section.voice-configuration.no-providers.title') }}</span>
+                <span class="text-sm text-neutral-400 dark:text-neutral-500">{{ t('settings.pages.modules.speech.sections.section.voice-configuration.no-providers.description') }}</span>
               </div>
               <div i-solar:arrow-right-line-duotone class="ml-auto text-xl text-neutral-400 dark:text-neutral-500" />
             </RouterLink>
@@ -776,12 +801,12 @@ function handleDeleteProvider(providerId: string) {
         <div flex="~ col gap-4">
           <div>
             <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-              Voice Configuration
+              {{ t('settings.pages.modules.speech.sections.section.voice-configuration.title') }}
             </h2>
             <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-500">
-              <span>Customize how your AI assistant speaks</span>
+              <span>{{ t('settings.pages.modules.speech.sections.section.voice-configuration.description') }}</span>
               <span v-if="currentSpeechVoiceId" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">
-                Current voice: {{ currentSpeechVoiceId }}
+                {{ t('settings.pages.modules.speech.sections.section.voice-configuration.current-voice', { voice: currentSpeechVoiceId }) }}
               </span>
             </div>
           </div>
@@ -860,19 +885,20 @@ function handleDeleteProvider(providerId: string) {
           </Alert>
 
           <!-- Voice parameters -->
-          <div flex="~ col gap-4">
+          <DoubaoVoiceSettingsPanel v-if="activeSpeechProvider === 'doubao-speech'" />
+          <div v-else-if="supportsSSML" flex="~ col gap-4">
             <FieldRange
               v-model="pitch"
-              label="Pitch"
-              description="Tune the pitch of the voice"
+              :label="t('settings.pages.modules.speech.sections.section.voice-configuration.pitch.label')"
+              :description="t('settings.pages.modules.speech.sections.section.voice-configuration.pitch.description')"
               :min="-100" :max="100" :step="1"
               :format-value="value => `${value}%`"
             />
             <!-- SSML Support -->
             <FieldCheckbox
               v-model="ssmlEnabled"
-              label="Enable SSML"
-              description="Enable Speech Synthesis Markup Language for more control over speech output"
+              :label="t('settings.pages.modules.speech.sections.section.voice-configuration.enable-ssml.label')"
+              :description="t('settings.pages.modules.speech.sections.section.voice-configuration.enable-ssml.description')"
             />
           </div>
 
@@ -929,8 +955,8 @@ function handleDeleteProvider(providerId: string) {
         <div flex="~ col gap-4">
           <FieldCheckbox
             v-model="useSSML"
-            label="Use Custom SSML"
-            description="Enable to input raw SSML instead of plain text"
+            :label="t('settings.pages.modules.speech.sections.section.voice-settings.use-ssml.label')"
+            :description="t('settings.pages.modules.speech.sections.section.voice-settings.use-ssml.description')"
           />
 
           <template v-if="!useSSML">
@@ -943,7 +969,7 @@ function handleDeleteProvider(providerId: string) {
           <template v-else>
             <textarea
               v-model="ssmlText"
-              placeholder="Enter SSML text..."
+              :placeholder="t('settings.pages.modules.speech.sections.section.voice-settings.input-ssml.placeholder')"
               border="neutral-100 dark:neutral-800 solid 2 focus:neutral-200 dark:focus:neutral-700"
               transition="all duration-250 ease-in-out"
               bg="neutral-100 dark:neutral-800 focus:neutral-50 dark:focus:neutral-900"
@@ -970,7 +996,7 @@ function handleDeleteProvider(providerId: string) {
             >
               <div flex="~ row" items-center gap-2>
                 <div i-solar:stop-circle-bold-duotone />
-                <span>Stop</span>
+                <span>{{ t('settings.pages.modules.speech.sections.section.playground.buttons.stop.label') }}</span>
               </div>
             </button>
           </div>

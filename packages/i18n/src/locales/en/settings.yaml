@@ -737,12 +737,26 @@ pages:
       sections:
         section:
           playground:
+            default-text: Hello, my name is AI Assistant
             buttons:
               stop:
                 label: Stop
             select-voice:
               loading: Loading model...
               required: Please select a voice
+          voice-configuration:
+            title: Voice Configuration
+            description: Customize how your AI assistant speaks
+            current-voice: 'Current voice: {voice}'
+            pitch:
+              label: Pitch
+              description: Tune the pitch of the voice
+            enable-ssml:
+              label: Enable SSML
+              description: Enable Speech Synthesis Markup Language for more control over speech output
+            no-providers:
+              title: No Speech Providers Configured
+              description: Click here to set up your speech providers
           voice-pack:
             description: Select a curated voice for the active character
             empty: No Voice Packs available
