@@ -16,9 +16,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      # NOTICE:
+      # Pin Node.js because 26.8.0 reports 26.8.0-alpha.0.0.0.
+      # sharp 0.29.3 rejects this prerelease version during pnpm install.
+      # Source: https://github.com/nodejs/node/blob/v26.8.0/src/node_version.h
+      # Remove this pin when Node.js 26 reports a stable version.
       - uses: pnpm/setup@v2
         with:
-          runtime: node@26
+          runtime: node@26.7.0
           cache: true
           install: false
 
@@ -77,7 +82,7 @@ jobs:
 
       - uses: pnpm/setup@v2
         with:
-          runtime: node@26
+          runtime: node@26.7.0
           cache: true
           install: false
 
@@ -126,7 +131,7 @@ jobs:
 
       - uses: pnpm/setup@v2
         with:
-          runtime: node@26
+          runtime: node@26.7.0
           cache: true
           install: false
 
@@ -165,7 +170,7 @@ jobs:
       # Node.js
       - uses: pnpm/setup@v2
         with:
-          runtime: node@26
+          runtime: node@26.7.0
           cache: true
           install: false
 
