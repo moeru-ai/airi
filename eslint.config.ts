@@ -2,7 +2,7 @@ import { defineConfig } from '@moeru/eslint-config'
 
 export default defineConfig({
   masknet: false,
-  perfectionist: true,
+  perfectionist: false,
   preferArrow: false,
   sonarjs: false,
   sortPackageJsonScripts: false,
@@ -63,9 +63,7 @@ export default defineConfig({
       'TSExportAssignment',
     ],
     'pnpm/json-enforce-catalog': 'off',
-
     'pnpm/json-valid-catalog': 'off',
-
     'pnpm/yaml-enforce-settings': 'off',
     // 'sonarjs/cognitive-complexity': 'off',
     // 'sonarjs/no-commented-code': 'off',
