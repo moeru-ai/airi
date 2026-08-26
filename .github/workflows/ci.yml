@@ -152,6 +152,8 @@ jobs:
 
       - run: pnpm run build:packages
       - run: pnpm run test:run
+        env:
+          NODE_OPTIONS: --no-experimental-webstorage
 
   typecheck:
     name: Type Check

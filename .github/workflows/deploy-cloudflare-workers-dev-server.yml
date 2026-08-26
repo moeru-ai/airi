@@ -61,7 +61,7 @@ jobs:
 
       - name: Wrangler Upload
         id: wrangler-versions-upload
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -120,7 +120,7 @@ jobs:
           VITE_SERVER_URL: 'https://airi-server-dev.up.railway.app'
 
       - name: Wrangler Pages Deploy
-        uses: cloudflare/wrangler-action@v3.14.1
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
