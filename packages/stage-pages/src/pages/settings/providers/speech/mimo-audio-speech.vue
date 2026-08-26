@@ -6,14 +6,12 @@ import {
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
-import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldCombobox, FieldTextArea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
 
 interface MimoSpeechProviderConfig {
   apiKey?: string
@@ -29,7 +27,6 @@ const speechStore = useSpeechStore()
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const { configs: providers } = storeToRefs(providerStore)
-const { t } = useI18n()
 
 const defaultVoiceSettings = {
   speed: 1.0,
@@ -153,13 +150,6 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     requestConfig,
   )
 }
-
-const {
-  isValidating,
-  isValid,
-  validationMessage,
-  forceValid,
-} = useProviderValidation(providerId)
 </script>
 
 <template>
@@ -214,30 +204,6 @@ const {
             <div>`mimo-v2.5-tts-voicedesign` uses the style prompt to design a new voice and does not accept `audio.voice`.</div>
             <div>`mimo-v2.5-tts-voiceclone` uses the pasted voice sample and ignores the preset voice selector.</div>
           </div>
-        </template>
-      </Alert>
-      <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
-        <template #title>
-          <div class="w-full flex items-center justify-between">
-            <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
-            <button
-              type="button"
-              class="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-600 font-medium transition-colors dark:bg-red-800/30 hover:bg-red-200 dark:text-red-300 dark:hover:bg-red-700/40"
-              @click="forceValid"
-            >
-              {{ t('settings.pages.providers.common.continueAnyway') }}
-            </button>
-          </div>
-        </template>
-        <template v-if="validationMessage" #content>
-          <div class="whitespace-pre-wrap break-all">
-            {{ validationMessage }}
-          </div>
-        </template>
-      </Alert>
-      <Alert v-if="isValid && isValidating === 0" type="success">
-        <template #title>
-          {{ t('settings.dialogs.onboarding.validationSuccess') }}
         </template>
       </Alert>
     </template>

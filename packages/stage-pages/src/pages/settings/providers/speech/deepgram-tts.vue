@@ -9,7 +9,7 @@ import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { storeToRefs } from 'pinia'
-import { computed, watch } from 'vue'
+import { computed, toRaw, watch } from 'vue'
 
 const providerId = 'deepgram-tts'
 const defaultModel = 'aura-2-thalia-en'
@@ -51,7 +51,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 
 watch(providers, async () => {
   const providerConfig = providerStore.getProviderConfig(providerId)
-  if ((await providersStore.validateProviderConfig(providerId, providerConfig)).valid) {
+  if ((await providersStore.validateProviderConfig(providerId, structuredClone(toRaw(providerConfig)))).valid) {
     await speechStore.loadVoicesForProvider(providerId)
   }
   else {

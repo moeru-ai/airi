@@ -5,7 +5,7 @@ import type { ProviderMode } from './use-analytics'
 import { errorMessageFrom } from '@moeru/std'
 import { computedAsync, useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -26,7 +26,24 @@ function providerModeForAnalytics(providerId: string): ProviderMode {
     : 'custom'
 }
 
-export function useProviderValidation(providerId: string) {
+export interface UseProviderValidationOptions {
+  /**
+   * Whether skipping validation (when the provider definition's
+   * `validationRequiredWhen` returns false) resets the provider status to
+   * `unconfigured`.
+   *
+   * Set to false for providers that never require credentials
+   * (`requiresCredentials: false`): their module availability is decided by
+   * credential-free availability instead of validation status, and resetting
+   * the status here would fight the lifecycle that owns it.
+   *
+   * @default true
+   */
+  resetStatusWhenValidationSkipped?: boolean
+}
+
+export function useProviderValidation(providerId: string, options: UseProviderValidationOptions = {}) {
+  const { resetStatusWhenValidationSkipped = true } = options
   const { t } = useI18n()
   const router = useRouter()
   const providersStore = useProviderStore()
@@ -107,7 +124,10 @@ export function useProviderValidation(providerId: string) {
     let finalValidationMessage = ''
 
     try {
-      const config = { ...credentials.value }
+      // Synced action arguments cross the BroadcastChannel boundary with
+      // structuredClone. Spreading the reactive store object leaks nested Vue
+      // proxies, which are not cloneable; take a plain snapshot instead.
+      const config = structuredClone(toRaw(credentials.value)) as Record<string, any>
       if (config.apiKey)
         config.apiKey = config.apiKey.trim()
       if (config.baseUrl)
@@ -158,7 +178,10 @@ export function useProviderValidation(providerId: string) {
     trackProviderConnectionTestStarted(providerConnectionTestAnalyticsBase())
 
     try {
-      const config = { ...credentials.value }
+      // Synced action arguments cross the BroadcastChannel boundary with
+      // structuredClone. Spreading the reactive store object leaks nested Vue
+      // proxies, which are not cloneable; take a plain snapshot instead.
+      const config = structuredClone(toRaw(credentials.value)) as Record<string, any>
       if (config.apiKey)
         config.apiKey = config.apiKey.trim()
       if (config.baseUrl)
@@ -208,7 +231,8 @@ export function useProviderValidation(providerId: string) {
   const debouncedValidateConfiguration = useDebounceFn(async () => {
     if (!await shouldValidateConfiguration()) {
       isValid.value = false
-      providerStore.setProviderStatus(providerId, 'unconfigured')
+      if (resetStatusWhenValidationSkipped)
+        providerStore.setProviderStatus(providerId, 'unconfigured')
       validationMessage.value = ''
       isValidating.value = 0
       return

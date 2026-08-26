@@ -12,7 +12,9 @@ import {
   ProviderBaseUrlInput,
   ProviderBasicSettings,
   ProviderSettingsContainer,
+  ProviderValidationAlerts,
 } from '.'
+import { useProviderValidation } from '../../../composables/use-provider-validation'
 import { selectProviderMetadata } from '../../../libs/providers/metadata'
 import { useSpeechStore } from '../../../stores/modules/speech'
 import { useProviderConfigStore } from '../../../stores/providers/config'
@@ -54,6 +56,31 @@ const providerMetadata = computedAsync(async () => {
   const definition = providersStore.getProviderDefinition(props.providerId)
   return await selectProviderMetadata(definition, t, { id: props.providerId })
 }, undefined)
+
+// Credential-based providers must be validated here so their status reaches
+// 'configured'; module pages (e.g. settings/modules/speech) only list
+// configured providers. Providers with `requiresCredentials: false` (local or
+// browser runtimes) keep their existing availability path and must not have
+// their status reset when validation is skipped.
+const providerDefinition = providersStore.getProviderDefinition(props.providerId)
+const {
+  isValidating,
+  isValid,
+  validationMessage,
+  forceValid,
+  hasManualValidators,
+  isManualTesting,
+  manualTestPassed,
+  manualTestMessage,
+  runManualTest,
+} = useProviderValidation(props.providerId, {
+  resetStatusWhenValidationSkipped: providerDefinition.requiresCredentials !== false,
+})
+
+function goToModelSelection() {
+  speechStore.activeSpeechProvider = props.providerId
+  router.push('/settings/modules/speech')
+}
 
 // Common provider settings
 const apiKey = computed({
@@ -163,6 +190,19 @@ function handleResetVoiceSettings() {
           <!-- Slot for provider-specific advanced settings -->
           <slot name="advanced-settings" />
         </ProviderAdvancedSettings>
+
+        <ProviderValidationAlerts
+          :is-valid="isValid"
+          :is-validating="isValidating"
+          :validation-message="validationMessage"
+          :has-manual-validators="hasManualValidators"
+          :is-manual-testing="isManualTesting"
+          :manual-test-passed="manualTestPassed"
+          :manual-test-message="manualTestMessage"
+          :on-run-test="runManualTest"
+          :on-force-valid="forceValid"
+          :on-go-to-model-selection="goToModelSelection"
+        />
       </ProviderSettingsContainer>
 
       <!-- Playground section -->
