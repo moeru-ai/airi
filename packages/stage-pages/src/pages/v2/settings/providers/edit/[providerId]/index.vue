@@ -23,7 +23,7 @@ import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/con
 import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
 import { computedAsync, useCloned, useDebounceFn } from '@vueuse/core'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -372,7 +372,7 @@ function commitEditedConfig(status: 'configured' | 'bypassed') {
   if (!providerConfigEdit.value)
     return
 
-  providerStore.updateProviderConfig(providerId.value, { ...providerConfigEdit.value.config }, status)
+  providerStore.updateProviderConfig(providerId.value, structuredClone(toRaw(providerConfigEdit.value.config)), status)
 }
 
 function handleSaveAnyway() {

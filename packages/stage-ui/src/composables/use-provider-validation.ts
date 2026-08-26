@@ -27,7 +27,24 @@ function providerModeForAnalytics(providerId: string): ProviderMode {
     : 'custom'
 }
 
-export function useProviderValidation(providerId: string) {
+export interface UseProviderValidationOptions {
+  /**
+   * Whether skipping validation (when the provider definition's
+   * `validationRequiredWhen` returns false) resets the provider status to
+   * `unconfigured`.
+   *
+   * Set to false for providers that never require credentials
+   * (`requiresCredentials: false`): their module availability is decided by
+   * credential-free availability instead of validation status, and resetting
+   * the status here would fight the lifecycle that owns it.
+   *
+   * @default true
+   */
+  resetStatusWhenValidationSkipped?: boolean
+}
+
+export function useProviderValidation(providerId: string, options: UseProviderValidationOptions = {}) {
+  const { resetStatusWhenValidationSkipped = true } = options
   const { t } = useI18n()
   const router = useRouter()
   const providersStore = useProviderStore()
@@ -214,7 +231,8 @@ export function useProviderValidation(providerId: string) {
   const debouncedValidateConfiguration = useDebounceFn(async () => {
     if (!await shouldValidateConfiguration()) {
       isValid.value = false
-      providerStore.setProviderStatus(providerId, 'unconfigured')
+      if (resetStatusWhenValidationSkipped)
+        providerStore.setProviderStatus(providerId, 'unconfigured')
       validationMessage.value = ''
       isValidating.value = 0
       return

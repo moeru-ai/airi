@@ -11,7 +11,7 @@ import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/con
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const providerId = 'alibaba-cloud-model-studio'
@@ -68,7 +68,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 
 onMounted(async () => {
   const providerConfig = providerStore.getProviderConfig(providerId)
-  if ((await providersStore.validateProviderConfig(providerId, providerConfig)).valid) {
+  if ((await providersStore.validateProviderConfig(providerId, structuredClone(toRaw(providerConfig)))).valid) {
     await speechStore.loadVoicesForProvider(providerId)
   }
   else {
@@ -93,7 +93,7 @@ watch(volume, async () => {
 
 watch(providers, async () => {
   const providerConfig = providerStore.getProviderConfig(providerId)
-  if ((await providersStore.validateProviderConfig(providerId, providerConfig)).valid) {
+  if ((await providersStore.validateProviderConfig(providerId, structuredClone(toRaw(providerConfig)))).valid) {
     await speechStore.loadVoicesForProvider(providerId)
   }
   else {
