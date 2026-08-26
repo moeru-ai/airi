@@ -19,6 +19,14 @@ const props = defineProps<{
   // Current state
   apiKeyConfigured?: boolean
   voicesLoading?: boolean
+
+  /**
+   * Pin the test voice to a configured value and hide the voice combobox.
+   * For providers whose voice is part of the persisted provider config
+   * (e.g. Doubao's required `speaker`), the test should exercise the voice
+   * that real synthesis will use instead of a separate playground-only pick.
+   */
+  fixedVoice?: string
 }>()
 
 const { t } = useI18n()
@@ -33,10 +41,22 @@ const useSSML = ref(false)
 const ssmlText = ref('')
 const selectedVoice = ref('')
 
+// A pinned voice always wins over the catalogue-derived default.
+watch(
+  () => props.fixedVoice,
+  (voice) => {
+    if (voice !== undefined)
+      selectedVoice.value = voice
+  },
+  { immediate: true },
+)
+
 // Watch for changes in available voices
 watch(
   () => props.availableVoices,
   (newVoices) => {
+    if (props.fixedVoice !== undefined)
+      return
     if (newVoices.length > 0 && !selectedVoice.value) {
       selectedVoice.value = newVoices[0]?.id || ''
     }
@@ -163,6 +183,7 @@ defineExpose({
       </template>
 
       <FieldCombobox
+        v-if="fixedVoice === undefined"
         v-model="selectedVoice"
         :options="voiceOptions"
         :label="t('settings.pages.providers.provider.elevenlabs.playground.fields.field.voice.label')"

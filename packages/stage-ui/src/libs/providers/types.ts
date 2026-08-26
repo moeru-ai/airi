@@ -16,6 +16,8 @@ import type { Component } from 'vue'
 import type { ComposerTranslation } from 'vue-i18n'
 import type { $ZodType } from 'zod/v4/core'
 
+import type { StreamingTtsWebSocketFactory } from '../speech/streaming-pipeline'
+
 export type ProviderInstance
   = | ChatProvider
     | ChatProviderWithExtraOptions
@@ -159,6 +161,26 @@ export interface VoiceInfo {
   }[]
 }
 
+/** Inputs used to snapshot one Provider-owned streaming speech session. */
+export interface ProviderStreamingSpeechContext {
+  /** Persisted configuration for the active Provider instance. */
+  config: Record<string, unknown>
+  /** Active model selection, when the Provider exposes models. */
+  model?: string
+  /** Active voice selection, when the Provider exposes voices. */
+  voice?: VoiceInfo
+}
+
+/** Transport settings that stay fixed for one streaming speech session. */
+export interface ProviderStreamingSpeechSession {
+  bufferEntireSession: boolean
+  extraBody: Record<string, unknown>
+  model: string
+  voice: string
+  /** Creates a renderer transport when the Provider does not use AIRI's hosted speech bridge. */
+  webSocketFactory?: StreamingTtsWebSocketFactory
+}
+
 // eslint-disable-next-line ts/no-unnecessary-type-constraint
 export interface ProviderDefinition<TConfig extends any = any> {
   id: string
@@ -266,6 +288,8 @@ export interface ProviderDefinition<TConfig extends any = any> {
      */
     speech?: {
       transport: 'rest' | 'bidirectional-ws'
+      /** Builds one immutable session for Provider-owned authentication or transport. */
+      createSession?: (context: ProviderStreamingSpeechContext) => ProviderStreamingSpeechSession | null
     }
   }
   /**

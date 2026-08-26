@@ -2156,6 +2156,9 @@ importers:
       whatwg-mimetype:
         specifier: 'catalog:'
         version: 5.0.0
+      ws:
+        specifier: 'catalog:'
+        version: 8.21.3(bufferutil@4.1.0)(utf-8-validate@5.0.10)
       xsschema:
         specifier: 'catalog:'
         version: 0.5.0-beta.8(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
@@ -2268,6 +2271,9 @@ importers:
       '@types/whatwg-mimetype':
         specifier: 'catalog:'
         version: 5.0.0
+      '@types/ws':
+        specifier: 'catalog:'
+        version: 8.18.1
       '@types/yauzl':
         specifier: 'catalog:'
         version: 3.4.0
@@ -4251,6 +4257,9 @@ importers:
 
   packages/stage-shared:
     dependencies:
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4276,9 +4285,6 @@ importers:
       '@electron-toolkit/preload':
         specifier: 'catalog:'
         version: 3.0.2(electron@43.4.1(supports-color@10.2.2))
-      '@moeru/eventa':
-        specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
       '@nekopaw/tempora':
         specifier: 'catalog:'
         version: 0.4.0-alpha.1

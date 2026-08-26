@@ -35,6 +35,7 @@
     "./libs/providers/stream-transcription": "./src/libs/providers/stream-transcription/index.ts",
     "./libs/providers/providers/aliyun-nls": "./src/libs/providers/providers/aliyun-nls/index.ts",
     "./libs/providers/providers/browser-web-speech-api": "./src/libs/providers/providers/browser-web-speech-api/index.ts",
+    "./libs/providers/providers/doubao-speech/voice-catalog": "./src/libs/providers/providers/doubao-speech/voice-catalog.ts",
     "./libs/*": "./src/libs/*.ts",
     "./libs": "./src/libs/index.ts",
     "./models/*": "./src/models/*.ts",

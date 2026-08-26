@@ -1110,6 +1110,86 @@ pages:
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
+      doubao-speech:
+        description: doubao.com
+        fields:
+          field:
+            explicit-dialect:
+              description: 需要使用支持方言的音色。
+              label: 方言
+              options:
+                beijing: 北京话
+                dongbei: 东北话
+                henan: 河南话
+                none: 不使用
+                shaanxi: 陕西话
+                shanghai: 上海话
+                sichuan: 四川话
+                tianjin: 天津话
+                yue: 粤语
+            explicit-language:
+              description: 仅朗读所选语种的文本，其他语种的内容会被跳过或合成失败。
+              label: 朗读语种
+              options:
+                ar: 阿拉伯语
+                auto: 自动
+                de: 德语
+                en: 英语
+                es-mx: 西班牙语（墨西哥）
+                fil: 菲律宾语
+                fr: 法语
+                id: 印度尼西亚语
+                it: 意大利语
+                ja: 日语
+                ko: 韩语
+                ms: 马来语
+                pl: 波兰语
+                pt: 葡萄牙语
+                pt-br: 葡萄牙语（巴西）
+                ru: 俄语
+                sv: 瑞典语
+                th: 泰语
+                tr: 土耳其语
+                vi: 越南语
+                zh-cn: 中文（中英混读）
+            format:
+              description: 合成音频的格式。ogg_opus 格式仅支持 48000 Hz 采样率。
+              label: 音频格式
+            loudness-rate:
+              description: 音量调节，-50 为 0.5 倍，100 为 2 倍。
+              label: 音量
+            pitch:
+              description: 音调调节，取值范围 -12 到 12。
+              label: 音调
+            resource-id:
+              description: 作为 X-Api-Resource-Id 请求头发送。seed-tts-2.0 为官方豆包 2.0 音色，seed-icl-2.0 为声音复刻 2.0 音色。
+              label: 资源 ID
+              options:
+                clone: 复刻音色 2.0 · seed-icl-2.0
+                official: 官方音色 2.0 · seed-tts-2.0
+            sample-rate:
+              description: 音频采样率，单位 Hz。
+              label: 采样率
+            speaker:
+              clone-description: 输入声音复刻控制台中的音色 ID。
+              clone-label: 复刻音色 ID
+              empty: 没有匹配的双向流音色。
+              manual-description: 输入列表中未收录的官方 voice_type。
+              manual-label: 自定义音色 ID
+              manual-placeholder: 例如 zh_female_shuangkuaisisi_uranus_bigtts
+              official-description: 搜索支持双向流的豆包语音合成模型 2.0 官方音色。
+              official-label: 官方音色
+              official-placeholder: 按音色名称或 voice_type 搜索
+              use-manual: 手动输入音色 ID
+              use-official: 选择官方音色
+            speech-rate:
+              description: 语速调节，-50 为 0.5 倍速，100 为 2 倍速。
+              label: 语速
+            voice-instruction:
+              description: 用自然语言描述语气或风格（context_texts），仅豆包 2.0 官方音色支持。
+              label: 语音指令
+              placeholder: 例如 用特别温柔的语气说话
+        title: 豆包语音
       speech-noop:
         title: 无
         description: 不使用语音合成
