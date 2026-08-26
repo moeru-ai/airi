@@ -1,33 +1,33 @@
 import { defineLoader } from 'vitepress'
 
-export interface NightlyBuild {
-  conclusion: string
-  created_at: string
-  head_commit_message: string
-  head_sha: string
-  html_url: string
-  id: number
+export interface Release {
   name: string
-  status: string
-  updated_at: string
-  workflow_name: string
+  tag_name: string
+  html_url: string
+  published_at: string
+  prerelease: boolean
+  draft: boolean
+  body: string
 }
 
-export interface Release {
-  body: string
-  draft: boolean
-  html_url: string
+export interface NightlyBuild {
+  id: number
   name: string
-  prerelease: boolean
-  published_at: string
-  tag_name: string
+  html_url: string
+  created_at: string
+  updated_at: string
+  status: string
+  conclusion: string
+  workflow_name: string
+  head_sha: string
+  head_commit_message: string
 }
 
 export interface ReleasesData {
+  stable: Release[]
+  prerelease: Release[]
   nightly: NightlyBuild[]
   nightlyUrl: string
-  prerelease: Release[]
-  stable: Release[]
 }
 
 declare const data: ReleasesData
@@ -91,17 +91,17 @@ export default defineLoader({
         if (actionsResponse.ok) {
           const actionsData = await actionsResponse.json()
           nightlyBuilds = actionsData.workflow_runs?.map((run: {
-            conclusion: string
+            id: number
+            name: string
+            head_sha: string
+            html_url: string
             created_at: string
+            updated_at: string
+            status: string
+            conclusion: string
             head_commit?: {
               message: string
             }
-            head_sha: string
-            html_url: string
-            id: number
-            name: string
-            status: string
-            updated_at: string
           }) => {
             const shortSha = run.head_sha.substring(0, 7)
             // Get first line of commit message
@@ -109,16 +109,16 @@ export default defineLoader({
             const firstLine = commitMessage.split('\n')[0]
 
             return {
-              conclusion: run.conclusion,
-              created_at: run.created_at,
-              head_commit_message: commitMessage,
-              head_sha: shortSha,
-              html_url: run.html_url,
               id: run.id,
               name: firstLine,
-              status: run.status,
+              html_url: run.html_url,
+              created_at: run.created_at,
               updated_at: run.updated_at,
+              status: run.status,
+              conclusion: run.conclusion,
               workflow_name: run.name,
+              head_sha: shortSha,
+              head_commit_message: commitMessage,
             }
           }) || []
         }
@@ -128,20 +128,20 @@ export default defineLoader({
       }
 
       return {
+        stable,
+        prerelease,
         nightly: nightlyBuilds,
         nightlyUrl,
-        prerelease,
-        stable,
       }
     }
     catch (error) {
       console.error('Failed to fetch releases:', error)
       // Return empty data if fetch fails
       return {
+        stable: [],
+        prerelease: [],
         nightly: [],
         nightlyUrl,
-        prerelease: [],
-        stable: [],
       }
     }
   },

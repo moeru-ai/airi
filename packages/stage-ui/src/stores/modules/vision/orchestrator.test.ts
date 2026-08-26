@@ -50,16 +50,16 @@ describe('vision orchestrator', () => {
 
     await store.processCapture({
       imageDataUrl: 'data:image/jpeg;base64,first',
-      publishContext: true,
-      sourceId: 'screen:0:0',
       workloadId: 'screen:interpret',
+      sourceId: 'screen:0:0',
+      publishContext: true,
     })
 
     await store.processCapture({
       imageDataUrl: 'data:image/jpeg;base64,second',
-      publishContext: true,
-      sourceId: 'screen:0:0',
       workloadId: 'screen:interpret',
+      sourceId: 'screen:0:0',
+      publishContext: true,
     })
 
     expect(sendContextUpdate).toHaveBeenCalledTimes(2)
@@ -76,14 +76,14 @@ describe('vision orchestrator', () => {
 
     await store.processCapture({
       imageDataUrl: 'data:image/jpeg;base64,first',
-      publishContext: true,
       workloadId: 'screen:interpret',
+      publishContext: true,
     })
 
     await store.processCapture({
       imageDataUrl: 'data:image/jpeg;base64,second',
-      publishContext: true,
       workloadId: 'screen:understand',
+      publishContext: true,
     })
 
     expect(sendContextUpdate.mock.calls[0]?.[0]).toMatchObject({

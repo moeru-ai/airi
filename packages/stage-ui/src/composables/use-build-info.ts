@@ -9,9 +9,9 @@ export function useBuildInfo() {
   const version = packageJSON.version ?? 'dev'
 
   return {
+    version: isStageWeb() ? `${version} (${abbreviatedSha})` : version,
+    commit: abbreviatedSha,
     branch,
     builtOn: buildTime.toISOString(),
-    commit: abbreviatedSha,
-    version: isStageWeb() ? `${version} (${abbreviatedSha})` : version,
   }
 }

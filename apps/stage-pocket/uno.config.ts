@@ -11,15 +11,15 @@ export default mergeConfigs([
           ...presetWebFontsFonts('fontsource'),
         },
         timeouts: {
-          failure: 10000,
           warning: 5000,
+          failure: 10000,
         },
       }),
     ],
     rules: [
       ['transition-colors-none', {
-        'transition-duration': '0s',
         'transition-property': 'color, background-color, border-color, text-color',
+        'transition-duration': '0s',
       }],
 
       ['pt-safe', { 'padding-top': 'env(safe-area-inset-top)' }],
@@ -27,10 +27,10 @@ export default mergeConfigs([
       ['pl-safe', { 'padding-left': 'env(safe-area-inset-left)' }],
       ['pr-safe', { 'padding-right': 'env(safe-area-inset-right)' }],
       ['p-safe', {
+        'padding-top': 'env(safe-area-inset-top)',
         'padding-bottom': 'env(safe-area-inset-bottom)',
         'padding-left': 'env(safe-area-inset-left)',
         'padding-right': 'env(safe-area-inset-right)',
-        'padding-top': 'env(safe-area-inset-top)',
       }],
     ],
     shortcuts: [

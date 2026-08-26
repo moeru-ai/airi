@@ -6,10 +6,10 @@ import { env } from 'node:process'
 import { runProcess } from './process'
 
 export async function runSwiftScript(params: {
-  source: string
-  stdinPayload?: unknown
   swiftBinary: string
   timeoutMs: number
+  source: string
+  stdinPayload?: unknown
 }) {
   const tempDir = await mkdtemp(join(tmpdir(), 'airi-computer-use-'))
   const scriptPath = join(tempDir, 'script.swift')
@@ -18,16 +18,16 @@ export async function runSwiftScript(params: {
 
   try {
     return await runProcess(params.swiftBinary, [scriptPath], {
+      timeoutMs: params.timeoutMs,
       env: params.stdinPayload == null
         ? env
         : {
             ...env,
             COMPUTER_USE_SWIFT_STDIN: JSON.stringify(params.stdinPayload),
           },
-      timeoutMs: params.timeoutMs,
     })
   }
   finally {
-    await rm(tempDir, { force: true, recursive: true })
+    await rm(tempDir, { recursive: true, force: true })
   }
 }

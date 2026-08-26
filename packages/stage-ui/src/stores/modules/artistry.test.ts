@@ -43,10 +43,10 @@ describe('artistry store', () => {
     artistryStore.globalProviderOptions = { steps: 20 }
     artistryStore.providerOptions = { steps: 20 }
     artistryStore.comfyuiSavedWorkflows = [{
-      exposedFields: {},
       id: 'workflow-1',
       name: 'Workflow',
       workflow: {},
+      exposedFields: {},
     }]
     await nextTick()
 
@@ -57,14 +57,14 @@ describe('artistry store', () => {
 
     artistryStore.$patch((currentState) => {
       Object.assign(currentState, {
+        globalProviderOptions: { steps: 20 },
+        providerOptions: { steps: 20 },
         comfyuiSavedWorkflows: [{
-          exposedFields: {},
           id: 'workflow-1',
           name: 'Workflow',
           workflow: {},
+          exposedFields: {},
         }],
-        globalProviderOptions: { steps: 20 },
-        providerOptions: { steps: 20 },
       })
     })
     const mutationCountAfterSnapshot = mutationCount

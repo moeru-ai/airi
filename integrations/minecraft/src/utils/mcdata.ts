@@ -17,20 +17,12 @@ export class McData {
     return new McData(bot.registry)
   }
 
-  getAllBlockIds(ignore: string[] = []): number[] {
-    return this.getAllBlocks(ignore).map(block => block.id)
+  getItemId(itemName: string): number {
+    return this.registry.itemsByName[itemName]?.id ?? 0
   }
 
-  getAllBlocks(ignore: string[] = []): any[] {
-    return Object.values(this.registry.blocks).filter(block => !ignore.includes(block.name))
-  }
-
-  getAllItemIds(ignore: string[] = []): number[] {
-    return this.getAllItems(ignore).map(item => item.id)
-  }
-
-  getAllItems(ignore: string[] = []): any[] {
-    return Object.values(this.registry.items).filter(item => !ignore.includes(item.name))
+  getItemName(itemId: number): string {
+    return this.registry.items[itemId]?.name ?? ''
   }
 
   getBlockId(blockName: string): number {
@@ -41,7 +33,39 @@ export class McData {
     return this.registry.blocks[blockId]?.name ?? ''
   }
 
-  getBlockTool(blockName: string): null | string {
+  getAllItems(ignore: string[] = []): any[] {
+    return Object.values(this.registry.items).filter(item => !ignore.includes(item.name))
+  }
+
+  getAllItemIds(ignore: string[] = []): number[] {
+    return this.getAllItems(ignore).map(item => item.id)
+  }
+
+  getAllBlocks(ignore: string[] = []): any[] {
+    return Object.values(this.registry.blocks).filter(block => !ignore.includes(block.name))
+  }
+
+  getAllBlockIds(ignore: string[] = []): number[] {
+    return this.getAllBlocks(ignore).map(block => block.id)
+  }
+
+  getClosestBlockName(input: string): string | null {
+    const names = Object.keys(this.registry.blocksByName)
+    let best: { name: string | null, distance: number } = { name: null, distance: Number.POSITIVE_INFINITY }
+
+    for (const name of names) {
+      const distance = levenshteinDistance(input, name)
+      if (distance < best.distance) {
+        best = { name, distance }
+        if (distance === 0)
+          break
+      }
+    }
+
+    return best.name
+  }
+
+  getBlockTool(blockName: string): string | null {
     const block = this.registry.blocksByName[blockName]
     if (!block || !block.harvestTools) {
       return null
@@ -51,36 +75,7 @@ export class McData {
     return toolName || null
   }
 
-  getClosestBlockName(input: string): null | string {
-    const names = Object.keys(this.registry.blocksByName)
-    let best: { distance: number, name: null | string } = { distance: Number.POSITIVE_INFINITY, name: null }
-
-    for (const name of names) {
-      const distance = levenshteinDistance(input, name)
-      if (distance < best.distance) {
-        best = { distance, name }
-        if (distance === 0)
-          break
-      }
-    }
-
-    return best.name
-  }
-
-  getItemBlockSources(itemName: string): string[] {
-    const itemId = this.getItemId(itemName)
-    const sources: string[] = []
-    if (!itemId)
-      return sources
-    for (const block of this.getAllBlocks()) {
-      if (block.drops && block.drops.includes(itemId)) {
-        sources.push(block.name)
-      }
-    }
-    return sources
-  }
-
-  getItemCraftingRecipes(itemName: string): null | Record<string, number>[] {
+  getItemCraftingRecipes(itemName: string): Record<string, number>[] | null {
     const itemId = this.getItemId(itemName)
     if (!itemId || !this.registry.recipes[itemId]) {
       return null
@@ -116,12 +111,17 @@ export class McData {
     return recipes
   }
 
-  getItemId(itemName: string): number {
-    return this.registry.itemsByName[itemName]?.id ?? 0
-  }
-
-  getItemName(itemId: number): string {
-    return this.registry.items[itemId]?.name ?? ''
+  getItemBlockSources(itemName: string): string[] {
+    const itemId = this.getItemId(itemName)
+    const sources: string[] = []
+    if (!itemId)
+      return sources
+    for (const block of this.getAllBlocks()) {
+      if (block.drops && block.drops.includes(itemId)) {
+        sources.push(block.name)
+      }
+    }
+    return sources
   }
 }
 
@@ -168,69 +168,6 @@ export const WOOL_COLORS: string[] = [
   'black',
 ]
 
-export function getItemAnimalSource(itemName: string): string | undefined {
-  return {
-    leather: 'cow',
-    raw_beef: 'cow',
-    raw_chicken: 'chicken',
-    raw_cod: 'cod',
-    raw_mutton: 'sheep',
-    raw_porkchop: 'pig',
-    raw_rabbit: 'rabbit',
-    raw_salmon: 'salmon',
-    wool: 'sheep',
-  }[itemName]
-}
-
-export function getItemSmeltingIngredient(
-  itemName: string,
-): string | undefined {
-  return {
-    baked_potato: 'potato',
-    cooked_chicken: 'raw_chicken',
-    cooked_cod: 'raw_cod',
-    cooked_mutton: 'raw_mutton',
-    cooked_porkchop: 'raw_porkchop',
-    cooked_rabbit: 'raw_rabbit',
-    cooked_salmon: 'raw_salmon',
-    copper_ingot: 'raw_copper',
-    dried_kelp: 'kelp',
-    glass: 'sand',
-    gold_ingot: 'raw_gold',
-    iron_ingot: 'raw_iron',
-    steak: 'raw_beef',
-  }[itemName]
-}
-
-// Function to get the nearest block of a specific type using Mineflayer
-export function getNearestBlock(
-  bot: Bot,
-  blockType: string,
-  maxDistance: number,
-) {
-  const blocks = bot.findBlocks({
-    count: 1,
-    matching: block => block.name === blockType,
-    maxDistance,
-  })
-
-  if (blocks.length === 0)
-    return null
-
-  const nearestBlockPosition = blocks[0]
-  return bot.blockAt(nearestBlockPosition)
-}
-
-export function isHostile(mob: Entity): boolean {
-  if (!mob || !mob.name)
-    return false
-  return (
-    (mob.type === 'mob' || mob.type === 'hostile')
-    && mob.name !== 'iron_golem'
-    && mob.name !== 'snow_golem'
-  )
-}
-
 export function isHuntable(mob: Entity): boolean {
   if (!mob || !mob.name)
     return false
@@ -246,13 +183,14 @@ export function isHuntable(mob: Entity): boolean {
   return animals.includes(mob.name.toLowerCase()) && !mob.metadata[16] // metadata[16] indicates baby status
 }
 
-function isShapedRecipe(recipe: any): recipe is ShapedRecipe {
-  return 'inShape' in recipe
-}
-
-// Type guards
-function isShapelessRecipe(recipe: any): recipe is ShapelessRecipe {
-  return 'ingredients' in recipe
+export function isHostile(mob: Entity): boolean {
+  if (!mob || !mob.name)
+    return false
+  return (
+    (mob.type === 'mob' || mob.type === 'hostile')
+    && mob.name !== 'iron_golem'
+    && mob.name !== 'snow_golem'
+  )
 }
 
 function levenshteinDistance(a: string, b: string): number {
@@ -275,4 +213,66 @@ function levenshteinDistance(a: string, b: string): number {
   }
 
   return matrix[a.length][b.length]
+}
+
+// Type guards
+function isShapelessRecipe(recipe: any): recipe is ShapelessRecipe {
+  return 'ingredients' in recipe
+}
+
+function isShapedRecipe(recipe: any): recipe is ShapedRecipe {
+  return 'inShape' in recipe
+}
+
+export function getItemSmeltingIngredient(
+  itemName: string,
+): string | undefined {
+  return {
+    baked_potato: 'potato',
+    steak: 'raw_beef',
+    cooked_chicken: 'raw_chicken',
+    cooked_cod: 'raw_cod',
+    cooked_mutton: 'raw_mutton',
+    cooked_porkchop: 'raw_porkchop',
+    cooked_rabbit: 'raw_rabbit',
+    cooked_salmon: 'raw_salmon',
+    dried_kelp: 'kelp',
+    iron_ingot: 'raw_iron',
+    gold_ingot: 'raw_gold',
+    copper_ingot: 'raw_copper',
+    glass: 'sand',
+  }[itemName]
+}
+
+export function getItemAnimalSource(itemName: string): string | undefined {
+  return {
+    raw_beef: 'cow',
+    raw_chicken: 'chicken',
+    raw_cod: 'cod',
+    raw_mutton: 'sheep',
+    raw_porkchop: 'pig',
+    raw_rabbit: 'rabbit',
+    raw_salmon: 'salmon',
+    leather: 'cow',
+    wool: 'sheep',
+  }[itemName]
+}
+
+// Function to get the nearest block of a specific type using Mineflayer
+export function getNearestBlock(
+  bot: Bot,
+  blockType: string,
+  maxDistance: number,
+) {
+  const blocks = bot.findBlocks({
+    matching: block => block.name === blockType,
+    maxDistance,
+    count: 1,
+  })
+
+  if (blocks.length === 0)
+    return null
+
+  const nearestBlockPosition = blocks[0]
+  return bot.blockAt(nearestBlockPosition)
 }

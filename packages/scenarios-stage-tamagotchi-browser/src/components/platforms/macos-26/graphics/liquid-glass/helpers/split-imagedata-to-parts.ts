@@ -6,15 +6,15 @@ import { imageDataToUrl } from './image-data-to-url'
 
 // Each part is a Base64-encoded PNG image
 export interface Parts {
-  bottom: string
-  bottomLeft: string
-  bottomRight: string
-  center: string
-  left: string
-  right: string
-  top: string
   topLeft: string
+  top: string
   topRight: string
+  left: string
+  center: string
+  right: string
+  bottomLeft: string
+  bottom: string
+  bottomRight: string
 }
 
 /**
@@ -25,8 +25,8 @@ export interface Parts {
  * @returns The 8 parts of the image as Base64-encoded PNG images.
  */
 export function splitImageDataToParts(props: {
-  cornerWidth: number
   imageData: ImageData
+  cornerWidth: number
   pixelRatio: number
 }): Parts {
   const { imageData } = props
@@ -100,14 +100,14 @@ export function splitImageDataToParts(props: {
   )
 
   return {
-    bottom,
-    bottomLeft,
-    bottomRight,
-    center,
-    left,
-    right,
-    top,
     topLeft,
+    top,
     topRight,
+    left,
+    center,
+    right,
+    bottomLeft,
+    bottom,
+    bottomRight,
   }
 }

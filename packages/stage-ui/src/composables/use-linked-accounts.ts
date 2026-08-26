@@ -5,6 +5,13 @@ import type { SteamOAuthStartArgs, SteamOAuthStartResult } from '../libs/steam-a
 import { computed, onMounted, shallowRef, watch } from 'vue'
 
 /**
+ * Provider key for the linked-account actions. OAuth2 providers go through
+ * better-auth's `/link-social`; Steam is OpenID 2.0 and is routed to the
+ * Steam client plugin's dedicated `linkSteam` method instead.
+ */
+export type LinkedProviderId = 'google' | 'github' | (string & {})
+
+/**
  * Trimmed view of the row better-auth returns from `/list-accounts`.
  *
  * `createdAt` is always an ISO string here even though the upstream client
@@ -12,10 +19,10 @@ import { computed, onMounted, shallowRef, watch } from 'vue'
  * to handle both shapes.
  */
 export interface LinkedAccountRow {
-  accountId: string
-  createdAt: string
   id: string
+  accountId: string
   providerId: string
+  createdAt: string
   scopes: string[]
 }
 
@@ -25,9 +32,23 @@ export interface LinkedAccountRow {
  * (stage-web) clients both fit.
  */
 export interface LinkedAccountsClient {
-  linkSocial: (args: { callbackURL: string, errorCallbackURL?: string, provider: string }) => Promise<{
-    data: null | { redirect?: boolean, status?: boolean, url?: string }
-    error: null | { message?: string, status?: number }
+  listAccounts: () => Promise<{
+    data: Array<{
+      id: string
+      accountId: string
+      providerId: string
+      createdAt: Date | string
+      scopes?: string[]
+    }> | null
+    error: { message?: string, status?: number } | null
+  }>
+  unlinkAccount: (args: { providerId: string, accountId?: string }) => Promise<{
+    data: unknown
+    error: { message?: string, status?: number } | null
+  }>
+  linkSocial: (args: { provider: string, callbackURL: string, errorCallbackURL?: string }) => Promise<{
+    data: { url?: string, redirect?: boolean, status?: boolean } | null
+    error: { message?: string, status?: number } | null
   }>
   /**
    * Starts linking the current user to a Steam account.
@@ -39,22 +60,8 @@ export interface LinkedAccountsClient {
    * client rather than wrapping `linkSocial`.
    */
   linkSteam: (args: SteamOAuthStartArgs) => Promise<{
-    data: null | SteamOAuthStartResult
-    error: null | { message?: string, status?: number }
-  }>
-  listAccounts: () => Promise<{
-    data: Array<{
-      accountId: string
-      createdAt: Date | string
-      id: string
-      providerId: string
-      scopes?: string[]
-    }> | null
-    error: null | { message?: string, status?: number }
-  }>
-  unlinkAccount: (args: { accountId?: string, providerId: string }) => Promise<{
-    data: unknown
-    error: null | { message?: string, status?: number }
+    data: SteamOAuthStartResult | null
+    error: { message?: string, status?: number } | null
   }>
 }
 
@@ -63,42 +70,28 @@ export interface LinkedAccountsClient {
  * keeps i18n implementation out of stage-ui.
  */
 export interface LinkedAccountsMessages {
+  listFailed: string
+  unlinkFailed: string
+  linkFailed: string
   /** Shown when the user tries to unlink the only sign-in method they have. */
   lastAccount: string
-  linkFailed: string
-  linkStarted: (provider: string) => string
-  listFailed: string
   unlinked: (provider: string) => string
-  unlinkFailed: string
+  linkStarted: (provider: string) => string
 }
 
-/**
- * Provider key for the linked-account actions. OAuth2 providers go through
- * better-auth's `/link-social`; Steam is OpenID 2.0 and is routed to the
- * Steam client plugin's dedicated `linkSteam` method instead.
- */
-export type LinkedProviderId = 'github' | 'google' | (string & {})
-
 export interface UseLinkedAccountsArgs {
+  client: LinkedAccountsClient
+  /** Drives auto-refresh on sign-in and clear on sign-out. */
+  isAuthenticated: Ref<boolean>
+  messages: LinkedAccountsMessages
+  /** Caller-supplied error stringifier (e.g. `errorMessageFrom`). */
+  describeError: (error: unknown) => string
   /**
    * OAuth post-consent return URL.
    * @default `() => window.location.href` — survives both web-history
    *          and hash-history routers without further configuration.
    */
   buildCallbackURL?: () => string
-  client: LinkedAccountsClient
-  /** Caller-supplied error stringifier (e.g. `errorMessageFrom`). */
-  describeError: (error: unknown) => string
-  /** Drives auto-refresh on sign-in and clear on sign-out. */
-  isAuthenticated: Ref<boolean>
-  messages: LinkedAccountsMessages
-  /**
-   * Analytics hook — fires right before the OAuth consent redirect
-   * navigates away (or after a synchronous link succeeded). Link
-   * completion happens on the provider's site and is not observable
-   * from this page; treat this as "link attempt handed off".
-   */
-  onLinkStarted?: (providerId: string) => void
   /**
    * Analytics hook — fires exactly once per successful unlink, after the
    * server confirmed the removal. Success is only knowable inside this
@@ -107,6 +100,13 @@ export interface UseLinkedAccountsArgs {
    * refs after `unlink()` resolves.
    */
   onUnlinked?: (providerId: string) => void
+  /**
+   * Analytics hook — fires right before the OAuth consent redirect
+   * navigates away (or after a synchronous link succeeded). Link
+   * completion happens on the provider's site and is not observable
+   * from this page; treat this as "link attempt handed off".
+   */
+  onLinkStarted?: (providerId: string) => void
 }
 
 /**
@@ -126,10 +126,10 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
    * Source: PR #1753 review (chatgpt-codex-connector P2).
    */
   const loaded = shallowRef(false)
-  const error = shallowRef<null | string>(null)
-  const message = shallowRef<null | string>(null)
+  const error = shallowRef<string | null>(null)
+  const message = shallowRef<string | null>(null)
   /** Provider id currently being linked / unlinked. `null` when idle. */
-  const inFlight = shallowRef<null | string>(null)
+  const inFlight = shallowRef<string | null>(null)
 
   const accountsByProvider = computed(() => {
     const map = new Map<string, LinkedAccountRow>()
@@ -164,12 +164,12 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
       // the row directly rather than dressing `any` up with a fake shape.
       // Field layout: node_modules/better-auth/dist/api/routes/account.mjs L20-50.
       linkedAccounts.value = (data ?? []).map(account => ({
+        id: account.id,
         accountId: account.accountId,
+        providerId: account.providerId,
         createdAt: account.createdAt instanceof Date
           ? account.createdAt.toISOString()
           : account.createdAt,
-        id: account.id,
-        providerId: account.providerId,
         scopes: account.scopes ?? [],
       }))
       loaded.value = true
@@ -230,7 +230,7 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
       // client plugin. Every other provider uses `/link-social`.
       const result = providerId === 'steam'
         ? await args.client.linkSteam({ callbackURL, errorCallbackURL: callbackURL })
-        : await args.client.linkSocial({ callbackURL, errorCallbackURL: callbackURL, provider: providerId })
+        : await args.client.linkSocial({ provider: providerId, callbackURL, errorCallbackURL: callbackURL })
       const { data, error: apiError } = result
       if (apiError)
         throw new Error(apiError.message ?? 'link failed')
@@ -270,18 +270,18 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
   })
 
   return {
-    accountsByProvider,
-    error,
-    hasCredentialAccount,
-    inFlight,
-    isLastSignInMethod,
-    link,
     linkedAccounts,
-    loaded,
     loading,
+    loaded,
+    error,
     message,
-    refresh,
+    inFlight,
+    accountsByProvider,
+    hasCredentialAccount,
     socialLinkedCount,
+    isLastSignInMethod,
+    refresh,
     unlink,
+    link,
   }
 }

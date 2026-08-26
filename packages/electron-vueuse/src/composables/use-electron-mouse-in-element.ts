@@ -5,8 +5,6 @@ import { shallowRef, watch } from 'vue'
 
 import { useElectronRelativeMouse } from './use-electron-relative-mouse'
 
-export type UseMouseInElementReturn = ReturnType<typeof useElectronMouseInElement>
-
 /**
  * Reactive mouse position related to an element.
  *
@@ -19,14 +17,14 @@ export function useElectronMouseInElement(
   options: MouseInElementOptions = {},
 ) {
   const {
-    handleOutside = true,
-    window = defaultWindow,
     windowResize = true,
     windowScroll = true,
+    handleOutside = true,
+    window = defaultWindow,
   } = options
   const type = options.type || 'page'
 
-  const { sourceType, x, y } = useElectronRelativeMouse(options)
+  const { x, y, sourceType } = useElectronRelativeMouse(options)
 
   const targetRef = shallowRef(target ?? window?.document.body)
   const elementX = shallowRef(0)
@@ -46,10 +44,10 @@ export function useElectronMouseInElement(
       return
 
     const {
-      height,
       left,
       top,
       width,
+      height,
     } = el.getBoundingClientRect()
 
     elementPositionX.value = left + (type === 'page' ? window.pageXOffset : 0)
@@ -120,16 +118,18 @@ export function useElectronMouseInElement(
   }
 
   return {
-    elementHeight,
-    elementPositionX,
-    elementPositionY,
-    elementWidth,
-    elementX,
-    elementY,
-    isOutside,
-    sourceType,
-    stop,
     x,
     y,
+    sourceType,
+    elementX,
+    elementY,
+    elementPositionX,
+    elementPositionY,
+    elementHeight,
+    elementWidth,
+    isOutside,
+    stop,
   }
 }
+
+export type UseMouseInElementReturn = ReturnType<typeof useElectronMouseInElement>

@@ -28,6 +28,7 @@ export async function mediaStreamFromAudioFile(file: File): Promise<{
   })
 
   return {
+    stream: destination.stream,
     cleanup: async () => {
       try {
         source.stop()
@@ -43,6 +44,5 @@ export async function mediaStreamFromAudioFile(file: File): Promise<{
       }
       await audioContext.close()
     },
-    stream: destination.stream,
   }
 }

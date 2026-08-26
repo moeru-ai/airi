@@ -15,10 +15,6 @@ export class OpusDecoder extends Transform {
     this.decoder = new OpusScript(sampleRate, channels)
   }
 
-  _flush(callback: (...args: any[]) => void) {
-    callback()
-  }
-
   _transform(chunk: Buffer, encoding: BufferEncoding, callback: (...args: any[]) => void) {
     try {
       // Decode Opus chunk to PCM
@@ -32,5 +28,9 @@ export class OpusDecoder extends Transform {
       this.emit('error', error)
       callback(error)
     }
+  }
+
+  _flush(callback: (...args: any[]) => void) {
+    callback()
   }
 }

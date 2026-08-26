@@ -2,57 +2,6 @@ import type { ActionInvocation, ComputerUseConfig, ForegroundContext, PolicyDeci
 
 import { resolveConfiguredOpenableApp } from './app-aliases'
 
-function estimateOperationUnits(action: ActionInvocation) {
-  switch (action.kind) {
-    case 'click':
-    case 'desktop_click_target':
-      return 1
-    case 'clipboard_read_text':
-    case 'secret_read_env_value':
-      return 1
-    case 'clipboard_write_text':
-      return Math.max(2, Math.ceil(action.input.text.length / 64))
-    case 'focus_app':
-    case 'open_app':
-      return 2
-    case 'observe_windows':
-      return 1
-    case 'press_keys':
-      return 1
-    case 'screenshot':
-      return 3
-    case 'scroll':
-      return 1
-    case 'terminal_exec':
-      return Math.max(4, Math.ceil(action.input.command.length / 48))
-    case 'terminal_reset':
-      return 1
-    case 'type_text':
-      return Math.max(2, Math.ceil(action.input.text.length / 48))
-    case 'wait':
-      return 1
-  }
-}
-
-function getCoordinate(action: ActionInvocation) {
-  switch (action.kind) {
-    case 'click':
-      return { x: action.input.x, y: action.input.y }
-    case 'scroll':
-      if (typeof action.input.x === 'number' && typeof action.input.y === 'number') {
-        return { x: action.input.x, y: action.input.y }
-      }
-      return undefined
-    case 'type_text':
-      if (typeof action.input.x === 'number' && typeof action.input.y === 'number') {
-        return { x: action.input.x, y: action.input.y }
-      }
-      return undefined
-    default:
-      return undefined
-  }
-}
-
 function includesPattern(value: string | undefined, patterns: string[]) {
   const normalizedValue = value?.trim().toLowerCase()
   if (!normalizedValue)
@@ -62,11 +11,62 @@ function includesPattern(value: string | undefined, patterns: string[]) {
 }
 
 function isMutatingAction(action: ActionInvocation) {
-  return !['clipboard_read_text', 'observe_windows', 'screenshot', 'secret_read_env_value', 'terminal_reset', 'wait'].includes(action.kind)
+  return !['screenshot', 'observe_windows', 'wait', 'terminal_reset', 'clipboard_read_text', 'secret_read_env_value'].includes(action.kind)
 }
 
 function isUiInteractionAction(action: ActionInvocation) {
-  return ['click', 'desktop_click_target', 'focus_app', 'open_app', 'press_keys', 'scroll', 'type_text'].includes(action.kind)
+  return ['click', 'desktop_click_target', 'type_text', 'press_keys', 'scroll', 'open_app', 'focus_app'].includes(action.kind)
+}
+
+function getCoordinate(action: ActionInvocation) {
+  switch (action.kind) {
+    case 'click':
+      return { x: action.input.x, y: action.input.y }
+    case 'type_text':
+      if (typeof action.input.x === 'number' && typeof action.input.y === 'number') {
+        return { x: action.input.x, y: action.input.y }
+      }
+      return undefined
+    case 'scroll':
+      if (typeof action.input.x === 'number' && typeof action.input.y === 'number') {
+        return { x: action.input.x, y: action.input.y }
+      }
+      return undefined
+    default:
+      return undefined
+  }
+}
+
+function estimateOperationUnits(action: ActionInvocation) {
+  switch (action.kind) {
+    case 'screenshot':
+      return 3
+    case 'observe_windows':
+      return 1
+    case 'open_app':
+    case 'focus_app':
+      return 2
+    case 'clipboard_read_text':
+    case 'secret_read_env_value':
+      return 1
+    case 'clipboard_write_text':
+      return Math.max(2, Math.ceil(action.input.text.length / 64))
+    case 'click':
+    case 'desktop_click_target':
+      return 1
+    case 'type_text':
+      return Math.max(2, Math.ceil(action.input.text.length / 48))
+    case 'press_keys':
+      return 1
+    case 'scroll':
+      return 1
+    case 'wait':
+      return 1
+    case 'terminal_exec':
+      return Math.max(4, Math.ceil(action.input.command.length / 48))
+    case 'terminal_reset':
+      return 1
+  }
 }
 
 // NOTICE: Key aliases must be normalised to canonical names so the
@@ -74,9 +74,9 @@ function isUiInteractionAction(action: ActionInvocation) {
 // See: macOS modifier naming conventions.
 const keyAliases: Record<string, string> = {
   cmd: 'command',
-  ctrl: 'control',
   meta: 'command',
   opt: 'option',
+  ctrl: 'control',
 }
 
 function normalizeShortcut(keys: string[]) {
@@ -90,10 +90,10 @@ function normalizeShortcut(keys: string[]) {
 }
 
 const deniedShortcuts = new Set([
-  'alt+tab',
   'command+q',
   'command+space',
   'command+tab',
+  'alt+tab',
   'option+tab',
 ])
 
@@ -217,10 +217,10 @@ export function evaluateActionPolicy(params: {
 
   return {
     allowed,
-    estimatedOperationUnits,
+    requiresApproval,
     reason: reasons[0],
     reasons,
-    requiresApproval,
     riskLevel,
+    estimatedOperationUnits,
   }
 }

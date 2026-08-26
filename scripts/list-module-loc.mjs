@@ -9,28 +9,77 @@ import { argv, cwd } from 'node:process'
 
 const ROOT = cwd()
 const SEARCH_ROOTS = ['apps', 'packages', 'plugins', 'services', 'integrations', 'docs']
-const IGNORE_DIRS = new Set(['.cache', '.git', '.next', '.nuxt', '.turbo', '.vite', 'build', 'coverage', 'dist', 'node_modules', 'out'])
+const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', 'build', '.next', '.nuxt', '.turbo', 'coverage', '.cache', 'out', '.vite'])
 
-function cleanupExportTarget(raw) {
-  if (!raw)
-    return ''
+function walk(dir, out) {
+  let entries = []
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true })
+  }
+  catch {
+    return
+  }
 
-  const q = raw.indexOf('?')
-  const h = raw.indexOf('#')
-  let end = raw.length
-  if (q >= 0)
-    end = Math.min(end, q)
-  if (h >= 0)
-    end = Math.min(end, h)
+  for (const entry of entries) {
+    if (entry.name.startsWith('.')) {
+      if (entry.name !== '.vitepress')
+        continue
+    }
 
-  return raw.slice(0, end).trim()
+    const full = path.join(dir, entry.name)
+
+    if (entry.isDirectory()) {
+      if (IGNORE_DIRS.has(entry.name))
+        continue
+      walk(full, out)
+      continue
+    }
+
+    if (entry.isFile() && entry.name === 'package.json')
+      out.push(full)
+  }
+}
+
+function collectPackageJsonFiles() {
+  const files = [path.join(ROOT, 'package.json')]
+  for (const base of SEARCH_ROOTS) {
+    const full = path.join(ROOT, base)
+    if (fs.existsSync(full))
+      walk(full, files)
+  }
+  return files
+}
+
+function safeReadJson(file) {
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'))
+  }
+  catch {
+    return null
+  }
+}
+
+function collectFromExportsValue(value, out, source) {
+  if (typeof value === 'string') {
+    out.push({ source, raw: value })
+    return
+  }
+  if (Array.isArray(value)) {
+    for (const item of value)
+      collectFromExportsValue(item, out, source)
+    return
+  }
+  if (value && typeof value === 'object') {
+    for (const [k, v] of Object.entries(value))
+      collectFromExportsValue(v, out, `${source}.${k}`)
+  }
 }
 
 function collectEntryCandidates(pkg) {
   const out = []
   const pushIfString = (source, value) => {
     if (typeof value === 'string' && value.trim())
-      out.push({ raw: value.trim(), source })
+      out.push({ source, raw: value.trim() })
   }
 
   pushIfString('main', pkg.main)
@@ -57,30 +106,110 @@ function collectEntryCandidates(pkg) {
   return out
 }
 
-function collectFromExportsValue(value, out, source) {
-  if (typeof value === 'string') {
-    out.push({ raw: value, source })
-    return
-  }
-  if (Array.isArray(value)) {
-    for (const item of value)
-      collectFromExportsValue(item, out, source)
-    return
-  }
-  if (value && typeof value === 'object') {
-    for (const [k, v] of Object.entries(value))
-      collectFromExportsValue(v, out, `${source}.${k}`)
+function cleanupExportTarget(raw) {
+  if (!raw)
+    return ''
+
+  const q = raw.indexOf('?')
+  const h = raw.indexOf('#')
+  let end = raw.length
+  if (q >= 0)
+    end = Math.min(end, q)
+  if (h >= 0)
+    end = Math.min(end, h)
+
+  return raw.slice(0, end).trim()
+}
+
+function resolveParentDir(pkgDir, rawTarget) {
+  const target = cleanupExportTarget(rawTarget)
+  // eslint-disable-next-line regexp/no-unused-capturing-group
+  if (!target || /^(https?:|npm:|node:|data:)/.test(target))
+    return null
+
+  const wildcardIndex = target.indexOf('*')
+  const logicalTarget = wildcardIndex >= 0 ? target.slice(0, wildcardIndex) : target
+  const abs = path.resolve(pkgDir, logicalTarget)
+  const ext = path.extname(logicalTarget)
+
+  let parentDir = abs
+  if (ext)
+    parentDir = path.dirname(abs)
+  else if (logicalTarget.endsWith('/'))
+    parentDir = abs
+  else if (fs.existsSync(abs) && fs.statSync(abs).isFile())
+    parentDir = path.dirname(abs)
+
+  return {
+    raw: rawTarget,
+    cleaned: target,
+    parentDir,
+    exists: fs.existsSync(parentDir) && fs.statSync(parentDir).isDirectory(),
   }
 }
 
-function collectPackageJsonFiles() {
-  const files = [path.join(ROOT, 'package.json')]
-  for (const base of SEARCH_ROOTS) {
-    const full = path.join(ROOT, base)
-    if (fs.existsSync(full))
-      walk(full, files)
+function runScc(dir) {
+  const proc = spawnSync('scc', ['-a', '-f', 'json', dir], { encoding: 'utf8' })
+  if (proc.status !== 0) {
+    return {
+      ok: false,
+      error: (proc.stderr || proc.stdout || `exit ${proc.status}`).trim(),
+    }
   }
-  return files
+
+  let parsed
+  try {
+    parsed = JSON.parse(proc.stdout)
+  }
+  catch (err) {
+    return {
+      ok: false,
+      error: `invalid scc json: ${String(err)}`,
+    }
+  }
+
+  const sum = key => parsed.reduce((acc, row) => acc + Number(row[key] || 0), 0)
+  return {
+    ok: true,
+    files: sum('Count'),
+    lines: sum('Lines'),
+    code: sum('Code'),
+    comments: sum('Comment'),
+    blanks: sum('Blank'),
+    uloc: sum('ULOC'),
+  }
+}
+
+function rel(p) {
+  const rp = path.relative(ROOT, p)
+  return rp || '.'
+}
+
+function toSccCommand(absDir) {
+  return `scc -a -f json "${rel(absDir)}"`
+}
+
+function printGroup(title) {
+  console.log(`\n=== ${title} ===`)
+}
+
+function printTable(rows, columns) {
+  const widths = {}
+  for (const col of columns)
+    widths[col.key] = col.title.length
+
+  for (const row of rows) {
+    for (const col of columns) {
+      const value = String(row[col.key] ?? '')
+      widths[col.key] = Math.max(widths[col.key], value.length)
+    }
+  }
+
+  const line = row => columns.map(col => String(row[col.key] ?? '').padEnd(widths[col.key])).join('  ')
+  console.log(line(Object.fromEntries(columns.map(c => [c.key, c.title]))))
+  console.log(columns.map(col => '-'.repeat(widths[col.key])).join('  '))
+  for (const row of rows)
+    console.log(line(row))
 }
 
 function main() {
@@ -102,15 +231,15 @@ function main() {
       if (!resolved)
         continue
       records.push({
-        entryClean: resolved.cleaned,
-        entryRaw: resolved.raw,
+        packageName: pkgName,
         packageDir: pkgDir,
         packageJson: pkgFile,
-        packageName: pkgName,
+        source: candidate.source,
+        entryRaw: resolved.raw,
+        entryClean: resolved.cleaned,
         parentDir: resolved.parentDir,
         parentDirRel: rel(resolved.parentDir),
         parentExists: resolved.exists,
-        source: candidate.source,
       })
     }
   }
@@ -122,9 +251,9 @@ function main() {
     if (!existing) {
       uniqueByPackageAndDir.set(key, {
         ...rec,
-        entries: new Set([rec.entryClean]),
         occurrenceCount: 1,
         sources: new Set([rec.source]),
+        entries: new Set([rec.entryClean]),
       })
     }
     else {
@@ -138,7 +267,7 @@ function main() {
   const deduped = Array.from(uniqueByPackageAndDir.values())
   for (const rec of deduped) {
     if (!rec.parentExists) {
-      rec.scc = { error: 'directory_not_found', ok: false }
+      rec.scc = { ok: false, error: 'directory_not_found' }
       continue
     }
     if (!sccCache.has(rec.parentDir))
@@ -152,12 +281,12 @@ function main() {
     const existing = aggregateByParentDir.get(key)
     if (!existing) {
       aggregateByParentDir.set(key, {
-        packageCount: 1,
-        packageNames: new Set([rec.packageName]),
         parentDir: rec.parentDir,
         parentDirRel: rec.parentDirRel,
-        scc: rec.scc,
+        packageCount: 1,
+        packageNames: new Set([rec.packageName]),
         totalOccurrenceCount: rec.occurrenceCount,
+        scc: rec.scc,
       })
     }
     else {
@@ -170,38 +299,38 @@ function main() {
   const byPackageRows = deduped
     .sort((a, b) => (b.occurrenceCount - a.occurrenceCount) || a.parentDirRel.localeCompare(b.parentDirRel))
     .map(rec => ({
-      code: rec.scc.ok ? rec.scc.code : '',
-      files: rec.scc.ok ? rec.scc.files : '',
-      occurrences: rec.occurrenceCount,
       package: rec.packageName,
       parent_dir: rec.parentDirRel,
-      scc_cmd: toSccCommand(rec.parentDir),
+      occurrences: rec.occurrenceCount,
       sources: Array.from(rec.sources).sort().join(','),
-      status: rec.scc.ok ? 'ok' : rec.scc.error,
+      code: rec.scc.ok ? rec.scc.code : '',
       uloc: rec.scc.ok ? rec.scc.uloc : '',
+      files: rec.scc.ok ? rec.scc.files : '',
+      status: rec.scc.ok ? 'ok' : rec.scc.error,
+      scc_cmd: toSccCommand(rec.parentDir),
     }))
 
   const aggregateRows = Array.from(aggregateByParentDir.values())
     .sort((a, b) => (b.packageCount - a.packageCount) || a.parentDirRel.localeCompare(b.parentDirRel))
     .map(rec => ({
-      code: rec.scc.ok ? rec.scc.code : '',
-      files: rec.scc.ok ? rec.scc.files : '',
+      parent_dir: rec.parentDirRel,
       package_count: rec.packageCount,
       packages: Array.from(rec.packageNames).sort().join(','),
-      parent_dir: rec.parentDirRel,
-      scc_cmd: toSccCommand(rec.parentDir),
-      status: rec.scc.ok ? 'ok' : rec.scc.error,
       total_occurrences: rec.totalOccurrenceCount,
+      code: rec.scc.ok ? rec.scc.code : '',
       uloc: rec.scc.ok ? rec.scc.uloc : '',
+      files: rec.scc.ok ? rec.scc.files : '',
+      status: rec.scc.ok ? 'ok' : rec.scc.error,
+      scc_cmd: toSccCommand(rec.parentDir),
     }))
 
   if (asJson) {
     const output = {
-      dedupedParentDirsAcrossPackages: aggregateRows,
       generatedAt: new Date().toISOString(),
-      packageJsonScanned: pkgJsonFiles.map(rel),
       root: ROOT,
+      packageJsonScanned: pkgJsonFiles.map(rel),
       uniquePackageEntrypointParents: byPackageRows,
+      dedupedParentDirsAcrossPackages: aggregateRows,
     }
     console.log(JSON.stringify(output, null, 2))
     return
@@ -236,135 +365,6 @@ function main() {
       { key: 'scc_cmd', title: 'scc_cmd' },
     ],
   )
-}
-
-function printGroup(title) {
-  console.log(`\n=== ${title} ===`)
-}
-
-function printTable(rows, columns) {
-  const widths = {}
-  for (const col of columns)
-    widths[col.key] = col.title.length
-
-  for (const row of rows) {
-    for (const col of columns) {
-      const value = String(row[col.key] ?? '')
-      widths[col.key] = Math.max(widths[col.key], value.length)
-    }
-  }
-
-  const line = row => columns.map(col => String(row[col.key] ?? '').padEnd(widths[col.key])).join('  ')
-  console.log(line(Object.fromEntries(columns.map(c => [c.key, c.title]))))
-  console.log(columns.map(col => '-'.repeat(widths[col.key])).join('  '))
-  for (const row of rows)
-    console.log(line(row))
-}
-
-function rel(p) {
-  const rp = path.relative(ROOT, p)
-  return rp || '.'
-}
-
-function resolveParentDir(pkgDir, rawTarget) {
-  const target = cleanupExportTarget(rawTarget)
-  // eslint-disable-next-line regexp/no-unused-capturing-group
-  if (!target || /^(https?:|npm:|node:|data:)/.test(target))
-    return null
-
-  const wildcardIndex = target.indexOf('*')
-  const logicalTarget = wildcardIndex >= 0 ? target.slice(0, wildcardIndex) : target
-  const abs = path.resolve(pkgDir, logicalTarget)
-  const ext = path.extname(logicalTarget)
-
-  let parentDir = abs
-  if (ext)
-    parentDir = path.dirname(abs)
-  else if (logicalTarget.endsWith('/'))
-    parentDir = abs
-  else if (fs.existsSync(abs) && fs.statSync(abs).isFile())
-    parentDir = path.dirname(abs)
-
-  return {
-    cleaned: target,
-    exists: fs.existsSync(parentDir) && fs.statSync(parentDir).isDirectory(),
-    parentDir,
-    raw: rawTarget,
-  }
-}
-
-function runScc(dir) {
-  const proc = spawnSync('scc', ['-a', '-f', 'json', dir], { encoding: 'utf8' })
-  if (proc.status !== 0) {
-    return {
-      error: (proc.stderr || proc.stdout || `exit ${proc.status}`).trim(),
-      ok: false,
-    }
-  }
-
-  let parsed
-  try {
-    parsed = JSON.parse(proc.stdout)
-  }
-  catch (err) {
-    return {
-      error: `invalid scc json: ${String(err)}`,
-      ok: false,
-    }
-  }
-
-  const sum = key => parsed.reduce((acc, row) => acc + Number(row[key] || 0), 0)
-  return {
-    blanks: sum('Blank'),
-    code: sum('Code'),
-    comments: sum('Comment'),
-    files: sum('Count'),
-    lines: sum('Lines'),
-    ok: true,
-    uloc: sum('ULOC'),
-  }
-}
-
-function safeReadJson(file) {
-  try {
-    return JSON.parse(fs.readFileSync(file, 'utf8'))
-  }
-  catch {
-    return null
-  }
-}
-
-function toSccCommand(absDir) {
-  return `scc -a -f json "${rel(absDir)}"`
-}
-
-function walk(dir, out) {
-  let entries = []
-  try {
-    entries = fs.readdirSync(dir, { withFileTypes: true })
-  }
-  catch {
-    return
-  }
-
-  for (const entry of entries) {
-    if (entry.name.startsWith('.')) {
-      if (entry.name !== '.vitepress')
-        continue
-    }
-
-    const full = path.join(dir, entry.name)
-
-    if (entry.isDirectory()) {
-      if (IGNORE_DIRS.has(entry.name))
-        continue
-      walk(full, out)
-      continue
-    }
-
-    if (entry.isFile() && entry.name === 'package.json')
-      out.push(full)
-  }
 }
 
 main()

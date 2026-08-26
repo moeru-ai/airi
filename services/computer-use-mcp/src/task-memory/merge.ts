@@ -8,25 +8,30 @@ import { TASK_MEMORY_LIMITS } from './types'
 
 const VALID_STATUSES: TaskMemoryStatus[] = ['active', 'blocked', 'done']
 
-export interface MergeTaskMemoryOptions {
-  existing: TaskMemory | undefined
-  extraction: TaskMemoryExtraction
-  sourceTurnId: string
+function isValidStatus(s: unknown): s is TaskMemoryStatus {
+  return typeof s === 'string' && VALID_STATUSES.includes(s as TaskMemoryStatus)
 }
 
-/** Create a blank TaskMemory skeleton. */
-export function createEmptyTaskMemory(sourceTurnId: string): TaskMemory {
-  return {
-    artifacts: [],
-    blockers: [],
-    confirmedFacts: [],
-    currentStep: null,
-    goal: null,
-    nextStep: null,
-    sourceTurnId,
-    status: 'active',
-    updatedAt: Date.now(),
-  }
+function isNonEmptyString(v: unknown): v is string {
+  return typeof v === 'string' && v.trim().length > 0
+}
+
+function isStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every(item => typeof item === 'string')
+}
+
+function isValidArtifact(v: unknown): v is TaskMemoryArtifact {
+  if (!v || typeof v !== 'object')
+    return false
+  const a = v as Record<string, unknown>
+  return isNonEmptyString(a.label)
+    && typeof a.value === 'string'
+    && typeof a.kind === 'string'
+    && ['file', 'url', 'tool', 'note'].includes(a.kind as string)
+}
+
+function isArtifactArray(v: unknown): v is TaskMemoryArtifact[] {
+  return Array.isArray(v) && v.every(isValidArtifact)
 }
 
 export function hasMeaningfulTaskMemoryExtraction(ext: TaskMemoryExtraction): boolean {
@@ -44,20 +49,85 @@ export function hasMeaningfulTaskMemoryExtraction(ext: TaskMemoryExtraction): bo
     || ext.newTask === true
 }
 
+// ---------------------------------------------------------------------------
+// List dedup / trim
+// ---------------------------------------------------------------------------
+
 /**
- * Whether a TaskMemory has enough content to be meaningful.
+ * Deduplicate a string array keeping last occurrence, trim to limit (tail).
  */
-export function isTaskMemoryVisible(tm: TaskMemory | undefined): boolean {
-  if (!tm)
-    return false
-  return isNonEmptyString(tm.goal)
-    || isNonEmptyString(tm.currentStep)
-    || tm.confirmedFacts.length > 0
-    || tm.artifacts.length > 0
-    || tm.blockers.length > 0
-    || isNonEmptyString(tm.nextStep)
-    || tm.status === 'blocked'
-    || tm.status === 'done'
+function dedupeAndTrimStrings(arr: string[], limit: number): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (let i = arr.length - 1; i >= 0; i--) {
+    const v = arr[i].trim()
+    if (v && !seen.has(v)) {
+      seen.add(v)
+      result.unshift(v)
+    }
+  }
+  return result.length > limit ? result.slice(result.length - limit) : result
+}
+
+/**
+ * Deduplicate artifacts by (kind, value) key; keep last, trim to limit.
+ */
+function dedupeAndTrimArtifacts(arr: TaskMemoryArtifact[], limit: number): TaskMemoryArtifact[] {
+  const seen = new Map<string, number>()
+  const result: TaskMemoryArtifact[] = []
+  for (const a of arr) {
+    const key = `${a.kind}::${a.value}`
+    const existing = seen.get(key)
+    if (existing !== undefined) {
+      result[existing] = a
+    }
+    else {
+      seen.set(key, result.length)
+      result.push(a)
+    }
+  }
+  return result.length > limit ? result.slice(result.length - limit) : result
+}
+
+// ---------------------------------------------------------------------------
+// Merge primitives
+// ---------------------------------------------------------------------------
+
+function mergeStringList(old: string[] | undefined, next: string[] | undefined, limit: number): string[] {
+  if (next === undefined)
+    return old ?? []
+  return dedupeAndTrimStrings([...(old ?? []), ...next], limit)
+}
+
+function mergeArtifactList(old: TaskMemoryArtifact[] | undefined, next: TaskMemoryArtifact[] | undefined, limit: number): TaskMemoryArtifact[] {
+  if (next === undefined)
+    return old ?? []
+  return dedupeAndTrimArtifacts([...(old ?? []), ...next], limit)
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/** Create a blank TaskMemory skeleton. */
+export function createEmptyTaskMemory(sourceTurnId: string): TaskMemory {
+  return {
+    status: 'active',
+    goal: null,
+    currentStep: null,
+    confirmedFacts: [],
+    artifacts: [],
+    blockers: [],
+    nextStep: null,
+    updatedAt: Date.now(),
+    sourceTurnId,
+  }
+}
+
+export interface MergeTaskMemoryOptions {
+  existing: TaskMemory | undefined
+  extraction: TaskMemoryExtraction
+  sourceTurnId: string
 }
 
 /**
@@ -130,16 +200,16 @@ function applyExtraction(
   )
 
   const result: TaskMemory = {
+    status,
+    goal,
+    currentStep,
+    confirmedFacts,
     artifacts,
     blockers,
-    confirmedFacts,
-    currentStep,
-    goal,
     nextStep,
-    recentFailureReason,
-    sourceTurnId,
-    status,
     updatedAt: now,
+    sourceTurnId,
+    recentFailureReason,
   }
 
   if (plan.length > 0)
@@ -159,88 +229,18 @@ function applyExtraction(
   return result
 }
 
-// ---------------------------------------------------------------------------
-// List dedup / trim
-// ---------------------------------------------------------------------------
-
 /**
- * Deduplicate artifacts by (kind, value) key; keep last, trim to limit.
+ * Whether a TaskMemory has enough content to be meaningful.
  */
-function dedupeAndTrimArtifacts(arr: TaskMemoryArtifact[], limit: number): TaskMemoryArtifact[] {
-  const seen = new Map<string, number>()
-  const result: TaskMemoryArtifact[] = []
-  for (const a of arr) {
-    const key = `${a.kind}::${a.value}`
-    const existing = seen.get(key)
-    if (existing !== undefined) {
-      result[existing] = a
-    }
-    else {
-      seen.set(key, result.length)
-      result.push(a)
-    }
-  }
-  return result.length > limit ? result.slice(result.length - limit) : result
-}
-
-/**
- * Deduplicate a string array keeping last occurrence, trim to limit (tail).
- */
-function dedupeAndTrimStrings(arr: string[], limit: number): string[] {
-  const seen = new Set<string>()
-  const result: string[] = []
-  for (let i = arr.length - 1; i >= 0; i--) {
-    const v = arr[i].trim()
-    if (v && !seen.has(v)) {
-      seen.add(v)
-      result.unshift(v)
-    }
-  }
-  return result.length > limit ? result.slice(result.length - limit) : result
-}
-
-// ---------------------------------------------------------------------------
-// Merge primitives
-// ---------------------------------------------------------------------------
-
-function isArtifactArray(v: unknown): v is TaskMemoryArtifact[] {
-  return Array.isArray(v) && v.every(isValidArtifact)
-}
-
-function isNonEmptyString(v: unknown): v is string {
-  return typeof v === 'string' && v.trim().length > 0
-}
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
-function isStringArray(v: unknown): v is string[] {
-  return Array.isArray(v) && v.every(item => typeof item === 'string')
-}
-
-function isValidArtifact(v: unknown): v is TaskMemoryArtifact {
-  if (!v || typeof v !== 'object')
+export function isTaskMemoryVisible(tm: TaskMemory | undefined): boolean {
+  if (!tm)
     return false
-  const a = v as Record<string, unknown>
-  return isNonEmptyString(a.label)
-    && typeof a.value === 'string'
-    && typeof a.kind === 'string'
-    && ['file', 'note', 'tool', 'url'].includes(a.kind as string)
-}
-
-function isValidStatus(s: unknown): s is TaskMemoryStatus {
-  return typeof s === 'string' && VALID_STATUSES.includes(s as TaskMemoryStatus)
-}
-
-function mergeArtifactList(old: TaskMemoryArtifact[] | undefined, next: TaskMemoryArtifact[] | undefined, limit: number): TaskMemoryArtifact[] {
-  if (next === undefined)
-    return old ?? []
-  return dedupeAndTrimArtifacts([...(old ?? []), ...next], limit)
-}
-
-function mergeStringList(old: string[] | undefined, next: string[] | undefined, limit: number): string[] {
-  if (next === undefined)
-    return old ?? []
-  return dedupeAndTrimStrings([...(old ?? []), ...next], limit)
+  return isNonEmptyString(tm.goal)
+    || isNonEmptyString(tm.currentStep)
+    || tm.confirmedFacts.length > 0
+    || tm.artifacts.length > 0
+    || tm.blockers.length > 0
+    || isNonEmptyString(tm.nextStep)
+    || tm.status === 'blocked'
+    || tm.status === 'done'
 }

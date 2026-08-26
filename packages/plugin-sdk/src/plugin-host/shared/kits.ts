@@ -17,16 +17,16 @@ import { pluginRuntimeSchema } from './types'
  * - A Valibot schema for one kit capability descriptor
  */
 export const kitCapabilitySchema = object({
+  key: pipe(
+    string(),
+    description('Stable capability key exposed by this kit.'),
+  ),
   actions: pipe(
     array(pipe(
       string(),
       description('Capability action supported by this kit capability entry.'),
     )),
     description('Allowed actions for this capability key.'),
-  ),
-  key: pipe(
-    string(),
-    description('Stable capability key exposed by this kit.'),
   ),
 })
 
@@ -43,13 +43,17 @@ export const kitCapabilitySchema = object({
  * - A Valibot schema for one kit descriptor
  */
 export const kitDescriptorSchema = object({
-  capabilities: pipe(
-    array(kitCapabilitySchema),
-    description('Capabilities exposed by this kit descriptor.'),
-  ),
   kitId: pipe(
     string(),
     description('Stable identifier for the host-registered kit.'),
+  ),
+  version: pipe(
+    string(),
+    description('Semantic version of the kit contract.'),
+  ),
+  capabilities: pipe(
+    array(kitCapabilitySchema),
+    description('Capabilities exposed by this kit descriptor.'),
   ),
   runtimes: pipe(
     array(pipe(
@@ -57,10 +61,6 @@ export const kitDescriptorSchema = object({
       description('Runtime supported by this kit descriptor.'),
     )),
     description('Runtimes where this kit can be used.'),
-  ),
-  version: pipe(
-    string(),
-    description('Semantic version of the kit contract.'),
   ),
 })
 

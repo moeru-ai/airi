@@ -7,25 +7,25 @@ import { formatDate } from '../utils/utils'
 const config: SiteConfig = (globalThis as any).VITEPRESS_CONFIG
 
 interface ChronicleEntry {
-  date: ReturnType<typeof formatDate>
-  excerpt: string | undefined
-  frontmatter?: Record<string, any>
-  lang: string
   title: string
   url: string
   urlWithoutLang: string
+  lang: string
+  date: ReturnType<typeof formatDate>
+  excerpt: string | undefined
+  frontmatter?: Record<string, any>
 }
 
 declare const data: ChronicleEntry[]
 export { data }
 
 export default createContentLoader('**/chronicles/**/*.md', {
-  excerpt: true,
   includeSrc: true,
   render: true,
+  excerpt: true,
   transform(raw): ChronicleEntry[] {
     return raw
-      .map(({ excerpt, frontmatter, url }) => {
+      .map(({ url, frontmatter, excerpt }) => {
         const foundLanguage = Object.values(config.userConfig.locales!).find((locale) => {
           let normalizedLanguagePrefix = locale.lang || 'en'
           if (!normalizedLanguagePrefix.startsWith('/')) {
@@ -36,13 +36,13 @@ export default createContentLoader('**/chronicles/**/*.md', {
         })
 
         return {
-          date: formatDate(frontmatter.date),
-          excerpt,
-          frontmatter,
-          lang: foundLanguage?.lang || 'en',
           title: frontmatter.title,
           url,
           urlWithoutLang: url.replace(`/${foundLanguage?.lang || 'en'}`, ''),
+          excerpt,
+          date: formatDate(frontmatter.date),
+          lang: foundLanguage?.lang || 'en',
+          frontmatter,
         }
       })
       .sort((a, b) => b.date.time - a.date.time)

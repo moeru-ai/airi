@@ -8,47 +8,47 @@ import { createWidgetIframeRequestCoordinator } from './iframe-request-coordinat
 describe('normalizeWidgetWindowSize', () => {
   it('returns undefined for missing or unusable base sizes', () => {
     expect(normalizeWidgetWindowSize()).toBeUndefined()
-    expect(normalizeWidgetWindowSize({ height: 320, width: 0 })).toBeUndefined()
-    expect(normalizeWidgetWindowSize({ height: -1, width: 320 })).toBeUndefined()
-    expect(normalizeWidgetWindowSize({ height: 320, width: Number.NaN })).toBeUndefined()
-    expect(normalizeWidgetWindowSize({ height: Number.POSITIVE_INFINITY, width: 320 })).toBeUndefined()
+    expect(normalizeWidgetWindowSize({ width: 0, height: 320 })).toBeUndefined()
+    expect(normalizeWidgetWindowSize({ width: 320, height: -1 })).toBeUndefined()
+    expect(normalizeWidgetWindowSize({ width: Number.NaN, height: 320 })).toBeUndefined()
+    expect(normalizeWidgetWindowSize({ width: 320, height: Number.POSITIVE_INFINITY })).toBeUndefined()
   })
 
   it('floors valid dimensions and strips invalid optional constraints', () => {
     const input: WidgetWindowSize = {
-      height: 480.4,
-      maxHeight: 720.1,
-      maxWidth: 1280.6,
-      minHeight: Number.NaN,
-      minWidth: -10,
       width: 620.9,
+      height: 480.4,
+      minWidth: -10,
+      minHeight: Number.NaN,
+      maxWidth: 1280.6,
+      maxHeight: 720.1,
     }
 
     expect(normalizeWidgetWindowSize(input)).toEqual({
-      height: 480,
-      maxHeight: 720,
-      maxWidth: 1280,
       width: 620,
+      height: 480,
+      maxWidth: 1280,
+      maxHeight: 720,
     })
   })
 
   it('keeps contradictory but numerically valid constraints for later display clamping', () => {
     const input: WidgetWindowSize = {
+      width: 900,
       height: 700,
-      maxHeight: 600,
+      minWidth: 1200,
       maxWidth: 800,
       minHeight: 900,
-      minWidth: 1200,
-      width: 900,
+      maxHeight: 600,
     }
 
     expect(normalizeWidgetWindowSize(input)).toEqual({
+      width: 900,
       height: 700,
-      maxHeight: 600,
+      minWidth: 1200,
       maxWidth: 800,
       minHeight: 900,
-      minWidth: 1200,
-      width: 900,
+      maxHeight: 600,
     })
   })
 })
@@ -62,8 +62,8 @@ describe('createWidgetIframeRequestCoordinator', () => {
     const emitRequest = vi.fn()
     const coordinator = createWidgetIframeRequestCoordinator({
       emitRequest,
-      hasRelay: () => true,
       hasWidget: () => false,
+      hasRelay: () => true,
     })
 
     await expect(coordinator.requestWidgetIframe('kit-module:board', { action: 'snapshot' })).rejects.toThrow('Gamelet `kit-module:board` is not open.')
@@ -74,8 +74,8 @@ describe('createWidgetIframeRequestCoordinator', () => {
     const emitRequest = vi.fn()
     const coordinator = createWidgetIframeRequestCoordinator({
       emitRequest,
-      hasRelay: () => true,
       hasWidget: id => id === 'kit-module:board',
+      hasRelay: () => true,
     })
 
     const request = coordinator.requestWidgetIframe('kit-module:board', { action: 'snapshot' })
@@ -83,27 +83,27 @@ describe('createWidgetIframeRequestCoordinator', () => {
 
     expect(emitted).toEqual({
       id: 'kit-module:board',
-      payload: { action: 'snapshot' },
       requestId: expect.any(String),
+      payload: { action: 'snapshot' },
       timeoutMs: 30000,
     })
 
     coordinator.publishWidgetIframeRequestResult({
       id: 'kit-module:other-board',
-      ok: true,
       requestId: emitted.requestId,
+      ok: true,
       result: { fen: 'wrong-board' },
     })
     coordinator.publishWidgetIframeRequestResult({
       id: 'kit-module:board',
-      ok: true,
       requestId: 'unknown-request',
+      ok: true,
       result: { fen: 'unknown-request' },
     })
     coordinator.publishWidgetIframeRequestResult({
       id: 'kit-module:board',
-      ok: true,
       requestId: emitted.requestId,
+      ok: true,
       result: { fen: 'fen-after-request' },
     })
 
@@ -114,17 +114,17 @@ describe('createWidgetIframeRequestCoordinator', () => {
     const emitRequest = vi.fn()
     const coordinator = createWidgetIframeRequestCoordinator({
       emitRequest,
-      hasRelay: () => true,
       hasWidget: () => true,
+      hasRelay: () => true,
     })
 
     const request = coordinator.requestWidgetIframe('kit-module:board', { action: 'snapshot' })
     const emitted = emitRequest.mock.calls[0]?.[0]
     coordinator.publishWidgetIframeRequestResult({
-      error: 'Board rejected the snapshot request.',
       id: 'kit-module:board',
-      ok: false,
       requestId: emitted.requestId,
+      ok: false,
+      error: 'Board rejected the snapshot request.',
     })
 
     await expect(request).rejects.toThrow('Board rejected the snapshot request.')
@@ -135,8 +135,8 @@ describe('createWidgetIframeRequestCoordinator', () => {
     const emitRequest = vi.fn()
     const coordinator = createWidgetIframeRequestCoordinator({
       emitRequest,
-      hasRelay: () => true,
       hasWidget: () => true,
+      hasRelay: () => true,
     })
 
     const request = coordinator.requestWidgetIframe('kit-module:board', { action: 'snapshot' }, { timeoutMs: 50 })
@@ -147,8 +147,8 @@ describe('createWidgetIframeRequestCoordinator', () => {
 
     coordinator.publishWidgetIframeRequestResult({
       id: 'kit-module:board',
-      ok: true,
       requestId: emitted.requestId,
+      ok: true,
       result: { fen: 'late-result' },
     })
 
@@ -159,8 +159,8 @@ describe('createWidgetIframeRequestCoordinator', () => {
     const emitRequest = vi.fn()
     const coordinator = createWidgetIframeRequestCoordinator({
       emitRequest,
-      hasRelay: () => true,
       hasWidget: () => true,
+      hasRelay: () => true,
     })
 
     const request = coordinator.requestWidgetIframe('kit-module:board', { action: 'snapshot' }, { timeoutMs: 30000 })
@@ -174,8 +174,8 @@ describe('createWidgetIframeRequestCoordinator', () => {
     const emitRequest = vi.fn()
     const coordinator = createWidgetIframeRequestCoordinator({
       emitRequest,
-      hasRelay: () => false,
       hasWidget: () => true,
+      hasRelay: () => false,
     })
 
     await expect(coordinator.requestWidgetIframe('kit-module:board', { action: 'snapshot' })).rejects.toThrow('Gamelet iframe relay is not available.')
@@ -186,8 +186,8 @@ describe('createWidgetIframeRequestCoordinator', () => {
     const emitRequest = vi.fn()
     const coordinator = createWidgetIframeRequestCoordinator({
       emitRequest,
-      hasRelay: () => true,
       hasWidget: () => true,
+      hasRelay: () => true,
     })
 
     const firstRequest = coordinator.requestWidgetIframe('kit-module:board', { action: 'snapshot' }, { timeoutMs: 30000 })

@@ -8,6 +8,18 @@ import { prepareMMDMaterials } from './mmd-materials'
 import { loadMMDZip } from './mmd-zip-loader'
 import { OPFSCache } from './opfs-loader'
 
+export interface ResolvedMMDModel {
+  /** MMD runtime that owns IK, grant, morph, and optional physics state. */
+  mmd: MMD
+  /** Convenience alias for `mmd.mesh`. */
+  mesh: SkinnedMesh
+  format: MMDModelFormat
+  /** Present only when the source was a ZIP archive. */
+  assets?: MMDLoadedAssets
+  /** Revokes any blob URLs created while resolving the model. */
+  dispose: () => void
+}
+
 export interface LoadMMDOptions {
   /**
    * Stable cache key for a packaged ZIP source. The display-model id is the
@@ -28,16 +40,37 @@ export interface LoadMMDOptions {
   waitForTextures?: boolean
 }
 
-export interface ResolvedMMDModel {
-  /** Present only when the source was a ZIP archive. */
-  assets?: MMDLoadedAssets
-  /** Revokes any blob URLs created while resolving the model. */
-  dispose: () => void
-  format: MMDModelFormat
-  /** Convenience alias for `mmd.mesh`. */
-  mesh: SkinnedMesh
-  /** MMD runtime that owns IK, grant, morph, and optional physics state. */
-  mmd: MMD
+// ZIP local-file-header magic: "PK\x03\x04".
+function isZip(buffer: ArrayBuffer): boolean {
+  const head = new Uint8Array(buffer, 0, Math.min(4, buffer.byteLength))
+  return head[0] === 0x50 && head[1] === 0x4B && head[2] === 0x03 && head[3] === 0x04
+}
+
+/**
+ * Resolves once the manager has no more pending loads.
+ *
+ * `LoadingManager.onLoad` fires when the last queued item finishes. A timeout
+ * guards the case where everything is already loaded (so `onLoad` never fires)
+ * or a texture stalls, so preview generation can never hang.
+ */
+function waitForManagerIdle(manager: LoadingManager, timeoutMs = 4000): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false
+    let timer: ReturnType<typeof setTimeout>
+    const finish = () => {
+      if (settled)
+        return
+      settled = true
+      clearTimeout(timer)
+      resolve()
+    }
+    timer = setTimeout(finish, timeoutMs)
+    manager.onLoad = finish
+  })
+}
+
+function formatFromUrl(url: string): MMDModelFormat {
+  return url.split(/[?#]/)[0].toLowerCase().endsWith('.pmd') ? 'pmd' : 'pmx'
 }
 
 /**
@@ -76,11 +109,11 @@ export async function loadMMDModelFromSource(src: string, options: LoadMMDOption
       if (options.cacheKey && !cachedSource)
         await OPFSCache.save(options.cacheKey, new Blob([buffer]), src)
       return {
+        mmd,
+        mesh: mmd.mesh,
+        format: assets.variant.format,
         assets,
         dispose: () => assets.dispose(),
-        format: assets.variant.format,
-        mesh: mmd.mesh,
-        mmd,
       }
     }
     catch (error) {
@@ -99,42 +132,9 @@ export async function loadMMDModelFromSource(src: string, options: LoadMMDOption
   if (options.waitForTextures)
     await waitForManagerIdle(manager)
   return {
-    dispose: () => {},
-    format: formatFromUrl(src),
-    mesh: mmd.mesh,
     mmd,
+    mesh: mmd.mesh,
+    format: formatFromUrl(src),
+    dispose: () => {},
   }
-}
-
-function formatFromUrl(url: string): MMDModelFormat {
-  return url.split(/[?#]/)[0].toLowerCase().endsWith('.pmd') ? 'pmd' : 'pmx'
-}
-
-// ZIP local-file-header magic: "PK\x03\x04".
-function isZip(buffer: ArrayBuffer): boolean {
-  const head = new Uint8Array(buffer, 0, Math.min(4, buffer.byteLength))
-  return head[0] === 0x50 && head[1] === 0x4B && head[2] === 0x03 && head[3] === 0x04
-}
-
-/**
- * Resolves once the manager has no more pending loads.
- *
- * `LoadingManager.onLoad` fires when the last queued item finishes. A timeout
- * guards the case where everything is already loaded (so `onLoad` never fires)
- * or a texture stalls, so preview generation can never hang.
- */
-function waitForManagerIdle(manager: LoadingManager, timeoutMs = 4000): Promise<void> {
-  return new Promise((resolve) => {
-    let settled = false
-    let timer: ReturnType<typeof setTimeout>
-    const finish = () => {
-      if (settled)
-        return
-      settled = true
-      clearTimeout(timer)
-      resolve()
-    }
-    timer = setTimeout(finish, timeoutMs)
-    manager.onLoad = finish
-  })
 }

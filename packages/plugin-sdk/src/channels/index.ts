@@ -10,20 +10,20 @@ import { createContext } from '@moeru/eventa'
  * Describes one extension-scoped Eventa channel context.
  */
 export interface ExtensionChannelScope {
-  /** Eventa context that carries scoped extension/module traffic. */
-  context: EventContext<any, any>
   /** Extension session identity associated with this scope. */
   identity: ExtensionIdentity
+  /** Eventa context that carries scoped extension/module traffic. */
+  context: EventContext<any, any>
 }
 
 /**
  * Describes one module-scoped Eventa channel context.
  */
 export interface ModuleChannelScope {
-  /** Eventa context shared with the owning extension scope. */
-  context: EventContext<any, any>
   /** Module identity associated with this scope. */
   identity: ExtensionModuleIdentity
+  /** Eventa context shared with the owning extension scope. */
+  context: EventContext<any, any>
 }
 
 /**
@@ -41,18 +41,18 @@ export interface ModuleChannelScope {
  * - Extension identity plus the Eventa context used by child module scopes
  */
 export function createExtensionChannelScope(input: {
-  context?: EventContext<any, any>
   extensionId: string
   sessionId?: string
   version?: string
+  context?: EventContext<any, any>
 }): ExtensionChannelScope {
   return {
-    context: input.context ?? createContext(),
     identity: {
       id: input.extensionId,
       sessionId: input.sessionId,
       version: input.version,
     },
+    context: input.context ?? createContext(),
   }
 }
 
@@ -71,14 +71,14 @@ export function createExtensionChannelScope(input: {
  */
 export function createModuleChannelScope(
   extension: ExtensionChannelScope,
-  input: { labels?: Record<string, string>, moduleId: string },
+  input: { moduleId: string, labels?: Record<string, string> },
 ): ModuleChannelScope {
   return {
-    context: extension.context,
     identity: {
-      extension: extension.identity,
       id: input.moduleId,
+      extension: extension.identity,
       labels: input.labels,
     },
+    context: extension.context,
   }
 }

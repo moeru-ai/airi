@@ -16,122 +16,6 @@ import { createEnvelopeCrypto } from '../../../../utils/envelope-crypto'
 import { ApiError } from '../../../../utils/error'
 import { createLlmRouterService } from '../router'
 
-function failResponse(status: number, body: object = { error: 'bad' }) {
-  return new Response(JSON.stringify(body), {
-    headers: { 'content-type': 'application/json' },
-    status,
-  })
-}
-
-function freshMasterKey(): Buffer {
-  return randomBytes(32)
-}
-
-function happyResponse(bodyJson: object) {
-  return new Response(JSON.stringify(bodyJson), {
-    headers: { 'content-type': 'application/json' },
-    status: 200,
-  })
-}
-
-function makeConfig(opts: {
-  fallbackHttpCodes?: number[]
-  upstreams?: Array<{ baseURL: string, keyIds: string[], overrideModel?: string, timeoutMs?: number }>
-}): { ciphertextByKey: Map<string, string>, config: RouterConfig, crypto: ReturnType<typeof createEnvelopeCrypto> } {
-  const crypto = createEnvelopeCrypto({ masterKey: freshMasterKey() })
-  const modelName = 'openai/gpt-5-mini'
-  const ciphertextByKey = new Map<string, string>()
-
-  const upstreams = opts.upstreams ?? [{ baseURL: 'https://up-a.example/v1', keyIds: ['kA1'] }]
-  const upstreamConfigs = upstreams.map(u => ({
-    baseURL: u.baseURL,
-    headerTemplate: 'Bearer {KEY}',
-    keys: u.keyIds.map((id) => {
-      const plaintext = `sk-${id}`
-      const ct = crypto.encryptKey(plaintext, { keyEntryId: id, modelName })
-      ciphertextByKey.set(id, ct)
-      return { ciphertext: ct, id }
-    }),
-    overrideModel: u.overrideModel,
-    timeoutMs: u.timeoutMs,
-  }))
-
-  const config: RouterConfig = {
-    defaults: {
-      fallbackHttpCodes: opts.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504],
-      fullChainTimeoutMs: 60000,
-      perAttemptTimeoutMs: 30000,
-    },
-    llm: {
-      models: {
-        [modelName]: {
-          fallbackTriggers: {
-            httpCodes: opts.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504],
-            onTimeout: true,
-          },
-          upstreams: upstreamConfigs,
-        },
-      },
-    },
-    tts: { models: {} },
-  } as RouterConfig
-
-  return { ciphertextByKey, config, crypto }
-}
-
-function makeConfigKV(config: null | RouterConfig): ConfigKVService {
-  return {
-    get: vi.fn(),
-    getOptional: vi.fn(async (key: string) => (key === 'LLM_ROUTER_CONFIG' ? config : null)),
-    // routeTts resolves UNSPEECH_UPSTREAM lazily when the chosen adapter needs it.
-    // LLM-side tests never invoke routeTts so the value is irrelevant; TTS
-    // tests need a populated restBaseURL.
-    getOrThrow: vi.fn(async (key: string) => {
-      if (key === 'UNSPEECH_UPSTREAM')
-        return { restBaseURL: 'http://unspeech.local:5933' }
-      return undefined
-    }),
-    set: vi.fn(),
-  } as unknown as ConfigKVService
-}
-
-function makeCounter(): Counter {
-  return { add: vi.fn() } as unknown as Counter
-}
-
-/**
- * Stub concurrency ledger. Defaults model an always-free pool (tryAcquire grants,
- * nothing saturated) so the existing fixed-order LLM/TTS tests never engage the
- * pooling branch. Pooling tests pass `overrides` to drive capacity decisions.
- */
-function makeLedger(overrides: Partial<ConcurrencyLedger> = {}): ConcurrencyLedger {
-  return {
-    currentInflight: vi.fn(async () => 0),
-    isSaturated: vi.fn(async () => false),
-    markSaturated: vi.fn(async () => {}),
-    release: vi.fn(async () => {}),
-    snapshot: vi.fn(async () => []),
-    tryAcquire: vi.fn(async () => true),
-    ...overrides,
-  }
-}
-
-function makeMetrics(): GatewayMetrics {
-  return {
-    configInvalidHmac: makeCounter(),
-    configReload: makeCounter(),
-    decryptFailures: makeCounter(),
-    fallbackCount: makeCounter(),
-    keyExhaustedCount: makeCounter(),
-    poolInflight: { addCallback: vi.fn(), removeCallback: vi.fn() },
-    poolSaturationMarked: makeCounter(),
-    poolSlotRejected: makeCounter(),
-    sameStatusExhaustion: makeCounter(),
-    subscriberState: makeCounter(),
-    upstreamErrors: makeCounter(),
-  } as unknown as GatewayMetrics
-}
-
 /**
  * Minimal redis stub shared across `createLlmRouterService` tests. The router
  * only touches redis through the TTS voice catalog cache, which the LLM-side
@@ -142,10 +26,126 @@ function makeRedisStub(): Redis {
   async function* emptyScan(): AsyncGenerator<string[]> {}
   return {
     get: vi.fn(async () => null),
-    pipeline: vi.fn(() => ({ del: vi.fn(), exec: vi.fn(async () => []) })),
-    scanStream: vi.fn(() => emptyScan()),
     set: vi.fn(async () => 'OK'),
+    scanStream: vi.fn(() => emptyScan()),
+    pipeline: vi.fn(() => ({ del: vi.fn(), exec: vi.fn(async () => []) })),
   } as unknown as Redis
+}
+
+function freshMasterKey(): Buffer {
+  return randomBytes(32)
+}
+
+function makeCounter(): Counter {
+  return { add: vi.fn() } as unknown as Counter
+}
+
+function makeMetrics(): GatewayMetrics {
+  return {
+    fallbackCount: makeCounter(),
+    upstreamErrors: makeCounter(),
+    keyExhaustedCount: makeCounter(),
+    sameStatusExhaustion: makeCounter(),
+    configReload: makeCounter(),
+    decryptFailures: makeCounter(),
+    subscriberState: makeCounter(),
+    configInvalidHmac: makeCounter(),
+    poolSlotRejected: makeCounter(),
+    poolSaturationMarked: makeCounter(),
+    poolInflight: { addCallback: vi.fn(), removeCallback: vi.fn() },
+  } as unknown as GatewayMetrics
+}
+
+/**
+ * Stub concurrency ledger. Defaults model an always-free pool (tryAcquire grants,
+ * nothing saturated) so the existing fixed-order LLM/TTS tests never engage the
+ * pooling branch. Pooling tests pass `overrides` to drive capacity decisions.
+ */
+function makeLedger(overrides: Partial<ConcurrencyLedger> = {}): ConcurrencyLedger {
+  return {
+    tryAcquire: vi.fn(async () => true),
+    release: vi.fn(async () => {}),
+    markSaturated: vi.fn(async () => {}),
+    isSaturated: vi.fn(async () => false),
+    currentInflight: vi.fn(async () => 0),
+    snapshot: vi.fn(async () => []),
+    ...overrides,
+  }
+}
+
+function makeConfigKV(config: RouterConfig | null): ConfigKVService {
+  return {
+    getOptional: vi.fn(async (key: string) => (key === 'LLM_ROUTER_CONFIG' ? config : null)),
+    // routeTts resolves UNSPEECH_UPSTREAM lazily when the chosen adapter needs it.
+    // LLM-side tests never invoke routeTts so the value is irrelevant; TTS
+    // tests need a populated restBaseURL.
+    getOrThrow: vi.fn(async (key: string) => {
+      if (key === 'UNSPEECH_UPSTREAM')
+        return { restBaseURL: 'http://unspeech.local:5933' }
+      return undefined
+    }),
+    get: vi.fn(),
+    set: vi.fn(),
+  } as unknown as ConfigKVService
+}
+
+function makeConfig(opts: {
+  upstreams?: Array<{ baseURL: string, keyIds: string[], overrideModel?: string, timeoutMs?: number }>
+  fallbackHttpCodes?: number[]
+}): { config: RouterConfig, ciphertextByKey: Map<string, string>, crypto: ReturnType<typeof createEnvelopeCrypto> } {
+  const crypto = createEnvelopeCrypto({ masterKey: freshMasterKey() })
+  const modelName = 'openai/gpt-5-mini'
+  const ciphertextByKey = new Map<string, string>()
+
+  const upstreams = opts.upstreams ?? [{ baseURL: 'https://up-a.example/v1', keyIds: ['kA1'] }]
+  const upstreamConfigs = upstreams.map(u => ({
+    baseURL: u.baseURL,
+    overrideModel: u.overrideModel,
+    headerTemplate: 'Bearer {KEY}',
+    timeoutMs: u.timeoutMs,
+    keys: u.keyIds.map((id) => {
+      const plaintext = `sk-${id}`
+      const ct = crypto.encryptKey(plaintext, { modelName, keyEntryId: id })
+      ciphertextByKey.set(id, ct)
+      return { id, ciphertext: ct }
+    }),
+  }))
+
+  const config: RouterConfig = {
+    llm: {
+      models: {
+        [modelName]: {
+          upstreams: upstreamConfigs,
+          fallbackTriggers: {
+            httpCodes: opts.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504],
+            onTimeout: true,
+          },
+        },
+      },
+    },
+    tts: { models: {} },
+    defaults: {
+      perAttemptTimeoutMs: 30000,
+      fullChainTimeoutMs: 60000,
+      fallbackHttpCodes: opts.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504],
+    },
+  } as RouterConfig
+
+  return { config, ciphertextByKey, crypto }
+}
+
+function happyResponse(bodyJson: object) {
+  return new Response(JSON.stringify(bodyJson), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  })
+}
+
+function failResponse(status: number, body: object = { error: 'bad' }) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  })
 }
 
 describe('createLlmRouterService', () => {
@@ -162,15 +162,15 @@ describe('createLlmRouterService', () => {
     const metrics = makeMetrics()
 
     const router = createLlmRouterService({
-      concurrencyLedger: makeLedger(),
       configKV: makeConfigKV(config),
       envelopeCrypto: crypto,
-      fetchImpl,
       gatewayMetrics: metrics,
+      fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
-    const res = await router.route({ body: { messages: [] }, modelName: 'openai/gpt-5-mini' })
+    const res = await router.route({ modelName: 'openai/gpt-5-mini', body: { messages: [] } })
     expect(res.status).toBe(200)
     expect(fetchImpl.mock.calls.length).toBe(1)
     expect((metrics.fallbackCount.add as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0)
@@ -188,16 +188,16 @@ describe('createLlmRouterService', () => {
     const { config, crypto } = makeConfig({ upstreams: [{ baseURL: 'https://up.example/v1', keyIds: ['kA1'] }] })
     const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 }))
     const router = createLlmRouterService({
-      concurrencyLedger: makeLedger(),
       configKV: makeConfigKV(config),
       envelopeCrypto: crypto,
-      fetchImpl,
       gatewayMetrics: null,
+      fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
-    const ctx: LlmRouteContext = { lastStatus: null, provider: 'unknown', triedKeys: 0, triedUpstreams: 0 }
-    const res = await router.route({ body: { messages: [] }, modelName: 'openai/gpt-5-mini' }, ctx)
+    const ctx: LlmRouteContext = { provider: 'unknown', triedUpstreams: 0, triedKeys: 0, lastStatus: null }
+    const res = await router.route({ modelName: 'openai/gpt-5-mini', body: { messages: [] } }, ctx)
     expect(res.status).toBe(200)
     // deriveProviderTag = URL hostname.
     expect(ctx.provider).toBe('up.example')
@@ -220,16 +220,16 @@ describe('createLlmRouterService', () => {
       .mockResolvedValueOnce(failResponse(401))
       .mockResolvedValueOnce(happyResponse({ ok: 1 }))
     const router = createLlmRouterService({
-      concurrencyLedger: makeLedger(),
       configKV: makeConfigKV(config),
       envelopeCrypto: crypto,
-      fetchImpl,
       gatewayMetrics: makeMetrics(),
+      fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
-    const ctx: LlmRouteContext = { lastStatus: null, provider: 'unknown', triedKeys: 0, triedUpstreams: 0 }
-    const res = await router.route({ body: {}, modelName: 'openai/gpt-5-mini' }, ctx)
+    const ctx: LlmRouteContext = { provider: 'unknown', triedUpstreams: 0, triedKeys: 0, lastStatus: null }
+    const res = await router.route({ modelName: 'openai/gpt-5-mini', body: {} }, ctx)
     expect(res.status).toBe(200)
     expect(ctx.provider).toBe('up-b.example')
   })
@@ -239,25 +239,25 @@ describe('createLlmRouterService', () => {
     const fetchImpl: typeof fetch = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
 
     const router = createLlmRouterService({
-      concurrencyLedger: makeLedger(),
       configKV: makeConfigKV(config),
       envelopeCrypto: crypto,
-      fetchImpl,
       gatewayMetrics: null,
+      fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
-    await router.route({ body: { messages: [{ content: 'hi', role: 'user' }] }, modelName: 'openai/gpt-5-mini' })
+    await router.route({ modelName: 'openai/gpt-5-mini', body: { messages: [{ role: 'user', content: 'hi' }] } })
 
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
     expect(calls[0][0]).toBe('https://up.example/v1/chat/completions')
-    const init = calls[0][1] as Parameters<typeof fetch>[1] & { body: string, headers: Record<string, string>, method: string }
+    const init = calls[0][1] as Parameters<typeof fetch>[1] & { headers: Record<string, string>, body: string, method: string }
     expect(init.headers.authorization).toBe('Bearer sk-kA1')
     expect(init.headers['content-type']).toBe('application/json')
     expect(init.method).toBe('POST')
-    const sent = JSON.parse(init.body) as { messages: unknown, model: string }
+    const sent = JSON.parse(init.body) as { model: string, messages: unknown }
     expect(sent.model).toBe('openai/gpt-5-mini')
-    expect(sent.messages).toEqual([{ content: 'hi', role: 'user' }])
+    expect(sent.messages).toEqual([{ role: 'user', content: 'hi' }])
   })
 
   it('uses upstream.overrideModel when set (so admin can rewrite the model id sent upstream)', async () => {
@@ -265,16 +265,16 @@ describe('createLlmRouterService', () => {
     const fetchImpl: typeof fetch = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
 
     const router = createLlmRouterService({
-      concurrencyLedger: makeLedger(),
       configKV: makeConfigKV(config),
       envelopeCrypto: crypto,
-      fetchImpl,
       gatewayMetrics: null,
+      fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
-    const ctx: LlmRouteContext = { lastStatus: null, provider: 'unknown', triedKeys: 0, triedUpstreams: 0 }
-    await router.route({ body: { messages: [] }, modelName: 'openai/gpt-5-mini' }, ctx)
+    const ctx: LlmRouteContext = { provider: 'unknown', triedUpstreams: 0, triedKeys: 0, lastStatus: null }
+    await router.route({ modelName: 'openai/gpt-5-mini', body: { messages: [] } }, ctx)
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
     const init = calls[0][1] as { body: string }
     expect((JSON.parse(init.body) as { model: string }).model).toBe('real/upstream-id')
@@ -289,15 +289,15 @@ describe('createLlmRouterService', () => {
     const metrics = makeMetrics()
 
     const router = createLlmRouterService({
-      concurrencyLedger: makeLedger(),
       configKV: makeConfigKV(config),
       envelopeCrypto: crypto,
-      fetchImpl,
       gatewayMetrics: metrics,
+      fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
-    const res = await router.route({ body: {}, modelName: 'openai/gpt-5-mini' })
+    const res = await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
     expect(res.status).toBe(200)
     expect(fetchImpl.mock.calls.length).toBe(2)
 
@@ -324,15 +324,15 @@ describe('createLlmRouterService', () => {
     const metrics = makeMetrics()
 
     const router = createLlmRouterService({
-      concurrencyLedger: makeLedger(),
       configKV: makeConfigKV(config),
       envelopeCrypto: crypto,
-      fetchImpl,
       gatewayMetrics: metrics,
+      fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
-    const res = await router.route({ body: {}, modelName: 'openai/gpt-5-mini' })
+    const res = await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
     expect(res.status).toBe(200)
     expect(fetchImpl.mock.calls.length).toBe(3)
 
@@ -351,23 +351,23 @@ describe('createLlmRouterService', () => {
     const metrics = makeMetrics()
 
     const router = createLlmRouterService({
-      concurrencyLedger: makeLedger(),
       configKV: makeConfigKV(config),
       envelopeCrypto: crypto,
-      fetchImpl,
       gatewayMetrics: metrics,
+      fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     try {
-      await router.route({ body: {}, modelName: 'openai/gpt-5-mini' })
+      await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
       throw new Error('expected throw')
     }
     catch (err) {
       expect(err).toBeInstanceOf(ApiError)
       expect((err as ApiError).statusCode).toBe(502)
       expect((err as ApiError).errorCode).toBe('BAD_GATEWAY')
-      expect((err as ApiError).details).toMatchObject({ lastStatusCode: 401, triedKeys: 2, triedUpstreams: 2 })
+      expect((err as ApiError).details).toMatchObject({ triedKeys: 2, triedUpstreams: 2, lastStatusCode: 401 })
     }
 
     const exhaustionCalls = (metrics.keyExhaustedCount.add as ReturnType<typeof vi.fn>).mock.calls
@@ -400,26 +400,26 @@ describe('createLlmRouterService', () => {
       ],
     })
     const fetchImpl = vi.fn()
-      .mockResolvedValueOnce(failResponse(401, { error: { code: 'AUTH', message: 'key disabled' } }))
+      .mockResolvedValueOnce(failResponse(401, { error: { message: 'key disabled', code: 'AUTH' } }))
       .mockImplementationOnce(async () => { throw new Error('ECONNRESET while reading response') })
 
     const router = createLlmRouterService({
-      concurrencyLedger: makeLedger(),
       configKV: makeConfigKV(config),
       envelopeCrypto: crypto,
-      fetchImpl,
       gatewayMetrics: null,
+      fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     try {
-      await router.route({ body: {}, modelName: 'openai/gpt-5-mini' })
+      await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
       throw new Error('expected throw')
     }
     catch (err) {
       expect(err).toBeInstanceOf(ApiError)
       // Client-facing surface stays SEC-5 clean — no body content here.
-      expect((err as ApiError).details).toMatchObject({ lastStatusCode: 'timeout', triedKeys: 2, triedUpstreams: 2 })
+      expect((err as ApiError).details).toMatchObject({ triedKeys: 2, triedUpstreams: 2, lastStatusCode: 'timeout' })
       expect(JSON.stringify((err as ApiError).details)).not.toContain('key disabled')
 
       // Server-side cause carries the actual diagnostics.
@@ -450,15 +450,15 @@ describe('createLlmRouterService', () => {
     const metrics = makeMetrics()
 
     const router = createLlmRouterService({
-      concurrencyLedger: makeLedger(),
       configKV: makeConfigKV(config),
       envelopeCrypto: crypto,
-      fetchImpl,
       gatewayMetrics: metrics,
+      fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
-    await expect(router.route({ body: {}, modelName: 'openai/gpt-5-mini' })).rejects.toMatchObject({ errorCode: 'SERVICE_UNAVAILABLE', statusCode: 503 })
+    await expect(router.route({ modelName: 'openai/gpt-5-mini', body: {} })).rejects.toMatchObject({ statusCode: 503, errorCode: 'SERVICE_UNAVAILABLE' })
 
     const calls = (metrics.sameStatusExhaustion.add as ReturnType<typeof vi.fn>).mock.calls
     expect(calls.length).toBe(2)
@@ -480,23 +480,23 @@ describe('createLlmRouterService', () => {
       .mockImplementationOnce(async () => { throw new Error('ETIMEDOUT') })
 
     const router = createLlmRouterService({
-      concurrencyLedger: makeLedger(),
       configKV: makeConfigKV(config),
       envelopeCrypto: crypto,
-      fetchImpl,
       gatewayMetrics: null,
+      fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     try {
-      await router.route({ body: {}, modelName: 'openai/gpt-5-mini' })
+      await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
       throw new Error('expected throw')
     }
     catch (err) {
       expect(err).toBeInstanceOf(ApiError)
       expect((err as ApiError).statusCode).toBe(504)
       expect((err as ApiError).errorCode).toBe('GATEWAY_TIMEOUT')
-      expect((err as ApiError).details).toMatchObject({ lastStatusCode: 'timeout', triedKeys: 3, triedUpstreams: 2 })
+      expect((err as ApiError).details).toMatchObject({ triedKeys: 3, triedUpstreams: 2, lastStatusCode: 'timeout' })
     }
   })
 
@@ -527,15 +527,15 @@ describe('createLlmRouterService', () => {
       .mockResolvedValueOnce(happyResponse({ ok: 1 }))
 
     const router = createLlmRouterService({
-      concurrencyLedger: makeLedger(),
       configKV: makeConfigKV(config),
       envelopeCrypto: crypto,
-      fetchImpl,
       gatewayMetrics: null,
+      fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
-    const res = await router.route({ body: {}, modelName: 'openai/gpt-5-mini' })
+    const res = await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
     expect(res.status).toBe(200)
     expect(firstCallSawAbort).toBe(true)
     expect(fetchImpl.mock.calls.length).toBe(2)
@@ -558,16 +558,16 @@ describe('createLlmRouterService', () => {
     })
 
     const router = createLlmRouterService({
-      concurrencyLedger: makeLedger(),
       configKV: makeConfigKV(config),
       envelopeCrypto: crypto,
-      fetchImpl,
       gatewayMetrics: null,
+      fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     try {
-      await router.route({ body: {}, modelName: 'openai/gpt-5-mini' })
+      await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
       throw new Error('expected throw')
     }
     catch (err) {
@@ -584,16 +584,16 @@ describe('createLlmRouterService', () => {
     const metrics = makeMetrics()
 
     const router = createLlmRouterService({
-      concurrencyLedger: makeLedger(),
       configKV: makeConfigKV(config),
       envelopeCrypto: crypto,
-      fetchImpl,
       gatewayMetrics: metrics,
+      fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
     try {
-      await router.route({ body: {}, modelName: 'nope/unknown' })
+      await router.route({ modelName: 'nope/unknown', body: {} })
       throw new Error('expected throw')
     }
     catch (err) {
@@ -610,15 +610,15 @@ describe('createLlmRouterService', () => {
     const crypto = createEnvelopeCrypto({ masterKey: freshMasterKey() })
     const fetchImpl = vi.fn()
     const router = createLlmRouterService({
-      concurrencyLedger: makeLedger(),
       configKV: makeConfigKV(null),
       envelopeCrypto: crypto,
-      fetchImpl,
       gatewayMetrics: null,
+      fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
-    await expect(router.route({ body: {}, modelName: 'whatever' })).rejects.toMatchObject({ errorCode: 'CONFIG_NOT_SET', statusCode: 503 })
+    await expect(router.route({ modelName: 'whatever', body: {} })).rejects.toMatchObject({ statusCode: 503, errorCode: 'CONFIG_NOT_SET' })
     expect(fetchImpl.mock.calls.length).toBe(0)
   })
 
@@ -629,15 +629,15 @@ describe('createLlmRouterService', () => {
     ctrl.abort(new Error('client-disconnected'))
 
     const router = createLlmRouterService({
-      concurrencyLedger: makeLedger(),
       configKV: makeConfigKV(config),
       envelopeCrypto: crypto,
-      fetchImpl,
       gatewayMetrics: null,
+      fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
-    await expect(router.route({ abortSignal: ctrl.signal, body: {}, modelName: 'openai/gpt-5-mini' })).rejects.toThrow(/client-disconnected/)
+    await expect(router.route({ modelName: 'openai/gpt-5-mini', body: {}, abortSignal: ctrl.signal })).rejects.toThrow(/client-disconnected/)
     expect(fetchImpl.mock.calls.length).toBe(0)
   })
 
@@ -661,15 +661,15 @@ describe('createLlmRouterService', () => {
     })
 
     const router = createLlmRouterService({
-      concurrencyLedger: makeLedger(),
       configKV: makeConfigKV(config),
       envelopeCrypto: crypto,
-      fetchImpl,
       gatewayMetrics: null,
+      fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
-    await expect(router.route({ abortSignal: ctrl.signal, body: {}, modelName: 'openai/gpt-5-mini' })).rejects.toThrow(/client-disconnected/)
+    await expect(router.route({ modelName: 'openai/gpt-5-mini', body: {}, abortSignal: ctrl.signal })).rejects.toThrow(/client-disconnected/)
     // No fallback to k2: caller-abort short-circuits the loop.
     expect(fetchImpl.mock.calls.length).toBe(1)
   })
@@ -680,17 +680,17 @@ describe('createLlmRouterService', () => {
     const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 }))
 
     const router = createLlmRouterService({
-      concurrencyLedger: makeLedger(),
       configKV,
       envelopeCrypto: crypto,
-      fetchImpl,
       gatewayMetrics: null,
+      fetchImpl,
       redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
     })
 
-    await router.route({ body: {}, modelName: 'openai/gpt-5-mini' })
+    await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
     router.invalidateConfig()
-    await router.route({ body: {}, modelName: 'openai/gpt-5-mini' })
+    await router.route({ modelName: 'openai/gpt-5-mini', body: {} })
 
     // 2 fetches + 2 configKV reads (because invalidate fired between them)
     expect(fetchImpl.mock.calls.length).toBe(2)
@@ -714,42 +714,42 @@ describe('createLlmRouterService', () => {
         routing: {
           groups: [
             {
-              continueOn: {
-                httpCodes: [402],
-                onTimeout: false,
-              },
               id: 'plan',
+              upstreamIds: ['plan-a', 'plan-b'],
               retryOn: {
                 httpCodes: [402, 429, 500, 502, 503, 504],
                 onTimeout: true,
               },
-              upstreamIds: ['plan-a', 'plan-b'],
+              continueOn: {
+                httpCodes: [402],
+                onTimeout: false,
+              },
             },
             {
               id: 'paygo',
+              upstreamIds: ['paygo'],
               retryOn: {
                 httpCodes: [429, 500, 502, 503, 504],
                 onTimeout: true,
               },
-              upstreamIds: ['paygo'],
             },
           ],
         },
       })
 
       return createLlmRouterService({
-        concurrencyLedger: makeLedger(),
         configKV: makeConfigKV(config),
         envelopeCrypto: crypto,
-        fetchImpl,
         gatewayMetrics: makeMetrics(),
+        fetchImpl,
         redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
       })
     }
 
     it('uses the ordinary LLM API only after every Plan account returns 402', async () => {
       const calledURLs: string[] = []
-      const fetchImpl = vi.fn(async (input: Request | string | URL) => {
+      const fetchImpl = vi.fn(async (input: string | URL | Request) => {
         const url = String(input)
         calledURLs.push(url)
         if (url.includes('/step_plan/'))
@@ -759,8 +759,8 @@ describe('createLlmRouterService', () => {
 
       const router = makeGroupedLlmRouter(fetchImpl)
       const response = await router.route({
-        body: { messages: [] },
         modelName: 'openai/gpt-5-mini',
+        body: { messages: [] },
       })
 
       expect(response.status).toBe(200)
@@ -773,7 +773,7 @@ describe('createLlmRouterService', () => {
 
     it('does not spend ordinary LLM API balance when the Plan group is rate-limited', async () => {
       const calledURLs: string[] = []
-      const fetchImpl = vi.fn(async (input: Request | string | URL) => {
+      const fetchImpl = vi.fn(async (input: string | URL | Request) => {
         calledURLs.push(String(input))
         return failResponse(429)
       }) as unknown as typeof fetch
@@ -781,8 +781,8 @@ describe('createLlmRouterService', () => {
       const router = makeGroupedLlmRouter(fetchImpl)
 
       await expect(router.route({
-        body: { messages: [] },
         modelName: 'openai/gpt-5-mini',
+        body: { messages: [] },
       })).rejects.toBeInstanceOf(ApiError)
 
       expect(calledURLs).toEqual([
@@ -794,7 +794,7 @@ describe('createLlmRouterService', () => {
 
     it('stops the LLM provider route immediately on Plan authentication failure', async () => {
       const calledURLs: string[] = []
-      const fetchImpl = vi.fn(async (input: Request | string | URL) => {
+      const fetchImpl = vi.fn(async (input: string | URL | Request) => {
         calledURLs.push(String(input))
         return failResponse(401)
       }) as unknown as typeof fetch
@@ -802,8 +802,8 @@ describe('createLlmRouterService', () => {
       const router = makeGroupedLlmRouter(fetchImpl)
 
       await expect(router.route({
-        body: { messages: [] },
         modelName: 'openai/gpt-5-mini',
+        body: { messages: [] },
       })).rejects.toBeInstanceOf(ApiError)
 
       expect(calledURLs).toEqual([
@@ -829,35 +829,35 @@ describe('createLlmRouterService', () => {
   describe('routeTts adapter error handling', () => {
     function makeTtsConfig(opts: {
       provider?: 'azure'
-      upstreams?: Array<{ adapterParams?: Record<string, unknown>, baseURL: string, keyIds: string[] }>
+      upstreams?: Array<{ baseURL: string, keyIds: string[], adapterParams?: Record<string, unknown> }>
     }): { config: RouterConfig, crypto: ReturnType<typeof createEnvelopeCrypto> } {
       const crypto = createEnvelopeCrypto({ masterKey: freshMasterKey() })
       const modelName = 'tts-test'
       const upstreams = opts.upstreams ?? [{ baseURL: 'https://up-a.example', keyIds: ['kA1'] }]
       const upstreamConfigs = upstreams.map(u => ({
-        adapterParams: u.adapterParams ?? {},
         baseURL: u.baseURL,
         keys: u.keyIds.map((id) => {
           const plaintext = `sk-${id}`
-          const ct = crypto.encryptKey(plaintext, { keyEntryId: id, modelName })
-          return { ciphertext: ct, id }
+          const ct = crypto.encryptKey(plaintext, { modelName, keyEntryId: id })
+          return { id, ciphertext: ct }
         }),
+        adapterParams: u.adapterParams ?? {},
       }))
       const config: RouterConfig = {
-        defaults: {
-          fallbackHttpCodes: [401, 429, 500, 502, 503, 504],
-          fullChainTimeoutMs: 10000,
-          perAttemptTimeoutMs: 5000,
-        },
         llm: { models: {} },
         tts: {
           models: {
             [modelName]: {
-              fallbackTriggers: { httpCodes: [401, 429, 500, 502, 503, 504], onTimeout: true },
               provider: opts.provider ?? 'azure',
               upstreams: upstreamConfigs,
+              fallbackTriggers: { httpCodes: [401, 429, 500, 502, 503, 504], onTimeout: true },
             },
           },
+        },
+        defaults: {
+          perAttemptTimeoutMs: 5000,
+          fullChainTimeoutMs: 10000,
+          fallbackHttpCodes: [401, 429, 500, 502, 503, 504],
         },
       } as RouterConfig
       return { config, crypto }
@@ -872,19 +872,19 @@ describe('createLlmRouterService', () => {
       const metrics = makeMetrics()
 
       const router = createLlmRouterService({
-        concurrencyLedger: makeLedger(),
         configKV: makeConfigKV(config),
         envelopeCrypto: crypto,
-        fetchImpl,
         gatewayMetrics: metrics,
+        fetchImpl,
         redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
       })
 
       let caught: unknown
       try {
         await router.routeTts({
-          input: { text: 'hi', voice: 'bogus voice with spaces' },
           modelName: 'tts-test',
+          input: { text: 'hi', voice: 'bogus voice with spaces' },
         })
       }
       catch (err) {
@@ -904,29 +904,29 @@ describe('createLlmRouterService', () => {
       // azure adapter wraps a fetch reject as createInternalError(500).
       // The router should treat that as a fallback-eligible network failure
       // and try the second key — not propagate the 500 as a final error.
-      const { config, crypto } = makeTtsConfig({ upstreams: [{ adapterParams: { region: 'eastasia' }, baseURL: 'https://az.example', keyIds: ['kA1', 'kA2'] }] })
+      const { config, crypto } = makeTtsConfig({ upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1', 'kA2'], adapterParams: { region: 'eastasia' } }] })
 
       let callIdx = 0
       const fetchImpl = vi.fn(async () => {
         callIdx += 1
         if (callIdx === 1)
           throw new TypeError('network unreachable')
-        return new Response(new Uint8Array([0x01]), { headers: { 'content-type': 'audio/mpeg' }, status: 200 })
+        return new Response(new Uint8Array([0x01]), { status: 200, headers: { 'content-type': 'audio/mpeg' } })
       })
       const metrics = makeMetrics()
 
       const router = createLlmRouterService({
-        concurrencyLedger: makeLedger(),
         configKV: makeConfigKV(config),
         envelopeCrypto: crypto,
-        fetchImpl,
         gatewayMetrics: metrics,
+        fetchImpl,
         redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
       })
 
       const res = await router.routeTts({
-        input: { text: 'hi', voice: 'en-US-AvaMultilingualNeural' },
         modelName: 'tts-test',
+        input: { text: 'hi', voice: 'en-US-AvaMultilingualNeural' },
       })
 
       expect(res.status).toBe(200)
@@ -940,29 +940,29 @@ describe('createLlmRouterService', () => {
       // azure adapter throws `Error & { status: number }` on upstream non-2xx
       // (see azure.ts:189-194). 401 is in fallbackHttpCodes so we must try
       // the next key.
-      const { config, crypto } = makeTtsConfig({ upstreams: [{ adapterParams: { region: 'eastasia' }, baseURL: 'https://az.example', keyIds: ['kA1', 'kA2'] }] })
+      const { config, crypto } = makeTtsConfig({ upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1', 'kA2'], adapterParams: { region: 'eastasia' } }] })
 
       let callIdx = 0
       const fetchImpl = vi.fn(async () => {
         callIdx += 1
         if (callIdx === 1)
           return failResponse(401)
-        return new Response(new Uint8Array([0x01]), { headers: { 'content-type': 'audio/mpeg' }, status: 200 })
+        return new Response(new Uint8Array([0x01]), { status: 200, headers: { 'content-type': 'audio/mpeg' } })
       })
       const metrics = makeMetrics()
 
       const router = createLlmRouterService({
-        concurrencyLedger: makeLedger(),
         configKV: makeConfigKV(config),
         envelopeCrypto: crypto,
-        fetchImpl,
         gatewayMetrics: metrics,
+        fetchImpl,
         redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
       })
 
       const res = await router.routeTts({
-        input: { text: 'hi', voice: 'en-US-AvaMultilingualNeural' },
         modelName: 'tts-test',
+        input: { text: 'hi', voice: 'en-US-AvaMultilingualNeural' },
       })
 
       expect(res.status).toBe(200)
@@ -978,26 +978,26 @@ describe('createLlmRouterService', () => {
     it('records a terminal TTS exhaustion with its final status', async () => {
       const { config, crypto } = makeTtsConfig({
         upstreams: [{
-          adapterParams: { region: 'eastasia' },
           baseURL: 'https://az.example',
           keyIds: ['kA1'],
+          adapterParams: { region: 'eastasia' },
         }],
       })
       const fetchImpl = vi.fn(async () => failResponse(451))
       const metrics = makeMetrics()
 
       const router = createLlmRouterService({
-        concurrencyLedger: makeLedger(),
         configKV: makeConfigKV(config),
         envelopeCrypto: crypto,
-        fetchImpl,
         gatewayMetrics: metrics,
+        fetchImpl,
         redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
       })
 
       await expect(router.routeTts({
-        input: { text: 'hi', voice: 'en-US-AvaMultilingualNeural' },
         modelName: 'tts-test',
+        input: { text: 'hi', voice: 'en-US-AvaMultilingualNeural' },
       })).rejects.toMatchObject({ statusCode: 502 })
 
       const exhaustionCalls = (metrics.keyExhaustedCount.add as ReturnType<typeof vi.fn>).mock.calls
@@ -1022,7 +1022,7 @@ describe('createLlmRouterService', () => {
       // provider/model cache key. Failures are still returned to every caller and
       // are not cached.
       const { config, crypto } = makeTtsConfig({
-        upstreams: [{ adapterParams: { region: 'eastasia' }, baseURL: 'https://az.example', keyIds: ['kA1'] }],
+        upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1'], adapterParams: { region: 'eastasia' } }],
       })
 
       let resolveFetch!: () => void
@@ -1033,12 +1033,12 @@ describe('createLlmRouterService', () => {
       }))
 
       const router = createLlmRouterService({
-        concurrencyLedger: makeLedger(),
         configKV: makeConfigKV(config),
         envelopeCrypto: crypto,
-        fetchImpl,
         gatewayMetrics: null,
+        fetchImpl,
         redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
       })
 
       const first = router.listTtsVoices('tts-test')
@@ -1068,83 +1068,83 @@ describe('createLlmRouterService', () => {
       const modelName = 'stepfun/stepaudio-2.5-tts'
       const upstreams = [
         {
-          baseURL: 'https://api.stepfun.com',
-          endpointProfile: 'step-plan',
           id: 'plan-a',
+          baseURL: 'https://api.stepfun.com',
           keyId: 'plan-key-a',
-        },
-        {
-          baseURL: 'https://api.stepfun.com',
           endpointProfile: 'step-plan',
-          id: 'plan-b',
-          keyId: 'plan-key-b',
         },
         {
+          id: 'plan-b',
           baseURL: 'https://api.stepfun.com',
-          endpointProfile: 'default',
+          keyId: 'plan-key-b',
+          endpointProfile: 'step-plan',
+        },
+        {
           id: 'paygo',
+          baseURL: 'https://api.stepfun.com',
           keyId: 'paygo-key',
+          endpointProfile: 'default',
         },
       ].map(upstream => ({
+        id: upstream.id,
+        baseURL: upstream.baseURL,
+        keys: [{
+          id: upstream.keyId,
+          ciphertext: crypto.encryptKey(`sk-${upstream.keyId}`, {
+            modelName,
+            keyEntryId: upstream.keyId,
+          }),
+        }],
         adapterParams: {
           endpointProfile: upstream.endpointProfile,
           model: 'stepaudio-2.5-tts',
         },
-        baseURL: upstream.baseURL,
-        id: upstream.id,
-        keys: [{
-          ciphertext: crypto.encryptKey(`sk-${upstream.keyId}`, {
-            keyEntryId: upstream.keyId,
-            modelName,
-          }),
-          id: upstream.keyId,
-        }],
       }))
 
       const config = {
-        defaults: {
-          fallbackHttpCodes: [401, 402, 429, 500, 502, 503, 504],
-          fullChainTimeoutMs: 10000,
-          perAttemptTimeoutMs: 5000,
-        },
         llm: { models: {} },
         tts: {
           models: {
             [modelName]: {
-              fallbackTriggers: {
-                httpCodes: [401, 402, 429, 500, 502, 503, 504],
-                onTimeout: true,
-              },
               provider: 'stepfun',
+              upstreams,
               routing: {
                 groups: [
                   {
-                    continueOn: {
-                      httpCodes: [402],
-                      onTimeout: false,
-                    },
                     id: 'plan',
+                    upstreamIds: ['plan-a', 'plan-b'],
+                    strategy: 'ordered',
                     retryOn: {
                       httpCodes: [402, 429, 500, 502, 503, 504],
                       onTimeout: true,
                     },
-                    strategy: 'ordered',
-                    upstreamIds: ['plan-a', 'plan-b'],
+                    continueOn: {
+                      httpCodes: [402],
+                      onTimeout: false,
+                    },
                   },
                   {
                     id: 'paygo',
+                    upstreamIds: ['paygo'],
+                    strategy: 'ordered',
                     retryOn: {
                       httpCodes: [429, 500, 502, 503, 504],
                       onTimeout: true,
                     },
-                    strategy: 'ordered',
-                    upstreamIds: ['paygo'],
                   },
                 ],
               },
-              upstreams,
+              fallbackTriggers: {
+                httpCodes: [401, 402, 429, 500, 502, 503, 504],
+                onTimeout: true,
+              },
             },
           },
+        },
+        defaults: {
+          perAttemptTimeoutMs: 5000,
+          fullChainTimeoutMs: 10000,
+          fallbackHttpCodes: [401, 402, 429, 500, 502, 503, 504],
         },
       } as unknown as RouterConfig
 
@@ -1156,33 +1156,33 @@ describe('createLlmRouterService', () => {
     ): ReturnType<typeof createLlmRouterService> {
       const { config, crypto } = makeGroupedStepfunConfig()
       return createLlmRouterService({
-        concurrencyLedger: makeLedger(),
         configKV: makeConfigKV(config),
         envelopeCrypto: crypto,
-        fetchImpl,
         gatewayMetrics: makeMetrics(),
+        fetchImpl,
         redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
       })
     }
 
     it('uses pay-as-you-go only after every Plan account reports quota exhaustion', async () => {
       const calledProfiles: string[] = []
-      const fetchImpl = vi.fn(async (input: Request | string | URL, init?: RequestInit) => {
+      const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
         expect(String(input)).toBe('http://unspeech.local:5933/v1/audio/speech')
         const profile = endpointProfileFrom(init)
         calledProfiles.push(profile)
         if (profile === 'step-plan')
           return failResponse(402, { error: { code: 'quota_exceeded' } })
         return new Response(new Uint8Array([0x01]), {
-          headers: { 'content-type': 'audio/mpeg' },
           status: 200,
+          headers: { 'content-type': 'audio/mpeg' },
         })
       }) as unknown as typeof fetch
 
       const router = makeGroupedStepfunRouter(fetchImpl)
       const response = await router.routeTts({
-        input: { text: '你好' },
         modelName: 'stepfun/stepaudio-2.5-tts',
+        input: { text: '你好' },
       })
 
       expect(response.status).toBe(200)
@@ -1191,19 +1191,19 @@ describe('createLlmRouterService', () => {
 
     it('stays inside the Plan group when a Plan account succeeds', async () => {
       const calledProfiles: string[] = []
-      const fetchImpl = vi.fn(async (input: Request | string | URL, init?: RequestInit) => {
+      const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
         expect(String(input)).toBe('http://unspeech.local:5933/v1/audio/speech')
         calledProfiles.push(endpointProfileFrom(init))
         return new Response(new Uint8Array([0x01]), {
-          headers: { 'content-type': 'audio/mpeg' },
           status: 200,
+          headers: { 'content-type': 'audio/mpeg' },
         })
       }) as unknown as typeof fetch
 
       const router = makeGroupedStepfunRouter(fetchImpl)
       const response = await router.routeTts({
-        input: { text: '你好' },
         modelName: 'stepfun/stepaudio-2.5-tts',
+        input: { text: '你好' },
       })
 
       expect(response.status).toBe(200)
@@ -1218,21 +1218,21 @@ describe('createLlmRouterService', () => {
       })
       Object.assign(configKV, { getOrThrow })
       const fetchImpl = vi.fn(async () => new Response(new Uint8Array([0x01]), {
-        headers: { 'content-type': 'audio/mpeg' },
         status: 200,
+        headers: { 'content-type': 'audio/mpeg' },
       })) as unknown as typeof fetch
       const router = createLlmRouterService({
-        concurrencyLedger: makeLedger(),
         configKV,
         envelopeCrypto: crypto,
-        fetchImpl,
         gatewayMetrics: makeMetrics(),
+        fetchImpl,
         redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
       })
 
       await expect(router.routeTts({
-        input: { text: '你好' },
         modelName: 'stepfun/stepaudio-2.5-tts',
+        input: { text: '你好' },
       })).rejects.toThrow('UNSPEECH_UPSTREAM not configured')
 
       expect(fetchImpl).not.toHaveBeenCalled()
@@ -1248,12 +1248,12 @@ describe('createLlmRouterService', () => {
       Object.assign(configKV, { getOrThrow })
       const fetchImpl = vi.fn() as unknown as typeof fetch
       const router = createLlmRouterService({
-        concurrencyLedger: makeLedger(),
         configKV,
         envelopeCrypto: crypto,
-        fetchImpl,
         gatewayMetrics: makeMetrics(),
+        fetchImpl,
         redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
       })
 
       await expect(
@@ -1273,14 +1273,14 @@ describe('createLlmRouterService', () => {
         onTimeout: false,
       }
       const calledProfiles: string[] = []
-      const fetchImpl = vi.fn((input: Request | string | URL, init?: RequestInit) => {
+      const fetchImpl = vi.fn((input: string | URL | Request, init?: RequestInit) => {
         expect(String(input)).toBe('http://unspeech.local:5933/v1/audio/speech')
         const profile = endpointProfileFrom(init)
         calledProfiles.push(profile)
         if (profile !== 'step-plan') {
           return Promise.resolve(new Response(new Uint8Array([0x01]), {
-            headers: { 'content-type': 'audio/mpeg' },
             status: 200,
+            headers: { 'content-type': 'audio/mpeg' },
           }))
         }
 
@@ -1293,20 +1293,20 @@ describe('createLlmRouterService', () => {
         })
       }) as unknown as typeof fetch
       const router = createLlmRouterService({
-        concurrencyLedger: makeLedger(),
         configKV: makeConfigKV(config),
         envelopeCrypto: crypto,
-        fetchImpl,
         gatewayMetrics: makeMetrics(),
+        fetchImpl,
         redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
       })
 
       await expect(router.routeTts({
-        input: { text: '你好' },
         modelName: 'stepfun/stepaudio-2.5-tts',
+        input: { text: '你好' },
       })).rejects.toMatchObject({
-        details: expect.objectContaining({ lastStatusCode: 'timeout' }),
         statusCode: 504,
+        details: expect.objectContaining({ lastStatusCode: 'timeout' }),
       })
 
       expect(calledProfiles).toEqual(['step-plan', 'step-plan'])
@@ -1315,7 +1315,7 @@ describe('createLlmRouterService', () => {
 
     it('does not cross the paid boundary when the Plan group is rate-limited', async () => {
       const calledProfiles: string[] = []
-      const fetchImpl = vi.fn(async (input: Request | string | URL, init?: RequestInit) => {
+      const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
         expect(String(input)).toBe('http://unspeech.local:5933/v1/audio/speech')
         calledProfiles.push(endpointProfileFrom(init))
         return failResponse(429)
@@ -1324,8 +1324,8 @@ describe('createLlmRouterService', () => {
       const router = makeGroupedStepfunRouter(fetchImpl)
 
       await expect(router.routeTts({
-        input: { text: '你好' },
         modelName: 'stepfun/stepaudio-2.5-tts',
+        input: { text: '你好' },
       })).rejects.toBeInstanceOf(ApiError)
 
       expect(calledProfiles).toEqual(['step-plan', 'step-plan'])
@@ -1334,7 +1334,7 @@ describe('createLlmRouterService', () => {
 
     it('stops the provider route immediately on a Plan authentication failure', async () => {
       const calledProfiles: string[] = []
-      const fetchImpl = vi.fn(async (input: Request | string | URL, init?: RequestInit) => {
+      const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
         expect(String(input)).toBe('http://unspeech.local:5933/v1/audio/speech')
         calledProfiles.push(endpointProfileFrom(init))
         return failResponse(401)
@@ -1343,8 +1343,8 @@ describe('createLlmRouterService', () => {
       const router = makeGroupedStepfunRouter(fetchImpl)
 
       await expect(router.routeTts({
-        input: { text: '你好' },
         modelName: 'stepfun/stepaudio-2.5-tts',
+        input: { text: '你好' },
       })).rejects.toBeInstanceOf(ApiError)
 
       expect(calledProfiles).toEqual(['step-plan'])
@@ -1356,32 +1356,32 @@ describe('createLlmRouterService', () => {
     // at `maxConcurrency`. The router spreads load least-inflight-first across pools
     // and circuit-breaks a pool on 429 (app_id concurrency exceeded upstream-side).
     function makePoolConfig(
-      upstreams: Array<{ appid: string, baseURL: string, maxConcurrency?: number }>,
+      upstreams: Array<{ baseURL: string, appid: string, maxConcurrency?: number }>,
     ): { config: RouterConfig, crypto: ReturnType<typeof createEnvelopeCrypto> } {
       const crypto = createEnvelopeCrypto({ masterKey: freshMasterKey() })
       const modelName = 'tts-pool'
       const upstreamConfigs = upstreams.map((u, i) => {
         const id = `k${i}`
-        const ct = crypto.encryptKey(`sk-${id}`, { keyEntryId: id, modelName })
+        const ct = crypto.encryptKey(`sk-${id}`, { modelName, keyEntryId: id })
         return {
-          adapterParams: { appid: u.appid },
           baseURL: u.baseURL,
-          keys: [{ ciphertext: ct, id }],
+          keys: [{ id, ciphertext: ct }],
+          adapterParams: { appid: u.appid },
           ...(u.maxConcurrency != null ? { maxConcurrency: u.maxConcurrency } : {}),
         }
       })
       const config = {
-        defaults: { fallbackHttpCodes: [401, 429, 500, 502, 503, 504], fullChainTimeoutMs: 10000, perAttemptTimeoutMs: 5000 },
         llm: { models: {} },
         tts: {
           models: {
             [modelName]: {
-              fallbackTriggers: { httpCodes: [401, 429, 500, 502, 503, 504], onTimeout: true },
               provider: 'volcengine',
               upstreams: upstreamConfigs,
+              fallbackTriggers: { httpCodes: [401, 429, 500, 502, 503, 504], onTimeout: true },
             },
           },
         },
+        defaults: { perAttemptTimeoutMs: 5000, fullChainTimeoutMs: 10000, fallbackHttpCodes: [401, 429, 500, 502, 503, 504] },
       } as RouterConfig
       return { config, crypto }
     }
@@ -1405,24 +1405,24 @@ describe('createLlmRouterService', () => {
         saturated.add(poolId)
       })
       const ledger: ConcurrencyLedger = {
-        currentInflight: vi.fn(async (poolId: string) => inflight.get(poolId) ?? 0),
-        isSaturated: vi.fn(async (poolId: string) => saturated.has(poolId)),
-        markSaturated,
-        release,
-        snapshot: vi.fn(async () => [...inflight].map(([poolId, n]) => ({ inflight: n, poolId }))),
         tryAcquire,
+        release,
+        markSaturated,
+        isSaturated: vi.fn(async (poolId: string) => saturated.has(poolId)),
+        currentInflight: vi.fn(async (poolId: string) => inflight.get(poolId) ?? 0),
+        snapshot: vi.fn(async () => [...inflight].map(([poolId, n]) => ({ poolId, inflight: n }))),
       }
-      return { inflight, ledger, markSaturated, release, saturated, tryAcquire }
+      return { ledger, inflight, saturated, tryAcquire, release, markSaturated }
     }
 
     function makePoolRouter(config: RouterConfig, crypto: ReturnType<typeof createEnvelopeCrypto>, ledger: ConcurrencyLedger, fetchImpl: typeof fetch) {
       return createLlmRouterService({
-        concurrencyLedger: ledger,
         configKV: makeConfigKV(config),
         envelopeCrypto: crypto,
-        fetchImpl,
         gatewayMetrics: makeMetrics(),
+        fetchImpl,
         redis: makeRedisStub(),
+        concurrencyLedger: ledger,
       })
     }
 
@@ -1430,14 +1430,14 @@ describe('createLlmRouterService', () => {
       // @example two app_ids cap 10, seeded 8 vs 2 in-flight -> the new request
       // goes to the freer pool (app-2), not the config-first pool (app-1).
       const { config, crypto } = makePoolConfig([
-        { appid: 'app-1', baseURL: 'https://up-a.example', maxConcurrency: 10 },
-        { appid: 'app-2', baseURL: 'https://up-b.example', maxConcurrency: 10 },
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 10 },
+        { baseURL: 'https://up-b.example', appid: 'app-2', maxConcurrency: 10 },
       ])
       const { ledger, tryAcquire } = makeStatefulLedger({ 'app-1': 8, 'app-2': 2 })
       const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
 
       const router = makePoolRouter(config, crypto, ledger, fetchImpl)
-      const res = await router.routeTts({ input: { text: 'hi' }, modelName: 'tts-pool' })
+      const res = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
 
       expect(res.status).toBe(200)
       expect(tryAcquire).toHaveBeenCalledTimes(1)
@@ -1446,14 +1446,14 @@ describe('createLlmRouterService', () => {
 
     it('ranks least-inflight accounts by current usage when concurrency caps differ', async () => {
       const { config, crypto } = makePoolConfig([
-        { appid: 'app-1', baseURL: 'https://up-a.example', maxConcurrency: 100 },
-        { appid: 'app-2', baseURL: 'https://up-b.example', maxConcurrency: 10 },
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 100 },
+        { baseURL: 'https://up-b.example', appid: 'app-2', maxConcurrency: 10 },
       ])
       const { ledger, tryAcquire } = makeStatefulLedger({ 'app-1': 50, 'app-2': 0 })
       const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
 
       const router = makePoolRouter(config, crypto, ledger, fetchImpl)
-      const response = await router.routeTts({ input: { text: 'hi' }, modelName: 'tts-pool' })
+      const response = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
 
       expect(response.status).toBe(200)
       expect(tryAcquire).toHaveBeenCalledTimes(1)
@@ -1465,50 +1465,50 @@ describe('createLlmRouterService', () => {
       const modelName = 'stepfun/stepaudio-2.5-tts'
       const keyEntryId = 'plan-key'
       const config = {
-        defaults: {
-          fallbackHttpCodes: [402, 429, 500, 502, 503, 504],
-          fullChainTimeoutMs: 10000,
-          perAttemptTimeoutMs: 5000,
-        },
         llm: { models: {} },
         tts: {
           models: {
             [modelName]: {
-              fallbackTriggers: { httpCodes: [402, 429, 500, 502, 503, 504], onTimeout: true },
               provider: 'stepfun',
-              routing: {
-                groups: [{
-                  id: 'plan',
-                  retryOn: { httpCodes: [402, 429, 500, 502, 503, 504], onTimeout: true },
-                  strategy: 'least-inflight',
-                  upstreamIds: ['plan'],
-                }],
-              },
               upstreams: [{
+                id: 'plan',
+                baseURL: 'https://api.stepfun.com',
+                keys: [{
+                  id: keyEntryId,
+                  ciphertext: crypto.encryptKey('sk-plan', { modelName, keyEntryId }),
+                }],
                 adapterParams: {
                   endpointProfile: 'step-plan',
                   model: 'stepaudio-2.5-tts',
                 },
-                baseURL: 'https://api.stepfun.com',
-                id: 'plan',
-                keys: [{
-                  ciphertext: crypto.encryptKey('sk-plan', { keyEntryId, modelName }),
-                  id: keyEntryId,
-                }],
                 maxConcurrency: 1,
               }],
+              routing: {
+                groups: [{
+                  id: 'plan',
+                  upstreamIds: ['plan'],
+                  strategy: 'least-inflight',
+                  retryOn: { httpCodes: [402, 429, 500, 502, 503, 504], onTimeout: true },
+                }],
+              },
+              fallbackTriggers: { httpCodes: [402, 429, 500, 502, 503, 504], onTimeout: true },
             },
           },
+        },
+        defaults: {
+          perAttemptTimeoutMs: 5000,
+          fullChainTimeoutMs: 10000,
+          fallbackHttpCodes: [402, 429, 500, 502, 503, 504],
         },
       } as RouterConfig
       const { ledger, tryAcquire } = makeStatefulLedger()
       const fetchImpl = vi.fn(async () => new Response(new Uint8Array([0x01]), {
-        headers: { 'content-type': 'audio/mpeg' },
         status: 200,
+        headers: { 'content-type': 'audio/mpeg' },
       })) as unknown as typeof fetch
 
       const router = makePoolRouter(config, crypto, ledger, fetchImpl)
-      const response = await router.routeTts({ input: { text: 'hi' }, modelName })
+      const response = await router.routeTts({ modelName, input: { text: 'hi' } })
 
       expect(response.status).toBe(200)
       expect(tryAcquire).toHaveBeenCalledWith(
@@ -1519,7 +1519,7 @@ describe('createLlmRouterService', () => {
 
     it('enforces maxConcurrency for an ordered provider group', async () => {
       const { config, crypto } = makePoolConfig([
-        { appid: 'app-1', baseURL: 'https://up-a.example', maxConcurrency: 10 },
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 10 },
       ])
       const model = config.tts.models['tts-pool']
       Object.assign(model.upstreams[0], { id: 'primary' })
@@ -1527,17 +1527,17 @@ describe('createLlmRouterService', () => {
         routing: {
           groups: [{
             id: 'primary',
-            retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
-            strategy: 'ordered',
             upstreamIds: ['primary'],
+            strategy: 'ordered',
+            retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
           }],
         },
       })
-      const { ledger, release, tryAcquire } = makeStatefulLedger()
+      const { ledger, tryAcquire, release } = makeStatefulLedger()
       const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
 
       const router = makePoolRouter(config, crypto, ledger, fetchImpl)
-      const response = await router.routeTts({ input: { text: 'hi' }, modelName: 'tts-pool' })
+      const response = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
 
       expect(response.status).toBe(200)
       expect(tryAcquire).toHaveBeenCalledWith('app-1', 10)
@@ -1546,9 +1546,9 @@ describe('createLlmRouterService', () => {
 
     it('keeps least-inflight selection inside the active group before considering pay-as-you-go', async () => {
       const { config, crypto } = makePoolConfig([
-        { appid: 'plan-a', baseURL: 'https://plan-a.example', maxConcurrency: 10 },
-        { appid: 'plan-b', baseURL: 'https://plan-b.example', maxConcurrency: 10 },
-        { appid: 'paygo', baseURL: 'https://paygo.example' },
+        { baseURL: 'https://plan-a.example', appid: 'plan-a', maxConcurrency: 10 },
+        { baseURL: 'https://plan-b.example', appid: 'plan-b', maxConcurrency: 10 },
+        { baseURL: 'https://paygo.example', appid: 'paygo' },
       ])
       const model = config.tts.models['tts-pool']
       Object.assign(model.upstreams[0], { id: 'plan-a' })
@@ -1558,34 +1558,34 @@ describe('createLlmRouterService', () => {
         routing: {
           groups: [
             {
-              continueOn: { httpCodes: [402], onTimeout: false },
               id: 'plan',
-              retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
-              strategy: 'least-inflight',
               upstreamIds: ['plan-a', 'plan-b'],
+              strategy: 'least-inflight',
+              retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
+              continueOn: { httpCodes: [402], onTimeout: false },
             },
             {
               id: 'paygo',
-              retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
-              strategy: 'ordered',
               upstreamIds: ['paygo'],
+              strategy: 'ordered',
+              retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
             },
           ],
         },
       })
       const { ledger, tryAcquire } = makeStatefulLedger({ 'plan-a': 8, 'plan-b': 2 })
       const selectedAppIds: string[] = []
-      const fetchImpl = vi.fn(async (_input: Request | string | URL, init?: RequestInit) => {
+      const fetchImpl = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
         const body = JSON.parse(String(init?.body)) as { extra_body?: { app?: { appid?: string } } }
         selectedAppIds.push(body.extra_body?.app?.appid ?? 'unknown')
         return new Response(new Uint8Array([0x01]), {
-          headers: { 'content-type': 'audio/mpeg' },
           status: 200,
+          headers: { 'content-type': 'audio/mpeg' },
         })
       }) as unknown as typeof fetch
 
       const router = makePoolRouter(config, crypto, ledger, fetchImpl)
-      const response = await router.routeTts({ input: { text: 'hi' }, modelName: 'tts-pool' })
+      const response = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
 
       expect(response.status).toBe(200)
       expect(selectedAppIds).toEqual(['plan-b'])
@@ -1595,9 +1595,9 @@ describe('createLlmRouterService', () => {
 
     it('does not cross groups when a Plan account was skipped at its concurrency limit', async () => {
       const { config, crypto } = makePoolConfig([
-        { appid: 'plan-a', baseURL: 'https://plan-a.example', maxConcurrency: 10 },
-        { appid: 'plan-b', baseURL: 'https://plan-b.example', maxConcurrency: 10 },
-        { appid: 'paygo', baseURL: 'https://paygo.example' },
+        { baseURL: 'https://plan-a.example', appid: 'plan-a', maxConcurrency: 10 },
+        { baseURL: 'https://plan-b.example', appid: 'plan-b', maxConcurrency: 10 },
+        { baseURL: 'https://paygo.example', appid: 'paygo' },
       ])
       const model = config.tts.models['tts-pool']
       Object.assign(model.upstreams[0], { id: 'plan-a' })
@@ -1607,40 +1607,40 @@ describe('createLlmRouterService', () => {
         routing: {
           groups: [
             {
-              continueOn: { httpCodes: [402], onTimeout: false },
               id: 'plan',
-              retryOn: { httpCodes: [402, 429, 500, 502, 503, 504], onTimeout: true },
-              strategy: 'least-inflight',
               upstreamIds: ['plan-a', 'plan-b'],
+              strategy: 'least-inflight',
+              retryOn: { httpCodes: [402, 429, 500, 502, 503, 504], onTimeout: true },
+              continueOn: { httpCodes: [402], onTimeout: false },
             },
             {
               id: 'paygo',
-              retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
-              strategy: 'ordered',
               upstreamIds: ['paygo'],
+              strategy: 'ordered',
+              retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
             },
           ],
         },
       })
       const { ledger } = makeStatefulLedger({ 'plan-a': 10, 'plan-b': 0 })
       const selectedAppIds: string[] = []
-      const fetchImpl = vi.fn(async (_input: Request | string | URL, init?: RequestInit) => {
+      const fetchImpl = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
         const body = JSON.parse(String(init?.body)) as { extra_body?: { app?: { appid?: string } } }
         const appid = body.extra_body?.app?.appid ?? 'unknown'
         selectedAppIds.push(appid)
         if (appid === 'plan-b')
           return failResponse(402, { error: { code: 'quota_exceeded' } })
         return new Response(new Uint8Array([0x01]), {
-          headers: { 'content-type': 'audio/mpeg' },
           status: 200,
+          headers: { 'content-type': 'audio/mpeg' },
         })
       }) as unknown as typeof fetch
 
       const router = makePoolRouter(config, crypto, ledger, fetchImpl)
 
       await expect(router.routeTts({
-        input: { text: 'hi' },
         modelName: 'tts-pool',
+        input: { text: 'hi' },
       })).rejects.toBeInstanceOf(ApiError)
 
       expect(selectedAppIds).toEqual(['plan-b'])
@@ -1649,14 +1649,14 @@ describe('createLlmRouterService', () => {
     it('skips a fullpool and dispatches to one with capacity', async () => {
       // @example app-1 at cap (10/10) -> filtered out; app-2 (0/10) serves.
       const { config, crypto } = makePoolConfig([
-        { appid: 'app-1', baseURL: 'https://up-a.example', maxConcurrency: 10 },
-        { appid: 'app-2', baseURL: 'https://up-b.example', maxConcurrency: 10 },
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 10 },
+        { baseURL: 'https://up-b.example', appid: 'app-2', maxConcurrency: 10 },
       ])
       const { ledger, tryAcquire } = makeStatefulLedger({ 'app-1': 10, 'app-2': 0 })
       const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
 
       const router = makePoolRouter(config, crypto, ledger, fetchImpl)
-      const res = await router.routeTts({ input: { text: 'hi' }, modelName: 'tts-pool' })
+      const res = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
 
       expect(res.status).toBe(200)
       expect(tryAcquire.mock.calls.every(([poolId]) => poolId !== 'app-1')).toBe(true)
@@ -1666,8 +1666,8 @@ describe('createLlmRouterService', () => {
     it('fails fast with 503 TTS_POOL_SATURATED when everypool is full (covers AE2 — no silent stall)', async () => {
       // @example both app_ids at cap -> 503, upstream is never dispatched.
       const { config, crypto } = makePoolConfig([
-        { appid: 'app-1', baseURL: 'https://up-a.example', maxConcurrency: 10 },
-        { appid: 'app-2', baseURL: 'https://up-b.example', maxConcurrency: 10 },
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 10 },
+        { baseURL: 'https://up-b.example', appid: 'app-2', maxConcurrency: 10 },
       ])
       const { ledger } = makeStatefulLedger({ 'app-1': 10, 'app-2': 10 })
       const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
@@ -1675,7 +1675,7 @@ describe('createLlmRouterService', () => {
       const router = makePoolRouter(config, crypto, ledger, fetchImpl)
       let caught: unknown
       try {
-        await router.routeTts({ input: { text: 'hi' }, modelName: 'tts-pool' })
+        await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
       }
       catch (err) {
         caught = err
@@ -1690,13 +1690,13 @@ describe('createLlmRouterService', () => {
     it('releases the slot after a successful dispatch', async () => {
       // @example acquire then release leaves the pool's inflight back at baseline.
       const { config, crypto } = makePoolConfig([
-        { appid: 'app-1', baseURL: 'https://up-a.example', maxConcurrency: 10 },
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 10 },
       ])
-      const { inflight, ledger, release } = makeStatefulLedger({ 'app-1': 3 })
+      const { ledger, release, inflight } = makeStatefulLedger({ 'app-1': 3 })
       const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
 
       const router = makePoolRouter(config, crypto, ledger, fetchImpl)
-      await router.routeTts({ input: { text: 'hi' }, modelName: 'tts-pool' })
+      await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
 
       expect(release).toHaveBeenCalledWith('app-1')
       expect(inflight.get('app-1')).toBe(3)
@@ -1706,13 +1706,13 @@ describe('createLlmRouterService', () => {
       // @example a model without any concurrency cap keeps the original
       // fixed-order path and never touches Redis.
       const { config, crypto } = makePoolConfig([
-        { appid: 'app-1', baseURL: 'https://up-a.example' },
+        { baseURL: 'https://up-a.example', appid: 'app-1' },
       ])
       const { ledger, tryAcquire } = makeStatefulLedger()
       const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
 
       const router = makePoolRouter(config, crypto, ledger, fetchImpl)
-      const res = await router.routeTts({ input: { text: 'hi' }, modelName: 'tts-pool' })
+      const res = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
 
       expect(res.status).toBe(200)
       expect(tryAcquire).not.toHaveBeenCalled()
@@ -1722,13 +1722,13 @@ describe('createLlmRouterService', () => {
       // @example single pool returns 429 (app_id concurrency exceeded) -> the
       // pool is circuit-broken so later requests skip it during the cool-down.
       const { config, crypto } = makePoolConfig([
-        { appid: 'app-1', baseURL: 'https://up-a.example', maxConcurrency: 10 },
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 10 },
       ])
       const { ledger, markSaturated } = makeStatefulLedger()
       const fetchImpl = vi.fn(async () => failResponse(429)) as unknown as typeof fetch
 
       const router = makePoolRouter(config, crypto, ledger, fetchImpl)
-      await expect(router.routeTts({ input: { text: 'hi' }, modelName: 'tts-pool' })).rejects.toBeInstanceOf(ApiError)
+      await expect(router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })).rejects.toBeInstanceOf(ApiError)
 
       expect(markSaturated).toHaveBeenCalledWith('app-1', expect.any(Number))
     })
@@ -1737,13 +1737,13 @@ describe('createLlmRouterService', () => {
       // @example a 500 is a server error, not a concurrency signal — the pool
       // must stay eligible rather than being circuit-broken.
       const { config, crypto } = makePoolConfig([
-        { appid: 'app-1', baseURL: 'https://up-a.example', maxConcurrency: 10 },
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 10 },
       ])
       const { ledger, markSaturated } = makeStatefulLedger()
       const fetchImpl = vi.fn(async () => failResponse(500)) as unknown as typeof fetch
 
       const router = makePoolRouter(config, crypto, ledger, fetchImpl)
-      await expect(router.routeTts({ input: { text: 'hi' }, modelName: 'tts-pool' })).rejects.toBeInstanceOf(ApiError)
+      await expect(router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })).rejects.toBeInstanceOf(ApiError)
 
       expect(markSaturated).not.toHaveBeenCalled()
     })
@@ -1751,14 +1751,14 @@ describe('createLlmRouterService', () => {
     it('skips a pool already in a saturation cool-down', async () => {
       // @example app-1 flagged saturated -> filtered out; app-2 serves.
       const { config, crypto } = makePoolConfig([
-        { appid: 'app-1', baseURL: 'https://up-a.example', maxConcurrency: 10 },
-        { appid: 'app-2', baseURL: 'https://up-b.example', maxConcurrency: 10 },
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 10 },
+        { baseURL: 'https://up-b.example', appid: 'app-2', maxConcurrency: 10 },
       ])
       const { ledger, tryAcquire } = makeStatefulLedger({}, ['app-1'])
       const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
 
       const router = makePoolRouter(config, crypto, ledger, fetchImpl)
-      const res = await router.routeTts({ input: { text: 'hi' }, modelName: 'tts-pool' })
+      const res = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
 
       expect(res.status).toBe(200)
       expect(tryAcquire.mock.calls.every(([poolId]) => poolId !== 'app-1')).toBe(true)
@@ -1776,14 +1776,14 @@ describe('createLlmRouterService', () => {
       // We fixed this by checking cooldown state before the capped/uncapped
       // branch so both pool shapes honor the same circuit breaker.
       const { config, crypto } = makePoolConfig([
-        { appid: 'app-1', baseURL: 'https://up-a.example' },
-        { appid: 'app-2', baseURL: 'https://up-b.example', maxConcurrency: 10 },
+        { baseURL: 'https://up-a.example', appid: 'app-1' },
+        { baseURL: 'https://up-b.example', appid: 'app-2', maxConcurrency: 10 },
       ])
       const { ledger, tryAcquire } = makeStatefulLedger({}, ['app-1'])
       const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
 
       const router = makePoolRouter(config, crypto, ledger, fetchImpl)
-      const res = await router.routeTts({ input: { text: 'hi' }, modelName: 'tts-pool' })
+      const res = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
 
       expect(res.status).toBe(200)
       expect(tryAcquire).toHaveBeenCalledTimes(1)

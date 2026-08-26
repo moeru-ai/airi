@@ -19,7 +19,7 @@ import { registerVscodeTools } from './server/register-vscode'
 import { createRuntime } from './server/runtime'
 
 const packageVersion = '0.1.0'
-const enableTestTools = ['1', 'on', 'true', 'yes'].includes((env.COMPUTER_USE_ENABLE_TEST_TOOLS || '').trim().toLowerCase())
+const enableTestTools = ['1', 'true', 'yes', 'on'].includes((env.COMPUTER_USE_ENABLE_TEST_TOOLS || '').trim().toLowerCase())
 
 export { type ComputerUseServerOptions } from './server/runtime'
 
@@ -32,37 +32,37 @@ export async function createComputerUseMcpServer(config = resolveComputerUseConf
   })
 
   registerComputerUseTools({
-    enableTestTools,
-    executeAction,
-    runtime,
     server,
+    runtime,
+    executeAction,
+    enableTestTools,
   })
 
   registerTaskMemoryTools(server, runtime)
 
-  registerAccessibilityTools({ runtime, server })
-  registerDisplayTools({ runtime, server })
-  registerPtyTools({ runtime, server })
+  registerAccessibilityTools({ server, runtime })
+  registerDisplayTools({ server, runtime })
+  registerPtyTools({ server, runtime })
   registerVscodeTools({
-    executeTerminalCommand: async (input, toolName) => {
-      return await executeAction({ input, kind: 'terminal_exec' }, toolName)
-    },
-    runtime,
     server,
+    runtime,
+    executeTerminalCommand: async (input, toolName) => {
+      return await executeAction({ kind: 'terminal_exec', input }, toolName)
+    },
   })
-  const cdpCleanup = registerCdpTools({ runtime, server })
-  registerDesktopGroundingTools({ executeAction, runtime, server })
-  registerChromeSessionTools({ runtime, server })
+  const cdpCleanup = registerCdpTools({ server, runtime })
+  registerDesktopGroundingTools({ server, runtime, executeAction })
+  registerChromeSessionTools({ server, runtime })
 
   return {
-    cdpCleanup,
-    runtime,
     server,
+    runtime,
+    cdpCleanup,
   }
 }
 
 export async function startComputerUseMcpServer(config = resolveComputerUseConfig(), options: ComputerUseServerOptions = {}) {
-  const { cdpCleanup, runtime, server } = await createComputerUseMcpServer(config, options)
+  const { server, runtime, cdpCleanup } = await createComputerUseMcpServer(config, options)
   const transport = new StdioServerTransport()
   await server.connect(transport)
 
@@ -81,5 +81,5 @@ export async function startComputerUseMcpServer(config = resolveComputerUseConfi
     void shutdown()
   })
 
-  return { runtime, server, transport }
+  return { server, transport, runtime }
 }

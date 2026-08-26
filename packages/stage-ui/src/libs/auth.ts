@@ -5,8 +5,7 @@ import { authClient } from './auth-client'
 import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from './auth-config'
 import { buildAuthorizationURL, consumeFlowState, exchangeCodeForTokens, persistFlowState } from './auth-oidc'
 
-/** Starts authorization through the active app runtime. */
-export type AuthorizationHandler = (request: AuthorizationRequest) => Promise<AuthorizationResult | void>
+export type OAuthProvider = 'google' | 'github' | 'steam'
 
 /** An authorization request prepared by the shared OIDC flow. */
 export interface AuthorizationRequest {
@@ -22,9 +21,26 @@ export interface AuthorizationResult {
   callbackUrl?: string
 }
 
-export type OAuthProvider = 'github' | 'google' | 'steam'
+/** Starts authorization through the active app runtime. */
+export type AuthorizationHandler = (request: AuthorizationRequest) => Promise<AuthorizationResult | void>
 
 let authorizationHandler: AuthorizationHandler | undefined
+
+/** Registers the authorization handler owned by the active app runtime. */
+export function registerAuthorizationHandler(handler: AuthorizationHandler): void {
+  authorizationHandler = handler
+}
+
+/** Returns the access token from the active auth store. */
+export function getAuthToken(): string | null {
+  return useAuthStore().token
+}
+
+export { authClient }
+
+export async function initializeAuth() {
+  await useAuthStore().initialize()
+}
 
 /**
  * Persist OIDC tokens locally and schedule refresh.
@@ -32,10 +48,10 @@ let authorizationHandler: AuthorizationHandler | undefined
 export async function applyOIDCTokens(tokens: TokenResponse, clientId: string): Promise<void> {
   await useAuthStore().completeSignIn({
     accessToken: tokens.access_token,
-    clientId,
-    expiresIn: tokens.expires_in,
-    idToken: tokens.id_token,
     refreshToken: tokens.refresh_token,
+    idToken: tokens.id_token,
+    expiresIn: tokens.expires_in,
+    clientId,
   })
 }
 
@@ -43,24 +59,8 @@ export async function fetchSession() {
   return await useAuthStore().fetchSession()
 }
 
-export { authClient }
-
-/** Returns the access token from the active auth store. */
-export function getAuthToken(): null | string {
-  return useAuthStore().token
-}
-
-export async function initializeAuth() {
-  await useAuthStore().initialize()
-}
-
 export async function listSessions() {
   return await useAuthStore().listSessions()
-}
-
-/** Registers the authorization handler owned by the active app runtime. */
-export function registerAuthorizationHandler(handler: AuthorizationHandler): void {
-  authorizationHandler = handler
 }
 
 export async function signOut() {
@@ -81,8 +81,8 @@ export const browserAuthorizationHandler: AuthorizationHandler = async ({ author
   }
 
   await authClient.signIn.social({
-    callbackURL: authorizationUrl,
     provider,
+    callbackURL: authorizationUrl,
   })
 }
 
@@ -117,7 +117,7 @@ export async function signInOIDC(params: OIDCFlowParams) {
     throw new Error('No authorization handler is registered for this app runtime.')
 
   const { provider, ...oidcParams } = params
-  const { flowState, url } = await buildAuthorizationURL(oidcParams)
+  const { url, flowState } = await buildAuthorizationURL(oidcParams)
   persistFlowState(flowState, params)
 
   const result = await handler({

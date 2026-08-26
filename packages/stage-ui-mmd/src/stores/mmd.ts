@@ -11,14 +11,17 @@ import { ref, watch } from 'vue'
 import { EMOTION_ACTION_NAME } from '../constants/actions'
 import { supportedControl, useMMDViewControl } from './view-control'
 
-/** A material ("part") of the loaded model, for the materials settings UI. */
-export interface MMDMaterialDescriptor {
-  /** Order index within the model. */
-  index: number
-  /** Human-friendly label (falls back to `Material N` for unnamed parts). */
-  label: string
-  /** Raw material name; the key used for opacity overrides. */
-  name: string
+type BroadcastChannelEvents
+  = | BroadcastChannelEventShouldUpdateView
+    | BroadcastChannelEventPlayOneShot
+
+interface BroadcastChannelEventShouldUpdateView {
+  type: 'mmd-should-update-view'
+}
+
+interface BroadcastChannelEventPlayOneShot {
+  type: 'mmd-play-one-shot'
+  request: MMDOneShotAction
 }
 
 /**
@@ -34,24 +37,21 @@ export interface MMDMotionDescriptor {
   name: string
 }
 
-interface BroadcastChannelEventPlayOneShot {
-  request: MMDOneShotAction
-  type: 'mmd-play-one-shot'
-}
-
-type BroadcastChannelEvents
-  = | BroadcastChannelEventPlayOneShot
-    | BroadcastChannelEventShouldUpdateView
-
-interface BroadcastChannelEventShouldUpdateView {
-  type: 'mmd-should-update-view'
-}
-
 /** IndexedDB record for a persisted VMD file. */
 interface PersistedMMDMotion {
-  file: File
   id: string
   name: string
+  file: File
+}
+
+/** A material ("part") of the loaded model, for the materials settings UI. */
+export interface MMDMaterialDescriptor {
+  /** Raw material name; the key used for opacity overrides. */
+  name: string
+  /** Human-friendly label (falls back to `Material N` for unnamed parts). */
+  label: string
+  /** Order index within the model. */
+  index: number
 }
 
 const MOTION_STORAGE_PREFIX = 'mmd-motion-'
@@ -61,13 +61,13 @@ export type MMDGazeMode = 'camera' | 'mouse' | 'none'
 
 /** Transient request to play a one-shot motion, bumped per request. */
 export interface MMDOneShotAction {
-  loop: boolean
   name: string
+  loop: boolean
   nonce: number
 }
 
 export const useMMD = defineStore('mmd', () => {
-  const { data, post } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({
+  const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({
     name: 'airi-stores-stage-ui-mmd',
   })
   const shouldUpdateViewHooks = ref(new Set<() => void>())
@@ -171,7 +171,7 @@ export const useMMD = defineStore('mmd', () => {
     const existing = availableMotions.value.find(motion => motion.name === name)
     const id = existing?.id ?? `${MOTION_STORAGE_PREFIX}${crypto.randomUUID()}`
 
-    await localforage.setItem<PersistedMMDMotion>(id, { file, id, name })
+    await localforage.setItem<PersistedMMDMotion>(id, { id, name, file })
     if (!existing)
       availableMotions.value = [...availableMotions.value, { id, name }]
 
@@ -249,12 +249,12 @@ export const useMMD = defineStore('mmd', () => {
    * BrowserWindows (the live stage and settings run as separate processes).
    */
   function playOneShotAction(name: string, loop = false) {
-    const request: MMDOneShotAction = { loop, name, nonce: (oneShotAction.value?.nonce ?? 0) + 1 }
+    const request: MMDOneShotAction = { name, loop, nonce: (oneShotAction.value?.nonce ?? 0) + 1 }
     oneShotAction.value = request
-    post({ request, type: 'mmd-play-one-shot' })
+    post({ type: 'mmd-play-one-shot', request })
   }
 
-  const { position, reset: resetViewControl, rotationY, scale } = useMMDViewControl()
+  const { position, scale, rotationY, reset: resetViewControl } = useMMDViewControl()
 
   function resetState() {
     supportedControl.forEach(c => resetViewControl(c))
@@ -283,45 +283,45 @@ export const useMMD = defineStore('mmd', () => {
   }
 
   return {
-    addMotion,
-    albedoGlow,
-    ambientColor,
+    position,
+    scale,
+    rotationY,
 
-    ambientIntensity,
-    availableMaterials,
-    availableMorphs,
-    availableMotions,
+    physicsEnabled,
+    ikEnabled,
+    grantEnabled,
+    physicsGravity,
+    gazeMode,
+
     cameraFov,
-
-    clearMotions,
+    ambientColor,
+    ambientIntensity,
     directionalColor,
     directionalIntensity,
     directionalPosition,
-    emotionActionMap,
-    gazeMode,
-    getMotionFile,
-    grantEnabled,
+    albedoGlow,
+    renderScale,
 
     idleMotionName,
-    ikEnabled,
-    isModelLoaded,
-    materialOpacity,
-    morphOverrides,
-    oneShotAction,
-    onShouldUpdateView,
-
-    physicsEnabled,
-    physicsGravity,
-    playOneShotAction,
-    position,
-
+    availableMotions,
+    addMotion,
+    getMotionFile,
+    clearMotions,
     removeMotion,
-    renderScale,
-    resetState,
+    emotionActionMap,
 
-    rotationY,
-    scale,
+    morphOverrides,
+    availableMorphs,
+    availableMaterials,
+    materialOpacity,
+
+    isModelLoaded,
+    oneShotAction,
+    playOneShotAction,
+
+    onShouldUpdateView,
     shouldUpdateView,
+    resetState,
   }
 })
 

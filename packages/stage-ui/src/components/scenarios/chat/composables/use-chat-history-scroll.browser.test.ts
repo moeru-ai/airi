@@ -21,11 +21,6 @@ function createScrollContainer(messageCount: number) {
   return container
 }
 
-async function flushReactivity() {
-  await nextTick()
-  await Promise.resolve()
-}
-
 function replaceMessageItems(container: HTMLElement, messageCount: number) {
   const items = Array.from({ length: messageCount }, (_, index) => {
     const item = document.createElement('div')
@@ -45,18 +40,23 @@ function startScrollBehavior({
 }: {
   container: ShallowRef<HTMLElement | null>
   messages: ShallowRef<TestMessage[]>
-  scrollToIndex: (index: number, align: 'end' | 'start') => void
+  scrollToIndex: (index: number, align: 'start' | 'end') => void
 }) {
   const scope = effectScope()
   activeScopes.push(scope)
   scope.run(() => {
     useChatHistoryScroll({
       container,
-      getKey: message => message.id,
       messages,
+      getKey: message => message.id,
       scrollToIndex,
     })
   })
+}
+
+async function flushReactivity() {
+  await nextTick()
+  await Promise.resolve()
 }
 
 afterEach(() => {

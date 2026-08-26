@@ -8,68 +8,22 @@ import { createLagSampler } from '../composables/perf/register-lag-sampler'
 
 export type LagMetric = 'fps' | 'frameDuration' | 'longtask' | 'memory'
 
-interface HistogramBin {
-  count: number
-  end: number
-  start: number
+interface Sample {
+  ts: number
+  value: number
+  meta?: Record<string, unknown>
 }
 
 interface RecordingSnapshot {
-  samples: Record<LagMetric, Sample[]>
   startedAt: number
   stoppedAt: number
+  samples: Record<LagMetric, Sample[]>
 }
 
-interface Sample {
-  meta?: Record<string, unknown>
-  ts: number
-  value: number
-}
-
-function buildHistogram(values: number[], bins = 20): HistogramBin[] {
-  if (!values.length)
-    return []
-
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  if (min === max) {
-    return [{
-      count: values.length,
-      end: max || min + 1,
-      start: min,
-    }]
-  }
-
-  const width = (max - min) / bins
-  const buckets = Array.from({ length: bins }, (_, idx) => ({
-    count: 0,
-    end: min + ((idx + 1) * width),
-    start: min + (idx * width),
-  }))
-
-  for (const value of values) {
-    let binIndex = Math.floor((value - min) / width)
-    if (binIndex >= bins)
-      binIndex = bins - 1
-
-    buckets[binIndex].count += 1
-  }
-
-  return buckets
-}
-
-function calcStats(values: number[]) {
-  if (!values.length)
-    return { avg: 0, latest: 0, p95: 0 }
-
-  const total = values.reduce((acc, n) => acc + n, 0)
-  const avg = total / values.length
-  const sorted = [...values].sort((a, b) => a - b)
-  const idx = Math.max(0, Math.floor(0.95 * (sorted.length - 1)))
-  const p95 = sorted[idx]
-  const latest = values.at(-1) ?? 0
-
-  return { avg, latest, p95 }
+interface HistogramBin {
+  start: number
+  end: number
+  count: number
 }
 
 function createEmptySamples(): Record<LagMetric, Sample[]> {
@@ -86,6 +40,52 @@ function pruneSamples(buffer: Sample[], cutoffTs: number) {
     buffer.shift()
 }
 
+function calcStats(values: number[]) {
+  if (!values.length)
+    return { avg: 0, p95: 0, latest: 0 }
+
+  const total = values.reduce((acc, n) => acc + n, 0)
+  const avg = total / values.length
+  const sorted = [...values].sort((a, b) => a - b)
+  const idx = Math.max(0, Math.floor(0.95 * (sorted.length - 1)))
+  const p95 = sorted[idx]
+  const latest = values.at(-1) ?? 0
+
+  return { avg, p95, latest }
+}
+
+function buildHistogram(values: number[], bins = 20): HistogramBin[] {
+  if (!values.length)
+    return []
+
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  if (min === max) {
+    return [{
+      start: min,
+      end: max || min + 1,
+      count: values.length,
+    }]
+  }
+
+  const width = (max - min) / bins
+  const buckets = Array.from({ length: bins }, (_, idx) => ({
+    start: min + (idx * width),
+    end: min + ((idx + 1) * width),
+    count: 0,
+  }))
+
+  for (const value of values) {
+    let binIndex = Math.floor((value - min) / width)
+    if (binIndex >= bins)
+      binIndex = bins - 1
+
+    buckets[binIndex].count += 1
+  }
+
+  return buckets
+}
+
 export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
   const enabled = reactive({
     fps: false,
@@ -98,7 +98,7 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
   const buffers = reactive(createEmptySamples())
 
   const recording = ref(false)
-  const recordingStartedAt = ref<null | number>(null)
+  const recordingStartedAt = ref<number | null>(null)
   const recordingElapsedMs = ref(0)
   const recordingSamples = reactive(createEmptySamples())
   const lastRecording = ref<RecordingSnapshot>()
@@ -120,12 +120,12 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
     const cutoff = ts - windowMs
 
     const buffer = buffers[metric]
-    buffer.push({ meta, ts, value })
+    buffer.push({ ts, value, meta })
     pruneSamples(buffer, cutoff)
 
     if (recording.value) {
       const sampleBuffer = recordingSamples[metric]
-      sampleBuffer.push({ meta, ts, value })
+      sampleBuffer.push({ ts, value, meta })
     }
   }
 
@@ -165,14 +165,14 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
       ? 0
       : stoppedAt - recordingStartedAt.value
     const snapshot: RecordingSnapshot = {
+      startedAt: recordingStartedAt.value ?? stoppedAt,
+      stoppedAt,
       samples: {
         fps: [...recordingSamples.fps],
         frameDuration: [...recordingSamples.frameDuration],
         longtask: [...recordingSamples.longtask],
         memory: [...recordingSamples.memory],
       },
-      startedAt: recordingStartedAt.value ?? stoppedAt,
-      stoppedAt,
     }
     lastRecording.value = snapshot
 
@@ -253,7 +253,7 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
     if (!target)
       return
 
-    const rows: Array<Array<number | string>> = [['metric', 'ts', 'value', 'meta']]
+    const rows: Array<Array<string | number>> = [['metric', 'ts', 'value', 'meta']]
     for (const metric of Object.keys(target.samples) as LagMetric[]) {
       for (const sample of target.samples[metric]) {
         rows.push([
@@ -291,18 +291,18 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
   }
 
   return {
-    buffers,
-    buildHistogram,
-    calcStats,
     enabled,
-    exportCsv,
-    lastRecording,
+    buffers,
     recording,
     recordingElapsedMs,
+    lastRecording,
+    supported,
     startRecording,
     stopRecording,
-    supported,
-    toggleAll,
     toggleRecording,
+    exportCsv,
+    toggleAll,
+    calcStats,
+    buildHistogram,
   }
 })

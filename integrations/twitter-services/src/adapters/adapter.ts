@@ -14,9 +14,9 @@ export function useAdapter() {
       const { AiriAdapter } = await import('./airi-adapter')
 
       adapters.airi = new AiriAdapter(ctx, {
-        credentials: config.credentials || {},
-        token: config.adapters.airi.token,
         url: config.adapters.airi.url,
+        token: config.adapters.airi.token,
+        credentials: config.credentials || {},
       })
 
       await adapters.airi.start()

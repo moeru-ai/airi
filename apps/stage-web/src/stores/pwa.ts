@@ -25,8 +25,8 @@ export const usePWAStore = defineStore('pwa', () => {
       onNeedRefresh: () => {
         const id = nanoid()
         toast.custom(markRaw(h(ToasterPWAUpdateReady, { id, onUpdate: () => updateSW() })), {
-          duration: 30000,
           id,
+          duration: 30000,
           position: isMobile.value ? 'top-center' : 'bottom-right',
         })
       },

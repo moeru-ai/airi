@@ -1,12 +1,12 @@
 import type { VoiceInputSessionLogLevel } from './voice-input-session'
 
 export interface VoiceInputVadStartupOptions {
-  getError?: () => unknown
   init: () => Promise<void>
   loaded: () => boolean
-  log?: (level: VoiceInputSessionLogLevel, event: string, message: string, details?: Record<string, unknown>) => void
   start: (stream: MediaStream) => Promise<void>
   stream: MediaStream
+  getError?: () => unknown
+  log?: (level: VoiceInputSessionLogLevel, event: string, message: string, details?: Record<string, unknown>) => void
 }
 
 export async function startVoiceInputVadDetectionSafely(options: VoiceInputVadStartupOptions) {

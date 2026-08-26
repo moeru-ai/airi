@@ -12,49 +12,6 @@ vi.mock('./animation', () => ({
   useLive2DIdleEyeFocus: () => ({ update: vi.fn() }),
 }))
 
-function createContext(overrides: Partial<MotionManagerPluginContext> = {}): MotionManagerPluginContext {
-  const model = createModel({
-    ParamEyeLOpen: 1,
-    ParamEyeROpen: 1,
-  })
-  const context = {
-    handled: false as boolean,
-    internalModel: {
-      coreModel: model,
-      eyeBlink: {
-        updateParameters: vi.fn((targetModel: typeof model) => {
-          targetModel.setParameterValueById('ParamEyeLOpen', 0.5)
-          targetModel.setParameterValueById('ParamEyeROpen', 0.25)
-        }),
-      },
-    } as unknown as PixiLive2DInternalModel,
-    isIdleMotion: true,
-    live2dAutoBlinkEnabled: ref(true),
-    live2dEyeFocusSourceActive: ref(false),
-    live2dEyeTrackingEnabled: ref(false),
-    live2dForceAutoBlinkEnabled: ref(false),
-    live2dForceIdleEyeAnimation: ref(false),
-    live2dIdleAnimationEnabled: ref(true),
-    markHandled: vi.fn(() => {
-      context.handled = true
-    }),
-    model,
-    modelParameters: ref({
-      leftEyeOpen: 1,
-      rightEyeOpen: 1,
-    }),
-    motionManager: {
-      groups: { idle: 'Idle' },
-      state: { currentGroup: undefined },
-      stopAllMotions: vi.fn(),
-    } as unknown as PixiLive2DInternalModel['motionManager'],
-    now: 1000,
-    timeDelta: 16,
-  }
-
-  return Object.assign(context, overrides) as unknown as MotionManagerPluginContext
-}
-
 function createModel(initialValues: Record<string, number> = {}) {
   const values = new Map(Object.entries(initialValues))
   return {
@@ -66,6 +23,49 @@ function createModel(initialValues: Record<string, number> = {}) {
   }
 }
 
+function createContext(overrides: Partial<MotionManagerPluginContext> = {}): MotionManagerPluginContext {
+  const model = createModel({
+    ParamEyeLOpen: 1,
+    ParamEyeROpen: 1,
+  })
+  const context = {
+    model,
+    now: 1000,
+    timeDelta: 16,
+    internalModel: {
+      eyeBlink: {
+        updateParameters: vi.fn((targetModel: typeof model) => {
+          targetModel.setParameterValueById('ParamEyeLOpen', 0.5)
+          targetModel.setParameterValueById('ParamEyeROpen', 0.25)
+        }),
+      },
+      coreModel: model,
+    } as unknown as PixiLive2DInternalModel,
+    motionManager: {
+      stopAllMotions: vi.fn(),
+      state: { currentGroup: undefined },
+      groups: { idle: 'Idle' },
+    } as unknown as PixiLive2DInternalModel['motionManager'],
+    modelParameters: ref({
+      leftEyeOpen: 1,
+      rightEyeOpen: 1,
+    }),
+    live2dEyeTrackingEnabled: ref(false),
+    live2dEyeFocusSourceActive: ref(false),
+    live2dIdleAnimationEnabled: ref(true),
+    live2dForceIdleEyeAnimation: ref(false),
+    live2dAutoBlinkEnabled: ref(true),
+    live2dForceAutoBlinkEnabled: ref(false),
+    isIdleMotion: true,
+    handled: false as boolean,
+    markHandled: vi.fn(() => {
+      context.handled = true
+    }),
+  }
+
+  return Object.assign(context, overrides) as unknown as MotionManagerPluginContext
+}
+
 describe('live2d motion manager plugins', () => {
   /**
    * @example
@@ -74,8 +74,8 @@ describe('live2d motion manager plugins', () => {
   it('keeps idle eye focus alive when idle motion is disabled', () => {
     const idleEyeFocus = { update: vi.fn() }
     const context = createContext({
-      live2dForceIdleEyeAnimation: ref(true),
       live2dIdleAnimationEnabled: ref(false),
+      live2dForceIdleEyeAnimation: ref(true),
     })
 
     useMotionUpdatePluginIdleDisable(idleEyeFocus)(context)
@@ -90,10 +90,10 @@ describe('live2d motion manager plugins', () => {
   it('lets mouse tracking own focus while a tracking source is active', () => {
     const idleEyeFocus = { update: vi.fn() }
     const context = createContext({
-      live2dEyeFocusSourceActive: ref(true),
       live2dEyeTrackingEnabled: ref(true),
-      live2dForceIdleEyeAnimation: ref(true),
+      live2dEyeFocusSourceActive: ref(true),
       live2dIdleAnimationEnabled: ref(false),
+      live2dForceIdleEyeAnimation: ref(true),
     })
 
     useMotionUpdatePluginIdleDisable(idleEyeFocus)(context)

@@ -23,62 +23,15 @@ import {
 import { createGamelet } from './kits/gamelet'
 import { registerTools } from './kits/tool'
 
-type GameletOrchestrationRuntime = NonNullable<ReturnType<typeof gameletKit.createClient>['orchestration']>
 type ToolRuntimeServices = NonNullable<ToolKitRuntime['tools']>
-
-function createGameletModuleRef(input: {
-  bind: (input: unknown) => Promise<unknown> | unknown
-  extensionId: string
-  gamelets?: GameletOrchestrationRuntime
-  id: string
-  sessionId: string
-}): { module: ExtensionModuleRef, useKit: ReturnType<typeof vi.fn> } {
-  const useKit = vi.fn()
-
-  const module: ExtensionModuleRef = {
-    dispose: vi.fn(async () => {}),
-    id: input.id,
-    kits: {
-      async tryUse<TClient>(kit: KitRef<TClient>): Promise<KitUseResult<TClient>> {
-        return {
-          error: new Error(`Unused test kit lookup: ${kit.id}`),
-          ok: false,
-          reason: 'missing-kit',
-        }
-      },
-      async use<TClient>(kit: KitRef<TClient>): Promise<TClient> {
-        useKit(kit)
-        if (kit !== gameletKit) {
-          throw new Error(`Unexpected kit requested: ${kit.id}`)
-        }
-
-        return gameletKit.createClient(createGameletRuntime({
-          bind: input.bind,
-          extensionId: input.extensionId,
-          gamelets: input.gamelets,
-          moduleId: input.id,
-          sessionId: input.sessionId,
-        })) as TClient
-      },
-      watch<TClient>(
-        _kit: KitRef<TClient>,
-        _callback: (availability: KitAvailability<TClient>) => Promise<void> | void,
-      ) {
-        return { dispose: vi.fn() }
-      },
-    },
-    subscriptions: new DisposableStore(),
-  }
-
-  return { module, useKit }
-}
+type GameletOrchestrationRuntime = NonNullable<ReturnType<typeof gameletKit.createClient>['orchestration']>
 
 function createGameletRuntime(input: {
-  bind: (input: unknown) => Promise<unknown> | unknown
   extensionId: string
-  gamelets?: GameletOrchestrationRuntime
-  moduleId?: string
   sessionId: string
+  moduleId?: string
+  bind: (input: unknown) => Promise<unknown> | unknown
+  gamelets?: GameletOrchestrationRuntime
 }): KitClientRuntime & {
   bindings: {
     bind: (input: unknown) => Promise<unknown> | unknown
@@ -86,37 +39,95 @@ function createGameletRuntime(input: {
   gamelets?: GameletOrchestrationRuntime
 } {
   return {
+    extensionId: input.extensionId,
+    sessionId: input.sessionId,
+    moduleId: input.moduleId,
+    subscriptions: new DisposableStore(),
     bindings: {
       bind: input.bind,
     },
-    extensionId: input.extensionId,
     gamelets: input.gamelets,
-    moduleId: input.moduleId,
-    sessionId: input.sessionId,
-    subscriptions: new DisposableStore(),
   }
 }
 
-function createToolModuleRef(input: {
+function createToolRuntime(input: {
   extensionId: string
-  id: string
+  sessionId: string
+  moduleId?: string
   register: ToolRuntimeServices['register']
   registerToolsetPrompt: ToolRuntimeServices['registerToolsetPrompt']
+}): ToolKitRuntime {
+  return {
+    extensionId: input.extensionId,
+    sessionId: input.sessionId,
+    moduleId: input.moduleId,
+    subscriptions: new DisposableStore(),
+    tools: {
+      register: input.register,
+      registerToolsetPrompt: input.registerToolsetPrompt,
+    },
+  }
+}
+
+function createGameletModuleRef(input: {
+  id: string
+  extensionId: string
   sessionId: string
+  bind: (input: unknown) => Promise<unknown> | unknown
+  gamelets?: GameletOrchestrationRuntime
 }): { module: ExtensionModuleRef, useKit: ReturnType<typeof vi.fn> } {
   const useKit = vi.fn()
 
   const module: ExtensionModuleRef = {
-    dispose: vi.fn(async () => {}),
     id: input.id,
     kits: {
+      async use<TClient>(kit: KitRef<TClient>): Promise<TClient> {
+        useKit(kit)
+        if (kit !== gameletKit) {
+          throw new Error(`Unexpected kit requested: ${kit.id}`)
+        }
+
+        return gameletKit.createClient(createGameletRuntime({
+          extensionId: input.extensionId,
+          sessionId: input.sessionId,
+          moduleId: input.id,
+          bind: input.bind,
+          gamelets: input.gamelets,
+        })) as TClient
+      },
       async tryUse<TClient>(kit: KitRef<TClient>): Promise<KitUseResult<TClient>> {
         return {
-          error: new Error(`Unused test kit lookup: ${kit.id}`),
           ok: false,
           reason: 'missing-kit',
+          error: new Error(`Unused test kit lookup: ${kit.id}`),
         }
       },
+      watch<TClient>(
+        _kit: KitRef<TClient>,
+        _callback: (availability: KitAvailability<TClient>) => void | Promise<void>,
+      ) {
+        return { dispose: vi.fn() }
+      },
+    },
+    subscriptions: new DisposableStore(),
+    dispose: vi.fn(async () => {}),
+  }
+
+  return { module, useKit }
+}
+
+function createToolModuleRef(input: {
+  id: string
+  extensionId: string
+  sessionId: string
+  register: ToolRuntimeServices['register']
+  registerToolsetPrompt: ToolRuntimeServices['registerToolsetPrompt']
+}): { module: ExtensionModuleRef, useKit: ReturnType<typeof vi.fn> } {
+  const useKit = vi.fn()
+
+  const module: ExtensionModuleRef = {
+    id: input.id,
+    kits: {
       async use<TClient>(kit: KitRef<TClient>): Promise<TClient> {
         useKit(kit)
         if (kit !== toolKit) {
@@ -125,42 +136,31 @@ function createToolModuleRef(input: {
 
         return toolKit.createClient(createToolRuntime({
           extensionId: input.extensionId,
+          sessionId: input.sessionId,
           moduleId: input.id,
           register: input.register,
           registerToolsetPrompt: input.registerToolsetPrompt,
-          sessionId: input.sessionId,
         })) as TClient
+      },
+      async tryUse<TClient>(kit: KitRef<TClient>): Promise<KitUseResult<TClient>> {
+        return {
+          ok: false,
+          reason: 'missing-kit',
+          error: new Error(`Unused test kit lookup: ${kit.id}`),
+        }
       },
       watch<TClient>(
         _kit: KitRef<TClient>,
-        _callback: (availability: KitAvailability<TClient>) => Promise<void> | void,
+        _callback: (availability: KitAvailability<TClient>) => void | Promise<void>,
       ) {
         return { dispose: vi.fn() }
       },
     },
     subscriptions: new DisposableStore(),
+    dispose: vi.fn(async () => {}),
   }
 
   return { module, useKit }
-}
-
-function createToolRuntime(input: {
-  extensionId: string
-  moduleId?: string
-  register: ToolRuntimeServices['register']
-  registerToolsetPrompt: ToolRuntimeServices['registerToolsetPrompt']
-  sessionId: string
-}): ToolKitRuntime {
-  return {
-    extensionId: input.extensionId,
-    moduleId: input.moduleId,
-    sessionId: input.sessionId,
-    subscriptions: new DisposableStore(),
-    tools: {
-      register: input.register,
-      registerToolsetPrompt: input.registerToolsetPrompt,
-    },
-  }
 }
 
 describe('plugin-sdk-tamagotchi', () => {
@@ -176,26 +176,26 @@ describe('plugin-sdk-tamagotchi', () => {
   it('exposes gameletKit as a module-scoped kit client', async () => {
     const bindings: unknown[] = []
     const client = gameletKit.createClient(createGameletRuntime({
+      extensionId: 'airi-extension-chess',
+      sessionId: 'session-1',
+      moduleId: 'chess',
       bind: async (input: unknown) => {
         bindings.push(input)
         return { moduleId: 'chess:gamelet', state: 'active' }
       },
-      extensionId: 'airi-extension-chess',
-      moduleId: 'chess',
-      sessionId: 'session-1',
     }))
 
     await client.mount({
-      init: { airiSide: 'black' },
       title: 'Chess',
       ui: client.iframe({ assetPath: 'ui/index.html' }),
+      init: { airiSide: 'black' },
     })
 
     expect(bindings).toHaveLength(1)
     expect(bindings[0]).toMatchObject({
+      moduleId: 'chess:gamelet',
       kitId: 'kit.gamelet',
       kitModuleType: 'gamelet',
-      moduleId: 'chess:gamelet',
     })
   })
 
@@ -206,12 +206,12 @@ describe('plugin-sdk-tamagotchi', () => {
   it('derives a stable gameletKit binding id for extension-scoped clients', async () => {
     const bindings: unknown[] = []
     const client = gameletKit.createClient(createGameletRuntime({
+      extensionId: 'airi-extension-chess',
+      sessionId: 'session-1',
       bind: async (input: unknown) => {
         bindings.push(input)
         return { moduleId: 'session-1:gamelet', state: 'active' }
       },
-      extensionId: 'airi-extension-chess',
-      sessionId: 'session-1',
     }))
 
     await client.mount({
@@ -221,9 +221,9 @@ describe('plugin-sdk-tamagotchi', () => {
 
     expect(bindings).toHaveLength(1)
     expect(bindings[0]).toMatchObject({
+      moduleId: 'session-1:gamelet',
       kitId: 'kit.gamelet',
       kitModuleType: 'gamelet',
-      moduleId: 'session-1:gamelet',
     })
   })
 
@@ -235,7 +235,7 @@ describe('plugin-sdk-tamagotchi', () => {
   it('routes createGamelet handle orchestration calls through the host gamelet runtime', async () => {
     const open = vi.fn(async (_bindingId: string, _payload?: HostDataRecord) => {})
     const configure = vi.fn(async (_bindingId: string, _payload: HostDataRecord) => {})
-    const requestCalls: [string, HostDataRecord, undefined | { timeoutMs?: number }][] = []
+    const requestCalls: [string, HostDataRecord, { timeoutMs?: number } | undefined][] = []
     const request: GameletOrchestrationRuntime['request'] = async <TResponse = HostDataRecord>(
       bindingId: string,
       payload: HostDataRecord,
@@ -247,23 +247,23 @@ describe('plugin-sdk-tamagotchi', () => {
     const close = vi.fn(async (_bindingId: string) => {})
     const isOpen = vi.fn(async (_bindingId: string) => true)
     const { module } = createGameletModuleRef({
-      bind: async () => ({ moduleId: 'chess:board', state: 'active' }),
-      extensionId: 'airi-extension-chess',
-      gamelets: {
-        close,
-        configure,
-        isOpen,
-        open,
-        request,
-      },
       id: 'chess',
+      extensionId: 'airi-extension-chess',
       sessionId: 'session-1',
+      bind: async () => ({ moduleId: 'chess:board', state: 'active' }),
+      gamelets: {
+        open,
+        configure,
+        request,
+        close,
+        isOpen,
+      },
     })
 
     const handle = await createGamelet(module, {
       id: 'board',
-      indexPath: 'ui/index.html',
       title: 'Chess Board',
+      indexPath: 'ui/index.html',
     })
 
     await handle.open({ mode: 'new' })
@@ -285,16 +285,16 @@ describe('plugin-sdk-tamagotchi', () => {
    */
   it('reports a clear error when createGamelet orchestration methods run without a host runtime', async () => {
     const { module } = createGameletModuleRef({
-      bind: async () => ({ moduleId: 'chess:board', state: 'active' }),
-      extensionId: 'airi-extension-chess',
       id: 'chess',
+      extensionId: 'airi-extension-chess',
       sessionId: 'session-1',
+      bind: async () => ({ moduleId: 'chess:board', state: 'active' }),
     })
 
     const handle = await createGamelet(module, {
       id: 'board',
-      indexPath: 'ui/index.html',
       title: 'Chess Board',
+      indexPath: 'ui/index.html',
     })
 
     await expect(handle.open()).rejects.toThrow('gameletKit requires a host gamelet orchestration runtime.')
@@ -313,23 +313,23 @@ describe('plugin-sdk-tamagotchi', () => {
   it('registers gamelet close cleanup with the module subscription scope', async () => {
     const close = vi.fn(async (_bindingId: string) => {})
     const { module } = createGameletModuleRef({
-      bind: async () => ({ moduleId: 'chess:board', state: 'active' }),
-      extensionId: 'airi-extension-chess',
-      gamelets: {
-        close,
-        configure: vi.fn(),
-        isOpen: vi.fn(),
-        open: vi.fn(),
-        request: vi.fn(),
-      },
       id: 'chess',
+      extensionId: 'airi-extension-chess',
       sessionId: 'session-1',
+      bind: async () => ({ moduleId: 'chess:board', state: 'active' }),
+      gamelets: {
+        open: vi.fn(),
+        configure: vi.fn(),
+        request: vi.fn(),
+        close,
+        isOpen: vi.fn(),
+      },
     })
 
     await createGamelet(module, {
       id: 'board',
-      indexPath: 'ui/index.html',
       title: 'Chess Board',
+      indexPath: 'ui/index.html',
     })
     await module.subscriptions.dispose()
 
@@ -347,34 +347,34 @@ describe('plugin-sdk-tamagotchi', () => {
 
     const client = toolKit.createClient(createToolRuntime({
       extensionId: 'airi-extension-chess',
+      sessionId: 'session-1',
       moduleId: 'chess',
       register: registerTool,
       registerToolsetPrompt: registerPrompt,
-      sessionId: 'session-1',
     }))
 
     await client.registerToolsetPrompt({
       id: 'chess-toolset',
       prompt: {
-        content: 'Do not pass fen or pgn when mode is "new".',
         id: 'airi-plugin-game-chess.prompt',
         title: 'Chess Plugin Guidance',
+        content: 'Do not pass fen or pgn when mode is "new".',
       },
     })
     await client.registerTool({
-      description: 'Open chess.',
-      execute: async () => ({ ok: true }),
       id: 'play_chess',
-      inputSchema: object({}),
       title: 'Play Chess',
+      description: 'Open chess.',
+      inputSchema: object({}),
+      execute: async () => ({ ok: true }),
     })
 
     expect(registerPrompt).toHaveBeenCalledWith({
       id: 'chess-toolset',
       prompt: {
-        content: 'Do not pass fen or pgn when mode is "new".',
         id: 'airi-plugin-game-chess.prompt',
         title: 'Chess Plugin Guidance',
+        content: 'Do not pass fen or pgn when mode is "new".',
       },
     })
     expect(registerTool).toHaveBeenCalledWith(expect.objectContaining({
@@ -395,29 +395,29 @@ describe('plugin-sdk-tamagotchi', () => {
     const registerTool = vi.fn()
     const registerToolsetPrompt = vi.fn()
     const { module, useKit } = createToolModuleRef({
-      extensionId: 'airi-extension-chess',
       id: 'chess',
+      extensionId: 'airi-extension-chess',
+      sessionId: 'session-1',
       register: registerTool,
       registerToolsetPrompt,
-      sessionId: 'session-1',
     })
 
     await registerTools(module, {
       prompt: {
         id: 'chess-tools',
         prompt: {
-          content: 'Do not pass fen or pgn when mode is "new".',
           id: 'airi-plugin-game-chess.prompt',
           title: 'Chess Plugin Guidance',
+          content: 'Do not pass fen or pgn when mode is "new".',
         },
       },
       tools: [
         {
-          description: 'Open chess.',
-          execute: async () => ({ ok: true }),
           id: 'play_chess',
-          inputSchema: object({}),
           title: 'Play Chess',
+          description: 'Open chess.',
+          inputSchema: object({}),
+          execute: async () => ({ ok: true }),
         },
       ],
     })
@@ -426,9 +426,9 @@ describe('plugin-sdk-tamagotchi', () => {
     expect(registerToolsetPrompt).toHaveBeenCalledWith({
       id: 'chess-tools',
       prompt: {
-        content: 'Do not pass fen or pgn when mode is "new".',
         id: 'airi-plugin-game-chess.prompt',
         title: 'Chess Plugin Guidance',
+        content: 'Do not pass fen or pgn when mode is "new".',
       },
     })
     expect(registerTool).toHaveBeenCalledWith(expect.objectContaining({
@@ -449,18 +449,18 @@ describe('plugin-sdk-tamagotchi', () => {
     const registerTool = vi.fn()
     const registerToolsetPrompt = vi.fn()
     const { module } = createToolModuleRef({
-      extensionId: 'airi-extension-chess',
       id: 'chess',
+      extensionId: 'airi-extension-chess',
+      sessionId: 'session-1',
       register: registerTool,
       registerToolsetPrompt,
-      sessionId: 'session-1',
     })
 
     await registerTools(module, {
       prompt: {
-        content: 'Start chess directly.',
         id: 'airi-plugin-game-chess.prompt',
         title: 'Chess Plugin Guidance',
+        content: 'Start chess directly.',
       },
       tools: [],
     })
@@ -468,9 +468,9 @@ describe('plugin-sdk-tamagotchi', () => {
     expect(registerToolsetPrompt).toHaveBeenCalledWith({
       id: 'airi-plugin-game-chess.prompt',
       prompt: {
-        content: 'Start chess directly.',
         id: 'airi-plugin-game-chess.prompt',
         title: 'Chess Plugin Guidance',
+        content: 'Start chess directly.',
       },
     })
     expect(registerTool).not.toHaveBeenCalled()
@@ -481,62 +481,62 @@ describe('plugin-sdk-tamagotchi', () => {
     const execute = vi.fn(async () => ({ ok: true }))
 
     registry.register({
-      execute,
+      ownerSessionId: 'session-1',
       ownerExtensionId: 'airi-extension-chess',
       ownerModuleId: 'chess',
-      ownerSessionId: 'session-1',
       tool: {
+        id: 'play_chess',
+        title: 'Play Chess',
+        description: 'Open chess.',
         activation: {
           keywords: ['chess'],
           patterns: ['chess'],
         },
-        description: 'Open chess.',
-        id: 'play_chess',
         parameters: {
-          properties: {},
           type: 'object',
+          properties: {},
         },
-        title: 'Play Chess',
       },
+      execute,
     })
     registry.registerToolsetPrompt({
+      ownerSessionId: 'session-1',
       ownerExtensionId: 'airi-extension-chess',
       ownerModuleId: 'chess',
-      ownerSessionId: 'session-1',
       toolset: {
         id: 'chess-tools',
         prompt: {
-          content: 'Prefer legal chess moves.',
           id: 'airi-plugin-game-chess.prompt',
+          content: 'Prefer legal chess moves.',
         },
       },
     })
 
     await expect(registry.listAvailableDescriptors()).resolves.toEqual([{
+      id: 'play_chess',
+      title: 'Play Chess',
+      description: 'Open chess.',
       activation: {
         keywords: ['chess'],
         patterns: ['chess'],
       },
-      description: 'Open chess.',
-      id: 'play_chess',
-      title: 'Play Chess',
     }])
     await expect(registry.listSerializedXsaiTools()).resolves.toEqual({
       prompts: [{
-        id: 'chess-tools',
         ownerExtensionId: 'airi-extension-chess',
+        id: 'chess-tools',
         prompt: {
-          content: 'Prefer legal chess moves.',
           id: 'airi-plugin-game-chess.prompt',
+          content: 'Prefer legal chess moves.',
         },
       }],
       tools: [{
-        description: 'Open chess.',
-        name: 'play_chess',
         ownerExtensionId: 'airi-extension-chess',
+        name: 'play_chess',
+        description: 'Open chess.',
         parameters: {
-          properties: {},
           type: 'object',
+          properties: {},
         },
       }],
     })
@@ -564,17 +564,17 @@ describe('plugin-sdk-tamagotchi', () => {
     const registerTool = vi.fn()
     const registerToolsetPrompt = vi.fn()
     const gamelets = gameletKit.createClient(createGameletRuntime({
-      bind: registerBinding,
       extensionId: 'airi-extension-chess',
-      moduleId: 'chess',
       sessionId: 'session-1',
+      moduleId: 'chess',
+      bind: registerBinding,
     }))
     const tools = toolKit.createClient(createToolRuntime({
       extensionId: 'airi-extension-chess',
+      sessionId: 'session-1',
       moduleId: 'chess',
       register: registerTool,
       registerToolsetPrompt,
-      sessionId: 'session-1',
     }))
 
     await gamelets.mount({
@@ -585,58 +585,58 @@ describe('plugin-sdk-tamagotchi', () => {
     await tools.registerToolsetPrompt({
       id: 'chess-tools',
       prompt: {
-        content: 'Do not pass fen or pgn when mode is "new".',
         id: 'airi-plugin-game-chess.prompt',
         title: 'Chess Plugin Guidance',
+        content: 'Do not pass fen or pgn when mode is "new".',
       },
     })
     await tools.registerTool({
-      description: 'Open chess.',
-      execute: async () => ({ ok: true }),
       id: 'play_chess',
+      title: 'Play Chess',
+      description: 'Open chess.',
       inputSchema: object({
         opening: optional(string()),
       }),
-      title: 'Play Chess',
+      execute: async () => ({ ok: true }),
     })
 
     expect(registerToolsetPrompt).toHaveBeenCalledWith({
       id: 'chess-tools',
       prompt: {
-        content: 'Do not pass fen or pgn when mode is "new".',
         id: 'airi-plugin-game-chess.prompt',
         title: 'Chess Plugin Guidance',
+        content: 'Do not pass fen or pgn when mode is "new".',
       },
     })
     expect(registerBinding).toHaveBeenCalledWith({
+      moduleId: 'chess:gamelet',
+      kitId: 'kit.gamelet',
+      kitModuleType: 'gamelet',
       config: {
-        config: {
-          init: {},
-        },
         title: 'Chess',
         widget: {
+          mount: 'iframe',
           iframe: {
             assetPath: './ui/index.html',
             sandbox: 'allow-scripts allow-same-origin allow-forms allow-popups',
           },
-          mount: 'iframe',
+        },
+        config: {
+          init: {},
         },
       },
-      kitId: 'kit.gamelet',
-      kitModuleType: 'gamelet',
-      moduleId: 'chess:gamelet',
     })
     expect(registerTool).toHaveBeenCalledWith(expect.objectContaining({
       tool: expect.objectContaining({
         id: 'play_chess',
         parameters: expect.objectContaining({
+          type: 'object',
           properties: expect.objectContaining({
             opening: expect.objectContaining({
               type: ['string', 'null'],
             }),
           }),
           required: ['opening'],
-          type: 'object',
         }),
       }),
     }))
@@ -657,22 +657,26 @@ describe('plugin-sdk-tamagotchi', () => {
     const isGameletOpen = vi.fn<(id: string) => boolean>(() => true)
 
     const gamelets = {
-      close: closeGamelet,
-      configure: configureGamelet,
-      isOpen: isGameletOpen,
       open: openGamelet,
+      configure: configureGamelet,
       request: vi.fn<(id: string, payload: Record<string, unknown>) => Promise<Record<string, unknown>>>(async () => ({ ready: true })),
+      close: closeGamelet,
+      isOpen: isGameletOpen,
     }
     const tools = toolKit.createClient(createToolRuntime({
       extensionId: 'airi-extension-chess',
+      sessionId: 'session-1',
       moduleId: 'chess',
       register: registerTool,
       registerToolsetPrompt: vi.fn(),
-      sessionId: 'session-1',
     }))
 
     await tools.registerTool({
+      id: 'drive_chess',
+      title: 'Drive Chess',
       description: 'Drive a host-backed chess gamelet.',
+      inputSchema: object({}),
+      isAvailable: async () => await gamelets.isOpen('chess'),
       async execute() {
         await gamelets.open('chess', { opening: 'sicilian' })
         await gamelets.configure('chess', { side: 'black' })
@@ -681,10 +685,6 @@ describe('plugin-sdk-tamagotchi', () => {
 
         return { ok: true }
       },
-      id: 'drive_chess',
-      inputSchema: object({}),
-      isAvailable: async () => await gamelets.isOpen('chess'),
-      title: 'Drive Chess',
     })
 
     const registration = registerTool.mock.calls[0]?.[0]
@@ -708,21 +708,21 @@ describe('plugin-sdk-tamagotchi', () => {
     const registerTool = vi.fn()
     const tools = toolKit.createClient(createToolRuntime({
       extensionId: 'airi-extension-chess',
+      sessionId: 'session-1',
       moduleId: 'chess',
       register: registerTool,
       registerToolsetPrompt: vi.fn(),
-      sessionId: 'session-1',
     }))
 
     await tools.registerTool({
-      description: 'Open chess.',
-      execute: async () => ({ ok: true }),
       id: 'play_chess',
+      title: 'Play Chess',
+      description: 'Open chess.',
       inputSchema: object({
         mode: string(),
         opening: optional(string()),
       }),
-      title: 'Play Chess',
+      execute: async () => ({ ok: true }),
     })
 
     const parameters = registerTool.mock.calls[0]?.[0].tool.parameters
@@ -740,20 +740,20 @@ describe('plugin-sdk-tamagotchi', () => {
     const registerTool = vi.fn()
     const tools = toolKit.createClient(createToolRuntime({
       extensionId: 'airi-extension-chess',
+      sessionId: 'session-1',
       moduleId: 'chess',
       register: registerTool,
       registerToolsetPrompt: vi.fn(),
-      sessionId: 'session-1',
     }))
 
     await tools.registerTool({
-      description: 'placeholder-description',
-      execute: async () => ({ ok: true }),
       id: 'play_chess',
+      title: 'placeholder-title',
+      description: 'placeholder-description',
       inputSchema: object({
         airiSide: optional(picklist(['white', 'black'])),
       }),
-      title: 'placeholder-title',
+      execute: async () => ({ ok: true }),
     })
 
     const parameters = registerTool.mock.calls[0]?.[0].tool.parameters
@@ -771,39 +771,39 @@ describe('plugin-sdk-tamagotchi', () => {
   it('creates a gamelet helper with an explicit module-scoped binding id', async () => {
     const registerBinding = vi.fn()
     const { module, useKit } = createGameletModuleRef({
-      bind: registerBinding,
-      extensionId: 'airi-extension-chess',
       id: 'chess',
+      extensionId: 'airi-extension-chess',
       sessionId: 'session-1',
+      bind: registerBinding,
     })
 
     const gamelet = await createGamelet(module, {
       id: 'board',
+      title: 'Chess',
       indexPath: './ui/index.html',
       init: { airiSide: 'black' },
-      title: 'Chess',
     })
 
     expect(gamelet.id).toBe('board')
     expect(gamelet.bindingId).toBe('chess:board')
     expect(useKit).toHaveBeenCalledWith(gameletKit)
     expect(registerBinding).toHaveBeenCalledWith({
+      moduleId: 'chess:board',
+      kitId: 'kit.gamelet',
+      kitModuleType: 'gamelet',
       config: {
-        config: {
-          init: { airiSide: 'black' },
-        },
         title: 'Chess',
         widget: {
+          mount: 'iframe',
           iframe: {
             assetPath: './ui/index.html',
             sandbox: 'allow-scripts allow-same-origin allow-forms allow-popups',
           },
-          mount: 'iframe',
+        },
+        config: {
+          init: { airiSide: 'black' },
         },
       },
-      kitId: 'kit.gamelet',
-      kitModuleType: 'gamelet',
-      moduleId: 'chess:board',
     })
   })
 
@@ -814,36 +814,36 @@ describe('plugin-sdk-tamagotchi', () => {
   it('creates a gamelet helper with a generated id when omitted', async () => {
     const registerBinding = vi.fn()
     const { module } = createGameletModuleRef({
-      bind: registerBinding,
-      extensionId: 'airi-extension-feature',
       id: 'feature',
+      extensionId: 'airi-extension-feature',
       sessionId: 'session-1',
+      bind: registerBinding,
     })
 
     const gamelet = await createGamelet(module, {
-      indexPath: './ui/index.html',
       title: 'Feature',
+      indexPath: './ui/index.html',
     })
 
     expect(gamelet.id).not.toBe('')
     expect(gamelet.bindingId).toBe(`feature:${gamelet.id}`)
     expect(registerBinding).toHaveBeenCalledWith({
+      moduleId: gamelet.bindingId,
+      kitId: 'kit.gamelet',
+      kitModuleType: 'gamelet',
       config: {
-        config: {
-          init: {},
-        },
         title: 'Feature',
         widget: {
+          mount: 'iframe',
           iframe: {
             assetPath: './ui/index.html',
             sandbox: 'allow-scripts allow-same-origin allow-forms allow-popups',
           },
-          mount: 'iframe',
+        },
+        config: {
+          init: {},
         },
       },
-      kitId: 'kit.gamelet',
-      kitModuleType: 'gamelet',
-      moduleId: gamelet.bindingId,
     })
   })
 })

@@ -9,10 +9,96 @@ import * as userCharacterSchema from '../../schemas/user-character'
 
 const logger = useLogger('characters')
 
-export type CharacterService = ReturnType<typeof createCharacterService>
-
 export function createCharacterService(db: Database, metrics?: EngagementMetrics | null) {
   return {
+    async findById(id: string) {
+      return await db.query.character.findFirst({
+        where: and(
+          eq(schema.character.id, id),
+          isNull(schema.character.deletedAt),
+        ),
+        with: {
+          capabilities: true,
+          avatarModels: true,
+          i18n: true,
+          prompts: true,
+          likes: true,
+          bookmarks: true,
+          cover: true,
+        },
+      })
+    },
+
+    async findByOwnerId(ownerId: string) {
+      return await db.query.character.findMany({
+        where: and(
+          eq(schema.character.ownerId, ownerId),
+          isNull(schema.character.deletedAt),
+        ),
+        with: {
+          i18n: true,
+          capabilities: true,
+          likes: true,
+          bookmarks: true,
+          cover: true,
+        },
+      })
+    },
+
+    async findAll() {
+      return await db.query.character.findMany({
+        where: isNull(schema.character.deletedAt),
+        with: {
+          i18n: true,
+          capabilities: true,
+          likes: true,
+          bookmarks: true,
+          cover: true,
+        },
+      })
+    },
+
+    async like(userId: string, characterId: string) {
+      const result = await db.transaction(async (tx) => {
+        const existing = await tx.query.characterLikes.findFirst({
+          where: and(
+            eq(userCharacterSchema.characterLikes.userId, userId),
+            eq(userCharacterSchema.characterLikes.characterId, characterId),
+          ),
+        })
+
+        if (existing) {
+          await tx.delete(userCharacterSchema.characterLikes)
+            .where(and(
+              eq(userCharacterSchema.characterLikes.userId, userId),
+              eq(userCharacterSchema.characterLikes.characterId, characterId),
+            ))
+
+          await tx.update(schema.character)
+            .set({
+              likesCount: sql`${schema.character.likesCount} - 1`,
+            })
+            .where(eq(schema.character.id, characterId))
+
+          return { liked: false }
+        }
+        else {
+          await tx.insert(userCharacterSchema.characterLikes).values({ userId, characterId })
+
+          await tx.update(schema.character)
+            .set({
+              likesCount: sql`${schema.character.likesCount} + 1`,
+            })
+            .where(eq(schema.character.id, characterId))
+
+          return { liked: true }
+        }
+      })
+
+      metrics?.characterEngagement.add(1, { action: result.liked ? 'like' : 'unlike' })
+      return result
+    },
+
     async bookmark(userId: string, characterId: string) {
       const result = await db.transaction(async (tx) => {
         const existing = await tx.query.characterBookmarks.findFirst({
@@ -38,7 +124,7 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
           return { bookmarked: false }
         }
         else {
-          await tx.insert(userCharacterSchema.characterBookmarks).values({ characterId, userId })
+          await tx.insert(userCharacterSchema.characterBookmarks).values({ userId, characterId })
 
           await tx.update(schema.character)
             .set({
@@ -55,10 +141,10 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
     },
 
     async create(data: {
-      avatarModels?: Omit<schema.NewAvatarModel, 'characterId'>[]
-      capabilities?: Omit<schema.NewCharacterCapability, 'characterId'>[]
       character: schema.NewCharacter
       cover?: Omit<schema.NewCharacterCover, 'characterId'>
+      capabilities?: Omit<schema.NewCharacterCapability, 'characterId'>[]
+      avatarModels?: Omit<schema.NewAvatarModel, 'characterId'>[]
       i18n?: Omit<schema.NewCharacterI18n, 'characterId'>[]
       prompts?: Omit<schema.NewCharacterPrompt, 'characterId'>[]
     }) {
@@ -102,6 +188,20 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
 
       metrics?.characterCreated.add(1)
       return inserted
+    },
+
+    async update(id: string, data: Partial<schema.NewCharacter>) {
+      // TODO: Return a stable single-object response shape for HTTP callers.
+      // leaking Drizzle returning() arrays across the service boundary makes route contracts drift.
+      const result = await db.update(schema.character)
+        .set({ ...data, updatedAt: new Date() })
+        .where(and(
+          eq(schema.character.id, id),
+          isNull(schema.character.deletedAt),
+        ))
+        .returning()
+      logger.withFields({ id }).log('Updated character')
+      return result
     },
 
     async delete(id: string) {
@@ -179,119 +279,19 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
             .where(eq(schema.character.id, characterId))
         }
 
-        return { bookmarkRows, charRows, likeRows }
+        return { charRows, likeRows, bookmarkRows }
       })
 
       logger
         .withFields({
-          bookmarks: result.bookmarkRows.length,
+          userId,
           characters: result.charRows.length,
           likes: result.likeRows.length,
-          userId,
+          bookmarks: result.bookmarkRows.length,
         })
         .log('Characters / likes / bookmarks soft-deleted for user')
     },
-
-    async findAll() {
-      return await db.query.character.findMany({
-        where: isNull(schema.character.deletedAt),
-        with: {
-          bookmarks: true,
-          capabilities: true,
-          cover: true,
-          i18n: true,
-          likes: true,
-        },
-      })
-    },
-
-    async findById(id: string) {
-      return await db.query.character.findFirst({
-        where: and(
-          eq(schema.character.id, id),
-          isNull(schema.character.deletedAt),
-        ),
-        with: {
-          avatarModels: true,
-          bookmarks: true,
-          capabilities: true,
-          cover: true,
-          i18n: true,
-          likes: true,
-          prompts: true,
-        },
-      })
-    },
-
-    async findByOwnerId(ownerId: string) {
-      return await db.query.character.findMany({
-        where: and(
-          eq(schema.character.ownerId, ownerId),
-          isNull(schema.character.deletedAt),
-        ),
-        with: {
-          bookmarks: true,
-          capabilities: true,
-          cover: true,
-          i18n: true,
-          likes: true,
-        },
-      })
-    },
-
-    async like(userId: string, characterId: string) {
-      const result = await db.transaction(async (tx) => {
-        const existing = await tx.query.characterLikes.findFirst({
-          where: and(
-            eq(userCharacterSchema.characterLikes.userId, userId),
-            eq(userCharacterSchema.characterLikes.characterId, characterId),
-          ),
-        })
-
-        if (existing) {
-          await tx.delete(userCharacterSchema.characterLikes)
-            .where(and(
-              eq(userCharacterSchema.characterLikes.userId, userId),
-              eq(userCharacterSchema.characterLikes.characterId, characterId),
-            ))
-
-          await tx.update(schema.character)
-            .set({
-              likesCount: sql`${schema.character.likesCount} - 1`,
-            })
-            .where(eq(schema.character.id, characterId))
-
-          return { liked: false }
-        }
-        else {
-          await tx.insert(userCharacterSchema.characterLikes).values({ characterId, userId })
-
-          await tx.update(schema.character)
-            .set({
-              likesCount: sql`${schema.character.likesCount} + 1`,
-            })
-            .where(eq(schema.character.id, characterId))
-
-          return { liked: true }
-        }
-      })
-
-      metrics?.characterEngagement.add(1, { action: result.liked ? 'like' : 'unlike' })
-      return result
-    },
-
-    async update(id: string, data: Partial<schema.NewCharacter>) {
-      // TODO: Return a stable single-object response shape for HTTP callers.
-      // leaking Drizzle returning() arrays across the service boundary makes route contracts drift.
-      const result = await db.update(schema.character)
-        .set({ ...data, updatedAt: new Date() })
-        .where(and(
-          eq(schema.character.id, id),
-          isNull(schema.character.deletedAt),
-        ))
-        .returning()
-      logger.withFields({ id }).log('Updated character')
-      return result
-    },
   }
 }
+
+export type CharacterService = ReturnType<typeof createCharacterService>

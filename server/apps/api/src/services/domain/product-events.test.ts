@@ -8,33 +8,33 @@ describe('productEventService', () => {
     const service = createProductEventService({ capture, shutdown: vi.fn(async () => {}) })
 
     await service.track({
-      action: 'user_signed_up',
+      userId: 'user-1',
       feature: 'auth',
+      action: 'user_signed_up',
       status: 'succeeded',
-      userId: 'user-1',
     })
     await service.track({
+      userId: 'user-1',
+      feature: 'billing',
       action: 'checkout_started',
-      feature: 'billing',
-      source: 'stripe.checkout',
       status: 'succeeded',
-      userId: 'user-1',
+      source: 'stripe.checkout',
     })
     await service.track({
-      action: 'payment_completed',
-      feature: 'billing',
-      metadata: { amount_minor_unit: 990, currency: 'usd' },
-      source: 'stripe.webhook',
-      status: 'succeeded',
       userId: 'user-1',
+      feature: 'billing',
+      action: 'payment_completed',
+      status: 'succeeded',
+      source: 'stripe.webhook',
+      metadata: { amount_minor_unit: 990, currency: 'usd' },
     })
 
     expect(capture).toHaveBeenNthCalledWith(1, {
       distinctId: 'user-1',
       event: 'signup_completed',
       properties: {
-        airi_user_id: 'user-1',
         app_surface: 'server',
+        airi_user_id: 'user-1',
         feature: 'auth',
         status: 'succeeded',
       },
@@ -43,24 +43,24 @@ describe('productEventService', () => {
       distinctId: 'user-1',
       event: 'checkout_created',
       properties: {
-        airi_user_id: 'user-1',
         app_surface: 'server',
+        airi_user_id: 'user-1',
         feature: 'billing',
-        source: 'stripe.checkout',
         status: 'succeeded',
+        source: 'stripe.checkout',
       },
     })
     expect(capture).toHaveBeenNthCalledWith(3, {
       distinctId: 'user-1',
       event: 'payment_completed',
       properties: {
-        airi_user_id: 'user-1',
-        amount_minor_unit: 990,
         app_surface: 'server',
-        currency: 'usd',
+        airi_user_id: 'user-1',
         feature: 'billing',
-        source: 'stripe.webhook',
         status: 'succeeded',
+        source: 'stripe.webhook',
+        amount_minor_unit: 990,
+        currency: 'usd',
       },
     })
   })
@@ -70,33 +70,33 @@ describe('productEventService', () => {
     const service = createProductEventService({ capture, shutdown: vi.fn(async () => {}) })
 
     await service.track({
-      action: 'payment_completed',
-      eventId: 'cs_123',
+      userId: 'user-1',
       feature: 'billing',
+      action: 'payment_completed',
+      status: 'succeeded',
+      eventId: 'cs_123',
       metadata: {
         posthog_distinct_id: 'anon-browser-1',
         posthog_session_id: 'ph-session-1',
       },
-      status: 'succeeded',
-      userId: 'user-1',
     })
 
     expect(capture).toHaveBeenNthCalledWith(1, {
       distinctId: 'user-1',
       event: '$identify',
+      uuid: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),
       properties: {
-        $anon_distinct_id: 'anon-browser-1',
         $insert_id: 'cs_123',
+        $anon_distinct_id: 'anon-browser-1',
         $session_id: 'ph-session-1',
         airi_user_id: 'user-1',
       },
-      uuid: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),
     })
     expect(capture).toHaveBeenNthCalledWith(2, expect.objectContaining({
       distinctId: 'user-1',
       event: 'payment_completed',
-      properties: expect.objectContaining({ $insert_id: 'cs_123' }),
       uuid: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),
+      properties: expect.objectContaining({ $insert_id: 'cs_123' }),
     }))
   })
 
@@ -104,11 +104,11 @@ describe('productEventService', () => {
     const capture = vi.fn(async () => {})
     const service = createProductEventService({ capture, shutdown: vi.fn(async () => {}) })
     const input = {
-      action: 'payment_completed' as const,
-      eventId: 'cs_replayed',
-      feature: 'billing' as const,
-      status: 'succeeded' as const,
       userId: 'user-1' as const,
+      feature: 'billing' as const,
+      action: 'payment_completed' as const,
+      status: 'succeeded' as const,
+      eventId: 'cs_replayed',
     }
 
     await service.track(input)
@@ -117,8 +117,8 @@ describe('productEventService', () => {
     expect(capture).toHaveBeenCalledTimes(2)
     const captures = capture.mock.calls as unknown as Array<[
       {
-        properties: Record<string, unknown>
         uuid?: string
+        properties: Record<string, unknown>
       },
     ]>
     const first = captures[0]![0]
@@ -133,11 +133,11 @@ describe('productEventService', () => {
     const service = createProductEventService({ capture, shutdown: vi.fn(async () => {}) })
 
     await expect(service.track({
-      action: 'payment_completed',
-      feature: 'billing',
-      metadata: { $insert_id: 'spoofed' },
-      status: 'succeeded',
       userId: 'user-1',
+      feature: 'billing',
+      action: 'payment_completed',
+      status: 'succeeded',
+      metadata: { $insert_id: 'spoofed' },
     })).resolves.toBeUndefined()
 
     expect(capture).not.toHaveBeenCalled()
@@ -150,12 +150,12 @@ describe('productEventService', () => {
     const service = createProductEventService({ capture, shutdown: vi.fn(async () => {}) })
 
     await expect(service.track({
-      action: 'payment_completed',
-      eventId: 'cs_456',
-      feature: 'billing',
-      metadata: { posthog_distinct_id: 'anon-browser-1' },
-      status: 'succeeded',
       userId: 'user-1',
+      feature: 'billing',
+      action: 'payment_completed',
+      status: 'succeeded',
+      eventId: 'cs_456',
+      metadata: { posthog_distinct_id: 'anon-browser-1' },
     })).resolves.toBeUndefined()
 
     expect(capture).toHaveBeenCalledTimes(2)
@@ -172,10 +172,10 @@ describe('productEventService', () => {
     const service = createProductEventService({ capture, shutdown: vi.fn(async () => {}) })
 
     await expect(service.track({
-      action: 'payment_completed',
-      feature: 'billing',
-      status: 'succeeded',
       userId: 'user-1',
+      feature: 'billing',
+      action: 'payment_completed',
+      status: 'succeeded',
     })).resolves.toBeUndefined()
   })
 })

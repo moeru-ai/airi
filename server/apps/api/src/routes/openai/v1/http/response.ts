@@ -1,8 +1,8 @@
 const SAFE_RESPONSE_HEADERS = new Set([
-  'cache-control',
-  'content-length',
   'content-type',
+  'content-length',
   'transfer-encoding',
+  'cache-control',
 ])
 
 export function buildSafeResponseHeaders(response: Response): Headers {

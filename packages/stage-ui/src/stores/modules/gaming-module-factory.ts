@@ -10,7 +10,7 @@ export function createGamingModuleStore(moduleName: string, defaultPort: number)
 
     const enabled = useLocalStorageManualReset<boolean>(`settings/${moduleName}/enabled`, false)
     const serverAddress = useLocalStorageManualReset<string>(`settings/${moduleName}/server-address`, '')
-    const serverPort = useLocalStorageManualReset<null | number>(`settings/${moduleName}/server-port`, defaultPort)
+    const serverPort = useLocalStorageManualReset<number | null>(`settings/${moduleName}/server-port`, defaultPort)
     const username = useLocalStorageManualReset<string>(`settings/${moduleName}/username`, '')
 
     function saveSettings() {
@@ -34,6 +34,6 @@ export function createGamingModuleStore(moduleName: string, defaultPort: number)
       return !!(serverAddress.value.trim() && username.value.trim() && serverPort.value !== null)
     })
 
-    return { configured, enabled, resetState, saveSettings, serverAddress, serverPort, username }
+    return { enabled, serverAddress, serverPort, username, configured, saveSettings, resetState }
   })
 }

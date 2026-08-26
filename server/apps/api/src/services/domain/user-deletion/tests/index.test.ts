@@ -36,7 +36,7 @@ describe('createUserDeletionService', () => {
         calls.push('flux')
       }))
 
-      await service.softDeleteAll({ reason: 'user-requested', userId: 'u1' })
+      await service.softDeleteAll({ userId: 'u1', reason: 'user-requested' })
 
       // @example
       //   register order: characters(30) -> stripe(10) -> flux(20)
@@ -53,12 +53,12 @@ describe('createUserDeletionService', () => {
       service.register(a)
       service.register(b)
 
-      await service.softDeleteAll({ reason: 'admin', userId: 'user-xyz' })
+      await service.softDeleteAll({ userId: 'user-xyz', reason: 'admin' })
 
       expect(a.softDelete).toHaveBeenCalledTimes(1)
-      expect(a.softDelete).toHaveBeenCalledWith(expect.objectContaining({ reason: 'admin', userId: 'user-xyz' }))
+      expect(a.softDelete).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-xyz', reason: 'admin' }))
       expect(b.softDelete).toHaveBeenCalledTimes(1)
-      expect(b.softDelete).toHaveBeenCalledWith(expect.objectContaining({ reason: 'admin', userId: 'user-xyz' }))
+      expect(b.softDelete).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-xyz', reason: 'admin' }))
     })
 
     it('aborts on first handler error and skips later handlers', async () => {
@@ -73,7 +73,7 @@ describe('createUserDeletionService', () => {
       service.register(failing)
       service.register(lateNeverRuns)
 
-      await expect(service.softDeleteAll({ reason: 'user-requested', userId: 'u1' }))
+      await expect(service.softDeleteAll({ userId: 'u1', reason: 'user-requested' }))
         .rejects
         .toThrow('stripe API down')
 
@@ -104,7 +104,7 @@ describe('createUserDeletionService', () => {
         },
       })
 
-      await service.softDeleteAll({ reason: 'user-requested', userId: 'u1' })
+      await service.softDeleteAll({ userId: 'u1', reason: 'user-requested' })
 
       // @example
       //   serial execution: slow:start -> slow:end -> fast:start -> fast:end
@@ -115,7 +115,7 @@ describe('createUserDeletionService', () => {
 
     it('runs no handlers gracefully when registry is empty', async () => {
       const service = createUserDeletionService()
-      await expect(service.softDeleteAll({ reason: 'user-requested', userId: 'u1' })).resolves.toBeUndefined()
+      await expect(service.softDeleteAll({ userId: 'u1', reason: 'user-requested' })).resolves.toBeUndefined()
     })
   })
 })

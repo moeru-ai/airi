@@ -2,16 +2,16 @@
  * Browser Configuration Types
  */
 
-export interface BrowserConfig {
-  headless: boolean
-  requestRetries: number
-  requestTimeout: number
-  timeout: number
-  userAgent: string
-  viewport: Viewport
+export interface Viewport {
+  width: number
+  height: number
 }
 
-export interface Viewport {
-  height: number
-  width: number
+export interface BrowserConfig {
+  headless: boolean
+  userAgent: string
+  viewport: Viewport
+  timeout: number
+  requestTimeout: number
+  requestRetries: number
 }

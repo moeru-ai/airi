@@ -9,7 +9,7 @@ export function useAudioInput() {
   const audioInputs = computed(() => devices.audioInputs.value)
 
   const constraints = ref<MediaStreamConstraints>({ audio: true })
-  const media = useUserMedia({ autoSwitch: true, constraints, enabled: false })
+  const media = useUserMedia({ constraints, autoSwitch: true, enabled: false })
 
   async function request() {
     if (devices.permissionGranted.value) {
@@ -71,13 +71,13 @@ export function useAudioInput() {
   }
 
   return {
-    audioInputs,
-    media,
-    request,
-
-    selectedAudioInput,
     selectedAudioInputId,
+    selectedAudioInput,
+    audioInputs,
+
     start,
     stop,
+    request,
+    media,
   }
 }

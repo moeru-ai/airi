@@ -8,6 +8,10 @@ import { providerOllama, resolveOllamaReasoningEffort } from './index'
 
 type OllamaChatProvider = ChatProviderWithExtraOptions<string, ChatRequestOptions>
 
+function isOllamaChatProvider(provider: ProviderInstance): provider is OllamaChatProvider {
+  return 'chat' in provider && typeof provider.chat === 'function'
+}
+
 async function createOllamaChatProvider(thinkingMode: 'auto' | 'disable' | 'enable'): Promise<OllamaChatProvider> {
   const provider = await providerOllama.createProvider({
     baseUrl: 'http://localhost:11434/v1/',
@@ -17,10 +21,6 @@ async function createOllamaChatProvider(thinkingMode: 'auto' | 'disable' | 'enab
     throw new Error('Ollama provider must support chat')
 
   return provider
-}
-
-function isOllamaChatProvider(provider: ProviderInstance): provider is OllamaChatProvider {
-  return 'chat' in provider && typeof provider.chat === 'function'
 }
 
 describe('providerOllama.resolveOllamaReasoningEffort', () => {

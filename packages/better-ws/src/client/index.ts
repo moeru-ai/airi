@@ -6,24 +6,177 @@ import { createEventWaitFor, normalizeSendResult } from '../shared'
 
 const clientStateChangeEvent = defineEventa<ClientStateChange>('better-ws:client:state-change')
 
-export interface Client<TMessage> {
-  /** Closes the client and suppresses reconnect scheduling. */
-  close: (code?: number, reason?: string) => void
+/**
+ * Low-level connection adapter used by {@link Client}.
+ *
+ * @param TMessage - Message shape owned by the caller.
+ */
+export interface ClientConnection<TMessage> {
+  /** Sends one caller-owned message through the active connection. */
+  send: (message: TMessage) => boolean | number | void
+  /** Sends a native ping frame when the runtime adapter exposes one. */
+  ping?: () => boolean | number | void
+  /** Sends a native pong frame when the runtime adapter exposes one. */
+  pong?: () => boolean | number | void
+  /** Closes the active connection. */
+  close?: (code?: number, reason?: string) => void
+}
+
+/**
+ * Event sink passed to client connectors.
+ *
+ * @param TMessage - Message shape owned by the caller.
+ */
+export interface ClientEvents<TMessage> {
+  /** Delivers one adapter-decoded message to the client runtime. */
+  message: (message: TMessage) => void
+  /** Reports that the underlying transport closed. */
+  close: (details?: WsCloseDetails) => void
   /**
-   * Opens the client connection.
+   * Reports a fatal transport error for the active connection.
    *
-   * Calling `connect()` again replaces any active or pending connection. This
-   * is intentional restart behavior, not idempotent ensure-connected behavior.
+   * Adapters may emit both error and close for the same failure. The client
+   * keeps those paths isolated by connection epoch so stale or duplicate
+   * follow-up events do not schedule additional reconnects.
    */
-  connect: () => Promise<void>
-  /** Registers an incoming message handler. */
-  onMessage: (handler: (context: ClientMessageContext<TMessage>) => Promise<void> | void) => () => void
-  /** Registers a state change handler. */
-  onStateChange: (handler: (change: ClientStateChange) => void) => () => void
-  /** Sends one message over the active connection. */
-  send: (message: TMessage, options?: ClientSendOptions) => WsSendResult
-  /** Current connection lifecycle state. */
-  readonly state: WsState
+  error: (error: unknown) => void
+}
+
+/**
+ * Creates runtime-specific client connections.
+ *
+ * @param TMessage - Message shape owned by the caller.
+ */
+export interface ClientConnector<TMessage> {
+  /** Opens a new connection and wires adapter events into the provided event sink. */
+  connect: (events: ClientEvents<TMessage>) => Promise<ClientConnection<TMessage>> | ClientConnection<TMessage>
+}
+
+/**
+ * Timer handle used by reconnect scheduling.
+ */
+export interface ScheduledTask {
+  /** Cancels the scheduled task if it has not run yet. */
+  cancel: () => void
+}
+
+/**
+ * Reconnect policy for {@link createClient}.
+ */
+export interface ReconnectOptions {
+  /**
+   * Maximum reconnect attempts, or a predicate that decides whether the
+   * current attempt should run.
+   *
+   * @default Infinity
+   */
+  retries?: number | ((attempt: number, error: unknown) => boolean)
+  /**
+   * Delay in milliseconds, or a resolver for the current attempt.
+   *
+   * Defaults to exponential backoff capped at 30 seconds:
+   * `Math.min(1000 * 2 ** (attempt - 1), 30000)`.
+   */
+  delay?: number | ((attempt: number, error: unknown) => number)
+  /** Called when the retry policy stops reconnecting. */
+  onFailed?: (error: unknown) => void
+  /** Whether prepare failures should schedule reconnect attempts. @default true */
+  retryOnPrepareError?: boolean
+  /** Randomizes reconnect delay by this factor in both directions. Clamped to the 0..1 range. @default 0 */
+  reconnectRandomFactor?: number
+  /** Minimum open duration before reconnect attempts reset. @default 0 */
+  reconnectMinConnectedDuration?: number
+}
+
+/**
+ * Application-level or adapter-native heartbeat policy for {@link createClient}.
+ *
+ * @param TMessage - Message shape owned by the caller.
+ */
+export interface HeartbeatOptions<TMessage> {
+  /**
+   * Heartbeat transport mode.
+   *
+   * `auto` uses `connection.ping()` when the adapter exposes it, otherwise it
+   * falls back to message heartbeat when `message` is provided. `native`
+   * requires adapter support for `connection.ping()`. `message` sends the
+   * configured `message` value.
+   *
+   * @default 'auto'
+   */
+  mode?: 'auto' | 'native' | 'message'
+  /**
+   * Delay in milliseconds between heartbeat checks while the client is ready.
+   *
+   * @default 30000
+   */
+  interval?: number
+  /**
+   * Maximum time in milliseconds to wait for read liveness after a heartbeat.
+   *
+   * @default 10000
+   */
+  timeout?: number
+  /** Message value, or message factory, used by message heartbeat mode. */
+  message?: TMessage | (() => TMessage)
+  /**
+   * Predicate that marks an inbound message as the strict heartbeat response.
+   *
+   * When omitted, any inbound message clears the pending heartbeat timeout.
+   */
+  isResponse?: (message: TMessage) => boolean
+}
+
+export interface ClientMessageContext<TMessage> {
+  /** Client that received the message. */
+  client: Client<TMessage>
+  /** Incoming caller-owned message. */
+  message: TMessage
+}
+
+export interface ClientStateChange {
+  /** Previous client state. */
+  previousState: WsState
+  /** Current client state. */
+  state: WsState
+}
+
+/**
+ * Controls how long a prepare procedure waits for an incoming message.
+ */
+export interface WaitForOptions {
+  /** Maximum time in milliseconds to wait before rejecting. When omitted, no timeout is scheduled. */
+  timeout?: number
+  /** External cancellation signal that aborts this wait independently from the owning prepare procedure. */
+  signal?: AbortSignal
+}
+
+/**
+ * Context passed to a client prepare procedure after the transport opens.
+ *
+ * @param TMessage - Message shape owned by the caller.
+ */
+export interface PrepareContext<TMessage> {
+  /** Signal aborted when the client closes, the active connect becomes stale, or prepare is cancelled. */
+  signal: AbortSignal
+  /** Reconnect attempt index for this connection. The first connection uses `0`. */
+  attempt: number
+  /** Whether this prepare call belongs to a reconnect attempt. */
+  reconnecting: boolean
+  /** Sends a bootstrap message while the client is `open`, `preparing`, or `ready`. */
+  send: (message: TMessage) => WsSendResult
+  /**
+   * Waits for the first future message that matches the predicate.
+   *
+   * Rejects when its timeout expires or when the prepare/client signal aborts.
+   * Matching messages are still dispatched to normal `onMessage` handlers.
+   * Async predicates may overlap when multiple messages arrive before earlier
+   * predicate promises settle.
+   */
+  waitFor: (
+    predicate: (message: TMessage) => boolean | Promise<boolean>,
+    options?: WaitForOptions,
+  ) => Promise<TMessage>
 }
 
 /**
@@ -32,6 +185,8 @@ export interface Client<TMessage> {
  * @param TMessage - Message shape owned by the caller.
  */
 export interface ClientBaseOptions<TMessage = unknown> {
+  /** Reconnect policy. Reconnect is enabled by default; pass `false` to disable. @default true */
+  reconnect?: boolean | ReconnectOptions
   /** Heartbeat policy. Heartbeats are disabled unless this option is provided. @default false */
   heartbeat?: false | HeartbeatOptions<TMessage>
   /**
@@ -42,36 +197,8 @@ export interface ClientBaseOptions<TMessage = unknown> {
    * retry is scheduled through the reconnect policy.
    */
   prepare?: (context: PrepareContext<TMessage>) => Promise<void> | void
-  /** Reconnect policy. Reconnect is enabled by default; pass `false` to disable. @default true */
-  reconnect?: boolean | ReconnectOptions
   /** Injectable scheduler for tests or custom timer runtimes. */
   schedule?: (delay: number, run: () => void) => ScheduledTask
-}
-
-/**
- * Low-level connection adapter used by {@link Client}.
- *
- * @param TMessage - Message shape owned by the caller.
- */
-export interface ClientConnection<TMessage> {
-  /** Closes the active connection. */
-  close?: (code?: number, reason?: string) => void
-  /** Sends a native ping frame when the runtime adapter exposes one. */
-  ping?: () => boolean | number | void
-  /** Sends a native pong frame when the runtime adapter exposes one. */
-  pong?: () => boolean | number | void
-  /** Sends one caller-owned message through the active connection. */
-  send: (message: TMessage) => boolean | number | void
-}
-
-/**
- * Creates runtime-specific client connections.
- *
- * @param TMessage - Message shape owned by the caller.
- */
-export interface ClientConnector<TMessage> {
-  /** Opens a new connection and wires adapter events into the provided event sink. */
-  connect: (events: ClientEvents<TMessage>) => ClientConnection<TMessage> | Promise<ClientConnection<TMessage>>
 }
 
 /**
@@ -85,30 +212,15 @@ export interface ClientConnectorOptions<TMessage> extends ClientBaseOptions<TMes
 }
 
 /**
- * Event sink passed to client connectors.
- *
- * @param TMessage - Message shape owned by the caller.
+ * Options for the built-in native text socket adapter.
  */
-export interface ClientEvents<TMessage> {
-  /** Reports that the underlying transport closed. */
-  close: (details?: WsCloseDetails) => void
-  /**
-   * Reports a fatal transport error for the active connection.
-   *
-   * Adapters may emit both error and close for the same failure. The client
-   * keeps those paths isolated by connection epoch so stale or duplicate
-   * follow-up events do not schedule additional reconnects.
-   */
-  error: (error: unknown) => void
-  /** Delivers one adapter-decoded message to the client runtime. */
-  message: (message: TMessage) => void
-}
-
-export interface ClientMessageContext<TMessage> {
-  /** Client that received the message. */
-  client: Client<TMessage>
-  /** Incoming caller-owned message. */
-  message: TMessage
+export interface ClientUrlOptions extends ClientBaseOptions<string> {
+  /** URL passed to the socket constructor. */
+  url: string | URL
+  /** Optional subprotocols passed to the socket constructor. */
+  protocols?: string | string[]
+  /** WebSocket constructor. Defaults to `globalThis.WebSocket` when available. */
+  wsConstructor?: typeof WebSocket
 }
 
 export type ClientOptions<TMessage = string> = ClientConnectorOptions<TMessage> | ClientUrlOptions
@@ -129,140 +241,114 @@ export interface ClientSendOptions {
   requireReady?: boolean
 }
 
-export interface ClientStateChange {
-  /** Previous client state. */
-  previousState: WsState
-  /** Current client state. */
-  state: WsState
+export interface Client<TMessage> {
+  /** Current connection lifecycle state. */
+  readonly state: WsState
+  /**
+   * Opens the client connection.
+   *
+   * Calling `connect()` again replaces any active or pending connection. This
+   * is intentional restart behavior, not idempotent ensure-connected behavior.
+   */
+  connect: () => Promise<void>
+  /** Sends one message over the active connection. */
+  send: (message: TMessage, options?: ClientSendOptions) => WsSendResult
+  /** Closes the client and suppresses reconnect scheduling. */
+  close: (code?: number, reason?: string) => void
+  /** Registers an incoming message handler. */
+  onMessage: (handler: (context: ClientMessageContext<TMessage>) => void | Promise<void>) => () => void
+  /** Registers a state change handler. */
+  onStateChange: (handler: (change: ClientStateChange) => void) => () => void
+}
+
+function defaultSchedule(delay: number, run: () => void): ScheduledTask {
+  const handle = setTimeout(run, delay)
+  return {
+    cancel: () => clearTimeout(handle),
+  }
+}
+
+function createConnectionClosedError() {
+  return new Error('Connection closed')
 }
 
 /**
- * Options for the built-in native text socket adapter.
- */
-export interface ClientUrlOptions extends ClientBaseOptions<string> {
-  /** Optional subprotocols passed to the socket constructor. */
-  protocols?: string | string[]
-  /** URL passed to the socket constructor. */
-  url: string | URL
-  /** WebSocket constructor. Defaults to `globalThis.WebSocket` when available. */
-  wsConstructor?: typeof WebSocket
-}
-
-/**
- * Application-level or adapter-native heartbeat policy for {@link createClient}.
+ * Normalizes reconnect policy into the runtime shape used by close and
+ * prepare-failure paths.
  *
- * @param TMessage - Message shape owned by the caller.
- */
-export interface HeartbeatOptions<TMessage> {
-  /**
-   * Delay in milliseconds between heartbeat checks while the client is ready.
-   *
-   * @default 30000
-   */
-  interval?: number
-  /**
-   * Predicate that marks an inbound message as the strict heartbeat response.
-   *
-   * When omitted, any inbound message clears the pending heartbeat timeout.
-   */
-  isResponse?: (message: TMessage) => boolean
-  /** Message value, or message factory, used by message heartbeat mode. */
-  message?: (() => TMessage) | TMessage
-  /**
-   * Heartbeat transport mode.
-   *
-   * `auto` uses `connection.ping()` when the adapter exposes it, otherwise it
-   * falls back to message heartbeat when `message` is provided. `native`
-   * requires adapter support for `connection.ping()`. `message` sends the
-   * configured `message` value.
-   *
-   * @default 'auto'
-   */
-  mode?: 'auto' | 'message' | 'native'
-  /**
-   * Maximum time in milliseconds to wait for read liveness after a heartbeat.
-   *
-   * @default 10000
-   */
-  timeout?: number
-}
-
-/**
- * Context passed to a client prepare procedure after the transport opens.
+ * Before:
+ * - `undefined`
+ * - `true`
+ * - `{ delay: 100 }`
  *
- * @param TMessage - Message shape owned by the caller.
+ * After:
+ * - full reconnect policy with default infinite retries and exponential backoff
  */
-export interface PrepareContext<TMessage> {
-  /** Reconnect attempt index for this connection. The first connection uses `0`. */
-  attempt: number
-  /** Whether this prepare call belongs to a reconnect attempt. */
-  reconnecting: boolean
-  /** Sends a bootstrap message while the client is `open`, `preparing`, or `ready`. */
-  send: (message: TMessage) => WsSendResult
-  /** Signal aborted when the client closes, the active connect becomes stale, or prepare is cancelled. */
-  signal: AbortSignal
-  /**
-   * Waits for the first future message that matches the predicate.
-   *
-   * Rejects when its timeout expires or when the prepare/client signal aborts.
-   * Matching messages are still dispatched to normal `onMessage` handlers.
-   * Async predicates may overlap when multiple messages arrive before earlier
-   * predicate promises settle.
-   */
-  waitFor: (
-    predicate: (message: TMessage) => boolean | Promise<boolean>,
-    options?: WaitForOptions,
-  ) => Promise<TMessage>
+function normalizeReconnectOptions(reconnect: ClientBaseOptions['reconnect']): false | Required<ReconnectOptions> {
+  if (reconnect === false) {
+    return false
+  }
+
+  const options = reconnect === true || typeof reconnect === 'undefined' ? {} : reconnect
+  return {
+    retries: options.retries ?? Number.POSITIVE_INFINITY,
+    delay: options.delay ?? ((attempt: number) => Math.min(1000 * 2 ** (attempt - 1), 30_000)),
+    onFailed: options.onFailed ?? (() => {}),
+    retryOnPrepareError: options.retryOnPrepareError ?? true,
+    reconnectRandomFactor: normalizeReconnectRandomFactor(options.reconnectRandomFactor),
+    reconnectMinConnectedDuration: options.reconnectMinConnectedDuration ?? 0,
+  }
 }
 
-/**
- * Reconnect policy for {@link createClient}.
- */
-export interface ReconnectOptions {
-  /**
-   * Delay in milliseconds, or a resolver for the current attempt.
-   *
-   * Defaults to exponential backoff capped at 30 seconds:
-   * `Math.min(1000 * 2 ** (attempt - 1), 30000)`.
-   */
-  delay?: ((attempt: number, error: unknown) => number) | number
-  /** Called when the retry policy stops reconnecting. */
-  onFailed?: (error: unknown) => void
-  /** Minimum open duration before reconnect attempts reset. @default 0 */
-  reconnectMinConnectedDuration?: number
-  /** Randomizes reconnect delay by this factor in both directions. Clamped to the 0..1 range. @default 0 */
-  reconnectRandomFactor?: number
-  /**
-   * Maximum reconnect attempts, or a predicate that decides whether the
-   * current attempt should run.
-   *
-   * @default Infinity
-   */
-  retries?: ((attempt: number, error: unknown) => boolean) | number
-  /** Whether prepare failures should schedule reconnect attempts. @default true */
-  retryOnPrepareError?: boolean
+function shouldRetry(retries: Required<ReconnectOptions>['retries'], attempt: number, error: unknown): boolean {
+  return typeof retries === 'number'
+    ? attempt <= retries
+    : retries(attempt, error)
 }
 
-/**
- * Timer handle used by reconnect scheduling.
- */
-export interface ScheduledTask {
-  /** Cancels the scheduled task if it has not run yet. */
-  cancel: () => void
+function resolveReconnectDelay(options: Required<ReconnectOptions>, attempt: number, error: unknown): number {
+  return typeof options.delay === 'number' ? options.delay : options.delay(attempt, error)
 }
 
-/**
- * Controls how long a prepare procedure waits for an incoming message.
- */
-export interface WaitForOptions {
-  /** External cancellation signal that aborts this wait independently from the owning prepare procedure. */
-  signal?: AbortSignal
-  /** Maximum time in milliseconds to wait before rejecting. When omitted, no timeout is scheduled. */
-  timeout?: number
+function normalizeReconnectRandomFactor(randomFactor: number | undefined): number {
+  if (typeof randomFactor !== 'number' || Number.isNaN(randomFactor)) {
+    return 0
+  }
+
+  return Math.min(1, Math.max(0, randomFactor))
 }
 
-type NormalizedHeartbeatOptions<TMessage> = Pick<HeartbeatOptions<TMessage>, 'isResponse' | 'message'>
-  & Required<Pick<HeartbeatOptions<TMessage>, 'interval' | 'mode' | 'timeout'>>
+function applyReconnectRandomFactor(delay: number, randomFactor: number): number {
+  if (randomFactor <= 0 || delay <= 0) {
+    return delay
+  }
+
+  const factor = 1 + ((Math.random() * 2 - 1) * randomFactor)
+  return Math.max(1, Math.round(delay * factor))
+}
+
+type NormalizedHeartbeatOptions<TMessage> = Required<Pick<HeartbeatOptions<TMessage>, 'mode' | 'interval' | 'timeout'>>
+  & Pick<HeartbeatOptions<TMessage>, 'message' | 'isResponse'>
+
+function normalizeHeartbeatOptions<TMessage>(
+  heartbeat: ClientBaseOptions<TMessage>['heartbeat'],
+): false | NormalizedHeartbeatOptions<TMessage> {
+  if (!heartbeat) {
+    return false
+  }
+
+  return {
+    mode: heartbeat.mode ?? 'auto',
+    interval: heartbeat.interval ?? 30_000,
+    timeout: heartbeat.timeout ?? 10_000,
+    message: heartbeat.message,
+    isResponse: heartbeat.isResponse,
+  }
+}
+
+function createHeartbeatTimeoutError(timeout: number) {
+  return new Error(`Heartbeat timed out after ${timeout}ms.`)
+}
 
 /**
  * Creates a client that owns reconnect, state tracking, and handler dispatch.
@@ -273,21 +359,12 @@ type NormalizedHeartbeatOptions<TMessage> = Pick<HeartbeatOptions<TMessage>, 'is
  */
 export function createClient(options: ClientUrlOptions): Client<string>
 export function createClient<TMessage>(options: ClientConnectorOptions<TMessage>): Client<TMessage>
-export function createClient<TMessage>(options: ClientOptions<TMessage>): Client<string> | Client<TMessage> {
+export function createClient<TMessage>(options: ClientOptions<TMessage>): Client<TMessage> | Client<string> {
   if ('connector' in options) {
     return createClientWithConnector(options, options.connector)
   }
 
   return createClientWithConnector(options, createSocketConnector(options))
-}
-
-function applyReconnectRandomFactor(delay: number, randomFactor: number): number {
-  if (randomFactor <= 0 || delay <= 0) {
-    return delay
-  }
-
-  const factor = 1 + ((Math.random() * 2 - 1) * randomFactor)
-  return Math.max(1, Math.round(delay * factor))
 }
 
 function createClientWithConnector<TMessage>(
@@ -320,6 +397,24 @@ function createClientWithConnector<TMessage>(
   const clientMessageEvent = defineEventa<ClientMessageContext<TMessage>>('better-ws:client:message')
 
   const client: Client<TMessage> = {
+    get state() {
+      return state
+    },
+    async connect() {
+      await connectInternal(false)
+    },
+    send(message, sendOptions) {
+      const requiredState = sendOptions?.requireReady === false ? 'open' : 'ready'
+      const canSend = requiredState === 'ready'
+        ? state === 'ready'
+        : state === 'open' || state === 'preparing' || state === 'ready'
+
+      if (!connection || !canSend) {
+        return { ok: false, reason: 'closed' }
+      }
+
+      return normalizeSendResult(() => connection?.send(message))
+    },
     close(code, reason) {
       manuallyClosed = true
       connectionEpoch += 1
@@ -340,29 +435,11 @@ function createClientWithConnector<TMessage>(
 
       transition('closed')
     },
-    async connect() {
-      await connectInternal(false)
-    },
     onMessage(handler) {
       return events.on(clientMessageEvent, event => handler(event.body!))
     },
     onStateChange(handler) {
       return events.on(clientStateChangeEvent, event => handler(event.body!))
-    },
-    send(message, sendOptions) {
-      const requiredState = sendOptions?.requireReady === false ? 'open' : 'ready'
-      const canSend = requiredState === 'ready'
-        ? state === 'ready'
-        : state === 'open' || state === 'preparing' || state === 'ready'
-
-      if (!connection || !canSend) {
-        return { ok: false, reason: 'closed' }
-      }
-
-      return normalizeSendResult(() => connection?.send(message))
-    },
-    get state() {
-      return state
     },
   }
 
@@ -387,9 +464,9 @@ function createClientWithConnector<TMessage>(
     let nextConnection: ClientConnection<TMessage>
     try {
       nextConnection = await connector.connect({
+        message: message => dispatchMessage(currentConnectionEpoch, message),
         close: details => handleClose(currentConnectionEpoch, details),
         error: error => dispatchError(currentConnectionEpoch, error),
-        message: message => dispatchMessage(currentConnectionEpoch, message),
       })
     }
     catch (error) {
@@ -437,10 +514,10 @@ function createClientWithConnector<TMessage>(
         prepareController = currentPrepareController
 
         await options.prepare({
+          signal: currentPrepareController.signal,
           attempt: reconnectAttempt,
           reconnecting: reconnectAttempt > 0,
           send: message => client.send(message, { requireReady: false }),
-          signal: currentPrepareController.signal,
           waitFor: createWaitForMessage(currentPrepareController.signal, currentConnectionEpoch),
         })
 
@@ -766,11 +843,11 @@ function createClientWithConnector<TMessage>(
       waitOptions: WaitForOptions = {},
     ): Promise<TMessage> => {
       const wait = createEventWaitFor<TMessage>({
-        abortMessage: 'Wait for message aborted.',
-        isActive: () => prepareConnectionEpoch === connectionEpoch,
         match: predicate,
-        signals: [activePrepareSignal, waitOptions.signal],
         timeout: waitOptions.timeout,
+        signals: [activePrepareSignal, waitOptions.signal],
+        isActive: () => prepareConnectionEpoch === connectionEpoch,
+        abortMessage: 'Wait for message aborted.',
         timeoutMessage: 'Timed out waiting for message.',
       })
 
@@ -785,14 +862,6 @@ function createClientWithConnector<TMessage>(
   }
 
   return client
-}
-
-function createConnectionClosedError() {
-  return new Error('Connection closed')
-}
-
-function createHeartbeatTimeoutError(timeout: number) {
-  return new Error(`Heartbeat timed out after ${timeout}ms.`)
 }
 
 function createSocketConnector(options: ClientUrlOptions): ClientConnector<string> {
@@ -810,8 +879,8 @@ function createSocketConnector(options: ClientUrlOptions): ClientConnector<strin
         ws.onopen = () => {
           opened = true
           resolve({
-            close: (code, reason) => ws.close(code, reason),
             send: message => ws.send(message),
+            close: (code, reason) => ws.close(code, reason),
           })
         }
         ws.onmessage = (event) => {
@@ -845,71 +914,4 @@ function createSocketConnector(options: ClientUrlOptions): ClientConnector<strin
       })
     },
   }
-}
-
-function defaultSchedule(delay: number, run: () => void): ScheduledTask {
-  const handle = setTimeout(run, delay)
-  return {
-    cancel: () => clearTimeout(handle),
-  }
-}
-
-function normalizeHeartbeatOptions<TMessage>(
-  heartbeat: ClientBaseOptions<TMessage>['heartbeat'],
-): false | NormalizedHeartbeatOptions<TMessage> {
-  if (!heartbeat) {
-    return false
-  }
-
-  return {
-    interval: heartbeat.interval ?? 30_000,
-    isResponse: heartbeat.isResponse,
-    message: heartbeat.message,
-    mode: heartbeat.mode ?? 'auto',
-    timeout: heartbeat.timeout ?? 10_000,
-  }
-}
-/**
- * Normalizes reconnect policy into the runtime shape used by close and
- * prepare-failure paths.
- *
- * Before:
- * - `undefined`
- * - `true`
- * - `{ delay: 100 }`
- *
- * After:
- * - full reconnect policy with default infinite retries and exponential backoff
- */
-function normalizeReconnectOptions(reconnect: ClientBaseOptions['reconnect']): false | Required<ReconnectOptions> {
-  if (reconnect === false) {
-    return false
-  }
-
-  const options = reconnect === true || typeof reconnect === 'undefined' ? {} : reconnect
-  return {
-    delay: options.delay ?? ((attempt: number) => Math.min(1000 * 2 ** (attempt - 1), 30_000)),
-    onFailed: options.onFailed ?? (() => {}),
-    reconnectMinConnectedDuration: options.reconnectMinConnectedDuration ?? 0,
-    reconnectRandomFactor: normalizeReconnectRandomFactor(options.reconnectRandomFactor),
-    retries: options.retries ?? Number.POSITIVE_INFINITY,
-    retryOnPrepareError: options.retryOnPrepareError ?? true,
-  }
-}
-function normalizeReconnectRandomFactor(randomFactor: number | undefined): number {
-  if (typeof randomFactor !== 'number' || Number.isNaN(randomFactor)) {
-    return 0
-  }
-
-  return Math.min(1, Math.max(0, randomFactor))
-}
-
-function resolveReconnectDelay(options: Required<ReconnectOptions>, attempt: number, error: unknown): number {
-  return typeof options.delay === 'number' ? options.delay : options.delay(attempt, error)
-}
-
-function shouldRetry(retries: Required<ReconnectOptions>['retries'], attempt: number, error: unknown): boolean {
-  return typeof retries === 'number'
-    ? attempt <= retries
-    : retries(attempt, error)
 }

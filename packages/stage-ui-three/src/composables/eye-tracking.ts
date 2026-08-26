@@ -6,15 +6,15 @@ import type { TrackingMode, Vec3 } from '../stores/model-store'
 import { Vector2, Vector3 } from 'three'
 import { computed, toValue } from 'vue'
 
+interface VRMWorldContext {
+  raycaster: Raycaster
+  camera: PerspectiveCamera
+  defaultLookAt: Vector3
+}
+
 export interface VRMEyeFocusSource {
   x: number
   y: number
-}
-
-interface VRMWorldContext {
-  camera: PerspectiveCamera
-  defaultLookAt: Vector3
-  raycaster: Raycaster
 }
 
 /**
@@ -34,8 +34,8 @@ interface VRMWorldContext {
 export function useVRMEyeFocusFor(options: {
   cameraPosition: MaybeRefOrGetter<Vec3>
   context: MaybeRefOrGetter<VRMWorldContext>
-  screenBoundingBox: MaybeRefOrGetter<{ height: number, left: number, top: number, width: number }>
-  source: MaybeRefOrGetter<null | undefined | VRMEyeFocusSource>
+  screenBoundingBox: MaybeRefOrGetter<{ top: number, left: number, height: number, width: number }>
+  source: MaybeRefOrGetter<VRMEyeFocusSource | null | undefined>
   trackingMode: MaybeRefOrGetter<TrackingMode>
 }) {
   const focusPos = computed<Vector3>(() => {

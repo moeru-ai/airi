@@ -5,40 +5,6 @@ import type { RouteContext, RouteDecision, RouteMiddleware } from '../../middlew
 import { getProtocolEventMetadata } from '@proj-airi/server-shared/types'
 
 /**
- * Iterates event middlewares in declaration order until one returns a decision.
- *
- * Use when:
- * - The websocket runtime needs the first route decision from configured middleware
- *
- * Expects:
- * - Middleware functions are ordered by caller policy
- *
- * Returns:
- * - The first route decision, or `undefined` when no middleware decided
- */
-export function forEachEventMiddlewares(input: {
-  destinations?: RouteContext['destinations']
-  event: WebSocketEvent
-  fromPeer: RouteContext['fromPeer']
-  middleware: RouteMiddleware[]
-  peers: Map<string, RouteContext['fromPeer']>
-}): RouteDecision | undefined {
-  const context: RouteContext = {
-    destinations: input.destinations,
-    event: input.event,
-    fromPeer: input.fromPeer,
-    peers: input.peers,
-  }
-
-  for (const middleware of input.middleware) {
-    const result = middleware(context)
-    if (result) {
-      return result
-    }
-  }
-}
-
-/**
  * Resolves the effective event delivery policy.
  *
  * Use when:
@@ -63,5 +29,39 @@ export function resolveEventDelivery(event: WebSocketEvent): DeliveryConfig | un
   return {
     ...defaultDelivery,
     ...routeDelivery,
+  }
+}
+
+/**
+ * Iterates event middlewares in declaration order until one returns a decision.
+ *
+ * Use when:
+ * - The websocket runtime needs the first route decision from configured middleware
+ *
+ * Expects:
+ * - Middleware functions are ordered by caller policy
+ *
+ * Returns:
+ * - The first route decision, or `undefined` when no middleware decided
+ */
+export function forEachEventMiddlewares(input: {
+  event: WebSocketEvent
+  fromPeer: RouteContext['fromPeer']
+  peers: Map<string, RouteContext['fromPeer']>
+  destinations?: RouteContext['destinations']
+  middleware: RouteMiddleware[]
+}): RouteDecision | undefined {
+  const context: RouteContext = {
+    event: input.event,
+    fromPeer: input.fromPeer,
+    peers: input.peers,
+    destinations: input.destinations,
+  }
+
+  for (const middleware of input.middleware) {
+    const result = middleware(context)
+    if (result) {
+      return result
+    }
   }
 }

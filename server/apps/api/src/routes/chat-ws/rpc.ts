@@ -12,20 +12,20 @@ import { parsePullMessagesRequest, parseSendMessagesRequest, pullMessages, sendM
 const log = useLogger('chat-ws').useGlobalConfig()
 
 export interface RegisterChatRpcHandlersOptions {
-  /** Redis coordinator for cross-instance fanout. */
-  broadcast: ChatBroadcastCoordinator
-  /** Domain service that persists and reads chat messages. */
-  chatService: ChatService
-  /** Stable id for this connection in the shared registry. */
-  connectionId: string
   /** Eventa websocket context for the connected peer. */
   ctx: HonoWsInvocableEventContext
-  /** Optional engagement metrics. */
-  metrics?: EngagementMetrics | null
-  /** Local websocket registry for same-instance fanout. */
-  registry: ChatConnectionRegistry
   /** Authenticated user that owns this websocket connection. */
   userId: string
+  /** Domain service that persists and reads chat messages. */
+  chatService: ChatService
+  /** Local websocket registry for same-instance fanout. */
+  registry: ChatConnectionRegistry
+  /** Stable id for this connection in the shared registry. */
+  connectionId: string
+  /** Redis coordinator for cross-instance fanout. */
+  broadcast: ChatBroadcastCoordinator
+  /** Optional engagement metrics. */
+  metrics?: EngagementMetrics | null
 }
 
 /**
@@ -35,18 +35,18 @@ export interface RegisterChatRpcHandlersOptions {
  * before the handler reads its fields or calls the chat service.
  */
 export function registerChatRpcHandlers(options: RegisterChatRpcHandlersOptions): void {
-  const { broadcast, chatService, connectionId, ctx, metrics, registry, userId } = options
+  const { ctx, userId, chatService, registry, connectionId, broadcast, metrics } = options
 
   defineInvokeHandler(ctx, sendMessages, async (req) => {
     const request = parseSendMessagesRequest(req)
-    log.withFields({ chatId: request.chatId, count: request.messages.length, userId }).log('sendMessages')
+    log.withFields({ userId, chatId: request.chatId, count: request.messages.length }).log('sendMessages')
     const result = await chatService.pushMessages(userId, request.chatId, request.messages)
 
     const wireMessages = await chatService.pullMessages(userId, request.chatId, result.fromSeq - 1, result.toSeq - result.fromSeq + 1)
     const broadcastPayload = {
       chatId: request.chatId,
-      fromSeq: result.fromSeq,
       messages: wireMessages.messages,
+      fromSeq: result.fromSeq,
       toSeq: result.toSeq,
     }
 
@@ -67,7 +67,7 @@ export function registerChatRpcHandlers(options: RegisterChatRpcHandlersOptions)
 
   defineInvokeHandler(ctx, pullMessages, async (req) => {
     const request = parsePullMessagesRequest(req)
-    log.withFields({ afterSeq: request.afterSeq, chatId: request.chatId, userId }).log('pullMessages')
+    log.withFields({ userId, chatId: request.chatId, afterSeq: request.afterSeq }).log('pullMessages')
     return chatService.pullMessages(userId, request.chatId, request.afterSeq, request.limit)
   })
 }

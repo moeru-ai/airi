@@ -76,9 +76,9 @@ describe('useHearingStore analytics lifecycle', () => {
       stt_provider_id: 'openai-compatible-audio-transcription',
     })
     expect(analyticsMock.trackSttSucceeded).toHaveBeenCalledWith({
-      char_count: 5,
-      latency_ms: expect.any(Number),
       provider: 'openai-compatible-audio-transcription',
+      latency_ms: expect.any(Number),
+      char_count: 5,
       stream: false,
     })
   }, 10000)
@@ -103,12 +103,12 @@ describe('useHearingStore analytics lifecycle', () => {
     )).rejects.toBe(permissionError)
 
     expect(analyticsMock.trackSttFailed).toHaveBeenCalledWith({
-      error_code: 'permission_denied',
       provider: 'openai-compatible-audio-transcription',
+      error_code: 'permission_denied',
     })
     expect(analyticsMock.trackMicrophonePermissionDenied).toHaveBeenCalledWith({
-      error_code: 'permission_denied',
       stt_provider_id: 'openai-compatible-audio-transcription',
+      error_code: 'permission_denied',
     })
   }, 10000)
 })

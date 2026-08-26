@@ -115,10 +115,10 @@ export function chromeElementsToTargetCandidates(
 
     // Convert page-relative rect to screen-absolute bounds
     const bounds: Bounds = {
-      height: el.rect.h,
-      width: el.rect.w,
       x: viewportOffsetX + (elFrameOffsetX ?? 0) + el.rect.x,
       y: viewportOffsetY + (elFrameOffsetY ?? 0) + el.rect.y,
+      width: el.rect.w,
+      height: el.rect.h,
     }
 
     // Skip elements that are outside the window bounds (off-screen / clipped)
@@ -135,21 +135,21 @@ export function chromeElementsToTargetCandidates(
     const selector = buildSelector(el)
 
     candidates.push({
+      id: '', // Will be assigned by the grounding layer
+      source: 'chrome_dom',
       appName: 'Google Chrome',
+      role,
+      label,
       bounds,
       confidence,
-      enabled: !el.disabled,
-      frameId: elFrameId ?? frameId,
-      href: el.href,
-      id: '', // Will be assigned by the grounding layer
-      inputType: el.type,
       interactable: !el.disabled,
-      isPageContent: true, // All chrome_dom candidates are page content by definition
-      label,
-      role,
-      selector,
-      source: 'chrome_dom',
       tag: el.tag,
+      href: el.href,
+      inputType: el.type,
+      selector,
+      frameId: elFrameId ?? frameId,
+      isPageContent: true, // All chrome_dom candidates are page content by definition
+      enabled: !el.disabled,
     })
   }
 
@@ -159,99 +159,6 @@ export function chromeElementsToTargetCandidates(
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Build a human-readable label from element attributes.
- * Priority: text > placeholder > name > id > href > tag.
- */
-function buildLabel(el: BrowserDomInteractiveElement): string {
-  if (el.text && el.text.trim()) {
-    return el.text.trim().slice(0, 80)
-  }
-  if (el.placeholder && el.placeholder.trim()) {
-    return `[${el.placeholder.trim().slice(0, 60)}]`
-  }
-  if (el.name) {
-    return `name="${el.name}"`
-  }
-  if (el.id) {
-    return `#${el.id}`
-  }
-  if (el.href) {
-    // Truncate long URLs
-    const url = el.href.length > 60 ? `${el.href.slice(0, 57)}...` : el.href
-    return url
-  }
-  return el.tag || 'element'
-}
-
-/**
- * Build a best-effort CSS selector for re-querying the element via the
- * browser-dom bridge. Used by the browser action router for DOM-level
- * click precision instead of OS coordinate input.
- *
- * Priority: #id > [name] > tag[type] > tag.className > tag
- */
-function buildSelector(el: BrowserDomInteractiveElement): string | undefined {
-  // Unique id — best
-  if (el.id && el.id.trim()) {
-    return `#${cssEscape(el.id.trim())}`
-  }
-
-  const tag = el.tag?.toLowerCase() || '*'
-
-  // Name attribute — common for form inputs
-  if (el.name && el.name.trim()) {
-    return `${tag}[name="${el.name.trim().replace(RE_DOUBLE_QUOTE, '\\"')}"]`
-  }
-
-  // Tag + type — useful for input[type="submit"] etc.
-  if (el.type && el.type.trim() && (tag === 'input' || tag === 'button')) {
-    return `${tag}[type="${el.type.trim().replace(RE_DOUBLE_QUOTE, '\\"')}"]`
-  }
-
-  // Tag + first className — fallback
-  if (el.className && el.className.trim()) {
-    const firstClass = el.className.trim().split(RE_WHITESPACE_SPLIT)[0]
-    if (firstClass) {
-      return `${tag}.${cssEscape(firstClass)}`
-    }
-  }
-
-  // Tag alone is too generic to be useful
-  return undefined
-}
-
-async function captureViaCdp(bridge: CdpBridge): Promise<ChromeSemanticSnapshot> {
-  const elements = await bridge.collectInteractiveElements(150)
-
-  const status = bridge.getStatus()
-
-  // Map CDP elements to our BrowserDomInteractiveElement format
-  const mapped: BrowserDomInteractiveElement[] = (elements || []).map((el: Record<string, unknown>) => ({
-    center: el.center as undefined | { x: number, y: number },
-    checked: el.checked as boolean | undefined,
-    disabled: el.disabled as boolean | undefined,
-    href: el.href as string | undefined,
-    id: el.id as string | undefined,
-    name: el.name as string | undefined,
-    placeholder: el.placeholder as string | undefined,
-    rect: el.rect as undefined | { h: number, w: number, x: number, y: number },
-    role: el.role as string | undefined,
-    tag: el.tag as string | undefined,
-    text: el.text as string | undefined,
-    type: el.type as string | undefined,
-    value: el.value as string | undefined,
-  }))
-
-  return {
-    capturedAt: new Date().toISOString(),
-    interactiveElements: mapped,
-    pageTitle: status.pageTitle || '',
-    pageUrl: status.pageUrl || '',
-    source: 'cdp',
-  }
-}
 
 async function captureViaExtension(
   bridge: BrowserDomExtensionBridge,
@@ -305,12 +212,114 @@ async function captureViaExtension(
   }
 
   return {
-    capturedAt: new Date().toISOString(),
-    interactiveElements: allElements,
-    pageTitle,
     pageUrl,
+    pageTitle,
+    interactiveElements: allElements,
+    capturedAt: new Date().toISOString(),
     source: 'extension',
   }
+}
+
+async function captureViaCdp(bridge: CdpBridge): Promise<ChromeSemanticSnapshot> {
+  const elements = await bridge.collectInteractiveElements(150)
+
+  const status = bridge.getStatus()
+
+  // Map CDP elements to our BrowserDomInteractiveElement format
+  const mapped: BrowserDomInteractiveElement[] = (elements || []).map((el: Record<string, unknown>) => ({
+    tag: el.tag as string | undefined,
+    id: el.id as string | undefined,
+    name: el.name as string | undefined,
+    type: el.type as string | undefined,
+    text: el.text as string | undefined,
+    value: el.value as string | undefined,
+    href: el.href as string | undefined,
+    placeholder: el.placeholder as string | undefined,
+    disabled: el.disabled as boolean | undefined,
+    checked: el.checked as boolean | undefined,
+    role: el.role as string | undefined,
+    rect: el.rect as { x: number, y: number, w: number, h: number } | undefined,
+    center: el.center as { x: number, y: number } | undefined,
+  }))
+
+  return {
+    pageUrl: status.pageUrl || '',
+    pageTitle: status.pageTitle || '',
+    interactiveElements: mapped,
+    capturedAt: new Date().toISOString(),
+    source: 'cdp',
+  }
+}
+
+/**
+ * Build a best-effort CSS selector for re-querying the element via the
+ * browser-dom bridge. Used by the browser action router for DOM-level
+ * click precision instead of OS coordinate input.
+ *
+ * Priority: #id > [name] > tag[type] > tag.className > tag
+ */
+function buildSelector(el: BrowserDomInteractiveElement): string | undefined {
+  // Unique id — best
+  if (el.id && el.id.trim()) {
+    return `#${cssEscape(el.id.trim())}`
+  }
+
+  const tag = el.tag?.toLowerCase() || '*'
+
+  // Name attribute — common for form inputs
+  if (el.name && el.name.trim()) {
+    return `${tag}[name="${el.name.trim().replace(RE_DOUBLE_QUOTE, '\\"')}"]`
+  }
+
+  // Tag + type — useful for input[type="submit"] etc.
+  if (el.type && el.type.trim() && (tag === 'input' || tag === 'button')) {
+    return `${tag}[type="${el.type.trim().replace(RE_DOUBLE_QUOTE, '\\"')}"]`
+  }
+
+  // Tag + first className — fallback
+  if (el.className && el.className.trim()) {
+    const firstClass = el.className.trim().split(RE_WHITESPACE_SPLIT)[0]
+    if (firstClass) {
+      return `${tag}.${cssEscape(firstClass)}`
+    }
+  }
+
+  // Tag alone is too generic to be useful
+  return undefined
+}
+
+/**
+ * Minimal CSS identifier escape for Node.js (CSS.escape is browser-only).
+ * Escapes characters that are invalid in CSS identifiers per the spec.
+ * Sufficient for id/class name escaping in selector construction.
+ */
+function cssEscape(value: string): string {
+  return value.replace(RE_CSS_ESCAPE, ch => `\\${ch}`)
+}
+
+/**
+ * Build a human-readable label from element attributes.
+ * Priority: text > placeholder > name > id > href > tag.
+ */
+function buildLabel(el: BrowserDomInteractiveElement): string {
+  if (el.text && el.text.trim()) {
+    return el.text.trim().slice(0, 80)
+  }
+  if (el.placeholder && el.placeholder.trim()) {
+    return `[${el.placeholder.trim().slice(0, 60)}]`
+  }
+  if (el.name) {
+    return `name="${el.name}"`
+  }
+  if (el.id) {
+    return `#${el.id}`
+  }
+  if (el.href) {
+    // Truncate long URLs
+    const url = el.href.length > 60 ? `${el.href.slice(0, 57)}...` : el.href
+    return url
+  }
+  return el.tag || 'element'
 }
 
 /**
@@ -351,13 +360,4 @@ function computeElementConfidence(el: BrowserDomInteractiveElement): number {
 
   // Default
   return 0.7
-}
-
-/**
- * Minimal CSS identifier escape for Node.js (CSS.escape is browser-only).
- * Escapes characters that are invalid in CSS identifiers per the spec.
- * Sufficient for id/class name escaping in selector construction.
- */
-function cssEscape(value: string): string {
-  return value.replace(RE_CSS_ESCAPE, ch => `\\${ch}`)
 }

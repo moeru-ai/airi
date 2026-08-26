@@ -35,22 +35,22 @@
       return false
 
     const reqId = `__cu_req_${++seqId}`
-    const { args, method } = msg
+    const { method, args } = msg
 
     // Set timeout
     const timer = setTimeout(() => {
       pending.delete(reqId)
-      sendResponse({ error: 'timeout', success: false })
+      sendResponse({ success: false, error: 'timeout' })
     }, 8000)
 
     pending.set(reqId, { sendResponse, timer })
 
     // Send to MAIN world content.js
     window.postMessage({
-      args: args || [],
-      method,
-      reqId,
       type: '__CU_CALL__',
+      reqId,
+      method,
+      args: args || [],
     }, '*')
 
     return true // Keep sendResponse async

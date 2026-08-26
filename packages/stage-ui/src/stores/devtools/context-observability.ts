@@ -10,44 +10,50 @@ import { ref } from 'vue'
 import { formatContextPromptText } from '../chat/context-prompt'
 
 export type ContextLifecyclePhase
-  = | 'after-compose'
-    | 'before-compose'
+  = | 'server-received'
+    | 'input-context-update'
     | 'broadcast-posted'
     | 'broadcast-received'
-    | 'input-context-update'
-    | 'prompt-context-built'
-    | 'server-received'
-    | 'store-ingest-rejected'
     | 'store-ingested'
+    | 'store-ingest-rejected'
+    | 'before-compose'
+    | 'prompt-context-built'
+    | 'after-compose'
 
 export interface ContextLifecycleRecord {
-  channel: 'broadcast' | 'chat' | 'input' | 'server'
-  contextId?: string
-  details?: unknown
-  eventId?: string
   id: string
-  lane?: string
-  mutation?: 'append' | 'replace'
-  phase: ContextLifecyclePhase
-  sessionId?: string
-  sourceKey?: string
-  sourceLabel?: string
-  strategy?: ContextUpdateStrategy
-  textPreview?: string
   timestamp: number
+  phase: ContextLifecyclePhase
+  channel: 'server' | 'broadcast' | 'chat' | 'input'
+  sourceKey?: string
+  sessionId?: string
+  strategy?: ContextUpdateStrategy
+  lane?: string
+  contextId?: string
+  eventId?: string
+  mutation?: 'replace' | 'append'
+  textPreview?: string
+  sourceLabel?: string
+  details?: unknown
 }
 
 export interface PromptProjectionSnapshot {
   capturedAt: number
-  composedMessage?: Message[]
-  contexts: Record<string, ContextMessage[]>
-  message: string
-  promptMessage?: Message
-  promptText: string
   sessionId: string
+  message: string
+  contexts: Record<string, ContextMessage[]>
+  promptText: string
+  promptMessage?: Message
+  composedMessage?: Message[]
 }
 
 const DEFAULT_MAX_HISTORY = 200
+
+function truncateText(value: string, limit = 220) {
+  if (value.length <= limit)
+    return value
+  return `${value.slice(0, limit)}...`
+}
 
 function cloneValue<T>(value: T): T {
   try {
@@ -58,12 +64,6 @@ function cloneValue<T>(value: T): T {
   }
 }
 
-function truncateText(value: string, limit = 220) {
-  if (value.length <= limit)
-    return value
-  return `${value.slice(0, limit)}...`
-}
-
 export const useContextObservabilityStore = defineStore('devtools:context-observability', () => {
   const history = ref<ContextLifecycleRecord[]>([])
   const maxHistory = ref(DEFAULT_MAX_HISTORY)
@@ -71,13 +71,13 @@ export const useContextObservabilityStore = defineStore('devtools:context-observ
   const lastBroadcastPostedAt = ref<number>()
   const lastBroadcastReceivedAt = ref<number>()
 
-  function recordLifecycle(record: Omit<ContextLifecycleRecord, 'id' | 'textPreview' | 'timestamp'> & { textPreview?: string }) {
+  function recordLifecycle(record: Omit<ContextLifecycleRecord, 'id' | 'timestamp' | 'textPreview'> & { textPreview?: string }) {
     const nextRecord: ContextLifecycleRecord = {
       id: nanoid(),
       timestamp: Date.now(),
       ...record,
-      details: record.details === undefined ? undefined : cloneValue(record.details),
       textPreview: record.textPreview ? truncateText(record.textPreview) : undefined,
+      details: record.details === undefined ? undefined : cloneValue(record.details),
     }
 
     history.value.unshift(nextRecord)
@@ -94,20 +94,20 @@ export const useContextObservabilityStore = defineStore('devtools:context-observ
   }
 
   function capturePromptProjection(payload: {
-    composedMessage?: Message[]
-    contexts: Record<string, ContextMessage[]>
-    message: string
-    promptMessage?: Message | null
     sessionId: string
+    message: string
+    contexts: Record<string, ContextMessage[]>
+    promptMessage?: Message | null
+    composedMessage?: Message[]
   }) {
     lastPromptProjection.value = {
       capturedAt: Date.now(),
-      composedMessage: payload.composedMessage ? cloneValue(payload.composedMessage) : undefined,
-      contexts: cloneValue(payload.contexts),
-      message: payload.message,
-      promptMessage: payload.promptMessage ? cloneValue(payload.promptMessage) : undefined,
-      promptText: formatContextPromptText(payload.contexts),
       sessionId: payload.sessionId,
+      message: payload.message,
+      contexts: cloneValue(payload.contexts),
+      promptText: formatContextPromptText(payload.contexts),
+      promptMessage: payload.promptMessage ? cloneValue(payload.promptMessage) : undefined,
+      composedMessage: payload.composedMessage ? cloneValue(payload.composedMessage) : undefined,
     }
   }
 
@@ -116,13 +116,13 @@ export const useContextObservabilityStore = defineStore('devtools:context-observ
   }
 
   return {
-    capturePromptProjection,
-    clearHistory,
     history,
+    maxHistory,
+    lastPromptProjection,
     lastBroadcastPostedAt,
     lastBroadcastReceivedAt,
-    lastPromptProjection,
-    maxHistory,
     recordLifecycle,
+    capturePromptProjection,
+    clearHistory,
   }
 })

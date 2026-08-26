@@ -29,32 +29,32 @@ import { setupDashboardWindowElectronInvokes } from './rpc/index.electron'
 
 const appConfigSchema = object({
   windows: optional(array(object({
-    height: optional(number()),
-    tag: string(),
     title: optional(string()),
-    width: optional(number()),
+    tag: string(),
     x: optional(number()),
     y: optional(number()),
+    width: optional(number()),
+    height: optional(number()),
   }))),
 })
 
 type AppConfig = InferOutput<typeof appConfigSchema>
 
 export async function setupDashboardWindow(params: {
+  settingsWindow: SettingsWindowManager
   chatWindow: () => Promise<BrowserWindow>
-  i18n: I18n
   noticeWindow: NoticeWindowManager
   onWindowCreated?: (window: BrowserWindow) => void
   serverChannel: ServerChannel
-  settingsWindow: SettingsWindowManager
+  i18n: I18n
 }) {
   const {
-    get: getConfigRaw,
     setup: setupConfig,
+    get: getConfigRaw,
     update: updateConfig,
   } = createConfig('app', 'config.json', appConfigSchema, {
-    autoHeal: true,
     default: { windows: [] },
+    autoHeal: true,
   })
   const getConfig = (): AppConfig => getConfigRaw() ?? { windows: [] }
 
@@ -63,17 +63,17 @@ export async function setupDashboardWindow(params: {
   const windowConfig = getConfig().windows?.find(w => w.title === 'AIRI Dashboard' && w.tag === 'dashboard')
 
   const window = new BrowserWindow({
-    height: windowConfig?.height ?? 600.0,
-    icon,
-    show: false,
     title: 'AIRI Dashboard',
+    width: windowConfig?.width ?? 1200.0,
+    height: windowConfig?.height ?? 600.0,
+    x: windowConfig?.x,
+    y: windowConfig?.y,
+    show: false,
+    icon,
     webPreferences: {
       preload: join(dirname(fileURLToPath(import.meta.url)), '../preload/index.mjs'),
       sandbox: false,
     },
-    width: windowConfig?.width ?? 1200.0,
-    x: windowConfig?.x,
-    y: windowConfig?.y,
   })
 
   if (params.onWindowCreated) {
@@ -100,16 +100,16 @@ export async function setupDashboardWindow(params: {
 
     if (existingConfigIndex === -1) {
       config.windows.push({
-        height: newBounds.height,
-        tag: 'dashboard',
         title: 'AIRI Dashboard',
-        width: newBounds.width,
+        tag: 'dashboard',
         x: newBounds.x,
         y: newBounds.y,
+        width: newBounds.width,
+        height: newBounds.height,
       })
     }
     else {
-      const windowConfig = defu(config.windows[existingConfigIndex], { tag: 'dashboard', title: 'AIRI Dashboard' })
+      const windowConfig = defu(config.windows[existingConfigIndex], { title: 'AIRI Dashboard', tag: 'dashboard' })
 
       windowConfig.x = newBounds.x
       windowConfig.y = newBounds.y
@@ -129,12 +129,12 @@ export async function setupDashboardWindow(params: {
   protectPrivilegedWindowNavigation(window)
 
   await setupDashboardWindowElectronInvokes({
-    chatWindow: params.chatWindow,
-    i18n: params.i18n,
-    noticeWindow: params.noticeWindow,
-    serverChannel: params.serverChannel,
-    settingsWindow: params.settingsWindow,
     window,
+    settingsWindow: params.settingsWindow,
+    chatWindow: params.chatWindow,
+    noticeWindow: params.noticeWindow,
+    i18n: params.i18n,
+    serverChannel: params.serverChannel,
   })
 
   await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/dashboard', {

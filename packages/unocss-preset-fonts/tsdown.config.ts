@@ -1,7 +1,6 @@
 import { defineConfig } from 'tsdown'
 
 export default defineConfig({
-  dts: true,
   entry: [
     './src/index.ts',
   ],
@@ -10,5 +9,6 @@ export default defineConfig({
     '@proj-airi/font-departure-mono',
     '@proj-airi/font-xiaolai',
   ],
+  dts: true,
   sourcemap: true,
 })

@@ -49,8 +49,8 @@ vi.mock('../../devtools/context-observability', () => ({
 
 vi.mock('../../modules/consciousness', () => ({
   useConsciousnessStore: () => ({
-    activeModel: ref(undefined),
     activeProvider: ref(undefined),
+    activeModel: ref(undefined),
     getChatProviderInstance: vi.fn(async () => ({})),
   }),
 }))
@@ -62,10 +62,10 @@ vi.mock('../../providers/provider', () => ({
 vi.mock('./channel-server', () => ({
   useModsServerChannelStore: () => ({
     ensureConnected: vi.fn(async () => undefined),
+    send: vi.fn(),
+    onReconnected: vi.fn(() => () => undefined),
     onContextUpdate: vi.fn(() => () => undefined),
     onEvent: vi.fn(() => () => undefined),
-    onReconnected: vi.fn(() => () => undefined),
-    send: vi.fn(),
   }),
 }))
 
@@ -88,20 +88,20 @@ describe('dispatchSparkNotifyPerformance', () => {
     const streamingControl = useLlmStreamingControlStore()
 
     const resultPromise = store.dispatchSparkNotifyPerformance({
+      headline: 'Plugin performance',
+      fallbackResponseText: '',
       calls: [
         {
-          handler,
           manifest: {
+            name: 'plugin.action',
+            prompt: 'Run the plugin action when the model is ready.',
             examples: [
               '<|CALL ["plugin.action"]|>',
             ],
-            name: 'plugin.action',
-            prompt: 'Run the plugin action when the model is ready.',
           },
+          handler,
         },
       ],
-      fallbackResponseText: '',
-      headline: 'Plugin performance',
       timeoutMs: 1000,
     })
 
@@ -113,9 +113,9 @@ describe('dispatchSparkNotifyPerformance', () => {
     })
 
     await expect(resultPromise).resolves.toEqual({
+      type: 'called',
       name: 'plugin.action',
       reaction: 'reaction text',
-      type: 'called',
     })
     expect(handler).toHaveBeenCalledTimes(1)
     expect(handleSparkNotifyWithReaction).toHaveBeenCalledWith(
@@ -137,17 +137,17 @@ describe('dispatchSparkNotifyPerformance', () => {
     const streamingControl = useLlmStreamingControlStore()
 
     const resultPromise = store.dispatchSparkNotifyPerformance({
+      headline: 'Plugin performance',
+      fallbackResponseText: '',
       calls: [
         {
-          handler,
           manifest: {
             name: 'plugin.action',
             prompt: 'Run the plugin action when the model is ready.',
           },
+          handler,
         },
       ],
-      fallbackResponseText: '',
-      headline: 'Plugin performance',
     })
     const sparkEventId = getLastSparkEventId()
     expect(sparkEventId).toEqual(expect.any(String))
@@ -157,10 +157,10 @@ describe('dispatchSparkNotifyPerformance', () => {
     })
 
     await expect(resultPromise).resolves.toEqual({
+      type: 'called',
       name: 'plugin.action',
       payload: { move: 'Nf3' },
       reaction: 'reaction text',
-      type: 'called',
     })
     expect(handler).toHaveBeenCalledWith({ move: 'Nf3' })
   })
@@ -171,25 +171,25 @@ describe('dispatchSparkNotifyPerformance', () => {
     store.setSparkNotifyHostRole('client')
 
     const resultPromise = store.dispatchSparkNotifyPerformance({
+      headline: 'Plugin performance',
+      fallbackResponseText: 'fallback text',
       calls: [
         {
-          handler: vi.fn(),
           manifest: {
             name: 'plugin.action',
             prompt: 'Run the plugin action when the model is ready.',
           },
+          handler: vi.fn(),
         },
       ],
-      fallbackResponseText: 'fallback text',
-      headline: 'Plugin performance',
       timeoutMs: 10,
     })
 
     await vi.advanceTimersByTimeAsync(10)
 
     await expect(resultPromise).resolves.toEqual({
-      reaction: 'fallback text',
       type: 'timeout',
+      reaction: 'fallback text',
     })
     vi.useRealTimers()
   })
@@ -207,25 +207,25 @@ describe('dispatchSparkNotifyPerformance', () => {
     const streamingControl = useLlmStreamingControlStore()
 
     const resultPromise = store.dispatchSparkNotifyPerformance({
+      headline: 'Plugin performance',
+      fallbackResponseText: '',
       calls: [
         {
-          handler,
           manifest: {
             name: 'plugin.action',
             prompt: 'Run the plugin action when the model is ready.',
           },
+          handler,
         },
       ],
-      fallbackResponseText: '',
-      headline: 'Plugin performance',
     })
     const sparkEventId = getLastSparkEventId()
     expect(sparkEventId).toEqual(expect.any(String))
     streamingControl.completeTurn(`spark:${sparkEventId}`)
 
     await expect(resultPromise).resolves.toEqual({
-      reaction: 'reaction text',
       type: 'completed',
+      reaction: 'reaction text',
     })
     expect(handler).not.toHaveBeenCalled()
   })

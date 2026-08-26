@@ -14,8 +14,8 @@ const ANIMATION_DURATION = 350
 
 export function createOnboardingService(params: {
   context: ReturnType<typeof createContext>['context']
-  mainWindow: BrowserWindow
   onboardingWindowManager: OnboardingWindowManager
+  mainWindow: BrowserWindow
 }) {
   const mainWindowAnimator = new Animator(params.mainWindow)
   let cleanupOnClosed: (() => void) | undefined
@@ -29,15 +29,15 @@ export function createOnboardingService(params: {
 
     const adjacent = computeAdjacentPosition(
       onboardingBounds,
-      { height: savedBounds.height, width: savedBounds.width },
+      { width: savedBounds.width, height: savedBounds.height },
       display.workArea,
     )
 
     mainWindowAnimator.windowBoundsAnimateTo({
-      height: adjacent.height,
-      width: adjacent.width,
       x: adjacent.x,
       y: adjacent.y,
+      width: adjacent.width,
+      height: adjacent.height,
     }, { duration: ANIMATION_DURATION })
 
     let userMovedManually = false

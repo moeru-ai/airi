@@ -14,7 +14,6 @@ function createMockServer() {
   const schemas = new Map<string, SchemaShape>()
 
   return {
-    schemas,
     server: {
       tool(name: string, schemaOrSummary: unknown, schemaOrHandler?: unknown) {
         const schema = typeof schemaOrSummary === 'string'
@@ -26,33 +25,34 @@ function createMockServer() {
         return { disable: vi.fn() }
       },
     } as unknown as McpServer,
+    schemas,
   }
 }
 
 function createRegistrationRuntime() {
   return {
+    config: createTestConfig(),
+    stateManager: new RunStateManager(),
+    session: {},
+    executor: {},
+    terminalRunner: {},
     browserDomBridge: {},
     cdpBridgeManager: {},
     chromeSessionManager: {},
-    config: createTestConfig(),
     desktopSessionController: {},
-    executor: {},
-    session: {},
-    stateManager: new RunStateManager(),
     taskMemory: {},
-    terminalRunner: {},
   } as unknown as ComputerUseServerRuntime
 }
 
 describe('registerComputerUseTools coordinate contract', () => {
   it('documents mutating desktop target coordinates as global logical screen coordinates', () => {
-    const { schemas, server } = createMockServer()
+    const { server, schemas } = createMockServer()
 
     registerComputerUseTools({
-      enableTestTools: false,
-      executeAction: vi.fn(),
-      runtime: createRegistrationRuntime(),
       server,
+      runtime: createRegistrationRuntime(),
+      executeAction: vi.fn(),
+      enableTestTools: false,
     })
 
     expect(schemas.get('desktop_click')?.x.description).toBe('Global logical screen X coordinate, not Retina backing pixels')

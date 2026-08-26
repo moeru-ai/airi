@@ -11,17 +11,6 @@ const windowBoundsHeight = ref(0)
 
 let initialized = false
 
-export function useElectronWindowBounds() {
-  initializeWindowBoundsTracking()
-
-  return {
-    height: windowBoundsHeight,
-    width: windowBoundsWidth,
-    x: windowBoundsX,
-    y: windowBoundsY,
-  }
-}
-
 function initializeWindowBoundsTracking() {
   if (initialized) {
     return
@@ -41,4 +30,15 @@ function initializeWindowBoundsTracking() {
   })
 
   void defineInvoke(context, startLoopGetBounds)()
+}
+
+export function useElectronWindowBounds() {
+  initializeWindowBoundsTracking()
+
+  return {
+    x: windowBoundsX,
+    y: windowBoundsY,
+    width: windowBoundsWidth,
+    height: windowBoundsHeight,
+  }
 }

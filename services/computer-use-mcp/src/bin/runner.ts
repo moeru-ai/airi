@@ -9,41 +9,24 @@ import { errorMessageFromValue } from '../utils/error-message'
 
 const runner = new LinuxX11RunnerService()
 const rl = createInterface({
-  crlfDelay: Infinity,
   input: process.stdin,
+  crlfDelay: Infinity,
 })
 
 let queue = Promise.resolve()
 
-function enqueueRequest(request: RunnerRequest) {
-  queue = queue.then(async () => {
-    await handleRequest(request)
-  }).catch(async (error) => {
-    await writeResponse({
-      error: {
-        message: errorMessageFromValue(error),
-      },
-      id: request.id,
-      ok: false,
-    })
-  })
+async function writeResponse(response: RunnerResponse) {
+  process.stdout.write(`${JSON.stringify(response)}\n`)
 }
 
 async function handleRequest(request: RunnerRequest) {
   try {
     switch (request.method) {
-      case 'click':
+      case 'initialize':
         await writeResponse({
           id: request.id,
           ok: true,
-          result: await runner.click(request.params as never),
-        })
-        return
-      case 'getDisplayInfo':
-        await writeResponse({
-          id: request.id,
-          ok: true,
-          result: await runner.getDisplayInfo(),
+          result: await runner.initialize(request.params as never),
         })
         return
       case 'getExecutionTarget':
@@ -51,6 +34,13 @@ async function handleRequest(request: RunnerRequest) {
           id: request.id,
           ok: true,
           result: await runner.getExecutionTarget(),
+        })
+        return
+      case 'getDisplayInfo':
+        await writeResponse({
+          id: request.id,
+          ok: true,
+          result: await runner.getDisplayInfo(),
         })
         return
       case 'getForegroundContext':
@@ -67,18 +57,25 @@ async function handleRequest(request: RunnerRequest) {
           result: await runner.getPermissionInfo(),
         })
         return
-      case 'initialize':
+      case 'takeScreenshot':
         await writeResponse({
           id: request.id,
           ok: true,
-          result: await runner.initialize(request.params as never),
+          result: await runner.takeScreenshot(request.params as never),
         })
         return
-      case 'openTestTarget':
+      case 'click':
         await writeResponse({
           id: request.id,
           ok: true,
-          result: await runner.openTestTarget(),
+          result: await runner.click(request.params as never),
+        })
+        return
+      case 'typeText':
+        await writeResponse({
+          id: request.id,
+          ok: true,
+          result: await runner.typeText(request.params as never),
         })
         return
       case 'pressKeys':
@@ -95,25 +92,18 @@ async function handleRequest(request: RunnerRequest) {
           result: await runner.scroll(request.params as never),
         })
         return
-      case 'takeScreenshot':
-        await writeResponse({
-          id: request.id,
-          ok: true,
-          result: await runner.takeScreenshot(request.params as never),
-        })
-        return
-      case 'typeText':
-        await writeResponse({
-          id: request.id,
-          ok: true,
-          result: await runner.typeText(request.params as never),
-        })
-        return
       case 'wait':
         await writeResponse({
           id: request.id,
           ok: true,
           result: await runner.wait(request.params as never),
+        })
+        return
+      case 'openTestTarget':
+        await writeResponse({
+          id: request.id,
+          ok: true,
+          result: await runner.openTestTarget(),
         })
         return
       case 'shutdown':
@@ -128,17 +118,27 @@ async function handleRequest(request: RunnerRequest) {
   }
   catch (error) {
     await writeResponse({
+      id: request.id,
+      ok: false,
       error: {
         message: errorMessageFromValue(error),
       },
-      id: request.id,
-      ok: false,
     })
   }
 }
 
-async function writeResponse(response: RunnerResponse) {
-  process.stdout.write(`${JSON.stringify(response)}\n`)
+function enqueueRequest(request: RunnerRequest) {
+  queue = queue.then(async () => {
+    await handleRequest(request)
+  }).catch(async (error) => {
+    await writeResponse({
+      id: request.id,
+      ok: false,
+      error: {
+        message: errorMessageFromValue(error),
+      },
+    })
+  })
 }
 
 rl.on('line', (line) => {

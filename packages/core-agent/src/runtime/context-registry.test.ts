@@ -7,27 +7,27 @@ import { createContextRegistry } from './context-registry'
 
 type TestContextMessage = ContextMessage & { source?: string }
 
+function createMetadata(extensionId: string, moduleId: string): NonNullable<ContextMessage['metadata']> {
+  return {
+    source: {
+      id: moduleId,
+      extension: {
+        id: extensionId,
+      },
+    },
+  }
+}
+
 function createContextMessage(overrides: Partial<TestContextMessage> = {}): TestContextMessage {
   const id = overrides.id ?? 'context-1'
 
   return {
-    contextId: overrides.contextId ?? id,
-    createdAt: overrides.createdAt ?? 1,
     id,
+    contextId: overrides.contextId ?? id,
     strategy: overrides.strategy ?? ContextUpdateStrategy.ReplaceSelf,
     text: overrides.text ?? 'context text',
+    createdAt: overrides.createdAt ?? 1,
     ...overrides,
-  }
-}
-
-function createMetadata(extensionId: string, moduleId: string): NonNullable<ContextMessage['metadata']> {
-  return {
-    source: {
-      extension: {
-        id: extensionId,
-      },
-      id: moduleId,
-    },
   }
 }
 
@@ -56,14 +56,14 @@ describe('createContextRegistry', () => {
     }))
 
     expect(firstResult).toEqual({
-      entryCount: 1,
-      mutation: 'replace',
       sourceKey: 'sensor',
+      mutation: 'replace',
+      entryCount: 1,
     })
     expect(secondResult).toEqual({
-      entryCount: 1,
-      mutation: 'replace',
       sourceKey: 'sensor',
+      mutation: 'replace',
+      entryCount: 1,
     })
     expect(registry.snapshot().sensor?.map(message => message.text)).toEqual(['second reading'])
     expect(registry.contextHistory().map(message => message.id)).toEqual(['first', 'second'])
@@ -90,14 +90,14 @@ describe('createContextRegistry', () => {
     }))
 
     expect(firstResult).toEqual({
-      entryCount: 1,
-      mutation: 'append',
       sourceKey: 'sensor',
+      mutation: 'append',
+      entryCount: 1,
     })
     expect(secondResult).toEqual({
-      entryCount: 2,
-      mutation: 'append',
       sourceKey: 'sensor',
+      mutation: 'append',
+      entryCount: 2,
     })
     expect(registry.snapshot().sensor?.map(message => message.text)).toEqual(['first reading', 'second reading'])
   })
@@ -111,8 +111,8 @@ describe('createContextRegistry', () => {
 
     const extensionModuleResult = registry.ingest(createContextMessage({
       id: 'with-instance',
-      metadata: createMetadata('weather', 'station-1'),
       source: 'fallback-source',
+      metadata: createMetadata('weather', 'station-1'),
     }))
     const sourceResult = registry.ingest(createContextMessage({
       id: 'source-only',
@@ -181,9 +181,9 @@ describe('createContextRegistry', () => {
     const snapshot = registry.snapshot()
 
     expect(result).toEqual({
-      entryCount: 1,
-      mutation: 'replace',
       sourceKey: '__proto__',
+      mutation: 'replace',
+      entryCount: 1,
     })
     expect(Object.getPrototypeOf(snapshot)).toBe(Object.prototype)
     expect(Object.hasOwn(snapshot, '__proto__')).toBe(true)
@@ -212,9 +212,9 @@ describe('createContextRegistry', () => {
 
     expect(firstResult?.entryCount).toBe(1)
     expect(secondResult).toEqual({
-      entryCount: 2,
-      mutation: 'append',
       sourceKey: 'toString',
+      mutation: 'append',
+      entryCount: 2,
     })
     expect(Object.getOwnPropertyDescriptor(registry.snapshot(), 'toString')?.value?.map((message: ContextMessage) => message.text)).toEqual([
       'first toString bucket entry',
@@ -288,9 +288,9 @@ describe('createContextRegistry', () => {
     }))
 
     expect(() => registry.ingest(createContextMessage({
-      content: () => 'functions cannot be structured-cloned',
       id: 'uncloneable',
       source: 'broken-source',
+      content: () => 'functions cannot be structured-cloned',
     }))).toThrow()
     expect(registry.snapshot()).toEqual({
       sensor: [

@@ -42,10 +42,11 @@ else {
 
 export default {
   appId: 'ai.moeru.airi',
-  appImage: {
-    artifactName: '${productName}-${version}-linux-${arch}.${ext}',
+  productName: 'AIRI',
+  directories: {
+    output: 'dist',
+    buildResources: 'build',
   },
-  asar: true,
   // // For self-publishing, testing, and distribution after modified the code without access to
   // // an Apple Developer account, comment and uncomment the following lines.
   // // Later on when you obtained one, you can set up the necessary certificates and provisioning
@@ -62,30 +63,6 @@ export default {
   //     return
   //   }
 
-  asarUnpack: [
-    '**/*.node',
-  ],
-  directories: {
-    buildResources: 'build',
-    output: 'dist',
-  },
-  dmg: {
-    artifactName: '${productName}-${version}-darwin-${arch}.${ext}',
-  },
-  extraMetadata: {
-    homepage: 'https://airi.moeru.ai/docs/',
-    license: 'MIT',
-    main: 'out/main/index.js',
-    name: 'ai.moeru.airi',
-    repository: 'https://github.com/moeru-ai/airi',
-  },
-  extraResources: [
-    {
-      filter: ['**/*'],
-      from: '../../engines/stage-tamagotchi-godot/out/${os}',
-      to: 'godot-stage',
-    },
-  ],
   //   const appName = context.packager.appInfo.productFilename
   //   await notarize({
   //     appPath: `${appOutDir}/${appName}.app`,
@@ -116,45 +93,55 @@ export default {
     '!{.env,.env.*,.npmrc,pnpm-lock.yaml}',
     '!{tsconfig.json}',
   ],
-  linux: {
-    artifactName: '${productName}-${version}-linux-${arch}.${ext}',
-    category: 'Utility',
-    description: 'AIRI is an AI VTuber/Waifu chatbot supporting Live2D/VRM avatars, featuring human-like interactions and modular stage-based rendering.',
-    executableName: 'airi',
-    icon: 'build/icons/icon.png',
-    // NOTICE: Same channel rule as Windows/macOS. Keep `${arch}` to avoid x64/arm64 feed collisions on Linux.
-    publish: {
-      channel: 'latest-${arch}',
-      owner: 'moeru-ai',
-      provider: 'github',
-      repo: 'airi',
+  asar: true,
+  asarUnpack: [
+    '**/*.node',
+  ],
+  extraResources: [
+    {
+      from: '../../engines/stage-tamagotchi-godot/out/${os}',
+      to: 'godot-stage',
+      filter: ['**/*'],
     },
-    synopsis: 'AI VTuber/Waifu chatbot app inspired by Neuro-sama.',
-    target: [
-      'deb',
-      'rpm',
-    ],
+  ],
+  extraMetadata: {
+    name: 'ai.moeru.airi',
+    main: 'out/main/index.js',
+    homepage: 'https://airi.moeru.ai/docs/',
+    repository: 'https://github.com/moeru-ai/airi',
+    license: 'MIT',
+  },
+  win: {
+    executableName: 'airi',
+    // NOTICE: Keep `channel: 'latest-${arch}'` for architecture-aware updater metadata.
+    // electron-builder expands `${arch}` at publish-time (for example: `latest-x64`, `latest-arm64`),
+    // and electron-updater later consumes that expanded channel to resolve platform-specific *.yml files.
+    // This prevents cross-arch lookups such as arm64 clients reading x64 metadata.
+    publish: {
+      provider: 'github',
+      owner: 'moeru-ai',
+      repo: 'airi',
+      channel: 'latest-${arch}',
+    },
+  },
+  nsis: {
+    artifactName: '${productName}-${version}-windows-${arch}-setup.${ext}',
+    shortcutName: '${productName}',
+    uninstallDisplayName: '${productName}',
+    createDesktopShortcut: 'always',
+    deleteAppDataOnUninstall: true,
+    oneClick: false,
+    allowToChangeInstallationDirectory: true,
+    runAfterFinish: true,
   },
   mac: {
     entitlementsInherit: 'build/entitlements.mac.plist',
-    executableName: 'airi',
-    extendInfo: {
-      NSCameraUsageDescription: 'AIRI requires camera access for vision understanding',
-      NSMicrophoneUsageDescription: 'AIRI requires microphone access for voice interaction',
-      NSSpeechRecognitionUsageDescription: 'AIRI uses Apple Speech to transcribe voice interactions on this device',
-    },
-    // For self-publishing, testing, and distribution after modified the code without access to
-    // an Apple Developer account, comment and uncomment the following 4 lines.
-    // Later on when you obtained one, you can set up the necessary certificates and provisioning
-    // profiles to enable these security features.
-    // hardenedRuntime: false,
-    hardenedRuntime: true,
-    icon: useIconFormattedMacAppIcon ? 'icon.icon' : 'icon.icns',
-    // notarize: false,
-    notarize: true,
     // NOTICE: Same channel rule as Windows. Keep `${arch}` here so generated metadata resolves
     // to architecture-specific update feeds on macOS (for example: `latest-x64-mac.yml`, `latest-arm64-mac.yml`).
     publish: {
+      provider: 'github',
+      owner: 'moeru-ai',
+      repo: 'airi',
       // NOTICE: `channel: 'latest-${arch}'` matters because electron-builder expands
       // `${arch}` before it writes any publish metadata, and electron-updater later
       // reuses that expanded channel string when deciding which `*.yml` file to fetch.
@@ -218,35 +205,48 @@ export default {
       // - Linux x64 -> `latest-x64-linux.yml`
       // - Linux arm64 -> `latest-arm64-linux-arm64.yml`
       channel: 'latest-${arch}',
-      owner: 'moeru-ai',
-      provider: 'github',
-      repo: 'airi',
     },
+    extendInfo: {
+      NSMicrophoneUsageDescription: 'AIRI requires microphone access for voice interaction',
+      NSSpeechRecognitionUsageDescription: 'AIRI uses Apple Speech to transcribe voice interactions on this device',
+      NSCameraUsageDescription: 'AIRI requires camera access for vision understanding',
+    },
+    // For self-publishing, testing, and distribution after modified the code without access to
+    // an Apple Developer account, comment and uncomment the following 4 lines.
+    // Later on when you obtained one, you can set up the necessary certificates and provisioning
+    // profiles to enable these security features.
+    // hardenedRuntime: false,
+    hardenedRuntime: true,
+    // notarize: false,
+    notarize: true,
+    executableName: 'airi',
+    icon: useIconFormattedMacAppIcon ? 'icon.icon' : 'icon.icns',
+  },
+  dmg: {
+    artifactName: '${productName}-${version}-darwin-${arch}.${ext}',
+  },
+  linux: {
+    target: [
+      'deb',
+      'rpm',
+    ],
+    // NOTICE: Same channel rule as Windows/macOS. Keep `${arch}` to avoid x64/arm64 feed collisions on Linux.
+    publish: {
+      provider: 'github',
+      owner: 'moeru-ai',
+      repo: 'airi',
+      channel: 'latest-${arch}',
+    },
+    category: 'Utility',
+    synopsis: 'AI VTuber/Waifu chatbot app inspired by Neuro-sama.',
+    description: 'AIRI is an AI VTuber/Waifu chatbot supporting Live2D/VRM avatars, featuring human-like interactions and modular stage-based rendering.',
+    executableName: 'airi',
+    artifactName: '${productName}-${version}-linux-${arch}.${ext}',
+    icon: 'build/icons/icon.png',
+  },
+  appImage: {
+    artifactName: '${productName}-${version}-linux-${arch}.${ext}',
   },
   npmRebuild: false,
-  nsis: {
-    allowToChangeInstallationDirectory: true,
-    artifactName: '${productName}-${version}-windows-${arch}-setup.${ext}',
-    createDesktopShortcut: 'always',
-    deleteAppDataOnUninstall: true,
-    oneClick: false,
-    runAfterFinish: true,
-    shortcutName: '${productName}',
-    uninstallDisplayName: '${productName}',
-  },
-  productName: 'AIRI',
-  win: {
-    executableName: 'airi',
-    // NOTICE: Keep `channel: 'latest-${arch}'` for architecture-aware updater metadata.
-    // electron-builder expands `${arch}` at publish-time (for example: `latest-x64`, `latest-arm64`),
-    // and electron-updater later consumes that expanded channel to resolve platform-specific *.yml files.
-    // This prevents cross-arch lookups such as arm64 clients reading x64 metadata.
-    publish: {
-      channel: 'latest-${arch}',
-      owner: 'moeru-ai',
-      provider: 'github',
-      repo: 'airi',
-    },
-  },
 
 } satisfies Configuration

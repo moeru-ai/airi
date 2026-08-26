@@ -7,27 +7,27 @@ import { createModule, defineExtension, DisposableStore } from './index'
 function createTestExtensionContext(register: ExtensionSetupContext['modules']['register']): ExtensionSetupContext {
   return {
     extension: { id: 'extension-test', sessionId: 'session-1', version: '1.0.0' },
-    kits: { tryUse: vi.fn(), use: vi.fn(), watch: vi.fn() },
-    modules: { register },
     subscriptions: new DisposableStore(),
+    kits: { use: vi.fn(), tryUse: vi.fn(), watch: vi.fn() },
+    modules: { register },
   }
 }
 
 function createTestModule(id: string, dispose = vi.fn(async () => {})): ExtensionModuleContext {
   return {
-    dispose,
     id,
     identity: {
+      id,
       extension: {
         id: 'extension-test',
         sessionId: 'session-1',
         version: '1.0.0',
       },
-      id,
     },
-    kits: { tryUse: vi.fn(), use: vi.fn(), watch: vi.fn() },
     permissions: {},
+    kits: { use: vi.fn(), tryUse: vi.fn(), watch: vi.fn() },
     subscriptions: new DisposableStore(),
+    dispose,
   }
 }
 
@@ -36,8 +36,8 @@ describe('defineExtension', () => {
     const setup = vi.fn(async () => {})
     const extension = defineExtension({
       id: 'airi-extension-test',
-      setup,
       version: '1.0.0',
+      setup,
     })
 
     expect(extension.id).toBe('airi-extension-test')
@@ -47,18 +47,18 @@ describe('defineExtension', () => {
     await extension.setup({
       extension: {
         id: extension.id,
-        sessionId: 'session-1',
         version: extension.version,
+        sessionId: 'session-1',
       },
+      subscriptions,
       kits: {
-        tryUse: vi.fn(),
         use: vi.fn(),
+        tryUse: vi.fn(),
         watch: vi.fn(),
       },
       modules: {
         register: vi.fn(),
       },
-      subscriptions,
     })
 
     expect(setup).toHaveBeenCalledTimes(1)
@@ -76,10 +76,10 @@ describe('createModule', () => {
 
     expect(register).toHaveBeenCalledWith({ id: 'module-explicit' })
     expect(ref).toStrictEqual({
-      dispose: expect.any(Function),
       id: 'module-explicit',
       kits: module.kits,
       subscriptions: module.subscriptions,
+      dispose: expect.any(Function),
     })
     expect(ref).not.toHaveProperty('identity')
     expect(ref).not.toHaveProperty('permissions')

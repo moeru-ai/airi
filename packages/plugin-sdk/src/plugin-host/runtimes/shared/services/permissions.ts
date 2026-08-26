@@ -4,138 +4,31 @@ import type {
   ModulePermissionGrant,
 } from '@proj-airi/plugin-protocol/types'
 
-interface PermissionScope<Action extends string = string> {
-  actions: Action[]
-  key: string
-}
-
 interface PermissionSnapshot {
-  granted: ModulePermissionGrant
   requested: ModulePermissionDeclaration
+  granted: ModulePermissionGrant
   revision: number
 }
 
-/**
- * Tracks requested and granted permissions for extension sessions.
- *
- * Use when:
- * - The host needs to initialize permission state for a session
- * - Runtime-declared permissions must be merged with persisted or host-granted scopes
- * - Callers need to check whether one action is allowed for one scope
- *
- * Expects:
- * - Permission declarations use the protocol key and action model
- *
- * Returns:
- * - An in-memory permission store with initialize, merge, and query helpers
- */
-export class PermissionService {
-  private readonly store = new Map<string, PermissionSnapshot>()
+interface PermissionScope<Action extends string = string> {
+  key: string
+  actions: Action[]
+}
 
-  declare(extensionId: string, requestedDeclaration: ModulePermissionDeclaration) {
-    const existing = this.store.get(extensionId)
-    if (!existing) {
-      throw new Error(`Cannot declare permissions for unknown plugin "${extensionId}".`)
-    }
+function hasAction<Action extends string>(actions: Action[], action: string): action is Action {
+  return actions.includes(action as Action)
+}
 
-    const requested = normalizeDeclaration(requestedDeclaration)
-    const snapshot: PermissionSnapshot = {
-      granted: existing.granted,
-      requested: mergePermissionDeclarations(existing.requested, requested),
-      revision: existing.revision + 1,
-    }
-
-    this.store.set(extensionId, snapshot)
-    return snapshot
+function matchKey(pattern: string, target: string) {
+  if (pattern === '*') {
+    return true
   }
 
-  get(extensionId: string) {
-    return this.store.get(extensionId)
+  if (pattern.endsWith('*')) {
+    return target.startsWith(pattern.slice(0, -1))
   }
 
-  grant(extensionId: string, grant: ModulePermissionGrant) {
-    const existing = this.store.get(extensionId)
-    if (!existing) {
-      throw new Error(`Cannot grant permissions to unknown plugin "${extensionId}".`)
-    }
-
-    const mergedGranted = mergePermissions(existing.granted, grant)
-    const snapshot: PermissionSnapshot = {
-      granted: intersectPermissions(existing.requested, mergedGranted),
-      requested: existing.requested,
-      revision: existing.revision + 1,
-    }
-    this.store.set(extensionId, snapshot)
-    return snapshot
-  }
-
-  grantAllows(grant: ModulePermissionGrant, area: ModulePermissionArea, action: string, key: string) {
-    const scopes = grant[area] ?? []
-    return scopes.some(scope =>
-      matchKey(scope.key, key)
-      && hasAction(scope.actions, action),
-    )
-  }
-
-  initialize(
-    extensionId: string,
-    requestedDeclaration: ModulePermissionDeclaration,
-    options?: {
-      grant?: ModulePermissionGrant
-      persisted?: ModulePermissionGrant
-    },
-  ) {
-    const requested = normalizeDeclaration(requestedDeclaration)
-    const persisted = options?.persisted ?? {}
-    const explicitGrant = options?.grant ?? requested
-    const mergedGrant = mergePermissions(persisted, explicitGrant)
-    const granted = intersectPermissions(requested, mergedGrant)
-    const previousRevision = this.store.get(extensionId)?.revision ?? 0
-    const snapshot: PermissionSnapshot = {
-      granted,
-      requested,
-      revision: previousRevision + 1,
-    }
-
-    this.store.set(extensionId, snapshot)
-    return snapshot
-  }
-
-  /**
-   * Computes the effective permission boundary for one module.
-   *
-   * Use when:
-   * - Extension permissions define the install/session-level ceiling
-   * - Module permissions describe actual runtime usage
-   *
-   * Expects:
-   * - `extensionGrant` is the already granted extension-level ceiling
-   * - `moduleRequest` is the module-level requested usage
-   *
-   * Returns:
-   * - The intersection that stays within both extension and module boundaries
-   */
-  intersectGrant(
-    extensionGrant: ModulePermissionGrant,
-    moduleRequest: ModulePermissionDeclaration,
-  ): ModulePermissionGrant {
-    // Extension grants are the package/session ceiling; module requests are
-    // actual runtime usage. Effective access must stay inside both boundaries.
-    return intersectPermissions(normalizeDeclaration(moduleRequest), normalizeDeclaration(extensionGrant))
-  }
-
-  isAllowed(extensionId: string, area: ModulePermissionArea, action: string, key: string) {
-    const snapshot = this.store.get(extensionId)
-    if (!snapshot) {
-      return false
-    }
-
-    const scopes = snapshot.granted[area] ?? []
-    return scopes.some(scope =>
-      matchKey(scope.key, key)
-      && hasAction(scope.actions, action),
-    )
-  }
+  return pattern === target
 }
 
 function getIntersectionKey(left: string, right: string) {
@@ -150,20 +43,13 @@ function getIntersectionKey(left: string, right: string) {
   return undefined
 }
 
-function hasAction<Action extends string>(actions: Action[], action: string): action is Action {
-  return actions.includes(action as Action)
-}
-
-function intersectPermissions(
-  requested: ModulePermissionDeclaration,
-  grant: ModulePermissionGrant,
-): ModulePermissionGrant {
+function normalizeDeclaration(declaration?: ModulePermissionDeclaration | null): ModulePermissionDeclaration {
   return {
-    apis: intersectPermissionScopes(requested.apis, grant.apis),
-    capabilities: intersectPermissionScopes(requested.capabilities, grant.capabilities),
-    pipelines: intersectPermissionScopes(requested.pipelines, grant.pipelines),
-    processors: intersectPermissionScopes(requested.processors, grant.processors),
-    resources: intersectPermissionScopes(requested.resources, grant.resources),
+    apis: declaration?.apis ?? [],
+    resources: declaration?.resources ?? [],
+    capabilities: declaration?.capabilities ?? [],
+    processors: declaration?.processors ?? [],
+    pipelines: declaration?.pipelines ?? [],
   }
 }
 
@@ -263,8 +149,8 @@ function intersectPermissionScopes<T extends PermissionScope>(
         // }
         ...requestedSpec,
         ...existing,
-        actions: [...mergedActions],
         key: intersectionKey,
+        actions: [...mergedActions],
       } as T)
     }
   }
@@ -272,38 +158,16 @@ function intersectPermissionScopes<T extends PermissionScope>(
   return [...result.values()]
 }
 
-function matchKey(pattern: string, target: string) {
-  if (pattern === '*') {
-    return true
-  }
-
-  if (pattern.endsWith('*')) {
-    return target.startsWith(pattern.slice(0, -1))
-  }
-
-  return pattern === target
-}
-
-function mergePermissionDeclarations(
-  current: ModulePermissionDeclaration,
-  incoming: ModulePermissionDeclaration,
-): ModulePermissionDeclaration {
+function intersectPermissions(
+  requested: ModulePermissionDeclaration,
+  grant: ModulePermissionGrant,
+): ModulePermissionGrant {
   return {
-    apis: mergePermissionScopes(current.apis, incoming.apis),
-    capabilities: mergePermissionScopes(current.capabilities, incoming.capabilities),
-    pipelines: mergePermissionScopes(current.pipelines, incoming.pipelines),
-    processors: mergePermissionScopes(current.processors, incoming.processors),
-    resources: mergePermissionScopes(current.resources, incoming.resources),
-  }
-}
-
-function mergePermissions(current: ModulePermissionGrant, incoming: ModulePermissionGrant): ModulePermissionGrant {
-  return {
-    apis: mergePermissionScopes(current.apis, incoming.apis),
-    capabilities: mergePermissionScopes(current.capabilities, incoming.capabilities),
-    pipelines: mergePermissionScopes(current.pipelines, incoming.pipelines),
-    processors: mergePermissionScopes(current.processors, incoming.processors),
-    resources: mergePermissionScopes(current.resources, incoming.resources),
+    apis: intersectPermissionScopes(requested.apis, grant.apis),
+    resources: intersectPermissionScopes(requested.resources, grant.resources),
+    capabilities: intersectPermissionScopes(requested.capabilities, grant.capabilities),
+    processors: intersectPermissionScopes(requested.processors, grant.processors),
+    pipelines: intersectPermissionScopes(requested.pipelines, grant.pipelines),
   }
 }
 
@@ -365,12 +229,148 @@ function mergePermissionScopes<T extends PermissionScope>(
   return [...map.values()]
 }
 
-function normalizeDeclaration(declaration?: ModulePermissionDeclaration | null): ModulePermissionDeclaration {
+function mergePermissions(current: ModulePermissionGrant, incoming: ModulePermissionGrant): ModulePermissionGrant {
   return {
-    apis: declaration?.apis ?? [],
-    capabilities: declaration?.capabilities ?? [],
-    pipelines: declaration?.pipelines ?? [],
-    processors: declaration?.processors ?? [],
-    resources: declaration?.resources ?? [],
+    apis: mergePermissionScopes(current.apis, incoming.apis),
+    resources: mergePermissionScopes(current.resources, incoming.resources),
+    capabilities: mergePermissionScopes(current.capabilities, incoming.capabilities),
+    processors: mergePermissionScopes(current.processors, incoming.processors),
+    pipelines: mergePermissionScopes(current.pipelines, incoming.pipelines),
+  }
+}
+
+function mergePermissionDeclarations(
+  current: ModulePermissionDeclaration,
+  incoming: ModulePermissionDeclaration,
+): ModulePermissionDeclaration {
+  return {
+    apis: mergePermissionScopes(current.apis, incoming.apis),
+    resources: mergePermissionScopes(current.resources, incoming.resources),
+    capabilities: mergePermissionScopes(current.capabilities, incoming.capabilities),
+    processors: mergePermissionScopes(current.processors, incoming.processors),
+    pipelines: mergePermissionScopes(current.pipelines, incoming.pipelines),
+  }
+}
+
+/**
+ * Tracks requested and granted permissions for extension sessions.
+ *
+ * Use when:
+ * - The host needs to initialize permission state for a session
+ * - Runtime-declared permissions must be merged with persisted or host-granted scopes
+ * - Callers need to check whether one action is allowed for one scope
+ *
+ * Expects:
+ * - Permission declarations use the protocol key and action model
+ *
+ * Returns:
+ * - An in-memory permission store with initialize, merge, and query helpers
+ */
+export class PermissionService {
+  private readonly store = new Map<string, PermissionSnapshot>()
+
+  /**
+   * Computes the effective permission boundary for one module.
+   *
+   * Use when:
+   * - Extension permissions define the install/session-level ceiling
+   * - Module permissions describe actual runtime usage
+   *
+   * Expects:
+   * - `extensionGrant` is the already granted extension-level ceiling
+   * - `moduleRequest` is the module-level requested usage
+   *
+   * Returns:
+   * - The intersection that stays within both extension and module boundaries
+   */
+  intersectGrant(
+    extensionGrant: ModulePermissionGrant,
+    moduleRequest: ModulePermissionDeclaration,
+  ): ModulePermissionGrant {
+    // Extension grants are the package/session ceiling; module requests are
+    // actual runtime usage. Effective access must stay inside both boundaries.
+    return intersectPermissions(normalizeDeclaration(moduleRequest), normalizeDeclaration(extensionGrant))
+  }
+
+  initialize(
+    extensionId: string,
+    requestedDeclaration: ModulePermissionDeclaration,
+    options?: {
+      grant?: ModulePermissionGrant
+      persisted?: ModulePermissionGrant
+    },
+  ) {
+    const requested = normalizeDeclaration(requestedDeclaration)
+    const persisted = options?.persisted ?? {}
+    const explicitGrant = options?.grant ?? requested
+    const mergedGrant = mergePermissions(persisted, explicitGrant)
+    const granted = intersectPermissions(requested, mergedGrant)
+    const previousRevision = this.store.get(extensionId)?.revision ?? 0
+    const snapshot: PermissionSnapshot = {
+      requested,
+      granted,
+      revision: previousRevision + 1,
+    }
+
+    this.store.set(extensionId, snapshot)
+    return snapshot
+  }
+
+  declare(extensionId: string, requestedDeclaration: ModulePermissionDeclaration) {
+    const existing = this.store.get(extensionId)
+    if (!existing) {
+      throw new Error(`Cannot declare permissions for unknown plugin "${extensionId}".`)
+    }
+
+    const requested = normalizeDeclaration(requestedDeclaration)
+    const snapshot: PermissionSnapshot = {
+      requested: mergePermissionDeclarations(existing.requested, requested),
+      granted: existing.granted,
+      revision: existing.revision + 1,
+    }
+
+    this.store.set(extensionId, snapshot)
+    return snapshot
+  }
+
+  grant(extensionId: string, grant: ModulePermissionGrant) {
+    const existing = this.store.get(extensionId)
+    if (!existing) {
+      throw new Error(`Cannot grant permissions to unknown plugin "${extensionId}".`)
+    }
+
+    const mergedGranted = mergePermissions(existing.granted, grant)
+    const snapshot: PermissionSnapshot = {
+      requested: existing.requested,
+      granted: intersectPermissions(existing.requested, mergedGranted),
+      revision: existing.revision + 1,
+    }
+    this.store.set(extensionId, snapshot)
+    return snapshot
+  }
+
+  get(extensionId: string) {
+    return this.store.get(extensionId)
+  }
+
+  isAllowed(extensionId: string, area: ModulePermissionArea, action: string, key: string) {
+    const snapshot = this.store.get(extensionId)
+    if (!snapshot) {
+      return false
+    }
+
+    const scopes = snapshot.granted[area] ?? []
+    return scopes.some(scope =>
+      matchKey(scope.key, key)
+      && hasAction(scope.actions, action),
+    )
+  }
+
+  grantAllows(grant: ModulePermissionGrant, area: ModulePermissionArea, action: string, key: string) {
+    const scopes = grant[area] ?? []
+    return scopes.some(scope =>
+      matchKey(scope.key, key)
+      && hasAction(scope.actions, action),
+    )
   }
 }

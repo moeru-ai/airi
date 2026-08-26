@@ -7,10 +7,10 @@ import * as v from 'valibot'
 const REMOTE_CHAT_TYPES = ['private', 'bot', 'group', 'channel'] as const
 
 const RemoteChatSchema = v.object({
-  createdAt: v.string(),
   id: v.pipe(v.string(), v.minLength(1)),
-  title: v.nullable(v.string()),
   type: v.picklist(REMOTE_CHAT_TYPES),
+  title: v.nullable(v.string()),
+  createdAt: v.string(),
   updatedAt: v.string(),
 })
 
@@ -18,25 +18,23 @@ const ListChatsResponseSchema = v.object({
   chats: v.array(RemoteChatSchema),
 })
 
-export interface CloudChatMapper {
-  /**
-   * POST /api/v1/chats — server may auto-generate id if not provided. A
-   * 409 Conflict (id already exists) is treated as an idempotent claim and
-   * the existing remote chat is returned.
-   */
-  createChat: (input: CreateRemoteChatInput) => Promise<RemoteChat>
-  /**
-   * DELETE /api/v1/chats/:id — server soft-deletes the chat. Other devices
-   * stop seeing it on next `listChats`; live ones won't get a push event in
-   * v1 (no chat:deleted broadcast yet) but their local mapping persists
-   * harmlessly until the user manually closes that session.
-   */
-  deleteChat: (chatId: string) => Promise<void>
-  /** GET /api/v1/chats — returns the full list for the current user. */
-  listChats: () => Promise<RemoteChat[]>
+/** Minimal shape of a chat returned by `GET /api/v1/chats`. */
+export type RemoteChat = v.InferOutput<typeof RemoteChatSchema>
+
+export interface CreateRemoteChatInput {
+  id?: string
+  type?: 'private' | 'bot' | 'group' | 'channel'
+  title?: string
+  members?: Array<{
+    type: 'user' | 'character' | 'bot'
+    userId?: string
+    characterId?: string
+  }>
 }
 
 export interface CreateCloudChatMapperOptions {
+  /** Base server URL, e.g. `https://api.airi.build`. */
+  serverUrl: string
   /**
    * Fetch implementation. Production callers MUST pass `authedFetch` from
    * `libs/auth-fetch` so 401 responses trigger the single-flight token
@@ -55,85 +53,56 @@ export interface CreateCloudChatMapperOptions {
    * @default 10_000
    */
   requestTimeoutMs?: number
-  /** Base server URL, e.g. `https://api.airi.build`. */
-  serverUrl: string
 }
 
-export interface CreateRemoteChatInput {
-  id?: string
-  members?: Array<{
-    characterId?: string
-    type: 'bot' | 'character' | 'user'
-    userId?: string
-  }>
-  title?: string
-  type?: 'bot' | 'channel' | 'group' | 'private'
+export interface CloudChatMapper {
+  /** GET /api/v1/chats — returns the full list for the current user. */
+  listChats: () => Promise<RemoteChat[]>
+  /**
+   * POST /api/v1/chats — server may auto-generate id if not provided. A
+   * 409 Conflict (id already exists) is treated as an idempotent claim and
+   * the existing remote chat is returned.
+   */
+  createChat: (input: CreateRemoteChatInput) => Promise<RemoteChat>
+  /**
+   * DELETE /api/v1/chats/:id — server soft-deletes the chat. Other devices
+   * stop seeing it on next `listChats`; live ones won't get a push event in
+   * v1 (no chat:deleted broadcast yet) but their local mapping persists
+   * harmlessly until the user manually closes that session.
+   */
+  deleteChat: (chatId: string) => Promise<void>
 }
-
-/**
- * Result of a reconcile decision over local sessions and remote chats.
- *
- * Outcomes per session:
- * - `claim`: local session has no `cloudChatId`, but a remote chat with the
- *   same id (we adopted that convention when creating sessions before) or
- *   matching membership exists; bind to it.
- * - `create`: local session has no `cloudChatId` and no remote match; need to
- *   POST `/api/v1/chats` to mint a chat for it.
- * - `adopt`: remote chat exists with no local session at all; need to create
- *   a local session shell so future `pullMessages` can populate it.
- */
-export interface ReconcilePlan {
-  adopt: RemoteChat[]
-  claim: Array<{ cloudChatId: string, sessionId: string }>
-  create: Array<{ characterId: string, sessionId: string }>
-}
-
-/** Minimal shape of a chat returned by `GET /api/v1/chats`. */
-export type RemoteChat = v.InferOutput<typeof RemoteChatSchema>
 
 interface ApiErrorBody {
   error?: string
   message?: string
 }
 
-/**
- * Run `createChat` for every entry in the plan in parallel, collecting
- * successes and failures. Failures do not abort the run — the caller decides
- * whether to retry next time.
- *
- * Use when:
- * - Applying a `ReconcilePlan.create` list against the network. The v1
- *   workload (a few sessions queued from offline use) is small enough that
- *   `Promise.all` is fine; a hand-rolled bounded pool would be premature.
- *
- * Expects:
- * - `mapper.createChat` handles its own 409-as-claim idempotency, so this
- *   function can treat each result as either success or terminal failure.
- *
- * Returns:
- * - One result entry per input action, in input order. Each entry has either
- *   `cloudChatId` (success) or `error` (failure with message). Never both.
- */
-export async function applyCreateActions(
-  mapper: CloudChatMapper,
-  actions: ReconcilePlan['create'],
-): Promise<Array<{ cloudChatId?: string, error?: string, sessionId: string }>> {
-  return await Promise.all(actions.map(async (action) => {
-    try {
-      const remote = await mapper.createChat({
-        // Reuse local sessionId as cloud chat id so subsequent reconciles
-        // can claim instead of create — even if a different device beats
-        // us to the punch.
-        id: action.sessionId,
-        members: [{ characterId: action.characterId, type: 'character' }],
-        type: 'bot',
-      })
-      return { cloudChatId: remote.id, sessionId: action.sessionId }
-    }
-    catch (err) {
-      return { error: errorMessageFrom(err) ?? 'unknown', sessionId: action.sessionId }
-    }
-  }))
+async function readErrorDetail(res: Response): Promise<string> {
+  try {
+    const body = await res.json() as ApiErrorBody
+    return body.message ?? body.error ?? res.statusText
+  }
+  catch {
+    // Non-JSON body — keep statusText.
+    return res.statusText
+  }
+}
+
+async function readJsonOrThrow<T>(res: Response, schema: v.BaseSchema<unknown, T, v.BaseIssue<unknown>>): Promise<T> {
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}: ${await readErrorDetail(res)}`)
+  }
+  // External boundary: validate the success shape too. A server schema drift
+  // would otherwise feed a structurally broken object into `reconcileLocalAndRemote`.
+  const raw: unknown = await res.json()
+  return v.parse(schema, raw)
+}
+
+async function throwOnError(res: Response): Promise<void> {
+  if (res.ok)
+    return
+  throw new Error(`HTTP ${res.status}: ${await readErrorDetail(res)}`)
 }
 
 /**
@@ -176,11 +145,19 @@ export function createCloudChatMapper(options: CreateCloudChatMapperOptions): Cl
   }
 
   return {
+    async listChats() {
+      const res = await fetchImpl(endpoint('/api/v1/chats'), {
+        method: 'GET',
+        signal: timeoutSignal(),
+      })
+      const body = await readJsonOrThrow(res, ListChatsResponseSchema)
+      return body.chats
+    },
     async createChat(input) {
       const res = await fetchImpl(endpoint('/api/v1/chats'), {
-        body: JSON.stringify(input),
-        headers: jsonHeaders(),
         method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify(input),
         signal: timeoutSignal(),
       })
       // 409 is treated as a successful claim: a previous attempt landed on
@@ -208,15 +185,25 @@ export function createCloudChatMapper(options: CreateCloudChatMapperOptions): Cl
       })
       await throwOnError(res)
     },
-    async listChats() {
-      const res = await fetchImpl(endpoint('/api/v1/chats'), {
-        method: 'GET',
-        signal: timeoutSignal(),
-      })
-      const body = await readJsonOrThrow(res, ListChatsResponseSchema)
-      return body.chats
-    },
   }
+}
+
+/**
+ * Result of a reconcile decision over local sessions and remote chats.
+ *
+ * Outcomes per session:
+ * - `claim`: local session has no `cloudChatId`, but a remote chat with the
+ *   same id (we adopted that convention when creating sessions before) or
+ *   matching membership exists; bind to it.
+ * - `create`: local session has no `cloudChatId` and no remote match; need to
+ *   POST `/api/v1/chats` to mint a chat for it.
+ * - `adopt`: remote chat exists with no local session at all; need to create
+ *   a local session shell so future `pullMessages` can populate it.
+ */
+export interface ReconcilePlan {
+  claim: Array<{ sessionId: string, cloudChatId: string }>
+  create: Array<{ sessionId: string, characterId: string }>
+  adopt: RemoteChat[]
 }
 
 /**
@@ -266,12 +253,12 @@ export function reconcileLocalAndRemote(
     // exists we adopt it instead of double-creating.
     const remote = remoteById.get(meta.sessionId)
     if (remote) {
-      claim.push({ cloudChatId: remote.id, sessionId: meta.sessionId })
+      claim.push({ sessionId: meta.sessionId, cloudChatId: remote.id })
       claimedRemoteIds.add(remote.id)
       continue
     }
 
-    create.push({ characterId: meta.characterId, sessionId: meta.sessionId })
+    create.push({ sessionId: meta.sessionId, characterId: meta.characterId })
   }
 
   const adopt: RemoteChat[] = []
@@ -283,32 +270,45 @@ export function reconcileLocalAndRemote(
     adopt.push(chat)
   }
 
-  return { adopt, claim, create }
+  return { claim, create, adopt }
 }
 
-async function readErrorDetail(res: Response): Promise<string> {
-  try {
-    const body = await res.json() as ApiErrorBody
-    return body.message ?? body.error ?? res.statusText
-  }
-  catch {
-    // Non-JSON body — keep statusText.
-    return res.statusText
-  }
-}
-
-async function readJsonOrThrow<T>(res: Response, schema: v.BaseSchema<unknown, T, v.BaseIssue<unknown>>): Promise<T> {
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}: ${await readErrorDetail(res)}`)
-  }
-  // External boundary: validate the success shape too. A server schema drift
-  // would otherwise feed a structurally broken object into `reconcileLocalAndRemote`.
-  const raw: unknown = await res.json()
-  return v.parse(schema, raw)
-}
-
-async function throwOnError(res: Response): Promise<void> {
-  if (res.ok)
-    return
-  throw new Error(`HTTP ${res.status}: ${await readErrorDetail(res)}`)
+/**
+ * Run `createChat` for every entry in the plan in parallel, collecting
+ * successes and failures. Failures do not abort the run — the caller decides
+ * whether to retry next time.
+ *
+ * Use when:
+ * - Applying a `ReconcilePlan.create` list against the network. The v1
+ *   workload (a few sessions queued from offline use) is small enough that
+ *   `Promise.all` is fine; a hand-rolled bounded pool would be premature.
+ *
+ * Expects:
+ * - `mapper.createChat` handles its own 409-as-claim idempotency, so this
+ *   function can treat each result as either success or terminal failure.
+ *
+ * Returns:
+ * - One result entry per input action, in input order. Each entry has either
+ *   `cloudChatId` (success) or `error` (failure with message). Never both.
+ */
+export async function applyCreateActions(
+  mapper: CloudChatMapper,
+  actions: ReconcilePlan['create'],
+): Promise<Array<{ sessionId: string, cloudChatId?: string, error?: string }>> {
+  return await Promise.all(actions.map(async (action) => {
+    try {
+      const remote = await mapper.createChat({
+        // Reuse local sessionId as cloud chat id so subsequent reconciles
+        // can claim instead of create — even if a different device beats
+        // us to the punch.
+        id: action.sessionId,
+        type: 'bot',
+        members: [{ type: 'character', characterId: action.characterId }],
+      })
+      return { sessionId: action.sessionId, cloudChatId: remote.id }
+    }
+    catch (err) {
+      return { sessionId: action.sessionId, error: errorMessageFrom(err) ?? 'unknown' }
+    }
+  }))
 }

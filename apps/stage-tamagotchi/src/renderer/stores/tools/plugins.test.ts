@@ -8,25 +8,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const invokeMocks = vi.hoisted(() => ({
   invokePluginTool: vi.fn(async (payload: unknown) => payload),
   listPluginXsaiTools: vi.fn(async () => ({
-    prompts: [
+    tools: [
       {
-        id: 'chess-tools',
         ownerExtensionId: 'plugin-chess',
-        prompt: {
-          content: 'Do not pass fen or pgn when mode is "new".',
-          id: 'airi-plugin-game-chess.prompt',
-          title: 'Chess Plugin Guidance',
+        name: 'play_chess',
+        description: 'Play a chess move.',
+        parameters: {
+          type: 'object',
+          properties: {},
         },
       },
     ],
-    tools: [
+    prompts: [
       {
-        description: 'Play a chess move.',
-        name: 'play_chess',
         ownerExtensionId: 'plugin-chess',
-        parameters: {
-          properties: {},
-          type: 'object',
+        id: 'chess-tools',
+        prompt: {
+          id: 'airi-plugin-game-chess.prompt',
+          title: 'Chess Plugin Guidance',
+          content: 'Do not pass fen or pgn when mode is "new".',
         },
       },
     ],
@@ -71,8 +71,8 @@ describe('useTamagotchiPluginToolsStore', async () => {
 
     expect(pluginDefinitions).toEqual([
       expect.objectContaining({
-        function: expect.objectContaining({ name: 'play_chess' }),
         id: 'plugin:plugin-chess:play_chess',
+        function: expect.objectContaining({ name: 'play_chess' }),
       }),
     ])
     expect(JSON.stringify(llmToolsStore.$state)).not.toContain('execute')
@@ -83,18 +83,18 @@ describe('useTamagotchiPluginToolsStore', async () => {
     }, toolOptions)
 
     expect(invokeMocks.invokePluginTool).toHaveBeenCalledWith({
+      ownerExtensionId: 'plugin-chess',
+      name: 'play_chess',
       input: {
         move: 'e2e4',
       },
-      name: 'play_chess',
-      ownerExtensionId: 'plugin-chess',
     })
     expect(executionResult).toEqual({
+      ownerExtensionId: 'plugin-chess',
+      name: 'play_chess',
       input: {
         move: 'e2e4',
       },
-      name: 'play_chess',
-      ownerExtensionId: 'plugin-chess',
     })
 
     store.dispose()

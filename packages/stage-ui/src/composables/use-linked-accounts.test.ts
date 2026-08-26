@@ -8,10 +8,10 @@ import { useLinkedAccounts } from './use-linked-accounts'
 
 function fakeLinkedAccountsClient(overrides: Partial<LinkedAccountsClient> = {}): LinkedAccountsClient {
   return {
-    linkSocial: vi.fn(async () => ({ data: null, error: null })),
-    linkSteam: vi.fn(async () => ({ data: null, error: null })),
     listAccounts: vi.fn(async () => ({ data: [], error: null })),
     unlinkAccount: vi.fn(async () => ({ data: null, error: null })),
+    linkSocial: vi.fn(async () => ({ data: null, error: null })),
+    linkSteam: vi.fn(async () => ({ data: null, error: null })),
     ...overrides,
   }
 }
@@ -19,7 +19,7 @@ function fakeLinkedAccountsClient(overrides: Partial<LinkedAccountsClient> = {})
 describe('useLinkedAccounts', () => {
   it('passes the profile page URL as the OAuth link error callback URL', async () => {
     const linkSocial = vi.fn(async () => ({
-      data: { redirect: false, status: true },
+      data: { status: true, redirect: false },
       error: null,
     }))
 
@@ -29,22 +29,22 @@ describe('useLinkedAccounts', () => {
     const app = createSSRApp({
       setup() {
         holder.linkedAccounts = useLinkedAccounts({
-          buildCallbackURL: () => 'https://accounts.airi.build/ui/profile',
           client: {
-            linkSocial,
-            linkSteam: vi.fn(async () => ({ data: null, error: null })),
             listAccounts: vi.fn(async () => ({ data: [], error: null })),
             unlinkAccount: vi.fn(async () => ({ data: null, error: null })),
+            linkSocial,
+            linkSteam: vi.fn(async () => ({ data: null, error: null })),
           },
-          describeError: () => '',
           isAuthenticated: ref(false),
+          describeError: () => '',
+          buildCallbackURL: () => 'https://accounts.airi.build/ui/profile',
           messages: {
-            lastAccount: 'last account',
-            linkFailed: 'link failed',
-            linkStarted: provider => `${provider} link started`,
             listFailed: 'list failed',
-            unlinked: provider => `${provider} unlinked`,
             unlinkFailed: 'unlink failed',
+            linkFailed: 'link failed',
+            lastAccount: 'last account',
+            unlinked: provider => `${provider} unlinked`,
+            linkStarted: provider => `${provider} link started`,
           },
         })
 
@@ -60,18 +60,18 @@ describe('useLinkedAccounts', () => {
     await holder.linkedAccounts.link('github', 'GitHub')
 
     expect(linkSocial).toHaveBeenCalledWith({
+      provider: 'github',
       callbackURL: 'https://accounts.airi.build/ui/profile',
       errorCallbackURL: 'https://accounts.airi.build/ui/profile',
-      provider: 'github',
     })
   })
 
   it('fires analytics hooks on unlink success and link handoff, but not on failure', async () => {
     const onUnlinked = vi.fn()
     const onLinkStarted = vi.fn()
-    const unlinkAccount = vi.fn(async (): Promise<{ data: unknown, error: null | { message?: string } }> => ({ data: null, error: null }))
-    const linkSocial = vi.fn(async (): Promise<{ data: null | { redirect?: boolean, status?: boolean, url?: string }, error: null | { message?: string } }> => ({
-      data: { redirect: false, status: true },
+    const unlinkAccount = vi.fn(async (): Promise<{ data: unknown, error: { message?: string } | null }> => ({ data: null, error: null }))
+    const linkSocial = vi.fn(async (): Promise<{ data: { url?: string, redirect?: boolean, status?: boolean } | null, error: { message?: string } | null }> => ({
+      data: { status: true, redirect: false },
       error: null,
     }))
 
@@ -81,32 +81,32 @@ describe('useLinkedAccounts', () => {
     const app = createSSRApp({
       setup() {
         holder.linkedAccounts = useLinkedAccounts({
-          buildCallbackURL: () => 'https://accounts.airi.build/ui/profile',
           client: {
-            linkSocial,
-            linkSteam: vi.fn(async () => ({ data: null, error: null })),
             // Two rows so `isLastSignInMethod` doesn't veto the unlink.
             listAccounts: vi.fn(async () => ({
               data: [
-                { accountId: 'a-1', createdAt: '2026-01-01T00:00:00Z', id: '1', providerId: 'github', scopes: [] },
-                { accountId: 'a-2', createdAt: '2026-01-01T00:00:00Z', id: '2', providerId: 'credential', scopes: [] },
+                { id: '1', accountId: 'a-1', providerId: 'github', createdAt: '2026-01-01T00:00:00Z', scopes: [] },
+                { id: '2', accountId: 'a-2', providerId: 'credential', createdAt: '2026-01-01T00:00:00Z', scopes: [] },
               ],
               error: null,
             })),
             unlinkAccount,
+            linkSocial,
+            linkSteam: vi.fn(async () => ({ data: null, error: null })),
           },
-          describeError: () => 'boom',
           isAuthenticated: ref(false),
+          describeError: () => 'boom',
+          buildCallbackURL: () => 'https://accounts.airi.build/ui/profile',
           messages: {
-            lastAccount: 'last account',
-            linkFailed: 'link failed',
-            linkStarted: provider => `${provider} link started`,
             listFailed: 'list failed',
-            unlinked: provider => `${provider} unlinked`,
             unlinkFailed: 'unlink failed',
+            linkFailed: 'link failed',
+            lastAccount: 'last account',
+            unlinked: provider => `${provider} unlinked`,
+            linkStarted: provider => `${provider} link started`,
           },
-          onLinkStarted,
           onUnlinked,
+          onLinkStarted,
         })
 
         return () => null
@@ -145,11 +145,11 @@ describe('useLinkedAccounts link dispatch', () => {
   // (backed by `/link-social`, which only resolves OAuth2 providers).
   it('routes Steam links through linkSteam and other providers through linkSocial', async () => {
     const linkSocial = vi.fn(async () => ({
-      data: { redirect: false, status: true },
+      data: { status: true, redirect: false },
       error: null,
     }))
     const linkSteam = vi.fn(async () => ({
-      data: { redirect: false, status: true },
+      data: { status: true, redirect: false },
       error: null,
     }))
 
@@ -169,9 +169,9 @@ describe('useLinkedAccounts link dispatch', () => {
     await socialHolder.link('google', 'Google')
     expect(linkSocial).toHaveBeenCalledTimes(1)
     expect(linkSocial).toHaveBeenCalledWith({
+      provider: 'google',
       callbackURL: 'https://accounts.airi.build/ui/profile',
       errorCallbackURL: 'https://accounts.airi.build/ui/profile',
-      provider: 'google',
     })
     expect(linkSteam).toHaveBeenCalledTimes(1)
   })
@@ -184,17 +184,17 @@ async function mountLinkedAccounts(client: LinkedAccountsClient) {
   const app = createSSRApp({
     setup() {
       holder.linkedAccounts = useLinkedAccounts({
-        buildCallbackURL: () => 'https://accounts.airi.build/ui/profile',
         client,
-        describeError: () => '',
         isAuthenticated: ref(false),
+        describeError: () => '',
+        buildCallbackURL: () => 'https://accounts.airi.build/ui/profile',
         messages: {
-          lastAccount: 'last account',
-          linkFailed: 'link failed',
-          linkStarted: provider => `${provider} link started`,
           listFailed: 'list failed',
-          unlinked: provider => `${provider} unlinked`,
           unlinkFailed: 'unlink failed',
+          linkFailed: 'link failed',
+          lastAccount: 'last account',
+          unlinked: provider => `${provider} unlinked`,
+          linkStarted: provider => `${provider} link started`,
         },
       })
 

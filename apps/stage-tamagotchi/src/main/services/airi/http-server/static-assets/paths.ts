@@ -8,53 +8,30 @@ import { resolve, sep } from 'node:path'
  * @param assetSessionId Asset session identifier from the mounted route.
  */
 export interface ParsedStaticAssetRequest {
-  /** Normalized plugin asset path relative to the mounted UI asset root. */
-  assetPath: string
-  /** Asset session identifier validated as one safe route segment. */
-  assetSessionId: string
   /** Plugin extension identifier validated as one safe route segment. */
   extensionId: string
+  /** Asset session identifier validated as one safe route segment. */
+  assetSessionId: string
+  /** Normalized plugin asset path relative to the mounted UI asset root. */
+  assetPath: string
 }
 
 const pathPrefix = '/_airi/extensions/'
 const segmentPattern = /^[\w.+-]+$/
 
-/**
- * Builds a session-scoped mounted plugin asset route path.
- *
- * Use when:
- * - Converting a validated plugin asset path into a mounted HTTP route
- * - Emitting URLs for `/_airi/extensions/:extensionId/sessions/:assetSessionId/ui/:assetPath`
- *
- * Expects:
- * - `extensionId` and `assetSessionId` are safe single route segments
- * - `assetPath` is a plugin-relative asset path accepted by {@link normalizeStaticAssetPath}
- *
- * Returns:
- * - Encoded mounted route path, or `undefined` when any input is unsafe
- */
-export function buildMountedStaticAssetPath(input: {
-  assetPath: string
-  assetSessionId: string
-  extensionId: string
-}) {
-  if (!isSafeRouteSegment(input.extensionId) || !isSafeRouteSegment(input.assetSessionId)) {
+function decodePathSegment(segment: string): string | undefined {
+  try {
+    return decodeURIComponent(segment)
+  }
+  catch {
     return undefined
   }
+}
 
-  const normalizedAssetPath = normalizeStaticAssetPath(input.assetPath)
-  if (!normalizedAssetPath) {
-    return undefined
-  }
-
-  const encodedExtensionId = encodeURIComponent(input.extensionId)
-  const encodedAssetSessionId = encodeURIComponent(input.assetSessionId)
-  const encodedAssetPath = normalizedAssetPath
-    .split('/')
-    .map(segment => encodeURIComponent(segment))
-    .join('/')
-
-  return `${pathPrefix}${encodedExtensionId}/sessions/${encodedAssetSessionId}/ui/${encodedAssetPath}`
+function isSafeRouteSegment(segment: string): boolean {
+  return !segment.includes('/')
+    && !segment.includes('\\')
+    && segmentPattern.test(segment)
 }
 
 /**
@@ -174,9 +151,9 @@ export function parseStaticAssetRequestPath(pathname: string): ParsedStaticAsset
   }
 
   return {
-    assetPath,
-    assetSessionId,
     extensionId,
+    assetSessionId,
+    assetPath,
   }
 }
 
@@ -219,17 +196,40 @@ export async function resolveStaticAssetFilePath(rootDir: string, assetPath: str
   return realCandidate
 }
 
-function decodePathSegment(segment: string): string | undefined {
-  try {
-    return decodeURIComponent(segment)
-  }
-  catch {
+/**
+ * Builds a session-scoped mounted plugin asset route path.
+ *
+ * Use when:
+ * - Converting a validated plugin asset path into a mounted HTTP route
+ * - Emitting URLs for `/_airi/extensions/:extensionId/sessions/:assetSessionId/ui/:assetPath`
+ *
+ * Expects:
+ * - `extensionId` and `assetSessionId` are safe single route segments
+ * - `assetPath` is a plugin-relative asset path accepted by {@link normalizeStaticAssetPath}
+ *
+ * Returns:
+ * - Encoded mounted route path, or `undefined` when any input is unsafe
+ */
+export function buildMountedStaticAssetPath(input: {
+  extensionId: string
+  assetSessionId: string
+  assetPath: string
+}) {
+  if (!isSafeRouteSegment(input.extensionId) || !isSafeRouteSegment(input.assetSessionId)) {
     return undefined
   }
-}
 
-function isSafeRouteSegment(segment: string): boolean {
-  return !segment.includes('/')
-    && !segment.includes('\\')
-    && segmentPattern.test(segment)
+  const normalizedAssetPath = normalizeStaticAssetPath(input.assetPath)
+  if (!normalizedAssetPath) {
+    return undefined
+  }
+
+  const encodedExtensionId = encodeURIComponent(input.extensionId)
+  const encodedAssetSessionId = encodeURIComponent(input.assetSessionId)
+  const encodedAssetPath = normalizedAssetPath
+    .split('/')
+    .map(segment => encodeURIComponent(segment))
+    .join('/')
+
+  return `${pathPrefix}${encodedExtensionId}/sessions/${encodedAssetSessionId}/ui/${encodedAssetPath}`
 }

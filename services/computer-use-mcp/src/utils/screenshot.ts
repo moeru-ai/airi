@@ -10,12 +10,100 @@ import { runProcess, sanitizeFileSegment } from './process'
 
 const placeholderPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9pP8WwAAAABJRU5ErkJggg=='
 
-export async function captureScreenshotArtifact(params: {
+function readPngDimensions(buffer: Buffer) {
+  if (buffer.length < 24)
+    return {}
+
+  const signature = buffer.subarray(0, 8).toString('hex')
+  if (signature !== '89504e470d0a1a0a')
+    return {}
+
+  return {
+    width: buffer.readUInt32BE(16),
+    height: buffer.readUInt32BE(20),
+  }
+}
+
+function buildScreenshotArtifact(params: {
+  outputPath: string
+  buffer: Buffer
+  capturedAt: string
+  publicUrl?: string
+  note?: string
+  placeholder?: boolean
   executionTarget?: ExecutionTarget
+}): ScreenshotArtifact {
+  const dimensions = readPngDimensions(params.buffer)
+
+  return {
+    dataBase64: params.buffer.toString('base64'),
+    mimeType: 'image/png',
+    path: params.outputPath,
+    publicUrl: params.publicUrl,
+    observationRef: `screenshot:${basename(params.outputPath)}`,
+    capturedAt: params.capturedAt,
+    placeholder: params.placeholder ?? false,
+    note: params.note,
+    executionTargetMode: params.executionTarget?.mode,
+    sourceHostName: params.executionTarget?.hostName,
+    sourceDisplayId: params.executionTarget?.displayId,
+    sourceSessionTag: params.executionTarget?.sessionTag,
+    ...dimensions,
+  }
+}
+
+async function persistScreenshotBuffer(params: {
   label?: string
-  screenshotBinary: string
   screenshotsDir: string
+  buffer: Buffer
+  publicUrl?: string
+  note?: string
+  placeholder?: boolean
+  executionTarget?: ExecutionTarget
+}): Promise<ScreenshotArtifact> {
+  const capturedAt = new Date().toISOString()
+  const fileName = `${Date.now()}-${sanitizeFileSegment(params.label, 'desktop')}.png`
+  const outputPath = join(params.screenshotsDir, fileName)
+
+  await writeFile(outputPath, params.buffer)
+
+  return buildScreenshotArtifact({
+    outputPath,
+    buffer: params.buffer,
+    capturedAt,
+    publicUrl: params.publicUrl,
+    note: params.note,
+    placeholder: params.placeholder,
+    executionTarget: params.executionTarget,
+  })
+}
+
+export async function writeScreenshotArtifact(params: {
+  label?: string
+  screenshotsDir: string
+  dataBase64: string
+  publicUrl?: string
+  note?: string
+  executionTarget?: ExecutionTarget
+}): Promise<ScreenshotArtifact> {
+  const buffer = Buffer.from(params.dataBase64, 'base64')
+
+  return await persistScreenshotBuffer({
+    label: params.label,
+    screenshotsDir: params.screenshotsDir,
+    buffer,
+    publicUrl: params.publicUrl,
+    note: params.note,
+    executionTarget: params.executionTarget,
+  })
+}
+
+export async function captureScreenshotArtifact(params: {
+  label?: string
+  screenshotsDir: string
+  screenshotBinary: string
   timeoutMs: number
+  executionTarget?: ExecutionTarget
 }): Promise<ScreenshotArtifact> {
   const fileName = `${Date.now()}-${sanitizeFileSegment(params.label, 'desktop')}.png`
   const outputPath = join(params.screenshotsDir, fileName)
@@ -31,109 +119,21 @@ export async function captureScreenshotArtifact(params: {
 
     const buffer = await readFile(outputPath)
     return buildScreenshotArtifact({
+      outputPath,
       buffer,
       capturedAt: new Date().toISOString(),
       executionTarget: params.executionTarget,
-      outputPath,
     })
   }
   catch (error) {
     const buffer = Buffer.from(placeholderPngBase64, 'base64')
     return await persistScreenshotBuffer({
-      buffer,
-      executionTarget: params.executionTarget,
       label: params.label,
-      note: errorMessageFromValue(error),
-      placeholder: true,
       screenshotsDir: params.screenshotsDir,
+      buffer,
+      placeholder: true,
+      note: errorMessageFromValue(error),
+      executionTarget: params.executionTarget,
     })
-  }
-}
-
-export async function writeScreenshotArtifact(params: {
-  dataBase64: string
-  executionTarget?: ExecutionTarget
-  label?: string
-  note?: string
-  publicUrl?: string
-  screenshotsDir: string
-}): Promise<ScreenshotArtifact> {
-  const buffer = Buffer.from(params.dataBase64, 'base64')
-
-  return await persistScreenshotBuffer({
-    buffer,
-    executionTarget: params.executionTarget,
-    label: params.label,
-    note: params.note,
-    publicUrl: params.publicUrl,
-    screenshotsDir: params.screenshotsDir,
-  })
-}
-
-function buildScreenshotArtifact(params: {
-  buffer: Buffer
-  capturedAt: string
-  executionTarget?: ExecutionTarget
-  note?: string
-  outputPath: string
-  placeholder?: boolean
-  publicUrl?: string
-}): ScreenshotArtifact {
-  const dimensions = readPngDimensions(params.buffer)
-
-  return {
-    capturedAt: params.capturedAt,
-    dataBase64: params.buffer.toString('base64'),
-    executionTargetMode: params.executionTarget?.mode,
-    mimeType: 'image/png',
-    note: params.note,
-    observationRef: `screenshot:${basename(params.outputPath)}`,
-    path: params.outputPath,
-    placeholder: params.placeholder ?? false,
-    publicUrl: params.publicUrl,
-    sourceDisplayId: params.executionTarget?.displayId,
-    sourceHostName: params.executionTarget?.hostName,
-    sourceSessionTag: params.executionTarget?.sessionTag,
-    ...dimensions,
-  }
-}
-
-async function persistScreenshotBuffer(params: {
-  buffer: Buffer
-  executionTarget?: ExecutionTarget
-  label?: string
-  note?: string
-  placeholder?: boolean
-  publicUrl?: string
-  screenshotsDir: string
-}): Promise<ScreenshotArtifact> {
-  const capturedAt = new Date().toISOString()
-  const fileName = `${Date.now()}-${sanitizeFileSegment(params.label, 'desktop')}.png`
-  const outputPath = join(params.screenshotsDir, fileName)
-
-  await writeFile(outputPath, params.buffer)
-
-  return buildScreenshotArtifact({
-    buffer: params.buffer,
-    capturedAt,
-    executionTarget: params.executionTarget,
-    note: params.note,
-    outputPath,
-    placeholder: params.placeholder,
-    publicUrl: params.publicUrl,
-  })
-}
-
-function readPngDimensions(buffer: Buffer) {
-  if (buffer.length < 24)
-    return {}
-
-  const signature = buffer.subarray(0, 8).toString('hex')
-  if (signature !== '89504e470d0a1a0a')
-    return {}
-
-  return {
-    height: buffer.readUInt32BE(20),
-    width: buffer.readUInt32BE(16),
   }
 }

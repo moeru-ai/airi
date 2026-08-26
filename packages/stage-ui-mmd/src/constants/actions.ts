@@ -10,15 +10,15 @@ import { Emotion } from './emotions'
  * no-op and the user can remap names from the settings panel.
  */
 export const EMOTION_ACTION_NAME: Record<Emotion, string> = {
-  [Emotion.Angry]: 'angry',
-  [Emotion.Awkward]: 'awkward',
-  [Emotion.Curious]: 'curious',
   [Emotion.Happy]: 'happy',
-  [Emotion.Neutral]: 'idle',
-  [Emotion.Question]: 'question',
   [Emotion.Sad]: 'sad',
-  [Emotion.Surprise]: 'surprise',
+  [Emotion.Angry]: 'angry',
   [Emotion.Think]: 'think',
+  [Emotion.Surprise]: 'surprise',
+  [Emotion.Awkward]: 'awkward',
+  [Emotion.Question]: 'question',
+  [Emotion.Curious]: 'curious',
+  [Emotion.Neutral]: 'idle',
 }
 
 /** Conventional name AIRI uses for the persistent looping idle motion. */

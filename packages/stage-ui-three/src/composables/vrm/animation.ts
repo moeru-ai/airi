@@ -15,19 +15,6 @@ export interface GLTFUserdata extends Record<string, any> {
   vrmAnimations: VRMAnimation[]
 }
 
-export async function clipFromVRMAnimation(vrm?: VRMCore, animation?: VRMAnimation) {
-  if (!vrm) {
-    console.warn('No VRM found')
-    return
-  }
-  if (!animation) {
-    return
-  }
-
-  // create animation clip
-  return createVRMAnimationClip(animation, vrm)
-}
-
 export async function loadVRMAnimation(url: string) {
   const loader = useVRMLoader()
 
@@ -45,6 +32,19 @@ export async function loadVRMAnimation(url: string) {
   }
 
   return userData.vrmAnimations[0]
+}
+
+export async function clipFromVRMAnimation(vrm?: VRMCore, animation?: VRMAnimation) {
+  if (!vrm) {
+    console.warn('No VRM found')
+    return
+  }
+  if (!animation) {
+    return
+  }
+
+  // create animation clip
+  return createVRMAnimationClip(animation, vrm)
 }
 
 // Set initial positions for animation
@@ -100,7 +100,7 @@ export function useBlink() {
   const nextBlinkTime = ref(Math.random() * (MAX_BLINK_INTERVAL - MIN_BLINK_INTERVAL) + MIN_BLINK_INTERVAL)
 
   // Function to handle blinking animation
-  function update(vrm: undefined | VRMCore, delta: number) {
+  function update(vrm: VRMCore | undefined, delta: number) {
     if (!vrm?.expressionManager)
       return
 
@@ -155,7 +155,7 @@ export function useIdleEyeSaccades() {
   }
 
   // Function to handle idle eye saccades
-  function update(vrm: undefined | VRMCore, lookAtTarget: Ref<{ x: number, y: number, z: number }>, delta: number) {
+  function update(vrm: VRMCore | undefined, lookAtTarget: Ref<{ x: number, y: number, z: number }>, delta: number) {
     if (!vrm?.expressionManager || !vrm.lookAt)
       return
 
@@ -203,7 +203,7 @@ export function useIdleEyeSaccades() {
     timeSinceLastSaccade += delta
   }
 
-  function instantUpdate(vrm: undefined | VRMCore, lookAtTarget: { x: number, y: number, z: number }) {
+  function instantUpdate(vrm: VRMCore | undefined, lookAtTarget: { x: number, y: number, z: number }) {
     fixationTarget.set(
       lookAtTarget.x,
       lookAtTarget.y,
@@ -244,5 +244,5 @@ export function useIdleEyeSaccades() {
     vrm.lookAt?.update(0.016)
   }
 
-  return { instantUpdate, update }
+  return { update, instantUpdate }
 }

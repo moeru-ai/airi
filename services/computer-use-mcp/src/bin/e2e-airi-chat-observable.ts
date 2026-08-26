@@ -33,42 +33,42 @@ interface DebugTarget {
   webSocketDebuggerUrl?: string
 }
 
+interface TimelineEntry {
+  at: string
+  event: string
+  detail?: Record<string, unknown>
+}
+
 interface ReportShape {
-  debugSnapshots: unknown[]
-  error?: string
-  final?: {
-    lastMessageRole?: string
-    lastMessageText?: string
-    lastTurnOutput?: string
-    messageCount?: number
-    modelId?: string
-    providerConfigured?: boolean
-    providerId?: string
-  }
+  startedAt: string
   finishedAt?: string
+  status: 'running' | 'completed' | 'failed'
+  prompt: string
+  reportDir: string
+  paths: {
+    reportPath: string
+    stageLogPath: string
+    mcpSessionRoot: string
+    auditLogPath?: string
+    screenshotsDir?: string
+  }
+  timeline: TimelineEntry[]
+  debugSnapshots: unknown[]
   mcp: {
     capabilities?: unknown
     desktopState?: unknown
     sessionTrace?: unknown
   }
-  paths: {
-    auditLogPath?: string
-    mcpSessionRoot: string
-    reportPath: string
-    screenshotsDir?: string
-    stageLogPath: string
+  final?: {
+    providerConfigured?: boolean
+    providerId?: string
+    modelId?: string
+    messageCount?: number
+    lastMessageRole?: string
+    lastMessageText?: string
+    lastTurnOutput?: string
   }
-  prompt: string
-  reportDir: string
-  startedAt: string
-  status: 'completed' | 'failed' | 'running'
-  timeline: TimelineEntry[]
-}
-
-interface TimelineEntry {
-  at: string
-  detail?: Record<string, unknown>
-  event: string
+  error?: string
 }
 
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -102,36 +102,172 @@ const mcpSessionRoot = resolve(reportDir, 'computer-use-session')
 const rootEnvPath = resolve(repoDir, '.env')
 
 const report: ReportShape = {
-  debugSnapshots: [],
-  mcp: {},
-  paths: {
-    mcpSessionRoot,
-    reportPath,
-    stageLogPath,
-  },
-  prompt: promptText,
-  reportDir,
   startedAt: new Date().toISOString(),
   status: 'running',
+  prompt: promptText,
+  reportDir,
+  paths: {
+    reportPath,
+    stageLogPath,
+    mcpSessionRoot,
+  },
   timeline: [],
+  debugSnapshots: [],
+  mcp: {},
 }
 
 const execFileAsync = promisify(execFile)
 
-class CdpClient {
-  private nextId = 0
-  private pending = new Map<number, { reject: (error: Error) => void, resolve: (value: unknown) => void }>()
-  private ws: any
+function addTimeline(event: string, detail?: Record<string, unknown>) {
+  report.timeline.push({
+    at: new Date().toISOString(),
+    event,
+    detail,
+  })
+}
 
-  static async connect(target: DebugTarget) {
-    if (!target.webSocketDebuggerUrl) {
-      throw new Error(`Debug target ${target.title || target.id} does not expose webSocketDebuggerUrl`)
-    }
-
-    return await CdpClient.connectToUrl(target.webSocketDebuggerUrl)
+function parseCommandArgs(raw: string | undefined, fallback: string[]) {
+  if (!raw?.trim()) {
+    return fallback
   }
 
-  static async connectToUrl(webSocketUrl: string, options: { enablePage?: boolean, enableRuntime?: boolean } = {}) {
+  return raw
+    .split(WHITESPACE_SPLIT_RE)
+    .map(item => item.trim())
+    .filter(Boolean)
+}
+
+function requireStructuredContent(result: unknown, label: string) {
+  if (!result || typeof result !== 'object') {
+    throw new Error(`${label} did not return an object result`)
+  }
+
+  const structuredContent = (result as { structuredContent?: unknown }).structuredContent
+  if (!structuredContent || typeof structuredContent !== 'object') {
+    throw new Error(`${label} missing structuredContent`)
+  }
+
+  return structuredContent as Record<string, unknown>
+}
+
+function sleep(ms: number) {
+  return new Promise(resolvePromise => setTimeout(resolvePromise, ms))
+}
+
+async function withTimeout<T>(label: string, task: Promise<T>, timeoutMs: number) {
+  let timeoutHandle: NodeJS.Timeout | undefined
+
+  try {
+    return await Promise.race([
+      task,
+      new Promise<never>((_resolvePromise, rejectPromise) => {
+        timeoutHandle = setTimeout(() => rejectPromise(new Error(`Timed out waiting for ${label}`)), timeoutMs)
+      }),
+    ])
+  }
+  finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle)
+    }
+  }
+}
+
+async function writeReport() {
+  report.finishedAt = new Date().toISOString()
+  await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf-8')
+}
+
+async function canListenOnPort(port: number) {
+  return await new Promise<boolean>((resolvePromise) => {
+    const server = createServer()
+    server.once('error', () => {
+      resolvePromise(false)
+    })
+    server.listen(port, '127.0.0.1', () => {
+      server.close(() => resolvePromise(true))
+    })
+  })
+}
+
+async function findAvailablePort(preferredPort: number, attempts = 20) {
+  for (let index = 0; index < attempts; index += 1) {
+    const candidate = preferredPort + index
+    if (await canListenOnPort(candidate)) {
+      return candidate
+    }
+  }
+
+  throw new Error(`Could not find an available remote debug port starting from ${preferredPort}`)
+}
+
+async function terminateExistingStageTamagotchiInstances() {
+  const patterns = [
+    resolve(repoDir, 'apps', 'stage-tamagotchi'),
+    '@proj-airi/stage-tamagotchi',
+    resolve(repoDir, 'node_modules', '.pnpm', 'electron@'),
+  ]
+
+  for (const pattern of patterns) {
+    await execFileAsync('pkill', ['-f', pattern]).catch(() => {})
+  }
+
+  await sleep(1_500)
+}
+
+async function waitFor<T>(label: string, task: () => Promise<T | undefined>, timeoutMs = 60_000, intervalMs = 500) {
+  const startedAt = Date.now()
+
+  while ((Date.now() - startedAt) < timeoutMs) {
+    const value = await task()
+    if (value !== undefined) {
+      return value
+    }
+
+    await sleep(intervalMs)
+  }
+
+  throw new Error(`Timed out waiting for ${label}`)
+}
+
+function parseDotEnv(text: string) {
+  const values: Record<string, string> = {}
+
+  for (const line of text.split(DOTENV_LINE_SPLIT_RE)) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) {
+      continue
+    }
+
+    const separatorIndex = trimmed.indexOf('=')
+    if (separatorIndex <= 0) {
+      continue
+    }
+
+    const key = trimmed.slice(0, separatorIndex).trim()
+    const rawValue = trimmed.slice(separatorIndex + 1).trim()
+    const unwrapped = rawValue.replace(QUOTED_VALUE_RE, '')
+    values[key] = unwrapped
+  }
+
+  return values
+}
+
+async function readRootEnvValues() {
+  try {
+    const raw = await readFile(rootEnvPath, 'utf-8')
+    return parseDotEnv(raw)
+  }
+  catch {
+    return {}
+  }
+}
+
+class CdpClient {
+  private ws: any
+  private nextId = 0
+  private pending = new Map<number, { resolve: (value: unknown) => void, reject: (error: Error) => void }>()
+
+  static async connectToUrl(webSocketUrl: string, options: { enableRuntime?: boolean, enablePage?: boolean } = {}) {
     const client = new CdpClient()
     client.ws = new WebSocket(webSocketUrl)
 
@@ -172,16 +308,28 @@ class CdpClient {
     return client
   }
 
-  async close() {
-    if (this.ws?.readyState === 1) {
-      this.ws.close()
+  static async connect(target: DebugTarget) {
+    if (!target.webSocketDebuggerUrl) {
+      throw new Error(`Debug target ${target.title || target.id} does not expose webSocketDebuggerUrl`)
     }
+
+    return await CdpClient.connectToUrl(target.webSocketDebuggerUrl)
+  }
+
+  async send(method: string, params?: Record<string, unknown>) {
+    const id = ++this.nextId
+    const payload = { id, method, params }
+
+    return await new Promise<any>((resolvePromise, rejectPromise) => {
+      this.pending.set(id, { resolve: resolvePromise, reject: rejectPromise })
+      this.ws.send(JSON.stringify(payload))
+    })
   }
 
   async evaluate<T>(expression: string): Promise<T> {
     const result = await this.send('Runtime.evaluate', {
-      awaitPromise: true,
       expression,
+      awaitPromise: true,
       returnByValue: true,
       userGesture: true,
     })
@@ -194,23 +342,39 @@ class CdpClient {
     return result?.result?.value as T
   }
 
-  async send(method: string, params?: Record<string, unknown>) {
-    const id = ++this.nextId
-    const payload = { id, method, params }
-
-    return await new Promise<any>((resolvePromise, rejectPromise) => {
-      this.pending.set(id, { reject: rejectPromise, resolve: resolvePromise })
-      this.ws.send(JSON.stringify(payload))
-    })
+  async close() {
+    if (this.ws?.readyState === 1) {
+      this.ws.close()
+    }
   }
 }
 
-function addTimeline(event: string, detail?: Record<string, unknown>) {
-  report.timeline.push({
-    at: new Date().toISOString(),
-    detail,
-    event,
+async function listDebugTargets(browserWsUrl: string) {
+  const browserClient = await CdpClient.connectToUrl(browserWsUrl, {
+    enableRuntime: false,
+    enablePage: false,
   })
+
+  try {
+    const result = await browserClient.send('Target.getTargets') as { targetInfos?: Array<Record<string, unknown>> }
+    const targetInfos = Array.isArray(result.targetInfos) ? result.targetInfos : []
+
+    return targetInfos
+      .filter(target => target.type === 'page')
+      .map((target) => {
+        const targetId = String(target.targetId || '')
+        return {
+          id: targetId,
+          title: String(target.title || ''),
+          type: String(target.type || ''),
+          url: String(target.url || ''),
+          webSocketDebuggerUrl: browserWsUrl.replace(DEVTOOLS_BROWSER_WS_PATH_RE, `/devtools/page/${targetId}`),
+        } satisfies DebugTarget
+      })
+  }
+  finally {
+    await browserClient.close().catch(() => {})
+  }
 }
 
 async function bringTargetToFront(client: CdpClient, label: string) {
@@ -219,27 +383,31 @@ async function bringTargetToFront(client: CdpClient, label: string) {
   await sleep(750)
 }
 
-async function canListenOnPort(port: number) {
-  return await new Promise<boolean>((resolvePromise) => {
-    const server = createServer()
-    server.once('error', () => {
-      resolvePromise(false)
-    })
-    server.listen(port, '127.0.0.1', () => {
-      server.close(() => resolvePromise(true))
-    })
-  })
+async function getAiriDebugSnapshot(client: CdpClient) {
+  return await client.evaluate<AiriDebugSnapshotLike | undefined>(`(() => {
+    const bridge = window.__AIRI_DEBUG__
+    if (!bridge || typeof bridge.getSnapshot !== 'function') {
+      return undefined
+    }
+
+    return bridge.getSnapshot()
+  })()`)
 }
 
-async function findAvailablePort(preferredPort: number, attempts = 20) {
-  for (let index = 0; index < attempts; index += 1) {
-    const candidate = preferredPort + index
-    if (await canListenOnPort(candidate)) {
-      return candidate
-    }
-  }
+async function waitForChatSurfaceReady(client: CdpClient, label: string) {
+  return await waitFor(label, async () => {
+    try {
+      const snapshot = await client.evaluate<Record<string, any>>('window.__AIRI_DEBUG__.getSnapshot()')
+      if (snapshot.dom?.hasTextarea) {
+        return snapshot
+      }
 
-  throw new Error(`Could not find an available remote debug port starting from ${preferredPort}`)
+      return undefined
+    }
+    catch {
+      return undefined
+    }
+  }, 30_000, 250)
 }
 
 async function findTargetWithAiriDebugBridge(
@@ -273,8 +441,8 @@ async function findTargetWithAiriDebugBridge(
         }
 
         return {
-          snapshot,
           target,
+          snapshot,
         }
       }
       catch {
@@ -289,106 +457,6 @@ async function findTargetWithAiriDebugBridge(
   }, 90_000, 750)
 }
 
-async function getAiriDebugSnapshot(client: CdpClient) {
-  return await client.evaluate<AiriDebugSnapshotLike | undefined>(`(() => {
-    const bridge = window.__AIRI_DEBUG__
-    if (!bridge || typeof bridge.getSnapshot !== 'function') {
-      return undefined
-    }
-
-    return bridge.getSnapshot()
-  })()`)
-}
-
-async function listDebugTargets(browserWsUrl: string) {
-  const browserClient = await CdpClient.connectToUrl(browserWsUrl, {
-    enablePage: false,
-    enableRuntime: false,
-  })
-
-  try {
-    const result = await browserClient.send('Target.getTargets') as { targetInfos?: Array<Record<string, unknown>> }
-    const targetInfos = Array.isArray(result.targetInfos) ? result.targetInfos : []
-
-    return targetInfos
-      .filter(target => target.type === 'page')
-      .map((target) => {
-        const targetId = String(target.targetId || '')
-        return {
-          id: targetId,
-          title: String(target.title || ''),
-          type: String(target.type || ''),
-          url: String(target.url || ''),
-          webSocketDebuggerUrl: browserWsUrl.replace(DEVTOOLS_BROWSER_WS_PATH_RE, `/devtools/page/${targetId}`),
-        } satisfies DebugTarget
-      })
-  }
-  finally {
-    await browserClient.close().catch(() => {})
-  }
-}
-
-function parseCommandArgs(raw: string | undefined, fallback: string[]) {
-  if (!raw?.trim()) {
-    return fallback
-  }
-
-  return raw
-    .split(WHITESPACE_SPLIT_RE)
-    .map(item => item.trim())
-    .filter(Boolean)
-}
-
-function parseDotEnv(text: string) {
-  const values: Record<string, string> = {}
-
-  for (const line of text.split(DOTENV_LINE_SPLIT_RE)) {
-    const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith('#')) {
-      continue
-    }
-
-    const separatorIndex = trimmed.indexOf('=')
-    if (separatorIndex <= 0) {
-      continue
-    }
-
-    const key = trimmed.slice(0, separatorIndex).trim()
-    const rawValue = trimmed.slice(separatorIndex + 1).trim()
-    const unwrapped = rawValue.replace(QUOTED_VALUE_RE, '')
-    values[key] = unwrapped
-  }
-
-  return values
-}
-
-async function readRootEnvValues() {
-  try {
-    const raw = await readFile(rootEnvPath, 'utf-8')
-    return parseDotEnv(raw)
-  }
-  catch {
-    return {}
-  }
-}
-
-function requireStructuredContent(result: unknown, label: string) {
-  if (!result || typeof result !== 'object') {
-    throw new Error(`${label} did not return an object result`)
-  }
-
-  const structuredContent = (result as { structuredContent?: unknown }).structuredContent
-  if (!structuredContent || typeof structuredContent !== 'object') {
-    throw new Error(`${label} missing structuredContent`)
-  }
-
-  return structuredContent as Record<string, unknown>
-}
-
-function sleep(ms: number) {
-  return new Promise(resolvePromise => setTimeout(resolvePromise, ms))
-}
-
 function summarizeMessageText(value: unknown) {
   if (typeof value !== 'string') {
     return ''
@@ -396,74 +464,6 @@ function summarizeMessageText(value: unknown) {
 
   const normalized = value.replace(/\s+/g, ' ').trim()
   return normalized.length > 240 ? `${normalized.slice(0, 237)}...` : normalized
-}
-
-async function terminateExistingStageTamagotchiInstances() {
-  const patterns = [
-    resolve(repoDir, 'apps', 'stage-tamagotchi'),
-    '@proj-airi/stage-tamagotchi',
-    resolve(repoDir, 'node_modules', '.pnpm', 'electron@'),
-  ]
-
-  for (const pattern of patterns) {
-    await execFileAsync('pkill', ['-f', pattern]).catch(() => {})
-  }
-
-  await sleep(1_500)
-}
-
-async function waitFor<T>(label: string, task: () => Promise<T | undefined>, timeoutMs = 60_000, intervalMs = 500) {
-  const startedAt = Date.now()
-
-  while ((Date.now() - startedAt) < timeoutMs) {
-    const value = await task()
-    if (value !== undefined) {
-      return value
-    }
-
-    await sleep(intervalMs)
-  }
-
-  throw new Error(`Timed out waiting for ${label}`)
-}
-
-async function waitForChatSurfaceReady(client: CdpClient, label: string) {
-  return await waitFor(label, async () => {
-    try {
-      const snapshot = await client.evaluate<Record<string, any>>('window.__AIRI_DEBUG__.getSnapshot()')
-      if (snapshot.dom?.hasTextarea) {
-        return snapshot
-      }
-
-      return undefined
-    }
-    catch {
-      return undefined
-    }
-  }, 30_000, 250)
-}
-
-async function withTimeout<T>(label: string, task: Promise<T>, timeoutMs: number) {
-  let timeoutHandle: NodeJS.Timeout | undefined
-
-  try {
-    return await Promise.race([
-      task,
-      new Promise<never>((_resolvePromise, rejectPromise) => {
-        timeoutHandle = setTimeout(() => rejectPromise(new Error(`Timed out waiting for ${label}`)), timeoutMs)
-      }),
-    ])
-  }
-  finally {
-    if (timeoutHandle) {
-      clearTimeout(timeoutHandle)
-    }
-  }
-}
-
-async function writeReport() {
-  report.finishedAt = new Date().toISOString()
-  await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf-8')
 }
 
 let exitCode = 0
@@ -474,21 +474,21 @@ async function main() {
   let mainTargetClient: CdpClient | undefined
   let chatTargetClient: CdpClient | undefined
   let chatClientSharesMainTarget = false
-  let chatSurfaceMode: 'same-window-route' | 'separate-window' = 'separate-window'
+  let chatSurfaceMode: 'separate-window' | 'same-window-route' = 'separate-window'
   let browserWsUrl: string | undefined
   const debugPort = await findAvailablePort(preferredDebugPort)
   const rootEnvValues = await readRootEnvValues()
   const providerBootstrapConfig = getProviderBootstrapConfig({
-    dotenvValues: rootEnvValues,
-    processEnv: env,
     providerId: preferredProviderId,
+    processEnv: env,
+    dotenvValues: rootEnvValues,
   })
 
   try {
     await mkdir(reportDir, { recursive: true })
     await mkdir(mcpSessionRoot, { recursive: true })
 
-    addTimeline('bootstrap', { debugPort, reportDir })
+    addTimeline('bootstrap', { reportDir, debugPort })
     await terminateExistingStageTamagotchiInstances()
     addTimeline('terminated-stale-stage-tamagotchi-instances')
 
@@ -500,8 +500,8 @@ async function main() {
       env: {
         ...env,
         APP_REMOTE_DEBUG: 'true',
-        APP_REMOTE_DEBUG_NO_OPEN: 'true',
         APP_REMOTE_DEBUG_PORT: String(debugPort),
+        APP_REMOTE_DEBUG_NO_OPEN: 'true',
       },
       stdio: 'pipe',
     })
@@ -540,10 +540,10 @@ async function main() {
     )
     const mainTarget = mainTargetMatch.target
     addTimeline('main-target-ready', {
-      documentTitle: mainTargetMatch.snapshot.documentTitle,
-      route: mainTargetMatch.snapshot.route,
       title: mainTarget.title,
       url: mainTarget.url,
+      route: mainTargetMatch.snapshot.route,
+      documentTitle: mainTargetMatch.snapshot.documentTitle,
     })
 
     mainTargetClient = await CdpClient.connect(mainTarget)
@@ -554,18 +554,18 @@ async function main() {
     const cwd = env.COMPUTER_USE_SMOKE_SERVER_CWD?.trim() || packageDir
 
     const transport = new StdioClientTransport({
-      args,
       command,
+      args,
       cwd,
       env: {
         ...env,
-        COMPUTER_USE_ALLOWED_BOUNDS: env.COMPUTER_USE_ALLOWED_BOUNDS || '0,0,2560,1600',
-        COMPUTER_USE_APPROVAL_MODE: 'never',
-        COMPUTER_USE_DENY_APPS: '1Password,Keychain,System Settings,Activity Monitor',
         COMPUTER_USE_EXECUTOR: 'macos-local',
+        COMPUTER_USE_APPROVAL_MODE: 'never',
         COMPUTER_USE_OPENABLE_APPS: 'Terminal,Cursor,Google Chrome,Electron',
-        COMPUTER_USE_SESSION_ROOT: mcpSessionRoot,
+        COMPUTER_USE_DENY_APPS: '1Password,Keychain,System Settings,Activity Monitor',
         COMPUTER_USE_SESSION_TAG: `airi-e2e-${runId}`,
+        COMPUTER_USE_ALLOWED_BOUNDS: env.COMPUTER_USE_ALLOWED_BOUNDS || '0,0,2560,1600',
+        COMPUTER_USE_SESSION_ROOT: mcpSessionRoot,
       },
       stderr: 'pipe',
     })
@@ -586,22 +586,22 @@ async function main() {
     addTimeline('computer-use-mcp-connected')
 
     const capabilities = await mcpClient.callTool({
-      arguments: {},
       name: 'desktop_get_capabilities',
+      arguments: {},
     })
     const capabilitiesData = requireStructuredContent(capabilities, 'desktop_get_capabilities')
     report.mcp.capabilities = capabilitiesData
     report.paths.auditLogPath = String((capabilitiesData.session as Record<string, unknown> | undefined)?.auditLogPath || '') || undefined
     report.paths.screenshotsDir = String((capabilitiesData.session as Record<string, unknown> | undefined)?.screenshotsDir || '') || undefined
     addTimeline('desktop-capabilities', {
-      auditLogPath: report.paths.auditLogPath,
       executionMode: (capabilitiesData.executionTarget as Record<string, unknown> | undefined)?.mode,
+      auditLogPath: report.paths.auditLogPath,
       screenshotsDir: report.paths.screenshotsDir,
     })
 
     await mcpClient.callTool({
-      arguments: { label: 'before-open-chat' },
       name: 'desktop_screenshot',
+      arguments: { label: 'before-open-chat' },
     })
     addTimeline('screenshot-captured', { label: 'before-open-chat' })
 
@@ -620,11 +620,11 @@ async function main() {
       )
       const chatTarget = chatTargetMatch.target
       addTimeline('chat-target-ready', {
-        documentTitle: chatTargetMatch.snapshot.documentTitle,
-        mode: 'separate-window',
-        route: chatTargetMatch.snapshot.route,
         title: chatTarget.title,
         url: chatTarget.url,
+        route: chatTargetMatch.snapshot.route,
+        documentTitle: chatTargetMatch.snapshot.documentTitle,
+        mode: 'separate-window',
       })
 
       chatTargetClient = await CdpClient.connect(chatTarget)
@@ -632,8 +632,8 @@ async function main() {
       const readyChatSnapshot = await waitForChatSurfaceReady(chatTargetClient, 'chat surface ready')
       report.debugSnapshots.push(readyChatSnapshot)
       addTimeline('chat-surface-ready', {
-        hasTextarea: Boolean(readyChatSnapshot.dom?.hasTextarea),
         route: String(readyChatSnapshot.route || ''),
+        hasTextarea: Boolean(readyChatSnapshot.dom?.hasTextarea),
       })
     }
     catch (error) {
@@ -662,21 +662,21 @@ async function main() {
       const readyChatSnapshot = await waitForChatSurfaceReady(chatTargetClient, 'fallback chat surface ready')
       report.debugSnapshots.push(readyChatSnapshot)
       addTimeline('chat-surface-ready', {
+        route: String(readyChatSnapshot.route || ''),
         hasTextarea: Boolean(readyChatSnapshot.dom?.hasTextarea),
         mode: 'same-window-route',
-        route: String(readyChatSnapshot.route || ''),
       })
       chatClientSharesMainTarget = true
       addTimeline('chat-target-ready', {
-        mode: 'same-window-route',
         title: 'AIRI',
         url: 'http://localhost:5173/#/chat',
+        mode: 'same-window-route',
       })
     }
 
     const focusedDesktop = await mcpClient.callTool({
-      arguments: { app: 'Electron' },
       name: 'desktop_focus_app',
+      arguments: { app: 'Electron' },
     })
     const focusedDesktopData = requireStructuredContent(focusedDesktop, 'desktop_focus_app')
     addTimeline('desktop-focus-app', {
@@ -686,8 +686,8 @@ async function main() {
 
     const observation = await waitFor('Chat window observation', async () => {
       const result = await mcpClient!.callTool({
-        arguments: { limit: 24 },
         name: 'desktop_observe_windows',
+        arguments: { limit: 24 },
       })
       const data = requireStructuredContent(result, 'desktop_observe_windows')
       const observationPayload = ((data.backendResult as Record<string, unknown> | undefined)?.observation
@@ -703,8 +703,8 @@ async function main() {
       }
 
       return {
-        chatWindow,
         full: data,
+        chatWindow,
       }
     }, 30_000, 1_000)
     addTimeline('chat-window-observed', {
@@ -714,18 +714,18 @@ async function main() {
 
     await chatTargetClient.evaluate('window.__AIRI_DEBUG__.clearEvents()')
     const selectionSnapshot = await chatTargetClient.evaluate<Record<string, any>>(`window.__AIRI_DEBUG__.ensureConsciousnessSelection(${JSON.stringify({
-      preferredModels: preferredModelCandidates,
       provider: preferredProviderId,
+      preferredModels: preferredModelCandidates,
       providerConfig: providerBootstrapConfig,
     })})`)
     report.debugSnapshots.push(selectionSnapshot)
     addTimeline('consciousness-selection-ready', {
+      providerId: String(selectionSnapshot.provider?.activeProvider || ''),
       modelId: String(selectionSnapshot.provider?.activeModel || ''),
-      preferredModelCandidates,
       preferredProviderId,
+      preferredModelCandidates,
       providerAvailable: Boolean(selectionSnapshot.provider?.providerAvailable),
       providerBootstrapped: Boolean(providerBootstrapConfig),
-      providerId: String(selectionSnapshot.provider?.activeProvider || ''),
     })
 
     if (preferredProviderId === 'github-models' && !selectionSnapshot.provider?.providerAvailable) {
@@ -736,11 +736,11 @@ async function main() {
     const resetSnapshot = await chatTargetClient.evaluate<Record<string, any>>('window.__AIRI_DEBUG__.resetChatSession()')
     report.debugSnapshots.push(resetSnapshot)
     addTimeline('chat-session-reset', {
-      activeSessionId: String(resetSnapshot.chat?.activeSessionId || ''),
-      messageCount: Number(resetSnapshot.chat?.messageCount || 0),
-      modelId: String(resetSnapshot.provider?.activeModel || ''),
       providerConfigured: Boolean(resetSnapshot.provider?.configured),
       providerId: String(resetSnapshot.provider?.activeProvider || ''),
+      modelId: String(resetSnapshot.provider?.activeModel || ''),
+      messageCount: Number(resetSnapshot.chat?.messageCount || 0),
+      activeSessionId: String(resetSnapshot.chat?.activeSessionId || ''),
     })
 
     const focusState = await waitFor('chat textarea focus', async () => {
@@ -768,10 +768,10 @@ async function main() {
       })()`)
 
       addTimeline('textarea-focus-poll', {
-        disabled: Boolean(state.disabled),
-        focusedTagName: String(state.focusedTagName || ''),
         ok: Boolean(state.ok),
+        disabled: Boolean(state.disabled),
         readOnly: Boolean(state.readOnly),
+        focusedTagName: String(state.focusedTagName || ''),
       })
 
       return state.ok ? state : undefined
@@ -782,25 +782,25 @@ async function main() {
     })
 
     await mcpClient.callTool({
-      arguments: { label: 'chat-before-type' },
       name: 'desktop_screenshot',
+      arguments: { label: 'chat-before-type' },
     })
     addTimeline('screenshot-captured', { label: 'chat-before-type' })
 
     const baselineMessageCount = Number(resetSnapshot.chat?.messageCount || 0)
 
     const typed = await mcpClient.callTool({
-      arguments: {
-        captureAfter: true,
-        pressEnter: false,
-        text: promptText,
-      },
       name: 'desktop_type_text',
+      arguments: {
+        text: promptText,
+        pressEnter: false,
+        captureAfter: true,
+      },
     })
     const typedData = requireStructuredContent(typed, 'desktop_type_text')
     addTimeline('desktop-type-text', {
-      screenshotPath: (typedData.screenshot as Record<string, unknown> | undefined)?.path,
       status: typedData.status,
+      screenshotPath: (typedData.screenshot as Record<string, unknown> | undefined)?.path,
     })
 
     const typedSnapshot = await waitFor('typed prompt to settle in textarea', async () => {
@@ -815,8 +815,8 @@ async function main() {
       })()`)
 
       addTimeline('textarea-poll', {
-        containsPromptMarker: Boolean(typedState.containsPromptMarker),
         valueLength: Number(typedState.valueLength || 0),
+        containsPromptMarker: Boolean(typedState.containsPromptMarker),
       })
 
       if (typedState.containsPromptMarker === true) {
@@ -830,16 +830,16 @@ async function main() {
     })
 
     const submit = await mcpClient.callTool({
-      arguments: {
-        captureAfter: true,
-        keys: ['enter'],
-      },
       name: 'desktop_press_keys',
+      arguments: {
+        keys: ['enter'],
+        captureAfter: true,
+      },
     })
     const submitData = requireStructuredContent(submit, 'desktop_press_keys')
     addTimeline('desktop-press-keys', {
-      screenshotPath: (submitData.screenshot as Record<string, unknown> | undefined)?.path,
       status: submitData.status,
+      screenshotPath: (submitData.screenshot as Record<string, unknown> | undefined)?.path,
     })
 
     const submittedSnapshot = await waitFor('chat submit', async () => {
@@ -854,10 +854,10 @@ async function main() {
       const sawBeforeSend = recentEvents.some(event => String(event?.type || '') === 'before-send')
 
       addTimeline('chat-submit-poll', {
-        lastMessageRole,
-        messageCount,
-        sawBeforeSend,
         sending,
+        messageCount,
+        lastMessageRole,
+        sawBeforeSend,
         textareaValueLength: Number(snapshot.dom?.textareaValueLength || 0),
       })
 
@@ -872,9 +872,9 @@ async function main() {
       return undefined
     }, 15_000, 500)
     addTimeline('chat-submit-observed', {
-      lastMessageRole: String(submittedSnapshot.chat?.lastMessage?.role || ''),
-      messageCount: Number(submittedSnapshot.chat?.messageCount || 0),
       sending: Boolean(submittedSnapshot.chat?.sending),
+      messageCount: Number(submittedSnapshot.chat?.messageCount || 0),
+      lastMessageRole: String(submittedSnapshot.chat?.lastMessage?.role || ''),
     })
 
     let capturedStreamingScreenshot = false
@@ -885,8 +885,8 @@ async function main() {
       if (!capturedStreamingScreenshot && snapshot.chat?.sending && typeof snapshot.chat?.streamingText === 'string' && snapshot.chat.streamingText.trim().length > 0) {
         capturedStreamingScreenshot = true
         await mcpClient!.callTool({
-          arguments: { label: 'chat-during-stream' },
           name: 'desktop_screenshot',
+          arguments: { label: 'chat-during-stream' },
         })
         addTimeline('screenshot-captured', {
           label: 'chat-during-stream',
@@ -904,14 +904,14 @@ async function main() {
       const abortedByUser = recentEvents.some(event => String(event?.type || '') === 'chat-abort-requested')
 
       addTimeline('chat-completion-poll', {
-        abortedByUser,
-        lastMessageRole,
-        messageCount,
         sending,
+        messageCount,
         streamingLength: Number(snapshot.chat?.streamingText?.length || 0),
+        lastMessageRole,
+        turnCompleted: hasTurnCompletion,
         toolCallCount: Number(snapshot.chat?.lastTurnComplete?.toolCallCount || 0),
         toolResultCount: Number(snapshot.chat?.lastTurnComplete?.toolResultCount || 0),
-        turnCompleted: hasTurnCompletion,
+        abortedByUser,
       })
 
       if (!sending && messageCount > baselineMessageCount && hasTurnCompletion) {
@@ -930,31 +930,31 @@ async function main() {
     }, 90_000, 1_000)
 
     await mcpClient.callTool({
-      arguments: { label: 'chat-final' },
       name: 'desktop_screenshot',
+      arguments: { label: 'chat-final' },
     })
     addTimeline('screenshot-captured', { label: 'chat-final' })
 
     const desktopState = await mcpClient.callTool({
-      arguments: {},
       name: 'desktop_get_state',
+      arguments: {},
     })
     report.mcp.desktopState = requireStructuredContent(desktopState, 'desktop_get_state')
 
     const sessionTrace = await mcpClient.callTool({
-      arguments: { limit: 200 },
       name: 'desktop_get_session_trace',
+      arguments: { limit: 200 },
     })
     report.mcp.sessionTrace = requireStructuredContent(sessionTrace, 'desktop_get_session_trace')
 
     report.final = {
+      providerConfigured: Boolean(finalSnapshot.provider?.configured),
+      providerId: String(finalSnapshot.provider?.activeProvider || ''),
+      modelId: String(finalSnapshot.provider?.activeModel || ''),
+      messageCount: Number(finalSnapshot.chat?.messageCount || 0),
       lastMessageRole: String(finalSnapshot.chat?.lastMessage?.role || ''),
       lastMessageText: summarizeMessageText(finalSnapshot.chat?.lastMessage?.text),
       lastTurnOutput: summarizeMessageText(finalSnapshot.chat?.lastTurnComplete?.outputText),
-      messageCount: Number(finalSnapshot.chat?.messageCount || 0),
-      modelId: String(finalSnapshot.provider?.activeModel || ''),
-      providerConfigured: Boolean(finalSnapshot.provider?.configured),
-      providerId: String(finalSnapshot.provider?.activeProvider || ''),
     }
 
     if (report.final.lastMessageRole === 'error') {
@@ -972,15 +972,15 @@ async function main() {
     await writeReport()
 
     console.info(JSON.stringify({
-      auditLogPath: report.paths.auditLogPath,
+      ok: true,
+      reportPath,
+      providerConfigured: report.final.providerConfigured,
+      providerId: report.final.providerId,
+      modelId: report.final.modelId,
       lastMessageRole: report.final.lastMessageRole,
       lastMessageText: report.final.lastMessageText,
       lastTurnOutput: report.final.lastTurnOutput,
-      modelId: report.final.modelId,
-      ok: true,
-      providerConfigured: report.final.providerConfigured,
-      providerId: report.final.providerId,
-      reportPath,
+      auditLogPath: report.paths.auditLogPath,
       screenshotsDir: report.paths.screenshotsDir,
     }, null, 2))
   }

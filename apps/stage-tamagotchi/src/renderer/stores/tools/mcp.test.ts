@@ -6,18 +6,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const invokeMocks = vi.hoisted(() => ({
   callMcpTool: vi.fn(async () => ({
-    content: [{ text: 'ok', type: 'text' }],
+    content: [{ type: 'text', text: 'ok' }],
     isError: false,
   })),
   listMcpTools: vi.fn(async () => [{
+    serverName: 'filesystem',
+    name: 'filesystem::search',
+    toolName: 'search',
     description: 'Search files.',
     inputSchema: {
-      properties: {},
       type: 'object',
+      properties: {},
     },
-    name: 'filesystem::search',
-    serverName: 'filesystem',
-    toolName: 'search',
   }]),
 }))
 
@@ -54,39 +54,39 @@ describe('useTamagotchiMcpToolsStore', async () => {
 
     expect(mcpDefinitions).toEqual([
       expect.objectContaining({
-        function: expect.objectContaining({ name: 'builtIn_mcpListTools' }),
         id: 'mcp:builtIn_mcpListTools',
+        function: expect.objectContaining({ name: 'builtIn_mcpListTools' }),
       }),
       expect.objectContaining({
-        function: expect.objectContaining({ name: 'builtIn_mcpCallTool' }),
         id: 'mcp:builtIn_mcpCallTool',
+        function: expect.objectContaining({ name: 'builtIn_mcpCallTool' }),
       }),
     ])
     expect(JSON.stringify(llmToolsStore.$state)).not.toContain('execute')
 
     const listResult = await listTools?.execute({}, toolOptions)
     const callResult = await callTool?.execute({
-      arguments: JSON.stringify({ limit: 10, query: 'hello' }),
       name: 'filesystem::search',
+      arguments: JSON.stringify({ query: 'hello', limit: 10 }),
     }, toolOptions)
 
     expect(invokeMocks.listMcpTools).toHaveBeenCalledTimes(1)
     expect(invokeMocks.callMcpTool).toHaveBeenCalledWith({
-      arguments: { limit: 10, query: 'hello' },
       name: 'filesystem::search',
+      arguments: { query: 'hello', limit: 10 },
     })
     expect(listResult).toEqual([{
+      serverName: 'filesystem',
+      name: 'filesystem::search',
+      toolName: 'search',
       description: 'Search files.',
       inputSchema: {
-        properties: {},
         type: 'object',
+        properties: {},
       },
-      name: 'filesystem::search',
-      serverName: 'filesystem',
-      toolName: 'search',
     }])
     expect(callResult).toEqual({
-      content: [{ text: 'ok', type: 'text' }],
+      content: [{ type: 'text', text: 'ok' }],
       isError: false,
     })
 

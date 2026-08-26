@@ -8,14 +8,14 @@ import { captureChromeSemantics, chromeElementsToTargetCandidates } from './chro
 // ---------------------------------------------------------------------------
 
 describe('chromeElementsToTargetCandidates', () => {
-  const windowBounds = { height: 800, width: 1200, x: 100, y: 50 }
+  const windowBounds = { x: 100, y: 50, width: 1200, height: 800 }
 
   it('transforms page-relative rects to screen-absolute', () => {
     const candidates = chromeElementsToTargetCandidates(
       [{
-        rect: { h: 30, w: 80, x: 10, y: 20 },
         tag: 'button',
         text: 'Submit',
+        rect: { x: 10, y: 20, w: 80, h: 30 },
       }],
       windowBounds,
     )
@@ -32,7 +32,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('allows custom chrome height', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ rect: { h: 20, w: 50, x: 0, y: 0 }, tag: 'button', text: 'A' }],
+      [{ tag: 'button', text: 'A', rect: { x: 0, y: 0, w: 50, h: 20 } }],
       windowBounds,
       100, // custom chrome height
     )
@@ -42,8 +42,8 @@ describe('chromeElementsToTargetCandidates', () => {
   it('skips elements with zero-size rects', () => {
     const candidates = chromeElementsToTargetCandidates(
       [
-        { rect: { h: 0, w: 0, x: 0, y: 0 }, tag: 'button', text: 'Zero' },
-        { rect: { h: 20, w: 50, x: 10, y: 10 }, tag: 'button', text: 'Valid' },
+        { tag: 'button', text: 'Zero', rect: { x: 0, y: 0, w: 0, h: 0 } },
+        { tag: 'button', text: 'Valid', rect: { x: 10, y: 10, w: 50, h: 20 } },
       ],
       windowBounds,
     )
@@ -63,8 +63,8 @@ describe('chromeElementsToTargetCandidates', () => {
     const candidates = chromeElementsToTargetCandidates(
       [
         // Element far below the window
-        { rect: { h: 20, w: 50, x: 10, y: 2000 }, tag: 'button', text: 'Below' },
-        { rect: { h: 20, w: 50, x: 10, y: 10 }, tag: 'button', text: 'Inside' },
+        { tag: 'button', text: 'Below', rect: { x: 10, y: 2000, w: 50, h: 20 } },
+        { tag: 'button', text: 'Inside', rect: { x: 10, y: 10, w: 50, h: 20 } },
       ],
       windowBounds,
     )
@@ -74,7 +74,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('sets source to chrome_dom', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ rect: { h: 16, w: 40, x: 0, y: 0 }, tag: 'a', text: 'Link' }],
+      [{ tag: 'a', text: 'Link', rect: { x: 0, y: 0, w: 40, h: 16 } }],
       windowBounds,
     )
     expect(candidates[0].source).toBe('chrome_dom')
@@ -82,7 +82,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('buttons get high confidence', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ rect: { h: 20, w: 50, x: 0, y: 0 }, tag: 'button', text: 'Go' }],
+      [{ tag: 'button', text: 'Go', rect: { x: 0, y: 0, w: 50, h: 20 } }],
       windowBounds,
     )
     expect(candidates[0].confidence).toBe(0.95)
@@ -90,7 +90,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('disabled elements get low confidence', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ disabled: true, rect: { h: 20, w: 50, x: 0, y: 0 }, tag: 'button', text: 'Disabled' }],
+      [{ tag: 'button', text: 'Disabled', rect: { x: 0, y: 0, w: 50, h: 20 }, disabled: true }],
       windowBounds,
     )
     expect(candidates[0].confidence).toBe(0.3)
@@ -99,19 +99,19 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('builds label from text, placeholder, name, id, href', () => {
     const textLabel = chromeElementsToTargetCandidates(
-      [{ rect: { h: 20, w: 50, x: 0, y: 0 }, tag: 'button', text: 'Click me' }],
+      [{ tag: 'button', text: 'Click me', rect: { x: 0, y: 0, w: 50, h: 20 } }],
       windowBounds,
     )
     expect(textLabel[0].label).toBe('Click me')
 
     const placeholderLabel = chromeElementsToTargetCandidates(
-      [{ placeholder: 'Enter name', rect: { h: 20, w: 50, x: 0, y: 0 }, tag: 'input' }],
+      [{ tag: 'input', placeholder: 'Enter name', rect: { x: 0, y: 0, w: 50, h: 20 } }],
       windowBounds,
     )
     expect(placeholderLabel[0].label).toBe('[Enter name]')
 
     const idLabel = chromeElementsToTargetCandidates(
-      [{ id: 'main-cta', rect: { h: 20, w: 50, x: 0, y: 0 }, tag: 'div' }],
+      [{ tag: 'div', id: 'main-cta', rect: { x: 0, y: 0, w: 50, h: 20 } }],
       windowBounds,
     )
     expect(idLabel[0].label).toBe('#main-cta')
@@ -123,7 +123,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('builds selector from element id (highest priority)', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ id: 'submit-btn', rect: { h: 20, w: 50, x: 0, y: 0 }, tag: 'button', text: 'Go' }],
+      [{ tag: 'button', id: 'submit-btn', text: 'Go', rect: { x: 0, y: 0, w: 50, h: 20 } }],
       windowBounds,
     )
     expect(candidates[0].selector).toBe('#submit-btn')
@@ -131,7 +131,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('escapes special characters in id selectors', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ id: 'my.element:1', rect: { h: 20, w: 50, x: 0, y: 0 }, tag: 'div' }],
+      [{ tag: 'div', id: 'my.element:1', rect: { x: 0, y: 0, w: 50, h: 20 } }],
       windowBounds,
     )
     // dots and colons must be escaped
@@ -140,7 +140,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('builds selector from name attribute (second priority)', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ name: 'email', rect: { h: 20, w: 100, x: 0, y: 0 }, tag: 'input' }],
+      [{ tag: 'input', name: 'email', rect: { x: 0, y: 0, w: 100, h: 20 } }],
       windowBounds,
     )
     expect(candidates[0].selector).toBe('input[name="email"]')
@@ -148,7 +148,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('escapes quotes in name attribute selectors', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ name: 'field"evil', rect: { h: 20, w: 100, x: 0, y: 0 }, tag: 'input' }],
+      [{ tag: 'input', name: 'field"evil', rect: { x: 0, y: 0, w: 100, h: 20 } }],
       windowBounds,
     )
     expect(candidates[0].selector).toBe('input[name="field\\"evil"]')
@@ -156,7 +156,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('builds selector from tag+type for input elements (third priority)', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ rect: { h: 30, w: 80, x: 0, y: 0 }, tag: 'input', type: 'submit' }],
+      [{ tag: 'input', type: 'submit', rect: { x: 0, y: 0, w: 80, h: 30 } }],
       windowBounds,
     )
     expect(candidates[0].selector).toBe('input[type="submit"]')
@@ -164,7 +164,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('builds selector from tag+type for button elements', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ rect: { h: 30, w: 80, x: 0, y: 0 }, tag: 'button', type: 'submit' }],
+      [{ tag: 'button', type: 'submit', rect: { x: 0, y: 0, w: 80, h: 30 } }],
       windowBounds,
     )
     expect(candidates[0].selector).toBe('button[type="submit"]')
@@ -173,7 +173,7 @@ describe('chromeElementsToTargetCandidates', () => {
   it('does not use tag+type for non-input/button elements', () => {
     // A <div> with type attr should NOT get a tag[type=...] selector
     const candidates = chromeElementsToTargetCandidates(
-      [{ className: 'widget', rect: { h: 30, w: 80, x: 0, y: 0 }, tag: 'div', type: 'custom' }],
+      [{ tag: 'div', type: 'custom', className: 'widget', rect: { x: 0, y: 0, w: 80, h: 30 } }],
       windowBounds,
     )
     // Should fall through to className-based selector
@@ -182,7 +182,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('builds selector from first className (fourth priority)', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ className: 'nav-link primary', rect: { h: 16, w: 60, x: 0, y: 0 }, tag: 'a' }],
+      [{ tag: 'a', className: 'nav-link primary', rect: { x: 0, y: 0, w: 60, h: 16 } }],
       windowBounds,
     )
     expect(candidates[0].selector).toBe('a.nav-link')
@@ -190,7 +190,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('returns undefined selector when no identifying attribute exists', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ rect: { h: 14, w: 40, x: 0, y: 0 }, tag: 'span', text: 'orphan' }],
+      [{ tag: 'span', text: 'orphan', rect: { x: 0, y: 0, w: 40, h: 14 } }],
       windowBounds,
     )
     expect(candidates[0].selector).toBeUndefined()
@@ -200,12 +200,12 @@ describe('chromeElementsToTargetCandidates', () => {
     // Element with all attributes — id should win
     const candidates = chromeElementsToTargetCandidates(
       [{
-        className: 'form-control',
+        tag: 'input',
         id: 'email-input',
         name: 'email',
-        rect: { h: 30, w: 200, x: 0, y: 0 },
-        tag: 'input',
         type: 'text',
+        className: 'form-control',
+        rect: { x: 0, y: 0, w: 200, h: 30 },
       }],
       windowBounds,
     )
@@ -214,7 +214,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('falls through to name when id is empty/whitespace', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ id: '  ', name: 'username', rect: { h: 30, w: 200, x: 0, y: 0 }, tag: 'input' }],
+      [{ tag: 'input', id: '  ', name: 'username', rect: { x: 0, y: 0, w: 200, h: 30 } }],
       windowBounds,
     )
     expect(candidates[0].selector).toBe('input[name="username"]')
@@ -227,9 +227,9 @@ describe('chromeElementsToTargetCandidates', () => {
   it('sets isPageContent=true for all chrome_dom candidates', () => {
     const candidates = chromeElementsToTargetCandidates(
       [
-        { rect: { h: 20, w: 50, x: 0, y: 0 }, tag: 'button', text: 'A' },
-        { rect: { h: 30, w: 200, x: 0, y: 30 }, tag: 'input', type: 'text' },
-        { href: '/about', rect: { h: 16, w: 40, x: 0, y: 70 }, tag: 'a', text: 'About' },
+        { tag: 'button', text: 'A', rect: { x: 0, y: 0, w: 50, h: 20 } },
+        { tag: 'input', type: 'text', rect: { x: 0, y: 30, w: 200, h: 30 } },
+        { tag: 'a', href: '/about', text: 'About', rect: { x: 0, y: 70, w: 40, h: 16 } },
       ],
       windowBounds,
     )
@@ -240,7 +240,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('sets enabled=true for non-disabled elements', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ rect: { h: 20, w: 50, x: 0, y: 0 }, tag: 'button', text: 'Active' }],
+      [{ tag: 'button', text: 'Active', rect: { x: 0, y: 0, w: 50, h: 20 } }],
       windowBounds,
     )
     expect(candidates[0].enabled).toBe(true)
@@ -248,7 +248,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('sets enabled=false for disabled elements', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ disabled: true, rect: { h: 20, w: 50, x: 0, y: 0 }, tag: 'button', text: 'Nope' }],
+      [{ tag: 'button', text: 'Nope', disabled: true, rect: { x: 0, y: 0, w: 50, h: 20 } }],
       windowBounds,
     )
     expect(candidates[0].enabled).toBe(false)
@@ -257,7 +257,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('carries inputType from element type attribute', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ rect: { h: 30, w: 200, x: 0, y: 0 }, tag: 'input', type: 'password' }],
+      [{ tag: 'input', type: 'password', rect: { x: 0, y: 0, w: 200, h: 30 } }],
       windowBounds,
     )
     expect(candidates[0].inputType).toBe('password')
@@ -265,7 +265,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('carries href for link elements', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ href: 'https://example.com', rect: { h: 16, w: 40, x: 0, y: 0 }, tag: 'a', text: 'Link' }],
+      [{ tag: 'a', href: 'https://example.com', text: 'Link', rect: { x: 0, y: 0, w: 40, h: 16 } }],
       windowBounds,
     )
     expect(candidates[0].href).toBe('https://example.com')
@@ -277,7 +277,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('uses default frameId=0 when not specified', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ rect: { h: 20, w: 50, x: 0, y: 0 }, tag: 'button', text: 'Main' }],
+      [{ tag: 'button', text: 'Main', rect: { x: 0, y: 0, w: 50, h: 20 } }],
       windowBounds,
     )
     expect(candidates[0].frameId).toBe(0)
@@ -285,7 +285,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('uses explicit frameId parameter', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ rect: { h: 20, w: 50, x: 0, y: 0 }, tag: 'button', text: 'Iframe' }],
+      [{ tag: 'button', text: 'Iframe', rect: { x: 0, y: 0, w: 50, h: 20 } }],
       windowBounds,
       88, // chrome height
       5, // frameId
@@ -296,10 +296,10 @@ describe('chromeElementsToTargetCandidates', () => {
   it('reads per-element _frameId from tagged elements (extension bridge)', () => {
     // The extension bridge tags each element with _frameId
     const taggedEl = {
-      _frameId: 3,
-      rect: { h: 30, w: 200, x: 0, y: 0 },
       tag: 'input',
       type: 'text',
+      rect: { x: 0, y: 0, w: 200, h: 30 },
+      _frameId: 3,
     } as any
     const candidates = chromeElementsToTargetCandidates(
       [taggedEl],
@@ -313,12 +313,12 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('applies tagged frame offsets before converting to screen coordinates', () => {
     const taggedEl = {
+      tag: 'button',
+      text: 'Iframe CTA',
+      rect: { x: 12, y: 24, w: 90, h: 32 },
       _frameId: 3,
       _frameOffsetX: 220,
       _frameOffsetY: 140,
-      rect: { h: 32, w: 90, x: 12, y: 24 },
-      tag: 'button',
-      text: 'Iframe CTA',
     } as any
 
     const candidates = chromeElementsToTargetCandidates(
@@ -340,12 +340,12 @@ describe('chromeElementsToTargetCandidates', () => {
       y: parentFrameOffset.y + childFrameOffset.y,
     }
     const taggedEl = {
+      tag: 'button',
+      text: 'Nested iframe CTA',
+      rect: { x: 12, y: 24, w: 90, h: 32 },
       _frameId: 9,
       _frameOffsetX: nestedFrameOffset.x,
       _frameOffsetY: nestedFrameOffset.y,
-      rect: { h: 32, w: 90, x: 12, y: 24 },
-      tag: 'button',
-      text: 'Nested iframe CTA',
     } as any
 
     const candidates = chromeElementsToTargetCandidates(
@@ -364,9 +364,9 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('falls back to function-level frameId when _frameId is absent', () => {
     const el = {
-      rect: { h: 20, w: 50, x: 0, y: 0 },
       tag: 'button',
       text: 'No tag',
+      rect: { x: 0, y: 0, w: 50, h: 20 },
       // no _frameId
     }
     const candidates = chromeElementsToTargetCandidates(
@@ -384,7 +384,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('candidate with id goes through full routing as browser_dom click', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ id: 'login-btn', rect: { h: 30, w: 80, x: 0, y: 0 }, tag: 'button', text: 'Login' }],
+      [{ tag: 'button', id: 'login-btn', text: 'Login', rect: { x: 0, y: 0, w: 80, h: 30 } }],
       windowBounds,
     )
     // Assign an id like the grounding layer would
@@ -398,7 +398,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('candidate without identifiers routes to os_input', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ rect: { h: 14, w: 60, x: 0, y: 0 }, tag: 'span', text: 'plain text' }],
+      [{ tag: 'span', text: 'plain text', rect: { x: 0, y: 0, w: 60, h: 14 } }],
       windowBounds,
     )
     candidates[0].id = 't_0'
@@ -410,7 +410,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('checkbox candidate goes through routing as checkCheckbox', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ id: 'agree', rect: { h: 16, w: 16, x: 0, y: 0 }, tag: 'input', type: 'checkbox' }],
+      [{ tag: 'input', type: 'checkbox', id: 'agree', rect: { x: 0, y: 0, w: 16, h: 16 } }],
       windowBounds,
     )
     candidates[0].id = 't_0'
@@ -422,7 +422,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('text input candidate goes through type routing as setInputValue', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ name: 'user-email', rect: { h: 30, w: 200, x: 0, y: 0 }, tag: 'input', type: 'email' }],
+      [{ tag: 'input', type: 'email', name: 'user-email', rect: { x: 0, y: 0, w: 200, h: 30 } }],
       windowBounds,
     )
     candidates[0].id = 't_0'
@@ -435,7 +435,7 @@ describe('chromeElementsToTargetCandidates', () => {
 
   it('non-text-input candidate falls back to os_input for type action', () => {
     const candidates = chromeElementsToTargetCandidates(
-      [{ id: 'send', rect: { h: 30, w: 80, x: 0, y: 0 }, tag: 'button', text: 'Send' }],
+      [{ tag: 'button', id: 'send', text: 'Send', rect: { x: 0, y: 0, w: 80, h: 30 } }],
       windowBounds,
     )
     candidates[0].id = 't_0'
@@ -458,27 +458,27 @@ describe('captureChromeSemantics', () => {
 
   it('uses extension bridge when connected', async () => {
     const mockExtension = {
-      getStatus: () => ({ connected: true, enabled: true, host: 'localhost', pendingRequests: 0, port: 8080 }),
+      getStatus: () => ({ connected: true, enabled: true, host: 'localhost', port: 8080, pendingRequests: 0 }),
       readAllFramesDom: vi.fn().mockResolvedValue([
         {
           frameId: 0,
           result: {
-            interactiveElements: [
-              { rect: { h: 20, w: 50, x: 0, y: 0 }, tag: 'button', text: 'Click' },
-            ],
-            title: 'Example',
             url: 'https://example.com',
+            title: 'Example',
+            interactiveElements: [
+              { tag: 'button', text: 'Click', rect: { x: 0, y: 0, w: 50, h: 20 } },
+            ],
           },
         },
         {
           frameId: 5,
           result: {
+            url: 'https://example.com/iframe',
+            title: 'Iframe',
             frameOffset: { x: 320, y: 180 },
             interactiveElements: [
-              { name: 'email', rect: { h: 28, w: 140, x: 16, y: 22 }, tag: 'input' },
+              { tag: 'input', name: 'email', rect: { x: 16, y: 22, w: 140, h: 28 } },
             ],
-            title: 'Iframe',
-            url: 'https://example.com/iframe',
           },
         },
       ]),
@@ -497,14 +497,14 @@ describe('captureChromeSemantics', () => {
 
   it('falls back to CDP when extension is disconnected', async () => {
     const mockExtension = {
-      getStatus: () => ({ connected: false, enabled: true, host: 'localhost', pendingRequests: 0, port: 8080 }),
+      getStatus: () => ({ connected: false, enabled: true, host: 'localhost', port: 8080, pendingRequests: 0 }),
     }
 
     const mockCdp = {
+      getStatus: () => ({ connected: true, cdpUrl: 'http://localhost:9222', pageUrl: 'https://cdp.com', pageTitle: 'CDP' }),
       collectInteractiveElements: vi.fn().mockResolvedValue([
-        { rect: { h: 20, w: 100, x: 0, y: 0 }, tag: 'input', text: '' },
+        { tag: 'input', text: '', rect: { x: 0, y: 0, w: 100, h: 20 } },
       ]),
-      getStatus: () => ({ cdpUrl: 'http://localhost:9222', connected: true, pageTitle: 'CDP', pageUrl: 'https://cdp.com' }),
     }
 
     const result = await captureChromeSemantics(mockExtension as any, mockCdp as any)

@@ -12,25 +12,36 @@ import { formatWorkflowStructuredContent } from './workflow-formatter'
 
 function createBaseRunState(overrides: Partial<RunState> = {}): RunState {
   return {
-    executionTarget: { hostName: 'mac', isolated: false, mode: 'local-windowed', tainted: false, transport: 'local' },
     foregroundContext: { available: false, platform: 'darwin' },
-    lastApprovalRejected: false,
+    executionTarget: { mode: 'local-windowed', transport: 'local', hostName: 'mac', isolated: false, tainted: false },
     pendingApprovalCount: 0,
+    lastApprovalRejected: false,
+    ptySessions: [],
+    workflowStepTerminalBindings: [],
     ptyApprovalGrants: [],
     ptyAuditLog: [],
-    ptySessions: [],
     updatedAt: new Date().toISOString(),
-    workflowStepTerminalBindings: [],
+    ...overrides,
+  }
+}
+
+function createStep(overrides: Partial<WorkflowStepResult> = {}): WorkflowStepResult {
+  return {
+    step: { label: 'Test step', kind: 'take_screenshot', description: 'test', params: {} },
+    advisories: [],
+    succeeded: true,
+    status: 'success',
+    explanation: 'Step completed.',
     ...overrides,
   }
 }
 
 function createRerouteAdvisory(overrides: Partial<StrategyAdvisory> = {}): StrategyAdvisory {
   return {
-    category: 'reroute',
     kind: 'use_accessibility_grounding',
-    reason: 'macOS accessibility tree provides structured UI element data.',
+    category: 'reroute',
     recommendedSurface: 'accessibility',
+    reason: 'macOS accessibility tree provides structured UI element data.',
     suggestedToolName: 'accessibility_snapshot',
     ...overrides,
   }
@@ -38,22 +49,11 @@ function createRerouteAdvisory(overrides: Partial<StrategyAdvisory> = {}): Strat
 
 function createResult(overrides: Partial<WorkflowExecutionResult> = {}): WorkflowExecutionResult {
   return {
-    status: 'completed',
-    stepResults: [createStep()],
     success: true,
+    status: 'completed',
+    task: { id: 'task-1', goal: 'test', phase: 'completed' as const, steps: [], startedAt: '', currentStepIndex: 0, failureCount: 0, maxConsecutiveFailures: 3 },
+    stepResults: [createStep()],
     summary: 'Workflow completed.',
-    task: { currentStepIndex: 0, failureCount: 0, goal: 'test', id: 'task-1', maxConsecutiveFailures: 3, phase: 'completed' as const, startedAt: '', steps: [] },
-    ...overrides,
-  }
-}
-
-function createStep(overrides: Partial<WorkflowStepResult> = {}): WorkflowStepResult {
-  return {
-    advisories: [],
-    explanation: 'Step completed.',
-    status: 'success',
-    step: { description: 'test', kind: 'take_screenshot', label: 'Test step', params: {} },
-    succeeded: true,
     ...overrides,
   }
 }
@@ -65,9 +65,9 @@ function createStep(overrides: Partial<WorkflowStepResult> = {}): WorkflowStepRe
 describe('formatWorkflowStructuredContent', () => {
   it('emits kind=workflow_result and status=completed for a successful workflow', () => {
     const output = formatWorkflowStructuredContent({
+      workflowId: 'wf-1',
       result: createResult(),
       runState: createBaseRunState(),
-      workflowId: 'wf-1',
     })
 
     expect(output.kind).toBe('workflow_result')
@@ -78,9 +78,9 @@ describe('formatWorkflowStructuredContent', () => {
 
   it('emits kind=workflow_result and status=failed for a failed workflow', () => {
     const output = formatWorkflowStructuredContent({
-      result: createResult({ status: 'failed', success: false }),
-      runState: createBaseRunState(),
       workflowId: 'wf-2',
+      result: createResult({ success: false, status: 'failed' }),
+      runState: createBaseRunState(),
     })
 
     expect(output.kind).toBe('workflow_result')
@@ -89,22 +89,22 @@ describe('formatWorkflowStructuredContent', () => {
 
   it('emits kind=workflow_result and status=paused with resumeHint for suspended workflow', () => {
     const suspension: WorkflowSuspension = {
+      workflow: { id: 'wf-3', name: 'test', description: 'test', steps: [], maxRetries: 0 },
       pausedAtStepIndex: 1,
-      pausedDuring: 'main_action',
       resumeAtStepIndex: 1,
+      pausedDuring: 'main_action',
       stepResults: [],
-      task: { currentStepIndex: 1, failureCount: 0, goal: 'test', id: 'task-1', maxConsecutiveFailures: 3, phase: 'awaiting_approval' as const, startedAt: '', steps: [] },
-      workflow: { description: 'test', id: 'wf-3', maxRetries: 0, name: 'test', steps: [] },
+      task: { id: 'task-1', goal: 'test', phase: 'awaiting_approval' as const, steps: [], startedAt: '', currentStepIndex: 1, failureCount: 0, maxConsecutiveFailures: 3 },
     }
 
     const output = formatWorkflowStructuredContent({
+      workflowId: 'wf-3',
       result: createResult({
-        status: 'paused',
         success: false,
+        status: 'paused',
         suspension,
       }),
       runState: createBaseRunState(),
-      workflowId: 'wf-3',
     })
 
     expect(output.kind).toBe('workflow_result')
@@ -118,14 +118,14 @@ describe('formatWorkflowStructuredContent', () => {
     it('emits kind=workflow_reroute with stable reroute detail for accessibility reroute', () => {
       const advisory = createRerouteAdvisory()
       const output = formatWorkflowStructuredContent({
+        workflowId: 'wf-reroute-1',
         result: createResult({
-          rerouteAdvisory: advisory,
-          status: 'reroute_required',
-          stepResults: [createStep({ status: 'reroute_required', succeeded: false })],
           success: false,
+          status: 'reroute_required',
+          rerouteAdvisory: advisory,
+          stepResults: [createStep({ status: 'reroute_required', succeeded: false })],
         }),
         runState: createBaseRunState(),
-        workflowId: 'wf-reroute-1',
       })
 
       expect(output.kind).toBe('workflow_reroute')
@@ -142,20 +142,20 @@ describe('formatWorkflowStructuredContent', () => {
 
     it('does not include executionReason for pure strategy reroute (no prep metadata)', () => {
       const output = formatWorkflowStructuredContent({
+        workflowId: 'wf-reroute-2',
         result: createResult({
-          rerouteAdvisory: createRerouteAdvisory(),
+          success: false,
           status: 'reroute_required',
+          rerouteAdvisory: createRerouteAdvisory(),
           stepResults: [createStep({
-            preparatoryResults: [
-              { succeeded: true, toolName: 'accessibility_snapshot' },
-            ],
             status: 'reroute_required',
             succeeded: false,
+            preparatoryResults: [
+              { toolName: 'accessibility_snapshot', succeeded: true },
+            ],
           })],
-          success: false,
         }),
         runState: createBaseRunState(),
-        workflowId: 'wf-reroute-2',
       })
 
       expect((output as any).reroute.executionReason).toBeUndefined()
@@ -166,24 +166,24 @@ describe('formatWorkflowStructuredContent', () => {
       // template sentence. Only an explicit `executionReason` string in
       // metadata is forwarded.
       const output = formatWorkflowStructuredContent({
+        workflowId: 'wf-reroute-3',
         result: createResult({
-          rerouteAdvisory: createRerouteAdvisory(),
+          success: false,
           status: 'reroute_required',
+          rerouteAdvisory: createRerouteAdvisory(),
           stepResults: [createStep({
-            preparatoryResults: [
-              {
-                metadata: { elementCount: 42 },
-                succeeded: true,
-                toolName: 'accessibility_snapshot',
-              },
-            ],
             status: 'reroute_required',
             succeeded: false,
+            preparatoryResults: [
+              {
+                toolName: 'accessibility_snapshot',
+                succeeded: true,
+                metadata: { elementCount: 42 },
+              },
+            ],
           })],
-          success: false,
         }),
         runState: createBaseRunState(),
-        workflowId: 'wf-reroute-3',
       })
 
       expect((output as any).reroute.executionReason).toBeUndefined()
@@ -191,24 +191,24 @@ describe('formatWorkflowStructuredContent', () => {
 
     it('forwards explicit executionReason from prep metadata', () => {
       const output = formatWorkflowStructuredContent({
+        workflowId: 'wf-reroute-3b',
         result: createResult({
-          rerouteAdvisory: createRerouteAdvisory(),
+          success: false,
           status: 'reroute_required',
+          rerouteAdvisory: createRerouteAdvisory(),
           stepResults: [createStep({
-            preparatoryResults: [
-              {
-                metadata: { executionReason: 'Browser confirmed running with 3 tabs.' },
-                succeeded: true,
-                toolName: 'accessibility_snapshot',
-              },
-            ],
             status: 'reroute_required',
             succeeded: false,
+            preparatoryResults: [
+              {
+                toolName: 'accessibility_snapshot',
+                succeeded: true,
+                metadata: { executionReason: 'Browser confirmed running with 3 tabs.' },
+              },
+            ],
           })],
-          success: false,
         }),
         runState: createBaseRunState(),
-        workflowId: 'wf-reroute-3b',
       })
 
       expect((output as any).reroute.executionReason).toBe('Browser confirmed running with 3 tabs.')
@@ -216,30 +216,30 @@ describe('formatWorkflowStructuredContent', () => {
 
     it('includes availableSurfaces and preferredSurface for browser_dom reroute', () => {
       const output = formatWorkflowStructuredContent({
+        workflowId: 'wf-reroute-browser',
         result: createResult({
+          success: false,
+          status: 'reroute_required',
           rerouteAdvisory: createRerouteAdvisory({
             kind: 'use_browser_surface',
-            reason: 'Extension DOM stack is preferred.',
             recommendedSurface: 'browser_dom',
             suggestedToolName: 'browser_dom_read_page',
+            reason: 'Extension DOM stack is preferred.',
           }),
-          status: 'reroute_required',
           stepResults: [createStep({ status: 'reroute_required', succeeded: false })],
-          success: false,
         }),
         runState: createBaseRunState({
           browserSurfaceAvailability: {
-            availableSurfaces: ['browser_dom', 'browser_cdp'],
-            cdp: { connectable: true, connected: false, endpoint: 'http://localhost:9222' },
             executionMode: 'local-windowed',
-            extension: { connected: true, enabled: true },
-            preferredSurface: 'browser_dom',
-            reason: 'Extension is connected.',
-            selectedToolName: 'browser_dom_read_page',
             suitable: true,
+            availableSurfaces: ['browser_dom', 'browser_cdp'],
+            preferredSurface: 'browser_dom',
+            selectedToolName: 'browser_dom_read_page',
+            reason: 'Extension is connected.',
+            extension: { enabled: true, connected: true },
+            cdp: { endpoint: 'http://localhost:9222', connected: false, connectable: true },
           },
         }),
-        workflowId: 'wf-reroute-browser',
       })
 
       const reroute = (output as any).reroute
@@ -249,30 +249,30 @@ describe('formatWorkflowStructuredContent', () => {
 
     it('includes availableSurfaces and preferredSurface for browser_cdp reroute', () => {
       const output = formatWorkflowStructuredContent({
+        workflowId: 'wf-reroute-cdp',
         result: createResult({
+          success: false,
+          status: 'reroute_required',
           rerouteAdvisory: createRerouteAdvisory({
             kind: 'use_browser_surface',
-            reason: 'CDP is connected.',
             recommendedSurface: 'browser_cdp',
             suggestedToolName: 'browser_cdp_collect_elements',
+            reason: 'CDP is connected.',
           }),
-          status: 'reroute_required',
           stepResults: [createStep({ status: 'reroute_required', succeeded: false })],
-          success: false,
         }),
         runState: createBaseRunState({
           browserSurfaceAvailability: {
-            availableSurfaces: ['browser_cdp'],
-            cdp: { connectable: true, connected: true, endpoint: 'http://localhost:9222' },
             executionMode: 'local-windowed',
-            extension: { connected: false, enabled: false },
-            preferredSurface: 'browser_cdp',
-            reason: 'CDP is connected.',
-            selectedToolName: 'browser_cdp_collect_elements',
             suitable: true,
+            availableSurfaces: ['browser_cdp'],
+            preferredSurface: 'browser_cdp',
+            selectedToolName: 'browser_cdp_collect_elements',
+            reason: 'CDP is connected.',
+            extension: { enabled: false, connected: false },
+            cdp: { endpoint: 'http://localhost:9222', connected: true, connectable: true },
           },
         }),
-        workflowId: 'wf-reroute-cdp',
       })
 
       const reroute = (output as any).reroute
@@ -282,25 +282,25 @@ describe('formatWorkflowStructuredContent', () => {
 
     it('does not include availableSurfaces for non-browser reroute', () => {
       const output = formatWorkflowStructuredContent({
+        workflowId: 'wf-reroute-a11y',
         result: createResult({
-          rerouteAdvisory: createRerouteAdvisory(),
-          status: 'reroute_required',
-          stepResults: [createStep({ status: 'reroute_required', succeeded: false })],
           success: false,
+          status: 'reroute_required',
+          rerouteAdvisory: createRerouteAdvisory(),
+          stepResults: [createStep({ status: 'reroute_required', succeeded: false })],
         }),
         runState: createBaseRunState({
           browserSurfaceAvailability: {
-            availableSurfaces: ['browser_dom'],
-            cdp: { connectable: true, connected: false, endpoint: 'http://localhost:9222' },
             executionMode: 'local-windowed',
-            extension: { connected: true, enabled: true },
-            preferredSurface: 'browser_dom',
-            reason: 'Extension is connected.',
-            selectedToolName: 'browser_dom_read_page',
             suitable: true,
+            availableSurfaces: ['browser_dom'],
+            preferredSurface: 'browser_dom',
+            selectedToolName: 'browser_dom_read_page',
+            reason: 'Extension is connected.',
+            extension: { enabled: true, connected: true },
+            cdp: { endpoint: 'http://localhost:9222', connected: false, connectable: true },
           },
         }),
-        workflowId: 'wf-reroute-a11y',
       })
 
       const reroute = (output as any).reroute
@@ -310,21 +310,21 @@ describe('formatWorkflowStructuredContent', () => {
 
     it('includes terminalSurface and ptySessionId for PTY reroute', () => {
       const output = formatWorkflowStructuredContent({
+        workflowId: 'wf-reroute-pty',
         result: createResult({
+          success: false,
+          status: 'reroute_required',
           rerouteAdvisory: createRerouteAdvisory({
             kind: 'use_pty_surface',
-            reason: 'Interactive session should continue on PTY.',
             recommendedSurface: 'pty',
             suggestedToolName: 'pty_read_screen',
+            reason: 'Interactive session should continue on PTY.',
           }),
-          status: 'reroute_required',
           stepResults: [createStep({ status: 'reroute_required', succeeded: false })],
-          success: false,
         }),
         runState: createBaseRunState({
           activePtySessionId: 'pty_7',
         }),
-        workflowId: 'wf-reroute-pty',
       })
 
       const reroute = (output as any).reroute
@@ -334,13 +334,13 @@ describe('formatWorkflowStructuredContent', () => {
 
     it('workflow_resume does not emit reroute for completed continuation', () => {
       const output = formatWorkflowStructuredContent({
+        workflowId: 'wf-resume',
         result: createResult({
-          status: 'completed',
           success: true,
+          status: 'completed',
           summary: 'Resumed and completed.',
         }),
         runState: createBaseRunState(),
-        workflowId: 'wf-resume',
       })
 
       expect(output.kind).toBe('workflow_result')

@@ -14,9 +14,9 @@ export default defineConfig({
   },
   plugins: [
     VueRouter({
-      dts: resolve(import.meta.dirname, 'playground', 'src', 'typed-router.d.ts'),
-      extensions: ['.vue', '.md'],
       root: 'playground',
+      extensions: ['.vue', '.md'],
+      dts: resolve(import.meta.dirname, 'playground', 'src', 'typed-router.d.ts'),
     }),
     Vue(),
     // https://github.com/antfu/unocss

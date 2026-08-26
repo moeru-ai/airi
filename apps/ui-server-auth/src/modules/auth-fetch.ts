@@ -28,41 +28,49 @@ export interface AuthFetchBase {
 }
 
 /**
- * Pull a human-readable error string out of a Better Auth JSON error response.
+ * POST a JSON body to `/api/auth<path>` and parse the response with `parse`.
  *
- * Before:
- * - `{ "message": "Invalid credentials", "code": "INVALID_CREDENTIALS" }`
- * - `{ "error": { "message": "Token expired" } }`
- * - `{ "error": "Rate limit" }`
+ * Use when:
+ * - You need a typed wrapper around a Better Auth POST endpoint that
+ *   responds with JSON on both success and failure (the common case).
  *
- * After:
- * - `"Invalid credentials"` / `"Token expired"` / `"Rate limit"`
+ * Expects:
+ * - `path` includes the leading slash (e.g. `/sign-in/email`).
+ * - `parse` runs only on 2xx responses; on non-2xx the wrapper throws.
  *
- * Returns `null` when the payload has no message-like field, leaving the
- * caller to fall back to a status-code-only message.
+ * Returns:
+ * - Whatever `parse` returns. Never returns on non-2xx — throws an `Error`
+ *   carrying the server's `message` / `error.message` field.
  */
-export function extractAuthError(data: unknown): null | string {
-  if (!data || typeof data !== 'object')
-    return null
+export async function postAuthJSON<T>(
+  base: AuthFetchBase,
+  path: string,
+  body: Record<string, unknown>,
+  parse: (data: unknown, response: Response) => T,
+): Promise<T> {
+  const fetchImpl = base.fetchImpl ?? fetch
+  const endpoint = new URL(`/api/auth${path}`, base.apiServerUrl)
 
-  const maybe = data as { error?: unknown, message?: unknown }
-  if (typeof maybe.message === 'string')
-    return maybe.message
+  const response = await fetchImpl(endpoint.toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    credentials: 'include',
+  })
 
-  const error = maybe.error
-  if (typeof error === 'string')
-    return error
-
-  if (
-    error
-    && typeof error === 'object'
-    && 'message' in error
-    && typeof (error as { message: unknown }).message === 'string'
-  ) {
-    return (error as { message: string }).message
+  let data: unknown
+  try {
+    data = await response.json()
+  }
+  catch {
+    data = null
   }
 
-  return null
+  if (!response.ok) {
+    throw new Error(extractAuthError(data) ?? `Auth request failed (${response.status})`)
+  }
+
+  return parse(data, response)
 }
 
 /**
@@ -90,8 +98,8 @@ export async function getAuthJSON<T>(
   const endpoint = new URL(`/api/auth${path}`, base.apiServerUrl)
 
   const response = await fetchImpl(endpoint.toString(), {
-    credentials: 'include',
     method: 'GET',
+    credentials: 'include',
   })
 
   let data: unknown
@@ -110,47 +118,39 @@ export async function getAuthJSON<T>(
 }
 
 /**
- * POST a JSON body to `/api/auth<path>` and parse the response with `parse`.
+ * Pull a human-readable error string out of a Better Auth JSON error response.
  *
- * Use when:
- * - You need a typed wrapper around a Better Auth POST endpoint that
- *   responds with JSON on both success and failure (the common case).
+ * Before:
+ * - `{ "message": "Invalid credentials", "code": "INVALID_CREDENTIALS" }`
+ * - `{ "error": { "message": "Token expired" } }`
+ * - `{ "error": "Rate limit" }`
  *
- * Expects:
- * - `path` includes the leading slash (e.g. `/sign-in/email`).
- * - `parse` runs only on 2xx responses; on non-2xx the wrapper throws.
+ * After:
+ * - `"Invalid credentials"` / `"Token expired"` / `"Rate limit"`
  *
- * Returns:
- * - Whatever `parse` returns. Never returns on non-2xx — throws an `Error`
- *   carrying the server's `message` / `error.message` field.
+ * Returns `null` when the payload has no message-like field, leaving the
+ * caller to fall back to a status-code-only message.
  */
-export async function postAuthJSON<T>(
-  base: AuthFetchBase,
-  path: string,
-  body: Record<string, unknown>,
-  parse: (data: unknown, response: Response) => T,
-): Promise<T> {
-  const fetchImpl = base.fetchImpl ?? fetch
-  const endpoint = new URL(`/api/auth${path}`, base.apiServerUrl)
+export function extractAuthError(data: unknown): string | null {
+  if (!data || typeof data !== 'object')
+    return null
 
-  const response = await fetchImpl(endpoint.toString(), {
-    body: JSON.stringify(body),
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    method: 'POST',
-  })
+  const maybe = data as { error?: unknown, message?: unknown }
+  if (typeof maybe.message === 'string')
+    return maybe.message
 
-  let data: unknown
-  try {
-    data = await response.json()
-  }
-  catch {
-    data = null
+  const error = maybe.error
+  if (typeof error === 'string')
+    return error
+
+  if (
+    error
+    && typeof error === 'object'
+    && 'message' in error
+    && typeof (error as { message: unknown }).message === 'string'
+  ) {
+    return (error as { message: string }).message
   }
 
-  if (!response.ok) {
-    throw new Error(extractAuthError(data) ?? `Auth request failed (${response.status})`)
-  }
-
-  return parse(data, response)
+  return null
 }

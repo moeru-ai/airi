@@ -14,11 +14,11 @@ import { describeExecutionTarget, describeForegroundContext, describePolicy } fr
 export function buildApprovalResponse(
   pending: PendingActionRecord,
   decision: PolicyDecision,
-  context: { appName?: string, available: boolean, windowTitle?: string },
+  context: { available: boolean, appName?: string, windowTitle?: string },
   transparency?: {
-    advisorySummary?: string
-    approvalReason?: string
     intent?: string
+    approvalReason?: string
+    advisorySummary?: string
   },
 ): CallToolResult {
   const baseText = `Approval required for ${pending.action.kind}. Pending action id: ${pending.id}. Context: ${describeForegroundContext(context)}. Policy: ${describePolicy(decision)}.`
@@ -31,69 +31,69 @@ export function buildApprovalResponse(
       textContent(`${baseText}${transparencyText}`),
     ],
     structuredContent: {
-      action: pending.action,
-      context,
-      pendingActionId: pending.id,
-      policy: decision,
       status: 'approval_required',
+      pendingActionId: pending.id,
       toolName: pending.toolName,
+      action: pending.action,
+      policy: decision,
+      context,
       transparency: transparency
         ? {
-            advisorySummary: transparency.advisorySummary,
-            approvalReason: transparency.approvalReason,
             intent: transparency.intent,
+            approvalReason: transparency.approvalReason,
+            advisorySummary: transparency.advisorySummary,
           }
         : undefined,
     },
   }
 }
 
-export function buildDeniedResponse(decision: PolicyDecision, context: { appName?: string, available: boolean, windowTitle?: string }, executionTarget: ExecutionTarget): CallToolResult {
+export function buildDeniedResponse(decision: PolicyDecision, context: { available: boolean, appName?: string, windowTitle?: string }, executionTarget: ExecutionTarget): CallToolResult {
   return {
+    isError: true,
     content: [
       textContent(
         `Action denied. Target: ${describeExecutionTarget(executionTarget)}. Context: ${describeForegroundContext(context)}. Reasons: ${decision.reasons.join('; ') || 'policy denied the request'}.`,
       ),
     ],
-    isError: true,
     structuredContent: {
+      status: 'denied',
+      policy: decision,
       context,
       executionTarget,
-      policy: decision,
-      status: 'denied',
     },
   }
 }
 
 export function buildExecutionErrorResponse(params: {
-  action: ActionInvocation
-  context: { appName?: string, available: boolean, windowTitle?: string }
   errorMessage: string
+  action: ActionInvocation
+  context: { available: boolean, appName?: string, windowTitle?: string }
   executionTarget: ExecutionTarget
   policy: PolicyDecision
 }): CallToolResult {
   return {
+    isError: true,
     content: [
       textContent(
         `Action ${params.action.kind} failed on ${describeExecutionTarget(params.executionTarget)}: ${params.errorMessage}`,
       ),
     ],
-    isError: true,
     structuredContent: {
+      status: 'failed',
       action: params.action.kind,
       context: params.context,
-      error: params.errorMessage,
       executionTarget: params.executionTarget,
       policy: params.policy,
-      status: 'failed',
+      error: params.errorMessage,
     },
   }
 }
 
 export function buildSuccessResponse(params: {
+  summary: string
   screenshot?: ScreenshotArtifact
   structuredContent: Record<string, unknown>
-  summary: string
 }): CallToolResult {
   return {
     content: [

@@ -27,7 +27,7 @@ function attrsToMeta(attrs: Attributes): Record<string, any> {
 export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
   const turns = ref<IOTurn[]>([])
   const isRecording = ref(false)
-  const selectedSpanId = ref<null | string>(null)
+  const selectedSpanId = ref<string | null>(null)
   const recordingStartTs = ref(0)
   const rawSpanCount = ref(0)
 
@@ -85,8 +85,8 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
       if (!turn) {
         turn = {
           id: traceId,
-          spans: [],
           startTs: startMs,
+          spans: [],
         }
         turnsByTraceId.set(traceId, turn)
         turns.value.push(turn)
@@ -129,9 +129,9 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
     const turn = getOrCreateTurn()
     const meta = attrsToMeta(readable.attributes)
     const events = readable.events.map(event => ({
-      meta: attrsToMeta(event.attributes ?? {}),
       name: event.name,
       timeTs: hrTimeToMilliseconds(event.time),
+      meta: attrsToMeta(event.attributes ?? {}),
     }))
 
     for (const event of readable.events) {
@@ -153,16 +153,16 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
     const segmentId = readable.attributes[IOAttributes.TTSSegmentId]
 
     const ioSpan: IOSpan = {
-      endTs: endMs,
-      events,
       id: spanId,
-      meta,
-      name: readable.name,
-      parentSpanId: readable.parentSpanContext?.spanId,
-      startTs: startMs,
-      subsystem,
       traceId,
+      parentSpanId: readable.parentSpanContext?.spanId,
       ttsCorrelationId: typeof segmentId === 'string' ? segmentId : undefined,
+      subsystem,
+      name: readable.name,
+      startTs: startMs,
+      endTs: endMs,
+      meta,
+      events,
     }
 
     turn.spans.push(ioSpan)
@@ -204,7 +204,7 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
     recordingStartTs.value = performance.timeOrigin + performance.now()
   }
 
-  function selectSpan(spanId: null | string) {
+  function selectSpan(spanId: string | null) {
     selectedSpanId.value = spanId
   }
 
@@ -217,29 +217,29 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
       const parentCtx = span.parentSpanContext
 
       return {
+        traceId: ctx.traceId,
+        spanId: ctx.spanId,
+        parentSpanId: parentCtx?.spanId ?? '',
+        name: span.name,
+        kind: span.kind,
+        startTimeUnixNano: String(hrTimeToNanoseconds(span.startTime)),
+        endTimeUnixNano: span.ended ? String(hrTimeToNanoseconds(span.endTime)) : '0',
         attributes: Object.entries(span.attributes).map(([key, value]) => ({
           key,
           value: formatOtlpValue(value),
         })),
-        endTimeUnixNano: span.ended ? String(hrTimeToNanoseconds(span.endTime)) : '0',
         events: span.events.map(event => ({
+          timeUnixNano: String(hrTimeToNanoseconds(event.time)),
+          name: event.name,
           attributes: Object.entries(event.attributes ?? {}).map(([key, value]) => ({
             key,
             value: formatOtlpValue(value),
           })),
-          name: event.name,
-          timeUnixNano: String(hrTimeToNanoseconds(event.time)),
         })),
-        kind: span.kind,
-        name: span.name,
-        parentSpanId: parentCtx?.spanId ?? '',
-        spanId: ctx.spanId,
-        startTimeUnixNano: String(hrTimeToNanoseconds(span.startTime)),
         status: {
           code: span.status.code,
           message: span.status.message ?? '',
         },
-        traceId: ctx.traceId,
       }
     })
 
@@ -268,17 +268,17 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
   }
 
   return {
+    turns,
     activeTurn,
-    clear,
-    exportOTLP,
     isRecording,
     rawSpanCount,
     recordingStartTs,
-    selectedSpan,
     selectedSpanId,
-    selectSpan,
+    selectedSpan,
     startRecording,
     stopRecording,
-    turns,
+    clear,
+    selectSpan,
+    exportOTLP,
   }
 })

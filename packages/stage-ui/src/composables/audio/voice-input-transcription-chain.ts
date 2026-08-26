@@ -1,15 +1,15 @@
-export interface VoiceInputTranscriptionChain {
-  /** Runs work after earlier current transcription tasks have settled. */
-  enqueue: <T>(task: (ticket: VoiceInputTranscriptionTicket) => Promise<T> | T) => Promise<T | undefined>
-  /** Resolves when all currently chained transcription work has settled. */
-  idle: () => Promise<void>
-  /** Invalidates pending/running tickets and lets future work start from a fresh tail. */
-  reset: () => void
-}
-
 export interface VoiceInputTranscriptionTicket {
   /** Returns whether this queued transcription still belongs to the active listening session. */
   isCurrent: () => boolean
+}
+
+export interface VoiceInputTranscriptionChain {
+  /** Runs work after earlier current transcription tasks have settled. */
+  enqueue: <T>(task: (ticket: VoiceInputTranscriptionTicket) => Promise<T> | T) => Promise<T | undefined>
+  /** Invalidates pending/running tickets and lets future work start from a fresh tail. */
+  reset: () => void
+  /** Resolves when all currently chained transcription work has settled. */
+  idle: () => Promise<void>
 }
 
 export function createVoiceInputTranscriptionChain(): VoiceInputTranscriptionChain {
@@ -48,7 +48,7 @@ export function createVoiceInputTranscriptionChain(): VoiceInputTranscriptionCha
 
   return {
     enqueue,
-    idle,
     reset,
+    idle,
   }
 }

@@ -32,47 +32,47 @@ export interface KokoroGenerateInput {
   voice: VoiceKey
 }
 
-export interface KokoroGenerateOutput {
-  action: 'generate'
-  samples: Float32Array
-  samplingRate: number
-}
-
 export interface KokoroGetVoicesInput {
   action: 'getVoices'
 }
 
 export type KokoroInferenceInput = KokoroGenerateInput | KokoroGetVoicesInput
 
-export type KokoroInferenceOutput = KokoroGenerateOutput | KokoroVoicesOutput
+export interface KokoroGenerateOutput {
+  action: 'generate'
+  samples: Float32Array
+  samplingRate: number
+}
 
 export interface KokoroVoicesOutput {
   action: 'getVoices'
   voices: Voices
 }
 
+export type KokoroInferenceOutput = KokoroGenerateOutput | KokoroVoicesOutput
+
 // ---------------------------------------------------------------------------
 // Model singleton
 // ---------------------------------------------------------------------------
 
 let ttsModel: KokoroTTS | null = null
-let currentQuantization: null | string = null
-let currentDevice: null | string = null
+let currentQuantization: string | null = null
+let currentDevice: string | null = null
 
 // NOTICE: Fallback chains for dtype/device when the requested format is
 // unsupported at runtime. Tries progressively lower precision before giving up.
 const DTYPE_FALLBACK: Record<string, string[]> = {
   fp16: ['fp32', 'q8', 'q4'],
   fp32: ['q8', 'q4'],
+  q8: ['q4', 'fp32'],
   q4: ['q4f16', 'fp32'],
   q4f16: ['q4', 'fp32'],
-  q8: ['q4', 'fp32'],
 }
 
 const DEVICE_FALLBACK: Record<string, string[]> = {
-  cpu: [],
-  wasm: [],
   webgpu: ['wasm'],
+  wasm: [],
+  cpu: [],
 }
 
 // NOTICE: Cancellation tracking — see Whisper worker for the full rationale.
@@ -80,16 +80,45 @@ const DEVICE_FALLBACK: Record<string, string[]> = {
 // drop stale results when they arrive.
 const cancelledRequestIds = new Set<string>()
 
-function clearCancelled(requestId: string): void {
-  cancelledRequestIds.delete(requestId)
+function markCancelled(targetRequestId: string): void {
+  cancelledRequestIds.add(targetRequestId)
+  const msg: ErrorResponse = {
+    type: 'error',
+    requestId: targetRequestId,
+    payload: {
+      code: 'CANCELLED',
+      message: 'Operation cancelled by caller',
+      recoverable: false,
+    },
+  }
+  globalThis.postMessage(msg)
 }
 
 function isCancelled(requestId: string): boolean {
   return cancelledRequestIds.has(requestId)
 }
 
+function clearCancelled(requestId: string): void {
+  cancelledRequestIds.delete(requestId)
+}
+
+function sendError(requestId: string, error: unknown, phase?: 'load' | 'inference'): void {
+  const message = errorMessageFromValue(error)
+  const code = classifyError(error, phase)
+  const msg: ErrorResponse = {
+    type: 'error',
+    requestId,
+    payload: {
+      code,
+      message,
+      recoverable: isRecoverable(code),
+    },
+  }
+  globalThis.postMessage(msg)
+}
+
 async function loadModel(request: LoadModelRequest): Promise<void> {
-  const { device, dtype, requestId } = request
+  const { requestId, device, dtype } = request
   const quantization = dtype ?? 'fp32'
 
   try {
@@ -100,11 +129,11 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
         return
       }
       const ready: ModelReadyResponse = {
-        device: device as 'cpu' | 'wasm' | 'webgpu',
-        metadata: { voices: ttsModel.voices },
-        modelId: MODEL_NAMES.KOKORO,
-        requestId,
         type: 'model-ready',
+        requestId,
+        modelId: MODEL_NAMES.KOKORO,
+        device: device as 'webgpu' | 'wasm' | 'cpu',
+        metadata: { voices: ttsModel.voices },
       }
       globalThis.postMessage(ready)
       return
@@ -116,13 +145,13 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
       : quantization
 
     // Build ordered list of (dtype, device) pairs to attempt
-    const attempts: Array<{ device: string, dtype: string }> = [
-      { device, dtype: modelQuantization },
+    const attempts: Array<{ dtype: string, device: string }> = [
+      { dtype: modelQuantization, device },
     ]
     for (const fallbackDtype of (DTYPE_FALLBACK[modelQuantization] ?? []))
-      attempts.push({ device, dtype: fallbackDtype })
+      attempts.push({ dtype: fallbackDtype, device })
     for (const fallbackDevice of (DEVICE_FALLBACK[device] ?? []))
-      attempts.push({ device: fallbackDevice, dtype: modelQuantization })
+      attempts.push({ dtype: modelQuantization, device: fallbackDevice })
 
     let lastError: unknown
     for (const attempt of attempts) {
@@ -130,21 +159,21 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
         ttsModel = await KokoroTTS.from_pretrained(
           MODEL_IDS.KOKORO,
           {
-            device: attempt.device as 'cpu' | 'wasm' | 'webgpu',
-            dtype: attempt.dtype as 'fp16' | 'fp32' | 'q4' | 'q4f16' | 'q8',
+            dtype: attempt.dtype as 'fp32' | 'fp16' | 'q8' | 'q4' | 'q4f16',
+            device: attempt.device as 'wasm' | 'webgpu' | 'cpu',
             progress_callback: (progress: any) => {
               const msg: ProgressResponse = {
+                type: 'progress',
+                requestId,
                 payload: {
-                  file: progress?.file,
-                  loaded: progress?.loaded,
-                  message: progress?.status,
+                  phase: 'download',
                   // NOTICE: raw.progress from kokoro-js/@huggingface/transformers is already 0-100
                   percent: progress?.progress ?? -1,
-                  phase: 'download',
+                  message: progress?.status,
+                  file: progress?.file,
+                  loaded: progress?.loaded,
                   total: progress?.total,
                 },
-                requestId,
-                type: 'progress',
               }
               globalThis.postMessage(msg)
             },
@@ -159,15 +188,15 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
           return
         }
         const ready: ModelReadyResponse = {
-          device: attempt.device as 'cpu' | 'wasm' | 'webgpu',
-          metadata: {
-            actualDevice: attempt.device,
-            actualDtype: attempt.dtype,
-            voices: ttsModel.voices,
-          },
-          modelId: MODEL_NAMES.KOKORO,
-          requestId,
           type: 'model-ready',
+          requestId,
+          modelId: MODEL_NAMES.KOKORO,
+          device: attempt.device as 'webgpu' | 'wasm' | 'cpu',
+          metadata: {
+            voices: ttsModel.voices,
+            actualDtype: attempt.dtype,
+            actualDevice: attempt.device,
+          },
         }
         globalThis.postMessage(ready)
         return
@@ -195,22 +224,8 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
   }
 }
 
-function markCancelled(targetRequestId: string): void {
-  cancelledRequestIds.add(targetRequestId)
-  const msg: ErrorResponse = {
-    payload: {
-      code: 'CANCELLED',
-      message: 'Operation cancelled by caller',
-      recoverable: false,
-    },
-    requestId: targetRequestId,
-    type: 'error',
-  }
-  globalThis.postMessage(msg)
-}
-
 async function runInference(request: RunInferenceRequest<KokoroInferenceInput>): Promise<void> {
-  const { input, requestId } = request
+  const { requestId, input } = request
 
   try {
     if (input.action === 'getVoices') {
@@ -223,9 +238,9 @@ async function runInference(request: RunInferenceRequest<KokoroInferenceInput>):
       }
 
       const result: InferenceResultResponse<KokoroVoicesOutput> = {
-        output: { action: 'getVoices', voices: ttsModel.voices },
-        requestId,
         type: 'inference-result',
+        requestId,
+        output: { action: 'getVoices', voices: ttsModel.voices },
       }
       globalThis.postMessage(result)
       return
@@ -246,9 +261,9 @@ async function runInference(request: RunInferenceRequest<KokoroInferenceInput>):
     // Transfer raw PCM Float32Array directly — avoids WAV blob encode/decode overhead.
     const samples = audioResult.audio
     const result: InferenceResultResponse<KokoroGenerateOutput> = {
-      output: { action: 'generate', samples, samplingRate: audioResult.sampling_rate },
-      requestId,
       type: 'inference-result',
+      requestId,
+      output: { action: 'generate', samples, samplingRate: audioResult.sampling_rate },
     }
     ;(globalThis as any).postMessage(result, [samples.buffer])
   }
@@ -260,21 +275,6 @@ async function runInference(request: RunInferenceRequest<KokoroInferenceInput>):
   }
 }
 
-function sendError(requestId: string, error: unknown, phase?: 'inference' | 'load'): void {
-  const message = errorMessageFromValue(error)
-  const code = classifyError(error, phase)
-  const msg: ErrorResponse = {
-    payload: {
-      code,
-      message,
-      recoverable: isRecoverable(code),
-    },
-    requestId,
-    type: 'error',
-  }
-  globalThis.postMessage(msg)
-}
-
 // ---------------------------------------------------------------------------
 // Message handler
 // ---------------------------------------------------------------------------
@@ -283,9 +283,6 @@ globalThis.addEventListener('message', async (event: MessageEvent<WorkerInboundM
   const message = event.data
 
   switch (message.type) {
-    case 'cancel':
-      markCancelled(message.targetRequestId)
-      break
     case 'load-model':
       await loadModel(message)
       break
@@ -296,7 +293,10 @@ globalThis.addEventListener('message', async (event: MessageEvent<WorkerInboundM
       ttsModel = null
       currentQuantization = null
       currentDevice = null
-      globalThis.postMessage({ requestId: message.requestId, type: 'model-unloaded' })
+      globalThis.postMessage({ type: 'model-unloaded', requestId: message.requestId })
+      break
+    case 'cancel':
+      markCancelled(message.targetRequestId)
       break
     default:
       console.warn('[Kokoro Worker] Unknown message type:', (message as any).type)

@@ -2,19 +2,19 @@ import { describe, expect, it } from 'vitest'
 
 import { autoEatBehavior } from './auto-eat'
 
-/** Minimal ReflexApi stub exposing an inventory for selectReadyFood. */
-function apiWith(items: Array<{ foodPoints?: number, name: string }>): any {
-  return { bot: { bot: { inventory: { items: () => items } } } }
-}
-
 /** Minimal reflex snapshot stub: the self fields + autonomy.reflexEngaged auto-eat reads. */
 function snapshot(health: number, food: number, reflexEngaged = false): any {
   // @example snapshot(6, 10) -> critical health, hungry enough to benefit from eating
-  return { autonomy: { reflexEngaged }, self: { food, health } }
+  return { self: { health, food }, autonomy: { reflexEngaged } }
 }
 
-const bread = { foodPoints: 5, name: 'bread' }
-const rawBeef = { foodPoints: 3, name: 'beef' }
+/** Minimal ReflexApi stub exposing an inventory for selectReadyFood. */
+function apiWith(items: Array<{ name: string, foodPoints?: number }>): any {
+  return { bot: { bot: { inventory: { items: () => items } } } }
+}
+
+const bread = { name: 'bread', foodPoints: 5 }
+const rawBeef = { name: 'beef', foodPoints: 3 }
 
 describe('autoEatBehavior.when', () => {
   it('triggers when critically hurt, hungry, and holding ready food', () => {
@@ -44,21 +44,21 @@ describe('autoEatBehavior.when', () => {
 })
 
 /** ReflexApi stub that records reflexEngaged at each step + runs equip/consume hooks. */
-function runApi(opts: { onConsume?: () => Promise<void> | void, onEquip?: () => void }) {
+function runApi(opts: { onEquip?: () => void, onConsume?: () => void | Promise<void> }) {
   const autonomy = { reflexEngaged: false }
   const seen: boolean[] = []
   const api: any = {
     bot: {
       bot: {
-        consume: async () => {
-          seen.push(autonomy.reflexEngaged)
-          await opts.onConsume?.()
-        },
+        inventory: { items: () => [bread] },
         equip: async () => {
           seen.push(autonomy.reflexEngaged)
           opts.onEquip?.()
         },
-        inventory: { items: () => [bread] },
+        consume: async () => {
+          seen.push(autonomy.reflexEngaged)
+          await opts.onConsume?.()
+        },
       },
     },
     context: { updateAutonomy: (p: { reflexEngaged: boolean }) => { autonomy.reflexEngaged = p.reflexEngaged } },

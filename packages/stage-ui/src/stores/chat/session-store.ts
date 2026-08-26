@@ -29,12 +29,11 @@ import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
 import { mergeLoadedSessionMessages } from './session-message-merge'
 
-/** Identifies one message that must be removed from a session. */
-export interface DeleteChatMessagePayload {
-  index?: number
-  messageId?: string
-  sessionId: string
-}
+/**
+ * Roles that are eligible to push to the cloud. Wire schema accepts more,
+ *  but our v1 contract only round-trips authored turns.
+ */
+type CloudSyncableRole = Extract<MessageRole, 'user' | 'assistant'>
 
 /** Payload shape consumed by `mergeCloudMessagesIntoSession`. */
 interface CloudMergePayload {
@@ -42,11 +41,12 @@ interface CloudMergePayload {
   toSeq?: number
 }
 
-/**
- * Roles that are eligible to push to the cloud. Wire schema accepts more,
- *  but our v1 contract only round-trips authored turns.
- */
-type CloudSyncableRole = Extract<MessageRole, 'assistant' | 'user'>
+/** Identifies one message that must be removed from a session. */
+export interface DeleteChatMessagePayload {
+  index?: number
+  messageId?: string
+  sessionId: string
+}
 
 /**
  * Max retry attempts before an outbox entry is treated as terminally failed.
@@ -62,7 +62,7 @@ const useChatSessionSelectionStore = defineStore('chat-session-selection', () =>
 })
 
 export const useChatSessionStore = defineStore('chat-session', () => {
-  const { token: authToken, userId } = storeToRefs(useAuthStore())
+  const { userId, token: authToken } = storeToRefs(useAuthStore())
   const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
 
   const chatSessionSelection = useChatSessionSelectionStore()
@@ -82,8 +82,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   const ready = ref(false)
   const isReady = computed(() => ready.value)
   const initializing = ref(false)
-  let initializePromise: null | Promise<void> = null
-  let ensureActivePromise: null | Promise<void> = null
+  let initializePromise: Promise<void> | null = null
+  let ensureActivePromise: Promise<void> | null = null
   // Bumped by `clearInMemoryState` (user swap / teardown). The
   // `ensureActiveSessionForCharacter` IIFE captures this at call time and
   // bails after every await once it changes, so a stale hydrate from the
@@ -145,7 +145,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       // authedFetch handles 401 → token-refresh → retry transparently, so
       // reconcile / DELETE survive expired tokens without bouncing through
       // a full WS reconnect cycle.
-      cloudMapper = createCloudChatMapper({ fetch: authedFetch, serverUrl: SERVER_URL })
+      cloudMapper = createCloudChatMapper({ serverUrl: SERVER_URL, fetch: authedFetch })
     }
     return cloudMapper
   }
@@ -198,10 +198,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const content = codeBlockSystemPrompt + mathSyntaxSystemPrompt + prompt
 
     return {
-      content,
-      createdAt: Date.now(),
-      id: nanoid(),
       role: 'system',
+      content,
+      id: nanoid(),
+      createdAt: Date.now(),
     } satisfies ChatHistoryItem
   }
 
@@ -232,8 +232,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       const nextMessages = [...currentMessages]
       nextMessages[systemMessageIndex] = {
         ...currentSystemMessage,
-        content: resolvedSystemMessage.content,
         role: 'system',
+        content: resolvedSystemMessage.content,
       }
       replaceSessionMessages(sessionId, nextMessages)
       return
@@ -250,8 +250,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   async function loadIndexForUser(currentUserId: string) {
     const stored = await chatSessionsRepo.getIndex(currentUserId)
     index.value = stored ?? {
-      characters: {},
       userId: currentUserId,
+      characters: {},
     }
     // Hydrate `sessionMetas` from the index so consumers like the sessions
     // drawer can list every owned session without having to `loadSession`
@@ -300,8 +300,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         characterIndex.sessions[sessionId] = updatedMeta
 
       const record: ChatSessionRecord = {
-        messages,
         meta: updatedMeta,
+        messages,
       }
 
       await chatSessionsRepo.saveSession(sessionId, record)
@@ -474,17 +474,17 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    * - The new session id. When `setActive` is not `false` the session is
    *   also made the active one.
    */
-  async function createSession(characterId: string, options?: { messages?: ChatHistoryItem[], setActive?: boolean, title?: string }) {
+  async function createSession(characterId: string, options?: { setActive?: boolean, messages?: ChatHistoryItem[], title?: string }) {
     const currentUserId = getCurrentUserId()
     const sessionId = nanoid()
     const now = Date.now()
     const meta: ChatSessionMeta = {
-      characterId,
-      createdAt: now,
       sessionId,
-      title: options?.title,
-      updatedAt: now,
       userId: currentUserId,
+      characterId,
+      title: options?.title,
+      createdAt: now,
+      updatedAt: now,
     }
 
     const initialMessages = options?.messages?.length ? cloneDeep(options.messages) : [generateInitialMessage()]
@@ -495,7 +495,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     ensureGeneration(sessionId)
 
     if (!index.value)
-      index.value = { characters: {}, userId: currentUserId }
+      index.value = { userId: currentUserId, characters: {} }
 
     const characterIndex = index.value.characters[characterId] ?? {
       activeSessionId: sessionId,
@@ -506,7 +506,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       characterIndex.activeSessionId = sessionId
     index.value.characters[characterId] = characterIndex
 
-    const record: ChatSessionRecord = { messages: initialMessages, meta }
+    const record: ChatSessionRecord = { meta, messages: initialMessages }
     await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, record))
     await persistIndex()
 
@@ -514,10 +514,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       activeSessionId.value = sessionId
 
     captureAnalyticsEvent('conversation_created', {
-      character_id: characterId,
-      cloud_synced: currentUserId !== 'local',
       conversation_id: sessionId,
       source: options?.messages?.length ? 'fork' : 'new_session',
+      character_id: characterId,
+      cloud_synced: currentUserId !== 'local',
     })
 
     // Fire-and-forget cloud reconcile so the freshly-minted session gets a
@@ -549,13 +549,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     // Snapshot count before the in-memory wipe below zeroes it out.
     const messageCount = (sessionMessages.value[sessionId] ?? []).length
     captureAnalyticsEvent('chat_session_deleted', {
-      message_count: messageCount,
       session_id: sessionId,
+      message_count: messageCount,
     })
     captureAnalyticsEvent('conversation_deleted', {
-      cloud_synced: !!meta.cloudChatId,
       conversation_id: sessionId,
       message_count: messageCount,
+      cloud_synced: !!meta.cloudChatId,
     })
 
     const wasActive = activeSessionId.value === sessionId
@@ -754,8 +754,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
     try {
       const result = await wsClient.pullMessages({
-        afterSeq: meta.cloudMaxSeq ?? 0,
         chatId: meta.cloudChatId,
+        afterSeq: meta.cloudMaxSeq ?? 0,
       })
       mergeCloudMessagesIntoSession(sessionId, {
         messages: result.messages,
@@ -802,7 +802,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         return
       }
 
-      console.info('[chat-sync] reconcile start', { serverUrl: SERVER_URL, userId: currentUserId })
+      console.info('[chat-sync] reconcile start', { userId: currentUserId, serverUrl: SERVER_URL })
       const mapper = getCloudMapper()
 
       let remoteChats
@@ -879,13 +879,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           if (!text)
             continue
           await enqueuePersist(() => chatSessionsRepo.enqueueOutbox(currentUserId, {
-            attempts: 0,
-            cloudChatId: result.cloudChatId,
-            content: text,
             messageId: message.id!,
-            queuedAt: Date.now(),
-            role: message.role as CloudSyncableRole,
             sessionId: result.sessionId,
+            cloudChatId: result.cloudChatId,
+            role: message.role as CloudSyncableRole,
+            content: text,
+            attempts: 0,
+            queuedAt: Date.now(),
           }))
         }
       }
@@ -897,20 +897,20 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           continue
         const now = Date.now()
         const adoptedMeta: ChatSessionMeta = {
-          characterId: 'default',
-          cloudChatId: remote.id,
-          createdAt: new Date(remote.createdAt).getTime() || now,
           sessionId: remote.id,
-          title: remote.title ?? undefined,
-          updatedAt: new Date(remote.updatedAt).getTime() || now,
           userId: currentUserId,
+          characterId: 'default',
+          title: remote.title ?? undefined,
+          createdAt: new Date(remote.createdAt).getTime() || now,
+          updatedAt: new Date(remote.updatedAt).getTime() || now,
+          cloudChatId: remote.id,
         }
         sessionMetas.value[remote.id] = adoptedMeta
         sessionMessages.value[remote.id] = [generateInitialMessage()]
         ensureGeneration(remote.id)
 
         if (!index.value)
-          index.value = { characters: {}, userId: currentUserId }
+          index.value = { userId: currentUserId, characters: {} }
         const characterIndex = index.value.characters[adoptedMeta.characterId] ?? {
           activeSessionId: '',
           sessions: {},
@@ -924,8 +924,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         // last-writer-wins on stale state.
         const adoptedMessagesSnapshot = snapshotMessages(sessionMessages.value[remote.id])
         await enqueuePersist(() => chatSessionsRepo.saveSession(remote.id, {
-          messages: adoptedMessagesSnapshot,
           meta: adoptedMeta,
+          messages: adoptedMessagesSnapshot,
         }))
       }
       if (isStaleEpoch())
@@ -988,9 +988,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
     console.info('[chat-sync] creating WS client →', SERVER_URL)
     wsClient = createChatWsClient({
+      serverUrl: SERVER_URL,
       // Reactive read — see `createChatWsUrlRef` contract.
       getToken: () => authToken.value,
-      serverUrl: SERVER_URL,
     })
 
     wsClient.onNewMessages((payload) => {
@@ -1144,19 +1144,19 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    *   transparently. UI consumers can watch `outboxPendingCount` to
    *   surface "X syncing".
    */
-  async function pushMessageToCloud(sessionId: string, message: { content: string, id: string, role: CloudSyncableRole }) {
+  async function pushMessageToCloud(sessionId: string, message: { id: string, role: CloudSyncableRole, content: string }) {
     const userId = getCurrentUserId()
     if (userId === 'local')
       return
 
     const entry: ChatSendOutboxEntry = {
-      attempts: 0,
-      cloudChatId: sessionMetas.value[sessionId]?.cloudChatId,
-      content: message.content,
       messageId: message.id,
-      queuedAt: Date.now(),
-      role: message.role,
       sessionId,
+      cloudChatId: sessionMetas.value[sessionId]?.cloudChatId,
+      role: message.role,
+      content: message.content,
+      attempts: 0,
+      queuedAt: Date.now(),
     }
     await enqueuePersist(() => chatSessionsRepo.enqueueOutbox(userId, entry))
     await refreshOutboxPendingCount()
@@ -1171,7 +1171,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     try {
       await wsClient.sendMessages({
         chatId: entry.cloudChatId,
-        messages: [{ content: entry.content, id: entry.messageId, role: entry.role }],
+        messages: [{ id: entry.messageId, role: entry.role, content: entry.content }],
       })
       await enqueuePersist(() => chatSessionsRepo.dequeueOutbox(userId, [entry.messageId]))
       await refreshOutboxPendingCount()
@@ -1180,9 +1180,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       const errMsg = errorMessageFrom(err) ?? 'unknown'
       console.warn('[chat-sync] sendMessages failed for', sessionId, errMsg)
       await enqueuePersist(() => chatSessionsRepo.updateOutboxEntries(userId, [{
+        messageId: entry.messageId,
         attempts: 1,
         lastError: errMsg,
-        messageId: entry.messageId,
       }]))
     }
   }
@@ -1228,7 +1228,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       }
 
       const succeededIds: string[] = []
-      const failedUpdates: Array<Pick<ChatSendOutboxEntry, 'attempts' | 'lastError' | 'messageId'>> = []
+      const failedUpdates: Array<Pick<ChatSendOutboxEntry, 'messageId' | 'attempts' | 'lastError'>> = []
 
       for (const [sessionId, sessionEntries] of bySession) {
         const meta = sessionMetas.value[sessionId]
@@ -1242,7 +1242,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         try {
           await wsClient.sendMessages({
             chatId: cloudChatId,
-            messages: sessionEntries.map(e => ({ content: e.content, id: e.messageId, role: e.role })),
+            messages: sessionEntries.map(e => ({ id: e.messageId, role: e.role, content: e.content })),
           })
           succeededIds.push(...sessionEntries.map(e => e.messageId))
         }
@@ -1251,9 +1251,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           console.warn('[chat-sync] outbox drain failed for', sessionId, errMsg)
           for (const entry of sessionEntries) {
             failedUpdates.push({
+              messageId: entry.messageId,
               attempts: entry.attempts + 1,
               lastError: errMsg,
-              messageId: entry.messageId,
             })
           }
         }
@@ -1394,9 +1394,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   function applyRemoteSnapshot(snapshot: {
     activeSessionId: string
-    index?: ChatSessionsIndex | null
     sessionMessages: Record<string, ChatHistoryItem[]>
     sessionMetas: Record<string, ChatSessionMeta>
+    index?: ChatSessionsIndex | null
   }) {
     activeSessionId.value = snapshot.activeSessionId
     sessionMessages.value = cloneDeep(snapshot.sessionMessages)
@@ -1418,9 +1418,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function getSnapshot() {
     return {
       activeSessionId: activeSessionId.value,
-      index: cloneDeep(index.value),
       sessionMessages: cloneDeep(sessionMessages.value),
       sessionMetas: cloneDeep(sessionMetas.value),
+      index: cloneDeep(index.value),
     }
   }
 
@@ -1458,8 +1458,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     loadingSessions.clear()
 
     index.value = {
-      characters: {},
       userId: currentUserId,
+      characters: {},
     }
 
     await createSession(characterId)
@@ -1491,13 +1491,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return getSessionGeneration(target)
   }
 
-  async function forkSession(options: { atIndex?: number, fromSessionId: string, hidden?: boolean, reason?: string }) {
+  async function forkSession(options: { fromSessionId: string, atIndex?: number, reason?: string, hidden?: boolean }) {
     const characterId = getCurrentCharacterId()
     await loadSession(options.fromSessionId)
     const parentMessages = getSessionMessages(options.fromSessionId)
     const forkIndex = options.atIndex ?? parentMessages.length
     const nextMessages = parentMessages.slice(0, forkIndex)
-    return await createSession(characterId, { messages: nextMessages, setActive: false })
+    return await createSession(characterId, { setActive: false, messages: nextMessages })
   }
 
   async function exportSessions(): Promise<ChatSessionsExport> {
@@ -1507,7 +1507,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (!index.value) {
       return {
         format: 'chat-sessions-index:v1',
-        index: { characters: {}, userId: getCurrentUserId() },
+        index: { userId: getCurrentUserId(), characters: {} },
         sessions: {},
       }
     }
@@ -1523,7 +1523,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         const meta = sessionMetas.value[sessionId]
         const messages = sessionMessages.value[sessionId]
         if (meta && messages)
-          sessions[sessionId] = { messages, meta }
+          sessions[sessionId] = { meta, messages }
       }
     }
 
@@ -1554,8 +1554,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       sessionMessages.value[sessionId] = cloneDeep(record.messages)
       ensureGeneration(sessionId)
       await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, {
-        messages: cloneDeep(record.messages),
         meta: cloneDeep(record.meta),
+        messages: cloneDeep(record.messages),
       }))
     }
 
@@ -1624,48 +1624,48 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   watch([systemPrompt, activeSessionId], refreshActiveSessionSystemMessage)
 
   return {
-    activateCurrentUser,
-    activeSessionId,
-
-    appendSessionMessage,
-    applyRemoteSnapshot,
-
-    bumpSessionGeneration,
-    cleanupMessages,
-    cloudSyncReady,
-    createSession,
-    deleteMessage,
-    deleteSession,
-
-    ensureSession,
-    exportSessions,
-    forkSession,
-    getAllSessions,
-    getSessionGeneration,
-    getSessionGenerationValue,
-    getSessionMessages,
-    getSessionMessagesIfLoaded,
-    getSnapshot,
-    importSessions,
-    // Pinia can synchronize only refs returned by a setup store.
-    index,
-    initialize,
     isReady,
+    initialize,
 
-    loadSession,
+    activeSessionId,
     messages,
-    outboxPendingCount,
-    persistSessionMessages,
-    pushMessageToCloud,
-    refreshSession,
-    resetAllSessions,
-    sessionMessages,
-
-    sessionMetas,
 
     setActiveSession,
-    setCloudSyncOwnership,
+    applyRemoteSnapshot,
+    getSnapshot,
+    cleanupMessages,
+    getAllSessions,
+    resetAllSessions,
+
+    ensureSession,
+    deleteMessage,
     setSessionMessages,
+    appendSessionMessage,
+    persistSessionMessages,
+    getSessionMessages,
+    getSessionMessagesIfLoaded,
+    sessionMessages,
+    sessionMetas,
+    getSessionGeneration,
+    bumpSessionGeneration,
+    getSessionGenerationValue,
+    // Pinia can synchronize only refs returned by a setup store.
+    index,
+
+    forkSession,
+    exportSessions,
+    importSessions,
+    createSession,
+    loadSession,
+    refreshSession,
+    deleteSession,
+    activateCurrentUser,
+
+    setCloudSyncOwnership,
+
+    cloudSyncReady,
+    outboxPendingCount,
+    pushMessageToCloud,
   }
 }, {
   synced: {

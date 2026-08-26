@@ -14,11 +14,11 @@ const here = dirname(fileURLToPath(import.meta.url))
 
 function concept(overrides: Partial<Concept> = {}): Concept {
   return {
-    definition: 'The surface of the application that shows the character.',
     id: 'stage',
     subject: 'application',
-    terms: [{ 'part-of-speech': 'noun', 'status': 'preferred', 'text': 'Stage' }],
     translatable: true,
+    definition: 'The surface of the application that shows the character.',
+    terms: [{ 'text': 'Stage', 'part-of-speech': 'noun', 'status': 'preferred' }],
     ...overrides,
   }
 }
@@ -83,8 +83,8 @@ describe('buildTbx', () => {
   it('writes the context of each term that has one', () => {
     const xml = buildTbx([concept({
       terms: [
-        { 'context': 'Disable Stage Transitions', 'part-of-speech': 'noun', 'status': 'preferred', 'text': 'Stage' },
-        { 'part-of-speech': 'noun', 'status': 'deprecated', 'text': 'Scene', 'type': 'variant' },
+        { 'text': 'Stage', 'part-of-speech': 'noun', 'status': 'preferred', 'context': 'Disable Stage Transitions' },
+        { 'text': 'Scene', 'part-of-speech': 'noun', 'status': 'deprecated', 'type': 'variant' },
       ],
     })], 'test')
 
@@ -96,7 +96,7 @@ describe('buildTbx', () => {
 
   it('puts the context and the note after the termNote elements', () => {
     const xml = buildTbx([concept({
-      terms: [{ 'context': 'A sentence', 'note': 'A note', 'part-of-speech': 'noun', 'status': 'preferred', 'text': 'Stage' }],
+      terms: [{ 'text': 'Stage', 'part-of-speech': 'noun', 'status': 'preferred', 'context': 'A sentence', 'note': 'A note' }],
     })], 'test')
 
     expect(xml.indexOf('administrativeStatus')).toBeLessThan(xml.indexOf('type="context"'))
@@ -106,9 +106,9 @@ describe('buildTbx', () => {
   it('maps each status to the suffixed value that Crowdin writes', () => {
     const xml = buildTbx([concept({
       terms: [
-        { 'part-of-speech': 'noun', 'status': 'preferred', 'text': 'Character Card' },
-        { 'part-of-speech': 'noun', 'status': 'admitted', 'text': 'Card', 'type': 'shortForm' },
-        { 'gender': 'feminine', 'part-of-speech': 'noun', 'status': 'deprecated', 'text': 'Deck' },
+        { 'text': 'Character Card', 'part-of-speech': 'noun', 'status': 'preferred' },
+        { 'text': 'Card', 'part-of-speech': 'noun', 'status': 'admitted', 'type': 'shortForm' },
+        { 'text': 'Deck', 'part-of-speech': 'noun', 'status': 'deprecated', 'gender': 'feminine' },
       ],
     })], 'test')
 
@@ -146,8 +146,8 @@ describe('parseGlossary', () => {
     // status inside one concept, so nothing here may forbid it.
     const twoPreferred = concept({
       terms: [
-        { 'part-of-speech': 'proper noun', 'status': 'preferred', 'text': 'AIRI' },
-        { 'part-of-speech': 'proper noun', 'status': 'preferred', 'text': 'Project AIRI' },
+        { 'text': 'AIRI', 'part-of-speech': 'proper noun', 'status': 'preferred' },
+        { 'text': 'Project AIRI', 'part-of-speech': 'proper noun', 'status': 'preferred' },
       ],
     })
 
@@ -161,10 +161,10 @@ describe('parseGlossary', () => {
     // says, and rejected "proper noun" with a space. A glossary exported from project 816610
     // writes the spaced form on every proper noun, so the requirement was backwards: it
     // would have rejected the data Crowdin itself produces.
-    const spaced = concept({ terms: [{ 'part-of-speech': 'proper noun', 'status': 'preferred', 'text': 'AIRI' }] })
+    const spaced = concept({ terms: [{ 'text': 'AIRI', 'part-of-speech': 'proper noun', 'status': 'preferred' }] })
 
     expect(parseGlossary([spaced])).toHaveLength(1)
-    expect(() => parseGlossary([concept({ terms: [{ 'part-of-speech': 'properNoun', 'status': 'preferred', 'text': 'AIRI' }] })])).toThrow()
+    expect(() => parseGlossary([concept({ terms: [{ 'text': 'AIRI', 'part-of-speech': 'properNoun', 'status': 'preferred' }] })])).toThrow()
   })
 
   it('rejects an id that is not kebab case', () => {
@@ -276,7 +276,7 @@ describe('terms.yaml', () => {
     // A translated token breaks stage playback with no error message, so a token must never
     // reach the glossary and become a term a translator is invited to work on.
     const code = concepts.flatMap(c => c.terms
-      .filter(t => ['ACT', 'CALL', 'DELAY'].includes(t.text) || /[/{}<>]/.test(t.text))
+      .filter(t => ['ACT', 'DELAY', 'CALL'].includes(t.text) || /[/{}<>]/.test(t.text))
       .map(t => t.text))
 
     expect(code).toEqual([])

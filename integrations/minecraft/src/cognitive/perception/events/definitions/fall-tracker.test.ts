@@ -20,9 +20,9 @@ import { classifyRecentFall, recordPhysicsTick } from './fall-tracker'
 // time. Each test below establishes its own landing so the shared module state is deterministic.
 
 /** Build a vertical-motion snapshot for one sampled tick. */
-function motion(velocityY: number, onGround: boolean): { onGround: boolean, velocity: { y: number } } {
+function motion(velocityY: number, onGround: boolean): { velocity: { y: number }, onGround: boolean } {
   // @example motion(-0.9, false) -> airborne, descending fast
-  return { onGround, velocity: { y: velocityY } }
+  return { velocity: { y: velocityY }, onGround }
 }
 
 describe('fall tracker', () => {
@@ -58,13 +58,13 @@ describe('damage_taken cause inference', () => {
   // Minimal PerceptionContext stub: drives damageTakenEvent.filter/extract without a real bot.
   function makeCtx(health: number, entity: Record<string, any>, nearby: Record<string, any> = {}): any {
     return {
-      bot: { entities: nearby, entity, health },
+      bot: { health, entity, entities: nearby },
+      selfUsername: 'Airi',
+      maxDistance: 32,
       distanceTo: (e: any) => (typeof e?._distance === 'number' ? e._distance : null),
       distanceToPos: () => null,
-      entityId: (e: any) => String(e?.id ?? 'unknown'),
       isSelf: (e: any) => e?.username === 'Airi',
-      maxDistance: 32,
-      selfUsername: 'Airi',
+      entityId: (e: any) => String(e?.id ?? 'unknown'),
     }
   }
 
@@ -88,7 +88,7 @@ describe('damage_taken cause inference', () => {
     recordPhysicsTick(motion(0, true), Date.now())
 
     const hurt = primeDamage(motion(0, true), 6.5)
-    const extracted = damageTakenEvent.mineflayer.extract(hurt) as { amount: number, attacker: string, damageSource: { cause: string } }
+    const extracted = damageTakenEvent.mineflayer.extract(hurt) as { amount: number, damageSource: { cause: string }, attacker: string }
     expect(extracted.amount).toBe(13.5)
     expect(extracted.damageSource.cause).toBe('fall')
     expect(extracted.attacker).toBe('') // environmental: no attacker name (rule renders "from=")
@@ -99,9 +99,9 @@ describe('damage_taken cause inference', () => {
     recordPhysicsTick(motion(-0.1, false), Date.now())
     recordPhysicsTick(motion(0, true), Date.now())
 
-    const zombie = { _distance: 1.5, id: 42, name: 'zombie', type: 'mob' }
+    const zombie = { type: 'mob', name: 'zombie', id: 42, _distance: 1.5 }
     const hurt = primeDamage(motion(0, true), 16, { 42: zombie })
-    const extracted = damageTakenEvent.mineflayer.extract(hurt) as { attacker: string, damageSource: { cause: string, name?: string } }
+    const extracted = damageTakenEvent.mineflayer.extract(hurt) as { damageSource: { cause: string, name?: string }, attacker: string }
     expect(extracted.damageSource.cause).toBe('mob')
     expect(extracted.damageSource.name).toBe('zombie')
     expect(extracted.attacker).toBe('zombie')
@@ -113,9 +113,9 @@ describe('damage_taken cause inference', () => {
     recordPhysicsTick(motion(-0.1, false), Date.now())
     recordPhysicsTick(motion(0, true), Date.now()) // grounded, not a fall
 
-    const master = { _distance: 1, id: 7, name: 'player', type: 'player', username: 'dssadg' }
+    const master = { type: 'player', name: 'player', username: 'dssadg', id: 7, _distance: 1 }
     const hurt = primeDamage(motion(0, true), 16, { 7: master })
-    const extracted = damageTakenEvent.mineflayer.extract(hurt) as { attacker: string, damageSource: { cause: string } }
+    const extracted = damageTakenEvent.mineflayer.extract(hurt) as { damageSource: { cause: string }, attacker: string }
     expect(extracted.damageSource.cause).toBe('player')
     expect(extracted.attacker).toBe('dssadg')
   })

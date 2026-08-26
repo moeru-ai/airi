@@ -4,18 +4,18 @@ import JSZip from 'jszip'
 
 import { errorMessageFrom } from '@moeru/std'
 
+export type MMDValidationStatus = 'VALID' | 'INVALID'
+
 export interface MMDValidationReport {
+  status: MMDValidationStatus
+  errors: string[]
+  warnings: string[]
   detected: {
-    format?: MMDModelFormat
     modelPath?: string
+    format?: MMDModelFormat
     textureCount: number
   }
-  errors: string[]
-  status: MMDValidationStatus
-  warnings: string[]
 }
-
-export type MMDValidationStatus = 'INVALID' | 'VALID'
 
 const TEXTURE_RE = /\.(?:png|jpe?g|bmp|tga|gif|dds|spa|sph|webp)$/i
 
@@ -40,7 +40,7 @@ export async function validateMMDZip(file: File): Promise<MMDValidationReport> {
 
     if (pmx.length === 0 && pmd.length === 0) {
       errors.push('No model (`.pmx` or `.pmd`) found in the ZIP.')
-      return { detected, errors, status: 'INVALID', warnings }
+      return { status: 'INVALID', errors, warnings, detected }
     }
 
     if (pmx.length + pmd.length > 1)
@@ -62,8 +62,8 @@ export async function validateMMDZip(file: File): Promise<MMDValidationReport> {
   }
   catch (err) {
     errors.push(`Failed to read ZIP: ${errorMessageFrom(err) ?? 'Unknown error'}`)
-    return { detected, errors, status: 'INVALID', warnings }
+    return { status: 'INVALID', errors, warnings, detected }
   }
 
-  return { detected, errors, status: 'VALID', warnings }
+  return { status: 'VALID', errors, warnings, detected }
 }

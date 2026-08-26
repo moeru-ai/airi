@@ -11,32 +11,30 @@ class FakeAudioNode {
 }
 
 class FakeAudioContext {
+  state: AudioContextState = 'running'
+  destination = new FakeAudioNode()
   audioWorklet = {
     addModule: vi.fn(async () => {}),
   }
 
-  state: AudioContextState = 'running'
-  close = vi.fn(async () => {
-    this.state = 'closed'
-  })
-
+  createMediaStreamSource = vi.fn(() => new FakeAudioNode())
   createGain = vi.fn(() => ({
+    gain: { value: 1 },
     connect: vi.fn(),
     disconnect: vi.fn(),
-    gain: { value: 1 },
   }))
 
-  createMediaStreamSource = vi.fn(() => new FakeAudioNode())
-
-  destination = new FakeAudioNode()
+  async resume() {
+    this.state = 'running'
+  }
 
   suspend = vi.fn(async () => {
     this.state = 'suspended'
   })
 
-  async resume() {
-    this.state = 'running'
-  }
+  close = vi.fn(async () => {
+    this.state = 'closed'
+  })
 }
 
 class FakeAudioWorkletNode extends FakeAudioNode {
@@ -48,9 +46,9 @@ class FakeAudioWorkletNode extends FakeAudioNode {
 function createVADMock(): BaseVAD {
   return {
     initialize: vi.fn(async () => {}),
-    off: vi.fn(),
-    on: vi.fn(),
     processAudio: vi.fn(async () => {}),
+    on: vi.fn(),
+    off: vi.fn(),
   }
 }
 

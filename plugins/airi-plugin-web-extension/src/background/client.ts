@@ -16,8 +16,8 @@ export interface ClientState {
   connected: boolean
   lastError?: string
   lastPage?: PageContextPayload
-  lastSubtitle?: SubtitlePayload
   lastVideo?: VideoContextPayload
+  lastSubtitle?: SubtitlePayload
   lastVisionFrameAt?: number
 }
 
@@ -28,13 +28,30 @@ export function createClientState(): ClientState {
   }
 }
 
-export function disconnectClient(state: ClientState) {
-  if (!state.client)
-    return
+function createIdentity() {
+  return {
+    kind: 'plugin',
+    plugin: {
+      id: PLUGIN_NAME,
+      version: typeof packageJSON.version === 'string' ? packageJSON.version : undefined,
+    },
+    id: nanoid(),
+    labels: {
+      runtime: 'web-extension',
+    },
+  }
+}
 
-  state.client.close()
-  state.client = null
-  state.connected = false
+export function toStatus(state: ClientState, settings: ExtensionSettings): ExtensionStatus {
+  return {
+    connected: state.connected,
+    lastError: state.lastError,
+    settings,
+    lastPage: state.lastPage,
+    lastVideo: state.lastVideo,
+    lastSubtitle: state.lastSubtitle,
+    lastVisionFrameAt: state.lastVisionFrameAt,
+  }
 }
 
 export async function ensureClient(state: ClientState, settings: ExtensionSettings) {
@@ -48,20 +65,20 @@ export async function ensureClient(state: ClientState, settings: ExtensionSettin
   }
 
   const client = new Client({
+    name: PLUGIN_NAME,
+    url: settings.wsUrl,
+    token: settings.token || undefined,
+    identity: createIdentity(),
+    possibleEvents: ['context:update', 'spark:notify', 'spark:emit'],
     autoConnect: false,
     autoReconnect: true,
-    identity: createIdentity(),
-    name: PLUGIN_NAME,
-    onClose: () => {
-      state.connected = false
-    },
     onError: (error) => {
       state.connected = false
       state.lastError = errorMessageFromValue(error)
     },
-    possibleEvents: ['context:update', 'spark:notify', 'spark:emit'],
-    token: settings.token || undefined,
-    url: settings.wsUrl,
+    onClose: () => {
+      state.connected = false
+    },
   })
 
   state.client = client
@@ -77,6 +94,49 @@ export async function ensureClient(state: ClientState, settings: ExtensionSettin
   }
 }
 
+export function disconnectClient(state: ClientState) {
+  if (!state.client)
+    return
+
+  state.client.close()
+  state.client = null
+  state.connected = false
+}
+
+function sendContextUpdate(state: ClientState, update: Omit<ContextUpdate, 'id' | 'contextId'> & Partial<Pick<ContextUpdate, 'id' | 'contextId'>>) {
+  if (!state.client || !state.connected)
+    return
+
+  const id = update.id ?? nanoid()
+  state.client.send({
+    type: 'context:update',
+    data: {
+      id,
+      contextId: update.contextId ?? id,
+      ...update,
+    },
+  })
+}
+
+function sendSparkNotify(state: ClientState, data: { headline: string, note?: string, payload?: Record<string, unknown> }) {
+  if (!state.client || !state.connected)
+    return
+
+  state.client.send({
+    type: 'spark:notify',
+    data: {
+      id: nanoid(),
+      eventId: nanoid(),
+      kind: 'ping',
+      urgency: 'soon',
+      headline: data.headline,
+      note: data.note,
+      payload: data.payload,
+      destinations: ['character'],
+    },
+  })
+}
+
 export function handlePageContext(state: ClientState, settings: ExtensionSettings, payload: PageContextPayload) {
   state.lastPage = payload
 
@@ -84,41 +144,17 @@ export function handlePageContext(state: ClientState, settings: ExtensionSetting
     return
 
   sendContextUpdate(state, {
+    strategy: ContextUpdateStrategy.ReplaceSelf,
     lane: 'web:page',
+    text: `User is browsing: ${payload.title} (${payload.url}).`,
     metadata: {
+      source: 'web-extension',
+      site: payload.site,
+      url: payload.url,
+      title: payload.title,
       description: payload.description,
       language: payload.language,
-      site: payload.site,
-      source: 'web-extension',
-      title: payload.title,
-      url: payload.url,
     },
-    strategy: ContextUpdateStrategy.ReplaceSelf,
-    text: `User is browsing: ${payload.title} (${payload.url}).`,
-  })
-}
-
-export function handleSubtitle(state: ClientState, settings: ExtensionSettings, payload: SubtitlePayload) {
-  state.lastSubtitle = payload
-
-  if (!settings.enabled || !settings.sendSubtitles)
-    return
-
-  sendContextUpdate(state, {
-    lane: 'web:subtitle',
-    metadata: {
-      endMs: payload.endMs,
-      isAuto: payload.isAuto,
-      language: payload.language,
-      site: payload.site,
-      source: 'web-extension',
-      startMs: payload.startMs,
-      title: payload.title,
-      url: payload.url,
-      videoId: payload.videoId,
-    },
-    strategy: ContextUpdateStrategy.ReplaceSelf,
-    text: `Subtitle: ${payload.text}`,
   })
 }
 
@@ -142,36 +178,22 @@ export function handleVideoContext(
       headline,
       note: payload.channel ? `Channel: ${payload.channel}` : undefined,
       payload: {
-        channel: payload.channel,
-        currentTimeSec: payload.currentTimeSec,
-        durationSec: payload.durationSec,
-        isLive: payload.isLive,
-        isPlaying: payload.isPlaying,
         site: payload.site,
-        title: payload.title,
         url: payload.url,
+        title: payload.title,
+        channel: payload.channel,
         videoId: payload.videoId,
+        durationSec: payload.durationSec,
+        currentTimeSec: payload.currentTimeSec,
+        isPlaying: payload.isPlaying,
+        isLive: payload.isLive,
       },
     })
   }
 
   sendContextUpdate(state, {
-    lane: 'web:video',
-    metadata: {
-      channel: payload.channel,
-      currentTimeSec: payload.currentTimeSec,
-      durationSec: payload.durationSec,
-      isLive: payload.isLive,
-      isPlaying: payload.isPlaying,
-      playbackRate: payload.playbackRate,
-      playerSize: payload.playerSize,
-      site: payload.site,
-      source: 'web-extension',
-      title: payload.title,
-      url: payload.url,
-      videoId: payload.videoId,
-    },
     strategy: ContextUpdateStrategy.ReplaceSelf,
+    lane: 'web:video',
     text: [
       headline,
       payload.channel ? `Channel: ${payload.channel}.` : undefined,
@@ -180,65 +202,43 @@ export function handleVideoContext(
         : undefined,
       payload.url ? `URL: ${payload.url}.` : undefined,
     ].filter(Boolean).join(' '),
+    metadata: {
+      source: 'web-extension',
+      site: payload.site,
+      url: payload.url,
+      title: payload.title,
+      channel: payload.channel,
+      videoId: payload.videoId,
+      durationSec: payload.durationSec,
+      currentTimeSec: payload.currentTimeSec,
+      isPlaying: payload.isPlaying,
+      playbackRate: payload.playbackRate,
+      isLive: payload.isLive,
+      playerSize: payload.playerSize,
+    },
   })
 }
 
-export function toStatus(state: ClientState, settings: ExtensionSettings): ExtensionStatus {
-  return {
-    connected: state.connected,
-    lastError: state.lastError,
-    lastPage: state.lastPage,
-    lastSubtitle: state.lastSubtitle,
-    lastVideo: state.lastVideo,
-    lastVisionFrameAt: state.lastVisionFrameAt,
-    settings,
-  }
-}
+export function handleSubtitle(state: ClientState, settings: ExtensionSettings, payload: SubtitlePayload) {
+  state.lastSubtitle = payload
 
-function createIdentity() {
-  return {
-    id: nanoid(),
-    kind: 'plugin',
-    labels: {
-      runtime: 'web-extension',
-    },
-    plugin: {
-      id: PLUGIN_NAME,
-      version: typeof packageJSON.version === 'string' ? packageJSON.version : undefined,
-    },
-  }
-}
-
-function sendContextUpdate(state: ClientState, update: Omit<ContextUpdate, 'contextId' | 'id'> & Partial<Pick<ContextUpdate, 'contextId' | 'id'>>) {
-  if (!state.client || !state.connected)
+  if (!settings.enabled || !settings.sendSubtitles)
     return
 
-  const id = update.id ?? nanoid()
-  state.client.send({
-    data: {
-      contextId: update.contextId ?? id,
-      id,
-      ...update,
+  sendContextUpdate(state, {
+    strategy: ContextUpdateStrategy.ReplaceSelf,
+    lane: 'web:subtitle',
+    text: `Subtitle: ${payload.text}`,
+    metadata: {
+      source: 'web-extension',
+      site: payload.site,
+      url: payload.url,
+      title: payload.title,
+      videoId: payload.videoId,
+      language: payload.language,
+      startMs: payload.startMs,
+      endMs: payload.endMs,
+      isAuto: payload.isAuto,
     },
-    type: 'context:update',
-  })
-}
-
-function sendSparkNotify(state: ClientState, data: { headline: string, note?: string, payload?: Record<string, unknown> }) {
-  if (!state.client || !state.connected)
-    return
-
-  state.client.send({
-    data: {
-      destinations: ['character'],
-      eventId: nanoid(),
-      headline: data.headline,
-      id: nanoid(),
-      kind: 'ping',
-      note: data.note,
-      payload: data.payload,
-      urgency: 'soon',
-    },
-    type: 'spark:notify',
   })
 }

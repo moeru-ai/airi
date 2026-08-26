@@ -25,10 +25,6 @@ export interface CharactersModel {
    */
   list: (options?: CharacterModelOptions) => Promise<Character[]>
   /**
-   * Removes one locally persisted character by `id`.
-   */
-  remove: (id: string, options?: CharacterModelOptions) => Promise<void>
-  /**
    * Replaces the locally persisted character snapshot.
    */
   saveAll: (characters: Character[], options?: CharacterModelOptions) => Promise<void>
@@ -36,6 +32,10 @@ export interface CharactersModel {
    * Inserts or replaces one locally persisted character by `id`.
    */
   upsert: (character: Character, options?: CharacterModelOptions) => Promise<void>
+  /**
+   * Removes one locally persisted character by `id`.
+   */
+  remove: (id: string, options?: CharacterModelOptions) => Promise<void>
 }
 
 /**
@@ -102,9 +102,9 @@ export function createCharactersModel(params: CreateCharactersModelParams): Char
 
   return {
     list,
-    remove,
     saveAll,
     upsert,
+    remove,
   }
 }
 

@@ -41,14 +41,6 @@ const SHADER_OUTLINE_BLOCK_ANCHOR = `  #ifdef OUTLINE
 
 type NumericBufferAttribute = BufferGeometry['attributes'][string] | InterleavedBufferAttribute
 
-interface OutlineGeometryState {
-  version: number
-}
-
-interface OutlineMaterialState {
-  version: number
-}
-
 interface VrmOutlineMeshTarget {
   builtInOutlineMaterial: MToonMaterial
   builtInOutlineMaterialIndex: number
@@ -56,6 +48,14 @@ interface VrmOutlineMeshTarget {
   mesh: Mesh
   surfaceMaterial: MToonMaterial
   surfaceMaterialIndex: number
+}
+
+interface OutlineGeometryState {
+  version: number
+}
+
+interface OutlineMaterialState {
+  version: number
 }
 
 interface VrmOutlineRuntimeState {
@@ -66,62 +66,129 @@ const geometryStateRegistry = new WeakMap<BufferGeometry, OutlineGeometryState>(
 const materialStateRegistry = new WeakMap<Material, OutlineMaterialState>()
 const vrmOutlineRuntimeRegistry = new WeakMap<VRM, VrmOutlineRuntimeState>()
 
-export function createVrmOutlineHook(): VrmHook {
-  return {
-    onDispose({ vrm }) {
-      disposeVrmOutlineRuntime(vrm)
-    },
-    onLoad({ vrm }) {
-      prepareVrmOutlineRuntime(vrm)
-    },
-    onMaterial(context) {
-      const { material } = context
+// State helpers
+// NOTICE: We mirror the patch state in both WeakMap registries and geometry/material userData.
+// The WeakMap prevents accidental cross-instance leaks in runtime bookkeeping, while userData
+// preserves idempotence across cached VRM instances that keep the same Three objects alive.
+function hasPatchedState<T extends BufferGeometry | Material>(
+  object: T,
+  key: string,
+  version: number,
+  registry: WeakMap<T, { version: number }>,
+  extraCheck?: () => boolean,
+) {
+  const registryState = registry.get(object)
+  const userDataState = object.userData?.[key]
 
-      if (!isMToonMaterial(material) || material.isOutline === true)
-        return
+  if (registryState?.version === version)
+    return true
 
-      const meshTarget = findVrmOutlineMeshTarget(context)
-      if (!meshTarget)
-        return
+  if (userDataState?.version !== version)
+    return false
 
-      if (!meshTarget.geometry.getAttribute(AIRI_OUTLINE_NORMAL_ATTRIBUTE_NAME)) {
-        console.warn(
-          '[AIRI] Failed to patch built-in MToon outline shader: outlineNormal is missing on geometry.',
-          meshTarget.mesh.name,
-        )
-        return
-      }
+  return extraCheck ? extraCheck() : true
+}
 
-      patchBuiltInOutlineMaterial(meshTarget.builtInOutlineMaterial)
-    },
+function markPatchedState<T extends BufferGeometry | Material>(
+  object: T,
+  key: string,
+  version: number,
+  registry: WeakMap<T, { version: number }>,
+  extraUserData: Record<string, unknown> = {},
+) {
+  registry.set(object, { version })
+  ;(object.userData ||= {})[key] = {
+    ...extraUserData,
+    version,
   }
 }
 
-export function disposeVrmOutlineRuntime(vrm?: VRM) {
-  if (!vrm)
-    return
-
-  clearVrmOutlineRuntime(vrm)
+// Geometry preprocess
+function isOutlineGeometryPreprocessed(geometry: BufferGeometry) {
+  return hasPatchedState(
+    geometry,
+    AIRI_OUTLINE_PREPROCESS_USER_DATA_KEY,
+    AIRI_OUTLINE_PREPROCESS_VERSION,
+    geometryStateRegistry,
+    () => geometry.getAttribute(AIRI_OUTLINE_NORMAL_ATTRIBUTE_NAME) != null,
+  )
 }
 
-export function prepareVrmOutlineRuntime(vrm: VRM) {
-  const meshTargets: VrmOutlineMeshTarget[] = []
+function markOutlineGeometryPreprocessed(geometry: BufferGeometry) {
+  markPatchedState(
+    geometry,
+    AIRI_OUTLINE_PREPROCESS_USER_DATA_KEY,
+    AIRI_OUTLINE_PREPROCESS_VERSION,
+    geometryStateRegistry,
+    { attribute: AIRI_OUTLINE_NORMAL_ATTRIBUTE_NAME },
+  )
+}
 
-  vrm.scene.traverse((object) => {
-    if (!(object instanceof Mesh)) {
-      return
+function quantizePositionComponent(value: number) {
+  return Math.round(value / POSITION_WELD_EPSILON)
+}
+
+function addFaceNormal(accumulatedNormals: Float32Array, vertexIndex: number, x: number, y: number, z: number) {
+  const base = vertexIndex * 3
+  accumulatedNormals[base] += x
+  accumulatedNormals[base + 1] += y
+  accumulatedNormals[base + 2] += z
+}
+
+function writeNormalizedVector(target: Float32Array, vertexIndex: number, x: number, y: number, z: number) {
+  const lengthSq = x * x + y * y + z * z
+  const base = vertexIndex * 3
+
+  if (lengthSq <= ZERO_VECTOR_EPSILON) {
+    target[base] = 0
+    target[base + 1] = 1
+    target[base + 2] = 0
+    return
+  }
+
+  const inverseLength = 1 / Math.sqrt(lengthSq)
+  target[base] = x * inverseLength
+  target[base + 1] = y * inverseLength
+  target[base + 2] = z * inverseLength
+}
+
+function accumulateOriginalNormalFallback(
+  targetNormals: Float32Array,
+  vertexIndices: number[],
+  originalNormalAttribute?: NumericBufferAttribute,
+) {
+  let fallbackX = 0
+  let fallbackY = 0
+  let fallbackZ = 0
+
+  if (originalNormalAttribute?.itemSize && originalNormalAttribute.itemSize >= 3) {
+    for (const vertexIndex of vertexIndices) {
+      fallbackX += originalNormalAttribute.getX(vertexIndex)
+      fallbackY += originalNormalAttribute.getY(vertexIndex)
+      fallbackZ += originalNormalAttribute.getZ(vertexIndex)
     }
+  }
 
-    const meshTarget = resolveBuiltInOutlineMeshTarget(object)
-    if (!meshTarget) {
-      return
-    }
+  for (const vertexIndex of vertexIndices)
+    writeNormalizedVector(targetNormals, vertexIndex, fallbackX, fallbackY, fallbackZ)
+}
 
-    ensureOutlineNormalAttribute(meshTarget.geometry)
-    meshTargets.push(meshTarget)
-  })
+function buildWeldedVertexGroups(geometry: BufferGeometry) {
+  const weldedVertexGroups = new Map<string, number[]>()
+  const positionAttribute = geometry.getAttribute('position')
 
-  setVrmOutlineRuntimeState(vrm, { meshes: meshTargets })
+  for (let vertexIndex = 0; vertexIndex < positionAttribute.count; vertexIndex++) {
+    const key = [
+      quantizePositionComponent(positionAttribute.getX(vertexIndex)),
+      quantizePositionComponent(positionAttribute.getY(vertexIndex)),
+      quantizePositionComponent(positionAttribute.getZ(vertexIndex)),
+    ].join(':')
+    const group = weldedVertexGroups.get(key) ?? []
+    group.push(vertexIndex)
+    weldedVertexGroups.set(key, group)
+  }
+
+  return weldedVertexGroups
 }
 
 function accumulateFaceNormals(geometry: BufferGeometry) {
@@ -169,56 +236,6 @@ function accumulateFaceNormals(geometry: BufferGeometry) {
   return accumulatedNormals
 }
 
-function accumulateOriginalNormalFallback(
-  targetNormals: Float32Array,
-  vertexIndices: number[],
-  originalNormalAttribute?: NumericBufferAttribute,
-) {
-  let fallbackX = 0
-  let fallbackY = 0
-  let fallbackZ = 0
-
-  if (originalNormalAttribute?.itemSize && originalNormalAttribute.itemSize >= 3) {
-    for (const vertexIndex of vertexIndices) {
-      fallbackX += originalNormalAttribute.getX(vertexIndex)
-      fallbackY += originalNormalAttribute.getY(vertexIndex)
-      fallbackZ += originalNormalAttribute.getZ(vertexIndex)
-    }
-  }
-
-  for (const vertexIndex of vertexIndices)
-    writeNormalizedVector(targetNormals, vertexIndex, fallbackX, fallbackY, fallbackZ)
-}
-
-function addFaceNormal(accumulatedNormals: Float32Array, vertexIndex: number, x: number, y: number, z: number) {
-  const base = vertexIndex * 3
-  accumulatedNormals[base] += x
-  accumulatedNormals[base + 1] += y
-  accumulatedNormals[base + 2] += z
-}
-
-function buildWeldedVertexGroups(geometry: BufferGeometry) {
-  const weldedVertexGroups = new Map<string, number[]>()
-  const positionAttribute = geometry.getAttribute('position')
-
-  for (let vertexIndex = 0; vertexIndex < positionAttribute.count; vertexIndex++) {
-    const key = [
-      quantizePositionComponent(positionAttribute.getX(vertexIndex)),
-      quantizePositionComponent(positionAttribute.getY(vertexIndex)),
-      quantizePositionComponent(positionAttribute.getZ(vertexIndex)),
-    ].join(':')
-    const group = weldedVertexGroups.get(key) ?? []
-    group.push(vertexIndex)
-    weldedVertexGroups.set(key, group)
-  }
-
-  return weldedVertexGroups
-}
-
-function clearVrmOutlineRuntime(vrm: VRM) {
-  vrmOutlineRuntimeRegistry.delete(vrm)
-}
-
 function ensureOutlineNormalAttribute(geometry: BufferGeometry) {
   if (isOutlineGeometryPreprocessed(geometry))
     return false
@@ -258,74 +275,6 @@ function ensureOutlineNormalAttribute(geometry: BufferGeometry) {
   return true
 }
 
-function findVrmOutlineMeshTarget({
-  material,
-  materialIndex,
-  mesh,
-  vrm,
-}: Pick<VrmMaterialHookContext, 'material' | 'materialIndex' | 'mesh' | 'vrm'>) {
-  const runtimeState = getVrmOutlineRuntimeState(vrm)
-  if (!runtimeState)
-    return undefined
-
-  return runtimeState.meshes.find(target =>
-    target.mesh === mesh
-    && target.surfaceMaterial === material
-    && target.surfaceMaterialIndex === materialIndex,
-  )
-}
-
-// Runtime target scan
-function getVrmOutlineRuntimeState(vrm: VRM) {
-  return vrmOutlineRuntimeRegistry.get(vrm)
-}
-
-// State helpers
-// NOTICE: We mirror the patch state in both WeakMap registries and geometry/material userData.
-// The WeakMap prevents accidental cross-instance leaks in runtime bookkeeping, while userData
-// preserves idempotence across cached VRM instances that keep the same Three objects alive.
-function hasPatchedState<T extends BufferGeometry | Material>(
-  object: T,
-  key: string,
-  version: number,
-  registry: WeakMap<T, { version: number }>,
-  extraCheck?: () => boolean,
-) {
-  const registryState = registry.get(object)
-  const userDataState = object.userData?.[key]
-
-  if (registryState?.version === version)
-    return true
-
-  if (userDataState?.version !== version)
-    return false
-
-  return extraCheck ? extraCheck() : true
-}
-
-function injectOutlineNormalAttribute(vertexShader: string) {
-  return vertexShader.replace(
-    SHADER_COMMON_ANCHOR,
-    `${SHADER_COMMON_ANCHOR}
-attribute vec3 ${AIRI_OUTLINE_NORMAL_ATTRIBUTE_NAME};`,
-  )
-}
-
-function isMToonMaterial(material: Material): material is MToonMaterial {
-  return (material as MToonMaterial).isMToonMaterial === true
-}
-
-// Geometry preprocess
-function isOutlineGeometryPreprocessed(geometry: BufferGeometry) {
-  return hasPatchedState(
-    geometry,
-    AIRI_OUTLINE_PREPROCESS_USER_DATA_KEY,
-    AIRI_OUTLINE_PREPROCESS_VERSION,
-    geometryStateRegistry,
-    () => geometry.getAttribute(AIRI_OUTLINE_NORMAL_ATTRIBUTE_NAME) != null,
-  )
-}
-
 // Built-in outline patch
 function isOutlineMaterialPatched(material: Material) {
   return hasPatchedState(
@@ -333,16 +282,6 @@ function isOutlineMaterialPatched(material: Material) {
     AIRI_OUTLINE_SHADER_PATCH_USER_DATA_KEY,
     AIRI_OUTLINE_SHADER_PATCH_VERSION,
     materialStateRegistry,
-  )
-}
-
-function markOutlineGeometryPreprocessed(geometry: BufferGeometry) {
-  markPatchedState(
-    geometry,
-    AIRI_OUTLINE_PREPROCESS_USER_DATA_KEY,
-    AIRI_OUTLINE_PREPROCESS_VERSION,
-    geometryStateRegistry,
-    { attribute: AIRI_OUTLINE_NORMAL_ATTRIBUTE_NAME },
   )
 }
 
@@ -356,18 +295,67 @@ function markOutlineMaterialPatched(material: Material) {
   )
 }
 
-function markPatchedState<T extends BufferGeometry | Material>(
-  object: T,
-  key: string,
-  version: number,
-  registry: WeakMap<T, { version: number }>,
-  extraUserData: Record<string, unknown> = {},
-) {
-  registry.set(object, { version })
-  ;(object.userData ||= {})[key] = {
-    ...extraUserData,
-    version,
-  }
+function injectOutlineNormalAttribute(vertexShader: string) {
+  return vertexShader.replace(
+    SHADER_COMMON_ANCHOR,
+    `${SHADER_COMMON_ANCHOR}
+attribute vec3 ${AIRI_OUTLINE_NORMAL_ATTRIBUTE_NAME};`,
+  )
+}
+
+function replaceOutlineNormalSource(vertexShader: string) {
+  return vertexShader.replace(
+    SHADER_BEGINNORMAL_ANCHOR,
+    `${SHADER_BEGINNORMAL_ANCHOR}
+  objectNormal = ${AIRI_OUTLINE_NORMAL_ATTRIBUTE_NAME};`,
+  )
+}
+
+function replaceOutlineExtrusionBlock(vertexShader: string) {
+  return vertexShader.replace(
+    SHADER_OUTLINE_BLOCK_ANCHOR,
+    `  #ifdef OUTLINE
+    float worldNormalLength = length( transformedNormal );
+    float outlineWidth = outlineWidthFactor * worldNormalLength;
+
+    #ifdef USE_OUTLINEWIDTHMULTIPLYTEXTURE
+      vec2 outlineWidthMultiplyTextureUv = ( outlineWidthMultiplyTextureUvTransform * vec3( vUv, 1 ) ).xy;
+      float outlineTex = texture2D( outlineWidthMultiplyTexture, outlineWidthMultiplyTextureUv ).g;
+      outlineWidth *= outlineTex;
+    #endif
+
+    #ifdef OUTLINE_WIDTH_SCREEN
+      outlineWidth *= vViewPosition.z / projectionMatrix[ 1 ].y;
+    #endif
+
+    vec3 outlineDirectionVS = normalize( normalMatrix * objectNormal );
+    outlineDirectionVS.z = ${AIRI_OUTLINE_VIEW_FLATTENED_Z.toFixed(1)};
+    outlineDirectionVS = normalize( outlineDirectionVS );
+
+    vec4 outlinePositionVS = mvPosition;
+    outlinePositionVS.xyz += outlineDirectionVS * outlineWidth;
+    outlinePositionVS.z += ${AIRI_OUTLINE_VIEW_Z_OFFSET.toFixed(3)};
+
+    gl_Position = projectionMatrix * outlinePositionVS;
+
+    gl_Position.z += 1E-6 * gl_Position.w; // anti-artifact magic
+  #endif`,
+  )
+}
+
+function patchOutlineVertexShader(vertexShader: string) {
+  const hasCommonAnchor = vertexShader.includes(SHADER_COMMON_ANCHOR)
+  const hasBeginNormalAnchor = vertexShader.includes(SHADER_BEGINNORMAL_ANCHOR)
+  const hasOutlineBlockAnchor = vertexShader.includes(SHADER_OUTLINE_BLOCK_ANCHOR)
+
+  if (!hasCommonAnchor || !hasBeginNormalAnchor || !hasOutlineBlockAnchor)
+    return undefined
+
+  return replaceOutlineExtrusionBlock(
+    replaceOutlineNormalSource(
+      injectOutlineNormalAttribute(vertexShader),
+    ),
+  )
 }
 
 function patchBuiltInOutlineMaterial(material: MToonMaterial) {
@@ -406,66 +394,11 @@ function patchBuiltInOutlineMaterial(material: MToonMaterial) {
   return true
 }
 
-function patchOutlineVertexShader(vertexShader: string) {
-  const hasCommonAnchor = vertexShader.includes(SHADER_COMMON_ANCHOR)
-  const hasBeginNormalAnchor = vertexShader.includes(SHADER_BEGINNORMAL_ANCHOR)
-  const hasOutlineBlockAnchor = vertexShader.includes(SHADER_OUTLINE_BLOCK_ANCHOR)
-
-  if (!hasCommonAnchor || !hasBeginNormalAnchor || !hasOutlineBlockAnchor)
-    return undefined
-
-  return replaceOutlineExtrusionBlock(
-    replaceOutlineNormalSource(
-      injectOutlineNormalAttribute(vertexShader),
-    ),
-  )
+function isMToonMaterial(material: Material): material is MToonMaterial {
+  return (material as MToonMaterial).isMToonMaterial === true
 }
 
-function quantizePositionComponent(value: number) {
-  return Math.round(value / POSITION_WELD_EPSILON)
-}
-
-function replaceOutlineExtrusionBlock(vertexShader: string) {
-  return vertexShader.replace(
-    SHADER_OUTLINE_BLOCK_ANCHOR,
-    `  #ifdef OUTLINE
-    float worldNormalLength = length( transformedNormal );
-    float outlineWidth = outlineWidthFactor * worldNormalLength;
-
-    #ifdef USE_OUTLINEWIDTHMULTIPLYTEXTURE
-      vec2 outlineWidthMultiplyTextureUv = ( outlineWidthMultiplyTextureUvTransform * vec3( vUv, 1 ) ).xy;
-      float outlineTex = texture2D( outlineWidthMultiplyTexture, outlineWidthMultiplyTextureUv ).g;
-      outlineWidth *= outlineTex;
-    #endif
-
-    #ifdef OUTLINE_WIDTH_SCREEN
-      outlineWidth *= vViewPosition.z / projectionMatrix[ 1 ].y;
-    #endif
-
-    vec3 outlineDirectionVS = normalize( normalMatrix * objectNormal );
-    outlineDirectionVS.z = ${AIRI_OUTLINE_VIEW_FLATTENED_Z.toFixed(1)};
-    outlineDirectionVS = normalize( outlineDirectionVS );
-
-    vec4 outlinePositionVS = mvPosition;
-    outlinePositionVS.xyz += outlineDirectionVS * outlineWidth;
-    outlinePositionVS.z += ${AIRI_OUTLINE_VIEW_Z_OFFSET.toFixed(3)};
-
-    gl_Position = projectionMatrix * outlinePositionVS;
-
-    gl_Position.z += 1E-6 * gl_Position.w; // anti-artifact magic
-  #endif`,
-  )
-}
-
-function replaceOutlineNormalSource(vertexShader: string) {
-  return vertexShader.replace(
-    SHADER_BEGINNORMAL_ANCHOR,
-    `${SHADER_BEGINNORMAL_ANCHOR}
-  objectNormal = ${AIRI_OUTLINE_NORMAL_ATTRIBUTE_NAME};`,
-  )
-}
-
-function resolveBuiltInOutlineMeshTarget(mesh: Mesh): undefined | VrmOutlineMeshTarget {
+function resolveBuiltInOutlineMeshTarget(mesh: Mesh): VrmOutlineMeshTarget | undefined {
   const materialOrMaterials = mesh.material
   const materials = Array.isArray(materialOrMaterials) ? materialOrMaterials : [materialOrMaterials]
   let surfaceMaterialIndex = -1
@@ -498,23 +431,90 @@ function resolveBuiltInOutlineMeshTarget(mesh: Mesh): undefined | VrmOutlineMesh
   }
 }
 
+// Runtime target scan
+function getVrmOutlineRuntimeState(vrm: VRM) {
+  return vrmOutlineRuntimeRegistry.get(vrm)
+}
+
 function setVrmOutlineRuntimeState(vrm: VRM, state: VrmOutlineRuntimeState) {
   vrmOutlineRuntimeRegistry.set(vrm, state)
 }
 
-function writeNormalizedVector(target: Float32Array, vertexIndex: number, x: number, y: number, z: number) {
-  const lengthSq = x * x + y * y + z * z
-  const base = vertexIndex * 3
+function clearVrmOutlineRuntime(vrm: VRM) {
+  vrmOutlineRuntimeRegistry.delete(vrm)
+}
 
-  if (lengthSq <= ZERO_VECTOR_EPSILON) {
-    target[base] = 0
-    target[base + 1] = 1
-    target[base + 2] = 0
+function findVrmOutlineMeshTarget({
+  material,
+  materialIndex,
+  mesh,
+  vrm,
+}: Pick<VrmMaterialHookContext, 'material' | 'materialIndex' | 'mesh' | 'vrm'>) {
+  const runtimeState = getVrmOutlineRuntimeState(vrm)
+  if (!runtimeState)
+    return undefined
+
+  return runtimeState.meshes.find(target =>
+    target.mesh === mesh
+    && target.surfaceMaterial === material
+    && target.surfaceMaterialIndex === materialIndex,
+  )
+}
+
+export function prepareVrmOutlineRuntime(vrm: VRM) {
+  const meshTargets: VrmOutlineMeshTarget[] = []
+
+  vrm.scene.traverse((object) => {
+    if (!(object instanceof Mesh)) {
+      return
+    }
+
+    const meshTarget = resolveBuiltInOutlineMeshTarget(object)
+    if (!meshTarget) {
+      return
+    }
+
+    ensureOutlineNormalAttribute(meshTarget.geometry)
+    meshTargets.push(meshTarget)
+  })
+
+  setVrmOutlineRuntimeState(vrm, { meshes: meshTargets })
+}
+
+export function disposeVrmOutlineRuntime(vrm?: VRM) {
+  if (!vrm)
     return
-  }
 
-  const inverseLength = 1 / Math.sqrt(lengthSq)
-  target[base] = x * inverseLength
-  target[base + 1] = y * inverseLength
-  target[base + 2] = z * inverseLength
+  clearVrmOutlineRuntime(vrm)
+}
+
+export function createVrmOutlineHook(): VrmHook {
+  return {
+    onDispose({ vrm }) {
+      disposeVrmOutlineRuntime(vrm)
+    },
+    onLoad({ vrm }) {
+      prepareVrmOutlineRuntime(vrm)
+    },
+    onMaterial(context) {
+      const { material } = context
+
+      if (!isMToonMaterial(material) || material.isOutline === true)
+        return
+
+      const meshTarget = findVrmOutlineMeshTarget(context)
+      if (!meshTarget)
+        return
+
+      if (!meshTarget.geometry.getAttribute(AIRI_OUTLINE_NORMAL_ATTRIBUTE_NAME)) {
+        console.warn(
+          '[AIRI] Failed to patch built-in MToon outline shader: outlineNormal is missing on geometry.',
+          meshTarget.mesh.name,
+        )
+        return
+      }
+
+      patchBuiltInOutlineMaterial(meshTarget.builtInOutlineMaterial)
+    },
+  }
 }

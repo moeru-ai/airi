@@ -20,10 +20,10 @@ export function registerDbPoolGauge(
     const idle = pool.idleCount
     const used = total - idle
     const counts = {
-      idle,
       max: pool.options.max ?? 10,
       total,
       used,
+      idle,
       waiting: pool.waitingCount,
     }
 

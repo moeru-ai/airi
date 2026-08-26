@@ -17,9 +17,9 @@ export async function configureProvider(runtime: AudioInputSession, provider: Pr
 
     credentials[configuredProvider.id] = configuredProvider.config
     configured[configuredProvider.id] = {
-      config: configuredProvider.config,
-      definitionId: configuredProvider.definitionId,
       id: configuredProvider.id,
+      definitionId: configuredProvider.definitionId,
+      config: configuredProvider.config,
       status: 'configured',
     }
     added[configuredProvider.id] = true

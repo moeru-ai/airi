@@ -70,8 +70,8 @@ export async function handleLoopStep(
       // Dynamic history injection: Fetch last 10 messages from DB
       const dbMessages = await getRecentMessages(chatCtx.channelId, 10)
       const llmMessages: LLMMessage[] = dbMessages.map(m => ({
-        content: m.content,
         role: m.userId === chatCtx.selfId ? 'assistant' : 'user',
+        content: m.content,
       }))
 
       const actionPayload = await imagineAnAction(
@@ -79,8 +79,8 @@ export async function handleLoopStep(
         llmMessages,
         chatCtx?.actions || [],
         {
-          incomingEvents: currentIncoming ? [currentIncoming] : [],
           unreadEvents: ctx.unreadEvents,
+          incomingEvents: currentIncoming ? [currentIncoming] : [],
         },
       )
 
@@ -127,14 +127,6 @@ export async function loopIterationForChannel(
 ) {
   // Directly await the loop process
   await handleLoopStep(bot, satoriClient, chatContext, incomingEvent)
-}
-
-/**
- * Start the periodic loop
- * Begins the recursive periodic processing of channels with unread messages
- */
-export function startPeriodicLoop(botCtx: BotContext, satoriClient: SatoriClient) {
-  loopPeriodic(botCtx, satoriClient)
 }
 
 /**
@@ -208,6 +200,14 @@ function loopPeriodic(botCtx: BotContext, satoriClient: SatoriClient) {
   }, PERIODIC_LOOP_INTERVAL_MS)
 }
 
+/**
+ * Start the periodic loop
+ * Begins the recursive periodic processing of channels with unread messages
+ */
+export function startPeriodicLoop(botCtx: BotContext, satoriClient: SatoriClient) {
+  loopPeriodic(botCtx, satoriClient)
+}
+
 let isQueueConsumerRunning = false
 
 /**
@@ -267,9 +267,9 @@ export async function onMessageArrival(
         botContext.logger
           .withFields({
             channelId: chatCtx.channelId,
-            messageId: currMsg.event.id,
-            selfId: chatCtx.selfId,
             sourceUserId: currMsg.event.user?.id || currMsg.event.member?.user?.id,
+            selfId: chatCtx.selfId,
+            messageId: currMsg.event.id,
           })
           .debug('[DEBUG] Skipping bot\'s own event in unreadEvents - filtered out')
         botContext.eventQueue.shift()
@@ -294,7 +294,7 @@ export async function onMessageArrival(
       }
 
       const unreadEventId = await pushToUnreadEvents(chatCtx.channelId, currMsg.event)
-      unreadEventsForThisChannel.push({ event: currMsg.event, id: unreadEventId })
+      unreadEventsForThisChannel.push({ id: unreadEventId, event: currMsg.event })
 
       if (unreadEventsForThisChannel.length > MAX_UNREAD_EVENTS) {
         unreadEventsForThisChannel = unreadEventsForThisChannel.slice(-MAX_UNREAD_EVENTS)

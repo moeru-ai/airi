@@ -13,11 +13,39 @@ import type { DetectorMode, DetectorState } from './types'
 export const DEFAULT_SLOT_MS = 20
 
 export interface ProcessDetectorInput {
+  readonly threshold: number
+  readonly windowMs: number
   readonly mode: DetectorMode
   readonly nowMs: number
   readonly slotMs?: number
-  readonly threshold: number
-  readonly windowMs: number
+}
+
+/**
+ * Create a new detector state with empty counts
+ * @param windowSlots Number of slots in the sliding window
+ * @param nowMs Current timestamp (for pure function compliance)
+ */
+export function createDetectorState(windowSlots: number, nowMs: number = Date.now()): DetectorState {
+  return Object.freeze({
+    counts: Object.freeze(Array.from<number>({ length: windowSlots }).fill(0)),
+    head: 0,
+    total: 0,
+    lastUpdateMs: nowMs,
+    lastFireSlot: null,
+  })
+}
+
+/**
+ * Calculate how many slots have passed since last update
+ */
+export function calculateSlotDelta(
+  lastUpdateMs: number,
+  nowMs: number,
+  slotMs: number,
+): number {
+  const lastSlot = Math.floor(lastUpdateMs / slotMs)
+  const currentSlot = Math.floor(nowMs / slotMs)
+  return currentSlot - lastSlot
 }
 
 /**
@@ -60,47 +88,9 @@ export function advanceSlots(
   return Object.freeze({
     counts: Object.freeze(newCounts),
     head: newHead,
-    lastFireSlot: state.lastFireSlot,
-    lastUpdateMs: state.lastUpdateMs + slotsToAdvance * slotMs,
     total: newTotal,
-  })
-}
-
-/**
- * Calculate how many slots have passed since last update
- */
-export function calculateSlotDelta(
-  lastUpdateMs: number,
-  nowMs: number,
-  slotMs: number,
-): number {
-  const lastSlot = Math.floor(lastUpdateMs / slotMs)
-  const currentSlot = Math.floor(nowMs / slotMs)
-  return currentSlot - lastSlot
-}
-
-/**
- * Calculate number of slots for a given window duration
- */
-export function calculateWindowSlots(
-  windowMs: number,
-  slotMs: number = DEFAULT_SLOT_MS,
-): number {
-  return Math.max(1, Math.ceil(windowMs / slotMs))
-}
-
-/**
- * Create a new detector state with empty counts
- * @param windowSlots Number of slots in the sliding window
- * @param nowMs Current timestamp (for pure function compliance)
- */
-export function createDetectorState(windowSlots: number, nowMs: number = Date.now()): DetectorState {
-  return Object.freeze({
-    counts: Object.freeze(Array.from<number>({ length: windowSlots }).fill(0)),
-    head: 0,
-    lastFireSlot: null,
-    lastUpdateMs: nowMs,
-    total: 0,
+    lastUpdateMs: state.lastUpdateMs + slotsToAdvance * slotMs,
+    lastFireSlot: state.lastFireSlot,
   })
 }
 
@@ -117,47 +107,10 @@ export function incrementCount(
   return Object.freeze({
     counts: Object.freeze(newCounts),
     head: state.head,
-    lastFireSlot: state.lastFireSlot,
-    lastUpdateMs: state.lastUpdateMs,
     total: state.total + incrementBy,
+    lastUpdateMs: state.lastUpdateMs,
+    lastFireSlot: state.lastFireSlot,
   })
-}
-
-/**
- * Parse window duration string to milliseconds
- * Supports: '2s', '500ms', '1m', '100'
- */
-export function parseWindowDuration(duration: string): number {
-  const match = duration.match(/^(\d+(?:\.\d+)?)(ms|s|m)?$/)
-  if (!match) {
-    throw new Error(`Invalid duration format: ${duration}`)
-  }
-
-  const value = Number.parseFloat(match[1])
-  const unit = match[2] || 'ms'
-
-  switch (unit) {
-    case 'm': return value * 60 * 1000
-    case 'ms': return value
-    case 's': return value * 1000
-    default: return value
-  }
-}
-
-/**
- * Process an event and check if threshold is reached (pure function)
- *
- * Returns [shouldFire, newState]
- */
-export function processEvent(
-  state: DetectorState,
-  input: ProcessDetectorInput,
-): readonly [boolean, DetectorState] {
-  if (input.mode === 'tumbling') {
-    return processTumblingEvent(state, input)
-  }
-
-  return processSlidingEvent(state, input)
 }
 
 /**
@@ -172,9 +125,26 @@ export function resetAfterFire(
   return Object.freeze({
     counts: Object.freeze(Array.from<number>({ length: windowSize }).fill(0)),
     head: state.head,
-    lastFireSlot: currentSlot,
-    lastUpdateMs: state.lastUpdateMs,
     total: 0,
+    lastUpdateMs: state.lastUpdateMs,
+    lastFireSlot: currentSlot,
+  })
+}
+
+/**
+ * Reset detector counts when entering a new tumbling window.
+ * Preserves lastFireSlot so once-per-window checks still work.
+ */
+function resetForNewWindow(
+  state: DetectorState,
+  nowMs: number,
+): DetectorState {
+  return Object.freeze({
+    counts: Object.freeze(Array.from<number>({ length: state.counts.length }).fill(0)),
+    head: 0,
+    total: 0,
+    lastUpdateMs: nowMs,
+    lastFireSlot: state.lastFireSlot,
   })
 }
 
@@ -234,18 +204,48 @@ function processTumblingEvent(
 }
 
 /**
- * Reset detector counts when entering a new tumbling window.
- * Preserves lastFireSlot so once-per-window checks still work.
+ * Process an event and check if threshold is reached (pure function)
+ *
+ * Returns [shouldFire, newState]
  */
-function resetForNewWindow(
+export function processEvent(
   state: DetectorState,
-  nowMs: number,
-): DetectorState {
-  return Object.freeze({
-    counts: Object.freeze(Array.from<number>({ length: state.counts.length }).fill(0)),
-    head: 0,
-    lastFireSlot: state.lastFireSlot,
-    lastUpdateMs: nowMs,
-    total: 0,
-  })
+  input: ProcessDetectorInput,
+): readonly [boolean, DetectorState] {
+  if (input.mode === 'tumbling') {
+    return processTumblingEvent(state, input)
+  }
+
+  return processSlidingEvent(state, input)
+}
+
+/**
+ * Parse window duration string to milliseconds
+ * Supports: '2s', '500ms', '1m', '100'
+ */
+export function parseWindowDuration(duration: string): number {
+  const match = duration.match(/^(\d+(?:\.\d+)?)(ms|s|m)?$/)
+  if (!match) {
+    throw new Error(`Invalid duration format: ${duration}`)
+  }
+
+  const value = Number.parseFloat(match[1])
+  const unit = match[2] || 'ms'
+
+  switch (unit) {
+    case 'ms': return value
+    case 's': return value * 1000
+    case 'm': return value * 60 * 1000
+    default: return value
+  }
+}
+
+/**
+ * Calculate number of slots for a given window duration
+ */
+export function calculateWindowSlots(
+  windowMs: number,
+  slotMs: number = DEFAULT_SLOT_MS,
+): number {
+  return Math.max(1, Math.ceil(windowMs / slotMs))
 }

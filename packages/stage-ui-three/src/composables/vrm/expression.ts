@@ -3,17 +3,17 @@ import type { VRMCore } from '@pixiv/three-vrm-core'
 import { ref } from 'vue'
 
 interface EmotionState {
-  blendDuration?: number
   expression?: {
-    curve?: (t: number) => number
-    duration?: number
     name: string
     value: number
+    duration?: number
+    curve?: (t: number) => number
   }[]
+  blendDuration?: number
 }
 
 export function useVRMEmote(vrm: VRMCore) {
-  const currentEmotion = ref<null | string>(null)
+  const currentEmotion = ref<string | null>(null)
   const isTransitioning = ref(false)
   const transitionProgress = ref(0)
   const currentExpressionValues = ref(new Map<string, number>())
@@ -38,51 +38,51 @@ export function useVRMEmote(vrm: VRMCore) {
   // Using slightly lower values (0.7–0.8) for primary expressions to
   // prevent the "too raw / smiles too much" problem reported in #590.
   const emotionStates = new Map<string, EmotionState>([
-    ['angry', {
-      blendDuration: 0.3,
-      expression: [
-        { name: 'angry', value: 0.7 },
-        { name: 'ee', value: 0.3 },
-      ],
-    }],
     ['happy', {
-      blendDuration: 0.4,
       expression: [
-        { duration: 0.3, name: 'happy', value: 0.7 },
+        { name: 'happy', value: 0.7, duration: 0.3 },
         { name: 'aa', value: 0.2 },
       ],
-    }],
-    ['neutral', {
-      blendDuration: 0.6,
-      expression: [
-        { name: 'neutral', value: 1.0 },
-      ],
-    }],
-    ['relaxed', {
       blendDuration: 0.4,
-      expression: [
-        { name: 'relaxed', value: 0.7 },
-      ],
     }],
     ['sad', {
-      blendDuration: 0.4,
       expression: [
         { name: 'sad', value: 0.7 },
         { name: 'oh', value: 0.15 },
       ],
+      blendDuration: 0.4,
+    }],
+    ['angry', {
+      expression: [
+        { name: 'angry', value: 0.7 },
+        { name: 'ee', value: 0.3 },
+      ],
+      blendDuration: 0.3,
     }],
     ['surprised', {
-      blendDuration: 0.15,
       expression: [
         { name: 'surprised', value: 0.8 },
         { name: 'oh', value: 0.4 },
       ],
+      blendDuration: 0.15,
+    }],
+    ['neutral', {
+      expression: [
+        { name: 'neutral', value: 1.0 },
+      ],
+      blendDuration: 0.6,
     }],
     ['think', {
-      blendDuration: 0.5,
       expression: [
         { name: 'think', value: 0.7 },
       ],
+      blendDuration: 0.5,
+    }],
+    ['relaxed', {
+      expression: [
+        { name: 'relaxed', value: 0.7 },
+      ],
+      blendDuration: 0.4,
     }],
   ])
 
@@ -189,13 +189,13 @@ export function useVRMEmote(vrm: VRMCore) {
   }
 
   return {
-    addEmotionState,
     currentEmotion,
-    dispose,
     isTransitioning,
-    removeEmotionState,
     setEmotion,
     setEmotionWithResetAfter,
     update,
+    addEmotionState,
+    removeEmotionState,
+    dispose,
   }
 }

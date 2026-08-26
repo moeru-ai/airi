@@ -4,6 +4,28 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { OPFSCache } from './opfs-loader'
 
+class MemoryFileHandle {
+  kind = 'file' as const
+  private content: Blob = new Blob()
+
+  constructor(public readonly name: string) {}
+
+  async getFile(): Promise<File> {
+    return new File([this.content], this.name)
+  }
+
+  async createWritable(): Promise<{ write: (content: Blob | string) => Promise<void>, close: () => Promise<void> }> {
+    return {
+      write: async (content: Blob | string) => {
+        this.content = typeof content === 'string'
+          ? new Blob([content])
+          : content
+      },
+      close: async () => {},
+    }
+  }
+}
+
 type MemoryHandle = MemoryDirectoryHandle | MemoryFileHandle
 
 class MemoryDirectoryHandle {
@@ -50,28 +72,6 @@ class MemoryDirectoryHandle {
   }
 }
 
-class MemoryFileHandle {
-  kind = 'file' as const
-  private content: Blob = new Blob()
-
-  constructor(public readonly name: string) {}
-
-  async createWritable(): Promise<{ close: () => Promise<void>, write: (content: Blob | string) => Promise<void> }> {
-    return {
-      close: async () => {},
-      write: async (content: Blob | string) => {
-        this.content = typeof content === 'string'
-          ? new Blob([content])
-          : content
-      },
-    }
-  }
-
-  async getFile(): Promise<File> {
-    return new File([this.content], this.name)
-  }
-}
-
 function blobFromBytes(data: Uint8Array): Blob {
   const buffer = new ArrayBuffer(data.byteLength)
   new Uint8Array(buffer).set(data)
@@ -87,10 +87,6 @@ async function createZip(entries: Record<string, Blob | string | Uint8Array>): P
 
   const data = await zip.generateAsync({ type: 'uint8array' })
   return new Blob([await blobFromBytes(data).arrayBuffer()], { type: 'application/zip' })
-}
-
-function filePaths(files: File[]): string[] {
-  return files.map(file => file.webkitRelativePath).sort()
 }
 
 function installMemoryOPFS(root = new MemoryDirectoryHandle('root')): MemoryDirectoryHandle {
@@ -111,6 +107,10 @@ async function writeLegacyCache(root: MemoryDirectoryHandle, key: string): Promi
   )
 }
 
+function filePaths(files: File[]): string[] {
+  return files.map(file => file.webkitRelativePath).sort()
+}
+
 describe('opfs cache full directory persistence', () => {
   let root: MemoryDirectoryHandle
 
@@ -124,15 +124,15 @@ describe('opfs cache full directory persistence', () => {
 
   it('saves every zip entry and restores webkitRelativePath from the physical OPFS directory', async () => {
     const zipBlob = await createZip({
-      '._model.moc3': new Uint8Array([0, 5, 22, 7, 0, 2, 0, 0]),
       '__MACOSX/._model.model3.json': new Uint8Array([0, 5, 22, 7, 0, 2, 0, 0]),
-      'extra/readme.txt': 'kept from original archive',
-      'model.moc3': new Uint8Array([77, 79, 67, 51]),
+      '._model.moc3': new Uint8Array([0, 5, 22, 7, 0, 2, 0, 0]),
       'model.model3.json': JSON.stringify({
-        FileReferences: { Moc: 'model.moc3', Textures: ['textures/texture_00.png'] },
         Version: 3,
+        FileReferences: { Moc: 'model.moc3', Textures: ['textures/texture_00.png'] },
       }),
+      'model.moc3': new Uint8Array([77, 79, 67, 51]),
       'textures/texture_00.png': new Uint8Array([1, 2, 3]),
+      'extra/readme.txt': 'kept from original archive',
     })
 
     await OPFSCache.save('live2d-model', zipBlob, 'blob:first')
@@ -159,8 +159,8 @@ describe('opfs cache full directory persistence', () => {
       dir as unknown as FileSystemDirectoryHandle,
       'model.model3.json',
       JSON.stringify({
-        FileReferences: { Moc: 'model.moc3', Textures: ['texture.png'] },
         Version: 3,
+        FileReferences: { Moc: 'model.moc3', Textures: ['texture.png'] },
       }),
     )
     await OPFSCache.writeFile(
@@ -178,15 +178,15 @@ describe('opfs cache full directory persistence', () => {
   it('keeps the original model3.json text without reconstructing or double-encoding paths', async () => {
     const encodedMoc = encodeURI('八千代辉夜姬.moc3')
     const settingsText = JSON.stringify({
+      Version: 3,
       FileReferences: {
         Moc: encodedMoc,
         Textures: ['textures/texture_00.png'],
       },
-      Version: 3,
     })
     const zipBlob = await createZip({
-      [encodedMoc]: new Uint8Array([77, 79, 67, 51]),
       'model.model3.json': settingsText,
+      [encodedMoc]: new Uint8Array([77, 79, 67, 51]),
       'textures/texture_00.png': new Uint8Array([1, 2, 3]),
     })
 
@@ -211,11 +211,11 @@ describe('opfs cache full directory persistence', () => {
   it('invalidates non-blob URL cache entries when the source URL changes', async () => {
     const zipBlob = await createZip({
       '__MACOSX/._model.model3.json': new Uint8Array([0, 5, 22, 7, 0, 2, 0, 0]),
-      'model.moc3': new Uint8Array([77, 79, 67, 51]),
       'model.model3.json': JSON.stringify({
-        FileReferences: { Moc: 'model.moc3', Textures: ['texture.png'] },
         Version: 3,
+        FileReferences: { Moc: 'model.moc3', Textures: ['texture.png'] },
       }),
+      'model.moc3': new Uint8Array([77, 79, 67, 51]),
       'texture.png': new Uint8Array([1, 2, 3]),
     })
 
@@ -228,11 +228,11 @@ describe('opfs cache full directory persistence', () => {
 
   it('does not invalidate blob URL cache entries when the stable model key matches', async () => {
     const zipBlob = await createZip({
-      'model.moc3': new Uint8Array([77, 79, 67, 51]),
       'model.model3.json': JSON.stringify({
-        FileReferences: { Moc: 'model.moc3', Textures: ['texture.png'] },
         Version: 3,
+        FileReferences: { Moc: 'model.moc3', Textures: ['texture.png'] },
       }),
+      'model.moc3': new Uint8Array([77, 79, 67, 51]),
       'texture.png': new Uint8Array([1, 2, 3]),
     })
 
@@ -249,13 +249,13 @@ describe('opfs cache full directory persistence', () => {
 
   it('reads an asar file response through arrayBuffer when Response.blob fails', async () => {
     const zipBlob = await createZip({
-      'model.moc3': new Uint8Array([77, 79, 67, 51]),
       'model.model3.json': JSON.stringify({
-        FileReferences: { Moc: 'model.moc3', Textures: ['texture.png'] },
         Version: 3,
+        FileReferences: { Moc: 'model.moc3', Textures: ['texture.png'] },
       }),
-      'not-defined-by-settings.txt': 'still cached',
+      'model.moc3': new Uint8Array([77, 79, 67, 51]),
       'texture.png': new Uint8Array([1, 2, 3]),
+      'not-defined-by-settings.txt': 'still cached',
     })
     const responseBlob = vi.fn(async () => {
       throw new TypeError('Failed to fetch')

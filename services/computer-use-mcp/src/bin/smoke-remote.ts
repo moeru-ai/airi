@@ -8,10 +8,34 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const WHITESPACE_SPLIT_RE = /\s+/
 
+function parseCommandArgs(raw: string | undefined, fallback: string[]) {
+  if (!raw?.trim()) {
+    return fallback
+  }
+
+  return raw
+    .split(WHITESPACE_SPLIT_RE)
+    .map(item => item.trim())
+    .filter(Boolean)
+}
+
+function requireStructuredContent(result: unknown, label: string) {
+  if (!result || typeof result !== 'object') {
+    throw new Error(`${label} did not return an object result`)
+  }
+
+  const structuredContent = (result as { structuredContent?: unknown }).structuredContent
+  if (!structuredContent || typeof structuredContent !== 'object') {
+    throw new Error(`${label} missing structuredContent`)
+  }
+
+  return structuredContent as Record<string, unknown>
+}
+
 async function approveFirstPending(client: Client, label: string) {
   const pending = await client.callTool({
-    arguments: {},
     name: 'desktop_list_pending_actions',
+    arguments: {},
   })
   const pendingData = requireStructuredContent(pending, label)
   const pendingActions = Array.isArray(pendingData.pendingActions) ? pendingData.pendingActions : []
@@ -25,13 +49,13 @@ async function approveFirstPending(client: Client, label: string) {
   }
 
   const approved = await client.callTool({
-    arguments: { id },
     name: 'desktop_approve_pending_action',
+    arguments: { id },
   })
 
   return {
-    approved: requireStructuredContent(approved, 'desktop_approve_pending_action'),
     id,
+    approved: requireStructuredContent(approved, 'desktop_approve_pending_action'),
   }
 }
 
@@ -41,16 +65,16 @@ async function main() {
   const cwd = env.COMPUTER_USE_SMOKE_SERVER_CWD?.trim() || packageDir
 
   const transport = new StdioClientTransport({
-    args,
     command,
+    args,
     cwd,
     env: {
       ...env,
-      COMPUTER_USE_ALLOWED_BOUNDS: env.COMPUTER_USE_SMOKE_ALLOWED_BOUNDS || '0,0,1280,720',
-      COMPUTER_USE_APPROVAL_MODE: env.COMPUTER_USE_SMOKE_APPROVAL_MODE || 'actions',
-      COMPUTER_USE_ENABLE_TEST_TOOLS: 'true',
       COMPUTER_USE_EXECUTOR: 'linux-x11',
+      COMPUTER_USE_APPROVAL_MODE: env.COMPUTER_USE_SMOKE_APPROVAL_MODE || 'actions',
       COMPUTER_USE_SESSION_TAG: env.COMPUTER_USE_SMOKE_SESSION_TAG || 'azure-remote-smoke',
+      COMPUTER_USE_ALLOWED_BOUNDS: env.COMPUTER_USE_SMOKE_ALLOWED_BOUNDS || '0,0,1280,720',
+      COMPUTER_USE_ENABLE_TEST_TOOLS: 'true',
     },
     stderr: 'pipe',
   })
@@ -87,8 +111,8 @@ async function main() {
     }
 
     const capabilities = await client.callTool({
-      arguments: {},
       name: 'desktop_get_capabilities',
+      arguments: {},
     })
     const capabilitiesData = requireStructuredContent(capabilities, 'desktop_get_capabilities')
     const executionTarget = capabilitiesData.executionTarget as Record<string, unknown> | undefined
@@ -97,8 +121,8 @@ async function main() {
     }
 
     const opened = await client.callTool({
-      arguments: {},
       name: 'desktop_open_test_target',
+      arguments: {},
     })
     const openedData = requireStructuredContent(opened, 'desktop_open_test_target')
     const point = openedData.recommendedClickPoint as Record<string, unknown> | undefined
@@ -107,20 +131,20 @@ async function main() {
     }
 
     const screenshotBefore = await client.callTool({
+      name: 'desktop_screenshot',
       arguments: {
         label: 'remote-smoke-before',
       },
-      name: 'desktop_screenshot',
     })
     const screenshotBeforeData = requireStructuredContent(screenshotBefore, 'desktop_screenshot before')
 
     const click = await client.callTool({
+      name: 'desktop_click',
       arguments: {
-        captureAfter: false,
         x: point.x,
         y: point.y,
+        captureAfter: false,
       },
-      name: 'desktop_click',
     })
     const clickData = requireStructuredContent(click, 'desktop_click')
     if (clickData.status !== 'approval_required') {
@@ -133,12 +157,12 @@ async function main() {
     }
 
     const typeText = await client.callTool({
-      arguments: {
-        captureAfter: true,
-        pressEnter: false,
-        text: 'AIRI remote linux-x11 smoke',
-      },
       name: 'desktop_type_text',
+      arguments: {
+        text: 'AIRI remote linux-x11 smoke',
+        pressEnter: false,
+        captureAfter: true,
+      },
     })
     const typeTextData = requireStructuredContent(typeText, 'desktop_type_text')
     if (typeTextData.status !== 'approval_required') {
@@ -151,10 +175,10 @@ async function main() {
     }
 
     const waited = await client.callTool({
+      name: 'desktop_wait',
       arguments: {
         durationMs: 500,
       },
-      name: 'desktop_wait',
     })
     const waitedData = requireStructuredContent(waited, 'desktop_wait')
     if (waitedData.status !== 'executed') {
@@ -162,16 +186,24 @@ async function main() {
     }
 
     const screenshotAfter = await client.callTool({
+      name: 'desktop_screenshot',
       arguments: {
         label: 'remote-smoke-after',
       },
-      name: 'desktop_screenshot',
     })
     const screenshotAfterData = requireStructuredContent(screenshotAfter, 'desktop_screenshot after')
 
     console.info(JSON.stringify({
       ok: true,
       verified: {
+        toolCount: tools.tools.length,
+        executionTarget,
+        openedTarget: {
+          appName: openedData.appName,
+          windowTitle: openedData.windowTitle,
+          recommendedClickPoint: openedData.recommendedClickPoint,
+        },
+        screenshotBefore: screenshotBeforeData.screenshot,
         approvedClick: {
           id: approvedClick.id,
           status: approvedClick.approved.status,
@@ -180,46 +212,14 @@ async function main() {
           id: approvedTypeText.id,
           status: approvedTypeText.approved.status,
         },
-        executionTarget,
-        openedTarget: {
-          appName: openedData.appName,
-          recommendedClickPoint: openedData.recommendedClickPoint,
-          windowTitle: openedData.windowTitle,
-        },
-        screenshotAfter: screenshotAfterData.screenshot,
-        screenshotBefore: screenshotBeforeData.screenshot,
-        toolCount: tools.tools.length,
         waited: waitedData.status,
+        screenshotAfter: screenshotAfterData.screenshot,
       },
     }, null, 2))
   }
   finally {
     await client.close().catch(() => {})
   }
-}
-
-function parseCommandArgs(raw: string | undefined, fallback: string[]) {
-  if (!raw?.trim()) {
-    return fallback
-  }
-
-  return raw
-    .split(WHITESPACE_SPLIT_RE)
-    .map(item => item.trim())
-    .filter(Boolean)
-}
-
-function requireStructuredContent(result: unknown, label: string) {
-  if (!result || typeof result !== 'object') {
-    throw new Error(`${label} did not return an object result`)
-  }
-
-  const structuredContent = (result as { structuredContent?: unknown }).structuredContent
-  if (!structuredContent || typeof structuredContent !== 'object') {
-    throw new Error(`${label} missing structuredContent`)
-  }
-
-  return structuredContent as Record<string, unknown>
 }
 
 main().catch((error) => {

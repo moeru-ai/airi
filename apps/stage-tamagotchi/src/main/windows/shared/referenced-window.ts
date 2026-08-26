@@ -12,15 +12,15 @@ import { ipcMain } from 'electron'
 import { setupBaseWindowElectronInvokes } from './window'
 
 export interface ReferencedWindowHandle {
-  context: ReturnType<typeof createContext>['context']
-  eventa: ReturnType<typeof createRequestWindowEventa>
   id: string
   window: BrowserWindow
+  context: ReturnType<typeof createContext>['context']
+  eventa: ReturnType<typeof createRequestWindowEventa>
 }
 
 export interface ReferencedWindowManager<Payload extends RequestWindowPayload = RequestWindowPayload> {
-  close: (id: string) => void
   open: (payload: Payload & { id?: string }) => Promise<ReferencedWindowHandle>
+  close: (id: string) => void
 }
 
 /**
@@ -29,13 +29,13 @@ export interface ReferencedWindowManager<Payload extends RequestWindowPayload = 
  * callers can register their own action handlers.
  */
 export function createReferencedWindowManager<Payload extends RequestWindowPayload = RequestWindowPayload>(params: {
-  createWindow: (id: string) => BrowserWindow
   eventa: ReturnType<typeof createRequestWindowEventa>
   i18n: I18n
-  loadRoute: (window: BrowserWindow, payload: Payload & { id: string }) => Promise<void>
   serverChannel: ServerChannel
+  createWindow: (id: string) => BrowserWindow
+  loadRoute: (window: BrowserWindow, payload: Payload & { id: string }) => Promise<void>
 }): ReferencedWindowManager<Payload> {
-  const windows = new Map<string, { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }>()
+  const windows = new Map<string, { window: BrowserWindow, context: ReturnType<typeof createContext>['context'] }>()
 
   async function bindContext(id: string, payload: Payload, win: BrowserWindow) {
     // TODO: once we refactored eventa to support window-namespaced contexts,
@@ -47,7 +47,7 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
     defineInvokeHandler(context, params.eventa.pageMounted, (req) => {
       if (req?.id && req.id !== id)
         return undefined
-      return { id, payload: payload.payload, type: payload.type }
+      return { id, type: payload.type, payload: payload.payload }
     })
 
     defineInvokeHandler(context, params.eventa.pageUnmounted, (req) => {
@@ -56,11 +56,11 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
       windows.delete(id)
     })
 
-    await setupBaseWindowElectronInvokes({ context, i18n: params.i18n, serverChannel: params.serverChannel, window: win })
+    await setupBaseWindowElectronInvokes({ context, window: win, i18n: params.i18n, serverChannel: params.serverChannel })
 
     win.on('closed', () => windows.delete(id))
 
-    return { context, window: win }
+    return { window: win, context }
   }
 
   async function open(payload: Payload & { id?: string }): Promise<ReferencedWindowHandle> {
@@ -84,7 +84,7 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
       throw wrapped
     }
 
-    return { context: ctx.context, eventa: params.eventa, id, window: ctx.window }
+    return { id, window: ctx.window, context: ctx.context, eventa: params.eventa }
   }
 
   function close(id: string) {
@@ -96,5 +96,5 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
     windows.delete(id)
   }
 
-  return { close, open }
+  return { open, close }
 }

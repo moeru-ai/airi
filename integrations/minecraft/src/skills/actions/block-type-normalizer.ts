@@ -13,14 +13,40 @@ for (const group of BLOCK_ALIAS_GROUPS) {
 
 const ORE_BASE_TYPES = new Set([
   'coal',
-  'copper',
   'diamond',
   'emerald',
-  'gold',
   'iron',
+  'gold',
   'lapis_lazuli',
   'redstone',
+  'copper',
 ])
+
+function normalize(name: string): string {
+  return name.trim().toLowerCase()
+}
+
+function expandStrictBlockAliases(name: string): string[] {
+  if (typeof name !== 'string')
+    return []
+
+  const normalized = normalize(name)
+  if (!normalized)
+    return []
+
+  const result = new Set<string>()
+
+  const aliases = aliasLookup.get(normalized)
+  if (aliases) {
+    for (const a of aliases)
+      result.add(a)
+  }
+  else {
+    result.add(normalized)
+  }
+
+  return [...result]
+}
 
 export function expandCollectibleBlockAliases(name: string): string[] {
   const strictAliases = expandStrictBlockAliases(name)
@@ -53,30 +79,4 @@ export function matchesBlockAlias(expected: string, actual: string): boolean {
 
   const actualNormalized = normalize(actual)
   return expectedAliases.includes(actualNormalized)
-}
-
-function expandStrictBlockAliases(name: string): string[] {
-  if (typeof name !== 'string')
-    return []
-
-  const normalized = normalize(name)
-  if (!normalized)
-    return []
-
-  const result = new Set<string>()
-
-  const aliases = aliasLookup.get(normalized)
-  if (aliases) {
-    for (const a of aliases)
-      result.add(a)
-  }
-  else {
-    result.add(normalized)
-  }
-
-  return [...result]
-}
-
-function normalize(name: string): string {
-  return name.trim().toLowerCase()
 }

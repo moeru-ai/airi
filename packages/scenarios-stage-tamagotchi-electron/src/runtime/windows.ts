@@ -5,13 +5,13 @@ const stageWindowActivationDelayMs = 750
 const stageWindowClassificationLoadStateTimeoutMs = 500
 const mainWindowReadyIconSelector = '[i-solar\\:alt-arrow-up-line-duotone]'
 
-export type StageWindowName = 'chat' | 'main' | 'settings'
+export type StageWindowName = 'main' | 'settings' | 'chat'
 
 export interface StageWindowSnapshot {
   name: StageWindowName
   page: Page
-  route: string
   title: string
+  route: string
 }
 
 export async function snapshotStageWindows(electronApp: ElectronApplication): Promise<StageWindowSnapshot[]> {
@@ -43,7 +43,18 @@ export async function waitForStageWindow(electronApp: ElectronApplication, name:
   throw new Error(`Timed out waiting for "${name}" window`)
 }
 
-async function classifyWindow(page: Page): Promise<null | StageWindowSnapshot> {
+async function inferRoute(page: Page): Promise<string> {
+  const url = page.url()
+  const hashIndex = url.indexOf('#')
+  if (hashIndex === -1) {
+    return ''
+  }
+
+  const hash = url.slice(hashIndex + 1)
+  return hash.length > 0 ? hash : '/'
+}
+
+async function classifyWindow(page: Page): Promise<StageWindowSnapshot | null> {
   await page.waitForLoadState('domcontentloaded', { timeout: stageWindowClassificationLoadStateTimeoutMs }).catch(() => undefined)
 
   const title = await page.title()
@@ -55,11 +66,11 @@ async function classifyWindow(page: Page): Promise<null | StageWindowSnapshot> {
   }
 
   if (route === '/chat' || title === 'Chat') {
-    return { name: 'chat', page, route, title }
+    return { name: 'chat', page, title, route }
   }
 
   if (route.startsWith('/settings') || title === 'Settings') {
-    return { name: 'settings', page, route, title }
+    return { name: 'settings', page, title, route }
   }
 
   if (route.startsWith('/onboarding') || title === 'Welcome to AIRI') {
@@ -69,7 +80,7 @@ async function classifyWindow(page: Page): Promise<null | StageWindowSnapshot> {
   const mainControlsVisible = await page.locator(mainWindowReadyIconSelector).first().isVisible().catch(() => false)
 
   if ((route === '/' || title === 'AIRI') && mainControlsVisible) {
-    return { name: 'main', page, route, title }
+    return { name: 'main', page, title, route }
   }
 
   const bodyText = await page.locator('body').textContent().catch(() => '') || ''
@@ -78,23 +89,12 @@ async function classifyWindow(page: Page): Promise<null | StageWindowSnapshot> {
   }
 
   if (bodyText.includes('Chat')) {
-    return { name: 'chat', page, route, title }
+    return { name: 'chat', page, title, route }
   }
 
   if (mainControlsVisible || bodyText.includes('Fade on Hover') || bodyText.includes('Open WebSocket settings')) {
-    return { name: 'main', page, route, title }
+    return { name: 'main', page, title, route }
   }
 
   return null
-}
-
-async function inferRoute(page: Page): Promise<string> {
-  const url = page.url()
-  const hashIndex = url.indexOf('#')
-  if (hashIndex === -1) {
-    return ''
-  }
-
-  const hash = url.slice(hashIndex + 1)
-  return hash.length > 0 ? hash : '/'
 }

@@ -26,10 +26,10 @@ import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export async function setupDesktopOverlayElectronInvokes(params: {
-  i18n: I18n
+  window: BrowserWindow
   mcpStdioManager: McpStdioManager
   serverChannel: ServerChannel
-  window: BrowserWindow
+  i18n: I18n
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -45,14 +45,14 @@ export async function setupDesktopOverlayElectronInvokes(params: {
   })
 
   try {
-    await setupBaseWindowElectronInvokes({ context, i18n: params.i18n, serverChannel: params.serverChannel, window: params.window })
+    await setupBaseWindowElectronInvokes({ context, window: params.window, i18n: params.i18n, serverChannel: params.serverChannel })
     createMcpServersService({ context, manager: params.mcpStdioManager })
     readiness = { state: 'ready' }
   }
   catch (error) {
     readiness = {
-      error: errorMessageFromValue(error),
       state: 'degraded',
+      error: errorMessageFromValue(error),
     }
     // We intentionally don't throw here so the window still opens and
     // the renderer gracefully detects the degraded state via polling.

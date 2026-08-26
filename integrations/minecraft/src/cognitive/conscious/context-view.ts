@@ -1,8 +1,8 @@
 import type { ReflexContextState } from '../reflex/context'
 
 export interface ConsciousContextView {
-  environmentSummary: string
   selfSummary: string
+  environmentSummary: string
 }
 
 export function buildConsciousContextView(ctx: ReflexContextState): ConsciousContextView {
@@ -21,7 +21,7 @@ export function buildConsciousContextView(ctx: ReflexContextState): ConsciousCon
   const environmentSummary = `${ctx.environment.time} ${ctx.environment.weather} Nearby players [${players}] Nearby entities [${entities}] Light ${ctx.environment.lightLevel}`
 
   return {
-    environmentSummary,
     selfSummary,
+    environmentSummary,
   }
 }

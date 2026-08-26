@@ -6,23 +6,23 @@ import { defineEventa } from '@moeru/eventa'
 export const widgetsIframeChannel = 'airi:widgets:ui-iframe:channel'
 
 /**
- * Structured-clone-safe envelope forwarded across the extension UI bridge.
- */
-export type WidgetsIframeEvent = Record<string, unknown>
-
-/**
  * Snapshot payload forwarded from the host to initialize one extension UI bridge consumer.
  */
 export interface WidgetsIframeInitPayload {
-  /** Structured-clone-safe config payload mirrored from the host. */
-  config: Record<string, unknown>
-  /** Current host-side module snapshot when available. */
-  module?: Record<string, unknown>
   /** Active module identifier when the host already resolved one. */
   moduleId?: string
+  /** Current host-side module snapshot when available. */
+  module?: Record<string, unknown>
+  /** Structured-clone-safe config payload mirrored from the host. */
+  config: Record<string, unknown>
   /** Structured-clone-safe runtime props mirrored from the host. */
   props: Record<string, unknown>
 }
+
+/**
+ * Structured-clone-safe envelope forwarded across the extension UI bridge.
+ */
+export type WidgetsIframeEvent = Record<string, unknown>
 
 export const widgetsIframeInitEvent = defineEventa<WidgetsIframeInitPayload>('eventa:event:widgets:ui-iframe:init')
 export const widgetsIframeReadyEvent = defineEventa<void>('eventa:event:widgets:ui-iframe:ready')

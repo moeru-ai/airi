@@ -26,48 +26,48 @@ interface DebugTarget extends DebugTargetLike {
   webSocketDebuggerUrl?: string
 }
 
+interface TimelineEntry {
+  at: string
+  event: string
+  detail?: Record<string, unknown>
+}
+
 interface ReportShape {
-  debugSnapshots: unknown[]
-  error?: string
-  final?: {
-    demoSummaryText?: string
-    lastMessageRole?: string
-    lastMessageText?: string
-    lastTurnOutput?: string
-    messageCount?: number
-    modelId?: string
-    providerConfigured?: boolean
-    providerId?: string
-    ptySessionId?: string
-    screenshotPaths?: string[]
-  }
+  startedAt: string
   finishedAt?: string
-  internalMcp: {
-    desktopState?: unknown
-    ptyStatus?: unknown
-    sessionTrace?: unknown
-    tools?: unknown
-  }
+  status: 'running' | 'completed' | 'failed'
+  prompt: string
+  reportDir: string
   paths: {
-    demoSummaryPath: string
-    mcpConfigPath: string
-    mcpSessionRoot: string
     reportPath: string
+    demoSummaryPath: string
     screenshotsDir: string
     stageLogPath: string
     userDataDir: string
+    mcpConfigPath: string
+    mcpSessionRoot: string
   }
-  prompt: string
-  reportDir: string
-  startedAt: string
-  status: 'completed' | 'failed' | 'running'
   timeline: TimelineEntry[]
-}
-
-interface TimelineEntry {
-  at: string
-  detail?: Record<string, unknown>
-  event: string
+  debugSnapshots: unknown[]
+  internalMcp: {
+    tools?: unknown
+    ptyStatus?: unknown
+    desktopState?: unknown
+    sessionTrace?: unknown
+  }
+  final?: {
+    providerConfigured?: boolean
+    providerId?: string
+    modelId?: string
+    messageCount?: number
+    lastMessageRole?: string
+    lastMessageText?: string
+    lastTurnOutput?: string
+    ptySessionId?: string
+    demoSummaryText?: string
+    screenshotPaths?: string[]
+  }
+  error?: string
 }
 
 const execFileAsync = promisify(execFile)
@@ -106,38 +106,197 @@ const mcpSessionRoot = resolve(reportDir, 'computer-use-session')
 const rootEnvPath = resolve(repoDir, '.env')
 
 const report: ReportShape = {
-  debugSnapshots: [],
-  internalMcp: {},
+  startedAt: new Date().toISOString(),
+  status: 'running',
+  prompt: promptText,
+  reportDir,
   paths: {
-    demoSummaryPath,
-    mcpConfigPath,
-    mcpSessionRoot,
     reportPath,
+    demoSummaryPath,
     screenshotsDir,
     stageLogPath,
     userDataDir,
+    mcpConfigPath,
+    mcpSessionRoot,
   },
-  prompt: promptText,
-  reportDir,
-  startedAt: new Date().toISOString(),
-  status: 'running',
   timeline: [],
+  debugSnapshots: [],
+  internalMcp: {},
+}
+
+function assert(condition: boolean, message: string): asserts condition {
+  if (!condition) {
+    throw new Error(`Assertion failed: ${message}`)
+  }
+}
+
+function addTimeline(event: string, detail?: Record<string, unknown>) {
+  report.timeline.push({
+    at: new Date().toISOString(),
+    event,
+    detail,
+  })
+}
+
+function parseDotEnv(text: string) {
+  const values: Record<string, string> = {}
+
+  for (const line of text.split(DOTENV_LINE_SPLIT_RE)) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) {
+      continue
+    }
+
+    const separatorIndex = trimmed.indexOf('=')
+    if (separatorIndex <= 0) {
+      continue
+    }
+
+    const key = trimmed.slice(0, separatorIndex).trim()
+    const rawValue = trimmed.slice(separatorIndex + 1).trim()
+    const unwrapped = rawValue.replace(QUOTED_VALUE_RE, '')
+    values[key] = unwrapped
+  }
+
+  return values
+}
+
+async function readRootEnvValues() {
+  try {
+    const raw = await readFile(rootEnvPath, 'utf-8')
+    return parseDotEnv(raw)
+  }
+  catch {
+    return {}
+  }
+}
+
+function sleep(ms: number) {
+  return new Promise(resolvePromise => setTimeout(resolvePromise, ms))
+}
+
+async function withTimeout<T>(label: string, task: Promise<T>, timeoutMs: number) {
+  let timeoutHandle: NodeJS.Timeout | undefined
+
+  try {
+    return await Promise.race([
+      task,
+      new Promise<never>((_resolvePromise, rejectPromise) => {
+        timeoutHandle = setTimeout(() => rejectPromise(new Error(`Timed out waiting for ${label}`)), timeoutMs)
+      }),
+    ])
+  }
+  finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle)
+    }
+  }
+}
+
+async function writeReport() {
+  report.finishedAt = new Date().toISOString()
+  await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf-8')
+}
+
+async function canListenOnPort(port: number) {
+  return await new Promise<boolean>((resolvePromise) => {
+    const server = createServer()
+    server.once('error', () => {
+      resolvePromise(false)
+    })
+    server.listen(port, '127.0.0.1', () => {
+      server.close(() => resolvePromise(true))
+    })
+  })
+}
+
+async function findAvailablePort(preferredPort: number, attempts = 20) {
+  for (let index = 0; index < attempts; index += 1) {
+    const candidate = preferredPort + index
+    if (await canListenOnPort(candidate)) {
+      return candidate
+    }
+  }
+
+  throw new Error(`Could not find an available remote debug port starting from ${preferredPort}`)
+}
+
+async function terminateExistingStageTamagotchiInstances() {
+  const patterns = [
+    resolve(repoDir, 'apps', 'stage-tamagotchi'),
+    '@proj-airi/stage-tamagotchi',
+    resolve(repoDir, 'node_modules', '.pnpm', 'electron@'),
+  ]
+
+  for (const pattern of patterns) {
+    await execFileAsync('pkill', ['-f', pattern]).catch(() => {})
+  }
+
+  await sleep(1_500)
+}
+
+async function waitFor<T>(label: string, task: () => Promise<T | undefined>, timeoutMs = 60_000, intervalMs = 500) {
+  const startedAt = Date.now()
+
+  while ((Date.now() - startedAt) < timeoutMs) {
+    const value = await task()
+    if (value !== undefined) {
+      return value
+    }
+
+    await sleep(intervalMs)
+  }
+
+  throw new Error(`Timed out waiting for ${label}`)
+}
+
+function summarizeMessageText(value: unknown) {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  const normalized = value.replace(/\s+/g, ' ').trim()
+  return normalized.length > 280 ? `${normalized.slice(0, 277)}...` : normalized
+}
+
+function getPreferredModels(providerId: string) {
+  const requested = env.AIRI_E2E_MODELS?.trim()
+    ? env.AIRI_E2E_MODELS.split(',')
+    : [env.AIRI_E2E_MODEL?.trim() || '']
+
+  const explicit = requested
+    .map(model => model?.trim())
+    .filter((model): model is string => Boolean(model))
+  if (explicit.length > 0) {
+    return explicit
+  }
+
+  if (providerId === 'google-generative-ai') {
+    return ['gemini-2.5-flash', 'models/gemini-2.5-flash', 'gemini-2.5-pro']
+  }
+
+  return ['openai/gpt-4o-mini', 'openai/gpt-4.1-mini']
+}
+
+function requireStructuredContent(result: unknown, label: string) {
+  if (!result || typeof result !== 'object') {
+    throw new Error(`${label} did not return an object result`)
+  }
+
+  const structuredContent = (result as { structuredContent?: unknown }).structuredContent
+  if (!structuredContent || typeof structuredContent !== 'object') {
+    throw new Error(`${label} missing structuredContent`)
+  }
+
+  return structuredContent as Record<string, unknown>
 }
 
 class CdpClient {
-  private nextId = 0
-  private pending = new Map<number, { reject: (error: Error) => void, resolve: (value: unknown) => void }>()
   private ws: any
+  private nextId = 0
+  private pending = new Map<number, { resolve: (value: unknown) => void, reject: (error: Error) => void }>()
 
-  static async connect(target: DebugTarget) {
-    if (!target.webSocketDebuggerUrl) {
-      throw new Error(`Debug target ${target.title || target.id} does not expose webSocketDebuggerUrl`)
-    }
-
-    return await CdpClient.connectToUrl(target.webSocketDebuggerUrl)
-  }
-
-  static async connectToUrl(webSocketUrl: string, options: { enablePage?: boolean, enableRuntime?: boolean } = {}) {
+  static async connectToUrl(webSocketUrl: string, options: { enableRuntime?: boolean, enablePage?: boolean } = {}) {
     const client = new CdpClient()
     client.ws = new WebSocket(webSocketUrl)
 
@@ -178,16 +337,28 @@ class CdpClient {
     return client
   }
 
-  async close() {
-    if (this.ws?.readyState === 1) {
-      this.ws.close()
+  static async connect(target: DebugTarget) {
+    if (!target.webSocketDebuggerUrl) {
+      throw new Error(`Debug target ${target.title || target.id} does not expose webSocketDebuggerUrl`)
     }
+
+    return await CdpClient.connectToUrl(target.webSocketDebuggerUrl)
+  }
+
+  async send(method: string, params?: Record<string, unknown>) {
+    const id = ++this.nextId
+    const payload = { id, method, params }
+
+    return await new Promise<any>((resolvePromise, rejectPromise) => {
+      this.pending.set(id, { resolve: resolvePromise, reject: rejectPromise })
+      this.ws.send(JSON.stringify(payload))
+    })
   }
 
   async evaluate<T>(expression: string): Promise<T> {
     const result = await this.send('Runtime.evaluate', {
-      awaitPromise: true,
       expression,
+      awaitPromise: true,
       returnByValue: true,
       userGesture: true,
     })
@@ -200,71 +371,27 @@ class CdpClient {
     return result?.result?.value as T
   }
 
-  async send(method: string, params?: Record<string, unknown>) {
-    const id = ++this.nextId
-    const payload = { id, method, params }
-
-    return await new Promise<any>((resolvePromise, rejectPromise) => {
-      this.pending.set(id, { reject: rejectPromise, resolve: resolvePromise })
-      this.ws.send(JSON.stringify(payload))
-    })
+  async close() {
+    if (this.ws?.readyState === 1) {
+      this.ws.close()
+    }
   }
 }
 
-function addTimeline(event: string, detail?: Record<string, unknown>) {
-  report.timeline.push({
-    at: new Date().toISOString(),
-    detail,
-    event,
-  })
-}
-
-function assert(condition: boolean, message: string): asserts condition {
-  if (!condition) {
-    throw new Error(`Assertion failed: ${message}`)
-  }
-}
-
-async function bringTargetToFront(client: CdpClient, label: string) {
-  await client.send('Page.bringToFront')
-  addTimeline('target-brought-to-front', { label })
-  await sleep(750)
-}
-
-async function callAiriDebugBridge<T>(client: CdpClient, method: string, args: unknown[] = []) {
-  return await client.evaluate<T>(`(async () => {
-    const bridge = window.__AIRI_DEBUG__
-    if (!bridge) {
-      throw new Error('AIRI debug bridge is unavailable')
-    }
-
-    const fn = bridge[${JSON.stringify(method)}]
-    if (typeof fn !== 'function') {
-      throw new Error('AIRI debug bridge method is unavailable: ${method}')
-    }
-
-    return await fn.apply(bridge, ${JSON.stringify(args)})
-  })()`)
-}
-
-async function canListenOnPort(port: number) {
-  return await new Promise<boolean>((resolvePromise) => {
-    const server = createServer()
-    server.once('error', () => {
-      resolvePromise(false)
-    })
-    server.listen(port, '127.0.0.1', () => {
-      server.close(() => resolvePromise(true))
-    })
-  })
+function toSafeFileStem(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    || 'capture'
 }
 
 async function captureChatScreenshot(client: CdpClient, label: string) {
   await mkdir(screenshotsDir, { recursive: true })
   const filePath = resolve(screenshotsDir, `${String(report.timeline.length).padStart(3, '0')}-${toSafeFileStem(label)}.png`)
   const result = await client.send('Page.captureScreenshot', {
-    captureBeyondViewport: true,
     format: 'png',
+    captureBeyondViewport: true,
     fromSurface: true,
   }) as { data?: string }
 
@@ -277,309 +404,15 @@ async function captureChatScreenshot(client: CdpClient, label: string) {
   return filePath
 }
 
-function extractTextContent(result: Record<string, unknown>) {
-  const content = Array.isArray(result.content) ? result.content : []
-  return content
-    .filter(item => item && typeof item === 'object' && item.type === 'text' && typeof item.text === 'string')
-    .map(item => String(item.text))
-    .join('\n')
-}
-
-async function findAvailablePort(preferredPort: number, attempts = 20) {
-  for (let index = 0; index < attempts; index += 1) {
-    const candidate = preferredPort + index
-    if (await canListenOnPort(candidate)) {
-      return candidate
-    }
-  }
-
-  throw new Error(`Could not find an available remote debug port starting from ${preferredPort}`)
-}
-
-async function findTargetWithAiriDebugBridge(
-  browserWsUrl: string,
-  label: string,
-  predicate?: (target: DebugTarget, snapshot: AiriDebugSnapshotLike) => boolean,
-) {
-  return await waitFor(label, async () => {
-    const targets = prioritizeInspectableAiriTargets(await listDebugTargets(browserWsUrl).catch(() => []))
-
-    for (const target of targets) {
-      let client: CdpClient | undefined
-
-      try {
-        client = await withTimeout(
-          `${label} connect ${target.title || target.url || target.id}`,
-          CdpClient.connect(target),
-          2_500,
-        )
-        const snapshot = await withTimeout(
-          `${label} snapshot ${target.title || target.url || target.id}`,
-          getAiriDebugSnapshot(client),
-          2_500,
-        )
-        if (!snapshot) {
-          continue
-        }
-
-        if (predicate && !predicate(target, snapshot)) {
-          continue
-        }
-
-        return {
-          snapshot,
-          target,
-        }
-      }
-      catch {
-        continue
-      }
-      finally {
-        await client?.close().catch(() => {})
-      }
-    }
-
-    return undefined
-  }, 90_000, 750)
-}
-
-async function getAiriDebugSnapshot(client: CdpClient) {
-  return await client.evaluate<AiriDebugSnapshotLike | undefined>(`(() => {
-    const bridge = window.__AIRI_DEBUG__
-    if (!bridge || typeof bridge.getSnapshot !== 'function') {
-      return undefined
-    }
-
-    return bridge.getSnapshot()
-  })()`)
-}
-
-function getPreferredModels(providerId: string) {
-  const requested = env.AIRI_E2E_MODELS?.trim()
-    ? env.AIRI_E2E_MODELS.split(',')
-    : [env.AIRI_E2E_MODEL?.trim() || '']
-
-  const explicit = requested
-    .map(model => model?.trim())
-    .filter((model): model is string => Boolean(model))
-  if (explicit.length > 0) {
-    return explicit
-  }
-
-  if (providerId === 'google-generative-ai') {
-    return ['gemini-2.5-flash', 'models/gemini-2.5-flash', 'gemini-2.5-pro']
-  }
-
-  return ['openai/gpt-4o-mini', 'openai/gpt-4.1-mini']
-}
-
-async function listDebugTargets(browserWsUrl: string) {
-  const browserClient = await CdpClient.connectToUrl(browserWsUrl, {
-    enablePage: false,
-    enableRuntime: false,
-  })
-
-  try {
-    const result = await browserClient.send('Target.getTargets') as { targetInfos?: Array<Record<string, unknown>> }
-    const targetInfos = Array.isArray(result.targetInfos) ? result.targetInfos : []
-
-    return targetInfos
-      .filter(target => target.type === 'page')
-      .map((target) => {
-        const targetId = String(target.targetId || '')
-        return {
-          id: targetId,
-          title: String(target.title || ''),
-          type: String(target.type || ''),
-          url: String(target.url || ''),
-          webSocketDebuggerUrl: browserWsUrl.replace(DEVTOOLS_BROWSER_WS_PATH_RE, `/devtools/page/${targetId}`),
-        } satisfies DebugTarget
-      })
-  }
-  finally {
-    await browserClient.close().catch(() => {})
-  }
-}
-
-function parseDotEnv(text: string) {
-  const values: Record<string, string> = {}
-
-  for (const line of text.split(DOTENV_LINE_SPLIT_RE)) {
-    const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith('#')) {
-      continue
-    }
-
-    const separatorIndex = trimmed.indexOf('=')
-    if (separatorIndex <= 0) {
-      continue
-    }
-
-    const key = trimmed.slice(0, separatorIndex).trim()
-    const rawValue = trimmed.slice(separatorIndex + 1).trim()
-    const unwrapped = rawValue.replace(QUOTED_VALUE_RE, '')
-    values[key] = unwrapped
-  }
-
-  return values
-}
-
-async function prepareMcpConfig() {
-  await mkdir(userDataDir, { recursive: true })
-  await mkdir(mcpSessionRoot, { recursive: true })
-
-  const config = {
-    mcpServers: {
-      computer_use: {
-        args: ['-F', '@proj-airi/computer-use-mcp', 'start'],
-        command: 'pnpm',
-        cwd: repoDir,
-        enabled: true,
-        env: {
-          COMPUTER_USE_ALLOWED_BOUNDS: '0,0,1920,1080',
-          COMPUTER_USE_APPROVAL_MODE: 'never',
-          COMPUTER_USE_EXECUTOR: 'dry-run',
-          COMPUTER_USE_OPENABLE_APPS: 'Finder,Terminal,Visual Studio Code,Cursor',
-          COMPUTER_USE_SESSION_ROOT: mcpSessionRoot,
-          COMPUTER_USE_SESSION_TAG: `airi-chat-terminal-self-acquire-${runId}`,
-        },
-      },
-    },
-  }
-
-  await writeFile(mcpConfigPath, `${JSON.stringify(config, null, 2)}\n`, 'utf-8')
-  addTimeline('prepared-mcp-config', {
-    mcpConfigPath,
-    mcpSessionRoot,
-  })
-}
-
-async function readRootEnvValues() {
-  try {
-    const raw = await readFile(rootEnvPath, 'utf-8')
-    return parseDotEnv(raw)
-  }
-  catch {
-    return {}
-  }
-}
-
-function requireStructuredContent(result: unknown, label: string) {
-  if (!result || typeof result !== 'object') {
-    throw new Error(`${label} did not return an object result`)
-  }
-
-  const structuredContent = (result as { structuredContent?: unknown }).structuredContent
-  if (!structuredContent || typeof structuredContent !== 'object') {
-    throw new Error(`${label} missing structuredContent`)
-  }
-
-  return structuredContent as Record<string, unknown>
-}
-
-function sleep(ms: number) {
-  return new Promise(resolvePromise => setTimeout(resolvePromise, ms))
-}
-
-function summarizeMessageText(value: unknown) {
-  if (typeof value !== 'string') {
-    return ''
-  }
-
-  const normalized = value.replace(/\s+/g, ' ').trim()
-  return normalized.length > 280 ? `${normalized.slice(0, 277)}...` : normalized
-}
-
-async function terminateExistingStageTamagotchiInstances() {
-  const patterns = [
-    resolve(repoDir, 'apps', 'stage-tamagotchi'),
-    '@proj-airi/stage-tamagotchi',
-    resolve(repoDir, 'node_modules', '.pnpm', 'electron@'),
-  ]
-
-  for (const pattern of patterns) {
-    await execFileAsync('pkill', ['-f', pattern]).catch(() => {})
-  }
-
-  await sleep(1_500)
-}
-
-function toSafeFileStem(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    || 'capture'
-}
-
-function traceHasTerminalExecCommand(trace: Array<Record<string, unknown>>, commandFragment: string) {
-  return trace.some((entry) => {
-    const action = entry.action as Record<string, unknown> | undefined
-    const input = action?.input as Record<string, unknown> | undefined
-    return action?.kind === 'terminal_exec'
-      && typeof input?.command === 'string'
-      && input.command.includes(commandFragment)
-  })
-}
-
-async function waitFor<T>(label: string, task: () => Promise<T | undefined>, timeoutMs = 60_000, intervalMs = 500) {
-  const startedAt = Date.now()
-
-  while ((Date.now() - startedAt) < timeoutMs) {
-    const value = await task()
-    if (value !== undefined) {
-      return value
-    }
-
-    await sleep(intervalMs)
-  }
-
-  throw new Error(`Timed out waiting for ${label}`)
-}
-
-async function waitForChatSurfaceReady(client: CdpClient, label: string) {
-  return await waitFor(label, async () => {
-    try {
-      const snapshot = await callAiriDebugBridge<Record<string, any>>(client, 'getSnapshot')
-      if (snapshot.dom?.hasTextarea) {
-        return snapshot
-      }
-
-      return undefined
-    }
-    catch {
-      return undefined
-    }
-  }, 30_000, 250)
-}
-
-async function withTimeout<T>(label: string, task: Promise<T>, timeoutMs: number) {
-  let timeoutHandle: NodeJS.Timeout | undefined
-
-  try {
-    return await Promise.race([
-      task,
-      new Promise<never>((_resolvePromise, rejectPromise) => {
-        timeoutHandle = setTimeout(() => rejectPromise(new Error(`Timed out waiting for ${label}`)), timeoutMs)
-      }),
-    ])
-  }
-  finally {
-    if (timeoutHandle) {
-      clearTimeout(timeoutHandle)
-    }
-  }
-}
-
 async function writeDemoSummary(params: {
-  auditDeltaCount: number
-  demoSummaryText?: string
-  modelId: string
-  newTraceCount: number
   providerId: string
+  modelId: string
   ptySessionId: string
   recentSurfaceDecision: Record<string, unknown>
+  auditDeltaCount: number
+  newTraceCount: number
   screenContent: string
+  demoSummaryText?: string
   screenshotPaths: string[]
 }) {
   const lines = [
@@ -621,9 +454,176 @@ async function writeDemoSummary(params: {
   await writeFile(demoSummaryPath, `${lines.join('\n')}\n`, 'utf-8')
 }
 
-async function writeReport() {
-  report.finishedAt = new Date().toISOString()
-  await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf-8')
+async function listDebugTargets(browserWsUrl: string) {
+  const browserClient = await CdpClient.connectToUrl(browserWsUrl, {
+    enableRuntime: false,
+    enablePage: false,
+  })
+
+  try {
+    const result = await browserClient.send('Target.getTargets') as { targetInfos?: Array<Record<string, unknown>> }
+    const targetInfos = Array.isArray(result.targetInfos) ? result.targetInfos : []
+
+    return targetInfos
+      .filter(target => target.type === 'page')
+      .map((target) => {
+        const targetId = String(target.targetId || '')
+        return {
+          id: targetId,
+          title: String(target.title || ''),
+          type: String(target.type || ''),
+          url: String(target.url || ''),
+          webSocketDebuggerUrl: browserWsUrl.replace(DEVTOOLS_BROWSER_WS_PATH_RE, `/devtools/page/${targetId}`),
+        } satisfies DebugTarget
+      })
+  }
+  finally {
+    await browserClient.close().catch(() => {})
+  }
+}
+
+async function bringTargetToFront(client: CdpClient, label: string) {
+  await client.send('Page.bringToFront')
+  addTimeline('target-brought-to-front', { label })
+  await sleep(750)
+}
+
+async function getAiriDebugSnapshot(client: CdpClient) {
+  return await client.evaluate<AiriDebugSnapshotLike | undefined>(`(() => {
+    const bridge = window.__AIRI_DEBUG__
+    if (!bridge || typeof bridge.getSnapshot !== 'function') {
+      return undefined
+    }
+
+    return bridge.getSnapshot()
+  })()`)
+}
+
+async function callAiriDebugBridge<T>(client: CdpClient, method: string, args: unknown[] = []) {
+  return await client.evaluate<T>(`(async () => {
+    const bridge = window.__AIRI_DEBUG__
+    if (!bridge) {
+      throw new Error('AIRI debug bridge is unavailable')
+    }
+
+    const fn = bridge[${JSON.stringify(method)}]
+    if (typeof fn !== 'function') {
+      throw new Error('AIRI debug bridge method is unavailable: ${method}')
+    }
+
+    return await fn.apply(bridge, ${JSON.stringify(args)})
+  })()`)
+}
+
+async function waitForChatSurfaceReady(client: CdpClient, label: string) {
+  return await waitFor(label, async () => {
+    try {
+      const snapshot = await callAiriDebugBridge<Record<string, any>>(client, 'getSnapshot')
+      if (snapshot.dom?.hasTextarea) {
+        return snapshot
+      }
+
+      return undefined
+    }
+    catch {
+      return undefined
+    }
+  }, 30_000, 250)
+}
+
+async function findTargetWithAiriDebugBridge(
+  browserWsUrl: string,
+  label: string,
+  predicate?: (target: DebugTarget, snapshot: AiriDebugSnapshotLike) => boolean,
+) {
+  return await waitFor(label, async () => {
+    const targets = prioritizeInspectableAiriTargets(await listDebugTargets(browserWsUrl).catch(() => []))
+
+    for (const target of targets) {
+      let client: CdpClient | undefined
+
+      try {
+        client = await withTimeout(
+          `${label} connect ${target.title || target.url || target.id}`,
+          CdpClient.connect(target),
+          2_500,
+        )
+        const snapshot = await withTimeout(
+          `${label} snapshot ${target.title || target.url || target.id}`,
+          getAiriDebugSnapshot(client),
+          2_500,
+        )
+        if (!snapshot) {
+          continue
+        }
+
+        if (predicate && !predicate(target, snapshot)) {
+          continue
+        }
+
+        return {
+          target,
+          snapshot,
+        }
+      }
+      catch {
+        continue
+      }
+      finally {
+        await client?.close().catch(() => {})
+      }
+    }
+
+    return undefined
+  }, 90_000, 750)
+}
+
+async function prepareMcpConfig() {
+  await mkdir(userDataDir, { recursive: true })
+  await mkdir(mcpSessionRoot, { recursive: true })
+
+  const config = {
+    mcpServers: {
+      computer_use: {
+        command: 'pnpm',
+        args: ['-F', '@proj-airi/computer-use-mcp', 'start'],
+        cwd: repoDir,
+        enabled: true,
+        env: {
+          COMPUTER_USE_EXECUTOR: 'dry-run',
+          COMPUTER_USE_APPROVAL_MODE: 'never',
+          COMPUTER_USE_SESSION_TAG: `airi-chat-terminal-self-acquire-${runId}`,
+          COMPUTER_USE_ALLOWED_BOUNDS: '0,0,1920,1080',
+          COMPUTER_USE_OPENABLE_APPS: 'Finder,Terminal,Visual Studio Code,Cursor',
+          COMPUTER_USE_SESSION_ROOT: mcpSessionRoot,
+        },
+      },
+    },
+  }
+
+  await writeFile(mcpConfigPath, `${JSON.stringify(config, null, 2)}\n`, 'utf-8')
+  addTimeline('prepared-mcp-config', {
+    mcpConfigPath,
+    mcpSessionRoot,
+  })
+}
+
+function extractTextContent(result: Record<string, unknown>) {
+  const content = Array.isArray(result.content) ? result.content : []
+  return content
+    .filter(item => item && typeof item === 'object' && item.type === 'text' && typeof item.text === 'string')
+    .map(item => String(item.text))
+    .join('\n')
+}
+
+function traceHasTerminalExecCommand(trace: Array<Record<string, unknown>>, commandFragment: string) {
+  return trace.some((entry) => {
+    const action = entry.action as Record<string, unknown> | undefined
+    const input = action?.input as Record<string, unknown> | undefined
+    return action?.kind === 'terminal_exec'
+      && typeof input?.command === 'string'
+      && input.command.includes(commandFragment)
+  })
 }
 
 let exitCode = 0
@@ -638,9 +638,9 @@ async function main() {
   const debugPort = await findAvailablePort(preferredDebugPort)
   const rootEnvValues = await readRootEnvValues()
   const resolvedPreferredProviderId = resolvePreferredChatProviderId({
-    dotenvValues: rootEnvValues,
-    processEnv: env,
     requestedProviderId: env.AIRI_E2E_PROVIDER?.trim(),
+    processEnv: env,
+    dotenvValues: rootEnvValues,
   })
   const providerAttemptOrder = Array.from(new Set([
     env.AIRI_E2E_PROVIDER?.trim(),
@@ -653,7 +653,7 @@ async function main() {
     await mkdir(reportDir, { recursive: true })
     await prepareMcpConfig()
 
-    addTimeline('bootstrap', { debugPort, reportDir, userDataDir })
+    addTimeline('bootstrap', { reportDir, debugPort, userDataDir })
     await terminateExistingStageTamagotchiInstances()
     addTimeline('terminated-stale-stage-tamagotchi-instances')
 
@@ -665,8 +665,8 @@ async function main() {
       env: {
         ...env,
         APP_REMOTE_DEBUG: 'true',
-        APP_REMOTE_DEBUG_NO_OPEN: 'true',
         APP_REMOTE_DEBUG_PORT: String(debugPort),
+        APP_REMOTE_DEBUG_NO_OPEN: 'true',
         APP_USER_DATA_PATH: userDataDir,
       },
       stdio: 'pipe',
@@ -706,10 +706,10 @@ async function main() {
     )
     const mainTarget = mainTargetMatch.target
     addTimeline('main-target-ready', {
-      documentTitle: mainTargetMatch.snapshot.documentTitle,
-      route: mainTargetMatch.snapshot.route,
       title: mainTarget.title,
       url: mainTarget.url,
+      route: mainTargetMatch.snapshot.route,
+      documentTitle: mainTargetMatch.snapshot.documentTitle,
     })
 
     mainTargetClient = await CdpClient.connect(mainTarget)
@@ -730,11 +730,11 @@ async function main() {
       )
       const chatTarget = chatTargetMatch.target
       addTimeline('chat-target-ready', {
-        documentTitle: chatTargetMatch.snapshot.documentTitle,
-        mode: 'separate-window',
-        route: chatTargetMatch.snapshot.route,
         title: chatTarget.title,
         url: chatTarget.url,
+        route: chatTargetMatch.snapshot.route,
+        documentTitle: chatTargetMatch.snapshot.documentTitle,
+        mode: 'separate-window',
       })
 
       chatTargetClient = await CdpClient.connect(chatTarget)
@@ -742,8 +742,8 @@ async function main() {
       const readyChatSnapshot = await waitForChatSurfaceReady(chatTargetClient, 'chat surface ready')
       report.debugSnapshots.push(readyChatSnapshot)
       addTimeline('chat-surface-ready', {
-        hasTextarea: Boolean(readyChatSnapshot.dom?.hasTextarea),
         route: String(readyChatSnapshot.route || ''),
+        hasTextarea: Boolean(readyChatSnapshot.dom?.hasTextarea),
       })
     }
     catch (error) {
@@ -780,15 +780,15 @@ async function main() {
       const readyChatSnapshot = await waitForChatSurfaceReady(chatTargetClient, 'fallback chat surface ready')
       report.debugSnapshots.push(readyChatSnapshot)
       addTimeline('chat-surface-ready', {
+        route: String(readyChatSnapshot.route || ''),
         hasTextarea: Boolean(readyChatSnapshot.dom?.hasTextarea),
         mode: 'same-window-route',
-        route: String(readyChatSnapshot.route || ''),
       })
       chatClientSharesMainTarget = true
       addTimeline('chat-target-ready', {
-        mode: 'same-window-route',
         title: 'AIRI',
         url: 'http://localhost:5173/#/chat',
+        mode: 'same-window-route',
       })
     }
 
@@ -800,24 +800,24 @@ async function main() {
 
     for (const providerId of providerAttemptOrder) {
       const providerBootstrapConfig = getProviderBootstrapConfig({
-        dotenvValues: rootEnvValues,
-        processEnv: env,
         providerId,
+        processEnv: env,
+        dotenvValues: rootEnvValues,
       })
       const candidateModels = getPreferredModels(providerId)
       const candidateSnapshot = await callAiriDebugBridge<Record<string, any>>(chatTargetClient, 'ensureConsciousnessSelection', [{
-        preferredModels: candidateModels,
         provider: providerId,
+        preferredModels: candidateModels,
         providerConfig: providerBootstrapConfig,
       }])
 
       report.debugSnapshots.push(candidateSnapshot)
       addTimeline('consciousness-selection-attempt', {
+        providerId,
         modelCandidates: candidateModels,
+        resolvedModelId: String(candidateSnapshot.provider?.activeModel || ''),
         providerAvailable: Boolean(candidateSnapshot.provider?.providerAvailable),
         providerBootstrapped: Boolean(providerBootstrapConfig),
-        providerId,
-        resolvedModelId: String(candidateSnapshot.provider?.activeModel || ''),
       })
 
       if (candidateSnapshot.provider?.providerAvailable) {
@@ -833,21 +833,21 @@ async function main() {
     }
 
     addTimeline('consciousness-selection-ready', {
-      modelCandidates: selectedModelCandidates,
-      modelId: String(selectionSnapshot.provider?.activeModel || ''),
-      providerAvailable: Boolean(selectionSnapshot.provider?.providerAvailable),
       providerId: selectedProviderId,
+      modelId: String(selectionSnapshot.provider?.activeModel || ''),
+      modelCandidates: selectedModelCandidates,
+      providerAvailable: Boolean(selectionSnapshot.provider?.providerAvailable),
     })
 
     await callAiriDebugBridge(chatTargetClient, 'clearEvents')
     const resetSnapshot = await callAiriDebugBridge<Record<string, any>>(chatTargetClient, 'resetChatSession')
     report.debugSnapshots.push(resetSnapshot)
     addTimeline('chat-session-reset', {
-      activeSessionId: String(resetSnapshot.chat?.activeSessionId || ''),
-      messageCount: Number(resetSnapshot.chat?.messageCount || 0),
-      modelId: String(resetSnapshot.provider?.activeModel || ''),
       providerConfigured: Boolean(resetSnapshot.provider?.configured),
       providerId: String(resetSnapshot.provider?.activeProvider || ''),
+      modelId: String(resetSnapshot.provider?.activeModel || ''),
+      messageCount: Number(resetSnapshot.chat?.messageCount || 0),
+      activeSessionId: String(resetSnapshot.chat?.activeSessionId || ''),
     })
 
     const availableTools = await waitFor('computer_use tools inside AIRI', async () => {
@@ -864,8 +864,8 @@ async function main() {
         ]
         const ready = requiredTools.every(name => names.has(name))
         addTimeline('mcp-tool-list-poll', {
-          ready,
           toolCount: tools.length,
+          ready,
         })
         return ready ? tools : undefined
       }
@@ -879,14 +879,14 @@ async function main() {
     })
 
     const ptyStatusResult = await callAiriDebugBridge<Record<string, unknown>>(chatTargetClient, 'callMcpTool', [{
-      arguments: {},
       name: 'computer_use::pty_get_status',
+      arguments: {},
     }])
     const ptyStatusData = requireStructuredContent(ptyStatusResult, 'computer_use::pty_get_status')
     report.internalMcp.ptyStatus = ptyStatusData
     addTimeline('pty-status-probed', {
-      error: typeof ptyStatusData.error === 'string' ? ptyStatusData.error : undefined,
       ptyAvailable: Boolean(ptyStatusData.ptyAvailable),
+      error: typeof ptyStatusData.error === 'string' ? ptyStatusData.error : undefined,
       sessionCount: Array.isArray(ptyStatusData.sessions) ? ptyStatusData.sessions.length : 0,
     })
     assert(
@@ -895,8 +895,8 @@ async function main() {
     )
 
     const baselineStateResult = await callAiriDebugBridge<Record<string, unknown>>(chatTargetClient, 'callMcpTool', [{
-      arguments: {},
       name: 'computer_use::desktop_get_state',
+      arguments: {},
     }])
     const baselineState = requireStructuredContent(baselineStateResult, 'computer_use::desktop_get_state (baseline)')
     const baselineRunState = (baselineState.runState || {}) as Record<string, unknown>
@@ -904,15 +904,15 @@ async function main() {
     const baselinePtySessionCount = Array.isArray(baselineRunState.ptySessions) ? baselineRunState.ptySessions.length : 0
 
     const baselineTraceResult = await callAiriDebugBridge<Record<string, unknown>>(chatTargetClient, 'callMcpTool', [{
-      arguments: { limit: 200 },
       name: 'computer_use::desktop_get_session_trace',
+      arguments: { limit: 200 },
     }])
     const baselineTrace = requireStructuredContent(baselineTraceResult, 'computer_use::desktop_get_session_trace (baseline)')
     const baselineTraceCount = Array.isArray(baselineTrace.trace) ? baselineTrace.trace.length : 0
     addTimeline('baseline-state-captured', {
       baselineAuditCount,
-      baselinePtySessionCount,
       baselineTraceCount,
+      baselinePtySessionCount,
     })
 
     const baselineMessageCount = Number(resetSnapshot.chat?.messageCount || 0)
@@ -931,9 +931,9 @@ async function main() {
       const sawBeforeSend = recentEvents.some(event => String(event?.type || '') === 'before-send')
 
       addTimeline('chat-submit-poll', {
+        sending,
         messageCount,
         sawBeforeSend,
-        sending,
       })
 
       return sending || sawBeforeSend || messageCount > baselineMessageCount
@@ -953,12 +953,12 @@ async function main() {
       const messageCount = Number(snapshot.chat?.messageCount || 0)
 
       addTimeline('chat-completion-poll', {
-        completed,
-        lastMessagePreview: summarizeMessageText(lastMessageText),
-        lastMessageRole,
-        messageCount,
-        outputPreview: summarizeMessageText(outputText),
         sending,
+        completed,
+        messageCount,
+        lastMessageRole,
+        outputPreview: summarizeMessageText(outputText),
+        lastMessagePreview: summarizeMessageText(lastMessageText),
       })
 
       if (!sending && lastMessageRole === 'error') {
@@ -973,25 +973,25 @@ async function main() {
     }, 240_000, 1_000)
 
     const finalStateResult = await callAiriDebugBridge<Record<string, unknown>>(chatTargetClient, 'callMcpTool', [{
-      arguments: {},
       name: 'computer_use::desktop_get_state',
+      arguments: {},
     }])
     report.internalMcp.desktopState = requireStructuredContent(finalStateResult, 'computer_use::desktop_get_state (final)')
 
     const finalTraceResult = await callAiriDebugBridge<Record<string, unknown>>(chatTargetClient, 'callMcpTool', [{
-      arguments: { limit: 200 },
       name: 'computer_use::desktop_get_session_trace',
+      arguments: { limit: 200 },
     }])
     report.internalMcp.sessionTrace = requireStructuredContent(finalTraceResult, 'computer_use::desktop_get_session_trace (final)')
 
     report.final = {
+      providerConfigured: Boolean(finalSnapshot.provider?.configured),
+      providerId: String(finalSnapshot.provider?.activeProvider || ''),
+      modelId: String(finalSnapshot.provider?.activeModel || ''),
+      messageCount: Number(finalSnapshot.chat?.messageCount || 0),
       lastMessageRole: String(finalSnapshot.chat?.lastMessage?.role || ''),
       lastMessageText: summarizeMessageText(finalSnapshot.chat?.lastMessage?.text),
       lastTurnOutput: summarizeMessageText(finalSnapshot.chat?.lastTurnComplete?.outputText),
-      messageCount: Number(finalSnapshot.chat?.messageCount || 0),
-      modelId: String(finalSnapshot.provider?.activeModel || ''),
-      providerConfigured: Boolean(finalSnapshot.provider?.configured),
-      providerId: String(finalSnapshot.provider?.activeProvider || ''),
     }
 
     if (report.final.lastMessageRole === 'error') {
@@ -1055,8 +1055,8 @@ async function main() {
     )
 
     const ptyReadResult = await callAiriDebugBridge<Record<string, unknown>>(chatTargetClient, 'callMcpTool', [{
-      arguments: { sessionId: ptySessionId },
       name: 'computer_use::pty_read_screen',
+      arguments: { sessionId: ptySessionId },
     }])
     const ptyReadData = requireStructuredContent(ptyReadResult, 'computer_use::pty_read_screen (verify)')
     const screenContent = String(ptyReadData.screenContent || extractTextContent(ptyReadResult))
@@ -1066,10 +1066,10 @@ async function main() {
     )
 
     addTimeline('terminal-self-acquire-verified', {
-      auditDeltaCount: auditDelta.length,
-      newTraceCount: newTraceEntries.length,
       ptySessionId,
       recentSurfaceDecision,
+      auditDeltaCount: auditDelta.length,
+      newTraceCount: newTraceEntries.length,
     })
 
     screenshotPaths.push(await captureChatScreenshot(chatTargetClient, 'post-workflow-self-acquire-turn'))
@@ -1102,9 +1102,9 @@ async function main() {
       const sawBeforeSend = recentEvents.some(event => String(event?.type || '') === 'before-send')
 
       addTimeline('demo-summary-submit-poll', {
+        sending,
         messageCount,
         sawBeforeSend,
-        sending,
       })
 
       return sending || sawBeforeSend || messageCount > summaryBaselineMessageCount
@@ -1124,12 +1124,12 @@ async function main() {
       const completed = hasCompletedChatTurn(snapshot)
 
       addTimeline('demo-summary-completion-poll', {
-        completed,
-        lastMessagePreview: summarizeMessageText(lastMessageText),
-        lastMessageRole,
-        messageCount,
-        outputPreview: summarizeMessageText(outputText),
         sending,
+        completed,
+        messageCount,
+        lastMessageRole,
+        outputPreview: summarizeMessageText(outputText),
+        lastMessagePreview: summarizeMessageText(lastMessageText),
       })
 
       if (!sending && lastMessageRole === 'error') {
@@ -1161,49 +1161,49 @@ async function main() {
     screenshotPaths.push(await captureChatScreenshot(chatTargetClient, 'demo-summary'))
 
     report.final = {
-      demoSummaryText,
+      providerConfigured: Boolean(demoSummarySnapshot.provider?.configured),
+      providerId: String(demoSummarySnapshot.provider?.activeProvider || report.final?.providerId || ''),
+      modelId: String(demoSummarySnapshot.provider?.activeModel || report.final?.modelId || ''),
+      messageCount: Number(demoSummarySnapshot.chat?.messageCount || report.final?.messageCount || 0),
       lastMessageRole: String(demoSummarySnapshot.chat?.lastMessage?.role || report.final?.lastMessageRole || ''),
       lastMessageText: summarizeMessageText(demoSummarySnapshot.chat?.lastMessage?.text || report.final?.lastMessageText),
       lastTurnOutput: summarizeMessageText(demoSummarySnapshot.chat?.lastTurnComplete?.outputText || report.final?.lastTurnOutput),
-      messageCount: Number(demoSummarySnapshot.chat?.messageCount || report.final?.messageCount || 0),
-      modelId: String(demoSummarySnapshot.provider?.activeModel || report.final?.modelId || ''),
-      providerConfigured: Boolean(demoSummarySnapshot.provider?.configured),
-      providerId: String(demoSummarySnapshot.provider?.activeProvider || report.final?.providerId || ''),
       ptySessionId,
+      demoSummaryText,
       screenshotPaths: [...screenshotPaths],
     }
 
     await writeDemoSummary({
-      auditDeltaCount: auditDelta.length,
-      demoSummaryText,
-      modelId: String(report.final.modelId || ''),
-      newTraceCount: newTraceEntries.length,
       providerId: String(report.final.providerId || ''),
+      modelId: String(report.final.modelId || ''),
       ptySessionId,
       recentSurfaceDecision,
+      auditDeltaCount: auditDelta.length,
+      newTraceCount: newTraceEntries.length,
       screenContent,
+      demoSummaryText,
       screenshotPaths,
     })
 
     await callAiriDebugBridge(chatTargetClient, 'callMcpTool', [{
-      arguments: { sessionId: ptySessionId },
       name: 'computer_use::pty_destroy',
+      arguments: { sessionId: ptySessionId },
     }]).catch(() => undefined)
 
     report.status = 'completed'
     await writeReport()
 
     console.info(JSON.stringify({
-      demoSummaryPath,
-      demoSummaryText: report.final.demoSummaryText,
-      lastMessageText: report.final.lastMessageText,
-      lastTurnOutput: report.final.lastTurnOutput,
-      modelId: report.final.modelId,
       ok: true,
-      providerId: report.final.providerId,
-      ptySessionId,
       reportPath,
+      demoSummaryPath,
+      providerId: report.final.providerId,
+      modelId: report.final.modelId,
+      ptySessionId,
+      demoSummaryText: report.final.demoSummaryText,
       screenshotPaths: report.final.screenshotPaths,
+      lastTurnOutput: report.final.lastTurnOutput,
+      lastMessageText: report.final.lastMessageText,
     }, null, 2))
   }
   catch (error) {

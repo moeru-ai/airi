@@ -19,10 +19,11 @@ let armed = true
  */
 export const lowHealthEvent = definePerceptionEvent<[], { health: number }>({
   id: 'low_health',
+  modality: 'felt',
   kind: 'low_health',
+
   mineflayer: {
     event: 'health',
-    extract: ctx => ({ health: typeof ctx.bot.health === 'number' ? ctx.bot.health : 0 }),
     filter: (ctx) => {
       const health = ctx.bot.health
       if (typeof health !== 'number')
@@ -47,7 +48,6 @@ export const lowHealthEvent = definePerceptionEvent<[], { health: number }>({
       armed = false
       return true
     },
+    extract: ctx => ({ health: typeof ctx.bot.health === 'number' ? ctx.bot.health : 0 }),
   },
-
-  modality: 'felt',
 })

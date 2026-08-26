@@ -22,15 +22,15 @@ export const useLLM = defineStore('llm', () => {
     const builtinToolsResolver = () => resolveLlmTools({ customTools })
 
     const runStream = () => coreStreamFrom({
-      builtinToolsResolver,
+      model,
       chatProvider,
       messages,
-      model,
       options: {
         ...streamOptions,
-        contentArrayCompatibility: contentArrayCompatibility.value,
         toolsCompatibility: toolsCompatibility.value,
+        contentArrayCompatibility: contentArrayCompatibility.value,
       },
+      builtinToolsResolver,
     })
 
     try {
@@ -63,8 +63,8 @@ export const useLLM = defineStore('llm', () => {
 
     try {
       return await listModels({
-        apiKey,
         baseURL: (apiUrl.endsWith('/') ? apiUrl : `${apiUrl}/`) as `${string}/`,
+        apiKey,
       })
     }
     catch (err) {

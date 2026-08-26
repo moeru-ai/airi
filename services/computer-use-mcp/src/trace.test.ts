@@ -13,8 +13,8 @@ describe('buildPointerTrace', () => {
   it('removes consecutive duplicate rounded points while preserving the final target', () => {
     const trace = buildPointerTrace({
       from: { x: 179, y: 149 },
-      steps: 20,
       to: { x: 180, y: 150 },
+      steps: 20,
     })
 
     expect(trace.length).toBeGreaterThan(0)

@@ -2,14 +2,14 @@ import type { z } from 'zod'
 
 import type { Mineflayer } from './core'
 
-export interface Action {
-  readonly description: string
-  readonly execution?: 'async' | 'sync'
-  readonly followControl?: 'detach' | 'pause'
-  readonly name: string
-  readonly perform: (mineflayer: Mineflayer) => (...args: any[]) => ActionResult
-  readonly readonly?: boolean
-  readonly schema: z.ZodObject<any>
-}
+type ActionResult = unknown | Promise<unknown>
 
-type ActionResult = Promise<unknown> | unknown
+export interface Action {
+  readonly name: string
+  readonly description: string
+  readonly schema: z.ZodObject<any>
+  readonly readonly?: boolean
+  readonly followControl?: 'pause' | 'detach'
+  readonly execution?: 'sync' | 'async'
+  readonly perform: (mineflayer: Mineflayer) => (...args: any[]) => ActionResult
+}

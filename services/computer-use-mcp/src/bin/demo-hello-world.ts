@@ -18,17 +18,17 @@ async function main() {
   console.info('🚀 Starting computer-use-mcp server …')
 
   const transport = new StdioClientTransport({
-    args: ['start'],
     command: 'pnpm',
+    args: ['start'],
     cwd: packageDir,
     env: {
       ...env,
-      COMPUTER_USE_ALLOWED_BOUNDS: '0,0,2560,1600',
-      // Skip manual approval for this demo
-      COMPUTER_USE_APPROVAL_MODE: 'never',
       // Use macos-local executor so terminal_exec actually runs commands
       COMPUTER_USE_EXECUTOR: 'macos-local',
+      // Skip manual approval for this demo
+      COMPUTER_USE_APPROVAL_MODE: 'never',
       COMPUTER_USE_SESSION_TAG: 'demo-hello-world',
+      COMPUTER_USE_ALLOWED_BOUNDS: '0,0,2560,1600',
     },
     stderr: 'pipe',
   })
@@ -60,17 +60,18 @@ async function main() {
     // 2. Step 1: Create folder + Python file via terminal_exec
     console.info('\n📁 Step 1: Creating folder $HOME/hello-python-project …')
     const mkdirResult = await client.callTool({
+      name: 'terminal_exec',
       arguments: {
         command: 'mkdir -p "$HOME/hello-python-project"',
         timeoutMs: 10_000,
       },
-      name: 'terminal_exec',
     })
     printResult('mkdir', mkdirResult)
 
     // 3. Step 2: Write main.py
     console.info('\n📝 Step 2: Writing main.py …')
     const writeResult = await client.callTool({
+      name: 'terminal_exec',
       arguments: {
         command: `cat > "$HOME/hello-python-project/main.py" << 'PYEOF'
 #!/usr/bin/env python3
@@ -85,30 +86,29 @@ if __name__ == "__main__":
 PYEOF`,
         timeoutMs: 10_000,
       },
-      name: 'terminal_exec',
     })
     printResult('write main.py', writeResult)
 
     // 4. Step 3: Run it!
     console.info('\n🐍 Step 3: Running python3 $HOME/hello-python-project/main.py …')
     const runResult = await client.callTool({
+      name: 'terminal_exec',
       arguments: {
         command: 'python3 "$HOME/hello-python-project/main.py"',
         cwd: `${homeDir}/hello-python-project`,
         timeoutMs: 15_000,
       },
-      name: 'terminal_exec',
     })
     printResult('run main.py', runResult)
 
     // 5. Step 4: Show the project structure
     console.info('\n📂 Step 4: Listing project contents …')
     const lsResult = await client.callTool({
+      name: 'terminal_exec',
       arguments: {
         command: 'ls -la "$HOME/hello-python-project" && echo "---" && cat "$HOME/hello-python-project/main.py"',
         timeoutMs: 10_000,
       },
-      name: 'terminal_exec',
     })
     printResult('ls + cat', lsResult)
 

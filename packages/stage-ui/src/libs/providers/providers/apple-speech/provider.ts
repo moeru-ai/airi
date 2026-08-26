@@ -14,6 +14,27 @@ export const appleSpeechConfigSchema = z.object({
 /** Serializable configuration for the Apple Speech Provider. */
 export type AppleSpeechConfig = z.input<typeof appleSpeechConfigSchema>
 
+function localeLabel(locale: string) {
+  try {
+    const displayName = new Intl.DisplayNames([locale], { type: 'language' }).of(locale)
+    if (displayName && displayName !== locale)
+      return `${displayName} (${locale})`
+  }
+  catch {
+    // Apple owns this locale inventory. Keep its canonical identifier visible
+    // if the current JavaScript runtime cannot format a newer language tag.
+  }
+  return locale
+}
+
+function sortLocales(locales: AppleSpeechLocale[]) {
+  return [...locales].sort((left, right) => {
+    if (left.installed !== right.installed)
+      return left.installed ? -1 : 1
+    return left.locale.localeCompare(right.locale)
+  })
+}
+
 /** Lists labeled native locales available through Apple's automatic transcriber selection. */
 export async function listAppleSpeechLocaleOptions(context: ProviderConfigContext<AppleSpeechConfig>) {
   if (context.config === undefined)
@@ -35,25 +56,4 @@ export async function listAppleSpeechLocaleOptions(context: ProviderConfigContex
   finally {
     eventa.dispose()
   }
-}
-
-function localeLabel(locale: string) {
-  try {
-    const displayName = new Intl.DisplayNames([locale], { type: 'language' }).of(locale)
-    if (displayName && displayName !== locale)
-      return `${displayName} (${locale})`
-  }
-  catch {
-    // Apple owns this locale inventory. Keep its canonical identifier visible
-    // if the current JavaScript runtime cannot format a newer language tag.
-  }
-  return locale
-}
-
-function sortLocales(locales: AppleSpeechLocale[]) {
-  return [...locales].sort((left, right) => {
-    if (left.installed !== right.installed)
-      return left.installed ? -1 : 1
-    return left.locale.localeCompare(right.locale)
-  })
 }

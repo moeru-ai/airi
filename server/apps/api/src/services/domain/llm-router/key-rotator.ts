@@ -14,7 +14,7 @@ import { createServiceUnavailableError } from '../../../utils/error'
  * carry `keys` + each key has `id` + `ciphertext`.
  */
 export interface RotatableUpstream {
-  keys: ReadonlyArray<{ ciphertext: string, id: string }>
+  keys: ReadonlyArray<{ id: string, ciphertext: string }>
 }
 
 /**
@@ -63,14 +63,14 @@ export function createKeyRotator(
         let plaintext: Buffer
         try {
           plaintext = envelopeCrypto.decryptKey(entry.ciphertext, {
-            keyEntryId: entry.id,
             modelName,
+            keyEntryId: entry.id,
           })
         }
         catch (err) {
           gatewayMetrics?.decryptFailures.add(1, {
-            key_entry_id: entry.id,
             provider,
+            key_entry_id: entry.id,
           })
           // NOTICE:
           // Surfacing decrypt failure as CONFIG_NOT_SET (503) rather than

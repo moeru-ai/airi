@@ -18,31 +18,31 @@ const n1nConfigSchema = z.object({
 type N1NConfig = z.input<typeof n1nConfigSchema>
 
 export const providerN1N = defineProvider<N1NConfig>({
-  createProvider(config) {
-    return createOpenAI(config.apiKey || '', config.baseUrl)
-  },
+  id: 'n1n',
+  order: 9,
+  name: 'n1n',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.n1n.title'),
+  description: 'n1n.ai - High-performance AI API provider.',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.n1n.description'),
+  tasks: ['chat'],
+  icon: 'i-lobe-icons:openai',
+
   createProviderConfig: ({ t }) => n1nConfigSchema.extend({
     apiKey: n1nConfigSchema.shape.apiKey.meta({
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
       type: 'password',
     }),
     baseUrl: n1nConfigSchema.shape.baseUrl.meta({
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
     }),
   }),
-  description: 'n1n.ai - High-performance AI API provider.',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.n1n.description'),
-  icon: 'i-lobe-icons:openai',
-  id: 'n1n',
-  name: 'n1n',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.n1n.title'),
-
-  order: 9,
-  tasks: ['chat'],
+  createProvider(config) {
+    return createOpenAI(config.apiKey || '', config.baseUrl)
+  },
 
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()

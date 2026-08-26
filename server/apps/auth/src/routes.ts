@@ -19,8 +19,8 @@ import { rateLimiter } from './rate-limit'
 
 export interface HonoEnv {
   Variables: {
-    session: AuthSession['session'] | null
     user: AuthSession['user'] | null
+    session: AuthSession['session'] | null
   }
 }
 
@@ -30,20 +30,7 @@ export const DEFAULT_AUTH_UI_URL = 'https://accounts.airi.build/ui'
 export const SERVER_DEV_PUBLIC_URL = 'https://airi-server-dev.up.railway.app'
 export const SERVER_DEV_AUTH_UI_URL = 'https://server-dev.airi-server-auth.pages.dev/ui'
 
-const FORWARDED_AUTH_UI_PROVIDERS = new Set(['github', 'google', 'steam'])
-
-/** Maps a public `/auth/*` request to its standalone Auth UI URL. */
-export function buildAuthUiRedirectUrl(authUiUrl: string, requestUrl: string, apiServerUrl?: string): string {
-  const request = new URL(requestUrl)
-  const suffix = request.pathname === SERVER_AUTH_UI_BASE_PATH
-    ? '/'
-    : request.pathname.slice(SERVER_AUTH_UI_BASE_PATH.length) || '/'
-  const resolvedAuthUiUrl = apiServerUrl ? resolveAuthUiUrl(authUiUrl, apiServerUrl) : authUiUrl
-  const target = new URL(buildAuthUiUrl(resolvedAuthUiUrl, suffix, request.search))
-  if (apiServerUrl)
-    target.searchParams.set(AUTH_UI_PUBLIC_URL_QUERY_PARAM, new URL(apiServerUrl).origin)
-  return target.toString()
-}
+const FORWARDED_AUTH_UI_PROVIDERS = new Set(['google', 'github', 'steam'])
 
 /** Builds a route URL below the configured standalone Auth UI base. */
 export function buildAuthUiUrl(authUiUrl: string, path: string, search = ''): string {
@@ -73,6 +60,19 @@ export function resolveAuthUiUrl(authUiUrl: string, apiServerUrl: string): strin
   return authUiUrl
 }
 
+/** Maps a public `/auth/*` request to its standalone Auth UI URL. */
+export function buildAuthUiRedirectUrl(authUiUrl: string, requestUrl: string, apiServerUrl?: string): string {
+  const request = new URL(requestUrl)
+  const suffix = request.pathname === SERVER_AUTH_UI_BASE_PATH
+    ? '/'
+    : request.pathname.slice(SERVER_AUTH_UI_BASE_PATH.length) || '/'
+  const resolvedAuthUiUrl = apiServerUrl ? resolveAuthUiUrl(authUiUrl, apiServerUrl) : authUiUrl
+  const target = new URL(buildAuthUiUrl(resolvedAuthUiUrl, suffix, request.search))
+  if (apiServerUrl)
+    target.searchParams.set(AUTH_UI_PUBLIC_URL_QUERY_PARAM, new URL(apiServerUrl).origin)
+  return target.toString()
+}
+
 /** Restores a trusted mobile provider hint after the OIDC plugin builds its sign-in redirect. */
 function forwardAuthUiProviderHint(requestUrl: string, response: Response): Response {
   const request = new URL(requestUrl)
@@ -91,23 +91,21 @@ function forwardAuthUiProviderHint(requestUrl: string, response: Response): Resp
   const headers = new Headers(response.headers)
   headers.set('location', location.startsWith('/') ? `${target.pathname}${target.search}${target.hash}` : target.toString())
   return new Response(response.body, {
-    headers,
     status: response.status,
     statusText: response.statusText,
+    headers,
   })
 }
 
 const remoteJwksByUrl = new Map<string, ReturnType<typeof createRemoteJWKSet>>()
 
-function buildGravatarUrl(emailAddress: string): null | string {
-  const normalized = emailAddress.trim().toLowerCase()
-  if (!normalized)
+function readBearerToken(headers: Headers): string | null {
+  const authorization = headers.get('authorization')
+  if (!authorization?.startsWith('Bearer '))
     return null
 
-  const url = new URL(createHash('sha256').update(normalized).digest('hex'), 'https://www.gravatar.com/avatar/')
-  url.searchParams.set('d', 'identicon')
-  url.searchParams.set('s', '200')
-  return url.toString()
+  const token = authorization.slice(7).trim()
+  return token.length > 0 ? token : null
 }
 
 function getRemoteJwks(publicUrl: string): ReturnType<typeof createRemoteJWKSet> {
@@ -121,28 +119,6 @@ function getRemoteJwks(publicUrl: string): ReturnType<typeof createRemoteJWKSet>
   return jwks
 }
 
-function readBearerToken(headers: Headers): null | string {
-  const authorization = headers.get('authorization')
-  if (!authorization?.startsWith('Bearer '))
-    return null
-
-  const token = authorization.slice(7).trim()
-  return token.length > 0 ? token : null
-}
-
-async function resolveAuthRequest(
-  auth: AuthInstance,
-  db: AuthDatabase,
-  env: Pick<AuthEnv, 'PUBLIC_URL'>,
-  headers: Headers,
-): Promise<AuthSession | null> {
-  const resolved = await resolveSessionIgnoringBan(auth, db, env, headers)
-  if (!resolved || isUserBannedNow(resolved.user))
-    return null
-
-  return resolved
-}
-
 async function resolveJwtAccessToken(
   db: AuthDatabase,
   env: Pick<AuthEnv, 'PUBLIC_URL'>,
@@ -150,8 +126,8 @@ async function resolveJwtAccessToken(
 ): Promise<AuthSession | null> {
   try {
     const { payload } = await jwtVerify(accessToken, getRemoteJwks(env.PUBLIC_URL), {
-      audience: env.PUBLIC_URL,
       issuer: `${env.PUBLIC_URL}/api/auth`,
+      audience: env.PUBLIC_URL,
     })
     if (!payload.sub)
       return null
@@ -164,17 +140,17 @@ async function resolveJwtAccessToken(
 
     const issuedAt = payload.iat ? new Date(payload.iat * 1000) : new Date()
     return {
-      session: {
-        createdAt: issuedAt,
-        expiresAt: payload.exp ? new Date(payload.exp * 1000) : new Date(),
-        id: payload.jti ?? payload.sub,
-        ipAddress: null,
-        token: accessToken,
-        updatedAt: issuedAt,
-        userAgent: null,
-        userId: payload.sub,
-      },
       user: resolvedUser,
+      session: {
+        id: payload.jti ?? payload.sub,
+        token: accessToken,
+        userId: payload.sub,
+        createdAt: issuedAt,
+        updatedAt: issuedAt,
+        expiresAt: payload.exp ? new Date(payload.exp * 1000) : new Date(),
+        ipAddress: null,
+        userAgent: null,
+      },
     }
   }
   catch {
@@ -199,6 +175,30 @@ async function resolveSessionIgnoringBan(
   return await resolveJwtAccessToken(db, env, accessToken)
 }
 
+async function resolveAuthRequest(
+  auth: AuthInstance,
+  db: AuthDatabase,
+  env: Pick<AuthEnv, 'PUBLIC_URL'>,
+  headers: Headers,
+): Promise<AuthSession | null> {
+  const resolved = await resolveSessionIgnoringBan(auth, db, env, headers)
+  if (!resolved || isUserBannedNow(resolved.user))
+    return null
+
+  return resolved
+}
+
+function buildGravatarUrl(emailAddress: string): string | null {
+  const normalized = emailAddress.trim().toLowerCase()
+  if (!normalized)
+    return null
+
+  const url = new URL(createHash('sha256').update(normalized).digest('hex'), 'https://www.gravatar.com/avatar/')
+  url.searchParams.set('d', 'identicon')
+  url.searchParams.set('s', '200')
+  return url.toString()
+}
+
 const CheckEmailIdentifierBodySchema = object({
   email: pipe(
     string(),
@@ -208,11 +208,57 @@ const CheckEmailIdentifierBodySchema = object({
   ),
 })
 
+async function checkEmailIdentifier(db: AuthDatabase, body: { email?: unknown } | null) {
+  const parsed = safeParse(CheckEmailIdentifierBodySchema, body)
+  if (!parsed.success)
+    throw createBadRequestError('Invalid email', 'INVALID_EMAIL')
+
+  const [matched] = await db.select({ id: user.id }).from(user).where(eq(user.email, parsed.output.email)).limit(1)
+  if (!matched)
+    return { exists: false, hasPassword: false }
+
+  const [credential] = await db
+    .select({ id: account.id })
+    .from(account)
+    .where(and(eq(account.userId, matched.id), eq(account.providerId, 'credential')))
+    .limit(1)
+  return { exists: true, hasPassword: !!credential }
+}
+
+function createAuthUiRoutes(env: AuthEnv) {
+  return new Hono<HonoEnv>()
+    .get(SERVER_AUTH_UI_BASE_PATH, c => c.redirect(buildAuthUiRedirectUrl(env.AUTH_UI_URL, c.req.url, env.PUBLIC_URL)))
+    .get(`${SERVER_AUTH_UI_BASE_PATH}/*`, c => c.redirect(buildAuthUiRedirectUrl(env.AUTH_UI_URL, c.req.url, env.PUBLIC_URL)))
+}
+
+function createElectronCallbackRelay(env: AuthEnv) {
+  return new Hono<HonoEnv>().get('/', (c) => {
+    const request = new URL(c.req.url)
+    return c.redirect(buildAuthUiUrl(env.AUTH_UI_URL, '/api/auth/oidc/electron-callback', request.search))
+  })
+}
+
+function createOIDCTokenAuthRoute(deps: Pick<AuthRoutesDeps, 'auth' | 'db' | 'env'>) {
+  return new Hono<HonoEnv>()
+    .on(['GET', 'POST'], '/get-session', async (c) => {
+      const session = await resolveAuthRequest(deps.auth, deps.db, deps.env, c.req.raw.headers)
+      if (!session)
+        return c.json(null)
+      const image = session.user.image || buildGravatarUrl(session.user.email)
+      return c.json({ ...session, user: { ...session.user, image } })
+    })
+    .post('/sign-out', c => c.json({ success: true }))
+    .get('/list-sessions', async (c) => {
+      const session = await resolveAuthRequest(deps.auth, deps.db, deps.env, c.req.raw.headers)
+      return c.json(session ? [session.session] : [])
+    })
+}
+
 export interface AuthRoutesDeps {
   auth: AuthInstance
   db: AuthDatabase
   env: AuthEnv
-  rateLimitMetrics?: null | RateLimitMetrics
+  rateLimitMetrics?: RateLimitMetrics | null
 }
 
 /**
@@ -242,12 +288,12 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      */
     .use('/api/auth/*', rateLimiter({
       max: 20,
-      metrics: deps.rateLimitMetrics,
-      routeLabel: 'auth.api',
+      windowSec: 60,
       // Proxy trust is a deployment boundary, not a property of the public
       // API URL. Custom domains and private gateways must opt in explicitly.
       trustedProxy: deps.env.RATE_LIMIT_TRUSTED_PROXY,
-      windowSec: 60,
+      metrics: deps.rateLimitMetrics,
+      routeLabel: 'auth.api',
     }))
     .all('/api/auth/admin', c => c.notFound())
     .all('/api/auth/admin/*', c => c.notFound())
@@ -315,56 +361,10 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      * per-IP request limit to `/api/auth/*` and throttles enumeration attempts.
      */
     .on('POST', '/api/auth/check-email', async (c) => {
-      const body = await c.req.json().catch(() => null) as null | { email?: unknown }
+      const body = await c.req.json().catch(() => null) as { email?: unknown } | null
       return c.json(await checkEmailIdentifier(deps.db, body))
     })
     .on(['POST', 'GET'], '/api/auth/*', async (c) => {
       return handleAuthRequest(c.req.raw)
-    })
-}
-
-async function checkEmailIdentifier(db: AuthDatabase, body: null | { email?: unknown }) {
-  const parsed = safeParse(CheckEmailIdentifierBodySchema, body)
-  if (!parsed.success)
-    throw createBadRequestError('Invalid email', 'INVALID_EMAIL')
-
-  const [matched] = await db.select({ id: user.id }).from(user).where(eq(user.email, parsed.output.email)).limit(1)
-  if (!matched)
-    return { exists: false, hasPassword: false }
-
-  const [credential] = await db
-    .select({ id: account.id })
-    .from(account)
-    .where(and(eq(account.userId, matched.id), eq(account.providerId, 'credential')))
-    .limit(1)
-  return { exists: true, hasPassword: !!credential }
-}
-
-function createAuthUiRoutes(env: AuthEnv) {
-  return new Hono<HonoEnv>()
-    .get(SERVER_AUTH_UI_BASE_PATH, c => c.redirect(buildAuthUiRedirectUrl(env.AUTH_UI_URL, c.req.url, env.PUBLIC_URL)))
-    .get(`${SERVER_AUTH_UI_BASE_PATH}/*`, c => c.redirect(buildAuthUiRedirectUrl(env.AUTH_UI_URL, c.req.url, env.PUBLIC_URL)))
-}
-
-function createElectronCallbackRelay(env: AuthEnv) {
-  return new Hono<HonoEnv>().get('/', (c) => {
-    const request = new URL(c.req.url)
-    return c.redirect(buildAuthUiUrl(env.AUTH_UI_URL, '/api/auth/oidc/electron-callback', request.search))
-  })
-}
-
-function createOIDCTokenAuthRoute(deps: Pick<AuthRoutesDeps, 'auth' | 'db' | 'env'>) {
-  return new Hono<HonoEnv>()
-    .on(['GET', 'POST'], '/get-session', async (c) => {
-      const session = await resolveAuthRequest(deps.auth, deps.db, deps.env, c.req.raw.headers)
-      if (!session)
-        return c.json(null)
-      const image = session.user.image || buildGravatarUrl(session.user.email)
-      return c.json({ ...session, user: { ...session.user, image } })
-    })
-    .post('/sign-out', c => c.json({ success: true }))
-    .get('/list-sessions', async (c) => {
-      const session = await resolveAuthRequest(deps.auth, deps.db, deps.env, c.req.raw.headers)
-      return c.json(session ? [session.session] : [])
     })
 }

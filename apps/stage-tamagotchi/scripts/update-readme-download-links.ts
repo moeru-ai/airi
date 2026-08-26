@@ -25,7 +25,7 @@ async function main() {
   }
 
   const cleanVersion = version.replace(/^v/, '')
-  const releaseOptions = { autoTag: false, release: true, tag: [cleanVersion] }
+  const releaseOptions = { release: true, autoTag: false, tag: [cleanVersion] }
 
   const windowsFilenames = await getFilenames('x86_64-pc-windows-msvc', releaseOptions)
   const macosFilenames = await getFilenames('aarch64-apple-darwin', releaseOptions)

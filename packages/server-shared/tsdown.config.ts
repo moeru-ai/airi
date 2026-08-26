@@ -5,7 +5,7 @@ export default defineConfig({
     'index': 'src/index.ts',
     'types/index': 'src/types/index.ts',
   },
-  inlineOnly: false,
   sourcemap: true,
   unused: true,
+  inlineOnly: false,
 })

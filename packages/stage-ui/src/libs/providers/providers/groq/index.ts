@@ -19,7 +19,28 @@ const groqConfigSchema = z.object({
 type GroqConfig = z.input<typeof groqConfigSchema>
 
 export const providerGroq = defineProvider<GroqConfig>({
+  id: 'groq',
+  name: 'Groq',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.groq.title'),
+  description: 'groq.com',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.groq.description'),
+  tasks: ['chat'],
   capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
+  icon: 'i-lobe-icons:groq',
+
+  createProviderConfig: ({ t }) => groqConfigSchema.extend({
+    apiKey: groqConfigSchema.shape.apiKey.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+      type: 'password',
+    }),
+    baseUrl: groqConfigSchema.shape.baseUrl.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
+    }),
+  }),
   createProvider(config) {
     const provider = createOpenAI(config.apiKey, config.baseUrl)
     return {
@@ -33,27 +54,6 @@ export const providerGroq = defineProvider<GroqConfig>({
       },
     }
   },
-  createProviderConfig: ({ t }) => groqConfigSchema.extend({
-    apiKey: groqConfigSchema.shape.apiKey.meta({
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
-      type: 'password',
-    }),
-    baseUrl: groqConfigSchema.shape.baseUrl.meta({
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
-    }),
-  }),
-  description: 'groq.com',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.groq.description'),
-  icon: 'i-lobe-icons:groq',
-  id: 'groq',
-  name: 'Groq',
-
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.groq.title'),
-  tasks: ['chat'],
 
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()

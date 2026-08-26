@@ -36,7 +36,7 @@ export function getAdapter(id: string): TtsAdapter {
   throw createBadRequestError(
     `unknown_tts_provider: ${id}`,
     'BAD_REQUEST',
-    { available: Object.keys(ADAPTERS), id },
+    { id, available: Object.keys(ADAPTERS) },
   )
 }
 

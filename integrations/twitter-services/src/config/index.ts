@@ -31,21 +31,6 @@ export class ConfigManager {
   }
 
   /**
-   * Get complete configuration
-   */
-  getConfig(): Config {
-    return this.config
-  }
-
-  /**
-   * Update configuration
-   */
-  updateConfig(newConfig: Partial<Config>): void {
-    // Use defu to merge new configuration
-    this.config = merge(this.config, newConfig)
-  }
-
-  /**
    * Load configuration from file
    */
   private loadFromFile(filePath: string): void {
@@ -62,6 +47,21 @@ export class ConfigManager {
     catch (error) {
       logger.config.errorWithError(`Failed to load configuration file: ${(error as Error).message}`, error)
     }
+  }
+
+  /**
+   * Get complete configuration
+   */
+  getConfig(): Config {
+    return this.config
+  }
+
+  /**
+   * Update configuration
+   */
+  updateConfig(newConfig: Partial<Config>): void {
+    // Use defu to merge new configuration
+    this.config = merge(this.config, newConfig)
   }
 }
 

@@ -4,14 +4,14 @@ import { describe, expect, it } from 'vitest'
 
 import { cookedVariantOf, hasReadyFood, isCookableToHigherSaturation, selectReadyFood } from './foods'
 
-function botWith(items: Array<{ foodPoints?: number, name: string }>): Bot {
-  return { inventory: { items: () => items } } as unknown as Bot
+/** Fake inventory item carrying the runtime `foodPoints` prismarine-item adds. */
+function item(name: string, foodPoints?: number): { name: string, foodPoints?: number } {
+  // @example item('bread', 5) -> ready-to-eat; item('beef', 3) -> raw cookable; item('stone') -> not food
+  return foodPoints === undefined ? { name } : { name, foodPoints }
 }
 
-/** Fake inventory item carrying the runtime `foodPoints` prismarine-item adds. */
-function item(name: string, foodPoints?: number): { foodPoints?: number, name: string } {
-  // @example item('bread', 5) -> ready-to-eat; item('beef', 3) -> raw cookable; item('stone') -> not food
-  return foodPoints === undefined ? { name } : { foodPoints, name }
+function botWith(items: Array<{ name: string, foodPoints?: number }>): Bot {
+  return { inventory: { items: () => items } } as unknown as Bot
 }
 
 describe('food classification', () => {

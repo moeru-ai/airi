@@ -12,17 +12,48 @@ import { createStageTtsSession, createStreamingTtsSession } from './tts-session'
 // segmenter pipeline.
 function makeIntentStub(overrides: Partial<{ intentId: string }> = {}) {
   return {
-    cancel: vi.fn<(reason?: string) => void>(),
-    end: vi.fn<() => void>(),
     intentId: overrides.intentId ?? 'segmenter-intent-1',
+    streamId: 'stream-id',
     priority: 0,
+    writeLiteral: vi.fn<(text: string) => void>(),
+    writeSpecial: vi.fn<(special: string) => void>(),
+    writeFlush: vi.fn<() => void>(),
+    end: vi.fn<() => void>(),
+    cancel: vi.fn<(reason?: string) => void>(),
     // `IntentHandle` also carries a `stream: ReadableStream<TextToken>`
     // field; the adapter never touches it, so we stub it as never.
     stream: undefined as never,
-    streamId: 'stream-id',
-    writeFlush: vi.fn<() => void>(),
-    writeLiteral: vi.fn<(text: string) => void>(),
-    writeSpecial: vi.fn<(special: string) => void>(),
+  }
+}
+
+function makePlaybackManagerStub<TAudio = AudioBuffer>(): PlaybackManagerSubset<TAudio> & {
+  scheduled: Array<PlaybackItem<TAudio>>
+  cancellations: Array<{ intentId: string, reason: string }>
+} {
+  const scheduled: Array<PlaybackItem<TAudio>> = []
+  const cancellations: Array<{ intentId: string, reason: string }> = []
+  return {
+    schedule: vi.fn((item: PlaybackItem<TAudio>) => {
+      scheduled.push(item)
+    }),
+    stopByIntent: vi.fn((intentId: string, reason: string) => {
+      cancellations.push({ intentId, reason })
+    }),
+    scheduled,
+    cancellations,
+  }
+}
+
+function makeStreamingSnapshot(overrides: Partial<StreamingSessionSnapshot> = {}): StreamingSessionSnapshot {
+  return {
+    model: 'volcengine/seed-tts-2.0',
+    voice: 'mock-voice',
+    voiceType: 'official_selected',
+    bufferEntireSession: false,
+    extraBody: { api_resource_id: 'seed-tts-2.0' },
+    ownerId: 'card-1',
+    onImmediateSpecial: vi.fn(),
+    ...overrides,
   }
 }
 
@@ -30,10 +61,10 @@ function makeIntentStub(overrides: Partial<{ intentId: string }> = {}) {
 // test can drive `onSentence` / `onError` / `onDone` directly. Tracks
 // `appendText` / `finish` / `cancel` invocations.
 function makePipelineStub() {
-  const calls: { appendText: string[], cancel: number, finish: number } = {
+  const calls: { appendText: string[], finish: number, cancel: number } = {
     appendText: [],
-    cancel: 0,
     finish: 0,
+    cancel: 0,
   }
   let captured: any
   const factory = vi.fn((options: any) => {
@@ -42,49 +73,18 @@ function makePipelineStub() {
       appendText: (text: string) => {
         calls.appendText.push(text)
       },
-      cancel: () => {
-        calls.cancel += 1
-      },
       finish: () => {
         calls.finish += 1
+      },
+      cancel: () => {
+        calls.cancel += 1
       },
     }
   })
   return {
-    calls,
     factory,
+    calls,
     get options() { return captured },
-  }
-}
-
-function makePlaybackManagerStub<TAudio = AudioBuffer>(): PlaybackManagerSubset<TAudio> & {
-  cancellations: Array<{ intentId: string, reason: string }>
-  scheduled: Array<PlaybackItem<TAudio>>
-} {
-  const scheduled: Array<PlaybackItem<TAudio>> = []
-  const cancellations: Array<{ intentId: string, reason: string }> = []
-  return {
-    cancellations,
-    schedule: vi.fn((item: PlaybackItem<TAudio>) => {
-      scheduled.push(item)
-    }),
-    scheduled,
-    stopByIntent: vi.fn((intentId: string, reason: string) => {
-      cancellations.push({ intentId, reason })
-    }),
-  }
-}
-
-function makeStreamingSnapshot(overrides: Partial<StreamingSessionSnapshot> = {}): StreamingSessionSnapshot {
-  return {
-    bufferEntireSession: false,
-    extraBody: { api_resource_id: 'seed-tts-2.0' },
-    model: 'volcengine/seed-tts-2.0',
-    onImmediateSpecial: vi.fn(),
-    ownerId: 'card-1',
-    voice: 'mock-voice',
-    voiceType: 'official_selected',
-    ...overrides,
   }
 }
 
@@ -95,12 +95,12 @@ describe('createStageTtsSession (factory)', () => {
     const intent = makeIntentStub({ intentId: 'segmenter-1' })
     const playback = makePlaybackManagerStub()
     const session = createStageTtsSession({
-      audioContext: dummyAudioContext,
-      intentOptions: () => ({ behavior: 'queue', ownerId: 'card-1', priority: 'normal' } as IntentOptions),
-      openIntent: vi.fn(() => intent),
-      playbackManager: playback,
-      streaming: () => null,
       transport: 'rest',
+      streaming: () => null,
+      audioContext: dummyAudioContext,
+      playbackManager: playback,
+      openIntent: vi.fn(() => intent),
+      intentOptions: () => ({ ownerId: 'card-1', priority: 'normal', behavior: 'queue' } as IntentOptions),
     })
 
     session.appendText('hello')
@@ -121,12 +121,12 @@ describe('createStageTtsSession (factory)', () => {
   it('returns the segmenter adapter when transport is undefined (REST default)', () => {
     const intent = makeIntentStub({ intentId: 'segmenter-default' })
     const session = createStageTtsSession({
-      audioContext: dummyAudioContext,
-      intentOptions: () => ({ behavior: 'queue', ownerId: 'card-1', priority: 'normal' } as IntentOptions),
-      openIntent: vi.fn(() => intent),
-      playbackManager: makePlaybackManagerStub(),
-      streaming: () => makeStreamingSnapshot(),
       transport: undefined,
+      streaming: () => makeStreamingSnapshot(),
+      audioContext: dummyAudioContext,
+      playbackManager: makePlaybackManagerStub(),
+      openIntent: vi.fn(() => intent),
+      intentOptions: () => ({ ownerId: 'card-1', priority: 'normal', behavior: 'queue' } as IntentOptions),
     })
 
     expect(session.intentId).toBe('segmenter-default')
@@ -136,12 +136,12 @@ describe('createStageTtsSession (factory)', () => {
     const intent = makeIntentStub({ intentId: 'segmenter-fallback' })
     const playback = makePlaybackManagerStub()
     const session = createStageTtsSession({
-      audioContext: dummyAudioContext,
-      intentOptions: () => ({ behavior: 'queue', ownerId: 'card-1', priority: 'normal' } as IntentOptions),
-      openIntent: vi.fn(() => intent),
-      playbackManager: playback,
-      streaming: () => null, // No snapshot → fallback.
       transport: 'bidirectional-ws',
+      streaming: () => null, // No snapshot → fallback.
+      audioContext: dummyAudioContext,
+      playbackManager: playback,
+      openIntent: vi.fn(() => intent),
+      intentOptions: () => ({ ownerId: 'card-1', priority: 'normal', behavior: 'queue' } as IntentOptions),
     })
 
     expect(session.intentId).toBe('segmenter-fallback')
@@ -152,12 +152,12 @@ describe('createStageTtsSession (factory)', () => {
   it('falls back to segmenter when audioContext is undefined', () => {
     const intent = makeIntentStub({ intentId: 'segmenter-no-ctx' })
     const session = createStageTtsSession({
-      audioContext: undefined,
-      intentOptions: () => ({ behavior: 'queue', ownerId: 'card-1', priority: 'normal' } as IntentOptions),
-      openIntent: vi.fn(() => intent),
-      playbackManager: makePlaybackManagerStub(),
-      streaming: () => makeStreamingSnapshot(),
       transport: 'bidirectional-ws',
+      streaming: () => makeStreamingSnapshot(),
+      audioContext: undefined,
+      playbackManager: makePlaybackManagerStub(),
+      openIntent: vi.fn(() => intent),
+      intentOptions: () => ({ ownerId: 'card-1', priority: 'normal', behavior: 'queue' } as IntentOptions),
     })
 
     expect(session.intentId).toBe('segmenter-no-ctx')
@@ -166,12 +166,12 @@ describe('createStageTtsSession (factory)', () => {
   it('falls back to segmenter when snapshot.voice is empty', () => {
     const intent = makeIntentStub({ intentId: 'segmenter-no-voice' })
     const session = createStageTtsSession({
-      audioContext: dummyAudioContext,
-      intentOptions: () => ({ behavior: 'queue', ownerId: 'card-1', priority: 'normal' } as IntentOptions),
-      openIntent: vi.fn(() => intent),
-      playbackManager: makePlaybackManagerStub(),
-      streaming: () => makeStreamingSnapshot({ voice: '' }),
       transport: 'bidirectional-ws',
+      streaming: () => makeStreamingSnapshot({ voice: '' }),
+      audioContext: dummyAudioContext,
+      playbackManager: makePlaybackManagerStub(),
+      openIntent: vi.fn(() => intent),
+      intentOptions: () => ({ ownerId: 'card-1', priority: 'normal', behavior: 'queue' } as IntentOptions),
     })
 
     expect(session.intentId).toBe('segmenter-no-voice')
@@ -185,11 +185,11 @@ describe('createStreamingTtsSession (adapter)', () => {
     const snap = makeStreamingSnapshot()
 
     createStreamingTtsSession({
-      audioContext: dummyAudioContext,
       intentId: 'stream-abc',
-      pipelineFactory: pipe.factory as any,
-      playbackManager: playback,
       snapshot: snap,
+      audioContext: dummyAudioContext,
+      playbackManager: playback,
+      pipelineFactory: pipe.factory as any,
     })
 
     expect(pipe.options.ttsVoiceType).toBe('official_selected')
@@ -197,36 +197,36 @@ describe('createStreamingTtsSession (adapter)', () => {
     // Simulate the pipeline emitting two sentences.
     const audio0 = { __id: 0 } as unknown as AudioBuffer
     const audio1 = { __id: 1 } as unknown as AudioBuffer
-    pipe.options.onSentence({ audio: audio0, index: 0, text: 'first' })
-    pipe.options.onSentence({ audio: audio1, index: 1, text: 'second' })
+    pipe.options.onSentence({ index: 0, text: 'first', audio: audio0 })
+    pipe.options.onSentence({ index: 1, text: 'second', audio: audio1 })
 
     expect(playback.scheduled).toHaveLength(2)
     expect(playback.scheduled[0]).toMatchObject({
       id: 'stream-abc-0',
+      streamId: 'stream-abc',
       intentId: 'stream-abc',
-      ownerId: 'card-1',
       segmentId: 'stream-abc-0',
       sequence: 0,
-      special: null,
-      streamId: 'stream-abc',
+      ownerId: 'card-1',
       text: 'first',
+      special: null,
     })
     expect(playback.scheduled[0].audio).toBe(audio0)
     expect(playback.scheduled[1]).toMatchObject({
-      audio: audio1,
       sequence: 1,
       text: 'second',
+      audio: audio1,
     })
   })
 
   it('forwards appendText / finishInput to the pipeline', () => {
     const pipe = makePipelineStub()
     const session = createStreamingTtsSession({
-      audioContext: dummyAudioContext,
       intentId: 'stream-x',
-      pipelineFactory: pipe.factory as any,
-      playbackManager: makePlaybackManagerStub(),
       snapshot: makeStreamingSnapshot(),
+      audioContext: dummyAudioContext,
+      playbackManager: makePlaybackManagerStub(),
+      pipelineFactory: pipe.factory as any,
     })
 
     session.appendText('hello')
@@ -241,11 +241,11 @@ describe('createStreamingTtsSession (adapter)', () => {
     const pipe = makePipelineStub()
     const onSpecial = vi.fn()
     const session = createStreamingTtsSession({
-      audioContext: dummyAudioContext,
       intentId: 'stream-special',
-      pipelineFactory: pipe.factory as any,
-      playbackManager: makePlaybackManagerStub(),
       snapshot: makeStreamingSnapshot({ onImmediateSpecial: onSpecial }),
+      audioContext: dummyAudioContext,
+      playbackManager: makePlaybackManagerStub(),
+      pipelineFactory: pipe.factory as any,
     })
 
     session.appendSpecial('emotion:angry')
@@ -260,11 +260,11 @@ describe('createStreamingTtsSession (adapter)', () => {
     const playback = makePlaybackManagerStub()
     const pipe = makePipelineStub()
     const session = createStreamingTtsSession({
-      audioContext: dummyAudioContext,
       intentId: 'stream-cancel',
-      pipelineFactory: pipe.factory as any,
-      playbackManager: playback,
       snapshot: makeStreamingSnapshot(),
+      audioContext: dummyAudioContext,
+      playbackManager: playback,
+      pipelineFactory: pipe.factory as any,
     })
 
     session.cancel('user-aborted')
@@ -279,11 +279,11 @@ describe('createStreamingTtsSession (adapter)', () => {
     const playback = makePlaybackManagerStub()
     const pipe = makePipelineStub()
     const session = createStreamingTtsSession({
-      audioContext: dummyAudioContext,
       intentId: 'stream-late',
-      pipelineFactory: pipe.factory as any,
-      playbackManager: playback,
       snapshot: makeStreamingSnapshot(),
+      audioContext: dummyAudioContext,
+      playbackManager: playback,
+      pipelineFactory: pipe.factory as any,
     })
 
     // Pipeline naturally completes first.
@@ -302,16 +302,16 @@ describe('createStreamingTtsSession (adapter)', () => {
     const playback = makePlaybackManagerStub()
     const pipe = makePipelineStub()
     createStreamingTtsSession({
-      audioContext: dummyAudioContext,
       intentId: 'stream-after-done',
-      pipelineFactory: pipe.factory as any,
-      playbackManager: playback,
       snapshot: makeStreamingSnapshot(),
+      audioContext: dummyAudioContext,
+      playbackManager: playback,
+      pipelineFactory: pipe.factory as any,
     })
 
     // Mark terminated, then a straggler sentence arrives.
     pipe.options.onDone()
-    pipe.options.onSentence({ audio: {} as AudioBuffer, index: 0, text: 'too late' })
+    pipe.options.onSentence({ index: 0, text: 'too late', audio: {} as AudioBuffer })
 
     expect(playback.scheduled).toHaveLength(0)
   })
@@ -321,12 +321,12 @@ describe('createStreamingTtsSession (adapter)', () => {
     const onDone = vi.fn()
     const pipe = makePipelineStub()
     createStreamingTtsSession({
-      audioContext: dummyAudioContext,
-      hooks: { onDone, onError },
       intentId: 'stream-err',
-      pipelineFactory: pipe.factory as any,
-      playbackManager: makePlaybackManagerStub(),
       snapshot: makeStreamingSnapshot(),
+      audioContext: dummyAudioContext,
+      playbackManager: makePlaybackManagerStub(),
+      hooks: { onError, onDone },
+      pipelineFactory: pipe.factory as any,
     })
 
     const err = new Error('boom')

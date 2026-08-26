@@ -25,6 +25,14 @@ class MockWindow {
     this.listeners.get(type)?.set(listener, handler)
   }
 
+  removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null) {
+    if (!listener) {
+      return
+    }
+
+    this.listeners.get(type)?.delete(listener)
+  }
+
   postMessage(data: unknown) {
     const messageEvent = {
       data,
@@ -34,14 +42,6 @@ class MockWindow {
     for (const listener of this.listeners.get('message')?.values() ?? []) {
       listener(messageEvent as unknown as Event)
     }
-  }
-
-  removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null) {
-    if (!listener) {
-      return
-    }
-
-    this.listeners.get(type)?.delete(listener)
   }
 }
 
@@ -90,9 +90,9 @@ describe('createContext', () => {
     })
 
     host.context.emit(widgetsIframeInitEvent, {
+      moduleId: 'module-chess',
       config: {},
       module: undefined,
-      moduleId: 'module-chess',
       props: {},
     })
 
@@ -111,12 +111,12 @@ describe('createContext', () => {
     })
 
     iframe.context.emit(widgetsIframePublishEvent, {
+      route: {
+        namespace: 'plugin.chess',
+        name: 'request',
+      },
       payload: {
         requestId: 'req-1',
-      },
-      route: {
-        name: 'request',
-        namespace: 'plugin.chess',
       },
     })
 
@@ -157,10 +157,10 @@ describe('createContext', () => {
 
     const invokeGameletIframeRequest = defineInvoke(host.context, gameletIframeRequest)
     await expect(invokeGameletIframeRequest({
+      requestId: 'req-1',
       payload: {
         action: 'snapshot',
       },
-      requestId: 'req-1',
     })).resolves.toEqual({ fen: 'fen-after-request' })
 
     host.dispose()

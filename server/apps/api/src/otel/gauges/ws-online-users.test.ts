@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { registerWsOnlineUsersGauge } from './ws-online-users'
 
 function makeGauge() {
-  let callback: ((result: { observe: (value: number) => void }) => Promise<void> | void) | null = null
+  let callback: ((result: { observe: (value: number) => void }) => void | Promise<void>) | null = null
   const observe = vi.fn()
   const gauge = {
     addCallback: vi.fn((registeredCallback: typeof callback) => {
@@ -27,8 +27,8 @@ function makeGauge() {
 function makeReadErrors() {
   const add = vi.fn()
   return {
-    add,
     metricReadErrors: { add } as unknown as ObservabilityMetrics['metricReadErrors'],
+    add,
   }
 }
 
@@ -75,7 +75,7 @@ describe('registerWsOnlineUsersGauge', () => {
     const pubsub = vi.fn(async () => {
       throw new Error('Redis unavailable')
     })
-    const { add, metricReadErrors } = makeReadErrors()
+    const { metricReadErrors, add } = makeReadErrors()
     const { gauge, observe, run } = makeGauge()
 
     registerWsOnlineUsersGauge(gauge, { pubsub }, metricReadErrors)

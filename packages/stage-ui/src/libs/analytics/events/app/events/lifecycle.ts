@@ -1,20 +1,20 @@
 import { defineEvent } from '../../../utils/dsl'
 
 export const appLoadedEvent = defineEvent<{
-  platform: 'desktop' | 'mobile' | 'web'
+  platform: 'web' | 'desktop' | 'mobile'
   version: string
 }>('app_loaded')
 
 export const analyticsSettingChangedEvent = defineEvent<{
-  app_surface: 'desktop' | 'mobile' | 'web'
-  new_value: boolean
-  previous_value: boolean
   setting_name: 'analytics_enabled'
+  previous_value: boolean
+  new_value: boolean
   source: 'settings'
+  app_surface: 'web' | 'desktop' | 'mobile'
 }>('settings_changed')
 
 export const firstMessageSentEvent = defineEvent<{
-  time_to_first_message_ms: null | number
+  time_to_first_message_ms: number | null
   trigger_method: 'message_send'
   trigger_type: 'user_action'
 }>('first_message_sent')

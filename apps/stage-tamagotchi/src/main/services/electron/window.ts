@@ -34,10 +34,10 @@ export function createWindowService(params: { context: ReturnType<typeof createC
   }
 
   const { start, stop } = createRendererLoop({
+    window: params.window,
     run: () => {
       params.context.emit(bounds, params.window.getBounds())
     },
-    window: params.window,
   })
 
   onAppWindowAllClosed(() => stop())
@@ -61,10 +61,10 @@ export function createWindowService(params: { context: ReturnType<typeof createC
     }
 
     return {
-      height: 0,
-      width: 0,
       x: 0,
       y: 0,
+      width: 0,
+      height: 0,
     }
   })
 
@@ -109,10 +109,10 @@ export function createWindowService(params: { context: ReturnType<typeof createC
     }
 
     resizeWindowByDelta({
+      window: params.window,
       deltaX: payload.deltaX,
       deltaY: payload.deltaY,
       direction: payload.direction,
-      window: params.window,
     })
   })
 

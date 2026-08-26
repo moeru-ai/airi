@@ -46,8 +46,8 @@ describe('vite-wrapper-config', () => {
     const module = await import('./vite-wrapper-config')
     const config = await module.default({
       command: 'serve',
-      isPreview: false,
       mode: 'development',
+      isPreview: false,
     })
 
     expect(defineConfig).toHaveBeenCalledTimes(1)

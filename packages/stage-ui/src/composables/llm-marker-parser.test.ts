@@ -172,41 +172,41 @@ describe('useLlmmarkerParser', async () => {
   })
 
   it('should parse correctly', async () => {
-    const testCases: { expectedLiterals: string, expectedSpecials: string[], input: string }[] = [
+    const testCases: { input: string, expectedLiterals: string, expectedSpecials: string[] }[] = [
       {
-        expectedLiterals: ' Wow, hello there!',
-        expectedSpecials: ['<|A|>'],
         input: `<|A|> Wow, hello there!`,
-      },
-      {
-        expectedLiterals: ' Hello!',
-        expectedSpecials: ['<|A|>'],
-        input: `<|A|> Hello!`,
-      },
-      {
-        expectedLiterals: ' Hello! ',
-        expectedSpecials: ['<|A|>', '<|B|>'],
-        input: `<|A|> Hello! <|B|>`,
-      },
-      {
         expectedLiterals: ' Wow, hello there!',
         expectedSpecials: ['<|A|>'],
-        input: '<{\'|\'}A{\'|\'}> Wow, hello there!',
       },
       {
+        input: `<|A|> Hello!`,
         expectedLiterals: ' Hello!',
         expectedSpecials: ['<|A|>'],
-        input: '<{\'|\'}A{\'|\'}> Hello!',
       },
       {
+        input: `<|A|> Hello! <|B|>`,
         expectedLiterals: ' Hello! ',
         expectedSpecials: ['<|A|>', '<|B|>'],
+      },
+      {
+        input: '<{\'|\'}A{\'|\'}> Wow, hello there!',
+        expectedLiterals: ' Wow, hello there!',
+        expectedSpecials: ['<|A|>'],
+      },
+      {
+        input: '<{\'|\'}A{\'|\'}> Hello!',
+        expectedLiterals: ' Hello!',
+        expectedSpecials: ['<|A|>'],
+      },
+      {
         input: '<{\'|\'}A{\'|\'}> Hello! <{\'|\'}B{\'|\'}>',
+        expectedLiterals: ' Hello! ',
+        expectedSpecials: ['<|A|>', '<|B|>'],
       },
     ]
 
     for (const tc of testCases) {
-      const { expectedLiterals, expectedSpecials, input } = tc
+      const { input, expectedLiterals, expectedSpecials } = tc
       const collectedLiterals: string[] = []
       const collectedSpecials: string[] = []
 

@@ -1,7 +1,7 @@
 export interface VadStreamingSessionOptions {
-  onError?: (error: unknown) => void
   start: () => Promise<void>
   stop: () => Promise<void>
+  onError?: (error: unknown) => void
 }
 
 /**
@@ -100,8 +100,8 @@ export function createVadStreamingSession(options: VadStreamingSessionOptions) {
   }
 
   return {
-    dispose,
-    onSpeechEnd,
     onSpeechStart,
+    onSpeechEnd,
+    dispose,
   }
 }

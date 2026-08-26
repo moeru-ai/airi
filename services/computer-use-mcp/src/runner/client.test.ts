@@ -11,8 +11,8 @@ const fakeRunnerPath = resolve(packageDir, 'fixtures/fake-runner.mjs')
 
 function createFakeRunnerTransport(env: NodeJS.ProcessEnv = {}) {
   return () => ({
-    args: [fakeRunnerPath],
     command: process.execPath,
+    args: [fakeRunnerPath],
     env: {
       ...process.env,
       ...env,
@@ -51,8 +51,8 @@ describe('remoteRunnerClient', () => {
     let closeOnMutation = true
     const client = new RemoteRunnerClient(createTestConfig(), {
       transportFactory: () => ({
-        args: [fakeRunnerPath],
         command: process.execPath,
+        args: [fakeRunnerPath],
         env: {
           ...process.env,
           ...(closeOnMutation ? { FAKE_RUNNER_CLOSE_ON_MUTATION: '1' } : {}),
@@ -63,9 +63,9 @@ describe('remoteRunnerClient', () => {
     try {
       await client.getExecutionTarget()
       await expect(client.click({
-        pointerTrace: [{ delayMs: 0, x: 180, y: 150 }],
         x: 180,
         y: 150,
+        pointerTrace: [{ x: 180, y: 150, delayMs: 0 }],
       })).rejects.toThrow()
 
       const taintedTarget = await client.getExecutionTarget()

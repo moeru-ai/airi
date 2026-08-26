@@ -25,44 +25,8 @@ const NODE_PTY_MODULE = 'node-pty'
 const requireNodeModule = createRequire(import.meta.url)
 const PTY_LINE_SPLIT_RE = /\r?\n/
 
-export interface PtyResizeInput {
-  cols: number
-  rows: number
-}
-
-export interface PtyScreenRequest {
-  /** Maximum number of lines to return from the bottom of the scrollback */
-  maxLines?: number
-}
-
-export interface PtySession {
-  /** Whether the PTY is still alive */
-  alive: boolean
-  /** Number of columns */
-  cols: number
-  /** Unique session id */
-  id: string
-  /** Shell process PID */
-  pid: number
-  /** Number of rows */
-  rows: number
-  /** Current screen content (last snapshot) */
-  screenContent: string
-}
-
-export interface PtyWriteInput {
-  /** Data to write to the PTY stdin */
-  data: string
-}
-
-interface PtyInstance {
-  buffer: string[]
-  cols: number
-  id: string
-  /** Maximum scrollback buffer lines to keep */
-  maxScrollback: number
-  pty: any
-  rows: number
+function stringifyLoadError(error: unknown) {
+  return error instanceof Error ? error.stack || error.message : String(error)
 }
 
 async function loadNodePty() {
@@ -99,19 +63,71 @@ async function loadNodePty() {
   return nodePty
 }
 
-function stringifyLoadError(error: unknown) {
-  return error instanceof Error ? error.stack || error.message : String(error)
+export interface PtySession {
+  /** Unique session id */
+  id: string
+  /** Whether the PTY is still alive */
+  alive: boolean
+  /** Number of rows */
+  rows: number
+  /** Number of columns */
+  cols: number
+  /** Current screen content (last snapshot) */
+  screenContent: string
+  /** Shell process PID */
+  pid: number
+}
+
+export interface PtyWriteInput {
+  /** Data to write to the PTY stdin */
+  data: string
+}
+
+export interface PtyResizeInput {
+  cols: number
+  rows: number
+}
+
+export interface PtyScreenRequest {
+  /** Maximum number of lines to return from the bottom of the scrollback */
+  maxLines?: number
+}
+
+interface PtyInstance {
+  id: string
+  pty: any
+  buffer: string[]
+  /** Maximum scrollback buffer lines to keep */
+  maxScrollback: number
+  rows: number
+  cols: number
 }
 
 const sessions = new Map<string, PtyInstance>()
 let nextId = 1
 
 /**
+ * Whether node-pty is available in this runtime.
+ */
+export async function isPtyAvailable(): Promise<boolean> {
+  await loadNodePty()
+  return nodePty !== undefined
+}
+
+export async function getPtyAvailabilityInfo(): Promise<{ available: boolean, error?: string }> {
+  await loadNodePty()
+  return {
+    available: nodePty !== undefined,
+    ...(nodePtyLoadError ? { error: nodePtyLoadError } : {}),
+  }
+}
+
+/**
  * Create a new interactive PTY session.
  */
 export async function createPtySession(
   config: ComputerUseConfig,
-  options?: { cols?: number, cwd?: string, rows?: number },
+  options?: { rows?: number, cols?: number, cwd?: string },
 ): Promise<PtySession> {
   await loadNodePty()
   if (!nodePty) {
@@ -125,20 +141,20 @@ export async function createPtySession(
   const maxScrollback = 5000
 
   const pty = nodePty.spawn(config.terminalShell, [], {
+    name: 'xterm-256color',
     cols,
+    rows,
     cwd,
     env: env as Record<string, string>,
-    name: 'xterm-256color',
-    rows,
   })
 
   const instance: PtyInstance = {
-    buffer: [],
-    cols,
     id,
-    maxScrollback,
     pty,
+    buffer: [],
+    maxScrollback,
     rows,
+    cols,
   }
 
   pty.onData((data: string) => {
@@ -160,86 +176,37 @@ export async function createPtySession(
   sessions.set(id, instance)
 
   return {
-    alive: true,
-    cols,
     id,
-    pid: pty.pid,
+    alive: true,
     rows,
+    cols,
     screenContent: '',
+    pid: pty.pid,
   }
 }
 
 /**
- * Destroy all PTY sessions. Called on server shutdown.
+ * Write data (keystrokes) to a PTY session.
  */
-export function destroyAllPtySessions(): void {
-  for (const sessionId of sessions.keys()) {
-    destroyPtySession(sessionId)
-  }
-}
-
-/**
- * Destroy a PTY session.
- */
-export function destroyPtySession(sessionId: string): boolean {
+export function writeToPty(sessionId: string, input: PtyWriteInput): void {
   const instance = sessions.get(sessionId)
   if (!instance) {
-    return false
+    throw new Error(`PTY session not found: ${sessionId}`)
   }
-
-  try {
-    instance.pty.kill()
-  }
-  catch {
-    // Already dead
-  }
-
-  sessions.delete(sessionId)
-  return true
-}
-
-export async function getPtyAvailabilityInfo(): Promise<{ available: boolean, error?: string }> {
-  await loadNodePty()
-  return {
-    available: nodePty !== undefined,
-    ...(nodePtyLoadError ? { error: nodePtyLoadError } : {}),
-  }
+  instance.pty.write(input.data)
 }
 
 /**
- * Whether node-pty is available in this runtime.
+ * Resize a PTY session.
  */
-export async function isPtyAvailable(): Promise<boolean> {
-  await loadNodePty()
-  return nodePty !== undefined
-}
-
-/**
- * List all active PTY sessions.
- */
-export function listPtySessions(): PtySession[] {
-  const result: PtySession[] = []
-
-  for (const instance of sessions.values()) {
-    let alive = true
-    try {
-      kill(instance.pty.pid, 0)
-    }
-    catch {
-      alive = false
-    }
-
-    result.push({
-      alive,
-      cols: instance.cols,
-      id: instance.id,
-      pid: instance.pty.pid,
-      rows: instance.rows,
-      screenContent: '',
-    })
+export function resizePty(sessionId: string, input: PtyResizeInput): void {
+  const instance = sessions.get(sessionId)
+  if (!instance) {
+    throw new Error(`PTY session not found: ${sessionId}`)
   }
-
-  return result
+  instance.pty.resize(input.cols, input.rows)
+  instance.cols = input.cols
+  instance.rows = input.rows
 }
 
 /**
@@ -264,35 +231,68 @@ export function readPtyScreen(sessionId: string, request: PtyScreenRequest = {})
   }
 
   return {
-    alive,
-    cols: instance.cols,
     id: instance.id,
-    pid: instance.pty.pid,
+    alive,
     rows: instance.rows,
+    cols: instance.cols,
     screenContent: visibleLines.join('\n'),
+    pid: instance.pty.pid,
   }
 }
 
 /**
- * Resize a PTY session.
+ * List all active PTY sessions.
  */
-export function resizePty(sessionId: string, input: PtyResizeInput): void {
-  const instance = sessions.get(sessionId)
-  if (!instance) {
-    throw new Error(`PTY session not found: ${sessionId}`)
+export function listPtySessions(): PtySession[] {
+  const result: PtySession[] = []
+
+  for (const instance of sessions.values()) {
+    let alive = true
+    try {
+      kill(instance.pty.pid, 0)
+    }
+    catch {
+      alive = false
+    }
+
+    result.push({
+      id: instance.id,
+      alive,
+      rows: instance.rows,
+      cols: instance.cols,
+      screenContent: '',
+      pid: instance.pty.pid,
+    })
   }
-  instance.pty.resize(input.cols, input.rows)
-  instance.cols = input.cols
-  instance.rows = input.rows
+
+  return result
 }
 
 /**
- * Write data (keystrokes) to a PTY session.
+ * Destroy a PTY session.
  */
-export function writeToPty(sessionId: string, input: PtyWriteInput): void {
+export function destroyPtySession(sessionId: string): boolean {
   const instance = sessions.get(sessionId)
   if (!instance) {
-    throw new Error(`PTY session not found: ${sessionId}`)
+    return false
   }
-  instance.pty.write(input.data)
+
+  try {
+    instance.pty.kill()
+  }
+  catch {
+    // Already dead
+  }
+
+  sessions.delete(sessionId)
+  return true
+}
+
+/**
+ * Destroy all PTY sessions. Called on server shutdown.
+ */
+export function destroyAllPtySessions(): void {
+  for (const sessionId of sessions.keys()) {
+    destroyPtySession(sessionId)
+  }
 }

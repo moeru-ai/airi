@@ -13,19 +13,19 @@ import { decideDesktopExecutionMode } from './desktop-scheduler'
 const DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS = 5000
 
 export interface DesktopClickTargetExecution {
-  backendResult: Record<string, unknown>
   summary: string
+  backendResult: Record<string, unknown>
 }
 
 export async function executeDesktopClickTarget(
   runtime: ComputerUseServerRuntime,
   input: {
-    button?: 'left' | 'middle' | 'right'
     candidateId: string
     clickCount?: number
+    button?: 'left' | 'right' | 'middle'
   },
 ): Promise<DesktopClickTargetExecution> {
-  const { button, candidateId, clickCount } = input
+  const { candidateId, clickCount, button } = input
   const state = runtime.stateManager.getState()
 
   if (!state.lastGroundingSnapshot) {
@@ -50,16 +50,16 @@ export async function executeDesktopClickTarget(
 
   const candidate = snapshot.targetCandidates.find(c => c.id === candidateId)
   const intent = {
-    candidateId,
-    confidence: candidate?.confidence ?? 0,
     mode: 'execute' as const,
-    path: [
-      { delayMs: 0, x: snap.snappedPoint.x, y: snap.snappedPoint.y },
-    ],
-    phase: 'executing' as const,
+    candidateId,
     rawPoint: snap.rawPoint,
     snappedPoint: snap.snappedPoint,
     source: snap.source,
+    confidence: candidate?.confidence ?? 0,
+    path: [
+      { x: snap.snappedPoint.x, y: snap.snappedPoint.y, delayMs: 0 },
+    ],
+    phase: 'executing' as const,
   }
 
   runtime.stateManager.updatePointerIntent(intent)
@@ -74,11 +74,11 @@ export async function executeDesktopClickTarget(
 
   const executeOsClick = async () => {
     const result = await runtime.executor.click({
+      x: snap.snappedPoint.x,
+      y: snap.snappedPoint.y,
       button: button || 'left',
       clickCount: clickCount ?? 1,
       pointerTrace: intent.path,
-      x: snap.snappedPoint.x,
-      y: snap.snappedPoint.y,
     })
     runtime.session.setPointerPosition({ x: snap.snappedPoint.x, y: snap.snappedPoint.y })
     return result
@@ -111,11 +111,11 @@ export async function executeDesktopClickTarget(
 
     const currentForeground = await runtime.executor.getForegroundContext()
     const wasAlreadyInFront = await sessionCtrl.ensureControlledAppInForeground({
+      currentForeground,
+      chromeSessionManager: runtime.chromeSessionManager,
       activateApp: async (appName) => {
         await runtime.executor.focusApp({ app: appName })
       },
-      chromeSessionManager: runtime.chromeSessionManager,
-      currentForeground,
     })
     fallbackForegroundApp = activeSession.controlledApp
     if (!wasAlreadyInFront) {
@@ -128,12 +128,12 @@ export async function executeDesktopClickTarget(
     const bridgeConnected = runtime.browserDomBridge?.getStatus().connected ?? false
     const routeDecision = candidate
       ? decideBrowserAction(candidate, bridgeConnected, button, clickCount)
-      : { reason: 'candidate not found', route: 'os_input' as const }
+      : { route: 'os_input' as const, reason: 'candidate not found' }
 
     const schedulingDecision = decideDesktopExecutionMode({
-      action: { input, kind: 'desktop_click_target' },
-      browserDomRoute: routeDecision.route === 'browser_dom',
+      action: { kind: 'desktop_click_target', input },
       browserSurface: runtime.stateManager.getState().browserSurfaceAvailability,
+      browserDomRoute: routeDecision.route === 'browser_dom',
     })
     if (routeDecision.route === 'browser_dom') {
       executionMode = schedulingDecision.executionMode
@@ -165,14 +165,14 @@ export async function executeDesktopClickTarget(
           const frameIds = routeDecision.frameId !== undefined ? [routeDecision.frameId] : undefined
           if (routeDecision.bridgeMethod === 'checkCheckbox') {
             await runtime.browserDomBridge.checkCheckbox({
-              frameIds,
               selector: routeDecision.selector,
+              frameIds,
             })
           }
           else {
             await runtime.browserDomBridge.clickSelector({
-              frameIds,
               selector: routeDecision.selector,
+              frameIds,
             })
           }
         }
@@ -196,9 +196,9 @@ export async function executeDesktopClickTarget(
 
     const completedIntent = {
       ...intent,
+      phase: 'completed' as const,
       executionResult: routeNote ? 'fallback' as const : 'success' as const,
       executionRoute: `${executionRoute} (${routeReason})`,
-      phase: 'completed' as const,
     }
     runtime.stateManager.updatePointerIntent(completedIntent, candidateId)
 
@@ -221,27 +221,27 @@ export async function executeDesktopClickTarget(
     }
 
     return {
+      summary: lines.join('\n'),
       backendResult: {
-        candidate,
         candidateId,
+        snapshotId: snapshot.snapshotId,
+        snap,
+        candidate,
+        executionRoute,
+        routeReason,
         executionMode,
         executionModeReason,
-        executionRoute,
-        osInputResult,
         routeNote: routeNote || undefined,
-        routeReason,
-        snap,
-        snapshotId: snapshot.snapshotId,
+        osInputResult,
       },
-      summary: lines.join('\n'),
     }
   }
   catch (error) {
     const failedIntent = {
       ...intent,
+      phase: 'completed' as const,
       executionResult: 'error' as const,
       executionRoute: `${executionRoute} (${routeReason})`,
-      phase: 'completed' as const,
     }
     runtime.stateManager.updatePointerIntent(failedIntent)
     throw error

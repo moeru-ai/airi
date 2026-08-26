@@ -12,22 +12,22 @@ import { nanoid } from '../utils/id'
 export const userProviderConfigs = pgTable(
   'user_provider_configs',
   {
-    config: jsonb('config').notNull().default({}),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    definitionId: text('definition_id').notNull(),
-    deletedAt: timestamp('deleted_at'),
     id: text('id').primaryKey().$defaultFn(() => nanoid()),
-    name: text('name').notNull(),
     ownerId: text('owner_id').notNull(),
-
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    definitionId: text('definition_id').notNull(),
+    name: text('name').notNull(),
+    config: jsonb('config').notNull().default({}),
     validated: boolean('validated').notNull().default(false),
     validationBypassed: boolean('validation_bypassed').notNull().default(false),
+
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    deletedAt: timestamp('deleted_at'),
   },
 )
 
-export type NewUserProviderConfig = InferInsertModel<typeof userProviderConfigs>
 export type UserProviderConfig = InferSelectModel<typeof userProviderConfigs>
+export type NewUserProviderConfig = InferInsertModel<typeof userProviderConfigs>
 
 export const userProviderConfigsRelations = relations(
   userProviderConfigs,
@@ -42,18 +42,18 @@ export const userProviderConfigsRelations = relations(
 export const systemProviderConfigs = pgTable(
   'system_provider_configs',
   {
-    config: jsonb('config').notNull().default({}),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    definitionId: text('definition_id').notNull(),
-    deletedAt: timestamp('deleted_at'),
     id: text('id').primaryKey().$defaultFn(() => nanoid()),
+    definitionId: text('definition_id').notNull(),
     name: text('name').notNull(),
-
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    config: jsonb('config').notNull().default({}),
     validated: boolean('validated').notNull().default(false),
     validationBypassed: boolean('validation_bypassed').notNull().default(false),
+
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    deletedAt: timestamp('deleted_at'),
   },
 )
 
-export type NewSystemProviderConfig = InferInsertModel<typeof systemProviderConfigs>
 export type SystemProviderConfig = InferSelectModel<typeof systemProviderConfigs>
+export type NewSystemProviderConfig = InferInsertModel<typeof systemProviderConfigs>

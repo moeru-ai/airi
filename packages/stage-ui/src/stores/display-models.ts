@@ -6,14 +6,14 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export enum DisplayModelFormat {
-  Live2dDirectory = 'live2d-directory',
   Live2dZip = 'live2d-zip',
-  PMD = 'pmd',
-  PMXDirectory = 'pmx-directory',
-  PMXZip = 'pmx-zip',
+  Live2dDirectory = 'live2d-directory',
+  VRM = 'vrm',
   SpineZip = 'spine-zip',
   TachieZip = 'tachie-zip',
-  VRM = 'vrm',
+  PMXZip = 'pmx-zip',
+  PMXDirectory = 'pmx-directory',
+  PMD = 'pmd',
 }
 
 export type DisplayModel
@@ -29,30 +29,30 @@ const presetVrmAvatarBUrl = new URL('../assets/vrm/models/AvatarSample-B/AvatarS
 const presetVrmAvatarBPreview = new URL('../assets/vrm/models/AvatarSample-B/preview.png', import.meta.url).href
 
 export interface DisplayModelFile {
-  file: File
-  format: DisplayModelFormat
   id: string
-  importedAt: number
+  format: DisplayModelFormat
+  type: 'file'
+  file: File
   name: string
   previewImage?: string
-  type: 'file'
+  importedAt: number
 }
 
 export interface DisplayModelURL {
-  format: DisplayModelFormat
   id: string
-  importedAt: number
-  name: string
-  previewImage?: string
+  format: DisplayModelFormat
   type: 'url'
   url: string
+  name: string
+  previewImage?: string
+  importedAt: number
 }
 
 const displayModelsPresets: DisplayModel[] = [
-  { format: DisplayModelFormat.Live2dZip, id: 'preset-live2d-1', importedAt: 1733113886840, name: 'Hiyori (Pro)', previewImage: presetLive2dPreview, type: 'url', url: presetLive2dProUrl },
-  { format: DisplayModelFormat.Live2dZip, id: 'preset-live2d-2', importedAt: 1733113886840, name: 'Hiyori (Free)', previewImage: presetLive2dPreview, type: 'url', url: presetLive2dFreeUrl },
-  { format: DisplayModelFormat.VRM, id: 'preset-vrm-1', importedAt: 1733113886840, name: 'AvatarSample_A', previewImage: presetVrmAvatarAPreview, type: 'url', url: presetVrmAvatarAUrl },
-  { format: DisplayModelFormat.VRM, id: 'preset-vrm-2', importedAt: 1733113886840, name: 'AvatarSample_B', previewImage: presetVrmAvatarBPreview, type: 'url', url: presetVrmAvatarBUrl },
+  { id: 'preset-live2d-1', format: DisplayModelFormat.Live2dZip, type: 'url', url: presetLive2dProUrl, name: 'Hiyori (Pro)', previewImage: presetLive2dPreview, importedAt: 1733113886840 },
+  { id: 'preset-live2d-2', format: DisplayModelFormat.Live2dZip, type: 'url', url: presetLive2dFreeUrl, name: 'Hiyori (Free)', previewImage: presetLive2dPreview, importedAt: 1733113886840 },
+  { id: 'preset-vrm-1', format: DisplayModelFormat.VRM, type: 'url', url: presetVrmAvatarAUrl, name: 'AvatarSample_A', previewImage: presetVrmAvatarAPreview, importedAt: 1733113886840 },
+  { id: 'preset-vrm-2', format: DisplayModelFormat.VRM, type: 'url', url: presetVrmAvatarBUrl, name: 'AvatarSample_B', previewImage: presetVrmAvatarBPreview, importedAt: 1733113886840 },
 ]
 
 export const useDisplayModelsStore = defineStore('display-models', () => {
@@ -73,9 +73,9 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     const models = [...displayModelsPresets]
 
     try {
-      await localforage.iterate<{ file: File, format: DisplayModelFormat, importedAt: number, previewImage?: string }, void>((val, key) => {
+      await localforage.iterate<{ format: DisplayModelFormat, file: File, importedAt: number, previewImage?: string }, void>((val, key) => {
         if (key.startsWith('display-model-')) {
-          models.push({ file: val.file, format: val.format, id: key, importedAt: val.importedAt, name: val.file.name, previewImage: val.previewImage, type: 'file' })
+          models.push({ id: key, format: val.format, type: 'file', file: val.file, name: val.file.name, importedAt: val.importedAt, previewImage: val.previewImage })
         }
       })
     }
@@ -116,7 +116,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
   async function addDisplayModel(format: DisplayModelFormat, file: File) {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
-    const newDisplayModel: DisplayModelFile = { file, format, id: `display-model-${nanoid()}`, importedAt: Date.now(), name: file.name, type: 'file' }
+    const newDisplayModel: DisplayModelFile = { id: `display-model-${nanoid()}`, format, type: 'file', file, name: file.name, importedAt: Date.now() }
 
     if (format === DisplayModelFormat.Live2dZip) {
       const previewImage = await loadLive2DModelPreview(file)
@@ -235,15 +235,15 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   }
 
   return {
-    addDisplayModel,
     displayModels,
-
     displayModelsFromIndexedDBLoading,
-    getDisplayModel,
+
     initialize,
     loadDisplayModelsFromIndexedDB,
-    removeDisplayModel,
+    getDisplayModel,
+    addDisplayModel,
     renameDisplayModel,
+    removeDisplayModel,
     resetDisplayModels,
   }
 })

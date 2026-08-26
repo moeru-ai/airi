@@ -41,9 +41,9 @@ export function parseTranscriptBlocks(entries: readonly TranscriptEntry[]): Tran
 
     if (entry.role === 'system') {
       const block: SystemBlock = {
+        kind: 'system',
         entry,
         entryIdRange: [entry.id, entry.id],
-        kind: 'system',
       }
       blocks.push(block)
       i++
@@ -52,9 +52,9 @@ export function parseTranscriptBlocks(entries: readonly TranscriptEntry[]): Tran
 
     if (entry.role === 'user') {
       const block: UserBlock = {
+        kind: 'user',
         entry,
         entryIdRange: [entry.id, entry.id],
-        kind: 'user',
       }
       blocks.push(block)
       i++
@@ -104,10 +104,10 @@ export function parseTranscriptBlocks(entries: readonly TranscriptEntry[]): Tran
         }
 
         const block: ToolInteractionBlock = {
-          assistant: entry,
-          entryIdRange: [entry.id, lastId],
           kind: 'tool_interaction',
+          assistant: entry,
           toolResults,
+          entryIdRange: [entry.id, lastId],
         }
         blocks.push(block)
         i = j
@@ -115,9 +115,9 @@ export function parseTranscriptBlocks(entries: readonly TranscriptEntry[]): Tran
       else {
         // TextBlock: plain assistant text
         const block: TextBlock = {
+          kind: 'text',
           entry,
           entryIdRange: [entry.id, entry.id],
-          kind: 'text',
         }
         blocks.push(block)
         i++
@@ -131,9 +131,9 @@ export function parseTranscriptBlocks(entries: readonly TranscriptEntry[]): Tran
       // something upstream produced a broken tool result without a matching
       // assistant tool_call. We wrap it so it doesn't get silently lost.
       const block: TextBlock = {
+        kind: 'text',
         entry,
         entryIdRange: [entry.id, entry.id],
-        kind: 'text',
       }
       blocks.push(block)
       i++

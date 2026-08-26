@@ -7,12 +7,12 @@ import { formatDate } from '../utils/utils'
 const config: SiteConfig = (globalThis as any).VITEPRESS_CONFIG
 
 interface Document {
-  date: ReturnType<typeof formatDate>
-  frontmatter?: Record<string, any>
-  lang: string
   title: string
   url: string
   urlWithoutLang: string
+  lang: string
+  date: ReturnType<typeof formatDate>
+  frontmatter?: Record<string, any>
 }
 
 declare const data: Document[]
@@ -21,7 +21,7 @@ export { data }
 export default createContentLoader('**/*.md', {
   transform(raw): Document[] {
     return raw
-      .map(({ frontmatter, url }) => {
+      .map(({ url, frontmatter }) => {
         const foundLanguage = Object.values(config.userConfig.locales!).find((locale) => {
           let normalizedLanguagePrefix = locale.lang || 'en'
           if (!normalizedLanguagePrefix.startsWith('/')) {
@@ -32,12 +32,12 @@ export default createContentLoader('**/*.md', {
         })
 
         return {
-          date: formatDate(frontmatter.date),
-          frontmatter,
-          lang: foundLanguage?.lang || 'en',
           title: frontmatter.title,
           url,
           urlWithoutLang: url.replace(`/${foundLanguage?.lang || 'en'}`, ''),
+          date: formatDate(frontmatter.date),
+          lang: foundLanguage?.lang || 'en',
+          frontmatter,
         }
       })
       .sort((a, b) => b.date.time - a.date.time)

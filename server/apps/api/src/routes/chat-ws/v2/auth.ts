@@ -7,7 +7,13 @@ import { WS_CLOSE_INTERNAL_ERROR, WS_CLOSE_TRY_AGAIN_LATER, WS_CLOSE_UNAUTHORIZE
 const CHAT_AUTH_TIMEOUT_MS = 15_000
 
 export interface ChatWsAuthResolver {
-  (token: string): Promise<null | string>
+  (token: string): Promise<string | null>
+}
+
+interface CreateChatWsV2AuthenticationOptions {
+  socket?: Pick<WSContext, 'close'>
+  resolveUserId: ChatWsAuthResolver
+  onAuthenticated: (userId: string) => void
 }
 
 export interface ChatWsV2Authentication {
@@ -15,12 +21,6 @@ export interface ChatWsV2Authentication {
   authenticate: (request: unknown) => Promise<{ userId: string }>
   /** Stops authentication when the websocket disconnects. */
   disconnect: () => void
-}
-
-interface CreateChatWsV2AuthenticationOptions {
-  onAuthenticated: (userId: string) => void
-  resolveUserId: ChatWsAuthResolver
-  socket?: Pick<WSContext, 'close'>
 }
 
 /**
@@ -63,7 +63,7 @@ export function createChatWsV2Authentication(options: CreateChatWsV2Authenticati
         throw new Error('WebSocket authentication failed')
       }
 
-      let userId: null | string
+      let userId: string | null
       try {
         userId = await options.resolveUserId(parsedRequest.token)
       }

@@ -2,80 +2,80 @@ import { errorMessageFrom } from '@moeru/std'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
+export interface PluginManifestSummary {
+  extensionId: string
+  entrypoints: Record<string, string | undefined>
+  path: string
+  enabled: boolean
+  autoReload: boolean
+  loaded: boolean
+  isNew: boolean
+}
+
+export interface PluginRegistrySnapshot {
+  root: string
+  plugins: PluginManifestSummary[]
+}
+
 // TODO: Replace with re-export of CapabilityDescriptor from
 // @proj-airi/plugin-sdk once stage-ui can depend on the SDK.
 export interface PluginCapabilityState {
   key: string
+  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
   metadata?: Record<string, unknown>
-  state: 'announced' | 'degraded' | 'ready' | 'withdrawn'
-  updatedAt: number
-}
-
-export interface PluginHostDebugSnapshot {
-  capabilities: PluginCapabilityState[]
-  kits: PluginHostKitSummary[]
-  modules: PluginHostModuleSummary[]
-  refreshedAt: number
-  registry: PluginRegistrySnapshot
-  sessions: PluginHostSessionSummary[]
-}
-
-export interface PluginHostKitCapabilitySummary {
-  actions: string[]
-  key: string
-}
-
-export interface PluginHostKitSummary {
-  capabilities: PluginHostKitCapabilitySummary[]
-  kitId: string
-  runtimes: Array<'electron' | 'node' | 'web'>
-  version: string
-}
-
-export interface PluginHostModuleSummary {
-  config: Record<string, unknown>
-  kitId: string
-  kitModuleType: string
-  moduleId: string
-  ownerExtensionId: string
-  ownerSessionId: string
-  revision: number
-  runtime: 'electron' | 'node' | 'web'
-  state: 'active' | 'announced' | 'degraded' | 'withdrawn'
   updatedAt: number
 }
 
 export interface PluginHostSessionSummary {
-  extensionId: string
   id: string
-  moduleId: string
+  extensionId: string
   phase: string
   runtime: 'electron' | 'node' | 'web'
+  moduleId: string
 }
 
-export interface PluginManifestSummary {
-  autoReload: boolean
-  enabled: boolean
-  entrypoints: Record<string, string | undefined>
-  extensionId: string
-  isNew: boolean
-  loaded: boolean
-  path: string
+export interface PluginHostKitCapabilitySummary {
+  key: string
+  actions: string[]
 }
 
-export interface PluginRegistrySnapshot {
-  plugins: PluginManifestSummary[]
-  root: string
+export interface PluginHostKitSummary {
+  kitId: string
+  version: string
+  capabilities: PluginHostKitCapabilitySummary[]
+  runtimes: Array<'electron' | 'node' | 'web'>
+}
+
+export interface PluginHostModuleSummary {
+  moduleId: string
+  ownerSessionId: string
+  ownerExtensionId: string
+  kitId: string
+  kitModuleType: string
+  state: 'announced' | 'active' | 'degraded' | 'withdrawn'
+  runtime: 'electron' | 'node' | 'web'
+  revision: number
+  updatedAt: number
+  config: Record<string, unknown>
+}
+
+export interface PluginHostDebugSnapshot {
+  registry: PluginRegistrySnapshot
+  sessions: PluginHostSessionSummary[]
+  kits: PluginHostKitSummary[]
+  modules: PluginHostModuleSummary[]
+  capabilities: PluginCapabilityState[]
+  refreshedAt: number
 }
 
 interface PluginHostDebugBridge {
-  inspect: () => Promise<PluginHostDebugSnapshot>
   list: () => Promise<PluginRegistrySnapshot>
-  load: (payload: { extensionId: string }) => Promise<PluginRegistrySnapshot>
+  setEnabled: (payload: { extensionId: string, enabled: boolean, path?: string }) => Promise<PluginRegistrySnapshot>
+  setAutoReload: (payload: { extensionId: string, enabled: boolean }) => Promise<PluginRegistrySnapshot>
   loadEnabled: () => Promise<PluginRegistrySnapshot>
-  setAutoReload: (payload: { enabled: boolean, extensionId: string }) => Promise<PluginRegistrySnapshot>
-  setEnabled: (payload: { enabled: boolean, extensionId: string, path?: string }) => Promise<PluginRegistrySnapshot>
+  load: (payload: { extensionId: string }) => Promise<PluginRegistrySnapshot>
   unload: (payload: { extensionId: string }) => Promise<PluginRegistrySnapshot>
+  inspect: () => Promise<PluginHostDebugSnapshot>
 }
 
 export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-debug', () => {
@@ -171,14 +171,14 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
     return refreshInspection()
   }
 
-  async function setEnabled(payload: { enabled: boolean, extensionId: string, path?: string }) {
+  async function setEnabled(payload: { extensionId: string, enabled: boolean, path?: string }) {
     const nextRegistry = await withBridge(activeBridge => activeBridge.setEnabled(payload))
     assignRegistry(nextRegistry)
     await refreshInspection()
     return nextRegistry
   }
 
-  async function setAutoReload(payload: { enabled: boolean, extensionId: string }) {
+  async function setAutoReload(payload: { extensionId: string, enabled: boolean }) {
     const nextRegistry = await withBridge(activeBridge => activeBridge.setAutoReload(payload))
     assignRegistry(nextRegistry)
     await refreshInspection()
@@ -207,27 +207,27 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
   }
 
   return {
-    capabilities,
-    clearError,
-    discoveredPlugins,
-    enabledPlugins,
-    error,
-    isAvailable,
-    kits,
-    load,
-    loadedPlugins,
-    loadEnabled,
-    loading,
-
-    refreshAll,
-    refreshedAt,
-    refreshInspection,
-    refreshRegistry,
     registry,
     sessions,
-    setAutoReload,
+    kits,
+    capabilities,
+    refreshedAt,
+    loading,
+    error,
+    discoveredPlugins,
+    enabledPlugins,
+    loadedPlugins,
+    isAvailable,
+
     setBridge,
+    clearError,
+    refreshRegistry,
+    refreshInspection,
+    refreshAll,
     setEnabled,
+    setAutoReload,
+    loadEnabled,
+    load,
     unload,
   }
 })

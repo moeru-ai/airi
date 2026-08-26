@@ -36,69 +36,69 @@ const extensionsSchema = objectWithRest({
 const openExtensionsSchema = objectWithRest({}, unknown())
 
 const assetSchema = objectWithRest({
-  ext: string(),
-  name: string(),
   type: string(),
   uri: string(),
+  name: string(),
+  ext: string(),
 }, unknown())
 
 const characterBookEntrySchema = objectWithRest({
-  case_sensitive: optional(boolean()),
-  comment: optional(string()),
-  constant: optional(boolean()),
-  content: string(),
-  enabled: boolean(),
-  extensions: openExtensionsSchema,
-  id: optional(union([number(), string()])),
-  insertion_order: number(),
   keys: array(string()),
-  name: optional(string()),
-  position: optional(picklist(['before_char', 'after_char'])),
-  priority: optional(number()),
-  secondary_keys: optional(array(string())),
-  selective: optional(boolean()),
+  content: string(),
+  extensions: openExtensionsSchema,
+  enabled: boolean(),
+  insertion_order: number(),
   use_regex: boolean(),
+  case_sensitive: optional(boolean()),
+  constant: optional(boolean()),
+  id: optional(union([number(), string()])),
+  name: optional(string()),
+  comment: optional(string()),
+  priority: optional(number()),
+  selective: optional(boolean()),
+  secondary_keys: optional(array(string())),
+  position: optional(picklist(['before_char', 'after_char'])),
 }, unknown())
 
 const characterBookSchema = objectWithRest({
-  description: optional(string()),
-  entries: array(characterBookEntrySchema),
-  extensions: openExtensionsSchema,
   name: optional(string()),
-  recursive_scanning: optional(boolean()),
+  description: optional(string()),
   scan_depth: optional(number()),
   token_budget: optional(number()),
+  recursive_scanning: optional(boolean()),
+  extensions: openExtensionsSchema,
+  entries: array(characterBookEntrySchema),
 }, unknown())
 
 const characterCardDataSchema = objectWithRest({
+  name: string(),
+  description: string(),
+  personality: string(),
+  scenario: string(),
+  first_mes: string(),
+  mes_example: string(),
   alternate_greetings: array(string()),
-  assets: optional(array(assetSchema)),
   character_book: optional(characterBookSchema),
   character_version: string(),
-  creation_date: optional(number()),
   creator: string(),
   creator_notes: string(),
-  creator_notes_multilingual: optional(record(string(), string())),
-  description: string(),
   extensions: extensionsSchema,
-  first_mes: string(),
-  group_only_greetings: array(string()),
-  mes_example: string(),
-  modification_date: optional(number()),
-  name: string(),
-  nickname: optional(string()),
-  personality: string(),
   post_history_instructions: string(),
-  scenario: string(),
-  source: optional(array(string())),
   system_prompt: string(),
   tags: array(string()),
+  assets: optional(array(assetSchema)),
+  creation_date: optional(number()),
+  creator_notes_multilingual: optional(record(string(), string())),
+  group_only_greetings: array(string()),
+  modification_date: optional(number()),
+  nickname: optional(string()),
+  source: optional(array(string())),
 }, unknown())
 
 const characterCardV3Schema = objectWithRest({
-  data: characterCardDataSchema,
   spec: literal('chara_card_v3'),
   spec_version: pipe(string(), regex(/^\d+(?:\.\d+)*$/)),
+  data: characterCardDataSchema,
 }, unknown())
 
 /** One asset reference declared by a CCv3 document. */
@@ -109,14 +109,10 @@ export type Assets = Asset[]
 export type CharacterBook = InferOutput<typeof characterBookSchema>
 /** One independently matched and ordered Lorebook entry. */
 export type CharacterBookEntry = InferOutput<typeof characterBookEntrySchema>
-/** Application-defined Lorebook entry metadata. */
-export type CharacterBookEntryExtensions = InferOutput<typeof openExtensionsSchema>
 /** Application-defined Lorebook metadata. */
 export type CharacterBookExtensions = InferOutput<typeof openExtensionsSchema>
-/** Compatibility of a parsed document relative to AIRI's current CCv3 implementation. */
-export type CharacterCardCompatibility = 'current' | 'newer' | 'older'
-/** A Character Card document using the CCv3 envelope and data contract. */
-export type CharacterCardV3 = InferOutput<typeof characterCardV3Schema>
+/** Application-defined Lorebook entry metadata. */
+export type CharacterBookEntryExtensions = InferOutput<typeof openExtensionsSchema>
 /** Complete data object carried by a CCv3 envelope. */
 export type Data = InferOutput<typeof characterCardDataSchema>
 /** Fields inherited from Character Card V1. */
@@ -127,17 +123,13 @@ export type DataV2 = Pick<Data, 'alternate_greetings' | 'character_book' | 'char
 export type DataV3 = Pick<Data, 'assets' | 'creation_date' | 'creator_notes_multilingual' | 'group_only_greetings' | 'modification_date' | 'nickname' | 'source'>
 /** Community extension fields carried by a character card. */
 export type Extensions = InferOutput<typeof extensionsSchema>
-
 /** Standard `depth_prompt` extension value. */
 export type ExtensionsDepthPrompt = InferOutput<typeof extensionsDepthPromptSchema>
+/** A Character Card document using the CCv3 envelope and data contract. */
+export type CharacterCardV3 = InferOutput<typeof characterCardV3Schema>
 
-/** Options retained on a CCv3 validation failure. */
-export interface InvalidCharacterCardErrorOptions {
-  /** Parser or schema issues that made the source unusable. */
-  cause?: unknown
-  /** Original JSON text or object supplied by the caller. */
-  source: unknown
-}
+/** Compatibility of a parsed document relative to AIRI's current CCv3 implementation. */
+export type CharacterCardCompatibility = 'older' | 'current' | 'newer'
 
 /** A validated CCv3 document together with its compatibility classification. */
 export interface ParsedCharacterCardV3 {
@@ -145,6 +137,14 @@ export interface ParsedCharacterCardV3 {
   card: CharacterCardV3
   /** Whether the source version is older than, equal to, or newer than CCv3 3.0. */
   compatibility: CharacterCardCompatibility
+}
+
+/** Options retained on a CCv3 validation failure. */
+export interface InvalidCharacterCardErrorOptions {
+  /** Parser or schema issues that made the source unusable. */
+  cause?: unknown
+  /** Original JSON text or object supplied by the caller. */
+  source: unknown
 }
 
 /** Error thrown when input cannot be interpreted as a Character Card V3 document. */

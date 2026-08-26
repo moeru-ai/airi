@@ -24,6 +24,19 @@ export interface WidgetAssetRoute {
   sessionPathPrefix: string
 }
 
+function normalizeWidgetAssetPath(assetPath: string): string | undefined {
+  const trimmed = assetPath.trim().replaceAll('\\', '/')
+  if (!trimmed) {
+    return undefined
+  }
+
+  const withoutRelativePrefix = trimmed.startsWith('./')
+    ? trimmed.slice(2)
+    : trimmed
+
+  return normalizeStaticAssetPath(withoutRelativePrefix)
+}
+
 /**
  * Normalizes a widget iframe asset path into `/ui` route semantics.
  *
@@ -38,7 +51,7 @@ export interface WidgetAssetRoute {
  * Returns:
  * - The route-relative asset path and the allowed session prefix for that route
  */
-export function resolveWidgetAssetRoute(assetPath: string): undefined | WidgetAssetRoute {
+export function resolveWidgetAssetRoute(assetPath: string): WidgetAssetRoute | undefined {
   const normalized = normalizeWidgetAssetPath(assetPath)
   if (!normalized) {
     return undefined
@@ -84,16 +97,16 @@ export function rewriteWidgetModuleAssetUrl(
   module: PluginHostModuleSummary,
   manifestEntryByExtensionId: Map<string, ManifestEntry>,
   options?: {
+    extensionAssetBaseUrl?: string
     createAssetSession?: (input: {
       extensionId: string
-      routeAssetPath: string
-      sessionId: string
-      sessionPathPrefix: string
       version: string
+      sessionId: string
+      routeAssetPath: string
+      sessionPathPrefix: string
     }) => Promise<{ assetSessionId: string, url?: string }>
-    extensionAssetBaseUrl?: string
   },
-): PluginHostModuleSummary | Promise<PluginHostModuleSummary> {
+): Promise<PluginHostModuleSummary> | PluginHostModuleSummary {
   const entry = manifestEntryByExtensionId.get(module.ownerExtensionId)
   if (!entry) {
     return module
@@ -131,15 +144,15 @@ export function rewriteWidgetModuleAssetUrl(
 
   return options.createAssetSession({
     extensionId: module.ownerExtensionId,
-    routeAssetPath: widgetAssetRoute.routeAssetPath,
-    sessionId: module.ownerSessionId,
-    sessionPathPrefix: widgetAssetRoute.sessionPathPrefix,
     version: entry.version,
+    sessionId: module.ownerSessionId,
+    routeAssetPath: widgetAssetRoute.routeAssetPath,
+    sessionPathPrefix: widgetAssetRoute.sessionPathPrefix,
   }).then((session) => {
     const mountedPath = buildMountedStaticAssetPath({
-      assetPath: widgetAssetRoute.routeAssetPath,
-      assetSessionId: session.assetSessionId,
       extensionId: module.ownerExtensionId,
+      assetSessionId: session.assetSessionId,
+      assetPath: widgetAssetRoute.routeAssetPath,
     })
     const iframeUrl = session.url ?? (mountedPath ? new URL(mountedPath, options.extensionAssetBaseUrl).toString() : '')
     if (!iframeUrl) {
@@ -160,17 +173,4 @@ export function rewriteWidgetModuleAssetUrl(
       },
     }
   })
-}
-
-function normalizeWidgetAssetPath(assetPath: string): string | undefined {
-  const trimmed = assetPath.trim().replaceAll('\\', '/')
-  if (!trimmed) {
-    return undefined
-  }
-
-  const withoutRelativePrefix = trimmed.startsWith('./')
-    ? trimmed.slice(2)
-    : trimmed
-
-  return normalizeStaticAssetPath(withoutRelativePrefix)
 }

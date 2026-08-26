@@ -9,14 +9,41 @@ import { destroyPtySession, readPtyScreen, writeToPty } from '../terminal/pty-ru
 import { errorMessageFromValue } from '../utils/error-message'
 import { textContent } from './content'
 
+function auditPreview(data: string, maxLen = 80) {
+  if (data.length <= maxLen)
+    return data
+  return `${data.slice(0, maxLen)}…`
+}
+
+function requireWorkflowPrepPtyGrant(runtime: ComputerUseServerRuntime, sessionId: string, operation: string): CallToolResult | undefined {
+  if (runtime.config.approvalMode === 'never')
+    return undefined
+
+  const hasGrant = runtime.stateManager.getActivePtyGrants().some(grant => grant.active && grant.ptySessionId === sessionId)
+  if (hasGrant)
+    return undefined
+
+  return {
+    isError: true,
+    content: [
+      textContent(`${operation} failed: PTY session ${sessionId} has no active approval grant.`),
+    ],
+    structuredContent: {
+      status: 'pty_grant_required',
+      operation,
+      sessionId,
+    },
+  }
+}
+
 export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime): ExecutePrepTool {
   return async (toolName) => {
     const currentIds = () => {
       const task = runtime.stateManager.getState().activeTask
       const step = task?.steps[task.currentStepIndex]
       return {
-        stepId: step?.stepId,
         taskId: task?.id,
+        stepId: step?.stepId,
       }
     }
 
@@ -31,20 +58,20 @@ export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime
               textContent(summary),
             ],
             structuredContent: {
-              capturedAt: snapshot.capturedAt,
-              combinedBounds: snapshot.combinedBounds,
+              status: 'ok',
               displayCount: snapshot.displays.length,
               displays: snapshot.displays.map(d => ({
-                bounds: d.bounds,
                 displayId: d.displayId,
-                isBuiltIn: d.isBuiltIn,
                 isMain: d.isMain,
-                pixelHeight: d.pixelHeight,
-                pixelWidth: d.pixelWidth,
-                scaleFactor: d.scaleFactor,
+                isBuiltIn: d.isBuiltIn,
+                bounds: d.bounds,
                 visibleBounds: d.visibleBounds,
+                scaleFactor: d.scaleFactor,
+                pixelWidth: d.pixelWidth,
+                pixelHeight: d.pixelHeight,
               })),
-              status: 'ok',
+              combinedBounds: snapshot.combinedBounds,
+              capturedAt: snapshot.capturedAt,
             },
           }
         }
@@ -66,13 +93,13 @@ export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime
               textContent(text),
             ],
             structuredContent: {
+              status: 'ok',
               appName: snapshot.appName,
-              capturedAt: snapshot.capturedAt,
-              nodeCount: snapshot.uidToNode.size,
               pid: snapshot.pid,
               snapshotId: snapshot.snapshotId,
-              status: 'ok',
+              nodeCount: snapshot.uidToNode.size,
               truncated: snapshot.truncated,
+              capturedAt: snapshot.capturedAt,
             },
           }
         }
@@ -92,13 +119,13 @@ export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime
               textContent(`Collected ${elements.length} interactive element(s) from ${status.pageTitle}.`),
             ],
             structuredContent: {
+              status: 'ok',
               elementCount: elements.length,
               elements,
               page: {
-                title: status.pageTitle,
                 url: status.pageUrl,
+                title: status.pageTitle,
               },
-              status: 'ok',
             },
           }
         }
@@ -112,13 +139,13 @@ export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime
           const status = runtime.browserDomBridge.getStatus()
           if (!status.connected) {
             return {
+              isError: true,
               content: [
                 textContent(`Browser DOM read page failed: ${status.lastError || 'browser extension bridge is not connected'}`),
               ],
-              isError: true,
               structuredContent: {
-                bridge: status,
                 status: 'unavailable',
+                bridge: status,
               },
             }
           }
@@ -145,11 +172,11 @@ export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime
               textContent(`Read DOM from ${frames.length} frame(s); collected ${interactiveElementCount} interactive element(s).`),
             ],
             structuredContent: {
+              status: 'ok',
+              frames,
               bridge: runtime.browserDomBridge.getStatus(),
               frameCount: frames.length,
-              frames,
               interactiveElementCount,
-              status: 'ok',
             },
           }
         }
@@ -171,10 +198,10 @@ export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime
 
           if (!trackedSession) {
             return {
+              isError: true,
               content: [
                 textContent('PTY read screen failed: no active or step-bound PTY session is available.'),
               ],
-              isError: true,
               structuredContent: {
                 status: 'unavailable',
               },
@@ -191,10 +218,10 @@ export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime
           runtime.stateManager.updatePtySessionAlive(trackedSession.id, session.alive)
           runtime.stateManager.appendPtyAudit({
             ...currentIds(),
-            alive: session.alive,
-            event: 'read_screen',
             ptySessionId: trackedSession.id,
+            event: 'read_screen',
             returnedLineCount: session.screenContent.split('\n').filter(Boolean).length,
+            alive: session.alive,
           })
 
           return {
@@ -202,14 +229,14 @@ export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime
               textContent(session.screenContent || '(empty)'),
             ],
             structuredContent: {
+              status: 'ok',
+              sessionId: session.id,
               alive: session.alive,
-              cols: session.cols,
-              executionReason: `Tracked PTY session "${session.id}" is available for direct terminal interaction.`,
               pid: session.pid,
               rows: session.rows,
+              cols: session.cols,
               screenContent: session.screenContent,
-              sessionId: session.id,
-              status: 'ok',
+              executionReason: `Tracked PTY session "${session.id}" is available for direct terminal interaction.`,
             },
           }
         }
@@ -234,14 +261,14 @@ export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime
             runtime.stateManager.touchPtySession(sessionId)
             runtime.stateManager.appendPtyAudit({
               ...currentIds(),
-              byteCount: data.length,
-              event: 'send_input',
-              inputPreview: auditPreview(data),
               ptySessionId: sessionId,
+              event: 'send_input',
+              byteCount: data.length,
+              inputPreview: auditPreview(data),
             })
             return {
               content: [textContent(`Wrote ${data.length} byte(s) to ${sessionId}.`)],
-              structuredContent: { bytesWritten: data.length, sessionId, status: 'ok' },
+              structuredContent: { status: 'ok', sessionId, bytesWritten: data.length },
             }
           }
           catch (error) {
@@ -262,21 +289,21 @@ export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime
             runtime.stateManager.updatePtySessionAlive(sessionId, session.alive)
             runtime.stateManager.appendPtyAudit({
               ...currentIds(),
-              alive: session.alive,
-              event: 'read_screen',
               ptySessionId: sessionId,
+              event: 'read_screen',
               returnedLineCount: session.screenContent.split('\n').filter(Boolean).length,
+              alive: session.alive,
             })
             return {
               content: [textContent(session.screenContent || '(empty)')],
               structuredContent: {
+                status: 'ok',
+                sessionId: session.id,
                 alive: session.alive,
-                cols: session.cols,
                 pid: session.pid,
                 rows: session.rows,
+                cols: session.cols,
                 screenContent: session.screenContent,
-                sessionId: session.id,
-                status: 'ok',
               },
             }
           }
@@ -298,14 +325,14 @@ export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime
             runtime.stateManager.revokePtyApproval(sessionId)
             runtime.stateManager.appendPtyAudit({
               ...currentIds(),
-              actor: 'workflow_prep',
-              event: 'destroy',
-              outcome: 'ok',
               ptySessionId: sessionId,
+              event: 'destroy',
+              actor: 'workflow_prep',
+              outcome: 'ok',
             })
             return {
               content: [textContent(`Destroyed PTY session ${sessionId}.`)],
-              structuredContent: { sessionId, status: 'ok' },
+              structuredContent: { status: 'ok', sessionId },
             }
           }
           catch (error) {
@@ -314,10 +341,10 @@ export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime
         }
 
         return {
+          isError: true,
           content: [
             textContent(`Workflow prep tool is not supported: ${toolName}`),
           ],
-          isError: true,
           structuredContent: {
             status: 'unsupported',
             toolName,
@@ -328,44 +355,17 @@ export function createWorkflowPrepToolExecutor(runtime: ComputerUseServerRuntime
   }
 }
 
-function auditPreview(data: string, maxLen = 80) {
-  if (data.length <= maxLen)
-    return data
-  return `${data.slice(0, maxLen)}…`
-}
-
 function prepToolErrorResult(label: string, error: unknown): CallToolResult {
   const message = errorMessageFromValue(error)
 
   return {
+    isError: true,
     content: [
       textContent(`${label} failed: ${message}`),
     ],
-    isError: true,
     structuredContent: {
-      error: message,
       status: 'error',
-    },
-  }
-}
-
-function requireWorkflowPrepPtyGrant(runtime: ComputerUseServerRuntime, sessionId: string, operation: string): CallToolResult | undefined {
-  if (runtime.config.approvalMode === 'never')
-    return undefined
-
-  const hasGrant = runtime.stateManager.getActivePtyGrants().some(grant => grant.active && grant.ptySessionId === sessionId)
-  if (hasGrant)
-    return undefined
-
-  return {
-    content: [
-      textContent(`${operation} failed: PTY session ${sessionId} has no active approval grant.`),
-    ],
-    isError: true,
-    structuredContent: {
-      operation,
-      sessionId,
-      status: 'pty_grant_required',
+      error: message,
     },
   }
 }

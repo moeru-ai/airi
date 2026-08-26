@@ -1,33 +1,49 @@
 import type { CSSProperties } from 'vue'
 
-export type WindowAnchor = 'bottom-left' | 'bottom-right' | 'center' | 'top-left' | 'top-right'
+export type WindowAnchor = 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right' | 'center'
 
-type RectLike = RectPosition & RectSize
 type RectPosition = Pick<DOMRect, 'left' | 'top'>
-type RectSize = Pick<DOMRect, 'height' | 'width'>
+type RectSize = Pick<DOMRect, 'width' | 'height'>
+type RectLike = RectPosition & RectSize
 type RelativeRect = RectLike
 
-export function computeElementAnchorStyle(options: {
-  anchor: WindowAnchor
-  anchorRect: RectLike
-  platformRect: RectPosition
-  windowRect: RectSize
-}): CSSProperties {
-  const relativeAnchorRect = toRelativeRect(options.anchorRect, options.platformRect)
-  const anchorPoint = resolveAnchorPoint(relativeAnchorRect, options.anchor)
-  // We place the window by subtracting its own anchor point from the target's
-  // anchor point. That keeps "bottom-right to bottom-right" and similar cases
-  // aligned without requiring separate formulas per anchor variant.
-  const windowPoint = resolveAnchorPoint({
-    height: options.windowRect.height,
-    left: 0,
-    top: 0,
-    width: options.windowRect.width,
-  }, options.anchor)
+export function normalizeRectForScale<T extends RectLike>(rect: T, uiScale: number): T {
+  if (uiScale <= 0 || uiScale === 1) {
+    return rect
+  }
 
   return {
-    left: `${anchorPoint.x - windowPoint.x}px`,
-    top: `${anchorPoint.y - windowPoint.y}px`,
+    ...rect,
+    left: rect.left / uiScale,
+    top: rect.top / uiScale,
+    width: rect.width / uiScale,
+    height: rect.height / uiScale,
+  }
+}
+
+function toRelativeRect(rect: RectLike, platformRect: RectPosition): RelativeRect {
+  // All anchor math is done in the platform's own coordinate system so callers
+  // can mix measured DOM rects with the logical scene layout consistently.
+  return {
+    left: rect.left - platformRect.left,
+    top: rect.top - platformRect.top,
+    width: rect.width,
+    height: rect.height,
+  }
+}
+
+function resolveAnchorPoint(rect: RectLike, anchor: WindowAnchor) {
+  switch (anchor) {
+    case 'top-left':
+      return { x: rect.left, y: rect.top }
+    case 'top-right':
+      return { x: rect.left + rect.width, y: rect.top }
+    case 'bottom-left':
+      return { x: rect.left, y: rect.top + rect.height }
+    case 'bottom-right':
+      return { x: rect.left + rect.width, y: rect.top + rect.height }
+    case 'center':
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
   }
 }
 
@@ -49,6 +65,16 @@ export function createContainerAnchorStyle(
     : 0
 
   switch (anchor) {
+    case 'top-left':
+      return {
+        left: `${left}px`,
+        top: `${top}px`,
+      }
+    case 'top-right':
+      return {
+        right: `${right}px`,
+        top: `${top}px`,
+      }
     case 'bottom-left':
       return {
         bottom: `${bottom}px`,
@@ -65,29 +91,19 @@ export function createContainerAnchorStyle(
         top: boundsRect && platformSize ? `${top + boundsRect.height / 2}px` : '50%',
         transform: 'translate(-50%, -50%)',
       }
-    case 'top-left':
-      return {
-        left: `${left}px`,
-        top: `${top}px`,
-      }
-    case 'top-right':
-      return {
-        right: `${right}px`,
-        top: `${top}px`,
-      }
   }
 }
 
 export function createWorkAreaRect(options: {
-  dockRect?: null | RectLike
+  dockRect?: RectLike | null
   platformRect: RectLike
 }): RelativeRect {
   if (!options.dockRect) {
     return {
-      height: options.platformRect.height,
       left: 0,
       top: 0,
       width: options.platformRect.width,
+      height: options.platformRect.height,
     }
   }
 
@@ -104,10 +120,10 @@ export function createWorkAreaRect(options: {
   }
 
   const workArea = {
-    height: options.platformRect.height,
     left: 0,
     top: 0,
     width: options.platformRect.width,
+    height: options.platformRect.height,
   }
 
   if (isVerticalDock) {
@@ -132,42 +148,26 @@ export function createWorkAreaRect(options: {
   return workArea
 }
 
-export function normalizeRectForScale<T extends RectLike>(rect: T, uiScale: number): T {
-  if (uiScale <= 0 || uiScale === 1) {
-    return rect
-  }
+export function computeElementAnchorStyle(options: {
+  anchor: WindowAnchor
+  anchorRect: RectLike
+  platformRect: RectPosition
+  windowRect: RectSize
+}): CSSProperties {
+  const relativeAnchorRect = toRelativeRect(options.anchorRect, options.platformRect)
+  const anchorPoint = resolveAnchorPoint(relativeAnchorRect, options.anchor)
+  // We place the window by subtracting its own anchor point from the target's
+  // anchor point. That keeps "bottom-right to bottom-right" and similar cases
+  // aligned without requiring separate formulas per anchor variant.
+  const windowPoint = resolveAnchorPoint({
+    left: 0,
+    top: 0,
+    width: options.windowRect.width,
+    height: options.windowRect.height,
+  }, options.anchor)
 
   return {
-    ...rect,
-    height: rect.height / uiScale,
-    left: rect.left / uiScale,
-    top: rect.top / uiScale,
-    width: rect.width / uiScale,
-  }
-}
-
-function resolveAnchorPoint(rect: RectLike, anchor: WindowAnchor) {
-  switch (anchor) {
-    case 'bottom-left':
-      return { x: rect.left, y: rect.top + rect.height }
-    case 'bottom-right':
-      return { x: rect.left + rect.width, y: rect.top + rect.height }
-    case 'center':
-      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
-    case 'top-left':
-      return { x: rect.left, y: rect.top }
-    case 'top-right':
-      return { x: rect.left + rect.width, y: rect.top }
-  }
-}
-
-function toRelativeRect(rect: RectLike, platformRect: RectPosition): RelativeRect {
-  // All anchor math is done in the platform's own coordinate system so callers
-  // can mix measured DOM rects with the logical scene layout consistently.
-  return {
-    height: rect.height,
-    left: rect.left - platformRect.left,
-    top: rect.top - platformRect.top,
-    width: rect.width,
+    left: `${anchorPoint.x - windowPoint.x}px`,
+    top: `${anchorPoint.y - windowPoint.y}px`,
   }
 }

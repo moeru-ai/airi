@@ -30,114 +30,120 @@ export interface TachieArchiveLayout {
   wrappingDirectory?: string
 }
 
-/** Optional policy overrides for loading Tachie archives. */
-export interface TachieArchiveLoadOptions {
-  /** Filename used for suffix validation and diagnostics. */
-  fileName?: string
-  /**
-   * Device texture dimension cap; omitted values are queried from WebGL.
-   *
-   * @default Current browser WebGL `MAX_TEXTURE_SIZE`
-   */
-  maxTextureSize?: number
-  /**
-   * Whether `fileName` must end in `.tachie.zip`.
-   *
-   * @default false
-   */
-  requireTachieSuffix?: boolean
-}
+/** Browser-decoded source accepted by Pixi and the preview canvas. */
+export type TachieImageSource = ImageBitmap | HTMLImageElement
 
 /** A decoded emotion image owned by a loaded Tachie asset set. */
 export interface TachieDecodedImage {
-  /** Releases the decoded browser resource. */
-  dispose: () => void
   /** Emotion represented by this complete character image. */
   emotion: typeof TACHIE_EMOTIONS[number]
-  /** Decoded height in physical pixels. */
-  height: number
   /** Source ZIP path for diagnostics. */
   path: string
   /** Decoded browser image, valid until `dispose()` is called. */
   source: TachieImageSource
   /** Decoded width in physical pixels. */
   width: number
+  /** Decoded height in physical pixels. */
+  height: number
+  /** Releases the decoded browser resource. */
+  dispose: () => void
 }
-
-/** Browser-decoded source accepted by Pixi and the preview canvas. */
-export type TachieImageSource = HTMLImageElement | ImageBitmap
 
 /** Fully decoded, dimension-checked images ready for an atomic model switch. */
 export interface TachieLoadedAssets {
-  /** Combined decoded RGBA texture footprint in bytes. */
-  decodedImageBytes: number
-  /** Releases every decoded image owned by this asset set. */
-  dispose: () => void
+  /** Recognized images keyed by AIRI emotion. */
+  images: Map<typeof TACHIE_EMOTIONS[number], TachieDecodedImage>
+  /** Shared width of every recognized image in physical pixels. */
+  width: number
   /** Shared height of every recognized image in physical pixels. */
   height: number
   /** Non-protocol files found during archive inspection. */
   ignoredEntries: string[]
-  /** Recognized images keyed by AIRI emotion. */
-  images: Map<typeof TACHIE_EMOTIONS[number], TachieDecodedImage>
   /** Non-blocking import audit messages. */
   warnings: string[]
-  /** Shared width of every recognized image in physical pixels. */
-  width: number
+  /** Combined decoded RGBA texture footprint in bytes. */
+  decodedImageBytes: number
+  /** Releases every decoded image owned by this asset set. */
+  dispose: () => void
 }
+
+/** Outcome shown before a local Tachie archive is imported. */
+export type TachieValidationStatus = 'VALID' | 'WARNING' | 'INVALID'
 
 /** Complete local import audit result without retained image resources. */
 export interface TachieValidationReport {
-  /** Compressed archive size in bytes. */
-  archiveBytes: number
-  /** Shared image dimensions when every recognized image decoded successfully. */
-  canvas?: {
-    /** Shared decoded height in physical pixels. */
-    height: number
-    /** Shared decoded width in physical pixels. */
-    width: number
-  }
-  /** Combined decoded RGBA texture footprint in bytes. */
-  decodedImageBytes: number
-  /** Recognized emotion images. */
-  detected: TachieArchiveEntry[]
-  /** Blocking archive or image errors. */
-  errors: string[]
-  /** Original local filename. */
-  fileName: string
-  /** Non-protocol archive entries that will not be rendered. */
-  ignoredEntries: string[]
   /** Whether import is direct, needs confirmation, or is blocked. */
   status: TachieValidationStatus
+  /** Original local filename. */
+  fileName: string
+  /** Compressed archive size in bytes. */
+  archiveBytes: number
+  /** Combined decoded RGBA texture footprint in bytes. */
+  decodedImageBytes: number
+  /** Shared image dimensions when every recognized image decoded successfully. */
+  canvas?: {
+    /** Shared decoded width in physical pixels. */
+    width: number
+    /** Shared decoded height in physical pixels. */
+    height: number
+  }
+  /** Recognized emotion images. */
+  detected: TachieArchiveEntry[]
+  /** Non-protocol archive entries that will not be rendered. */
+  ignoredEntries: string[]
+  /** Blocking archive or image errors. */
+  errors: string[]
   /** Non-blocking findings that require import confirmation. */
   warnings: string[]
 }
 
-/** Outcome shown before a local Tachie archive is imported. */
-export type TachieValidationStatus = 'INVALID' | 'VALID' | 'WARNING'
+/** Optional policy overrides for loading Tachie archives. */
+export interface TachieArchiveLoadOptions {
+  /** Filename used for suffix validation and diagnostics. */
+  fileName?: string
+  /**
+   * Whether `fileName` must end in `.tachie.zip`.
+   *
+   * @default false
+   */
+  requireTachieSuffix?: boolean
+  /**
+   * Device texture dimension cap; omitted values are queried from WebGL.
+   *
+   * @default Current browser WebGL `MAX_TEXTURE_SIZE`
+   */
+  maxTextureSize?: number
+}
 
 interface TachieArchiveInspection {
-  archiveBytes: number
   assets?: TachieLoadedAssets
+  archiveBytes: number
   detected: TachieArchiveEntry[]
   errors: string[]
   ignoredEntries: string[]
   warnings: string[]
 }
 
-/**
- * Loads and fully decodes every recognized emotion image in a Tachie ZIP.
- *
- * The returned image sources remain owned by the caller until `dispose()` is
- * called. A failed archive never returns a partially usable model.
- */
-export async function loadTachieZip(
-  input: ArrayBuffer | Blob,
-  options: TachieArchiveLoadOptions = {},
-): Promise<TachieLoadedAssets> {
-  const inspection = await inspectTachieArchive(input, options)
-  if (!inspection.assets)
-    throw new Error(inspection.errors.join(' '))
-  return inspection.assets
+function normalizedArchivePath(path: string): string {
+  return path.replaceAll('\\', '/').replace(/^\/+/, '').replace(/\/+$/, '')
+}
+
+function archivePathSegments(path: string): string[] {
+  return normalizedArchivePath(path).split('/').filter(Boolean)
+}
+
+function shouldIgnoreArchiveMetadata(path: string): boolean {
+  return archivePathSegments(path).some(segment =>
+    segment === '__MACOSX'
+    || segment === '.DS_Store'
+    || segment.startsWith('._'),
+  )
+}
+
+function emotionFromFileName(fileName: string) {
+  const extensionSeparator = fileName.lastIndexOf('.')
+  const stem = (extensionSeparator > 0 ? fileName.slice(0, extensionSeparator) : fileName).toLowerCase()
+  return isTachieEmotion(stem) ? stem : undefined
 }
 
 /**
@@ -219,44 +225,18 @@ export function resolveTachieArchiveLayout(paths: string[]): TachieArchiveLayout
   }
 }
 
-/**
- * Validates a local `.tachie.zip` without retaining decoded image resources.
- */
-export async function validateTachieZip(file: File): Promise<TachieValidationReport> {
-  const inspection = await inspectTachieArchive(file, {
-    fileName: file.name,
-    requireTachieSuffix: true,
-  })
-  const assets = inspection.assets
-  const report: TachieValidationReport = {
-    archiveBytes: inspection.archiveBytes,
-    canvas: assets ? { height: assets.height, width: assets.width } : undefined,
-    decodedImageBytes: assets?.decodedImageBytes ?? 0,
-    detected: inspection.detected,
-    errors: inspection.errors,
-    fileName: file.name,
-    ignoredEntries: inspection.ignoredEntries,
-    status: inspection.errors.length > 0
-      ? 'INVALID'
-      : inspection.warnings.length > 0
-        ? 'WARNING'
-        : 'VALID',
-    warnings: inspection.warnings,
-  }
-  assets?.dispose()
-  return report
+function imageDimensions(source: TachieImageSource) {
+  return source instanceof HTMLImageElement
+    ? { width: source.naturalWidth, height: source.naturalHeight }
+    : { width: source.width, height: source.height }
 }
 
-function archivePathSegments(path: string): string[] {
-  return normalizedArchivePath(path).split('/').filter(Boolean)
-}
-
-async function decodeImage(blob: Blob): Promise<{ dispose: () => void, source: TachieImageSource }> {
+async function decodeImage(blob: Blob): Promise<{ source: TachieImageSource, dispose: () => void }> {
   if (typeof createImageBitmap === 'function') {
     const source = await createImageBitmap(blob)
     return {
-      dispose: () => source.close(),
       source,
+      dispose: () => source.close(),
     }
   }
 
@@ -271,11 +251,23 @@ async function decodeImage(blob: Blob): Promise<{ dispose: () => void, source: T
   }
 
   return {
+    source,
     dispose: () => {
       source.src = ''
     },
-    source,
   }
+}
+
+function maxTextureSizeFromBrowser(): number {
+  if (typeof document === 'undefined')
+    return Number.MAX_SAFE_INTEGER
+
+  const canvas = document.createElement('canvas')
+  const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl')
+  if (!gl)
+    return 0
+
+  return gl.getParameter(gl.MAX_TEXTURE_SIZE) as number
 }
 
 function disposeDecodedImages(images: Iterable<TachieDecodedImage>) {
@@ -283,20 +275,27 @@ function disposeDecodedImages(images: Iterable<TachieDecodedImage>) {
     image.dispose()
 }
 
-function emotionFromFileName(fileName: string) {
-  const extensionSeparator = fileName.lastIndexOf('.')
-  const stem = (extensionSeparator > 0 ? fileName.slice(0, extensionSeparator) : fileName).toLowerCase()
-  return isTachieEmotion(stem) ? stem : undefined
-}
-
-function imageDimensions(source: TachieImageSource) {
-  return source instanceof HTMLImageElement
-    ? { height: source.naturalHeight, width: source.naturalWidth }
-    : { height: source.height, width: source.width }
+function unzipAsync(data: Uint8Array): Promise<Record<string, Uint8Array>> {
+  return new Promise((resolve, reject) => {
+    try {
+      unzip(data, {
+        filter: file => !file.name.endsWith('/') && !file.name.endsWith('\\'),
+      }, (error, files) => {
+        if (error) {
+          reject(error)
+          return
+        }
+        resolve(files)
+      })
+    }
+    catch (error) {
+      reject(error)
+    }
+  })
 }
 
 async function inspectTachieArchive(
-  input: ArrayBuffer | Blob,
+  input: Blob | ArrayBuffer,
   options: TachieArchiveLoadOptions = {},
 ): Promise<TachieArchiveInspection> {
   const errors: string[] = []
@@ -422,18 +421,18 @@ async function inspectTachieArchive(
   }
 
   const assets: TachieLoadedAssets = {
-    decodedImageBytes,
-    dispose: () => disposeDecodedImages(images.values()),
+    images,
+    width,
     height,
     ignoredEntries: layout.ignoredEntries,
-    images,
     warnings,
-    width,
+    decodedImageBytes,
+    dispose: () => disposeDecodedImages(images.values()),
   }
 
   return {
-    archiveBytes,
     assets,
+    archiveBytes,
     detected: layout.entries,
     errors,
     ignoredEntries: layout.ignoredEntries,
@@ -441,45 +440,46 @@ async function inspectTachieArchive(
   }
 }
 
-function maxTextureSizeFromBrowser(): number {
-  if (typeof document === 'undefined')
-    return Number.MAX_SAFE_INTEGER
-
-  const canvas = document.createElement('canvas')
-  const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl')
-  if (!gl)
-    return 0
-
-  return gl.getParameter(gl.MAX_TEXTURE_SIZE) as number
+/**
+ * Loads and fully decodes every recognized emotion image in a Tachie ZIP.
+ *
+ * The returned image sources remain owned by the caller until `dispose()` is
+ * called. A failed archive never returns a partially usable model.
+ */
+export async function loadTachieZip(
+  input: Blob | ArrayBuffer,
+  options: TachieArchiveLoadOptions = {},
+): Promise<TachieLoadedAssets> {
+  const inspection = await inspectTachieArchive(input, options)
+  if (!inspection.assets)
+    throw new Error(inspection.errors.join(' '))
+  return inspection.assets
 }
 
-function normalizedArchivePath(path: string): string {
-  return path.replaceAll('\\', '/').replace(/^\/+/, '').replace(/\/+$/, '')
-}
-
-function shouldIgnoreArchiveMetadata(path: string): boolean {
-  return archivePathSegments(path).some(segment =>
-    segment === '__MACOSX'
-    || segment === '.DS_Store'
-    || segment.startsWith('._'),
-  )
-}
-
-function unzipAsync(data: Uint8Array): Promise<Record<string, Uint8Array>> {
-  return new Promise((resolve, reject) => {
-    try {
-      unzip(data, {
-        filter: file => !file.name.endsWith('/') && !file.name.endsWith('\\'),
-      }, (error, files) => {
-        if (error) {
-          reject(error)
-          return
-        }
-        resolve(files)
-      })
-    }
-    catch (error) {
-      reject(error)
-    }
+/**
+ * Validates a local `.tachie.zip` without retaining decoded image resources.
+ */
+export async function validateTachieZip(file: File): Promise<TachieValidationReport> {
+  const inspection = await inspectTachieArchive(file, {
+    fileName: file.name,
+    requireTachieSuffix: true,
   })
+  const assets = inspection.assets
+  const report: TachieValidationReport = {
+    status: inspection.errors.length > 0
+      ? 'INVALID'
+      : inspection.warnings.length > 0
+        ? 'WARNING'
+        : 'VALID',
+    fileName: file.name,
+    archiveBytes: inspection.archiveBytes,
+    decodedImageBytes: assets?.decodedImageBytes ?? 0,
+    canvas: assets ? { width: assets.width, height: assets.height } : undefined,
+    detected: inspection.detected,
+    ignoredEntries: inspection.ignoredEntries,
+    errors: inspection.errors,
+    warnings: inspection.warnings,
+  }
+  assets?.dispose()
+  return report
 }

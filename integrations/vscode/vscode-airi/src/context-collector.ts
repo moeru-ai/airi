@@ -22,31 +22,31 @@ export class ContextCollector {
 
       // File information
       const file = {
-        fileName: document.fileName,
-        languageId: document.languageId,
         path: document.uri.fsPath,
+        languageId: document.languageId,
+        fileName: document.fileName,
         workspaceFolder: this.getWorkspaceFolder(document.uri),
       }
 
       // Cursor position
       const cursor = {
-        character: position.character,
         line: position.line,
+        character: position.character,
       }
 
       // Selected text
       const selection = editor.selection.isEmpty
         ? undefined
         : {
-            end: {
-              character: editor.selection.end.character,
-              line: editor.selection.end.line,
-            },
-            start: {
-              character: editor.selection.start.character,
-              line: editor.selection.start.line,
-            },
             text: document.getText(editor.selection),
+            start: {
+              line: editor.selection.start.line,
+              character: editor.selection.start.character,
+            },
+            end: {
+              line: editor.selection.end.line,
+              character: editor.selection.end.character,
+            },
           }
 
       // Current line
@@ -62,12 +62,12 @@ export class ContextCollector {
       const git = await this.getGitInfo(document.uri)
 
       return {
-        context,
-        currentLine,
-        cursor,
         file,
-        git,
+        cursor,
         selection,
+        currentLine,
+        context,
+        git,
         timestamp: Date.now(),
       }
     }
@@ -96,13 +96,21 @@ export class ContextCollector {
       after.push(document.lineAt(i).text)
     }
 
-    return { after, before }
+    return { before, after }
+  }
+
+  /**
+   * Get workspace folder path
+   */
+  private getWorkspaceFolder(uri: vscode.Uri): string | undefined {
+    const folder = vscode.workspace.getWorkspaceFolder(uri)
+    return folder?.uri.fsPath
   }
 
   /**
    * Get Git information (simplified)
    */
-  private async getGitInfo(uri: vscode.Uri): Promise<undefined | { branch: string, isDirty: boolean }> {
+  private async getGitInfo(uri: vscode.Uri): Promise<{ branch: string, isDirty: boolean } | undefined> {
     try {
       const gitExtension = vscode.extensions.getExtension('vscode.git')?.exports
       if (!gitExtension)
@@ -121,13 +129,5 @@ export class ContextCollector {
     catch {
       return undefined
     }
-  }
-
-  /**
-   * Get workspace folder path
-   */
-  private getWorkspaceFolder(uri: vscode.Uri): string | undefined {
-    const folder = vscode.workspace.getWorkspaceFolder(uri)
-    return folder?.uri.fsPath
   }
 }

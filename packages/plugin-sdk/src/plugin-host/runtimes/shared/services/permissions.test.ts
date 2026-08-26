@@ -9,15 +9,15 @@ describe('permissionService', () => {
     const service = new PermissionService()
     const requested: ModulePermissionDeclaration = {
       apis: [
-        { actions: ['invoke', 'emit'], key: 'plugin.api.users', reason: 'requested-reason' },
+        { key: 'plugin.api.users', actions: ['invoke', 'emit'], reason: 'requested-reason' },
       ],
     }
 
     const snapshot = service.initialize('plugin-a', requested, {
       grant: {
         apis: [
-          { actions: ['invoke'], key: 'plugin.api.*' },
-          { actions: ['emit'], key: 'plugin.api.audit' },
+          { key: 'plugin.api.*', actions: ['invoke'] },
+          { key: 'plugin.api.audit', actions: ['emit'] },
         ],
       },
     })
@@ -25,8 +25,8 @@ describe('permissionService', () => {
     expect(snapshot.requested.resources).toEqual([])
     expect(snapshot.granted.apis).toEqual([
       {
-        actions: ['invoke'],
         key: 'plugin.api.users',
+        actions: ['invoke'],
         reason: 'requested-reason',
       },
     ])
@@ -37,8 +37,8 @@ describe('permissionService', () => {
     const requested: ModulePermissionDeclaration = {
       resources: [
         {
-          actions: ['read', 'write'],
           key: 'plugin.resource.settings',
+          actions: ['read', 'write'],
           label: 'Settings',
           metadata: { source: 'manifest' },
         },
@@ -46,18 +46,18 @@ describe('permissionService', () => {
     }
 
     const initialized = service.initialize('plugin-b', requested, {
-      grant: {},
       persisted: {
         resources: [
-          { actions: ['read'], key: 'plugin.resource.settings' },
+          { key: 'plugin.resource.settings', actions: ['read'] },
         ],
       },
+      grant: {},
     })
 
     expect(initialized.granted.resources).toEqual([
       {
-        actions: ['read'],
         key: 'plugin.resource.settings',
+        actions: ['read'],
         label: 'Settings',
         metadata: { source: 'manifest' },
       },
@@ -65,14 +65,14 @@ describe('permissionService', () => {
 
     const updated = service.grant('plugin-b', {
       resources: [
-        { actions: ['write'], key: 'plugin.resource.settings' },
+        { key: 'plugin.resource.settings', actions: ['write'] },
       ],
     })
 
     expect(updated.granted.resources).toEqual([
       {
-        actions: ['read', 'write'],
         key: 'plugin.resource.settings',
+        actions: ['read', 'write'],
         label: 'Settings',
         metadata: { source: 'manifest' },
       },
@@ -91,8 +91,8 @@ describe('permissionService', () => {
     const declared = service.declare('plugin-runtime', {
       apis: [
         {
-          actions: ['invoke'],
           key: 'plugin.api.runtime',
+          actions: ['invoke'],
           reason: 'Late-bound runtime capability',
         },
       ],
@@ -100,8 +100,8 @@ describe('permissionService', () => {
 
     expect(declared.requested.apis).toEqual([
       {
-        actions: ['invoke'],
         key: 'plugin.api.runtime',
+        actions: ['invoke'],
         reason: 'Late-bound runtime capability',
       },
     ])
@@ -110,16 +110,16 @@ describe('permissionService', () => {
     const granted = service.grant('plugin-runtime', {
       apis: [
         {
-          actions: ['invoke'],
           key: 'plugin.api.runtime',
+          actions: ['invoke'],
         },
       ],
     })
 
     expect(granted.granted.apis).toEqual([
       {
-        actions: ['invoke'],
         key: 'plugin.api.runtime',
+        actions: ['invoke'],
         reason: 'Late-bound runtime capability',
       },
     ])
@@ -131,8 +131,8 @@ describe('permissionService', () => {
     const requested: ModulePermissionDeclaration = {
       resources: [
         {
-          actions: ['read'],
           key: 'plugin.resource.*',
+          actions: ['read'],
           reason: 'Read plugin resources',
         },
       ],
@@ -146,7 +146,7 @@ describe('permissionService', () => {
     const snapshot = service.initialize('plugin-c', requested, {
       grant: {
         resources: [
-          { actions: ['read'], key: 'plugin.resource.settings' },
+          { key: 'plugin.resource.settings', actions: ['read'] },
         ],
       },
     })
@@ -156,8 +156,8 @@ describe('permissionService', () => {
     // of silently widening it back to the plugin's original wildcard request.
     expect(snapshot.granted.resources).toEqual([
       {
-        actions: ['read'],
         key: 'plugin.resource.settings',
+        actions: ['read'],
         reason: 'Read plugin resources',
       },
     ])
@@ -169,7 +169,7 @@ describe('permissionService', () => {
     const service = new PermissionService()
     const requested: ModulePermissionDeclaration = {
       apis: [
-        { actions: ['invoke', 'emit'], key: 'plugin.api.*', reason: 'Use selected APIs' },
+        { key: 'plugin.api.*', actions: ['invoke', 'emit'], reason: 'Use selected APIs' },
       ],
     }
 
@@ -181,8 +181,8 @@ describe('permissionService', () => {
     const snapshot = service.initialize('plugin-d', requested, {
       grant: {
         apis: [
-          { actions: ['invoke'], key: 'plugin.api.users' },
-          { actions: ['emit'], key: 'plugin.api.audit' },
+          { key: 'plugin.api.users', actions: ['invoke'] },
+          { key: 'plugin.api.audit', actions: ['emit'] },
         ],
       },
     })
@@ -193,13 +193,13 @@ describe('permissionService', () => {
     // `plugin.api.audit`, and nothing else is implied.
     expect(snapshot.granted.apis).toEqual([
       {
-        actions: ['invoke'],
         key: 'plugin.api.users',
+        actions: ['invoke'],
         reason: 'Use selected APIs',
       },
       {
-        actions: ['emit'],
         key: 'plugin.api.audit',
+        actions: ['emit'],
         reason: 'Use selected APIs',
       },
     ])
@@ -212,19 +212,19 @@ describe('permissionService', () => {
   it('caps module grants by the extension permission ceiling', () => {
     const service = new PermissionService()
     const extension = service.initialize('extension-session', {
-      apis: [{ actions: ['invoke'], key: 'kit.tools.register' }],
+      apis: [{ key: 'kit.tools.register', actions: ['invoke'] }],
     })
     const module = service.initialize('module-session', {
       apis: [
-        { actions: ['invoke'], key: 'kit.tools.register' },
-        { actions: ['invoke'], key: 'kit.gamelet.open' },
+        { key: 'kit.tools.register', actions: ['invoke'] },
+        { key: 'kit.gamelet.open', actions: ['invoke'] },
       ],
     })
 
     const effective = service.intersectGrant(extension.granted, module.requested)
 
     expect(effective.apis).toEqual([
-      { actions: ['invoke'], key: 'kit.tools.register' },
+      { key: 'kit.tools.register', actions: ['invoke'] },
     ])
   })
 })

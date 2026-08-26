@@ -3,16 +3,16 @@ import type { DefaultTheme } from 'vitepress'
 import contributorNames from './contributor-names.json'
 
 export interface Contributor {
-  avatar: string
   name: string
+  avatar: string
 }
 
 export interface CoreTeam extends DefaultTheme.TeamMember {
-  discord?: string
   // required to download avatars from GitHub
   github: string
-  mastodon?: string
   twitter?: string
+  mastodon?: string
+  discord?: string
   youtube?: string
 }
 
@@ -24,7 +24,7 @@ function getAvatarUrl(name: string) {
 
 export const contributors = (contributorNames as string[]).reduce((acc, name) => {
   contributorsAvatars[name] = getAvatarUrl(name)
-  acc.push({ avatar: contributorsAvatars[name], name })
+  acc.push({ name, avatar: contributorsAvatars[name] })
   return acc
 }, [] as Contributor[])
 function createLinks(tm: CoreTeam): CoreTeam {

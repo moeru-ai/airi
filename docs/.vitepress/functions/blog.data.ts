@@ -14,13 +14,13 @@ const config: SiteConfig = (globalThis as any).VITEPRESS_CONFIG
 const base = config.userConfig.base || env.BASE_URL || '/'
 
 interface Post {
-  date: ReturnType<typeof formatDate>
-  excerpt: string | undefined
-  frontmatter?: Record<string, any>
-  lang: string
   title: string
   url: string
   urlWithoutLang: string
+  lang: string
+  date: ReturnType<typeof formatDate>
+  excerpt: string | undefined
+  frontmatter?: Record<string, any>
 }
 
 declare const data: Post[]
@@ -77,12 +77,12 @@ function withDirname(url?: string, cwd?: string) {
 }
 
 export default createContentLoader('**/blog/**/*.md', {
-  excerpt: true,
   includeSrc: true,
   render: true,
+  excerpt: true,
   async transform(raw): Promise<Post[]> {
     return (await Promise.all(raw
-      .map(async ({ excerpt, frontmatter, url }) => {
+      .map(async ({ url, frontmatter, excerpt }) => {
         const foundLanguage = Object.values(config.userConfig.locales!).find((locale) => {
           let normalizedLanguagePrefix = locale.lang || 'en'
           if (!normalizedLanguagePrefix.startsWith('/')) {
@@ -117,19 +117,19 @@ export default createContentLoader('**/blog/**/*.md', {
         const previewCoverDark = withBase(await fileToUrl(withDirname(fromAtAssets(frontmatter['preview-cover']?.dark), cwdFromUrl(url))), base)
 
         const res = {
-          date: formatDate(frontmatter.date),
-          excerpt,
-          frontmatter: {
-            ...frontmatter,
-            'preview-cover': {
-              dark: previewCoverDark,
-              light: previewCoverLight,
-            },
-          },
-          lang: foundLanguage?.lang || 'en',
           title: frontmatter.title,
           url,
           urlWithoutLang: url.replace(`/${foundLanguage?.lang || 'en'}`, ''),
+          excerpt,
+          date: formatDate(frontmatter.date),
+          lang: foundLanguage?.lang || 'en',
+          frontmatter: {
+            ...frontmatter,
+            'preview-cover': {
+              light: previewCoverLight,
+              dark: previewCoverDark,
+            },
+          },
         }
 
         return res

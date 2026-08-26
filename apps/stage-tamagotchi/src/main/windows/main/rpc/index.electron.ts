@@ -27,18 +27,18 @@ import { centerWindowOnDisplay } from '../../shared/display'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export async function setupMainWindowElectronInvokes(params: {
-  autoUpdater: AutoUpdater
-  chatWindow: () => Promise<BrowserWindow>
-  editorWindow: EditorWindowManager
-  godotStageManager: GodotStageManager
-  i18n: I18n
-  mcpStdioManager: McpStdioManager
-  noticeWindow: NoticeWindowManager
-  onboardingWindowManager: OnboardingWindowManager
-  serverChannel: ServerChannel
-  settingsWindow: SettingsWindowManager
-  widgetsManager: WidgetsWindowManager
   window: BrowserWindow
+  editorWindow: EditorWindowManager
+  settingsWindow: SettingsWindowManager
+  chatWindow: () => Promise<BrowserWindow>
+  widgetsManager: WidgetsWindowManager
+  noticeWindow: NoticeWindowManager
+  autoUpdater: AutoUpdater
+  serverChannel: ServerChannel
+  godotStageManager: GodotStageManager
+  mcpStdioManager: McpStdioManager
+  i18n: I18n
+  onboardingWindowManager: OnboardingWindowManager
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -47,12 +47,12 @@ export async function setupMainWindowElectronInvokes(params: {
 
   const { context } = createContext(ipcMain, params.window)
 
-  await setupBaseWindowElectronInvokes({ context, i18n: params.i18n, serverChannel: params.serverChannel, window: params.window })
+  await setupBaseWindowElectronInvokes({ context, window: params.window, serverChannel: params.serverChannel, i18n: params.i18n })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
-  createAutoUpdaterService({ context, service: params.autoUpdater, window: params.window })
+  createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
   createMcpServersService({ context, manager: params.mcpStdioManager })
   createGodotStageService({ context, manager: params.godotStageManager, window: params.window })
-  createOnboardingService({ context, mainWindow: params.window, onboardingWindowManager: params.onboardingWindowManager })
+  createOnboardingService({ context, onboardingWindowManager: params.onboardingWindowManager, mainWindow: params.window })
   createAuthService({ context, window: params.window })
 
   defineInvokeHandler(context, electronCenterMainWindow, () => centerWindowOnDisplay(params.window))

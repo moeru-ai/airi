@@ -11,13 +11,44 @@ export class ReplicateProvider implements ArtistryProvider {
   readonly name = 'Replicate.ai (Cloud)'
 
   private apiKey = ''
-  private aspectRatio = '16:9'
-  private callbacks = new Map<string, (status: ArtistryJobStatus) => void>()
   private defaultModel = 'black-forest-labs/flux-schnell'
+  private aspectRatio = '16:9'
   private inferenceSteps = 4
+  private replicate: Replicate | null = null
 
   private jobResults = new Map<string, ArtistryJobStatus>()
-  private replicate: null | Replicate = null
+  private callbacks = new Map<string, (status: ArtistryJobStatus) => void>()
+
+  setJobCallback(jobId: string, callback: (status: ArtistryJobStatus) => void) {
+    this.callbacks.set(jobId, callback)
+    const result = this.jobResults.get(jobId)
+    if (result)
+      callback(result)
+  }
+
+  private updateStatus(jobId: string, status: ArtistryJobStatus) {
+    this.jobResults.set(jobId, status)
+    const callback = this.callbacks.get(jobId)
+    if (callback)
+      callback(status)
+  }
+
+  async initialize(config: any): Promise<void> {
+    if (config?.replicateApiKey) {
+      this.apiKey = config.replicateApiKey
+      this.replicate = new Replicate({ auth: this.apiKey })
+    }
+    else {
+      this.apiKey = ''
+      this.replicate = null
+    }
+    if (config?.replicateDefaultModel)
+      this.defaultModel = config.replicateDefaultModel
+    if (config?.replicateAspectRatio)
+      this.aspectRatio = config.replicateAspectRatio
+    if (config?.replicateInferenceSteps)
+      this.inferenceSteps = config.replicateInferenceSteps
+  }
 
   async generate(request: ArtistryRequest): Promise<ArtistryJob> {
     if (!this.replicate) {
@@ -30,11 +61,11 @@ export class ReplicateProvider implements ArtistryProvider {
     // 1. Start with defaults
     const hasPromptPlaceholder = JSON.stringify(request.extra).includes('{{PROMPT}}')
     let inputOptions: Record<string, any> = {
-      aspect_ratio: request.extra?.aspect_ratio ?? this.aspectRatio,
       go_fast: request.extra?.go_fast ?? true,
-      num_inference_steps: request.extra?.num_inference_steps ?? this.inferenceSteps,
+      aspect_ratio: request.extra?.aspect_ratio ?? this.aspectRatio,
       output_format: request.extra?.output_format ?? 'png',
       output_quality: request.extra?.output_quality ?? 80,
+      num_inference_steps: request.extra?.num_inference_steps ?? this.inferenceSteps,
     }
 
     // Default prompt injection if NO placeholder is used in overrides
@@ -96,36 +127,8 @@ export class ReplicateProvider implements ArtistryProvider {
     return { jobId, providerJobId: jobId }
   }
 
-  async getStatus(jobId: string): Promise<ArtistryJobStatus> {
-    return this.jobResults.get(jobId) || { status: 'queued' }
-  }
-
-  async initialize(config: any): Promise<void> {
-    if (config?.replicateApiKey) {
-      this.apiKey = config.replicateApiKey
-      this.replicate = new Replicate({ auth: this.apiKey })
-    }
-    else {
-      this.apiKey = ''
-      this.replicate = null
-    }
-    if (config?.replicateDefaultModel)
-      this.defaultModel = config.replicateDefaultModel
-    if (config?.replicateAspectRatio)
-      this.aspectRatio = config.replicateAspectRatio
-    if (config?.replicateInferenceSteps)
-      this.inferenceSteps = config.replicateInferenceSteps
-  }
-
-  setJobCallback(jobId: string, callback: (status: ArtistryJobStatus) => void) {
-    this.callbacks.set(jobId, callback)
-    const result = this.jobResults.get(jobId)
-    if (result)
-      callback(result)
-  }
-
   private async runGeneration(jobId: string, model: `${string}/${string}`, input: object) {
-    this.updateStatus(jobId, { actionLabel: 'Requesting cloud generation...', status: 'running' })
+    this.updateStatus(jobId, { status: 'running', actionLabel: 'Requesting cloud generation...' })
 
     try {
       const output = await this.replicate!.run(model, { input })
@@ -157,7 +160,7 @@ export class ReplicateProvider implements ArtistryProvider {
 
         if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('data:'))) {
           log.log(`[Replicate] EXTRACTED IMAGE: ${imageUrl.startsWith('data:') ? 'DATA_URL' : imageUrl}`)
-          this.updateStatus(jobId, { imageUrl, progress: 100, status: 'succeeded' })
+          this.updateStatus(jobId, { status: 'succeeded', progress: 100, imageUrl })
         }
         else {
           log.error(`[Replicate] Failed to extract URL from output: ${JSON.stringify(first)}`)
@@ -172,9 +175,9 @@ export class ReplicateProvider implements ArtistryProvider {
       const errorMessage = error.message || (typeof error === 'object' ? JSON.stringify(error) : String(error))
       log.error(`[Replicate] Generation Failed for ${jobId}: ${errorMessage}`)
       this.updateStatus(jobId, {
-        actionLabel: `Error: ${errorMessage.slice(0, 50)}${errorMessage.length > 50 ? '...' : ''}`,
-        error: errorMessage,
         status: 'failed',
+        error: errorMessage,
+        actionLabel: `Error: ${errorMessage.slice(0, 50)}${errorMessage.length > 50 ? '...' : ''}`,
       })
     }
     finally {
@@ -186,17 +189,14 @@ export class ReplicateProvider implements ArtistryProvider {
     }
   }
 
+  async getStatus(jobId: string): Promise<ArtistryJobStatus> {
+    return this.jobResults.get(jobId) || { status: 'queued' }
+  }
+
   private truncatePrompt(prompt: string, maxChars: number = 380): string {
     if (prompt.length <= maxChars)
       return prompt
     log.log(`[Replicate] Truncating prompt from ${prompt.length} to ${maxChars} chars.`)
     return `${prompt.slice(0, maxChars)}...`
-  }
-
-  private updateStatus(jobId: string, status: ArtistryJobStatus) {
-    this.jobResults.set(jobId, status)
-    const callback = this.callbacks.get(jobId)
-    if (callback)
-      callback(status)
   }
 }

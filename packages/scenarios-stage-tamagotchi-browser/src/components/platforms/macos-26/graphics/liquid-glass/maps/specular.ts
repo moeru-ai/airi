@@ -7,11 +7,11 @@ import { calculateCircleMap } from './calculate-circle-map'
 const NEAR_EDGE_DISTANCE = 20
 
 export function calculateSpecularImage(props: {
+  width: number
   height: number
-  pixelRatio: number
   radius: number
   specularAngle: number
-  width: number
+  pixelRatio: number
 }) {
   const { pixelRatio, specularAngle } = props
 
@@ -27,8 +27,10 @@ export function calculateSpecularImage(props: {
   ] as const
 
   return calculateCircleMap({
-    fillColor: 0x00000000,
+    width,
     height,
+    fillColor: 0x00000000,
+    radius,
     maximumDistanceToBorder: NEAR_EDGE_DISTANCE * pixelRatio,
     processPixel(
       x,
@@ -64,7 +66,5 @@ export function calculateSpecularImage(props: {
       buffer[offset + 2] = color // B
       buffer[offset + 3] = finalOpacity // A
     },
-    radius,
-    width,
   })
 }

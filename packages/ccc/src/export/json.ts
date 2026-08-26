@@ -8,9 +8,9 @@ import type { Card } from '../define'
  */
 export function exportToJSON(data: Card): CharacterCardV3 {
   return {
-    data: createCardData(data),
     spec: 'chara_card_v3',
     spec_version: '3.0',
+    data: createCardData(data),
   }
 }
 
@@ -21,29 +21,43 @@ export function exportToJSON(data: Card): CharacterCardV3 {
  */
 function createCardData(data: Card): CharacterCardV3['data'] {
   return {
-    alternate_greetings: data.greetings?.slice(1) ?? [],
+    name: data.name,
+    nickname: data.nickname,
     assets: data.assets,
     character_book: data.characterBook,
-    character_version: data.version,
     creation_date: data.creationDate,
+    description: data.description ?? '',
+    personality: data.personality ?? '',
+    scenario: data.scenario ?? '',
+    first_mes: data.greetings?.[0] ?? '',
+    alternate_greetings: data.greetings?.slice(1) ?? [],
+    group_only_greetings: data.greetingsGroupOnly ?? [],
+    character_version: data.version,
     creator: data.creator ?? '',
     creator_notes: data.notes ?? '',
     creator_notes_multilingual: data.notesMultilingual,
-    description: data.description ?? '',
-    extensions: createExtensions(data),
-    first_mes: data.greetings?.[0] ?? '',
-    group_only_greetings: data.greetingsGroupOnly ?? [],
+    system_prompt: data.systemPrompt ?? '',
+    post_history_instructions: data.postHistoryInstructions ?? '',
     mes_example: formatMessageExample(data.messageExample),
     modification_date: data.modificationDate,
-    name: data.name,
-    nickname: data.nickname,
-    personality: data.personality ?? '',
-    post_history_instructions: data.postHistoryInstructions ?? '',
-    scenario: data.scenario ?? '',
     source: data.source,
-    system_prompt: data.systemPrompt ?? '',
     tags: data.tags ?? [],
+    extensions: createExtensions(data),
   }
+}
+
+/**
+ * Formats message examples into the required string format
+ * @param messageExample The message example array
+ * @returns Formatted message example string
+ */
+function formatMessageExample(messageExample: string[][] | undefined): string {
+  if (!messageExample)
+    return ''
+
+  return messageExample
+    .map(arr => `<START>\n${arr.join('\n')}`)
+    .join('\n')
 }
 
 /**
@@ -62,18 +76,4 @@ function createExtensions(data: Card): CharacterCardV3['data']['extensions'] {
     talkativeness: 0.5,
     ...data.extensions,
   }
-}
-
-/**
- * Formats message examples into the required string format
- * @param messageExample The message example array
- * @returns Formatted message example string
- */
-function formatMessageExample(messageExample: string[][] | undefined): string {
-  if (!messageExample)
-    return ''
-
-  return messageExample
-    .map(arr => `<START>\n${arr.join('\n')}`)
-    .join('\n')
 }

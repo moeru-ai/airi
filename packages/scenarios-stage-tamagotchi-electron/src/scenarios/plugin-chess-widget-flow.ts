@@ -3,8 +3,8 @@ import type { StageTamagotchiScenarioContext } from '../context'
 import { defineStageTamagotchiScenario } from '../context'
 
 type ElectronApplication = StageTamagotchiScenarioContext['electronApp']
-type Frame = ReturnType<Page['frame']>
 type Page = Parameters<StageTamagotchiScenarioContext['capture']>[1]
+type Frame = ReturnType<Page['frame']>
 
 const pluginName = 'airi-plugin-game-chess'
 const pluginModuleId = 'chess-like-main'
@@ -12,25 +12,6 @@ const chessExtensionUiProps = JSON.stringify({ moduleId: pluginModuleId }, null,
 const spawnedWidgetPattern = /Spawned widget/i
 const whitespacePattern = /\s+/g
 const pluginExtensionFramePath = `/_airi/extensions/${pluginName}/sessions/`
-
-function excerpt(text: string, maxLength = 1800) {
-  const normalized = text.replaceAll(whitespacePattern, ' ').trim()
-  if (normalized.length <= maxLength) {
-    return normalized
-  }
-  return `${normalized.slice(0, maxLength)}...`
-}
-
-async function getFrameText(frame: Frame | null | undefined) {
-  if (!frame) {
-    return ''
-  }
-  return await frame.locator('body').textContent().catch(() => '') ?? ''
-}
-
-async function getPageText(page: Page) {
-  return await page.locator('body').textContent().catch(() => '') ?? ''
-}
 
 function inferRouteFromUrl(url: string): string {
   const hashIndex = url.indexOf('#')
@@ -57,42 +38,51 @@ function normalizeRoutePath(route: string): string {
   return route
 }
 
-function normalizeWhitespace(text: string) {
-  return text.replaceAll(whitespacePattern, ' ').trim()
+async function waitForWidgetsWindowPage(electronApp: ElectronApplication, timeoutMs = 30_000): Promise<Page> {
+  const deadline = Date.now() + timeoutMs
+  let lastSeenWindows = ''
+  while (Date.now() < deadline) {
+    for (const page of electronApp.windows()) {
+      const title = await page.title().catch(() => '')
+      const url = page.url()
+      const route = inferRouteFromUrl(url)
+      const routePath = normalizeRoutePath(route)
+      // NOTICE: `/settings/devtools/widgets-calling` also contains `"/widgets"`,
+      // so this must match the exact widgets route/title to avoid selecting
+      // the devtools settings page by mistake.
+      if (title === 'Widgets' || routePath === '/widgets') {
+        return page
+      }
+    }
+    const snapshots = await Promise.all(
+      electronApp.windows().map(async (page) => {
+        const title = await page.title().catch(() => '')
+        const url = page.url()
+        const route = inferRouteFromUrl(url)
+        return `${title || '(untitled)'} :: ${route || '(no-route)'} :: ${url}`
+      }),
+    )
+    lastSeenWindows = snapshots.join('\n')
+    await new Promise(resolve => setTimeout(resolve, 250))
+  }
+
+  throw new Error(`Timed out waiting for Widgets window.\nSeen windows:\n${lastSeenWindows}`)
 }
 
-async function waitForChessFrameContent(widgetsPage: Page) {
-  await widgetsPage.locator('iframe').first().waitFor({ state: 'visible', timeout: 20_000 })
+async function getPageText(page: Page) {
+  return await page.locator('body').textContent().catch(() => '') ?? ''
+}
 
-  await waitForCondition(
-    async () => {
-      const frame = widgetsPage.frames().find(candidate =>
-        candidate.url().includes(pluginExtensionFramePath)
-        || candidate.url().startsWith('airi-plugin://'),
-      )
-      const text = await getFrameText(frame)
-      if (text.includes('Not Found')) {
-        throw new Error(`Plugin iframe returned Not Found. frameUrl=${frame?.url() ?? 'unknown'} text=${excerpt(text)}`)
-      }
-      return text.includes('Match Setup')
-    },
-    20_000,
-    async () => {
-      const iframeSrc = await widgetsPage.locator('iframe').first().getAttribute('src').catch(() => null)
-      const frameUrls = widgetsPage.frames().map(frame => frame.url()).join('\n')
-      const candidateFrame = widgetsPage.frames().find(frame =>
-        frame.url().includes(pluginExtensionFramePath)
-        || frame.url().startsWith('airi-plugin://'),
-      )
-      const frameText = await getFrameText(candidateFrame)
-      return [
-        'Timed out waiting for chess iframe content.',
-        `iframe src: ${iframeSrc ?? '(none)'}`,
-        `frame urls:\n${frameUrls}`,
-        `frame text excerpt: ${excerpt(frameText)}`,
-      ].join('\n')
-    },
-  )
+function excerpt(text: string, maxLength = 1800) {
+  const normalized = text.replaceAll(whitespacePattern, ' ').trim()
+  if (normalized.length <= maxLength) {
+    return normalized
+  }
+  return `${normalized.slice(0, maxLength)}...`
+}
+
+function normalizeWhitespace(text: string) {
+  return text.replaceAll(whitespacePattern, ' ').trim()
 }
 
 async function waitForCondition(
@@ -172,35 +162,45 @@ async function waitForSpawnedWidget(widgetsCallingPage: Page) {
   )
 }
 
-async function waitForWidgetsWindowPage(electronApp: ElectronApplication, timeoutMs = 30_000): Promise<Page> {
-  const deadline = Date.now() + timeoutMs
-  let lastSeenWindows = ''
-  while (Date.now() < deadline) {
-    for (const page of electronApp.windows()) {
-      const title = await page.title().catch(() => '')
-      const url = page.url()
-      const route = inferRouteFromUrl(url)
-      const routePath = normalizeRoutePath(route)
-      // NOTICE: `/settings/devtools/widgets-calling` also contains `"/widgets"`,
-      // so this must match the exact widgets route/title to avoid selecting
-      // the devtools settings page by mistake.
-      if (title === 'Widgets' || routePath === '/widgets') {
-        return page
-      }
-    }
-    const snapshots = await Promise.all(
-      electronApp.windows().map(async (page) => {
-        const title = await page.title().catch(() => '')
-        const url = page.url()
-        const route = inferRouteFromUrl(url)
-        return `${title || '(untitled)'} :: ${route || '(no-route)'} :: ${url}`
-      }),
-    )
-    lastSeenWindows = snapshots.join('\n')
-    await new Promise(resolve => setTimeout(resolve, 250))
+async function getFrameText(frame: Frame | null | undefined) {
+  if (!frame) {
+    return ''
   }
+  return await frame.locator('body').textContent().catch(() => '') ?? ''
+}
 
-  throw new Error(`Timed out waiting for Widgets window.\nSeen windows:\n${lastSeenWindows}`)
+async function waitForChessFrameContent(widgetsPage: Page) {
+  await widgetsPage.locator('iframe').first().waitFor({ state: 'visible', timeout: 20_000 })
+
+  await waitForCondition(
+    async () => {
+      const frame = widgetsPage.frames().find(candidate =>
+        candidate.url().includes(pluginExtensionFramePath)
+        || candidate.url().startsWith('airi-plugin://'),
+      )
+      const text = await getFrameText(frame)
+      if (text.includes('Not Found')) {
+        throw new Error(`Plugin iframe returned Not Found. frameUrl=${frame?.url() ?? 'unknown'} text=${excerpt(text)}`)
+      }
+      return text.includes('Match Setup')
+    },
+    20_000,
+    async () => {
+      const iframeSrc = await widgetsPage.locator('iframe').first().getAttribute('src').catch(() => null)
+      const frameUrls = widgetsPage.frames().map(frame => frame.url()).join('\n')
+      const candidateFrame = widgetsPage.frames().find(frame =>
+        frame.url().includes(pluginExtensionFramePath)
+        || frame.url().startsWith('airi-plugin://'),
+      )
+      const frameText = await getFrameText(candidateFrame)
+      return [
+        'Timed out waiting for chess iframe content.',
+        `iframe src: ${iframeSrc ?? '(none)'}`,
+        `frame urls:\n${frameUrls}`,
+        `frame text excerpt: ${excerpt(frameText)}`,
+      ].join('\n')
+    },
+  )
 }
 
 export default defineStageTamagotchiScenario({
@@ -231,9 +231,9 @@ export default defineStageTamagotchiScenario({
     const gridMetrics = await moduleFrame.locator('button[title="a1"]').evaluate((node) => {
       const rect = node.getBoundingClientRect()
       return {
-        delta: Math.abs(rect.width - rect.height),
-        height: rect.height,
         width: rect.width,
+        height: rect.height,
+        delta: Math.abs(rect.width - rect.height),
       }
     })
     if (gridMetrics.delta > 1) {

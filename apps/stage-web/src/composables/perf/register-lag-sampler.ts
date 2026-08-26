@@ -46,17 +46,17 @@ export function createLagSampler(tracer: PerfTracer) {
         const fps = delta > 0 ? 1000 / delta : 0
 
         tracer.emit({
-          duration: fps,
-          name: 'fps',
           tracerId: 'lag',
+          name: 'fps',
           ts,
+          duration: fps,
         })
 
         tracer.emit({
-          duration: delta,
-          name: 'frameDuration',
           tracerId: 'lag',
+          name: 'frameDuration',
           ts,
+          duration: delta,
         })
       }
 
@@ -81,14 +81,14 @@ export function createLagSampler(tracer: PerfTracer) {
       longTaskObserver = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
           tracer.emit({
-            duration: entry.duration,
-            name: 'longtask',
             tracerId: 'lag',
+            name: 'longtask',
             ts: entry.startTime,
+            duration: entry.duration,
           })
         }
       })
-      longTaskObserver.observe({ buffered: true, type: 'longtask' })
+      longTaskObserver.observe({ type: 'longtask', buffered: true })
     }
     catch (error) {
       console.warn('[LagSampler] Failed to start longtask observer', error)
@@ -110,10 +110,10 @@ export function createLagSampler(tracer: PerfTracer) {
 
     memoryTimer = setInterval(() => {
       tracer.emit({
-        duration: perfWithMemory.memory?.usedJSHeapSize ?? 0,
-        name: 'memory',
         tracerId: 'lag',
+        name: 'memory',
         ts: performance.now(),
+        duration: perfWithMemory.memory?.usedJSHeapSize ?? 0,
       })
     }, 1000)
   }
@@ -138,8 +138,8 @@ export function createLagSampler(tracer: PerfTracer) {
   }
 
   return {
+    supported,
     start,
     stop,
-    supported,
   }
 }

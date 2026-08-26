@@ -14,6 +14,18 @@ import { useProviderConfigStore } from '../stores/providers/config'
 import { useProviderStore } from '../stores/providers/provider'
 import { useAnalytics } from './use-analytics'
 
+/**
+ * Classifies provider ids into bounded analytics buckets.
+ */
+function providerModeForAnalytics(providerId: string): ProviderMode {
+  if (!providerId)
+    return 'unknown'
+
+  return providerId.startsWith('official-provider') || providerId.startsWith('vision-official-provider')
+    ? 'official'
+    : 'custom'
+}
+
 export function useProviderValidation(providerId: string) {
   const { t } = useI18n()
   const router = useRouter()
@@ -28,8 +40,8 @@ export function useProviderValidation(providerId: string) {
   const providerMetadata = computedAsync(async () => {
     const definition = providersStore.getProviderDefinition(providerId)
     return await selectProviderMetadata(definition, t, {
-      configured: providerStore.getProvider(providerId)?.status === 'configured',
       id: providerId,
+      configured: providerStore.getProvider(providerId)?.status === 'configured',
     })
   }, undefined)
 
@@ -167,8 +179,8 @@ export function useProviderValidation(providerId: string) {
         manualTestMessage.value = result.reason
         trackProviderConnectionTestCompleted({
           ...providerConnectionTestAnalyticsBase(),
-          duration_ms: Math.round(performance.now() - startedAt),
           error_code: 'validation_failed',
+          duration_ms: Math.round(performance.now() - startedAt),
           success: false,
         })
       }
@@ -178,8 +190,8 @@ export function useProviderValidation(providerId: string) {
       manualTestMessage.value = errorMessageFrom(error) ?? 'Generic error (e56ae24f)'
       trackProviderConnectionTestCompleted({
         ...providerConnectionTestAnalyticsBase(),
-        duration_ms: Math.round(performance.now() - startedAt),
         error_code: 'provider_error',
+        duration_ms: Math.round(performance.now() - startedAt),
         success: false,
       })
     }
@@ -243,34 +255,22 @@ export function useProviderValidation(providerId: string) {
   }
 
   return {
-    accountId,
+    t,
+    router,
+    providerMetadata,
     apiKey,
     baseUrl,
-    forceValid,
+    accountId,
+    isValidating,
+    isValid,
+    validationMessage,
     handleResetSettings,
+    forceValid,
     // Manual test generation
     hasManualValidators,
     isManualTesting,
-    isValid,
-    isValidating,
-    manualTestMessage,
     manualTestPassed,
-    providerMetadata,
-    router,
+    manualTestMessage,
     runManualTest,
-    t,
-    validationMessage,
   }
-}
-
-/**
- * Classifies provider ids into bounded analytics buckets.
- */
-function providerModeForAnalytics(providerId: string): ProviderMode {
-  if (!providerId)
-    return 'unknown'
-
-  return providerId.startsWith('official-provider') || providerId.startsWith('vision-official-provider')
-    ? 'official'
-    : 'custom'
 }

@@ -9,6 +9,30 @@ import { useExpressionStore } from '../../stores/expression-store'
 // Types for model3.json / exp3.json data
 // ---------------------------------------------------------------------------
 
+/** A single expression reference inside model3.json FileReferences.Expressions[]. */
+interface Model3ExpressionRef {
+  Name: string
+  File: string
+}
+
+/** Parameter entry inside an exp3.json file. */
+interface Exp3Parameter {
+  Id: string
+  Value: number
+  Blend: 'Add' | 'Multiply' | 'Overwrite'
+}
+
+/** Root structure of an exp3.json file. */
+interface Exp3Json {
+  Type: string
+  Parameters: Exp3Parameter[]
+  // FadeInTime / FadeOutTime are intentionally ignored (we do direct application).
+}
+
+// ---------------------------------------------------------------------------
+// Controller
+// ---------------------------------------------------------------------------
+
 export interface ExpressionControllerOptions {
   /**
    * The loaded Live2D internal model reference (reactive so it can be null
@@ -21,30 +45,6 @@ export interface ExpressionControllerOptions {
    * Falls back to `'unknown'` if not provided.
    */
   modelId?: string
-}
-
-/** Root structure of an exp3.json file. */
-interface Exp3Json {
-  Parameters: Exp3Parameter[]
-  Type: string
-  // FadeInTime / FadeOutTime are intentionally ignored (we do direct application).
-}
-
-/** Parameter entry inside an exp3.json file. */
-interface Exp3Parameter {
-  Blend: 'Add' | 'Multiply' | 'Overwrite'
-  Id: string
-  Value: number
-}
-
-// ---------------------------------------------------------------------------
-// Controller
-// ---------------------------------------------------------------------------
-
-/** A single expression reference inside model3.json FileReferences.Expressions[]. */
-interface Model3ExpressionRef {
-  File: string
-  Name: string
 }
 
 /**
@@ -89,8 +89,8 @@ export function useExpressionController(options: ExpressionControllerOptions) {
           const blend = normaliseBlend(param.Blend)
 
           groupParams.push({
-            blend,
             parameterId: param.Id,
+            blend,
             value: param.Value,
           })
 
@@ -99,12 +99,12 @@ export function useExpressionController(options: ExpressionControllerOptions) {
           if (!entryMap.has(param.Id)) {
             const modelDefault = getModelParameterDefault(param.Id)
             entryMap.set(param.Id, {
+              name: param.Id,
+              parameterId: param.Id,
               blend,
               currentValue: modelDefault,
               defaultValue: modelDefault,
               modelDefault,
-              name: param.Id,
-              parameterId: param.Id,
               targetValue: param.Value,
             })
           }
@@ -275,8 +275,8 @@ export function useExpressionController(options: ExpressionControllerOptions) {
   }
 
   return {
+    initialise,
     applyExpressions,
     dispose,
-    initialise,
   }
 }

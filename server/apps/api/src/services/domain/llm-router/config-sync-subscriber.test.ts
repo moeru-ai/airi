@@ -12,24 +12,31 @@ function createHarness() {
     invalidateTtsVoicesCache: vi.fn(async () => {}),
   }
   const logger = {
-    warn: vi.fn(),
     withError: vi.fn(() => logger),
+    warn: vi.fn(),
   }
 
   const { subscriber } = createConfigSyncSubscriber({
+    redis,
     configKV,
+    llmRouter: llmRouter as never,
     gatewayMetrics: null,
     instanceId: 'api-test',
-    llmRouter: llmRouter as never,
     logger: logger as never,
-    redis,
   })
 
   return { configKV, llmRouter, redis, subscriber }
 }
 
 function message(key: string) {
-  return JSON.stringify({ key, publishedAt: Date.now(), version: 1 })
+  return JSON.stringify({ key, version: 1, publishedAt: Date.now() })
+}
+
+async function settleInitialReconnect(harness: ReturnType<typeof createHarness>): Promise<void> {
+  await vi.waitFor(() => expect(harness.configKV.invalidateCache).toHaveBeenCalledTimes(2))
+  harness.configKV.invalidateCache.mockClear()
+  harness.llmRouter.invalidateConfig.mockClear()
+  harness.llmRouter.invalidateTtsVoicesCache.mockClear()
 }
 
 async function publishInvalidation(harness: ReturnType<typeof createHarness>, key: string): Promise<void> {
@@ -39,13 +46,6 @@ async function publishInvalidation(harness: ReturnType<typeof createHarness>, ke
   })
   await harness.redis.publish(CONFIG_KV_INVALIDATION_CHANNEL, message(key))
   await received
-}
-
-async function settleInitialReconnect(harness: ReturnType<typeof createHarness>): Promise<void> {
-  await vi.waitFor(() => expect(harness.configKV.invalidateCache).toHaveBeenCalledTimes(2))
-  harness.configKV.invalidateCache.mockClear()
-  harness.llmRouter.invalidateConfig.mockClear()
-  harness.llmRouter.invalidateTtsVoicesCache.mockClear()
 }
 
 describe('configKV sync subscriber', () => {

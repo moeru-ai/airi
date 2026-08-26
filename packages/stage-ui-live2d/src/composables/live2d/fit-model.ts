@@ -17,8 +17,8 @@ const startingOffsetY = computed(() => {
  *  showing upper half of the body when `position.y == 0`
  */
 export function useFitModel(
-  canvasDim: MaybeRefOrGetter<{ height: number, width: number }>,
-  modelDim: MaybeRefOrGetter<{ height: number, width: number }>,
+  canvasDim: MaybeRefOrGetter<{ width: number, height: number }>,
+  modelDim: MaybeRefOrGetter<{ width: number, height: number }>,
 ) {
   const normalizedParam = computed(() => {
     const canvas = toValue(canvasDim)

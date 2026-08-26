@@ -18,27 +18,27 @@ describe('characterService', () => {
 
     // Create a test user for foreign key constraints
     const [user] = await db.insert(schema.user).values({
-      email: 'test@example.com',
       id: 'user-1',
       name: 'Test User',
+      email: 'test@example.com',
     }).returning()
     testUser = user
   })
 
   it('create should handle full character creation', async () => {
     const characterData = {
-      characterId: 'cid',
-      coverUrl: 'url',
-      creatorId: testUser.id,
       id: 'char-1',
-      ownerId: testUser.id,
       version: '1.0',
+      coverUrl: 'url',
+      characterId: 'cid',
+      ownerId: testUser.id,
+      creatorId: testUser.id,
     }
 
     const result = await service.create({
       character: characterData,
-      cover: { backgroundUrl: 'bg', foregroundUrl: 'fg' },
-      i18n: [{ description: 'desc', language: 'en', name: 'Aster', tags: [] }],
+      i18n: [{ language: 'en', name: 'Aster', description: 'desc', tags: [] }],
+      cover: { foregroundUrl: 'fg', backgroundUrl: 'bg' },
     })
 
     expect(result.id).toBe('char-1')

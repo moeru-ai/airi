@@ -14,7 +14,7 @@ export interface HearingModuleConfiguration {
   provider: ProviderConfiguration
 }
 
-type HearingModuleResolver = (context: AudioInputPreflightContext) => HearingModuleConfiguration | Promise<HearingModuleConfiguration | undefined> | undefined
+type HearingModuleResolver = (context: AudioInputPreflightContext) => HearingModuleConfiguration | undefined | Promise<HearingModuleConfiguration | undefined>
 
 /** Configures the hearing module with the ASR Provider selected by one case. */
 export function configureModuleHearing(resolve: HearingModuleResolver): AudioInputPreflightCallback {
@@ -25,9 +25,9 @@ export function configureModuleHearing(resolve: HearingModuleResolver): AudioInp
 
     await configureProvider(context.runtime, configuration.provider)
     const settings: Record<string, string> = {
-      'settings/audio/input/enabled': String(configuration.microphoneEnabled ?? false),
-      'settings/hearing/active-model': configuration.provider.model,
       'settings/hearing/active-provider': configuration.provider.id,
+      'settings/hearing/active-model': configuration.provider.model,
+      'settings/audio/input/enabled': String(configuration.microphoneEnabled ?? false),
     }
 
     if (context.runtime.target === 'electron') {

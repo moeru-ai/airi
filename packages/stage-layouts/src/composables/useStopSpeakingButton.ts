@@ -59,8 +59,8 @@ export function useStopSpeakingButton(options: {
   return {
     showStopSpeakingButton,
     speechMuted,
-    stopAllSpeaking,
     stopSpeakingFromChat,
+    stopAllSpeaking,
     toggleSpeechMuted,
   }
 }

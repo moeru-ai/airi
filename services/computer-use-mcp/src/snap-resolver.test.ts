@@ -23,27 +23,27 @@ function makeSnapshot(
   staleFlags?: Partial<DesktopGroundingSnapshot['staleFlags']>,
 ): DesktopGroundingSnapshot {
   return {
+    snapshotId: 'test_1',
     capturedAt: new Date().toISOString(),
     foregroundApp: 'Google Chrome',
+    windows: [],
     screenshot: { dataBase64: '', mimeType: 'image/png', path: '' },
-    snapshotId: 'test_1',
+    targetCandidates: candidates.map((c, i) => ({
+      id: c.id ?? `t_${i}`,
+      source: c.source ?? 'ax',
+      appName: c.appName ?? 'Google Chrome',
+      role: c.role ?? 'AXButton',
+      label: c.label ?? `Button ${i}`,
+      bounds: c.bounds ?? { x: 100, y: 100, width: 50, height: 30 },
+      confidence: c.confidence ?? 0.8,
+      interactable: c.interactable ?? true,
+    })),
     staleFlags: {
+      screenshot: false,
       ax: false,
       chromeSemantic: false,
-      screenshot: false,
       ...staleFlags,
     },
-    targetCandidates: candidates.map((c, i) => ({
-      appName: c.appName ?? 'Google Chrome',
-      bounds: c.bounds ?? { height: 30, width: 50, x: 100, y: 100 },
-      confidence: c.confidence ?? 0.8,
-      id: c.id ?? `t_${i}`,
-      interactable: c.interactable ?? true,
-      label: c.label ?? `Button ${i}`,
-      role: c.role ?? 'AXButton',
-      source: c.source ?? 'ax',
-    })),
-    windows: [],
   } as DesktopGroundingSnapshot
 }
 
@@ -53,25 +53,25 @@ function makeSnapshot(
 
 describe('geometry helpers', () => {
   it('isPointInBounds: point inside', () => {
-    expect(isPointInBounds({ x: 125, y: 115 }, { height: 30, width: 50, x: 100, y: 100 })).toBe(true)
+    expect(isPointInBounds({ x: 125, y: 115 }, { x: 100, y: 100, width: 50, height: 30 })).toBe(true)
   })
 
   it('isPointInBounds: point on edge', () => {
-    expect(isPointInBounds({ x: 100, y: 100 }, { height: 30, width: 50, x: 100, y: 100 })).toBe(true)
-    expect(isPointInBounds({ x: 150, y: 130 }, { height: 30, width: 50, x: 100, y: 100 })).toBe(true)
+    expect(isPointInBounds({ x: 100, y: 100 }, { x: 100, y: 100, width: 50, height: 30 })).toBe(true)
+    expect(isPointInBounds({ x: 150, y: 130 }, { x: 100, y: 100, width: 50, height: 30 })).toBe(true)
   })
 
   it('isPointInBounds: point outside', () => {
-    expect(isPointInBounds({ x: 99, y: 115 }, { height: 30, width: 50, x: 100, y: 100 })).toBe(false)
-    expect(isPointInBounds({ x: 151, y: 115 }, { height: 30, width: 50, x: 100, y: 100 })).toBe(false)
+    expect(isPointInBounds({ x: 99, y: 115 }, { x: 100, y: 100, width: 50, height: 30 })).toBe(false)
+    expect(isPointInBounds({ x: 151, y: 115 }, { x: 100, y: 100, width: 50, height: 30 })).toBe(false)
   })
 
   it('boundsCenter computes center', () => {
-    expect(boundsCenter({ height: 30, width: 50, x: 100, y: 200 })).toEqual({ x: 125, y: 215 })
+    expect(boundsCenter({ x: 100, y: 200, width: 50, height: 30 })).toEqual({ x: 125, y: 215 })
   })
 
   it('boundsArea computes area', () => {
-    expect(boundsArea({ height: 20, width: 10, x: 0, y: 0 })).toBe(200)
+    expect(boundsArea({ x: 0, y: 0, width: 10, height: 20 })).toBe(200)
   })
 
   it('pointDistance computes euclidean distance', () => {
@@ -79,30 +79,30 @@ describe('geometry helpers', () => {
   })
 
   it('distanceToBounds: inside → 0', () => {
-    expect(distanceToBounds({ x: 125, y: 115 }, { height: 30, width: 50, x: 100, y: 100 })).toBe(0)
+    expect(distanceToBounds({ x: 125, y: 115 }, { x: 100, y: 100, width: 50, height: 30 })).toBe(0)
   })
 
   it('distanceToBounds: outside → positive', () => {
     // 10px to the left of bounds
-    expect(distanceToBounds({ x: 90, y: 115 }, { height: 30, width: 50, x: 100, y: 100 })).toBe(10)
+    expect(distanceToBounds({ x: 90, y: 115 }, { x: 100, y: 100, width: 50, height: 30 })).toBe(10)
   })
 
   it('boundsIoU: identical → 1', () => {
-    const b = { height: 100, width: 100, x: 0, y: 0 }
+    const b = { x: 0, y: 0, width: 100, height: 100 }
     expect(boundsIoU(b, b)).toBe(1)
   })
 
   it('boundsIoU: no overlap → 0', () => {
     expect(boundsIoU(
-      { height: 50, width: 50, x: 0, y: 0 },
-      { height: 50, width: 50, x: 200, y: 200 },
+      { x: 0, y: 0, width: 50, height: 50 },
+      { x: 200, y: 200, width: 50, height: 50 },
     )).toBe(0)
   })
 
   it('boundsIoU: partial overlap', () => {
     const iou = boundsIoU(
-      { height: 100, width: 100, x: 0, y: 0 },
-      { height: 100, width: 100, x: 50, y: 50 },
+      { x: 0, y: 0, width: 100, height: 100 },
+      { x: 50, y: 50, width: 100, height: 100 },
     )
     // Intersection: 50x50 = 2500, Union: 10000 + 10000 - 2500 = 17500
     expect(iou).toBeCloseTo(2500 / 17500, 3)
@@ -125,9 +125,9 @@ describe('resolveSnap', () => {
     const snap = resolveSnap(
       { x: 110, y: 110 },
       makeSnapshot([{
-        bounds: { height: 30, width: 50, x: 100, y: 100 },
-        label: 'OK Button',
         source: 'ax',
+        bounds: { x: 100, y: 100, width: 50, height: 30 },
+        label: 'OK Button',
       }]),
     )
     expect(snap.source).toBe('ax')
@@ -140,8 +140,8 @@ describe('resolveSnap', () => {
     const snap = resolveSnap(
       { x: 110, y: 110 },
       makeSnapshot([
-        { bounds: { height: 30, width: 50, x: 100, y: 100 }, label: 'AX', source: 'ax' },
-        { bounds: { height: 20, width: 40, x: 105, y: 105 }, label: 'Chrome', source: 'chrome_dom' },
+        { source: 'ax', bounds: { x: 100, y: 100, width: 50, height: 30 }, label: 'AX' },
+        { source: 'chrome_dom', bounds: { x: 105, y: 105, width: 40, height: 20 }, label: 'Chrome' },
       ]),
     )
     expect(snap.source).toBe('chrome_dom')
@@ -153,8 +153,8 @@ describe('resolveSnap', () => {
     const snap = resolveSnap(
       { x: 120, y: 115 },
       makeSnapshot([
-        { bounds: { height: 200, width: 200, x: 50, y: 50 }, label: 'Big', source: 'ax' },
-        { bounds: { height: 20, width: 30, x: 110, y: 110 }, label: 'Small', source: 'ax' },
+        { source: 'ax', bounds: { x: 50, y: 50, width: 200, height: 200 }, label: 'Big' },
+        { source: 'ax', bounds: { x: 110, y: 110, width: 30, height: 20 }, label: 'Small' },
       ]),
     )
     expect(snap.candidateId).toBe('t_1')
@@ -165,9 +165,9 @@ describe('resolveSnap', () => {
     const snap = resolveSnap(
       { x: 155, y: 115 },
       makeSnapshot([{
-        bounds: { height: 30, width: 50, x: 100, y: 100 },
-        label: 'Near',
         source: 'ax',
+        bounds: { x: 100, y: 100, width: 50, height: 30 },
+        label: 'Near',
       }]),
     )
     // 155 is 5px to the right of bounds edge (150)
@@ -180,9 +180,9 @@ describe('resolveSnap', () => {
     const snap = resolveSnap(
       { x: 500, y: 500 },
       makeSnapshot([{
-        bounds: { height: 30, width: 50, x: 100, y: 100 },
-        label: 'Far Away',
         source: 'ax',
+        bounds: { x: 100, y: 100, width: 50, height: 30 },
+        label: 'Far Away',
       }]),
     )
     expect(snap.source).toBe('none')
@@ -193,10 +193,10 @@ describe('resolveSnap', () => {
     const snap = resolveSnap(
       { x: 110, y: 110 },
       makeSnapshot([{
-        bounds: { height: 30, width: 50, x: 100, y: 100 },
-        interactable: false,
-        label: 'Disabled',
         source: 'ax',
+        bounds: { x: 100, y: 100, width: 50, height: 30 },
+        label: 'Disabled',
+        interactable: false,
       }]),
     )
     expect(snap.source).toBe('none')
@@ -212,7 +212,7 @@ describe('resolveSnapByCandidate', () => {
     const snap = resolveSnapByCandidate(
       't_0',
       makeSnapshot([{
-        bounds: { height: 30, width: 50, x: 100, y: 100 },
+        bounds: { x: 100, y: 100, width: 50, height: 30 },
         label: 'My Button',
       }]),
     )
@@ -232,7 +232,7 @@ describe('resolveSnapByCandidate', () => {
     const snap = resolveSnapByCandidate(
       't_0',
       makeSnapshot(
-        [{ label: 'Stale', source: 'chrome_dom' }],
+        [{ source: 'chrome_dom', label: 'Stale' }],
         { chromeSemantic: true },
       ),
     )
@@ -246,7 +246,7 @@ describe('resolveSnapByCandidate', () => {
 
 describe('isStaleCandidateSource', () => {
   const freshSnapshot = makeSnapshot([])
-  const staleSnapshot = makeSnapshot([], { ax: true, chromeSemantic: true })
+  const staleSnapshot = makeSnapshot([], { chromeSemantic: true, ax: true })
 
   it('chrome_dom → checks chromeSemantic flag', () => {
     expect(isStaleCandidateSource('chrome_dom', freshSnapshot)).toBe(false)

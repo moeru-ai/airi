@@ -11,7 +11,7 @@ import { getFlatSideBarLinks, getSidebar, isActive } from './sidebar'
  * - Respects frontmatter overrides and hides when disabled.
  */
 export function usePrevNext() {
-  const { frontmatter, lang, page, theme } = useData()
+  const { page, theme, frontmatter, lang } = useData()
 
   return computed(() => {
     // Blog-specific navigation: ensure next/prev stay within same language blog directory
@@ -53,7 +53,6 @@ export function usePrevNext() {
         ? undefined
         : prevPost
           ? {
-              link: withBase(prevPost.url),
               text:
                 (typeof frontmatter.value.prev === 'string'
                   ? frontmatter.value.prev
@@ -61,6 +60,7 @@ export function usePrevNext() {
                     ? frontmatter.value.prev.text
                     : undefined)
                   ?? prevPost.title,
+              link: withBase(prevPost.url),
             }
           : undefined
 
@@ -68,7 +68,6 @@ export function usePrevNext() {
         ? undefined
         : nextPost
           ? {
-              link: withBase(nextPost.url),
               text:
                 (typeof frontmatter.value.next === 'string'
                   ? frontmatter.value.next
@@ -76,15 +75,16 @@ export function usePrevNext() {
                     ? frontmatter.value.next.text
                     : undefined)
                   ?? nextPost.title,
+              link: withBase(nextPost.url),
             }
           : undefined
 
       return {
-        next: blogNext,
         prev: blogPrev,
+        next: blogNext,
       } as {
-        next?: { link?: string, text?: string }
-        prev?: { link?: string, text?: string }
+        prev?: { text?: string, link?: string }
+        next?: { text?: string, link?: string }
       }
     }
 
@@ -110,9 +110,9 @@ export function usePrevNext() {
       const isSectionRoot = currentFullUrl.replace(/[?#].*$/, '') === sectionBase
       if (isSectionRoot) {
         return {
-          next: undefined,
           prev: undefined,
-        } as { next?: { link?: string, text?: string }, prev?: { link?: string, text?: string } }
+          next: undefined,
+        } as { prev?: { text?: string, link?: string }, next?: { text?: string, link?: string } }
       }
       // Keep navigation within the same docs section and exclude the section root itself
       // to avoid showing a "next" link that points back to the section index.
@@ -136,29 +136,9 @@ export function usePrevNext() {
     })
 
     return {
-      next: hideNext || index < 0 || index >= candidates.length - 1
-        ? undefined
-        : {
-            link:
-              (typeof frontmatter.value.next === 'object'
-                ? frontmatter.value.next.link
-                : undefined) ?? candidates[index + 1]?.link,
-            text:
-              (typeof frontmatter.value.next === 'string'
-                ? frontmatter.value.next
-                : typeof frontmatter.value.next === 'object'
-                  ? frontmatter.value.next.text
-                  : undefined)
-                ?? candidates[index + 1]?.docFooterText
-                ?? candidates[index + 1]?.text,
-          },
       prev: hidePrev || index <= 0
         ? undefined
         : {
-            link:
-              (typeof frontmatter.value.prev === 'object'
-                ? frontmatter.value.prev.link
-                : undefined) ?? candidates[index - 1]?.link,
             text:
               (typeof frontmatter.value.prev === 'string'
                 ? frontmatter.value.prev
@@ -167,10 +147,30 @@ export function usePrevNext() {
                   : undefined)
                 ?? candidates[index - 1]?.docFooterText
                 ?? candidates[index - 1]?.text,
+            link:
+              (typeof frontmatter.value.prev === 'object'
+                ? frontmatter.value.prev.link
+                : undefined) ?? candidates[index - 1]?.link,
+          },
+      next: hideNext || index < 0 || index >= candidates.length - 1
+        ? undefined
+        : {
+            text:
+              (typeof frontmatter.value.next === 'string'
+                ? frontmatter.value.next
+                : typeof frontmatter.value.next === 'object'
+                  ? frontmatter.value.next.text
+                  : undefined)
+                ?? candidates[index + 1]?.docFooterText
+                ?? candidates[index + 1]?.text,
+            link:
+              (typeof frontmatter.value.next === 'object'
+                ? frontmatter.value.next.link
+                : undefined) ?? candidates[index + 1]?.link,
           },
     } as {
-      next?: { link?: string, text?: string }
-      prev?: { link?: string, text?: string }
+      prev?: { text?: string, link?: string }
+      next?: { text?: string, link?: string }
     }
   })
 }

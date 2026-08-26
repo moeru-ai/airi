@@ -1,8 +1,4 @@
 export class LocalStorageShim implements Storage {
-  get length() {
-    return this.map.size
-  }
-
   private map = new Map<string, any>()
 
   clear() {
@@ -17,11 +13,15 @@ export class LocalStorageShim implements Storage {
     return Array.from(this.map.keys())[index] || null
   }
 
-  removeItem(key: string) {
-    this.map.delete(key)
+  get length() {
+    return this.map.size
   }
 
   setItem(key: string, value: string) {
     this.map.set(key, value)
+  }
+
+  removeItem(key: string) {
+    this.map.delete(key)
   }
 }

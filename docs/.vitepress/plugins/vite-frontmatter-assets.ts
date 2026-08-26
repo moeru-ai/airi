@@ -9,102 +9,6 @@ import matter from 'gray-matter'
 
 import { glob } from 'tinyglobby'
 
-interface VitePressConfig extends ResolvedConfig {
-  vitepress: SiteConfig
-}
-
-export function frontmatterAssets(): Plugin {
-  let resolvedConfig: undefined | VitePressConfig
-  const mAssetAbsoluteUrlMetadata = new Map<string, { builtUrl?: string, hash?: string, url: string }>()
-  const mapAssetBuiltUrlAssetAbsoluteUrl = new Map<string, string>()
-
-  async function fileToUrl(file: string) {
-    if (!file) {
-      return {
-        url: file,
-      }
-    }
-
-    const parsed = parse(file)
-    const hash = createHash('sha256')
-      .update(await readFile(file))
-      .digest('hex')
-      .slice(0, 8)
-
-    return {
-      hash,
-      url: `/assets/${parsed.name}.${hash}${parsed.ext}`,
-    }
-  }
-
-  return {
-    async configResolved(config) {
-      resolvedConfig = config as VitePressConfig
-
-      const markdownFiles = await glob('**/*.md', { absolute: true, cwd: resolvedConfig?.vitepress.srcDir || '', ignore: ['**/node_modules/**'] })
-      for (const file of markdownFiles) {
-        const res = (await readFile(file))
-        const { data } = matter(res.toString('utf-8'))
-        if (Object.keys(data).length === 0) {
-          continue
-        }
-
-        recursivelyFindAtAssets(data, (matched) => {
-          const assetPath = fromAtAssets(matched)
-          let absoluteAssetPath: string
-          if (assetPath.startsWith('/')) {
-            absoluteAssetPath = join(resolvedConfig?.vitepress.srcDir || '', assetPath)
-          }
-          else {
-            absoluteAssetPath = join(dirname(file), assetPath)
-          }
-
-          mAssetAbsoluteUrlMetadata.set(absoluteAssetPath, { builtUrl: file, hash: '', url: file })
-          return undefined
-        })
-      }
-
-      for (const [key, value] of mAssetAbsoluteUrlMetadata) {
-        const { hash, url } = await fileToUrl(key)
-        mapAssetBuiltUrlAssetAbsoluteUrl.set(url, key)
-        mAssetAbsoluteUrlMetadata.set(key, { builtUrl: url, hash, url: value.url })
-      }
-    },
-    configureServer(server) {
-      server.middlewares.use(async (req, res, next) => {
-        const requesting = withoutBase(req.url, resolvedConfig?.base)
-        if (!requesting || !mapAssetBuiltUrlAssetAbsoluteUrl.has(requesting)) {
-          return next()
-        }
-
-        const filePath = mapAssetBuiltUrlAssetAbsoluteUrl.get(requesting)
-        if (!filePath) {
-          return next()
-        }
-
-        const ext = parse(filePath).ext.slice(1)
-        const fileContent = await readFile(filePath)
-
-        res.writeHead(200, {
-          'Cache-Control': 'public, max-age=31536000, immutable',
-          'Content-Length': fileContent.length,
-          'Content-Type': ext === 'svg' ? 'image/svg+xml' : `image/${ext}`,
-        })
-        res.end(fileContent)
-        res.end()
-      })
-    },
-    enforce: 'pre',
-    name: '@proj-airi/docs:vite-plugin-frontmatter-assets',
-    async writeBundle() {
-      for (const [builtUrl, absoluteUrl] of mapAssetBuiltUrlAssetAbsoluteUrl.entries()) {
-        const content = await this.fs.readFile(absoluteUrl)
-        await this.fs.writeFile(join(resolvedConfig!.vitepress.outDir!, builtUrl), content)
-      }
-    },
-  }
-}
-
 function fromAtAssets(url: string): string {
   const reg = /^@assets\((?:'(\S+)'|"(\S+)"|(\S+))\)$/
   if (reg.test(url)) {
@@ -122,6 +26,10 @@ function fromAtAssets(url: string): string {
   }
 
   return url
+}
+
+interface VitePressConfig extends ResolvedConfig {
+  vitepress: SiteConfig
 }
 
 function recursivelyFindAtAssets(propertyMaybeObjectOrScalar: unknown, fn: (value: string) => string | undefined) {
@@ -180,4 +88,96 @@ function withoutBase(url?: string, base?: string): string | undefined {
   }
 
   return url
+}
+
+export function frontmatterAssets(): Plugin {
+  let resolvedConfig: VitePressConfig | undefined
+  const mAssetAbsoluteUrlMetadata = new Map<string, { url: string, builtUrl?: string, hash?: string }>()
+  const mapAssetBuiltUrlAssetAbsoluteUrl = new Map<string, string>()
+
+  async function fileToUrl(file: string) {
+    if (!file) {
+      return {
+        url: file,
+      }
+    }
+
+    const parsed = parse(file)
+    const hash = createHash('sha256')
+      .update(await readFile(file))
+      .digest('hex')
+      .slice(0, 8)
+
+    return {
+      hash,
+      url: `/assets/${parsed.name}.${hash}${parsed.ext}`,
+    }
+  }
+
+  return {
+    name: '@proj-airi/docs:vite-plugin-frontmatter-assets',
+    enforce: 'pre',
+    async configResolved(config) {
+      resolvedConfig = config as VitePressConfig
+
+      const markdownFiles = await glob('**/*.md', { ignore: ['**/node_modules/**'], cwd: resolvedConfig?.vitepress.srcDir || '', absolute: true })
+      for (const file of markdownFiles) {
+        const res = (await readFile(file))
+        const { data } = matter(res.toString('utf-8'))
+        if (Object.keys(data).length === 0) {
+          continue
+        }
+
+        recursivelyFindAtAssets(data, (matched) => {
+          const assetPath = fromAtAssets(matched)
+          let absoluteAssetPath: string
+          if (assetPath.startsWith('/')) {
+            absoluteAssetPath = join(resolvedConfig?.vitepress.srcDir || '', assetPath)
+          }
+          else {
+            absoluteAssetPath = join(dirname(file), assetPath)
+          }
+
+          mAssetAbsoluteUrlMetadata.set(absoluteAssetPath, { url: file, builtUrl: file, hash: '' })
+          return undefined
+        })
+      }
+
+      for (const [key, value] of mAssetAbsoluteUrlMetadata) {
+        const { url, hash } = await fileToUrl(key)
+        mapAssetBuiltUrlAssetAbsoluteUrl.set(url, key)
+        mAssetAbsoluteUrlMetadata.set(key, { url: value.url, builtUrl: url, hash })
+      }
+    },
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        const requesting = withoutBase(req.url, resolvedConfig?.base)
+        if (!requesting || !mapAssetBuiltUrlAssetAbsoluteUrl.has(requesting)) {
+          return next()
+        }
+
+        const filePath = mapAssetBuiltUrlAssetAbsoluteUrl.get(requesting)
+        if (!filePath) {
+          return next()
+        }
+
+        const ext = parse(filePath).ext.slice(1)
+        const fileContent = await readFile(filePath)
+
+        res.writeHead(200, {
+          'Content-Type': ext === 'svg' ? 'image/svg+xml' : `image/${ext}`,
+          'Content-Length': fileContent.length,
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        })
+        res.end(fileContent)
+        res.end()
+      })
+    },
+    async writeBundle() {
+      for (const [builtUrl, absoluteUrl] of mapAssetBuiltUrlAssetAbsoluteUrl.entries()) {
+        const content = await this.fs.readFile(absoluteUrl)
+        await this.fs.writeFile(join(resolvedConfig!.vitepress.outDir!, builtUrl), content)
+      }
+    },
+  }
 }

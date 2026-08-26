@@ -1,7 +1,7 @@
 export enum StageEnvironment {
+  Web = 'web',
   Capacitor = 'capacitor',
   Tamagotchi = 'tamagotchi',
-  Web = 'web',
 }
 
 /**
@@ -10,14 +10,8 @@ export enum StageEnvironment {
  */
 export const IS_DEV: boolean = import.meta.env.DEV
 
-export function getStage() {
-  if (isStageTamagotchi())
-    return StageEnvironment.Tamagotchi
-
-  if (isStageCapacitor())
-    return StageEnvironment.Capacitor
-
-  return StageEnvironment.Web
+export function isStageWeb(): boolean {
+  return !import.meta.env.RUNTIME_ENVIRONMENT || import.meta.env.RUNTIME_ENVIRONMENT === 'browser'
 }
 
 export function isStageCapacitor(): boolean {
@@ -28,8 +22,14 @@ export function isStageTamagotchi(): boolean {
   return import.meta.env.RUNTIME_ENVIRONMENT === 'electron'
 }
 
-export function isStageWeb(): boolean {
-  return !import.meta.env.RUNTIME_ENVIRONMENT || import.meta.env.RUNTIME_ENVIRONMENT === 'browser'
+export function getStage() {
+  if (isStageTamagotchi())
+    return StageEnvironment.Tamagotchi
+
+  if (isStageCapacitor())
+    return StageEnvironment.Capacitor
+
+  return StageEnvironment.Web
 }
 
 export function isUrlMode(mode: 'file' | 'server'): boolean {

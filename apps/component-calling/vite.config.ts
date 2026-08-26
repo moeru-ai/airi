@@ -9,8 +9,8 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [
     VueRouter({
-      dts: resolve(import.meta.dirname, 'src', 'typed-router.d.ts'),
       extensions: ['.vue', '.md'],
+      dts: resolve(import.meta.dirname, 'src', 'typed-router.d.ts'),
     }),
     Vue(),
     // https://github.com/antfu/unocss

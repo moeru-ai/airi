@@ -143,9 +143,9 @@ Drizzle로 `pgvector.rs` 인스턴스에 연결하면:
 
 ```typescript
 export const chatMessagesTable = pgTable('chat_messages', {
+  id: uuid().primaryKey().defaultRandom(),
   content: text().notNull().default(''),
   content_vector_1024: vector({ dimensions: 1024 }),
-  id: uuid().primaryKey().defaultRandom(),
 }, table => [
   index('chat_messages_content_vector_1024_index').using('hnsw', table.content_vector_1024.op('vector_cosine_ops')),
 ])
@@ -249,11 +249,11 @@ import { index, pgTable, serial, text, vector } from 'drizzle-orm/pg-core'
 export const demoTable = pgTable(
   'demo',
   {
-    description: text('description').notNull().default(''),
-    embedding: vector('embedding', { dimensions: 1536 }),
     id: uuid().primaryKey().defaultRandom(),
     title: text('title').notNull().default(''),
+    description: text('description').notNull().default(''),
     url: text('url').notNull().default(''),
+    embedding: vector('embedding', { dimensions: 1536 }),
   },
   table => [
     index('embeddingIndex').using('hnsw', table.embedding.op('vector_cosine_ops')),
@@ -288,14 +288,14 @@ CREATE INDEX "embeddingIndex" ON "demo" USING hnsw ("embedding" vector_cosine_op
 let similarity: SQL<number>
 
 switch (env.EMBEDDING_DIMENSION) {
-  case '768':
-    similarity = sql<number>`(1 - (${cosineDistance(chatMessagesTable.content_vector_768, embedding.embedding)}))`
+  case '1536':
+    similarity = sql<number>`(1 - (${cosineDistance(chatMessagesTable.content_vector_1536, embedding.embedding)}))`
     break
   case '1024':
     similarity = sql<number>`(1 - (${cosineDistance(chatMessagesTable.content_vector_1024, embedding.embedding)}))`
     break
-  case '1536':
-    similarity = sql<number>`(1 - (${cosineDistance(chatMessagesTable.content_vector_1536, embedding.embedding)}))`
+  case '768':
+    similarity = sql<number>`(1 - (${cosineDistance(chatMessagesTable.content_vector_768, embedding.embedding)}))`
     break
   default:
     throw new Error(`Unsupported embedding dimension: ${env.EMBEDDING_DIMENSION}`)
@@ -304,8 +304,8 @@ switch (env.EMBEDDING_DIMENSION) {
 // 임계값 이상의 유사도를 가진 상위 메시지를 가져온다
 const relevantMessages = await db
   .select({
-    content: chatMessagesTable.content,
     id: chatMessagesTable.id,
+    content: chatMessagesTable.content,
     similarity: sql`${similarity} AS "similarity"`,
   })
   .from(chatMessagesTable)

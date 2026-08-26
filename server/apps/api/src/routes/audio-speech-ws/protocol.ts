@@ -34,23 +34,6 @@ export function bufferToString(data: RawData): string {
 }
 
 /**
- * Reads authoritative TTS usage characters from an upstream control payload.
- *
- * Before:
- * - `{ usage: { text_words: 42 } }`
- * - `{}`
- *
- * After:
- * - `42`
- * - `null`
- */
-export function readUsageChars(payload: Record<string, unknown> | undefined): null | number {
-  const result = safeParse(UpstreamUsagePayloadSchema, payload)
-  const textWords = result.success ? result.output.usage?.text_words : undefined
-  return typeof textWords === 'number' ? Math.floor(textWords) : null
-}
-
-/**
  * Normalizes websocket binary payload chunks.
  *
  * Before:
@@ -68,4 +51,21 @@ export function toBufferLike(data: RawData): ArrayBuffer {
   if (data instanceof ArrayBuffer)
     return data
   return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer
+}
+
+/**
+ * Reads authoritative TTS usage characters from an upstream control payload.
+ *
+ * Before:
+ * - `{ usage: { text_words: 42 } }`
+ * - `{}`
+ *
+ * After:
+ * - `42`
+ * - `null`
+ */
+export function readUsageChars(payload: Record<string, unknown> | undefined): number | null {
+  const result = safeParse(UpstreamUsagePayloadSchema, payload)
+  const textWords = result.success ? result.output.usage?.text_words : undefined
+  return typeof textWords === 'number' ? Math.floor(textWords) : null
 }

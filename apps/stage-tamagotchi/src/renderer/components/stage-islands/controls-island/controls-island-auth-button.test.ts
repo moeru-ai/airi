@@ -6,13 +6,13 @@ import { createApp, h, nextTick, ref } from 'vue'
 import ControlsIslandAuthButton from './controls-island-auth-button.vue'
 
 const authState = {
-  credits: ref(9620),
   isAuthenticated: ref(true),
-  needsLogin: ref(false),
-  user: ref<{ image?: string, name: string }>({
-    image: 'https://example.com/broken-avatar.png',
+  user: ref<{ name: string, image?: string }>({
     name: 'Rainbow Bird',
+    image: 'https://example.com/broken-avatar.png',
   }),
+  needsLogin: ref(false),
+  credits: ref(9620),
 }
 
 vi.mock('@proj-airi/stage-ui/stores/auth', () => ({

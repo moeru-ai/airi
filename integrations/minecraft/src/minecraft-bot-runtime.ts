@@ -10,8 +10,8 @@ interface BotLifecycleEvents {
 
 interface BotWithLifecycle {
   bot: {
-    off?: (event: 'end' | 'error' | 'kicked' | 'spawn', listener: (...args: any[]) => void) => void
-    on: (event: 'end' | 'error' | 'kicked' | 'spawn', listener: (...args: any[]) => void) => void
+    on: (event: 'spawn' | 'end' | 'error' | 'kicked', listener: (...args: any[]) => void) => void
+    off?: (event: 'spawn' | 'end' | 'error' | 'kicked', listener: (...args: any[]) => void) => void
   }
   stop: () => Promise<void>
 }
@@ -19,6 +19,18 @@ interface BotWithLifecycle {
 export class MinecraftBotRuntime extends EventEmitter<BotLifecycleEvents> {
   private bot: BotWithLifecycle | null = null
   private currentConfig: Config['bot']
+
+  private readonly onSpawn = () => {
+    this.emit('bot:connected')
+  }
+
+  private readonly onEnd = (reason?: string) => {
+    this.emit('bot:disconnected', reason)
+  }
+
+  private readonly onError = (error: Error) => {
+    this.emit('bot:error', error)
+  }
 
   constructor(private readonly deps: {
     createBot: (config: Config['bot']) => Promise<BotWithLifecycle>
@@ -33,16 +45,6 @@ export class MinecraftBotRuntime extends EventEmitter<BotLifecycleEvents> {
     this.attachLifecycle(this.bot)
   }
 
-  async stop() {
-    if (!this.bot)
-      return
-
-    const activeBot = this.bot
-    this.detachLifecycle(activeBot)
-    this.bot = null
-    await activeBot.stop()
-  }
-
   async updateBotConfig(config: Config['bot']) {
     const previousBot = this.bot
     if (previousBot) {
@@ -53,6 +55,16 @@ export class MinecraftBotRuntime extends EventEmitter<BotLifecycleEvents> {
     this.currentConfig = config
     this.bot = await this.deps.createBot(this.currentConfig)
     this.attachLifecycle(this.bot)
+  }
+
+  async stop() {
+    if (!this.bot)
+      return
+
+    const activeBot = this.bot
+    this.detachLifecycle(activeBot)
+    this.bot = null
+    await activeBot.stop()
   }
 
   private attachLifecycle(bot: BotWithLifecycle) {
@@ -69,17 +81,5 @@ export class MinecraftBotRuntime extends EventEmitter<BotLifecycleEvents> {
     lifecycleSource.off?.('end', this.onEnd)
     lifecycleSource.off?.('kicked', this.onEnd)
     lifecycleSource.off?.('error', this.onError)
-  }
-
-  private readonly onEnd = (reason?: string) => {
-    this.emit('bot:disconnected', reason)
-  }
-
-  private readonly onError = (error: Error) => {
-    this.emit('bot:error', error)
-  }
-
-  private readonly onSpawn = () => {
-    this.emit('bot:connected')
   }
 }

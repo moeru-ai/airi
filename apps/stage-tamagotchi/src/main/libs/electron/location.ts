@@ -7,6 +7,14 @@ import { is } from '@electron-toolkit/utils'
 
 let electronMainDirname: string = ''
 
+export function setElectronMainDirname(dirname: string) {
+  electronMainDirname = dirname
+}
+
+export function getElectronMainDirname() {
+  return electronMainDirname
+}
+
 export function baseUrl(parentOfIndexHtml: string, filename?: string) {
   if (is.dev && env.ELECTRON_RENDERER_URL) {
     if (!filename) {
@@ -25,11 +33,7 @@ export function baseUrl(parentOfIndexHtml: string, filename?: string) {
   }
 }
 
-export function getElectronMainDirname() {
-  return electronMainDirname
-}
-
-export async function load(window: BrowserWindow, url: string | { file: string, options?: LoadFileOptions } | { options?: LoadURLOptions, url: string }) {
+export async function load(window: BrowserWindow, url: string | { url: string, options?: LoadURLOptions } | { file: string, options?: LoadFileOptions }) {
   try {
     if (typeof url === 'object' && 'url' in url) {
       return await window.loadURL(url.url, url.options)
@@ -87,10 +91,6 @@ export async function load(window: BrowserWindow, url: string | { file: string, 
   }
 }
 
-export function setElectronMainDirname(dirname: string) {
-  electronMainDirname = dirname
-}
-
 /**
  * Adds a hash route and optional query to an Electron renderer location.
  *
@@ -101,7 +101,7 @@ export function setElectronMainDirname(dirname: string) {
  * // => { url: 'http://localhost:5173/?synced-leader=false#/about' }
  */
 export function withHashRoute(
-  baseUrl: string | { file: string } | { url: string },
+  baseUrl: string | { url: string } | { file: string },
   hashRoute: string,
   options: Pick<LoadFileOptions, 'query'> = {},
 ) {
@@ -118,7 +118,7 @@ export function withHashRoute(
 
     baseURLinURL.hash = hashRoute
 
-    return { url: baseURLinURL.toString() } satisfies { options?: LoadURLOptions, url: string }
+    return { url: baseURLinURL.toString() } satisfies { url: string, options?: LoadURLOptions }
   }
   if (typeof baseUrl === 'object' && 'file' in baseUrl) {
     return { file: `${baseUrl.file}`, options: { hash: hashRoute, ...options } } satisfies { file: string, options?: LoadFileOptions }
@@ -136,5 +136,5 @@ export function withHashRoute(
 
   baseURLinURL.hash = hashRoute
 
-  return { url: baseURLinURL.toString() } satisfies { options?: LoadURLOptions, url: string }
+  return { url: baseURLinURL.toString() } satisfies { url: string, options?: LoadURLOptions }
 }

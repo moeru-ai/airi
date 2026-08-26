@@ -3,6 +3,44 @@
  */
 export interface CodingContext {
   /**
+   * File information
+   *
+   * @example {
+   *  "path": "/home/neko/Git/github.com/moeru-ai/airi/package.json",
+   *  "languageId": "json",
+   *  "fileName": "/home/neko/Git/github.com/moeru-ai/airi/package.json"
+   * }
+   */
+  file: {
+    path: string
+    languageId: string
+    fileName: string
+    workspaceFolder?: string
+  }
+  /**
+   * Cursor position
+   *
+   * {
+   *  "line": 5,
+   *  "character": 35
+   * }
+   */
+  cursor: {
+    line: number
+    character: number
+  }
+  /** Selected text */
+  selection?: {
+    text: string
+    start: { line: number, character: number }
+    end: { line: number, character: number }
+  }
+  /** Current line */
+  currentLine: {
+    lineNumber: number
+    text: string
+  }
+  /**
    * Context (previous and next N lines)
    *
    * @example {
@@ -23,51 +61,13 @@ export interface CodingContext {
    * }
    */
   context: {
-    after: string[]
     before: string[]
-  }
-  /** Current line */
-  currentLine: {
-    lineNumber: number
-    text: string
-  }
-  /**
-   * Cursor position
-   *
-   * {
-   *  "line": 5,
-   *  "character": 35
-   * }
-   */
-  cursor: {
-    character: number
-    line: number
-  }
-  /**
-   * File information
-   *
-   * @example {
-   *  "path": "/home/neko/Git/github.com/moeru-ai/airi/package.json",
-   *  "languageId": "json",
-   *  "fileName": "/home/neko/Git/github.com/moeru-ai/airi/package.json"
-   * }
-   */
-  file: {
-    fileName: string
-    languageId: string
-    path: string
-    workspaceFolder?: string
+    after: string[]
   }
   /** Git information */
   git?: {
     branch: string
     isDirty: boolean
-  }
-  /** Selected text */
-  selection?: {
-    end: { character: number, line: number }
-    start: { character: number, line: number }
-    text: string
   }
   /**
    * Timestamp
@@ -81,6 +81,6 @@ export interface CodingContext {
  * Event types sent to Airi
  */
 export interface Events {
-  data: CodingContext
   type: 'coding:context' | 'coding:save' | 'coding:switch-file'
+  data: CodingContext
 }

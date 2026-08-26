@@ -27,7 +27,7 @@ export async function loadMMDModelPreview(file: File): Promise<string | undefine
   canvas.width = 1440
   canvas.height = 2560
 
-  const renderer = new WebGLRenderer({ alpha: true, antialias: true, canvas, preserveDrawingBuffer: true })
+  const renderer = new WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true })
   renderer.outputColorSpace = SRGBColorSpace
   renderer.setSize(canvas.width, canvas.height, false)
   renderer.setPixelRatio(1)

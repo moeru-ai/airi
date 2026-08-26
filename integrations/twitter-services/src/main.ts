@@ -12,28 +12,6 @@ import { useTwitterAuthServices } from './core/services/auth'
 import { initLogger, logger } from './utils/logger'
 
 /**
- * Bootstrap the application
- */
-async function bootstrap() {
-  initLogger()
-
-  try {
-    const resources = await initializeApp()
-    setupShutdownHooks(resources.adapters, resources.context)
-    logger.main.log('Twitter service successfully started!')
-  }
-  catch (error) {
-    logger.main.withError(error).error('Startup failed')
-    process.exit(1)
-  }
-
-  // Handle unhandled promise rejections
-  process.on('unhandledRejection', (reason) => {
-    logger.main.withError(reason).error('Unhandled Promise rejection:')
-  })
-}
-
-/**
  * Clean up application resources
  */
 async function cleanup(adapters: { airi?: AiriAdapter, mcp?: MCPAdapter }, browserCtx: Context) {
@@ -50,27 +28,6 @@ async function cleanup(adapters: { airi?: AiriAdapter, mcp?: MCPAdapter }, brows
   }
 
   logger.main.log('Twitter service stopped')
-}
-
-/**
- * Initialize core application components
- */
-async function initializeApp() {
-  const config = useConfigManager().getConfig()
-  logger.main.log('Starting Twitter service...')
-
-  await initBrowser(config)
-  const ctx = useContext()
-  const adapters = await useAdapter().initAdapters(config, ctx)
-
-  // Login to Twitter
-  await useTwitterAuthServices(ctx).attemptLogin()
-
-  return {
-    adapters,
-    browser: ctx.browser,
-    context: ctx.context,
-  }
 }
 
 /**
@@ -92,6 +49,49 @@ function setupShutdownHooks(adapters: { airi?: AiriAdapter, mcp?: MCPAdapter }, 
     logger.main.withError(error).error('Uncaught exception')
     await cleanup(adapters, browserCtx)
     process.exit(1)
+  })
+}
+
+/**
+ * Initialize core application components
+ */
+async function initializeApp() {
+  const config = useConfigManager().getConfig()
+  logger.main.log('Starting Twitter service...')
+
+  await initBrowser(config)
+  const ctx = useContext()
+  const adapters = await useAdapter().initAdapters(config, ctx)
+
+  // Login to Twitter
+  await useTwitterAuthServices(ctx).attemptLogin()
+
+  return {
+    adapters,
+    context: ctx.context,
+    browser: ctx.browser,
+  }
+}
+
+/**
+ * Bootstrap the application
+ */
+async function bootstrap() {
+  initLogger()
+
+  try {
+    const resources = await initializeApp()
+    setupShutdownHooks(resources.adapters, resources.context)
+    logger.main.log('Twitter service successfully started!')
+  }
+  catch (error) {
+    logger.main.withError(error).error('Startup failed')
+    process.exit(1)
+  }
+
+  // Handle unhandled promise rejections
+  process.on('unhandledRejection', (reason) => {
+    logger.main.withError(reason).error('Unhandled Promise rejection:')
   })
 }
 

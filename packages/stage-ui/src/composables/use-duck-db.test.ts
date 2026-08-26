@@ -6,10 +6,10 @@ import { useDuckDb } from './use-duck-db'
 
 vi.mock('@proj-airi/drizzle-duckdb-wasm', () => ({
   drizzle: vi.fn().mockImplementation(() => ({
+    execute: vi.fn().mockResolvedValue([]),
     $client: {
       close: vi.fn().mockResolvedValue(undefined),
     },
-    execute: vi.fn().mockResolvedValue([]),
   })),
 }))
 
@@ -29,7 +29,7 @@ describe('useDuckDB (Singleton)', () => {
   })
 
   it('should return the same instance on multiple calls', async () => {
-    const { closeDb, getDb } = useDuckDb()
+    const { getDb, closeDb } = useDuckDb()
 
     const instance1 = await getDb()
     expect(instance1).toBeDefined()
@@ -45,7 +45,7 @@ describe('useDuckDB (Singleton)', () => {
   })
 
   it('should handle concurrent getDb calls without duplicate initialization', async () => {
-    const { closeDb, getDb } = useDuckDb()
+    const { getDb, closeDb } = useDuckDb()
 
     const promise1 = getDb()
     const promise2 = getDb()
@@ -59,7 +59,7 @@ describe('useDuckDB (Singleton)', () => {
   })
 
   it('should allow re-initialization after closeDb is called', async () => {
-    const { closeDb, db, getDb } = useDuckDb()
+    const { getDb, closeDb, db } = useDuckDb()
 
     await getDb()
     const instance1 = db.value

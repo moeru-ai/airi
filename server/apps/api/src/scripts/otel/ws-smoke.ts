@@ -39,9 +39,9 @@ env.OTEL_LOGS_EXPORTER = 'none'
 const exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE)
 const reader = new PeriodicExportingMetricReader({ exporter, exportIntervalMillis: 60_000 })
 const sdk = new NodeSDK({
-  instrumentations: [],
-  metricReaders: [reader],
   resource: resourceFromAttributes({ 'service.name': 'otel-ws-smoke' }),
+  metricReaders: [reader],
+  instrumentations: [],
 })
 sdk.start()
 
@@ -73,15 +73,6 @@ app.get('/ws', upgradeWebSocket((c) => {
   // Symbol — mirrors how chat-ws keys by `HonoWsInvocableEventContext`.
   const connectionKey = Symbol('conn')
   return {
-    onClose() {
-      const conns = userConnections.get(userId)
-      if (!conns)
-        return
-      conns.delete(connectionKey)
-      if (conns.size === 0)
-        userConnections.delete(userId)
-      console.info(`[ws-smoke] onClose user=${userId}`)
-    },
     onOpen() {
       let conns = userConnections.get(userId)
       if (!conns) {
@@ -91,10 +82,19 @@ app.get('/ws', upgradeWebSocket((c) => {
       conns.add(connectionKey)
       console.info(`[ws-smoke] onOpen user=${userId} (now ${conns.size} for this user)`)
     },
+    onClose() {
+      const conns = userConnections.get(userId)
+      if (!conns)
+        return
+      conns.delete(connectionKey)
+      if (conns.size === 0)
+        userConnections.delete(userId)
+      console.info(`[ws-smoke] onClose user=${userId}`)
+    },
   }
 }))
 
-const server = serve({ fetch: app.fetch, hostname: '127.0.0.1', port: 0 })
+const server = serve({ fetch: app.fetch, port: 0, hostname: '127.0.0.1' })
 const port = await new Promise<number>((resolve) => {
   server.once('listening', () => {
     const addr = server.address()
@@ -105,7 +105,7 @@ const port = await new Promise<number>((resolve) => {
 injectWebSocket(server)
 console.info(`[ws-smoke] listening on 127.0.0.1:${port}\n`)
 
-async function readGaugeNow(): Promise<null | number> {
+async function readGaugeNow(): Promise<number | null> {
   await reader.forceFlush()
   const all = exporter.getMetrics()
   const last = all.at(-1)
@@ -124,15 +124,10 @@ async function readGaugeNow(): Promise<null | number> {
 }
 
 const results: boolean[] = []
-function assert(label: string, expected: number, actual: null | number) {
+function assert(label: string, expected: number, actual: number | null) {
   const ok = actual === expected
   console.info(`[ws-smoke] ${ok ? '✅' : '❌'} ${label}: expected=${expected}, observed=${actual}\n`)
   results.push(ok)
-}
-
-async function closeClient(ws: WebSocket) {
-  ws.close()
-  await sleep(150)
 }
 
 async function openClient(user: string): Promise<WebSocket> {
@@ -144,6 +139,11 @@ async function openClient(user: string): Promise<WebSocket> {
   // Give the server's onOpen handler a tick to fire after the upgrade.
   await sleep(50)
   return ws
+}
+
+async function closeClient(ws: WebSocket) {
+  ws.close()
+  await sleep(150)
 }
 
 console.info('=== Phase A: open 3 alice + 2 bob ===')

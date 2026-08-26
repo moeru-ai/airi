@@ -8,22 +8,22 @@ import { cac } from 'cac'
 
 import * as yaml from 'yaml'
 
-type Platform = 'arm64' | 'both' | 'none' | 'x64'
+interface UpdateInfoFile {
+  url: string
+  sha2?: string
+  sha512?: string
+  size?: number
+}
 
 interface UpdateInfo {
-  [key: string]: unknown
   files?: UpdateInfoFile[]
   path?: string
   sha2?: string
   sha512?: string
+  [key: string]: unknown
 }
 
-interface UpdateInfoFile {
-  sha2?: string
-  sha512?: string
-  size?: number
-  url: string
-}
+type Platform = 'x64' | 'arm64' | 'both' | 'none'
 
 const regexpIsLatestMacMetadata = /^latest(?:-[^-]+)?-mac\.yml$/i
 
@@ -51,6 +51,18 @@ export const regexpHasX64 = /(^|[-_/])x64([-.]|$)/i
 export const regexpIsMacZip = /-mac\.zip$/i
 export const regexpIsArm64MacZip = /-arm64-mac\.zip$/i
 
+function isArm64MacZip(url: string): boolean {
+  return regexpIsArm64MacZip.test(url)
+}
+
+function isX64MacZip(url: string): boolean {
+  return regexpIsMacZip.test(url) && !regexpContainsArm64.test(url)
+}
+
+function getMacZipUrls(updateInfo: UpdateInfo): string[] {
+  return getUrls(updateInfo).filter(url => regexpIsMacZip.test(url))
+}
+
 function assertContainsMacZip(updateInfo: UpdateInfo, platform: Exclude<Platform, 'both' | 'none'>, filePath: string) {
   const zipUrls = getMacZipUrls(updateInfo)
 
@@ -73,46 +85,6 @@ function assertMergedContainsBothMacZips(updateInfo: UpdateInfo) {
   }
 }
 
-function collectLatestMacFiles(rootDir: string): string[] {
-  const results: string[] = []
-  // eslint-disable-next-line no-console
-  console.debug('merge-latest-mac: scan context', {
-    cwd: cwd(),
-    rootDir,
-  })
-  if (!existsSync(rootDir)) {
-    console.warn('merge-latest-mac: scan directory missing', rootDir)
-    return results
-  }
-  if (!statSync(rootDir).isDirectory()) {
-    return results
-  }
-
-  const entries = readdirSync(rootDir, { withFileTypes: true })
-  // eslint-disable-next-line no-console
-  console.debug('merge-latest-mac: scan directory entries', {
-    entries: entries.map(entry => ({
-      isDirectory: entry.isDirectory(),
-      isFile: entry.isFile(),
-      name: entry.name,
-    })),
-    rootDir,
-  })
-
-  for (const entry of entries) {
-    const fullPath = resolve(rootDir, entry.name)
-    if (entry.isDirectory()) {
-      results.push(...collectLatestMacFiles(fullPath))
-      continue
-    }
-    if (entry.isFile() && regexpIsLatestMacMetadata.test(entry.name)) {
-      results.push(fullPath)
-    }
-  }
-
-  return results
-}
-
 function detectPlatform(updateInfo: UpdateInfo): Platform {
   const urls = getUrls(updateInfo)
 
@@ -133,16 +105,69 @@ function detectPlatform(updateInfo: UpdateInfo): Platform {
   return 'none'
 }
 
-function getMacZipUrls(updateInfo: UpdateInfo): string[] {
-  return getUrls(updateInfo).filter(url => regexpIsMacZip.test(url))
+function mergeFiles(arm64: UpdateInfo, x64: UpdateInfo): UpdateInfo {
+  const arm64Files = Array.isArray(arm64.files) ? arm64.files : []
+  const x64Files = Array.isArray(x64.files) ? x64.files : []
+
+  const byUrl = new Map<string, UpdateInfoFile>()
+  for (const file of [...arm64Files, ...x64Files]) {
+    if (file?.url) {
+      byUrl.set(file.url, file)
+    }
+  }
+
+  return {
+    ...arm64,
+    files: [...byUrl.values()],
+    path: undefined,
+    sha2: undefined,
+    sha512: undefined,
+  }
 }
 
-function isArm64MacZip(url: string): boolean {
-  return regexpIsArm64MacZip.test(url)
+async function readUpdateInfo(filePath: string): Promise<UpdateInfo> {
+  const raw = await readFile(filePath, 'utf8')
+  return yaml.parse(raw) as UpdateInfo
 }
 
-function isX64MacZip(url: string): boolean {
-  return regexpIsMacZip.test(url) && !regexpContainsArm64.test(url)
+function collectLatestMacFiles(rootDir: string): string[] {
+  const results: string[] = []
+  // eslint-disable-next-line no-console
+  console.debug('merge-latest-mac: scan context', {
+    cwd: cwd(),
+    rootDir,
+  })
+  if (!existsSync(rootDir)) {
+    console.warn('merge-latest-mac: scan directory missing', rootDir)
+    return results
+  }
+  if (!statSync(rootDir).isDirectory()) {
+    return results
+  }
+
+  const entries = readdirSync(rootDir, { withFileTypes: true })
+  // eslint-disable-next-line no-console
+  console.debug('merge-latest-mac: scan directory entries', {
+    rootDir,
+    entries: entries.map(entry => ({
+      name: entry.name,
+      isDirectory: entry.isDirectory(),
+      isFile: entry.isFile(),
+    })),
+  })
+
+  for (const entry of entries) {
+    const fullPath = resolve(rootDir, entry.name)
+    if (entry.isDirectory()) {
+      results.push(...collectLatestMacFiles(fullPath))
+      continue
+    }
+    if (entry.isFile() && regexpIsLatestMacMetadata.test(entry.name)) {
+      results.push(fullPath)
+    }
+  }
+
+  return results
 }
 
 async function main() {
@@ -185,7 +210,7 @@ async function main() {
     throw new Error('No latest-mac*.yml files found')
   }
 
-  const entries: { filePath: string, platform: Platform, updateInfo: UpdateInfo }[] = []
+  const entries: { filePath: string, updateInfo: UpdateInfo, platform: Platform }[] = []
   for (const filePath of files) {
     if (!existsSync(filePath)) {
       console.warn('merge-latest-mac: missing file', filePath)
@@ -199,7 +224,7 @@ async function main() {
       assertContainsMacZip(updateInfo, platform, filePath)
     }
 
-    entries.push({ filePath, platform, updateInfo })
+    entries.push({ filePath, updateInfo, platform })
   }
 
   if (entries.length === 0) {
@@ -237,31 +262,6 @@ async function main() {
   const merged = mergeFiles(arm64Entries[0].updateInfo, x64Entries[0].updateInfo)
   assertMergedContainsBothMacZips(merged)
   await writeFile(outputPath, yaml.stringify(merged), 'utf8')
-}
-
-function mergeFiles(arm64: UpdateInfo, x64: UpdateInfo): UpdateInfo {
-  const arm64Files = Array.isArray(arm64.files) ? arm64.files : []
-  const x64Files = Array.isArray(x64.files) ? x64.files : []
-
-  const byUrl = new Map<string, UpdateInfoFile>()
-  for (const file of [...arm64Files, ...x64Files]) {
-    if (file?.url) {
-      byUrl.set(file.url, file)
-    }
-  }
-
-  return {
-    ...arm64,
-    files: [...byUrl.values()],
-    path: undefined,
-    sha2: undefined,
-    sha512: undefined,
-  }
-}
-
-async function readUpdateInfo(filePath: string): Promise<UpdateInfo> {
-  const raw = await readFile(filePath, 'utf8')
-  return yaml.parse(raw) as UpdateInfo
 }
 
 main().catch((error) => {

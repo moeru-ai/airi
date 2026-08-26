@@ -6,14 +6,14 @@ import { Hono } from 'hono'
 import { nonEmpty, object, picklist, pipe, safeParse, string, trim } from 'valibot'
 
 const UserDeletionRequestSchema = object({
-  reason: picklist(['user-requested', 'admin', 'compliance']),
   userId: pipe(string(), trim(), nonEmpty()),
+  reason: picklist(['user-requested', 'admin', 'compliance']),
 })
 
 const AuthEventRequestSchema = object({
+  userId: pipe(string(), trim(), nonEmpty()),
   action: picklist(['user_signed_up']),
   source: picklist(['better-auth.user.create']),
-  userId: pipe(string(), trim(), nonEmpty()),
 })
 
 /**
@@ -22,8 +22,8 @@ const AuthEventRequestSchema = object({
  * and block `/internal/*` at the public edge.
  */
 export function createInternalAuthRoutes(input: {
-  productEventService: Pick<ProductEventService, 'track'>
   userDeletionService: UserDeletionExecutor
+  productEventService: Pick<ProductEventService, 'track'>
 }) {
   return new Hono<HonoEnv>()
     .post('/user-deletion', async (c) => {
@@ -33,8 +33,8 @@ export function createInternalAuthRoutes(input: {
 
       const request = parsed.output
       await input.userDeletionService.softDeleteAll({
-        reason: request.reason as UserDeletionReason,
         userId: request.userId,
+        reason: request.reason as UserDeletionReason,
       })
       return c.json({ success: true })
     })
@@ -44,11 +44,11 @@ export function createInternalAuthRoutes(input: {
         return c.json({ error: 'BAD_REQUEST', message: 'Invalid auth event' }, 400)
 
       await input.productEventService.track({
-        action: parsed.output.action,
-        feature: 'auth',
-        source: parsed.output.source,
-        status: 'succeeded',
         userId: parsed.output.userId,
+        feature: 'auth',
+        action: parsed.output.action,
+        status: 'succeeded',
+        source: parsed.output.source,
       })
       return c.json({ success: true })
     })

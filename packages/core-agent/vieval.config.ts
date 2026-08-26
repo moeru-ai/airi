@@ -12,7 +12,6 @@ const defaultModel = loadedEnv.OPENAI_MODEL ?? loadedEnv.OPENAI_CHAT_MODEL ?? 'o
  * Vieval config for the core-agent runtime competition.
  */
 const coreAgentVievalConfig = defineConfig({
-  env: loadedEnv,
   plugins: [
     ChatProviders({
       providers: [
@@ -32,18 +31,19 @@ const coreAgentVievalConfig = defineConfig({
       models: [
         chatModelFrom({
           aliases: ['default', 'competition'],
-          model: defaultModel,
           provider: 'openrouter-provider',
+          model: defaultModel,
         }),
       ],
     }),
   ],
+  env: loadedEnv,
   projects: [
     {
-      exclude: ['dist/**', 'node_modules/**'],
-      include: ['evals/round-3-primary-control/**/*.eval.ts'],
       name: 'round-3-primary-control',
       root: '.',
+      include: ['evals/round-3-primary-control/**/*.eval.ts'],
+      exclude: ['dist/**', 'node_modules/**'],
       runMatrix: {
         override: {
           model: [defaultModel],
@@ -51,10 +51,10 @@ const coreAgentVievalConfig = defineConfig({
       },
     },
     {
-      exclude: ['dist/**', 'node_modules/**'],
-      include: ['evals/round-3-takeover-control/**/*.eval.ts'],
       name: 'round-3-takeover-control',
       root: '.',
+      include: ['evals/round-3-takeover-control/**/*.eval.ts'],
+      exclude: ['dist/**', 'node_modules/**'],
       runMatrix: {
         override: {
           model: [defaultModel],
@@ -62,10 +62,10 @@ const coreAgentVievalConfig = defineConfig({
       },
     },
     {
-      exclude: ['dist/**', 'node_modules/**'],
-      include: ['evals/round-3-sidecar-control/**/*.eval.ts'],
       name: 'round-3-sidecar-control',
       root: '.',
+      include: ['evals/round-3-sidecar-control/**/*.eval.ts'],
+      exclude: ['dist/**', 'node_modules/**'],
       runMatrix: {
         override: {
           model: [defaultModel],

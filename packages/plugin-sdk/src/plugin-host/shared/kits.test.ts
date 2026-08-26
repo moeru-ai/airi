@@ -6,15 +6,15 @@ import { kitDescriptorSchema } from './kits'
 describe('kitDescriptorSchema', () => {
   it('accepts a generic host-level kit descriptor without business coupling', () => {
     const parsed = parse(kitDescriptorSchema, {
+      kitId: 'kit.widget',
+      version: '1.0.0',
       capabilities: [
         {
-          actions: ['announce', 'activate', 'update', 'withdraw'],
           key: 'kit.widget.module',
+          actions: ['announce', 'activate', 'update', 'withdraw'],
         },
       ],
-      kitId: 'kit.widget',
       runtimes: ['electron', 'web'],
-      version: '1.0.0',
     })
 
     expect(parsed.kitId).toBe('kit.widget')
@@ -24,10 +24,10 @@ describe('kitDescriptorSchema', () => {
   it('rejects an unsupported runtime', () => {
     expect(() =>
       parse(kitDescriptorSchema, {
-        capabilities: [],
         kitId: 'kit.widget',
-        runtimes: ['browser'],
         version: '1.0.0',
+        capabilities: [],
+        runtimes: ['browser'],
       }),
     ).toThrowError()
   })

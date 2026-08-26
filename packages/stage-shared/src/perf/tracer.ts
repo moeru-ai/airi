@@ -1,15 +1,25 @@
+export interface TraceEvent {
+  tracerId: string
+  name: string
+  ts: number
+  duration?: number
+  meta?: Record<string, any>
+}
+
+export type TraceSubscriber = (event: TraceEvent) => void
+
 export interface PerfTracer {
-  acquire: (token?: string) => () => void
-  emit: (event: TraceEvent) => void
   forceDisable: () => void
   isEnabled: () => boolean
-  mark: (tracerId: string, name: string, meta?: Record<string, any>) => void
+  acquire: (token?: string) => () => void
   release: (token?: string) => void
   subscribe: (subscriber: TraceSubscriber) => () => void
   subscribeSafe: (
     subscriber: TraceSubscriber,
     options?: { label?: string, onError?: (error: unknown, event: TraceEvent) => void },
   ) => () => void
+  emit: (event: TraceEvent) => void
+  mark: (tracerId: string, name: string, meta?: Record<string, any>) => void
   withMeasure: <T>(
     tracerId: string,
     name: string,
@@ -17,16 +27,6 @@ export interface PerfTracer {
     meta?: Record<string, any>,
   ) => Promise<T>
 }
-
-export interface TraceEvent {
-  duration?: number
-  meta?: Record<string, any>
-  name: string
-  tracerId: string
-  ts: number
-}
-
-export type TraceSubscriber = (event: TraceEvent) => void
 
 export function createPerfTracer(): PerfTracer {
   let enabled = false
@@ -102,10 +102,10 @@ export function createPerfTracer(): PerfTracer {
 
   function mark(tracerId: string, name: string, meta?: Record<string, any>) {
     push({
-      meta,
-      name,
       tracerId,
+      name,
       ts: performance.now(),
+      meta,
     }, false)
   }
 
@@ -126,26 +126,26 @@ export function createPerfTracer(): PerfTracer {
     finally {
       const disabledAtEnd = !enabled
       push({
+        tracerId,
+        name,
+        ts: start,
         duration: performance.now() - start,
         meta: disabledAtEnd
           ? { ...meta, tracerDisabledDuringMeasure: true }
           : meta,
-        name,
-        tracerId,
-        ts: start,
       }, true)
     }
   }
 
   return {
-    acquire,
-    emit,
     forceDisable,
     isEnabled,
-    mark,
+    acquire,
     release,
     subscribe,
     subscribeSafe,
+    emit,
+    mark,
     withMeasure,
   }
 }

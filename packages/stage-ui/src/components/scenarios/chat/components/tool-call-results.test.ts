@@ -19,22 +19,22 @@ describe('tool call result lookup', () => {
    */
   it('marks a successful tool result as done', () => {
     const message: ChatAssistantMessage = {
-      content: '',
       role: 'assistant',
+      content: '',
       slices: [
         {
+          type: 'tool-call',
           toolCall: {
-            args: JSON.stringify({ location: 'Tokyo' }),
             toolCallId: 'call-weather',
             toolCallType: 'function',
             toolName: 'weather',
+            args: JSON.stringify({ location: 'Tokyo' }),
           },
-          type: 'tool-call',
         },
         {
+          type: 'tool-call-result',
           id: 'call-weather',
           result: 'Tokyo is clear with light wind.',
-          type: 'tool-call-result',
         },
       ],
       tool_results: [],
@@ -53,17 +53,17 @@ describe('tool call result lookup', () => {
    */
   it('pairs a failed tool result with its tool call id', () => {
     const message: ChatAssistantMessage = {
-      content: '',
       role: 'assistant',
+      content: '',
       slices: [
         {
+          type: 'tool-call',
           toolCall: {
-            args: JSON.stringify({ mode: 'new', side: 'white' }),
             toolCallId: 'call-play-chess',
             toolCallType: 'function',
             toolName: 'play_chess',
+            args: JSON.stringify({ mode: 'new', side: 'white' }),
           },
-          type: 'tool-call',
         },
       ],
       tool_results: [

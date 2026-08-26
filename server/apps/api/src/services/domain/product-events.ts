@@ -16,73 +16,73 @@ const RESERVED_POSTHOG_METADATA_KEYS = new Set([
   'status',
 ])
 
+export type ProductFeature = 'auth' | 'billing'
+
+export type ProductEventStatus = 'succeeded'
+
+export type ProductEventMetadata = Record<string, string | number | boolean | null>
+
+export type ProductAction
+  = | 'user_signed_up'
+    | 'checkout_started'
+    | 'payment_completed'
+
+/** Product funnel fact forwarded to PostHog from the server. */
+export interface ProductEventInput {
+  /** Better Auth user id. Kept in Postgres only; never emitted as a Prometheus label. */
+  userId: string
+  /** Bounded product area used for product dashboards and funnels. */
+  feature: ProductFeature
+  /** Bounded user/business action within the feature. */
+  action: ProductAction
+  /** Lifecycle state for the action. */
+  status: ProductEventStatus
+  /** Optional bounded route/surface label such as `openai.chat.completions`. */
+  source?: string
+  /** Optional primitive metadata for product analysis. Avoid PII and raw prompts. */
+  metadata?: ProductEventMetadata
+  /** Stable source event id used by PostHog for replay-safe deduplication. */
+  eventId?: string
+}
+
 /** Product runtime where the user initiated the AI generation. */
-export type AiGenerationAppSurface = 'electron' | 'mobile' | 'web'
+export type AiGenerationAppSurface = 'web' | 'mobile' | 'electron'
 
 /** Runtime that captured the `$ai_generation` fact. */
-export type AiGenerationCaptureSurface = 'client' | 'server'
+export type AiGenerationCaptureSurface = 'server' | 'client'
 
 /** Explains whether `conversation_id` is an app conversation or a server fallback. */
 export type AiGenerationConversationIdSource = 'client_header' | 'server_request'
 
 /** Explains whether AIRI supplied a trustworthy USD cost for this generation. */
-export type AiGenerationCostUsdSource = 'estimated' | 'reported' | 'unavailable'
+export type AiGenerationCostUsdSource = 'reported' | 'estimated' | 'unavailable'
 
 /** Content-free PostHog AI generation fact keyed to the authenticated user. */
 export interface AiGenerationEventInput {
-  /** Omitted when the server cannot determine the user's product runtime. */
-  appSurface?: AiGenerationAppSurface
-  /** Defaults to `server` because this service runs in the API process. */
-  captureSurface?: AiGenerationCaptureSurface
+  userId: string
+  traceId: string
+  generationId: string
+  model: string
+  provider: string
+  providerType: 'official' | 'custom' | 'unknown'
+  usageSource: 'reported' | 'estimated' | 'unavailable'
+  inputTokens?: number
+  outputTokens?: number
+  totalTokens?: number
+  totalCostUsd?: number
+  costUsdSource?: AiGenerationCostUsdSource
   /** Always present for joins; `conversationIdSource` tells whether it is request-level fallback. */
   conversationId: string
   /** Distinguishes real client conversation ids from server-generated request fallbacks. */
   conversationIdSource: AiGenerationConversationIdSource
-  costUsdSource?: AiGenerationCostUsdSource
-  generationId: string
-  inputTokens?: number
-  latencySeconds?: number
-  model: string
-  outputTokens?: number
-  provider: string
-  providerType: 'custom' | 'official' | 'unknown'
   roundId?: string
+  /** Omitted when the server cannot determine the user's product runtime. */
+  appSurface?: AiGenerationAppSurface
+  /** Defaults to `server` because this service runs in the API process. */
+  captureSurface?: AiGenerationCaptureSurface
+  latencySeconds?: number
   stream?: boolean
-  totalCostUsd?: number
-  totalTokens?: number
-  traceId: string
-  usageSource: 'estimated' | 'reported' | 'unavailable'
-  userId: string
 }
-
-export type ProductAction
-  = | 'checkout_started'
-    | 'payment_completed'
-    | 'user_signed_up'
-
-/** Product funnel fact forwarded to PostHog from the server. */
-export interface ProductEventInput {
-  /** Bounded user/business action within the feature. */
-  action: ProductAction
-  /** Stable source event id used by PostHog for replay-safe deduplication. */
-  eventId?: string
-  /** Bounded product area used for product dashboards and funnels. */
-  feature: ProductFeature
-  /** Optional primitive metadata for product analysis. Avoid PII and raw prompts. */
-  metadata?: ProductEventMetadata
-  /** Optional bounded route/surface label such as `openai.chat.completions`. */
-  source?: string
-  /** Lifecycle state for the action. */
-  status: ProductEventStatus
-  /** Better Auth user id. Kept in Postgres only; never emitted as a Prometheus label. */
-  userId: string
-}
-
-export type ProductEventMetadata = Record<string, boolean | null | number | string>
-
-export type ProductEventStatus = 'succeeded'
-
-export type ProductFeature = 'auth' | 'billing'
 
 /**
  * Server-side actions that anchor a PostHog product funnel. Per-request LLM
@@ -93,12 +93,27 @@ export type ProductFeature = 'auth' | 'billing'
  * auth UI progress uses `signup_form_completed` and never reuses this name.
  */
 const POSTHOG_FORWARDED_ACTIONS: Partial<Record<ProductAction, string>> = {
+  user_signed_up: 'signup_completed',
   checkout_started: 'checkout_created',
   payment_completed: 'payment_completed',
-  user_signed_up: 'signup_completed',
 }
 
-export type ProductEventService = ReturnType<typeof createProductEventService>
+function stringMetadata(input: ProductEventInput, key: string): string | undefined {
+  const value = input.metadata?.[key]
+  return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+function posthogEventUuid(event: string, eventId: string): string {
+  const digest = createHash('sha256').update(`airi:posthog:${event}:${eventId}`, 'utf8').digest()
+  digest[6] = (digest[6] & 0x0F) | 0x50
+  digest[8] = (digest[8] & 0x3F) | 0x80
+  const hex = digest.subarray(0, 16).toString('hex')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
+function hasReservedMetadataKey(metadata: ProductEventMetadata | undefined): boolean {
+  return metadata != null && Object.keys(metadata).some(key => RESERVED_POSTHOG_METADATA_KEYS.has(key))
+}
 
 /**
  * Creates AIRI's server-side PostHog product analytics writer.
@@ -113,8 +128,51 @@ export type ProductEventService = ReturnType<typeof createProductEventService>
  * Returns:
  * - A best-effort event writer. Capture errors never change the business flow.
  */
-export function createProductEventService(posthog?: null | PosthogSink) {
+export function createProductEventService(posthog?: PosthogSink | null) {
   return {
+    trackGeneration(input: AiGenerationEventInput): void {
+      if (!posthog)
+        return
+
+      const event = {
+        distinctId: input.userId,
+        event: '$ai_generation',
+        properties: {
+          $ai_trace_id: input.traceId,
+          $ai_session_id: input.conversationId,
+          $ai_span_id: input.generationId,
+          $ai_model: input.model,
+          $ai_provider: input.provider,
+          ...(input.inputTokens != null && { $ai_input_tokens: input.inputTokens }),
+          ...(input.outputTokens != null && { $ai_output_tokens: input.outputTokens }),
+          ...(input.totalTokens != null && { $ai_total_tokens: input.totalTokens }),
+          ...(input.totalCostUsd != null && { $ai_total_cost_usd: input.totalCostUsd }),
+          ...(input.latencySeconds != null && { $ai_latency: input.latencySeconds }),
+          ...(input.stream != null && { $ai_stream: input.stream }),
+          $insert_id: `ai-generation:${input.generationId}`,
+          airi_user_id: input.userId,
+          provider_type: input.providerType,
+          usage_source: input.usageSource,
+          token_usage_available: input.usageSource !== 'unavailable',
+          cost_usd_source: input.costUsdSource ?? 'unavailable',
+          cost_usd_known: input.totalCostUsd != null,
+          conversation_id: input.conversationId,
+          conversation_id_source: input.conversationIdSource,
+          ...(input.roundId && { round_id: input.roundId }),
+          ...(input.appSurface && { app_surface: input.appSurface }),
+          capture_surface: input.captureSurface ?? 'server',
+        },
+      }
+
+      if (posthog.captureQueued) {
+        posthog.captureQueued(event)
+        return
+      }
+
+      void posthog.capture(event)
+        .catch(err => logger.withError(err).withFields({ generationId: input.generationId }).warn('Failed to capture PostHog AI generation'))
+    },
+
     async track(input: ProductEventInput): Promise<void> {
       const forwardedEvent = POSTHOG_FORWARDED_ACTIONS[input.action]
       if (!posthog || !forwardedEvent)
@@ -153,8 +211,8 @@ export function createProductEventService(posthog?: null | PosthogSink) {
           properties: {
             ...input.metadata,
             ...(input.eventId && { $insert_id: input.eventId }),
-            airi_user_id: input.userId,
             app_surface: 'server',
+            airi_user_id: input.userId,
             ...(posthogDistinctId && { posthog_distinct_id: posthogDistinctId }),
             ...(posthogSessionId && { $session_id: posthogSessionId }),
             feature: input.feature,
@@ -168,65 +226,7 @@ export function createProductEventService(posthog?: null | PosthogSink) {
         logger.withError(err).withFields({ action: input.action }).warn('PostHog product analytics capture failed')
       }
     },
-
-    trackGeneration(input: AiGenerationEventInput): void {
-      if (!posthog)
-        return
-
-      const event = {
-        distinctId: input.userId,
-        event: '$ai_generation',
-        properties: {
-          $ai_model: input.model,
-          $ai_provider: input.provider,
-          $ai_session_id: input.conversationId,
-          $ai_span_id: input.generationId,
-          $ai_trace_id: input.traceId,
-          ...(input.inputTokens != null && { $ai_input_tokens: input.inputTokens }),
-          ...(input.outputTokens != null && { $ai_output_tokens: input.outputTokens }),
-          ...(input.totalTokens != null && { $ai_total_tokens: input.totalTokens }),
-          ...(input.totalCostUsd != null && { $ai_total_cost_usd: input.totalCostUsd }),
-          ...(input.latencySeconds != null && { $ai_latency: input.latencySeconds }),
-          ...(input.stream != null && { $ai_stream: input.stream }),
-          $insert_id: `ai-generation:${input.generationId}`,
-          airi_user_id: input.userId,
-          conversation_id: input.conversationId,
-          conversation_id_source: input.conversationIdSource,
-          cost_usd_known: input.totalCostUsd != null,
-          cost_usd_source: input.costUsdSource ?? 'unavailable',
-          provider_type: input.providerType,
-          token_usage_available: input.usageSource !== 'unavailable',
-          usage_source: input.usageSource,
-          ...(input.roundId && { round_id: input.roundId }),
-          ...(input.appSurface && { app_surface: input.appSurface }),
-          capture_surface: input.captureSurface ?? 'server',
-        },
-      }
-
-      if (posthog.captureQueued) {
-        posthog.captureQueued(event)
-        return
-      }
-
-      void posthog.capture(event)
-        .catch(err => logger.withError(err).withFields({ generationId: input.generationId }).warn('Failed to capture PostHog AI generation'))
-    },
   }
 }
 
-function hasReservedMetadataKey(metadata: ProductEventMetadata | undefined): boolean {
-  return metadata != null && Object.keys(metadata).some(key => RESERVED_POSTHOG_METADATA_KEYS.has(key))
-}
-
-function posthogEventUuid(event: string, eventId: string): string {
-  const digest = createHash('sha256').update(`airi:posthog:${event}:${eventId}`, 'utf8').digest()
-  digest[6] = (digest[6] & 0x0F) | 0x50
-  digest[8] = (digest[8] & 0x3F) | 0x80
-  const hex = digest.subarray(0, 16).toString('hex')
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
-}
-
-function stringMetadata(input: ProductEventInput, key: string): string | undefined {
-  const value = input.metadata?.[key]
-  return typeof value === 'string' && value.length > 0 ? value : undefined
-}
+export type ProductEventService = ReturnType<typeof createProductEventService>

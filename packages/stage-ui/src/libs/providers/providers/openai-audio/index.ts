@@ -18,28 +18,43 @@ const openAICompatibleAudioConfigSchema = z.object({
   baseUrl: z.string().default(''),
 })
 
-type AudioConfig = OpenAIAudioConfig | OpenAICompatibleAudioConfig
 type OpenAIAudioConfig = z.input<typeof openAIAudioConfigSchema>
 type OpenAICompatibleAudioConfig = z.input<typeof openAICompatibleAudioConfigSchema>
+type AudioConfig = OpenAIAudioConfig | OpenAICompatibleAudioConfig
 
 function createAudioConfigSchema<T extends typeof openAIAudioConfigSchema | typeof openAICompatibleAudioConfigSchema>(schema: T, t: ComposerTranslation) {
   return schema.extend({
     apiKey: schema.shape.apiKey.meta({
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
       type: 'password',
     }),
     baseUrl: schema.shape.baseUrl.meta({
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
     }),
   })
 }
 
+function normalizeBaseUrl(baseUrl: string | undefined) {
+  const value = baseUrl?.trim() ?? ''
+  return value && !value.endsWith('/') ? `${value}/` : value
+}
+
 function createAudioProvider(config: AudioConfig) {
   return createOpenAI(config.apiKey.trim(), normalizeBaseUrl(config.baseUrl))
+}
+
+function createTranscriptionProvider(config: AudioConfig) {
+  const provider = createAudioProvider(config)
+  const transcription = provider.transcription.bind(provider)
+  provider.transcription = (model: string, extraOptions?: Record<string, unknown>) => ({
+    ...transcription(model),
+    ...extraOptions,
+  })
+  return provider
 }
 
 function createAudioValidators<TConfig extends AudioConfig>() {
@@ -83,53 +98,38 @@ function createAudioValidators<TConfig extends AudioConfig>() {
   }
 }
 
-function createTranscriptionProvider(config: AudioConfig) {
-  const provider = createAudioProvider(config)
-  const transcription = provider.transcription.bind(provider)
-  provider.transcription = (model: string, extraOptions?: Record<string, unknown>) => ({
-    ...transcription(model),
-    ...extraOptions,
-  })
-  return provider
-}
-
-function normalizeBaseUrl(baseUrl: string | undefined) {
-  const value = baseUrl?.trim() ?? ''
-  return value && !value.endsWith('/') ? `${value}/` : value
-}
-
 const openAISpeechModels = [
   {
-    contextLength: 0,
-    deprecated: false,
-    description: 'Optimized for real-time text-to-speech tasks',
     id: 'tts-1',
     name: 'TTS-1',
     provider: 'openai-audio-speech',
-  },
-  {
+    description: 'Optimized for real-time text-to-speech tasks',
     contextLength: 0,
     deprecated: false,
-    description: 'Higher fidelity audio output',
+  },
+  {
     id: 'tts-1-hd',
     name: 'TTS-1-HD',
     provider: 'openai-audio-speech',
-  },
-  {
+    description: 'Higher fidelity audio output',
     contextLength: 0,
     deprecated: false,
-    description: 'GPT-4o Mini optimized for text-to-speech',
+  },
+  {
     id: 'gpt-4o-mini-tts',
     name: 'GPT-4o Mini TTS',
     provider: 'openai-audio-speech',
-  },
-  {
+    description: 'GPT-4o Mini optimized for text-to-speech',
     contextLength: 0,
     deprecated: false,
-    description: 'GPT-4o Mini TTS snapshot from 2025-12-15',
+  },
+  {
     id: 'gpt-4o-mini-tts-2025-12-15',
     name: 'GPT-4o Mini TTS (2025-12-15)',
     provider: 'openai-audio-speech',
+    description: 'GPT-4o Mini TTS snapshot from 2025-12-15',
+    contextLength: 0,
+    deprecated: false,
   },
 ]
 
@@ -151,11 +151,11 @@ const openAISpeechVoices = [
   { id: 'marin', models: ['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'] },
   { id: 'cedar', models: ['gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-12-15'] },
 ].map(voice => ({
-  compatibleModels: voice.models,
   id: voice.id,
-  languages: [],
   name: `${voice.id[0].toUpperCase()}${voice.id.slice(1)}`,
   provider: 'openai-audio-speech',
+  languages: [],
+  compatibleModels: voice.models,
 }))
 
 const openAITranscriptionModels = [
@@ -165,38 +165,46 @@ const openAITranscriptionModels = [
   ['whisper-1', 'Whisper-1', 'Powered by our open source Whisper V2 model'],
   ['gpt-4o-transcribe-diarize', 'GPT-4o Transcribe Diarize', 'Transcription with speaker diarization'],
 ].map(([id, name, description]) => ({
-  contextLength: 0,
-  deprecated: false,
-  description,
   id,
   name,
   provider: 'openai-audio-transcription',
+  description,
+  contextLength: 0,
+  deprecated: false,
 }))
 
 export const providerOpenAIAudioSpeech = defineProvider<OpenAIAudioConfig>({
-  createProvider: createAudioProvider,
-  createProviderConfig: ({ t }) => createAudioConfigSchema(openAIAudioConfigSchema, t),
+  id: 'openai-audio-speech',
+  name: 'OpenAI',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.openai.title'),
   description: 'openai.com',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.openai.description'),
+  tasks: ['text-to-speech'],
+  icon: 'i-lobe-icons:openai',
+  createProviderConfig: ({ t }) => createAudioConfigSchema(openAIAudioConfigSchema, t),
+  createProvider: createAudioProvider,
+  validationRequiredWhen: config => Boolean(config.apiKey?.trim() && config.baseUrl?.trim()),
+  validators: createAudioValidators<OpenAIAudioConfig>(),
   extraMethods: {
     listModels: async () => openAISpeechModels,
     listVoices: async () => openAISpeechVoices,
   },
-  icon: 'i-lobe-icons:openai',
-  id: 'openai-audio-speech',
-  name: 'OpenAI',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.openai.title'),
-  tasks: ['text-to-speech'],
-  validationRequiredWhen: config => Boolean(config.apiKey?.trim() && config.baseUrl?.trim()),
-  validators: createAudioValidators<OpenAIAudioConfig>(),
 })
 
 export const providerOpenAICompatibleAudioSpeech = defineProvider<OpenAICompatibleAudioConfig>({
-  createProvider: createAudioProvider,
-  createProviderConfig: ({ t }) => createAudioConfigSchema(openAICompatibleAudioConfigSchema, t),
+  id: 'openai-compatible-audio-speech',
+  name: 'OpenAI Compatible',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.openai-compatible.title'),
   description: 'Connect to any API that follows the OpenAI specification.',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.openai-compatible.description'),
+  tasks: ['text-to-speech'],
+  icon: 'i-lobe-icons:openai',
+  createProviderConfig: ({ t }) => createAudioConfigSchema(openAICompatibleAudioConfigSchema, t),
+  createProvider: createAudioProvider,
+  validationRequiredWhen: config => Boolean(config.apiKey?.trim() && config.baseUrl?.trim()),
+  validators: createAudioValidators<OpenAICompatibleAudioConfig>(),
   extraMethods: {
+    listVoices: async () => [],
     listModels: async (config) => {
       const apiKey = config.apiKey?.trim() ?? ''
       const baseUrl = normalizeBaseUrl(config.baseUrl)
@@ -207,60 +215,52 @@ export const providerOpenAICompatibleAudioSpeech = defineProvider<OpenAICompatib
       return models
         .filter(model => model.id.toLowerCase().includes('tts'))
         .map(model => ({
-          contextLength: 0,
-          deprecated: false,
-          description: '',
           id: model.id,
           name: model.id,
           provider: 'openai-compatible-audio-speech',
+          description: '',
+          contextLength: 0,
+          deprecated: false,
         }))
     },
-    listVoices: async () => [],
   },
-  icon: 'i-lobe-icons:openai',
-  id: 'openai-compatible-audio-speech',
-  name: 'OpenAI Compatible',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.openai-compatible.title'),
-  tasks: ['text-to-speech'],
-  validationRequiredWhen: config => Boolean(config.apiKey?.trim() && config.baseUrl?.trim()),
-  validators: createAudioValidators<OpenAICompatibleAudioConfig>(),
 })
 
 export const providerOpenAIAudioTranscription = defineProvider<OpenAIAudioConfig>({
-  capabilities: {
-    transcription: { generateOutput: true, protocol: 'http', streamInput: false, streamOutput: false },
-  },
-  createProvider: createTranscriptionProvider,
-  createProviderConfig: ({ t }) => createAudioConfigSchema(openAIAudioConfigSchema, t),
-  description: 'openai.com',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.openai.description'),
-  extraMethods: {
-    listModels: async () => openAITranscriptionModels,
-  },
-  icon: 'i-lobe-icons:openai',
   id: 'openai-audio-transcription',
   name: 'OpenAI',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.openai.title'),
+  description: 'openai.com',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.openai.description'),
   tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+  icon: 'i-lobe-icons:openai',
+  capabilities: {
+    transcription: { protocol: 'http', generateOutput: true, streamOutput: false, streamInput: false },
+  },
+  createProviderConfig: ({ t }) => createAudioConfigSchema(openAIAudioConfigSchema, t),
+  createProvider: createTranscriptionProvider,
   validationRequiredWhen: config => Boolean(config.apiKey?.trim() && config.baseUrl?.trim()),
   validators: createAudioValidators<OpenAIAudioConfig>(),
+  extraMethods: {
+    listModels: async () => openAITranscriptionModels,
+  },
 })
 
 export const providerOpenAICompatibleAudioTranscription = defineProvider<OpenAICompatibleAudioConfig>({
-  capabilities: {
-    transcription: { generateOutput: true, protocol: 'http', streamInput: false, streamOutput: false },
-  },
-  createProvider: createTranscriptionProvider,
-  createProviderConfig: ({ t }) => createAudioConfigSchema(openAICompatibleAudioConfigSchema, t),
-  description: 'Connect to any API that follows the OpenAI specification.',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.openai-compatible.description'),
-  // Transcription model names are not reliably available from /v1/models.
-  extraMethods: { listModels: async () => [] },
-  icon: 'i-lobe-icons:openai',
   id: 'openai-compatible-audio-transcription',
   name: 'OpenAI Compatible',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.openai-compatible.title'),
+  description: 'Connect to any API that follows the OpenAI specification.',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.openai-compatible.description'),
   tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+  icon: 'i-lobe-icons:openai',
+  capabilities: {
+    transcription: { protocol: 'http', generateOutput: true, streamOutput: false, streamInput: false },
+  },
+  createProviderConfig: ({ t }) => createAudioConfigSchema(openAICompatibleAudioConfigSchema, t),
+  createProvider: createTranscriptionProvider,
   validationRequiredWhen: config => Boolean(config.apiKey?.trim() && config.baseUrl?.trim()),
   validators: createAudioValidators<OpenAICompatibleAudioConfig>(),
+  // Transcription model names are not reliably available from /v1/models.
+  extraMethods: { listModels: async () => [] },
 })

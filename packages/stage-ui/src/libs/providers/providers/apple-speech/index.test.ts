@@ -43,8 +43,8 @@ describe('apple speech transcription provider', () => {
     ])
 
     const schema = await providerAppleSpeechTranscription.createProviderConfig({
-      config: { locale: 'zh-CN' },
       t: input => input,
+      config: { locale: 'zh-CN' },
     })
     const localeMeta = (schema as ZodObject).shape.locale.meta()
 

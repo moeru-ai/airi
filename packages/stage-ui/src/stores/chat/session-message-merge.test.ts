@@ -7,11 +7,11 @@ import { mergeLoadedSessionMessages } from './session-message-merge'
 describe('mergeLoadedSessionMessages', () => {
   it('keeps stored history when the in-memory session only has the placeholder system message', () => {
     const storedMessages: ChatHistoryItem[] = [
-      { content: 'system', createdAt: 1, id: 'system-stored', role: 'system' },
-      { content: 'saved reply', createdAt: 2, id: 'assistant-1', role: 'assistant', slices: [], tool_results: [] },
+      { role: 'system', content: 'system', createdAt: 1, id: 'system-stored' },
+      { role: 'assistant', content: 'saved reply', createdAt: 2, id: 'assistant-1', slices: [], tool_results: [] },
     ]
     const currentMessages: ChatHistoryItem[] = [
-      { content: 'system', createdAt: 3, id: 'system-current', role: 'system' },
+      { role: 'system', content: 'system', createdAt: 3, id: 'system-current' },
     ]
 
     expect(mergeLoadedSessionMessages(storedMessages, currentMessages)).toBe(storedMessages)
@@ -19,12 +19,12 @@ describe('mergeLoadedSessionMessages', () => {
 
   it('appends in-flight messages when IndexedDB finishes loading after a new send starts', () => {
     const storedMessages: ChatHistoryItem[] = [
-      { content: 'system', createdAt: 1, id: 'system-stored', role: 'system' },
-      { content: 'older reply', createdAt: 2, id: 'assistant-1', role: 'assistant', slices: [], tool_results: [] },
+      { role: 'system', content: 'system', createdAt: 1, id: 'system-stored' },
+      { role: 'assistant', content: 'older reply', createdAt: 2, id: 'assistant-1', slices: [], tool_results: [] },
     ]
     const currentMessages: ChatHistoryItem[] = [
-      { content: 'system', createdAt: 3, id: 'system-current', role: 'system' },
-      { content: 'latest prompt', createdAt: 4, id: 'user-2', role: 'user' },
+      { role: 'system', content: 'system', createdAt: 3, id: 'system-current' },
+      { role: 'user', content: 'latest prompt', createdAt: 4, id: 'user-2' },
     ]
 
     expect(mergeLoadedSessionMessages(storedMessages, currentMessages)).toEqual([
@@ -35,12 +35,12 @@ describe('mergeLoadedSessionMessages', () => {
 
   it('does not duplicate messages that are already present in storage', () => {
     const storedMessages: ChatHistoryItem[] = [
-      { content: 'system', createdAt: 1, id: 'system-stored', role: 'system' },
-      { content: 'latest prompt', createdAt: 4, role: 'user' },
+      { role: 'system', content: 'system', createdAt: 1, id: 'system-stored' },
+      { role: 'user', content: 'latest prompt', createdAt: 4 },
     ]
     const currentMessages: ChatHistoryItem[] = [
-      { content: 'system', createdAt: 3, id: 'system-current', role: 'system' },
-      { content: 'latest prompt', createdAt: 4, role: 'user' },
+      { role: 'system', content: 'system', createdAt: 3, id: 'system-current' },
+      { role: 'user', content: 'latest prompt', createdAt: 4 },
     ]
 
     expect(mergeLoadedSessionMessages(storedMessages, currentMessages)).toBe(storedMessages)
@@ -49,8 +49,8 @@ describe('mergeLoadedSessionMessages', () => {
   it('keeps a system message when storage is empty and current has in-flight user messages', () => {
     const storedMessages: ChatHistoryItem[] = []
     const currentMessages: ChatHistoryItem[] = [
-      { content: 'system from memory', createdAt: 1, id: 'system-current', role: 'system' },
-      { content: 'in-flight prompt', createdAt: 2, id: 'user-1', role: 'user' },
+      { role: 'system', content: 'system from memory', createdAt: 1, id: 'system-current' },
+      { role: 'user', content: 'in-flight prompt', createdAt: 2, id: 'user-1' },
     ]
 
     expect(mergeLoadedSessionMessages(storedMessages, currentMessages)).toEqual([
@@ -61,25 +61,25 @@ describe('mergeLoadedSessionMessages', () => {
 
   it('uses flattened array text for deduplication fingerprints', () => {
     const storedMessages: ChatHistoryItem[] = [
-      { content: 'system', createdAt: 1, id: 'system', role: 'system' },
+      { role: 'system', content: 'system', createdAt: 1, id: 'system' },
       {
+        role: 'user',
         content: [
-          { text: 'hello', type: 'text' },
-          { text: ' world', type: 'text' },
+          { type: 'text', text: 'hello' },
+          { type: 'text', text: ' world' },
         ],
         createdAt: 5,
-        role: 'user',
       },
     ]
 
     const currentMessages: ChatHistoryItem[] = [
-      { content: 'system', createdAt: 2, id: 'system-memory', role: 'system' },
+      { role: 'system', content: 'system', createdAt: 2, id: 'system-memory' },
       {
+        role: 'user',
         content: [
-          { text: 'hello world', type: 'text' },
+          { type: 'text', text: 'hello world' },
         ],
         createdAt: 5,
-        role: 'user',
       },
     ]
 

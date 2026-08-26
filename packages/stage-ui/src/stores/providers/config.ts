@@ -27,12 +27,12 @@ const providerStorageOptions = {
  */
 function createProvidersQueryOptions() {
   return {
-    enabled: false,
     key: PROVIDERS_QUERY_KEY,
     query: async (context: { signal: AbortSignal }) => {
       const remote = await service.fetchRemote(client, { abortSignal: context.signal })
       return remote
     },
+    enabled: false,
   }
 }
 
@@ -61,11 +61,11 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       continue
 
     providers.value[providerId] = {
-      config,
-      configuredBy: definition.configuredBy ?? 'user',
-      definitionId,
       id: providerId,
+      definitionId,
+      config,
       status: 'unconfigured',
+      configuredBy: definition.configuredBy ?? 'user',
     }
   }
 
@@ -91,8 +91,8 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   })
   const updateProviderMutation = useMutation({
     mutation: async (payload: {
-      config: Record<string, unknown>
       providerId: string
+      config: Record<string, unknown>
       status: ProviderValidationStatus
     }) => service.patchConfigRemote(client, payload.providerId, payload.config, payload.status),
   })
@@ -129,11 +129,11 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       throw new Error(`Provider definition with id "${definitionId}" not found.`)
 
     const provider = {
-      config,
-      configuredBy: definition.configuredBy ?? 'user',
-      definitionId,
       id: providerId,
+      definitionId,
+      config,
       status: 'unconfigured' as const,
+      configuredBy: definition.configuredBy ?? 'user',
     }
     providers.value[providerId] = provider
     return provider
@@ -221,7 +221,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     providers.value[providerId] = localProvider
 
     try {
-      const remote = await updateProviderMutation.mutateAsync({ config, providerId, status })
+      const remote = await updateProviderMutation.mutateAsync({ providerId, config, status })
       providers.value[remote.id] = remote
       return remote
     }
@@ -237,26 +237,26 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   return {
-    addedProviders,
-    addProvider,
-    configs,
-    configuredProviders,
-    ensureProvider,
-    error: computed(() => providersQuery.error.value),
-    fetchProviders,
-    getProvider,
-
-    getProviderConfig,
-    isLoading: computed(() => providersQuery.isLoading.value),
-    listedProviders,
-    markProviderAdded,
-    mutationError,
     providers,
-    removeProvider,
-    resetProviders,
-    setProviderStatus,
+    configs,
+    addedProviders,
+    listedProviders,
+    configuredProviders,
+    isLoading: computed(() => providersQuery.isLoading.value),
+    error: computed(() => providersQuery.error.value),
+    mutationError,
+
+    getProvider,
+    getProviderConfig,
+    ensureProvider,
+    markProviderAdded,
     unmarkProviderAdded,
+    setProviderStatus,
+    fetchProviders,
+    addProvider,
+    removeProvider,
     updateProviderConfig,
+    resetProviders,
   }
 }, {
   synced: {

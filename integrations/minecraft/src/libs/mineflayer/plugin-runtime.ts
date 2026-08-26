@@ -4,27 +4,27 @@ import type { Bot, BotOptions } from 'mineflayer'
 import type { Mineflayer } from './core'
 import type { MineflayerPlugin } from './plugin'
 
-export interface PluginRuntime {
-  beforeCleanup: () => Promise<void>
-  getRegisteredPlugins: () => readonly MineflayerPlugin[]
-  initializeGeneration: (bot: Bot) => Promise<void>
-  loadPlugin: (plugin: MineflayerPlugin) => Promise<void>
-  onSpawn: () => Promise<void>
-  register: (plugin: MineflayerPlugin) => boolean
-}
-
-export interface PluginRuntimeDeps {
-  botConfig: BotOptions
-  initialPlugins?: readonly MineflayerPlugin[]
-  logger: Logg
-  mineflayer: Mineflayer
-}
-
 interface PluginLifecycleState {
-  cleanupGeneration: number
   createdGeneration: number
   loadedGeneration: number
   spawnedGeneration: number
+  cleanupGeneration: number
+}
+
+export interface PluginRuntimeDeps {
+  logger: Logg
+  mineflayer: Mineflayer
+  botConfig: BotOptions
+  initialPlugins?: readonly MineflayerPlugin[]
+}
+
+export interface PluginRuntime {
+  getRegisteredPlugins: () => readonly MineflayerPlugin[]
+  register: (plugin: MineflayerPlugin) => boolean
+  loadPlugin: (plugin: MineflayerPlugin) => Promise<void>
+  initializeGeneration: (bot: Bot) => Promise<void>
+  onSpawn: () => Promise<void>
+  beforeCleanup: () => Promise<void>
 }
 
 const UNINITIALIZED_GENERATION = -1
@@ -42,10 +42,10 @@ export function createPluginRuntime(deps: PluginRuntimeDeps): PluginRuntime {
     let state = pluginLifecycleState.get(plugin)
     if (!state) {
       state = {
-        cleanupGeneration: UNINITIALIZED_GENERATION,
         createdGeneration: UNINITIALIZED_GENERATION,
         loadedGeneration: UNINITIALIZED_GENERATION,
         spawnedGeneration: UNINITIALIZED_GENERATION,
+        cleanupGeneration: UNINITIALIZED_GENERATION,
       }
       pluginLifecycleState.set(plugin, state)
     }
@@ -92,8 +92,8 @@ export function createPluginRuntime(deps: PluginRuntimeDeps): PluginRuntime {
       }
       catch (error) {
         deps.logger.withFields({
-          generation,
           plugin: pluginLabel,
+          generation,
         }).errorWithError('Plugin created hook failed', error as Error)
         throw error
       }
@@ -107,8 +107,8 @@ export function createPluginRuntime(deps: PluginRuntimeDeps): PluginRuntime {
       }
       catch (error) {
         deps.logger.withFields({
-          generation,
           plugin: pluginLabel,
+          generation,
         }).errorWithError('Plugin loadPlugin hook failed', error as Error)
         throw error
       }
@@ -134,8 +134,8 @@ export function createPluginRuntime(deps: PluginRuntimeDeps): PluginRuntime {
     }
     catch (error) {
       deps.logger.withFields({
-        generation,
         plugin: pluginLabel,
+        generation,
       }).errorWithError('Plugin spawned hook failed', error as Error)
       throw error
     }
@@ -220,8 +220,8 @@ export function createPluginRuntime(deps: PluginRuntimeDeps): PluginRuntime {
         }
         catch (error) {
           deps.logger.withFields({
-            generation,
             plugin: pluginLabel,
+            generation,
           }).errorWithError('Plugin beforeCleanup failed', error as Error)
         }
         finally {
@@ -232,11 +232,11 @@ export function createPluginRuntime(deps: PluginRuntimeDeps): PluginRuntime {
   }
 
   return {
-    beforeCleanup,
     getRegisteredPlugins,
-    initializeGeneration,
-    loadPlugin,
-    onSpawn,
     register,
+    loadPlugin,
+    initializeGeneration,
+    onSpawn,
+    beforeCleanup,
   }
 }

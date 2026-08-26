@@ -10,8 +10,6 @@ import * as schema from '../../schemas/stripe'
 
 const logger = useLogger('stripe-service')
 
-export type StripeService = ReturnType<typeof createStripeService>
-
 // NOTICE:
 // Read paths filter `deletedAt IS NULL` so soft-deleted users (whose
 // stripe_* rows persist for billing audit) are invisible to user-facing
@@ -19,9 +17,114 @@ export type StripeService = ReturnType<typeof createStripeService>
 // and re-upsert into the soft-deleted row — that's by design (the row
 // remains deletedAt-set, but we capture the late event for accurate audit).
 // See `server/apps/api/docs/ai-context/account-deletion.md`.
-export function createStripeService(db: Database, stripe: null | Stripe) {
+export function createStripeService(db: Database, stripe: Stripe | null) {
   return {
     // ---- Customer ----
+
+    async upsertCustomer(data: NewStripeCustomer) {
+      const [row] = await db.insert(schema.stripeCustomer)
+        .values(data)
+        .onConflictDoUpdate({
+          target: schema.stripeCustomer.stripeCustomerId,
+          set: { ...data, updatedAt: new Date() },
+        })
+        .returning()
+      logger.withFields({ userId: data.userId, stripeCustomerId: data.stripeCustomerId }).log('Upserted Stripe customer')
+      return row
+    },
+
+    async getCustomerByUserId(userId: string) {
+      return db.query.stripeCustomer.findFirst({
+        where: and(
+          eq(schema.stripeCustomer.userId, userId),
+          isNull(schema.stripeCustomer.deletedAt),
+        ),
+      })
+    },
+
+    async getCustomerByStripeId(stripeCustomerId: string) {
+      // NOTICE: NOT filtering by deletedAt — this lookup is by external
+      // Stripe id and is used by webhook handlers that need to reach
+      // soft-deleted archive rows for late events (cancellation receipts,
+      // final invoices arriving after account deletion). User-facing reads
+      // use getCustomerByUserId which DOES filter.
+      return db.query.stripeCustomer.findFirst({
+        where: eq(schema.stripeCustomer.stripeCustomerId, stripeCustomerId),
+      })
+    },
+
+    // ---- Checkout Session ----
+
+    async upsertCheckoutSession(data: NewStripeCheckoutSession) {
+      const [row] = await db.insert(schema.stripeCheckoutSession)
+        .values(data)
+        .onConflictDoUpdate({
+          target: schema.stripeCheckoutSession.stripeSessionId,
+          set: { ...data, updatedAt: new Date() },
+        })
+        .returning()
+      logger.withFields({ userId: data.userId, sessionId: data.stripeSessionId, status: data.status }).log('Upserted checkout session')
+      return row
+    },
+
+    async getCheckoutSessionsByUserId(userId: string) {
+      return db.query.stripeCheckoutSession.findMany({
+        where: and(
+          eq(schema.stripeCheckoutSession.userId, userId),
+          isNull(schema.stripeCheckoutSession.deletedAt),
+        ),
+        orderBy: (t, { desc }) => [desc(t.createdAt)],
+      })
+    },
+
+    // ---- Subscription ----
+
+    async upsertSubscription(data: NewStripeSubscription) {
+      const [row] = await db.insert(schema.stripeSubscription)
+        .values(data)
+        .onConflictDoUpdate({
+          target: schema.stripeSubscription.stripeSubscriptionId,
+          set: { ...data, updatedAt: new Date() },
+        })
+        .returning()
+      logger.withFields({ userId: data.userId, subscriptionId: data.stripeSubscriptionId, status: data.status }).log('Upserted subscription')
+      return row
+    },
+
+    async getActiveSubscription(userId: string) {
+      return db.query.stripeSubscription.findFirst({
+        where: and(
+          eq(schema.stripeSubscription.userId, userId),
+          eq(schema.stripeSubscription.status, 'active'),
+          isNull(schema.stripeSubscription.deletedAt),
+        ),
+        orderBy: (t, { desc }) => [desc(t.createdAt)],
+      })
+    },
+
+    // ---- Invoice ----
+
+    async upsertInvoice(data: NewStripeInvoice) {
+      const [row] = await db.insert(schema.stripeInvoice)
+        .values(data)
+        .onConflictDoUpdate({
+          target: schema.stripeInvoice.stripeInvoiceId,
+          set: { ...data, updatedAt: new Date() },
+        })
+        .returning()
+      logger.withFields({ userId: data.userId, invoiceId: data.stripeInvoiceId, status: data.status }).log('Upserted invoice')
+      return row
+    },
+
+    async getInvoicesByUserId(userId: string) {
+      return db.query.stripeInvoice.findMany({
+        where: and(
+          eq(schema.stripeInvoice.userId, userId),
+          isNull(schema.stripeInvoice.deletedAt),
+        ),
+        orderBy: (t, { desc }) => [desc(t.createdAt)],
+      })
+    },
 
     /**
      * Cancel the user's active Stripe subscription via the API and stamp every
@@ -59,16 +162,16 @@ export function createStripeService(db: Database, stripe: null | Stripe) {
             await stripe.subscriptions.cancel(sub.stripeSubscriptionId, {
               prorate: false,
             })
-            logger.withFields({ prevStatus: sub.status, subscriptionId: sub.stripeSubscriptionId, userId }).log('Cancelled Stripe subscription')
+            logger.withFields({ userId, subscriptionId: sub.stripeSubscriptionId, prevStatus: sub.status }).log('Cancelled Stripe subscription')
           }
           catch (err) {
-            logger.withError(err).withFields({ prevStatus: sub.status, subscriptionId: sub.stripeSubscriptionId, userId }).error('Failed to cancel Stripe subscription')
+            logger.withError(err).withFields({ userId, subscriptionId: sub.stripeSubscriptionId, prevStatus: sub.status }).error('Failed to cancel Stripe subscription')
             throw err
           }
         }
       }
       else if (!stripe && cancellableSubs.length > 0) {
-        logger.withFields({ cancellableSubCount: cancellableSubs.length, userId }).warn('Stripe SDK not configured; skipping API cancel — local rows will still be soft-deleted')
+        logger.withFields({ userId, cancellableSubCount: cancellableSubs.length }).warn('Stripe SDK not configured; skipping API cancel — local rows will still be soft-deleted')
       }
 
       const now = new Date()
@@ -101,112 +204,9 @@ export function createStripeService(db: Database, stripe: null | Stripe) {
           isNull(schema.stripeCustomer.deletedAt),
         ))
 
-      logger.withFields({ cancelledSubs: cancellableSubs.length, userId }).log('Stripe rows soft-deleted for user')
-    },
-
-    async getActiveSubscription(userId: string) {
-      return db.query.stripeSubscription.findFirst({
-        orderBy: (t, { desc }) => [desc(t.createdAt)],
-        where: and(
-          eq(schema.stripeSubscription.userId, userId),
-          eq(schema.stripeSubscription.status, 'active'),
-          isNull(schema.stripeSubscription.deletedAt),
-        ),
-      })
-    },
-
-    async getCheckoutSessionsByUserId(userId: string) {
-      return db.query.stripeCheckoutSession.findMany({
-        orderBy: (t, { desc }) => [desc(t.createdAt)],
-        where: and(
-          eq(schema.stripeCheckoutSession.userId, userId),
-          isNull(schema.stripeCheckoutSession.deletedAt),
-        ),
-      })
-    },
-
-    // ---- Checkout Session ----
-
-    async getCustomerByStripeId(stripeCustomerId: string) {
-      // NOTICE: NOT filtering by deletedAt — this lookup is by external
-      // Stripe id and is used by webhook handlers that need to reach
-      // soft-deleted archive rows for late events (cancellation receipts,
-      // final invoices arriving after account deletion). User-facing reads
-      // use getCustomerByUserId which DOES filter.
-      return db.query.stripeCustomer.findFirst({
-        where: eq(schema.stripeCustomer.stripeCustomerId, stripeCustomerId),
-      })
-    },
-
-    async getCustomerByUserId(userId: string) {
-      return db.query.stripeCustomer.findFirst({
-        where: and(
-          eq(schema.stripeCustomer.userId, userId),
-          isNull(schema.stripeCustomer.deletedAt),
-        ),
-      })
-    },
-
-    // ---- Subscription ----
-
-    async getInvoicesByUserId(userId: string) {
-      return db.query.stripeInvoice.findMany({
-        orderBy: (t, { desc }) => [desc(t.createdAt)],
-        where: and(
-          eq(schema.stripeInvoice.userId, userId),
-          isNull(schema.stripeInvoice.deletedAt),
-        ),
-      })
-    },
-
-    async upsertCheckoutSession(data: NewStripeCheckoutSession) {
-      const [row] = await db.insert(schema.stripeCheckoutSession)
-        .values(data)
-        .onConflictDoUpdate({
-          set: { ...data, updatedAt: new Date() },
-          target: schema.stripeCheckoutSession.stripeSessionId,
-        })
-        .returning()
-      logger.withFields({ sessionId: data.stripeSessionId, status: data.status, userId: data.userId }).log('Upserted checkout session')
-      return row
-    },
-
-    // ---- Invoice ----
-
-    async upsertCustomer(data: NewStripeCustomer) {
-      const [row] = await db.insert(schema.stripeCustomer)
-        .values(data)
-        .onConflictDoUpdate({
-          set: { ...data, updatedAt: new Date() },
-          target: schema.stripeCustomer.stripeCustomerId,
-        })
-        .returning()
-      logger.withFields({ stripeCustomerId: data.stripeCustomerId, userId: data.userId }).log('Upserted Stripe customer')
-      return row
-    },
-
-    async upsertInvoice(data: NewStripeInvoice) {
-      const [row] = await db.insert(schema.stripeInvoice)
-        .values(data)
-        .onConflictDoUpdate({
-          set: { ...data, updatedAt: new Date() },
-          target: schema.stripeInvoice.stripeInvoiceId,
-        })
-        .returning()
-      logger.withFields({ invoiceId: data.stripeInvoiceId, status: data.status, userId: data.userId }).log('Upserted invoice')
-      return row
-    },
-
-    async upsertSubscription(data: NewStripeSubscription) {
-      const [row] = await db.insert(schema.stripeSubscription)
-        .values(data)
-        .onConflictDoUpdate({
-          set: { ...data, updatedAt: new Date() },
-          target: schema.stripeSubscription.stripeSubscriptionId,
-        })
-        .returning()
-      logger.withFields({ status: data.status, subscriptionId: data.stripeSubscriptionId, userId: data.userId }).log('Upserted subscription')
-      return row
+      logger.withFields({ userId, cancelledSubs: cancellableSubs.length }).log('Stripe rows soft-deleted for user')
     },
   }
 }
+
+export type StripeService = ReturnType<typeof createStripeService>

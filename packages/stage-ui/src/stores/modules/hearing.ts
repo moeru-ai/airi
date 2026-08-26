@@ -30,40 +30,6 @@ import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { StreamingTranscriptionConsumers } from './streaming-transcription-consumers'
 
-export type HearingTranscriptionResult = HearingTranscriptionGenerateResult | HearingTranscriptionStreamResult
-
-export type StreamTranscription = (options: WithUnknown<StreamTranscriptionFileInputOptions | StreamTranscriptionStreamInputOptions>) => AIRIStreamTranscriptionResult
-
-export interface StreamTranscriptionFileInputOptions extends Omit<XSAIStreamTranscriptionOptions, 'file' | 'fileName'> {
-  file: Blob
-  fileName?: string
-}
-
-export interface StreamTranscriptionStreamInputOptions extends Omit<XSAIStreamTranscriptionOptions, 'file' | 'fileName'> {
-  inputAudioStream: ReadableStream<ArrayBuffer>
-}
-
-type GenerateTranscriptionResponse = Awaited<ReturnType<typeof generateTranscription>>
-
-type HearingTranscriptionGenerateResult = GenerateTranscriptionResponse & { mode: 'generate' }
-
-type HearingTranscriptionInput = File | {
-  file?: File
-  fileName?: string
-  inputAudioStream?: ReadableStream<ArrayBuffer>
-}
-
-interface HearingTranscriptionInvokeOptions {
-  providerOptions?: Record<string, unknown>
-}
-type HearingTranscriptionStreamResult = AIRIStreamTranscriptionResult & { mode: 'stream' }
-interface MediaStreamTranscriptionOptions extends StreamingTranscriptionConsumer {
-  idleTimeoutMs?: number
-  providerOptions?: Record<string, unknown>
-  sampleRate?: number
-}
-type TranscriptionAnalyticsErrorCode = 'device_unavailable' | 'input_unavailable' | 'permission_denied' | 'provider_error' | 'unknown'
-
 function errorMessage(err: unknown): string {
   const msg = errorMessageFromValue(err)
   // Browsers hide the real reason (CORS, timeout, DNS, …) behind this generic string.
@@ -92,6 +58,8 @@ function isExpectedStreamStopError(err: unknown): boolean {
     && (err.message === 'Stopped' || err.message === 'Aborted' || err.message === 'Closed' || err.message === 'Idle timeout')
 }
 
+type TranscriptionAnalyticsErrorCode = 'permission_denied' | 'device_unavailable' | 'input_unavailable' | 'provider_error' | 'unknown'
+
 /**
  * Normalizes transcription failures into bounded analytics error codes.
  */
@@ -117,31 +85,42 @@ function transcriptionAnalyticsErrorCode(err: unknown): TranscriptionAnalyticsEr
   return message ? 'provider_error' : 'unknown'
 }
 
-export const CONFIDENCE_THRESHOLD_DISABLED = -3
-
-/**
- * Builds a compact diagnostic summary for an empty transcription response.
- */
-export function describeEmptyTranscriptionResponse(response: unknown) {
-  if (!response || typeof response !== 'object')
-    return `response=${String(response)}`
-
-  const keys = Object.keys(response as Record<string, unknown>)
-  const nestedKeys = keys
-    .map((key) => {
-      const nested = objectField(response, key)
-      return nested ? `${key}.{${Object.keys(nested as Record<string, unknown>).join(',')}}` : ''
-    })
-    .filter(Boolean)
-
-  return [
-    `keys=${keys.join(',') || '(none)'}`,
-    ...(nestedKeys.length ? [`nested=${nestedKeys.join(';')}`] : []),
-  ].join(' ')
+export interface StreamTranscriptionFileInputOptions extends Omit<XSAIStreamTranscriptionOptions, 'file' | 'fileName'> {
+  file: Blob
+  fileName?: string
 }
 
+export interface StreamTranscriptionStreamInputOptions extends Omit<XSAIStreamTranscriptionOptions, 'file' | 'fileName'> {
+  inputAudioStream: ReadableStream<ArrayBuffer>
+}
+
+export type StreamTranscription = (options: WithUnknown<StreamTranscriptionFileInputOptions | StreamTranscriptionStreamInputOptions>) => AIRIStreamTranscriptionResult
+
+type GenerateTranscriptionResponse = Awaited<ReturnType<typeof generateTranscription>>
+type HearingTranscriptionGenerateResult = GenerateTranscriptionResponse & { mode: 'generate' }
+type HearingTranscriptionStreamResult = AIRIStreamTranscriptionResult & { mode: 'stream' }
+export type HearingTranscriptionResult = HearingTranscriptionGenerateResult | HearingTranscriptionStreamResult
+
+type HearingTranscriptionInput = File | {
+  file?: File
+  fileName?: string
+  inputAudioStream?: ReadableStream<ArrayBuffer>
+}
+
+interface HearingTranscriptionInvokeOptions {
+  providerOptions?: Record<string, unknown>
+}
+
+interface MediaStreamTranscriptionOptions extends StreamingTranscriptionConsumer {
+  sampleRate?: number
+  providerOptions?: Record<string, unknown>
+  idleTimeoutMs?: number
+}
+
+export const CONFIDENCE_THRESHOLD_DISABLED = -3
+
 export function filterTranscriptionByConfidence(
-  segments: Array<{ avg_logprob?: number, text?: string }>,
+  segments: Array<{ text?: string, avg_logprob?: number }>,
   threshold: number,
 ): string {
   if (!segments.some(s => s?.avg_logprob != null && s?.text != null)) {
@@ -149,6 +128,31 @@ export function filterTranscriptionByConfidence(
   }
 
   return segments.filter(s => (s?.avg_logprob ?? -Infinity) >= threshold).map(s => s?.text ?? '').join('').trim()
+}
+
+/**
+ * Reads a string field from an unknown response object.
+ */
+function stringField(value: unknown, key: string, options: { trim?: boolean } = {}) {
+  if (!value || typeof value !== 'object')
+    return ''
+
+  const field = (value as Record<string, unknown>)[key]
+  if (typeof field !== 'string')
+    return ''
+
+  return options.trim === false ? field : field.trim()
+}
+
+/**
+ * Reads a nested object field from an unknown response object.
+ */
+function objectField(value: unknown, key: string) {
+  if (!value || typeof value !== 'object')
+    return undefined
+
+  const field = (value as Record<string, unknown>)[key]
+  return field && typeof field === 'object' ? field : undefined
 }
 
 /**
@@ -187,6 +191,27 @@ export function normalizeGeneratedTranscriptionText(response: unknown) {
 }
 
 /**
+ * Builds a compact diagnostic summary for an empty transcription response.
+ */
+export function describeEmptyTranscriptionResponse(response: unknown) {
+  if (!response || typeof response !== 'object')
+    return `response=${String(response)}`
+
+  const keys = Object.keys(response as Record<string, unknown>)
+  const nestedKeys = keys
+    .map((key) => {
+      const nested = objectField(response, key)
+      return nested ? `${key}.{${Object.keys(nested as Record<string, unknown>).join(',')}}` : ''
+    })
+    .filter(Boolean)
+
+  return [
+    `keys=${keys.join(',') || '(none)'}`,
+    ...(nestedKeys.length ? [`nested=${nestedKeys.join(';')}`] : []),
+  ].join(' ')
+}
+
+/**
  * Resolves the upload filename for transcription requests.
  *
  * Use when:
@@ -210,36 +235,35 @@ export function resolveTranscriptionFileName(file: File, explicitFileName?: stri
   return 'recording.wav'
 }
 
-/**
- * Reads a nested object field from an unknown response object.
- */
-function objectField(value: unknown, key: string) {
-  if (!value || typeof value !== 'object')
-    return undefined
-
-  const field = (value as Record<string, unknown>)[key]
-  return field && typeof field === 'object' ? field : undefined
-}
-
-/**
- * Reads a string field from an unknown response object.
- */
-function stringField(value: unknown, key: string, options: { trim?: boolean } = {}) {
-  if (!value || typeof value !== 'object')
-    return ''
-
-  const field = (value as Record<string, unknown>)[key]
-  if (typeof field !== 'string')
-    return ''
-
-  return options.trim === false ? field : field.trim()
-}
-
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   'aliyun-nls-transcription': streamTranscription,
   [APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID]: executeAppleSpeechStream,
   [OFFICIAL_TRANSCRIPTION_PROVIDER_ID]: streamTranscription,
   // Web Speech API is handled specially in transcribeForMediaStream since it works directly with MediaStream
+}
+
+export function resolveStreamTranscriptionExecutor(providerId: string): StreamTranscription | undefined {
+  return STREAM_TRANSCRIPTION_EXECUTORS[providerId]
+}
+
+/**
+ * Resolves the setup error for the selected transcription provider.
+ *
+ * Use when:
+ * - A speech pipeline entry point needs to fail before provider instantiation.
+ * - User-facing diagnostics should explain the missing Hearing selection.
+ *
+ * Expects:
+ * - `providerId` is the current `settings/hearing/active-provider` value.
+ *
+ * Returns:
+ * - A setup error when no provider is selected, otherwise `undefined`.
+ */
+export function resolveActiveTranscriptionProviderError(providerId: string): string | undefined {
+  if (providerId)
+    return undefined
+
+  return 'No active transcription provider selected. Select a provider in Settings > Hearing.'
 }
 
 /**
@@ -263,30 +287,6 @@ export function resolveActiveTranscriptionModel(activeModel: string, providerCon
 
   const modelFromProviderConfig = typeof providerConfig?.model === 'string' ? providerConfig.model.trim() : ''
   return modelFromProviderConfig
-}
-
-/**
- * Resolves the setup error for the selected transcription provider.
- *
- * Use when:
- * - A speech pipeline entry point needs to fail before provider instantiation.
- * - User-facing diagnostics should explain the missing Hearing selection.
- *
- * Expects:
- * - `providerId` is the current `settings/hearing/active-provider` value.
- *
- * Returns:
- * - A setup error when no provider is selected, otherwise `undefined`.
- */
-export function resolveActiveTranscriptionProviderError(providerId: string): string | undefined {
-  if (providerId)
-    return undefined
-
-  return 'No active transcription provider selected. Select a provider in Settings > Hearing.'
-}
-
-export function resolveStreamTranscriptionExecutor(providerId: string): StreamTranscription | undefined {
-  return STREAM_TRANSCRIPTION_EXECUTORS[providerId]
 }
 
 /**
@@ -428,19 +428,19 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
     function emitSucceeded(charCount: number, stream: boolean) {
       trackSttSucceeded({
-        char_count: charCount,
-        latency_ms: Math.round(performance.now() - sttStartedAt),
         provider: providerId,
+        latency_ms: Math.round(performance.now() - sttStartedAt),
+        char_count: charCount,
         stream,
       })
     }
     function emitFailed(err: unknown) {
       const errorCode = transcriptionAnalyticsErrorCode(err)
-      trackSttFailed({ error_code: errorCode, provider: providerId })
+      trackSttFailed({ provider: providerId, error_code: errorCode })
       if (errorCode === 'permission_denied') {
         trackMicrophonePermissionDenied({
-          error_code: errorCode,
           stt_provider_id: providerId,
+          error_code: errorCode,
         })
       }
     }
@@ -539,26 +539,26 @@ export const useHearingStore = defineStore('hearing-store', () => {
   }
 
   return {
-    activeCustomModelName,
-    activeProviderModelError,
-    activeTranscriptionModel,
     activeTranscriptionProvider,
-    autoSendDelay,
-    autoSendEnabled,
+    activeTranscriptionModel,
     availableProvidersMetadata,
+    activeCustomModelName,
+    transcriptionModelSearchQuery,
+    autoSendEnabled,
+    autoSendDelay,
     confidenceThreshold,
-    configured,
-
-    getModelsForProvider,
-    isLoadingActiveProviderModels,
-    loadModelsForProvider,
-    providerModels,
-    resetState,
+    verboseJsonNotSupported,
 
     supportsModelListing,
+    providerModels,
+    isLoadingActiveProviderModels,
+    activeProviderModelError,
+    configured,
+
     transcription,
-    transcriptionModelSearchQuery,
-    verboseJsonNotSupported,
+    loadModelsForProvider,
+    getModelsForProvider,
+    resetState,
   }
 }, {
   synced: {
@@ -570,7 +570,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
   const error = ref<string>()
 
   const hearingStore = useHearingStore()
-  const { activeTranscriptionModel, activeTranscriptionProvider } = storeToRefs(hearingStore)
+  const { activeTranscriptionProvider, activeTranscriptionModel } = storeToRefs(hearingStore)
   const providersStore = useProviderStore()
   const providerStore = useProviderConfigStore()
   const streamingConsumers = new StreamingTranscriptionConsumers()
@@ -584,25 +584,25 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     trackVoiceInputStarted,
   } = useAnalytics()
   const streamingSession = shallowRef<{
-    abortController: AbortController
     audioContext?: AudioContext
-    audioStreamController?: ReadableStreamDefaultController<ArrayBuffer>
-    callbacks?: StreamingTranscriptionCallbacks
-    idleTimer?: ReturnType<typeof setTimeout>
-    mediaStreamSource?: MediaStreamAudioSourceNode
-    providerId?: string
-    result?: HearingTranscriptionResult & { recognition?: any }
     workletNode?: AudioWorkletNode
+    mediaStreamSource?: MediaStreamAudioSourceNode
+    audioStreamController?: ReadableStreamDefaultController<ArrayBuffer>
+    abortController: AbortController
+    result?: HearingTranscriptionResult & { recognition?: any }
+    idleTimer?: ReturnType<typeof setTimeout>
+    providerId?: string
+    callbacks?: StreamingTranscriptionCallbacks
   }>()
   const streamingVadSession = shallowRef<{
+    vad: Pick<ReturnType<typeof useVAD>, 'dispose'>
+    lifecycle: ReturnType<typeof createVadStreamingSession>
+    providerId: string
+    callbacks: StreamingTranscriptionCallbacks
     activeSegment?: {
       audioChunks: ArrayBuffer[]
       audioStreamController?: ReadableStreamDefaultController<ArrayBuffer>
     }
-    callbacks: StreamingTranscriptionCallbacks
-    lifecycle: ReturnType<typeof createVadStreamingSession>
-    providerId: string
-    vad: Pick<ReturnType<typeof useVAD>, 'dispose'>
   }>()
 
   let asrSpan: Span | undefined
@@ -617,8 +617,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     const turnSpan = startSpan(IOSpanNames.InteractionTurn)
     activeTurnSpan.value = turnSpan
     asrSpan = startSpan(IOSpanNames.SpeechRecognition, turnSpan, {
-      [IOAttributes.GenAIRequestModel]: providerId,
       [IOAttributes.Subsystem]: IOSubsystems.ASR,
+      [IOAttributes.GenAIRequestModel]: providerId,
     })
   }
 
@@ -818,14 +818,14 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       throw new Error('VAD did not create an active speech segment.')
 
     return new ReadableStream<ArrayBuffer>({
-      cancel() {
-        segment.audioStreamController = undefined
-        segment.audioChunks.length = 0
-      },
       start(controller) {
         segment.audioStreamController = controller
         for (const chunk of segment.audioChunks)
           controller.enqueue(chunk)
+        segment.audioChunks.length = 0
+      },
+      cancel() {
+        segment.audioStreamController = undefined
         segment.audioChunks.length = 0
       },
     })
@@ -898,10 +898,10 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
     const abortController = new AbortController()
     const session: NonNullable<typeof streamingSession.value> = {
-      abortController,
       audioStreamController: undefined as ReadableStreamDefaultController<ArrayBuffer> | undefined,
-      callbacks: vadSession.callbacks,
+      abortController,
       providerId,
+      callbacks: vadSession.callbacks,
     }
     const audioStream = createVadAudioStream(segment)
     session.audioStreamController = segment.audioStreamController
@@ -936,35 +936,35 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
   ) {
     let vadSession!: NonNullable<typeof streamingVadSession.value>
     const vad = useVAD(vadWorkletUrl, {
-      onSpeechAudio: ({ buffer }) => {
-        enqueueVadAudio(vadSession.activeSegment, buffer)
-      },
-      onSpeechCancel: () => {
-        vadSession.lifecycle.onSpeechEnd()
-      },
-      onSpeechEnd: () => {
-        vadSession.lifecycle.onSpeechEnd()
-      },
       onSpeechStart: () => {
         vadSession.activeSegment = { audioChunks: [] }
         vadSession.lifecycle.onSpeechStart()
       },
+      onSpeechAudio: ({ buffer }) => {
+        enqueueVadAudio(vadSession.activeSegment, buffer)
+      },
+      onSpeechEnd: () => {
+        vadSession.lifecycle.onSpeechEnd()
+      },
+      onSpeechCancel: () => {
+        vadSession.lifecycle.onSpeechEnd()
+      },
     })
     const lifecycle = createVadStreamingSession({
-      onError: (err) => {
-        error.value = errorMessage(err)
-        console.error('Error managing VAD streaming transcription:', error.value)
-      },
       start: async () => await startVadRealtimeTranscription(providerId, options, vadSession),
       stop: async () => {
         await finishRealtimeTranscription()
       },
+      onError: (err) => {
+        error.value = errorMessage(err)
+        console.error('Error managing VAD streaming transcription:', error.value)
+      },
     })
     vadSession = {
-      callbacks: streamingCallbacks,
+      vad,
       lifecycle,
       providerId,
-      vad,
+      callbacks: streamingCallbacks,
     }
     streamingVadSession.value = vadSession
 
@@ -978,10 +978,10 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
   async function transcribeForMediaStream(stream: MediaStream, options: MediaStreamTranscriptionOptions) {
     console.info('[Hearing Pipeline] transcribeForMediaStream called', {
-      hasCallbacks: !!(options.onSentenceEnd || options.onSpeechEnd || options.onTranscriptionUpdate),
+      supportsStreamInput: supportsStreamInput.value,
       hasStream: !!stream,
       providerId: activeTranscriptionProvider.value,
-      supportsStreamInput: supportsStreamInput.value,
+      hasCallbacks: !!(options.onSentenceEnd || options.onSpeechEnd || options.onTranscriptionUpdate),
     })
 
     if (!supportsStreamInput.value) {
@@ -1075,11 +1075,11 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         }
 
         const result = streamWebSpeechAPITranscription(stream, {
-          abortSignal: abortController.signal,
+          language,
           continuous: (options?.providerOptions?.continuous as boolean) ?? (providerConfig.continuous as boolean) ?? true,
           interimResults: (options?.providerOptions?.interimResults as boolean) ?? (providerConfig.interimResults as boolean) ?? true,
-          language,
           maxAlternatives: (options?.providerOptions?.maxAlternatives as number) ?? (providerConfig.maxAlternatives as number) ?? 1,
+          abortSignal: abortController.signal,
           onSentenceEnd: (delta) => {
             bumpIdle() // Bump idle timer on activity (only if enabled)
             if (asrSpan)
@@ -1101,15 +1101,15 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         // Store session info for cleanup
         const recognitionInstance = (result as any).recognition
         streamingSession.value = {
-          abortController,
           audioContext: {} as AudioContext, // Not used for Web Speech API
-          audioStreamController: undefined,
-          callbacks: streamingCallbacks,
-          idleTimer,
-          mediaStreamSource: {} as MediaStreamAudioSourceNode, // Not used for Web Speech API
-          providerId,
-          result: { ...result, mode: 'stream' as const, recognition: recognitionInstance },
           workletNode: {} as AudioWorkletNode, // Not used for Web Speech API
+          mediaStreamSource: {} as MediaStreamAudioSourceNode, // Not used for Web Speech API
+          audioStreamController: undefined,
+          abortController,
+          result: { ...result, mode: 'stream' as const, recognition: recognitionInstance },
+          idleTimer,
+          providerId,
+          callbacks: streamingCallbacks,
         } as any // Type assertion needed because recognition is extra
 
         // Initial idle timer (only if enabled)
@@ -1204,9 +1204,9 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       const model = resolveActiveTranscriptionModel(activeTranscriptionModel.value, providerConfig)
       const providerOptions = resolveTranscriptionProviderOptions(providerConfig)
       console.info('[Hearing Pipeline] Transcribing recording', {
+        providerId,
         language: providerOptions.language,
         model,
-        providerId,
         recordingSize: recording.size,
         recordingType: recording.type,
       })
@@ -1238,10 +1238,10 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
   return {
     error,
 
+    transcribeForRecording,
+    transcribeForMediaStream,
     removeStreamingTranscriptionConsumer,
     stopStreamingTranscription,
     supportsStreamInput,
-    transcribeForMediaStream,
-    transcribeForRecording,
   }
 })

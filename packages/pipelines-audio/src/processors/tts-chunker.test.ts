@@ -53,7 +53,7 @@ describe('tTS Chunker Logic Cleanup', () => {
     })
 
     it('should preserve code literals in keepNarrativeText mode', () => {
-      const keepOptions = { keepNarrativeText: true, stripNarrative: true }
+      const keepOptions = { stripNarrative: true, keepNarrativeText: true }
       expect(processNarrative('Value is List<String> [action]', keepOptions)).toContain('List<String>')
       expect(processNarrative('x < y (sigh)', keepOptions)).toContain('x < y')
       expect(processNarrative('price<limit', keepOptions)).toContain('price<limit')

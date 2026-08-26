@@ -6,22 +6,22 @@ import { createPatternRuntime } from './runtime'
 
 const catalog: PatternCard[] = [
   {
-    code: 'await mineBlockAt({ x: 1, y: 2, z: 3, expected_block_type: "wall_torch" })',
     id: 'collect.wall_torch',
-    intent: 'Collect torches even when wall variants are present.',
-    steps: ['inspect variants', 'mine exact target'],
-    tags: ['collect', 'torch', 'wall_torch'],
     title: 'Collect Wall Torches',
+    intent: 'Collect torches even when wall variants are present.',
     whenToUse: ['torch tasks', 'wall torches'],
+    steps: ['inspect variants', 'mine exact target'],
+    code: 'await mineBlockAt({ x: 1, y: 2, z: 3, expected_block_type: "wall_torch" })',
+    tags: ['collect', 'torch', 'wall_torch'],
   },
   {
-    code: 'const target = query.blocks().first(); target',
     id: 'read.value_first_prev_run',
-    intent: 'Read in one turn then act in the next turn.',
-    steps: ['return value', 'act from prevRun.returnRaw'],
-    tags: ['read', 'prevRun', 'value-first'],
     title: 'Value First Reads',
+    intent: 'Read in one turn then act in the next turn.',
     whenToUse: ['query-heavy tasks'],
+    steps: ['return value', 'act from prevRun.returnRaw'],
+    code: 'const target = query.blocks().first(); target',
+    tags: ['read', 'prevRun', 'value-first'],
   },
 ]
 

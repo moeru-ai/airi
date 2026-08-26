@@ -9,8 +9,8 @@ describe('auth origin policy', () => {
     })
 
     expect(getAuthTrustedOrigins({
-      ADDITIONAL_TRUSTED_ORIGINS: [],
       PUBLIC_URL: 'https://api.airi.moeru.ai',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
     }, request)).toEqual([
       'https://api.airi.moeru.ai',
       'https://airi.moeru.ai',
@@ -27,8 +27,8 @@ describe('auth origin policy', () => {
 
   it('includes explicit development origins without trusting native callback schemes', () => {
     const origins = getAuthTrustedOrigins({
-      ADDITIONAL_TRUSTED_ORIGINS: ['https://10.0.0.129:5273'],
       PUBLIC_URL: 'https://api.airi.build',
+      ADDITIONAL_TRUSTED_ORIGINS: ['https://10.0.0.129:5273'],
     })
 
     expect(origins).toContain('https://10.0.0.129:5273')
@@ -39,8 +39,8 @@ describe('auth origin policy', () => {
 
   it('always trusts the first-party auth UI for email callbacks', () => {
     expect(getAuthTrustedOrigins({
-      ADDITIONAL_TRUSTED_ORIGINS: [],
       PUBLIC_URL: 'https://api.airi.build',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
     })).toContain('https://accounts.airi.build')
   })
 })

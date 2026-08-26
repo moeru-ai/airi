@@ -15,14 +15,14 @@
 // Types
 // ---------------------------------------------------------------------------
 
-export interface Point {
+export interface Rect {
   x: number
   y: number
+  width: number
+  height: number
 }
 
-export interface Rect {
-  height: number
-  width: number
+export interface Point {
   x: number
   y: number
 }
@@ -32,15 +32,26 @@ export interface Rect {
 // ---------------------------------------------------------------------------
 
 /**
- * Check whether a screen-absolute point is within the overlay bounds.
+ * Convert a screen-absolute point to overlay-local coordinates.
  */
-export function pointInOverlay(point: Point, overlayBounds: Rect): boolean {
-  return (
-    point.x >= overlayBounds.x
-    && point.x < overlayBounds.x + overlayBounds.width
-    && point.y >= overlayBounds.y
-    && point.y < overlayBounds.y + overlayBounds.height
-  )
+export function screenToLocal(point: Point, overlayOrigin: Point): Point {
+  return {
+    x: point.x - overlayOrigin.x,
+    y: point.y - overlayOrigin.y,
+  }
+}
+
+/**
+ * Convert a screen-absolute rect to overlay-local coordinates.
+ * Size is preserved; only the origin is shifted.
+ */
+export function screenRectToLocal(rect: Rect, overlayOrigin: Point): Rect {
+  return {
+    x: rect.x - overlayOrigin.x,
+    y: rect.y - overlayOrigin.y,
+    width: rect.width,
+    height: rect.height,
+  }
 }
 
 /**
@@ -57,24 +68,13 @@ export function rectIntersectsOverlay(rect: Rect, overlayBounds: Rect): boolean 
 }
 
 /**
- * Convert a screen-absolute rect to overlay-local coordinates.
- * Size is preserved; only the origin is shifted.
+ * Check whether a screen-absolute point is within the overlay bounds.
  */
-export function screenRectToLocal(rect: Rect, overlayOrigin: Point): Rect {
-  return {
-    height: rect.height,
-    width: rect.width,
-    x: rect.x - overlayOrigin.x,
-    y: rect.y - overlayOrigin.y,
-  }
-}
-
-/**
- * Convert a screen-absolute point to overlay-local coordinates.
- */
-export function screenToLocal(point: Point, overlayOrigin: Point): Point {
-  return {
-    x: point.x - overlayOrigin.x,
-    y: point.y - overlayOrigin.y,
-  }
+export function pointInOverlay(point: Point, overlayBounds: Rect): boolean {
+  return (
+    point.x >= overlayBounds.x
+    && point.x < overlayBounds.x + overlayBounds.width
+    && point.y >= overlayBounds.y
+    && point.y < overlayBounds.y + overlayBounds.height
+  )
 }

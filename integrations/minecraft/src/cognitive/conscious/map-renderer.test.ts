@@ -5,18 +5,10 @@ import { renderMap } from './map-renderer'
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
-function buildBlockMap(entries: Array<[number, number, number, string]>): Map<string, { name: string }> {
-  const map = new Map<string, { name: string }>()
-  for (const [x, y, z, name] of entries) {
-    map.set(`${x},${y},${z}`, { name })
-  }
-  return map
-}
-
 function createBotStub(options: {
+  position?: Vec3
   blocks?: Map<string, { name: string }>
   entities?: Record<number, any>
-  position?: Vec3
 } = {}) {
   const pos = options.position ?? new Vec3(0, 64, 0)
   const blocks = options.blocks ?? new Map()
@@ -25,24 +17,32 @@ function createBotStub(options: {
   // Add bot entity to entities
   const botEntity = {
     id: 99,
-    name: 'player',
     position: pos,
     type: 'player',
     username: 'Bot',
+    name: 'player',
   }
   entities[99] = botEntity
 
   return {
+    entity: botEntity,
+    entities,
     blockAt: (queryPos: Vec3) => {
       const key = `${Math.floor(queryPos.x)},${Math.floor(queryPos.y)},${Math.floor(queryPos.z)}`
       const found = blocks.get(key)
       if (found)
-        return { boundingBox: 'block', diggable: true, name: found.name, position: new Vec3(Math.floor(queryPos.x), Math.floor(queryPos.y), Math.floor(queryPos.z)) }
-      return { boundingBox: 'empty', diggable: false, name: 'air', position: new Vec3(Math.floor(queryPos.x), Math.floor(queryPos.y), Math.floor(queryPos.z)) }
+        return { name: found.name, position: new Vec3(Math.floor(queryPos.x), Math.floor(queryPos.y), Math.floor(queryPos.z)), diggable: true, boundingBox: 'block' }
+      return { name: 'air', position: new Vec3(Math.floor(queryPos.x), Math.floor(queryPos.y), Math.floor(queryPos.z)), diggable: false, boundingBox: 'empty' }
     },
-    entities,
-    entity: botEntity,
   } as any
+}
+
+function buildBlockMap(entries: Array<[number, number, number, string]>): Map<string, { name: string }> {
+  const map = new Map<string, { name: string }>()
+  for (const [x, y, z, name] of entries) {
+    map.set(`${x},${y},${z}`, { name })
+  }
+  return map
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────
@@ -52,21 +52,21 @@ describe('map-renderer', () => {
     it('calls blockAt with Vec3-compatible positions', () => {
       const pos = new Vec3(0, 64, 0)
       const bot = {
-        blockAt: (queryPos: Vec3) => {
-          queryPos.floored()
-          return { boundingBox: 'empty', diggable: false, name: 'air', position: pos }
-        },
-        entities: {},
         entity: {
           id: 99,
-          name: 'player',
           position: pos,
           type: 'player',
           username: 'Bot',
+          name: 'player',
+        },
+        entities: {},
+        blockAt: (queryPos: Vec3) => {
+          queryPos.floored()
+          return { name: 'air', position: pos, diggable: false, boundingBox: 'empty' }
         },
       } as any
 
-      expect(() => renderMap(bot, { radius: 1, showElevation: false, showEntities: false })).not.toThrow()
+      expect(() => renderMap(bot, { radius: 1, showEntities: false, showElevation: false })).not.toThrow()
     })
 
     it('renders a basic map with the bot at center', () => {
@@ -86,7 +86,7 @@ describe('map-renderer', () => {
         [-1, 64, 0, 'dirt'],
       ])
       const bot = createBotStub({ blocks })
-      const result = renderMap(bot, { radius: 2, showElevation: false, showEntities: false })
+      const result = renderMap(bot, { radius: 2, showEntities: false, showElevation: false })
 
       // Ground blocks should appear as '.'
       expect(result.map).toContain('.')
@@ -99,7 +99,7 @@ describe('map-renderer', () => {
         [3, 64, 0, 'water'],
       ])
       const bot = createBotStub({ blocks })
-      const result = renderMap(bot, { radius: 4, showElevation: false, showEntities: false })
+      const result = renderMap(bot, { radius: 4, showEntities: false, showElevation: false })
 
       expect(result.map).toContain('~')
       expect(result.legend).toContain('water')
@@ -113,7 +113,7 @@ describe('map-renderer', () => {
         [3, 67, 0, 'oak_leaves'],
       ])
       const bot = createBotStub({ blocks })
-      const result = renderMap(bot, { radius: 4, showElevation: false, showEntities: false })
+      const result = renderMap(bot, { radius: 4, showEntities: false, showElevation: false })
 
       // Top-down view should show the topmost block — leaves on top of the log column
       // But the log at surface level should be visible if it's the surface block
@@ -126,7 +126,7 @@ describe('map-renderer', () => {
         [2, 64, 0, 'diamond_ore'],
       ])
       const bot = createBotStub({ blocks })
-      const result = renderMap(bot, { radius: 3, showElevation: false, showEntities: false })
+      const result = renderMap(bot, { radius: 3, showEntities: false, showElevation: false })
 
       expect(result.map).toContain('$')
       expect(result.legend).toContain('ore')
@@ -138,7 +138,7 @@ describe('map-renderer', () => {
         [-1, 64, 0, 'chest'],
       ])
       const bot = createBotStub({ blocks })
-      const result = renderMap(bot, { radius: 2, showElevation: false, showEntities: false })
+      const result = renderMap(bot, { radius: 2, showEntities: false, showElevation: false })
 
       expect(result.map).toContain('!')
       expect(result.legend).toContain('chest/furnace/table')
@@ -146,9 +146,9 @@ describe('map-renderer', () => {
 
     it('overlays entities on the map', () => {
       const entities: Record<number, any> = {
-        1: { id: 1, name: 'zombie', position: new Vec3(2, 64, 0), type: 'mob' },
-        2: { id: 2, name: 'cow', position: new Vec3(-1, 64, 1), type: 'mob' },
-        3: { id: 3, name: 'player', position: new Vec3(0, 64, -2), type: 'player', username: 'Alex' },
+        1: { id: 1, name: 'zombie', type: 'mob', position: new Vec3(2, 64, 0) },
+        2: { id: 2, name: 'cow', type: 'mob', position: new Vec3(-1, 64, 1) },
+        3: { id: 3, name: 'player', type: 'player', username: 'Alex', position: new Vec3(0, 64, -2) },
       }
       const bot = createBotStub({ entities })
       const result = renderMap(bot, { radius: 4, showElevation: false })
@@ -208,7 +208,7 @@ describe('map-renderer', () => {
         [1, 64, 0, 'water'],
       ])
       const bot = createBotStub({ blocks })
-      const result = renderMap(bot, { radius: 2, showElevation: false, showEntities: false })
+      const result = renderMap(bot, { radius: 2, showEntities: false, showElevation: false })
 
       expect(result.legend).toContain('grass/dirt')
       expect(result.legend).toContain('water')

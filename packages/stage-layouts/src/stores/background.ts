@@ -10,39 +10,39 @@ import { computed, markRaw, onScopeDispose, ref, shallowRef, watch } from 'vue'
 import { DefaultBackgroundPreview, TransparentBackgroundPreview } from '../components/Backgrounds/default'
 
 export enum BackgroundKind {
+  Wave = 'wave',
   Image = 'image',
   Transparent = 'transparent',
-  Wave = 'wave',
 }
 
 export interface BackgroundItem extends BackgroundOption {
-  importedAt?: number
   kind: BackgroundKind
+  importedAt?: number
 }
-
-type BackgroundPreferenceRecord = Record<string, Pick<BackgroundOption, 'blur' | 'id'>>
 
 type PersistedBackgroundItem = Omit<BackgroundItem, 'file'> & {
   file?: Blob
 }
+
+type BackgroundPreferenceRecord = Record<string, Pick<BackgroundOption, 'id' | 'blur'>>
 
 export const useBackgroundStore = defineStore('background', () => {
   // TODO: STORAGE_PREFIX used with multiple less maintainable `localforage` and `key.startsWith(...)` call that creates complexity.
   const STORAGE_PREFIX = 'background-'
   const presets: BackgroundItem[] = [
     {
-      component: markRaw(DefaultBackgroundPreview),
-      description: 'Animated wave on cross grid',
       id: 'colorful-wave',
-      kind: BackgroundKind.Wave,
       label: 'Colorful Wave',
+      description: 'Animated wave on cross grid',
+      kind: BackgroundKind.Wave,
+      component: markRaw(DefaultBackgroundPreview),
     },
     {
-      component: markRaw(TransparentBackgroundPreview),
-      description: 'Reveal the native background behind the WebView',
       id: 'transparent',
-      kind: BackgroundKind.Transparent,
       label: 'Transparent',
+      description: 'Reveal the native background behind the WebView',
+      kind: BackgroundKind.Transparent,
+      component: markRaw(TransparentBackgroundPreview),
     },
   ]
 
@@ -112,15 +112,15 @@ export const useBackgroundStore = defineStore('background', () => {
         const existing = storedOptions.value[existingIndex]
         storedOptions.value.splice(existingIndex, 1, {
           ...existing,
-          file: undefined,
           src: objectUrl,
+          file: undefined,
         })
       }
 
       const payload: PersistedBackgroundItem = {
         ...val,
-        file: blob,
         src: undefined,
+        file: blob,
       }
 
       await localforage.setItem<PersistedBackgroundItem>(key, payload)
@@ -131,9 +131,9 @@ export const useBackgroundStore = defineStore('background', () => {
   }
 
   function persistSelectionOptions(option: BackgroundItem) {
-    const payload: Pick<BackgroundOption, 'blur' | 'id'> = {
-      blur: option.blur ?? false,
+    const payload: Pick<BackgroundOption, 'id' | 'blur'> = {
       id: option.id,
+      blur: option.blur ?? false,
     }
 
     galleryOptions.value = {
@@ -148,7 +148,7 @@ export const useBackgroundStore = defineStore('background', () => {
       sampledColor.value = color
   }
 
-  async function applyPickerSelection(payload: { color?: string, option: BackgroundOption }) {
+  async function applyPickerSelection(payload: { option: BackgroundOption, color?: string }) {
     const kind = payload.option.kind === BackgroundKind.Wave
       ? BackgroundKind.Wave
       : payload.option.kind === BackgroundKind.Transparent
@@ -189,12 +189,12 @@ export const useBackgroundStore = defineStore('background', () => {
           const objectUrl = ensureObjectUrl(key, storedBlob)
           stored.push({
             ...val,
-            component: undefined,
-            file: undefined,
             id: key,
             kind: BackgroundKind.Image,
-            removable: true,
             src: objectUrl,
+            file: undefined,
+            component: undefined,
+            removable: true,
           })
           return
         }
@@ -202,12 +202,12 @@ export const useBackgroundStore = defineStore('background', () => {
         if (storedSrc) {
           stored.push({
             ...val,
-            component: undefined,
-            file: undefined,
             id: key,
             kind: BackgroundKind.Image,
-            removable: true,
             src: storedSrc,
+            file: undefined,
+            component: undefined,
+            removable: true,
           })
 
           if (storedSrc.startsWith('data:')) {
@@ -240,14 +240,14 @@ export const useBackgroundStore = defineStore('background', () => {
 
     const normalizedOption: BackgroundItem = {
       ...option,
-      blur: option.blur,
-      component: option.component ? markRaw(option.component) : option.component,
-      file: undefined,
       id: normalizedId,
-      importedAt: option.importedAt ?? Date.now(),
       kind: option.kind ?? BackgroundKind.Image,
-      removable: true,
+      component: option.component ? markRaw(option.component) : option.component,
       src,
+      importedAt: option.importedAt ?? Date.now(),
+      blur: option.blur,
+      file: undefined,
+      removable: true,
     }
 
     const existingIndex = storedOptions.value.findIndex(o => o.id === normalizedId)
@@ -263,11 +263,11 @@ export const useBackgroundStore = defineStore('background', () => {
     if (hasUploadedFile && storedBlob) {
       const payload: PersistedBackgroundItem = {
         ...normalizedOption,
-        file: storedBlob,
         // ensure we store under prefix for consistency
         id: normalizedId.startsWith(STORAGE_PREFIX) ? normalizedId : `${STORAGE_PREFIX}${normalizedId}`,
-        removable: true,
         src: undefined,
+        file: storedBlob,
+        removable: true,
       }
       try {
         await localforage.setItem<PersistedBackgroundItem>(payload.id, payload)
@@ -323,16 +323,16 @@ export const useBackgroundStore = defineStore('background', () => {
   }
 
   return {
-    addOption,
-    applyPickerSelection,
-    loadFromIndexedDb,
-    loading,
     options,
-    removeOption,
-    sampledColor,
     selectedId,
     selectedOption,
-    setSampledColor,
+    sampledColor,
+    loading,
+    loadFromIndexedDb,
+    addOption,
+    removeOption,
     setSelection,
+    applyPickerSelection,
+    setSampledColor,
   }
 })

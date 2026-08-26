@@ -14,96 +14,41 @@ const outboxKey = (userId: string) => `local:chat/outbox/${userId}`
  * live `sessionMetas` ref and skips the entry until the mapping lands.
  */
 export interface ChatSendOutboxEntry {
-  attempts: number
-  cloudChatId?: string
-  content: string
-  lastError?: string
   /** Stable id matching the local message; reused on every retry so the server can dedup. */
   messageId: string
-  queuedAt: number
-  role: 'assistant' | 'user'
   sessionId: string
+  cloudChatId?: string
+  role: 'user' | 'assistant'
+  content: string
+  attempts: number
+  lastError?: string
+  queuedAt: number
 }
 
 export const chatSessionsRepo = {
-  async addTombstone(userId: string, cloudChatId: string) {
-    const current = await this.getTombstones(userId)
-    if (current.includes(cloudChatId))
-      return
-    current.push(cloudChatId)
-    await storage.setItemRaw(tombstoneKey(userId), current)
-  },
-
-  async clear(userId: string) {
-    const index = await this.getIndex(userId)
-    if (index) {
-      for (const charIndex of Object.values(index.characters)) {
-        for (const sessionId of Object.keys(charIndex.sessions)) {
-          await this.deleteSession(sessionId)
-        }
-      }
-      await storage.removeItem(`local:chat/index/${userId}`)
-    }
-    await storage.removeItem(tombstoneKey(userId))
-    await storage.removeItem(outboxKey(userId))
-  },
-
-  // Cleanup
-  async deleteSession(sessionId: string) {
-    await storage.removeItem(`local:chat/sessions/${sessionId}`)
-  },
-
-  async dequeueOutbox(userId: string, messageIds: string[]) {
-    if (messageIds.length === 0)
-      return
-    const current = await this.getOutbox(userId)
-    const drop = new Set(messageIds)
-    const next = current.filter(e => !drop.has(e.messageId))
-    if (next.length === current.length)
-      return
-    await storage.setItemRaw(outboxKey(userId), next)
-  },
-
-  /** Remove every outbox entry for a session. Called when the session is deleted locally. */
-  async dropOutboxForSession(userId: string, sessionId: string) {
-    const current = await this.getOutbox(userId)
-    const next = current.filter(e => e.sessionId !== sessionId)
-    if (next.length === current.length)
-      return
-    await storage.setItemRaw(outboxKey(userId), next)
-  },
-
-  async enqueueOutbox(userId: string, entry: ChatSendOutboxEntry) {
-    const current = await this.getOutbox(userId)
-    // Idempotent on messageId — re-queue overwrites in place rather than
-    // duplicating, so a flap between online/offline doesn't multiply rows.
-    const existingIndex = current.findIndex(e => e.messageId === entry.messageId)
-    if (existingIndex >= 0)
-      current[existingIndex] = entry
-    else
-      current.push(entry)
-    await storage.setItemRaw(outboxKey(userId), current)
-  },
-
   async getIndex(userId: string) {
     const key = `local:chat/index/${userId}`
     return await storage.getItemRaw<ChatSessionsIndex>(key)
   },
 
-  /**
-   * Outbox of message sends pending cloud delivery. Drained on every
-   * reconcile + WS-open. Survives tab close / reload — the whole point
-   * of the outbox is to never lose a write that landed locally but
-   * never made it to the server.
-   */
-  async getOutbox(userId: string): Promise<ChatSendOutboxEntry[]> {
-    const stored = await storage.getItemRaw<ChatSendOutboxEntry[]>(outboxKey(userId))
-    return stored ?? []
+  async saveIndex(index: ChatSessionsIndex) {
+    const key = `local:chat/index/${index.userId}`
+    await storage.setItemRaw(key, index)
   },
 
   async getSession(sessionId: string) {
     const key = `local:chat/sessions/${sessionId}`
     return await storage.getItemRaw<ChatSessionRecord>(key)
+  },
+
+  async saveSession(sessionId: string, record: ChatSessionRecord) {
+    const key = `local:chat/sessions/${sessionId}`
+    await storage.setItemRaw(key, record)
+  },
+
+  // Cleanup
+  async deleteSession(sessionId: string) {
+    await storage.removeItem(`local:chat/sessions/${sessionId}`)
   },
 
   /**
@@ -121,6 +66,14 @@ export const chatSessionsRepo = {
     return stored ?? []
   },
 
+  async addTombstone(userId: string, cloudChatId: string) {
+    const current = await this.getTombstones(userId)
+    if (current.includes(cloudChatId))
+      return
+    current.push(cloudChatId)
+    await storage.setItemRaw(tombstoneKey(userId), current)
+  },
+
   async removeTombstones(userId: string, cloudChatIds: string[]) {
     if (cloudChatIds.length === 0)
       return
@@ -132,17 +85,41 @@ export const chatSessionsRepo = {
     await storage.setItemRaw(tombstoneKey(userId), next)
   },
 
-  async saveIndex(index: ChatSessionsIndex) {
-    const key = `local:chat/index/${index.userId}`
-    await storage.setItemRaw(key, index)
+  /**
+   * Outbox of message sends pending cloud delivery. Drained on every
+   * reconcile + WS-open. Survives tab close / reload — the whole point
+   * of the outbox is to never lose a write that landed locally but
+   * never made it to the server.
+   */
+  async getOutbox(userId: string): Promise<ChatSendOutboxEntry[]> {
+    const stored = await storage.getItemRaw<ChatSendOutboxEntry[]>(outboxKey(userId))
+    return stored ?? []
   },
 
-  async saveSession(sessionId: string, record: ChatSessionRecord) {
-    const key = `local:chat/sessions/${sessionId}`
-    await storage.setItemRaw(key, record)
+  async enqueueOutbox(userId: string, entry: ChatSendOutboxEntry) {
+    const current = await this.getOutbox(userId)
+    // Idempotent on messageId — re-queue overwrites in place rather than
+    // duplicating, so a flap between online/offline doesn't multiply rows.
+    const existingIndex = current.findIndex(e => e.messageId === entry.messageId)
+    if (existingIndex >= 0)
+      current[existingIndex] = entry
+    else
+      current.push(entry)
+    await storage.setItemRaw(outboxKey(userId), current)
   },
 
-  async updateOutboxEntries(userId: string, updates: Array<Pick<ChatSendOutboxEntry, 'attempts' | 'lastError' | 'messageId'>>) {
+  async dequeueOutbox(userId: string, messageIds: string[]) {
+    if (messageIds.length === 0)
+      return
+    const current = await this.getOutbox(userId)
+    const drop = new Set(messageIds)
+    const next = current.filter(e => !drop.has(e.messageId))
+    if (next.length === current.length)
+      return
+    await storage.setItemRaw(outboxKey(userId), next)
+  },
+
+  async updateOutboxEntries(userId: string, updates: Array<Pick<ChatSendOutboxEntry, 'messageId' | 'attempts' | 'lastError'>>) {
     if (updates.length === 0)
       return
     const current = await this.getOutbox(userId)
@@ -157,5 +134,28 @@ export const chatSessionsRepo = {
     })
     if (changed)
       await storage.setItemRaw(outboxKey(userId), next)
+  },
+
+  /** Remove every outbox entry for a session. Called when the session is deleted locally. */
+  async dropOutboxForSession(userId: string, sessionId: string) {
+    const current = await this.getOutbox(userId)
+    const next = current.filter(e => e.sessionId !== sessionId)
+    if (next.length === current.length)
+      return
+    await storage.setItemRaw(outboxKey(userId), next)
+  },
+
+  async clear(userId: string) {
+    const index = await this.getIndex(userId)
+    if (index) {
+      for (const charIndex of Object.values(index.characters)) {
+        for (const sessionId of Object.keys(charIndex.sessions)) {
+          await this.deleteSession(sessionId)
+        }
+      }
+      await storage.removeItem(`local:chat/index/${userId}`)
+    }
+    await storage.removeItem(tombstoneKey(userId))
+    await storage.removeItem(outboxKey(userId))
   },
 }

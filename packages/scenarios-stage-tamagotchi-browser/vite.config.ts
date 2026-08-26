@@ -9,13 +9,13 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [
     VueRouter({
-      dts: resolve(import.meta.dirname, 'src/typed-router.d.ts'),
-      exclude: ['**/components/**'],
       extensions: ['.vue'],
+      dts: resolve(import.meta.dirname, 'src/typed-router.d.ts'),
       importMode: 'async',
       routesFolder: [
         resolve(import.meta.dirname, 'src', 'scenes'),
       ],
+      exclude: ['**/components/**'],
     }),
 
     Vue(),

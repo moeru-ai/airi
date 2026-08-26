@@ -46,14 +46,14 @@ export function createUserDeletionService(): UserDeletionService {
       handlers.sort((a, b) => a.priority - b.priority)
     },
 
-    async softDeleteAll({ reason, userId }) {
+    async softDeleteAll({ userId, reason }) {
       const ctx = {
-        logger,
-        reason: reason as UserDeletionReason,
         userId,
+        reason: reason as UserDeletionReason,
+        logger,
       }
 
-      logger.withFields({ handlerCount: handlers.length, reason, userId }).log('starting user deletion')
+      logger.withFields({ userId, reason, handlerCount: handlers.length }).log('starting user deletion')
 
       for (const handler of handlers) {
         const startedAt = Date.now()
@@ -61,19 +61,19 @@ export function createUserDeletionService(): UserDeletionService {
         try {
           await handler.softDelete(ctx)
           logger
-            .withFields({ durationMs: Date.now() - startedAt, handler: handler.name, userId })
+            .withFields({ handler: handler.name, userId, durationMs: Date.now() - startedAt })
             .log('handler completed')
         }
         catch (err) {
           logger
             .withError(err)
-            .withFields({ durationMs: Date.now() - startedAt, handler: handler.name, userId })
+            .withFields({ handler: handler.name, userId, durationMs: Date.now() - startedAt })
             .error('handler failed; aborting deletion pipeline')
           throw err
         }
       }
 
-      logger.withFields({ reason, userId }).log('user deletion handlers completed')
+      logger.withFields({ userId, reason }).log('user deletion handlers completed')
     },
   }
 }

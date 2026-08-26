@@ -43,26 +43,6 @@ const DEFAULT_VOLCENGINE_CLUSTER = 'volcano_tts'
  *   decoded from the upstream JSON `data` base64 field.
  */
 export const volcengineAdapter: TtsAdapter = {
-  async getVoiceCatalog(ctx: TtsVoiceCatalogContext): Promise<Voice[]> {
-    // unspeech embeds the Volcengine catalog at build time
-    // (unspeech/pkg/backend/volcengine/voices.go), filtered server-side to
-    // streaming-compatible voices. Passing `model=<api_resource_id>` narrows
-    // further by `compatible_models` — adapterParams.model is the operator-
-    // configured resource id (e.g. `seed-tts-2.0`).
-    const params = new URLSearchParams({ provider: 'volcengine' })
-    const apiResourceId = typeof ctx.adapterParams?.model === 'string'
-      ? ctx.adapterParams.model
-      : undefined
-    if (apiResourceId)
-      params.set('model', apiResourceId)
-
-    return listVoicesViaUnSpeech({
-      ctx,
-      providerLabel: 'volcengine',
-      query: params.toString(),
-    })
-  },
-
   id: 'volcengine',
 
   async send(input: TtsInput, ctx: TtsAdapterContext): Promise<TtsResult> {
@@ -97,18 +77,38 @@ export const volcengineAdapter: TtsAdapter = {
     // - decodes the upstream base64 audio frame itself and returns binary.
     return sendSpeechViaUnSpeech({
       ctx,
+      model: apiResourceId ? `volcengine/${apiResourceId}` : 'volcengine',
+      input: input.text,
+      voice,
+      responseFormat: encoding,
       extraBody: {
         app: { appid, cluster },
-        audio: { speed_ratio: speed },
-        request: { operation: 'query', reqid: nanoid() },
         user: { uid: 'airi-server' },
+        audio: { speed_ratio: speed },
+        request: { reqid: nanoid(), operation: 'query' },
       },
       fallbackContentType: audioMimeFromFormat(encoding),
-      input: input.text,
-      model: apiResourceId ? `volcengine/${apiResourceId}` : 'volcengine',
       providerLabel: 'volcengine',
-      responseFormat: encoding,
-      voice,
+    })
+  },
+
+  async getVoiceCatalog(ctx: TtsVoiceCatalogContext): Promise<Voice[]> {
+    // unspeech embeds the Volcengine catalog at build time
+    // (unspeech/pkg/backend/volcengine/voices.go), filtered server-side to
+    // streaming-compatible voices. Passing `model=<api_resource_id>` narrows
+    // further by `compatible_models` — adapterParams.model is the operator-
+    // configured resource id (e.g. `seed-tts-2.0`).
+    const params = new URLSearchParams({ provider: 'volcengine' })
+    const apiResourceId = typeof ctx.adapterParams?.model === 'string'
+      ? ctx.adapterParams.model
+      : undefined
+    if (apiResourceId)
+      params.set('model', apiResourceId)
+
+    return listVoicesViaUnSpeech({
+      ctx,
+      query: params.toString(),
+      providerLabel: 'volcengine',
     })
   },
 }

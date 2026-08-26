@@ -26,13 +26,13 @@ vi.mock('@xsai/model', () => ({
 
 const mockT = vi.fn((key: string) => key) as unknown as ComposerTranslation
 
-interface TestConfig { apiKey?: string, baseUrl?: string }
-
 async function getProviderValidators(options?: Parameters<typeof createOpenAICompatibleValidators>[0]) {
   const validators = createOpenAICompatibleValidators(options)
 
   return await Promise.all((validators?.validateProvider || []).map(create => create({ t: mockT })))
 }
+
+interface TestConfig { apiKey?: string, baseUrl?: string }
 
 describe('createOpenAICompatibleValidators', () => {
   const config = {
@@ -108,8 +108,8 @@ describe('createOpenAICompatibleValidators', () => {
     listModelsMock.mockResolvedValue([])
 
     const [connectivityValidator, chatValidator] = await getProviderValidators({
-      allowValidationWithoutModel: true,
       checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
+      allowValidationWithoutModel: true,
     })
 
     const connectivityResult = await connectivityValidator.validator(config, provider, providerExtra, { t: mockT })
@@ -143,8 +143,8 @@ describe('createOpenAICompatibleValidators', () => {
 
     expect(result.valid).toBe(true)
     expect(generateTextMock).toHaveBeenCalledWith(expect.objectContaining({
-      max_tokens: 16,
       model: 'seed-2-0-pro-260328',
+      max_tokens: 16,
     }))
   })
 
@@ -180,16 +180,16 @@ describe('createOpenAICompatibleValidators', () => {
     ])
 
     const [, chatValidator] = await getProviderValidators({
-      chatCompletionTokenParameter: 'max_completion_tokens',
       checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
+      chatCompletionTokenParameter: 'max_completion_tokens',
     })
 
     const result = await chatValidator.validator(config, provider, providerExtra, { t: mockT })
 
     expect(result.valid).toBe(true)
     expect(generateTextMock).toHaveBeenCalledWith(expect.objectContaining({
-      max_completion_tokens: 16,
       model: 'gpt-5',
+      max_completion_tokens: 16,
     }))
     expect(generateTextMock.mock.calls[0][0]).not.toHaveProperty('max_tokens')
   })

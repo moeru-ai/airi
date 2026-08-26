@@ -25,7 +25,7 @@ import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { defineConfig } from 'vite'
 
 // import { isEnvTruthy } from '@proj-airi/stage-shared'
-function isEnvTruthy(value: null | string | undefined): boolean {
+function isEnvTruthy(value: string | undefined | null): boolean {
   if (value == null)
     return false
 
@@ -36,9 +36,6 @@ const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'package
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 
 export default defineConfig({
-  build: {
-    sourcemap: true,
-  },
   optimizeDeps: {
     exclude: [
       // Internal Packages
@@ -66,6 +63,46 @@ export default defineConfig({
       '@framework/model/cubismmoc',
     ],
   },
+  resolve: {
+    alias: {
+      '@proj-airi/server-sdk': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-sdk', 'src')),
+      '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
+      '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
+      '@proj-airi/stage-layouts': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-layouts', 'src')),
+      '@proj-airi/stage-pages': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src')),
+      '@proj-airi/stage-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-shared', 'src')),
+    },
+  },
+  server: {
+    host: '0.0.0.0',
+    port: 5273,
+    fs: {
+      // To mute errors like:
+      //   The request id ".../node_modules/@fontsource/sniglet/files/sniglet-latin-400-normal.woff" is outside of Vite serving allow list.
+      //
+      // See: https://vite.dev/config/server-options#server-fs-strict
+      strict: false,
+    },
+    warmup: {
+      clientFiles: [
+        `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src'))}/*.vue`,
+        `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src'))}/*.vue`,
+        `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-layouts', 'src'))}/*.vue`,
+      ],
+    },
+  },
+  build: {
+    sourcemap: true,
+  },
+  worker: {
+    format: 'es',
+    rollupOptions: {
+      output: {
+        inlineDynamicImports: false,
+      },
+    },
+  },
+
   plugins: [
     ...isEnvTruthy(process.env.VITE_SKIP_MKCERT ?? '')
       ? []
@@ -82,7 +119,6 @@ export default defineConfig({
     Yaml(),
 
     VueMacros({
-      betterDefine: false,
       plugins: {
         vue: Vue({
           include: [/\.vue$/, /\.md$/],
@@ -90,24 +126,25 @@ export default defineConfig({
         }),
         vueJsx: false,
       },
+      betterDefine: false,
     }),
 
     VueRouter({
-      dts: resolve(import.meta.dirname, 'src/typed-router.d.ts'),
-      exclude: ['**/components/**'],
       extensions: ['.vue', '.md'],
+      dts: resolve(import.meta.dirname, 'src/typed-router.d.ts'),
       importMode: 'async',
       routesFolder: [
         resolve(import.meta.dirname, 'src', 'pages'),
         {
+          src: resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
           exclude: base => [
             ...base,
             '**/settings/connection/index.vue',
             '**/settings/modules/beat-sync.vue',
           ],
-          src: resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
         },
       ],
+      exclude: ['**/components/**'],
     }),
 
     // https://github.com/JohnCampionJr/vite-plugin-vue-layouts
@@ -124,35 +161,36 @@ export default defineConfig({
 
     // https://github.com/intlify/bundle-tools/tree/main/packages/unplugin-vue-i18n
     VueI18n({
+      runtimeOnly: true,
       compositionOnly: true,
       fullInstall: true,
-      runtimeOnly: true,
     }),
 
     // https://github.com/webfansplz/vite-plugin-vue-devtools
     VueDevTools(),
 
     DownloadLive2DSDK(),
-    Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { cacheDir: sharedCacheDir, parentDir: stageUIAssetsRoot }),
-    Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { cacheDir: sharedCacheDir, parentDir: stageUIAssetsRoot }),
-    Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'vrm/models/AvatarSample-A', { cacheDir: sharedCacheDir, parentDir: stageUIAssetsRoot }),
-    Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'vrm/models/AvatarSample-B', { cacheDir: sharedCacheDir, parentDir: stageUIAssetsRoot }),
+    Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
+    Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
+    Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'vrm/models/AvatarSample-A', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
+    Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'vrm/models/AvatarSample-B', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
 
     ...isEnvTruthy(process.env.VITE_CAP_SYNC_IOS_AFTER_BUILD ?? '')
       ? [{
+          name: 'proj-airi:capacitor-sync',
           closeBundle: {
+            sequential: true,
             handler() {
               if (this.meta.watchMode) {
                 execSync('cap sync ios', { stdio: 'inherit' })
               }
             },
-            sequential: true,
           },
-          name: 'proj-airi:capacitor-sync',
         } as PluginOption]
       : [],
 
     {
+      name: 'proj-airi:defines',
       config(ctx) {
         const define: Record<string, any> = {
           'import.meta.env.RUNTIME_ENVIRONMENT': '\'capacitor\'',
@@ -166,44 +204,6 @@ export default defineConfig({
 
         return { define }
       },
-      name: 'proj-airi:defines',
     },
   ],
-  resolve: {
-    alias: {
-      '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
-      '@proj-airi/server-sdk': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-sdk', 'src')),
-      '@proj-airi/stage-layouts': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-layouts', 'src')),
-      '@proj-airi/stage-pages': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src')),
-      '@proj-airi/stage-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-shared', 'src')),
-      '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
-    },
-  },
-  server: {
-    fs: {
-      // To mute errors like:
-      //   The request id ".../node_modules/@fontsource/sniglet/files/sniglet-latin-400-normal.woff" is outside of Vite serving allow list.
-      //
-      // See: https://vite.dev/config/server-options#server-fs-strict
-      strict: false,
-    },
-    host: '0.0.0.0',
-    port: 5273,
-    warmup: {
-      clientFiles: [
-        `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src'))}/*.vue`,
-        `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src'))}/*.vue`,
-        `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-layouts', 'src'))}/*.vue`,
-      ],
-    },
-  },
-
-  worker: {
-    format: 'es',
-    rollupOptions: {
-      output: {
-        inlineDynamicImports: false,
-      },
-    },
-  },
 })

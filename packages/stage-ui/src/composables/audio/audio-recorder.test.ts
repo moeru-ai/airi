@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { shallowRef } from 'vue'
 
 const mediabunnyMock = vi.hoisted(() => {
-  const audioSources: Array<{ encodingConfig: { bitrate: number, codec: string }, track: MediaStreamTrack }> = []
-  const outputs: Array<{ finalized: boolean, target: { buffer?: Uint8Array } }> = []
+  const audioSources: Array<{ track: MediaStreamTrack, encodingConfig: { codec: string, bitrate: number } }> = []
+  const outputs: Array<{ target: { buffer?: Uint8Array }, finalized: boolean }> = []
   let startFailuresRemaining = 0
 
   class FakeBufferTarget {
@@ -15,14 +15,14 @@ const mediabunnyMock = vi.hoisted(() => {
   class FakeMediaStreamAudioTrackSource {
     errorPromise = new Promise<void>(() => {})
 
-    constructor(track: MediaStreamTrack, encodingConfig: { bitrate: number, codec: string }) {
-      audioSources.push({ encodingConfig, track })
+    constructor(track: MediaStreamTrack, encodingConfig: { codec: string, bitrate: number }) {
+      audioSources.push({ track, encodingConfig })
     }
   }
 
   class FakeOutput {
-    finalized = false
     target: FakeBufferTarget
+    finalized = false
 
     constructor(options: { target: FakeBufferTarget }) {
       this.target = options.target
@@ -30,10 +30,6 @@ const mediabunnyMock = vi.hoisted(() => {
     }
 
     addAudioTrack() {}
-
-    async finalize() {
-      this.finalized = true
-    }
 
     async getMimeType() {
       return 'audio/wav'
@@ -47,10 +43,15 @@ const mediabunnyMock = vi.hoisted(() => {
 
       this.target.buffer = new Uint8Array([outputs.length])
     }
+
+    async finalize() {
+      this.finalized = true
+    }
   }
 
   return {
     audioSources,
+    outputs,
     failNextStart: () => {
       startFailuresRemaining += 1
     },
@@ -58,7 +59,6 @@ const mediabunnyMock = vi.hoisted(() => {
     FakeMediaStreamAudioTrackSource,
     FakeOutput,
     FakeWavOutputFormat,
-    outputs,
   }
 })
 
@@ -86,8 +86,8 @@ describe('useAudioRecorder', () => {
     await startRecord()
 
     expect(mediabunnyMock.audioSources.at(-1)?.encodingConfig).toEqual({
-      bitrate: 1,
       codec: 'pcm-s16',
+      bitrate: 1,
     })
   })
 
@@ -95,7 +95,7 @@ describe('useAudioRecorder', () => {
     const { useAudioRecorder } = await import('./audio-recorder')
     const stream = shallowRef(createMediaStream())
 
-    const { isRecording, onStopRecord, startRecord, stopRecord } = useAudioRecorder(stream)
+    const { startRecord, stopRecord, onStopRecord, isRecording } = useAudioRecorder(stream)
 
     let resolveFirstHook!: () => void
     let shouldBlockHook = true
@@ -160,7 +160,7 @@ describe('useAudioRecorder', () => {
     const { useAudioRecorder } = await import('./audio-recorder')
     const stream = shallowRef(createMediaStream())
 
-    const { isRecording, startRecord } = useAudioRecorder(stream)
+    const { startRecord, isRecording } = useAudioRecorder(stream)
     mediabunnyMock.failNextStart()
 
     await expect(startRecord()).rejects.toThrow('start failed')

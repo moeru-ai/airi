@@ -28,31 +28,31 @@ const minimaxGlobalConfigSchema = z.object({
 type MinimaxGlobalConfig = z.input<typeof minimaxGlobalConfigSchema>
 
 export const providerMinimax = defineProvider<MinimaxCnConfig>({
-  createProvider(config) {
-    return createMinimaxCn(config.apiKey, config.baseUrl)
-  },
+  id: 'minimax',
+  name: 'MiniMax',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.minimax.title'),
+  description: 'minimaxi.com',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.minimax.description'),
+  tasks: ['chat'],
+  icon: 'i-lobe-icons:minimax',
+  iconColor: 'i-lobe-icons:minimax-color',
+
   createProviderConfig: ({ t }) => minimaxCnConfigSchema.extend({
     apiKey: minimaxCnConfigSchema.shape.apiKey.meta({
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
       type: 'password',
     }),
     baseUrl: minimaxCnConfigSchema.shape.baseUrl.meta({
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
     }),
   }),
-  description: 'minimaxi.com',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.minimax.description'),
-  icon: 'i-lobe-icons:minimax',
-  iconColor: 'i-lobe-icons:minimax-color',
-  id: 'minimax',
-  name: 'MiniMax',
-
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.minimax.title'),
-  tasks: ['chat'],
+  createProvider(config) {
+    return createMinimaxCn(config.apiKey, config.baseUrl)
+  },
 
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()
@@ -65,31 +65,31 @@ export const providerMinimax = defineProvider<MinimaxCnConfig>({
 })
 
 export const providerMinimaxGlobal = defineProvider<MinimaxGlobalConfig>({
-  createProvider(config) {
-    return createMinimax(config.apiKey, config.baseUrl)
-  },
+  id: 'minimax-global',
+  name: 'MiniMax Global',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.minimax-global.title'),
+  description: 'minimax.io',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.minimax-global.description'),
+  tasks: ['chat'],
+  icon: 'i-lobe-icons:minimax',
+  iconColor: 'i-lobe-icons:minimax-color',
+
   createProviderConfig: ({ t }) => minimaxGlobalConfigSchema.extend({
     apiKey: minimaxGlobalConfigSchema.shape.apiKey.meta({
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
       type: 'password',
     }),
     baseUrl: minimaxGlobalConfigSchema.shape.baseUrl.meta({
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
     }),
   }),
-  description: 'minimax.io',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.minimax-global.description'),
-  icon: 'i-lobe-icons:minimax',
-  iconColor: 'i-lobe-icons:minimax-color',
-  id: 'minimax-global',
-  name: 'MiniMax Global',
-
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.minimax-global.title'),
-  tasks: ['chat'],
+  createProvider(config) {
+    return createMinimax(config.apiKey, config.baseUrl)
+  },
 
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()

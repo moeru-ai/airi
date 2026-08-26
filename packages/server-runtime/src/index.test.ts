@@ -12,22 +12,22 @@ function createInputTextEvent(
   overrides: Partial<WebSocketBaseEvent<'input:text', WebSocketEvents['input:text']>> = {},
 ): WebSocketBaseEvent<'input:text', WebSocketEvents['input:text']> {
   return {
+    type: 'input:text',
     data: {
       text: 'hello',
       ...overrides.data,
     },
     metadata: overrides.metadata ?? {
+      source: {
+        kind: 'plugin',
+        plugin: { id: 'discord' },
+        id: 'discord-instance',
+      },
       event: {
         id: 'event-1',
       },
-      source: {
-        id: 'discord-instance',
-        kind: 'plugin',
-        plugin: { id: 'discord' },
-      },
     },
     route: overrides.route,
-    type: 'input:text',
   }
 }
 
@@ -36,8 +36,8 @@ describe('resolveEventDelivery', () => {
     const delivery = resolveEventDelivery(createInputTextEvent())
 
     expect(delivery).toEqual({
-      group: 'chat-ingestion',
       mode: 'consumer-group',
+      group: 'chat-ingestion',
       selection: 'first',
     })
   })
@@ -54,8 +54,8 @@ describe('resolveEventDelivery', () => {
     }))
 
     expect(delivery).toEqual({
-      group: 'chat-ingestion',
       mode: 'consumer-group',
+      group: 'chat-ingestion',
       required: true,
       selection: 'sticky',
       stickyKey: 'discord-dm-user-1',
@@ -64,22 +64,23 @@ describe('resolveEventDelivery', () => {
 
   it('returns explicit route delivery for events without protocol defaults', () => {
     const delivery = resolveEventDelivery({
+      type: 'spark:notify',
       data: {
-        destinations: ['module:character'],
-        eventId: 'spark-notify-1',
-        headline: 'hello',
         id: 'spark-1',
+        eventId: 'spark-notify-1',
         kind: 'ping',
         urgency: 'soon',
+        headline: 'hello',
+        destinations: ['module:character'],
       },
       metadata: {
-        event: {
-          id: 'event-2',
-        },
         source: {
-          id: 'stage-web-instance',
           kind: 'plugin',
           plugin: { id: 'stage-web' },
+          id: 'stage-web-instance',
+        },
+        event: {
+          id: 'event-2',
         },
       },
       route: {
@@ -88,7 +89,6 @@ describe('resolveEventDelivery', () => {
           required: true,
         },
       },
-      type: 'spark:notify',
     })
 
     expect(delivery).toEqual({
@@ -101,36 +101,36 @@ describe('resolveEventDelivery', () => {
 describe('selectConsumerPeerId', () => {
   it('selects the highest-priority healthy consumer in the delivery group', () => {
     const selectedPeerId = selectConsumerPeerId({
+      eventType: 'input:text',
+      fromPeerId: 'discord-instance',
+      delivery: {
+        mode: 'consumer-group',
+        group: 'chat-ingestion',
+        selection: 'priority',
+      },
       candidates: [
         {
-          authenticated: true,
-          healthy: true,
           peerId: 'stage-window-a',
           priority: 10,
           registeredAt: 2,
-        },
-        {
           authenticated: true,
           healthy: true,
+        },
+        {
           peerId: 'stage-window-b',
           priority: 20,
           registeredAt: 3,
+          authenticated: true,
+          healthy: true,
         },
         {
-          authenticated: true,
-          healthy: false,
           peerId: 'stage-window-c',
           priority: 30,
           registeredAt: 1,
+          authenticated: true,
+          healthy: false,
         },
       ],
-      delivery: {
-        group: 'chat-ingestion',
-        mode: 'consumer-group',
-        selection: 'priority',
-      },
-      eventType: 'input:text',
-      fromPeerId: 'discord-instance',
     })
 
     expect(selectedPeerId).toBe('stage-window-b')
@@ -140,58 +140,58 @@ describe('selectConsumerPeerId', () => {
     const stickyAssignments = new Map<string, ConsumerStickyAssignment>()
 
     const firstSelectedPeerId = selectConsumerPeerId({
-      candidates: [
-        {
-          authenticated: true,
-          healthy: true,
-          peerId: 'stage-window-a',
-          priority: 10,
-          registeredAt: 1,
-        },
-        {
-          authenticated: true,
-          healthy: true,
-          peerId: 'stage-window-b',
-          priority: 10,
-          registeredAt: 2,
-        },
-      ],
+      eventType: 'input:text',
+      fromPeerId: 'discord-instance',
       delivery: {
-        group: 'chat-ingestion',
         mode: 'consumer-group',
+        group: 'chat-ingestion',
         selection: 'sticky',
         stickyKey: 'discord-dm-user-1',
       },
-      eventType: 'input:text',
-      fromPeerId: 'discord-instance',
+      candidates: [
+        {
+          peerId: 'stage-window-a',
+          priority: 10,
+          registeredAt: 1,
+          authenticated: true,
+          healthy: true,
+        },
+        {
+          peerId: 'stage-window-b',
+          priority: 10,
+          registeredAt: 2,
+          authenticated: true,
+          healthy: true,
+        },
+      ],
       stickyAssignments,
     })
 
     const secondSelectedPeerId = selectConsumerPeerId({
-      candidates: [
-        {
-          authenticated: true,
-          healthy: true,
-          peerId: 'stage-window-a',
-          priority: 10,
-          registeredAt: 1,
-        },
-        {
-          authenticated: true,
-          healthy: true,
-          peerId: 'stage-window-b',
-          priority: 10,
-          registeredAt: 2,
-        },
-      ],
+      eventType: 'input:text',
+      fromPeerId: 'discord-instance',
       delivery: {
-        group: 'chat-ingestion',
         mode: 'consumer-group',
+        group: 'chat-ingestion',
         selection: 'sticky',
         stickyKey: 'discord-dm-user-1',
       },
-      eventType: 'input:text',
-      fromPeerId: 'discord-instance',
+      candidates: [
+        {
+          peerId: 'stage-window-a',
+          priority: 10,
+          registeredAt: 1,
+          authenticated: true,
+          healthy: true,
+        },
+        {
+          peerId: 'stage-window-b',
+          priority: 10,
+          registeredAt: 2,
+          authenticated: true,
+          healthy: true,
+        },
+      ],
       stickyAssignments,
     })
 

@@ -7,13 +7,13 @@ import { projectConversationEntries, projectProjection } from './projection'
 describe('projectProjection', () => {
   it('projects a domain event into a structured event message', () => {
     const result = projectProjection({
-      domain: 'chess',
+      type: 'domain-event',
       id: 'event-1',
+      domain: 'chess',
       name: 'move-resolved',
       payload: {
         moveSan: 'e4',
       },
-      type: 'domain-event',
     })
 
     expect(result).toHaveLength(1)
@@ -28,8 +28,8 @@ describe('projectConversationEntries', () => {
   it('keeps existing entries before projected entries', () => {
     const entries: Array<Message | RawMessage> = [
       {
-        content: 'system',
         role: 'system',
+        content: 'system',
       },
     ]
 
@@ -37,9 +37,9 @@ describe('projectConversationEntries', () => {
       entries,
       projections: [
         {
-          content: 'hello',
-          id: 'turn-1',
           type: 'session-user-turn',
+          id: 'turn-1',
+          content: 'hello',
         },
       ],
     })
@@ -54,25 +54,25 @@ describe('projectConversationEntries', () => {
       entries: [],
       projections: [
         {
-          destinations: ['character'],
-          headline: 'chess update',
+          type: 'spark-notify',
           id: 'notify-1',
+          source: 'plugin:airi-plugin-game-chess',
+          headline: 'chess update',
           note: 'Project a board update',
           payload: {
             fen: 'startpos',
           },
-          source: 'plugin:airi-plugin-game-chess',
-          type: 'spark-notify',
+          destinations: ['character'],
         },
         {
-          ack: 'play e5',
-          commandId: 'command-1',
-          destinations: ['character'],
-          id: 'command-1',
-          intent: 'action',
-          parentEventId: 'notify-1',
-          source: 'plugin:airi-plugin-game-chess',
           type: 'spark-command',
+          id: 'command-1',
+          source: 'plugin:airi-plugin-game-chess',
+          commandId: 'command-1',
+          parentEventId: 'notify-1',
+          intent: 'action',
+          ack: 'play e5',
+          destinations: ['character'],
         },
       ],
     })

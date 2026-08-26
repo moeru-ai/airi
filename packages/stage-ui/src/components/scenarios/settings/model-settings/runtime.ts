@@ -2,18 +2,33 @@ import type { StageAvatarBoundsPayload, StageViewState } from '@proj-airi/stage-
 
 import type { StageModelRenderer } from '../../../../stores/settings/stage-model'
 
-export type ModelSettingsRuntimePhase = 'binding' | 'error' | 'loading' | 'mounted' | 'no-model' | 'pending'
-export type ModelSettingsRuntimeRenderer = 'disabled' | 'godot' | 'live2d' | 'mmd' | 'spine' | 'tachie' | 'vrm'
+export type ModelSettingsRuntimeRenderer = 'disabled' | 'live2d' | 'vrm' | 'spine' | 'tachie' | 'mmd' | 'godot'
+export type ModelSettingsRuntimePhase = 'pending' | 'loading' | 'binding' | 'mounted' | 'no-model' | 'error'
 
 export interface ModelSettingsRuntimeSnapshot {
-  canCapturePreview: boolean
-  controlsLocked: boolean
-  lastError?: string
   ownerInstanceId: string
-  phase: ModelSettingsRuntimePhase
-  previewAvailable: boolean
   renderer: ModelSettingsRuntimeRenderer
+  phase: ModelSettingsRuntimePhase
+  controlsLocked: boolean
+  previewAvailable: boolean
+  canCapturePreview: boolean
+  lastError?: string
   updatedAt: number
+}
+
+export function createEmptyModelSettingsRuntimeSnapshot(
+  overrides: Partial<ModelSettingsRuntimeSnapshot> = {},
+): ModelSettingsRuntimeSnapshot {
+  return {
+    ownerInstanceId: '',
+    renderer: 'disabled',
+    phase: 'pending',
+    controlsLocked: false,
+    previewAvailable: false,
+    canCapturePreview: false,
+    updatedAt: 0,
+    ...overrides,
+  }
 }
 
 /** Clones Godot view state into a mutable settings draft, optionally preserving local FOV edits. */
@@ -24,54 +39,26 @@ export function cloneStageViewStateForDraft(
   } = {},
 ): StageViewState {
   return {
+    schemaVersion: state.schemaVersion,
+    revision: state.revision,
+    updatedAt: state.updatedAt,
     camera: {
-      fovDeg: options.fovDeg ?? state.camera.fovDeg,
-      pitchDeg: state.camera.pitchDeg,
       position: {
         x: state.camera.position.x,
         y: state.camera.position.y,
         z: state.camera.position.z,
       },
       yawDeg: state.camera.yawDeg,
+      pitchDeg: state.camera.pitchDeg,
+      fovDeg: options.fovDeg ?? state.camera.fovDeg,
     },
-    revision: state.revision,
-    schemaVersion: state.schemaVersion,
-    updatedAt: state.updatedAt,
   }
-}
-
-export function createEmptyModelSettingsRuntimeSnapshot(
-  overrides: Partial<ModelSettingsRuntimeSnapshot> = {},
-): ModelSettingsRuntimeSnapshot {
-  return {
-    canCapturePreview: false,
-    controlsLocked: false,
-    ownerInstanceId: '',
-    phase: 'pending',
-    previewAvailable: false,
-    renderer: 'disabled',
-    updatedAt: 0,
-    ...overrides,
-  }
-}
-
-/** Maps component load state into the shared model settings runtime phase. */
-export function resolveComponentStateToRuntimePhase(
-  componentState: 'loading' | 'mounted' | 'pending',
-  options: {
-    hasModel?: boolean
-  } = {},
-): ModelSettingsRuntimePhase {
-  if (options.hasModel === false)
-    return 'no-model'
-
-  return componentState
 }
 
 /** Resolves the symmetric settings slider range from the model-load bootstrap snapshot. */
 export function resolveGodotCameraPositionRange(options: {
-  avatarBounds?: null | StageAvatarBoundsPayload
-  loadTimeState: null | StageViewState
+  avatarBounds?: StageAvatarBoundsPayload | null
+  loadTimeState: StageViewState | null
 }): number {
   const maxDimension = options.avatarBounds?.maxDimension
   const avatarRange = typeof maxDimension === 'number'
@@ -89,11 +76,24 @@ export function resolveGodotCameraPositionRange(options: {
 
 /** Resolves which settings component the model settings panel should mount. */
 export function resolveModelSettingsPanelRenderer(options: {
-  runtimeRenderer: ModelSettingsRuntimeRenderer
   settingsRenderer: StageModelRenderer
+  runtimeRenderer: ModelSettingsRuntimeRenderer
 }): ModelSettingsRuntimeRenderer {
   if (options.settingsRenderer === 'godot')
     return 'godot'
 
   return options.runtimeRenderer
+}
+
+/** Maps component load state into the shared model settings runtime phase. */
+export function resolveComponentStateToRuntimePhase(
+  componentState: 'pending' | 'loading' | 'mounted',
+  options: {
+    hasModel?: boolean
+  } = {},
+): ModelSettingsRuntimePhase {
+  if (options.hasModel === false)
+    return 'no-model'
+
+  return componentState
 }

@@ -12,10 +12,10 @@ vi.mock('vue-i18n', () => ({
 const localStorageMock = (() => {
   let store: Record<string, string> = {}
   return {
-    clear: () => { store = {} },
     getItem: (key: string) => store[key] ?? null,
-    removeItem: (key: string) => { delete store[key] },
     setItem: (key: string, value: string) => { store[key] = value },
+    removeItem: (key: string) => { delete store[key] },
+    clear: () => { store = {} },
   }
 })()
 

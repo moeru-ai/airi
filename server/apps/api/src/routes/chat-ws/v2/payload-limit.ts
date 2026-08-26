@@ -1,12 +1,22 @@
-export interface ChatWsPayloadLimit {
-  /** Restores the transport limit after the peer authenticates. */
-  restore: (socket: unknown) => void
-  /** Limits frames while the peer has not authenticated. */
-  restrict: (socket: unknown) => void
-}
-
 interface PayloadReceiverSocket {
   _receiver: { _maxPayload: number }
+}
+
+function hasReceiverPayloadLimit(socket: unknown): socket is PayloadReceiverSocket {
+  return typeof socket === 'object'
+    && socket !== null
+    && '_receiver' in socket
+    && typeof socket._receiver === 'object'
+    && socket._receiver !== null
+    && '_maxPayload' in socket._receiver
+    && typeof socket._receiver._maxPayload === 'number'
+}
+
+export interface ChatWsPayloadLimit {
+  /** Limits frames while the peer has not authenticated. */
+  restrict: (socket: unknown) => void
+  /** Restores the transport limit after the peer authenticates. */
+  restore: (socket: unknown) => void
 }
 
 /**
@@ -20,6 +30,13 @@ export function createChatWsPayloadLimit(unauthenticatedMaximum: number): ChatWs
   const originalLimits = new WeakMap<object, number>()
 
   return {
+    restrict(socket) {
+      if (!hasReceiverPayloadLimit(socket))
+        return
+
+      originalLimits.set(socket, socket._receiver._maxPayload)
+      socket._receiver._maxPayload = unauthenticatedMaximum
+    },
     restore(socket) {
       if (!hasReceiverPayloadLimit(socket))
         return
@@ -31,22 +48,5 @@ export function createChatWsPayloadLimit(unauthenticatedMaximum: number): ChatWs
       socket._receiver._maxPayload = originalLimit
       originalLimits.delete(socket)
     },
-    restrict(socket) {
-      if (!hasReceiverPayloadLimit(socket))
-        return
-
-      originalLimits.set(socket, socket._receiver._maxPayload)
-      socket._receiver._maxPayload = unauthenticatedMaximum
-    },
   }
-}
-
-function hasReceiverPayloadLimit(socket: unknown): socket is PayloadReceiverSocket {
-  return typeof socket === 'object'
-    && socket !== null
-    && '_receiver' in socket
-    && typeof socket._receiver === 'object'
-    && socket._receiver !== null
-    && '_maxPayload' in socket._receiver
-    && typeof socket._receiver._maxPayload === 'number'
 }

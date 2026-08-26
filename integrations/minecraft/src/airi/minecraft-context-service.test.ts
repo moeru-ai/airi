@@ -9,13 +9,13 @@ type ContextBot = Parameters<MinecraftContextService['bindBot']>[0]
 /** Minimal bot stub exposing only the status fields owned by the context module. */
 function fakeBot(): ContextBot {
   return {
+    username: 'Airi',
     bot: {
       entity: { position: { x: 1, y: 2, z: 3 } },
-      game: { gameMode: 'survival' },
       health: 20,
-      players: { Airi: {}, Bob: {}, dssadg: {} },
+      game: { gameMode: 'survival' },
+      players: { Airi: {}, dssadg: {}, Bob: {} },
     },
-    username: 'Airi',
   }
 }
 
@@ -36,9 +36,9 @@ function makeService(masterUsername?: string) {
   }
   const service = new MinecraftContextService({
     airiBridge,
-    masterUsername,
     serverHost: '127.0.0.1',
     serverPort: 25565,
+    masterUsername,
   })
 
   return {
@@ -59,7 +59,7 @@ describe('minecraftContextService desktop relay context', () => {
    * expect(update.text).toContain('builtIn_emitSparkCommand')
    */
   it('publishes the generic relay tool contract and configured master while the bot is online', () => {
-    const { airiBridge, captured, service } = makeService('dssadg')
+    const { airiBridge, service, captured } = makeService('dssadg')
 
     service.bindBot(fakeBot())
 
@@ -82,7 +82,7 @@ describe('minecraftContextService desktop relay context', () => {
    * expect(update.text).toContain('Desktop command relay: unavailable.')
    */
   it('replaces the relay context with an offline capability when the bot unbinds', () => {
-    const { airiBridge, captured, service } = makeService()
+    const { airiBridge, service, captured } = makeService()
     service.bindBot(fakeBot())
 
     service.unbindBot()
@@ -102,16 +102,16 @@ describe('minecraftContextService desktop relay context', () => {
    * expect(update.destinations).toEqual(['instance:stage-1'])
    */
   it('replays the current relay capability to a newly announced Stage instance', () => {
-    const { captured, getModuleAnnouncedListener, service } = makeService()
+    const { service, captured, getModuleAnnouncedListener } = makeService()
     service.init()
 
     getModuleAnnouncedListener()?.({
+      name: 'proj-airi:stage-tamagotchi',
       identity: {
         id: 'stage-1',
         kind: 'plugin',
         plugin: { id: 'stage-tamagotchi' },
       },
-      name: 'proj-airi:stage-tamagotchi',
     })
 
     const update = captured[0]

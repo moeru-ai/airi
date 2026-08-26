@@ -50,44 +50,82 @@ export async function activate(context: vscode.ExtensionContext) {
   })
 
   const extension = injeca.provide('extension', {
+    dependsOn: { client, vscodeContext, contextCollector, eventListeners, lifecycle, controlLoopInterval },
     build: ({ dependsOn }) => setup({ ...dependsOn, isEnabled, sendInterval }),
-    dependsOn: { client, contextCollector, controlLoopInterval, eventListeners, lifecycle, vscodeContext },
   })
 
   injeca.invoke({
-    callback: noop,
     dependsOn: { extension },
+    callback: noop,
   })
 
   await injeca.start()
 }
 
-/**
- * Deactivate the plugin
- */
-export async function deactivate() {
-  const { client } = await injeca.resolve({ client: { key: 'proj-airi:client' } as unknown as ProvidedBy<Client> })
-  const { eventListeners } = await injeca.resolve({ eventListeners: { key: 'self:event-listeners' } as unknown as ProvidedBy<vscode.Disposable[]> })
-  const { controlLoopInterval } = await injeca.resolve({ controlLoopInterval: { key: 'self:control-loop:interval:send' } as unknown as ProvidedBy<IntervalHandle> })
+async function setup(params: {
+  client: Client
+  vscodeContext: vscode.ExtensionContext
+  contextCollector: ContextCollector
+  eventListeners: vscode.Disposable[]
+  lifecycle: Lifecycle
+  controlLoopInterval: IntervalHandle
+  isEnabled: boolean
+  sendInterval: number
+}) {
+  // Connect to Airi Channel Server
+  if (params.isEnabled) {
+    const connected = await params.client.connect()
+    if (connected) {
+      window.showInformationMessage('AIRI Server Channel connected!')
+    }
+    else {
+      window.showWarningMessage('AIRI Server Channel connection failed!')
+    }
+  }
 
-  unregisterListeners({ controlLoopInterval, eventListeners })
-  client?.disconnect()
-  useLogger().log('AIRI deactivated!')
+  // Register commands
+  params.vscodeContext.subscriptions.push(
+    commands.registerCommand('airi-vscode.enable', async () => {
+      params.isEnabled = true
+      await params.client.connect()
+      await registerListeners({ ...params })
+      window.showInformationMessage('AIRI enabled!')
+    }),
+
+    commands.registerCommand('airi-vscode.disable', () => {
+      params.isEnabled = false
+      unregisterListeners({ eventListeners: params.eventListeners, controlLoopInterval: params.controlLoopInterval })
+      params.client.disconnect()
+      window.showInformationMessage('AIRI disabled!')
+    }),
+
+    commands.registerCommand('airi-vscode.status', () => {
+      const status = params.isEnabled && params.client ? 'Connected' : 'Disconnected'
+      window.showInformationMessage(`AIRI Server Channel status: ${status}.`)
+    }),
+  )
+
+  // Register event listeners if enabled
+  if (params.isEnabled) {
+    await registerListeners({ ...params })
+  }
+
+  useLogger().log('AIRI activated successfully')
 }
 
 /**
  * Register event listeners for file save and editor switch
  */
 async function registerListeners(params: {
-  client: Client
   contextCollector: ContextCollector
-  controlLoopInterval: IntervalHandle
-  eventListeners: vscode.Disposable[]
-  isEnabled: boolean
   lifecycle: Lifecycle
+  eventListeners: vscode.Disposable[]
+  client: Client
+  controlLoopInterval: IntervalHandle
+  isEnabled: boolean
   sendInterval: number
 }) {
-  unregisterListeners({ controlLoopInterval: params.controlLoopInterval, eventListeners: params.eventListeners })
+  unregisterListeners({ eventListeners: params.eventListeners, controlLoopInterval: params.controlLoopInterval })
 
   // File save event
   params.eventListeners.push(
@@ -137,66 +175,24 @@ async function registerListeners(params: {
   }
 }
 
-async function setup(params: {
-  client: Client
-  contextCollector: ContextCollector
-  controlLoopInterval: IntervalHandle
-  eventListeners: vscode.Disposable[]
-  isEnabled: boolean
-  lifecycle: Lifecycle
-  sendInterval: number
-  vscodeContext: vscode.ExtensionContext
-}) {
-  // Connect to Airi Channel Server
-  if (params.isEnabled) {
-    const connected = await params.client.connect()
-    if (connected) {
-      window.showInformationMessage('AIRI Server Channel connected!')
-    }
-    else {
-      window.showWarningMessage('AIRI Server Channel connection failed!')
-    }
-  }
-
-  // Register commands
-  params.vscodeContext.subscriptions.push(
-    commands.registerCommand('airi-vscode.enable', async () => {
-      params.isEnabled = true
-      await params.client.connect()
-      await registerListeners({ ...params })
-      window.showInformationMessage('AIRI enabled!')
-    }),
-
-    commands.registerCommand('airi-vscode.disable', () => {
-      params.isEnabled = false
-      unregisterListeners({ controlLoopInterval: params.controlLoopInterval, eventListeners: params.eventListeners })
-      params.client.disconnect()
-      window.showInformationMessage('AIRI disabled!')
-    }),
-
-    commands.registerCommand('airi-vscode.status', () => {
-      const status = params.isEnabled && params.client ? 'Connected' : 'Disconnected'
-      window.showInformationMessage(`AIRI Server Channel status: ${status}.`)
-    }),
-  )
-
-  // Register event listeners if enabled
-  if (params.isEnabled) {
-    await registerListeners({ ...params })
-  }
-
-  useLogger().log('AIRI activated successfully')
+/**
+ * Unregister all event listeners
+ */
+function unregisterListeners(params: { eventListeners: vscode.Disposable[], controlLoopInterval: IntervalHandle }) {
+  params.eventListeners.forEach(listener => listener.dispose())
+  params.eventListeners = []
+  stopMonitoring({ controlLoopInterval: params.controlLoopInterval })
 }
 
 /**
  * Start monitoring the coding context
  */
 function startMonitoring(params: {
-  client: Client
   contextCollector: ContextCollector
+  lifecycle: Lifecycle
+  client: Client
   controlLoopInterval: IntervalHandle
   isEnabled: boolean
-  lifecycle: Lifecycle
   sendInterval: number
 }) {
   stopMonitoring({ controlLoopInterval: params.controlLoopInterval })
@@ -233,10 +229,14 @@ function stopMonitoring(params: { controlLoopInterval: IntervalHandle }) {
 }
 
 /**
- * Unregister all event listeners
+ * Deactivate the plugin
  */
-function unregisterListeners(params: { controlLoopInterval: IntervalHandle, eventListeners: vscode.Disposable[] }) {
-  params.eventListeners.forEach(listener => listener.dispose())
-  params.eventListeners = []
-  stopMonitoring({ controlLoopInterval: params.controlLoopInterval })
+export async function deactivate() {
+  const { client } = await injeca.resolve({ client: { key: 'proj-airi:client' } as unknown as ProvidedBy<Client> })
+  const { eventListeners } = await injeca.resolve({ eventListeners: { key: 'self:event-listeners' } as unknown as ProvidedBy<vscode.Disposable[]> })
+  const { controlLoopInterval } = await injeca.resolve({ controlLoopInterval: { key: 'self:control-loop:interval:send' } as unknown as ProvidedBy<IntervalHandle> })
+
+  unregisterListeners({ eventListeners, controlLoopInterval })
+  client?.disconnect()
+  useLogger().log('AIRI deactivated!')
 }

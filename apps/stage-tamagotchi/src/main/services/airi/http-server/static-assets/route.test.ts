@@ -17,7 +17,7 @@ describe('createStaticAssetRoute', () => {
 
   afterEach(async () => {
     for (const root of tempRoots) {
-      await rm(root, { force: true, recursive: true })
+      await rm(root, { recursive: true, force: true })
     }
     tempRoots.length = 0
 
@@ -36,21 +36,21 @@ describe('createStaticAssetRoute', () => {
     const app = new H3()
     app.get('/_airi/extensions/**', createStaticAssetRoute({
       authorize: async () => ({
+        ok: false,
         error: new HttpError({
+          status: 401,
           code: 'COOKIE_MISSING',
           message: 'Unauthorized',
-          status: 401,
         }),
-        ok: false,
       }),
       refreshSession: () => undefined,
       resolveAsset: async () => ({
+        ok: false,
         error: new HttpError({
+          status: 404,
           code: 'NOT_FOUND',
           message: 'Not Found',
-          status: 404,
         }),
-        ok: false,
       }),
     }))
 
@@ -70,21 +70,21 @@ describe('createStaticAssetRoute', () => {
     const app = new H3()
     app.use('/_airi/extensions/**', createStaticAssetRoute({
       authorize: async () => ({
+        ok: false,
         error: new HttpError({
+          status: 401,
           code: 'COOKIE_MISSING',
           message: 'Unauthorized',
-          status: 401,
         }),
-        ok: false,
       }),
       refreshSession: () => undefined,
       resolveAsset: async () => ({
+        ok: false,
         error: new HttpError({
+          status: 404,
           code: 'NOT_FOUND',
           message: 'Not Found',
-          status: 404,
         }),
-        ok: false,
       }),
     }))
 
@@ -122,23 +122,23 @@ describe('createStaticAssetRoute', () => {
           session: {
             assetSessionId: 's1',
             cookieName: createStaticAssetSessionCookieName('s1'),
-            cookiePath: '/_airi/extensions/a/sessions/s1/ui',
             cookieValue: 'test-token',
+            cookiePath: '/_airi/extensions/a/sessions/s1/ui',
             expiresAt: Date.now() + 1000,
           },
         }
       },
-      getType: ext => ext === '.wasm' ? 'application/wasm' : undefined,
       refreshSession: (assetSessionId) => {
         refreshedSessionId = assetSessionId
         return undefined
       },
       resolveAsset: async () => ({
-        filePath: wasmFilePath,
-        mtime: Date.now(),
         ok: true,
+        filePath: wasmFilePath,
         size: 4,
+        mtime: Date.now(),
       }),
+      getType: ext => ext === '.wasm' ? 'application/wasm' : undefined,
     }))
 
     server = createServer(toNodeHandler(app))
@@ -178,23 +178,23 @@ describe('createStaticAssetRoute', () => {
           session: {
             assetSessionId: 's1',
             cookieName: createStaticAssetSessionCookieName('s1'),
-            cookiePath: '/_airi/extensions/a/sessions/s1/ui',
             cookieValue: 'test-token',
+            cookiePath: '/_airi/extensions/a/sessions/s1/ui',
             expiresAt: Date.now() + 1000,
           },
         }
       },
-      getType: ext => ext === '.wasm' ? 'application/wasm' : undefined,
       refreshSession: (assetSessionId) => {
         refreshedSessionId = assetSessionId
         return undefined
       },
       resolveAsset: async () => ({
-        filePath: wasmFilePath,
-        mtime: Date.now(),
         ok: true,
+        filePath: wasmFilePath,
         size: 4,
+        mtime: Date.now(),
       }),
+      getType: ext => ext === '.wasm' ? 'application/wasm' : undefined,
     }))
 
     server = createServer(toNodeHandler(app))

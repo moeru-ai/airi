@@ -1,35 +1,4 @@
 /**
- * Create an error with detailed context information
- *
- * @param message - Error message
- * @param originalError - Original error object (optional)
- * @param context - Additional context information (optional)
- * @returns Enhanced error object
- */
-export function createError(
-  message: string,
-  originalError?: unknown,
-  context?: Record<string, unknown>,
-): Error {
-  let errorMessage = message
-
-  // Add original error information
-  if (originalError) {
-    errorMessage += `: ${errorToMessage(originalError)}`
-  }
-
-  // Create new error object
-  const error = new Error(errorMessage)
-
-  // Add context information
-  if (context) {
-    Object.assign(error, { context })
-  }
-
-  return error
-}
-
-/**
  * Safely extract error message from any error type
  * Handles Error objects, strings, objects, and other types
  *
@@ -71,4 +40,35 @@ export function errorToMessage(error: unknown, fallbackMessage = 'Unknown error'
 
   // For other cases, try to force convert to string
   return String(error)
+}
+
+/**
+ * Create an error with detailed context information
+ *
+ * @param message - Error message
+ * @param originalError - Original error object (optional)
+ * @param context - Additional context information (optional)
+ * @returns Enhanced error object
+ */
+export function createError(
+  message: string,
+  originalError?: unknown,
+  context?: Record<string, unknown>,
+): Error {
+  let errorMessage = message
+
+  // Add original error information
+  if (originalError) {
+    errorMessage += `: ${errorToMessage(originalError)}`
+  }
+
+  // Create new error object
+  const error = new Error(errorMessage)
+
+  // Add context information
+  if (context) {
+    Object.assign(error, { context })
+  }
+
+  return error
 }

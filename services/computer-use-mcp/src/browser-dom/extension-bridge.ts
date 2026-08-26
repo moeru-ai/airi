@@ -12,15 +12,15 @@ import { randomUUID } from 'node:crypto'
 import { WebSocket, WebSocketServer } from 'ws'
 
 const SUPPORTED_ACTIONS = new Set([
-  'findElement',
-  'findElements',
   'getActiveTab',
   'getAllFrames',
-  'getClickTarget',
-  'getComputedStyles',
-  'getElementAttributes',
   'readAllFramesDOM',
+  'findElement',
+  'findElements',
+  'getClickTarget',
+  'getElementAttributes',
   'readInputValue',
+  'getComputedStyles',
   'waitForElement',
 ])
 const WAIT_FOR_ELEMENT_BRIDGE_TIMEOUT_GRACE_MS = 1_000
@@ -29,6 +29,31 @@ interface PendingBridgeRequest {
   reject: (error: Error) => void
   resolve: (value: unknown) => void
   timeoutId: NodeJS.Timeout
+}
+
+function asError(error: unknown, fallback: string) {
+  if (error instanceof Error)
+    return error
+
+  return new Error(typeof error === 'string' && error.trim() ? error : fallback)
+}
+
+function toRecord(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    return undefined
+
+  return value as Record<string, unknown>
+}
+
+function unwrapResultPayload<T>(value: unknown): T | undefined {
+  const record = toRecord(value)
+  if (!record)
+    return value as T
+
+  if ('data' in record)
+    return record.data as T
+
+  return value as T
 }
 
 export class BrowserDomExtensionBridge {
@@ -40,240 +65,22 @@ export class BrowserDomExtensionBridge {
 
   constructor(private readonly config: BrowserDomBridgeConfig) {
     this.status = {
-      connected: false,
       enabled: config.enabled,
       host: config.host,
-      pendingRequests: 0,
       port: config.port,
+      connected: false,
+      pendingRequests: 0,
     }
   }
 
-  async callAction<TResult = unknown>(
-    action: string,
-    payload: Record<string, unknown> = {},
-    options?: { timeoutMs?: number },
-  ): Promise<TResult> {
-    if (!this.config.enabled) {
-      throw new Error('browser dom bridge is disabled')
+  private rejectPendingRequests(error: Error) {
+    for (const pending of this.pending.values()) {
+      clearTimeout(pending.timeoutId)
+      pending.reject(error)
     }
 
-    if (!this.supportsAction(action)) {
-      throw new Error(`browser dom bridge transport does not support action "${action}"`)
-    }
-
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-      throw new Error(this.status.lastError || 'browser dom bridge is not connected')
-    }
-
-    const id = randomUUID()
-    const requestPayload = {
-      action,
-      id,
-      ...payload,
-    }
-
-    const effectiveTimeoutMs = options?.timeoutMs ?? this.config.requestTimeoutMs
-
-    const result = await new Promise<TResult>((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        this.pending.delete(id)
-        this.status.pendingRequests = this.pending.size
-        reject(new Error(`browser dom bridge timed out waiting for ${action}`))
-      }, effectiveTimeoutMs)
-
-      this.pending.set(id, {
-        reject,
-        resolve: value => resolve(value as TResult),
-        timeoutId,
-      })
-      this.status.pendingRequests = this.pending.size
-
-      this.socket!.send(JSON.stringify(requestPayload), (error) => {
-        if (!error)
-          return
-
-        const pending = this.pending.get(id)
-        if (!pending)
-          return
-
-        clearTimeout(pending.timeoutId)
-        this.pending.delete(id)
-        this.status.pendingRequests = this.pending.size
-        pending.reject(asError(error, `failed to send ${action} to browser dom bridge`))
-      })
-    })
-
-    return result
-  }
-
-  async checkCheckbox(params: {
-    checked?: boolean
-    frameIds?: number[]
-    selector: string
-    tabId?: number
-  }) {
-    return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('checkCheckbox', params)
-  }
-
-  async clickSelector(params: {
-    frameIds?: number[]
-    selector: string
-    tabId?: number
-  }) {
-    const targets = await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('getClickTarget', {
-      frameIds: params.frameIds,
-      selector: params.selector,
-      tabId: params.tabId,
-    })
-
-    const target = targets.find((entry) => {
-      const payload = unwrapResultPayload<{ x?: number, y?: number }>(entry.result)
-      return typeof payload?.x === 'number' && typeof payload?.y === 'number'
-    })
-
-    if (!target) {
-      throw new Error(`browser dom bridge could not find a clickable target for selector "${params.selector}"`)
-    }
-
-    const payload = unwrapResultPayload<{ element?: Record<string, unknown>, x: number, y: number }>(target.result)
-    const clickResults = await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('clickAt', {
-      frameIds: [target.frameId],
-      tabId: params.tabId,
-      x: payload!.x,
-      y: payload!.y,
-    })
-
-    return {
-      clickResults,
-      targetElement: payload?.element,
-      targetFrameId: target.frameId,
-      targetPoint: {
-        x: payload!.x,
-        y: payload!.y,
-      },
-    }
-  }
-
-  async close() {
-    this.rejectPendingRequests(new Error('browser dom bridge closed before completing pending request'))
-
-    if (this.socket) {
-      this.socket.close()
-      this.socket = undefined
-    }
-    this.status.connected = false
-
-    if (this.server) {
-      const server = this.server
-      this.server = undefined
-      await new Promise<void>((resolve) => {
-        server.close(() => resolve())
-      })
-    }
-  }
-
-  async findElements(params: {
-    frameIds?: number[]
-    maxResults?: number
-    selector: string
-    tabId?: number
-  }) {
-    return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('findElements', {
-      frameIds: params.frameIds,
-      max: params.maxResults ?? 10,
-      selector: params.selector,
-      tabId: params.tabId,
-    })
-  }
-
-  async getActiveTab() {
-    return await this.callAction<null | Record<string, unknown>>('getActiveTab')
-  }
-
-  async getAllFrames(params: { tabId?: number } = {}) {
-    return await this.callAction<Array<Record<string, unknown>>>('getAllFrames', params)
-  }
-
-  async getComputedStyles(params: {
-    frameIds?: number[]
-    properties?: string[]
-    selector: string
-    tabId?: number
-  }) {
-    return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('getComputedStyles', {
-      frameIds: params.frameIds,
-      properties: params.properties,
-      selector: params.selector,
-      tabId: params.tabId,
-    })
-  }
-
-  async getElementAttributes(params: {
-    frameIds?: number[]
-    selector: string
-    tabId?: number
-  }) {
-    return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('getElementAttributes', params)
-  }
-
-  getStatus(): BrowserDomBridgeStatus {
-    return {
-      ...this.status,
-      lastHello: this.status.lastHello ? { ...this.status.lastHello } : undefined,
-    }
-  }
-
-  async readAllFramesDom(params: {
-    frameIds?: number[]
-    includeText?: boolean
-    maxElements?: number
-    tabId?: number
-  } = {}) {
-    return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('readAllFramesDOM', {
-      frameIds: params.frameIds,
-      opts: {
-        includeText: params.includeText ?? true,
-        maxElements: params.maxElements ?? 200,
-      },
-      tabId: params.tabId,
-    })
-  }
-
-  async readInputValue(params: {
-    frameIds?: number[]
-    selector: string
-    tabId?: number
-  }) {
-    return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('readInputValue', params)
-  }
-
-  async selectOption(params: {
-    frameIds?: number[]
-    selector: string
-    tabId?: number
-    value: string
-  }) {
-    return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('selectOption', params)
-  }
-
-  async setInputValue(params: {
-    blur?: boolean
-    frameIds?: number[]
-    selector: string
-    simulateKeystrokes?: boolean
-    tabId?: number
-    value: string
-  }) {
-    return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('setInputValue', {
-      frameIds: params.frameIds,
-      opts: {
-        blur: params.blur ?? true,
-        simulateKeystrokes: params.simulateKeystrokes ?? false,
-      },
-      selector: params.selector,
-      tabId: params.tabId,
-      value: params.value,
-    })
+    this.pending.clear()
+    this.status.pendingRequests = 0
   }
 
   async start() {
@@ -348,35 +155,224 @@ export class BrowserDomExtensionBridge {
     }
   }
 
+  async close() {
+    this.rejectPendingRequests(new Error('browser dom bridge closed before completing pending request'))
+
+    if (this.socket) {
+      this.socket.close()
+      this.socket = undefined
+    }
+    this.status.connected = false
+
+    if (this.server) {
+      const server = this.server
+      this.server = undefined
+      await new Promise<void>((resolve) => {
+        server.close(() => resolve())
+      })
+    }
+  }
+
+  getStatus(): BrowserDomBridgeStatus {
+    return {
+      ...this.status,
+      lastHello: this.status.lastHello ? { ...this.status.lastHello } : undefined,
+    }
+  }
+
+  async callAction<TResult = unknown>(
+    action: string,
+    payload: Record<string, unknown> = {},
+    options?: { timeoutMs?: number },
+  ): Promise<TResult> {
+    if (!this.config.enabled) {
+      throw new Error('browser dom bridge is disabled')
+    }
+
+    if (!this.supportsAction(action)) {
+      throw new Error(`browser dom bridge transport does not support action "${action}"`)
+    }
+
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      throw new Error(this.status.lastError || 'browser dom bridge is not connected')
+    }
+
+    const id = randomUUID()
+    const requestPayload = {
+      id,
+      action,
+      ...payload,
+    }
+
+    const effectiveTimeoutMs = options?.timeoutMs ?? this.config.requestTimeoutMs
+
+    const result = await new Promise<TResult>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        this.pending.delete(id)
+        this.status.pendingRequests = this.pending.size
+        reject(new Error(`browser dom bridge timed out waiting for ${action}`))
+      }, effectiveTimeoutMs)
+
+      this.pending.set(id, {
+        resolve: value => resolve(value as TResult),
+        reject,
+        timeoutId,
+      })
+      this.status.pendingRequests = this.pending.size
+
+      this.socket!.send(JSON.stringify(requestPayload), (error) => {
+        if (!error)
+          return
+
+        const pending = this.pending.get(id)
+        if (!pending)
+          return
+
+        clearTimeout(pending.timeoutId)
+        this.pending.delete(id)
+        this.status.pendingRequests = this.pending.size
+        pending.reject(asError(error, `failed to send ${action} to browser dom bridge`))
+      })
+    })
+
+    return result
+  }
+
   supportsAction(action: string) {
     return SUPPORTED_ACTIONS.has(action)
   }
 
-  async triggerEvent(params: {
-    eventName: string
-    eventType?: string
+  async getActiveTab() {
+    return await this.callAction<Record<string, unknown> | null>('getActiveTab')
+  }
+
+  async getAllFrames(params: { tabId?: number } = {}) {
+    return await this.callAction<Array<Record<string, unknown>>>('getAllFrames', params)
+  }
+
+  async readAllFramesDom(params: {
+    tabId?: number
     frameIds?: number[]
-    opts?: Record<string, unknown>
+    includeText?: boolean
+    maxElements?: number
+  } = {}) {
+    return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('readAllFramesDOM', {
+      tabId: params.tabId,
+      frameIds: params.frameIds,
+      opts: {
+        includeText: params.includeText ?? true,
+        maxElements: params.maxElements ?? 200,
+      },
+    })
+  }
+
+  async findElements(params: {
+    selector: string
+    maxResults?: number
+    tabId?: number
+    frameIds?: number[]
+  }) {
+    return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('findElements', {
+      selector: params.selector,
+      max: params.maxResults ?? 10,
+      tabId: params.tabId,
+      frameIds: params.frameIds,
+    })
+  }
+
+  async readInputValue(params: {
     selector: string
     tabId?: number
+    frameIds?: number[]
+  }) {
+    return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('readInputValue', params)
+  }
+
+  async setInputValue(params: {
+    selector: string
+    value: string
+    simulateKeystrokes?: boolean
+    blur?: boolean
+    tabId?: number
+    frameIds?: number[]
+  }) {
+    return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('setInputValue', {
+      selector: params.selector,
+      value: params.value,
+      opts: {
+        simulateKeystrokes: params.simulateKeystrokes ?? false,
+        blur: params.blur ?? true,
+      },
+      tabId: params.tabId,
+      frameIds: params.frameIds,
+    })
+  }
+
+  async checkCheckbox(params: {
+    selector: string
+    checked?: boolean
+    tabId?: number
+    frameIds?: number[]
+  }) {
+    return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('checkCheckbox', params)
+  }
+
+  async selectOption(params: {
+    selector: string
+    value: string
+    tabId?: number
+    frameIds?: number[]
+  }) {
+    return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('selectOption', params)
+  }
+
+  async getElementAttributes(params: {
+    selector: string
+    tabId?: number
+    frameIds?: number[]
+  }) {
+    return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('getElementAttributes', params)
+  }
+
+  async getComputedStyles(params: {
+    selector: string
+    properties?: string[]
+    tabId?: number
+    frameIds?: number[]
+  }) {
+    return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('getComputedStyles', {
+      selector: params.selector,
+      properties: params.properties,
+      tabId: params.tabId,
+      frameIds: params.frameIds,
+    })
+  }
+
+  async triggerEvent(params: {
+    selector: string
+    eventName: string
+    eventType?: string
+    opts?: Record<string, unknown>
+    tabId?: number
+    frameIds?: number[]
   }) {
     return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('triggerEvent', {
+      selector: params.selector,
       eventName: params.eventName,
-      frameIds: params.frameIds,
       opts: {
         ...params.opts,
         ...(params.eventType ? { type: params.eventType } : {}),
       },
-      selector: params.selector,
       tabId: params.tabId,
+      frameIds: params.frameIds,
     })
   }
 
   async waitForElement(params: {
-    frameIds?: number[]
     selector: string
-    tabId?: number
     timeoutMs?: number
+    tabId?: number
+    frameIds?: number[]
   }) {
     const effectiveTimeout = params.timeoutMs ?? this.config.requestTimeoutMs
     // NOTICE: The bridge-level timeout only needs a small transport grace: the
@@ -384,13 +380,52 @@ export class BrowserDomExtensionBridge {
     // frame-level send, so slow or unresponsive frames no longer require an
     // extra full send-message timeout on top of the requested poll budget.
     return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('waitForElement', {
-      frameIds: params.frameIds,
       selector: params.selector,
-      tabId: params.tabId,
       timeoutMs: effectiveTimeout,
+      tabId: params.tabId,
+      frameIds: params.frameIds,
     }, {
       timeoutMs: effectiveTimeout + WAIT_FOR_ELEMENT_BRIDGE_TIMEOUT_GRACE_MS,
     })
+  }
+
+  async clickSelector(params: {
+    selector: string
+    tabId?: number
+    frameIds?: number[]
+  }) {
+    const targets = await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('getClickTarget', {
+      selector: params.selector,
+      tabId: params.tabId,
+      frameIds: params.frameIds,
+    })
+
+    const target = targets.find((entry) => {
+      const payload = unwrapResultPayload<{ x?: number, y?: number }>(entry.result)
+      return typeof payload?.x === 'number' && typeof payload?.y === 'number'
+    })
+
+    if (!target) {
+      throw new Error(`browser dom bridge could not find a clickable target for selector "${params.selector}"`)
+    }
+
+    const payload = unwrapResultPayload<{ x: number, y: number, element?: Record<string, unknown> }>(target.result)
+    const clickResults = await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('clickAt', {
+      x: payload!.x,
+      y: payload!.y,
+      tabId: params.tabId,
+      frameIds: [target.frameId],
+    })
+
+    return {
+      targetFrameId: target.frameId,
+      targetPoint: {
+        x: payload!.x,
+        y: payload!.y,
+      },
+      targetElement: payload?.element,
+      clickResults,
+    }
   }
 
   private handleMessage(raw: WebSocket.RawData) {
@@ -404,9 +439,9 @@ export class BrowserDomExtensionBridge {
 
     if (data.type === 'hello') {
       const nextHello: BrowserDomBridgeHello = {
-        connectedAt: new Date().toISOString(),
         source: typeof data.source === 'string' ? data.source : undefined,
         version: typeof data.version === 'string' ? data.version : undefined,
+        connectedAt: new Date().toISOString(),
       }
       this.status.lastHello = nextHello
       this.status.lastError = undefined
@@ -435,39 +470,4 @@ export class BrowserDomExtensionBridge {
 
     pending.resolve(data.result)
   }
-
-  private rejectPendingRequests(error: Error) {
-    for (const pending of this.pending.values()) {
-      clearTimeout(pending.timeoutId)
-      pending.reject(error)
-    }
-
-    this.pending.clear()
-    this.status.pendingRequests = 0
-  }
-}
-
-function asError(error: unknown, fallback: string) {
-  if (error instanceof Error)
-    return error
-
-  return new Error(typeof error === 'string' && error.trim() ? error : fallback)
-}
-
-function toRecord(value: unknown): Record<string, unknown> | undefined {
-  if (!value || typeof value !== 'object' || Array.isArray(value))
-    return undefined
-
-  return value as Record<string, unknown>
-}
-
-function unwrapResultPayload<T>(value: unknown): T | undefined {
-  const record = toRecord(value)
-  if (!record)
-    return value as T
-
-  if ('data' in record)
-    return record.data as T
-
-  return value as T
 }

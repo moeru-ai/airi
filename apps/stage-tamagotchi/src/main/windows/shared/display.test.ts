@@ -25,20 +25,20 @@ vi.mock('electron', () => ({
 
 describe('mapForBreakpoints', () => {
   it('should return the correct size based on breakpoints', () => {
-    const val = mapForBreakpoints(800, { lg: 300, md: 200, sm: 100 })
+    const val = mapForBreakpoints(800, { sm: 100, md: 200, lg: 300 })
     expect(val).toBe(200)
   })
 
   it('it should fallback to nearest smaller breakpoint', () => {
-    const val = mapForBreakpoints(1024, { md: 200, sm: 100 }) // expected to be lg
+    const val = mapForBreakpoints(1024, { sm: 100, md: 200 }) // expected to be lg
     expect(val).toBe(200)
   })
 
   it('it should return the largest supplied size if bounds exceed all breakpoints', () => {
-    const val1 = mapForBreakpoints(2000, { md: 200, sm: 100 }) // expected to be lg
+    const val1 = mapForBreakpoints(2000, { sm: 100, md: 200 }) // expected to be lg
     expect(val1).toBe(200)
 
-    const val2 = mapForBreakpoints(2000, { '2xl': 500, 'md': 200, 'sm': 100 }) // expected to be lg
+    const val2 = mapForBreakpoints(2000, { 'sm': 100, 'md': 200, '2xl': 500 }) // expected to be lg
     expect(val2).toBe(500)
   })
 })
@@ -53,13 +53,13 @@ describe('widthFrom', () => {
   })
 
   it('should respect min constraint', () => {
-    expect(widthFrom({ width: 1000 } as Rectangle, { min: 200, percentage: 0.1 })).toBe(200)
+    expect(widthFrom({ width: 1000 } as Rectangle, { percentage: 0.1, min: 200 })).toBe(200)
     expect(widthFrom({ width: 1000 } as Rectangle, { actual: 150, min: 200 })).toBe(200)
     expect(widthFrom({ width: 1000 } as Rectangle, { actual: 250, min: 200 })).toBe(250)
   })
 
   it('should respect max constraint', () => {
-    expect(widthFrom({ width: 1000 } as Rectangle, { max: 400, percentage: 0.5 })).toBe(400)
+    expect(widthFrom({ width: 1000 } as Rectangle, { percentage: 0.5, max: 400 })).toBe(400)
     expect(widthFrom({ width: 1000 } as Rectangle, { actual: 450, max: 400 })).toBe(400)
     expect(widthFrom({ width: 1000 } as Rectangle, { actual: 350, max: 400 })).toBe(350)
   })
@@ -75,13 +75,13 @@ describe('heightFrom', () => {
   })
 
   it('should respect min constraint', () => {
-    expect(heightFrom({ height: 1000 } as Rectangle, { min: 200, percentage: 0.1 })).toBe(200)
+    expect(heightFrom({ height: 1000 } as Rectangle, { percentage: 0.1, min: 200 })).toBe(200)
     expect(heightFrom({ height: 1000 } as Rectangle, { actual: 150, min: 200 })).toBe(200)
     expect(heightFrom({ height: 1000 } as Rectangle, { actual: 250, min: 200 })).toBe(250)
   })
 
   it('should respect max constraint', () => {
-    expect(heightFrom({ height: 1000 } as Rectangle, { max: 400, percentage: 0.5 })).toBe(400)
+    expect(heightFrom({ height: 1000 } as Rectangle, { percentage: 0.5, max: 400 })).toBe(400)
     expect(heightFrom({ height: 1000 } as Rectangle, { actual: 450, max: 400 })).toBe(400)
     expect(heightFrom({ height: 1000 } as Rectangle, { actual: 350, max: 400 })).toBe(350)
   })
@@ -89,23 +89,23 @@ describe('heightFrom', () => {
 
 describe('computeResizedBoundsAnchoredToDominantDisplay', () => {
   const primaryDisplay = {
-    bounds: { height: 1080, width: 1920, x: 0, y: 0 },
-    workArea: { height: 1055, width: 1920, x: 0, y: 25 },
+    bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+    workArea: { x: 0, y: 25, width: 1920, height: 1055 },
   }
   const secondaryDisplay = {
-    bounds: { height: 1080, width: 1920, x: 1920, y: 0 },
-    workArea: { height: 1040, width: 1920, x: 1920, y: 0 },
+    bounds: { x: 1920, y: 0, width: 1920, height: 1080 },
+    workArea: { x: 1920, y: 0, width: 1920, height: 1040 },
   }
   const topDisplay = {
-    bounds: { height: 900, width: 1600, x: 0, y: -900 },
-    workArea: { height: 860, width: 1600, x: 0, y: -900 },
+    bounds: { x: 0, y: -900, width: 1600, height: 900 },
+    workArea: { x: 0, y: -900, width: 1600, height: 860 },
   }
 
   it('uses the display with the largest overlap when resizing a window across two displays', () => {
     const bounds = computeResizedBoundsAnchoredToDominantDisplay({
-      currentBounds: { height: 600, width: 500, x: 1700, y: 220 },
+      currentBounds: { x: 1700, y: 220, width: 500, height: 600 },
+      targetSize: { width: 450, height: 600 },
       displays: [primaryDisplay, secondaryDisplay],
-      targetSize: { height: 600, width: 450 },
     })
 
     expect(bounds.x).toBe(1920)
@@ -116,9 +116,9 @@ describe('computeResizedBoundsAnchoredToDominantDisplay', () => {
 
   it('uses the display with the largest overlap across three displays', () => {
     const bounds = computeResizedBoundsAnchoredToDominantDisplay({
-      currentBounds: { height: 620, width: 380, x: 1100, y: -700 },
+      currentBounds: { x: 1100, y: -700, width: 380, height: 620 },
+      targetSize: { width: 450, height: 600 },
       displays: [primaryDisplay, secondaryDisplay, topDisplay],
-      targetSize: { height: 600, width: 450 },
     })
 
     expect(bounds.x).toBe(1030)
@@ -129,9 +129,9 @@ describe('computeResizedBoundsAnchoredToDominantDisplay', () => {
 
   it('keeps the matching display bottom-right corner anchored when resizing in the bottom-right quadrant', () => {
     const bounds = computeResizedBoundsAnchoredToDominantDisplay({
-      currentBounds: { height: 250, width: 300, x: 3420, y: 740 },
+      currentBounds: { x: 3420, y: 740, width: 300, height: 250 },
+      targetSize: { width: 450, height: 600 },
       displays: [primaryDisplay, secondaryDisplay],
-      targetSize: { height: 600, width: 450 },
     })
 
     expect(bounds.x).toBe(3270)
@@ -152,11 +152,11 @@ describe('computeCenteredWindowBounds', () => {
    */
   it('preserves the window size and centers it inside the display work area', () => {
     const result = computeCenteredWindowBounds({
-      displayWorkArea: { height: 875, width: 1440, x: 0, y: 25 },
-      windowBounds: { height: 600, width: 450, x: 1200, y: 700 },
+      displayWorkArea: { x: 0, y: 25, width: 1440, height: 875 },
+      windowBounds: { x: 1200, y: 700, width: 450, height: 600 },
     })
 
-    expect(result).toEqual({ height: 600, width: 450, x: 495, y: 162 })
+    expect(result).toEqual({ x: 495, y: 162, width: 450, height: 600 })
   })
 
   /**
@@ -165,11 +165,11 @@ describe('computeCenteredWindowBounds', () => {
    */
   it('supports display work areas with negative origins', () => {
     const result = computeCenteredWindowBounds({
-      displayWorkArea: { height: 1055, width: 1920, x: -1920, y: -1080 },
-      windowBounds: { height: 620, width: 500, x: -2300, y: -1300 },
+      displayWorkArea: { x: -1920, y: -1080, width: 1920, height: 1055 },
+      windowBounds: { x: -2300, y: -1300, width: 500, height: 620 },
     })
 
-    expect(result).toEqual({ height: 620, width: 500, x: -1210, y: -863 })
+    expect(result).toEqual({ x: -1210, y: -863, width: 500, height: 620 })
   })
 
   /**
@@ -178,11 +178,11 @@ describe('computeCenteredWindowBounds', () => {
    */
   it('keeps oversized windows anchored inside the display work area origin', () => {
     const result = computeCenteredWindowBounds({
-      displayWorkArea: { height: 500, width: 800, x: 120, y: 45 },
-      windowBounds: { height: 640, width: 1000, x: -2000, y: -900 },
+      displayWorkArea: { x: 120, y: 45, width: 800, height: 500 },
+      windowBounds: { x: -2000, y: -900, width: 1000, height: 640 },
     })
 
-    expect(result).toEqual({ height: 640, width: 1000, x: 120, y: 45 })
+    expect(result).toEqual({ x: 120, y: 45, width: 1000, height: 640 })
   })
 })
 
@@ -196,8 +196,8 @@ describe('centerWindowOnDisplay', () => {
    * The recovered window receives centered bounds and becomes visible.
    */
   it('sets centered bounds and shows the window', () => {
-    const windowBounds = { height: 600, width: 450, x: 1200, y: 700 }
-    const displayWorkArea = { height: 875, width: 1440, x: 0, y: 25 }
+    const windowBounds = { x: 1200, y: 700, width: 450, height: 600 }
+    const displayWorkArea = { x: 0, y: 25, width: 1440, height: 875 }
     const setBounds = vi.fn()
     const show = vi.fn()
     vi.mocked(screen.getDisplayMatching).mockReturnValue({ workArea: displayWorkArea } as Electron.Display)
@@ -209,9 +209,9 @@ describe('centerWindowOnDisplay', () => {
       show,
     })
 
-    expect(result).toEqual({ height: 600, width: 450, x: 495, y: 162 })
+    expect(result).toEqual({ x: 495, y: 162, width: 450, height: 600 })
     expect(screen.getDisplayMatching).toHaveBeenCalledWith(windowBounds)
-    expect(setBounds).toHaveBeenCalledWith({ height: 600, width: 450, x: 495, y: 162 })
+    expect(setBounds).toHaveBeenCalledWith({ x: 495, y: 162, width: 450, height: 600 })
     expect(show).toHaveBeenCalledTimes(1)
   })
 

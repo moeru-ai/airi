@@ -20,20 +20,20 @@ function makeCounter(): Counter {
   return { add: vi.fn() } as unknown as Counter
 }
 
-function makeMetrics(): { decryptFailures: Counter, metrics: GatewayMetrics } {
+function makeMetrics(): { metrics: GatewayMetrics, decryptFailures: Counter } {
   const decryptFailures = makeCounter()
   // We only exercise decryptFailures here; the rest are unused stubs.
   const metrics = {
-    configInvalidHmac: makeCounter(),
-    configReload: makeCounter(),
-    decryptFailures,
     fallbackCount: makeCounter(),
+    upstreamErrors: makeCounter(),
     keyExhaustedCount: makeCounter(),
     sameStatusExhaustion: makeCounter(),
+    configReload: makeCounter(),
+    decryptFailures,
     subscriberState: makeCounter(),
-    upstreamErrors: makeCounter(),
+    configInvalidHmac: makeCounter(),
   } as GatewayMetrics
-  return { decryptFailures, metrics }
+  return { metrics, decryptFailures }
 }
 
 describe('createKeyRotator', () => {
@@ -45,9 +45,9 @@ describe('createKeyRotator', () => {
     const modelName = 'openai/gpt-5-mini'
     const upstream = {
       keys: [
-        { ciphertext: crypto.encryptKey('sk-key-one', { keyEntryId: 'k1', modelName }), id: 'k1' },
-        { ciphertext: crypto.encryptKey('sk-key-two', { keyEntryId: 'k2', modelName }), id: 'k2' },
-        { ciphertext: crypto.encryptKey('sk-key-three', { keyEntryId: 'k3', modelName }), id: 'k3' },
+        { id: 'k1', ciphertext: crypto.encryptKey('sk-key-one', { modelName, keyEntryId: 'k1' }) },
+        { id: 'k2', ciphertext: crypto.encryptKey('sk-key-two', { modelName, keyEntryId: 'k2' }) },
+        { id: 'k3', ciphertext: crypto.encryptKey('sk-key-three', { modelName, keyEntryId: 'k3' }) },
       ],
     }
     const { metrics } = makeMetrics()
@@ -69,7 +69,7 @@ describe('createKeyRotator', () => {
     const crypto = createEnvelopeCrypto({ masterKey: freshMasterKey() })
     const modelName = 'm'
     const upstream = {
-      keys: [{ ciphertext: crypto.encryptKey('sk-only', { keyEntryId: 'only', modelName }), id: 'only' }],
+      keys: [{ id: 'only', ciphertext: crypto.encryptKey('sk-only', { modelName, keyEntryId: 'only' }) }],
     }
     const { metrics } = makeMetrics()
 
@@ -94,10 +94,10 @@ describe('createKeyRotator', () => {
     const modelName = 'm'
     const upstream = {
       keys: [
-        { ciphertext: 'v1.AAAA.BBBB.CCCC', id: 'bad' },
+        { id: 'bad', ciphertext: 'v1.AAAA.BBBB.CCCC' },
       ],
     }
-    const { decryptFailures, metrics } = makeMetrics()
+    const { metrics, decryptFailures } = makeMetrics()
 
     const rotator = createKeyRotator(upstream, crypto, modelName, metrics, 'openrouter')
 
@@ -123,7 +123,7 @@ describe('createKeyRotator', () => {
     expect((decryptFailures.add as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(1)
     const firstCall = (decryptFailures.add as ReturnType<typeof vi.fn>).mock.calls[0]
     expect(firstCall[0]).toBe(1)
-    expect(firstCall[1]).toEqual({ key_entry_id: 'bad', provider: 'openrouter' })
+    expect(firstCall[1]).toEqual({ provider: 'openrouter', key_entry_id: 'bad' })
   })
 
   it('decrypt failure on a later key still aborts iteration immediately (no partial yields)', () => {
@@ -131,8 +131,8 @@ describe('createKeyRotator', () => {
     const modelName = 'm'
     const upstream = {
       keys: [
-        { ciphertext: crypto.encryptKey('sk-good', { keyEntryId: 'k1', modelName }), id: 'k1' },
-        { ciphertext: 'v1.AAAA.BBBB.CCCC', id: 'bad' },
+        { id: 'k1', ciphertext: crypto.encryptKey('sk-good', { modelName, keyEntryId: 'k1' }) },
+        { id: 'bad', ciphertext: 'v1.AAAA.BBBB.CCCC' },
       ],
     }
     const { metrics } = makeMetrics()
@@ -153,7 +153,7 @@ describe('createKeyRotator', () => {
     const crypto = createEnvelopeCrypto({ masterKey: freshMasterKey() })
     const modelName = 'm'
     const upstream = {
-      keys: [{ ciphertext: crypto.encryptKey('sk-x', { keyEntryId: 'k1', modelName }), id: 'k1' }],
+      keys: [{ id: 'k1', ciphertext: crypto.encryptKey('sk-x', { modelName, keyEntryId: 'k1' }) }],
     }
 
     const rotator = createKeyRotator(upstream, crypto, modelName, null, 'openrouter')

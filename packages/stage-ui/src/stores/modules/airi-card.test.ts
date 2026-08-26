@@ -33,19 +33,19 @@ vi.mock('./artistry', async () => {
 
   return {
     useArtistryStore: defineStore('artistry', {
+      state: () => ({
+        globalProvider: 'mock-artistry-provider',
+        globalModel: 'mock-artistry-model',
+        globalPromptPrefix: 'mock-artistry-prefix',
+        globalProviderOptions: {},
+        activeProvider: 'mock-artistry-provider',
+        activeModel: 'mock-artistry-model',
+        defaultPromptPrefix: 'mock-artistry-prefix',
+        providerOptions: {},
+      }),
       actions: {
         resetToGlobal: resetArtistryToGlobal,
       },
-      state: () => ({
-        activeModel: 'mock-artistry-model',
-        activeProvider: 'mock-artistry-provider',
-        defaultPromptPrefix: 'mock-artistry-prefix',
-        globalModel: 'mock-artistry-model',
-        globalPromptPrefix: 'mock-artistry-prefix',
-        globalProvider: 'mock-artistry-provider',
-        globalProviderOptions: {},
-        providerOptions: {},
-      }),
     }),
   }
 })
@@ -56,8 +56,8 @@ vi.mock('./consciousness', async () => {
   return {
     useConsciousnessStore: defineStore('consciousness', {
       state: () => ({
-        activeModel: 'mock-consciousness-model',
         activeProvider: 'mock-consciousness-provider',
+        activeModel: 'mock-consciousness-model',
       }),
     }),
   }
@@ -69,8 +69,8 @@ vi.mock('./speech', async () => {
   return {
     useSpeechStore: defineStore('speech', {
       state: () => ({
-        activeSpeechModel: 'mock-speech-model',
         activeSpeechProvider: 'mock-speech-provider',
+        activeSpeechModel: 'mock-speech-model',
         activeSpeechVoiceId: 'mock-speech-voice',
       }),
     }),
@@ -83,8 +83,8 @@ vi.mock('./vision', async () => {
   return {
     useVisionStore: defineStore('vision', {
       state: () => ({
-        activeModel: 'mock-vision-model',
         activeProvider: 'mock-vision-provider',
+        activeModel: 'mock-vision-model',
       }),
     }),
   }
@@ -188,17 +188,17 @@ describe('airi-card store', () => {
     await expect(cardStore.persistActiveCardModuleSelections()).resolves.toBe(true)
 
     expect(cardStore.activeCard?.extensions.airi.modules.consciousness).toEqual({
-      model: 'auto',
       provider: 'official-provider',
+      model: 'auto',
     })
     expect(cardStore.activeCard?.extensions.airi.modules.speech).toMatchObject({
-      model: 'auto',
       provider: 'official-provider-speech',
+      model: 'auto',
       voice_id: '',
     })
     expect(cardStore.activeCard?.extensions.airi.modules.vision).toEqual({
-      model: 'auto',
       provider: 'vision-official-provider',
+      model: 'auto',
     })
     expect(resetArtistryToGlobal).not.toHaveBeenCalled()
 
@@ -219,36 +219,36 @@ describe('airi-card store', () => {
     await cardStore.initialize()
 
     const vrmCardId = await cardStore.addCard({
+      name: 'VRM card',
+      version: '1.0.0',
       description: 'Card for the promoted leader.',
       extensions: {
         airi: {
-          agents: {},
           modules: {
-            consciousness: { model: 'mock-consciousness-model', provider: 'mock-consciousness-provider' },
+            consciousness: { provider: 'mock-consciousness-provider', model: 'mock-consciousness-model' },
+            vision: { provider: 'mock-vision-provider', model: 'mock-vision-model' },
+            speech: { provider: 'mock-speech-provider', model: 'mock-speech-model', voice_id: 'mock-speech-voice' },
             displayModelId: 'preset-vrm-1',
-            speech: { model: 'mock-speech-model', provider: 'mock-speech-provider', voice_id: 'mock-speech-voice' },
-            vision: { model: 'mock-vision-model', provider: 'mock-vision-provider' },
           },
+          agents: {},
         },
       },
-      name: 'VRM card',
-      version: '1.0.0',
     }, 'scratch')
     const live2dCardId = await cardStore.addCard({
+      name: 'Live2D card',
+      version: '1.0.0',
       description: 'Card for the active leader.',
       extensions: {
         airi: {
-          agents: {},
           modules: {
-            consciousness: { model: 'mock-consciousness-model', provider: 'mock-consciousness-provider' },
+            consciousness: { provider: 'mock-consciousness-provider', model: 'mock-consciousness-model' },
+            vision: { provider: 'mock-vision-provider', model: 'mock-vision-model' },
+            speech: { provider: 'mock-speech-provider', model: 'mock-speech-model', voice_id: 'mock-speech-voice' },
             displayModelId: 'preset-live2d-1',
-            speech: { model: 'mock-speech-model', provider: 'mock-speech-provider', voice_id: 'mock-speech-voice' },
-            vision: { model: 'mock-vision-model', provider: 'mock-vision-provider' },
           },
+          agents: {},
         },
       },
-      name: 'Live2D card',
-      version: '1.0.0',
     }, 'scratch')
 
     stageModelStore.stageModelSelected = 'preset-live2d-1'
@@ -290,14 +290,14 @@ describe('airi-card store', () => {
     await cardStore.initialize()
 
     expect(await cardStore.updateActiveCardDisplayModel('display-model-iru-v2')).toBe(true)
-    expect(await cardStore.updateActiveCardConsciousness({ model: 'anthropic/claude-sonnet', provider: 'openrouter-ai' })).toBe(true)
-    expect(await cardStore.updateActiveCardVision({ model: 'llava', provider: 'ollama' })).toBe(true)
-    expect(await cardStore.updateActiveCardSpeech({ model: 'eleven_multilingual_v2', provider: 'elevenlabs', voice_id: 'aria' })).toBe(true)
+    expect(await cardStore.updateActiveCardConsciousness({ provider: 'openrouter-ai', model: 'anthropic/claude-sonnet' })).toBe(true)
+    expect(await cardStore.updateActiveCardVision({ provider: 'ollama', model: 'llava' })).toBe(true)
+    expect(await cardStore.updateActiveCardSpeech({ provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' })).toBe(true)
     expect(cardStore.activeCard?.extensions.airi.modules).toMatchObject({
-      consciousness: { model: 'anthropic/claude-sonnet', provider: 'openrouter-ai' },
       displayModelId: 'display-model-iru-v2',
-      speech: { model: 'eleven_multilingual_v2', provider: 'elevenlabs', voice_id: 'aria' },
-      vision: { model: 'llava', provider: 'ollama' },
+      consciousness: { provider: 'openrouter-ai', model: 'anthropic/claude-sonnet' },
+      vision: { provider: 'ollama', model: 'llava' },
+      speech: { provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' },
     })
     expect(stageModelStore.stageModelSelected).toBe('display-model-iru-v2')
   })
@@ -319,20 +319,20 @@ describe('airi-card store', () => {
     await cardStore.initialize()
 
     const card: AiriCard = {
+      name: 'VRM card',
+      version: '1.0.0',
       description: 'Card with a VRM display model',
       extensions: {
         airi: {
-          agents: {},
           modules: {
-            consciousness: { model: 'mock-consciousness-model', provider: 'mock-consciousness-provider' },
+            consciousness: { provider: 'mock-consciousness-provider', model: 'mock-consciousness-model' },
+            vision: { provider: 'mock-vision-provider', model: 'mock-vision-model' },
+            speech: { provider: 'mock-speech-provider', model: 'mock-speech-model', voice_id: 'mock-speech-voice' },
             displayModelId: 'preset-vrm-1',
-            speech: { model: 'mock-speech-model', provider: 'mock-speech-provider', voice_id: 'mock-speech-voice' },
-            vision: { model: 'mock-vision-model', provider: 'mock-vision-provider' },
           },
+          agents: {},
         },
       },
-      name: 'VRM card',
-      version: '1.0.0',
     }
     const cardId = await cardStore.addCard(card, 'scratch')
 
@@ -349,20 +349,20 @@ describe('airi-card store', () => {
     await cardStore.initialize()
 
     const cardId = await cardStore.addCard({
+      name: 'Editable card',
+      version: '1.0.0',
       description: 'Card whose model can be edited',
       extensions: {
         airi: {
-          agents: {},
           modules: {
-            consciousness: { model: 'mock-consciousness-model', provider: 'mock-consciousness-provider' },
+            consciousness: { provider: 'mock-consciousness-provider', model: 'mock-consciousness-model' },
+            vision: { provider: 'mock-vision-provider', model: 'mock-vision-model' },
+            speech: { provider: 'mock-speech-provider', model: 'mock-speech-model', voice_id: 'mock-speech-voice' },
             displayModelId: 'preset-live2d-1',
-            speech: { model: 'mock-speech-model', provider: 'mock-speech-provider', voice_id: 'mock-speech-voice' },
-            vision: { model: 'mock-vision-model', provider: 'mock-vision-provider' },
           },
+          agents: {},
         },
       },
-      name: 'Editable card',
-      version: '1.0.0',
     }, 'scratch')
     await cardStore.activateCard(cardId)
 
@@ -399,19 +399,19 @@ describe('airi-card store', () => {
     await cardStore.initialize()
 
     const cardId = await cardStore.addCard({
+      name: 'Artistry card',
+      version: '1.0.0',
       description: 'A card with object-valued runtime settings.',
       extensions: {
         airi: {
-          agents: {},
           modules: {
             artistry: {
               options: { steps: 20 },
             },
           },
+          agents: {},
         },
       },
-      name: 'Artistry card',
-      version: '1.0.0',
     }, 'scratch')
     await cardStore.activateCard(cardId)
 
@@ -452,10 +452,10 @@ describe('airi-card store', () => {
     const cardStore = useAiriCardStore()
     await cardStore.initialize()
 
-    expect(await cardStore.updateActiveCardSpeech({ model: 'eleven_multilingual_v2', provider: 'elevenlabs', voice_id: 'aria' })).toBe(true)
+    expect(await cardStore.updateActiveCardSpeech({ provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' })).toBe(true)
     expect(cardStore.activeCard?.extensions.airi.modules.speech).toMatchObject({
-      model: 'eleven_multilingual_v2',
       provider: 'elevenlabs',
+      model: 'eleven_multilingual_v2',
       voice_id: 'aria',
     })
   })
@@ -465,28 +465,28 @@ describe('airi-card store', () => {
     await cardStore.initialize()
 
     const cardId = await cardStore.addCard({
+      name: 'Runtime context card',
+      version: '1.0.0',
+      systemPrompt: 'Follow the character rules.',
       description: 'A patient field researcher.',
-      extensions: {
-        airi: {
-          agents: {},
-          modules: {
-            artistry: { widgetInstruction: 'Use the image widget for star charts.' },
-            consciousness: { model: 'mock-consciousness-model', provider: 'mock-consciousness-provider' },
-            speech: { model: 'mock-speech-model', provider: 'mock-speech-provider', voice_id: 'mock-speech-voice' },
-            vision: { model: 'mock-vision-model', provider: 'mock-vision-provider' },
-          },
-        },
-      },
+      personality: 'Curious and precise.',
+      scenario: 'The conversation takes place in an observatory.',
+      postHistoryInstructions: 'Answer the latest observation in one paragraph.',
       greetings: ['Welcome to the observatory.'],
       messageExample: [
         ['{{user}}: What did you find?', '{{char}}: A new comet.'],
       ],
-      name: 'Runtime context card',
-      personality: 'Curious and precise.',
-      postHistoryInstructions: 'Answer the latest observation in one paragraph.',
-      scenario: 'The conversation takes place in an observatory.',
-      systemPrompt: 'Follow the character rules.',
-      version: '1.0.0',
+      extensions: {
+        airi: {
+          modules: {
+            consciousness: { provider: 'mock-consciousness-provider', model: 'mock-consciousness-model' },
+            vision: { provider: 'mock-vision-provider', model: 'mock-vision-model' },
+            speech: { provider: 'mock-speech-provider', model: 'mock-speech-model', voice_id: 'mock-speech-voice' },
+            artistry: { widgetInstruction: 'Use the image widget for star charts.' },
+          },
+          agents: {},
+        },
+      },
     }, 'scratch')
 
     await cardStore.activateCard(cardId)
@@ -508,9 +508,9 @@ describe('airi-card store', () => {
     await cardStore.initialize()
 
     const cardId = await cardStore.addCard({
-      description: 'A removable card.',
       name: 'Custom card',
       version: '1.0.0',
+      description: 'A removable card.',
     }, 'scratch')
     await cardStore.activateCard(cardId)
 
@@ -533,9 +533,9 @@ describe('airi-card store', () => {
   it('preserves a valid persisted active card during initialization', async () => {
     const cardStore = useAiriCardStore()
     const cardId = await cardStore.addCard({
-      description: 'Keep this selection.',
       name: 'Persisted active card',
       version: '1.0.0',
+      description: 'Keep this selection.',
     }, 'scratch')
     cardStore.activeCardId = cardId
 

@@ -37,82 +37,148 @@ const defaultRenderStageViews = [
 const windowCaptureScriptPath = join(scriptDirectory, 'captureWindowClientPng.ps1')
 const webSocketGuid = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 
-async function applyViewPreset(host, preset) {
-  if (preset === 'default') {
-    return
+function parseArgs(argv) {
+  const options = {
+    avatarEdgeLight: true,
+    godotPath: process.env.GODOT4,
+    headless: false,
+    height: 720,
+    logPath: defaultLogPath,
+    modelPath: defaultModelPath,
+    renderStageViews: null,
+    settleMs: 1000,
+    stageDumpDirectory: null,
+    viewPreset: 'default',
+    width: 1280,
   }
 
-  const snapshot = await requestViewSnapshot(host)
-  const patch = createViewPresetPatch(preset, snapshot)
-  const requestId = randomUUID()
-  host.send('host.view.patch', {
-    patch,
-    requestId,
-  })
-  await host.waitForRequest('stage.view.snapshot', requestId, 10000)
+  for (let index = 0; index < argv.length; index++) {
+    const argument = argv[index]
+    switch (argument) {
+      case '--avatar-edge-light':
+        options.avatarEdgeLight = parseAvatarEdgeLight(
+          resolveRequiredValue(argv, ++index, argument),
+          argument,
+        )
+        break
+      case '--godot':
+        options.godotPath = resolveRequiredValue(argv, ++index, argument)
+        break
+      case '--dump-render-stages':
+        options.stageDumpDirectory = resolveRequiredValue(argv, ++index, argument)
+        break
+      case '--headless':
+        options.headless = true
+        break
+      case '--height':
+        options.height = parsePositiveInteger(resolveRequiredValue(argv, ++index, argument), argument)
+        break
+      case '--log-file':
+        options.logPath = resolveRequiredValue(argv, ++index, argument)
+        break
+      case '--model':
+        options.modelPath = resolveRequiredValue(argv, ++index, argument)
+        break
+      case '--render-stages':
+        options.renderStageViews = parseRenderStageViews(
+          resolveRequiredValue(argv, ++index, argument),
+          argument,
+        )
+        break
+      case '--settle-ms':
+        options.settleMs = parseNonNegativeInteger(
+          resolveRequiredValue(argv, ++index, argument),
+          argument,
+        )
+        break
+      case '--view-preset':
+        options.viewPreset = parseViewPreset(resolveRequiredValue(argv, ++index, argument), argument)
+        break
+      case '--width':
+        options.width = parsePositiveInteger(resolveRequiredValue(argv, ++index, argument), argument)
+        break
+      default:
+        throw new Error(`Unknown argument: ${argument}`)
+    }
+  }
+
+  if (!options.godotPath) {
+    throw new Error('GODOT4 is not set. Pass --godot or set GODOT4 to the Godot .NET executable.')
+  }
+
+  if (options.headless) {
+    throw new Error('Render-stage window capture requires a visible Godot window. Remove --headless.')
+  }
+
+  if (!options.stageDumpDirectory) {
+    throw new Error('Pass --dump-render-stages <directory>. Baseline comparison is not supported.')
+  }
+
+  options.godotPath = resolve(options.godotPath)
+  options.logPath = resolve(options.logPath)
+  options.modelPath = resolve(options.modelPath)
+  options.stageDumpDirectory = resolve(options.stageDumpDirectory)
+  options.renderStageViews ??= defaultRenderStageViews
+  return options
 }
 
-async function captureGodotWindowPng(processHandle, options) {
-  if (process.platform !== 'win32') {
-    throw new Error('Render-stage window capture currently requires Windows.')
+function resolveRequiredValue(argv, index, label) {
+  const value = argv[index]
+  if (!value || value.startsWith('--')) {
+    throw new Error(`${label} requires a value.`)
   }
 
-  if (!processHandle.pid) {
-    throw new Error('Godot process id was not available for window capture.')
-  }
-
-  const result = await runProcess(
-    process.env.PWSH ?? 'powershell.exe',
-    [
-      '-NoProfile',
-      '-ExecutionPolicy',
-      'Bypass',
-      '-File',
-      windowCaptureScriptPath,
-      '-TargetProcessId',
-      String(processHandle.pid),
-      '-OutputPath',
-      options.currentPath,
-      '-SettleMs',
-      String(options.settleMs),
-    ],
-  )
-
-  const stdout = result.stdout.trim()
-  const lines = stdout.split(/\r?\n/).filter(Boolean)
-  const lastLine = lines[lines.length - 1]
-  if (!lastLine) {
-    throw new Error('Window capture did not return JSON metadata.')
-  }
-
-  try {
-    return JSON.parse(lastLine)
-  }
-  catch (error) {
-    throw new Error(`Failed to parse window capture metadata: ${error.message}\n${stdout}`)
-  }
+  return value
 }
 
-async function captureRenderStageViews(host, processHandle, options) {
-  await mkdir(options.stageDumpDirectory, { recursive: true })
-
-  for (const view of options.renderStageViews) {
-    const isEdgeOffView = view === 'final-edge-off'
-    const edgeLightEnabled = isEdgeOffView ? false : options.avatarEdgeLight
-    await setAvatarEdgeLight(host, edgeLightEnabled)
-    await setRenderDebugView(host, isEdgeOffView ? 'final' : view)
-    const stageCapturePath = join(options.stageDumpDirectory, `${view}.png`)
-    const capture = await captureGodotWindowPng(processHandle, {
-      ...options,
-      currentPath: stageCapturePath,
-    })
-    console.info(
-      `Captured render stage ${view}: ${capture.path} (${capture.width}x${capture.height})`,
-    )
+function parsePositiveInteger(value, label) {
+  const parsed = Number.parseInt(value, 10)
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${label} must be a positive integer.`)
   }
 
-  await setAvatarEdgeLight(host, options.avatarEdgeLight)
-  await setRenderDebugView(host, 'final')
+  return parsed
+}
+
+function parseNonNegativeInteger(value, label) {
+  const parsed = Number.parseInt(value, 10)
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`${label} must be a non-negative integer.`)
+  }
+
+  return parsed
+}
+
+function parseRenderStageViews(value, label) {
+  const views = value.split(',').map(item => item.trim()).filter(Boolean)
+  if (views.length === 0) {
+    throw new Error(`${label} must include at least one render stage.`)
+  }
+
+  return views
+}
+
+function parseViewPreset(value, label) {
+  if (value === 'default' || value === 'upper-body') {
+    return value
+  }
+
+  throw new Error(`${label} must be "default" or "upper-body".`)
+}
+
+function parseAvatarEdgeLight(value, label) {
+  switch (value) {
+    case 'on':
+    case 'enabled':
+    case 'true':
+      return true
+    case 'off':
+    case 'disabled':
+    case 'false':
+      return false
+    default:
+      throw new Error(`${label} must be "on" or "off".`)
+  }
 }
 
 async function createStageHost() {
@@ -240,9 +306,12 @@ async function createStageHost() {
         throw new Error(`Cannot send ${type}; Godot WebSocket is not connected.`)
       }
 
-      writeFrame(peerSocket, 0x1, Buffer.from(JSON.stringify({ payload, type }), 'utf8'))
+      writeFrame(peerSocket, 0x1, Buffer.from(JSON.stringify({ type, payload }), 'utf8'))
     },
     url: `ws://127.0.0.1:${address.port}/ws?token=${token}`,
+    waitForType(type, timeoutMs) {
+      return waitFor(message => message?.type === type, timeoutMs, type)
+    },
     waitForRequest(type, requestId, timeoutMs) {
       return waitFor(
         message => message?.type === type && message?.payload?.requestId === requestId,
@@ -250,237 +319,7 @@ async function createStageHost() {
         `${type} ${requestId}`,
       )
     },
-    waitForType(type, timeoutMs) {
-      return waitFor(message => message?.type === type, timeoutMs, type)
-    },
   }
-}
-
-function createViewPresetPatch(preset, snapshot) {
-  if (preset !== 'upper-body') {
-    throw new Error(`Unknown view preset: ${preset}`)
-  }
-
-  const bounds = snapshot?.avatarBounds
-  if (!bounds) {
-    throw new Error('Upper-body view preset requires avatar bounds from Godot.')
-  }
-
-  const center = bounds.center
-  const size = bounds.size
-  const fovDeg = 35
-  const targetY = center.y + size.y * 0.22
-  const distance = Math.max(size.y * 0.95, 1.2)
-  const positionY = targetY + size.y * 0.02
-  const pitchDeg = Math.atan2(targetY - positionY, distance) * 180 / Math.PI
-
-  return {
-    camera: {
-      fovDeg,
-      pitchDeg,
-      position: {
-        x: center.x,
-        y: positionY,
-        z: center.z + distance,
-      },
-      yawDeg: 0,
-    },
-  }
-}
-
-function launchGodot(options, webSocketUrl) {
-  const args = [
-    '--path',
-    projectDirectory,
-    '--resolution',
-    `${options.width}x${options.height}`,
-    '--log-file',
-    options.logPath,
-  ]
-
-  if (options.headless) {
-    args.push('--headless')
-  }
-
-  args.push('--', `--airi-ws-url=${webSocketUrl}`)
-
-  return spawn(options.godotPath, args, {
-    cwd: projectDirectory,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    windowsHide: false,
-  })
-}
-
-async function main() {
-  const options = parseArgs(process.argv.slice(2))
-  if (!existsSync(options.godotPath)) {
-    throw new Error(`Godot executable does not exist: ${options.godotPath}`)
-  }
-
-  if (!existsSync(options.modelPath)) {
-    throw new Error(`VRM model does not exist: ${options.modelPath}`)
-  }
-
-  await mkdir(dirname(options.logPath), { recursive: true })
-  await mkdir(options.stageDumpDirectory, { recursive: true })
-
-  const host = await createStageHost()
-  const godot = launchGodot(options, host.url)
-  godot.stdout.on('data', chunk => process.stdout.write(chunk))
-  godot.stderr.on('data', chunk => process.stderr.write(chunk))
-
-  try {
-    await host.waitForType('stage.ready', 20000)
-    host.send('host.scene.apply', {
-      format: 'vrm',
-      modelId: 'render-stage-observation-avatar-sample-a',
-      name: 'AvatarSample_A',
-      path: options.modelPath,
-    })
-    await host.waitForType('scene.applied', 45000)
-    await applyViewPreset(host, options.viewPreset)
-    await setAvatarEdgeLight(host, options.avatarEdgeLight)
-    await captureRenderStageViews(host, godot, options)
-  }
-  finally {
-    await stopGodot(host, godot)
-    await host.close()
-  }
-}
-
-function parseArgs(argv) {
-  const options = {
-    avatarEdgeLight: true,
-    godotPath: process.env.GODOT4,
-    headless: false,
-    height: 720,
-    logPath: defaultLogPath,
-    modelPath: defaultModelPath,
-    renderStageViews: null,
-    settleMs: 1000,
-    stageDumpDirectory: null,
-    viewPreset: 'default',
-    width: 1280,
-  }
-
-  for (let index = 0; index < argv.length; index++) {
-    const argument = argv[index]
-    switch (argument) {
-      case '--avatar-edge-light':
-        options.avatarEdgeLight = parseAvatarEdgeLight(
-          resolveRequiredValue(argv, ++index, argument),
-          argument,
-        )
-        break
-      case '--dump-render-stages':
-        options.stageDumpDirectory = resolveRequiredValue(argv, ++index, argument)
-        break
-      case '--godot':
-        options.godotPath = resolveRequiredValue(argv, ++index, argument)
-        break
-      case '--headless':
-        options.headless = true
-        break
-      case '--height':
-        options.height = parsePositiveInteger(resolveRequiredValue(argv, ++index, argument), argument)
-        break
-      case '--log-file':
-        options.logPath = resolveRequiredValue(argv, ++index, argument)
-        break
-      case '--model':
-        options.modelPath = resolveRequiredValue(argv, ++index, argument)
-        break
-      case '--render-stages':
-        options.renderStageViews = parseRenderStageViews(
-          resolveRequiredValue(argv, ++index, argument),
-          argument,
-        )
-        break
-      case '--settle-ms':
-        options.settleMs = parseNonNegativeInteger(
-          resolveRequiredValue(argv, ++index, argument),
-          argument,
-        )
-        break
-      case '--view-preset':
-        options.viewPreset = parseViewPreset(resolveRequiredValue(argv, ++index, argument), argument)
-        break
-      case '--width':
-        options.width = parsePositiveInteger(resolveRequiredValue(argv, ++index, argument), argument)
-        break
-      default:
-        throw new Error(`Unknown argument: ${argument}`)
-    }
-  }
-
-  if (!options.godotPath) {
-    throw new Error('GODOT4 is not set. Pass --godot or set GODOT4 to the Godot .NET executable.')
-  }
-
-  if (options.headless) {
-    throw new Error('Render-stage window capture requires a visible Godot window. Remove --headless.')
-  }
-
-  if (!options.stageDumpDirectory) {
-    throw new Error('Pass --dump-render-stages <directory>. Baseline comparison is not supported.')
-  }
-
-  options.godotPath = resolve(options.godotPath)
-  options.logPath = resolve(options.logPath)
-  options.modelPath = resolve(options.modelPath)
-  options.stageDumpDirectory = resolve(options.stageDumpDirectory)
-  options.renderStageViews ??= defaultRenderStageViews
-  return options
-}
-
-function parseAvatarEdgeLight(value, label) {
-  switch (value) {
-    case 'disabled':
-    case 'false':
-    case 'off':
-      return false
-    case 'enabled':
-    case 'on':
-    case 'true':
-      return true
-    default:
-      throw new Error(`${label} must be "on" or "off".`)
-  }
-}
-
-function parseNonNegativeInteger(value, label) {
-  const parsed = Number.parseInt(value, 10)
-  if (!Number.isInteger(parsed) || parsed < 0) {
-    throw new Error(`${label} must be a non-negative integer.`)
-  }
-
-  return parsed
-}
-
-function parsePositiveInteger(value, label) {
-  const parsed = Number.parseInt(value, 10)
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error(`${label} must be a positive integer.`)
-  }
-
-  return parsed
-}
-
-function parseRenderStageViews(value, label) {
-  const views = value.split(',').map(item => item.trim()).filter(Boolean)
-  if (views.length === 0) {
-    throw new Error(`${label} must include at least one render stage.`)
-  }
-
-  return views
-}
-
-function parseViewPreset(value, label) {
-  if (value === 'default' || value === 'upper-body') {
-    return value
-  }
-
-  throw new Error(`${label} must be "default" or "upper-body".`)
 }
 
 function readFrames(buffer) {
@@ -542,6 +381,154 @@ function readFrames(buffer) {
   }
 }
 
+function writeFrame(socket, opcode, payload) {
+  const length = payload.length
+  let header
+  if (length < 126) {
+    header = Buffer.from([0x80 | opcode, length])
+  }
+  else if (length <= 0xFFFF) {
+    header = Buffer.alloc(4)
+    header[0] = 0x80 | opcode
+    header[1] = 126
+    header.writeUInt16BE(length, 2)
+  }
+  else {
+    header = Buffer.alloc(10)
+    header[0] = 0x80 | opcode
+    header[1] = 127
+    header.writeBigUInt64BE(BigInt(length), 2)
+  }
+
+  socket.write(Buffer.concat([header, payload]))
+}
+
+function launchGodot(options, webSocketUrl) {
+  const args = [
+    '--path',
+    projectDirectory,
+    '--resolution',
+    `${options.width}x${options.height}`,
+    '--log-file',
+    options.logPath,
+  ]
+
+  if (options.headless) {
+    args.push('--headless')
+  }
+
+  args.push('--', `--airi-ws-url=${webSocketUrl}`)
+
+  return spawn(options.godotPath, args, {
+    cwd: projectDirectory,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: false,
+  })
+}
+
+function waitForProcessExit(processHandle, timeoutMs) {
+  return new Promise((resolvePromise) => {
+    const timeout = setTimeout(resolvePromise, timeoutMs, false)
+    processHandle.once('close', () => {
+      clearTimeout(timeout)
+      resolvePromise(true)
+    })
+  })
+}
+
+async function stopGodot(host, processHandle) {
+  try {
+    host.send('host.shutdown')
+  }
+  catch {}
+
+  const exited = await waitForProcessExit(processHandle, 3000)
+  if (!exited) {
+    processHandle.kill()
+    await waitForProcessExit(processHandle, 3000)
+  }
+}
+
+async function captureGodotWindowPng(processHandle, options) {
+  if (process.platform !== 'win32') {
+    throw new Error('Render-stage window capture currently requires Windows.')
+  }
+
+  if (!processHandle.pid) {
+    throw new Error('Godot process id was not available for window capture.')
+  }
+
+  const result = await runProcess(
+    process.env.PWSH ?? 'powershell.exe',
+    [
+      '-NoProfile',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-File',
+      windowCaptureScriptPath,
+      '-TargetProcessId',
+      String(processHandle.pid),
+      '-OutputPath',
+      options.currentPath,
+      '-SettleMs',
+      String(options.settleMs),
+    ],
+  )
+
+  const stdout = result.stdout.trim()
+  const lines = stdout.split(/\r?\n/).filter(Boolean)
+  const lastLine = lines[lines.length - 1]
+  if (!lastLine) {
+    throw new Error('Window capture did not return JSON metadata.')
+  }
+
+  try {
+    return JSON.parse(lastLine)
+  }
+  catch (error) {
+    throw new Error(`Failed to parse window capture metadata: ${error.message}\n${stdout}`)
+  }
+}
+
+async function setRenderDebugView(host, view) {
+  const requestId = randomUUID()
+  host.send('host.render.set_debug_view', {
+    requestId,
+    view,
+  })
+  const response = await host.waitForRequest('stage.render.debug_view', requestId, 10000)
+  if (response?.payload?.view !== view) {
+    throw new Error(`Godot applied unexpected render debug view: ${response?.payload?.view}`)
+  }
+}
+
+async function setAvatarEdgeLight(host, enabled) {
+  const requestId = randomUUID()
+  host.send('host.render.set_avatar_edge_light', {
+    requestId,
+    enabled,
+  })
+  const response = await host.waitForRequest('stage.render.avatar_edge_light', requestId, 10000)
+  if (response?.payload?.enabled !== enabled) {
+    throw new Error(`Godot applied unexpected avatar edge-light state: ${response?.payload?.enabled}`)
+  }
+}
+
+async function applyViewPreset(host, preset) {
+  if (preset === 'default') {
+    return
+  }
+
+  const snapshot = await requestViewSnapshot(host)
+  const patch = createViewPresetPatch(preset, snapshot)
+  const requestId = randomUUID()
+  host.send('host.view.patch', {
+    requestId,
+    patch,
+  })
+  await host.waitForRequest('stage.view.snapshot', requestId, 10000)
+}
+
 async function requestViewSnapshot(host) {
   const requestId = randomUUID()
   host.send('host.view.request_snapshot', {
@@ -551,13 +538,58 @@ async function requestViewSnapshot(host) {
   return response.payload
 }
 
-function resolveRequiredValue(argv, index, label) {
-  const value = argv[index]
-  if (!value || value.startsWith('--')) {
-    throw new Error(`${label} requires a value.`)
+function createViewPresetPatch(preset, snapshot) {
+  if (preset !== 'upper-body') {
+    throw new Error(`Unknown view preset: ${preset}`)
   }
 
-  return value
+  const bounds = snapshot?.avatarBounds
+  if (!bounds) {
+    throw new Error('Upper-body view preset requires avatar bounds from Godot.')
+  }
+
+  const center = bounds.center
+  const size = bounds.size
+  const fovDeg = 35
+  const targetY = center.y + size.y * 0.22
+  const distance = Math.max(size.y * 0.95, 1.2)
+  const positionY = targetY + size.y * 0.02
+  const pitchDeg = Math.atan2(targetY - positionY, distance) * 180 / Math.PI
+
+  return {
+    camera: {
+      position: {
+        x: center.x,
+        y: positionY,
+        z: center.z + distance,
+      },
+      yawDeg: 0,
+      pitchDeg,
+      fovDeg,
+    },
+  }
+}
+
+async function captureRenderStageViews(host, processHandle, options) {
+  await mkdir(options.stageDumpDirectory, { recursive: true })
+
+  for (const view of options.renderStageViews) {
+    const isEdgeOffView = view === 'final-edge-off'
+    const edgeLightEnabled = isEdgeOffView ? false : options.avatarEdgeLight
+    await setAvatarEdgeLight(host, edgeLightEnabled)
+    await setRenderDebugView(host, isEdgeOffView ? 'final' : view)
+    const stageCapturePath = join(options.stageDumpDirectory, `${view}.png`)
+    const capture = await captureGodotWindowPng(processHandle, {
+      ...options,
+      currentPath: stageCapturePath,
+    })
+    console.info(
+      `Captured render stage ${view}: ${capture.path} (${capture.width}x${capture.height})`,
+    )
+  }
+
+  await setAvatarEdgeLight(host, options.avatarEdgeLight)
+  await setRenderDebugView(host, 'final')
 }
 
 function runProcess(command, args) {
@@ -589,73 +621,41 @@ function runProcess(command, args) {
   })
 }
 
-async function setAvatarEdgeLight(host, enabled) {
-  const requestId = randomUUID()
-  host.send('host.render.set_avatar_edge_light', {
-    enabled,
-    requestId,
-  })
-  const response = await host.waitForRequest('stage.render.avatar_edge_light', requestId, 10000)
-  if (response?.payload?.enabled !== enabled) {
-    throw new Error(`Godot applied unexpected avatar edge-light state: ${response?.payload?.enabled}`)
+async function main() {
+  const options = parseArgs(process.argv.slice(2))
+  if (!existsSync(options.godotPath)) {
+    throw new Error(`Godot executable does not exist: ${options.godotPath}`)
   }
-}
 
-async function setRenderDebugView(host, view) {
-  const requestId = randomUUID()
-  host.send('host.render.set_debug_view', {
-    requestId,
-    view,
-  })
-  const response = await host.waitForRequest('stage.render.debug_view', requestId, 10000)
-  if (response?.payload?.view !== view) {
-    throw new Error(`Godot applied unexpected render debug view: ${response?.payload?.view}`)
+  if (!existsSync(options.modelPath)) {
+    throw new Error(`VRM model does not exist: ${options.modelPath}`)
   }
-}
 
-async function stopGodot(host, processHandle) {
+  await mkdir(dirname(options.logPath), { recursive: true })
+  await mkdir(options.stageDumpDirectory, { recursive: true })
+
+  const host = await createStageHost()
+  const godot = launchGodot(options, host.url)
+  godot.stdout.on('data', chunk => process.stdout.write(chunk))
+  godot.stderr.on('data', chunk => process.stderr.write(chunk))
+
   try {
-    host.send('host.shutdown')
-  }
-  catch {}
-
-  const exited = await waitForProcessExit(processHandle, 3000)
-  if (!exited) {
-    processHandle.kill()
-    await waitForProcessExit(processHandle, 3000)
-  }
-}
-
-function waitForProcessExit(processHandle, timeoutMs) {
-  return new Promise((resolvePromise) => {
-    const timeout = setTimeout(resolvePromise, timeoutMs, false)
-    processHandle.once('close', () => {
-      clearTimeout(timeout)
-      resolvePromise(true)
+    await host.waitForType('stage.ready', 20000)
+    host.send('host.scene.apply', {
+      format: 'vrm',
+      modelId: 'render-stage-observation-avatar-sample-a',
+      name: 'AvatarSample_A',
+      path: options.modelPath,
     })
-  })
-}
-
-function writeFrame(socket, opcode, payload) {
-  const length = payload.length
-  let header
-  if (length < 126) {
-    header = Buffer.from([0x80 | opcode, length])
+    await host.waitForType('scene.applied', 45000)
+    await applyViewPreset(host, options.viewPreset)
+    await setAvatarEdgeLight(host, options.avatarEdgeLight)
+    await captureRenderStageViews(host, godot, options)
   }
-  else if (length <= 0xFFFF) {
-    header = Buffer.alloc(4)
-    header[0] = 0x80 | opcode
-    header[1] = 126
-    header.writeUInt16BE(length, 2)
+  finally {
+    await stopGodot(host, godot)
+    await host.close()
   }
-  else {
-    header = Buffer.alloc(10)
-    header[0] = 0x80 | opcode
-    header[1] = 127
-    header.writeBigUInt64BE(BigInt(length), 2)
-  }
-
-  socket.write(Buffer.concat([header, payload]))
 }
 
 main().catch((error) => {

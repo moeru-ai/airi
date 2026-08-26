@@ -17,27 +17,37 @@ import type { ForegroundContext } from './types'
 // Types
 // ---------------------------------------------------------------------------
 
+export interface OwnedWindow {
+  /** Application name (e.g. "Google Chrome"). */
+  appName: string
+  /** Window identity string from observe-windows (ownerPid:layer:title). */
+  windowId: string
+  /** Process ID. */
+  pid: number
+  /** Whether the agent launched this app (vs. just taking a window in it). */
+  agentLaunched: boolean
+}
+
 export interface DesktopSession {
-  /** App the agent is currently controlling. */
-  controlledApp?: string
-  /** ISO timestamp of session creation. */
-  createdAt: string
   /** Session unique ID. */
   id: string
-  /** ISO timestamp of last activity. */
-  lastActiveAt: string
+  /** App the agent is currently controlling. */
+  controlledApp?: string
   /** Windows the agent owns or manages. */
   ownedWindows: OwnedWindow[]
   /** The user's foreground app before the agent took over. */
   userForegroundApp?: string
+  /** ISO timestamp of session creation. */
+  createdAt: string
+  /** ISO timestamp of last activity. */
+  lastActiveAt: string
 }
 
-export interface DesktopSessionController {
-  /**
-   * Add an owned window to the session.
-   */
-  addOwnedWindow: (window: OwnedWindow) => void
+// ---------------------------------------------------------------------------
+// Session Controller
+// ---------------------------------------------------------------------------
 
+export interface DesktopSessionController {
   /**
    * Begin a new session targeting a specific app.
    * Records the user's current foreground and sets the agent's controlled app.
@@ -56,17 +66,14 @@ export interface DesktopSessionController {
   end: () => void
 
   /**
-   * Ensure the controlled app is in the foreground.
-   * Delegates to ChromeSessionManager.bringToFront() for Chrome,
-   * or to executor.focusApp() for other apps.
-   *
-   * Returns true if the app was already in front, false if it needed switching.
+   * Add an owned window to the session.
    */
-  ensureControlledAppInForeground: (params: {
-    activateApp: (appName: string) => Promise<void>
-    chromeSessionManager: ChromeSessionManager
-    currentForeground: ForegroundContext
-  }) => Promise<boolean>
+  addOwnedWindow: (window: OwnedWindow) => void
+
+  /**
+   * Touch the session (update lastActiveAt).
+   */
+  touch: () => void
 
   /**
    * Get the current session (null if no session).
@@ -79,24 +86,17 @@ export interface DesktopSessionController {
   isControlledAppInForeground: (currentForeground: ForegroundContext) => boolean
 
   /**
-   * Touch the session (update lastActiveAt).
+   * Ensure the controlled app is in the foreground.
+   * Delegates to ChromeSessionManager.bringToFront() for Chrome,
+   * or to executor.focusApp() for other apps.
+   *
+   * Returns true if the app was already in front, false if it needed switching.
    */
-  touch: () => void
-}
-
-// ---------------------------------------------------------------------------
-// Session Controller
-// ---------------------------------------------------------------------------
-
-export interface OwnedWindow {
-  /** Whether the agent launched this app (vs. just taking a window in it). */
-  agentLaunched: boolean
-  /** Application name (e.g. "Google Chrome"). */
-  appName: string
-  /** Process ID. */
-  pid: number
-  /** Window identity string from observe-windows (ownerPid:layer:title). */
-  windowId: string
+  ensureControlledAppInForeground: (params: {
+    currentForeground: ForegroundContext
+    chromeSessionManager: ChromeSessionManager
+    activateApp: (appName: string) => Promise<void>
+  }) => Promise<boolean>
 }
 
 // ---------------------------------------------------------------------------
@@ -111,28 +111,17 @@ export function createDesktopSessionController(
   let session: DesktopSession | null = null
 
   return {
-    addOwnedWindow(window) {
-      if (!session)
-        return
-      // Prevent duplicate entries
-      if (session.ownedWindows.some(w => w.windowId === window.windowId))
-        return
-      session.ownedWindows.push(window)
-      session.lastActiveAt = new Date().toISOString()
-      stateManager.updateDesktopSession(session)
-    },
-
     begin({ controlledApp, currentForeground }) {
       sessionCounter++
       session = {
-        controlledApp,
-        createdAt: new Date().toISOString(),
         id: `ds_${sessionCounter}`,
-        lastActiveAt: new Date().toISOString(),
+        controlledApp,
         ownedWindows: [],
         userForegroundApp: currentForeground?.appName !== controlledApp
           ? currentForeground?.appName
           : undefined,
+        createdAt: new Date().toISOString(),
+        lastActiveAt: new Date().toISOString(),
       }
 
       stateManager.updateDesktopSession(session)
@@ -150,7 +139,37 @@ export function createDesktopSessionController(
       stateManager.clearDesktopSession()
     },
 
-    async ensureControlledAppInForeground({ activateApp, chromeSessionManager, currentForeground }) {
+    addOwnedWindow(window) {
+      if (!session)
+        return
+      // Prevent duplicate entries
+      if (session.ownedWindows.some(w => w.windowId === window.windowId))
+        return
+      session.ownedWindows.push(window)
+      session.lastActiveAt = new Date().toISOString()
+      stateManager.updateDesktopSession(session)
+    },
+
+    touch() {
+      if (!session)
+        return
+      session.lastActiveAt = new Date().toISOString()
+      stateManager.updateDesktopSession(session)
+    },
+
+    getSession() {
+      return session
+    },
+
+    isControlledAppInForeground(currentForeground) {
+      if (!session?.controlledApp)
+        return false
+      if (!currentForeground.available || !currentForeground.appName)
+        return false
+      return currentForeground.appName === session.controlledApp
+    },
+
+    async ensureControlledAppInForeground({ currentForeground, chromeSessionManager, activateApp }) {
       if (!session?.controlledApp)
         return true
 
@@ -177,25 +196,6 @@ export function createDesktopSessionController(
 
       this.touch()
       return false
-    },
-
-    getSession() {
-      return session
-    },
-
-    isControlledAppInForeground(currentForeground) {
-      if (!session?.controlledApp)
-        return false
-      if (!currentForeground.available || !currentForeground.appName)
-        return false
-      return currentForeground.appName === session.controlledApp
-    },
-
-    touch() {
-      if (!session)
-        return
-      session.lastActiveAt = new Date().toISOString()
-      stateManager.updateDesktopSession(session)
     },
   }
 }

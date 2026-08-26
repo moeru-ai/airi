@@ -5,13 +5,14 @@ import { useLogg } from '@guiiai/logg'
 import { deleteUnreadEventsByIds } from '../../lib/db'
 
 export const readMessagesAction: ActionHandler = {
+  name: 'read_unread_messages',
   description: 'Read unread messages from a specific channel',
   execute: async (botContext, chatCtx, args): Promise<ActionResult> => {
     if (args.action !== 'read_unread_messages') {
       return {
-        result: 'System Error: Action mismatch for read_unread_messages.',
-        shouldContinue: true,
         success: false,
+        shouldContinue: true,
+        result: 'System Error: Action mismatch for read_unread_messages.',
       }
     }
     const logger = useLogg('readMessagesAction').useGlobalConfig()
@@ -19,9 +20,9 @@ export const readMessagesAction: ActionHandler = {
 
     if (!channelId) {
       return {
-        result: 'System Error: No channelId provided for read_unread_messages.',
-        shouldContinue: true,
         success: false,
+        shouldContinue: true,
+        result: 'System Error: No channelId provided for read_unread_messages.',
       }
     }
 
@@ -30,9 +31,9 @@ export const readMessagesAction: ActionHandler = {
     if (!unreadEventsForThisChannel || unreadEventsForThisChannel.length === 0) {
       delete botContext.unreadEvents[channelId]
       return {
-        result: 'AIRI System: No unread messages found.',
-        shouldContinue: true,
         success: true,
+        shouldContinue: true,
+        result: 'AIRI System: No unread messages found.',
       }
     }
 
@@ -59,10 +60,9 @@ export const readMessagesAction: ActionHandler = {
     logger.log(`Read ${unreadEventsForThisChannel.length} unread events from channel ${channelId}`)
 
     return {
-      result: `AIRI System: Read ${unreadEventsForThisChannel.length} unread events from channel ${channelId}:\n${formattedMessages}`,
-      shouldContinue: true,
       success: true,
+      shouldContinue: true,
+      result: `AIRI System: Read ${unreadEventsForThisChannel.length} unread events from channel ${channelId}:\n${formattedMessages}`,
     }
   },
-  name: 'read_unread_messages',
 }

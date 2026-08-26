@@ -49,19 +49,19 @@ vi.mock('../modules/airi-card', () => ({
 
 vi.mock('../../database/repos/chat-sessions.repo', () => ({
   chatSessionsRepo: {
-    addTombstone: (uid: string, id: string) => addTombstoneMock(uid, id),
-    deleteSession: (id: string) => deleteSessionRepoMock(id),
-    dequeueOutbox: vi.fn().mockResolvedValue(undefined),
-    dropOutboxForSession: (uid: string, id: string) => dropOutboxForSessionMock(uid, id),
-    enqueueOutbox: vi.fn().mockResolvedValue(undefined),
     getIndex: (uid: string) => getIndexMock(uid),
-    getOutbox: (uid: string) => getOutboxMock(uid),
-    getSession: (id: string) => getSessionMock(id),
-    getTombstones: (uid: string) => getTombstonesMock(uid),
-    removeTombstones: (uid: string, ids: string[]) => removeTombstonesMock(uid, ids),
     saveIndex: (idx: ChatSessionsIndex) => saveIndexMock(idx),
+    getSession: (id: string) => getSessionMock(id),
     saveSession: (id: string, rec: ChatSessionRecord) => saveSessionMock(id, rec),
+    deleteSession: (id: string) => deleteSessionRepoMock(id),
+    getOutbox: (uid: string) => getOutboxMock(uid),
+    enqueueOutbox: vi.fn().mockResolvedValue(undefined),
+    dequeueOutbox: vi.fn().mockResolvedValue(undefined),
     updateOutboxEntries: vi.fn().mockResolvedValue(undefined),
+    dropOutboxForSession: (uid: string, id: string) => dropOutboxForSessionMock(uid, id),
+    getTombstones: (uid: string) => getTombstonesMock(uid),
+    addTombstone: (uid: string, id: string) => addTombstoneMock(uid, id),
+    removeTombstones: (uid: string, ids: string[]) => removeTombstonesMock(uid, ids),
   },
 }))
 
@@ -70,7 +70,7 @@ vi.mock('../../libs/auth', () => ({
 }))
 
 vi.mock('../../libs/auth-fetch', () => ({
-  authedFetch: vi.fn().mockResolvedValue({ json: () => Promise.resolve({}), ok: true }),
+  authedFetch: vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) }),
 }))
 
 vi.mock('../../libs/server', () => ({
@@ -82,27 +82,27 @@ vi.mock('../../libs/server', () => ({
 // sufficient. We keep `extractMessageText` realistic so message previews work.
 vi.mock('../../libs/chat-sync', () => ({
   applyCreateActions: vi.fn().mockResolvedValue([]),
+  reconcileLocalAndRemote: (...args: unknown[]) => reconcileLocalAndRemoteMock(...args),
+  createCloudChatMapper: () => ({
+    listChats: () => listChatsMock(),
+    deleteChat: (id: string) => deleteCloudChatMock(id),
+  }),
   createChatWsClient: () => ({
+    status: () => cloudWsStatus,
     connect: connectCloudWsMock,
-    destroy: vi.fn(),
     disconnect: vi.fn(),
+    destroy: vi.fn(),
+    sendMessages: vi.fn().mockResolvedValue({ ok: true }),
+    pullMessages: (...args: unknown[]) => pullMessagesMock(...args),
     onNewMessages: () => () => {},
     onStatusChange: (listener: (status: 'idle' | 'open') => void) => {
       cloudStatusListener = listener
       return () => {}
     },
-    pullMessages: (...args: unknown[]) => pullMessagesMock(...args),
-    sendMessages: vi.fn().mockResolvedValue({ ok: true }),
-    status: () => cloudWsStatus,
-  }),
-  createCloudChatMapper: () => ({
-    deleteChat: (id: string) => deleteCloudChatMock(id),
-    listChats: () => listChatsMock(),
   }),
   extractMessageText: (m: any) => (typeof m?.content === 'string' ? m.content : ''),
   isCloudSyncableMessage: () => false,
-  mergeCloudMessagesIntoLocal: () => ({ dirty: false, maxSeq: 0, messages: [] }),
-  reconcileLocalAndRemote: (...args: unknown[]) => reconcileLocalAndRemoteMock(...args),
+  mergeCloudMessagesIntoLocal: () => ({ dirty: false, messages: [], maxSeq: 0 }),
 }))
 
 const { useChatSessionStore } = await import('./session-store')
@@ -159,36 +159,36 @@ describe('chat-session-store · user swap during in-flight ensureActiveSessionFo
   //   - hydrating the new identity only through `activateCurrentUser`.
   it('runs a fresh hydrate for the new user and discards the stale write from the old user', async () => {
     const aSessionMeta: ChatSessionMeta = {
+      sessionId: 'sess-A',
+      userId: 'A',
       characterId: 'default',
       createdAt: 1,
-      sessionId: 'sess-A',
       updatedAt: 1,
-      userId: 'A',
     }
     const aIndex: ChatSessionsIndex = {
+      userId: 'A',
       characters: {
         default: {
           activeSessionId: 'sess-A',
           sessions: { 'sess-A': aSessionMeta },
         },
       },
-      userId: 'A',
     }
     const bSessionMeta: ChatSessionMeta = {
+      sessionId: 'sess-B',
+      userId: 'B',
       characterId: 'default',
       createdAt: 2,
-      sessionId: 'sess-B',
       updatedAt: 2,
-      userId: 'B',
     }
     const bIndex: ChatSessionsIndex = {
+      userId: 'B',
       characters: {
         default: {
           activeSessionId: 'sess-B',
           sessions: { 'sess-B': bSessionMeta },
         },
       },
-      userId: 'B',
     }
 
     let resolveASessionGet: ((rec: ChatSessionRecord | null) => void) | undefined
@@ -208,7 +208,7 @@ describe('chat-session-store · user swap during in-flight ensureActiveSessionFo
         })
       }
       if (id === 'sess-B')
-        return Promise.resolve({ messages: [], meta: bSessionMeta })
+        return Promise.resolve({ meta: bSessionMeta, messages: [] })
       return Promise.resolve(null)
     })
 
@@ -231,7 +231,7 @@ describe('chat-session-store · user swap during in-flight ensureActiveSessionFo
 
     // Resolve A's IDB read AFTER the swap. With the bug, A's IIFE writes
     // sess-A back into the cleared sessionMetas.
-    resolveASessionGet!({ messages: [], meta: aSessionMeta })
+    resolveASessionGet!({ meta: aSessionMeta, messages: [] })
     await initPromise.catch(() => {})
     await flushMicrotasks()
 
@@ -263,11 +263,11 @@ describe('chat-session-store · loadSession vs concurrent deleteSession', () => 
   // and skip `loadedSessions.add` so a subsequent (legitimate) load can retry.
   it('does not resurrect a session deleted while loadSession was awaiting IDB', async () => {
     const meta: ChatSessionMeta = {
+      sessionId: 'sess-1',
+      userId: 'local',
       characterId: 'default',
       createdAt: 1,
-      sessionId: 'sess-1',
       updatedAt: 1,
-      userId: 'local',
     }
 
     let resolveGet: ((rec: ChatSessionRecord | null) => void) | undefined
@@ -287,9 +287,9 @@ describe('chat-session-store · loadSession vs concurrent deleteSession', () => 
     // (which would also pre-mark it loaded and short-circuit our test).
     store.applyRemoteSnapshot({
       activeSessionId: '',
-      index: null,
       sessionMessages: {},
       sessionMetas: { 'sess-1': meta },
+      index: null,
     })
     expect(store.sessionMetas['sess-1']).toBeDefined()
 
@@ -303,7 +303,7 @@ describe('chat-session-store · loadSession vs concurrent deleteSession', () => 
     expect(store.sessionMetas['sess-1']).toBeUndefined()
 
     // Resolve getSession with the stale stored record.
-    resolveGet!({ messages: [{ content: 'hi', id: 'm1', role: 'user' } as any], meta })
+    resolveGet!({ meta, messages: [{ role: 'user', content: 'hi', id: 'm1' } as any] })
     await loadPromise
     await flushMicrotasks()
 
@@ -321,33 +321,33 @@ describe('chat-session-store · deletion and hydration failures', () => {
     // A while the persisted index still points to B. Deleting B returned A but
     // left the persisted index empty, so the next startup created a blank chat.
     const sessionA: ChatSessionMeta = {
+      sessionId: 'session-a',
+      userId: 'local',
       characterId: 'default',
       createdAt: 1,
-      sessionId: 'session-a',
       updatedAt: 1,
-      userId: 'local',
     }
     const sessionB: ChatSessionMeta = {
+      sessionId: 'session-b',
+      userId: 'local',
       characterId: 'default',
       createdAt: 2,
-      sessionId: 'session-b',
       updatedAt: 2,
-      userId: 'local',
     }
     const store = useChatSessionStore()
     store.applyRemoteSnapshot({
       activeSessionId: 'session-a',
+      sessionMessages: { 'session-a': [], 'session-b': [] },
+      sessionMetas: { 'session-a': sessionA, 'session-b': sessionB },
       index: {
+        userId: 'local',
         characters: {
           default: {
             activeSessionId: 'session-b',
             sessions: { 'session-a': sessionA, 'session-b': sessionB },
           },
         },
-        userId: 'local',
       },
-      sessionMessages: { 'session-a': [], 'session-b': [] },
-      sessionMetas: { 'session-a': sessionA, 'session-b': sessionB },
     })
 
     await store.deleteSession('session-b')
@@ -371,37 +371,37 @@ describe('chat-session-store · deletion and hydration failures', () => {
     // was indexed but the persisted character active ID stayed empty, so the
     // next initialization created another blank conversation.
     const leaderSession: ChatSessionMeta = {
+      sessionId: 'leader-session',
+      userId: 'local',
       characterId: 'other-character',
       createdAt: 1,
-      sessionId: 'leader-session',
       updatedAt: 1,
-      userId: 'local',
     }
     const deletedSession: ChatSessionMeta = {
+      sessionId: 'deleted-session',
+      userId: 'local',
       characterId: 'default',
       createdAt: 2,
-      sessionId: 'deleted-session',
       updatedAt: 2,
-      userId: 'local',
     }
     const store = useChatSessionStore()
     store.applyRemoteSnapshot({
       activeSessionId: 'leader-session',
+      sessionMessages: { 'leader-session': [], 'deleted-session': [] },
+      sessionMetas: { 'leader-session': leaderSession, 'deleted-session': deletedSession },
       index: {
+        userId: 'local',
         characters: {
-          'default': {
-            activeSessionId: 'deleted-session',
-            sessions: { 'deleted-session': deletedSession },
-          },
           'other-character': {
             activeSessionId: 'leader-session',
             sessions: { 'leader-session': leaderSession },
           },
+          'default': {
+            activeSessionId: 'deleted-session',
+            sessions: { 'deleted-session': deletedSession },
+          },
         },
-        userId: 'local',
       },
-      sessionMessages: { 'deleted-session': [], 'leader-session': [] },
-      sessionMetas: { 'deleted-session': deletedSession, 'leader-session': leaderSession },
     })
 
     await store.deleteSession('deleted-session')
@@ -429,18 +429,18 @@ describe('chat-session-store · deletion and hydration failures', () => {
     // generation zero could then read the deleted session as generation zero
     // again and continue appending messages after the chat was gone.
     const meta: ChatSessionMeta = {
+      sessionId: 'sess-1',
+      userId: 'local',
       characterId: 'default',
       createdAt: 1,
-      sessionId: 'sess-1',
       updatedAt: 1,
-      userId: 'local',
     }
     const store = useChatSessionStore()
     store.applyRemoteSnapshot({
       activeSessionId: 'sess-1',
-      index: null,
       sessionMessages: { 'sess-1': [] },
       sessionMetas: { 'sess-1': meta },
+      index: null,
     })
 
     expect(store.getSessionGeneration('sess-1')).toBe(0)
@@ -453,11 +453,11 @@ describe('chat-session-store · deletion and hydration failures', () => {
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3628003766
   it('reports hydration failure and permits a later retry for Issue #2085', async () => {
     const meta: ChatSessionMeta = {
+      sessionId: 'sess-1',
+      userId: 'local',
       characterId: 'default',
       createdAt: 1,
-      sessionId: 'sess-1',
       updatedAt: 1,
-      userId: 'local',
     }
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     getSessionMock
@@ -468,9 +468,9 @@ describe('chat-session-store · deletion and hydration failures', () => {
     const store = useChatSessionStore()
     store.applyRemoteSnapshot({
       activeSessionId: '',
-      index: null,
       sessionMessages: {},
       sessionMetas: { 'sess-1': meta },
+      index: null,
     })
 
     await expect(store.loadSession('sess-1')).resolves.toBe(false)
@@ -489,44 +489,44 @@ describe('chat-session-store · cloud placeholder hydration', () => {
     // If that pull fails, loadSession sees the message-map entry and marks the
     // placeholder as loaded. Selecting the chat then skips every later pull.
     const localMeta: ChatSessionMeta = {
+      sessionId: 'local-session',
+      userId: 'cloud-user',
       characterId: 'default',
       createdAt: 1,
-      sessionId: 'local-session',
       updatedAt: 1,
-      userId: 'cloud-user',
     }
     const remoteChat = {
-      createdAt: '2026-01-01T00:00:00.000Z',
       id: 'remote-session',
-      title: null,
       type: 'bot' as const,
+      title: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     }
     userIdRef.value = 'cloud-user'
     getIndexMock.mockResolvedValue({
+      userId: 'cloud-user',
       characters: {
         default: {
           activeSessionId: localMeta.sessionId,
           sessions: { [localMeta.sessionId]: localMeta },
         },
       },
-      userId: 'cloud-user',
     })
     getSessionMock.mockImplementation((sessionId) => {
       if (sessionId === remoteChat.id) {
         return Promise.resolve({
-          messages: [],
           meta: {
-            characterId: 'default',
-            cloudChatId: remoteChat.id,
-            createdAt: Date.parse(remoteChat.createdAt),
             sessionId: remoteChat.id,
-            updatedAt: Date.parse(remoteChat.updatedAt),
             userId: 'cloud-user',
+            characterId: 'default',
+            createdAt: Date.parse(remoteChat.createdAt),
+            updatedAt: Date.parse(remoteChat.updatedAt),
+            cloudChatId: remoteChat.id,
           },
+          messages: [],
         })
       }
-      return Promise.resolve({ messages: [], meta: localMeta })
+      return Promise.resolve({ meta: localMeta, messages: [] })
     })
     listChatsMock.mockResolvedValue([remoteChat])
     reconcileLocalAndRemoteMock.mockReturnValue({ adopt: [remoteChat], claim: [], create: [] })
@@ -561,33 +561,33 @@ describe('chat-session-store · cloud deletion', () => {
     // completed remote create is adopted again by the next reconcile.
     userIdRef.value = 'cloud-user'
     const deleted: ChatSessionMeta = {
+      sessionId: 'pending-cloud-session',
+      userId: 'cloud-user',
       characterId: 'default',
       createdAt: 1,
-      sessionId: 'pending-cloud-session',
       updatedAt: 1,
-      userId: 'cloud-user',
     }
     const survivor: ChatSessionMeta = {
+      sessionId: 'surviving-session',
+      userId: 'cloud-user',
       characterId: 'default',
       createdAt: 2,
-      sessionId: 'surviving-session',
       updatedAt: 2,
-      userId: 'cloud-user',
     }
     const store = useChatSessionStore()
     store.applyRemoteSnapshot({
       activeSessionId: 'surviving-session',
+      sessionMessages: { 'pending-cloud-session': [], 'surviving-session': [] },
+      sessionMetas: { 'pending-cloud-session': deleted, 'surviving-session': survivor },
       index: {
+        userId: 'cloud-user',
         characters: {
           default: {
             activeSessionId: 'pending-cloud-session',
             sessions: { 'pending-cloud-session': deleted, 'surviving-session': survivor },
           },
         },
-        userId: 'cloud-user',
       },
-      sessionMessages: { 'pending-cloud-session': [], 'surviving-session': [] },
-      sessionMetas: { 'pending-cloud-session': deleted, 'surviving-session': survivor },
     })
 
     await store.deleteSession('pending-cloud-session')
@@ -632,10 +632,10 @@ describe('chat-session-store · active card prompt edits', () => {
     const sessionId = store.activeSessionId
     const originalSystemMessage = store.messages[0]
     store.appendSessionMessage(sessionId, {
-      content: 'Keep this turn.',
-      createdAt: 2,
-      id: 'user-message',
       role: 'user',
+      content: 'Keep this turn.',
+      id: 'user-message',
+      createdAt: 2,
     })
 
     systemPromptRef.value = 'Updated character prompt'
@@ -653,20 +653,20 @@ describe('chat-session-store · active card prompt edits', () => {
   // https://github.com/moeru-ai/airi/issues/1995
   it('hydrates a persisted Issue #1995 session before refreshing its system message', async () => {
     const meta: ChatSessionMeta = {
+      sessionId: 'persisted-session',
+      userId: 'local',
       characterId: 'default',
       createdAt: 1,
-      sessionId: 'persisted-session',
       updatedAt: 1,
-      userId: 'local',
     }
     getIndexMock.mockResolvedValue({
+      userId: 'local',
       characters: {
         default: {
           activeSessionId: meta.sessionId,
           sessions: { [meta.sessionId]: meta },
         },
       },
-      userId: 'local',
     })
 
     let resolveStoredSession: ((record: ChatSessionRecord) => void) | undefined
@@ -684,21 +684,21 @@ describe('chat-session-store · active card prompt edits', () => {
     expect(store.sessionMessages[meta.sessionId]).toBeUndefined()
 
     resolveStoredSession?.({
+      meta,
       messages: [
         {
-          content: 'Stale persisted prompt',
-          createdAt: 1,
-          id: 'system-message',
           role: 'system',
+          content: 'Stale persisted prompt',
+          id: 'system-message',
+          createdAt: 1,
         },
         {
-          content: 'Persisted history',
-          createdAt: 2,
-          id: 'user-message',
           role: 'user',
+          content: 'Persisted history',
+          id: 'user-message',
+          createdAt: 2,
         },
       ],
-      meta,
     })
     await initializePromise
     await nextTick()
@@ -723,29 +723,29 @@ describe('chat-session-store · synchronized data actions', () => {
     // The watcher routes the identity transition to an idempotent synchronized
     // action. The action keeps state that already belongs to the current user.
     const session: ChatSessionMeta = {
+      sessionId: 'session-a',
+      userId: 'cloud-user',
       characterId: 'default',
       createdAt: 1,
-      sessionId: 'session-a',
       updatedAt: 1,
-      userId: 'cloud-user',
     }
     const store = useChatSessionStore()
     store.setCloudSyncOwnership(false)
     store.applyRemoteSnapshot({
       activeSessionId: 'session-a',
+      sessionMessages: {
+        'session-a': [{ id: 'message-a', role: 'user', content: 'Keep this message' }],
+      },
+      sessionMetas: { 'session-a': session },
       index: {
+        userId: 'cloud-user',
         characters: {
           default: {
             activeSessionId: 'session-a',
             sessions: { 'session-a': session },
           },
         },
-        userId: 'cloud-user',
       },
-      sessionMessages: {
-        'session-a': [{ content: 'Keep this message', id: 'message-a', role: 'user' }],
-      },
-      sessionMetas: { 'session-a': session },
     })
     await nextTick()
     await flushMicrotasks()
@@ -788,26 +788,26 @@ describe('chat-session-store · synchronized data actions', () => {
     // the leader's ready flag, skipped initialization, and remained on an
     // empty local selection.
     const session: ChatSessionMeta = {
+      sessionId: 'session-b',
+      userId: 'local',
       characterId: 'default',
       createdAt: 1,
-      sessionId: 'session-b',
       updatedAt: 1,
-      userId: 'local',
     }
     const store = useChatSessionStore()
     store.setCloudSyncOwnership(false)
     store.$patch({
+      sessionMessages: { 'session-b': [{ id: 'system', role: 'system', content: 'prompt' }] },
+      sessionMetas: { 'session-b': session },
       index: {
+        userId: 'local',
         characters: {
           default: {
             activeSessionId: 'session-b',
             sessions: { 'session-b': session },
           },
         },
-        userId: 'local',
       },
-      sessionMessages: { 'session-b': [{ content: 'prompt', id: 'system', role: 'system' }] },
-      sessionMetas: { 'session-b': session },
     })
 
     expect(store.$state).not.toHaveProperty('ready')
@@ -828,20 +828,20 @@ describe('chat-session-store · synchronized data actions', () => {
     // fully synchronized store, allowing that stale snapshot to overwrite the
     // leader's newer messages or resurrect a deleted session.
     const session: ChatSessionMeta = {
+      sessionId: 'session-b',
+      userId: 'local',
       characterId: 'default',
       createdAt: 1,
-      sessionId: 'session-b',
       updatedAt: 2,
-      userId: 'local',
     }
     getSessionMock.mockResolvedValue({
-      messages: [{ content: 'stale follower data', id: 'stale', role: 'user' }],
       meta: { ...session, updatedAt: 1 },
+      messages: [{ id: 'stale', role: 'user', content: 'stale follower data' }],
     })
     const store = useChatSessionStore()
     store.$patch({
       sessionMessages: {
-        'session-b': [{ content: 'leader data', id: 'current', role: 'assistant', slices: [], tool_results: [] }],
+        'session-b': [{ id: 'current', role: 'assistant', content: 'leader data', slices: [], tool_results: [] }],
       },
       sessionMetas: { 'session-b': session },
     })
@@ -854,33 +854,33 @@ describe('chat-session-store · synchronized data actions', () => {
 
   it('refreshes an already loaded session from IndexedDB for a completed remote stream', async () => {
     const session: ChatSessionMeta = {
+      sessionId: 'session-b',
+      userId: 'local',
       characterId: 'default',
       createdAt: 1,
-      sessionId: 'session-b',
       updatedAt: 2,
-      userId: 'local',
     }
     const store = useChatSessionStore()
     store.applyRemoteSnapshot({
       activeSessionId: 'session-b',
+      sessionMessages: { 'session-b': [{ id: 'system', role: 'system', content: 'prompt' }] },
+      sessionMetas: { 'session-b': session },
       index: {
+        userId: 'local',
         characters: {
           default: {
             activeSessionId: 'session-b',
             sessions: { 'session-b': session },
           },
         },
-        userId: 'local',
       },
-      sessionMessages: { 'session-b': [{ content: 'prompt', id: 'system', role: 'system' }] },
-      sessionMetas: { 'session-b': session },
     })
     getSessionMock.mockResolvedValue({
-      messages: [
-        { content: 'prompt', id: 'system', role: 'system' },
-        { content: 'complete answer', id: 'assistant', role: 'assistant', slices: [], tool_results: [] },
-      ],
       meta: session,
+      messages: [
+        { id: 'system', role: 'system', content: 'prompt' },
+        { id: 'assistant', role: 'assistant', content: 'complete answer', slices: [], tool_results: [] },
+      ],
     })
 
     await expect(store.refreshSession('session-b')).resolves.toBe(true)
@@ -897,49 +897,49 @@ describe('chat-session-store · synchronized data actions', () => {
     // intentionally window-local. A follower that also selected B therefore
     // kept an invalid selection until it manually chose another session.
     const sessionA: ChatSessionMeta = {
+      sessionId: 'session-a',
+      userId: 'local',
       characterId: 'default',
       createdAt: 1,
-      sessionId: 'session-a',
       updatedAt: 1,
-      userId: 'local',
     }
     const sessionB: ChatSessionMeta = {
+      sessionId: 'session-b',
+      userId: 'local',
       characterId: 'default',
       createdAt: 2,
-      sessionId: 'session-b',
       updatedAt: 2,
-      userId: 'local',
     }
     const store = useChatSessionStore()
     store.applyRemoteSnapshot({
       activeSessionId: 'session-b',
+      sessionMessages: { 'session-a': [], 'session-b': [] },
+      sessionMetas: { 'session-a': sessionA, 'session-b': sessionB },
       index: {
+        userId: 'local',
         characters: {
           default: {
             activeSessionId: 'session-a',
             sessions: { 'session-a': sessionA, 'session-b': sessionB },
           },
         },
-        userId: 'local',
       },
-      sessionMessages: { 'session-a': [], 'session-b': [] },
-      sessionMetas: { 'session-a': sessionA, 'session-b': sessionB },
     })
     await nextTick()
 
     store.applyRemoteSnapshot({
       activeSessionId: 'session-b',
+      sessionMessages: { 'session-a': [] },
+      sessionMetas: { 'session-a': sessionA },
       index: {
+        userId: 'local',
         characters: {
           default: {
             activeSessionId: 'session-a',
             sessions: { 'session-a': sessionA },
           },
         },
-        userId: 'local',
       },
-      sessionMessages: { 'session-a': [] },
-      sessionMetas: { 'session-a': sessionA },
     })
     await nextTick()
 
@@ -954,42 +954,42 @@ describe('chat-session-store · synchronized data actions', () => {
     // deletion temporarily left no metadata. Multiple windows could therefore
     // turn one deletion into several empty chats before state converged.
     const removedSession: ChatSessionMeta = {
+      sessionId: 'session-b',
+      userId: 'local',
       characterId: 'default',
       createdAt: 1,
-      sessionId: 'session-b',
       updatedAt: 1,
-      userId: 'local',
     }
     const replacementSession: ChatSessionMeta = {
+      sessionId: 'session-c',
+      userId: 'local',
       characterId: 'default',
       createdAt: 2,
-      sessionId: 'session-c',
       updatedAt: 2,
-      userId: 'local',
     }
     const store = useChatSessionStore()
     store.applyRemoteSnapshot({
       activeSessionId: 'session-b',
+      sessionMessages: { 'session-b': [] },
+      sessionMetas: { 'session-b': removedSession },
       index: {
+        userId: 'local',
         characters: {
           default: {
             activeSessionId: 'session-b',
             sessions: { 'session-b': removedSession },
           },
         },
-        userId: 'local',
       },
-      sessionMessages: { 'session-b': [] },
-      sessionMetas: { 'session-b': removedSession },
     })
     await nextTick()
     saveSessionMock.mockClear()
 
     store.applyRemoteSnapshot({
       activeSessionId: 'session-b',
-      index: { characters: {}, userId: 'local' },
       sessionMessages: {},
       sessionMetas: {},
+      index: { userId: 'local', characters: {} },
     })
     await nextTick()
 
@@ -998,17 +998,17 @@ describe('chat-session-store · synchronized data actions', () => {
 
     store.applyRemoteSnapshot({
       activeSessionId: 'session-b',
+      sessionMessages: { 'session-c': [] },
+      sessionMetas: { 'session-c': replacementSession },
       index: {
+        userId: 'local',
         characters: {
           default: {
             activeSessionId: 'session-c',
             sessions: { 'session-c': replacementSession },
           },
         },
-        userId: 'local',
       },
-      sessionMessages: { 'session-c': [] },
-      sessionMetas: { 'session-c': replacementSession },
     })
     await nextTick()
 
@@ -1021,16 +1021,16 @@ describe('chat-session-store · synchronized data actions', () => {
       activeSessionId: 'session-1',
       sessionMessages: {
         'session-1': [
-          { content: 'keep', id: 'keep', role: 'user' },
-          { content: 'delete', id: 'delete', role: 'assistant', slices: [], tool_results: [] },
+          { id: 'keep', role: 'user', content: 'keep' },
+          { id: 'delete', role: 'assistant', content: 'delete', slices: [], tool_results: [] },
         ],
       },
       sessionMetas: {},
     })
 
     await store.deleteMessage({
-      messageId: 'delete',
       sessionId: 'session-1',
+      messageId: 'delete',
     })
 
     expect(store.getSessionMessages('session-1').map(message => message.id)).toEqual(['keep'])
@@ -1041,16 +1041,16 @@ describe('chat-session-store · synchronized data actions', () => {
     store.applyRemoteSnapshot({
       activeSessionId: 'persisted-session',
       index: {
+        userId: 'local',
         characters: {
           default: {
             activeSessionId: 'persisted-session',
             sessions: {},
           },
         },
-        userId: 'local',
       },
       sessionMessages: {
-        'window-local-session': [{ content: 'prompt', id: 'system', role: 'system' }],
+        'window-local-session': [{ id: 'system', role: 'system', content: 'prompt' }],
       },
       sessionMetas: {},
     })

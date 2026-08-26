@@ -53,18 +53,18 @@ describe('electron auth callback bridge', () => {
     await handler?.({
       body: {
         accessToken: 'new-access-token',
-        expiresIn: 3600,
-        idToken: 'new-id-token',
         refreshToken: 'new-refresh-token',
+        idToken: 'new-id-token',
+        expiresIn: 3600,
       },
     })
 
     expect(authMocks.completeSignIn).toHaveBeenCalledWith({
       accessToken: 'new-access-token',
-      clientId: 'airi-stage-electron',
-      expiresIn: 3600,
-      idToken: 'new-id-token',
       refreshToken: 'new-refresh-token',
+      idToken: 'new-id-token',
+      expiresIn: 3600,
+      clientId: 'airi-stage-electron',
     })
     expect(eventHandlers.has(electronAuthCallbackError)).toBe(true)
   })

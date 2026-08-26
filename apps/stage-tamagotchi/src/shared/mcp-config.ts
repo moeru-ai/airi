@@ -28,11 +28,11 @@ function stringifyError(error: unknown) {
  * - A strict Zod schema matching the persisted MCP server shape
  */
 export const electronMcpStdioServerConfigSchema = z.object({
-  args: z.array(z.string()).optional(),
   command: z.string().min(1),
+  args: z.array(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
   cwd: z.string().optional(),
   enabled: z.boolean().optional(),
-  env: z.record(z.string(), z.string()).optional(),
 }).strict() satisfies z.ZodType<ElectronMcpStdioServerConfig>
 
 /**

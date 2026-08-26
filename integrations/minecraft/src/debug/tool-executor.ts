@@ -9,14 +9,43 @@ import { errorMessageFromValue } from '../utils/error-message'
 import { DebugService } from './debug-service'
 
 export class ToolExecutor {
-  private debugService: DebugService
   private mineflayer: Mineflayer
+  private debugService: DebugService
 
   constructor(mineflayer: Mineflayer) {
     this.mineflayer = mineflayer
     this.debugService = DebugService.getInstance()
     console.log('[ToolExecutor] Initializing ToolExecutor')
     this.setupHandlers()
+  }
+
+  private setupHandlers(): void {
+    console.log('[ToolExecutor] Key registered for request_tools')
+
+    // Handle tool list request
+    this.debugService.onCommand('request_tools', () => {
+      console.log('[ToolExecutor] Received request_tools command')
+      this.sendToolsList()
+    })
+
+    // Handle tool execution
+    this.debugService.onCommand('execute_tool', (cmd) => {
+      if (cmd.type === 'execute_tool') {
+        console.log(`[ToolExecutor] Executing tool: ${cmd.payload.toolName}`)
+        this.executeTool(cmd.payload.toolName, cmd.payload.params)
+      }
+    })
+  }
+
+  private sendToolsList(): void {
+    try {
+      const tools = this.extractToolDefinitions()
+      console.log(`[ToolExecutor] Sending ${tools.length} tools`)
+      this.debugService.emit('debug:tools_list', { tools })
+    }
+    catch (err) {
+      console.error('[ToolExecutor] Error sending tool list:', err)
+    }
   }
 
   private async executeTool(toolName: string, params: Record<string, unknown>): Promise<void> {
@@ -48,20 +77,28 @@ export class ToolExecutor {
       const result = await performer(...args)
 
       this.debugService.emit('debug:tool_result', {
+        toolName,
         params,
         result: typeof result === 'string' ? result : JSON.stringify(result),
         timestamp: Date.now(),
-        toolName,
       })
     }
     catch (err: unknown) {
       this.debugService.emit('debug:tool_result', {
-        error: errorMessageFromValue(err),
-        params,
-        timestamp: Date.now(),
         toolName,
+        params,
+        error: errorMessageFromValue(err),
+        timestamp: Date.now(),
       })
     }
+  }
+
+  private extractToolDefinitions(): ToolDefinition[] {
+    return actionsList.map(action => ({
+      name: action.name,
+      description: action.description,
+      params: this.extractParamsFromSchema(action.schema),
+    }))
   }
 
   private extractParamsFromSchema(schema: ZodObject<any>): ToolParameter[] {
@@ -75,29 +112,21 @@ export class ToolExecutor {
       const def = this.getZodDef(zodType as ZodType<any>)
 
       params.push({
-        default: def.defaultValue,
-        description: def.description,
-        max: def.max,
-        min: def.min,
         name,
         type: def.typeName,
+        description: def.description,
+        min: def.min,
+        max: def.max,
+        default: def.defaultValue,
       })
     }
 
     return params
   }
 
-  private extractToolDefinitions(): ToolDefinition[] {
-    return actionsList.map(action => ({
-      description: action.description,
-      name: action.name,
-      params: this.extractParamsFromSchema(action.schema),
-    }))
-  }
-
   // Helper to extract metadata from Zod types
-  private getZodDef(zodType: ZodType<any>): { defaultValue?: any, description?: string, max?: number, min?: number, typeName: 'boolean' | 'number' | 'string' } {
-    let typeName: 'boolean' | 'number' | 'string' = 'string'
+  private getZodDef(zodType: ZodType<any>): { typeName: 'string' | 'number' | 'boolean', description?: string, min?: number, max?: number, defaultValue?: any } {
+    let typeName: 'string' | 'number' | 'boolean' = 'string'
     let curr: any = zodType
     const description = curr.description
 
@@ -152,36 +181,7 @@ export class ToolExecutor {
       typeName = 'boolean'
     }
 
-    return { defaultValue, description, max, min, typeName }
-  }
-
-  private sendToolsList(): void {
-    try {
-      const tools = this.extractToolDefinitions()
-      console.log(`[ToolExecutor] Sending ${tools.length} tools`)
-      this.debugService.emit('debug:tools_list', { tools })
-    }
-    catch (err) {
-      console.error('[ToolExecutor] Error sending tool list:', err)
-    }
-  }
-
-  private setupHandlers(): void {
-    console.log('[ToolExecutor] Key registered for request_tools')
-
-    // Handle tool list request
-    this.debugService.onCommand('request_tools', () => {
-      console.log('[ToolExecutor] Received request_tools command')
-      this.sendToolsList()
-    })
-
-    // Handle tool execution
-    this.debugService.onCommand('execute_tool', (cmd) => {
-      if (cmd.type === 'execute_tool') {
-        console.log(`[ToolExecutor] Executing tool: ${cmd.payload.toolName}`)
-        this.executeTool(cmd.payload.toolName, cmd.payload.params)
-      }
-    })
+    return { typeName, description, min, max, defaultValue }
   }
 }
 

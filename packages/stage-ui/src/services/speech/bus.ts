@@ -1,38 +1,38 @@
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 import { createContext as createBroadcastChannelContext } from '@moeru/eventa/adapters/broadcast-channel'
 
-export interface SpeechIntentCancelPayload {
-  intentId: string
-  originId: string
-  reason?: string
-  streamId: string
-  turnId?: string
-}
-
-export interface SpeechIntentEndPayload {
-  intentId: string
-  originId: string
-  streamId: string
-  turnId?: string
-}
-
 export interface SpeechIntentStartPayload {
-  behavior?: 'interrupt' | 'queue' | 'replace'
-  intentId: string
   originId: string
+  turnId?: string
+  intentId: string
+  streamId: string
   ownerId?: string
   priority?: number
-  streamId: string
-  turnId?: string
+  behavior?: 'queue' | 'interrupt' | 'replace'
 }
 
 export interface SpeechIntentTokenPayload {
-  intentId: string
   originId: string
-  sequence: number
-  streamId: string
   turnId?: string
+  intentId: string
+  streamId: string
+  sequence: number
   value?: string
+}
+
+export interface SpeechIntentEndPayload {
+  originId: string
+  turnId?: string
+  intentId: string
+  streamId: string
+}
+
+export interface SpeechIntentCancelPayload {
+  originId: string
+  turnId?: string
+  intentId: string
+  streamId: string
+  reason?: string
 }
 
 export const speechIntentStartEvent = defineEventa<SpeechIntentStartPayload>('eventa:audio:speech:intent:start')
@@ -56,14 +56,14 @@ const BUS_CHANNEL_NAME = 'proj-airi:pipelines:outputs:speech'
 let context: ReturnType<typeof createBroadcastChannelContext>['context'] | undefined
 let channel: BroadcastChannel | undefined
 
-export function getSpeechBusContext() {
-  if (!context)
-    context = createBroadcastChannelContext(getChannel()).context
-  return context
-}
-
 function getChannel() {
   if (!channel)
     channel = new BroadcastChannel(BUS_CHANNEL_NAME)
   return channel
+}
+
+export function getSpeechBusContext() {
+  if (!context)
+    context = createBroadcastChannelContext(getChannel()).context
+  return context
 }

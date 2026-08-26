@@ -11,14 +11,19 @@ export const all = {
 }
 
 export const localeRemap: Record<string, string> = {
+  'zh-CN': 'zh-Hans',
+  'zh-TW': 'zh-Hant',
+  'zh-HK': 'zh-Hant',
+  'zh-Hant': 'zh-Hant',
+  'zh-Hans': 'zh-Hans',
   'en': 'en',
-  'en-AU': 'en',
-  'en-GB': 'en',
   'en-US': 'en',
+  'en-GB': 'en',
+  'en-AU': 'en',
   'es': 'es',
-  'es-AR': 'es',
   'es-ES': 'es',
   'es-MX': 'es',
+  'es-AR': 'es',
   'fr': 'fr',
   'fr-FR': 'fr',
   'ja': 'ja',
@@ -29,15 +34,10 @@ export const localeRemap: Record<string, string> = {
   'ru-RU': 'ru',
   'vi': 'vi',
   'vi-VN': 'vi',
-  'zh-CN': 'zh-Hans',
-  'zh-Hans': 'zh-Hans',
-  'zh-Hant': 'zh-Hant',
-  'zh-HK': 'zh-Hant',
-  'zh-TW': 'zh-Hant',
 }
 
 export function resolveSupportedLocale(
-  locale: null | string | undefined,
+  locale: string | null | undefined,
   supportedLocales: readonly string[],
   fallbackLocale = 'en',
 ): string {

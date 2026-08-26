@@ -1,41 +1,49 @@
 import { createContext, defineEventa } from '@moeru/eventa'
 
 /**
- * One-shot wait controller for callback-driven event sources.
- *
- * @param TEvent - Event value fed to the wait controller.
- * @param TResult - Value resolved from the matching event.
- */
-export interface EventWaitFor<TEvent, TResult = TEvent> {
-  /** Rejects the wait and releases timers/listeners when the caller abandons it. */
-  dispose: (reason?: unknown) => void
-  /** Emits one future event into the wait controller. */
-  emit: (event: TEvent) => void
-  /** Promise resolved by the first matching event, or rejected by abort/timeout/predicate errors. */
-  promise: Promise<TResult>
-}
-
-/**
  * Options for a one-shot event wait controller.
  *
  * @param TEvent - Event value fed to the wait controller.
  * @param TResult - Value resolved from the matching event.
  */
 export interface EventWaitForOptions<TEvent, TResult = TEvent> {
-  /** Error message used when the wait aborts or becomes inactive. @default 'Wait aborted.' */
-  abortMessage?: string
-  /** Runtime guard checked before handling and resolving events. @default () => true */
-  isActive?: () => boolean
   /** Predicate that decides whether an event should resolve the wait. @default () => true */
   match?: (event: TEvent) => boolean | Promise<boolean>
   /** Projects the matched event into the resolved value. @default event => event */
   select?: (event: TEvent) => TResult
-  /** Abort signals that reject the wait when any signal aborts. */
-  signals?: Array<AbortSignal | undefined>
   /** Milliseconds before the wait rejects. When omitted, no timeout is scheduled. */
   timeout?: number
+  /** Abort signals that reject the wait when any signal aborts. */
+  signals?: Array<AbortSignal | undefined>
+  /** Runtime guard checked before handling and resolving events. @default () => true */
+  isActive?: () => boolean
+  /** Error message used when the wait aborts or becomes inactive. @default 'Wait aborted.' */
+  abortMessage?: string
   /** Error message used when timeout expires. @default 'Timed out waiting for event.' */
   timeoutMessage?: string
+}
+
+/**
+ * One-shot wait controller for callback-driven event sources.
+ *
+ * @param TEvent - Event value fed to the wait controller.
+ * @param TResult - Value resolved from the matching event.
+ */
+export interface EventWaitFor<TEvent, TResult = TEvent> {
+  /** Promise resolved by the first matching event, or rejected by abort/timeout/predicate errors. */
+  promise: Promise<TResult>
+  /** Emits one future event into the wait controller. */
+  emit: (event: TEvent) => void
+  /** Rejects the wait and releases timers/listeners when the caller abandons it. */
+  dispose: (reason?: unknown) => void
+}
+
+function createWaitError(message: string, reason?: unknown) {
+  if (reason instanceof Error) {
+    return reason
+  }
+
+  return new Error(reason ? `${message}: ${String(reason)}` : message)
 }
 
 /**
@@ -56,11 +64,11 @@ export function createEventWaitFor<TEvent, TResult = TEvent>(
   options: EventWaitForOptions<TEvent, TResult> = {},
 ): EventWaitFor<TEvent, TResult> {
   const {
-    abortMessage = 'Wait aborted.',
     match = () => true,
     select = (event: TEvent) => event as unknown as TResult,
-    signals = [],
+    abortMessage = 'Wait aborted.',
     timeoutMessage = 'Timed out waiting for event.',
+    signals = [],
   } = options
 
   const normalizedSignals = signals.filter((signal): signal is AbortSignal => signal != null)
@@ -170,16 +178,8 @@ export function createEventWaitFor<TEvent, TResult = TEvent>(
   }
 
   return {
-    dispose: reason => rejectWith(abortMessage, reason),
-    emit: event => events.emit(waitEvent, event),
     promise,
+    emit: event => events.emit(waitEvent, event),
+    dispose: reason => rejectWith(abortMessage, reason),
   }
-}
-
-function createWaitError(message: string, reason?: unknown) {
-  if (reason instanceof Error) {
-    return reason
-  }
-
-  return new Error(reason ? `${message}: ${String(reason)}` : message)
 }

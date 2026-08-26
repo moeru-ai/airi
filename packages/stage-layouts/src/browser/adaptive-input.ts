@@ -19,12 +19,12 @@ export interface AdaptiveInputLayout {
    * If false, the input region can use the normal viewport layout.
    */
   keyboardVisible: boolean
+  /** The height that remains visible above the keyboard, in CSS pixels. */
+  visibleHeight: number
   /** The bottom edge to assign to the adaptive viewport, in document coordinates and CSS pixels. */
   viewportBottom: number
   /** The translation that a separate visual layer can apply to cancel the Visual Viewport pan, in CSS pixels. */
   viewportOffsetTop: number
-  /** The height that remains visible above the keyboard, in CSS pixels. */
-  visibleHeight: number
 }
 
 /** The elements and browser policy used by {@link AdaptiveInput}. */
@@ -54,6 +54,21 @@ const TEXT_ENTRY_SELECTOR = [
   '[contenteditable]:not([contenteditable="false"])',
 ].join(',')
 
+function readViewportProfile(targetWindow: Window): ViewportProfile {
+  return {
+    displayMode: targetWindow.matchMedia('(display-mode: standalone)').matches
+      ? 'standalone'
+      : 'browser',
+    height: targetWindow.document.documentElement.clientHeight,
+    width: targetWindow.document.documentElement.clientWidth,
+  }
+}
+
+function isTextEntry(element: Element): boolean {
+  return element.matches(TEXT_ENTRY_SELECTOR)
+    && !element.matches(':disabled, [readonly]')
+}
+
 /**
  * Owns keyboard measurements and focus timing for one adaptive input region.
  *
@@ -65,35 +80,29 @@ const TEXT_ENTRY_SELECTOR = [
  * consumer has not replaced the value.
  */
 export class AdaptiveInput extends EventTarget {
-  /** Returns the latest layout values. */
-  get layout(): Readonly<AdaptiveInputLayout> {
-    return this.layoutValue
-  }
-
   private readonly abortController = new AbortController()
-  private animationFrame: number | undefined
   private readonly area: HTMLElement
+  private readonly targetWindow: Window
+  private readonly viewport: HTMLElement
+  private readonly virtualKeyboard: (EventTarget & {
+    readonly boundingRect: DOMRectReadOnly
+    overlaysContent: boolean
+  }) | undefined
+
+  private readonly visualViewport: VisualViewport | null
+
+  private animationFrame: number | undefined
   private focusPhase: AdaptiveInputFocusPhase = 'idle'
-
   private layoutValue: AdaptiveInputLayout
-
-  private readonly overlaysContentBeforeStart: boolean | undefined
   private pendingWindowScrollRepair = false
   private predictedViewportHeight: number | undefined
   private predictionTimeout: number | undefined
   private referenceLayoutHeight: number
   private synchronousHeightBeforePrediction: string | undefined
   private synchronousHeightValue: string | undefined
-  private readonly targetWindow: Window
-  private readonly viewport: HTMLElement
-  private viewportSample: undefined | ViewportSample
+  private viewportSample: ViewportSample | undefined
 
-  private readonly virtualKeyboard: (EventTarget & {
-    readonly boundingRect: DOMRectReadOnly
-    overlaysContent: boolean
-  }) | undefined
-
-  private readonly visualViewport: null | VisualViewport
+  private readonly overlaysContentBeforeStart: boolean | undefined
 
   constructor(options: AdaptiveInputOptions) {
     super()
@@ -108,9 +117,9 @@ export class AdaptiveInput extends EventTarget {
     this.referenceLayoutHeight = initialHeight
     this.layoutValue = {
       keyboardVisible: false,
+      visibleHeight: initialHeight,
       viewportBottom: initialHeight,
       viewportOffsetTop: 0,
-      visibleHeight: initialHeight,
     }
 
     // TypeScript 5.9 does not include this experimental browser API in lib.dom.d.ts.
@@ -142,6 +151,11 @@ export class AdaptiveInput extends EventTarget {
     this.requestMeasurement()
   }
 
+  /** Returns the latest layout values. */
+  get layout(): Readonly<AdaptiveInputLayout> {
+    return this.layoutValue
+  }
+
   /** Stops browser events and restores browser values changed by this controller. */
   dispose(): void {
     this.abortController.abort()
@@ -161,6 +175,13 @@ export class AdaptiveInput extends EventTarget {
     ) {
       this.viewport.style.height = this.synchronousHeightBeforePrediction
     }
+  }
+
+  private readonly requestMeasurement = () => {
+    if (this.animationFrame !== undefined)
+      return
+
+    this.animationFrame = this.targetWindow.requestAnimationFrame(this.measure)
   }
 
   private readonly measure = () => {
@@ -266,9 +287,9 @@ export class AdaptiveInput extends EventTarget {
 
     this.layoutValue = {
       keyboardVisible,
+      visibleHeight,
       viewportBottom,
       viewportOffsetTop,
-      visibleHeight,
     }
     this.dispatchEvent(new Event(ADAPTIVE_INPUT_LAYOUT_EVENT))
 
@@ -313,9 +334,9 @@ export class AdaptiveInput extends EventTarget {
     const normalHeight = this.referenceLayoutHeight || readViewportProfile(this.targetWindow).height
     this.layoutValue = {
       keyboardVisible: false,
+      visibleHeight: normalHeight,
       viewportBottom: normalHeight,
       viewportOffsetTop: this.visualViewport?.offsetTop ?? 0,
-      visibleHeight: normalHeight,
     }
     this.dispatchEvent(new Event(ADAPTIVE_INPUT_LAYOUT_EVENT))
 
@@ -382,9 +403,9 @@ export class AdaptiveInput extends EventTarget {
     this.predictedViewportHeight = cachedHeight
     this.layoutValue = {
       keyboardVisible: true,
+      visibleHeight: cachedHeight,
       viewportBottom: cachedHeight,
       viewportOffsetTop: 0,
-      visibleHeight: cachedHeight,
     }
     this.dispatchEvent(new Event(ADAPTIVE_INPUT_LAYOUT_EVENT))
 
@@ -417,35 +438,13 @@ export class AdaptiveInput extends EventTarget {
     this.predictedViewportHeight = undefined
     this.layoutValue = {
       keyboardVisible: false,
+      visibleHeight: currentProfile.height,
       viewportBottom: currentProfile.height,
       viewportOffsetTop: 0,
-      visibleHeight: currentProfile.height,
     }
     this.dispatchEvent(new Event(ADAPTIVE_INPUT_LAYOUT_EVENT))
     this.synchronousHeightValue = `${currentProfile.height}px`
     this.viewport.style.height = this.synchronousHeightValue
     this.requestMeasurement()
-  }
-
-  private readonly requestMeasurement = () => {
-    if (this.animationFrame !== undefined)
-      return
-
-    this.animationFrame = this.targetWindow.requestAnimationFrame(this.measure)
-  }
-}
-
-function isTextEntry(element: Element): boolean {
-  return element.matches(TEXT_ENTRY_SELECTOR)
-    && !element.matches(':disabled, [readonly]')
-}
-
-function readViewportProfile(targetWindow: Window): ViewportProfile {
-  return {
-    displayMode: targetWindow.matchMedia('(display-mode: standalone)').matches
-      ? 'standalone'
-      : 'browser',
-    height: targetWindow.document.documentElement.clientHeight,
-    width: targetWindow.document.documentElement.clientWidth,
   }
 }

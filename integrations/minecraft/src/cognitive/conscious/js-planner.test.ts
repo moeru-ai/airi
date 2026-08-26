@@ -39,19 +39,19 @@ describe('extractJavaScriptCandidate', () => {
 
 function createAction(name: string, schema: Action['schema']): Action {
   return {
+    name,
     description: `${name} tool`,
     execution: 'sync',
-    name,
-    perform: () => () => '',
     schema,
+    perform: () => () => '',
   }
 }
 
 const actions: Action[] = [
   createAction('chat', z.object({ message: z.string() })),
   createAction('goToPlayer', z.object({
-    closeness: z.number().min(0),
     player_name: z.string(),
+    closeness: z.number().min(0),
   })),
 ]
 
@@ -62,91 +62,91 @@ const actionsWithSkip: Action[] = [
 
 describe('javaScriptPlanner', () => {
   const globals = {
-    actionQueue: {
-      capacity: { executing: 1, pending: 4, total: 5 },
-      counts: { executing: 0, pending: 0, total: 0 },
-      executing: null,
-      pending: [],
-      recent: [],
-      updatedAt: Date.now(),
-    },
-    errorBurstGuard: null,
     event: {
-      payload: { type: 'chat_message' },
-      source: { id: 'test', type: 'minecraft' },
-      timestamp: Date.now(),
       type: 'perception',
+      payload: { type: 'chat_message' },
+      source: { type: 'minecraft', id: 'test' },
+      timestamp: Date.now(),
     },
-    forgetConversation: () => ({ cleared: ['conversationHistory', 'lastLlmInputSnapshot'], ok: true }),
-    getNoActionBudget: () => ({
-      default: 3,
-      max: 8,
-      remaining: 3,
-    }),
+    snapshot: {
+      self: { health: 20, food: 20, location: { x: 0, y: 64, z: 0 } },
+      environment: { nearbyPlayers: [] },
+      social: {},
+      threat: {},
+      attention: {},
+    },
     llmInput: {
-      attempt: 1,
-      conversationHistory: [{ content: 'previous reply', role: 'assistant' }],
-      messages: [{ content: 'hello', role: 'user' }],
       systemPrompt: 'system prompt',
-      updatedAt: Date.now(),
       userMessage: 'latest user message',
-    },
-    noActionBudget: {
-      default: 3,
-      max: 8,
-      remaining: 3,
+      messages: [{ role: 'user', content: 'hello' }],
+      conversationHistory: [{ role: 'assistant', content: 'previous reply' }],
+      updatedAt: Date.now(),
+      attempt: 1,
     },
     patterns: {
-      find: (query: string, limit = 10) => {
-        if (!query.toLowerCase().includes('torch'))
-          return []
-        return [{
-          code: 'const target = query.blocks().within(32).list().find(b => b.name.includes("torch"));',
-          id: 'collect.wall_torch',
-          intent: 'Use variant-aware block lookup for torch tasks.',
-          steps: ['scan blocks', 'mine exact target'],
-          tags: ['torch', 'wall_torch'],
-          title: 'Collect Wall Torches Reliably',
-          whenToUse: ['torch tasks'],
-        }].slice(0, limit)
-      },
       get: (id: string) => {
         if (id !== 'collect.wall_torch')
           return null
         return {
-          code: 'const target = query.blocks().within(32).list().find(b => b.name.includes("torch"));',
           id: 'collect.wall_torch',
-          intent: 'Use variant-aware block lookup for torch tasks.',
-          steps: ['scan blocks', 'mine exact target'],
-          tags: ['torch', 'wall_torch'],
           title: 'Collect Wall Torches Reliably',
+          intent: 'Use variant-aware block lookup for torch tasks.',
           whenToUse: ['torch tasks'],
+          steps: ['scan blocks', 'mine exact target'],
+          code: 'const target = query.blocks().within(32).list().find(b => b.name.includes("torch"));',
+          tags: ['torch', 'wall_torch'],
         }
+      },
+      find: (query: string, limit = 10) => {
+        if (!query.toLowerCase().includes('torch'))
+          return []
+        return [{
+          id: 'collect.wall_torch',
+          title: 'Collect Wall Torches Reliably',
+          intent: 'Use variant-aware block lookup for torch tasks.',
+          whenToUse: ['torch tasks'],
+          steps: ['scan blocks', 'mine exact target'],
+          code: 'const target = query.blocks().within(32).list().find(b => b.name.includes("torch"));',
+          tags: ['torch', 'wall_torch'],
+        }].slice(0, limit)
       },
       ids: () => ['collect.wall_torch'],
       list: (limit = 10) => [{
-        code: 'const target = query.blocks().within(32).list().find(b => b.name.includes("torch"));',
         id: 'collect.wall_torch',
-        intent: 'Use variant-aware block lookup for torch tasks.',
-        steps: ['scan blocks', 'mine exact target'],
-        tags: ['torch', 'wall_torch'],
         title: 'Collect Wall Torches Reliably',
+        intent: 'Use variant-aware block lookup for torch tasks.',
         whenToUse: ['torch tasks'],
+        steps: ['scan blocks', 'mine exact target'],
+        code: 'const target = query.blocks().within(32).list().find(b => b.name.includes("torch"));',
+        tags: ['torch', 'wall_torch'],
       }].slice(0, limit),
     },
-    setNoActionBudget: (value: number) => ({
+    actionQueue: {
+      executing: null,
+      pending: [],
+      recent: [],
+      capacity: { total: 5, executing: 1, pending: 4 },
+      counts: { total: 0, executing: 0, pending: 0 },
+      updatedAt: Date.now(),
+    },
+    noActionBudget: {
+      remaining: 3,
       default: 3,
       max: 8,
+    },
+    errorBurstGuard: null,
+    setNoActionBudget: (value: number) => ({
       ok: true,
       remaining: Math.max(0, Math.min(8, Math.floor(value))),
+      default: 3,
+      max: 8,
     }),
-    snapshot: {
-      attention: {},
-      environment: { nearbyPlayers: [] },
-      self: { food: 20, health: 20, location: { x: 0, y: 64, z: 0 } },
-      social: {},
-      threat: {},
-    },
+    getNoActionBudget: () => ({
+      remaining: 3,
+      default: 3,
+      max: 8,
+    }),
+    forgetConversation: () => ({ ok: true, cleared: ['conversationHistory', 'lastLlmInputSnapshot'] }),
   } as any
 
   it('maps positional/object args and executes tools in order', async () => {
@@ -158,11 +158,11 @@ describe('javaScriptPlanner', () => {
     `, actions, globals, executeAction)
 
     expect(executeAction).toHaveBeenCalledTimes(2)
-    expect(executeAction).toHaveBeenNthCalledWith(1, { params: { message: 'hello' }, tool: 'chat' })
-    expect(executeAction).toHaveBeenNthCalledWith(2, { params: { closeness: 2, player_name: 'Alex' }, tool: 'goToPlayer' })
+    expect(executeAction).toHaveBeenNthCalledWith(1, { tool: 'chat', params: { message: 'hello' } })
+    expect(executeAction).toHaveBeenNthCalledWith(2, { tool: 'goToPlayer', params: { player_name: 'Alex', closeness: 2 } })
     expect(planned.actions.map(a => a.action)).toEqual([
-      { params: { message: 'hello' }, tool: 'chat' },
-      { params: { closeness: 2, player_name: 'Alex' }, tool: 'goToPlayer' },
+      { tool: 'chat', params: { message: 'hello' } },
+      { tool: 'goToPlayer', params: { player_name: 'Alex', closeness: 2 } },
     ])
   })
 
@@ -171,7 +171,7 @@ describe('javaScriptPlanner', () => {
     const executeAction = vi.fn(async action => `ok:${action.tool}`)
     const planned = await planner.evaluate(`await use("chat", { message: "via-use" })`, actions, globals, executeAction)
 
-    expect(planned.actions.map(a => a.action)).toEqual([{ params: { message: 'via-use' }, tool: 'chat' }])
+    expect(planned.actions.map(a => a.action)).toEqual([{ tool: 'chat', params: { message: 'via-use' } }])
   })
 
   it('persists script variables across turns with mem', async () => {
@@ -181,7 +181,7 @@ describe('javaScriptPlanner', () => {
     await planner.evaluate('mem.count = 2', actions, globals, executeAction)
     const planned = await planner.evaluate('await chat("count=" + mem.count)', actions, globals, executeAction)
 
-    expect(planned.actions.map(a => a.action)).toEqual([{ params: { message: 'count=2' }, tool: 'chat' }])
+    expect(planned.actions.map(a => a.action)).toEqual([{ tool: 'chat', params: { message: 'count=2' } }])
   })
 
   // https://github.com/moeru-ai/airi/pull/1915 (Codex P2)
@@ -195,7 +195,7 @@ describe('javaScriptPlanner', () => {
     const executeAction = vi.fn(async action => `ok:${action.tool}`)
     const withSelf = {
       ...globals,
-      snapshot: { ...globals.snapshot, self: { food: 20, health: 20, location: { x: 12, y: 64, z: -7 } } },
+      snapshot: { ...globals.snapshot, self: { health: 20, food: 20, location: { x: 12, y: 64, z: -7 } } },
     }
 
     const planned = await planner.evaluate(
@@ -222,7 +222,7 @@ describe('javaScriptPlanner', () => {
       await chat(inv.map(item => item.count + " " + item.name).join(", "))
     `, actions, globals, executeAction)
 
-    expect(planned.actions.map(a => a.action)).toEqual([{ params: { message: '2 oak_log' }, tool: 'chat' }])
+    expect(planned.actions.map(a => a.action)).toEqual([{ tool: 'chat', params: { message: '2 oak_log' } }])
   })
 
   it('does not expose stringified return mirror on prevRun', async () => {
@@ -243,7 +243,7 @@ describe('javaScriptPlanner', () => {
     const executeAction = vi.fn(async action => `ok:${action.tool}`)
     const planned = await planner.evaluate('await chat("hp=" + self.health)', actions, globals, executeAction)
 
-    expect(planned.actions.map(a => a.action)).toEqual([{ params: { message: 'hp=20' }, tool: 'chat' }])
+    expect(planned.actions.map(a => a.action)).toEqual([{ tool: 'chat', params: { message: 'hp=20' } }])
   })
 
   it('rejects mixed skip + tool calls', async () => {
@@ -260,7 +260,7 @@ describe('javaScriptPlanner', () => {
     await expect(planner.evaluate('await skip()', actionsWithSkip, globals, executeAction)).resolves.toMatchObject({
       actions: [
         {
-          action: { params: {}, tool: 'skip' },
+          action: { tool: 'skip', params: {} },
           ok: true,
           result: 'Skipped turn',
         },
@@ -294,10 +294,10 @@ describe('javaScriptPlanner', () => {
   it('supports expectation guardrails on structured action telemetry', async () => {
     const planner = new JavaScriptPlanner()
     const executeAction = vi.fn(async () => ({
+      ok: true,
+      movedDistance: 1.25,
       distanceToTargetAfter: 1.5,
       endPos: { x: 8, y: 64, z: 4 },
-      movedDistance: 1.25,
-      ok: true,
     }))
 
     const planned = await planner.evaluate(`
@@ -315,8 +315,8 @@ describe('javaScriptPlanner', () => {
   it('throws when expectation guardrail fails', async () => {
     const planner = new JavaScriptPlanner()
     const executeAction = vi.fn(async () => ({
-      movedDistance: 0.1,
       ok: true,
+      movedDistance: 0.1,
     }))
 
     await expect(planner.evaluate(`
@@ -377,9 +377,9 @@ describe('javaScriptPlanner', () => {
     const guardedGlobals = {
       ...globals,
       errorBurstGuard: {
-        errorTurnCount: 3,
         threshold: 3,
         windowTurns: 5,
+        errorTurnCount: 3,
       },
     } as any
     const planned = await planner.evaluate('return errorBurstGuard.errorTurnCount', actions, guardedGlobals, executeAction)
@@ -391,7 +391,7 @@ describe('javaScriptPlanner', () => {
     const planner = new JavaScriptPlanner()
     const executeAction = vi.fn(async action => `ok:${action.tool}`)
     const planned = await planner.evaluate('await chat("llm=" + llmUserMessage)', actions, globals, executeAction)
-    expect(planned.actions[0]?.action).toEqual({ params: { message: 'llm=latest user message' }, tool: 'chat' })
+    expect(planned.actions[0]?.action).toEqual({ tool: 'chat', params: { message: 'llm=latest user message' } })
   })
 
   it('exposes patterns runtime global to scripts', async () => {
@@ -526,23 +526,23 @@ describe('javaScriptPlanner', () => {
     const planner = new JavaScriptPlanner()
     const mineflayer = {
       bot: {
-        blockAt: () => null,
-        entities: {
-          1: { id: 1, name: 'dssadg', position: { x: 3, y: 64, z: 0 }, type: 'player', username: 'dssadg' },
-        },
-        entity: { id: 0, position: { x: 0, y: 64, z: 0 } },
-        findBlocks: () => [],
-        food: 20,
-        game: { gameMode: 'survival' },
-        health: 20,
-        heldItem: null,
-        inventory: { emptySlotCount: () => 36, items: () => [] },
-        isRaining: false,
-        players: {},
-        recipesFor: () => [],
-        registry: { blocksByName: { crafting_table: { id: 58 } }, items: {}, itemsByName: {} },
-        time: { timeOfDay: 0 },
         version: '1.21.1',
+        entity: { id: 0, position: { x: 0, y: 64, z: 0 } },
+        health: 20,
+        food: 20,
+        heldItem: null,
+        game: { gameMode: 'survival' },
+        isRaining: false,
+        time: { timeOfDay: 0 },
+        entities: {
+          1: { id: 1, name: 'dssadg', type: 'player', username: 'dssadg', position: { x: 3, y: 64, z: 0 } },
+        },
+        players: {},
+        findBlocks: () => [],
+        blockAt: () => null,
+        inventory: { items: () => [], emptySlotCount: () => 36 },
+        registry: { items: {}, itemsByName: {}, blocksByName: { crafting_table: { id: 58 } } },
+        recipesFor: () => [],
       },
     }
     const executeAction = vi.fn(async action => `ok:${action.tool}`)
@@ -567,23 +567,23 @@ describe('javaScriptPlanner', () => {
     const planner = new JavaScriptPlanner()
     const mineflayer = {
       bot: {
-        blockAt: () => null,
-        entities: {
-          1: { id: 1, name: 'dssadg', position: { x: 3, y: 64, z: 0 }, type: 'player', username: 'dssadg' },
-        },
-        entity: { id: 0, position: { x: 0, y: 64, z: 0 } },
-        findBlocks: () => [],
-        food: 20,
-        game: { gameMode: 'survival' },
-        health: 20,
-        heldItem: null,
-        inventory: { emptySlotCount: () => 36, items: () => [] },
-        isRaining: false,
-        players: {},
-        recipesFor: () => [],
-        registry: { blocksByName: { crafting_table: { id: 58 } }, items: {}, itemsByName: {} },
-        time: { timeOfDay: 0 },
         version: '1.21.1',
+        entity: { id: 0, position: { x: 0, y: 64, z: 0 } },
+        health: 20,
+        food: 20,
+        heldItem: null,
+        game: { gameMode: 'survival' },
+        isRaining: false,
+        time: { timeOfDay: 0 },
+        entities: {
+          1: { id: 1, name: 'dssadg', type: 'player', username: 'dssadg', position: { x: 3, y: 64, z: 0 } },
+        },
+        players: {},
+        findBlocks: () => [],
+        blockAt: () => null,
+        inventory: { items: () => [], emptySlotCount: () => 36 },
+        registry: { items: {}, itemsByName: {}, blocksByName: { crafting_table: { id: 58 } } },
+        recipesFor: () => [],
       },
     }
     const executeAction = vi.fn(async action => `ok:${action.tool}`)

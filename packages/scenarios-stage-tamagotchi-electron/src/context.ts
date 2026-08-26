@@ -10,12 +10,22 @@ import { expandControlsIsland, openChatFromControlsIsland, openHearingFromContro
 import { goToSettingsConnectionPage, goToSettingsRoute } from './runtime/settings'
 import { waitForStageWindow } from './runtime/windows'
 
+export interface StageWindowsApi {
+  waitFor: (name: StageWindowName, timeout?: number) => Promise<StageWindowSnapshot>
+}
+
 export interface ControlsIslandApi {
+  waitForReady: (page: Page) => Promise<void>
   expand: (page: Page) => Promise<void>
+  openSettings: (page: Page) => Promise<StageWindowSnapshot>
   openChat: (page: Page) => Promise<StageWindowSnapshot>
   openHearing: (page: Page) => Promise<Page>
-  openSettings: (page: Page) => Promise<StageWindowSnapshot>
-  waitForReady: (page: Page) => Promise<void>
+}
+
+export interface SettingsWindowApi {
+  waitFor: (timeout?: number) => Promise<StageWindowSnapshot>
+  goToConnection: (page: Page) => Promise<Page>
+  goToRoute: (page: Page, routePath: string) => Promise<Page>
 }
 
 export interface DialogsApi {
@@ -23,14 +33,19 @@ export interface DialogsApi {
 }
 
 export interface DrawersApi {
-  dismiss: (page: Page) => Promise<void>
   swipeDown: (page: Page) => Promise<void>
+  dismiss: (page: Page) => Promise<void>
 }
 
-export interface SettingsWindowApi {
-  goToConnection: (page: Page) => Promise<Page>
-  goToRoute: (page: Page, routePath: string) => Promise<Page>
-  waitFor: (timeout?: number) => Promise<StageWindowSnapshot>
+/**
+ * Generic Vishot Electron context plus AIRI stage-tamagotchi navigation helpers.
+ */
+export interface StageTamagotchiScenarioContext extends ScenarioContext {
+  stageWindows: StageWindowsApi
+  controlsIsland: ControlsIslandApi
+  settingsWindow: SettingsWindowApi
+  dialogs: DialogsApi
+  drawers: DrawersApi
 }
 
 export interface StageTamagotchiScenario {
@@ -39,29 +54,26 @@ export interface StageTamagotchiScenario {
 }
 
 /**
- * Generic Vishot Electron context plus AIRI stage-tamagotchi navigation helpers.
- */
-export interface StageTamagotchiScenarioContext extends ScenarioContext {
-  controlsIsland: ControlsIslandApi
-  dialogs: DialogsApi
-  drawers: DrawersApi
-  settingsWindow: SettingsWindowApi
-  stageWindows: StageWindowsApi
-}
-
-export interface StageWindowsApi {
-  waitFor: (name: StageWindowName, timeout?: number) => Promise<StageWindowSnapshot>
-}
-
-/**
  * Adds AIRI-specific window and overlay helpers to Vishot's generic Electron context.
  */
 export function createStageTamagotchiScenarioContext(context: ScenarioContext): StageTamagotchiScenarioContext {
   return {
     ...context,
+    stageWindows: {
+      waitFor(name, timeout) {
+        return waitForStageWindow(context.electronApp, name, timeout)
+      },
+    },
     controlsIsland: {
+      waitForReady(page) {
+        return waitForControlsIslandReady(page)
+      },
       async expand(page) {
         await expandControlsIsland(page)
+      },
+      async openSettings(page) {
+        await openSettingsFromControlsIsland(page)
+        return waitForStageWindow(context.electronApp, 'settings')
       },
       async openChat(page) {
         await openChatFromControlsIsland(page)
@@ -70,12 +82,16 @@ export function createStageTamagotchiScenarioContext(context: ScenarioContext): 
       openHearing(page) {
         return openHearingFromControlsIsland(page)
       },
-      async openSettings(page) {
-        await openSettingsFromControlsIsland(page)
-        return waitForStageWindow(context.electronApp, 'settings')
+    },
+    settingsWindow: {
+      waitFor(timeout) {
+        return waitForStageWindow(context.electronApp, 'settings', timeout)
       },
-      waitForReady(page) {
-        return waitForControlsIslandReady(page)
+      goToConnection(page) {
+        return goToSettingsConnectionPage(page)
+      },
+      goToRoute(page, routePath) {
+        return goToSettingsRoute(page, routePath)
       },
     },
     dialogs: {
@@ -84,27 +100,11 @@ export function createStageTamagotchiScenarioContext(context: ScenarioContext): 
       },
     },
     drawers: {
-      dismiss(page) {
-        return dismissDrawer(page)
-      },
       swipeDown(page) {
         return swipeDownDrawer(page)
       },
-    },
-    settingsWindow: {
-      goToConnection(page) {
-        return goToSettingsConnectionPage(page)
-      },
-      goToRoute(page, routePath) {
-        return goToSettingsRoute(page, routePath)
-      },
-      waitFor(timeout) {
-        return waitForStageWindow(context.electronApp, 'settings', timeout)
-      },
-    },
-    stageWindows: {
-      waitFor(name, timeout) {
-        return waitForStageWindow(context.electronApp, name, timeout)
+      dismiss(page) {
+        return dismissDrawer(page)
       },
     },
   }

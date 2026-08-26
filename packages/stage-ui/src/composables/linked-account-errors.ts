@@ -17,7 +17,7 @@ const linkedAccountOAuthErrorMessageKeys: Record<string, string> = {
  * - A generic localized message key for unknown non-empty errors.
  * - `null` when there is no error to show.
  */
-export function resolveLinkedAccountOAuthErrorMessageKey(errorCode: null | string | undefined): null | string {
+export function resolveLinkedAccountOAuthErrorMessageKey(errorCode: string | null | undefined): string | null {
   if (!errorCode)
     return null
 

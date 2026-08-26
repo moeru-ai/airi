@@ -32,18 +32,27 @@ const NonEmptyChatBroadcastOriginInstanceIdSchema = pipe(
 
 const ChatBroadcastPayloadSchema = object({
   chatId: NonEmptyChatBroadcastChatIdSchema,
-  fromSeq: ChatBroadcastFromSeqSchema,
   messages: ChatBroadcastMessagesSchema,
+  fromSeq: ChatBroadcastFromSeqSchema,
   toSeq: ChatBroadcastToSeqSchema,
 })
 
 const ChatBroadcastMessageSchema = object({
-  originInstanceId: NonEmptyChatBroadcastOriginInstanceIdSchema,
-  payload: ChatBroadcastPayloadSchema,
   userId: NonEmptyChatBroadcastUserIdSchema,
+  payload: ChatBroadcastPayloadSchema,
+  originInstanceId: NonEmptyChatBroadcastOriginInstanceIdSchema,
 })
 
+export interface ChatBroadcastPayload {
+  chatId: string
+  messages: unknown[]
+  fromSeq: number
+  toSeq: number
+}
+
 export interface ChatBroadcastMessage {
+  userId: string
+  payload: ChatBroadcastPayload
   /**
    * Stable identifier of the api instance that published this broadcast.
    *
@@ -54,15 +63,6 @@ export interface ChatBroadcastMessage {
    * the sender's own ctx).
    */
   originInstanceId: string
-  payload: ChatBroadcastPayload
-  userId: string
-}
-
-export interface ChatBroadcastPayload {
-  chatId: string
-  fromSeq: number
-  messages: unknown[]
-  toSeq: number
 }
 
 /**
@@ -86,7 +86,7 @@ export function createChatBroadcastMessage(
   payload: ChatBroadcastPayload,
   originInstanceId: string,
 ): ChatBroadcastMessage {
-  return parse(ChatBroadcastMessageSchema, { originInstanceId, payload, userId })
+  return parse(ChatBroadcastMessageSchema, { userId, payload, originInstanceId })
 }
 
 /**
@@ -124,13 +124,13 @@ export function parseChatBroadcastMessage(raw: string): ChatBroadcastMessage {
   const payloadRecord = payload as Record<string, unknown>
 
   return parse(ChatBroadcastMessageSchema, {
-    originInstanceId: message.originInstanceId,
+    userId: message.userId,
     payload: {
       chatId: payloadRecord.chatId,
-      fromSeq: payloadRecord.fromSeq,
       messages: payloadRecord.messages,
+      fromSeq: payloadRecord.fromSeq,
       toSeq: payloadRecord.toSeq,
     },
-    userId: message.userId,
+    originInstanceId: message.originInstanceId,
   })
 }

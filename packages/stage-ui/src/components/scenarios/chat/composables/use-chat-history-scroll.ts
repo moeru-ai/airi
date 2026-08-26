@@ -5,9 +5,9 @@ import { computed, watch } from 'vue'
 
 interface ChatHistoryScrollOptions<TMessage> {
   container: Readonly<ShallowRef<HTMLElement | null>>
-  getKey: (message: TMessage, index: number) => number | string
   messages: Readonly<Ref<TMessage[]>>
-  scrollToIndex: (index: number, align: 'end' | 'start') => void
+  getKey: (message: TMessage, index: number) => string | number
+  scrollToIndex: (index: number, align: 'start' | 'end') => void
 }
 
 /**
@@ -19,8 +19,8 @@ interface ChatHistoryScrollOptions<TMessage> {
  */
 export function useChatHistoryScroll<TMessage>({
   container,
-  getKey,
   messages,
+  getKey,
   scrollToIndex,
 }: ChatHistoryScrollOptions<TMessage>) {
   let didRequestInitialScroll = false
@@ -30,7 +30,7 @@ export function useChatHistoryScroll<TMessage>({
   let isPointerOrFocusOnOlderMessage = false
   let isSelectionInOlderMessage = false
   let previousContainer: HTMLElement | null = null
-  let previousLastMessageKey: null | number | string = null
+  let previousLastMessageKey: string | number | null = null
 
   const selectionDocument = computed(() => container.value?.ownerDocument)
 
@@ -79,7 +79,7 @@ export function useChatHistoryScroll<TMessage>({
   }, { passive: true })
 
   useEventListener(container, 'keydown', (event) => {
-    if ([' ', 'ArrowDown', 'ArrowUp', 'End', 'Home', 'PageDown', 'PageUp'].includes(event.key))
+    if (['ArrowDown', 'ArrowUp', 'End', 'Home', 'PageDown', 'PageUp', ' '].includes(event.key))
       hasUserScrollIntent = true
   })
 

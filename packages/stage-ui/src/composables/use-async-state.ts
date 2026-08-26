@@ -31,9 +31,9 @@ export function useAsyncState<T>(
   }
 
   return {
+    state,
+    isLoading,
     error,
     execute,
-    isLoading,
-    state,
   }
 }

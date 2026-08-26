@@ -7,12 +7,13 @@ import { recordMessage } from '../../lib/db'
 
 export function createSendMessageAction(client: SatoriClient): ActionHandler {
   return {
+    name: 'send_message',
     execute: async (ctx, chatCtx, args) => {
       if (args.action !== 'send_message') {
         return {
-          result: 'System Error: Action mismatch for send_message.',
-          shouldContinue: true,
           success: false,
+          shouldContinue: true,
+          result: 'System Error: Action mismatch for send_message.',
         }
       }
       const logger = useLogg('Action:send_message').useGlobalConfig()
@@ -23,9 +24,9 @@ export function createSendMessageAction(client: SatoriClient): ActionHandler {
         logger.withField('channelId', channelId).warn('Aborting message send due to new incoming events')
 
         return {
-          result: 'AIRI System: [INTERRUPT] Message sending ABORTED. New unread messages were detected from the user. Please [read_unread_messages] first to understand the new context.',
-          shouldContinue: true,
           success: false,
+          shouldContinue: true,
+          result: 'AIRI System: [INTERRUPT] Message sending ABORTED. New unread messages were detected from the user. Please [read_unread_messages] first to understand the new context.',
         }
       }
 
@@ -37,20 +38,19 @@ export function createSendMessageAction(client: SatoriClient): ActionHandler {
         await recordMessage(channelId, chatCtx.selfId, 'AIRI', content)
 
         return {
-          result: `AIRI System: Message sent to ${channelId}: ${content}`,
-          shouldContinue: true,
           success: true,
+          shouldContinue: true,
+          result: `AIRI System: Message sent to ${channelId}: ${content}`,
         }
       }
       catch (error) {
         logger.withError(error as Error).error('Failed to send message')
         return {
-          result: `AIRI System: Error sending message: ${(error as Error).message}`,
-          shouldContinue: true,
           success: false,
+          shouldContinue: true,
+          result: `AIRI System: Error sending message: ${(error as Error).message}`,
         }
       }
     },
-    name: 'send_message',
   }
 }

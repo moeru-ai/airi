@@ -44,21 +44,21 @@ export function createStripeRoutes(
   configKV: ConfigKVService,
   env: Env,
   redis: Redis,
-  metrics?: null | RevenueMetrics,
-  rateLimitMetrics?: null | RateLimitMetrics,
+  metrics?: RevenueMetrics | null,
+  rateLimitMetrics?: RateLimitMetrics | null,
   productEventService?: ProductEventService,
 ) {
   const stripe = env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null
   const priceCatalog = stripe ? createStripePriceCatalog(stripe, redis) : null
-  const checkout = createCheckoutOperation({ configKV, env, metrics, priceCatalog, productEventService, stripe, stripeService })
+  const checkout = createCheckoutOperation({ stripe, priceCatalog, stripeService, configKV, env, metrics, productEventService })
   const webhook = createWebhookOperation({
-    billingService,
+    stripe,
+    webhookSecret: env.STRIPE_WEBHOOK_SECRET,
     fluxService,
+    stripeService,
+    billingService,
     metrics,
     productEventService,
-    stripe,
-    stripeService,
-    webhookSecret: env.STRIPE_WEBHOOK_SECRET,
   })
 
   return new Hono<HonoEnv>()
@@ -79,20 +79,20 @@ export function createStripeRoutes(
         }
 
         return {
-          currencies,
-          defaultCurrency: p.currency,
-          label: `${p.metadata.fluxAmount ?? '?'} Flux`,
-          recommended: p.metadata.recommended === 'true',
           stripePriceId: p.id,
+          label: `${p.metadata.fluxAmount ?? '?'} Flux`,
+          defaultCurrency: p.currency,
+          currencies,
+          recommended: p.metadata.recommended === 'true',
         }
       }))
     })
-    .post('/checkout', authGuard, rateLimiter({ max: 10, metrics: rateLimitMetrics, routeLabel: 'stripe.checkout', windowSec: 60 }), async (c) => {
+    .post('/checkout', authGuard, rateLimiter({ max: 10, windowSec: 60, metrics: rateLimitMetrics, routeLabel: 'stripe.checkout' }), async (c) => {
       const body = await c.req.json()
       return c.json(await checkout({
+        user: c.get('user')!,
         body,
         request: c.req.raw,
-        user: c.get('user')!,
       }))
     })
     .get('/orders', authGuard, async (c) => {
@@ -126,6 +126,6 @@ export function createStripeRoutes(
     .post('/webhook', async (c) => {
       const signature = c.req.header('stripe-signature') ?? null
       const body = signature ? await c.req.text() : ''
-      return c.json(await webhook({ body, signature }))
+      return c.json(await webhook({ signature, body }))
     })
 }

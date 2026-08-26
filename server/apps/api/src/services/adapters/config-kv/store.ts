@@ -8,8 +8,6 @@ import { eq } from 'drizzle-orm'
 import { configKV } from '../../../schemas/config-kv'
 import { CONFIG_KV_CACHE_TTL_SECONDS, configKVCacheKey } from './contracts'
 
-export type ConfigKVStore = ReturnType<typeof createConfigKVStore>
-
 export interface ConfigKVStoreOptions {
   /**
    * Maximum lifetime of one derived Redis entry.
@@ -31,7 +29,7 @@ export function createConfigKVStore<TSchema extends Record<string, unknown>>(
 ) {
   const cacheTtlSeconds = options.cacheTtlSeconds ?? CONFIG_KV_CACHE_TTL_SECONDS
 
-  async function readDatabase(key: ConfigKey): Promise<null | string> {
+  async function readDatabase(key: ConfigKey): Promise<string | null> {
     const rows = await db
       .select({ value: configKV.value })
       .from(configKV)
@@ -49,18 +47,7 @@ export function createConfigKVStore<TSchema extends Record<string, unknown>>(
   }
 
   return {
-    async getFreshRaw(key: ConfigKey): Promise<null | string> {
-      const value = await readDatabase(key)
-      if (value !== null) {
-        await cacheValue(key, value)
-      }
-      else {
-        await deleteCachedValue(key)
-      }
-      return value
-    },
-
-    async getRaw(key: ConfigKey): Promise<null | string> {
+    async getRaw(key: ConfigKey): Promise<string | null> {
       const cached = await redis.get(configKVCacheKey(key))
       if (cached !== null)
         return cached
@@ -71,8 +58,21 @@ export function createConfigKVStore<TSchema extends Record<string, unknown>>(
       return value
     },
 
+    async getFreshRaw(key: ConfigKey): Promise<string | null> {
+      const value = await readDatabase(key)
+      if (value !== null) {
+        await cacheValue(key, value)
+      }
+      else {
+        await deleteCachedValue(key)
+      }
+      return value
+    },
+
     async invalidateCache(key: ConfigKey): Promise<void> {
       await deleteCachedValue(key)
     },
   }
 }
+
+export type ConfigKVStore = ReturnType<typeof createConfigKVStore>

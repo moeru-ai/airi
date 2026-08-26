@@ -31,12 +31,12 @@ describe('settings stage model store', () => {
   // https://github.com/moeru-ai/airi/issues/1984
   it('issue #1984: falls back to the default preset when a custom stage model is missing', async () => {
     const fallbackModel: DisplayModelURL = {
-      format: DisplayModelFormat.Live2dZip,
       id: 'preset-live2d-1',
-      importedAt: 1,
-      name: 'Preset Live2D',
+      format: DisplayModelFormat.Live2dZip,
       type: 'url',
       url: 'https://example.com/preset-live2d.zip',
+      name: 'Preset Live2D',
+      importedAt: 1,
     }
 
     const displayModelsStore = useDisplayModelsStore()
@@ -63,12 +63,12 @@ describe('settings stage model store', () => {
 
   it('routes Tachie archives to the Tachie renderer', async () => {
     const tachieModel: DisplayModelURL = {
-      format: DisplayModelFormat.TachieZip,
       id: 'tachie-model',
-      importedAt: 1,
-      name: 'Tachie character',
+      format: DisplayModelFormat.TachieZip,
       type: 'url',
       url: 'https://example.com/character.tachie.zip',
+      name: 'Tachie character',
+      importedAt: 1,
     }
     const displayModelsStore = useDisplayModelsStore()
     vi.spyOn(displayModelsStore, 'getDisplayModel').mockResolvedValue(tachieModel)

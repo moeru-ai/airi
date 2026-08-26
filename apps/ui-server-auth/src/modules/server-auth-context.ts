@@ -34,9 +34,9 @@ const TRUSTED_LOCAL_API_SERVER_ORIGIN_PATTERNS = [
   /^https:\/\/127\.0\.0\.1(:\d+)?$/,
 ]
 
-let cachedContext: null | ServerAuthBootstrapContext | undefined
+let cachedContext: ServerAuthBootstrapContext | null | undefined
 
-export function getServerAuthBootstrapContext(): null | ServerAuthBootstrapContext {
+export function getServerAuthBootstrapContext(): ServerAuthBootstrapContext | null {
   if (cachedContext !== undefined)
     return cachedContext
 
@@ -77,7 +77,7 @@ export function getServerAuthBootstrapContext(): null | ServerAuthBootstrapConte
  * - A bootstrap context using the trusted API origin, or null when no trusted
  *   override is present.
  */
-export function resolveStandaloneServerAuthContext(currentUrl: string, fallbackApiServerUrl: string): null | ServerAuthBootstrapContext {
+export function resolveStandaloneServerAuthContext(currentUrl: string, fallbackApiServerUrl: string): ServerAuthBootstrapContext | null {
   const url = new URL(currentUrl)
   const apiServerUrl = normalizeTrustedApiServerUrl(
     url.searchParams.get(API_SERVER_URL_QUERY_PARAM),
@@ -92,7 +92,7 @@ export function resolveStandaloneServerAuthContext(currentUrl: string, fallbackA
   }
 }
 
-function normalizeTrustedApiServerUrl(value: null | string): null | string {
+function normalizeTrustedApiServerUrl(value: string | null): string | null {
   if (!value)
     return null
 

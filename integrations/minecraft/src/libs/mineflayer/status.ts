@@ -2,16 +2,23 @@ import type { Mineflayer } from './core'
 import type { OneLinerable } from './types'
 
 export class Status implements OneLinerable {
-  public health: string
   public position: string
-  public timeOfDay: string
+  public health: string
   public weather: string
+  public timeOfDay: string
 
   constructor() {
     this.position = ''
     this.health = ''
     this.weather = ''
     this.timeOfDay = ''
+  }
+
+  public update(mineflayer: Mineflayer) {
+    if (!mineflayer.ready)
+      return
+
+    Object.assign(this, Status.from(mineflayer))
   }
 
   static from(mineflayer: Mineflayer): Status {
@@ -35,12 +42,5 @@ export class Status implements OneLinerable {
 
   public toOneLiner(): string {
     return Object.entries(this).map(([key, value]) => `${key}: ${value}`).join('\n')
-  }
-
-  public update(mineflayer: Mineflayer) {
-    if (!mineflayer.ready)
-      return
-
-    Object.assign(this, Status.from(mineflayer))
   }
 }

@@ -10,9 +10,9 @@ afterEach(() => {
 
 function createMockSocket() {
   const socket = new EventEmitter() as EventEmitter & {
-    addEventListener: (event: string, listener: (...args: any[]) => void) => void
-    close: ReturnType<typeof vi.fn>
     send: ReturnType<typeof vi.fn>
+    close: ReturnType<typeof vi.fn>
+    addEventListener: (event: string, listener: (...args: any[]) => void) => void
   }
   socket.send = vi.fn()
   socket.close = vi.fn(() => {

@@ -29,20 +29,33 @@ import { protectPrivilegedWindowNavigation, setupBaseWindowElectronInvokes, tran
 const SPOTLIGHT_WINDOW_WIDTH = 720
 const SPOTLIGHT_WINDOW_HEIGHT = 100
 const SPOTLIGHT_SHORTCUT_ID = 'spotlight'
-const defaultSpotlightAccelerator: ShortcutAccelerator = { key: 'KeyA', modifiers: ['ctrl', 'shift'] }
+const defaultSpotlightAccelerator: ShortcutAccelerator = { modifiers: ['ctrl', 'shift'], key: 'KeyA' }
 
 export interface SpotlightWindowManager {
-  getShortcutAccelerator: () => ShortcutAccelerator
   show: () => Promise<void>
-  updateShortcutAccelerator: (accelerator: null | ShortcutAccelerator) => ReturnType<GlobalShortcutService['registerMainShortcut']>
+  getShortcutAccelerator: () => ShortcutAccelerator
+  updateShortcutAccelerator: (accelerator: ShortcutAccelerator | null) => ReturnType<GlobalShortcutService['registerMainShortcut']>
+}
+
+function resolveSpotlightBounds() {
+  const cursorPoint = screen.getCursorScreenPoint()
+  const display = screen.getDisplayNearestPoint(cursorPoint)
+  const { x, y, width } = display.workArea
+
+  return {
+    x: Math.round(x + (width - SPOTLIGHT_WINDOW_WIDTH) / 2),
+    y: Math.round(y + display.workArea.height * 0.22),
+    width: SPOTLIGHT_WINDOW_WIDTH,
+    height: SPOTLIGHT_WINDOW_HEIGHT,
+  }
 }
 
 export function setupSpotlightWindowManager(params: {
-  appConfig: Config<typeof globalAppConfigSchema>
+  serverChannel: ServerChannel
+  i18n: I18n
   chatWindow: () => Promise<BrowserWindow>
   globalShortcut: GlobalShortcutService
-  i18n: I18n
-  serverChannel: ServerChannel
+  appConfig: Config<typeof globalAppConfigSchema>
 }): SpotlightWindowManager {
   const log = useLogg('spotlight-window').useGlobalConfig()
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
@@ -69,8 +82,8 @@ export function setupSpotlightWindowManager(params: {
 
   function showNotification(body: string, onClick?: () => void) {
     const notification = new Notification({
-      body,
       title: 'AIRI',
+      body,
       ...(onClick && !isMacOS ? { timeoutType: 'never' as const } : {}),
     })
     resultNotifications.add(notification)
@@ -88,21 +101,21 @@ export function setupSpotlightWindowManager(params: {
   const reusable = createReusableWindow(async () => {
     const window = new BrowserWindow({
       ...transparentWindowConfig(),
-      alwaysOnTop: true,
+      titleBarStyle: undefined,
+      title: 'Spotlight',
+      width: SPOTLIGHT_WINDOW_WIDTH,
       height: SPOTLIGHT_WINDOW_HEIGHT,
-      icon,
+      show: false,
+      resizable: false,
       maximizable: false,
       minimizable: false,
-      resizable: false,
-      show: false,
       skipTaskbar: true,
-      title: 'Spotlight',
-      titleBarStyle: undefined,
+      alwaysOnTop: true,
+      icon,
       webPreferences: {
         preload: join(getElectronMainDirname(), '../preload/index.mjs'),
         sandbox: false,
       },
-      width: SPOTLIGHT_WINDOW_WIDTH,
     })
 
     protectPrivilegedWindowNavigation(window)
@@ -110,7 +123,7 @@ export function setupSpotlightWindowManager(params: {
     window.on('blur', () => window.hide())
 
     const { context } = createContext(ipcMain, window)
-    await setupBaseWindowElectronInvokes({ context, i18n: params.i18n, serverChannel: params.serverChannel, window })
+    await setupBaseWindowElectronInvokes({ context, window, i18n: params.i18n, serverChannel: params.serverChannel })
 
     // Only the Spotlight window may call these private invokes.
     const isFromSpotlightWindow = (senderId?: number) => window.webContents.id === senderId
@@ -151,10 +164,10 @@ export function setupSpotlightWindowManager(params: {
 
   function createShortcutBinding(accelerator = getShortcutAccelerator()): ShortcutBinding {
     return {
-      accelerator,
-      description: 'Spotlight',
       id: SPOTLIGHT_SHORTCUT_ID,
+      accelerator,
       scope: 'global',
+      description: 'Spotlight',
     }
   }
 
@@ -164,7 +177,7 @@ export function setupSpotlightWindowManager(params: {
     })
   }
 
-  function updateShortcutAccelerator(accelerator: null | ShortcutAccelerator) {
+  function updateShortcutAccelerator(accelerator: ShortcutAccelerator | null) {
     const nextAccelerator = accelerator ?? defaultSpotlightAccelerator
     if (!isSafeSpotlightAccelerator(nextAccelerator))
       return { id: SPOTLIGHT_SHORTCUT_ID, ok: false as const, reason: ShortcutFailureReasons.Invalid }
@@ -202,18 +215,5 @@ export function setupSpotlightWindowManager(params: {
     getShortcutAccelerator,
     show,
     updateShortcutAccelerator,
-  }
-}
-
-function resolveSpotlightBounds() {
-  const cursorPoint = screen.getCursorScreenPoint()
-  const display = screen.getDisplayNearestPoint(cursorPoint)
-  const { width, x, y } = display.workArea
-
-  return {
-    height: SPOTLIGHT_WINDOW_HEIGHT,
-    width: SPOTLIGHT_WINDOW_WIDTH,
-    x: Math.round(x + (width - SPOTLIGHT_WINDOW_WIDTH) / 2),
-    y: Math.round(y + display.workArea.height * 0.22),
   }
 }

@@ -25,8 +25,8 @@ export default defineConfig({
         ...presetWebFontsFonts('fontsource'),
       },
       timeouts: {
-        failure: 10000,
         warning: 5000,
+        failure: 10000,
       },
     }),
     presetIcons({
@@ -35,14 +35,14 @@ export default defineConfig({
     presetChromatic({
       baseHue: 240.25,
       colors: {
-        complementary: 180,
         primary: 0,
+        complementary: 180,
       },
     }) as Preset,
   ],
-  safelist: 'prose prose-sm m-auto text-left'.split(' '),
   transformers: [
     transformerDirectives(),
     transformerVariantGroup(),
   ],
+  safelist: 'prose prose-sm m-auto text-left'.split(' '),
 })

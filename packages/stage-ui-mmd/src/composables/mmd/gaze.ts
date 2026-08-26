@@ -25,14 +25,23 @@ const RIGHT_EYE_NAMES = ['右目', 'eye_R', 'EyeRight', 'RightEye']
 const BOTH_EYES_NAMES = ['両目', 'Eyes']
 const HEAD_NAMES = ['頭', 'head', 'Head']
 
-export interface GazeController {
-  /** Drives gaze toward a normalized offset; pass `undefined` to idle-saccade. */
-  update: (offset: GazeOffset | undefined, delta: number) => void
+function findBone(mesh: SkinnedMesh, names: string[]): Bone | undefined {
+  for (const name of names) {
+    const bone = mesh.skeleton.bones.find(b => b.name === name)
+    if (bone)
+      return bone
+  }
+  return undefined
 }
 
 interface GazeBone {
   bone: Bone
   rest: Quaternion
+}
+
+export interface GazeController {
+  /** Drives gaze toward a normalized offset; pass `undefined` to idle-saccade. */
+  update: (offset: GazeOffset | undefined, delta: number) => void
 }
 
 /**
@@ -126,13 +135,4 @@ export function createGazeController(mesh: SkinnedMesh): GazeController {
         applyBone(headBone, current.x * HEAD_YAW_LIMIT, current.y * HEAD_PITCH_LIMIT)
     },
   }
-}
-
-function findBone(mesh: SkinnedMesh, names: string[]): Bone | undefined {
-  for (const name of names) {
-    const bone = mesh.skeleton.bones.find(b => b.name === name)
-    if (bone)
-      return bone
-  }
-  return undefined
 }

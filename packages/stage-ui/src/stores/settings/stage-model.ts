@@ -9,7 +9,7 @@ import { computed, watch } from 'vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 
-export type StageModelRenderer = 'disabled' | 'godot' | 'live2d' | 'mmd' | 'spine' | 'tachie' | 'vrm' | undefined
+export type StageModelRenderer = 'live2d' | 'vrm' | 'spine' | 'tachie' | 'mmd' | 'godot' | 'disabled' | undefined
 type BuiltInStageModelRenderer = Exclude<StageModelRenderer, 'godot'>
 
 const useStageModelSelectionStore = defineStore('settings-stage-model-selection', () => {
@@ -24,8 +24,8 @@ const useStageModelSelectionStore = defineStore('settings-stage-model-selection'
   }
 
   return {
-    resetState,
     selected,
+    resetState,
   }
 }, {
   synced: {
@@ -73,16 +73,16 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     switch (model.format) {
       case DisplayModelFormat.Live2dZip:
         return 'live2d'
-      case DisplayModelFormat.PMD:
-      case DisplayModelFormat.PMXDirectory:
-      case DisplayModelFormat.PMXZip:
-        return 'mmd'
+      case DisplayModelFormat.VRM:
+        return 'vrm'
       case DisplayModelFormat.SpineZip:
         return 'spine'
       case DisplayModelFormat.TachieZip:
         return 'tachie'
-      case DisplayModelFormat.VRM:
-        return 'vrm'
+      case DisplayModelFormat.PMXZip:
+      case DisplayModelFormat.PMXDirectory:
+      case DisplayModelFormat.PMD:
+        return 'mmd'
       default:
         return 'disabled'
     }
@@ -175,16 +175,16 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   }
 
   return {
+    stageModelRenderer,
+    stageModelSelected,
+    stageModelSelectedUrl,
+    stageModelSelectedDisplayModel,
+    stageViewControlsEnabled,
+
     initializeStageModel,
-    resetState,
     restoreBuiltInStageModelRenderer,
     setStageModelRenderer,
-    stageModelRenderer,
-
-    stageModelSelected,
-    stageModelSelectedDisplayModel,
-    stageModelSelectedUrl,
-    stageViewControlsEnabled,
     updateStageModel,
+    resetState,
   }
 })

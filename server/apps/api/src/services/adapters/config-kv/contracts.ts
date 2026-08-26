@@ -14,13 +14,13 @@ const configKVInvalidationPayloadSchema = object({
     object(configEntrySchemas),
     'ConfigKV invalidation key is unknown',
   ),
-  publishedAt: pipe(
-    number('ConfigKV invalidation publishedAt must be a number'),
-    finite('ConfigKV invalidation publishedAt must be a number'),
-  ),
   version: pipe(
     number('ConfigKV invalidation version must be a number'),
     finite('ConfigKV invalidation version must be a number'),
+  ),
+  publishedAt: pipe(
+    number('ConfigKV invalidation publishedAt must be a number'),
+    finite('ConfigKV invalidation publishedAt must be a number'),
   ),
 })
 

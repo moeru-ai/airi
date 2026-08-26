@@ -8,11 +8,11 @@ import { useModsServerChannelStore } from '../mods/api/channel-server'
 
 export interface MinecraftTrafficEntry {
   id: string
-  payload: unknown
-  receivedAt: number
-  source: string
-  summary: string
   type: 'context:update' | 'spark:command'
+  summary: string
+  source: string
+  receivedAt: number
+  payload: unknown
 }
 
 const RUNTIME_CONTEXT_TICK_MS = 1_000
@@ -21,10 +21,6 @@ const MINECRAFT_SERVICE_NAME = 'minecraft-bot'
 
 function getEventSourceLabel(event: { metadata?: { source?: MetadataEventSource } }) {
   return getMetadataSourceLabel(event.metadata?.source) ?? 'unknown'
-}
-
-function isMinecraftModuleIdentity(value: { identity?: MetadataEventSource, name?: string }) {
-  return value.name === MINECRAFT_SERVICE_NAME || getMetadataSourceLabel(value.identity) === MINECRAFT_SERVICE_NAME
 }
 
 function isMinecraftSource(event: { metadata?: { source?: MetadataEventSource } }) {
@@ -49,6 +45,10 @@ function summarizeSparkCommand(event: WebSocketBaseEvent<'spark:command', WebSoc
   return `${event.data.intent} -> ${destinations}`
 }
 
+function isMinecraftModuleIdentity(value: { name?: string, identity?: MetadataEventSource }) {
+  return value.name === MINECRAFT_SERVICE_NAME || getMetadataSourceLabel(value.identity) === MINECRAFT_SERVICE_NAME
+}
+
 export const useMinecraftStore = defineStore('minecraft', () => {
   const serverChannelStore = useModsServerChannelStore()
 
@@ -66,7 +66,7 @@ export const useMinecraftStore = defineStore('minecraft', () => {
   let disposeRegistryHealthy: (() => void) | null = null
   let disposeRegistryUnhealthy: (() => void) | null = null
   let disposeModuleDeAnnounced: (() => void) | null = null
-  let runtimeTickTimer: null | ReturnType<typeof setInterval> = null
+  let runtimeTickTimer: ReturnType<typeof setInterval> | null = null
   let trafficSequence = 0
 
   const serviceConnected = computed(() => servicePresent.value && serviceHealthy.value)
@@ -104,11 +104,11 @@ export const useMinecraftStore = defineStore('minecraft', () => {
     lastRuntimeContextAt.value = Date.now()
 
     pushTrafficEntry({
-      payload: event.data,
-      receivedAt: Date.now(),
-      source: getEventSourceLabel(event),
-      summary: summarizeContextUpdate(event),
       type: 'context:update',
+      summary: summarizeContextUpdate(event),
+      source: getEventSourceLabel(event),
+      receivedAt: Date.now(),
+      payload: event.data,
     })
   }
 
@@ -158,11 +158,11 @@ export const useMinecraftStore = defineStore('minecraft', () => {
       return
 
     pushTrafficEntry({
-      payload: event.data,
-      receivedAt: Date.now(),
-      source: getEventSourceLabel(event),
-      summary: summarizeSparkCommand(event),
       type: 'spark:command',
+      summary: summarizeSparkCommand(event),
+      source: getEventSourceLabel(event),
+      receivedAt: Date.now(),
+      payload: event.data,
     })
   }
 
@@ -218,17 +218,17 @@ export const useMinecraftStore = defineStore('minecraft', () => {
   }
 
   return {
-    _handleRuntimeContextUpdate: handleRuntimeContextUpdate,
-    configured,
-    dispose,
-    initialize,
-    lastRuntimeContextAt,
     latestRuntimeContextText,
-
-    resetState,
-    runtimeContextAgeMs,
-    serviceConnected,
-
+    lastRuntimeContextAt,
     trafficEntries,
+    configured,
+    serviceConnected,
+    runtimeContextAgeMs,
+
+    initialize,
+    dispose,
+    resetState,
+
+    _handleRuntimeContextUpdate: handleRuntimeContextUpdate,
   }
 })

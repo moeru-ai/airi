@@ -28,7 +28,7 @@ export const useWebSearchStore = defineStore('web-search', () => {
   // key read, so the model is never told about a tool it cannot call.
   watch(configured, (isConfigured) => {
     if (isConfigured)
-      toolsetPromptsStore.registerToolsetPrompts('web-search', [{ content: WEB_SEARCH_TOOLSET_PROMPT, id: 'web-search' }])
+      toolsetPromptsStore.registerToolsetPrompts('web-search', [{ id: 'web-search', content: WEB_SEARCH_TOOLSET_PROMPT }])
     else
       toolsetPromptsStore.clearToolsetPrompts('web-search')
   }, { immediate: true })
@@ -39,9 +39,9 @@ export const useWebSearchStore = defineStore('web-search', () => {
   }
 
   return {
+    enabled,
     apiKey,
     configured,
-    enabled,
     resetState,
   }
 })

@@ -17,6 +17,10 @@ interface ChatRequestBody {
   }>
 }
 
+function isJsonSchema(value: JsonSchema | boolean | undefined): value is JsonSchema {
+  return Boolean(value && typeof value === 'object')
+}
+
 function getArraySchema(schema?: JsonSchema): JsonSchema | undefined {
   if (!schema)
     return undefined
@@ -25,10 +29,6 @@ function getArraySchema(schema?: JsonSchema): JsonSchema | undefined {
     return schema
 
   return schema.anyOf?.filter(isJsonSchema).find(candidate => candidate.type === 'array')
-}
-
-function isJsonSchema(value: boolean | JsonSchema | undefined): value is JsonSchema {
-  return Boolean(value && typeof value === 'object')
 }
 
 describe('providerOpenRouterAI tool schemas', () => {
@@ -67,15 +67,15 @@ describe('providerOpenRouterAI tool schemas', () => {
       throw new Error('OpenRouter did not create a fetch adapter.')
 
     await providerFetch(new URL('https://openrouter.ai/api/v1/chat/completions'), {
-      body: JSON.stringify({
-        messages: [],
-        model: 'google/gemini-test',
-        tools,
-      }),
+      method: 'POST',
       headers: {
         'content-type': 'application/json',
       },
-      method: 'POST',
+      body: JSON.stringify({
+        model: 'google/gemini-test',
+        messages: [],
+        tools,
+      }),
     })
 
     const requestBody = fetchMock.mock.calls[0]?.[1]?.body

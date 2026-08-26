@@ -11,22 +11,20 @@ import { createBadRequestError, createServiceUnavailableError } from '../../../u
  */
 const DEFAULT_CACHE_TTL_MS = 5_000
 
-export type ConfigLoader = ReturnType<typeof createConfigLoader>
-
 export interface ConfigLoaderOptions {
   /** ConfigKV service used to read `LLM_ROUTER_CONFIG`. */
   configKV: ConfigKVService
+  /**
+   * Cache TTL in milliseconds.
+   * @default 5_000
+   */
+  ttlMs?: number
   /**
    * Clock injected for tests. Defaults to `Date.now`. We do NOT mock the
    * global Date object — tests pass a stub instead.
    * @default Date.now
    */
   now?: () => number
-  /**
-   * Cache TTL in milliseconds.
-   * @default 5_000
-   */
-  ttlMs?: number
 }
 
 /**
@@ -34,8 +32,8 @@ export interface ConfigLoaderOptions {
  * union so callers handle `llm` and `tts` shapes explicitly.
  */
 export type ModelConfigSlice
-  = | { defaults: RouterConfig['defaults'], kind: 'llm', model: LlmModel }
-    | { defaults: RouterConfig['defaults'], kind: 'tts', model: TtsModel }
+  = | { kind: 'llm', model: LlmModel, defaults: RouterConfig['defaults'] }
+    | { kind: 'tts', model: TtsModel, defaults: RouterConfig['defaults'] }
 
 /**
  * Build the in-process config loader for the router.
@@ -59,7 +57,7 @@ export function createConfigLoader(options: ConfigLoaderOptions) {
   const ttlMs = options.ttlMs ?? DEFAULT_CACHE_TTL_MS
   const now = options.now ?? Date.now
 
-  let cached: null | { loadedAt: number, value: RouterConfig } = null
+  let cached: { value: RouterConfig, loadedAt: number } | null = null
 
   async function loadFresh(): Promise<RouterConfig> {
     const value = await options.configKV.getOptional('LLM_ROUTER_CONFIG')
@@ -69,7 +67,7 @@ export function createConfigLoader(options: ConfigLoaderOptions) {
         'CONFIG_NOT_SET',
       )
     }
-    cached = { loadedAt: now(), value }
+    cached = { value, loadedAt: now() }
     return value
   }
 
@@ -87,20 +85,20 @@ export function createConfigLoader(options: ConfigLoaderOptions) {
         throw createBadRequestError(
           'unknown_model',
           'BAD_REQUEST',
-          { available: Object.keys(config.llm.models), requested: modelName },
+          { requested: modelName, available: Object.keys(config.llm.models) },
         )
       }
-      return { defaults: config.defaults, kind: 'llm', model }
+      return { kind: 'llm', model, defaults: config.defaults }
     }
     const model = config.tts.models[modelName]
     if (model == null) {
       throw createBadRequestError(
         'unknown_model',
         'BAD_REQUEST',
-        { available: Object.keys(config.tts.models), requested: modelName },
+        { requested: modelName, available: Object.keys(config.tts.models) },
       )
     }
-    return { defaults: config.defaults, kind: 'tts', model }
+    return { kind: 'tts', model, defaults: config.defaults }
   }
 
   function invalidate(): void {
@@ -109,3 +107,5 @@ export function createConfigLoader(options: ConfigLoaderOptions) {
 
   return { getModelConfig, invalidate }
 }
+
+export type ConfigLoader = ReturnType<typeof createConfigLoader>

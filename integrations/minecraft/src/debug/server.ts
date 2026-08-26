@@ -22,71 +22,63 @@ import { debugClientMessageSchema, formatDebugValidationError } from './types'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+function createViewerHtml(targetUrl: string): string {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mineflayer Viewer</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      iframe { width: 100%; height: 100%; border: 0; }
+    </style>
+  </head>
+  <body>
+    <iframe src="${targetUrl}" allow="fullscreen" referrerpolicy="no-referrer"></iframe>
+  </body>
+</html>`
+}
+
 interface ClientInfo {
-  connectedAt: number
-  id: string
-  lastPing: number
   ws: WebSocket
+  id: string
+  connectedAt: number
+  lastPing: number
 }
 
 type CommandHandler = (command: ClientCommand, client: ClientInfo) => void
 
 export class DebugServer {
+  private httpServer: http.Server | null = null
+  private wss: WebSocketServer | null = null
   private clients: Map<string, ClientInfo> = new Map()
   private commandHandlers: Map<string, CommandHandler[]> = new Map()
-  private readonly HEARTBEAT_INTERVAL = 30000
-  // Heartbeat
-  private heartbeatInterval: null | ReturnType<typeof setInterval> = null
 
   // History buffer (Ring buffer)
   private history: ServerEvent[] = []
-  private httpServer: http.Server | null = null
+  private readonly MAX_HISTORY = 1000
 
   // File Logging
   private logStream: fs.WriteStream | null = null
 
-  private readonly MAX_HISTORY = 1000
-  private messageIdCounter = 0
+  // Heartbeat
+  private heartbeatInterval: ReturnType<typeof setInterval> | null = null
+  private readonly HEARTBEAT_INTERVAL = 30000
 
-  private wss: null | WebSocketServer = null
+  private messageIdCounter = 0
 
   constructor() {
     this.initLogFile()
   }
 
-  public broadcast(event: ServerEvent): void {
-    // Add to history
-    this.addToHistory(event)
-
-    // Persist to disk
-    this.persistEvent(event)
-
-    // Send to all connected clients
-    const message = this.createMessage(event)
-    const data = JSON.stringify(message)
-
-    for (const client of this.clients.values()) {
-      if (client.ws.readyState === 1) { // WebSocket.OPEN
-        client.ws.send(data)
-      }
+  private initLogFile(): void {
+    const logsDir = path.join(process.cwd(), 'logs')
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir, { recursive: true })
     }
-  }
-
-  public onCommand(type: string, handler: CommandHandler): () => void {
-    const handlers = this.commandHandlers.get(type) || []
-    handlers.push(handler)
-    this.commandHandlers.set(type, handlers)
-
-    // Return unsubscribe function
-    return () => {
-      const h = this.commandHandlers.get(type)
-      if (h) {
-        const idx = h.indexOf(handler)
-        if (idx !== -1) {
-          h.splice(idx, 1)
-        }
-      }
-    }
+    const filename = `session-${new Date().toISOString().replace(/:/g, '-')}.jsonl`
+    this.logStream = fs.createWriteStream(path.join(logsDir, filename), { flags: 'a' })
   }
 
   public start(port = 3000): void {
@@ -116,10 +108,6 @@ export class DebugServer {
     })
   }
 
-  // ============================================================
-  // Public API for emitting events
-  // ============================================================
-
   public stop(): void {
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval)
@@ -142,59 +130,51 @@ export class DebugServer {
   }
 
   // ============================================================
+  // Public API for emitting events
+  // ============================================================
+
+  public broadcast(event: ServerEvent): void {
+    // Add to history
+    this.addToHistory(event)
+
+    // Persist to disk
+    this.persistEvent(event)
+
+    // Send to all connected clients
+    const message = this.createMessage(event)
+    const data = JSON.stringify(message)
+
+    for (const client of this.clients.values()) {
+      if (client.ws.readyState === 1) { // WebSocket.OPEN
+        client.ws.send(data)
+      }
+    }
+  }
+
+  // ============================================================
   // Command handling
   // ============================================================
 
-  private addToHistory(event: ServerEvent): void {
-    this.history.push(event)
-    if (this.history.length > this.MAX_HISTORY) {
-      this.history.shift()
+  public onCommand(type: string, handler: CommandHandler): () => void {
+    const handlers = this.commandHandlers.get(type) || []
+    handlers.push(handler)
+    this.commandHandlers.set(type, handlers)
+
+    // Return unsubscribe function
+    return () => {
+      const h = this.commandHandlers.get(type)
+      if (h) {
+        const idx = h.indexOf(handler)
+        if (idx !== -1) {
+          h.splice(idx, 1)
+        }
+      }
     }
   }
 
   // ============================================================
   // Private methods
   // ============================================================
-
-  private createMessage(event: ServerEvent): DebugMessage<ServerEvent> {
-    return {
-      data: event,
-      id: `${++this.messageIdCounter}`,
-      timestamp: Date.now(),
-    }
-  }
-
-  private generateClientId(): string {
-    return `client-${Date.now()}-${nanoid(10)}`
-  }
-
-  private handleConnection(ws: WebSocket, _req: IncomingMessage): void {
-    const clientId = this.generateClientId()
-    const client: ClientInfo = {
-      connectedAt: Date.now(),
-      id: clientId,
-      lastPing: Date.now(),
-      ws,
-    }
-
-    this.clients.set(clientId, client)
-
-    // Send history on connect
-    this.sendHistory(client)
-
-    ws.on('message', (data) => {
-      this.handleMessage(client, data.toString())
-    })
-
-    ws.on('close', () => {
-      this.clients.delete(clientId)
-    })
-
-    ws.on('error', (err) => {
-      console.error(`WebSocket error for client ${clientId}:`, err)
-      this.clients.delete(clientId)
-    })
-  }
 
   private handleHttpRequest(req: IncomingMessage, res: http.ServerResponse): void {
     // Enable CORS
@@ -215,8 +195,8 @@ export class DebugServer {
     if (req.method === 'GET' && (req.url === '/viewer' || req.url?.startsWith('/viewer?'))) {
       const html = createViewerHtml('http://localhost:3007')
       res.writeHead(200, {
-        'Cache-Control': 'no-cache',
         'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-cache',
       })
       res.end(html)
       return
@@ -232,9 +212,9 @@ export class DebugServer {
     const extname = path.extname(fullPath).toLowerCase()
 
     const mimeTypes: Record<string, string> = {
-      '.css': 'text/css',
       '.html': 'text/html',
       '.js': 'application/javascript',
+      '.css': 'text/css',
       '.json': 'application/json',
       '.png': 'image/png',
       '.svg': 'image/svg+xml',
@@ -256,11 +236,174 @@ export class DebugServer {
       }
 
       res.writeHead(200, {
-        'Cache-Control': 'no-cache',
         'Content-Type': contentType,
+        'Cache-Control': 'no-cache',
       })
       res.end(content)
     })
+  }
+
+  private handleConnection(ws: WebSocket, _req: IncomingMessage): void {
+    const clientId = this.generateClientId()
+    const client: ClientInfo = {
+      ws,
+      id: clientId,
+      connectedAt: Date.now(),
+      lastPing: Date.now(),
+    }
+
+    this.clients.set(clientId, client)
+
+    // Send history on connect
+    this.sendHistory(client)
+
+    ws.on('message', (data) => {
+      this.handleMessage(client, data.toString())
+    })
+
+    ws.on('close', () => {
+      this.clients.delete(clientId)
+    })
+
+    ws.on('error', (err) => {
+      console.error(`WebSocket error for client ${clientId}:`, err)
+      this.clients.delete(clientId)
+    })
+  }
+
+  private handleMessage(client: ClientInfo, data: string): void {
+    let rawMessage: unknown
+
+    try {
+      rawMessage = JSON.parse(data)
+    }
+    catch (err) {
+      console.error('Failed to parse WebSocket message:', err)
+      this.sendClientError(client, 'Invalid debug message JSON')
+      return
+    }
+
+    const parsedMessage = debugClientMessageSchema.safeParse(rawMessage)
+    if (!parsedMessage.success) {
+      const message = formatDebugValidationError(parsedMessage.error)
+      console.error(`Failed to validate WebSocket message: ${message}`)
+      this.sendClientError(client, 'Invalid debug message', { validation: message })
+      return
+    }
+
+    const command = parsedMessage.data.data
+
+    // Handle ping internally
+    if (command.type === 'ping') {
+      client.lastPing = Date.now()
+      const pong: ServerEvent = { type: 'pong', payload: { timestamp: Date.now() } }
+      client.ws.send(JSON.stringify(this.createMessage(pong)))
+      return
+    }
+
+    // Handle history request
+    if (command.type === 'request_history') {
+      this.sendHistory(client)
+      return
+    }
+
+    // Dispatch to registered handlers
+    const handlers = this.commandHandlers.get(command.type)
+    if (handlers) {
+      for (const handler of handlers) {
+        try {
+          handler(command, client)
+        }
+        catch (err) {
+          console.error(`Command handler error for ${command.type}:`, err)
+        }
+      }
+    }
+  }
+
+  private sendHistory(client: ClientInfo): void {
+    if (this.history.length === 0) {
+      return
+    }
+
+    const historyEvent: ServerEvent = {
+      type: 'history',
+      payload: this.history,
+    }
+
+    client.ws.send(JSON.stringify(this.createMessage(historyEvent)))
+  }
+
+  private sendHeartbeat(): void {
+    const now = Date.now()
+    for (const [clientId, client] of this.clients) {
+      // Check if client is still alive (responded to ping within 2x heartbeat interval)
+      if (now - client.lastPing > this.HEARTBEAT_INTERVAL * 2) {
+        client.ws.close()
+        this.clients.delete(clientId)
+        continue
+      }
+
+      // Send ping request
+      if (client.ws.readyState === 1) {
+        const ping: ServerEvent = { type: 'pong', payload: { timestamp: now } }
+        client.ws.send(JSON.stringify(this.createMessage(ping)))
+      }
+    }
+  }
+
+  private addToHistory(event: ServerEvent): void {
+    this.history.push(event)
+    if (this.history.length > this.MAX_HISTORY) {
+      this.history.shift()
+    }
+  }
+
+  private persistEvent(event: ServerEvent): void {
+    const persistableTypes: ServerEvent['type'][] = ['log', 'llm', 'blackboard', 'queue', 'trace', 'trace_batch', 'reflex']
+
+    if (!persistableTypes.includes(event.type))
+      return
+
+    if (!this.logStream)
+      return
+
+    try {
+      this.logStream.write(`${JSON.stringify(event)}\n`)
+    }
+    catch (err) {
+      console.error('Failed to write to log file', err)
+    }
+  }
+
+  private sendClientError(client: ClientInfo, message: string, fields?: Record<string, unknown>): void {
+    if (client.ws.readyState !== 1) {
+      return
+    }
+
+    const event: ServerEvent = {
+      type: 'log',
+      payload: {
+        level: 'ERROR',
+        message,
+        fields,
+        timestamp: Date.now(),
+      },
+    }
+
+    client.ws.send(JSON.stringify(this.createMessage(event)))
+  }
+
+  private createMessage(event: ServerEvent): DebugMessage<ServerEvent> {
+    return {
+      id: `${++this.messageIdCounter}`,
+      data: event,
+      timestamp: Date.now(),
+    }
+  }
+
+  private generateClientId(): string {
+    return `client-${Date.now()}-${nanoid(10)}`
   }
 
   private handleLogsApi(req: IncomingMessage, res: http.ServerResponse): void {
@@ -308,7 +451,7 @@ export class DebugServer {
         .filter(Boolean)
 
       res.writeHead(200, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ events, file: safeName, total: lines.length }))
+      res.end(JSON.stringify({ file: safeName, events, total: lines.length }))
     }
     catch (err) {
       res.writeHead(500, { 'Content-Type': 'application/json' })
@@ -318,147 +461,4 @@ export class DebugServer {
       }))
     }
   }
-
-  private handleMessage(client: ClientInfo, data: string): void {
-    let rawMessage: unknown
-
-    try {
-      rawMessage = JSON.parse(data)
-    }
-    catch (err) {
-      console.error('Failed to parse WebSocket message:', err)
-      this.sendClientError(client, 'Invalid debug message JSON')
-      return
-    }
-
-    const parsedMessage = debugClientMessageSchema.safeParse(rawMessage)
-    if (!parsedMessage.success) {
-      const message = formatDebugValidationError(parsedMessage.error)
-      console.error(`Failed to validate WebSocket message: ${message}`)
-      this.sendClientError(client, 'Invalid debug message', { validation: message })
-      return
-    }
-
-    const command = parsedMessage.data.data
-
-    // Handle ping internally
-    if (command.type === 'ping') {
-      client.lastPing = Date.now()
-      const pong: ServerEvent = { payload: { timestamp: Date.now() }, type: 'pong' }
-      client.ws.send(JSON.stringify(this.createMessage(pong)))
-      return
-    }
-
-    // Handle history request
-    if (command.type === 'request_history') {
-      this.sendHistory(client)
-      return
-    }
-
-    // Dispatch to registered handlers
-    const handlers = this.commandHandlers.get(command.type)
-    if (handlers) {
-      for (const handler of handlers) {
-        try {
-          handler(command, client)
-        }
-        catch (err) {
-          console.error(`Command handler error for ${command.type}:`, err)
-        }
-      }
-    }
-  }
-
-  private initLogFile(): void {
-    const logsDir = path.join(process.cwd(), 'logs')
-    if (!fs.existsSync(logsDir)) {
-      fs.mkdirSync(logsDir, { recursive: true })
-    }
-    const filename = `session-${new Date().toISOString().replace(/:/g, '-')}.jsonl`
-    this.logStream = fs.createWriteStream(path.join(logsDir, filename), { flags: 'a' })
-  }
-
-  private persistEvent(event: ServerEvent): void {
-    const persistableTypes: ServerEvent['type'][] = ['log', 'llm', 'blackboard', 'queue', 'trace', 'trace_batch', 'reflex']
-
-    if (!persistableTypes.includes(event.type))
-      return
-
-    if (!this.logStream)
-      return
-
-    try {
-      this.logStream.write(`${JSON.stringify(event)}\n`)
-    }
-    catch (err) {
-      console.error('Failed to write to log file', err)
-    }
-  }
-
-  private sendClientError(client: ClientInfo, message: string, fields?: Record<string, unknown>): void {
-    if (client.ws.readyState !== 1) {
-      return
-    }
-
-    const event: ServerEvent = {
-      payload: {
-        fields,
-        level: 'ERROR',
-        message,
-        timestamp: Date.now(),
-      },
-      type: 'log',
-    }
-
-    client.ws.send(JSON.stringify(this.createMessage(event)))
-  }
-
-  private sendHeartbeat(): void {
-    const now = Date.now()
-    for (const [clientId, client] of this.clients) {
-      // Check if client is still alive (responded to ping within 2x heartbeat interval)
-      if (now - client.lastPing > this.HEARTBEAT_INTERVAL * 2) {
-        client.ws.close()
-        this.clients.delete(clientId)
-        continue
-      }
-
-      // Send ping request
-      if (client.ws.readyState === 1) {
-        const ping: ServerEvent = { payload: { timestamp: now }, type: 'pong' }
-        client.ws.send(JSON.stringify(this.createMessage(ping)))
-      }
-    }
-  }
-
-  private sendHistory(client: ClientInfo): void {
-    if (this.history.length === 0) {
-      return
-    }
-
-    const historyEvent: ServerEvent = {
-      payload: this.history,
-      type: 'history',
-    }
-
-    client.ws.send(JSON.stringify(this.createMessage(historyEvent)))
-  }
-}
-
-function createViewerHtml(targetUrl: string): string {
-  return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Mineflayer Viewer</title>
-    <style>
-      html, body { height: 100%; margin: 0; }
-      iframe { width: 100%; height: 100%; border: 0; }
-    </style>
-  </head>
-  <body>
-    <iframe src="${targetUrl}" allow="fullscreen" referrerpolicy="no-referrer"></iframe>
-  </body>
-</html>`
 }

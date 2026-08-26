@@ -2,13 +2,25 @@ import type { UrlModifier } from '../composables/mmd/loader'
 
 import JSZip from 'jszip'
 
+export type MMDModelFormat = 'pmx' | 'pmd'
+
+export interface MMDModelVariant {
+  /** Display name derived from the model file's basename. */
+  name: string
+  /** In-archive path of the `.pmx`/`.pmd` file. */
+  modelPath: string
+  format: MMDModelFormat
+}
+
 export interface MMDLoadedAssets {
-  /** Blob URLs for every archive entry, keyed by in-archive path. */
-  blobUrls: Record<string, string>
-  /** Revokes every blob URL allocated for this load. */
-  dispose: () => void
+  /** Primary model variant (first discovered). */
+  variant: MMDModelVariant
+  /** All model files found in the archive. */
+  variants: MMDModelVariant[]
   /** Blob URL for the primary model file, passed to `MMDLoader.load`. */
   modelBlobUrl: string
+  /** Blob URLs for every archive entry, keyed by in-archive path. */
+  blobUrls: Record<string, string>
   /**
    * Resolves an in-PMX texture reference to a blob URL.
    *
@@ -19,23 +31,31 @@ export interface MMDLoadedAssets {
    * unique within a single model, which makes this reliable in practice.
    */
   urlModifier: UrlModifier
-  /** Primary model variant (first discovered). */
-  variant: MMDModelVariant
-  /** All model files found in the archive. */
-  variants: MMDModelVariant[]
+  /** Revokes every blob URL allocated for this load. */
+  dispose: () => void
 }
 
-export type MMDModelFormat = 'pmd' | 'pmx'
+const MODEL_EXTS: Record<string, MMDModelFormat> = { '.pmx': 'pmx', '.pmd': 'pmd' }
 
-export interface MMDModelVariant {
-  format: MMDModelFormat
-  /** In-archive path of the `.pmx`/`.pmd` file. */
-  modelPath: string
-  /** Display name derived from the model file's basename. */
-  name: string
+function basename(path: string): string {
+  const norm = path.replace(/\\/g, '/')
+  const slash = norm.lastIndexOf('/')
+  return slash === -1 ? norm : norm.slice(slash + 1)
 }
 
-const MODEL_EXTS: Record<string, MMDModelFormat> = { '.pmd': 'pmd', '.pmx': 'pmx' }
+function stripExt(name: string): string {
+  const dot = name.lastIndexOf('.')
+  return dot === -1 ? name : name.slice(0, dot)
+}
+
+function modelFormatOf(path: string): MMDModelFormat | undefined {
+  const lower = path.toLowerCase()
+  for (const [ext, format] of Object.entries(MODEL_EXTS)) {
+    if (lower.endsWith(ext))
+      return format
+  }
+  return undefined
+}
 
 /** Detects every PMX/PMD model file inside a zip's entry list. */
 export function detectMMDVariants(paths: string[]): MMDModelVariant[] {
@@ -44,62 +64,9 @@ export function detectMMDVariants(paths: string[]): MMDModelVariant[] {
     const format = modelFormatOf(path)
     if (!format)
       continue
-    variants.push({ format, modelPath: path, name: stripExt(basename(path)) })
+    variants.push({ name: stripExt(basename(path)), modelPath: path, format })
   }
   return variants
-}
-
-/**
- * Loads an MMD model packaged as a ZIP (the common distribution format: a
- * `.pmx`/`.pmd` plus its texture/toon/sphere-map files) into blob URLs ready
- * for {@link createMMDLoaderContext}.
- *
- * Call `dispose()` on unmount or reload to revoke the blob URLs.
- */
-export async function loadMMDZip(file: ArrayBuffer | Blob | File): Promise<MMDLoadedAssets> {
-  const zip = new JSZip()
-  const archive = await zip.loadAsync(file)
-
-  const paths = Object.keys(archive.files).filter(name => !archive.files[name].dir)
-  const variants = detectMMDVariants(paths)
-  if (variants.length === 0)
-    throw new Error('MMD ZIP must contain a .pmx or .pmd model file')
-
-  const blobUrls: Record<string, string> = {}
-  await Promise.all(paths.map(async (path) => {
-    const entry = archive.files[path]
-    if (!entry)
-      return
-    const blob = await entry.async('blob')
-    blobUrls[path] = URL.createObjectURL(blob)
-  }))
-
-  const variant = variants[0]
-  const modelBlobUrl = blobUrls[variant.modelPath]
-
-  return {
-    blobUrls,
-    dispose: () => {
-      for (const url of Object.values(blobUrls)) {
-        if (url.startsWith('blob:')) {
-          try {
-            URL.revokeObjectURL(url)
-          }
-          catch {}
-        }
-      }
-    },
-    modelBlobUrl,
-    urlModifier: createUrlModifier(blobUrls),
-    variant,
-    variants,
-  }
-}
-
-function basename(path: string): string {
-  const norm = path.replace(/\\/g, '/')
-  const slash = norm.lastIndexOf('/')
-  return slash === -1 ? norm : norm.slice(slash + 1)
 }
 
 /**
@@ -136,16 +103,49 @@ function createUrlModifier(blobUrls: Record<string, string>): UrlModifier {
   }
 }
 
-function modelFormatOf(path: string): MMDModelFormat | undefined {
-  const lower = path.toLowerCase()
-  for (const [ext, format] of Object.entries(MODEL_EXTS)) {
-    if (lower.endsWith(ext))
-      return format
-  }
-  return undefined
-}
+/**
+ * Loads an MMD model packaged as a ZIP (the common distribution format: a
+ * `.pmx`/`.pmd` plus its texture/toon/sphere-map files) into blob URLs ready
+ * for {@link createMMDLoaderContext}.
+ *
+ * Call `dispose()` on unmount or reload to revoke the blob URLs.
+ */
+export async function loadMMDZip(file: File | Blob | ArrayBuffer): Promise<MMDLoadedAssets> {
+  const zip = new JSZip()
+  const archive = await zip.loadAsync(file)
 
-function stripExt(name: string): string {
-  const dot = name.lastIndexOf('.')
-  return dot === -1 ? name : name.slice(0, dot)
+  const paths = Object.keys(archive.files).filter(name => !archive.files[name].dir)
+  const variants = detectMMDVariants(paths)
+  if (variants.length === 0)
+    throw new Error('MMD ZIP must contain a .pmx or .pmd model file')
+
+  const blobUrls: Record<string, string> = {}
+  await Promise.all(paths.map(async (path) => {
+    const entry = archive.files[path]
+    if (!entry)
+      return
+    const blob = await entry.async('blob')
+    blobUrls[path] = URL.createObjectURL(blob)
+  }))
+
+  const variant = variants[0]
+  const modelBlobUrl = blobUrls[variant.modelPath]
+
+  return {
+    variant,
+    variants,
+    modelBlobUrl,
+    blobUrls,
+    urlModifier: createUrlModifier(blobUrls),
+    dispose: () => {
+      for (const url of Object.values(blobUrls)) {
+        if (url.startsWith('blob:')) {
+          try {
+            URL.revokeObjectURL(url)
+          }
+          catch {}
+        }
+      }
+    },
+  }
 }

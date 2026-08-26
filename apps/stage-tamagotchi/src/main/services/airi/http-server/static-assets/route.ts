@@ -16,14 +16,14 @@ const staticAssetSecurityHeaders = {
 
 export interface StaticAssetRouteOptions {
   authorize: (params: {
-    assetPath: string
-    assetSessionId: string
-    cookieValue: string | undefined
     extensionId: string
+    assetSessionId: string
+    assetPath: string
+    cookieValue: string | undefined
   }) => Promise<StaticAssetSessionValidationResult>
-  getType?: (ext: string) => string | undefined
   refreshSession: (assetSessionId: string) => StaticAssetSession | undefined
-  resolveAsset: (params: { assetPath: string, extensionId: string }) => Promise<StaticAssetResolveResult>
+  resolveAsset: (params: { extensionId: string, assetPath: string }) => Promise<StaticAssetResolveResult>
+  getType?: (ext: string) => string | undefined
 }
 
 /**
@@ -48,9 +48,9 @@ export function createStaticAssetRoute(options: StaticAssetRouteOptions) {
 
       if (event.req.method !== 'GET' && event.req.method !== 'HEAD') {
         throw new HttpError({
+          status: 405,
           code: 'EXTENSION_ASSET_METHOD_NOT_ALLOWED',
           message: 'Method Not Allowed',
-          status: 405,
         })
       }
 
@@ -61,19 +61,19 @@ export function createStaticAssetRoute(options: StaticAssetRouteOptions) {
 
       if (!extensionId || !assetSessionId || !assetPath) {
         throw new HttpError({
+          status: 401,
           code: 'EXTENSION_ASSET_REQUEST_INVALID',
           message: 'Unauthorized',
           reason: 'required extensionId, assetSessionId, or assetPath is missing',
-          status: 401,
         })
       }
 
       const cookieValue = getCookie(event, createStaticAssetSessionCookieName(assetSessionId))
       const auth = await options.authorize({
-        assetPath,
-        assetSessionId,
-        cookieValue,
         extensionId,
+        assetSessionId,
+        assetPath,
+        cookieValue,
       })
       if (!auth.ok) {
         throw auth.error
@@ -84,12 +84,13 @@ export function createStaticAssetRoute(options: StaticAssetRouteOptions) {
       let resolved: Awaited<ReturnType<StaticAssetRouteOptions['resolveAsset']>> | undefined
       const resolveOnce = async () => {
         if (!resolved) {
-          resolved = await options.resolveAsset({ assetPath, extensionId })
+          resolved = await options.resolveAsset({ extensionId, assetPath })
         }
         return resolved
       }
 
       return await serveStatic(event, {
+        getType: options.getType,
         getContents: async () => {
           const item = await resolveOnce()
           if (!item.ok) {
@@ -104,11 +105,10 @@ export function createStaticAssetRoute(options: StaticAssetRouteOptions) {
           }
 
           return {
-            mtime: item.mtime,
             size: item.size,
+            mtime: item.mtime,
           }
         },
-        getType: options.getType,
       })
     }
     catch (error) {

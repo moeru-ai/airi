@@ -6,7 +6,46 @@ import { useLoop } from './loop'
 
 const rendererDisposedMessage = 'Render frame was disposed before WebFrameMain could be accessed'
 
-export function createRendererLoop(params: { autoStart?: boolean, interval?: number, run: () => Promise<void> | void, window: BrowserWindow }) {
+export function safeClose(window?: BrowserWindow | null): boolean {
+  if (!window) {
+    return false
+  }
+  if (isRendererUnavailable(window)) {
+    return false
+  }
+
+  window.close()
+  return true
+}
+
+export function isRendererUnavailable(window: BrowserWindow) {
+  return window.isDestroyed() || window?.webContents?.isDestroyed() || window?.webContents?.isCrashed()
+}
+
+export function shouldStopForRendererError(error: unknown) {
+  if (!(error instanceof Error) || !error.message) {
+    return false
+  }
+
+  return error.message.includes(rendererDisposedMessage)
+}
+
+export function stopLoopWhenRendererIsGone(window: BrowserWindow, stop: () => void) {
+  window.on('closed', stop)
+  window.webContents.on('destroyed', stop)
+  window.webContents.on('render-process-gone', stop)
+}
+
+function ensureRendererIsAvailable(window: BrowserWindow, stop: () => void) {
+  if (isRendererUnavailable(window)) {
+    stop()
+    return false
+  }
+
+  return true
+}
+
+export function createRendererLoop(params: { window: BrowserWindow, run: () => Promise<void> | void, interval?: number, autoStart?: boolean }) {
   const { start, stop } = useLoop(async () => {
     if (!ensureRendererIsAvailable(params.window, stop)) {
       return
@@ -45,43 +84,4 @@ export function createRendererLoop(params: { autoStart?: boolean, interval?: num
     start: startLoop,
     stop,
   }
-}
-
-export function isRendererUnavailable(window: BrowserWindow) {
-  return window.isDestroyed() || window?.webContents?.isDestroyed() || window?.webContents?.isCrashed()
-}
-
-export function safeClose(window?: BrowserWindow | null): boolean {
-  if (!window) {
-    return false
-  }
-  if (isRendererUnavailable(window)) {
-    return false
-  }
-
-  window.close()
-  return true
-}
-
-export function shouldStopForRendererError(error: unknown) {
-  if (!(error instanceof Error) || !error.message) {
-    return false
-  }
-
-  return error.message.includes(rendererDisposedMessage)
-}
-
-export function stopLoopWhenRendererIsGone(window: BrowserWindow, stop: () => void) {
-  window.on('closed', stop)
-  window.webContents.on('destroyed', stop)
-  window.webContents.on('render-process-gone', stop)
-}
-
-function ensureRendererIsAvailable(window: BrowserWindow, stop: () => void) {
-  if (isRendererUnavailable(window)) {
-    stop()
-    return false
-  }
-
-  return true
 }

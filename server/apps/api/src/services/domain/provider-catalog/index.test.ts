@@ -28,18 +28,18 @@ describe('providerCatalogService', () => {
 
   it('syncs the default LLM auto alias and runtime model routes as enabled', async () => {
     const aliases = await service.syncAliasesFromRouterConfig({
-      modelIds: ['chat-b', 'chat-a'],
       surface: 'llm',
+      modelIds: ['chat-b', 'chat-a'],
     })
 
     expect(aliases).toHaveLength(1)
     expect(aliases[0]).toMatchObject({
+      surface: 'llm',
       aliasId: 'auto',
       displayName: 'Auto',
       enabled: true,
       fallbackEnabled: true,
       loadBalancingEnabled: false,
-      surface: 'llm',
     })
 
     const resolved = await service.resolveEnabledAlias('llm', 'auto')
@@ -49,25 +49,25 @@ describe('providerCatalogService', () => {
   })
 
   it('preserves alias and route curation across repeated syncs', async () => {
-    await service.syncAliasesFromRouterConfig({ modelIds: ['chat-a'], surface: 'llm' })
+    await service.syncAliasesFromRouterConfig({ surface: 'llm', modelIds: ['chat-a'] })
     const [alias] = await db.select().from(capabilityAliases)
     const [route] = await db.select().from(capabilityAliasRoutes)
 
     await db.update(capabilityAliases)
-      .set({ displayName: 'Custom Auto', displayOrder: 5, enabled: false })
+      .set({ enabled: false, displayName: 'Custom Auto', displayOrder: 5 })
       .where(eq(capabilityAliases.id, alias.id))
     await db.update(capabilityAliasRoutes)
-      .set({ displayOrder: 9, enabled: false })
+      .set({ enabled: false, displayOrder: 9 })
       .where(eq(capabilityAliasRoutes.id, route.id))
 
-    await service.syncAliasesFromRouterConfig({ modelIds: ['chat-a', 'chat-b'], surface: 'llm' })
+    await service.syncAliasesFromRouterConfig({ surface: 'llm', modelIds: ['chat-a', 'chat-b'] })
     const aliases = await service.listAliases('llm')
     const preservedRoute = aliases[0].routes.find(item => item.routerModelId === 'chat-a')
     const newRoute = aliases[0].routes.find(item => item.routerModelId === 'chat-b')
 
-    expect(aliases[0]).toMatchObject({ displayName: 'Custom Auto', displayOrder: 5, enabled: false })
-    expect(preservedRoute).toMatchObject({ displayOrder: 9, enabled: false })
-    expect(newRoute).toMatchObject({ displayOrder: 1, enabled: true })
+    expect(aliases[0]).toMatchObject({ enabled: false, displayName: 'Custom Auto', displayOrder: 5 })
+    expect(preservedRoute).toMatchObject({ enabled: false, displayOrder: 9 })
+    expect(newRoute).toMatchObject({ enabled: true, displayOrder: 1 })
   })
 
   it('syncs runtime TTS models as enabled but preserves admin display fields', async () => {
@@ -77,7 +77,7 @@ describe('providerCatalogService', () => {
       },
     })
     await db.update(providerCatalogTtsModels)
-      .set({ displayName: 'Curated CosyVoice', displayOrder: 7, enabled: false })
+      .set({ enabled: false, displayName: 'Curated CosyVoice', displayOrder: 7 })
       .where(eq(providerCatalogTtsModels.id, first[0].id))
 
     await service.syncTtsModelsFromRouterConfig({
@@ -90,14 +90,14 @@ describe('providerCatalogService', () => {
     const models = await service.listTtsModels()
     expect(models.map(model => model.routerModelId)).toEqual(['alibaba/cosyvoice-v2', 'microsoft/v1'])
     expect(models.find(model => model.routerModelId === 'alibaba/cosyvoice-v2')).toMatchObject({
+      enabled: false,
       displayName: 'Curated CosyVoice',
       displayOrder: 7,
-      enabled: false,
       provider: 'dashscope-cosyvoice',
     })
     expect(models.find(model => model.routerModelId === 'microsoft/v1')).toMatchObject({
-      displayName: 'microsoft/v1',
       enabled: true,
+      displayName: 'microsoft/v1',
       provider: 'azure',
     })
   })
@@ -111,24 +111,24 @@ describe('providerCatalogService', () => {
       routerModelId: 'microsoft/v1',
       voices: [{
         id: 'en-US-AvaMultilingualNeural',
-        labels: { gender: 'female' },
-        languages: [{ code: 'en-US', title: 'English' }],
         name: 'Ava',
+        languages: [{ code: 'en-US', title: 'English' }],
+        labels: { gender: 'female' },
         previewAudioUrl: 'https://example.com/ava.mp3',
       }],
     })
     expect(first[0]).toMatchObject({
+      providerVoiceId: 'en-US-AvaMultilingualNeural',
       displayName: 'Ava',
       enabled: false,
       previewAudioUrl: 'https://example.com/ava.mp3',
-      providerVoiceId: 'en-US-AvaMultilingualNeural',
     })
 
     await db.update(providerCatalogTtsVoices)
       .set({
+        enabled: true,
         displayName: 'Curated Ava',
         displayOrder: 3,
-        enabled: true,
         previewAudioUrl: 'https://example.com/manual.mp3',
       })
       .where(eq(providerCatalogTtsVoices.id, first[0].id))
@@ -137,21 +137,21 @@ describe('providerCatalogService', () => {
       routerModelId: 'microsoft/v1',
       voices: [{
         id: 'en-US-AvaMultilingualNeural',
-        labels: { gender: 'Female' },
-        languages: [{ code: 'en-US', title: 'English US' }],
         name: 'Ava from provider',
+        languages: [{ code: 'en-US', title: 'English US' }],
+        labels: { gender: 'Female' },
         previewAudioUrl: 'https://example.com/provider-new.mp3',
       }],
     })
 
     const voices = await service.listTtsVoices('microsoft/v1')
     expect(voices[0]).toMatchObject({
+      enabled: true,
       displayName: 'Curated Ava',
       displayOrder: 3,
-      enabled: true,
+      previewAudioUrl: 'https://example.com/manual.mp3',
       labels: { gender: 'Female' },
       languages: [{ code: 'en-US', title: 'English US' }],
-      previewAudioUrl: 'https://example.com/manual.mp3',
     })
   })
 
@@ -189,7 +189,7 @@ describe('providerCatalogService', () => {
       errorCode: 'CAPABILITY_ALIAS_NOT_FOUND',
     })
 
-    await service.syncAliasesFromRouterConfig({ modelIds: ['chat-a'], surface: 'llm' })
+    await service.syncAliasesFromRouterConfig({ surface: 'llm', modelIds: ['chat-a'] })
     const [alias] = await db.select().from(capabilityAliases)
     await db.update(capabilityAliases)
       .set({ enabled: false })

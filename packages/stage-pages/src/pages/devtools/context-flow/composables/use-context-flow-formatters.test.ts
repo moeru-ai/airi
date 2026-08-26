@@ -14,19 +14,19 @@ describe('useContextFlowFormatters', () => {
 
   it('builds preview items for context updates', () => {
     const entry: FlowEntry = {
-      channel: 'server',
-      direction: 'incoming',
       id: 1,
+      timestamp: Date.now(),
+      direction: 'incoming',
+      channel: 'server',
+      type: 'context:update',
+      summary: 'test',
       payload: {
         data: {
-          destinations: ['character'],
           text: 'Hello world',
+          destinations: ['character'],
         },
       },
       searchText: '',
-      summary: 'test',
-      timestamp: Date.now(),
-      type: 'context:update',
     }
 
     const items = buildPreviewItems(entry)

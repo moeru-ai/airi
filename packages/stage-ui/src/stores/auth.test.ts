@@ -52,21 +52,21 @@ class MemoryStorage implements Storage {
 }
 
 const user: User = {
-  createdAt: new Date('2026-01-01T00:00:00.000Z'),
-  email: 'user@example.com',
-  emailVerified: true,
   id: 'user-1',
   name: 'AIRI User',
+  email: 'user@example.com',
+  emailVerified: true,
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
 }
 
 const session: Session = {
-  createdAt: new Date('2026-01-01T00:00:00.000Z'),
-  expiresAt: new Date('2026-12-01T00:00:00.000Z'),
   id: 'session-1',
   token: 'server-session-token',
-  updatedAt: new Date('2026-01-01T00:00:00.000Z'),
   userId: user.id,
+  expiresAt: new Date('2026-12-01T00:00:00.000Z'),
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  updatedAt: new Date('2026-01-01T00:00:00.000Z'),
 }
 
 describe('auth store sign-in requests', () => {
@@ -79,7 +79,7 @@ describe('auth store sign-in requests', () => {
     vi.mocked(triggerSignIn).mockReset()
     vi.mocked(triggerSignIn).mockResolvedValue()
     vi.mocked(requestAuthSession).mockReset()
-    vi.mocked(requestAuthSession).mockResolvedValue({ session, user })
+    vi.mocked(requestAuthSession).mockResolvedValue({ user, session })
   })
 
   afterEach(() => {
@@ -118,10 +118,10 @@ describe('auth store sign-in requests', () => {
     // the previous token and then clear the complete auth state.
     await authStore.completeSignIn({
       accessToken: 'new-access-token',
-      clientId: 'airi-stage-electron',
-      expiresIn: 3600,
-      idToken: 'new-id-token',
       refreshToken: 'new-refresh-token',
+      idToken: 'new-id-token',
+      expiresIn: 3600,
+      clientId: 'airi-stage-electron',
     })
 
     expect(requestAuthSession).toHaveBeenCalledWith('new-access-token')

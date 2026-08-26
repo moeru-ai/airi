@@ -31,7 +31,7 @@ export function registerWsOnlineUsersGauge(
 
   let cachedAt = 0
   let cachedCount = 0
-  let refreshInFlight: null | Promise<boolean> = null
+  let refreshInFlight: Promise<boolean> | null = null
 
   async function refresh(): Promise<boolean> {
     try {

@@ -16,43 +16,43 @@ export interface OpenAISpeechProviderOptions extends OpenAIProviderOptions {
 /** Creates an OpenAI-compatible ASR Provider configuration. */
 export function openaiAsr(options: OpenAIProviderOptions): ProviderConfiguration {
   return {
+    id: options.provider,
+    definitionId: options.provider,
+    model: options.model,
     config: {
       apiKey: options.apiKey,
       baseUrl: options.baseUrl,
     },
-    definitionId: options.provider,
-    id: options.provider,
-    model: options.model,
   }
 }
 
 /** Creates an OpenAI-compatible LLM Provider configuration. */
 export function openaiLlm(options: OpenAIProviderOptions): ProviderConfiguration {
   return {
+    id: options.provider,
+    definitionId: options.provider,
+    model: options.model,
     config: {
       apiKey: options.apiKey,
       baseUrl: options.baseUrl,
     },
-    definitionId: options.provider,
-    id: options.provider,
-    model: options.model,
   }
 }
 
 /** Creates an OpenAI-compatible TTS Provider configuration. */
 export function openaiTts(options: OpenAISpeechProviderOptions): { provider: ProviderConfiguration, voice: string } {
   return {
+    voice: options.voice,
     provider: {
+      id: options.provider,
+      definitionId: options.provider,
+      model: options.model,
       config: {
         apiKey: options.apiKey,
         baseUrl: options.baseUrl,
         model: options.model,
         voice: options.voice,
       },
-      definitionId: options.provider,
-      id: options.provider,
-      model: options.model,
     },
-    voice: options.voice,
   }
 }

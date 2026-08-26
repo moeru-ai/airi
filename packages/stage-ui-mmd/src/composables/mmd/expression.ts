@@ -6,16 +6,16 @@ import { ref } from 'vue'
 import { Emotion } from '../../constants/emotions'
 import { EMOTION_MORPHS } from '../../constants/morphs'
 
-function clampIntensity(value: number): number {
-  return Math.min(1, Math.max(0, value))
+function lerp(start: number, end: number, t: number): number {
+  return start + (end - start) * t
 }
 
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2
 }
 
-function lerp(start: number, end: number, t: number): number {
-  return start + (end - start) * t
+function clampIntensity(value: number): number {
+  return Math.min(1, Math.max(0, value))
 }
 
 /** All emotion-related morph slots, so transitions can zero the untargeted ones. */
@@ -111,10 +111,10 @@ export function useMMDEmote(morphs: MorphController) {
 
   return {
     currentEmotion,
-    dispose,
     isTransitioning,
     setEmotion,
     setEmotionWithResetAfter,
     update,
+    dispose,
   }
 }

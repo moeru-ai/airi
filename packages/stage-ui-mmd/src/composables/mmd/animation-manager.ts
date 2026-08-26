@@ -7,8 +7,6 @@ import { ensureAmmo } from '../../utils/ammo'
 
 const DEFAULT_CROSSFADE = 0.4
 
-export type MMDAnimationManager = ReturnType<typeof createMMDAnimationManager>
-
 export interface MMDAnimationManagerOptions {
   /**
    * Initial physics enablement. Ammo is still installed so physics can be
@@ -21,17 +19,17 @@ export interface MMDAnimationManagerOptions {
 
 export interface PlayActionOptions {
   /**
-   * Cross-fade duration in seconds.
-   *
-   * @default 0.4
-   */
-  crossfade?: number
-  /**
    * Loop the action instead of reverting to idle when it finishes.
    *
    * @default false
    */
   loop?: boolean
+  /**
+   * Cross-fade duration in seconds.
+   *
+   * @default 0.4
+   */
+  crossfade?: number
 }
 
 /**
@@ -252,17 +250,19 @@ export function createMMDAnimationManager(mmd: MMD, options: MMDAnimationManager
   }
 
   return {
-    availableClips,
-    dispose,
     init,
-    playAction,
-    playIdle,
     registerClip,
-    setGrantEnabled,
-    setGravity,
+    availableClips,
+    playIdle,
+    playAction,
     setIdleMotion,
-    setIKEnabled,
     setPhysicsEnabled,
+    setGravity,
+    setIKEnabled,
+    setGrantEnabled,
     update,
+    dispose,
   }
 }
+
+export type MMDAnimationManager = ReturnType<typeof createMMDAnimationManager>

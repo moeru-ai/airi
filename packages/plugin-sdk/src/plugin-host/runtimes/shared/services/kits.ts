@@ -1,6 +1,28 @@
 import type { KitDescriptor } from '../../../shared/kits'
 import type { PluginRuntime } from '../../../shared/types'
 
+function normalizeKitDescriptor(kit: KitDescriptor) {
+  return {
+    kitId: kit.kitId,
+    version: kit.version,
+    runtimes: [...new Set(kit.runtimes)].sort(),
+    capabilities: kit.capabilities
+      .map(capability => ({
+        key: capability.key,
+        actions: [...new Set(capability.actions)].sort(),
+      }))
+      .sort((left, right) => left.key.localeCompare(right.key)),
+  }
+}
+
+function isSemanticallyEqualKitDescriptor(left: KitDescriptor, right: KitDescriptor) {
+  return JSON.stringify(normalizeKitDescriptor(left)) === JSON.stringify(normalizeKitDescriptor(right))
+}
+
+function createKitCollisionError(kitId: string) {
+  return new Error(`Duplicate kit registration for \`${kitId}\` conflicts with an existing descriptor.`)
+}
+
 /**
  * Stores host-registered kit descriptors and exposes runtime-filtered lookups.
  *
@@ -17,22 +39,6 @@ import type { PluginRuntime } from '../../../shared/types'
 export class KitRegistryService<TKit extends KitDescriptor = KitDescriptor> {
   private readonly kits = new Map<string, TKit>()
 
-  get(kitId: string) {
-    return this.kits.get(kitId)
-  }
-
-  has(kitId: string) {
-    return this.kits.has(kitId)
-  }
-
-  list() {
-    return [...this.kits.values()]
-  }
-
-  listByRuntime(runtime: PluginRuntime) {
-    return this.list().filter(kit => kit.runtimes.includes(runtime))
-  }
-
   register(kit: TKit) {
     const current = this.kits.get(kit.kitId)
     if (!current) {
@@ -47,6 +53,14 @@ export class KitRegistryService<TKit extends KitDescriptor = KitDescriptor> {
     return current
   }
 
+  get(kitId: string) {
+    return this.kits.get(kitId)
+  }
+
+  has(kitId: string) {
+    return this.kits.has(kitId)
+  }
+
   remove(kitId: string) {
     const kit = this.kits.get(kitId)
     if (!kit) {
@@ -56,26 +70,12 @@ export class KitRegistryService<TKit extends KitDescriptor = KitDescriptor> {
     this.kits.delete(kitId)
     return kit
   }
-}
 
-function createKitCollisionError(kitId: string) {
-  return new Error(`Duplicate kit registration for \`${kitId}\` conflicts with an existing descriptor.`)
-}
+  list() {
+    return [...this.kits.values()]
+  }
 
-function isSemanticallyEqualKitDescriptor(left: KitDescriptor, right: KitDescriptor) {
-  return JSON.stringify(normalizeKitDescriptor(left)) === JSON.stringify(normalizeKitDescriptor(right))
-}
-
-function normalizeKitDescriptor(kit: KitDescriptor) {
-  return {
-    capabilities: kit.capabilities
-      .map(capability => ({
-        actions: [...new Set(capability.actions)].sort(),
-        key: capability.key,
-      }))
-      .sort((left, right) => left.key.localeCompare(right.key)),
-    kitId: kit.kitId,
-    runtimes: [...new Set(kit.runtimes)].sort(),
-    version: kit.version,
+  listByRuntime(runtime: PluginRuntime) {
+    return this.list().filter(kit => kit.runtimes.includes(runtime))
   }
 }

@@ -9,7 +9,7 @@ export function Echo(): MineflayerPlugin {
   return {
     spawned(mineflayer) {
       const onChatHandler = new ChatMessageHandler(mineflayer.username).handleChat((username, message) => {
-        logger.withFields({ message, username }).log('Chat message received')
+        logger.withFields({ username, message }).log('Chat message received')
         mineflayer.bot.chat(message)
       })
 

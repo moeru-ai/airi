@@ -112,27 +112,27 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   }
 
   return {
-    activeModel,
-    activeProvider,
-    activeProviderModelError,
     // State
     configured,
+    activeProvider,
+    activeModel,
     customModelName: activeCustomModelName,
     expandedDescriptions,
-
-    filteredModels,
-    getChatProviderInstance,
-    getModelsForProvider,
-    isLoadingActiveProviderModels,
-    loadModelsForProvider,
-
     modelSearchQuery,
-    providerModels,
-    // Actions
-    resetModelSelection,
-    resetState,
+
     // Computed
     supportsModelListing,
+    providerModels,
+    isLoadingActiveProviderModels,
+    activeProviderModelError,
+    filteredModels,
+
+    // Actions
+    resetModelSelection,
+    loadModelsForProvider,
+    getModelsForProvider,
+    getChatProviderInstance,
+    resetState,
   }
 }, {
   synced: {

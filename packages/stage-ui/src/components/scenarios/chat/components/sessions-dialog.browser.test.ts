@@ -7,10 +7,42 @@ import { createI18n } from 'vue-i18n'
 
 import SessionsDialog from './sessions-dialog.vue'
 
+function createTestI18n() {
+  return createI18n({
+    legacy: false,
+    locale: 'en',
+    messages: {
+      en: {
+        stage: {
+          chat: {
+            sessions: {
+              'title': 'Chats',
+              'new': 'New chat',
+              'empty': 'No chats',
+              'delete': 'Delete',
+              'cloud-badge': 'Cloud synced',
+            },
+          },
+        },
+      },
+    },
+  })
+}
+
+function sessionMeta(sessionId: string, updatedAt: number): ChatSessionMeta {
+  return {
+    sessionId,
+    characterId: 'default',
+    userId: 'local',
+    createdAt: updatedAt,
+    updatedAt,
+  }
+}
+
 function createHarness() {
   return defineComponent({
-    components: { SessionsDialog },
     name: 'SessionsDialogHarness',
+    components: { SessionsDialog },
     setup() {
       const created = ref(0)
       const selected = ref('none')
@@ -19,11 +51,11 @@ function createHarness() {
       return {
         created,
         deleted,
-        rows: [
-          { isActive: true, meta: sessionMeta('session-one', 2), preview: 'First chat', updatedAtLabel: 'now' },
-          { isActive: false, meta: sessionMeta('session-two', 1), preview: 'Second chat', updatedAtLabel: 'yesterday' },
-        ],
         selected,
+        rows: [
+          { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, updatedAtLabel: 'now' },
+          { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, updatedAtLabel: 'yesterday' },
+        ],
       }
     },
     template: `
@@ -42,38 +74,6 @@ function createHarness() {
       <output aria-label="deleted-session-id">{{ deleted }}</output>
     `,
   })
-}
-
-function createTestI18n() {
-  return createI18n({
-    legacy: false,
-    locale: 'en',
-    messages: {
-      en: {
-        stage: {
-          chat: {
-            sessions: {
-              'cloud-badge': 'Cloud synced',
-              'delete': 'Delete',
-              'empty': 'No chats',
-              'new': 'New chat',
-              'title': 'Chats',
-            },
-          },
-        },
-      },
-    },
-  })
-}
-
-function sessionMeta(sessionId: string, updatedAt: number): ChatSessionMeta {
-  return {
-    characterId: 'default',
-    createdAt: updatedAt,
-    sessionId,
-    updatedAt,
-    userId: 'local',
-  }
 }
 
 describe('sessions dialog actions', () => {

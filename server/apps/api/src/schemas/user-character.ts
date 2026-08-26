@@ -12,10 +12,10 @@ import { character } from './characters'
 export const characterLikes = pgTable(
   'user_character_likes',
   {
+    userId: text('user_id').notNull(),
     characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     deletedAt: timestamp('deleted_at'),
-    userId: text('user_id').notNull(),
   },
   table => [
     primaryKey({ columns: [table.userId, table.characterId] }),
@@ -28,10 +28,10 @@ export type NewCharacterLike = InferInsertModel<typeof characterLikes>
 export const characterBookmarks = pgTable(
   'user_character_bookmarks',
   {
+    userId: text('user_id').notNull(),
     characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     deletedAt: timestamp('deleted_at'),
-    userId: text('user_id').notNull(),
   },
   table => [
     primaryKey({ columns: [table.userId, table.characterId] }),
@@ -44,13 +44,13 @@ export type NewCharacterBookmark = InferInsertModel<typeof characterBookmarks>
 export const characterLikesRelations = relations(
   characterLikes,
   ({ one }) => ({
-    character: one(character, {
-      fields: [characterLikes.characterId],
-      references: [character.id],
-    }),
     user: one(user, {
       fields: [characterLikes.userId],
       references: [user.id],
+    }),
+    character: one(character, {
+      fields: [characterLikes.characterId],
+      references: [character.id],
     }),
   }),
 )
@@ -58,13 +58,13 @@ export const characterLikesRelations = relations(
 export const characterBookmarksRelations = relations(
   characterBookmarks,
   ({ one }) => ({
-    character: one(character, {
-      fields: [characterBookmarks.characterId],
-      references: [character.id],
-    }),
     user: one(user, {
       fields: [characterBookmarks.userId],
       references: [user.id],
+    }),
+    character: one(character, {
+      fields: [characterBookmarks.characterId],
+      references: [character.id],
     }),
   }),
 )

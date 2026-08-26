@@ -8,62 +8,52 @@ import type { ReflexContextState } from '../cognitive/reflex/context'
 
 import { z } from 'zod'
 
+export interface LogEvent {
+  level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG'
+  message: string
+  fields?: Record<string, unknown>
+  timestamp: number
+}
+
+export interface LLMTraceEvent {
+  route: string
+  messages: unknown[]
+  content: string
+  reasoning?: string
+  usage?: {
+    prompt_tokens?: number
+    completion_tokens?: number
+    total_tokens?: number
+  }
+  model?: string
+  duration?: number // ms
+  timestamp: number
+}
+
+export interface BrainStateEvent {
+  status: 'idle' | 'processing' | 'waiting'
+  queueLength: number
+  lastContextView?: string
+  currentAction?: string
+  timestamp: number
+}
+
 export interface BlackboardEvent {
   state: Record<string, unknown>
   timestamp: number
 }
 
-export interface BrainStateEvent {
-  currentAction?: string
-  lastContextView?: string
-  queueLength: number
-  status: 'idle' | 'processing' | 'waiting'
-  timestamp: number
-}
-
-/**
- * Live conversation state update from the brain
- */
-export interface ConversationUpdateEvent {
-  isProcessing: boolean
-  messages: Array<{ content: string, reasoning?: string, role: string }>
-  sessionBoundary?: boolean
-  timestamp: number
-}
-
-export interface LLMTraceEvent {
-  content: string
-  duration?: number // ms
-  messages: unknown[]
-  model?: string
-  reasoning?: string
-  route: string
-  timestamp: number
-  usage?: {
-    completion_tokens?: number
-    prompt_tokens?: number
-    total_tokens?: number
-  }
-}
-
-export interface LogEvent {
-  fields?: Record<string, unknown>
-  level: 'DEBUG' | 'ERROR' | 'INFO' | 'WARN'
-  message: string
-  timestamp: number
-}
-
 export interface QueueEvent {
-  processing?: {
-    payload: unknown
-    source?: { id: string, type: string }
-    type: string
-  }
   queue: Array<{
-    payload: unknown
-    source?: { id: string, type: string }
     type: string
+    payload: unknown
+    source?: { type: string, id: string }
   }>
+  processing?: {
+    type: string
+    payload: unknown
+    source?: { type: string, id: string }
+  }
   timestamp: number
 }
 
@@ -71,86 +61,33 @@ export interface QueueEvent {
  * Reflex system state update
  */
 export interface ReflexStateEvent {
-  activeBehaviorId: null | string
-  context: ReflexContextState
   mode: string
+  activeBehaviorId: string | null
+  context: ReflexContextState
   timestamp: number
 }
 
-export interface ReplExecutionResultEvent {
-  actions: Array<{
-    error?: string
-    ok: boolean
-    params: Record<string, unknown>
-    result?: string
-    tool: string
-  }>
-  code: string
-  durationMs: number
-  error?: string
-  logs: string[]
-  returnValue?: string
-  source: 'llm' | 'manual'
+/**
+ * Traced event from the cognitive event bus
+ */
+export interface TraceEvent {
+  /** Unique event ID */
+  id: string
+  /** Trace ID (shared by related events) */
+  traceId: string
+  /** Parent event ID (for event chains) */
+  parentId?: string
+  /** Event type (e.g., 'raw:sighted:arm_swing') */
+  type: string
+  /** Event payload */
+  payload: unknown
+  /** Event timestamp */
   timestamp: number
-}
-
-export interface ReplStateEvent {
-  updatedAt: number
-  variables: ReplVariableDescriptor[]
-}
-
-// Union type for all server events
-
-// ============================================================
-// Tool types
-// ============================================================
-
-export interface ReplVariableDescriptor {
-  kind: 'boolean' | 'function' | 'null' | 'number' | 'object' | 'string' | 'tool' | 'undefined' | 'unknown'
-  name: string
-  preview: string
-  readonly: boolean
-}
-
-export type ServerEvent
-  = | { payload: BlackboardEvent, type: 'blackboard' }
-    | { payload: BrainStateEvent, type: 'brain_state' }
-    | { payload: ConversationUpdateEvent, type: 'conversation_update' }
-    | { payload: LLMTraceEvent, type: 'llm' }
-    | { payload: LogEvent, type: 'log' }
-    | { payload: QueueEvent, type: 'queue' }
-    | { payload: ReflexStateEvent, type: 'reflex' }
-    | { payload: ReplExecutionResultEvent, type: 'debug:repl_result' }
-    | { payload: ReplStateEvent, type: 'debug:repl_state' }
-    | { payload: ServerEvent[], type: 'history' }
-    | { payload: ToolExecutionResultEvent, type: 'debug:tool_result' }
-    | { payload: TraceBatchEvent, type: 'trace_batch' }
-    | { payload: TraceEvent, type: 'trace' }
-    | { payload: { timestamp: number }, type: 'pong' }
-    | { payload: { tools: ToolDefinition[] }, type: 'debug:tools_list' }
-
-export interface ToolDefinition {
-  description: string
-  name: string
-  params: ToolParameter[]
-}
-
-export interface ToolExecutionResultEvent {
-  error?: string
-  params: Record<string, unknown>
-  result?: string
-  timestamp: number
-  toolName: string
-}
-
-export interface ToolParameter {
-  default?: unknown
-  description?: string
-  max?: number
-  min?: number
-  name: string
-  required?: boolean
-  type: 'boolean' | 'number' | 'string'
+  /** Source component */
+  source: {
+    component: string
+    id?: string
+  }
 }
 
 /**
@@ -161,40 +98,103 @@ export interface TraceBatchEvent {
   timestamp: number
 }
 
+/**
+ * Live conversation state update from the brain
+ */
+export interface ConversationUpdateEvent {
+  messages: Array<{ role: string, content: string, reasoning?: string }>
+  isProcessing: boolean
+  sessionBoundary?: boolean
+  timestamp: number
+}
+
+// Union type for all server events
+
+// ============================================================
+// Tool types
+// ============================================================
+
+export interface ToolParameter {
+  name: string
+  type: 'string' | 'number' | 'boolean'
+  description?: string
+  required?: boolean
+  min?: number
+  max?: number
+  default?: unknown
+}
+
+export interface ToolDefinition {
+  name: string
+  description: string
+  params: ToolParameter[]
+}
+
+export interface ToolExecutionResultEvent {
+  toolName: string
+  params: Record<string, unknown>
+  result?: string
+  error?: string
+  timestamp: number
+}
+
+export interface ReplVariableDescriptor {
+  name: string
+  kind: 'tool' | 'function' | 'object' | 'number' | 'string' | 'boolean' | 'undefined' | 'null' | 'unknown'
+  readonly: boolean
+  preview: string
+}
+
+export interface ReplStateEvent {
+  variables: ReplVariableDescriptor[]
+  updatedAt: number
+}
+
+export interface ReplExecutionResultEvent {
+  source: 'manual' | 'llm'
+  code: string
+  logs: string[]
+  actions: Array<{
+    tool: string
+    params: Record<string, unknown>
+    ok: boolean
+    result?: string
+    error?: string
+  }>
+  returnValue?: string
+  error?: string
+  durationMs: number
+  timestamp: number
+}
+
 // ============================================================
 // Server Events Extension
 // ============================================================
 
 // ... (previous events)
 
-/**
- * Traced event from the cognitive event bus
- */
-export interface TraceEvent {
-  /** Unique event ID */
-  id: string
-  /** Parent event ID (for event chains) */
-  parentId?: string
-  /** Event payload */
-  payload: unknown
-  /** Source component */
-  source: {
-    component: string
-    id?: string
-  }
-  /** Event timestamp */
-  timestamp: number
-  /** Trace ID (shared by related events) */
-  traceId: string
-  /** Event type (e.g., 'raw:sighted:arm_swing') */
-  type: string
-}
+export type ServerEvent
+  = | { type: 'log', payload: LogEvent }
+    | { type: 'llm', payload: LLMTraceEvent }
+    | { type: 'blackboard', payload: BlackboardEvent }
+    | { type: 'queue', payload: QueueEvent }
+    | { type: 'reflex', payload: ReflexStateEvent }
+    | { type: 'trace', payload: TraceEvent }
+    | { type: 'trace_batch', payload: TraceBatchEvent }
+    | { type: 'history', payload: ServerEvent[] }
+    | { type: 'pong', payload: { timestamp: number } }
+    | { type: 'debug:tools_list', payload: { tools: ToolDefinition[] } }
+    | { type: 'debug:tool_result', payload: ToolExecutionResultEvent }
+    | { type: 'debug:repl_state', payload: ReplStateEvent }
+    | { type: 'debug:repl_result', payload: ReplExecutionResultEvent }
+    | { type: 'brain_state', payload: BrainStateEvent }
+    | { type: 'conversation_update', payload: ConversationUpdateEvent }
 
 // ============================================================
 // Client -> Server commands
 // ============================================================
 
-type JsonValue = boolean | JsonValue[] | null | number | string | { [key: string]: JsonValue }
+type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }
 
 const nonEmptyStringSchema = z.string().trim().min(1)
 const timestampSchema = z.number().int().nonnegative()
@@ -220,8 +220,8 @@ export const debugEventCategorySchema = z.enum([
 ])
 
 export const debugEventSourceSchema = z.object({
-  id: nonEmptyStringSchema,
   type: z.enum(['minecraft', 'airi', 'system']),
+  id: nonEmptyStringSchema,
 }).strict()
 
 export const perceptionSignalTypeSchema = z.enum([
@@ -235,29 +235,29 @@ export const perceptionSignalTypeSchema = z.enum([
 ])
 
 export const perceptionSignalSchema = z.object({
-  confidence: z.number().min(0).max(1).optional(),
-  description: nonEmptyStringSchema,
-  metadata: jsonObjectSchema,
-  sourceId: nonEmptyStringSchema.optional(),
-  timestamp: timestampSchema,
   type: perceptionSignalTypeSchema,
+  description: nonEmptyStringSchema,
+  sourceId: nonEmptyStringSchema.optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  timestamp: timestampSchema,
+  metadata: jsonObjectSchema,
 }).strict()
 
 export const debugInjectEventSchema = z.discriminatedUnion('type', [
   z.object({
+    type: z.literal('perception'),
     payload: perceptionSignalSchema,
     source: debugEventSourceSchema,
-    type: z.literal('perception'),
   }).strict(),
   z.object({
-    payload: jsonObjectSchema,
-    source: debugEventSourceSchema,
     type: z.literal('feedback'),
-  }).strict(),
-  z.object({
     payload: jsonObjectSchema,
     source: debugEventSourceSchema,
+  }).strict(),
+  z.object({
     type: z.literal('system_alert'),
+    payload: jsonObjectSchema,
+    source: debugEventSourceSchema,
   }).strict(),
 ])
 
@@ -266,23 +266,23 @@ export const clearLogsCommandSchema = z.object({
 }).strict()
 
 export const setFilterCommandSchema = z.object({
-  payload: z.object({
-    filter: z.string(),
-    panel: nonEmptyStringSchema,
-  }).strict(),
   type: z.literal('set_filter'),
+  payload: z.object({
+    panel: nonEmptyStringSchema,
+    filter: z.string(),
+  }).strict(),
 }).strict()
 
 export const injectEventCommandSchema = z.object({
-  payload: debugInjectEventSchema,
   type: z.literal('inject_event'),
+  payload: debugInjectEventSchema,
 }).strict()
 
 export const pingCommandSchema = z.object({
+  type: z.literal('ping'),
   payload: z.object({
     timestamp: timestampSchema,
   }).strict(),
-  type: z.literal('ping'),
 }).strict()
 
 export const requestHistoryCommandSchema = z.object({
@@ -290,11 +290,11 @@ export const requestHistoryCommandSchema = z.object({
 }).strict()
 
 export const executeToolCommandSchema = z.object({
-  payload: z.object({
-    params: jsonObjectSchema,
-    toolName: nonEmptyStringSchema,
-  }).strict(),
   type: z.literal('execute_tool'),
+  payload: z.object({
+    toolName: nonEmptyStringSchema,
+    params: jsonObjectSchema,
+  }).strict(),
 }).strict()
 
 export const requestToolsCommandSchema = z.object({
@@ -310,10 +310,10 @@ export const requestConversationCommandSchema = z.object({
 }).strict()
 
 export const executeReplCommandSchema = z.object({
+  type: z.literal('execute_repl'),
   payload: z.object({
     code: z.string(),
   }).strict(),
-  type: z.literal('execute_repl'),
 }).strict()
 
 export const clientCommandSchema = z.discriminatedUnion('type', [
@@ -330,31 +330,31 @@ export const clientCommandSchema = z.discriminatedUnion('type', [
 ])
 
 export type ClearLogsCommand = z.infer<typeof clearLogsCommandSchema>
-export type ClientCommand = z.infer<typeof clientCommandSchema>
-export interface DebugMessage<T = ClientCommand | ServerEvent> {
-  data: T
-  id: string
-  timestamp: number
-}
-export type ExecuteReplCommand = z.infer<typeof executeReplCommandSchema>
-export type ExecuteToolCommand = z.infer<typeof executeToolCommandSchema>
+export type SetFilterCommand = z.infer<typeof setFilterCommandSchema>
 export type InjectEventCommand = z.infer<typeof injectEventCommandSchema>
 export type InjectEventInput = z.infer<typeof debugInjectEventSchema>
 export type PingCommand = z.infer<typeof pingCommandSchema>
-export type RequestConversationCommand = z.infer<typeof requestConversationCommandSchema>
 export type RequestHistoryCommand = z.infer<typeof requestHistoryCommandSchema>
-export type RequestReplStateCommand = z.infer<typeof requestReplStateCommandSchema>
+export type ExecuteToolCommand = z.infer<typeof executeToolCommandSchema>
 export type RequestToolsCommand = z.infer<typeof requestToolsCommandSchema>
+export type RequestReplStateCommand = z.infer<typeof requestReplStateCommandSchema>
+export type RequestConversationCommand = z.infer<typeof requestConversationCommandSchema>
+export type ExecuteReplCommand = z.infer<typeof executeReplCommandSchema>
+export type ClientCommand = z.infer<typeof clientCommandSchema>
 
 // ============================================================
 // Wire format
 // ============================================================
 
-export type SetFilterCommand = z.infer<typeof setFilterCommandSchema>
+export interface DebugMessage<T = ServerEvent | ClientCommand> {
+  id: string
+  data: T
+  timestamp: number
+}
 
 export const debugClientMessageSchema = z.object({
-  data: clientCommandSchema,
   id: nonEmptyStringSchema,
+  data: clientCommandSchema,
   timestamp: timestampSchema,
 }).strict()
 

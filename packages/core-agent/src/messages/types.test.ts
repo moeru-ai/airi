@@ -18,96 +18,96 @@ describe('message types', () => {
   it('supports structured history blocks and provider-ready raw messages', () => {
     const history: HistoryItem[] = [
       {
+        type: 'turn',
+        turnType: 'chess',
+        turnIndex: 1,
+        actor: 'player',
         action: {
           kind: 'move-played',
           san: 'e4',
         },
-        actor: 'player',
-        turnIndex: 1,
-        turnType: 'chess',
-        type: 'turn',
       },
       {
+        type: 'reaction',
         reactionType: 'spark-command',
         text: 'Good move.',
-        type: 'reaction',
       },
       {
+        type: 'domain-event',
         eventType: 'board-updated',
         payload: {
           fen: 'startpos',
         },
-        type: 'domain-event',
       },
     ]
 
     const segments: Array<
-      SegmentDomainEvent
-      | SegmentHistoryBlock
+      SegmentText
       | SegmentInstruction
-      | SegmentReference
-      | SegmentStateSnapshot
-      | SegmentSummary
       | SegmentTaggedText
-      | SegmentText
+      | SegmentDomainEvent
+      | SegmentStateSnapshot
+      | SegmentHistoryBlock
+      | SegmentSummary
+      | SegmentReference
     > = [
       {
-        priority: 'high',
-        text: 'Explain the current board state.',
         type: 'instruction',
+        text: 'Explain the current board state.',
+        priority: 'high',
       },
       {
+        type: 'tagged-text',
         tag: 'agent_spark_command_reaction',
         text: 'Good move.',
-        type: 'tagged-text',
       },
       {
+        type: 'domain-event',
         eventType: 'board-updated',
         payload: {
           fen: 'startpos',
         },
-        type: 'domain-event',
       },
       {
+        type: 'state-snapshot',
+        stateType: 'board',
         payload: {
           fen: 'startpos',
         },
-        stateType: 'board',
-        type: 'state-snapshot',
       },
       {
-        text: 'Older chess turns compacted.',
         type: 'summary',
+        text: 'Older chess turns compacted.',
       },
       {
-        note: 'Latest paired move',
+        type: 'reference',
         refType: 'turn',
         targetId: 'turn-1',
-        type: 'reference',
+        note: 'Latest paired move',
       },
       {
+        type: 'history-block',
         compacted: false,
         items: history,
-        type: 'history-block',
       },
     ]
 
     const structuredMessage: Message = {
       id: 'msg-1',
+      role: 'event',
+      source: 'plugin:airi-plugin-game-chess',
+      segments,
       metadata: {
         domain: 'chess',
       },
-      role: 'event',
-      segments,
-      source: 'plugin:airi-plugin-game-chess',
     }
 
     const rawMessage: RawMessage = {
+      role: 'user',
       content: 'continue',
       metadata: {
         source: 'session',
       },
-      role: 'user',
     }
 
     const historyBlock = structuredMessage.segments[6] as SegmentHistoryBlock

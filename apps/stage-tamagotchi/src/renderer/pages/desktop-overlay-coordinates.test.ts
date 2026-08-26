@@ -35,14 +35,14 @@ describe('screenToLocal', () => {
 describe('screenRectToLocal', () => {
   it('shifts rect origin, preserves size', () => {
     const result = screenRectToLocal(
-      { height: 30, width: 80, x: 100, y: -1000 },
+      { x: 100, y: -1000, width: 80, height: 30 },
       { x: 0, y: -1080 },
     )
-    expect(result).toEqual({ height: 30, width: 80, x: 100, y: 80 })
+    expect(result).toEqual({ x: 100, y: 80, width: 80, height: 30 })
   })
 
   it('is identity when overlay origin is (0,0)', () => {
-    const rect = { height: 150, width: 200, x: 50, y: 100 }
+    const rect = { x: 50, y: 100, width: 200, height: 150 }
     const result = screenRectToLocal(rect, { x: 0, y: 0 })
     expect(result).toEqual(rect)
   })
@@ -53,39 +53,39 @@ describe('screenRectToLocal', () => {
 // ---------------------------------------------------------------------------
 
 describe('rectIntersectsOverlay', () => {
-  const overlay = { height: 900, width: 1440, x: 0, y: -1080 }
+  const overlay = { x: 0, y: -1080, width: 1440, height: 900 }
 
   it('returns true for rect fully inside overlay', () => {
     expect(rectIntersectsOverlay(
-      { height: 30, width: 80, x: 100, y: -1000 },
+      { x: 100, y: -1000, width: 80, height: 30 },
       overlay,
     )).toBe(true)
   })
 
   it('returns true for rect partially overlapping', () => {
     expect(rectIntersectsOverlay(
-      { height: 50, width: 100, x: 1400, y: -1080 },
+      { x: 1400, y: -1080, width: 100, height: 50 },
       overlay,
     )).toBe(true)
   })
 
   it('returns false for rect entirely above overlay', () => {
     expect(rectIntersectsOverlay(
-      { height: 30, width: 80, x: 100, y: -2000 },
+      { x: 100, y: -2000, width: 80, height: 30 },
       overlay,
     )).toBe(false)
   })
 
   it('returns false for rect entirely below overlay', () => {
     expect(rectIntersectsOverlay(
-      { height: 30, width: 80, x: 100, y: 0 },
+      { x: 100, y: 0, width: 80, height: 30 },
       overlay,
     )).toBe(false)
   })
 
   it('returns false for rect entirely to the right', () => {
     expect(rectIntersectsOverlay(
-      { height: 30, width: 80, x: 1500, y: -500 },
+      { x: 1500, y: -500, width: 80, height: 30 },
       overlay,
     )).toBe(false)
   })
@@ -96,7 +96,7 @@ describe('rectIntersectsOverlay', () => {
 // ---------------------------------------------------------------------------
 
 describe('pointInOverlay', () => {
-  const overlay = { height: 900, width: 1440, x: 0, y: -1080 }
+  const overlay = { x: 0, y: -1080, width: 1440, height: 900 }
 
   it('returns true for point inside', () => {
     expect(pointInOverlay({ x: 720, y: -540 }, overlay)).toBe(true)

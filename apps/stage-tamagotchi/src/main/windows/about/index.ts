@@ -20,28 +20,28 @@ export function setupAboutWindowReusable(params: {
 }) {
   return createReusableWindow(async () => {
     const window = new BrowserWindow({
+      title: 'About AIRI',
+      width: 670,
       height: 880,
-      icon,
+      show: false,
+      resizable: true,
       maximizable: false,
       minimizable: false,
-      resizable: true,
-      show: false,
-      title: 'About AIRI',
+      icon,
       webPreferences: {
         preload: join(getElectronMainDirname(), '../preload/index.mjs'),
         sandbox: false,
       },
-      width: 670,
     })
 
     window.on('ready-to-show', () => window.show())
     protectPrivilegedWindowNavigation(window)
 
     await setupAboutWindowElectronInvokes({
+      window,
       autoUpdater: params.autoUpdater,
       i18n: params.i18n,
       serverChannel: params.serverChannel,
-      window,
     })
 
     await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/about', {

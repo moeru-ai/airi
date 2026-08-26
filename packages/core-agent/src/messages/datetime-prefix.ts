@@ -1,3 +1,7 @@
+function padDatePart(value: number): string {
+  return value.toString().padStart(2, '0')
+}
+
 /**
  * Formats a timestamp as `[YYYY-MM-DD HH:MM] ` in the user's local timezone.
  *
@@ -27,8 +31,4 @@ export function formatTimePrefix(createdAt: number): string {
   const minute = padDatePart(date.getMinutes())
 
   return `[${year}-${month}-${day} ${hour}:${minute}] `
-}
-
-function padDatePart(value: number): string {
-  return value.toString().padStart(2, '0')
 }

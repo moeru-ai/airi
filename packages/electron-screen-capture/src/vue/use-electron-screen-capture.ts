@@ -49,11 +49,11 @@ export function useElectronScreenCapture(ipcRenderer: IpcRenderer, sourcesOption
   }
 
   return {
-    checkMacOSPermission,
     getSources,
-    requestMacOSPermission,
+    setSource,
     resetSource,
     selectWithSource,
-    setSource,
+    checkMacOSPermission,
+    requestMacOSPermission,
   }
 }

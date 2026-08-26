@@ -1,35 +1,35 @@
 import type { Bot } from 'mineflayer'
 import type { Vec3 } from 'vec3'
 
-export interface MineflayerBinding<TArgs extends any[] = any[], TExtract = any> {
-  event: string
-  extract: (ctx: PerceptionContext, ...args: TArgs) => TExtract
-  filter?: (ctx: PerceptionContext, ...args: TArgs) => boolean
-}
+export type PerceptionModality = 'sighted' | 'heard' | 'felt' | 'system'
 
 export interface PerceptionContext {
   bot: Bot
-  distanceTo: (entity: any) => null | number
-  distanceToPos: (pos: Vec3) => null | number
-  entityId: (entity: any) => string
-  isSelf: (entity: any) => boolean
-  maxDistance: number
   selfUsername: string
+  maxDistance: number
+  distanceTo: (entity: any) => number | null
+  distanceToPos: (pos: Vec3) => number | null
+  isSelf: (entity: any) => boolean
+  entityId: (entity: any) => string
+}
+
+export interface MineflayerBinding<TArgs extends any[] = any[], TExtract = any> {
+  event: string
+  filter?: (ctx: PerceptionContext, ...args: TArgs) => boolean
+  extract: (ctx: PerceptionContext, ...args: TArgs) => TExtract
 }
 
 export interface PerceptionEventDefinition<TArgs extends any[] = any[], TExtract = any> {
   id: string
-  kind: string
-  mineflayer: MineflayerBinding<TArgs, TExtract>
-
   modality: PerceptionModality
+  kind: string
+
+  mineflayer: MineflayerBinding<TArgs, TExtract>
 }
 
-export type PerceptionModality = 'felt' | 'heard' | 'sighted' | 'system'
-
 export interface RawPerceptionEventBase {
-  kind: string
   modality: PerceptionModality
-  source: string
+  kind: string
   timestamp: number
+  source: string
 }

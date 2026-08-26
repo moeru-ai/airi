@@ -3,10 +3,10 @@ import { defineStore } from 'pinia'
 
 /** Supported ranges and defaults for persisted Tachie appearance controls. */
 export const tachieControlConfig = {
-  renderScale: { default: 2, max: 2, min: 0.5, step: 0.25 },
-  scale: { default: 1, max: 3, min: 0.1, step: 0.01 },
-  x: { default: 0, max: 3000, min: -3000, step: 1 },
-  y: { default: 0, max: 3000, min: -3000, step: 1 },
+  x: { min: -3000, max: 3000, step: 1, default: 0 },
+  y: { min: -3000, max: 3000, step: 1, default: 0 },
+  scale: { min: 0.1, max: 3, step: 0.01, default: 1 },
+  renderScale: { min: 0.5, max: 2, step: 0.25, default: 2 },
 } as const
 
 /**
@@ -30,9 +30,9 @@ export const useTachie = defineStore('tachie', () => {
 
   return {
     position,
-    renderScale,
-    resetState,
     scale,
+    renderScale,
     shadowEnabled,
+    resetState,
   }
 })

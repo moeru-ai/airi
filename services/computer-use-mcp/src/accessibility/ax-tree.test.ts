@@ -6,40 +6,40 @@ import { findAXNodeByUid, formatAXSnapshotAsText } from '../accessibility/ax-tre
 
 function createTestSnapshot(overrides: Partial<AXSnapshot> = {}): AXSnapshot {
   const root: AXNode = {
-    children: [
-      {
-        children: [
-          {
-            bounds: { height: 30, width: 80, x: 100, y: 200 },
-            children: [],
-            role: 'AXButton',
-            title: 'OK',
-            uid: '1_2',
-          },
-          {
-            children: [],
-            focused: true,
-            role: 'AXTextField',
-            title: 'Name',
-            uid: '1_3',
-            value: 'Hello World',
-          },
-          {
-            children: [],
-            enabled: false,
-            role: 'AXButton',
-            title: 'Cancel',
-            uid: '1_4',
-          },
-        ],
-        role: 'AXWindow',
-        title: 'Main Window',
-        uid: '1_1',
-      },
-    ],
+    uid: '1_0',
     role: 'AXApplication',
     title: 'TestApp',
-    uid: '1_0',
+    children: [
+      {
+        uid: '1_1',
+        role: 'AXWindow',
+        title: 'Main Window',
+        children: [
+          {
+            uid: '1_2',
+            role: 'AXButton',
+            title: 'OK',
+            bounds: { x: 100, y: 200, width: 80, height: 30 },
+            children: [],
+          },
+          {
+            uid: '1_3',
+            role: 'AXTextField',
+            title: 'Name',
+            value: 'Hello World',
+            focused: true,
+            children: [],
+          },
+          {
+            uid: '1_4',
+            role: 'AXButton',
+            title: 'Cancel',
+            enabled: false,
+            children: [],
+          },
+        ],
+      },
+    ],
   }
 
   const uidToNode = new Map<string, AXNode>()
@@ -52,14 +52,14 @@ function createTestSnapshot(overrides: Partial<AXSnapshot> = {}): AXSnapshot {
   index(root)
 
   return {
+    snapshotId: '1',
+    pid: 1234,
     appName: 'TestApp',
+    root,
+    uidToNode,
     capturedAt: '2025-01-01T00:00:00.000Z',
     maxDepth: 15,
-    pid: 1234,
-    root,
-    snapshotId: '1',
     truncated: false,
-    uidToNode,
     ...overrides,
   }
 }
@@ -100,21 +100,21 @@ describe('formatAXSnapshotAsText', () => {
 
   it('truncates long values', () => {
     const root: AXNode = {
-      children: [],
-      role: 'AXStaticText',
       uid: '1_0',
+      role: 'AXStaticText',
       value: 'A'.repeat(200),
+      children: [],
     }
     const uidToNode = new Map<string, AXNode>([['1_0', root]])
     const snapshot: AXSnapshot = {
+      snapshotId: '1',
+      pid: 1,
       appName: 'Test',
+      root,
+      uidToNode,
       capturedAt: '2025-01-01T00:00:00.000Z',
       maxDepth: 15,
-      pid: 1,
-      root,
-      snapshotId: '1',
       truncated: false,
-      uidToNode,
     }
     const text = formatAXSnapshotAsText(snapshot)
 

@@ -8,15 +8,15 @@ let microphonePermissionStatus: PermissionStatus
 
 export const useSettingsAudioDevice = defineStore('settings-audio-devices', () => {
   const {
-    askPermission: askAudioInputPermission,
-    audioInputOptions,
     audioInputs,
+    audioInputOptions,
     deviceConstraints,
     permissionGranted,
     selectedAudioInput: selectedAudioInputNonPersist,
     startStream: startAudioInputStream,
     stopStream: stopAudioInputStream,
     stream,
+    askPermission: askAudioInputPermission,
   } = useAudioDevice()
 
   const selectedAudioInputPersist = useLocalStorageManualReset<string>('settings/audio/input', selectedAudioInputNonPersist.value)
@@ -146,20 +146,20 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   }
 
   return {
-    askPermission,
-    audioInputOptions,
     audioInputs,
+    audioInputOptions,
     deviceConstraints,
+    permissionGranted,
+    selectedAudioInput: selectedAudioInputPersist,
     enabled: audioInputEnabled,
+
+    stream,
+
     initialize,
 
-    permissionGranted,
-
-    resetState,
-
-    selectedAudioInput: selectedAudioInputPersist,
+    askPermission,
     startStream,
     stopStream,
-    stream,
+    resetState,
   }
 })

@@ -1,59 +1,83 @@
-export type IntentBehavior = 'interrupt' | 'queue' | 'replace'
+export type PriorityLevel = 'critical' | 'high' | 'normal' | 'low'
 
-export interface IntentHandle {
-  cancel: (reason?: string) => void
-  end: () => void
-  intentId: string
-  ownerId?: string
-  priority: number
-  stream: ReadableStream<TextToken>
+export interface PriorityResolver {
+  resolve: (priority?: PriorityLevel | number) => number
+}
+
+export interface TextToken {
+  type: 'literal' | 'special' | 'flush'
+  value?: string
+  turnId?: string
   streamId: string
+  intentId: string
+  sequence: number
+  createdAt: number
+}
+
+export interface TextSegment {
   turnId?: string
-  writeFlush: () => void
-  writeLiteral: (text: string) => void
-  writeSpecial: (special: string) => void
+  streamId: string
+  intentId: string
+  segmentId: string
+  text: string
+  special: string | null
+  reason: 'boost' | 'limit' | 'hard' | 'flush' | 'special'
+  createdAt: number
 }
 
-export interface IntentOptions {
-  behavior?: IntentBehavior
-  intentId?: string
-  ownerId?: string
-  priority?: number | PriorityLevel
-  streamId?: string
+export interface TtsRequest {
   turnId?: string
+  streamId: string
+  intentId: string
+  segmentId: string
+  sequence: number
+  text: string
+  special: string | null
+  priority: number
+  createdAt: number
 }
 
-export interface LoggerLike {
-  debug: (message: string, ...args: unknown[]) => void
-  error: (message: string, ...args: unknown[]) => void
-  info: (message: string, ...args: unknown[]) => void
-  warn: (message: string, ...args: unknown[]) => void
-}
-
-export interface PlaybackEndEvent<TAudio> {
-  endedAt: number
-  item: PlaybackItem<TAudio>
-}
-
-export interface PlaybackInterruptEvent<TAudio> {
-  interruptedAt: number
-  item: PlaybackItem<TAudio>
-  reason: string
+export interface TtsResult<TAudio> {
+  turnId?: string
+  streamId: string
+  intentId: string
+  segmentId: string
+  sequence: number
+  text: string
+  special: string | null
+  audio: TAudio
+  createdAt: number
 }
 
 export interface PlaybackItem<TAudio> {
-  audio: TAudio
-  createdAt: number
   id: string
+  turnId?: string
+  streamId: string
   intentId: string
-  ownerId?: string
-  priority: number
   segmentId: string
   sequence: number
-  special: null | string
-  streamId: string
+  ownerId?: string
+  priority: number
   text: string
-  turnId?: string
+  special: string | null
+  audio: TAudio
+  createdAt: number
+}
+
+export interface PlaybackStartEvent<TAudio> {
+  item: PlaybackItem<TAudio>
+  startedAt: number
+}
+
+export interface PlaybackEndEvent<TAudio> {
+  item: PlaybackItem<TAudio>
+  endedAt: number
+}
+
+export interface PlaybackInterruptEvent<TAudio> {
+  item: PlaybackItem<TAudio>
+  reason: string
+  interruptedAt: number
 }
 
 export interface PlaybackRejectEvent<TAudio> {
@@ -62,75 +86,51 @@ export interface PlaybackRejectEvent<TAudio> {
   rejectedAt?: number
 }
 
-export interface PlaybackStartEvent<TAudio> {
-  item: PlaybackItem<TAudio>
-  startedAt: number
+export type IntentBehavior = 'queue' | 'interrupt' | 'replace'
+
+export interface IntentOptions {
+  turnId?: string
+  intentId?: string
+  streamId?: string
+  priority?: PriorityLevel | number
+  ownerId?: string
+  behavior?: IntentBehavior
 }
 
-export type PriorityLevel = 'critical' | 'high' | 'low' | 'normal'
-
-export interface PriorityResolver {
-  resolve: (priority?: number | PriorityLevel) => number
+export interface IntentHandle {
+  turnId?: string
+  intentId: string
+  streamId: string
+  priority: number
+  ownerId?: string
+  writeLiteral: (text: string) => void
+  writeSpecial: (special: string) => void
+  writeFlush: () => void
+  end: () => void
+  cancel: (reason?: string) => void
+  stream: ReadableStream<TextToken>
 }
 
 export interface SpeechPipelineEvents<TAudio> {
-  onIntentCancel: (event: { intentId: string, reason?: string }) => void
-  onIntentEnd: (intentId: string) => void
-  onIntentStart: (intentId: string) => void
-  onPlaybackEnd: (event: PlaybackEndEvent<TAudio>) => void
-  onPlaybackInterrupt: (event: PlaybackInterruptEvent<TAudio>) => void
-  onPlaybackReject: (event: PlaybackRejectEvent<TAudio>) => void
-  onPlaybackStart: (event: PlaybackStartEvent<TAudio>) => void
   onSegment: (segment: TextSegment) => void
   onSpecial: (segment: TextSegment) => void
   onTtsRequest: (request: TtsRequest) => void
   onTtsResult: (result: TtsResult<TAudio>) => void
-  onTurnCancel: (event: { reason?: string, turnId: string }) => void
-  onTurnEnd: (turnId: string) => void
+  onPlaybackStart: (event: PlaybackStartEvent<TAudio>) => void
+  onPlaybackEnd: (event: PlaybackEndEvent<TAudio>) => void
+  onPlaybackInterrupt: (event: PlaybackInterruptEvent<TAudio>) => void
+  onPlaybackReject: (event: PlaybackRejectEvent<TAudio>) => void
+  onIntentStart: (intentId: string) => void
+  onIntentEnd: (intentId: string) => void
+  onIntentCancel: (event: { intentId: string, reason?: string }) => void
   onTurnStart: (turnId: string) => void
+  onTurnEnd: (turnId: string) => void
+  onTurnCancel: (event: { turnId: string, reason?: string }) => void
 }
 
-export interface TextSegment {
-  createdAt: number
-  intentId: string
-  reason: 'boost' | 'flush' | 'hard' | 'limit' | 'special'
-  segmentId: string
-  special: null | string
-  streamId: string
-  text: string
-  turnId?: string
-}
-
-export interface TextToken {
-  createdAt: number
-  intentId: string
-  sequence: number
-  streamId: string
-  turnId?: string
-  type: 'flush' | 'literal' | 'special'
-  value?: string
-}
-
-export interface TtsRequest {
-  createdAt: number
-  intentId: string
-  priority: number
-  segmentId: string
-  sequence: number
-  special: null | string
-  streamId: string
-  text: string
-  turnId?: string
-}
-
-export interface TtsResult<TAudio> {
-  audio: TAudio
-  createdAt: number
-  intentId: string
-  segmentId: string
-  sequence: number
-  special: null | string
-  streamId: string
-  text: string
-  turnId?: string
+export interface LoggerLike {
+  debug: (message: string, ...args: unknown[]) => void
+  info: (message: string, ...args: unknown[]) => void
+  warn: (message: string, ...args: unknown[]) => void
+  error: (message: string, ...args: unknown[]) => void
 }

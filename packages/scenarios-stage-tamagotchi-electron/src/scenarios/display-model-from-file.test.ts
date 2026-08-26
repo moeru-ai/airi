@@ -13,8 +13,8 @@ describe('resolveDisplayModelInputFromEnvironment', () => {
       AIRI_DISPLAY_MODEL_FORMAT: 'live2d',
       AIRI_DISPLAY_MODEL_PATH: '/fixtures/avatar.zip',
     })).toEqual({
-      filePath: '/fixtures/avatar.zip',
       format: 'live2d',
+      filePath: '/fixtures/avatar.zip',
     })
   })
 
@@ -37,8 +37,8 @@ describe('importDisplayModelFromFile', () => {
     const electronApp = Object.create(null) as ElectronApplication
 
     await expect(importDisplayModelFromFile(electronApp, {
-      filePath: 'fixtures/avatar.pmx',
       format: 'mmd',
+      filePath: 'fixtures/avatar.pmx',
     })).rejects.toThrowError('Display model input must be an absolute path')
   })
 })

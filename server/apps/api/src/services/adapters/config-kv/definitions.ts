@@ -39,36 +39,36 @@ export const routeFailureTriggersSchema = object({
 })
 
 export const keyEntrySchema = object({
-  ciphertext: pipe(string(), nonEmpty('keys[].ciphertext must not be empty')),
   id: pipe(
     string(),
     nonEmpty('keys[].id must not be empty'),
     regex(/^[^|]+$/, 'keys[].id must not contain "|" (reserved AAD separator)'),
   ),
+  ciphertext: pipe(string(), nonEmpty('keys[].ciphertext must not be empty')),
 })
 
 export const llmUpstreamSchema = object({
-  baseURL: pipe(string(), nonEmpty('llm.upstreams[].baseURL must not be empty')),
-  headerTemplate: optional(string(), 'Bearer {KEY}'),
   id: optional(pipe(
     string(),
     nonEmpty('llm.upstreams[].id must not be empty'),
     regex(/^[^|]+$/, 'llm.upstreams[].id must not contain "|"'),
   )),
-  keys: pipe(array(keyEntrySchema), check(v => v.length >= 1, 'llm.upstreams[].keys must contain at least 1 entry')),
+  baseURL: pipe(string(), nonEmpty('llm.upstreams[].baseURL must not be empty')),
   overrideModel: optional(string()),
+  keys: pipe(array(keyEntrySchema), check(v => v.length >= 1, 'llm.upstreams[].keys must contain at least 1 entry')),
+  headerTemplate: optional(string(), 'Bearer {KEY}'),
   timeoutMs: optional(number()),
 })
 
 export const llmRoutingGroupSchema = object({
-  continueOn: optional(routeFailureTriggersSchema),
   id: pipe(string(), nonEmpty('llm.routing.groups[].id must not be empty')),
-  retryOn: routeFailureTriggersSchema,
   upstreamIds: pipe(
     array(pipe(string(), nonEmpty('llm.routing.groups[].upstreamIds[] must not be empty'))),
     check(v => v.length >= 1, 'llm.routing.groups[].upstreamIds must contain at least 1 entry'),
     check(v => new Set(v).size === v.length, 'llm.routing.groups[].upstreamIds must be unique'),
   ),
+  retryOn: routeFailureTriggersSchema,
+  continueOn: optional(routeFailureTriggersSchema),
 })
 
 export const llmRoutingSchema = object({
@@ -81,9 +81,9 @@ export const llmRoutingSchema = object({
 
 export const llmModelSchema = pipe(
   object({
-    fallbackTriggers: fallbackTriggersSchema,
-    routing: optional(llmRoutingSchema),
     upstreams: pipe(array(llmUpstreamSchema), check(v => v.length >= 1, 'llm.models[].upstreams must contain at least 1 entry')),
+    routing: optional(llmRoutingSchema),
+    fallbackTriggers: fallbackTriggersSchema,
   }),
   check((model) => {
     if (model.routing == null)
@@ -107,14 +107,14 @@ const ttsProviderSchema = picklist(['azure', 'dashscope-cosyvoice', 'stepfun', '
 const asrProviderSchema = picklist(['aliyun-nls'])
 
 export const ttsUpstreamSchema = object({
-  adapterParams: optional(record(string(), any()), {}),
-  baseURL: pipe(string(), nonEmpty('tts.upstreams[].baseURL must not be empty')),
   id: optional(pipe(
     string(),
     nonEmpty('tts.upstreams[].id must not be empty'),
     regex(/^[^|]+$/, 'tts.upstreams[].id must not contain "|"'),
   )),
+  baseURL: pipe(string(), nonEmpty('tts.upstreams[].baseURL must not be empty')),
   keys: pipe(array(keyEntrySchema), check(v => v.length >= 1, 'tts.upstreams[].keys must contain at least 1 entry')),
+  adapterParams: optional(record(string(), any()), {}),
   // Per-app_id concurrency cap for the pool load balancer. One upstream maps to
   // one app_id (Volcengine `adapterParams.appid`), capped by the provider at a
   // small number (e.g. 10). When set on any upstream of a model, the router
@@ -125,15 +125,15 @@ export const ttsUpstreamSchema = object({
 })
 
 export const ttsRoutingGroupSchema = object({
-  continueOn: optional(routeFailureTriggersSchema),
   id: pipe(string(), nonEmpty('tts.routing.groups[].id must not be empty')),
-  retryOn: routeFailureTriggersSchema,
-  strategy: optional(picklist(['ordered', 'least-inflight']), 'ordered'),
   upstreamIds: pipe(
     array(pipe(string(), nonEmpty('tts.routing.groups[].upstreamIds[] must not be empty'))),
     check(v => v.length >= 1, 'tts.routing.groups[].upstreamIds must contain at least 1 entry'),
     check(v => new Set(v).size === v.length, 'tts.routing.groups[].upstreamIds must be unique'),
   ),
+  strategy: optional(picklist(['ordered', 'least-inflight']), 'ordered'),
+  retryOn: routeFailureTriggersSchema,
+  continueOn: optional(routeFailureTriggersSchema),
 })
 
 export const ttsRoutingSchema = object({
@@ -145,18 +145,18 @@ export const ttsRoutingSchema = object({
 })
 
 export const streamingTtsUpstreamSchema = object({
-  adapterParams: optional(record(string(), any()), {}),
   baseURL: pipe(string(), nonEmpty('UNSPEECH_UPSTREAM.streaming.baseURL must not be empty')),
-  defaultModel: optional(string()),
   keys: pipe(array(keyEntrySchema), check(v => v.length >= 1, 'UNSPEECH_UPSTREAM.streaming.keys must contain at least 1 entry')),
+  adapterParams: optional(record(string(), any()), {}),
   models: optional(
     array(object({
-      description: optional(string()),
       id: pipe(string(), nonEmpty('UNSPEECH_UPSTREAM.streaming.models[].id must not be empty')),
       name: optional(string()),
+      description: optional(string()),
     })),
     [],
   ),
+  defaultModel: optional(string()),
 })
 
 export const unspeechUpstreamSchema = object({
@@ -166,10 +166,10 @@ export const unspeechUpstreamSchema = object({
 
 export const ttsModelSchema = pipe(
   object({
-    fallbackTriggers: fallbackTriggersSchema,
     provider: ttsProviderSchema,
-    routing: optional(ttsRoutingSchema),
     upstreams: pipe(array(ttsUpstreamSchema), check(v => v.length >= 1, 'tts.models[].upstreams must contain at least 1 entry')),
+    routing: optional(ttsRoutingSchema),
+    fallbackTriggers: fallbackTriggersSchema,
   }),
   check((model) => {
     if (model.routing == null)
@@ -199,8 +199,8 @@ export const ttsModelSchema = pipe(
 )
 
 export const asrUpstreamSchema = object({
-  adapterParams: optional(record(string(), any()), {}),
   keys: pipe(array(keyEntrySchema), check(v => v.length >= 1, 'asr.upstreams[].keys must contain at least 1 entry')),
+  adapterParams: optional(record(string(), any()), {}),
 })
 
 export const asrModelSchema = object({
@@ -210,24 +210,24 @@ export const asrModelSchema = object({
 
 export const llmRouterDefaultsSchema = optional(
   object({
-    fallbackHttpCodes: optional(array(number()), [401, 402, 403, 429, 500, 502, 503, 504]),
-    fullChainTimeoutMs: optional(number(), 60000),
     perAttemptTimeoutMs: optional(number(), 30000),
+    fullChainTimeoutMs: optional(number(), 60000),
+    fallbackHttpCodes: optional(array(number()), [401, 402, 403, 429, 500, 502, 503, 504]),
   }),
-  { fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504], fullChainTimeoutMs: 60000, perAttemptTimeoutMs: 30000 },
+  { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504] },
 )
 
 export const llmRouterConfigSchema = object({
-  asr: optional(object({
-    models: record(string(), asrModelSchema),
-  })),
-  defaults: llmRouterDefaultsSchema,
   llm: object({
     models: record(string(), llmModelSchema),
   }),
   tts: object({
     models: record(string(), ttsModelSchema),
   }),
+  asr: optional(object({
+    models: record(string(), asrModelSchema),
+  })),
+  defaults: llmRouterDefaultsSchema,
 })
 
 /**
@@ -237,6 +237,24 @@ export const llmRouterConfigSchema = object({
  * - stored JSON shape
  */
 export const configEntrySchemas = {
+  FLUX_PER_REQUEST: optional(number(), 5),
+  INITIAL_USER_FLUX: optional(number(), 0),
+  FLUX_PER_1K_TOKENS: optional(number(), 1),
+  FLUX_PER_1K_CHARS_TTS: number(),
+  // Debt-ledger TTL: residual TTS chars below 1 Flux are forgiven on expiry.
+  // 24h gives users a long-enough window for accumulated dust to settle naturally.
+  TTS_DEBT_TTL_SECONDS: optional(number(), 86400),
+  // No default — absent means top-up is not available yet
+  STRIPE_FLUX_PRODUCT_ID: optional(string()),
+  // No default — absent lets Stripe auto-select payment methods via Dashboard config
+  STRIPE_PAYMENT_METHODS: optional(array(string())),
+  STRIPE_PAYMENT_METHOD_OPTIONS: optional(record(string(), any()), {}),
+  // model id → (BCP-47 locale → recommended voice id). Outer key is either a
+  // router TTS model id (LLM_ROUTER_CONFIG.tts.models key) for REST or a
+  // streaming api_resource_id (e.g. `seed-tts-2.0`) for the streaming surface.
+  // The two key spaces do not overlap. Consumed by the client to preselect a
+  // voice matching UI locale per active model.
+  DEFAULT_TTS_VOICES: optional(record(string(), record(string(), string())), {}),
   // Server-side alias resolution for `model: 'auto'` in /chat/completions and
   // /audio/speech. The modelName written here must exist as a key in
   // LLM_ROUTER_CONFIG.{llm,tts}.models — the router itself doesn't understand
@@ -247,27 +265,9 @@ export const configEntrySchemas = {
   // type tight (`string` rather than `string | undefined`) for call sites.
   DEFAULT_CHAT_MODEL: pipe(string(), nonEmpty('DEFAULT_CHAT_MODEL must not be empty')),
   DEFAULT_TTS_MODEL: pipe(string(), nonEmpty('DEFAULT_TTS_MODEL must not be empty')),
-  // model id → (BCP-47 locale → recommended voice id). Outer key is either a
-  // router TTS model id (LLM_ROUTER_CONFIG.tts.models key) for REST or a
-  // streaming api_resource_id (e.g. `seed-tts-2.0`) for the streaming surface.
-  // The two key spaces do not overlap. Consumed by the client to preselect a
-  // voice matching UI locale per active model.
-  DEFAULT_TTS_VOICES: optional(record(string(), record(string(), string())), {}),
-  FLUX_PER_1K_CHARS_TTS: number(),
-  FLUX_PER_1K_TOKENS: optional(number(), 1),
-  FLUX_PER_REQUEST: optional(number(), 5),
-  INITIAL_USER_FLUX: optional(number(), 0),
   // No default — the router throws CONFIG_NOT_SET when this entry is absent
   // so deployment configuration must populate it before traffic flows.
   LLM_ROUTER_CONFIG: optional(llmRouterConfigSchema),
-  // No default — absent means top-up is not available yet
-  STRIPE_FLUX_PRODUCT_ID: optional(string()),
-  STRIPE_PAYMENT_METHOD_OPTIONS: optional(record(string(), any()), {}),
-  // No default — absent lets Stripe auto-select payment methods via Dashboard config
-  STRIPE_PAYMENT_METHODS: optional(array(string())),
-  // Debt-ledger TTL: residual TTS chars below 1 Flux are forgiven on expiry.
-  // 24h gives users a long-enough window for accumulated dust to settle naturally.
-  TTS_DEBT_TTL_SECONDS: optional(number(), 86400),
   // Single unspeech deployment used for every TTS surface: REST audio/speech,
   // REST voices catalog, ws audio/speech/stream. `streaming` is optional —
   // operator may run REST-only without the ws upstream. `streaming.keys`

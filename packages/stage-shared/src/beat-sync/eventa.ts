@@ -18,15 +18,6 @@ export const beatSyncStateChangedInvokeEventa = defineInvokeEventa<void, BeatSyn
 export const beatSyncBeatSignaledInvokeEventa = defineInvokeEventa<void, AnalyserBeatEvent>('eventa:event:electron:beat-sync:beat-signaled')
 
 let _broadcastChannel: BroadcastChannel | undefined
-export function createContext(): InvocableEventContext<any, { raw?: any }> {
-  if (isElectronWindow(window)) {
-    return createBroadcastChannelContext(getBroadcastChannel()).context as InvocableEventContext<any, { raw?: any }>
-  }
-  else {
-    return createWebContext()
-  }
-}
-
 function getBroadcastChannel() {
   if (!_broadcastChannel) {
     _broadcastChannel = new BroadcastChannel('airi::beat-sync')
@@ -36,4 +27,13 @@ function getBroadcastChannel() {
     }
   }
   return _broadcastChannel
+}
+
+export function createContext(): InvocableEventContext<any, { raw?: any }> {
+  if (isElectronWindow(window)) {
+    return createBroadcastChannelContext(getBroadcastChannel()).context as InvocableEventContext<any, { raw?: any }>
+  }
+  else {
+    return createWebContext()
+  }
 }

@@ -4,19 +4,41 @@ import type { MorphSlot } from '../../constants/morphs'
 
 import { MORPH_CANDIDATES } from '../../constants/morphs'
 
+/**
+ * Resolves a logical {@link MorphSlot} to the first matching morph name that
+ * actually exists on the model.
+ *
+ * Before:
+ * - slot "vowelA" with candidates ["あ", "a", "A"]
+ *
+ * After (model that ships English morphs):
+ * - "A"
+ */
+function resolveMorphName(slot: MorphSlot, available: Set<string>, overrides: Partial<Record<MorphSlot, string>>): string | undefined {
+  const override = overrides[slot]
+  if (override && available.has(override))
+    return override
+
+  for (const candidate of MORPH_CANDIDATES[slot]) {
+    if (available.has(candidate))
+      return candidate
+  }
+  return undefined
+}
+
 export interface MorphController {
+  /** Logical slots that resolved to a real morph on this model. */
+  readonly resolvedSlots: MorphSlot[]
   /** Every morph name exposed by the model, for settings UIs. */
   readonly availableMorphs: string[]
+  /** Sets a logical slot's weight, clamped to [0, 1]. No-op if unresolved. */
+  set: (slot: MorphSlot, weight: number) => void
   /** Reads back the current weight of a logical slot. */
   get: (slot: MorphSlot) => number
   /** Forces a slot to bind to an explicit morph name (settings override). */
   override: (slot: MorphSlot, morphName: string) => void
   /** Zeroes every slot this controller manages (leaves VMD morphs intact). */
   resetManaged: () => void
-  /** Logical slots that resolved to a real morph on this model. */
-  readonly resolvedSlots: MorphSlot[]
-  /** Sets a logical slot's weight, clamped to [0, 1]. No-op if unresolved. */
-  set: (slot: MorphSlot, weight: number) => void
 }
 
 /**
@@ -52,8 +74,20 @@ export function createMorphController(
   rebind()
 
   return {
+    get resolvedSlots() {
+      return Array.from(slotIndex.keys())
+    },
     get availableMorphs() {
       return Array.from(available)
+    },
+    set(slot, weight) {
+      const index = slotIndex.get(slot)
+      // Read morphTargetInfluences live: caching it risks writing to a stale
+      // or detached array if three (re)assigns it during updateMorphTargets.
+      const influences = mesh.morphTargetInfluences
+      if (index === undefined || !influences)
+        return
+      influences[index] = weight < 0 ? 0 : weight > 1 ? 1 : weight
     },
     get(slot) {
       const index = slotIndex.get(slot)
@@ -71,39 +105,5 @@ export function createMorphController(
       for (const index of slotIndex.values())
         influences[index] = 0
     },
-    get resolvedSlots() {
-      return Array.from(slotIndex.keys())
-    },
-    set(slot, weight) {
-      const index = slotIndex.get(slot)
-      // Read morphTargetInfluences live: caching it risks writing to a stale
-      // or detached array if three (re)assigns it during updateMorphTargets.
-      const influences = mesh.morphTargetInfluences
-      if (index === undefined || !influences)
-        return
-      influences[index] = weight < 0 ? 0 : weight > 1 ? 1 : weight
-    },
   }
-}
-
-/**
- * Resolves a logical {@link MorphSlot} to the first matching morph name that
- * actually exists on the model.
- *
- * Before:
- * - slot "vowelA" with candidates ["あ", "a", "A"]
- *
- * After (model that ships English morphs):
- * - "A"
- */
-function resolveMorphName(slot: MorphSlot, available: Set<string>, overrides: Partial<Record<MorphSlot, string>>): string | undefined {
-  const override = overrides[slot]
-  if (override && available.has(override))
-    return override
-
-  for (const candidate of MORPH_CANDIDATES[slot]) {
-    if (available.has(candidate))
-      return candidate
-  }
-  return undefined
 }

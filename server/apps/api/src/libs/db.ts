@@ -15,7 +15,7 @@ const migrationsFolder = fileURLToPath(new URL('../../drizzle', import.meta.url)
 
 export type Database = ReturnType<typeof createDrizzle>['db']
 
-type DrizzleEnv = Pick<Env, 'DATABASE_URL' | 'DB_POOL_CONNECTION_TIMEOUT_MS' | 'DB_POOL_IDLE_TIMEOUT_MS' | 'DB_POOL_KEEPALIVE_INITIAL_DELAY_MS' | 'DB_POOL_MAX'>
+type DrizzleEnv = Pick<Env, 'DATABASE_URL' | 'DB_POOL_MAX' | 'DB_POOL_IDLE_TIMEOUT_MS' | 'DB_POOL_CONNECTION_TIMEOUT_MS' | 'DB_POOL_KEEPALIVE_INITIAL_DELAY_MS'>
 
 // NOTICE: pg is imported statically here. The OTEL instrumentation hooks are
 // registered via --import ./instrumentation.ts (preload) which runs before
@@ -23,11 +23,11 @@ type DrizzleEnv = Pick<Env, 'DATABASE_URL' | 'DB_POOL_CONNECTION_TIMEOUT_MS' | '
 export function createDrizzle(env: DrizzleEnv) {
   const pool = new pg.Pool({
     connectionString: env.DATABASE_URL,
-    connectionTimeoutMillis: env.DB_POOL_CONNECTION_TIMEOUT_MS,
+    max: env.DB_POOL_MAX,
     idleTimeoutMillis: env.DB_POOL_IDLE_TIMEOUT_MS,
+    connectionTimeoutMillis: env.DB_POOL_CONNECTION_TIMEOUT_MS,
     keepAlive: true,
     keepAliveInitialDelayMillis: env.DB_POOL_KEEPALIVE_INITIAL_DELAY_MS,
-    max: env.DB_POOL_MAX,
   })
 
   pool.on('error', (err) => {

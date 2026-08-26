@@ -15,12 +15,12 @@ export async function createBotContext(logger: Logg): Promise<BotContext> {
   ])
 
   const botSelf: BotContext = {
-    chats: new Map<string, ChatContext>(),
     eventQueue,
-    lastInteractedChannelIds: [],
-    logger,
-    processedIds: new Set(),
     unreadEvents,
+    processedIds: new Set(),
+    logger,
+    lastInteractedChannelIds: [],
+    chats: new Map<string, ChatContext>(),
   }
 
   return botSelf
@@ -48,13 +48,13 @@ export async function ensureChatContext(botCtx: BotContext, channelId: string): 
   const channelInfo = channels.find(c => c.id === channelId)
 
   const newChatContext: ChatContext = {
-    actions: [],
     channelId,
-    currentAbortController: undefined,
-    currentTask: undefined,
-    isProcessing: false,
     platform: channelInfo?.platform || '',
     selfId: channelInfo?.selfId || '',
+    isProcessing: false,
+    currentTask: undefined,
+    currentAbortController: undefined,
+    actions: [],
   }
 
   log

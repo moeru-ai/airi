@@ -3,81 +3,69 @@ const TAG_CLOSE = '|>'
 const ESCAPED_TAG_OPEN = '<{\'|\'}'
 const ESCAPED_TAG_CLOSE = '{\'|\'}>'
 
-interface MarkerParserOptions {
-  minLiteralEmitLength?: number
-}
-
 interface MarkerToken {
   type: 'literal' | 'special'
   value: string
 }
 
-interface StreamController<T> {
-  close: () => void
-  error: (err: unknown) => void
-  stream: ReadableStream<T>
-  write: (value: T) => void
+interface MarkerParserOptions {
+  minLiteralEmitLength?: number
 }
 
-/**
- * Creates a streaming parser for LLM responses with AIRI special markers.
- *
- * Use when:
- * - Handling streamed model output that may contain `<|...|>` markers.
- * - Literal text and special marker tokens need to be emitted separately.
- *
- * Expects:
- * - Callers feed chunks in order and call `end()` once the model stream ends.
- *
- * Returns:
- * - A parser with `consume()` and `end()` methods.
- */
-export function useLlmmarkerParser(options: {
-  /**
-   * The minimum length of text required to emit a literal part.
-   * Useful for avoiding emitting literal parts too fast.
-   */
-  minLiteralEmitLength?: number
-  /**
-   * Called when parsing ends with the full accumulated text.
-   * Useful for final processing like categorization or filtering.
-   */
-  onEnd?: (fullText: string) => Promise<void> | void
-  onLiteral?: (literal: string) => Promise<void> | void
-  onSpecial?: (special: string) => Promise<void> | void
-}) {
-  let fullText = ''
-  const { close, stream, write } = createPushStream<string>()
+interface StreamController<T> {
+  stream: ReadableStream<T>
+  write: (value: T) => void
+  close: () => void
+  error: (err: unknown) => void
+}
 
-  const markerStream = createLlmMarkerStream(stream, { minLiteralEmitLength: options.minLiteralEmitLength })
+function createPushStream<T>(): StreamController<T> {
+  let closed = false
+  let controller: ReadableStreamDefaultController<T> | null = null
 
-  const processing = readStream(markerStream, async (token) => {
-    if (token.type === 'literal')
-      await options.onLiteral?.(token.value)
-    if (token.type === 'special')
-      await options.onSpecial?.(token.value)
+  const stream = new ReadableStream<T>({
+    start(ctrl) {
+      controller = ctrl
+    },
+    cancel() {
+      closed = true
+    },
   })
 
   return {
-    /**
-     * Consumes a chunk of text from the stream.
-     *
-     * @param textPart The chunk of text to consume.
-     */
-    async consume(textPart: string) {
-      fullText += textPart
-      write(textPart)
+    stream,
+    write(value) {
+      if (!controller || closed)
+        return
+      controller.enqueue(value)
     },
+    close() {
+      if (!controller || closed)
+        return
+      closed = true
+      controller.close()
+    },
+    error(err) {
+      if (!controller || closed)
+        return
+      closed = true
+      controller.error(err)
+    },
+  }
+}
 
-    /**
-     * Finalizes the parsing process.
-     * Any remaining content in the buffer is flushed as a final literal part.
-     */
-    async end() {
-      close()
-      await processing
-      await options.onEnd?.(fullText)
-    },
+async function readStream<T>(stream: ReadableStream<T>, handler: (value: T) => Promise<void> | void) {
+  const reader = stream.getReader()
+  try {
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done)
+        break
+      await handler(value as T)
+    }
+  }
+  finally {
+    reader.releaseLock()
   }
 }
 
@@ -136,7 +124,7 @@ function createLlmMarkerParser(options?: MarkerParserOptions) {
 }
 
 function createLlmMarkerStream(input: ReadableStream<string>, options?: MarkerParserOptions) {
-  const { close, error, stream, write } = createPushStream<MarkerToken>()
+  const { stream, write, close, error } = createPushStream<MarkerToken>()
   const parser = createLlmMarkerParser(options)
 
   void readStream(input, async (chunk) => {
@@ -167,52 +155,64 @@ function createLlmMarkerStream(input: ReadableStream<string>, options?: MarkerPa
   return stream
 }
 
-function createPushStream<T>(): StreamController<T> {
-  let closed = false
-  let controller: null | ReadableStreamDefaultController<T> = null
+/**
+ * Creates a streaming parser for LLM responses with AIRI special markers.
+ *
+ * Use when:
+ * - Handling streamed model output that may contain `<|...|>` markers.
+ * - Literal text and special marker tokens need to be emitted separately.
+ *
+ * Expects:
+ * - Callers feed chunks in order and call `end()` once the model stream ends.
+ *
+ * Returns:
+ * - A parser with `consume()` and `end()` methods.
+ */
+export function useLlmmarkerParser(options: {
+  onLiteral?: (literal: string) => void | Promise<void>
+  onSpecial?: (special: string) => void | Promise<void>
+  /**
+   * Called when parsing ends with the full accumulated text.
+   * Useful for final processing like categorization or filtering.
+   */
+  onEnd?: (fullText: string) => void | Promise<void>
+  /**
+   * The minimum length of text required to emit a literal part.
+   * Useful for avoiding emitting literal parts too fast.
+   */
+  minLiteralEmitLength?: number
+}) {
+  let fullText = ''
+  const { stream, write, close } = createPushStream<string>()
 
-  const stream = new ReadableStream<T>({
-    cancel() {
-      closed = true
-    },
-    start(ctrl) {
-      controller = ctrl
-    },
+  const markerStream = createLlmMarkerStream(stream, { minLiteralEmitLength: options.minLiteralEmitLength })
+
+  const processing = readStream(markerStream, async (token) => {
+    if (token.type === 'literal')
+      await options.onLiteral?.(token.value)
+    if (token.type === 'special')
+      await options.onSpecial?.(token.value)
   })
 
   return {
-    close() {
-      if (!controller || closed)
-        return
-      closed = true
-      controller.close()
+    /**
+     * Consumes a chunk of text from the stream.
+     *
+     * @param textPart The chunk of text to consume.
+     */
+    async consume(textPart: string) {
+      fullText += textPart
+      write(textPart)
     },
-    error(err) {
-      if (!controller || closed)
-        return
-      closed = true
-      controller.error(err)
-    },
-    stream,
-    write(value) {
-      if (!controller || closed)
-        return
-      controller.enqueue(value)
-    },
-  }
-}
 
-async function readStream<T>(stream: ReadableStream<T>, handler: (value: T) => Promise<void> | void) {
-  const reader = stream.getReader()
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done)
-        break
-      await handler(value as T)
-    }
-  }
-  finally {
-    reader.releaseLock()
+    /**
+     * Finalizes the parsing process.
+     * Any remaining content in the buffer is flushed as a final literal part.
+     */
+    async end() {
+      close()
+      await processing
+      await options.onEnd?.(fullText)
+    },
   }
 }

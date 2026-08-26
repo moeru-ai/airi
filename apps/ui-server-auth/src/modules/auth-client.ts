@@ -51,11 +51,11 @@ export function getAuthClient(args: AuthClientArgs): AuthClient {
   if (args.fetchImpl || args.requestSignal) {
     return createAuthClient({
       baseURL: args.apiServerUrl,
+      plugins: [steamClient()],
       fetchOptions: {
         ...(args.fetchImpl ? { customFetchImpl: args.fetchImpl } : {}),
         ...(args.requestSignal ? { signal: args.requestSignal } : {}),
       },
-      plugins: [steamClient()],
     })
   }
 

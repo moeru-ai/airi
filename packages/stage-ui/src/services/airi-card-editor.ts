@@ -16,38 +16,25 @@ import {
   unknown,
 } from 'valibot'
 
-export type AiriCardDraftValidationError = 'invalid_artistry_json' | 'name' | 'version'
-
-export type AiriCardDraftValidationResult
-  = | {
-    error: AiriCardDraftValidationError
-    success: false
-  }
-  | {
-    output: {
-      artistryOptions: Record<string, unknown> | undefined
-      card: Card
-    }
-    success: true
-  }
+export type AiriCardDraftValidationError = 'name' | 'version' | 'invalid_artistry_json'
 
 /** Module settings owned by the AIRI Card editor form. */
 interface AiriCardEditorModules {
+  consciousness: AiriExtension['modules']['consciousness']
+  vision: AiriExtension['modules']['vision']
+  speech: Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>
+  displayModelId?: string
   artistry: Pick<
     NonNullable<AiriExtension['modules']['artistry']>,
+    | 'provider'
+    | 'model'
+    | 'promptPrefix'
+    | 'widgetInstruction'
+    | 'spawnMode'
+    | 'options'
     | 'autonomousEnabled'
     | 'autonomousThreshold'
-    | 'model'
-    | 'options'
-    | 'promptPrefix'
-    | 'provider'
-    | 'spawnMode'
-    | 'widgetInstruction'
   >
-  consciousness: AiriExtension['modules']['consciousness']
-  displayModelId?: string
-  speech: Pick<AiriExtension['modules']['speech'], 'model' | 'provider' | 'voice_id'>
-  vision: AiriExtension['modules']['vision']
 }
 
 type CardWithAiriExtension = Card & {
@@ -55,6 +42,19 @@ type CardWithAiriExtension = Card & {
     airi: AiriExtension
   }
 }
+
+export type AiriCardDraftValidationResult
+  = | {
+    success: true
+    output: {
+      card: Card
+      artistryOptions: Record<string, unknown> | undefined
+    }
+  }
+  | {
+    success: false
+    error: AiriCardDraftValidationError
+  }
 
 const cardDraftSchema = object({
   name: pipe(string(), trim(), nonEmpty()),
@@ -68,6 +68,51 @@ const artistryOptionsSchema = pipe(
   check(isRecord),
   objectWithRest({}, unknown()),
 )
+
+/**
+ * Validates and normalizes the fields owned by the AIRI Card editor.
+ *
+ * Display text remains untouched except for boundary whitespace on the
+ * required name and version fields. Artistry options must be a JSON object
+ * when present.
+ */
+export function safeParseAiriCardDraft(card: Card, artistryOptionsJson: string): AiriCardDraftValidationResult {
+  const cardResult = safeParse(cardDraftSchema, card)
+  if (!cardResult.success) {
+    const invalidField = cardResult.issues[0]?.path?.[0]?.key
+    return {
+      success: false,
+      error: invalidField === 'version' ? 'version' : 'name',
+    }
+  }
+
+  const normalizedArtistryOptions = artistryOptionsJson.trim()
+  if (!normalizedArtistryOptions) {
+    return {
+      success: true,
+      output: {
+        card: { ...card, ...cardResult.output },
+        artistryOptions: undefined,
+      },
+    }
+  }
+
+  const artistryResult = safeParse(artistryOptionsSchema, normalizedArtistryOptions)
+  if (!artistryResult.success) {
+    return {
+      success: false,
+      error: 'invalid_artistry_json',
+    }
+  }
+
+  return {
+    success: true,
+    output: {
+      card: { ...card, ...cardResult.output },
+      artistryOptions: artistryResult.output,
+    },
+  }
+}
 
 /**
  * Applies editor-owned module fields to a complete character card.
@@ -90,66 +135,21 @@ export function applyAiriCardEditorModules(
       ...card.extensions,
       airi: {
         ...existing,
-        agents: existing?.agents ?? {},
         modules: {
           ...existing?.modules,
           ...edited,
-          artistry: {
-            ...existing?.modules.artistry,
-            ...edited.artistry,
-          },
           speech: {
             ...existing?.modules.speech,
             ...edited.speech,
           },
+          artistry: {
+            ...existing?.modules.artistry,
+            ...edited.artistry,
+          },
         },
+        agents: existing?.agents ?? {},
       },
     },
-  }
-}
-
-/**
- * Validates and normalizes the fields owned by the AIRI Card editor.
- *
- * Display text remains untouched except for boundary whitespace on the
- * required name and version fields. Artistry options must be a JSON object
- * when present.
- */
-export function safeParseAiriCardDraft(card: Card, artistryOptionsJson: string): AiriCardDraftValidationResult {
-  const cardResult = safeParse(cardDraftSchema, card)
-  if (!cardResult.success) {
-    const invalidField = cardResult.issues[0]?.path?.[0]?.key
-    return {
-      error: invalidField === 'version' ? 'version' : 'name',
-      success: false,
-    }
-  }
-
-  const normalizedArtistryOptions = artistryOptionsJson.trim()
-  if (!normalizedArtistryOptions) {
-    return {
-      output: {
-        artistryOptions: undefined,
-        card: { ...card, ...cardResult.output },
-      },
-      success: true,
-    }
-  }
-
-  const artistryResult = safeParse(artistryOptionsSchema, normalizedArtistryOptions)
-  if (!artistryResult.success) {
-    return {
-      error: 'invalid_artistry_json',
-      success: false,
-    }
-  }
-
-  return {
-    output: {
-      artistryOptions: artistryResult.output,
-      card: { ...card, ...cardResult.output },
-    },
-    success: true,
   }
 }
 

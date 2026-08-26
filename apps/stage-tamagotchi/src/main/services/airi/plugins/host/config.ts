@@ -5,12 +5,20 @@ import { array, object, record, string } from 'valibot'
 import { createConfig } from '../../../../libs/electron/persistence'
 
 const extensionConfigSchema = object({
-  autoReload: array(string()),
   enabled: array(string()),
+  autoReload: array(string()),
   known: record(string(), object({
     path: string(),
   })),
 })
+
+function createDefaultExtensionConfig(): ExtensionConfig {
+  return {
+    enabled: [],
+    autoReload: [],
+    known: {},
+  }
+}
 
 /**
  * Persists extension host enablement and discovery metadata.
@@ -27,8 +35,8 @@ const extensionConfigSchema = object({
  * - Accessors around the persisted extension config document
  */
 export interface ExtensionHostConfigStore {
-  get: () => ExtensionConfig
   setup: () => void
+  get: () => ExtensionConfig
   update: (config: ExtensionConfig) => void
 }
 
@@ -46,27 +54,19 @@ export interface ExtensionHostConfigStore {
  */
 export function createExtensionHostConfigStore(): ExtensionHostConfigStore {
   const extensionConfig = createConfig('extensions', 'v1.json', extensionConfigSchema, {
-    autoHeal: true,
     default: createDefaultExtensionConfig(),
+    autoHeal: true,
   })
 
   return {
-    get() {
-      return extensionConfig.get() ?? createDefaultExtensionConfig()
-    },
     setup() {
       extensionConfig.setup()
+    },
+    get() {
+      return extensionConfig.get() ?? createDefaultExtensionConfig()
     },
     update(config) {
       extensionConfig.update(config)
     },
-  }
-}
-
-function createDefaultExtensionConfig(): ExtensionConfig {
-  return {
-    autoReload: [],
-    enabled: [],
-    known: {},
   }
 }

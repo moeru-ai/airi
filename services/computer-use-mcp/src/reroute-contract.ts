@@ -18,11 +18,12 @@ import type { BrowserSurfaceKind, TerminalSurface } from './types'
 // ---------------------------------------------------------------------------
 
 export interface WorkflowRerouteDetail {
-  /**
-   * Available browser surface stacks at the moment of reroute.
-   * Only populated for browser-family reroutes.
-   */
-  availableSurfaces?: BrowserSurfaceKind[]
+  /** Target surface category for the reroute. */
+  recommendedSurface: RecommendedSurface
+  /** Most-recommended next tool to call. */
+  suggestedTool: string
+  /** Why the strategy layer decided to reroute (always present). */
+  strategyReason: string
   /**
    * Only present when a prep tool or runtime probe ran and provided
    * information beyond the strategy heuristic. Pure-strategy reroutes
@@ -32,26 +33,25 @@ export interface WorkflowRerouteDetail {
   /** Human-readable explanation for logging / UI display. */
   explanation: string
   /**
+   * Available browser surface stacks at the moment of reroute.
+   * Only populated for browser-family reroutes.
+   */
+  availableSurfaces?: BrowserSurfaceKind[]
+  /**
    * The preferred browser surface stack chosen by the runtime
    * availability model. Only populated for browser-family reroutes.
    */
   preferredSurface?: BrowserSurfaceKind
   /**
-   * PTY session id to resume (if the reroute is to an existing PTY).
-   * Only populated for pty reroutes with bound sessions.
-   */
-  ptySessionId?: string
-  /** Target surface category for the reroute. */
-  recommendedSurface: RecommendedSurface
-  /** Why the strategy layer decided to reroute (always present). */
-  strategyReason: string
-  /** Most-recommended next tool to call. */
-  suggestedTool: string
-  /**
    * Terminal surface that triggered the reroute (e.g. 'pty').
    * Only populated for terminal-family reroutes (exec → pty).
    */
   terminalSurface?: TerminalSurface
+  /**
+   * PTY session id to resume (if the reroute is to an existing PTY).
+   * Only populated for pty reroutes with bound sessions.
+   */
+  ptySessionId?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -60,11 +60,11 @@ export interface WorkflowRerouteDetail {
 
 export interface WorkflowRerouteStructuredContent {
   kind: 'workflow_reroute'
-  reroute: WorkflowRerouteDetail
   status: 'reroute_required'
-  stepResults: unknown[]
-  task: unknown
   workflow: string
+  reroute: WorkflowRerouteDetail
+  task: unknown
+  stepResults: unknown[]
 }
 
 // ---------------------------------------------------------------------------

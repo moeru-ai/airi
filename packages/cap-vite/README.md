@@ -37,13 +37,13 @@ const isCleartext = serverURL?.startsWith('http://') ?? false
 const config: CapacitorConfig = {
   appId: 'com.example.app',
   appName: 'Example App',
+  webDir: 'dist',
   server: serverURL
     ? {
-        cleartext: isCleartext,
         url: serverURL,
+        cleartext: isCleartext,
       }
     : undefined,
-  webDir: 'dist',
 }
 
 export default config

@@ -34,51 +34,132 @@ import { createInterface } from 'node:readline'
 
 import { errorMessageFromValue } from '../utils/error-message'
 
-export interface CreateLocalLinuxExecutorActionResult {
-  click: RunnerActionResult
-  pressKeys: RunnerActionResult
-  scroll: RunnerActionResult
-  typeText: RunnerActionResult
-  wait: RunnerActionResult
-}
+function buildSshTarget(config: ComputerUseConfig) {
+  if (!config.remoteSshHost || !config.remoteSshUser) {
+    throw new Error('linux-x11 executor requires COMPUTER_USE_REMOTE_SSH_HOST and COMPUTER_USE_REMOTE_SSH_USER')
+  }
 
-export interface RemoteRunnerClientOptions {
-  transportFactory?: RunnerTransportFactory
+  return `${config.remoteSshUser}@${config.remoteSshHost}`
 }
 
 export interface RunnerTransportCommand {
-  args: string[]
   command: string
+  args: string[]
   env?: NodeJS.ProcessEnv
 }
 
 export type RunnerTransportFactory = () => RunnerTransportCommand
 
 interface PendingRequest {
-  reject: (error: Error) => void
   resolve: (value: unknown) => void
+  reject: (error: Error) => void
+}
+
+export interface RemoteRunnerClientOptions {
+  transportFactory?: RunnerTransportFactory
+}
+
+export function createSshRunnerTransportFactory(config: ComputerUseConfig): RunnerTransportFactory {
+  return () => ({
+    command: config.binaries.ssh,
+    args: [
+      '-T',
+      '-p',
+      String(config.remoteSshPort),
+      '-o',
+      'BatchMode=yes',
+      '-o',
+      'ServerAliveInterval=30',
+      '-o',
+      'ServerAliveCountMax=3',
+      buildSshTarget(config),
+      'sh',
+      '-lc',
+      config.remoteRunnerCommand,
+    ],
+    env: process.env,
+  })
 }
 
 export class RemoteRunnerClient {
-  private child?: ChildProcessWithoutNullStreams
-  private readonly config: ComputerUseConfig
-  private connecting?: Promise<void>
-  private currentPermissions?: PermissionInfo
-  private currentTarget?: ExecutionTarget
   private readonly pending = new Map<string, PendingRequest>()
+  private readonly transportFactory: RunnerTransportFactory
+  private readonly config: ComputerUseConfig
   private readonly requestQueue: Promise<void> = Promise.resolve()
   private queueTail = this.requestQueue
+  private child?: ChildProcessWithoutNullStreams
+  private currentTarget?: ExecutionTarget
+  private currentPermissions?: PermissionInfo
+  private connecting?: Promise<void>
   private taintedReason?: string
-  private readonly transportFactory: RunnerTransportFactory
 
   constructor(config: ComputerUseConfig, options: RemoteRunnerClientOptions = {}) {
     this.config = config
     this.transportFactory = options.transportFactory || createSshRunnerTransportFactory(config)
   }
 
+  async getExecutionTarget() {
+    await this.ensureConnected()
+    return await this.call<ExecutionTarget>('getExecutionTarget')
+  }
+
+  async getDisplayInfo() {
+    await this.ensureConnected()
+    return await this.call<DisplayInfo>('getDisplayInfo')
+  }
+
+  async getForegroundContext() {
+    await this.ensureConnected()
+    return await this.call<ForegroundContext>('getForegroundContext')
+  }
+
+  async getPermissionInfo() {
+    await this.ensureConnected()
+    if (!this.currentPermissions) {
+      this.currentPermissions = await this.call<PermissionInfo>('getPermissionInfo')
+    }
+    return this.currentPermissions
+  }
+
+  async takeScreenshot(request: ScreenshotRequest) {
+    await this.ensureConnected()
+    const result = await this.call<RunnerScreenshotResult>('takeScreenshot', request)
+    this.taintedReason = undefined
+    this.currentTarget = this.applyPersistentTaint(result.executionTarget)
+    return {
+      ...result,
+      executionTarget: this.currentTarget,
+    }
+  }
+
   async click(input: ClickActionInput & { pointerTrace: PointerTracePoint[] }) {
     await this.ensureConnected()
     return await this.call<RunnerActionResult>('click', input, { mutating: true })
+  }
+
+  async typeText(input: TypeTextActionInput) {
+    await this.ensureConnected()
+    return await this.call<RunnerActionResult>('typeText', input, { mutating: true })
+  }
+
+  async pressKeys(input: PressKeysActionInput) {
+    await this.ensureConnected()
+    return await this.call<RunnerActionResult>('pressKeys', input, { mutating: true })
+  }
+
+  async scroll(input: ScrollActionInput) {
+    await this.ensureConnected()
+    return await this.call<RunnerActionResult>('scroll', input, { mutating: true })
+  }
+
+  async wait(input: WaitActionInput) {
+    await this.ensureConnected()
+    return await this.call<RunnerActionResult>('wait', input)
+  }
+
+  async openTestTarget() {
+    await this.ensureConnected()
+    return await this.call<RunnerOpenTestTargetResult>('openTestTarget')
   }
 
   async close() {
@@ -99,113 +180,21 @@ export class RemoteRunnerClient {
     this.taintedReason = undefined
   }
 
-  async getDisplayInfo() {
-    await this.ensureConnected()
-    return await this.call<DisplayInfo>('getDisplayInfo')
-  }
+  private async ensureConnected() {
+    if (this.child)
+      return
 
-  async getExecutionTarget() {
-    await this.ensureConnected()
-    return await this.call<ExecutionTarget>('getExecutionTarget')
-  }
-
-  async getForegroundContext() {
-    await this.ensureConnected()
-    return await this.call<ForegroundContext>('getForegroundContext')
-  }
-
-  async getPermissionInfo() {
-    await this.ensureConnected()
-    if (!this.currentPermissions) {
-      this.currentPermissions = await this.call<PermissionInfo>('getPermissionInfo')
-    }
-    return this.currentPermissions
-  }
-
-  async openTestTarget() {
-    await this.ensureConnected()
-    return await this.call<RunnerOpenTestTargetResult>('openTestTarget')
-  }
-
-  async pressKeys(input: PressKeysActionInput) {
-    await this.ensureConnected()
-    return await this.call<RunnerActionResult>('pressKeys', input, { mutating: true })
-  }
-
-  async scroll(input: ScrollActionInput) {
-    await this.ensureConnected()
-    return await this.call<RunnerActionResult>('scroll', input, { mutating: true })
-  }
-
-  async takeScreenshot(request: ScreenshotRequest) {
-    await this.ensureConnected()
-    const result = await this.call<RunnerScreenshotResult>('takeScreenshot', request)
-    this.taintedReason = undefined
-    this.currentTarget = this.applyPersistentTaint(result.executionTarget)
-    return {
-      ...result,
-      executionTarget: this.currentTarget,
-    }
-  }
-
-  async typeText(input: TypeTextActionInput) {
-    await this.ensureConnected()
-    return await this.call<RunnerActionResult>('typeText', input, { mutating: true })
-  }
-
-  async wait(input: WaitActionInput) {
-    await this.ensureConnected()
-    return await this.call<RunnerActionResult>('wait', input)
-  }
-
-  private applyPersistentTaint(target: ExecutionTarget): ExecutionTarget {
-    if (!this.taintedReason || target.mode !== 'remote') {
-      return {
-        ...target,
-        tainted: target.tainted,
-      }
+    if (this.connecting) {
+      await this.connecting
+      return
     }
 
-    return {
-      ...target,
-      note: this.taintedReason,
-      tainted: true,
-    }
-  }
-
-  private async call<Result>(method: RunnerMethod, params?: RunnerRequestParams, options: {
-    mutating?: boolean
-  } = {}) {
+    this.connecting = this.connect()
     try {
-      const result = await this.rawCall<Result>(method, params)
-      if (method === 'getExecutionTarget') {
-        this.currentTarget = this.applyPersistentTaint(result as ExecutionTarget)
-        return this.currentTarget as Result
-      }
-
-      const resultWithExecutionTarget = result as { executionTarget?: ExecutionTarget }
-      if (resultWithExecutionTarget.executionTarget) {
-        this.currentTarget = this.applyPersistentTaint(resultWithExecutionTarget.executionTarget)
-        return {
-          ...(resultWithExecutionTarget as Record<string, unknown>),
-          executionTarget: this.currentTarget,
-        } as Result
-      }
-
-      return result
+      await this.connecting
     }
-    catch (error) {
-      if (options.mutating) {
-        this.taintedReason = errorMessageFromValue(error)
-      }
-
-      if (this.currentTarget) {
-        this.currentTarget = this.applyPersistentTaint({
-          ...this.currentTarget,
-          note: errorMessageFromValue(error),
-        })
-      }
-      throw error
+    finally {
+      this.connecting = undefined
     }
   }
 
@@ -225,8 +214,8 @@ export class RemoteRunnerClient {
     })
 
     const rl = createInterface({
-      crlfDelay: Infinity,
       input: child.stdout,
+      crlfDelay: Infinity,
     })
 
     rl.on('line', (line) => {
@@ -284,37 +273,49 @@ export class RemoteRunnerClient {
     this.child = child
 
     const initial = await this.rawCall<RunnerInitializeResult>('initialize', {
+      sessionTag: this.config.sessionTag,
       displaySize: this.config.remoteDisplaySize,
       observationBaseUrl: this.config.remoteObservationBaseUrl,
       observationServePort: this.config.remoteObservationServePort,
       observationToken: this.config.remoteObservationToken,
-      sessionTag: this.config.sessionTag,
     })
     this.currentTarget = this.applyPersistentTaint(initial.executionTarget)
     this.currentPermissions = initial.permissionInfo
   }
 
-  private async enqueue<Result>(task: () => Promise<Result>) {
-    const next = this.queueTail.then(task, task)
-    this.queueTail = next.then(() => undefined, () => undefined)
-    return await next
-  }
-
-  private async ensureConnected() {
-    if (this.child)
-      return
-
-    if (this.connecting) {
-      await this.connecting
-      return
-    }
-
-    this.connecting = this.connect()
+  private async call<Result>(method: RunnerMethod, params?: RunnerRequestParams, options: {
+    mutating?: boolean
+  } = {}) {
     try {
-      await this.connecting
+      const result = await this.rawCall<Result>(method, params)
+      if (method === 'getExecutionTarget') {
+        this.currentTarget = this.applyPersistentTaint(result as ExecutionTarget)
+        return this.currentTarget as Result
+      }
+
+      const resultWithExecutionTarget = result as { executionTarget?: ExecutionTarget }
+      if (resultWithExecutionTarget.executionTarget) {
+        this.currentTarget = this.applyPersistentTaint(resultWithExecutionTarget.executionTarget)
+        return {
+          ...(resultWithExecutionTarget as Record<string, unknown>),
+          executionTarget: this.currentTarget,
+        } as Result
+      }
+
+      return result
     }
-    finally {
-      this.connecting = undefined
+    catch (error) {
+      if (options.mutating) {
+        this.taintedReason = errorMessageFromValue(error)
+      }
+
+      if (this.currentTarget) {
+        this.currentTarget = this.applyPersistentTaint({
+          ...this.currentTarget,
+          note: errorMessageFromValue(error),
+        })
+      }
+      throw error
     }
   }
 
@@ -331,7 +332,7 @@ export class RemoteRunnerClient {
       }
 
       const result = await new Promise<Result>((resolve, reject) => {
-        this.pending.set(request.id, { reject, resolve: resolve as (value: unknown) => void })
+        this.pending.set(request.id, { resolve: resolve as (value: unknown) => void, reject })
         this.child?.stdin.write(`${JSON.stringify(request)}\n`, 'utf-8', (error) => {
           if (!error)
             return
@@ -344,38 +345,37 @@ export class RemoteRunnerClient {
       return result
     })
   }
+
+  private async enqueue<Result>(task: () => Promise<Result>) {
+    const next = this.queueTail.then(task, task)
+    this.queueTail = next.then(() => undefined, () => undefined)
+    return await next
+  }
+
+  private applyPersistentTaint(target: ExecutionTarget): ExecutionTarget {
+    if (!this.taintedReason || target.mode !== 'remote') {
+      return {
+        ...target,
+        tainted: target.tainted,
+      }
+    }
+
+    return {
+      ...target,
+      tainted: true,
+      note: this.taintedReason,
+    }
+  }
 }
 
-export function createSshRunnerTransportFactory(config: ComputerUseConfig): RunnerTransportFactory {
-  return () => ({
-    args: [
-      '-T',
-      '-p',
-      String(config.remoteSshPort),
-      '-o',
-      'BatchMode=yes',
-      '-o',
-      'ServerAliveInterval=30',
-      '-o',
-      'ServerAliveCountMax=3',
-      buildSshTarget(config),
-      'sh',
-      '-lc',
-      config.remoteRunnerCommand,
-    ],
-    command: config.binaries.ssh,
-    env: process.env,
-  })
+export interface CreateLocalLinuxExecutorActionResult {
+  click: RunnerActionResult
+  typeText: RunnerActionResult
+  pressKeys: RunnerActionResult
+  scroll: RunnerActionResult
+  wait: RunnerActionResult
 }
 
 export function toExecutorActionResult(result: RunnerActionResult): ExecutorActionResult {
   return result
-}
-
-function buildSshTarget(config: ComputerUseConfig) {
-  if (!config.remoteSshHost || !config.remoteSshUser) {
-    throw new Error('linux-x11 executor requires COMPUTER_USE_REMOTE_SSH_HOST and COMPUTER_USE_REMOTE_SSH_USER')
-  }
-
-  return `${config.remoteSshUser}@${config.remoteSshHost}`
 }

@@ -21,8 +21,8 @@ export interface BuiltInServer {
  */
 export function setupBuiltInServer(params: {
   authServer?: ServerManager
-  servers?: ServerManager[]
   staticAssetServer?: ServerManager
+  servers?: ServerManager[]
 }): BuiltInServer {
   const servers = [
     ...(params.authServer ? [params.authServer] : []),

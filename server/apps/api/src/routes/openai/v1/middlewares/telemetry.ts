@@ -22,20 +22,51 @@ export const tracer = trace.getTracer('v1-completions')
 export type GatewaySpan = ReturnType<typeof tracer.startSpan>
 
 export interface OperationMetricsInput extends UsageInfo {
-  durationMs: number
-  fluxConsumed: number
   model: string
-  provider: string
   status: number
   type: string
+  provider: string
+  durationMs: number
+  fluxConsumed: number
 }
 
 export interface RequestLogInput extends UsageInfo {
-  durationMs: number
-  fluxConsumed: number
+  userId: string
   model: string
   status: number
-  userId: string
+  durationMs: number
+  fluxConsumed: number
+}
+
+export function getLlmMetricAttributes(opts: { model: string, type: string, status: number, provider: string }): Record<string, string | number> {
+  // `provider` is the upstream the router actually used (winning upstream on
+  // success, last-tried on exhaustion), so per-provider rollups in Grafana
+  // line up with each vendor's own console. Same label name as the gateway
+  // error counters (`airi_gen_ai_gateway_upstream_errors{provider}`) so the
+  // two can be compared/joined.
+  if (opts.type === 'chat') {
+    return {
+      [GEN_AI_ATTR_REQUEST_MODEL]: opts.model,
+      [GEN_AI_ATTR_OPERATION_NAME]: 'chat',
+      'http.response.status_code': opts.status,
+      'provider': opts.provider,
+    }
+  }
+
+  return {
+    [GEN_AI_ATTR_REQUEST_MODEL]: opts.model,
+    [AIRI_ATTR_GEN_AI_OPERATION_KIND]: opts.type,
+    'http.response.status_code': opts.status,
+    'provider': opts.provider,
+  }
+}
+
+// Fresh per-request context handed to `llmRouter.route` / `routeTts` so the
+// router can report back which upstream it used (for the `provider` metric
+// label). Must be created per request — never shared — because the route
+// closures live at factory scope across concurrent requests.
+export function newRouteContext(): LlmRouteContext {
+  return { provider: 'unknown', triedUpstreams: 0, triedKeys: 0, lastStatus: null }
 }
 
 export function createRouteTelemetry(deps: {
@@ -67,9 +98,9 @@ export function createRouteTelemetry(deps: {
   function startChatSpan(input: { model: string, stream: boolean }): GatewaySpan {
     return tracer.startSpan('llm.gateway.chat', {
       attributes: {
-        [AIRI_ATTR_GEN_AI_STREAM]: input.stream,
         [GEN_AI_ATTR_OPERATION_NAME]: 'chat',
         [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
+        [AIRI_ATTR_GEN_AI_STREAM]: input.stream,
       },
     })
   }
@@ -77,8 +108,8 @@ export function createRouteTelemetry(deps: {
   function startTtsSpan(input: { model: string }): GatewaySpan {
     return tracer.startSpan('llm.gateway.tts', {
       attributes: {
-        [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'text_to_speech',
         [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
+        [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'text_to_speech',
       },
     })
   }
@@ -102,9 +133,9 @@ export function createRouteTelemetry(deps: {
 
   function recordUsageOnSpan(span: GatewaySpan, input: UsageInfo & { fluxConsumed: number }): void {
     span.setAttributes({
-      [AIRI_ATTR_BILLING_FLUX_CONSUMED]: input.fluxConsumed,
       [GEN_AI_ATTR_USAGE_INPUT_TOKENS]: input.promptTokens ?? 0,
       [GEN_AI_ATTR_USAGE_OUTPUT_TOKENS]: input.completionTokens ?? 0,
+      [AIRI_ATTR_BILLING_FLUX_CONSUMED]: input.fluxConsumed,
     })
   }
 
@@ -113,22 +144,22 @@ export function createRouteTelemetry(deps: {
   }
 
   function recordFirstToken(input: {
-    firstChunkAt: number
     model: string
     provider: string
     startedAt: number
+    firstChunkAt: number
   }): void {
     deps.genAi?.firstTokenDuration.record((input.firstChunkAt - input.startedAt) / 1000, {
-      [GEN_AI_ATTR_OPERATION_NAME]: 'chat',
       [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
+      [GEN_AI_ATTR_OPERATION_NAME]: 'chat',
       provider: input.provider,
     })
   }
 
   function recordStreamInterrupted(input: {
     model: string
+    stage: 'mid_stream' | 'before_first_chunk'
     span: GatewaySpan
-    stage: 'before_first_chunk' | 'mid_stream'
   }): void {
     input.span.setStatus({ code: SpanStatusCode.ERROR, message: 'Gateway stream interrupted' })
     input.span.setAttribute(AIRI_ATTR_GEN_AI_STREAM_INTERRUPTED, true)
@@ -154,35 +185,4 @@ export function createRouteTelemetry(deps: {
     startChatSpan,
     startTtsSpan,
   }
-}
-
-export function getLlmMetricAttributes(opts: { model: string, provider: string, status: number, type: string }): Record<string, number | string> {
-  // `provider` is the upstream the router actually used (winning upstream on
-  // success, last-tried on exhaustion), so per-provider rollups in Grafana
-  // line up with each vendor's own console. Same label name as the gateway
-  // error counters (`airi_gen_ai_gateway_upstream_errors{provider}`) so the
-  // two can be compared/joined.
-  if (opts.type === 'chat') {
-    return {
-      [GEN_AI_ATTR_OPERATION_NAME]: 'chat',
-      [GEN_AI_ATTR_REQUEST_MODEL]: opts.model,
-      'http.response.status_code': opts.status,
-      'provider': opts.provider,
-    }
-  }
-
-  return {
-    [AIRI_ATTR_GEN_AI_OPERATION_KIND]: opts.type,
-    [GEN_AI_ATTR_REQUEST_MODEL]: opts.model,
-    'http.response.status_code': opts.status,
-    'provider': opts.provider,
-  }
-}
-
-// Fresh per-request context handed to `llmRouter.route` / `routeTts` so the
-// router can report back which upstream it used (for the `provider` metric
-// label). Must be created per request — never shared — because the route
-// closures live at factory scope across concurrent requests.
-export function newRouteContext(): LlmRouteContext {
-  return { lastStatus: null, provider: 'unknown', triedKeys: 0, triedUpstreams: 0 }
 }

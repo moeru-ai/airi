@@ -19,6 +19,11 @@ const elevenLabsConfigSchema = z.object({
 
 type ElevenLabsConfig = z.input<typeof elevenLabsConfigSchema>
 
+function toListVoicesOptions(provider: VoiceProviderWithExtraOptions<UnElevenLabsOptions>): ListVoicesOptions {
+  const { fetch: _fetch, ...voiceOptions } = provider.voice()
+  return voiceOptions
+}
+
 function createElevenLabsValidators() {
   return {
     validateConfig: [
@@ -60,38 +65,42 @@ function createElevenLabsValidators() {
   }
 }
 
-function toListVoicesOptions(provider: VoiceProviderWithExtraOptions<UnElevenLabsOptions>): ListVoicesOptions {
-  const { fetch: _fetch, ...voiceOptions } = provider.voice()
-  return voiceOptions
-}
-
 export const providerElevenLabs = defineProvider<ElevenLabsConfig>({
-  createProvider(config) {
-    return createUnElevenLabs(config.apiKey.trim(), config.baseUrl?.trim() ?? 'https://unspeech.hyp3r.link/v1/') as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
-  },
+  id: 'elevenlabs',
+  name: 'ElevenLabs',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.elevenlabs.title'),
+  description: 'elevenlabs.io',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.elevenlabs.description'),
+  tasks: ['text-to-speech'],
+  icon: 'i-simple-icons:elevenlabs',
+
   createProviderConfig: ({ t }) => elevenLabsConfigSchema.extend({
     apiKey: elevenLabsConfigSchema.shape.apiKey.meta({
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
       type: 'password',
     }),
     baseUrl: elevenLabsConfigSchema.shape.baseUrl.meta({
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
     }),
   }),
-  description: 'elevenlabs.io',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.elevenlabs.description'),
+  createProvider(config) {
+    return createUnElevenLabs(config.apiKey.trim(), config.baseUrl?.trim() ?? 'https://unspeech.hyp3r.link/v1/') as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+  },
+
+  validationRequiredWhen: config => Boolean(config.apiKey?.trim() && config.baseUrl?.trim()),
+  validators: createElevenLabsValidators(),
   extraMethods: {
     listModels: async () => elevenLabsModels.map(model => ({
-      contextLength: 0,
-      deprecated: false,
-      description: model.description,
       id: model.model_id,
       name: model.name,
       provider: 'elevenlabs',
+      description: model.description,
+      contextLength: 0,
+      deprecated: false,
     })),
     listVoices: async (config) => {
       const provider = createUnElevenLabs(config.apiKey.trim(), config.baseUrl?.trim() ?? 'https://unspeech.hyp3r.link/v1/') as VoiceProviderWithExtraOptions<UnElevenLabsOptions>
@@ -114,20 +123,11 @@ export const providerElevenLabs = defineProvider<ElevenLabsConfig>({
 
       return rearrangedVoices.map(voice => ({
         id: voice.id,
-        languages: voice.languages,
         name: voice.name,
-        previewURL: voice.preview_audio_url,
         provider: 'elevenlabs',
+        previewURL: voice.preview_audio_url,
+        languages: voice.languages,
       }))
     },
   },
-  icon: 'i-simple-icons:elevenlabs',
-  id: 'elevenlabs',
-
-  name: 'ElevenLabs',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.elevenlabs.title'),
-
-  tasks: ['text-to-speech'],
-  validationRequiredWhen: config => Boolean(config.apiKey?.trim() && config.baseUrl?.trim()),
-  validators: createElevenLabsValidators(),
 })

@@ -8,13 +8,13 @@ import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { protectPrivilegedWindowNavigation } from '../shared'
 
-export interface DevtoolsWindowManager {
-  openWindow: (params: OpenDevtoolsWindowParams) => Promise<BrowserWindow>
-}
-
 export interface OpenDevtoolsWindowParams extends Partial<Electron.Rectangle> {
   key: string
   route?: string
+}
+
+export interface DevtoolsWindowManager {
+  openWindow: (params: OpenDevtoolsWindowParams) => Promise<BrowserWindow>
 }
 
 export function setupDevtoolsWindow(): DevtoolsWindowManager {
@@ -29,18 +29,18 @@ export function setupDevtoolsWindow(): DevtoolsWindowManager {
 
     const reusable = createReusableWindow(async () => {
       const window = new BrowserWindow({
-        height: 720,
-        icon,
-        minHeight: 480,
-        minWidth: 640,
-        show: false,
         title: 'Devtools',
+        width: 1020,
+        height: 720,
+        minWidth: 640,
+        minHeight: 480,
+        show: false,
+        icon,
         webPreferences: {
           preload: join(getElectronMainDirname(), '../preload/index.mjs'),
           // Preload exposes Electron APIs and needs Node access.
           sandbox: false,
         },
-        width: 1020,
       })
 
       window.on('ready-to-show', () => window.show())

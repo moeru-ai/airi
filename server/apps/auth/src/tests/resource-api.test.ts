@@ -7,7 +7,7 @@ describe('resource API', () => {
     const fetchRequest = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }))
     const resourceApi = createResourceApi('https://resource.internal', fetchRequest)
 
-    await resourceApi.softDeleteUserData({ reason: 'user-requested', userId: 'user-1' })
+    await resourceApi.softDeleteUserData({ userId: 'user-1', reason: 'user-requested' })
 
     expect(fetchRequest).toHaveBeenCalledTimes(1)
     const [url, init] = fetchRequest.mock.calls[0]
@@ -24,7 +24,7 @@ describe('resource API', () => {
     )
 
     await expect(
-      resourceApi.softDeleteUserData({ reason: 'user-requested', userId: 'user-1' }),
+      resourceApi.softDeleteUserData({ userId: 'user-1', reason: 'user-requested' }),
     ).rejects.toMatchObject({ statusCode: 502 })
   })
 
@@ -33,9 +33,9 @@ describe('resource API', () => {
     const resourceApi = createResourceApi('https://resource.internal', fetchRequest)
 
     await resourceApi.trackAuthEvent({
+      userId: 'user-1',
       action: 'user_signed_up',
       source: 'better-auth.user.create',
-      userId: 'user-1',
     })
 
     const [url, init] = fetchRequest.mock.calls[0]

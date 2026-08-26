@@ -4,14 +4,23 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { banGuard } from '../plugins/ban-guard'
 
-type BanContext = Parameters<BanSessionCreateHook>[1]
-type BanSession = Parameters<BanSessionCreateHook>[0]
-type BanSessionCreateHook = NonNullable<SessionCreateHook>
 type SessionCreateHook = NonNullable<NonNullable<NonNullable<BetterAuthOptions['databaseHooks']>['session']>['create']>['before']
+type BanSessionCreateHook = NonNullable<SessionCreateHook>
+type BanSession = Parameters<BanSessionCreateHook>[0]
+type BanContext = Parameters<BanSessionCreateHook>[1]
 
-function createContext(user: { banExpires: Date | null, banned: boolean }) {
+async function getSessionCreateHook(): Promise<BanSessionCreateHook> {
+  const initialized = await banGuard().init?.({} as never)
+  const before = initialized?.options?.databaseHooks?.session?.create?.before
+  if (!before)
+    throw new TypeError('Expected the ban guard to register a session-create hook')
+  return before
+}
+
+function createContext(user: { banned: boolean, banExpires: Date | null }) {
   const updateUser = vi.fn()
   return {
+    updateUser,
     context: {
       context: {
         internalAdapter: {
@@ -20,28 +29,19 @@ function createContext(user: { banExpires: Date | null, banned: boolean }) {
         },
       },
     } as unknown as BanContext,
-    updateUser,
   }
 }
 
 function createSession(userId: string): BanSession {
   const now = new Date()
   return {
-    createdAt: now,
-    expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
     id: 'session-1',
     token: 'session-token',
-    updatedAt: now,
     userId,
+    expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
+    createdAt: now,
+    updatedAt: now,
   }
-}
-
-async function getSessionCreateHook(): Promise<BanSessionCreateHook> {
-  const initialized = await banGuard().init?.({} as never)
-  const before = initialized?.options?.databaseHooks?.session?.create?.before
-  if (!before)
-    throw new TypeError('Expected the ban guard to register a session-create hook')
-  return before
 }
 
 describe('banGuard', () => {
@@ -57,11 +57,6 @@ describe('banGuard', () => {
     expect(banGuard().schema).toMatchObject({
       user: {
         fields: {
-          banExpires: {
-            input: false,
-            required: false,
-            type: 'date',
-          },
           banned: {
             defaultValue: false,
             input: false,
@@ -73,6 +68,11 @@ describe('banGuard', () => {
             required: false,
             type: 'string',
           },
+          banExpires: {
+            input: false,
+            required: false,
+            type: 'date',
+          },
         },
       },
     })
@@ -80,7 +80,7 @@ describe('banGuard', () => {
 
   it('allows a session for an account that is not banned', async () => {
     const before = await getSessionCreateHook()
-    const { context, updateUser } = createContext({ banExpires: null, banned: false })
+    const { context, updateUser } = createContext({ banned: false, banExpires: null })
 
     await expect(before(
       createSession('user-1'),
@@ -92,7 +92,7 @@ describe('banGuard', () => {
 
   it('rejects a session for an account with a permanent ban', async () => {
     const before = await getSessionCreateHook()
-    const { context, updateUser } = createContext({ banExpires: null, banned: true })
+    const { context, updateUser } = createContext({ banned: true, banExpires: null })
 
     await expect(before(
       createSession('user-1'),
@@ -117,8 +117,8 @@ describe('banGuard', () => {
   it('allows an expired temporary ban without changing persisted ban state', async () => {
     const before = await getSessionCreateHook()
     const { context, updateUser } = createContext({
-      banExpires: new Date(Date.now() - 1000),
       banned: true,
+      banExpires: new Date(Date.now() - 1000),
     })
 
     await expect(before(
@@ -132,8 +132,8 @@ describe('banGuard', () => {
   it('rejects a session for an account with an active temporary ban', async () => {
     const before = await getSessionCreateHook()
     const { context, updateUser } = createContext({
-      banExpires: new Date(Date.now() + 60 * 1000),
       banned: true,
+      banExpires: new Date(Date.now() + 60 * 1000),
     })
 
     await expect(before(

@@ -4,17 +4,93 @@ import type { FlowEntry, PreviewItem } from '../context-flow-types'
 
 const previewMaxLength = 420
 
-export function useContextFlowFormatters() {
+function truncateText(value: string, limit = 160) {
+  if (value.length <= limit)
+    return value
+  return `${value.slice(0, limit)}...`
+}
+
+function formatDestinations(destinations: unknown) {
+  if (!destinations)
+    return ''
+  if (Array.isArray(destinations))
+    return destinations.join(', ')
+  if (typeof destinations === 'string')
+    return destinations
+  try {
+    return JSON.stringify(destinations)
+  }
+  catch {
+    return String(destinations)
+  }
+}
+
+function getPayloadData(entry: FlowEntry) {
+  const payload = entry.payload as Record<string, any> | undefined
+  if (!payload)
+    return undefined
+  return payload.data ?? payload
+}
+
+function getEventSource(entry: FlowEntry) {
+  const payload = entry.payload as Record<string, any> | undefined
+  if (!payload)
+    return undefined
+  return payload.source as string | undefined
+}
+
+function summarizeContextUpdate(update: { text?: string, content?: unknown, destinations?: unknown }) {
+  const summaryParts: string[] = []
+  if (update.text) {
+    summaryParts.push(`text="${truncateText(update.text, 120)}"`)
+  }
+  if (update.content !== undefined) {
+    const contentText = typeof update.content === 'string'
+      ? update.content
+      : (() => {
+          try {
+            return JSON.stringify(update.content)
+          }
+          catch {
+            return '[unserializable]'
+          }
+        })()
+    summaryParts.push(`content="${truncateText(contentText, 120)}"`)
+  }
+  if (update.destinations !== undefined) {
+    summaryParts.push(`destinations="${truncateText(formatDestinations(update.destinations), 120)}"`)
+  }
+  return summaryParts.join(' ')
+}
+
+function toPreviewValue(value: unknown) {
+  if (value === undefined || value === null)
+    return ''
+  if (typeof value === 'string')
+    return value
+  try {
+    return JSON.stringify(value, null, 2)
+  }
+  catch {
+    return String(value)
+  }
+}
+
+function formatPreviewValue(value: unknown) {
+  const text = toPreviewValue(value)
+  if (!text)
+    return ''
+  return truncateText(text, previewMaxLength)
+}
+
+function getContextUpdatePreview(entry: FlowEntry) {
+  const candidate = getPayloadData(entry) as Record<string, any> | undefined
+  if (!candidate || (candidate.text === undefined && candidate.content === undefined && candidate.destinations === undefined))
+    return null
   return {
-    buildPreviewItems,
-    buildSparkCommandPreview,
-    formatDestinations,
-    formatPayload,
-    formatTimestamp,
-    getEventSource,
-    getPayloadData,
-    summarizeContextUpdate,
-    truncateText,
+    text: candidate.text as string | undefined,
+    content: candidate.content as unknown,
+    destinations: candidate.destinations as unknown,
   }
 }
 
@@ -93,19 +169,9 @@ function buildSparkCommandPreview(command: WebSocketEvents['spark:command']): Pr
   return items
 }
 
-function formatDestinations(destinations: unknown) {
-  if (!destinations)
-    return ''
-  if (Array.isArray(destinations))
-    return destinations.join(', ')
-  if (typeof destinations === 'string')
-    return destinations
-  try {
-    return JSON.stringify(destinations)
-  }
-  catch {
-    return String(destinations)
-  }
+function formatTimestamp(value: number) {
+  const date = new Date(value)
+  return date.toLocaleTimeString('en-US', { hour12: false })
 }
 
 function formatPayload(payload: unknown) {
@@ -121,82 +187,16 @@ function formatPayload(payload: unknown) {
   }
 }
 
-function formatPreviewValue(value: unknown) {
-  const text = toPreviewValue(value)
-  if (!text)
-    return ''
-  return truncateText(text, previewMaxLength)
-}
-
-function formatTimestamp(value: number) {
-  const date = new Date(value)
-  return date.toLocaleTimeString('en-US', { hour12: false })
-}
-
-function getContextUpdatePreview(entry: FlowEntry) {
-  const candidate = getPayloadData(entry) as Record<string, any> | undefined
-  if (!candidate || (candidate.text === undefined && candidate.content === undefined && candidate.destinations === undefined))
-    return null
+export function useContextFlowFormatters() {
   return {
-    content: candidate.content as unknown,
-    destinations: candidate.destinations as unknown,
-    text: candidate.text as string | undefined,
+    buildPreviewItems,
+    buildSparkCommandPreview,
+    formatDestinations,
+    formatPayload,
+    formatTimestamp,
+    getEventSource,
+    getPayloadData,
+    summarizeContextUpdate,
+    truncateText,
   }
-}
-
-function getEventSource(entry: FlowEntry) {
-  const payload = entry.payload as Record<string, any> | undefined
-  if (!payload)
-    return undefined
-  return payload.source as string | undefined
-}
-
-function getPayloadData(entry: FlowEntry) {
-  const payload = entry.payload as Record<string, any> | undefined
-  if (!payload)
-    return undefined
-  return payload.data ?? payload
-}
-
-function summarizeContextUpdate(update: { content?: unknown, destinations?: unknown, text?: string }) {
-  const summaryParts: string[] = []
-  if (update.text) {
-    summaryParts.push(`text="${truncateText(update.text, 120)}"`)
-  }
-  if (update.content !== undefined) {
-    const contentText = typeof update.content === 'string'
-      ? update.content
-      : (() => {
-          try {
-            return JSON.stringify(update.content)
-          }
-          catch {
-            return '[unserializable]'
-          }
-        })()
-    summaryParts.push(`content="${truncateText(contentText, 120)}"`)
-  }
-  if (update.destinations !== undefined) {
-    summaryParts.push(`destinations="${truncateText(formatDestinations(update.destinations), 120)}"`)
-  }
-  return summaryParts.join(' ')
-}
-
-function toPreviewValue(value: unknown) {
-  if (value === undefined || value === null)
-    return ''
-  if (typeof value === 'string')
-    return value
-  try {
-    return JSON.stringify(value, null, 2)
-  }
-  catch {
-    return String(value)
-  }
-}
-
-function truncateText(value: string, limit = 160) {
-  if (value.length <= limit)
-    return value
-  return `${value.slice(0, limit)}...`
 }

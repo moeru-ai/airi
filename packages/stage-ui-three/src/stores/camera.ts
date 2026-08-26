@@ -18,8 +18,8 @@ const cameraPosition = useLocalStorage('settings/stage-ui-three/camera-position'
 
 export function useThreeCamera() {
   return {
-    cameraDistance,
     cameraFOV,
+    cameraDistance,
     cameraPosition,
   }
 }

@@ -38,9 +38,9 @@ describe('createEventWaitFor', () => {
     const controller = new AbortController()
     const selected = vi.fn((message: string) => message)
     const wait = createEventWaitFor<string>({
-      abortMessage: 'Wait aborted.',
       select: selected,
       signals: [controller.signal],
+      abortMessage: 'Wait aborted.',
     })
 
     controller.abort()

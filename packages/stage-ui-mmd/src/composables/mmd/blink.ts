@@ -6,6 +6,10 @@ const BLINK_DURATION = 0.2 // seconds for one open→close→open cycle
 const MIN_BLINK_INTERVAL = 1
 const MAX_BLINK_INTERVAL = 6
 
+function nextInterval() {
+  return Math.random() * (MAX_BLINK_INTERVAL - MIN_BLINK_INTERVAL) + MIN_BLINK_INTERVAL
+}
+
 /**
  * Procedural eye blinking via the model's blink morph.
  *
@@ -45,8 +49,4 @@ export function useMMDBlink() {
   }
 
   return { update }
-}
-
-function nextInterval() {
-  return Math.random() * (MAX_BLINK_INTERVAL - MIN_BLINK_INTERVAL) + MIN_BLINK_INTERVAL
 }

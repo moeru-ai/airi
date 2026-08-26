@@ -28,16 +28,34 @@ import { createRequestId } from './protocol'
 // Types
 // ---------------------------------------------------------------------------
 
-export interface InferenceWorkerManager {
-  /** Last error, if any */
-  readonly lastError: ErrorPayload | null
+export type WorkerManagerState
+  = | 'idle'
+    | 'loading'
+    | 'ready'
+    | 'running'
+    | 'error'
+    | 'terminated'
 
+export interface WorkerManagerOptions {
+  /** Factory that creates a fresh Worker instance */
+  createWorker: () => Worker
+  /** Timeout for model loading in ms (default 120 000) */
+  loadTimeout?: number
+  /** Timeout for a single inference call in ms (default 120 000) */
+  inferenceTimeout?: number
+  /** Maximum automatic restart attempts after worker errors (default 3) */
+  maxRestarts?: number
+  /** Base delay between restarts in ms; multiplied by attempt number (default 1 000) */
+  restartDelayMs?: number
+}
+
+export interface InferenceWorkerManager {
   /**
    * Load a model in the worker.
    * Returns domain-specific metadata (e.g. Kokoro voices list).
    */
   loadModel: (
-    request: Omit<LoadModelRequest, 'requestId' | 'type'>,
+    request: Omit<LoadModelRequest, 'type' | 'requestId'>,
     onProgress?: (p: ProgressPayload) => void,
   ) => Promise<ModelReadyResponse>
 
@@ -50,46 +68,28 @@ export interface InferenceWorkerManager {
     onProgress?: (p: ProgressPayload) => void,
   ) => Promise<TOutput>
 
-  /** Current state */
-  readonly state: WorkerManagerState
+  /** Unload the current model but keep the worker alive */
+  unload: () => Promise<void>
 
   /** Terminate the worker entirely */
   terminate: () => void
 
-  /** Unload the current model but keep the worker alive */
-  unload: () => Promise<void>
-}
+  /** Current state */
+  readonly state: WorkerManagerState
 
-export interface WorkerManagerOptions {
-  /** Factory that creates a fresh Worker instance */
-  createWorker: () => Worker
-  /** Timeout for a single inference call in ms (default 120 000) */
-  inferenceTimeout?: number
-  /** Timeout for model loading in ms (default 120 000) */
-  loadTimeout?: number
-  /** Maximum automatic restart attempts after worker errors (default 3) */
-  maxRestarts?: number
-  /** Base delay between restarts in ms; multiplied by attempt number (default 1 000) */
-  restartDelayMs?: number
+  /** Last error, if any */
+  readonly lastError: ErrorPayload | null
 }
-
-export type WorkerManagerState
-  = | 'error'
-    | 'idle'
-    | 'loading'
-    | 'ready'
-    | 'running'
-    | 'terminated'
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 interface WaitForMessageOptions<T extends WorkerOutboundMessage> {
-  /** Called for every message that does NOT satisfy the predicate */
-  onOther?: (msg: WorkerOutboundMessage) => void
   /** Only resolve when the predicate returns true */
   predicate: (msg: WorkerOutboundMessage) => msg is T
+  /** Called for every message that does NOT satisfy the predicate */
+  onOther?: (msg: WorkerOutboundMessage) => void
   /** Timeout in ms */
   timeout?: number
 }
@@ -98,7 +98,7 @@ function waitForWorkerMessage<T extends WorkerOutboundMessage>(
   worker: Worker,
   options: WaitForMessageOptions<T>,
 ): Promise<T> {
-  const { onOther, predicate, timeout } = options
+  const { predicate, onOther, timeout } = options
 
   return new Promise<T>((resolve, reject) => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined
@@ -147,13 +147,13 @@ export function createInferenceWorkerManager(
 ): InferenceWorkerManager {
   const {
     createWorker,
-    inferenceTimeout = DEFAULT_INFERENCE_TIMEOUT,
     loadTimeout = DEFAULT_LOAD_TIMEOUT,
+    inferenceTimeout = DEFAULT_INFERENCE_TIMEOUT,
     maxRestarts = DEFAULT_MAX_RESTARTS,
     restartDelayMs = DEFAULT_RESTART_DELAY_MS,
   } = options
 
-  let worker: null | Worker = null
+  let worker: Worker | null = null
   let state: WorkerManagerState = 'idle'
   let lastError: ErrorPayload | null = null
   let restartAttempts = 0
@@ -168,7 +168,7 @@ export function createInferenceWorkerManager(
     worker.addEventListener('error', handleWorkerError)
   }
 
-  function handleWorkerError(event: Error | ErrorEvent): void {
+  function handleWorkerError(event: ErrorEvent | Error): void {
     const message = errorMessageFrom(event) ?? 'Unknown worker error'
 
     lastError = {
@@ -232,7 +232,7 @@ export function createInferenceWorkerManager(
   // -- Public API -----------------------------------------------------------
 
   async function loadModel(
-    request: Omit<LoadModelRequest, 'requestId' | 'type'>,
+    request: Omit<LoadModelRequest, 'type' | 'requestId'>,
     onProgress?: (p: ProgressPayload) => void,
   ): Promise<ModelReadyResponse> {
     await ensureStarted()
@@ -242,18 +242,18 @@ export function createInferenceWorkerManager(
       const requestId = createRequestId()
 
       const resultPromise = waitForWorkerMessage<ModelReadyResponse>(worker!, {
+        predicate: (msg): msg is ModelReadyResponse =>
+          msg.type === 'model-ready' && msg.requestId === requestId,
         onOther: (msg) => {
           if (msg.type === 'progress' && msg.requestId === requestId && onProgress)
             onProgress(msg.payload)
         },
-        predicate: (msg): msg is ModelReadyResponse =>
-          msg.type === 'model-ready' && msg.requestId === requestId,
         timeout: loadTimeout,
       })
 
       const message: LoadModelRequest = {
-        requestId,
         type: 'load-model',
+        requestId,
         ...request,
       }
       worker!.postMessage(message)
@@ -283,22 +283,22 @@ export function createInferenceWorkerManager(
       state = 'running'
       const requestId = createRequestId()
 
-      type ResultMsg = WorkerOutboundMessage & { requestId: string, type: 'inference-result' }
+      type ResultMsg = WorkerOutboundMessage & { type: 'inference-result', requestId: string }
 
       const resultPromise = waitForWorkerMessage<ResultMsg>(worker, {
+        predicate: (msg): msg is ResultMsg =>
+          msg.type === 'inference-result' && msg.requestId === requestId,
         onOther: (msg) => {
           if (msg.type === 'progress' && msg.requestId === requestId && onProgress)
             onProgress(msg.payload)
         },
-        predicate: (msg): msg is ResultMsg =>
-          msg.type === 'inference-result' && msg.requestId === requestId,
         timeout: inferenceTimeout,
       })
 
       const message: RunInferenceRequest<TInput> = {
-        input,
-        requestId,
         type: 'run-inference',
+        requestId,
+        input,
       }
       worker.postMessage(message)
 
@@ -323,7 +323,7 @@ export function createInferenceWorkerManager(
 
       const requestId = createRequestId()
 
-      type UnloadedMsg = WorkerOutboundMessage & { requestId: string, type: 'model-unloaded' }
+      type UnloadedMsg = WorkerOutboundMessage & { type: 'model-unloaded', requestId: string }
 
       const resultPromise = waitForWorkerMessage<UnloadedMsg>(worker, {
         predicate: (msg): msg is UnloadedMsg =>
@@ -331,7 +331,7 @@ export function createInferenceWorkerManager(
         timeout: 10_000,
       })
 
-      worker.postMessage({ requestId, type: 'unload-model' })
+      worker.postMessage({ type: 'unload-model', requestId })
       await resultPromise
 
       state = 'idle'
@@ -345,11 +345,11 @@ export function createInferenceWorkerManager(
   }
 
   return {
-    get lastError() { return lastError },
     loadModel: loadModel as InferenceWorkerManager['loadModel'],
     run,
-    get state() { return state },
-    terminate: terminateManager,
     unload: unloadModel,
+    terminate: terminateManager,
+    get state() { return state },
+    get lastError() { return lastError },
   }
 }

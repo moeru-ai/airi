@@ -17,21 +17,21 @@ export async function findPhotoDescription(fileId: string) {
   return photo[0].description
 }
 
+export async function recordPhoto(photoBase64: string, fileId: string, filePath: string, description: string) {
+  await useDrizzle()
+    .insert(photosTable)
+    .values({
+      platform: 'telegram',
+      file_id: fileId,
+      image_base64: photoBase64,
+      image_path: filePath,
+      description,
+    })
+}
+
 export async function findPhotosDescriptions(fileIds: string[]) {
   return await useDrizzle()
     .select()
     .from(photosTable)
     .where(inArray(photosTable.file_id, fileIds))
-}
-
-export async function recordPhoto(photoBase64: string, fileId: string, filePath: string, description: string) {
-  await useDrizzle()
-    .insert(photosTable)
-    .values({
-      description,
-      file_id: fileId,
-      image_base64: photoBase64,
-      image_path: filePath,
-      platform: 'telegram',
-    })
 }

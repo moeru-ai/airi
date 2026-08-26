@@ -8,9 +8,10 @@ import type {
   RawPerceptionEventBase,
 } from './types'
 
-export interface EventRegistryDeps {
-  logger: Logg
-  onRawEvent: (event: RawPerceptionEventBase & Record<string, any>) => void
+export function definePerceptionEvent<TArgs extends any[], TExtract>(
+  definition: PerceptionEventDefinition<TArgs, TExtract>,
+): PerceptionEventDefinition<TArgs, TExtract> {
+  return definition
 }
 
 interface RegisteredListener {
@@ -18,13 +19,35 @@ interface RegisteredListener {
   handler: (...args: any[]) => void
 }
 
+export interface EventRegistryDeps {
+  logger: Logg
+  onRawEvent: (event: RawPerceptionEventBase & Record<string, any>) => void
+}
+
 export class EventRegistry {
-  private context: null | PerceptionContext = null
   private definitions: Map<string, PerceptionEventDefinition> = new Map()
   private listeners: RegisteredListener[] = []
+  private context: PerceptionContext | null = null
   private maxDistance = 32
 
   constructor(private readonly deps: EventRegistryDeps) { }
+
+  public register(definition: PerceptionEventDefinition): void {
+    this.definitions.set(definition.id, definition)
+  }
+
+  public registerAll(definitions: PerceptionEventDefinition[]): void {
+    for (const def of definitions) {
+      this.register(def)
+    }
+  }
+
+  public stop(): void {
+    // NOTICE: Nullify context so that any stale mineflayer listeners that fire
+    // after stop() (but before detachFromBot()) are silently ignored by the
+    // guard at the top of handleMineflayerEvent.
+    this.context = null
+  }
 
   public attachToBot(bot: Bot, maxDistance = 32): void {
     this.maxDistance = maxDistance
@@ -48,29 +71,8 @@ export class EventRegistry {
     this.context = null
   }
 
-  public getDefinitions(): PerceptionEventDefinition[] {
-    return Array.from(this.definitions.values())
-  }
-
-  public register(definition: PerceptionEventDefinition): void {
-    this.definitions.set(definition.id, definition)
-  }
-
-  public registerAll(definitions: PerceptionEventDefinition[]): void {
-    for (const def of definitions) {
-      this.register(def)
-    }
-  }
-
-  public stop(): void {
-    // NOTICE: Nullify context so that any stale mineflayer listeners that fire
-    // after stop() (but before detachFromBot()) are silently ignored by the
-    // guard at the top of handleMineflayerEvent.
-    this.context = null
-  }
-
   private createContext(bot: Bot): PerceptionContext {
-    const distanceToPos = (pos: Vec3): null | number => {
+    const distanceToPos = (pos: Vec3): number | null => {
       const selfPos = bot.entity?.position
       if (!selfPos || !pos)
         return null
@@ -82,7 +84,7 @@ export class EventRegistry {
       }
     }
 
-    const distanceTo = (entity: any): null | number => {
+    const distanceTo = (entity: any): number | null => {
       const pos = entity?.position
       if (!pos)
         return null
@@ -91,13 +93,17 @@ export class EventRegistry {
 
     return {
       bot,
+      selfUsername: bot.username,
+      maxDistance: this.maxDistance,
       distanceTo,
       distanceToPos,
-      entityId: (entity: any) => String(entity?.id ?? entity?.uuid ?? entity?.username ?? 'unknown'),
       isSelf: (entity: any) => entity?.username === bot.username,
-      maxDistance: this.maxDistance,
-      selfUsername: bot.username,
+      entityId: (entity: any) => String(entity?.id ?? entity?.uuid ?? entity?.username ?? 'unknown'),
     }
+  }
+
+  public getDefinitions(): PerceptionEventDefinition[] {
+    return Array.from(this.definitions.values())
   }
 
   private handleMineflayerEvent(def: PerceptionEventDefinition, args: any[]): void {
@@ -112,21 +118,15 @@ export class EventRegistry {
     const timestamp = Date.now()
 
     const rawEvent: RawPerceptionEventBase & Record<string, any> = {
-      kind: def.kind,
       modality: def.modality,
-      source: 'minecraft',
+      kind: def.kind,
       timestamp,
+      source: 'minecraft',
       ...extracted,
     }
 
     this.deps.onRawEvent(rawEvent)
   }
-}
-
-export function definePerceptionEvent<TArgs extends any[], TExtract>(
-  definition: PerceptionEventDefinition<TArgs, TExtract>,
-): PerceptionEventDefinition<TArgs, TExtract> {
-  return definition
 }
 
 export * from './types'

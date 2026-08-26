@@ -1,6 +1,16 @@
 import type { Logger } from '@guiiai/logg'
 
 /**
+ * Reason a user deletion is being requested. Recorded in logs and surfaced
+ * to handlers so they can branch (e.g. compliance erase vs. user-initiated).
+ *
+ * - `user-requested`: triggered by the user via better-auth `/delete-user/callback`.
+ * - `admin`: triggered by an admin tool (not yet implemented).
+ * - `compliance`: triggered by automated GDPR / data-retention workflow (not yet implemented).
+ */
+export type UserDeletionReason = 'user-requested' | 'admin' | 'compliance'
+
+/**
  * Context passed to every {@link UserDeletionHandler} invocation.
  *
  * Use when:
@@ -8,32 +18,12 @@ import type { Logger } from '@guiiai/logg'
  * - Logging within a handler — use the provided `logger` so entries share the deletion correlation context.
  */
 export interface UserDeletionContext {
-  /** Pre-scoped logger for handler diagnostics. */
-  logger: Logger
-  /** Why the deletion was triggered. */
-  reason: UserDeletionReason
   /** The user being deleted. Handlers MUST scope their writes to this id. */
   userId: string
-}
-
-/**
- * Coordinator for account deletion across business modules.
- *
- * Use when:
- * - Serving the authenticated internal request emitted by Auth server's
- *   `user.deleteUser.beforeDelete` hook.
- * - Implementing an admin-triggered deletion path (future).
- *
- * Expects:
- * - All handlers are registered at app-composition time before the first
- *   request hits `beforeDelete`. Late registration is allowed but discouraged.
- */
-export interface UserDeletionExecutor {
-  /**
-   * Run every registered handler in priority order. Returns when all
-   * handlers complete, or throws the first handler error and stops.
-   */
-  softDeleteAll: (input: { reason: UserDeletionReason, userId: string }) => Promise<void>
+  /** Why the deletion was triggered. */
+  reason: UserDeletionReason
+  /** Pre-scoped logger for handler diagnostics. */
+  logger: Logger
 }
 
 /**
@@ -75,14 +65,24 @@ export interface UserDeletionHandler {
 }
 
 /**
- * Reason a user deletion is being requested. Recorded in logs and surfaced
- * to handlers so they can branch (e.g. compliance erase vs. user-initiated).
+ * Coordinator for account deletion across business modules.
  *
- * - `user-requested`: triggered by the user via better-auth `/delete-user/callback`.
- * - `admin`: triggered by an admin tool (not yet implemented).
- * - `compliance`: triggered by automated GDPR / data-retention workflow (not yet implemented).
+ * Use when:
+ * - Serving the authenticated internal request emitted by Auth server's
+ *   `user.deleteUser.beforeDelete` hook.
+ * - Implementing an admin-triggered deletion path (future).
+ *
+ * Expects:
+ * - All handlers are registered at app-composition time before the first
+ *   request hits `beforeDelete`. Late registration is allowed but discouraged.
  */
-export type UserDeletionReason = 'admin' | 'compliance' | 'user-requested'
+export interface UserDeletionExecutor {
+  /**
+   * Run every registered handler in priority order. Returns when all
+   * handlers complete, or throws the first handler error and stops.
+   */
+  softDeleteAll: (input: { userId: string, reason: UserDeletionReason }) => Promise<void>
+}
 
 export interface UserDeletionService extends UserDeletionExecutor {
   /**

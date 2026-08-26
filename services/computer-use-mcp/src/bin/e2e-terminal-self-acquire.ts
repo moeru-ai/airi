@@ -44,22 +44,40 @@ function assert(condition: boolean, message: string): asserts condition {
     throw new Error(`Assertion failed: ${message}`)
 }
 
+function requireStructuredContent(result: unknown, label: string): Record<string, unknown> {
+  if (!result || typeof result !== 'object')
+    throw new Error(`${label}: result is not an object`)
+
+  const sc = (result as { structuredContent?: unknown }).structuredContent
+  if (!sc || typeof sc !== 'object')
+    throw new Error(`${label}: missing structuredContent`)
+
+  return sc as Record<string, unknown>
+}
+
+function createProjectDir(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'e2e-terminal-self-acquire-'))
+  writeFileSync(join(dir, 'README.md'), '# e2e terminal self-acquire test\n', 'utf8')
+  writeFileSync(join(dir, 'index.ts'), 'export const ok = true\n', 'utf8')
+  return dir
+}
+
 async function createClient(): Promise<Client> {
   const command = env.COMPUTER_USE_SMOKE_SERVER_COMMAND?.trim() || 'pnpm'
   const args = (env.COMPUTER_USE_SMOKE_SERVER_ARGS || 'start').split(WHITESPACE_SPLIT_RE).filter(Boolean)
   const cwd = env.COMPUTER_USE_SMOKE_SERVER_CWD?.trim() || packageDir
 
   const transport = new StdioClientTransport({
-    args,
     command,
+    args,
     cwd,
     env: {
       ...env,
-      COMPUTER_USE_ALLOWED_BOUNDS: '0,0,1920,1080',
-      COMPUTER_USE_APPROVAL_MODE: 'never',
       COMPUTER_USE_EXECUTOR: 'dry-run',
-      COMPUTER_USE_OPENABLE_APPS: 'Finder,Terminal,Visual Studio Code',
+      COMPUTER_USE_APPROVAL_MODE: 'never',
       COMPUTER_USE_SESSION_TAG: 'e2e-terminal-self-acquire',
+      COMPUTER_USE_ALLOWED_BOUNDS: '0,0,1920,1080',
+      COMPUTER_USE_OPENABLE_APPS: 'Finder,Terminal,Visual Studio Code',
     },
     stderr: 'pipe',
   })
@@ -79,50 +97,6 @@ async function createClient(): Promise<Client> {
   return client
 }
 
-function createProjectDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'e2e-terminal-self-acquire-'))
-  writeFileSync(join(dir, 'README.md'), '# e2e terminal self-acquire test\n', 'utf8')
-  writeFileSync(join(dir, 'index.ts'), 'export const ok = true\n', 'utf8')
-  return dir
-}
-
-async function main() {
-  console.info('╔══════════════════════════════════════════════════════════╗')
-  console.info('║   E2E Release Gate: Terminal Lane v2 — PTY Self-Acquire  ║')
-  console.info('╚══════════════════════════════════════════════════════════╝')
-
-  const projectPath = createProjectDir()
-  console.info(`  Project directory: ${projectPath}`)
-
-  const client = await createClient()
-
-  try {
-    const { tools } = await client.listTools()
-    const names = new Set(tools.map(t => t.name))
-    for (const t of [
-      'workflow_validate_workspace',
-      'pty_get_status',
-      'pty_destroy',
-      'desktop_get_state',
-    ]) {
-      assert(names.has(t), `missing required tool: ${t}`)
-    }
-    console.info(`  ${tools.length} tools available`)
-
-    // The core flow — no pre-created PTY
-    await phase1_selfAcquirePty(client, projectPath)
-    await phase2_verifyState(client)
-    await phase3_cleanup(client)
-
-    console.info('\n╔══════════════════════════════════════════════════════════╗')
-    console.info('║   PTY SELF-ACQUIRE E2E — ALL PHASES PASSED               ║')
-    console.info('╚══════════════════════════════════════════════════════════╝')
-  }
-  finally {
-    await client.close().catch(() => {})
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Test phases
 // ---------------------------------------------------------------------------
@@ -132,15 +106,15 @@ async function phase1_selfAcquirePty(client: Client, projectPath: string) {
   console.info('  No pre-created PTY. The engine self-acquires.')
 
   const result = await client.callTool({
+    name: 'workflow_validate_workspace',
     arguments: {
-      autoApprove: true,
+      projectPath,
+      ideApp: 'Visual Studio Code',
       changesCommand: 'echo "M index.ts"',
       // `vim --version` matches `^vim\b` → auto_interactive_command → PTY self-acquire
       checkCommand: 'vim --version',
-      ideApp: 'Visual Studio Code',
-      projectPath,
+      autoApprove: true,
     },
-    name: 'workflow_validate_workspace',
   })
 
   const data = requireStructuredContent(result, 'workflow_validate_workspace')
@@ -149,10 +123,10 @@ async function phase1_selfAcquirePty(client: Client, projectPath: string) {
 
   // v2: workflow should complete (not reroute) because it self-acquires PTY
   const steps = data.stepResults as Array<{
-    explanation?: string
     label: string
-    status: string
     succeeded: boolean
+    status: string
+    explanation?: string
   }>
   for (const s of steps) {
     console.info(`  ${s.succeeded ? '✓' : '✗'} ${s.label} (${s.status})`)
@@ -184,8 +158,8 @@ async function phase2_verifyState(client: Client) {
   console.info('\n── Phase 2: Verify state consistency ──')
 
   const result = await client.callTool({
-    arguments: {},
     name: 'desktop_get_state',
+    arguments: {},
   })
 
   const data = requireStructuredContent(result, 'desktop_get_state')
@@ -243,8 +217,8 @@ async function phase3_cleanup(client: Client) {
 
   // Get any active PTY sessions and destroy them
   const statusResult = await client.callTool({
-    arguments: {},
     name: 'pty_get_status',
+    arguments: {},
   })
 
   const statusData = requireStructuredContent(statusResult, 'pty_get_status')
@@ -254,8 +228,8 @@ async function phase3_cleanup(client: Client) {
     for (const s of sessions) {
       const sessionId = String(s.id)
       const destroyResult = await client.callTool({
-        arguments: { sessionId },
         name: 'pty_destroy',
+        arguments: { sessionId },
       })
       const destroyData = requireStructuredContent(destroyResult, 'pty_destroy')
       console.info(`  Destroyed ${sessionId}: ${destroyData.status}`)
@@ -272,15 +246,41 @@ async function phase3_cleanup(client: Client) {
 // Main
 // ---------------------------------------------------------------------------
 
-function requireStructuredContent(result: unknown, label: string): Record<string, unknown> {
-  if (!result || typeof result !== 'object')
-    throw new Error(`${label}: result is not an object`)
+async function main() {
+  console.info('╔══════════════════════════════════════════════════════════╗')
+  console.info('║   E2E Release Gate: Terminal Lane v2 — PTY Self-Acquire  ║')
+  console.info('╚══════════════════════════════════════════════════════════╝')
 
-  const sc = (result as { structuredContent?: unknown }).structuredContent
-  if (!sc || typeof sc !== 'object')
-    throw new Error(`${label}: missing structuredContent`)
+  const projectPath = createProjectDir()
+  console.info(`  Project directory: ${projectPath}`)
 
-  return sc as Record<string, unknown>
+  const client = await createClient()
+
+  try {
+    const { tools } = await client.listTools()
+    const names = new Set(tools.map(t => t.name))
+    for (const t of [
+      'workflow_validate_workspace',
+      'pty_get_status',
+      'pty_destroy',
+      'desktop_get_state',
+    ]) {
+      assert(names.has(t), `missing required tool: ${t}`)
+    }
+    console.info(`  ${tools.length} tools available`)
+
+    // The core flow — no pre-created PTY
+    await phase1_selfAcquirePty(client, projectPath)
+    await phase2_verifyState(client)
+    await phase3_cleanup(client)
+
+    console.info('\n╔══════════════════════════════════════════════════════════╗')
+    console.info('║   PTY SELF-ACQUIRE E2E — ALL PHASES PASSED               ║')
+    console.info('╚══════════════════════════════════════════════════════════╝')
+  }
+  finally {
+    await client.close().catch(() => {})
+  }
 }
 
 main().catch((error) => {

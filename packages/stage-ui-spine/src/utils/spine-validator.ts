@@ -2,19 +2,19 @@ import JSZip from 'jszip'
 
 import { errorMessageFrom } from '@moeru/std'
 
+export type SpineValidationStatus = 'VALID' | 'INVALID'
+
 export interface SpineValidationReport {
+  status: SpineValidationStatus
+  errors: string[]
+  warnings: string[]
   detected: {
-    atlasPath?: string
-    skeletonFormat?: 'binary' | 'json'
     skeletonPath?: string
+    skeletonFormat?: 'binary' | 'json'
+    atlasPath?: string
     texturePaths: string[]
   }
-  errors: string[]
-  status: SpineValidationStatus
-  warnings: string[]
 }
-
-export type SpineValidationStatus = 'INVALID' | 'VALID'
 
 /**
  * Inspects a Spine ZIP without loading textures into GPU memory.
@@ -46,7 +46,7 @@ export async function validateSpineZip(file: File): Promise<SpineValidationRepor
     const atlasCandidates = files.filter(name => /\.atlas(?:\.txt)?$/i.test(name))
     if (atlasCandidates.length === 0) {
       errors.push('No texture atlas (`.atlas` or `.atlas.txt`) found in the ZIP. A Spine export must include one.')
-      return { detected, errors, status: 'INVALID', warnings }
+      return { status: 'INVALID', errors, warnings, detected }
     }
     if (atlasCandidates.length > 1)
       warnings.push(`Multiple atlas files detected (${atlasCandidates.length}). The import will pick the one paired with a same-named skeleton.`)
@@ -56,7 +56,7 @@ export async function validateSpineZip(file: File): Promise<SpineValidationRepor
 
     if (skelCandidates.length === 0 && jsonCandidates.length === 0) {
       errors.push('No skeleton (`.skel` or `.json`) found in the ZIP.')
-      return { detected, errors, status: 'INVALID', warnings }
+      return { status: 'INVALID', errors, warnings, detected }
     }
 
     detected.atlasPath = atlasCandidates[0]
@@ -72,14 +72,14 @@ export async function validateSpineZip(file: File): Promise<SpineValidationRepor
     const textures = files.filter(name => /\.(?:png|webp|jpg|jpeg)$/i.test(name))
     if (textures.length === 0) {
       errors.push('No texture pages (`.png`/`.webp`/`.jpg`) found in the ZIP.')
-      return { detected, errors, status: 'INVALID', warnings }
+      return { status: 'INVALID', errors, warnings, detected }
     }
     detected.texturePaths = textures
   }
   catch (err) {
     errors.push(`Failed to read ZIP: ${errorMessageFrom(err) ?? 'Unknown error'}`)
-    return { detected, errors, status: 'INVALID', warnings }
+    return { status: 'INVALID', errors, warnings, detected }
   }
 
-  return { detected, errors, status: 'VALID', warnings }
+  return { status: 'VALID', errors, warnings, detected }
 }

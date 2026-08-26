@@ -162,9 +162,9 @@ export const GEN_AI_SYSTEM_VOLCENGINE_TTS = 'volcengine.tts'
 // Helpers
 // ---------------------------------------------------------------------------
 
-export function getServerConnectionAttributes(baseUrl: string): Record<string, number | string> {
+export function getServerConnectionAttributes(baseUrl: string): Record<string, string | number> {
   const url = new URL(baseUrl)
-  const attributes: Record<string, number | string> = {
+  const attributes: Record<string, string | number> = {
     [SERVER_ATTR_ADDRESS]: url.hostname,
   }
 

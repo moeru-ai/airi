@@ -1,15 +1,15 @@
 export type ActionErrorCode
-  = | 'ACTIVATION_FAILED'
+  = | 'RESOURCE_MISSING'
     | 'CRAFTING_FAILED'
+    | 'NAVIGATION_FAILED'
     | 'INTERRUPTED'
     | 'INVENTORY_FULL'
-    | 'ITEM_NOT_FOUND'
-    | 'NAVIGATION_FAILED'
-    | 'PLACEMENT_FAILED'
-    | 'RESOURCE_MISSING'
-    | 'SYNC_ONLY'
-    | 'TARGET_NOT_FOUND'
     | 'UNKNOWN'
+    | 'TARGET_NOT_FOUND'
+    | 'ITEM_NOT_FOUND'
+    | 'PLACEMENT_FAILED'
+    | 'ACTIVATION_FAILED'
+    | 'SYNC_ONLY'
 
 export class ActionError extends Error {
   public readonly code: ActionErrorCode
@@ -24,9 +24,9 @@ export class ActionError extends Error {
 
   public toJSON() {
     return {
+      message: this.message,
       code: this.code,
       context: this.context,
-      message: this.message,
     }
   }
 }

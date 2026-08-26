@@ -4,8 +4,8 @@ import { isUserBannedNow } from '@proj-airi/auth-shared'
 import { APIError } from 'better-auth'
 
 interface BanState {
-  banExpires?: Date | null | string
   banned?: boolean | null
+  banExpires?: Date | string | null
 }
 
 /**
@@ -19,6 +19,28 @@ interface BanState {
 export function banGuard(): BetterAuthPlugin {
   return {
     id: 'ban-guard',
+    schema: {
+      user: {
+        fields: {
+          banned: {
+            type: 'boolean',
+            defaultValue: false,
+            required: false,
+            input: false,
+          },
+          banReason: {
+            type: 'string',
+            required: false,
+            input: false,
+          },
+          banExpires: {
+            type: 'date',
+            required: false,
+            input: false,
+          },
+        },
+      },
+    },
     init() {
       return {
         options: {
@@ -43,28 +65,6 @@ export function banGuard(): BetterAuthPlugin {
           },
         },
       }
-    },
-    schema: {
-      user: {
-        fields: {
-          banExpires: {
-            input: false,
-            required: false,
-            type: 'date',
-          },
-          banned: {
-            defaultValue: false,
-            input: false,
-            required: false,
-            type: 'boolean',
-          },
-          banReason: {
-            input: false,
-            required: false,
-            type: 'string',
-          },
-        },
-      },
     },
   }
 }

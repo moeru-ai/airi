@@ -40,13 +40,13 @@ export function useElectronAutoUpdater() {
   })
 
   return {
+    state,
+    isBusy,
     canDownload,
     canRestartToUpdate,
+
     checkForUpdates,
     downloadUpdate,
-
-    isBusy,
     quitAndInstall,
-    state,
   }
 }

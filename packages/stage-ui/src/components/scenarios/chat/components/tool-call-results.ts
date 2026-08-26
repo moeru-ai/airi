@@ -48,7 +48,7 @@ export function createToolCallResultLookup(
  * Returns:
  * - `executing` for missing results, `error` for failed results, or `done` for successful results
  */
-export function resolveToolCallBlockState(result: ChatSlicesToolCallResult | undefined): 'done' | 'error' | 'executing' {
+export function resolveToolCallBlockState(result: ChatSlicesToolCallResult | undefined): 'executing' | 'done' | 'error' {
   if (!result) {
     return 'executing'
   }

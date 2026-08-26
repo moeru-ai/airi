@@ -9,8 +9,8 @@ describe('tool call display helpers', () => {
    */
   it('normalizes structured tool results into copyable text', () => {
     const text = normalizeToolResultText({
-      mode: 'focus',
       ok: true,
+      mode: 'focus',
     })
 
     expect(text).toContain('"ok": true')

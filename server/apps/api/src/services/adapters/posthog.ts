@@ -20,13 +20,13 @@ export interface PosthogCaptureInput {
  * an interface so tests inject a fake instead of mocking the SDK.
  */
 export interface PosthogSink {
-  capture: (input: PosthogCaptureInput) => Promise<void>
   /**
    * Queue a high-volume analytics event without waiting for a network
    * roundtrip. Use on request hot paths where occasional process-exit loss is
    * preferable to user-visible latency.
    */
   captureQueued?: (input: PosthogCaptureInput) => void
+  capture: (input: PosthogCaptureInput) => Promise<void>
   /** Flush and close the underlying client. Call on server shutdown. */
   shutdown: () => Promise<void>
 }
@@ -42,24 +42,10 @@ export interface PosthogSink {
  * Capture failures are logged and swallowed. Analytics forwarding never
  * fails the Stripe webhook or auth flow that produced the business fact.
  */
-export function createPosthogSink(options: { host: string, projectKey: string }): PosthogSink {
+export function createPosthogSink(options: { projectKey: string, host: string }): PosthogSink {
   const client = new PostHog(options.projectKey, { host: options.host })
 
   return {
-    async capture(input: PosthogCaptureInput): Promise<void> {
-      try {
-        await client.captureImmediate({
-          distinctId: input.distinctId,
-          event: input.event,
-          properties: input.properties,
-          ...(input.uuid && { uuid: input.uuid }),
-        })
-      }
-      catch (err) {
-        logger.withError(err).withFields({ event: input.event }).warn('Failed to forward product event to PostHog')
-      }
-    },
-
     captureQueued(input: PosthogCaptureInput): void {
       try {
         client.capture({
@@ -71,6 +57,20 @@ export function createPosthogSink(options: { host: string, projectKey: string })
       }
       catch (err) {
         logger.withError(err).withFields({ event: input.event }).warn('Failed to enqueue product event to PostHog')
+      }
+    },
+
+    async capture(input: PosthogCaptureInput): Promise<void> {
+      try {
+        await client.captureImmediate({
+          distinctId: input.distinctId,
+          event: input.event,
+          properties: input.properties,
+          ...(input.uuid && { uuid: input.uuid }),
+        })
+      }
+      catch (err) {
+        logger.withError(err).withFields({ event: input.event }).warn('Failed to forward product event to PostHog')
       }
     },
 

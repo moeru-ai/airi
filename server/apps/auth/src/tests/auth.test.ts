@@ -21,9 +21,6 @@ function createMockDb(existingRowsByCall: unknown[][] = []) {
   })
 
   const db = {
-    insert: vi.fn(() => ({
-      values,
-    })),
     select: vi.fn(() => ({
       from: vi.fn(() => ({
         where: vi.fn(() => ({
@@ -31,30 +28,33 @@ function createMockDb(existingRowsByCall: unknown[][] = []) {
         })),
       })),
     })),
+    insert: vi.fn(() => ({
+      values,
+    })),
   }
 
-  return { capturedValues, db, limit, values }
+  return { db, limit, values, capturedValues }
 }
 
 describe('createAuth', () => {
   const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' })
-  const applePrivateKey = privateKey.export({ format: 'pem', type: 'pkcs8' }).toString()
-  const applePublicKey = publicKey.export({ format: 'pem', type: 'spki' }).toString()
+  const applePrivateKey = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
+  const applePublicKey = publicKey.export({ type: 'spki', format: 'pem' }).toString()
 
   it('allows signed-in users to link OAuth accounts that use a different email', () => {
     const auth = createAuth({} as unknown as AuthDatabase, {
-      ADDITIONAL_TRUSTED_ORIGINS: [],
-      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: ['ai.moeru.airi-pocket', 'ai.moeru.airi-pro'],
-      AUTH_APPLE_CLIENT_ID: 'apple-service-id',
-      AUTH_APPLE_KEY_ID: 'apple-key-id',
-      AUTH_APPLE_PRIVATE_KEY_PEM: applePrivateKey,
-      AUTH_APPLE_TEAM_ID: 'apple-team-id',
-      AUTH_GITHUB_CLIENT_ID: 'github-client',
-      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      PUBLIC_URL: 'http://localhost:3000',
       AUTH_GOOGLE_CLIENT_ID: 'google-client',
       AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
+      AUTH_GITHUB_CLIENT_ID: 'github-client',
+      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      AUTH_APPLE_CLIENT_ID: 'apple-service-id',
+      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: ['ai.moeru.airi-pocket', 'ai.moeru.airi-pro'],
+      AUTH_APPLE_TEAM_ID: 'apple-team-id',
+      AUTH_APPLE_KEY_ID: 'apple-key-id',
+      AUTH_APPLE_PRIVATE_KEY_PEM: applePrivateKey,
       BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
-      PUBLIC_URL: 'http://localhost:3000',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
     } as unknown as AuthEnv)
 
     expect(auth.options.account?.accountLinking?.allowDifferentEmails).toBe(true)
@@ -62,43 +62,43 @@ describe('createAuth', () => {
 
   it('registers lastSeenAt as a server-managed Better Auth user field', () => {
     const auth = createAuth({} as unknown as AuthDatabase, {
-      ADDITIONAL_TRUSTED_ORIGINS: [],
-      AUTH_GITHUB_CLIENT_ID: 'github-client',
-      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      PUBLIC_URL: 'http://localhost:3000',
       AUTH_GOOGLE_CLIENT_ID: 'google-client',
       AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
+      AUTH_GITHUB_CLIENT_ID: 'github-client',
+      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
       BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
-      PUBLIC_URL: 'http://localhost:3000',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
     } as unknown as AuthEnv)
 
     expect(auth.options.user?.additionalFields?.lastSeenAt).toMatchObject({
-      input: false,
-      required: false,
-      returned: true,
       type: 'date',
+      required: false,
+      input: false,
+      returned: true,
     })
     expect(getAuthTables(auth.options).user.fields.lastSeenAt).toMatchObject({
-      input: false,
-      required: false,
-      returned: true,
       type: 'date',
+      required: false,
+      input: false,
+      returned: true,
     })
   })
 
   it('asks social providers to show the account picker during OAuth authorization', () => {
     const auth = createAuth({} as unknown as AuthDatabase, {
-      ADDITIONAL_TRUSTED_ORIGINS: [],
-      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: ['ai.moeru.airi-pocket', 'ai.moeru.airi-pro'],
-      AUTH_APPLE_CLIENT_ID: 'apple-service-id',
-      AUTH_APPLE_KEY_ID: 'apple-key-id',
-      AUTH_APPLE_PRIVATE_KEY_PEM: applePrivateKey,
-      AUTH_APPLE_TEAM_ID: 'apple-team-id',
-      AUTH_GITHUB_CLIENT_ID: 'github-client',
-      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      PUBLIC_URL: 'http://localhost:3000',
       AUTH_GOOGLE_CLIENT_ID: 'google-client',
       AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
+      AUTH_GITHUB_CLIENT_ID: 'github-client',
+      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      AUTH_APPLE_CLIENT_ID: 'apple-service-id',
+      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: ['ai.moeru.airi-pocket', 'ai.moeru.airi-pro'],
+      AUTH_APPLE_TEAM_ID: 'apple-team-id',
+      AUTH_APPLE_KEY_ID: 'apple-key-id',
+      AUTH_APPLE_PRIVATE_KEY_PEM: applePrivateKey,
       BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
-      PUBLIC_URL: 'http://localhost:3000',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
     } as unknown as AuthEnv)
 
     const google = auth.options.socialProviders?.google
@@ -111,18 +111,18 @@ describe('createAuth', () => {
 
   it('does not register Apple when its optional credentials are absent', () => {
     const auth = createAuth({} as unknown as AuthDatabase, {
-      ADDITIONAL_TRUSTED_ORIGINS: [],
-      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: [],
-      AUTH_APPLE_CLIENT_ID: '',
-      AUTH_APPLE_KEY_ID: '',
-      AUTH_APPLE_PRIVATE_KEY_PEM: '',
-      AUTH_APPLE_TEAM_ID: '',
-      AUTH_GITHUB_CLIENT_ID: 'github-client',
-      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      PUBLIC_URL: 'http://localhost:3000',
       AUTH_GOOGLE_CLIENT_ID: 'google-client',
       AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
+      AUTH_GITHUB_CLIENT_ID: 'github-client',
+      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      AUTH_APPLE_CLIENT_ID: '',
+      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: [],
+      AUTH_APPLE_TEAM_ID: '',
+      AUTH_APPLE_KEY_ID: '',
+      AUTH_APPLE_PRIVATE_KEY_PEM: '',
       BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
-      PUBLIC_URL: 'http://localhost:3000',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
     } as unknown as AuthEnv)
 
     expect(auth.options.socialProviders?.apple).toBeUndefined()
@@ -130,18 +130,18 @@ describe('createAuth', () => {
 
   it('does not register Apple when its optional credentials are incomplete', () => {
     const auth = createAuth({} as unknown as AuthDatabase, {
-      ADDITIONAL_TRUSTED_ORIGINS: [],
-      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: ['ai.moeru.airi-pocket', 'ai.moeru.airi-pro'],
-      AUTH_APPLE_CLIENT_ID: 'apple-service-id',
-      AUTH_APPLE_KEY_ID: 'apple-key-id',
-      AUTH_APPLE_PRIVATE_KEY_PEM: '',
-      AUTH_APPLE_TEAM_ID: 'apple-team-id',
-      AUTH_GITHUB_CLIENT_ID: 'github-client',
-      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      PUBLIC_URL: 'http://localhost:3000',
       AUTH_GOOGLE_CLIENT_ID: 'google-client',
       AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
+      AUTH_GITHUB_CLIENT_ID: 'github-client',
+      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      AUTH_APPLE_CLIENT_ID: 'apple-service-id',
+      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: ['ai.moeru.airi-pocket', 'ai.moeru.airi-pro'],
+      AUTH_APPLE_TEAM_ID: 'apple-team-id',
+      AUTH_APPLE_KEY_ID: 'apple-key-id',
+      AUTH_APPLE_PRIVATE_KEY_PEM: '',
       BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
-      PUBLIC_URL: 'http://localhost:3000',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
     } as unknown as AuthEnv)
 
     expect(auth.options.socialProviders?.apple).toBeUndefined()
@@ -149,18 +149,18 @@ describe('createAuth', () => {
 
   it('configures Apple for web OAuth and native ID-token sign-in', async () => {
     const auth = createAuth({} as unknown as AuthDatabase, {
-      ADDITIONAL_TRUSTED_ORIGINS: [],
-      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: ['ai.moeru.airi-pocket', 'ai.moeru.airi-pro'],
-      AUTH_APPLE_CLIENT_ID: 'apple-service-id',
-      AUTH_APPLE_KEY_ID: 'apple-key-id',
-      AUTH_APPLE_PRIVATE_KEY_PEM: applePrivateKey,
-      AUTH_APPLE_TEAM_ID: 'apple-team-id',
-      AUTH_GITHUB_CLIENT_ID: 'github-client',
-      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      PUBLIC_URL: 'http://localhost:3000',
       AUTH_GOOGLE_CLIENT_ID: 'google-client',
       AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
+      AUTH_GITHUB_CLIENT_ID: 'github-client',
+      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      AUTH_APPLE_CLIENT_ID: 'apple-service-id',
+      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: ['ai.moeru.airi-pocket', 'ai.moeru.airi-pro'],
+      AUTH_APPLE_TEAM_ID: 'apple-team-id',
+      AUTH_APPLE_KEY_ID: 'apple-key-id',
+      AUTH_APPLE_PRIVATE_KEY_PEM: applePrivateKey,
       BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
-      PUBLIC_URL: 'http://localhost:3000',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
     } as unknown as AuthEnv)
 
     const appleProvider = auth.options.socialProviders?.apple
@@ -177,9 +177,9 @@ describe('createAuth', () => {
 
     await expect(jwtVerify(config.clientSecret, verificationKey, {
       algorithms: ['ES256'],
-      audience: 'https://appleid.apple.com',
       issuer: 'apple-team-id',
       subject: 'apple-service-id',
+      audience: 'https://appleid.apple.com',
     })).resolves.toBeDefined()
     expect(config.clientId).toBe('apple-service-id')
     expect(config.audience).toEqual([
@@ -190,24 +190,24 @@ describe('createAuth', () => {
     expect(header).toMatchObject({ alg: 'ES256', kid: 'apple-key-id' })
     expect(claims.exp! - claims.iat!).toBe(180 * 24 * 60 * 60)
     expect(await config.mapProfileToUser?.({
+      sub: 'apple-user-id',
       email: '',
       email_verified: true,
       is_private_email: false,
+      real_user_status: 2,
       name: '',
       picture: '',
-      real_user_status: 2,
-      sub: 'apple-user-id',
     })).toEqual({
       email: 'apple-user-id@apple.placeholder.local',
     })
     expect(await config.mapProfileToUser?.({
+      sub: 'apple-user-id',
       email: 'relay@privaterelay.appleid.com',
       email_verified: true,
       is_private_email: true,
+      real_user_status: 2,
       name: '',
       picture: '',
-      real_user_status: 2,
-      sub: 'apple-user-id',
     })).toEqual({
       email: 'relay@privaterelay.appleid.com',
     })
@@ -224,13 +224,13 @@ describe('createAuth', () => {
     const auth = createAuth(
       {} as unknown as AuthDatabase,
       {
-        ADDITIONAL_TRUSTED_ORIGINS: [],
-        AUTH_GITHUB_CLIENT_ID: 'github-client',
-        AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+        PUBLIC_URL: 'http://localhost:3000',
         AUTH_GOOGLE_CLIENT_ID: 'google-client',
         AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
+        AUTH_GITHUB_CLIENT_ID: 'github-client',
+        AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
         BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
-        PUBLIC_URL: 'http://localhost:3000',
+        ADDITIONAL_TRUSTED_ORIGINS: [],
       } as unknown as AuthEnv,
       undefined,
       undefined,
@@ -252,12 +252,12 @@ describe('createAuth', () => {
       throw new TypeError('Expected account-deletion hook')
 
     await beforeDelete({
-      createdAt: new Date(),
+      id: 'user-1',
+      name: 'User One',
       email: 'user@example.com',
       emailVerified: true,
-      id: 'user-1',
       image: null,
-      name: 'User One',
+      createdAt: new Date(),
       updatedAt: new Date(),
     }, new Request('http://localhost:3000/api/auth/delete-user'))
 
@@ -266,13 +266,13 @@ describe('createAuth', () => {
 
   it('uses the Caddy public API origin as the Better Auth base URL', () => {
     const auth = createAuth({} as unknown as AuthDatabase, {
-      ADDITIONAL_TRUSTED_ORIGINS: [],
-      AUTH_GITHUB_CLIENT_ID: 'github-client',
-      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      PUBLIC_URL: 'https://api.airi.build',
       AUTH_GOOGLE_CLIENT_ID: 'google-client',
       AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
+      AUTH_GITHUB_CLIENT_ID: 'github-client',
+      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
       BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
-      PUBLIC_URL: 'https://api.airi.build',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
     } as unknown as AuthEnv)
 
     expect(auth.options.baseURL).toBe('https://api.airi.build')
@@ -281,7 +281,7 @@ describe('createAuth', () => {
 
 describe('seedTrustedClients', () => {
   it('seeds trusted first-party clients with explicit oauth metadata', async () => {
-    const { capturedValues, db, values } = createMockDb([[], [], []])
+    const { db, values, capturedValues } = createMockDb([[], [], []])
 
     await seedTrustedClients(db as any, {
       PUBLIC_URL: 'http://localhost:3000',
@@ -365,7 +365,7 @@ describe('seedTrustedClients', () => {
   })
 
   it('registers the Electron callback on the public API origin', async () => {
-    const { capturedValues, db } = createMockDb([[], [], []])
+    const { db, capturedValues } = createMockDb([[], [], []])
 
     await seedTrustedClients(db as any, {
       PUBLIC_URL: 'https://api.airi.build',

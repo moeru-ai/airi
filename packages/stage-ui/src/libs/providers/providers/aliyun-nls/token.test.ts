@@ -54,8 +54,8 @@ describe('buildCreateTokenRequest', () => {
       'my_access_key_id',
       'my_access_key_secret',
       {
-        signatureNonce: testParameters.SignatureNonce,
         timestamp: parse(testParameters.Timestamp, 'yyyy-MM-dd\'T\'HH:mm:ssX', new Date()),
+        signatureNonce: testParameters.SignatureNonce,
       },
     )
 
@@ -76,7 +76,7 @@ describe('createToken', (test) => {
       return
     }
 
-    const { expiresAt, token } = await createToken(env.ALIYUN_AK_ID!, env.ALIYUN_AK_SECRET!)
+    const { token, expiresAt } = await createToken(env.ALIYUN_AK_ID!, env.ALIYUN_AK_SECRET!)
     expect(token).toBeDefined()
     expect(token).toBeTypeOf('string')
     expect(expiresAt).toBeTypeOf('number')

@@ -7,17 +7,17 @@ import { errorMessageFromValue } from '../utils/error-message'
 const DEFAULT_CDP_URL = 'http://localhost:9222'
 
 export interface CdpAvailabilityStatus {
-  connectable: boolean
-  connected: boolean
   endpoint: string
+  connected: boolean
+  connectable: boolean
   lastError?: string
 }
 
 export interface CdpBridgeManager {
-  close: () => Promise<void>
   ensureBridge: (cdpUrl?: string) => Promise<CdpBridge>
   getStatus: () => CdpBridgeStatus
   probeAvailability: (cdpUrl?: string) => Promise<CdpAvailabilityStatus>
+  close: () => Promise<void>
 }
 
 export function createCdpBridgeManager(config: ComputerUseConfig): CdpBridgeManager {
@@ -25,15 +25,6 @@ export function createCdpBridgeManager(config: ComputerUseConfig): CdpBridgeMana
   let lastRequestedUrl = DEFAULT_CDP_URL
 
   return {
-    async close() {
-      if (!cdpBridge) {
-        return
-      }
-
-      await cdpBridge.close()
-      cdpBridge = undefined
-    },
-
     async ensureBridge(cdpUrl?: string) {
       const url = cdpUrl || DEFAULT_CDP_URL
       lastRequestedUrl = url
@@ -77,20 +68,29 @@ export function createCdpBridgeManager(config: ComputerUseConfig): CdpBridgeMana
         const connectable = targets.some(target => target.type === 'page' && typeof target.webSocketDebuggerUrl === 'string' && target.webSocketDebuggerUrl.length > 0)
 
         return {
-          connectable,
-          connected,
           endpoint,
+          connected,
+          connectable,
           lastError: connectable ? undefined : 'No page target with WebSocket debugger URL was found.',
         }
       }
       catch (error) {
         return {
-          connectable: false,
-          connected,
           endpoint,
+          connected,
+          connectable: false,
           lastError: errorMessageFromValue(error),
         }
       }
+    },
+
+    async close() {
+      if (!cdpBridge) {
+        return
+      }
+
+      await cdpBridge.close()
+      cdpBridge = undefined
     },
   }
 }

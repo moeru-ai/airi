@@ -2,35 +2,35 @@ import { useAsyncState } from './use-async-state'
 
 export interface UseOptimisticMutationOptions<T, R, E = unknown> {
   /**
+   * The optimistic update logic.
+   * Should return a rollback function.
+   */
+  apply: () => Promise<(() => Promise<void> | void)> | (() => Promise<void> | void)
+  /**
    * The actual async task (e.g., API call).
    */
   action: () => Promise<T>
   /**
-   * The optimistic update logic.
-   * Should return a rollback function.
-   */
-  apply: () => (() => Promise<void> | void) | Promise<(() => Promise<void> | void)>
-  /**
-   * Whether to execute the action lazily.
-   */
-  lazy?: boolean
-  /**
-   * Optional callback on error. Rollback is handled automatically.
-   */
-  onError?: (error?: E | null) => Promise<void> | void
-  /**
    * Optional callback after successful action to refine state (e.g., replacing temp IDs).
    */
   onSuccess?: (result: T) => Promise<R> | R
+  /**
+   * Optional callback on error. Rollback is handled automatically.
+   */
+  onError?: (error?: E | null) => void | Promise<void>
+  /**
+   * Skip the action when this returns true.
+   */
+  skipActionIf?: () => boolean | Promise<boolean>
   /**
    * Decide whether to rollback after an error.
    */
   shouldRollback?: (error: E) => boolean | Promise<boolean>
 
   /**
-   * Skip the action when this returns true.
+   * Whether to execute the action lazily.
    */
-  skipActionIf?: () => boolean | Promise<boolean>
+  lazy?: boolean
 }
 
 /**
@@ -40,13 +40,13 @@ export interface UseOptimisticMutationOptions<T, R, E = unknown> {
  */
 export function useOptimisticMutation<T, R = T, E = unknown>(options: UseOptimisticMutationOptions<T, R, E>) {
   const {
-    action,
     apply,
-    lazy = false,
-    onError,
+    action,
     onSuccess,
-    shouldRollback,
+    onError,
     skipActionIf,
+    shouldRollback,
+    lazy = false,
   } = options
 
   return useAsyncState(async () => {

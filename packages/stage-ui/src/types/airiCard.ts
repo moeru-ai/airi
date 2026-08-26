@@ -1,12 +1,5 @@
 import type { Card } from '@proj-airi/ccc'
 
-/** Character card normalized with the AIRI extension required by the runtime. */
-export interface AiriCard extends Card {
-  extensions: Card['extensions'] & {
-    airi: AiriExtension
-  }
-}
-
 /**
  * AIRI-specific runtime configuration embedded in a character card.
  *
@@ -15,61 +8,68 @@ export interface AiriCard extends Card {
  * losing each other's configuration.
  */
 export interface AiriExtension {
-  agents: Record<string, {
-    enabled?: boolean
-    prompt: string
-  }>
-
   modules: {
-    activeBackgroundId?: string
-
-    artistry?: {
-      autonomousEnabled?: boolean
-      autonomousTarget?: 'assistant' | 'user'
-      autonomousThreshold?: number
-      enabled?: boolean
-      model?: string
-      options?: Record<string, unknown>
-      promptPrefix?: string
-      provider?: string
-      spawnMode?: 'bg' | 'bg_widget' | 'inline' | 'widget'
-      widgetInstruction?: string
-      workflowId?: string
+    consciousness: {
+      provider: string
+      model: string
     }
 
-    consciousness: {
-      model: string
+    vision: {
       provider: string
+      model: string
+    }
+
+    speech: {
+      provider: string
+      model: string
+      voice_id: string
+
+      pitch?: number
+      rate?: number
+      ssml?: boolean
+      language?: string
+    }
+
+    vrm?: {
+      source?: 'file' | 'url'
+      file?: string
+      url?: string
+    }
+
+    live2d?: {
+      source?: 'file' | 'url'
+      file?: string
+      url?: string
     }
 
     /** ID from the display-models store. */
     displayModelId?: string
+    activeBackgroundId?: string
 
-    live2d?: {
-      file?: string
-      source?: 'file' | 'url'
-      url?: string
-    }
-
-    speech: {
-      language?: string
-      model: string
-      pitch?: number
-
-      provider: string
-      rate?: number
-      ssml?: boolean
-      voice_id: string
-    }
-    vision: {
-      model: string
-      provider: string
-    }
-
-    vrm?: {
-      file?: string
-      source?: 'file' | 'url'
-      url?: string
+    artistry?: {
+      enabled?: boolean
+      provider?: string
+      model?: string
+      promptPrefix?: string
+      workflowId?: string
+      widgetInstruction?: string
+      spawnMode?: 'bg' | 'widget' | 'inline' | 'bg_widget'
+      options?: Record<string, unknown>
+      autonomousEnabled?: boolean
+      autonomousThreshold?: number
+      autonomousTarget?: 'user' | 'assistant'
     }
   }
+
+  agents: Record<string, {
+    prompt: string
+    enabled?: boolean
+  }>
+}
+
+/** Character card normalized with the AIRI extension required by the runtime. */
+export interface AiriCard extends Card {
+  extensions: {
+    airi: AiriExtension
+  } & Card['extensions']
 }

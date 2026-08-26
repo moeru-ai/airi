@@ -13,14 +13,14 @@ type Player2VoiceLanguage = keyof typeof player2VoiceLanguages
 
 const player2VoiceLanguages = {
   american_english: { code: 'en', title: 'English' },
-  brazilian_portuguese: { code: 'pt', title: 'Portuguese' },
   british_english: { code: 'en', title: 'English' },
-  french: { code: 'fr', title: 'French' },
-  hindi: { code: 'hi', title: 'Hindi' },
-  italian: { code: 'it', title: 'Italian' },
   japanese: { code: 'ja', title: 'Japanese' },
   mandarin_chinese: { code: 'zh', title: 'Chinese' },
   spanish: { code: 'es', title: 'Spanish' },
+  french: { code: 'fr', title: 'French' },
+  hindi: { code: 'hi', title: 'Hindi' },
+  italian: { code: 'it', title: 'Italian' },
+  brazilian_portuguese: { code: 'pt', title: 'Portuguese' },
 } as const
 
 function normalizeBaseUrl(baseUrl: string | undefined) {
@@ -29,38 +29,15 @@ function normalizeBaseUrl(baseUrl: string | undefined) {
 }
 
 export const providerPlayer2Speech = defineProvider<Player2Config>({
-  createProvider: config => createPlayer2(normalizeBaseUrl(config.baseUrl), 'airi'),
-  createProviderConfig: () => player2ConfigSchema,
-  description: 'player2.game',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.player2.description'),
-  extraMethods: {
-    listModels: async () => [{
-      contextLength: 0,
-      deprecated: false,
-      description: 'Default model for Player2 speech endpoint',
-      id: 'player2-tts',
-      name: 'Player2 Speech',
-      provider: 'player2-speech',
-    }],
-    listVoices: async (config) => {
-      const response = await fetch(new URL('tts/voices', normalizeBaseUrl(config.baseUrl)))
-      const data = await response.json() as {
-        voices?: Array<{ gender: string, id: string, language: Player2VoiceLanguage, name: string }>
-      }
-      return (data.voices ?? []).map(voice => ({
-        gender: voice.gender,
-        id: voice.id,
-        languages: [player2VoiceLanguages[voice.language]],
-        name: voice.name,
-        provider: 'player2-speech',
-      }))
-    },
-  },
-  icon: 'i-lobe-icons:player2',
   id: 'player2-speech',
   name: 'Player2 Speech',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.player2.title'),
+  description: 'player2.game',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.player2.description'),
   tasks: ['text-to-speech'],
+  icon: 'i-lobe-icons:player2',
+  createProviderConfig: () => player2ConfigSchema,
+  createProvider: config => createPlayer2(normalizeBaseUrl(config.baseUrl), 'airi'),
   validationRequiredWhen: config => Boolean(config.baseUrl?.trim()),
   validators: {
     validateConfig: [
@@ -103,5 +80,28 @@ export const providerPlayer2Speech = defineProvider<Player2Config>({
         },
       }),
     ],
+  },
+  extraMethods: {
+    listModels: async () => [{
+      id: 'player2-tts',
+      name: 'Player2 Speech',
+      provider: 'player2-speech',
+      description: 'Default model for Player2 speech endpoint',
+      contextLength: 0,
+      deprecated: false,
+    }],
+    listVoices: async (config) => {
+      const response = await fetch(new URL('tts/voices', normalizeBaseUrl(config.baseUrl)))
+      const data = await response.json() as {
+        voices?: Array<{ id: string, language: Player2VoiceLanguage, name: string, gender: string }>
+      }
+      return (data.voices ?? []).map(voice => ({
+        id: voice.id,
+        name: voice.name,
+        provider: 'player2-speech',
+        gender: voice.gender,
+        languages: [player2VoiceLanguages[voice.language]],
+      }))
+    },
   },
 })

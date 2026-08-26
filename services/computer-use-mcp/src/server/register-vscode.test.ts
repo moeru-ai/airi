@@ -11,36 +11,15 @@ import { registerVscodeTools } from './register-vscode'
 
 type ToolHandler = (args: Record<string, unknown>) => Promise<CallToolResult>
 
-function createExecutedTerminalResult(overrides: {
-  command: string
-  durationMs?: number
-  effectiveCwd?: string
-  exitCode?: number
-  stderr?: string
-  stdout?: string
-  timedOut?: boolean
-}): CallToolResult {
-  return {
-    content: [{ text: 'terminal ok', type: 'text' }],
-    structuredContent: {
-      backendResult: {
-        command: overrides.command,
-        durationMs: overrides.durationMs ?? 25,
-        effectiveCwd: overrides.effectiveCwd ?? '/tmp',
-        exitCode: overrides.exitCode ?? 0,
-        stderr: overrides.stderr ?? '',
-        stdout: overrides.stdout ?? '',
-        timedOut: overrides.timedOut ?? false,
-      },
-      status: 'executed',
-    },
-  }
-}
-
 function createMockServer() {
   const handlers = new Map<string, ToolHandler>()
 
   return {
+    server: {
+      tool(name: string, _schema: unknown, handler: ToolHandler) {
+        handlers.set(name, handler)
+      },
+    } as unknown as McpServer,
     async invoke(name: string, args: Record<string, unknown> = {}) {
       const handler = handlers.get(name)
       if (!handler) {
@@ -49,11 +28,32 @@ function createMockServer() {
 
       return await handler(args)
     },
-    server: {
-      tool(name: string, _schema: unknown, handler: ToolHandler) {
-        handlers.set(name, handler)
+  }
+}
+
+function createExecutedTerminalResult(overrides: {
+  command: string
+  stdout?: string
+  stderr?: string
+  exitCode?: number
+  effectiveCwd?: string
+  durationMs?: number
+  timedOut?: boolean
+}): CallToolResult {
+  return {
+    content: [{ type: 'text', text: 'terminal ok' }],
+    structuredContent: {
+      status: 'executed',
+      backendResult: {
+        command: overrides.command,
+        stdout: overrides.stdout ?? '',
+        stderr: overrides.stderr ?? '',
+        exitCode: overrides.exitCode ?? 0,
+        effectiveCwd: overrides.effectiveCwd ?? '/tmp',
+        durationMs: overrides.durationMs ?? 25,
+        timedOut: overrides.timedOut ?? false,
       },
-    } as unknown as McpServer,
+    },
   }
 }
 
@@ -77,9 +77,9 @@ describe('registerVscodeTools', () => {
         command: 'code --reuse-window "/tmp/project"',
         effectiveCwd: '/tmp/project',
       }))
-    const { invoke, server } = createMockServer()
+    const { server, invoke } = createMockServer()
 
-    registerVscodeTools({ executeTerminalCommand, runtime, server })
+    registerVscodeTools({ server, runtime, executeTerminalCommand })
 
     const result = await invoke('vscode_open_workspace', {
       folderPath: '/tmp/project',
@@ -106,16 +106,16 @@ describe('registerVscodeTools', () => {
 
   it('passes approval_required responses through instead of bypassing the terminal pipeline', async () => {
     const approvalRequired: CallToolResult = {
-      content: [{ text: 'approval required', type: 'text' }],
+      content: [{ type: 'text', text: 'approval required' }],
       structuredContent: {
-        pendingActionId: 'pending-1',
         status: 'approval_required',
+        pendingActionId: 'pending-1',
       },
     }
     const executeTerminalCommand = vi.fn().mockResolvedValue(approvalRequired)
-    const { invoke, server } = createMockServer()
+    const { server, invoke } = createMockServer()
 
-    registerVscodeTools({ executeTerminalCommand, runtime, server })
+    registerVscodeTools({ server, runtime, executeTerminalCommand })
 
     const result = await invoke('vscode_run_task', {
       command: 'pnpm test',
@@ -134,16 +134,16 @@ describe('registerVscodeTools', () => {
   it('parses problem output and writes diagnostics into run-state', async () => {
     const executeTerminalCommand = vi.fn().mockResolvedValue(createExecutedTerminalResult({
       command: 'pnpm typecheck 2>&1',
-      effectiveCwd: '/tmp/project',
       exitCode: 1,
+      effectiveCwd: '/tmp/project',
       stdout: [
         'src/main.ts(10,5): error TS2345: Type "number" is not assignable to type "string".',
         'src/App.vue:12:3 - warning TS6133: "unused" is declared but its value is never read.',
       ].join('\n'),
     }))
-    const { invoke, server } = createMockServer()
+    const { server, invoke } = createMockServer()
 
-    registerVscodeTools({ executeTerminalCommand, runtime, server })
+    registerVscodeTools({ server, runtime, executeTerminalCommand })
 
     const result = await invoke('vscode_list_problems', {
       cwd: '/tmp/project',
@@ -154,32 +154,32 @@ describe('registerVscodeTools', () => {
     expect(structured.problemCount).toBe(2)
     expect(structured.problems).toEqual([
       {
-        code: 'TS2345',
-        column: 5,
         file: 'src/main.ts',
         line: 10,
-        message: 'Type "number" is not assignable to type "string".',
+        column: 5,
         severity: 'error',
+        code: 'TS2345',
+        message: 'Type "number" is not assignable to type "string".',
       },
       {
-        code: 'TS6133',
-        column: 3,
         file: 'src/App.vue',
         line: 12,
-        message: '"unused" is declared but its value is never read.',
+        column: 3,
         severity: 'warning',
+        code: 'TS6133',
+        message: '"unused" is declared but its value is never read.',
       },
     ])
     expect(runtime.stateManager.getState().vscode).toMatchObject({
-      lastProblems: {
-        command: 'pnpm typecheck 2>&1',
-        cwd: '/tmp/project',
-        problemCount: 2,
-      },
       lastTask: {
         command: 'pnpm typecheck 2>&1',
         cwd: '/tmp/project',
         exitCode: 1,
+      },
+      lastProblems: {
+        command: 'pnpm typecheck 2>&1',
+        cwd: '/tmp/project',
+        problemCount: 2,
       },
     })
   })

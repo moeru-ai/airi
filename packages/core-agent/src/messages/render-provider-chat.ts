@@ -1,45 +1,5 @@
 import type { HistoryItem, Message, MessageSegment, RawMessage } from './types'
 
-/**
- * Renders structured messages into provider chat messages with stable ordering.
- *
- * Use when:
- * - Preparing a chat completion input array
- * - Projected messages must be flattened into raw provider chat text without leaking domain-specific renderer logic
- *
- * Expects:
- * - Structured messages to contain renderable segments
- * - `mode` to describe the prompt surface, even when rendering stays identical
- *
- * Returns:
- * - Raw provider chat messages in the same order as the input entries
- */
-export function renderProviderChatMessages(input: {
-  entries: Array<Message | RawMessage>
-  mode: 'eval-debug' | 'session-main' | 'session-spark-command' | 'session-spark-notify'
-}): RawMessage[] {
-  const attachSourceName = input.mode !== 'session-main'
-
-  return input.entries.map((entry) => {
-    if ('content' in entry)
-      return entry
-
-    return {
-      content: entry.segments.map(renderSegmentText).join('\n'),
-      metadata: entry.metadata,
-      name: attachSourceName ? entry.source : undefined,
-      role: mapStructuredRole(entry.role),
-    }
-  })
-}
-
-function mapStructuredRole(role: Message['role']): RawMessage['role'] {
-  if (role === 'context' || role === 'event' || role === 'summary')
-    return 'system'
-
-  return role
-}
-
 function renderHistoryAction(item: HistoryItem) {
   if (item.type === 'summary') {
     return [
@@ -117,4 +77,44 @@ function renderSegmentText(segment: MessageSegment): string {
   }
 
   return segment.items.map(renderHistoryAction).join('\n')
+}
+
+function mapStructuredRole(role: Message['role']): RawMessage['role'] {
+  if (role === 'context' || role === 'event' || role === 'summary')
+    return 'system'
+
+  return role
+}
+
+/**
+ * Renders structured messages into provider chat messages with stable ordering.
+ *
+ * Use when:
+ * - Preparing a chat completion input array
+ * - Projected messages must be flattened into raw provider chat text without leaking domain-specific renderer logic
+ *
+ * Expects:
+ * - Structured messages to contain renderable segments
+ * - `mode` to describe the prompt surface, even when rendering stays identical
+ *
+ * Returns:
+ * - Raw provider chat messages in the same order as the input entries
+ */
+export function renderProviderChatMessages(input: {
+  entries: Array<Message | RawMessage>
+  mode: 'session-main' | 'session-spark-notify' | 'session-spark-command' | 'eval-debug'
+}): RawMessage[] {
+  const attachSourceName = input.mode !== 'session-main'
+
+  return input.entries.map((entry) => {
+    if ('content' in entry)
+      return entry
+
+    return {
+      role: mapStructuredRole(entry.role),
+      content: entry.segments.map(renderSegmentText).join('\n'),
+      name: attachSourceName ? entry.source : undefined,
+      metadata: entry.metadata,
+    }
+  })
 }

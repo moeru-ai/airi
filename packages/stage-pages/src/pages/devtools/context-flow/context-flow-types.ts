@@ -1,17 +1,19 @@
 import type { WebSocketEvents } from '@proj-airi/server-sdk'
 
-export type FlowChannel = 'broadcast' | 'chat' | 'devtools' | 'server'
+type Optional<T> = T | undefined
 
 export type FlowDirection = 'incoming' | 'outgoing'
+export type FlowChannel = 'server' | 'broadcast' | 'chat' | 'devtools'
+
 export interface FlowEntry {
-  channel: FlowChannel
-  direction: FlowDirection
   id: number
+  timestamp: number
+  direction: FlowDirection
+  channel: FlowChannel
+  type: string
+  summary?: string
   payload?: unknown
   searchText: string
-  summary?: string
-  timestamp: number
-  type: string
 }
 
 export interface PreviewItem {
@@ -20,14 +22,12 @@ export interface PreviewItem {
 }
 
 export interface SparkNotifyEntryState {
+  eventId: string
+  sparkId?: string
+  handling: boolean
   commands: WebSocketEvents['spark:command'][]
+  reaction: string
+  startedAt: number
   endedAt?: number
   error?: Optional<string>
-  eventId: string
-  handling: boolean
-  reaction: string
-  sparkId?: string
-  startedAt: number
 }
-
-type Optional<T> = T | undefined

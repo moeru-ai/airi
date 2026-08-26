@@ -124,7 +124,7 @@ const ALWAYS_TRUSTED_AUTH_ORIGINS = [
  * - De-duplicated origins in insertion order (Auth URL, env extras, localhost wildcards, then request-derived).
  */
 export function getAuthTrustedOrigins(
-  env: { ADDITIONAL_TRUSTED_ORIGINS: readonly string[], PUBLIC_URL: string },
+  env: { PUBLIC_URL: string, ADDITIONAL_TRUSTED_ORIGINS: readonly string[] },
   request?: Request,
 ): string[] {
   const origins = new Set<string>()

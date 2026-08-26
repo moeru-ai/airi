@@ -7,8 +7,8 @@ describe('http query utils', () => {
   it('uses the declared default when the query value is missing', () => {
     const schema = createQueryIntegerSchema({
       defaultValue: 20,
-      maximum: 100,
       minimum: 1,
+      maximum: 100,
     })
 
     expect(parse(schema, undefined)).toBe(20)
@@ -17,8 +17,8 @@ describe('http query utils', () => {
   it('falls back to the declared default when the query value is invalid', () => {
     const schema = createQueryIntegerSchema({
       defaultValue: 20,
-      maximum: 100,
       minimum: 1,
+      maximum: 100,
     })
 
     expect(parse(schema, 'NaN')).toBe(20)
@@ -28,8 +28,8 @@ describe('http query utils', () => {
   it('clamps values to the declared bounds', () => {
     const schema = createQueryIntegerSchema({
       defaultValue: 20,
-      maximum: 100,
       minimum: 1,
+      maximum: 100,
     })
 
     expect(parse(schema, '-12')).toBe(1)

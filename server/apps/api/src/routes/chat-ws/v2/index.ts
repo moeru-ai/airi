@@ -19,6 +19,27 @@ import { createChatWsUnauthenticatedPeerLimit } from './unauthenticated-peers'
 const MAX_UNAUTHENTICATED_CHAT_WS_CONNECTIONS = 100
 const MAX_UNAUTHENTICATED_CHAT_WS_FRAME_BYTES = 8192
 
+function isTerminableSocket(raw: unknown): raw is { terminate: () => void } {
+  return typeof raw === 'object'
+    && raw !== null
+    && 'terminate' in raw
+    && typeof raw.terminate === 'function'
+}
+
+function isAuthenticateFrame(data: unknown): boolean {
+  if (typeof data !== 'string' || data.length > MAX_UNAUTHENTICATED_CHAT_WS_FRAME_BYTES)
+    return false
+
+  try {
+    const frame = JSON.parse(data) as { eventa?: { id?: unknown }, payload?: { id?: unknown } }
+    return frame.eventa?.id === 'chat:authenticate-send'
+      || frame.payload?.id === 'chat:authenticate-send'
+  }
+  catch {
+    return false
+  }
+}
+
 /**
  * Creates version-two WebSocket handlers for chat sync and message fanout.
  *
@@ -41,7 +62,7 @@ export function createChatWsV2Handlers(
   const unauthenticatedPeers = createChatWsUnauthenticatedPeerLimit(MAX_UNAUTHENTICATED_CHAT_WS_CONNECTIONS)
 
   return function setupPeer() {
-    let socket: undefined | WSContext
+    let socket: WSContext | undefined
     let ownsUnauthenticatedSlot = false
     let authenticated = false
 
@@ -56,15 +77,15 @@ export function createChatWsV2Handlers(
     const { hooks } = createPeerHooks({
       onContext: (ctx) => {
         const authentication = createChatWsV2Authentication({
+          socket,
+          resolveUserId,
           onAuthenticated(userId) {
             if (socket)
               restoreAuthenticatedPayloadLimit?.(socket.raw)
             authenticated = true
             releaseUnauthenticatedSlot()
-            registerChatWsPeer({ chatService, ctx, metrics, runtime: chatRuntime, userId })
+            registerChatWsPeer({ ctx, userId, chatService, runtime: chatRuntime, metrics })
           },
-          resolveUserId,
-          socket,
         })
         const unregisterAuthenticate = defineInvokeHandler(ctx, authenticate, authentication.authenticate)
 
@@ -81,6 +102,21 @@ export function createChatWsV2Handlers(
     const originalOnMessage = hooks.onMessage
     const v2Hooks: WSEvents = {
       ...hooks,
+      onOpen(event, ws) {
+        if (!unauthenticatedPeers.tryAcquire()) {
+          // Do not wait for a hostile peer to answer a close frame. The slot is
+          // full, so terminating releases this connection immediately.
+          if (isTerminableSocket(ws.raw))
+            ws.raw.terminate()
+          else
+            ws.close(WS_CLOSE_TRY_AGAIN_LATER, 'too many unauthenticated connections')
+          return
+        }
+
+        ownsUnauthenticatedSlot = true
+        socket = ws
+        originalOnOpen?.(event, ws)
+      },
       onClose(event, ws) {
         releaseUnauthenticatedSlot()
         originalOnClose?.(event, ws)
@@ -99,43 +135,7 @@ export function createChatWsV2Handlers(
 
         originalOnMessage?.(event, ws)
       },
-      onOpen(event, ws) {
-        if (!unauthenticatedPeers.tryAcquire()) {
-          // Do not wait for a hostile peer to answer a close frame. The slot is
-          // full, so terminating releases this connection immediately.
-          if (isTerminableSocket(ws.raw))
-            ws.raw.terminate()
-          else
-            ws.close(WS_CLOSE_TRY_AGAIN_LATER, 'too many unauthenticated connections')
-          return
-        }
-
-        ownsUnauthenticatedSlot = true
-        socket = ws
-        originalOnOpen?.(event, ws)
-      },
     }
     return v2Hooks
   }
-}
-
-function isAuthenticateFrame(data: unknown): boolean {
-  if (typeof data !== 'string' || data.length > MAX_UNAUTHENTICATED_CHAT_WS_FRAME_BYTES)
-    return false
-
-  try {
-    const frame = JSON.parse(data) as { eventa?: { id?: unknown }, payload?: { id?: unknown } }
-    return frame.eventa?.id === 'chat:authenticate-send'
-      || frame.payload?.id === 'chat:authenticate-send'
-  }
-  catch {
-    return false
-  }
-}
-
-function isTerminableSocket(raw: unknown): raw is { terminate: () => void } {
-  return typeof raw === 'object'
-    && raw !== null
-    && 'terminate' in raw
-    && typeof raw.terminate === 'function'
 }

@@ -5,13 +5,13 @@ import { describe, expect, it, vi } from 'vitest'
 import { charactersService } from './characters'
 
 const payload = {
-  avatarModels: [],
-  capabilities: [],
   character: {
-    characterId: 'airi',
-    coverUrl: 'cover.png',
     version: '1',
+    coverUrl: 'cover.png',
+    characterId: 'airi',
   },
+  capabilities: [],
+  avatarModels: [],
   i18n: [],
   prompts: [],
 } satisfies CreateCharacterPayload
@@ -46,17 +46,17 @@ describe('services characters', () => {
       api: {
         v1: {
           characters: {
-            '$get': vi.fn(async () => ({ json: async () => [built], ok: true })),
-            '$post': vi.fn(async () => ({ json: async () => built, ok: true })),
+            '$get': vi.fn(async () => ({ ok: true, json: async () => [built] })),
+            '$post': vi.fn(async () => ({ ok: true, json: async () => built })),
             ':id': {
               $delete: vi.fn(async () => ({ ok: true })),
-              $get: vi.fn(async () => ({ json: async () => built, ok: true })),
-              $patch: vi.fn(async () => ({ json: async () => built, ok: true })),
+              $get: vi.fn(async () => ({ ok: true, json: async () => built })),
+              $patch: vi.fn(async () => ({ ok: true, json: async () => built })),
               bookmark: {
-                $post: vi.fn(async () => ({ json: async () => built, ok: true })),
+                $post: vi.fn(async () => ({ ok: true, json: async () => built })),
               },
               like: {
-                $post: vi.fn(async () => ({ json: async () => built, ok: true })),
+                $post: vi.fn(async () => ({ ok: true, json: async () => built })),
               },
             },
           },

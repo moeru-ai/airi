@@ -14,12 +14,12 @@ import type { ExtensionHost, KitDescriptor } from '@proj-airi/plugin-sdk/plugin-
  * - The gamelet kit descriptor used for `kit.gamelet`
  */
 export const gameletPluginKitDescriptor = {
-  capabilities: [
-    { actions: ['announce', 'activate', 'update', 'withdraw', 'publish', 'subscribe'], key: 'kit.gamelet.runtime' },
-  ],
   kitId: 'kit.gamelet',
-  runtimes: ['electron', 'web'],
   version: '1.0.0',
+  runtimes: ['electron', 'web'],
+  capabilities: [
+    { key: 'kit.gamelet.runtime', actions: ['announce', 'activate', 'update', 'withdraw', 'publish', 'subscribe'] },
+  ],
 } satisfies KitDescriptor
 
 /**

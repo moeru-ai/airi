@@ -7,12 +7,12 @@ import { useLogg } from '@guiiai/logg'
 // eliza/packages/client-discord/src/voice.ts at develop · elizaOS/eliza
 // https://github.com/elizaOS/eliza/blob/develop/packages/client-discord/src/voice.ts
 export class AudioMonitor {
-  private buffers: Buffer[] = []
-  private ended: boolean = false
-  private lastFlagged: number = -1
-  private logger = useLogg('AudioMonitor').useGlobalConfig()
-  private maxSize: number
   private readable: Readable
+  private buffers: Buffer[] = []
+  private maxSize: number
+  private lastFlagged: number = -1
+  private ended: boolean = false
+  private logger = useLogg('AudioMonitor').useGlobalConfig()
 
   constructor(
     readable: Readable,
@@ -62,6 +62,17 @@ export class AudioMonitor {
     })
   }
 
+  stop() {
+    this.readable.removeAllListeners('data')
+    this.readable.removeAllListeners('end')
+    this.readable.removeAllListeners('speakingStopped')
+    this.readable.removeAllListeners('speakingStarted')
+  }
+
+  isFlagged() {
+    return this.lastFlagged >= 0
+  }
+
   getBufferFromFlag() {
     if (this.lastFlagged < 0) {
       return null
@@ -75,23 +86,12 @@ export class AudioMonitor {
     return buffer
   }
 
-  isEnded() {
-    return this.ended
-  }
-
-  isFlagged() {
-    return this.lastFlagged >= 0
-  }
-
   reset() {
     this.buffers = []
     this.lastFlagged = -1
   }
 
-  stop() {
-    this.readable.removeAllListeners('data')
-    this.readable.removeAllListeners('end')
-    this.readable.removeAllListeners('speakingStopped')
-    this.readable.removeAllListeners('speakingStarted')
+  isEnded() {
+    return this.ended
   }
 }

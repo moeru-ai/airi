@@ -34,7 +34,7 @@ export function getCapViteCliUsage(): string {
 // library (cac is already a dependency—consider subcommands or a small wrapper) so flags like
 // `--target` / `--target=`, env-based defaults, and validation stay in one maintainable layer.
 
-export function parseCapViteCliArgs(argv: string[]): null | ParsedCapViteCliArgs {
+export function parseCapViteCliArgs(argv: string[]): ParsedCapViteCliArgs | null {
   if (argv.length === 1 && (argv[0] === '--help' || argv[0] === '-h')) {
     return null
   }

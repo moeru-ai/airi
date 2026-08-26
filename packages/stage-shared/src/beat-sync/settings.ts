@@ -7,9 +7,9 @@ export type BeatSyncSpectrumScale = 'linear' | 'logarithm'
 
 export const DEFAULT_BEAT_SYNC_PARAMETERS: AnalyserWorkletParameters = {
   ...DEFAULT_ANALYSER_WORKLET_PARAMS,
-  adaptiveThreshold: false,
-  spectralFlux: false,
   // Loosen the parameters for easier beat detection by default.
   // Also makes life easier :)
   warmup: false,
+  spectralFlux: false,
+  adaptiveThreshold: false,
 }

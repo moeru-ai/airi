@@ -1,16 +1,3 @@
-/** The input lifecycle phase used to choose how one Visual Viewport measurement affects layout. */
-export type AdaptiveInputFocusPhase = 'closing' | 'focused' | 'idle'
-
-/** The viewport properties that determine whether a keyboard sample can be reused. */
-export interface ViewportProfile {
-  /** The browser or installed-app mode that owns the viewport policy. */
-  displayMode: 'browser' | 'standalone'
-  /** The layout viewport height in CSS pixels. */
-  height: number
-  /** The layout viewport width in CSS pixels. */
-  width: number
-}
-
 /** A rectangle in layout viewport coordinates and CSS pixels. */
 export interface ViewportRectangle {
   /** The bottom edge in CSS pixels. */
@@ -27,6 +14,16 @@ export interface ViewportRectangle {
   width: number
 }
 
+/** The viewport properties that determine whether a keyboard sample can be reused. */
+export interface ViewportProfile {
+  /** The browser or installed-app mode that owns the viewport policy. */
+  displayMode: 'browser' | 'standalone'
+  /** The layout viewport height in CSS pixels. */
+  height: number
+  /** The layout viewport width in CSS pixels. */
+  width: number
+}
+
 /** A measured keyboard overlap that can prepare a later focus operation. */
 export interface ViewportSample {
   /** The layout viewport height hidden by the keyboard, in CSS pixels. */
@@ -36,6 +33,19 @@ export interface ViewportSample {
   /** The viewport profile that produced the sample. */
   profile: ViewportProfile
 }
+
+/** The Visual Viewport values used by the fallback layout policy. */
+export interface VisualViewportMeasurement {
+  /** The current visual viewport height in CSS pixels. */
+  height: number
+  /** The current visual viewport offsetTop in CSS pixels. */
+  offsetTop: number
+  /** The current visual viewport pageTop in CSS pixels. */
+  pageTop: number
+}
+
+/** The input lifecycle phase used to choose how one Visual Viewport measurement affects layout. */
+export type AdaptiveInputFocusPhase = 'idle' | 'focused' | 'closing'
 
 /** The resolved fallback layout for an adaptive input region. */
 export interface VisualViewportLayout {
@@ -54,16 +64,6 @@ export interface VisualViewportLayout {
   offsetTop: number
   /** The bottom edge to assign to the adaptive viewport, in document coordinates and CSS pixels. */
   visibleBottom: number
-}
-
-/** The Visual Viewport values used by the fallback layout policy. */
-export interface VisualViewportMeasurement {
-  /** The current visual viewport height in CSS pixels. */
-  height: number
-  /** The current visual viewport offsetTop in CSS pixels. */
-  offsetTop: number
-  /** The current visual viewport pageTop in CSS pixels. */
-  pageTop: number
 }
 
 /** Changes below this threshold can come from browser controls instead of a software keyboard. */
@@ -113,18 +113,6 @@ export function calculateCachedViewportHeight(
   return predictedHeight > 0 ? predictedHeight : undefined
 }
 
-/** Returns the upward distance needed to clear an overlapping keyboard rectangle. */
-export function calculateKeyboardShift(target: ViewportRectangle, keyboard: ViewportRectangle): number {
-  if (keyboard.width <= 0 || keyboard.height <= 0)
-    return 0
-
-  const hasHorizontalOverlap = target.left < keyboard.right && target.right > keyboard.left
-  if (!hasHorizontalOverlap)
-    return 0
-
-  return Math.max(0, target.bottom - keyboard.top)
-}
-
 /**
  * Resolves keyboard visibility and available edges from one Visual Viewport measurement.
  *
@@ -159,6 +147,18 @@ export function calculateVisualViewportLayout(
     offsetTop: viewport.offsetTop,
     visibleBottom,
   }
+}
+
+/** Returns the upward distance needed to clear an overlapping keyboard rectangle. */
+export function calculateKeyboardShift(target: ViewportRectangle, keyboard: ViewportRectangle): number {
+  if (keyboard.width <= 0 || keyboard.height <= 0)
+    return 0
+
+  const hasHorizontalOverlap = target.left < keyboard.right && target.right > keyboard.left
+  if (!hasHorizontalOverlap)
+    return 0
+
+  return Math.max(0, target.bottom - keyboard.top)
 }
 
 /**

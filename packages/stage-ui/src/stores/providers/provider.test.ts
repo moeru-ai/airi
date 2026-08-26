@@ -33,9 +33,9 @@ describe('provider store synchronization boundary', () => {
   it('keeps replicated runtime data out of the executable provider store state', () => {
     const store = useProviderStore()
     const runtimeState = {
-      modelError: null,
       models: [],
       modelStatus: 'ready' as const,
+      modelError: null,
     }
 
     store.providerRuntimeState.openai = runtimeState
@@ -132,22 +132,22 @@ describe('provider store synchronization boundary', () => {
     expect(store.moduleVisionProvidersMetadata.map(provider => provider.id)).not.toContain('vision-official-provider')
 
     const user: User = {
-      createdAt: new Date('2026-01-01T00:00:00.000Z'),
-      email: 'user@example.com',
-      emailVerified: true,
       id: 'user-1',
       name: 'AIRI User',
+      email: 'user@example.com',
+      emailVerified: true,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
       updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     }
     const session: Session = {
-      createdAt: new Date('2026-01-01T00:00:00.000Z'),
-      expiresAt: new Date('2026-12-01T00:00:00.000Z'),
       id: 'session-1',
       token: 'server-session-token',
-      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
       userId: user.id,
+      expiresAt: new Date('2026-12-01T00:00:00.000Z'),
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     }
-    useAuthStore().$patch({ session, user })
+    useAuthStore().$patch({ user, session })
 
     expect(store.moduleChatProvidersMetadata.map(provider => provider.id)).toContain('official-provider')
     expect(store.moduleSpeechProvidersMetadata.map(provider => provider.id)).toContain(OFFICIAL_SPEECH_PROVIDER_ID)
@@ -204,9 +204,9 @@ describe('provider store synchronization boundary', () => {
     expect(store.providerRuntimeState['official-provider']?.modelStatus).toBe('loading')
 
     store.providerRuntimeState['official-provider'] = {
-      modelError: null,
       models: [],
       modelStatus: 'loading',
+      modelError: null,
     }
 
     await request
@@ -239,9 +239,9 @@ describe('provider store synchronization boundary', () => {
       const second = store.listProviderVoices(OFFICIAL_SPEECH_PROVIDER_ID, 'auto')
 
       await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
-      resolveRequest?.(new Response(JSON.stringify({ recommended: {}, voices: [] }), {
-        headers: { 'Content-Type': 'application/json' },
+      resolveRequest?.(new Response(JSON.stringify({ voices: [], recommended: {} }), {
         status: 200,
+        headers: { 'Content-Type': 'application/json' },
       }))
 
       await expect(Promise.all([first, second])).resolves.toEqual([[], []])

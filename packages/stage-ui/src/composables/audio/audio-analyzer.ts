@@ -11,9 +11,9 @@ export function useAudioAnalyzer() {
   const dataArray = ref<Uint8Array<ArrayBuffer>>()
   const animationFrame = ref<number>()
 
-  const onAnalyzerUpdateHooks = ref<Array<(volumeLevel: number) => Promise<void> | void>>([])
+  const onAnalyzerUpdateHooks = ref<Array<(volumeLevel: number) => void | Promise<void>>>([])
 
-  function onAnalyzerUpdate(callback: (volumeLevel: number) => Promise<void> | void) {
+  function onAnalyzerUpdate(callback: (volumeLevel: number) => void | Promise<void>) {
     onAnalyzerUpdateHooks.value.push(callback)
     return () => {
       // optional cleanup if consumer wants to unsubscribe
@@ -93,10 +93,10 @@ export function useAudioAnalyzer() {
   })
 
   return {
+    volumeLevel,
     error,
-    onAnalyzerUpdate,
     startAnalyzer,
     stopAnalyzer,
-    volumeLevel,
+    onAnalyzerUpdate,
   }
 }

@@ -31,14 +31,6 @@ const STEPFUN_DEFAULT_VOICE = 'cixingnansheng'
  * - {@link TtsResult} with the upstream audio body and content type.
  */
 export const stepfunAdapter: TtsAdapter = {
-  async getVoiceCatalog(ctx: TtsVoiceCatalogContext): Promise<Voice[]> {
-    return listVoicesViaUnSpeech({
-      ctx,
-      providerLabel: 'stepfun',
-      query: 'provider=stepfun',
-    })
-  },
-
   id: 'stepfun',
 
   async send(input: TtsInput, ctx: TtsAdapterContext): Promise<TtsResult> {
@@ -55,14 +47,22 @@ export const stepfunAdapter: TtsAdapter = {
 
     return sendSpeechViaUnSpeech({
       ctx,
+      model: `stepfun/${model}`,
+      input: input.text,
+      voice,
+      speed: input.speed,
+      responseFormat,
       extraBody,
       fallbackContentType: audioMimeFromFormat(responseFormat),
-      input: input.text,
-      model: `stepfun/${model}`,
       providerLabel: 'stepfun',
-      responseFormat,
-      speed: input.speed,
-      voice,
+    })
+  },
+
+  async getVoiceCatalog(ctx: TtsVoiceCatalogContext): Promise<Voice[]> {
+    return listVoicesViaUnSpeech({
+      ctx,
+      query: 'provider=stepfun',
+      providerLabel: 'stepfun',
     })
   },
 }

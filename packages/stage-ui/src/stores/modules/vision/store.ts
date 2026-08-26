@@ -75,22 +75,22 @@ export const useVisionStore = defineStore('vision', () => {
   }
 
   return {
-    activeModel,
     activeProvider,
+    activeModel,
+    customModelName: activeCustomModelName,
+    ollamaThinkingEnabled,
+    modelSearchQuery,
+
+    supportsModelListing,
+    providerModels,
+    isLoadingActiveProviderModels,
     activeProviderModelError,
     configured,
-    customModelName: activeCustomModelName,
 
-    getModelsForProvider,
-    isLoadingActiveProviderModels,
-    loadModelsForProvider,
-    modelSearchQuery,
-    ollamaThinkingEnabled,
-
-    providerModels,
     resetModelSelection,
+    loadModelsForProvider,
+    getModelsForProvider,
     resetState,
-    supportsModelListing,
   }
 }, {
   synced: {

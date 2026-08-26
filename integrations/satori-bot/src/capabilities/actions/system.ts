@@ -5,60 +5,60 @@ import { listChannels } from '../../lib/db'
 
 // 1. Continue Action
 export const continueAction: ActionHandler = {
+  name: 'continue',
   execute: async (): Promise<ActionResult> => {
     return {
-      result: 'AIRI System: Acknowledged, will now wait for user input.',
-      shouldContinue: false,
       success: true,
+      shouldContinue: false,
+      result: 'AIRI System: Acknowledged, will now wait for user input.',
     }
   },
-  name: 'continue',
 }
 
 // 2. Break Action
 export const breakAction: ActionHandler = {
+  name: 'break',
   execute: async (_ctx, chatCtx): Promise<ActionResult> => {
     chatCtx.actions = []
     return {
-      result: 'AIRI System: Memory cleared. Loop broken.',
-      shouldContinue: false,
       success: true,
+      shouldContinue: false,
+      result: 'AIRI System: Memory cleared. Loop broken.',
     }
   },
-  name: 'break',
 }
 
 // 3. Sleep Action
 export const sleepAction: ActionHandler = {
+  name: 'sleep',
   execute: async (_ctx, _chatCtx, args): Promise<ActionResult> => {
     if (args.action !== 'sleep') {
       return {
-        result: 'System Error: Action mismatch for sleep.',
-        shouldContinue: true,
         success: false,
+        shouldContinue: true,
+        result: 'System Error: Action mismatch for sleep.',
       }
     }
     const duration = args.duration || SLEEP_DURATION_MS
     await new Promise(resolve => setTimeout(resolve, duration))
     return {
-      result: `AIRI System: Slept for ${duration / 1000} seconds.`,
-      shouldContinue: true,
       success: true,
+      shouldContinue: true,
+      result: `AIRI System: Slept for ${duration / 1000} seconds.`,
     }
   },
-  name: 'sleep',
 }
 
 // 4. List Channels Action
 export const listChannelsAction: ActionHandler = {
+  name: 'list_channels',
   execute: async (): Promise<ActionResult> => {
     const channels = await listChannels()
     const list = channels.map(c => `ID:${c.id}, Name:${c.name}, Platform:${c.platform}`).join('\n')
     return {
-      result: `AIRI System: Channel List:\n${list}`,
-      shouldContinue: true,
       success: true,
+      shouldContinue: true,
+      result: `AIRI System: Channel List:\n${list}`,
     }
   },
-  name: 'list_channels',
 }

@@ -14,12 +14,12 @@ export class MockAutoUpdater extends EventEmitter {
     // Simulate update available
     // We can toggle this based on some logic if needed, but for now let's assume update is always available in mock
     const updateInfo = {
+      version: '9.9.9-mock',
       files: [],
       path: 'mock-path',
+      sha512: 'mock-sha',
       releaseDate: new Date().toISOString(),
       releaseNotes: '## Mock Update\n\nThis is a simulated update for testing purposes.\n\n- Feature A\n- Bugfix B',
-      sha512: 'mock-sha',
-      version: '9.9.9-mock',
     }
 
     this.emit('update-available', updateInfo)
@@ -41,10 +41,10 @@ export class MockAutoUpdater extends EventEmitter {
         transferred = total
 
       const progress = {
-        bytesPerSecond: speed,
-        percent: (transferred / total) * 100,
         total,
         transferred,
+        percent: (transferred / total) * 100,
+        bytesPerSecond: speed,
       }
 
       this.emit('download-progress', progress)
@@ -52,12 +52,12 @@ export class MockAutoUpdater extends EventEmitter {
       if (transferred >= total) {
         clearInterval(interval)
         this.emit('update-downloaded', {
+          version: '9.9.9-mock',
           files: [],
           path: 'mock-path',
+          sha512: 'mock-sha',
           releaseDate: new Date().toISOString(),
           releaseNotes: '## Mock Update\n\nThis is a simulated update for testing purposes.\n\n- Feature A\n- Bugfix B',
-          sha512: 'mock-sha',
-          version: '9.9.9-mock',
         })
       }
     }, 100)

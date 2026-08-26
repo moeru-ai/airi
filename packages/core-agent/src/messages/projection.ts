@@ -1,77 +1,227 @@
 import type { HistoryItem, Message, RawMessage } from './types'
 
 /**
- * Union of projection payloads accepted by the generic message projection pipeline.
- */
-export type Projection
-  = ProjectionCompactedHistory
-    | ProjectionDomainEvent
-    | ProjectionSessionUserTurn
-    | ProjectionSparkCommand
-    | ProjectionSparkNotify
-
-/**
- * Projection payload for one already-compacted history block.
- */
-export interface ProjectionCompactedHistory {
-  id: string
-  items: HistoryItem[]
-  metadata?: Record<string, unknown>
-  source?: string
-  summary?: string
-  type: 'compacted-history'
-}
-
-/**
- * Projection payload for one structured domain event.
- */
-export interface ProjectionDomainEvent {
-  domain: string
-  id: string
-  metadata?: Record<string, unknown>
-  name?: string
-  payload: Record<string, unknown>
-  type: 'domain-event'
-}
-
-/**
  * Projection payload for one user-authored session turn.
  */
 export interface ProjectionSessionUserTurn {
-  content: string
-  id: string
-  metadata?: Record<string, unknown>
   type: 'session-user-turn'
-}
-
-/**
- * Projection payload for one `spark:command` event.
- */
-export interface ProjectionSparkCommand {
-  ack?: string
-  commandId: string
-  destinations: string[]
-  guidance?: Record<string, unknown>
   id: string
-  intent?: string
+  content: string
   metadata?: Record<string, unknown>
-  parentEventId?: string
-  source?: string
-  type: 'spark-command'
 }
 
 /**
  * Projection payload for one `spark:notify` event.
  */
 export interface ProjectionSparkNotify {
-  destinations: string[]
-  headline: string
+  type: 'spark-notify'
   id: string
-  metadata?: Record<string, unknown>
+  source: string
+  headline: string
   note?: string
   payload?: Record<string, unknown>
-  source: string
-  type: 'spark-notify'
+  destinations: string[]
+  metadata?: Record<string, unknown>
+}
+
+/**
+ * Projection payload for one `spark:command` event.
+ */
+export interface ProjectionSparkCommand {
+  type: 'spark-command'
+  id: string
+  source?: string
+  commandId: string
+  parentEventId?: string
+  intent?: string
+  ack?: string
+  destinations: string[]
+  guidance?: Record<string, unknown>
+  metadata?: Record<string, unknown>
+}
+
+/**
+ * Projection payload for one structured domain event.
+ */
+export interface ProjectionDomainEvent {
+  type: 'domain-event'
+  id: string
+  domain: string
+  name?: string
+  payload: Record<string, unknown>
+  metadata?: Record<string, unknown>
+}
+
+/**
+ * Projection payload for one already-compacted history block.
+ */
+export interface ProjectionCompactedHistory {
+  type: 'compacted-history'
+  id: string
+  source?: string
+  summary?: string
+  items: HistoryItem[]
+  metadata?: Record<string, unknown>
+}
+
+/**
+ * Union of projection payloads accepted by the generic message projection pipeline.
+ */
+export type Projection
+  = ProjectionSessionUserTurn
+    | ProjectionSparkNotify
+    | ProjectionSparkCommand
+    | ProjectionDomainEvent
+    | ProjectionCompactedHistory
+
+function toInstructionSegment(text: string, priority?: 'low' | 'normal' | 'high' | 'critical') {
+  return {
+    type: 'instruction',
+    text,
+    priority,
+  } as const
+}
+
+function toTaggedTextSegment(tag: string, text: string) {
+  return {
+    type: 'tagged-text',
+    tag,
+    text,
+  } as const
+}
+
+function toDomainEventSegment(eventType: string, payload: Record<string, unknown>) {
+  return {
+    type: 'domain-event',
+    eventType,
+    payload,
+  } as const
+}
+
+function toStateSnapshotSegment(stateType: string, payload: Record<string, unknown>) {
+  return {
+    type: 'state-snapshot',
+    stateType,
+    payload,
+  } as const
+}
+
+function toSummarySegment(text: string, metadata?: Record<string, unknown>) {
+  return {
+    type: 'summary',
+    text,
+    metadata,
+  } as const
+}
+
+function toReferenceSegment(refType: string, targetId: string, note?: string) {
+  return {
+    type: 'reference',
+    refType,
+    targetId,
+    note,
+  } as const
+}
+
+/**
+ * Converts a projection into one or more conversation entries.
+ *
+ * Use when:
+ * - You need to append structured projection output to a conversation stream
+ * - You want a single projection pipeline to handle session, spark, and domain inputs
+ *
+ * Expects:
+ * - Projection payloads to already be normalized
+ *
+ * Returns:
+ * - Provider-ready raw messages or structured messages in stable order
+ */
+export function projectProjection(projection: Projection): Array<Message | RawMessage> {
+  if (projection.type === 'session-user-turn') {
+    return [{
+      role: 'user',
+      content: projection.content,
+      metadata: projection.metadata,
+    }]
+  }
+
+  if (projection.type === 'compacted-history') {
+    return [{
+      id: projection.id,
+      role: 'event',
+      source: projection.source,
+      segments: [
+        toSummarySegment(projection.summary ?? 'Compacted history block.'),
+        {
+          type: 'history-block',
+          compacted: true,
+          items: projection.items,
+        },
+      ],
+      metadata: projection.metadata,
+    }]
+  }
+
+  if (projection.type === 'domain-event') {
+    return [{
+      id: projection.id,
+      role: 'event',
+      source: projection.domain,
+      segments: [
+        toDomainEventSegment(projection.name ?? projection.domain, projection.payload),
+        toReferenceSegment('domain', projection.domain, projection.name),
+      ],
+      metadata: projection.metadata,
+    }]
+  }
+
+  if (projection.type === 'spark-notify') {
+    return [{
+      id: projection.id,
+      role: 'event',
+      source: projection.source,
+      segments: [
+        toInstructionSegment(`Handle spark notify from ${projection.source}.`),
+        toTaggedTextSegment(
+          'spark-notify',
+          [
+            `Headline: ${projection.headline}.`,
+            projection.note ? `Note: ${projection.note}` : undefined,
+            projection.payload ? `Payload: ${JSON.stringify(projection.payload, null, 2)}` : undefined,
+            projection.destinations.length > 0 ? `Destinations: ${projection.destinations.join(', ')}.` : undefined,
+          ].filter(Boolean).join('\n'),
+        ),
+        toReferenceSegment('source', projection.source),
+      ],
+      metadata: projection.metadata,
+    }]
+  }
+
+  return [{
+    id: projection.id,
+    role: 'event',
+    source: projection.source,
+    segments: [
+      toInstructionSegment(`Execute spark command ${projection.commandId}.`, 'high'),
+      toTaggedTextSegment(
+        'spark-command',
+        [
+          projection.source ? `Source: ${projection.source}.` : undefined,
+          projection.parentEventId ? `Parent event: ${projection.parentEventId}.` : undefined,
+          projection.intent ? `Intent: ${projection.intent}.` : undefined,
+          projection.ack ? `Ack: ${projection.ack}.` : undefined,
+          projection.guidance ? `Guidance: ${JSON.stringify(projection.guidance, null, 2)}` : undefined,
+          projection.destinations.length > 0 ? `Destinations: ${projection.destinations.join(', ')}.` : undefined,
+        ].filter(Boolean).join('\n'),
+      ),
+      toStateSnapshotSegment('spark-command', {
+        commandId: projection.commandId,
+        parentEventId: projection.parentEventId,
+        destinations: projection.destinations,
+      }),
+    ],
+    metadata: projection.metadata,
+  }]
 }
 
 /**
@@ -95,154 +245,4 @@ export function projectConversationEntries(input: {
     ...input.entries,
     ...input.projections.flatMap(projectProjection),
   ]
-}
-
-/**
- * Converts a projection into one or more conversation entries.
- *
- * Use when:
- * - You need to append structured projection output to a conversation stream
- * - You want a single projection pipeline to handle session, spark, and domain inputs
- *
- * Expects:
- * - Projection payloads to already be normalized
- *
- * Returns:
- * - Provider-ready raw messages or structured messages in stable order
- */
-export function projectProjection(projection: Projection): Array<Message | RawMessage> {
-  if (projection.type === 'session-user-turn') {
-    return [{
-      content: projection.content,
-      metadata: projection.metadata,
-      role: 'user',
-    }]
-  }
-
-  if (projection.type === 'compacted-history') {
-    return [{
-      id: projection.id,
-      metadata: projection.metadata,
-      role: 'event',
-      segments: [
-        toSummarySegment(projection.summary ?? 'Compacted history block.'),
-        {
-          compacted: true,
-          items: projection.items,
-          type: 'history-block',
-        },
-      ],
-      source: projection.source,
-    }]
-  }
-
-  if (projection.type === 'domain-event') {
-    return [{
-      id: projection.id,
-      metadata: projection.metadata,
-      role: 'event',
-      segments: [
-        toDomainEventSegment(projection.name ?? projection.domain, projection.payload),
-        toReferenceSegment('domain', projection.domain, projection.name),
-      ],
-      source: projection.domain,
-    }]
-  }
-
-  if (projection.type === 'spark-notify') {
-    return [{
-      id: projection.id,
-      metadata: projection.metadata,
-      role: 'event',
-      segments: [
-        toInstructionSegment(`Handle spark notify from ${projection.source}.`),
-        toTaggedTextSegment(
-          'spark-notify',
-          [
-            `Headline: ${projection.headline}.`,
-            projection.note ? `Note: ${projection.note}` : undefined,
-            projection.payload ? `Payload: ${JSON.stringify(projection.payload, null, 2)}` : undefined,
-            projection.destinations.length > 0 ? `Destinations: ${projection.destinations.join(', ')}.` : undefined,
-          ].filter(Boolean).join('\n'),
-        ),
-        toReferenceSegment('source', projection.source),
-      ],
-      source: projection.source,
-    }]
-  }
-
-  return [{
-    id: projection.id,
-    metadata: projection.metadata,
-    role: 'event',
-    segments: [
-      toInstructionSegment(`Execute spark command ${projection.commandId}.`, 'high'),
-      toTaggedTextSegment(
-        'spark-command',
-        [
-          projection.source ? `Source: ${projection.source}.` : undefined,
-          projection.parentEventId ? `Parent event: ${projection.parentEventId}.` : undefined,
-          projection.intent ? `Intent: ${projection.intent}.` : undefined,
-          projection.ack ? `Ack: ${projection.ack}.` : undefined,
-          projection.guidance ? `Guidance: ${JSON.stringify(projection.guidance, null, 2)}` : undefined,
-          projection.destinations.length > 0 ? `Destinations: ${projection.destinations.join(', ')}.` : undefined,
-        ].filter(Boolean).join('\n'),
-      ),
-      toStateSnapshotSegment('spark-command', {
-        commandId: projection.commandId,
-        destinations: projection.destinations,
-        parentEventId: projection.parentEventId,
-      }),
-    ],
-    source: projection.source,
-  }]
-}
-
-function toDomainEventSegment(eventType: string, payload: Record<string, unknown>) {
-  return {
-    eventType,
-    payload,
-    type: 'domain-event',
-  } as const
-}
-
-function toInstructionSegment(text: string, priority?: 'critical' | 'high' | 'low' | 'normal') {
-  return {
-    priority,
-    text,
-    type: 'instruction',
-  } as const
-}
-
-function toReferenceSegment(refType: string, targetId: string, note?: string) {
-  return {
-    note,
-    refType,
-    targetId,
-    type: 'reference',
-  } as const
-}
-
-function toStateSnapshotSegment(stateType: string, payload: Record<string, unknown>) {
-  return {
-    payload,
-    stateType,
-    type: 'state-snapshot',
-  } as const
-}
-
-function toSummarySegment(text: string, metadata?: Record<string, unknown>) {
-  return {
-    metadata,
-    text,
-    type: 'summary',
-  } as const
-}
-
-function toTaggedTextSegment(tag: string, text: string) {
-  return {
-    tag,
-    text,
-    type: 'tagged-text',
-  } as const
 }

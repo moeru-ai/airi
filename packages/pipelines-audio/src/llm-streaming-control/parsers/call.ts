@@ -7,6 +7,20 @@ import type {
 const callTokenPrefix = '<|CALL '
 const markerSuffix = '|>'
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function renderCallManifestExamples(manifest: LlmStreamingControlCallManifest): string[] {
+  if (manifest.examples?.length) {
+    return manifest.examples
+  }
+
+  return [
+    `<|CALL ["${manifest.name}"]|>`,
+  ]
+}
+
 /**
  * Renders model-facing instructions for registered `<|CALL [...]|>` manifests.
  *
@@ -59,11 +73,11 @@ export function renderCallManifestPrompt(manifests: LlmStreamingControlCallManif
  */
 export function tokenCall(): LlmStreamingControlParser<LlmStreamingControlTokenCall> {
   return {
+    name: 'CALL',
     match(special) {
       const trimmed = special.trim()
       return trimmed.startsWith(callTokenPrefix) && trimmed.endsWith(markerSuffix)
     },
-    name: 'CALL',
     parse(special) {
       const trimmed = special.trim()
       const rawPayload = trimmed.slice(callTokenPrefix.length, -markerSuffix.length).trim()
@@ -90,24 +104,10 @@ export function tokenCall(): LlmStreamingControlParser<LlmStreamingControlTokenC
       }
 
       return {
+        type: 'call',
         name: name.trim(),
         payload,
-        type: 'call',
       }
     },
   }
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function renderCallManifestExamples(manifest: LlmStreamingControlCallManifest): string[] {
-  if (manifest.examples?.length) {
-    return manifest.examples
-  }
-
-  return [
-    `<|CALL ["${manifest.name}"]|>`,
-  ]
 }

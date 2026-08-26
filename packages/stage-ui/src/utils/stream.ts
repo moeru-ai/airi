@@ -1,6 +1,6 @@
 export interface ControllableStream<R = any> {
-  controller: ReadableStreamDefaultController<R>
   stream: ReadableStream<R>
+  controller: ReadableStreamDefaultController<R>
 }
 
 export function createControllableStream<R = any>(): ControllableStream<R> {
@@ -12,5 +12,5 @@ export function createControllableStream<R = any>(): ControllableStream<R> {
       controller = ctrl
     },
   })
-  return { controller, stream }
+  return { stream, controller }
 }

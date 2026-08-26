@@ -44,6 +44,11 @@ let releaseRelayTrace: (() => void) | undefined
 const remoteSubscribers = new Set<string>()
 const latestEnvelopes = new Map<StageThreeRuntimeTraceEnvelope['type'], StageThreeRuntimeTraceEnvelope>()
 
+function getChannel() {
+  channel ??= new BroadcastChannel(STAGE_THREE_RUNTIME_TRACE_CHANNEL)
+  return channel
+}
+
 export function getStageThreeRuntimeTraceBroadcastContext() {
   broadcastContext ??= createBroadcastChannelContext(getChannel()).context
   return broadcastContext
@@ -51,6 +56,53 @@ export function getStageThreeRuntimeTraceBroadcastContext() {
 
 export function getStageThreeRuntimeTraceBroadcastOriginId() {
   return instanceId
+}
+
+function applyCollectionState(active: boolean) {
+  if (active) {
+    releaseRelayTrace ??= acquireStageThreeRuntimeTrace(relayTraceLeaseToken)
+    return
+  }
+
+  releaseRelayTrace?.()
+  releaseRelayTrace = undefined
+}
+
+function emitTraceEnvelope(envelope: StageThreeRuntimeTraceEnvelope) {
+  latestEnvelopes.set(envelope.type, envelope)
+  getStageThreeRuntimeTraceBroadcastContext().emit(stageThreeRuntimeTraceForwardedEvent, {
+    envelope,
+    origin: instanceId,
+  })
+}
+
+function replayLatestTraceEnvelopes() {
+  const context = getStageThreeRuntimeTraceBroadcastContext()
+
+  for (const type of replayOrder) {
+    const envelope = latestEnvelopes.get(type)
+    if (!envelope)
+      continue
+
+    context.emit(stageThreeRuntimeTraceForwardedEvent, {
+      envelope,
+      origin: instanceId,
+    })
+  }
+}
+
+function subscribeTraceEvent<T>(eventa: Eventa<T>, createEnvelope: (payload: T) => StageThreeRuntimeTraceEnvelope) {
+  localTraceContext.on(eventa, (event) => {
+    if (!event?.body)
+      return
+
+    emitTraceEnvelope(createEnvelope(event.body))
+  })
+}
+
+export async function setStageThreeRuntimeTraceRemoteSubscription(active: boolean) {
+  const eventa = active ? stageThreeRuntimeTraceRemoteEnableEvent : stageThreeRuntimeTraceRemoteDisableEvent
+  getStageThreeRuntimeTraceBroadcastContext().emit(eventa, { origin: instanceId })
 }
 
 export function initializeStageThreeRuntimeTraceBridge() {
@@ -80,64 +132,12 @@ export function initializeStageThreeRuntimeTraceBridge() {
     applyCollectionState(remoteSubscribers.size > 0)
   })
 
-  subscribeTraceEvent(stageThreeTraceRenderInfoEvent, payload => ({ payload, type: 'three-render-info' }))
-  subscribeTraceEvent(stageThreeTraceHitTestReadEvent, payload => ({ payload, type: 'three-hit-test-read' }))
-  subscribeTraceEvent(stageThreeTraceVrmUpdateFrameEvent, payload => ({ payload, type: 'vrm-update-frame' }))
-  subscribeTraceEvent(stageThreeTraceVrmLoadStartEvent, payload => ({ payload, type: 'vrm-load-start' }))
-  subscribeTraceEvent(stageThreeTraceVrmLoadEndEvent, payload => ({ payload, type: 'vrm-load-end' }))
-  subscribeTraceEvent(stageThreeTraceVrmLoadErrorEvent, payload => ({ payload, type: 'vrm-load-error' }))
-  subscribeTraceEvent(stageThreeTraceVrmDisposeStartEvent, payload => ({ payload, type: 'vrm-dispose-start' }))
-  subscribeTraceEvent(stageThreeTraceVrmDisposeEndEvent, payload => ({ payload, type: 'vrm-dispose-end' }))
-}
-
-export async function setStageThreeRuntimeTraceRemoteSubscription(active: boolean) {
-  const eventa = active ? stageThreeRuntimeTraceRemoteEnableEvent : stageThreeRuntimeTraceRemoteDisableEvent
-  getStageThreeRuntimeTraceBroadcastContext().emit(eventa, { origin: instanceId })
-}
-
-function applyCollectionState(active: boolean) {
-  if (active) {
-    releaseRelayTrace ??= acquireStageThreeRuntimeTrace(relayTraceLeaseToken)
-    return
-  }
-
-  releaseRelayTrace?.()
-  releaseRelayTrace = undefined
-}
-
-function emitTraceEnvelope(envelope: StageThreeRuntimeTraceEnvelope) {
-  latestEnvelopes.set(envelope.type, envelope)
-  getStageThreeRuntimeTraceBroadcastContext().emit(stageThreeRuntimeTraceForwardedEvent, {
-    envelope,
-    origin: instanceId,
-  })
-}
-
-function getChannel() {
-  channel ??= new BroadcastChannel(STAGE_THREE_RUNTIME_TRACE_CHANNEL)
-  return channel
-}
-
-function replayLatestTraceEnvelopes() {
-  const context = getStageThreeRuntimeTraceBroadcastContext()
-
-  for (const type of replayOrder) {
-    const envelope = latestEnvelopes.get(type)
-    if (!envelope)
-      continue
-
-    context.emit(stageThreeRuntimeTraceForwardedEvent, {
-      envelope,
-      origin: instanceId,
-    })
-  }
-}
-
-function subscribeTraceEvent<T>(eventa: Eventa<T>, createEnvelope: (payload: T) => StageThreeRuntimeTraceEnvelope) {
-  localTraceContext.on(eventa, (event) => {
-    if (!event?.body)
-      return
-
-    emitTraceEnvelope(createEnvelope(event.body))
-  })
+  subscribeTraceEvent(stageThreeTraceRenderInfoEvent, payload => ({ type: 'three-render-info', payload }))
+  subscribeTraceEvent(stageThreeTraceHitTestReadEvent, payload => ({ type: 'three-hit-test-read', payload }))
+  subscribeTraceEvent(stageThreeTraceVrmUpdateFrameEvent, payload => ({ type: 'vrm-update-frame', payload }))
+  subscribeTraceEvent(stageThreeTraceVrmLoadStartEvent, payload => ({ type: 'vrm-load-start', payload }))
+  subscribeTraceEvent(stageThreeTraceVrmLoadEndEvent, payload => ({ type: 'vrm-load-end', payload }))
+  subscribeTraceEvent(stageThreeTraceVrmLoadErrorEvent, payload => ({ type: 'vrm-load-error', payload }))
+  subscribeTraceEvent(stageThreeTraceVrmDisposeStartEvent, payload => ({ type: 'vrm-dispose-start', payload }))
+  subscribeTraceEvent(stageThreeTraceVrmDisposeEndEvent, payload => ({ type: 'vrm-dispose-end', payload }))
 }

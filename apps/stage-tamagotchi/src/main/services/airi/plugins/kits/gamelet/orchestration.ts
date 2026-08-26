@@ -27,46 +27,39 @@ export function createGameletOrchestrationRuntime(
   widgetsManager: ExtensionHostGameletWidgetsManager,
 ): GameletOrchestrationRuntime {
   return {
-    async close(bindingId) {
-      await widgetsManager.removeWidget(bindingId)
-    },
-    async configure(bindingId, payload) {
-      await widgetsManager.updateWidget({
-        componentProps: createComponentProps(bindingId, payload),
-        id: bindingId,
-      })
-    },
-    dispose() {},
-    async isOpen(bindingId) {
-      return Boolean(widgetsManager.getWidgetSnapshot(bindingId))
-    },
     async open(bindingId, payload) {
       const componentProps = createComponentProps(bindingId, payload ?? {})
 
       if (widgetsManager.getWidgetSnapshot(bindingId)) {
         await widgetsManager.updateWidget({
-          componentProps,
           id: bindingId,
+          componentProps,
           size: 'l',
         })
       }
       else {
         await widgetsManager.pushWidget({
+          id: bindingId,
           componentName: 'extension-ui',
           componentProps,
-          id: bindingId,
           size: 'l',
         })
       }
 
       await widgetsManager.openWindow({ id: bindingId })
     },
+    async configure(bindingId, payload) {
+      await widgetsManager.updateWidget({
+        id: bindingId,
+        componentProps: createComponentProps(bindingId, payload),
+      })
+    },
     async request<TResponse = HostDataRecord>(bindingId: string, payload: HostDataRecord, options?: { timeoutMs?: number }): Promise<TResponse> {
       if (!widgetsManager.getWidgetSnapshot(bindingId)) {
         throw new Error(`Gamelet \`${bindingId}\` is not open.`)
       }
 
-      return await widgetsManager.requestWidgetIframe<Record<string, unknown> & TResponse>(
+      return await widgetsManager.requestWidgetIframe<TResponse & Record<string, unknown>>(
         bindingId,
         payload,
         {
@@ -74,6 +67,13 @@ export function createGameletOrchestrationRuntime(
         },
       ) as TResponse
     },
+    async close(bindingId) {
+      await widgetsManager.removeWidget(bindingId)
+    },
+    async isOpen(bindingId) {
+      return Boolean(widgetsManager.getWidgetSnapshot(bindingId))
+    },
+    dispose() {},
   }
 }
 

@@ -16,27 +16,73 @@ import { dirname } from 'node:path'
 import { createInterface } from 'node:readline'
 
 export class TranscriptStore {
-  /**
-   * Get the total number of entries.
-   */
-  get length(): number {
-    return this.entries.length
-  }
-
-  private appendQueue: Promise<unknown> = Promise.resolve()
   private entries: TranscriptEntry[] = []
+  private nextId = 0
   private initialized = false
   private initPromise: Promise<void> | undefined
-
-  private nextId = 0
+  private appendQueue: Promise<unknown> = Promise.resolve()
 
   constructor(private readonly filePath: string) {}
+
+  async init(): Promise<void> {
+    if (this.initialized)
+      return
+
+    this.initPromise ??= this.initCommitted().finally(() => {
+      this.initPromise = undefined
+    })
+
+    await this.initPromise
+  }
+
+  private async initCommitted(): Promise<void> {
+    if (this.initialized)
+      return
+
+    await mkdir(dirname(this.filePath), { recursive: true })
+
+    // Attempt to load existing transcript from disk without loading the full
+    // JSONL file into memory.
+    try {
+      const stream = createReadStream(this.filePath, { encoding: 'utf-8' })
+      const lines = createInterface({ input: stream, crlfDelay: Infinity })
+      for await (const line of lines) {
+        if (line.trim().length === 0)
+          continue
+        try {
+          const entry = JSON.parse(line) as TranscriptEntry
+          this.entries.push(entry)
+          if (entry.id >= this.nextId) {
+            this.nextId = entry.id + 1
+          }
+        }
+        catch {
+          // Skip malformed lines - defensive against partial writes.
+        }
+      }
+    }
+    catch (error) {
+      if (getNodeErrorCode(error) !== 'ENOENT') {
+        throw error
+      }
+      // File does not exist yet - valid for a fresh session.
+    }
+
+    this.initialized = true
+  }
+
+  /**
+   * Append a user message to the transcript.
+   */
+  async appendUser(content: string | unknown[]): Promise<TranscriptEntry> {
+    return this.append({ role: 'user', content })
+  }
 
   /**
    * Append an assistant message (text-only, no tool calls).
    */
   async appendAssistantText(content: string | unknown[]): Promise<TranscriptEntry> {
-    return this.append({ content, role: 'assistant' })
+    return this.append({ role: 'assistant', content })
   }
 
   /**
@@ -46,7 +92,21 @@ export class TranscriptStore {
     toolCalls: TranscriptToolCall[],
     content?: string | unknown[],
   ): Promise<TranscriptEntry> {
-    return this.append({ content, role: 'assistant', toolCalls })
+    return this.append({ role: 'assistant', content, toolCalls })
+  }
+
+  /**
+   * Append a tool result message.
+   */
+  async appendToolResult(toolCallId: string, content: string | unknown[]): Promise<TranscriptEntry> {
+    return this.append({ role: 'tool', content, toolCallId })
+  }
+
+  /**
+   * Append a system message.
+   */
+  async appendSystem(content: string | unknown[]): Promise<TranscriptEntry> {
+    return this.append({ role: 'system', content })
   }
 
   /**
@@ -54,18 +114,18 @@ export class TranscriptStore {
    * Use this for ingesting generateText() results without coercion.
    */
   async appendRawMessage(msg: {
-    content?: unknown
     role: string
+    content?: unknown
+    tool_calls?: Array<{ id: string, type: string, function: { name: string, arguments: string } }>
     tool_call_id?: string
-    tool_calls?: Array<{ function: { arguments: string, name: string }, id: string, type: string }>
-  }): Promise<null | TranscriptEntry> {
+  }): Promise<TranscriptEntry | null> {
     if (msg.role === 'assistant') {
       const toolCalls = msg.tool_calls
       if (toolCalls && toolCalls.length > 0) {
         const tcs: TranscriptToolCall[] = toolCalls.map(tc => ({
-          function: { arguments: tc.function.arguments, name: tc.function.name },
           id: tc.id,
           type: 'function' as const,
+          function: { name: tc.function.name, arguments: tc.function.arguments },
         }))
         const content = normalizeContent(msg.content)
         return this.appendAssistantToolCalls(tcs, content)
@@ -97,27 +157,6 @@ export class TranscriptStore {
   }
 
   /**
-   * Append a system message.
-   */
-  async appendSystem(content: string | unknown[]): Promise<TranscriptEntry> {
-    return this.append({ content, role: 'system' })
-  }
-
-  /**
-   * Append a tool result message.
-   */
-  async appendToolResult(toolCallId: string, content: string | unknown[]): Promise<TranscriptEntry> {
-    return this.append({ content, role: 'tool', toolCallId })
-  }
-
-  /**
-   * Append a user message to the transcript.
-   */
-  async appendUser(content: string | unknown[]): Promise<TranscriptEntry> {
-    return this.append({ content, role: 'user' })
-  }
-
-  /**
    * Get all entries (full transcript). The store is the truth source;
    * the projection layer decides what subset to project into the prompt.
    */
@@ -132,20 +171,11 @@ export class TranscriptStore {
     return this.entries.filter(e => e.id >= fromId && e.id <= toId)
   }
 
-  async init(): Promise<void> {
-    if (this.initialized)
-      return
-
-    this.initPromise ??= this.initCommitted().finally(() => {
-      this.initPromise = undefined
-    })
-
-    await this.initPromise
-  }
-
-  /** Override in subclasses to skip or redirect I/O. */
-  protected async persist(entry: TranscriptEntry): Promise<void> {
-    await appendFile(this.filePath, `${JSON.stringify(entry)}\n`, 'utf-8')
+  /**
+   * Get the total number of entries.
+   */
+  get length(): number {
+    return this.entries.length
   }
 
   // -------------------------------------------------------------------------
@@ -153,7 +183,7 @@ export class TranscriptStore {
   // -------------------------------------------------------------------------
 
   private async append(
-    partial: Omit<TranscriptEntry, 'at' | 'id'>,
+    partial: Omit<TranscriptEntry, 'id' | 'at'>,
   ): Promise<TranscriptEntry> {
     const pending = this.appendQueue.then(
       async () => {
@@ -170,12 +200,12 @@ export class TranscriptStore {
   }
 
   private async appendCommitted(
-    partial: Omit<TranscriptEntry, 'at' | 'id'>,
+    partial: Omit<TranscriptEntry, 'id' | 'at'>,
   ): Promise<TranscriptEntry> {
     const entry: TranscriptEntry = {
       ...partial,
-      at: new Date().toISOString(),
       id: this.nextId,
+      at: new Date().toISOString(),
     }
 
     // Persist - append-only JSONL.
@@ -187,40 +217,9 @@ export class TranscriptStore {
     return entry
   }
 
-  private async initCommitted(): Promise<void> {
-    if (this.initialized)
-      return
-
-    await mkdir(dirname(this.filePath), { recursive: true })
-
-    // Attempt to load existing transcript from disk without loading the full
-    // JSONL file into memory.
-    try {
-      const stream = createReadStream(this.filePath, { encoding: 'utf-8' })
-      const lines = createInterface({ crlfDelay: Infinity, input: stream })
-      for await (const line of lines) {
-        if (line.trim().length === 0)
-          continue
-        try {
-          const entry = JSON.parse(line) as TranscriptEntry
-          this.entries.push(entry)
-          if (entry.id >= this.nextId) {
-            this.nextId = entry.id + 1
-          }
-        }
-        catch {
-          // Skip malformed lines - defensive against partial writes.
-        }
-      }
-    }
-    catch (error) {
-      if (getNodeErrorCode(error) !== 'ENOENT') {
-        throw error
-      }
-      // File does not exist yet - valid for a fresh session.
-    }
-
-    this.initialized = true
+  /** Override in subclasses to skip or redirect I/O. */
+  protected async persist(entry: TranscriptEntry): Promise<void> {
+    await appendFile(this.filePath, `${JSON.stringify(entry)}\n`, 'utf-8')
   }
 }
 
@@ -251,18 +250,11 @@ export class InMemoryTranscriptStore extends TranscriptStore {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getNodeErrorCode(error: unknown): string | undefined {
-  if (typeof error !== 'object' || error === null || !('code' in error))
-    return undefined
-  const code = (error as { code?: unknown }).code
-  return typeof code === 'string' ? code : undefined
-}
-
 /**
  * Normalize unknown content from xsai messages into the transcript content type.
  * Preserves strings and arrays as-is; converts other types to string.
  */
-function normalizeContent(content: unknown): string | undefined | unknown[] {
+function normalizeContent(content: unknown): string | unknown[] | undefined {
   if (content === undefined || content === null)
     return undefined
   if (typeof content === 'string')
@@ -271,4 +263,11 @@ function normalizeContent(content: unknown): string | undefined | unknown[] {
     return content
   // Fallback: coerce to string
   return String(content)
+}
+
+function getNodeErrorCode(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null || !('code' in error))
+    return undefined
+  const code = (error as { code?: unknown }).code
+  return typeof code === 'string' ? code : undefined
 }

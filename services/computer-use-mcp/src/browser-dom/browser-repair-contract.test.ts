@@ -26,10 +26,10 @@ describe('browser-repair-contract', () => {
 
     expect(suggestion).toMatchObject({
       pattern: 'element_not_visible',
+      suggestedTool: 'browser_dom_get_computed_styles',
       suggestedParams: {
         selector: '#menu',
       },
-      suggestedTool: 'browser_dom_get_computed_styles',
     })
   })
 
@@ -42,10 +42,10 @@ describe('browser-repair-contract', () => {
 
     expect(suggestion).toMatchObject({
       pattern: 'action_timeout',
+      suggestedTool: 'browser_dom_wait_for_element',
       suggestedParams: {
         selector: '.toast',
       },
-      suggestedTool: 'browser_dom_wait_for_element',
     })
   })
 

@@ -4,9 +4,9 @@ import { defineProvider } from '../registry'
 import { createWebSpeechAPIProvider } from './provider'
 
 const webSpeechApiConfigSchema = z.object({
+  language: z.string().default('en-US'),
   continuous: z.boolean().default(true),
   interimResults: z.boolean().default(true),
-  language: z.string().default('en-US'),
   maxAlternatives: z.number().int().positive().default(1),
 })
 
@@ -21,40 +21,40 @@ function isWebSpeechApiAvailable() {
 }
 
 export const providerBrowserWebSpeechApi = defineProvider({
-  capabilities: {
-    transcription: {
-      generateOutput: false,
-      protocol: 'http',
-      streamInput: true,
-      streamOutput: true,
-    },
-  },
-  createProvider: createWebSpeechAPIProvider,
-  createProviderConfig: () => webSpeechApiConfigSchema,
+  id: 'browser-web-speech-api',
+  name: 'Web Speech API (Browser)',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.browser-web-speech-api.title'),
   description: 'Browser-native speech recognition. No API keys.',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.browser-web-speech-api.description'),
+  tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
+  icon: 'i-solar:microphone-bold-duotone',
+  requiresCredentials: false,
+  capabilities: {
+    transcription: {
+      protocol: 'http',
+      generateOutput: false,
+      streamOutput: true,
+      streamInput: true,
+    },
+  },
+
+  isAvailableBy: isWebSpeechApiAvailable,
+  createProviderConfig: () => webSpeechApiConfigSchema,
+  createProvider: createWebSpeechAPIProvider,
+  validationRequiredWhen: () => false,
+
   extraMethods: {
     listModels: async () => [
       {
-        contextLength: 0,
-        deprecated: false,
-        description: 'Browser-native speech recognition (no API keys required)',
         id: 'web-speech-api',
         name: 'Web Speech API',
         provider: 'browser-web-speech-api',
+        description: 'Browser-native speech recognition (no API keys required)',
+        contextLength: 0,
+        deprecated: false,
       },
     ],
   },
-  icon: 'i-solar:microphone-bold-duotone',
-  id: 'browser-web-speech-api',
-  isAvailableBy: isWebSpeechApiAvailable,
-
-  name: 'Web Speech API (Browser)',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.browser-web-speech-api.title'),
-  requiresCredentials: false,
-  tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
-
-  validationRequiredWhen: () => false,
   validators: {
     validateConfig: [
       ({ t }) => ({

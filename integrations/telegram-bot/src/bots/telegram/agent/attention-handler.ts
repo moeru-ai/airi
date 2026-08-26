@@ -8,9 +8,9 @@ export function createAttentionHandler(bot: BotContext, config: AttentionConfig)
     currentResponseRate: config.initialResponseRate,
     lastResponseTimes: new Map(),
     stats: {
-      lastInteractionTime: Date.now(),
       mentionCount: 0,
       triggerWordCount: 0,
+      lastInteractionTime: Date.now(),
     },
   }
 
@@ -47,7 +47,7 @@ export function createAttentionHandler(bot: BotContext, config: AttentionConfig)
     return now - lastResponse >= config.cooldownMs
   }
 
-  const checkTriggerWords = (text?: string): false | string => {
+  const checkTriggerWords = (text?: string): string | false => {
     if (!text || !config.triggerWords.length)
       return false
     return config.triggerWords.find(word => text.includes(word)) || false
@@ -66,17 +66,7 @@ export function createAttentionHandler(bot: BotContext, config: AttentionConfig)
 
   // Public interface
   const handler = {
-    // Cleanup function
-    destroy() {
-      clearInterval(decayInterval)
-    },
-
-    // Getters for current state
-    getState() {
-      return { ...state }
-    },
-
-    async shouldRespond(chatId: string, messages: Message[]): Promise<{ reason: string, responseRate?: number, shouldAct: boolean }> {
+    async shouldRespond(chatId: string, messages: Message[]): Promise<{ shouldAct: boolean, reason: string, responseRate?: number }> {
       const fromPrivate = messages.every(message => message.chat.type === 'private')
       const mentioned = messages.some(message => message.text?.includes(`@${bot.bot.botInfo.username}`))
       const reply = messages.some(message => message.reply_to_message?.from?.id.toString() === bot.bot.botInfo.id.toString())
@@ -86,13 +76,13 @@ export function createAttentionHandler(bot: BotContext, config: AttentionConfig)
         if (fromPrivate) {
           state.stats.mentionCount++
           state.stats.lastInteractionTime = Date.now()
-          return { reason: 'private_message', shouldAct: true }
+          return { shouldAct: true, reason: 'private_message' }
         }
 
         if (mentioned || reply) {
           state.stats.mentionCount++
           state.stats.lastInteractionTime = Date.now()
-          return { reason: 'mention_or_reply', shouldAct: true }
+          return { shouldAct: true, reason: 'mention_or_reply' }
         }
 
         // Check trigger words
@@ -100,39 +90,49 @@ export function createAttentionHandler(bot: BotContext, config: AttentionConfig)
         if (matchedTrigger) {
           state.stats.triggerWordCount++
           state.stats.lastInteractionTime = Date.now()
-          return { reason: `trigger_word:${matchedTrigger}`, shouldAct: true }
+          return { shouldAct: true, reason: `trigger_word:${matchedTrigger}` }
         }
 
         // Check cooldown
         if (!checkCooldown(chatId)) {
-          return { reason: 'cooldown', shouldAct: false }
+          return { shouldAct: false, reason: 'cooldown' }
         }
 
         // Check ignore words
         if (checkIgnoreWords(messages.map(message => message.text).join(' '))) {
-          return { reason: 'ignore_word', shouldAct: false }
+          return { shouldAct: false, reason: 'ignore_word' }
         }
 
         // Random response based on current rate
         if (Math.random() < state.currentResponseRate) {
           state.lastResponseTimes.set(chatId, Date.now())
           return {
+            shouldAct: true,
             reason: 'random',
             responseRate: state.currentResponseRate,
-            shouldAct: true,
           }
         }
 
         return {
+          shouldAct: false,
           reason: 'rate_check_failed',
           responseRate: state.currentResponseRate,
-          shouldAct: false,
         }
       }
       catch (error) {
         bot.logger.withError(error).log('Error in attention handler')
-        return { reason: 'error', shouldAct: false }
+        return { shouldAct: false, reason: 'error' }
       }
+    },
+
+    // Cleanup function
+    destroy() {
+      clearInterval(decayInterval)
+    },
+
+    // Getters for current state
+    getState() {
+      return { ...state }
     },
   }
 

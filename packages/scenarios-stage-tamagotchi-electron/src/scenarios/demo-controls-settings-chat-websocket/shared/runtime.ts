@@ -2,8 +2,20 @@ import type { ManualRuntime } from './types'
 
 import { sleep } from '@moeru/std'
 
+export function normalizeHashPath(hash: string): string {
+  const withoutHash = hash.startsWith('#')
+    ? hash.slice(1)
+    : hash
+
+  return withoutHash || '/'
+}
+
+export function isTimeoutLikeError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'TimeoutError'
+}
+
 export async function ensureControlsIslandExpanded(runtime: ManualRuntime) {
-  const { context, mainWindow } = runtime
+  const { mainWindow, context } = runtime
   const chatButton = mainWindow.page
     .locator('button')
     .filter({
@@ -45,18 +57,6 @@ export async function getSettingsWindowSnapshot(runtime: ManualRuntime) {
   runtime.settingsWindowSnapshot = settingsWindowSnapshot
 
   return settingsWindowSnapshot
-}
-
-export function isTimeoutLikeError(error: unknown): boolean {
-  return error instanceof Error && error.name === 'TimeoutError'
-}
-
-export function normalizeHashPath(hash: string): string {
-  const withoutHash = hash.startsWith('#')
-    ? hash.slice(1)
-    : hash
-
-  return withoutHash || '/'
 }
 
 export async function waitForRouteReadiness(

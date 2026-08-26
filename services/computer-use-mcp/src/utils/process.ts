@@ -1,14 +1,14 @@
 import { spawn } from 'node:child_process'
 
 export interface RunProcessOptions {
-  cwd?: string
-  env?: NodeJS.ProcessEnv
   stdin?: string
   timeoutMs?: number
+  env?: NodeJS.ProcessEnv
+  cwd?: string
 }
 
 export async function runProcess(command: string, args: string[], options: RunProcessOptions = {}) {
-  return await new Promise<{ stderr: string, stdout: string }>((resolve, reject) => {
+  return await new Promise<{ stdout: string, stderr: string }>((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: options.cwd,
       env: options.env,
@@ -64,7 +64,7 @@ export async function runProcess(command: string, args: string[], options: RunPr
         return
       }
 
-      resolve({ stderr, stdout })
+      resolve({ stdout, stderr })
     })
 
     if (options.stdin) {

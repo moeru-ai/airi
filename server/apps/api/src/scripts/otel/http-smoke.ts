@@ -37,13 +37,13 @@ if (env.OTEL_DEBUG === 'true')
 const exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE)
 
 const sdk = new NodeSDK({
+  resource: resourceFromAttributes({ 'service.name': 'otel-http-smoke' }),
+  metricReaders: [new PeriodicExportingMetricReader({ exporter, exportIntervalMillis: 200 })],
   instrumentations: [
     // Mirrors prod: incoming is owned by @hono/otel; auto instrumentation only
     // covers outbound. If this hook were dropped we'd double-record.
     new HttpInstrumentation({ ignoreIncomingRequestHook: () => true }),
   ],
-  metricReaders: [new PeriodicExportingMetricReader({ exporter, exportIntervalMillis: 200 })],
-  resource: resourceFromAttributes({ 'service.name': 'otel-http-smoke' }),
 })
 sdk.start()
 
@@ -54,7 +54,7 @@ app.get('/health-test', c => c.text('ok'))
 
 // `serve` returns the http.Server synchronously but binding is async — wait
 // for the listen callback to capture the port (port: 0 = auto-assigned).
-const server = serve({ fetch: app.fetch, hostname: '127.0.0.1', port: 0 })
+const server = serve({ fetch: app.fetch, port: 0, hostname: '127.0.0.1' })
 const port = await new Promise<number>((resolve) => {
   server.once('listening', () => {
     const addr = server.address()

@@ -3,71 +3,6 @@ import type { ToolMessage } from '@xsai/shared-chat'
 import type { AgentHookRegistry, ChatHookRegistry } from '../contracts/hook-types'
 import type { ChatStreamEventContext, StreamingAssistantMessage } from '../types/chat'
 
-export function createAgentHooks<TContext, TAssistantMessage, TToolCall>(): AgentHookRegistry<TContext, TAssistantMessage, TToolCall> {
-  const onBeforeMessageComposedHooks: Array<(message: string, context: Omit<TContext, 'composedMessage'>) => Promise<void>> = []
-  const onAfterMessageComposedHooks: Array<(message: string, context: TContext) => Promise<void>> = []
-  const onBeforeSendHooks: Array<(message: string, context: TContext) => Promise<void>> = []
-  const onAfterSendHooks: Array<(message: string, context: TContext) => Promise<void>> = []
-  const onTokenLiteralHooks: Array<(literal: string, context: TContext) => Promise<void>> = []
-  const onTokenSpecialHooks: Array<(special: string, context: TContext) => Promise<void>> = []
-  const onStreamEndHooks: Array<(context: TContext) => Promise<void>> = []
-  const onAssistantResponseEndHooks: Array<(message: string, context: TContext) => Promise<void>> = []
-  const onAssistantMessageHooks: Array<(message: TAssistantMessage, messageText: string, context: TContext) => Promise<void>> = []
-  const onChatTurnCompleteHooks: Array<(chat: { output: TAssistantMessage, outputText: string, toolCalls: TToolCall[] }, context: TContext) => Promise<void>> = []
-
-  function createSubscribe<T>(bucket: T[], cb: T) {
-    bucket.push(cb)
-    return () => {
-      const index = bucket.indexOf(cb)
-      if (index >= 0)
-        bucket.splice(index, 1)
-    }
-  }
-
-  function clearHooks() {
-    onBeforeMessageComposedHooks.length = 0
-    onAfterMessageComposedHooks.length = 0
-    onBeforeSendHooks.length = 0
-    onAfterSendHooks.length = 0
-    onTokenLiteralHooks.length = 0
-    onTokenSpecialHooks.length = 0
-    onStreamEndHooks.length = 0
-    onAssistantResponseEndHooks.length = 0
-    onAssistantMessageHooks.length = 0
-    onChatTurnCompleteHooks.length = 0
-  }
-
-  async function emitHooks<T extends any[]>(hooks: Array<(...args: T) => Promise<void>>, ...args: T) {
-    for (const hook of hooks)
-      await hook(...args)
-  }
-
-  return {
-    clearHooks,
-    emitAfterMessageComposedHooks: (message, context) => emitHooks(onAfterMessageComposedHooks, message, context),
-    emitAfterSendHooks: (message, context) => emitHooks(onAfterSendHooks, message, context),
-    emitAssistantMessageHooks: (message, messageText, context) => emitHooks(onAssistantMessageHooks, message, messageText, context),
-    emitAssistantResponseEndHooks: (message, context) => emitHooks(onAssistantResponseEndHooks, message, context),
-    emitBeforeMessageComposedHooks: (message, context) => emitHooks(onBeforeMessageComposedHooks, message, context),
-    emitBeforeSendHooks: (message, context) => emitHooks(onBeforeSendHooks, message, context),
-    emitChatTurnCompleteHooks: (chat, context) => emitHooks(onChatTurnCompleteHooks, chat, context),
-    emitStreamEndHooks: context => emitHooks(onStreamEndHooks, context),
-    emitTokenLiteralHooks: (literal, context) => emitHooks(onTokenLiteralHooks, literal, context),
-
-    emitTokenSpecialHooks: (special, context) => emitHooks(onTokenSpecialHooks, special, context),
-    onAfterMessageComposed: cb => createSubscribe(onAfterMessageComposedHooks, cb),
-    onAfterSend: cb => createSubscribe(onAfterSendHooks, cb),
-    onAssistantMessage: cb => createSubscribe(onAssistantMessageHooks, cb),
-    onAssistantResponseEnd: cb => createSubscribe(onAssistantResponseEndHooks, cb),
-    onBeforeMessageComposed: cb => createSubscribe(onBeforeMessageComposedHooks, cb),
-    onBeforeSend: cb => createSubscribe(onBeforeSendHooks, cb),
-    onChatTurnComplete: cb => createSubscribe(onChatTurnCompleteHooks, cb),
-    onStreamEnd: cb => createSubscribe(onStreamEndHooks, cb),
-    onTokenLiteral: cb => createSubscribe(onTokenLiteralHooks, cb),
-    onTokenSpecial: cb => createSubscribe(onTokenSpecialHooks, cb),
-  }
-}
-
 export function createChatHooks(): ChatHookRegistry {
   const onBeforeMessageComposedHooks: Array<(message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) => Promise<void>> = []
   const onAfterMessageComposedHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
@@ -234,26 +169,91 @@ export function createChatHooks(): ChatHookRegistry {
   }
 
   return {
-    clearHooks,
-    emitAfterMessageComposedHooks,
-    emitAfterSendHooks,
-    emitAssistantMessageHooks,
-    emitAssistantResponseEndHooks,
-    emitBeforeMessageComposedHooks,
-    emitBeforeSendHooks,
-    emitChatTurnCompleteHooks,
-    emitStreamEndHooks,
-    emitTokenLiteralHooks,
-    emitTokenSpecialHooks,
-    onAfterMessageComposed,
-    onAfterSend,
-    onAssistantMessage,
-    onAssistantResponseEnd,
     onBeforeMessageComposed,
+    onAfterMessageComposed,
     onBeforeSend,
-    onChatTurnComplete,
-    onStreamEnd,
+    onAfterSend,
     onTokenLiteral,
     onTokenSpecial,
+    onStreamEnd,
+    onAssistantResponseEnd,
+    onAssistantMessage,
+    onChatTurnComplete,
+    emitBeforeMessageComposedHooks,
+    emitAfterMessageComposedHooks,
+    emitBeforeSendHooks,
+    emitAfterSendHooks,
+    emitTokenLiteralHooks,
+    emitTokenSpecialHooks,
+    emitStreamEndHooks,
+    emitAssistantResponseEndHooks,
+    emitAssistantMessageHooks,
+    emitChatTurnCompleteHooks,
+    clearHooks,
+  }
+}
+
+export function createAgentHooks<TContext, TAssistantMessage, TToolCall>(): AgentHookRegistry<TContext, TAssistantMessage, TToolCall> {
+  const onBeforeMessageComposedHooks: Array<(message: string, context: Omit<TContext, 'composedMessage'>) => Promise<void>> = []
+  const onAfterMessageComposedHooks: Array<(message: string, context: TContext) => Promise<void>> = []
+  const onBeforeSendHooks: Array<(message: string, context: TContext) => Promise<void>> = []
+  const onAfterSendHooks: Array<(message: string, context: TContext) => Promise<void>> = []
+  const onTokenLiteralHooks: Array<(literal: string, context: TContext) => Promise<void>> = []
+  const onTokenSpecialHooks: Array<(special: string, context: TContext) => Promise<void>> = []
+  const onStreamEndHooks: Array<(context: TContext) => Promise<void>> = []
+  const onAssistantResponseEndHooks: Array<(message: string, context: TContext) => Promise<void>> = []
+  const onAssistantMessageHooks: Array<(message: TAssistantMessage, messageText: string, context: TContext) => Promise<void>> = []
+  const onChatTurnCompleteHooks: Array<(chat: { output: TAssistantMessage, outputText: string, toolCalls: TToolCall[] }, context: TContext) => Promise<void>> = []
+
+  function createSubscribe<T>(bucket: T[], cb: T) {
+    bucket.push(cb)
+    return () => {
+      const index = bucket.indexOf(cb)
+      if (index >= 0)
+        bucket.splice(index, 1)
+    }
+  }
+
+  function clearHooks() {
+    onBeforeMessageComposedHooks.length = 0
+    onAfterMessageComposedHooks.length = 0
+    onBeforeSendHooks.length = 0
+    onAfterSendHooks.length = 0
+    onTokenLiteralHooks.length = 0
+    onTokenSpecialHooks.length = 0
+    onStreamEndHooks.length = 0
+    onAssistantResponseEndHooks.length = 0
+    onAssistantMessageHooks.length = 0
+    onChatTurnCompleteHooks.length = 0
+  }
+
+  async function emitHooks<T extends any[]>(hooks: Array<(...args: T) => Promise<void>>, ...args: T) {
+    for (const hook of hooks)
+      await hook(...args)
+  }
+
+  return {
+    onBeforeMessageComposed: cb => createSubscribe(onBeforeMessageComposedHooks, cb),
+    onAfterMessageComposed: cb => createSubscribe(onAfterMessageComposedHooks, cb),
+    onBeforeSend: cb => createSubscribe(onBeforeSendHooks, cb),
+    onAfterSend: cb => createSubscribe(onAfterSendHooks, cb),
+    onTokenLiteral: cb => createSubscribe(onTokenLiteralHooks, cb),
+    onTokenSpecial: cb => createSubscribe(onTokenSpecialHooks, cb),
+    onStreamEnd: cb => createSubscribe(onStreamEndHooks, cb),
+    onAssistantResponseEnd: cb => createSubscribe(onAssistantResponseEndHooks, cb),
+    onAssistantMessage: cb => createSubscribe(onAssistantMessageHooks, cb),
+    onChatTurnComplete: cb => createSubscribe(onChatTurnCompleteHooks, cb),
+
+    emitBeforeMessageComposedHooks: (message, context) => emitHooks(onBeforeMessageComposedHooks, message, context),
+    emitAfterMessageComposedHooks: (message, context) => emitHooks(onAfterMessageComposedHooks, message, context),
+    emitBeforeSendHooks: (message, context) => emitHooks(onBeforeSendHooks, message, context),
+    emitAfterSendHooks: (message, context) => emitHooks(onAfterSendHooks, message, context),
+    emitTokenLiteralHooks: (literal, context) => emitHooks(onTokenLiteralHooks, literal, context),
+    emitTokenSpecialHooks: (special, context) => emitHooks(onTokenSpecialHooks, special, context),
+    emitStreamEndHooks: context => emitHooks(onStreamEndHooks, context),
+    emitAssistantResponseEndHooks: (message, context) => emitHooks(onAssistantResponseEndHooks, message, context),
+    emitAssistantMessageHooks: (message, messageText, context) => emitHooks(onAssistantMessageHooks, message, messageText, context),
+    emitChatTurnCompleteHooks: (chat, context) => emitHooks(onChatTurnCompleteHooks, chat, context),
+    clearHooks,
   }
 }

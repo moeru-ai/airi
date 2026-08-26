@@ -9,7 +9,7 @@ function freshMasterKey(): Buffer {
   return randomBytes(32)
 }
 
-const exampleAad = { keyEntryId: 'openrouter-prod-1', modelName: 'chat-default' }
+const exampleAad = { modelName: 'chat-default', keyEntryId: 'openrouter-prod-1' }
 
 describe('createEnvelopeCrypto', () => {
   it('encrypt → decrypt round-trip returns original plaintext', () => {
@@ -78,8 +78,8 @@ describe('createEnvelopeCrypto', () => {
     const crypto = createEnvelopeCrypto({ masterKey: freshMasterKey() })
     const ct = crypto.encryptKey('sk-bound', exampleAad)
 
-    expect(() => crypto.decryptKey(ct, { keyEntryId: exampleAad.keyEntryId, modelName: 'different-model' })).toThrow(/auth/i)
-    expect(() => crypto.decryptKey(ct, { keyEntryId: 'different-entry', modelName: exampleAad.modelName })).toThrow(/auth/i)
+    expect(() => crypto.decryptKey(ct, { modelName: 'different-model', keyEntryId: exampleAad.keyEntryId })).toThrow(/auth/i)
+    expect(() => crypto.decryptKey(ct, { modelName: exampleAad.modelName, keyEntryId: 'different-entry' })).toThrow(/auth/i)
   })
 
   it('encrypts empty string and decrypts back to empty', () => {

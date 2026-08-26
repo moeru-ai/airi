@@ -34,18 +34,31 @@ export const bindingStateValues = ['announced', 'active', 'degraded', 'withdrawn
  * - A Valibot schema for one binding record
  */
 export const bindingRecordSchema = object({
-  config: hostDataRecordSchema,
+  moduleId: string(),
+  ownerSessionId: string(),
+  ownerExtensionId: string(),
   kitId: string(),
   kitModuleType: string(),
-  moduleId: string(),
-  ownerExtensionId: string(),
-  ownerSessionId: string(),
-  revision: nonNegativeIntegerSchema,
-  runtime: picklist(pluginRuntimeValues),
   state: picklist(bindingStateValues),
+  runtime: picklist(pluginRuntimeValues),
+  revision: nonNegativeIntegerSchema,
   updatedAt: nonNegativeIntegerSchema,
+  config: hostDataRecordSchema,
 })
 
+/**
+ * Describes one valid binding lifecycle state.
+ *
+ * Use when:
+ * - Typing host-owned binding records
+ *
+ * Expects:
+ * - Values come from {@link bindingStateValues}
+ *
+ * Returns:
+ * - The union of valid binding state literals
+ */
+export type BindingState = typeof bindingStateValues[number]
 /**
  * Describes one host-managed binding record.
  *
@@ -61,16 +74,16 @@ export const bindingRecordSchema = object({
  * - A serializable binding snapshot including lifecycle metadata and config
  */
 export interface BindingRecord<C extends HostDataRecord = HostDataRecord> {
-  config: C
+  moduleId: string
+  ownerSessionId: string
+  ownerExtensionId: string
   kitId: string
   kitModuleType: string
-  moduleId: string
-  ownerExtensionId: string
-  ownerSessionId: string
-  revision: number
-  runtime: (typeof pluginRuntimeValues)[number]
   state: BindingState
+  runtime: (typeof pluginRuntimeValues)[number]
+  revision: number
   updatedAt: number
+  config: C
 }
 /**
  * Describes the validated output shape of {@link bindingRecordSchema}.
@@ -85,16 +98,3 @@ export interface BindingRecord<C extends HostDataRecord = HostDataRecord> {
  * - The inferred Valibot output type for one binding record
  */
 export type BindingRecordOutput = InferOutput<typeof bindingRecordSchema>
-/**
- * Describes one valid binding lifecycle state.
- *
- * Use when:
- * - Typing host-owned binding records
- *
- * Expects:
- * - Values come from {@link bindingStateValues}
- *
- * Returns:
- * - The union of valid binding state literals
- */
-export type BindingState = typeof bindingStateValues[number]

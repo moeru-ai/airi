@@ -8,18 +8,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setupApp } from './index'
 
 interface TestWebSocketHandler {
-  close?: (peer: Peer, details?: { code?: number, reason?: string, wasClean?: unknown }) => void
-  message?: (peer: Peer, message: { text: () => string }) => void
   open?: (peer: Peer) => void
+  message?: (peer: Peer, message: { text: () => string }) => void
+  close?: (peer: Peer, details?: { code?: number, reason?: string, wasClean?: unknown }) => void
 }
 
 interface TestWsServer {
   accept: (
-    adapter: { close?: () => void, id: string, send: (message: { text: () => string }) => number | void },
+    adapter: { id: string, send: (message: { text: () => string }) => void | number, close?: () => void },
     options: { state: { rawPeer: Peer } },
   ) => void
   peers: {
-    get: (peerId: string) => undefined | { receive: (message: { text: () => string }) => void }
+    get: (peerId: string) => { receive: (message: { text: () => string }) => void } | undefined
   }
   remove: (peerId: string, details?: { code?: number, reason?: string, wasClean?: unknown }) => void
 }
@@ -38,51 +38,23 @@ vi.mock('h3', () => ({
 
 vi.mock('@proj-airi/better-ws/server/h3', () => ({
   toH3Handler: vi.fn((server: TestWsServer, options: { state: (peer: Peer) => { rawPeer: Peer } }) => ({
-    close(peer: Peer, details?: { code?: number, reason?: string, wasClean?: unknown }) {
-      server.remove(peer.id, details)
-    },
-    message(peer: Peer, message: { text: () => string }) {
-      server.peers.get(peer.id)?.receive(message)
-    },
     open(peer: Peer) {
       server.accept({
-        close: () => peer.close?.(),
         id: peer.id,
         send: message => peer.send(message.text()),
+        close: () => peer.close?.(),
       }, {
         state: options.state(peer),
       })
     },
+    message(peer: Peer, message: { text: () => string }) {
+      server.peers.get(peer.id)?.receive(message)
+    },
+    close(peer: Peer, details?: { code?: number, reason?: string, wasClean?: unknown }) {
+      server.remove(peer.id, details)
+    },
   })),
 }))
-
-function createExtensionModuleAnnounceEvent(): WebSocketEvent {
-  return {
-    data: {
-      identity: {
-        extension: {
-          id: 'extension-1',
-        },
-        id: 'memory-module-1',
-      },
-      name: 'memory',
-      possibleEvents: [],
-    },
-    metadata: {
-      event: {
-        id: 'announce-1',
-      },
-      source: {
-        id: 'extension-1',
-        kind: 'plugin',
-        plugin: {
-          id: 'extension-1',
-        },
-      },
-    },
-    type: 'extension:module:announce',
-  }
-}
 
 function createPeer(id: string) {
   const sent: string[] = []
@@ -92,18 +64,23 @@ function createPeer(id: string) {
 
   return {
     peer: {
-      close: vi.fn(),
       id,
-      remoteAddress: '127.0.0.1',
-      request: { url: `/ws?id=${id}` },
       send: vi.fn(send),
+      close: vi.fn(),
+      request: { url: `/ws?id=${id}` },
+      remoteAddress: '127.0.0.1',
     } satisfies Peer,
     sent,
   }
 }
 
-function decodeEvents(sent: string[]) {
-  return sent.map(message => parse<WebSocketEvent>(message))
+function wsHandler() {
+  const handler = h3Mocks.handlers.get('/ws') as TestWebSocketHandler | undefined
+  if (!handler) {
+    throw new Error('Expected setupApp to register a /ws websocket handler.')
+  }
+
+  return handler
 }
 
 function sendEvent(
@@ -114,13 +91,36 @@ function sendEvent(
   handler.message?.(peer, { text: () => stringify(event) })
 }
 
-function wsHandler() {
-  const handler = h3Mocks.handlers.get('/ws') as TestWebSocketHandler | undefined
-  if (!handler) {
-    throw new Error('Expected setupApp to register a /ws websocket handler.')
-  }
+function decodeEvents(sent: string[]) {
+  return sent.map(message => parse<WebSocketEvent>(message))
+}
 
-  return handler
+function createExtensionModuleAnnounceEvent(): WebSocketEvent {
+  return {
+    type: 'extension:module:announce',
+    data: {
+      name: 'memory',
+      possibleEvents: [],
+      identity: {
+        id: 'memory-module-1',
+        extension: {
+          id: 'extension-1',
+        },
+      },
+    },
+    metadata: {
+      source: {
+        kind: 'plugin',
+        id: 'extension-1',
+        plugin: {
+          id: 'extension-1',
+        },
+      },
+      event: {
+        id: 'announce-1',
+      },
+    },
+  }
 }
 
 describe('setupApp websocket liveness', () => {
@@ -148,17 +148,17 @@ describe('setupApp websocket liveness', () => {
 
     expect(decodeEvents(observer.sent)).toEqual(expect.arrayContaining([
       expect.objectContaining({
+        type: 'registry:modules:health:unhealthy',
         data: {
+          name: 'memory',
           identity: {
+            id: 'memory-module-1',
             extension: {
               id: 'extension-1',
             },
-            id: 'memory-module-1',
           },
-          name: 'memory',
           reason: 'heartbeat late',
         },
-        type: 'registry:modules:health:unhealthy',
       }),
     ]))
 
@@ -184,11 +184,11 @@ describe('setupApp websocket liveness', () => {
     expect(modulePeer.peer.close).toHaveBeenCalledOnce()
     expect(decodeEvents(observer.sent)).toEqual(expect.arrayContaining([
       expect.objectContaining({
+        type: 'extension:module:de-announced',
         data: expect.objectContaining({
           name: 'memory',
           reason: 'heartbeat expired',
         }),
-        type: 'extension:module:de-announced',
       }),
     ]))
 
@@ -211,11 +211,11 @@ describe('setupApp websocket liveness', () => {
 
     expect(decodeEvents(observer.sent)).toEqual(expect.arrayContaining([
       expect.objectContaining({
+        type: 'extension:module:de-announced',
         data: expect.objectContaining({
           name: 'memory',
           reason: 'connection closed',
         }),
-        type: 'extension:module:de-announced',
       }),
     ]))
 

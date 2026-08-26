@@ -50,14 +50,14 @@ async function main() {
   const args = cli.parse()
 
   const argOptions = args.options as {
+    release: boolean
     autoTag: boolean
+    tag: string[]
     getBundleName: boolean
-    getFilename: string[]
-    getOutputFilename: string[]
     getProductName: boolean
     getVersion: boolean
-    release: boolean
-    tag: string[]
+    getFilename: string[]
+    getOutputFilename: string[]
   }
 
   const target = args.args[0]
@@ -94,7 +94,7 @@ async function main() {
     return
   }
   if (argOptions.getVersion) {
-    const version = await getVersion({ autoTag: argOptions.autoTag, release: argOptions.release, tag: argOptions.tag })
+    const version = await getVersion({ release: argOptions.release, autoTag: argOptions.autoTag, tag: argOptions.tag })
     console.info(version)
   }
 }

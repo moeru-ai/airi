@@ -8,38 +8,38 @@ import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  root: import.meta.dirname,
   plugins: [
     Info(),
     vue(),
   ],
-  root: import.meta.dirname,
   test: {
     env: loadEnv('test', cwd(), ''),
     projects: [
       {
         extends: true,
         test: {
+          name: 'node',
+          include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
           exclude: ['src/**/*.browser.test.ts', '**/node_modules/**', '**/.git/**'],
           fileParallelism: false,
-          include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
           maxWorkers: 1,
-          name: 'node',
         },
       },
       {
         extends: true,
         test: {
+          name: 'browser',
+          include: ['src/**/*.browser.test.ts'],
+          exclude: ['**/node_modules/**', '**/.git/**'],
           browser: {
             enabled: true,
             headless: true,
+            provider: playwright(),
             instances: [
               { browser: 'chromium' },
             ],
-            provider: playwright(),
           },
-          exclude: ['**/node_modules/**', '**/.git/**'],
-          include: ['src/**/*.browser.test.ts'],
-          name: 'browser',
         },
       },
     ],

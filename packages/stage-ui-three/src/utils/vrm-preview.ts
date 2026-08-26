@@ -7,6 +7,34 @@ import { AmbientLight, AnimationMixer, DirectionalLight, PerspectiveCamera, Scen
 import { animations } from '../assets/vrm'
 import { clipFromVRMAnimation, loadVrm, loadVRMAnimation, reAnchorRootPositionTrack } from '../composables/vrm'
 
+function disposePreviewVrm(vrm?: VRM, group?: Group) {
+  group?.removeFromParent()
+
+  if (vrm) {
+    VRMUtils.deepDispose(vrm.scene as unknown as Object3D)
+  }
+}
+
+function disposePreviewRenderer(renderer: WebGLRenderer) {
+  renderer.renderLists.dispose()
+  renderer.dispose()
+  renderer.forceContextLoss()
+}
+
+function hasMaterialUpdate(material: Material): material is Material & { update: (delta: number) => void } {
+  return typeof (material as { update?: unknown }).update === 'function'
+}
+
+function updatePreviewVrmMaterials(vrm: VRM | undefined, delta: number) {
+  // NOTICE: three-vrm drives MToon per-frame uniforms, including alphaTest used by MASK cutout,
+  // through material.update(delta). The preview path renders a one-shot offscreen frame instead of
+  // using VRM.update(delta), so we need to forward material updates manually before rendering.
+  vrm?.materials?.forEach((material) => {
+    if (hasMaterialUpdate(material))
+      material.update(delta)
+  })
+}
+
 /**
  * Render a VRM file to an offscreen canvas and return a preview data URL.
  */
@@ -16,9 +44,9 @@ export async function loadVrmModelPreview(file: File) {
   offscreenCanvas.height = 2560
 
   const renderer = new WebGLRenderer({
+    canvas: offscreenCanvas,
     alpha: true,
     antialias: true,
-    canvas: offscreenCanvas,
     preserveDrawingBuffer: true,
   })
   renderer.setSize(offscreenCanvas.width, offscreenCanvas.height, false)
@@ -32,19 +60,19 @@ export async function loadVrmModelPreview(file: File) {
   scene.add(ambientLight, directionalLight)
 
   const objUrl = URL.createObjectURL(file)
-  let vrmInstance: undefined | VRM
+  let vrmInstance: VRM | undefined
   let vrmGroup: Group | undefined
   let mixer: AnimationMixer | undefined
   const previewDelta = 0.1
 
   try {
-    const vrmData = await loadVrm(objUrl, { lookAt: true, scene })
+    const vrmData = await loadVrm(objUrl, { scene, lookAt: true })
     if (!vrmData)
       return
 
     vrmInstance = vrmData._vrm
     vrmGroup = vrmData._vrmGroup
-    const { initialCameraOffset, modelCenter } = vrmData
+    const { modelCenter, initialCameraOffset } = vrmData
 
     camera.position.copy(modelCenter).add(initialCameraOffset)
     camera.lookAt(modelCenter)
@@ -80,32 +108,4 @@ export async function loadVrmModelPreview(file: File) {
     offscreenCanvas.width = 0
     offscreenCanvas.height = 0
   }
-}
-
-function disposePreviewRenderer(renderer: WebGLRenderer) {
-  renderer.renderLists.dispose()
-  renderer.dispose()
-  renderer.forceContextLoss()
-}
-
-function disposePreviewVrm(vrm?: VRM, group?: Group) {
-  group?.removeFromParent()
-
-  if (vrm) {
-    VRMUtils.deepDispose(vrm.scene as unknown as Object3D)
-  }
-}
-
-function hasMaterialUpdate(material: Material): material is Material & { update: (delta: number) => void } {
-  return typeof (material as { update?: unknown }).update === 'function'
-}
-
-function updatePreviewVrmMaterials(vrm: undefined | VRM, delta: number) {
-  // NOTICE: three-vrm drives MToon per-frame uniforms, including alphaTest used by MASK cutout,
-  // through material.update(delta). The preview path renders a one-shot offscreen frame instead of
-  // using VRM.update(delta), so we need to forward material updates manually before rendering.
-  vrm?.materials?.forEach((material) => {
-    if (hasMaterialUpdate(material))
-      material.update(delta)
-  })
 }

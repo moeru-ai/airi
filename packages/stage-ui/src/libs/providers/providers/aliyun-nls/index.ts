@@ -26,14 +26,22 @@ const aliyunNlsConfigSchema = z.object({
 type AliyunNlsConfig = z.input<typeof aliyunNlsConfigSchema>
 
 export const providerAliyunNlsTranscription = defineProvider<AliyunNlsConfig>({
+  id: 'aliyun-nls-transcription',
+  name: 'Aliyun NLS',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.aliyun-nls.title'),
+  description: 'nls-console.aliyun.com',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.aliyun-nls.description'),
+  tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
+  icon: 'i-lobe-icons:alibabacloud',
   capabilities: {
     transcription: {
-      generateOutput: false,
       protocol: 'websocket',
-      streamInput: true,
+      generateOutput: false,
       streamOutput: true,
+      streamInput: true,
     },
   },
+  createProviderConfig: () => aliyunNlsConfigSchema,
   createProvider(config) {
     const accessKeyId = config.accessKeyId.trim()
     const accessKeySecret = config.accessKeySecret.trim()
@@ -49,34 +57,16 @@ export const providerAliyunNlsTranscription = defineProvider<AliyunNlsConfig>({
       transcription: (model: string, extraOptions?: AliyunRealtimeSpeechExtraOptions) => provider.speech(model, {
         ...extraOptions,
         sessionOptions: {
-          enable_intermediate_result: true,
-          enable_punctuation_prediction: true,
-          enable_words: true,
           format: 'pcm',
           sample_rate: 16000,
+          enable_punctuation_prediction: true,
+          enable_intermediate_result: true,
+          enable_words: true,
           ...extraOptions?.sessionOptions,
         },
       }),
     } as TranscriptionProviderWithExtraOptions<string, AliyunRealtimeSpeechExtraOptions>
   },
-  createProviderConfig: () => aliyunNlsConfigSchema,
-  description: 'nls-console.aliyun.com',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.aliyun-nls.description'),
-  extraMethods: {
-    listModels: async () => [{
-      contextLength: 0,
-      deprecated: false,
-      description: 'Realtime streaming transcription using Aliyun NLS.',
-      id: 'aliyun-nls-v1',
-      name: 'Aliyun NLS Realtime',
-      provider: 'aliyun-nls-transcription',
-    }],
-  },
-  icon: 'i-lobe-icons:alibabacloud',
-  id: 'aliyun-nls-transcription',
-  name: 'Aliyun NLS',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.aliyun-nls.title'),
-  tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
   validationRequiredWhen: config => Boolean(config.accessKeyId?.trim() && config.accessKeySecret?.trim() && config.appKey?.trim()),
   validators: {
     validateConfig: [
@@ -103,6 +93,16 @@ export const providerAliyunNlsTranscription = defineProvider<AliyunNlsConfig>({
         },
       }),
     ],
+  },
+  extraMethods: {
+    listModels: async () => [{
+      id: 'aliyun-nls-v1',
+      name: 'Aliyun NLS Realtime',
+      provider: 'aliyun-nls-transcription',
+      description: 'Realtime streaming transcription using Aliyun NLS.',
+      contextLength: 0,
+      deprecated: false,
+    }],
   },
 })
 

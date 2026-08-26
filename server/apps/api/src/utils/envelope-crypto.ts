@@ -10,8 +10,8 @@ import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } f
  * AAD context and rejects the move.
  */
 export interface EnvelopeAad {
-  keyEntryId: string
   modelName: string
+  keyEntryId: string
 }
 
 interface CreateEnvelopeCryptoOptions {
@@ -35,7 +35,24 @@ const KEY_LEN = 32 // AES-256
 const IV_LEN = 12 // AES-GCM 96-bit IV
 const TAG_LEN = 16
 
-export type EnvelopeCrypto = ReturnType<typeof createEnvelopeCrypto>
+function assertMasterKeyLength(label: string, key: Buffer): void {
+  if (key.length !== KEY_LEN)
+    throw new Error(`${label} must be exactly 32 bytes (got ${key.length})`)
+}
+
+function deriveAesKey(masterKey: Buffer): Buffer {
+  // hkdfSync returns ArrayBuffer in Node — wrap in Buffer view.
+  return Buffer.from(hkdfSync('sha256', masterKey, HKDF_SALT, HKDF_INFO, KEY_LEN))
+}
+
+function encodeAad(aad: EnvelopeAad): Buffer {
+  // NOTICE:
+  // Pipe separator is reserved — neither modelName nor keyEntryId is allowed
+  // to contain '|' at the schema layer (configKV Valibot validation enforces).
+  // This avoids parser ambiguity if someone tries to forge a (model, id) pair
+  // by injecting a separator into a single field.
+  return Buffer.from(`${aad.modelName}|${aad.keyEntryId}`, 'utf8')
+}
 
 /**
  * Envelope-encrypt and decrypt provider API keys for at-rest storage.
@@ -66,13 +83,13 @@ export function createEnvelopeCrypto(options: CreateEnvelopeCryptoOptions) {
   const currentAesKey = deriveAesKey(options.masterKey)
   const previousAesKey = options.previousMasterKey ? deriveAesKey(options.previousMasterKey) : undefined
 
-  function encryptWith(aesKey: Buffer, plaintext: Buffer, aadBytes: Buffer): { ct: Buffer, iv: Buffer, tag: Buffer } {
+  function encryptWith(aesKey: Buffer, plaintext: Buffer, aadBytes: Buffer): { iv: Buffer, ct: Buffer, tag: Buffer } {
     const iv = randomBytes(IV_LEN)
     const cipher = createCipheriv('aes-256-gcm', aesKey, iv, { authTagLength: TAG_LEN })
     cipher.setAAD(aadBytes, { plaintextLength: plaintext.length })
     const ct = Buffer.concat([cipher.update(plaintext), cipher.final()])
     const tag = cipher.getAuthTag()
-    return { ct, iv, tag }
+    return { iv, ct, tag }
   }
 
   function decryptWith(aesKey: Buffer, iv: Buffer, ct: Buffer, tag: Buffer, aadBytes: Buffer): Buffer {
@@ -83,6 +100,18 @@ export function createEnvelopeCrypto(options: CreateEnvelopeCryptoOptions) {
   }
 
   return {
+    encryptKey(plaintext: string, aad: EnvelopeAad): string {
+      const plaintextBytes = Buffer.from(plaintext, 'utf8')
+      const aadBytes = encodeAad(aad)
+      const { iv, ct, tag } = encryptWith(currentAesKey, plaintextBytes, aadBytes)
+      return [
+        VERSION_PREFIX,
+        iv.toString('base64url'),
+        ct.toString('base64url'),
+        tag.toString('base64url'),
+      ].join('.')
+    },
+
     decryptKey(ciphertext: string, aad: EnvelopeAad): Buffer {
       const parts = ciphertext.split('.')
       if (parts.length !== 4)
@@ -119,20 +148,10 @@ export function createEnvelopeCrypto(options: CreateEnvelopeCryptoOptions) {
         }
       }
     },
-
-    encryptKey(plaintext: string, aad: EnvelopeAad): string {
-      const plaintextBytes = Buffer.from(plaintext, 'utf8')
-      const aadBytes = encodeAad(aad)
-      const { ct, iv, tag } = encryptWith(currentAesKey, plaintextBytes, aadBytes)
-      return [
-        VERSION_PREFIX,
-        iv.toString('base64url'),
-        ct.toString('base64url'),
-        tag.toString('base64url'),
-      ].join('.')
-    },
   }
 }
+
+export type EnvelopeCrypto = ReturnType<typeof createEnvelopeCrypto>
 
 /**
  * Returns the first 8 hex characters of `SHA-256(plaintext)`. Used as
@@ -146,23 +165,4 @@ export function createEnvelopeCrypto(options: CreateEnvelopeCryptoOptions) {
  */
 export function keyIdFromPlaintext(plaintext: string): string {
   return createHash('sha256').update(plaintext, 'utf8').digest('hex').slice(0, 8)
-}
-
-function assertMasterKeyLength(label: string, key: Buffer): void {
-  if (key.length !== KEY_LEN)
-    throw new Error(`${label} must be exactly 32 bytes (got ${key.length})`)
-}
-
-function deriveAesKey(masterKey: Buffer): Buffer {
-  // hkdfSync returns ArrayBuffer in Node — wrap in Buffer view.
-  return Buffer.from(hkdfSync('sha256', masterKey, HKDF_SALT, HKDF_INFO, KEY_LEN))
-}
-
-function encodeAad(aad: EnvelopeAad): Buffer {
-  // NOTICE:
-  // Pipe separator is reserved — neither modelName nor keyEntryId is allowed
-  // to contain '|' at the schema layer (configKV Valibot validation enforces).
-  // This avoids parser ambiguity if someone tries to forge a (model, id) pair
-  // by injecting a separator into a single field.
-  return Buffer.from(`${aad.modelName}|${aad.keyEntryId}`, 'utf8')
 }

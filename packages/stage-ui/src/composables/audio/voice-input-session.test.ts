@@ -3,20 +3,20 @@ import { ref, shallowRef } from 'vue'
 
 const audioRecorderMock = vi.hoisted(() => ({
   isRecording: undefined as unknown as { value: boolean },
-  onStopRecordHook: undefined as ((recording: Blob | undefined) => Promise<void>) | undefined,
   startRecord: vi.fn(),
   stopRecord: vi.fn(),
+  onStopRecordHook: undefined as ((recording: Blob | undefined) => Promise<void>) | undefined,
 }))
 
 const vadMock = vi.hoisted(() => ({
   init: vi.fn<() => Promise<void>>(),
-  options: undefined as undefined | {
-    minSilenceDurationMs?: number
-    onSpeechCancel?: () => void
-    onSpeechEnd?: () => void
-    onSpeechReady?: (event: { buffer: Float32Array, duration: number }) => void
+  options: undefined as {
     onSpeechStart?: () => void
-  },
+    onSpeechEnd?: () => void
+    onSpeechCancel?: () => void
+    onSpeechReady?: (event: { buffer: Float32Array, duration: number }) => void
+    minSilenceDurationMs?: number
+  } | undefined,
   start: vi.fn<() => Promise<void>>(),
 }))
 
@@ -35,16 +35,16 @@ vi.mock('../../stores/ai/models/vad', async () => {
     useVAD: (_workerUrl: string, options: typeof vadMock.options) => {
       vadMock.options = options
       return {
-        dispose: vi.fn(),
-        inferenceError: vue.ref(),
         init: vadMock.init,
-        isSpeech: vue.ref(false),
-        isSpeechHistory: vue.ref([]),
-        isSpeechProb: vue.ref(0),
+        dispose: vi.fn(),
+        start: vadMock.start,
         loaded: vue.ref(true),
+        isSpeech: vue.ref(false),
+        isSpeechProb: vue.ref(0),
+        isSpeechHistory: vue.ref([]),
+        inferenceError: vue.ref(),
         loading: vue.ref(false),
         minSilenceDurationMs: vue.toRef(options?.minSilenceDurationMs ?? 1200),
-        start: vadMock.start,
       }
     },
   }
@@ -63,12 +63,12 @@ vi.mock('./audio-recorder', async () => {
   return {
     useAudioRecorder: () => ({
       isRecording: audioRecorderMock.isRecording,
+      startRecord: audioRecorderMock.startRecord,
+      stopRecord: audioRecorderMock.stopRecord,
       onStopRecord: vi.fn((hook: (recording: Blob | undefined) => Promise<void>) => {
         audioRecorderMock.onStopRecordHook = hook
         return vi.fn()
       }),
-      startRecord: audioRecorderMock.startRecord,
-      stopRecord: audioRecorderMock.stopRecord,
     }),
   }
 })
@@ -110,8 +110,8 @@ describe('useVoiceInputSession', () => {
     })
 
     const session = useVoiceInputSession(shallowRef(createMediaStream()), {
-      onTranscriptionResult,
       volumeFallback: { enabled: false },
+      onTranscriptionResult,
     })
 
     await expect(session.startSegment('vad')).resolves.toBe(true)
@@ -135,9 +135,9 @@ describe('useVoiceInputSession', () => {
     expect(wav.getInt16(44, true)).toBe(16383)
     expect(wav.getInt16(46, true)).toBe(-16384)
     expect(onTranscriptionResult).toHaveBeenCalledWith(expect.objectContaining({
+      trigger: 'vad',
       recording,
       text: 'transcribed',
-      trigger: 'vad',
     }))
   })
 
@@ -232,10 +232,10 @@ describe('useVoiceInputSession', () => {
     const gateError = new Error('gate failed')
 
     const session = useVoiceInputSession(shallowRef(createMediaStream()), {
+      volumeFallback: { enabled: false },
       canStartSegment: vi.fn()
         .mockRejectedValueOnce(gateError)
         .mockResolvedValueOnce(true),
-      volumeFallback: { enabled: false },
     })
 
     await expect(session.startSegment('manual')).resolves.toBe(false)
@@ -256,8 +256,8 @@ describe('useVoiceInputSession', () => {
     const hookError = new Error('start hook failed')
 
     const session = useVoiceInputSession(shallowRef(createMediaStream()), {
-      onSegmentStart: vi.fn().mockRejectedValueOnce(hookError),
       volumeFallback: { enabled: false },
+      onSegmentStart: vi.fn().mockRejectedValueOnce(hookError),
     })
 
     await expect(session.startSegment('manual')).resolves.toBe(false)
@@ -279,8 +279,8 @@ describe('useVoiceInputSession', () => {
     })
 
     const session = useVoiceInputSession(shallowRef(createMediaStream()), {
-      onSegmentStarted: vi.fn().mockRejectedValueOnce(hookError),
       volumeFallback: { enabled: false },
+      onSegmentStarted: vi.fn().mockRejectedValueOnce(hookError),
     })
 
     await expect(session.startSegment('manual')).resolves.toBe(false)
@@ -304,9 +304,9 @@ describe('useVoiceInputSession', () => {
     })
 
     const session = useVoiceInputSession(shallowRef(createMediaStream()), {
+      volumeFallback: { enabled: false },
       onSegmentStop: vi.fn().mockRejectedValueOnce(hookError),
       onTranscriptionError,
-      volumeFallback: { enabled: false },
     })
 
     await expect(session.startSegment('manual')).resolves.toBe(true)
@@ -357,30 +357,8 @@ describe('useVoiceInputSession', () => {
     })
 
     class FakeAudioContext {
-      close = vi.fn()
-      destination = {}
-
-      resume = vi.fn()
-
       state: AudioContextState = 'running'
-
-      createAnalyser() {
-        return {
-          connect: vi.fn(),
-          disconnect: vi.fn(),
-          fftSize: 512,
-          getByteTimeDomainData: (data: Uint8Array<ArrayBuffer>) => data.fill(128),
-          smoothingTimeConstant: 0,
-        }
-      }
-
-      createGain() {
-        return {
-          connect: vi.fn(),
-          disconnect: vi.fn(),
-          gain: { value: 1 },
-        }
-      }
+      destination = {}
 
       createMediaStreamSource() {
         return {
@@ -388,6 +366,27 @@ describe('useVoiceInputSession', () => {
           disconnect: vi.fn(),
         }
       }
+
+      createAnalyser() {
+        return {
+          fftSize: 512,
+          smoothingTimeConstant: 0,
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+          getByteTimeDomainData: (data: Uint8Array<ArrayBuffer>) => data.fill(128),
+        }
+      }
+
+      createGain() {
+        return {
+          gain: { value: 1 },
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+        }
+      }
+
+      resume = vi.fn()
+      close = vi.fn()
     }
 
     vi.stubGlobal('AudioContext', FakeAudioContext)

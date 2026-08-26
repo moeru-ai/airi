@@ -178,48 +178,48 @@ The configuration system has been optimized using the `defu` library for deep me
 
 ```typescript
 interface Config {
-  // Adapter configuration
-  adapters: {
-    airi?: {
-      enabled: boolean
-      token?: string
-      url?: string
-    }
-    mcp?: {
-      enabled: boolean
-      port?: number
+  // BrowserBase/Stagehand configuration
+  browserbase: {
+    apiKey: string
+    projectId?: string
+    endpoint?: string
+    stagehand?: {
+      modelName?: string // e.g., "gpt-4o" or "claude-3-5-sonnet-latest"
+      modelClientOptions?: {
+        apiKey: string // OpenAI or Anthropic API key
+      }
     }
   }
 
   // Browser configuration
   browser: BrowserConfig
 
-  // BrowserBase/Stagehand configuration
-  browserbase: {
-    apiKey: string
-    endpoint?: string
-    projectId?: string
-    stagehand?: {
-      modelClientOptions?: {
-        apiKey: string // OpenAI or Anthropic API key
-      }
-      modelName?: string // e.g., "gpt-4o" or "claude-3-5-sonnet-latest"
+  // Twitter configuration
+  twitter: {
+    credentials?: TwitterCredentials
+    defaultOptions?: {
+      timeline?: TimelineOptions
+      search?: SearchOptions
+    }
+  }
+
+  // Adapter configuration
+  adapters: {
+    airi?: {
+      url?: string
+      token?: string
+      enabled: boolean
+    }
+    mcp?: {
+      port?: number
+      enabled: boolean
     }
   }
 
   // System configuration
   system: {
-    concurrency: number
     logLevel: string
-  }
-
-  // Twitter configuration
-  twitter: {
-    credentials?: TwitterCredentials
-    defaultOptions?: {
-      search?: SearchOptions
-      timeline?: TimelineOptions
-    }
+    concurrency: number
   }
 }
 ```
@@ -262,10 +262,10 @@ async function main() {
   await browser.initialize({
     headless: true,
     stagehand: {
+      modelName: 'gpt-4o', // Or 'claude-3-5-sonnet-latest' for Anthropic
       modelClientOptions: {
         apiKey: process.env.OPENAI_API_KEY // Or process.env.ANTHROPIC_API_KEY
-      },
-      modelName: 'gpt-4o' // Or 'claude-3-5-sonnet-latest' for Anthropic
+      }
     }
   })
 
@@ -304,8 +304,8 @@ async function startAIRIModule() {
 
   // Create AIRI adapter
   const airiAdapter = new AIRIAdapter(twitter, {
-    token: process.env.AIRI_TOKEN,
-    url: process.env.AIRI_URL
+    url: process.env.AIRI_URL,
+    token: process.env.AIRI_TOKEN
   })
 
   // Start adapter

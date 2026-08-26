@@ -17,9 +17,9 @@ export async function refreshRuntimeRunState(runtime: ComputerUseServerRuntime) 
   runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
 
   const browserSurfaceAvailability = buildBrowserSurfaceAvailability({
-    cdp: cdpAvailability,
     executionTarget,
     extension: runtime.browserDomBridge.getStatus(),
+    cdp: cdpAvailability,
   })
   runtime.stateManager.updateBrowserSurfaceAvailability(browserSurfaceAvailability)
 
@@ -29,10 +29,10 @@ export async function refreshRuntimeRunState(runtime: ComputerUseServerRuntime) 
   }
 
   return {
-    browserSurfaceAvailability,
-    cdpAvailability,
+    executionTarget,
     context,
     displayInfo,
-    executionTarget,
+    cdpAvailability,
+    browserSurfaceAvailability,
   }
 }

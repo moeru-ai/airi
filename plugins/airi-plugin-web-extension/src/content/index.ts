@@ -8,26 +8,14 @@ const SUBTITLE_DEDUPE_WINDOW = 2000
 
 const lastPayloadByType = new Map<string, string>()
 
-export function startContentObserver() {
-  const site = detectSiteFromUrl(location.href)
-  safeSend({ payload: buildPageContext(site), type: 'content:page' })
-  const stopVideo = observeVideo(site)
+function safeSend(message: ContentToBackgroundMessage) {
+  const serialized = JSON.stringify(message.payload)
+  const lastSerialized = lastPayloadByType.get(message.type)
+  if (serialized === lastSerialized)
+    return
 
-  browser.runtime.onMessage.addListener((message: BackgroundToContentMessage) => {
-    if (message.type === 'background:request-vision-frame') {
-      const video = document.querySelector('video') as HTMLVideoElement | null
-      if (!video)
-        return
-
-      const frame = captureVisionFrame(site, video)
-      if (frame)
-        safeSend({ payload: frame, type: 'content:vision:frame' })
-    }
-  })
-
-  return () => {
-    stopVideo?.()
-  }
+  lastPayloadByType.set(message.type, serialized)
+  void browser.runtime.sendMessage(message).catch(() => {})
 }
 
 function buildPageContext(site: VideoSite): PageContextPayload {
@@ -35,11 +23,11 @@ function buildPageContext(site: VideoSite): PageContextPayload {
   const ogDescription = normalizeText(document.querySelector('meta[property="og:description"]')?.getAttribute('content'))
 
   return {
+    site,
+    url: location.href,
+    title: normalizeText(document.title),
     description: description || ogDescription || undefined,
     language: document.documentElement.lang || undefined,
-    site,
-    title: normalizeText(document.title),
-    url: location.href,
   }
 }
 
@@ -53,52 +41,39 @@ function buildVideoContext(site: VideoSite, video: HTMLVideoElement, includeProg
   const rect = video.getBoundingClientRect()
 
   return {
-    channel: channel || undefined,
-    currentTimeSec,
-    durationSec,
-    isMuted: video.muted,
-    isPlaying: !video.paused && !video.ended,
-    playbackRate: Number.isFinite(video.playbackRate) ? Number(video.playbackRate.toFixed(2)) : undefined,
-    playerSize: rect.width && rect.height ? { height: Math.round(rect.height), width: Math.round(rect.width) } : undefined,
     site,
-    title: title || normalizeText(document.title),
     url,
+    title: title || normalizeText(document.title),
+    channel: channel || undefined,
     videoId,
+    durationSec,
+    currentTimeSec,
+    isPlaying: !video.paused && !video.ended,
+    isMuted: video.muted,
     volume: Number.isFinite(video.volume) ? Number(video.volume.toFixed(2)) : undefined,
+    playbackRate: Number.isFinite(video.playbackRate) ? Number(video.playbackRate.toFixed(2)) : undefined,
+    playerSize: rect.width && rect.height ? { width: Math.round(rect.width), height: Math.round(rect.height) } : undefined,
   }
 }
 
-function captureVisionFrame(site: VideoSite, video: HTMLVideoElement): null | VisionFramePayload {
-  const canvas = document.createElement('canvas')
-  const width = Math.min(480, Math.max(1, Math.floor(video.videoWidth)))
-  const height = Math.min(270, Math.max(1, Math.floor(video.videoHeight)))
-
-  if (!width || !height)
-    return null
-
-  canvas.width = width
-  canvas.height = height
-
-  const ctx = canvas.getContext('2d')
-  if (!ctx)
-    return null
-
-  try {
-    ctx.drawImage(video, 0, 0, width, height)
-    return {
-      capturedAt: Date.now(),
-      dataUrl: canvas.toDataURL('image/jpeg', 0.6),
-      height,
-      site,
-      title: normalizeText(findVideoTitle(site)) || undefined,
-      url: location.href,
-      videoId: extractVideoId(site, location.href),
-      width,
-    }
+function findVideoTitle(site: VideoSite) {
+  if (site === 'youtube') {
+    return (
+      document.querySelector('ytd-watch-metadata h1 yt-formatted-string')?.textContent
+      || document.querySelector('h1.title yt-formatted-string')?.textContent
+      || document.querySelector('h1.title')?.textContent
+    )
   }
-  catch {
-    return null
+
+  if (site === 'bilibili') {
+    return (
+      document.querySelector('h1.video-title')?.textContent
+      || document.querySelector('.video-title')?.textContent
+      || document.querySelector('h1')?.textContent
+    )
   }
+
+  return document.querySelector('h1')?.textContent
 }
 
 function findChannelName(site: VideoSite) {
@@ -121,24 +96,54 @@ function findChannelName(site: VideoSite) {
   return undefined
 }
 
-function findVideoTitle(site: VideoSite) {
-  if (site === 'youtube') {
-    return (
-      document.querySelector('ytd-watch-metadata h1 yt-formatted-string')?.textContent
-      || document.querySelector('h1.title yt-formatted-string')?.textContent
-      || document.querySelector('h1.title')?.textContent
-    )
+function observeTextTracks(site: VideoSite, video: HTMLVideoElement, onSubtitle: (payload: SubtitlePayload) => void) {
+  const seen = new Map<string, number>()
+
+  const handleCueChange = (track: TextTrack) => {
+    const cues = Array.from(track.activeCues ?? []) as TextTrackCue[]
+    for (const cue of cues) {
+      const text = normalizeText((cue as VTTCue).text ?? '')
+      if (!text)
+        continue
+
+      const key = `${text}:${Math.floor(cue.startTime * 1000)}`
+      const now = Date.now()
+      const lastSeen = seen.get(key)
+      if (lastSeen && now - lastSeen < SUBTITLE_DEDUPE_WINDOW)
+        continue
+
+      seen.set(key, now)
+      onSubtitle({
+        site,
+        url: location.href,
+        title: normalizeText(findVideoTitle(site)) || undefined,
+        videoId: extractVideoId(site, location.href),
+        text,
+        language: (track.language || track.label || undefined),
+        startMs: Math.floor(cue.startTime * 1000),
+        endMs: Math.floor(cue.endTime * 1000),
+      })
+    }
   }
 
-  if (site === 'bilibili') {
-    return (
-      document.querySelector('h1.video-title')?.textContent
-      || document.querySelector('.video-title')?.textContent
-      || document.querySelector('h1')?.textContent
-    )
+  const attach = () => {
+    const tracks = Array.from(video.textTracks ?? [])
+    for (const track of tracks) {
+      if (track.kind && !['subtitles', 'captions'].includes(track.kind))
+        continue
+
+      if (track.mode === 'disabled')
+        track.mode = 'hidden'
+      track.oncuechange = () => handleCueChange(track)
+    }
   }
 
-  return document.querySelector('h1')?.textContent
+  attach()
+
+  const observer = new MutationObserver(() => attach())
+  observer.observe(video, { attributes: true, childList: true, subtree: true })
+
+  return () => observer.disconnect()
 }
 
 function observeSubtitleDom(site: VideoSite, onSubtitle: (payload: SubtitlePayload) => void) {
@@ -162,10 +167,10 @@ function observeSubtitleDom(site: VideoSite, onSubtitle: (payload: SubtitlePaylo
     lastText = text
     onSubtitle({
       site,
-      text,
-      title: normalizeText(findVideoTitle(site)) || undefined,
       url: location.href,
+      title: normalizeText(findVideoTitle(site)) || undefined,
       videoId: extractVideoId(site, location.href),
+      text,
     })
   }
 
@@ -180,54 +185,37 @@ function observeSubtitleDom(site: VideoSite, onSubtitle: (payload: SubtitlePaylo
   }
 }
 
-function observeTextTracks(site: VideoSite, video: HTMLVideoElement, onSubtitle: (payload: SubtitlePayload) => void) {
-  const seen = new Map<string, number>()
+function captureVisionFrame(site: VideoSite, video: HTMLVideoElement): VisionFramePayload | null {
+  const canvas = document.createElement('canvas')
+  const width = Math.min(480, Math.max(1, Math.floor(video.videoWidth)))
+  const height = Math.min(270, Math.max(1, Math.floor(video.videoHeight)))
 
-  const handleCueChange = (track: TextTrack) => {
-    const cues = Array.from(track.activeCues ?? []) as TextTrackCue[]
-    for (const cue of cues) {
-      const text = normalizeText((cue as VTTCue).text ?? '')
-      if (!text)
-        continue
+  if (!width || !height)
+    return null
 
-      const key = `${text}:${Math.floor(cue.startTime * 1000)}`
-      const now = Date.now()
-      const lastSeen = seen.get(key)
-      if (lastSeen && now - lastSeen < SUBTITLE_DEDUPE_WINDOW)
-        continue
+  canvas.width = width
+  canvas.height = height
 
-      seen.set(key, now)
-      onSubtitle({
-        endMs: Math.floor(cue.endTime * 1000),
-        language: (track.language || track.label || undefined),
-        site,
-        startMs: Math.floor(cue.startTime * 1000),
-        text,
-        title: normalizeText(findVideoTitle(site)) || undefined,
-        url: location.href,
-        videoId: extractVideoId(site, location.href),
-      })
+  const ctx = canvas.getContext('2d')
+  if (!ctx)
+    return null
+
+  try {
+    ctx.drawImage(video, 0, 0, width, height)
+    return {
+      site,
+      url: location.href,
+      videoId: extractVideoId(site, location.href),
+      title: normalizeText(findVideoTitle(site)) || undefined,
+      capturedAt: Date.now(),
+      width,
+      height,
+      dataUrl: canvas.toDataURL('image/jpeg', 0.6),
     }
   }
-
-  const attach = () => {
-    const tracks = Array.from(video.textTracks ?? [])
-    for (const track of tracks) {
-      if (track.kind && !['captions', 'subtitles'].includes(track.kind))
-        continue
-
-      if (track.mode === 'disabled')
-        track.mode = 'hidden'
-      track.oncuechange = () => handleCueChange(track)
-    }
+  catch {
+    return null
   }
-
-  attach()
-
-  const observer = new MutationObserver(() => attach())
-  observer.observe(video, { attributes: true, childList: true, subtree: true })
-
-  return () => observer.disconnect()
 }
 
 function observeVideo(site: VideoSite) {
@@ -240,11 +228,11 @@ function observeVideo(site: VideoSite) {
     if (!video)
       return
 
-    safeSend({ payload: buildVideoContext(site, video, includeProgress), type: 'content:video' })
+    safeSend({ type: 'content:video', payload: buildVideoContext(site, video, includeProgress) })
   }
 
   const sendPage = () => {
-    safeSend({ payload: buildPageContext(site), type: 'content:page' })
+    safeSend({ type: 'content:page', payload: buildPageContext(site) })
   }
 
   const onPlayback = () => sendVideo(true)
@@ -265,8 +253,8 @@ function observeVideo(site: VideoSite) {
     stopTracks?.()
     stopDomSubtitles?.()
 
-    stopTracks = observeTextTracks(site, video, payload => safeSend({ payload, type: 'content:subtitle' }))
-    stopDomSubtitles = observeSubtitleDom(site, payload => safeSend({ payload, type: 'content:subtitle' }))
+    stopTracks = observeTextTracks(site, video, payload => safeSend({ type: 'content:subtitle', payload }))
+    stopDomSubtitles = observeSubtitleDom(site, payload => safeSend({ type: 'content:subtitle', payload }))
 
     sendPage()
     sendVideo(false)
@@ -327,12 +315,24 @@ function observeVideo(site: VideoSite) {
   }
 }
 
-function safeSend(message: ContentToBackgroundMessage) {
-  const serialized = JSON.stringify(message.payload)
-  const lastSerialized = lastPayloadByType.get(message.type)
-  if (serialized === lastSerialized)
-    return
+export function startContentObserver() {
+  const site = detectSiteFromUrl(location.href)
+  safeSend({ type: 'content:page', payload: buildPageContext(site) })
+  const stopVideo = observeVideo(site)
 
-  lastPayloadByType.set(message.type, serialized)
-  void browser.runtime.sendMessage(message).catch(() => {})
+  browser.runtime.onMessage.addListener((message: BackgroundToContentMessage) => {
+    if (message.type === 'background:request-vision-frame') {
+      const video = document.querySelector('video') as HTMLVideoElement | null
+      if (!video)
+        return
+
+      const frame = captureVisionFrame(site, video)
+      if (frame)
+        safeSend({ type: 'content:vision:frame', payload: frame })
+    }
+  })
+
+  return () => {
+    stopVideo?.()
+  }
 }

@@ -11,22 +11,22 @@ import {
 } from '../trace'
 
 export interface RenderTargetRegionRead {
-  centerX: number
-  centerY: number
   data: Uint8Array
-  readHeight: number
   readWidth: number
-  scaleX: number
-  scaleY: number
+  readHeight: number
   startX: number
   startY: number
+  centerX: number
+  centerY: number
+  scaleX: number
+  scaleY: number
 }
 
 export function useRenderTargetRegionAtClientPoint(context: {
+  getRenderer: () => WebGLRenderer | undefined
+  getScene: () => Scene | undefined
   getCamera: () => Camera | undefined
   getCanvas: () => HTMLCanvasElement | undefined
-  getRenderer: () => undefined | WebGLRenderer
-  getScene: () => Scene | undefined
 }) {
   const renderTargetRef = shallowRef<WebGLRenderTarget>()
   const renderTargetSize = new Vector2()
@@ -48,7 +48,7 @@ export function useRenderTargetRegionAtClientPoint(context: {
     return renderTargetRef.value
   }
 
-  function readRenderTargetRegionAtClientPoint(clientX: number, clientY: number, radius: number): null | RenderTargetRegionRead {
+  function readRenderTargetRegionAtClientPoint(clientX: number, clientY: number, radius: number): RenderTargetRegionRead | null {
     const traceStart = isStageThreeRuntimeTraceEnabled() ? performance.now() : 0
     const renderer = context.getRenderer()
     const scene = context.getScene()
@@ -106,15 +106,15 @@ export function useRenderTargetRegionAtClientPoint(context: {
     }
 
     return {
-      centerX,
-      centerY,
       data,
-      readHeight,
       readWidth,
-      scaleX,
-      scaleY,
+      readHeight,
       startX,
       startY,
+      centerX,
+      centerY,
+      scaleX,
+      scaleY,
     }
   }
 
@@ -124,7 +124,7 @@ export function useRenderTargetRegionAtClientPoint(context: {
   }
 
   return {
-    disposeRenderTarget,
     readRenderTargetRegionAtClientPoint,
+    disposeRenderTarget,
   }
 }

@@ -30,17 +30,17 @@ import { centerWindowOnDisplay } from '../../shared/display'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export async function setupSettingsWindowInvokes(params: {
+  settingsWindow: BrowserWindow
+  widgetsManager: WidgetsWindowManager
   autoUpdater: AutoUpdater
   devtoolsWindow: DevtoolsWindowManager
   getMainWindow?: () => BrowserWindow | undefined
-  globalShortcut: GlobalShortcutService
-  godotStageManager: GodotStageManager
-  i18n: I18n
-  mcpStdioManager: McpStdioManager
   serverChannel: ServerChannel
-  settingsWindow: BrowserWindow
+  godotStageManager: GodotStageManager
+  mcpStdioManager: McpStdioManager
+  i18n: I18n
+  globalShortcut: GlobalShortcutService
   spotlightWindow: SpotlightWindowManager
-  widgetsManager: WidgetsWindowManager
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -49,10 +49,10 @@ export async function setupSettingsWindowInvokes(params: {
 
   const { context } = createContext(ipcMain, params.settingsWindow)
 
-  await setupBaseWindowElectronInvokes({ context, i18n: params.i18n, serverChannel: params.serverChannel, window: params.settingsWindow })
+  await setupBaseWindowElectronInvokes({ context, window: params.settingsWindow, i18n: params.i18n, serverChannel: params.serverChannel })
 
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.settingsWindow })
-  createAutoUpdaterService({ context, service: params.autoUpdater, window: params.settingsWindow })
+  createAutoUpdaterService({ context, window: params.settingsWindow, service: params.autoUpdater })
   createMcpServersService({ context, manager: params.mcpStdioManager })
   createGodotStageService({ context, manager: params.godotStageManager, window: params.settingsWindow })
   createAuthService({ context, window: params.settingsWindow })

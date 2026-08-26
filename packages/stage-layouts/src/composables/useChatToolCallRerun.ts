@@ -6,12 +6,12 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { executeToolCallRerun } from '@proj-airi/stage-ui/stores/tool-call-rerun'
 
 export interface ChatToolCallRerunEvent {
-  args: string
-  index: number
-  key: number | string
   message: ChatHistoryItem
+  index: number
+  key: string | number
   toolCallId: string
   toolName: string
+  args: string
 }
 
 export function useChatToolCallRerun() {
@@ -25,12 +25,12 @@ export function useChatToolCallRerun() {
       const nextMessages = await executeToolCallRerun({
         messages: currentMessages,
         payload: {
-          args: payload.args,
-          index: payload.index,
-          messageId: payload.message.id,
           sessionId,
+          messageId: payload.message.id,
+          index: payload.index,
           toolCallId: payload.toolCallId,
           toolName: payload.toolName,
+          args: payload.args,
         },
         resolveTools: () => resolveLlmTools(),
       })
@@ -40,8 +40,8 @@ export function useChatToolCallRerun() {
       chatSession.setSessionMessages(sessionId, [
         ...currentMessages,
         {
-          content: errorMessageFrom(error) ?? 'Failed to rerun tool call.',
           role: 'error',
+          content: errorMessageFrom(error) ?? 'Failed to rerun tool call.',
         },
       ])
     }

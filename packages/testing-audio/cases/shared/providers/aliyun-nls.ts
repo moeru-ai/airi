@@ -14,13 +14,13 @@ export function aliyunNlsAsr(options: AliyunNlsAsrOptions): ProviderConfiguratio
     throw new Error('The Aliyun NLS Provider must be "aliyun-nls-transcription".')
 
   return {
+    id: options.provider,
+    definitionId: options.provider,
+    model: 'aliyun-nls-v1',
     config: {
       accessKeyId: options.accessKeyId,
       accessKeySecret: options.accessKeySecret,
       appKey: options.appKey,
     },
-    definitionId: options.provider,
-    id: options.provider,
-    model: 'aliyun-nls-v1',
   }
 }

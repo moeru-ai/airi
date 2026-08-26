@@ -17,9 +17,23 @@ const SCORE = 2000
 // Re-entry guard: the reflex tick can re-fire while the escape loop is still running.
 let escapeInFlight = false
 
-interface BlockLike { boundingBox?: string, name?: string }
+interface BlockLike { name?: string, boundingBox?: string }
 
 const HAZARD_BLOCK = /lava|fire|magma/
+
+function isHazardBlock(b: BlockLike | null | undefined): boolean {
+  return !!b?.name && HAZARD_BLOCK.test(b.name)
+}
+
+/** A block the bot can stand ON: full solid, and not a burning hazard. */
+function isStandable(b: BlockLike | null | undefined): boolean {
+  return !!b && b.boundingBox === 'block' && !isHazardBlock(b)
+}
+
+/** A block the bot can occupy (feet/head): non-solid and not lava/fire. */
+function isClear(b: BlockLike | null | undefined): boolean {
+  return !!b && b.boundingBox !== 'block' && !isHazardBlock(b)
+}
 
 /**
  * Nearest position the bot could safely stand (solid non-hazard ground, clear feet+head), searched
@@ -33,11 +47,11 @@ export function findNearestSafeStand(
   blockAt: (x: number, y: number, z: number) => BlockLike | null,
   origin: { x: number, y: number, z: number },
   radius: number,
-): null | { x: number, y: number, z: number } {
+): { x: number, y: number, z: number } | null {
   const ox = Math.floor(origin.x)
   const oy = Math.floor(origin.y)
   const oz = Math.floor(origin.z)
-  let best: null | { x: number, y: number, z: number } = null
+  let best: { x: number, y: number, z: number } | null = null
   let bestScore = Number.POSITIVE_INFINITY
 
   for (let dx = -radius; dx <= radius; dx++) {
@@ -60,30 +74,16 @@ export function findNearestSafeStand(
   return best
 }
 
+function inLava(bot: any): boolean {
+  return Boolean(bot.entity?.isInLava)
+}
+
 function drowning(bot: any): boolean {
   return Boolean(bot.entity?.isInWater) && typeof bot.oxygenLevel === 'number' && bot.oxygenLevel <= LOW_OXYGEN
 }
 
 function inHazard(bot: any): boolean {
   return inLava(bot) || drowning(bot)
-}
-
-function inLava(bot: any): boolean {
-  return Boolean(bot.entity?.isInLava)
-}
-
-/** A block the bot can occupy (feet/head): non-solid and not lava/fire. */
-function isClear(b: BlockLike | null | undefined): boolean {
-  return !!b && b.boundingBox !== 'block' && !isHazardBlock(b)
-}
-
-function isHazardBlock(b: BlockLike | null | undefined): boolean {
-  return !!b?.name && HAZARD_BLOCK.test(b.name)
-}
-
-/** A block the bot can stand ON: full solid, and not a burning hazard. */
-function isStandable(b: BlockLike | null | undefined): boolean {
-  return !!b && b.boundingBox === 'block' && !isHazardBlock(b)
 }
 
 /**
@@ -96,6 +96,12 @@ function isStandable(b: BlockLike | null | undefined): boolean {
 export const escapeHazardBehavior: ReflexBehavior = {
   id: 'escape-hazard',
   modes: ['idle', 'social', 'alert', 'wander', 'work'],
+  score: () => SCORE,
+  when: (_ctx, api) => {
+    if (escapeInFlight)
+      return false
+    return !!api && inHazard(api.bot.bot)
+  },
   run: async (api) => {
     const bot = api.bot.bot
     if (!inHazard(bot))
@@ -137,11 +143,5 @@ export const escapeHazardBehavior: ReflexBehavior = {
       // escape reflex never fires again after the first hazard (defend.ts resets combatInFlight the same way).
       escapeInFlight = false
     }
-  },
-  score: () => SCORE,
-  when: (_ctx, api) => {
-    if (escapeInFlight)
-      return false
-    return !!api && inHazard(api.bot.bot)
   },
 }

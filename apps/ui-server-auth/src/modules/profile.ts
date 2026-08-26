@@ -20,16 +20,6 @@ import { errorMessageFrom } from '@moeru/std'
 import { getAuthClient } from './auth-client'
 
 /**
- * Result of a `/get-session` probe.
- *
- * `user` is `null` when no session cookie is present (or it expired). Caller
- * uses that to redirect to the sign-in page instead of rendering the form.
- */
-export interface CurrentSessionResult {
-  user: null | ProfileUser
-}
-
-/**
  * Trimmed view of the better-auth `user` row exposed via `/get-session`.
  *
  * Mirrors the better-auth `User` shape but flattens `createdAt` to a
@@ -39,12 +29,12 @@ export interface CurrentSessionResult {
  * worry about Date-vs-string drift across the ui-server-auth boundary.
  */
 export interface ProfileUser {
-  /** ISO timestamp from `created_at`. */
-  createdAt: null | string
+  id: string
+  /** Display name set on sign-up or via {@link updateUserProfile}. */
+  name: string
   email: string
   /** True once the user clicked the verification link sent on sign-up. */
   emailVerified: boolean
-  id: string
   /**
    * Avatar URL. Server decorates this so it's always populated for
    * signed-in users: provider-set / user-uploaded URL when present, or a
@@ -52,9 +42,26 @@ export interface ProfileUser {
    * detects the fallback by URL prefix
    * (`https://www.gravatar.com/avatar/`).
    */
-  image: null | string
-  /** Display name set on sign-up or via {@link updateUserProfile}. */
-  name: string
+  image: string | null
+  /** ISO timestamp from `created_at`. */
+  createdAt: string | null
+}
+
+/**
+ * Result of a `/get-session` probe.
+ *
+ * `user` is `null` when no session cookie is present (or it expired). Caller
+ * uses that to redirect to the sign-in page instead of rendering the form.
+ */
+export interface CurrentSessionResult {
+  user: ProfileUser | null
+}
+
+interface UpdateUserProfileArgs extends AuthFetchBase {
+  /** Trim before passing — server stores the value as-is. */
+  name?: string
+  /** Optional avatar URL. Pass `null` to clear it. */
+  image?: string | null
 }
 
 interface ChangePasswordArgs extends AuthFetchBase {
@@ -66,39 +73,6 @@ interface ChangePasswordArgs extends AuthFetchBase {
    * @default true
    */
   revokeOtherSessions?: boolean
-}
-
-interface UpdateUserProfileArgs extends AuthFetchBase {
-  /** Optional avatar URL. Pass `null` to clear it. */
-  image?: null | string
-  /** Trim before passing — server stores the value as-is. */
-  name?: string
-}
-
-/**
- * Change the signed-in user's password using their current credential.
- *
- * Use when:
- * - User is signed in and wants to rotate their password from the profile
- *   page (not the forgot-password email flow).
- *
- * Expects:
- * - The user has a `credential` account; social-only users get a server-side
- *   error which surfaces as a thrown `Error` here.
- */
-export async function changePassword(args: ChangePasswordArgs): Promise<void> {
-  const client = getAuthClient(args)
-  const { error } = await client.changePassword({
-    currentPassword: args.currentPassword,
-    newPassword: args.newPassword,
-    revokeOtherSessions: args.revokeOtherSessions ?? true,
-  })
-  if (error)
-    throw new Error(error.message ?? 'changePassword failed')
-}
-
-export function describeProfileError(error: unknown): string {
-  return errorMessageFrom(error) ?? 'Unexpected error'
 }
 
 /**
@@ -123,14 +97,58 @@ export async function getCurrentSession(args: AuthFetchBase): Promise<CurrentSes
 
   return {
     user: {
-      createdAt: toIsoString(data.user.createdAt),
+      id: data.user.id,
+      name: data.user.name,
       email: data.user.email,
       emailVerified: data.user.emailVerified,
-      id: data.user.id,
       image: data.user.image ?? null,
-      name: data.user.name,
+      createdAt: toIsoString(data.user.createdAt),
     },
   }
+}
+
+/**
+ * Update the signed-in user's display name and/or avatar.
+ *
+ * Use when:
+ * - Saving the "display name" form on the profile page.
+ *
+ * Expects:
+ * - Caller has already trimmed `name` and confirmed it's non-empty.
+ * - `image` is either an absolute URL or `null` (clear).
+ */
+export async function updateUserProfile(args: UpdateUserProfileArgs): Promise<void> {
+  const client = getAuthClient(args)
+  const body: { name?: string, image?: string | null } = {}
+  if (args.name !== undefined)
+    body.name = args.name
+  if (args.image !== undefined)
+    body.image = args.image
+  const { error } = await client.updateUser(body)
+  if (error)
+    throw new Error(error.message ?? 'updateUser failed')
+}
+
+/**
+ * Change the signed-in user's password using their current credential.
+ *
+ * Use when:
+ * - User is signed in and wants to rotate their password from the profile
+ *   page (not the forgot-password email flow).
+ *
+ * Expects:
+ * - The user has a `credential` account; social-only users get a server-side
+ *   error which surfaces as a thrown `Error` here.
+ */
+export async function changePassword(args: ChangePasswordArgs): Promise<void> {
+  const client = getAuthClient(args)
+  const { error } = await client.changePassword({
+    currentPassword: args.currentPassword,
+    newPassword: args.newPassword,
+    revokeOtherSessions: args.revokeOtherSessions ?? true,
+  })
+  if (error)
+    throw new Error(error.message ?? 'changePassword failed')
 }
 
 /**
@@ -151,26 +169,8 @@ export async function signOut(args: AuthFetchBase): Promise<void> {
     throw new Error(error.message ?? 'signOut failed')
 }
 
-/**
- * Update the signed-in user's display name and/or avatar.
- *
- * Use when:
- * - Saving the "display name" form on the profile page.
- *
- * Expects:
- * - Caller has already trimmed `name` and confirmed it's non-empty.
- * - `image` is either an absolute URL or `null` (clear).
- */
-export async function updateUserProfile(args: UpdateUserProfileArgs): Promise<void> {
-  const client = getAuthClient(args)
-  const body: { image?: null | string, name?: string } = {}
-  if (args.name !== undefined)
-    body.name = args.name
-  if (args.image !== undefined)
-    body.image = args.image
-  const { error } = await client.updateUser(body)
-  if (error)
-    throw new Error(error.message ?? 'updateUser failed')
+export function describeProfileError(error: unknown): string {
+  return errorMessageFrom(error) ?? 'Unexpected error'
 }
 
 /**
@@ -183,7 +183,7 @@ export async function updateUserProfile(args: UpdateUserProfileArgs): Promise<vo
  * After:
  * - `'2025-04-01T00:00:00.000Z'` / `'2025-04-01T00:00:00.000Z'` / `null`
  */
-function toIsoString(value: unknown): null | string {
+function toIsoString(value: unknown): string | null {
   if (value instanceof Date)
     return value.toISOString()
   if (typeof value === 'string')

@@ -1,17 +1,17 @@
 export interface PatternCard {
-  code: string
   id: string
-  intent: string
-  pitfalls?: string[]
-  steps: string[]
-  tags: string[]
   title: string
+  intent: string
   whenToUse: string[]
+  steps: string[]
+  code: string
+  tags: string[]
+  pitfalls?: string[]
 }
 
 export interface PatternRuntime {
+  get: (id: string) => PatternCard | null
   find: (query: string, limit?: number) => PatternCard[]
-  get: (id: string) => null | PatternCard
   ids: () => string[]
   list: (limit?: number) => PatternCard[]
 }

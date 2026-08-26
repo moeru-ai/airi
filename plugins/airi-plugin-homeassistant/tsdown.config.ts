@@ -2,9 +2,9 @@ import { defineConfig } from 'tsdown'
 
 export default defineConfig([
   {
-    dts: true,
     entry: ['./src/index.ts'],
-    publint: true,
+    dts: true,
     unused: true,
+    publint: true,
   },
 ])

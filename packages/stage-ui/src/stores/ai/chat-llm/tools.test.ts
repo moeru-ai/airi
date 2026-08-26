@@ -9,17 +9,17 @@ import { useLlmToolsStore } from './tools'
 
 function createExecutableTool(id: string, name = id): ExecutableTool {
   return {
-    execute: vi.fn(async () => ({ ok: true })),
-    function: {
-      description: `Execute ${name}.`,
-      name,
-      parameters: {
-        properties: {},
-        type: 'object',
-      },
-    },
     id,
     type: 'function',
+    function: {
+      name,
+      description: `Execute ${name}.`,
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+    },
+    execute: vi.fn(async () => ({ ok: true })),
   }
 }
 
@@ -36,16 +36,16 @@ describe('useLlmToolsStore', () => {
     store.addTools(executableTool)
 
     expect(store.tools).toEqual([{
-      function: {
-        description: 'Execute play_chess.',
-        name: 'play_chess',
-        parameters: {
-          properties: {},
-          type: 'object',
-        },
-      },
       id: 'plugin:chess:play',
       type: 'function',
+      function: {
+        name: 'play_chess',
+        description: 'Execute play_chess.',
+        parameters: {
+          type: 'object',
+          properties: {},
+        },
+      },
     }])
     expect(JSON.stringify(store.$state)).not.toContain('execute')
     await expect(store.activeTools[0]?.execute({}, toolOptions)).resolves.toEqual({ ok: true })
@@ -90,15 +90,15 @@ describe('useLlmToolsStore', () => {
   it('returns an unavailable executor when synchronized state has no local executor', () => {
     const store = useLlmToolsStore()
     const definition: ToolDefinition = {
+      id: 'plugin:chess:play',
+      type: 'function',
       function: {
         name: 'play_chess',
         parameters: {
-          properties: {},
           type: 'object',
+          properties: {},
         },
       },
-      id: 'plugin:chess:play',
-      type: 'function',
     }
     const toolOptions = {} as Parameters<Tool['execute']>[1]
 

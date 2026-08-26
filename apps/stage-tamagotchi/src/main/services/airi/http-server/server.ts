@@ -3,9 +3,9 @@ import { getRandomPort } from 'get-port-please'
 import { serve } from 'h3'
 
 export interface BuiltInServerAddress {
-  baseUrl: string
   host: string
   port: number
+  baseUrl: string
 }
 
 /**
@@ -36,9 +36,6 @@ export function createH3Server(options: {
   let address: BuiltInServerAddress | undefined
 
   return {
-    getAddress() {
-      return address
-    },
     async start(): Promise<BuiltInServerAddress> {
       return await lifecycleMutex.runExclusive(async () => {
         if (address) {
@@ -49,9 +46,9 @@ export function createH3Server(options: {
         server = serve(options.app, { hostname: host, port, silent })
 
         address = {
-          baseUrl: `http://${host}:${port}`,
           host,
           port,
+          baseUrl: `http://${host}:${port}`,
         }
 
         return address
@@ -68,6 +65,9 @@ export function createH3Server(options: {
         server = undefined
         await activeServer.close().catch(() => {})
       })
+    },
+    getAddress() {
+      return address
     },
   }
 }

@@ -10,14 +10,14 @@ import { ADAPTIVE_INPUT_LAYOUT_EVENT, AdaptiveInput } from '../browser/adaptive-
 
 /** The element targets and policy consumed by {@link useAdaptiveInput}. */
 export interface UseAdaptiveInputOptions extends ConfigurableWindow {
-  /** The region that contains editable controls and moves above the keyboard. */
-  area: MaybeComputedElementRef<HTMLElement | null>
   /**
    * Enables keyboard measurement and layout updates.
    *
    * @default true
    */
   enabled?: MaybeRefOrGetter<boolean>
+  /** The region that contains editable controls and moves above the keyboard. */
+  area: MaybeComputedElementRef<HTMLElement | null>
   /** The region whose height follows the available viewport. */
   viewport: MaybeComputedElementRef<HTMLElement | null>
 }
@@ -41,9 +41,9 @@ export function useAdaptiveInput(options: UseAdaptiveInputOptions) {
   })
   const layout = shallowReactive<AdaptiveInputLayout>({
     keyboardVisible: false,
+    visibleHeight: layoutViewportHeight.value,
     viewportBottom: layoutViewportHeight.value,
     viewportOffsetTop: 0,
-    visibleHeight: layoutViewportHeight.value,
   })
 
   useEventListener(controller, ADAPTIVE_INPUT_LAYOUT_EVENT, () => {

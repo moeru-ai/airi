@@ -7,97 +7,54 @@ import { RunStateManager } from '../state'
 import { createDisplayInfo, createLocalExecutionTarget, createTerminalState, createTestConfig } from '../test-fixtures'
 import { createExecuteAction } from './action-executor'
 
-function createCombinedDisplayBoundsConfig() {
-  return {
-    allowedBounds: { height: 2062, width: 1920, x: -222, y: -1080 },
-  }
-}
-
-function createMultiDisplayInfo() {
-  return createDisplayInfo({
-    capturedAt: '2026-04-27T00:00:00.000Z',
-    combinedBounds: { height: 2062, width: 1920, x: -222, y: -1080 },
-    displayCount: 2,
-    displays: [
-      {
-        bounds: { height: 982, width: 1512, x: 0, y: 0 },
-        displayId: 1,
-        isBuiltIn: true,
-        isMain: true,
-        pixelHeight: 1964,
-        pixelWidth: 3024,
-        scaleFactor: 2,
-        visibleBounds: { height: 884, width: 1512, x: 0, y: 65 },
-      },
-      {
-        bounds: { height: 1080, width: 1920, x: -222, y: -1080 },
-        displayId: 3,
-        isBuiltIn: false,
-        isMain: false,
-        pixelHeight: 1080,
-        pixelWidth: 1920,
-        scaleFactor: 1,
-        visibleBounds: { height: 1080, width: 1920, x: -222, y: -1080 },
-      },
-    ],
-    isRetina: true,
-    logicalHeight: 982,
-    logicalWidth: 1512,
-    pixelHeight: 1964,
-    pixelWidth: 3024,
-    platform: 'darwin',
-    scaleFactor: 2,
-  })
-}
-
 function createRuntimeForActionTest(configOverrides: Partial<ComputerUseConfig> = {}) {
   const stateManager = new RunStateManager()
   const session = {
-    consumeOperation: vi.fn(),
-    createPendingAction: vi.fn(),
+    listPendingActions: vi.fn().mockReturnValue([]),
     getBudgetState: vi.fn().mockReturnValue({
       operationsExecuted: 0,
       operationUnitsConsumed: 0,
     }),
-    getLastScreenshot: vi.fn().mockReturnValue(undefined),
-    getPointerPosition: vi.fn().mockReturnValue(undefined),
-    getTerminalState: vi.fn().mockReturnValue(createTerminalState()),
-    listPendingActions: vi.fn().mockReturnValue([]),
     record: vi.fn().mockResolvedValue(undefined),
+    createPendingAction: vi.fn(),
+    consumeOperation: vi.fn(),
+    getLastScreenshot: vi.fn().mockReturnValue(undefined),
     setLastScreenshot: vi.fn(),
-    setPointerPosition: vi.fn(),
+    getTerminalState: vi.fn().mockReturnValue(createTerminalState()),
     setTerminalState: vi.fn(),
+    getPointerPosition: vi.fn().mockReturnValue(undefined),
+    setPointerPosition: vi.fn(),
   }
   const executor = {
-    click: vi.fn().mockResolvedValue({
-      backend: 'dry-run' as const,
-      notes: [],
-      performed: true,
-    }),
+    kind: 'dry-run' as const,
     describe: () => ({ kind: 'dry-run' as const, notes: [] }),
-    focusApp: vi.fn(),
+    getExecutionTarget: vi.fn().mockResolvedValue(createLocalExecutionTarget()),
+    getForegroundContext: vi.fn().mockResolvedValue({
+      available: true,
+      appName: 'Google Chrome',
+      platform: 'darwin',
+    }),
     getDisplayInfo: vi.fn().mockResolvedValue(createDisplayInfo({
       platform: 'darwin',
     })),
-    getExecutionTarget: vi.fn().mockResolvedValue(createLocalExecutionTarget()),
-    getForegroundContext: vi.fn().mockResolvedValue({
-      appName: 'Google Chrome',
-      available: true,
-      platform: 'darwin',
-    }),
     getPermissionInfo: vi.fn(),
-    kind: 'dry-run' as const,
     observeWindows: vi.fn(),
+    takeScreenshot: vi.fn(),
     openApp: vi.fn(),
+    focusApp: vi.fn(),
+    click: vi.fn().mockResolvedValue({
+      performed: true,
+      backend: 'dry-run' as const,
+      notes: [],
+    }),
+    typeText: vi.fn(),
     pressKeys: vi.fn(),
     scroll: vi.fn(),
-    takeScreenshot: vi.fn(),
-    typeText: vi.fn(),
     wait: vi.fn(),
   }
   const desktopSessionController = {
-    ensureControlledAppInForeground: vi.fn(),
     getSession: vi.fn().mockReturnValue(null),
+    ensureControlledAppInForeground: vi.fn(),
     touch: vi.fn(),
   }
   const terminalRunner = {
@@ -107,157 +64,200 @@ function createRuntimeForActionTest(configOverrides: Partial<ComputerUseConfig> 
     resetState: vi.fn(),
   }
   const browserDomBridge = {
-    checkCheckbox: vi.fn().mockResolvedValue(undefined),
-    clickSelector: vi.fn().mockResolvedValue(undefined),
     getStatus: vi.fn().mockReturnValue({
-      connected: true,
       enabled: true,
       host: '127.0.0.1',
-      pendingRequests: 0,
       port: 8765,
+      connected: true,
+      pendingRequests: 0,
     }),
     supportsAction: vi.fn().mockReturnValue(true),
+    clickSelector: vi.fn().mockResolvedValue(undefined),
+    checkCheckbox: vi.fn().mockResolvedValue(undefined),
   }
   const cdpBridgeManager = {
     probeAvailability: vi.fn().mockResolvedValue({
-      connectable: true,
-      connected: false,
       endpoint: 'http://localhost:9222',
+      connected: false,
+      connectable: true,
     }),
   }
 
   const runtime = {
-    browserDomBridge,
-    cdpBridgeManager,
-    chromeSessionManager: {},
     config: createTestConfig({
+      executor: 'dry-run',
       approvalMode: 'never',
       defaultCaptureAfter: false,
-      executor: 'dry-run',
       ...configOverrides,
     }),
-    desktopSessionController,
-    executor,
     session,
+    executor,
+    terminalRunner,
+    browserDomBridge,
+    cdpBridgeManager,
     stateManager,
     taskMemory: {},
-    terminalRunner,
+    desktopSessionController,
+    chromeSessionManager: {},
   } as unknown as ComputerUseServerRuntime
 
   return {
-    cdpBridgeManager,
-    desktopSessionController,
-    executor,
     runtime,
     session,
+    executor,
+    cdpBridgeManager,
     stateManager,
+    desktopSessionController,
+  }
+}
+
+function createMultiDisplayInfo() {
+  return createDisplayInfo({
+    platform: 'darwin',
+    logicalWidth: 1512,
+    logicalHeight: 982,
+    pixelWidth: 3024,
+    pixelHeight: 1964,
+    scaleFactor: 2,
+    isRetina: true,
+    displayCount: 2,
+    displays: [
+      {
+        displayId: 1,
+        isMain: true,
+        isBuiltIn: true,
+        bounds: { x: 0, y: 0, width: 1512, height: 982 },
+        visibleBounds: { x: 0, y: 65, width: 1512, height: 884 },
+        scaleFactor: 2,
+        pixelWidth: 3024,
+        pixelHeight: 1964,
+      },
+      {
+        displayId: 3,
+        isMain: false,
+        isBuiltIn: false,
+        bounds: { x: -222, y: -1080, width: 1920, height: 1080 },
+        visibleBounds: { x: -222, y: -1080, width: 1920, height: 1080 },
+        scaleFactor: 1,
+        pixelWidth: 1920,
+        pixelHeight: 1080,
+      },
+    ],
+    combinedBounds: { x: -222, y: -1080, width: 1920, height: 2062 },
+    capturedAt: '2026-04-27T00:00:00.000Z',
+  })
+}
+
+function createCombinedDisplayBoundsConfig() {
+  return {
+    allowedBounds: { x: -222, y: -1080, width: 1920, height: 2062 },
   }
 }
 
 describe('createExecuteAction', () => {
   it('executes desktop_click_target through the shared policy and audit pipeline', async () => {
-    const { executor, runtime, session, stateManager } = createRuntimeForActionTest()
+    const { runtime, executor, session, stateManager } = createRuntimeForActionTest()
     stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_1',
       capturedAt: new Date().toISOString(),
       foregroundApp: 'Google Chrome',
+      windows: [],
       screenshot: {
-        capturedAt: new Date().toISOString(),
         dataBase64: '',
         mimeType: 'image/png',
         path: '',
+        capturedAt: new Date().toISOString(),
       },
-      snapshotId: 'dg_1',
-      staleFlags: { ax: false, chromeSemantic: false, screenshot: false },
       targetCandidates: [
         {
-          appName: 'Google Chrome',
-          bounds: { height: 30, width: 80, x: 100, y: 200 },
-          confidence: 0.95,
           id: 't_0',
-          interactable: true,
-          label: 'Submit',
-          role: 'AXButton',
           source: 'ax',
+          appName: 'Google Chrome',
+          role: 'AXButton',
+          label: 'Submit',
+          bounds: { x: 100, y: 200, width: 80, height: 30 },
+          confidence: 0.95,
+          interactable: true,
         },
       ],
-      windows: [],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
     } as any)
 
     const executeAction = createExecuteAction(runtime)
-    const result = await executeAction({ input: { candidateId: 't_0' }, kind: 'desktop_click_target' }, 'desktop_click_target')
+    const result = await executeAction({ kind: 'desktop_click_target', input: { candidateId: 't_0' } }, 'desktop_click_target')
 
     expect(result.isError).not.toBe(true)
     expect(executor.click).toHaveBeenCalledWith(expect.objectContaining({
-      button: 'left',
-      clickCount: 1,
-      pointerTrace: [{ delayMs: 0, x: 140, y: 215 }],
       x: 140,
       y: 215,
+      button: 'left',
+      clickCount: 1,
+      pointerTrace: [{ x: 140, y: 215, delayMs: 0 }],
     }))
     expect(session.consumeOperation).toHaveBeenCalledWith(1)
     expect(session.setPointerPosition).toHaveBeenCalledWith({ x: 140, y: 215 })
     expect(session.record).toHaveBeenCalledWith(expect.objectContaining({
-      action: { input: { candidateId: 't_0' }, kind: 'desktop_click_target' },
       event: 'executed',
       toolName: 'desktop_click_target',
+      action: { kind: 'desktop_click_target', input: { candidateId: 't_0' } },
     }))
     expect(stateManager.getState().lastClickedCandidateId).toBe('t_0')
     expect(stateManager.getState().lastPointerIntent).toMatchObject({
       candidateId: 't_0',
-      executionResult: 'success',
       phase: 'completed',
+      executionResult: 'success',
     })
     expect(result.content.find(item => item.type === 'text')?.text).toContain('Clicked: ax AXButton "Submit"')
   })
 
   it('queues desktop_click_target without refocusing when approval is required', async () => {
-    const { desktopSessionController, executor, runtime, session } = createRuntimeForActionTest({ approvalMode: 'all' })
+    const { runtime, executor, session, desktopSessionController } = createRuntimeForActionTest({ approvalMode: 'all' })
     desktopSessionController.getSession.mockReturnValue({
-      controlledApp: 'Google Chrome',
-      createdAt: new Date().toISOString(),
       id: 'ds_1',
-      lastActiveAt: new Date().toISOString(),
+      controlledApp: 'Google Chrome',
       ownedWindows: [],
+      createdAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString(),
     })
     executor.getForegroundContext.mockResolvedValue({
-      appName: 'AIRI',
       available: true,
+      appName: 'AIRI',
       platform: 'darwin',
     })
     session.createPendingAction.mockReturnValue({
-      action: { input: { candidateId: 't_0' }, kind: 'desktop_click_target' },
+      id: 'pa_1',
+      createdAt: new Date().toISOString(),
+      toolName: 'desktop_click_target',
+      action: { kind: 'desktop_click_target', input: { candidateId: 't_0' } },
       context: {
-        appName: 'Google Chrome',
         available: true,
+        appName: 'Google Chrome',
         platform: 'darwin',
       },
-      createdAt: new Date().toISOString(),
-      id: 'pa_1',
       policy: {
         allowed: true,
-        estimatedOperationUnits: 1,
-        reasons: [],
         requiresApproval: true,
+        reasons: [],
         riskLevel: 'medium',
+        estimatedOperationUnits: 1,
       },
-      toolName: 'desktop_click_target',
     })
 
     const executeAction = createExecuteAction(runtime)
-    const result = await executeAction({ input: { candidateId: 't_0' }, kind: 'desktop_click_target' }, 'desktop_click_target')
+    const result = await executeAction({ kind: 'desktop_click_target', input: { candidateId: 't_0' } }, 'desktop_click_target')
 
     expect(result.structuredContent).toMatchObject({
-      action: {
-        input: { candidateId: 't_0' },
-        kind: 'desktop_click_target',
-      },
-      pendingActionId: 'pa_1',
       status: 'approval_required',
+      pendingActionId: 'pa_1',
+      action: {
+        kind: 'desktop_click_target',
+        input: { candidateId: 't_0' },
+      },
     })
     expect(session.createPendingAction).toHaveBeenCalledWith(expect.objectContaining({
-      action: { input: { candidateId: 't_0' }, kind: 'desktop_click_target' },
-      context: expect.objectContaining({ appName: 'Google Chrome' }),
       toolName: 'desktop_click_target',
+      action: { kind: 'desktop_click_target', input: { candidateId: 't_0' } },
+      context: expect.objectContaining({ appName: 'Google Chrome' }),
     }))
     expect(desktopSessionController.ensureControlledAppInForeground).not.toHaveBeenCalled()
     expect(executor.click).not.toHaveBeenCalled()
@@ -265,48 +265,48 @@ describe('createExecuteAction', () => {
   })
 
   it('uses controlled-app context for desktop_click_target policy and refocuses only during execution', async () => {
-    const { desktopSessionController, executor, runtime, session, stateManager } = createRuntimeForActionTest()
+    const { runtime, executor, session, stateManager, desktopSessionController } = createRuntimeForActionTest()
     stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_1',
       capturedAt: new Date().toISOString(),
       foregroundApp: 'Google Chrome',
+      windows: [],
       screenshot: {
-        capturedAt: new Date().toISOString(),
         dataBase64: '',
         mimeType: 'image/png',
         path: '',
+        capturedAt: new Date().toISOString(),
       },
-      snapshotId: 'dg_1',
-      staleFlags: { ax: false, chromeSemantic: false, screenshot: false },
       targetCandidates: [
         {
-          appName: 'Google Chrome',
-          bounds: { height: 30, width: 80, x: 100, y: 200 },
-          confidence: 0.95,
           id: 't_0',
-          interactable: true,
-          label: 'Submit',
-          role: 'AXButton',
           source: 'ax',
+          appName: 'Google Chrome',
+          role: 'AXButton',
+          label: 'Submit',
+          bounds: { x: 100, y: 200, width: 80, height: 30 },
+          confidence: 0.95,
+          interactable: true,
         },
       ],
-      windows: [],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
     } as any)
     desktopSessionController.getSession.mockReturnValue({
-      controlledApp: 'Google Chrome',
-      createdAt: new Date().toISOString(),
       id: 'ds_1',
-      lastActiveAt: new Date().toISOString(),
+      controlledApp: 'Google Chrome',
       ownedWindows: [],
+      createdAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString(),
     })
     desktopSessionController.ensureControlledAppInForeground.mockResolvedValue(true)
     executor.getForegroundContext.mockResolvedValue({
-      appName: 'AIRI',
       available: true,
+      appName: 'AIRI',
       platform: 'darwin',
     })
 
     const executeAction = createExecuteAction(runtime)
-    const result = await executeAction({ input: { candidateId: 't_0' }, kind: 'desktop_click_target' }, 'desktop_click_target')
+    const result = await executeAction({ kind: 'desktop_click_target', input: { candidateId: 't_0' } }, 'desktop_click_target')
 
     expect(result.isError).not.toBe(true)
     expect(desktopSessionController.ensureControlledAppInForeground).toHaveBeenCalledWith(expect.objectContaining({
@@ -314,8 +314,8 @@ describe('createExecuteAction', () => {
     }))
     expect(executor.click).toHaveBeenCalledOnce()
     expect(session.record).toHaveBeenCalledWith(expect.objectContaining({
-      context: expect.objectContaining({ appName: 'Google Chrome' }),
       event: 'executed',
+      context: expect.objectContaining({ appName: 'Google Chrome' }),
       policy: expect.objectContaining({ allowed: true }),
     }))
     expect(session.record).toHaveBeenCalledWith(expect.objectContaining({
@@ -327,106 +327,106 @@ describe('createExecuteAction', () => {
   })
 
   it('does not refocus when desktop_click_target stays on browser_dom', async () => {
-    const { desktopSessionController, executor, runtime, stateManager } = createRuntimeForActionTest()
+    const { runtime, executor, stateManager, desktopSessionController } = createRuntimeForActionTest()
     stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_1',
       capturedAt: new Date().toISOString(),
       foregroundApp: 'Google Chrome',
+      windows: [],
       screenshot: {
-        capturedAt: new Date().toISOString(),
         dataBase64: '',
         mimeType: 'image/png',
         path: '',
+        capturedAt: new Date().toISOString(),
       },
-      snapshotId: 'dg_1',
-      staleFlags: { ax: false, chromeSemantic: false, screenshot: false },
       targetCandidates: [
         {
-          appName: 'Google Chrome',
-          bounds: { height: 30, width: 80, x: 100, y: 200 },
-          confidence: 0.95,
-          frameId: 0,
           id: 't_0',
-          interactable: true,
-          isPageContent: true,
-          label: 'Submit',
-          role: 'button',
-          selector: '#submit',
           source: 'chrome_dom',
+          appName: 'Google Chrome',
+          role: 'button',
+          label: 'Submit',
+          bounds: { x: 100, y: 200, width: 80, height: 30 },
+          confidence: 0.95,
+          interactable: true,
+          selector: '#submit',
+          frameId: 0,
+          isPageContent: true,
         },
       ],
-      windows: [],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
     } as any)
     desktopSessionController.getSession.mockReturnValue({
-      controlledApp: 'Google Chrome',
-      createdAt: new Date().toISOString(),
       id: 'ds_1',
-      lastActiveAt: new Date().toISOString(),
+      controlledApp: 'Google Chrome',
       ownedWindows: [],
+      createdAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString(),
     })
     executor.getForegroundContext.mockResolvedValue({
-      appName: 'AIRI',
       available: true,
+      appName: 'AIRI',
       platform: 'darwin',
     })
 
     const executeAction = createExecuteAction(runtime)
-    const result = await executeAction({ input: { candidateId: 't_0' }, kind: 'desktop_click_target' }, 'desktop_click_target')
+    const result = await executeAction({ kind: 'desktop_click_target', input: { candidateId: 't_0' } }, 'desktop_click_target')
 
     expect(result.isError).not.toBe(true)
     expect(desktopSessionController.ensureControlledAppInForeground).not.toHaveBeenCalled()
     expect(executor.focusApp).not.toHaveBeenCalled()
     expect(executor.click).not.toHaveBeenCalled()
     expect(result.structuredContent).toMatchObject({
+      status: 'executed',
       backendResult: expect.objectContaining({
         executionMode: 'browser_surface',
       }),
-      status: 'executed',
     })
   })
 
   it('refocuses when desktop_click_target falls back to OS input', async () => {
-    const { desktopSessionController, executor, runtime, stateManager } = createRuntimeForActionTest()
+    const { runtime, executor, stateManager, desktopSessionController } = createRuntimeForActionTest()
     stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_1',
       capturedAt: new Date().toISOString(),
       foregroundApp: 'Google Chrome',
+      windows: [],
       screenshot: {
-        capturedAt: new Date().toISOString(),
         dataBase64: '',
         mimeType: 'image/png',
         path: '',
+        capturedAt: new Date().toISOString(),
       },
-      snapshotId: 'dg_1',
-      staleFlags: { ax: false, chromeSemantic: false, screenshot: false },
       targetCandidates: [
         {
-          appName: 'Google Chrome',
-          bounds: { height: 30, width: 80, x: 100, y: 200 },
-          confidence: 0.95,
           id: 't_0',
-          interactable: true,
-          label: 'Submit',
-          role: 'AXButton',
           source: 'ax',
+          appName: 'Google Chrome',
+          role: 'AXButton',
+          label: 'Submit',
+          bounds: { x: 100, y: 200, width: 80, height: 30 },
+          confidence: 0.95,
+          interactable: true,
         },
       ],
-      windows: [],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
     } as any)
     desktopSessionController.getSession.mockReturnValue({
-      controlledApp: 'Google Chrome',
-      createdAt: new Date().toISOString(),
       id: 'ds_1',
-      lastActiveAt: new Date().toISOString(),
+      controlledApp: 'Google Chrome',
       ownedWindows: [],
+      createdAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString(),
     })
     desktopSessionController.ensureControlledAppInForeground.mockResolvedValue(true)
     executor.getForegroundContext.mockResolvedValue({
-      appName: 'AIRI',
       available: true,
+      appName: 'AIRI',
       platform: 'darwin',
     })
 
     const executeAction = createExecuteAction(runtime)
-    const result = await executeAction({ input: { candidateId: 't_0' }, kind: 'desktop_click_target' }, 'desktop_click_target')
+    const result = await executeAction({ kind: 'desktop_click_target', input: { candidateId: 't_0' } }, 'desktop_click_target')
 
     expect(result.isError).not.toBe(true)
     expect(desktopSessionController.ensureControlledAppInForeground).toHaveBeenCalled()
@@ -434,102 +434,102 @@ describe('createExecuteAction', () => {
   })
 
   it('focuses the candidate app before OS fallback when no controlled session exists', async () => {
-    const { desktopSessionController, executor, runtime, stateManager } = createRuntimeForActionTest()
+    const { runtime, executor, stateManager, desktopSessionController } = createRuntimeForActionTest()
     stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_1',
       capturedAt: new Date().toISOString(),
       foregroundApp: 'Google Chrome',
+      windows: [],
       screenshot: {
-        capturedAt: new Date().toISOString(),
         dataBase64: '',
         mimeType: 'image/png',
         path: '',
+        capturedAt: new Date().toISOString(),
       },
-      snapshotId: 'dg_1',
-      staleFlags: { ax: false, chromeSemantic: false, screenshot: false },
       targetCandidates: [
         {
-          appName: 'Google Chrome',
-          bounds: { height: 30, width: 80, x: 100, y: 200 },
-          confidence: 0.95,
-          frameId: 0,
           id: 't_0',
-          interactable: true,
-          isPageContent: true,
-          label: 'Submit',
-          role: 'button',
-          selector: '#submit',
           source: 'chrome_dom',
+          appName: 'Google Chrome',
+          role: 'button',
+          label: 'Submit',
+          bounds: { x: 100, y: 200, width: 80, height: 30 },
+          confidence: 0.95,
+          interactable: true,
+          selector: '#submit',
+          frameId: 0,
+          isPageContent: true,
         },
       ],
-      windows: [],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
     } as any)
     desktopSessionController.getSession.mockReturnValue(null)
     executor.getForegroundContext.mockResolvedValue({
-      appName: 'Finder',
       available: true,
+      appName: 'Finder',
       platform: 'darwin',
     })
     ;(runtime.browserDomBridge.supportsAction as any).mockReturnValue(false)
 
     const executeAction = createExecuteAction(runtime)
-    const result = await executeAction({ input: { candidateId: 't_0' }, kind: 'desktop_click_target' }, 'desktop_click_target')
+    const result = await executeAction({ kind: 'desktop_click_target', input: { candidateId: 't_0' } }, 'desktop_click_target')
 
     expect(result.isError).not.toBe(true)
     expect(desktopSessionController.ensureControlledAppInForeground).not.toHaveBeenCalled()
     expect(executor.focusApp).toHaveBeenCalledWith({ app: 'Google Chrome' })
     expect(executor.click).toHaveBeenCalledOnce()
     expect(result.structuredContent).toMatchObject({
+      status: 'executed',
       backendResult: expect.objectContaining({
-        executionMode: 'foreground',
         executionRoute: 'os_input',
+        executionMode: 'foreground',
         routeNote: expect.stringContaining('focused Google Chrome before OS input fallback'),
       }),
-      status: 'executed',
     })
   })
 
   it('rejects cross-app desktop_click_target fallback under a controlled session', async () => {
-    const { desktopSessionController, executor, runtime, stateManager } = createRuntimeForActionTest()
+    const { runtime, executor, stateManager, desktopSessionController } = createRuntimeForActionTest()
     stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_1',
       capturedAt: new Date().toISOString(),
       foregroundApp: 'AIRI',
+      windows: [],
       screenshot: {
-        capturedAt: new Date().toISOString(),
         dataBase64: '',
         mimeType: 'image/png',
         path: '',
+        capturedAt: new Date().toISOString(),
       },
-      snapshotId: 'dg_1',
-      staleFlags: { ax: false, chromeSemantic: false, screenshot: false },
       targetCandidates: [
         {
-          appName: 'AIRI',
-          bounds: { height: 30, width: 80, x: 100, y: 200 },
-          confidence: 0.95,
           id: 't_0',
-          interactable: true,
-          label: 'Submit',
-          role: 'AXButton',
           source: 'ax',
+          appName: 'AIRI',
+          role: 'AXButton',
+          label: 'Submit',
+          bounds: { x: 100, y: 200, width: 80, height: 30 },
+          confidence: 0.95,
+          interactable: true,
         },
       ],
-      windows: [],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
     } as any)
     desktopSessionController.getSession.mockReturnValue({
-      controlledApp: 'Google Chrome',
-      createdAt: new Date().toISOString(),
       id: 'ds_1',
-      lastActiveAt: new Date().toISOString(),
+      controlledApp: 'Google Chrome',
       ownedWindows: [],
+      createdAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString(),
     })
     executor.getForegroundContext.mockResolvedValue({
-      appName: 'AIRI',
       available: true,
+      appName: 'AIRI',
       platform: 'darwin',
     })
 
     const executeAction = createExecuteAction(runtime)
-    const result = await executeAction({ input: { candidateId: 't_0' }, kind: 'desktop_click_target' }, 'desktop_click_target')
+    const result = await executeAction({ kind: 'desktop_click_target', input: { candidateId: 't_0' } }, 'desktop_click_target')
 
     expect(result.isError).toBe(true)
     expect(result.content.find(item => item.type === 'text')?.text).toContain('cross-app fallback')
@@ -539,83 +539,83 @@ describe('createExecuteAction', () => {
   })
 
   it('returns a structured failure when controlled-app refocus fails during desktop_click_target execution', async () => {
-    const { desktopSessionController, executor, runtime, session, stateManager } = createRuntimeForActionTest()
+    const { runtime, executor, session, stateManager, desktopSessionController } = createRuntimeForActionTest()
     stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_1',
       capturedAt: new Date().toISOString(),
       foregroundApp: 'Google Chrome',
+      windows: [],
       screenshot: {
-        capturedAt: new Date().toISOString(),
         dataBase64: '',
         mimeType: 'image/png',
         path: '',
+        capturedAt: new Date().toISOString(),
       },
-      snapshotId: 'dg_1',
-      staleFlags: { ax: false, chromeSemantic: false, screenshot: false },
       targetCandidates: [
         {
-          appName: 'Google Chrome',
-          bounds: { height: 30, width: 80, x: 100, y: 200 },
-          confidence: 0.95,
           id: 't_0',
-          interactable: true,
-          label: 'Submit',
-          role: 'AXButton',
           source: 'ax',
+          appName: 'Google Chrome',
+          role: 'AXButton',
+          label: 'Submit',
+          bounds: { x: 100, y: 200, width: 80, height: 30 },
+          confidence: 0.95,
+          interactable: true,
         },
       ],
-      windows: [],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
     } as any)
     desktopSessionController.getSession.mockReturnValue({
-      controlledApp: 'Google Chrome',
-      createdAt: new Date().toISOString(),
       id: 'ds_1',
-      lastActiveAt: new Date().toISOString(),
+      controlledApp: 'Google Chrome',
       ownedWindows: [],
+      createdAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString(),
     })
     desktopSessionController.ensureControlledAppInForeground.mockRejectedValue(new Error('Chrome session unavailable'))
     executor.getForegroundContext.mockResolvedValue({
-      appName: 'AIRI',
       available: true,
+      appName: 'AIRI',
       platform: 'darwin',
     })
 
     const executeAction = createExecuteAction(runtime)
-    const result = await executeAction({ input: { candidateId: 't_0' }, kind: 'desktop_click_target' }, 'desktop_click_target')
+    const result = await executeAction({ kind: 'desktop_click_target', input: { candidateId: 't_0' } }, 'desktop_click_target')
 
     expect(result.isError).toBe(true)
     expect(result.content.find(item => item.type === 'text')?.text).toContain('Chrome session unavailable')
     expect(executor.click).not.toHaveBeenCalled()
     expect(session.consumeOperation).not.toHaveBeenCalled()
     expect(session.record).toHaveBeenCalledWith(expect.objectContaining({
-      context: expect.objectContaining({ appName: 'Google Chrome' }),
       event: 'failed',
-      result: expect.objectContaining({ error: 'Chrome session unavailable' }),
       toolName: 'desktop_click_target',
+      context: expect.objectContaining({ appName: 'Google Chrome' }),
+      result: expect.objectContaining({ error: 'Chrome session unavailable' }),
     }))
   })
 
   it('fails desktop_click_target before consuming budget when no observe snapshot exists', async () => {
-    const { executor, runtime, session } = createRuntimeForActionTest()
+    const { runtime, executor, session } = createRuntimeForActionTest()
 
     const executeAction = createExecuteAction(runtime)
-    const result = await executeAction({ input: { candidateId: 't_missing' }, kind: 'desktop_click_target' }, 'desktop_click_target')
+    const result = await executeAction({ kind: 'desktop_click_target', input: { candidateId: 't_missing' } }, 'desktop_click_target')
 
     expect(result.isError).toBe(true)
     expect(result.content.find(item => item.type === 'text')?.text).toContain('No desktop_observe snapshot available')
     expect(executor.click).not.toHaveBeenCalled()
     expect(session.consumeOperation).not.toHaveBeenCalled()
     expect(session.record).toHaveBeenCalledWith(expect.objectContaining({
-      action: { input: { candidateId: 't_missing' }, kind: 'desktop_click_target' },
       event: 'failed',
       toolName: 'desktop_click_target',
+      action: { kind: 'desktop_click_target', input: { candidateId: 't_missing' } },
     }))
   })
 
   it('refreshes browser surface availability for direct actions before evaluating strategy', async () => {
-    const { cdpBridgeManager, runtime } = createRuntimeForActionTest()
+    const { runtime, cdpBridgeManager } = createRuntimeForActionTest()
 
     const executeAction = createExecuteAction(runtime)
-    const result = await executeAction({ input: { captureAfter: false, x: 10, y: 20 }, kind: 'click' }, 'desktop_click')
+    const result = await executeAction({ kind: 'click', input: { x: 10, y: 20, captureAfter: false } }, 'desktop_click')
 
     const summaryText = result.content.find(item => item.type === 'text')?.text ?? ''
     expect(summaryText).toContain('browser_dom')
@@ -635,87 +635,87 @@ describe('createExecuteAction', () => {
   it('does not reuse stale browser-dom typing route when explicit coordinates are provided', async () => {
     const stateManager = new RunStateManager()
     stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_1',
       capturedAt: new Date().toISOString(),
       foregroundApp: 'Google Chrome',
-      screenshot: { capturedAt: new Date().toISOString(), dataBase64: '', mimeType: 'image/png', path: '' },
-      snapshotId: 'dg_1',
-      staleFlags: { ax: false, chromeSemantic: false, screenshot: false },
+      windows: [],
+      screenshot: { dataBase64: '', mimeType: 'image/png', path: '', capturedAt: new Date().toISOString() },
       targetCandidates: [
         {
-          appName: 'Google Chrome',
-          bounds: { height: 28, width: 140, x: 100, y: 200 },
-          confidence: 0.98,
-          frameId: 0,
           id: 't_0',
-          inputType: 'text',
-          interactable: true,
-          isPageContent: true,
-          label: 'Email',
-          role: 'textbox',
-          selector: '#email',
           source: 'chrome_dom',
+          appName: 'Google Chrome',
+          role: 'textbox',
+          label: 'Email',
+          bounds: { x: 100, y: 200, width: 140, height: 28 },
+          confidence: 0.98,
+          interactable: true,
           tag: 'input',
+          inputType: 'text',
+          selector: '#email',
+          frameId: 0,
+          isPageContent: true,
         },
       ],
-      windows: [],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
     } as any)
     stateManager.updatePointerIntent({
-      candidateId: 't_0',
-      confidence: 0.98,
-      executionResult: 'success',
       mode: 'execute',
-      path: [{ delayMs: 0, x: 120, y: 214 }],
-      phase: 'completed',
+      candidateId: 't_0',
       rawPoint: { x: 120, y: 214 },
       snappedPoint: { x: 120, y: 214 },
       source: 'chrome_dom',
+      confidence: 0.98,
+      path: [{ x: 120, y: 214, delayMs: 0 }],
+      phase: 'completed',
+      executionResult: 'success',
     }, 't_0')
 
     const session = {
-      consumeOperation: vi.fn(),
-      createPendingAction: vi.fn(),
+      listPendingActions: vi.fn().mockReturnValue([]),
       getBudgetState: vi.fn().mockReturnValue({
         operationsExecuted: 0,
         operationUnitsConsumed: 0,
       }),
-      getLastScreenshot: vi.fn().mockReturnValue(undefined),
-      getPointerPosition: vi.fn().mockReturnValue({ x: 0, y: 0 }),
-      getTerminalState: vi.fn().mockReturnValue(createTerminalState()),
-      listPendingActions: vi.fn().mockReturnValue([]),
       record: vi.fn().mockResolvedValue(undefined),
+      createPendingAction: vi.fn(),
+      consumeOperation: vi.fn(),
+      getLastScreenshot: vi.fn().mockReturnValue(undefined),
       setLastScreenshot: vi.fn(),
-      setPointerPosition: vi.fn(),
+      getTerminalState: vi.fn().mockReturnValue(createTerminalState()),
       setTerminalState: vi.fn(),
+      getPointerPosition: vi.fn().mockReturnValue({ x: 0, y: 0 }),
+      setPointerPosition: vi.fn(),
     }
     const executor = {
-      click: vi.fn().mockResolvedValue({
-        backend: 'dry-run' as const,
-        notes: [],
-        performed: true,
-      }),
+      kind: 'dry-run' as const,
       describe: () => ({ kind: 'dry-run' as const, notes: [] }),
-      focusApp: vi.fn(),
+      getExecutionTarget: vi.fn().mockResolvedValue(createLocalExecutionTarget()),
+      getForegroundContext: vi.fn().mockResolvedValue({
+        available: true,
+        appName: 'Google Chrome',
+        platform: 'darwin',
+      }),
       getDisplayInfo: vi.fn().mockResolvedValue(createDisplayInfo({
         platform: 'darwin',
       })),
-      getExecutionTarget: vi.fn().mockResolvedValue(createLocalExecutionTarget()),
-      getForegroundContext: vi.fn().mockResolvedValue({
-        appName: 'Google Chrome',
-        available: true,
-        platform: 'darwin',
-      }),
       getPermissionInfo: vi.fn(),
-      kind: 'dry-run' as const,
       observeWindows: vi.fn(),
-      openApp: vi.fn(),
-      pressKeys: vi.fn(),
-      scroll: vi.fn(),
       takeScreenshot: vi.fn(),
-      typeText: vi.fn().mockResolvedValue({
+      openApp: vi.fn(),
+      focusApp: vi.fn(),
+      click: vi.fn().mockResolvedValue({
+        performed: true,
         backend: 'dry-run' as const,
         notes: [],
-        performed: true,
       }),
+      typeText: vi.fn().mockResolvedValue({
+        performed: true,
+        backend: 'dry-run' as const,
+        notes: [],
+      }),
+      pressKeys: vi.fn(),
+      scroll: vi.fn(),
       wait: vi.fn(),
     }
     const terminalRunner = {
@@ -726,46 +726,46 @@ describe('createExecuteAction', () => {
     }
     const browserDomBridge = {
       getStatus: vi.fn().mockReturnValue({
-        connected: true,
         enabled: true,
         host: '127.0.0.1',
-        pendingRequests: 0,
         port: 8765,
+        connected: true,
+        pendingRequests: 0,
       }),
       setInputValue: vi.fn().mockResolvedValue(undefined),
     }
     const cdpBridgeManager = {
       probeAvailability: vi.fn().mockResolvedValue({
-        connectable: true,
-        connected: false,
         endpoint: 'http://localhost:9222',
+        connected: false,
+        connectable: true,
       }),
     }
 
     const runtime = {
-      browserDomBridge,
-      cdpBridgeManager,
       config: createTestConfig({
+        executor: 'dry-run',
         approvalMode: 'never',
         defaultCaptureAfter: false,
-        executor: 'dry-run',
       }),
-      executor,
       session,
+      executor,
+      terminalRunner,
+      browserDomBridge,
+      cdpBridgeManager,
       stateManager,
       taskMemory: {},
-      terminalRunner,
     } as unknown as ComputerUseServerRuntime
 
     const executeAction = createExecuteAction(runtime)
     const result = await executeAction({
+      kind: 'type_text',
       input: {
-        captureAfter: false,
-        text: 'hello',
         x: 300,
         y: 400,
+        text: 'hello',
+        captureAfter: false,
       },
-      kind: 'type_text',
     }, 'desktop_type_text')
 
     expect(result.isError).not.toBe(true)
@@ -777,83 +777,83 @@ describe('createExecuteAction', () => {
   it('falls back to OS typing when the connected extension transport does not support setInputValue', async () => {
     const stateManager = new RunStateManager()
     stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_1',
       capturedAt: new Date().toISOString(),
       foregroundApp: 'Google Chrome',
-      screenshot: { capturedAt: new Date().toISOString(), dataBase64: '', mimeType: 'image/png', path: '' },
-      snapshotId: 'dg_1',
-      staleFlags: { ax: false, chromeSemantic: false, screenshot: false },
+      windows: [],
+      screenshot: { dataBase64: '', mimeType: 'image/png', path: '', capturedAt: new Date().toISOString() },
       targetCandidates: [
         {
-          appName: 'Google Chrome',
-          bounds: { height: 28, width: 140, x: 100, y: 200 },
-          confidence: 0.98,
-          frameId: 0,
           id: 't_0',
-          inputType: 'text',
-          interactable: true,
-          isPageContent: true,
-          label: 'Email',
-          role: 'textbox',
-          selector: '#email',
           source: 'chrome_dom',
+          appName: 'Google Chrome',
+          role: 'textbox',
+          label: 'Email',
+          bounds: { x: 100, y: 200, width: 140, height: 28 },
+          confidence: 0.98,
+          interactable: true,
           tag: 'input',
+          inputType: 'text',
+          selector: '#email',
+          frameId: 0,
+          isPageContent: true,
         },
       ],
-      windows: [],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
     } as any)
     stateManager.updatePointerIntent({
-      candidateId: 't_0',
-      confidence: 0.98,
-      executionResult: 'success',
       mode: 'execute',
-      path: [{ delayMs: 0, x: 120, y: 214 }],
-      phase: 'completed',
+      candidateId: 't_0',
       rawPoint: { x: 120, y: 214 },
       snappedPoint: { x: 120, y: 214 },
       source: 'chrome_dom',
+      confidence: 0.98,
+      path: [{ x: 120, y: 214, delayMs: 0 }],
+      phase: 'completed',
+      executionResult: 'success',
     }, 't_0')
 
     const session = {
-      consumeOperation: vi.fn(),
-      createPendingAction: vi.fn(),
+      listPendingActions: vi.fn().mockReturnValue([]),
       getBudgetState: vi.fn().mockReturnValue({
         operationsExecuted: 0,
         operationUnitsConsumed: 0,
       }),
-      getLastScreenshot: vi.fn().mockReturnValue(undefined),
-      getPointerPosition: vi.fn().mockReturnValue({ x: 0, y: 0 }),
-      getTerminalState: vi.fn().mockReturnValue(createTerminalState()),
-      listPendingActions: vi.fn().mockReturnValue([]),
       record: vi.fn().mockResolvedValue(undefined),
+      createPendingAction: vi.fn(),
+      consumeOperation: vi.fn(),
+      getLastScreenshot: vi.fn().mockReturnValue(undefined),
       setLastScreenshot: vi.fn(),
-      setPointerPosition: vi.fn(),
+      getTerminalState: vi.fn().mockReturnValue(createTerminalState()),
       setTerminalState: vi.fn(),
+      getPointerPosition: vi.fn().mockReturnValue({ x: 0, y: 0 }),
+      setPointerPosition: vi.fn(),
     }
     const executor = {
-      click: vi.fn(),
+      kind: 'dry-run' as const,
       describe: () => ({ kind: 'dry-run' as const, notes: [] }),
-      focusApp: vi.fn(),
+      getExecutionTarget: vi.fn().mockResolvedValue(createLocalExecutionTarget()),
+      getForegroundContext: vi.fn().mockResolvedValue({
+        available: true,
+        appName: 'Google Chrome',
+        platform: 'darwin',
+      }),
       getDisplayInfo: vi.fn().mockResolvedValue(createDisplayInfo({
         platform: 'darwin',
       })),
-      getExecutionTarget: vi.fn().mockResolvedValue(createLocalExecutionTarget()),
-      getForegroundContext: vi.fn().mockResolvedValue({
-        appName: 'Google Chrome',
-        available: true,
-        platform: 'darwin',
-      }),
       getPermissionInfo: vi.fn(),
-      kind: 'dry-run' as const,
       observeWindows: vi.fn(),
-      openApp: vi.fn(),
-      pressKeys: vi.fn(),
-      scroll: vi.fn(),
       takeScreenshot: vi.fn(),
+      openApp: vi.fn(),
+      focusApp: vi.fn(),
+      click: vi.fn(),
       typeText: vi.fn().mockResolvedValue({
+        performed: true,
         backend: 'dry-run' as const,
         notes: [],
-        performed: true,
       }),
+      pressKeys: vi.fn(),
+      scroll: vi.fn(),
       wait: vi.fn(),
     }
     const terminalRunner = {
@@ -864,45 +864,45 @@ describe('createExecuteAction', () => {
     }
     const browserDomBridge = {
       getStatus: vi.fn().mockReturnValue({
-        connected: true,
         enabled: true,
         host: '127.0.0.1',
-        pendingRequests: 0,
         port: 8765,
+        connected: true,
+        pendingRequests: 0,
       }),
-      setInputValue: vi.fn().mockResolvedValue(undefined),
       supportsAction: vi.fn().mockImplementation((action: string) => action !== 'setInputValue'),
+      setInputValue: vi.fn().mockResolvedValue(undefined),
     }
     const cdpBridgeManager = {
       probeAvailability: vi.fn().mockResolvedValue({
-        connectable: true,
-        connected: false,
         endpoint: 'http://localhost:9222',
+        connected: false,
+        connectable: true,
       }),
     }
 
     const runtime = {
-      browserDomBridge,
-      cdpBridgeManager,
       config: createTestConfig({
+        executor: 'dry-run',
         approvalMode: 'never',
         defaultCaptureAfter: false,
-        executor: 'dry-run',
       }),
-      executor,
       session,
+      executor,
+      terminalRunner,
+      browserDomBridge,
+      cdpBridgeManager,
       stateManager,
       taskMemory: {},
-      terminalRunner,
     } as unknown as ComputerUseServerRuntime
 
     const executeAction = createExecuteAction(runtime)
     const result = await executeAction({
-      input: {
-        captureAfter: false,
-        text: 'hello',
-      },
       kind: 'type_text',
+      input: {
+        text: 'hello',
+        captureAfter: false,
+      },
     }, 'desktop_type_text')
 
     expect(result.isError).not.toBe(true)
@@ -911,67 +911,67 @@ describe('createExecuteAction', () => {
   })
 
   it('records main-display metadata while preserving original global logical click coordinates', async () => {
-    const { executor, runtime } = createRuntimeForActionTest(createCombinedDisplayBoundsConfig())
+    const { runtime, executor } = createRuntimeForActionTest(createCombinedDisplayBoundsConfig())
     executor.getDisplayInfo.mockResolvedValue(createMultiDisplayInfo())
 
     const executeAction = createExecuteAction(runtime)
-    const result = await executeAction({ input: { button: 'left', captureAfter: false, x: 100, y: 50 }, kind: 'click' }, 'desktop_click')
+    const result = await executeAction({ kind: 'click', input: { x: 100, y: 50, button: 'left', captureAfter: false } }, 'desktop_click')
 
     expect(result.isError).not.toBe(true)
     expect(executor.click).toHaveBeenCalledWith(expect.objectContaining({
+      x: 100,
+      y: 50,
       pointerTrace: expect.arrayContaining([
         expect.objectContaining({ x: 100, y: 50 }),
       ]),
-      x: 100,
-      y: 50,
     }))
 
     const structured = result.structuredContent as Record<string, any>
     expect(structured.backendResult.displayPoint).toMatchObject({
-      backingPixel: { x: 200, y: 100 },
       coordinateSpace: 'global-logical',
-      displayId: 1,
       global: { x: 100, y: 50 },
+      displayId: 1,
       local: { x: 100, y: 50 },
+      backingPixel: { x: 200, y: 100 },
       scaleFactor: 2,
     })
   })
 
   it('accepts negative-coordinate external display clicks and records display-local metadata', async () => {
-    const { executor, runtime } = createRuntimeForActionTest(createCombinedDisplayBoundsConfig())
+    const { runtime, executor } = createRuntimeForActionTest(createCombinedDisplayBoundsConfig())
     executor.getDisplayInfo.mockResolvedValue(createMultiDisplayInfo())
 
     const executeAction = createExecuteAction(runtime)
-    const result = await executeAction({ input: { captureAfter: false, x: -100, y: -500 }, kind: 'click' }, 'desktop_click')
+    const result = await executeAction({ kind: 'click', input: { x: -100, y: -500, captureAfter: false } }, 'desktop_click')
 
     expect(result.isError).not.toBe(true)
     expect(executor.click).toHaveBeenCalledWith(expect.objectContaining({
+      x: -100,
+      y: -500,
       pointerTrace: expect.arrayContaining([
         expect.objectContaining({ x: -100, y: -500 }),
       ]),
-      x: -100,
-      y: -500,
     }))
 
     const structured = result.structuredContent as Record<string, any>
     expect(structured.backendResult.displayPoint).toMatchObject({
-      backingPixel: { x: 122, y: 580 },
       coordinateSpace: 'global-logical',
-      displayId: 3,
       global: { x: -100, y: -500 },
+      displayId: 3,
       local: { x: 122, y: 580 },
+      backingPixel: { x: 122, y: 580 },
       scaleFactor: 1,
     })
   })
 
   it('rejects physical-pixel-looking Retina coordinates outside the global logical display contract', async () => {
-    const { executor, runtime } = createRuntimeForActionTest({
-      allowedBounds: { height: 20_000, width: 20_000, x: -10_000, y: -10_000 },
+    const { runtime, executor } = createRuntimeForActionTest({
+      allowedBounds: { x: -10_000, y: -10_000, width: 20_000, height: 20_000 },
     })
     executor.getDisplayInfo.mockResolvedValue(createMultiDisplayInfo())
 
     const executeAction = createExecuteAction(runtime)
-    const result = await executeAction({ input: { captureAfter: false, x: 2000, y: 500 }, kind: 'click' }, 'desktop_click')
+    const result = await executeAction({ kind: 'click', input: { x: 2000, y: 500, captureAfter: false } }, 'desktop_click')
 
     expect(result.isError).toBe(true)
     expect(executor.click).not.toHaveBeenCalled()
@@ -979,16 +979,16 @@ describe('createExecuteAction', () => {
   })
 
   it('uses the same display resolver for type_text preparatory clicks', async () => {
-    const { executor, runtime } = createRuntimeForActionTest(createCombinedDisplayBoundsConfig())
+    const { runtime, executor } = createRuntimeForActionTest(createCombinedDisplayBoundsConfig())
     executor.getDisplayInfo.mockResolvedValue(createMultiDisplayInfo())
     executor.typeText.mockResolvedValue({
+      performed: true,
       backend: 'dry-run' as const,
       notes: [],
-      performed: true,
     })
 
     const executeAction = createExecuteAction(runtime)
-    const result = await executeAction({ input: { captureAfter: false, text: 'hello', x: -100, y: -500 }, kind: 'type_text' }, 'desktop_type_text')
+    const result = await executeAction({ kind: 'type_text', input: { text: 'hello', x: -100, y: -500, captureAfter: false } }, 'desktop_type_text')
 
     expect(result.isError).not.toBe(true)
     expect(executor.click).toHaveBeenCalledWith(expect.objectContaining({
@@ -999,9 +999,9 @@ describe('createExecuteAction', () => {
 
     const structured = result.structuredContent as Record<string, any>
     expect(structured.backendResult.focusDisplayPoint).toMatchObject({
-      backingPixel: { x: 122, y: 580 },
       displayId: 3,
       local: { x: 122, y: 580 },
+      backingPixel: { x: 122, y: 580 },
     })
   })
 })

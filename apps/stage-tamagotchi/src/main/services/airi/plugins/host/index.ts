@@ -32,6 +32,26 @@ import {
 
 const extensionAssetSessionTtlMs = 30 * 24 * 60 * 60 * 1000
 
+function createElectronExtensionAssetCookieAdapter() {
+  return {
+    async setCookie(cookie: ExtensionAssetCookie) {
+      await electronSession.defaultSession.cookies.set({
+        url: cookie.url,
+        name: cookie.name,
+        value: cookie.value,
+        path: cookie.path,
+        httpOnly: true,
+        sameSite: 'no_restriction',
+        secure: true,
+        expirationDate: Math.floor(cookie.expiresAt / 1000),
+      })
+    },
+    async removeCookie(cookie: ExtensionAssetCookie) {
+      await electronSession.defaultSession.cookies.remove(cookie.url, cookie.name)
+    },
+  }
+}
+
 /**
  * Internal extension host bootstrap service used by the public `setupExtensionHost(...)` facade.
  *
@@ -47,50 +67,8 @@ const extensionAssetSessionTtlMs = 30 * 24 * 60 * 60 * 1000
  * - The plain `ExtensionHostService` fields plus internal helpers for list/load/unload/inspect/dispose
  */
 export interface ExtensionHostServiceInternal extends ExtensionHostService {
-  /**
-   * Disposes optional host features and asset hosting resources.
-   *
-   * Use when:
-   * - Electron shutdown needs to stop extension-owned background work
-   * - Tests need to release watchers and local asset servers deterministically
-   *
-   * Expects:
-   * - Disposal may be called after partial startup or after prior plugin failures
-   *
-   * Returns:
-   * - A promise that resolves after feature and asset cleanup finish
-   */
-  dispose: () => Promise<void>
-
-  /**
-   * Returns the mounted base URL for plugin-served assets.
-   *
-   * Use when:
-   * - Renderer code needs to construct extension asset URLs
-   * - Snapshot consumers need the current loopback asset mount base
-   *
-   * Expects:
-   * - The extension asset service may be started before this is called
-   *
-   * Returns:
-   * - The current extension asset base URL, or an empty string when unavailable
-   */
-  getAssetBaseUrl: () => string
-
-  /**
-   * Builds the full extension host debug snapshot.
-   *
-   * Use when:
-   * - Devtools need sessions, kits, bindings, capabilities, and rewritten asset URLs
-   * - Host debugging needs a fresh runtime snapshot after registry refresh
-   *
-   * Expects:
-   * - The host and extension asset service are both initialized
-   *
-   * Returns:
-   * - The full debug snapshot exposed through plugin inspection IPC
-   */
-  inspect: () => Promise<PluginHostDebugSnapshot>
+  /** Tamagotchi-owned extension tool registry used by IPC tool bridges. */
+  tools: TamagotchiToolRegistry
 
   /**
    * Lists the current extension registry snapshot.
@@ -108,19 +86,35 @@ export interface ExtensionHostServiceInternal extends ExtensionHostService {
   list: () => Promise<PluginRegistrySnapshot>
 
   /**
-   * Loads one extension by manifest id.
+   * Persists whether one plugin is enabled.
    *
    * Use when:
-   * - Renderer explicitly requests one plugin to start
-   * - Host features need to restart a plugin after manifest or entrypoint changes
+   * - Renderer controls toggle plugin enablement
+   * - Host state must remember a known manifest path for a plugin name
    *
    * Expects:
-   * - `extensionId` resolves to a manifest entry in the current registry
+   * - `payload.extensionId` matches a discovered or previously known extension
+   * - `payload.path` is only needed when the manifest is not currently discoverable
    *
    * Returns:
-   * - The extension registry snapshot after the load completes
+   * - The updated extension registry snapshot after persistence
    */
-  load: (extensionId: string) => Promise<PluginRegistrySnapshot>
+  setEnabled: (payload: { extensionId: string, enabled: boolean, path?: string }) => Promise<PluginRegistrySnapshot>
+
+  /**
+   * Persists whether one loaded plugin should use auto-reload.
+   *
+   * Use when:
+   * - Renderer controls toggle plugin file watching during development
+   * - Host features need to resync optional watcher state after config changes
+   *
+   * Expects:
+   * - `payload.extensionId` matches one extension entry in config or discovery state
+   *
+   * Returns:
+   * - The updated extension registry snapshot after persistence
+   */
+  setAutoReload: (payload: { extensionId: string, enabled: boolean }) => Promise<PluginRegistrySnapshot>
 
   /**
    * Loads every plugin currently marked as enabled.
@@ -138,38 +132,19 @@ export interface ExtensionHostServiceInternal extends ExtensionHostService {
   loadEnabled: () => Promise<PluginRegistrySnapshot>
 
   /**
-   * Persists whether one loaded plugin should use auto-reload.
+   * Loads one extension by manifest id.
    *
    * Use when:
-   * - Renderer controls toggle plugin file watching during development
-   * - Host features need to resync optional watcher state after config changes
+   * - Renderer explicitly requests one plugin to start
+   * - Host features need to restart a plugin after manifest or entrypoint changes
    *
    * Expects:
-   * - `payload.extensionId` matches one extension entry in config or discovery state
+   * - `extensionId` resolves to a manifest entry in the current registry
    *
    * Returns:
-   * - The updated extension registry snapshot after persistence
+   * - The extension registry snapshot after the load completes
    */
-  setAutoReload: (payload: { enabled: boolean, extensionId: string }) => Promise<PluginRegistrySnapshot>
-
-  /**
-   * Persists whether one plugin is enabled.
-   *
-   * Use when:
-   * - Renderer controls toggle plugin enablement
-   * - Host state must remember a known manifest path for a plugin name
-   *
-   * Expects:
-   * - `payload.extensionId` matches a discovered or previously known extension
-   * - `payload.path` is only needed when the manifest is not currently discoverable
-   *
-   * Returns:
-   * - The updated extension registry snapshot after persistence
-   */
-  setEnabled: (payload: { enabled: boolean, extensionId: string, path?: string }) => Promise<PluginRegistrySnapshot>
-
-  /** Tamagotchi-owned extension tool registry used by IPC tool bridges. */
-  tools: TamagotchiToolRegistry
+  load: (extensionId: string) => Promise<PluginRegistrySnapshot>
 
   /**
    * Stops one loaded extension by manifest id.
@@ -185,6 +160,51 @@ export interface ExtensionHostServiceInternal extends ExtensionHostService {
    * - The extension registry snapshot after unload bookkeeping completes
    */
   unload: (extensionId: string) => Promise<PluginRegistrySnapshot>
+
+  /**
+   * Builds the full extension host debug snapshot.
+   *
+   * Use when:
+   * - Devtools need sessions, kits, bindings, capabilities, and rewritten asset URLs
+   * - Host debugging needs a fresh runtime snapshot after registry refresh
+   *
+   * Expects:
+   * - The host and extension asset service are both initialized
+   *
+   * Returns:
+   * - The full debug snapshot exposed through plugin inspection IPC
+   */
+  inspect: () => Promise<PluginHostDebugSnapshot>
+
+  /**
+   * Returns the mounted base URL for plugin-served assets.
+   *
+   * Use when:
+   * - Renderer code needs to construct extension asset URLs
+   * - Snapshot consumers need the current loopback asset mount base
+   *
+   * Expects:
+   * - The extension asset service may be started before this is called
+   *
+   * Returns:
+   * - The current extension asset base URL, or an empty string when unavailable
+   */
+  getAssetBaseUrl: () => string
+
+  /**
+   * Disposes optional host features and asset hosting resources.
+   *
+   * Use when:
+   * - Electron shutdown needs to stop extension-owned background work
+   * - Tests need to release watchers and local asset servers deterministically
+   *
+   * Expects:
+   * - Disposal may be called after partial startup or after prior plugin failures
+   *
+   * Returns:
+   * - A promise that resolves after feature and asset cleanup finish
+   */
+  dispose: () => Promise<void>
 }
 
 /**
@@ -228,8 +248,8 @@ export async function setupExtensionHostServiceInternal(
 
   // Extension feature: Static Assets serving
   const extensionAssetService = createExtensionAssetService({
-    cookieAdapter: createElectronExtensionAssetCookieAdapter(),
     getManifestEntryByExtensionId: () => extensionRegistry.getManifestEntryByExtensionId(),
+    cookieAdapter: createElectronExtensionAssetCookieAdapter(),
   })
   await extensionAssetService.start()
 
@@ -262,21 +282,21 @@ export async function setupExtensionHostServiceInternal(
 
   const listSnapshot = (): PluginRegistrySnapshot => {
     return buildPluginRegistrySnapshot({
-      config: getConfig(),
-      entries: extensionRegistry.listEntries(),
       extensionsRoot,
+      entries: extensionRegistry.listEntries(),
+      config: getConfig(),
       loaded,
     })
   }
 
   const createModuleAssetSession = async (input: {
     extensionId: string
-    ownerSessionId: string
-    pathPrefix: string
-    routeAssetPath: string
     version: string
+    ownerSessionId: string
+    routeAssetPath: string
+    pathPrefix: string
   }) => {
-    const { extensionId, ownerSessionId, pathPrefix, routeAssetPath, version } = input
+    const { extensionId, version, ownerSessionId, routeAssetPath, pathPrefix } = input
     const cacheKey = `${extensionId}:${version}:${ownerSessionId}:${routeAssetPath}:${pathPrefix}`
     const cachedSession = moduleAssetSessionCache.get(cacheKey)
     if (cachedSession) {
@@ -285,38 +305,38 @@ export async function setupExtensionHostServiceInternal(
 
     const session = await extensionAssetService.createAssetSession({
       extensionId,
-      ownerSessionId,
-      pathPrefix,
-      routeAssetPath,
-      ttlMs: extensionAssetSessionTtlMs,
       version,
+      ownerSessionId,
+      routeAssetPath,
+      pathPrefix,
+      ttlMs: extensionAssetSessionTtlMs,
     })
     moduleAssetSessionCache.set(cacheKey, session)
     return session
   }
 
   const extensionAssetSnapshotService: ExtensionAssetSnapshotService = {
-    createAssetSession: ({ extensionId, ownerSessionId, pathPrefix, routeAssetPath, version }) => {
+    getBaseUrl: extensionAssetService.getBaseUrl,
+    createAssetSession: ({ extensionId, version, ownerSessionId, routeAssetPath, pathPrefix }) => {
       return createModuleAssetSession({
         extensionId,
-        ownerSessionId,
-        pathPrefix,
-        routeAssetPath,
         version,
+        ownerSessionId,
+        routeAssetPath,
+        pathPrefix,
       })
     },
-    getBaseUrl: extensionAssetService.getBaseUrl,
   }
 
   const inspectSnapshot = async (): Promise<PluginHostDebugSnapshot> => {
     return await buildPluginHostDebugSnapshot({
-      config: getConfig(),
-      entries: extensionRegistry.listEntries(),
-      extensionAssetService: extensionAssetSnapshotService,
-      extensionsRoot,
       host,
+      extensionsRoot,
+      entries: extensionRegistry.listEntries(),
+      config: getConfig(),
       loaded,
       manifestEntryByExtensionId: extensionRegistry.getManifestEntryByExtensionId(),
+      extensionAssetService: extensionAssetSnapshotService,
     })
   }
 
@@ -369,16 +389,16 @@ export async function setupExtensionHostServiceInternal(
 
   // Extension feature: Auto-reload for plugins
   const autoReloadFeature = createExtensionAutoReloadFeature({
-    getConfig,
-    isLoaded: extensionId => loaded.has(extensionId),
-    listEntries: () => extensionRegistry.listEntries(),
     log,
+    getConfig,
+    listEntries: () => extensionRegistry.listEntries(),
+    isLoaded: extensionId => loaded.has(extensionId),
+    resolveWatchPaths: resolveAutoReloadWatchPaths,
     reload: async (extensionId) => {
       await stopLoadedExtensionById(extensionId)
       await refreshManifests()
       await loadExtensionById(extensionId, { cacheBustKey: `auto-reload-${Date.now()}` })
     },
-    resolveWatchPaths: resolveAutoReloadWatchPaths,
   })
 
   const unloadExtensionById = async (extensionId: string) => {
@@ -413,58 +433,14 @@ export async function setupExtensionHostServiceInternal(
   autoReloadFeature.sync()
 
   return {
-    async dispose() {
-      autoReloadFeature.dispose()
-      builtInKitRuntime.dispose()
-
-      moduleAssetSessionCache.clear()
-      await extensionAssetService.revokeAll()
-      await extensionAssetService.stop()
-    },
-    getAssetBaseUrl() {
-      return extensionAssetService.getBaseUrl() ?? ''
-    },
     host,
-    async inspect() {
-      await refreshManifests()
-      autoReloadFeature.sync()
-      return await inspectSnapshot()
-    },
+    // REVIEW: Tool registry ownership is currently hidden inside the built-in kit runtime even though
+    // the host service also exposes it for IPC listing/invocation. Consider moving registry ownership
+    // to this host service and passing it into kit registration as a dependency.
+    tools: builtInKitRuntime.tools,
+    manifests: extensionRegistry.listManifests(),
     async list() {
       await refreshManifests()
-      autoReloadFeature.sync()
-      return listSnapshot()
-    },
-    async load(extensionId) {
-      await refreshManifests()
-      await loadExtensionById(extensionId)
-      autoReloadFeature.sync()
-      return listSnapshot()
-    },
-    async loadEnabled() {
-      await refreshManifests()
-      await loadEnabledExtensions()
-      autoReloadFeature.sync()
-      return listSnapshot()
-    },
-    manifests: extensionRegistry.listManifests(),
-    async setAutoReload(payload) {
-      await refreshManifests()
-
-      const config = getConfig()
-      const autoReload = new Set(config.autoReload)
-      if (payload.enabled) {
-        autoReload.add(payload.extensionId)
-      }
-      else {
-        autoReload.delete(payload.extensionId)
-      }
-
-      extensionConfig.update({
-        ...config,
-        autoReload: [...autoReload],
-      })
-
       autoReloadFeature.sync()
       return listSnapshot()
     },
@@ -485,8 +461,8 @@ export async function setupExtensionHostServiceInternal(
       const entry = extensionRegistry.findManifestEntry(payload.extensionId)
       const manifestPath = entry?.path ?? payload.path ?? ''
       extensionConfig.update({
-        autoReload: config.autoReload,
         enabled: [...enabled],
+        autoReload: config.autoReload,
         known: {
           ...config.known,
           [payload.extensionId]: { path: manifestPath },
@@ -496,34 +472,58 @@ export async function setupExtensionHostServiceInternal(
       autoReloadFeature.sync()
       return listSnapshot()
     },
-    // REVIEW: Tool registry ownership is currently hidden inside the built-in kit runtime even though
-    // the host service also exposes it for IPC listing/invocation. Consider moving registry ownership
-    // to this host service and passing it into kit registration as a dependency.
-    tools: builtInKitRuntime.tools,
+    async setAutoReload(payload) {
+      await refreshManifests()
+
+      const config = getConfig()
+      const autoReload = new Set(config.autoReload)
+      if (payload.enabled) {
+        autoReload.add(payload.extensionId)
+      }
+      else {
+        autoReload.delete(payload.extensionId)
+      }
+
+      extensionConfig.update({
+        ...config,
+        autoReload: [...autoReload],
+      })
+
+      autoReloadFeature.sync()
+      return listSnapshot()
+    },
+    async loadEnabled() {
+      await refreshManifests()
+      await loadEnabledExtensions()
+      autoReloadFeature.sync()
+      return listSnapshot()
+    },
+    async load(extensionId) {
+      await refreshManifests()
+      await loadExtensionById(extensionId)
+      autoReloadFeature.sync()
+      return listSnapshot()
+    },
     async unload(extensionId) {
       await unloadExtensionById(extensionId)
       autoReloadFeature.sync()
       return listSnapshot()
     },
-  }
-}
-
-function createElectronExtensionAssetCookieAdapter() {
-  return {
-    async removeCookie(cookie: ExtensionAssetCookie) {
-      await electronSession.defaultSession.cookies.remove(cookie.url, cookie.name)
+    async inspect() {
+      await refreshManifests()
+      autoReloadFeature.sync()
+      return await inspectSnapshot()
     },
-    async setCookie(cookie: ExtensionAssetCookie) {
-      await electronSession.defaultSession.cookies.set({
-        expirationDate: Math.floor(cookie.expiresAt / 1000),
-        httpOnly: true,
-        name: cookie.name,
-        path: cookie.path,
-        sameSite: 'no_restriction',
-        secure: true,
-        url: cookie.url,
-        value: cookie.value,
-      })
+    getAssetBaseUrl() {
+      return extensionAssetService.getBaseUrl() ?? ''
+    },
+    async dispose() {
+      autoReloadFeature.dispose()
+      builtInKitRuntime.dispose()
+
+      moduleAssetSessionCache.clear()
+      await extensionAssetService.revokeAll()
+      await extensionAssetService.stop()
     },
   }
 }

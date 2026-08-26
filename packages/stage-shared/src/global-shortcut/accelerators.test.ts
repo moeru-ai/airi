@@ -11,13 +11,13 @@ import {
 describe('parseAccelerator', () => {
   it('parses a single key with no modifiers', () => {
     // @example "Escape" — bare key, valid on its own
-    expect(parseAccelerator('Escape')).toEqual({ key: 'Escape', modifiers: [] })
+    expect(parseAccelerator('Escape')).toEqual({ modifiers: [], key: 'Escape' })
   })
 
   it('parses a typical accelerator with modifiers', () => {
     // @example "Mod+Shift+K" — common Cmd/Ctrl shortcut
     expect(parseAccelerator('Mod+Shift+K'))
-      .toEqual({ key: 'KeyK', modifiers: ['cmd-or-ctrl', 'shift'] })
+      .toEqual({ modifiers: ['cmd-or-ctrl', 'shift'], key: 'KeyK' })
   })
 
   it('treats Mod, CmdOrCtrl, and CommandOrControl as the same modifier', () => {
@@ -135,57 +135,57 @@ describe('formatAccelerator', () => {
   it('emits canonical IR with modifier ordering normalized', () => {
     // @example modifiers given in author order ['shift', 'cmd-or-ctrl']
     // serialize as 'Mod+Shift+KeyK', not 'Shift+Mod+KeyK'
-    expect(formatAccelerator({ key: 'KeyK', modifiers: ['shift', 'cmd-or-ctrl'] }))
+    expect(formatAccelerator({ modifiers: ['shift', 'cmd-or-ctrl'], key: 'KeyK' }))
       .toBe('Mod+Shift+KeyK')
   })
 
   it('emits a bare key when there are no modifiers', () => {
-    expect(formatAccelerator({ key: 'Escape', modifiers: [] })).toBe('Escape')
+    expect(formatAccelerator({ modifiers: [], key: 'Escape' })).toBe('Escape')
   })
 
   it('orders modifiers as cmd-or-ctrl, cmd, ctrl, alt, shift, super', () => {
     expect(formatAccelerator({
-      key: 'KeyK',
       modifiers: ['super', 'shift', 'alt', 'ctrl', 'cmd', 'cmd-or-ctrl'],
+      key: 'KeyK',
     })).toBe('Mod+Cmd+Ctrl+Alt+Shift+Super+KeyK')
   })
 })
 
 describe('formatElectronAccelerator', () => {
   it('rewrites cmd-or-ctrl to CmdOrCtrl', () => {
-    expect(formatElectronAccelerator({ key: 'KeyK', modifiers: ['cmd-or-ctrl', 'shift'] }))
+    expect(formatElectronAccelerator({ modifiers: ['cmd-or-ctrl', 'shift'], key: 'KeyK' }))
       .toBe('CmdOrCtrl+Shift+K')
   })
 
   it('strips the Key prefix from letter keys', () => {
     // @example "KeyK" -> "K"
-    expect(formatElectronAccelerator({ key: 'KeyA', modifiers: ['alt'] }))
+    expect(formatElectronAccelerator({ modifiers: ['alt'], key: 'KeyA' }))
       .toBe('Alt+A')
   })
 
   it('strips the Digit prefix from digit keys', () => {
     // @example "Digit1" -> "1"
-    expect(formatElectronAccelerator({ key: 'Digit1', modifiers: ['cmd-or-ctrl'] }))
+    expect(formatElectronAccelerator({ modifiers: ['cmd-or-ctrl'], key: 'Digit1' }))
       .toBe('CmdOrCtrl+1')
   })
 
   it('rewrites arrow keys to Electron short names', () => {
-    expect(formatElectronAccelerator({ key: 'ArrowUp', modifiers: [] })).toBe('Up')
-    expect(formatElectronAccelerator({ key: 'ArrowDown', modifiers: [] })).toBe('Down')
+    expect(formatElectronAccelerator({ modifiers: [], key: 'ArrowUp' })).toBe('Up')
+    expect(formatElectronAccelerator({ modifiers: [], key: 'ArrowDown' })).toBe('Down')
   })
 
   it('rewrites Escape to Esc', () => {
-    expect(formatElectronAccelerator({ key: 'Escape', modifiers: [] })).toBe('Esc')
+    expect(formatElectronAccelerator({ modifiers: [], key: 'Escape' })).toBe('Esc')
   })
 
   it('rewrites punctuation keys to literal characters', () => {
-    expect(formatElectronAccelerator({ key: 'Equal', modifiers: [] })).toBe('=')
-    expect(formatElectronAccelerator({ key: 'Slash', modifiers: ['shift'] })).toBe('Shift+/')
+    expect(formatElectronAccelerator({ modifiers: [], key: 'Equal' })).toBe('=')
+    expect(formatElectronAccelerator({ modifiers: ['shift'], key: 'Slash' })).toBe('Shift+/')
   })
 
   it('passes function and named keys through unchanged', () => {
-    expect(formatElectronAccelerator({ key: 'F12', modifiers: ['alt'] })).toBe('Alt+F12')
-    expect(formatElectronAccelerator({ key: 'Space', modifiers: [] })).toBe('Space')
+    expect(formatElectronAccelerator({ modifiers: ['alt'], key: 'F12' })).toBe('Alt+F12')
+    expect(formatElectronAccelerator({ modifiers: [], key: 'Space' })).toBe('Space')
   })
 })
 

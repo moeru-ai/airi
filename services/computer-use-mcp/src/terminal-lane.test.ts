@@ -27,10 +27,10 @@ describe('state: surface decision', () => {
     const sm = new RunStateManager()
 
     sm.recordSurfaceDecision({
-      reason: 'one-shot command',
-      source: 'strategy',
       surface: 'exec',
       transport: 'exec',
+      reason: 'one-shot command',
+      source: 'strategy',
     })
 
     const decision = sm.getRecentSurfaceDecision()
@@ -45,8 +45,8 @@ describe('state: surface decision', () => {
   it('overwrites previous decision on re-record', () => {
     const sm = new RunStateManager()
 
-    sm.recordSurfaceDecision({ reason: 'first', source: 'test', surface: 'exec', transport: 'exec' })
-    sm.recordSurfaceDecision({ reason: 'rerouted', source: 'workflow_reroute', surface: 'pty', transport: 'pty' })
+    sm.recordSurfaceDecision({ surface: 'exec', transport: 'exec', reason: 'first', source: 'test' })
+    sm.recordSurfaceDecision({ surface: 'pty', transport: 'pty', reason: 'rerouted', source: 'workflow_reroute' })
 
     const decision = sm.getRecentSurfaceDecision()
     expect(decision!.surface).toBe('pty')
@@ -68,9 +68,9 @@ describe('state: step terminal bindings', () => {
     const sm = new RunStateManager()
 
     sm.addStepTerminalBinding({
+      taskId: 'task_1',
       stepId: 'step_a',
       surface: 'exec',
-      taskId: 'task_1',
     })
 
     const binding = sm.getStepTerminalBinding('task_1', 'step_a')
@@ -82,8 +82,8 @@ describe('state: step terminal bindings', () => {
   it('replaces binding for same taskId+stepId', () => {
     const sm = new RunStateManager()
 
-    sm.addStepTerminalBinding({ stepId: 's1', surface: 'exec', taskId: 't1' })
-    sm.addStepTerminalBinding({ ptySessionId: 'pty_1', stepId: 's1', surface: 'pty', taskId: 't1' })
+    sm.addStepTerminalBinding({ taskId: 't1', stepId: 's1', surface: 'exec' })
+    sm.addStepTerminalBinding({ taskId: 't1', stepId: 's1', surface: 'pty', ptySessionId: 'pty_1' })
 
     const binding = sm.getStepTerminalBinding('t1', 's1')
     expect(binding!.surface).toBe('pty')
@@ -96,9 +96,9 @@ describe('state: step terminal bindings', () => {
   it('clears bindings for a task', () => {
     const sm = new RunStateManager()
 
-    sm.addStepTerminalBinding({ stepId: 's1', surface: 'exec', taskId: 't1' })
-    sm.addStepTerminalBinding({ stepId: 's2', surface: 'pty', taskId: 't1' })
-    sm.addStepTerminalBinding({ stepId: 's1', surface: 'exec', taskId: 't2' })
+    sm.addStepTerminalBinding({ taskId: 't1', stepId: 's1', surface: 'exec' })
+    sm.addStepTerminalBinding({ taskId: 't1', stepId: 's2', surface: 'pty' })
+    sm.addStepTerminalBinding({ taskId: 't2', stepId: 's1', surface: 'exec' })
 
     sm.clearTaskTerminalBindings('t1')
 
@@ -183,14 +183,14 @@ describe('state: PTY audit log', () => {
     const sm = new RunStateManager()
 
     sm.appendPtyAudit({
-      cols: 80,
-      cwd: '/tmp',
-      event: 'create',
-      pid: 1234,
-      ptySessionId: 'pty_1',
-      rows: 24,
-      stepId: 'step_a',
       taskId: 'task_1',
+      stepId: 'step_a',
+      ptySessionId: 'pty_1',
+      event: 'create',
+      cwd: '/tmp',
+      rows: 24,
+      cols: 80,
+      pid: 1234,
     })
 
     const log = sm.getPtyAuditLog()
@@ -205,10 +205,10 @@ describe('state: PTY audit log', () => {
     const longInput = 'x'.repeat(200)
 
     sm.appendPtyAudit({
-      byteCount: longInput.length,
-      event: 'send_input',
-      inputPreview: longInput.length > 80 ? `${longInput.slice(0, 80)}…` : longInput,
       ptySessionId: 'pty_1',
+      event: 'send_input',
+      byteCount: longInput.length,
+      inputPreview: longInput.length > 80 ? `${longInput.slice(0, 80)}…` : longInput,
     })
 
     const entry = sm.getPtyAuditLog()[0]
@@ -221,10 +221,10 @@ describe('state: PTY audit log', () => {
   it('filters audit by session id', () => {
     const sm = new RunStateManager()
 
-    sm.appendPtyAudit({ event: 'create', ptySessionId: 'pty_1' })
-    sm.appendPtyAudit({ event: 'create', ptySessionId: 'pty_2' })
-    sm.appendPtyAudit({ byteCount: 5, event: 'send_input', ptySessionId: 'pty_1' })
-    sm.appendPtyAudit({ actor: 'tool_call', event: 'destroy', outcome: 'ok', ptySessionId: 'pty_1' })
+    sm.appendPtyAudit({ ptySessionId: 'pty_1', event: 'create' })
+    sm.appendPtyAudit({ ptySessionId: 'pty_2', event: 'create' })
+    sm.appendPtyAudit({ ptySessionId: 'pty_1', event: 'send_input', byteCount: 5 })
+    sm.appendPtyAudit({ ptySessionId: 'pty_1', event: 'destroy', actor: 'tool_call', outcome: 'ok' })
 
     expect(sm.getPtyAuditForSession('pty_1')).toHaveLength(3)
     expect(sm.getPtyAuditForSession('pty_2')).toHaveLength(1)
@@ -235,10 +235,10 @@ describe('state: PTY audit log', () => {
     const sm = new RunStateManager()
 
     sm.appendPtyAudit({
-      actor: 'tool_call',
-      event: 'destroy',
-      outcome: 'ok',
       ptySessionId: 'pty_1',
+      event: 'destroy',
+      actor: 'tool_call',
+      outcome: 'ok',
     })
 
     const entry = sm.getPtyAuditLog()[0]
@@ -256,11 +256,11 @@ describe('state: PTY session stepId binding', () => {
     const sm = new RunStateManager()
 
     sm.registerPtySession({
-      alive: true,
-      cols: 80,
       id: 'pty_1',
-      pid: 100,
+      alive: true,
       rows: 24,
+      cols: 80,
+      pid: 100,
     })
     sm.bindPtySessionToStepId('pty_1', 'step_abc')
 

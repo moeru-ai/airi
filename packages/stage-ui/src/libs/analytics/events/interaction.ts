@@ -10,10 +10,16 @@ import { updateCheckClickedEvent, updateInstallClickedEvent } from './update'
 
 /** User interaction events emitted by the shared tracking directive. */
 export type TrackButtonEvent
-  = | { action: 'add' | 'remove', name: 'mcp_server_updated' }
-    | { action: ControlsIslandAction, name: 'controls_island_action' }
-    | { channel: string, name: 'update_check_clicked' }
-    | { channel: string, name: 'update_install_clicked', version?: string }
+  = | { name: 'controls_island_action', action: ControlsIslandAction }
+    | { name: 'update_check_clicked', channel: string }
+    | { name: 'update_install_clicked', channel: string, version?: string }
+    | { name: 'mcp_server_updated', action: 'add' | 'remove' }
+
+function canCapture(): boolean {
+  return isAnalyticsAvailableInBuild()
+    && useSettingsAnalytics().analyticsEnabled
+    && enableAnalytics()
+}
 
 /** Sends a typed interaction event through the shared consent boundary. */
 export function captureTrackButtonEvent(event: TrackButtonEvent): void {
@@ -44,10 +50,4 @@ export function captureTrackButtonEvent(event: TrackButtonEvent): void {
     case 'mcp_server_updated':
       analytics.emit(mcpServerUpdatedEvent, { action: event.action })
   }
-}
-
-function canCapture(): boolean {
-  return isAnalyticsAvailableInBuild()
-    && useSettingsAnalytics().analyticsEnabled
-    && enableAnalytics()
 }

@@ -15,68 +15,34 @@ const keptPunctuations = new Set('?？!！')
 const hardPunctuations = new Set('.。?？!！…⋯～~\n\t\r')
 const softPunctuations = new Set(',，、–—:：;；《》「」')
 
-export interface TtsChunkItem {
-  chunk: string
-  reason: 'boost' | 'flush' | 'hard' | 'limit' | 'special'
-  special: null | string
-}
-
 export interface TtsInputChunk {
-  reason: 'boost' | 'flush' | 'hard' | 'limit' | 'special'
   text: string
   words: number
+  reason: 'boost' | 'limit' | 'hard' | 'flush' | 'special'
 }
 
 export interface TtsInputChunkOptions {
   boost?: number
-  keepNarrativeText?: boolean
-  maximumWords?: number
   minimumWords?: number
+  maximumWords?: number
   stripNarrative?: boolean
+  keepNarrativeText?: boolean
 }
 
-export async function chunkEmitter(
-  reader: ReaderLike,
-  pendingSpecials: string[],
-  options: TtsInputChunkOptions | undefined,
-  handler: (ttsSegment: TtsChunkItem) => Promise<void> | void,
-) {
-  function sanitizeChunk(text: string) {
-    return text
-      .replaceAll(TTS_SPECIAL_TOKEN, '')
-      .replaceAll(TTS_FLUSH_INSTRUCTION, '')
-      .trim()
-  }
-
-  try {
-    for await (const chunk of chunkTtsInput(reader, options)) {
-      const cleanedText = sanitizeChunk(chunk.text)
-      if (!cleanedText && chunk.reason !== 'special') {
-        continue
-      }
-
-      if (chunk.reason === 'special') {
-        const specialToken = pendingSpecials.shift()
-        await handler({ chunk: cleanedText, reason: chunk.reason, special: specialToken ?? null })
-      }
-      else {
-        await handler({ chunk: cleanedText, reason: chunk.reason, special: null })
-      }
-    }
-  }
-  catch (e) {
-    console.error('Error chunking stream to TTS queue:', e)
-  }
+export interface TtsChunkItem {
+  chunk: string
+  special: string | null
+  reason: 'boost' | 'limit' | 'hard' | 'flush' | 'special'
 }
 
 export async function* chunkTtsInput(
-  input: ReaderLike | string,
+  input: string | ReaderLike,
   options?: TtsInputChunkOptions,
 ): AsyncGenerator<TtsInputChunk, void, unknown> {
   const {
     boost = 2,
-    maximumWords = 12,
     minimumWords = 4,
+    maximumWords = 12,
   } = options ?? {}
 
   const iterator = readGraphemeClusters(
@@ -119,8 +85,8 @@ export async function* chunkTtsInput(
 
     if (flush || special || hard || soft) {
       switch (value) {
-        case ',':
-        case '.': {
+        case '.':
+        case ',': {
           if (previousValue !== undefined && regexpAnySingleDigit.test(previousValue)) {
             next = await iterator.next()
             if (!next.done && next.value && regexpAnySingleDigit.test(next.value)) {
@@ -147,9 +113,9 @@ export async function* chunkTtsInput(
       if (buffer.length === 0) {
         if (special) {
           yield {
-            reason: 'special',
             text: '',
             words: 0,
+            reason: 'special',
           }
           yieldCount++
           chunkWordsCount = 0
@@ -165,9 +131,9 @@ export async function* chunkTtsInput(
       if (chunkWordsCount > minimumWords && chunkWordsCount + words.length > maximumWords) {
         const text = kept ? chunk.trim() + value : chunk.trim()
         yield {
-          reason: 'limit',
           text,
           words: chunkWordsCount,
+          reason: 'limit',
         }
         yieldCount++
         chunk = ''
@@ -181,9 +147,9 @@ export async function* chunkTtsInput(
       if (special) {
         const text = chunk.slice(0, -1).trim()
         yield {
-          reason: 'special',
           text,
           words: chunkWordsCount,
+          reason: 'special',
         }
         yieldCount++
         chunk = ''
@@ -192,9 +158,9 @@ export async function* chunkTtsInput(
       else if (flush || hard || chunkWordsCount > maximumWords || yieldCount < boost) {
         const text = chunk.trim()
         yield {
-          reason: flush ? 'flush' : hard ? 'hard' : chunkWordsCount > maximumWords ? 'limit' : 'boost',
           text,
           words: chunkWordsCount,
+          reason: flush ? 'flush' : hard ? 'hard' : chunkWordsCount > maximumWords ? 'limit' : 'boost',
         }
         yieldCount++
         chunk = ''
@@ -228,19 +194,53 @@ export async function* chunkTtsInput(
   if (chunk.length > 0 || buffer.length > 0) {
     const text = (chunk + buffer).trim()
     yield {
-      reason: 'flush',
       text,
       words: chunkWordsCount + [...segmenter.segment(buffer)].filter(w => w.isWordLike).length,
+      reason: 'flush',
     }
   }
 }
 
+export async function chunkEmitter(
+  reader: ReaderLike,
+  pendingSpecials: string[],
+  options: TtsInputChunkOptions | undefined,
+  handler: (ttsSegment: TtsChunkItem) => Promise<void> | void,
+) {
+  function sanitizeChunk(text: string) {
+    return text
+      .replaceAll(TTS_SPECIAL_TOKEN, '')
+      .replaceAll(TTS_FLUSH_INSTRUCTION, '')
+      .trim()
+  }
+
+  try {
+    for await (const chunk of chunkTtsInput(reader, options)) {
+      const cleanedText = sanitizeChunk(chunk.text)
+      if (!cleanedText && chunk.reason !== 'special') {
+        continue
+      }
+
+      if (chunk.reason === 'special') {
+        const specialToken = pendingSpecials.shift()
+        await handler({ chunk: cleanedText, special: specialToken ?? null, reason: chunk.reason })
+      }
+      else {
+        await handler({ chunk: cleanedText, special: null, reason: chunk.reason })
+      }
+    }
+  }
+  catch (e) {
+    console.error('Error chunking stream to TTS queue:', e)
+  }
+}
+
 const BRACKET_MAP: Record<string, string> = {
+  '[': ']',
   '(': ')',
   '（': '）',
-  '<': '>',
-  '[': ']',
   '【': '】',
+  '<': '>',
 }
 
 const OPENERS = Object.keys(BRACKET_MAP)
@@ -259,130 +259,6 @@ const NARRATIVE_KEYWORDS = [
   'smile',
   'thought',
 ]
-
-export function createTtsSegmentStream(
-  tokens: ReadableStream<TextToken>,
-  meta: { intentId: string, streamId: string, turnId?: string },
-  options?: TtsInputChunkOptions,
-) {
-  const { close, error, stream, write } = createPushStream<TextSegment>()
-  const pendingSpecials: string[] = []
-  const encoder = new TextEncoder()
-
-  const { close: closeBytes, error: errorBytes, stream: byteStream, write: writeBytes } = createPushStream<Uint8Array>()
-
-  void (async () => {
-    const reader = tokens.getReader()
-    let pendingText = ''
-    try {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done)
-          break
-        if (!value)
-          continue
-
-        if (value.type === 'literal') {
-          if (value.value) {
-            if (!options?.stripNarrative) {
-              writeBytes(encoder.encode(value.value))
-              continue
-            }
-
-            pendingText += value.value
-            const stack: string[] = []
-
-            for (let i = 0; i < pendingText.length; i++) {
-              const char = pendingText[i]
-              if (OPENERS.includes(char)) {
-                if (char === '<' && !isProbablyAngleTag(i, pendingText)) {
-                  continue
-                }
-                stack.push(char)
-              }
-              else if (CLOSERS.includes(char)) {
-                const lastOpen = stack[stack.length - 1]
-                if (lastOpen && BRACKET_MAP[lastOpen] === char) {
-                  stack.pop()
-                }
-              }
-            }
-
-            const bracketsUnclosed = stack.length > 0
-            const starMatch = pendingText.match(/\*([^*]*)$/)
-            const starsUnclosed = (pendingText.match(/\*/g) || []).length % 2 !== 0
-              && starMatch !== null && !starMatch[1].startsWith(' ')
-            const hasUnclosed = bracketsUnclosed || starsUnclosed
-            const hasNarrativeUnclosed = stack.some(char => ['（', '[', '【', '<'].includes(char))
-            const fallbackLimit = (options?.stripNarrative && hasNarrativeUnclosed) ? 800 : 200
-
-            if (!hasUnclosed || pendingText.length > fallbackLimit) {
-              const textToEmit = processNarrative(pendingText, options)
-              writeBytes(encoder.encode(textToEmit))
-              pendingText = ''
-            }
-          }
-        }
-        else if (value.type === 'special' || value.type === 'flush') {
-          if (pendingText) {
-            const textToEmit = processNarrative(pendingText, options)
-            writeBytes(encoder.encode(textToEmit))
-            pendingText = ''
-          }
-
-          if (value.type === 'special') {
-            pendingSpecials.push(value.value ?? '')
-            writeBytes(encoder.encode(TTS_SPECIAL_TOKEN))
-          }
-          else if (value.type === 'flush') {
-            writeBytes(encoder.encode(TTS_FLUSH_INSTRUCTION))
-          }
-        }
-      }
-      if (pendingText) {
-        let finalPunt = pendingText
-        if (options?.stripNarrative) {
-          finalPunt = processNarrative(finalPunt, options)
-        }
-        writeBytes(encoder.encode(finalPunt))
-      }
-      closeBytes()
-    }
-    catch (err) {
-      errorBytes(err)
-    }
-    finally {
-      reader.releaseLock()
-    }
-  })()
-
-  void (async () => {
-    const reader = byteStream.getReader()
-    try {
-      await chunkEmitter(reader, pendingSpecials, options, async (chunk) => {
-        write({
-          createdAt: Date.now(),
-          intentId: meta.intentId,
-          reason: chunk.reason,
-          segmentId: `${meta.streamId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
-          special: chunk.special,
-          streamId: meta.streamId,
-          text: chunk.chunk,
-          turnId: meta.turnId,
-        })
-      })
-      close()
-    }
-    catch (err) {
-      error(err)
-    }
-    finally {
-      reader.releaseLock()
-    }
-  })()
-
-  return stream
-}
 
 export function isProbablyAngleTag(index: number, text: string): boolean {
   if (text[index] !== '<')
@@ -417,10 +293,6 @@ export function isProbablyAngleTag(index: number, text: string): boolean {
 
   return true
 }
-
-// ------------------------------------------------------------------
-// Data flow processor
-// ------------------------------------------------------------------
 
 export function processNarrative(text: string, options?: TtsInputChunkOptions): string {
   if (!options?.stripNarrative)
@@ -506,4 +378,132 @@ export function processNarrative(text: string, options?: TtsInputChunkOptions): 
   }
 
   return result
+}
+
+// ------------------------------------------------------------------
+// Data flow processor
+// ------------------------------------------------------------------
+
+export function createTtsSegmentStream(
+  tokens: ReadableStream<TextToken>,
+  meta: { streamId: string, intentId: string, turnId?: string },
+  options?: TtsInputChunkOptions,
+) {
+  const { stream, write, close, error } = createPushStream<TextSegment>()
+  const pendingSpecials: string[] = []
+  const encoder = new TextEncoder()
+
+  const { stream: byteStream, write: writeBytes, close: closeBytes, error: errorBytes } = createPushStream<Uint8Array>()
+
+  void (async () => {
+    const reader = tokens.getReader()
+    let pendingText = ''
+    try {
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done)
+          break
+        if (!value)
+          continue
+
+        if (value.type === 'literal') {
+          if (value.value) {
+            if (!options?.stripNarrative) {
+              writeBytes(encoder.encode(value.value))
+              continue
+            }
+
+            pendingText += value.value
+            const stack: string[] = []
+
+            for (let i = 0; i < pendingText.length; i++) {
+              const char = pendingText[i]
+              if (OPENERS.includes(char)) {
+                if (char === '<' && !isProbablyAngleTag(i, pendingText)) {
+                  continue
+                }
+                stack.push(char)
+              }
+              else if (CLOSERS.includes(char)) {
+                const lastOpen = stack[stack.length - 1]
+                if (lastOpen && BRACKET_MAP[lastOpen] === char) {
+                  stack.pop()
+                }
+              }
+            }
+
+            const bracketsUnclosed = stack.length > 0
+            const starMatch = pendingText.match(/\*([^*]*)$/)
+            const starsUnclosed = (pendingText.match(/\*/g) || []).length % 2 !== 0
+              && starMatch !== null && !starMatch[1].startsWith(' ')
+            const hasUnclosed = bracketsUnclosed || starsUnclosed
+            const hasNarrativeUnclosed = stack.some(char => ['[', '【', '<', '（'].includes(char))
+            const fallbackLimit = (options?.stripNarrative && hasNarrativeUnclosed) ? 800 : 200
+
+            if (!hasUnclosed || pendingText.length > fallbackLimit) {
+              const textToEmit = processNarrative(pendingText, options)
+              writeBytes(encoder.encode(textToEmit))
+              pendingText = ''
+            }
+          }
+        }
+        else if (value.type === 'special' || value.type === 'flush') {
+          if (pendingText) {
+            const textToEmit = processNarrative(pendingText, options)
+            writeBytes(encoder.encode(textToEmit))
+            pendingText = ''
+          }
+
+          if (value.type === 'special') {
+            pendingSpecials.push(value.value ?? '')
+            writeBytes(encoder.encode(TTS_SPECIAL_TOKEN))
+          }
+          else if (value.type === 'flush') {
+            writeBytes(encoder.encode(TTS_FLUSH_INSTRUCTION))
+          }
+        }
+      }
+      if (pendingText) {
+        let finalPunt = pendingText
+        if (options?.stripNarrative) {
+          finalPunt = processNarrative(finalPunt, options)
+        }
+        writeBytes(encoder.encode(finalPunt))
+      }
+      closeBytes()
+    }
+    catch (err) {
+      errorBytes(err)
+    }
+    finally {
+      reader.releaseLock()
+    }
+  })()
+
+  void (async () => {
+    const reader = byteStream.getReader()
+    try {
+      await chunkEmitter(reader, pendingSpecials, options, async (chunk) => {
+        write({
+          turnId: meta.turnId,
+          streamId: meta.streamId,
+          intentId: meta.intentId,
+          segmentId: `${meta.streamId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
+          text: chunk.chunk,
+          special: chunk.special,
+          reason: chunk.reason,
+          createdAt: Date.now(),
+        })
+      })
+      close()
+    }
+    catch (err) {
+      error(err)
+    }
+    finally {
+      reader.releaseLock()
+    }
+  })()
+
+  return stream
 }

@@ -5,21 +5,21 @@ import { env } from 'node:process'
 import { defineStageTamagotchiScenario } from '../context'
 import { waitForStageWindow } from '../runtime/windows'
 
+export type DisplayModelInputFormat = 'live2d' | 'vrm' | 'mmd'
+
 export interface DisplayModelInput {
-  /** Provide an absolute path visible to the machine running Vishot. */
-  filePath: string
   /** Select the AIRI importer whose accepted extensions match the file. */
   format: DisplayModelInputFormat
+  /** Provide an absolute path visible to the machine running Vishot. */
+  filePath: string
 }
 
-export type DisplayModelInputFormat = 'live2d' | 'mmd' | 'vrm'
-
 export interface ImportedDisplayModel {
-  /** Restore persisted AIRI state and remove the imported IndexedDB fixture. */
-  cleanup: () => Promise<void>
   id: string
   mainPage: Page
   settingsPage: Page
+  /** Restore persisted AIRI state and remove the imported IndexedDB fixture. */
+  cleanup: () => Promise<void>
 }
 
 const localStorageKeys = [
@@ -68,13 +68,13 @@ export async function importDisplayModelFromFile(
     const selectedModelId = importedModelId
     const selectedSettingsPage = settingsPage
     return {
+      id: selectedModelId,
+      mainPage: mainWindow.page,
+      settingsPage: selectedSettingsPage,
       async cleanup() {
         await restorePersistedState(selectedSettingsPage, persistedState)
         await removeImportedModel(selectedSettingsPage, selectedModelId)
       },
-      id: selectedModelId,
-      mainPage: mainWindow.page,
-      settingsPage: selectedSettingsPage,
     }
   }
   catch (error) {
@@ -106,7 +106,7 @@ export function resolveDisplayModelInputFromEnvironment(
   if (!filePath)
     throw new Error('AIRI_DISPLAY_MODEL_PATH is required')
 
-  return { filePath, format }
+  return { format, filePath }
 }
 
 /**
@@ -141,18 +141,6 @@ const displayModelFromFileScenario = defineStageTamagotchiScenario({
 
 export default displayModelFromFileScenario
 
-async function closeOnboardingWindows(electronApp: ElectronApplication): Promise<void> {
-  for (const page of electronApp.windows()) {
-    if (hashRoute(page.url()).startsWith('/onboarding'))
-      await page.close().catch(() => undefined)
-  }
-}
-
-function fileName(filePath: string): string {
-  const normalizedPath = filePath.replaceAll('\\', '/')
-  return normalizedPath.slice(normalizedPath.lastIndexOf('/') + 1)
-}
-
 async function findMainRenderer(electronApp: ElectronApplication, timeout = 30_000): Promise<Page> {
   const deadline = Date.now() + timeout
 
@@ -169,19 +157,18 @@ async function findMainRenderer(electronApp: ElectronApplication, timeout = 30_0
   throw new Error('Timed out waiting for the AIRI main renderer')
 }
 
-function hashRoute(url: string): string {
-  const hashIndex = url.indexOf('#')
-  if (hashIndex === -1)
-    return ''
-
-  return url.slice(hashIndex + 1) || '/'
-}
-
 async function markOnboardingCompleted(page: Page): Promise<void> {
   await page.evaluate(() => {
     globalThis.localStorage.setItem('onboarding/completed', 'true')
     globalThis.localStorage.setItem('onboarding/skipped', 'false')
   })
+}
+
+async function closeOnboardingWindows(electronApp: ElectronApplication): Promise<void> {
+  for (const page of electronApp.windows()) {
+    if (hashRoute(page.url()).startsWith('/onboarding'))
+      await page.close().catch(() => undefined)
+  }
 }
 
 async function openModelSettings(electronApp: ElectronApplication, mainPage: Page): Promise<Page> {
@@ -200,7 +187,7 @@ async function openModelSettings(electronApp: ElectronApplication, mainPage: Pag
   const settingsWindow = await waitForStageWindow(electronApp, 'settings')
   const settingsPage = settingsWindow.page
 
-  const settingsContentSize = { height: 900, width: 1200 }
+  const settingsContentSize = { width: 1200, height: 900 }
   const nativeSettingsWindow = await electronApp.browserWindow(settingsPage)
 
   try {
@@ -232,8 +219,65 @@ async function openModelSettings(electronApp: ElectronApplication, mainPage: Pag
   return settingsPage
 }
 
+async function uploadModel(
+  settingsPage: Page,
+  input: DisplayModelInput,
+  existingModelIds: Set<string>,
+): Promise<string> {
+  const optionsButton = settingsPage.getByRole('button', { name: 'Options for Display Models' }).first()
+  await optionsButton.waitFor({ state: 'visible', timeout: 15_000 })
+  await optionsButton.click()
+
+  let menuItemName = 'MMD'
+  if (input.format === 'live2d')
+    menuItemName = 'Live2D'
+  else if (input.format === 'vrm')
+    menuItemName = 'VRM'
+
+  const [fileChooser] = await Promise.all([
+    settingsPage.waitForEvent('filechooser'),
+    settingsPage.getByRole('menuitem', { name: menuItemName, exact: true }).click(),
+  ])
+  await fileChooser.setFiles(input.filePath)
+
+  return waitForNewImportedModelId(settingsPage, existingModelIds)
+}
+
+async function selectImportedModel(settingsPage: Page, modelFileName: string): Promise<void> {
+  const modelName = settingsPage.getByText(modelFileName, { exact: true }).first()
+  await modelName.waitFor({ state: 'visible', timeout: 60_000 })
+
+  const card = modelName.locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " block ")][1]')
+  await card.click()
+
+  const selectButton = card.locator('button').last()
+  await selectButton.waitFor({ state: 'visible', timeout: 15_000 })
+  await selectButton.click()
+}
+
+async function waitForSelectedModel(page: Page, importedModelId: string): Promise<void> {
+  await page.waitForFunction((modelId) => {
+    return globalThis.localStorage.getItem('settings/stage/model') === modelId
+  }, importedModelId, { timeout: 30_000 })
+}
+
+async function waitForNewImportedModelId(page: Page, existingModelIds: Set<string>, timeout = 60_000): Promise<string> {
+  const deadline = Date.now() + timeout
+
+  while (Date.now() < deadline) {
+    const modelIds = await readImportedModelIds(page)
+    const importedModelId = [...modelIds].find(modelId => !existingModelIds.has(modelId))
+    if (importedModelId)
+      return importedModelId
+
+    await page.waitForTimeout(250)
+  }
+
+  throw new Error('Timed out waiting for the imported display model')
+}
+
 async function readImportedModelIds(page: Page): Promise<Set<string>> {
-  const keys = await page.evaluate(async ({ databaseName, keyPrefix, storeName }) => {
+  const keys = await page.evaluate(async ({ databaseName, storeName, keyPrefix }) => {
     return new Promise<string[]>((resolve, reject) => {
       const openRequest = globalThis.indexedDB.open(databaseName)
       openRequest.onerror = () => reject(openRequest.error)
@@ -256,15 +300,15 @@ async function readImportedModelIds(page: Page): Promise<Set<string>> {
     })
   }, {
     databaseName: localforageDatabaseName,
-    keyPrefix: importedModelKeyPrefix,
     storeName: localforageStoreName,
+    keyPrefix: importedModelKeyPrefix,
   })
 
   return new Set(keys)
 }
 
 async function removeImportedModel(page: Page, importedModelId: string): Promise<void> {
-  await page.evaluate(async ({ databaseName, modelId, storeName }) => {
+  await page.evaluate(async ({ databaseName, storeName, modelId }) => {
     await new Promise<void>((resolve, reject) => {
       const openRequest = globalThis.indexedDB.open(databaseName)
       openRequest.onerror = () => reject(openRequest.error)
@@ -287,12 +331,18 @@ async function removeImportedModel(page: Page, importedModelId: string): Promise
     })
   }, {
     databaseName: localforageDatabaseName,
-    modelId: importedModelId,
     storeName: localforageStoreName,
+    modelId: importedModelId,
   })
 }
 
-async function restorePersistedState(page: Page, state: Record<string, null | string>): Promise<void> {
+async function snapshotPersistedState(page: Page): Promise<Record<string, string | null>> {
+  return page.evaluate((keys) => {
+    return Object.fromEntries(keys.map(key => [key, globalThis.localStorage.getItem(key)]))
+  }, localStorageKeys)
+}
+
+async function restorePersistedState(page: Page, state: Record<string, string | null>): Promise<void> {
   await page.evaluate((persistedState) => {
     for (const [key, value] of Object.entries(persistedState)) {
       if (value === null)
@@ -303,65 +353,15 @@ async function restorePersistedState(page: Page, state: Record<string, null | st
   }, state)
 }
 
-async function selectImportedModel(settingsPage: Page, modelFileName: string): Promise<void> {
-  const modelName = settingsPage.getByText(modelFileName, { exact: true }).first()
-  await modelName.waitFor({ state: 'visible', timeout: 60_000 })
+function hashRoute(url: string): string {
+  const hashIndex = url.indexOf('#')
+  if (hashIndex === -1)
+    return ''
 
-  const card = modelName.locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " block ")][1]')
-  await card.click()
-
-  const selectButton = card.locator('button').last()
-  await selectButton.waitFor({ state: 'visible', timeout: 15_000 })
-  await selectButton.click()
+  return url.slice(hashIndex + 1) || '/'
 }
 
-async function snapshotPersistedState(page: Page): Promise<Record<string, null | string>> {
-  return page.evaluate((keys) => {
-    return Object.fromEntries(keys.map(key => [key, globalThis.localStorage.getItem(key)]))
-  }, localStorageKeys)
-}
-
-async function uploadModel(
-  settingsPage: Page,
-  input: DisplayModelInput,
-  existingModelIds: Set<string>,
-): Promise<string> {
-  const optionsButton = settingsPage.getByRole('button', { name: 'Options for Display Models' }).first()
-  await optionsButton.waitFor({ state: 'visible', timeout: 15_000 })
-  await optionsButton.click()
-
-  let menuItemName = 'MMD'
-  if (input.format === 'live2d')
-    menuItemName = 'Live2D'
-  else if (input.format === 'vrm')
-    menuItemName = 'VRM'
-
-  const [fileChooser] = await Promise.all([
-    settingsPage.waitForEvent('filechooser'),
-    settingsPage.getByRole('menuitem', { exact: true, name: menuItemName }).click(),
-  ])
-  await fileChooser.setFiles(input.filePath)
-
-  return waitForNewImportedModelId(settingsPage, existingModelIds)
-}
-
-async function waitForNewImportedModelId(page: Page, existingModelIds: Set<string>, timeout = 60_000): Promise<string> {
-  const deadline = Date.now() + timeout
-
-  while (Date.now() < deadline) {
-    const modelIds = await readImportedModelIds(page)
-    const importedModelId = [...modelIds].find(modelId => !existingModelIds.has(modelId))
-    if (importedModelId)
-      return importedModelId
-
-    await page.waitForTimeout(250)
-  }
-
-  throw new Error('Timed out waiting for the imported display model')
-}
-
-async function waitForSelectedModel(page: Page, importedModelId: string): Promise<void> {
-  await page.waitForFunction((modelId) => {
-    return globalThis.localStorage.getItem('settings/stage/model') === modelId
-  }, importedModelId, { timeout: 30_000 })
+function fileName(filePath: string): string {
+  const normalizedPath = filePath.replaceAll('\\', '/')
+  return normalizedPath.slice(normalizedPath.lastIndexOf('/') + 1)
 }

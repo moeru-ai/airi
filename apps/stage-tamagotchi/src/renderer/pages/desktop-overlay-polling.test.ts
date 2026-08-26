@@ -23,7 +23,7 @@ describe('extractOverlayState', () => {
     expect(result.snapshotId).toBe('')
     expect(result.candidates).toEqual([])
     expect(result.pointerIntent).toBeNull()
-    expect(result.staleFlags).toEqual({ ax: false, chromeSemantic: false, screenshot: false })
+    expect(result.staleFlags).toEqual({ screenshot: false, ax: false, chromeSemantic: false })
     expect(result.bootstrapState).toBe('booting')
   })
 
@@ -31,11 +31,11 @@ describe('extractOverlayState', () => {
     const result = extractOverlayState({
       lastGroundingSnapshot: {
         snapshotId: 'dg_42',
-        staleFlags: { ax: false, chromeSemantic: false, screenshot: false },
         targetCandidates: [
-          { bounds: { height: 30, width: 80, x: 100, y: 200 }, confidence: 0.95, id: 't_0', label: 'Submit', role: 'button', source: 'chrome_dom' },
-          { bounds: { height: 20, width: 40, x: 300, y: 100 }, confidence: 0.7, id: 't_1', label: 'Help', role: 'link', source: 'ax' },
+          { id: 't_0', source: 'chrome_dom', role: 'button', label: 'Submit', bounds: { x: 100, y: 200, width: 80, height: 30 }, confidence: 0.95 },
+          { id: 't_1', source: 'ax', role: 'link', label: 'Help', bounds: { x: 300, y: 100, width: 40, height: 20 }, confidence: 0.7 },
         ],
+        staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
       },
     })
 
@@ -49,11 +49,11 @@ describe('extractOverlayState', () => {
   it('extracts pointer intent from lastPointerIntent', () => {
     const result = extractOverlayState({
       lastPointerIntent: {
+        snappedPoint: { x: 140, y: 215 },
         candidateId: 't_0',
+        source: 'chrome_dom',
         confidence: 0.95,
         mode: 'execute',
-        snappedPoint: { x: 140, y: 215 },
-        source: 'chrome_dom',
       },
     })
 
@@ -67,8 +67,8 @@ describe('extractOverlayState', () => {
     const result = extractOverlayState({
       lastGroundingSnapshot: {
         snapshotId: 'dg_1',
-        staleFlags: { ax: false, chromeSemantic: true, screenshot: true },
         targetCandidates: [],
+        staleFlags: { screenshot: true, ax: false, chromeSemantic: true },
       },
     })
 
@@ -97,8 +97,8 @@ describe('extractOverlayState', () => {
 describe('extractRunStateFromResult', () => {
   it('returns undefined for error results', () => {
     const result = extractRunStateFromResult({
-      content: [{ text: 'fail', type: 'text' }],
       isError: true,
+      content: [{ type: 'text', text: 'fail' }],
     })
     expect(result).toBeUndefined()
   })
@@ -147,7 +147,7 @@ describe('createEmptyOverlayState', () => {
     expect(a.bootstrapState).toBe('booting')
 
     // Should not be the same reference (no shared mutation)
-    a.candidates.push({ bounds: { height: 10, width: 10, x: 0, y: 0 }, confidence: 1, id: 'x', label: 'X', role: 'button', source: 'raw' })
+    a.candidates.push({ id: 'x', source: 'raw', role: 'button', label: 'X', bounds: { x: 0, y: 0, width: 10, height: 10 }, confidence: 1 })
     expect(b.candidates).toHaveLength(0)
   })
 })
@@ -169,10 +169,10 @@ describe('createOverlayPollController', () => {
         runState: {
           lastGroundingSnapshot: {
             snapshotId: 'dg_poll',
-            staleFlags: { ax: false, chromeSemantic: false, screenshot: false },
             targetCandidates: [
-              { bounds: { height: 25, width: 50, x: 10, y: 20 }, confidence: 0.9, id: 't_0', label: 'OK', role: 'button', source: 'chrome_dom' },
+              { id: 't_0', source: 'chrome_dom', role: 'button', label: 'OK', bounds: { x: 10, y: 20, width: 50, height: 25 }, confidence: 0.9 },
             ],
+            staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
           },
         },
       },
@@ -187,10 +187,10 @@ describe('createOverlayPollController', () => {
 
     const controller = createOverlayPollController({
       callTool,
-      fallbackIntervalMs: 200,
       getReadiness,
-      intervalMs: 100,
       onState: (s) => { received.push(s) },
+      intervalMs: 100,
+      fallbackIntervalMs: 200,
     })
 
     controller.start()
@@ -219,8 +219,8 @@ describe('createOverlayPollController', () => {
     const controller = createOverlayPollController({
       callTool,
       getReadiness,
-      intervalMs: 100,
       onState: () => {},
+      intervalMs: 100,
     })
 
     controller.start()
@@ -245,8 +245,8 @@ describe('createOverlayPollController', () => {
           runState: {
             lastGroundingSnapshot: {
               snapshotId: 'dg_recover',
-              staleFlags: { ax: false, chromeSemantic: false, screenshot: false },
               targetCandidates: [],
+              staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
             },
           },
         },
@@ -258,10 +258,10 @@ describe('createOverlayPollController', () => {
 
     const controller = createOverlayPollController({
       callTool,
-      fallbackIntervalMs: 200,
       getReadiness,
-      intervalMs: 100,
       onState: (s) => { received.push(s) },
+      intervalMs: 100,
+      fallbackIntervalMs: 200,
     })
 
     controller.start()
@@ -292,8 +292,8 @@ describe('createOverlayPollController', () => {
     const controller = createOverlayPollController({
       callTool,
       getReadiness,
-      intervalMs: 100,
       onState: () => {},
+      intervalMs: 100,
     })
 
     controller.start()
@@ -316,8 +316,8 @@ describe('createOverlayPollController', () => {
           runState: {
             lastGroundingSnapshot: {
               snapshotId: 'dg_after_timeout',
-              staleFlags: { ax: false, chromeSemantic: false, screenshot: false },
               targetCandidates: [],
+              staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
             },
           },
         },
@@ -328,12 +328,12 @@ describe('createOverlayPollController', () => {
     const getReadiness = vi.fn().mockResolvedValue({ state: 'ready' })
 
     const controller = createOverlayPollController({
-      callTimeoutMs: 500,
       callTool,
-      fallbackIntervalMs: 200,
       getReadiness,
-      intervalMs: 100,
       onState: (s) => { received.push(s) },
+      intervalMs: 100,
+      fallbackIntervalMs: 200,
+      callTimeoutMs: 500,
     })
 
     controller.start()
@@ -363,12 +363,12 @@ describe('createOverlayPollController', () => {
       .mockImplementation(() => new Promise<McpCallToolResult>(() => {}))
 
     const controller = createOverlayPollController({
-      callTimeoutMs: 500,
       callTool,
-      fallbackIntervalMs: 200,
       getReadiness: vi.fn().mockResolvedValue({ state: 'ready' }),
-      intervalMs: 100,
       onState: () => {},
+      intervalMs: 100,
+      fallbackIntervalMs: 200,
+      callTimeoutMs: 500,
     })
 
     controller.start()
@@ -394,12 +394,12 @@ describe('createOverlayPollController', () => {
       .mockImplementation(() => new Promise<McpCallToolResult>(() => {}))
 
     const controller = createOverlayPollController({
-      callTimeoutMs: 500,
       callTool,
-      fallbackIntervalMs: 200,
       getReadiness: vi.fn().mockResolvedValue({ state: 'ready' }),
-      intervalMs: 100,
       onState: () => {},
+      intervalMs: 100,
+      fallbackIntervalMs: 200,
+      callTimeoutMs: 500,
     })
 
     controller.start()
@@ -435,8 +435,8 @@ describe('createOverlayPollController', () => {
           runState: {
             lastGroundingSnapshot: {
               snapshotId: 'dg_after_lease',
-              staleFlags: { ax: false, chromeSemantic: false, screenshot: false },
               targetCandidates: [],
+              staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
             },
           },
         },
@@ -445,14 +445,14 @@ describe('createOverlayPollController', () => {
     const received: OverlayState[] = []
 
     const controller = createOverlayPollController({
-      callTimeoutMs: 500,
       callTool,
-      fallbackIntervalMs: 200,
       getReadiness: vi.fn().mockResolvedValue({ state: 'ready' }),
-      intervalMs: 100,
       onState: (state) => {
         received.push(state)
       },
+      intervalMs: 100,
+      fallbackIntervalMs: 200,
+      callTimeoutMs: 500,
     })
 
     controller.start()
@@ -491,10 +491,10 @@ describe('createOverlayPollController', () => {
 
     const controller = createOverlayPollController({
       callTool,
-      fallbackIntervalMs: 200,
       getReadiness,
-      intervalMs: 100,
       onState: s => received.push(s),
+      intervalMs: 100,
+      fallbackIntervalMs: 200,
     })
     controller.start()
 
@@ -522,10 +522,10 @@ describe('createOverlayPollController', () => {
 
     const controller = createOverlayPollController({
       callTool,
-      fallbackIntervalMs: 200,
       getReadiness,
-      intervalMs: 100,
       onState: s => received.push(s),
+      intervalMs: 100,
+      fallbackIntervalMs: 200,
     })
     controller.start()
 

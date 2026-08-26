@@ -22,11 +22,11 @@ export function initLogger(): void {
   const config = useConfigManager().getConfig()
 
   const logLevelMap: Record<string, LogLevel> = {
-    debug: LogLevel.Debug,
     error: LogLevel.Error,
+    warn: LogLevel.Warning,
     info: LogLevel.Log,
     verbose: LogLevel.Verbose,
-    warn: LogLevel.Warning,
+    debug: LogLevel.Debug,
   }
 
   setGlobalLogLevel(logLevelMap[config.system?.logLevel] || LogLevel.Debug)
@@ -64,12 +64,12 @@ export function useLogger(name?: string): Logg {
 
 // Create pre-configured loggers for various services
 export const logger = {
-  airi: useLogger('airi-adapter'),
   auth: useLogger('auth-service'),
+  timeline: useLogger('timeline-service'),
   browser: useLogger('browser-adapter'),
-  config: useLogger('config'),
-  main: useLogger('twitter-service'),
+  airi: useLogger('airi-adapter'),
   mcp: useLogger('mcp-adapter'),
   parser: useLogger('parser'),
-  timeline: useLogger('timeline-service'),
+  main: useLogger('twitter-service'),
+  config: useLogger('config'),
 }

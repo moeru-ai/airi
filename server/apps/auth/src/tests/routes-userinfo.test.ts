@@ -11,21 +11,28 @@ import { createAuthRoutes } from '../routes'
 // flag lives on the user row (better-auth admin plugin), so we drive it via the
 // mocked session — no DB query happens on this path.
 
-interface SessionUser { banExpires: Date | null, banned: boolean, email: string, id: string }
+interface SessionUser { id: string, email: string, banned: boolean, banExpires: Date | null }
+
+function sessionFor(user: SessionUser) {
+  return {
+    user: { ...user, name: 'U', emailVerified: true, image: null, createdAt: new Date(), updatedAt: new Date() },
+    session: { id: 's1', userId: user.id, token: 't', createdAt: new Date(), updatedAt: new Date(), expiresAt: new Date(Date.now() + 60_000), ipAddress: null, userAgent: null },
+  }
+}
 
 async function buildRoutes(currentUser: SessionUser) {
-  const handler = vi.fn(async () => new Response(JSON.stringify({ sub: currentUser.id }), { headers: { 'content-type': 'application/json' }, status: 200 }))
+  const handler = vi.fn(async () => new Response(JSON.stringify({ sub: currentUser.id }), { status: 200, headers: { 'content-type': 'application/json' } }))
 
   const deps: AuthRoutesDeps = {
     auth: {
-      api: { getSession: vi.fn(async () => sessionFor(currentUser)) },
       handler,
+      api: { getSession: vi.fn(async () => sessionFor(currentUser)) },
     } as any,
     db: {} as any, // userinfo path never queries the DB
     env: {
-      ADDITIONAL_TRUSTED_ORIGINS: [],
-      AUTH_UI_URL: 'https://accounts.airi.build/ui',
       PUBLIC_URL: 'http://localhost:3000',
+      AUTH_UI_URL: 'https://accounts.airi.build/ui',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
     } as any,
     rateLimitMetrics: null,
   }
@@ -39,21 +46,14 @@ async function buildRoutes(currentUser: SessionUser) {
       return c.json({ error: 'internal', message: (err as Error).message }, 500)
     })
 
-  return { handler, routes: app }
-}
-
-function sessionFor(user: SessionUser) {
-  return {
-    session: { createdAt: new Date(), expiresAt: new Date(Date.now() + 60_000), id: 's1', ipAddress: null, token: 't', updatedAt: new Date(), userAgent: null, userId: user.id },
-    user: { ...user, createdAt: new Date(), emailVerified: true, image: null, name: 'U', updatedAt: new Date() },
-  }
+  return { routes: app, handler }
 }
 
 describe('oidc /oauth2/userinfo ban guard', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('returns 403 for a banned subject before reaching the better-auth handler', async () => {
-    const { handler, routes } = await buildRoutes({ banExpires: null, banned: true, email: 'banme@example.com', id: 'uid_ban' })
+    const { routes, handler } = await buildRoutes({ id: 'uid_ban', email: 'banme@example.com', banned: true, banExpires: null })
 
     const res = await routes.request('/api/auth/oauth2/userinfo', { headers: { Authorization: 'Bearer banned-jwt' } })
 
@@ -62,7 +62,7 @@ describe('oidc /oauth2/userinfo ban guard', () => {
   })
 
   it('passes a non-banned subject through to the better-auth handler', async () => {
-    const { handler, routes } = await buildRoutes({ banExpires: null, banned: false, email: 'ok@example.com', id: 'uid_ok' })
+    const { routes, handler } = await buildRoutes({ id: 'uid_ok', email: 'ok@example.com', banned: false, banExpires: null })
 
     const res = await routes.request('/api/auth/oauth2/userinfo', { headers: { Authorization: 'Bearer ok-jwt' } })
 
@@ -72,7 +72,7 @@ describe('oidc /oauth2/userinfo ban guard', () => {
   })
 
   it('passes a subject whose ban has expired', async () => {
-    const { handler, routes } = await buildRoutes({ banExpires: new Date(Date.now() - 1000), banned: true, email: 'exp@example.com', id: 'uid_exp' })
+    const { routes, handler } = await buildRoutes({ id: 'uid_exp', email: 'exp@example.com', banned: true, banExpires: new Date(Date.now() - 1000) })
 
     const res = await routes.request('/api/auth/oauth2/userinfo', { headers: { Authorization: 'Bearer exp-jwt' } })
 
@@ -83,10 +83,10 @@ describe('oidc /oauth2/userinfo ban guard', () => {
 
 describe('auth UI routes', () => {
   it('keeps the Google provider hint on the OIDC sign-in redirect', async () => {
-    const { handler, routes } = await buildRoutes({ banExpires: null, banned: false, email: 'ok@example.com', id: 'uid_ok' })
+    const { routes, handler } = await buildRoutes({ id: 'uid_ok', email: 'ok@example.com', banned: false, banExpires: null })
     handler.mockResolvedValueOnce(new Response(null, {
-      headers: { location: '/auth/sign-in?client_id=airi-stage-pocket&response_type=code' },
       status: 302,
+      headers: { location: '/auth/sign-in?client_id=airi-stage-pocket&response_type=code' },
     }))
 
     const res = await routes.request('/api/auth/oauth2/authorize?client_id=airi-stage-pocket&response_type=code&provider=google')
@@ -102,10 +102,10 @@ describe('auth UI routes', () => {
   })
 
   it('keeps the GitHub provider hint on the OIDC sign-in redirect', async () => {
-    const { handler, routes } = await buildRoutes({ banExpires: null, banned: false, email: 'ok@example.com', id: 'uid_ok' })
+    const { routes, handler } = await buildRoutes({ id: 'uid_ok', email: 'ok@example.com', banned: false, banExpires: null })
     handler.mockResolvedValueOnce(new Response(null, {
-      headers: { location: '/auth/sign-in?client_id=airi-stage-pocket&response_type=code' },
       status: 302,
+      headers: { location: '/auth/sign-in?client_id=airi-stage-pocket&response_type=code' },
     }))
 
     const res = await routes.request('/api/auth/oauth2/authorize?client_id=airi-stage-pocket&response_type=code&provider=github')
@@ -114,10 +114,10 @@ describe('auth UI routes', () => {
   })
 
   it('keeps the Steam provider hint on the OIDC sign-in redirect', async () => {
-    const { handler, routes } = await buildRoutes({ banExpires: null, banned: false, email: 'ok@example.com', id: 'uid_ok' })
+    const { routes, handler } = await buildRoutes({ id: 'uid_ok', email: 'ok@example.com', banned: false, banExpires: null })
     handler.mockResolvedValueOnce(new Response(null, {
-      headers: { location: '/auth/sign-in?client_id=airi-stage-pocket&response_type=code' },
       status: 302,
+      headers: { location: '/auth/sign-in?client_id=airi-stage-pocket&response_type=code' },
     }))
 
     const res = await routes.request('/api/auth/oauth2/authorize?client_id=airi-stage-pocket&response_type=code&provider=steam')
@@ -126,10 +126,10 @@ describe('auth UI routes', () => {
   })
 
   it('does not forward an unknown provider to the auth UI', async () => {
-    const { handler, routes } = await buildRoutes({ banExpires: null, banned: false, email: 'ok@example.com', id: 'uid_ok' })
+    const { routes, handler } = await buildRoutes({ id: 'uid_ok', email: 'ok@example.com', banned: false, banExpires: null })
     handler.mockResolvedValueOnce(new Response(null, {
-      headers: { location: '/auth/sign-in?client_id=airi-stage-pocket&response_type=code' },
       status: 302,
+      headers: { location: '/auth/sign-in?client_id=airi-stage-pocket&response_type=code' },
     }))
 
     const res = await routes.request('/api/auth/oauth2/authorize?client_id=airi-stage-pocket&response_type=code&provider=unknown')
@@ -138,10 +138,10 @@ describe('auth UI routes', () => {
   })
 
   it('keeps the generic sign-in redirect when the request has no provider', async () => {
-    const { handler, routes } = await buildRoutes({ banExpires: null, banned: false, email: 'ok@example.com', id: 'uid_ok' })
+    const { routes, handler } = await buildRoutes({ id: 'uid_ok', email: 'ok@example.com', banned: false, banExpires: null })
     handler.mockResolvedValueOnce(new Response(null, {
-      headers: { location: '/auth/sign-in?client_id=airi-stage-pocket&response_type=code' },
       status: 302,
+      headers: { location: '/auth/sign-in?client_id=airi-stage-pocket&response_type=code' },
     }))
 
     const res = await routes.request('/api/auth/oauth2/authorize?client_id=airi-stage-pocket&response_type=code')
@@ -150,7 +150,7 @@ describe('auth UI routes', () => {
   })
 
   it('redirects sign-in provider shortcut to the standalone auth UI', async () => {
-    const { routes } = await buildRoutes({ banExpires: null, banned: false, email: 'ok@example.com', id: 'uid_ok' })
+    const { routes } = await buildRoutes({ id: 'uid_ok', email: 'ok@example.com', banned: false, banExpires: null })
 
     const res = await routes.request('/auth/sign-in?provider=github&client_id=stage-web&prompt=login&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fauth%2Fcallback')
 
@@ -161,7 +161,7 @@ describe('auth UI routes', () => {
   })
 
   it('redirects Electron OIDC callback queries to the standalone auth UI relay', async () => {
-    const { routes } = await buildRoutes({ banExpires: null, banned: false, email: 'ok@example.com', id: 'uid_ok' })
+    const { routes } = await buildRoutes({ id: 'uid_ok', email: 'ok@example.com', banned: false, banExpires: null })
 
     const res = await routes.request('/api/auth/oidc/electron-callback?code=sample-code&state=43123%3Aopaque-state')
 

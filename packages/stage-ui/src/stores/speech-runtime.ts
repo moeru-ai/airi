@@ -22,9 +22,9 @@ export const useSpeechRuntimeStore = defineStore('speech-runtime', () => {
   }
 
   return {
-    dispose,
-    isHost,
     openIntent,
     registerHost,
+    isHost,
+    dispose,
   }
 })

@@ -6,10 +6,6 @@ import type { StreamEvent, StreamFromOptions, StreamOptions } from '../types/llm
 import { stepCountAtLeast } from '@xsai/shared-chat'
 import { streamText } from '@xsai/stream-text'
 
-export function modelKey(model: string, chatProvider: ChatProvider): string {
-  return `${chatProvider.chat(model).baseURL}-${model}`
-}
-
 /**
  * Normalize chat messages so they match the wire format the active provider
  * actually accepts, flattening content-part arrays back to plain strings when
@@ -39,8 +35,8 @@ export function sanitizeMessages(messages: unknown[], supportsContentArray: bool
   return messages.map((message: any) => {
     if (message && message.role === 'error') {
       return {
-        content: `User encountered error: ${String(message.content ?? '')}`,
         role: 'user',
+        content: `User encountered error: ${String(message.content ?? '')}`,
       } as Message
     }
 
@@ -58,7 +54,7 @@ export function sanitizeMessages(messages: unknown[], supportsContentArray: bool
     // arrays uniformly (no longer realistic for the OpenAI-compatible
     // ecosystem, so this is effectively load-bearing).
     if (message && Array.isArray(message.content)) {
-      const contentParts = message.content as { text?: string, type?: string }[]
+      const contentParts = message.content as { type?: string, text?: string }[]
       const hasNonTextPart = contentParts.some(part => part?.type && part.type !== 'text')
       // When the provider supports arrays, only flatten pure-text arrays so we
       // never silently drop image / audio / file parts on a vision-capable
@@ -73,12 +69,86 @@ export function sanitizeMessages(messages: unknown[], supportsContentArray: bool
   })
 }
 
+export function modelKey(model: string, chatProvider: ChatProvider): string {
+  return `${chatProvider.chat(model).baseURL}-${model}`
+}
+
+export function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, options?: StreamOptions): boolean {
+  if (options?.supportsTools !== undefined)
+    return options.supportsTools
+  const key = modelKey(model, chatProvider)
+  return options?.toolsCompatibility?.get(key) !== false
+}
+
+/**
+ * Resolve whether the active model+provider currently supports content-part
+ * arrays. Defaults to `true` so first-time calls keep multimodal payloads;
+ * flips to `false` once {@link isContentArrayRelatedError} has fired on this
+ * model key and the caller has cached the degrade in
+ * {@link StreamOptions.contentArrayCompatibility}.
+ */
+export function streamOptionsContentArrayCompatibilityOk(model: string, chatProvider: ChatProvider, options?: StreamOptions): boolean {
+  if (options?.supportsContentArray !== undefined)
+    return options.supportsContentArray
+  const key = modelKey(model, chatProvider)
+  return options?.contentArrayCompatibility?.get(key) !== false
+}
+
+async function resolveTools(options?: StreamOptions) {
+  const tools = typeof options?.tools === 'function'
+    ? await options.tools()
+    : options?.tools
+  return tools ?? []
+}
+
+/**
+ * Maps xsAI stream events onto the AIRI {@link StreamEvent} contract.
+ *
+ * xsAI 0.5.0-beta.8 marks failed tool executions with `isError: true` on
+ * `tool-result.done` instead of aborting the stream, so AIRI can distinguish
+ * `tool-error` from `tool-result` directly from the event payload.
+ */
+function toAiriStreamEvent(event: Event): StreamEvent | null {
+  switch (event.type) {
+    case 'text.delta':
+      return { type: 'text-delta', text: event.delta }
+    case 'reasoning.delta':
+      return { type: 'reasoning-delta', text: event.delta }
+    case 'tool-call.done':
+      return { ...event, type: 'tool-call' }
+    case 'tool-result.done':
+      if (event.isError === true)
+        return { ...event, type: 'tool-error', isError: true }
+      return {
+        type: 'tool-result',
+        toolCallId: event.toolCallId,
+        result: typeof event.result === 'string' || Array.isArray(event.result)
+          ? event.result
+          : JSON.stringify(event.result),
+      }
+    case 'error':
+      return {
+        type: 'error',
+        error: event.cause ?? new Error(event.message),
+      }
+    case 'text.start':
+    case 'text.done':
+    case 'reasoning.start':
+    case 'reasoning.done':
+    case 'step.start':
+    case 'step.done':
+    case 'tool-call.start':
+    case 'tool-call.delta':
+      return null
+  }
+}
+
 export async function streamFrom({
-  builtinToolsResolver,
+  model,
   chatProvider,
   messages,
-  model,
   options,
+  builtinToolsResolver,
 }: StreamFromOptions) {
   const chatConfig = chatProvider.chat(model)
   const supportsContentArray = streamOptionsContentArrayCompatibilityOk(model, chatProvider, options)
@@ -125,13 +195,13 @@ export async function streamFrom({
       const streamResult = streamText({
         ...chatConfig,
         abortSignal: options?.abortSignal,
-        headers: options?.headers,
         messages: sanitized,
-        onEvent,
-        stopWhen: stepCountAtLeast(10),
+        headers: options?.headers,
         streamOptions: { includeUsage: true },
-        toolChoice: options?.toolChoice,
+        stopWhen: stepCountAtLeast(10),
         tools,
+        toolChoice: options?.toolChoice,
+        onEvent,
       })
 
       // NOTICE: Consume underlying promises to prevent unhandled rejections from
@@ -178,7 +248,7 @@ export async function streamFrom({
           }
           return
         }
-        let usage: undefined | Usage
+        let usage: Usage | undefined
         try {
           usage = await streamResult.totalUsage
         }
@@ -222,76 +292,6 @@ export async function streamFrom({
       rejectOnce(error)
     }
   })
-}
-
-/**
- * Resolve whether the active model+provider currently supports content-part
- * arrays. Defaults to `true` so first-time calls keep multimodal payloads;
- * flips to `false` once {@link isContentArrayRelatedError} has fired on this
- * model key and the caller has cached the degrade in
- * {@link StreamOptions.contentArrayCompatibility}.
- */
-export function streamOptionsContentArrayCompatibilityOk(model: string, chatProvider: ChatProvider, options?: StreamOptions): boolean {
-  if (options?.supportsContentArray !== undefined)
-    return options.supportsContentArray
-  const key = modelKey(model, chatProvider)
-  return options?.contentArrayCompatibility?.get(key) !== false
-}
-
-export function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, options?: StreamOptions): boolean {
-  if (options?.supportsTools !== undefined)
-    return options.supportsTools
-  const key = modelKey(model, chatProvider)
-  return options?.toolsCompatibility?.get(key) !== false
-}
-
-async function resolveTools(options?: StreamOptions) {
-  const tools = typeof options?.tools === 'function'
-    ? await options.tools()
-    : options?.tools
-  return tools ?? []
-}
-
-/**
- * Maps xsAI stream events onto the AIRI {@link StreamEvent} contract.
- *
- * xsAI 0.5.0-beta.8 marks failed tool executions with `isError: true` on
- * `tool-result.done` instead of aborting the stream, so AIRI can distinguish
- * `tool-error` from `tool-result` directly from the event payload.
- */
-function toAiriStreamEvent(event: Event): null | StreamEvent {
-  switch (event.type) {
-    case 'error':
-      return {
-        error: event.cause ?? new Error(event.message),
-        type: 'error',
-      }
-    case 'reasoning.delta':
-      return { text: event.delta, type: 'reasoning-delta' }
-    case 'reasoning.done':
-    case 'reasoning.start':
-    case 'step.done':
-    case 'step.start':
-    case 'text.done':
-    case 'text.start':
-    case 'tool-call.delta':
-    case 'tool-call.start':
-      return null
-    case 'text.delta':
-      return { text: event.delta, type: 'text-delta' }
-    case 'tool-call.done':
-      return { ...event, type: 'tool-call' }
-    case 'tool-result.done':
-      if (event.isError === true)
-        return { ...event, isError: true, type: 'tool-error' }
-      return {
-        result: typeof event.result === 'string' || Array.isArray(event.result)
-          ? event.result
-          : JSON.stringify(event.result),
-        toolCallId: event.toolCallId,
-        type: 'tool-result',
-      }
-  }
 }
 
 // Runtime auto-degrade: patterns that indicate the model/provider does not support tool calling.

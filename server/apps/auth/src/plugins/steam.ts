@@ -22,13 +22,13 @@ const STEAM_CLAIMED_ID_PATTERN = /^https:\/\/steamcommunity\.com\/openid\/id\/(\
 // better-auth's OpenAPI generation supports non-Zod schemas.
 const SignInBodySchema = z.object({
   callbackURL: z.string().meta({ description: 'The URL to redirect to after sign in' }),
-  disableRedirect: z.boolean().optional(),
   errorCallbackURL: z.string().meta({ description: 'The URL to redirect to if an error occurs' }).optional(),
+  disableRedirect: z.boolean().optional(),
 })
 
 const CallbackQuerySchema = z.looseObject({
-  'openid.mode': z.string().optional(),
   'state': z.string().optional(),
+  'openid.mode': z.string().optional(),
 })
 
 /**
@@ -88,9 +88,9 @@ export function steam() {
 
     try {
       const body = await ofetch<string, 'text'>(STEAM_OPENID_ENDPOINT, {
-        body: verifyParams.toString(),
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: verifyParams.toString(),
         responseType: 'text',
         timeout: 10_000,
       })
@@ -105,60 +105,60 @@ export function steam() {
   }
 
   const signInSteam = createAuthEndpoint('/sign-in/steam', {
+    method: 'POST',
     body: SignInBodySchema,
     metadata: {
       openapi: {
         description: 'Start Steam OpenID sign-in',
         responses: {
           200: {
-            content: { 'application/json': { schema: { properties: { redirect: { type: 'boolean' }, url: { type: 'string' } }, type: 'object' } } },
             description: 'Redirect URL to Steam OpenID login',
+            content: { 'application/json': { schema: { type: 'object', properties: { url: { type: 'string' }, redirect: { type: 'boolean' } } } } },
           },
         },
       },
     },
-    method: 'POST',
   }, async (ctx) => {
     const { state } = await generateState(ctx, undefined, undefined)
     return ctx.json({
-      redirect: !ctx.body.disableRedirect,
       url: buildOpenIdRedirectURL(ctx.context.baseURL, state),
+      redirect: !ctx.body.disableRedirect,
     })
   })
 
   const linkSteam = createAuthEndpoint('/link/steam', {
+    method: 'POST',
     body: SignInBodySchema,
+    use: [sessionMiddleware],
     metadata: {
       openapi: {
         description: 'Link the current user to a Steam account',
         responses: {
           200: {
-            content: { 'application/json': { schema: { properties: { redirect: { type: 'boolean' }, url: { type: 'string' } }, type: 'object' } } },
             description: 'Redirect URL to Steam OpenID login',
+            content: { 'application/json': { schema: { type: 'object', properties: { url: { type: 'string' }, redirect: { type: 'boolean' } } } } },
           },
         },
       },
     },
-    method: 'POST',
-    use: [sessionMiddleware],
   }, async (ctx) => {
     const session = ctx.context.session
-    const { state } = await generateState(ctx, { email: session.user.email, userId: session.user.id }, undefined)
+    const { state } = await generateState(ctx, { userId: session.user.id, email: session.user.email }, undefined)
     return ctx.json({
-      redirect: !ctx.body.disableRedirect,
       url: buildOpenIdRedirectURL(ctx.context.baseURL, state),
+      redirect: !ctx.body.disableRedirect,
     })
   })
 
   const steamCallback = createAuthEndpoint('/steam/callback', {
+    method: 'GET',
+    query: CallbackQuerySchema,
     metadata: {
       openapi: {
         description: 'Steam OpenID callback',
         responses: { 200: { description: 'Redirects to callbackURL or errorURL' } },
       },
     },
-    method: 'GET',
-    query: CallbackQuerySchema,
   }, async (ctx) => {
     const parsedState = await parseState(ctx)
     const callbackURL = parsedState.callbackURL
@@ -193,9 +193,9 @@ export function steam() {
 
       if (!existingAccount) {
         await ctx.context.internalAdapter.linkAccount({
-          accountId: steamId,
-          providerId: 'steam',
           userId: link.userId,
+          providerId: 'steam',
+          accountId: steamId,
         })
       }
       throw ctx.redirect(callbackURL)
@@ -212,7 +212,7 @@ export function steam() {
           emailVerified: true,
           name: `Steam User ${steamId}`,
         },
-        { accountId: steamId, providerId: 'steam' },
+        { providerId: 'steam', accountId: steamId },
       )
       userId = user.id
     }
@@ -227,11 +227,11 @@ export function steam() {
   })
 
   return {
+    id: 'steam',
     endpoints: {
-      linkSteam,
       signInSteam,
+      linkSteam,
       steamCallback,
     },
-    id: 'steam',
   }
 }

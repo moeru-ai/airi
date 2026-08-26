@@ -1,8 +1,8 @@
 export interface AudioManagerType {
-  analyser: AnalyserNode
   audioContext: AudioContext
+  analyser: AnalyserNode
   dataBuffer: Float32Array<ArrayBuffer>
-  frameId: null | number
+  frameId: number | null
   onVolumeChange?: (volume: number) => void
 }
 
@@ -15,17 +15,33 @@ export function createAudioManager(): AudioManagerType {
   analyser.connect(audioContext.destination)
 
   return {
-    analyser,
     audioContext,
+    analyser,
     dataBuffer,
     frameId: null,
     onVolumeChange: undefined,
   }
 }
 
-export function disposeAudioManager(manager: AudioManagerType) {
-  stopVolumeTracking(manager)
-  manager.audioContext.close()
+function calculateVolume(manager: AudioManagerType): number {
+  manager.analyser.getFloatTimeDomainData(manager.dataBuffer)
+
+  // Find peak volume
+  let volume = 0.0
+  for (let i = 0; i < manager.dataBuffer.length; i++) {
+    volume = Math.max(volume, Math.abs(manager.dataBuffer[i]))
+  }
+
+  // Apply sigmoid normalization (from pixiv implementation)
+  volume = 1 / (1 + Math.exp(-45 * volume + 5))
+  return volume < 0.1 ? 0 : volume
+}
+
+function updateFrame(manager: AudioManagerType) {
+  if (manager.onVolumeChange) {
+    manager.onVolumeChange(calculateVolume(manager))
+  }
+  manager.frameId = requestAnimationFrame(() => updateFrame(manager))
 }
 
 export async function playAudio(manager: AudioManagerType, source: ArrayBuffer | string): Promise<void> {
@@ -65,23 +81,7 @@ export function stopVolumeTracking(manager: AudioManagerType) {
   manager.onVolumeChange = undefined
 }
 
-function calculateVolume(manager: AudioManagerType): number {
-  manager.analyser.getFloatTimeDomainData(manager.dataBuffer)
-
-  // Find peak volume
-  let volume = 0.0
-  for (let i = 0; i < manager.dataBuffer.length; i++) {
-    volume = Math.max(volume, Math.abs(manager.dataBuffer[i]))
-  }
-
-  // Apply sigmoid normalization (from pixiv implementation)
-  volume = 1 / (1 + Math.exp(-45 * volume + 5))
-  return volume < 0.1 ? 0 : volume
-}
-
-function updateFrame(manager: AudioManagerType) {
-  if (manager.onVolumeChange) {
-    manager.onVolumeChange(calculateVolume(manager))
-  }
-  manager.frameId = requestAnimationFrame(() => updateFrame(manager))
+export function disposeAudioManager(manager: AudioManagerType) {
+  stopVolumeTracking(manager)
+  manager.audioContext.close()
 }

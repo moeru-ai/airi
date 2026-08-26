@@ -8,7 +8,7 @@ export interface OnboardingConfiguration {
   skipped?: boolean
 }
 
-type OnboardingResolver = (context: AudioInputPreflightContext) => OnboardingConfiguration | Promise<OnboardingConfiguration | undefined> | undefined
+type OnboardingResolver = (context: AudioInputPreflightContext) => OnboardingConfiguration | undefined | Promise<OnboardingConfiguration | undefined>
 
 /** Configures onboarding with values selected by one case. */
 export function configureOnboarding(resolve: OnboardingResolver): AudioInputPreflightCallback {

@@ -1,13 +1,19 @@
+/** Pricing category used by provider catalogue filters. */
+export type ProviderPricing = 'free' | 'paid'
+
+/** Deployment category used by provider catalogue filters. */
+export type ProviderDeployment = 'local' | 'cloud'
+
 /**
  * Represents catalogue attributes used by provider filtering UI.
  */
 export interface ProviderAttributes {
-  /** Whether the provider should receive the existing recommended tag. */
-  beginnerRecommended?: boolean
-  /** Runtime/deployment bucket shown by the provider source filter. */
-  deployment?: ProviderDeployment
   /** Price bucket shown by the provider source filter. */
   pricing?: ProviderPricing
+  /** Runtime/deployment bucket shown by the provider source filter. */
+  deployment?: ProviderDeployment
+  /** Whether the provider should receive the existing recommended tag. */
+  beginnerRecommended?: boolean
 }
 
 /** Minimal provider identity accepted by the attribute resolver. */
@@ -15,20 +21,14 @@ export interface ProviderAttributesInput {
   id?: string
 }
 
-/** Deployment category used by provider catalogue filters. */
-export type ProviderDeployment = 'cloud' | 'local'
-
-/** Pricing category used by provider catalogue filters. */
-export type ProviderPricing = 'free' | 'paid'
-
 const paidCloud = {
-  deployment: 'cloud',
   pricing: 'paid',
+  deployment: 'cloud',
 } satisfies ProviderAttributes
 
 const freeLocal = {
-  deployment: 'local',
   pricing: 'free',
+  deployment: 'local',
 } satisfies ProviderAttributes
 
 const recommendedPaidCloud = {
@@ -102,7 +102,24 @@ const providerAttributesById = {
   'volcengine-coding-plan': paidCloud,
   'xai': paidCloud,
   'zai': paidCloud,
-} satisfies Record<string, false | ProviderAttributes>
+} satisfies Record<string, ProviderAttributes | false>
+
+/**
+ * Normalizes provider attributes by dropping undefined fields.
+ *
+ * Before:
+ * - `{ pricing: "paid", deployment: undefined }`
+ *
+ * After:
+ * - `{ pricing: "paid" }`
+ */
+function compactProviderAttributes(metadata: ProviderAttributes): ProviderAttributes {
+  return {
+    ...(metadata.pricing ? { pricing: metadata.pricing } : {}),
+    ...(metadata.deployment ? { deployment: metadata.deployment } : {}),
+    ...(metadata.beginnerRecommended !== undefined ? { beginnerRecommended: metadata.beginnerRecommended } : {}),
+  }
+}
 
 /**
  * Resolves the provider attributes used by settings filters.
@@ -130,21 +147,4 @@ export function resolveProviderAttributes(
     return compactProviderAttributes(attributes)
 
   return {}
-}
-
-/**
- * Normalizes provider attributes by dropping undefined fields.
- *
- * Before:
- * - `{ pricing: "paid", deployment: undefined }`
- *
- * After:
- * - `{ pricing: "paid" }`
- */
-function compactProviderAttributes(metadata: ProviderAttributes): ProviderAttributes {
-  return {
-    ...(metadata.pricing ? { pricing: metadata.pricing } : {}),
-    ...(metadata.deployment ? { deployment: metadata.deployment } : {}),
-    ...(metadata.beginnerRecommended !== undefined ? { beginnerRecommended: metadata.beginnerRecommended } : {}),
-  }
 }

@@ -12,22 +12,22 @@ describe('fluxTransactionService', () => {
   beforeAll(async () => {
     db = await mockDB(schema)
     await db.insert(schema.user).values({
-      email: 'tx@example.com',
       id: 'user-tx',
       name: 'Transaction User',
+      email: 'tx@example.com',
     })
     service = createFluxTransactionService(db)
   })
 
   it('log should insert a single transaction entry', async () => {
     await service.log({
+      userId: 'user-tx',
+      type: 'credit',
       amount: 500,
-      balanceAfter: 500,
       balanceBefore: 0,
+      balanceAfter: 500,
       description: 'Stripe payment',
       metadata: { stripeSessionId: 'sess_123' },
-      type: 'credit',
-      userId: 'user-tx',
     })
 
     const { records } = await service.getHistory('user-tx', 10, 0)
@@ -38,8 +38,8 @@ describe('fluxTransactionService', () => {
 
   it('logBatch should insert multiple entries', async () => {
     await service.logBatch([
-      { amount: 10, balanceAfter: 490, balanceBefore: 500, description: 'gpt-4o', type: 'debit', userId: 'user-tx' },
-      { amount: 5, balanceAfter: 485, balanceBefore: 490, description: 'gpt-4o-mini', type: 'debit', userId: 'user-tx' },
+      { userId: 'user-tx', type: 'debit', amount: 10, balanceBefore: 500, balanceAfter: 490, description: 'gpt-4o' },
+      { userId: 'user-tx', type: 'debit', amount: 5, balanceBefore: 490, balanceAfter: 485, description: 'gpt-4o-mini' },
     ])
 
     const { records } = await service.getHistory('user-tx', 10, 0)
@@ -53,13 +53,13 @@ describe('fluxTransactionService', () => {
   })
 
   it('getHistory should paginate correctly with hasMore', async () => {
-    const { hasMore, records } = await service.getHistory('user-tx', 2, 0)
+    const { records, hasMore } = await service.getHistory('user-tx', 2, 0)
     expect(records).toHaveLength(2)
     expect(hasMore).toBe(true)
   })
 
   it('getHistory should return hasMore=false on last page', async () => {
-    const { hasMore, records } = await service.getHistory('user-tx', 10, 0)
+    const { records, hasMore } = await service.getHistory('user-tx', 10, 0)
     expect(records).toHaveLength(3)
     expect(hasMore).toBe(false)
   })

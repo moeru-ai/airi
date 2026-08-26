@@ -23,7 +23,7 @@ export async function authedFetch(
   init?: RequestInit,
 ): Promise<Response> {
   const authStore = useAuthStore()
-  const doFetch = (token: null | string): Promise<Response> => {
+  const doFetch = (token: string | null): Promise<Response> => {
     const headers = new Headers(init?.headers)
     if (token)
       headers.set('Authorization', `Bearer ${token}`)
@@ -33,7 +33,7 @@ export async function authedFetch(
       if (posthogIdentity.sessionId)
         headers.set('x-posthog-session-id', posthogIdentity.sessionId)
     }
-    return fetch(input, { ...init, credentials: 'omit', headers })
+    return fetch(input, { ...init, headers, credentials: 'omit' })
   }
 
   const response = await doFetch(authStore.token)
@@ -59,15 +59,15 @@ export async function authedFetch(
   return retried
 }
 
-async function promptReLogin(authStore: ReturnType<typeof useAuthStore>): Promise<void> {
-  await authStore.clearAllAuthState()
-  authStore.needsLogin = true
-}
-
 function shouldAttachPosthogIdentity(input: RequestInfo | URL): boolean {
   const url = typeof input === 'string'
     ? input
     : input instanceof URL ? input.toString() : input.url
 
   return new URL(url, SERVER_URL).origin === new URL(SERVER_URL).origin
+}
+
+async function promptReLogin(authStore: ReturnType<typeof useAuthStore>): Promise<void> {
+  await authStore.clearAllAuthState()
+  authStore.needsLogin = true
 }

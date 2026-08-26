@@ -8,10 +8,10 @@ import { useVisionStore } from './vision'
 
 // Vision provider instances use a category prefix but share the official chat definition.
 const officialModuleDefaults = {
-  consciousness: { model: 'auto', provider: OFFICIAL_CHAT_PROVIDER_ID },
-  hearing: { model: 'auto', provider: OFFICIAL_TRANSCRIPTION_PROVIDER_ID },
-  speech: { model: 'auto', provider: OFFICIAL_SPEECH_PROVIDER_ID },
-  vision: { model: 'auto', provider: OFFICIAL_VISION_PROVIDER_ID },
+  consciousness: { provider: OFFICIAL_CHAT_PROVIDER_ID, model: 'auto' },
+  hearing: { provider: OFFICIAL_TRANSCRIPTION_PROVIDER_ID, model: 'auto' },
+  speech: { provider: OFFICIAL_SPEECH_PROVIDER_ID, model: 'auto' },
+  vision: { provider: OFFICIAL_VISION_PROVIDER_ID, model: 'auto' },
 } as const
 
 /**

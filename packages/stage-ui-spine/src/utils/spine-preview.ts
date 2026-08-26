@@ -58,6 +58,26 @@ export async function loadSpineModelPreview(file: File): Promise<string | undefi
 
       try {
         const app: import('@esotericsoftware/spine-webgl').SpineCanvasApp = {
+          loadAssets: (canvasApp: import('@esotericsoftware/spine-webgl').SpineCanvas) => {
+            // NOTICE:
+            // Patch BEFORE any load calls. SpineCanvas calls loadAssets
+            // synchronously in its constructor, and load methods immediately
+            // dispatch XHR. Patching after the constructor is too late.
+            // Source/context: spine-core/AssetManagerBase.js Downloader class.
+            // Removal condition: Spine ships a Blob/buffer-aware loader.
+            const am = canvasApp.assetManager
+            patchAssetManagerForZipAssets(am, blobUrls, rawData, layout.texturePaths)
+
+            if (layout.skeletonFormat === 'binary')
+              am.loadBinary(skeletonAssetPath)
+            else
+              am.loadJson(skeletonAssetPath)
+
+            // loadTextureAtlas loads every page image referenced by the atlas
+            // through the patched downloader, so the texture pages do not need
+            // to be requested again individually.
+            am.loadTextureAtlas(atlasAssetPath)
+          },
           initialize: (canvasApp: import('@esotericsoftware/spine-webgl').SpineCanvas) => {
             const am = canvasApp.assetManager
 
@@ -79,25 +99,14 @@ export async function loadSpineModelPreview(file: File): Promise<string | undefi
             }
             ;(canvasApp as unknown as { __previewSkeleton: import('@esotericsoftware/spine-webgl').Skeleton }).__previewSkeleton = skeleton
           },
-          loadAssets: (canvasApp: import('@esotericsoftware/spine-webgl').SpineCanvas) => {
-            // NOTICE:
-            // Patch BEFORE any load calls. SpineCanvas calls loadAssets
-            // synchronously in its constructor, and load methods immediately
-            // dispatch XHR. Patching after the constructor is too late.
-            // Source/context: spine-core/AssetManagerBase.js Downloader class.
-            // Removal condition: Spine ships a Blob/buffer-aware loader.
-            const am = canvasApp.assetManager
-            patchAssetManagerForZipAssets(am, blobUrls, rawData, layout.texturePaths)
-
-            if (layout.skeletonFormat === 'binary')
-              am.loadBinary(skeletonAssetPath)
-            else
-              am.loadJson(skeletonAssetPath)
-
-            // loadTextureAtlas loads every page image referenced by the atlas
-            // through the patched downloader, so the texture pages do not need
-            // to be requested again individually.
-            am.loadTextureAtlas(atlasAssetPath)
+          update: (canvasApp: import('@esotericsoftware/spine-webgl').SpineCanvas, _delta: number) => {
+            const skeleton = (canvasApp as unknown as { __previewSkeleton?: import('@esotericsoftware/spine-webgl').Skeleton }).__previewSkeleton
+            if (skeleton) {
+              if (spine.Physics)
+                skeleton.updateWorldTransform(spine.Physics.update)
+              else
+                (skeleton as any).updateWorldTransform()
+            }
           },
           render: (canvasApp: import('@esotericsoftware/spine-webgl').SpineCanvas) => {
             const skeleton = (canvasApp as unknown as { __previewSkeleton?: import('@esotericsoftware/spine-webgl').Skeleton }).__previewSkeleton
@@ -148,15 +157,6 @@ export async function loadSpineModelPreview(file: File): Promise<string | undefi
             catch (err) {
               console.error('[Spine] Failed to capture preview:', err)
               finish(undefined)
-            }
-          },
-          update: (canvasApp: import('@esotericsoftware/spine-webgl').SpineCanvas, _delta: number) => {
-            const skeleton = (canvasApp as unknown as { __previewSkeleton?: import('@esotericsoftware/spine-webgl').Skeleton }).__previewSkeleton
-            if (skeleton) {
-              if (spine.Physics)
-                skeleton.updateWorldTransform(spine.Physics.update)
-              else
-                (skeleton as any).updateWorldTransform()
             }
           },
         }
@@ -210,14 +210,14 @@ export async function loadSpineModelPreview(file: File): Promise<string | undefi
 function patchAssetManagerForZipAssets(
   assetManager: import('@esotericsoftware/spine-webgl').AssetManager,
   blobUrls: Record<string, string>,
-  rawData: Record<string, string | Uint8Array>,
+  rawData: Record<string, Uint8Array | string>,
   texturePaths: string[],
 ) {
   const downloader = (assetManager as unknown as {
     downloader?: {
-      downloadBinary: (url: string, success: (data: Uint8Array) => void, error: (status: number, response: unknown) => void) => void
-      downloadText: (url: string, success: (data: string) => void, error: (status: number, responseText: string) => void) => void
       rawDataUris: Record<string, string>
+      downloadText: (url: string, success: (data: string) => void, error: (status: number, responseText: string) => void) => void
+      downloadBinary: (url: string, success: (data: Uint8Array) => void, error: (status: number, response: unknown) => void) => void
     }
   }).downloader
   if (!downloader)

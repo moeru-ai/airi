@@ -6,32 +6,36 @@
  * and retrieved by overlay pages that need to invoke computer-use MCP tools.
  */
 
-export interface McpCallToolPayload {
-  arguments?: Record<string, unknown>
+export interface McpToolDescriptor {
+  serverName: string
   name: string
+  toolName: string
+  description?: string
+  inputSchema: Record<string, unknown>
+}
+
+export interface McpCallToolPayload {
+  name: string
+  arguments?: Record<string, unknown>
 }
 
 export interface McpCallToolResult {
   content?: Array<Record<string, unknown>>
-  isError?: boolean
   structuredContent?: Record<string, unknown>
   toolResult?: unknown
-}
-
-export interface McpToolDescriptor {
-  description?: string
-  inputSchema: Record<string, unknown>
-  name: string
-  serverName: string
-  toolName: string
+  isError?: boolean
 }
 
 interface McpToolBridge {
-  callTool: (payload: McpCallToolPayload) => Promise<McpCallToolResult>
   listTools: () => Promise<McpToolDescriptor[]>
+  callTool: (payload: McpCallToolPayload) => Promise<McpCallToolResult>
 }
 
 let bridge: McpToolBridge | undefined
+
+export function setMcpToolBridge(nextBridge: McpToolBridge) {
+  bridge = nextBridge
+}
 
 export function clearMcpToolBridge() {
   bridge = undefined
@@ -43,8 +47,4 @@ export function getMcpToolBridge(): McpToolBridge {
   }
 
   return bridge
-}
-
-export function setMcpToolBridge(nextBridge: McpToolBridge) {
-  bridge = nextBridge
 }

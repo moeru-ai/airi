@@ -30,7 +30,7 @@ export function themeColorFromPropertyOf(colorFromClass: string, property: strin
   }
 }
 
-export function themeColorFromValue(value: string | { dark: string, light: string }): () => Promise<string> {
+export function themeColorFromValue(value: string | { light: string, dark: string }): () => Promise<string> {
   return async () => {
     if (typeof value === 'string') {
       return value
@@ -42,14 +42,29 @@ export function themeColorFromValue(value: string | { dark: string, light: strin
   }
 }
 
+export function useThemeColor(colorFrom: () => string | Promise<string>) {
+  async function updateThemeColor() {
+    if (!('document' in globalThis) || globalThis.document == null)
+      return
+    if (!('window' in globalThis) || globalThis.window == null)
+      return
+
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', new Color(await colorFrom()).to('srgb').toString({ format: 'hex' }))
+  }
+
+  return {
+    updateThemeColor,
+  }
+}
+
 export function useBackgroundThemeColor({
   backgroundSurface,
-  sampledColor,
   selectedOption,
+  sampledColor,
 }: {
-  backgroundSurface: Ref<InstanceType<typeof BackgroundProvider> | null | undefined>
-  sampledColor: Ref<string>
+  backgroundSurface: Ref<InstanceType<typeof BackgroundProvider> | undefined | null>
   selectedOption: Ref<BackgroundItem | undefined>
+  sampledColor: Ref<string>
 }) {
   const visibility = useDocumentVisibility()
   const { themeColorsHueDynamic } = storeToRefs(useSettings())
@@ -122,22 +137,22 @@ export function useBackgroundThemeColor({
     await waitForBackgroundReady()
 
     const result = await colorFromElement(el, {
+      mode: 'html2canvas',
       html2canvas: {
-        allowTaint: true,
-        backgroundColor: null,
-        onclone: patchThemeSamplingHtml2CanvasClone,
         region: {
-          height: Math.min(140, el.offsetHeight),
-          width: el.offsetWidth,
           x: 0,
           y: 0,
+          width: el.offsetWidth,
+          height: Math.min(140, el.offsetHeight),
         },
         sampleHeight: 20,
         sampleStride: 10,
         scale: 0.5,
+        backgroundColor: null,
+        allowTaint: true,
         useCORS: true,
+        onclone: patchThemeSamplingHtml2CanvasClone,
       },
-      mode: 'html2canvas',
     })
 
     const color = result.html2canvas?.average
@@ -181,23 +196,8 @@ export function useBackgroundThemeColor({
   })
 
   return {
-    sampleBackgroundColor,
     sampledColor,
+    sampleBackgroundColor,
     syncBackgroundTheme,
-  }
-}
-
-export function useThemeColor(colorFrom: () => Promise<string> | string) {
-  async function updateThemeColor() {
-    if (!('document' in globalThis) || globalThis.document == null)
-      return
-    if (!('window' in globalThis) || globalThis.window == null)
-      return
-
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', new Color(await colorFrom()).to('srgb').toString({ format: 'hex' }))
-  }
-
-  return {
-    updateThemeColor,
   }
 }

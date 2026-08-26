@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const appMock = vi.hoisted(() => ({
-  getPath: vi.fn((name: string) => name === 'logs' ? '/tmp/airi/logs' : `/tmp/${name}`),
   getVersion: vi.fn(() => '0.9.0-beta.4'),
-  isPackaged: false,
+  getPath: vi.fn((name: string) => name === 'logs' ? '/tmp/airi/logs' : `/tmp/${name}`),
   quit: vi.fn(),
+  isPackaged: false,
 }))
 
 const isDevState = vi.hoisted(() => ({
@@ -21,16 +21,16 @@ const updaterState = vi.hoisted(() => ({
 
 function createUpdaterMock() {
   return {
-    allowPrerelease: false,
+    on: vi.fn(),
     autoDownload: true,
+    allowPrerelease: false,
     channel: undefined as string | undefined,
+    logger: undefined as any,
+    forceDevUpdateConfig: false,
+    setFeedURL: vi.fn(),
     checkForUpdates: vi.fn().mockResolvedValue(undefined),
     downloadUpdate: vi.fn().mockResolvedValue(undefined),
-    forceDevUpdateConfig: false,
-    logger: undefined as any,
-    on: vi.fn(),
     quitAndInstall: vi.fn(),
-    setFeedURL: vi.fn(),
   }
 }
 
@@ -55,10 +55,10 @@ vi.mock('std-env', () => ({
 vi.mock('@guiiai/logg', () => ({
   useLogg: () => ({
     useGlobalConfig: () => ({
-      debug: vi.fn(),
-      error: vi.fn(),
       info: vi.fn(),
       warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
       withError: () => ({
         error: vi.fn(),
       }),
@@ -82,35 +82,35 @@ describe('setupAutoUpdater', () => {
   const expectedChannelByArch = process.arch === 'arm64' ? 'latest-arm64' : 'latest-x64'
 
   const laneReleaseTagMap = {
-    alpha: 'v0.9.11-alpha.4',
-    beta: 'v0.9.10-beta.3',
     latest: 'v0.9.12-nightly.7',
-    nightly: 'v0.9.12-nightly.7',
     stable: 'v0.9.9',
+    beta: 'v0.9.10-beta.3',
+    alpha: 'v0.9.11-alpha.4',
+    nightly: 'v0.9.12-nightly.7',
   } as const
   const bundleVersions = ['0.9.0', '0.9.0-beta.4', '0.9.0-alpha.2'] as const
   const laneMatrix = ['latest', 'stable', 'beta', 'alpha', 'nightly'] as const
 
   const defaultReleases = [
-    { draft: false, prerelease: true, tag_name: 'v0.9.0-beta.6' },
+    { tag_name: 'v0.9.0-beta.6', draft: false, prerelease: true },
   ]
   const matrixReleases = [
-    { draft: false, prerelease: false, tag_name: 'v0.9.7' },
-    { draft: false, prerelease: false, tag_name: 'v0.9.9' },
-    { draft: false, prerelease: true, tag_name: 'v0.9.9-beta.1' },
-    { draft: false, prerelease: true, tag_name: 'v0.9.10-beta.3' },
-    { draft: false, prerelease: true, tag_name: 'v0.9.10-alpha.5' },
-    { draft: false, prerelease: true, tag_name: 'v0.9.11-alpha.4' },
-    { draft: false, prerelease: true, tag_name: 'v0.9.11-nightly.1' },
-    { draft: false, prerelease: true, tag_name: 'v0.9.12-nightly.7' },
+    { tag_name: 'v0.9.7', draft: false, prerelease: false },
+    { tag_name: 'v0.9.9', draft: false, prerelease: false },
+    { tag_name: 'v0.9.9-beta.1', draft: false, prerelease: true },
+    { tag_name: 'v0.9.10-beta.3', draft: false, prerelease: true },
+    { tag_name: 'v0.9.10-alpha.5', draft: false, prerelease: true },
+    { tag_name: 'v0.9.11-alpha.4', draft: false, prerelease: true },
+    { tag_name: 'v0.9.11-nightly.1', draft: false, prerelease: true },
+    { tag_name: 'v0.9.12-nightly.7', draft: false, prerelease: true },
   ]
 
   function mockGitHubReleasesFetch(releases = defaultReleases) {
     const fetchSpy = vi.fn().mockResolvedValue({
-      json: async () => releases,
       ok: true,
       status: 200,
       statusText: 'OK',
+      json: async () => releases,
     })
     vi.stubGlobal('fetch', fetchSpy)
     return fetchSpy
@@ -131,8 +131,8 @@ describe('setupAutoUpdater', () => {
 
   it('resolves release tag from GitHub API and configures generic provider for checks', async () => {
     const fetchSpy = mockGitHubReleasesFetch([
-      { draft: false, prerelease: true, tag_name: 'v0.9.0-beta.6' },
-      { draft: false, prerelease: true, tag_name: 'v0.9.0-beta.5' },
+      { tag_name: 'v0.9.0-beta.6', draft: false, prerelease: true },
+      { tag_name: 'v0.9.0-beta.5', draft: false, prerelease: true },
     ])
     const { setupAutoUpdater } = await import('./auto-updater')
     const service = setupAutoUpdater()
@@ -198,9 +198,9 @@ describe('setupAutoUpdater', () => {
   it('supports explicit stable lane selection for future dynamic channel switching', async () => {
     process.env.AIRI_UPDATE_CHANNEL = 'stable'
     mockGitHubReleasesFetch([
-      { draft: false, prerelease: true, tag_name: 'v0.9.0-beta.6' },
-      { draft: false, prerelease: false, tag_name: 'v0.8.9' },
-      { draft: false, prerelease: false, tag_name: 'v0.8.8' },
+      { tag_name: 'v0.9.0-beta.6', draft: false, prerelease: true },
+      { tag_name: 'v0.8.9', draft: false, prerelease: false },
+      { tag_name: 'v0.8.8', draft: false, prerelease: false },
     ])
 
     const { setupAutoUpdater } = await import('./auto-updater')
@@ -274,12 +274,12 @@ describe('setupAutoUpdater', () => {
     const service = setupAutoUpdater()
 
     expect(service.state.diagnostics).toEqual(expect.objectContaining({
+      platform: process.platform,
       arch: process.arch,
       channel: expectedChannelByArch,
       executablePath: expect.any(String),
-      isOverrideActive: false,
       logFilePath: expect.stringMatching(/stage-tamagotchi-updater[\\/]updater-log\.txt$/),
-      platform: process.platform,
+      isOverrideActive: false,
     }))
     expect(service.state.diagnostics).not.toHaveProperty('updaterCacheDir')
     expect(service.state.diagnostics).not.toHaveProperty('pendingDir')

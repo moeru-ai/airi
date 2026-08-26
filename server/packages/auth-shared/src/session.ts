@@ -1,27 +1,27 @@
 /** Authenticated principal exposed to AIRI resource handlers. */
 export interface AuthSession {
-  session: {
-    createdAt: Date
-    expiresAt: Date
-    id: string
-    ipAddress?: null | string
-    token: string
-    updatedAt: Date
-    userAgent?: null | string
-    userId: string
-  }
   user: {
-    banExpires?: Date | null
-    banned?: boolean | null
-    banReason?: null | string
-    createdAt: Date
+    id: string
+    name: string
     email: string
     emailVerified: boolean
-    id: string
-    image?: null | string
+    image?: string | null
+    banned?: boolean | null
+    banReason?: string | null
+    banExpires?: Date | null
     lastSeenAt?: Date | null
-    name: string
+    createdAt: Date
     updatedAt: Date
+  }
+  session: {
+    id: string
+    token: string
+    userId: string
+    expiresAt: Date
+    createdAt: Date
+    updatedAt: Date
+    ipAddress?: string | null
+    userAgent?: string | null
   }
 }
 
@@ -29,7 +29,7 @@ export interface AuthSession {
  * Evaluates Better Auth's persisted ban fields without requiring its runtime.
  * Expired temporary bans are treated as inactive on stateless JWT paths.
  */
-export function isUserBannedNow(user: { banExpires?: Date | null | string, banned?: boolean | null }): boolean {
+export function isUserBannedNow(user: { banned?: boolean | null, banExpires?: Date | string | null }): boolean {
   if (!user.banned)
     return false
   if (user.banExpires == null)

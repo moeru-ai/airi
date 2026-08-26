@@ -1,15 +1,6 @@
 import type { ChatAssistantMessage, ChatHistoryItem } from '@proj-airi/core-agent'
 import type { NewMessagesPayload, WireMessage } from '@proj-airi/server-sdk-shared'
 
-export interface CloudMergeResult {
-  /** True when either `messages` or `maxSeq` differs from the input. */
-  dirty: boolean
-  /** Highest seq seen, including the input cursor. */
-  maxSeq: number
-  /** Merged message list (returns the original reference when nothing changed). */
-  messages: ChatHistoryItem[]
-}
-
 /**
  * Extract a plain-text payload from a local `ChatHistoryItem` for upload.
  *
@@ -34,7 +25,7 @@ export function extractMessageText(message: ChatHistoryItem): string {
     const assistant: ChatAssistantMessage = message
     if (Array.isArray(assistant.slices) && assistant.slices.length > 0) {
       const text = assistant.slices
-        .filter((slice): slice is { text: string, type: 'text' } => slice.type === 'text')
+        .filter((slice): slice is { type: 'text', text: string } => slice.type === 'text')
         .map(slice => slice.text)
         .join('')
       if (text)
@@ -81,6 +72,81 @@ export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
   if (message.role === 'error')
     return false
   return true
+}
+
+/**
+ * Convert a server `WireMessage` into a local `ChatHistoryItem`.
+ *
+ * Before:
+ * - { id, role: 'assistant', content: 'hi', seq: 7, ... }
+ *
+ * After:
+ * - { id, role: 'assistant', content: 'hi', slices: [{type:'text', text:'hi'}], tool_results: [], createdAt }
+ *
+ * Use when:
+ * - Merging messages received via `pullMessages` or `newMessages` into the
+ *   local session store. The local shape carries assistant-specific fields
+ *   that the wire format does not, so we synthesize minimal placeholders
+ *   for them.
+ */
+export function wireMessageToLocal(wire: WireMessage): ChatHistoryItem {
+  // Server wire format only stores plain text content; we recreate the
+  // local shape with empty tool_results / slices so downstream UI code can
+  // assume the invariants documented in core-agent's ChatAssistantMessage.
+  switch (wire.role) {
+    case 'assistant': {
+      const assistant: ChatAssistantMessage = {
+        role: 'assistant',
+        content: wire.content,
+        slices: wire.content ? [{ type: 'text', text: wire.content }] : [],
+        tool_results: [],
+      }
+      return Object.assign(assistant, {
+        id: wire.id,
+        createdAt: wire.createdAt,
+      })
+    }
+    case 'user':
+      return {
+        role: 'user',
+        content: wire.content,
+        id: wire.id,
+        createdAt: wire.createdAt,
+      }
+    case 'system':
+      return {
+        role: 'system',
+        content: wire.content,
+        id: wire.id,
+        createdAt: wire.createdAt,
+      }
+    case 'error':
+      return {
+        role: 'error',
+        content: wire.content,
+        id: wire.id,
+        createdAt: wire.createdAt,
+      }
+    case 'tool':
+      // Tool messages require a `tool_call_id` we cannot reconstruct from
+      // the wire format; surface as an error message so the UI shows
+      // *something* instead of dropping silently.
+      return {
+        role: 'error',
+        content: wire.content || '[tool message: cannot reconstruct without tool_call_id]',
+        id: wire.id,
+        createdAt: wire.createdAt,
+      }
+  }
+}
+
+export interface CloudMergeResult {
+  /** Merged message list (returns the original reference when nothing changed). */
+  messages: ChatHistoryItem[]
+  /** Highest seq seen, including the input cursor. */
+  maxSeq: number
+  /** True when either `messages` or `maxSeq` differs from the input. */
+  dirty: boolean
 }
 
 /**
@@ -138,78 +204,12 @@ export function mergeCloudMessagesIntoLocal(
     maxSeq = payload.toSeq
 
   if (additions.length === 0 && maxSeq === currentMaxSeq) {
-    return { dirty: false, maxSeq: currentMaxSeq, messages: currentMessages }
+    return { messages: currentMessages, maxSeq: currentMaxSeq, dirty: false }
   }
 
   const messages = additions.length > 0
     ? [...currentMessages, ...additions]
     : currentMessages
 
-  return { dirty: true, maxSeq, messages }
-}
-
-/**
- * Convert a server `WireMessage` into a local `ChatHistoryItem`.
- *
- * Before:
- * - { id, role: 'assistant', content: 'hi', seq: 7, ... }
- *
- * After:
- * - { id, role: 'assistant', content: 'hi', slices: [{type:'text', text:'hi'}], tool_results: [], createdAt }
- *
- * Use when:
- * - Merging messages received via `pullMessages` or `newMessages` into the
- *   local session store. The local shape carries assistant-specific fields
- *   that the wire format does not, so we synthesize minimal placeholders
- *   for them.
- */
-export function wireMessageToLocal(wire: WireMessage): ChatHistoryItem {
-  // Server wire format only stores plain text content; we recreate the
-  // local shape with empty tool_results / slices so downstream UI code can
-  // assume the invariants documented in core-agent's ChatAssistantMessage.
-  switch (wire.role) {
-    case 'assistant': {
-      const assistant: ChatAssistantMessage = {
-        content: wire.content,
-        role: 'assistant',
-        slices: wire.content ? [{ text: wire.content, type: 'text' }] : [],
-        tool_results: [],
-      }
-      return Object.assign(assistant, {
-        createdAt: wire.createdAt,
-        id: wire.id,
-      })
-    }
-    case 'error':
-      return {
-        content: wire.content,
-        createdAt: wire.createdAt,
-        id: wire.id,
-        role: 'error',
-      }
-    case 'system':
-      return {
-        content: wire.content,
-        createdAt: wire.createdAt,
-        id: wire.id,
-        role: 'system',
-      }
-    case 'tool':
-      // Tool messages require a `tool_call_id` we cannot reconstruct from
-      // the wire format; surface as an error message so the UI shows
-      // *something* instead of dropping silently.
-      return {
-        content: wire.content || '[tool message: cannot reconstruct without tool_call_id]',
-        createdAt: wire.createdAt,
-        id: wire.id,
-        role: 'error',
-      }
-    case 'user':
-      return {
-        content: wire.content,
-        createdAt: wire.createdAt,
-        id: wire.id,
-        role: 'user',
-      }
-  }
+  return { messages, maxSeq, dirty: true }
 }

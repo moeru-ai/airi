@@ -26,14 +26,14 @@ export const ServerChannelQrUrlSchema = pipe(
 )
 
 export const ServerChannelQrPayloadSchema = object({
-  authToken: string(),
   type: literal(SERVER_CHANNEL_QR_PAYLOAD_TYPE),
-  urls: pipe(array(ServerChannelQrUrlSchema), minLength(1)),
   version: literal(SERVER_CHANNEL_QR_PAYLOAD_VERSION),
+  urls: pipe(array(ServerChannelQrUrlSchema), minLength(1)),
+  authToken: string(),
 })
 
-export type ServerChannelQrPayload = InferOutput<typeof ServerChannelQrPayloadSchema>
 export type ServerChannelQrPayloadInput = InferInput<typeof ServerChannelQrPayloadSchema>
+export type ServerChannelQrPayload = InferOutput<typeof ServerChannelQrPayloadSchema>
 
 export function createServerChannelQrPayload(payload: ServerChannelQrPayloadInput) {
   return parse(ServerChannelQrPayloadSchema, payload)

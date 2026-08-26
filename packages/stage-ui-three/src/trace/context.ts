@@ -4,17 +4,8 @@ const context = createContext()
 const tokenLeaseCount = new Map<string, number>()
 let leaseCount = 0
 
-export function acquireStageThreeRuntimeTrace(token = createTraceToken()) {
-  tokenLeaseCount.set(token, (tokenLeaseCount.get(token) ?? 0) + 1)
-  leaseCount += 1
-
-  let released = false
-  return () => {
-    if (released)
-      return
-    released = true
-    releaseStageThreeRuntimeTrace(token)
-  }
+function createTraceToken() {
+  return `stage-three-runtime-trace:${Math.random().toString(36).slice(2, 10)}`
 }
 
 export function getStageThreeRuntimeTraceContext() {
@@ -43,11 +34,20 @@ export function releaseStageThreeRuntimeTrace(token?: string) {
   leaseCount = Math.max(0, leaseCount - 1)
 }
 
+export function acquireStageThreeRuntimeTrace(token = createTraceToken()) {
+  tokenLeaseCount.set(token, (tokenLeaseCount.get(token) ?? 0) + 1)
+  leaseCount += 1
+
+  let released = false
+  return () => {
+    if (released)
+      return
+    released = true
+    releaseStageThreeRuntimeTrace(token)
+  }
+}
+
 export function resetStageThreeRuntimeTraceForTesting() {
   tokenLeaseCount.clear()
   leaseCount = 0
-}
-
-function createTraceToken() {
-  return `stage-three-runtime-trace:${Math.random().toString(36).slice(2, 10)}`
 }

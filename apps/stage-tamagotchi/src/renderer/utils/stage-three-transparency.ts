@@ -1,6 +1,6 @@
 import type { StageModelRenderer } from '@proj-airi/stage-ui/stores/settings'
 
-export type StageComponentState = 'loading' | 'mounted' | 'pending'
+export type StageComponentState = 'pending' | 'loading' | 'mounted'
 
 export function shouldSampleStageTransparency(params: {
   componentState: StageComponentState

@@ -34,15 +34,6 @@ const OIDC_TOKEN_PATH = '/api/auth/oauth2/token'
 let closeLoopback: (() => void) | null = null
 let signingInFlight = false
 
-interface TokenExchangeResult {
-  accessToken: string
-  expiresIn: number
-  idToken?: string
-  refreshToken?: string
-}
-
-// --- Internal helpers ---
-
 /**
  * Create the auth service IPC handlers for a given window context.
  */
@@ -135,20 +126,29 @@ export function createAuthService(params: {
   })
 }
 
+// --- Internal helpers ---
+
+interface TokenExchangeResult {
+  accessToken: string
+  refreshToken?: string
+  idToken?: string
+  expiresIn: number
+}
+
 async function exchangeCode(code: string, codeVerifier: string, redirectUri: string): Promise<TokenExchangeResult> {
   const body = new URLSearchParams({
-    client_id: OIDC_CLIENT_ID,
-    code,
-    code_verifier: codeVerifier,
     grant_type: 'authorization_code',
+    code,
     redirect_uri: redirectUri,
+    client_id: OIDC_CLIENT_ID,
+    code_verifier: codeVerifier,
     resource: SERVER_URL,
   })
 
   const response = await fetch(new URL(OIDC_TOKEN_PATH, SERVER_URL), {
-    body,
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
   })
 
   if (!response.ok) {
@@ -159,8 +159,8 @@ async function exchangeCode(code: string, codeVerifier: string, redirectUri: str
   const data = await response.json() as Record<string, unknown>
   return {
     accessToken: data.access_token as string,
-    expiresIn: data.expires_in as number,
-    idToken: data.id_token as string | undefined,
     refreshToken: data.refresh_token as string | undefined,
+    idToken: data.id_token as string | undefined,
+    expiresIn: data.expires_in as number,
   }
 }

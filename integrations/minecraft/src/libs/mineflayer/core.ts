@@ -32,30 +32,30 @@ export interface MineflayerOptions {
 }
 
 export class Mineflayer extends EventEmitter<EventHandlers> {
-  public allowCheats: boolean = false
   public bot: Bot
-  public components: Components = new Components()
-  public health: Health = new Health()
-  public isCreative: boolean = false
-  public memory: Memory = new Memory()
-  public ready: boolean = false
-
-  public status: Status = new Status()
   public username: string
+  public health: Health = new Health()
+  public ready: boolean = false
+  public components: Components = new Components()
+  public status: Status = new Status()
+  public memory: Memory = new Memory()
 
-  private readonly commandChatHandler: (username: string, message: string) => void
-  private commands: Map<string, EventsHandler<'command'>> = new Map()
-  private readonly connectionSupervisor: ConnectionSupervisor
-  private hasSpawnedAtLeastOnce: boolean = false
+  public isCreative: boolean = false
+  public allowCheats: boolean = false
+
+  private respawnRequestedAt: number | null = null
+  private respawnTimer: ReturnType<typeof setTimeout> | null = null
   private isStopping: boolean = false
+  private hasSpawnedAtLeastOnce: boolean = false
+  private pluginSetupPromise: Promise<void> = Promise.resolve()
 
-  private logger: Logg
   private options: MineflayerOptions
   private readonly pluginRuntime: PluginRuntime
-  private pluginSetupPromise: Promise<void> = Promise.resolve()
-  private respawnRequestedAt: null | number = null
-  private respawnTimer: null | ReturnType<typeof setTimeout> = null
+  private readonly connectionSupervisor: ConnectionSupervisor
+  private logger: Logg
+  private commands: Map<string, EventsHandler<'command'>> = new Map()
   private ticker: Ticker = new Ticker()
+  private readonly commandChatHandler: (username: string, message: string) => void
 
   constructor(options: MineflayerOptions) {
     super()
@@ -65,10 +65,10 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
     this.logger = useLogg(`Bot:${this.username}`).useGlobalConfig()
 
     this.pluginRuntime = createPluginRuntime({
-      botConfig: this.options.botConfig,
-      initialPlugins: options.plugins ?? [],
       logger: this.logger,
       mineflayer: this,
+      botConfig: this.options.botConfig,
+      initialPlugins: options.plugins ?? [],
     })
 
     this.connectionSupervisor = createConnectionSupervisor({
@@ -84,21 +84,6 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
     this.on('interrupt', () => {
       this.logger.log('Interrupted')
     })
-  }
-
-  public static async asyncBuild(options: MineflayerOptions) {
-    const mineflayer = new Mineflayer(options)
-
-    mineflayer.activateBot(mineflayer.bot)
-    await mineflayer.pluginSetupPromise
-
-    mineflayer.ticker.on('tick', () => {
-      mineflayer.status.update(mineflayer)
-      mineflayer.isCreative = mineflayer.bot.game?.gameMode === 'creative'
-      mineflayer.allowCheats = false
-    })
-
-    return mineflayer
   }
 
   public interrupt(reason?: string) {
@@ -140,12 +125,23 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
     this.emit('interrupt')
   }
 
-  public async loadPlugin(plugin: MineflayerPlugin) {
-    await this.pluginRuntime.loadPlugin(plugin)
+  public static async asyncBuild(options: MineflayerOptions) {
+    const mineflayer = new Mineflayer(options)
+
+    mineflayer.activateBot(mineflayer.bot)
+    await mineflayer.pluginSetupPromise
+
+    mineflayer.ticker.on('tick', () => {
+      mineflayer.status.update(mineflayer)
+      mineflayer.isCreative = mineflayer.bot.game?.gameMode === 'creative'
+      mineflayer.allowCheats = false
+    })
+
+    return mineflayer
   }
 
-  public offTick(event: TickEvents, cb: TickEventsHandler<TickEvents>) {
-    this.ticker.off(event, cb)
+  public async loadPlugin(plugin: MineflayerPlugin) {
+    await this.pluginRuntime.loadPlugin(plugin)
   }
 
   public onCommand(commandName: string, cb: EventsHandler<'command'>) {
@@ -154,6 +150,10 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
 
   public onTick(event: TickEvents, cb: TickEventsHandler<TickEvents>) {
     this.ticker.on(event, cb)
+  }
+
+  public offTick(event: TickEvents, cb: TickEventsHandler<TickEvents>) {
+    this.ticker.off(event, cb)
   }
 
   public async stop() {
@@ -193,80 +193,6 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
     })
 
     this.pluginSetupPromise = setupPromise
-  }
-
-  private attachCommandChatListener(): void {
-    this.bot.off('chat', this.commandChatHandler)
-    this.bot.on('chat', this.commandChatHandler)
-  }
-
-  private createCommandChatHandler() {
-    return new ChatMessageHandler(this.username).handleChat((sender, message) => {
-      const { args, command, isCommand } = parseCommand(sender, message)
-
-      if (!isCommand)
-        return
-
-      // Remove the # prefix from command
-      const cleanCommand = command.slice(1)
-      this.logger.withFields({ args, command: cleanCommand, sender }).log('Command received')
-
-      const handler = this.commands.get(cleanCommand)
-      if (handler) {
-        handler({ command: { args, command: cleanCommand, isCommand, sender }, time: this.bot.time.timeOfDay })
-        return
-      }
-
-      // Built-in commands
-      switch (cleanCommand) {
-        case 'help': {
-          const commandList = Array.from(this.commands.keys()).concat(['help'])
-          this.bot.chat(`Available commands: ${commandList.map(cmd => `#${cmd}`).join(', ')}`)
-          break
-        }
-        default:
-          this.bot.chat(`Unknown command: ${cleanCommand}`)
-      }
-    })
-  }
-
-  private detachCommandChatListener(): void {
-    this.bot.off('chat', this.commandChatHandler)
-  }
-
-  private async onBotSpawn(bot: Bot): Promise<void> {
-    if (bot !== this.bot || this.isStopping)
-      return
-
-    try {
-      await this.pluginSetupPromise
-    }
-    catch (error) {
-      this.logger.errorWithError('Skipping spawned hooks: plugin runtime initialization failed', error as Error)
-      await Promise.resolve(this.connectionSupervisor.onDisconnect('plugin-setup-failed')).catch((disconnectError) => {
-        this.logger.errorWithError('Reconnect transition failed', disconnectError as Error)
-      })
-      return
-    }
-
-    if (bot !== this.bot || this.isStopping)
-      return
-
-    try {
-      await this.pluginRuntime.onSpawn()
-    }
-    catch (error) {
-      this.logger.errorWithError('Plugin spawned hook failed', error as Error)
-      await Promise.resolve(this.connectionSupervisor.onDisconnect('spawned-hook-failed')).catch((disconnectError) => {
-        this.logger.errorWithError('Reconnect transition failed', disconnectError as Error)
-      })
-      return
-    }
-
-    if (bot !== this.bot || this.isStopping)
-      return
-
-    this.connectionSupervisor.onSpawn()
   }
 
   private async replaceBot(): Promise<void> {
@@ -334,8 +260,8 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
 
       this.logger.withFields({
         health: this.health.value,
-        lastDamageTaken: this.health.lastDamageTaken,
         lastDamageTime: this.health.lastDamageTime,
+        lastDamageTaken: this.health.lastDamageTaken,
         previousHealth: bot.health,
       }).log('Health updated')
 
@@ -422,6 +348,80 @@ export class Mineflayer extends EventEmitter<EventHandlers> {
         return
 
       this.logger.errorWithError('Bot error:', err)
+    })
+  }
+
+  private async onBotSpawn(bot: Bot): Promise<void> {
+    if (bot !== this.bot || this.isStopping)
+      return
+
+    try {
+      await this.pluginSetupPromise
+    }
+    catch (error) {
+      this.logger.errorWithError('Skipping spawned hooks: plugin runtime initialization failed', error as Error)
+      await Promise.resolve(this.connectionSupervisor.onDisconnect('plugin-setup-failed')).catch((disconnectError) => {
+        this.logger.errorWithError('Reconnect transition failed', disconnectError as Error)
+      })
+      return
+    }
+
+    if (bot !== this.bot || this.isStopping)
+      return
+
+    try {
+      await this.pluginRuntime.onSpawn()
+    }
+    catch (error) {
+      this.logger.errorWithError('Plugin spawned hook failed', error as Error)
+      await Promise.resolve(this.connectionSupervisor.onDisconnect('spawned-hook-failed')).catch((disconnectError) => {
+        this.logger.errorWithError('Reconnect transition failed', disconnectError as Error)
+      })
+      return
+    }
+
+    if (bot !== this.bot || this.isStopping)
+      return
+
+    this.connectionSupervisor.onSpawn()
+  }
+
+  private attachCommandChatListener(): void {
+    this.bot.off('chat', this.commandChatHandler)
+    this.bot.on('chat', this.commandChatHandler)
+  }
+
+  private detachCommandChatListener(): void {
+    this.bot.off('chat', this.commandChatHandler)
+  }
+
+  private createCommandChatHandler() {
+    return new ChatMessageHandler(this.username).handleChat((sender, message) => {
+      const { isCommand, command, args } = parseCommand(sender, message)
+
+      if (!isCommand)
+        return
+
+      // Remove the # prefix from command
+      const cleanCommand = command.slice(1)
+      this.logger.withFields({ sender, command: cleanCommand, args }).log('Command received')
+
+      const handler = this.commands.get(cleanCommand)
+      if (handler) {
+        handler({ time: this.bot.time.timeOfDay, command: { sender, isCommand, command: cleanCommand, args } })
+        return
+      }
+
+      // Built-in commands
+      switch (cleanCommand) {
+        case 'help': {
+          const commandList = Array.from(this.commands.keys()).concat(['help'])
+          this.bot.chat(`Available commands: ${commandList.map(cmd => `#${cmd}`).join(', ')}`)
+          break
+        }
+        default:
+          this.bot.chat(`Unknown command: ${cleanCommand}`)
+      }
     })
   }
 }

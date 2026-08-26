@@ -10,10 +10,10 @@ describe('normalizeActPayload', () => {
    */
   it('normalizes object emotion and motion from ACT payloads', () => {
     expect(normalizeActPayload({
-      emotion: { intensity: 0.8, name: 'happy' },
+      emotion: { name: 'happy', intensity: 0.8 },
       motion: 'nod',
     })).toEqual({
-      emotion: { intensity: 0.8, name: 'happy' },
+      emotion: { name: 'happy', intensity: 0.8 },
       motion: 'nod',
     })
   })
@@ -28,7 +28,7 @@ describe('normalizeActPayload', () => {
       emotion: 'surprised',
       motion: ' lean forward ',
     })).toEqual({
-      emotion: { intensity: 1, name: 'surprised' },
+      emotion: { name: 'surprised', intensity: 1 },
       motion: 'lean forward',
     })
   })
@@ -40,9 +40,9 @@ describe('normalizeActPayload', () => {
    */
   it('clamps emotion intensity into the supported range', () => {
     expect(normalizeActPayload({
-      emotion: { intensity: 2, name: 'happy' },
+      emotion: { name: 'happy', intensity: 2 },
     })).toEqual({
-      emotion: { intensity: 1, name: 'happy' },
+      emotion: { name: 'happy', intensity: 1 },
     })
   })
 })

@@ -12,29 +12,29 @@ const mockT = ((key: string) => key) as unknown as ComposerTranslation
 describe('validateProvider', () => {
   it('resolves async validator factories and validation requirements', async () => {
     const definition: ProviderDefinition<Record<string, unknown>> = {
-      createProvider: async () => createChatProvider({ apiKey: 'test', baseURL: 'https://example.com/v1' }),
-      createProviderConfig: async () => ({}) as never,
-      description: 'Async example provider',
-      descriptionLocalize: input => input.t('async-example'),
       id: 'async-example',
       name: 'Async example',
+      description: 'Async example provider',
       nameLocalize: input => input.t('async-example'),
+      descriptionLocalize: input => input.t('async-example'),
       tasks: [],
+      createProviderConfig: async () => ({}) as never,
+      createProvider: async () => createChatProvider({ apiKey: 'test', baseURL: 'https://example.com/v1' }),
       validationRequiredWhen: async () => true,
       validators: {
         validateConfig: [async () => ({
           id: 'async-config',
           name: 'Async config',
-          validator: async () => ({ errors: [], reason: '', reasonKey: '', valid: true }),
+          validator: async () => ({ valid: true, errors: [], reason: '', reasonKey: '' }),
         })],
       },
     }
 
     const plan = await getValidatorsOfProvider({
-      config: {},
-      contextOptions: { t: mockT },
       definition,
+      config: {},
       schemaDefaults: {},
+      contextOptions: { t: mockT },
     })
 
     expect(plan.shouldValidate).toBe(true)
@@ -48,28 +48,28 @@ describe('validateProvider', () => {
       { dispose },
     )
     const definition: ProviderDefinition<Record<string, unknown>> = {
-      createProvider: async () => provider,
-      createProviderConfig: () => ({}) as never,
-      description: 'Example provider',
-      descriptionLocalize: input => input.t('example'),
       id: 'example',
       name: 'Example',
+      description: 'Example provider',
       nameLocalize: input => input.t('example'),
+      descriptionLocalize: input => input.t('example'),
       tasks: [],
+      createProviderConfig: () => ({}) as never,
+      createProvider: async () => provider,
     }
 
     await validateProvider({
+      steps: [{ id: 'runtime', label: 'Runtime', status: 'idle', reason: '', kind: 'provider' }],
       config: {},
-      configValidators: [],
       definition,
-      providerExtra: undefined,
+      configValidators: [],
       providerValidators: [{
         id: 'runtime',
         name: 'Runtime',
-        validator: async () => ({ errors: [], reason: '', reasonKey: '', valid: true }),
+        validator: async () => ({ valid: true, errors: [], reason: '', reasonKey: '' }),
       }],
+      providerExtra: undefined,
       shouldValidate: true,
-      steps: [{ id: 'runtime', kind: 'provider', label: 'Runtime', reason: '', status: 'idle' }],
     }, { t: mockT })
 
     expect(dispose).toHaveBeenCalledTimes(1)

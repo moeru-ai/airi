@@ -4,6 +4,30 @@ import type { ExtensionLoadOptions, ExtensionManifestV1 } from '../../../shared/
 import { isAbsolute, join } from 'node:path'
 import { cwd } from 'node:process'
 
+function isExtensionDefinition(value: unknown): value is Extension {
+  return typeof value === 'object'
+    && value !== null
+    && 'id' in value
+    && typeof (value as { id?: unknown }).id === 'string'
+    && 'setup' in value
+    && typeof (value as { setup?: unknown }).setup === 'function'
+}
+
+function coerceExtensionFromModule(moduleValue: unknown): Extension {
+  if (isExtensionDefinition(moduleValue)) {
+    return moduleValue
+  }
+
+  if (typeof moduleValue === 'object' && moduleValue !== null) {
+    const defaultExport = (moduleValue as { default?: unknown }).default
+    if (isExtensionDefinition(defaultExport)) {
+      return defaultExport
+    }
+  }
+
+  throw new Error('Failed to resolve extension module. The entrypoint must export defineExtension(...).')
+}
+
 /**
  * Loads extension entrypoints from the local filesystem for the current runtime.
  *
@@ -18,12 +42,6 @@ import { cwd } from 'node:process'
  * - Filesystem-backed helpers for resolving and loading extension entrypoints
  */
 export class FileSystemLoader {
-  async loadExtensionFor(manifest: ExtensionManifestV1, options?: ExtensionLoadOptions) {
-    const entrypoint = this.resolveEntrypointFor(manifest, options)
-    const extensionModule = await import(entrypoint)
-    return coerceExtensionFromModule(extensionModule)
-  }
-
   /**
    * Resolve a manifest entrypoint for the requested runtime.
    *
@@ -50,28 +68,10 @@ export class FileSystemLoader {
 
     return isAbsolute(entrypoint) ? entrypoint : join(root, entrypoint)
   }
-}
 
-function coerceExtensionFromModule(moduleValue: unknown): Extension {
-  if (isExtensionDefinition(moduleValue)) {
-    return moduleValue
+  async loadExtensionFor(manifest: ExtensionManifestV1, options?: ExtensionLoadOptions) {
+    const entrypoint = this.resolveEntrypointFor(manifest, options)
+    const extensionModule = await import(entrypoint)
+    return coerceExtensionFromModule(extensionModule)
   }
-
-  if (typeof moduleValue === 'object' && moduleValue !== null) {
-    const defaultExport = (moduleValue as { default?: unknown }).default
-    if (isExtensionDefinition(defaultExport)) {
-      return defaultExport
-    }
-  }
-
-  throw new Error('Failed to resolve extension module. The entrypoint must export defineExtension(...).')
-}
-
-function isExtensionDefinition(value: unknown): value is Extension {
-  return typeof value === 'object'
-    && value !== null
-    && 'id' in value
-    && typeof (value as { id?: unknown }).id === 'string'
-    && 'setup' in value
-    && typeof (value as { setup?: unknown }).setup === 'function'
 }

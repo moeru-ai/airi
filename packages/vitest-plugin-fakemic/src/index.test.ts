@@ -7,33 +7,33 @@ import { describe, expect, it, vi } from 'vitest'
 
 const calls: string[] = []
 const audio = createAudioTestAPI<
-  { preflight?: readonly ((context: { value: string }) => void)[], value: string },
+  { value: string, preflight?: readonly ((context: { value: string }) => void)[] },
   { value: string },
   { capturedValue: string },
   { value: string }
 >({
   createPlans: (name, definition) => [{
+    name: `mock: ${name}`,
     definition,
     metadata: {
       input: '/fixtures/input.wav',
       runtime: 'mock',
     },
-    name: `mock: ${name}`,
   }],
-  async execute({ invokeHandler, plan, runPreflight, task }) {
+  preflight: definition => definition.preflight,
+  async execute({ plan, task, invokeHandler, runPreflight }) {
     await runPreflight({ value: 'preflight' })
     Object.assign(task.context, {
       capturedValue: plan.definition.value,
     })
     await invokeHandler()
   },
-  preflight: definition => definition.preflight,
 })
 
 audio.describe('createAudioTestAPI', () => {
   audio.it('runs preflight before a registered task', {
-    preflight: [({ value }) => calls.push(value)],
     value: 'captured',
+    preflight: [({ value }) => calls.push(value)],
   }, ({ capturedValue }) => {
     expect(calls).toEqual(['preflight'])
     expect(capturedValue).toBe('captured')
@@ -45,7 +45,7 @@ describe('audio test tasks', () => {
     const input = new URL('file:///audio/input.wav')
     const task = createAudioTestTask('captures speech', { input })
 
-    expect(task).toEqual({ input, name: 'captures speech' })
+    expect(task).toEqual({ name: 'captures speech', input })
   })
 
   it('records artifacts before it closes the session', async () => {
@@ -57,13 +57,13 @@ describe('audio test tasks', () => {
     }
 
     await runAudioTestSession({
+      start: async () => session,
       execute: async () => {
         calls.push('execute')
       },
       recordArtifacts: async () => {
         calls.push('record')
       },
-      start: async () => session,
     })
 
     expect(calls).toEqual(['execute', 'record', 'close'])
@@ -74,14 +74,14 @@ describe('audio test tasks', () => {
     const closeError = new Error('close failed')
 
     const result = runAudioTestSession({
-      execute: async () => {
-        throw executionError
-      },
       start: async () => ({
         close: async () => {
           throw closeError
         },
       }),
+      execute: async () => {
+        throw executionError
+      },
     })
 
     await expect(result).rejects.toMatchObject({

@@ -7,8 +7,8 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig(({ mode }) => {
   return {
     test: {
-      env: loadEnv(mode, join(cwd(), 'apps', 'ui-server-auth'), ''),
       include: ['src/**/*.test.ts'],
+      env: loadEnv(mode, join(cwd(), 'apps', 'ui-server-auth'), ''),
     },
   }
 })

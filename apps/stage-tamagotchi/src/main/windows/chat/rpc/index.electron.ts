@@ -15,11 +15,11 @@ import { createWidgetsService } from '../../../services/airi/widgets'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export async function setupChatWindowElectronInvokes(params: {
-  i18n: I18n
-  mcpStdioManager: McpStdioManager
-  serverChannel: ServerChannel
-  widgetsManager: WidgetsWindowManager
   window: BrowserWindow
+  widgetsManager: WidgetsWindowManager
+  serverChannel: ServerChannel
+  mcpStdioManager: McpStdioManager
+  i18n: I18n
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -28,7 +28,7 @@ export async function setupChatWindowElectronInvokes(params: {
 
   const { context } = createContext(ipcMain, params.window)
 
-  await setupBaseWindowElectronInvokes({ context, i18n: params.i18n, serverChannel: params.serverChannel, window: params.window })
+  await setupBaseWindowElectronInvokes({ context, window: params.window, i18n: params.i18n, serverChannel: params.serverChannel })
 
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
   createMcpServersService({ context, manager: params.mcpStdioManager })

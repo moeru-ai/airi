@@ -26,6 +26,44 @@ const placeholderFragments = [
   'todo',
 ]
 
+function parseEnvLine(line: string) {
+  const trimmed = line.trim()
+  if (!trimmed || trimmed.startsWith('#'))
+    return undefined
+
+  const normalized = trimmed.startsWith('export ')
+    ? trimmed.slice('export '.length).trim()
+    : trimmed
+  const separatorIndex = normalized.indexOf('=')
+  if (separatorIndex <= 0)
+    return undefined
+
+  const key = normalized.slice(0, separatorIndex).trim()
+  let value = normalized.slice(separatorIndex + 1).trim()
+
+  if (
+    (value.startsWith('"') && value.endsWith('"'))
+    || (value.startsWith('\'') && value.endsWith('\''))
+  ) {
+    value = value.slice(1, -1)
+  }
+  else {
+    const commentIndex = value.indexOf(' #')
+    if (commentIndex >= 0)
+      value = value.slice(0, commentIndex).trim()
+  }
+
+  return { key, value }
+}
+
+function valueLooksLikePlaceholder(value: string) {
+  const normalized = value.trim().toLowerCase()
+  if (!normalized)
+    return true
+
+  return placeholderFragments.some(fragment => normalized.includes(fragment))
+}
+
 export function maskEnvValuePreview(value: string) {
   return maskClipboardPreview(value)
 }
@@ -65,42 +103,4 @@ export async function readEnvValue(input: ReadEnvValueInput): Promise<ReadEnvVal
   }
 
   throw new Error(`secret_read_env_value could not find any of [${requestedKeys.join(', ')}] in ${input.filePath}`)
-}
-
-function parseEnvLine(line: string) {
-  const trimmed = line.trim()
-  if (!trimmed || trimmed.startsWith('#'))
-    return undefined
-
-  const normalized = trimmed.startsWith('export ')
-    ? trimmed.slice('export '.length).trim()
-    : trimmed
-  const separatorIndex = normalized.indexOf('=')
-  if (separatorIndex <= 0)
-    return undefined
-
-  const key = normalized.slice(0, separatorIndex).trim()
-  let value = normalized.slice(separatorIndex + 1).trim()
-
-  if (
-    (value.startsWith('"') && value.endsWith('"'))
-    || (value.startsWith('\'') && value.endsWith('\''))
-  ) {
-    value = value.slice(1, -1)
-  }
-  else {
-    const commentIndex = value.indexOf(' #')
-    if (commentIndex >= 0)
-      value = value.slice(0, commentIndex).trim()
-  }
-
-  return { key, value }
-}
-
-function valueLooksLikePlaceholder(value: string) {
-  const normalized = value.trim().toLowerCase()
-  if (!normalized)
-    return true
-
-  return placeholderFragments.some(fragment => normalized.includes(fragment))
 }

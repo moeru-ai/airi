@@ -28,26 +28,16 @@ describe('audio input matchers', () => {
   })
 })
 
-function actionEvent(storeId: string, actionName: string): PiniaActionEvent {
-  return {
-    actionName,
-    invocationId: `${storeId}:${actionName}`,
-    status: 'completed',
-    storeId,
-    timestamp: 0,
-  }
-}
-
 function createAudioInputSession(
   transcriptions: string[],
   actions: PiniaActionEvent[] = [],
 ): AudioInputObservations {
   return {
     capturedTranscriptionAudio: async () => [],
-    completedSpans: async () => [],
-    piniaActionEvents: async () => actions,
     streamingTranscriptionUpdates: async () => [],
     transcriptionResults: async () => transcriptions,
+    completedSpans: async () => [],
+    piniaActionEvents: async () => actions,
     waitForPiniaAction: async () => {
       throw new Error('This matcher fixture does not observe Pinia actions.')
     },
@@ -56,5 +46,15 @@ function createAudioInputSession(
       throw new Error('This matcher fixture does not observe completed turns.')
     },
     waitForVadReady: async () => {},
+  }
+}
+
+function actionEvent(storeId: string, actionName: string): PiniaActionEvent {
+  return {
+    actionName,
+    invocationId: `${storeId}:${actionName}`,
+    status: 'completed',
+    storeId,
+    timestamp: 0,
   }
 }

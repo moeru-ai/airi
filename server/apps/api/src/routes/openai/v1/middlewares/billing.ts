@@ -9,24 +9,29 @@ import { calculateFluxFromUsage } from '../../../../services/domain/billing/bill
 import { createPaymentRequiredError } from '../../../../utils/error'
 import { GEN_AI_ATTR_REQUEST_MODEL } from '../../../../utils/observability'
 
-export interface ChatBillingPolicy {
-  fallbackRate: number
-  fluxPer1kTokens?: number
-}
-
 export interface ChatFluxDebitInput extends UsageInfo {
-  amount: number
   billingService: BillingService
+  revenue?: RevenueMetrics | null
+  userId: string
+  requestId: string
+  model: string
+  amount: number
+  stage: 'streaming' | 'non_streaming'
   logger: {
     withFields: (fields: Record<string, unknown>) => {
       warn: (message: string) => void
     }
   }
-  model: string
-  requestId: string
-  revenue?: null | RevenueMetrics
-  stage: 'non_streaming' | 'streaming'
-  userId: string
+}
+
+export interface ChatBillingPolicy {
+  fallbackRate: number
+  fluxPer1kTokens?: number
+}
+
+export interface TtsBillingAuthorization {
+  balance: number
+  inputChars: number
 }
 
 export interface OpenAiRouteBilling {
@@ -36,28 +41,23 @@ export interface OpenAiRouteBilling {
   recordChatDebitFailure: (input: {
     amount: number
     model: string
-    stage: 'non_streaming' | 'streaming'
+    stage: 'streaming' | 'non_streaming'
   }) => void
   settleChat: (input: Omit<ChatFluxDebitInput, 'billingService' | 'revenue'>) => Promise<number>
   settleTts: (input: {
-    currentBalance: number
-    inputText: string
-    model: string
-    requestId: string
     userId: string
+    inputText: string
+    currentBalance: number
+    requestId: string
+    model: string
   }) => Promise<{ fluxDebited: number }>
-}
-
-export interface TtsBillingAuthorization {
-  balance: number
-  inputChars: number
 }
 
 export function createOpenAiRouteBilling(deps: {
   billingService: BillingService
   configKV: ConfigKVService
   fluxService: FluxService
-  revenue?: null | RevenueMetrics
+  revenue?: RevenueMetrics | null
   ttsMeter: FluxMeter
 }): OpenAiRouteBilling {
   // NOTICE: Billing is best-effort — chat flux is debited AFTER the LLM
@@ -100,7 +100,7 @@ export function createOpenAiRouteBilling(deps: {
   function recordChatDebitFailure(input: {
     amount: number
     model: string
-    stage: 'non_streaming' | 'streaming'
+    stage: 'streaming' | 'non_streaming'
   }): void {
     deps.revenue?.fluxUnbilled.add(input.amount, {
       [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
@@ -123,18 +123,18 @@ export function createOpenAiRouteBilling(deps: {
   }
 
   async function settleTts(input: {
-    currentBalance: number
-    inputText: string
-    model: string
-    requestId: string
     userId: string
+    inputText: string
+    currentBalance: number
+    requestId: string
+    model: string
   }) {
     return deps.ttsMeter.accumulate({
-      currentBalance: input.currentBalance,
-      metadata: { model: input.model },
-      requestId: input.requestId,
-      units: input.inputText.length,
       userId: input.userId,
+      units: input.inputText.length,
+      currentBalance: input.currentBalance,
+      requestId: input.requestId,
+      metadata: { model: input.model },
     })
   }
 
@@ -143,13 +143,13 @@ export function createOpenAiRouteBilling(deps: {
 
 export async function debitChatFlux(input: ChatFluxDebitInput): Promise<number> {
   const result = await input.billingService.consumeFluxForLLM({
+    userId: input.userId,
     amount: input.amount,
-    completionTokens: input.completionTokens,
+    requestId: input.requestId,
     description: 'llm_request',
     model: input.model,
     promptTokens: input.promptTokens,
-    requestId: input.requestId,
-    userId: input.userId,
+    completionTokens: input.completionTokens,
   })
 
   if (result.charged < result.requested) {
@@ -159,11 +159,11 @@ export async function debitChatFlux(input: ChatFluxDebitInput): Promise<number> 
       stage: input.stage,
     })
     input.logger.withFields({
-      charged: result.charged,
-      requested: result.requested,
-      requestId: input.requestId,
-      unbilled: result.requested - result.charged,
       userId: input.userId,
+      requestId: input.requestId,
+      requested: result.requested,
+      charged: result.charged,
+      unbilled: result.requested - result.charged,
     }).warn(input.stage === 'streaming'
       ? 'Partial debit after streaming — flux drained to zero'
       : 'Partial debit on non-streaming completion — flux drained to zero')

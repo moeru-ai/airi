@@ -2,42 +2,73 @@ import type { Session, WebContents } from 'electron'
 
 import { isLocalAppURL } from '../../libs/electron/url'
 
+type PermissionCheckHandler = Exclude<Parameters<Session['setPermissionCheckHandler']>[0], null>
+type PermissionRequestHandler = Exclude<Parameters<Session['setPermissionRequestHandler']>[0], null>
 type ElectronPermission = Parameters<PermissionCheckHandler>[1] | Parameters<PermissionRequestHandler>[1]
 type ElectronPermissionDetails = Parameters<PermissionCheckHandler>[3] | Parameters<PermissionRequestHandler>[3]
 type LocalAppWebContents = Pick<WebContents, 'getURL'>
-type PermissionCheckHandler = Exclude<Parameters<Session['setPermissionCheckHandler']>[0], null>
-type PermissionRequestHandler = Exclude<Parameters<Session['setPermissionRequestHandler']>[0], null>
 
 const LOCAL_APP_PERMISSION_NAMES = new Set<ElectronPermission>([
-  'clipboard-sanitized-write',
   'display-capture',
+  'clipboard-sanitized-write',
 ])
 
 /**
- * Registers the paired Electron session handlers required for complete permission policy.
- *
- * Use when:
- * - Initializing Electron's default session after app readiness
- *
- * Expects:
- * - The session is the one used by AIRI renderer windows
- * - macOS systemPreferences remains responsible for OS-level consent prompts and status
- * - `isDesktopCaptureAuthorized` reports whether a renderer already selected a capture source
- *
- * Returns:
- * - Nothing; both handlers are installed on the supplied session
+ * Filters out Chromium's opaque origin marker before evaluating explicit frame URLs.
  */
-export function setupMediaPermissionHandlers(
-  targetSession: Pick<Session, 'setPermissionCheckHandler' | 'setPermissionRequestHandler'>,
-  isDesktopCaptureAuthorized: () => boolean,
-): void {
-  targetSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
-    callback(shouldGrantElectronPermission(webContents, permission, undefined, details, isDesktopCaptureAuthorized))
-  })
+function isUsableRequesterURL(rawURL: string | undefined): rawURL is string {
+  return !!rawURL && rawURL !== 'null'
+}
 
-  targetSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
-    return shouldGrantElectronPermission(webContents, permission, requestingOrigin, details, isDesktopCaptureAuthorized)
-  })
+/**
+ * Checks whether Electron described an audio-only media permission operation.
+ */
+function isAudioMediaPermission(permission: ElectronPermission, details?: ElectronPermissionDetails): boolean {
+  if (permission !== 'media' || !details)
+    return false
+
+  if ('mediaTypes' in details && details.mediaTypes?.length) {
+    return details.mediaTypes.includes('audio') && !details.mediaTypes.includes('video')
+  }
+
+  return 'mediaType' in details && details.mediaType === 'audio'
+}
+
+/**
+ * Checks whether Electron described a desktop capture operation of any kind.
+ *
+ * Electron routes desktop capture through the `media` permission and only appends `audio` or `video` to
+ * `mediaTypes` for device capture, so desktop capture is the media operation that declares no media type
+ * at all. Both `getDisplayMedia()` and the legacy `chromeMediaSource: 'desktop'` constraint look like
+ * this, so the permission details alone cannot tell them apart.
+ * See {@link https://github.com/electron/electron/blob/v41.2.1/shell/browser/web_contents_permission_helper.cc#L249-L274}.
+ */
+function isDesktopCaptureMediaPermission(permission: ElectronPermission, details?: ElectronPermissionDetails): boolean {
+  if (permission !== 'media' || !details)
+    return false
+
+  return 'mediaTypes' in details && details.mediaTypes?.length === 0
+}
+
+/**
+ * Checks whether every requester identity supplied by Electron is local to AIRI.
+ */
+function shouldGrantLocalAppPermission(
+  webContents: LocalAppWebContents | null,
+  requestingOrigin?: string,
+  details?: ElectronPermissionDetails,
+): boolean {
+  const requesterURLs = [
+    requestingOrigin,
+    details?.requestingUrl,
+    details && 'securityOrigin' in details ? details.securityOrigin : undefined,
+    details && 'embeddingOrigin' in details ? details.embeddingOrigin : undefined,
+  ].filter(isUsableRequesterURL)
+
+  if (requesterURLs.length)
+    return requesterURLs.every(isLocalAppURL)
+
+  return isLocalAppURL(webContents?.getURL())
 }
 
 /**
@@ -109,59 +140,28 @@ export function shouldGrantElectronPermission(
 }
 
 /**
- * Checks whether Electron described an audio-only media permission operation.
- */
-function isAudioMediaPermission(permission: ElectronPermission, details?: ElectronPermissionDetails): boolean {
-  if (permission !== 'media' || !details)
-    return false
-
-  if ('mediaTypes' in details && details.mediaTypes?.length) {
-    return details.mediaTypes.includes('audio') && !details.mediaTypes.includes('video')
-  }
-
-  return 'mediaType' in details && details.mediaType === 'audio'
-}
-
-/**
- * Checks whether Electron described a desktop capture operation of any kind.
+ * Registers the paired Electron session handlers required for complete permission policy.
  *
- * Electron routes desktop capture through the `media` permission and only appends `audio` or `video` to
- * `mediaTypes` for device capture, so desktop capture is the media operation that declares no media type
- * at all. Both `getDisplayMedia()` and the legacy `chromeMediaSource: 'desktop'` constraint look like
- * this, so the permission details alone cannot tell them apart.
- * See {@link https://github.com/electron/electron/blob/v41.2.1/shell/browser/web_contents_permission_helper.cc#L249-L274}.
+ * Use when:
+ * - Initializing Electron's default session after app readiness
+ *
+ * Expects:
+ * - The session is the one used by AIRI renderer windows
+ * - macOS systemPreferences remains responsible for OS-level consent prompts and status
+ * - `isDesktopCaptureAuthorized` reports whether a renderer already selected a capture source
+ *
+ * Returns:
+ * - Nothing; both handlers are installed on the supplied session
  */
-function isDesktopCaptureMediaPermission(permission: ElectronPermission, details?: ElectronPermissionDetails): boolean {
-  if (permission !== 'media' || !details)
-    return false
+export function setupMediaPermissionHandlers(
+  targetSession: Pick<Session, 'setPermissionCheckHandler' | 'setPermissionRequestHandler'>,
+  isDesktopCaptureAuthorized: () => boolean,
+): void {
+  targetSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    callback(shouldGrantElectronPermission(webContents, permission, undefined, details, isDesktopCaptureAuthorized))
+  })
 
-  return 'mediaTypes' in details && details.mediaTypes?.length === 0
-}
-
-/**
- * Filters out Chromium's opaque origin marker before evaluating explicit frame URLs.
- */
-function isUsableRequesterURL(rawURL: string | undefined): rawURL is string {
-  return !!rawURL && rawURL !== 'null'
-}
-
-/**
- * Checks whether every requester identity supplied by Electron is local to AIRI.
- */
-function shouldGrantLocalAppPermission(
-  webContents: LocalAppWebContents | null,
-  requestingOrigin?: string,
-  details?: ElectronPermissionDetails,
-): boolean {
-  const requesterURLs = [
-    requestingOrigin,
-    details?.requestingUrl,
-    details && 'securityOrigin' in details ? details.securityOrigin : undefined,
-    details && 'embeddingOrigin' in details ? details.embeddingOrigin : undefined,
-  ].filter(isUsableRequesterURL)
-
-  if (requesterURLs.length)
-    return requesterURLs.every(isLocalAppURL)
-
-  return isLocalAppURL(webContents?.getURL())
+  targetSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
+    return shouldGrantElectronPermission(webContents, permission, requestingOrigin, details, isDesktopCaptureAuthorized)
+  })
 }

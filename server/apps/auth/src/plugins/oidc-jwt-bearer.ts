@@ -91,15 +91,15 @@ export function oidcJwtBearer(env: AuthEnv): BetterAuthPlugin {
   // Removal condition: never — local JWKS is the right primitive when the
   // server *is* the IdP. Only revisit if jwks ever moves out of process.
   const JWKS_TTL_MS = 60 * 1000
-  let cachedKeySet: null | ReturnType<typeof createLocalJWKSet> = null
+  let cachedKeySet: ReturnType<typeof createLocalJWKSet> | null = null
   let cachedAt = 0
 
   interface JwkRow {
+    id: string
+    publicKey: string
     alg?: string
     crv?: string
     expiresAt?: Date | null
-    id: string
-    publicKey: string
   }
 
   /**
@@ -120,7 +120,7 @@ export function oidcJwtBearer(env: AuthEnv): BetterAuthPlugin {
    */
   async function getOrLoadJWKS(
     adapter: { findMany: (args: { model: string }) => Promise<unknown[]> },
-  ): Promise<null | ReturnType<typeof createLocalJWKSet>> {
+  ): Promise<ReturnType<typeof createLocalJWKSet> | null> {
     if (cachedKeySet && Date.now() - cachedAt < JWKS_TTL_MS)
       return cachedKeySet
 
@@ -182,9 +182,18 @@ export function oidcJwtBearer(env: AuthEnv): BetterAuthPlugin {
   }
 
   return {
+    id: 'oidc-jwt-bearer',
     hooks: {
       before: [
         {
+          // Same matcher shape as bearer(). Run only when an Authorization
+          // header is present so we don't pay the cost on cookie-only flows.
+          matcher(context) {
+            return Boolean(
+              context.request?.headers.get('authorization')
+              ?? context.headers?.get('authorization'),
+            )
+          },
           handler: createAuthMiddleware(async (c) => {
             const incomingHeaders = c.request?.headers ?? c.headers
             if (!incomingHeaders)
@@ -222,8 +231,8 @@ export function oidcJwtBearer(env: AuthEnv): BetterAuthPlugin {
             let userId: string
             try {
               const { payload } = await jwtVerify(token, keySet, {
-                audience: env.PUBLIC_URL,
                 issuer: `${env.PUBLIC_URL}/api/auth`,
+                audience: env.PUBLIC_URL,
               })
               if (typeof payload.sub !== 'string')
                 return
@@ -264,17 +273,8 @@ export function oidcJwtBearer(env: AuthEnv): BetterAuthPlugin {
 
             return { context: { headers: newHeaders } }
           }),
-          // Same matcher shape as bearer(). Run only when an Authorization
-          // header is present so we don't pay the cost on cookie-only flows.
-          matcher(context) {
-            return Boolean(
-              context.request?.headers.get('authorization')
-              ?? context.headers?.get('authorization'),
-            )
-          },
         },
       ],
     },
-    id: 'oidc-jwt-bearer',
   }
 }

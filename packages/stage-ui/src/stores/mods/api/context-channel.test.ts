@@ -22,11 +22,11 @@ describe('createContextChannel', () => {
     sender.onContext(localEcho)
 
     await sender.emitContext({
-      contextId: 'context-1',
-      createdAt: 1,
       id: 'context-1',
+      contextId: 'context-1',
       strategy: ContextUpdateStrategy.AppendSelf,
       text: 'hello',
+      createdAt: 1,
     })
 
     await vi.waitFor(() => {

@@ -17,54 +17,54 @@ import { executeWorkflow, resumeWorkflow } from './engine'
 // Helpers
 // ---------------------------------------------------------------------------
 
+function makeSuccessResult(text = 'ok'): CallToolResult {
+  return { content: [{ type: 'text', text }] }
+}
+
 function makeApprovalRequiredResult(): CallToolResult {
   return {
-    content: [{ text: 'Approval required for this action.', type: 'text' }],
+    content: [{ type: 'text', text: 'Approval required for this action.' }],
     structuredContent: { status: 'approval_required' } as unknown as CallToolResult['structuredContent'],
   }
 }
 
 function makeErrorResult(text = 'something went wrong'): CallToolResult {
   return {
-    content: [{ text, type: 'text' }],
+    content: [{ type: 'text', text }],
     isError: true,
   }
 }
 
 function makePrepSuccessResult(structuredContent: Record<string, unknown>): CallToolResult {
   return {
-    content: [{ text: 'prep ok', type: 'text' }],
+    content: [{ type: 'text', text: 'prep ok' }],
     structuredContent: structuredContent as CallToolResult['structuredContent'],
-  }
-}
-
-function makeSuccessResult(text = 'ok'): CallToolResult {
-  return { content: [{ text, type: 'text' }] }
-}
-
-function makeThreeStepWorkflowWithApproval(): WorkflowDefinition {
-  return {
-    description: 'Three steps; second returns approval_required.',
-    id: 'test_approval',
-    maxRetries: 3,
-    name: 'Approval Test',
-    steps: [
-      { description: 'Run step 1', kind: 'run_command', label: 'Step 1', params: { command: 'echo a' } },
-      { description: 'Run step 2', kind: 'run_command', label: 'Step 2 (needs approval)', params: { command: 'echo b' } },
-      { description: 'Run step 3', kind: 'run_command', label: 'Step 3', params: { command: 'echo c' } },
-    ],
   }
 }
 
 function makeTwoStepWorkflow(): WorkflowDefinition {
   return {
-    description: 'A simple two-step workflow for testing.',
     id: 'test_two_step',
-    maxRetries: 3,
     name: 'Two Step Test',
+    description: 'A simple two-step workflow for testing.',
+    maxRetries: 3,
     steps: [
-      { description: 'Run step 1', kind: 'run_command', label: 'Step 1', params: { command: 'echo step1' } },
-      { description: 'Run step 2', kind: 'run_command', label: 'Step 2', params: { command: 'echo step2' } },
+      { label: 'Step 1', kind: 'run_command', description: 'Run step 1', params: { command: 'echo step1' } },
+      { label: 'Step 2', kind: 'run_command', description: 'Run step 2', params: { command: 'echo step2' } },
+    ],
+  }
+}
+
+function makeThreeStepWorkflowWithApproval(): WorkflowDefinition {
+  return {
+    id: 'test_approval',
+    name: 'Approval Test',
+    description: 'Three steps; second returns approval_required.',
+    maxRetries: 3,
+    steps: [
+      { label: 'Step 1', kind: 'run_command', description: 'Run step 1', params: { command: 'echo a' } },
+      { label: 'Step 2 (needs approval)', kind: 'run_command', description: 'Run step 2', params: { command: 'echo b' } },
+      { label: 'Step 3', kind: 'run_command', description: 'Run step 3', params: { command: 'echo c' } },
     ],
   }
 }
@@ -79,9 +79,9 @@ describe('workflow engine', () => {
     const sm = new RunStateManager()
 
     const result = await executeWorkflow({
+      workflow: makeTwoStepWorkflow(),
       executeAction,
       stateManager: sm,
-      workflow: makeTwoStepWorkflow(),
     })
 
     expect(result.success).toBe(true)
@@ -104,9 +104,9 @@ describe('workflow engine', () => {
     const sm = new RunStateManager()
 
     const result = await executeWorkflow({
+      workflow: wf,
       executeAction,
       stateManager: sm,
-      workflow: wf,
     })
 
     expect(result.success).toBe(false)
@@ -131,18 +131,18 @@ describe('workflow engine', () => {
 
     // Execute until suspension
     const initial = await executeWorkflow({
+      workflow: wf,
       executeAction,
       stateManager: sm,
-      workflow: wf,
     })
     expect(initial.suspension).toBeDefined()
 
     // Resume with approval
     const resumed = await resumeWorkflow({
-      approved: true,
+      suspension: initial.suspension!,
       executeAction,
       stateManager: sm,
-      suspension: initial.suspension!,
+      approved: true,
     })
 
     expect(resumed.success).toBe(true)
@@ -165,17 +165,17 @@ describe('workflow engine', () => {
     const sm = new RunStateManager()
 
     const initial = await executeWorkflow({
+      workflow: wf,
       executeAction,
       stateManager: sm,
-      workflow: wf,
     })
     expect(initial.suspension).toBeDefined()
 
     const resumed = await resumeWorkflow({
-      approved: false,
+      suspension: initial.suspension!,
       executeAction,
       stateManager: sm,
-      suspension: initial.suspension!,
+      approved: false,
     })
 
     expect(resumed.success).toBe(false)
@@ -188,14 +188,14 @@ describe('workflow engine', () => {
 
   it('aborts on critical step failure', async () => {
     const wf: WorkflowDefinition = {
-      description: 'A critical step fails.',
       id: 'test_critical',
-      maxRetries: 3,
       name: 'Critical Failure Test',
+      description: 'A critical step fails.',
+      maxRetries: 3,
       steps: [
-        { description: 'Run step 1', kind: 'run_command', label: 'Step 1', params: { command: 'echo a' } },
-        { critical: true, description: 'Critical step', kind: 'run_command', label: 'Step 2 (critical)', params: { command: 'bad' } },
-        { description: 'Should not run', kind: 'run_command', label: 'Step 3', params: { command: 'echo c' } },
+        { label: 'Step 1', kind: 'run_command', description: 'Run step 1', params: { command: 'echo a' } },
+        { label: 'Step 2 (critical)', kind: 'run_command', description: 'Critical step', params: { command: 'bad' }, critical: true },
+        { label: 'Step 3', kind: 'run_command', description: 'Should not run', params: { command: 'echo c' } },
       ],
     }
 
@@ -209,9 +209,9 @@ describe('workflow engine', () => {
     const sm = new RunStateManager()
 
     const result = await executeWorkflow({
+      workflow: wf,
       executeAction,
       stateManager: sm,
-      workflow: wf,
     })
 
     expect(result.success).toBe(false)
@@ -225,14 +225,14 @@ describe('workflow engine', () => {
 
   it('resumes with autoApproveSteps to skip further approvals', async () => {
     const wf: WorkflowDefinition = {
-      description: 'Two approval steps; second should be auto-approved on resume.',
       id: 'test_auto_approve',
-      maxRetries: 3,
       name: 'Auto Approve Test',
+      description: 'Two approval steps; second should be auto-approved on resume.',
+      maxRetries: 3,
       steps: [
-        { description: 'Step 1', kind: 'run_command', label: 'Step 1', params: { command: 'echo a' } },
-        { description: 'Needs approval', kind: 'run_command', label: 'Step 2 (approval)', params: { command: 'echo b' } },
-        { description: 'Step 3', kind: 'run_command', label: 'Step 3', params: { command: 'echo c' } },
+        { label: 'Step 1', kind: 'run_command', description: 'Step 1', params: { command: 'echo a' } },
+        { label: 'Step 2 (approval)', kind: 'run_command', description: 'Needs approval', params: { command: 'echo b' } },
+        { label: 'Step 3', kind: 'run_command', description: 'Step 3', params: { command: 'echo c' } },
       ],
     }
 
@@ -246,18 +246,18 @@ describe('workflow engine', () => {
     const sm = new RunStateManager()
 
     const initial = await executeWorkflow({
+      workflow: wf,
       executeAction,
       stateManager: sm,
-      workflow: wf,
     })
 
     // Resume with autoApproveSteps
     const resumed = await resumeWorkflow({
-      approved: true,
-      autoApproveSteps: true,
+      suspension: initial.suspension!,
       executeAction,
       stateManager: sm,
-      suspension: initial.suspension!,
+      approved: true,
+      autoApproveSteps: true,
     })
 
     expect(resumed.success).toBe(true)
@@ -275,9 +275,9 @@ describe('workflow engine', () => {
     const sm = new RunStateManager()
 
     const result = await executeWorkflow({
+      workflow: makeTwoStepWorkflow(),
       executeAction,
       stateManager: sm,
-      workflow: makeTwoStepWorkflow(),
     })
 
     expect(result.status).toBe('completed')
@@ -287,12 +287,12 @@ describe('workflow engine', () => {
 
   it('returns failed status on step failure', async () => {
     const wf: WorkflowDefinition = {
-      description: 'A critical step fails.',
       id: 'test_fail_status',
-      maxRetries: 3,
       name: 'Fail Status Test',
+      description: 'A critical step fails.',
+      maxRetries: 3,
       steps: [
-        { critical: true, description: 'Critical fail', kind: 'run_command', label: 'Step 1 (critical)', params: { command: 'bad' } },
+        { label: 'Step 1 (critical)', kind: 'run_command', description: 'Critical fail', params: { command: 'bad' }, critical: true },
       ],
     }
 
@@ -300,9 +300,9 @@ describe('workflow engine', () => {
     const sm = new RunStateManager()
 
     const result = await executeWorkflow({
+      workflow: wf,
       executeAction,
       stateManager: sm,
-      workflow: wf,
     })
 
     expect(result.status).toBe('failed')
@@ -321,9 +321,9 @@ describe('workflow engine', () => {
     const sm = new RunStateManager()
 
     const result = await executeWorkflow({
+      workflow: wf,
       executeAction,
       stateManager: sm,
-      workflow: wf,
     })
 
     expect(result.status).toBe('paused')
@@ -336,13 +336,13 @@ describe('workflow engine', () => {
 
   it('does not double-count failures (completeCurrentStep already increments)', async () => {
     const wf: WorkflowDefinition = {
-      description: 'Two steps, first fails.',
       id: 'test_failure_count',
-      maxRetries: 5,
       name: 'Failure Count Test',
+      description: 'Two steps, first fails.',
+      maxRetries: 5,
       steps: [
-        { description: 'Fails', kind: 'run_command', label: 'Step 1', params: { command: 'bad' } },
-        { description: 'Succeeds', kind: 'run_command', label: 'Step 2', params: { command: 'echo ok' } },
+        { label: 'Step 1', kind: 'run_command', description: 'Fails', params: { command: 'bad' } },
+        { label: 'Step 2', kind: 'run_command', description: 'Succeeds', params: { command: 'echo ok' } },
       ],
     }
 
@@ -356,9 +356,9 @@ describe('workflow engine', () => {
     const sm = new RunStateManager()
 
     const result = await executeWorkflow({
+      workflow: wf,
       executeAction,
       stateManager: sm,
-      workflow: wf,
     })
 
     // failureCount should be 1 (not 2 from double-counting)
@@ -371,57 +371,57 @@ describe('workflow engine', () => {
 
   it('triggers reroute when strategy advises browser surface for browser foreground', async () => {
     const wf: WorkflowDefinition = {
-      description: 'Click in browser triggers reroute.',
       id: 'test_reroute',
-      maxRetries: 3,
       name: 'Reroute Test',
+      description: 'Click in browser triggers reroute.',
+      maxRetries: 3,
       steps: [
-        { description: 'Click button', kind: 'click_element', label: 'Click in browser', params: { x: 100, y: 100 } },
+        { label: 'Click in browser', kind: 'click_element', description: 'Click button', params: { x: 100, y: 100 } },
       ],
     }
 
     const executeAction: ExecuteAction = vi.fn().mockResolvedValue(makeSuccessResult())
     const executePrepTool = vi.fn().mockResolvedValue(makePrepSuccessResult({
+      status: 'ok',
       elementCount: 4,
       page: { title: 'Example', url: 'https://example.com' },
-      status: 'ok',
     }))
     const sm = new RunStateManager()
     // Set browser foreground context so strategy emits use_browser_surface (reroute)
     sm.updateForegroundContext({
-      appName: 'Google Chrome',
       available: true,
+      appName: 'Google Chrome',
       platform: 'darwin',
     })
     sm.updateBrowserSurfaceAvailability({
-      availableSurfaces: ['browser_dom'],
-      cdp: {
-        connectable: true,
-        connected: true,
-        endpoint: 'http://localhost:9222',
-      },
       executionMode: 'local-windowed',
-      extension: {
-        connected: true,
-        enabled: true,
-      },
-      preferredSurface: 'browser_dom',
-      reason: 'Browser extension bridge is already connected.',
-      selectedToolName: 'browser_dom_read_page',
       suitable: true,
+      availableSurfaces: ['browser_dom'],
+      preferredSurface: 'browser_dom',
+      selectedToolName: 'browser_dom_read_page',
+      reason: 'Browser extension bridge is already connected.',
+      extension: {
+        enabled: true,
+        connected: true,
+      },
+      cdp: {
+        endpoint: 'http://localhost:9222',
+        connected: true,
+        connectable: true,
+      },
     })
     sm.updateDisplayInfo({
       available: true,
-      logicalHeight: 1117,
-      logicalWidth: 1728,
       platform: 'darwin',
+      logicalWidth: 1728,
+      logicalHeight: 1117,
     })
 
     const result = await executeWorkflow({
+      workflow: wf,
       executeAction,
       executePrepTool,
       stateManager: sm,
-      workflow: wf,
     })
 
     expect(result.status).toBe('reroute_required')
@@ -432,11 +432,11 @@ describe('workflow engine', () => {
     expect(result.stepResults[0]!.status).toBe('reroute_required')
     expect(result.stepResults[0]!.preparatoryResults).toEqual([
       expect.objectContaining({
+        toolName: 'browser_dom_read_page',
+        succeeded: true,
         metadata: expect.objectContaining({
           frameCount: undefined,
         }),
-        succeeded: true,
-        toolName: 'browser_dom_read_page',
       }),
     ])
     expect(executePrepTool).toHaveBeenCalledWith('browser_dom_read_page', { skipApprovalQueue: false })
@@ -445,50 +445,50 @@ describe('workflow engine', () => {
 
   it('runs action-prep before browser reroute evaluation and avoids stale reroute after focusing', async () => {
     const wf: WorkflowDefinition = {
-      description: 'Focus target app before deciding on browser reroute.',
       id: 'test_action_prep_before_reroute',
-      maxRetries: 3,
       name: 'Action Prep Before Reroute Test',
+      description: 'Focus target app before deciding on browser reroute.',
+      maxRetries: 3,
       steps: [
-        { description: 'Click button', kind: 'click_element', label: 'Click in Cursor', params: { x: 100, y: 100 } },
+        { label: 'Click in Cursor', kind: 'click_element', description: 'Click button', params: { x: 100, y: 100 } },
       ],
     }
 
     const sm = new RunStateManager()
     sm.updateForegroundContext({
-      appName: 'Google Chrome',
       available: true,
+      appName: 'Google Chrome',
       platform: 'darwin',
     })
     sm.updateDisplayInfo({
       available: true,
-      logicalHeight: 1117,
-      logicalWidth: 1728,
       platform: 'darwin',
+      logicalWidth: 1728,
+      logicalHeight: 1117,
     })
     sm.updateBrowserSurfaceAvailability({
-      availableSurfaces: ['browser_dom'],
-      cdp: {
-        connectable: true,
-        connected: true,
-        endpoint: 'http://localhost:9222',
-      },
       executionMode: 'local-windowed',
-      extension: {
-        connected: true,
-        enabled: true,
-      },
-      preferredSurface: 'browser_dom',
-      reason: 'Browser extension bridge is already connected.',
-      selectedToolName: 'browser_dom_read_page',
       suitable: true,
+      availableSurfaces: ['browser_dom'],
+      preferredSurface: 'browser_dom',
+      selectedToolName: 'browser_dom_read_page',
+      reason: 'Browser extension bridge is already connected.',
+      extension: {
+        enabled: true,
+        connected: true,
+      },
+      cdp: {
+        endpoint: 'http://localhost:9222',
+        connected: true,
+        connectable: true,
+      },
     })
 
     const executeAction: ExecuteAction = vi.fn().mockImplementation(async (action, toolName) => {
       if (toolName === 'prep_focus_app_first') {
         sm.updateForegroundContext({
-          appName: 'Cursor',
           available: true,
+          appName: 'Cursor',
           platform: 'darwin',
         })
         return makeSuccessResult('focused')
@@ -499,10 +499,10 @@ describe('workflow engine', () => {
     const executePrepTool = vi.fn().mockResolvedValue(makePrepSuccessResult({ status: 'ok' }))
 
     const result = await executeWorkflow({
+      workflow: wf,
       executeAction,
       executePrepTool,
       stateManager: sm,
-      workflow: wf,
     })
 
     expect(result.success).toBe(true)
@@ -510,7 +510,7 @@ describe('workflow engine', () => {
     expect(executeAction).toHaveBeenCalledTimes(2)
     expect(executeAction).toHaveBeenNthCalledWith(
       1,
-      { input: { app: 'Cursor' }, kind: 'focus_app' },
+      { kind: 'focus_app', input: { app: 'Cursor' } },
       'prep_focus_app_first',
       { skipApprovalQueue: false },
     )
@@ -519,26 +519,26 @@ describe('workflow engine', () => {
 
   it('pauses the workflow when action-prep requires approval and resumes the same step later', async () => {
     const wf: WorkflowDefinition = {
-      description: 'Focus requires approval before main action.',
       id: 'test_action_prep_approval',
-      maxRetries: 3,
       name: 'Action Prep Approval Test',
+      description: 'Focus requires approval before main action.',
+      maxRetries: 3,
       steps: [
-        { description: 'Click button', kind: 'click_element', label: 'Click in Cursor', params: { x: 100, y: 100 } },
+        { label: 'Click in Cursor', kind: 'click_element', description: 'Click button', params: { x: 100, y: 100 } },
       ],
     }
 
     const sm = new RunStateManager()
     sm.updateForegroundContext({
-      appName: 'Google Chrome',
       available: true,
+      appName: 'Google Chrome',
       platform: 'darwin',
     })
     sm.updateDisplayInfo({
       available: true,
-      logicalHeight: 1117,
-      logicalWidth: 1728,
       platform: 'darwin',
+      logicalWidth: 1728,
+      logicalHeight: 1117,
     })
 
     const executeAction: ExecuteAction = vi.fn().mockImplementation(async (_, toolName) => {
@@ -550,9 +550,9 @@ describe('workflow engine', () => {
     })
 
     const initial = await executeWorkflow({
+      workflow: wf,
       executeAction,
       stateManager: sm,
-      workflow: wf,
     })
 
     expect(initial.status).toBe('paused')
@@ -561,16 +561,16 @@ describe('workflow engine', () => {
     expect(executeAction).toHaveBeenCalledTimes(1)
 
     sm.updateForegroundContext({
-      appName: 'Cursor',
       available: true,
+      appName: 'Cursor',
       platform: 'darwin',
     })
 
     const resumed = await resumeWorkflow({
-      approved: true,
+      suspension: initial.suspension!,
       executeAction: vi.fn().mockResolvedValue(makeSuccessResult('main action done')),
       stateManager: sm,
-      suspension: initial.suspension!,
+      approved: true,
     })
 
     expect(resumed.success).toBe(true)
@@ -581,26 +581,26 @@ describe('workflow engine', () => {
 
   it('fails the workflow when focus action-prep fails and does not execute the main action', async () => {
     const wf: WorkflowDefinition = {
-      description: 'Focus prep failure should block the main action.',
       id: 'test_focus_prep_failure',
-      maxRetries: 3,
       name: 'Focus Prep Failure Test',
+      description: 'Focus prep failure should block the main action.',
+      maxRetries: 3,
       steps: [
-        { description: 'Click button', kind: 'click_element', label: 'Click in Cursor', params: { x: 100, y: 100 } },
+        { label: 'Click in Cursor', kind: 'click_element', description: 'Click button', params: { x: 100, y: 100 } },
       ],
     }
 
     const sm = new RunStateManager()
     sm.updateForegroundContext({
-      appName: 'Google Chrome',
       available: true,
+      appName: 'Google Chrome',
       platform: 'darwin',
     })
     sm.updateDisplayInfo({
       available: true,
-      logicalHeight: 1117,
-      logicalWidth: 1728,
       platform: 'darwin',
+      logicalWidth: 1728,
+      logicalHeight: 1117,
     })
 
     const executeAction: ExecuteAction = vi.fn().mockImplementation(async (_, toolName) => {
@@ -612,9 +612,9 @@ describe('workflow engine', () => {
     })
 
     const result = await executeWorkflow({
+      workflow: wf,
       executeAction,
       stateManager: sm,
-      workflow: wf,
     })
 
     expect(result.status).toBe('failed')
@@ -625,27 +625,27 @@ describe('workflow engine', () => {
 
   it('fails the workflow when screenshot action-prep fails and does not execute tool-prep or the main action', async () => {
     const wf: WorkflowDefinition = {
-      description: 'Screenshot prep failure should block the step.',
       id: 'test_screenshot_prep_failure',
-      maxRetries: 3,
       name: 'Screenshot Prep Failure Test',
+      description: 'Screenshot prep failure should block the step.',
+      maxRetries: 3,
       steps: [
-        { description: 'Click button', kind: 'click_element', label: 'Click in remote session', params: { x: 100, y: 100 } },
+        { label: 'Click in remote session', kind: 'click_element', description: 'Click button', params: { x: 100, y: 100 } },
       ],
     }
 
     const sm = new RunStateManager()
     sm.updateForegroundContext({
-      appName: 'Terminal',
       available: true,
+      appName: 'Terminal',
       platform: 'darwin',
     })
     sm.updateExecutionTarget({
+      mode: 'remote',
+      transport: 'ssh-stdio',
       hostName: 'remote-test',
       isolated: false,
-      mode: 'remote',
       tainted: true,
-      transport: 'ssh-stdio',
     })
 
     const executeAction: ExecuteAction = vi.fn().mockImplementation(async (_, toolName) => {
@@ -658,10 +658,10 @@ describe('workflow engine', () => {
     const executePrepTool = vi.fn().mockResolvedValue(makePrepSuccessResult({ status: 'ok' }))
 
     const result = await executeWorkflow({
+      workflow: wf,
       executeAction,
       executePrepTool,
       stateManager: sm,
-      workflow: wf,
     })
 
     expect(result.status).toBe('failed')
@@ -671,27 +671,27 @@ describe('workflow engine', () => {
 
   it('runs action-prep before tool-prep when both are needed', async () => {
     const wf: WorkflowDefinition = {
-      description: 'Action prep should happen before tool prep.',
       id: 'test_action_then_tool_prep',
-      maxRetries: 3,
       name: 'Action Then Tool Prep Test',
+      description: 'Action prep should happen before tool prep.',
+      maxRetries: 3,
       steps: [
-        { description: 'Click button', kind: 'click_element', label: 'Click in Cursor', params: { x: 100, y: 100 } },
+        { label: 'Click in Cursor', kind: 'click_element', description: 'Click button', params: { x: 100, y: 100 } },
       ],
     }
 
     const sm = new RunStateManager()
     sm.updateForegroundContext({
-      appName: 'Google Chrome',
       available: true,
+      appName: 'Google Chrome',
       platform: 'darwin',
     })
     sm.updateExecutionTarget({
+      mode: 'remote',
+      transport: 'ssh-stdio',
       hostName: 'remote-test',
       isolated: false,
-      mode: 'remote',
       tainted: true,
-      transport: 'ssh-stdio',
     })
 
     const callSequence: string[] = []
@@ -700,8 +700,8 @@ describe('workflow engine', () => {
       callSequence.push(toolName)
       if (toolName === 'prep_focus_app_first') {
         sm.updateForegroundContext({
-          appName: 'Cursor',
           available: true,
+          appName: 'Cursor',
           platform: 'darwin',
         })
       }
@@ -710,30 +710,30 @@ describe('workflow engine', () => {
     const executePrepTool = vi.fn().mockImplementation(async (toolName) => {
       callSequence.push(toolName)
       return makePrepSuccessResult({
-        capturedAt: '2026-03-11T15:00:00.000Z',
-        combinedBounds: { height: 1117, width: 1728, x: 0, y: 0 },
+        status: 'ok',
         displayCount: 1,
         displays: [
           {
-            bounds: { height: 1117, width: 1728, x: 0, y: 0 },
             displayId: 1,
-            isBuiltIn: true,
             isMain: true,
-            pixelHeight: 2234,
-            pixelWidth: 3456,
+            isBuiltIn: true,
+            bounds: { x: 0, y: 0, width: 1728, height: 1117 },
+            visibleBounds: { x: 0, y: 25, width: 1728, height: 1078 },
             scaleFactor: 2,
-            visibleBounds: { height: 1078, width: 1728, x: 0, y: 25 },
+            pixelWidth: 3456,
+            pixelHeight: 2234,
           },
         ],
-        status: 'ok',
+        combinedBounds: { x: 0, y: 0, width: 1728, height: 1117 },
+        capturedAt: '2026-03-11T15:00:00.000Z',
       })
     })
 
     const result = await executeWorkflow({
+      workflow: wf,
       executeAction,
       executePrepTool,
       stateManager: sm,
-      workflow: wf,
     })
 
     expect(result.success).toBe(true)
@@ -746,51 +746,51 @@ describe('workflow engine', () => {
 
   it('runs display enumerate prep and continues to main action when no reroute', async () => {
     const wf: WorkflowDefinition = {
-      description: 'Screenshot without displayInfo triggers prep.',
       id: 'test_prep_display',
-      maxRetries: 3,
       name: 'Prep Display Test',
+      description: 'Screenshot without displayInfo triggers prep.',
+      maxRetries: 3,
       steps: [
-        { description: 'Capture', kind: 'take_screenshot', label: 'Take screenshot', params: {} },
+        { label: 'Take screenshot', kind: 'take_screenshot', description: 'Capture', params: {} },
       ],
     }
 
     const executeAction: ExecuteAction = vi.fn().mockResolvedValue(makeSuccessResult())
     const executePrepTool = vi.fn().mockResolvedValue(makePrepSuccessResult({
-      capturedAt: '2026-03-11T14:00:00.000Z',
-      combinedBounds: { height: 1117, width: 3648, x: 0, y: 0 },
+      status: 'ok',
       displayCount: 2,
       displays: [
         {
-          bounds: { height: 1117, width: 1728, x: 0, y: 0 },
           displayId: 1,
-          isBuiltIn: true,
           isMain: true,
-          pixelHeight: 2234,
-          pixelWidth: 3456,
+          isBuiltIn: true,
+          bounds: { x: 0, y: 0, width: 1728, height: 1117 },
+          visibleBounds: { x: 0, y: 25, width: 1728, height: 1078 },
           scaleFactor: 2,
-          visibleBounds: { height: 1078, width: 1728, x: 0, y: 25 },
+          pixelWidth: 3456,
+          pixelHeight: 2234,
         },
         {
-          bounds: { height: 1080, width: 1920, x: 1728, y: 0 },
           displayId: 2,
-          isBuiltIn: false,
           isMain: false,
-          pixelHeight: 1080,
-          pixelWidth: 1920,
+          isBuiltIn: false,
+          bounds: { x: 1728, y: 0, width: 1920, height: 1080 },
+          visibleBounds: { x: 1728, y: 0, width: 1920, height: 1040 },
           scaleFactor: 1,
-          visibleBounds: { height: 1040, width: 1920, x: 1728, y: 0 },
+          pixelWidth: 1920,
+          pixelHeight: 1080,
         },
       ],
-      status: 'ok',
+      combinedBounds: { x: 0, y: 0, width: 3648, height: 1117 },
+      capturedAt: '2026-03-11T14:00:00.000Z',
     }))
     const sm = new RunStateManager()
 
     const result = await executeWorkflow({
+      workflow: wf,
       executeAction,
       executePrepTool,
       stateManager: sm,
-      workflow: wf,
     })
 
     expect(result.success).toBe(true)
@@ -799,34 +799,34 @@ describe('workflow engine', () => {
     expect(executeAction).toHaveBeenCalledTimes(1)
     expect(result.stepResults[0]!.preparatoryResults).toEqual([
       expect.objectContaining({
-        metadata: expect.objectContaining({
-          combinedBounds: { height: 1117, width: 3648, x: 0, y: 0 },
-          displayCount: 2,
-        }),
-        succeeded: true,
         toolName: 'display_enumerate',
+        succeeded: true,
+        metadata: expect.objectContaining({
+          displayCount: 2,
+          combinedBounds: { x: 0, y: 0, width: 3648, height: 1117 },
+        }),
       }),
     ])
 
     const displayInfo = sm.getState().displayInfo
     expect(displayInfo).toMatchObject({
       available: true,
-      combinedBounds: { height: 1117, width: 3648, x: 0, y: 0 },
-      displayCount: 2,
-      logicalHeight: 1117,
       logicalWidth: 3648,
+      logicalHeight: 1117,
+      displayCount: 2,
+      combinedBounds: { x: 0, y: 0, width: 3648, height: 1117 },
     })
     expect(displayInfo?.displays).toHaveLength(2)
   })
 
   it('fails the workflow when a preparatory tool fails', async () => {
     const wf: WorkflowDefinition = {
-      description: 'Display prep failure should block the main action.',
       id: 'test_failed_prep',
-      maxRetries: 3,
       name: 'Failed Prep Test',
+      description: 'Display prep failure should block the main action.',
+      maxRetries: 3,
       steps: [
-        { description: 'Capture', kind: 'take_screenshot', label: 'Take screenshot', params: {} },
+        { label: 'Take screenshot', kind: 'take_screenshot', description: 'Capture', params: {} },
       ],
     }
 
@@ -835,10 +835,10 @@ describe('workflow engine', () => {
     const sm = new RunStateManager()
 
     const result = await executeWorkflow({
+      workflow: wf,
       executeAction,
       executePrepTool,
       stateManager: sm,
-      workflow: wf,
     })
 
     expect(result.success).toBe(false)
@@ -848,9 +848,9 @@ describe('workflow engine', () => {
     expect(result.stepResults[0]!.explanation).toContain('Preparatory tool "display_enumerate" failed')
     expect(result.stepResults[0]!.preparatoryResults).toEqual([
       expect.objectContaining({
-        error: 'display enumeration unavailable',
-        succeeded: false,
         toolName: 'display_enumerate',
+        succeeded: false,
+        error: 'display enumeration unavailable',
       }),
     ])
     expect(executePrepTool).toHaveBeenCalledTimes(2)
@@ -859,12 +859,12 @@ describe('workflow engine', () => {
 
   it('retries transient preparatory tools once before continuing', async () => {
     const wf: WorkflowDefinition = {
-      description: 'Display prep retries once.',
       id: 'test_retry_prep',
-      maxRetries: 3,
       name: 'Retry Prep Test',
+      description: 'Display prep retries once.',
+      maxRetries: 3,
       steps: [
-        { description: 'Capture', kind: 'take_screenshot', label: 'Take screenshot', params: {} },
+        { label: 'Take screenshot', kind: 'take_screenshot', description: 'Capture', params: {} },
       ],
     }
 
@@ -872,30 +872,30 @@ describe('workflow engine', () => {
     const executePrepTool = vi.fn()
       .mockResolvedValueOnce(makeErrorResult('temporary display probe failure'))
       .mockResolvedValueOnce(makePrepSuccessResult({
-        capturedAt: '2026-03-11T14:05:00.000Z',
-        combinedBounds: { height: 1117, width: 1728, x: 0, y: 0 },
+        status: 'ok',
         displayCount: 1,
         displays: [
           {
-            bounds: { height: 1117, width: 1728, x: 0, y: 0 },
             displayId: 1,
-            isBuiltIn: true,
             isMain: true,
-            pixelHeight: 2234,
-            pixelWidth: 3456,
+            isBuiltIn: true,
+            bounds: { x: 0, y: 0, width: 1728, height: 1117 },
+            visibleBounds: { x: 0, y: 25, width: 1728, height: 1078 },
             scaleFactor: 2,
-            visibleBounds: { height: 1078, width: 1728, x: 0, y: 25 },
+            pixelWidth: 3456,
+            pixelHeight: 2234,
           },
         ],
-        status: 'ok',
+        combinedBounds: { x: 0, y: 0, width: 1728, height: 1117 },
+        capturedAt: '2026-03-11T14:05:00.000Z',
       }))
     const sm = new RunStateManager()
 
     const result = await executeWorkflow({
+      workflow: wf,
       executeAction,
       executePrepTool,
       stateManager: sm,
-      workflow: wf,
     })
 
     expect(result.success).toBe(true)

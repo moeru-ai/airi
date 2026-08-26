@@ -15,8 +15,8 @@ const remoteRunnerPath = normalizeRemoteShellPath(env.COMPUTER_USE_REMOTE_RUNNER
 async function buildLocalBundle() {
   await runProcess('pnpm', ['build'], {
     cwd: packageDir,
-    env: process.env,
     timeoutMs: 180_000,
+    env: process.env,
   })
 }
 
@@ -68,8 +68,8 @@ mkdir -p $(dirname ${remoteRunnerPath})
   })
 
   await uploadDirectoryToRemote(config, {
-    remoteDir: `${remoteInstallDir}/dist`,
     sourceDir: distDir,
+    remoteDir: `${remoteInstallDir}/dist`,
     timeoutMs: 180_000,
   })
 
@@ -106,10 +106,10 @@ async function main() {
     ok: true,
     remote: {
       host: config.remoteSshHost,
-      installDir: remoteInstallDir,
-      port: config.remoteSshPort,
-      runnerCommand: remoteRunnerPath,
       user: config.remoteSshUser,
+      port: config.remoteSshPort,
+      installDir: remoteInstallDir,
+      runnerCommand: remoteRunnerPath,
     },
   }, null, 2))
 }

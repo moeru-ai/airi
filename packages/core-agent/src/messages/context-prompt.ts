@@ -11,35 +11,6 @@ import type { ContextMessage } from '../types/chat'
 export type ContextSnapshot = Record<string, ContextMessage[]>
 
 /**
- * Builds a user-role context prompt message from active runtime context.
- *
- * Use when:
- * - A caller needs the historical standalone context prompt shape.
- *
- * Expects:
- * - Context messages have already been bucketed and cloned by the context registry.
- *
- * Returns:
- * - `null` when no prompt text is available.
- * - A user message carrying the rendered context text otherwise.
- */
-export function buildContextPromptMessage(contextsSnapshot: ContextSnapshot): null | UserMessage {
-  const promptText = formatContextPromptText(contextsSnapshot)
-  if (!promptText)
-    return null
-
-  return {
-    content: [
-      {
-        text: promptText,
-        type: 'text',
-      },
-    ],
-    role: 'user',
-  }
-}
-
-/**
  * Render runtime context modules into a compact, readable text block.
  *
  * Use when:
@@ -76,4 +47,33 @@ export function formatContextPromptText(contextsSnapshot: ContextSnapshot) {
     return ''
 
   return ['[Context]', ...lines].join('\n')
+}
+
+/**
+ * Builds a user-role context prompt message from active runtime context.
+ *
+ * Use when:
+ * - A caller needs the historical standalone context prompt shape.
+ *
+ * Expects:
+ * - Context messages have already been bucketed and cloned by the context registry.
+ *
+ * Returns:
+ * - `null` when no prompt text is available.
+ * - A user message carrying the rendered context text otherwise.
+ */
+export function buildContextPromptMessage(contextsSnapshot: ContextSnapshot): UserMessage | null {
+  const promptText = formatContextPromptText(contextsSnapshot)
+  if (!promptText)
+    return null
+
+  return {
+    role: 'user',
+    content: [
+      {
+        type: 'text',
+        text: promptText,
+      },
+    ],
+  }
 }

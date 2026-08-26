@@ -27,9 +27,9 @@ function makeGauge() {
 describe('registerDbPoolGauge', () => {
   it('reports the configured capacity and the live pool counts', () => {
     const pool = {
-      idleCount: 2,
       options: { max: 20 },
       totalCount: 7,
+      idleCount: 2,
       waitingCount: 3,
     }
     const { gauge, observe, run } = makeGauge()

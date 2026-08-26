@@ -9,17 +9,6 @@ interface Deferred<T> {
   resolve: (value: T) => void
 }
 
-function createAuthentication(resolveUserId: (token: string) => Promise<null | string>) {
-  const close = vi.fn<(code?: number, reason?: string) => void>()
-  const onAuthenticated = vi.fn()
-  const authentication = createChatWsV2Authentication({
-    onAuthenticated,
-    resolveUserId,
-    socket: { close },
-  })
-  return { authentication, close, onAuthenticated }
-}
-
 function createDeferred<T>(): Deferred<T> {
   let reject: (error: Error) => void = () => {}
   let resolve: (value: T) => void = () => {}
@@ -28,6 +17,17 @@ function createDeferred<T>(): Deferred<T> {
     reject = rejectPromise
   })
   return { promise, reject, resolve }
+}
+
+function createAuthentication(resolveUserId: (token: string) => Promise<string | null>) {
+  const close = vi.fn<(code?: number, reason?: string) => void>()
+  const onAuthenticated = vi.fn()
+  const authentication = createChatWsV2Authentication({
+    socket: { close },
+    resolveUserId,
+    onAuthenticated,
+  })
+  return { authentication, close, onAuthenticated }
 }
 
 describe('v2 chat WebSocket authentication', () => {
@@ -50,7 +50,7 @@ describe('v2 chat WebSocket authentication', () => {
   // The authentication session now accepts one attempt, marks the socket
   // inactive before it closes, and refuses a late resolver result.
   it('does not authenticate after disconnecting during authentication', async () => {
-    const deferred = createDeferred<null | string>()
+    const deferred = createDeferred<string | null>()
     const resolveUserId = vi.fn(() => deferred.promise)
     const { authentication, onAuthenticated } = createAuthentication(resolveUserId)
 
@@ -63,7 +63,7 @@ describe('v2 chat WebSocket authentication', () => {
   })
 
   it('limits each socket to one authentication attempt', async () => {
-    const deferred = createDeferred<null | string>()
+    const deferred = createDeferred<string | null>()
     const resolveUserId = vi.fn(() => deferred.promise)
     const { authentication } = createAuthentication(resolveUserId)
 
@@ -76,7 +76,7 @@ describe('v2 chat WebSocket authentication', () => {
   })
 
   it('uses a retryable code when authentication times out', async () => {
-    const deferred = createDeferred<null | string>()
+    const deferred = createDeferred<string | null>()
     const { authentication, close, onAuthenticated } = createAuthentication(() => deferred.promise)
 
     const request = authentication.authenticate({ token: 'valid-token' })

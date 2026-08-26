@@ -18,31 +18,31 @@ const openAICompatibleConfigSchema = z.object({
 type OpenAICompatibleConfig = z.input<typeof openAICompatibleConfigSchema>
 
 export const providerOpenAICompatible = defineProvider<OpenAICompatibleConfig>({
-  createProvider(config) {
-    return createOpenAI(config.apiKey as string, config.baseUrl)
-  },
+  id: 'openai-compatible',
+  order: 4,
+  name: 'OpenAI Compatible',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.openai-compatible.title'),
+  description: 'OpenAI-compatible chat APIs with API key authentication.',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.openai-compatible.description'),
+  tasks: ['chat'],
+  icon: 'i-lobe-icons:openai',
+
   createProviderConfig: ({ t }) => openAICompatibleConfigSchema.extend({
     apiKey: openAICompatibleConfigSchema.shape.apiKey.meta({
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
       type: 'password',
     }),
     baseUrl: openAICompatibleConfigSchema.shape.baseUrl.meta({
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
     }),
   }),
-  description: 'OpenAI-compatible chat APIs with API key authentication.',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.openai-compatible.description'),
-  icon: 'i-lobe-icons:openai',
-  id: 'openai-compatible',
-  name: 'OpenAI Compatible',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.openai-compatible.title'),
-
-  order: 4,
-  tasks: ['chat'],
+  createProvider(config) {
+    return createOpenAI(config.apiKey as string, config.baseUrl)
+  },
 
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()

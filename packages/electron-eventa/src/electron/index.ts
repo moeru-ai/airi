@@ -9,10 +9,10 @@ export { bounds, startLoopGetBounds } from './window'
 export type { BackgroundMaterialType, ResizeDirection, VibrancyType } from './window'
 
 export const electron = {
-  app,
   screen,
-  systemPreferences,
   window,
+  systemPreferences,
+  app,
 }
 
 export const electronEvents = {

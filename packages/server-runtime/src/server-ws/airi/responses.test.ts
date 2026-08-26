@@ -10,12 +10,12 @@ describe('airi websocket responses', () => {
     const metadata = createEventMetadata('server-1', 'parent-event-1')
 
     expect(metadata.source).toEqual({
-      id: 'server-1',
       kind: 'plugin',
       plugin: {
         id: WebSocketEventSource.Server,
         version: packageJSON.version,
       },
+      id: 'server-1',
     })
     expect(metadata.event).toEqual({
       id: expect.any(String),
@@ -27,14 +27,12 @@ describe('airi websocket responses', () => {
     const responses = createResponses('server-1')
 
     expect(responses.peerAuthenticated('peer-1', 'event-1')).toMatchObject({
+      type: 'peer:authenticated',
       data: {
         authenticated: true,
         peerId: 'peer-1',
       },
       metadata: {
-        event: {
-          parentId: 'event-1',
-        },
         source: {
           id: 'server-1',
           plugin: {
@@ -42,10 +40,13 @@ describe('airi websocket responses', () => {
             version: packageJSON.version,
           },
         },
+        event: {
+          parentId: 'event-1',
+        },
       },
-      type: 'peer:authenticated',
     })
     expect(responses.extensionAuthenticated({ id: 'airi-extension-chess' }, 'event-2')).toMatchObject({
+      type: 'extension:authenticated',
       data: {
         authenticated: true,
         identity: {
@@ -53,9 +54,6 @@ describe('airi websocket responses', () => {
         },
       },
       metadata: {
-        event: {
-          parentId: 'event-2',
-        },
         source: {
           id: 'server-1',
           plugin: {
@@ -63,8 +61,10 @@ describe('airi websocket responses', () => {
             version: packageJSON.version,
           },
         },
+        event: {
+          parentId: 'event-2',
+        },
       },
-      type: 'extension:authenticated',
     })
   })
 })

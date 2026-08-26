@@ -6,10 +6,10 @@ import { smeltItem } from './crafting'
 const mocks = vi.hoisted(() => ({
   collectBlock: vi.fn(),
   getInventoryCounts: vi.fn(),
-  getItemId: vi.fn(),
-  getItemName: vi.fn(),
   getNearestBlock: vi.fn(),
   getNearestFreeSpace: vi.fn(),
+  getItemId: vi.fn(),
+  getItemName: vi.fn(),
   log: vi.fn(),
   placeBlock: vi.fn(),
 }))

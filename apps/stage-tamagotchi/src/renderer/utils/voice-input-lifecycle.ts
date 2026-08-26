@@ -77,9 +77,9 @@ export function createVoiceInputInteractionLifecycle<TStopOptions = never>(
   }
 
   return {
-    isStarting: () => startPromise !== undefined,
-    isStopping: () => stopPromise !== undefined,
     start,
     stop,
+    isStarting: () => startPromise !== undefined,
+    isStopping: () => stopPromise !== undefined,
   }
 }

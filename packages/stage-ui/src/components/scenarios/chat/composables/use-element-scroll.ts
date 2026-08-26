@@ -14,8 +14,8 @@ export function useElementScroll(
 
   const { height: windowHeight } = useWindowSize()
   const {
-    height: elementHeight,
     top: elementTop,
+    height: elementHeight,
     update: updateElementBounds,
   } = useElementBounding(element, {
     immediate: true,
@@ -25,8 +25,8 @@ export function useElementScroll(
   })
 
   const {
-    bottom: scrollViewportBottom,
     top: scrollViewportTop,
+    bottom: scrollViewportBottom,
     update: updateScrollViewportBounds,
   } = useElementBounding(scrollTarget, {
     immediate: true,
@@ -112,28 +112,28 @@ export function useElementScroll(
   })
 
   return {
-    elementHeight,
-
-    elementTop,
-    elementTopInScrollContent,
-    hasMeasuredElement,
-
-    innerBottom,
-    innerHeight,
-    innerTop,
-
-    isVisible,
     scrollOffset,
 
-    scrollTarget: effectiveScrollTarget,
-    updateElementBounds,
-    updateScrollViewportBounds,
-
+    viewportTop,
     viewportBottom,
     viewportHeight,
-    viewportTop,
 
-    visibleEnd,
+    elementTop,
+    elementHeight,
+    elementTopInScrollContent,
+
     visibleStart,
+    visibleEnd,
+
+    innerTop,
+    innerBottom,
+    innerHeight,
+
+    hasMeasuredElement,
+    isVisible,
+    scrollTarget: effectiveScrollTarget,
+
+    updateElementBounds,
+    updateScrollViewportBounds,
   }
 }

@@ -24,22 +24,22 @@ const MIN_MODEL_SCALE = 0.65
 const REFERENCE_MODEL_HEIGHT = 1.6
 
 interface ColliderDefinition {
-  bone: VrmInteractionTarget
-  offset: readonly [number, number, number]
-  size: readonly [number, number, number]
   target: VrmInteractionTarget
+  bone: VrmInteractionTarget
+  size: readonly [number, number, number]
+  offset: readonly [number, number, number]
 }
 
 const COLLIDER_DEFINITIONS: readonly ColliderDefinition[] = [
-  { bone: 'head', offset: [0, 0.05, 0], size: [0.22, 0.25, 0.25], target: 'head' },
-  { bone: 'leftUpperArm', offset: [0, -0.17, 0], size: [0.2, 0.34, 0.2], target: 'leftUpperArm' },
-  { bone: 'leftLowerArm', offset: [0, -0.15, 0], size: [0.17, 0.3, 0.17], target: 'leftLowerArm' },
-  { bone: 'leftHand', offset: [0.06, 0, 0], size: [0.2, 0.2, 0.2], target: 'leftHand' },
-  { bone: 'rightUpperArm', offset: [0, -0.17, 0], size: [0.2, 0.34, 0.2], target: 'rightUpperArm' },
-  { bone: 'rightLowerArm', offset: [0, -0.15, 0], size: [0.17, 0.3, 0.17], target: 'rightLowerArm' },
-  { bone: 'rightHand', offset: [-0.06, 0, 0], size: [0.2, 0.2, 0.2], target: 'rightHand' },
-  { bone: 'leftFoot', offset: [0, -0.05, -0.08], size: [0.15, 0.15, 0.25], target: 'leftFoot' },
-  { bone: 'rightFoot', offset: [0, -0.05, -0.08], size: [0.15, 0.15, 0.25], target: 'rightFoot' },
+  { target: 'head', bone: 'head', size: [0.22, 0.25, 0.25], offset: [0, 0.05, 0] },
+  { target: 'leftUpperArm', bone: 'leftUpperArm', size: [0.2, 0.34, 0.2], offset: [0, -0.17, 0] },
+  { target: 'leftLowerArm', bone: 'leftLowerArm', size: [0.17, 0.3, 0.17], offset: [0, -0.15, 0] },
+  { target: 'leftHand', bone: 'leftHand', size: [0.2, 0.2, 0.2], offset: [0.06, 0, 0] },
+  { target: 'rightUpperArm', bone: 'rightUpperArm', size: [0.2, 0.34, 0.2], offset: [0, -0.17, 0] },
+  { target: 'rightLowerArm', bone: 'rightLowerArm', size: [0.17, 0.3, 0.17], offset: [0, -0.15, 0] },
+  { target: 'rightHand', bone: 'rightHand', size: [0.2, 0.2, 0.2], offset: [-0.06, 0, 0] },
+  { target: 'leftFoot', bone: 'leftFoot', size: [0.15, 0.15, 0.25], offset: [0, -0.05, -0.08] },
+  { target: 'rightFoot', bone: 'rightFoot', size: [0.15, 0.15, 0.25], offset: [0, -0.05, -0.08] },
 ]
 
 export interface VrmInteractionColliderSet {
@@ -47,6 +47,15 @@ export interface VrmInteractionColliderSet {
   readonly colliders: readonly Mesh[]
   /** Removes the meshes from their bones and releases their GPU resources. */
   dispose: () => void
+}
+
+function getModelScale(vrm: VRM) {
+  const bounds = new Box3().setFromObject(vrm.scene)
+  const size = new Vector3()
+  bounds.getSize(size)
+  if (!Number.isFinite(size.y) || size.y <= 0)
+    return 1
+  return Math.min(MAX_MODEL_SCALE, Math.max(MIN_MODEL_SCALE, size.y / REFERENCE_MODEL_HEIGHT))
 }
 
 /** Creates model-relative invisible hit regions attached to normalized VRM bones. */
@@ -102,7 +111,7 @@ export function createVrmInteractionColliders(vrm: VRM): VrmInteractionColliderS
  * After:
  * - "leftUpperArm"
  */
-export function getVrmInteractionTargetFromObjectName(name: string): null | VrmInteractionTarget {
+export function getVrmInteractionTargetFromObjectName(name: string): VrmInteractionTarget | null {
   if (!name.startsWith(COLLIDER_NAME_PREFIX))
     return null
   const target = name.slice(COLLIDER_NAME_PREFIX.length)
@@ -119,13 +128,4 @@ export function isClickLikePointerGesture(
   const dx = end.x - start.x
   const dy = end.y - start.y
   return dx * dx + dy * dy <= maxDistance * maxDistance
-}
-
-function getModelScale(vrm: VRM) {
-  const bounds = new Box3().setFromObject(vrm.scene)
-  const size = new Vector3()
-  bounds.getSize(size)
-  if (!Number.isFinite(size.y) || size.y <= 0)
-    return 1
-  return Math.min(MAX_MODEL_SCALE, Math.max(MIN_MODEL_SCALE, size.y / REFERENCE_MODEL_HEIGHT))
 }

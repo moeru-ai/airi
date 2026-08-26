@@ -17,31 +17,189 @@ import { patchedGoto } from '../patched-goto'
 const logger = useLogger()
 
 /**
- * Activate the nearest block of the given type.
+ * Place a block at the given position.
  * @param mineflayer The mineflayer instance.
- * @param type The type of block to activate.
- * @throws {ActionError} When the block is not found or cannot be activated.
+ * @param blockType The type of block to place.
+ * @param x The x coordinate.
+ * @param y The y coordinate.
+ * @param z The z coordinate.
+ * @param placeOn The side to place the block on.
+ * @throws {ActionError} When the block is not in inventory or cannot be placed.
  */
-export async function activateNearestBlock(mineflayer: Mineflayer, type: string): Promise<void> {
-  const block = mineflayer.bot.findBlock({
-    matching: b => b.name === type,
-    maxDistance: 16,
-  })
+export async function placeBlock(
+  mineflayer: Mineflayer,
+  blockType: string,
+  x: number,
+  y: number,
+  z: number,
+  placeOn: string = 'bottom',
+): Promise<void> {
+  // if (!gameData.getBlockId(blockType)) {
+  //   logger.log(`Invalid block type: ${blockType}.`);
+  //   return false;
+  // }
+
+  const targetDest = new Vec3(Math.floor(x), Math.floor(y), Math.floor(z))
+
+  let block = mineflayer.bot.inventory
+    .items()
+    .find(item => item.name.includes(blockType))
+  if (!block && mineflayer.bot.game.gameMode === 'creative') {
+    const mcData = McData.fromBot(mineflayer.bot)
+    const itemId = mcData.getItemId(blockType)
+    if (itemId) {
+      const item = await import('prismarine-item')
+      const Item = item.default(mineflayer.bot.version)
+      await mineflayer.bot.creative.setInventorySlot(36, new Item(itemId, 1)) // 36 is first hotbar slot
+    }
+    block = mineflayer.bot.inventory.items().find(item => item.name.includes(blockType))
+  }
   if (!block) {
-    logger.log(`Could not find any ${type} to activate.`)
-    throw new ActionError('TARGET_NOT_FOUND', `Could not find any ${type} to activate`, { blockType: type })
+    logger.log(`Don't have any ${blockType} to place.`)
+    throw new ActionError('ITEM_NOT_FOUND', `Don't have any ${blockType} to place`, { item: blockType })
   }
-  if (mineflayer.bot.entity.position.distanceTo(block.position) > 4.5) {
-    const pos = block.position
+
+  const targetBlock = mineflayer.bot.blockAt(targetDest)
+  if (!targetBlock) {
+    logger.log(`No block found at ${targetDest}.`)
+    throw new ActionError('TARGET_NOT_FOUND', `No block found at ${targetDest}`, { position: targetDest })
+  }
+
+  if (targetBlock.name === blockType) {
+    logger.log(`${blockType} already at ${targetBlock.position}.`)
+    throw new ActionError('PLACEMENT_FAILED', `${blockType} already at ${targetBlock.position}`, { blockType, position: targetBlock.position })
+  }
+
+  const emptyBlocks = [
+    'air',
+    'water',
+    'lava',
+    'grass',
+    'tall_grass',
+    'snow',
+    'dead_bush',
+    'fern',
+  ]
+  if (!emptyBlocks.includes(targetBlock.name)) {
+    logger.log(
+      `${targetBlock.name} is in the way at ${targetBlock.position}.`,
+    )
+    await breakBlockAt(mineflayer, x, y, z)
+    await sleep(200) // Wait for block to break
+  }
+
+  // Determine the build-off block and face vector
+  const dirMap: { [key: string]: Vec3 } = {
+    top: new Vec3(0, 1, 0),
+    bottom: new Vec3(0, -1, 0),
+    north: new Vec3(0, 0, -1),
+    south: new Vec3(0, 0, 1),
+    east: new Vec3(1, 0, 0),
+    west: new Vec3(-1, 0, 0),
+  }
+
+  const dirs: Vec3[] = []
+  if (placeOn === 'side') {
+    dirs.push(dirMap.north, dirMap.south, dirMap.east, dirMap.west)
+  }
+  else if (dirMap[placeOn]) {
+    dirs.push(dirMap[placeOn])
+  }
+  else {
+    dirs.push(dirMap.bottom)
+    logger.log(`Unknown placeOn value "${placeOn}". Defaulting to bottom.`)
+  }
+
+  // Add remaining directions
+  dirs.push(...Object.values(dirMap).filter(d => !dirs.includes(d)))
+
+  let buildOffBlock: Block | null = null
+  let faceVec: Vec3 | null = null
+
+  for (const d of dirs) {
+    const adjacentBlock = mineflayer.bot.blockAt(targetDest.plus(d))
+    if (adjacentBlock && !emptyBlocks.includes(adjacentBlock.name)) {
+      buildOffBlock = adjacentBlock
+      faceVec = d.scaled(-1) // Invert direction
+      break
+    }
+  }
+
+  if (!buildOffBlock || !faceVec) {
+    logger.log(
+      `Cannot place ${blockType} at ${targetBlock.position}: nothing to place on.`,
+    )
+    throw new ActionError('PLACEMENT_FAILED', `Cannot place ${blockType} at ${targetBlock.position}: nothing to place on`, { blockType, position: targetBlock.position })
+  }
+
+  // Move away if too close
+  const pos = mineflayer.bot.entity.position
+  const posAbove = pos.offset(0, 1, 0)
+  const dontMoveFor = [
+    'torch',
+    'redstone_torch',
+    'redstone',
+    'lever',
+    'button',
+    'rail',
+    'detector_rail',
+    'powered_rail',
+    'activator_rail',
+    'tripwire_hook',
+    'tripwire',
+    'water_bucket',
+  ]
+  if (
+    !dontMoveFor.includes(blockType)
+    && (pos.distanceTo(targetBlock.position) < 1
+      || posAbove.distanceTo(targetBlock.position) < 1)
+  ) {
+    const goal = new pathfinder.goals.GoalInvert(
+      new pathfinder.goals.GoalNear(
+        targetBlock.position.x,
+        targetBlock.position.y,
+        targetBlock.position.z,
+        2,
+      ),
+    )
     // bot.pathfinder.setMovements(new pf.Movements(bot));
-    await patchedGoto(mineflayer.bot, new pathfinder.goals.GoalNear(pos.x, pos.y, pos.z, 4))
+    await patchedGoto(mineflayer.bot, goal)
   }
-  await mineflayer.bot.activateBlock(block)
-  logger.log(
-    `Activated ${type} at x:${block.position.x.toFixed(
-      1,
-    )}, y:${block.position.y.toFixed(1)}, z:${block.position.z.toFixed(1)}.`,
-  )
+
+  // Move closer if too far
+  if (mineflayer.bot.entity.position.distanceTo(targetBlock.position) > 4.5) {
+    await goToPosition(
+      mineflayer,
+      targetBlock.position.x,
+      targetBlock.position.y,
+      targetBlock.position.z,
+      4,
+    )
+  }
+
+  await mineflayer.bot.equip(block, 'hand')
+  await mineflayer.bot.lookAt(buildOffBlock.position)
+  await sleep(500)
+
+  try {
+    await mineflayer.bot.placeBlock(buildOffBlock, faceVec)
+    logger.log(`Placed ${blockType} at ${targetDest}.`)
+    await sleep(200)
+  }
+  catch (err) {
+    if (err instanceof Error) {
+      logger.log(
+        `Failed to place ${blockType} at ${targetDest}: ${err.message}`,
+      )
+      throw new ActionError('PLACEMENT_FAILED', `Failed to place ${blockType} at ${targetDest}: ${err.message}`, { blockType, position: targetDest, error: err.message })
+    }
+    else {
+      logger.log(
+        `Failed to place ${blockType} at ${targetDest}: ${String(err)}`,
+      )
+      throw new ActionError('PLACEMENT_FAILED', `Failed to place ${blockType} at ${targetDest}: ${String(err)}`, { blockType, position: targetDest, error: String(err) })
+    }
+  }
 }
 
 /**
@@ -148,7 +306,7 @@ export async function breakBlockAt(
     }
     catch (err) {
       console.error(`Failed to dig the block: ${err}`)
-      throw new ActionError('UNKNOWN', `Failed to dig the block: ${String(err)}`, { blockType: block.name, error: String(err), position: targetPos })
+      throw new ActionError('UNKNOWN', `Failed to dig the block: ${String(err)}`, { blockType: block.name, position: targetPos, error: String(err) })
     }
   }
   else {
@@ -162,222 +320,31 @@ export async function breakBlockAt(
 }
 
 /**
- * Pick up nearby items.
+ * Activate the nearest block of the given type.
  * @param mineflayer The mineflayer instance.
- * @param distance The maximum distance to pick up items. Default is 8.
+ * @param type The type of block to activate.
+ * @throws {ActionError} When the block is not found or cannot be activated.
  */
-export async function pickupNearbyItems(
-  mineflayer: Mineflayer,
-  distance = 8,
-): Promise<void> {
-  const getNearestItem = (bot: Bot) =>
-    bot.nearestEntity(
-      entity =>
-        entity.name === 'item'
-        && entity.onGround
-        && bot.entity.position.distanceTo(entity.position) < distance,
-    )
-  let nearestItem = getNearestItem(mineflayer.bot)
-
-  let pickedUp = 0
-  while (nearestItem) {
-    // bot.pathfinder.setMovements(new pf.Movements(bot));
-    await patchedGoto(mineflayer.bot, new pathfinder.goals.GoalFollow(nearestItem, 0.8))
-    await sleep(500)
-    const prev = nearestItem
-    nearestItem = getNearestItem(mineflayer.bot)
-    if (prev === nearestItem) {
-      break
-    }
-    pickedUp++
-  }
-  logger.log(`Picked up ${pickedUp} items.`)
-}
-
-/**
- * Place a block at the given position.
- * @param mineflayer The mineflayer instance.
- * @param blockType The type of block to place.
- * @param x The x coordinate.
- * @param y The y coordinate.
- * @param z The z coordinate.
- * @param placeOn The side to place the block on.
- * @throws {ActionError} When the block is not in inventory or cannot be placed.
- */
-export async function placeBlock(
-  mineflayer: Mineflayer,
-  blockType: string,
-  x: number,
-  y: number,
-  z: number,
-  placeOn: string = 'bottom',
-): Promise<void> {
-  // if (!gameData.getBlockId(blockType)) {
-  //   logger.log(`Invalid block type: ${blockType}.`);
-  //   return false;
-  // }
-
-  const targetDest = new Vec3(Math.floor(x), Math.floor(y), Math.floor(z))
-
-  let block = mineflayer.bot.inventory
-    .items()
-    .find(item => item.name.includes(blockType))
-  if (!block && mineflayer.bot.game.gameMode === 'creative') {
-    const mcData = McData.fromBot(mineflayer.bot)
-    const itemId = mcData.getItemId(blockType)
-    if (itemId) {
-      const item = await import('prismarine-item')
-      const Item = item.default(mineflayer.bot.version)
-      await mineflayer.bot.creative.setInventorySlot(36, new Item(itemId, 1)) // 36 is first hotbar slot
-    }
-    block = mineflayer.bot.inventory.items().find(item => item.name.includes(blockType))
-  }
+export async function activateNearestBlock(mineflayer: Mineflayer, type: string): Promise<void> {
+  const block = mineflayer.bot.findBlock({
+    matching: b => b.name === type,
+    maxDistance: 16,
+  })
   if (!block) {
-    logger.log(`Don't have any ${blockType} to place.`)
-    throw new ActionError('ITEM_NOT_FOUND', `Don't have any ${blockType} to place`, { item: blockType })
+    logger.log(`Could not find any ${type} to activate.`)
+    throw new ActionError('TARGET_NOT_FOUND', `Could not find any ${type} to activate`, { blockType: type })
   }
-
-  const targetBlock = mineflayer.bot.blockAt(targetDest)
-  if (!targetBlock) {
-    logger.log(`No block found at ${targetDest}.`)
-    throw new ActionError('TARGET_NOT_FOUND', `No block found at ${targetDest}`, { position: targetDest })
-  }
-
-  if (targetBlock.name === blockType) {
-    logger.log(`${blockType} already at ${targetBlock.position}.`)
-    throw new ActionError('PLACEMENT_FAILED', `${blockType} already at ${targetBlock.position}`, { blockType, position: targetBlock.position })
-  }
-
-  const emptyBlocks = [
-    'air',
-    'water',
-    'lava',
-    'grass',
-    'tall_grass',
-    'snow',
-    'dead_bush',
-    'fern',
-  ]
-  if (!emptyBlocks.includes(targetBlock.name)) {
-    logger.log(
-      `${targetBlock.name} is in the way at ${targetBlock.position}.`,
-    )
-    await breakBlockAt(mineflayer, x, y, z)
-    await sleep(200) // Wait for block to break
-  }
-
-  // Determine the build-off block and face vector
-  const dirMap: { [key: string]: Vec3 } = {
-    bottom: new Vec3(0, -1, 0),
-    east: new Vec3(1, 0, 0),
-    north: new Vec3(0, 0, -1),
-    south: new Vec3(0, 0, 1),
-    top: new Vec3(0, 1, 0),
-    west: new Vec3(-1, 0, 0),
-  }
-
-  const dirs: Vec3[] = []
-  if (placeOn === 'side') {
-    dirs.push(dirMap.north, dirMap.south, dirMap.east, dirMap.west)
-  }
-  else if (dirMap[placeOn]) {
-    dirs.push(dirMap[placeOn])
-  }
-  else {
-    dirs.push(dirMap.bottom)
-    logger.log(`Unknown placeOn value "${placeOn}". Defaulting to bottom.`)
-  }
-
-  // Add remaining directions
-  dirs.push(...Object.values(dirMap).filter(d => !dirs.includes(d)))
-
-  let buildOffBlock: Block | null = null
-  let faceVec: null | Vec3 = null
-
-  for (const d of dirs) {
-    const adjacentBlock = mineflayer.bot.blockAt(targetDest.plus(d))
-    if (adjacentBlock && !emptyBlocks.includes(adjacentBlock.name)) {
-      buildOffBlock = adjacentBlock
-      faceVec = d.scaled(-1) // Invert direction
-      break
-    }
-  }
-
-  if (!buildOffBlock || !faceVec) {
-    logger.log(
-      `Cannot place ${blockType} at ${targetBlock.position}: nothing to place on.`,
-    )
-    throw new ActionError('PLACEMENT_FAILED', `Cannot place ${blockType} at ${targetBlock.position}: nothing to place on`, { blockType, position: targetBlock.position })
-  }
-
-  // Move away if too close
-  const pos = mineflayer.bot.entity.position
-  const posAbove = pos.offset(0, 1, 0)
-  const dontMoveFor = [
-    'torch',
-    'redstone_torch',
-    'redstone',
-    'lever',
-    'button',
-    'rail',
-    'detector_rail',
-    'powered_rail',
-    'activator_rail',
-    'tripwire_hook',
-    'tripwire',
-    'water_bucket',
-  ]
-  if (
-    !dontMoveFor.includes(blockType)
-    && (pos.distanceTo(targetBlock.position) < 1
-      || posAbove.distanceTo(targetBlock.position) < 1)
-  ) {
-    const goal = new pathfinder.goals.GoalInvert(
-      new pathfinder.goals.GoalNear(
-        targetBlock.position.x,
-        targetBlock.position.y,
-        targetBlock.position.z,
-        2,
-      ),
-    )
+  if (mineflayer.bot.entity.position.distanceTo(block.position) > 4.5) {
+    const pos = block.position
     // bot.pathfinder.setMovements(new pf.Movements(bot));
-    await patchedGoto(mineflayer.bot, goal)
+    await patchedGoto(mineflayer.bot, new pathfinder.goals.GoalNear(pos.x, pos.y, pos.z, 4))
   }
-
-  // Move closer if too far
-  if (mineflayer.bot.entity.position.distanceTo(targetBlock.position) > 4.5) {
-    await goToPosition(
-      mineflayer,
-      targetBlock.position.x,
-      targetBlock.position.y,
-      targetBlock.position.z,
-      4,
-    )
-  }
-
-  await mineflayer.bot.equip(block, 'hand')
-  await mineflayer.bot.lookAt(buildOffBlock.position)
-  await sleep(500)
-
-  try {
-    await mineflayer.bot.placeBlock(buildOffBlock, faceVec)
-    logger.log(`Placed ${blockType} at ${targetDest}.`)
-    await sleep(200)
-  }
-  catch (err) {
-    if (err instanceof Error) {
-      logger.log(
-        `Failed to place ${blockType} at ${targetDest}: ${err.message}`,
-      )
-      throw new ActionError('PLACEMENT_FAILED', `Failed to place ${blockType} at ${targetDest}: ${err.message}`, { blockType, error: err.message, position: targetDest })
-    }
-    else {
-      logger.log(
-        `Failed to place ${blockType} at ${targetDest}: ${String(err)}`,
-      )
-      throw new ActionError('PLACEMENT_FAILED', `Failed to place ${blockType} at ${targetDest}: ${String(err)}`, { blockType, error: String(err), position: targetDest })
-    }
-  }
+  await mineflayer.bot.activateBlock(block)
+  logger.log(
+    `Activated ${type} at x:${block.position.x.toFixed(
+      1,
+    )}, y:${block.position.y.toFixed(1)}, z:${block.position.z.toFixed(1)}.`,
+  )
 }
 
 /**
@@ -394,7 +361,7 @@ export async function tillAndSow(
   x: number,
   y: number,
   z: number,
-  seedType: null | string = null,
+  seedType: string | null = null,
 ): Promise<void> {
   x = Math.round(x)
   y = Math.round(y)
@@ -453,4 +420,37 @@ export async function tillAndSow(
       )}, z:${z.toFixed(1)}.`,
     )
   }
+}
+
+/**
+ * Pick up nearby items.
+ * @param mineflayer The mineflayer instance.
+ * @param distance The maximum distance to pick up items. Default is 8.
+ */
+export async function pickupNearbyItems(
+  mineflayer: Mineflayer,
+  distance = 8,
+): Promise<void> {
+  const getNearestItem = (bot: Bot) =>
+    bot.nearestEntity(
+      entity =>
+        entity.name === 'item'
+        && entity.onGround
+        && bot.entity.position.distanceTo(entity.position) < distance,
+    )
+  let nearestItem = getNearestItem(mineflayer.bot)
+
+  let pickedUp = 0
+  while (nearestItem) {
+    // bot.pathfinder.setMovements(new pf.Movements(bot));
+    await patchedGoto(mineflayer.bot, new pathfinder.goals.GoalFollow(nearestItem, 0.8))
+    await sleep(500)
+    const prev = nearestItem
+    nearestItem = getNearestItem(mineflayer.bot)
+    if (prev === nearestItem) {
+      break
+    }
+    pickedUp++
+  }
+  logger.log(`Picked up ${pickedUp} items.`)
 }

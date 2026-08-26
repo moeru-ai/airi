@@ -15,8 +15,8 @@ export default async function prepareWebRuntime(context: FakemicWebPrepareContex
   await page.goto(context.runtime.url)
 
   return createSession({
-    close: context.close,
     page,
     target: 'web',
+    close: context.close,
   })
 }

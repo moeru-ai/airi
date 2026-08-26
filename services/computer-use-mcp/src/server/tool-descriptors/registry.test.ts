@@ -195,15 +195,15 @@ describe('toolDescriptorRegistry', () => {
     it('should validate lane values', () => {
       const invalidDescriptor = {
         canonicalName: 'test_tool',
-        concurrencySafe: true,
-        destructive: false,
         displayName: 'Test Tool',
-        kind: 'read' as const,
-        lane: 'invalid_lane' as const,
-        public: true,
-        readOnly: true,
-        requiresApprovalByDefault: false,
         summary: 'A test tool',
+        lane: 'invalid_lane' as const,
+        kind: 'read' as const,
+        readOnly: true,
+        destructive: false,
+        concurrencySafe: true,
+        requiresApprovalByDefault: false,
+        public: true,
       }
 
       expect(() => validateDescriptor(invalidDescriptor as never)).toThrow(/invalid lane/)
@@ -212,15 +212,15 @@ describe('toolDescriptorRegistry', () => {
     it('should validate kind values', () => {
       const invalidDescriptor = {
         canonicalName: 'test_tool',
-        concurrencySafe: true,
-        destructive: false,
         displayName: 'Test Tool',
-        kind: 'invalid_kind' as const,
-        lane: 'desktop' as const,
-        public: true,
-        readOnly: true,
-        requiresApprovalByDefault: false,
         summary: 'A test tool',
+        lane: 'desktop' as const,
+        kind: 'invalid_kind' as const,
+        readOnly: true,
+        destructive: false,
+        concurrencySafe: true,
+        requiresApprovalByDefault: false,
+        public: true,
       }
 
       expect(() => validateDescriptor(invalidDescriptor as never)).toThrow(/invalid kind/)

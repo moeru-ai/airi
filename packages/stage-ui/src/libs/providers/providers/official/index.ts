@@ -27,18 +27,18 @@ const recommendedVoicesByProvider: Record<string, Record<string, string>> = {}
 // Server-curated default HTTP speech model id, populated by the HTTP speech
 // provider's listModels(). The speech store uses this when it needs to seed an
 // empty/stale model selection, so the UI mirrors `/audio/speech` `model: auto`.
-let defaultSpeechModelId: null | string = null
+let defaultSpeechModelId: string | null = null
 
-export function getDefaultSpeechModel(): null | string {
+export function getDefaultSpeechModel(): string | null {
   return defaultSpeechModelId
 }
 
 // Server-curated default streaming model id, populated by the streaming
 // provider's listModels(). Pages that need to seed an initial model selection
 // read this via getDefaultStreamingModel() instead of hardcoding an id.
-let defaultStreamingModelId: null | string = null
+let defaultStreamingModelId: string | null = null
 
-export function getDefaultStreamingModel(): null | string {
+export function getDefaultStreamingModel(): string | null {
   return defaultStreamingModelId
 }
 
@@ -65,7 +65,18 @@ function authHeaders(): Record<string, string> {
 }
 
 export const providerOfficialChat = defineProvider({
+  id: OFFICIAL_CHAT_PROVIDER_ID,
+  order: -1,
+  name: 'Official Provider',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.official.title'),
+  description: 'Official AI provider by AIRI.',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.official.description'),
+  tasks: ['text-generation'],
+  icon: OFFICIAL_ICON,
+  requiresCredentials: false,
   configuredBy: 'authentication',
+
+  createProviderConfig: () => officialConfigSchema,
   createProvider(_config) {
     const provider = createOfficialOpenAIProvider()
     const originalChat = provider.chat.bind(provider)
@@ -76,34 +87,33 @@ export const providerOfficialChat = defineProvider({
     }
     return provider
   },
-  createProviderConfig: () => officialConfigSchema,
-  description: 'Official AI provider by AIRI.',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.official.description'),
+
+  validationRequiredWhen: () => false,
+
   extraMethods: {
     listModels: async () => [
       {
-        description: 'Automatically routed by AI Gateway',
         id: 'auto',
         name: 'Auto',
         provider: OFFICIAL_CHAT_PROVIDER_ID,
+        description: 'Automatically routed by AI Gateway',
       },
     ],
   },
-  icon: OFFICIAL_ICON,
-  id: OFFICIAL_CHAT_PROVIDER_ID,
-  name: 'Official Provider',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.official.title'),
-
-  order: -1,
-  requiresCredentials: false,
-
-  tasks: ['text-generation'],
-
-  validationRequiredWhen: () => false,
 })
 
 export const providerOfficialSpeech = defineProvider({
+  id: OFFICIAL_SPEECH_PROVIDER_ID,
+  order: -1,
+  name: 'Official Speech Provider',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.official.speech-title'),
+  description: 'Official text-to-speech provider by AIRI.',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.official.speech-description'),
+  tasks: ['text-to-speech'],
+  icon: OFFICIAL_ICON,
+  requiresCredentials: false,
   configuredBy: 'authentication',
+  createProviderConfig: () => officialConfigSchema,
   createProvider(_config) {
     const provider = createOfficialAudioProvider()
     const originalSpeech = provider.speech.bind(provider)
@@ -117,9 +127,7 @@ export const providerOfficialSpeech = defineProvider({
     }
     return provider
   },
-  createProviderConfig: () => officialConfigSchema,
-  description: 'Official text-to-speech provider by AIRI.',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.official.speech-description'),
+  validationRequiredWhen: () => false,
   extraMethods: {
     listModels: async (): Promise<ModelInfo[]> => {
       defaultSpeechModelId = null
@@ -127,16 +135,16 @@ export const providerOfficialSpeech = defineProvider({
       if (!res.ok)
         throw new Error(`audio models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
-      const data = await res.json() as { default?: null | string, models?: { description?: string, id: string, name: string }[] }
+      const data = await res.json() as { models?: { id: string, name: string, description?: string }[], default?: string | null }
       if (!Array.isArray(data.models))
         throw new Error('audio models upstream returned malformed body')
 
       defaultSpeechModelId = typeof data.default === 'string' && data.default.length > 0 ? data.default : null
 
       return data.models.map(m => ({
-        description: m.description,
         id: m.id,
         name: m.name,
+        description: m.description,
         provider: OFFICIAL_SPEECH_PROVIDER_ID,
       }))
     },
@@ -156,17 +164,17 @@ export const providerOfficialSpeech = defineProvider({
       // `recommended` field our server injects from configKV DEFAULT_TTS_VOICES.
       // https://github.com/moeru-ai/unspeech/blob/main/pkg/backend/types/voices.go
       const data = await res.json() as {
-        recommended?: Record<string, string>
         voices?: {
-          compatible_models?: string[]
-          description?: string
           id: string
-          labels?: Record<string, unknown>
-          languages?: { code: string, title: string }[]
           name: string
-          preview_audio_url?: string
+          description?: string
+          labels?: Record<string, unknown>
           tags?: string[]
+          languages?: { code: string, title: string }[]
+          compatible_models?: string[]
+          preview_audio_url?: string
         }[]
+        recommended?: Record<string, string>
       }
 
       // Refresh the server-side recommendation map. Done here rather than
@@ -181,9 +189,12 @@ export const providerOfficialSpeech = defineProvider({
         // unspeech surfaces gender inside labels rather than as a top-level field.
         const rawGender = typeof v.labels?.gender === 'string' ? (v.labels.gender as string) : undefined
         return {
+          id: v.id,
+          name: v.name,
+          provider: OFFICIAL_SPEECH_PROVIDER_ID,
           description: v.description || undefined,
           gender: rawGender?.toLowerCase() || undefined,
-          id: v.id,
+          previewURL: v.preview_audio_url || undefined,
           // NOTICE: deliberately dropping `compatible_models`. The official
           // provider resolves voices through the server's /audio/voices?model=
           // endpoint, which already returns only voices valid for the active
@@ -191,21 +202,10 @@ export const providerOfficialSpeech = defineProvider({
           // list when upstream compatibility ids differ from AIRI's router ids.
           // See packages/stage-pages/.../speech.vue filter predicate.
           languages: Array.isArray(v.languages) ? v.languages : [],
-          name: v.name,
-          previewURL: v.preview_audio_url || undefined,
-          provider: OFFICIAL_SPEECH_PROVIDER_ID,
         }
       })
     },
   },
-  icon: OFFICIAL_ICON,
-  id: OFFICIAL_SPEECH_PROVIDER_ID,
-  name: 'Official Speech Provider',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.official.speech-title'),
-  order: -1,
-  requiresCredentials: false,
-  tasks: ['text-to-speech'],
-  validationRequiredWhen: () => false,
 })
 
 /**
@@ -221,13 +221,23 @@ export const providerOfficialSpeech = defineProvider({
  * out) keep working without a separate provider instance.
  */
 export const providerOfficialSpeechStreaming = defineProvider({
+  id: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+  order: -1,
+  name: 'Official Streaming Speech Provider',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.official.speech-streaming-title'),
+  description: 'Official streaming text-to-speech provider by AIRI (low-latency bidirectional WebSocket).',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.official.speech-streaming-description'),
+  tasks: ['text-to-speech'],
+  icon: OFFICIAL_ICON,
+  requiresCredentials: false,
+  configuredBy: 'authentication',
   // Mark this provider as speaking the bidirectional ws TTS protocol so the
   // session adapter (`tts-session.ts`) picks the streaming path without
   // hard-coding provider id. Default for every other provider is `'rest'`.
   capabilities: {
     speech: { transport: 'bidirectional-ws' },
   },
-  configuredBy: 'authentication',
+  createProviderConfig: () => officialConfigSchema,
   createProvider(_config) {
     // Same audio-scoped baseURL as the HTTP speech provider. The streaming
     // provider usually goes through `streamingSynthesize`, but settings
@@ -245,9 +255,7 @@ export const providerOfficialSpeechStreaming = defineProvider({
     }
     return provider
   },
-  createProviderConfig: () => officialConfigSchema,
-  description: 'Official streaming text-to-speech provider by AIRI (low-latency bidirectional WebSocket).',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.official.speech-streaming-description'),
+  validationRequiredWhen: () => false,
   extraMethods: {
     listModels: async (): Promise<ModelInfo[]> => {
       // Streaming TTS catalog is operator-controlled via configKV
@@ -265,7 +273,7 @@ export const providerOfficialSpeechStreaming = defineProvider({
       if (!res.ok)
         throw new Error(`streaming models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
-      const data = await res.json() as { available?: boolean, default?: null | string, models: { description?: string, id: string, name?: string }[] }
+      const data = await res.json() as { available?: boolean, models: { id: string, name?: string, description?: string }[], default?: string | null }
       if (!Array.isArray(data.models))
         throw new Error('streaming models upstream missing models[]')
 
@@ -273,10 +281,10 @@ export const providerOfficialSpeechStreaming = defineProvider({
       defaultStreamingModelId = typeof data.default === 'string' && data.default.length > 0 ? data.default : null
 
       return data.models.map(m => ({
-        description: m.description,
         id: m.id,
         name: m.name ?? m.id,
         provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+        description: m.description,
       }))
     },
     listVoices: async (_config, _provider, model): Promise<VoiceInfo[]> => {
@@ -302,15 +310,15 @@ export const providerOfficialSpeechStreaming = defineProvider({
         throw new Error(`streaming voices upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
       const data = await res.json() as {
-        recommended?: Record<string, string>
         voices?: {
-          description?: string
           id: string
+          name: string
+          description?: string
           labels?: Record<string, unknown>
           languages?: { code: string, title: string }[]
-          name: string
           preview_audio_url?: string
         }[]
+        recommended?: Record<string, string>
       }
 
       // Mirror the HTTP provider: stash the server's per-locale recommendations
@@ -324,37 +332,39 @@ export const providerOfficialSpeechStreaming = defineProvider({
       return data.voices.map((v) => {
         const rawGender = typeof v.labels?.gender === 'string' ? (v.labels.gender as string) : undefined
         return {
+          id: v.id,
+          name: v.name,
+          provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
           description: v.description || undefined,
           gender: rawGender?.toLowerCase() || undefined,
-          id: v.id,
-          languages: Array.isArray(v.languages) ? v.languages : [],
-          name: v.name,
           previewURL: v.preview_audio_url || undefined,
-          provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+          languages: Array.isArray(v.languages) ? v.languages : [],
         }
       })
     },
   },
-  icon: OFFICIAL_ICON,
-  id: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
-  name: 'Official Streaming Speech Provider',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.official.speech-streaming-title'),
-  order: -1,
-  requiresCredentials: false,
-  tasks: ['text-to-speech'],
-  validationRequiredWhen: () => false,
 })
 
 export const providerOfficialTranscription = defineProvider({
+  id: OFFICIAL_TRANSCRIPTION_PROVIDER_ID,
+  order: -1,
+  name: 'Official Transcription Provider',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.official.transcription-title'),
+  description: 'Official realtime speech-to-text provider by AIRI.',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.official.transcription-description'),
+  tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
+  icon: OFFICIAL_ICON,
+  requiresCredentials: false,
+  configuredBy: 'authentication',
   capabilities: {
     transcription: {
-      generateOutput: false,
       protocol: 'http',
-      streamInput: true,
+      generateOutput: false,
       streamOutput: true,
+      streamInput: true,
     },
   },
-  configuredBy: 'authentication',
+  createProviderConfig: () => officialConfigSchema,
   createProvider(_config) {
     return {
       transcription: (model: string) => ({
@@ -364,60 +374,23 @@ export const providerOfficialTranscription = defineProvider({
       }),
     }
   },
-  createProviderConfig: () => officialConfigSchema,
-  description: 'Official realtime speech-to-text provider by AIRI.',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.official.transcription-description'),
+  validationRequiredWhen: () => false,
   extraMethods: {
     listModels: async (): Promise<ModelInfo[]> => [
       {
-        description: 'Realtime transcription routed by AIRI',
         id: 'auto',
         name: 'Auto',
         provider: OFFICIAL_TRANSCRIPTION_PROVIDER_ID,
+        description: 'Realtime transcription routed by AIRI',
       },
     ],
   },
-  icon: OFFICIAL_ICON,
-  id: OFFICIAL_TRANSCRIPTION_PROVIDER_ID,
-  name: 'Official Transcription Provider',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.official.transcription-title'),
-  order: -1,
-  requiresCredentials: false,
-  tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
-  validationRequiredWhen: () => false,
 })
 
 const LOCALE_SEPARATOR_RE = /[-_]/
 
-function findRecommendedVoice(voices: VoiceInfo[], recommendedMap: Record<string, string>): undefined | VoiceInfo {
-  const seen = new Set<string>()
-  for (const voiceId of Object.values(recommendedMap)) {
-    if (seen.has(voiceId))
-      continue
-    seen.add(voiceId)
-    const voice = voices.find(v => v.id === voiceId)
-    if (voice)
-      return voice
-  }
-  return undefined
-}
-
 function languagePrefix(locale: string): string {
   return locale.split(LOCALE_SEPARATOR_RE)[0].toLowerCase()
-}
-
-// Look up the recommended voice id for a locale: exact match first, then
-// language-subtag prefix match. Returns undefined when nothing matches.
-function lookupRecommendedVoiceId(locale: string, map: Record<string, string>): string | undefined {
-  if (map[locale])
-    return map[locale]
-
-  const prefix = languagePrefix(locale)
-  for (const [code, voiceId] of Object.entries(map)) {
-    if (languagePrefix(code) === prefix)
-      return voiceId
-  }
-  return undefined
 }
 
 // Pick a locale from available voice locales that best matches the UI locale:
@@ -434,6 +407,33 @@ function pickLocaleForUi(uiLocale: string, available: string[]): string {
   return available.find(c => c === 'en-US') || available.find(c => c.toLowerCase().startsWith('en')) || available[0]
 }
 
+// Look up the recommended voice id for a locale: exact match first, then
+// language-subtag prefix match. Returns undefined when nothing matches.
+function lookupRecommendedVoiceId(locale: string, map: Record<string, string>): string | undefined {
+  if (map[locale])
+    return map[locale]
+
+  const prefix = languagePrefix(locale)
+  for (const [code, voiceId] of Object.entries(map)) {
+    if (languagePrefix(code) === prefix)
+      return voiceId
+  }
+  return undefined
+}
+
+function findRecommendedVoice(voices: VoiceInfo[], recommendedMap: Record<string, string>): VoiceInfo | undefined {
+  const seen = new Set<string>()
+  for (const voiceId of Object.values(recommendedMap)) {
+    if (seen.has(voiceId))
+      continue
+    seen.add(voiceId)
+    const voice = voices.find(v => v.id === voiceId)
+    if (voice)
+      return voice
+  }
+  return undefined
+}
+
 const AUTO_PICK_PROVIDER_IDS = new Set([OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID])
 
 // NOTICE: Only the official speech providers (HTTP + streaming) auto-configure
@@ -445,7 +445,7 @@ export function setupOfficialSpeechAutoPick(ctx: {
   activeSpeechProvider: Ref<string>
   activeSpeechVoiceId: Ref<string>
   availableVoices: Ref<Record<string, VoiceInfo[]>>
-  uiLocale: Ref<string> | WatchSource<string>
+  uiLocale: WatchSource<string> | Ref<string>
 }) {
   watch([ctx.availableVoices, ctx.activeSpeechProvider], ([voices, provider]) => {
     if (!AUTO_PICK_PROVIDER_IDS.has(provider))

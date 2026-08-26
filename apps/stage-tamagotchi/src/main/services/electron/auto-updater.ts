@@ -49,10 +49,10 @@ function getCacheRoot() {
 
 function getLegacyCacheRoot() {
   switch (process.platform) {
-    case 'darwin':
-      return join(process.env.HOME || '', 'Library', 'Caches')
     case 'win32':
       return process.env.LOCALAPPDATA || join(process.env.USERPROFILE || '', 'AppData', 'Local')
+    case 'darwin':
+      return join(process.env.HOME || '', 'Library', 'Caches')
     default:
       return process.env.XDG_CACHE_HOME || join(process.env.HOME || '', '.cache')
   }
@@ -63,30 +63,199 @@ const UPDATER_LOG_FILE = join(UPDATER_DEBUG_CACHE_DIR, 'updater-log.txt')
 const OFFICIAL_UPDATER_CACHE_DIR = join(getCacheRoot(), 'ai.moeru.airi-updater')
 const LEGACY_OFFICIAL_UPDATER_CACHE_DIR = join(getLegacyCacheRoot(), 'ai.moeru.airi-updater')
 const OFFICIAL_UPDATER_CACHE_DIRS = Array.from(new Set([
-  LEGACY_OFFICIAL_UPDATER_CACHE_DIR,
   OFFICIAL_UPDATER_CACHE_DIR,
+  LEGACY_OFFICIAL_UPDATER_CACHE_DIR,
 ]))
 
+async function logToFile(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string) {
+  await mkdir(UPDATER_DEBUG_CACHE_DIR, { recursive: true }).catch(() => {})
+  await appendFile(UPDATER_LOG_FILE, `${new Date().toISOString()} [${level}] ${message}\n`).catch(() => {})
+}
+
+async function cleanupStaleUpdateFiles() {
+  // Remove both current and legacy updater cache roots so stale installers do not linger.
+  await Promise.allSettled(OFFICIAL_UPDATER_CACHE_DIRS.map(cacheDir => rm(cacheDir, { recursive: true, force: true })))
+  await logToFile('INFO', `Updater cache cleanup attempted: ${OFFICIAL_UPDATER_CACHE_DIRS.join(', ')}`)
+}
+
+export type UpdateLane = ElectronUpdaterChannel
+interface GitHubReleaseRecord {
+  tag_name?: string
+  draft?: boolean
+  prerelease?: boolean
+}
+
+function getUpdateServerOverride() {
+  // NOTICE: UPDATE_SERVER_URL is intentionally development-only for local update-test harness.
+  // Production update routing must not depend on this variable.
+  if (!is.dev)
+    return undefined
+
+  const value = process.env.UPDATE_SERVER_URL?.trim()
+  return value || undefined
+}
+
+function normalizeLane(value: string | undefined): UpdateLane | undefined {
+  if (!value)
+    return undefined
+
+  switch (value.toLowerCase()) {
+    case 'stable':
+    case 'latest':
+    case 'alpha':
+    case 'beta':
+    case 'nightly':
+    case 'canary':
+      return value.toLowerCase() as UpdateLane
+    default:
+      return undefined
+  }
+}
+
+function laneFromVersion(version: string): UpdateLane {
+  const prerelease = semver.prerelease(version)?.[0]?.toString().toLowerCase()
+  return normalizeLane(prerelease) ?? 'stable'
+}
+
+function getPreferredUpdateLane(params: { version: string, storedLane?: UpdateLane }): UpdateLane {
+  return normalizeLane(process.env[UPDATE_CHANNEL_ENV_KEY]?.trim()) ?? params.storedLane ?? laneFromVersion(params.version)
+}
+
+function getSemverFromTag(tag: string) {
+  return semver.valid(tag) ?? semver.valid(tag.startsWith('v') ? tag.slice(1) : tag)
+}
+
+function isTagInLane(tag: string, lane: UpdateLane) {
+  const version = getSemverFromTag(tag)
+  if (!version)
+    return false
+
+  if (lane === 'latest')
+    return true
+
+  const prerelease = semver.prerelease(version)?.[0]?.toString().toLowerCase()
+  if (lane === 'stable')
+    return !prerelease
+
+  return prerelease === lane
+}
+
+function isPathInside(parentPath: string, targetPath: string) {
+  const normalizedParent = normalize(parentPath)
+  const normalizedTarget = normalize(targetPath)
+  const parentWithSeparator = normalizedParent.endsWith('\\') ? normalizedParent : `${normalizedParent}\\`
+  return normalizedTarget === normalizedParent || normalizedTarget.startsWith(parentWithSeparator)
+}
+
+function getWindowsProtectedInstallRoots() {
+  return [
+    process.env.ProgramFiles,
+    process.env['ProgramFiles(x86)'],
+    process.env.ProgramW6432,
+    process.env.SystemRoot,
+    process.env.windir,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .map(value => normalize(value))
+}
+
+function requiresAdminForInstallPath(executablePath: string) {
+  if (!isWindows)
+    return false
+
+  const installDirectory = dirname(executablePath)
+  return getWindowsProtectedInstallRoots().some(root => isPathInside(root, installDirectory))
+}
+
+function selectLatestTagForLane(releases: GitHubReleaseRecord[], lane: UpdateLane) {
+  const candidates = releases
+    .filter(release => !release.draft && typeof release.tag_name === 'string' && isTagInLane(release.tag_name, lane))
+    .map((release) => {
+      const tag = release.tag_name as string
+      const version = getSemverFromTag(tag)
+      return version ? { tag, version } : null
+    })
+    .filter(Boolean) as Array<{ tag: string, version: string }>
+
+  candidates.sort((a, b) => semver.rcompare(a.version, b.version))
+  return candidates[0]?.tag
+}
+
+/**
+ * Extract release tags from GitHub releases Atom feed without adding XML-parser dependencies.
+ *
+ * The current feed contains entries like:
+ * `<entry><link rel="alternate" type="text/html" href="https://github.com/moeru-ai/airi/releases/tag/v0.9.0-beta.6"/></entry>`
+ * and
+ * `<entry><id>tag:github.com,2008:Repository/963495975/v0.9.0-alpha.36</id></entry>`
+ *
+ * We intentionally scan for `/moeru-ai/airi/releases/tag/` so we only consume actual release tag links.
+ */
+function extractReleaseTagsFromAtom(atom: string) {
+  const tags: string[] = []
+  const marker = '/moeru-ai/airi/releases/tag/'
+  let offset = 0
+
+  while (offset < atom.length) {
+    const markerIndex = atom.indexOf(marker, offset)
+    if (markerIndex === -1)
+      break
+
+    const start = markerIndex + marker.length
+    let end = start
+    while (end < atom.length) {
+      const char = atom[end]
+      if (char === '"' || char === '<' || char === '?' || char === '&')
+        break
+      end += 1
+    }
+
+    // Slice the raw path segment after the marker, e.g. `v0.9.0-beta.6`.
+    const rawTag = atom.slice(start, end).trim()
+    // Atom encodes URLs, so decode in case future tags contain escaped characters.
+    const decodedTag = decodeURIComponent(rawTag)
+    // Feed entries can repeat across updates; keep a unique ordered tag list.
+    if (decodedTag && !tags.includes(decodedTag))
+      tags.push(decodedTag)
+
+    offset = end + 1
+  }
+
+  return tags
+}
+
 export interface AppUpdaterLike {
+  on: (event: string, listener: (...args: any[]) => void) => any
+  checkForUpdates: () => Promise<any>
+  downloadUpdate: () => Promise<any>
+  quitAndInstall: (isSilent?: boolean, isForceRunAfter?: boolean) => Promise<void> | void
+  setFeedURL?: (options: { provider: 'generic', url: string }) => void
+  logger?: any
   allowPrerelease?: boolean
   autoDownload?: boolean
   channel?: string
-  checkForUpdates: () => Promise<any>
-  downloadUpdate: () => Promise<any>
   forceDevUpdateConfig?: boolean
-  logger?: any
-  on: (event: string, listener: (...args: any[]) => void) => any
-  quitAndInstall: (isSilent?: boolean, isForceRunAfter?: boolean) => Promise<void> | void
-  setFeedURL?: (options: { provider: 'generic', url: string }) => void
 }
 
+// NOTICE: this part of code is copied from https://www.electron.build/auto-update
+// Or https://github.com/electron-userland/electron-builder/blob/b866e99ccd3ea9f85bc1e840f0f6a6a162fca388/pages/auto-update.md?plain=1#L57-L66
+export function fromImported(): AppUpdaterLike {
+  if (is.dev && !getUpdateServerOverride())
+    return new MockAutoUpdater()
+
+  const { autoUpdater } = electronUpdater
+  return autoUpdater as unknown as AppUpdaterLike
+}
+
+type MainContext = ReturnType<typeof createContext>['context']
+
 export interface AutoUpdater {
+  state: AutoUpdaterState
   checkForUpdates: () => Promise<void>
   downloadUpdate: () => Promise<void>
-  getPreferredUpdateLane: () => undefined | UpdateLane
   quitAndInstall: () => Promise<void>
-  setPreferredUpdateLane: (lane: undefined | UpdateLane) => Promise<void>
-  state: AutoUpdaterState
+  getPreferredUpdateLane: () => UpdateLane | undefined
+  setPreferredUpdateLane: (lane: UpdateLane | undefined) => Promise<void>
   subscribe: (callback: (state: AutoUpdaterState) => void) => () => void
 }
 
@@ -98,74 +267,42 @@ export interface AutoUpdaterOptions {
    */
   enabled?: boolean
   /** Reads the release channel persisted by the application configuration. */
-  getStoredUpdateLane?: () => undefined | UpdateLane
+  getStoredUpdateLane?: () => UpdateLane | undefined
   /** Persists a release-channel change requested through updater IPC. */
-  setStoredUpdateLane?: (lane: undefined | UpdateLane) => void
-}
-export type UpdateLane = ElectronUpdaterChannel
-
-interface GitHubReleaseRecord {
-  draft?: boolean
-  prerelease?: boolean
-  tag_name?: string
+  setStoredUpdateLane?: (lane: UpdateLane | undefined) => void
 }
 
-type MainContext = ReturnType<typeof createContext>['context']
+function isPrereleaseVersion(version: string) {
+  return (semver.prerelease(version)?.length ?? 0) > 0
+}
 
-export function createAutoUpdaterService(params: { context: MainContext, service: AutoUpdater, window: BrowserWindow }) {
-  const { context, service, window } = params
+/**
+ * Preserves the updater IPC contract when the storefront owns application updates.
+ *
+ * No method reaches Electron Updater or a release feed, while preference reads and
+ * subscriptions remain available to existing renderer consumers.
+ */
+function createDisabledAutoUpdater(options: AutoUpdaterOptions): AutoUpdater {
+  const state: AutoUpdaterState = { status: 'disabled' }
+  let storedPreferredLane = options.getStoredUpdateLane?.()
 
-  const log = useLogg('auto-updater-service').useGlobalConfig()
-
-  const unsubscribe = service.subscribe((state) => {
-    if (window.isDestroyed())
-      return
-
-    tryCatch(() => context.emit(electronAutoUpdaterStateChanged, state))
-  })
-
-  const cleanups: Array<() => void> = [
-    unsubscribe,
-    defineInvokeHandler(context, autoUpdaterEventa.getState, () => service.state),
-    defineInvokeHandler(context, autoUpdaterEventa.checkForUpdates, async () => {
-      await service.checkForUpdates().catch(error => log.withError(error).error('checkForUpdates() failed'))
-      return service.state
-    }),
-    defineInvokeHandler(context, autoUpdaterEventa.downloadUpdate, async () => {
-      await service.downloadUpdate()
-      return service.state
-    }),
-    defineInvokeHandler(context, electronGetUpdaterPreferences, async () => ({
-      channel: service.getPreferredUpdateLane(),
-    })),
-    defineInvokeHandler(context, electronSetUpdaterPreferences, async (payload) => {
-      await service.setPreferredUpdateLane(payload?.channel)
-      return {
-        channel: service.getPreferredUpdateLane(),
-      }
-    }),
-    defineInvokeHandler(context, autoUpdaterEventa.quitAndInstall, async () => {
-      await service.quitAndInstall()
-    }),
-  ]
-
-  const cleanup = () => {
-    for (const fn of cleanups)
-      fn()
+  return {
+    state,
+    async checkForUpdates() {},
+    async downloadUpdate() {},
+    async quitAndInstall() {},
+    getPreferredUpdateLane() {
+      return storedPreferredLane
+    },
+    async setPreferredUpdateLane(lane) {
+      storedPreferredLane = lane
+      options.setStoredUpdateLane?.(lane)
+    },
+    subscribe(callback) {
+      callback(state)
+      return () => {}
+    },
   }
-
-  window.on('closed', cleanup)
-  return cleanup
-}
-
-// NOTICE: this part of code is copied from https://www.electron.build/auto-update
-// Or https://github.com/electron-userland/electron-builder/blob/b866e99ccd3ea9f85bc1e840f0f6a6a162fca388/pages/auto-update.md?plain=1#L57-L66
-export function fromImported(): AppUpdaterLike {
-  if (is.dev && !getUpdateServerOverride())
-    return new MockAutoUpdater()
-
-  const { autoUpdater } = electronUpdater
-  return autoUpdater as unknown as AppUpdaterLike
 }
 
 export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater {
@@ -191,14 +328,6 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
     autoUpdater.channel = releaseChannelName
   autoUpdater.forceDevUpdateConfig = !!feedUrlOverride && !app.isPackaged
   autoUpdater.logger = {
-    debug: (message: string) => {
-      log.debug(message)
-      void logToFile('DEBUG', message)
-    },
-    error: (message: string) => {
-      log.error(message)
-      void logToFile('ERROR', message)
-    },
     info: (message: string) => {
       log.log(message)
       void logToFile('INFO', message)
@@ -206,6 +335,14 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
     warn: (message: string) => {
       log.warn(message)
       void logToFile('WARN', message)
+    },
+    error: (message: string) => {
+      log.error(message)
+      void logToFile('ERROR', message)
+    },
+    debug: (message: string) => {
+      log.debug(message)
+      void logToFile('DEBUG', message)
     },
   }
 
@@ -215,14 +352,14 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
   const withDiagnostics = (next: AutoUpdaterState): AutoUpdaterState => ({
     ...next,
     diagnostics: {
+      platform: process.platform,
       arch: process.arch,
       channel: autoUpdater.channel || releaseChannelName,
+      logFilePath: UPDATER_LOG_FILE,
       executablePath: process.execPath,
       installDirectory: dirname(process.execPath),
-      isOverrideActive: !!activeFeedUrlOverride,
-      logFilePath: UPDATER_LOG_FILE,
-      platform: process.platform,
       requiresAdminForInstallPath: requiresAdminForInstallPath(process.execPath),
+      isOverrideActive: !!activeFeedUrlOverride,
       ...(activeFeedUrlOverride ? { feedUrl: activeFeedUrlOverride } : {}),
     },
   })
@@ -245,8 +382,8 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
 
   function broadcastUpdaterError(error: unknown, reason: string) {
     broadcast({
-      error: { message: errorMessageFromValue(error) },
       status: 'error',
+      error: { message: errorMessageFromValue(error) },
     })
     log.withError(error).error(reason)
   }
@@ -315,7 +452,7 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
     }
 
     prepareFeedPromise = (async () => {
-      const preferredLane = getPreferredUpdateLane({ storedLane: storedPreferredLane, version: appVersion })
+      const preferredLane = getPreferredUpdateLane({ version: appVersion, storedLane: storedPreferredLane })
       const tag = await resolveGitHubReleaseTagForLane(preferredLane)
       resolvedReleaseTag = tag
       applyGenericFeedOverride(`${GITHUB_RELEASE_DOWNLOAD_BASE_URL}/${tag}`, `github-release-lane:${preferredLane}`)
@@ -336,31 +473,34 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
 
   autoUpdater.on('error', error => broadcastUpdaterError(error, 'autoUpdater error'))
   autoUpdater.on('checking-for-update', () => broadcast({ status: 'checking' }))
-  autoUpdater.on('update-available', (info: UpdateInfo) => broadcast({ info, status: 'available' }))
-  autoUpdater.on('update-downloaded', (info: UpdateInfo) => broadcast({ info, status: 'downloaded' }))
+  autoUpdater.on('update-available', (info: UpdateInfo) => broadcast({ status: 'available', info }))
+  autoUpdater.on('update-downloaded', (info: UpdateInfo) => broadcast({ status: 'downloaded', info }))
   autoUpdater.on('update-not-available', () => broadcast({
+    status: 'not-available',
     info: {
+      version: app.getVersion(),
       files: [],
       releaseDate: committerDate,
-      version: app.getVersion(),
     },
-    status: 'not-available',
   }))
   autoUpdater.on('download-progress', progress => broadcast({
     ...state,
-    progress: {
-      bytesPerSecond: progress.bytesPerSecond,
-      percent: progress.percent,
-      total: progress.total,
-      transferred: progress.transferred,
-    },
     status: 'downloading',
+    progress: {
+      percent: progress.percent,
+      bytesPerSecond: progress.bytesPerSecond,
+      transferred: progress.transferred,
+      total: progress.total,
+    },
   }))
 
   void checkForUpdatesWithPreparedFeed()
     .catch(error => broadcastUpdaterError(error, 'checkForUpdates() failed'))
 
   return {
+    get state() {
+      return state
+    },
     async checkForUpdates() {
       broadcast({ status: 'checking' })
       await checkForUpdatesWithPreparedFeed().catch(error => broadcastUpdaterError(error, 'checkForUpdates() failed'))
@@ -378,9 +518,6 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
         semaphore.release()
       }
     },
-    getPreferredUpdateLane() {
-      return storedPreferredLane
-    },
     async quitAndInstall() {
       await semaphore.acquire()
 
@@ -394,6 +531,9 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
         semaphore.release()
       }
     },
+    getPreferredUpdateLane() {
+      return storedPreferredLane
+    },
     async setPreferredUpdateLane(lane) {
       if (storedPreferredLane === lane)
         return
@@ -404,9 +544,6 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
       // Keep UI state consistent with the newly selected lane.
       // A fresh check runs right after channel update from renderer.
       broadcast({ status: 'idle' })
-    },
-    get state() {
-      return state
     },
     subscribe(callback) {
       hooks.add(callback)
@@ -423,185 +560,48 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
   }
 }
 
-async function cleanupStaleUpdateFiles() {
-  // Remove both current and legacy updater cache roots so stale installers do not linger.
-  await Promise.allSettled(OFFICIAL_UPDATER_CACHE_DIRS.map(cacheDir => rm(cacheDir, { force: true, recursive: true })))
-  await logToFile('INFO', `Updater cache cleanup attempted: ${OFFICIAL_UPDATER_CACHE_DIRS.join(', ')}`)
-}
+export function createAutoUpdaterService(params: { context: MainContext, window: BrowserWindow, service: AutoUpdater }) {
+  const { context, window, service } = params
 
-/**
- * Preserves the updater IPC contract when the storefront owns application updates.
- *
- * No method reaches Electron Updater or a release feed, while preference reads and
- * subscriptions remain available to existing renderer consumers.
- */
-function createDisabledAutoUpdater(options: AutoUpdaterOptions): AutoUpdater {
-  const state: AutoUpdaterState = { status: 'disabled' }
-  let storedPreferredLane = options.getStoredUpdateLane?.()
+  const log = useLogg('auto-updater-service').useGlobalConfig()
 
-  return {
-    async checkForUpdates() {},
-    async downloadUpdate() {},
-    getPreferredUpdateLane() {
-      return storedPreferredLane
-    },
-    async quitAndInstall() {},
-    async setPreferredUpdateLane(lane) {
-      storedPreferredLane = lane
-      options.setStoredUpdateLane?.(lane)
-    },
-    state,
-    subscribe(callback) {
-      callback(state)
-      return () => {}
-    },
-  }
-}
+  const unsubscribe = service.subscribe((state) => {
+    if (window.isDestroyed())
+      return
 
-/**
- * Extract release tags from GitHub releases Atom feed without adding XML-parser dependencies.
- *
- * The current feed contains entries like:
- * `<entry><link rel="alternate" type="text/html" href="https://github.com/moeru-ai/airi/releases/tag/v0.9.0-beta.6"/></entry>`
- * and
- * `<entry><id>tag:github.com,2008:Repository/963495975/v0.9.0-alpha.36</id></entry>`
- *
- * We intentionally scan for `/moeru-ai/airi/releases/tag/` so we only consume actual release tag links.
- */
-function extractReleaseTagsFromAtom(atom: string) {
-  const tags: string[] = []
-  const marker = '/moeru-ai/airi/releases/tag/'
-  let offset = 0
+    tryCatch(() => context.emit(electronAutoUpdaterStateChanged, state))
+  })
 
-  while (offset < atom.length) {
-    const markerIndex = atom.indexOf(marker, offset)
-    if (markerIndex === -1)
-      break
-
-    const start = markerIndex + marker.length
-    let end = start
-    while (end < atom.length) {
-      const char = atom[end]
-      if (char === '"' || char === '<' || char === '?' || char === '&')
-        break
-      end += 1
-    }
-
-    // Slice the raw path segment after the marker, e.g. `v0.9.0-beta.6`.
-    const rawTag = atom.slice(start, end).trim()
-    // Atom encodes URLs, so decode in case future tags contain escaped characters.
-    const decodedTag = decodeURIComponent(rawTag)
-    // Feed entries can repeat across updates; keep a unique ordered tag list.
-    if (decodedTag && !tags.includes(decodedTag))
-      tags.push(decodedTag)
-
-    offset = end + 1
-  }
-
-  return tags
-}
-
-function getPreferredUpdateLane(params: { storedLane?: UpdateLane, version: string }): UpdateLane {
-  return normalizeLane(process.env[UPDATE_CHANNEL_ENV_KEY]?.trim()) ?? params.storedLane ?? laneFromVersion(params.version)
-}
-
-function getSemverFromTag(tag: string) {
-  return semver.valid(tag) ?? semver.valid(tag.startsWith('v') ? tag.slice(1) : tag)
-}
-
-function getUpdateServerOverride() {
-  // NOTICE: UPDATE_SERVER_URL is intentionally development-only for local update-test harness.
-  // Production update routing must not depend on this variable.
-  if (!is.dev)
-    return undefined
-
-  const value = process.env.UPDATE_SERVER_URL?.trim()
-  return value || undefined
-}
-
-function getWindowsProtectedInstallRoots() {
-  return [
-    process.env.ProgramFiles,
-    process.env['ProgramFiles(x86)'],
-    process.env.ProgramW6432,
-    process.env.SystemRoot,
-    process.env.windir,
+  const cleanups: Array<() => void> = [
+    unsubscribe,
+    defineInvokeHandler(context, autoUpdaterEventa.getState, () => service.state),
+    defineInvokeHandler(context, autoUpdaterEventa.checkForUpdates, async () => {
+      await service.checkForUpdates().catch(error => log.withError(error).error('checkForUpdates() failed'))
+      return service.state
+    }),
+    defineInvokeHandler(context, autoUpdaterEventa.downloadUpdate, async () => {
+      await service.downloadUpdate()
+      return service.state
+    }),
+    defineInvokeHandler(context, electronGetUpdaterPreferences, async () => ({
+      channel: service.getPreferredUpdateLane(),
+    })),
+    defineInvokeHandler(context, electronSetUpdaterPreferences, async (payload) => {
+      await service.setPreferredUpdateLane(payload?.channel)
+      return {
+        channel: service.getPreferredUpdateLane(),
+      }
+    }),
+    defineInvokeHandler(context, autoUpdaterEventa.quitAndInstall, async () => {
+      await service.quitAndInstall()
+    }),
   ]
-    .filter((value): value is string => Boolean(value))
-    .map(value => normalize(value))
-}
 
-function isPathInside(parentPath: string, targetPath: string) {
-  const normalizedParent = normalize(parentPath)
-  const normalizedTarget = normalize(targetPath)
-  const parentWithSeparator = normalizedParent.endsWith('\\') ? normalizedParent : `${normalizedParent}\\`
-  return normalizedTarget === normalizedParent || normalizedTarget.startsWith(parentWithSeparator)
-}
-
-function isPrereleaseVersion(version: string) {
-  return (semver.prerelease(version)?.length ?? 0) > 0
-}
-
-function isTagInLane(tag: string, lane: UpdateLane) {
-  const version = getSemverFromTag(tag)
-  if (!version)
-    return false
-
-  if (lane === 'latest')
-    return true
-
-  const prerelease = semver.prerelease(version)?.[0]?.toString().toLowerCase()
-  if (lane === 'stable')
-    return !prerelease
-
-  return prerelease === lane
-}
-
-function laneFromVersion(version: string): UpdateLane {
-  const prerelease = semver.prerelease(version)?.[0]?.toString().toLowerCase()
-  return normalizeLane(prerelease) ?? 'stable'
-}
-
-async function logToFile(level: 'DEBUG' | 'ERROR' | 'INFO' | 'WARN', message: string) {
-  await mkdir(UPDATER_DEBUG_CACHE_DIR, { recursive: true }).catch(() => {})
-  await appendFile(UPDATER_LOG_FILE, `${new Date().toISOString()} [${level}] ${message}\n`).catch(() => {})
-}
-
-function normalizeLane(value: string | undefined): undefined | UpdateLane {
-  if (!value)
-    return undefined
-
-  switch (value.toLowerCase()) {
-    case 'alpha':
-    case 'beta':
-    case 'canary':
-    case 'latest':
-    case 'nightly':
-    case 'stable':
-      return value.toLowerCase() as UpdateLane
-    default:
-      return undefined
+  const cleanup = () => {
+    for (const fn of cleanups)
+      fn()
   }
-}
 
-function requiresAdminForInstallPath(executablePath: string) {
-  if (!isWindows)
-    return false
-
-  const installDirectory = dirname(executablePath)
-  return getWindowsProtectedInstallRoots().some(root => isPathInside(root, installDirectory))
-}
-
-function selectLatestTagForLane(releases: GitHubReleaseRecord[], lane: UpdateLane) {
-  const candidates = releases
-    .filter(release => !release.draft && typeof release.tag_name === 'string' && isTagInLane(release.tag_name, lane))
-    .map((release) => {
-      const tag = release.tag_name as string
-      const version = getSemverFromTag(tag)
-      return version ? { tag, version } : null
-    })
-    .filter(Boolean) as Array<{ tag: string, version: string }>
-
-  candidates.sort((a, b) => semver.rcompare(a.version, b.version))
-  return candidates[0]?.tag
+  window.on('closed', cleanup)
+  return cleanup
 }

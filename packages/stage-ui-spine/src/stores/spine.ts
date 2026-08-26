@@ -5,19 +5,16 @@ import { ref, watch } from 'vue'
 
 import { supportedControl, useSpineViewControl } from './view-control'
 
-export interface SpineAnimationDescriptor {
-  duration: number
-  name: string
+type BroadcastChannelEvents
+  = | BroadcastChannelEventShouldUpdateView
+
+interface BroadcastChannelEventShouldUpdateView {
+  type: 'spine-should-update-view'
 }
 
-/** Persisted runtime state for the active Spine model. */
-export interface SpineCurrentAnimation {
-  /** Whether the animation should loop on track 0. */
-  loop: boolean
-  /** Animation name resolved against the loaded skeleton. */
+export interface SpineAnimationDescriptor {
   name: string
-  /** Optional one-shot trigger; bumped to force re-application. */
-  nonce?: number
+  duration: number
 }
 
 export interface SpineSkinDescriptor {
@@ -28,30 +25,33 @@ export interface SpineVariantDescriptor {
   name: string
 }
 
-type BroadcastChannelEvents
-  = | BroadcastChannelEventShouldUpdateView
-
-interface BroadcastChannelEventShouldUpdateView {
-  type: 'spine-should-update-view'
+/** Persisted runtime state for the active Spine model. */
+export interface SpineCurrentAnimation {
+  /** Animation name resolved against the loaded skeleton. */
+  name: string
+  /** Whether the animation should loop on track 0. */
+  loop: boolean
+  /** Optional one-shot trigger; bumped to force re-application. */
+  nonce?: number
 }
 
 export const defaultSpineAnimation: SpineCurrentAnimation = {
-  loop: true,
   name: 'idle',
+  loop: true,
 }
 
 /** Transient request to play a one-shot animation on the emotion track. */
 export interface SpineOneShotAnimation {
-  /** Whether the one-shot should loop instead of reverting to idle. */
-  loop: boolean
   /** Animation name; resolved against the loaded skeleton by the scene. */
   name: string
+  /** Whether the one-shot should loop instead of reverting to idle. */
+  loop: boolean
   /** Bumped on every request so repeat calls with the same name re-trigger. */
   nonce: number
 }
 
 export const useSpine = defineStore('spine', () => {
-  const { data, post } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({
+  const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({
     name: 'airi-stores-stage-ui-spine',
   })
   const shouldUpdateViewHooks = ref(new Set<() => void>())
@@ -134,10 +134,10 @@ export const useSpine = defineStore('spine', () => {
 
   /** Queue a one-shot animation; bumps the nonce so repeat calls re-trigger. */
   function playOneShotAnimation(name: string, loop = false) {
-    oneShotAnimation.value = { loop, name, nonce: (oneShotAnimation.value?.nonce ?? 0) + 1 }
+    oneShotAnimation.value = { name, loop, nonce: (oneShotAnimation.value?.nonce ?? 0) + 1 }
   }
 
-  const { position, reset: resetViewControl, scale } = useSpineViewControl()
+  const { position, scale, reset: resetViewControl } = useSpineViewControl()
 
   function resetState() {
     supportedControl.forEach(c => resetViewControl(c))
@@ -152,23 +152,23 @@ export const useSpine = defineStore('spine', () => {
   }
 
   return {
-    animationSpeed,
+    position,
+    scale,
+    currentAnimation,
     availableAnimations,
     availableSkins,
-    availableVariants,
-    currentAnimation,
     currentSkin,
+    availableVariants,
     currentVariant,
+    animationSpeed,
+
     isModelLoaded,
     oneShotAnimation,
+    playOneShotAnimation,
 
     onShouldUpdateView,
-    playOneShotAnimation,
-    position,
-
-    resetState,
-    scale,
     shouldUpdateView,
+    resetState,
   }
 })
 

@@ -6,19 +6,19 @@ import { authedFetch } from '../libs/auth-fetch'
 import { SERVER_URL } from '../libs/server'
 
 export interface VoicePackListItem {
-  costMultiplier: number
-  createdAt: string
-  description: null | string
-  enabled: boolean
   id: string
   name: string
+  description: string | null
+  voiceId: string
   params: {
     pitch?: number
-    rate?: number
     volume?: number
+    rate?: number
   }
+  costMultiplier: number
+  enabled: boolean
+  createdAt: string
   updatedAt: string
-  voiceId: string
 }
 
 /**
@@ -38,7 +38,7 @@ export interface VoicePackListItem {
 export const useVoicePacksStore = defineStore('voice-packs', () => {
   const packs = ref<VoicePackListItem[]>([])
   const loading = ref(false)
-  const error = ref<null | string>(null)
+  const error = ref<string | null>(null)
 
   async function load() {
     loading.value = true
@@ -63,5 +63,5 @@ export const useVoicePacksStore = defineStore('voice-packs', () => {
     }
   }
 
-  return { error, load, loading, packs }
+  return { packs, loading, error, load }
 })

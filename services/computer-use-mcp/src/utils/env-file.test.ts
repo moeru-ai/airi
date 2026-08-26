@@ -28,7 +28,7 @@ describe('readEnvValue', () => {
       })
     }
     finally {
-      await rm(dir, { force: true, recursive: true })
+      await rm(dir, { recursive: true, force: true })
     }
   })
 
@@ -45,7 +45,7 @@ describe('readEnvValue', () => {
       })).rejects.toThrow(/placeholder\/template value/)
     }
     finally {
-      await rm(dir, { force: true, recursive: true })
+      await rm(dir, { recursive: true, force: true })
     }
   })
 })

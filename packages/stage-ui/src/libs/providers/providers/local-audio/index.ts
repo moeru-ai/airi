@@ -17,21 +17,36 @@ type LocalAudioConfig = z.input<typeof localAudioConfigSchema>
 function createLocalAudioConfigSchema(t: ComposerTranslation) {
   return localAudioConfigSchema.extend({
     apiKey: localAudioConfigSchema.shape.apiKey.meta({
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
       type: 'password',
     }),
     baseUrl: localAudioConfigSchema.shape.baseUrl.meta({
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
     }),
   })
 }
 
+function normalizeBaseUrl(baseUrl: string | undefined) {
+  const normalized = baseUrl?.trim() ?? ''
+  return normalized && !normalized.endsWith('/') ? `${normalized}/` : normalized
+}
+
 function createLocalAudioProvider(config: LocalAudioConfig) {
   return createOpenAI(config.apiKey?.trim() ?? '', normalizeBaseUrl(config.baseUrl))
+}
+
+function createLocalTranscriptionProvider(config: LocalAudioConfig) {
+  const provider = createLocalAudioProvider(config)
+  const transcription = provider.transcription.bind(provider)
+  provider.transcription = (model: string, extraOptions?: Record<string, unknown>) => ({
+    ...transcription(model),
+    ...extraOptions,
+  })
+  return provider
 }
 
 function createLocalAudioValidators() {
@@ -57,16 +72,6 @@ function createLocalAudioValidators() {
   }
 }
 
-function createLocalTranscriptionProvider(config: LocalAudioConfig) {
-  const provider = createLocalAudioProvider(config)
-  const transcription = provider.transcription.bind(provider)
-  provider.transcription = (model: string, extraOptions?: Record<string, unknown>) => ({
-    ...transcription(model),
-    ...extraOptions,
-  })
-  return provider
-}
-
 async function isBrowserAndMemoryEnough() {
   if (isStageTamagotchi())
     return false
@@ -82,79 +87,74 @@ async function isBrowserAndMemoryEnough() {
   return false
 }
 
-function normalizeBaseUrl(baseUrl: string | undefined) {
-  const normalized = baseUrl?.trim() ?? ''
-  return normalized && !normalized.endsWith('/') ? `${normalized}/` : normalized
-}
-
 export const providerAppLocalAudioSpeech = defineProvider<LocalAudioConfig>({
-  createProvider: createLocalAudioProvider,
-  createProviderConfig: ({ t }) => createLocalAudioConfigSchema(t),
-  description: 'https://github.com/huggingface/candle',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.app-local-audio-speech.description'),
-  icon: 'i-lobe-icons:huggingface',
   id: 'app-local-audio-speech',
-  isAvailableBy: isStageTamagotchi,
   name: 'App (Local)',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.app-local-audio-speech.title'),
+  description: 'https://github.com/huggingface/candle',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.app-local-audio-speech.description'),
   tasks: ['text-to-speech', 'tts'],
+  icon: 'i-lobe-icons:huggingface',
+  isAvailableBy: isStageTamagotchi,
+  createProviderConfig: ({ t }) => createLocalAudioConfigSchema(t),
+  createProvider: createLocalAudioProvider,
   validators: createLocalAudioValidators(),
 })
 
 export const providerAppLocalAudioTranscription = defineProvider<LocalAudioConfig>({
-  capabilities: {
-    transcription: {
-      generateOutput: true,
-      protocol: 'http',
-      streamInput: false,
-      streamOutput: false,
-    },
-  },
-  createProvider: createLocalTranscriptionProvider,
-  createProviderConfig: ({ t }) => createLocalAudioConfigSchema(t),
-  description: 'https://github.com/huggingface/candle',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.app-local-audio-transcription.description'),
-  icon: 'i-lobe-icons:huggingface',
   id: 'app-local-audio-transcription',
-  isAvailableBy: isStageTamagotchi,
   name: 'App (Local)',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.app-local-audio-transcription.title'),
+  description: 'https://github.com/huggingface/candle',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.app-local-audio-transcription.description'),
   tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+  icon: 'i-lobe-icons:huggingface',
+  isAvailableBy: isStageTamagotchi,
+  capabilities: {
+    transcription: {
+      protocol: 'http',
+      generateOutput: true,
+      streamOutput: false,
+      streamInput: false,
+    },
+  },
+  createProviderConfig: ({ t }) => createLocalAudioConfigSchema(t),
+  createProvider: createLocalTranscriptionProvider,
   validators: createLocalAudioValidators(),
 })
 
 export const providerBrowserLocalAudioSpeech = defineProvider<LocalAudioConfig>({
-  createProvider: createLocalAudioProvider,
-  createProviderConfig: ({ t }) => createLocalAudioConfigSchema(t),
-  description: 'https://github.com/moeru-ai/xsai-transformers',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.browser-local-audio-speech.description'),
-  icon: 'i-lobe-icons:huggingface',
   id: 'browser-local-audio-speech',
-  isAvailableBy: isBrowserAndMemoryEnough,
   name: 'Browser (Local)',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.browser-local-audio-speech.title'),
+  description: 'https://github.com/moeru-ai/xsai-transformers',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.browser-local-audio-speech.description'),
   tasks: ['text-to-speech', 'tts'],
+  icon: 'i-lobe-icons:huggingface',
+  isAvailableBy: isBrowserAndMemoryEnough,
+  createProviderConfig: ({ t }) => createLocalAudioConfigSchema(t),
+  createProvider: createLocalAudioProvider,
   validators: createLocalAudioValidators(),
 })
 
 export const providerBrowserLocalAudioTranscription = defineProvider<LocalAudioConfig>({
-  capabilities: {
-    transcription: {
-      generateOutput: true,
-      protocol: 'http',
-      streamInput: false,
-      streamOutput: false,
-    },
-  },
-  createProvider: createLocalTranscriptionProvider,
-  createProviderConfig: ({ t }) => createLocalAudioConfigSchema(t),
-  description: 'https://github.com/moeru-ai/xsai-transformers',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.browser-local-audio-transcription.description'),
-  icon: 'i-lobe-icons:huggingface',
   id: 'browser-local-audio-transcription',
-  isAvailableBy: isBrowserAndMemoryEnough,
   name: 'Browser (Local)',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.browser-local-audio-transcription.title'),
+  description: 'https://github.com/moeru-ai/xsai-transformers',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.browser-local-audio-transcription.description'),
   tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+  icon: 'i-lobe-icons:huggingface',
+  isAvailableBy: isBrowserAndMemoryEnough,
+  capabilities: {
+    transcription: {
+      protocol: 'http',
+      generateOutput: true,
+      streamOutput: false,
+      streamInput: false,
+    },
+  },
+  createProviderConfig: ({ t }) => createLocalAudioConfigSchema(t),
+  createProvider: createLocalTranscriptionProvider,
   validators: createLocalAudioValidators(),
 })

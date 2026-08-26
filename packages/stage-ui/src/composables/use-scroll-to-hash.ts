@@ -4,9 +4,9 @@ import { onBeforeUnmount, unref, watch } from 'vue'
 
 export interface UseScrollToHashOptions {
   /**
-   * Whether to auto-scroll when `hashRef` changes.
+   * Distance (in px) between the target element and the top of the viewport.
    */
-  auto?: boolean
+  offset?: number
   /**
    * Smooth scroll animation.
    */
@@ -16,17 +16,17 @@ export interface UseScrollToHashOptions {
    */
   maxRetries?: number
   /**
-   * Distance (in px) between the target element and the top of the viewport.
-   */
-  offset?: number
-  /**
    * Delay (ms) between retries.
    */
   retryDelay?: number
   /**
    * Custom scroll container — defaults to `window`.
    */
-  scrollContainer?: HTMLElement | null | string
+  scrollContainer?: HTMLElement | string | null
+  /**
+   * Whether to auto-scroll when `hashRef` changes.
+   */
+  auto?: boolean
 }
 
 /**
@@ -52,21 +52,21 @@ export interface UseScrollToHashOptions {
  * - `onMounted` is not needed since `{ immediate: true }` on the watcher handles the initial scroll.
  */
 export function useScrollToHash(
-  hashRef?: (() => string | undefined) | Ref<string | undefined>,
+  hashRef?: Ref<string | undefined> | (() => string | undefined),
   options: UseScrollToHashOptions = {},
 ) {
   const {
-    auto = false,
+    offset = 16,
     behavior = 'smooth',
     maxRetries = 10,
-    offset = 16,
     retryDelay = 100,
     scrollContainer = null,
+    auto = false,
   } = options
 
   let retryTimer: number | undefined
 
-  const getScrollContainer = (): HTMLElement | Window => {
+  const getScrollContainer = (): Window | HTMLElement => {
     if (!scrollContainer)
       return window
     if (typeof scrollContainer === 'string') {
@@ -93,13 +93,13 @@ export function useScrollToHash(
 
         if (container instanceof Window) {
           const top = el.getBoundingClientRect().top + window.scrollY - offset
-          window.scrollTo({ behavior, top })
+          window.scrollTo({ top, behavior })
         }
         else {
           const containerRect = container.getBoundingClientRect()
           const elRect = el.getBoundingClientRect()
           const scrollTop = elRect.top - containerRect.top + container.scrollTop - offset
-          container.scrollTo({ behavior, top: scrollTop })
+          container.scrollTo({ top: scrollTop, behavior })
         }
         return
       }

@@ -12,10 +12,102 @@ import process from 'node:process'
 import { pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function cloneStructured<T>(value: T): T {
+  if (typeof value === 'undefined')
+    return value
+
+  try {
+    return structuredClone(value)
+  }
+  catch {
+    return JSON.parse(JSON.stringify(value)) as T
+  }
+}
+
+function workerErrorName(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'name' in error && typeof error.name === 'string')
+    return error.name
+  if (error instanceof Error)
+    return error.name
+  return 'Error'
+}
+
+function workerErrorMessage(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string')
+    return error.message
+  if (error instanceof Error)
+    return error.message
+  return String(error)
+}
+
+function workerErrorStack(error: unknown): string | undefined {
+  if (typeof error === 'object' && error !== null && 'stack' in error && typeof error.stack === 'string')
+    return error.stack
+  if (error instanceof Error)
+    return error.stack
+  return undefined
+}
+
+function serializeWorkerError(error: unknown): SerializedWorkerError {
+  const stack = workerErrorStack(error)
+  return stack
+    ? {
+        message: workerErrorMessage(error),
+        name: workerErrorName(error),
+        stack,
+      }
+    : {
+        message: workerErrorMessage(error),
+        name: workerErrorName(error),
+      }
+}
+
+function hydrateWorkerError(error: SerializedWorkerError): Error {
+  const hydrated = new Error(error.message)
+  hydrated.name = error.name
+  if (error.stack)
+    hydrated.stack = error.stack
+  return hydrated
+}
+
+function send(message: WorkerToParentMessage): void {
+  process.send?.(message)
+}
+
 function appendLog(logs: string[], args: unknown[]): string {
-  const rendered = args.map(arg => inspect(arg, { breakLength: 120, depth: 4 })).join(' ')
+  const rendered = args.map(arg => inspect(arg, { depth: 4, breakLength: 120 })).join(' ')
   logs.push(rendered)
   return rendered
+}
+
+function serializeBridgeValue(value: unknown): string {
+  return JSON.stringify({
+    isUndefined: typeof value === 'undefined',
+    value,
+  })
+}
+
+function readMemSnapshot(context: any, timeoutMs: number): Record<string, unknown> {
+  try {
+    const mem = context.evalSync('mem', { timeout: timeoutMs, copy: true })
+    return isRecord(mem) ? cloneStructured(mem) : {}
+  }
+  catch {
+    return {}
+  }
+}
+
+function setGlobalValue(globalRef: any, name: string, value: unknown, ivm: any): void {
+  if (typeof value === 'undefined') {
+    globalRef.setSync(name, undefined)
+    return
+  }
+
+  globalRef.setSync(name, new ivm.ExternalCopy(value).copyInto())
 }
 
 function bindDataGlobals(globalRef: any, runtime: RuntimeSnapshot, ivm: any): void {
@@ -58,112 +150,20 @@ function bindDataGlobals(globalRef: any, runtime: RuntimeSnapshot, ivm: any): vo
   setGlobalValue(globalRef, 'lastAction', runtime.lastAction, ivm)
 }
 
-function cloneStructured<T>(value: T): T {
-  if (typeof value === 'undefined')
-    return value
-
-  try {
-    return structuredClone(value)
-  }
-  catch {
-    return JSON.parse(JSON.stringify(value)) as T
-  }
-}
-
-function hydrateWorkerError(error: SerializedWorkerError): Error {
-  const hydrated = new Error(error.message)
-  hydrated.name = error.name
-  if (error.stack)
-    hydrated.stack = error.stack
-  return hydrated
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function readMemSnapshot(context: any, timeoutMs: number): Record<string, unknown> {
-  try {
-    const mem = context.evalSync('mem', { copy: true, timeout: timeoutMs })
-    return isRecord(mem) ? cloneStructured(mem) : {}
-  }
-  catch {
-    return {}
-  }
-}
-
-function send(message: WorkerToParentMessage): void {
-  process.send?.(message)
-}
-
-function serializeBridgeValue(value: unknown): string {
-  return JSON.stringify({
-    isUndefined: typeof value === 'undefined',
-    value,
-  })
-}
-
-function serializeWorkerError(error: unknown): SerializedWorkerError {
-  const stack = workerErrorStack(error)
-  return stack
-    ? {
-        message: workerErrorMessage(error),
-        name: workerErrorName(error),
-        stack,
-      }
-    : {
-        message: workerErrorMessage(error),
-        name: workerErrorName(error),
-      }
-}
-
-function setGlobalValue(globalRef: any, name: string, value: unknown, ivm: any): void {
-  if (typeof value === 'undefined') {
-    globalRef.setSync(name, undefined)
-    return
-  }
-
-  globalRef.setSync(name, new ivm.ExternalCopy(value).copyInto())
-}
-
-function workerErrorMessage(error: unknown): string {
-  if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string')
-    return error.message
-  if (error instanceof Error)
-    return error.message
-  return String(error)
-}
-
-function workerErrorName(error: unknown): string {
-  if (typeof error === 'object' && error !== null && 'name' in error && typeof error.name === 'string')
-    return error.name
-  if (error instanceof Error)
-    return error.name
-  return 'Error'
-}
-
-function workerErrorStack(error: unknown): string | undefined {
-  if (typeof error === 'object' && error !== null && 'stack' in error && typeof error.stack === 'string')
-    return error.stack
-  if (error instanceof Error)
-    return error.stack
-  return undefined
-}
-
 let nextRequestId = 1
-const pendingRequests = new Map<number, { reject: (error: Error) => void, resolve: (value: unknown) => void }>()
+const pendingRequests = new Map<number, { resolve: (value: unknown) => void, reject: (error: Error) => void }>()
 
 async function requestParent(method: string, args: unknown[]): Promise<unknown> {
   const requestId = nextRequestId++
   send({
-    args: cloneStructured(args),
-    method,
-    requestId,
     type: 'bridge-request',
+    requestId,
+    method,
+    args: cloneStructured(args),
   })
 
   return await new Promise((resolve, reject) => {
-    pendingRequests.set(requestId, { reject, resolve })
+    pendingRequests.set(requestId, { resolve, reject })
   })
 }
 
@@ -185,7 +185,7 @@ async function runEvaluation(payload: SandboxWorkerRequest): Promise<void> {
     isolate = new ivm.Isolate({
       memoryLimit: payload.memoryLimitMb,
       onCatastrophicError: (error: unknown) => {
-        send({ error: serializeWorkerError(error), type: 'catastrophic-error' })
+        send({ type: 'catastrophic-error', error: serializeWorkerError(error) })
       },
     })
 
@@ -211,28 +211,28 @@ async function runEvaluation(payload: SandboxWorkerRequest): Promise<void> {
       `return (async () => {\n${payload.script}\n})()`,
       [],
       {
-        result: { copy: true, promise: true },
         timeout: payload.timeoutMs,
+        result: { copy: true, promise: true },
       },
     )
 
     send({
+      type: 'result',
       result: {
         logs: cloneStructured(logs),
         mem: readMemSnapshot(context, payload.timeoutMs),
         returnRaw: typeof returnRaw === 'undefined' ? undefined : cloneStructured(returnRaw),
       },
-      type: 'result',
     })
   }
   catch (error) {
     send({
+      type: 'error',
       error: serializeWorkerError(error),
       state: {
         logs: cloneStructured(logs),
         mem: context ? readMemSnapshot(context, payload.timeoutMs) : {},
       },
-      type: 'error',
     })
   }
   finally {
@@ -279,12 +279,12 @@ process.on('disconnect', () => {
 })
 
 process.on('uncaughtException', (error) => {
-  send({ error: serializeWorkerError(error), type: 'error' })
+  send({ type: 'error', error: serializeWorkerError(error) })
   process.exitCode = 1
 })
 
 process.on('unhandledRejection', (reason) => {
-  send({ error: serializeWorkerError(reason), type: 'error' })
+  send({ type: 'error', error: serializeWorkerError(reason) })
   process.exitCode = 1
 })
 

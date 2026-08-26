@@ -5,6 +5,32 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { createSparkCommandTool } from './spark-command'
 
+function isJsonSchema(value: JsonSchema | boolean | undefined): value is JsonSchema {
+  return Boolean(value && typeof value === 'object')
+}
+
+function getObjectSchema(schema?: JsonSchema) {
+  if (!schema)
+    return undefined
+
+  if (schema.type === 'object')
+    return schema
+
+  const candidates = [...(schema.anyOf ?? []), ...(schema.oneOf ?? [])].filter(isJsonSchema)
+  return candidates.find(candidate => candidate?.type === 'object')
+}
+
+function getArraySchema(schema?: JsonSchema) {
+  if (!schema)
+    return undefined
+
+  if (schema.type === 'array')
+    return schema
+
+  const candidates = [...(schema.anyOf ?? []), ...(schema.oneOf ?? [])].filter(isJsonSchema)
+  return candidates.find(candidate => candidate?.type === 'array')
+}
+
 function findObjectSchema(schema: JsonSchema | undefined, predicate: (schema: JsonSchema) => boolean): JsonSchema | undefined {
   if (!schema)
     return undefined
@@ -20,32 +46,6 @@ function findObjectSchema(schema: JsonSchema | undefined, predicate: (schema: Js
   }
 
   return undefined
-}
-
-function getArraySchema(schema?: JsonSchema) {
-  if (!schema)
-    return undefined
-
-  if (schema.type === 'array')
-    return schema
-
-  const candidates = [...(schema.anyOf ?? []), ...(schema.oneOf ?? [])].filter(isJsonSchema)
-  return candidates.find(candidate => candidate?.type === 'array')
-}
-
-function getObjectSchema(schema?: JsonSchema) {
-  if (!schema)
-    return undefined
-
-  if (schema.type === 'object')
-    return schema
-
-  const candidates = [...(schema.anyOf ?? []), ...(schema.oneOf ?? [])].filter(isJsonSchema)
-  return candidates.find(candidate => candidate?.type === 'object')
-}
-
-function isJsonSchema(value: boolean | JsonSchema | undefined): value is JsonSchema {
-  return Boolean(value && typeof value === 'object')
 }
 
 describe('tools/character/orchestrator/spark-command', () => {
@@ -166,74 +166,74 @@ describe('tools/character/orchestrator/spark-command', () => {
     })
 
     const result = await tools[0].execute({
+      destinations: ['minecraft'],
+      interrupt: 'soft',
+      priority: 'high',
+      intent: 'proposal',
       ack: 'check this',
+      parentEventId: 'parent-1',
+      guidance: {
+        type: 'instruction',
+        persona: [
+          { traits: 'bravery', strength: 'high' },
+        ],
+        options: [{
+          label: 'Move',
+          steps: ['Walk forward'],
+          rationale: 'Closer inspection',
+          possibleOutcome: null,
+          risk: null,
+          fallback: null,
+          triggers: null,
+        }],
+      },
       contexts: [{
-        destinations: ['memory'],
-        hints: null,
-        ideas: null,
         lane: 'game',
+        ideas: null,
+        hints: null,
+        strategy: ContextUpdateStrategy.AppendSelf,
+        text: 'Zombie nearby',
+        destinations: ['memory'],
         metadata: [
           { key: 'threat', value: 'zombie' },
           { key: 'urgent', value: true },
         ],
-        strategy: ContextUpdateStrategy.AppendSelf,
-        text: 'Zombie nearby',
       }],
-      destinations: ['minecraft'],
-      guidance: {
-        options: [{
-          fallback: null,
-          label: 'Move',
-          possibleOutcome: null,
-          rationale: 'Closer inspection',
-          risk: null,
-          steps: ['Walk forward'],
-          triggers: null,
-        }],
-        persona: [
-          { strength: 'high', traits: 'bravery' },
-        ],
-        type: 'instruction',
-      },
-      intent: 'proposal',
-      interrupt: 'soft',
-      parentEventId: 'parent-1',
-      priority: 'high',
     }, { messages: [], toolCallId: 'tool-call-id' })
 
     expect(sendSparkCommand).toHaveBeenCalledTimes(1)
     expect(sendSparkCommand).toHaveBeenCalledWith(expect.objectContaining({
+      parentEventId: 'parent-1',
+      interrupt: 'soft',
+      priority: 'high',
+      intent: 'proposal',
       ack: 'check this',
+      destinations: ['minecraft'],
+      guidance: {
+        type: 'instruction',
+        persona: {
+          bravery: 'high',
+        },
+        options: [{
+          label: 'Move',
+          steps: ['Walk forward'],
+          rationale: 'Closer inspection',
+          possibleOutcome: undefined,
+          risk: undefined,
+          fallback: undefined,
+          triggers: undefined,
+        }],
+      },
       contexts: [expect.objectContaining({
-        destinations: ['memory'],
         lane: 'game',
+        strategy: ContextUpdateStrategy.AppendSelf,
+        text: 'Zombie nearby',
+        destinations: ['memory'],
         metadata: {
           threat: 'zombie',
           urgent: true,
         },
-        strategy: ContextUpdateStrategy.AppendSelf,
-        text: 'Zombie nearby',
       })],
-      destinations: ['minecraft'],
-      guidance: {
-        options: [{
-          fallback: undefined,
-          label: 'Move',
-          possibleOutcome: undefined,
-          rationale: 'Closer inspection',
-          risk: undefined,
-          steps: ['Walk forward'],
-          triggers: undefined,
-        }],
-        persona: {
-          bravery: 'high',
-        },
-        type: 'instruction',
-      },
-      intent: 'proposal',
-      interrupt: 'soft',
-      parentEventId: 'parent-1',
-      priority: 'high',
     }))
 
     const command = sendSparkCommand.mock.calls[0][0]
@@ -255,14 +255,14 @@ describe('tools/character/orchestrator/spark-command', () => {
     const tools = await createSparkCommandTool({ sendSparkCommand })
 
     const result = await tools[0].execute({
-      ack: null,
-      contexts: null,
       destinations: [],
-      guidance: null,
-      intent: 'action',
       interrupt: 'soft',
-      parentEventId: null,
       priority: 'normal',
+      intent: 'action',
+      ack: null,
+      parentEventId: null,
+      guidance: null,
+      contexts: null,
     }, { messages: [], toolCallId: 'tool-call-id' })
 
     expect(sendSparkCommand).toHaveBeenCalledOnce()

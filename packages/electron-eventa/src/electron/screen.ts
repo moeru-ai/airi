@@ -14,11 +14,11 @@ const screenToDipPoint = defineInvokeEventa<ReturnType<typeof electronScreen.scr
 const screenToDipRect = defineInvokeEventa<ReturnType<typeof electronScreen.screenToDipRect>, Parameters<typeof electronScreen.screenToDipRect>[1]>('eventa:invoke:electron:screen:screen-to-dip-rect')
 
 export const screen = {
+  getAllDisplays,
+  getPrimaryDisplay,
+  getCursorScreenPoint,
   dipToScreenPoint,
   dipToScreenRect,
-  getAllDisplays,
-  getCursorScreenPoint,
-  getPrimaryDisplay,
   screenToDipPoint,
   screenToDipRect,
 }

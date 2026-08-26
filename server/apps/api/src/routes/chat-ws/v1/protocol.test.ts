@@ -10,11 +10,11 @@ const serverPong = defineOutboundEventa<{ value: string }>('chat-ws:server-pong'
 
 function createPeer(sent: string[]): WSContext {
   return new WSContext({
-    close() {},
-    readyState: 1,
     send(data) {
       sent.push(String(data))
     },
+    close() {},
+    readyState: 1,
   })
 }
 
@@ -48,11 +48,11 @@ describe('v1 chat WebSocket protocol', () => {
     hooks.onMessage?.(new MessageEvent('message', {
       data: JSON.stringify({
         id: 'beta13-delivery',
-        payload: {
-          body: { value: 'from-beta13' },
-          id: 'chat-ws:legacy-ping',
-        },
         type: 'chat-ws:legacy-ping',
+        payload: {
+          id: 'chat-ws:legacy-ping',
+          body: { value: 'from-beta13' },
+        },
       }),
     }), peer)
 
@@ -68,11 +68,11 @@ describe('v1 chat WebSocket protocol', () => {
     expect(sent).toHaveLength(2)
     expect(JSON.parse(sent.at(-1)!)).toMatchObject({
       deliveryId: expect.any(String),
-      eventa: { body: { value: 'from-beta15' }, id: 'chat-ws:server-pong' },
       hopsRemaining: expect.any(Number),
+      eventa: { id: 'chat-ws:server-pong', body: { value: 'from-beta15' } },
       id: expect.any(String),
-      payload: { body: { value: 'from-beta15' }, id: 'chat-ws:server-pong' },
       type: 'chat-ws:server-pong',
+      payload: { id: 'chat-ws:server-pong', body: { value: 'from-beta15' } },
     })
   })
 })

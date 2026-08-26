@@ -29,6 +29,7 @@ export async function interpretPhotos(state: BotContext, msg: Message, photos: P
       const req = {
         apiKey: env.LLM_VISION_API_KEY!,
         baseURL: env.LLM_VISION_API_BASE_URL!,
+        model: env.LLM_VISION_MODEL!,
         messages: message.messages(
           message.system(''
             + 'You are a helpful assistant on visual content description work for blindness disability '
@@ -52,7 +53,6 @@ export async function interpretPhotos(state: BotContext, msg: Message, photos: P
           ),
           message.user([message.imagePart(`data:image/png;base64,${base64}`)]),
         ),
-        model: env.LLM_VISION_MODEL!,
       } satisfies GenerateTextOptions
       if (env.LLM_OLLAMA_DISABLE_THINK) {
         (req as Record<string, unknown>).think = false
@@ -66,10 +66,10 @@ export async function interpretPhotos(state: BotContext, msg: Message, photos: P
 
       // TODO: implement this for photo searching
       const _embedRes = await embed({
-        apiKey: env.EMBEDDING_API_KEY!,
         baseURL: env.EMBEDDING_API_BASE_URL!,
-        input: 'Hello, world!',
+        apiKey: env.EMBEDDING_API_KEY!,
         model: env.EMBEDDING_MODEL!,
+        input: 'Hello, world!',
       })
 
       await recordPhoto(base64, msg.photo[index].file_id, files[index].file_path, res.text)

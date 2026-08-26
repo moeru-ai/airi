@@ -8,21 +8,15 @@ import { onMounted, onUpdated } from 'vue'
 
 export interface Header {
   /**
-   * The children of the header
-   */
-  children: Header[]
-  /**
    * The level of the header
    *
    * `1` to `6` for `<h1>` to `<h6>`
    */
   level: number
   /**
-   * Link of the header
-   *
-   * Typically using `#${slug}` as the anchor hash
+   * The title of the header
    */
-  link: string
+  title: string
   /**
    * The slug of the header
    *
@@ -30,17 +24,33 @@ export interface Header {
    */
   slug: string
   /**
-   * The title of the header
+   * Link of the header
+   *
+   * Typically using `#${slug}` as the anchor hash
    */
-  title: string
+  link: string
+  /**
+   * The children of the header
+   */
+  children: Header[]
 }
 
 // cached list of anchor elements from resolveHeaders
 const resolvedHeaders: { element: HTMLHeadElement, link: string }[] = []
 
-export type MenuItem = Omit<Header, 'children' | 'slug'> & {
-  children?: MenuItem[]
+export type MenuItem = Omit<Header, 'slug' | 'children'> & {
   element: HTMLHeadElement
+  children?: MenuItem[]
+}
+
+export function resolveTitle(theme: DefaultTheme.Config) {
+  return (
+    (typeof theme.outline === 'object'
+      && !Array.isArray(theme.outline)
+      && theme.outline.label)
+    || theme.outlineTitle
+    || 'On this page'
+  )
 }
 
 export function getHeaders(range: DefaultTheme.Config['outline']) {
@@ -50,13 +60,33 @@ export function getHeaders(range: DefaultTheme.Config['outline']) {
       const level = Number(el.tagName[1])
       return {
         element: el as HTMLHeadElement,
-        level,
-        link: `#${el.id}`,
         title: serializeHeader(el),
+        link: `#${el.id}`,
+        level,
       }
     })
 
   return resolveHeaders(headers, range)
+}
+
+function serializeHeader(h: Element): string {
+  let ret = ''
+  for (const node of Array.from(h.childNodes)) {
+    if (node.nodeType === 1) {
+      if (
+        (node as Element).classList.contains('VPBadge')
+        || (node as Element).classList.contains('header-anchor')
+        || (node as Element).classList.contains('ignore-header')
+      ) {
+        continue
+      }
+      ret += node.textContent
+    }
+    else if (node.nodeType === 3) {
+      ret += node.textContent
+    }
+  }
+  return ret.trim()
 }
 
 export function resolveHeaders(
@@ -108,16 +138,6 @@ export function resolveHeaders(
   }
 
   return ret
-}
-
-export function resolveTitle(theme: DefaultTheme.Config) {
-  return (
-    (typeof theme.outline === 'object'
-      && !Array.isArray(theme.outline)
-      && theme.outline.label)
-    || theme.outlineTitle
-    || 'On this page'
-  )
 }
 
 export function useActiveAnchor(
@@ -173,7 +193,7 @@ export function useActiveAnchor(
     }
 
     // find the last header above the top of viewport
-    let activeLink: null | string = null
+    let activeLink: string | null = null
     for (const { link, top } of headers) {
       if (top > scrollY + getScrollOffset() + 4) {
         break
@@ -184,7 +204,7 @@ export function useActiveAnchor(
     activateLink(activeLink)
   }
 
-  function activateLink(hash: null | string) {
+  function activateLink(hash: string | null) {
     if (prevActiveLink) {
       prevActiveLink.classList.remove('active')
     }
@@ -226,26 +246,6 @@ function getAbsoluteTop(element: HTMLElement): number {
     element = element.offsetParent as HTMLElement
   }
   return offsetTop
-}
-
-function serializeHeader(h: Element): string {
-  let ret = ''
-  for (const node of Array.from(h.childNodes)) {
-    if (node.nodeType === 1) {
-      if (
-        (node as Element).classList.contains('VPBadge')
-        || (node as Element).classList.contains('header-anchor')
-        || (node as Element).classList.contains('ignore-header')
-      ) {
-        continue
-      }
-      ret += node.textContent
-    }
-    else if (node.nodeType === 3) {
-      ret += node.textContent
-    }
-  }
-  return ret.trim()
 }
 
 function throttleAndDebounce(fn: () => void, delay: number): () => void {

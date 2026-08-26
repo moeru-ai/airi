@@ -2,7 +2,11 @@ import type { JsonSchema } from 'xsschema'
 
 import { z } from 'zod'
 
-const JSON_SCHEMA_NULLABLE_SCALAR_TYPES = new Set(['boolean', 'integer', 'null', 'number', 'string'])
+const JSON_SCHEMA_NULLABLE_SCALAR_TYPES = new Set(['string', 'number', 'integer', 'boolean', 'null'])
+
+function isJsonSchema(value: JsonSchema | boolean | JsonSchema[] | undefined): value is JsonSchema {
+  return Boolean(value && !Array.isArray(value) && typeof value === 'object')
+}
 
 /**
  * Normalizes nullable scalar unions in generated JSON schema.
@@ -61,38 +65,34 @@ export function normalizeNullableAnyOf(schema: JsonSchema): JsonSchema {
   return next
 }
 
-function isJsonSchema(value: boolean | JsonSchema | JsonSchema[] | undefined): value is JsonSchema {
-  return Boolean(value && !Array.isArray(value) && typeof value === 'object')
-}
-
 export const sparkCommandGuidanceOptionSchema = z.object({
-  fallback: z.union([z.array(z.string()), z.null()]).describe('Fallback steps if the main plan fails.'),
   label: z.string().describe('Short label for the option.'),
-  possibleOutcome: z.union([z.array(z.string()), z.null()]).describe('Expected outcomes if this option is followed.'),
-  rationale: z.union([z.string(), z.null()]).describe('Why this option makes sense.'),
-  risk: z.union([z.enum(['high', 'medium', 'low', 'none']), z.null()]).describe('Risk level of this option.'),
   steps: z.array(z.string()).min(1).describe('Step-by-step actions the target should follow.'),
+  rationale: z.union([z.string(), z.null()]).describe('Why this option makes sense.'),
+  possibleOutcome: z.union([z.array(z.string()), z.null()]).describe('Expected outcomes if this option is followed.'),
+  risk: z.union([z.enum(['high', 'medium', 'low', 'none']), z.null()]).describe('Risk level of this option.'),
+  fallback: z.union([z.array(z.string()), z.null()]).describe('Fallback steps if the main plan fails.'),
   triggers: z.union([z.array(z.string()), z.null()]).describe('Conditions that should trigger this option.'),
 }).strict()
 
 export const sparkCommandPersonaSchema = z.object({
-  strength: z.enum(['very-high', 'high', 'medium', 'low', 'very-low']),
   traits: z.string().describe('Trait name to adjust behavior. For example, "bravery", "cautiousness", "friendliness".'),
+  strength: z.enum(['very-high', 'high', 'medium', 'low', 'very-low']),
 }).strict()
 
 export const sparkNotifyCommandGuidanceSchema = z.object({
-  options: z.array(sparkCommandGuidanceOptionSchema),
-  persona: z.union([z.array(sparkCommandPersonaSchema), z.null()]).describe('Optional persona controls for the receiver.'),
   type: z.enum(['proposal', 'instruction', 'memory-recall']),
+  persona: z.union([z.array(sparkCommandPersonaSchema), z.null()]).describe('Optional persona controls for the receiver.'),
+  options: z.array(sparkCommandGuidanceOptionSchema),
 }).strict()
 
 export const sparkNotifyCommandItemSchema = z.object({
-  ack: z.string().describe('Acknowledgment content used to be passed to sub-agents upon command receipt.'),
   destinations: z.array(z.string()).min(1).describe('List of sub-agent IDs to send the command to'),
-  guidance: z.union([sparkNotifyCommandGuidanceSchema, z.null()]).describe('Guidance for the sub-agent on how to interpret and execute the command.'),
-  intent: z.union([z.enum(['plan', 'proposal', 'action', 'pause', 'resume', 'reroute', 'context']), z.null()]).describe('Intent of the command.'),
   interrupt: z.union([z.enum(['force', 'soft', 'false']), z.null()]).describe('Interrupt type: force, soft, or false (no interrupt).'),
   priority: z.union([z.enum(['critical', 'high', 'normal', 'low']), z.null()]).describe('Semantic priority of the command.'),
+  intent: z.union([z.enum(['plan', 'proposal', 'action', 'pause', 'resume', 'reroute', 'context']), z.null()]).describe('Intent of the command.'),
+  ack: z.string().describe('Acknowledgment content used to be passed to sub-agents upon command receipt.'),
+  guidance: z.union([sparkNotifyCommandGuidanceSchema, z.null()]).describe('Guidance for the sub-agent on how to interpret and execute the command.'),
 }).strict()
 
 export const sparkNotifyCommandSchema = z.object({

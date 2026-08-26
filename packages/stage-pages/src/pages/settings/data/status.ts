@@ -1,18 +1,18 @@
 import { errorMessageFrom } from '@moeru/std'
 import { shallowRef } from 'vue'
 
-export type DataSettingsStatusEmit = (event: 'status', payload: DataSettingsStatusPayload) => void
-
-export interface DataSettingsStatusEmits {
-  status: [payload: DataSettingsStatusPayload]
-}
+export type DataSettingsStatusTone = 'neutral' | 'success' | 'error'
 
 export interface DataSettingsStatusPayload {
   message: string
   tone: DataSettingsStatusTone
 }
 
-export type DataSettingsStatusTone = 'error' | 'neutral' | 'success'
+export interface DataSettingsStatusEmits {
+  status: [payload: DataSettingsStatusPayload]
+}
+
+export type DataSettingsStatusEmit = (event: 'status', payload: DataSettingsStatusPayload) => void
 
 export function createDataSettingsStatusHelpers(emit: DataSettingsStatusEmit) {
   function emitStatus(message: string, tone: DataSettingsStatusTone = 'success') {
@@ -40,8 +40,8 @@ export function createDataSettingsStatusState() {
   }
 
   return {
-    handleStatus,
     statusMessage,
     statusTone,
+    handleStatus,
   }
 }

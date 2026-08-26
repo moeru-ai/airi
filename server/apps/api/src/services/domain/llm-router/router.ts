@@ -30,80 +30,6 @@ import { createKeyRotator } from './key-rotator'
 
 const UPSTREAM_BODY_SNIPPET_MAX = 256
 
-export interface CreateLlmRouterServiceOptions {
-  /**
-   * Per-pool concurrency ledger backing capacity-aware TTS routing. When a TTS
-   * model has any upstream with `maxConcurrency` set, the router acquires a slot
-   * here before dispatching and releases it after, spreading load across app_ids
-   * instead of hammering the first upstream.
-   */
-  concurrencyLedger: ConcurrencyLedger
-  /**
-   * Config cache TTL in milliseconds.
-   * @default 5_000
-   */
-  configCacheTtlMs?: number
-  /** ConfigKV used to read `LLM_ROUTER_CONFIG`. */
-  configKV: ConfigKVService
-  /** Envelope crypto used to decrypt at-rest keys. */
-  envelopeCrypto: EnvelopeCrypto
-  /**
-   * Fetch implementation. Defaults to `globalThis.fetch`. Tests inject a
-   * `vi.fn` so we never touch the real network.
-   * @default globalThis.fetch
-   */
-  fetchImpl?: typeof fetch
-  /** OTel gateway metric bundle. `null` when OTel is disabled. */
-  gatewayMetrics: GatewayMetrics | null
-  /**
-   * Redis client used as the TTS voice catalog cache. Live catalogs (Azure)
-   * are stable but heavy; caching avoids hammering Microsoft on every voice
-   * picker open while keeping freshness within {@link TTS_VOICES_CACHE_TTL_S}.
-   */
-  redis: Redis
-  /**
-   * Cool-down (seconds) a pool is skipped after exhausting with a 429 (app_id
-   * concurrency exceeded upstream-side). Separate from the ledger's in-flight
-   * TTL: this is a reactive circuit-breaker window, not a leak bound.
-   * @default 15
-   */
-  ttsPoolSaturationTtlSeconds?: number
-  /**
-   * TTL for the Redis voice catalog cache in seconds.
-   * @default 21_600 (6h)
-   */
-  ttsVoiceCacheTtlSeconds?: number
-}
-
-/**
- * Best-effort provider tag derived from `baseURL` host for OTel labels. We
- * keep this loose — every label below is just a dimension, not a domain
- * identity. The admin-controlled `LLM_ROUTER_CONFIG` is the source of truth
- * for which upstream serves a model.
- */
-function deriveProviderTag(baseURL: string): string {
-  try {
-    return new URL(baseURL).hostname
-  }
-  catch {
-    return 'unknown'
-  }
-}
-
-function failuresMatch(
-  statuses: ReadonlyArray<'timeout' | number>,
-  triggers: RouteFailureTriggers | undefined,
-): boolean {
-  if (statuses.length === 0 || triggers == null)
-    return false
-
-  return statuses.every((status) => {
-    if (status === 'timeout')
-      return triggers.onTimeout
-    return triggers.httpCodes.includes(status)
-  })
-}
-
 /**
  * Read at most `maxBytes` from an upstream non-2xx response body for
  * diagnostic logging, then cancel the rest so the socket can return to
@@ -125,7 +51,7 @@ async function readUpstreamBodySnippet(response: Response, maxBytes = UPSTREAM_B
     const chunks: Uint8Array[] = []
     let total = 0
     while (total < maxBytes) {
-      const { done, value } = await reader.read()
+      const { value, done } = await reader.read()
       if (done)
         break
       chunks.push(value)
@@ -152,6 +78,21 @@ function renderAuthHeader(headerTemplate: string, plaintext: Buffer): string {
 }
 
 /**
+ * Best-effort provider tag derived from `baseURL` host for OTel labels. We
+ * keep this loose — every label below is just a dimension, not a domain
+ * identity. The admin-controlled `LLM_ROUTER_CONFIG` is the source of truth
+ * for which upstream serves a model.
+ */
+function deriveProviderTag(baseURL: string): string {
+  try {
+    return new URL(baseURL).hostname
+  }
+  catch {
+    return 'unknown'
+  }
+}
+
+/**
  * Identity of the pool (concurrency pool) one TTS upstream belongs to. One
  * upstream == one app_id, so the Volcengine `adapterParams.appid` is the pool
  * key when present. Other providers use a model-scoped upstream id, then a
@@ -168,6 +109,65 @@ function ttsPoolId(upstream: TtsUpstream, modelName: string): string {
     upstream.id == null ? 'baseURL' : 'id',
     upstream.id ?? upstream.baseURL,
   ])}`
+}
+
+function failuresMatch(
+  statuses: ReadonlyArray<number | 'timeout'>,
+  triggers: RouteFailureTriggers | undefined,
+): boolean {
+  if (statuses.length === 0 || triggers == null)
+    return false
+
+  return statuses.every((status) => {
+    if (status === 'timeout')
+      return triggers.onTimeout
+    return triggers.httpCodes.includes(status)
+  })
+}
+
+export interface CreateLlmRouterServiceOptions {
+  /** ConfigKV used to read `LLM_ROUTER_CONFIG`. */
+  configKV: ConfigKVService
+  /** Envelope crypto used to decrypt at-rest keys. */
+  envelopeCrypto: EnvelopeCrypto
+  /** OTel gateway metric bundle. `null` when OTel is disabled. */
+  gatewayMetrics: GatewayMetrics | null
+  /**
+   * Redis client used as the TTS voice catalog cache. Live catalogs (Azure)
+   * are stable but heavy; caching avoids hammering Microsoft on every voice
+   * picker open while keeping freshness within {@link TTS_VOICES_CACHE_TTL_S}.
+   */
+  redis: Redis
+  /**
+   * Per-pool concurrency ledger backing capacity-aware TTS routing. When a TTS
+   * model has any upstream with `maxConcurrency` set, the router acquires a slot
+   * here before dispatching and releases it after, spreading load across app_ids
+   * instead of hammering the first upstream.
+   */
+  concurrencyLedger: ConcurrencyLedger
+  /**
+   * Cool-down (seconds) a pool is skipped after exhausting with a 429 (app_id
+   * concurrency exceeded upstream-side). Separate from the ledger's in-flight
+   * TTL: this is a reactive circuit-breaker window, not a leak bound.
+   * @default 15
+   */
+  ttsPoolSaturationTtlSeconds?: number
+  /**
+   * Fetch implementation. Defaults to `globalThis.fetch`. Tests inject a
+   * `vi.fn` so we never touch the real network.
+   * @default globalThis.fetch
+   */
+  fetchImpl?: typeof fetch
+  /**
+   * Config cache TTL in milliseconds.
+   * @default 5_000
+   */
+  configCacheTtlMs?: number
+  /**
+   * TTL for the Redis voice catalog cache in seconds.
+   * @default 21_600 (6h)
+   */
+  ttsVoiceCacheTtlSeconds?: number
 }
 
 /**
@@ -190,7 +190,13 @@ const TTS_VOICES_CACHE_TTL_S_BY_PROVIDER: Record<string, number> = {
   'volcengine': 86_400,
 }
 
-export type LlmRouterService = ReturnType<typeof createLlmRouterService>
+function ttsVoicesCacheTtl(provider: string): number {
+  return TTS_VOICES_CACHE_TTL_S_BY_PROVIDER[provider] ?? 21_600
+}
+
+function ttsVoicesCacheKey(provider: string, modelName: string): string {
+  return `tts:voices:${provider}:${modelName}`
+}
 
 /**
  * Build the in-process LLM router service.
@@ -237,15 +243,15 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     req: LlmRouteRequest,
     perAttemptTimeoutMs: number,
     fallbackHttpCodes: number[],
-    onAttemptFailure: (failure: { bodySnippet?: string, errorMessage?: string, keyId: string, status: 'timeout' | number }) => void,
+    onAttemptFailure: (failure: { keyId: string, status: number | 'timeout', bodySnippet?: string, errorMessage?: string }) => void,
   ): Promise<
-    | { attemptIndex: number, kind: 'ok', response: Response, upstreamModel: string }
-    | { failures: Array<{ bodySnippet?: string, errorMessage?: string, keyId: string, status: 'timeout' | number }>, kind: 'exhausted' }
+    | { kind: 'ok', response: Response, attemptIndex: number, upstreamModel: string }
+    | { kind: 'exhausted', failures: Array<{ keyId: string, status: number | 'timeout', bodySnippet?: string, errorMessage?: string }> }
   > {
     const provider = deriveProviderTag(upstream.baseURL)
     const rotator = createKeyRotator(upstream, options.envelopeCrypto, req.modelName, options.gatewayMetrics, provider)
 
-    const failures: Array<{ bodySnippet?: string, errorMessage?: string, keyId: string, status: 'timeout' | number }> = []
+    const failures: Array<{ keyId: string, status: number | 'timeout', bodySnippet?: string, errorMessage?: string }> = []
     let attemptIndex = 0
 
     for (const key of rotator) {
@@ -280,9 +286,9 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         let response: Response
         try {
           response = await fetchImpl(`${upstream.baseURL.replace(/\/+$/, '')}/chat/completions`, {
-            body,
-            headers,
             method: 'POST',
+            headers,
+            body,
             signal: attemptCtrl.signal,
           })
         }
@@ -295,12 +301,12 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         if (response.ok) {
           // First 2xx wins. Enrich the active span and return.
           trace.getActiveSpan()?.setAttributes({
-            [AIRI_ATTR_GEN_AI_GATEWAY_FALLBACK_DEPTH]: attemptIndex,
-            [AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID]: key.id,
-            [AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_INDEX]: upstreamIndex,
             [AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_URL]: upstream.baseURL,
+            [AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_INDEX]: upstreamIndex,
+            [AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID]: key.id,
+            [AIRI_ATTR_GEN_AI_GATEWAY_FALLBACK_DEPTH]: attemptIndex,
           })
-          return { attemptIndex, kind: 'ok', response, upstreamModel: effectiveModel }
+          return { kind: 'ok', response, attemptIndex, upstreamModel: effectiveModel }
         }
 
         const status = response.status
@@ -314,11 +320,11 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         // Source: codex review 2026-05-15 HIGH #2 (cancel) + cause-propagation
         // follow-up 2026-05-16 (snippet).
         const bodySnippet = await readUpstreamBodySnippet(response)
-        failures.push({ bodySnippet, keyId: key.id, status })
-        onAttemptFailure({ bodySnippet, keyId: key.id, status })
+        failures.push({ keyId: key.id, status, bodySnippet })
+        onAttemptFailure({ keyId: key.id, status, bodySnippet })
         options.gatewayMetrics?.fallbackCount.add(1, {
-          from_key: key.id,
           provider,
+          from_key: key.id,
           reason: String(status),
         })
         options.gatewayMetrics?.upstreamErrors.add(1, {
@@ -349,11 +355,11 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         // ApiError.cause so operators can tell apart "DNS failed" from
         // "attempt-timeout" without re-running the request.
         const errorMessage = errorMessageFromUnknown(err)
-        failures.push({ errorMessage, keyId: key.id, status: 'timeout' })
-        onAttemptFailure({ errorMessage, keyId: key.id, status: 'timeout' })
+        failures.push({ keyId: key.id, status: 'timeout', errorMessage })
+        onAttemptFailure({ keyId: key.id, status: 'timeout', errorMessage })
         options.gatewayMetrics?.fallbackCount.add(1, {
-          from_key: key.id,
           provider,
+          from_key: key.id,
           reason: 'timeout',
         })
         logger.withError(err).withFields({ keyId: key.id, upstream: upstream.baseURL }).warn('Upstream attempt failed (timeout / network)')
@@ -366,7 +372,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       attemptIndex += 1
     }
 
-    return { failures, kind: 'exhausted' }
+    return { kind: 'exhausted', failures }
   }
 
   async function route(req: LlmRouteRequest, ctx?: LlmRouteContext): Promise<Response> {
@@ -383,10 +389,10 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     }
 
     const llmModel = slice.model
-    const defaults = slice.defaults ?? { fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504], fullChainTimeoutMs: 60000, perAttemptTimeoutMs: 30000 }
+    const defaults = slice.defaults ?? { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504] }
     const fallbackHttpCodes = llmModel.fallbackTriggers?.httpCodes ?? defaults.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504]
 
-    const allFailures: Array<{ bodySnippet?: string, errorMessage?: string, keyId: string, provider: string, status: 'timeout' | number }> = []
+    const allFailures: Array<{ provider: string, keyId: string, status: number | 'timeout', bodySnippet?: string, errorMessage?: string }> = []
     let triedUpstreams = 0
 
     async function attemptUpstream(upstream: LlmUpstream, index: number) {
@@ -422,10 +428,10 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     }
 
     async function routeGroup(group: LlmRoutingGroup): Promise<
-      | { kind: 'exhausted', statuses: Array<'timeout' | number>, transitionBlocked: boolean }
       | { kind: 'ok', response: Response }
+      | { kind: 'exhausted', statuses: Array<number | 'timeout'>, transitionBlocked: boolean }
     > {
-      const statuses: Array<'timeout' | number> = []
+      const statuses: Array<number | 'timeout'> = []
       for (let groupCandidateIndex = 0; groupCandidateIndex < group.upstreamIds.length; groupCandidateIndex += 1) {
         const upstreamId = group.upstreamIds[groupCandidateIndex]
         const index = llmModel.upstreams.findIndex(upstream => upstream.id === upstreamId)
@@ -509,9 +515,9 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     throw mapUpstreamError(
       lastFailure.status,
       {
-        lastStatusCode: lastFailure.status,
         triedKeys: allFailures.length,
         triedUpstreams,
+        lastStatusCode: lastFailure.status,
       },
       allFailures,
     )
@@ -533,15 +539,15 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     perAttemptTimeoutMs: number,
     fallbackHttpCodes: number[],
     unspeechBaseURL: string,
-    onAttemptFailure: (failure: { errorMessage?: string, keyId: string, status: 'timeout' | number }) => void,
+    onAttemptFailure: (failure: { keyId: string, status: number | 'timeout', errorMessage?: string }) => void,
   ): Promise<
-    | { attemptIndex: number, body: ArrayBuffer | ReadableStream<Uint8Array>, contentType: string, kind: 'ok' }
-    | { failures: Array<{ errorMessage?: string, keyId: string, status: 'timeout' | number }>, kind: 'exhausted' }
+    | { kind: 'ok', contentType: string, body: ArrayBuffer | ReadableStream<Uint8Array>, attemptIndex: number }
+    | { kind: 'exhausted', failures: Array<{ keyId: string, status: number | 'timeout', errorMessage?: string }> }
   > {
     const providerTag = deriveProviderTag(upstream.baseURL)
     const rotator = createKeyRotator(upstream, options.envelopeCrypto, modelName, options.gatewayMetrics, providerTag)
     const adapter = getAdapter(providerId)
-    const failures: Array<{ errorMessage?: string, keyId: string, status: 'timeout' | number }> = []
+    const failures: Array<{ keyId: string, status: number | 'timeout', errorMessage?: string }> = []
     let attemptIndex = 0
 
     for (const key of rotator) {
@@ -561,12 +567,12 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         let result
         try {
           result = await adapter.send(input, {
-            abortSignal: attemptCtrl.signal,
-            adapterParams: upstream.adapterParams ?? {},
-            baseURL: upstream.baseURL.replace(/\/+$/, ''),
-            fetchImpl,
             keyPlaintext: key.plaintext,
+            baseURL: upstream.baseURL.replace(/\/+$/, ''),
             unspeechBaseURL,
+            adapterParams: upstream.adapterParams ?? {},
+            fetchImpl,
+            abortSignal: attemptCtrl.signal,
           })
         }
         finally {
@@ -576,12 +582,12 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         }
 
         trace.getActiveSpan()?.setAttributes({
-          [AIRI_ATTR_GEN_AI_GATEWAY_FALLBACK_DEPTH]: attemptIndex,
-          [AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID]: key.id,
-          [AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_INDEX]: upstreamIndex,
           [AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_URL]: upstream.baseURL,
+          [AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_INDEX]: upstreamIndex,
+          [AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID]: key.id,
+          [AIRI_ATTR_GEN_AI_GATEWAY_FALLBACK_DEPTH]: attemptIndex,
         })
-        return { attemptIndex, body: result.body, contentType: result.contentType, kind: 'ok' }
+        return { kind: 'ok', contentType: result.contentType, body: result.body, attemptIndex }
       }
       catch (err) {
         if (abortSignal?.aborted) {
@@ -610,17 +616,17 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         const rawStatus
           = (err as { status?: unknown }).status
             ?? (err instanceof ApiError ? err.statusCode : undefined)
-        const failureStatus: 'timeout' | number = typeof rawStatus === 'number' ? rawStatus : 'timeout'
+        const failureStatus: number | 'timeout' = typeof rawStatus === 'number' ? rawStatus : 'timeout'
         // TTS adapters bake the upstream body snippet into err.message
         // (azure: `azure tts upstream 403: <body>`, cosyvoice / volcengine
         // analogous), so a single errorMessage carries both the status
         // and the upstream payload diagnostics.
         const errorMessage = errorMessageFromUnknown(err)
-        failures.push({ errorMessage, keyId: key.id, status: failureStatus })
-        onAttemptFailure({ errorMessage, keyId: key.id, status: failureStatus })
+        failures.push({ keyId: key.id, status: failureStatus, errorMessage })
+        onAttemptFailure({ keyId: key.id, status: failureStatus, errorMessage })
         options.gatewayMetrics?.fallbackCount.add(1, {
-          from_key: key.id,
           provider: providerTag,
+          from_key: key.id,
           reason: String(failureStatus),
         })
         if (typeof rawStatus === 'number') {
@@ -645,7 +651,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       attemptIndex += 1
     }
 
-    return { failures, kind: 'exhausted' }
+    return { kind: 'exhausted', failures }
   }
 
   /**
@@ -665,20 +671,20 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     upstreams: readonly TtsUpstream[],
     modelName: string,
     attemptUpstream: (upstream: TtsUpstream, index: number) => Promise<
-      | { kind: 'exhausted', sawTooManyRequests: boolean, statuses: Array<'timeout' | number> }
       | { kind: 'ok', response: Response }
+      | { kind: 'exhausted', sawTooManyRequests: boolean, statuses: Array<number | 'timeout'> }
     >,
     retryOn?: RouteFailureTriggers,
     strategy: 'least-inflight' | 'ordered' = 'least-inflight',
   ): Promise<
-    | { kind: 'exhausted', statuses: Array<'timeout' | number>, transitionBlocked: boolean }
     | { kind: 'ok', response: Response }
+    | { kind: 'exhausted', statuses: Array<number | 'timeout'>, transitionBlocked: boolean }
   > {
     async function markSaturated(upstream: TtsUpstream, poolId: string): Promise<void> {
       await ledger.markSaturated(poolId, ttsPoolSaturationTtlSeconds)
       options.gatewayMetrics?.poolSaturationMarked.add(1, {
-        app_id: poolId,
         provider: deriveProviderTag(upstream.baseURL),
+        app_id: poolId,
       })
     }
 
@@ -691,19 +697,19 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       const saturated = await ledger.isSaturated(poolId)
       if (saturated) {
         return {
-          eligible: false,
-          index,
-          inflight: Number.POSITIVE_INFINITY,
-          maxConcurrency,
-          poolId,
           upstream,
+          index,
+          poolId,
+          maxConcurrency,
+          inflight: Number.POSITIVE_INFINITY,
+          eligible: false,
         }
       }
       if (maxConcurrency == null)
-        return { eligible: true, index, inflight: 0, maxConcurrency, poolId, upstream }
+        return { upstream, index, poolId, maxConcurrency, inflight: 0, eligible: true }
 
       const inflight = await ledger.currentInflight(poolId)
-      return { eligible: inflight < maxConcurrency, index, inflight, maxConcurrency, poolId, upstream }
+      return { upstream, index, poolId, maxConcurrency, inflight, eligible: inflight < maxConcurrency }
     }))
     const eligible = candidates.filter(c => c.eligible)
     const ranked = strategy === 'least-inflight'
@@ -712,9 +718,9 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
 
     let dispatchedAny = false
     let attemptedPools = 0
-    const statuses: Array<'timeout' | number> = []
+    const statuses: Array<number | 'timeout'> = []
     for (let rankedIndex = 0; rankedIndex < ranked.length; rankedIndex += 1) {
-      const { index, maxConcurrency, poolId, upstream } = ranked[rankedIndex]
+      const { upstream, index, poolId, maxConcurrency } = ranked[rankedIndex]
       const hasNextCandidate = rankedIndex < ranked.length - 1
       if (maxConcurrency == null) {
         // Unlimited pool — dispatch without occupying a slot.
@@ -735,8 +741,8 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       if (!acquired) {
         // Pool filled between the snapshot and now — skip without dispatching.
         options.gatewayMetrics?.poolSlotRejected.add(1, {
-          app_id: poolId,
           provider: deriveProviderTag(upstream.baseURL),
+          app_id: poolId,
         })
         continue
       }
@@ -777,7 +783,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     }
   }
 
-  async function routeTts(req: { abortSignal?: AbortSignal, input: TtsInput, modelName: string }, ctx?: LlmRouteContext): Promise<Response> {
+  async function routeTts(req: { modelName: string, input: TtsInput, abortSignal?: AbortSignal }, ctx?: LlmRouteContext): Promise<Response> {
     if (req.abortSignal?.aborted)
       throw req.abortSignal.reason ?? new Error('aborted')
 
@@ -793,12 +799,12 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     // local instead of `slice.model` to keep `provider`/`upstreams` typed.
     const ttsModel = slice.model
 
-    const defaults = slice.defaults ?? { fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504], fullChainTimeoutMs: 60000, perAttemptTimeoutMs: 30000 }
+    const defaults = slice.defaults ?? { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504] }
     const fallbackHttpCodes = ttsModel.fallbackTriggers?.httpCodes ?? defaults.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504]
 
     const unspeechBaseURL = (await options.configKV.getOrThrow('UNSPEECH_UPSTREAM')).restBaseURL
 
-    const allFailures: Array<{ errorMessage?: string, keyId: string, provider: string, status: 'timeout' | number }> = []
+    const allFailures: Array<{ provider: string, keyId: string, status: number | 'timeout', errorMessage?: string }> = []
     let triedUpstreams = 0
 
     // tts upstream schema has no per-upstream timeoutMs (see ttsUpstreamSchema);
@@ -810,8 +816,8 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     // whether the upstream saw a 429 (app_id concurrency exceeded upstream-side)
     // so the caller can circuit-break thatpool.
     async function attemptUpstream(upstream: TtsUpstream, index: number): Promise<
-      | { kind: 'exhausted', sawTooManyRequests: boolean, statuses: Array<'timeout' | number> }
       | { kind: 'ok', response: Response }
+      | { kind: 'exhausted', sawTooManyRequests: boolean, statuses: Array<number | 'timeout'> }
     > {
       const providerTag = deriveProviderTag(upstream.baseURL)
       triedUpstreams += 1
@@ -835,7 +841,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       if (result.kind === 'ok') {
         return {
           kind: 'ok',
-          response: new Response(result.body, { headers: { 'content-type': result.contentType }, status: 200 }),
+          response: new Response(result.body, { status: 200, headers: { 'content-type': result.contentType } }),
         }
       }
 
@@ -847,8 +853,8 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     }
 
     async function routeGroup(group: TtsRoutingGroup): Promise<
-      | { kind: 'exhausted', statuses: Array<'timeout' | number>, transitionBlocked: boolean }
       | { kind: 'ok', response: Response }
+      | { kind: 'exhausted', statuses: Array<number | 'timeout'>, transitionBlocked: boolean }
     > {
       const indexedUpstreams = group.upstreamIds.map((upstreamId) => {
         const index = ttsModel.upstreams.findIndex(upstream => upstream.id === upstreamId)
@@ -857,12 +863,12 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
             `TTS routing group ${group.id} references unknown upstream ${upstreamId} for model ${req.modelName}`,
           )
         }
-        return { index, upstream: ttsModel.upstreams[index] }
+        return { upstream: ttsModel.upstreams[index], index }
       })
 
       const capacityManaged = indexedUpstreams.some(({ upstream }) => upstream.maxConcurrency != null)
       if (group.strategy === 'least-inflight' || capacityManaged) {
-        const indexByUpstream = new Map(indexedUpstreams.map(({ index, upstream }) => [upstream, index]))
+        const indexByUpstream = new Map(indexedUpstreams.map(({ upstream, index }) => [upstream, index]))
         return routeTtsAcrossPools(
           indexedUpstreams.map(({ upstream }) => upstream),
           req.modelName,
@@ -877,9 +883,9 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         )
       }
 
-      const statuses: Array<'timeout' | number> = []
+      const statuses: Array<number | 'timeout'> = []
       for (let groupCandidateIndex = 0; groupCandidateIndex < indexedUpstreams.length; groupCandidateIndex += 1) {
-        const { index, upstream } = indexedUpstreams[groupCandidateIndex]
+        const { upstream, index } = indexedUpstreams[groupCandidateIndex]
         const result = await attemptUpstream(upstream, index)
         if (result.kind === 'ok')
           return result
@@ -954,9 +960,9 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     throw mapUpstreamError(
       lastFailure.status,
       {
-        lastStatusCode: lastFailure.status,
         triedKeys: allFailures.length,
         triedUpstreams,
+        lastStatusCode: lastFailure.status,
       },
       allFailures,
     )
@@ -1017,16 +1023,16 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
 
       const keyEntry = upstream.keys[0]
       const plaintext = slice.model.provider === 'azure'
-        ? options.envelopeCrypto.decryptKey(keyEntry.ciphertext, { keyEntryId: keyEntry.id, modelName })
+        ? options.envelopeCrypto.decryptKey(keyEntry.ciphertext, { modelName, keyEntryId: keyEntry.id })
         : undefined
 
       try {
         const voices = await adapter.getVoiceCatalog({
-          adapterParams: upstream.adapterParams ?? {},
-          fetchImpl,
           keyPlaintext: plaintext,
           region,
+          adapterParams: upstream.adapterParams ?? {},
           unspeechBaseURL,
+          fetchImpl,
         })
 
         // Cache only on success — failure responses must NOT be persisted or
@@ -1061,7 +1067,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     // SCAN avoids blocking redis on a large keyspace; production deployments
     // can have voice catalogs from many models. Using a stream keeps memory
     // bounded.
-    const stream = options.redis.scanStream({ count: 100, match: 'tts:voices:*' })
+    const stream = options.redis.scanStream({ match: 'tts:voices:*', count: 100 })
     const pipeline = options.redis.pipeline()
     let queued = 0
     for await (const keys of stream as AsyncIterable<string[]>) {
@@ -1078,6 +1084,9 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
   }
 
   return {
+    route,
+    routeTts,
+    listTtsVoices,
     /**
      * Expose the loader's invalidate hook so U7's Pub/Sub subscriber and
      * a configuration writer can flush the cache without a separate
@@ -1090,16 +1099,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
      * writes invalidate it directly so the next voice-picker fetch repopulates.
      */
     invalidateTtsVoicesCache,
-    listTtsVoices,
-    route,
-    routeTts,
   }
 }
 
-function ttsVoicesCacheKey(provider: string, modelName: string): string {
-  return `tts:voices:${provider}:${modelName}`
-}
-
-function ttsVoicesCacheTtl(provider: string): number {
-  return TTS_VOICES_CACHE_TTL_S_BY_PROVIDER[provider] ?? 21_600
-}
+export type LlmRouterService = ReturnType<typeof createLlmRouterService>

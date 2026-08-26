@@ -16,35 +16,12 @@ vi.mock('../server', () => ({
 }))
 
 interface MockServer {
+  url: string
+  receivedFrames: Array<{ kind: 'text' | 'binary', data: string | Buffer }>
   observedVoiceTypes: string[]
-  receivedFrames: Array<{ data: Buffer | string, kind: 'binary' | 'text' }>
   /** Resolves when the server has observed a `start` frame from the client. */
   startObserved: Promise<void>
   stop: () => Promise<void>
-  url: string
-}
-
-// jsdom-friendly stub AudioContext for `decodeAudioData`. The pipeline does
-// not introspect the AudioBuffer beyond passing it to consumers, so any
-// shape with the expected fields is fine.
-function makeStubAudioContext(): BaseAudioContext {
-  let counter = 0
-  const ctx = {
-    decodeAudioData: vi.fn(async (buf: ArrayBuffer) => {
-      // Return a fake AudioBuffer-like object identifiable by index/byteLength.
-      counter += 1
-      return {
-        __byteLength: buf.byteLength,
-        __index: counter,
-        duration: buf.byteLength / 24000,
-        length: buf.byteLength,
-        numberOfChannels: 1,
-        sampleRate: 24000,
-      } as unknown as AudioBuffer
-    }),
-    sampleRate: 24000,
-  }
-  return ctx as unknown as BaseAudioContext
 }
 
 async function startMockServer(handler: (ws: import('ws').WebSocket) => void): Promise<MockServer> {
@@ -67,7 +44,7 @@ async function startMockServer(handler: (ws: import('ws').WebSocket) => void): P
     ws.on('message', (data, isBinary) => {
       const buf = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer)
       const decoded = isBinary ? buf : buf.toString('utf8')
-      receivedFrames.push({ data: isBinary ? buf : (decoded as string), kind: isBinary ? 'binary' : 'text' })
+      receivedFrames.push({ kind: isBinary ? 'binary' : 'text', data: isBinary ? buf : (decoded as string) })
       if (!isBinary) {
         try {
           const ev = JSON.parse(decoded as string) as { event?: string }
@@ -84,15 +61,38 @@ async function startMockServer(handler: (ws: import('ws').WebSocket) => void): P
   const { port } = httpServer.address() as AddressInfo
 
   return {
-    observedVoiceTypes,
+    url: `http://127.0.0.1:${port}`,
     receivedFrames,
+    observedVoiceTypes,
     startObserved,
     async stop() {
       wss.close()
       await new Promise<void>(r => httpServer.close(() => r()))
     },
-    url: `http://127.0.0.1:${port}`,
   }
+}
+
+// jsdom-friendly stub AudioContext for `decodeAudioData`. The pipeline does
+// not introspect the AudioBuffer beyond passing it to consumers, so any
+// shape with the expected fields is fine.
+function makeStubAudioContext(): BaseAudioContext {
+  let counter = 0
+  const ctx = {
+    sampleRate: 24000,
+    decodeAudioData: vi.fn(async (buf: ArrayBuffer) => {
+      // Return a fake AudioBuffer-like object identifiable by index/byteLength.
+      counter += 1
+      return {
+        duration: buf.byteLength / 24000,
+        length: buf.byteLength,
+        numberOfChannels: 1,
+        sampleRate: 24000,
+        __index: counter,
+        __byteLength: buf.byteLength,
+      } as unknown as AudioBuffer
+    }),
+  }
+  return ctx as unknown as BaseAudioContext
 }
 
 describe('createStreamingTtsPipeline', () => {
@@ -132,14 +132,14 @@ describe('createStreamingTtsPipeline', () => {
     const onDone = vi.fn()
 
     const handle = createStreamingTtsPipeline({
-      audioContext: makeStubAudioContext(),
-      model: 'volcengine/seed-tts-1.0',
-      onDone,
-      onError,
-      onSentence,
       serverUrl: server.url,
-      ttsVoiceType: 'official_selected',
+      model: 'volcengine/seed-tts-1.0',
       voice: 'mock',
+      ttsVoiceType: 'official_selected',
+      audioContext: makeStubAudioContext(),
+      onSentence,
+      onError,
+      onDone,
     })
 
     handle.appendText('hi ')
@@ -162,7 +162,7 @@ describe('createStreamingTtsPipeline', () => {
     expect(onError).not.toHaveBeenCalled()
     // Two `sentence.end` events → two AudioBuffers.
     expect(onSentence).toHaveBeenCalledTimes(2)
-    const calls = onSentence.mock.calls.map(([s]) => s as { audio: { __byteLength: number }, index: number, text: string })
+    const calls = onSentence.mock.calls.map(([s]) => s as { index: number, text: string, audio: { __byteLength: number } })
     expect(calls[0]).toMatchObject({ index: 0, text: 'first one.' })
     expect(calls[0].audio.__byteLength).toBe(chunks[0].length + chunks[1].length)
     expect(calls[1]).toMatchObject({ index: 1, text: 'second sentence.' })
@@ -190,12 +190,12 @@ describe('createStreamingTtsPipeline', () => {
 
     const onSentence = vi.fn()
     const handle = createStreamingTtsPipeline({
+      serverUrl: server.url,
+      model: 'volcengine/seed-tts-2.0',
+      voice: 'mock',
       audioContext: makeStubAudioContext(),
       bufferEntireSession: true,
-      model: 'volcengine/seed-tts-2.0',
       onSentence,
-      serverUrl: server.url,
-      voice: 'mock',
     })
 
     handle.finish()
@@ -203,7 +203,7 @@ describe('createStreamingTtsPipeline', () => {
     await new Promise<void>(resolve => setTimeout(resolve, 800))
 
     expect(onSentence).toHaveBeenCalledTimes(1)
-    const [sentence] = onSentence.mock.calls[0] as [{ audio: { __byteLength: number }, index: number }]
+    const [sentence] = onSentence.mock.calls[0] as [{ index: number, audio: { __byteLength: number } }]
     expect(sentence.index).toBe(0)
     expect(sentence.audio.__byteLength).toBe(chunks[0].length + chunks[1].length)
   })
@@ -215,7 +215,7 @@ describe('createStreamingTtsPipeline', () => {
           return
         const ev = JSON.parse(data.toString()) as { event?: string }
         if (ev.event === 'start') {
-          ws.send(JSON.stringify({ code: 'insufficient_flux', event: 'error', message: 'top up' }))
+          ws.send(JSON.stringify({ event: 'error', code: 'insufficient_flux', message: 'top up' }))
         }
       })
     })
@@ -223,12 +223,12 @@ describe('createStreamingTtsPipeline', () => {
     const onError = vi.fn()
     const onDone = vi.fn()
     createStreamingTtsPipeline({
-      audioContext: makeStubAudioContext(),
-      model: 'volcengine/seed-tts-1.0',
-      onDone,
-      onError,
       serverUrl: server.url,
+      model: 'volcengine/seed-tts-1.0',
       voice: 'mock',
+      audioContext: makeStubAudioContext(),
+      onError,
+      onDone,
     })
 
     await new Promise<void>((resolve) => {
@@ -256,12 +256,12 @@ describe('createStreamingTtsPipeline', () => {
     const onError = vi.fn()
     const onDone = vi.fn()
     createStreamingTtsPipeline({
-      audioContext: makeStubAudioContext(),
-      model: 'volcengine/seed-tts-1.0',
-      onDone,
-      onError,
       serverUrl: server.url,
+      model: 'volcengine/seed-tts-1.0',
       voice: 'mock',
+      audioContext: makeStubAudioContext(),
+      onError,
+      onDone,
     })
 
     await new Promise<void>((resolve) => {
@@ -287,11 +287,11 @@ describe('createStreamingTtsPipeline', () => {
 
     const onDone = vi.fn()
     const handle = createStreamingTtsPipeline({
-      audioContext: makeStubAudioContext(),
-      model: 'volcengine/seed-tts-1.0',
-      onDone,
       serverUrl: server.url,
+      model: 'volcengine/seed-tts-1.0',
       voice: 'mock',
+      audioContext: makeStubAudioContext(),
+      onDone,
     })
 
     await server.startObserved

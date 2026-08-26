@@ -7,19 +7,6 @@ import process from 'node:process'
  * Complete configuration interface
  */
 export interface Config {
-  // Adapter configuration
-  adapters: {
-    airi?: {
-      enabled: boolean
-      token?: string
-      url?: string
-    }
-    mcp?: {
-      enabled: boolean
-      port?: number
-    }
-  }
-
   // Browser configuration
   browser: BrowserConfig & {
     apiKey: string // API Key for Stagehand
@@ -28,25 +15,38 @@ export interface Config {
 
   // Twitter API credentials
   credentials?: {
-    accessToken?: string
-    accessTokenSecret?: string
     apiKey?: string
     apiSecret?: string
-  }
-
-  // System configuration
-  system: {
-    concurrency: number
-    logFormat?: 'json' | 'pretty'
-    logLevel: 'debug' | 'error' | 'info' | 'verbose' | 'warn'
+    accessToken?: string
+    accessTokenSecret?: string
   }
 
   // Twitter configuration
   twitter: {
     defaultOptions?: {
-      search?: SearchOptions
       timeline?: TimelineOptions
+      search?: SearchOptions
     }
+  }
+
+  // Adapter configuration
+  adapters: {
+    airi?: {
+      url?: string
+      token?: string
+      enabled: boolean
+    }
+    mcp?: {
+      port?: number
+      enabled: boolean
+    }
+  }
+
+  // System configuration
+  system: {
+    logLevel: 'error' | 'warn' | 'info' | 'verbose' | 'debug'
+    logFormat?: 'json' | 'pretty'
+    concurrency: number
   }
 }
 
@@ -58,39 +58,23 @@ export function getDefaultConfig(): Config {
   // The auth service will load cookies from session file instead
 
   return {
-    adapters: {
-      airi: {
-        enabled: process.env.ENABLE_AIRI === 'true',
-        token: process.env.AIRI_TOKEN || '',
-        url: process.env.AIRI_URL || 'http://localhost:3000',
-      },
-      mcp: {
-        enabled: process.env.ENABLE_MCP === 'true',
-        port: Number(process.env.MCP_PORT || 8080),
-      },
-    },
     browser: {
       apiKey: process.env.BROWSERBASE_API_KEY || '', // Move apiKey to browser config
       headless: process.env.BROWSER_HEADLESS === 'true',
-      requestRetries: Number.parseInt(process.env.BROWSER_REQUEST_RETRIES || '2'),
-      requestTimeout: Number.parseInt(process.env.BROWSER_REQUEST_TIMEOUT || '20000'),
-      timeout: Number.parseInt(process.env.BROWSER_TIMEOUT || '30000'),
       userAgent: process.env.BROWSER_USER_AGENT || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       viewport: {
-        height: Number.parseInt(process.env.BROWSER_VIEWPORT_HEIGHT || '800'),
         width: Number.parseInt(process.env.BROWSER_VIEWPORT_WIDTH || '1280'),
+        height: Number.parseInt(process.env.BROWSER_VIEWPORT_HEIGHT || '800'),
       },
+      timeout: Number.parseInt(process.env.BROWSER_TIMEOUT || '30000'),
+      requestTimeout: Number.parseInt(process.env.BROWSER_REQUEST_TIMEOUT || '20000'),
+      requestRetries: Number.parseInt(process.env.BROWSER_REQUEST_RETRIES || '2'),
     },
     credentials: {
-      accessToken: process.env.TWITTER_ACCESS_TOKEN,
-      accessTokenSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
       apiKey: process.env.TWITTER_API_KEY,
       apiSecret: process.env.TWITTER_API_SECRET,
-    },
-    system: {
-      concurrency: Number(process.env.CONCURRENCY || 1),
-      logFormat: 'pretty',
-      logLevel: 'debug',
+      accessToken: process.env.TWITTER_ACCESS_TOKEN,
+      accessTokenSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
     },
     twitter: {
       defaultOptions: {
@@ -100,6 +84,22 @@ export function getDefaultConfig(): Config {
           includeRetweets: true,
         },
       },
+    },
+    adapters: {
+      airi: {
+        url: process.env.AIRI_URL || 'http://localhost:3000',
+        token: process.env.AIRI_TOKEN || '',
+        enabled: process.env.ENABLE_AIRI === 'true',
+      },
+      mcp: {
+        port: Number(process.env.MCP_PORT || 8080),
+        enabled: process.env.ENABLE_MCP === 'true',
+      },
+    },
+    system: {
+      logLevel: 'debug',
+      logFormat: 'pretty',
+      concurrency: Number(process.env.CONCURRENCY || 1),
     },
   }
 }

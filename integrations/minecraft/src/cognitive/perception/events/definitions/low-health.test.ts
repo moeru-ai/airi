@@ -6,12 +6,12 @@ const filter = lowHealthEvent.mineflayer.filter!
 const extract = lowHealthEvent.mineflayer.extract
 
 /** Perception-context stub: drives the low-health filter with a health value, inventory, and pvp state. */
-function ctx(health: number, items: Array<{ foodPoints?: number, name: string }> = [], pvpTarget: unknown = null): any {
+function ctx(health: number, items: Array<{ name: string, foodPoints?: number }> = [], pvpTarget: unknown = null): any {
   return { bot: { health, inventory: { items: () => items }, pvp: { target: pvpTarget } } }
 }
 
-const bread = { foodPoints: 5, name: 'bread' }
-const rawBeef = { foodPoints: 3, name: 'beef' }
+const bread = { name: 'bread', foodPoints: 5 }
+const rawBeef = { name: 'beef', foodPoints: 3 }
 
 describe('low_health perception event', () => {
   it('fires once when entering critical health with no ready food, then re-arms above threshold', () => {

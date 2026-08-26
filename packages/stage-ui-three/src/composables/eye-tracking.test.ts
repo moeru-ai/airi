@@ -6,8 +6,8 @@ vi.mock('@vueuse/core', async () => {
   const vue = await import('vue')
   return {
     useBroadcastChannel: vi.fn(() => ({
-      data: vue.ref(null),
       post: vi.fn(),
+      data: vue.ref(null),
     })),
   }
 })
@@ -44,13 +44,13 @@ describe('useVRMEyeFocusFor', () => {
     const focus = useVRMEyeFocusFor({
       cameraPosition: () => ({ x: 0, y: 0, z: -1 }),
       context: () => ({
+        raycaster: new Raycaster(),
         camera: {
           near: 0.1,
         } as any,
         defaultLookAt,
-        raycaster: new Raycaster(),
       }),
-      screenBoundingBox: () => ({ height: 100, left: 0, top: 0, width: 100 }),
+      screenBoundingBox: () => ({ top: 0, left: 0, width: 100, height: 100 }),
       source: () => null,
       trackingMode: () => 'mouse',
     })
@@ -75,13 +75,13 @@ describe('useVRMEyeFocusFor', () => {
     const focus = useVRMEyeFocusFor({
       cameraPosition: () => ({ x: 0, y: 0, z: -1 }),
       context: () => ({
+        raycaster: raycaster as unknown as Raycaster,
         camera: {
           near: 0.1,
         } as any,
         defaultLookAt: new Vector3(1, 2, 3),
-        raycaster: raycaster as unknown as Raycaster,
       }),
-      screenBoundingBox: () => ({ height: 100, left: 0, top: 0, width: 100 }),
+      screenBoundingBox: () => ({ top: 0, left: 0, width: 100, height: 100 }),
       source: () => ({ x: 50, y: 50 }),
       trackingMode: () => 'mouse',
     })

@@ -6,72 +6,72 @@ import type { useExpressionController } from './expression-controller'
 
 import { useLive2DIdleEyeFocus } from './animation'
 
-export type MotionManagerPlugin = (ctx: MotionManagerPluginContext) => void
-export type MotionManagerPluginContext = MotionManagerUpdateContext & {
-  handled: boolean
-  internalModel: PixiLive2DInternalModel
-  isIdleMotion: boolean
-  live2dAutoBlinkEnabled: Ref<boolean>
-  live2dEyeFocusSourceActive: Ref<boolean>
-  live2dEyeTrackingEnabled: Ref<boolean>
-  live2dForceAutoBlinkEnabled: Ref<boolean>
-  live2dForceIdleEyeAnimation: Ref<boolean>
-  live2dIdleAnimationEnabled: Ref<boolean>
-  markHandled: () => void
-  modelParameters: Ref<any>
-  motionManager: PixiLive2DInternalModel['motionManager']
+type CubismModel = Cubism4InternalModel['coreModel']
+type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
+
+export type PixiLive2DInternalModel = InternalModel & {
+  eyeBlink?: CubismEyeBlink
+  coreModel: CubismModel
 }
 
 export interface MotionManagerUpdateContext {
-  hookedUpdate?: (model: CubismModel, now: number) => boolean
   model: CubismModel
   // in seconds
   now: number
   // in seconds
   timeDelta: number
+  hookedUpdate?: (model: CubismModel, now: number) => boolean
 }
 
-export type PixiLive2DInternalModel = InternalModel & {
-  coreModel: CubismModel
-  eyeBlink?: CubismEyeBlink
+export type MotionManagerPluginContext = MotionManagerUpdateContext & {
+  internalModel: PixiLive2DInternalModel
+  motionManager: PixiLive2DInternalModel['motionManager']
+  modelParameters: Ref<any>
+  live2dEyeTrackingEnabled: Ref<boolean>
+  live2dEyeFocusSourceActive: Ref<boolean>
+  live2dIdleAnimationEnabled: Ref<boolean>
+  live2dForceIdleEyeAnimation: Ref<boolean>
+  live2dAutoBlinkEnabled: Ref<boolean>
+  live2dForceAutoBlinkEnabled: Ref<boolean>
+  isIdleMotion: boolean
+  handled: boolean
+  markHandled: () => void
 }
+
+export type MotionManagerPlugin = (ctx: MotionManagerPluginContext) => void
 
 export interface UseLive2DMotionManagerUpdateOptions {
   internalModel: PixiLive2DInternalModel
-  lastUpdateTime: Ref<number>
-  live2dAutoBlinkEnabled: Ref<boolean>
-  live2dEyeFocusSourceActive: Ref<boolean>
-  live2dEyeTrackingEnabled: Ref<boolean>
-  live2dForceAutoBlinkEnabled: Ref<boolean>
-  live2dForceIdleEyeAnimation: Ref<boolean>
-  live2dIdleAnimationEnabled: Ref<boolean>
-  modelParameters: Ref<any>
   motionManager: PixiLive2DInternalModel['motionManager']
+  modelParameters: Ref<any>
+  live2dEyeTrackingEnabled: Ref<boolean>
+  live2dEyeFocusSourceActive: Ref<boolean>
+  live2dIdleAnimationEnabled: Ref<boolean>
+  live2dForceIdleEyeAnimation: Ref<boolean>
+  live2dAutoBlinkEnabled: Ref<boolean>
+  live2dForceAutoBlinkEnabled: Ref<boolean>
+  lastUpdateTime: Ref<number>
 }
-
-type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
-
-type CubismModel = Cubism4InternalModel['coreModel']
 
 export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpdateOptions) {
   const {
     internalModel,
-    lastUpdateTime,
-    live2dAutoBlinkEnabled,
-    live2dEyeFocusSourceActive,
-    live2dEyeTrackingEnabled,
-    live2dForceAutoBlinkEnabled,
-    live2dForceIdleEyeAnimation,
-    live2dIdleAnimationEnabled,
-    modelParameters,
     motionManager,
+    modelParameters,
+    live2dEyeTrackingEnabled,
+    live2dEyeFocusSourceActive,
+    live2dIdleAnimationEnabled,
+    live2dForceIdleEyeAnimation,
+    live2dAutoBlinkEnabled,
+    live2dForceAutoBlinkEnabled,
+    lastUpdateTime,
   } = options
 
   const prePlugins: MotionManagerPlugin[] = []
   const postPlugins: MotionManagerPlugin[] = []
   const finalPlugins: MotionManagerPlugin[] = []
 
-  function register(plugin: MotionManagerPlugin, stage: 'final' | 'post' | 'pre' = 'pre') {
+  function register(plugin: MotionManagerPlugin, stage: 'pre' | 'post' | 'final' = 'pre') {
     if (stage === 'pre')
       prePlugins.push(plugin)
     else if (stage === 'final')
@@ -96,24 +96,24 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
       || (!!selectedMotionGroup && motionManager.state.currentGroup === selectedMotionGroup)
 
     const ctx: MotionManagerPluginContext = {
-      handled: false,
+      model,
+      now,
+      timeDelta,
       hookedUpdate,
       internalModel,
-      isIdleMotion,
-      live2dAutoBlinkEnabled,
-      live2dEyeFocusSourceActive,
+      motionManager,
+      modelParameters,
       live2dEyeTrackingEnabled,
-      live2dForceAutoBlinkEnabled,
-      live2dForceIdleEyeAnimation,
+      live2dEyeFocusSourceActive,
       live2dIdleAnimationEnabled,
+      live2dForceIdleEyeAnimation,
+      live2dAutoBlinkEnabled,
+      live2dForceAutoBlinkEnabled,
+      isIdleMotion,
+      handled: false,
       markHandled: () => {
         ctx.handled = true
       },
-      model,
-      modelParameters,
-      motionManager,
-      now,
-      timeDelta,
     }
 
     runPlugins(prePlugins, ctx)
@@ -136,23 +136,126 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
   }
 
   return {
-    hookUpdate,
     register,
+    hookUpdate,
   }
 }
 
 // -- Plugins ---------------------------------------------------------------
 
+export function useMotionUpdatePluginBeatSync(beatSync: BeatSyncController): MotionManagerPlugin {
+  return (ctx) => {
+    beatSync.updateTargets(ctx.now)
+
+    // Semi-implicit Euler approach
+    const stiffness = 120 // Higher -> Snappier
+    const damping = 16 // Higher -> Less bounce
+    const mass = 1
+
+    let paramAngleX = ctx.model.getParameterValueById('ParamAngleX') as number
+    let paramAngleY = ctx.model.getParameterValueById('ParamAngleY') as number
+    let paramAngleZ = ctx.model.getParameterValueById('ParamAngleZ') as number
+
+    // X
+    {
+      const target = beatSync.targetX.value
+      const pos = paramAngleX
+      const vel = beatSync.velocityX.value
+      const accel = (stiffness * (target - pos) - damping * vel) / mass
+      beatSync.velocityX.value = vel + accel * ctx.timeDelta
+      paramAngleX = pos + beatSync.velocityX.value * ctx.timeDelta
+
+      if (Math.abs(target - paramAngleX) < 0.01 && Math.abs(beatSync.velocityX.value) < 0.01) {
+        paramAngleX = target
+        beatSync.velocityX.value = 0
+      }
+    }
+
+    // Y
+    {
+      const target = beatSync.targetY.value
+      const pos = paramAngleY
+      const vel = beatSync.velocityY.value
+      const accel = (stiffness * (target - pos) - damping * vel) / mass
+      beatSync.velocityY.value = vel + accel * ctx.timeDelta
+      paramAngleY = pos + beatSync.velocityY.value * ctx.timeDelta
+
+      // Snap
+      if (Math.abs(target - paramAngleY) < 0.01 && Math.abs(beatSync.velocityY.value) < 0.01) {
+        paramAngleY = target
+        beatSync.velocityY.value = 0
+      }
+    }
+
+    // Z
+    {
+      const target = beatSync.targetZ.value
+      const pos = paramAngleZ
+      const vel = beatSync.velocityZ.value
+      const accel = (stiffness * (target - pos) - damping * vel) / mass
+      beatSync.velocityZ.value = vel + accel * ctx.timeDelta
+      paramAngleZ = pos + beatSync.velocityZ.value * ctx.timeDelta
+
+      // Snap
+      if (Math.abs(target - paramAngleZ) < 0.01 && Math.abs(beatSync.velocityZ.value) < 0.01) {
+        paramAngleZ = target
+        beatSync.velocityZ.value = 0
+      }
+    }
+
+    ctx.model.setParameterValueById('ParamAngleX', paramAngleX)
+    ctx.model.setParameterValueById('ParamAngleY', paramAngleY)
+    ctx.model.setParameterValueById('ParamAngleZ', paramAngleZ)
+  }
+}
+
+export function useMotionUpdatePluginIdleDisable(idleEyeFocus = useLive2DIdleEyeFocus()): MotionManagerPlugin {
+  return (ctx) => {
+    if (ctx.handled)
+      return
+
+    // Stop idle motions if they're disabled
+    if (!ctx.live2dIdleAnimationEnabled.value && ctx.isIdleMotion) {
+      ctx.motionManager.stopAllMotions()
+
+      if (ctx.live2dForceIdleEyeAnimation.value && (!ctx.live2dEyeTrackingEnabled.value || !ctx.live2dEyeFocusSourceActive.value))
+        idleEyeFocus.update(ctx.internalModel, ctx.now)
+      if (ctx.internalModel.eyeBlink != null) {
+        ctx.internalModel.eyeBlink.updateParameters(ctx.model, ctx.timeDelta / 1000)
+      }
+
+      // Apply manual eye parameters after auto eye blink
+      ctx.model.setParameterValueById('ParamEyeLOpen', ctx.modelParameters.value.leftEyeOpen)
+      ctx.model.setParameterValueById('ParamEyeROpen', ctx.modelParameters.value.rightEyeOpen)
+
+      ctx.markHandled()
+    }
+  }
+}
+
+export function useMotionUpdatePluginIdleFocus(idleEyeFocus = useLive2DIdleEyeFocus()): MotionManagerPlugin {
+  return (ctx) => {
+    if (!ctx.isIdleMotion || ctx.handled)
+      return
+    if (!ctx.live2dForceIdleEyeAnimation.value)
+      return
+    if (ctx.live2dEyeTrackingEnabled.value && ctx.live2dEyeFocusSourceActive.value)
+      return
+
+    idleEyeFocus.update(ctx.internalModel, ctx.now)
+  }
+}
+
 export function useMotionUpdatePluginAutoEyeBlink(
   live2dExpressionEnabled?: Ref<boolean>,
 ): MotionManagerPlugin {
   const blinkState = {
-    delayMs: 0,
-    openDurationMs: 300,
-    phase: 'idle' as 'closing' | 'idle' | 'opening',
+    phase: 'idle' as 'idle' | 'closing' | 'opening',
     progress: 0,
     startLeft: 1,
     startRight: 1,
+    delayMs: 0,
+    openDurationMs: 300,
   }
 
   // Eye values captured at blink start.  Used as the base during
@@ -336,72 +439,6 @@ export function useMotionUpdatePluginAutoEyeBlink(
   }
 }
 
-export function useMotionUpdatePluginBeatSync(beatSync: BeatSyncController): MotionManagerPlugin {
-  return (ctx) => {
-    beatSync.updateTargets(ctx.now)
-
-    // Semi-implicit Euler approach
-    const stiffness = 120 // Higher -> Snappier
-    const damping = 16 // Higher -> Less bounce
-    const mass = 1
-
-    let paramAngleX = ctx.model.getParameterValueById('ParamAngleX') as number
-    let paramAngleY = ctx.model.getParameterValueById('ParamAngleY') as number
-    let paramAngleZ = ctx.model.getParameterValueById('ParamAngleZ') as number
-
-    // X
-    {
-      const target = beatSync.targetX.value
-      const pos = paramAngleX
-      const vel = beatSync.velocityX.value
-      const accel = (stiffness * (target - pos) - damping * vel) / mass
-      beatSync.velocityX.value = vel + accel * ctx.timeDelta
-      paramAngleX = pos + beatSync.velocityX.value * ctx.timeDelta
-
-      if (Math.abs(target - paramAngleX) < 0.01 && Math.abs(beatSync.velocityX.value) < 0.01) {
-        paramAngleX = target
-        beatSync.velocityX.value = 0
-      }
-    }
-
-    // Y
-    {
-      const target = beatSync.targetY.value
-      const pos = paramAngleY
-      const vel = beatSync.velocityY.value
-      const accel = (stiffness * (target - pos) - damping * vel) / mass
-      beatSync.velocityY.value = vel + accel * ctx.timeDelta
-      paramAngleY = pos + beatSync.velocityY.value * ctx.timeDelta
-
-      // Snap
-      if (Math.abs(target - paramAngleY) < 0.01 && Math.abs(beatSync.velocityY.value) < 0.01) {
-        paramAngleY = target
-        beatSync.velocityY.value = 0
-      }
-    }
-
-    // Z
-    {
-      const target = beatSync.targetZ.value
-      const pos = paramAngleZ
-      const vel = beatSync.velocityZ.value
-      const accel = (stiffness * (target - pos) - damping * vel) / mass
-      beatSync.velocityZ.value = vel + accel * ctx.timeDelta
-      paramAngleZ = pos + beatSync.velocityZ.value * ctx.timeDelta
-
-      // Snap
-      if (Math.abs(target - paramAngleZ) < 0.01 && Math.abs(beatSync.velocityZ.value) < 0.01) {
-        paramAngleZ = target
-        beatSync.velocityZ.value = 0
-      }
-    }
-
-    ctx.model.setParameterValueById('ParamAngleX', paramAngleX)
-    ctx.model.setParameterValueById('ParamAngleY', paramAngleY)
-    ctx.model.setParameterValueById('ParamAngleZ', paramAngleZ)
-  }
-}
-
 /**
  * Post-plugin that applies expression parameter overrides from the expression
  * store onto the Live2D model every frame.
@@ -416,43 +453,6 @@ export function useMotionUpdatePluginExpression(
   return (ctx) => {
     // Always apply regardless of handled state – expressions layer on top.
     controller.applyExpressions(ctx.model)
-  }
-}
-
-export function useMotionUpdatePluginIdleDisable(idleEyeFocus = useLive2DIdleEyeFocus()): MotionManagerPlugin {
-  return (ctx) => {
-    if (ctx.handled)
-      return
-
-    // Stop idle motions if they're disabled
-    if (!ctx.live2dIdleAnimationEnabled.value && ctx.isIdleMotion) {
-      ctx.motionManager.stopAllMotions()
-
-      if (ctx.live2dForceIdleEyeAnimation.value && (!ctx.live2dEyeTrackingEnabled.value || !ctx.live2dEyeFocusSourceActive.value))
-        idleEyeFocus.update(ctx.internalModel, ctx.now)
-      if (ctx.internalModel.eyeBlink != null) {
-        ctx.internalModel.eyeBlink.updateParameters(ctx.model, ctx.timeDelta / 1000)
-      }
-
-      // Apply manual eye parameters after auto eye blink
-      ctx.model.setParameterValueById('ParamEyeLOpen', ctx.modelParameters.value.leftEyeOpen)
-      ctx.model.setParameterValueById('ParamEyeROpen', ctx.modelParameters.value.rightEyeOpen)
-
-      ctx.markHandled()
-    }
-  }
-}
-
-export function useMotionUpdatePluginIdleFocus(idleEyeFocus = useLive2DIdleEyeFocus()): MotionManagerPlugin {
-  return (ctx) => {
-    if (!ctx.isIdleMotion || ctx.handled)
-      return
-    if (!ctx.live2dForceIdleEyeAnimation.value)
-      return
-    if (ctx.live2dEyeTrackingEnabled.value && ctx.live2dEyeFocusSourceActive.value)
-      return
-
-    idleEyeFocus.update(ctx.internalModel, ctx.now)
   }
 }
 

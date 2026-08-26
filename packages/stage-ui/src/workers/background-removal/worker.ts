@@ -28,56 +28,74 @@ import { classifyError, isRecoverable } from '../../libs/inference/protocol'
 // ---------------------------------------------------------------------------
 
 export interface BackgroundRemovalInput {
-  height: number
   imageData: Uint8ClampedArray
   width: number
+  height: number
 }
 
 export interface BackgroundRemovalOutput {
-  height: number
   maskData: Uint8Array
   width: number
+  height: number
 }
 
 // ---------------------------------------------------------------------------
 // Model singleton
 // ---------------------------------------------------------------------------
 
-let model: null | PreTrainedModel = null
-let processor: null | Processor = null
+let model: PreTrainedModel | null = null
+let processor: Processor | null = null
 
 const MODEL_ID = MODEL_IDS.BG_REMOVAL
 
-function sendError(requestId: string, error: unknown, phase?: 'inference' | 'load'): void {
+function sendProgress(requestId: string, percent: number, message?: string): void {
+  const msg: ProgressResponse = {
+    type: 'progress',
+    requestId,
+    payload: {
+      phase: 'download',
+      percent,
+      message,
+    },
+  }
+  globalThis.postMessage(msg)
+}
+
+function sendError(requestId: string, error: unknown, phase?: 'load' | 'inference'): void {
   const message = errorMessageFromValue(error)
   const code = classifyError(error, phase)
   const msg: ErrorResponse = {
+    type: 'error',
+    requestId,
     payload: {
       code,
       message,
       recoverable: isRecoverable(code),
     },
-    requestId,
-    type: 'error',
-  }
-  globalThis.postMessage(msg)
-}
-
-function sendProgress(requestId: string, percent: number, message?: string): void {
-  const msg: ProgressResponse = {
-    payload: {
-      message,
-      percent,
-      phase: 'download',
-    },
-    requestId,
-    type: 'progress',
   }
   globalThis.postMessage(msg)
 }
 
 // NOTICE: Cancellation tracking — see Whisper worker for rationale.
 const cancelledRequestIds = new Set<string>()
+
+function markCancelled(targetRequestId: string): void {
+  cancelledRequestIds.add(targetRequestId)
+  const msg: ErrorResponse = {
+    type: 'error',
+    requestId: targetRequestId,
+    payload: {
+      code: 'CANCELLED',
+      message: 'Operation cancelled by caller',
+      recoverable: false,
+    },
+  }
+  globalThis.postMessage(msg)
+}
+
+function isCancelled(requestId: string): boolean {
+  return cancelledRequestIds.has(requestId)
+}
 
 function clearCancelled(requestId: string): void {
   cancelledRequestIds.delete(requestId)
@@ -98,25 +116,7 @@ async function detectWebGPUInWorker(): Promise<boolean> {
   }
 }
 
-function isCancelled(requestId: string): boolean {
-  return cancelledRequestIds.has(requestId)
-}
-
-function markCancelled(targetRequestId: string): void {
-  cancelledRequestIds.add(targetRequestId)
-  const msg: ErrorResponse = {
-    payload: {
-      code: 'CANCELLED',
-      message: 'Operation cancelled by caller',
-      recoverable: false,
-    },
-    requestId: targetRequestId,
-    type: 'error',
-  }
-  globalThis.postMessage(msg)
-}
-
-let resolvedDevice: 'cpu' | 'wasm' | 'webgpu' = 'webgpu'
+let resolvedDevice: 'webgpu' | 'wasm' | 'cpu' = 'webgpu'
 
 async function loadModel(request: LoadModelRequest): Promise<void> {
   const { requestId } = request
@@ -128,10 +128,10 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
         return
       }
       const ready: ModelReadyResponse = {
-        device: resolvedDevice,
-        modelId: MODEL_NAMES.BG_REMOVAL,
-        requestId,
         type: 'model-ready',
+        requestId,
+        modelId: MODEL_NAMES.BG_REMOVAL,
+        device: resolvedDevice,
       }
       globalThis.postMessage(ready)
       return
@@ -146,7 +146,7 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
         device = 'wasm'
       }
     }
-    resolvedDevice = device as 'cpu' | 'wasm' | 'webgpu'
+    resolvedDevice = device as 'webgpu' | 'wasm' | 'cpu'
 
     env.backends.onnx.wasm!.proxy = false
 
@@ -165,10 +165,10 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
     }
 
     const ready: ModelReadyResponse = {
-      device: resolvedDevice,
-      modelId: MODEL_NAMES.BG_REMOVAL,
-      requestId,
       type: 'model-ready',
+      requestId,
+      modelId: MODEL_NAMES.BG_REMOVAL,
+      device: resolvedDevice,
     }
     globalThis.postMessage(ready)
   }
@@ -185,8 +185,8 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function runInference(request: RunInferenceRequest<BackgroundRemovalInput>): Promise<void> {
-  const { input, requestId } = request
-  const { height, imageData, width } = input
+  const { requestId, input } = request
+  const { imageData, width, height } = input
 
   try {
     if (!model || !processor) {
@@ -215,9 +215,9 @@ async function runInference(request: RunInferenceRequest<BackgroundRemovalInput>
     const maskData = new Uint8Array(mask.data.buffer)
 
     const result: InferenceResultResponse<BackgroundRemovalOutput> = {
-      output: { height, maskData, width },
-      requestId,
       type: 'inference-result',
+      requestId,
+      output: { maskData, width, height },
     }
     // Transfer the buffer to avoid copying
     ;(globalThis as any).postMessage(result, [maskData.buffer])
@@ -238,9 +238,6 @@ globalThis.addEventListener('message', async (event: MessageEvent<WorkerInboundM
   const message = event.data
 
   switch (message.type) {
-    case 'cancel':
-      markCancelled(message.targetRequestId)
-      break
     case 'load-model':
       await loadModel(message)
       break
@@ -250,7 +247,10 @@ globalThis.addEventListener('message', async (event: MessageEvent<WorkerInboundM
     case 'unload-model':
       model = null
       processor = null
-      globalThis.postMessage({ requestId: message.requestId, type: 'model-unloaded' })
+      globalThis.postMessage({ type: 'model-unloaded', requestId: message.requestId })
+      break
+    case 'cancel':
+      markCancelled(message.targetRequestId)
       break
   }
 })

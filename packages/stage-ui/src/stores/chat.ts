@@ -38,17 +38,17 @@ import { useConsciousnessStore } from './modules/consciousness'
 import { useWebSearchStore } from './modules/web-search'
 import { executeToolCallRerun } from './tool-call-rerun'
 
-/** Identifies one stored message whose user turn must run again. */
-export interface ChatRetryPayload {
-  index: number
-  sessionId: string
-  tools?: ChatToolReference[]
+interface ForkOptions {
+  fromSessionId?: string
+  atIndex?: number
+  reason?: string
+  hidden?: boolean
 }
 
 /** A serializable chat request that any application context can send to the leader. */
 export interface ChatSendPayload {
   /** Image attachments for the new user message. */
-  attachments?: { data: string, mimeType: string, type: 'image' }[]
+  attachments?: { type: 'image', data: string, mimeType: string }[]
   /** Original input metadata for chat hooks and telemetry. */
   input?: WebSocketEventInputs
   /** Session that owns the new turn. */
@@ -65,44 +65,29 @@ export interface ChatSendResult {
   sessionId: string
 }
 
+/** Identifies one stored message whose user turn must run again. */
+export interface ChatRetryPayload {
+  index: number
+  sessionId: string
+  tools?: ChatToolReference[]
+}
+
 /** Identifies one stored tool call that must run again in the leader. */
 export interface ChatToolCallRerunPayload extends Omit<ToolCallRerunPayload, 'sessionId' | 'toolset'> {
   sessionId: string
 }
 
-interface ForkOptions {
-  atIndex?: number
-  fromSessionId?: string
-  hidden?: boolean
-  reason?: string
-}
-
 type ProviderHistoryMessage = Exclude<ChatHistoryItem, { role: 'error' }>
+
+function toProviderHistory(messages: ChatHistoryItem[]): Message[] {
+  return messages.filter((message): message is ProviderHistoryMessage => message.role !== 'error')
+}
 
 function isTextDelta(event: StreamEvent): event is Extract<StreamEvent, { type: 'text-delta' }> {
   return event.type === 'text-delta'
 }
 
-function retrySourceIndexFrom(messages: ChatHistoryItem[], index: number): number {
-  const targetMessage = messages[index]
-  if (!targetMessage)
-    return -1
-
-  if (targetMessage.role === 'user')
-    return index
-
-  if (targetMessage.role !== 'assistant' && targetMessage.role !== 'error')
-    return -1
-
-  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
-    if (messages[cursor]?.role === 'user')
-      return cursor
-  }
-
-  return -1
-}
-
-function retryTextFrom(message: ChatHistoryItem | undefined): null | string {
+function retryTextFrom(message: ChatHistoryItem | undefined): string | null {
   if (!message || message.role !== 'user')
     return null
 
@@ -128,8 +113,23 @@ function retryTextFrom(message: ChatHistoryItem | undefined): null | string {
   return text || null
 }
 
-function toProviderHistory(messages: ChatHistoryItem[]): Message[] {
-  return messages.filter((message): message is ProviderHistoryMessage => message.role !== 'error')
+function retrySourceIndexFrom(messages: ChatHistoryItem[], index: number): number {
+  const targetMessage = messages[index]
+  if (!targetMessage)
+    return -1
+
+  if (targetMessage.role === 'user')
+    return index
+
+  if (targetMessage.role !== 'assistant' && targetMessage.role !== 'error')
+    return -1
+
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    if (messages[cursor]?.role === 'user')
+      return cursor
+  }
+
+  return -1
 }
 
 export type { QueuedSendSnapshot } from '@proj-airi/core-agent'
@@ -188,10 +188,10 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     const llmSpan = startSpan(IOSpanNames.LLMInference, activeTurnSpan.value, {
+      [IOAttributes.Subsystem]: IOSubsystems.LLM,
       [IOAttributes.GenAIRequestModel]: model,
       [IOAttributes.LLMInputMessageCount]: messages.length,
       [IOAttributes.LLMInputUserMessageCount]: messages.filter(message => message.role === 'user').length,
-      [IOAttributes.Subsystem]: IOSubsystems.LLM,
       [IOAttributes.TurnId]: options?.requestCorrelation?.roundId ?? '',
     })
     llmSpan.setAttribute(IOAttributes.LLMInputMessageRoles, messages.map(message => message.role))
@@ -245,76 +245,76 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   const runtime = createChatOrchestratorRuntime({
+    session: {
+      ensureSession: sessionId => chatSession.ensureSession(sessionId),
+      getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId).map(message => toRaw(message)),
+      appendSessionMessage: (sessionId, message) => chatSession.appendSessionMessage(sessionId, message),
+      getSessionGeneration: sessionId => chatSession.getSessionGeneration(sessionId),
+    },
     context: {
       ingest: envelope => chatContext.ingestContextMessage(envelope),
       snapshot: () => chatContext.getContextsSnapshot(),
     },
-    createId: nanoid,
     foregroundStream: {
       patch: (message) => {
         streamingMessage.value = message
       },
       reset: () => {
-        streamingMessage.value = { content: '', role: 'assistant', slices: [], tool_results: [] }
+        streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
       },
     },
-    getActiveProvider: () => activeProvider.value,
-    getActiveSessionId: () => activeSessionId.value,
-    getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     llm: {
       stream: streamWithStageAdapters,
     },
-    onSendSettled: settleOwnedActiveTurnSpan,
-    onStateChange: syncRuntimeState,
+    getActiveSessionId: () => activeSessionId.value,
+    getActiveProvider: () => activeProvider.value,
+    getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     runtimeContextProviders: [
       createMinecraftContext,
     ],
-    session: {
-      appendSessionMessage: (sessionId, message) => chatSession.appendSessionMessage(sessionId, message),
-      ensureSession: sessionId => chatSession.ensureSession(sessionId),
-      getSessionGeneration: sessionId => chatSession.getSessionGeneration(sessionId),
-      getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId).map(message => toRaw(message)),
-    },
+    createId: nanoid,
     unwrapMessage: message => toRaw(message),
+    onStateChange: syncRuntimeState,
+    onSendSettled: settleOwnedActiveTurnSpan,
     ...analyticsHooks,
-    onAssistantMessageAppended: ({ message, sessionId }) => {
-      if (isCloudSyncableMessage(message) && message.id) {
-        void chatSession.pushMessageToCloud(sessionId, {
-          content: extractMessageText(message),
-          id: message.id,
-          role: 'assistant',
-        })
-      }
-    },
-    onAssistantTurnReady: ({ messageText, sessionMessages }) => {
-      const artistry = cardStore.activeCard?.extensions?.airi?.modules?.artistry
-      if (artistry?.autonomousEnabled && artistry?.autonomousTarget === 'assistant')
-        void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
-    },
     onLifecycle: record => contextObservability.recordLifecycle(record),
     onPromptProjection: payload => contextObservability.capturePromptProjection(payload),
-    onUserMessageAppended: ({ message, messageText, model, provider, roundId, sessionId, source, turnIndex }) => {
+    onUserMessageAppended: ({ sessionId, message, messageText, source, model, provider, roundId, turnIndex }) => {
       analyticsHooks.onUserMessageAppended?.({
+        sessionId,
         message,
         messageText,
+        source,
         model,
         provider,
         roundId,
-        sessionId,
-        source,
         turnIndex,
       })
       if (isCloudSyncableMessage(message)) {
         void chatSession.pushMessageToCloud(sessionId, {
-          content: messageText,
           id: message.id,
           role: 'user',
+          content: messageText,
+        })
+      }
+    },
+    onAssistantMessageAppended: ({ sessionId, message }) => {
+      if (isCloudSyncableMessage(message) && message.id) {
+        void chatSession.pushMessageToCloud(sessionId, {
+          id: message.id,
+          role: 'assistant',
+          content: extractMessageText(message),
         })
       }
     },
     onUserTurnReady: ({ messageText, sessionMessages }) => {
       const autonomousTarget = cardStore.activeCard?.extensions?.airi?.modules?.artistry?.autonomousTarget || 'user'
       if (autonomousTarget === 'user')
+        void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
+    },
+    onAssistantTurnReady: ({ messageText, sessionMessages }) => {
+      const artistry = cardStore.activeCard?.extensions?.airi?.modules?.artistry
+      if (artistry?.autonomousEnabled && artistry?.autonomousTarget === 'assistant')
         void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
     },
   })
@@ -346,8 +346,8 @@ export const useChatStore = defineStore('chat', () => {
       return
 
     chatSession.appendSessionMessage(sessionId, {
-      content: errorMessageFrom(error) ?? 'Unknown chat operation failure',
       role: 'error',
+      content: errorMessageFrom(error) ?? 'Unknown chat operation failure',
     })
   }
 
@@ -366,10 +366,10 @@ export const useChatStore = defineStore('chat', () => {
       throw new Error(`Failed to resolve chat provider "${providerId}"`)
 
     await runtime.ingest(payload.text, {
-      attachments: payload.attachments,
-      chatProvider,
-      input: payload.input,
       model: modelId,
+      chatProvider,
+      attachments: payload.attachments,
+      input: payload.input,
       toolReferences: payload.tools,
       // Resolve this function after the request reaches the per-session queue.
       // The history then contains tool names from every earlier queued turn.
@@ -471,10 +471,10 @@ export const useChatStore = defineStore('chat', () => {
       return ingest(sendingMessage, options, baseSessionId)
 
     const forkSessionId = await chatSession.forkSession({
-      atIndex: forkOptions.atIndex,
       fromSessionId: baseSessionId,
-      hidden: forkOptions.hidden,
+      atIndex: forkOptions.atIndex,
       reason: forkOptions.reason,
+      hidden: forkOptions.hidden,
     })
     return ingest(sendingMessage, options, forkSessionId || baseSessionId)
   }
@@ -488,44 +488,44 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   return {
+    sending,
     activeSendSessionId,
     activeStreamingMessage,
-    cancelPendingSends,
+    pendingQueuedSendCount,
+
     cleanup,
-
-    clearHooks: runtime.hooks.clearHooks,
     deleteSession,
-    emitAfterMessageComposedHooks: runtime.hooks.emitAfterMessageComposedHooks,
-    emitAfterSendHooks: runtime.hooks.emitAfterSendHooks,
-    emitAssistantMessageHooks: runtime.hooks.emitAssistantMessageHooks,
-    emitAssistantResponseEndHooks: runtime.hooks.emitAssistantResponseEndHooks,
-    emitBeforeMessageComposedHooks: runtime.hooks.emitBeforeMessageComposedHooks,
-    emitBeforeSendHooks: runtime.hooks.emitBeforeSendHooks,
-    emitChatTurnCompleteHooks: runtime.hooks.emitChatTurnCompleteHooks,
-
-    emitStreamEndHooks: runtime.hooks.emitStreamEndHooks,
-
-    emitTokenLiteralHooks: runtime.hooks.emitTokenLiteralHooks,
-    emitTokenSpecialHooks: runtime.hooks.emitTokenSpecialHooks,
-    getPendingQueuedSendSnapshot,
     ingest,
     ingestOnFork,
-    onAfterMessageComposed: runtime.hooks.onAfterMessageComposed,
-    onAfterSend: runtime.hooks.onAfterSend,
-    onAssistantMessage: runtime.hooks.onAssistantMessage,
-    onAssistantResponseEnd: runtime.hooks.onAssistantResponseEnd,
-    onBeforeMessageComposed: runtime.hooks.onBeforeMessageComposed,
-
-    onBeforeSend: runtime.hooks.onBeforeSend,
-    onChatTurnComplete: runtime.hooks.onChatTurnComplete,
-    onStreamEnd: runtime.hooks.onStreamEnd,
-    onTokenLiteral: runtime.hooks.onTokenLiteral,
-    onTokenSpecial: runtime.hooks.onTokenSpecial,
-    pendingQueuedSendCount,
     rerunToolCall,
     retry,
     send,
-    sending,
+    cancelPendingSends,
+    getPendingQueuedSendSnapshot,
+
+    clearHooks: runtime.hooks.clearHooks,
+
+    emitBeforeMessageComposedHooks: runtime.hooks.emitBeforeMessageComposedHooks,
+    emitAfterMessageComposedHooks: runtime.hooks.emitAfterMessageComposedHooks,
+    emitBeforeSendHooks: runtime.hooks.emitBeforeSendHooks,
+    emitAfterSendHooks: runtime.hooks.emitAfterSendHooks,
+    emitTokenLiteralHooks: runtime.hooks.emitTokenLiteralHooks,
+    emitTokenSpecialHooks: runtime.hooks.emitTokenSpecialHooks,
+    emitStreamEndHooks: runtime.hooks.emitStreamEndHooks,
+    emitAssistantResponseEndHooks: runtime.hooks.emitAssistantResponseEndHooks,
+    emitAssistantMessageHooks: runtime.hooks.emitAssistantMessageHooks,
+    emitChatTurnCompleteHooks: runtime.hooks.emitChatTurnCompleteHooks,
+
+    onBeforeMessageComposed: runtime.hooks.onBeforeMessageComposed,
+    onAfterMessageComposed: runtime.hooks.onAfterMessageComposed,
+    onBeforeSend: runtime.hooks.onBeforeSend,
+    onAfterSend: runtime.hooks.onAfterSend,
+    onTokenLiteral: runtime.hooks.onTokenLiteral,
+    onTokenSpecial: runtime.hooks.onTokenSpecial,
+    onStreamEnd: runtime.hooks.onStreamEnd,
+    onAssistantResponseEnd: runtime.hooks.onAssistantResponseEnd,
+    onAssistantMessage: runtime.hooks.onAssistantMessage,
+    onChatTurnComplete: runtime.hooks.onChatTurnComplete,
   }
 }, {
   synced: {

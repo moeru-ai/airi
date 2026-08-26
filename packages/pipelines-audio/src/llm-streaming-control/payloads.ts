@@ -18,96 +18,20 @@ const emotionValues = [
 /** Constant-time membership lookup. */
 const emotionSet = new Set<string>(emotionValues)
 
+export type StreamingControlEmotion = (typeof emotionValues)[number]
+
+export interface StreamingControlEmotionPayload {
+  /** Canonical normalized emotion. */
+  name: StreamingControlEmotion
+  /** Emotion strength in range [0–1]. */
+  intensity: number
+}
+
 export interface NormalizedActPayload {
   /** Emotion request emitted by the model, when present and supported. */
   emotion?: StreamingControlEmotionPayload
   /** Motion cue emitted by the model, when present. */
   motion?: string
-}
-
-export type StreamingControlEmotion = (typeof emotionValues)[number]
-
-export interface StreamingControlEmotionPayload {
-  /** Emotion strength in range [0–1]. */
-  intensity: number
-  /** Canonical normalized emotion. */
-  name: StreamingControlEmotion
-}
-
-/**
- * Normalizes ACT token payloads.
- *
- * Input:
- * {
- *   emotion: "Surprised",
- *   motion: " nod "
- * }
- *
- * Output:
- * {
- *   emotion: {
- *     name: "surprised",
- *     intensity: 1
- *   },
- *   motion: "nod"
- * }
- */
-export function normalizeActPayload(
-  payload: Record<string, unknown>,
-): NormalizedActPayload {
-  const emotion = normalizeEmotion(payload.emotion)
-  const motion = normalizeMotion(payload.motion)
-
-  return {
-    ...(emotion && { emotion }),
-    ...(motion && { motion }),
-  }
-}
-
-/**
- * Converts arbitrary emotion payload into normalized structure.
- *
- * Supported:
- * - "happy"
- * - { name: "happy" }
- * - { name: "happy", intensity: 0.8 }
- */
-function normalizeEmotion(
-  value: unknown,
-): StreamingControlEmotionPayload | undefined {
-  if (typeof value === 'string') {
-    const name = normalizeEmotionName(value)
-
-    return name
-      ? {
-          intensity: 1,
-          name,
-        }
-      : undefined
-  }
-
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return undefined
-  }
-
-  const normalizedValue = value as {
-    intensity?: unknown
-    name?: unknown
-  }
-
-  const name
-    = typeof normalizedValue.name === 'string'
-      ? normalizeEmotionName(normalizedValue.name)
-      : undefined
-
-  if (!name) {
-    return undefined
-  }
-
-  return {
-    intensity: normalizeIntensity(normalizedValue.intensity),
-    name,
-  }
 }
 
 /**
@@ -151,6 +75,52 @@ function normalizeIntensity(value: unknown): number {
 }
 
 /**
+ * Converts arbitrary emotion payload into normalized structure.
+ *
+ * Supported:
+ * - "happy"
+ * - { name: "happy" }
+ * - { name: "happy", intensity: 0.8 }
+ */
+function normalizeEmotion(
+  value: unknown,
+): StreamingControlEmotionPayload | undefined {
+  if (typeof value === 'string') {
+    const name = normalizeEmotionName(value)
+
+    return name
+      ? {
+          name,
+          intensity: 1,
+        }
+      : undefined
+  }
+
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return undefined
+  }
+
+  const normalizedValue = value as {
+    name?: unknown
+    intensity?: unknown
+  }
+
+  const name
+    = typeof normalizedValue.name === 'string'
+      ? normalizeEmotionName(normalizedValue.name)
+      : undefined
+
+  if (!name) {
+    return undefined
+  }
+
+  return {
+    name,
+    intensity: normalizeIntensity(normalizedValue.intensity),
+  }
+}
+
+/**
  * Trims and validates motion values.
  *
  * Empty strings become undefined.
@@ -165,4 +135,34 @@ function normalizeMotion(value: unknown): string | undefined {
   return normalized.length > 0
     ? normalized
     : undefined
+}
+
+/**
+ * Normalizes ACT token payloads.
+ *
+ * Input:
+ * {
+ *   emotion: "Surprised",
+ *   motion: " nod "
+ * }
+ *
+ * Output:
+ * {
+ *   emotion: {
+ *     name: "surprised",
+ *     intensity: 1
+ *   },
+ *   motion: "nod"
+ * }
+ */
+export function normalizeActPayload(
+  payload: Record<string, unknown>,
+): NormalizedActPayload {
+  const emotion = normalizeEmotion(payload.emotion)
+  const motion = normalizeMotion(payload.motion)
+
+  return {
+    ...(emotion && { emotion }),
+    ...(motion && { motion }),
+  }
 }

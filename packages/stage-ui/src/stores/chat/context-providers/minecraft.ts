@@ -18,9 +18,8 @@ export function createMinecraftContext(): ContextMessage | null {
   const runtimeContextText = minecraftStore.latestRuntimeContextText.trim()
 
   return {
-    contextId: MINECRAFT_CONTEXT_ID,
-    createdAt: Date.now(),
     id: nanoid(),
+    contextId: MINECRAFT_CONTEXT_ID,
     strategy: ContextUpdateStrategy.ReplaceSelf,
     text: [
       'Minecraft integration is active because AIRI has observed a Minecraft service.',
@@ -35,5 +34,6 @@ export function createMinecraftContext(): ContextMessage | null {
         ? 'The Minecraft service is online, but AIRI should still rely on live bot context before assuming the bot can act.'
         : 'Do not assume the Minecraft bot can act right now unless fresh bot context confirms it.',
     ].join(' '),
+    createdAt: Date.now(),
   }
 }

@@ -11,29 +11,35 @@ import { createRemoteJWKSet, errors, jwtVerify } from 'jose'
 
 import * as authSchema from '@proj-airi/auth-shared'
 
-export type RequestAuthSession = AuthSession
-
 interface RequestAuthEnv {
-  AUTH_SERVER_INTERNAL_URL?: string
   AUTH_SERVER_URL: string
+  AUTH_SERVER_INTERNAL_URL?: string
   TEST_AUTH_TOKEN: string
-  TEST_AUTH_USER_EMAIL: string
   TEST_AUTH_USER_ID: string
+  TEST_AUTH_USER_EMAIL: string
   TEST_AUTH_USER_NAME: string
 }
 
 interface TokenIssuerEnv {
-  AUTH_SERVER_INTERNAL_URL?: string
   AUTH_SERVER_URL: string
+  AUTH_SERVER_INTERNAL_URL?: string
 }
 
-function readBearerToken(headers: Headers): null | string {
+export type RequestAuthSession = AuthSession
+
+function readBearerToken(headers: Headers): string | null {
   const authorization = headers.get('authorization')
   if (!authorization?.startsWith('Bearer '))
     return null
 
   const token = authorization.slice(7).trim()
   return token.length > 0 ? token : null
+}
+
+function timingSafeStringEqual(left: string, right: string): boolean {
+  const leftBuffer = Buffer.from(left)
+  const rightBuffer = Buffer.from(right)
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer)
 }
 
 function resolveTestAuthToken(env: RequestAuthEnv, accessToken: string): AuthSession | null {
@@ -43,65 +49,33 @@ function resolveTestAuthToken(env: RequestAuthEnv, accessToken: string): AuthSes
   const now = new Date()
   const expiresAt = new Date(now.getTime() + 60 * 60 * 1000)
   return {
-    session: {
-      createdAt: now,
-      expiresAt,
-      id: `test-auth:${env.TEST_AUTH_USER_ID}`,
-      ipAddress: null,
-      token: accessToken,
-      updatedAt: now,
-      userAgent: null,
-      userId: env.TEST_AUTH_USER_ID,
-    } as AuthSession['session'],
     user: {
-      banExpires: null,
+      id: env.TEST_AUTH_USER_ID,
+      email: env.TEST_AUTH_USER_EMAIL.toLowerCase(),
+      name: env.TEST_AUTH_USER_NAME,
+      emailVerified: true,
+      image: null,
       banned: false,
       banReason: null,
-      createdAt: now,
-      email: env.TEST_AUTH_USER_EMAIL.toLowerCase(),
-      emailVerified: true,
-      id: env.TEST_AUTH_USER_ID,
-      image: null,
+      banExpires: null,
       lastSeenAt: now,
-      name: env.TEST_AUTH_USER_NAME,
+      createdAt: now,
       updatedAt: now,
     } as AuthSession['user'],
+    session: {
+      id: `test-auth:${env.TEST_AUTH_USER_ID}`,
+      token: accessToken,
+      userId: env.TEST_AUTH_USER_ID,
+      createdAt: now,
+      updatedAt: now,
+      expiresAt,
+      ipAddress: null,
+      userAgent: null,
+    } as AuthSession['session'],
   }
 }
 
-function timingSafeStringEqual(left: string, right: string): boolean {
-  const leftBuffer = Buffer.from(left)
-  const rightBuffer = Buffer.from(right)
-  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer)
-}
-
 const cachedJWKS = new Map<string, ReturnType<typeof createRemoteJWKSet>>()
-
-export async function resolveRequestAuth(
-  db: Database,
-  env: RequestAuthEnv,
-  headers: Headers,
-): Promise<AuthSession | null> {
-  const accessToken = readBearerToken(headers)
-  if (!accessToken)
-    return null
-
-  const testSession = resolveTestAuthToken(env, accessToken)
-  const resolved = testSession ?? await resolveJWTAccessToken(db, env, accessToken)
-  if (!resolved)
-    return null
-
-  // Reject banned principals on every request. OIDC JWT access tokens are
-  // stateless — verified by signature, not by a session row — so the admin
-  // plugin's session.create.before hook (which only fires on login) cannot
-  // invalidate a token mid-TTL. Re-checking `user.banned` here (free: the user
-  // row is already loaded) is what makes a ban take effect immediately across
-  // the HTTP, WebSocket, and OIDC token paths that funnel through this function.
-  if (isUserBannedNow(resolved.user))
-    return null
-
-  return resolved
-}
 
 function getJWKS(env: TokenIssuerEnv): ReturnType<typeof createRemoteJWKSet> {
   const jwksUrl = new URL('/api/auth/jwks', env.AUTH_SERVER_INTERNAL_URL ?? env.AUTH_SERVER_URL).toString()
@@ -131,8 +105,8 @@ async function resolveJWTAccessToken(
     // including the path prefix (e.g. "http://localhost:3000/api/auth"),
     // not just the server origin.
     const verified = await jwtVerify(accessToken, jwks, {
-      audience: env.AUTH_SERVER_URL,
       issuer: `${env.AUTH_SERVER_URL}/api/auth`,
+      audience: env.AUTH_SERVER_URL,
     })
     payload = verified.payload
   }
@@ -156,16 +130,42 @@ async function resolveJWTAccessToken(
     return null
 
   return {
-    session: {
-      createdAt: payload.iat ? new Date(payload.iat * 1000) : new Date(),
-      expiresAt: payload.exp ? new Date(payload.exp * 1000) : new Date(),
-      id: payload.jti ?? payload.sub,
-      ipAddress: null,
-      token: accessToken,
-      updatedAt: payload.iat ? new Date(payload.iat * 1000) : new Date(),
-      userAgent: null,
-      userId: payload.sub,
-    },
     user,
+    session: {
+      id: payload.jti ?? payload.sub,
+      token: accessToken,
+      userId: payload.sub,
+      createdAt: payload.iat ? new Date(payload.iat * 1000) : new Date(),
+      updatedAt: payload.iat ? new Date(payload.iat * 1000) : new Date(),
+      expiresAt: payload.exp ? new Date(payload.exp * 1000) : new Date(),
+      ipAddress: null,
+      userAgent: null,
+    },
   }
+}
+
+export async function resolveRequestAuth(
+  db: Database,
+  env: RequestAuthEnv,
+  headers: Headers,
+): Promise<AuthSession | null> {
+  const accessToken = readBearerToken(headers)
+  if (!accessToken)
+    return null
+
+  const testSession = resolveTestAuthToken(env, accessToken)
+  const resolved = testSession ?? await resolveJWTAccessToken(db, env, accessToken)
+  if (!resolved)
+    return null
+
+  // Reject banned principals on every request. OIDC JWT access tokens are
+  // stateless — verified by signature, not by a session row — so the admin
+  // plugin's session.create.before hook (which only fires on login) cannot
+  // invalidate a token mid-TTL. Re-checking `user.banned` here (free: the user
+  // row is already loaded) is what makes a ban take effect immediately across
+  // the HTTP, WebSocket, and OIDC token paths that funnel through this function.
+  if (isUserBannedNow(resolved.user))
+    return null
+
+  return resolved
 }

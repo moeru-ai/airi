@@ -1,10 +1,10 @@
 import type { BugReportPageContext } from './bug-report-payload'
 
 export interface BugReportDialogSubmitPayload {
-  context: BugReportPageContext | null
   description: string
-  formattedReport: string
   includeTriageContext: boolean
+  context: BugReportPageContext | null
   screenshotAttached: boolean
   screenshotFiles: File[]
+  formattedReport: string
 }

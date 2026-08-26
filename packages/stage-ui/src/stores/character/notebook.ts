@@ -2,33 +2,33 @@ import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
+export type NotebookEntryKind = 'note' | 'diary' | 'focus'
+
 export interface NotebookEntry {
-  createdAt: number
   id: string
   kind: NotebookEntryKind
-  metadata?: Record<string, unknown>
-  tags?: string[]
   text: string
+  createdAt: number
+  tags?: string[]
+  metadata?: Record<string, unknown>
 }
 
-export type NotebookEntryKind = 'diary' | 'focus' | 'note'
+export type TaskPriority = 'low' | 'normal' | 'high' | 'critical'
+export type TaskStatus = 'queued' | 'scheduled' | 'done' | 'dropped'
 
 export interface ScheduledTask {
-  createdAt: number
-  details?: string
-  dueAt?: number
   id: string
-  lastNotifiedAt?: number
-  metadata?: Record<string, unknown>
-  nextNotifyAt?: number
+  title: string
+  details?: string
   priority: TaskPriority
   status: TaskStatus
-  title: string
+  dueAt?: number
+  createdAt: number
   updatedAt: number
+  lastNotifiedAt?: number
+  nextNotifyAt?: number
+  metadata?: Record<string, unknown>
 }
-export type TaskPriority = 'critical' | 'high' | 'low' | 'normal'
-
-export type TaskStatus = 'done' | 'dropped' | 'queued' | 'scheduled'
 
 export const useCharacterNotebookStore = defineStore('character-notebook', () => {
   const entries = ref<NotebookEntry[]>([])
@@ -37,50 +37,50 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
   const partitionDiary = computed(() => entries.value.filter(entry => entry.kind === 'diary'))
   const partitionFocus = computed(() => entries.value.filter(entry => entry.kind === 'focus'))
 
-  function addEntry(kind: NotebookEntryKind, text: string, options?: { metadata?: Record<string, unknown>, tags?: string[] }) {
+  function addEntry(kind: NotebookEntryKind, text: string, options?: { tags?: string[], metadata?: Record<string, unknown> }) {
     const entry: NotebookEntry = {
-      createdAt: Date.now(),
       id: nanoid(),
       kind,
-      metadata: options?.metadata,
-      tags: options?.tags,
       text,
+      createdAt: Date.now(),
+      tags: options?.tags,
+      metadata: options?.metadata,
     }
 
     entries.value.push(entry)
     return entry
   }
 
-  function addNote(text: string, options?: { metadata?: Record<string, unknown>, tags?: string[] }) {
+  function addNote(text: string, options?: { tags?: string[], metadata?: Record<string, unknown> }) {
     return addEntry('note', text, options)
   }
 
-  function addDiaryEntry(text: string, options?: { metadata?: Record<string, unknown>, tags?: string[] }) {
+  function addDiaryEntry(text: string, options?: { tags?: string[], metadata?: Record<string, unknown> }) {
     return addEntry('diary', text, options)
   }
 
-  function addFocusEntry(text: string, options?: { metadata?: Record<string, unknown>, tags?: string[] }) {
+  function addFocusEntry(text: string, options?: { tags?: string[], metadata?: Record<string, unknown> }) {
     return addEntry('focus', text, options)
   }
 
   function scheduleTask(payload: {
+    title: string
     details?: string
+    priority?: TaskPriority
     dueAt?: number
     metadata?: Record<string, unknown>
-    priority?: TaskPriority
-    title: string
   }) {
     const now = Date.now()
     const task: ScheduledTask = {
-      createdAt: now,
-      details: payload.details,
-      dueAt: payload.dueAt,
       id: nanoid(),
-      metadata: payload.metadata,
+      title: payload.title,
+      details: payload.details,
       priority: payload.priority ?? 'normal',
       status: payload.dueAt ? 'scheduled' : 'queued',
-      title: payload.title,
+      dueAt: payload.dueAt,
+      createdAt: now,
       updatedAt: now,
+      metadata: payload.metadata,
     }
 
     tasks.value.push(task)
@@ -134,17 +134,17 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
   }
 
   return {
-    addDiaryEntry,
-    addFocusEntry,
-    addNote,
     entries,
-    getDueTasks,
-    markTaskDone,
-    markTaskNotified,
+    tasks,
     partitionDiary,
     partitionFocus,
-    requeueTask,
+    addNote,
+    addDiaryEntry,
+    addFocusEntry,
     scheduleTask,
-    tasks,
+    markTaskDone,
+    requeueTask,
+    markTaskNotified,
+    getDueTasks,
   }
 })

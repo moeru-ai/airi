@@ -21,6 +21,20 @@ export interface StreamingTranscriptionConsumer extends StreamingTranscriptionCa
 export class StreamingTranscriptionConsumers {
   private readonly consumers = new Map<string, StreamingTranscriptionCallbacks>()
 
+  /** Registers or replaces the callbacks for one consumer. */
+  register(consumer: StreamingTranscriptionConsumer) {
+    this.consumers.set(consumer.consumerId, {
+      onSentenceEnd: consumer.onSentenceEnd,
+      onSpeechEnd: consumer.onSpeechEnd,
+      onTranscriptionUpdate: consumer.onTranscriptionUpdate,
+    })
+  }
+
+  /** Removes callbacks for one consumer. */
+  remove(consumerId: string) {
+    this.consumers.delete(consumerId)
+  }
+
   /** Sends a completed sentence to all current consumers. */
   emitSentenceEnd(delta: string) {
     this.emit('onSentenceEnd', delta)
@@ -34,20 +48,6 @@ export class StreamingTranscriptionConsumers {
   /** Sends the complete current transcript to all current consumers. */
   emitTranscriptionUpdate(text: string) {
     this.emit('onTranscriptionUpdate', text)
-  }
-
-  /** Registers or replaces the callbacks for one consumer. */
-  register(consumer: StreamingTranscriptionConsumer) {
-    this.consumers.set(consumer.consumerId, {
-      onSentenceEnd: consumer.onSentenceEnd,
-      onSpeechEnd: consumer.onSpeechEnd,
-      onTranscriptionUpdate: consumer.onTranscriptionUpdate,
-    })
-  }
-
-  /** Removes callbacks for one consumer. */
-  remove(consumerId: string) {
-    this.consumers.delete(consumerId)
   }
 
   private emit(callbackName: keyof StreamingTranscriptionCallbacks, text: string) {

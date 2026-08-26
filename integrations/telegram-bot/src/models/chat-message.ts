@@ -14,6 +14,65 @@ import { chatMessageToOneLine } from './common'
 import { findPhotoDescription } from './photos'
 import { findStickerDescription } from './stickers'
 
+export async function recordMessage(botInfo: UserFromGetMe, message: Message) {
+  const replyToName = message.reply_to_message?.from.first_name || ''
+
+  let embedding: EmbedResult
+  let text: string
+
+  if (message.sticker != null) {
+    text = `A sticker sent by user ${await findStickerDescription(message.sticker.file_id)}, sticker set named ${message.sticker.set_name}`
+  }
+  else if (message.photo != null) {
+    text = `A set of photo, descriptions are: ${(await Promise.all(message.photo.map(photo => findPhotoDescription(photo.file_id)))).join('\n')}`
+  }
+  else if (message.text) {
+    text = message.text || message.caption || ''
+  }
+
+  if (text === '') {
+    return
+  }
+  else {
+    embedding = await embed({
+      baseURL: env.EMBEDDING_API_BASE_URL!,
+      apiKey: env.EMBEDDING_API_KEY!,
+      model: env.EMBEDDING_MODEL!,
+      input: text,
+    })
+  }
+
+  const values: Partial<Omit<typeof chatMessagesTable.$inferSelect, 'id' | 'created_at' | 'updated_at'>> = {
+    platform: 'telegram',
+    from_id: message.from.id.toString(),
+    platform_message_id: message.message_id.toString(),
+    from_name: message.from.first_name,
+    in_chat_id: message.chat.id.toString(),
+    content: text,
+    is_reply: !!message.reply_to_message,
+    reply_to_name: replyToName === botInfo.first_name ? 'Yourself' : replyToName,
+    reply_to_id: message.reply_to_message?.message_id.toString() || '',
+  }
+
+  switch (env.EMBEDDING_DIMENSION) {
+    case '1536':
+      values.content_vector_1536 = embedding.embedding
+      break
+    case '1024':
+      values.content_vector_1024 = embedding.embedding
+      break
+    case '768':
+      values.content_vector_768 = embedding.embedding
+      break
+    default:
+      throw new Error(`Unsupported embedding dimension: ${env.EMBEDDING_DIMENSION}`)
+  }
+
+  await useDrizzle()
+    .insert(chatMessagesTable)
+    .values(values)
+}
+
 export async function findLastNMessages(chatId: string, n: number) {
   const res = await useDrizzle()
     .select()
@@ -23,21 +82,6 @@ export async function findLastNMessages(chatId: string, n: number) {
     .limit(n)
 
   return res.reverse()
-}
-
-export async function findMessagesByIDs(messageIds: string[]) {
-  const db = useDrizzle()
-
-  return await db
-    .select()
-    .from(chatMessagesTable)
-    .where(
-      and(
-        inArray(chatMessagesTable.platform_message_id, messageIds),
-        eq(chatMessagesTable.platform, 'telegram'),
-        ne(chatMessagesTable.platform_message_id, ''),
-      ),
-    )
 }
 
 export async function findRelevantMessages(botId: string, chatId: string, unreadHistoryMessagesEmbedding: { embedding: number[] }[], excludeMessageIds: string[] = []) {
@@ -51,14 +95,14 @@ export async function findRelevantMessages(botId: string, chatId: string, unread
     let similarity: SQL<number>
 
     switch (env.EMBEDDING_DIMENSION) {
-      case '768':
-        similarity = sql<number>`(1 - (${cosineDistance(chatMessagesTable.content_vector_768, embedding.embedding)}))`
+      case '1536':
+        similarity = sql<number>`(1 - (${cosineDistance(chatMessagesTable.content_vector_1536, embedding.embedding)}))`
         break
       case '1024':
         similarity = sql<number>`(1 - (${cosineDistance(chatMessagesTable.content_vector_1024, embedding.embedding)}))`
         break
-      case '1536':
-        similarity = sql<number>`(1 - (${cosineDistance(chatMessagesTable.content_vector_1536, embedding.embedding)}))`
+      case '768':
+        similarity = sql<number>`(1 - (${cosineDistance(chatMessagesTable.content_vector_768, embedding.embedding)}))`
         break
       default:
         throw new Error(`Unsupported embedding dimension: ${env.EMBEDDING_DIMENSION}`)
@@ -70,21 +114,21 @@ export async function findRelevantMessages(botId: string, chatId: string, unread
     // Get top messages with similarity above threshold
     const relevantMessages = await db
       .select({
-        combined_score: sql`${combinedScore} AS "combined_score"`,
-        content: chatMessagesTable.content,
-        created_at: chatMessagesTable.created_at,
-        from_id: chatMessagesTable.from_id,
-        from_name: chatMessagesTable.from_name,
         id: chatMessagesTable.id,
-        in_chat_id: chatMessagesTable.in_chat_id,
-        is_reply: chatMessagesTable.is_reply,
         platform: chatMessagesTable.platform,
         platform_message_id: chatMessagesTable.platform_message_id,
-        reply_to_id: chatMessagesTable.reply_to_id,
+        from_id: chatMessagesTable.from_id,
+        from_name: chatMessagesTable.from_name,
+        in_chat_id: chatMessagesTable.in_chat_id,
+        content: chatMessagesTable.content,
+        is_reply: chatMessagesTable.is_reply,
         reply_to_name: chatMessagesTable.reply_to_name,
+        reply_to_id: chatMessagesTable.reply_to_id,
+        created_at: chatMessagesTable.created_at,
+        updated_at: chatMessagesTable.updated_at,
         similarity: sql`${similarity} AS "similarity"`,
         time_relevance: sql`${timeRelevance} AS "time_relevance"`,
-        updated_at: chatMessagesTable.updated_at,
+        combined_score: sql`${combinedScore} AS "combined_score"`,
       })
       .from(chatMessagesTable)
       .where(and(
@@ -104,17 +148,17 @@ export async function findRelevantMessages(botId: string, chatId: string, unread
         // Get N messages before the target message
         const messagesBefore = await db
           .select({
-            content: chatMessagesTable.content,
-            created_at: chatMessagesTable.created_at,
-            from_id: chatMessagesTable.from_id,
-            from_name: chatMessagesTable.from_name,
             id: chatMessagesTable.id,
-            in_chat_id: chatMessagesTable.in_chat_id,
-            is_reply: chatMessagesTable.is_reply,
             platform: chatMessagesTable.platform,
             platform_message_id: chatMessagesTable.platform_message_id,
-            reply_to_id: chatMessagesTable.reply_to_id,
+            from_id: chatMessagesTable.from_id,
+            from_name: chatMessagesTable.from_name,
+            in_chat_id: chatMessagesTable.in_chat_id,
+            content: chatMessagesTable.content,
+            is_reply: chatMessagesTable.is_reply,
             reply_to_name: chatMessagesTable.reply_to_name,
+            reply_to_id: chatMessagesTable.reply_to_id,
+            created_at: chatMessagesTable.created_at,
             updated_at: chatMessagesTable.updated_at,
           })
           .from(chatMessagesTable)
@@ -130,17 +174,17 @@ export async function findRelevantMessages(botId: string, chatId: string, unread
         // Get N messages after the target message
         const messagesAfter = await db
           .select({
-            content: chatMessagesTable.content,
-            created_at: chatMessagesTable.created_at,
-            from_id: chatMessagesTable.from_id,
-            from_name: chatMessagesTable.from_name,
             id: chatMessagesTable.id,
-            in_chat_id: chatMessagesTable.in_chat_id,
-            is_reply: chatMessagesTable.is_reply,
             platform: chatMessagesTable.platform,
             platform_message_id: chatMessagesTable.platform_message_id,
-            reply_to_id: chatMessagesTable.reply_to_id,
+            from_id: chatMessagesTable.from_id,
+            from_name: chatMessagesTable.from_name,
+            in_chat_id: chatMessagesTable.in_chat_id,
+            content: chatMessagesTable.content,
+            is_reply: chatMessagesTable.is_reply,
             reply_to_name: chatMessagesTable.reply_to_name,
+            reply_to_id: chatMessagesTable.reply_to_id,
+            created_at: chatMessagesTable.created_at,
             updated_at: chatMessagesTable.updated_at,
           })
           .from(chatMessagesTable)
@@ -200,61 +244,17 @@ export async function findRelevantMessages(botId: string, chatId: string, unread
   }))
 }
 
-export async function recordMessage(botInfo: UserFromGetMe, message: Message) {
-  const replyToName = message.reply_to_message?.from.first_name || ''
+export async function findMessagesByIDs(messageIds: string[]) {
+  const db = useDrizzle()
 
-  let embedding: EmbedResult
-  let text: string
-
-  if (message.sticker != null) {
-    text = `A sticker sent by user ${await findStickerDescription(message.sticker.file_id)}, sticker set named ${message.sticker.set_name}`
-  }
-  else if (message.photo != null) {
-    text = `A set of photo, descriptions are: ${(await Promise.all(message.photo.map(photo => findPhotoDescription(photo.file_id)))).join('\n')}`
-  }
-  else if (message.text) {
-    text = message.text || message.caption || ''
-  }
-
-  if (text === '') {
-    return
-  }
-  else {
-    embedding = await embed({
-      apiKey: env.EMBEDDING_API_KEY!,
-      baseURL: env.EMBEDDING_API_BASE_URL!,
-      input: text,
-      model: env.EMBEDDING_MODEL!,
-    })
-  }
-
-  const values: Partial<Omit<typeof chatMessagesTable.$inferSelect, 'created_at' | 'id' | 'updated_at'>> = {
-    content: text,
-    from_id: message.from.id.toString(),
-    from_name: message.from.first_name,
-    in_chat_id: message.chat.id.toString(),
-    is_reply: !!message.reply_to_message,
-    platform: 'telegram',
-    platform_message_id: message.message_id.toString(),
-    reply_to_id: message.reply_to_message?.message_id.toString() || '',
-    reply_to_name: replyToName === botInfo.first_name ? 'Yourself' : replyToName,
-  }
-
-  switch (env.EMBEDDING_DIMENSION) {
-    case '768':
-      values.content_vector_768 = embedding.embedding
-      break
-    case '1024':
-      values.content_vector_1024 = embedding.embedding
-      break
-    case '1536':
-      values.content_vector_1536 = embedding.embedding
-      break
-    default:
-      throw new Error(`Unsupported embedding dimension: ${env.EMBEDDING_DIMENSION}`)
-  }
-
-  await useDrizzle()
-    .insert(chatMessagesTable)
-    .values(values)
+  return await db
+    .select()
+    .from(chatMessagesTable)
+    .where(
+      and(
+        inArray(chatMessagesTable.platform_message_id, messageIds),
+        eq(chatMessagesTable.platform, 'telegram'),
+        ne(chatMessagesTable.platform_message_id, ''),
+      ),
+    )
 }

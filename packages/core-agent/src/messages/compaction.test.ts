@@ -9,55 +9,55 @@ describe('compactConversationEntries', () => {
     const result = compactConversationEntries({
       entries: [
         {
-          content: 'weather?',
           role: 'user',
+          content: 'weather?',
         } satisfies RawMessage,
         {
           id: 'history-1',
           role: 'event',
           segments: [
             {
+              type: 'history-block',
               compacted: false,
               items: [
                 {
+                  type: 'turn',
+                  turnType: 'chess',
+                  turnIndex: 1,
+                  actor: 'player',
                   action: {
                     kind: 'move-played',
                     san: 'e4',
                   },
-                  actor: 'player',
-                  turnIndex: 1,
-                  turnType: 'chess',
-                  type: 'turn',
                 },
                 {
+                  type: 'reaction',
                   reactionType: 'spark-command',
                   text: 'Hmm.',
-                  type: 'reaction',
                 },
                 {
+                  type: 'turn',
+                  turnType: 'chess',
+                  turnIndex: 2,
+                  actor: 'assistant',
                   action: {
                     kind: 'move-executed',
                     san: 'e5',
                   },
-                  actor: 'assistant',
-                  turnIndex: 2,
-                  turnType: 'chess',
-                  type: 'turn',
                 },
                 {
+                  type: 'reaction',
                   reactionType: 'spark-command',
                   text: 'Let us answer.',
-                  type: 'reaction',
                 },
                 {
+                  type: 'domain-event',
                   eventType: 'board-updated',
                   payload: {
                     fen: 'startpos',
                   },
-                  type: 'domain-event',
                 },
               ],
-              type: 'history-block',
             },
           ],
         } satisfies Message,

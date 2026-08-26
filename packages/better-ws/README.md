@@ -16,12 +16,12 @@ import { createClient } from '@proj-airi/better-ws'
 import { createServer } from '@proj-airi/better-ws/server'
 
 const client = createClient({
+  url: 'ws://localhost:3000/ws',
   // Reconnect is enabled by default; pass an object to customize the policy.
   reconnect: {
-    delay: attempt => Math.min(1000 * 2 ** (attempt - 1), 30_000),
     retries: Number.POSITIVE_INFINITY,
+    delay: attempt => Math.min(1000 * 2 ** (attempt - 1), 30_000),
   },
-  url: 'ws://localhost:3000/ws',
 })
 
 await client.connect()
@@ -29,7 +29,7 @@ client.send('hello')
 
 const server = createServer<string>()
 
-server.onMessage(({ message, server }) => {
+server.onMessage(({ server, message }) => {
   server.broadcast(message)
 })
 
@@ -53,16 +53,16 @@ responses.
 
 ```ts
 const server = createServer<string>({
+  peers: {
+    unhealthyTimeout: 60_000,
+    closeTimeout: 120_000,
+  },
   heartbeat: {
     timeout: 60_000,
   },
-  peers: {
-    closeTimeout: 120_000,
-    unhealthyTimeout: 60_000,
-  },
 })
 
-server.onPeerHealthChange(({ healthy, peer, silentFor }) => {
+server.onPeerHealthChange(({ peer, healthy, silentFor }) => {
   console.info('peer health changed', peer.id, healthy, silentFor)
 })
 
@@ -76,14 +76,14 @@ Message heartbeat mode requires `message` so the client knows what to send:
 
 ```ts
 const client = createClient({
+  url: 'ws://localhost:3000/ws',
   heartbeat: {
-    interval: 30_000,
-    isResponse: message => message === 'pong',
-    message: 'ping',
     mode: 'message',
+    message: 'ping',
+    isResponse: message => message === 'pong',
+    interval: 30_000,
     timeout: 10_000,
   },
-  url: 'ws://localhost:3000/ws',
 })
 ```
 
@@ -113,8 +113,8 @@ const client = createClient<string>({
       })
 
       return {
-        close: (code, reason) => ws.close(code, reason),
         send: next => ws.send(next),
+        close: (code, reason) => ws.close(code, reason),
       }
     },
   },

@@ -14,8 +14,8 @@ export interface AudioSpeechWsHandlersOptions {
   envelopeCrypto: EnvelopeCrypto
   /** Reads the user's current Flux balance for pre-flight and final billing. */
   fluxService: FluxService
-  /** Persists request accounting after a stream finishes. */
-  requestLogService: RequestLogService
   /** Applies pre-flight affordability checks and final streaming TTS billing. */
   ttsMeter: FluxMeter
+  /** Persists request accounting after a stream finishes. */
+  requestLogService: RequestLogService
 }

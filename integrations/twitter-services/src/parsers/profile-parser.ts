@@ -54,8 +54,8 @@ export class ProfileParser {
       // const _links = await this.extractUserLinks(page)
 
       const profile: UserProfile = {
-        displayName,
         username,
+        displayName,
       }
 
       // Add optional fields if they exist
@@ -86,9 +86,73 @@ export class ProfileParser {
 
       // Return minimal profile to avoid breaking
       return {
-        displayName: 'Unknown User',
         username: 'unknown',
+        displayName: 'Unknown User',
       }
+    }
+  }
+
+  /**
+   * Extract username from Twitter profile URL
+   * @param url Twitter profile URL
+   * @returns Username or null if not found
+   */
+  private static extractUsernameFromUrl(url: string): string | null {
+    try {
+      const match = url.match(/twitter\.com\/([^/]+)/)
+      if (match && match[1] && !['home', 'explore', 'notifications', 'messages'].includes(match[1])) {
+        return match[1]
+      }
+      return null
+    }
+    catch {
+      return null
+    }
+  }
+
+  /**
+   * Extract user statistics (followers, following, tweets)
+   * @param page Playwright page instance
+   * @returns Promise resolving to UserStats object
+   */
+  private static async extractUserStats(page: Page): Promise<UserStats> {
+    const stats: UserStats = {
+      followers: 0,
+      following: 0,
+      tweets: 0,
+    }
+
+    try {
+      // Get stats container
+      const statsContainer = await page.$(SELECTORS.PROFILE.STATS)
+      if (!statsContainer)
+        return stats
+
+      // Get all stat items
+      const statItems = await statsContainer.$$('a')
+
+      for (const statItem of statItems) {
+        const text = await statItem.textContent() || ''
+
+        if (text.includes('Following')) {
+          const countText = text.replace(/Following.*/, '').trim()
+          stats.following = this.parseStatNumber(countText)
+        }
+        else if (text.includes('Followers')) {
+          const countText = text.replace(/Followers.*/, '').trim()
+          stats.followers = this.parseStatNumber(countText)
+        }
+        else if (text.includes('posts') || text.includes('Posts')) {
+          const countText = text.replace(/posts|Posts.*/, '').trim()
+          stats.tweets = this.parseStatNumber(countText)
+        }
+      }
+
+      return stats
+    }
+    catch (error) {
+      logger.parser.error('Error extracting user stats:', (error as Error).message)
+      return stats
     }
   }
 
@@ -172,9 +236,9 @@ export class ProfileParser {
 
         if (href && title) {
           links.push({
-            title,
             type: 'url',
             url: href,
+            title,
           })
         }
       }
@@ -185,9 +249,9 @@ export class ProfileParser {
         const locationText = await locationElement.textContent()
         if (locationText) {
           links.push({
-            title: locationText.replace('Location', '').trim(),
             type: 'location',
             url: '',
+            title: locationText.replace('Location', '').trim(),
           })
         }
       }
@@ -197,70 +261,6 @@ export class ProfileParser {
     catch (error) {
       logger.parser.error('Error extracting user links:', (error as Error).message)
       return links
-    }
-  }
-
-  /**
-   * Extract username from Twitter profile URL
-   * @param url Twitter profile URL
-   * @returns Username or null if not found
-   */
-  private static extractUsernameFromUrl(url: string): null | string {
-    try {
-      const match = url.match(/twitter\.com\/([^/]+)/)
-      if (match && match[1] && !['explore', 'home', 'messages', 'notifications'].includes(match[1])) {
-        return match[1]
-      }
-      return null
-    }
-    catch {
-      return null
-    }
-  }
-
-  /**
-   * Extract user statistics (followers, following, tweets)
-   * @param page Playwright page instance
-   * @returns Promise resolving to UserStats object
-   */
-  private static async extractUserStats(page: Page): Promise<UserStats> {
-    const stats: UserStats = {
-      followers: 0,
-      following: 0,
-      tweets: 0,
-    }
-
-    try {
-      // Get stats container
-      const statsContainer = await page.$(SELECTORS.PROFILE.STATS)
-      if (!statsContainer)
-        return stats
-
-      // Get all stat items
-      const statItems = await statsContainer.$$('a')
-
-      for (const statItem of statItems) {
-        const text = await statItem.textContent() || ''
-
-        if (text.includes('Following')) {
-          const countText = text.replace(/Following.*/, '').trim()
-          stats.following = this.parseStatNumber(countText)
-        }
-        else if (text.includes('Followers')) {
-          const countText = text.replace(/Followers.*/, '').trim()
-          stats.followers = this.parseStatNumber(countText)
-        }
-        else if (text.includes('posts') || text.includes('Posts')) {
-          const countText = text.replace(/posts|Posts.*/, '').trim()
-          stats.tweets = this.parseStatNumber(countText)
-        }
-      }
-
-      return stats
-    }
-    catch (error) {
-      logger.parser.error('Error extracting user stats:', (error as Error).message)
-      return stats
     }
   }
 

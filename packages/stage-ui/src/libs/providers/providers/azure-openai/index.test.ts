@@ -14,6 +14,10 @@ interface ChatRequestBody {
   }>
 }
 
+function isJsonSchema(value: JsonSchema | boolean | undefined): value is JsonSchema {
+  return Boolean(value && typeof value === 'object')
+}
+
 function getArraySchema(schema?: JsonSchema): JsonSchema | undefined {
   if (!schema)
     return undefined
@@ -22,10 +26,6 @@ function getArraySchema(schema?: JsonSchema): JsonSchema | undefined {
     return schema
 
   return schema.anyOf?.filter(isJsonSchema).find(candidate => candidate.type === 'array')
-}
-
-function isJsonSchema(value: boolean | JsonSchema | undefined): value is JsonSchema {
-  return Boolean(value && typeof value === 'object')
 }
 
 describe('providerAzureOpenAI tool schemas', () => {
@@ -53,15 +53,15 @@ describe('providerAzureOpenAI tool schemas', () => {
       throw new Error('Azure OpenAI did not create a fetch adapter.')
 
     await providerFetch(new URL('https://example.openai.azure.com/openai/v1/chat/completions'), {
-      body: JSON.stringify({
-        messages: [],
-        model: 'test-deployment',
-        tools,
-      }),
+      method: 'POST',
       headers: {
         'content-type': 'application/json',
       },
-      method: 'POST',
+      body: JSON.stringify({
+        model: 'test-deployment',
+        messages: [],
+        tools,
+      }),
     })
 
     const requestBody = fetchMock.mock.calls[0]?.[1]?.body

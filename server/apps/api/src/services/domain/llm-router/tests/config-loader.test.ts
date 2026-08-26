@@ -8,44 +8,44 @@ import { createConfigLoader } from '../config-loader'
 
 function makeConfig(): RouterConfig {
   return {
-    defaults: { fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504], fullChainTimeoutMs: 60000, perAttemptTimeoutMs: 30000 },
     llm: {
       models: {
         'openai/gpt-5-mini': {
-          fallbackTriggers: { httpCodes: [401, 402, 403, 429, 500, 502, 503, 504], onTimeout: true },
           upstreams: [
             {
               baseURL: 'https://openrouter.example/v1',
+              keys: [{ id: 'k1', ciphertext: 'v1.aa.bb.cc' }],
               headerTemplate: 'Bearer {KEY}',
-              keys: [{ ciphertext: 'v1.aa.bb.cc', id: 'k1' }],
             },
           ],
+          fallbackTriggers: { httpCodes: [401, 402, 403, 429, 500, 502, 503, 504], onTimeout: true },
         },
       },
     },
     tts: {
       models: {
         'tts-1': {
-          fallbackTriggers: { httpCodes: [401, 402, 403, 429, 500, 502, 503, 504], onTimeout: true },
           provider: 'azure',
           upstreams: [
             {
-              adapterParams: {},
               baseURL: 'https://azure.example/tts',
-              keys: [{ ciphertext: 'v1.aa.bb.cc', id: 'tk1' }],
+              keys: [{ id: 'tk1', ciphertext: 'v1.aa.bb.cc' }],
+              adapterParams: {},
             },
           ],
+          fallbackTriggers: { httpCodes: [401, 402, 403, 429, 500, 502, 503, 504], onTimeout: true },
         },
       },
     },
+    defaults: { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504] },
   } as RouterConfig
 }
 
-function makeMockConfigKV(value: null | RouterConfig): ConfigKVService {
+function makeMockConfigKV(value: RouterConfig | null): ConfigKVService {
   return {
-    get: vi.fn(),
     getOptional: vi.fn(async (key: string) => (key === 'LLM_ROUTER_CONFIG' ? value : null)),
     getOrThrow: vi.fn(),
+    get: vi.fn(),
     set: vi.fn(),
   } as unknown as ConfigKVService
 }
@@ -57,7 +57,7 @@ describe('createConfigLoader', () => {
   it('first call reads from configKV; subsequent calls within TTL serve from cache (one read)', async () => {
     const configKV = makeMockConfigKV(makeConfig())
     let nowValue = 1000
-    const loader = createConfigLoader({ configKV, now: () => nowValue, ttlMs: 5000 })
+    const loader = createConfigLoader({ configKV, ttlMs: 5000, now: () => nowValue })
 
     await loader.getModelConfig('llm', 'openai/gpt-5-mini')
     nowValue = 2000
@@ -71,7 +71,7 @@ describe('createConfigLoader', () => {
   it('invalidate() clears cache; next call re-reads from configKV', async () => {
     const configKV = makeMockConfigKV(makeConfig())
     let nowValue = 1000
-    const loader = createConfigLoader({ configKV, now: () => nowValue, ttlMs: 5000 })
+    const loader = createConfigLoader({ configKV, ttlMs: 5000, now: () => nowValue })
 
     await loader.getModelConfig('llm', 'openai/gpt-5-mini')
     loader.invalidate()
@@ -84,7 +84,7 @@ describe('createConfigLoader', () => {
   it('tTL expiry triggers fresh read on next call', async () => {
     const configKV = makeMockConfigKV(makeConfig())
     let nowValue = 1000
-    const loader = createConfigLoader({ configKV, now: () => nowValue, ttlMs: 5000 })
+    const loader = createConfigLoader({ configKV, ttlMs: 5000, now: () => nowValue })
 
     await loader.getModelConfig('llm', 'openai/gpt-5-mini')
     nowValue = 1000 + 5001
@@ -120,8 +120,8 @@ describe('createConfigLoader', () => {
       expect((err as ApiError).statusCode).toBe(400)
       expect((err as ApiError).errorCode).toBe('BAD_REQUEST')
       expect((err as ApiError).details).toEqual({
-        available: ['openai/gpt-5-mini'],
         requested: 'nope/does-not-exist',
+        available: ['openai/gpt-5-mini'],
       })
     }
   })
@@ -137,8 +137,8 @@ describe('createConfigLoader', () => {
     catch (err) {
       expect((err as ApiError).statusCode).toBe(400)
       expect((err as ApiError).details).toEqual({
-        available: ['tts-1'],
         requested: 'nope-tts',
+        available: ['tts-1'],
       })
     }
   })

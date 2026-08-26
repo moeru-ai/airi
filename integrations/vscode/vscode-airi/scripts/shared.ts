@@ -2,6 +2,40 @@
 
 import { readFile, writeFile } from 'node:fs/promises'
 
+export async function packageJSONForVSCode(name: string) {
+  const json = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf-8'))
+  const originalName = json.name
+  const originalVersion = json.version
+
+  if (json.name !== name) {
+    json.name = name
+
+    await writeFile(new URL('../package.json', import.meta.url), `${JSON.stringify(json, null, 2)}\n`, 'utf-8')
+  }
+
+  const numericVersion = encodeNumericVersion(originalVersion)
+  if (json.version !== numericVersion.version) {
+    json.version = numericVersion.version
+
+    await writeFile(new URL('../package.json', import.meta.url), `${JSON.stringify(json, null, 2)}\n`, 'utf-8')
+  }
+
+  return {
+    json,
+    originalName,
+    originalVersion,
+    name,
+    version: numericVersion.version,
+    isPreview: numericVersion.preview,
+    restore: async () => {
+      json.name = originalName
+      json.version = originalVersion
+
+      await writeFile(new URL('../package.json', import.meta.url), `${JSON.stringify(json, null, 2)}\n`, 'utf-8')
+    },
+  }
+}
+
 // NOTICE: VSCE rejects prerelease identifiers, so we encode stage+sequence into a numeric-only patch bucket:
 //   encodedPatch = patch*10000 + stageBucket + sequence.
 //   stageBucket: alpha=1000, beta=2000, rc=3000, stable=9000.
@@ -28,7 +62,7 @@ export function encodeNumericVersion(version: string) {
     stable: 9_000,
   } as const
 
-  const { sequence, stage } = parsePrerelease(prerelease)
+  const { stage, sequence } = parsePrerelease(prerelease)
   const maxSequence = (multiplier - 1) - stageBuckets[stage]
   if (sequence > maxSequence) {
     throw new Error(`Prerelease sequence overflow for ${stage}: ${sequence} exceeds limit ${maxSequence}`)
@@ -41,48 +75,14 @@ export function encodeNumericVersion(version: string) {
   const encoded = `${major}.${minor}.${encodedPatch}`
 
   return {
-    preview: stage !== 'stable',
     version: encoded,
-  }
-}
-
-export async function packageJSONForVSCode(name: string) {
-  const json = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf-8'))
-  const originalName = json.name
-  const originalVersion = json.version
-
-  if (json.name !== name) {
-    json.name = name
-
-    await writeFile(new URL('../package.json', import.meta.url), `${JSON.stringify(json, null, 2)}\n`, 'utf-8')
-  }
-
-  const numericVersion = encodeNumericVersion(originalVersion)
-  if (json.version !== numericVersion.version) {
-    json.version = numericVersion.version
-
-    await writeFile(new URL('../package.json', import.meta.url), `${JSON.stringify(json, null, 2)}\n`, 'utf-8')
-  }
-
-  return {
-    isPreview: numericVersion.preview,
-    json,
-    name,
-    originalName,
-    originalVersion,
-    restore: async () => {
-      json.name = originalName
-      json.version = originalVersion
-
-      await writeFile(new URL('../package.json', import.meta.url), `${JSON.stringify(json, null, 2)}\n`, 'utf-8')
-    },
-    version: numericVersion.version,
+    preview: stage !== 'stable',
   }
 }
 
 function parsePrerelease(prerelease?: string) {
   if (!prerelease) {
-    return { sequence: 0, stage: 'stable' as const }
+    return { stage: 'stable' as const, sequence: 0 }
   }
 
   const [stageRaw, sequenceRaw] = prerelease.split('.')
@@ -90,5 +90,5 @@ function parsePrerelease(prerelease?: string) {
   const sequenceParsed = Number.parseInt(sequenceRaw ?? '', 10)
   const sequence = Number.isFinite(sequenceParsed) ? sequenceParsed : 0
 
-  return { sequence, stage }
+  return { stage, sequence }
 }

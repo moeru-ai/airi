@@ -30,71 +30,6 @@ export interface MinecraftRuntimeConfigSnapshot {
   effectiveBotConfig: Config['bot']
 }
 
-export class MinecraftRuntimeConfigManager {
-  private readonly configFilePath: string
-  private readonly cwd: string
-
-  constructor(options: { configFilePath?: string, cwd?: string } = {}) {
-    this.cwd = options.cwd ?? process.cwd()
-    this.configFilePath = options.configFilePath ?? path.join(this.cwd, 'data', 'minecraft-config.json')
-  }
-
-  load(): MinecraftRuntimeConfigSnapshot {
-    const envConfig = parseEnvFile(path.join(this.cwd, '.env'))
-    const localEnvConfig = parseEnvFile(path.join(this.cwd, '.env.local'))
-    const savedConfig = readSavedConfig(this.configFilePath)
-
-    const editableConfig = editableConfigSchema.parse({
-      enabled: savedConfig.enabled ?? true,
-      host: resolveString('BOT_HOSTNAME', savedConfig.host, envConfig.BOT_HOSTNAME, undefined, 'localhost'),
-      port: resolvePort('BOT_PORT', savedConfig.port, envConfig.BOT_PORT, undefined, 25565),
-      username: resolveString('BOT_USERNAME', savedConfig.username, envConfig.BOT_USERNAME, undefined, 'airi-bot'),
-    })
-
-    return {
-      editableConfig,
-      effectiveBotConfig: {
-        auth: (normalizeOptionalString(localEnvConfig.BOT_AUTH)
-          ?? normalizeOptionalString(envConfig.BOT_AUTH)
-          ?? normalizeOptionalString(process.env.BOT_AUTH)) as Config['bot']['auth'] | undefined,
-        host: resolveString('BOT_HOSTNAME', savedConfig.host, envConfig.BOT_HOSTNAME, localEnvConfig.BOT_HOSTNAME, 'localhost'),
-        password: localEnvConfig.BOT_PASSWORD ?? envConfig.BOT_PASSWORD ?? process.env.BOT_PASSWORD ?? '',
-        port: resolvePort('BOT_PORT', savedConfig.port, envConfig.BOT_PORT, localEnvConfig.BOT_PORT, 25565),
-        username: resolveString('BOT_USERNAME', savedConfig.username, envConfig.BOT_USERNAME, localEnvConfig.BOT_USERNAME, 'airi-bot'),
-        version: resolveString('BOT_VERSION', undefined, envConfig.BOT_VERSION, localEnvConfig.BOT_VERSION, '1.20'),
-      },
-    }
-  }
-
-  save(config: MinecraftEditableConfig): MinecraftRuntimeConfigSnapshot {
-    const editableConfig = editableConfigSchema.parse(config)
-
-    mkdirSync(path.dirname(this.configFilePath), { recursive: true })
-    writeFileSync(this.configFilePath, JSON.stringify(editableConfig, null, 2))
-
-    return this.load()
-  }
-}
-
-function normalizeEnvValue(value: string) {
-  if (value.length >= 2) {
-    const first = value[0]
-    const last = value.at(-1)
-    if ((first === '\'' || first === '"') && first === last) {
-      return value.slice(1, -1)
-    }
-  }
-
-  return value
-}
-
-function normalizeOptionalString(value: string | undefined) {
-  if (value == null)
-    return undefined
-
-  return value === '' ? undefined : value
-}
-
 function parseEnvFile(filepath: string): Record<string, string> {
   if (!existsSync(filepath))
     return {}
@@ -118,12 +53,45 @@ function parseEnvFile(filepath: string): Record<string, string> {
     }, {})
 }
 
+function normalizeEnvValue(value: string) {
+  if (value.length >= 2) {
+    const first = value[0]
+    const last = value.at(-1)
+    if ((first === '\'' || first === '"') && first === last) {
+      return value.slice(1, -1)
+    }
+  }
+
+  return value
+}
+
 function readSavedConfig(filepath: string): Partial<MinecraftEditableConfig> {
   if (!existsSync(filepath))
     return {}
 
   const parsed = JSON.parse(readFileSync(filepath, 'utf8'))
   return savedConfigSchema.parse(parsed)
+}
+
+function normalizeOptionalString(value: string | undefined) {
+  if (value == null)
+    return undefined
+
+  return value === '' ? undefined : value
+}
+
+function resolveString(
+  key: string,
+  savedValue: string | undefined,
+  envValue: string | undefined,
+  localEnvValue: string | undefined,
+  fallback: string,
+) {
+  return normalizeOptionalString(localEnvValue)
+    ?? normalizeOptionalString(savedValue)
+    ?? normalizeOptionalString(envValue)
+    ?? normalizeOptionalString(process.env[key])
+    ?? fallback
 }
 
 function resolveNumber(
@@ -149,16 +117,48 @@ function resolvePort(
   return Number.isInteger(resolved) && resolved >= 1 && resolved <= 65535 ? resolved : fallback
 }
 
-function resolveString(
-  key: string,
-  savedValue: string | undefined,
-  envValue: string | undefined,
-  localEnvValue: string | undefined,
-  fallback: string,
-) {
-  return normalizeOptionalString(localEnvValue)
-    ?? normalizeOptionalString(savedValue)
-    ?? normalizeOptionalString(envValue)
-    ?? normalizeOptionalString(process.env[key])
-    ?? fallback
+export class MinecraftRuntimeConfigManager {
+  private readonly cwd: string
+  private readonly configFilePath: string
+
+  constructor(options: { cwd?: string, configFilePath?: string } = {}) {
+    this.cwd = options.cwd ?? process.cwd()
+    this.configFilePath = options.configFilePath ?? path.join(this.cwd, 'data', 'minecraft-config.json')
+  }
+
+  load(): MinecraftRuntimeConfigSnapshot {
+    const envConfig = parseEnvFile(path.join(this.cwd, '.env'))
+    const localEnvConfig = parseEnvFile(path.join(this.cwd, '.env.local'))
+    const savedConfig = readSavedConfig(this.configFilePath)
+
+    const editableConfig = editableConfigSchema.parse({
+      enabled: savedConfig.enabled ?? true,
+      host: resolveString('BOT_HOSTNAME', savedConfig.host, envConfig.BOT_HOSTNAME, undefined, 'localhost'),
+      port: resolvePort('BOT_PORT', savedConfig.port, envConfig.BOT_PORT, undefined, 25565),
+      username: resolveString('BOT_USERNAME', savedConfig.username, envConfig.BOT_USERNAME, undefined, 'airi-bot'),
+    })
+
+    return {
+      editableConfig,
+      effectiveBotConfig: {
+        host: resolveString('BOT_HOSTNAME', savedConfig.host, envConfig.BOT_HOSTNAME, localEnvConfig.BOT_HOSTNAME, 'localhost'),
+        port: resolvePort('BOT_PORT', savedConfig.port, envConfig.BOT_PORT, localEnvConfig.BOT_PORT, 25565),
+        username: resolveString('BOT_USERNAME', savedConfig.username, envConfig.BOT_USERNAME, localEnvConfig.BOT_USERNAME, 'airi-bot'),
+        version: resolveString('BOT_VERSION', undefined, envConfig.BOT_VERSION, localEnvConfig.BOT_VERSION, '1.20'),
+        auth: (normalizeOptionalString(localEnvConfig.BOT_AUTH)
+          ?? normalizeOptionalString(envConfig.BOT_AUTH)
+          ?? normalizeOptionalString(process.env.BOT_AUTH)) as Config['bot']['auth'] | undefined,
+        password: localEnvConfig.BOT_PASSWORD ?? envConfig.BOT_PASSWORD ?? process.env.BOT_PASSWORD ?? '',
+      },
+    }
+  }
+
+  save(config: MinecraftEditableConfig): MinecraftRuntimeConfigSnapshot {
+    const editableConfig = editableConfigSchema.parse(config)
+
+    mkdirSync(path.dirname(this.configFilePath), { recursive: true })
+    writeFileSync(this.configFilePath, JSON.stringify(editableConfig, null, 2))
+
+    return this.load()
+  }
 }

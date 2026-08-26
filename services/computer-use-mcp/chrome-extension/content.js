@@ -32,20 +32,20 @@
       return null
     const r = el.getBoundingClientRect()
     return {
-      checked: !!el.checked,
-      className: typeof el.className === 'string' ? el.className.slice(0, 120) : '',
-      disabled: !!el.disabled,
-      href: el.href || '',
+      tag: el.tagName.toLowerCase(),
       id: el.id || '',
       name: el.name || '',
-      placeholder: el.placeholder || '',
-      rect: { h: Math.round(r.height), w: Math.round(r.width), x: Math.round(r.left), y: Math.round(r.top) },
-      role: el.getAttribute('role') || '',
-      tag: el.tagName.toLowerCase(),
-      text: (el.textContent || '').slice(0, 120).trim(),
       type: el.type || '',
+      className: typeof el.className === 'string' ? el.className.slice(0, 120) : '',
+      text: (el.textContent || '').slice(0, 120).trim(),
       value: el.value !== undefined ? String(el.value).slice(0, 60) : '',
+      href: el.href || '',
+      placeholder: el.placeholder || '',
+      role: el.getAttribute('role') || '',
+      disabled: !!el.disabled,
+      checked: !!el.checked,
       visible: r.width > 0 && r.height > 0,
+      rect: { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) },
     }
   }
 
@@ -93,18 +93,18 @@
       }
 
       frames.push({
-        contentUrl,
-        id: node.id || '',
         index: i,
+        id: node.id || '',
         name: node.name || '',
+        title: node.getAttribute('title') || '',
+        src: node.getAttribute('src') || '',
+        contentUrl,
         rect: {
-          h: Math.round(r.height),
-          w: Math.round(r.width),
           x: Math.round(r.left),
           y: Math.round(r.top),
+          w: Math.round(r.width),
+          h: Math.round(r.height),
         },
-        src: node.getAttribute('src') || '',
-        title: node.getAttribute('title') || '',
       })
     }
 
@@ -135,14 +135,7 @@
   // ---- Core API (read-only) ----
 
   const __AIRI_DG__ = {
-    /**
-     * Describe direct child iframe/frame shells in the current document.
-     */
-    collectChildFrames() {
-      return {
-        childFrames: _collectChildFrames(),
-      }
-    },
+    version: '1.0-airi-dg',
 
     /**
      * Collect the DOM structure of the current frame.
@@ -153,12 +146,21 @@
       const includeText = opts.includeText !== false
       const maxElements = opts.maxElements || MAX_INTERACTIVE
       return {
-        bodyText: includeText ? (document.body?.textContent || '').slice(0, 3000) : '',
+        url: location.href,
+        title: document.title || '',
         frameName: window.name || '',
         frameOffsetInParent: _readFrameOffsetInParent(),
+        bodyText: includeText ? (document.body?.textContent || '').slice(0, 3000) : '',
         interactiveElements: _collectInteractiveElements(maxElements),
-        title: document.title || '',
-        url: location.href,
+      }
+    },
+
+    /**
+     * Describe direct child iframe/frame shells in the current document.
+     */
+    collectChildFrames() {
+      return {
+        childFrames: _collectChildFrames(),
       }
     },
 
@@ -169,11 +171,11 @@
       try {
         const el = document.querySelector(selector)
         if (!el)
-          return { error: 'not found', success: false }
-        return { element: _describeElement(el), success: true }
+          return { success: false, error: 'not found' }
+        return { success: true, element: _describeElement(el) }
       }
       catch (e) {
-        return { error: e.message, success: false }
+        return { success: false, error: e.message }
       }
     },
 
@@ -190,10 +192,10 @@
           if (d)
             results.push(d)
         }
-        return { elements: results, success: true }
+        return { success: true, elements: results }
       }
       catch (e) {
-        return { error: e.message, success: false }
+        return { success: false, error: e.message }
       }
     },
 
@@ -205,21 +207,86 @@
       try {
         const el = document.querySelector(selector)
         if (!el)
-          return { error: 'not found', success: false }
+          return { success: false, error: 'not found' }
         const r = el.getBoundingClientRect()
         return {
+          success: true,
+          element: _describeElement(el),
+          x: Math.round(r.left + r.width / 2),
+          y: Math.round(r.top + r.height / 2),
           center: {
             x: Math.round(r.left + r.width / 2),
             y: Math.round(r.top + r.height / 2),
           },
-          element: _describeElement(el),
-          success: true,
-          x: Math.round(r.left + r.width / 2),
-          y: Math.round(r.top + r.height / 2),
         }
       }
       catch (e) {
-        return { error: e.message, success: false }
+        return { success: false, error: e.message }
+      }
+    },
+
+    /**
+     * Get element attributes for debugging.
+     */
+    getElementAttributes(selector) {
+      try {
+        const el = document.querySelector(selector)
+        if (!el)
+          return { success: false, error: 'not found' }
+        const attrs = {}
+        for (const attr of el.attributes) {
+          attrs[attr.name] = attr.value
+        }
+        return { success: true, attributes: attrs }
+      }
+      catch (e) {
+        return { success: false, error: e.message }
+      }
+    },
+
+    /**
+     * Read the current value of an input, textarea, or select element.
+     * Returns value plus basic element metadata. Read-only: no DOM mutation.
+     */
+    readInputValue(selector) {
+      try {
+        const el = document.querySelector(selector)
+        if (!el)
+          return { success: false, error: 'not found' }
+
+        const tag = el.tagName.toLowerCase()
+        if (tag !== 'input' && tag !== 'textarea' && tag !== 'select')
+          return { success: false, error: 'element is not an input, textarea, or select' }
+
+        const type = typeof el.type === 'string' ? el.type : ''
+        const rawValue = String(el.value ?? '')
+        const isPassword = tag === 'input' && type.toLowerCase() === 'password'
+        const result = {
+          value: isPassword ? '[redacted]' : rawValue.slice(0, 60),
+          valueLength: rawValue.length,
+          valueRedacted: isPassword,
+          valueTruncated: !isPassword && rawValue.length > 60,
+          tag,
+          id: el.id || '',
+          name: el.name || '',
+          type,
+        }
+
+        if (tag === 'input' && (type === 'checkbox' || type === 'radio')) {
+          result.checked = !!el.checked
+        }
+
+        if (tag === 'select') {
+          result.selectedIndex = el.selectedIndex
+          result.selectedText = el.selectedIndex >= 0 && el.options[el.selectedIndex]
+            ? el.options[el.selectedIndex].text.slice(0, 120)
+            : ''
+        }
+
+        return { success: true, ...result }
+      }
+      catch (e) {
+        return { success: false, error: e.message }
       }
     },
 
@@ -250,7 +317,7 @@
       try {
         const el = document.querySelector(selector)
         if (!el)
-          return { error: 'not found', success: false }
+          return { success: false, error: 'not found' }
 
         const computed = window.getComputedStyle(el)
         const props = Array.isArray(properties) && properties.length > 0
@@ -262,79 +329,12 @@
           styles[prop] = computed.getPropertyValue(prop)
         }
 
-        return { styles, success: true }
+        return { success: true, styles }
       }
       catch (e) {
-        return { error: e.message, success: false }
+        return { success: false, error: e.message }
       }
     },
-
-    /**
-     * Get element attributes for debugging.
-     */
-    getElementAttributes(selector) {
-      try {
-        const el = document.querySelector(selector)
-        if (!el)
-          return { error: 'not found', success: false }
-        const attrs = {}
-        for (const attr of el.attributes) {
-          attrs[attr.name] = attr.value
-        }
-        return { attributes: attrs, success: true }
-      }
-      catch (e) {
-        return { error: e.message, success: false }
-      }
-    },
-
-    /**
-     * Read the current value of an input, textarea, or select element.
-     * Returns value plus basic element metadata. Read-only: no DOM mutation.
-     */
-    readInputValue(selector) {
-      try {
-        const el = document.querySelector(selector)
-        if (!el)
-          return { error: 'not found', success: false }
-
-        const tag = el.tagName.toLowerCase()
-        if (tag !== 'input' && tag !== 'textarea' && tag !== 'select')
-          return { error: 'element is not an input, textarea, or select', success: false }
-
-        const type = typeof el.type === 'string' ? el.type : ''
-        const rawValue = String(el.value ?? '')
-        const isPassword = tag === 'input' && type.toLowerCase() === 'password'
-        const result = {
-          id: el.id || '',
-          name: el.name || '',
-          tag,
-          type,
-          value: isPassword ? '[redacted]' : rawValue.slice(0, 60),
-          valueLength: rawValue.length,
-          valueRedacted: isPassword,
-          valueTruncated: !isPassword && rawValue.length > 60,
-        }
-
-        if (tag === 'input' && (type === 'checkbox' || type === 'radio')) {
-          result.checked = !!el.checked
-        }
-
-        if (tag === 'select') {
-          result.selectedIndex = el.selectedIndex
-          result.selectedText = el.selectedIndex >= 0 && el.options[el.selectedIndex]
-            ? el.options[el.selectedIndex].text.slice(0, 120)
-            : ''
-        }
-
-        return { success: true, ...result }
-      }
-      catch (e) {
-        return { error: e.message, success: false }
-      }
-    },
-
-    version: '1.0-airi-dg',
   }
 
   window.__AIRI_DG__ = __AIRI_DG__
@@ -347,22 +347,22 @@
     if (!data || data.type !== '__CU_CALL__')
       return
 
-    const { args, method, reqId } = data
+    const { reqId, method, args } = data
     const fn = __AIRI_DG__[method]
     let result
 
     if (typeof fn === 'function') {
       try {
-        result = { data: fn.apply(__AIRI_DG__, args || []), success: true }
+        result = { success: true, data: fn.apply(__AIRI_DG__, args || []) }
       }
       catch (e) {
-        result = { error: e.message || String(e), success: false }
+        result = { success: false, error: e.message || String(e) }
       }
     }
     else {
-      result = { error: `unknown method: ${method}`, success: false }
+      result = { success: false, error: `unknown method: ${method}` }
     }
 
-    window.postMessage({ reqId, result, type: '__CU_REPLY__' }, '*')
+    window.postMessage({ type: '__CU_REPLY__', reqId, result }, '*')
   })
 })()

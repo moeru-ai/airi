@@ -13,9 +13,9 @@ import {
 
 describe('filterTranscriptionByConfidence', () => {
   const segments = [
-    { avg_logprob: -0.3, text: 'Hello ' },
-    { avg_logprob: -1.2, text: 'world ' },
-    { avg_logprob: -2.5, text: 'gibberish' },
+    { text: 'Hello ', avg_logprob: -0.3 },
+    { text: 'world ', avg_logprob: -1.2 },
+    { text: 'gibberish', avg_logprob: -2.5 },
   ]
 
   it('keeps all segments when threshold is very low', () => {
@@ -35,7 +35,7 @@ describe('filterTranscriptionByConfidence', () => {
   })
 
   it('trims whitespace from result', () => {
-    expect(filterTranscriptionByConfidence([{ avg_logprob: -0.5, text: '  hello  ' }], -1)).toBe('hello')
+    expect(filterTranscriptionByConfidence([{ text: '  hello  ', avg_logprob: -0.5 }], -1)).toBe('hello')
   })
 })
 

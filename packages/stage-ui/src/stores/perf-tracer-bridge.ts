@@ -5,29 +5,29 @@ import { useBroadcastChannel } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { watch } from 'vue'
 
-type PerfTracerMessage = PerfTracerMessageDisable | PerfTracerMessageEnable | PerfTracerMessageEvent
-interface PerfTracerMessageDisable {
-  origin: string
-  token?: string
-  type: 'disable'
-}
+type PerfTracerMode = 'forward' | 'receive'
+type PerfTracerState = 'idle' | PerfTracerMode
 
 interface PerfTracerMessageEnable {
-  mode?: PerfTracerMode
-  origin: string
-  token?: string
   type: 'enable'
+  token?: string
+  origin: string
+  mode?: PerfTracerMode
+}
+
+interface PerfTracerMessageDisable {
+  type: 'disable'
+  token?: string
+  origin: string
 }
 
 interface PerfTracerMessageEvent {
+  type: 'event'
   event: TraceEvent
   origin: string
-  type: 'event'
 }
 
-type PerfTracerMode = 'forward' | 'receive'
-
-type PerfTracerState = 'idle' | PerfTracerMode
+type PerfTracerMessage = PerfTracerMessageEnable | PerfTracerMessageDisable | PerfTracerMessageEvent
 
 const PERF_TRACER_CHANNEL = 'airi-perf-tracer'
 const RELAY_META_KEY = '__perfTracerRelayedFrom'
@@ -36,7 +36,7 @@ const FORWARDED_TRACERS = new Set(['chat', 'markdown'])
 
 export const usePerfTracerBridgeStore = defineStore('perfTracerBridge', () => {
   const instanceId = Math.random().toString(36).slice(2, 10)
-  const { data, post } = useBroadcastChannel<PerfTracerMessage, PerfTracerMessage>({ name: PERF_TRACER_CHANNEL })
+  const { post, data } = useBroadcastChannel<PerfTracerMessage, PerfTracerMessage>({ name: PERF_TRACER_CHANNEL })
 
   let release: (() => void) | undefined
   let unsubscribe: (() => void) | undefined
@@ -62,12 +62,12 @@ export const usePerfTracerBridgeStore = defineStore('perfTracerBridge', () => {
       if (event.meta?.[RELAY_META_KEY])
         return
       post({
+        type: 'event',
         event: {
           ...event,
           meta: { ...event.meta, [RELAY_META_KEY]: instanceId },
         },
         origin: instanceId,
-        type: 'event',
       })
     }, { label: 'perf-bridge' })
   }
@@ -124,19 +124,19 @@ export const usePerfTracerBridgeStore = defineStore('perfTracerBridge', () => {
   function requestEnable(token?: string, mode: PerfTracerMode = 'forward', localState: PerfTracerState = mode) {
     const tokenToUse = token ?? BRIDGE_TOKEN
     transition(localState, tokenToUse)
-    post({ mode, origin: instanceId, token: tokenToUse, type: 'enable' })
+    post({ type: 'enable', token: tokenToUse, origin: instanceId, mode })
   }
 
   function requestDisable(token?: string) {
     transition('idle')
-    post({ origin: instanceId, token: token ?? BRIDGE_TOKEN, type: 'disable' })
+    post({ type: 'disable', token: token ?? BRIDGE_TOKEN, origin: instanceId })
   }
 
   return {
-    disableLocal,
-    enableLocal,
-    requestDisable,
     requestEnable,
+    requestDisable,
+    enableLocal,
+    disableLocal,
     startForwarding,
     stopForwarding,
   }

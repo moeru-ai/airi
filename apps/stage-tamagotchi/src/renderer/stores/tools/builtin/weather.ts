@@ -20,9 +20,9 @@ async function executeGetWeather(input: { city: string }): Promise<string> {
 
   await executeWidgetAction({
     action: 'spawn',
+    id: `weather-${weather.city.toLowerCase().replace(/\s+/g, '-')}`,
     componentName: 'weather',
     componentProps: weather,
-    id: `weather-${weather.city.toLowerCase().replace(/\s+/g, '-')}`,
     size: 'm',
     ttlSeconds: 60,
   })
@@ -32,9 +32,9 @@ async function executeGetWeather(input: { city: string }): Promise<string> {
 
 const tools: Promise<Tool>[] = [
   tool({
+    name: 'get_weather',
     description: 'Get current weather for a city and display it as an overlay widget. Returns weather summary text.',
     execute: executeGetWeather,
-    name: 'get_weather',
     parameters: weatherParams,
   }),
 ]

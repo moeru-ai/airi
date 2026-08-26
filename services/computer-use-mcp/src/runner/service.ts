@@ -44,136 +44,82 @@ const WHITESPACE_SPLIT_RE = /\s+/
 const TRAILING_SLASH_RE = /\/$/
 const DUPLICATE_SLASH_RE = /\/{2,}/g
 
+async function sleep(durationMs: number) {
+  await new Promise(resolve => setTimeout(resolve, durationMs))
+}
+
+function toExecutionTarget(params: {
+  hostName: string
+  displayId?: string
+  sessionTag?: string
+  tainted?: boolean
+  note?: string
+}): ExecutionTarget {
+  return {
+    mode: 'remote',
+    transport: 'ssh-stdio',
+    hostName: params.hostName,
+    displayId: params.displayId,
+    sessionTag: params.sessionTag,
+    isolated: true,
+    tainted: params.tainted ?? false,
+    note: params.note,
+  }
+}
+
+function mapButton(button: ClickActionInput['button']) {
+  switch (button) {
+    case 'right':
+      return '3'
+    case 'middle':
+      return '2'
+    default:
+      return '1'
+  }
+}
+
+function normalizeKey(key: string) {
+  switch (key.trim().toLowerCase()) {
+    case 'cmd':
+    case 'command':
+      return 'Super_L'
+    case 'ctrl':
+    case 'control':
+      return 'Control_L'
+    case 'alt':
+    case 'option':
+      return 'Alt_L'
+    case 'shift':
+      return 'Shift_L'
+    case 'enter':
+      return 'Return'
+    case 'esc':
+      return 'Escape'
+    case 'space':
+      return 'space'
+    default:
+      return key.trim()
+  }
+}
+
 export class LinuxX11RunnerService {
-  private displayId?: string
-  private displaySize?: DisplaySize
   private initialized = false
+  private displayId?: string
   private observationBaseUrl?: URL
   private observationPublicDir?: string
-  private observationServePort?: number
   private observationServer?: Server
+  private observationServePort?: number
   private observationToken?: string
-  private openboxPid?: number
+  private xAuthorityPath?: string
   private runtimeDir?: string
+  private openboxPid?: number
+  private xvfbPid?: number
   private sessionTag?: string
+  private displaySize?: DisplaySize
   private target: ExecutionTarget = toExecutionTarget({
     hostName: platform === 'linux' ? 'unknown-linux-runner' : 'unknown-runner',
     tainted: false,
   })
-
-  private xAuthorityPath?: string
-  private xvfbPid?: number
-
-  async click(input: ClickActionInput & { pointerTrace: PointerTracePoint[] }): Promise<RunnerActionResult> {
-    await this.ensureReady()
-
-    for (const point of input.pointerTrace) {
-      await this.movePointer(point.x, point.y)
-      await sleep(point.delayMs)
-    }
-
-    await runProcess('xdotool', ['click', '--repeat', String(input.clickCount ?? 1), mapButton(input.button)], {
-      env: this.getX11Env(),
-      timeoutMs: 5_000,
-    })
-
-    return {
-      backend: 'linux-x11',
-      executionTarget: this.requireExecutionTarget(),
-      notes: [`clicked ${input.x},${input.y} in ${this.displayId}`],
-      performed: true,
-      pointerTrace: input.pointerTrace,
-    }
-  }
-
-  async getDisplayInfo(): Promise<DisplayInfo> {
-    await this.ensureReady()
-    return {
-      available: true,
-      isRetina: false,
-      logicalHeight: this.displaySize?.height,
-      logicalWidth: this.displaySize?.width,
-      note: `managed virtual X session ${this.displayId}`,
-      pixelHeight: this.displaySize?.height,
-      pixelWidth: this.displaySize?.width,
-      platform: 'linux',
-      scaleFactor: 1,
-    }
-  }
-
-  async getExecutionTarget() {
-    return this.requireExecutionTarget()
-  }
-
-  async getForegroundContext(): Promise<ForegroundContext> {
-    await this.ensureReady()
-
-    try {
-      const { stdout } = await runProcess('xprop', ['-root', '_NET_ACTIVE_WINDOW'], {
-        env: this.getX11Env(),
-        timeoutMs: 5_000,
-      })
-      const match = stdout.match(ACTIVE_WINDOW_ID_RE)
-      if (!match || match[1] === '0x0') {
-        return {
-          available: false,
-          platform: 'linux',
-          unavailableReason: 'no active window in managed X session',
-        }
-      }
-
-      const windowId = match[1]
-      const [titleResult, classResult] = await Promise.all([
-        runProcess('xprop', ['-id', windowId, '_NET_WM_NAME'], {
-          env: this.getX11Env(),
-          timeoutMs: 5_000,
-        }).catch(() => ({ stderr: '', stdout: '' })),
-        runProcess('xprop', ['-id', windowId, 'WM_CLASS'], {
-          env: this.getX11Env(),
-          timeoutMs: 5_000,
-        }).catch(() => ({ stderr: '', stdout: '' })),
-      ])
-
-      const title = titleResult.stdout.match(XPROP_TITLE_RE)?.[1]
-      const classes = classResult.stdout.match(XPROP_CLASS_RE)
-
-      return {
-        appName: classes?.[2] || classes?.[1] || undefined,
-        available: true,
-        platform: 'linux',
-        windowTitle: title || undefined,
-      }
-    }
-    catch (error) {
-      return {
-        available: false,
-        platform: 'linux',
-        unavailableReason: errorMessageFromValue(error),
-      }
-    }
-  }
-
-  async getPermissionInfo(): Promise<PermissionInfo> {
-    await this.ensureReady()
-
-    return {
-      accessibility: {
-        note: 'linux-x11 runner does not rely on accessibility APIs',
-        status: 'unsupported',
-        target: `${this.displayId} linux-x11 session`,
-      },
-      automationToSystemEvents: {
-        note: 'linux-x11 runner does not use System Events',
-        status: 'unsupported',
-        target: `${this.displayId} linux-x11 session`,
-      },
-      screenRecording: {
-        checkedBy: 'scrot',
-        status: 'granted',
-        target: `${this.displayId} via scrot`,
-      },
-    }
-  }
 
   async initialize(params: RunnerInitializeParams): Promise<RunnerInitializeResult> {
     if (platform !== 'linux') {
@@ -186,8 +132,8 @@ export class LinuxX11RunnerService {
       }
 
       return {
-        displayInfo: await this.getDisplayInfo(),
         executionTarget: this.requireExecutionTarget(),
+        displayInfo: await this.getDisplayInfo(),
         permissionInfo: await this.getPermissionInfo(),
       }
     }
@@ -211,56 +157,187 @@ export class LinuxX11RunnerService {
     await this.startObservationServer()
 
     this.target = toExecutionTarget({
-      displayId: this.displayId,
       hostName: await this.getHostName(),
+      displayId: this.displayId,
       sessionTag: this.sessionTag,
       tainted: false,
     })
     this.initialized = true
 
     return {
-      displayInfo: await this.getDisplayInfo(),
       executionTarget: this.requireExecutionTarget(),
+      displayInfo: await this.getDisplayInfo(),
       permissionInfo: await this.getPermissionInfo(),
     }
   }
 
-  async openTestTarget(): Promise<RunnerOpenTestTargetResult> {
+  async shutdown() {
+    await this.stopObservationServer()
+    await this.killProcess(this.openboxPid)
+    await this.killProcess(this.xvfbPid)
+    if (this.runtimeDir) {
+      await rm(this.runtimeDir, { recursive: true, force: true })
+    }
+    this.initialized = false
+  }
+
+  async getExecutionTarget() {
+    return this.requireExecutionTarget()
+  }
+
+  async getDisplayInfo(): Promise<DisplayInfo> {
+    await this.ensureReady()
+    return {
+      available: true,
+      platform: 'linux',
+      logicalWidth: this.displaySize?.width,
+      logicalHeight: this.displaySize?.height,
+      pixelWidth: this.displaySize?.width,
+      pixelHeight: this.displaySize?.height,
+      scaleFactor: 1,
+      isRetina: false,
+      note: `managed virtual X session ${this.displayId}`,
+    }
+  }
+
+  async getForegroundContext(): Promise<ForegroundContext> {
     await this.ensureReady()
 
-    const child = spawn('mousepad', ['--disable-server'], {
-      detached: false,
-      env: this.getX11Env(),
-      stdio: 'ignore',
-    })
+    try {
+      const { stdout } = await runProcess('xprop', ['-root', '_NET_ACTIVE_WINDOW'], {
+        timeoutMs: 5_000,
+        env: this.getX11Env(),
+      })
+      const match = stdout.match(ACTIVE_WINDOW_ID_RE)
+      if (!match || match[1] === '0x0') {
+        return {
+          available: false,
+          platform: 'linux',
+          unavailableReason: 'no active window in managed X session',
+        }
+      }
 
-    const windowId = await this.waitForWindow(child.pid)
-    await runProcess('wmctrl', ['-i', '-r', windowId, '-e', '0,80,40,1000,620'], {
-      env: this.getX11Env(),
-      timeoutMs: 5_000,
-    }).catch(() => {})
-    await runProcess('wmctrl', ['-i', '-a', windowId], {
-      env: this.getX11Env(),
-      timeoutMs: 5_000,
-    }).catch(() => {})
-    // NOTICE: xdotool --sync can hang under Xvfb/openbox when the target window
-    // is already focused or a pointer move is effectively a no-op. Keep activation
-    // best-effort and rely on a short settle delay instead of sync waits.
-    await runProcess('xdotool', ['windowactivate', windowId], {
-      env: this.getX11Env(),
-      timeoutMs: 5_000,
-    }).catch(() => {})
-    await sleep(100)
+      const windowId = match[1]
+      const [titleResult, classResult] = await Promise.all([
+        runProcess('xprop', ['-id', windowId, '_NET_WM_NAME'], {
+          timeoutMs: 5_000,
+          env: this.getX11Env(),
+        }).catch(() => ({ stdout: '', stderr: '' })),
+        runProcess('xprop', ['-id', windowId, 'WM_CLASS'], {
+          timeoutMs: 5_000,
+          env: this.getX11Env(),
+        }).catch(() => ({ stdout: '', stderr: '' })),
+      ])
+
+      const title = titleResult.stdout.match(XPROP_TITLE_RE)?.[1]
+      const classes = classResult.stdout.match(XPROP_CLASS_RE)
+
+      return {
+        available: true,
+        appName: classes?.[2] || classes?.[1] || undefined,
+        windowTitle: title || undefined,
+        platform: 'linux',
+      }
+    }
+    catch (error) {
+      return {
+        available: false,
+        platform: 'linux',
+        unavailableReason: errorMessageFromValue(error),
+      }
+    }
+  }
+
+  async getPermissionInfo(): Promise<PermissionInfo> {
+    await this.ensureReady()
 
     return {
-      appName: 'mousepad',
-      executionTarget: this.requireExecutionTarget(),
-      launched: true,
-      recommendedClickPoint: {
-        x: 180,
-        y: 150,
+      screenRecording: {
+        status: 'granted',
+        target: `${this.displayId} via scrot`,
+        checkedBy: 'scrot',
       },
-      windowTitle: 'Mousepad',
+      accessibility: {
+        status: 'unsupported',
+        target: `${this.displayId} linux-x11 session`,
+        note: 'linux-x11 runner does not rely on accessibility APIs',
+      },
+      automationToSystemEvents: {
+        status: 'unsupported',
+        target: `${this.displayId} linux-x11 session`,
+        note: 'linux-x11 runner does not use System Events',
+      },
+    }
+  }
+
+  async takeScreenshot(params: { label?: string }): Promise<RunnerScreenshotResult> {
+    await this.ensureReady()
+
+    const fileName = this.observationBaseUrl
+      ? `${Date.now()}-${randomBytes(8).toString('hex')}-${sanitizeFileSegment(params.label, 'desktop')}.png`
+      : `${Date.now()}-${sanitizeFileSegment(params.label, 'desktop')}.png`
+    const outputPath = join(this.observationPublicDir || this.runtimeDir!, fileName)
+    await runProcess('scrot', ['-z', '-q', '100', outputPath], {
+      timeoutMs: 10_000,
+      env: this.getX11Env(),
+    })
+
+    const buffer = await readFile(outputPath)
+    if (!this.observationBaseUrl) {
+      await rm(outputPath, { force: true })
+    }
+
+    return {
+      dataBase64: buffer.toString('base64'),
+      mimeType: 'image/png',
+      publicUrl: this.buildObservationPublicUrl(fileName),
+      width: this.displaySize?.width,
+      height: this.displaySize?.height,
+      executionTarget: this.requireExecutionTarget(),
+    }
+  }
+
+  async click(input: ClickActionInput & { pointerTrace: PointerTracePoint[] }): Promise<RunnerActionResult> {
+    await this.ensureReady()
+
+    for (const point of input.pointerTrace) {
+      await this.movePointer(point.x, point.y)
+      await sleep(point.delayMs)
+    }
+
+    await runProcess('xdotool', ['click', '--repeat', String(input.clickCount ?? 1), mapButton(input.button)], {
+      timeoutMs: 5_000,
+      env: this.getX11Env(),
+    })
+
+    return {
+      performed: true,
+      backend: 'linux-x11',
+      notes: [`clicked ${input.x},${input.y} in ${this.displayId}`],
+      pointerTrace: input.pointerTrace,
+      executionTarget: this.requireExecutionTarget(),
+    }
+  }
+
+  async typeText(input: TypeTextActionInput): Promise<RunnerActionResult> {
+    await this.ensureReady()
+
+    await runProcess('xdotool', ['type', '--delay', '15', '--clearmodifiers', '--', input.text], {
+      timeoutMs: 10_000,
+      env: this.getX11Env(),
+    })
+    if (input.pressEnter) {
+      await runProcess('xdotool', ['key', '--clearmodifiers', 'Return'], {
+        timeoutMs: 5_000,
+        env: this.getX11Env(),
+      })
+    }
+
+    return {
+      performed: true,
+      backend: 'linux-x11',
+      notes: ['typed text in managed X session'],
+      executionTarget: this.requireExecutionTarget(),
     }
   }
 
@@ -269,15 +346,15 @@ export class LinuxX11RunnerService {
 
     const chord = input.keys.map(normalizeKey).join('+')
     await runProcess('xdotool', ['key', '--clearmodifiers', chord], {
-      env: this.getX11Env(),
       timeoutMs: 5_000,
+      env: this.getX11Env(),
     })
 
     return {
-      backend: 'linux-x11',
-      executionTarget: this.requireExecutionTarget(),
-      notes: [`pressed key chord ${chord}`],
       performed: true,
+      backend: 'linux-x11',
+      notes: [`pressed key chord ${chord}`],
+      executionTarget: this.requireExecutionTarget(),
     }
   }
 
@@ -292,8 +369,8 @@ export class LinuxX11RunnerService {
     const verticalButton = input.deltaY < 0 ? '4' : '5'
     for (let index = 0; index < verticalSteps; index += 1) {
       await runProcess('xdotool', ['click', verticalButton], {
-        env: this.getX11Env(),
         timeoutMs: 5_000,
+        env: this.getX11Env(),
       })
     }
 
@@ -302,76 +379,17 @@ export class LinuxX11RunnerService {
       const horizontalButton = input.deltaX < 0 ? '6' : '7'
       for (let index = 0; index < horizontalSteps; index += 1) {
         await runProcess('xdotool', ['click', horizontalButton], {
-          env: this.getX11Env(),
           timeoutMs: 5_000,
+          env: this.getX11Env(),
         })
       }
     }
 
     return {
+      performed: true,
       backend: 'linux-x11',
-      executionTarget: this.requireExecutionTarget(),
       notes: ['scrolled in managed X session'],
-      performed: true,
-    }
-  }
-
-  async shutdown() {
-    await this.stopObservationServer()
-    await this.killProcess(this.openboxPid)
-    await this.killProcess(this.xvfbPid)
-    if (this.runtimeDir) {
-      await rm(this.runtimeDir, { force: true, recursive: true })
-    }
-    this.initialized = false
-  }
-
-  async takeScreenshot(params: { label?: string }): Promise<RunnerScreenshotResult> {
-    await this.ensureReady()
-
-    const fileName = this.observationBaseUrl
-      ? `${Date.now()}-${randomBytes(8).toString('hex')}-${sanitizeFileSegment(params.label, 'desktop')}.png`
-      : `${Date.now()}-${sanitizeFileSegment(params.label, 'desktop')}.png`
-    const outputPath = join(this.observationPublicDir || this.runtimeDir!, fileName)
-    await runProcess('scrot', ['-z', '-q', '100', outputPath], {
-      env: this.getX11Env(),
-      timeoutMs: 10_000,
-    })
-
-    const buffer = await readFile(outputPath)
-    if (!this.observationBaseUrl) {
-      await rm(outputPath, { force: true })
-    }
-
-    return {
-      dataBase64: buffer.toString('base64'),
       executionTarget: this.requireExecutionTarget(),
-      height: this.displaySize?.height,
-      mimeType: 'image/png',
-      publicUrl: this.buildObservationPublicUrl(fileName),
-      width: this.displaySize?.width,
-    }
-  }
-
-  async typeText(input: TypeTextActionInput): Promise<RunnerActionResult> {
-    await this.ensureReady()
-
-    await runProcess('xdotool', ['type', '--delay', '15', '--clearmodifiers', '--', input.text], {
-      env: this.getX11Env(),
-      timeoutMs: 10_000,
-    })
-    if (input.pressEnter) {
-      await runProcess('xdotool', ['key', '--clearmodifiers', 'Return'], {
-        env: this.getX11Env(),
-        timeoutMs: 5_000,
-      })
-    }
-
-    return {
-      backend: 'linux-x11',
-      executionTarget: this.requireExecutionTarget(),
-      notes: ['typed text in managed X session'],
-      performed: true,
     }
   }
 
@@ -380,36 +398,50 @@ export class LinuxX11RunnerService {
     await sleep(Math.max(input.durationMs, 0))
 
     return {
-      backend: 'linux-x11',
-      executionTarget: this.requireExecutionTarget(),
-      notes: ['waited in managed X session'],
       performed: true,
+      backend: 'linux-x11',
+      notes: ['waited in managed X session'],
+      executionTarget: this.requireExecutionTarget(),
     }
   }
 
-  private async allocateDisplayId() {
-    for (let displayNumber = sessionDisplayStart; displayNumber <= sessionDisplayEnd; displayNumber += 1) {
-      const displayId = `:${displayNumber}`
-      const available = await runProcess('xdpyinfo', ['-display', displayId], {
-        env: this.getX11Env(displayId),
-        timeoutMs: 1_500,
-      }).then(() => false).catch(() => true)
+  async openTestTarget(): Promise<RunnerOpenTestTargetResult> {
+    await this.ensureReady()
 
-      if (available)
-        return displayId
+    const child = spawn('mousepad', ['--disable-server'], {
+      env: this.getX11Env(),
+      stdio: 'ignore',
+      detached: false,
+    })
+
+    const windowId = await this.waitForWindow(child.pid)
+    await runProcess('wmctrl', ['-i', '-r', windowId, '-e', '0,80,40,1000,620'], {
+      timeoutMs: 5_000,
+      env: this.getX11Env(),
+    }).catch(() => {})
+    await runProcess('wmctrl', ['-i', '-a', windowId], {
+      timeoutMs: 5_000,
+      env: this.getX11Env(),
+    }).catch(() => {})
+    // NOTICE: xdotool --sync can hang under Xvfb/openbox when the target window
+    // is already focused or a pointer move is effectively a no-op. Keep activation
+    // best-effort and rely on a short settle delay instead of sync waits.
+    await runProcess('xdotool', ['windowactivate', windowId], {
+      timeoutMs: 5_000,
+      env: this.getX11Env(),
+    }).catch(() => {})
+    await sleep(100)
+
+    return {
+      launched: true,
+      appName: 'mousepad',
+      windowTitle: 'Mousepad',
+      recommendedClickPoint: {
+        x: 180,
+        y: 150,
+      },
+      executionTarget: this.requireExecutionTarget(),
     }
-
-    throw new Error(`unable to allocate a free X display between :${sessionDisplayStart} and :${sessionDisplayEnd}`)
-  }
-
-  private buildObservationPublicUrl(fileName: string) {
-    if (!this.observationBaseUrl || !this.observationToken) {
-      return undefined
-    }
-
-    const basePath = this.getObservationBasePath()
-    const pathName = `${basePath}/${this.observationToken}/${fileName}`.replace(DUPLICATE_SLASH_RE, '/')
-    return new URL(pathName, this.observationBaseUrl).toString()
   }
 
   private async ensureDependencies() {
@@ -422,33 +454,19 @@ export class LinuxX11RunnerService {
     }
   }
 
-  private async ensureReady() {
-    if (!this.initialized) {
-      throw new Error('linux-x11 runner is not initialized')
-    }
-  }
+  private async allocateDisplayId() {
+    for (let displayNumber = sessionDisplayStart; displayNumber <= sessionDisplayEnd; displayNumber += 1) {
+      const displayId = `:${displayNumber}`
+      const available = await runProcess('xdpyinfo', ['-display', displayId], {
+        timeoutMs: 1_500,
+        env: this.getX11Env(displayId),
+      }).then(() => false).catch(() => true)
 
-  private async getHostName() {
-    const { stdout } = await runProcess('hostname', [], {
-      timeoutMs: 5_000,
-    })
-    return stdout.trim() || homedir()
-  }
-
-  private getObservationBasePath() {
-    if (!this.observationBaseUrl) {
-      return ''
+      if (available)
+        return displayId
     }
 
-    return this.observationBaseUrl.pathname.replace(TRAILING_SLASH_RE, '')
-  }
-
-  private getX11Env(displayOverride?: string) {
-    return {
-      ...process.env,
-      DISPLAY: displayOverride || this.displayId,
-      XAUTHORITY: this.xAuthorityPath,
-    }
+    throw new Error(`unable to allocate a free X display between :${sessionDisplayStart} and :${sessionDisplayEnd}`)
   }
 
   private async initializeXAuthority() {
@@ -456,6 +474,74 @@ export class LinuxX11RunnerService {
     await runProcess('xauth', ['-f', this.xAuthorityPath!, 'add', this.displayId!, '.', cookie], {
       timeoutMs: 5_000,
     })
+  }
+
+  private async startXvfb() {
+    const child = spawn('Xvfb', [
+      this.displayId!,
+      '-screen',
+      '0',
+      `${this.displaySize!.width}x${this.displaySize!.height}x24`,
+      '-nolisten',
+      'tcp',
+      '-auth',
+      this.xAuthorityPath!,
+    ], {
+      env: this.getX11Env(),
+      stdio: 'ignore',
+    })
+
+    this.xvfbPid = child.pid
+  }
+
+  private async startOpenbox() {
+    const child = spawn('openbox', [], {
+      env: this.getX11Env(),
+      stdio: 'ignore',
+    })
+
+    this.openboxPid = child.pid
+  }
+
+  private async waitForDisplay() {
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      const ready = await runProcess('xdpyinfo', ['-display', this.displayId!], {
+        timeoutMs: 1_500,
+        env: this.getX11Env(),
+      }).then(() => true).catch(() => false)
+
+      if (ready)
+        return
+
+      await sleep(200)
+    }
+
+    throw new Error(`timed out waiting for virtual display ${this.displayId}`)
+  }
+
+  private async waitForWindow(pid?: number) {
+    if (!pid) {
+      throw new Error('test target did not provide a process id')
+    }
+
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const { stdout } = await runProcess('wmctrl', ['-lp'], {
+        timeoutMs: 5_000,
+        env: this.getX11Env(),
+      }).catch(() => ({ stdout: '', stderr: '' }))
+
+      const match = stdout.split(CRLF_SPLIT_RE).find((line) => {
+        return line.trim().split(WHITESPACE_SPLIT_RE)[2] === String(pid)
+      })
+
+      if (match) {
+        return match.trim().split(WHITESPACE_SPLIT_RE)[0]
+      }
+
+      await sleep(250)
+    }
+
+    throw new Error('timed out waiting for the mousepad window')
   }
 
   private async killProcess(pid?: number) {
@@ -467,14 +553,11 @@ export class LinuxX11RunnerService {
     }).catch(() => {})
   }
 
-  private async movePointer(x: number, y: number) {
-    // NOTICE: repeated clicks at the same coordinate are a normal computer-use flow.
-    // `xdotool mousemove --sync` waits for an actual pointer movement and can block
-    // forever when the pointer is already at the requested position under Xvfb/openbox.
-    await runProcess('xdotool', ['mousemove', String(x), String(y)], {
-      env: this.getX11Env(),
+  private async getHostName() {
+    const { stdout } = await runProcess('hostname', [], {
       timeoutMs: 5_000,
     })
+    return stdout.trim() || homedir()
   }
 
   private requireExecutionTarget() {
@@ -484,9 +567,15 @@ export class LinuxX11RunnerService {
 
     return {
       ...this.target,
-      displayId: this.displayId,
       hostName: this.target.hostName,
+      displayId: this.displayId,
       sessionTag: this.sessionTag,
+    }
+  }
+
+  private async ensureReady() {
+    if (!this.initialized) {
+      throw new Error('linux-x11 runner is not initialized')
     }
   }
 
@@ -552,33 +641,6 @@ export class LinuxX11RunnerService {
     })
   }
 
-  private async startOpenbox() {
-    const child = spawn('openbox', [], {
-      env: this.getX11Env(),
-      stdio: 'ignore',
-    })
-
-    this.openboxPid = child.pid
-  }
-
-  private async startXvfb() {
-    const child = spawn('Xvfb', [
-      this.displayId!,
-      '-screen',
-      '0',
-      `${this.displaySize!.width}x${this.displaySize!.height}x24`,
-      '-nolisten',
-      'tcp',
-      '-auth',
-      this.xAuthorityPath!,
-    ], {
-      env: this.getX11Env(),
-      stdio: 'ignore',
-    })
-
-    this.xvfbPid = child.pid
-  }
-
   private async stopObservationServer() {
     if (!this.observationServer) {
       return
@@ -591,102 +653,39 @@ export class LinuxX11RunnerService {
     })
   }
 
-  private async waitForDisplay() {
-    for (let attempt = 0; attempt < 30; attempt += 1) {
-      const ready = await runProcess('xdpyinfo', ['-display', this.displayId!], {
-        env: this.getX11Env(),
-        timeoutMs: 1_500,
-      }).then(() => true).catch(() => false)
-
-      if (ready)
-        return
-
-      await sleep(200)
+  private getObservationBasePath() {
+    if (!this.observationBaseUrl) {
+      return ''
     }
 
-    throw new Error(`timed out waiting for virtual display ${this.displayId}`)
+    return this.observationBaseUrl.pathname.replace(TRAILING_SLASH_RE, '')
   }
 
-  private async waitForWindow(pid?: number) {
-    if (!pid) {
-      throw new Error('test target did not provide a process id')
+  private buildObservationPublicUrl(fileName: string) {
+    if (!this.observationBaseUrl || !this.observationToken) {
+      return undefined
     }
 
-    for (let attempt = 0; attempt < 40; attempt += 1) {
-      const { stdout } = await runProcess('wmctrl', ['-lp'], {
-        env: this.getX11Env(),
-        timeoutMs: 5_000,
-      }).catch(() => ({ stderr: '', stdout: '' }))
+    const basePath = this.getObservationBasePath()
+    const pathName = `${basePath}/${this.observationToken}/${fileName}`.replace(DUPLICATE_SLASH_RE, '/')
+    return new URL(pathName, this.observationBaseUrl).toString()
+  }
 
-      const match = stdout.split(CRLF_SPLIT_RE).find((line) => {
-        return line.trim().split(WHITESPACE_SPLIT_RE)[2] === String(pid)
-      })
-
-      if (match) {
-        return match.trim().split(WHITESPACE_SPLIT_RE)[0]
-      }
-
-      await sleep(250)
+  private getX11Env(displayOverride?: string) {
+    return {
+      ...process.env,
+      DISPLAY: displayOverride || this.displayId,
+      XAUTHORITY: this.xAuthorityPath,
     }
-
-    throw new Error('timed out waiting for the mousepad window')
   }
-}
 
-function mapButton(button: ClickActionInput['button']) {
-  switch (button) {
-    case 'middle':
-      return '2'
-    case 'right':
-      return '3'
-    default:
-      return '1'
-  }
-}
-
-function normalizeKey(key: string) {
-  switch (key.trim().toLowerCase()) {
-    case 'alt':
-    case 'option':
-      return 'Alt_L'
-    case 'cmd':
-    case 'command':
-      return 'Super_L'
-    case 'control':
-    case 'ctrl':
-      return 'Control_L'
-    case 'enter':
-      return 'Return'
-    case 'esc':
-      return 'Escape'
-    case 'shift':
-      return 'Shift_L'
-    case 'space':
-      return 'space'
-    default:
-      return key.trim()
-  }
-}
-
-async function sleep(durationMs: number) {
-  await new Promise(resolve => setTimeout(resolve, durationMs))
-}
-
-function toExecutionTarget(params: {
-  displayId?: string
-  hostName: string
-  note?: string
-  sessionTag?: string
-  tainted?: boolean
-}): ExecutionTarget {
-  return {
-    displayId: params.displayId,
-    hostName: params.hostName,
-    isolated: true,
-    mode: 'remote',
-    note: params.note,
-    sessionTag: params.sessionTag,
-    tainted: params.tainted ?? false,
-    transport: 'ssh-stdio',
+  private async movePointer(x: number, y: number) {
+    // NOTICE: repeated clicks at the same coordinate are a normal computer-use flow.
+    // `xdotool mousemove --sync` waits for an actual pointer movement and can block
+    // forever when the pointer is already at the requested position under Xvfb/openbox.
+    await runProcess('xdotool', ['mousemove', String(x), String(y)], {
+      timeoutMs: 5_000,
+      env: this.getX11Env(),
+    })
   }
 }

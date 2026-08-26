@@ -16,20 +16,20 @@ import { computed, reactive } from 'vue'
 // ---------------------------------------------------------------------------
 
 export type InferenceModelState
-  = | 'compiling'
+  = | 'idle'
     | 'downloading'
-    | 'error'
-    | 'idle'
+    | 'compiling'
+    | 'warming-up'
     | 'ready'
     | 'running'
-    | 'warming-up'
+    | 'error'
 
 export interface InferenceModelStatus {
-  device: 'cpu' | 'unknown' | 'wasm' | 'webgpu'
-  error?: ErrorPayload
   modelId: string
-  progress?: ProgressPayload
   state: InferenceModelState
+  progress?: ProgressPayload
+  error?: ErrorPayload
+  device: 'webgpu' | 'wasm' | 'cpu' | 'unknown'
 }
 
 // ---------------------------------------------------------------------------
@@ -41,13 +41,6 @@ const statusMap = reactive(new Map<string, InferenceModelStatus>())
 // ---------------------------------------------------------------------------
 // Mutation API (used by adapters)
 // ---------------------------------------------------------------------------
-
-/**
- * Remove a model from the status map (e.g. when unloaded).
- */
-export function removeInferenceStatus(modelId: string): void {
-  statusMap.delete(modelId)
-}
 
 /**
  * Update the status of an inference model.
@@ -63,12 +56,19 @@ export function updateInferenceStatus(
   }
   else {
     statusMap.set(modelId, {
-      device: 'unknown',
       modelId,
       state: 'idle',
+      device: 'unknown',
       ...update,
     })
   }
+}
+
+/**
+ * Remove a model from the status map (e.g. when unloaded).
+ */
+export function removeInferenceStatus(modelId: string): void {
+  statusMap.delete(modelId)
 }
 
 // ---------------------------------------------------------------------------
@@ -106,8 +106,8 @@ export function useInferenceStatus() {
   })
 
   return {
-    isAnyLoading,
     models,
+    isAnyLoading,
     totalProgress,
   }
 }

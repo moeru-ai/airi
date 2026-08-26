@@ -10,6 +10,15 @@ const minimaxSpeechConfigSchema = z.object({
 type MinimaxSpeechConfig = z.input<typeof minimaxSpeechConfigSchema>
 
 export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig>({
+  id: 'minimax-speech',
+  name: 'MiniMax Speech',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.minimax-speech.title'),
+  description: 'minimax.io',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.minimax-speech.description'),
+  tasks: ['text-to-speech'],
+  icon: 'i-lobe-icons:minimax',
+  iconColor: 'i-lobe-icons:minimax-color',
+  createProviderConfig: () => minimaxSpeechConfigSchema,
   createProvider(config) {
     const apiKey = config.apiKey.trim()
     const baseUrl = (config.baseUrl || 'https://api.minimax.io').replace(/\/$/, '')
@@ -17,34 +26,35 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig>({
     return {
       speech: () => ({
         baseURL: `${baseUrl}/v1/`,
+        model: 'speech-2.8-hd',
         fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
           if (!init?.body || typeof init.body !== 'string')
             throw new Error('Invalid request body')
 
-          const body = JSON.parse(init.body) as { input?: string, model?: string, voice?: string }
+          const body = JSON.parse(init.body) as { input?: string, voice?: string, model?: string }
           const response = await fetch(`${baseUrl}/v1/t2a_v2`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`,
+            },
             body: JSON.stringify({
-              audio_setting: {
-                bitrate: 128000,
-                channel: 1,
-                format: 'mp3',
-                sample_rate: 32000,
-              },
               model: body.model || 'speech-2.8-hd',
-              stream: true,
               text: body.input ?? '',
+              stream: true,
               voice_setting: {
-                pitch: 0,
-                speed: 1,
                 voice_id: body.voice || 'English_Graceful_Lady',
+                speed: 1,
                 vol: 1,
+                pitch: 0,
+              },
+              audio_setting: {
+                sample_rate: 32000,
+                bitrate: 128000,
+                format: 'mp3',
+                channel: 1,
               },
             }),
-            headers: {
-              'Authorization': `Bearer ${apiKey}`,
-              'Content-Type': 'application/json',
-            },
-            method: 'POST',
           })
 
           if (!response.ok || !response.body)
@@ -96,41 +106,13 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig>({
           }
 
           return new Response(combined.buffer, {
-            headers: { 'Content-Type': 'audio/mpeg' },
             status: 200,
+            headers: { 'Content-Type': 'audio/mpeg' },
           })
         },
-        model: 'speech-2.8-hd',
       }),
     }
   },
-  createProviderConfig: () => minimaxSpeechConfigSchema,
-  description: 'minimax.io',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.minimax-speech.description'),
-  extraMethods: {
-    listModels: async () => [
-      { deprecated: false, description: 'High-definition TTS model with natural prosody', id: 'speech-2.8-hd', name: 'Speech 2.8 HD', provider: 'minimax-speech' },
-      { deprecated: false, description: 'Fast TTS model for low-latency scenarios', id: 'speech-2.8-turbo', name: 'Speech 2.8 Turbo', provider: 'minimax-speech' },
-    ],
-    listVoices: async () => [
-      { gender: 'female', id: 'English_Graceful_Lady', languages: [{ code: 'en', title: 'English' }], name: 'Graceful Lady', provider: 'minimax-speech' },
-      { gender: 'male', id: 'English_Insightful_Speaker', languages: [{ code: 'en', title: 'English' }], name: 'Insightful Speaker', provider: 'minimax-speech' },
-      { gender: 'female', id: 'English_radiant_girl', languages: [{ code: 'en', title: 'English' }], name: 'Radiant Girl', provider: 'minimax-speech' },
-      { gender: 'male', id: 'English_Persuasive_Man', languages: [{ code: 'en', title: 'English' }], name: 'Persuasive Man', provider: 'minimax-speech' },
-      { gender: 'neutral', id: 'English_Lucky_Robot', languages: [{ code: 'en', title: 'English' }], name: 'Lucky Robot', provider: 'minimax-speech' },
-      { gender: 'neutral', id: 'English_expressive_narrator', languages: [{ code: 'en', title: 'English' }], name: 'Expressive Narrator', provider: 'minimax-speech' },
-      { gender: 'female', id: 'Mandarin_Gentle_Woman', languages: [{ code: 'zh', title: 'Chinese' }], name: 'Gentle Woman', provider: 'minimax-speech' },
-      { gender: 'male', id: 'Mandarin_Steadfast_Man', languages: [{ code: 'zh', title: 'Chinese' }], name: 'Steadfast Man', provider: 'minimax-speech' },
-      { gender: 'female', id: 'Mandarin_Sweet_Girl', languages: [{ code: 'zh', title: 'Chinese' }], name: 'Sweet Girl', provider: 'minimax-speech' },
-      { gender: 'male', id: 'Mandarin_Magnetic_Gentleman', languages: [{ code: 'zh', title: 'Chinese' }], name: 'Magnetic Gentleman', provider: 'minimax-speech' },
-    ],
-  },
-  icon: 'i-lobe-icons:minimax',
-  iconColor: 'i-lobe-icons:minimax-color',
-  id: 'minimax-speech',
-  name: 'MiniMax Speech',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.minimax-speech.title'),
-  tasks: ['text-to-speech'],
   validationRequiredWhen: config => Boolean(config.apiKey?.trim()),
   validators: {
     validateConfig: [
@@ -147,6 +129,24 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig>({
           }
         },
       }),
+    ],
+  },
+  extraMethods: {
+    listModels: async () => [
+      { id: 'speech-2.8-hd', name: 'Speech 2.8 HD', provider: 'minimax-speech', description: 'High-definition TTS model with natural prosody', deprecated: false },
+      { id: 'speech-2.8-turbo', name: 'Speech 2.8 Turbo', provider: 'minimax-speech', description: 'Fast TTS model for low-latency scenarios', deprecated: false },
+    ],
+    listVoices: async () => [
+      { id: 'English_Graceful_Lady', name: 'Graceful Lady', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }] },
+      { id: 'English_Insightful_Speaker', name: 'Insightful Speaker', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'en', title: 'English' }] },
+      { id: 'English_radiant_girl', name: 'Radiant Girl', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }] },
+      { id: 'English_Persuasive_Man', name: 'Persuasive Man', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'en', title: 'English' }] },
+      { id: 'English_Lucky_Robot', name: 'Lucky Robot', provider: 'minimax-speech', gender: 'neutral', languages: [{ code: 'en', title: 'English' }] },
+      { id: 'English_expressive_narrator', name: 'Expressive Narrator', provider: 'minimax-speech', gender: 'neutral', languages: [{ code: 'en', title: 'English' }] },
+      { id: 'Mandarin_Gentle_Woman', name: 'Gentle Woman', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'zh', title: 'Chinese' }] },
+      { id: 'Mandarin_Steadfast_Man', name: 'Steadfast Man', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'zh', title: 'Chinese' }] },
+      { id: 'Mandarin_Sweet_Girl', name: 'Sweet Girl', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'zh', title: 'Chinese' }] },
+      { id: 'Mandarin_Magnetic_Gentleman', name: 'Magnetic Gentleman', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'zh', title: 'Chinese' }] },
     ],
   },
 })

@@ -4,33 +4,33 @@ import { Vec3 } from 'vec3'
 
 // ─── Types ───────────────────────────────────────────────────────────
 
+export type MapViewType = 'top-down' | 'cross-section'
+
 export interface MapOptions {
   /** Radius in blocks from center (default: 16, max: 32) */
   radius?: number
-  /** Whether to show elevation numbers (default: true) */
-  showElevation?: boolean
-  /** Whether to show entities on the map (default: true) */
-  showEntities?: boolean
   /** View type (default: 'top-down') */
   view?: MapViewType
+  /** Whether to show entities on the map (default: true) */
+  showEntities?: boolean
+  /** Whether to show elevation numbers (default: true) */
+  showElevation?: boolean
   /** Y level for cross-section view (default: bot's Y) */
   yLevel?: number
 }
 
 export interface MapResult {
-  /** Center position of the map */
-  center: { x: number, y: number, z: number }
-  /** Legend explaining the symbols used */
-  legend: string
   /** The rendered ASCII map string */
   map: string
+  /** Legend explaining the symbols used */
+  legend: string
+  /** Center position of the map */
+  center: { x: number, y: number, z: number }
   /** Radius used */
   radius: number
   /** View type used */
   view: MapViewType
 }
-
-export type MapViewType = 'cross-section' | 'top-down'
 
 // ─── Block Category Classification ──────────────────────────────────
 //
@@ -40,79 +40,79 @@ export type MapViewType = 'cross-section' | 'top-down'
 
 type BlockCategory
   = | 'air'
-    | 'crop'
-    | 'danger'
-    | 'glass'
     | 'ground'
-    | 'ice'
-    | 'interactive'
-    | 'lava'
-    | 'leaves'
-    | 'log'
-    | 'ore'
-    | 'path'
-    | 'sand'
-    | 'snow'
     | 'stone'
-    | 'stone_structure'
-    | 'unknown'
+    | 'sand'
     | 'water'
+    | 'lava'
+    | 'log'
+    | 'leaves'
+    | 'ore'
+    | 'crop'
+    | 'path'
     | 'wood_structure'
+    | 'stone_structure'
+    | 'interactive'
+    | 'danger'
+    | 'snow'
+    | 'ice'
+    | 'glass'
+    | 'unknown'
 
 // NOTICE: Symbol choices are intentionally single-character ASCII that
 // are visually distinct in monospace fonts and semantically suggestive.
 const CATEGORY_SYMBOLS: Record<BlockCategory, string> = {
   air: ' ',
-  crop: ';',
-  danger: 'X',
-  glass: 'o',
   ground: '.',
-  ice: '-',
-  interactive: '!',
-  lava: '%',
-  leaves: '*',
-  log: 'T',
-  ore: '$',
-  path: '_',
-  sand: ':',
-  snow: '\'',
   stone: '#',
-  stone_structure: 'B',
-  unknown: '?',
+  sand: ':',
   water: '~',
+  lava: '%',
+  log: 'T',
+  leaves: '*',
+  ore: '$',
+  crop: ';',
+  path: '_',
   wood_structure: '=',
+  stone_structure: 'B',
+  interactive: '!',
+  danger: 'X',
+  snow: '\'',
+  ice: '-',
+  glass: 'o',
+  unknown: '?',
 }
 
 const CATEGORY_LEGEND: Record<BlockCategory, string> = {
   air: 'air/void',
-  crop: 'crops/farmland',
-  danger: 'danger (cactus/fire/magma)',
-  glass: 'glass',
   ground: 'grass/dirt',
-  ice: 'ice',
-  interactive: 'chest/furnace/table',
-  lava: 'lava',
-  leaves: 'leaves',
-  log: 'tree trunk',
-  ore: 'ore',
-  path: 'path/road',
-  sand: 'sand/gravel',
-  snow: 'snow',
   stone: 'stone/rock',
-  stone_structure: 'stone building',
-  unknown: 'unknown',
+  sand: 'sand/gravel',
   water: 'water',
+  lava: 'lava',
+  log: 'tree trunk',
+  leaves: 'leaves',
+  ore: 'ore',
+  crop: 'crops/farmland',
+  path: 'path/road',
   wood_structure: 'wood building',
+  stone_structure: 'stone building',
+  interactive: 'chest/furnace/table',
+  danger: 'danger (cactus/fire/magma)',
+  snow: 'snow',
+  ice: 'ice',
+  glass: 'glass',
+  unknown: 'unknown',
 }
 
 // Entity symbols placed on top of terrain
 const ENTITY_SYMBOLS = {
-  hostile: 'M',
-  item: 'i',
-  neutral: 'N',
-  passive: 'A',
-  player: 'P',
   self: '@',
+  player: 'P',
+  hostile: 'M',
+  passive: 'A',
+  neutral: 'N',
+  item: 'i',
 } as const
 
 // ─── Block Name → Category Mapping ──────────────────────────────────
@@ -195,65 +195,65 @@ function classifyBlock(blockName: string): BlockCategory {
 // ─── Entity Classification ──────────────────────────────────────────
 
 const HOSTILE_MOBS = new Set([
-  'blaze',
-  'breeze',
-  'cave_spider',
-  'creeper',
-  'drowned',
-  'elder_guardian',
-  'enderman',
-  'evoker',
-  'ghast',
-  'guardian',
-  'hoglin',
-  'husk',
-  'magma_cube',
-  'phantom',
-  'piglin_brute',
-  'pillager',
-  'ravager',
-  'skeleton',
-  'slime',
-  'spider',
-  'stray',
-  'vex',
-  'vindicator',
-  'warden',
-  'witch',
-  'wither_skeleton',
   'zombie',
+  'skeleton',
+  'creeper',
+  'spider',
+  'cave_spider',
+  'enderman',
+  'witch',
+  'slime',
+  'magma_cube',
+  'blaze',
+  'ghast',
+  'wither_skeleton',
+  'phantom',
+  'drowned',
+  'husk',
+  'stray',
+  'pillager',
+  'vindicator',
+  'ravager',
+  'vex',
+  'evoker',
+  'guardian',
+  'elder_guardian',
+  'hoglin',
+  'piglin_brute',
+  'warden',
+  'breeze',
 ])
 
 const PASSIVE_MOBS = new Set([
-  'allay',
-  'armadillo',
-  'axolotl',
-  'bat',
-  'camel',
-  'cat',
-  'chicken',
-  'cod',
   'cow',
-  'donkey',
-  'fox',
-  'frog',
-  'glow_squid',
+  'sheep',
+  'pig',
+  'chicken',
   'horse',
-  'mooshroom',
+  'donkey',
   'mule',
+  'rabbit',
+  'cat',
   'ocelot',
   'parrot',
-  'pig',
-  'pufferfish',
-  'rabbit',
-  'salmon',
-  'sheep',
-  'sniffer',
-  'squid',
-  'strider',
-  'tadpole',
-  'tropical_fish',
+  'fox',
   'turtle',
+  'axolotl',
+  'glow_squid',
+  'squid',
+  'bat',
+  'cod',
+  'salmon',
+  'tropical_fish',
+  'pufferfish',
+  'mooshroom',
+  'strider',
+  'frog',
+  'tadpole',
+  'allay',
+  'sniffer',
+  'camel',
+  'armadillo',
   'villager',
   'wandering_trader',
 ])
@@ -278,7 +278,7 @@ function findSurfaceBlock(
   x: number,
   z: number,
   startY: number,
-): null | { name: string, y: number } {
+): { name: string, y: number } | null {
   // Scan from startY + 16 down to startY - 32 to handle hills and valleys
   const top = Math.min(startY + 16, 319)
   const bottom = Math.max(startY - 48, -64)
@@ -295,84 +295,6 @@ function findSurfaceBlock(
 
 // ─── Renderers ──────────────────────────────────────────────────────
 
-function renderCrossSection(bot: Bot, options: Required<MapOptions>): MapResult {
-  const center = bot.entity.position
-  const cx = Math.floor(center.x)
-  const cy = options.yLevel
-  const cz = Math.floor(center.z)
-  const r = options.radius
-
-  // Cross-section: X horizontal, Y vertical, at fixed Z = cz
-  const width = r * 2 + 1
-  const height = r * 2 + 1
-  const yTop = cy + r
-  const yBottom = cy - r
-
-  const grid: string[][] = Array.from({ length: height }).fill(Array.from({ length: width }).fill(' '))
-  const usedCategories = new Set<BlockCategory>()
-
-  for (let dy = -r; dy <= r; dy++) {
-    for (let dx = -r; dx <= r; dx++) {
-      const wx = cx + dx
-      const wy = cy - dy // Flip Y so top of grid = higher Y
-      const gx = dx + r
-      const gy = dy + r
-
-      const block = bot.blockAt(new Vec3(wx, wy, cz))
-      if (!block) {
-        grid[gy][gx] = ' '
-        continue
-      }
-
-      const category = classifyBlock(block.name)
-      usedCategories.add(category)
-      grid[gy][gx] = CATEGORY_SYMBOLS[category]
-    }
-  }
-
-  // Mark bot position if visible
-  const botDx = 0
-  const botDy = cy - Math.floor(center.y)
-  if (Math.abs(botDx) <= r && Math.abs(botDy) <= r) {
-    grid[botDy + r][botDx + r] = ENTITY_SYMBOLS.self
-  }
-
-  const lines: string[] = []
-  lines.push(`  Cross-section at Z=${cz} centered at (${cx}, ${cy}) | radius: ${r}`)
-  lines.push(`  Y=${yTop}`)
-
-  for (let gy = 0; gy < height; gy++) {
-    const row = grid[gy].join('')
-    const worldY = yTop - gy
-    if (gy % 4 === 0) {
-      lines.push(`${String(worldY).padStart(4)}|${row}|`)
-    }
-    else {
-      lines.push(`    |${row}|`)
-    }
-  }
-
-  lines.push(`  Y=${yBottom}`)
-  lines.push(`  [X: ${cx - r}..${cx + r}]`)
-
-  // Legend
-  const legendParts: string[] = []
-  for (const cat of usedCategories) {
-    if (cat === 'air')
-      continue
-    legendParts.push(`${CATEGORY_SYMBOLS[cat]}=${CATEGORY_LEGEND[cat]}`)
-  }
-  legendParts.push(`${ENTITY_SYMBOLS.self}=you`)
-
-  return {
-    center: { x: cx, y: cy, z: cz },
-    legend: legendParts.join('  '),
-    map: lines.join('\n'),
-    radius: r,
-    view: 'cross-section',
-  }
-}
-
 function renderTopDown(bot: Bot, options: Required<MapOptions>): MapResult {
   const center = bot.entity.position
   const cx = Math.floor(center.x)
@@ -383,7 +305,7 @@ function renderTopDown(bot: Bot, options: Required<MapOptions>): MapResult {
   // Build the grid: each cell is [symbol, elevation_delta]
   const size = r * 2 + 1
   const grid: string[][] = Array.from({ length: size }).fill(Array.from({ length: size }).fill(' '))
-  const elevations: (null | number)[][] = Array.from({ length: size }).fill(Array.from({ length: size }).fill(null))
+  const elevations: (number | null)[][] = Array.from({ length: size }).fill(Array.from({ length: size }).fill(null))
   const usedCategories = new Set<BlockCategory>()
 
   for (let dz = -r; dz <= r; dz++) {
@@ -407,12 +329,12 @@ function renderTopDown(bot: Bot, options: Required<MapOptions>): MapResult {
   }
 
   // Overlay entities
-  const entityOverlays: Array<{ gx: number, gz: number, label: string, symbol: string }> = []
+  const entityOverlays: Array<{ gx: number, gz: number, symbol: string, label: string }> = []
 
   if (options.showEntities) {
     // Bot itself
     grid[r][r] = ENTITY_SYMBOLS.self
-    entityOverlays.push({ gx: r, gz: r, label: 'You', symbol: ENTITY_SYMBOLS.self })
+    entityOverlays.push({ gx: r, gz: r, symbol: ENTITY_SYMBOLS.self, label: 'You' })
 
     // Other entities
     for (const entity of Object.values(bot.entities)) {
@@ -430,12 +352,12 @@ function renderTopDown(bot: Bot, options: Required<MapOptions>): MapResult {
 
       if (entity.type === 'player') {
         grid[gz][gx] = ENTITY_SYMBOLS.player
-        entityOverlays.push({ gx, gz, label: entity.username ?? 'player', symbol: ENTITY_SYMBOLS.player })
+        entityOverlays.push({ gx, gz, symbol: ENTITY_SYMBOLS.player, label: entity.username ?? 'player' })
       }
       else if (entity.type === 'mob') {
         const kind = classifyEntity(entity.name ?? '')
         grid[gz][gx] = ENTITY_SYMBOLS[kind]
-        entityOverlays.push({ gx, gz, label: entity.name ?? 'mob', symbol: ENTITY_SYMBOLS[kind] })
+        entityOverlays.push({ gx, gz, symbol: ENTITY_SYMBOLS[kind], label: entity.name ?? 'mob' })
       }
       else if (entity.type === 'object' && entity.name === 'item') {
         grid[gz][gx] = ENTITY_SYMBOLS.item
@@ -511,11 +433,89 @@ function renderTopDown(bot: Bot, options: Required<MapOptions>): MapResult {
   const legend = legendParts.join('  ')
 
   return {
-    center: { x: cx, y: cy, z: cz },
-    legend,
     map: lines.join('\n'),
+    legend,
+    center: { x: cx, y: cy, z: cz },
     radius: r,
     view: 'top-down',
+  }
+}
+
+function renderCrossSection(bot: Bot, options: Required<MapOptions>): MapResult {
+  const center = bot.entity.position
+  const cx = Math.floor(center.x)
+  const cy = options.yLevel
+  const cz = Math.floor(center.z)
+  const r = options.radius
+
+  // Cross-section: X horizontal, Y vertical, at fixed Z = cz
+  const width = r * 2 + 1
+  const height = r * 2 + 1
+  const yTop = cy + r
+  const yBottom = cy - r
+
+  const grid: string[][] = Array.from({ length: height }).fill(Array.from({ length: width }).fill(' '))
+  const usedCategories = new Set<BlockCategory>()
+
+  for (let dy = -r; dy <= r; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
+      const wx = cx + dx
+      const wy = cy - dy // Flip Y so top of grid = higher Y
+      const gx = dx + r
+      const gy = dy + r
+
+      const block = bot.blockAt(new Vec3(wx, wy, cz))
+      if (!block) {
+        grid[gy][gx] = ' '
+        continue
+      }
+
+      const category = classifyBlock(block.name)
+      usedCategories.add(category)
+      grid[gy][gx] = CATEGORY_SYMBOLS[category]
+    }
+  }
+
+  // Mark bot position if visible
+  const botDx = 0
+  const botDy = cy - Math.floor(center.y)
+  if (Math.abs(botDx) <= r && Math.abs(botDy) <= r) {
+    grid[botDy + r][botDx + r] = ENTITY_SYMBOLS.self
+  }
+
+  const lines: string[] = []
+  lines.push(`  Cross-section at Z=${cz} centered at (${cx}, ${cy}) | radius: ${r}`)
+  lines.push(`  Y=${yTop}`)
+
+  for (let gy = 0; gy < height; gy++) {
+    const row = grid[gy].join('')
+    const worldY = yTop - gy
+    if (gy % 4 === 0) {
+      lines.push(`${String(worldY).padStart(4)}|${row}|`)
+    }
+    else {
+      lines.push(`    |${row}|`)
+    }
+  }
+
+  lines.push(`  Y=${yBottom}`)
+  lines.push(`  [X: ${cx - r}..${cx + r}]`)
+
+  // Legend
+  const legendParts: string[] = []
+  for (const cat of usedCategories) {
+    if (cat === 'air')
+      continue
+    legendParts.push(`${CATEGORY_SYMBOLS[cat]}=${CATEGORY_LEGEND[cat]}`)
+  }
+  legendParts.push(`${ENTITY_SYMBOLS.self}=you`)
+
+  return {
+    map: lines.join('\n'),
+    legend: legendParts.join('  '),
+    center: { x: cx, y: cy, z: cz },
+    radius: r,
+    view: 'cross-section',
   }
 }
 
@@ -527,9 +527,9 @@ const MAX_RADIUS = 32
 export function renderMap(bot: Bot, options: MapOptions = {}): MapResult {
   const resolved: Required<MapOptions> = {
     radius: Math.min(Math.max(options.radius ?? DEFAULT_RADIUS, 1), MAX_RADIUS),
-    showElevation: options.showElevation ?? true,
-    showEntities: options.showEntities ?? true,
     view: options.view ?? 'top-down',
+    showEntities: options.showEntities ?? true,
+    showElevation: options.showElevation ?? true,
     yLevel: options.yLevel ?? Math.floor(bot.entity.position.y),
   }
 

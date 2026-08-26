@@ -17,10 +17,10 @@ import {
 export interface SidebarControl {
   collapsed: Ref<boolean>
   collapsible: ComputedRef<boolean>
+  isLink: ComputedRef<boolean>
+  isActiveLink: Ref<boolean>
   hasActiveLink: ComputedRef<boolean>
   hasChildren: ComputedRef<boolean>
-  isActiveLink: Ref<boolean>
-  isLink: ComputedRef<boolean>
   toggle: () => void
 }
 
@@ -55,7 +55,7 @@ export function useCloseSidebarOnEscape(
 export function useSidebarControl(
   item: ComputedRef<DefaultTheme.SidebarItem>,
 ): SidebarControl {
-  const { hash, page } = useData()
+  const { page, hash } = useData()
 
   const collapsed = ref(false)
 
@@ -106,10 +106,10 @@ export function useSidebarControl(
   return {
     collapsed,
     collapsible,
+    isLink,
+    isActiveLink,
     hasActiveLink,
     hasChildren,
-    isActiveLink,
-    isLink,
     toggle,
   }
 }
@@ -121,35 +121,70 @@ const HASH_RE = /#.*$/
 const HASH_OR_QUERY_RE = /[?#].*$/
 const INDEX_OR_EXT_RE = /(?:(^|\/)index)?\.(?:md|html)$/
 
-// From https://github.com/vuejs/vitepress/blob/fa81e89643523170047ca2c9a690f4d7adf4ffdc/src/client/theme-default/support/sidebar.ts
-export interface SidebarLink {
-  docFooterText?: string
-  link: string
-  text: string
-}
-
-export function getFlatSideBarLinks(sidebar: SidebarItem[]): SidebarLink[] {
-  const links: SidebarLink[] = []
-
-  function recursivelyExtractLinks(items: SidebarItem[]) {
-    for (const item of items) {
-      if (item.text && item.link) {
-        links.push({
-          docFooterText: item.docFooterText,
-          link: item.link,
-          text: item.text,
-        })
-      }
-
-      if (item.items) {
-        recursivelyExtractLinks(item.items)
-      }
-    }
+export function isActive(
+  currentPath: string,
+  matchPath?: string,
+  asRegex: boolean = false,
+): boolean {
+  if (matchPath === undefined) {
+    return false
   }
 
-  recursivelyExtractLinks(sidebar)
+  if (currentPath.startsWith('/')) {
+    currentPath = normalize(`${currentPath}`)
+  }
+  else {
+    currentPath = normalize(`/${currentPath}`)
+  }
 
-  return links
+  if (asRegex) {
+    return new RegExp(matchPath).test(currentPath)
+  }
+
+  if (normalize(matchPath) !== currentPath) {
+    return false
+  }
+
+  const hashMatch = matchPath.match(HASH_RE)
+
+  if (hashMatch) {
+    return (inBrowser ? location.hash : '') === hashMatch[0]
+  }
+
+  return true
+}
+
+function normalize(path: string): string {
+  return decodeURI(path)
+    .replace(HASH_OR_QUERY_RE, '')
+    .replace(INDEX_OR_EXT_RE, '$1')
+}
+
+// From https://github.com/vuejs/vitepress/blob/97f9469b6d4eb7ba9de9a1111986581d1f704ec3/src/client/theme-default/support/sidebar.ts
+function containsActiveLink(
+  path: string,
+  items: any | any[],
+): boolean {
+  if (Array.isArray(items)) {
+    return items.some(item => containsActiveLink(path, item))
+  }
+
+  return isActive(path, items.link)
+    ? true
+    : items.items
+      ? containsActiveLink(path, items.items)
+      : false
+}
+
+// From https://github.com/vuejs/vitepress/blob/fa81e89643523170047ca2c9a690f4d7adf4ffdc/src/client/theme-default/support/sidebar.ts
+export interface SidebarLink {
+  text: string
+  link: string
+  docFooterText?: string
+}
+
+function ensureStartingSlash(path: string): string {
+  return path.startsWith('/') ? path : `/${path}`
 }
 
 /**
@@ -210,6 +245,30 @@ export function getSidebarGroups(sidebar: SidebarItem[]): SidebarItem[] {
   return groups
 }
 
+export function getFlatSideBarLinks(sidebar: SidebarItem[]): SidebarLink[] {
+  const links: SidebarLink[] = []
+
+  function recursivelyExtractLinks(items: SidebarItem[]) {
+    for (const item of items) {
+      if (item.text && item.link) {
+        links.push({
+          text: item.text,
+          link: item.link,
+          docFooterText: item.docFooterText,
+        })
+      }
+
+      if (item.items) {
+        recursivelyExtractLinks(item.items)
+      }
+    }
+  }
+
+  recursivelyExtractLinks(sidebar)
+
+  return links
+}
+
 /**
  * Check if the given sidebar item contains any active link.
  */
@@ -228,39 +287,6 @@ export function hasActiveLink(
       : false
 }
 
-export function isActive(
-  currentPath: string,
-  matchPath?: string,
-  asRegex: boolean = false,
-): boolean {
-  if (matchPath === undefined) {
-    return false
-  }
-
-  if (currentPath.startsWith('/')) {
-    currentPath = normalize(`${currentPath}`)
-  }
-  else {
-    currentPath = normalize(`/${currentPath}`)
-  }
-
-  if (asRegex) {
-    return new RegExp(matchPath).test(currentPath)
-  }
-
-  if (normalize(matchPath) !== currentPath) {
-    return false
-  }
-
-  const hashMatch = matchPath.match(HASH_RE)
-
-  if (hashMatch) {
-    return (inBrowser ? location.hash : '') === hashMatch[0]
-  }
-
-  return true
-}
-
 function addBase(items: SidebarItem[], _base?: string): SidebarItem[] {
   return Array.from(items, (_item) => {
     const item = { ..._item }
@@ -271,30 +297,4 @@ function addBase(items: SidebarItem[], _base?: string): SidebarItem[] {
       item.items = addBase(item.items, base)
     return item
   })
-}
-
-// From https://github.com/vuejs/vitepress/blob/97f9469b6d4eb7ba9de9a1111986581d1f704ec3/src/client/theme-default/support/sidebar.ts
-function containsActiveLink(
-  path: string,
-  items: any | any[],
-): boolean {
-  if (Array.isArray(items)) {
-    return items.some(item => containsActiveLink(path, item))
-  }
-
-  return isActive(path, items.link)
-    ? true
-    : items.items
-      ? containsActiveLink(path, items.items)
-      : false
-}
-
-function ensureStartingSlash(path: string): string {
-  return path.startsWith('/') ? path : `/${path}`
-}
-
-function normalize(path: string): string {
-  return decodeURI(path)
-    .replace(HASH_OR_QUERY_RE, '')
-    .replace(INDEX_OR_EXT_RE, '$1')
 }

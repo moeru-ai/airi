@@ -19,6 +19,14 @@ import { Vec3 } from 'vec3'
 import { executeSandboxWorker } from './js-planner-sandbox-runner'
 import { createQueryRuntime } from './query-dsl'
 
+interface JavaScriptPlannerOptions {
+  bridgeTimeoutMs?: number
+  timeoutMs?: number
+  maxActionsPerTurn?: number
+  maxBridgeCalls?: number
+  memoryLimitMb?: number
+}
+
 interface ActivePlannerRun {
   actionCount: number
   actionsByName: Map<string, Action>
@@ -26,14 +34,6 @@ interface ActivePlannerRun {
   executed: ActionRuntimeResult[]
   logs: string[]
   sawSkip: boolean
-}
-
-interface JavaScriptPlannerOptions {
-  bridgeTimeoutMs?: number
-  maxActionsPerTurn?: number
-  maxBridgeCalls?: number
-  memoryLimitMb?: number
-  timeoutMs?: number
 }
 
 interface ValidationResult {
@@ -466,6 +466,33 @@ function __plannerExpectationDetail(message, fallback) {
 }
 `
 
+export interface RuntimeGlobals {
+  event: BotEvent
+  snapshot: Record<string, unknown>
+  patterns?: PatternRuntime | null
+  mineflayer?: Mineflayer | null
+  bot?: unknown
+  actionQueue?: unknown
+  noActionBudget?: unknown
+  errorBurstGuard?: unknown
+  currentInput?: unknown
+  llmLog?: unknown
+  setNoActionBudget?: (value: number) => { ok: true, remaining: number, default: number, max: number }
+  getNoActionBudget?: () => { remaining: number, default: number, max: number }
+  forgetConversation?: () => { ok: true, cleared: string[] }
+  notifyAiri?: (headline: string, note?: string, urgency?: 'immediate' | 'soon' | 'later') => void
+  updateAiriContext?: (text: string, hints?: string[], lane?: string) => void
+  history?: unknown
+  llmInput?: {
+    systemPrompt: string
+    userMessage: string
+    messages: unknown[]
+    conversationHistory: unknown[]
+    updatedAt: number
+    attempt: number
+  } | null
+}
+
 export interface JavaScriptRunResult {
   actions: ActionRuntimeResult[]
   logs: string[]
@@ -473,41 +500,30 @@ export interface JavaScriptRunResult {
 }
 
 export interface PlannerGlobalDescriptor {
-  kind: 'boolean' | 'function' | 'null' | 'number' | 'object' | 'string' | 'tool' | 'undefined' | 'unknown'
   name: string
-  preview: string
+  kind: 'tool' | 'function' | 'object' | 'number' | 'string' | 'boolean' | 'undefined' | 'null' | 'unknown'
   readonly: boolean
-}
-
-export interface RuntimeGlobals {
-  actionQueue?: unknown
-  bot?: unknown
-  currentInput?: unknown
-  errorBurstGuard?: unknown
-  event: BotEvent
-  forgetConversation?: () => { cleared: string[], ok: true }
-  getNoActionBudget?: () => { default: number, max: number, remaining: number }
-  history?: unknown
-  llmInput?: null | {
-    attempt: number
-    conversationHistory: unknown[]
-    messages: unknown[]
-    systemPrompt: string
-    updatedAt: number
-    userMessage: string
-  }
-  llmLog?: unknown
-  mineflayer?: Mineflayer | null
-  noActionBudget?: unknown
-  notifyAiri?: (headline: string, note?: string, urgency?: 'immediate' | 'later' | 'soon') => void
-  patterns?: null | PatternRuntime
-  setNoActionBudget?: (value: number) => { default: number, max: number, ok: true, remaining: number }
-  snapshot: Record<string, unknown>
-  updateAiriContext?: (text: string, hints?: string[], lane?: string) => void
+  preview: string
 }
 
 interface DescribeGlobalsOptions {
   includeBuiltins?: boolean
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function deepFreeze<T>(value: T): T {
+  if (!value || typeof value !== 'object')
+    return value
+
+  for (const key of Object.keys(value as Record<string, unknown>)) {
+    const child = (value as Record<string, unknown>)[key]
+    deepFreeze(child)
+  }
+
+  return Object.freeze(value)
 }
 
 function cloneStructured<T>(value: T): T {
@@ -526,49 +542,165 @@ function copyForIsolate<T>(value: T): T {
   return deepFreeze(cloneStructured(value))
 }
 
-function deepFreeze<T>(value: T): T {
-  if (!value || typeof value !== 'object')
-    return value
-
-  for (const key of Object.keys(value as Record<string, unknown>)) {
-    const child = (value as Record<string, unknown>)[key]
-    deepFreeze(child)
-  }
-
-  return Object.freeze(value)
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
 // NOTICE:
 // `bot`/`mineflayer` are live socket-backed objects that cannot cross the sandbox
 // boundary, so they are exposed to scripts only through the `botCall` bridge below.
 // This denylist blocks methods that would tear down the connection or hijack the
 // event bus; everything else on the bot is allowed (open-by-default).
 const BOT_METHOD_DENYLIST = new Set([
-  'addListener',
-  'emit',
   'end',
-  'off',
+  'quit',
   'on',
   'once',
-  'quit',
-  'removeAllListeners',
+  'off',
+  'addListener',
   'removeListener',
+  'removeAllListeners',
+  'emit',
 ])
+
+/**
+ * Marshals one `botCall` argument from sandbox-serializable data into the value the
+ * mineflayer API expects.
+ *
+ * Before:
+ * - `{ x: 1, y: 2, z: 3 }`
+ *
+ * After:
+ * - `Vec3(1, 2, 3)`
+ *
+ * Non position-shaped values pass through unchanged.
+ */
+function marshalBotArg(value: unknown): unknown {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>
+    if (typeof record.x === 'number' && typeof record.y === 'number' && typeof record.z === 'number')
+      return new Vec3(record.x, record.y, record.z)
+  }
+  return value
+}
+
+/**
+ * Invokes a method on the live mineflayer bot on behalf of sandboxed script code.
+ *
+ * Use when:
+ * - A script needs a low-level bot action that has no dedicated tool (e.g. `lookAt`).
+ *
+ * Expects:
+ * - `method` is not in {@link BOT_METHOD_DENYLIST} and resolves to a bot function.
+ * - `rawArgs` are sandbox-serializable; position-shaped args are marshaled to `Vec3`.
+ *
+ * Returns:
+ * - The method's result, defensively cloned to a sandbox-safe value (or `null` when
+ *   the result is a live object that cannot be serialized back).
+ */
+async function callBotMethod(mineflayer: Mineflayer, method: string, rawArgs: unknown): Promise<unknown> {
+  if (BOT_METHOD_DENYLIST.has(method))
+    throw new Error(`botCall: method "${method}" is not allowed`)
+
+  const bot = mineflayer.bot as unknown as Record<string, unknown>
+  const fn = bot[method]
+  if (typeof fn !== 'function')
+    throw new TypeError(`botCall: bot.${method} is not a function`)
+
+  const callArgs = Array.isArray(rawArgs) ? rawArgs.map(marshalBotArg) : []
+  const result = await (fn as (...a: unknown[]) => unknown).apply(bot, callArgs)
+
+  try {
+    return cloneStructured(result)
+  }
+  catch {
+    // Live objects (Entity/Block/etc.) are not serializable back into the sandbox.
+    return null
+  }
+}
+
+export function extractJavaScriptCandidate(input: string): string {
+  const trimmed = input.trim()
+  // Prefer a fenced code block found ANYWHERE in the reply: chat-style models often add a short line
+  // of reasoning before the code. The previous `^...$` anchoring only matched a reply that was nothing
+  // but a fence, so any leading prose caused the entire prose+code to be executed as a script.
+  // eslint-disable-next-line regexp/no-super-linear-backtracking
+  const fenced = trimmed.match(/```(?:js|javascript|ts|typescript)?[^\S\r\n]*\r?\n?([\s\S]*?)```/i)
+  if (fenced?.[1])
+    return fenced[1].trim()
+
+  // No fence: the model often wraps un-fenced code in a Chinese intro/outro line (e.g.
+  // "好的,我来做:\n<code>\n这样就安全了"). Such a bare-word line is INSIDIOUS — CJK characters are
+  // valid JS identifiers, so a line like "然后我去做盔甲" PARSES as an identifier expression, sails
+  // past the syntax firewall, then throws "<那串中文> is not defined" at runtime (the real cause of the
+  // "X is not defined" failures). Strip those leading/trailing prose lines so the real code runs.
+  return stripEdgeProseLines(trimmed)
+}
+
+/** A leading/trailing line that is natural-language prose (CJK text with no JS structure), to drop. */
+function isEdgeProseLine(line: string): boolean {
+  const t = line.trim()
+  if (!t)
+    return false
+  // Any JS structure means it's code, keep it (covers chat strings, which carry the CJK inside `(...)`).
+  if (/[()[\]{}=;]/.test(t))
+    return false
+  // Otherwise treat a line containing CJK (Chinese/Japanese/Korean) as prose — conservative, so plain
+  // ASCII code lines are never stripped.
+  return /[\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/.test(t)
+}
+
+/**
+ * Drop natural-language prose lines wrapping un-fenced code.
+ *
+ * Before: "好的,我来做:\nawait craftRecipe({ item_name: \"diamond_helmet\" })\n这样就安全啦"
+ * After:  "await craftRecipe({ item_name: \"diamond_helmet\" })"
+ *
+ * Only strips from the edges (never the middle, so multi-line constructs are safe) and only CJK prose.
+ * If nothing executable would remain (a pure-prose reply), returns the original so the firewall still
+ * corrects the model instead of silently running an empty script.
+ */
+function stripEdgeProseLines(code: string): string {
+  const lines = code.split(/\r?\n/)
+  let start = 0
+  let end = lines.length
+  while (start < end && isEdgeProseLine(lines[start]))
+    start++
+  while (end > start && isEdgeProseLine(lines[end - 1]))
+    end--
+  const stripped = lines.slice(start, end).join('\n').trim()
+  return stripped || code
+}
+
+// NOTICE: Firewall between the LLM's natural-language space and the Minecraft action (JS) space.
+// The decision script is executed inside the sandbox as `return (async () => {\n<script>\n})()`
+// (see js-planner-worker.ts). When the model replies in prose instead of code, that prose lands on
+// line 2 and the isolate throws cryptic syntax errors ("Unexpected identifier 'me'", …), which fed a
+// death-spiral because the error handed back to the model never said "you wrote prose, not code".
+// We pre-compile with the SAME async wrapper (so top-level await/return are not false positives) to
+// detect non-code BEFORE wasting a sandbox turn, and turn it into a directive correction instead.
+// `new Function` only parses/compiles its body — it does NOT execute the candidate — so this is safe.
+function isSyntacticallyValidScript(candidate: string): boolean {
+  if (!candidate.trim())
+    return true // empty script == "observe / do nothing", not an error
+
+  try {
+    // eslint-disable-next-line no-new-func
+    void new Function(`return (async () => {\n${candidate}\n})()`)
+    return true
+  }
+  catch (err) {
+    // Only treat *syntax* errors as "not code". Anything else compiled fine.
+    return !(err instanceof SyntaxError)
+  }
+}
 
 export class JavaScriptPlanner {
   private activeRun: ActivePlannerRun | null = null
   private readonly bridgeTimeoutMs: number
   private readonly maxActionsPerTurn: number
   private readonly maxBridgeCalls: number
-  private readonly memoryLimitMb: number
   private persistedLastAction: ActionRuntimeResult | null = null
-  private persistedLastRun: null | { actions: ActionRuntimeResult[], logs: string[], returnRaw?: unknown } = null
+  private persistedLastRun: { actions: ActionRuntimeResult[], logs: string[], returnRaw?: unknown } | null = null
   private persistedMem: Record<string, unknown> = {}
   private readonly timeoutMs: number
+  private readonly memoryLimitMb: number
 
   constructor(options: JavaScriptPlannerOptions = {}) {
     this.bridgeTimeoutMs = options.bridgeTimeoutMs ?? 30_000
@@ -576,170 +708,6 @@ export class JavaScriptPlanner {
     this.timeoutMs = options.timeoutMs ?? 750
     this.maxActionsPerTurn = options.maxActionsPerTurn ?? 5
     this.memoryLimitMb = options.memoryLimitMb ?? 32
-  }
-
-  public canEvaluateAsExpression(content: string): boolean {
-    const script = extractJavaScriptCandidate(content)
-    if (!script.trim())
-      return false
-
-    try {
-      // NOTICE: This parse-only check stays in the host runtime and never executes
-      // untrusted code. It only decides whether REPL input can be wrapped as an expression.
-      // eslint-disable-next-line no-new-func
-      void new Function(`return (async () => (\n${script}\n))()`)
-      return true
-    }
-    catch {
-      return false
-    }
-  }
-
-  public describeGlobals(
-    availableActions: Action[],
-    globals: RuntimeGlobals,
-    options: DescribeGlobalsOptions = {},
-  ): PlannerGlobalDescriptor[] {
-    const descriptors: PlannerGlobalDescriptor[] = []
-    const includeBuiltins = options.includeBuiltins ?? true
-    const runtime = this.buildRuntimeSnapshot(globals)
-
-    const staticGlobals: Array<Omit<PlannerGlobalDescriptor, 'preview'>> = [
-      { kind: 'tool', name: 'skip', readonly: true },
-      { kind: 'function', name: 'use', readonly: true },
-      { kind: 'function', name: 'log', readonly: true },
-      { kind: 'function', name: 'expect', readonly: true },
-      { kind: 'function', name: 'expectMoved', readonly: true },
-      { kind: 'function', name: 'expectNear', readonly: true },
-      { kind: 'object', name: 'snapshot', readonly: true },
-      { kind: 'object', name: 'event', readonly: true },
-      { kind: 'number', name: 'now', readonly: true },
-      { kind: 'object', name: 'self', readonly: true },
-      { kind: 'object', name: 'environment', readonly: true },
-      { kind: 'object', name: 'social', readonly: true },
-      { kind: 'object', name: 'threat', readonly: true },
-      { kind: 'object', name: 'attention', readonly: true },
-      { kind: 'object', name: 'autonomy', readonly: true },
-      { kind: 'object', name: 'llmInput', readonly: true },
-      { kind: 'object', name: 'currentInput', readonly: true },
-      { kind: 'object', name: 'llmLog', readonly: true },
-      { kind: 'object', name: 'actionQueue', readonly: true },
-      { kind: 'object', name: 'noActionBudget', readonly: true },
-      { kind: 'object', name: 'errorBurstGuard', readonly: true },
-      { kind: 'function', name: 'setNoActionBudget', readonly: true },
-      { kind: 'function', name: 'getNoActionBudget', readonly: true },
-      { kind: 'function', name: 'forget_conversation', readonly: true },
-      { kind: 'object', name: 'history', readonly: true },
-      { kind: 'object', name: 'llmMessages', readonly: true },
-      { kind: 'string', name: 'llmSystemPrompt', readonly: true },
-      { kind: 'string', name: 'llmUserMessage', readonly: true },
-      { kind: 'object', name: 'llmConversationHistory', readonly: true },
-      { kind: 'object', name: 'query', readonly: true },
-      { kind: 'function', name: 'query.self', readonly: true },
-      { kind: 'function', name: 'query.snapshot', readonly: true },
-      { kind: 'function', name: 'query.gaze', readonly: true },
-      { kind: 'object', name: 'patterns', readonly: true },
-      { kind: 'function', name: 'patterns.get', readonly: true },
-      { kind: 'function', name: 'patterns.find', readonly: true },
-      { kind: 'function', name: 'patterns.ids', readonly: true },
-      { kind: 'function', name: 'patterns.list', readonly: true },
-      { kind: 'object', name: 'bot', readonly: true },
-      { kind: 'object', name: 'mineflayer', readonly: true },
-      { kind: 'object', name: 'mem', readonly: false },
-      { kind: 'object', name: 'lastRun', readonly: true },
-      { kind: 'object', name: 'prevRun', readonly: true },
-      { kind: 'object', name: 'lastAction', readonly: true },
-      { kind: 'function', name: 'notifyAiri', readonly: true },
-      { kind: 'function', name: 'updateAiriContext', readonly: true },
-    ]
-
-    const valueByName: Record<string, unknown> = {
-      'actionQueue': runtime.actionQueue,
-      'attention': runtime.snapshot.attention,
-      'autonomy': runtime.snapshot.autonomy,
-      'bot': null,
-      'currentInput': runtime.currentInput,
-      'environment': runtime.snapshot.environment,
-      'errorBurstGuard': runtime.errorBurstGuard,
-      'event': runtime.event,
-      'expect': '[Function expect]',
-      'expectMoved': '[Function expectMoved]',
-      'expectNear': '[Function expectNear]',
-      'forget_conversation': globals.forgetConversation ?? null,
-      'getNoActionBudget': globals.getNoActionBudget ?? null,
-      'history': {
-        count: '[Function count]',
-        currentTurn: '[Function currentTurn]',
-        playerChats: '[Function playerChats]',
-        recent: '[Function recent]',
-        search: '[Function search]',
-        turns: '[Function turns]',
-      },
-      'lastAction': this.persistedLastAction,
-      'lastRun': this.persistedLastRun,
-      'llmConversationHistory': runtime.llmInput?.conversationHistory ?? [],
-      'llmInput': runtime.llmInput,
-      'llmLog': runtime.llmLogEntries.length > 0 ? { entries: runtime.llmLogEntries } : { entries: [] },
-      'llmMessages': runtime.llmInput?.messages ?? [],
-      'llmSystemPrompt': runtime.llmInput?.systemPrompt ?? '',
-      'llmUserMessage': runtime.llmInput?.userMessage ?? '',
-      'log': '[Function log]',
-      'mem': this.persistedMem,
-      'mineflayer': null,
-      'noActionBudget': runtime.noActionBudget,
-      'notifyAiri': globals.notifyAiri ?? null,
-      'now': Date.now(),
-      'patterns': globals.patterns ? { find: '[Function]', get: '[Function]', ids: '[Function]', list: '[Function]' } : null,
-      'patterns.find': globals.patterns?.find,
-      'patterns.get': globals.patterns?.get,
-      'patterns.ids': globals.patterns?.ids,
-      'patterns.list': globals.patterns?.list,
-      'prevRun': this.persistedLastRun,
-      'query': runtime.querySeed
-        ? {
-            blockAt: '[Function blockAt]',
-            blocks: '[Function blocks]',
-            craftable: '[Function craftable]',
-            entities: '[Function entities]',
-            gaze: '[Function gaze]',
-            inventory: '[Function inventory]',
-            map: '[Function map]',
-            self: '[Function self]',
-            snapshot: '[Function snapshot]',
-          }
-        : undefined,
-      // `self` already carries pos/position aliases (applied in buildRuntimeSnapshot), so the preview
-      // matches what the sandbox actually binds.
-      'self': runtime.snapshot.self,
-      'setNoActionBudget': globals.setNoActionBudget ?? null,
-      'skip': '[Function skip]',
-      'snapshot': runtime.snapshot,
-      'social': runtime.snapshot.social,
-      'threat': runtime.snapshot.threat,
-      'updateAiriContext': globals.updateAiriContext ?? null,
-      'use': '[Function use]',
-    }
-
-    if (includeBuiltins) {
-      for (const item of staticGlobals) {
-        descriptors.push({
-          ...item,
-          preview: this.previewValue(valueByName[item.name]),
-        })
-      }
-    }
-
-    for (const action of availableActions) {
-      descriptors.push({
-        kind: 'tool',
-        name: action.name,
-        preview: action.description || '(tool)',
-        readonly: true,
-      })
-    }
-
-    descriptors.sort((a, b) => a.name.localeCompare(b.name))
-    return descriptors
   }
 
   public async evaluate(
@@ -793,8 +761,8 @@ export class JavaScriptPlanner {
         returnValue: typeof result === 'undefined'
           ? undefined
           : inspect(result, {
-              breakLength: 100,
               depth: null,
+              breakLength: 100,
               maxArrayLength: 100,
               maxStringLength: 10_000,
             }),
@@ -823,6 +791,387 @@ export class JavaScriptPlanner {
         : null
       this.activeRun = null
     }
+  }
+
+  private buildSandboxWorkerRequest(
+    script: string,
+    availableActions: Action[],
+    globals: RuntimeGlobals,
+  ): SandboxWorkerRequest {
+    return {
+      bootstrapScript: this.buildBootstrapScript(),
+      bridgeAvailability: {
+        botCall: Boolean(globals.mineflayer),
+        forgetConversation: Boolean(globals.forgetConversation),
+        getNoActionBudget: Boolean(globals.getNoActionBudget),
+        notifyAiri: Boolean(globals.notifyAiri),
+        patternFind: Boolean(globals.patterns?.find),
+        patternGet: Boolean(globals.patterns?.get),
+        patternIds: Boolean(globals.patterns?.ids),
+        patternList: Boolean(globals.patterns?.list),
+        queryBlockAt: Boolean(globals.mineflayer),
+        queryMap: Boolean(globals.mineflayer),
+        setNoActionBudget: Boolean(globals.setNoActionBudget),
+        updateAiriContext: Boolean(globals.updateAiriContext),
+      },
+      memoryLimitMb: this.memoryLimitMb,
+      runtime: this.buildRuntimeSnapshot(globals),
+      script,
+      timeoutMs: this.timeoutMs,
+      toolNames: availableActions.map(action => action.name),
+    }
+  }
+
+  private async handleBridgeRequest(method: string, args: unknown[], globals: RuntimeGlobals): Promise<unknown> {
+    switch (method) {
+      case 'tool': {
+        const [tool, toolArgs] = args
+        if (typeof tool !== 'string' || !Array.isArray(toolArgs))
+          throw new Error('Sandbox tool bridge received invalid arguments')
+        return await this.runActionFromSandbox(tool, toolArgs)
+      }
+
+      case 'query.blockAt': {
+        if (!globals.mineflayer)
+          return null
+        const [position] = args
+        return cloneStructured(createQueryRuntime(globals.mineflayer).blockAt(position as { x: number, y: number, z: number }))
+      }
+
+      case 'query.map': {
+        if (!globals.mineflayer)
+          return null
+        const [options] = args
+        return cloneStructured(createQueryRuntime(globals.mineflayer).map(options as {
+          radius?: number
+          showElevation?: boolean
+          showEntities?: boolean
+          view?: 'top-down' | 'cross-section'
+          yLevel?: number
+        }))
+      }
+
+      case 'bot.call': {
+        if (!globals.mineflayer)
+          return null
+        const [method, rawArgs] = args
+        if (typeof method !== 'string')
+          throw new TypeError('botCall requires a method name')
+        return await callBotMethod(globals.mineflayer, method, rawArgs)
+      }
+
+      case 'patterns.get':
+        return cloneStructured(globals.patterns?.get?.(args[0] as string) ?? null)
+
+      case 'patterns.find':
+        return cloneStructured(globals.patterns?.find?.(args[0] as string, args[1] as number | undefined) ?? [])
+
+      case 'patterns.ids':
+        return cloneStructured(globals.patterns?.ids?.() ?? [])
+
+      case 'patterns.list':
+        return cloneStructured(globals.patterns?.list?.(args[0] as number | undefined) ?? [])
+
+      case 'setNoActionBudget':
+        return cloneStructured(globals.setNoActionBudget?.(args[0] as number) ?? null)
+
+      case 'getNoActionBudget':
+        return cloneStructured(globals.getNoActionBudget?.() ?? null)
+
+      case 'forgetConversation':
+        return cloneStructured(globals.forgetConversation?.() ?? null)
+
+      case 'notifyAiri':
+        return cloneStructured(globals.notifyAiri?.(
+          args[0] as string,
+          args[1] as string | undefined,
+          args[2] as 'immediate' | 'soon' | 'later' | undefined,
+        ) ?? null)
+
+      case 'updateAiriContext':
+        return cloneStructured(globals.updateAiriContext?.(
+          args[0] as string,
+          args[1] as string[] | undefined,
+          args[2] as string | undefined,
+        ) ?? null)
+
+      default:
+        throw new Error(`Unknown sandbox bridge method: ${method}`)
+    }
+  }
+
+  public canEvaluateAsExpression(content: string): boolean {
+    const script = extractJavaScriptCandidate(content)
+    if (!script.trim())
+      return false
+
+    try {
+      // NOTICE: This parse-only check stays in the host runtime and never executes
+      // untrusted code. It only decides whether REPL input can be wrapped as an expression.
+      // eslint-disable-next-line no-new-func
+      void new Function(`return (async () => (\n${script}\n))()`)
+      return true
+    }
+    catch {
+      return false
+    }
+  }
+
+  public describeGlobals(
+    availableActions: Action[],
+    globals: RuntimeGlobals,
+    options: DescribeGlobalsOptions = {},
+  ): PlannerGlobalDescriptor[] {
+    const descriptors: PlannerGlobalDescriptor[] = []
+    const includeBuiltins = options.includeBuiltins ?? true
+    const runtime = this.buildRuntimeSnapshot(globals)
+
+    const staticGlobals: Array<Omit<PlannerGlobalDescriptor, 'preview'>> = [
+      { name: 'skip', kind: 'tool', readonly: true },
+      { name: 'use', kind: 'function', readonly: true },
+      { name: 'log', kind: 'function', readonly: true },
+      { name: 'expect', kind: 'function', readonly: true },
+      { name: 'expectMoved', kind: 'function', readonly: true },
+      { name: 'expectNear', kind: 'function', readonly: true },
+      { name: 'snapshot', kind: 'object', readonly: true },
+      { name: 'event', kind: 'object', readonly: true },
+      { name: 'now', kind: 'number', readonly: true },
+      { name: 'self', kind: 'object', readonly: true },
+      { name: 'environment', kind: 'object', readonly: true },
+      { name: 'social', kind: 'object', readonly: true },
+      { name: 'threat', kind: 'object', readonly: true },
+      { name: 'attention', kind: 'object', readonly: true },
+      { name: 'autonomy', kind: 'object', readonly: true },
+      { name: 'llmInput', kind: 'object', readonly: true },
+      { name: 'currentInput', kind: 'object', readonly: true },
+      { name: 'llmLog', kind: 'object', readonly: true },
+      { name: 'actionQueue', kind: 'object', readonly: true },
+      { name: 'noActionBudget', kind: 'object', readonly: true },
+      { name: 'errorBurstGuard', kind: 'object', readonly: true },
+      { name: 'setNoActionBudget', kind: 'function', readonly: true },
+      { name: 'getNoActionBudget', kind: 'function', readonly: true },
+      { name: 'forget_conversation', kind: 'function', readonly: true },
+      { name: 'history', kind: 'object', readonly: true },
+      { name: 'llmMessages', kind: 'object', readonly: true },
+      { name: 'llmSystemPrompt', kind: 'string', readonly: true },
+      { name: 'llmUserMessage', kind: 'string', readonly: true },
+      { name: 'llmConversationHistory', kind: 'object', readonly: true },
+      { name: 'query', kind: 'object', readonly: true },
+      { name: 'query.self', kind: 'function', readonly: true },
+      { name: 'query.snapshot', kind: 'function', readonly: true },
+      { name: 'query.gaze', kind: 'function', readonly: true },
+      { name: 'patterns', kind: 'object', readonly: true },
+      { name: 'patterns.get', kind: 'function', readonly: true },
+      { name: 'patterns.find', kind: 'function', readonly: true },
+      { name: 'patterns.ids', kind: 'function', readonly: true },
+      { name: 'patterns.list', kind: 'function', readonly: true },
+      { name: 'bot', kind: 'object', readonly: true },
+      { name: 'mineflayer', kind: 'object', readonly: true },
+      { name: 'mem', kind: 'object', readonly: false },
+      { name: 'lastRun', kind: 'object', readonly: true },
+      { name: 'prevRun', kind: 'object', readonly: true },
+      { name: 'lastAction', kind: 'object', readonly: true },
+      { name: 'notifyAiri', kind: 'function', readonly: true },
+      { name: 'updateAiriContext', kind: 'function', readonly: true },
+    ]
+
+    const valueByName: Record<string, unknown> = {
+      'snapshot': runtime.snapshot,
+      'event': runtime.event,
+      'now': Date.now(),
+      // `self` already carries pos/position aliases (applied in buildRuntimeSnapshot), so the preview
+      // matches what the sandbox actually binds.
+      'self': runtime.snapshot.self,
+      'environment': runtime.snapshot.environment,
+      'social': runtime.snapshot.social,
+      'threat': runtime.snapshot.threat,
+      'attention': runtime.snapshot.attention,
+      'autonomy': runtime.snapshot.autonomy,
+      'llmInput': runtime.llmInput,
+      'currentInput': runtime.currentInput,
+      'llmLog': runtime.llmLogEntries.length > 0 ? { entries: runtime.llmLogEntries } : { entries: [] },
+      'actionQueue': runtime.actionQueue,
+      'noActionBudget': runtime.noActionBudget,
+      'errorBurstGuard': runtime.errorBurstGuard,
+      'llmMessages': runtime.llmInput?.messages ?? [],
+      'llmSystemPrompt': runtime.llmInput?.systemPrompt ?? '',
+      'llmUserMessage': runtime.llmInput?.userMessage ?? '',
+      'llmConversationHistory': runtime.llmInput?.conversationHistory ?? [],
+      'query': runtime.querySeed
+        ? {
+            self: '[Function self]',
+            snapshot: '[Function snapshot]',
+            gaze: '[Function gaze]',
+            blocks: '[Function blocks]',
+            entities: '[Function entities]',
+            inventory: '[Function inventory]',
+            craftable: '[Function craftable]',
+            blockAt: '[Function blockAt]',
+            map: '[Function map]',
+          }
+        : undefined,
+      'patterns': globals.patterns ? { get: '[Function]', find: '[Function]', ids: '[Function]', list: '[Function]' } : null,
+      'patterns.get': globals.patterns?.get,
+      'patterns.find': globals.patterns?.find,
+      'patterns.ids': globals.patterns?.ids,
+      'patterns.list': globals.patterns?.list,
+      'history': {
+        recent: '[Function recent]',
+        search: '[Function search]',
+        turns: '[Function turns]',
+        playerChats: '[Function playerChats]',
+        count: '[Function count]',
+        currentTurn: '[Function currentTurn]',
+      },
+      'bot': null,
+      'mineflayer': null,
+      'mem': this.persistedMem,
+      'lastRun': this.persistedLastRun,
+      'prevRun': this.persistedLastRun,
+      'lastAction': this.persistedLastAction,
+      'notifyAiri': globals.notifyAiri ?? null,
+      'updateAiriContext': globals.updateAiriContext ?? null,
+      'skip': '[Function skip]',
+      'use': '[Function use]',
+      'log': '[Function log]',
+      'expect': '[Function expect]',
+      'expectMoved': '[Function expectMoved]',
+      'expectNear': '[Function expectNear]',
+      'setNoActionBudget': globals.setNoActionBudget ?? null,
+      'getNoActionBudget': globals.getNoActionBudget ?? null,
+      'forget_conversation': globals.forgetConversation ?? null,
+    }
+
+    if (includeBuiltins) {
+      for (const item of staticGlobals) {
+        descriptors.push({
+          ...item,
+          preview: this.previewValue(valueByName[item.name]),
+        })
+      }
+    }
+
+    for (const action of availableActions) {
+      descriptors.push({
+        name: action.name,
+        kind: 'tool',
+        readonly: true,
+        preview: action.description || '(tool)',
+      })
+    }
+
+    descriptors.sort((a, b) => a.name.localeCompare(b.name))
+    return descriptors
+  }
+
+  private buildRuntimeSnapshot(globals: RuntimeGlobals): RuntimeSnapshot {
+    const llmLogEntries = this.buildLlmLogSeed(globals.llmLog)
+    const llmInput = copyForIsolate(globals.llmInput ?? null)
+
+    // NOTICE: the sandbox binds `self` and `snapshot.self` straight from this snapshot (see the self
+    // binding in js-planner-worker.ts), but the raw reflex self only carries `.location` for coords.
+    // The LLM constantly writes self.pos.x / self.position.x, so alias pos/position -> location on the
+    // isolate copy here — otherwise those reads are undefined and scripts crash with
+    // "Cannot read properties of undefined (reading 'x')". (query.self() is a separate, .pos-shaped record.)
+    // copyForIsolate freezes its result, so build a fresh aliased `self` rather than mutating in place.
+    const rawSnapshot = copyForIsolate(globals.snapshot)
+    const rawSelf = (rawSnapshot as Record<string, unknown> | null)?.self as Record<string, unknown> | undefined
+    const snapshot = rawSelf && typeof rawSelf === 'object' && rawSelf.location != null
+      ? {
+          ...(rawSnapshot as Record<string, unknown>),
+          self: { ...rawSelf, pos: rawSelf.pos ?? rawSelf.location, position: rawSelf.position ?? rawSelf.location },
+        }
+      : rawSnapshot
+
+    return {
+      actionQueue: copyForIsolate(globals.actionQueue ?? null),
+      currentInput: copyForIsolate(globals.currentInput ?? null),
+      errorBurstGuard: copyForIsolate(globals.errorBurstGuard ?? null),
+      event: copyForIsolate(globals.event),
+      historySeed: {
+        conversationHistory: this.buildConversationHistorySeed(llmInput?.conversationHistory),
+        currentTurn: this.readCurrentTurn(globals.history),
+        llmLogEntries,
+      },
+      lastAction: copyForIsolate(this.persistedLastAction),
+      llmInput,
+      llmLogEntries,
+      mem: copyForIsolate(this.persistedMem),
+      noActionBudget: copyForIsolate(globals.noActionBudget ?? null),
+      prevRun: copyForIsolate(this.persistedLastRun),
+      querySeed: this.buildQuerySeedSafely(globals.mineflayer ?? null),
+      snapshot,
+    }
+  }
+
+  private buildConversationHistorySeed(messages: unknown): Array<{ role: string, content: string }> {
+    if (!Array.isArray(messages))
+      return []
+
+    return copyForIsolate(messages.map((message) => {
+      const role = isRecord(message) && typeof message.role === 'string' ? message.role : 'unknown'
+      const content = isRecord(message) && 'content' in message
+        ? typeof message.content === 'string'
+          ? message.content
+          : String(message.content)
+        : ''
+
+      return { role, content }
+    }))
+  }
+
+  private buildLlmLogSeed(llmLog: unknown): Array<Record<string, unknown>> {
+    if (!llmLog || typeof llmLog !== 'object')
+      return []
+
+    const entries = (llmLog as { entries?: unknown }).entries
+    if (!Array.isArray(entries))
+      return []
+
+    return copyForIsolate(
+      entries.filter(isRecord).map(entry => ({ ...entry })),
+    )
+  }
+
+  private readCurrentTurn(history: unknown): number {
+    if (!history || typeof history !== 'object')
+      return 0
+
+    const currentTurn = (history as { currentTurn?: unknown }).currentTurn
+    if (typeof currentTurn !== 'function')
+      return 0
+
+    try {
+      const value = currentTurn()
+      return typeof value === 'number' ? value : 0
+    }
+    catch {
+      return 0
+    }
+  }
+
+  private buildQuerySeedSafely(mineflayer: Mineflayer | null): QuerySeed | null {
+    if (!mineflayer)
+      return null
+
+    try {
+      return this.buildQuerySeed(mineflayer)
+    }
+    catch {
+      return null
+    }
+  }
+
+  private buildQuerySeed(mineflayer: Mineflayer): QuerySeed {
+    const query = createQueryRuntime(mineflayer)
+    return copyForIsolate({
+      self: query.self() as unknown as Record<string, unknown>,
+      blocks: query.blocks().within(96).limit(500).list() as unknown as Array<Record<string, unknown>>,
+      entities: query.entities().within(128).limit(500).list() as unknown as Array<Record<string, unknown>>,
+      inventory: query.inventory().list() as unknown as Array<Record<string, unknown>>,
+      craftable: query.craftable().uniq().list(),
+      gaze: query.gaze({ range: 32 }) as unknown[],
+    })
   }
 
   private buildBootstrapScript(): string {
@@ -1004,204 +1353,22 @@ delete globalThis.__plannerLog
 `
   }
 
-  private buildConversationHistorySeed(messages: unknown): Array<{ content: string, role: string }> {
-    if (!Array.isArray(messages))
-      return []
+  private mapToolArgs(tool: string, args: unknown[]): Record<string, unknown> {
+    if (!this.activeRun)
+      throw new Error('Tool calls are only allowed during REPL evaluation')
 
-    return copyForIsolate(messages.map((message) => {
-      const role = isRecord(message) && typeof message.role === 'string' ? message.role : 'unknown'
-      const content = isRecord(message) && 'content' in message
-        ? typeof message.content === 'string'
-          ? message.content
-          : String(message.content)
-        : ''
+    if (tool === 'skip')
+      return {}
 
-      return { content, role }
-    }))
+    const action = this.activeRun.actionsByName.get(tool)
+    if (!action)
+      throw new Error(`Unknown tool: ${tool}`)
+
+    return this.mapArgsToParams(action, args)
   }
 
-  private buildLlmLogSeed(llmLog: unknown): Array<Record<string, unknown>> {
-    if (!llmLog || typeof llmLog !== 'object')
-      return []
-
-    const entries = (llmLog as { entries?: unknown }).entries
-    if (!Array.isArray(entries))
-      return []
-
-    return copyForIsolate(
-      entries.filter(isRecord).map(entry => ({ ...entry })),
-    )
-  }
-
-  private buildQuerySeed(mineflayer: Mineflayer): QuerySeed {
-    const query = createQueryRuntime(mineflayer)
-    return copyForIsolate({
-      blocks: query.blocks().within(96).limit(500).list() as unknown as Array<Record<string, unknown>>,
-      craftable: query.craftable().uniq().list(),
-      entities: query.entities().within(128).limit(500).list() as unknown as Array<Record<string, unknown>>,
-      gaze: query.gaze({ range: 32 }) as unknown[],
-      inventory: query.inventory().list() as unknown as Array<Record<string, unknown>>,
-      self: query.self() as unknown as Record<string, unknown>,
-    })
-  }
-
-  private buildQuerySeedSafely(mineflayer: Mineflayer | null): null | QuerySeed {
-    if (!mineflayer)
-      return null
-
-    try {
-      return this.buildQuerySeed(mineflayer)
-    }
-    catch {
-      return null
-    }
-  }
-
-  private buildRuntimeSnapshot(globals: RuntimeGlobals): RuntimeSnapshot {
-    const llmLogEntries = this.buildLlmLogSeed(globals.llmLog)
-    const llmInput = copyForIsolate(globals.llmInput ?? null)
-
-    // NOTICE: the sandbox binds `self` and `snapshot.self` straight from this snapshot (see the self
-    // binding in js-planner-worker.ts), but the raw reflex self only carries `.location` for coords.
-    // The LLM constantly writes self.pos.x / self.position.x, so alias pos/position -> location on the
-    // isolate copy here — otherwise those reads are undefined and scripts crash with
-    // "Cannot read properties of undefined (reading 'x')". (query.self() is a separate, .pos-shaped record.)
-    // copyForIsolate freezes its result, so build a fresh aliased `self` rather than mutating in place.
-    const rawSnapshot = copyForIsolate(globals.snapshot)
-    const rawSelf = (rawSnapshot as null | Record<string, unknown>)?.self as Record<string, unknown> | undefined
-    const snapshot = rawSelf && typeof rawSelf === 'object' && rawSelf.location != null
-      ? {
-          ...(rawSnapshot as Record<string, unknown>),
-          self: { ...rawSelf, pos: rawSelf.pos ?? rawSelf.location, position: rawSelf.position ?? rawSelf.location },
-        }
-      : rawSnapshot
-
-    return {
-      actionQueue: copyForIsolate(globals.actionQueue ?? null),
-      currentInput: copyForIsolate(globals.currentInput ?? null),
-      errorBurstGuard: copyForIsolate(globals.errorBurstGuard ?? null),
-      event: copyForIsolate(globals.event),
-      historySeed: {
-        conversationHistory: this.buildConversationHistorySeed(llmInput?.conversationHistory),
-        currentTurn: this.readCurrentTurn(globals.history),
-        llmLogEntries,
-      },
-      lastAction: copyForIsolate(this.persistedLastAction),
-      llmInput,
-      llmLogEntries,
-      mem: copyForIsolate(this.persistedMem),
-      noActionBudget: copyForIsolate(globals.noActionBudget ?? null),
-      prevRun: copyForIsolate(this.persistedLastRun),
-      querySeed: this.buildQuerySeedSafely(globals.mineflayer ?? null),
-      snapshot,
-    }
-  }
-
-  private buildSandboxWorkerRequest(
-    script: string,
-    availableActions: Action[],
-    globals: RuntimeGlobals,
-  ): SandboxWorkerRequest {
-    return {
-      bootstrapScript: this.buildBootstrapScript(),
-      bridgeAvailability: {
-        botCall: Boolean(globals.mineflayer),
-        forgetConversation: Boolean(globals.forgetConversation),
-        getNoActionBudget: Boolean(globals.getNoActionBudget),
-        notifyAiri: Boolean(globals.notifyAiri),
-        patternFind: Boolean(globals.patterns?.find),
-        patternGet: Boolean(globals.patterns?.get),
-        patternIds: Boolean(globals.patterns?.ids),
-        patternList: Boolean(globals.patterns?.list),
-        queryBlockAt: Boolean(globals.mineflayer),
-        queryMap: Boolean(globals.mineflayer),
-        setNoActionBudget: Boolean(globals.setNoActionBudget),
-        updateAiriContext: Boolean(globals.updateAiriContext),
-      },
-      memoryLimitMb: this.memoryLimitMb,
-      runtime: this.buildRuntimeSnapshot(globals),
-      script,
-      timeoutMs: this.timeoutMs,
-      toolNames: availableActions.map(action => action.name),
-    }
-  }
-
-  private async handleBridgeRequest(method: string, args: unknown[], globals: RuntimeGlobals): Promise<unknown> {
-    switch (method) {
-      case 'bot.call': {
-        if (!globals.mineflayer)
-          return null
-        const [method, rawArgs] = args
-        if (typeof method !== 'string')
-          throw new TypeError('botCall requires a method name')
-        return await callBotMethod(globals.mineflayer, method, rawArgs)
-      }
-
-      case 'forgetConversation':
-        return cloneStructured(globals.forgetConversation?.() ?? null)
-
-      case 'getNoActionBudget':
-        return cloneStructured(globals.getNoActionBudget?.() ?? null)
-
-      case 'notifyAiri':
-        return cloneStructured(globals.notifyAiri?.(
-          args[0] as string,
-          args[1] as string | undefined,
-          args[2] as 'immediate' | 'later' | 'soon' | undefined,
-        ) ?? null)
-
-      case 'patterns.find':
-        return cloneStructured(globals.patterns?.find?.(args[0] as string, args[1] as number | undefined) ?? [])
-
-      case 'patterns.get':
-        return cloneStructured(globals.patterns?.get?.(args[0] as string) ?? null)
-
-      case 'patterns.ids':
-        return cloneStructured(globals.patterns?.ids?.() ?? [])
-
-      case 'patterns.list':
-        return cloneStructured(globals.patterns?.list?.(args[0] as number | undefined) ?? [])
-
-      case 'query.blockAt': {
-        if (!globals.mineflayer)
-          return null
-        const [position] = args
-        return cloneStructured(createQueryRuntime(globals.mineflayer).blockAt(position as { x: number, y: number, z: number }))
-      }
-
-      case 'query.map': {
-        if (!globals.mineflayer)
-          return null
-        const [options] = args
-        return cloneStructured(createQueryRuntime(globals.mineflayer).map(options as {
-          radius?: number
-          showElevation?: boolean
-          showEntities?: boolean
-          view?: 'cross-section' | 'top-down'
-          yLevel?: number
-        }))
-      }
-
-      case 'setNoActionBudget':
-        return cloneStructured(globals.setNoActionBudget?.(args[0] as number) ?? null)
-
-      case 'tool': {
-        const [tool, toolArgs] = args
-        if (typeof tool !== 'string' || !Array.isArray(toolArgs))
-          throw new Error('Sandbox tool bridge received invalid arguments')
-        return await this.runActionFromSandbox(tool, toolArgs)
-      }
-
-      case 'updateAiriContext':
-        return cloneStructured(globals.updateAiriContext?.(
-          args[0] as string,
-          args[1] as string[] | undefined,
-          args[2] as string | undefined,
-        ) ?? null)
-
-      default:
-        throw new Error(`Unknown sandbox bridge method: ${method}`)
-    }
+  private async runActionFromSandbox(tool: string, args: unknown[]): Promise<ActionRuntimeResult> {
+    return this.runAction(tool, this.mapToolArgs(tool, args))
   }
 
   private mapArgsToParams(action: Action, args: unknown[]): Record<string, unknown> {
@@ -1230,49 +1397,6 @@ delete globalThis.__plannerLog
     return params
   }
 
-  private mapToolArgs(tool: string, args: unknown[]): Record<string, unknown> {
-    if (!this.activeRun)
-      throw new Error('Tool calls are only allowed during REPL evaluation')
-
-    if (tool === 'skip')
-      return {}
-
-    const action = this.activeRun.actionsByName.get(tool)
-    if (!action)
-      throw new Error(`Unknown tool: ${tool}`)
-
-    return this.mapArgsToParams(action, args)
-  }
-
-  private previewValue(value: unknown): string {
-    if (value === null)
-      return 'null'
-    if (typeof value === 'undefined')
-      return 'undefined'
-    if (typeof value === 'string')
-      return value.length > 120 ? `${value.slice(0, 117)}...` : value
-
-    const rendered = inspect(value, { breakLength: 120, depth: 1 })
-    return rendered.length > 120 ? `${rendered.slice(0, 117)}...` : rendered
-  }
-
-  private readCurrentTurn(history: unknown): number {
-    if (!history || typeof history !== 'object')
-      return 0
-
-    const currentTurn = (history as { currentTurn?: unknown }).currentTurn
-    if (typeof currentTurn !== 'function')
-      return 0
-
-    try {
-      const value = currentTurn()
-      return typeof value === 'number' ? value : 0
-    }
-    catch {
-      return 0
-    }
-  }
-
   private async runAction(tool: string, params: Record<string, unknown>): Promise<ActionRuntimeResult> {
     if (!this.activeRun)
       throw new Error('Tool calls are only allowed during REPL evaluation')
@@ -1289,7 +1413,7 @@ delete globalThis.__plannerLog
     this.activeRun.actionCount++
 
     if (tool === 'skip') {
-      const action: ActionInstruction = { params: {}, tool: 'skip' }
+      const action: ActionInstruction = { tool: 'skip', params: {} }
       const runtimeResult: ActionRuntimeResult = {
         action,
         ok: true,
@@ -1302,9 +1426,9 @@ delete globalThis.__plannerLog
     const validation = this.validateAction(tool, params)
     if (!validation.action) {
       const runtimeResult: ActionRuntimeResult = {
-        action: { params, tool },
-        error: validation.error ?? `Invalid tool parameters for ${tool}`,
+        action: { tool, params },
         ok: false,
+        error: validation.error ?? `Invalid tool parameters for ${tool}`,
       }
       this.activeRun.executed.push(runtimeResult)
       return runtimeResult
@@ -1336,16 +1460,12 @@ delete globalThis.__plannerLog
 
       const runtimeResult: ActionRuntimeResult = {
         action,
-        error: errorMessageFrom(error) ?? 'Unknown action error',
         ok: false,
+        error: errorMessageFrom(error) ?? 'Unknown action error',
       }
       this.activeRun.executed.push(runtimeResult)
       return runtimeResult
     }
-  }
-
-  private async runActionFromSandbox(tool: string, args: unknown[]): Promise<ActionRuntimeResult> {
-    return this.runAction(tool, this.mapToolArgs(tool, args))
   }
 
   private validateAction(tool: string, params: Record<string, unknown>): ValidationResult {
@@ -1366,138 +1486,18 @@ delete globalThis.__plannerLog
       }
     }
 
-    return { action: { params: parsed.data, tool } }
+    return { action: { tool, params: parsed.data } }
   }
-}
 
-export function extractJavaScriptCandidate(input: string): string {
-  const trimmed = input.trim()
-  // Prefer a fenced code block found ANYWHERE in the reply: chat-style models often add a short line
-  // of reasoning before the code. The previous `^...$` anchoring only matched a reply that was nothing
-  // but a fence, so any leading prose caused the entire prose+code to be executed as a script.
-  // eslint-disable-next-line regexp/no-super-linear-backtracking
-  const fenced = trimmed.match(/```(?:js|javascript|ts|typescript)?[^\S\r\n]*\r?\n?([\s\S]*?)```/i)
-  if (fenced?.[1])
-    return fenced[1].trim()
+  private previewValue(value: unknown): string {
+    if (value === null)
+      return 'null'
+    if (typeof value === 'undefined')
+      return 'undefined'
+    if (typeof value === 'string')
+      return value.length > 120 ? `${value.slice(0, 117)}...` : value
 
-  // No fence: the model often wraps un-fenced code in a Chinese intro/outro line (e.g.
-  // "好的,我来做:\n<code>\n这样就安全了"). Such a bare-word line is INSIDIOUS — CJK characters are
-  // valid JS identifiers, so a line like "然后我去做盔甲" PARSES as an identifier expression, sails
-  // past the syntax firewall, then throws "<那串中文> is not defined" at runtime (the real cause of the
-  // "X is not defined" failures). Strip those leading/trailing prose lines so the real code runs.
-  return stripEdgeProseLines(trimmed)
-}
-
-/**
- * Invokes a method on the live mineflayer bot on behalf of sandboxed script code.
- *
- * Use when:
- * - A script needs a low-level bot action that has no dedicated tool (e.g. `lookAt`).
- *
- * Expects:
- * - `method` is not in {@link BOT_METHOD_DENYLIST} and resolves to a bot function.
- * - `rawArgs` are sandbox-serializable; position-shaped args are marshaled to `Vec3`.
- *
- * Returns:
- * - The method's result, defensively cloned to a sandbox-safe value (or `null` when
- *   the result is a live object that cannot be serialized back).
- */
-async function callBotMethod(mineflayer: Mineflayer, method: string, rawArgs: unknown): Promise<unknown> {
-  if (BOT_METHOD_DENYLIST.has(method))
-    throw new Error(`botCall: method "${method}" is not allowed`)
-
-  const bot = mineflayer.bot as unknown as Record<string, unknown>
-  const fn = bot[method]
-  if (typeof fn !== 'function')
-    throw new TypeError(`botCall: bot.${method} is not a function`)
-
-  const callArgs = Array.isArray(rawArgs) ? rawArgs.map(marshalBotArg) : []
-  const result = await (fn as (...a: unknown[]) => unknown).apply(bot, callArgs)
-
-  try {
-    return cloneStructured(result)
+    const rendered = inspect(value, { depth: 1, breakLength: 120 })
+    return rendered.length > 120 ? `${rendered.slice(0, 117)}...` : rendered
   }
-  catch {
-    // Live objects (Entity/Block/etc.) are not serializable back into the sandbox.
-    return null
-  }
-}
-
-/** A leading/trailing line that is natural-language prose (CJK text with no JS structure), to drop. */
-function isEdgeProseLine(line: string): boolean {
-  const t = line.trim()
-  if (!t)
-    return false
-  // Any JS structure means it's code, keep it (covers chat strings, which carry the CJK inside `(...)`).
-  if (/[()[\]{}=;]/.test(t))
-    return false
-  // Otherwise treat a line containing CJK (Chinese/Japanese/Korean) as prose — conservative, so plain
-  // ASCII code lines are never stripped.
-  return /[\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/.test(t)
-}
-
-// NOTICE: Firewall between the LLM's natural-language space and the Minecraft action (JS) space.
-// The decision script is executed inside the sandbox as `return (async () => {\n<script>\n})()`
-// (see js-planner-worker.ts). When the model replies in prose instead of code, that prose lands on
-// line 2 and the isolate throws cryptic syntax errors ("Unexpected identifier 'me'", …), which fed a
-// death-spiral because the error handed back to the model never said "you wrote prose, not code".
-// We pre-compile with the SAME async wrapper (so top-level await/return are not false positives) to
-// detect non-code BEFORE wasting a sandbox turn, and turn it into a directive correction instead.
-// `new Function` only parses/compiles its body — it does NOT execute the candidate — so this is safe.
-function isSyntacticallyValidScript(candidate: string): boolean {
-  if (!candidate.trim())
-    return true // empty script == "observe / do nothing", not an error
-
-  try {
-    // eslint-disable-next-line no-new-func
-    void new Function(`return (async () => {\n${candidate}\n})()`)
-    return true
-  }
-  catch (err) {
-    // Only treat *syntax* errors as "not code". Anything else compiled fine.
-    return !(err instanceof SyntaxError)
-  }
-}
-
-/**
- * Marshals one `botCall` argument from sandbox-serializable data into the value the
- * mineflayer API expects.
- *
- * Before:
- * - `{ x: 1, y: 2, z: 3 }`
- *
- * After:
- * - `Vec3(1, 2, 3)`
- *
- * Non position-shaped values pass through unchanged.
- */
-function marshalBotArg(value: unknown): unknown {
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    const record = value as Record<string, unknown>
-    if (typeof record.x === 'number' && typeof record.y === 'number' && typeof record.z === 'number')
-      return new Vec3(record.x, record.y, record.z)
-  }
-  return value
-}
-
-/**
- * Drop natural-language prose lines wrapping un-fenced code.
- *
- * Before: "好的,我来做:\nawait craftRecipe({ item_name: \"diamond_helmet\" })\n这样就安全啦"
- * After:  "await craftRecipe({ item_name: \"diamond_helmet\" })"
- *
- * Only strips from the edges (never the middle, so multi-line constructs are safe) and only CJK prose.
- * If nothing executable would remain (a pure-prose reply), returns the original so the firewall still
- * corrects the model instead of silently running an empty script.
- */
-function stripEdgeProseLines(code: string): string {
-  const lines = code.split(/\r?\n/)
-  let start = 0
-  let end = lines.length
-  while (start < end && isEdgeProseLine(lines[start]))
-    start++
-  while (end > start && isEdgeProseLine(lines[end - 1]))
-    end--
-  const stripped = lines.slice(start, end).join('\n').trim()
-  return stripped || code
 }

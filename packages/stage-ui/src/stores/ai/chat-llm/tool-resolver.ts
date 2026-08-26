@@ -9,6 +9,8 @@ import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useWebSearchStore } from '../../modules/web-search'
 import { useLlmToolsStore } from './tools'
 
+type ToolSource = Tool[] | (() => Promise<Tool[]>)
+
 /**
  * Overrides for resolving the complete LLM-visible tool list.
  *
@@ -17,24 +19,11 @@ import { useLlmToolsStore } from './tools'
  */
 export interface ResolveLlmToolsOptions {
   /**
-   * Runtime-registered tools currently active in the LLM tool store. Supplying
-   * this also avoids creating the LLM tool store.
-   *
-   * @default useLlmToolsStore().activeTools
-   */
-  activeTools?: Tool[]
-  /**
    * MCP-backed built-in tools.
    *
    * @default mcp()
    */
   builtInTools?: ToolSource
-  /**
-   * Request-scoped tools from {@link StreamOptions.tools}. These are ordered
-   * before active runtime tools so runtime registrations can intentionally
-   * override a request tool with the same name.
-   */
-  customTools?: StreamOptions['tools']
   /**
    * Debug tools exposed to the LLM.
    *
@@ -56,9 +45,89 @@ export interface ResolveLlmToolsOptions {
    * @default gated on useWebSearchStore().configured
    */
   webSearchTools?: ToolSource
+  /**
+   * Request-scoped tools from {@link StreamOptions.tools}. These are ordered
+   * before active runtime tools so runtime registrations can intentionally
+   * override a request tool with the same name.
+   */
+  customTools?: StreamOptions['tools']
+  /**
+   * Runtime-registered tools currently active in the LLM tool store. Supplying
+   * this also avoids creating the LLM tool store.
+   *
+   * @default useLlmToolsStore().activeTools
+   */
+  activeTools?: Tool[]
 }
 
-type ToolSource = (() => Promise<Tool[]>) | Tool[]
+/**
+ * Reads the provider-visible name from an xsai tool.
+ */
+export function toolNameFrom(tool: Tool): string | undefined {
+  const candidate = tool as Tool & {
+    name?: string
+    function?: {
+      name?: string
+    }
+  }
+
+  return candidate.function?.name ?? candidate.name
+}
+
+async function resolveToolSource(source: ToolSource): Promise<Tool[]> {
+  return typeof source === 'function' ? await source() : source
+}
+
+async function resolveCustomTools(customTools: StreamOptions['tools']): Promise<Tool[]> {
+  if (typeof customTools === 'function')
+    return await customTools() ?? []
+
+  return customTools ?? []
+}
+
+async function resolveActiveTools(activeTools?: Tool[]): Promise<Tool[]> {
+  if (activeTools != null)
+    return activeTools
+
+  return useLlmToolsStore().activeTools
+}
+
+async function resolveSparkCommandTools(sparkCommandTools?: ToolSource): Promise<Tool[]> {
+  if (sparkCommandTools != null)
+    return resolveToolSource(sparkCommandTools)
+
+  const modsServerChannelStore = useModsServerChannelStore()
+  const sendSparkCommand = (command: WebSocketEvents['spark:command']) => {
+    // TODO(@nekomeowww): instruct the LLM to understand what destination is.
+    // Currently without skill like prompt injection, many issues occur.
+    // destination mostly are wrong or hallucinated, we need to find a way to make it more reliable.
+    //
+    // For now, since destinations as array will always broadcast to all connected modules/agents, we can set it to
+    // empty array to avoid wrong routing.
+    command.destinations = []
+
+    modsServerChannelStore.send({
+      type: 'spark:command',
+      data: command,
+    })
+  }
+
+  return createSparkCommandTool({ sendSparkCommand })
+}
+
+async function resolveWebSearchTools(webSearchTools?: ToolSource): Promise<Tool[]> {
+  if (webSearchTools != null)
+    return resolveToolSource(webSearchTools)
+
+  const webSearchStore = useWebSearchStore()
+  // A keyless search can only ever error, so omit the tool until configured.
+  if (!webSearchStore.configured)
+    return []
+
+  // Trim the key: `configured` is computed on the trimmed value, so a key pasted
+  // with trailing whitespace/newline reads as ready but would 401 if sent raw.
+  return createWebSearchTools({ apiKey: webSearchStore.apiKey.trim() })
+}
 
 /**
  * Resolves every tool visible to an LLM request.
@@ -94,73 +163,4 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
     ].toReversed(),
     tool => toolNameFrom(tool) ?? tool,
   ).toReversed()
-}
-
-/**
- * Reads the provider-visible name from an xsai tool.
- */
-export function toolNameFrom(tool: Tool): string | undefined {
-  const candidate = tool as Tool & {
-    function?: {
-      name?: string
-    }
-    name?: string
-  }
-
-  return candidate.function?.name ?? candidate.name
-}
-
-async function resolveActiveTools(activeTools?: Tool[]): Promise<Tool[]> {
-  if (activeTools != null)
-    return activeTools
-
-  return useLlmToolsStore().activeTools
-}
-
-async function resolveCustomTools(customTools: StreamOptions['tools']): Promise<Tool[]> {
-  if (typeof customTools === 'function')
-    return await customTools() ?? []
-
-  return customTools ?? []
-}
-
-async function resolveSparkCommandTools(sparkCommandTools?: ToolSource): Promise<Tool[]> {
-  if (sparkCommandTools != null)
-    return resolveToolSource(sparkCommandTools)
-
-  const modsServerChannelStore = useModsServerChannelStore()
-  const sendSparkCommand = (command: WebSocketEvents['spark:command']) => {
-    // TODO(@nekomeowww): instruct the LLM to understand what destination is.
-    // Currently without skill like prompt injection, many issues occur.
-    // destination mostly are wrong or hallucinated, we need to find a way to make it more reliable.
-    //
-    // For now, since destinations as array will always broadcast to all connected modules/agents, we can set it to
-    // empty array to avoid wrong routing.
-    command.destinations = []
-
-    modsServerChannelStore.send({
-      data: command,
-      type: 'spark:command',
-    })
-  }
-
-  return createSparkCommandTool({ sendSparkCommand })
-}
-
-async function resolveToolSource(source: ToolSource): Promise<Tool[]> {
-  return typeof source === 'function' ? await source() : source
-}
-
-async function resolveWebSearchTools(webSearchTools?: ToolSource): Promise<Tool[]> {
-  if (webSearchTools != null)
-    return resolveToolSource(webSearchTools)
-
-  const webSearchStore = useWebSearchStore()
-  // A keyless search can only ever error, so omit the tool until configured.
-  if (!webSearchStore.configured)
-    return []
-
-  // Trim the key: `configured` is computed on the trimmed value, so a key pasted
-  // with trailing whitespace/newline reads as ready but would 401 if sent raw.
-  return createWebSearchTools({ apiKey: webSearchStore.apiKey.trim() })
 }

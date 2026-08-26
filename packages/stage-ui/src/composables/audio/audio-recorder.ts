@@ -7,6 +7,16 @@ import { computed, ref, shallowRef, toRef } from 'vue'
 const TRANSCRIPTION_WAV_CODEC = 'pcm-s16'
 
 /**
+ * Returns the first audio track from the active microphone stream.
+ */
+function getMediaStreamTrack(stream: MediaStream) {
+  const tracks = stream.getAudioTracks()
+  if (!tracks.length)
+    throw new Error('No audio tracks found in stream')
+  return tracks[0]
+}
+
+/**
  * Records microphone input into short WAV blobs for transcription providers.
  */
 export function useAudioRecorder(
@@ -46,7 +56,7 @@ export function useAudioRecorder(
     mediaOutput.value = output
 
     try {
-      const audioSource = new MediaStreamAudioTrackSource(track, { bitrate: QUALITY_MEDIUM, codec: TRANSCRIPTION_WAV_CODEC })
+      const audioSource = new MediaStreamAudioTrackSource(track, { codec: TRANSCRIPTION_WAV_CODEC, bitrate: QUALITY_MEDIUM })
       audioSource.errorPromise.catch(console.error)
       output.addAudioTrack(audioSource)
 
@@ -109,22 +119,12 @@ export function useAudioRecorder(
   }
 
   return {
-    discardRecord,
-    isRecording,
-    onStopRecord,
-    recording,
-
     startRecord,
     stopRecord,
-  }
-}
+    discardRecord,
+    onStopRecord,
 
-/**
- * Returns the first audio track from the active microphone stream.
- */
-function getMediaStreamTrack(stream: MediaStream) {
-  const tracks = stream.getAudioTracks()
-  if (!tracks.length)
-    throw new Error('No audio tracks found in stream')
-  return tracks[0]
+    isRecording,
+    recording,
+  }
 }

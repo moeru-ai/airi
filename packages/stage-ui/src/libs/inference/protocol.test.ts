@@ -151,11 +151,11 @@ describe('throwIfAborted', () => {
 
 describe('classifyDeviceLossReason', () => {
   it('should return destroyed for GPUDeviceLostInfo-shaped object', () => {
-    expect(classifyDeviceLossReason({ message: 'user requested', reason: 'destroyed' })).toBe('destroyed')
+    expect(classifyDeviceLossReason({ reason: 'destroyed', message: 'user requested' })).toBe('destroyed')
   })
 
   it('should return unknown for non-destroyed structured reason', () => {
-    expect(classifyDeviceLossReason({ message: 'driver reset', reason: 'unknown' })).toBe('unknown')
+    expect(classifyDeviceLossReason({ reason: 'unknown', message: 'driver reset' })).toBe('unknown')
   })
 
   it('should return destroyed when error message contains "destroyed"', () => {

@@ -28,10 +28,10 @@ const captionConfigSchema = object({
   isFollowing: boolean(),
   matrices: record(string(), object({
     bounds: object({
-      height: number(),
-      width: number(),
       x: number(),
       y: number(),
+      width: number(),
+      height: number(),
     }),
     relativeToMain: optional(object({
       dx: number(),
@@ -41,20 +41,121 @@ const captionConfigSchema = object({
 })
 type CaptionConfig = InferOutput<typeof captionConfigSchema>
 
+function computeDisplayMatrixHash(): string {
+  const displays = screen.getAllDisplays()
+  const signature = displays
+    .slice()
+    .sort((a, b) => (a.bounds.x - b.bounds.x) || (a.bounds.y - b.bounds.y))
+    .map(d => [d.bounds.x, d.bounds.y, d.bounds.width, d.bounds.height, d.scaleFactor ?? 1].join(','))
+    .join('|')
+
+  return createHash('sha256').update(signature).digest('hex').slice(0, 16)
+}
+
+function clampBoundsWithinRect(bounds: Rectangle, rect: Rectangle): Rectangle {
+  const x = Math.min(Math.max(bounds.x, rect.x), rect.x + rect.width - bounds.width)
+  const y = Math.min(Math.max(bounds.y, rect.y), rect.y + rect.height - bounds.height)
+  return { x, y, width: bounds.width, height: bounds.height }
+}
+
+function computeInitialCaptionBounds(params: { mainWindow: BrowserWindow, captionOptions?: Partial<Rectangle> }): Rectangle {
+  const mainBounds = params.mainWindow.getBounds()
+  const displayWorkArea = screen.getDisplayMatching(mainBounds).workArea
+
+  // Base sizing from display width with sensible caps
+  const width = mapForBreakpoints(
+    displayWorkArea.width,
+    {
+      '720p': widthFrom(displayWorkArea, { percentage: 0.9, max: { actual: 560 }, min: { actual: 280 } }),
+      '1080p': widthFrom(displayWorkArea, { percentage: 0.5, max: { actual: 640 }, min: { actual: 320 } }),
+      '2k': widthFrom(displayWorkArea, { percentage: 0.4, max: { actual: 720 }, min: { actual: 360 } }),
+      '4k': widthFrom(displayWorkArea, { percentage: 0.33, max: { actual: 768 }, min: { actual: 420 } }),
+    },
+    { breakpoints: resolutionBreakpoints },
+  )
+  const height = Math.max(Math.floor(width / 3.2), 120)
+
+  const margin = 16
+  // Prefer to the right of main window, else to the left, else bottom centered
+  let x = mainBounds.x + mainBounds.width + margin
+  let y = mainBounds.y + mainBounds.height - height
+
+  const rightEdge = x + width
+  const displayRight = displayWorkArea.x + displayWorkArea.width
+
+  if (rightEdge > displayRight) {
+    // Place to the left
+    x = mainBounds.x - width - margin
+  }
+
+  // If still out of bounds horizontally, fallback to bottom center
+  if (x < displayWorkArea.x || (x + width) > displayRight) {
+    x = displayWorkArea.x + Math.floor((displayWorkArea.width - width) / 2)
+  }
+
+  // Clamp vertically
+  if (y < displayWorkArea.y) {
+    y = displayWorkArea.y + margin
+  }
+
+  const initial = clampBoundsWithinRect({ x, y, width, height }, displayWorkArea)
+
+  return { ...initial, ...params.captionOptions }
+}
+
+function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
+  const window = new ElectronBrowserWindow({
+    title: 'Caption',
+    width: 480,
+    height: 180,
+    show: false,
+    icon,
+    webPreferences: {
+      preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+      sandbox: false,
+    },
+    // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
+    //
+    // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
+    // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
+    type: 'panel',
+    ...transparentWindowConfig(),
+    ...options,
+  })
+
+  // Click-through is controlled by caller via setIgnoreMouseEvents
+  // Avoid window buttons on macOS frameless windows
+  // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
+  //
+  // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
+  // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
+  window.setAlwaysOnTop(true, 'screen-saver', 2)
+  window.setFullScreenable(false)
+  window.setVisibleOnAllWorkspaces(true)
+  if (isMacOS) {
+    window.setWindowButtonVisibility(false)
+  }
+
+  window.on('ready-to-show', () => window.show())
+  protectPrivilegedWindowNavigation(window)
+
+  return window
+}
+
 export function setupCaptionWindowManager(params: {
-  i18n: I18n
   mainWindow: BrowserWindow
   serverChannel: ServerChannel
+  i18n: I18n
 }) {
   const matrixHash = computeDisplayMatrixHash()
 
   const {
-    get: getConfigRaw,
     setup: setupConfig,
+    get: getConfigRaw,
     update: updateConfig,
   } = createConfig('windows-caption', 'config.json', captionConfigSchema, {
-    autoHeal: true,
     default: { isFollowing: true, matrices: {} },
+    autoHeal: true,
   })
   const getConfig = (): CaptionConfig => getConfigRaw() ?? { isFollowing: true, matrices: {} }
 
@@ -84,7 +185,7 @@ export function setupCaptionWindowManager(params: {
     cfgToSave.matrices[matrixHash] = { ...cfgToSave.matrices[matrixHash], relativeToMain: initialOffset }
     updateConfig(cfgToSave)
 
-    let animation: null | ReturnType<typeof animate> = null
+    let animation: ReturnType<typeof animate> | null = null
     const state = { x: 0, y: 0 }
 
     const settleTo = (toX: number, toY: number) => {
@@ -98,6 +199,8 @@ export function setupCaptionWindowManager(params: {
       state.y = Number.isFinite(b.y) ? b.y : 0
       animation?.pause()
       animation = animate(state, {
+        x: toX,
+        y: toY,
         duration: 160,
         ease: 'outCubic',
         modifier: utils.round(0),
@@ -112,8 +215,6 @@ export function setupCaptionWindowManager(params: {
           lastProgrammaticMoveAt = Date.now()
           win.setPosition(toX, toY)
         },
-        x: toX,
-        y: toY,
       })
     }
 
@@ -131,7 +232,7 @@ export function setupCaptionWindowManager(params: {
       const b = win.getBounds()
       let tx = main.x + stored.dx
       let ty = main.y + stored.dy
-      const target = { height: b.height, width: b.width, x: tx, y: ty }
+      const target = { x: tx, y: ty, width: b.width, height: b.height }
       const workArea = screen.getDisplayMatching(target).workArea
       const clamped = clampBoundsWithinRect(target, workArea)
       tx = clamped.x
@@ -207,7 +308,7 @@ export function setupCaptionWindowManager(params: {
     const { context } = createContext(ipcMain, window)
     eventaContext = context
 
-    await setupBaseWindowElectronInvokes({ context, i18n: params.i18n, serverChannel: params.serverChannel, window })
+    await setupBaseWindowElectronInvokes({ context, window, serverChannel: params.serverChannel, i18n: params.i18n })
 
     applyIgnoreMouseEvents(window, isFollowing)
 
@@ -371,114 +472,13 @@ export function setupCaptionWindowManager(params: {
   }
 
   return {
-    getIsFollowingWindow,
     getWindow,
-    isVisible,
-    onVisibilityChanged,
-    resetToSide,
     setFollowWindow,
     toggleFollowWindow,
+    getIsFollowingWindow,
+    resetToSide,
+    isVisible,
     toggleVisibility,
+    onVisibilityChanged,
   }
-}
-
-function clampBoundsWithinRect(bounds: Rectangle, rect: Rectangle): Rectangle {
-  const x = Math.min(Math.max(bounds.x, rect.x), rect.x + rect.width - bounds.width)
-  const y = Math.min(Math.max(bounds.y, rect.y), rect.y + rect.height - bounds.height)
-  return { height: bounds.height, width: bounds.width, x, y }
-}
-
-function computeDisplayMatrixHash(): string {
-  const displays = screen.getAllDisplays()
-  const signature = displays
-    .slice()
-    .sort((a, b) => (a.bounds.x - b.bounds.x) || (a.bounds.y - b.bounds.y))
-    .map(d => [d.bounds.x, d.bounds.y, d.bounds.width, d.bounds.height, d.scaleFactor ?? 1].join(','))
-    .join('|')
-
-  return createHash('sha256').update(signature).digest('hex').slice(0, 16)
-}
-
-function computeInitialCaptionBounds(params: { captionOptions?: Partial<Rectangle>, mainWindow: BrowserWindow }): Rectangle {
-  const mainBounds = params.mainWindow.getBounds()
-  const displayWorkArea = screen.getDisplayMatching(mainBounds).workArea
-
-  // Base sizing from display width with sensible caps
-  const width = mapForBreakpoints(
-    displayWorkArea.width,
-    {
-      '2k': widthFrom(displayWorkArea, { max: { actual: 720 }, min: { actual: 360 }, percentage: 0.4 }),
-      '4k': widthFrom(displayWorkArea, { max: { actual: 768 }, min: { actual: 420 }, percentage: 0.33 }),
-      '720p': widthFrom(displayWorkArea, { max: { actual: 560 }, min: { actual: 280 }, percentage: 0.9 }),
-      '1080p': widthFrom(displayWorkArea, { max: { actual: 640 }, min: { actual: 320 }, percentage: 0.5 }),
-    },
-    { breakpoints: resolutionBreakpoints },
-  )
-  const height = Math.max(Math.floor(width / 3.2), 120)
-
-  const margin = 16
-  // Prefer to the right of main window, else to the left, else bottom centered
-  let x = mainBounds.x + mainBounds.width + margin
-  let y = mainBounds.y + mainBounds.height - height
-
-  const rightEdge = x + width
-  const displayRight = displayWorkArea.x + displayWorkArea.width
-
-  if (rightEdge > displayRight) {
-    // Place to the left
-    x = mainBounds.x - width - margin
-  }
-
-  // If still out of bounds horizontally, fallback to bottom center
-  if (x < displayWorkArea.x || (x + width) > displayRight) {
-    x = displayWorkArea.x + Math.floor((displayWorkArea.width - width) / 2)
-  }
-
-  // Clamp vertically
-  if (y < displayWorkArea.y) {
-    y = displayWorkArea.y + margin
-  }
-
-  const initial = clampBoundsWithinRect({ height, width, x, y }, displayWorkArea)
-
-  return { ...initial, ...params.captionOptions }
-}
-
-function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
-  const window = new ElectronBrowserWindow({
-    height: 180,
-    icon,
-    show: false,
-    title: 'Caption',
-    // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
-    //
-    // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
-    // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
-    type: 'panel',
-    webPreferences: {
-      preload: join(getElectronMainDirname(), '../preload/index.mjs'),
-      sandbox: false,
-    },
-    width: 480,
-    ...transparentWindowConfig(),
-    ...options,
-  })
-
-  // Click-through is controlled by caller via setIgnoreMouseEvents
-  // Avoid window buttons on macOS frameless windows
-  // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
-  //
-  // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
-  // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
-  window.setAlwaysOnTop(true, 'screen-saver', 2)
-  window.setFullScreenable(false)
-  window.setVisibleOnAllWorkspaces(true)
-  if (isMacOS) {
-    window.setWindowButtonVisibility(false)
-  }
-
-  window.on('ready-to-show', () => window.show())
-  protectPrivilegedWindowNavigation(window)
-
-  return window
 }

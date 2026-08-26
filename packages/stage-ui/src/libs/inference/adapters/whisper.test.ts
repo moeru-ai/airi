@@ -10,12 +10,11 @@ class MockWorker {
     this.listeners.get(type)!.add(listener)
   })
 
-  postMessage = vi.fn()
-
   removeEventListener = vi.fn((type: string, listener: (event: any) => void) => {
     this.listeners.get(type)?.delete(listener)
   })
 
+  postMessage = vi.fn()
   terminate = vi.fn()
 
   constructor() {

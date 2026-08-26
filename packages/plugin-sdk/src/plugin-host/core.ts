@@ -59,6 +59,54 @@ import {
  * derived from `extension grant intersection module request`.
  */
 
+class PermissionDeniedError extends Error {
+  readonly details: {
+    area: 'apis' | 'resources' | 'capabilities' | 'processors' | 'pipelines'
+    action: string
+    key: string
+  }
+
+  constructor(details: PermissionDeniedError['details']) {
+    super(`Permission denied: ${details.area}.${details.action} "${details.key}"`)
+    this.name = 'PermissionDeniedError'
+    this.details = details
+  }
+}
+
+/**
+ * Describes the host-owned state for one extension setup session.
+ */
+export interface ExtensionSession {
+  /** Unique host-generated session id. */
+  id: string
+  /** Extension identity and session metadata. */
+  extension: {
+    id: string
+    version?: string
+    sessionId: string
+  }
+  /** Manifest used to start this extension. */
+  manifest: ExtensionManifestV1
+  /** Working directory used to resolve relative manifest entrypoints. */
+  cwd?: string
+  /** Runtime used to choose manifest entrypoints. */
+  runtime?: PluginRuntime
+  /** Loaded extension definition. */
+  entrypoint: Extension
+  /** Current extension setup phase. */
+  phase: 'setting-up' | 'ready' | 'failed' | 'stopped'
+  /** Modules registered by this extension setup. */
+  modules: Map<string, ExtensionModuleContext>
+  /** Requested and granted permissions for the extension session. */
+  permissions: {
+    requested: ModulePermissionDeclaration
+    granted: ModulePermissionGrant
+    revision: number
+  }
+  /** Extension-session cleanup callbacks. */
+  subscriptions: DisposableStore
+}
+
 /**
  * Filters the binding list returned by `ExtensionHost.listBindings(...)`.
  *
@@ -72,64 +120,63 @@ import {
  * - Optional filter criteria for the in-memory binding registry
  */
 export interface ExtensionHostBindingListOptions {
-  /** Limit results to bindings declared against one kit. */
-  kitId?: string
   /** Limit results to bindings owned by one extension session. */
   ownerSessionId?: string
-}
-
-/**
- * Describes the host-owned state for one extension setup session.
- */
-export interface ExtensionSession {
-  /** Working directory used to resolve relative manifest entrypoints. */
-  cwd?: string
-  /** Loaded extension definition. */
-  entrypoint: Extension
-  /** Extension identity and session metadata. */
-  extension: {
-    id: string
-    sessionId: string
-    version?: string
-  }
-  /** Unique host-generated session id. */
-  id: string
-  /** Manifest used to start this extension. */
-  manifest: ExtensionManifestV1
-  /** Modules registered by this extension setup. */
-  modules: Map<string, ExtensionModuleContext>
-  /** Requested and granted permissions for the extension session. */
-  permissions: {
-    granted: ModulePermissionGrant
-    requested: ModulePermissionDeclaration
-    revision: number
-  }
-  /** Current extension setup phase. */
-  phase: 'failed' | 'ready' | 'setting-up' | 'stopped'
-  /** Runtime used to choose manifest entrypoints. */
-  runtime?: PluginRuntime
-  /** Extension-session cleanup callbacks. */
-  subscriptions: DisposableStore
+  /** Limit results to bindings declared against one kit. */
+  kitId?: string
 }
 
 type BoundAnnounceBindingInput<C extends HostDataRecord = HostDataRecord> = AnnounceBindingInput<C>
-
 type BoundUpdateBindingInput<C extends HostDataRecord = HostDataRecord> = UpdateBindingInput<C>
+
 interface ExtensionModuleResourceTracker {
   bindingIds: Set<string>
 }
 
-class PermissionDeniedError extends Error {
-  readonly details: {
-    action: string
-    area: 'apis' | 'capabilities' | 'pipelines' | 'processors' | 'resources'
-    key: string
+function omitModuleId<C extends HostDataRecord>(input: BoundUpdateBindingInput<C>) {
+  return {
+    state: input.state,
+    config: input.config,
+  }
+}
+
+function cloneHostDataValue<T extends HostDataValue>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map(item => cloneHostDataValue(item)) as T
   }
 
-  constructor(details: PermissionDeniedError['details']) {
-    super(`Permission denied: ${details.area}.${details.action} "${details.key}"`)
-    this.name = 'PermissionDeniedError'
-    this.details = details
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, cloneHostDataValue(item as HostDataValue)]),
+    ) as T
+  }
+
+  return value
+}
+
+function cloneHostDataRecord<T extends HostDataRecord>(record: T): T {
+  return cloneHostDataValue(record)
+}
+
+function cloneKitCapabilities(capabilities: KitCapabilityDescriptor[]): KitCapabilityDescriptor[] {
+  return capabilities.map(capability => ({
+    key: capability.key,
+    actions: [...capability.actions],
+  }))
+}
+
+function cloneKitDescriptor<TKit extends KitDescriptor>(kit: TKit): TKit {
+  return {
+    ...kit,
+    runtimes: [...kit.runtimes],
+    capabilities: cloneKitCapabilities(kit.capabilities),
+  }
+}
+
+function cloneBindingRecord<C extends HostDataRecord>(module: BindingRecord<C>): BindingRecord<C> {
+  return {
+    ...module,
+    config: cloneHostDataRecord(module.config),
   }
 }
 
@@ -156,21 +203,21 @@ class PermissionDeniedError extends Error {
  *     -> {@link ExtensionHost.startExtension}
  */
 export class ExtensionHost {
-  private readonly dependencies = new DependencyService()
-  private readonly extensionModuleResources = new Map<string, ExtensionModuleResourceTracker>()
+  private readonly loader: FileSystemLoader
   private readonly extensionSessionService = new ExtensionSessionService<ExtensionSession>()
-  private readonly installContext: ExtensionHostInstallContext
+  private readonly runtime: PluginRuntime
+  private readonly dependencies = new DependencyService()
+  private readonly kits = new KitRegistryService()
   private readonly kitApis = new Map<string, KitRef<unknown>>()
   private readonly kitApiWatchers = new Map<string, Set<() => Promise<void>>>()
-  private readonly kits = new KitRegistryService()
-  private readonly loader: FileSystemLoader
   private readonly modules = new KitApiBindingRegistryService()
-  private readonly permissionResolver?: ExtensionHostOptions['permissionResolver']
+  private readonly extensionModuleResources = new Map<string, ExtensionModuleResourceTracker>()
   private readonly permissions = new PermissionService()
+  private readonly permissionResolver?: ExtensionHostOptions['permissionResolver']
   private readonly persistedPermissionGrants = new Map<string, ModulePermissionGrant>()
   private readonly resources = new ResourceService()
 
-  private readonly runtime: PluginRuntime
+  private readonly installContext: ExtensionHostInstallContext
 
   constructor(options: ExtensionHostOptions = {}) {
     this.loader = new FileSystemLoader()
@@ -185,230 +232,9 @@ export class ExtensionHost {
     }
   }
 
-  activateBinding(sessionId: string, moduleId: string) {
-    const session = this.getExtensionSessionOrThrow(sessionId)
-    const module = this.getModuleOrThrow(moduleId)
-
-    this.assertExtensionPermission(session, {
-      action: 'invoke',
-      area: 'apis',
-      key: pluginBindingApiActivateEventName,
-    })
-    this.assertExtensionPermission(session, {
-      action: 'write',
-      area: 'resources',
-      key: getKitBindingResourceKey(module.kitId),
-      reason: `Module activation requires write access to kit \`${module.kitId}\`.`,
-    })
-
-    return cloneBindingRecord(this.modules.activate(session.id, session.extension.id, moduleId))
-  }
-
-  announceBinding<C extends HostDataRecord = HostDataRecord>(
-    sessionId: string,
-    input: BoundAnnounceBindingInput<C>,
-  ): BindingRecord<C> {
-    const session = this.getExtensionSessionOrThrow(sessionId)
-    const kit = this.assertKitAvailableForRuntime(input.kitId, session.runtime ?? this.runtime)
-
-    this.assertExtensionPermission(session, {
-      action: 'invoke',
-      area: 'apis',
-      key: pluginBindingApiAnnounceEventName,
-    })
-    this.assertExtensionPermission(session, {
-      action: 'write',
-      area: 'resources',
-      key: getKitBindingResourceKey(kit.kitId),
-      reason: `Module announce requires write access to kit \`${kit.kitId}\`.`,
-    })
-
-    return cloneBindingRecord(this.modules.bind({
-      ...input,
-      ownerExtensionId: session.extension.id,
-      ownerSessionId: session.id,
-      runtime: session.runtime ?? this.runtime,
-    }) as BindingRecord<C>)
-  }
-
-  announceCapability(key: string, metadata?: Record<string, unknown>) {
-    return this.dependencies.announce(key, metadata)
-  }
-
-  bindExtensionKitModule<C extends HostDataRecord = HostDataRecord>(
-    sessionId: string,
-    input: BoundAnnounceBindingInput<C>,
-    permissionModuleId?: string,
-  ): BindingRecord<C> {
-    const session = this.getExtensionSessionOrThrow(sessionId)
-    const kit = this.assertKitAvailableForRuntime(input.kitId, this.runtime)
-
-    this.assertExtensionPermission(session, {
-      action: 'write',
-      area: 'resources',
-      key: getKitBindingResourceKey(kit.kitId),
-      reason: `Module announce requires write access to kit \`${kit.kitId}\`.`,
-    }, permissionModuleId)
-
-    const binding = cloneBindingRecord(this.modules.bind({
-      ...input,
-      ownerExtensionId: session.extension.id,
-      ownerSessionId: session.id,
-      runtime: this.runtime,
-    }) as BindingRecord<C>)
-
-    if (permissionModuleId) {
-      this.getOrCreateExtensionModuleResourceTracker(session.id, permissionModuleId).bindingIds.add(binding.moduleId)
-    }
-
-    return binding
-  }
-
-  degradeBinding(sessionId: string, moduleId: string) {
-    const session = this.getExtensionSessionOrThrow(sessionId)
-    const module = this.getModuleOrThrow(moduleId)
-    this.assertExtensionPermission(session, {
-      action: 'write',
-      area: 'resources',
-      key: getKitBindingResourceKey(module.kitId),
-      reason: `Module degradation requires write access to kit \`${module.kitId}\`.`,
-    })
-
-    return cloneBindingRecord(this.modules.degrade(session.id, session.extension.id, moduleId))
-  }
-
-  getBinding(moduleId: string): BindingRecord<HostDataRecord> | undefined {
-    const module = this.modules.get(moduleId)
-    if (!module) {
-      return undefined
-    }
-
-    return cloneBindingRecord(module)
-  }
-
-  getKit(kitId: string) {
-    const kit = this.kits.get(kitId)
-    if (!kit) {
-      return undefined
-    }
-
-    return cloneKitDescriptor(kit)
-  }
-
-  getKitCapabilities(kitId: string): KitCapabilityDescriptor[] {
-    const capabilities = this.kits.get(kitId)?.capabilities
-    if (!capabilities) {
-      return []
-    }
-
-    return cloneKitCapabilities(capabilities)
-  }
-
-  getSession(sessionId: string) {
-    return this.extensionSessionService.get(sessionId)
-  }
-
-  isCapabilityReady(key: string) {
-    return this.dependencies.isReady(key)
-  }
-
-  listBindings(options: ExtensionHostBindingListOptions = {}) {
-    return this.modules.list().filter((module) => {
-      if (options.ownerSessionId && module.ownerSessionId !== options.ownerSessionId) {
-        return false
-      }
-
-      if (options.kitId && module.kitId !== options.kitId) {
-        return false
-      }
-
-      return true
-    }).map(module => cloneBindingRecord(module))
-  }
-
-  listCapabilities() {
-    return this.dependencies.list()
-  }
-
-  listKits(runtime?: PluginRuntime) {
-    const kits = runtime
-      ? this.kits.listByRuntime(runtime)
-      : this.kits.list()
-
-    return kits.map(kit => cloneKitDescriptor(kit))
-  }
-
-  listModules() {
-    return this.extensionSessionService
-      .list()
-      .flatMap(session => [...session.modules.values()])
-  }
-
-  listSessions() {
-    return this.extensionSessionService.list()
-  }
-
-  markCapabilityDegraded(key: string, metadata?: Record<string, unknown>) {
-    return this.dependencies.markDegraded(key, metadata)
-  }
-
-  markCapabilityReady(key: string, metadata?: Record<string, unknown>) {
-    return this.dependencies.markReady(key, metadata)
-  }
-
-  registerKit(kit: KitDescriptor) {
-    return this.kits.register(kit)
-  }
-
-  registerKitApi<TClient>(kit: KitRef<TClient>) {
-    this.kitApis.set(kit.id, kit as KitRef<unknown>)
-    void this.notifyKitApiWatchers(kit.id)
-    return kit
-  }
-
-  async reload(sessionId: string, options: ExtensionStartOptions = {}): Promise<ExtensionSession> {
-    // Reload preserves manifest/runtime intent, then performs stop + fresh start.
-    // This intentionally creates a new session identity for deterministic re-bootstrap.
-    const previousExtension = this.extensionSessionService.get(sessionId)
-    if (!previousExtension) {
-      throw new Error(`Unable to reload missing extension session: ${sessionId}`)
-    }
-
-    const manifest = previousExtension.manifest
-    await this.cleanupExtensionSession(previousExtension)
-    return this.start(manifest, {
-      ...options,
-      cwd: options.cwd ?? previousExtension.cwd,
-      runtime: options.runtime ?? previousExtension.runtime,
-    })
-  }
-
-  setResourceResolver<T>(key: string, resolver: () => Promise<T> | T) {
-    this.resources.setResolver(key, resolver)
-  }
-
-  setResourceValue<T>(key: string, value: T) {
-    this.resources.setValue(key, value)
-  }
-
-  async start(manifest: ExtensionManifestV1, options: ExtensionStartOptions = {}): Promise<ExtensionSession> {
-    const extension = await this.loader.loadExtensionFor(manifest, {
-      cwd: options.cwd,
-      runtime: options.runtime,
-    })
-
-    const session = await this.startExtension(extension, {
-      cwd: options.cwd,
-      manifest,
-      runtime: options.runtime,
-    })
-
-    return session
-  }
-
   async startExtension(
     extension: Extension,
-    options: { cwd?: string, manifest: ExtensionManifestV1, runtime?: PluginRuntime },
+    options: { manifest: ExtensionManifestV1, cwd?: string, runtime?: PluginRuntime },
   ) {
     if (extension.id !== options.manifest.id) {
       throw new Error(`Extension entrypoint id \`${extension.id}\` must match manifest id \`${options.manifest.id}\`.`)
@@ -417,15 +243,15 @@ export class ExtensionHost {
     const sessionIdentity = this.extensionSessionService.nextSessionIdentity()
     const extensionIdentity = {
       id: extension.id,
-      sessionId: sessionIdentity.sessionId,
       version: extension.version,
+      sessionId: sessionIdentity.sessionId,
     }
     const persistedGrant = this.persistedPermissionGrants.get(extension.id)
     const resolvedGrant = await this.permissionResolver?.({
       identity: extensionIdentity,
       manifest: options.manifest,
-      persisted: persistedGrant,
       requested: options.manifest.permissions,
+      persisted: persistedGrant,
     }) ?? options.manifest.permissions
     const permissionSnapshot = this.permissions.initialize(sessionIdentity.sessionId, options.manifest.permissions, {
       grant: resolvedGrant,
@@ -434,19 +260,19 @@ export class ExtensionHost {
     this.persistedPermissionGrants.set(extension.id, permissionSnapshot.granted)
     const subscriptions = new DisposableStore()
     const session: ExtensionSession = {
-      cwd: options.cwd,
-      entrypoint: extension,
-      extension: extensionIdentity,
       id: sessionIdentity.sessionId,
+      extension: extensionIdentity,
       manifest: options.manifest,
+      cwd: options.cwd,
+      runtime: options.runtime,
+      entrypoint: extension,
+      phase: 'setting-up',
       modules: new Map(),
       permissions: {
-        granted: permissionSnapshot.granted,
         requested: permissionSnapshot.requested,
+        granted: permissionSnapshot.granted,
         revision: permissionSnapshot.revision,
       },
-      phase: 'setting-up',
-      runtime: options.runtime,
       subscriptions,
     }
 
@@ -455,6 +281,7 @@ export class ExtensionHost {
     const ctx: ExtensionSetupContext = {
       extension: session.extension,
       kits: this.createExtensionKitRegistry(session),
+      subscriptions,
       modules: {
         register: async (input: RegisterExtensionModuleInput) => {
           if (session.modules.has(input.id)) {
@@ -467,26 +294,25 @@ export class ExtensionHost {
             input.permissions ?? session.permissions.granted,
           )
           const module: ExtensionModuleContext = {
+            id: input.id,
+            identity: {
+              id: input.id,
+              extension: session.extension,
+              labels: input.labels,
+            },
+            permissions,
+            kits: this.createModuleKitRegistry(session, moduleSubscriptions, input.id),
+            subscriptions: moduleSubscriptions,
             dispose: async () => {
               await this.cleanupExtensionModuleResources(session, input.id)
               await moduleSubscriptions.dispose()
               session.modules.delete(input.id)
             },
-            id: input.id,
-            identity: {
-              extension: session.extension,
-              id: input.id,
-              labels: input.labels,
-            },
-            kits: this.createModuleKitRegistry(session, moduleSubscriptions, input.id),
-            permissions,
-            subscriptions: moduleSubscriptions,
           }
           session.modules.set(module.id, module)
           return module
         },
       },
-      subscriptions,
     }
 
     try {
@@ -501,18 +327,16 @@ export class ExtensionHost {
     }
   }
 
-  async stop(sessionId: string): Promise<ExtensionSession | undefined> {
-    const extensionSession = this.extensionSessionService.get(sessionId)
-    if (!extensionSession) {
-      return undefined
-    }
-
-    await this.cleanupExtensionSession(extensionSession)
-    return extensionSession
+  listModules() {
+    return this.extensionSessionService
+      .list()
+      .flatMap(session => [...session.modules.values()])
   }
 
-  unregisterKit(kitId: string) {
-    return this.kits.remove(kitId)
+  registerKitApi<TClient>(kit: KitRef<TClient>) {
+    this.kitApis.set(kit.id, kit as KitRef<unknown>)
+    void this.notifyKitApiWatchers(kit.id)
+    return kit
   }
 
   unregisterKitApi(kitId: string) {
@@ -521,92 +345,28 @@ export class ExtensionHost {
     return deleted
   }
 
-  updateBinding<C extends HostDataRecord = HostDataRecord>(
-    sessionId: string,
-    moduleId: string,
-    patch: Omit<UpdateBindingInput<C>, 'moduleId'> | UpdateBindingInput<C>,
-  ) {
-    const session = this.getExtensionSessionOrThrow(sessionId)
-    const module = this.getModuleOrThrow(moduleId)
-
-    this.assertExtensionPermission(session, {
-      action: 'invoke',
-      area: 'apis',
-      key: pluginBindingApiUpdateEventName,
-    })
-    this.assertExtensionPermission(session, {
-      action: 'write',
-      area: 'resources',
-      key: getKitBindingResourceKey(module.kitId),
-      reason: `Module update requires write access to kit \`${module.kitId}\`.`,
-    })
-
-    const normalizedPatch = 'moduleId' in patch ? omitModuleId(patch) : patch
-    return cloneBindingRecord(this.modules.update(session.id, session.extension.id, moduleId, normalizedPatch))
+  private async cleanupExtensionSessionModules(session: ExtensionSession) {
+    for (const module of [...session.modules.values()].reverse()) {
+      await module.dispose()
+    }
+    session.modules.clear()
   }
 
-  async waitForCapabilities(keys: string[], timeoutMs: number = 15000) {
-    await this.dependencies.waitForMany(keys, timeoutMs)
+  private getExtensionModuleResourceKey(sessionId: string, moduleId: string) {
+    return `${sessionId}:${moduleId}`
   }
 
-  async waitForCapability(key: string, timeoutMs: number = 15000) {
-    return await this.dependencies.waitFor(key, timeoutMs)
-  }
-
-  withdrawBinding(sessionId: string, moduleId: string) {
-    const session = this.getExtensionSessionOrThrow(sessionId)
-    const module = this.getModuleOrThrow(moduleId)
-
-    this.assertExtensionPermission(session, {
-      action: 'invoke',
-      area: 'apis',
-      key: pluginBindingApiWithdrawEventName,
-    })
-    this.assertExtensionPermission(session, {
-      action: 'write',
-      area: 'resources',
-      key: getKitBindingResourceKey(module.kitId),
-      reason: `Module withdrawal requires write access to kit \`${module.kitId}\`.`,
-    })
-
-    return cloneBindingRecord(this.modules.withdraw(session.id, session.extension.id, moduleId))
-  }
-
-  withdrawCapability(key: string, metadata?: Record<string, unknown>) {
-    return this.dependencies.withdraw(key, metadata)
-  }
-
-  private assertExtensionPermission(
-    session: ExtensionSession,
-    input: ExtensionHostPermissionRequest,
-    moduleId?: string,
-  ) {
-    const grant = moduleId
-      ? session.modules.get(moduleId)?.permissions
-      : session.permissions.granted
-
-    if (grant && this.permissions.grantAllows(grant, input.area, input.action, input.key)) {
-      return
+  private getOrCreateExtensionModuleResourceTracker(sessionId: string, moduleId: string) {
+    const key = this.getExtensionModuleResourceKey(sessionId, moduleId)
+    let resources = this.extensionModuleResources.get(key)
+    if (!resources) {
+      resources = {
+        bindingIds: new Set(),
+      }
+      this.extensionModuleResources.set(key, resources)
     }
 
-    throw new PermissionDeniedError({
-      action: input.action,
-      area: input.area,
-      key: input.key,
-    })
-  }
-
-  private assertKitAvailableForRuntime(kitId: string, runtime: PluginRuntime) {
-    const kit = this.kits.get(kitId)
-    if (!kit) {
-      throw new Error(`Kit \`${kitId}\` is not registered.`)
-    }
-
-    if (!kit.runtimes.includes(runtime)) {
-      throw new Error(`Kit \`${kitId}\` is not available for runtime \`${runtime}\`.`)
-    }
-
-    return kit
+    return resources
   }
 
   private async cleanupExtensionModuleResources(session: ExtensionSession, moduleId: string) {
@@ -629,143 +389,6 @@ export class ExtensionHost {
     }
 
     this.extensionModuleResources.delete(key)
-  }
-
-  private async cleanupExtensionSession(session: ExtensionSession) {
-    session.phase = 'stopped'
-
-    for (const module of this.modules.listByOwner(session.id)) {
-      this.modules.withdraw(session.id, session.extension.id, module.moduleId)
-      this.modules.unbind(session.id, session.extension.id, module.moduleId)
-    }
-    await this.cleanupExtensionSessionModules(session)
-    await session.subscriptions.dispose()
-    this.extensionSessionService.remove(session.id)
-  }
-
-  private async cleanupExtensionSessionModules(session: ExtensionSession) {
-    for (const module of [...session.modules.values()].reverse()) {
-      await module.dispose()
-    }
-    session.modules.clear()
-  }
-
-  private createExtensionKitRegistry(session: ExtensionSession): ExtensionKitRegistry {
-    return this.createKitRegistry(session, session.subscriptions)
-  }
-
-  private createInstallContext(): ExtensionHostInstallContext {
-    return {
-      announceCapability: (key, metadata) => {
-        this.announceCapability(key, metadata)
-      },
-      markCapabilityDegraded: (key, metadata) => {
-        this.markCapabilityDegraded(key, metadata)
-      },
-      markCapabilityReady: (key, metadata) => {
-        this.markCapabilityReady(key, metadata)
-      },
-      registerKit: kit => this.registerKit(kit),
-      setResourceResolver: (key, resolver) => this.setResourceResolver(key, resolver),
-      setResourceValue: (key, value) => this.setResourceValue(key, value),
-      unregisterKit: kitId => this.unregisterKit(kitId),
-      withdrawCapability: (key, metadata) => {
-        this.withdrawCapability(key, metadata)
-      },
-    }
-  }
-
-  private createKitRegistry(session: ExtensionSession, subscriptions: DisposableStore, moduleId?: string): ExtensionKitRegistry {
-    return {
-      tryUse: async <TClient>(kit: KitRef<TClient>) => {
-        return this.resolveKitApi(session, kit, subscriptions, moduleId)
-      },
-      use: async <TClient>(kit: KitRef<TClient>) => {
-        const result = this.resolveKitApi(session, kit, subscriptions, moduleId)
-        if (result.ok) {
-          return result.client
-        }
-        const failure = result as Extract<KitUseResult<TClient>, { ok: false }>
-        throw failure.error
-      },
-      watch: <TClient>(kit: KitRef<TClient>, callback: (availability: KitAvailability<TClient>) => Promise<void> | void) => {
-        const watchers = this.kitApiWatchers.get(kit.id) ?? new Set()
-        let disposed = false
-        const watcher = async () => {
-          if (disposed) {
-            return
-          }
-
-          const result = this.resolveKitApi(session, kit, subscriptions, moduleId)
-          if (result.ok) {
-            await callback({ available: true, client: result.client, kit })
-            return
-          }
-
-          const failure = result as Extract<KitUseResult<TClient>, { ok: false }>
-          await callback({ available: false, error: failure.error, kit, reason: failure.reason })
-        }
-        watchers.add(watcher)
-        this.kitApiWatchers.set(kit.id, watchers)
-        void watcher()
-        return subscriptions.add({
-          dispose: () => {
-            if (disposed) {
-              return
-            }
-
-            disposed = true
-            watchers.delete(watcher)
-            if (watchers.size === 0) {
-              this.kitApiWatchers.delete(kit.id)
-            }
-          },
-        })
-      },
-    }
-  }
-
-  private createModuleKitRegistry(session: ExtensionSession, subscriptions: DisposableStore, moduleId: string): ExtensionModuleContext['kits'] {
-    return this.createKitRegistry(session, subscriptions, moduleId)
-  }
-
-  private getExtensionModuleResourceKey(sessionId: string, moduleId: string) {
-    return `${sessionId}:${moduleId}`
-  }
-
-  private getExtensionSessionOrThrow(sessionId: string) {
-    const session = this.extensionSessionService.get(sessionId)
-    if (!session) {
-      throw new Error(`Unknown extension session: ${sessionId}`)
-    }
-
-    return session
-  }
-
-  private getModuleOrThrow(moduleId: string) {
-    const module = this.modules.get(moduleId)
-    if (!module) {
-      throw new Error(`Module \`${moduleId}\` was not found.`)
-    }
-
-    return module
-  }
-
-  private getOrCreateExtensionModuleResourceTracker(sessionId: string, moduleId: string) {
-    const key = this.getExtensionModuleResourceKey(sessionId, moduleId)
-    let resources = this.extensionModuleResources.get(key)
-    if (!resources) {
-      resources = {
-        bindingIds: new Set(),
-      }
-      this.extensionModuleResources.set(key, resources)
-    }
-
-    return resources
-  }
-
-  private installContribution(contribution: ExtensionHostContribution) {
-    contribution.install(this.installContext)
   }
 
   private async notifyKitApiWatchers(kitId: string) {
@@ -799,60 +422,437 @@ export class ExtensionHost {
     }
 
     return {
+      ok: true,
       client: registered.createClient({
         extensionId: session.extension.id,
-        moduleId,
         sessionId: session.id,
+        moduleId,
         subscriptions,
       }),
-      ok: true,
     }
   }
-}
 
-function cloneBindingRecord<C extends HostDataRecord>(module: BindingRecord<C>): BindingRecord<C> {
-  return {
-    ...module,
-    config: cloneHostDataRecord(module.config),
+  private createKitRegistry(session: ExtensionSession, subscriptions: DisposableStore, moduleId?: string): ExtensionKitRegistry {
+    return {
+      use: async <TClient>(kit: KitRef<TClient>) => {
+        const result = this.resolveKitApi(session, kit, subscriptions, moduleId)
+        if (result.ok) {
+          return result.client
+        }
+        const failure = result as Extract<KitUseResult<TClient>, { ok: false }>
+        throw failure.error
+      },
+      tryUse: async <TClient>(kit: KitRef<TClient>) => {
+        return this.resolveKitApi(session, kit, subscriptions, moduleId)
+      },
+      watch: <TClient>(kit: KitRef<TClient>, callback: (availability: KitAvailability<TClient>) => void | Promise<void>) => {
+        const watchers = this.kitApiWatchers.get(kit.id) ?? new Set()
+        let disposed = false
+        const watcher = async () => {
+          if (disposed) {
+            return
+          }
+
+          const result = this.resolveKitApi(session, kit, subscriptions, moduleId)
+          if (result.ok) {
+            await callback({ available: true, kit, client: result.client })
+            return
+          }
+
+          const failure = result as Extract<KitUseResult<TClient>, { ok: false }>
+          await callback({ available: false, kit, reason: failure.reason, error: failure.error })
+        }
+        watchers.add(watcher)
+        this.kitApiWatchers.set(kit.id, watchers)
+        void watcher()
+        return subscriptions.add({
+          dispose: () => {
+            if (disposed) {
+              return
+            }
+
+            disposed = true
+            watchers.delete(watcher)
+            if (watchers.size === 0) {
+              this.kitApiWatchers.delete(kit.id)
+            }
+          },
+        })
+      },
+    }
   }
-}
 
-function cloneHostDataRecord<T extends HostDataRecord>(record: T): T {
-  return cloneHostDataValue(record)
-}
-
-function cloneHostDataValue<T extends HostDataValue>(value: T): T {
-  if (Array.isArray(value)) {
-    return value.map(item => cloneHostDataValue(item)) as T
+  private createExtensionKitRegistry(session: ExtensionSession): ExtensionKitRegistry {
+    return this.createKitRegistry(session, session.subscriptions)
   }
 
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, cloneHostDataValue(item as HostDataValue)]),
-    ) as T
+  private createModuleKitRegistry(session: ExtensionSession, subscriptions: DisposableStore, moduleId: string): ExtensionModuleContext['kits'] {
+    return this.createKitRegistry(session, subscriptions, moduleId)
   }
 
-  return value
-}
+  private assertExtensionPermission(
+    session: ExtensionSession,
+    input: ExtensionHostPermissionRequest,
+    moduleId?: string,
+  ) {
+    const grant = moduleId
+      ? session.modules.get(moduleId)?.permissions
+      : session.permissions.granted
 
-function cloneKitCapabilities(capabilities: KitCapabilityDescriptor[]): KitCapabilityDescriptor[] {
-  return capabilities.map(capability => ({
-    actions: [...capability.actions],
-    key: capability.key,
-  }))
-}
+    if (grant && this.permissions.grantAllows(grant, input.area, input.action, input.key)) {
+      return
+    }
 
-function cloneKitDescriptor<TKit extends KitDescriptor>(kit: TKit): TKit {
-  return {
-    ...kit,
-    capabilities: cloneKitCapabilities(kit.capabilities),
-    runtimes: [...kit.runtimes],
+    throw new PermissionDeniedError({
+      area: input.area,
+      action: input.action,
+      key: input.key,
+    })
   }
-}
 
-function omitModuleId<C extends HostDataRecord>(input: BoundUpdateBindingInput<C>) {
-  return {
-    config: input.config,
-    state: input.state,
+  private getExtensionSessionOrThrow(sessionId: string) {
+    const session = this.extensionSessionService.get(sessionId)
+    if (!session) {
+      throw new Error(`Unknown extension session: ${sessionId}`)
+    }
+
+    return session
+  }
+
+  private createInstallContext(): ExtensionHostInstallContext {
+    return {
+      registerKit: kit => this.registerKit(kit),
+      unregisterKit: kitId => this.unregisterKit(kitId),
+      setResourceResolver: (key, resolver) => this.setResourceResolver(key, resolver),
+      setResourceValue: (key, value) => this.setResourceValue(key, value),
+      announceCapability: (key, metadata) => {
+        this.announceCapability(key, metadata)
+      },
+      markCapabilityReady: (key, metadata) => {
+        this.markCapabilityReady(key, metadata)
+      },
+      markCapabilityDegraded: (key, metadata) => {
+        this.markCapabilityDegraded(key, metadata)
+      },
+      withdrawCapability: (key, metadata) => {
+        this.withdrawCapability(key, metadata)
+      },
+    }
+  }
+
+  private installContribution(contribution: ExtensionHostContribution) {
+    contribution.install(this.installContext)
+  }
+
+  private async cleanupExtensionSession(session: ExtensionSession) {
+    session.phase = 'stopped'
+
+    for (const module of this.modules.listByOwner(session.id)) {
+      this.modules.withdraw(session.id, session.extension.id, module.moduleId)
+      this.modules.unbind(session.id, session.extension.id, module.moduleId)
+    }
+    await this.cleanupExtensionSessionModules(session)
+    await session.subscriptions.dispose()
+    this.extensionSessionService.remove(session.id)
+  }
+
+  private getModuleOrThrow(moduleId: string) {
+    const module = this.modules.get(moduleId)
+    if (!module) {
+      throw new Error(`Module \`${moduleId}\` was not found.`)
+    }
+
+    return module
+  }
+
+  private assertKitAvailableForRuntime(kitId: string, runtime: PluginRuntime) {
+    const kit = this.kits.get(kitId)
+    if (!kit) {
+      throw new Error(`Kit \`${kitId}\` is not registered.`)
+    }
+
+    if (!kit.runtimes.includes(runtime)) {
+      throw new Error(`Kit \`${kitId}\` is not available for runtime \`${runtime}\`.`)
+    }
+
+    return kit
+  }
+
+  listSessions() {
+    return this.extensionSessionService.list()
+  }
+
+  getSession(sessionId: string) {
+    return this.extensionSessionService.get(sessionId)
+  }
+
+  registerKit(kit: KitDescriptor) {
+    return this.kits.register(kit)
+  }
+
+  unregisterKit(kitId: string) {
+    return this.kits.remove(kitId)
+  }
+
+  getKit(kitId: string) {
+    const kit = this.kits.get(kitId)
+    if (!kit) {
+      return undefined
+    }
+
+    return cloneKitDescriptor(kit)
+  }
+
+  listKits(runtime?: PluginRuntime) {
+    const kits = runtime
+      ? this.kits.listByRuntime(runtime)
+      : this.kits.list()
+
+    return kits.map(kit => cloneKitDescriptor(kit))
+  }
+
+  getKitCapabilities(kitId: string): KitCapabilityDescriptor[] {
+    const capabilities = this.kits.get(kitId)?.capabilities
+    if (!capabilities) {
+      return []
+    }
+
+    return cloneKitCapabilities(capabilities)
+  }
+
+  getBinding(moduleId: string): BindingRecord<HostDataRecord> | undefined {
+    const module = this.modules.get(moduleId)
+    if (!module) {
+      return undefined
+    }
+
+    return cloneBindingRecord(module)
+  }
+
+  listBindings(options: ExtensionHostBindingListOptions = {}) {
+    return this.modules.list().filter((module) => {
+      if (options.ownerSessionId && module.ownerSessionId !== options.ownerSessionId) {
+        return false
+      }
+
+      if (options.kitId && module.kitId !== options.kitId) {
+        return false
+      }
+
+      return true
+    }).map(module => cloneBindingRecord(module))
+  }
+
+  announceBinding<C extends HostDataRecord = HostDataRecord>(
+    sessionId: string,
+    input: BoundAnnounceBindingInput<C>,
+  ): BindingRecord<C> {
+    const session = this.getExtensionSessionOrThrow(sessionId)
+    const kit = this.assertKitAvailableForRuntime(input.kitId, session.runtime ?? this.runtime)
+
+    this.assertExtensionPermission(session, {
+      area: 'apis',
+      action: 'invoke',
+      key: pluginBindingApiAnnounceEventName,
+    })
+    this.assertExtensionPermission(session, {
+      area: 'resources',
+      action: 'write',
+      key: getKitBindingResourceKey(kit.kitId),
+      reason: `Module announce requires write access to kit \`${kit.kitId}\`.`,
+    })
+
+    return cloneBindingRecord(this.modules.bind({
+      ...input,
+      ownerSessionId: session.id,
+      ownerExtensionId: session.extension.id,
+      runtime: session.runtime ?? this.runtime,
+    }) as BindingRecord<C>)
+  }
+
+  activateBinding(sessionId: string, moduleId: string) {
+    const session = this.getExtensionSessionOrThrow(sessionId)
+    const module = this.getModuleOrThrow(moduleId)
+
+    this.assertExtensionPermission(session, {
+      area: 'apis',
+      action: 'invoke',
+      key: pluginBindingApiActivateEventName,
+    })
+    this.assertExtensionPermission(session, {
+      area: 'resources',
+      action: 'write',
+      key: getKitBindingResourceKey(module.kitId),
+      reason: `Module activation requires write access to kit \`${module.kitId}\`.`,
+    })
+
+    return cloneBindingRecord(this.modules.activate(session.id, session.extension.id, moduleId))
+  }
+
+  updateBinding<C extends HostDataRecord = HostDataRecord>(
+    sessionId: string,
+    moduleId: string,
+    patch: UpdateBindingInput<C> | Omit<UpdateBindingInput<C>, 'moduleId'>,
+  ) {
+    const session = this.getExtensionSessionOrThrow(sessionId)
+    const module = this.getModuleOrThrow(moduleId)
+
+    this.assertExtensionPermission(session, {
+      area: 'apis',
+      action: 'invoke',
+      key: pluginBindingApiUpdateEventName,
+    })
+    this.assertExtensionPermission(session, {
+      area: 'resources',
+      action: 'write',
+      key: getKitBindingResourceKey(module.kitId),
+      reason: `Module update requires write access to kit \`${module.kitId}\`.`,
+    })
+
+    const normalizedPatch = 'moduleId' in patch ? omitModuleId(patch) : patch
+    return cloneBindingRecord(this.modules.update(session.id, session.extension.id, moduleId, normalizedPatch))
+  }
+
+  degradeBinding(sessionId: string, moduleId: string) {
+    const session = this.getExtensionSessionOrThrow(sessionId)
+    const module = this.getModuleOrThrow(moduleId)
+    this.assertExtensionPermission(session, {
+      area: 'resources',
+      action: 'write',
+      key: getKitBindingResourceKey(module.kitId),
+      reason: `Module degradation requires write access to kit \`${module.kitId}\`.`,
+    })
+
+    return cloneBindingRecord(this.modules.degrade(session.id, session.extension.id, moduleId))
+  }
+
+  withdrawBinding(sessionId: string, moduleId: string) {
+    const session = this.getExtensionSessionOrThrow(sessionId)
+    const module = this.getModuleOrThrow(moduleId)
+
+    this.assertExtensionPermission(session, {
+      area: 'apis',
+      action: 'invoke',
+      key: pluginBindingApiWithdrawEventName,
+    })
+    this.assertExtensionPermission(session, {
+      area: 'resources',
+      action: 'write',
+      key: getKitBindingResourceKey(module.kitId),
+      reason: `Module withdrawal requires write access to kit \`${module.kitId}\`.`,
+    })
+
+    return cloneBindingRecord(this.modules.withdraw(session.id, session.extension.id, moduleId))
+  }
+
+  bindExtensionKitModule<C extends HostDataRecord = HostDataRecord>(
+    sessionId: string,
+    input: BoundAnnounceBindingInput<C>,
+    permissionModuleId?: string,
+  ): BindingRecord<C> {
+    const session = this.getExtensionSessionOrThrow(sessionId)
+    const kit = this.assertKitAvailableForRuntime(input.kitId, this.runtime)
+
+    this.assertExtensionPermission(session, {
+      area: 'resources',
+      action: 'write',
+      key: getKitBindingResourceKey(kit.kitId),
+      reason: `Module announce requires write access to kit \`${kit.kitId}\`.`,
+    }, permissionModuleId)
+
+    const binding = cloneBindingRecord(this.modules.bind({
+      ...input,
+      ownerSessionId: session.id,
+      ownerExtensionId: session.extension.id,
+      runtime: this.runtime,
+    }) as BindingRecord<C>)
+
+    if (permissionModuleId) {
+      this.getOrCreateExtensionModuleResourceTracker(session.id, permissionModuleId).bindingIds.add(binding.moduleId)
+    }
+
+    return binding
+  }
+
+  async start(manifest: ExtensionManifestV1, options: ExtensionStartOptions = {}): Promise<ExtensionSession> {
+    const extension = await this.loader.loadExtensionFor(manifest, {
+      cwd: options.cwd,
+      runtime: options.runtime,
+    })
+
+    const session = await this.startExtension(extension, {
+      manifest,
+      cwd: options.cwd,
+      runtime: options.runtime,
+    })
+
+    return session
+  }
+
+  setResourceResolver<T>(key: string, resolver: () => Promise<T> | T) {
+    this.resources.setResolver(key, resolver)
+  }
+
+  setResourceValue<T>(key: string, value: T) {
+    this.resources.setValue(key, value)
+  }
+
+  announceCapability(key: string, metadata?: Record<string, unknown>) {
+    return this.dependencies.announce(key, metadata)
+  }
+
+  markCapabilityReady(key: string, metadata?: Record<string, unknown>) {
+    return this.dependencies.markReady(key, metadata)
+  }
+
+  markCapabilityDegraded(key: string, metadata?: Record<string, unknown>) {
+    return this.dependencies.markDegraded(key, metadata)
+  }
+
+  withdrawCapability(key: string, metadata?: Record<string, unknown>) {
+    return this.dependencies.withdraw(key, metadata)
+  }
+
+  listCapabilities() {
+    return this.dependencies.list()
+  }
+
+  isCapabilityReady(key: string) {
+    return this.dependencies.isReady(key)
+  }
+
+  async waitForCapabilities(keys: string[], timeoutMs: number = 15000) {
+    await this.dependencies.waitForMany(keys, timeoutMs)
+  }
+
+  async waitForCapability(key: string, timeoutMs: number = 15000) {
+    return await this.dependencies.waitFor(key, timeoutMs)
+  }
+
+  async stop(sessionId: string): Promise<ExtensionSession | undefined> {
+    const extensionSession = this.extensionSessionService.get(sessionId)
+    if (!extensionSession) {
+      return undefined
+    }
+
+    await this.cleanupExtensionSession(extensionSession)
+    return extensionSession
+  }
+
+  async reload(sessionId: string, options: ExtensionStartOptions = {}): Promise<ExtensionSession> {
+    // Reload preserves manifest/runtime intent, then performs stop + fresh start.
+    // This intentionally creates a new session identity for deterministic re-bootstrap.
+    const previousExtension = this.extensionSessionService.get(sessionId)
+    if (!previousExtension) {
+      throw new Error(`Unable to reload missing extension session: ${sessionId}`)
+    }
+
+    const manifest = previousExtension.manifest
+    await this.cleanupExtensionSession(previousExtension)
+    return this.start(manifest, {
+      ...options,
+      cwd: options.cwd ?? previousExtension.cwd,
+      runtime: options.runtime ?? previousExtension.runtime,
+    })
   }
 }

@@ -2,11 +2,11 @@ import type { Message as LLMMessage } from '@xsai/shared-chat'
 import type { Message } from 'grammy/types'
 
 interface InterruptionParams {
-  chatId: string
-  currentMessages: LLMMessage[]
-  messageCount: number
-  newMessages: Message[]
   processingTime: number
+  messageCount: number
+  currentMessages: LLMMessage[]
+  newMessages: Message[]
+  chatId: string
 }
 
 export async function shouldInterruptProcessing(params: InterruptionParams): Promise<boolean> {

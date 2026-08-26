@@ -4,20 +4,20 @@ import type {} from 'pinia-plugin-synced'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-/** A tool definition with the executor that is available in the current runtime. */
-export interface ExecutableTool extends Tool {
-  /** Includes this tool when a request does not select it explicitly. */
-  defaultActive?: boolean
-  /** A stable application id. This id does not need to match the model-facing name. */
-  id: string
-}
-
 /** A serializable tool definition shared between application contexts. */
 export interface ToolDefinition extends Omit<Tool, 'execute'> {
-  /** Includes this tool when a request does not select it explicitly. */
-  defaultActive?: boolean
   /** A stable application id. This id does not need to match the model-facing name. */
   id: string
+  /** Includes this tool when a request does not select it explicitly. */
+  defaultActive?: boolean
+}
+
+/** A tool definition with the executor that is available in the current runtime. */
+export interface ExecutableTool extends Tool {
+  /** A stable application id. This id does not need to match the model-facing name. */
+  id: string
+  /** Includes this tool when a request does not select it explicitly. */
+  defaultActive?: boolean
 }
 
 function unavailableToolResult(name: string) {
@@ -40,9 +40,9 @@ export const useLlmToolsStore = defineStore('llm-tools', () => {
       ?? (() => unavailableToolResult(definition.function.name))
 
     return {
-      execute,
-      function: definition.function,
       type: definition.type,
+      function: definition.function,
+      execute,
     }
   }
 
@@ -64,9 +64,9 @@ export const useLlmToolsStore = defineStore('llm-tools', () => {
 
     for (const tool of nextTools) {
       const definition = structuredClone<ToolDefinition>({
-        function: tool.function,
         id: tool.id,
         type: tool.type,
+        function: tool.function,
         ...(tool.defaultActive === undefined ? {} : { defaultActive: tool.defaultActive }),
       })
       const existingIndex = definitions.findIndex(item => item.id === tool.id)

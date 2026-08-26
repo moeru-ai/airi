@@ -1,35 +1,35 @@
 // Define a union type for the command parsing result
 export type ParseResult
-  = | { command: 'get timeline', content: string, count: number }
-    | { command: 'get user', content: string }
-    | { command: 'like tweet', content: string }
-    | { command: 'post tweet', content: string }
-    | { command: 'retweet', content: string }
+  = | { command: 'post tweet', content: string }
     | { command: 'search tweets', content: string }
+    | { command: 'like tweet', content: string }
+    | { command: 'retweet', content: string }
+    | { command: 'get user', content: string }
+    | { command: 'get timeline', content: string, count: number }
 
-type NonTimelineCommands = 'get user' | 'like tweet' | 'post tweet' | 'retweet' | 'search tweets'
+type NonTimelineCommands = 'post tweet' | 'search tweets' | 'like tweet' | 'retweet' | 'get user'
 
 /**
  * Parses a Twitter command from the input string
  * @param input The input string containing the command
  * @returns Parsed command and content, or null if no valid command found
  */
-export function parseTwitterCommand(input: string): null | ParseResult {
+export function parseTwitterCommand(input: string): ParseResult | null {
   // Handle commands based on explicit prefixes for better reliability
   const normalizedInput = input.trim().toLowerCase()
 
   // Define command patterns
-  const commandPatterns: Array<{ command: string, pattern: string }> = [
-    { command: 'post tweet', pattern: 'post tweet:' },
-    { command: 'search tweets', pattern: 'search tweets:' },
-    { command: 'like tweet', pattern: 'like tweet:' },
-    { command: 'retweet', pattern: 'retweet:' },
-    { command: 'get user', pattern: 'get user:' },
-    { command: 'get timeline', pattern: 'get timeline' },
+  const commandPatterns: Array<{ pattern: string, command: string }> = [
+    { pattern: 'post tweet:', command: 'post tweet' },
+    { pattern: 'search tweets:', command: 'search tweets' },
+    { pattern: 'like tweet:', command: 'like tweet' },
+    { pattern: 'retweet:', command: 'retweet' },
+    { pattern: 'get user:', command: 'get user' },
+    { pattern: 'get timeline', command: 'get timeline' },
   ]
 
   // Find the matching command pattern
-  for (const { command, pattern } of commandPatterns) {
+  for (const { pattern, command } of commandPatterns) {
     if (normalizedInput.startsWith(pattern)) {
       // Extract the content after the prefix
       const content = input.substring(pattern.length)

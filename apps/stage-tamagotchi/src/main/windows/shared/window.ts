@@ -13,10 +13,28 @@ import { createServerChannelService } from '../../services/airi/channel-server'
 import { createI18nService } from '../../services/airi/i18n'
 import { createAppService, createPowerMonitorService, createScreenService, createSystemPreferencesService, createWindowService } from '../../services/electron'
 
-export function blurryWindowConfig(): BrowserWindowConstructorOptions {
+export function toggleWindowShow(window?: BrowserWindow | null): void {
+  if (!window) {
+    return
+  }
+  if (isRendererUnavailable(window)) {
+    return
+  }
+
+  if (window?.isMinimized()) {
+    window?.restore()
+  }
+
+  window?.show()
+  window?.focus()
+}
+
+export function transparentWindowConfig(): BrowserWindowConstructorOptions {
   return {
-    backgroundMaterial: 'acrylic',
-    vibrancy: 'hud',
+    frame: false,
+    titleBarStyle: isMacOS ? 'hidden' : undefined,
+    transparent: true,
+    hasShadow: false,
   }
 }
 
@@ -60,19 +78,33 @@ export function protectPrivilegedWindowNavigation(window: BrowserWindow): void {
   })
 }
 
+export function blurryWindowConfig(): BrowserWindowConstructorOptions {
+  return {
+    vibrancy: 'hud',
+    backgroundMaterial: 'acrylic',
+  }
+}
+
+export function spotlightLikeWindowConfig(): BrowserWindowConstructorOptions {
+  return {
+    ...blurryWindowConfig(),
+    titleBarStyle: isMacOS ? 'hidden' : undefined,
+  }
+}
+
 export function resizeWindowByDelta(params: {
+  window: BrowserWindow
   deltaX: number
   deltaY: number
   direction: ResizeDirection
-  minHeight?: number
   minWidth?: number
-  window: BrowserWindow
+  minHeight?: number
 }): void {
   const bounds = params.window.getBounds()
   const minWidth = params.minWidth ?? 100
   const minHeight = params.minHeight ?? 200
 
-  let { height, width, x, y } = bounds
+  let { x, y, width, height } = bounds
 
   if (params.direction.includes('e')) {
     width = Math.max(minWidth, width + params.deltaX)
@@ -96,14 +128,14 @@ export function resizeWindowByDelta(params: {
     }
   }
 
-  params.window.setBounds({ height, width, x, y })
+  params.window.setBounds({ x, y, width, height })
 }
 
 export async function setupBaseWindowElectronInvokes(params: {
   context: ReturnType<typeof createContext>['context']
-  i18n: I18n
-  serverChannel: ServerChannel
   window: BrowserWindow
+  serverChannel: ServerChannel
+  i18n: I18n
 }) {
   createScreenService({ context: params.context, window: params.window })
   createWindowService({ context: params.context, window: params.window })
@@ -111,39 +143,7 @@ export async function setupBaseWindowElectronInvokes(params: {
   createPowerMonitorService({ context: params.context, window: params.window })
   createSystemPreferencesService({ context: params.context, window: params.window })
 
-  await createI18nService({ context: params.context, i18n: params.i18n, window: params.window })
+  await createI18nService({ context: params.context, window: params.window, i18n: params.i18n })
 
   createServerChannelService({ serverChannel: params.serverChannel })
-}
-
-export function spotlightLikeWindowConfig(): BrowserWindowConstructorOptions {
-  return {
-    ...blurryWindowConfig(),
-    titleBarStyle: isMacOS ? 'hidden' : undefined,
-  }
-}
-
-export function toggleWindowShow(window?: BrowserWindow | null): void {
-  if (!window) {
-    return
-  }
-  if (isRendererUnavailable(window)) {
-    return
-  }
-
-  if (window?.isMinimized()) {
-    window?.restore()
-  }
-
-  window?.show()
-  window?.focus()
-}
-
-export function transparentWindowConfig(): BrowserWindowConstructorOptions {
-  return {
-    frame: false,
-    hasShadow: false,
-    titleBarStyle: isMacOS ? 'hidden' : undefined,
-    transparent: true,
-  }
 }

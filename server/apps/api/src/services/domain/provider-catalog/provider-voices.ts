@@ -1,18 +1,33 @@
 import type { ProviderCatalogTtsVoice, ProviderCatalogTtsVoiceLabels, ProviderCatalogTtsVoiceLanguage } from '../../../schemas/provider-catalog'
 
-export function catalogVoiceResponse(voice: ProviderCatalogTtsVoice) {
-  // NOTICE: Management previews can temporarily live as data URIs until
-  // object storage is wired. Public voice catalogs stay lightweight and only
-  // expose provider or storage URLs.
-  const previewAudioUrl = voice.previewAudioUrl?.startsWith('data:') ? undefined : voice.previewAudioUrl
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== 'object' || value == null || Array.isArray(value))
+    return undefined
+  return value as Record<string, unknown>
+}
 
-  return {
-    id: voice.providerVoiceId,
-    labels: voice.labels,
-    languages: voice.languages,
-    name: voice.displayName,
-    preview_audio_url: previewAudioUrl ?? undefined,
-  }
+function asOptionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+function asLanguageList(value: unknown): ProviderCatalogTtsVoiceLanguage[] | undefined {
+  if (!Array.isArray(value))
+    return undefined
+
+  const languages = value.flatMap((item) => {
+    const record = asRecord(item)
+    const code = asOptionalString(record?.code)
+    if (!code)
+      return []
+    const title = asOptionalString(record?.title)
+    return [{ code, ...(title ? { title } : {}) }]
+  })
+  return languages.length > 0 ? languages : undefined
+}
+
+function asLabels(value: unknown): ProviderCatalogTtsVoiceLabels | undefined {
+  const record = asRecord(value)
+  return record ? { ...record } : undefined
 }
 
 /**
@@ -32,39 +47,24 @@ export function normalizeProviderVoiceForCatalog(value: unknown) {
 
   return {
     id,
-    labels: asLabels(record?.labels),
-    languages: asLanguageList(record?.languages),
     name: asOptionalString(record?.name),
+    languages: asLanguageList(record?.languages),
+    labels: asLabels(record?.labels),
     previewAudioUrl: asOptionalString(record?.previewAudioUrl) ?? asOptionalString(record?.previewUrl) ?? null,
   }
 }
 
-function asLabels(value: unknown): ProviderCatalogTtsVoiceLabels | undefined {
-  const record = asRecord(value)
-  return record ? { ...record } : undefined
-}
+export function catalogVoiceResponse(voice: ProviderCatalogTtsVoice) {
+  // NOTICE: Management previews can temporarily live as data URIs until
+  // object storage is wired. Public voice catalogs stay lightweight and only
+  // expose provider or storage URLs.
+  const previewAudioUrl = voice.previewAudioUrl?.startsWith('data:') ? undefined : voice.previewAudioUrl
 
-function asLanguageList(value: unknown): ProviderCatalogTtsVoiceLanguage[] | undefined {
-  if (!Array.isArray(value))
-    return undefined
-
-  const languages = value.flatMap((item) => {
-    const record = asRecord(item)
-    const code = asOptionalString(record?.code)
-    if (!code)
-      return []
-    const title = asOptionalString(record?.title)
-    return [{ code, ...(title ? { title } : {}) }]
-  })
-  return languages.length > 0 ? languages : undefined
-}
-
-function asOptionalString(value: unknown): string | undefined {
-  return typeof value === 'string' && value.length > 0 ? value : undefined
-}
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  if (typeof value !== 'object' || value == null || Array.isArray(value))
-    return undefined
-  return value as Record<string, unknown>
+  return {
+    id: voice.providerVoiceId,
+    name: voice.displayName,
+    languages: voice.languages,
+    labels: voice.labels,
+    preview_audio_url: previewAudioUrl ?? undefined,
+  }
 }

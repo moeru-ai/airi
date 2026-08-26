@@ -23,17 +23,17 @@ import { createRuleEngine } from './perception/rules'
 import { ReflexManager } from './reflex/reflex-manager'
 
 export interface ContainerServices {
-  airiBridge: AiriBridge
-  airiClient: Client
-  brain: Brain
-  eventBus: EventBus
-  llmAgent: LLMAgent
   logger: Logg
-  minecraftContextService: MinecraftContextService
-  perceptionPipeline: PerceptionPipeline
-  reflexManager: ReflexManager
+  eventBus: EventBus
   ruleEngine: RuleEngine
+  llmAgent: LLMAgent
+  perceptionPipeline: PerceptionPipeline
   taskExecutor: TaskExecutor
+  brain: Brain
+  reflexManager: ReflexManager
+  airiClient: Client
+  airiBridge: AiriBridge
+  minecraftContextService: MinecraftContextService
 }
 
 export function createAgentContainer(airiClient: Client) {
@@ -44,74 +44,53 @@ export function createAgentContainer(airiClient: Client) {
 
   // Register services
   container.register({
+    airiClient: asValue(airiClient),
+
     airiBridge: asFunction(({ eventBus }: { eventBus: EventBus }) =>
       new AiriBridgeImpl(airiClient, eventBus),
     ).singleton(),
 
-    airiClient: asValue(airiClient),
+    minecraftContextService: asFunction(({ airiBridge }) =>
+      new MinecraftContextServiceImpl({
+        airiBridge,
+        serverHost: config.bot.host,
+        serverPort: config.bot.port,
+        masterUsername: config.bot.masterUsername,
+      }),
+    ).singleton(),
 
-    brain: asClass(Brain)
-      .singleton()
-      .inject(c => ({
-        airiBridge: c.resolve('airiBridge'),
-        eventBus: c.resolve('eventBus'),
-        llmAgent: c.resolve('llmAgent'),
-        logger: c.resolve('logger'),
-        minecraftContextService: c.resolve('minecraftContextService'),
-        reflexManager: c.resolve('reflexManager'),
-        taskExecutor: c.resolve('taskExecutor'),
-      })),
+    // Create independent logger for each agent
+    logger: asFunction(() => useLogg('agent').useGlobalConfig()).singleton(),
+
+    // Register LLM Agent (xsai-based)
+    llmAgent: asFunction(() => new LLMAgent({
+      baseURL: config.openai.baseUrl,
+      apiKey: config.openai.apiKey,
+      model: config.openai.model,
+    })).singleton(),
 
     // Register EventBus (cognitive event core)
     eventBus: asFunction(({ logger }) =>
       createEventBus({
-        onSubscriberError: ({ error, event, pattern }) => {
+        onSubscriberError: ({ event, pattern, error }) => {
           logger
             .withFields({
-              eventId: event.id,
               eventType: event.type,
+              eventId: event.id,
+              traceId: event.traceId,
               parentId: event.parentId,
               pattern,
-              traceId: event.traceId,
             })
             .errorWithError('EventBus subscriber failed', error)
         },
       }),
     ).singleton(),
 
-    // Register LLM Agent (xsai-based)
-    llmAgent: asFunction(() => new LLMAgent({
-      apiKey: config.openai.apiKey,
-      baseURL: config.openai.baseUrl,
-      model: config.openai.model,
-    })).singleton(),
-
-    // Create independent logger for each agent
-    logger: asFunction(() => useLogg('agent').useGlobalConfig()).singleton(),
-
-    minecraftContextService: asFunction(({ airiBridge }) =>
-      new MinecraftContextServiceImpl({
-        airiBridge,
-        masterUsername: config.bot.masterUsername,
-        serverHost: config.bot.host,
-        serverPort: config.bot.port,
-      }),
-    ).singleton(),
-
-    perceptionPipeline: asClass(PerceptionPipeline).singleton(),
-
-    // Reflex Manager (Reactive Layer)
-    reflexManager: asFunction(({ eventBus, logger, taskExecutor }) =>
-      new ReflexManager({
-        eventBus,
-        logger,
-        taskExecutor,
-      }),
-    ).singleton(),
-
     // Register RuleEngine (YAML rules processing)
     ruleEngine: asFunction(({ eventBus }) => {
       const engine = createRuleEngine({
+        eventBus,
+        logger: useLogg('ruleEngine').useGlobalConfig(),
         config: {
           // NOTICE: Use fileURLToPath, not URL.pathname — on Windows `.pathname` yields
           // "/D:/.../rules" (leading slash before the drive), which fs.existsSync/readdirSync cannot
@@ -121,16 +100,37 @@ export function createAgentContainer(airiClient: Client) {
           rulesDir: fileURLToPath(new URL('./perception/rules', import.meta.url)),
           slotMs: 20,
         },
-        eventBus,
-        logger: useLogg('ruleEngine').useGlobalConfig(),
       })
       engine.init()
       return engine
     }).singleton(),
 
+    perceptionPipeline: asClass(PerceptionPipeline).singleton(),
+
     // TaskExecutor with logger injection only
     taskExecutor: asFunction(({ logger }) =>
       new TaskExecutor({ logger }),
+    ).singleton(),
+
+    brain: asClass(Brain)
+      .singleton()
+      .inject(c => ({
+        eventBus: c.resolve('eventBus'),
+        llmAgent: c.resolve('llmAgent'),
+        reflexManager: c.resolve('reflexManager'),
+        taskExecutor: c.resolve('taskExecutor'),
+        logger: c.resolve('logger'),
+        airiBridge: c.resolve('airiBridge'),
+        minecraftContextService: c.resolve('minecraftContextService'),
+      })),
+
+    // Reflex Manager (Reactive Layer)
+    reflexManager: asFunction(({ eventBus, taskExecutor, logger }) =>
+      new ReflexManager({
+        eventBus,
+        taskExecutor,
+        logger,
+      }),
     ).singleton(),
   })
 

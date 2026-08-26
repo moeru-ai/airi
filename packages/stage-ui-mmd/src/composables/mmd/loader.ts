@@ -4,13 +4,13 @@ import type { AnimationClip, SkinnedMesh } from 'three'
 import { buildAnimation, MMDLoader, VMDLoader } from '@moeru/three-mmd'
 import { LoadingManager } from 'three'
 
+/** Maps in-archive relative asset paths to blob URLs for ZIP-loaded models. */
+export type UrlModifier = (url: string) => string
+
 export interface MMDLoaderContext {
   loader: MMDLoader
   manager: LoadingManager
 }
-
-/** Maps in-archive relative asset paths to blob URLs for ZIP-loaded models. */
-export type UrlModifier = (url: string) => string
 
 /**
  * Builds an {@link MMDLoader} backed by a dedicated {@link LoadingManager}.

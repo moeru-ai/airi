@@ -12,8 +12,8 @@
  * - A discriminated union describing the active transport and its required handles
  */
 export type PluginTransport
-  = | { kind: 'electron', target: 'main' | 'renderer', webContentsId?: number }
-    | { kind: 'in-memory' }
-    | { kind: 'node-worker', worker: import('node:worker_threads').Worker }
+  = | { kind: 'in-memory' }
+    | { kind: 'websocket', url: string, protocols?: string[] }
     | { kind: 'web-worker', worker: Worker }
-    | { kind: 'websocket', protocols?: string[], url: string }
+    | { kind: 'node-worker', worker: import('node:worker_threads').Worker }
+    | { kind: 'electron', target: 'main' | 'renderer', webContentsId?: number }

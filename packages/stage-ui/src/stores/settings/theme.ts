@@ -46,11 +46,11 @@ export const useSettingsTheme = defineStore('settings-theme', () => {
   }
 
   return {
+    themeColorsHue,
+    themeColorsHueDynamic,
+    setThemeColorsHue,
     applyPrimaryColorFrom,
     isColorSelectedForPrimary,
     resetState,
-    setThemeColorsHue,
-    themeColorsHue,
-    themeColorsHueDynamic,
   }
 })

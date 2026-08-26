@@ -15,11 +15,11 @@ describe('toWidgetsIframePostMessageRecord', () => {
    */
   it('normalizes reactive nested payloads into structured-clone-safe records', () => {
     const payload = reactive({
-      callback: () => 'not cloneable',
       command: {
-        action: 'start',
         requestId: 'req-1',
+        action: 'start',
       },
+      callback: () => 'not cloneable',
       nested: {
         createdAt: new Date('2026-04-28T00:00:00.000Z'),
       },
@@ -30,8 +30,8 @@ describe('toWidgetsIframePostMessageRecord', () => {
     expect(() => structuredClone(normalized)).not.toThrow()
     expect(normalized).toMatchObject({
       command: {
-        action: 'start',
         requestId: 'req-1',
+        action: 'start',
       },
       nested: {
         createdAt: '2026-04-28T00:00:00.000Z',

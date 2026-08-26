@@ -8,8 +8,8 @@ import { createChatBroadcastCoordinator } from './broadcast'
 import { createChatConnectionRegistry } from './connection-registry'
 
 export interface ChatWsRuntime {
-  broadcast: ChatBroadcastCoordinator
   registry: ChatConnectionRegistry
+  broadcast: ChatBroadcastCoordinator
 }
 
 /** Creates the shared fanout runtime used by both chat websocket versions. */
@@ -19,11 +19,11 @@ export function createChatWsRuntime(
   metrics?: EngagementMetrics | null,
 ): ChatWsRuntime {
   const registry = createChatConnectionRegistry()
-  const broadcast = createChatBroadcastCoordinator({ instanceId, redis, registry })
+  const broadcast = createChatBroadcastCoordinator({ redis, registry, instanceId })
 
   metrics?.wsConnectionsActive.addCallback((result) => {
     result.observe(registry.activeCount())
   })
 
-  return { broadcast, registry }
+  return { registry, broadcast }
 }

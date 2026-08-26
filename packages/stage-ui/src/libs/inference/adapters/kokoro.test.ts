@@ -11,12 +11,11 @@ class MockWorker {
     this.listeners.get(type)!.add(listener)
   })
 
-  postMessage = vi.fn()
-
   removeEventListener = vi.fn((type: string, listener: (event: any) => void) => {
     this.listeners.get(type)?.delete(listener)
   })
 
+  postMessage = vi.fn()
   terminate = vi.fn()
 
   constructor() {
@@ -32,18 +31,18 @@ vi.stubGlobal('Worker', MockWorker)
 
 // Mock dependencies that require browser APIs or Vue
 vi.mock('../../../composables/use-inference-status', () => ({
-  removeInferenceStatus: vi.fn(),
   updateInferenceStatus: vi.fn(),
+  removeInferenceStatus: vi.fn(),
 }))
 
 const recordDeviceLoss = vi.fn()
 const enqueueMock = vi.fn((_id: string, _p: number, loader: () => Promise<unknown>) => loader())
 vi.mock('../coordinator', () => ({
   getGPUCoordinator: () => ({
-    recordDeviceLoss,
+    requestAllocation: vi.fn(() => ({ modelId: 'test', estimatedBytes: 0 })),
     release: vi.fn(),
-    requestAllocation: vi.fn(() => ({ estimatedBytes: 0, modelId: 'test' })),
     touch: vi.fn(),
+    recordDeviceLoss,
   }),
   getLoadQueue: () => ({
     enqueue: enqueueMock,
@@ -166,8 +165,8 @@ describe('kokoro adapter - device loss resilience', () => {
 
     await expect(loading).rejects.toMatchObject({ name: 'AbortError' })
     expect(worker.postMessage).toHaveBeenCalledWith(expect.objectContaining({
-      targetRequestId: expect.any(String),
       type: 'cancel',
+      targetRequestId: expect.any(String),
     }))
   })
 
@@ -183,10 +182,10 @@ describe('kokoro adapter - device loss resilience', () => {
     expect(loadRequest?.requestId).toBeDefined()
     worker.dispatch('message', {
       data: {
+        type: 'model-ready',
+        requestId: loadRequest.requestId,
         device: 'webgpu',
         metadata: { voices: { af_heart: { name: 'Heart' } } },
-        requestId: loadRequest.requestId,
-        type: 'model-ready',
       },
     })
     await loading
@@ -205,8 +204,8 @@ describe('kokoro adapter - device loss resilience', () => {
     expect(adapter.state).toBe('ready')
     expect(worker.terminate).not.toHaveBeenCalled()
     expect(worker.postMessage).toHaveBeenCalledWith(expect.objectContaining({
-      targetRequestId: expect.any(String),
       type: 'cancel',
+      targetRequestId: expect.any(String),
     }))
   })
 
@@ -225,8 +224,8 @@ describe('kokoro adapter - device loss resilience', () => {
     expect(adapter.deviceLossCount).toBe(1)
     expect(recordDeviceLoss).toHaveBeenCalledWith(expect.objectContaining({
       modelId: 'kokoro-q4',
-      occurredAt: expect.any(Number),
       reason: 'unknown',
+      occurredAt: expect.any(Number),
     }))
 
     adapter.terminate()

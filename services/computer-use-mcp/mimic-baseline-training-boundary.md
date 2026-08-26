@@ -90,44 +90,44 @@ The first schema should be append-only friendly and deterministic.
 
 ```ts
 interface MimicTraceRecordV1 {
-  chosenAction: MimicActionV1
-  chosenCandidateId?: string
+  schema: 'computer-use-mcp.mimic-trace.v1'
+  traceId: string
+  stepId: string
   createdAt: string
+
+  taskGoal: string
   currentSubgoal: string
 
-  expectedEffect?: string
-  mapping: {
-    candidateId?: string
-    distancePx?: number
-    reason?: string
-    status: 'ambiguous' | 'matched_candidate' | 'no_target' | 'outside_observed_bounds'
-  }
-
   observation: {
-    app?: string
-    candidates: MimicCandidateV1[]
     screenshotPath?: string
     screenshotSha256?: string
-    title?: string
     url?: string
+    title?: string
+    app?: string
     windowTitle?: string
+    candidates: MimicCandidateV1[]
   }
 
   previousActions: MimicActionV1[]
-  schema: 'computer-use-mcp.mimic-trace.v1'
-  source: {
-    browser?: 'chrome'
-    collector: 'deterministic_demo' | 'human_replay' | 'manual'
-    platform: 'macos'
+  chosenAction: MimicActionV1
+  chosenCandidateId?: string
+  mapping: {
+    status: 'matched_candidate' | 'no_target' | 'ambiguous' | 'outside_observed_bounds'
+    candidateId?: string
+    distancePx?: number
+    reason?: string
   }
-  stepId: string
 
-  taskGoal: string
-  traceId: string
-
+  expectedEffect?: string
   verification?: {
-    status: 'failed' | 'passed' | 'unknown'
+    status: 'passed' | 'failed' | 'unknown'
     summary?: string
+  }
+
+  source: {
+    collector: 'manual' | 'deterministic_demo' | 'human_replay'
+    platform: 'macos'
+    browser?: 'chrome'
   }
 }
 ```
@@ -135,27 +135,27 @@ interface MimicTraceRecordV1 {
 Candidate and action structures should stay low-level:
 
 ```ts
-type MimicActionType = 'click' | 'no_target' | 'press_key' | 'scroll' | 'type_text' | 'wait'
-
-interface MimicActionV1 {
-  candidateId?: string
-  direction?: 'down' | 'left' | 'right' | 'up'
-  key?: string
-  point?: { x: number, y: number }
+interface MimicCandidateV1 {
+  id: string
+  source: 'chrome_dom' | 'ax' | 'vision' | 'manual'
+  role?: string
+  label?: string
   text?: string
-  type: MimicActionType
+  bounds: { x: number, y: number, width: number, height: number }
+  enabled?: boolean
+  visible?: boolean
+  metadata?: Record<string, unknown>
 }
 
-interface MimicCandidateV1 {
-  bounds: { height: number, width: number, x: number, y: number }
-  enabled?: boolean
-  id: string
-  label?: string
-  metadata?: Record<string, unknown>
-  role?: string
-  source: 'ax' | 'chrome_dom' | 'manual' | 'vision'
+type MimicActionType = 'click' | 'type_text' | 'scroll' | 'press_key' | 'wait' | 'no_target'
+
+interface MimicActionV1 {
+  type: MimicActionType
+  candidateId?: string
+  point?: { x: number, y: number }
   text?: string
-  visible?: boolean
+  direction?: 'up' | 'down' | 'left' | 'right'
+  key?: string
 }
 ```
 

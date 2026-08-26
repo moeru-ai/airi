@@ -1,3 +1,7 @@
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
 export function selectDesktopOverlaySmokeCandidateId(runState: Record<string, unknown>): string {
   const snapshot = runState.lastGroundingSnapshot
   if (!isRecord(snapshot))
@@ -17,8 +21,4 @@ export function selectDesktopOverlaySmokeCandidateId(runState: Record<string, un
     throw new Error('desktop_observe did not return the AIRI Desktop Overlay Smoke Button chrome_dom candidate')
 
   return id
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
 }

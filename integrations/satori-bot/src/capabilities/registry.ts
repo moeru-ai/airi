@@ -9,6 +9,10 @@ import { breakAction, continueAction, listChannelsAction, sleepAction } from './
 export class ActionRegistry {
   private actions = new Map<string, ActionHandler>()
 
+  register(handler: ActionHandler) {
+    this.actions.set(handler.name, handler)
+  }
+
   get(name: string): ActionHandler | undefined {
     return this.actions.get(name)
   }
@@ -24,10 +28,6 @@ export class ActionRegistry {
     // 注册需要注入依赖的 Action
     this.register(createSendMessageAction(client))
     this.register(readMessagesAction)
-  }
-
-  register(handler: ActionHandler) {
-    this.actions.set(handler.name, handler)
   }
 }
 

@@ -16,7 +16,7 @@ import { registerTtsPoolGauge } from './tts-pool'
  * expect(observe).toHaveBeenCalledWith(3, { app_id: 'app-1' })
  */
 function makeGauge() {
-  let cb: ((result: { observe: (v: number, attrs: Record<string, string>) => void }) => Promise<void> | void) | null = null
+  let cb: ((result: { observe: (v: number, attrs: Record<string, string>) => void }) => void | Promise<void>) | null = null
   const observe = vi.fn()
   const gauge = {
     addCallback: vi.fn((fn: typeof cb) => { cb = fn }),
@@ -32,20 +32,20 @@ function makeGauge() {
   }
 }
 
-function makeLedger(snapshot: () => Promise<Array<{ inflight: number, poolId: string }>>): ConcurrencyLedger {
+function makeLedger(snapshot: () => Promise<Array<{ poolId: string, inflight: number }>>): ConcurrencyLedger {
   return {
-    currentInflight: vi.fn(),
-    isSaturated: vi.fn(),
-    markSaturated: vi.fn(),
-    release: vi.fn(),
-    snapshot: vi.fn(snapshot),
     tryAcquire: vi.fn(),
+    release: vi.fn(),
+    markSaturated: vi.fn(),
+    isSaturated: vi.fn(),
+    currentInflight: vi.fn(),
+    snapshot: vi.fn(snapshot),
   } as unknown as ConcurrencyLedger
 }
 
 function makeReadErrors() {
   const add = vi.fn()
-  return { add, metricReadErrors: { add } as unknown as ObservabilityMetrics['metricReadErrors'] }
+  return { metricReadErrors: { add } as unknown as ObservabilityMetrics['metricReadErrors'], add }
 }
 
 describe('registerTtsPoolGauge', () => {
@@ -59,8 +59,8 @@ describe('registerTtsPoolGauge', () => {
 
   it('observes one point per pool with the app_id attribute', async () => {
     const ledger = makeLedger(async () => [
-      { inflight: 3, poolId: 'app-1' },
-      { inflight: 7, poolId: 'app-2' },
+      { poolId: 'app-1', inflight: 3 },
+      { poolId: 'app-2', inflight: 7 },
     ])
     const { metricReadErrors } = makeReadErrors()
     const { gauge, observe, run } = makeGauge()
@@ -79,7 +79,7 @@ describe('registerTtsPoolGauge', () => {
     const ledger = makeLedger(async () => {
       throw new Error('redis down')
     })
-    const { add, metricReadErrors } = makeReadErrors()
+    const { metricReadErrors, add } = makeReadErrors()
     const { gauge, observe, run } = makeGauge()
 
     registerTtsPoolGauge(gauge, ledger, metricReadErrors)
@@ -90,7 +90,7 @@ describe('registerTtsPoolGauge', () => {
   })
 
   it('serves the cached snapshot within the 10s TTL without re-reading Redis', async () => {
-    const ledger = makeLedger(async () => [{ inflight: 1, poolId: 'app-1' }])
+    const ledger = makeLedger(async () => [{ poolId: 'app-1', inflight: 1 }])
     const { metricReadErrors } = makeReadErrors()
     const { gauge, observe, run } = makeGauge()
 
@@ -104,7 +104,7 @@ describe('registerTtsPoolGauge', () => {
   })
 
   it('re-reads Redis after the cache TTL expires', async () => {
-    const ledger = makeLedger(async () => [{ inflight: 1, poolId: 'app-1' }])
+    const ledger = makeLedger(async () => [{ poolId: 'app-1', inflight: 1 }])
     const { metricReadErrors } = makeReadErrors()
     const { gauge, run } = makeGauge()
 

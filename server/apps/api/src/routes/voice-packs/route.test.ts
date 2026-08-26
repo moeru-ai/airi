@@ -7,33 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createVoicePackRoutes } from '.'
 import { ApiError } from '../../utils/error'
 
-function createService() {
-  return {
-    create: vi.fn(),
-    disable: vi.fn(),
-    findById: vi.fn(),
-    findEnabledByVoiceId: vi.fn(),
-    list: vi.fn(),
-    listEnabled: vi.fn(async () => [{
-      costMultiplier: 2,
-      createdAt: new Date('2026-01-01T00:00:00.000Z'),
-      description: 'Public description',
-      enabled: true,
-      id: 'vp-1',
-      model: 'microsoft/v1',
-      name: 'Enabled',
-      params: { pitch: 10 },
-      provider: 'azure',
-      ttsModelId: 'microsoft/v1',
-      updatedAt: new Date('2026-01-02T00:00:00.000Z'),
-      upstreamVoiceId: 'en-US-AvaMultilingualNeural',
-      voiceId: 'friendly-voice',
-    }]),
-    update: vi.fn(),
-  } as unknown as VoicePackService
-}
-
-function createTestApp(service: VoicePackService, user: null | { id: string }) {
+function createTestApp(service: VoicePackService, user: { id: string } | null) {
   return new Hono<HonoEnv>()
     .use('*', async (c, next) => {
       c.set('user', user as HonoEnv['Variables']['user'])
@@ -45,6 +19,32 @@ function createTestApp(service: VoicePackService, user: null | { id: string }) {
         return c.json({ error: err.errorCode }, err.statusCode)
       return c.json({ error: 'internal', message: (err as Error).message }, 500)
     })
+}
+
+function createService() {
+  return {
+    listEnabled: vi.fn(async () => [{
+      id: 'vp-1',
+      name: 'Enabled',
+      description: 'Public description',
+      provider: 'azure',
+      model: 'microsoft/v1',
+      voiceId: 'friendly-voice',
+      upstreamVoiceId: 'en-US-AvaMultilingualNeural',
+      ttsModelId: 'microsoft/v1',
+      params: { pitch: 10 },
+      costMultiplier: 2,
+      enabled: true,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+    }]),
+    list: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    disable: vi.fn(),
+    findById: vi.fn(),
+    findEnabledByVoiceId: vi.fn(),
+  } as unknown as VoicePackService
 }
 
 describe('voice packs routes', () => {
@@ -66,15 +66,15 @@ describe('voice packs routes', () => {
 
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual([{
-      costMultiplier: 2,
-      createdAt: '2026-01-01T00:00:00.000Z',
-      description: 'Public description',
-      enabled: true,
       id: 'vp-1',
       name: 'Enabled',
-      params: { pitch: 10 },
-      updatedAt: '2026-01-02T00:00:00.000Z',
+      description: 'Public description',
       voiceId: 'friendly-voice',
+      params: { pitch: 10 },
+      costMultiplier: 2,
+      enabled: true,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-02T00:00:00.000Z',
     }])
     expect(service.listEnabled).toHaveBeenCalled()
   })

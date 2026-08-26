@@ -3,16 +3,14 @@ import type { Database } from '../../libs/db'
 import * as schema from '../../schemas/llm-request-log'
 
 export interface RequestLogEntry {
-  completionTokens?: number
+  userId: string
+  model: string
+  status: number
   durationMs: number
   fluxConsumed: number
-  model: string
   promptTokens?: number
-  status: number
-  userId: string
+  completionTokens?: number
 }
-
-export type RequestLogService = ReturnType<typeof createRequestLogService>
 
 export function createRequestLogService(db: Database) {
   return {
@@ -21,3 +19,5 @@ export function createRequestLogService(db: Database) {
     },
   }
 }
+
+export type RequestLogService = ReturnType<typeof createRequestLogService>

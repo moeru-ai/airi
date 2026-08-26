@@ -9,9 +9,11 @@ function makeContext(overrides: Record<string, unknown> = {}): ContextSnapshot {
   return {
     'system:minecraft-integration': [
       {
-        contextId: 'system:minecraft-integration',
-        createdAt: 1743940440000,
         id: 'volatile-random-id',
+        contextId: 'system:minecraft-integration',
+        strategy: ContextUpdateStrategy.ReplaceSelf,
+        text: 'Bot is online in forest biome',
+        createdAt: 1743940440000,
         metadata: {
           source: {
             id: 'system:minecraft-integration',
@@ -19,8 +21,6 @@ function makeContext(overrides: Record<string, unknown> = {}): ContextSnapshot {
             plugin: { id: 'airi:minecraft' },
           },
         },
-        strategy: ContextUpdateStrategy.ReplaceSelf,
-        text: 'Bot is online in forest biome',
         ...overrides,
       },
     ],
@@ -73,20 +73,20 @@ describe('formatContextPromptText', () => {
     const snapshot: ContextSnapshot = {
       'system:minecraft-integration': [
         {
-          contextId: 'system:minecraft-integration',
-          createdAt: 0,
           id: 'a',
+          contextId: 'system:minecraft-integration',
           strategy: ContextUpdateStrategy.ReplaceSelf,
           text: 'Bot is online',
+          createdAt: 0,
         },
       ],
       'system:weather': [
         {
-          contextId: 'system:weather',
-          createdAt: 0,
           id: 'b',
+          contextId: 'system:weather',
           strategy: ContextUpdateStrategy.ReplaceSelf,
           text: 'Sunny, 22C',
+          createdAt: 0,
         },
       ],
     }

@@ -2,10 +2,25 @@ import JSZip from 'jszip'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+function blobFromBytes(data: Uint8Array): Blob {
+  const buffer = new ArrayBuffer(data.byteLength)
+  new Uint8Array(buffer).set(data)
+  return new Blob([buffer])
+}
+
+function fileWithRelativePath(content: Blob | string | Uint8Array, name: string, webkitRelativePath: string): File {
+  const fileContent = content instanceof Uint8Array ? blobFromBytes(content) : content
+  const file = new File([fileContent], name)
+  Object.defineProperty(file, 'webkitRelativePath', {
+    value: webkitRelativePath,
+  })
+  return file
+}
+
 class TestFileReader {
-  onerror: ((error: unknown) => void) | null = null
+  result: string | null = null
   onload: (() => void) | null = null
-  result: null | string = null
+  onerror: ((error: unknown) => void) | null = null
 
   readAsText(file: File): void {
     void file.text()
@@ -17,56 +32,41 @@ class TestFileReader {
   }
 }
 
-function blobFromBytes(data: Uint8Array): Blob {
-  const buffer = new ArrayBuffer(data.byteLength)
-  new Uint8Array(buffer).set(data)
-  return new Blob([buffer])
+function createShisihangshiSettingsText(): string {
+  return JSON.stringify({
+    Version: 3,
+    FileReferences: {
+      Moc: '302301_shisihangshi.moc3',
+      Textures: ['textures/302301_shisihangshi_00.png'],
+      Physics: null,
+      Motions: {
+        '': [{ File: 'motions/t_idle.motion3.json' }],
+      },
+    },
+    Groups: [],
+  })
 }
 
 function createCjkPathSettingsText(): string {
   return JSON.stringify({
+    Version: 3,
     FileReferences: {
       Moc: '测试角色.moc3',
       Textures: ['中文纹理/texture_00.png'],
     },
     Groups: [],
-    Version: 3,
-  })
-}
-
-function createShisihangshiSettingsText(): string {
-  return JSON.stringify({
-    FileReferences: {
-      Moc: '302301_shisihangshi.moc3',
-      Motions: {
-        '': [{ File: 'motions/t_idle.motion3.json' }],
-      },
-      Physics: null,
-      Textures: ['textures/302301_shisihangshi_00.png'],
-    },
-    Groups: [],
-    Version: 3,
   })
 }
 
 function createSpacePathSettingsText(): string {
   return JSON.stringify({
+    Version: 3,
     FileReferences: {
       Moc: 'Avatar Model.moc3',
       Textures: ['Avatar Model.4096/texture 00.png'],
     },
     Groups: [],
-    Version: 3,
   })
-}
-
-function fileWithRelativePath(content: Blob | string | Uint8Array, name: string, webkitRelativePath: string): File {
-  const fileContent = content instanceof Uint8Array ? blobFromBytes(content) : content
-  const file = new File([fileContent], name)
-  Object.defineProperty(file, 'webkitRelativePath', {
-    value: webkitRelativePath,
-  })
-  return file
 }
 
 const appleDoubleHeader = new Uint8Array([0, 5, 22, 7, 0, 2, 0, 0, 77, 97, 99, 32, 79, 83, 32, 88])
@@ -130,9 +130,9 @@ describe('live2d zip loader settings sanitization', () => {
     //
     // The loader now keeps both sides as decoded archive paths, matching its unzip and upload stages.
     const context = {
-      live2dModel: new Live2DModel(),
-      options: {},
       source: files,
+      options: {},
+      live2dModel: new Live2DModel(),
     }
 
     try {
@@ -171,9 +171,9 @@ describe('live2d zip loader settings sanitization', () => {
     //
     // We fixed this by comparing canonical decoded archive paths at the loader boundary.
     const context = {
-      live2dModel: new Live2DModel(),
-      options: {},
       source: files,
+      options: {},
+      live2dModel: new Live2DModel(),
     }
 
     try {
@@ -263,9 +263,9 @@ describe('live2d zip loader settings sanitization', () => {
     ]
     const existingObjectUrls = new Set(Object.keys(FileLoader.filesMap))
     const context = {
-      live2dModel: new Live2DModel(),
-      options: {},
       source: files,
+      options: {},
+      live2dModel: new Live2DModel(),
     }
 
     try {

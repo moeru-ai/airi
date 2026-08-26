@@ -38,8 +38,8 @@ describe('getAdapter', () => {
       expect(apiErr.errorCode).toBe('BAD_REQUEST')
       expect(apiErr.details).toEqual(
         expect.objectContaining({
-          available: expect.arrayContaining(['azure', 'dashscope-cosyvoice', 'stepfun', 'volcengine']),
           id: 'unknown-provider',
+          available: expect.arrayContaining(['azure', 'dashscope-cosyvoice', 'stepfun', 'volcengine']),
         }),
       )
     }
@@ -56,8 +56,8 @@ describe('getAdapter', () => {
 
       const voices = await adapter.getVoiceCatalog({
         adapterParams: {},
-        fetchImpl,
         unspeechBaseURL: 'http://unspeech.local',
+        fetchImpl,
       })
       expect(voices).toEqual([{ id: 'v1', name: 'v1' }])
       expect(fetchImpl).toHaveBeenCalledTimes(1)
@@ -74,8 +74,8 @@ describe('dashscopeCosyvoiceAdapter.getVoiceCatalog', () => {
 
     const voices = await adapter.getVoiceCatalog({
       adapterParams: { model: 'cosyvoice-v2' },
-      fetchImpl,
       unspeechBaseURL: 'http://unspeech.local',
+      fetchImpl,
     })
 
     expect(voices).toEqual([{ id: 'longxiaochun_v2', name: 'Longxiaochun v2' }])
@@ -90,8 +90,8 @@ describe('dashscopeCosyvoiceAdapter.getVoiceCatalog', () => {
     const fetchImpl = vi.fn(async () => new Response('boom', { status: 502 })) as unknown as typeof fetch
     await expect(adapter.getVoiceCatalog({
       adapterParams: {},
-      fetchImpl,
       unspeechBaseURL: 'http://unspeech.local',
+      fetchImpl,
     })).rejects.toMatchObject({ statusCode: 502 })
   })
 })
@@ -105,8 +105,8 @@ describe('volcengineAdapter.getVoiceCatalog', () => {
 
     const voices = await adapter.getVoiceCatalog({
       adapterParams: { model: 'seed-tts-2.0' },
-      fetchImpl,
       unspeechBaseURL: 'http://unspeech.local',
+      fetchImpl,
     })
 
     expect(voices).toEqual([{ id: 'zh_female_x', name: 'X' }])
@@ -119,8 +119,8 @@ describe('volcengineAdapter.getVoiceCatalog', () => {
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ voices: [] }), { status: 200 })) as unknown as typeof fetch
     await adapter.getVoiceCatalog({
       adapterParams: {},
-      fetchImpl,
       unspeechBaseURL: 'http://unspeech.local',
+      fetchImpl,
     })
     const [calledUrl] = (fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]
     expect(calledUrl).toBe('http://unspeech.local/api/voices?provider=volcengine')
@@ -132,14 +132,14 @@ describe('azureAdapter.getVoiceCatalog', () => {
     const adapter = getAdapter('azure')
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
       voices: [{ id: 'en-US-AvaMultilingualNeural', name: 'Ava' }],
-    }), { headers: { 'Content-Type': 'application/json' }, status: 200 })) as unknown as typeof fetch
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })) as unknown as typeof fetch
 
     const voices = await adapter.getVoiceCatalog({
-      adapterParams: { region: 'eastasia' },
-      fetchImpl,
       keyPlaintext: Buffer.from('subscription-key-XYZ', 'utf8'),
       region: 'eastasia',
+      adapterParams: { region: 'eastasia' },
       unspeechBaseURL: 'http://unspeech.local:5933',
+      fetchImpl,
     })
 
     expect(voices).toEqual([{ id: 'en-US-AvaMultilingualNeural', name: 'Ava' }])
@@ -153,32 +153,32 @@ describe('azureAdapter.getVoiceCatalog', () => {
   it('throws 503 AZURE_TTS_NOT_CONFIGURED when region is missing', async () => {
     const adapter = getAdapter('azure')
     await expect(adapter.getVoiceCatalog({
-      adapterParams: {},
-      fetchImpl: vi.fn() as unknown as typeof fetch,
       keyPlaintext: Buffer.from('k', 'utf8'),
+      adapterParams: {},
       unspeechBaseURL: 'http://unspeech.local',
-    })).rejects.toMatchObject({ errorCode: 'AZURE_TTS_NOT_CONFIGURED', statusCode: 503 })
+      fetchImpl: vi.fn() as unknown as typeof fetch,
+    })).rejects.toMatchObject({ statusCode: 503, errorCode: 'AZURE_TTS_NOT_CONFIGURED' })
   })
 
   it('throws 503 AZURE_TTS_NOT_CONFIGURED when keyPlaintext is missing', async () => {
     const adapter = getAdapter('azure')
     await expect(adapter.getVoiceCatalog({
-      adapterParams: { region: 'eastasia' },
-      fetchImpl: vi.fn() as unknown as typeof fetch,
       region: 'eastasia',
+      adapterParams: { region: 'eastasia' },
       unspeechBaseURL: 'http://unspeech.local',
-    })).rejects.toMatchObject({ errorCode: 'AZURE_TTS_NOT_CONFIGURED', statusCode: 503 })
+      fetchImpl: vi.fn() as unknown as typeof fetch,
+    })).rejects.toMatchObject({ statusCode: 503, errorCode: 'AZURE_TTS_NOT_CONFIGURED' })
   })
 
   it('throws 502 BAD_GATEWAY when unspeech responds non-2xx', async () => {
     const adapter = getAdapter('azure')
     const fetchImpl = vi.fn(async () => new Response('upstream down', { status: 502 })) as unknown as typeof fetch
     await expect(adapter.getVoiceCatalog({
-      adapterParams: { region: 'eastasia' },
-      fetchImpl,
       keyPlaintext: Buffer.from('k', 'utf8'),
       region: 'eastasia',
+      adapterParams: { region: 'eastasia' },
       unspeechBaseURL: 'http://unspeech.local',
+      fetchImpl,
     })).rejects.toMatchObject({ statusCode: 502 })
   })
 
@@ -188,11 +188,11 @@ describe('azureAdapter.getVoiceCatalog', () => {
       throw new Error('ECONNREFUSED')
     }) as unknown as typeof fetch
     await expect(adapter.getVoiceCatalog({
-      adapterParams: { region: 'eastasia' },
-      fetchImpl,
       keyPlaintext: Buffer.from('k', 'utf8'),
       region: 'eastasia',
+      adapterParams: { region: 'eastasia' },
       unspeechBaseURL: 'http://unspeech.local',
+      fetchImpl,
     })).rejects.toMatchObject({ statusCode: 502 })
   })
 })
@@ -201,26 +201,26 @@ describe('azureAdapter.send', () => {
   it('posts SSML to unspeech /v1/audio/speech with model=microsoft/v1 + region extra_body', async () => {
     const adapter = getAdapter('azure')
     const fetchImpl = vi.fn(async () => new Response(new Uint8Array([1, 2, 3]), {
-      headers: { 'content-type': 'audio/mpeg' },
       status: 200,
+      headers: { 'content-type': 'audio/mpeg' },
     })) as unknown as typeof fetch
 
     await adapter.send(
       {
+        text: 'hi there',
+        voice: 'en-US-AvaMultilingualNeural',
+        speed: 1.2,
         extraOptions: {
           pitch: 20,
           volume: 5,
         },
-        speed: 1.2,
-        text: 'hi there',
-        voice: 'en-US-AvaMultilingualNeural',
       },
       {
-        adapterParams: { region: 'eastasia' },
-        baseURL: 'https://eastasia.tts.speech.microsoft.com/cognitiveservices/v1',
-        fetchImpl,
         keyPlaintext: Buffer.from('azure-sub-key', 'utf8'),
+        baseURL: 'https://eastasia.tts.speech.microsoft.com/cognitiveservices/v1',
         unspeechBaseURL: 'http://unspeech.local:5933',
+        adapterParams: { region: 'eastasia' },
+        fetchImpl,
       },
     )
 
@@ -242,18 +242,18 @@ describe('azureAdapter.send', () => {
   it('uses adapterParams.defaultVoice when the request omits voice', async () => {
     const adapter = getAdapter('azure')
     const fetchImpl = vi.fn(async () => new Response(new Uint8Array([1, 2, 3]), {
-      headers: { 'content-type': 'audio/mpeg' },
       status: 200,
+      headers: { 'content-type': 'audio/mpeg' },
     })) as unknown as typeof fetch
 
     await adapter.send(
       { text: 'hi there' },
       {
-        adapterParams: { defaultVoice: 'en-US-AvaMultilingualNeural', region: 'eastasia' },
-        baseURL: 'https://eastasia.tts.speech.microsoft.com/cognitiveservices/v1',
-        fetchImpl,
         keyPlaintext: Buffer.from('azure-sub-key', 'utf8'),
+        baseURL: 'https://eastasia.tts.speech.microsoft.com/cognitiveservices/v1',
         unspeechBaseURL: 'http://unspeech.local:5933',
+        adapterParams: { region: 'eastasia', defaultVoice: 'en-US-AvaMultilingualNeural' },
+        fetchImpl,
       },
     )
 
@@ -269,11 +269,11 @@ describe('azureAdapter.send', () => {
     await expect(adapter.send(
       { text: 'hi' },
       {
-        adapterParams: { region: 'eastasia' },
-        baseURL: 'https://eastasia.tts.speech.microsoft.com/cognitiveservices/v1',
-        fetchImpl,
         keyPlaintext: Buffer.from('k', 'utf8'),
+        baseURL: 'https://eastasia.tts.speech.microsoft.com/cognitiveservices/v1',
         unspeechBaseURL: 'http://unspeech.local:5933',
+        adapterParams: { region: 'eastasia' },
+        fetchImpl,
       },
     )).rejects.toMatchObject({ statusCode: 400 })
 
@@ -287,11 +287,11 @@ describe('azureAdapter.send', () => {
     await expect(adapter.send(
       { text: 'hi', voice: 'en-US-AvaMultilingualNeural' },
       {
-        adapterParams: { region: 'eastasia' },
-        baseURL: 'https://eastasia.tts.speech.microsoft.com/cognitiveservices/v1',
-        fetchImpl,
         keyPlaintext: Buffer.from('k', 'utf8'),
+        baseURL: 'https://eastasia.tts.speech.microsoft.com/cognitiveservices/v1',
         unspeechBaseURL: 'http://unspeech.local:5933',
+        adapterParams: { region: 'eastasia' },
+        fetchImpl,
       },
     )).rejects.toMatchObject({ status: 401 })
   })
@@ -302,24 +302,24 @@ describe('stepfunAdapter', () => {
     const adapter = getAdapter('stepfun')
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
       voices: [{
-        compatible_models: ['stepaudio-2.5-tts', 'step-tts-2', 'step-tts-mini'],
         id: 'cixingnansheng',
         name: '磁性男声',
+        compatible_models: ['stepaudio-2.5-tts', 'step-tts-2', 'step-tts-mini'],
       }],
     }), { status: 200 })) as unknown as typeof fetch
 
     const voices = await adapter.getVoiceCatalog({
       adapterParams: {},
-      fetchImpl,
       unspeechBaseURL: 'http://unspeech.local',
+      fetchImpl,
     })
 
     expect(voices).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          compatible_models: expect.arrayContaining(['stepaudio-2.5-tts', 'step-tts-2', 'step-tts-mini']),
           id: 'cixingnansheng',
           name: '磁性男声',
+          compatible_models: expect.arrayContaining(['stepaudio-2.5-tts', 'step-tts-2', 'step-tts-mini']),
         }),
       ]),
     )
@@ -331,28 +331,28 @@ describe('stepfunAdapter', () => {
   it('posts OpenAI-compatible speech JSON to unspeech with model=stepfun/<model>', async () => {
     const adapter = getAdapter('stepfun')
     const fetchImpl = vi.fn(async () => new Response(new Uint8Array([1, 2, 3]), {
-      headers: { 'content-type': 'audio/mpeg' },
       status: 200,
+      headers: { 'content-type': 'audio/mpeg' },
     })) as unknown as typeof fetch
 
     const result = await adapter.send(
       {
-        extraOptions: {
-          instruction: '温柔、克制、有一点笑意',
-          sampleRate: 24000,
-          volume: 1.1,
-        },
-        responseFormat: 'mp3',
-        speed: 1.2,
         text: '（轻声）你好',
         voice: 'cixingnansheng',
+        responseFormat: 'mp3',
+        speed: 1.2,
+        extraOptions: {
+          instruction: '温柔、克制、有一点笑意',
+          volume: 1.1,
+          sampleRate: 24000,
+        },
       },
       {
-        adapterParams: { model: 'stepaudio-2.5-tts' },
-        baseURL: 'https://api.stepfun.com',
-        fetchImpl,
         keyPlaintext: Buffer.from('step-key', 'utf8'),
+        baseURL: 'https://api.stepfun.com',
         unspeechBaseURL: 'http://unspeech.local:5933',
+        adapterParams: { model: 'stepaudio-2.5-tts' },
+        fetchImpl,
       },
     )
 
@@ -365,16 +365,16 @@ describe('stepfunAdapter', () => {
     })
     const body = JSON.parse(init.body as string) as Record<string, unknown>
     expect(body).toEqual({
-      extra_body: {
-        instruction: '温柔、克制、有一点笑意',
-        sample_rate: 24000,
-        volume: 1.1,
-      },
-      input: '（轻声）你好',
       model: 'stepfun/stepaudio-2.5-tts',
+      input: '（轻声）你好',
+      voice: 'cixingnansheng',
       response_format: 'mp3',
       speed: 1.2,
-      voice: 'cixingnansheng',
+      extra_body: {
+        volume: 1.1,
+        sample_rate: 24000,
+        instruction: '温柔、克制、有一点笑意',
+      },
     })
     expect(result.contentType).toBe('audio/mpeg')
     expect(result.body).toBeInstanceOf(ArrayBuffer)
@@ -383,29 +383,29 @@ describe('stepfunAdapter', () => {
   it('passes the Step Plan endpoint profile to unspeech', async () => {
     const adapter = getAdapter('stepfun')
     const fetchImpl = vi.fn(async () => new Response(new Uint8Array([1, 2, 3]), {
-      headers: { 'content-type': 'audio/mpeg' },
       status: 200,
+      headers: { 'content-type': 'audio/mpeg' },
     })) as unknown as typeof fetch
 
     const result = await adapter.send(
       {
+        text: '你好',
+        voice: 'cixingnansheng',
+        responseFormat: 'mp3',
+        speed: 1.1,
         extraOptions: {
           instruction: '温柔、克制',
         },
-        responseFormat: 'mp3',
-        speed: 1.1,
-        text: '你好',
-        voice: 'cixingnansheng',
       },
       {
+        keyPlaintext: Buffer.from('step-plan-key', 'utf8'),
+        baseURL: 'https://api.stepfun.com',
+        unspeechBaseURL: 'http://unspeech.local:5933',
         adapterParams: {
           endpointProfile: 'step-plan',
           model: 'stepaudio-2.5-tts',
         },
-        baseURL: 'https://api.stepfun.com',
         fetchImpl,
-        keyPlaintext: Buffer.from('step-plan-key', 'utf8'),
-        unspeechBaseURL: 'http://unspeech.local:5933',
       },
     )
 
@@ -417,15 +417,15 @@ describe('stepfunAdapter', () => {
       'Content-Type': 'application/json',
     })
     expect(JSON.parse(init.body as string)).toEqual({
+      model: 'stepfun/stepaudio-2.5-tts',
+      input: '你好',
+      voice: 'cixingnansheng',
+      response_format: 'mp3',
+      speed: 1.1,
       extra_body: {
         endpoint_profile: 'step-plan',
         instruction: '温柔、克制',
       },
-      input: '你好',
-      model: 'stepfun/stepaudio-2.5-tts',
-      response_format: 'mp3',
-      speed: 1.1,
-      voice: 'cixingnansheng',
     })
     expect(result.contentType).toBe('audio/mpeg')
     expect(result.body).toBeInstanceOf(ArrayBuffer)
@@ -434,23 +434,23 @@ describe('stepfunAdapter', () => {
   it('passes voice_label through to unspeech for provider-level validation', async () => {
     const adapter = getAdapter('stepfun')
     const fetchImpl = vi.fn(async () => new Response(new Uint8Array([1]), {
-      headers: { 'content-type': 'audio/mpeg' },
       status: 200,
+      headers: { 'content-type': 'audio/mpeg' },
     })) as unknown as typeof fetch
 
     await adapter.send(
       {
+        text: 'hi',
         extraOptions: {
           voice_label: { emotion: '高兴' },
         },
-        text: 'hi',
       },
       {
-        adapterParams: { model: 'stepaudio-2.5-tts' },
-        baseURL: 'https://api.stepfun.com',
-        fetchImpl,
         keyPlaintext: Buffer.from('step-key', 'utf8'),
+        baseURL: 'https://api.stepfun.com',
         unspeechBaseURL: 'http://unspeech.local',
+        adapterParams: { model: 'stepaudio-2.5-tts' },
+        fetchImpl,
       },
     )
 
@@ -466,11 +466,11 @@ describe('stepfunAdapter', () => {
     await expect(adapter.send(
       { text: 'hi', voice: 'cixingnansheng' },
       {
-        adapterParams: { model: 'stepaudio-2.5-tts' },
-        baseURL: 'https://api.stepfun.com',
-        fetchImpl,
         keyPlaintext: Buffer.from('bad-key', 'utf8'),
+        baseURL: 'https://api.stepfun.com',
         unspeechBaseURL: 'http://unspeech.local',
+        adapterParams: { model: 'stepaudio-2.5-tts' },
+        fetchImpl,
       },
     )).rejects.toMatchObject({ status: 401 })
   })
@@ -480,19 +480,19 @@ describe('stepfunAdapter', () => {
     const abortController = new AbortController()
     const abortError = new Error('attempt-timeout')
     abortController.abort(abortError)
-    const fetchImpl = vi.fn(async (_input: Request | string | URL, init?: RequestInit) => {
+    const fetchImpl = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
       throw init?.signal?.reason ?? new Error('aborted')
     }) as unknown as typeof fetch
 
     await expect(adapter.send(
       { text: 'hi', voice: 'cixingnansheng' },
       {
-        abortSignal: abortController.signal,
-        adapterParams: { model: 'stepaudio-2.5-tts' },
-        baseURL: 'https://api.stepfun.com',
-        fetchImpl,
         keyPlaintext: Buffer.from('step-key', 'utf8'),
+        baseURL: 'https://api.stepfun.com',
         unspeechBaseURL: 'http://unspeech.local',
+        adapterParams: { model: 'stepaudio-2.5-tts' },
+        fetchImpl,
+        abortSignal: abortController.signal,
       },
     )).rejects.toBe(abortError)
   })
@@ -502,18 +502,18 @@ describe('volcengineAdapter.send', () => {
   it('posts to unspeech with model=volcengine/<api_resource_id> and app/cluster in extra_body', async () => {
     const adapter = getAdapter('volcengine')
     const fetchImpl = vi.fn(async () => new Response(new Uint8Array([0x49, 0x44, 0x33]), {
-      headers: { 'content-type': 'audio/mpeg' },
       status: 200,
+      headers: { 'content-type': 'audio/mpeg' },
     })) as unknown as typeof fetch
 
     const result = await adapter.send(
-      { responseFormat: 'mp3', speed: 1.0, text: 'hi', voice: 'BV001_streaming' },
+      { text: 'hi', voice: 'BV001_streaming', responseFormat: 'mp3', speed: 1.0 },
       {
-        adapterParams: { appid: 'APP-123', cluster: 'volcano_tts', model: 'seed-tts-2.0' },
-        baseURL: 'https://openspeech.bytedance.com/api/v1/tts',
-        fetchImpl,
         keyPlaintext: Buffer.from('volc-token', 'utf8'),
+        baseURL: 'https://openspeech.bytedance.com/api/v1/tts',
         unspeechBaseURL: 'http://unspeech.local:5933',
+        adapterParams: { appid: 'APP-123', cluster: 'volcano_tts', model: 'seed-tts-2.0' },
+        fetchImpl,
       },
     )
 
@@ -546,18 +546,18 @@ describe('volcengineAdapter.send', () => {
 
     await expect(adapter.send(
       {
+        text: 'hi',
+        voice: 'BV001_streaming',
         extraOptions: {
           pitch: 20,
         },
-        text: 'hi',
-        voice: 'BV001_streaming',
       },
       {
-        adapterParams: { appid: 'APP-123' },
-        baseURL: 'https://openspeech.bytedance.com/api/v1/tts',
-        fetchImpl,
         keyPlaintext: Buffer.from('volc-token', 'utf8'),
+        baseURL: 'https://openspeech.bytedance.com/api/v1/tts',
         unspeechBaseURL: 'http://unspeech.local:5933',
+        adapterParams: { appid: 'APP-123' },
+        fetchImpl,
       },
     )).rejects.toMatchObject({ statusCode: 400 })
 
@@ -570,11 +570,11 @@ describe('volcengineAdapter.send', () => {
     await expect(adapter.send(
       { text: 'hi' },
       {
-        adapterParams: {},
-        baseURL: 'https://openspeech.bytedance.com/api/v1/tts',
-        fetchImpl,
         keyPlaintext: Buffer.from('k', 'utf8'),
+        baseURL: 'https://openspeech.bytedance.com/api/v1/tts',
         unspeechBaseURL: 'http://unspeech.local:5933',
+        adapterParams: {},
+        fetchImpl,
       },
     )).rejects.toMatchObject({ statusCode: 500 })
   })

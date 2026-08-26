@@ -19,14 +19,6 @@ export function createTrackButtonDirective(capture: (event: TrackButtonEvent) =>
   const listeners = new WeakMap<HTMLElement, EventListener>()
 
   return {
-    beforeUnmount(element) {
-      const listener = listeners.get(element)
-      if (listener)
-        element.removeEventListener('click', listener, { capture: true })
-
-      events.delete(element)
-      listeners.delete(element)
-    },
     mounted(element, binding) {
       events.set(element, binding.value)
 
@@ -41,6 +33,14 @@ export function createTrackButtonDirective(capture: (event: TrackButtonEvent) =>
     },
     updated(element, binding) {
       events.set(element, binding.value)
+    },
+    beforeUnmount(element) {
+      const listener = listeners.get(element)
+      if (listener)
+        element.removeEventListener('click', listener, { capture: true })
+
+      events.delete(element)
+      listeners.delete(element)
     },
   }
 }

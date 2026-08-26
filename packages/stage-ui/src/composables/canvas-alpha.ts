@@ -5,27 +5,27 @@ import { clamp } from 'es-toolkit/math'
 import { computed } from 'vue'
 
 interface CircleHitTestInput {
+  gl: WebGL2RenderingContext | WebGLRenderingContext
   clientX: number
   clientY: number
-  gl: WebGL2RenderingContext | WebGLRenderingContext
-  height: number
   left: number
-  radius: number
-  threshold: number
   top: number
   width: number
+  height: number
+  radius: number
+  threshold: number
 }
 
 export function isCanvasRegionTransparent({
+  gl,
   clientX,
   clientY,
-  gl,
-  height,
   left,
-  radius,
-  threshold,
   top,
   width,
+  height,
+  radius,
+  threshold,
 }: CircleHitTestInput) {
   if (!width || !height)
     return true
@@ -98,11 +98,11 @@ export function useCanvasPixelAtPoint(
   pointY: MaybeRefOrGetter<number>,
 ): {
   inCanvas: Ref<boolean>
-  pixel: Ref<number[] | Uint8Array>
+  pixel: Ref<Uint8Array | number[]>
 } {
   const canvasRef = toRef(canvas)
 
-  const { height, left, top, width } = useElementBounding(canvasRef)
+  const { left, top, width, height } = useElementBounding(canvasRef)
   const xRef = toRef(pointX)
   const yRef = toRef(pointY)
 
@@ -121,7 +121,7 @@ export function useCanvasPixelAtPoint(
     if (!el || !inCanvas.value)
       return new Uint8Array([0, 0, 0, 0])
 
-    const gl = (el.getContext('webgl2') || el.getContext('webgl')) as null | WebGL2RenderingContext | WebGLRenderingContext
+    const gl = (el.getContext('webgl2') || el.getContext('webgl')) as WebGL2RenderingContext | WebGLRenderingContext | null
     if (!gl)
       return new Uint8Array([0, 0, 0, 0])
 
@@ -152,7 +152,7 @@ export function useCanvasPixelAtPoint(
 }
 
 export function useCanvasPixelIsTransparent(
-  pixel: Ref<number[] | Uint8Array>,
+  pixel: Ref<Uint8Array | number[]>,
   threshold = 10,
 ): Ref<boolean> {
   return computed(() => pixel.value[3] < threshold)
@@ -162,10 +162,10 @@ export function useCanvasPixelIsTransparentAtPoint(
   canvas: MaybeRefOrGetter<HTMLCanvasElement | undefined>,
   pointX: MaybeRefOrGetter<number>,
   pointY: MaybeRefOrGetter<number>,
-  optionsOrThreshold: number | { regionRadius?: number, threshold?: number } = 10,
+  optionsOrThreshold: number | { threshold?: number, regionRadius?: number } = 10,
 ): Ref<boolean> {
   const options = typeof optionsOrThreshold === 'number'
-    ? { regionRadius: 0, threshold: optionsOrThreshold }
+    ? { threshold: optionsOrThreshold, regionRadius: 0 }
     : optionsOrThreshold
 
   const threshold = options?.threshold ?? 10
@@ -179,27 +179,27 @@ export function useCanvasPixelIsTransparentAtPoint(
   const canvasRef = toRef(canvas)
   const xRef = toRef(pointX)
   const yRef = toRef(pointY)
-  const { height, left, top, width } = useElementBounding(canvasRef)
+  const { left, top, width, height } = useElementBounding(canvasRef)
 
   return computed(() => {
     const el = unrefElement(canvasRef)
     if (!el)
       return true
 
-    const gl = (el.getContext('webgl2') || el.getContext('webgl')) as null | WebGL2RenderingContext | WebGLRenderingContext
+    const gl = (el.getContext('webgl2') || el.getContext('webgl')) as WebGL2RenderingContext | WebGLRenderingContext | null
     if (!gl)
       return true
 
     return isCanvasRegionTransparent({
+      gl,
       clientX: xRef.value,
       clientY: yRef.value,
-      gl,
-      height: height.value,
       left: left.value,
-      radius,
-      threshold,
       top: top.value,
       width: width.value,
+      height: height.value,
+      radius,
+      threshold,
     })
   })
 }

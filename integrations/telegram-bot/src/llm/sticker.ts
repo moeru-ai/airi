@@ -42,6 +42,7 @@ export async function interpretSticker(bot: Bot, msg: Message, sticker: Sticker)
     const req = {
       apiKey: env.LLM_VISION_API_KEY!,
       baseURL: env.LLM_VISION_API_BASE_URL!,
+      model: env.LLM_VISION_MODEL!,
       messages: message.messages(
         message.system(div(
           span(`
@@ -65,7 +66,6 @@ export async function interpretSticker(bot: Bot, msg: Message, sticker: Sticker)
         )),
         message.user([message.imagePart(`data:image/png;base64,${stickerBase64}`)]),
       ),
-      model: env.LLM_VISION_MODEL!,
     } satisfies GenerateTextOptions
     if (env.LLM_OLLAMA_DISABLE_THINK) {
       (req as Record<string, unknown>).think = false
@@ -79,10 +79,10 @@ export async function interpretSticker(bot: Bot, msg: Message, sticker: Sticker)
 
     // TODO: implement this for sticker searching
     const _embedRes = await embed({
-      apiKey: env.EMBEDDING_API_KEY!,
       baseURL: env.EMBEDDING_API_BASE_URL!,
-      input: 'Hello, world!',
+      apiKey: env.EMBEDDING_API_KEY!,
       model: env.EMBEDDING_MODEL!,
+      input: 'Hello, world!',
     })
 
     await recordSticker(stickerBase64, sticker.file_id, file.file_path, res.text, sticker.set_name, sticker.emoji, sticker.set_name)

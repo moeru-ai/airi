@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../../../utils/error'
 import { mapUpstreamError } from '../error-mapping'
 
-const exampleContext = { lastStatusCode: 401 as const, triedKeys: 2, triedUpstreams: 1 }
+const exampleContext = { triedKeys: 2, triedUpstreams: 1, lastStatusCode: 401 as const }
 
 describe('mapUpstreamError', () => {
   /**
@@ -65,8 +65,8 @@ describe('mapUpstreamError', () => {
   })
 
   it('attaches sanitized details (triedKeys / triedUpstreams / lastStatusCode) — no upstream body', () => {
-    const err = mapUpstreamError(500, { lastStatusCode: 500, triedKeys: 4, triedUpstreams: 2 })
-    expect(err.details).toEqual({ lastStatusCode: 500, triedKeys: 4, triedUpstreams: 2 })
+    const err = mapUpstreamError(500, { triedKeys: 4, triedUpstreams: 2, lastStatusCode: 500 })
+    expect(err.details).toEqual({ triedKeys: 4, triedUpstreams: 2, lastStatusCode: 500 })
   })
 
   it('2xx input is a programmer error and throws an internal error (never maps to 5xx)', () => {

@@ -17,34 +17,34 @@ describe('createChatAnalyticsHooks', () => {
     const analytics = createRecorder()
     const hooks = createChatAnalyticsHooks({
       analytics,
-      getSessionMessages: () => [{ content: 'Hello', role: 'user' }],
+      getSessionMessages: () => [{ role: 'user', content: 'Hello' }],
     })
 
     hooks.onUserMessageAppended?.({
-      message: { content: 'Hello', id: 'message-1', role: 'user' },
+      sessionId: 'session-1',
+      message: { role: 'user', content: 'Hello', id: 'message-1' },
       messageText: 'Hello',
+      source: 'voice',
       model: 'selected-model',
       provider: 'official-provider-chat',
       roundId: 'round-1',
-      sessionId: 'session-1',
-      source: 'voice',
       turnIndex: 2,
     })
 
     expect(analytics.emit).toHaveBeenCalledWith(messageSentEvent, {
       conversation_id: 'session-1',
-      has_attachment: false,
+      provider_type: 'official',
+      provider_name: 'official-provider-chat',
+      model: 'selected-model',
       message_id: 'message-1',
+      round_id: 'round-1',
+      turn_index: 2,
       message_index: 1,
       message_length: 5,
+      has_attachment: false,
       mode: 'voice',
-      model: 'selected-model',
-      provider_name: 'official-provider-chat',
-      provider_type: 'official',
-      round_id: 'round-1',
       trigger_method: 'voice',
       trigger_type: 'user_action',
-      turn_index: 2,
     })
     expect(analytics.emit).toHaveBeenCalledTimes(1)
   })
@@ -85,35 +85,35 @@ describe('createChatAnalyticsHooks', () => {
 
     hooks.onLlmGeneration?.({
       conversationId: 'session-1',
-      inputTokens: 12,
-      model: 'custom-model',
-      outputTokens: 8,
-      provider: 'custom-provider',
       roundId: 'round-1',
-      totalTokens: 20,
       turnIndex: 1,
+      model: 'custom-model',
+      provider: 'custom-provider',
+      inputTokens: 12,
+      outputTokens: 8,
+      totalTokens: 20,
       usageSource: 'reported',
     })
     hooks.onLlmGeneration?.({
       conversationId: 'session-1',
-      model: 'official-model',
-      provider: 'official-provider-chat',
       roundId: 'round-2',
       turnIndex: 2,
+      model: 'official-model',
+      provider: 'official-provider-chat',
       usageSource: 'reported',
     })
 
     expect(analytics.emit).toHaveBeenCalledTimes(1)
     expect(analytics.emit).toHaveBeenCalledWith(aiGenerationEvent, {
       conversation_id: 'session-1',
-      input_tokens: 12,
-      model_id: 'custom-model',
-      output_tokens: 8,
-      provider_id: 'custom-provider',
-      provider_type: 'custom',
       round_id: 'round-1',
-      total_tokens: 20,
+      provider_type: 'custom',
+      provider_id: 'custom-provider',
+      model_id: 'custom-model',
       usage_source: 'reported',
+      input_tokens: 12,
+      output_tokens: 8,
+      total_tokens: 20,
     })
   })
 })

@@ -12,22 +12,22 @@ export type { ContextHistoryEntry, ContextIngestResult } from '@proj-airi/core-a
  * UI-facing view of one active context source bucket.
  */
 export interface ContextBucketSnapshot {
+  /** Stable registry source bucket key. */
+  sourceKey: string
   /** Number of active messages currently stored for this bucket. */
   entryCount: number
   /** Latest `createdAt` timestamp across messages in this bucket. */
   latestCreatedAt?: number
   /** Cloned context messages for devtools and UI consumers. */
   messages: ContextMessage[]
-  /** Stable registry source bucket key. */
-  sourceKey: string
 }
 
 const CONTEXT_HISTORY_LIMIT = 400
 
 export const useChatContextStore = defineStore('chat-context', () => {
   const registry = createContextRegistry({
-    getSourceKey: getEventSourceKey,
     historyLimit: CONTEXT_HISTORY_LIMIT,
+    getSourceKey: getEventSourceKey,
   })
   const activeContextsMirror = ref<Record<string, ContextMessage[]>>({})
   const contextHistoryMirror = ref<ContextHistoryEntry[]>([])
@@ -56,6 +56,7 @@ export const useChatContextStore = defineStore('chat-context', () => {
 
   function getContextBucketsSnapshot() {
     return Object.entries(registry.activeContexts()).map(([sourceKey, messages]) => ({
+      sourceKey,
       entryCount: messages.length,
       latestCreatedAt: messages.reduce<number | undefined>((latest, message) => {
         if (!latest)
@@ -63,16 +64,15 @@ export const useChatContextStore = defineStore('chat-context', () => {
         return Math.max(latest, message.createdAt)
       }, undefined),
       messages,
-      sourceKey,
     } satisfies ContextBucketSnapshot))
   }
 
   return {
-    activeContexts,
-    contextHistory,
-    getContextBucketsSnapshot,
-    getContextsSnapshot,
     ingestContextMessage,
     resetContexts,
+    getContextsSnapshot,
+    getContextBucketsSnapshot,
+    activeContexts,
+    contextHistory,
   }
 })

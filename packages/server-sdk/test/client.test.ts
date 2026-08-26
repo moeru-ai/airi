@@ -7,8 +7,8 @@ import { Client } from '../src/client'
 
 class Deferred<T> {
   promise: Promise<T>
-  reject!: (error: unknown) => void
   resolve!: (value: T) => void
+  reject!: (error: unknown) => void
 
   constructor() {
     this.promise = new Promise<T>((resolve, reject) => {
@@ -19,11 +19,16 @@ class Deferred<T> {
 }
 
 class FakeConnection<C = undefined> implements ClientConnection<WebSocketEvent<C>> {
-  closed = false
-  readonly pongs: number[] = []
   readonly sent: Array<WebSocketEvent<C>> = []
+  readonly pongs: number[] = []
+  closed = false
 
   constructor(private readonly events: ClientEvents<WebSocketEvent<C>>) {}
+
+  send(message: WebSocketEvent<C>) {
+    this.sent.push(message)
+    return true
+  }
 
   close() {
     if (this.closed) {
@@ -38,33 +43,19 @@ class FakeConnection<C = undefined> implements ClientConnection<WebSocketEvent<C
     this.pongs.push(Date.now())
     return true
   }
-
-  send(message: WebSocketEvent<C>) {
-    this.sent.push(message)
-    return true
-  }
 }
 
 class FakeConnector<C = undefined> implements ClientConnector<WebSocketEvent<C>> {
   readonly attempts: Array<{
-    connection?: FakeConnection<C>
     deferred: Deferred<ClientConnection<WebSocketEvent<C>>>
     events: ClientEvents<WebSocketEvent<C>>
+    connection?: FakeConnection<C>
   }> = []
 
   connect(events: ClientEvents<WebSocketEvent<C>>) {
     const deferred = new Deferred<ClientConnection<WebSocketEvent<C>>>()
     this.attempts.push({ deferred, events })
     return deferred.promise
-  }
-
-  emit(message: WebSocketEvent<C>, index = this.attempts.length - 1) {
-    const attempt = this.attempts[index]
-    if (!attempt) {
-      throw new Error(`Missing fake connector attempt at index ${index}.`)
-    }
-
-    attempt.events.message(message)
   }
 
   open(index = this.attempts.length - 1) {
@@ -87,16 +78,15 @@ class FakeConnector<C = undefined> implements ClientConnector<WebSocketEvent<C>>
 
     attempt.deferred.reject(error)
   }
-}
 
-async function flushAsyncTasks() {
-  await flushMicrotasks()
-  await new Promise(resolve => setTimeout(resolve, 0))
-}
+  emit(message: WebSocketEvent<C>, index = this.attempts.length - 1) {
+    const attempt = this.attempts[index]
+    if (!attempt) {
+      throw new Error(`Missing fake connector attempt at index ${index}.`)
+    }
 
-async function flushMicrotasks() {
-  await Promise.resolve()
-  await Promise.resolve()
+    attempt.events.message(message)
+  }
 }
 
 function serverEvent<E extends WebSocketEvent['type']>(
@@ -104,13 +94,23 @@ function serverEvent<E extends WebSocketEvent['type']>(
   data: WebSocketEventOf<E>['data'],
 ): WebSocketEventOf<E> {
   return {
+    type,
     data,
     metadata: {
+      source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
       event: { id: `${type}-1` },
-      source: { id: 'server-1', kind: 'plugin', plugin: { id: 'server' } },
     },
-    type,
   } as WebSocketEventOf<E>
+}
+
+async function flushMicrotasks() {
+  await Promise.resolve()
+  await Promise.resolve()
+}
+
+async function flushAsyncTasks() {
+  await flushMicrotasks()
+  await new Promise(resolve => setTimeout(resolve, 0))
 }
 
 afterEach(() => {
@@ -165,8 +165,8 @@ describe('client', () => {
 
     expect(client.connectionStatus).toBe('authenticating')
     expect(connection.sent.at(-1)).toMatchObject({
-      data: { token: 'secret' },
       type: 'module:authenticate',
+      data: { token: 'secret' },
     })
 
     connector.emit(serverEvent('module:authenticated', { authenticated: true }))
@@ -176,13 +176,13 @@ describe('client', () => {
 
     expect(client.connectionStatus).toBe('announcing')
     expect(announceEvent).toMatchObject({
-      data: { name: 'test-plugin' },
       type: 'extension:module:announce',
+      data: { name: 'test-plugin' },
     })
 
     connector.emit(serverEvent('extension:module:announced', {
-      identity: announceEvent.data.identity,
       name: 'test-plugin',
+      identity: announceEvent.data.identity,
     }))
 
     await expect(connected).resolves.toBeUndefined()
@@ -208,11 +208,11 @@ describe('client', () => {
     const announceEvent = connection.sent.at(-1) as WebSocketEventOf<'extension:module:announce'>
 
     connector.emit(serverEvent('registry:modules:sync', {
-      modules: [{ identity: announceEvent.data.identity, name: 'test-plugin' }],
+      modules: [{ name: 'test-plugin', identity: announceEvent.data.identity }],
     }))
     connector.emit(serverEvent('extension:module:announced', {
-      identity: announceEvent.data.identity,
       name: 'test-plugin',
+      identity: announceEvent.data.identity,
     }))
 
     await expect(connected).resolves.toBeUndefined()
@@ -293,22 +293,22 @@ describe('client', () => {
     await connected
 
     const sent = client.send({
-      data: { text: 'hello' },
       type: 'input:text',
+      data: { text: 'hello' },
     })
 
     expect(sent).toBe(true)
     expect(connection.sent.at(-1)).toMatchObject({
+      type: 'input:text',
       data: { text: 'hello' },
       metadata: {
-        event: { id: expect.any(String) },
         source: {
-          id: expect.any(String),
           kind: 'plugin',
+          id: expect.any(String),
           plugin: { id: 'test-extension' },
         },
+        event: { id: expect.any(String) },
       },
-      type: 'input:text',
     })
     expect(onAnySend).toHaveBeenCalledWith(connection.sent.at(-1))
   })
@@ -370,8 +370,8 @@ describe('client', () => {
     expect(listener).toHaveBeenCalledWith(input)
     expect(onAnyMessage).toHaveBeenCalledWith(input)
     expect(connection.sent.at(-1)).toMatchObject({
-      data: { kind: 'pong' },
       type: 'transport:connection:heartbeat',
+      data: { kind: 'pong' },
     })
   })
 
@@ -390,11 +390,11 @@ describe('client', () => {
     await connected
 
     client.send({
+      type: 'input:text',
       data: { text: 'hello' },
       metadata: {
         event: { id: undefined },
       },
-      type: 'input:text',
     })
 
     expect(connection.sent.at(-1)?.metadata.event.id).toEqual(expect.any(String))
@@ -406,8 +406,8 @@ describe('client', () => {
       autoConnect: false,
       autoReconnect: false,
       connector,
-      handshake: 'manual',
       heartbeat: false,
+      handshake: 'manual',
       name: 'test-extension',
     })
 
@@ -440,8 +440,8 @@ describe('client', () => {
 
     const announceEvent = connection.sent.at(-1) as WebSocketEventOf<'extension:module:announce'>
     connector.emit(serverEvent('extension:module:announced', {
-      identity: announceEvent.data.identity,
       name: 'test-plugin',
+      identity: announceEvent.data.identity,
     }))
 
     await expect(client.ensureConnected()).resolves.toBeUndefined()
@@ -470,8 +470,8 @@ describe('client', () => {
 
     const announceEvent = connection.sent.at(-1) as WebSocketEventOf<'extension:module:announce'>
     connector.emit(serverEvent('extension:module:announced', {
-      identity: announceEvent.data.identity,
       name: 'test-plugin',
+      identity: announceEvent.data.identity,
     }))
 
     await expect(client.ready()).resolves.toBeUndefined()

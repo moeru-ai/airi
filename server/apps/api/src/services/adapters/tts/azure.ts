@@ -25,25 +25,6 @@ import { listVoicesViaUnSpeech, sendSpeechViaUnSpeech } from './unspeech'
  *   present, otherwise inferred from the requested format.
  */
 export const azureAdapter: TtsAdapter = {
-  async getVoiceCatalog(ctx: TtsVoiceCatalogContext): Promise<Voice[]> {
-    // Azure has no static catalog. Voices live at Microsoft's `voices/list`
-    // REST endpoint, which we reach via the unspeech `microsoft` backend
-    // because unspeech already maps the proprietary response shape to
-    // `types.Voice` (full formats table, masterpiece preview URLs, locale
-    // metadata). Calling unspeech also keeps a single integration point for
-    // every other provider that could grow this way later.
-    if (!ctx.region)
-      throw createServiceUnavailableError('azure tts region not configured', 'AZURE_TTS_NOT_CONFIGURED')
-    if (!ctx.keyPlaintext)
-      throw createServiceUnavailableError('azure tts key not configured', 'AZURE_TTS_NOT_CONFIGURED')
-
-    return listVoicesViaUnSpeech({
-      ctx,
-      providerLabel: 'azure',
-      query: `provider=microsoft&region=${encodeURIComponent(ctx.region)}`,
-    })
-  },
-
   id: 'azure',
 
   async send(input: TtsInput, ctx: TtsAdapterContext): Promise<TtsResult> {
@@ -71,13 +52,32 @@ export const azureAdapter: TtsAdapter = {
 
     return sendSpeechViaUnSpeech({
       ctx,
-      extraBody: { disable_ssml: true, region },
-      fallbackContentType: inferMicrosoftContentType(outputFormat),
-      input: ssml,
       model: 'microsoft/v1',
-      providerLabel: 'azure',
-      responseFormat: outputFormat,
+      input: ssml,
       voice,
+      responseFormat: outputFormat,
+      extraBody: { region, disable_ssml: true },
+      fallbackContentType: inferMicrosoftContentType(outputFormat),
+      providerLabel: 'azure',
+    })
+  },
+
+  async getVoiceCatalog(ctx: TtsVoiceCatalogContext): Promise<Voice[]> {
+    // Azure has no static catalog. Voices live at Microsoft's `voices/list`
+    // REST endpoint, which we reach via the unspeech `microsoft` backend
+    // because unspeech already maps the proprietary response shape to
+    // `types.Voice` (full formats table, masterpiece preview URLs, locale
+    // metadata). Calling unspeech also keeps a single integration point for
+    // every other provider that could grow this way later.
+    if (!ctx.region)
+      throw createServiceUnavailableError('azure tts region not configured', 'AZURE_TTS_NOT_CONFIGURED')
+    if (!ctx.keyPlaintext)
+      throw createServiceUnavailableError('azure tts key not configured', 'AZURE_TTS_NOT_CONFIGURED')
+
+    return listVoicesViaUnSpeech({
+      ctx,
+      query: `provider=microsoft&region=${encodeURIComponent(ctx.region)}`,
+      providerLabel: 'azure',
     })
   },
 }
@@ -120,13 +120,13 @@ function buildAzureSsml(
   return `<speak version='1.0' xml:lang='en-US'><voice name='${voice}'>${inner}</voice></speak>`
 }
 
-function escapeForSsml(text: string): string {
-  return text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll('\'', '&apos;')
+function speedToProsodyRate(speed: number | undefined): string {
+  if (speed == null || speed === 1)
+    return ''
+  const delta = Math.round((speed - 1) * 100)
+  if (delta === 0)
+    return ''
+  return delta > 0 ? `+${delta}%` : `${delta}%`
 }
 
 function percentToProsodyValue(value: number | undefined): string {
@@ -139,11 +139,11 @@ function percentToProsodyValue(value: number | undefined): string {
   return '0%'
 }
 
-function speedToProsodyRate(speed: number | undefined): string {
-  if (speed == null || speed === 1)
-    return ''
-  const delta = Math.round((speed - 1) * 100)
-  if (delta === 0)
-    return ''
-  return delta > 0 ? `+${delta}%` : `${delta}%`
+function escapeForSsml(text: string): string {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll('\'', '&apos;')
 }

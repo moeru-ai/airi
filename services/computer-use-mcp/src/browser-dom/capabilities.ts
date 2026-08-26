@@ -3,16 +3,6 @@ export interface BrowserDomCapabilitySource {
   supportsAction?: (action: string) => boolean
 }
 
-export function getUnsupportedBrowserDomActions(
-  bridge: BrowserDomCapabilitySource,
-  ...actions: string[]
-) {
-  if (!bridge.getStatus().connected)
-    return [...actions]
-
-  return actions.filter(action => !(bridge.supportsAction?.(action) ?? true))
-}
-
 export function isBrowserDomActionSupported(
   bridge: BrowserDomCapabilitySource,
   ...actions: string[]
@@ -21,4 +11,14 @@ export function isBrowserDomActionSupported(
     return false
 
   return actions.every(action => bridge.supportsAction?.(action) ?? true)
+}
+
+export function getUnsupportedBrowserDomActions(
+  bridge: BrowserDomCapabilitySource,
+  ...actions: string[]
+) {
+  if (!bridge.getStatus().connected)
+    return [...actions]
+
+  return actions.filter(action => !(bridge.supportsAction?.(action) ?? true))
 }

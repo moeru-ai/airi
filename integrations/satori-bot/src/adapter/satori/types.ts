@@ -13,67 +13,59 @@ export enum SatoriOpcode {
   META = 5, // 接收元信息更新
 }
 
-// Interaction Argv
-export interface SatoriArgv {
-  arguments: unknown[]
-  name: string
-  options: Record<string, unknown>
+// WebSocket Signal Structure
+export interface SatoriSignal<T = unknown> {
+  op: SatoriOpcode
+  body?: T
 }
 
-// Bidirectional paginated list
-export interface SatoriBidiList<T> {
-  data: T[]
-  next?: string
-  prev?: string
+// IDENTIFY signal body
+export interface SatoriIdentifyBody {
+  token?: string
+  sn?: number
 }
 
-// Interaction Button
-export interface SatoriButton {
+// READY signal body
+export interface SatoriReadyBody {
+  logins: SatoriLogin[]
+  proxy_urls?: string[]
+}
+
+// META signal body
+export interface SatoriMetaBody {
+  proxy_urls?: string[]
+}
+
+// User resource
+export interface SatoriUser {
   id: string
+  name?: string
+  nick?: string
+  avatar?: string
+  is_bot?: boolean
 }
 
 // Channel resource
 export interface SatoriChannel {
   id: string
+  type: number
   name?: string
   parent_id?: string
-  type: number
-}
-
-// Event structure
-export interface SatoriEvent {
-  _data?: Record<string, unknown>
-  _type?: string
-  argv?: SatoriArgv
-  button?: SatoriButton
-  channel?: SatoriChannel
-  guild?: SatoriGuild
-  id: number
-  login?: SatoriLogin
-  member?: SatoriGuildMember
-  message?: SatoriMessage
-  operator?: SatoriUser
-  platform: string
-  role?: SatoriGuildRole
-  self_id: string
-  timestamp: number
-  type: string
-  user?: SatoriUser
 }
 
 // Guild resource
 export interface SatoriGuild {
-  avatar?: string
   id: string
   name?: string
+  avatar?: string
 }
 
 // Guild Member resource
 export interface SatoriGuildMember {
+  user?: SatoriUser
+  nick?: string
   avatar?: string
   joined_at?: number
-  nick?: string
-  user?: SatoriUser
 }
 
 // Guild Role resource
@@ -82,39 +74,60 @@ export interface SatoriGuildRole {
   name?: string
 }
 
-// IDENTIFY signal body
-export interface SatoriIdentifyBody {
-  sn?: number
-  token?: string
-}
-
-// Paginated list
-export interface SatoriList<T> {
-  data: T[]
-  next?: string
+// Message resource
+export interface SatoriMessage {
+  id: string
+  content: string
+  platform?: string
+  channel?: SatoriChannel
+  guild?: SatoriGuild
+  member?: SatoriGuildMember
+  user?: SatoriUser
+  created_at?: number
+  updated_at?: number
 }
 
 // Login resource
 export interface SatoriLogin {
-  features?: string[]
-  platform?: string
-  proxy_urls?: string[]
-  self_id?: string
-  status: number
   user?: SatoriUser
+  self_id?: string
+  platform?: string
+  status: number
+  features?: string[]
+  proxy_urls?: string[]
 }
 
-// Message resource
-export interface SatoriMessage {
-  channel?: SatoriChannel
-  content: string
-  created_at?: number
-  guild?: SatoriGuild
+// Interaction Argv
+export interface SatoriArgv {
+  name: string
+  arguments: unknown[]
+  options: Record<string, unknown>
+}
+
+// Interaction Button
+export interface SatoriButton {
   id: string
+}
+
+// Event structure
+export interface SatoriEvent {
+  id: number
+  type: string
+  platform: string
+  self_id: string
+  timestamp: number
+  argv?: SatoriArgv
+  button?: SatoriButton
+  channel?: SatoriChannel
+  guild?: SatoriGuild
+  login?: SatoriLogin
   member?: SatoriGuildMember
-  platform?: string
-  updated_at?: number
+  message?: SatoriMessage
+  operator?: SatoriUser
+  role?: SatoriGuildRole
   user?: SatoriUser
+  _type?: string
+  _data?: Record<string, unknown>
 }
 
 // API Request/Response types
@@ -124,38 +137,25 @@ export interface SatoriMessageCreateRequest {
 }
 
 export interface SatoriMessageCreateResponse {
-  channel?: SatoriChannel
+  id: string
   content?: string
-  created_at?: number
+  channel?: SatoriChannel
   guild?: SatoriGuild
-  id: string
   member?: SatoriGuildMember
-  updated_at?: number
   user?: SatoriUser
+  created_at?: number
+  updated_at?: number
 }
 
-// META signal body
-export interface SatoriMetaBody {
-  proxy_urls?: string[]
+// Paginated list
+export interface SatoriList<T> {
+  data: T[]
+  next?: string
 }
 
-// READY signal body
-export interface SatoriReadyBody {
-  logins: SatoriLogin[]
-  proxy_urls?: string[]
-}
-
-// WebSocket Signal Structure
-export interface SatoriSignal<T = unknown> {
-  body?: T
-  op: SatoriOpcode
-}
-
-// User resource
-export interface SatoriUser {
-  avatar?: string
-  id: string
-  is_bot?: boolean
-  name?: string
-  nick?: string
+// Bidirectional paginated list
+export interface SatoriBidiList<T> {
+  data: T[]
+  prev?: string
+  next?: string
 }

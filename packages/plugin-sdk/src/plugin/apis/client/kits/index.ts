@@ -43,20 +43,6 @@ export const pluginKitApiGetCapabilitiesEventName = 'proj-airi:plugin-sdk:apis:c
 export const pluginKitRegistryResourceKey = 'proj-airi:plugin-sdk:resources:kits'
 
 /**
- * Describes the concrete client object returned by {@link createKits}.
- *
- * Use when:
- * - Typing `apis.kits`
- *
- * Expects:
- * - The caller uses the same method set as the runtime-created kits client
- *
- * Returns:
- * - The inferred kits client surface
- */
-export type KitClient = ReturnType<typeof createKits>
-
-/**
  * Defines the host-side callbacks needed by the low-level kit client.
  *
  * Use when:
@@ -70,8 +56,20 @@ export type KitClient = ReturnType<typeof createKits>
  * - The callback contract consumed by {@link createKits}
  */
 export interface KitClientBindings<TKit extends KitDescriptor = KitDescriptor> {
-  getCapabilities: (kitId: string) => KitCapabilityDescriptor[] | Promise<KitCapabilityDescriptor[]>
   list: () => Promise<TKit[]> | TKit[]
+  getCapabilities: (kitId: string) => Promise<KitCapabilityDescriptor[]> | KitCapabilityDescriptor[]
+}
+
+function createMissingBindingError(method: string) {
+  return new Error(`Plugin kit API binding missing for \`${method}\`.`)
+}
+
+function requireBinding<TBinding>(binding: TBinding | undefined, method: string): TBinding {
+  if (!binding) {
+    throw createMissingBindingError(method)
+  }
+
+  return binding
 }
 
 /**
@@ -91,23 +89,25 @@ export function createKits<TKit extends KitDescriptor = KitDescriptor>(
   bindings?: KitClientBindings<TKit>,
 ) {
   return {
-    async getCapabilities(kitId: string) {
-      return await requireBinding(bindings, 'kits.getCapabilities').getCapabilities(kitId)
-    },
     async list() {
       return await requireBinding(bindings, 'kits.list').list()
     },
+    async getCapabilities(kitId: string) {
+      return await requireBinding(bindings, 'kits.getCapabilities').getCapabilities(kitId)
+    },
   }
 }
 
-function createMissingBindingError(method: string) {
-  return new Error(`Plugin kit API binding missing for \`${method}\`.`)
-}
-
-function requireBinding<TBinding>(binding: TBinding | undefined, method: string): TBinding {
-  if (!binding) {
-    throw createMissingBindingError(method)
-  }
-
-  return binding
-}
+/**
+ * Describes the concrete client object returned by {@link createKits}.
+ *
+ * Use when:
+ * - Typing `apis.kits`
+ *
+ * Expects:
+ * - The caller uses the same method set as the runtime-created kits client
+ *
+ * Returns:
+ * - The inferred kits client surface
+ */
+export type KitClient = ReturnType<typeof createKits>

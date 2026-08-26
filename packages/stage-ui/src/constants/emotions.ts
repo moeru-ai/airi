@@ -1,13 +1,13 @@
 export enum Emotion {
-  Angry = 'angry',
-  Awkward = 'awkward',
-  Curious = 'curious',
   Happy = 'happy',
-  Neutral = 'neutral',
-  Question = 'question',
   Sad = 'sad',
-  Surprise = 'surprised',
+  Angry = 'angry',
   Think = 'think',
+  Surprise = 'surprised',
+  Awkward = 'awkward',
+  Question = 'question',
+  Curious = 'curious',
+  Neutral = 'neutral',
 }
 
 export const EMOTION_VALUES = Object.values(Emotion)
@@ -23,42 +23,42 @@ export const EmotionNeutralMotionName = 'Idle'
 export const EmotionCuriousMotionName = 'Curious'
 
 export const EMOTION_EmotionMotionName_value = {
-  [Emotion.Angry]: EmotionAngryMotionName,
-  [Emotion.Awkward]: EmotionAwkwardMotionName,
-  [Emotion.Curious]: EmotionCuriousMotionName,
   [Emotion.Happy]: EmotionHappyMotionName,
-  [Emotion.Neutral]: EmotionNeutralMotionName,
-  [Emotion.Question]: EmotionQuestionMotionName,
   [Emotion.Sad]: EmotionSadMotionName,
-  [Emotion.Surprise]: EmotionSurpriseMotionName,
+  [Emotion.Angry]: EmotionAngryMotionName,
   [Emotion.Think]: EmotionThinkMotionName,
+  [Emotion.Surprise]: EmotionSurpriseMotionName,
+  [Emotion.Awkward]: EmotionAwkwardMotionName,
+  [Emotion.Question]: EmotionQuestionMotionName,
+  [Emotion.Neutral]: EmotionNeutralMotionName,
+  [Emotion.Curious]: EmotionCuriousMotionName,
 }
 
 export const EMOTION_VRMExpressionName_value = {
-  [Emotion.Angry]: 'angry',
-  [Emotion.Awkward]: 'neutral',
-  [Emotion.Curious]: 'think',
   [Emotion.Happy]: 'happy',
-  [Emotion.Neutral]: 'neutral',
-  [Emotion.Question]: 'think',
   [Emotion.Sad]: 'sad',
-  [Emotion.Surprise]: 'surprised',
+  [Emotion.Angry]: 'angry',
   [Emotion.Think]: 'think',
+  [Emotion.Surprise]: 'surprised',
+  [Emotion.Awkward]: 'neutral',
+  [Emotion.Question]: 'think',
+  [Emotion.Neutral]: 'neutral',
+  [Emotion.Curious]: 'think',
 } satisfies Record<Emotion, string | undefined>
 
 export const EMOTION_SpineAnimationName_value = {
-  [Emotion.Angry]: 'angry',
-  [Emotion.Awkward]: 'awkward',
-  [Emotion.Curious]: 'curious',
   [Emotion.Happy]: 'celebrate',
-  [Emotion.Neutral]: 'idle',
-  [Emotion.Question]: 'question',
   [Emotion.Sad]: 'sad',
-  [Emotion.Surprise]: 'surprise',
+  [Emotion.Angry]: 'angry',
   [Emotion.Think]: 'think',
+  [Emotion.Surprise]: 'surprise',
+  [Emotion.Awkward]: 'awkward',
+  [Emotion.Question]: 'question',
+  [Emotion.Neutral]: 'idle',
+  [Emotion.Curious]: 'curious',
 } satisfies Record<Emotion, string>
 
 export interface EmotionPayload {
-  intensity: number
   name: Emotion
+  intensity: number
 }

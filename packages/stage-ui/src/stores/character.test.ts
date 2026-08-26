@@ -22,15 +22,15 @@ const parserConsumeSpy = vi.fn()
 const parserEndSpy = vi.fn()
 
 const openSpeechIntentSpy = vi.fn(() => ({
-  cancel: cancelSpy,
-  end: endSpy,
   intentId: 'intent-test',
+  streamId: 'stream-test',
   priority: 100,
   stream: new ReadableStream(),
-  streamId: 'stream-test',
-  writeFlush: writeFlushSpy,
   writeLiteral: writeLiteralSpy,
   writeSpecial: vi.fn(),
+  writeFlush: writeFlushSpy,
+  end: endSpy,
+  cancel: cancelSpy,
 }))
 
 describe('store character', () => {
@@ -65,28 +65,28 @@ describe('store character', () => {
     airiCardStore.systemPrompt = 'You are a brave adventurer in Minecraft.'
     // @ts-expect-error - testing purpose
     airiCardStore.activeCard = {
+      name: 'Hero',
+      version: '1.0',
       extensions: {
         airi: {
           agents: {},
           modules: {
             consciousness: {
-              model: 'mock-model',
               provider: 'mock-provider',
-            },
-            speech: {
-              model: 'mock-speech-model',
-              provider: 'mock-speech-provider',
-              voice_id: 'alloy',
+              model: 'mock-model',
             },
             vision: {
-              model: 'mock-vision-model',
               provider: 'mock-vision-provider',
+              model: 'mock-vision-model',
+            },
+            speech: {
+              provider: 'mock-speech-provider',
+              model: 'mock-speech-model',
+              voice_id: 'alloy',
             },
           },
         },
       },
-      name: 'Hero',
-      version: '1.0',
     } satisfies AiriCard
   })
 

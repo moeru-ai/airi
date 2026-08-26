@@ -12,18 +12,22 @@ import type { Item } from 'prismarine-item'
  */
 const RAW_TO_COOKED: Record<string, string> = {
   beef: 'cooked_beef',
-  chicken: 'cooked_chicken',
-  cod: 'cooked_cod',
-  kelp: 'dried_kelp',
-  mutton: 'cooked_mutton',
   porkchop: 'cooked_porkchop',
-  potato: 'baked_potato',
+  chicken: 'cooked_chicken',
+  mutton: 'cooked_mutton',
   rabbit: 'cooked_rabbit',
+  cod: 'cooked_cod',
   salmon: 'cooked_salmon',
+  potato: 'baked_potato',
+  kelp: 'dried_kelp',
 }
 
 /** prismarine-item enriches inventory items with `foodPoints` at runtime; it is absent from its types. */
 type MaybeFood = Item & { foodPoints?: number }
+
+function foodPointsOf(item: Item): number {
+  return (item as MaybeFood).foodPoints ?? 0
+}
 
 /**
  * The cooked item id a raw food smelts into, or null if the item is not a raw cookable food.
@@ -31,13 +35,8 @@ type MaybeFood = Item & { foodPoints?: number }
  * Before: "beef"
  * After:  "cooked_beef"
  */
-export function cookedVariantOf(rawName: string): null | string {
+export function cookedVariantOf(rawName: string): string | null {
   return RAW_TO_COOKED[rawName] ?? null
-}
-
-/** Whether the bot has any food it can eat right now without cooking. See {@link selectReadyFood}. */
-export function hasReadyFood(bot: Bot): boolean {
-  return selectReadyFood(bot) !== null
 }
 
 /**
@@ -80,6 +79,7 @@ export function selectReadyFood(bot: Bot): Item | null {
   return best
 }
 
-function foodPointsOf(item: Item): number {
-  return (item as MaybeFood).foodPoints ?? 0
+/** Whether the bot has any food it can eat right now without cooking. See {@link selectReadyFood}. */
+export function hasReadyFood(bot: Bot): boolean {
+  return selectReadyFood(bot) !== null
 }

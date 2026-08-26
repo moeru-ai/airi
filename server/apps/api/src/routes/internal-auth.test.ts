@@ -6,9 +6,9 @@ describe('internal auth routes', () => {
   it('rejects an invalid deletion contract before calling business services', async () => {
     const userDeletionService = { register: vi.fn(), softDeleteAll: vi.fn() }
     const productEventService = { track: vi.fn() }
-    const app = createInternalAuthRoutes({ productEventService, userDeletionService })
+    const app = createInternalAuthRoutes({ userDeletionService, productEventService })
 
-    const response = await app.request('/user-deletion', { body: '{}', method: 'POST' })
+    const response = await app.request('/user-deletion', { method: 'POST', body: '{}' })
 
     expect(response.status).toBe(400)
     expect(userDeletionService.softDeleteAll).not.toHaveBeenCalled()
@@ -17,20 +17,20 @@ describe('internal auth routes', () => {
   it('delegates private cleanup to the API-owned deletion workflow', async () => {
     const userDeletionService = { register: vi.fn(), softDeleteAll: vi.fn(async () => undefined) }
     const productEventService = { track: vi.fn() }
-    const app = createInternalAuthRoutes({ productEventService, userDeletionService })
+    const app = createInternalAuthRoutes({ userDeletionService, productEventService })
 
     const response = await app.request('/user-deletion', {
-      body: JSON.stringify({ reason: 'user-requested', userId: 'user-1' }),
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      method: 'POST',
+      body: JSON.stringify({ userId: 'user-1', reason: 'user-requested' }),
     })
 
     expect(response.status).toBe(200)
     expect(userDeletionService.softDeleteAll).toHaveBeenCalledWith({
-      reason: 'user-requested',
       userId: 'user-1',
+      reason: 'user-requested',
     })
   })
 
@@ -38,29 +38,29 @@ describe('internal auth routes', () => {
     const userDeletionService = { register: vi.fn(), softDeleteAll: vi.fn() }
     const productEventService = { track: vi.fn(async () => undefined) }
     const app = createInternalAuthRoutes({
-      productEventService,
       userDeletionService,
+      productEventService,
     })
 
     const response = await app.request('/events', {
-      body: JSON.stringify({
-        action: 'user_signed_up',
-        source: 'better-auth.user.create',
-        userId: 'user-1',
-      }),
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      method: 'POST',
+      body: JSON.stringify({
+        userId: 'user-1',
+        action: 'user_signed_up',
+        source: 'better-auth.user.create',
+      }),
     })
 
     expect(response.status).toBe(200)
     expect(productEventService.track).toHaveBeenCalledWith({
-      action: 'user_signed_up',
-      feature: 'auth',
-      source: 'better-auth.user.create',
-      status: 'succeeded',
       userId: 'user-1',
+      feature: 'auth',
+      action: 'user_signed_up',
+      status: 'succeeded',
+      source: 'better-auth.user.create',
     })
   })
 })

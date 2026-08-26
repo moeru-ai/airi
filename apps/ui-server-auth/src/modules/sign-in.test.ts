@@ -117,9 +117,9 @@ describe('ui-server-auth sign-in flow helpers', () => {
 
     await expect(requestSocialSignInRedirect({
       apiServerUrl: 'https://api.airi.test',
+      provider: 'google',
       callbackURL: 'https://api.airi.test/api/auth/oauth2/authorize?client_id=airi-stage-web',
       fetchImpl,
-      provider: 'google',
     })).resolves.toBe('https://accounts.example.test/oauth/google')
 
     expect(fetchImpl).toHaveBeenCalledTimes(1)
@@ -127,24 +127,24 @@ describe('ui-server-auth sign-in flow helpers', () => {
     expect(String(url)).toBe('https://api.airi.test/api/auth/sign-in/social')
     expect((init as RequestInit).method).toBe('POST')
     expect(JSON.parse(String((init as RequestInit).body))).toEqual({
+      provider: 'google',
       callbackURL: 'https://api.airi.test/api/auth/oauth2/authorize?client_id=airi-stage-web',
       disableRedirect: true,
-      provider: 'google',
     })
   })
 
   it('posts only the callback URL (no provider field) to the Steam sign-in endpoint', async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => {
-      return new Response(JSON.stringify({ redirect: true, url: 'https://steamcommunity.com/openid/login?...' }), {
+      return new Response(JSON.stringify({ url: 'https://steamcommunity.com/openid/login?...', redirect: true }), {
         headers: { 'Content-Type': 'application/json' },
       })
     })
 
     await expect(requestSocialSignInRedirect({
       apiServerUrl: 'https://api.airi.test',
+      provider: 'steam',
       callbackURL: 'https://api.airi.test/api/auth/oauth2/authorize?client_id=airi-stage-web',
       fetchImpl,
-      provider: 'steam',
     })).resolves.toBe('https://steamcommunity.com/openid/login?...')
 
     const [url, init] = fetchImpl.mock.calls[0] ?? []
@@ -168,9 +168,9 @@ describe('ui-server-auth sign-in flow helpers', () => {
 
     await expect(requestSocialSignInRedirect({
       apiServerUrl: 'https://api.airi.test',
+      provider: 'github',
       callbackURL: '/',
       fetchImpl,
-      provider: 'github',
     })).rejects.toThrow('Provider is temporarily unavailable')
   })
 
@@ -193,9 +193,9 @@ describe('ui-server-auth sign-in flow helpers', () => {
     try {
       const request = requestSocialSignInRedirect({
         apiServerUrl: 'https://api.airi.test',
+        provider,
         callbackURL: '/',
         fetchImpl,
-        provider,
         timeoutMs: 50,
       })
 

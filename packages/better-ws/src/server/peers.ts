@@ -2,32 +2,45 @@ import type { WsCloseDetails, WsSendResult } from '../shared'
 
 import { normalizeSendResult } from '../shared'
 
-export interface Peer<TMessage, TState = unknown> {
-  /** Closes the peer and removes it from the server registry. */
-  close: (code?: number, reason?: string) => void
-  /** Stable id for this accepted peer. */
-  readonly id: string
-  /** Checks group membership. */
-  isIn: (group: string) => boolean
-  /** Adds this peer to a named group. */
-  join: (group: string) => void
-  /** Removes this peer from a named group. */
-  leave: (group: string) => void
-  /** Feeds one incoming adapter message into server handlers. */
-  receive: (message: TMessage) => void
-  /** Sends one message to this peer. */
-  send: (message: TMessage) => WsSendResult
-  /** Caller-owned mutable state associated with this peer. */
-  state: TState | undefined
-}
-
 export interface PeerAdapter<TMessage> {
-  /** Requests closing the underlying connection. */
-  close?: (code?: number, reason?: string) => void
   /** Optional caller-owned stable peer id. */
   id?: string
   /** Sends one caller-owned message to the underlying connection. */
   send: (message: TMessage) => boolean | number | void
+  /** Requests closing the underlying connection. */
+  close?: (code?: number, reason?: string) => void
+}
+
+export interface PreviousPeer<TState = unknown> {
+  /** Stable peer id that was replaced. */
+  id: string
+  /** Caller-owned state snapshot from the replaced peer. */
+  state: TState | undefined
+  /** Groups the replaced peer belonged to. */
+  groups: string[]
+  /** Last inbound activity timestamp known for the replaced peer. */
+  lastSeenAt?: number
+  /** Why the snapshot exists. */
+  reason: 'replaced'
+}
+
+export interface Peer<TMessage, TState = unknown> {
+  /** Stable id for this accepted peer. */
+  readonly id: string
+  /** Caller-owned mutable state associated with this peer. */
+  state: TState | undefined
+  /** Sends one message to this peer. */
+  send: (message: TMessage) => WsSendResult
+  /** Feeds one incoming adapter message into server handlers. */
+  receive: (message: TMessage) => void
+  /** Closes the peer and removes it from the server registry. */
+  close: (code?: number, reason?: string) => void
+  /** Adds this peer to a named group. */
+  join: (group: string) => void
+  /** Removes this peer from a named group. */
+  leave: (group: string) => void
+  /** Checks group membership. */
+  isIn: (group: string) => boolean
 }
 
 export interface PeerHealthRecord {
@@ -39,44 +52,31 @@ export interface PeerHealthRecord {
   unhealthyAt?: number
 }
 
+type PeerStateFactory<TState> = (previous?: PreviousPeer<TState>) => TState | undefined
+
 export interface PeerManager<TMessage, TState = unknown> {
+  readonly size: number
+  get: (peerId: string) => Peer<TMessage, TState> | undefined
+  has: (peerId: string) => boolean
+  list: () => Array<Peer<TMessage, TState>>
+  entries: () => IterableIterator<[string, Peer<TMessage, TState>]>
   accept: (
     adapter: PeerAdapter<TMessage>,
     options?: {
-      state?: ((previous?: PreviousPeer<TState>) => TState | undefined) | TState
+      state?: TState | ((previous?: PreviousPeer<TState>) => TState | undefined)
     },
   ) => { peer: Peer<TMessage, TState>, previous?: PreviousPeer<TState> }
-  broadcast: (message: TMessage) => Array<WsSendResult & { peerId: string }>
+  remove: (peerId: string, details?: WsCloseDetails) => void
   close: (peerId: string, code?: number, reason?: string) => void
   closeAll: () => void
-  entries: () => IterableIterator<[string, Peer<TMessage, TState>]>
-  get: (peerId: string) => Peer<TMessage, TState> | undefined
-  has: (peerId: string) => boolean
-  healthOf: (peerId: string) => Readonly<PeerHealthRecord> | undefined
-  list: () => Array<Peer<TMessage, TState>>
-  markSeen: (peer: Peer<TMessage, TState>, now?: number) => void
-  markUnhealthy: (peer: Peer<TMessage, TState>, now?: number) => void
-  remove: (peerId: string, details?: WsCloseDetails) => void
-  readonly size: number
   to: (group: string) => {
     send: (message: TMessage) => Array<WsSendResult & { peerId: string }>
   }
+  broadcast: (message: TMessage) => Array<WsSendResult & { peerId: string }>
+  markSeen: (peer: Peer<TMessage, TState>, now?: number) => void
+  markUnhealthy: (peer: Peer<TMessage, TState>, now?: number) => void
+  healthOf: (peerId: string) => Readonly<PeerHealthRecord> | undefined
 }
-
-export interface PreviousPeer<TState = unknown> {
-  /** Groups the replaced peer belonged to. */
-  groups: string[]
-  /** Stable peer id that was replaced. */
-  id: string
-  /** Last inbound activity timestamp known for the replaced peer. */
-  lastSeenAt?: number
-  /** Why the snapshot exists. */
-  reason: 'replaced'
-  /** Caller-owned state snapshot from the replaced peer. */
-  state: TState | undefined
-}
-
-type PeerStateFactory<TState> = (previous?: PreviousPeer<TState>) => TState | undefined
 
 let peerIdCounter = 0
 
@@ -86,8 +86,8 @@ let peerIdCounter = 0
  */
 export function createPeers<TMessage, TState = unknown>(input: {
   onMessage: (peer: Peer<TMessage, TState>, message: TMessage) => void
-  onRemove?: (peer: Peer<TMessage, TState>, details?: WsCloseDetails) => void
   onSeen?: (peer: Peer<TMessage, TState>, health: PeerHealthRecord, wasHealthy: boolean) => void
+  onRemove?: (peer: Peer<TMessage, TState>, details?: WsCloseDetails) => void
 }): PeerManager<TMessage, TState> {
   const peers = new Map<string, Peer<TMessage, TState>>()
   const membershipsByPeer = new Map<string, Set<string>>()
@@ -105,11 +105,11 @@ export function createPeers<TMessage, TState = unknown>(input: {
     }
 
     return {
-      groups: [...(membershipsByPeer.get(peerId) ?? [])],
       id: peerId,
+      state: previous.state,
+      groups: [...(membershipsByPeer.get(peerId) ?? [])],
       lastSeenAt: healthByPeer.get(peerId)?.lastSeenAt,
       reason: 'replaced',
-      state: previous.state,
     }
   }
 
@@ -187,6 +187,21 @@ export function createPeers<TMessage, TState = unknown>(input: {
   }
 
   const manager: PeerManager<TMessage, TState> = {
+    get size() {
+      return peers.size
+    },
+    get(peerId) {
+      return peers.get(peerId)
+    },
+    has(peerId) {
+      return peers.has(peerId)
+    },
+    list() {
+      return [...peers.values()]
+    },
+    entries() {
+      return peers.entries()
+    },
     accept(adapter, options) {
       const id = adapter.id ?? `peer-${++peerIdCounter}`
       const previous = snapshot(id)
@@ -199,6 +214,31 @@ export function createPeers<TMessage, TState = unknown>(input: {
       const nextState = options?.state
 
       const peer: Peer<TMessage, TState> = {
+        id,
+        // REVIEW:
+        // Default previous.state inheritance is convenient for weak-network remote
+        // plugin reconnects, but it may be wrong for protocols that require forced
+        // state reinitialization on token rotation, identity switch, or multi-device
+        // takeover. If those cases appear, replace this default with an explicit
+        // state(previous, adapter) policy.
+        state: typeof nextState === 'function'
+          ? (nextState as PeerStateFactory<TState>)(previous)
+          : nextState ?? previous?.state,
+        send(message) {
+          if (!isCurrentPeer(peer)) {
+            return { ok: false, reason: 'closed' }
+          }
+
+          return normalizeSendResult(() => adapter.send(message))
+        },
+        receive(message) {
+          if (!isCurrentPeer(peer)) {
+            return
+          }
+
+          markSeen(peer)
+          input.onMessage(peer, message)
+        },
         close(code, reason) {
           if (!isCurrentPeer(peer)) {
             return
@@ -210,14 +250,6 @@ export function createPeers<TMessage, TState = unknown>(input: {
           finally {
             removeCurrent(peer, { code, reason })
           }
-        },
-        id,
-        isIn(group) {
-          if (!isCurrentPeer(peer)) {
-            return false
-          }
-
-          return memberships.has(group)
         },
         join(group) {
           if (!isCurrentPeer(peer)) {
@@ -240,30 +272,13 @@ export function createPeers<TMessage, TState = unknown>(input: {
           memberships.delete(group)
           removePeerFromGroup(id, group)
         },
-        receive(message) {
+        isIn(group) {
           if (!isCurrentPeer(peer)) {
-            return
+            return false
           }
 
-          markSeen(peer)
-          input.onMessage(peer, message)
+          return memberships.has(group)
         },
-        send(message) {
-          if (!isCurrentPeer(peer)) {
-            return { ok: false, reason: 'closed' }
-          }
-
-          return normalizeSendResult(() => adapter.send(message))
-        },
-        // REVIEW:
-        // Default previous.state inheritance is convenient for weak-network remote
-        // plugin reconnects, but it may be wrong for protocols that require forced
-        // state reinitialization on token rotation, identity switch, or multi-device
-        // takeover. If those cases appear, replace this default with an explicit
-        // state(previous, adapter) policy.
-        state: typeof nextState === 'function'
-          ? (nextState as PeerStateFactory<TState>)(previous)
-          : nextState ?? previous?.state,
       }
 
       peers.set(id, peer)
@@ -274,12 +289,7 @@ export function createPeers<TMessage, TState = unknown>(input: {
 
       return previous ? { peer, previous } : { peer }
     },
-    broadcast(message) {
-      return [...peers.values()].map(peer => ({
-        peerId: peer.id,
-        ...peer.send(message),
-      }))
-    },
+    remove,
     close(peerId, code, reason) {
       peers.get(peerId)?.close(code, reason)
     },
@@ -300,28 +310,6 @@ export function createPeers<TMessage, TState = unknown>(input: {
         throw firstError
       }
     },
-    entries() {
-      return peers.entries()
-    },
-    get(peerId) {
-      return peers.get(peerId)
-    },
-    has(peerId) {
-      return peers.has(peerId)
-    },
-    healthOf(peerId) {
-      const health = healthByPeer.get(peerId)
-      return health ? { ...health } : undefined
-    },
-    list() {
-      return [...peers.values()]
-    },
-    markSeen,
-    markUnhealthy,
-    remove,
-    get size() {
-      return peers.size
-    },
     to(group) {
       return {
         send(message) {
@@ -334,6 +322,18 @@ export function createPeers<TMessage, TState = unknown>(input: {
             }))
         },
       }
+    },
+    broadcast(message) {
+      return [...peers.values()].map(peer => ({
+        peerId: peer.id,
+        ...peer.send(message),
+      }))
+    },
+    markSeen,
+    markUnhealthy,
+    healthOf(peerId) {
+      const health = healthByPeer.get(peerId)
+      return health ? { ...health } : undefined
     },
   }
 

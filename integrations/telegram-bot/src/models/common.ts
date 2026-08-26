@@ -5,7 +5,7 @@ import type { chatMessagesTable } from '../db/schema'
 import { findPhotoDescription } from './photos'
 import { findStickerDescription } from './stickers'
 
-export function chatMessageToOneLine(botId: string, message: Omit<typeof chatMessagesTable.$inferSelect, 'content_vector_768' | 'content_vector_1024' | 'content_vector_1536'>, repliedToMessage?: Omit<typeof chatMessagesTable.$inferSelect, 'content_vector_768' | 'content_vector_1024' | 'content_vector_1536'>) {
+export function chatMessageToOneLine(botId: string, message: Omit<typeof chatMessagesTable.$inferSelect, 'content_vector_1536' | 'content_vector_768' | 'content_vector_1024'>, repliedToMessage?: Omit<typeof chatMessagesTable.$inferSelect, 'content_vector_1536' | 'content_vector_768' | 'content_vector_1024'>) {
   let userDisplayName = `User [${message.from_name}]`
 
   if (botId === message.from_id) {

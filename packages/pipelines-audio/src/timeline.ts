@@ -3,26 +3,37 @@ export interface TimelineClock {
   sleep: (ms: number) => Promise<void>
 }
 
+export interface TimelineRunContext {
+  clock: TimelineClock
+  signal: AbortSignal
+}
+
 export interface TimelineItem {
   id?: string
-  run: (context: TimelineRunContext) => Promise<void> | void
   track: string
+  run: (context: TimelineRunContext) => Promise<void> | void
 }
 
 export interface TimelineItemHandle {
-  cancel: (reason?: string) => void
-  done: Promise<void>
   id: string
   track: string
+  done: Promise<void>
+  cancel: (reason?: string) => void
 }
 
 export interface TimelineOptions {
   clock?: TimelineClock
 }
 
-export interface TimelineRunContext {
-  clock: TimelineClock
-  signal: AbortSignal
+function createDefaultClock(): TimelineClock {
+  return {
+    now: () => Date.now(),
+    sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
+  }
+}
+
+function createId(prefix: string) {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 /**
@@ -65,12 +76,12 @@ export function createTimeline(options?: TimelineOptions) {
     trackTails.set(item.track, done.catch(() => undefined))
 
     return {
+      id,
+      track: item.track,
+      done,
       cancel(reason?: string) {
         controller.abort(reason)
       },
-      done,
-      id,
-      track: item.track,
     }
   }
 
@@ -88,15 +99,4 @@ export function createTimeline(options?: TimelineOptions) {
     enqueue,
     flush,
   }
-}
-
-function createDefaultClock(): TimelineClock {
-  return {
-    now: () => Date.now(),
-    sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
-  }
-}
-
-function createId(prefix: string) {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }

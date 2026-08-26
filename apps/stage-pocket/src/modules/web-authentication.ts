@@ -5,12 +5,12 @@ interface WebAuthenticationOptions {
   url: string
 }
 
-interface WebAuthenticationPlugin {
-  authenticate: (options: WebAuthenticationOptions) => Promise<WebAuthenticationResult>
-}
-
 interface WebAuthenticationResult {
   callbackUrl?: string
+}
+
+interface WebAuthenticationPlugin {
+  authenticate: (options: WebAuthenticationOptions) => Promise<WebAuthenticationResult>
 }
 
 /** Opens an authorization URL with the native system browser session. */

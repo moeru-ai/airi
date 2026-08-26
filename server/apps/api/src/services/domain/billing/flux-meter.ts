@@ -35,30 +35,11 @@ end
 return {0, debt}
 `
 
-export type FluxMeter = ReturnType<typeof createFluxMeter>
-
-interface AccumulateInput {
-  currentBalance: number
-  metadata?: Record<string, unknown>
-  requestId: string
-  units: number
-  userId: string
-}
-
-interface AccumulateResult {
-  /** User's flux balance after this call. */
-  balanceAfter: number
-  /** Residual debt left in Redis after this call. Includes unbilled units restored on partial drain. */
-  debtAfter: number
-  /** Actual flux charged to the user (== amount we are sure was billed). */
-  fluxDebited: number
-  /**
-   * Flux that crossed the meter threshold but couldn't be charged because the
-   * user's balance was lower than what the request required. > 0 means the
-   * user received service they only partially paid for. Reflects the gap
-   * between `requested` and `charged` returned by `billingService.consumeFluxForLLM`.
-   */
-  unbilledFlux: number
+interface FluxMeterRuntime {
+  /** How many small units equal one Flux. */
+  unitsPerFlux: number
+  /** Debt key TTL. Residual debt below unitsPerFlux is forgiven on expiry. */
+  debtTtlSeconds: number
 }
 
 interface FluxMeterConfig {
@@ -76,11 +57,28 @@ interface FluxMeterConfig {
   resolveRuntime: () => Promise<FluxMeterRuntime>
 }
 
-interface FluxMeterRuntime {
-  /** Debt key TTL. Residual debt below unitsPerFlux is forgiven on expiry. */
-  debtTtlSeconds: number
-  /** How many small units equal one Flux. */
-  unitsPerFlux: number
+interface AccumulateInput {
+  userId: string
+  units: number
+  currentBalance: number
+  requestId: string
+  metadata?: Record<string, unknown>
+}
+
+interface AccumulateResult {
+  /** Actual flux charged to the user (== amount we are sure was billed). */
+  fluxDebited: number
+  /** Residual debt left in Redis after this call. Includes unbilled units restored on partial drain. */
+  debtAfter: number
+  /** User's flux balance after this call. */
+  balanceAfter: number
+  /**
+   * Flux that crossed the meter threshold but couldn't be charged because the
+   * user's balance was lower than what the request required. > 0 means the
+   * user received service they only partially paid for. Reflects the gap
+   * between `requested` and `charged` returned by `billingService.consumeFluxForLLM`.
+   */
+  unbilledFlux: number
 }
 
 /**
@@ -94,7 +92,7 @@ export function createFluxMeter(
   redis: Redis,
   billingService: BillingService,
   config: FluxMeterConfig,
-  metrics?: null | RevenueMetrics,
+  metrics?: RevenueMetrics | null,
 ) {
   async function getRuntime(): Promise<FluxMeterRuntime> {
     const runtime = await config.resolveRuntime()
@@ -147,7 +145,7 @@ export function createFluxMeter(
    */
   async function accumulate(input: AccumulateInput): Promise<AccumulateResult> {
     if (!Number.isFinite(input.units) || input.units <= 0)
-      return { balanceAfter: input.currentBalance, debtAfter: await readDebt(input.userId), fluxDebited: 0, unbilledFlux: 0 }
+      return { fluxDebited: 0, debtAfter: await readDebt(input.userId), balanceAfter: input.currentBalance, unbilledFlux: 0 }
 
     const modelLabel = typeof input.metadata?.model === 'string' ? input.metadata.model : 'unknown'
     metrics?.ttsChars.add(input.units, { meter: config.name, model: modelLabel })
@@ -158,21 +156,21 @@ export function createFluxMeter(
 
     if (fluxRequested === 0) {
       logger.withFields({
-        debtAfter: debtAfterSettlement,
+        userId: input.userId,
         meter: config.name,
         units: input.units,
-        userId: input.userId,
+        debtAfter: debtAfterSettlement,
       }).debug('Accumulated units below flux threshold')
-      return { balanceAfter: input.currentBalance, debtAfter: debtAfterSettlement, fluxDebited: 0, unbilledFlux: 0 }
+      return { fluxDebited: 0, debtAfter: debtAfterSettlement, balanceAfter: input.currentBalance, unbilledFlux: 0 }
     }
 
     let result: Awaited<ReturnType<typeof billingService.consumeFluxForLLM>>
     try {
       result = await billingService.consumeFluxForLLM({
-        amount: fluxRequested,
-        description: `${config.name}_request`,
-        requestId: input.requestId,
         userId: input.userId,
+        amount: fluxRequested,
+        requestId: input.requestId,
+        description: `${config.name}_request`,
         ...(typeof input.metadata?.model === 'string' && { model: input.metadata.model }),
       })
     }
@@ -188,10 +186,10 @@ export function createFluxMeter(
       }
       catch (rollbackError) {
         logger.withError(rollbackError).withFields({
-          meter: config.name,
-          requestId: input.requestId,
-          restoreUnits,
           userId: input.userId,
+          meter: config.name,
+          restoreUnits,
+          requestId: input.requestId,
         }).error('Failed to roll back meter debt after billing failure')
       }
       throw error
@@ -205,11 +203,11 @@ export function createFluxMeter(
     // same usage). Surface loud, but don't compensate.
     if (!Number.isInteger(result.charged) || result.charged < 0 || result.charged > result.requested) {
       logger.withFields({
-        charged: result.charged,
-        meter: config.name,
-        requested: result.requested,
-        requestId: input.requestId,
         userId: input.userId,
+        meter: config.name,
+        requestId: input.requestId,
+        requested: result.requested,
+        charged: result.charged,
       }).error('billing-service returned invalid charged/requested — manual reconciliation needed')
       throw new Error(`billing-service returned invalid charged=${result.charged} for requested=${result.requested}`)
     }
@@ -236,9 +234,9 @@ export function createFluxMeter(
       const restoreUnits = unbilledFlux * runtime.unitsPerFlux
 
       metrics?.fluxUnbilled.add(unbilledFlux, {
+        source: 'tts_meter',
         meter: config.name,
         reason: 'partial_debit_drained',
-        source: 'tts_meter',
         ...(typeof input.metadata?.model === 'string' && { [GEN_AI_ATTR_REQUEST_MODEL]: input.metadata.model }),
       })
 
@@ -251,38 +249,40 @@ export function createFluxMeter(
         // Log loudly so on-call can reconcile manually; don't shadow the
         // partial-debit signal by re-throwing.
         logger.withError(rollbackError).withFields({
-          meter: config.name,
-          requestId: input.requestId,
-          restoreUnits,
           userId: input.userId,
+          meter: config.name,
+          restoreUnits,
+          requestId: input.requestId,
         }).error('Failed to restore meter debt after partial-debit drain')
       }
 
       logger.withFields({
-        charged: result.charged,
-        meter: config.name,
-        requested: result.requested,
-        requestId: input.requestId,
-        restoreUnits,
-        unbilledFlux,
         userId: input.userId,
+        meter: config.name,
+        requestId: input.requestId,
+        requested: result.requested,
+        charged: result.charged,
+        unbilledFlux,
+        restoreUnits,
       }).warn('Partial debit on flux meter — flux drained to zero')
 
       return {
-        balanceAfter: result.flux,
-        debtAfter: debtAfterRestore,
         fluxDebited: result.charged,
+        debtAfter: debtAfterRestore,
+        balanceAfter: result.flux,
         unbilledFlux,
       }
     }
 
-    return { balanceAfter: result.flux, debtAfter: debtAfterSettlement, fluxDebited: result.charged, unbilledFlux: 0 }
+    return { fluxDebited: result.charged, debtAfter: debtAfterSettlement, balanceAfter: result.flux, unbilledFlux: 0 }
   }
 
   return {
-    accumulate,
     assertCanAfford,
-    config,
+    accumulate,
     peekDebt: readDebt,
+    config,
   }
 }
+
+export type FluxMeter = ReturnType<typeof createFluxMeter>

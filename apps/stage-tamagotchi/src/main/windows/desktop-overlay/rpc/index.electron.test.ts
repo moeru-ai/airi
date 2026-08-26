@@ -53,7 +53,7 @@ describe('setupDesktopOverlayElectronInvokes', () => {
   })
 
   it('publishes ready after the base window invokes and MCP services are wired', async () => {
-    let readinessHandler: (() => Promise<{ error?: string, state: 'booting' | 'degraded' | 'ready' }>) | undefined
+    let readinessHandler: (() => Promise<{ state: 'booting' | 'ready' | 'degraded', error?: string }>) | undefined
 
     defineInvokeHandlerMock.mockImplementation((_context, _contract, handler) => {
       readinessHandler = handler
@@ -62,10 +62,10 @@ describe('setupDesktopOverlayElectronInvokes', () => {
     createMcpServersServiceMock.mockReturnValue(undefined)
 
     await setupDesktopOverlayElectronInvokes({
-      i18n,
+      window,
       mcpStdioManager,
       serverChannel,
-      window,
+      i18n,
     })
 
     expect(ipcMainMock.setMaxListeners).toHaveBeenCalledWith(0)
@@ -77,7 +77,7 @@ describe('setupDesktopOverlayElectronInvokes', () => {
   })
 
   it('publishes degraded when the base window invokes fail', async () => {
-    let readinessHandler: (() => Promise<{ error?: string, state: 'booting' | 'degraded' | 'ready' }>) | undefined
+    let readinessHandler: (() => Promise<{ state: 'booting' | 'ready' | 'degraded', error?: string }>) | undefined
 
     defineInvokeHandlerMock.mockImplementation((_context, _contract, handler) => {
       readinessHandler = handler
@@ -85,14 +85,14 @@ describe('setupDesktopOverlayElectronInvokes', () => {
     setupBaseWindowElectronInvokesMock.mockRejectedValueOnce(new Error('boom'))
 
     await setupDesktopOverlayElectronInvokes({
-      i18n,
+      window,
       mcpStdioManager,
       serverChannel,
-      window,
+      i18n,
     })
 
     expect(createMcpServersServiceMock).not.toHaveBeenCalled()
     expect(readinessHandler).toBeDefined()
-    await expect(readinessHandler!()).resolves.toEqual({ error: 'boom', state: 'degraded' })
+    await expect(readinessHandler!()).resolves.toEqual({ state: 'degraded', error: 'boom' })
   })
 })

@@ -17,11 +17,11 @@ export const useTwitterStore = defineStore('twitter', () => {
     // Data is automatically saved to localStorage via useLocalStorage
     // Also broadcast configuration to backend
     configurator.updateFor('twitter', {
-      accessToken: accessToken.value,
-      accessTokenSecret: accessTokenSecret.value,
+      enabled: enabled.value,
       apiKey: apiKey.value,
       apiSecret: apiSecret.value,
-      enabled: enabled.value,
+      accessToken: accessToken.value,
+      accessTokenSecret: accessTokenSecret.value,
     })
   }
 
@@ -39,13 +39,13 @@ export const useTwitterStore = defineStore('twitter', () => {
   }
 
   return {
-    accessToken,
-    accessTokenSecret,
+    enabled,
     apiKey,
     apiSecret,
+    accessToken,
+    accessTokenSecret,
     configured,
-    enabled,
-    resetState,
     saveSettings,
+    resetState,
   }
 })

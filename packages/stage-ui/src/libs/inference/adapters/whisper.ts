@@ -22,10 +22,31 @@ import { classifyDeviceLossReason, classifyError, createRequestId, InferenceAbor
 // Types
 // ---------------------------------------------------------------------------
 
-export interface WhisperAdapter {
-  /** Number of WebGPU device-loss events observed by this adapter */
-  readonly deviceLossCount: number
+export type WhisperState
+  = | 'idle'
+    | 'loading'
+    | 'ready'
+    | 'transcribing'
+    | 'error'
+    | 'terminated'
 
+export interface WhisperTranscribeInput {
+  audio?: string
+  audioFloat32?: Float32Array
+  language: string
+}
+
+/**
+ * Unified message events for Whisper, based on protocol.ts types.
+ * These replace the old status-based MessageEvents.
+ */
+export type WhisperEvent
+  = | { type: 'progress', payload: ProgressPayload & Record<string, unknown> }
+    | { type: 'model-ready' }
+    | { type: 'inference-result', output: { text: string[] } }
+    | { type: 'error', payload: { code: string, message: string } }
+
+export interface WhisperAdapter {
   /**
    * Load the Whisper model.
    * Pass `options.signal` to cancel the load; rejects with `InferenceAbortError`.
@@ -36,24 +57,6 @@ export interface WhisperAdapter {
   ) => Promise<void>
 
   /**
-   * Snapshot of the last successful load, or null if never loaded.
-   * `device` reflects what the worker actually used (post-fallback).
-   */
-  readonly manifest: null | { device: string }
-
-  /**
-   * Subscribe to unified protocol events for streaming UI updates.
-   * Returns an unsubscribe function.
-   */
-  onMessage: (handler: (event: WhisperEvent) => void) => () => void
-
-  /** Current state */
-  readonly state: WhisperState
-
-  /** Terminate the worker */
-  terminate: () => void
-
-  /**
    * Transcribe audio, returning the text result.
    * Pass `options.signal` to cancel; rejects with `InferenceAbortError`.
    */
@@ -61,30 +64,27 @@ export interface WhisperAdapter {
     input: WhisperTranscribeInput,
     options?: { signal?: AbortSignal },
   ) => Promise<string>
-}
 
-/**
- * Unified message events for Whisper, based on protocol.ts types.
- * These replace the old status-based MessageEvents.
- */
-export type WhisperEvent
-  = | { output: { text: string[] }, type: 'inference-result' }
-    | { payload: ProgressPayload & Record<string, unknown>, type: 'progress' }
-    | { payload: { code: string, message: string }, type: 'error' }
-    | { type: 'model-ready' }
+  /** Terminate the worker */
+  terminate: () => void
 
-export type WhisperState
-  = | 'error'
-    | 'idle'
-    | 'loading'
-    | 'ready'
-    | 'terminated'
-    | 'transcribing'
+  /** Current state */
+  readonly state: WhisperState
 
-export interface WhisperTranscribeInput {
-  audio?: string
-  audioFloat32?: Float32Array
-  language: string
+  /**
+   * Subscribe to unified protocol events for streaming UI updates.
+   * Returns an unsubscribe function.
+   */
+  onMessage: (handler: (event: WhisperEvent) => void) => () => void
+
+  /**
+   * Snapshot of the last successful load, or null if never loaded.
+   * `device` reflects what the worker actually used (post-fallback).
+   */
+  readonly manifest: { device: string } | null
+
+  /** Number of WebGPU device-loss events observed by this adapter */
+  readonly deviceLossCount: number
 }
 
 // ---------------------------------------------------------------------------
@@ -104,7 +104,7 @@ interface PendingWaiter {
 // ---------------------------------------------------------------------------
 
 export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
-  let worker: null | Worker = null
+  let worker: Worker | null = null
   let state: WhisperState = 'idle'
   let allocationToken: AllocationToken | null = null
   let restartAttempts = 0
@@ -114,12 +114,12 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
   const pendingWaiters = new Map<string, PendingWaiter>()
 
   // NOTICE: Device-loss resilience state. See kokoro.ts for rationale.
-  let lastManifest: null | { device: string } = null
+  let lastManifest: { device: string } | null = null
   let deviceLossCount = 0
 
   const operationMutex = new Mutex()
 
-  function toWorkerError(event: Error | ErrorEvent, fallback = 'Whisper worker failed'): Error {
+  function toWorkerError(event: ErrorEvent | Error, fallback = 'Whisper worker failed'): Error {
     if (event instanceof Error)
       return event
 
@@ -137,7 +137,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
     }
   }
 
-  function handleWorkerError(event: Error | ErrorEvent): void {
+  function handleWorkerError(event: ErrorEvent | Error): void {
     state = 'error'
     operationMutex.cancel()
 
@@ -149,8 +149,8 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
       deviceLossCount++
       getGPUCoordinator().recordDeviceLoss({
         modelId: MODEL_NAMES.WHISPER,
-        occurredAt: Date.now(),
         reason: classifyDeviceLossReason(error),
+        occurredAt: Date.now(),
       })
     }
 
@@ -200,7 +200,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
         const data = event.data
         // Forward unified protocol messages to subscribers
         if (data.type === 'progress') {
-          const evt: WhisperEvent = { payload: data.payload, type: 'progress' }
+          const evt: WhisperEvent = { type: 'progress', payload: data.payload }
           for (const handler of messageHandlers) handler(evt)
         }
         else if (data.type === 'model-ready') {
@@ -208,11 +208,11 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
           for (const handler of messageHandlers) handler(evt)
         }
         else if (data.type === 'inference-result') {
-          const evt: WhisperEvent = { output: data.output, type: 'inference-result' }
+          const evt: WhisperEvent = { type: 'inference-result', output: data.output }
           for (const handler of messageHandlers) handler(evt)
         }
         else if (data.type === 'error') {
-          const evt: WhisperEvent = { payload: data.payload, type: 'error' }
+          const evt: WhisperEvent = { type: 'error', payload: data.payload }
           for (const handler of messageHandlers) handler(evt)
         }
       }
@@ -283,13 +283,13 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
       if (signal) {
         if (signal.aborted) {
           cleanup()
-          w.postMessage({ requestId: createRequestId(), targetRequestId: requestId, type: 'cancel' })
+          w.postMessage({ type: 'cancel', requestId: createRequestId(), targetRequestId: requestId })
           reject(new InferenceAbortError(typeof signal.reason === 'string' ? signal.reason : undefined))
           return
         }
         abortListener = () => {
           cleanup()
-          w.postMessage({ requestId: createRequestId(), targetRequestId: requestId, type: 'cancel' })
+          w.postMessage({ type: 'cancel', requestId: createRequestId(), targetRequestId: requestId })
           const reason = signal.reason
           reject(reason instanceof Error ? reason : new InferenceAbortError(typeof reason === 'string' ? reason : undefined))
         }
@@ -316,7 +316,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
     return operationMutex.runExclusive(async () => {
       throwIfAborted(options?.signal)
       state = 'loading'
-      updateInferenceStatus(MODEL_NAMES.WHISPER, { device: requestedDevice as any, state: 'downloading' })
+      updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'downloading', device: requestedDevice as any })
 
       return getLoadQueue().enqueue(MODEL_NAMES.WHISPER, LOAD_PRIORITY.ASR, async () => {
         throwIfAborted(options?.signal)
@@ -327,17 +327,17 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
           if (data.type === 'progress' && onProgress) {
             const payload = data.payload
             onProgress({
+              phase: payload.phase ?? 'download',
+              percent: payload.percent ?? -1,
+              message: payload.message,
               file: payload.file,
               loaded: payload.loaded,
-              message: payload.message,
-              percent: payload.percent ?? -1,
-              phase: payload.phase ?? 'download',
               total: payload.total,
             })
           }
         }, options?.signal)
 
-        w.postMessage({ device: requestedDevice, modelId: MODEL_NAMES.WHISPER, requestId, type: 'load-model' })
+        w.postMessage({ type: 'load-model', requestId, modelId: MODEL_NAMES.WHISPER, device: requestedDevice })
 
         let readyResponse: any
         try {
@@ -363,7 +363,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
 
         lastManifest = { device: actualDevice }
         state = 'ready'
-        updateInferenceStatus(MODEL_NAMES.WHISPER, { device: actualDevice, state: 'ready' })
+        updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'ready', device: actualDevice })
         onSuccess()
       }, { signal: options?.signal })
     })
@@ -392,13 +392,13 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
       )
 
       worker.postMessage({
+        type: 'run-inference',
+        requestId,
         input: {
           audio: input.audio,
           audioFloat32: input.audioFloat32,
           language: input.language,
         },
-        requestId,
-        type: 'run-inference',
       })
 
       try {
@@ -433,12 +433,12 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
   }
 
   return {
-    get deviceLossCount() { return deviceLossCount },
     load,
-    get manifest() { return lastManifest },
+    transcribe,
+    terminate: terminateAdapter,
     onMessage,
     get state() { return state },
-    terminate: terminateAdapter,
-    transcribe,
+    get manifest() { return lastManifest },
+    get deviceLossCount() { return deviceLossCount },
   }
 }

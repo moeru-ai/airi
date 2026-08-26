@@ -30,22 +30,33 @@ function assert(condition: boolean, message: string): asserts condition {
     throw new Error(`Assertion failed: ${message}`)
 }
 
+function requireStructuredContent(result: unknown, label: string): Record<string, unknown> {
+  if (!result || typeof result !== 'object')
+    throw new Error(`${label}: result is not an object`)
+
+  const sc = (result as { structuredContent?: unknown }).structuredContent
+  if (!sc || typeof sc !== 'object')
+    throw new Error(`${label}: missing structuredContent`)
+
+  return sc as Record<string, unknown>
+}
+
 async function createClient(): Promise<Client> {
   const command = env.COMPUTER_USE_SMOKE_SERVER_COMMAND?.trim() || 'pnpm'
   const args = (env.COMPUTER_USE_SMOKE_SERVER_ARGS || 'start').split(WHITESPACE_SPLIT_RE).filter(Boolean)
   const cwd = env.COMPUTER_USE_SMOKE_SERVER_CWD?.trim() || packageDir
 
   const transport = new StdioClientTransport({
-    args,
     command,
+    args,
     cwd,
     env: {
       ...env,
-      COMPUTER_USE_ALLOWED_BOUNDS: '0,0,1920,1080',
-      COMPUTER_USE_APPROVAL_MODE: 'never',
       COMPUTER_USE_EXECUTOR: 'dry-run',
-      COMPUTER_USE_OPENABLE_APPS: 'Google Chrome,Firefox,Safari',
+      COMPUTER_USE_APPROVAL_MODE: 'never',
       COMPUTER_USE_SESSION_TAG: 'e2e-browser-reroute',
+      COMPUTER_USE_ALLOWED_BOUNDS: '0,0,1920,1080',
+      COMPUTER_USE_OPENABLE_APPS: 'Google Chrome,Firefox,Safari',
     },
     stderr: 'pipe',
   })
@@ -65,36 +76,6 @@ async function createClient(): Promise<Client> {
   return client
 }
 
-async function main() {
-  console.info('╔═══════════════════════════════════════════════════════╗')
-  console.info('║   Secondary Regression: Workflow Reroute Path        ║')
-  console.info('╚═══════════════════════════════════════════════════════╝')
-
-  const client = await createClient()
-
-  try {
-    // Verify required tools
-    const { tools } = await client.listTools()
-    const names = new Set(tools.map(t => t.name))
-    for (const t of ['workflow_browse_and_act', 'desktop_get_state']) {
-      assert(names.has(t), `missing required tool: ${t}`)
-    }
-    console.info(`  ${tools.length} tools available`)
-
-    const browseResult = await phase1_triggerReroute(client)
-    const rerouteDetail = phase2_verifyRerouteContract(browseResult)
-    await phase3_followReroute(client, rerouteDetail)
-    await phase4_desktopState(client)
-
-    console.info('\n╔═══════════════════════════════════════════════════════╗')
-    console.info('║      WORKFLOW REROUTE REGRESSION — PASSED            ║')
-    console.info('╚═══════════════════════════════════════════════════════╝')
-  }
-  finally {
-    await client.close().catch(() => {})
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Test phases
 // ---------------------------------------------------------------------------
@@ -103,12 +84,12 @@ async function phase1_triggerReroute(client: Client): Promise<Record<string, unk
   console.info('\n── Phase 1: Trigger reroute via workflow_browse_and_act ──')
 
   const result = await client.callTool({
+    name: 'workflow_browse_and_act',
     arguments: {
       app: 'Google Chrome',
-      autoApprove: true,
       goal: 'Check the homepage',
+      autoApprove: true,
     },
-    name: 'workflow_browse_and_act',
   })
 
   const data = requireStructuredContent(result, 'workflow_browse_and_act')
@@ -159,7 +140,7 @@ function phase2_verifyRerouteContract(data: Record<string, unknown>) {
   return r
 }
 
-async function phase3_followReroute(client: Client, reroute: null | Record<string, unknown>) {
+async function phase3_followReroute(client: Client, reroute: Record<string, unknown> | null) {
   console.info('\n── Phase 3: Follow reroute to suggested surface ──')
 
   assert(reroute != null, 'reroute detail must be present before following suggested tool')
@@ -174,8 +155,8 @@ async function phase3_followReroute(client: Client, reroute: null | Record<strin
   console.info(`  ✓ ${suggestedTool} is registered`)
 
   const result = await client.callTool({
-    arguments: {},
     name: suggestedTool,
+    arguments: {},
   })
 
   assert(result && typeof result === 'object', `${suggestedTool} returned an invalid result`)
@@ -198,8 +179,8 @@ async function phase4_desktopState(client: Client) {
   console.info('\n── Phase 4: Verify desktop state after reroute flow ──')
 
   const result = await client.callTool({
-    arguments: {},
     name: 'desktop_get_state',
+    arguments: {},
   })
 
   const data = requireStructuredContent(result, 'desktop_get_state')
@@ -214,15 +195,34 @@ async function phase4_desktopState(client: Client) {
 // Main
 // ---------------------------------------------------------------------------
 
-function requireStructuredContent(result: unknown, label: string): Record<string, unknown> {
-  if (!result || typeof result !== 'object')
-    throw new Error(`${label}: result is not an object`)
+async function main() {
+  console.info('╔═══════════════════════════════════════════════════════╗')
+  console.info('║   Secondary Regression: Workflow Reroute Path        ║')
+  console.info('╚═══════════════════════════════════════════════════════╝')
 
-  const sc = (result as { structuredContent?: unknown }).structuredContent
-  if (!sc || typeof sc !== 'object')
-    throw new Error(`${label}: missing structuredContent`)
+  const client = await createClient()
 
-  return sc as Record<string, unknown>
+  try {
+    // Verify required tools
+    const { tools } = await client.listTools()
+    const names = new Set(tools.map(t => t.name))
+    for (const t of ['workflow_browse_and_act', 'desktop_get_state']) {
+      assert(names.has(t), `missing required tool: ${t}`)
+    }
+    console.info(`  ${tools.length} tools available`)
+
+    const browseResult = await phase1_triggerReroute(client)
+    const rerouteDetail = phase2_verifyRerouteContract(browseResult)
+    await phase3_followReroute(client, rerouteDetail)
+    await phase4_desktopState(client)
+
+    console.info('\n╔═══════════════════════════════════════════════════════╗')
+    console.info('║      WORKFLOW REROUTE REGRESSION — PASSED            ║')
+    console.info('╚═══════════════════════════════════════════════════════╝')
+  }
+  finally {
+    await client.close().catch(() => {})
+  }
 }
 
 main().catch((error) => {

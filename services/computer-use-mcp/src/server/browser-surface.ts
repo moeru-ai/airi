@@ -6,11 +6,11 @@ import type {
 import type { CdpAvailabilityStatus } from './cdp-manager'
 
 export function buildBrowserSurfaceAvailability(params: {
-  cdp: CdpAvailabilityStatus
   executionTarget?: ExecutionTarget
   extension: BrowserDomBridgeStatus
+  cdp: CdpAvailabilityStatus
 }): BrowserSurfaceAvailability {
-  const { cdp, executionTarget, extension } = params
+  const { executionTarget, extension, cdp } = params
   const executionMode = executionTarget?.mode ?? 'dry-run'
   const suitable = executionMode !== 'remote'
 
@@ -55,22 +55,22 @@ export function buildBrowserSurfaceAvailability(params: {
   }
 
   return {
-    availableSurfaces,
-    cdp: {
-      connectable: cdp.connectable,
-      connected: cdp.connected,
-      endpoint: cdp.endpoint,
-      lastError: cdp.lastError,
-    },
     executionMode,
+    suitable,
+    availableSurfaces,
+    preferredSurface,
+    selectedToolName,
+    reason,
     extension: {
-      connected: extension.connected,
       enabled: extension.enabled,
+      connected: extension.connected,
       lastError: extension.lastError,
     },
-    preferredSurface,
-    reason,
-    selectedToolName,
-    suitable,
+    cdp: {
+      endpoint: cdp.endpoint,
+      connected: cdp.connected,
+      connectable: cdp.connectable,
+      lastError: cdp.lastError,
+    },
   }
 }

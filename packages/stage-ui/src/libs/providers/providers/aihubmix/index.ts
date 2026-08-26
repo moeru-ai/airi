@@ -19,7 +19,30 @@ const aihubmixConfigSchema = z.object({
 type AIHubMixConfig = z.input<typeof aihubmixConfigSchema>
 
 export const providerAIHubMix = defineProvider<AIHubMixConfig>({
+  id: 'aihubmix',
+  order: 1,
+  name: 'AIHubMix',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.aihubmix.title'),
+  description: 'AIHubMix',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.aihubmix.description'),
+  tasks: ['chat'],
   capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
+  icon: 'i-lobe-icons:aihubmix',
+  iconColor: 'i-lobe-icons:aihubmix-color',
+
+  createProviderConfig: ({ t }) => aihubmixConfigSchema.extend({
+    apiKey: aihubmixConfigSchema.shape.apiKey.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+      type: 'password',
+    }),
+    baseUrl: aihubmixConfigSchema.shape.baseUrl.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
+    }),
+  }),
   createProvider(config) {
     const provider = merge(
       createChatProvider({ apiKey: config.apiKey, baseURL: config.baseUrl! }),
@@ -38,29 +61,6 @@ export const providerAIHubMix = defineProvider<AIHubMixConfig>({
       },
     }
   },
-  createProviderConfig: ({ t }) => aihubmixConfigSchema.extend({
-    apiKey: aihubmixConfigSchema.shape.apiKey.meta({
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
-      type: 'password',
-    }),
-    baseUrl: aihubmixConfigSchema.shape.baseUrl.meta({
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
-    }),
-  }),
-  description: 'AIHubMix',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.aihubmix.description'),
-  icon: 'i-lobe-icons:aihubmix',
-  iconColor: 'i-lobe-icons:aihubmix-color',
-  id: 'aihubmix',
-  name: 'AIHubMix',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.aihubmix.title'),
-
-  order: 1,
-  tasks: ['chat'],
 
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()

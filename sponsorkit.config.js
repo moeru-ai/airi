@@ -4,14 +4,15 @@ import { extname } from 'node:path'
 import { defineConfig, tierPresets } from 'sponsorkit'
 
 const avatarMimeTypeMap = {
-  '.jpeg': 'image/jpeg',
   '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
   '.png': 'image/png',
-  '.svg': 'image/svg+xml',
   '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
 }
 
 const kofiProvider = {
+  name: 'kofi',
   async fetchSponsors() {
     let raw = '[]'
     try {
@@ -30,33 +31,33 @@ const kofiProvider = {
         avatarUrl = `data:${mime};base64,${buffer.toString('base64')}`
       }
       return {
-        createdAt: item.createdAt || new Date().toISOString(),
-        monthlyDollars: Number(item.monthlyDollars || 0),
-        privacyLevel: 'PUBLIC',
-        provider: 'kofi',
         sponsor: {
-          avatarUrl,
-          linkUrl: item.linkUrl || '',
+          type: 'User',
           login: item.login || item.name,
           name: item.name,
-          type: 'User',
+          avatarUrl,
+          linkUrl: item.linkUrl || '',
         },
+        monthlyDollars: Number(item.monthlyDollars || 0),
+        provider: 'kofi',
+        privacyLevel: 'PUBLIC',
         tierName: item.tierName,
+        createdAt: item.createdAt || new Date().toISOString(),
       }
     }))
   },
-  name: 'kofi',
 }
 
 export default defineConfig({
-  formats: ['svg', 'json'],
-  includePastSponsors: true,
-  padding: {
-    bottom: 8,
-    top: 18,
-  },
   providers: ['patreon', 'opencollective', kofiProvider],
   renderer: 'tiers',
+  width: 960,
+  padding: {
+    top: 18,
+    bottom: 8,
+  },
+  formats: ['svg', 'json'],
+  includePastSponsors: true,
   svgInlineCSS: `
 text {
   font-weight: 400;
@@ -76,13 +77,12 @@ text {
 `,
   tiers: [
     {
-      padding: {
-        bottom: 6,
-        top: 8,
-      },
-      preset: tierPresets.base,
       title: 'Supporters',
+      preset: tierPresets.base,
+      padding: {
+        top: 8,
+        bottom: 6,
+      },
     },
   ],
-  width: 960,
 })

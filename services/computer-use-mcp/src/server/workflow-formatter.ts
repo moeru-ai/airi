@@ -16,22 +16,22 @@ import type { WorkflowExecutionResult, WorkflowStepResult } from '../workflows/e
 // ---------------------------------------------------------------------------
 
 export function formatWorkflowStructuredContent(params: {
+  workflowId: string
   result: WorkflowExecutionResult
   runState: RunState
-  workflowId: string
 }) {
-  const { result, runState, workflowId } = params
+  const { workflowId, result, runState } = params
   const formattedSteps = formatStepResults(result.stepResults)
 
   // --- Reroute: stable contract (kind: 'workflow_reroute') ---
   if (result.status === 'reroute_required' && result.rerouteAdvisory) {
     return {
       kind: 'workflow_reroute' as const,
-      reroute: buildRerouteDetail(result.rerouteAdvisory, result.stepResults, runState),
       status: 'reroute_required' as const,
-      stepResults: formattedSteps,
-      task: result.task,
       workflow: workflowId,
+      reroute: buildRerouteDetail(result.rerouteAdvisory, result.stepResults, runState),
+      task: result.task,
+      stepResults: formattedSteps,
     }
   }
 
@@ -39,12 +39,12 @@ export function formatWorkflowStructuredContent(params: {
   if (result.suspension) {
     return {
       kind: 'workflow_result' as const,
-      pausedAtStep: result.suspension.pausedAtStepIndex,
-      resumeHint: 'Call workflow_resume after approving the pending action to continue.',
       status: 'paused' as const,
-      stepResults: formattedSteps,
-      task: result.task,
       workflow: workflowId,
+      task: result.task,
+      stepResults: formattedSteps,
+      resumeHint: 'Call workflow_resume after approving the pending action to continue.',
+      pausedAtStep: result.suspension.pausedAtStepIndex,
     }
   }
 
@@ -52,15 +52,25 @@ export function formatWorkflowStructuredContent(params: {
   return {
     kind: 'workflow_result' as const,
     status: (result.success ? 'completed' : 'failed') as 'completed' | 'failed',
-    stepResults: formattedSteps,
-    task: result.task,
     workflow: workflowId,
+    task: result.task,
+    stepResults: formattedSteps,
   }
 }
 
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+function formatStepResults(stepResults: WorkflowStepResult[]) {
+  return stepResults.map(r => ({
+    label: r.step.label,
+    succeeded: r.succeeded,
+    status: r.status,
+    explanation: r.explanation,
+    ...(r.preparatoryResults ? { preparatoryResults: r.preparatoryResults } : {}),
+  }))
+}
 
 function buildRerouteDetail(
   advisory: StrategyAdvisory,
@@ -86,8 +96,8 @@ function buildRerouteDetail(
 
   return {
     recommendedSurface: advisory.recommendedSurface,
-    strategyReason: advisory.reason,
     suggestedTool: advisory.suggestedToolName ?? 'unknown',
+    strategyReason: advisory.reason,
     ...(executionReason ? { executionReason } : {}),
     explanation: `Workflow stopped safely before continuing on the wrong execution surface. ${advisory.reason}`,
     ...(isBrowserReroute && runState.browserSurfaceAvailability
@@ -103,14 +113,4 @@ function buildRerouteDetail(
         }
       : {}),
   }
-}
-
-function formatStepResults(stepResults: WorkflowStepResult[]) {
-  return stepResults.map(r => ({
-    explanation: r.explanation,
-    label: r.step.label,
-    status: r.status,
-    succeeded: r.succeeded,
-    ...(r.preparatoryResults ? { preparatoryResults: r.preparatoryResults } : {}),
-  }))
 }

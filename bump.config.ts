@@ -60,15 +60,15 @@ async function syncIOSVersion(version: string) {
 }
 
 export default defineConfig({
-  all: true,
+  recursive: true,
   commit: 'release: v%s',
+  sign: false,
+  push: false,
+  all: true,
   execute: async (operation) => {
     await x('pnpm', ['publish', '-r', '--access', 'public', '--no-git-checks', '--dry-run'])
     const nextVersion = operation.state.newVersion
     await syncAndroidVersion(nextVersion)
     await syncIOSVersion(nextVersion)
   },
-  push: false,
-  recursive: true,
-  sign: false,
 })

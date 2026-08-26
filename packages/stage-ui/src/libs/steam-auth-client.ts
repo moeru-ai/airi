@@ -8,8 +8,8 @@ import type { BetterFetch } from '@better-fetch/fetch'
  */
 export interface SteamOAuthStartArgs {
   callbackURL: string
-  disableRedirect?: boolean
   errorCallbackURL?: string
+  disableRedirect?: boolean
 }
 
 /**
@@ -17,9 +17,9 @@ export interface SteamOAuthStartArgs {
  * `/sign-in/social` response shape (`{ url, redirect }`).
  */
 export interface SteamOAuthStartResult {
+  url?: string
   redirect?: boolean
   status?: boolean
-  url?: string
 }
 
 /**
@@ -37,18 +37,18 @@ export interface SteamOAuthStartResult {
  */
 export function steamClient() {
   return {
+    id: 'steam-client',
     getActions: ($fetch: BetterFetch) => ({
       linkSteam: (args: SteamOAuthStartArgs) => $fetch<SteamOAuthStartResult>('/link/steam', {
-        body: args,
         method: 'POST',
+        body: args,
       }),
       signIn: {
         steam: (args: SteamOAuthStartArgs) => $fetch<SteamOAuthStartResult>('/sign-in/steam', {
-          body: args,
           method: 'POST',
+          body: args,
         }),
       },
     }),
-    id: 'steam-client',
   }
 }

@@ -1,54 +1,54 @@
 import { nanoid } from 'nanoid'
 
+export type EventPriority = 'critical' | 'high' | 'normal' | 'low'
+
 export interface EventEnvelope<TType extends string = string, TPayload = unknown> {
   id: string
-  payload: TPayload
+  type: TType
+  time: number
   priority?: EventPriority
   source?: string
   tags?: string[]
-  time: number
-  type: TType
+  payload: TPayload
 }
-
-export type EventPriority = 'critical' | 'high' | 'low' | 'normal'
 
 export interface EventStream<T> {
-  close: () => void
-  emit: (event: T) => void
   stream: ReadableStream<T>
+  emit: (event: T) => void
+  close: () => void
 }
 
-export function createEvent<TPayload>(type: string, payload: TPayload, options?: { id?: string, priority?: EventPriority, source?: string, tags?: string[], time?: number }): EventEnvelope<string, TPayload> {
+export function createEvent<TPayload>(type: string, payload: TPayload, options?: { priority?: EventPriority, source?: string, tags?: string[], id?: string, time?: number }): EventEnvelope<string, TPayload> {
   return {
     id: options?.id ?? nanoid(),
-    payload,
+    type,
+    time: options?.time ?? Date.now(),
     priority: options?.priority,
     source: options?.source,
     tags: options?.tags,
-    time: options?.time ?? Date.now(),
-    type,
+    payload,
   }
 }
 
 export function createEventStream<T>(): EventStream<T> {
   let controller: ReadableStreamDefaultController<T> | undefined
   const stream = new ReadableStream<T>({
-    cancel() {
-      controller = undefined
-    },
     start(ctrl) {
       controller = ctrl
+    },
+    cancel() {
+      controller = undefined
     },
   })
 
   return {
+    stream,
+    emit(event) {
+      controller?.enqueue(event)
+    },
     close() {
       controller?.close()
       controller = undefined
     },
-    emit(event) {
-      controller?.enqueue(event)
-    },
-    stream,
   }
 }

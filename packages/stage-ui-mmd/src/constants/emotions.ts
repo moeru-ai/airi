@@ -5,15 +5,15 @@
  * `Stage.vue` can drive any renderer with the same emotion names.
  */
 export enum Emotion {
-  Angry = 'angry',
-  Awkward = 'awkward',
-  Curious = 'curious',
   Happy = 'happy',
-  Neutral = 'neutral',
-  Question = 'question',
   Sad = 'sad',
-  Surprise = 'surprised',
+  Angry = 'angry',
   Think = 'think',
+  Surprise = 'surprised',
+  Awkward = 'awkward',
+  Question = 'question',
+  Curious = 'curious',
+  Neutral = 'neutral',
 }
 
 export const EMOTION_VALUES = Object.values(Emotion)

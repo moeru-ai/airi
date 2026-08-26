@@ -41,16 +41,6 @@ export const allDescriptorsIncludingInternal: ToolDescriptor[] = [
 ]
 
 /**
- * Create a new registry pre-populated with all descriptors.
- * Useful for testing or isolated scenarios.
- */
-export function createPopulatedRegistry(): ToolDescriptorRegistry {
-  const registry = new ToolDescriptorRegistry()
-  registry.registerAll(allDescriptorsIncludingInternal)
-  return registry
-}
-
-/**
  * Initialize the global registry with all descriptors.
  * Call this once at server startup.
  */
@@ -58,6 +48,16 @@ export function initializeGlobalRegistry(): ToolDescriptorRegistry {
   globalRegistry.clear()
   globalRegistry.registerAll(allDescriptorsIncludingInternal)
   return globalRegistry
+}
+
+/**
+ * Create a new registry pre-populated with all descriptors.
+ * Useful for testing or isolated scenarios.
+ */
+export function createPopulatedRegistry(): ToolDescriptorRegistry {
+  const registry = new ToolDescriptorRegistry()
+  registry.registerAll(allDescriptorsIncludingInternal)
+  return registry
 }
 
 // Re-export domain descriptors for direct access

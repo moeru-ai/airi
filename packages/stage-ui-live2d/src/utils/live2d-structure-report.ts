@@ -26,21 +26,21 @@ async function generateReport(zipPath: string) {
   const allFiles = Object.keys(zip.files)
 
   const report = {
-    checks: [] as string[],
-    entryPoint: null as null | string,
-    issues: [] as string[],
-    metadata: {
-      cdi: null as null | string,
-      expressions: [] as string[],
-      moc: null as null | string,
-      motions: [] as string[],
-      physics: null as null | string,
-      pose: null as null | string,
-      textures: [] as string[],
-    },
-    structureType: 'Unknown',
-    totalFiles: allFiles.length,
     zipPath,
+    totalFiles: allFiles.length,
+    entryPoint: null as string | null,
+    structureType: 'Unknown',
+    issues: [] as string[],
+    checks: [] as string[],
+    metadata: {
+      moc: null as string | null,
+      textures: [] as string[],
+      physics: null as string | null,
+      pose: null as string | null,
+      cdi: null as string | null,
+      expressions: [] as string[],
+      motions: [] as string[],
+    },
   }
 
   // 1. Enumerate Files and Check Non-ASCII

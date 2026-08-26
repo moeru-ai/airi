@@ -14,40 +14,6 @@ import { describe, expect, it } from 'vitest'
 
 import { createMMDAnimationManager } from './animation-manager'
 
-class RecordingMMD extends MMD {
-  disposed = false
-  gravity = new Vector3()
-  mixer?: AnimationMixer
-  updates: MMDUpdateOptions[] = []
-
-  constructor() {
-    const mesh = new SkinnedMesh(new BufferGeometry(), new MeshBasicMaterial())
-    mesh.bind(new Skeleton())
-    super(createPmx(), mesh)
-  }
-
-  override dispose(): void {
-    this.disposed = true
-    super.dispose()
-  }
-
-  override setPhysics(_createPhysics: PhysicsFactory): void {
-    this.physics = {
-      createHelper: () => {
-        throw new Error('No physics helper is used by this test runtime')
-      },
-      setGravity: gravity => this.gravity.copy(gravity),
-      update: () => {},
-    }
-  }
-
-  override updateWithMixer(delta: number, mixer: AnimationMixer, options: MMDUpdateOptions = {}): void {
-    this.mixer = mixer
-    this.updates.push({ ...options })
-    mixer.update(delta)
-  }
-}
-
 function createPmx(): PmxObject {
   return {
     bones: [],
@@ -76,6 +42,40 @@ function createPmx(): PmxObject {
     softBodies: [],
     textures: [],
     vertices: [],
+  }
+}
+
+class RecordingMMD extends MMD {
+  disposed = false
+  gravity = new Vector3()
+  mixer?: AnimationMixer
+  updates: MMDUpdateOptions[] = []
+
+  constructor() {
+    const mesh = new SkinnedMesh(new BufferGeometry(), new MeshBasicMaterial())
+    mesh.bind(new Skeleton())
+    super(createPmx(), mesh)
+  }
+
+  override setPhysics(_createPhysics: PhysicsFactory): void {
+    this.physics = {
+      createHelper: () => {
+        throw new Error('No physics helper is used by this test runtime')
+      },
+      setGravity: gravity => this.gravity.copy(gravity),
+      update: () => {},
+    }
+  }
+
+  override updateWithMixer(delta: number, mixer: AnimationMixer, options: MMDUpdateOptions = {}): void {
+    this.mixer = mixer
+    this.updates.push({ ...options })
+    mixer.update(delta)
+  }
+
+  override dispose(): void {
+    this.disposed = true
+    super.dispose()
   }
 }
 

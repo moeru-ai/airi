@@ -70,8 +70,12 @@ async function main() {
   }
 
   // Connect airi server
-  let airiConnectionLifecycle: null | ReturnType<typeof startAiriClientConnection> = null
+  let airiConnectionLifecycle: ReturnType<typeof startAiriClientConnection> | null = null
   const airiClient = new Client({
+    name: config.airi.clientName,
+    url: config.airi.wsBaseUrl,
+    token: config.airi.token || undefined,
+    possibleEvents: ['module:configure', 'module:announced', 'spark:command', 'context:update'],
     autoConnect: false,
     // NOTICE:
     // The bot's Node event loop occasionally goes quiet for ~30s (busy mineflayer packet handling /
@@ -81,13 +85,9 @@ async function main() {
     // (still under the server's 60s-per-miss TTL for a single ~30s gap) and keep pings frequent so
     // the connection recovers immediately once the loop frees up.
     // Root cause (the periodic event-loop stall itself) is tracked separately.
-    heartbeat: { pingInterval: 20_000, readTimeout: 120_000 },
-    name: config.airi.clientName,
-    onClose: () => airiConnectionLifecycle?.reportDisconnected(),
+    heartbeat: { readTimeout: 120_000, pingInterval: 20_000 },
     onError: error => airiConnectionLifecycle?.reportUnavailable(error),
-    possibleEvents: ['module:configure', 'module:announced', 'spark:command', 'context:update'],
-    token: config.airi.token || undefined,
-    url: config.airi.wsBaseUrl,
+    onClose: () => airiConnectionLifecycle?.reportDisconnected(),
   })
   airiConnectionLifecycle = startAiriClientConnection(airiClient, {
     logger,
@@ -99,6 +99,7 @@ async function main() {
 
   async function createManagedBot(botConfig: typeof config.bot) {
     const runtime = new MinecraftBotRuntime({
+      initialConfig: botConfig,
       createBot: async (nextBotConfig) => {
         config.bot = {
           ...config.bot,
@@ -122,7 +123,7 @@ async function main() {
         })
 
         if (config.debug.viewer && !viewerInitialized) {
-          setupMineflayerViewer(bot, { firstPerson: true, port: 3007 })
+          setupMineflayerViewer(bot, { port: 3007, firstPerson: true })
           viewerInitialized = true
         }
 
@@ -134,7 +135,6 @@ async function main() {
 
         return bot
       },
-      initialConfig: botConfig,
     })
 
     await runtime.initialize()

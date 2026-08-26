@@ -4,20 +4,20 @@ import { defineEvent } from '../../../utils/dsl'
 
 /** Stable, low-cardinality actions emitted by the Electron controls island. */
 export type ControlsIslandAction
-  = | 'center_main_window'
-    | 'close_app'
+  = | 'expand_controls'
     | 'collapse_controls'
-    | 'disable_fade_on_hover'
-    | 'enable_fade_on_hover'
-    | 'expand_controls'
-    | 'pin_on_top'
-    | 'refresh_window'
-    | 'switch_to_dark_mode'
-    | 'switch_to_light_mode'
-    | 'toggle_chat'
-    | 'toggle_profile_picker'
     | 'toggle_settings'
+    | 'toggle_profile_picker'
+    | 'toggle_chat'
+    | 'refresh_window'
+    | 'center_main_window'
+    | 'switch_to_light_mode'
+    | 'switch_to_dark_mode'
+    | 'pin_on_top'
     | 'unpin_from_top'
+    | 'enable_fade_on_hover'
+    | 'disable_fade_on_hover'
+    | 'close_app'
 
 export const controlsIslandActionEvent = defineEvent<{
   action: ControlsIslandAction

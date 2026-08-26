@@ -10,9 +10,24 @@ import { describe, expect, it, vi } from 'vitest'
 import { createSocialAuthorizationRevoker } from '../social-authorization'
 
 interface SocialAccount {
-  accessToken: null | string
   providerId: string
-  refreshToken: null | string
+  accessToken: string | null
+  refreshToken: string | null
+}
+
+function createCredentials(): Pick<AuthEnv, 'AUTH_GOOGLE_CLIENT_ID' | 'AUTH_GOOGLE_CLIENT_SECRET' | 'AUTH_GITHUB_CLIENT_ID' | 'AUTH_GITHUB_CLIENT_SECRET' | 'AUTH_APPLE_CLIENT_ID' | 'AUTH_APPLE_TEAM_ID' | 'AUTH_APPLE_KEY_ID' | 'AUTH_APPLE_PRIVATE_KEY_PEM'> {
+  const { privateKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' })
+
+  return {
+    AUTH_GOOGLE_CLIENT_ID: 'google-client-id',
+    AUTH_GOOGLE_CLIENT_SECRET: 'google-client-secret',
+    AUTH_GITHUB_CLIENT_ID: 'github-client-id',
+    AUTH_GITHUB_CLIENT_SECRET: 'github-client-secret',
+    AUTH_APPLE_CLIENT_ID: 'apple-service-id',
+    AUTH_APPLE_TEAM_ID: 'apple-team-id',
+    AUTH_APPLE_KEY_ID: 'apple-key-id',
+    AUTH_APPLE_PRIVATE_KEY_PEM: privateKey.export({ type: 'pkcs8', format: 'pem' }).toString(),
+  }
 }
 
 function createAccountDb(accounts: SocialAccount[]): AuthDatabase {
@@ -25,26 +40,11 @@ function createAccountDb(accounts: SocialAccount[]): AuthDatabase {
   } as unknown as AuthDatabase
 }
 
-function createCredentials(): Pick<AuthEnv, 'AUTH_APPLE_CLIENT_ID' | 'AUTH_APPLE_KEY_ID' | 'AUTH_APPLE_PRIVATE_KEY_PEM' | 'AUTH_APPLE_TEAM_ID' | 'AUTH_GITHUB_CLIENT_ID' | 'AUTH_GITHUB_CLIENT_SECRET' | 'AUTH_GOOGLE_CLIENT_ID' | 'AUTH_GOOGLE_CLIENT_SECRET'> {
-  const { privateKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' })
-
-  return {
-    AUTH_APPLE_CLIENT_ID: 'apple-service-id',
-    AUTH_APPLE_KEY_ID: 'apple-key-id',
-    AUTH_APPLE_PRIVATE_KEY_PEM: privateKey.export({ format: 'pem', type: 'pkcs8' }).toString(),
-    AUTH_APPLE_TEAM_ID: 'apple-team-id',
-    AUTH_GITHUB_CLIENT_ID: 'github-client-id',
-    AUTH_GITHUB_CLIENT_SECRET: 'github-client-secret',
-    AUTH_GOOGLE_CLIENT_ID: 'google-client-id',
-    AUTH_GOOGLE_CLIENT_SECRET: 'google-client-secret',
-  }
-}
-
 describe('social authorization revocation', () => {
   it('revokes the saved Apple refresh token', async () => {
     const fetchRequest = vi.fn<typeof fetch>(async () => new Response(null, { status: 200 }))
     const revoker = createSocialAuthorizationRevoker(
-      createAccountDb([{ accessToken: 'apple-access-token', providerId: 'apple', refreshToken: 'apple-refresh-token' }]),
+      createAccountDb([{ providerId: 'apple', accessToken: 'apple-access-token', refreshToken: 'apple-refresh-token' }]),
       createCredentials(),
       fetchRequest,
     )
@@ -74,7 +74,7 @@ describe('social authorization revocation', () => {
   it('uses the Apple access token when no refresh token was retained', async () => {
     const fetchRequest = vi.fn<typeof fetch>(async () => new Response(null, { status: 200 }))
     const revoker = createSocialAuthorizationRevoker(
-      createAccountDb([{ accessToken: 'apple-access-token', providerId: 'apple', refreshToken: null }]),
+      createAccountDb([{ providerId: 'apple', accessToken: 'apple-access-token', refreshToken: null }]),
       createCredentials(),
       fetchRequest,
     )
@@ -89,22 +89,22 @@ describe('social authorization revocation', () => {
 
   it('aborts deletion when Apple rejects revocation', async () => {
     const revoker = createSocialAuthorizationRevoker(
-      createAccountDb([{ accessToken: null, providerId: 'apple', refreshToken: 'apple-refresh-token' }]),
+      createAccountDb([{ providerId: 'apple', accessToken: null, refreshToken: 'apple-refresh-token' }]),
       createCredentials(),
       vi.fn<typeof fetch>(async () => Response.json({ error: 'invalid_client' }, { status: 400 })),
     )
 
     await expect(revoker.revokeForUser('user-1')).rejects.toMatchObject({
-      details: { providerId: 'apple', statusCode: 400 },
-      errorCode: 'BAD_GATEWAY',
       statusCode: 502,
+      errorCode: 'BAD_GATEWAY',
+      details: { providerId: 'apple', statusCode: 400 },
     })
   })
 
   it('revokes Google with the refresh token when available', async () => {
     const fetchRequest = vi.fn<typeof fetch>(async () => new Response(null, { status: 200 }))
     const revoker = createSocialAuthorizationRevoker(
-      createAccountDb([{ accessToken: 'google-access-token', providerId: 'google', refreshToken: 'google-refresh-token' }]),
+      createAccountDb([{ providerId: 'google', accessToken: 'google-access-token', refreshToken: 'google-refresh-token' }]),
       createCredentials(),
       fetchRequest,
     )
@@ -121,7 +121,7 @@ describe('social authorization revocation', () => {
 
   it('treats an already invalid Google token as revoked on retry', async () => {
     const revoker = createSocialAuthorizationRevoker(
-      createAccountDb([{ accessToken: 'google-access-token', providerId: 'google', refreshToken: null }]),
+      createAccountDb([{ providerId: 'google', accessToken: 'google-access-token', refreshToken: null }]),
       createCredentials(),
       vi.fn<typeof fetch>(async () => Response.json({ error: 'invalid_token' }, { status: 400 })),
     )
@@ -134,7 +134,7 @@ describe('social authorization revocation', () => {
       .mockResolvedValueOnce(Response.json({ error: 'invalid_token' }, { status: 400 }))
       .mockResolvedValueOnce(new Response(null, { status: 200 }))
     const revoker = createSocialAuthorizationRevoker(
-      createAccountDb([{ accessToken: 'google-access-token', providerId: 'google', refreshToken: 'google-refresh-token' }]),
+      createAccountDb([{ providerId: 'google', accessToken: 'google-access-token', refreshToken: 'google-refresh-token' }]),
       createCredentials(),
       fetchRequest,
     )
@@ -149,7 +149,7 @@ describe('social authorization revocation', () => {
   it('deletes the GitHub application grant with app authentication', async () => {
     const fetchRequest = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }))
     const revoker = createSocialAuthorizationRevoker(
-      createAccountDb([{ accessToken: 'github-access-token', providerId: 'github', refreshToken: null }]),
+      createAccountDb([{ providerId: 'github', accessToken: 'github-access-token', refreshToken: null }]),
       createCredentials(),
       fetchRequest,
     )
@@ -174,7 +174,7 @@ describe('social authorization revocation', () => {
       .mockResolvedValueOnce(new Response(null, { status: 422 }))
       .mockResolvedValueOnce(new Response(null, { status: 404 }))
     const revoker = createSocialAuthorizationRevoker(
-      createAccountDb([{ accessToken: 'github-access-token', providerId: 'github', refreshToken: null }]),
+      createAccountDb([{ providerId: 'github', accessToken: 'github-access-token', refreshToken: null }]),
       createCredentials(),
       fetchRequest,
     )
@@ -192,15 +192,15 @@ describe('social authorization revocation', () => {
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(Response.json({ id: 1 }, { status: 200 }))
     const revoker = createSocialAuthorizationRevoker(
-      createAccountDb([{ accessToken: 'github-access-token', providerId: 'github', refreshToken: null }]),
+      createAccountDb([{ providerId: 'github', accessToken: 'github-access-token', refreshToken: null }]),
       createCredentials(),
       fetchRequest,
     )
 
     await expect(revoker.revokeForUser('user-1')).rejects.toMatchObject({
-      details: { providerId: 'github', statusCode: 503, verificationStatusCode: 200 },
-      errorCode: 'BAD_GATEWAY',
       statusCode: 502,
+      errorCode: 'BAD_GATEWAY',
+      details: { providerId: 'github', statusCode: 503, verificationStatusCode: 200 },
     })
   })
 
@@ -209,21 +209,21 @@ describe('social authorization revocation', () => {
       .mockResolvedValueOnce(new Response(null, { status: 422 }))
       .mockResolvedValueOnce(new Response(null, { status: 404 }))
     const revoker = createSocialAuthorizationRevoker(
-      createAccountDb([{ accessToken: 'github-access-token', providerId: 'github', refreshToken: 'github-refresh-token' }]),
+      createAccountDb([{ providerId: 'github', accessToken: 'github-access-token', refreshToken: 'github-refresh-token' }]),
       createCredentials(),
       fetchRequest,
     )
 
     await expect(revoker.revokeForUser('user-1')).rejects.toMatchObject({
-      details: { providerId: 'github', statusCode: 422, verificationStatusCode: 404 },
       statusCode: 502,
+      details: { providerId: 'github', statusCode: 422, verificationStatusCode: 404 },
     })
   })
 
   it('ignores credential accounts because they have no external grant', async () => {
     const fetchRequest = vi.fn<typeof fetch>()
     const revoker = createSocialAuthorizationRevoker(
-      createAccountDb([{ accessToken: null, providerId: 'credential', refreshToken: null }]),
+      createAccountDb([{ providerId: 'credential', accessToken: null, refreshToken: null }]),
       createCredentials(),
       fetchRequest,
     )
@@ -235,29 +235,29 @@ describe('social authorization revocation', () => {
 
   it('aborts deletion when a social account has no revocable token', async () => {
     const revoker = createSocialAuthorizationRevoker(
-      createAccountDb([{ accessToken: null, providerId: 'google', refreshToken: null }]),
+      createAccountDb([{ providerId: 'google', accessToken: null, refreshToken: null }]),
       createCredentials(),
       vi.fn<typeof fetch>(),
     )
 
     await expect(revoker.revokeForUser('user-1')).rejects.toMatchObject({
-      details: { providerId: 'google' },
-      errorCode: 'oauth/revocation_token_missing',
       statusCode: 503,
+      errorCode: 'oauth/revocation_token_missing',
+      details: { providerId: 'google' },
     })
   })
 
   it('aborts deletion for an external provider without a revocation policy', async () => {
     const revoker = createSocialAuthorizationRevoker(
-      createAccountDb([{ accessToken: 'token', providerId: 'future-provider', refreshToken: null }]),
+      createAccountDb([{ providerId: 'future-provider', accessToken: 'token', refreshToken: null }]),
       createCredentials(),
       vi.fn<typeof fetch>(),
     )
 
     await expect(revoker.revokeForUser('user-1')).rejects.toMatchObject({
-      details: { providerId: 'future-provider' },
-      errorCode: 'oauth/revocation_not_supported',
       statusCode: 503,
+      errorCode: 'oauth/revocation_not_supported',
+      details: { providerId: 'future-provider' },
     })
   })
 })

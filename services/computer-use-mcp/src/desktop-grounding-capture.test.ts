@@ -24,21 +24,21 @@ vi.mock('./chrome-semantic-adapter', async () => {
 
 function makeAxSnapshot(): AXSnapshot {
   const root = {
-    children: [],
+    uid: 'root',
     role: 'AXApplication',
     title: 'AIRI',
-    uid: 'root',
+    children: [],
   }
 
   return {
+    snapshotId: 'ax_1',
+    pid: 123,
     appName: 'AIRI',
+    root,
+    uidToNode: new Map([['root', root]]),
     capturedAt: new Date().toISOString(),
     maxDepth: 1,
-    pid: 123,
-    root,
-    snapshotId: 'ax_1',
     truncated: false,
-    uidToNode: new Map([['root', root]]),
   } as AXSnapshot
 }
 
@@ -51,35 +51,35 @@ describe('captureDesktopGrounding', () => {
   it('does not project Chrome semantics onto non-Chrome windows that only share the same title', async () => {
     captureAXTreeMock.mockResolvedValue(makeAxSnapshot())
     captureChromeSemanticsMock.mockResolvedValue({
-      capturedAt: new Date().toISOString(),
+      pageUrl: 'https://example.com',
+      pageTitle: 'Shared Title',
       interactiveElements: [
         {
-          rect: { h: 30, w: 80, x: 20, y: 20 },
           tag: 'button',
           text: 'Submit',
+          rect: { x: 20, y: 20, w: 80, h: 30 },
         },
       ],
-      pageTitle: 'Shared Title',
-      pageUrl: 'https://example.com',
+      capturedAt: new Date().toISOString(),
       source: 'extension',
     })
 
     const genericObservation: WindowObservation = {
       frontmostAppName: 'AIRI',
-      observedAt: new Date().toISOString(),
       windows: [
         {
-          appName: 'AIRI',
-          bounds: { height: 800, width: 1200, x: 10, y: 20 },
           id: 'airi:1',
+          appName: 'AIRI',
           title: 'Shared Title',
+          bounds: { x: 10, y: 20, width: 1200, height: 800 },
         },
       ],
+      observedAt: new Date().toISOString(),
     }
 
     const chromeObservation: WindowObservation = {
-      observedAt: new Date().toISOString(),
       windows: [],
+      observedAt: new Date().toISOString(),
     }
 
     const observeWindows = vi.fn()
@@ -87,13 +87,13 @@ describe('captureDesktopGrounding', () => {
       .mockResolvedValueOnce(chromeObservation)
 
     const executor = {
-      observeWindows,
       takeScreenshot: vi.fn().mockResolvedValue({
-        capturedAt: new Date().toISOString(),
         dataBase64: '',
         mimeType: 'image/png',
         path: '',
+        capturedAt: new Date().toISOString(),
       }),
+      observeWindows,
     } as unknown as DesktopExecutor
 
     const snapshot = await captureDesktopGrounding({

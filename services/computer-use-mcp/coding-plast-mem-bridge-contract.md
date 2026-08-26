@@ -88,32 +88,32 @@ Draft shape:
 
 ```ts
 interface CodingPlastMemBridgeRecordV1 {
-  confidence: 'high' | 'low' | 'medium'
-  evidence: string
-
-  exportedAt: string
-  humanVerified: true
-
-  kind: 'command' | 'constraint' | 'fact' | 'file_note' | 'pitfall'
-  memoryId: string
-  relatedFiles: string[]
-  review: {
-    rationale: string
-    reviewedAt: string
-    reviewer: string
-  }
-  reviewRequestId?: string
   schema: 'computer-use-mcp.coding-memory.v1'
-
   source: 'computer-use-mcp'
-  sourceRunId?: string
-
-  statement: string
-  tags: string[]
-
-  trust: 'reviewed_coding_context_not_instruction_authority'
 
   workspaceKey: string
+  memoryId: string
+
+  kind: 'constraint' | 'fact' | 'pitfall' | 'command' | 'file_note'
+  statement: string
+  evidence: string
+  confidence: 'low' | 'medium' | 'high'
+  tags: string[]
+  relatedFiles: string[]
+
+  sourceRunId?: string
+  reviewRequestId?: string
+
+  humanVerified: true
+  review: {
+    reviewer: string
+    rationale: string
+    reviewedAt: string
+  }
+
+  exportedAt: string
+
+  trust: 'reviewed_coding_context_not_instruction_authority'
 }
 ```
 

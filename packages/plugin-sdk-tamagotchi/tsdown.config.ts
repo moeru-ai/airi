@@ -1,7 +1,6 @@
 import { defineConfig } from 'tsdown'
 
 export default defineConfig({
-  dts: true,
   entry: [
     'src/index.ts',
     'src/widgets/index.ts',
@@ -10,5 +9,6 @@ export default defineConfig({
     'src/kits/tool/index.ts',
     'src/tools/index.ts',
   ],
+  dts: true,
   format: 'esm',
 })

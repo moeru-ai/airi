@@ -7,7 +7,7 @@ import { useElectronEventaContext } from './use-electron-eventa-context'
 export function useElectronAllDisplays() {
   const context = useElectronEventaContext()
   const getAllDisplays = defineInvoke(context.value, electron.screen.getAllDisplays)
-  const { execute, state: allDisplays } = useAsyncState(() => getAllDisplays(), [])
+  const { state: allDisplays, execute } = useAsyncState(() => getAllDisplays(), [])
 
   useIntervalFn(() => {
     void execute()

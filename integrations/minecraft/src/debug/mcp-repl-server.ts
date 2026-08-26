@@ -13,11 +13,28 @@ import { z } from 'zod'
 import { useLogger } from '../utils/logger'
 import { debugEventCategorySchema, debugEventSourceSchema, debugInjectEventSchema, jsonObjectSchema, perceptionSignalSchema } from './types'
 
+async function readJsonBody(req: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = []
+  for await (const chunk of req) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+  }
+  const raw = Buffer.concat(chunks).toString('utf-8')
+  if (!raw)
+    return null
+  return JSON.parse(raw)
+}
+
+function writeJson(res: ServerResponse, status: number, payload: unknown): void {
+  res.statusCode = status
+  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+  res.end(JSON.stringify(payload))
+}
+
 export class McpReplServer {
+  private server: ReturnType<typeof createServer> | null = null
+  private transport: SSEServerTransport | null = null
+  private streamableTransport: StreamableHTTPServerTransport | null = null
   private readonly mcpServer: McpServer
-  private server: null | ReturnType<typeof createServer> = null
-  private streamableTransport: null | StreamableHTTPServerTransport = null
-  private transport: null | SSEServerTransport = null
 
   constructor(private readonly brain: Brain, private readonly port: number = 3001) {
     this.mcpServer = new McpServer({
@@ -34,15 +51,15 @@ export class McpReplServer {
         const snapshot = this.brain.getDebugSnapshot()
         return {
           contents: [{
-            mimeType: 'application/json',
+            uri: uri.href,
             text: JSON.stringify({
-              givenUp: snapshot.givenUp,
-              paused: snapshot.paused,
               processing: snapshot.isProcessing,
               queueLength: snapshot.queueLength,
               turn: snapshot.turnCounter,
+              givenUp: snapshot.givenUp,
+              paused: snapshot.paused,
             }, null, 2),
-            uri: uri.href,
+            mimeType: 'application/json',
           }],
         }
       },
@@ -55,9 +72,9 @@ export class McpReplServer {
         const snapshot = this.brain.getDebugSnapshot()
         return {
           contents: [{
-            mimeType: 'text/plain',
-            text: snapshot.contextView ?? '(no context view yet)',
             uri: uri.href,
+            text: snapshot.contextView ?? '(no context view yet)',
+            mimeType: 'text/plain',
           }],
         }
       },
@@ -70,9 +87,9 @@ export class McpReplServer {
         const snapshot = this.brain.getDebugSnapshot()
         return {
           contents: [{
-            mimeType: 'application/json',
-            text: JSON.stringify(snapshot.conversationHistory, null, 2),
             uri: uri.href,
+            text: JSON.stringify(snapshot.conversationHistory, null, 2),
+            mimeType: 'application/json',
           }],
         }
       },
@@ -85,9 +102,9 @@ export class McpReplServer {
         const snapshot = this.brain.getDebugSnapshot()
         return {
           contents: [{
-            mimeType: 'application/json',
-            text: JSON.stringify(snapshot.llmLogEntries.slice(-50), null, 2),
             uri: uri.href,
+            text: JSON.stringify(snapshot.llmLogEntries.slice(-50), null, 2),
+            mimeType: 'application/json',
           }],
         }
       },
@@ -103,7 +120,7 @@ export class McpReplServer {
       async ({ code }: { code: string }) => {
         const result = await this.brain.executeDebugRepl(code)
         return {
-          content: [{ text: JSON.stringify(result, null, 2), type: 'text' }],
+          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
         }
       },
     )
@@ -111,29 +128,29 @@ export class McpReplServer {
     this.mcpServer.tool(
       'inject_chat',
       {
-        message: z.string(),
         username: z.string(),
+        message: z.string(),
       },
-      async ({ message, username }: { message: string, username: string }) => {
+      async ({ username, message }: { username: string, message: string }) => {
         await this.brain.injectDebugEvent({
-          payload: {
-            confidence: 1.0,
-            description: `Chat from ${username}: "${message}"`,
-            metadata: {
-              message,
-              username,
-            },
-            sourceId: username,
-            timestamp: Date.now(),
-            type: 'chat_message',
-          },
-          source: { id: username, type: 'minecraft' },
-          timestamp: Date.now(),
           type: 'perception',
+          payload: {
+            type: 'chat_message',
+            description: `Chat from ${username}: "${message}"`,
+            sourceId: username,
+            confidence: 1.0,
+            timestamp: Date.now(),
+            metadata: {
+              username,
+              message,
+            },
+          },
+          source: { type: 'minecraft', id: username },
+          timestamp: Date.now(),
         })
 
         return {
-          content: [{ text: `Injected chat from ${username}: "${message}"`, type: 'text' }],
+          content: [{ type: 'text', text: `Injected chat from ${username}: "${message}"` }],
         }
       },
     )
@@ -141,22 +158,22 @@ export class McpReplServer {
     this.mcpServer.tool(
       'inject_event',
       {
+        type: debugEventCategorySchema,
         payload: z.union([perceptionSignalSchema, jsonObjectSchema]),
         source: debugEventSourceSchema,
-        type: debugEventCategorySchema,
       },
-      async (input: { payload: unknown, source: unknown, type: string }) => {
+      async (input: { type: string, payload: unknown, source: unknown }) => {
         const event = debugInjectEventSchema.parse(input)
 
         await this.brain.injectDebugEvent({
+          type: event.type,
           payload: event.payload,
           source: event.source,
           timestamp: Date.now(),
-          type: event.type,
         })
 
         return {
-          content: [{ text: `Injected event: ${event.type}`, type: 'text' }],
+          content: [{ type: 'text', text: `Injected event: ${event.type}` }],
         }
       },
     )
@@ -169,7 +186,7 @@ export class McpReplServer {
       async ({ includeBuiltins }: { includeBuiltins?: boolean }) => {
         const result = this.brain.getReplState({ includeBuiltins: includeBuiltins ?? false })
         return {
-          content: [{ text: JSON.stringify(result), type: 'text' }],
+          content: [{ type: 'text', text: JSON.stringify(result) }],
         }
       },
     )
@@ -181,21 +198,21 @@ export class McpReplServer {
         const result = this.brain.getLastLlmInput()
         if (!result) {
           return {
-            content: [{ text: 'No prompt available yet', type: 'text' }],
+            content: [{ type: 'text', text: 'No prompt available yet' }],
             isError: true,
           }
         }
         const {
-          messages,
           systemPrompt: _systemPrompt,
+          messages,
           ...rest
         } = result
         const compactMessages = messages.filter(message => message.role !== 'system')
         return {
-          content: [{ text: JSON.stringify({
+          content: [{ type: 'text', text: JSON.stringify({
             ...rest,
             messages: compactMessages,
-          }), type: 'text' }],
+          }) }],
         }
       },
     )
@@ -208,7 +225,7 @@ export class McpReplServer {
       async ({ limit }) => {
         const result = this.brain.getLlmLogs(limit)
         return {
-          content: [{ text: JSON.stringify(result), type: 'text' }],
+          content: [{ type: 'text', text: JSON.stringify(result) }],
         }
       },
     )
@@ -223,7 +240,7 @@ export class McpReplServer {
         const result = this.brain
           .getLlmTrace(limit, turnId)
         return {
-          content: [{ text: JSON.stringify(result), type: 'text' }],
+          content: [{ type: 'text', text: JSON.stringify(result) }],
         }
       },
     )
@@ -241,12 +258,12 @@ export class McpReplServer {
 
         if (req.method === 'GET' && url.pathname === '/') {
           writeJson(res, 200, {
-            endpoints: {
-              messages: '/messages',
-              sse: '/sse',
-            },
             name: 'Minecraft Brain REPL MCP',
             version: '1.0.0',
+            endpoints: {
+              sse: '/sse',
+              messages: '/messages',
+            },
           })
           return
         }
@@ -276,9 +293,9 @@ export class McpReplServer {
 
           if (!this.streamableTransport) {
             writeJson(res, 400, {
+              jsonrpc: '2.0',
               error: { code: -32000, message: 'Bad Request: No valid streamable session initialized' },
               id: null,
-              jsonrpc: '2.0',
             })
             return
           }
@@ -348,21 +365,4 @@ export class McpReplServer {
     this.server.close()
     this.server = null
   }
-}
-
-async function readJsonBody(req: IncomingMessage): Promise<unknown> {
-  const chunks: Buffer[] = []
-  for await (const chunk of req) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
-  }
-  const raw = Buffer.concat(chunks).toString('utf-8')
-  if (!raw)
-    return null
-  return JSON.parse(raw)
-}
-
-function writeJson(res: ServerResponse, status: number, payload: unknown): void {
-  res.statusCode = status
-  res.setHeader('Content-Type', 'application/json; charset=utf-8')
-  res.end(JSON.stringify(payload))
 }

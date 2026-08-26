@@ -44,8 +44,8 @@ describe('services inference-service-providers', () => {
       baseUrl: ATLASCLOUD_DEFAULT_BASE_URL,
     })
     expect(inferenceServiceProvidersService.buildLocal(providerAtlasCloud.id, { apiKey: 'test-key' })).toEqual(expect.objectContaining({
-      config: { apiKey: 'test-key' },
       definitionId: providerAtlasCloud.id,
+      config: { apiKey: 'test-key' },
     }))
   })
 
@@ -67,39 +67,39 @@ describe('services inference-service-providers', () => {
         v1: {
           providers: {
             '$get': vi.fn(async () => ({
+              ok: true,
               json: async () => [{
-                config: { baseUrl: 'https://example.com/v1/' },
-                definitionId: providerOpenAICompatible.id,
                 id: 'provider-1',
+                definitionId: providerOpenAICompatible.id,
                 name: 'OpenAI Compatible',
+                config: { baseUrl: 'https://example.com/v1/' },
                 validated: true,
                 validationBypassed: false,
               }],
-              ok: true,
             })),
             '$post': vi.fn(async () => ({
+              ok: true,
               json: async () => ({
-                config: {},
-                definitionId: providerOpenAICompatible.id,
                 id: 'provider-1',
+                definitionId: providerOpenAICompatible.id,
                 name: 'OpenAI Compatible',
+                config: {},
                 validated: false,
                 validationBypassed: false,
               }),
-              ok: true,
             })),
             ':id': {
               $delete: vi.fn(async () => ({ ok: true })),
               $patch: vi.fn(async () => ({
+                ok: true,
                 json: async () => ({
-                  config: {},
-                  definitionId: providerOpenAICompatible.id,
                   id: 'provider-1',
+                  definitionId: providerOpenAICompatible.id,
                   name: 'OpenAI Compatible',
+                  config: {},
                   validated: false,
                   validationBypassed: false,
                 }),
-                ok: true,
               })),
             },
           },
@@ -110,9 +110,9 @@ describe('services inference-service-providers', () => {
     await expect(inferenceServiceProvidersService.fetchRemote(client)).resolves.toEqual({
       'provider-1': expect.objectContaining({
         config: { baseUrl: 'https://example.com/v1/' },
-        configuredBy: 'user',
         id: 'provider-1',
         status: 'configured',
+        configuredBy: 'user',
       }),
     })
   })

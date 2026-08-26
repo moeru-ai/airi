@@ -5,17 +5,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createTestRedis } from '../../../../libs/tests/redis'
 import { createFluxMeter } from '../flux-meter'
 
-function createMockBilling(opts: { partialChargeOn?: { amount: number, charged: number }, throwOn?: number } = {}): BillingService {
+function createMockBilling(opts: { throwOn?: number, partialChargeOn?: { amount: number, charged: number } } = {}): BillingService {
   return {
-    consumeFluxForLLM: vi.fn(async ({ amount, userId }: { amount: number, userId: string }) => {
+    consumeFluxForLLM: vi.fn(async ({ userId, amount }: { userId: string, amount: number }) => {
       if (opts.throwOn != null && amount === opts.throwOn)
         throw new Error('mock billing failure')
       // Mirror real billing-service partial-debit semantics: drain to zero
       // returns `charged < requested`.
       if (opts.partialChargeOn != null && amount === opts.partialChargeOn.amount) {
-        return { charged: opts.partialChargeOn.charged, flux: 0, requested: amount, userId }
+        return { userId, flux: 0, charged: opts.partialChargeOn.charged, requested: amount }
       }
-      return { charged: amount, flux: 100 - amount, requested: amount, userId }
+      return { userId, flux: 100 - amount, charged: amount, requested: amount }
     }),
   } as unknown as BillingService
 }
@@ -25,13 +25,13 @@ function createMockMetrics() {
   const ttsChars = { add: vi.fn() }
   const ttsPreflightRejections = { add: vi.fn() }
   return {
-    fluxUnbilled,
     metrics: { fluxUnbilled, ttsChars, ttsPreflightRejections } as any,
+    fluxUnbilled,
   }
 }
 
 function staticRuntime(unitsPerFlux = 1000, debtTtlSeconds = 60) {
-  return vi.fn(async () => ({ debtTtlSeconds, unitsPerFlux }))
+  return vi.fn(async () => ({ unitsPerFlux, debtTtlSeconds }))
 }
 
 describe('fluxMeter', () => {
@@ -49,36 +49,36 @@ describe('fluxMeter', () => {
     const meter = createFluxMeter(redis, billing, { name: 'tts', resolveRuntime: staticRuntime() })
 
     const result = await meter.accumulate({
+      userId: 'u1',
+      units: 500,
       currentBalance: 10,
       requestId: 'req-1',
-      units: 500,
-      userId: 'u1',
     })
 
-    expect(result).toEqual({ balanceAfter: 10, debtAfter: 500, fluxDebited: 0, unbilledFlux: 0 })
+    expect(result).toEqual({ fluxDebited: 0, debtAfter: 500, balanceAfter: 10, unbilledFlux: 0 })
     expect(billing.consumeFluxForLLM).not.toHaveBeenCalled()
   })
 
   it('debits exactly one flux when crossing the threshold', async () => {
     const meter = createFluxMeter(redis, billing, { name: 'tts', resolveRuntime: staticRuntime() })
 
-    await meter.accumulate({ currentBalance: 10, requestId: 'a', units: 700, userId: 'u1' })
-    const result = await meter.accumulate({ currentBalance: 10, requestId: 'b', units: 400, userId: 'u1' })
+    await meter.accumulate({ userId: 'u1', units: 700, currentBalance: 10, requestId: 'a' })
+    const result = await meter.accumulate({ userId: 'u1', units: 400, currentBalance: 10, requestId: 'b' })
 
     expect(result.fluxDebited).toBe(1)
     expect(result.debtAfter).toBe(100)
     expect(billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
     expect(billing.consumeFluxForLLM).toHaveBeenCalledWith(expect.objectContaining({
       amount: 1,
-      description: 'tts_request',
       requestId: 'b',
+      description: 'tts_request',
     }))
   })
 
   it('debits multiple flux when one request crosses several thresholds', async () => {
     const meter = createFluxMeter(redis, billing, { name: 'tts', resolveRuntime: staticRuntime() })
 
-    const result = await meter.accumulate({ currentBalance: 10, requestId: 'big', units: 3500, userId: 'u1' })
+    const result = await meter.accumulate({ userId: 'u1', units: 3500, currentBalance: 10, requestId: 'big' })
 
     expect(result.fluxDebited).toBe(3)
     expect(result.debtAfter).toBe(500)
@@ -89,7 +89,7 @@ describe('fluxMeter', () => {
     const meter = createFluxMeter(redis, billing, { name: 'tts', resolveRuntime: staticRuntime() })
 
     for (const bad of [0, -5, Number.NaN, Number.POSITIVE_INFINITY]) {
-      const result = await meter.accumulate({ currentBalance: 10, requestId: 'x', units: bad, userId: 'u1' })
+      const result = await meter.accumulate({ userId: 'u1', units: bad, currentBalance: 10, requestId: 'x' })
       expect(result.fluxDebited).toBe(0)
     }
     expect(billing.consumeFluxForLLM).not.toHaveBeenCalled()
@@ -114,15 +114,15 @@ describe('fluxMeter', () => {
   it('throws from runtime resolver when unitsPerFlux is invalid', async () => {
     const meter = createFluxMeter(redis, billing, {
       name: 'bad',
-      resolveRuntime: async () => ({ debtTtlSeconds: 60, unitsPerFlux: 0 }),
+      resolveRuntime: async () => ({ unitsPerFlux: 0, debtTtlSeconds: 60 }),
     })
-    await expect(meter.accumulate({ currentBalance: 10, requestId: 'r', units: 10, userId: 'u1' })).rejects.toThrow()
+    await expect(meter.accumulate({ userId: 'u1', units: 10, currentBalance: 10, requestId: 'r' })).rejects.toThrow()
   })
 
   it('peekDebt reflects current accumulated units', async () => {
     const meter = createFluxMeter(redis, billing, { name: 'tts', resolveRuntime: staticRuntime() })
 
-    await meter.accumulate({ currentBalance: 10, requestId: 'p', units: 250, userId: 'u1' })
+    await meter.accumulate({ userId: 'u1', units: 250, currentBalance: 10, requestId: 'p' })
     expect(await meter.peekDebt('u1')).toBe(250)
   })
 
@@ -138,8 +138,8 @@ describe('fluxMeter', () => {
     const resolver = staticRuntime()
     const meter = createFluxMeter(redis, billing, { name: 'tts', resolveRuntime: resolver })
 
-    await meter.accumulate({ currentBalance: 10, requestId: 'a', units: 100, userId: 'u1' })
-    await meter.accumulate({ currentBalance: 10, requestId: 'b', units: 100, userId: 'u1' })
+    await meter.accumulate({ userId: 'u1', units: 100, currentBalance: 10, requestId: 'a' })
+    await meter.accumulate({ userId: 'u1', units: 100, currentBalance: 10, requestId: 'b' })
     await meter.assertCanAfford('u1', 100, 10)
 
     expect(resolver).toHaveBeenCalledTimes(3)
@@ -151,7 +151,7 @@ describe('fluxMeter', () => {
     const meter = createFluxMeter(redis, failingBilling, { name: 'tts', resolveRuntime: staticRuntime() })
 
     await expect(
-      meter.accumulate({ currentBalance: 10, requestId: 'fail', units: 2500, userId: 'u1' }),
+      meter.accumulate({ userId: 'u1', units: 2500, currentBalance: 10, requestId: 'fail' }),
     ).rejects.toThrow('mock billing failure')
 
     // Settlement was rolled back: 2500 units should be fully recovered
@@ -186,15 +186,15 @@ describe('fluxMeter', () => {
     //  - Redis debt restored by 2 * unitsPerFlux = 2000
     //  - fluxUnbilled metric incremented by 2 with partial_debit_drained reason
     const partialBilling = createMockBilling({ partialChargeOn: { amount: 3, charged: 1 } })
-    const { fluxUnbilled, metrics } = createMockMetrics()
+    const { metrics, fluxUnbilled } = createMockMetrics()
     const meter = createFluxMeter(redis, partialBilling, { name: 'tts', resolveRuntime: staticRuntime() }, metrics)
 
     const result = await meter.accumulate({
-      currentBalance: 1,
-      metadata: { model: 'eleven_multilingual_v2' },
-      requestId: 'partial',
-      units: 3500,
       userId: 'u1',
+      units: 3500,
+      currentBalance: 1,
+      requestId: 'partial',
+      metadata: { model: 'eleven_multilingual_v2' },
     })
 
     expect(result.fluxDebited).toBe(1)
@@ -204,18 +204,18 @@ describe('fluxMeter', () => {
     expect(await meter.peekDebt('u1')).toBe(2500)
     expect(incrby).toHaveBeenCalledWith(expect.stringContaining('u1'), 2000)
     expect(fluxUnbilled.add).toHaveBeenCalledWith(2, expect.objectContaining({
-      'gen_ai.request.model': 'eleven_multilingual_v2',
+      'source': 'tts_meter',
       'meter': 'tts',
       'reason': 'partial_debit_drained',
-      'source': 'tts_meter',
+      'gen_ai.request.model': 'eleven_multilingual_v2',
     }))
   })
 
   it('does not report fluxUnbilled when billing fully charges', async () => {
-    const { fluxUnbilled, metrics } = createMockMetrics()
+    const { metrics, fluxUnbilled } = createMockMetrics()
     const meter = createFluxMeter(redis, billing, { name: 'tts', resolveRuntime: staticRuntime() }, metrics)
 
-    const result = await meter.accumulate({ currentBalance: 10, requestId: 'full', units: 1500, userId: 'u1' })
+    const result = await meter.accumulate({ userId: 'u1', units: 1500, currentBalance: 10, requestId: 'full' })
 
     expect(result.fluxDebited).toBe(1)
     expect(result.unbilledFlux).toBe(0)

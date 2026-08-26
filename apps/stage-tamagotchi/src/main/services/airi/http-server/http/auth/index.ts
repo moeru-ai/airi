@@ -25,9 +25,9 @@ export interface LoopbackCallbackResult {
  * - Random bound port, callback result promise, and manual cancellation method
  */
 export async function startLoopbackServer(expectedState: string): Promise<{
-  close: () => void
   port: number
   result: Promise<LoopbackCallbackResult>
+  close: () => void
 }> {
   const host = '127.0.0.1'
   let settled = false
@@ -44,8 +44,8 @@ export async function startLoopbackServer(expectedState: string): Promise<{
   const app = new H3()
   const loopbackServer = createH3Server({ app, host })
   const corsOptions = {
-    methods: '*',
     origin: '*',
+    methods: '*',
     preflight: {
       statusCode: 204,
     },
@@ -93,8 +93,8 @@ export async function startLoopbackServer(expectedState: string): Promise<{
     const state = typeof query.state === 'string' ? query.state : ''
     if (!state || state !== expectedState) {
       return new Response('<html><body><h2>Invalid state</h2></body></html>', {
-        headers: { 'Content-Type': 'text/html; charset=utf-8' },
         status: 400,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
       })
     }
 
@@ -107,16 +107,16 @@ export async function startLoopbackServer(expectedState: string): Promise<{
         rejectResult(new Error(description))
       })
       return new Response('<html><body><h2>Authentication failed</h2><p>You can close this window.</p></body></html>', {
-        headers: { 'Content-Type': 'text/html; charset=utf-8' },
         status: 200,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
       })
     }
 
     const code = typeof query.code === 'string' ? query.code : ''
     if (!code) {
       return new Response('<html><body><h2>Missing parameters</h2></body></html>', {
-        headers: { 'Content-Type': 'text/html; charset=utf-8' },
         status: 400,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
       })
     }
 
@@ -125,8 +125,8 @@ export async function startLoopbackServer(expectedState: string): Promise<{
     })
 
     return new Response('<html><body><h2>Authentication successful!</h2><p>You can close this window and return to the app.</p></body></html>', {
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
       status: 200,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
     })
   }))
 
@@ -139,12 +139,12 @@ export async function startLoopbackServer(expectedState: string): Promise<{
   }, 5 * 60 * 1000)
 
   return {
+    port: address.port,
+    result,
     close: () => {
       finish(() => {
         rejectResult(new Error('OIDC sign-in attempt cancelled'))
       })
     },
-    port: address.port,
-    result,
   }
 }

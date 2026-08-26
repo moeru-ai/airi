@@ -47,15 +47,15 @@ function createViewportSample(options: Partial<ViewportSample> = {}): ViewportSa
 
 describe('adaptive input geometry', () => {
   it('moves a bottom input area above a docked keyboard', () => {
-    const target = createRectangle({ bottom: 844, top: 780 })
-    const keyboard = createRectangle({ bottom: 844, top: 544 })
+    const target = createRectangle({ top: 780, bottom: 844 })
+    const keyboard = createRectangle({ top: 544, bottom: 844 })
 
     expect(calculateKeyboardShift(target, keyboard)).toBe(300)
   })
 
   it('does not move the input area for a floating keyboard without horizontal overlap', () => {
-    const target = createRectangle({ bottom: 844, left: 0, right: 180, top: 780 })
-    const keyboard = createRectangle({ bottom: 700, left: 210, right: 380, top: 500 })
+    const target = createRectangle({ top: 780, bottom: 844, left: 0, right: 180 })
+    const keyboard = createRectangle({ top: 500, bottom: 700, left: 210, right: 380 })
 
     expect(calculateKeyboardShift(target, keyboard)).toBe(0)
   })

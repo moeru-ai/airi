@@ -31,14 +31,124 @@ const azureOpenAIConfigSchema = z.object({
     .default(DEFAULT_COMPLETIONS_API_VERSION),
 })
 
+type AzureOpenAIConfig = z.input<typeof azureOpenAIConfigSchema>
+
 interface AzureEndpointHints {
-  apiVersionFromUrl?: string
-  completionsDeployment?: string
-  completionsUrl?: string
   origin: string
+  completionsUrl?: string
+  completionsDeployment?: string
+  apiVersionFromUrl?: string
 }
 
-type AzureOpenAIConfig = z.input<typeof azureOpenAIConfigSchema>
+function resolveProviderBaseUrl(input: string): string {
+  const trimmed = input.trim()
+  if (!trimmed) {
+    return DEFAULT_AZURE_OPENAI_COMPATIBLE_BASE_URL
+  }
+
+  try {
+    const parsed = new URL(trimmed)
+    if (DEPLOYMENT_CHAT_COMPLETIONS_PATH_REGEX.test(parsed.pathname) || OPENAI_PATH_REGEX.test(parsed.pathname)) {
+      return `${parsed.origin}/openai/v1`
+    }
+  }
+  catch {
+  }
+
+  return trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed
+}
+
+function parseAzureEndpointHints(baseUrl: string | undefined): AzureEndpointHints {
+  const raw = (baseUrl || '').trim()
+  if (!raw) {
+    return { origin: FALLBACK_AZURE_ORIGIN }
+  }
+
+  try {
+    const parsed = new URL(raw)
+    const apiVersionFromUrl = parsed.searchParams.get('api-version')?.trim()
+
+    const deploymentMatch = parsed.pathname.match(DEPLOYMENT_MATCH_REGEX)
+    if (deploymentMatch?.[1]) {
+      return {
+        origin: parsed.origin,
+        completionsUrl: `${parsed.origin}${parsed.pathname}${parsed.search}`,
+        completionsDeployment: decodeURIComponent(deploymentMatch[1]),
+        apiVersionFromUrl,
+      }
+    }
+
+    return {
+      origin: parsed.origin,
+      apiVersionFromUrl,
+    }
+  }
+  catch {
+    return { origin: FALLBACK_AZURE_ORIGIN }
+  }
+}
+
+function resolveCompletionsApiVersion(config: AzureOpenAIConfig, hints: AzureEndpointHints): string {
+  return (hints.apiVersionFromUrl || config.completionsApiVersion || DEFAULT_COMPLETIONS_API_VERSION).trim()
+}
+
+function resolveConfiguredDeployments(config: AzureOpenAIConfig): string[] {
+  const endpointHints = parseAzureEndpointHints(config.baseUrl)
+  return endpointHints.completionsDeployment ? [endpointHints.completionsDeployment] : []
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+}
+
+function isJsonSchema(value: unknown): value is JsonSchema {
+  return isRecord(value)
+}
+
+/**
+ * Converts primitive tool unions to the form that Azure OpenAI accepts.
+ *
+ * @example
+ * normalizeAzureOpenAIChatTools([{
+ *   function: { parameters: { anyOf: [{ type: 'string' }, { type: 'null' }] } },
+ * }])
+ * // => [{ function: { parameters: { type: ['string', 'null'] } } }]
+ */
+function normalizeAzureOpenAIChatTools(tools: unknown): unknown {
+  if (!Array.isArray(tools))
+    return tools
+
+  return tools.map((tool) => {
+    if (!isRecord(tool) || !isRecord(tool.function))
+      return tool
+
+    const parameters = tool.function.parameters
+    if (!isJsonSchema(parameters))
+      return tool
+
+    return {
+      ...tool,
+      function: {
+        ...tool.function,
+        parameters: collapseToolSchemaPrimitiveAnyOf(parameters),
+      },
+    }
+  })
+}
+
+function mapChatBodyToCompletions(body: Record<string, unknown>): Record<string, unknown> {
+  const mappedBody: Record<string, unknown> = {
+    ...body,
+    messages: body.messages,
+    max_completion_tokens: body.max_completion_tokens ?? body.max_output_tokens ?? body.max_tokens,
+    tools: normalizeAzureOpenAIChatTools(body.tools),
+  }
+
+  delete mappedBody.input
+  delete mappedBody.max_output_tokens
+
+  return mappedBody
+}
 
 function createAzureOpenAIFetch(config: AzureOpenAIConfig) {
   const endpointHints = parseAzureEndpointHints(config.baseUrl)
@@ -78,125 +188,53 @@ function createAzureOpenAIFetch(config: AzureOpenAIConfig) {
 
     const mappedBody = mapChatBodyToCompletions(requestBody)
     return fetch(completionsUrl.toString(), {
-      body: JSON.stringify(mappedBody),
-      headers,
       method: 'POST',
+      headers,
+      body: JSON.stringify(mappedBody),
       signal: request.signal,
     })
   }
 }
 
-function isJsonSchema(value: unknown): value is JsonSchema {
-  return isRecord(value)
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
-}
-
-function mapChatBodyToCompletions(body: Record<string, unknown>): Record<string, unknown> {
-  const mappedBody: Record<string, unknown> = {
-    ...body,
-    max_completion_tokens: body.max_completion_tokens ?? body.max_output_tokens ?? body.max_tokens,
-    messages: body.messages,
-    tools: normalizeAzureOpenAIChatTools(body.tools),
-  }
-
-  delete mappedBody.input
-  delete mappedBody.max_output_tokens
-
-  return mappedBody
-}
-
-/**
- * Converts primitive tool unions to the form that Azure OpenAI accepts.
- *
- * @example
- * normalizeAzureOpenAIChatTools([{
- *   function: { parameters: { anyOf: [{ type: 'string' }, { type: 'null' }] } },
- * }])
- * // => [{ function: { parameters: { type: ['string', 'null'] } } }]
- */
-function normalizeAzureOpenAIChatTools(tools: unknown): unknown {
-  if (!Array.isArray(tools))
-    return tools
-
-  return tools.map((tool) => {
-    if (!isRecord(tool) || !isRecord(tool.function))
-      return tool
-
-    const parameters = tool.function.parameters
-    if (!isJsonSchema(parameters))
-      return tool
-
-    return {
-      ...tool,
-      function: {
-        ...tool.function,
-        parameters: collapseToolSchemaPrimitiveAnyOf(parameters),
-      },
-    }
-  })
-}
-
-function parseAzureEndpointHints(baseUrl: string | undefined): AzureEndpointHints {
-  const raw = (baseUrl || '').trim()
-  if (!raw) {
-    return { origin: FALLBACK_AZURE_ORIGIN }
-  }
-
-  try {
-    const parsed = new URL(raw)
-    const apiVersionFromUrl = parsed.searchParams.get('api-version')?.trim()
-
-    const deploymentMatch = parsed.pathname.match(DEPLOYMENT_MATCH_REGEX)
-    if (deploymentMatch?.[1]) {
-      return {
-        apiVersionFromUrl,
-        completionsDeployment: decodeURIComponent(deploymentMatch[1]),
-        completionsUrl: `${parsed.origin}${parsed.pathname}${parsed.search}`,
-        origin: parsed.origin,
-      }
-    }
-
-    return {
-      apiVersionFromUrl,
-      origin: parsed.origin,
-    }
-  }
-  catch {
-    return { origin: FALLBACK_AZURE_ORIGIN }
-  }
-}
-
-function resolveCompletionsApiVersion(config: AzureOpenAIConfig, hints: AzureEndpointHints): string {
-  return (hints.apiVersionFromUrl || config.completionsApiVersion || DEFAULT_COMPLETIONS_API_VERSION).trim()
-}
-
-function resolveConfiguredDeployments(config: AzureOpenAIConfig): string[] {
-  const endpointHints = parseAzureEndpointHints(config.baseUrl)
-  return endpointHints.completionsDeployment ? [endpointHints.completionsDeployment] : []
-}
-
-function resolveProviderBaseUrl(input: string): string {
-  const trimmed = input.trim()
-  if (!trimmed) {
-    return DEFAULT_AZURE_OPENAI_COMPATIBLE_BASE_URL
-  }
-
-  try {
-    const parsed = new URL(trimmed)
-    if (DEPLOYMENT_CHAT_COMPLETIONS_PATH_REGEX.test(parsed.pathname) || OPENAI_PATH_REGEX.test(parsed.pathname)) {
-      return `${parsed.origin}/openai/v1`
-    }
-  }
-  catch {
-  }
-
-  return trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed
-}
-
 export const providerAzureOpenAI = defineProvider<AzureOpenAIConfig>({
+  id: 'azure-openai',
+  order: 2,
+  name: 'Azure OpenAI',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.azure-openai.title'),
+  description: 'Azure OpenAI API',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.azure-openai.description'),
+  tasks: ['chat'],
+  icon: 'i-simple-icons:microsoftazure',
+  extraMethods: {
+    listModels: async (config, _provider) => {
+      return resolveConfiguredDeployments(config).map(model => ({
+        id: model,
+        name: model,
+        provider: AZURE_OPENAI_PROVIDER_ID,
+        description: 'Azure deployment',
+      }))
+    },
+  },
+
+  createProviderConfig: ({ t }) => azureOpenAIConfigSchema.extend({
+    apiKey: azureOpenAIConfigSchema.shape.apiKey.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+      type: 'password',
+    }),
+    baseUrl: azureOpenAIConfigSchema.shape.baseUrl.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      descriptionLocalized: 'Azure endpoint or full Chat Completions URL. Full URL is recommended.',
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
+    }),
+    completionsApiVersion: azureOpenAIConfigSchema.shape.completionsApiVersion.meta({
+      labelLocalized: 'Completions API Version',
+      descriptionLocalized: 'Used for Azure Chat Completions API requests.',
+      placeholderLocalized: '2024-04-01-preview',
+      section: 'advanced',
+    }),
+  }),
   createProvider(config) {
     const normalizedBaseUrl = resolveProviderBaseUrl(config.baseUrl || DEFAULT_AZURE_BASE_URL)
     const provider = createOpenAI(config.apiKey || '', normalizedBaseUrl) as any
@@ -204,6 +242,10 @@ export const providerAzureOpenAI = defineProvider<AzureOpenAIConfig>({
 
     return {
       ...provider,
+      model: (...args: any[]) => ({
+        ...provider.model(...args),
+        fetch,
+      }),
       chat: (...args: any[]) => ({
         ...provider.chat(...args),
         fetch,
@@ -216,10 +258,6 @@ export const providerAzureOpenAI = defineProvider<AzureOpenAIConfig>({
         ...provider.image(...args),
         fetch,
       }),
-      model: (...args: any[]) => ({
-        ...provider.model(...args),
-        fetch,
-      }),
       speech: (...args: any[]) => ({
         ...provider.speech(...args),
         fetch,
@@ -230,44 +268,6 @@ export const providerAzureOpenAI = defineProvider<AzureOpenAIConfig>({
       }),
     }
   },
-  createProviderConfig: ({ t }) => azureOpenAIConfigSchema.extend({
-    apiKey: azureOpenAIConfigSchema.shape.apiKey.meta({
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
-      type: 'password',
-    }),
-    baseUrl: azureOpenAIConfigSchema.shape.baseUrl.meta({
-      descriptionLocalized: 'Azure endpoint or full Chat Completions URL. Full URL is recommended.',
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
-    }),
-    completionsApiVersion: azureOpenAIConfigSchema.shape.completionsApiVersion.meta({
-      descriptionLocalized: 'Used for Azure Chat Completions API requests.',
-      labelLocalized: 'Completions API Version',
-      placeholderLocalized: '2024-04-01-preview',
-      section: 'advanced',
-    }),
-  }),
-  description: 'Azure OpenAI API',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.azure-openai.description'),
-  extraMethods: {
-    listModels: async (config, _provider) => {
-      return resolveConfiguredDeployments(config).map(model => ({
-        description: 'Azure deployment',
-        id: model,
-        name: model,
-        provider: AZURE_OPENAI_PROVIDER_ID,
-      }))
-    },
-  },
-  icon: 'i-simple-icons:microsoftazure',
-  id: 'azure-openai',
-  name: 'Azure OpenAI',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.azure-openai.title'),
-
-  order: 2,
-  tasks: ['chat'],
 
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()
@@ -335,10 +335,10 @@ export const providerAzureOpenAI = defineProvider<AzureOpenAIConfig>({
               const normalizedBaseUrl = resolveProviderBaseUrl(baseUrlRaw)
               const modelsUrl = new URL(`${normalizedBaseUrl.replace(TRAILING_SLASH_REGEX, '')}/models`)
               const response = await fetch(modelsUrl.toString(), {
+                method: 'GET',
                 headers: {
                   'api-key': apiKey,
                 },
-                method: 'GET',
               })
 
               if (response.status === 401 || response.status === 403) {
@@ -360,16 +360,16 @@ export const providerAzureOpenAI = defineProvider<AzureOpenAIConfig>({
               }
 
               const response = await fetch(completionsUrl.toString(), {
-                body: JSON.stringify({
-                  max_tokens: 1,
-                  messages: [{ content: 'ping', role: 'user' }],
-                  model: deployment,
-                }),
+                method: 'POST',
                 headers: {
                   'api-key': apiKey,
                   'content-type': 'application/json',
                 },
-                method: 'POST',
+                body: JSON.stringify({
+                  model: deployment,
+                  messages: [{ role: 'user', content: 'ping' }],
+                  max_tokens: 1,
+                }),
               })
 
               if (response.status >= 400) {

@@ -13,12 +13,12 @@ describe('getRuntimePreflight', () => {
   it('denies non-remote execution for linux-x11 tools', () => {
     const preflight = getRuntimePreflight({
       config: createTestConfig(),
+      lastScreenshot: createLastScreenshot(),
       displayInfo: createDisplayInfo(),
       executionTarget: createRemoteExecutionTarget({
         mode: 'dry-run',
         transport: 'local',
       }),
-      lastScreenshot: createLastScreenshot(),
     })
 
     expect(preflight.blockingIssues).toContain('desktop tools require a remote linux-x11 execution target')
@@ -27,11 +27,11 @@ describe('getRuntimePreflight', () => {
   it('denies mismatched session tags', () => {
     const preflight = getRuntimePreflight({
       config: createTestConfig(),
+      lastScreenshot: createLastScreenshot(),
       displayInfo: createDisplayInfo(),
       executionTarget: createRemoteExecutionTarget({
         sessionTag: 'different-session',
       }),
-      lastScreenshot: createLastScreenshot(),
     })
 
     expect(preflight.blockingIssues[0]).toContain('does not match expected')
@@ -40,12 +40,12 @@ describe('getRuntimePreflight', () => {
   it('denies display mismatches against allowed bounds', () => {
     const preflight = getRuntimePreflight({
       config: createTestConfig(),
+      lastScreenshot: createLastScreenshot(),
       displayInfo: createDisplayInfo({
-        logicalHeight: 900,
         logicalWidth: 1440,
+        logicalHeight: 900,
       }),
       executionTarget: createRemoteExecutionTarget(),
-      lastScreenshot: createLastScreenshot(),
     })
 
     expect(preflight.blockingIssues[0]).toContain('does not match allowed bounds 1280x720')
@@ -54,12 +54,12 @@ describe('getRuntimePreflight', () => {
   it('requires a fresh screenshot after the runner is tainted', () => {
     const preflight = getRuntimePreflight({
       config: createTestConfig(),
+      lastScreenshot: createLastScreenshot(),
       displayInfo: createDisplayInfo(),
       executionTarget: createRemoteExecutionTarget({
-        note: 'ssh transport closed unexpectedly',
         tainted: true,
+        note: 'ssh transport closed unexpectedly',
       }),
-      lastScreenshot: createLastScreenshot(),
     })
 
     expect(preflight.mutationReadinessIssues).toContain('remote runner session is tainted; capture a fresh screenshot before resuming mutations')

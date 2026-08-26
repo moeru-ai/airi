@@ -14,15 +14,57 @@ import { normalizeStaticAssetPath } from './paths'
 
 interface StaticAssetSessionRecord {
   assetSessionId: string
-  cookieName: string
-  cookiePath: string
-  cookieValue: string
-  expiresAt: number
   extensionId: string
+  version: string
   ownerSessionId: string
   pathPrefix: string
   ttlMs: number
-  version: string
+  cookieName: string
+  cookieValue: string
+  cookiePath: string
+  expiresAt: number
+}
+
+/**
+ * Normalizes asset path prefixes used to constrain a session.
+ *
+ * Before:
+ * - " assets\\ "
+ *
+ * After:
+ * - "assets/"
+ */
+function normalizePathPrefix(pathPrefix: string) {
+  const normalizedInput = pathPrefix.trim().replaceAll('\\', '/')
+  if (!normalizedInput) {
+    return ''
+  }
+
+  const isDirectoryPrefix = normalizedInput.endsWith('/')
+  const normalized = normalizeStaticAssetPath(normalizedInput)
+  if (!normalized) {
+    throw new RangeError('Extension asset session pathPrefix must be empty or a safe plugin asset path')
+  }
+
+  return isDirectoryPrefix ? `${normalized}/` : normalized
+}
+
+/**
+ * Normalizes requested asset paths before comparing them to session prefixes.
+ *
+ * Before:
+ * - " assets\\index.js "
+ *
+ * After:
+ * - "assets/index.js"
+ */
+function normalizeAssetPath(assetPath: string) {
+  return normalizeStaticAssetPath(assetPath.trim().replaceAll('\\', '/'))
+}
+
+function createOpaqueToken() {
+  // Node's base64url alphabet is route/cookie friendly while staying opaque.
+  return randomBytes(18).toString('base64url')
 }
 
 /**
@@ -40,6 +82,42 @@ interface StaticAssetSessionRecord {
  */
 export function createStaticAssetSessionCookieName(assetSessionId: string) {
   return `airi_extension_asset_session_${assetSessionId}`
+}
+
+function createCookiePath(extensionId: string, assetSessionId: string) {
+  return `/_airi/extensions/${encodeURIComponent(extensionId)}/sessions/${encodeURIComponent(assetSessionId)}/ui`
+}
+
+function createSessionSnapshot(record: StaticAssetSessionRecord): StaticAssetSession {
+  return Object.freeze({
+    assetSessionId: record.assetSessionId,
+    cookieName: record.cookieName,
+    cookieValue: record.cookieValue,
+    cookiePath: record.cookiePath,
+    expiresAt: record.expiresAt,
+  })
+}
+
+function cookieValuesMatch(expected: string, actual: string) {
+  const expectedBuffer = Buffer.from(expected, 'utf8')
+  const actualBuffer = Buffer.from(actual, 'utf8')
+  if (expectedBuffer.length !== actualBuffer.length) {
+    return false
+  }
+
+  return timingSafeEqual(expectedBuffer, actualBuffer)
+}
+
+function unauthorized(code: string, reason: string) {
+  return {
+    ok: false as const,
+    error: new HttpError({
+      status: 401,
+      code,
+      message: 'Unauthorized',
+      reason,
+    }),
+  }
 }
 
 /**
@@ -69,7 +147,7 @@ export function createStaticAssetSessionStore(options: { now?: () => number } = 
     return true
   }
 
-  const readActiveRecord = (assetSessionId: string, expiredCode: string): { ok: false, result: { error: HttpError, ok: false } } | { ok: true, record: StaticAssetSessionRecord } => {
+  const readActiveRecord = (assetSessionId: string, expiredCode: string): { ok: false, result: { ok: false, error: HttpError } } | { ok: true, record: StaticAssetSessionRecord } => {
     const record = records.get(assetSessionId)
     if (!record) {
       return {
@@ -99,15 +177,15 @@ export function createStaticAssetSessionStore(options: { now?: () => number } = 
     const assetSessionId = createOpaqueToken()
     const record: StaticAssetSessionRecord = {
       assetSessionId,
-      cookieName: createStaticAssetSessionCookieName(assetSessionId),
-      cookiePath: createCookiePath(input.extensionId, assetSessionId),
-      cookieValue: createOpaqueToken(),
-      expiresAt: now() + input.ttlMs,
       extensionId: input.extensionId,
+      version: input.version,
       ownerSessionId: input.ownerSessionId,
       pathPrefix: normalizePathPrefix(input.pathPrefix),
       ttlMs: input.ttlMs,
-      version: input.version,
+      cookieName: createStaticAssetSessionCookieName(assetSessionId),
+      cookieValue: createOpaqueToken(),
+      cookiePath: createCookiePath(input.extensionId, assetSessionId),
+      expiresAt: now() + input.ttlMs,
     }
 
     records.set(assetSessionId, record)
@@ -175,6 +253,7 @@ export function createStaticAssetSessionStore(options: { now?: () => number } = 
 
   return {
     createSession,
+    validateRequest,
     refreshSession(assetSessionId) {
       const active = readActiveRecord(assetSessionId, 'EXTENSION_ASSET_SESSION_EXPIRED')
       if (!active.ok) {
@@ -183,15 +262,6 @@ export function createStaticAssetSessionStore(options: { now?: () => number } = 
 
       active.record.expiresAt = now() + active.record.ttlMs
       return createSessionSnapshot(active.record)
-    },
-    revokeAll() {
-      return revokeWhere(() => true)
-    },
-    revokeByExtensionId(extensionId) {
-      return revokeWhere(record => record.extensionId === extensionId)
-    },
-    revokeByOwnerSessionId(ownerSessionId) {
-      return revokeWhere(record => record.ownerSessionId === ownerSessionId)
     },
     revokeSession(assetSessionId) {
       const record = records.get(assetSessionId)
@@ -202,84 +272,14 @@ export function createStaticAssetSessionStore(options: { now?: () => number } = 
       records.delete(assetSessionId)
       return createSessionSnapshot(record)
     },
-    validateRequest,
-  }
-}
-
-function cookieValuesMatch(expected: string, actual: string) {
-  const expectedBuffer = Buffer.from(expected, 'utf8')
-  const actualBuffer = Buffer.from(actual, 'utf8')
-  if (expectedBuffer.length !== actualBuffer.length) {
-    return false
-  }
-
-  return timingSafeEqual(expectedBuffer, actualBuffer)
-}
-
-function createCookiePath(extensionId: string, assetSessionId: string) {
-  return `/_airi/extensions/${encodeURIComponent(extensionId)}/sessions/${encodeURIComponent(assetSessionId)}/ui`
-}
-
-function createOpaqueToken() {
-  // Node's base64url alphabet is route/cookie friendly while staying opaque.
-  return randomBytes(18).toString('base64url')
-}
-
-function createSessionSnapshot(record: StaticAssetSessionRecord): StaticAssetSession {
-  return Object.freeze({
-    assetSessionId: record.assetSessionId,
-    cookieName: record.cookieName,
-    cookiePath: record.cookiePath,
-    cookieValue: record.cookieValue,
-    expiresAt: record.expiresAt,
-  })
-}
-
-/**
- * Normalizes requested asset paths before comparing them to session prefixes.
- *
- * Before:
- * - " assets\\index.js "
- *
- * After:
- * - "assets/index.js"
- */
-function normalizeAssetPath(assetPath: string) {
-  return normalizeStaticAssetPath(assetPath.trim().replaceAll('\\', '/'))
-}
-
-/**
- * Normalizes asset path prefixes used to constrain a session.
- *
- * Before:
- * - " assets\\ "
- *
- * After:
- * - "assets/"
- */
-function normalizePathPrefix(pathPrefix: string) {
-  const normalizedInput = pathPrefix.trim().replaceAll('\\', '/')
-  if (!normalizedInput) {
-    return ''
-  }
-
-  const isDirectoryPrefix = normalizedInput.endsWith('/')
-  const normalized = normalizeStaticAssetPath(normalizedInput)
-  if (!normalized) {
-    throw new RangeError('Extension asset session pathPrefix must be empty or a safe plugin asset path')
-  }
-
-  return isDirectoryPrefix ? `${normalized}/` : normalized
-}
-
-function unauthorized(code: string, reason: string) {
-  return {
-    error: new HttpError({
-      code,
-      message: 'Unauthorized',
-      reason,
-      status: 401,
-    }),
-    ok: false as const,
+    revokeByOwnerSessionId(ownerSessionId) {
+      return revokeWhere(record => record.ownerSessionId === ownerSessionId)
+    },
+    revokeByExtensionId(extensionId) {
+      return revokeWhere(record => record.extensionId === extensionId)
+    },
+    revokeAll() {
+      return revokeWhere(() => true)
+    },
   }
 }

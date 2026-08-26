@@ -16,12 +16,12 @@ export { resolveWidgetAssetRoute, rewriteWidgetModuleAssetUrl } from './asset-ur
  * - The widget kit descriptor used for `kit.widget`
  */
 export const widgetPluginKitDescriptor = {
-  capabilities: [
-    { actions: ['announce', 'activate', 'update', 'withdraw'], key: 'kit.widget.module' },
-  ],
   kitId: 'kit.widget',
-  runtimes: ['electron', 'web'],
   version: '1.0.0',
+  runtimes: ['electron', 'web'],
+  capabilities: [
+    { key: 'kit.widget.module', actions: ['announce', 'activate', 'update', 'withdraw'] },
+  ],
 } satisfies KitDescriptor
 
 /**

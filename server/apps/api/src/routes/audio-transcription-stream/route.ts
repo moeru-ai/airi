@@ -12,61 +12,23 @@ import { createKeyRotator } from '../../services/domain/llm-router/key-rotator'
 import { createServiceUnavailableError, createUnauthorizedError } from '../../utils/error'
 import { createAliyunNlsStreamResponse } from './session'
 
-type AliyunNlsRegion = 'cn-beijing' | 'cn-beijing-internal' | 'cn-shanghai' | 'cn-shanghai-internal' | 'cn-shenzhen' | 'cn-shenzhen-internal'
+type AliyunNlsRegion = 'cn-shanghai' | 'cn-shanghai-internal' | 'cn-beijing' | 'cn-beijing-internal' | 'cn-shenzhen' | 'cn-shenzhen-internal'
 
 const ALIYUN_NLS_REGION_FALLBACK: AliyunNlsRegion = 'cn-shanghai'
 const ALIYUN_NLS_REGIONS = new Set<AliyunNlsRegion>([
-  'cn-beijing',
-  'cn-beijing-internal',
   'cn-shanghai',
   'cn-shanghai-internal',
+  'cn-beijing',
+  'cn-beijing-internal',
   'cn-shenzhen',
   'cn-shenzhen-internal',
 ])
 
 const OFFICIAL_ASR_MODEL_NAME = 'auto'
 
-/**
- * Handles official realtime transcription audio upload streams.
- *
- * Use when:
- * - A browser client POSTs the Hearing PCM stream and expects SSE transcript deltas.
- *
- * Expects:
- * - Authentication has not yet run through normal session middleware because this route is mounted before body limits.
- *
- * Returns:
- * - An SSE response that mirrors `@xsai/stream-transcription` delta events.
- */
-export function createAudioTranscriptionStreamHandler(input: {
-  configKV: ConfigKVService
-  db: Database
-  env: Env
-  envelopeCrypto: EnvelopeCrypto
-  providerCatalogService: ProviderCatalogService
-}) {
-  return async function handleAudioTranscriptionStream(c: Context) {
-    const session = await resolveRequestAuth(
-      input.db,
-      input.env,
-      c.req.raw.headers,
-    )
-    if (!session?.user)
-      throw createUnauthorizedError()
-
-    const credentials = await resolveOfficialAliyunNlsCredentialsFromConfig(input)
-    if (!credentials)
-      throw createServiceUnavailableError('Official ASR transcription is not configured in the ASR capability catalog', 'CONFIG_NOT_SET')
-
-    const audioStream = c.req.raw.body
-    if (!audioStream)
-      throw createServiceUnavailableError('Streaming transcription request is missing audio body', 'REQUEST_BODY_NOT_STREAMABLE')
-
-    return createAliyunNlsStreamResponse({
-      audioStream: audioStream as ReadableStream<Uint8Array>,
-      credentials,
-    })
-  }
+function stringAdapterParam(params: Record<string, unknown> | undefined, key: string): string {
+  const value = params?.[key]
+  return typeof value === 'string' ? value.trim() : ''
 }
 
 /**
@@ -84,7 +46,7 @@ export function createAudioTranscriptionStreamHandler(input: {
  * - Decrypted credentials, or `null` when any required config is missing.
  */
 export function resolveOfficialAliyunNlsCredentials(
-  routerConfig: null | RouterConfig | undefined,
+  routerConfig: RouterConfig | null | undefined,
   envelopeCrypto: EnvelopeCrypto,
   modelName: string = OFFICIAL_ASR_MODEL_NAME,
 ) {
@@ -142,7 +104,45 @@ export async function resolveOfficialAliyunNlsCredentialsFromConfig(input: {
   return credentials
 }
 
-function stringAdapterParam(params: Record<string, unknown> | undefined, key: string): string {
-  const value = params?.[key]
-  return typeof value === 'string' ? value.trim() : ''
+/**
+ * Handles official realtime transcription audio upload streams.
+ *
+ * Use when:
+ * - A browser client POSTs the Hearing PCM stream and expects SSE transcript deltas.
+ *
+ * Expects:
+ * - Authentication has not yet run through normal session middleware because this route is mounted before body limits.
+ *
+ * Returns:
+ * - An SSE response that mirrors `@xsai/stream-transcription` delta events.
+ */
+export function createAudioTranscriptionStreamHandler(input: {
+  db: Database
+  env: Env
+  configKV: ConfigKVService
+  envelopeCrypto: EnvelopeCrypto
+  providerCatalogService: ProviderCatalogService
+}) {
+  return async function handleAudioTranscriptionStream(c: Context) {
+    const session = await resolveRequestAuth(
+      input.db,
+      input.env,
+      c.req.raw.headers,
+    )
+    if (!session?.user)
+      throw createUnauthorizedError()
+
+    const credentials = await resolveOfficialAliyunNlsCredentialsFromConfig(input)
+    if (!credentials)
+      throw createServiceUnavailableError('Official ASR transcription is not configured in the ASR capability catalog', 'CONFIG_NOT_SET')
+
+    const audioStream = c.req.raw.body
+    if (!audioStream)
+      throw createServiceUnavailableError('Streaming transcription request is missing audio body', 'REQUEST_BODY_NOT_STREAMABLE')
+
+    return createAliyunNlsStreamResponse({
+      audioStream: audioStream as ReadableStream<Uint8Array>,
+      credentials,
+    })
+  }
 }

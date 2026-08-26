@@ -6,6 +6,23 @@ export interface VoiceInputSuppressionOptions {
 }
 
 /**
+ * Decides whether voice input should be ignored while assistant audio can leak into the microphone.
+ *
+ * Use when:
+ * - The assistant is actively playing TTS.
+ * - The assistant just stopped speaking and speaker echo may still be captured.
+ *
+ * Expects:
+ * - `suppressedUntil` is a timestamp in milliseconds.
+ *
+ * Returns:
+ * - `true` when capture, transcription, and ingestion should be skipped.
+ */
+export function shouldSuppressVoiceInput(options: VoiceInputSuppressionOptions, now = Date.now()) {
+  return options.assistantSpeaking || now < options.suppressedUntil
+}
+
+/**
  * Calculates the timestamp until which voice input should stay muted after assistant speech.
  *
  * Use when:
@@ -22,21 +39,4 @@ export function assistantSpeechCooldownDeadline(
   cooldownMs = DEFAULT_ASSISTANT_SPEECH_INPUT_COOLDOWN_MS,
 ) {
   return endedAt + cooldownMs
-}
-
-/**
- * Decides whether voice input should be ignored while assistant audio can leak into the microphone.
- *
- * Use when:
- * - The assistant is actively playing TTS.
- * - The assistant just stopped speaking and speaker echo may still be captured.
- *
- * Expects:
- * - `suppressedUntil` is a timestamp in milliseconds.
- *
- * Returns:
- * - `true` when capture, transcription, and ingestion should be skipped.
- */
-export function shouldSuppressVoiceInput(options: VoiceInputSuppressionOptions, now = Date.now()) {
-  return options.assistantSpeaking || now < options.suppressedUntil
 }

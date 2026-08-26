@@ -63,18 +63,6 @@ afterAll(() => {
   layoutStyle.remove()
 })
 
-async function expectImportedModelPhoto(component: Component, modelId: string) {
-  const container = await renderPolaroid(component, modelId)
-
-  await expect.poll(() => container.querySelector('option'), { timeout: 20_000 }).toBeInstanceOf(HTMLOptionElement)
-
-  const canvas = container.querySelector('canvas')
-  if (!(canvas instanceof HTMLCanvasElement))
-    throw new TypeError('Polaroid did not render a canvas.')
-
-  expect(canvas.toDataURL('image/png')).toMatch(/^data:image\/png;base64,./)
-}
-
 async function renderPolaroid(component: Component, modelId: string) {
   const pinia = createPinia()
   const displayModels = useDisplayModelsStore(pinia)
@@ -94,12 +82,12 @@ async function renderPolaroid(component: Component, modelId: string) {
   app.mount(container)
 
   displayModels.displayModels.unshift({
-    file,
-    format: DisplayModelFormat.Live2dZip,
     id: modelId,
-    importedAt: Date.now(),
-    name: file.name,
+    format: DisplayModelFormat.Live2dZip,
     type: 'file',
+    file,
+    name: file.name,
+    importedAt: Date.now(),
   })
 
   settings.stageModelSelected = modelId
@@ -107,6 +95,18 @@ async function renderPolaroid(component: Component, modelId: string) {
   await expect.poll(() => settings.stageModelSelectedUrl).toMatch(/^blob:/)
 
   return container
+}
+
+async function expectImportedModelPhoto(component: Component, modelId: string) {
+  const container = await renderPolaroid(component, modelId)
+
+  await expect.poll(() => container.querySelector('option'), { timeout: 20_000 }).toBeInstanceOf(HTMLOptionElement)
+
+  const canvas = container.querySelector('canvas')
+  if (!(canvas instanceof HTMLCanvasElement))
+    throw new TypeError('Polaroid did not render a canvas.')
+
+  expect(canvas.toDataURL('image/png')).toMatch(/^data:image\/png;base64,./)
 }
 
 describe('polaroid imported Live2D model', () => {

@@ -28,17 +28,17 @@ export interface Live2DEyeFocusSource {
 export function useLive2DEyeFocusFor(options: {
   canvas: MaybeRefOrGetter<HTMLCanvasElement | undefined>
   model: MaybeRefOrGetter<{
-    modelHeight: number
-    modelWidth: number
     normalizedScale: number
+    modelWidth: number
+    modelHeight: number
   }>
   source: MaybeRefOrGetter<Live2DEyeFocusSource | null | undefined>
 }): ComputedRef<{ x: number, y: number }> {
-  const { live2dModelEyeOffset, live2dRenderScale } = storeToRefs(useSettingsLive2d())
+  const { live2dRenderScale, live2dModelEyeOffset } = storeToRefs(useSettingsLive2d())
   const { scale } = useL2dViewControl()
 
   const mouseFocus = computed(() => {
-    const { modelHeight, modelWidth, normalizedScale } = toValue(options.model)
+    const { normalizedScale, modelWidth, modelHeight } = toValue(options.model)
     const renderScale = live2dRenderScale.value
     const trackingSource = toValue(options.source)
     const canvasRect = toValue(options.canvas)?.getBoundingClientRect()

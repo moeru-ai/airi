@@ -3,26 +3,26 @@ import { webcrypto } from 'node:crypto'
 import { createContentLoader } from 'vitepress'
 
 export interface Author {
-  avatar?: string
-  avatarFallback: string
+  role: string
+  kind: 'person' | 'team'
 
   displayName: string
 
-  githubEmail?: string
   githubUsername?: string
+  githubEmail?: string
 
-  kind: 'person' | 'team'
-  role: string
+  avatar?: string
+  avatarFallback: string
 }
 
 interface MarkdownAuthor {
-  avatar?: string
-  githubEmail?: string
-  githubUsername?: string
-  kind?: 'person' | 'team'
-
   name?: string
   role?: string
+  kind?: 'person' | 'team'
+  avatar?: string
+
+  githubUsername?: string
+  githubEmail?: string
 }
 
 /**
@@ -42,7 +42,7 @@ async function digestStringAsSHA256(message: string) {
   return hashHex
 }
 
-async function newAvatarForAuthor(mappedAuthor?: null | { displayName?: string, githubUsername?: string, overrideAvatar?: string }, email?: null | string): Promise<string> {
+async function newAvatarForAuthor(mappedAuthor?: { overrideAvatar?: string, githubUsername?: string, displayName?: string } | null, email?: string | null): Promise<string> {
   if (mappedAuthor) {
     if (mappedAuthor.overrideAvatar)
       return mappedAuthor.overrideAvatar
@@ -54,10 +54,10 @@ async function newAvatarForAuthor(mappedAuthor?: null | { displayName?: string, 
 }
 
 export default createContentLoader('**/*.md', {
-  async transform(raw): Promise<Array<{ authors: Author[], url: string }>> {
+  async transform(raw): Promise<Array<{ url: string, authors: Author[] }>> {
     return (await Promise.all(
       raw
-        .map(async ({ frontmatter, url }) => {
+        .map(async ({ url, frontmatter }) => {
           const authors: MarkdownAuthor[] = frontmatter.authors
           if (!authors || !Array.isArray(authors)) {
             return
@@ -67,22 +67,22 @@ export default createContentLoader('**/*.md', {
             const displayName = author.name || author.githubUsername || author.githubEmail || 'Unknown Author'
 
             return {
-              avatar: author.avatar || await newAvatarForAuthor({ displayName, githubUsername: author.githubUsername }, author.githubEmail),
-              avatarFallback: `https://gravatar.com/avatar/${await digestStringAsSHA256(displayName)}?d=retro`,
+              role: author.role || 'Contributor',
+              kind: author.kind || 'person',
 
               displayName,
 
-              githubEmail: author.githubEmail,
               githubUsername: author.githubUsername,
+              githubEmail: author.githubEmail,
 
-              kind: author.kind || 'person',
-              role: author.role || 'Contributor',
+              avatar: author.avatar || await newAvatarForAuthor({ githubUsername: author.githubUsername, displayName }, author.githubEmail),
+              avatarFallback: `https://gravatar.com/avatar/${await digestStringAsSHA256(displayName)}?d=retro`,
             }
           }))
 
           return {
-            authors: authorsTransformed,
             url,
+            authors: authorsTransformed,
           }
         }),
     )).filter(item => item != null)

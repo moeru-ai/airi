@@ -32,6 +32,18 @@ function ancestorPath(path: string, levels: number): string {
 
 const PNPM_MODULE_STORE_PATH = realpathSync(ancestorPath(ISOLATED_VM_ENTRY_PATH, 4))
 
+function cloneStructured<T>(value: T): T {
+  if (typeof value === 'undefined')
+    return value
+
+  try {
+    return structuredClone(value)
+  }
+  catch {
+    return JSON.parse(JSON.stringify(value)) as T
+  }
+}
+
 interface SandboxRunnerOptions {
   bridgeTimeoutMs: number
   maxBridgeCalls: number
@@ -106,18 +118,18 @@ export async function executeSandboxWorker(
         ])
 
         response = {
-          ok: true,
-          requestId: message.requestId,
-          result: cloneStructured(result),
           type: 'bridge-response',
+          requestId: message.requestId,
+          ok: true,
+          result: cloneStructured(result),
         }
       }
       catch (error) {
         response = {
-          error: serializeWorkerError(error),
-          ok: false,
-          requestId: message.requestId,
           type: 'bridge-response',
+          requestId: message.requestId,
+          ok: false,
+          error: serializeWorkerError(error),
         }
       }
 
@@ -155,7 +167,7 @@ export async function executeSandboxWorker(
         return
 
       if (message.type === 'ready') {
-        child.send({ payload: request, type: 'evaluate' } satisfies ParentToWorkerMessage)
+        child.send({ type: 'evaluate', payload: request } satisfies ParentToWorkerMessage)
         return
       }
 
@@ -180,16 +192,4 @@ export async function executeSandboxWorker(
       }
     })
   })
-}
-
-function cloneStructured<T>(value: T): T {
-  if (typeof value === 'undefined')
-    return value
-
-  try {
-    return structuredClone(value)
-  }
-  catch {
-    return JSON.parse(JSON.stringify(value)) as T
-  }
 }

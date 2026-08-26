@@ -26,11 +26,11 @@ describe('createStreamingControlParser', () => {
     const control = createStreamingControlParser()
     const handler = vi.fn()
     const dispose = control.on({
+      name: 'plugin.action',
+      prompt: 'Run the plugin action when the model is ready.',
       examples: [
         '<|CALL ["plugin.action", {"value":1}]|>',
       ],
-      name: 'plugin.action',
-      prompt: 'Run the plugin action when the model is ready.',
     }, handler)
 
     await expect(control.dispatchWith('<|CALL ["plugin.action", {"value":1}]|>', {
@@ -211,11 +211,11 @@ describe('createStreamingControlParser', () => {
 
     expect(handler).toHaveBeenCalledWith(
       {
+        type: 'act',
         payload: {
-          emotion: { intensity: 0.8, name: 'happy' },
+          emotion: { name: 'happy', intensity: 0.8 },
           motion: 'nod',
         },
-        type: 'act',
       },
       expect.objectContaining({
         createdAt: expect.any(Number),
@@ -240,8 +240,8 @@ describe('createStreamingControlParser', () => {
 
     expect(handler).toHaveBeenCalledWith(
       {
-        seconds: 1.5,
         type: 'delay',
+        seconds: 1.5,
       },
       expect.objectContaining({
         createdAt: expect.any(Number),
@@ -277,12 +277,12 @@ describe('createStreamingControlParser', () => {
     const control = createStreamingControlParser({
       parsers: [
         {
-          match: special => special === '<|CUSTOM|>',
           name: 'CUSTOM',
+          match: special => special === '<|CUSTOM|>',
           parse: () => ({
+            type: 'call',
             name: 'plugin.action',
             payload: { value: 1 },
-            type: 'call',
           }),
         },
       ],
@@ -312,11 +312,11 @@ describe('createStreamingControlParser', () => {
   it('renders registered CALL manifests as model instructions', () => {
     const control = createStreamingControlParser()
     const dispose = control.on({
+      name: 'plugin.action',
+      prompt: 'Run the plugin action when the model is ready.',
       examples: [
         '<|CALL ["plugin.action"]|>',
       ],
-      name: 'plugin.action',
-      prompt: 'Run the plugin action when the model is ready.',
     }, vi.fn())
 
     expect(control.renderManifestPrompt()).toContain('Available streaming CALL tokens')

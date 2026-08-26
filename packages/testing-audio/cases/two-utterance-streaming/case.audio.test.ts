@@ -19,13 +19,13 @@ describe('audio input pipeline', () => {
           return undefined
 
         return {
-          captureFormat: 'wav',
           provider: openaiAsr({
             apiKey,
             baseUrl: environment.TESTING_AUDIO_ASR_API_BASE_URL ?? 'https://api.openai.com/v1/',
             model: environment.TESTING_AUDIO_ASR_MODEL ?? 'whisper-1',
             provider: environment.TESTING_AUDIO_ASR_PROVIDER ?? 'openai-compatible-audio-transcription',
           }),
+          captureFormat: 'wav',
         }
       }),
     ],
@@ -75,8 +75,8 @@ describe('audio input pipeline', () => {
           return undefined
 
         return {
+          provider: aliyunNlsAsr({ provider, accessKeyId, accessKeySecret, appKey }),
           captureFormat: 'pcm',
-          provider: aliyunNlsAsr({ accessKeyId, accessKeySecret, appKey, provider }),
         }
       }),
     ],

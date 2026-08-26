@@ -1,3 +1,13 @@
+function quoteField(field: unknown): string {
+  return `"${String(field).replace(/"/g, '""')}"`
+}
+
+function toCsv(rows: Array<Array<unknown>>): string {
+  return rows
+    .map(row => row.map(quoteField).join(','))
+    .join('\n')
+}
+
 export function exportCsv(rows: Array<Array<unknown>>, basename: string) {
   if (!rows.length)
     return
@@ -15,14 +25,4 @@ export function exportCsv(rows: Array<Array<unknown>>, basename: string) {
   link.download = `${basename}-${Date.now()}.csv`
   link.click()
   URL.revokeObjectURL(url)
-}
-
-function quoteField(field: unknown): string {
-  return `"${String(field).replace(/"/g, '""')}"`
-}
-
-function toCsv(rows: Array<Array<unknown>>): string {
-  return rows
-    .map(row => row.map(quoteField).join(','))
-    .join('\n')
 }

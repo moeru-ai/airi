@@ -4,17 +4,17 @@ import { computed, toValue } from 'vue'
 
 export interface UseGridRippleOptions {
   cols: MaybeRefOrGetter<number>
-  delayPerUnit?: number
   originIndex: MaybeRefOrGetter<number>
   sectionItemCounts: MaybeRefOrGetter<number[]>
+  delayPerUnit?: number
 }
 
 export function useGridRipple(options: UseGridRippleOptions) {
-  const { cols, delayPerUnit = 80, originIndex, sectionItemCounts } = options
+  const { cols, originIndex, sectionItemCounts, delayPerUnit = 80 } = options
 
   // to property propagate the ripple, we need to know the layout of the grid and map each item onto a coordinate
   const sectionLayout = computed(() => {
-    const layout: { itemCount: number, startLinearIndex: number, startRow: number }[] = []
+    const layout: { startLinearIndex: number, startRow: number, itemCount: number }[] = []
     let currentLinearIndex = 0
     let currentRow = 0
     const numCols = toValue(cols)
@@ -24,9 +24,9 @@ export function useGridRipple(options: UseGridRippleOptions) {
       const rows = Math.ceil(count / numCols)
 
       layout.push({
-        itemCount: count,
         startLinearIndex: currentLinearIndex,
         startRow: currentRow,
+        itemCount: count,
       })
 
       currentLinearIndex += count
@@ -37,7 +37,7 @@ export function useGridRipple(options: UseGridRippleOptions) {
 
   // precompute the coordinates
   const coordinateMap = computed(() => {
-    const map = new Map<number, { col: number, row: number }>()
+    const map = new Map<number, { row: number, col: number }>()
     const numCols = toValue(cols)
 
     for (const meta of sectionLayout.value) {
@@ -46,14 +46,14 @@ export function useGridRipple(options: UseGridRippleOptions) {
         const localRow = Math.floor(i / numCols)
         const col = i % numCols
         const row = meta.startRow + localRow
-        map.set(linearIndex, { col, row })
+        map.set(linearIndex, { row, col })
       }
     }
     return map
   })
 
   function getCoordinates(linearIndex: number) {
-    return coordinateMap.value.get(linearIndex) || { col: 0, row: 0 }
+    return coordinateMap.value.get(linearIndex) || { row: 0, col: 0 }
   }
 
   const originCoordinates = computed(() => getCoordinates(toValue(originIndex) || 0))

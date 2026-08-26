@@ -4,8 +4,8 @@ import { changePassword, getCurrentSession, signOut, updateUserProfile } from '.
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
-    headers: { 'Content-Type': 'application/json' },
     status,
+    headers: { 'Content-Type': 'application/json' },
   })
 }
 
@@ -14,12 +14,12 @@ describe('ui-server-auth profile flow helpers', () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => jsonResponse({
       session: { id: 'sess-1' },
       user: {
-        createdAt: '2025-04-01T00:00:00.000Z',
+        id: 'user-1',
+        name: 'Alice',
         email: 'alice@example.test',
         emailVerified: true,
-        id: 'user-1',
         image: 'https://cdn.example.test/avatar.png',
-        name: 'Alice',
+        createdAt: '2025-04-01T00:00:00.000Z',
         // Field intentionally not in ProfileUser — must be ignored.
         twoFactorEnabled: true,
       },
@@ -30,12 +30,12 @@ describe('ui-server-auth profile flow helpers', () => {
       fetchImpl,
     })).resolves.toEqual({
       user: {
-        createdAt: '2025-04-01T00:00:00.000Z',
+        id: 'user-1',
+        name: 'Alice',
         email: 'alice@example.test',
         emailVerified: true,
-        id: 'user-1',
         image: 'https://cdn.example.test/avatar.png',
-        name: 'Alice',
+        createdAt: '2025-04-01T00:00:00.000Z',
       },
     })
 
@@ -92,8 +92,8 @@ describe('ui-server-auth profile flow helpers', () => {
 
     await changePassword({
       apiServerUrl: 'https://api.airi.test',
-      currentPassword: 'old-pw',
       fetchImpl,
+      currentPassword: 'old-pw',
       newPassword: 'new-pw',
     })
 
@@ -112,8 +112,8 @@ describe('ui-server-auth profile flow helpers', () => {
 
     await expect(changePassword({
       apiServerUrl: 'https://api.airi.test',
-      currentPassword: 'wrong',
       fetchImpl,
+      currentPassword: 'wrong',
       newPassword: 'new-pw',
     })).rejects.toThrow('Invalid current password')
   })

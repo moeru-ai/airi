@@ -16,8 +16,8 @@ describe('stripeService', () => {
     db = await mockDB(schema)
 
     await db.insert(schema.user).values([
-      { email: 'stripe1@example.com', id: 'user-stripe-1', name: 'Stripe User 1' },
-      { email: 'stripe2@example.com', id: 'user-stripe-2', name: 'Stripe User 2' },
+      { id: 'user-stripe-1', name: 'Stripe User 1', email: 'stripe1@example.com' },
+      { id: 'user-stripe-2', name: 'Stripe User 2', email: 'stripe2@example.com' },
     ])
   })
 
@@ -36,9 +36,9 @@ describe('stripeService', () => {
   describe('upsertCustomer', () => {
     it('inserts a new customer', async () => {
       const result = await stripeService.upsertCustomer({
-        email: 'stripe1@example.com',
-        stripeCustomerId: 'cus_new_1',
         userId: 'user-stripe-1',
+        stripeCustomerId: 'cus_new_1',
+        email: 'stripe1@example.com',
       })
 
       expect(result.userId).toBe('user-stripe-1')
@@ -48,16 +48,16 @@ describe('stripeService', () => {
 
     it('updates an existing customer on conflict (atomic upsert)', async () => {
       await stripeService.upsertCustomer({
-        email: 'old@example.com',
-        stripeCustomerId: 'cus_dup_1',
         userId: 'user-stripe-1',
+        stripeCustomerId: 'cus_dup_1',
+        email: 'old@example.com',
       })
 
       const updated = await stripeService.upsertCustomer({
+        userId: 'user-stripe-1',
+        stripeCustomerId: 'cus_dup_1',
         email: 'new@example.com',
         name: 'Updated Name',
-        stripeCustomerId: 'cus_dup_1',
-        userId: 'user-stripe-1',
       })
 
       expect(updated.email).toBe('new@example.com')
@@ -72,14 +72,14 @@ describe('stripeService', () => {
       // Simulate two webhook events arriving at the same time for the same customer
       const results = await Promise.all([
         stripeService.upsertCustomer({
-          email: 'a@example.com',
-          stripeCustomerId: 'cus_race_1',
           userId: 'user-stripe-1',
+          stripeCustomerId: 'cus_race_1',
+          email: 'a@example.com',
         }),
         stripeService.upsertCustomer({
-          email: 'b@example.com',
-          stripeCustomerId: 'cus_race_1',
           userId: 'user-stripe-1',
+          stripeCustomerId: 'cus_race_1',
+          email: 'b@example.com',
         }),
       ])
 
@@ -96,8 +96,8 @@ describe('stripeService', () => {
   describe('getCustomerByUserId', () => {
     it('returns the customer for a given userId', async () => {
       await stripeService.upsertCustomer({
-        stripeCustomerId: 'cus_lookup_1',
         userId: 'user-stripe-1',
+        stripeCustomerId: 'cus_lookup_1',
       })
 
       const found = await stripeService.getCustomerByUserId('user-stripe-1')
@@ -113,8 +113,8 @@ describe('stripeService', () => {
   describe('getCustomerByStripeId', () => {
     it('returns the customer for a given stripeCustomerId', async () => {
       await stripeService.upsertCustomer({
-        stripeCustomerId: 'cus_sid_1',
         userId: 'user-stripe-1',
+        stripeCustomerId: 'cus_sid_1',
       })
 
       const found = await stripeService.getCustomerByStripeId('cus_sid_1')
@@ -132,13 +132,13 @@ describe('stripeService', () => {
   describe('upsertCheckoutSession', () => {
     it('inserts a new checkout session', async () => {
       const result = await stripeService.upsertCheckoutSession({
+        userId: 'user-stripe-1',
+        stripeSessionId: 'cs_new_1',
+        mode: 'payment',
+        status: 'open',
+        paymentStatus: 'unpaid',
         amountTotal: 1000,
         currency: 'usd',
-        mode: 'payment',
-        paymentStatus: 'unpaid',
-        status: 'open',
-        stripeSessionId: 'cs_new_1',
-        userId: 'user-stripe-1',
       })
 
       expect(result.stripeSessionId).toBe('cs_new_1')
@@ -148,23 +148,23 @@ describe('stripeService', () => {
 
     it('updates an existing checkout session on conflict', async () => {
       await stripeService.upsertCheckoutSession({
+        userId: 'user-stripe-1',
+        stripeSessionId: 'cs_upd_1',
+        mode: 'payment',
+        status: 'open',
+        paymentStatus: 'unpaid',
         amountTotal: 1000,
         currency: 'usd',
-        mode: 'payment',
-        paymentStatus: 'unpaid',
-        status: 'open',
-        stripeSessionId: 'cs_upd_1',
-        userId: 'user-stripe-1',
       })
 
       const updated = await stripeService.upsertCheckoutSession({
+        userId: 'user-stripe-1',
+        stripeSessionId: 'cs_upd_1',
+        mode: 'payment',
+        status: 'complete',
+        paymentStatus: 'paid',
         amountTotal: 1000,
         currency: 'usd',
-        mode: 'payment',
-        paymentStatus: 'paid',
-        status: 'complete',
-        stripeSessionId: 'cs_upd_1',
-        userId: 'user-stripe-1',
       })
 
       expect(updated.status).toBe('complete')
@@ -177,22 +177,22 @@ describe('stripeService', () => {
     it('handles concurrent upserts without error', async () => {
       const results = await Promise.all([
         stripeService.upsertCheckoutSession({
+          userId: 'user-stripe-1',
+          stripeSessionId: 'cs_race_1',
+          mode: 'payment',
+          status: 'open',
+          paymentStatus: 'unpaid',
           amountTotal: 500,
           currency: 'usd',
-          mode: 'payment',
-          paymentStatus: 'unpaid',
-          status: 'open',
-          stripeSessionId: 'cs_race_1',
-          userId: 'user-stripe-1',
         }),
         stripeService.upsertCheckoutSession({
+          userId: 'user-stripe-1',
+          stripeSessionId: 'cs_race_1',
+          mode: 'payment',
+          status: 'complete',
+          paymentStatus: 'paid',
           amountTotal: 500,
           currency: 'usd',
-          mode: 'payment',
-          paymentStatus: 'paid',
-          status: 'complete',
-          stripeSessionId: 'cs_race_1',
-          userId: 'user-stripe-1',
         }),
       ])
 
@@ -206,18 +206,18 @@ describe('stripeService', () => {
   describe('getCheckoutSessionsByUserId', () => {
     it('returns all sessions for the user', async () => {
       await stripeService.upsertCheckoutSession({
+        userId: 'user-stripe-1',
+        stripeSessionId: 'cs_list_1',
+        mode: 'payment',
         amountTotal: 100,
         currency: 'usd',
-        mode: 'payment',
-        stripeSessionId: 'cs_list_1',
-        userId: 'user-stripe-1',
       })
       await stripeService.upsertCheckoutSession({
+        userId: 'user-stripe-1',
+        stripeSessionId: 'cs_list_2',
+        mode: 'payment',
         amountTotal: 200,
         currency: 'usd',
-        mode: 'payment',
-        stripeSessionId: 'cs_list_2',
-        userId: 'user-stripe-1',
       })
 
       const sessions = await stripeService.getCheckoutSessionsByUserId('user-stripe-1')
@@ -229,14 +229,14 @@ describe('stripeService', () => {
 
     it('does not return sessions from other users', async () => {
       await stripeService.upsertCheckoutSession({
-        mode: 'payment',
-        stripeSessionId: 'cs_iso_1',
         userId: 'user-stripe-1',
+        stripeSessionId: 'cs_iso_1',
+        mode: 'payment',
       })
       await stripeService.upsertCheckoutSession({
-        mode: 'payment',
-        stripeSessionId: 'cs_iso_2',
         userId: 'user-stripe-2',
+        stripeSessionId: 'cs_iso_2',
+        mode: 'payment',
       })
 
       const sessions = await stripeService.getCheckoutSessionsByUserId('user-stripe-1')
@@ -250,15 +250,15 @@ describe('stripeService', () => {
   describe('upsertSubscription', () => {
     it('inserts a new subscription', async () => {
       await stripeService.upsertCustomer({
-        stripeCustomerId: 'cus_sub_1',
         userId: 'user-stripe-1',
+        stripeCustomerId: 'cus_sub_1',
       })
 
       const result = await stripeService.upsertSubscription({
-        status: 'active',
-        stripeCustomerId: 'cus_sub_1',
-        stripeSubscriptionId: 'sub_new_1',
         userId: 'user-stripe-1',
+        stripeSubscriptionId: 'sub_new_1',
+        stripeCustomerId: 'cus_sub_1',
+        status: 'active',
       })
 
       expect(result.stripeSubscriptionId).toBe('sub_new_1')
@@ -267,17 +267,17 @@ describe('stripeService', () => {
 
     it('updates an existing subscription on conflict', async () => {
       await stripeService.upsertSubscription({
-        status: 'active',
-        stripeCustomerId: 'cus_sub_1',
-        stripeSubscriptionId: 'sub_upd_1',
         userId: 'user-stripe-1',
+        stripeSubscriptionId: 'sub_upd_1',
+        stripeCustomerId: 'cus_sub_1',
+        status: 'active',
       })
 
       const updated = await stripeService.upsertSubscription({
-        status: 'canceled',
-        stripeCustomerId: 'cus_sub_1',
-        stripeSubscriptionId: 'sub_upd_1',
         userId: 'user-stripe-1',
+        stripeSubscriptionId: 'sub_upd_1',
+        stripeCustomerId: 'cus_sub_1',
+        status: 'canceled',
       })
 
       expect(updated.status).toBe('canceled')
@@ -289,16 +289,16 @@ describe('stripeService', () => {
     it('handles concurrent upserts without error', async () => {
       const results = await Promise.all([
         stripeService.upsertSubscription({
-          status: 'active',
-          stripeCustomerId: 'cus_sub_1',
-          stripeSubscriptionId: 'sub_race_1',
           userId: 'user-stripe-1',
+          stripeSubscriptionId: 'sub_race_1',
+          stripeCustomerId: 'cus_sub_1',
+          status: 'active',
         }),
         stripeService.upsertSubscription({
-          status: 'past_due',
-          stripeCustomerId: 'cus_sub_1',
-          stripeSubscriptionId: 'sub_race_1',
           userId: 'user-stripe-1',
+          stripeSubscriptionId: 'sub_race_1',
+          stripeCustomerId: 'cus_sub_1',
+          status: 'past_due',
         }),
       ])
 
@@ -312,16 +312,16 @@ describe('stripeService', () => {
   describe('getActiveSubscription', () => {
     it('returns only the active subscription', async () => {
       await stripeService.upsertSubscription({
-        status: 'canceled',
-        stripeCustomerId: 'cus_sub_1',
-        stripeSubscriptionId: 'sub_active_1',
         userId: 'user-stripe-1',
+        stripeSubscriptionId: 'sub_active_1',
+        stripeCustomerId: 'cus_sub_1',
+        status: 'canceled',
       })
       await stripeService.upsertSubscription({
-        status: 'active',
-        stripeCustomerId: 'cus_sub_1',
-        stripeSubscriptionId: 'sub_active_2',
         userId: 'user-stripe-1',
+        stripeSubscriptionId: 'sub_active_2',
+        stripeCustomerId: 'cus_sub_1',
+        status: 'active',
       })
 
       const active = await stripeService.getActiveSubscription('user-stripe-1')
@@ -331,10 +331,10 @@ describe('stripeService', () => {
 
     it('returns undefined when no active subscription exists', async () => {
       await stripeService.upsertSubscription({
-        status: 'canceled',
-        stripeCustomerId: 'cus_sub_1',
-        stripeSubscriptionId: 'sub_none_1',
         userId: 'user-stripe-1',
+        stripeSubscriptionId: 'sub_none_1',
+        stripeCustomerId: 'cus_sub_1',
+        status: 'canceled',
       })
 
       const active = await stripeService.getActiveSubscription('user-stripe-1')
@@ -343,10 +343,10 @@ describe('stripeService', () => {
 
     it('does not return subscriptions from other users', async () => {
       await stripeService.upsertSubscription({
-        status: 'active',
-        stripeCustomerId: 'cus_other_1',
-        stripeSubscriptionId: 'sub_other_1',
         userId: 'user-stripe-2',
+        stripeSubscriptionId: 'sub_other_1',
+        stripeCustomerId: 'cus_other_1',
+        status: 'active',
       })
 
       const active = await stripeService.getActiveSubscription('user-stripe-1')
@@ -359,13 +359,13 @@ describe('stripeService', () => {
   describe('upsertInvoice', () => {
     it('inserts a new invoice', async () => {
       const result = await stripeService.upsertInvoice({
+        userId: 'user-stripe-1',
+        stripeInvoiceId: 'inv_new_1',
+        stripeCustomerId: 'cus_inv_1',
+        status: 'open',
         amountDue: 2000,
         amountPaid: 0,
         currency: 'usd',
-        status: 'open',
-        stripeCustomerId: 'cus_inv_1',
-        stripeInvoiceId: 'inv_new_1',
-        userId: 'user-stripe-1',
       })
 
       expect(result.stripeInvoiceId).toBe('inv_new_1')
@@ -375,21 +375,21 @@ describe('stripeService', () => {
 
     it('updates an existing invoice on conflict', async () => {
       await stripeService.upsertInvoice({
+        userId: 'user-stripe-1',
+        stripeInvoiceId: 'inv_upd_1',
+        status: 'open',
         amountDue: 2000,
         amountPaid: 0,
         currency: 'usd',
-        status: 'open',
-        stripeInvoiceId: 'inv_upd_1',
-        userId: 'user-stripe-1',
       })
 
       const updated = await stripeService.upsertInvoice({
+        userId: 'user-stripe-1',
+        stripeInvoiceId: 'inv_upd_1',
+        status: 'paid',
         amountDue: 2000,
         amountPaid: 2000,
         currency: 'usd',
-        status: 'paid',
-        stripeInvoiceId: 'inv_upd_1',
-        userId: 'user-stripe-1',
       })
 
       expect(updated.status).toBe('paid')
@@ -402,18 +402,18 @@ describe('stripeService', () => {
     it('handles concurrent upserts without error', async () => {
       const results = await Promise.all([
         stripeService.upsertInvoice({
+          userId: 'user-stripe-1',
+          stripeInvoiceId: 'inv_race_1',
+          status: 'open',
           amountDue: 1000,
           currency: 'usd',
-          status: 'open',
-          stripeInvoiceId: 'inv_race_1',
-          userId: 'user-stripe-1',
         }),
         stripeService.upsertInvoice({
+          userId: 'user-stripe-1',
+          stripeInvoiceId: 'inv_race_1',
+          status: 'paid',
           amountPaid: 1000,
           currency: 'usd',
-          status: 'paid',
-          stripeInvoiceId: 'inv_race_1',
-          userId: 'user-stripe-1',
         }),
       ])
 
@@ -427,16 +427,16 @@ describe('stripeService', () => {
   describe('getInvoicesByUserId', () => {
     it('returns all invoices for the user', async () => {
       await stripeService.upsertInvoice({
-        currency: 'usd',
-        status: 'paid',
-        stripeInvoiceId: 'inv_list_1',
         userId: 'user-stripe-1',
+        stripeInvoiceId: 'inv_list_1',
+        status: 'paid',
+        currency: 'usd',
       })
       await stripeService.upsertInvoice({
-        currency: 'usd',
-        status: 'open',
-        stripeInvoiceId: 'inv_list_2',
         userId: 'user-stripe-1',
+        stripeInvoiceId: 'inv_list_2',
+        status: 'open',
+        currency: 'usd',
       })
 
       const invoices = await stripeService.getInvoicesByUserId('user-stripe-1')
@@ -448,16 +448,16 @@ describe('stripeService', () => {
 
     it('does not return invoices from other users', async () => {
       await stripeService.upsertInvoice({
-        currency: 'usd',
-        status: 'paid',
-        stripeInvoiceId: 'inv_iso_1',
         userId: 'user-stripe-1',
+        stripeInvoiceId: 'inv_iso_1',
+        status: 'paid',
+        currency: 'usd',
       })
       await stripeService.upsertInvoice({
-        currency: 'usd',
-        status: 'paid',
-        stripeInvoiceId: 'inv_iso_2',
         userId: 'user-stripe-2',
+        stripeInvoiceId: 'inv_iso_2',
+        status: 'paid',
+        currency: 'usd',
       })
 
       const invoices = await stripeService.getInvoicesByUserId('user-stripe-1')

@@ -8,18 +8,18 @@ type VitePlugin = NonNullable<WxtViteConfig['plugins']>[number]
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
+  modules: ['@wxt-dev/module-vue'],
   manifest: {
-    action: {
-      default_title: 'AIRI Web Extension',
-    },
-    description: 'Capture web context (videos, pages, subtitles) for Project AIRI.',
     name: 'AIRI Web Extension',
+    description: 'Capture web context (videos, pages, subtitles) for Project AIRI.',
+    permissions: ['storage', 'tabs'],
     optional_host_permissions: [
       '*://*/*',
     ],
-    permissions: ['storage', 'tabs'],
+    action: {
+      default_title: 'AIRI Web Extension',
+    },
   },
-  modules: ['@wxt-dev/module-vue'],
   vite: () => {
     return {
       plugins: [

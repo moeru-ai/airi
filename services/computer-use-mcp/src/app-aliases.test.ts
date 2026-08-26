@@ -15,11 +15,11 @@ describe('app aliases', () => {
 
   it('normalizes open_app actions to the configured canonical app name', () => {
     expect(normalizeConfiguredAppAction({
+      kind: 'open_app',
       input: { app: 'VS Code' },
-      kind: 'open_app',
     }, ['Finder', 'Visual Studio Code'])).toEqual({
-      input: { app: 'Visual Studio Code' },
       kind: 'open_app',
+      input: { app: 'Visual Studio Code' },
     })
   })
 

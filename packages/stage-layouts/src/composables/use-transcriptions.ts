@@ -9,20 +9,20 @@ import { storeToRefs } from 'pinia'
 import { nextTick, onScopeDispose, ref, toValue, useId, watch } from 'vue'
 
 interface TranscriptionOptions {
-  isStageTamagotchi: MaybeRefOrGetter<boolean>
   messageInputRef: Ref<string>
   sendMessage: () => void
+  isStageTamagotchi: MaybeRefOrGetter<boolean>
 }
 
 export function useTranscriptions(options: TranscriptionOptions) {
-  const { isStageTamagotchi, messageInputRef: messageInput, sendMessage } = options
+  const { messageInputRef: messageInput, sendMessage, isStageTamagotchi } = options
 
   const hearingStore = useHearingStore()
   const audioDeviceSettingsStore = useSettingsAudioDevice()
   const hearingPipeline = useHearingSpeechInputPipeline()
-  const { removeStreamingTranscriptionConsumer, stopStreamingTranscription, transcribeForMediaStream } = hearingPipeline
+  const { removeStreamingTranscriptionConsumer, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
   const { supportsStreamInput } = storeToRefs(hearingPipeline)
-  const { autoSendDelay, autoSendEnabled, configured: hearingConfigured } = storeToRefs(hearingStore)
+  const { configured: hearingConfigured, autoSendEnabled, autoSendDelay } = storeToRefs(hearingStore)
   const { enabled: hearingEnabled, stream } = storeToRefs(audioDeviceSettingsStore)
   const providersStore = useProviderStore()
   const { askPermission, startStream } = audioDeviceSettingsStore
@@ -84,8 +84,8 @@ export function useTranscriptions(options: TranscriptionOptions) {
     console.info('Starting streaming transcription', {
       enabled: hearingEnabled.value,
       hasStream: !!stream.value,
-      hearingConfigured: hearingConfigured.value,
       supportsStreamInput: supportsStreamInput.value,
+      hearingConfigured: hearingConfigured.value,
     }, { source: 'useTranscriptions' })
 
     // Auto-configure Web Speech API as default if no provider is configured
@@ -102,9 +102,9 @@ export function useTranscriptions(options: TranscriptionOptions) {
         // TODO: also propagate to user
         const errorMsg = 'Web Speech API is not available and no transcription provider is configured. Please go to Settings > Modules > Hearing to configure a transcription provider. '
         console.error(errorMsg, 'Browser support:', {
-          hasSpeechRecognition: typeof window !== 'undefined' && 'SpeechRecognition' in window,
-          hasWebkitSpeechRecognition: typeof window !== 'undefined' && 'webkitSpeechRecognition' in window,
           hasWindow: typeof window !== 'undefined',
+          hasWebkitSpeechRecognition: typeof window !== 'undefined' && 'webkitSpeechRecognition' in window,
+          hasSpeechRecognition: typeof window !== 'undefined' && 'SpeechRecognition' in window,
         }, { source: 'useTranscriptions' })
         isListening.value = false
         return
@@ -153,7 +153,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
           startStream()
           // Wait for the stream to become available with a timeout.
           try {
-            await until(stream).toBeTruthy({ throwOnTimeout: true, timeout: 3000 })
+            await until(stream).toBeTruthy({ timeout: 3000, throwOnTimeout: true })
           }
           catch {
             console.error('Timed out waiting for audio stream. Stopping transcription.', { source: 'useTranscriptions' })
@@ -228,9 +228,9 @@ export function useTranscriptions(options: TranscriptionOptions) {
   })
 
   return {
-    autoSendEnabled,
-    isListening,
     startStreamingTranscription: startStreaming,
     stopStreamingTranscription: stopStreaming,
+    isListening,
+    autoSendEnabled,
   }
 }

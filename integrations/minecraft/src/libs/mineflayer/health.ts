@@ -1,7 +1,7 @@
 export class Health {
-  public lastDamageTaken?: number
-  public lastDamageTime?: number
   public value: number
+  public lastDamageTime?: number
+  public lastDamageTaken?: number
 
   constructor() {
     this.value = 20

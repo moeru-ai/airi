@@ -9,24 +9,12 @@ import { defineWebSocketHandler } from 'h3'
 
 import { toCrossWsHooks } from '..'
 
-export interface H3CrossWsApp {
-  fetch: (request: ServerRequest) => Promise<H3CrossWsResponse>
-}
-
 export interface H3CrossWsResponse extends Response {
   crossws?: Partial<Hooks>
 }
 
-/**
- * Creates the CrossWS plugin resolver used by H3 `serve(...)`.
- */
-export function createH3CrossWsPlugin(app: H3CrossWsApp): ServerPlugin {
-  return crossWsPlugin({
-    resolve: async (request) => {
-      const response = await app.fetch(request)
-      return response.crossws!
-    },
-  })
+export interface H3CrossWsApp {
+  fetch: (request: ServerRequest) => Promise<H3CrossWsResponse>
 }
 
 /**
@@ -39,4 +27,16 @@ export function toH3Handler<TMessage = string, TState = unknown>(
   options?: WsCrossWsHandlerOptions<TMessage, TState>,
 ): EventHandler {
   return defineWebSocketHandler(toCrossWsHooks(server, options))
+}
+
+/**
+ * Creates the CrossWS plugin resolver used by H3 `serve(...)`.
+ */
+export function createH3CrossWsPlugin(app: H3CrossWsApp): ServerPlugin {
+  return crossWsPlugin({
+    resolve: async (request) => {
+      const response = await app.fetch(request)
+      return response.crossws!
+    },
+  })
 }

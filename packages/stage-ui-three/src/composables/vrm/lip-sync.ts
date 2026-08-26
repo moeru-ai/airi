@@ -12,7 +12,7 @@ import { useAudioContext } from '../../../../stage-ui/src/stores/audio'
 
 export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, AudioBufferSourceNode | undefined>) {
   const { audioContext } = useAudioContext()
-  const { isReady, state: lipSyncNode } = useAsyncState(createWLipSyncNode(audioContext, profile as Profile), undefined)
+  const { state: lipSyncNode, isReady } = useAsyncState(createWLipSyncNode(audioContext, profile as Profile), undefined)
 
   // https://github.com/mrxz/wLipSync/blob/c3bc4b321dc7e1ca333d75f7aa1e9e746cbbb23a/example/index.js#L50-L66
   const RAW_KEYS = ['A', 'E', 'I', 'O', 'U', 'S'] as const
@@ -30,8 +30,8 @@ export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, 
     E: 'E',
     I: 'I',
     O: 'O',
-    S: 'I',
     U: 'U',
+    S: 'I',
   }
 
   const smoothState: Record<LipKey, number> = { A: 0, E: 0, I: 0, O: 0, U: 0 }

@@ -2,22 +2,22 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export interface PreviewModalState {
-  content: string // text content or image URL
+  type: 'text' | 'image'
   title: string
-  type: 'image' | 'text'
+  content: string // text content or image URL
 }
 
 export const useJournalPreviewStore = defineStore('journal-preview', () => {
-  const previewModal = ref<null | PreviewModalState>(null)
+  const previewModal = ref<PreviewModalState | null>(null)
 
-  function openTextPreview(entry: { content: string, title: string }) {
-    previewModal.value = { content: entry.content, title: entry.title, type: 'text' }
+  function openTextPreview(entry: { title: string, content: string }) {
+    previewModal.value = { type: 'text', title: entry.title, content: entry.content }
   }
 
-  function openImagePreview(entry: { title: string, url: null | string }) {
+  function openImagePreview(entry: { title: string, url: string | null }) {
     if (!entry.url)
       return
-    previewModal.value = { content: entry.url, title: entry.title, type: 'image' }
+    previewModal.value = { type: 'image', title: entry.title, content: entry.url }
   }
 
   function closePreview() {
@@ -38,10 +38,10 @@ export const useJournalPreviewStore = defineStore('journal-preview', () => {
   }
 
   return {
+    previewModal,
+    openTextPreview,
+    openImagePreview,
     closePreview,
     downloadImage,
-    openImagePreview,
-    openTextPreview,
-    previewModal,
   }
 })

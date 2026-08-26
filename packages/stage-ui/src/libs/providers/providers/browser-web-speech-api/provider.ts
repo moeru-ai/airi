@@ -3,12 +3,41 @@ import type { StreamTranscriptionDelta, StreamTranscriptionResult } from '@xsai/
 
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
 
+// NOTICE: Copied/adapted from @xsai/stream-transcription delayed promise helper.
+// Ref: @xsai/stream-transcription@0.4.0-beta.8 (dist/index.js DelayedPromise usage).
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  let reject!: (reason?: unknown) => void
+  let _isResolved = false
+  let _isRejected = false
+  const promise = new Promise<T>((res, rej) => {
+    resolve = (value) => {
+      _isResolved = true
+      res(value)
+    }
+    reject = (reason) => {
+      _isRejected = true
+      rej(reason)
+    }
+  })
+
+  return {
+    promise,
+    resolve,
+    reject,
+    get isResolved() { return _isResolved },
+    get isRejected() { return _isRejected },
+    set isResolved(value: boolean) { _isResolved = value },
+    set isRejected(value: boolean) { _isRejected = value },
+  }
+}
+
 export interface WebSpeechAPIExtraOptions {
-  abortSignal?: AbortSignal
+  language?: string
   continuous?: boolean
   interimResults?: boolean
-  language?: string
   maxAlternatives?: number
+  abortSignal?: AbortSignal
 }
 
 /**
@@ -38,6 +67,7 @@ export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOpti
     transcription: (model: string, extraOptions?: WebSpeechAPIExtraOptions) => {
       return {
         baseURL: 'about:blank', // Web Speech API doesn't use HTTP endpoints
+        model: model || 'web-speech-api',
         fetch: async (_request: RequestInfo | URL, _init?: RequestInit) => {
           // Web Speech API does not support file-based transcription - it only supports live streaming
           // Check if a file is provided in the request body and reject it
@@ -120,7 +150,6 @@ export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOpti
 
           return textStream as unknown as Response
         },
-        model: model || 'web-speech-api',
       }
     },
   }
@@ -150,6 +179,9 @@ export function streamWebSpeechAPITranscription(
   })
 
   const textStream = new ReadableStream<string>({
+    start(controller) {
+      textStreamCtrl = controller
+    },
     cancel: () => {
       // Clean up recognition when stream is cancelled
       if (recognitionInstance) {
@@ -158,9 +190,6 @@ export function streamWebSpeechAPITranscription(
         }
         catch {}
       }
-    },
-    start(controller) {
-      textStreamCtrl = controller
     },
   })
 
@@ -190,9 +219,9 @@ export function streamWebSpeechAPITranscription(
   recognition.maxAlternatives = options?.maxAlternatives ?? 1
 
   console.info('Web Speech API configured:', {
+    lang: recognition.lang,
     continuous: recognition.continuous,
     interimResults: recognition.interimResults,
-    lang: recognition.lang,
   })
 
   recognition.onresult = (event: any) => {
@@ -217,8 +246,8 @@ export function streamWebSpeechAPITranscription(
       const trimmedTranscript = finalTranscript.trim()
       fullText = `${fullText}${trimmedTranscript} `
       const delta: StreamTranscriptionDelta = {
-        delta: trimmedTranscript,
         type: 'transcript.text.delta',
+        delta: trimmedTranscript,
       }
       fullStreamCtrl?.enqueue(delta)
       textStreamCtrl?.enqueue(trimmedTranscript)
@@ -295,8 +324,8 @@ export function streamWebSpeechAPITranscription(
       }
 
       const doneDelta: StreamTranscriptionDelta = {
-        delta: '',
         type: 'transcript.text.done',
+        delta: '',
       }
       fullStreamCtrl?.enqueue(doneDelta)
       fullStreamCtrl?.close()
@@ -436,37 +465,8 @@ export function streamWebSpeechAPITranscription(
 
   return {
     fullStream,
-    recognition: recognitionInstance,
     text: deferredText.promise,
     textStream,
-  }
-}
-
-// NOTICE: Copied/adapted from @xsai/stream-transcription delayed promise helper.
-// Ref: @xsai/stream-transcription@0.4.0-beta.8 (dist/index.js DelayedPromise usage).
-function createDeferred<T>() {
-  let resolve!: (value: PromiseLike<T> | T) => void
-  let reject!: (reason?: unknown) => void
-  let _isResolved = false
-  let _isRejected = false
-  const promise = new Promise<T>((res, rej) => {
-    resolve = (value) => {
-      _isResolved = true
-      res(value)
-    }
-    reject = (reason) => {
-      _isRejected = true
-      rej(reason)
-    }
-  })
-
-  return {
-    get isRejected() { return _isRejected },
-    set isRejected(value: boolean) { _isRejected = value },
-    get isResolved() { return _isResolved },
-    set isResolved(value: boolean) { _isResolved = value },
-    promise,
-    reject,
-    resolve,
+    recognition: recognitionInstance,
   }
 }

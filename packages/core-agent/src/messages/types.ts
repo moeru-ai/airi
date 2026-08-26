@@ -1,102 +1,21 @@
 /**
- * Structured item stored inside a history block.
+ * Provider-ready message payload.
+ *
+ * Use when:
+ * - Sending messages to chat-style providers
+ * - Preserving a simple role/content shape alongside richer projected messages
+ *
+ * Expects:
+ * - `content` already serialized into a provider-safe string
+ *
+ * Returns:
+ * - A minimal chat message record that providers can consume directly
  */
-export type HistoryItem
-  = HistoryItemDomainEvent
-    | HistoryReaction
-    | HistorySummary
-    | HistoryTurn
-
-/**
- * History domain event item used to preserve structured event provenance.
- */
-export interface HistoryItemDomainEvent {
-  eventType: string
-  payload: Record<string, unknown>
-  type: 'domain-event'
-}
-
-/**
- * History reaction item used to keep spark output close to the related turn.
- */
-export interface HistoryReaction {
-  reactionType: 'spark-command' | 'spark-notify' | string
-  source?: string
-  text: string
-  type: 'reaction'
-}
-
-/**
- * History summary item used by a history block segment.
- */
-export interface HistorySummary {
-  fromTurnIndex?: number
+export interface RawMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool'
+  content: string
+  name?: string
   metadata?: Record<string, unknown>
-  text: string
-  toTurnIndex?: number
-  type: 'summary'
-}
-
-/**
- * History turn item used for structured session or domain turn tracking.
- */
-export interface HistoryTurn {
-  action: HistoryTurnAction
-  actor: 'agent' | 'assistant' | 'player' | 'system' | string
-  turnIndex: number
-  turnType: string
-  type: 'turn'
-}
-
-/**
- * Structured action stored on a turn history item.
- */
-export type HistoryTurnAction
-  = HistoryTurnEventAction
-    | HistoryTurnGenericAction
-    | HistoryTurnMoveAction
-    | HistoryTurnTextAction
-
-/**
- * Event action stored on a turn.
- */
-export interface HistoryTurnEventAction {
-  kind: 'event'
-  name: string
-  payload?: Record<string, unknown>
-}
-
-/**
- * Generic fallback action stored on a turn.
- */
-export interface HistoryTurnGenericAction {
-  [key: string]: unknown
-  fen?: string
-  kind: string
-  note?: string
-  payload?: Record<string, unknown>
-  san?: string
-  uci?: string
-}
-
-/**
- * Chess-style move action stored on a turn.
- */
-export interface HistoryTurnMoveAction {
-  fen?: string
-  kind: 'move-executed' | 'move-played'
-  note?: string
-  payload?: Record<string, unknown>
-  san: string
-  uci?: string
-}
-
-/**
- * Text action stored on a turn.
- */
-export interface HistoryTurnTextAction {
-  kind: 'text'
-  text: string
 }
 
 /**
@@ -114,59 +33,178 @@ export interface HistoryTurnTextAction {
  */
 export interface Message {
   id: string
-  metadata?: Record<string, unknown>
-  role: 'assistant' | 'context' | 'event' | 'summary' | 'system' | 'user'
-  segments: MessageSegment[]
+  role: 'system' | 'user' | 'assistant' | 'context' | 'event' | 'summary'
   source?: string
+  segments: MessageSegment[]
+  metadata?: Record<string, unknown>
 }
-
-/**
- * Alias for the domain event segment shape used by the approved spec.
- */
-export type MessageDomainEventSegment = SegmentDomainEvent
-
-/**
- * Alias for the history block segment shape used by the approved spec.
- */
-export type MessageHistoryBlockSegment = SegmentHistoryBlock
-
-/**
- * Alias for the instruction segment shape used by the approved spec.
- */
-export type MessageInstructionSegment = SegmentInstruction
-
-/**
- * Alias for the reference segment shape used by the approved spec.
- */
-export type MessageReferenceSegment = SegmentReference
 
 /**
  * Structured content segment used inside a projected message.
  */
 export type MessageSegment
-  = SegmentDomainEvent
-    | SegmentHistoryBlock
+  = SegmentText
     | SegmentInstruction
-    | SegmentReference
-    | SegmentStateSnapshot
-    | SegmentSummary
     | SegmentTaggedText
-    | SegmentText
+    | SegmentDomainEvent
+    | SegmentStateSnapshot
+    | SegmentHistoryBlock
+    | SegmentSummary
+    | SegmentReference
 
 /**
- * Alias for the state snapshot segment shape used by the approved spec.
+ * Plain text segment for projected message rendering.
  */
-export type MessageStateSnapshotSegment = SegmentStateSnapshot
+export interface SegmentText {
+  type: 'text'
+  text: string
+}
 
 /**
- * Alias for the summary segment shape used by the approved spec.
+ * Instruction segment for explicit runtime or system guidance.
  */
-export type MessageSummarySegment = SegmentSummary
+export interface SegmentInstruction {
+  type: 'instruction'
+  text: string
+  priority?: 'low' | 'normal' | 'high' | 'critical'
+}
 
 /**
- * Alias for the tagged text segment shape used by the approved spec.
+ * Tagged text segment that preserves semantic tag boundaries.
  */
-export type MessageTaggedTextSegment = SegmentTaggedText
+export interface SegmentTaggedText {
+  type: 'tagged-text'
+  tag: string
+  text: string
+}
+
+/**
+ * Domain event segment for structured event payloads.
+ */
+export interface SegmentDomainEvent {
+  type: 'domain-event'
+  eventType: string
+  payload: Record<string, unknown>
+}
+
+/**
+ * State snapshot segment for deterministic state serialization.
+ */
+export interface SegmentStateSnapshot {
+  type: 'state-snapshot'
+  stateType: string
+  payload: Record<string, unknown>
+}
+
+/**
+ * History block segment that keeps turn/reaction pairing intact.
+ */
+export interface SegmentHistoryBlock {
+  type: 'history-block'
+  compacted: boolean
+  items: HistoryItem[]
+}
+
+/**
+ * History summary item used by a history block segment.
+ */
+export interface HistorySummary {
+  type: 'summary'
+  text: string
+  fromTurnIndex?: number
+  toTurnIndex?: number
+  metadata?: Record<string, unknown>
+}
+
+/**
+ * History reaction item used to keep spark output close to the related turn.
+ */
+export interface HistoryReaction {
+  type: 'reaction'
+  reactionType: 'spark-notify' | 'spark-command' | string
+  text: string
+  source?: string
+}
+
+/**
+ * History turn item used for structured session or domain turn tracking.
+ */
+export interface HistoryTurn {
+  type: 'turn'
+  turnType: string
+  turnIndex: number
+  actor: 'player' | 'assistant' | 'agent' | 'system' | string
+  action: HistoryTurnAction
+}
+
+/**
+ * Structured action stored on a turn history item.
+ */
+export type HistoryTurnAction
+  = HistoryTurnMoveAction
+    | HistoryTurnTextAction
+    | HistoryTurnEventAction
+    | HistoryTurnGenericAction
+
+/**
+ * Chess-style move action stored on a turn.
+ */
+export interface HistoryTurnMoveAction {
+  kind: 'move-played' | 'move-executed'
+  san: string
+  uci?: string
+  fen?: string
+  note?: string
+  payload?: Record<string, unknown>
+}
+
+/**
+ * Text action stored on a turn.
+ */
+export interface HistoryTurnTextAction {
+  kind: 'text'
+  text: string
+}
+
+/**
+ * Event action stored on a turn.
+ */
+export interface HistoryTurnEventAction {
+  kind: 'event'
+  name: string
+  payload?: Record<string, unknown>
+}
+
+/**
+ * Generic fallback action stored on a turn.
+ */
+export interface HistoryTurnGenericAction {
+  kind: string
+  san?: string
+  uci?: string
+  fen?: string
+  note?: string
+  payload?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+/**
+ * Structured item stored inside a history block.
+ */
+export type HistoryItem
+  = HistorySummary
+    | HistoryReaction
+    | HistoryItemDomainEvent
+    | HistoryTurn
+
+/**
+ * History domain event item used to preserve structured event provenance.
+ */
+export interface HistoryItemDomainEvent {
+  type: 'domain-event'
+  eventType: string
+  payload: Record<string, unknown>
+}
 
 /**
  * Alias for the text segment shape used by the approved spec.
@@ -174,93 +212,55 @@ export type MessageTaggedTextSegment = SegmentTaggedText
 export type MessageTextSegment = SegmentText
 
 /**
- * Provider-ready message payload.
- *
- * Use when:
- * - Sending messages to chat-style providers
- * - Preserving a simple role/content shape alongside richer projected messages
- *
- * Expects:
- * - `content` already serialized into a provider-safe string
- *
- * Returns:
- * - A minimal chat message record that providers can consume directly
+ * Alias for the instruction segment shape used by the approved spec.
  */
-export interface RawMessage {
-  content: string
-  metadata?: Record<string, unknown>
-  name?: string
-  role: 'assistant' | 'system' | 'tool' | 'user'
-}
+export type MessageInstructionSegment = SegmentInstruction
 
 /**
- * Domain event segment for structured event payloads.
+ * Alias for the tagged text segment shape used by the approved spec.
  */
-export interface SegmentDomainEvent {
-  eventType: string
-  payload: Record<string, unknown>
-  type: 'domain-event'
-}
+export type MessageTaggedTextSegment = SegmentTaggedText
 
 /**
- * History block segment that keeps turn/reaction pairing intact.
+ * Alias for the domain event segment shape used by the approved spec.
  */
-export interface SegmentHistoryBlock {
-  compacted: boolean
-  items: HistoryItem[]
-  type: 'history-block'
-}
+export type MessageDomainEventSegment = SegmentDomainEvent
 
 /**
- * Instruction segment for explicit runtime or system guidance.
+ * Alias for the state snapshot segment shape used by the approved spec.
  */
-export interface SegmentInstruction {
-  priority?: 'critical' | 'high' | 'low' | 'normal'
+export type MessageStateSnapshotSegment = SegmentStateSnapshot
+
+/**
+ * Alias for the history block segment shape used by the approved spec.
+ */
+export type MessageHistoryBlockSegment = SegmentHistoryBlock
+
+/**
+ * Alias for the summary segment shape used by the approved spec.
+ */
+export type MessageSummarySegment = SegmentSummary
+
+/**
+ * Alias for the reference segment shape used by the approved spec.
+ */
+export type MessageReferenceSegment = SegmentReference
+
+/**
+ * Summary segment for historical or narrative windows.
+ */
+export interface SegmentSummary {
+  type: 'summary'
   text: string
-  type: 'instruction'
+  metadata?: Record<string, unknown>
 }
 
 /**
  * Reference segment for stable pointers to prior messages or resources.
  */
 export interface SegmentReference {
-  note?: string
+  type: 'reference'
   refType: string
   targetId: string
-  type: 'reference'
-}
-
-/**
- * State snapshot segment for deterministic state serialization.
- */
-export interface SegmentStateSnapshot {
-  payload: Record<string, unknown>
-  stateType: string
-  type: 'state-snapshot'
-}
-
-/**
- * Summary segment for historical or narrative windows.
- */
-export interface SegmentSummary {
-  metadata?: Record<string, unknown>
-  text: string
-  type: 'summary'
-}
-
-/**
- * Tagged text segment that preserves semantic tag boundaries.
- */
-export interface SegmentTaggedText {
-  tag: string
-  text: string
-  type: 'tagged-text'
-}
-
-/**
- * Plain text segment for projected message rendering.
- */
-export interface SegmentText {
-  text: string
-  type: 'text'
+  note?: string
 }

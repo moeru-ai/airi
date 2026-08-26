@@ -14,8 +14,8 @@ const eventDataSchema = pipe(
 )
 
 const eventEnvelopeSchema = objectWithRest({
-  data: eventDataSchema,
   type: string(),
+  data: eventDataSchema,
 }, unknown())
 
 /** Options for websocket message validation failures. */
@@ -39,7 +39,7 @@ export class InvalidMessageError extends Error {
 
 /** Parses one AIRI websocket protocol event from SuperJSON or plain JSON text. */
 export function parseEvent<C = undefined>(text: string): WebSocketEvent<C> {
-  let superJsonParsed: undefined | WebSocketEvent<C>
+  let superJsonParsed: WebSocketEvent<C> | undefined
   let superJsonError: unknown
 
   try {

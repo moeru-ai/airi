@@ -2,38 +2,38 @@ import type { Bot } from 'mineflayer'
 
 import { getItemAnimalSource, getItemSmeltingIngredient, McData } from './mcdata'
 
-export interface RecipePlan {
-  available: Record<string, number> // What we have
-  canCraftNow: boolean // True if we can craft immediately
-  missing: Record<string, number> // What we're missing
-  requiresCraftingTable: boolean
-  status: RecipeStatus
-  steps: RecipeStep[]
-  targetAmount: number
-  targetItem: string
-  totalRequired: Record<string, number> // All base resources needed
-}
-
 export type RecipeStatus
   = | 'craftable' // Can craft right now with inventory
     | 'missing_resources' // Craftable but missing some ingredients
-    | 'requires_gathering' // Must be mined/gathered (not craftable)
     | 'requires_smelting' // Needs furnace (can't auto-craft)
+    | 'requires_gathering' // Must be mined/gathered (not craftable)
     | 'unknown_item' // Item doesn't exist
 
 export interface RecipeStep {
-  action: 'craft' | 'gather' | 'hunt' | 'smelt'
+  action: 'craft' | 'smelt' | 'gather' | 'hunt'
+  item: string
   amount: number
   ingredients?: Record<string, number>
-  item: string
   requiresCraftingTable?: boolean
   source?: string // For gather/hunt: where to get it
 }
 
+export interface RecipePlan {
+  targetItem: string
+  targetAmount: number
+  status: RecipeStatus
+  steps: RecipeStep[]
+  totalRequired: Record<string, number> // All base resources needed
+  available: Record<string, number> // What we have
+  missing: Record<string, number> // What we're missing
+  canCraftNow: boolean // True if we can craft immediately
+  requiresCraftingTable: boolean
+}
+
 export class RecipePlanner {
+  private mcData: McData
   private bot: Bot
   private inventory: Record<string, number>
-  private mcData: McData
 
   constructor(bot: Bot) {
     this.bot = bot
@@ -41,80 +41,87 @@ export class RecipePlanner {
     this.inventory = this.getInventoryCounts()
   }
 
-  canCraftImmediately(): { canCraft: boolean, hasCraftingTable: boolean } {
-    const craftingTable = this.bot.findBlock({
-      matching: block => block.name === 'crafting_table',
-      maxDistance: 4,
-    })
-    return {
-      canCraft: true,
-      hasCraftingTable: craftingTable !== null,
+  private getInventoryCounts(): Record<string, number> {
+    const counts: Record<string, number> = {}
+    for (const item of this.bot.inventory.items()) {
+      counts[item.name] = (counts[item.name] || 0) + item.count
     }
+    return counts
   }
 
-  describe(plan: RecipePlan): string {
-    const lines: string[] = []
+  private getRecipeOutput(itemName: string): number {
+    const itemId = this.mcData.getItemId(itemName)
+    if (!itemId)
+      return 1
+    const recipes = this.mcData.registry.recipes[itemId]
+    if (!recipes || recipes.length === 0)
+      return 1
+    // Get the result count from the first recipe
+    const recipe = recipes[0] as any
+    return recipe.result?.count ?? 1
+  }
 
-    lines.push(`=== Recipe Plan: ${plan.targetAmount}x ${plan.targetItem} ===`)
-    lines.push(`Status: ${this.formatStatus(plan.status)}`)
-    lines.push('')
+  private doesRecipeRequireCraftingTable(itemName: string): boolean {
+    const itemId = this.mcData.getItemId(itemName)
+    if (!itemId)
+      return false
+    const recipes = this.bot.recipesFor(itemId, null, 1, null)
+    // If no recipes without table, it requires a table
+    return recipes.length === 0
+  }
 
-    if (plan.status === 'unknown_item') {
-      lines.push(`The item "${plan.targetItem}" does not exist.`)
-      return lines.join('\n')
-    }
+  private selectBestRecipe(recipes: Record<string, number>[]): Record<string, number> | null {
+    if (recipes.length === 0)
+      return null
+    if (recipes.length === 1)
+      return recipes[0]
 
-    // Show steps in reverse order (base materials first)
-    const reversedSteps = [...plan.steps].reverse()
+    // Heuristic: pick the recipe where we have the most ingredients available
+    let bestRecipe = recipes[0]
+    let bestScore = -1
 
-    if (reversedSteps.length > 0) {
-      lines.push('Steps:')
-      for (let i = 0; i < reversedSteps.length; i++) {
-        const step = reversedSteps[i]
-        lines.push(`${i + 1}. ${this.formatStep(step)}`)
+    for (const recipe of recipes) {
+      let score = 0
+      for (const [ingredient, needed] of Object.entries(recipe)) {
+        const have = this.inventory[ingredient] || 0
+        score += Math.min(have, needed)
       }
-      lines.push('')
-    }
-
-    // Show what we have vs what we need
-    if (Object.keys(plan.totalRequired).length > 0) {
-      lines.push('Resources needed:')
-      for (const [item, needed] of Object.entries(plan.totalRequired)) {
-        const have = this.inventory[item] || 0
-        const missing = plan.missing[item] || 0
-        const status = missing > 0 ? `❌ missing ${missing}` : '✓ have enough'
-        lines.push(`- ${item}: need ${needed}, have ${have} (${status})`)
-      }
-      lines.push('')
-    }
-
-    // Summary
-    if (plan.canCraftNow) {
-      const tableNote = plan.requiresCraftingTable ? ' (requires crafting table)' : ''
-      lines.push(`✓ You can craft this now${tableNote}!`)
-    }
-    else if (Object.keys(plan.missing).length > 0) {
-      lines.push('Missing resources:')
-      for (const [item, amount] of Object.entries(plan.missing)) {
-        const source = this.getGatherSource(item)
-        lines.push(`- ${amount}x ${item}${source ? ` (${source})` : ''}`)
+      if (score > bestScore) {
+        bestScore = score
+        bestRecipe = recipe
       }
     }
 
-    return lines.join('\n')
+    return bestRecipe
+  }
+
+  private getGatherSource(itemName: string): string | null {
+    // Check block sources
+    const blockSources = this.mcData.getItemBlockSources(itemName)
+    if (blockSources.length > 0) {
+      return `mine ${blockSources[0]}`
+    }
+
+    // Check animal sources
+    const animalSource = getItemAnimalSource(itemName)
+    if (animalSource) {
+      return `hunt ${animalSource}`
+    }
+
+    return null
   }
 
   plan(itemName: string, amount: number): RecipePlan {
     const plan: RecipePlan = {
-      available: { ...this.inventory },
-      canCraftNow: false,
-      missing: {},
-      requiresCraftingTable: false,
+      targetItem: itemName,
+      targetAmount: amount,
       status: 'unknown_item',
       steps: [],
-      targetAmount: amount,
-      targetItem: itemName,
       totalRequired: {},
+      available: { ...this.inventory },
+      missing: {},
+      canCraftNow: false,
+      requiresCraftingTable: false,
     }
 
     // Validate item exists
@@ -184,9 +191,9 @@ export class RecipePlanner {
     if (smeltIngredient) {
       plan.steps.push({
         action: 'smelt',
+        item: itemName,
         amount: needed,
         ingredients: { [smeltIngredient]: needed },
-        item: itemName,
         source: `smelt ${smeltIngredient} in furnace`,
       })
       plan.totalRequired[smeltIngredient] = (plan.totalRequired[smeltIngredient] || 0) + needed
@@ -213,9 +220,9 @@ export class RecipePlanner {
 
         plan.steps.push({
           action: 'craft',
+          item: itemName,
           amount: needed,
           ingredients: scaledIngredients,
-          item: itemName,
           requiresCraftingTable: requiresTable,
         })
 
@@ -234,8 +241,8 @@ export class RecipePlanner {
 
     plan.steps.push({
       action: animalSource ? 'hunt' : 'gather',
-      amount: needed,
       item: itemName,
+      amount: needed,
       source: gatherSource || 'unknown source',
     })
 
@@ -243,13 +250,56 @@ export class RecipePlanner {
     plan.missing[itemName] = (plan.missing[itemName] || 0) + needed
   }
 
-  private doesRecipeRequireCraftingTable(itemName: string): boolean {
-    const itemId = this.mcData.getItemId(itemName)
-    if (!itemId)
-      return false
-    const recipes = this.bot.recipesFor(itemId, null, 1, null)
-    // If no recipes without table, it requires a table
-    return recipes.length === 0
+  describe(plan: RecipePlan): string {
+    const lines: string[] = []
+
+    lines.push(`=== Recipe Plan: ${plan.targetAmount}x ${plan.targetItem} ===`)
+    lines.push(`Status: ${this.formatStatus(plan.status)}`)
+    lines.push('')
+
+    if (plan.status === 'unknown_item') {
+      lines.push(`The item "${plan.targetItem}" does not exist.`)
+      return lines.join('\n')
+    }
+
+    // Show steps in reverse order (base materials first)
+    const reversedSteps = [...plan.steps].reverse()
+
+    if (reversedSteps.length > 0) {
+      lines.push('Steps:')
+      for (let i = 0; i < reversedSteps.length; i++) {
+        const step = reversedSteps[i]
+        lines.push(`${i + 1}. ${this.formatStep(step)}`)
+      }
+      lines.push('')
+    }
+
+    // Show what we have vs what we need
+    if (Object.keys(plan.totalRequired).length > 0) {
+      lines.push('Resources needed:')
+      for (const [item, needed] of Object.entries(plan.totalRequired)) {
+        const have = this.inventory[item] || 0
+        const missing = plan.missing[item] || 0
+        const status = missing > 0 ? `❌ missing ${missing}` : '✓ have enough'
+        lines.push(`- ${item}: need ${needed}, have ${have} (${status})`)
+      }
+      lines.push('')
+    }
+
+    // Summary
+    if (plan.canCraftNow) {
+      const tableNote = plan.requiresCraftingTable ? ' (requires crafting table)' : ''
+      lines.push(`✓ You can craft this now${tableNote}!`)
+    }
+    else if (Object.keys(plan.missing).length > 0) {
+      lines.push('Missing resources:')
+      for (const [item, amount] of Object.entries(plan.missing)) {
+        const source = this.getGatherSource(item)
+        lines.push(`- ${amount}x ${item}${source ? ` (${source})` : ''}`)
+      }
+    }
+
+    return lines.join('\n')
   }
 
   private formatStatus(status: RecipeStatus): string {
@@ -258,10 +308,10 @@ export class RecipePlanner {
         return 'CRAFTABLE - Ready to craft!'
       case 'missing_resources':
         return 'MISSING RESOURCES - Need to gather more materials'
-      case 'requires_gathering':
-        return 'REQUIRES GATHERING - Need to mine/hunt for materials'
       case 'requires_smelting':
         return 'REQUIRES SMELTING - Need to use a furnace'
+      case 'requires_gathering':
+        return 'REQUIRES GATHERING - Need to mine/hunt for materials'
       case 'unknown_item':
         return 'UNKNOWN ITEM - Item does not exist'
     }
@@ -276,84 +326,34 @@ export class RecipePlanner {
         const tableNote = step.requiresCraftingTable ? ' [needs crafting table]' : ''
         return `Craft ${step.amount}x ${step.item} from ${ingredients}${tableNote}`
       }
+      case 'smelt':
+        return `Smelt ${step.amount}x ${step.item} (${step.source})`
       case 'gather':
         return `Gather ${step.amount}x ${step.item} (${step.source})`
       case 'hunt':
         return `Hunt for ${step.amount}x ${step.item} (${step.source})`
-      case 'smelt':
-        return `Smelt ${step.amount}x ${step.item} (${step.source})`
     }
   }
 
-  private getGatherSource(itemName: string): null | string {
-    // Check block sources
-    const blockSources = this.mcData.getItemBlockSources(itemName)
-    if (blockSources.length > 0) {
-      return `mine ${blockSources[0]}`
+  canCraftImmediately(): { canCraft: boolean, hasCraftingTable: boolean } {
+    const craftingTable = this.bot.findBlock({
+      matching: block => block.name === 'crafting_table',
+      maxDistance: 4,
+    })
+    return {
+      canCraft: true,
+      hasCraftingTable: craftingTable !== null,
     }
-
-    // Check animal sources
-    const animalSource = getItemAnimalSource(itemName)
-    if (animalSource) {
-      return `hunt ${animalSource}`
-    }
-
-    return null
   }
+}
 
-  private getInventoryCounts(): Record<string, number> {
-    const counts: Record<string, number> = {}
-    for (const item of this.bot.inventory.items()) {
-      counts[item.name] = (counts[item.name] || 0) + item.count
-    }
-    return counts
-  }
-
-  private getRecipeOutput(itemName: string): number {
-    const itemId = this.mcData.getItemId(itemName)
-    if (!itemId)
-      return 1
-    const recipes = this.mcData.registry.recipes[itemId]
-    if (!recipes || recipes.length === 0)
-      return 1
-    // Get the result count from the first recipe
-    const recipe = recipes[0] as any
-    return recipe.result?.count ?? 1
-  }
-
-  private selectBestRecipe(recipes: Record<string, number>[]): null | Record<string, number> {
-    if (recipes.length === 0)
-      return null
-    if (recipes.length === 1)
-      return recipes[0]
-
-    // Heuristic: pick the recipe where we have the most ingredients available
-    let bestRecipe = recipes[0]
-    let bestScore = -1
-
-    for (const recipe of recipes) {
-      let score = 0
-      for (const [ingredient, needed] of Object.entries(recipe)) {
-        const have = this.inventory[ingredient] || 0
-        score += Math.min(have, needed)
-      }
-      if (score > bestScore) {
-        bestScore = score
-        bestRecipe = recipe
-      }
-    }
-
-    return bestRecipe
-  }
+export function planRecipe(bot: Bot, itemName: string, amount: number): RecipePlan {
+  const planner = new RecipePlanner(bot)
+  return planner.plan(itemName, amount)
 }
 
 export function describeRecipePlan(bot: Bot, itemName: string, amount: number): string {
   const planner = new RecipePlanner(bot)
   const plan = planner.plan(itemName, amount)
   return planner.describe(plan)
-}
-
-export function planRecipe(bot: Bot, itemName: string, amount: number): RecipePlan {
-  const planner = new RecipePlanner(bot)
-  return planner.plan(itemName, amount)
 }

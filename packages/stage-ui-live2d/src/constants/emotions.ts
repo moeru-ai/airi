@@ -1,13 +1,13 @@
 export enum Emotion {
-  Angry = 'angry',
-  Awkward = 'awkward',
-  Curious = 'curious',
   Happy = 'happy',
-  Neutral = 'neutral',
-  Question = 'question',
   Sad = 'sad',
-  Surprise = 'surprised',
+  Angry = 'angry',
   Think = 'think',
+  Surprise = 'surprised',
+  Awkward = 'awkward',
+  Question = 'question',
+  Curious = 'curious',
+  Neutral = 'neutral',
 }
 
 export const EMOTION_VALUES = Object.values(Emotion)
@@ -23,25 +23,25 @@ export const EmotionNeutralMotionName = 'Idle'
 export const EmotionCuriousMotionName = 'Curious'
 
 export const EMOTION_EmotionMotionName_value = {
-  [Emotion.Angry]: EmotionAngryMotionName,
-  [Emotion.Awkward]: EmotionAwkwardMotionName,
-  [Emotion.Curious]: EmotionCuriousMotionName,
   [Emotion.Happy]: EmotionHappyMotionName,
-  [Emotion.Neutral]: EmotionNeutralMotionName,
-  [Emotion.Question]: EmotionQuestionMotionName,
   [Emotion.Sad]: EmotionSadMotionName,
-  [Emotion.Surprise]: EmotionSurpriseMotionName,
+  [Emotion.Angry]: EmotionAngryMotionName,
   [Emotion.Think]: EmotionThinkMotionName,
+  [Emotion.Surprise]: EmotionSurpriseMotionName,
+  [Emotion.Awkward]: EmotionAwkwardMotionName,
+  [Emotion.Question]: EmotionQuestionMotionName,
+  [Emotion.Neutral]: EmotionNeutralMotionName,
+  [Emotion.Curious]: EmotionCuriousMotionName,
 }
 
 export const EMOTION_VRMExpressionName_value = {
-  [Emotion.Angry]: 'angry',
-  [Emotion.Awkward]: undefined,
-  [Emotion.Curious]: 'surprised',
   [Emotion.Happy]: 'happy',
-  [Emotion.Neutral]: undefined,
-  [Emotion.Question]: undefined,
   [Emotion.Sad]: 'sad',
-  [Emotion.Surprise]: 'surprised',
+  [Emotion.Angry]: 'angry',
   [Emotion.Think]: undefined,
+  [Emotion.Surprise]: 'surprised',
+  [Emotion.Awkward]: undefined,
+  [Emotion.Question]: undefined,
+  [Emotion.Neutral]: undefined,
+  [Emotion.Curious]: 'surprised',
 } satisfies Record<Emotion, string | undefined>

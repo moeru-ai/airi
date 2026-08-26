@@ -3,31 +3,43 @@
  */
 
 export interface DisplayDescriptor {
-  /** Logical bounds in global screen coordinates */
-  bounds: {
-    height: number
-    width: number
-    x: number
-    y: number
-  }
   /** Display id from CGDirectDisplayID */
   displayId: number
-  /** Whether the display is built-in (laptop screen) */
-  isBuiltIn: boolean
   /** Whether this is the main display */
   isMain: boolean
-  pixelHeight: number
-  /** Physical pixel dimensions */
-  pixelWidth: number
-  /** Backing scale factor (2.0 = Retina) */
-  scaleFactor: number
-  /** Usable area excluding menu bar / dock */
-  visibleBounds: {
-    height: number
-    width: number
+  /** Whether the display is built-in (laptop screen) */
+  isBuiltIn: boolean
+  /** Logical bounds in global screen coordinates */
+  bounds: {
     x: number
     y: number
+    width: number
+    height: number
   }
+  /** Usable area excluding menu bar / dock */
+  visibleBounds: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+  /** Backing scale factor (2.0 = Retina) */
+  scaleFactor: number
+  /** Physical pixel dimensions */
+  pixelWidth: number
+  pixelHeight: number
+}
+
+export interface MultiDisplaySnapshot {
+  displays: DisplayDescriptor[]
+  /** Total bounding rect across all displays in logical coords */
+  combinedBounds: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+  capturedAt: string
 }
 
 /**
@@ -38,35 +50,23 @@ export interface DisplayDescriptor {
  * rendering, overlays, and Retina mismatch debugging.
  */
 export interface DisplayPointResolution {
-  /** Point relative to the containing display in backing pixels. */
-  backingPixel: {
-    x: number
-    y: number
-  }
-  /** Display containing the global logical point. */
-  display: DisplayDescriptor
   /** Original point in global logical screen coordinates. */
   global: {
     x: number
     y: number
   }
+  /** Display containing the global logical point. */
+  display: DisplayDescriptor
   /** Point relative to the containing display in logical coordinates. */
   local: {
     x: number
     y: number
   }
-}
-
-export interface MultiDisplaySnapshot {
-  capturedAt: string
-  /** Total bounding rect across all displays in logical coords */
-  combinedBounds: {
-    height: number
-    width: number
+  /** Point relative to the containing display in backing pixels. */
+  backingPixel: {
     x: number
     y: number
   }
-  displays: DisplayDescriptor[]
 }
 
 /**
@@ -81,41 +81,6 @@ export function findDisplayForPoint(
     const b = d.bounds
     return x >= b.x && x < b.x + b.width && y >= b.y && y < b.y + b.height
   })
-}
-
-/**
- * Resolves a global logical point against the display snapshot.
- *
- * Use when:
- * - Mapping desktop mutation targets to a concrete macOS display
- * - Recording display-local and backing-pixel diagnostics
- *
- * Expects:
- * - `snapshot` uses AIRI's top-left global logical coordinate space
- * - `x` and `y` are not pre-scaled by Retina backing factor
- *
- * Returns:
- * - Display metadata when the point is inside a connected display
- * - `undefined` when the point is outside all display bounds
- */
-export function resolveDisplayPoint(
-  snapshot: MultiDisplaySnapshot,
-  x: number,
-  y: number,
-): DisplayPointResolution | undefined {
-  const display = findDisplayForPoint(snapshot, x, y)
-  if (!display) {
-    return undefined
-  }
-
-  const local = toDisplayLocalCoord(display, x, y)
-
-  return {
-    backingPixel: toBackingPixelCoord(display, local.x, local.y),
-    display,
-    global: { x, y },
-    local,
-  }
 }
 
 /**
@@ -153,6 +118,41 @@ export function toDisplayLocalCoord(
   return {
     x: x - display.bounds.x,
     y: y - display.bounds.y,
+  }
+}
+
+/**
+ * Resolves a global logical point against the display snapshot.
+ *
+ * Use when:
+ * - Mapping desktop mutation targets to a concrete macOS display
+ * - Recording display-local and backing-pixel diagnostics
+ *
+ * Expects:
+ * - `snapshot` uses AIRI's top-left global logical coordinate space
+ * - `x` and `y` are not pre-scaled by Retina backing factor
+ *
+ * Returns:
+ * - Display metadata when the point is inside a connected display
+ * - `undefined` when the point is outside all display bounds
+ */
+export function resolveDisplayPoint(
+  snapshot: MultiDisplaySnapshot,
+  x: number,
+  y: number,
+): DisplayPointResolution | undefined {
+  const display = findDisplayForPoint(snapshot, x, y)
+  if (!display) {
+    return undefined
+  }
+
+  const local = toDisplayLocalCoord(display, x, y)
+
+  return {
+    global: { x, y },
+    display,
+    local,
+    backingPixel: toBackingPixelCoord(display, local.x, local.y),
   }
 }
 

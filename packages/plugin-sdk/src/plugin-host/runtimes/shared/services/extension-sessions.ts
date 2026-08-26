@@ -14,25 +14,15 @@ import { nanoid } from 'nanoid/non-secure'
  * - An in-memory session registry with identity generation helpers
  */
 export class ExtensionSessionService<TSession extends { id: string }> {
-  private sessionCounter = 0
   private readonly sessions = new Map<string, TSession>()
-
-  get(sessionId: string) {
-    return this.sessions.get(sessionId)
-  }
+  private sessionCounter = 0
 
   list() {
     return [...this.sessions.values()]
   }
 
-  nextSessionIdentity() {
-    const index = this.sessionCounter
-    this.sessionCounter += 1
-
-    return {
-      index,
-      sessionId: `extension-session-${nanoid()}`,
-    }
+  get(sessionId: string) {
+    return this.sessions.get(sessionId)
   }
 
   register(session: TSession) {
@@ -48,5 +38,15 @@ export class ExtensionSessionService<TSession extends { id: string }> {
 
     this.sessions.delete(session.id)
     return session
+  }
+
+  nextSessionIdentity() {
+    const index = this.sessionCounter
+    this.sessionCounter += 1
+
+    return {
+      index,
+      sessionId: `extension-session-${nanoid()}`,
+    }
   }
 }

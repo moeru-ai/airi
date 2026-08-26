@@ -7,62 +7,11 @@ import { fileURLToPath } from 'node:url'
 
 const templatePath = fileURLToPath(new URL('./brain-prompt.md', import.meta.url))
 
-let cachedTemplate: null | string = null
+let cachedTemplate: string | null = null
 let watcherInitialized = false
 
-export interface BrainSystemPromptOptions {
-  /** In-game username of the bot's owner, bound so it recognizes its master in-world. */
-  masterUsername?: string
-}
-
-export function generateBrainSystemPrompt(availableActions: Action[], options: BrainSystemPromptOptions = {}): string {
-  const toolsFormatted = availableActions.map((a) => {
-    const paramKeys = Object.keys(a.schema.shape)
-    const positionalSignature = paramKeys.length > 0 ? `${a.name}(${paramKeys.join(', ')})` : `${a.name}()`
-    const objectSignature = paramKeys.length > 0 ? `${a.name}({ ${paramKeys.join(', ')} })` : `${a.name}()`
-
-    const params = a.schema && 'shape' in a.schema
-      ? Object.entries(a.schema.shape).map(([key, val]: [string, any]) => {
-          const def = val._def
-          const type = getZodTypeName(def)
-          const constraints = getZodConstraintHint(def).replace(/^\s+/, '')
-          const desc = val.description ? ` ${String(val.description).trim()}` : ''
-          return `${key}:${type}${constraints}${desc}`
-        }).join('; ')
-      : ''
-
-    const compactDescription = abbreviateToolDescription(a.description)
-    return `${a.name}|${compactDescription}|sig:${positionalSignature}|obj:${objectSignature}${params ? `|args:${params}` : ''}`
-  }).join('\n')
-
-  ensureWatcher()
-  const template = ensureTemplateLoaded()
-  const rendered = renderTemplate(template, {
-    toolsFormatted,
-  })
-
-  const master = options.masterUsername?.trim()
-  return master ? `${rendered}\n${masterIdentitySection(master)}` : rendered
-}
-
-function abbreviateToolDescription(input: string): string {
-  return input
-    .replace(/\bAutomatically\b/gi, 'Auto')
-    .replace(/\bapproximately\b/gi, 'approx')
-    .replace(/\bcoordinate(s)?\b/gi, 'coord$1')
-    .replace(/\bcoordinates\b/gi, 'coords')
-    .replace(/\binventory\b/gi, 'inv')
-    .replace(/\bnearest\b/gi, 'near')
-    .replace(/\bspecific\b/gi, 'spec')
-    .replace(/\bgiven\b/gi, '')
-    .replace(/\bnumber of\b/gi, '#')
-    .replace(/\bplayer\b/gi, 'plyr')
-    .replace(/\bplayers\b/gi, 'plyrs')
-    .replace(/\bresource(s)?\b/gi, 'res$1')
-    .replace(/\bposition\b/gi, 'pos')
-    .replace(/\bwhether\b/gi, 'if')
-    .replace(/\s+/g, ' ')
-    .trim()
+function loadTemplateFromDisk(): string {
+  return readFileSync(templatePath, 'utf-8')
 }
 
 function ensureTemplateLoaded(): string {
@@ -88,29 +37,8 @@ function ensureWatcher(): void {
   })
 }
 
-function getZodConstraintHint(def: any): string {
-  if (!def)
-    return ''
-
-  const checks = Array.isArray(def.checks) ? def.checks : []
-  const hints: string[] = []
-
-  for (const check of checks) {
-    if (check?.kind === 'min' && typeof check.value === 'number') {
-      hints.push(`min=${check.value}`)
-    }
-    if (check?.kind === 'max' && typeof check.value === 'number') {
-      hints.push(`max=${check.value}`)
-    }
-    if (check?.def?.check === 'greater_than' && typeof check.def.value === 'number') {
-      hints.push(`min=${check.def.inclusive ? check.def.value : check.def.value + 1}`)
-    }
-    if (check?.def?.check === 'less_than' && typeof check.def.value === 'number') {
-      hints.push(`max=${check.def.inclusive ? check.def.value : check.def.value - 1}`)
-    }
-  }
-
-  return hints.length > 0 ? ` (${hints.join(', ')})` : ''
+function renderTemplate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_full, key) => vars[key] ?? '')
 }
 
 // Helper to extract readable type from Zod schema
@@ -151,8 +79,54 @@ function getZodTypeName(def: any): string {
   return type || 'any'
 }
 
-function loadTemplateFromDisk(): string {
-  return readFileSync(templatePath, 'utf-8')
+function getZodConstraintHint(def: any): string {
+  if (!def)
+    return ''
+
+  const checks = Array.isArray(def.checks) ? def.checks : []
+  const hints: string[] = []
+
+  for (const check of checks) {
+    if (check?.kind === 'min' && typeof check.value === 'number') {
+      hints.push(`min=${check.value}`)
+    }
+    if (check?.kind === 'max' && typeof check.value === 'number') {
+      hints.push(`max=${check.value}`)
+    }
+    if (check?.def?.check === 'greater_than' && typeof check.def.value === 'number') {
+      hints.push(`min=${check.def.inclusive ? check.def.value : check.def.value + 1}`)
+    }
+    if (check?.def?.check === 'less_than' && typeof check.def.value === 'number') {
+      hints.push(`max=${check.def.inclusive ? check.def.value : check.def.value - 1}`)
+    }
+  }
+
+  return hints.length > 0 ? ` (${hints.join(', ')})` : ''
+}
+
+function abbreviateToolDescription(input: string): string {
+  return input
+    .replace(/\bAutomatically\b/gi, 'Auto')
+    .replace(/\bapproximately\b/gi, 'approx')
+    .replace(/\bcoordinate(s)?\b/gi, 'coord$1')
+    .replace(/\bcoordinates\b/gi, 'coords')
+    .replace(/\binventory\b/gi, 'inv')
+    .replace(/\bnearest\b/gi, 'near')
+    .replace(/\bspecific\b/gi, 'spec')
+    .replace(/\bgiven\b/gi, '')
+    .replace(/\bnumber of\b/gi, '#')
+    .replace(/\bplayer\b/gi, 'plyr')
+    .replace(/\bplayers\b/gi, 'plyrs')
+    .replace(/\bresource(s)?\b/gi, 'res$1')
+    .replace(/\bposition\b/gi, 'pos')
+    .replace(/\bwhether\b/gi, 'if')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+export interface BrainSystemPromptOptions {
+  /** In-game username of the bot's owner, bound so it recognizes its master in-world. */
+  masterUsername?: string
 }
 
 function masterIdentitySection(masterUsername: string): string {
@@ -171,6 +145,32 @@ function masterIdentitySection(masterUsername: string): string {
   ].join('\n')
 }
 
-function renderTemplate(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_full, key) => vars[key] ?? '')
+export function generateBrainSystemPrompt(availableActions: Action[], options: BrainSystemPromptOptions = {}): string {
+  const toolsFormatted = availableActions.map((a) => {
+    const paramKeys = Object.keys(a.schema.shape)
+    const positionalSignature = paramKeys.length > 0 ? `${a.name}(${paramKeys.join(', ')})` : `${a.name}()`
+    const objectSignature = paramKeys.length > 0 ? `${a.name}({ ${paramKeys.join(', ')} })` : `${a.name}()`
+
+    const params = a.schema && 'shape' in a.schema
+      ? Object.entries(a.schema.shape).map(([key, val]: [string, any]) => {
+          const def = val._def
+          const type = getZodTypeName(def)
+          const constraints = getZodConstraintHint(def).replace(/^\s+/, '')
+          const desc = val.description ? ` ${String(val.description).trim()}` : ''
+          return `${key}:${type}${constraints}${desc}`
+        }).join('; ')
+      : ''
+
+    const compactDescription = abbreviateToolDescription(a.description)
+    return `${a.name}|${compactDescription}|sig:${positionalSignature}|obj:${objectSignature}${params ? `|args:${params}` : ''}`
+  }).join('\n')
+
+  ensureWatcher()
+  const template = ensureTemplateLoaded()
+  const rendered = renderTemplate(template, {
+    toolsFormatted,
+  })
+
+  const master = options.masterUsername?.trim()
+  return master ? `${rendered}\n${masterIdentitySection(master)}` : rendered
 }

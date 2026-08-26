@@ -21,15 +21,15 @@ function createTestI18n() {
 /** Renders the welcome step with real Pinia and i18n plugins. */
 async function renderWelcomeStep(customProviderSetupEnabled: boolean) {
   return render(StepWelcome, {
+    props: {
+      customProviderSetupEnabled,
+      onNext: vi.fn(),
+    },
     global: {
       directives: {
         motion: {},
       },
       plugins: [createPinia(), createTestI18n()],
-    },
-    props: {
-      customProviderSetupEnabled,
-      onNext: vi.fn(),
     },
   })
 }

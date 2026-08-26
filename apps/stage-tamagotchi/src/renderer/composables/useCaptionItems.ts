@@ -5,10 +5,10 @@ import { readonly, shallowRef } from 'vue'
 export interface CaptionItem {
   /** Stable render key and timer owner for one broadcast caption event. */
   id: number
-  /** Text payload rendered by the overlay. */
-  text: string
   /** Caption source, used for styling and explicit type-level clears. */
   type: CaptionChannelEvent['type']
+  /** Text payload rendered by the overlay. */
+  text: string
 }
 
 export interface UseCaptionItemsOptions {
@@ -78,8 +78,8 @@ export function useCaptionItems(options: UseCaptionItemsOptions = {}) {
     if (!currentItem) {
       const item: CaptionItem = {
         id: nextId++,
-        text: event.text,
         type: event.type,
+        text: event.text,
       }
       items.value = [...items.value, item]
       scheduleExpiry(item)
@@ -109,8 +109,8 @@ export function useCaptionItems(options: UseCaptionItemsOptions = {}) {
 
     const item: CaptionItem = {
       id: nextId++,
-      text: event.text,
       type: event.type,
+      text: event.text,
     }
     items.value = [...items.value, item]
     scheduleExpiry(item)
@@ -125,9 +125,9 @@ export function useCaptionItems(options: UseCaptionItemsOptions = {}) {
   }
 
   return {
+    items: readonly(items),
     add,
     clearType,
     dispose,
-    items: readonly(items),
   }
 }

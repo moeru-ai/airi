@@ -9,14 +9,14 @@ import { createAuthRoutes } from '../routes'
 async function createApp(trustedProxy?: 'railway') {
   const routes = await createAuthRoutes({
     auth: {
-      api: { getSession: vi.fn(async () => null) },
       handler: vi.fn(async () => new Response(null, { status: 200 })),
+      api: { getSession: vi.fn(async () => null) },
     } as unknown as Parameters<typeof createAuthRoutes>[0]['auth'],
     db: {} as unknown as Parameters<typeof createAuthRoutes>[0]['db'],
     env: {
-      ADDITIONAL_TRUSTED_ORIGINS: [],
-      AUTH_UI_URL: 'https://accounts.airi.build/ui',
       PUBLIC_URL: 'https://api.airi.build',
+      AUTH_UI_URL: 'https://accounts.airi.build/ui',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
       RATE_LIMIT_TRUSTED_PROXY: trustedProxy,
     } as unknown as Parameters<typeof createAuthRoutes>[0]['env'],
     rateLimitMetrics: null,
@@ -26,7 +26,7 @@ async function createApp(trustedProxy?: 'railway') {
 }
 
 async function listen(app: Hono<HonoEnv>, hostname = '127.0.0.1') {
-  const server = serve({ fetch: app.fetch, hostname, port: 0 })
+  const server = serve({ fetch: app.fetch, port: 0, hostname })
   const port = await new Promise<number>((resolve) => {
     server.once('listening', () => {
       const address = server.address()
@@ -36,10 +36,10 @@ async function listen(app: Hono<HonoEnv>, hostname = '127.0.0.1') {
   })
 
   return {
+    origin: `http://${hostname.includes(':') ? `[${hostname}]` : hostname}:${port}`,
     close: () => new Promise<void>((resolve, reject) => {
       server.close(error => error ? reject(error) : resolve())
     }),
-    origin: `http://${hostname.includes(':') ? `[${hostname}]` : hostname}:${port}`,
   }
 }
 

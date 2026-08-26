@@ -9,6 +9,17 @@ import type {
 
 import { Mesh, SkinnedMesh, Texture } from 'three'
 
+function maybeGetJsHeapUsedBytes() {
+  const performanceMemory = (globalThis.performance as {
+    memory?: { usedJSHeapSize?: number }
+  } | undefined)?.memory
+
+  const heapUsed = performanceMemory?.usedJSHeapSize
+  return typeof heapUsed === 'number' && Number.isFinite(heapUsed)
+    ? heapUsed
+    : undefined
+}
+
 export function createThreeRendererMemorySnapshot(renderer?: WebGLRenderer): ThreeRendererMemorySnapshot {
   if (!renderer) {
     return {
@@ -34,7 +45,14 @@ export function createThreeRendererMemorySnapshot(renderer?: WebGLRenderer): Thr
   }
 }
 
-export function createVrmSceneSummarySnapshot(input?: VRM | VrmSceneSnapshotInput, maybeMixer?: AnimationMixer): VrmSceneSummarySnapshot {
+function collectMaterialTextures(material: Material, textures: Set<Texture>) {
+  for (const value of Object.values(material)) {
+    if (value instanceof Texture)
+      textures.add(value)
+  }
+}
+
+export function createVrmSceneSummarySnapshot(input?: VrmSceneSnapshotInput | VRM, maybeMixer?: AnimationMixer): VrmSceneSummarySnapshot {
   const params: VrmSceneSnapshotInput = input && 'scene' in input
     ? { mixer: maybeMixer, vrm: input }
     : (input ?? {})
@@ -84,22 +102,4 @@ export function createVrmSceneSummarySnapshot(input?: VRM | VrmSceneSnapshotInpu
     skinnedMeshCount,
     textureRefCount: textures.size,
   }
-}
-
-function collectMaterialTextures(material: Material, textures: Set<Texture>) {
-  for (const value of Object.values(material)) {
-    if (value instanceof Texture)
-      textures.add(value)
-  }
-}
-
-function maybeGetJsHeapUsedBytes() {
-  const performanceMemory = (globalThis.performance as undefined | {
-    memory?: { usedJSHeapSize?: number }
-  })?.memory
-
-  const heapUsed = performanceMemory?.usedJSHeapSize
-  return typeof heapUsed === 'number' && Number.isFinite(heapUsed)
-    ? heapUsed
-    : undefined
 }

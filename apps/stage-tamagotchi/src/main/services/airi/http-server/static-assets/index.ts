@@ -22,12 +22,12 @@ export interface StaticAssetManifestEntry {
 }
 
 export interface StaticAssetService extends ServerManager {
-  createSession: StaticAssetSessionStore['createSession']
   getBaseUrl: () => string | undefined
-  revokeAll: StaticAssetSessionStore['revokeAll']
-  revokeByExtensionId: StaticAssetSessionStore['revokeByExtensionId']
-  revokeByOwnerSessionId: StaticAssetSessionStore['revokeByOwnerSessionId']
+  createSession: StaticAssetSessionStore['createSession']
   revokeSession: StaticAssetSessionStore['revokeSession']
+  revokeByOwnerSessionId: StaticAssetSessionStore['revokeByOwnerSessionId']
+  revokeByExtensionId: StaticAssetSessionStore['revokeByExtensionId']
+  revokeAll: StaticAssetSessionStore['revokeAll']
 }
 
 /**
@@ -46,9 +46,9 @@ export interface StaticAssetService extends ServerManager {
  */
 export function createStaticAssetService(options: {
   getManifestEntryByExtensionId: () => Map<string, StaticAssetManifestEntry>
-  getType?: (ext: string) => string | undefined
   host?: string
   sessionStore?: StaticAssetSessionStore
+  getType?: (ext: string) => string | undefined
 }): StaticAssetService {
   const host = options.host ?? '127.0.0.1'
   const sessionStore = options.sessionStore ?? createStaticAssetSessionStore()
@@ -71,54 +71,54 @@ export function createStaticAssetService(options: {
   }
 
   const staticAssetRoute = createStaticAssetRoute({
-    authorize: async ({ assetPath, assetSessionId, cookieValue, extensionId }) => {
+    getType,
+    authorize: async ({ extensionId, assetSessionId, assetPath, cookieValue }) => {
       const entry = getManifestEntryForRequest(extensionId)
       if (!entry) {
         return {
+          ok: false,
           error: new HttpError({
+            status: 401,
             code: 'EXTENSION_ASSET_EXTENSION_NOT_REGISTERED',
             message: 'Unauthorized',
             reason: 'extension manifest entry does not exist for requested extensionId',
-            status: 401,
           }),
-          ok: false,
         }
       }
 
       return sessionStore.validateRequest({
-        assetPath,
-        assetSessionId,
-        cookieValue,
         extensionId,
         version: entry.version,
+        assetSessionId,
+        assetPath,
+        cookieValue,
       })
     },
-    getType,
     refreshSession: sessionStore.refreshSession,
-    resolveAsset: async ({ assetPath, extensionId }) => {
+    resolveAsset: async ({ extensionId, assetPath }) => {
       const entry = getManifestEntryForRequest(extensionId)
       if (!entry) {
         return {
+          ok: false,
           error: new HttpError({
+            status: 404,
             code: 'EXTENSION_ASSET_EXTENSION_NOT_FOUND',
             message: 'Not Found',
             reason: 'extension manifest entry does not exist for requested extensionId',
-            status: 404,
           }),
-          ok: false,
         }
       }
 
       const normalizedAssetPath = normalizeStaticAssetPath(assetPath)
       if (!normalizedAssetPath) {
         return {
+          ok: false,
           error: new HttpError({
+            status: 400,
             code: 'EXTENSION_ASSET_PATH_INVALID',
             message: 'Bad Request',
             reason: 'asset path could not be normalized',
-            status: 400,
           }),
-          ok: false,
         }
       }
 
@@ -132,24 +132,24 @@ export function createStaticAssetService(options: {
         }
         catch {
           return {
+            ok: false,
             error: new HttpError({
+              status: 404,
               code: 'EXTENSION_ASSET_NOT_FOUND',
               message: 'Not Found',
               reason: 'resolved file does not exist',
-              status: 404,
             }),
-            ok: false,
           }
         }
 
         return {
+          ok: false,
           error: new HttpError({
+            status: 400,
             code: 'EXTENSION_ASSET_PATH_RESOLVE_FAILED',
             message: 'Bad Request',
             reason: 'resolved asset path is outside extension root',
-            status: 400,
           }),
-          ok: false,
         }
       }
 
@@ -157,32 +157,32 @@ export function createStaticAssetService(options: {
         const fileStats = await stat(filePath)
         if (!fileStats.isFile()) {
           return {
+            ok: false,
             error: new HttpError({
+              status: 404,
               code: 'EXTENSION_ASSET_NOT_FILE',
               message: 'Not Found',
               reason: 'resolved path exists but is not a file',
-              status: 404,
             }),
-            ok: false,
           }
         }
 
         return {
-          filePath,
-          mtime: fileStats.mtimeMs,
           ok: true,
+          filePath,
           size: fileStats.size,
+          mtime: fileStats.mtimeMs,
         }
       }
       catch {
         return {
+          ok: false,
           error: new HttpError({
+            status: 404,
             code: 'EXTENSION_ASSET_NOT_FOUND',
             message: 'Not Found',
             reason: 'resolved file does not exist',
-            status: 404,
           }),
-          ok: false,
         }
       }
     },
@@ -191,29 +191,29 @@ export function createStaticAssetService(options: {
   app.use('/_airi/extensions/**', event => manifestEntryRequestCache.run(new Map(), () => staticAssetRoute(event)))
 
   return {
-    createSession: sessionStore.createSession,
-    getBaseUrl() {
-      return serverLifecycle.getAddress()?.baseUrl
-    },
     key: 'static-assets',
-    revokeAll: sessionStore.revokeAll,
-    revokeByExtensionId: sessionStore.revokeByExtensionId,
-    revokeByOwnerSessionId: sessionStore.revokeByOwnerSessionId,
-    revokeSession: sessionStore.revokeSession,
     async start() {
       await serverLifecycle.start()
     },
     async stop() {
       await serverLifecycle.stop()
     },
+    getBaseUrl() {
+      return serverLifecycle.getAddress()?.baseUrl
+    },
+    createSession: sessionStore.createSession,
+    revokeSession: sessionStore.revokeSession,
+    revokeByOwnerSessionId: sessionStore.revokeByOwnerSessionId,
+    revokeByExtensionId: sessionStore.revokeByExtensionId,
+    revokeAll: sessionStore.revokeAll,
   }
 }
 
 const staticAssetMimeTypeOverrides: Record<string, string> = {
+  '.wasm': 'application/wasm',
   '.avif': 'image/avif',
   '.heic': 'image/heic',
   '.heif': 'image/heif',
-  '.wasm': 'application/wasm',
 }
 
 function defaultStaticAssetMimeTypeResolver(ext: string) {
