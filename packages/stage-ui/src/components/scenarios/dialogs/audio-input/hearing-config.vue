@@ -49,13 +49,26 @@ const ringEnabledClass = computed(() => enabled.value
   : 'bg-neutral-300/20 dark:bg-neutral-700/20',
 )
 
-function toggleHearingEnabled() {
-  if (enabled.value)
-    return enabled.value = false
-  if (selectedAudioInput.value !== '' && permissionGranted.value)
-    return enabled.value = true
-  if (!permissionGranted.value)
-    return askPermission().then(() => { enabled.value = permissionGranted.value })
+async function toggleHearingEnabled() {
+  if (enabled.value) {
+    enabled.value = false
+    return
+  }
+
+  // Permission can already be granted while no device is selected yet (for
+  // example after a settings reset). Ask again in that case so the device
+  // list and default selection populate; otherwise this click would fall
+  // through every branch and silently do nothing.
+  if (!permissionGranted.value || selectedAudioInput.value === '')
+    await askPermission()
+
+  enabled.value = permissionGranted.value
+
+  // vueuse's ensurePermissions swallows getUserMedia failures, so a denied
+  // OS-level microphone permission or a device grabbed by another app leaves
+  // the toggle off with no signal. Surface it for diagnosis.
+  if (!enabled.value)
+    console.warn('Microphone could not be enabled: permission was not granted. Check the browser microphone permission for this site and the OS-level microphone permission for the browser.')
 }
 </script>
 

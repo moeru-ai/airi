@@ -237,6 +237,8 @@ describe('useTranscriptions', () => {
   })
 
   describe('transcription & Input', () => {
+    // Microphone input is already enabled in these tests, so creating the
+    // composable auto-starts the streaming session; no manual start exists.
     it('should append transcribed text to messageInputRef', async () => {
       const mockInput = ref('')
       mockHearingStore.configured.value = true
@@ -244,10 +246,7 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { startStreamingTranscription }
-        = useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
-
-      await startStreamingTranscription()
+      useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
       await nextTick()
 
       expect(mockInput.value).toBe(mockTranscribedContent)
@@ -261,10 +260,7 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { startStreamingTranscription }
-        = useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
-
-      await startStreamingTranscription()
+      useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
       await nextTick()
 
       expect(mockInput.value).toBe(`${prependText} ${mockTranscribedContent}`)
@@ -289,10 +285,8 @@ describe('useTranscriptions', () => {
         options.onSentenceEnd('今天天气很好')
       })
 
-      const { startStreamingTranscription }
-        = useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
-
-      await startStreamingTranscription()
+      useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
+      await nextTick()
 
       expect(observedInputs).toEqual(['prefix 今天天气很号', 'prefix 今天天气很好'])
       expect(mockInput.value).toBe('prefix 今天天气很好')
@@ -311,10 +305,8 @@ describe('useTranscriptions', () => {
         options.onSentenceEnd('provider final')
       })
 
-      const { startStreamingTranscription }
-        = useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
-
-      await startStreamingTranscription()
+      useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
+      await nextTick()
 
       expect(mockInput.value).toBe('manual edit')
     })
@@ -330,10 +322,7 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { startStreamingTranscription }
-        = useTranscriptions({ ...createOptions(), messageInputRef: mockInput, sendMessage: mockSendMessage })
-
-      await startStreamingTranscription()
+      useTranscriptions({ ...createOptions(), messageInputRef: mockInput, sendMessage: mockSendMessage })
       await nextTick()
 
       expect(mockSendMessage).not.toHaveBeenCalled()
@@ -354,10 +343,7 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { startStreamingTranscription }
-        = useTranscriptions({ ...createOptions(), messageInputRef: mockInput, sendMessage: mockSendMessage })
-
-      await startStreamingTranscription()
+      useTranscriptions({ ...createOptions(), messageInputRef: mockInput, sendMessage: mockSendMessage })
       await nextTick()
 
       // Disable auto-send before timeout
@@ -413,6 +399,67 @@ describe('useTranscriptions', () => {
   })
 
   describe('reactive watchers', () => {
+    // ROOT CAUSE:
+    //
+    // If nothing calls startStreamingTranscription, live speech input can
+    // never start and the Web Speech API fallback is unreachable.
+    // This happened because PR #2014 removed the transcription toggle button
+    // and its `toggleTranscription` emit from HearingConfig, while ChatArea
+    // and MobileInteractiveArea kept binding `@toggle-transcription` to it.
+    // Vue drops listeners for events a component never emits, so the binding
+    // was silently dead and `isListening` could never become true.
+    //
+    // We fixed this by starting streaming transcription from a watcher on the
+    // microphone `enabled` state inside useTranscriptions, so enabling the
+    // microphone is the single entry point for live speech input.
+    it('starts streaming when microphone input becomes enabled', async () => {
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = false
+      mockHearingPipeline.supportsStreamInput.value = true
+
+      const { isListening } = useTranscriptions(createOptions())
+
+      expect(mockHearingPipeline.transcribeForMediaStream).not.toHaveBeenCalled()
+
+      mockAudioDevice.enabled.value = true
+      await nextTick()
+      await nextTick()
+
+      expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalled()
+      expect(isListening.value).toBe(true)
+    })
+
+    it('starts streaming on setup when microphone input is already enabled', async () => {
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = true
+      mockHearingPipeline.supportsStreamInput.value = true
+
+      const { isListening } = useTranscriptions(createOptions())
+      await nextTick()
+
+      expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalled()
+      expect(isListening.value).toBe(true)
+    })
+
+    it('falls back to Web Speech API when the microphone is enabled with no provider configured', async () => {
+      mockHearingStore.configured.value = false
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = false
+
+      useTranscriptions(createOptions())
+
+      mockAudioDevice.enabled.value = true
+      await nextTick()
+      await nextTick()
+      await nextTick()
+
+      expect(mockProvidersStore.initializeProvider).toHaveBeenCalledWith('browser-web-speech-api')
+      expect(mockHearingStore.activeTranscriptionProvider).toBe('browser-web-speech-api')
+      expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalled()
+    })
+
     it('should stop listening if microphone is disabled', async () => {
       mockHearingStore.configured.value = true
       mockAudioDevice.stream.value = { id: 'stream-1' } as any

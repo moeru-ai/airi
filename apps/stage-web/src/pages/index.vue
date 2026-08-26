@@ -59,14 +59,11 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
 const { discardRecord, startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
-const { removeStreamingTranscriptionConsumer, stopStreamingTranscription, transcribeForMediaStream, transcribeForRecording } = hearingPipeline
+const { stopStreamingTranscription, transcribeForRecording } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 const chatStore = useChatStore()
-
-/** Identifies this page in the shared streaming transcription session. */
-const transcriptionConsumerId = 'stage-web:voice-input'
 
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
@@ -109,14 +106,6 @@ async function startAudioInteraction() {
     if (stream.value)
       await startVAD(stream.value)
 
-    if (shouldUseStreamInput.value && stream.value) {
-      await transcribeForMediaStream(stream.value, {
-        consumerId: transcriptionConsumerId,
-        onSentenceEnd: text => void sendVoiceInputTextToChat(text),
-      })
-      return
-    }
-
     // Hook once
     stopOnStopRecord = onStopRecord(async (recording) => {
       const text = await transcribeForRecording(recording)
@@ -129,8 +118,10 @@ async function startAudioInteraction() {
 }
 
 async function handleSpeechStart() {
-  // For streaming providers, ChatArea component handles transcription manually
-  // The main page should not start automatic transcription to avoid duplicate sessions
+  // For streaming providers, the chat surface (ChatArea/MobileInteractiveArea)
+  // owns the streaming transcription session via useTranscriptions. This page
+  // must not register its own streaming consumer, or each sentence would be
+  // delivered twice: once into the chat input and once directly to chat.
   if (shouldUseStreamInput.value) {
     return
   }
@@ -154,9 +145,10 @@ async function handleSpeechCancel() {
 
 function stopAudioInteraction() {
   try {
-    removeStreamingTranscriptionConsumer(transcriptionConsumerId)
     stopOnStopRecord?.()
     stopOnStopRecord = undefined
+    // Leak guard: force-stop any streaming session other surfaces (for
+    // example the hearing settings page) left behind.
     void stopStreamingTranscription(true)
     disposeVAD()
   }

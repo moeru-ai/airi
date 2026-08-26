@@ -43,7 +43,7 @@ const sendModeLabels = computed<Record<SendMode, string>>(() => ({
   'double-enter': t('stage.send-mode.double-enter'),
 }))
 
-const { isListening, startStreamingTranscription, stopStreamingTranscription, autoSendEnabled } = useTranscriptions(
+const { isListening, autoSendEnabled } = useTranscriptions(
   {
     messageInputRef: messageInput,
     sendMessage: handleSend,
@@ -263,9 +263,7 @@ watch(sendMode, () => {
           >
             <HearingConfig
               v-model:auto-send="autoSendEnabled"
-              :transcription="isListening"
               :granted="true"
-              @toggle-transcription="() => isListening ? stopStreamingTranscription() : startStreamingTranscription()"
             />
           </PopoverContent>
         </PopoverRoot>

@@ -45,14 +45,11 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
 const { discardRecord, startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
-const { removeStreamingTranscriptionConsumer, transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
+const { transcribeForRecording, stopStreamingTranscription } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 const chatStore = useChatStore()
-
-/** Identifies this page in the shared streaming transcription session. */
-const transcriptionConsumerId = 'stage-pocket:voice-input'
 
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
@@ -107,15 +104,12 @@ async function startAudioInteraction() {
 }
 
 async function handleSpeechStart() {
-  if (shouldUseStreamInput.value && stream.value) {
-    // Use both callbacks to support incremental updates and final transcript replacement.
-    // ChatArea uses only onSentenceEnd to avoid re-adding deleted text.
-    await transcribeForMediaStream(stream.value, {
-      consumerId: transcriptionConsumerId,
-      onSentenceEnd: (delta) => {
-        void sendVoiceInputTextToChat(delta)
-      },
-    })
+  // For streaming providers, the chat surface (InteractiveArea/
+  // MobileInteractiveArea) owns the streaming transcription session via
+  // useTranscriptions. This page must not register its own streaming
+  // consumer, or each sentence would be delivered twice: once into the chat
+  // input and once directly to chat.
+  if (shouldUseStreamInput.value) {
     return
   }
 
@@ -138,7 +132,6 @@ async function handleSpeechCancel() {
 
 function stopAudioInteraction() {
   try {
-    removeStreamingTranscriptionConsumer(transcriptionConsumerId)
     stopOnStopRecord?.()
     stopOnStopRecord = undefined
     // Stop any active streaming transcription sessions to prevent session leakage

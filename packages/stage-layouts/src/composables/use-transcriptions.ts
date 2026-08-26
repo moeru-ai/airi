@@ -214,13 +214,29 @@ export function useTranscriptions(options: TranscriptionOptions) {
     }
   })
 
-  // Watch for auto-send setting changes and clear pending sends if disabled
-  watch(hearingEnabled, async (enabled) => {
-    if (!enabled) {
+  // The chat surface owns streaming transcription: the microphone `enabled`
+  // state is the only entry point. The manual transcription toggle was removed
+  // from HearingConfig in #2014, so without this watcher live speech input can
+  // never start. Page-level audio pipelines (stage-web/stage-pocket index
+  // pages) keep the recorder-based path for providers without stream input and
+  // must not register their own streaming consumers.
+  watch(hearingEnabled, async (enabled, wasEnabled) => {
+    if (enabled) {
+      try {
+        await startStreaming()
+      }
+      catch (err) {
+        console.error('Failed to start streaming transcription on microphone enable:', err, { source: 'useTranscriptions' })
+      }
+      return
+    }
+
+    // Skip the initial run: there is no session to stop yet.
+    if (wasEnabled !== undefined) {
       await stopStreaming()
       console.info('Stopping streaming transcription because hearing is disabled.', { source: 'useTranscriptions' })
     }
-  })
+  }, { immediate: true })
 
   onScopeDispose(() => {
     clearPendingAutoSend()

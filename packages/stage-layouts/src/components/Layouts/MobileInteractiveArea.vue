@@ -149,7 +149,7 @@ function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
 
-const { isListening, startStreamingTranscription, stopStreamingTranscription } = useTranscriptions(
+const { isListening, autoSendEnabled } = useTranscriptions(
   {
     messageInputRef: messageInput,
     sendMessage: handleSend,
@@ -157,7 +157,6 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription } =
   },
 )
 const { showStopSpeakingButton, speechMuted, stopSpeakingFromChat, toggleSpeechMuted } = useStopSpeakingButton()
-const toggleTranscription = () => isListening.value ? stopStreamingTranscription() : startStreamingTranscription()
 
 async function handleSubmit() {
   if (!isMobileDevice()) {
@@ -319,9 +318,7 @@ onUnmounted(() => {
           </div>
           <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
           <HearingConfigDialog
-            v-model:enabled="enabled"
-            :transcription="isListening"
-            :toggle-transcription="toggleTranscription"
+            v-model:auto-send="autoSendEnabled"
             :granted="true"
           >
             <button
