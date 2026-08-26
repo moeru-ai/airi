@@ -100,6 +100,14 @@ describe('tTS Chunker Logic Cleanup', () => {
   })
 
   describe('chunkTtsInput grapheme preservation', () => {
+    // ROOT CAUSE:
+    //
+    // `readGraphemeClusters` returns multi-code-unit grapheme strings.
+    // The old `value.length > 1` guard discarded them.
+    //
+    // We fixed this by preserving each returned cluster.
+    // This keeps Thai combining marks intact.
+    //
     // https://github.com/moeru-ai/airi/issues/2366
     it('preserves Thai combining clusters while chunking (Issue #2366)', async () => {
       const input = 'ดึกป่านนี้แล้วยังจะหาเรื่องกินอีกนะคะเนี่ย!'
