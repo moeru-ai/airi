@@ -33,11 +33,11 @@ jobs:
           key: ${{ runner.os }}-turbo-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-turbo-
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v6
+      - uses: pnpm/setup@v2
         with:
-          node-version: lts/*
-          cache: pnpm
+          runtime: node@26
+          cache: true
+          install: false
       - run: pnpm i -g wrangler@4
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build:packages
@@ -106,11 +106,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-auth-
             ${{ runner.os }}-turbo-
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v6
+      - uses: pnpm/setup@v2
         with:
-          node-version: lts/*
-          cache: pnpm
+          runtime: node@26
+          cache: true
+          install: false
       - run: pnpm i -g wrangler@4
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build:packages
