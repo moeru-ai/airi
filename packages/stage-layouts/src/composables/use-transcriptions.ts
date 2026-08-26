@@ -71,6 +71,26 @@ export function useTranscriptions(options: TranscriptionOptions) {
   let latestStartGeneration = 0
 
   /**
+   * Serializes start and stop so neither observes the other mid-flight.
+   *
+   * Vue does not serialize watcher runs, so a rapid off/on can begin a
+   * replacement start while the previous stop is still settling. For VAD
+   * providers `stopStreamingTranscription` disposes the old session and awaits
+   * its lifecycle before stopping the current realtime session, so a stop that
+   * overlaps a start aborts the session that start just created, and its
+   * trailing `isListening = false` clears the replacement's state. Queueing
+   * makes each operation observe the previous one's finished state.
+   */
+  let pendingOperation: Promise<unknown> = Promise.resolve()
+
+  function enqueueOperation<T>(operation: () => Promise<T>) {
+    // Chain off settlement, not success, so one failure cannot wedge the queue.
+    const result = pendingOperation.then(operation, operation)
+    pendingOperation = result.catch(() => undefined)
+    return result
+  }
+
+  /**
    * A newer start replaced this one, which happens when the microphone is
    * toggled off and on again before startup settles. Both starts share this
    * composable's single consumer id, so the superseded one must not touch the
@@ -329,7 +349,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
   watch(hearingEnabled, async (enabled, wasEnabled) => {
     if (enabled) {
       try {
-        await startStreaming()
+        await enqueueOperation(startStreaming)
       }
       catch (err) {
         console.error('Failed to start streaming transcription on microphone enable:', err, { source: 'useTranscriptions' })
@@ -339,7 +359,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
 
     // Skip the initial run: there is no session to stop yet.
     if (wasEnabled !== undefined) {
-      await stopStreaming()
+      await enqueueOperation(stopStreaming)
       console.info('Stopping streaming transcription because hearing is disabled.', { source: 'useTranscriptions' })
     }
   }, { immediate: true })
@@ -349,12 +369,13 @@ export function useTranscriptions(options: TranscriptionOptions) {
     // releases whatever session it goes on to create.
     disposed = true
     clearPendingAutoSend()
-    stopStreaming()
+    void enqueueOperation(stopStreaming)
   })
 
   return {
-    startStreamingTranscription: startStreaming,
-    stopStreamingTranscription: stopStreaming,
+    // Queued so external callers cannot interleave with the watcher either.
+    startStreamingTranscription: () => enqueueOperation(startStreaming),
+    stopStreamingTranscription: () => enqueueOperation(stopStreaming),
     isListening,
     autoSendEnabled,
   }
