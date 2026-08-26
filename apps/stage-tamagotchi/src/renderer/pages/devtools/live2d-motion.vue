@@ -19,6 +19,7 @@ import Live2DMotionKeyframeEditor from '../../components/devtools/live2d-motion-
 import Live2DMotionOutputFilterPrototype from '../../components/devtools/live2d-motion-output-filter-prototype.vue'
 import Live2DMotionVarPrototype from '../../components/devtools/live2d-motion-var-prototype.vue'
 
+import { defaultLive2DMotionRecording } from '../../composables/live2d-motion-default-recording'
 import { applyLive2DEyeViewPrototype, defaultLive2DEyeViewPrototypeState } from '../../composables/live2d-motion-eye-view-prototype'
 import { createLive2DMotionOutputFilter, defaultLive2DMotionOutputFilterOptions } from '../../composables/live2d-motion-output-filter-prototype'
 import { useLive2DMotionRecording } from '../../composables/live2d-motion-recording'
@@ -162,6 +163,7 @@ function updateEyeView(nextView: typeof eyeView.value) {
 const recordingController = useLive2DMotionRecording({
   applyPose: publishPose,
   releasePose: publishRelease,
+  initialRecording: defaultLive2DMotionRecording,
 })
 
 function setPose(nextPose: Live2DMotionControlPose) {

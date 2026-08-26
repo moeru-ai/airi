@@ -14,6 +14,21 @@ function pose(overrides: Partial<Live2DMotionControlPose> = {}): Live2DMotionCon
 }
 
 describe('live2D motion recording', () => {
+  it('starts with the supplied recording', () => {
+    const initialRecording = parseLive2DMotionRecording(JSON.stringify({
+      format: 'airi-live2d-motion/v6',
+      durationMs: 50,
+      samples: [{ atMs: 0, ...pose({ headX: 0.5 }) }],
+    }))
+    const controller = useLive2DMotionRecording({
+      applyPose: vi.fn(),
+      releasePose: vi.fn(),
+      initialRecording,
+    })
+
+    expect(controller.recording.value).toEqual(initialRecording)
+  })
+
   it('records changed poses with elapsed timestamps', () => {
     let now = 100
     const controller = useLive2DMotionRecording({

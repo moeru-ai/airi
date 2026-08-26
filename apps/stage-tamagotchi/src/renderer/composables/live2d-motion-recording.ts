@@ -49,6 +49,8 @@ interface UseLive2DMotionRecordingOptions {
   applyPose: (pose: Live2DMotionControlPose) => void
   /** Releases the cross-window Live2D controller after playback. */
   releasePose: () => void
+  /** Supplies the recording that is available before the first user action. @default null */
+  initialRecording?: Live2DMotionRecording
   /** Supplies a monotonic timestamp in milliseconds. @default performance.now */
   now?: () => number
   /** Schedules the next playback update. @default requestAnimationFrame */
@@ -123,7 +125,7 @@ export function useLive2DMotionRecording(
   const requestFrame = options.requestFrame ?? (callback => requestAnimationFrame(callback))
   const cancelFrame = options.cancelFrame ?? (handle => cancelAnimationFrame(handle))
   const status = shallowRef<Live2DMotionRecordingStatus>({ type: 'idle' })
-  const recording = shallowRef<Live2DMotionRecording | null>(null)
+  const recording = shallowRef<Live2DMotionRecording | null>(options.initialRecording ?? null)
 
   let capturedSamples: Live2DMotionSample[] = []
   let playbackFrame: number | undefined
