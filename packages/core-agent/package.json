@@ -63,6 +63,7 @@
   },
   "devDependencies": {
     "@types/hast": "catalog:",
+    "@types/node": "catalog:",
     "@types/unist": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:"

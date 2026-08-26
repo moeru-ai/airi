@@ -43,6 +43,7 @@
     "std-env": "catalog:"
   },
   "devDependencies": {
-    "@proj-airi/electron-eventa": "workspace:^"
+    "@proj-airi/electron-eventa": "workspace:^",
+    "vue": "catalog:"
   }
 }
