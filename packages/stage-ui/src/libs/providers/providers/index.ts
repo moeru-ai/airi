@@ -48,6 +48,7 @@ import './mimo-audio'
 import './cloudflare-workers-ai'
 import './azure-ai-foundry'
 import './official'
+import './prompt-api'
 import './speech-noop'
 import './unspeech'
 

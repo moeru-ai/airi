@@ -1182,6 +1182,9 @@ catalogs:
     xastscript:
       specifier: ^4.0.0
       version: 4.0.0
+    xsai-chromium-prompt:
+      specifier: ^0.2.1
+      version: 0.2.1
     xsschema:
       specifier: 0.5.0-beta.8
       version: 0.5.0-beta.8
@@ -4189,6 +4192,9 @@ importers:
       vue-sonner:
         specifier: 'catalog:'
         version: 2.0.9(vue@3.5.32(typescript@5.9.3))
+      xsai-chromium-prompt:
+        specifier: 'catalog:'
+        version: 0.2.1
       xsschema:
         specifier: 'catalog:'
         version: 0.5.0-beta.8(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@5.9.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
@@ -4563,6 +4569,9 @@ importers:
       xastscript:
         specifier: 'catalog:'
         version: 4.0.0
+      xsai-chromium-prompt:
+        specifier: 'catalog:'
+        version: 0.2.1
       xsschema:
         specifier: 'catalog:'
         version: 0.5.0-beta.8(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@5.9.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
@@ -12493,6 +12502,9 @@ packages:
   '@xsai/generate-speech@0.5.0-beta.8':
     resolution: {integrity: sha512-w6BdyhBH2PcFDdhDSl8bQjcg7BeN/HGRDaPcbuWcjEc9UxIF7c3lVtEf13wz6ne/CIsh4LbYvX2Rp/iLcPzmFg==}
 
+  '@xsai/generate-text@0.4.4':
+    resolution: {integrity: sha512-eDLeRaaeY3SyjrICeIfPXksqfk36oXLTcjinDNLrsiFHqmNvxfbq3WRccy6hjZy4aOWhkV+qPFZnB3ZIyTfs8w==}
+
   '@xsai/generate-text@0.5.0-beta.2':
     resolution: {integrity: sha512-E2yq0mUWtnYNM7JGSd1UbcqQEX57xoND9pCivQVWbyXDwkEEwCgI3pezBqQYwNQlNWd2mtwVZukYXvFfo43+aw==}
 
@@ -12507,6 +12519,9 @@ packages:
 
   '@xsai/model@0.5.0-beta.8':
     resolution: {integrity: sha512-bIkkLm7DlvEtW7ZbKYJ4DPaxobt7DkOvcFNtrY85yPccowYoLSXy7KycvwdhIv2r8dESxuG4Q2ciQMKeBalf3w==}
+
+  '@xsai/shared-chat@0.4.4':
+    resolution: {integrity: sha512-R/lJDt6SnENVaJcUCO1USVuO/G6qtCbJqopPqARF1n20KWDbchLwW/nvkuZH1TM9vMxaywVNmO9sNJ+uoWJEPA==}
 
   '@xsai/shared-chat@0.5.0-beta.8':
     resolution: {integrity: sha512-Uw71dropdf0LrFcpfnVn7txSx+PdhV7j7RT8RI2vy31VT+faEs5UlUlXZFqVyQMeq0TaXPs71fpmOqFEMuKbZg==}
@@ -20223,6 +20238,9 @@ packages:
     resolution: {integrity: sha512-TEU+nJVUUnA4CYJFLvK5X9AOeH4KvDvhIfm0vV1GaQRtchnG0hgK5p8hw/xjv8cunWYCsiPCSDzObPyhEwq3KQ==}
     engines: {node: '>=0.4.0'}
 
+  xsai-chromium-prompt@0.2.1:
+    resolution: {integrity: sha512-RQPtPYyjBRs4Nsyw4FpOZCSVIfFsKRiDI9T5QQ28pHZO0vW01yzeHs+BvxPGBcPiAax1tmEnAJgd+ThziNEtNw==}
+
   xsschema@0.5.0-beta.8:
     resolution: {integrity: sha512-y74st5jRCpO/EMhxi4MC2/GKpWVL2LL12utk5QK2ICCEXVOV6BvOLYp6dXkJBIb4BUCfaVCEei5/cY+JTv3CRw==}
     peerDependencies:
@@ -27709,6 +27727,11 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.5.0-beta.8
 
+  '@xsai/generate-text@0.4.4':
+    dependencies:
+      '@xsai/shared': 0.4.4
+      '@xsai/shared-chat': 0.4.4
+
   '@xsai/generate-text@0.5.0-beta.2':
     dependencies:
       '@xsai/shared': 0.5.0-beta.8
@@ -27730,6 +27753,10 @@ snapshots:
   '@xsai/model@0.5.0-beta.8':
     dependencies:
       '@xsai/shared': 0.5.0-beta.8
+
+  '@xsai/shared-chat@0.4.4':
+    dependencies:
+      '@xsai/shared': 0.4.4
 
   '@xsai/shared-chat@0.5.0-beta.8':
     dependencies:
@@ -37060,6 +37087,14 @@ snapshots:
   xmlchars@2.2.0: {}
 
   xmlhttprequest-ssl@2.1.2: {}
+
+  xsai-chromium-prompt@0.2.1:
+    dependencies:
+      '@xsai-ext/providers': 0.4.4
+      '@xsai/generate-text': 0.4.4
+      '@xsai/shared': 0.4.4
+      '@xsai/shared-chat': 0.4.4
+      '@xsai/stream-text': 0.5.0-beta.8
 
   xsschema@0.5.0-beta.8(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.4.2(typescript@5.9.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3):
     optionalDependencies:
