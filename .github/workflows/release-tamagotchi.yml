@@ -119,19 +119,25 @@ jobs:
           xcodebuild -version
           actool --version
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/setup@v1
+        if: matrix.os == 'macos-15-intel'
         with:
-          run_install: false
+          runtime: node@26
+          cache: true
+          install: false
+
+      - uses: pnpm/setup@v2
+        if: matrix.os != 'macos-15-intel'
+        with:
+          runtime: node@26
+          cache: true
+          install: false
 
       - name: Install macOS System Dependencies for node-canvas
         if: runner.os == 'macOS'
         run: |
           brew install pkg-config cairo pango jpeg giflib librsvg
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-          cache: pnpm
       - run: pnpm install --frozen-lockfile
 
       # ---------
