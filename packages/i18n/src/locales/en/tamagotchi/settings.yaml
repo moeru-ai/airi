@@ -60,6 +60,17 @@ devtools:
       description: Control Live2D eye, head, and body motion.
       actions:
         back: Back
+      system-audio:
+        title: System audio lip sync
+        description: Capture audio from other players. The same input drives Beat Sync and Live2D mouth movement.
+        signal: Input signal
+        mouth-open: Mouth open
+        input-volume-threshold: Input volume threshold
+        random-close-delay: Random close delay
+        random-close-probability: Random close probability
+        actions:
+          start: Start input
+          stop: Stop input
       panels:
         direct-control: Direct control
         preview: Model preview

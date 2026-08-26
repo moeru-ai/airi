@@ -12,11 +12,14 @@ import { setupElectronScreenCapture } from '@proj-airi/electron-screen-capture/r
 import { isStageCapacitor, isStageTamagotchi, isStageWeb, StageEnvironment } from '../environment'
 import { isElectronWindow } from '../window'
 import {
+  beatSyncAudioOutputSignaledInvokeEventa,
   beatSyncBeatSignaledInvokeEventa,
   beatSyncGetInputByteFrequencyDataInvokeEventa,
   beatSyncGetStateInvokeEventa,
+  beatSyncSetConsumerInvokeEventa,
   beatSyncStateChangedInvokeEventa,
   beatSyncToggleInvokeEventa,
+  beatSyncUpdateLipSyncOptionsInvokeEventa,
   beatSyncUpdateParametersInvokeEventa,
   createContext,
 } from './eventa'
@@ -260,6 +263,8 @@ function installCapacitorHandlers(context: ReturnType<typeof createContext>) {
   defineInvokeHandler(context, beatSyncGetInputByteFrequencyDataInvokeEventa, async () => {
     return new Uint8Array(inputAnalyserFFTSize / 2)
   })
+  defineInvokeHandler(context, beatSyncSetConsumerInvokeEventa, async () => {})
+  defineInvokeHandler(context, beatSyncUpdateLipSyncOptionsInvokeEventa, async () => {})
 }
 
 function getContext() {
@@ -296,6 +301,24 @@ export function toggleBeatSync(enabled: boolean) {
   }
 
   throw new Error('Unknown environment for beatSyncToggle()')
+}
+
+export function setBeatSyncConsumer(consumer: import('./eventa').BeatSyncConsumer, enabled: boolean) {
+  if (isStageWeb())
+    return toggleBeatSync(enabled)
+
+  if (isStageTamagotchi() || isStageCapacitor()) {
+    return defineInvoke(getContext(), beatSyncSetConsumerInvokeEventa)({ consumer, enabled })
+  }
+
+  throw new Error('Unknown environment for setBeatSyncConsumer()')
+}
+
+export function updateBeatSyncLipSyncOptions(options: import('./eventa').BeatSyncLipSyncOptions) {
+  if (isStageTamagotchi() || isStageCapacitor())
+    return defineInvoke(getContext(), beatSyncUpdateLipSyncOptionsInvokeEventa)(options)
+
+  throw new Error('Beat Sync lipsync options are only available in the desktop runtime')
 }
 
 export async function getBeatSyncState() {
@@ -344,6 +367,13 @@ export function listenBeatSyncBeatSignal(listener: (e: AnalyserBeatEvent) => voi
   }
 
   throw new Error('Unknown environment for listenBeatSyncBeatSignal()')
+}
+
+export function listenBeatSyncAudioOutput(listener: (output: import('./eventa').BeatSyncAudioOutput) => void) {
+  if (isStageTamagotchi() || isStageCapacitor())
+    return defineInvokeHandler(getContext(), beatSyncAudioOutputSignaledInvokeEventa, listener)
+
+  throw new Error('Beat Sync audio output is only available in the desktop runtime')
 }
 
 export async function getBeatSyncInputByteFrequencyData() {
