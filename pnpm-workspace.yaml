@@ -309,7 +309,7 @@ catalog:
   jszip: ^3.10.1
   knip: ^6.32.2
   kokoro-js: ^1.2.1
-  kysely: 0.29.4
+  kysely: 0.29.5
   less: ^4.9.0
   libsodium-wrappers: ^0.8.4
   localforage: ^1.10.0
