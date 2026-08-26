@@ -377,6 +377,15 @@ export class AdaptiveInput extends EventTarget {
     if (this.targetWindow.document.activeElement === editable)
       return
 
+    // NOTICE:
+    // Why: Safari must own a second touch while its software keyboard closes.
+    // Root cause: Canceling this touch leaves only programmatic focus, but the native dismissal can
+    // still finish and leave the input focused without a keyboard.
+    // Source/context: See the closing-focus regression in adaptive-input.test.ts.
+    // Removal condition: Safari exposes a keyboard lifecycle that can cancel an active dismissal.
+    if (this.focusPhase === 'closing')
+      return
+
     const currentProfile = readViewportProfile(this.targetWindow)
     const cachedHeight = calculateCachedViewportHeight(this.viewportSample, currentProfile, Date.now())
     if (cachedHeight === undefined)
