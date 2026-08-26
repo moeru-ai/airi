@@ -23,8 +23,10 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const order = shallowRef(12)
-const residualStrength = shallowRef(0.85)
+const defaultOrder = 20
+const defaultResidualStrength = 1.15
+const order = shallowRef(defaultOrder)
+const residualStrength = shallowRef(defaultResidualStrength)
 const seed = shallowRef(1)
 const model = shallowRef<Live2DMotionVarModel>()
 const fitDurationMs = shallowRef(0)
@@ -218,7 +220,7 @@ onUnmounted(stopGeneration)
         :min="1"
         :max="48"
         :step="1"
-        :default-value="12"
+        :default-value="defaultOrder"
         :format-value="formatOrder"
         as="div"
       />
@@ -229,7 +231,7 @@ onUnmounted(stopGeneration)
         :min="0"
         :max="3"
         :step="0.025"
-        :default-value="0.85"
+        :default-value="defaultResidualStrength"
         :format-value="formatStrength"
         as="div"
       />

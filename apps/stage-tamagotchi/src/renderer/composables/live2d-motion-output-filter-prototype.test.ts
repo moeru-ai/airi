@@ -11,6 +11,14 @@ function pose(overrides: Partial<typeof neutralLive2DMotionControlPose> = {}) {
 }
 
 describe('live2DMotionOutputFilterPrototype', () => {
+  it('uses the tuned generator cutoff by default', () => {
+    expect(defaultLive2DMotionOutputFilterOptions).toEqual({
+      enabled: true,
+      smoothing: 0.8,
+      cutoff: 0.0575,
+    })
+  })
+
   it('holds cumulative changes below the cutoff', () => {
     const filter = createLive2DMotionOutputFilter({ enabled: true, smoothing: 0, cutoff: 0.05 })
 

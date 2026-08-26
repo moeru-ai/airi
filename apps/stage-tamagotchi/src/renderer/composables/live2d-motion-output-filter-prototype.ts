@@ -22,7 +22,7 @@ export interface Live2DMotionOutputFilterOptions {
   enabled: boolean
   /** Weight of the previous output from 0 (raw) to 0.999 (slow). @default 0.8 */
   smoothing: number
-  /** Smallest normalized change that updates a channel target. @default 0.015 */
+  /** Smallest normalized change that updates a channel target. @default 0.0575 */
   cutoff: number
 }
 
@@ -53,7 +53,7 @@ export interface Live2DMotionOutputFilterController {
 export const defaultLive2DMotionOutputFilterOptions: Readonly<Live2DMotionOutputFilterOptions> = Object.freeze({
   enabled: true,
   smoothing: 0.8,
-  cutoff: 0.015,
+  cutoff: 0.0575,
 })
 
 function clamp(value: number, minimum: number, maximum: number): number {

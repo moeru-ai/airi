@@ -28,9 +28,9 @@ export interface Live2DMotionControlPose {
 
 /** Spring settings for manual Live2D motion. */
 export interface Live2DMotionControlDynamics {
-  /** Target-following strength from 0 (soft) to 2 (very fast). @default 0.6 */
+  /** Target-following strength from 0 (soft) to 2 (very fast). @default 1 */
   follow: number
-  /** Preserved momentum from 0 (settled) to 1 (bouncy). @default 0.35 */
+  /** Preserved momentum from 0 (settled) to 1 (bouncy). @default 0.6 */
   inertia: number
 }
 
@@ -44,7 +44,7 @@ export interface Live2DMotionControlState {
 
 /** Settings for the manual render-time breath curve. */
 export interface Live2DBreathControlOptions {
-  /** Length of the inhale and exhale spans, in seconds. @default 3.2 */
+  /** Length of the inhale and exhale spans, in seconds. @default 2 */
   cycleSeconds: number
   /** Time held at the minimum after each exhale, in seconds. @default 1.2 */
   exhaleDwellSeconds: number
@@ -110,7 +110,7 @@ export const neutralLive2DMotionControlPose: Live2DMotionControlPose = Object.fr
 })
 /** Default settings for the manual Live2D breath curve. */
 export const defaultLive2DBreathControlOptions: Live2DBreathControlOptions = Object.freeze({
-  cycleSeconds: 3.2,
+  cycleSeconds: 2,
   exhaleDwellSeconds: 1.2,
   minimum: 0,
   maximum: 0.5,
@@ -118,7 +118,7 @@ export const defaultLive2DBreathControlOptions: Live2DBreathControlOptions = Obj
 })
 const horizontalModelOffset = 20
 /** Default spring settings for the Live2D motion devtool. */
-export const defaultLive2DMotionControlDynamics: Live2DMotionControlDynamics = Object.freeze({ follow: 0.6, inertia: 0.35 })
+export const defaultLive2DMotionControlDynamics: Live2DMotionControlDynamics = Object.freeze({ follow: 1, inertia: 0.6 })
 
 function clampAxis(value: number): number {
   return Math.min(1, Math.max(-1, value))

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Live2DBreathControlOptions } from '@proj-airi/stage-ui-live2d/stores'
 
-import { sampleLive2DBreath } from '@proj-airi/stage-ui-live2d/stores'
+import { defaultLive2DBreathControlOptions, sampleLive2DBreath } from '@proj-airi/stage-ui-live2d/stores'
 import { BasicButton, FieldRange } from '@proj-airi/ui'
 import { useRafFn } from '@vueuse/core'
 import { computed, shallowRef } from 'vue'
@@ -112,7 +112,7 @@ function formatRatio(value: number): string {
         :min="0.5"
         :max="15"
         :step="0.1"
-        :default-value="3.2"
+        :default-value="defaultLive2DBreathControlOptions.cycleSeconds"
         :format-value="formatSeconds"
         as="div"
       />
@@ -123,7 +123,7 @@ function formatRatio(value: number): string {
         :min="0.1"
         :max="0.9"
         :step="0.01"
-        :default-value="0.4"
+        :default-value="defaultLive2DBreathControlOptions.inhaleRatio"
         :format-value="formatRatio"
         as="div"
       />
@@ -134,7 +134,7 @@ function formatRatio(value: number): string {
         :min="0"
         :max="8"
         :step="0.1"
-        :default-value="1.2"
+        :default-value="defaultLive2DBreathControlOptions.exhaleDwellSeconds"
         :format-value="formatSeconds"
         as="div"
       />
@@ -145,7 +145,7 @@ function formatRatio(value: number): string {
         :min="0"
         :max="1"
         :step="0.01"
-        :default-value="0"
+        :default-value="defaultLive2DBreathControlOptions.minimum"
         :format-value="formatBreathValue"
         as="div"
       />
@@ -156,7 +156,7 @@ function formatRatio(value: number): string {
         :min="0"
         :max="1"
         :step="0.01"
-        :default-value="0.5"
+        :default-value="defaultLive2DBreathControlOptions.maximum"
         :format-value="formatBreathValue"
         as="div"
       />

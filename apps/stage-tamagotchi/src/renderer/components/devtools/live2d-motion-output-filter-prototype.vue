@@ -8,6 +8,8 @@ import { BasicButton, FieldRange } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { defaultLive2DMotionOutputFilterOptions } from '../../composables/live2d-motion-output-filter-prototype'
+
 const props = defineProps<{
   options: Live2DMotionOutputFilterOptions
   frame?: Live2DMotionOutputFilterFrame
@@ -95,7 +97,7 @@ function formatChange(value: number | undefined): string {
         :min="0"
         :max="0.99"
         :step="0.01"
-        :default-value="0.8"
+        :default-value="defaultLive2DMotionOutputFilterOptions.smoothing"
         :format-value="formatSmoothing"
         as="div"
       />
@@ -106,7 +108,7 @@ function formatChange(value: number | undefined): string {
         :min="0"
         :max="0.2"
         :step="0.0025"
-        :default-value="0.015"
+        :default-value="defaultLive2DMotionOutputFilterOptions.cutoff"
         :format-value="formatCutoff"
         as="div"
       />

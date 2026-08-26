@@ -23,9 +23,12 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const stateCount = shallowRef(4)
-const order = shallowRef(6)
-const residualStrength = shallowRef(0.8)
+const defaultStateCount = 5
+const defaultOrder = 12
+const defaultResidualStrength = 0.8
+const stateCount = shallowRef(defaultStateCount)
+const order = shallowRef(defaultOrder)
+const residualStrength = shallowRef(defaultResidualStrength)
 const seed = shallowRef(1)
 const model = shallowRef<Live2DMotionArHmmModel>()
 const fitDurationMs = shallowRef(0)
@@ -238,7 +241,7 @@ onUnmounted(stopGeneration)
         :min="2"
         :max="8"
         :step="1"
-        :default-value="4"
+        :default-value="defaultStateCount"
         :format-value="formatCount"
         as="div"
       />
@@ -249,7 +252,7 @@ onUnmounted(stopGeneration)
         :min="1"
         :max="18"
         :step="1"
-        :default-value="6"
+        :default-value="defaultOrder"
         :format-value="formatOrder"
         as="div"
       />
@@ -260,7 +263,7 @@ onUnmounted(stopGeneration)
         :min="0"
         :max="3"
         :step="0.025"
-        :default-value="0.8"
+        :default-value="defaultResidualStrength"
         :format-value="formatStrength"
         as="div"
       />

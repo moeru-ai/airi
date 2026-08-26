@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Live2DMotionControlDynamics, Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 
-import { neutralLive2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
+import { defaultLive2DMotionControlDynamics, neutralLive2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 import { BasicButton, FieldRange } from '@proj-airi/ui'
 import { computed, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -420,7 +420,7 @@ watch(() => props.disabled, (disabled) => {
           :min="0"
           :max="2"
           :step="0.01"
-          :default-value="0.6"
+          :default-value="defaultLive2DMotionControlDynamics.follow"
           :format-value="formatPercent"
           as="div"
         />
@@ -431,7 +431,7 @@ watch(() => props.disabled, (disabled) => {
           :min="0"
           :max="1"
           :step="0.01"
-          :default-value="0.35"
+          :default-value="defaultLive2DMotionControlDynamics.inertia"
           :format-value="formatPercent"
           as="div"
         />

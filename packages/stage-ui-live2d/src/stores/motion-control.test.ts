@@ -2,10 +2,18 @@ import { describe, expect, it } from 'vitest'
 
 import {
   defaultLive2DBreathControlOptions,
+  defaultLive2DMotionControlDynamics,
   getLive2DMotionControlModelOffset,
   neutralLive2DMotionControlPose,
   sampleLive2DBreath,
 } from './motion-control'
+
+describe('manual motion defaults', () => {
+  it('uses the tuned joystick spring and breath duration', () => {
+    expect(defaultLive2DMotionControlDynamics).toEqual({ follow: 1, inertia: 0.6 })
+    expect(defaultLive2DBreathControlOptions.cycleSeconds).toBe(2)
+  })
+})
 
 describe('getLive2DMotionControlModelOffset', () => {
   it('moves the model with the active joystick pose', () => {
