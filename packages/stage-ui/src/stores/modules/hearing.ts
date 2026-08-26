@@ -623,6 +623,18 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     return streamingConsumers.hasConsumers()
   }
 
+  /**
+   * Admits one streaming session setup at a time.
+   *
+   * Creating a Web Speech session awaits a model lookup between the check for
+   * an existing session and the point where the new one is recorded. Two
+   * callers arriving in that window would each construct a recognition
+   * instance while only the last is stored, leaving the first running with
+   * nothing tracking it and no way to stop it. Later callers wait on this and
+   * then reuse whatever the winning setup produced.
+   */
+  let streamingSessionSetup: Promise<void> | undefined
+
   function startStreamingAsrSpan(providerId: string) {
     activeTurnSpan.value?.end()
     const turnSpan = startSpan(IOSpanNames.InteractionTurn)
@@ -1002,6 +1014,10 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
     error.value = undefined
     let consumerRegistered = false
+    // Set only by the call that claims the setup slot, so the `finally` below
+    // releases the slot exactly once and only for its owner.
+    let ownedSessionSetup: Promise<void> | undefined
+    let releaseSessionSetup: (() => void) | undefined
 
     try {
       const providerId = activeTranscriptionProvider.value
@@ -1031,6 +1047,11 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         streamingConsumers.register(options)
         consumerRegistered = true
 
+        // Let an in-flight setup finish so the reuse check below observes the
+        // session it creates instead of racing it.
+        if (streamingSessionSetup)
+          await streamingSessionSetup
+
         // Check if session already exists and reuse it
         const existingSession = streamingSession.value
         if (existingSession && existingSession.providerId === 'browser-web-speech-api') {
@@ -1045,6 +1066,14 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           console.info('Web Speech API session already active, reusing it with updated consumers')
           return
         }
+
+        // Claim the setup slot for everything up to the session assignment
+        // below. Released in this function's `finally`, including on failure,
+        // so a failed setup cannot strand later callers.
+        ownedSessionSetup = new Promise<void>((resolve) => {
+          releaseSessionSetup = resolve
+        })
+        streamingSessionSetup = ownedSessionSetup
 
         startStreamingAsrSpan(providerId)
 
@@ -1180,6 +1209,14 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
       error.value = errorMessage(err)
       console.error('Error generating transcription:', error.value)
+    }
+    finally {
+      if (ownedSessionSetup) {
+        if (streamingSessionSetup === ownedSessionSetup)
+          streamingSessionSetup = undefined
+
+        releaseSessionSetup?.()
+      }
     }
   }
 
