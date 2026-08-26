@@ -221,9 +221,6 @@ export function sharedUnoConfig() {
         'cuteen': `"Nunito Variable", "Nunito", "ChillRoundM", "Kiwi Maru", "Comfortaa Variable", "Comfortaa", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
         'cutejp': `"Nunito Variable", "Nunito", "ChillRoundM", "Kiwi Maru", "Comfortaa Variable", "Comfortaa", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
       },
-      easing: {
-        'input-bubble-spring': 'linear(0, 0.002 0.3%, 0.009 0.7%, 0.036 1.4%, 0.076 2.1%, 0.137 2.9%, 0.278 4.4%, 0.721 8.6%, 0.847 10%, 0.946 11.3%, 1.024 12.6%, 1.058 13.3%, 1.087 14%, 1.11 14.7%, 1.128 15.4%, 1.141 16.1%, 1.15 16.8%, 1.155 17.5%, 1.157 18.3%, 1.154 19.1%, 1.147 20%, 1.137 20.9%, 1.125 21.8%, 1.048 26.5%, 1.029 27.8%, 1.014 29%, 0.999 30.4%, 0.989 31.8%, 0.981 33.3%, 0.977 34.8%, 0.975 36.4%, 0.977 38.2%, 0.998 47%, 1.002 49.7%, 1.004 52.6%, 0.999 70.2%, 1)',
-      },
       /**
        * https://github.com/unocss/unocss/blob/1031312057a3bea1082b7d938eb2ad640f57613a/packages-presets/preset-wind4/src/theme/animate.ts
        * https://unocss.dev/presets/wind4#transformdirectives

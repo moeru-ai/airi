@@ -208,7 +208,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
           />
         </div>
         <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />
-        <MobileInteractiveArea v-if="isMobile" floating @settings-open="handleSettingsOpen">
+        <MobileInteractiveArea v-if="isMobile" @settings-open="handleSettingsOpen">
           <template v-if="IS_DEV" #status>
             <WebSocketStatusButton />
           </template>
