@@ -21,7 +21,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
   const audioDeviceSettingsStore = useSettingsAudioDevice()
   const hearingPipeline = useHearingSpeechInputPipeline()
   const { removeStreamingTranscriptionConsumer, hasStreamingTranscriptionConsumers, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
-  const { supportsStreamInput } = storeToRefs(hearingPipeline)
+  const { supportsStreamInput, error: transcriptionError } = storeToRefs(hearingPipeline)
   const { configured: hearingConfigured, autoSendEnabled, autoSendDelay } = storeToRefs(hearingStore)
   const { enabled: hearingEnabled, stream } = storeToRefs(audioDeviceSettingsStore)
   const providersStore = useProviderStore()
@@ -281,6 +281,20 @@ export function useTranscriptions(options: TranscriptionOptions) {
       if (startCancelled()) {
         console.info('Discarding transcription session: microphone input was turned off during startup', { source: 'useTranscriptions' })
         await discardCancelledSession()
+        return
+      }
+
+      // transcribeForMediaStream reports provider-configuration and session
+      // construction failures through the pipeline's error ref and resolves
+      // normally, so the catch below never sees them. Without this check a
+      // failed startup would be marked as listening with no session behind it,
+      // and because startup is driven only by the microphone flag nothing
+      // would retry until the user toggled it.
+      if (transcriptionError.value) {
+        console.error('Transcription pipeline reported a startup failure:', transcriptionError.value, { source: 'useTranscriptions' })
+        streamingInput.clear()
+        removeStreamingTranscriptionConsumer(transcriptionConsumerId)
+        isListening.value = false
         return
       }
 

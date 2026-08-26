@@ -34,6 +34,8 @@ function createMockPipeline() {
     // Defaults to no remaining owners, so teardown stops the shared session.
     hasStreamingTranscriptionConsumers: vi.fn().mockReturnValue(false),
     supportsStreamInput: ref(true),
+    // The pipeline reports startup failures here instead of throwing.
+    error: ref<string | undefined>(undefined),
   }
 }
 
@@ -570,6 +572,40 @@ describe('useTranscriptions', () => {
 
       expect(mockHearingPipeline.removeStreamingTranscriptionConsumer).toHaveBeenCalled()
       expect(mockHearingPipeline.stopStreamingTranscription).not.toHaveBeenCalled()
+    })
+
+    // ROOT CAUSE:
+    //
+    // If the pipeline fails to start a session, the surface still showed itself
+    // as listening with nothing running behind it, and never retried.
+    // transcribeForMediaStream catches provider-configuration and construction
+    // failures, records them on its error ref, and resolves normally rather
+    // than rethrowing, so this caller's catch block never ran:
+    //
+    //   await transcribeForMediaStream(...)
+    //   isListening.value = true   // <- reached even though setup failed
+    //
+    // Startup is driven only by the microphone flag, so nothing recovered until
+    // the user toggled it off and on again.
+    //
+    // We fixed this by checking the pipeline error before accepting startup.
+    it('does not report listening when the pipeline records a startup failure', async () => {
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = true
+      mockHearingPipeline.supportsStreamInput.value = true
+
+      // Resolves normally while reporting failure, exactly as the pipeline does.
+      mockHearingPipeline.transcribeForMediaStream.mockImplementation(async () => {
+        mockHearingPipeline.error.value = 'Provider is not configured correctly'
+      })
+
+      const { isListening } = useTranscriptions(createOptions())
+      await settleAsyncWork()
+
+      expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalled()
+      expect(isListening.value).toBe(false)
+      expect(mockHearingPipeline.removeStreamingTranscriptionConsumer).toHaveBeenCalled()
     })
 
     it('should stop streaming on unmount', async () => {

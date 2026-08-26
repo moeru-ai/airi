@@ -1049,8 +1049,16 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
         // Let an in-flight setup finish so the reuse check below observes the
         // session it creates instead of racing it.
-        if (streamingSessionSetup)
+        if (streamingSessionSetup) {
           await streamingSessionSetup
+
+          // Two calls from one surface share a consumer id, so a setup that
+          // failed while this call was waiting has already removed that id on
+          // its way out, taking this call's callbacks with it. Re-register to
+          // restore them; registration is keyed by id, so this is a no-op when
+          // the entry survived.
+          streamingConsumers.register(options)
+        }
 
         // Check if session already exists and reuse it
         const existingSession = streamingSession.value
