@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ZoomBehavior, ZoomEvent } from 'd3'
+import type { D3ZoomEvent, ZoomBehavior } from 'd3'
 
 import { axisBottom, scaleLinear, select, zoom } from 'd3'
 import { computed, onMounted, onUnmounted, useTemplateRef } from 'vue'
@@ -62,7 +62,7 @@ onMounted(() => {
     .translateExtent([[0, 0], [width, 44]])
     .extent([[0, 0], [width, 44]])
     .filter(event => !props.disabled && (event.type === 'wheel' || event.button === 1 || event.shiftKey))
-    .on('zoom', (event: ZoomEvent<SVGSVGElement, unknown>) => {
+    .on('zoom', (event: D3ZoomEvent<SVGSVGElement, unknown>) => {
       const domain = event.transform.rescaleX(baseScale).domain()
       emit('viewport', [Math.max(0, domain[0]), Math.min(props.durationMs, domain[1])])
     })

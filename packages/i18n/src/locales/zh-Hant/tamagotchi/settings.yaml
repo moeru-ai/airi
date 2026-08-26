@@ -53,14 +53,38 @@ devtools:
       title: 卡頓可視化
     live2d-motion:
       title: Live2D 動作控制
-      description: 使用搖桿和鍵盤控制模型眼睛、頭部與身體的 X、Y、Z 軸動作。
+      description: 控制 Live2D 的眼睛、頭部與身體動作。
+      actions:
+        back: 返回
+      panels:
+        direct-control: 直接控制
+        preview: 模型預覽
+        timeline: 時間軸
+        inference: 模型推理
+      preview:
+        groups:
+          expression: 表情
+          offset: 位置偏移
+        values:
+          squint: 瞇眼
+          mouth-form: 嘴型
+          mouth-open: 張開
       joystick-label: Live2D 動作搖桿
       instructions: 拖曳搖桿，或使用方向鍵控制 X/Y 軸。R 讓眼睛微瞇。F 讓眼睛更瞇。C 閉上眼睛。W/S 改變嘴型。空白鍵張開嘴巴。A/D 控制身體 X 軸。Q/E 讓頭部左右傾斜。放開按鍵後會平滑回到中央。
       parameter-note: 搖桿控制 X/Y 軸。R 映射至 1/3 瞇眼。F 映射至 2/3 瞇眼。C 映射至完全閉眼。W/S 映射至嘴型 ±1。空白鍵映射至嘴巴張開 1。A/D 映射至身體 X 軸 ±10°。Q/E 映射至頭部 Z 軸 ±30°。
+      input:
+        keyboard: 鍵盤
+        controller: 控制器
+      input-actions:
+        move-body-head: 移動身體與頭部
+        tilt-head: 傾斜頭部
+        blink: 眨眼
+        open-mouth: 張開嘴巴
+        mouth-shape: 改變嘴型
       eye-view:
         prototype: 原型
         title: 固定視線
-        description: 先設定視線目標，再使用搖桿或產生的動作移動頭部。眼睛會反向抵銷頭部動作，以持續注視目標。
+        description: 選擇目標後，眼睛會抵銷頭部動作並持續注視目標。
         pad-label: 固定視線目標
         actions:
           enable: 啟用注視
@@ -68,7 +92,7 @@ devtools:
           center: 目標置中
         counter:
           label: 頭部抵銷強度
-          description: 眼睛抵銷頭部 X/Y 軸動作的程度。1× 時，頭部動作會產生等量反向的眼睛動作。
+          description: 眼睛抵銷頭部 X/Y 軸動作的強度。
         values:
           target: 目標
           output: 眼睛輸出
@@ -84,6 +108,24 @@ devtools:
         export-project: 匯出專案
         import-project: 匯入專案
         import-error: 此檔案不是有效的 AIRI Live2D 動作專案。
+        playback:
+          label: 時間軸播放控制
+          start: 跳至開頭
+          step-backward: 後退一格
+          step-forward: 前進一格
+          end: 跳至結尾
+          timecode: 目前與總時間碼
+        input-actions:
+          play: 播放
+          stop: 停止
+          start: 跳至開頭
+          end: 跳至結尾
+          step-backward: 後退一格
+          step-forward: 前進一格
+          restart-recording: 重新錄製
+          clear-timeline: 清空時間軸
+          previous-track: 選取上一條軌道
+          next-track: 選取下一條軌道
         timeline-label: 動作時間軸
         timeline-help: 拖曳尺規可搜尋時間。使用滾輪縮放。按住 Shift 並拖曳可平移。在所選曲線按兩下可新增控制點。每個視線目標關鍵影格會持續至下一個關鍵影格。
         overlay-count: '{count} 個疊加層'
@@ -110,7 +152,7 @@ devtools:
       var:
         prototype: 原型
         title: VAR 待機動作產生器
-        question: 以目前動作擬合的殘差驅動 VAR，能否產生有說服力的新待機動作？
+        question: 擬合已錄製動作，再產生新的待機動作序列。
         actions:
           fit: 擬合目前動作
           refit: 重新擬合目前動作
@@ -119,10 +161,10 @@ devtools:
           new-seed: 新種子
         order:
           label: VAR 階數
-          description: 每次預測使用的先前 30 FPS 影格數。數值越高，擬合所需時間越長。
+          description: 每次預測使用的先前影格數。
         residual:
           label: 殘差強度
-          description: 調整取樣擬合誤差。零會產生通常逐漸接近平均值的確定性預測。
+          description: 產生的變化量；零代表確定性預測。
         diagnostics:
           source: 來源
           model: 模型
@@ -140,22 +182,22 @@ devtools:
       ar-hmm:
         prototype: 比較
         title: AR-HMM 待機動作產生器
-        question: 各狀態的自迴歸與學得的轉換，能否比單一全域 VAR 產生更有說服力的待機動作？
+        question: 學習動作狀態與轉換，以產生更多變化的待機動作。
         actions:
-          fit: 擬合目前動作
-          refit: 重新擬合目前動作
-          generate: 產生動作
-          stop: 停止產生
+          fit: 擬合動作
+          refit: 重新擬合
+          generate: 產生
+          stop: 停止
           new-seed: 新種子
         states:
           label: 隱藏狀態
-          description: 從姿勢與速度學習的動作狀態數量。狀態越多，擬合所需時間越長。
+          description: 模型可學習的動作模式數量。
         order:
           label: AR 階數
-          description: 每個狀態使用的先前 30 FPS 影格數。數值越高，擬合所需時間越長。
+          description: 每個狀態使用的先前影格數。
         residual:
           label: 創新強度
-          description: 調整每個隱藏狀態學得的高斯雜訊。
+          description: 每個狀態內的變化量。
         diagnostics:
           source: 來源
           model: 模型
@@ -234,10 +276,10 @@ devtools:
       spring:
         follow:
           label: 跟隨
-          description: 控制模型接近搖桿目標的速度。
+          description: 動作跟隨搖桿的速度。
         inertia:
           label: 慣性
-          description: 控制模型保留的動量與過衝幅度。
+          description: 動作保留的動量。
       groups:
         eyes: 眼睛
         head: 頭部

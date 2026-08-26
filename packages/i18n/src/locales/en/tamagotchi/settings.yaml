@@ -57,14 +57,38 @@ devtools:
       title: Lag Visualizer
     live2d-motion:
       title: Live2D Motion Control
-      description: Use the joystick and keyboard to control eye, head, and body movement on the X, Y, and Z axes.
+      description: Control Live2D eye, head, and body motion.
+      actions:
+        back: Back
+      panels:
+        direct-control: Direct control
+        preview: Model preview
+        timeline: Timeline
+        inference: Model inference
+      preview:
+        groups:
+          expression: Expression
+          offset: Position offset
+        values:
+          squint: Squint
+          mouth-form: Form
+          mouth-open: Open
       joystick-label: Live2D motion joystick
       instructions: Drag the joystick, or use the arrow keys for X/Y. R adds a slight squint. F adds a stronger squint. C closes the eyes. W/S changes the mouth shape. Space opens the mouth. A/D moves the body on X. Q/E tilts the head. Released keys return smoothly to center.
       parameter-note: The joystick controls X/Y. R maps to 1/3 squint. F maps to 2/3 squint. C maps to fully closed eyes. W/S maps to mouth form ±1. Space maps to mouth open 1. A/D maps to body X ±10°. Q/E maps to head Z ±30°.
+      input:
+        keyboard: Keyboard
+        controller: Controller
+      input-actions:
+        move-body-head: Move body and head
+        tilt-head: Tilt head
+        blink: Blink
+        open-mouth: Open mouth
+        mouth-shape: Change mouth shape
       eye-view:
         prototype: Prototype
         title: Latched eye view
-        description: Set a view target once, then move the head with the joystick or a generated motion. The eyes counter the head movement to keep looking at that target.
+        description: Choose a target. The eyes counter head movement to keep looking at it.
         pad-label: Latched eye view target
         actions:
           enable: Enable fixation
@@ -72,7 +96,7 @@ devtools:
           center: Center target
         counter:
           label: Head counter strength
-          description: How much head X/Y movement the eyes cancel. At 1×, equal head movement produces equal eye movement in the opposite direction.
+          description: How strongly the eyes offset head X/Y movement.
         values:
           target: Target
           output: Eye output
@@ -88,6 +112,24 @@ devtools:
         export-project: Export project
         import-project: Import project
         import-error: This file is not a valid AIRI Live2D motion project.
+        playback:
+          label: Timeline playback controls
+          start: Go to start
+          step-backward: Step backward
+          step-forward: Step forward
+          end: Go to end
+          timecode: Current and total timecode
+        input-actions:
+          play: Play
+          stop: Stop
+          start: Go to start
+          end: Go to end
+          step-backward: Step backward
+          step-forward: Step forward
+          restart-recording: Record again
+          clear-timeline: Clear timeline
+          previous-track: Select previous track
+          next-track: Select next track
         timeline-label: Motion timeline
         timeline-help: Drag the ruler to scrub. Use the wheel to zoom. Hold Shift and drag to pan. Double-click a selected curve to add a point. Each view-target key holds until the next key.
         overlay-count: '{count} overlays'
@@ -114,7 +156,7 @@ devtools:
       var:
         prototype: Prototype
         title: VAR idle-motion generator
-        question: Can a residual-driven VAR fitted to the current motion generate a convincing new idle motion?
+        question: Fits recorded motion, then generates a new idle sequence.
         actions:
           fit: Fit current motion
           refit: Refit current motion
@@ -123,10 +165,10 @@ devtools:
           new-seed: New seed
         order:
           label: VAR order
-          description: Number of previous 30 FPS frames that each prediction uses. Higher values take longer to fit.
+          description: Past frames used for each prediction.
         residual:
           label: Residual strength
-          description: Scales sampled fit errors. Zero makes a deterministic forecast, which usually settles near the mean.
+          description: Generated variation. Zero is deterministic.
         diagnostics:
           source: Source
           model: Model
@@ -144,22 +186,22 @@ devtools:
       ar-hmm:
         prototype: Comparison
         title: AR-HMM idle-motion generator
-        question: Can state-specific autoregressions and learned transitions produce more convincing idle motion than one global VAR?
+        question: Learns motion states and transitions for varied idle motion.
         actions:
-          fit: Fit current motion
-          refit: Refit current motion
-          generate: Generate motion
-          stop: Stop generation
+          fit: Fit motion
+          refit: Refit
+          generate: Generate
+          stop: Stop
           new-seed: New seed
         states:
           label: Hidden states
-          description: Number of motion regimes learned from pose and velocity. More states take longer to fit.
+          description: Motion patterns the model can learn.
         order:
           label: AR order
-          description: Number of previous 30 FPS frames that each state uses. Higher values take longer to fit.
+          description: Past frames used within each state.
         residual:
           label: Innovation strength
-          description: Scales the Gaussian noise learned for each hidden state.
+          description: Variation within each state.
         diagnostics:
           source: Source
           model: Model
@@ -238,10 +280,10 @@ devtools:
       spring:
         follow:
           label: Follow
-          description: Controls how quickly the model approaches the joystick target.
+          description: How quickly motion follows the joystick.
         inertia:
           label: Inertia
-          description: Controls how much momentum and overshoot the model keeps.
+          description: How much momentum the motion keeps.
       groups:
         eyes: Eyes
         head: Head

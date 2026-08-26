@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 
+import type { StandardGamepadButtonName, StandardGamepadButtonState, StandardGamepadSnapshot } from '@proj-airi/input-gamepad'
+
 import type { Live2DMotionEditorFrame } from '../../composables/live2d-motion-keyframes'
 import type { Live2DMotionRecording, ReadonlyLive2DMotionRecording } from '../../composables/live2d-motion-recording'
 
@@ -21,25 +23,30 @@ describe('live2DMotionKeyframeEditor', () => {
   function mountEditor(options: {
     recording?: ReadonlyLive2DMotionRecording
     recordingActive?: boolean
+    gamepad?: StandardGamepadSnapshot
     onFrame?: (frame: Live2DMotionEditorFrame) => void
     onRecording?: (recording: Live2DMotionRecording) => void
+    onRestartRecording?: () => void
     onToggleRecording?: () => void
   } = {}) {
     const host = document.createElement('div')
     document.body.appendChild(host)
     const recording = shallowRef(options.recording)
     const recordingActive = shallowRef(options.recordingActive ?? false)
+    const gamepad = shallowRef(options.gamepad)
     const app = createApp({
       render: () => h(Live2DMotionKeyframeEditor, {
         recording: recording.value,
         recordingActive: recordingActive.value,
+        gamepad: gamepad.value,
         onFrame: options.onFrame,
         onRecording: options.onRecording,
+        onRestartRecording: options.onRestartRecording,
         onToggleRecording: options.onToggleRecording,
       }),
     })
     app.mount(host)
-    return { app, host, recording, recordingActive }
+    return { app, gamepad, host, recording, recordingActive }
   }
 
   function findButton(host: HTMLElement, text: string) {
@@ -236,4 +243,67 @@ describe('live2DMotionKeyframeEditor', () => {
 
     mounted.app.unmount()
   })
+
+  it('connects controller track, recording, and clear actions to the editor', async () => {
+    const onRestartRecording = vi.fn()
+    const mounted = mountEditor({ onRestartRecording })
+
+    mounted.gamepad.value = createGamepadSnapshot({ rightShoulder: 1, dpadDown: 1 })
+    await nextTick()
+    expect(mounted.host.querySelector('article[data-active="true"]')?.textContent).toContain('.tracks.headY')
+
+    mounted.gamepad.value = createGamepadSnapshot()
+    await nextTick()
+    mounted.gamepad.value = createGamepadSnapshot({ leftShoulder: 1, dpadUp: 1 })
+    await nextTick()
+    expect(onRestartRecording).toHaveBeenCalledOnce()
+
+    findButton(mounted.host, 'tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.add').click()
+    await nextTick()
+    expect(mounted.host.querySelectorAll('.motion-overlay-point')).toHaveLength(2)
+
+    mounted.gamepad.value = createGamepadSnapshot()
+    await nextTick()
+    mounted.gamepad.value = createGamepadSnapshot({ leftShoulder: 1, dpadDown: 1 })
+    await nextTick()
+    expect(mounted.host.querySelectorAll('.motion-overlay-point')).toHaveLength(0)
+
+    mounted.app.unmount()
+  })
 })
+
+const standardButtonNames: readonly StandardGamepadButtonName[] = [
+  'dpadDown',
+  'dpadLeft',
+  'dpadRight',
+  'dpadUp',
+  'faceBottom',
+  'faceLeft',
+  'faceRight',
+  'faceTop',
+  'leftShoulder',
+  'leftStick',
+  'leftTrigger',
+  'rightShoulder',
+  'rightStick',
+  'rightTrigger',
+  'select',
+  'start',
+]
+
+function createGamepadSnapshot(pressed: Partial<Record<StandardGamepadButtonName, number>> = {}): StandardGamepadSnapshot {
+  const buttons = Object.fromEntries(standardButtonNames.map((name): [StandardGamepadButtonName, StandardGamepadButtonState] => {
+    const value = pressed[name] ?? 0
+    return [name, { pressed: value > 0, touched: value > 0, value }]
+  })) as Record<StandardGamepadButtonName, StandardGamepadButtonState>
+
+  return {
+    buttons,
+    family: 'playstation',
+    id: 'DualSense Wireless Controller',
+    index: 0,
+    leftStick: { x: 0, y: 0 },
+    rightStick: { x: 0, y: 0 },
+    timestamp: 0,
+  }
+}

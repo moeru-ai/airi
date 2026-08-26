@@ -117,24 +117,22 @@ function installDragBehaviors() {
   select(graph.value).selectAll<SVGCircleElement, unknown>('.motion-overlay-point').call(
     drag<SVGCircleElement, unknown>()
       .on('drag', function (event: D3DragEvent<SVGCircleElement, unknown, unknown>) {
-        const target = this
-        const overlay = props.project.overlays.find(item => item.id === target.dataset.overlayId)
+        const overlay = props.project.overlays.find(item => item.id === this.dataset.overlayId)
         if (!overlay)
           return
         const next = clientToPoint(event.sourceEvent)
         emit(
           'movePoint',
           overlay.id,
-          target.dataset.pointId!,
+          this.dataset.pointId!,
           Math.min(overlay.endMs, Math.max(overlay.startMs, next.atMs)),
           next.value,
           false,
         )
       })
       .on('end', function () {
-        const target = this
-        const overlay = props.project.overlays.find(item => item.id === target.dataset.overlayId)
-        const point = overlay?.points.find(item => item.id === target.dataset.pointId)
+        const overlay = props.project.overlays.find(item => item.id === this.dataset.overlayId)
+        const point = overlay?.points.find(item => item.id === this.dataset.pointId)
         if (overlay && point)
           emit('movePoint', overlay.id, point.id, point.atMs, point.value, true)
       }),
@@ -143,12 +141,11 @@ function installDragBehaviors() {
   select(graph.value).selectAll<SVGRectElement, unknown>('.motion-overlay-handle').call(
     drag<SVGRectElement, unknown>()
       .on('drag', function (event: D3DragEvent<SVGRectElement, unknown, unknown>) {
-        const target = this
-        const overlay = props.project.overlays.find(item => item.id === target.dataset.overlayId)
+        const overlay = props.project.overlays.find(item => item.id === this.dataset.overlayId)
         if (!overlay)
           return
         const next = clientToPoint(event.sourceEvent).atMs
-        const patch = target.dataset.edge === 'start'
+        const patch = this.dataset.edge === 'start'
           ? { startMs: Math.min(overlay.endMs - 1, next) }
           : { endMs: Math.max(overlay.startMs + 1, next) }
         emit('updateOverlay', overlay.id, patch, false)
@@ -175,10 +172,10 @@ onMounted(installDragBehaviors)
     :data-active="active"
     :style="{ height: `${graphHeight}px` }"
     :class="[
-      'grid grid-cols-[12rem_minmax(0,1fr)] overflow-hidden rounded-lg border transition-colors',
+      'grid grid-cols-[12rem_minmax(0,1fr)] overflow-hidden rounded-lg border-l-2 transition-colors',
       active
-        ? 'border-primary-400/70 bg-primary-50/30 dark:border-primary-600/70 dark:bg-primary-950/10'
-        : 'border-neutral-200/80 bg-neutral-50/60 dark:border-neutral-800/80 dark:bg-neutral-950/30',
+        ? 'border-primary-400/70 bg-primary-50/45 dark:border-primary-600/70 dark:bg-primary-950/20'
+        : 'border-transparent bg-neutral-100/65 dark:bg-neutral-900/45',
     ]"
     @click="emit('activate')"
   >

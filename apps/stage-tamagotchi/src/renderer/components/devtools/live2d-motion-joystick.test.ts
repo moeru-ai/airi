@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 
+import type { StandardGamepadButtonName, StandardGamepadButtonState, StandardGamepadSnapshot } from '@proj-airi/input-gamepad'
 import type { Live2DMotionControlDynamics, Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 
 import { neutralLive2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createApp, h, nextTick } from 'vue'
+import { createApp, h, nextTick, shallowRef } from 'vue'
 
 import Live2DMotionJoystick from './live2d-motion-joystick.vue'
 
@@ -224,4 +225,98 @@ describe('live2DMotionJoystick', () => {
     mounted.app.unmount()
     mounted.host.remove()
   })
+
+  it('maps standard gamepad analog controls without taking ownership of eye direction', async () => {
+    const move = vi.fn<(pose: Live2DMotionControlPose) => void>()
+    const release = vi.fn()
+    const gamepad = shallowRef<StandardGamepadSnapshot>()
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const app = createApp({
+      render: () => h(Live2DMotionJoystick, {
+        active: false,
+        dynamics: defaultDynamics,
+        gamepad: gamepad.value,
+        pose: neutralPose,
+        onMove: move,
+        onRelease: release,
+      }),
+    })
+    app.mount(host)
+
+    gamepad.value = createGamepadSnapshot({
+      leftStick: { x: 0.5, y: -0.25 },
+      leftTrigger: 0.7,
+      rightStick: { x: 0.4, y: 0.8 },
+      rightTrigger: 0.6,
+    })
+    await nextTick()
+
+    expect(move).toHaveBeenLastCalledWith({
+      ...neutralPose,
+      bodyX: 0.5,
+      bodyY: 0.25,
+      eyeSquint: 0.7,
+      headX: 0.5,
+      headY: 0.25,
+      headZ: 0.4,
+      mouthOpen: 0.6,
+      offsetX: 0.5,
+      offsetY: 0.25,
+    })
+    expect(move.mock.lastCall?.[0].eyeX).toBe(0)
+    expect(move.mock.lastCall?.[0].eyeY).toBe(0)
+
+    gamepad.value = createGamepadSnapshot()
+    await nextTick()
+    expect(release).toHaveBeenCalledOnce()
+
+    app.unmount()
+    host.remove()
+  })
 })
+
+const standardButtonNames: readonly StandardGamepadButtonName[] = [
+  'dpadDown',
+  'dpadLeft',
+  'dpadRight',
+  'dpadUp',
+  'faceBottom',
+  'faceLeft',
+  'faceRight',
+  'faceTop',
+  'leftShoulder',
+  'leftStick',
+  'leftTrigger',
+  'rightShoulder',
+  'rightStick',
+  'rightTrigger',
+  'select',
+  'start',
+]
+
+function createGamepadSnapshot(options: {
+  leftStick?: { x: number, y: number }
+  leftTrigger?: number
+  rightStick?: { x: number, y: number }
+  rightTrigger?: number
+} = {}): StandardGamepadSnapshot {
+  const buttons = Object.fromEntries(standardButtonNames.map((name): [StandardGamepadButtonName, StandardGamepadButtonState] => {
+    let value = 0
+    if (name === 'leftTrigger')
+      value = options.leftTrigger ?? 0
+    else if (name === 'rightTrigger')
+      value = options.rightTrigger ?? 0
+    return [name, { pressed: value > 0, touched: value > 0, value }]
+  })) as Record<StandardGamepadButtonName, StandardGamepadButtonState>
+
+  return {
+    buttons,
+    family: 'playstation',
+    id: 'DualSense Wireless Controller',
+    index: 0,
+    leftStick: options.leftStick ?? { x: 0, y: 0 },
+    rightStick: options.rightStick ?? { x: 0, y: 0 },
+    timestamp: 0,
+  }
+}

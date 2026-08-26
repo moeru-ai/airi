@@ -1,16 +1,21 @@
 <script setup lang="ts">
+import type { StandardGamepadSnapshot } from '@proj-airi/input-gamepad'
 import type { Live2DMotionControlDynamics, Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 
+import { getGamepadButtonLabel } from '@proj-airi/input-gamepad'
 import { defaultLive2DMotionControlDynamics, neutralLive2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 import { BasicButton, FieldRange } from '@proj-airi/ui'
 import { computed, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import Live2DMotionInputHints from './live2d-motion-input-hints.vue'
 
 const props = defineProps<{
   pose: Live2DMotionControlPose
   dynamics: Live2DMotionControlDynamics
   active: boolean
   disabled?: boolean
+  gamepad?: StandardGamepadSnapshot
 }>()
 
 const emit = defineEmits<{
@@ -49,6 +54,7 @@ const eyeSquintKeys = new Set([
 const movementKeys = new Set([...positionKeys, ...headRollKeys, ...bodyXKeys, ...mouthFormKeys, ...mouthOpenKeys, ...eyeSquintKeys])
 
 let keyboardOwnsInput = false
+let gamepadOwnsInput = false
 let keyboardOwnsPosition = false
 let keyboardOwnsHeadRoll = false
 let keyboardOwnsBodyX = false
@@ -73,24 +79,31 @@ const inertia = computed({
   set: value => emit('updateDynamics', { ...props.dynamics, inertia: value }),
 })
 const formatPercent = (value: number) => `${Math.round(value * 100)}%`
-
-const parameterGroups = computed(() => [
+const gamepadFamily = computed(() => props.gamepad?.family ?? 'unknown')
+const inputHints = computed(() => [
   {
-    label: t('tamagotchi.settings.devtools.pages.live2d-motion.groups.eyes'),
-    x: props.pose.eyeX,
-    y: props.pose.eyeY,
+    action: t('tamagotchi.settings.devtools.pages.live2d-motion.input-actions.move-body-head'),
+    controller: getGamepadButtonLabel(gamepadFamily.value, 'leftStick'),
+    keyboard: '← ↑ ↓ →',
   },
   {
-    label: t('tamagotchi.settings.devtools.pages.live2d-motion.groups.head'),
-    x: props.pose.headX * 30,
-    y: props.pose.headY * 30,
-    z: props.pose.headZ * 30,
+    action: t('tamagotchi.settings.devtools.pages.live2d-motion.input-actions.tilt-head'),
+    controller: `${getGamepadButtonLabel(gamepadFamily.value, 'rightStick')} ← / →`,
+    keyboard: 'Q / E',
   },
   {
-    label: t('tamagotchi.settings.devtools.pages.live2d-motion.groups.body'),
-    x: props.pose.bodyX * 10,
-    y: props.pose.bodyY * 10,
-    z: props.pose.bodyZ * 10,
+    action: t('tamagotchi.settings.devtools.pages.live2d-motion.input-actions.blink'),
+    controller: getGamepadButtonLabel(gamepadFamily.value, 'leftTrigger'),
+    keyboard: 'C',
+  },
+  {
+    action: t('tamagotchi.settings.devtools.pages.live2d-motion.input-actions.open-mouth'),
+    controller: getGamepadButtonLabel(gamepadFamily.value, 'rightTrigger'),
+    keyboard: 'Space',
+  },
+  {
+    action: t('tamagotchi.settings.devtools.pages.live2d-motion.input-actions.mouth-shape'),
+    keyboard: 'W / S',
   },
 ])
 
@@ -126,6 +139,7 @@ function releaseImmediately() {
     return
 
   pressedKeys.clear()
+  gamepadOwnsInput = false
   keyboardOwnsInput = false
   keyboardOwnsPosition = false
   keyboardOwnsHeadRoll = false
@@ -148,6 +162,7 @@ function handlePointerDown(event: PointerEvent) {
   const target = event.currentTarget as HTMLElement
   target.setPointerCapture(event.pointerId)
   pressedKeys.clear()
+  gamepadOwnsInput = false
   keyboardOwnsInput = false
   keyboardOwnsPosition = false
   keyboardOwnsHeadRoll = false
@@ -285,6 +300,7 @@ function handleKeyDown(event: KeyboardEvent) {
   if (pressedKeys.has(key))
     return
 
+  gamepadOwnsInput = false
   keyboardOwnsInput = true
   if (positionKeys.has(key))
     keyboardOwnsPosition = true
@@ -331,11 +347,61 @@ function handleBlur() {
   emitKeyboardTarget()
 }
 
+function handleGamepad(snapshot: StandardGamepadSnapshot | undefined) {
+  if (props.disabled)
+    return
+
+  if (!snapshot) {
+    if (!gamepadOwnsInput)
+      return
+    gamepadOwnsInput = false
+    inputActive.value = false
+    emit('release')
+    return
+  }
+
+  const leftX = snapshot.leftStick.x
+  const leftY = -snapshot.leftStick.y
+  const headRoll = snapshot.rightStick.x
+  const eyeSquint = snapshot.buttons.leftTrigger.value
+  const mouthOpen = snapshot.buttons.rightTrigger.value
+  const active = Math.abs(leftX) > 0
+    || Math.abs(leftY) > 0
+    || Math.abs(headRoll) > 0
+    || eyeSquint > 0
+    || mouthOpen > 0
+
+  if (!active) {
+    if (!gamepadOwnsInput)
+      return
+    gamepadOwnsInput = false
+    inputActive.value = false
+    emit('release')
+    return
+  }
+
+  gamepadOwnsInput = true
+  inputActive.value = true
+  emit('move', {
+    ...props.pose,
+    bodyX: leftX,
+    bodyY: leftY,
+    eyeSquint,
+    headX: leftX,
+    headY: leftY,
+    headZ: headRoll,
+    mouthOpen,
+    offsetX: leftX,
+    offsetY: leftY,
+  })
+}
+
 watch(() => props.disabled, (disabled) => {
   if (!disabled)
     return
 
   pressedKeys.clear()
+  gamepadOwnsInput = false
   keyboardOwnsInput = false
   keyboardOwnsPosition = false
   keyboardOwnsHeadRoll = false
@@ -349,10 +415,11 @@ watch(() => props.disabled, (disabled) => {
   keyboardEyeSquintBase = 0
   inputActive.value = false
 })
+watch(() => props.gamepad, handleGamepad, { flush: 'sync' })
 </script>
 
 <template>
-  <div :class="['grid gap-6', 'lg:grid-cols-[minmax(16rem,22rem)_1fr]']">
+  <div :class="['flex flex-col gap-5']">
     <div :class="['flex flex-col items-center gap-4']">
       <BasicButton
         type="button"
@@ -361,7 +428,7 @@ watch(() => props.disabled, (disabled) => {
         :aria-pressed="props.active"
         :disabled="props.disabled"
         :class="[
-          'relative size-64 touch-none select-none overflow-hidden rounded-full',
+          'relative aspect-square w-full max-w-64 touch-none select-none overflow-hidden rounded-full',
           'border border-neutral-300/80 dark:border-neutral-700/80',
           'bg-neutral-100/70 dark:bg-neutral-900/70',
           'shadow-inner active:scale-100!',
@@ -392,9 +459,12 @@ watch(() => props.disabled, (disabled) => {
         </span>
       </BasicButton>
 
-      <div :class="['text-center text-sm text-neutral-500 dark:text-neutral-400']">
-        {{ t('tamagotchi.settings.devtools.pages.live2d-motion.instructions') }}
-      </div>
+      <Live2DMotionInputHints
+        :hints="inputHints"
+        :keyboard-label="t('tamagotchi.settings.devtools.pages.live2d-motion.input.keyboard')"
+        :controller-label="t('tamagotchi.settings.devtools.pages.live2d-motion.input.controller')"
+        :class="['w-full']"
+      />
     </div>
 
     <div :class="['flex flex-col gap-3']">
@@ -412,7 +482,7 @@ watch(() => props.disabled, (disabled) => {
           : t('tamagotchi.settings.devtools.pages.live2d-motion.status.released') }}
       </div>
 
-      <div :class="['grid gap-4 rounded-2xl border border-neutral-200/80 p-4 dark:border-neutral-800/80', 'bg-white/60 dark:bg-neutral-950/40', 'sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2']">
+      <div :class="['grid gap-4 rounded-xl bg-neutral-100/70 p-4 dark:bg-neutral-900/50']">
         <FieldRange
           v-model="follow"
           :label="t('tamagotchi.settings.devtools.pages.live2d-motion.spring.follow.label')"
@@ -435,47 +505,6 @@ watch(() => props.disabled, (disabled) => {
           :format-value="formatPercent"
           as="div"
         />
-      </div>
-
-      <div :class="['grid gap-3', 'sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3']">
-        <section
-          v-for="group in parameterGroups"
-          :key="group.label"
-          :class="[
-            'rounded-2xl border border-neutral-200/80 p-4 dark:border-neutral-800/80',
-            'bg-white/60 dark:bg-neutral-950/40',
-          ]"
-        >
-          <div :class="['mb-3 text-sm font-semibold text-neutral-800 dark:text-neutral-100']">
-            {{ group.label }}
-          </div>
-          <dl :class="['grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-sm']">
-            <dt :class="['text-neutral-500 dark:text-neutral-400']">
-              X
-            </dt>
-            <dd :class="['text-right font-mono text-neutral-800 tabular-nums dark:text-neutral-100']">
-              {{ group.x.toFixed(2) }}
-            </dd>
-            <dt :class="['text-neutral-500 dark:text-neutral-400']">
-              Y
-            </dt>
-            <dd :class="['text-right font-mono text-neutral-800 tabular-nums dark:text-neutral-100']">
-              {{ group.y.toFixed(2) }}
-            </dd>
-            <template v-if="group.z !== undefined">
-              <dt :class="['text-neutral-500 dark:text-neutral-400']">
-                Z
-              </dt>
-              <dd :class="['text-right font-mono text-neutral-800 tabular-nums dark:text-neutral-100']">
-                {{ group.z.toFixed(2) }}
-              </dd>
-            </template>
-          </dl>
-        </section>
-      </div>
-
-      <div :class="['rounded-xl p-3 text-xs text-neutral-500 dark:text-neutral-400', 'bg-neutral-100/70 dark:bg-neutral-900/50']">
-        {{ t('tamagotchi.settings.devtools.pages.live2d-motion.parameter-note') }}
       </div>
     </div>
   </div>

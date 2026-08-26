@@ -8,8 +8,10 @@ import type {
 } from '../../composables/live2d-motion-output-filter-prototype'
 
 import { defaultLive2DBreathControlOptions, defaultLive2DMotionControlDynamics, neutralLive2DMotionControlPose, useLive2DMotionControl } from '@proj-airi/stage-ui-live2d/stores'
+import { BasicButton } from '@proj-airi/ui'
 import { onMounted, onUnmounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
 import Live2DMotionArHmmPrototype from '../../components/devtools/live2d-motion-ar-hmm-prototype.vue'
 import Live2DMotionBreathPrototype from '../../components/devtools/live2d-motion-breath-prototype.vue'
@@ -17,14 +19,18 @@ import Live2DMotionEyeViewPrototype from '../../components/devtools/live2d-motio
 import Live2DMotionJoystick from '../../components/devtools/live2d-motion-joystick.vue'
 import Live2DMotionKeyframeEditor from '../../components/devtools/live2d-motion-keyframe-editor.vue'
 import Live2DMotionOutputFilterPrototype from '../../components/devtools/live2d-motion-output-filter-prototype.vue'
+import Live2DMotionPreview from '../../components/devtools/live2d-motion-preview.vue'
 import Live2DMotionVarPrototype from '../../components/devtools/live2d-motion-var-prototype.vue'
+import Live2DMotionWorkbench from '../../components/devtools/live2d-motion-workbench.vue'
 
 import { defaultLive2DMotionRecording } from '../../composables/live2d-motion-default-recording'
 import { applyLive2DEyeViewPrototype, defaultLive2DEyeViewPrototypeState } from '../../composables/live2d-motion-eye-view-prototype'
 import { createLive2DMotionOutputFilter, defaultLive2DMotionOutputFilterOptions } from '../../composables/live2d-motion-output-filter-prototype'
 import { useLive2DMotionRecording } from '../../composables/live2d-motion-recording'
+import { useStandardGamepad } from '../../composables/use-standard-gamepad'
 
 const { t } = useI18n()
+const router = useRouter()
 const motionControl = useLive2DMotionControl()
 const ownerId = crypto.randomUUID()
 const neutralPose = neutralLive2DMotionControlPose
@@ -43,6 +49,7 @@ const outputFilter = createLive2DMotionOutputFilter(outputFilterOptions.value)
 const breathEnabled = shallowRef(true)
 const breathOptions = shallowRef<Live2DBreathControlOptions>({ ...defaultLive2DBreathControlOptions })
 const breathStartedAtMs = shallowRef(Date.now())
+const gamepad = useStandardGamepad()
 
 function publishComposedPose(nextPose: Live2DMotionControlPose, nextEyeView = eyeView.value) {
   sourcePose.value = nextPose
@@ -196,6 +203,12 @@ onMounted(() => {
   motionControl.setBreath(ownerId, breathOptions.value, breathStartedAtMs.value)
 })
 
+function restartRecording() {
+  if (recordingController.status.value.type === 'armed' || recordingController.status.value.type === 'recording')
+    recordingController.stopRecording()
+  recordingController.startRecording()
+}
+
 onUnmounted(() => {
   recordingController.dispose()
   motionControl.releaseBreath(ownerId)
@@ -204,80 +217,117 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div :class="['flex flex-col gap-5 pb-8']">
-    <div>
-      <h2 :class="['text-lg font-semibold text-neutral-900 dark:text-neutral-100']">
-        {{ t('tamagotchi.settings.devtools.pages.live2d-motion.title') }}
-      </h2>
-      <p :class="['mt-1 text-sm text-neutral-500 dark:text-neutral-400']">
-        {{ t('tamagotchi.settings.devtools.pages.live2d-motion.description') }}
-      </p>
+  <main :class="['flex h-full min-h-0 w-full flex-col overflow-hidden', 'bg-neutral-50/80 dark:bg-neutral-950']">
+    <header
+      :class="[
+        'drag-region flex shrink-0 items-center gap-3 border-b border-neutral-200/70 px-4 py-3',
+        'bg-white/75 backdrop-blur-xl dark:border-neutral-800/70 dark:bg-neutral-950/75',
+      ]"
+    >
+      <BasicButton
+        size="sm"
+        :title="t('tamagotchi.settings.devtools.pages.live2d-motion.actions.back')"
+        :aria-label="t('tamagotchi.settings.devtools.pages.live2d-motion.actions.back')"
+        :class="['[-webkit-app-region:no-drag]']"
+        @click="router.back()"
+      >
+        <span :class="['i-solar:alt-arrow-left-linear size-4']" />
+      </BasicButton>
+      <div :class="['min-w-0']">
+        <h1 :class="['truncate text-sm font-semibold text-neutral-900 dark:text-neutral-100']">
+          {{ t('tamagotchi.settings.devtools.pages.live2d-motion.title') }}
+        </h1>
+        <p :class="['truncate text-xs text-neutral-500 dark:text-neutral-400']">
+          {{ t('tamagotchi.settings.devtools.pages.live2d-motion.description') }}
+        </p>
+      </div>
+    </header>
+
+    <div :class="['min-h-0 flex-1 p-2']">
+      <Live2DMotionWorkbench>
+        <template #direct-control>
+          <div :class="['flex flex-col gap-4']">
+            <Live2DMotionJoystick
+              :pose="pose"
+              :dynamics="dynamics"
+              :active="active"
+              :disabled="editorPlaying || varPlaying || arHmmPlaying"
+              :gamepad="gamepad"
+              @move="setPose"
+              @release="release"
+              @update-dynamics="setDynamics"
+            />
+
+            <Live2DMotionEyeViewPrototype
+              :pose="pose"
+              :view="eyeView"
+              @update-view="updateEyeView"
+            />
+
+            <Live2DMotionBreathPrototype
+              :enabled="breathEnabled"
+              :options="breathOptions"
+              :started-at-ms="breathStartedAtMs"
+              @update-enabled="updateBreathEnabled"
+              @update-options="updateBreathOptions"
+              @reset="resetBreath"
+            />
+          </div>
+        </template>
+
+        <template #preview>
+          <Live2DMotionPreview :pose="pose" />
+        </template>
+
+        <template #timeline>
+          <Live2DMotionKeyframeEditor
+            :recording="recordingController.recording.value"
+            :recording-active="recordingController.status.value.type === 'armed' || recordingController.status.value.type === 'recording'"
+            :disabled="varPlaying || arHmmPlaying"
+            :gamepad="gamepad"
+            @frame="publishEditorFrame"
+            @playback="editorPlaying = $event"
+            @recording="recordingController.loadRecording"
+            @restart-recording="restartRecording"
+            @toggle-recording="toggleRecording"
+          />
+        </template>
+
+        <template #inference>
+          <div :class="['flex flex-col gap-4']">
+            <Live2DMotionVarPrototype
+              :recording="recordingController.recording.value"
+              :disabled="arHmmPlaying || editorPlaying || recordingController.status.value.type === 'armed' || recordingController.status.value.type === 'recording'"
+              @pose="publishGeneratedPose"
+              @release="publishGeneratedRelease"
+              @playback="updateVarPlayback"
+            />
+
+            <Live2DMotionArHmmPrototype
+              :recording="recordingController.recording.value"
+              :disabled="varPlaying || editorPlaying || recordingController.status.value.type === 'armed' || recordingController.status.value.type === 'recording'"
+              @pose="publishGeneratedPose"
+              @release="publishGeneratedRelease"
+              @playback="updateArHmmPlayback"
+            />
+
+            <Live2DMotionOutputFilterPrototype
+              :options="outputFilterOptions"
+              :frame="outputFilterFrame"
+              :generator-active="varPlaying || arHmmPlaying"
+              @update-options="updateOutputFilterOptions"
+              @reset="resetOutputFilter"
+            />
+          </div>
+        </template>
+      </Live2DMotionWorkbench>
     </div>
-
-    <Live2DMotionEyeViewPrototype
-      :pose="pose"
-      :view="eyeView"
-      @update-view="updateEyeView"
-    />
-
-    <Live2DMotionJoystick
-      :pose="pose"
-      :dynamics="dynamics"
-      :active="active"
-      :disabled="editorPlaying || varPlaying || arHmmPlaying"
-      @move="setPose"
-      @release="release"
-      @update-dynamics="setDynamics"
-    />
-
-    <Live2DMotionKeyframeEditor
-      :recording="recordingController.recording.value"
-      :recording-active="recordingController.status.value.type === 'armed' || recordingController.status.value.type === 'recording'"
-      :disabled="varPlaying || arHmmPlaying"
-      @frame="publishEditorFrame"
-      @playback="editorPlaying = $event"
-      @recording="recordingController.loadRecording"
-      @toggle-recording="toggleRecording"
-    />
-
-    <Live2DMotionVarPrototype
-      :recording="recordingController.recording.value"
-      :disabled="arHmmPlaying || editorPlaying || recordingController.status.value.type === 'armed' || recordingController.status.value.type === 'recording'"
-      @pose="publishGeneratedPose"
-      @release="publishGeneratedRelease"
-      @playback="updateVarPlayback"
-    />
-
-    <Live2DMotionArHmmPrototype
-      :recording="recordingController.recording.value"
-      :disabled="varPlaying || editorPlaying || recordingController.status.value.type === 'armed' || recordingController.status.value.type === 'recording'"
-      @pose="publishGeneratedPose"
-      @release="publishGeneratedRelease"
-      @playback="updateArHmmPlayback"
-    />
-
-    <Live2DMotionOutputFilterPrototype
-      :options="outputFilterOptions"
-      :frame="outputFilterFrame"
-      :generator-active="varPlaying || arHmmPlaying"
-      @update-options="updateOutputFilterOptions"
-      @reset="resetOutputFilter"
-    />
-
-    <Live2DMotionBreathPrototype
-      :enabled="breathEnabled"
-      :options="breathOptions"
-      :started-at-ms="breathStartedAtMs"
-      @update-enabled="updateBreathEnabled"
-      @update-options="updateBreathOptions"
-      @reset="resetBreath"
-    />
-  </div>
+  </main>
 </template>
 
 <route lang="yaml">
 meta:
-  layout: settings
+  layout: plain
   titleKey: tamagotchi.settings.devtools.pages.live2d-motion.title
   subtitleKey: tamagotchi.settings.devtools.title
 </route>

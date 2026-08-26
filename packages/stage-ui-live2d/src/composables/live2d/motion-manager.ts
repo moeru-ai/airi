@@ -12,7 +12,10 @@ import { useLive2DIdleEyeFocus } from './animation'
 type CubismModel = Cubism4InternalModel['coreModel']
 type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
 
+/** The Pixi internal-model surface that AIRI motion plugins consume. */
 export type PixiLive2DInternalModel = InternalModel & {
+  /** Cubism's breath controller, which AIRI removes before it applies its own curve. */
+  breath?: unknown
   eyeBlink?: CubismEyeBlink
   coreModel: CubismModel
 }

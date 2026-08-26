@@ -210,6 +210,7 @@ export default {
       NSMicrophoneUsageDescription: 'AIRI requires microphone access for voice interaction',
       NSSpeechRecognitionUsageDescription: 'AIRI uses Apple Speech to transcribe voice interactions on this device',
       NSCameraUsageDescription: 'AIRI requires camera access for vision understanding',
+      NSBluetoothAlwaysUsageDescription: 'AIRI uses Bluetooth to read game controller input',
     },
     // For self-publishing, testing, and distribution after modified the code without access to
     // an Apple Developer account, comment and uncomment the following 4 lines.

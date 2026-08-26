@@ -1,3 +1,4 @@
+import type { Live2DBreathControlState } from '../../stores/motion-control'
 import type { MotionManagerPluginContext, PixiLive2DInternalModel } from './motion-manager'
 
 import { describe, expect, it, vi } from 'vitest'
@@ -100,7 +101,7 @@ describe('live2d motion manager plugins', () => {
         rightEyeOpen: 1,
       }),
     })
-    const breathControl = ref({
+    const breathControl = ref<Live2DBreathControlState>({
       active: true,
       ownerId: 'motion-devtool',
       startedAtMs: 1_000,

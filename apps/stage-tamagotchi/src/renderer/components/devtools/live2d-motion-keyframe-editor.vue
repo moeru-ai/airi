@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { StandardGamepadSnapshot } from '@proj-airi/input-gamepad'
+
 import type {
   Live2DMotionEditableTrackId,
   Live2DMotionEditorFrame,
@@ -10,11 +12,14 @@ import type {
 import type { Live2DMotionRecording, ReadonlyLive2DMotionRecording } from '../../composables/live2d-motion-recording'
 
 import { errorMessageFrom } from '@moeru/std'
+import { getGamepadButtonLabel } from '@proj-airi/input-gamepad'
 import { BasicButton } from '@proj-airi/ui'
 import { useManualRefHistory } from '@vueuse/core'
 import { computed, nextTick, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import Live2DMotionInputHints from './live2d-motion-input-hints.vue'
+import Live2DMotionPlaybackControls from './live2d-motion-playback-controls.vue'
 import Live2DMotionTimelineRuler from './live2d-motion-timeline-ruler.vue'
 import Live2DMotionTrackRow from './live2d-motion-track-row.vue'
 
@@ -31,9 +36,11 @@ import {
   parseLive2DMotionProject,
   stringifyLive2DMotionProject,
 } from '../../composables/live2d-motion-keyframes'
+import { useLive2DMotionGamepadActions } from '../../composables/use-live2d-motion-gamepad-actions'
 
 const props = defineProps<{
   disabled?: boolean
+  gamepad?: StandardGamepadSnapshot
   recording?: ReadonlyLive2DMotionRecording | null
   recordingActive?: boolean
 }>()
@@ -41,6 +48,7 @@ const emit = defineEmits<{
   frame: [frame: Live2DMotionEditorFrame]
   playback: [playing: boolean]
   recording: [recording: Live2DMotionRecording]
+  restartRecording: []
   toggleRecording: []
 }>()
 const { t } = useI18n()
@@ -66,6 +74,59 @@ let lastEmittedRecordingJson = ''
 const currentTime = computed(() => `${(playheadMs.value / 1000).toFixed(2)}s`)
 const duration = computed(() => `${(project.value.durationMs / 1000).toFixed(2)}s`)
 const editingDisabled = computed(() => props.disabled || props.recordingActive)
+const gamepadFamily = computed(() => props.gamepad?.family ?? 'unknown')
+const timelineInputHints = computed(() => {
+  const leftShoulder = getGamepadButtonLabel(gamepadFamily.value, 'leftShoulder')
+  const rightShoulder = getGamepadButtonLabel(gamepadFamily.value, 'rightShoulder')
+  return [
+    {
+      action: t('tamagotchi.settings.devtools.pages.live2d-motion.editor.input-actions.play'),
+      controller: getGamepadButtonLabel(gamepadFamily.value, 'faceBottom'),
+      keyboard: 'Shift+Space',
+    },
+    {
+      action: t('tamagotchi.settings.devtools.pages.live2d-motion.editor.input-actions.stop'),
+      controller: getGamepadButtonLabel(gamepadFamily.value, 'faceRight'),
+      keyboard: 'Shift+Space',
+    },
+    {
+      action: t('tamagotchi.settings.devtools.pages.live2d-motion.editor.input-actions.start'),
+      controller: `${leftShoulder} + D-pad ←`,
+      keyboard: 'Alt+A',
+    },
+    {
+      action: t('tamagotchi.settings.devtools.pages.live2d-motion.editor.input-actions.end'),
+      controller: `${leftShoulder} + D-pad →`,
+      keyboard: 'Alt+D',
+    },
+    {
+      action: t('tamagotchi.settings.devtools.pages.live2d-motion.editor.input-actions.step-backward'),
+      controller: `${rightShoulder} + D-pad ←`,
+      keyboard: 'Shift+A',
+    },
+    {
+      action: t('tamagotchi.settings.devtools.pages.live2d-motion.editor.input-actions.step-forward'),
+      controller: `${rightShoulder} + D-pad →`,
+      keyboard: 'Shift+D',
+    },
+    {
+      action: t('tamagotchi.settings.devtools.pages.live2d-motion.editor.input-actions.restart-recording'),
+      controller: `${leftShoulder} + D-pad ↑`,
+    },
+    {
+      action: t('tamagotchi.settings.devtools.pages.live2d-motion.editor.input-actions.clear-timeline'),
+      controller: `${leftShoulder} + D-pad ↓`,
+    },
+    {
+      action: t('tamagotchi.settings.devtools.pages.live2d-motion.editor.input-actions.previous-track'),
+      controller: `${rightShoulder} + D-pad ↑`,
+    },
+    {
+      action: t('tamagotchi.settings.devtools.pages.live2d-motion.editor.input-actions.next-track'),
+      controller: `${rightShoulder} + D-pad ↓`,
+    },
+  ]
+})
 const canCrop = computed(() => {
   const [startMs, endMs] = viewport.value
   return endMs - startMs >= 1 && (startMs > 0.5 || endMs < project.value.durationMs - 0.5)
@@ -178,16 +239,54 @@ function playbackFrame(now: number) {
   animationFrame = requestAnimationFrame(playbackFrame)
 }
 
-function togglePlayback() {
-  if (playing.value) {
-    stopPlayback()
+function startPlayback() {
+  if (playing.value || editingDisabled.value)
     return
-  }
+
   playbackStartMs = playheadMs.value >= project.value.durationMs ? 0 : playheadMs.value
   playbackStartedAt = performance.now()
   playing.value = true
   emit('playback', true)
   animationFrame = requestAnimationFrame(playbackFrame)
+}
+
+function seekTo(atMs: number) {
+  stopPlayback()
+  publish(atMs)
+}
+
+function stepPlayback(direction: -1 | 1, steps = 1) {
+  seekTo(playheadMs.value + direction * steps * 1000 / 30)
+}
+
+function restartRecording() {
+  if (props.disabled || playing.value)
+    return
+  emit('restartRecording')
+}
+
+function clearTimeline() {
+  if (editingDisabled.value)
+    return
+
+  stopPlayback()
+  activeTrack.value = 'headX'
+  selectedOverlayId.value = undefined
+  playheadMs.value = 0
+  replaceProject(createDefaultLive2DMotionProject(project.value.durationMs), true)
+  resetViewport()
+}
+
+function selectTrackByOffset(offset: -1 | 1) {
+  if (editingDisabled.value)
+    return
+
+  const currentIndex = live2dMotionEditableTrackIds.indexOf(activeTrack.value)
+  const nextIndex = Math.min(
+    live2dMotionEditableTrackIds.length - 1,
+    Math.max(0, currentIndex + offset),
+  )
+  selectTrack(live2dMotionEditableTrackIds[nextIndex])
 }
 
 function runHistoryAction(action: () => void) {
@@ -205,6 +304,32 @@ function resetViewport() {
   viewport.value = [0, project.value.durationMs]
   rulerKey.value++
 }
+
+useLive2DMotionGamepadActions({
+  clearTimeline,
+  disabled: () => props.disabled ?? false,
+  goToEnd: () => {
+    if (!editingDisabled.value)
+      seekTo(project.value.durationMs)
+  },
+  goToStart: () => {
+    if (!editingDisabled.value)
+      seekTo(0)
+  },
+  play: startPlayback,
+  restartRecording,
+  selectTrack: selectTrackByOffset,
+  snapshot: () => props.gamepad,
+  stepBackward: (steps) => {
+    if (!editingDisabled.value)
+      stepPlayback(-1, steps)
+  },
+  stepForward: (steps) => {
+    if (!editingDisabled.value)
+      stepPlayback(1, steps)
+  },
+  stop: stopPlayback,
+})
 
 function cropToViewport() {
   const [startMs, endMs] = viewport.value
@@ -287,9 +412,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section :class="['overflow-hidden rounded-xl border border-neutral-200/80 dark:border-neutral-800/80']">
-    <div :class="['flex flex-wrap items-start justify-between gap-3 p-4']">
-      <div>
+  <section :class="['overflow-hidden rounded-xl bg-white/55 dark:bg-neutral-950/35']">
+    <div :class="['flex flex-wrap items-center justify-between gap-3 p-4']">
+      <div :class="['min-w-64 flex-1']">
         <h3 :class="['font-medium text-neutral-900 dark:text-neutral-100']">
           {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.title') }}
         </h3>
@@ -297,7 +422,21 @@ onUnmounted(() => {
           {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.instructions') }}
         </p>
       </div>
-      <div :class="['flex flex-wrap items-center gap-1']">
+
+      <Live2DMotionPlaybackControls
+        :current-time-ms="playheadMs"
+        :duration-ms="project.durationMs"
+        :playing="playing"
+        :disabled="editingDisabled"
+        @start="seekTo(0)"
+        @step-backward="stepPlayback(-1, $event)"
+        @play="startPlayback"
+        @pause="stopPlayback"
+        @step-forward="stepPlayback(1, $event)"
+        @end="seekTo(project.durationMs)"
+      />
+
+      <div :class="['flex min-w-64 flex-1 flex-wrap items-center justify-end gap-1']">
         <BasicButton
           :disabled="props.disabled || playing"
           @click="emit('toggleRecording')"
@@ -306,10 +445,6 @@ onUnmounted(() => {
           {{ props.recordingActive
             ? t('tamagotchi.settings.devtools.pages.live2d-motion.recording.actions.stop-recording')
             : t('tamagotchi.settings.devtools.pages.live2d-motion.recording.actions.record') }}
-        </BasicButton>
-        <BasicButton :disabled="editingDisabled" @click="togglePlayback">
-          <span :class="playing ? 'i-solar:pause-bold' : 'i-solar:play-bold'" />
-          {{ playing ? t('tamagotchi.settings.devtools.pages.live2d-motion.editor.pause') : t('tamagotchi.settings.devtools.pages.live2d-motion.editor.play') }}
         </BasicButton>
         <BasicButton size="sm" :disabled="editingDisabled || !canUndo" :title="t('tamagotchi.settings.devtools.pages.live2d-motion.editor.undo')" @click="runHistoryAction(undo)">
           <span :class="['i-solar:undo-left-round-linear']" />
@@ -330,6 +465,13 @@ onUnmounted(() => {
           <span :class="['i-solar:upload-minimalistic-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.import-project') }}
         </BasicButton>
       </div>
+
+      <Live2DMotionInputHints
+        :hints="timelineInputHints"
+        :keyboard-label="t('tamagotchi.settings.devtools.pages.live2d-motion.input.keyboard')"
+        :controller-label="t('tamagotchi.settings.devtools.pages.live2d-motion.input.controller')"
+        :class="['w-full grid-cols-[repeat(auto-fit,minmax(16rem,1fr))]']"
+      />
     </div>
 
     <div

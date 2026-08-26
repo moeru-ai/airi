@@ -108,7 +108,7 @@ const motionProjectSchema = object({
   })),
 })
 
-const unitValueTracks = new Set<Live2DMotionTrackId>(['eyeOpen', 'mouthOpen'])
+const unitValueTracks = new Set<Live2DMotionEditableTrackId | Live2DMotionTrackId>(['eyeOpen', 'mouthOpen'])
 const viewTargetTracks = new Set<Live2DMotionEditableTrackId>(live2dMotionViewTargetTrackIds)
 
 export function isLive2DMotionViewTargetTrackId(trackId: Live2DMotionEditableTrackId): trackId is Live2DMotionViewTargetTrackId {

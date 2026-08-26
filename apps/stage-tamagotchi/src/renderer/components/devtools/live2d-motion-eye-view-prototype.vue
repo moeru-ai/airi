@@ -70,7 +70,7 @@ function handlePointerEnd(event: PointerEvent) {
 </script>
 
 <template>
-  <section :class="['rounded-2xl border border-primary-200/70 p-4 dark:border-primary-800/60', 'bg-primary-50/40 dark:bg-primary-950/15']">
+  <section :class="['rounded-xl bg-primary-50/55 p-4 dark:bg-primary-950/20']">
     <div :class="['flex flex-wrap items-start justify-between gap-3']">
       <div>
         <div :class="['flex items-center gap-2']">
@@ -86,7 +86,7 @@ function handlePointerEnd(event: PointerEvent) {
         </p>
       </div>
 
-      <div :class="['flex gap-2']">
+      <div :class="['flex flex-wrap gap-2']">
         <BasicButton @click="updateView({ enabled: !props.view.enabled })">
           <span :class="[props.view.enabled ? 'i-solar:eye-bold-duotone' : 'i-solar:eye-closed-bold-duotone', 'mr-1.5 size-4']" />
           {{ props.view.enabled
@@ -99,7 +99,7 @@ function handlePointerEnd(event: PointerEvent) {
       </div>
     </div>
 
-    <div :class="['mt-4 grid gap-5', 'md:grid-cols-[18rem_1fr]']">
+    <div :class="['eye-view-layout mt-4 grid gap-4']">
       <BasicButton
         type="button"
         size="unset"
@@ -144,33 +144,51 @@ function handlePointerEnd(event: PointerEvent) {
           as="div"
         />
 
-        <dl :class="['grid grid-cols-[auto_1fr_auto_1fr] gap-x-3 gap-y-2 rounded-xl p-3 text-sm', 'bg-white/70 dark:bg-neutral-950/40']">
-          <dt :class="['text-neutral-500 dark:text-neutral-400']">
-            {{ t('tamagotchi.settings.devtools.pages.live2d-motion.eye-view.values.target') }} X
-          </dt>
-          <dd :class="['text-right font-mono tabular-nums text-neutral-800 dark:text-neutral-100']">
-            {{ props.view.x.toFixed(2) }}
-          </dd>
-          <dt :class="['text-neutral-500 dark:text-neutral-400']">
-            Y
-          </dt>
-          <dd :class="['text-right font-mono tabular-nums text-neutral-800 dark:text-neutral-100']">
-            {{ props.view.y.toFixed(2) }}
-          </dd>
-          <dt :class="['text-neutral-500 dark:text-neutral-400']">
-            {{ t('tamagotchi.settings.devtools.pages.live2d-motion.eye-view.values.output') }} X
-          </dt>
-          <dd :class="['text-right font-mono tabular-nums text-neutral-800 dark:text-neutral-100']">
-            {{ props.pose.eyeX.toFixed(2) }}
-          </dd>
-          <dt :class="['text-neutral-500 dark:text-neutral-400']">
-            Y
-          </dt>
-          <dd :class="['text-right font-mono tabular-nums text-neutral-800 dark:text-neutral-100']">
-            {{ props.pose.eyeY.toFixed(2) }}
-          </dd>
+        <dl :class="['eye-view-values grid gap-2 rounded-xl bg-white/70 p-3 text-sm dark:bg-neutral-950/40']">
+          <div :class="['flex items-center justify-between gap-3']">
+            <dt :class="['text-neutral-500 dark:text-neutral-400']">
+              {{ t('tamagotchi.settings.devtools.pages.live2d-motion.eye-view.values.target') }} X
+            </dt>
+            <dd :class="['font-mono tabular-nums text-neutral-800 dark:text-neutral-100']">
+              {{ props.view.x.toFixed(2) }}
+            </dd>
+          </div>
+          <div :class="['flex items-center justify-between gap-3']">
+            <dt :class="['text-neutral-500 dark:text-neutral-400']">
+              {{ t('tamagotchi.settings.devtools.pages.live2d-motion.eye-view.values.target') }} Y
+            </dt>
+            <dd :class="['font-mono tabular-nums text-neutral-800 dark:text-neutral-100']">
+              {{ props.view.y.toFixed(2) }}
+            </dd>
+          </div>
+          <div :class="['flex items-center justify-between gap-3']">
+            <dt :class="['text-neutral-500 dark:text-neutral-400']">
+              {{ t('tamagotchi.settings.devtools.pages.live2d-motion.eye-view.values.output') }} X
+            </dt>
+            <dd :class="['font-mono tabular-nums text-neutral-800 dark:text-neutral-100']">
+              {{ props.pose.eyeX.toFixed(2) }}
+            </dd>
+          </div>
+          <div :class="['flex items-center justify-between gap-3']">
+            <dt :class="['text-neutral-500 dark:text-neutral-400']">
+              {{ t('tamagotchi.settings.devtools.pages.live2d-motion.eye-view.values.output') }} Y
+            </dt>
+            <dd :class="['font-mono tabular-nums text-neutral-800 dark:text-neutral-100']">
+              {{ props.pose.eyeY.toFixed(2) }}
+            </dd>
+          </div>
         </dl>
       </div>
     </div>
   </section>
 </template>
+
+<style scoped>
+.eye-view-layout {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+}
+
+.eye-view-values {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+}
+</style>

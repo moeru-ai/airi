@@ -175,7 +175,7 @@ onUnmounted(stopGeneration)
 </script>
 
 <template>
-  <section :class="['rounded-xl border border-primary-200/80 p-4 dark:border-primary-900/70', 'bg-primary-50/40 dark:bg-primary-950/15']">
+  <section :class="['rounded-xl bg-primary-50/55 p-4 dark:bg-primary-950/20']">
     <div :class="['flex flex-wrap items-start justify-between gap-3']">
       <div>
         <div :class="['mb-1 flex items-center gap-2']">
@@ -212,7 +212,7 @@ onUnmounted(stopGeneration)
       </div>
     </div>
 
-    <div :class="['mt-4 grid gap-4', 'md:grid-cols-2']">
+    <div :class="['var-controls-grid mt-4 grid gap-4']">
       <FieldRange
         v-model="order"
         :label="t('tamagotchi.settings.devtools.pages.live2d-motion.var.order.label')"
@@ -237,7 +237,7 @@ onUnmounted(stopGeneration)
       />
     </div>
 
-    <div :class="['mt-4 grid gap-2 text-xs', 'sm:grid-cols-2 lg:grid-cols-4']">
+    <div :class="['var-diagnostics-grid mt-4 grid gap-2 text-xs']">
       <div :class="['rounded-lg bg-white/70 px-3 py-2 dark:bg-neutral-950/40']">
         <div :class="['text-neutral-400 dark:text-neutral-500']">
           {{ t('tamagotchi.settings.devtools.pages.live2d-motion.var.diagnostics.source') }}
@@ -285,3 +285,13 @@ onUnmounted(stopGeneration)
     </p>
   </section>
 </template>
+
+<style scoped>
+.var-controls-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+}
+
+.var-diagnostics-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
+}
+</style>

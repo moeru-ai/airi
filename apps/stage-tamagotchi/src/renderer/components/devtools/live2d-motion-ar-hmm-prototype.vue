@@ -66,6 +66,54 @@ const stateSummary = computed(() => {
   return model.value.stateOccupancy.map(value => `${Math.round(value * 100)}%`).join(' / ')
 })
 
+const diagnostics = computed(() => [
+  {
+    id: 'source',
+    label: t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.source'),
+    value: recordingSummary.value,
+  },
+  {
+    id: 'model',
+    label: t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.model'),
+    value: model.value
+      ? t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.values.model', {
+          states: model.value.options.stateCount,
+          channels: model.value.sourceModel.channelCount,
+          features: model.value.sourceModel.featureCount,
+        })
+      : '—',
+  },
+  {
+    id: 'fit',
+    label: t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.fit'),
+    value: model.value
+      ? t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.values.fit', {
+          likelihood: (model.value.logLikelihoods.at(-1)! / model.value.posteriorProbabilities.length).toFixed(2),
+          duration: fitDurationMs.value.toFixed(0),
+        })
+      : '—',
+  },
+  {
+    id: 'states',
+    label: t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.states'),
+    value: model.value
+      ? t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.values.states', {
+          occupancy: stateSummary.value,
+          dwell: (model.value.meanDwellFrames / model.value.options.sampleRate).toFixed(1),
+        })
+      : '—',
+  },
+  {
+    id: 'run',
+    label: t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.run'),
+    value: t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.values.run', {
+      state: currentState.value === undefined ? '—' : currentState.value + 1,
+      seed: seed.value,
+      duration: generatedDuration.value,
+    }),
+  },
+])
+
 function formatCount(value: number): string {
   return t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.values.count', { count: value })
 }
@@ -196,7 +244,7 @@ onUnmounted(stopGeneration)
 </script>
 
 <template>
-  <section :class="['rounded-xl border border-violet-200/80 p-4 dark:border-violet-900/70', 'bg-violet-50/40 dark:bg-violet-950/15']">
+  <section :class="['rounded-xl bg-violet-50/55 p-4 dark:bg-violet-950/20']">
     <div :class="['flex flex-wrap items-start justify-between gap-3']">
       <div>
         <div :class="['mb-1 flex items-center gap-2']">
@@ -211,29 +259,29 @@ onUnmounted(stopGeneration)
           {{ t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.question') }}
         </p>
       </div>
-      <div :class="['flex flex-wrap items-center gap-1']">
-        <BasicButton :disabled="props.disabled || !props.recording || playing" @click="fitRecording">
+      <div :class="['ar-hmm-actions-grid grid gap-1']">
+        <BasicButton :disabled="props.disabled || !props.recording || playing" :class="['w-full justify-center']" @click="fitRecording">
           <span :class="['i-solar:graph-new-up-bold-duotone']" />
           {{ model
             ? t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.actions.refit')
             : t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.actions.fit') }}
         </BasicButton>
-        <BasicButton v-if="!playing" :disabled="props.disabled || !model" @click="startGeneration">
+        <BasicButton v-if="!playing" :disabled="props.disabled || !model" :class="['w-full justify-center']" @click="startGeneration">
           <span :class="['i-solar:play-bold']" />
           {{ t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.actions.generate') }}
         </BasicButton>
-        <BasicButton v-else @click="stopGeneration">
+        <BasicButton v-else :class="['w-full justify-center']" @click="stopGeneration">
           <span :class="['i-solar:stop-circle-bold']" />
           {{ t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.actions.stop') }}
         </BasicButton>
-        <BasicButton :disabled="props.disabled" @click="useNewSeed">
+        <BasicButton :disabled="props.disabled" :class="['w-full justify-center']" @click="useNewSeed">
           <span :class="['i-solar:shuffle-bold-duotone']" />
           {{ t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.actions.new-seed') }}
         </BasicButton>
       </div>
     </div>
 
-    <div :class="['mt-4 grid gap-4', 'md:grid-cols-3']">
+    <div :class="['ar-hmm-controls-grid mt-4 grid gap-4']">
       <FieldRange
         v-model="stateCount"
         :label="t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.states.label')"
@@ -244,6 +292,7 @@ onUnmounted(stopGeneration)
         :default-value="defaultStateCount"
         :format-value="formatCount"
         as="div"
+        :class="['rounded-lg bg-white/65 p-3 dark:bg-neutral-950/30']"
       />
       <FieldRange
         v-model="order"
@@ -255,6 +304,7 @@ onUnmounted(stopGeneration)
         :default-value="defaultOrder"
         :format-value="formatOrder"
         as="div"
+        :class="['rounded-lg bg-white/65 p-3 dark:bg-neutral-950/30']"
       />
       <FieldRange
         v-model="residualStrength"
@@ -266,74 +316,41 @@ onUnmounted(stopGeneration)
         :default-value="defaultResidualStrength"
         :format-value="formatStrength"
         as="div"
+        :class="['rounded-lg bg-white/65 p-3 dark:bg-neutral-950/30']"
       />
     </div>
 
-    <div :class="['mt-4 grid gap-2 text-xs', 'sm:grid-cols-2 xl:grid-cols-5']">
-      <div :class="['rounded-lg bg-white/70 px-3 py-2 dark:bg-neutral-950/40']">
-        <div :class="['text-neutral-400 dark:text-neutral-500']">
-          {{ t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.source') }}
-        </div>
-        <div :class="['mt-1 font-mono text-neutral-700 dark:text-neutral-200']">
-          {{ recordingSummary }}
-        </div>
+    <dl :class="['mt-4 divide-y divide-violet-100/80 overflow-hidden rounded-lg bg-white/65 text-xs dark:divide-violet-900/60 dark:bg-neutral-950/30']">
+      <div
+        v-for="item in diagnostics"
+        :key="item.id"
+        :class="['ar-hmm-diagnostic-row grid items-start gap-2 px-3 py-2.5']"
+      >
+        <dt :class="['text-neutral-400 dark:text-neutral-500']">
+          {{ item.label }}
+        </dt>
+        <dd :class="['break-words text-right font-mono text-neutral-700 dark:text-neutral-200']">
+          {{ item.value }}
+        </dd>
       </div>
-      <div :class="['rounded-lg bg-white/70 px-3 py-2 dark:bg-neutral-950/40']">
-        <div :class="['text-neutral-400 dark:text-neutral-500']">
-          {{ t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.model') }}
-        </div>
-        <div :class="['mt-1 font-mono text-neutral-700 dark:text-neutral-200']">
-          {{ model
-            ? t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.values.model', {
-              states: model.options.stateCount,
-              channels: model.sourceModel.channelCount,
-              features: model.sourceModel.featureCount,
-            })
-            : '—' }}
-        </div>
-      </div>
-      <div :class="['rounded-lg bg-white/70 px-3 py-2 dark:bg-neutral-950/40']">
-        <div :class="['text-neutral-400 dark:text-neutral-500']">
-          {{ t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.fit') }}
-        </div>
-        <div :class="['mt-1 font-mono text-neutral-700 dark:text-neutral-200']">
-          {{ model
-            ? t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.values.fit', {
-              likelihood: (model.logLikelihoods.at(-1)! / model.posteriorProbabilities.length).toFixed(2),
-              duration: fitDurationMs.toFixed(0),
-            })
-            : '—' }}
-        </div>
-      </div>
-      <div :class="['rounded-lg bg-white/70 px-3 py-2 dark:bg-neutral-950/40']">
-        <div :class="['text-neutral-400 dark:text-neutral-500']">
-          {{ t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.states') }}
-        </div>
-        <div :class="['mt-1 font-mono text-neutral-700 dark:text-neutral-200']">
-          {{ model
-            ? t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.values.states', {
-              occupancy: stateSummary,
-              dwell: (model.meanDwellFrames / model.options.sampleRate).toFixed(1),
-            })
-            : '—' }}
-        </div>
-      </div>
-      <div :class="['rounded-lg bg-white/70 px-3 py-2 dark:bg-neutral-950/40']">
-        <div :class="['text-neutral-400 dark:text-neutral-500']">
-          {{ t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.run') }}
-        </div>
-        <div :class="['mt-1 font-mono text-neutral-700 dark:text-neutral-200']">
-          {{ t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.values.run', {
-            state: currentState === undefined ? '—' : currentState + 1,
-            seed,
-            duration: generatedDuration,
-          }) }}
-        </div>
-      </div>
-    </div>
+    </dl>
 
     <p v-if="fitError" :class="['mt-3 text-sm text-red-500 dark:text-red-400']">
       {{ fitError }}
     </p>
   </section>
 </template>
+
+<style scoped>
+.ar-hmm-actions-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+}
+
+.ar-hmm-controls-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+}
+
+.ar-hmm-diagnostic-row {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+}
+</style>
