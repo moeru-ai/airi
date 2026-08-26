@@ -612,6 +612,17 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     streamingConsumers.remove(consumerId)
   }
 
+  /**
+   * Reports whether any consumer still depends on the shared streaming session.
+   *
+   * `stopStreamingTranscription` is global, so a consumer that removed itself
+   * checks this before stopping and leaves the session running for the owners
+   * that remain.
+   */
+  function hasStreamingTranscriptionConsumers() {
+    return streamingConsumers.hasConsumers()
+  }
+
   function startStreamingAsrSpan(providerId: string) {
     activeTurnSpan.value?.end()
     const turnSpan = startSpan(IOSpanNames.InteractionTurn)
@@ -1241,6 +1252,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     transcribeForRecording,
     transcribeForMediaStream,
     removeStreamingTranscriptionConsumer,
+    hasStreamingTranscriptionConsumers,
     stopStreamingTranscription,
     supportsStreamInput,
   }

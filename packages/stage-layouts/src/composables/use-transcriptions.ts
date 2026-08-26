@@ -20,7 +20,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
   const hearingStore = useHearingStore()
   const audioDeviceSettingsStore = useSettingsAudioDevice()
   const hearingPipeline = useHearingSpeechInputPipeline()
-  const { removeStreamingTranscriptionConsumer, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
+  const { removeStreamingTranscriptionConsumer, hasStreamingTranscriptionConsumers, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
   const { supportsStreamInput } = storeToRefs(hearingPipeline)
   const { configured: hearingConfigured, autoSendEnabled, autoSendDelay } = storeToRefs(hearingStore)
   const { enabled: hearingEnabled, stream } = storeToRefs(audioDeviceSettingsStore)
@@ -65,9 +65,22 @@ export function useTranscriptions(options: TranscriptionOptions) {
   // Teardown cannot cancel that work through `isListening`, which stays false
   // until the last step, so `stopStreaming` would return early and the pending
   // start would then register its consumer and activate a session after the
-  // surface stopped wanting one. Ownership is instead rechecked at every resume
-  // point, and a start that already created a session discards it.
+  // surface stopped wanting one. Every resume point therefore revalidates the
+  // start, and the two ways a start goes stale need opposite handling.
   let disposed = false
+  let latestStartGeneration = 0
+
+  /**
+   * A newer start replaced this one, which happens when the microphone is
+   * toggled off and on again before startup settles. Both starts share this
+   * composable's single consumer id, so the superseded one must not touch the
+   * registration or the session: the newer start owns both. The generation is
+   * what keeps the old start invalidated, because `hearingEnabled` alone reads
+   * as valid again the moment the flag flips back to true.
+   */
+  function startSuperseded(generation: number) {
+    return generation !== latestStartGeneration
+  }
 
   /** True once the surface no longer wants an active transcription session. */
   function startCancelled() {
@@ -79,6 +92,16 @@ export function useTranscriptions(options: TranscriptionOptions) {
     removeStreamingTranscriptionConsumer(transcriptionConsumerId)
     streamingInput.clear()
     clearPendingAutoSend()
+
+    // A different chat surface can own the shared session: a breakpoint change
+    // swaps InteractiveArea for MobileInteractiveArea, and the replacement
+    // registers its own consumer while this start is still settling. Stopping
+    // is global, so doing it here would tear down that surface's session and
+    // leave it marked listening with nothing running behind it.
+    if (hasStreamingTranscriptionConsumers()) {
+      console.info('Leaving the streaming session to its remaining consumers', { source: 'useTranscriptions' })
+      return
+    }
 
     try {
       await stopStreamingTranscription(true)
@@ -98,6 +121,15 @@ export function useTranscriptions(options: TranscriptionOptions) {
     try {
       console.info('Stopping transcription...', { source: 'useTranscriptions' })
       clearPendingAutoSend()
+
+      // Same global-stop hazard as discardCancelledSession: a replacement
+      // surface may already have registered against this session.
+      if (hasStreamingTranscriptionConsumers()) {
+        isListening.value = false
+        console.info('Released the streaming session to its remaining consumers', { source: 'useTranscriptions' })
+        return
+      }
+
       await stopStreamingTranscription(true)
       isListening.value = false
       console.info('Transcription stopped', { source: 'useTranscriptions' })
@@ -109,6 +141,8 @@ export function useTranscriptions(options: TranscriptionOptions) {
   }
 
   const startStreaming = async () => {
+    const generation = ++latestStartGeneration
+
     console.info('Starting streaming transcription', {
       enabled: hearingEnabled.value,
       hasStream: !!stream.value,
@@ -160,8 +194,8 @@ export function useTranscriptions(options: TranscriptionOptions) {
 
     // Provider setup awaited above. Leave `isListening` untouched when the
     // start is cancelled: a newer start may already own the session.
-    if (startCancelled()) {
-      console.info('Abandoning transcription start: microphone input is no longer active', { source: 'useTranscriptions' })
+    if (startSuperseded(generation) || startCancelled()) {
+      console.info('Abandoning transcription start: it was superseded or the microphone is no longer active', { source: 'useTranscriptions' })
       return
     }
 
@@ -205,8 +239,8 @@ export function useTranscriptions(options: TranscriptionOptions) {
 
     // The permission prompt and the stream wait above can span seconds, which
     // is the widest window for the microphone to be turned off again.
-    if (startCancelled()) {
-      console.info('Abandoning transcription start: microphone input is no longer active', { source: 'useTranscriptions' })
+    if (startSuperseded(generation) || startCancelled()) {
+      console.info('Abandoning transcription start: it was superseded or the microphone is no longer active', { source: 'useTranscriptions' })
       return
     }
 
@@ -234,6 +268,13 @@ export function useTranscriptions(options: TranscriptionOptions) {
         onSpeechEnd: streamingInput.clear,
         onTranscriptionUpdate: streamingInput.replace,
       })
+
+      // A newer start owns the shared consumer registration and the session it
+      // established, so this one exits without disturbing either.
+      if (startSuperseded(generation)) {
+        console.info('Abandoning transcription start: a newer start owns the session', { source: 'useTranscriptions' })
+        return
+      }
 
       // The consumer is registered and the session is live at this point, so a
       // cancellation observed now has to be undone rather than returned from.

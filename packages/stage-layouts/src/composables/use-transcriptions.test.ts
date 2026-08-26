@@ -31,6 +31,8 @@ function createMockPipeline() {
       options.onSentenceEnd(mockTranscribedContent)
     }),
     stopStreamingTranscription: vi.fn().mockResolvedValue(undefined),
+    // Defaults to no remaining owners, so teardown stops the shared session.
+    hasStreamingTranscriptionConsumers: vi.fn().mockReturnValue(false),
     supportsStreamInput: ref(true),
   }
 }
@@ -469,6 +471,105 @@ describe('useTranscriptions', () => {
 
       expect(mockHearingPipeline.stopStreamingTranscription).toHaveBeenCalledWith(true)
       expect(mockHearingPipeline.removeStreamingTranscriptionConsumer).toHaveBeenCalled()
+    })
+
+    // ROOT CAUSE:
+    //
+    // If the microphone is toggled off and on again before startup settles, the
+    // superseded start resumes and continues, so two starts reach
+    // transcribeForMediaStream. On the Web Speech path each can create a
+    // recognition session while the pipeline tracks only the last one, leaving
+    // the first running untracked and unstoppable.
+    // This happened because the cancellation predicate read only current state:
+    //
+    //   return disposed || !hearingEnabled.value
+    //
+    // Once the microphone was switched back on, `hearingEnabled` was true again
+    // and the old start read as valid.
+    //
+    // We fixed this by stamping each start with a generation and invalidating
+    // superseded starts permanently, independent of the current flag.
+    it('abandons a superseded start when the microphone is toggled off and on during startup', async () => {
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = null
+      mockAudioDevice.enabled.value = false
+      mockHearingPipeline.supportsStreamInput.value = true
+
+      let grantPermission: (() => void) | undefined
+      const permissionPending = new Promise<void>((resolve) => {
+        grantPermission = resolve
+      })
+      mockAudioDevice.askPermission.mockImplementation(() => permissionPending)
+
+      useTranscriptions(createOptions())
+
+      // First start suspends waiting for the microphone permission prompt.
+      mockAudioDevice.enabled.value = true
+      await settleAsyncWork()
+      expect(mockAudioDevice.askPermission).toHaveBeenCalled()
+      expect(mockHearingPipeline.transcribeForMediaStream).not.toHaveBeenCalled()
+
+      // Toggle off and on again before that prompt resolves. The second start
+      // has a stream already, so it completes without waiting on permission.
+      mockAudioDevice.enabled.value = false
+      await settleAsyncWork()
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = true
+      await settleAsyncWork()
+
+      expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalledTimes(1)
+
+      // The abandoned first start now resolves and must not open a second session.
+      grantPermission?.()
+      await settleAsyncWork()
+
+      expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalledTimes(1)
+    })
+
+    // ROOT CAUSE:
+    //
+    // A breakpoint change swaps InteractiveArea for MobileInteractiveArea while
+    // the microphone stays enabled. The replacement registers its own consumer
+    // on the shared pipeline, and the disposed surface then called the global
+    // stopStreamingTranscription(true), tearing down the replacement's session.
+    // That surface stayed marked as listening with nothing running behind it
+    // until the user toggled the microphone again.
+    //
+    // We fixed this by removing the outgoing consumer first and stopping the
+    // shared session only when no owner remains.
+    it('leaves the shared session running when another surface still owns it', async () => {
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = true
+      mockHearingPipeline.supportsStreamInput.value = true
+
+      let openSession: (() => void) | undefined
+      const sessionPending = new Promise<void>((resolve) => {
+        openSession = resolve
+      })
+      mockHearingPipeline.transcribeForMediaStream.mockImplementation(async () => {
+        await sessionPending
+      })
+
+      const app = mount({
+        setup() {
+          useTranscriptions(createOptions())
+          return () => null
+        },
+      })
+      await settleAsyncWork()
+
+      // The breakpoint swap disposes this surface, and the replacement surface
+      // registers its own consumer against the same pipeline.
+      app.unmount()
+      mockHearingPipeline.hasStreamingTranscriptionConsumers.mockReturnValue(true)
+      await settleAsyncWork()
+
+      openSession?.()
+      await settleAsyncWork()
+
+      expect(mockHearingPipeline.removeStreamingTranscriptionConsumer).toHaveBeenCalled()
+      expect(mockHearingPipeline.stopStreamingTranscription).not.toHaveBeenCalled()
     })
 
     it('should stop streaming on unmount', async () => {

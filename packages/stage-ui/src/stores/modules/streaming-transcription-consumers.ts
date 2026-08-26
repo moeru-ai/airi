@@ -35,6 +35,17 @@ export class StreamingTranscriptionConsumers {
     this.consumers.delete(consumerId)
   }
 
+  /**
+   * Reports whether any consumer still depends on the shared session.
+   *
+   * Callers tearing down their own consumer use this to decide whether the
+   * session may be stopped, since stopping it is global and would otherwise
+   * disconnect the consumers that remain.
+   */
+  hasConsumers() {
+    return this.consumers.size > 0
+  }
+
   /** Sends a completed sentence to all current consumers. */
   emitSentenceEnd(delta: string) {
     this.emit('onSentenceEnd', delta)
