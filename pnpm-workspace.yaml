@@ -272,7 +272,7 @@ catalog:
   drizzle-kit: ^0.31.10
   drizzle-orm: ^0.45.2
   drizzle-valibot: ^0.4.2
-  electron: ^41.10.6
+  electron: ^43.4.1
   electron-builder: ^26.15.3
   electron-click-drag-plugin: ^2.0.2
   electron-updater: ^6.8.9
