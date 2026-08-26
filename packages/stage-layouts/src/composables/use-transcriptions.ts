@@ -21,7 +21,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
   const audioDeviceSettingsStore = useSettingsAudioDevice()
   const hearingPipeline = useHearingSpeechInputPipeline()
   const { removeStreamingTranscriptionConsumer, hasStreamingTranscriptionConsumers, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
-  const { supportsStreamInput, error: transcriptionError } = storeToRefs(hearingPipeline)
+  const { supportsStreamInput } = storeToRefs(hearingPipeline)
   const { configured: hearingConfigured, autoSendEnabled, autoSendDelay } = storeToRefs(hearingStore)
   const { enabled: hearingEnabled, stream } = storeToRefs(audioDeviceSettingsStore)
   const providersStore = useProviderStore()
@@ -257,7 +257,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
     // Call transcribeForMediaStream - it's async so we await it
     // Set listening state AFTER successful call
     try {
-      await transcribeForMediaStream(stream.value, {
+      const startResult = await transcribeForMediaStream(stream.value, {
         consumerId: transcriptionConsumerId,
         onSentenceEnd: (delta) => {
           if (streamingInput.commit(delta)) {
@@ -285,13 +285,14 @@ export function useTranscriptions(options: TranscriptionOptions) {
       }
 
       // transcribeForMediaStream reports provider-configuration and session
-      // construction failures through the pipeline's error ref and resolves
-      // normally, so the catch below never sees them. Without this check a
-      // failed startup would be marked as listening with no session behind it,
-      // and because startup is driven only by the microphone flag nothing
-      // would retry until the user toggled it.
-      if (transcriptionError.value) {
-        console.error('Transcription pipeline reported a startup failure:', transcriptionError.value, { source: 'useTranscriptions' })
+      // construction failures in its result and resolves normally, so the catch
+      // below never sees them. Without this check a failed startup would be
+      // marked as listening with no session behind it, and because startup is
+      // driven only by the microphone flag nothing would retry until the user
+      // toggled it. The result is read instead of the store's shared `error`
+      // ref, which a concurrent call can overwrite while this one waits.
+      if (!startResult.started) {
+        console.error('Transcription pipeline reported a startup failure:', startResult.error, { source: 'useTranscriptions' })
         streamingInput.clear()
         removeStreamingTranscriptionConsumer(transcriptionConsumerId)
         isListening.value = false

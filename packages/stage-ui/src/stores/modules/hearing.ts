@@ -117,6 +117,21 @@ interface MediaStreamTranscriptionOptions extends StreamingTranscriptionConsumer
   idleTimeoutMs?: number
 }
 
+/**
+ * Outcome of one `transcribeForMediaStream` call.
+ *
+ * The store's `error` ref is shared, so a concurrent call's failure can
+ * overwrite it while this call waits for the session setup slot. Callers that
+ * need to know whether *their own* start succeeded must use this result rather
+ * than reading `error`.
+ */
+export interface StreamingTranscriptionStartResult {
+  /** True when this call left a usable session in place, including one it joined. */
+  started: boolean
+  /** Present only when this call itself failed; absent for a deliberate stop. */
+  error?: string
+}
+
 export const CONFIDENCE_THRESHOLD_DISABLED = -3
 
 export function filterTranscriptionByConfidence(
@@ -999,7 +1014,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     await vad.start(stream)
   }
 
-  async function transcribeForMediaStream(stream: MediaStream, options: MediaStreamTranscriptionOptions) {
+  async function transcribeForMediaStream(stream: MediaStream, options: MediaStreamTranscriptionOptions): Promise<StreamingTranscriptionStartResult> {
     console.info('[Hearing Pipeline] transcribeForMediaStream called', {
       supportsStreamInput: supportsStreamInput.value,
       hasStream: !!stream,
@@ -1009,9 +1024,14 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
     if (!supportsStreamInput.value) {
       console.warn('[Hearing Pipeline] Stream input not supported')
-      return
+      return { started: false, error: 'Stream input is not supported by the selected transcription provider.' }
     }
 
+    // `error` is store-wide, so a concurrent call's failure can land on it
+    // while this one is waiting for the setup slot. Failures are therefore
+    // reported to the caller through the returned result, which belongs to
+    // this call alone; `error` remains for surfaces that display the most
+    // recent problem.
     error.value = undefined
     let consumerRegistered = false
     // Set only by the call that claims the setup slot, so the `finally` below
@@ -1025,7 +1045,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       if (providerError) {
         error.value = providerError
         console.error('[Hearing Pipeline]', providerError)
-        return
+        return { started: false, error: providerError }
       }
 
       console.info('[Hearing Pipeline] Using provider:', providerId)
@@ -1039,18 +1059,24 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
 
         if (!isAvailable) {
-          error.value = 'Web Speech API is not available in this browser'
+          const unavailable = 'Web Speech API is not available in this browser'
+          error.value = unavailable
           console.error('Web Speech API is not available')
-          return
+          return { started: false, error: unavailable }
         }
 
         streamingConsumers.register(options)
         consumerRegistered = true
 
-        // Let an in-flight setup finish so the reuse check below observes the
-        // session it creates instead of racing it.
-        if (streamingSessionSetup) {
-          await streamingSessionSetup
+        // Re-acquire admission on every wake-up rather than checking once. One
+        // setup releases every waiter at the same time, and a setup that failed
+        // leaves no session for them to reuse, so a single check would let them
+        // all proceed together and each create a recognition instance — exactly
+        // the untracked-recognition leak this slot exists to prevent. Claiming
+        // below is synchronous from here, so the next waiter observes the claim.
+        let pendingSetup = streamingSessionSetup
+        while (pendingSetup) {
+          await pendingSetup
 
           // Two calls from one surface share a consumer id, so a setup that
           // failed while this call was waiting has already removed that id on
@@ -1058,6 +1084,10 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           // restore them; registration is keyed by id, so this is a no-op when
           // the entry survived.
           streamingConsumers.register(options)
+
+          // Re-read rather than exit: another waiter released alongside this
+          // one may have claimed the slot already.
+          pendingSetup = streamingSessionSetup
         }
 
         // Check if session already exists and reuse it
@@ -1072,7 +1102,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           }
 
           console.info('Web Speech API session already active, reusing it with updated consumers')
-          return
+          return { started: true }
         }
 
         // Claim the setup slot for everything up to the session assignment
@@ -1186,7 +1216,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           })()
         }
 
-        return
+        // Web Speech session is constructed and recorded at this point.
+        return { started: true }
       }
 
       streamingConsumers.register(options)
@@ -1200,11 +1231,12 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         }
         else {
           console.info('[Hearing Pipeline] VAD detection already active, reusing it with updated consumers')
-          return
+          return { started: true }
         }
       }
 
       await startVadStreamingTranscription(stream, providerId, options)
+      return { started: true }
     }
     catch (err) {
       if (consumerRegistered)
@@ -1212,11 +1244,15 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
       endStreamingAsrSpan()
 
+      // A deliberate stop is not a startup failure, but it did not produce a
+      // session either, so callers must not treat it as started.
       if (isExpectedStreamStopError(err))
-        return
+        return { started: false }
 
-      error.value = errorMessage(err)
-      console.error('Error generating transcription:', error.value)
+      const failure = errorMessage(err)
+      error.value = failure
+      console.error('Error generating transcription:', failure)
+      return { started: false, error: failure }
     }
     finally {
       if (ownedSessionSetup) {

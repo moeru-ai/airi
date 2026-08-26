@@ -29,6 +29,7 @@ function createMockPipeline() {
     removeStreamingTranscriptionConsumer: vi.fn(),
     transcribeForMediaStream: vi.fn().mockImplementation((_stream, options: MockStreamingCallbacks) => {
       options.onSentenceEnd(mockTranscribedContent)
+      return { started: true }
     }),
     stopStreamingTranscription: vi.fn().mockResolvedValue(undefined),
     // Defaults to no remaining owners, so teardown stops the shared session.
@@ -298,6 +299,7 @@ describe('useTranscriptions', () => {
         options.onTranscriptionUpdate?.('今天天气很好')
         observedInputs.push(mockInput.value)
         options.onSentenceEnd('今天天气很好')
+        return { started: true }
       })
 
       useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
@@ -318,6 +320,7 @@ describe('useTranscriptions', () => {
         mockInput.value = 'manual edit'
         options.onTranscriptionUpdate?.('provider correction')
         options.onSentenceEnd('provider final')
+        return { started: true }
       })
 
       useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
@@ -420,6 +423,7 @@ describe('useTranscriptions', () => {
       })
       mockHearingPipeline.transcribeForMediaStream.mockImplementation(async () => {
         await sessionPending
+        return { started: true }
       })
 
       const { isListening } = useTranscriptions(createOptions())
@@ -454,6 +458,7 @@ describe('useTranscriptions', () => {
       })
       mockHearingPipeline.transcribeForMediaStream.mockImplementation(async () => {
         await sessionPending
+        return { started: true }
       })
 
       const app = mount({
@@ -551,6 +556,7 @@ describe('useTranscriptions', () => {
       })
       mockHearingPipeline.transcribeForMediaStream.mockImplementation(async () => {
         await sessionPending
+        return { started: true }
       })
 
       const app = mount({
@@ -598,6 +604,7 @@ describe('useTranscriptions', () => {
       // Resolves normally while reporting failure, exactly as the pipeline does.
       mockHearingPipeline.transcribeForMediaStream.mockImplementation(async () => {
         mockHearingPipeline.error.value = 'Provider is not configured correctly'
+        return { started: false, error: 'Provider is not configured correctly' }
       })
 
       const { isListening } = useTranscriptions(createOptions())
