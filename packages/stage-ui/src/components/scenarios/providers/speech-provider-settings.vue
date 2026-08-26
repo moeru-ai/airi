@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computedAsync, useDebounceFn } from '@vueuse/core'
-import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -40,7 +39,16 @@ const router = useRouter()
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const speechStore = useSpeechStore()
-const { configs: providers } = storeToRefs(providerStore)
+
+function getProviderConfig() {
+  return providerStore.getProviderConfig(props.providerId)
+}
+
+function updateProviderConfig(patch: Record<string, unknown>) {
+  const config = getProviderConfig()
+  if (config)
+    Object.assign(config, patch)
+}
 
 const providerMetadata = computedAsync(async () => {
   const definition = providersStore.getProviderDefinition(props.providerId)
@@ -49,23 +57,13 @@ const providerMetadata = computedAsync(async () => {
 
 // Common provider settings
 const apiKey = computed({
-  get: () => providers.value[props.providerId]?.apiKey as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[props.providerId])
-      providers.value[props.providerId] = {}
-
-    providers.value[props.providerId].apiKey = value
-  },
+  get: () => getProviderConfig()?.apiKey as string | undefined || '',
+  set: value => updateProviderConfig({ apiKey: value }),
 })
 
 const baseUrl = computed({
-  get: () => providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[props.providerId])
-      providers.value[props.providerId] = {}
-
-    providers.value[props.providerId].baseUrl = value
-  },
+  get: () => getProviderConfig()?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || '',
+  set: value => updateProviderConfig({ baseUrl: value }),
 })
 
 // Voice settings as reactive objects to allow for different provider settings
@@ -73,8 +71,9 @@ const voiceSettings = ref<Record<string, any>>({})
 
 // Initialize voice settings with defaults or from provider
 function initializeVoiceSettings() {
-  if (providers.value[props.providerId]?.voiceSettings) {
-    voiceSettings.value = { ...(providers.value[props.providerId].voiceSettings as Record<string, any> | undefined) }
+  const config = getProviderConfig()
+  if (config?.voiceSettings) {
+    voiceSettings.value = { ...(config.voiceSettings as Record<string, any> | undefined) }
   }
   else {
     // Default values that most providers use
@@ -92,8 +91,8 @@ onMounted(async () => {
   await providersStore.initializeProvider(props.providerId)
 
   // Initialize refs with current values
-  apiKey.value = providers.value[props.providerId]?.apiKey as string | undefined || ''
-  baseUrl.value = providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || ''
+  apiKey.value = getProviderConfig()?.apiKey as string | undefined || ''
+  baseUrl.value = getProviderConfig()?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || ''
 
   // Initialize voice settings
   initializeVoiceSettings()
@@ -105,12 +104,11 @@ onMounted(async () => {
 })
 
 const debouncedUpdate = useDebounceFn(() => {
-  providers.value[props.providerId] = {
-    ...providers.value[props.providerId],
+  updateProviderConfig({
     apiKey: apiKey.value,
     baseUrl: baseUrl.value || providerMetadata.value?.defaultConfig.baseUrl || '',
     voiceSettings: { ...voiceSettings.value },
-  }
+  })
 }, 1000)
 
 // Watch all settings and update the provider configuration

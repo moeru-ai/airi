@@ -695,6 +695,31 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
   if (speechMuted.value)
     return null
 
+  const providerId = activeSpeechProvider.value
+  const createProviderSession = providerId
+    ? getDefinedProvider(providerId)?.capabilities?.speech?.createSession
+    : undefined
+  if (createProviderSession) {
+    const config = providerStore.getProviderConfig(providerId)
+    if (!config)
+      return null
+
+    const providerSession = createProviderSession({
+      config,
+      model: activeSpeechModel.value as string | undefined,
+      voice: activeSpeechVoice.value,
+    })
+    if (!providerSession)
+      return null
+
+    return {
+      ...providerSession,
+      voiceType: resolveStageVoiceType(),
+      ownerId: activeCardId.value,
+      onImmediateSpecial: special => playSpecialToken(special, { turnId }),
+    }
+  }
+
   // Snapshotted once per session, so a mid-session provider/voice swap
   // does not corrupt an in-flight session — the watcher below detects
   // changes and tears down explicitly. Returns `null` when streaming

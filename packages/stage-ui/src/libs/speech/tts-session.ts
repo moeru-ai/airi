@@ -74,6 +74,8 @@ export interface StreamingSessionSnapshot {
   voiceType: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
   bufferEntireSession: boolean
   extraBody: Record<string, unknown>
+  /** Provider-owned socket transport for direct desktop integrations. */
+  webSocketFactory?: StreamingTtsPipelineOptions['webSocketFactory']
   /**
    * `ownerId` to stamp on each `PlaybackItem`. Mirrors the value the
    * segmenter-based intent uses (`activeCardId`) so playback manager
@@ -163,6 +165,7 @@ export function createStreamingTtsSession<TAudio = AudioBuffer>(
     audioContext,
     bufferEntireSession: snapshot.bufferEntireSession,
     extraBody: snapshot.extraBody,
+    webSocketFactory: snapshot.webSocketFactory,
     onSentence: ({ index, text, audio }) => {
       if (terminated)
         return

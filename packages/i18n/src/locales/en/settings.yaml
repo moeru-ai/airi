@@ -1164,6 +1164,86 @@ pages:
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
+      doubao-speech:
+        description: doubao.com
+        fields:
+          field:
+            explicit-dialect:
+              description: Requires a voice that supports dialects.
+              label: Dialect
+              options:
+                beijing: Beijing
+                dongbei: Northeastern
+                henan: Henan
+                none: None
+                shaanxi: Shaanxi
+                shanghai: Shanghai
+                sichuan: Sichuan
+                tianjin: Tianjin
+                yue: Cantonese
+            explicit-language:
+              description: Only read text in the selected language; other languages are skipped or fail to synthesize.
+              label: Language
+              options:
+                ar: Arabic
+                auto: Auto
+                de: German
+                en: English
+                es-mx: Spanish (Mexico)
+                fil: Filipino
+                fr: French
+                id: Indonesian
+                it: Italian
+                ja: Japanese
+                ko: Korean
+                ms: Malay
+                pl: Polish
+                pt: Portuguese
+                pt-br: Portuguese (Brazil)
+                ru: Russian
+                sv: Swedish
+                th: Thai
+                tr: Turkish
+                vi: Vietnamese
+                zh-cn: Chinese (zh/en mixed)
+            format:
+              description: Audio format for the synthesized stream. The ogg_opus format requires a 48000 Hz sample rate.
+              label: Format
+            loudness-rate:
+              description: Volume from -50 (0.5x) to 100 (2.0x).
+              label: Loudness
+            pitch:
+              description: Pitch from -12 to 12.
+              label: Pitch
+            resource-id:
+              description: Sent as X-Api-Resource-Id. Use seed-tts-2.0 for official voices. Use seed-icl-2.0 for cloned voices.
+              label: Resource ID
+              options:
+                clone: Cloned voices 2.0 · seed-icl-2.0
+                official: Official voices 2.0 · seed-tts-2.0
+            sample-rate:
+              description: Audio sample rate in Hz.
+              label: Sample rate
+            speaker:
+              clone-description: Enter the voice ID from the voice cloning console.
+              clone-label: Cloned voice ID
+              empty: No matching bidirectional voice.
+              manual-description: Enter an official voice_type that is not in this list.
+              manual-label: Custom voice ID
+              manual-placeholder: e.g. zh_female_shuangkuaisisi_uranus_bigtts
+              official-description: Search official Doubao Speech Synthesis Model 2.0 voices that support bidirectional streaming.
+              official-label: Official voice
+              official-placeholder: Search by voice name or voice_type
+              use-manual: Enter a voice ID manually
+              use-official: Select an official voice
+            speech-rate:
+              description: Speech speed from -50 (0.5x) to 100 (2.0x).
+              label: Speech rate
+            voice-instruction:
+              description: Natural-language tone or style instruction (context_texts). Only supported by official Doubao TTS 2.0 voices.
+              label: Voice instruction
+              placeholder: e.g. Speak in a very gentle tone
+        title: Doubao Speech
       speech-noop:
         title: None
         description: No speech output.
