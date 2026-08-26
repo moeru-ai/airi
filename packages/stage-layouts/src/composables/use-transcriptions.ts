@@ -60,6 +60,34 @@ export function useTranscriptions(options: TranscriptionOptions) {
     }, autoSendDelay.value)
   }
 
+  // Startup is asynchronous: it can await a permission prompt, provider
+  // initialization, a stream that takes seconds to arrive, and session setup.
+  // Teardown cannot cancel that work through `isListening`, which stays false
+  // until the last step, so `stopStreaming` would return early and the pending
+  // start would then register its consumer and activate a session after the
+  // surface stopped wanting one. Ownership is instead rechecked at every resume
+  // point, and a start that already created a session discards it.
+  let disposed = false
+
+  /** True once the surface no longer wants an active transcription session. */
+  function startCancelled() {
+    return disposed || !hearingEnabled.value
+  }
+
+  /** Releases a session created by a start that was cancelled mid-flight. */
+  const discardCancelledSession = async () => {
+    removeStreamingTranscriptionConsumer(transcriptionConsumerId)
+    streamingInput.clear()
+    clearPendingAutoSend()
+
+    try {
+      await stopStreamingTranscription(true)
+    }
+    catch (err) {
+      console.error('Error discarding cancelled transcription session:', err, { source: 'useTranscriptions' })
+    }
+  }
+
   const stopStreaming = async () => {
     removeStreamingTranscriptionConsumer(transcriptionConsumerId)
     streamingInput.clear()
@@ -130,6 +158,13 @@ export function useTranscriptions(options: TranscriptionOptions) {
       console.info('Web Speech API configured as default provider', { source: 'useTranscriptions' })
     }
 
+    // Provider setup awaited above. Leave `isListening` untouched when the
+    // start is cancelled: a newer start may already own the session.
+    if (startCancelled()) {
+      console.info('Abandoning transcription start: microphone input is no longer active', { source: 'useTranscriptions' })
+      return
+    }
+
     // Check if streaming input is supported
     // TODO: implement non-streaming transcription
     if (!supportsStreamInput.value) {
@@ -168,6 +203,13 @@ export function useTranscriptions(options: TranscriptionOptions) {
       isListening.value = false
     }
 
+    // The permission prompt and the stream wait above can span seconds, which
+    // is the widest window for the microphone to be turned off again.
+    if (startCancelled()) {
+      console.info('Abandoning transcription start: microphone input is no longer active', { source: 'useTranscriptions' })
+      return
+    }
+
     if (!stream.value) {
       const errorMsg = 'Failed to get audio stream for transcription. Please check microphone permissions and ensure a device is selected.'
       console.error(errorMsg, { source: 'useTranscriptions' })
@@ -192,6 +234,14 @@ export function useTranscriptions(options: TranscriptionOptions) {
         onSpeechEnd: streamingInput.clear,
         onTranscriptionUpdate: streamingInput.replace,
       })
+
+      // The consumer is registered and the session is live at this point, so a
+      // cancellation observed now has to be undone rather than returned from.
+      if (startCancelled()) {
+        console.info('Discarding transcription session: microphone input was turned off during startup', { source: 'useTranscriptions' })
+        await discardCancelledSession()
+        return
+      }
 
       // Only set listening to true if transcription started successfully
       // (transcribeForMediaStream might return early if session already exists)
@@ -239,6 +289,9 @@ export function useTranscriptions(options: TranscriptionOptions) {
   }, { immediate: true })
 
   onScopeDispose(() => {
+    // Set before stopping so a start still in flight sees the disposal and
+    // releases whatever session it goes on to create.
+    disposed = true
     clearPendingAutoSend()
     stopStreaming()
   })

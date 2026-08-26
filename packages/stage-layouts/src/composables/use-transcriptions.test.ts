@@ -50,6 +50,17 @@ let mockHearingPipeline: ReturnType<typeof createMockPipeline>
 let mockAudioDevice: ReturnType<typeof createMockAudioDevice>
 let mockProvidersStore: ReturnType<typeof createMockStore>
 
+/**
+ * Drains queued microtasks so multi-await composable work can settle.
+ *
+ * These tests run with fake timers, so `flushPromises` from `@vue/test-utils`
+ * would block on a `setTimeout` that never fires.
+ */
+async function settleAsyncWork() {
+  for (let index = 0; index < 8; index += 1)
+    await nextTick()
+}
+
 // Mock the modules
 vi.mock('@proj-airi/stage-ui/stores/modules/hearing', () => ({
   useHearingStore: vi.fn().mockImplementation(() => mockHearingStore),
@@ -373,6 +384,91 @@ describe('useTranscriptions', () => {
       expect(isListening.value).toBe(false)
       expect(mockHearingPipeline.stopStreamingTranscription).toHaveBeenCalledWith(true)
       expect(mockHearingPipeline.removeStreamingTranscriptionConsumer).toHaveBeenCalledOnce()
+    })
+
+    // ROOT CAUSE:
+    //
+    // If the microphone is turned off while startStreaming() is still awaiting
+    // permission, provider setup, or session creation, the session survives
+    // teardown and keeps transcribing in the background.
+    // This happens because stopStreaming() guards on isListening, which is only
+    // set after the final await in startStreaming():
+    //
+    //   removeStreamingTranscriptionConsumer(id)
+    //   if (!isListening.value) return   // <- pending start is not listening yet
+    //
+    // So the stop removed a consumer that the pending start had not registered
+    // yet, returned early, and the start then registered its consumer and set
+    // isListening = true after teardown had already finished.
+    //
+    // We fixed this by rechecking ownership at every resume point in
+    // startStreaming() and discarding a session that was created after the
+    // surface stopped wanting one.
+    it('discards a session created after the microphone was turned off mid-startup', async () => {
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = false
+      mockHearingPipeline.supportsStreamInput.value = true
+
+      let releaseSession: (() => void) | undefined
+      const sessionPending = new Promise<void>((resolve) => {
+        releaseSession = resolve
+      })
+      mockHearingPipeline.transcribeForMediaStream.mockImplementation(async () => {
+        await sessionPending
+      })
+
+      const { isListening } = useTranscriptions(createOptions())
+
+      // Enabling suspends startStreaming inside session creation.
+      mockAudioDevice.enabled.value = true
+      await settleAsyncWork()
+      expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalled()
+      expect(isListening.value).toBe(false)
+
+      // Turn the microphone off while that session is still coming up.
+      mockAudioDevice.enabled.value = false
+      await settleAsyncWork()
+
+      // The session finishes starting only after teardown already ran.
+      releaseSession?.()
+      await settleAsyncWork()
+
+      expect(isListening.value).toBe(false)
+      expect(mockHearingPipeline.stopStreamingTranscription).toHaveBeenCalledWith(true)
+    })
+
+    it('discards a session created after the scope was disposed mid-startup', async () => {
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = true
+      mockHearingPipeline.supportsStreamInput.value = true
+
+      let releaseSession: (() => void) | undefined
+      const sessionPending = new Promise<void>((resolve) => {
+        releaseSession = resolve
+      })
+      mockHearingPipeline.transcribeForMediaStream.mockImplementation(async () => {
+        await sessionPending
+      })
+
+      const app = mount({
+        setup() {
+          useTranscriptions(createOptions())
+          return () => null
+        },
+      })
+      await settleAsyncWork()
+      expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalled()
+
+      app.unmount()
+      await settleAsyncWork()
+
+      releaseSession?.()
+      await settleAsyncWork()
+
+      expect(mockHearingPipeline.stopStreamingTranscription).toHaveBeenCalledWith(true)
+      expect(mockHearingPipeline.removeStreamingTranscriptionConsumer).toHaveBeenCalled()
     })
 
     it('should stop streaming on unmount', async () => {
