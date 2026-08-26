@@ -2,7 +2,7 @@
 import type { ProfileUser } from '../modules/profile'
 
 import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
-import { useLinkedAccounts } from '@proj-airi/stage-ui/composables'
+import { useLinkedAccounts } from '@proj-airi/stage-ui/composables/use-linked-accounts'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { Avatar, Button, FieldInput } from '@proj-airi/ui'
 import { computed, onMounted, reactive, shallowRef } from 'vue'
