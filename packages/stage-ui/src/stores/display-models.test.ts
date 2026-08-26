@@ -28,12 +28,12 @@ describe('display models store', () => {
   it('resolves newly imported display models from memory before IndexedDB', async () => {
     const store = useDisplayModelsStore()
     const model = {
-      id: 'display-model-pending-idb-write',
-      format: DisplayModelFormat.Live2dZip,
-      type: 'file' as const,
       file: new File(['model'], 'model.zip'),
-      name: 'model.zip',
+      format: DisplayModelFormat.Live2dZip,
+      id: 'display-model-pending-idb-write',
       importedAt: 1,
+      name: 'model.zip',
+      type: 'file' as const,
     }
 
     store.displayModels = [model]

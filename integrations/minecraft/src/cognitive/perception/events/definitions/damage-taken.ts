@@ -6,19 +6,56 @@ import { classifyRecentFall } from './fall-tracker'
 
 interface DamageTakenExtract {
   amount: number
-  damageSource: DamageSourceMetadata
   /**
    * Attacker's in-game name when the damage came from an entity, else '' (always defined so the
    *  rule template never leaves a raw `{{ }}` placeholder for environmental causes).
    */
   attacker: string
+  damageSource: DamageSourceMetadata
 }
 
-let lastHealth: number | null = null
+let lastHealth: null | number = null
 
-let pendingDamageAmount: number | null = null
+let pendingDamageAmount: null | number = null
 
-function inferDamageSource(ctx: { bot: { entity?: any, entities?: Record<string, any> }, distanceTo: (entity: any) => number | null, maxDistance: number, isSelf: (entity: any) => boolean, entityId: (entity: any) => string }): DamageSourceMetadata {
+/**
+ * Map an attacking entity to a damage source (player → its username, mob → its species, else infer
+ * from the entity name for anvils/explosions/projectiles). Returns null when the entity is not a
+ * recognisable damage source. Shared by the real-attacker and nearest-entity paths so both attribute
+ * identically.
+ */
+function attributeDamageEntity(entity: any, distance: number | undefined, entityIdOf: (e: any) => string): DamageSourceMetadata | null {
+  const entityType = entity?.type === 'player' ? 'player' : entity?.type === 'mob' ? 'mob' : null
+  if (entityType) {
+    return {
+      cause: entityType,
+      distance,
+      entityId: entityIdOf(entity),
+      name: entity.username ?? entity.displayName ?? entity.name,
+    }
+  }
+
+  const cause = inferCauseFromName(String(entity?.name ?? '').toLowerCase())
+  if (cause !== 'unknown') {
+    return { cause, distance, entityId: entityIdOf(entity), name: entity.name }
+  }
+
+  return null
+}
+
+function inferCauseFromName(name: string): DamageSourceCause {
+  if (!name)
+    return 'unknown'
+  if (name.includes('anvil'))
+    return 'anvil'
+  if (name.includes('tnt') || name.includes('creeper') || name.includes('explosion'))
+    return 'explosion'
+  if (name.includes('arrow') || name.includes('trident') || name.includes('snowball'))
+    return 'projectile'
+  return 'unknown'
+}
+
+function inferDamageSource(ctx: { bot: { entities?: Record<string, any>, entity?: any }, distanceTo: (entity: any) => null | number, entityId: (entity: any) => string, isSelf: (entity: any) => boolean, maxDistance: number }): DamageSourceMetadata {
   const entity = ctx.bot.entity as any
   const isInLava = Boolean(entity?.isInLava)
   if (isInLava)
@@ -52,7 +89,7 @@ function inferDamageSource(ctx: { bot: { entity?: any, entities?: Record<string,
 
   const entities = Object.values(ctx.bot.entities ?? {})
   let nearest: any | null = null
-  let nearestDistance: number | null = null
+  let nearestDistance: null | number = null
 
   for (const candidate of entities) {
     if (!candidate || ctx.isSelf(candidate))
@@ -77,50 +114,21 @@ function inferDamageSource(ctx: { bot: { entity?: any, entities?: Record<string,
   return { cause: 'unknown' }
 }
 
-/**
- * Map an attacking entity to a damage source (player → its username, mob → its species, else infer
- * from the entity name for anvils/explosions/projectiles). Returns null when the entity is not a
- * recognisable damage source. Shared by the real-attacker and nearest-entity paths so both attribute
- * identically.
- */
-function attributeDamageEntity(entity: any, distance: number | undefined, entityIdOf: (e: any) => string): DamageSourceMetadata | null {
-  const entityType = entity?.type === 'player' ? 'player' : entity?.type === 'mob' ? 'mob' : null
-  if (entityType) {
-    return {
-      cause: entityType,
-      name: entity.username ?? entity.displayName ?? entity.name,
-      entityId: entityIdOf(entity),
-      distance,
-    }
-  }
-
-  const cause = inferCauseFromName(String(entity?.name ?? '').toLowerCase())
-  if (cause !== 'unknown') {
-    return { cause, name: entity.name, entityId: entityIdOf(entity), distance }
-  }
-
-  return null
-}
-
-function inferCauseFromName(name: string): DamageSourceCause {
-  if (!name)
-    return 'unknown'
-  if (name.includes('anvil'))
-    return 'anvil'
-  if (name.includes('tnt') || name.includes('creeper') || name.includes('explosion'))
-    return 'explosion'
-  if (name.includes('arrow') || name.includes('trident') || name.includes('snowball'))
-    return 'projectile'
-  return 'unknown'
-}
-
 export const damageTakenEvent = definePerceptionEvent<[], DamageTakenExtract>({
   id: 'damage_taken',
-  modality: 'felt',
   kind: 'damage_taken',
-
   mineflayer: {
     event: 'health',
+    extract: (ctx) => {
+      const current = ctx.bot.health
+      const prev = lastHealth ?? current
+      const damageSource = inferDamageSource(ctx)
+      return {
+        amount: pendingDamageAmount ?? Math.max(0, prev - current),
+        attacker: damageSource.name ?? '',
+        damageSource,
+      }
+    },
     filter: (ctx) => {
       const current = ctx.bot.health
       const prev = lastHealth
@@ -140,16 +148,8 @@ export const damageTakenEvent = definePerceptionEvent<[], DamageTakenExtract>({
       pendingDamageAmount = amount
       return true
     },
-    extract: (ctx) => {
-      const current = ctx.bot.health
-      const prev = lastHealth ?? current
-      const damageSource = inferDamageSource(ctx)
-      return {
-        amount: pendingDamageAmount ?? Math.max(0, prev - current),
-        damageSource,
-        attacker: damageSource.name ?? '',
-      }
-    },
   },
+
+  modality: 'felt',
 
 })

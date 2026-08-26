@@ -11,18 +11,18 @@ import { watch } from 'vue'
 import { activeTurnSpan, startSpan } from '../../../composables/use-io-tracer'
 
 interface RemoteCallMessage {
-  type: 'turn-call'
-  fromInstanceId: string
-  turnId: string
   callName: string
+  fromInstanceId: string
   payload?: Record<string, unknown>
+  turnId: string
+  type: 'turn-call'
 }
 
 export const useLlmStreamingControlStore = defineStore('llm-streaming-control', () => {
   const controller = createStreamingControlParser()
   const instanceId = `streaming-control-${nanoid()}`
 
-  const { post: postRemoteCall, data: incomingRemoteCall } = useBroadcastChannel<RemoteCallMessage, RemoteCallMessage>({ name: 'airi-streaming-control-turn-calls' })
+  const { data: incomingRemoteCall, post: postRemoteCall } = useBroadcastChannel<RemoteCallMessage, RemoteCallMessage>({ name: 'airi-streaming-control-turn-calls' })
 
   const tooltipKeys = [
     'token_type',
@@ -44,8 +44,8 @@ export const useLlmStreamingControlStore = defineStore('llm-streaming-control', 
       ? [message.callName]
       : [message.callName, message.payload]
     void dispatchWith(`<|CALL ${JSON.stringify(callPayload)}|>`, {
-      turnId: message.turnId,
       remote: true,
+      turnId: message.turnId,
     })
   })
 
@@ -61,16 +61,34 @@ export const useLlmStreamingControlStore = defineStore('llm-streaming-control', 
 
     function observe(event: LlmStreamingControlDispatchEvent) {
       switch (event.type) {
-        case 'rejected':
-          span.setAttribute(IOAttributes.StreamingControlReason, event.reason)
-          span.setAttribute(IOAttributes.StreamingControlRawToken, special)
-          if (event.parserName) {
-            span.setAttribute(IOAttributes.StreamingControlMatched, true)
-            span.setAttribute(IOAttributes.StreamingControlParserName, event.parserName)
+        case 'call-handler-count':
+          span.setAttribute(IOAttributes.StreamingControlHandlerCount, event.count)
+          break
+        case 'call-handler-end':
+          span.addEvent(IOEvents.StreamingControlHandlerEnd, {
+            [IOAttributes.StreamingControlCallName]: event.callName,
+          })
+          break
+        case 'call-handler-error':
+          span.addEvent(IOEvents.StreamingControlHandlerError, {
+            [IOAttributes.StreamingControlCallName]: event.callName,
+            [IOAttributes.StreamingControlReason]: errorMessageFrom(event.error) ?? 'Unknown error',
+          })
+          break
+        case 'call-handler-missing':
+          if (context?.turnId && !context.remote) {
+            postRemoteCall({
+              callName: event.callName,
+              fromInstanceId: instanceId,
+              turnId: context.turnId,
+              type: 'turn-call',
+              ...(event.payload ? { payload: event.payload } : {}),
+            })
           }
-          span.addEvent(IOEvents.StreamingControlRejected, {
-            [IOAttributes.StreamingControlReason]: event.reason,
-            [IOAttributes.StreamingControlRawToken]: special,
+          break
+        case 'call-handler-start':
+          span.addEvent(IOEvents.StreamingControlHandlerStart, {
+            [IOAttributes.StreamingControlCallName]: event.callName,
           })
           break
         case 'parsed':
@@ -87,34 +105,16 @@ export const useLlmStreamingControlStore = defineStore('llm-streaming-control', 
             ...(event.parameter ? { [IOAttributes.StreamingControlParameter]: event.parameter } : {}),
           })
           break
-        case 'call-handler-count':
-          span.setAttribute(IOAttributes.StreamingControlHandlerCount, event.count)
-          break
-        case 'call-handler-missing':
-          if (context?.turnId && !context.remote) {
-            postRemoteCall({
-              type: 'turn-call',
-              fromInstanceId: instanceId,
-              turnId: context.turnId,
-              callName: event.callName,
-              ...(event.payload ? { payload: event.payload } : {}),
-            })
+        case 'rejected':
+          span.setAttribute(IOAttributes.StreamingControlReason, event.reason)
+          span.setAttribute(IOAttributes.StreamingControlRawToken, special)
+          if (event.parserName) {
+            span.setAttribute(IOAttributes.StreamingControlMatched, true)
+            span.setAttribute(IOAttributes.StreamingControlParserName, event.parserName)
           }
-          break
-        case 'call-handler-start':
-          span.addEvent(IOEvents.StreamingControlHandlerStart, {
-            [IOAttributes.StreamingControlCallName]: event.callName,
-          })
-          break
-        case 'call-handler-end':
-          span.addEvent(IOEvents.StreamingControlHandlerEnd, {
-            [IOAttributes.StreamingControlCallName]: event.callName,
-          })
-          break
-        case 'call-handler-error':
-          span.addEvent(IOEvents.StreamingControlHandlerError, {
-            [IOAttributes.StreamingControlCallName]: event.callName,
-            [IOAttributes.StreamingControlReason]: errorMessageFrom(event.error) ?? 'Unknown error',
+          span.addEvent(IOEvents.StreamingControlRejected, {
+            [IOAttributes.StreamingControlRawToken]: special,
+            [IOAttributes.StreamingControlReason]: event.reason,
           })
           break
         case 'signal-handler-error':
@@ -138,13 +138,13 @@ export const useLlmStreamingControlStore = defineStore('llm-streaming-control', 
   }
 
   return {
-    dispatchWith,
     beginTurn: controller.beginTurn,
-    completeTurn: controller.completeTurn,
     cancelTurn: controller.cancelTurn,
+    completeTurn: controller.completeTurn,
+    dispatchWith,
     match: controller.match,
     on: controller.on,
-    renderManifestPrompt: controller.renderManifestPrompt,
     onSignal: controller.onSignal,
+    renderManifestPrompt: controller.renderManifestPrompt,
   }
 })

@@ -22,33 +22,33 @@ import { hasInteractiveOutputMarkers, isKnownInteractiveCommand } from '../termi
 // Types
 // ---------------------------------------------------------------------------
 
-export interface SurfaceResolutionInput {
-  taskId: string
-  stepId: string
-  config: TerminalStepConfig
-  command: string
-  state: RunState
-  /** Set when auto triggers condition 4 (exec failed, check output). */
-  previousExecOutput?: string
-}
-
-export type SurfaceResolutionReason
-  = | 'explicit_exec'
-    | 'explicit_pty'
-    | 'auto_bound_session'
-    | 'auto_persistent_interaction'
-    | 'auto_interactive_command'
-    | 'auto_interactive_output'
-    | 'auto_default_exec'
-
 export interface SurfaceResolution {
-  surface: TerminalSurface
-  reason: SurfaceResolutionReason
   /** PTY session id to reuse (only for auto_bound_session). */
   boundPtySessionId?: string
   /** Human-readable explanation. */
   explanation: string
+  reason: SurfaceResolutionReason
+  surface: TerminalSurface
 }
+
+export interface SurfaceResolutionInput {
+  command: string
+  config: TerminalStepConfig
+  /** Set when auto triggers condition 4 (exec failed, check output). */
+  previousExecOutput?: string
+  state: RunState
+  stepId: string
+  taskId: string
+}
+
+export type SurfaceResolutionReason
+  = | 'auto_bound_session'
+    | 'auto_default_exec'
+    | 'auto_interactive_command'
+    | 'auto_interactive_output'
+    | 'auto_persistent_interaction'
+    | 'explicit_exec'
+    | 'explicit_pty'
 
 // ---------------------------------------------------------------------------
 // Resolver
@@ -59,14 +59,14 @@ export interface SurfaceResolution {
  * Pure function — no side effects.
  */
 export function resolveTerminalSurface(input: SurfaceResolutionInput): SurfaceResolution {
-  const { taskId, stepId, config, command, state, previousExecOutput } = input
+  const { command, config, previousExecOutput, state, stepId, taskId } = input
 
   // Explicit mode: exec
   if (config.mode === 'exec') {
     return {
-      surface: 'exec',
-      reason: 'explicit_exec',
       explanation: 'Step uses explicit exec mode.',
+      reason: 'explicit_exec',
+      surface: 'exec',
     }
   }
 
@@ -75,12 +75,12 @@ export function resolveTerminalSurface(input: SurfaceResolutionInput): SurfaceRe
     // Check for existing bound session
     const bound = findBoundPtySession(taskId, stepId, state)
     return {
-      surface: 'pty',
-      reason: 'explicit_pty',
       boundPtySessionId: bound?.id,
       explanation: bound
         ? `Step uses explicit pty mode, reusing bound session ${bound.id}.`
         : 'Step uses explicit pty mode, PTY will be acquired.',
+      reason: 'explicit_pty',
+      surface: 'pty',
     }
   }
 
@@ -89,45 +89,45 @@ export function resolveTerminalSurface(input: SurfaceResolutionInput): SurfaceRe
   const bound = findBoundPtySession(taskId, stepId, state)
   if (bound) {
     return {
-      surface: 'pty',
-      reason: 'auto_bound_session',
       boundPtySessionId: bound.id,
       explanation: `Reusing bound PTY session ${bound.id} for step ${stepId}.`,
+      reason: 'auto_bound_session',
+      surface: 'pty',
     }
   }
 
   // Condition 2: step declares persistent interaction
   if (config.interaction === 'persistent') {
     return {
-      surface: 'pty',
-      reason: 'auto_persistent_interaction',
       explanation: 'Step declares persistent interaction, PTY will be acquired.',
+      reason: 'auto_persistent_interaction',
+      surface: 'pty',
     }
   }
 
   // Condition 3: command matches known interactive patterns
   if (isKnownInteractiveCommand(command)) {
     return {
-      surface: 'pty',
-      reason: 'auto_interactive_command',
       explanation: `Command "${truncateCommand(command)}" matches a known interactive pattern.`,
+      reason: 'auto_interactive_command',
+      surface: 'pty',
     }
   }
 
   // Condition 4: previous exec output has interactive markers
   if (previousExecOutput && hasInteractiveOutputMarkers(previousExecOutput)) {
     return {
-      surface: 'pty',
-      reason: 'auto_interactive_output',
       explanation: 'Previous exec output contains interactive markers, switching to PTY.',
+      reason: 'auto_interactive_output',
+      surface: 'pty',
     }
   }
 
   // Default: exec
   return {
-    surface: 'exec',
-    reason: 'auto_default_exec',
     explanation: 'No auto conditions matched, defaulting to exec.',
+    reason: 'auto_default_exec',
+    surface: 'exec',
   }
 }
 

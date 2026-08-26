@@ -18,10 +18,10 @@ vi.mock('gpuu/webgpu', () => ({
 const mockedCheck = vi.mocked(gpuuCheck)
 
 interface MockAdapterInfo {
-  vendor?: string
   architecture?: string
-  device?: string
   description?: string
+  device?: string
+  vendor?: string
 }
 
 /**
@@ -30,10 +30,10 @@ interface MockAdapterInfo {
  * `info` optionally populates adapterInfo.
  */
 function makeMockAdapter(options: {
-  maxBufferSize?: number
   info?: MockAdapterInfo
+  maxBufferSize?: number
 }): any {
-  const adapter: { limits: { maxBufferSize: number }, info?: MockAdapterInfo } = {
+  const adapter: { info?: MockAdapterInfo, limits: { maxBufferSize: number } } = {
     limits: { maxBufferSize: options.maxBufferSize ?? 0 },
   }
   if (options.info)
@@ -55,11 +55,11 @@ describe('detectWebGPU', () => {
 
   it('should derive VRAM from the maxBufferSize * 4 heuristic', async () => {
     mockedCheck.mockResolvedValue({
-      supported: true,
+      adapter: makeMockAdapter({ maxBufferSize: 256 * 1024 * 1024 }),
       fp16Supported: true,
       isNode: false,
       reason: '',
-      adapter: makeMockAdapter({ maxBufferSize: 256 * 1024 * 1024 }),
+      supported: true,
     })
 
     const result = await detectWebGPU()
@@ -72,11 +72,11 @@ describe('detectWebGPU', () => {
 
   it('should report "none" when the adapter has no maxBufferSize', async () => {
     mockedCheck.mockResolvedValue({
-      supported: true,
+      adapter: makeMockAdapter({ maxBufferSize: 0 }),
       fp16Supported: false,
       isNode: false,
       reason: '',
-      adapter: makeMockAdapter({ maxBufferSize: 0 }),
+      supported: true,
     })
 
     const result = await detectWebGPU()
@@ -87,10 +87,10 @@ describe('detectWebGPU', () => {
 
   it('should report "none" when WebGPU is unsupported', async () => {
     mockedCheck.mockResolvedValue({
-      supported: false,
       fp16Supported: false,
       isNode: false,
       reason: 'not available',
+      supported: false,
     })
 
     const result = await detectWebGPU()
@@ -103,60 +103,60 @@ describe('detectWebGPU', () => {
 
   it('should extract adapter.info when available', async () => {
     mockedCheck.mockResolvedValue({
-      supported: true,
+      adapter: makeMockAdapter({
+        info: {
+          architecture: 'apple-m1',
+          description: 'Apple GPU',
+          device: 'Apple M1',
+          vendor: 'apple',
+        },
+        maxBufferSize: 1024 * 1024 * 1024,
+      }),
       fp16Supported: true,
       isNode: false,
       reason: '',
-      adapter: makeMockAdapter({
-        maxBufferSize: 1024 * 1024 * 1024,
-        info: {
-          vendor: 'apple',
-          architecture: 'apple-m1',
-          device: 'Apple M1',
-          description: 'Apple GPU',
-        },
-      }),
+      supported: true,
     })
 
     const result = await detectWebGPU()
 
     expect(result.adapterInfo).toEqual({
-      vendor: 'apple',
       architecture: 'apple-m1',
-      device: 'Apple M1',
       description: 'Apple GPU',
+      device: 'Apple M1',
+      vendor: 'apple',
     })
   })
 
   it('should handle adapter.info with missing fields gracefully', async () => {
     mockedCheck.mockResolvedValue({
-      supported: true,
+      adapter: makeMockAdapter({
+        info: { vendor: 'nvidia' }, // only vendor set
+        maxBufferSize: 1024 * 1024 * 1024,
+      }),
       fp16Supported: true,
       isNode: false,
       reason: '',
-      adapter: makeMockAdapter({
-        maxBufferSize: 1024 * 1024 * 1024,
-        info: { vendor: 'nvidia' }, // only vendor set
-      }),
+      supported: true,
     })
 
     const result = await detectWebGPU()
 
     expect(result.adapterInfo).toEqual({
-      vendor: 'nvidia',
       architecture: '',
-      device: '',
       description: '',
+      device: '',
+      vendor: 'nvidia',
     })
   })
 
   it('should set adapterInfo to null when adapter.info is not exposed', async () => {
     mockedCheck.mockResolvedValue({
-      supported: true,
+      adapter: makeMockAdapter({ maxBufferSize: 512 * 1024 * 1024 }),
       fp16Supported: true,
       isNode: false,
       reason: '',
-      adapter: makeMockAdapter({ maxBufferSize: 512 * 1024 * 1024 }),
+      supported: true,
     })
 
     const result = await detectWebGPU()
@@ -166,10 +166,10 @@ describe('detectWebGPU', () => {
 
   it('should fall back to requestAdapterInfo() when adapter.info is absent', async () => {
     const legacyInfo: MockAdapterInfo = {
-      vendor: 'intel',
       architecture: 'xe',
-      device: 'Iris Xe',
       description: 'Intel Xe Graphics',
+      device: 'Iris Xe',
+      vendor: 'intel',
     }
 
     const legacyAdapter: any = {
@@ -178,30 +178,30 @@ describe('detectWebGPU', () => {
     }
 
     mockedCheck.mockResolvedValue({
-      supported: true,
+      adapter: legacyAdapter,
       fp16Supported: false,
       isNode: false,
       reason: '',
-      adapter: legacyAdapter,
+      supported: true,
     })
 
     const result = await detectWebGPU()
 
     expect(result.adapterInfo).toEqual({
-      vendor: 'intel',
       architecture: 'xe',
-      device: 'Iris Xe',
       description: 'Intel Xe Graphics',
+      device: 'Iris Xe',
+      vendor: 'intel',
     })
   })
 
   it('should cache the detection result across calls', async () => {
     mockedCheck.mockResolvedValue({
-      supported: true,
+      adapter: makeMockAdapter({ maxBufferSize: 1024 * 1024 }),
       fp16Supported: true,
       isNode: false,
       reason: '',
-      adapter: makeMockAdapter({ maxBufferSize: 1024 * 1024 }),
+      supported: true,
     })
 
     const first = await detectWebGPU()
@@ -213,11 +213,11 @@ describe('detectWebGPU', () => {
 
   it('should deduplicate concurrent calls', async () => {
     mockedCheck.mockResolvedValue({
-      supported: true,
+      adapter: makeMockAdapter({ maxBufferSize: 1024 * 1024 }),
       fp16Supported: true,
       isNode: false,
       reason: '',
-      adapter: makeMockAdapter({ maxBufferSize: 1024 * 1024 }),
+      supported: true,
     })
 
     const [a, b] = await Promise.all([detectWebGPU(), detectWebGPU()])
@@ -253,11 +253,11 @@ describe('vRAM override', () => {
 
   it('should apply the override when detection runs', async () => {
     mockedCheck.mockResolvedValue({
-      supported: true,
+      adapter: makeMockAdapter({ maxBufferSize: 128 * 1024 * 1024 }),
       fp16Supported: true,
       isNode: false,
       reason: '',
-      adapter: makeMockAdapter({ maxBufferSize: 128 * 1024 * 1024 }),
+      supported: true,
     })
 
     setEstimatedVRAMOverride(8 * 1024 * 1024 * 1024) // 8 GB
@@ -270,11 +270,11 @@ describe('vRAM override', () => {
 
   it('should update cached result in-place when override is set after detection', async () => {
     mockedCheck.mockResolvedValue({
-      supported: true,
+      adapter: makeMockAdapter({ maxBufferSize: 128 * 1024 * 1024 }),
       fp16Supported: true,
       isNode: false,
       reason: '',
-      adapter: makeMockAdapter({ maxBufferSize: 128 * 1024 * 1024 }),
+      supported: true,
     })
 
     await detectWebGPU()
@@ -288,11 +288,11 @@ describe('vRAM override', () => {
 
   it('should revert to heuristic when override is cleared with null', async () => {
     mockedCheck.mockResolvedValue({
-      supported: true,
+      adapter: makeMockAdapter({ maxBufferSize: 128 * 1024 * 1024 }),
       fp16Supported: true,
       isNode: false,
       reason: '',
-      adapter: makeMockAdapter({ maxBufferSize: 128 * 1024 * 1024 }),
+      supported: true,
     })
 
     await detectWebGPU()
@@ -319,11 +319,11 @@ describe('vRAM override', () => {
 
   it('should accept zero as a no-op override (reverts to heuristic)', async () => {
     mockedCheck.mockResolvedValue({
-      supported: true,
+      adapter: makeMockAdapter({ maxBufferSize: 128 * 1024 * 1024 }),
       fp16Supported: true,
       isNode: false,
       reason: '',
-      adapter: makeMockAdapter({ maxBufferSize: 128 * 1024 * 1024 }),
+      supported: true,
     })
 
     setEstimatedVRAMOverride(0)

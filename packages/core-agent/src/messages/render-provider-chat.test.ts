@@ -8,85 +8,85 @@ describe('renderProviderChatMessages', () => {
   it('renders structured event messages into raw provider chat messages', () => {
     const entries: Array<Message | RawMessage> = [
       {
-        role: 'system',
         content: 'system prompt',
+        role: 'system',
       },
       {
         id: 'event-1',
         role: 'event',
-        source: 'plugin:airi-plugin-game-chess',
         segments: [
           {
-            type: 'instruction',
-            text: 'Keep the reply short.',
             priority: 'critical',
+            text: 'Keep the reply short.',
+            type: 'instruction',
           },
           {
-            type: 'text',
             text: 'Chess update',
+            type: 'text',
           },
           {
-            type: 'tagged-text',
             tag: 'agent_spark_command_reaction',
             text: 'Move accepted.',
+            type: 'tagged-text',
           },
           {
-            type: 'domain-event',
             eventType: 'board-updated',
             payload: {
               fen: 'startpos',
             },
+            type: 'domain-event',
           },
           {
-            type: 'state-snapshot',
-            stateType: 'board',
             payload: {
               fen: 'startpos',
             },
+            stateType: 'board',
+            type: 'state-snapshot',
           },
           {
-            type: 'history-block',
             compacted: true,
             items: [
               {
-                type: 'summary',
-                text: 'Compacted history.',
                 fromTurnIndex: 1,
+                text: 'Compacted history.',
                 toTurnIndex: 3,
+                type: 'summary',
               },
               {
-                type: 'turn',
-                turnType: 'chess',
-                turnIndex: 3,
-                actor: 'assistant',
                 action: {
                   kind: 'move-executed',
                   san: 'e5',
                 },
+                actor: 'assistant',
+                turnIndex: 3,
+                turnType: 'chess',
+                type: 'turn',
               },
               {
-                type: 'domain-event',
                 eventType: 'board-updated',
                 payload: {
                   fen: 'startpos',
                 },
+                type: 'domain-event',
               },
             ],
+            type: 'history-block',
           },
           {
-            type: 'summary',
-            text: 'Earlier turns compacted.',
             metadata: {
               span: 2,
             },
+            text: 'Earlier turns compacted.',
+            type: 'summary',
           },
           {
-            type: 'reference',
+            note: 'Recent move',
             refType: 'turn',
             targetId: 'turn-2',
-            note: 'Recent move',
+            type: 'reference',
           },
         ],
+        source: 'plugin:airi-plugin-game-chess',
       },
     ]
 

@@ -15,15 +15,15 @@ export async function recordJoinedChat(chatId: string, chatName: string) {
   return useDrizzle()
     .insert(joinedChatsTable)
     .values({
-      platform: 'telegram',
       chat_id: chatId,
       chat_name: chatName,
+      platform: 'telegram',
     })
     .onConflictDoUpdate({
-      target: joinedChatsTable.chat_id,
       set: {
         chat_name: chatName,
         updated_at: Date.now(),
       },
+      target: joinedChatsTable.chat_id,
     })
 }

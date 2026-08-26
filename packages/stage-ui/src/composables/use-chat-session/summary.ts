@@ -13,6 +13,16 @@ export function getAllReasoning(messages: ChatHistoryItem[]): string[] {
 }
 
 /**
+ * Get reasoning from all sessions
+ */
+export function getAllReasoningFromAllSessions(
+  allSessions: Record<string, ChatHistoryItem[]>,
+): string[] {
+  return Object.values(allSessions)
+    .flatMap(messages => getAllReasoning(messages))
+}
+
+/**
  * Get combined reasoning as a single string
  */
 export function getCombinedReasoning(messages: ChatHistoryItem[]): string {
@@ -26,15 +36,15 @@ export function getSessionSummary(
   sessionId: string,
   messages: ChatHistoryItem[],
 ): {
-  sessionId: string
-  messageCount: number
-  reasoningCount: number
   allReasoning: string[]
   allSpeech: string[]
   combinedReasoning: string
   combinedSpeech: string
   createdAt?: number
   lastMessageAt?: number
+  messageCount: number
+  reasoningCount: number
+  sessionId: string
 } {
   const allReasoning: string[] = []
   const allSpeech: string[] = []
@@ -53,24 +63,14 @@ export function getSessionSummary(
   }
 
   return {
-    sessionId,
-    messageCount: messages.length,
-    reasoningCount: allReasoning.length,
     allReasoning,
     allSpeech,
     combinedReasoning: allReasoning.join('\n\n'),
     combinedSpeech: allSpeech.join('\n\n'),
     createdAt: messages[0]?.createdAt,
     lastMessageAt: messages.at(-1)?.createdAt,
+    messageCount: messages.length,
+    reasoningCount: allReasoning.length,
+    sessionId,
   }
-}
-
-/**
- * Get reasoning from all sessions
- */
-export function getAllReasoningFromAllSessions(
-  allSessions: Record<string, ChatHistoryItem[]>,
-): string[] {
-  return Object.values(allSessions)
-    .flatMap(messages => getAllReasoning(messages))
 }

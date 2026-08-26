@@ -7,15 +7,15 @@ export interface SearchOptions {
   includeReplies?: boolean
   includeRetweets?: boolean
   lang?: string
-  resultType?: 'recent' | 'popular' | 'mixed'
   maxId?: string
+  resultType?: 'mixed' | 'popular' | 'recent'
   sinceId?: string
 }
 
 export interface TimelineOptions {
   count?: number
-  includeReplies?: boolean
-  includeRetweets?: boolean
   excludeReplies?: boolean
   includePromoted?: boolean
+  includeReplies?: boolean
+  includeRetweets?: boolean
 }

@@ -8,15 +8,15 @@ import { errorMessageFromValue } from '../utils/error-message'
 import { textContent } from './content'
 
 export interface RegisterCdpToolsOptions {
-  server: McpServer
   runtime: ComputerUseServerRuntime
+  server: McpServer
 }
 
 /**
  * Register CDP-based browser tools that connect directly to Chrome
  * via the DevTools Protocol, without requiring the browser extension.
  */
-export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
+export function registerCdpTools({ runtime, server }: RegisterCdpToolsOptions) {
   server.tool(
     'browser_cdp_connect',
     {
@@ -32,20 +32,20 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
             textContent(`CDP connected to ${status.pageTitle} (${status.pageUrl}).`),
           ],
           structuredContent: {
-            status: 'ok',
             cdp: status,
+            status: 'ok',
           },
         }
       }
       catch (error) {
         return {
-          isError: true,
           content: [
             textContent(`CDP connect failed: ${errorMessageFromValue(error)}. Ensure Chrome is running with --remote-debugging-port=9222.`),
           ],
+          isError: true,
           structuredContent: {
-            status: 'error',
             error: errorMessageFromValue(error),
+            status: 'error',
           },
         }
       }
@@ -63,8 +63,8 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
           textContent(`CDP bridge: ${status.connected ? `connected to ${status.pageTitle}` : 'disconnected'}.`),
         ],
         structuredContent: {
-          status: 'ok',
           cdp: status,
+          status: 'ok',
         },
       }
     },
@@ -84,23 +84,23 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
         return {
           content: [textContent(text)],
           structuredContent: {
-            status: 'ok',
-            pageUrl: snapshot.pageUrl,
-            pageTitle: snapshot.pageTitle,
-            nodeCount: snapshot.nodes.length,
             capturedAt: snapshot.capturedAt,
+            nodeCount: snapshot.nodes.length,
+            pageTitle: snapshot.pageTitle,
+            pageUrl: snapshot.pageUrl,
+            status: 'ok',
           },
         }
       }
       catch (error) {
         return {
-          isError: true,
           content: [
             textContent(`CDP accessibility snapshot failed: ${errorMessageFromValue(error)}`),
           ],
+          isError: true,
           structuredContent: {
-            status: 'error',
             error: errorMessageFromValue(error),
+            status: 'error',
           },
         }
       }
@@ -110,10 +110,10 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
   server.tool(
     'browser_cdp_evaluate',
     {
-      expression: z.string().min(1).describe('JavaScript expression to evaluate in the page context'),
       cdpUrl: z.string().optional().describe('CDP endpoint override'),
+      expression: z.string().min(1).describe('JavaScript expression to evaluate in the page context'),
     },
-    async ({ expression, cdpUrl }) => {
+    async ({ cdpUrl, expression }) => {
       try {
         const bridge = await runtime.cdpBridgeManager.ensureBridge(cdpUrl)
         const result = await bridge.evaluate(expression)
@@ -121,20 +121,20 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
         return {
           content: [textContent(typeof result === 'string' ? result : JSON.stringify(result, null, 2))],
           structuredContent: {
-            status: 'ok',
             result,
+            status: 'ok',
           },
         }
       }
       catch (error) {
         return {
-          isError: true,
           content: [
             textContent(`CDP evaluate failed: ${errorMessageFromValue(error)}`),
           ],
+          isError: true,
           structuredContent: {
-            status: 'error',
             error: errorMessageFromValue(error),
+            status: 'error',
           },
         }
       }
@@ -144,10 +144,10 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
   server.tool(
     'browser_cdp_collect_elements',
     {
-      maxElements: z.number().int().min(1).max(500).optional().describe('Maximum interactive elements to collect (default: 200)'),
       cdpUrl: z.string().optional().describe('CDP endpoint override'),
+      maxElements: z.number().int().min(1).max(500).optional().describe('Maximum interactive elements to collect (default: 200)'),
     },
-    async ({ maxElements, cdpUrl }) => {
+    async ({ cdpUrl, maxElements }) => {
       try {
         const bridge = await runtime.cdpBridgeManager.ensureBridge(cdpUrl)
         const elements = await bridge.collectInteractiveElements(maxElements)
@@ -157,25 +157,25 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
             textContent(`Collected ${elements.length} interactive element(s) from ${bridge.getStatus().pageTitle}.`),
           ],
           structuredContent: {
-            status: 'ok',
             elementCount: elements.length,
             elements,
             page: {
-              url: bridge.getStatus().pageUrl,
               title: bridge.getStatus().pageTitle,
+              url: bridge.getStatus().pageUrl,
             },
+            status: 'ok',
           },
         }
       }
       catch (error) {
         return {
-          isError: true,
           content: [
             textContent(`CDP collect elements failed: ${errorMessageFromValue(error)}`),
           ],
+          isError: true,
           structuredContent: {
-            status: 'error',
             error: errorMessageFromValue(error),
+            status: 'error',
           },
         }
       }
@@ -185,11 +185,11 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
   server.tool(
     'browser_cdp_screenshot',
     {
+      cdpUrl: z.string().optional().describe('CDP endpoint override'),
       format: z.enum(['png', 'jpeg']).optional().describe('Image format (default: png)'),
       quality: z.number().int().min(0).max(100).optional().describe('JPEG quality (only for jpeg format)'),
-      cdpUrl: z.string().optional().describe('CDP endpoint override'),
     },
-    async ({ format, quality, cdpUrl }) => {
+    async ({ cdpUrl, format, quality }) => {
       try {
         const bridge = await runtime.cdpBridgeManager.ensureBridge(cdpUrl)
         const base64 = await bridge.screenshot({ format, quality })
@@ -197,30 +197,30 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
         return {
           content: [
             {
-              type: 'image' as const,
               data: base64,
               mimeType: format === 'jpeg' ? 'image/jpeg' : 'image/png',
+              type: 'image' as const,
             },
           ],
           structuredContent: {
-            status: 'ok',
             format: format ?? 'png',
             page: {
-              url: bridge.getStatus().pageUrl,
               title: bridge.getStatus().pageTitle,
+              url: bridge.getStatus().pageUrl,
             },
+            status: 'ok',
           },
         }
       }
       catch (error) {
         return {
-          isError: true,
           content: [
             textContent(`CDP screenshot failed: ${errorMessageFromValue(error)}`),
           ],
+          isError: true,
           structuredContent: {
-            status: 'error',
             error: errorMessageFromValue(error),
+            status: 'error',
           },
         }
       }
@@ -230,10 +230,10 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
   server.tool(
     'browser_cdp_navigate',
     {
-      url: z.string().min(1).describe('URL to navigate to'),
       cdpUrl: z.string().optional().describe('CDP endpoint override'),
+      url: z.string().min(1).describe('URL to navigate to'),
     },
-    async ({ url, cdpUrl }) => {
+    async ({ cdpUrl, url }) => {
       try {
         const bridge = await runtime.cdpBridgeManager.ensureBridge(cdpUrl)
         await bridge.navigate(url)
@@ -248,13 +248,13 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
       }
       catch (error) {
         return {
-          isError: true,
           content: [
             textContent(`CDP navigate failed: ${errorMessageFromValue(error)}`),
           ],
+          isError: true,
           structuredContent: {
-            status: 'error',
             error: errorMessageFromValue(error),
+            status: 'error',
           },
         }
       }

@@ -7,6 +7,34 @@
 import type { WhereClause, WhereCondition } from './types'
 
 /**
+ * Build event type string from modality and kind
+ */
+export function buildEventType(modality: string, kind: string): string {
+  return `raw:${modality}:${kind}`
+}
+
+/**
+ * Get a nested value from an object using dot notation
+ * e.g., getNestedValue({ a: { b: 1 } }, 'a.b') => 1
+ */
+export function getNestedValue(obj: unknown, path: string): unknown {
+  const parts = path.split('.')
+  let current: unknown = obj
+
+  for (const part of parts) {
+    if (current === null || current === undefined) {
+      return undefined
+    }
+    if (typeof current !== 'object') {
+      return undefined
+    }
+    current = (current as Record<string, unknown>)[part]
+  }
+
+  return current
+}
+
+/**
  * Check if a value matches a single condition
  */
 export function matchCondition(
@@ -54,55 +82,6 @@ export function matchCondition(
 }
 
 /**
- * Get a nested value from an object using dot notation
- * e.g., getNestedValue({ a: { b: 1 } }, 'a.b') => 1
- */
-export function getNestedValue(obj: unknown, path: string): unknown {
-  const parts = path.split('.')
-  let current: unknown = obj
-
-  for (const part of parts) {
-    if (current === null || current === undefined) {
-      return undefined
-    }
-    if (typeof current !== 'object') {
-      return undefined
-    }
-    current = (current as Record<string, unknown>)[part]
-  }
-
-  return current
-}
-
-/**
- * Check if an event payload matches a where clause
- */
-export function matchWhere(
-  whereClause: WhereClause | undefined,
-  payload: unknown,
-): boolean {
-  if (!whereClause) {
-    return true
-  }
-
-  for (const [path, condition] of Object.entries(whereClause)) {
-    const value = getNestedValue(payload, path)
-    if (!matchCondition(condition, value)) {
-      return false
-    }
-  }
-
-  return true
-}
-
-/**
- * Build event type string from modality and kind
- */
-export function buildEventType(modality: string, kind: string): string {
-  return `raw:${modality}:${kind}`
-}
-
-/**
  * Check if an event type matches a pattern
  * Supports wildcards: 'raw:*' matches 'raw:sighted:punch'
  */
@@ -120,25 +99,31 @@ export function matchEventType(pattern: string, eventType: string): boolean {
 }
 
 /**
- * Render a template string with placeholders
- * e.g., 'Player {{ name }} says {{ message }}' + { name: 'Bob', message: 'Hi' }
- *       => 'Player Bob says Hi'
+ * Check if an event payload matches a where clause
  */
-export function renderTemplate(
-  template: string,
-  context: Readonly<Record<string, unknown>>,
-): string {
-  return template.replace(/\{\{\s*(\w+(?:\.\w+)*)\s*\}\}/g, (_, path: string) => {
-    const value = getNestedValue(context, path)
-    return value !== undefined ? String(value) : `{{${path}}}`
-  })
+export function matchWhere(
+  whereClause: undefined | WhereClause,
+  payload: unknown,
+): boolean {
+  if (!whereClause) {
+    return true
+  }
+
+  for (const [path, condition] of Object.entries(whereClause)) {
+    const value = getNestedValue(payload, path)
+    if (!matchCondition(condition, value)) {
+      return false
+    }
+  }
+
+  return true
 }
 
 /**
  * Render metadata object with template values
  */
 export function renderMetadata(
-  metadata: Readonly<Record<string, string | number | boolean>> | undefined,
+  metadata: Readonly<Record<string, boolean | number | string>> | undefined,
   context: Readonly<Record<string, unknown>>,
 ): Readonly<Record<string, unknown>> {
   if (!metadata) {
@@ -165,4 +150,19 @@ export function renderMetadata(
   }
 
   return Object.freeze(result)
+}
+
+/**
+ * Render a template string with placeholders
+ * e.g., 'Player {{ name }} says {{ message }}' + { name: 'Bob', message: 'Hi' }
+ *       => 'Player Bob says Hi'
+ */
+export function renderTemplate(
+  template: string,
+  context: Readonly<Record<string, unknown>>,
+): string {
+  return template.replace(/\{\{\s*(\w+(?:\.\w+)*)\s*\}\}/g, (_, path: string) => {
+    const value = getNestedValue(context, path)
+    return value !== undefined ? String(value) : `{{${path}}}`
+  })
 }

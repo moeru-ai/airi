@@ -19,15 +19,15 @@ import { computed, ref, watch } from 'vue'
 
 import { useWebSocketInspectorStore } from '../../devtools/websocket-inspector'
 
-interface ChannelListenerEntry {
-  type: keyof WebSocketEvents
-  callback: (event: WebSocketBaseEvent<any, any>) => void | Promise<void>
-  boundClient?: Client
-}
-
 interface ChannelConnectionIdentity {
   token?: string
   url: string
+}
+
+interface ChannelListenerEntry {
+  boundClient?: Client
+  callback: (event: WebSocketBaseEvent<any, any>) => Promise<void> | void
+  type: keyof WebSocketEvents
 }
 
 type TextConnectorFactory = (url: string) => ClientConnector<string> | undefined
@@ -57,7 +57,7 @@ const REPLAYABLE_EVENT_TYPES = new Set<keyof WebSocketEvents>([
 export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:server', () => {
   const connected = ref(false)
   const client = ref<Client>()
-  const initializing = ref<Promise<void> | null>(null)
+  const initializing = ref<null | Promise<void>>(null)
   let connectionAttempt = 0
   let connectionIdentity: ChannelConnectionIdentity | null = null
   const textConnectorFactory = ref<TextConnectorFactory>()
@@ -97,9 +97,9 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   ]
 
   async function initialize(options?: {
-    token?: string
-    possibleEvents?: Array<keyof WebSocketEvents>
     connector?: TextConnectorFactory
+    possibleEvents?: Array<keyof WebSocketEvents>
+    token?: string
   }) {
     if (options?.connector) {
       textConnectorFactory.value = options.connector
@@ -131,18 +131,15 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
       const textConnector = textConnectorFactory.value?.(requestedConnection.url)
 
       client.value = new Client({
-        name: isStageWeb() ? WebSocketEventSource.StageWeb : isStageTamagotchi() ? WebSocketEventSource.StageTamagotchi : WebSocketEventSource.StageWeb,
-        url: requestedConnection.url,
-        token: requestedConnection.token,
         connector: textConnector
           ? createTextProtocolConnector(textConnector)
           : undefined,
         heartbeat: {
+          pingInterval: 20_000,
           // Keep client and server heartbeat windows aligned to reduce false-positive disconnects.
           readTimeout: 60_000,
-          pingInterval: 20_000,
         },
-        possibleEvents,
+        name: isStageWeb() ? WebSocketEventSource.StageWeb : isStageTamagotchi() ? WebSocketEventSource.StageTamagotchi : WebSocketEventSource.StageWeb,
         onAnyMessage: (event) => {
           if (REPLAYABLE_EVENT_TYPES.has(event.type as keyof WebSocketEvents))
             replayableEvents.set(event.type as keyof WebSocketEvents, event as WebSocketBaseEvent<any, any>)
@@ -151,20 +148,6 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
         },
         onAnySend: (event) => {
           useWebSocketInspectorStore().add('outgoing', event)
-        },
-        onError: (error) => {
-          if (attempt !== connectionAttempt)
-            return
-
-          connected.value = false
-          // Do not clear listeners or replay cache here.
-          // onError may be recoverable while the SDK is reconnecting.
-          if (import.meta.env.DEV) {
-            console.info('WebSocket server connection error:', {
-              message: errorMessageFrom(error) ?? 'Unknown websocket error',
-              error,
-            })
-          }
         },
         onClose: () => {
           if (attempt !== connectionAttempt)
@@ -179,15 +162,18 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           // Runtime disconnect: keep initialize/listeners for SDK auto-reconnect.
           // Terminal failure: handled by onStateChange status === 'failed'.
         },
-        onStateChange: ({ status }) => {
+        onError: (error) => {
           if (attempt !== connectionAttempt)
             return
 
-          if (status === 'failed') {
-            // SDK entered terminal state (auth terminal / retries exhausted / autoReconnect disabled).
-            connected.value = false
-            initializing.value = null
-            console.warn('WebSocket server connection failed')
+          connected.value = false
+          // Do not clear listeners or replay cache here.
+          // onError may be recoverable while the SDK is reconnecting.
+          if (import.meta.env.DEV) {
+            console.info('WebSocket server connection error:', {
+              error,
+              message: errorMessageFrom(error) ?? 'Unknown websocket error',
+            })
           }
         },
         onReady: () => {
@@ -216,6 +202,20 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
             console.debug('WebSocket server connection re-established')
           }
         },
+        onStateChange: ({ status }) => {
+          if (attempt !== connectionAttempt)
+            return
+
+          if (status === 'failed') {
+            // SDK entered terminal state (auth terminal / retries exhausted / autoReconnect disabled).
+            connected.value = false
+            initializing.value = null
+            console.warn('WebSocket server connection failed')
+          }
+        },
+        possibleEvents,
+        token: requestedConnection.token,
+        url: requestedConnection.url,
       })
 
       client.value.onEvent('module:authenticated', (event) => {
@@ -272,14 +272,14 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
   function registerListener<E extends keyof WebSocketEvents>(
     type: E,
-    callback: (event: WebSocketBaseEvent<E, WebSocketEvents[E]>) => void | Promise<void>,
+    callback: (event: WebSocketBaseEvent<E, WebSocketEvents[E]>) => Promise<void> | void,
   ) {
     if (!client.value && !initializing.value)
       void initialize()
 
     const entry: ChannelListenerEntry = {
-      type,
       callback: callback as any,
+      type,
     }
     registeredListeners.push(entry)
     initializeListeners()
@@ -320,13 +320,13 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     }
   }
 
-  function onContextUpdate(callback: (event: WebSocketBaseEvent<'context:update', ContextUpdate>) => void | Promise<void>) {
+  function onContextUpdate(callback: (event: WebSocketBaseEvent<'context:update', ContextUpdate>) => Promise<void> | void) {
     return registerListener('context:update', callback)
   }
 
   function onEvent<E extends keyof WebSocketEvents>(
     type: E,
-    callback: (event: WebSocketBaseEvent<E, WebSocketEvents[E]>) => void | Promise<void>,
+    callback: (event: WebSocketBaseEvent<E, WebSocketEvents[E]>) => Promise<void> | void,
   ) {
     return registerListener(type, callback)
   }
@@ -342,9 +342,9 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   function sendContextUpdate(message: InputContextUpdate) {
     const id = nanoid()
     send({
+      data: { contextId: id, id, ...message },
       type: 'context:update',
-      data: { id, contextId: id, ...message },
-    } as WebSocketEventOptionalSource<string | CommonContentPart[]>)
+    } as WebSocketEventOptionalSource<CommonContentPart[] | string>)
   }
 
   function dispose() {
@@ -378,18 +378,18 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
   return {
     connected,
-    pendingSendCount,
-    websocketAuthToken,
-    websocketUrl,
+    dispose,
     ensureConnected,
-
+    getPendingSendSnapshot: () => [...pendingSend.value],
     initialize,
-    send,
-    sendContextUpdate,
+
     onContextUpdate,
     onEvent,
     onReconnected,
-    getPendingSendSnapshot: () => [...pendingSend.value],
-    dispose,
+    pendingSendCount,
+    send,
+    sendContextUpdate,
+    websocketAuthToken,
+    websocketUrl,
   }
 })

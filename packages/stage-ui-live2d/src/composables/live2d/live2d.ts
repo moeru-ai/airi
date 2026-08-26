@@ -47,16 +47,16 @@ function resetState() {
 
 export const useSettingsLive2d = defineStore('settings-live2d', () => {
   return {
-    live2dEyeTracking,
-    live2dModelEyeOffset,
-    live2dIdleAnimationEnabled,
-    live2dForceIdleEyeAnimation,
     live2dAutoBlinkEnabled,
-    live2dForceAutoBlinkEnabled,
     live2dExpressionEnabled,
-    live2dShadowEnabled,
+    live2dEyeTracking,
+    live2dForceAutoBlinkEnabled,
+    live2dForceIdleEyeAnimation,
+    live2dIdleAnimationEnabled,
     live2dMaxFps,
+    live2dModelEyeOffset,
     live2dRenderScale,
+    live2dShadowEnabled,
     resetState,
   }
 })

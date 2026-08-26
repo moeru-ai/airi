@@ -11,27 +11,27 @@ import cuteStreamingRoomWithPastelDecorUrl from '../assets/backgrounds/cute-stre
 import { useAiriCardStore } from './modules/airi-card'
 
 export interface BackgroundEntry {
-  id: string
-  type: 'builtin' | 'scene' | 'journal' | 'selfie'
-  characterId: string | null // null for shared
-  title: string
   blob: Blob
-  url?: string
+  characterId: null | string // null for shared
+  createdAt: number
+  id: string
   prompt?: string // only for journal
   remixId?: string // only for ComfyUI journal entries
-  createdAt: number
+  title: string
+  type: 'builtin' | 'journal' | 'scene' | 'selfie'
+  url?: string
 }
 
 const BUILTIN_BACKGROUNDS = [
   {
     id: 'builtin:cozy-tea-corner',
-    url: cozyTeaCornerInPastelHuesUrl,
     title: 'Cozy tea corner in pastel hues',
+    url: cozyTeaCornerInPastelHuesUrl,
   },
   {
     id: 'builtin:cute-streaming-room',
-    url: cuteStreamingRoomWithPastelDecorUrl,
     title: 'Cute streaming room with pastel decor',
+    url: cuteStreamingRoomWithPastelDecorUrl,
   },
 ]
 
@@ -52,7 +52,7 @@ export const useBackgroundStore = defineStore('background-entries', () => {
 
   // Track object URLs to prevent leaks
   const blobRefs = new Map<string, any>()
-  const backgroundUrls = reactive<Record<string, string | null>>({})
+  const backgroundUrls = reactive<Record<string, null | string>>({})
 
   function ensureObjectUrl(id: string, blob: Blob) {
     if (backgroundUrls[id])
@@ -116,13 +116,13 @@ export const useBackgroundStore = defineStore('background-entries', () => {
 
           if (!loadedEntries.has(newId)) {
             const migrated: BackgroundEntry = {
-              id: newId,
-              type: 'journal',
-              characterId: val.characterId,
-              title: val.title || 'Migrated Journal Image',
               blob: val.blob,
-              prompt: val.prompt,
+              characterId: val.characterId,
               createdAt: val.createdAt || Date.now(),
+              id: newId,
+              prompt: val.prompt,
+              title: val.title || 'Migrated Journal Image',
+              type: 'journal',
             }
             if (migrated.blob instanceof Blob) {
               ensureObjectUrl(newId, migrated.blob)
@@ -149,12 +149,12 @@ export const useBackgroundStore = defineStore('background-entries', () => {
           try {
             const blob = await fetchAssetAsBlob(builtin.url)
             const entry: BackgroundEntry = {
-              id: builtin.id,
-              type: 'builtin',
-              characterId: null,
-              title: builtin.title,
               blob,
+              characterId: null,
               createdAt: Date.now(),
+              id: builtin.id,
+              title: builtin.title,
+              type: 'builtin',
             }
             ensureObjectUrl(entry.id, blob)
             await localforage.setItem(entry.id, entry)
@@ -269,11 +269,11 @@ export const useBackgroundStore = defineStore('background-entries', () => {
   })
 
   async function addBackground(
-    type: 'scene' | 'journal' | 'selfie',
+    type: 'journal' | 'scene' | 'selfie',
     blob: Blob,
     title: string,
     prompt?: string,
-    characterId?: string | null,
+    characterId?: null | string,
     remixId?: string,
   ) {
     const airiCardStore = useAiriCardStore()
@@ -285,14 +285,14 @@ export const useBackgroundStore = defineStore('background-entries', () => {
       : ((type === 'journal' || type === 'selfie') ? airiCardStore.activeCardId : null)
 
     const entry: BackgroundEntry = {
-      id,
-      type,
-      characterId: resolvedCharacterId,
-      title: title.trim() || 'Untitled Background',
       blob,
+      characterId: resolvedCharacterId,
+      createdAt: Date.now(),
+      id,
       prompt,
       remixId,
-      createdAt: Date.now(),
+      title: title.trim() || 'Untitled Background',
+      type,
     }
 
     try {
@@ -343,17 +343,17 @@ export const useBackgroundStore = defineStore('background-entries', () => {
   })
 
   return {
-    entries,
-    loading,
-    availableBackgrounds,
-    getCharacterBackgrounds,
-    journalEntries,
-    getCharacterJournalEntries,
     activeBackgroundUrl,
-    journalRecentEntries,
     addBackground,
-    removeBackground,
+    availableBackgrounds,
+    entries,
     getBackgroundUrl: (id: string) => backgroundUrls[id] ?? null,
+    getCharacterBackgrounds,
+    getCharacterJournalEntries,
     initializeStore,
+    journalEntries,
+    journalRecentEntries,
+    loading,
+    removeBackground,
   }
 })

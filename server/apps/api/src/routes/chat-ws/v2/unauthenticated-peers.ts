@@ -1,8 +1,8 @@
 export interface ChatWsUnauthenticatedPeerLimit {
-  /** Reserves an unauthenticated connection slot when capacity remains. */
-  tryAcquire: () => boolean
   /** Releases a previously reserved unauthenticated connection slot. */
   release: () => void
+  /** Reserves an unauthenticated connection slot when capacity remains. */
+  tryAcquire: () => boolean
 }
 
 /**
@@ -16,16 +16,16 @@ export function createChatWsUnauthenticatedPeerLimit(maximumConnections: number)
   let activeConnections = 0
 
   return {
+    release() {
+      if (activeConnections > 0)
+        activeConnections -= 1
+    },
     tryAcquire() {
       if (activeConnections >= maximumConnections)
         return false
 
       activeConnections += 1
       return true
-    },
-    release() {
-      if (activeConnections > 0)
-        activeConnections -= 1
     },
   }
 }

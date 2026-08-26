@@ -19,31 +19,31 @@ const atlasCloudConfigSchema = z.object({
 type AtlasCloudConfig = z.input<typeof atlasCloudConfigSchema>
 
 export const providerAtlasCloud = defineProvider<AtlasCloudConfig>({
-  id: 'atlascloud',
-  order: 5,
-  name: 'Atlas Cloud',
-  nameLocalize: () => 'Atlas Cloud',
-  description: 'api.atlascloud.ai',
-  descriptionLocalize: () => 'api.atlascloud.ai',
-  tasks: ['chat'],
-  icon: 'i-lobe-icons:openai',
-
+  createProvider(config) {
+    return createOpenAI(config.apiKey, config.baseUrl)
+  },
   createProviderConfig: ({ t }) => atlasCloudConfigSchema.extend({
     apiKey: atlasCloudConfigSchema.shape.apiKey.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
       type: 'password',
     }),
     baseUrl: atlasCloudConfigSchema.shape.baseUrl.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
     }),
   }),
-  createProvider(config) {
-    return createOpenAI(config.apiKey, config.baseUrl)
-  },
+  description: 'api.atlascloud.ai',
+  descriptionLocalize: () => 'api.atlascloud.ai',
+  icon: 'i-lobe-icons:openai',
+  id: 'atlascloud',
+  name: 'Atlas Cloud',
+  nameLocalize: () => 'Atlas Cloud',
+
+  order: 5,
+  tasks: ['chat'],
 
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()

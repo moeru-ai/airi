@@ -14,41 +14,41 @@ import type { ClientOptions, ConnectOptions } from './client'
 import { createClient } from './client'
 
 /**
- * Describes the client operations required by {@link WebSocketExtensionPeer}.
- *
- * @param C - Optional custom protocol event map carried by the websocket client.
- */
-export interface ExtensionPeerClient<C = undefined> {
-  connect: (options?: ConnectOptions) => Promise<void>
-  send: (data: WebSocketEventOptionalSource<C>) => boolean
-  sendOrThrow: (data: WebSocketEventOptionalSource<C>) => void
-  close: () => void
-  onEvent?: <E extends keyof WebSocketEvents<C>>(
-    event: E,
-    callback: (data: WebSocketBaseEvent<E, WebSocketEvents<C>[E]>) => void | Promise<void>,
-  ) => () => void
-}
-
-/**
  * Describes one module announcement emitted through a websocket extension peer.
  *
  * @param C - Optional custom protocol event map used for possible event declarations.
  */
 export interface AnnounceExtensionModuleInput<C = undefined> {
-  /** Stable module id within the owning extension session. */
-  id: string
-  /** Human-readable module name used by registry and diagnostics. */
-  name: string
-  /** Protocol events this module may emit or handle. */
-  possibleEvents?: Array<keyof ProtocolEvents<C>>
-  /** Runtime permissions requested by this module. */
-  permissions?: ModulePermissionDeclaration
   /** Optional configuration schema understood by the module. */
   configSchema?: ModuleConfigSchema
   /** Other modules or capabilities this module expects to exist. */
   dependencies?: ModuleDependency[]
+  /** Stable module id within the owning extension session. */
+  id: string
   /** Optional labels for routing, diagnostics, or inspector views. */
   labels?: Record<string, string>
+  /** Human-readable module name used by registry and diagnostics. */
+  name: string
+  /** Runtime permissions requested by this module. */
+  permissions?: ModulePermissionDeclaration
+  /** Protocol events this module may emit or handle. */
+  possibleEvents?: Array<keyof ProtocolEvents<C>>
+}
+
+/**
+ * Describes the client operations required by {@link WebSocketExtensionPeer}.
+ *
+ * @param C - Optional custom protocol event map carried by the websocket client.
+ */
+export interface ExtensionPeerClient<C = undefined> {
+  close: () => void
+  connect: (options?: ConnectOptions) => Promise<void>
+  onEvent?: <E extends keyof WebSocketEvents<C>>(
+    event: E,
+    callback: (data: WebSocketBaseEvent<E, WebSocketEvents<C>[E]>) => Promise<void> | void,
+  ) => () => void
+  send: (data: WebSocketEventOptionalSource<C>) => boolean
+  sendOrThrow: (data: WebSocketEventOptionalSource<C>) => void
 }
 
 /**
@@ -58,9 +58,9 @@ export interface AnnounceExtensionModuleInput<C = undefined> {
  * @param C - Optional custom protocol event map carried by the websocket client.
  */
 export interface WebSocketExtensionPeerOptions<C = undefined> {
-  extension: ExtensionIdentity
   client?: ExtensionPeerClient<C>
-  clientOptions?: Omit<ClientOptions<C>, 'name' | 'identity'>
+  clientOptions?: Omit<ClientOptions<C>, 'identity' | 'name'>
+  extension: ExtensionIdentity
 }
 
 /**
@@ -74,59 +74,59 @@ export class WebSocketExtensionPeer<C = undefined> {
     this.extension = options.extension
     this.client = options.client ?? createClient<C>({
       ...options.clientOptions,
-      name: options.extension.id,
-      handshake: 'manual',
       autoConnect: options.clientOptions?.autoConnect ?? false,
       autoReconnect: options.clientOptions?.autoReconnect ?? false,
+      handshake: 'manual',
+      name: options.extension.id,
     })
+  }
+
+  announceExtension(input: { permissions?: ModulePermissionDeclaration } = {}): void {
+    this.client.sendOrThrow({
+      data: {
+        identity: this.extension,
+        permissions: input.permissions,
+      },
+      type: 'extension:announce',
+    })
+  }
+
+  announceModule(input: AnnounceExtensionModuleInput<C>): void {
+    this.client.sendOrThrow({
+      data: {
+        configSchema: input.configSchema,
+        dependencies: input.dependencies,
+        identity: {
+          extension: this.extension,
+          id: input.id,
+          labels: input.labels,
+        },
+        name: input.name,
+        permissions: input.permissions,
+        possibleEvents: input.possibleEvents ?? [],
+      },
+      type: 'extension:module:announce',
+    })
+  }
+
+  authenticatePeer(input: { peerId?: string, token?: string } = {}): void {
+    this.client.sendOrThrow({
+      data: input,
+      type: 'peer:authenticate',
+    })
+  }
+
+  close(): void {
+    this.client.close()
   }
 
   connect(options?: ConnectOptions): Promise<void> {
     return this.client.connect(options)
   }
 
-  authenticatePeer(input: { token?: string, peerId?: string } = {}): void {
-    this.client.sendOrThrow({
-      type: 'peer:authenticate',
-      data: input,
-    })
-  }
-
-  announceExtension(input: { permissions?: ModulePermissionDeclaration } = {}): void {
-    this.client.sendOrThrow({
-      type: 'extension:announce',
-      data: {
-        identity: this.extension,
-        permissions: input.permissions,
-      },
-    })
-  }
-
-  announceModule(input: AnnounceExtensionModuleInput<C>): void {
-    this.client.sendOrThrow({
-      type: 'extension:module:announce',
-      data: {
-        name: input.name,
-        identity: {
-          id: input.id,
-          extension: this.extension,
-          labels: input.labels,
-        },
-        possibleEvents: input.possibleEvents ?? [],
-        permissions: input.permissions,
-        configSchema: input.configSchema,
-        dependencies: input.dependencies,
-      },
-    })
-  }
-
-  send(data: WebSocketEventOptionalSource<C>): boolean {
-    return this.client.send(data)
-  }
-
   onEvent<E extends keyof WebSocketEvents<C>>(
     event: E,
-    callback: (data: WebSocketBaseEvent<E, WebSocketEvents<C>[E]>) => void | Promise<void>,
+    callback: (data: WebSocketBaseEvent<E, WebSocketEvents<C>[E]>) => Promise<void> | void,
   ): () => void {
     if (!this.client.onEvent) {
       throw new Error('Wrapped extension peer client does not support event listeners.')
@@ -135,8 +135,8 @@ export class WebSocketExtensionPeer<C = undefined> {
     return this.client.onEvent(event, callback)
   }
 
-  close(): void {
-    this.client.close()
+  send(data: WebSocketEventOptionalSource<C>): boolean {
+    return this.client.send(data)
   }
 }
 

@@ -15,9 +15,9 @@ export const useControlsIslandStore = defineStore('controls-island', () => {
   }
 
   return {
-    fadeOnHoverEnabled,
+    disableFadeOnHover,
     dontShowItAgainNoticeFadeOnHover,
     enableFadeOnHover,
-    disableFadeOnHover,
+    fadeOnHoverEnabled,
   }
 })

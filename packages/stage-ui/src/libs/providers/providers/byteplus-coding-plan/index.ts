@@ -1,16 +1,13 @@
 import { createArkChatProviderDefinition } from '../ark-shared'
 
 export const providerBytePlusCodingPlan = createArkChatProviderDefinition({
-  id: 'byteplus-coding-plan',
-  order: 9,
-  name: 'BytePlus Coding Plan',
-  nameKey: 'settings.pages.providers.provider.byteplus-coding-plan.title',
+  defaultBaseUrl: 'https://ark.ap-southeast.bytepluses.com/api/coding/v3',
   description: 'BytePlus Coding Plan',
   descriptionKey: 'settings.pages.providers.provider.byteplus-coding-plan.description',
-  modelPrefix: 'byteplus-coding-plan/',
-  defaultBaseUrl: 'https://ark.ap-southeast.bytepluses.com/api/coding/v3',
   icon: 'i-lobe-icons:bytedance',
   iconColor: 'i-lobe-icons:bytedance-color',
+  id: 'byteplus-coding-plan',
+  modelPrefix: 'byteplus-coding-plan/',
   models: [
     { id: 'dola-seed-2.0-pro' },
     { id: 'dola-seed-2.0-lite' },
@@ -19,4 +16,7 @@ export const providerBytePlusCodingPlan = createArkChatProviderDefinition({
     { id: 'kimi-k2.5' },
     { id: 'gpt-oss-120b' },
   ],
+  name: 'BytePlus Coding Plan',
+  nameKey: 'settings.pages.providers.provider.byteplus-coding-plan.title',
+  order: 9,
 })

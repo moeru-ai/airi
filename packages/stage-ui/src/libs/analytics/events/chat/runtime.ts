@@ -12,6 +12,14 @@ import {
 } from './events'
 import { getProviderMode } from './types'
 
+/** Options used to bind analytics to one chat runtime. */
+export interface CreateChatAnalyticsHooksOptions {
+  /** Typed analytics recorder. Defaults to the module-global recorder. */
+  analytics?: AnalyticsRecorder
+  /** Reads the message count after the runtime persists a user message. */
+  getSessionMessages: (sessionId: string) => ChatHistoryItem[]
+}
+
 type ChatAnalyticsCallbacks = Pick<
   ChatOrchestratorRuntimeDeps,
   | 'onLlmGeneration'
@@ -20,14 +28,6 @@ type ChatAnalyticsCallbacks = Pick<
   | 'onTrackFirstMessage'
   | 'onUserMessageAppended'
 >
-
-/** Options used to bind analytics to one chat runtime. */
-export interface CreateChatAnalyticsHooksOptions {
-  /** Reads the message count after the runtime persists a user message. */
-  getSessionMessages: (sessionId: string) => ChatHistoryItem[]
-  /** Typed analytics recorder. Defaults to the module-global recorder. */
-  analytics?: AnalyticsRecorder
-}
 
 /**
  * Maps core chat runtime callbacks to typed chat product events.
@@ -39,70 +39,70 @@ export function createChatAnalyticsHooks(options: CreateChatAnalyticsHooksOption
   const analytics = options.analytics ?? getAnalytics()
 
   return {
-    onTrackFirstMessage: () => analytics.recordFirstMessage(),
-    onLlmGeneration: ({ conversationId, roundId, model, provider, inputTokens, outputTokens, totalTokens, usageSource }) => {
+    onLlmGeneration: ({ conversationId, inputTokens, model, outputTokens, provider, roundId, totalTokens, usageSource }) => {
       const providerType = getProviderMode(provider)
       if (providerType !== 'custom')
         return
 
       analytics.emit(aiGenerationEvent, {
         conversation_id: conversationId,
-        round_id: roundId,
-        provider_type: providerType,
-        provider_id: provider,
-        model_id: model,
-        usage_source: usageSource,
         input_tokens: inputTokens,
+        model_id: model,
         output_tokens: outputTokens,
+        provider_id: provider,
+        provider_type: providerType,
+        round_id: roundId,
         total_tokens: totalTokens,
+        usage_source: usageSource,
       })
     },
-    onMessageRound: ({ conversationId, roundId, turnIndex, durationMs, hasVoice, model, inputTokens, outputTokens, totalTokens, usageSource }) => {
+    onMessageRound: ({ conversationId, durationMs, hasVoice, inputTokens, model, outputTokens, roundId, totalTokens, turnIndex, usageSource }) => {
       analytics.emit(messageRoundEvent, {
         conversation_id: conversationId,
-        round_id: roundId,
-        turn_index: turnIndex,
         duration_ms: durationMs,
         has_voice: hasVoice,
-        model,
         input_tokens: inputTokens,
+        model,
         output_tokens: outputTokens,
+        round_id: roundId,
         total_tokens: totalTokens,
-        usage_source: usageSource,
         trigger_method: hasVoice ? 'voice' : 'text_input',
         trigger_type: 'user_flow_result',
+        turn_index: turnIndex,
+        usage_source: usageSource,
       })
     },
-    onMessageRoundFailed: ({ conversationId, roundId, turnIndex, model, provider, errorCode, failureStage, source }) => {
+    onMessageRoundFailed: ({ conversationId, errorCode, failureStage, model, provider, roundId, source, turnIndex }) => {
       analytics.emit(messageRoundFailedEvent, {
         conversation_id: conversationId,
-        round_id: roundId,
-        turn_index: turnIndex,
-        provider_id: provider || 'unknown',
-        model_id: model || 'unknown',
-        source,
         error_code: errorCode,
         failure_stage: failureStage,
+        model_id: model || 'unknown',
+        provider_id: provider || 'unknown',
+        round_id: roundId,
+        source,
         trigger_method: source === 'voice' ? 'voice' : 'text_input',
         trigger_type: 'user_flow_result',
+        turn_index: turnIndex,
       })
     },
-    onUserMessageAppended: ({ sessionId, message, messageText, source, model, provider, roundId, turnIndex }) => {
+    onTrackFirstMessage: () => analytics.recordFirstMessage(),
+    onUserMessageAppended: ({ message, messageText, model, provider, roundId, sessionId, source, turnIndex }) => {
       const providerType = getProviderMode(provider)
       analytics.emit(messageSentEvent, {
         conversation_id: sessionId,
-        provider_type: providerType,
-        provider_name: provider || 'unknown',
-        model: model || 'unknown',
+        has_attachment: false,
         message_id: message.id,
-        round_id: roundId,
-        turn_index: turnIndex,
         message_index: options.getSessionMessages(sessionId).length,
         message_length: messageText.length,
-        has_attachment: false,
         mode: source,
+        model: model || 'unknown',
+        provider_name: provider || 'unknown',
+        provider_type: providerType,
+        round_id: roundId,
         trigger_method: source === 'voice' ? 'voice' : 'text_input',
         trigger_type: 'user_action',
+        turn_index: turnIndex,
       })
     },
   }

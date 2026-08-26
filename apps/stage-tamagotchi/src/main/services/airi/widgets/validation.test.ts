@@ -12,26 +12,26 @@ describe('widget invoke validation', () => {
   describe('validateWidgetsAddPayload', () => {
     it('normalizes add payloads for the widgets manager', () => {
       expect(validateWidgetsAddPayload({
-        id: ' widget-1 ',
+        alwaysOnTop: true,
         componentName: ' weather ',
         componentProps: { city: 'Tokyo' },
-        alwaysOnTop: true,
+        id: ' widget-1 ',
         ttlMs: 2500.9,
         windowSize: {
-          width: 620.8,
           height: 480.2,
           minWidth: 320.9,
+          width: 620.8,
         },
       })).toEqual({
-        id: 'widget-1',
+        alwaysOnTop: true,
         componentName: 'weather',
         componentProps: { city: 'Tokyo' },
-        alwaysOnTop: true,
+        id: 'widget-1',
         ttlMs: 2500,
         windowSize: {
-          width: 620,
           height: 480,
           minWidth: 320,
+          width: 620,
         },
       })
     })
@@ -53,12 +53,12 @@ describe('widget invoke validation', () => {
 
       expect(() => validateWidgetsAddPayload({
         componentName: 'weather',
-        windowSize: { width: 0, height: 320 },
+        windowSize: { height: 320, width: 0 },
       } as any)).toThrow('windowSize must contain a positive finite width and height.')
 
       expect(() => validateWidgetsAddPayload({
-        componentName: 'weather',
         alwaysOnTop: 'yes' as any,
+        componentName: 'weather',
       })).toThrow('alwaysOnTop must be a boolean when provided.')
     })
   })
@@ -66,14 +66,14 @@ describe('widget invoke validation', () => {
   describe('validateWidgetsUpdatePayload', () => {
     it('normalizes widget updates and keeps optional fields optional', () => {
       expect(validateWidgetsUpdatePayload({
-        id: ' widget-1 ',
-        componentProps: { city: 'Taipei' },
         alwaysOnTop: false,
+        componentProps: { city: 'Taipei' },
+        id: ' widget-1 ',
         ttlMs: 1500.4,
       })).toEqual({
-        id: 'widget-1',
-        componentProps: { city: 'Taipei' },
         alwaysOnTop: false,
+        componentProps: { city: 'Taipei' },
+        id: 'widget-1',
         ttlMs: 1500,
         windowSize: undefined,
       })
@@ -85,18 +85,18 @@ describe('widget invoke validation', () => {
       } as any)).toThrow('id is required to update a widget.')
 
       expect(() => validateWidgetsUpdatePayload({
-        id: 'widget-1',
         componentProps: [] as any,
+        id: 'widget-1',
       })).toThrow('componentProps must be a plain object.')
 
       expect(() => validateWidgetsUpdatePayload({
         id: 'widget-1',
-        windowSize: { width: Number.NaN, height: 400 },
+        windowSize: { height: 400, width: Number.NaN },
       } as any)).toThrow('windowSize must contain a positive finite width and height.')
 
       expect(() => validateWidgetsUpdatePayload({
-        id: 'widget-1',
         alwaysOnTop: 'yes' as any,
+        id: 'widget-1',
       })).toThrow('alwaysOnTop must be a boolean when provided.')
     })
   })
@@ -117,28 +117,28 @@ describe('widget invoke validation', () => {
     it('normalizes successful iframe request results', () => {
       expect(validateWidgetIframeRequestResult({
         id: ' kit-module:board ',
-        requestId: ' req-1 ',
         ok: true,
+        requestId: ' req-1 ',
         result: { fen: 'fen-after-request' },
       })).toEqual({
         id: 'kit-module:board',
-        requestId: 'req-1',
         ok: true,
+        requestId: 'req-1',
         result: { fen: 'fen-after-request' },
       })
     })
 
     it('normalizes failed iframe request results', () => {
       expect(validateWidgetIframeRequestResult({
-        id: 'kit-module:board',
-        requestId: 'req-1',
-        ok: false,
         error: 'Board rejected request.',
+        id: 'kit-module:board',
+        ok: false,
+        requestId: 'req-1',
       })).toEqual({
-        id: 'kit-module:board',
-        requestId: 'req-1',
-        ok: false,
         error: 'Board rejected request.',
+        id: 'kit-module:board',
+        ok: false,
+        requestId: 'req-1',
       })
     })
 
@@ -146,13 +146,13 @@ describe('widget invoke validation', () => {
       expect(() => validateWidgetIframeRequestResult(null)).toThrow('iframe request result must be a plain object.')
       expect(() => validateWidgetIframeRequestResult({
         id: 'kit-module:board',
-        requestId: 'req-1',
         ok: true,
+        requestId: 'req-1',
       })).toThrow('iframe request result payload must be a plain object.')
       expect(() => validateWidgetIframeRequestResult({
         id: 'kit-module:board',
-        requestId: 'req-1',
         ok: false,
+        requestId: 'req-1',
       })).toThrow('iframe request result error is required.')
     })
   })

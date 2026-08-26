@@ -84,19 +84,19 @@ export const pluginBindingApiWithdrawEventName = 'proj-airi:plugin-sdk:apis:clie
 export const pluginBindingRegistryResourceKey = 'proj-airi:plugin-sdk:resources:bindings'
 
 /**
- * Builds the kit-scoped resource key used for binding write access.
+ * Identifies which binding should transition to the active state.
  *
  * Use when:
- * - Declaring per-kit binding permissions
+ * - Calling `apis.bindings.activate(...)`
  *
  * Expects:
- * - `kitId` matches the host-registered kit identifier
+ * - `moduleId` points at an existing host-managed binding
  *
  * Returns:
- * - The resource key string for bindings owned by the given kit
+ * - A minimal activation request payload
  */
-export function getKitBindingResourceKey(kitId: string) {
-  return `proj-airi:plugin-sdk:resources:kits:${kitId}:bindings`
+export interface ActivateBindingInput {
+  moduleId: string
 }
 
 /**
@@ -113,26 +113,44 @@ export function getKitBindingResourceKey(kitId: string) {
  * - A serializable binding declaration payload
  */
 export interface AnnounceBindingInput<C extends HostDataRecord = HostDataRecord> {
-  moduleId: string
+  config: C
   kitId: string
   kitModuleType: string
-  config: C
+  moduleId: string
 }
 
 /**
- * Identifies which binding should transition to the active state.
+ * Describes the concrete client object returned by {@link createBindings}.
  *
  * Use when:
- * - Calling `apis.bindings.activate(...)`
+ * - Typing `apis.bindings`
  *
  * Expects:
- * - `moduleId` points at an existing host-managed binding
+ * - The caller uses the same method set as the runtime-created bindings client
  *
  * Returns:
- * - A minimal activation request payload
+ * - The inferred bindings client surface
  */
-export interface ActivateBindingInput {
-  moduleId: string
+export type BindingClient = ReturnType<typeof createBindings>
+
+/**
+ * Defines the host-side callbacks needed by the low-level bindings client.
+ *
+ * Use when:
+ * - Wiring `session.apis.bindings` to host-owned registry logic
+ *
+ * Expects:
+ * - Each callback returns the cloned binding record state observed by plugin code
+ *
+ * Returns:
+ * - The callback contract consumed by {@link createBindings}
+ */
+export interface BindingClientBindings<C extends HostDataRecord = HostDataRecord> {
+  activate: (input: ActivateBindingInput) => BindingRecord<C> | Promise<BindingRecord<C>>
+  announce: (input: AnnounceBindingInput<C>) => BindingRecord<C> | Promise<BindingRecord<C>>
+  list: () => BindingRecord<C>[] | Promise<BindingRecord<C>[]>
+  update: (input: UpdateBindingInput<C>) => BindingRecord<C> | Promise<BindingRecord<C>>
+  withdraw: (input: WithdrawBindingInput) => BindingRecord<C> | Promise<BindingRecord<C>>
 }
 
 /**
@@ -169,38 +187,6 @@ export interface WithdrawBindingInput {
 }
 
 /**
- * Defines the host-side callbacks needed by the low-level bindings client.
- *
- * Use when:
- * - Wiring `session.apis.bindings` to host-owned registry logic
- *
- * Expects:
- * - Each callback returns the cloned binding record state observed by plugin code
- *
- * Returns:
- * - The callback contract consumed by {@link createBindings}
- */
-export interface BindingClientBindings<C extends HostDataRecord = HostDataRecord> {
-  list: () => Promise<BindingRecord<C>[]> | BindingRecord<C>[]
-  announce: (input: AnnounceBindingInput<C>) => Promise<BindingRecord<C>> | BindingRecord<C>
-  activate: (input: ActivateBindingInput) => Promise<BindingRecord<C>> | BindingRecord<C>
-  update: (input: UpdateBindingInput<C>) => Promise<BindingRecord<C>> | BindingRecord<C>
-  withdraw: (input: WithdrawBindingInput) => Promise<BindingRecord<C>> | BindingRecord<C>
-}
-
-function createMissingBindingError(method: string) {
-  return new Error(`Plugin binding API binding missing for \`${method}\`.`)
-}
-
-function requireBinding<TBinding>(binding: TBinding | undefined, method: string): TBinding {
-  if (!binding) {
-    throw createMissingBindingError(method)
-  }
-
-  return binding
-}
-
-/**
  * Creates the low-level bindings client exposed on `session.apis`.
  *
  * Use when:
@@ -217,14 +203,14 @@ export function createBindings<C extends HostDataRecord = HostDataRecord>(
   bindings?: BindingClientBindings<C>,
 ) {
   return {
-    async list() {
-      return await requireBinding(bindings, 'bindings.list').list()
+    async activate(input: ActivateBindingInput) {
+      return await requireBinding(bindings, 'bindings.activate').activate(input)
     },
     async announce(input: AnnounceBindingInput<C>) {
       return await requireBinding(bindings, 'bindings.announce').announce(input)
     },
-    async activate(input: ActivateBindingInput) {
-      return await requireBinding(bindings, 'bindings.activate').activate(input)
+    async list() {
+      return await requireBinding(bindings, 'bindings.list').list()
     },
     async update(input: UpdateBindingInput<C>) {
       return await requireBinding(bindings, 'bindings.update').update(input)
@@ -236,15 +222,29 @@ export function createBindings<C extends HostDataRecord = HostDataRecord>(
 }
 
 /**
- * Describes the concrete client object returned by {@link createBindings}.
+ * Builds the kit-scoped resource key used for binding write access.
  *
  * Use when:
- * - Typing `apis.bindings`
+ * - Declaring per-kit binding permissions
  *
  * Expects:
- * - The caller uses the same method set as the runtime-created bindings client
+ * - `kitId` matches the host-registered kit identifier
  *
  * Returns:
- * - The inferred bindings client surface
+ * - The resource key string for bindings owned by the given kit
  */
-export type BindingClient = ReturnType<typeof createBindings>
+export function getKitBindingResourceKey(kitId: string) {
+  return `proj-airi:plugin-sdk:resources:kits:${kitId}:bindings`
+}
+
+function createMissingBindingError(method: string) {
+  return new Error(`Plugin binding API binding missing for \`${method}\`.`)
+}
+
+function requireBinding<TBinding>(binding: TBinding | undefined, method: string): TBinding {
+  if (!binding) {
+    throw createMissingBindingError(method)
+  }
+
+  return binding
+}

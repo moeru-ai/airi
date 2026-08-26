@@ -6,27 +6,27 @@ import { cloneDeep } from 'es-toolkit'
 
 export interface ChatDataAccess {
   getActiveSessionId: () => string
-  setActiveSessionId: (sessionId: string) => void
-  getSessions: () => Record<string, ChatHistoryItem[]>
-  setSessions: (sessions: Record<string, ChatHistoryItem[]>) => void
   getGenerations: () => Record<string, number>
+  getSessions: () => Record<string, ChatHistoryItem[]>
+  setActiveSessionId: (sessionId: string) => void
   setGenerations: (generations: Record<string, number>) => void
+  setSessions: (sessions: Record<string, ChatHistoryItem[]>) => void
 }
 
 export interface ChatDataStore {
+  bumpSessionGeneration: (sessionId: string) => number
   ensureSession: (sessionId: string, createInitialMessage: () => SystemMessage) => void
-  getSessionMessages: (sessionId: string, createInitialMessage: () => SystemMessage) => ChatHistoryItem[]
-  setSessionMessages: (sessionId: string, next: ChatHistoryItem[]) => void
-  setActiveSession: (sessionId: string, createInitialMessage: () => SystemMessage) => void
   getActiveSessionId: () => string
-  resetSession: (sessionId: string, createInitialMessage: () => SystemMessage) => void
+  getAllSessions: () => Record<string, ChatHistoryItem[]>
+  getSessionGeneration: (sessionId: string) => number
+  getSessionGenerationValue: (sessionId?: string) => number
+  getSessionMessages: (sessionId: string, createInitialMessage: () => SystemMessage) => ChatHistoryItem[]
   refreshSystemMessages: (createInitialMessage: () => SystemMessage) => void
   replaceSessions: (sessions: Record<string, ChatHistoryItem[]>, createInitialMessage: () => SystemMessage) => void
   resetAllSessions: (createInitialMessage: () => SystemMessage) => void
-  getAllSessions: () => Record<string, ChatHistoryItem[]>
-  getSessionGeneration: (sessionId: string) => number
-  bumpSessionGeneration: (sessionId: string) => number
-  getSessionGenerationValue: (sessionId?: string) => number
+  resetSession: (sessionId: string, createInitialMessage: () => SystemMessage) => void
+  setActiveSession: (sessionId: string, createInitialMessage: () => SystemMessage) => void
+  setSessionMessages: (sessionId: string, next: ChatHistoryItem[]) => void
 }
 
 export function createChatDataStore(access: ChatDataAccess): ChatDataStore {
@@ -129,18 +129,18 @@ export function createChatDataStore(access: ChatDataAccess): ChatDataStore {
   }
 
   return {
+    bumpSessionGeneration,
     ensureSession,
-    getSessionMessages,
-    setSessionMessages,
-    setActiveSession,
     getActiveSessionId,
-    resetSession,
+    getAllSessions,
+    getSessionGeneration,
+    getSessionGenerationValue,
+    getSessionMessages,
     refreshSystemMessages,
     replaceSessions,
     resetAllSessions,
-    getAllSessions,
-    getSessionGeneration,
-    bumpSessionGeneration,
-    getSessionGenerationValue,
+    resetSession,
+    setActiveSession,
+    setSessionMessages,
   }
 }

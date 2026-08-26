@@ -1,11 +1,11 @@
 import { defineConfig } from 'tsdown'
 
 export default defineConfig({
+  dts: true,
   entry: {
-    'index': 'src/index.ts',
     'client/crossws': 'src/client/crossws/index.ts',
+    'index': 'src/index.ts',
     'server': 'src/server/index.ts',
     'server/h3': 'src/server/h3/index.ts',
   },
-  dts: true,
 })

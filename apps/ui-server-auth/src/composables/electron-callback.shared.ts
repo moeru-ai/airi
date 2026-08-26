@@ -1,14 +1,14 @@
 export type ElectronCallbackParseResult
   = | {
-    status: 'ready'
     code: string
     port: string
-    state: string
     relayUrl: string
+    state: string
+    status: 'ready'
   }
   | {
-    status: 'error'
     message: string
+    status: 'error'
   }
 
 export function buildElectronLoopbackUrl(params: {

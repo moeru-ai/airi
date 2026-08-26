@@ -1,12 +1,12 @@
 import type { ChatHistoryItem } from './chat'
 
+export interface ChatCharacterSessionsIndex {
+  activeSessionId: string
+  sessions: Record<string, ChatSessionMeta>
+}
+
 export interface ChatSessionMeta {
-  sessionId: string
-  userId: string
   characterId: string
-  title?: string
-  createdAt: number
-  updatedAt: number
   /**
    * Cloud chat id assigned by the server once this session is mirrored to the
    * `chats` table. Set during cloud reconcile, persisted across reloads. When
@@ -21,25 +21,25 @@ export interface ChatSessionMeta {
    * @default undefined
    */
   cloudMaxSeq?: number
+  createdAt: number
+  sessionId: string
+  title?: string
+  updatedAt: number
+  userId: string
 }
 
 export interface ChatSessionRecord {
-  meta: ChatSessionMeta
   messages: ChatHistoryItem[]
-}
-
-export interface ChatCharacterSessionsIndex {
-  activeSessionId: string
-  sessions: Record<string, ChatSessionMeta>
-}
-
-export interface ChatSessionsIndex {
-  userId: string
-  characters: Record<string, ChatCharacterSessionsIndex>
+  meta: ChatSessionMeta
 }
 
 export interface ChatSessionsExport {
   format: 'chat-sessions-index:v1'
   index: ChatSessionsIndex
   sessions: Record<string, ChatSessionRecord>
+}
+
+export interface ChatSessionsIndex {
+  characters: Record<string, ChatCharacterSessionsIndex>
+  userId: string
 }

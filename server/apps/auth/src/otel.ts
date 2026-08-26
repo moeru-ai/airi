@@ -9,24 +9,24 @@ const logger = useLogger('otel')
 export interface AuthMetrics {
   attempts: Counter
   failures: Counter
-  userRegistered: Counter
   userLogin: Counter
-}
-
-export interface EmailMetrics {
-  send: Counter
-  failures: Counter
-  duration: Histogram
-}
-
-export interface RateLimitMetrics {
-  blocked: Counter
+  userRegistered: Counter
 }
 
 export interface AuthOtelInstance {
   auth: AuthMetrics
   email: EmailMetrics
   rateLimit: RateLimitMetrics
+}
+
+export interface EmailMetrics {
+  duration: Histogram
+  failures: Counter
+  send: Counter
+}
+
+export interface RateLimitMetrics {
+  blocked: Counter
 }
 
 /** Builds the metric handles owned by the standalone auth process. */
@@ -40,13 +40,13 @@ export function initAuthOtel(env: { OTEL_EXPORTER_OTLP_ENDPOINT?: string, OTEL_S
   const auth: AuthMetrics = {
     attempts: meter.createCounter('auth.attempts', { description: 'Number of authentication attempts' }),
     failures: meter.createCounter('auth.failures', { description: 'Number of failed authentication attempts' }),
-    userRegistered: meter.createCounter('user.registered', { description: 'Number of new user registrations' }),
     userLogin: meter.createCounter('user.login', { description: 'Number of user sign-ins' }),
+    userRegistered: meter.createCounter('user.registered', { description: 'Number of new user registrations' }),
   }
   const email: EmailMetrics = {
-    send: meter.createCounter('airi.email.send', { description: 'Transactional emails accepted by Resend' }),
-    failures: meter.createCounter('airi.email.failures', { description: 'Transactional email send failures' }),
     duration: meter.createHistogram('airi.email.duration', { description: 'Email provider call duration', unit: 's' }),
+    failures: meter.createCounter('airi.email.failures', { description: 'Transactional email send failures' }),
+    send: meter.createCounter('airi.email.send', { description: 'Transactional emails accepted by Resend' }),
   }
   const rateLimit: RateLimitMetrics = {
     blocked: meter.createCounter('airi.rate_limit.blocked', { description: 'Requests blocked by the auth rate limiter' }),
@@ -66,11 +66,11 @@ export function initAuthOtel(env: { OTEL_EXPORTER_OTLP_ENDPOINT?: string, OTEL_S
 
 const severityMap: Record<string, SeverityNumber> = {
   debug: SeverityNumber.DEBUG,
-  verbose: SeverityNumber.TRACE,
-  log: SeverityNumber.INFO,
-  info: SeverityNumber.INFO,
-  warn: SeverityNumber.WARN,
   error: SeverityNumber.ERROR,
+  info: SeverityNumber.INFO,
+  log: SeverityNumber.INFO,
+  verbose: SeverityNumber.TRACE,
+  warn: SeverityNumber.WARN,
 }
 
 /** Emits a log record through the auth process's global OTel provider. */
@@ -78,16 +78,16 @@ export function emitOtelLog(
   level: string,
   context: string,
   message: string,
-  attributes?: Record<string, string | number | boolean>,
+  attributes?: Record<string, boolean | number | string>,
 ): void {
   const spanContext = trace.getActiveSpan()?.spanContext()
   logs.getLogger(context).emit({
-    severityNumber: severityMap[level.toLowerCase()] ?? SeverityNumber.INFO,
-    severityText: level.toUpperCase(),
-    body: message,
     attributes: {
       ...attributes,
-      ...(spanContext && { trace_id: spanContext.traceId, span_id: spanContext.spanId }),
+      ...(spanContext && { span_id: spanContext.spanId, trace_id: spanContext.traceId }),
     },
+    body: message,
+    severityNumber: severityMap[level.toLowerCase()] ?? SeverityNumber.INFO,
+    severityText: level.toUpperCase(),
   })
 }

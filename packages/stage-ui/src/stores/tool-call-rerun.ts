@@ -7,13 +7,13 @@ import { errorMessageFrom } from '@moeru/std'
 import { toolNameFrom } from './ai/chat-llm/tool-resolver'
 
 export interface ToolCallRerunPayload<TToolset extends string = string> {
-  sessionId?: string
-  messageId?: string
+  args: string
   index?: number
-  toolset?: TToolset
+  messageId?: string
+  sessionId?: string
   toolCallId: string
   toolName: string
-  args: string
+  toolset?: TToolset
 }
 
 interface ExecuteToolCallRerunOptions<TToolset extends string = string> {
@@ -24,49 +24,6 @@ interface ExecuteToolCallRerunOptions<TToolset extends string = string> {
 
 type ToolCallResultInput = Omit<ChatSlicesToolCallResult, 'type'>
 type ToolExecuteOptions = NonNullable<Parameters<Tool['execute']>[1]>
-
-/**
- * Returns a copy of an assistant message with the result for one tool call replaced.
- *
- * The chat UI can read results from `tool_results` or inline `tool-call-result`
- * slices. Reruns update both representations for the same id so stored and
- * inline messages stay consistent.
- */
-export function replaceToolCallResult(message: ChatAssistantMessage, result: ToolCallResultInput): ChatAssistantMessage {
-  const toolResult = {
-    id: result.id,
-    isError: result.isError,
-    result: result.result,
-  }
-  const resultSlice: ChatSlicesToolCallResult = {
-    type: 'tool-call-result',
-    ...toolResult,
-  }
-
-  return {
-    ...message,
-    providerTranscript: message.providerTranscript?.map((providerMessage) => {
-      if (providerMessage.role === 'tool' && providerMessage.tool_call_id === result.id) {
-        return {
-          ...providerMessage,
-          content: result.result ?? '',
-        }
-      }
-
-      return providerMessage
-    }),
-    slices: message.slices.map((slice) => {
-      if (slice.type === 'tool-call-result' && slice.id === result.id)
-        return resultSlice
-
-      return slice
-    }),
-    tool_results: [
-      ...message.tool_results.filter(item => item.id !== result.id),
-      toolResult,
-    ],
-  }
-}
 
 /**
  * Re-executes a stored tool call with supplied arguments and returns updated chat history.
@@ -123,8 +80,8 @@ export async function executeToolCallRerun<TToolset extends string = string>(
     // Removal condition: xsai exposes a tool execution context type that can
     // accept runtime-owned message envelopes.
     const executeOptions: ToolExecuteOptions = {
-      toolCallId: payload.toolCallId,
       messages,
+      toolCallId: payload.toolCallId,
     } as ToolExecuteOptions
     const result = await tool.execute(parsedArgs.value, executeOptions)
     const normalizedResult = typeof result === 'string' || Array.isArray(result)
@@ -142,6 +99,49 @@ export async function executeToolCallRerun<TToolset extends string = string>(
       isError: true,
       result: `Tool call error for "${payload.toolName}": ${errorMessageFrom(error) ?? String(error)}`,
     })
+  }
+}
+
+/**
+ * Returns a copy of an assistant message with the result for one tool call replaced.
+ *
+ * The chat UI can read results from `tool_results` or inline `tool-call-result`
+ * slices. Reruns update both representations for the same id so stored and
+ * inline messages stay consistent.
+ */
+export function replaceToolCallResult(message: ChatAssistantMessage, result: ToolCallResultInput): ChatAssistantMessage {
+  const toolResult = {
+    id: result.id,
+    isError: result.isError,
+    result: result.result,
+  }
+  const resultSlice: ChatSlicesToolCallResult = {
+    type: 'tool-call-result',
+    ...toolResult,
+  }
+
+  return {
+    ...message,
+    providerTranscript: message.providerTranscript?.map((providerMessage) => {
+      if (providerMessage.role === 'tool' && providerMessage.tool_call_id === result.id) {
+        return {
+          ...providerMessage,
+          content: result.result ?? '',
+        }
+      }
+
+      return providerMessage
+    }),
+    slices: message.slices.map((slice) => {
+      if (slice.type === 'tool-call-result' && slice.id === result.id)
+        return resultSlice
+
+      return slice
+    }),
+    tool_results: [
+      ...message.tool_results.filter(item => item.id !== result.id),
+      toolResult,
+    ],
   }
 }
 
@@ -166,7 +166,7 @@ function hasMatchingToolCall(message: ChatAssistantMessage, payload: ToolCallRer
   )
 }
 
-function parseToolCallArgs(args: string): { ok: true, value: unknown } | { ok: false, message: string } {
+function parseToolCallArgs(args: string): { message: string, ok: false } | { ok: true, value: unknown } {
   const trimmedArgs = args.trim()
   if (trimmedArgs === '')
     return { ok: true, value: {} }
@@ -175,6 +175,6 @@ function parseToolCallArgs(args: string): { ok: true, value: unknown } | { ok: f
     return { ok: true, value: JSON.parse(trimmedArgs) as unknown }
   }
   catch (error) {
-    return { ok: false, message: errorMessageFrom(error) ?? String(error) }
+    return { message: errorMessageFrom(error) ?? String(error), ok: false }
   }
 }

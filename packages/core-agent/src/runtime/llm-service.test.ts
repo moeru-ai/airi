@@ -29,14 +29,14 @@ const provider = {
 
 function createMockStreamResult(
   steps: Promise<unknown[]> = Promise.resolve([]),
-  totalUsage: Promise<{ inputTokens: number, outputTokens: number, totalTokens: number } | undefined> = Promise.resolve(undefined),
+  totalUsage: Promise<undefined | { inputTokens: number, outputTokens: number, totalTokens: number }> = Promise.resolve(undefined),
   messages: Promise<Message[]> = Promise.resolve([]),
 ) {
   return {
-    steps,
     messages,
-    usage: Promise.resolve(undefined),
+    steps,
     totalUsage,
+    usage: Promise.resolve(undefined),
   }
 }
 
@@ -48,20 +48,20 @@ describe('streamFrom tool errors', () => {
   it('emits the final xsAI messages after all tool rounds finish', async () => {
     const onMessages = vi.fn()
     const finalMessages: Message[] = [
-      { role: 'user', content: 'Check the weather.' },
+      { content: 'Check the weather.', role: 'user' },
       {
-        role: 'assistant',
         content: '',
+        role: 'assistant',
         tool_calls: [
           {
+            function: { arguments: '{}', name: 'weather' },
             id: 'call-weather',
             type: 'function',
-            function: { name: 'weather', arguments: '{}' },
           },
         ],
       },
-      { role: 'tool', tool_call_id: 'call-weather', content: 'sunny' },
-      { role: 'assistant', content: 'The weather is sunny.' },
+      { content: 'sunny', role: 'tool', tool_call_id: 'call-weather' },
+      { content: 'The weather is sunny.', role: 'assistant' },
     ]
     streamTextMock.mockReturnValueOnce(createMockStreamResult(
       Promise.resolve([]),
@@ -70,9 +70,9 @@ describe('streamFrom tool errors', () => {
     ))
 
     await streamFrom({
-      model: 'model-a',
       chatProvider: provider,
       messages: finalMessages.slice(0, 1),
+      model: 'model-a',
       options: { onMessages },
     })
 
@@ -101,14 +101,14 @@ describe('streamFrom tool errors', () => {
     // We mark steps settled before awaiting the final transcript, while still
     // treating transcript persistence failures as real stream failures.
     const pending = streamFrom({
-      model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      messages: [{ content: 'hello', role: 'user' }] as Message[],
+      model: 'model-a',
     })
 
     await vi.waitFor(() => expect(onEvent).toBeTypeOf('function'))
     await Promise.resolve()
-    await onEvent!({ type: 'error', message: 'stream failed', cause: new Error('stream failed') })
+    await onEvent!({ cause: new Error('stream failed'), message: 'stream failed', type: 'error' })
     resolveMessages?.([])
 
     await expect(pending).resolves.toBeUndefined()
@@ -122,9 +122,9 @@ describe('streamFrom tool errors', () => {
     ))
 
     await streamFrom({
-      model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      messages: [{ content: 'hello', role: 'user' }] as Message[],
+      model: 'model-a',
       options: { onUsage },
     })
 
@@ -135,8 +135,8 @@ describe('streamFrom tool errors', () => {
     expect(onUsage).toHaveBeenCalledWith({
       inputTokens: 12,
       outputTokens: 8,
-      totalTokens: 20,
       source: 'reported',
+      totalTokens: 20,
     })
   })
 
@@ -145,9 +145,9 @@ describe('streamFrom tool errors', () => {
     streamTextMock.mockReturnValueOnce(createMockStreamResult())
 
     await streamFrom({
-      model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      messages: [{ content: 'hello', role: 'user' }] as Message[],
+      model: 'model-a',
       options: { onUsage },
     })
 
@@ -162,9 +162,9 @@ describe('streamFrom tool errors', () => {
     ))
 
     await streamFrom({
-      model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      messages: [{ content: 'hello', role: 'user' }] as Message[],
+      model: 'model-a',
       options: { onUsage },
     })
 
@@ -187,9 +187,9 @@ describe('streamFrom tool errors', () => {
 
     try {
       await expect(streamFrom({
-        model: 'model-a',
         chatProvider: provider,
-        messages: [{ role: 'user', content: 'hello' }] as Message[],
+        messages: [{ content: 'hello', role: 'user' }] as Message[],
+        model: 'model-a',
       })).rejects.toThrow('provider stream failed')
       await new Promise(resolve => setImmediate(resolve))
       expect(unhandledRejections).toEqual([])
@@ -203,9 +203,9 @@ describe('streamFrom tool errors', () => {
     streamTextMock.mockReturnValueOnce(createMockStreamResult())
 
     await expect(streamFrom({
-      model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      messages: [{ content: 'hello', role: 'user' }] as Message[],
+      model: 'model-a',
       options: {
         onUsage: () => {
           throw new Error('analytics unavailable')
@@ -218,15 +218,15 @@ describe('streamFrom tool errors', () => {
     let resolveSteps: ((steps: unknown[]) => void) | undefined
     const events: unknown[] = []
     const failingTool = {
-      type: 'function',
-      function: {
-        name: 'play_chess',
-        description: 'Start chess.',
-        parameters: { type: 'object', properties: {} },
-      },
       execute: vi.fn(() => {
         throw new Error('Focus mode does not accept game-state mutation inputs.')
       }),
+      function: {
+        description: 'Start chess.',
+        name: 'play_chess',
+        parameters: { properties: {}, type: 'object' },
+      },
+      type: 'function',
     } satisfies Tool
 
     streamTextMock.mockImplementationOnce((options: {
@@ -240,14 +240,14 @@ describe('streamFrom tool errors', () => {
 
       queueMicrotask(async () => {
         await options.onEvent({
-          type: 'tool-result.done',
           args: {},
           isError: true,
           result: 'Tool "play_chess" execution failed: Focus mode does not accept game-state mutation inputs.',
           toolCallId: 'call-1',
           toolName: 'play_chess',
+          type: 'tool-result.done',
         })
-        await options.onEvent({ type: 'text.delta', delta: 'ok' })
+        await options.onEvent({ delta: 'ok', type: 'text.delta' })
         resolveSteps?.([])
       })
 
@@ -255,14 +255,14 @@ describe('streamFrom tool errors', () => {
     })
 
     await streamFrom({
-      model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'play chess' }] as Message[],
+      messages: [{ content: 'play chess', role: 'user' }] as Message[],
+      model: 'model-a',
       options: {
-        tools: [failingTool],
         onStreamEvent: (event) => {
           events.push(event)
         },
+        tools: [failingTool],
       },
     })
 
@@ -271,14 +271,14 @@ describe('streamFrom tool errors', () => {
     expect(streamOptions.tools?.[0]).toBe(failingTool)
     expect(failingTool.execute).not.toHaveBeenCalled()
     expect(events).toContainEqual({
-      type: 'tool-error',
       args: {},
       isError: true,
       result: 'Tool "play_chess" execution failed: Focus mode does not accept game-state mutation inputs.',
       toolCallId: 'call-1',
       toolName: 'play_chess',
+      type: 'tool-error',
     })
-    expect(events).toContainEqual({ type: 'text-delta', text: 'ok' })
+    expect(events).toContainEqual({ text: 'ok', type: 'text-delta' })
     expect(events).toContainEqual({ type: 'finish' })
   })
 
@@ -286,9 +286,9 @@ describe('streamFrom tool errors', () => {
     streamTextMock.mockReturnValueOnce(createMockStreamResult())
 
     await expect(streamFrom({
-      model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      messages: [{ content: 'hello', role: 'user' }] as Message[],
+      model: 'model-a',
       options: {
         onStreamEvent: async (event) => {
           if (event.type === 'finish')
@@ -306,9 +306,9 @@ describe('sanitizeMessages', () => {
      * sanitizeMessages([{ role: 'error', content: 'Remote sent 400' }])
      * // -> [{ role: 'user', content: 'User encountered error: Remote sent 400' }]
      */
-    const out = sanitizeMessages([{ role: 'error', content: 'Remote sent 400' }])
+    const out = sanitizeMessages([{ content: 'Remote sent 400', role: 'error' }])
     expect(out).toEqual([
-      { role: 'user', content: 'User encountered error: Remote sent 400' },
+      { content: 'User encountered error: Remote sent 400', role: 'user' },
     ])
   })
 
@@ -322,13 +322,13 @@ describe('sanitizeMessages', () => {
      * // -> [{ role: 'user', content: 'hi there' }]
      */
     const out = sanitizeMessages([{
-      role: 'user',
       content: [
-        { type: 'text', text: 'hi' },
-        { type: 'text', text: ' there' },
+        { text: 'hi', type: 'text' },
+        { text: ' there', type: 'text' },
       ],
+      role: 'user',
     }])
-    expect(out).toEqual([{ role: 'user', content: 'hi there' }])
+    expect(out).toEqual([{ content: 'hi there', role: 'user' }])
   })
 
   it('preserves multimodal arrays when supportsContentArray is true (default)', () => {
@@ -338,11 +338,11 @@ describe('sanitizeMessages', () => {
      * // -> unchanged: image_url part stays so vision-capable providers receive the image
      */
     const message = {
-      role: 'user',
       content: [
-        { type: 'text', text: 'see this' },
-        { type: 'image_url', image_url: { url: 'data:image/png;base64,AAA' } },
+        { text: 'see this', type: 'text' },
+        { image_url: { url: 'data:image/png;base64,AAA' }, type: 'image_url' },
       ],
+      role: 'user',
     }
     const out = sanitizeMessages([message])
     expect(out[0]).toEqual(message)
@@ -372,14 +372,14 @@ describe('sanitizeMessages', () => {
      */
     const out = sanitizeMessages([
       {
-        role: 'user',
         content: [
-          { type: 'text', text: 'hi' },
-          { type: 'image_url', image_url: { url: 'data:image/png;base64,AAA' } },
+          { text: 'hi', type: 'text' },
+          { image_url: { url: 'data:image/png;base64,AAA' }, type: 'image_url' },
         ],
+        role: 'user',
       },
     ], false)
-    expect(out).toEqual([{ role: 'user', content: 'hi' }])
+    expect(out).toEqual([{ content: 'hi', role: 'user' }])
   })
 
   it('issue #1500: drops audio/file parts when supportsContentArray=false', () => {
@@ -390,22 +390,22 @@ describe('sanitizeMessages', () => {
      */
     const out = sanitizeMessages([
       {
-        role: 'user',
         content: [
-          { type: 'text', text: 'q' },
-          { type: 'input_audio', input_audio: { data: 'AAA', format: 'wav' } },
-          { type: 'file', file: { file_id: 'f_1' } },
+          { text: 'q', type: 'text' },
+          { input_audio: { data: 'AAA', format: 'wav' }, type: 'input_audio' },
+          { file: { file_id: 'f_1' }, type: 'file' },
         ],
+        role: 'user',
       },
     ], false)
-    expect(out).toEqual([{ role: 'user', content: 'q' }])
+    expect(out).toEqual([{ content: 'q', role: 'user' }])
   })
 
   it('passes string content through untouched regardless of the flag', () => {
-    expect(sanitizeMessages([{ role: 'user', content: 'plain' }], true))
-      .toEqual([{ role: 'user', content: 'plain' }])
-    expect(sanitizeMessages([{ role: 'user', content: 'plain' }], false))
-      .toEqual([{ role: 'user', content: 'plain' }])
+    expect(sanitizeMessages([{ content: 'plain', role: 'user' }], true))
+      .toEqual([{ content: 'plain', role: 'user' }])
+    expect(sanitizeMessages([{ content: 'plain', role: 'user' }], false))
+      .toEqual([{ content: 'plain', role: 'user' }])
   })
 })
 

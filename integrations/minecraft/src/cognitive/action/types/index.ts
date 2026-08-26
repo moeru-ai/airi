@@ -3,8 +3,8 @@
  * All actions are tool invocations with a tool name and parameters.
  */
 export interface ActionInstruction {
-  tool: string
   params: Record<string, unknown>
+  tool: string
 }
 
 /**
@@ -12,6 +12,6 @@ export interface ActionInstruction {
  */
 export interface PlanStep {
   description: string
-  tool: string
   params: Record<string, unknown>
+  tool: string
 }

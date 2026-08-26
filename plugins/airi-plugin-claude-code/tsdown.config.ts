@@ -2,11 +2,11 @@ import { defineConfig } from 'tsdown'
 
 export default defineConfig([
   {
+    dts: true,
     entry: ['./src/run.ts'],
     inlineOnly: [],
     platform: 'node',
-    dts: true,
-    unused: true,
     publint: true,
+    unused: true,
   },
 ])

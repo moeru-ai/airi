@@ -40,13 +40,13 @@ export interface GameletKitService {
 
 export function createGameletKit(options: { service: GameletKitService }) {
   return defineKit<GameletClient>({
-    id: 'kit.gamelet',
-    version: '1.0.0',
     createClient(runtime) {
       return {
         mount: input => options.service.mount(input, runtime),
       }
     },
+    id: 'kit.gamelet',
+    version: '1.0.0',
   })
 }
 ```

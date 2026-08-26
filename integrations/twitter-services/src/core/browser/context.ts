@@ -23,10 +23,10 @@ export async function initBrowser(config: Config) {
   })
 
   const context = await browser.newContext({
+    bypassCSP: true,
     storageState: await useSessionFileAsync(),
     userAgent: config.browser.userAgent,
     viewport: config.browser.viewport,
-    bypassCSP: true,
   })
 
   context.setDefaultTimeout(config.browser.timeout || 30000)
@@ -34,6 +34,14 @@ export async function initBrowser(config: Config) {
 
   logger.main.log('Browser initialized')
   ctxInstance = { browser, context, page }
+}
+
+export function useContext(): Context {
+  if (!ctxInstance) {
+    throw new Error('Context not initialized')
+  }
+
+  return ctxInstance
 }
 
 export async function useSessionFileAsync(): Promise<string> {
@@ -59,12 +67,4 @@ export async function useSessionFileAsync(): Promise<string> {
   }
 
   return TWITTER_SESSION_FILE
-}
-
-export function useContext(): Context {
-  if (!ctxInstance) {
-    throw new Error('Context not initialized')
-  }
-
-  return ctxInstance
 }

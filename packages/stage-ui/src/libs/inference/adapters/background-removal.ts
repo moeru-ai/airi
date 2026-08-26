@@ -43,11 +43,11 @@ export interface BackgroundRemovalAdapter {
     options?: { signal?: AbortSignal },
   ) => Promise<ImageData>
 
+  /** Current state */
+  readonly state: 'error' | 'idle' | 'loading' | 'processing' | 'ready' | 'terminated'
+
   /** Terminate the worker */
   terminate: () => void
-
-  /** Current state */
-  readonly state: 'idle' | 'loading' | 'ready' | 'processing' | 'error' | 'terminated'
 }
 
 // ---------------------------------------------------------------------------
@@ -62,7 +62,7 @@ const PROCESS_TIMEOUT = TIMEOUTS.BG_REMOVAL_PROCESS
 // ---------------------------------------------------------------------------
 
 export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
-  let worker: Worker | null = null
+  let worker: null | Worker = null
   let state: BackgroundRemovalAdapter['state'] = 'idle'
   let allocationToken: AllocationToken | null = null
   let errorListener: ((event: Event) => void) | null = null
@@ -150,13 +150,13 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
       if (signal) {
         if (signal.aborted) {
           cleanup()
-          w.postMessage({ type: 'cancel', requestId: createRequestId(), targetRequestId: requestId })
+          w.postMessage({ requestId: createRequestId(), targetRequestId: requestId, type: 'cancel' })
           reject(new InferenceAbortError(typeof signal.reason === 'string' ? signal.reason : undefined))
           return
         }
         abortListener = () => {
           cleanup()
-          w.postMessage({ type: 'cancel', requestId: createRequestId(), targetRequestId: requestId })
+          w.postMessage({ requestId: createRequestId(), targetRequestId: requestId, type: 'cancel' })
           const reason = signal.reason
           reject(reason instanceof Error ? reason : new InferenceAbortError(typeof reason === 'string' ? reason : undefined))
         }
@@ -173,7 +173,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
     return operationMutex.runExclusive(async () => {
       throwIfAborted(options?.signal)
       state = 'loading'
-      updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { state: 'downloading', device: 'webgpu' })
+      updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { device: 'webgpu', state: 'downloading' })
 
       return getLoadQueue().enqueue(MODEL_NAMES.BG_REMOVAL, LOAD_PRIORITY.BACKGROUND_REMOVAL, async () => {
         throwIfAborted(options?.signal)
@@ -184,17 +184,17 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
           if (data.type === 'progress' && onProgress) {
             const payload = data.payload
             onProgress({
-              phase: payload.phase ?? 'download',
-              percent: payload.percent ?? -1,
-              message: payload.message,
               file: payload.file,
               loaded: payload.loaded,
+              message: payload.message,
+              percent: payload.percent ?? -1,
+              phase: payload.phase ?? 'download',
               total: payload.total,
             })
           }
         }, options?.signal)
 
-        w.postMessage({ type: 'load-model', requestId, modelId: MODEL_IDS.BG_REMOVAL, device: 'webgpu' })
+        w.postMessage({ device: 'webgpu', modelId: MODEL_IDS.BG_REMOVAL, requestId, type: 'load-model' })
 
         let loadedResponse: any
         try {
@@ -219,7 +219,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
         )
 
         state = 'ready'
-        updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { state: 'ready', device: actualDevice })
+        updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { device: actualDevice, state: 'ready' })
       }, { signal: options?.signal })
     })
   }
@@ -250,13 +250,13 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
       const pixelsCopy = new Uint8ClampedArray(imageData.data)
       worker.postMessage(
         {
-          type: 'run-inference',
-          requestId,
           input: {
+            height: imageData.height,
             imageData: pixelsCopy,
             width: imageData.width,
-            height: imageData.height,
           },
+          requestId,
+          type: 'run-inference',
         },
         [pixelsCopy.buffer],
       )
@@ -283,7 +283,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
 
       state = 'ready'
       return output
-    }), { width: imageData.width, height: imageData.height })
+    }), { height: imageData.height, width: imageData.width })
   }
 
   function terminateAdapter(): void {
@@ -300,7 +300,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
   return {
     load,
     processImage,
-    terminate: terminateAdapter,
     get state() { return state },
+    terminate: terminateAdapter,
   }
 }

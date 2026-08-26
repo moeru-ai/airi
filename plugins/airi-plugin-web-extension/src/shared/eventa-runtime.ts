@@ -9,9 +9,9 @@ const runtimeInstanceId = nanoid()
 interface EventaRuntimeMessage {
   __eventa: true
   channel: string
+  detail?: unknown
   sourceId: string
   type?: string
-  detail?: unknown
 }
 
 type RuntimeEventListener = (event: Event) => void
@@ -35,30 +35,30 @@ class RuntimeEventTarget implements EventTarget {
     this.listeners.get(type)?.set(listener, handler)
   }
 
-  removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null) {
-    if (!listener)
-      return
-
-    this.listeners.get(type)?.delete(listener)
-  }
-
   dispatchEvent(event: Event) {
     const detail = 'detail' in event ? (event as CustomEvent).detail : undefined
     this.send({
       __eventa: true,
       channel: EVENTA_RUNTIME_CHANNEL,
+      detail,
       sourceId: runtimeInstanceId,
       type: event.type,
-      detail,
     })
 
     return true
   }
 
   emit(type: string, detail?: unknown) {
-    const event = { type, detail } as CustomEvent
+    const event = { detail, type } as CustomEvent
     for (const listener of this.listeners.get(type)?.values() ?? [])
       listener(event)
+  }
+
+  removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null) {
+    if (!listener)
+      return
+
+    this.listeners.get(type)?.delete(listener)
   }
 }
 
@@ -68,8 +68,8 @@ export function createRuntimeEventaContext() {
   })
 
   const { context, dispose } = createContext(eventTarget, {
-    messageEventName: EVENTA_MESSAGE_EVENT,
     errorEventName: false,
+    messageEventName: EVENTA_MESSAGE_EVENT,
   })
 
   const runtimeListener = (message: unknown) => {

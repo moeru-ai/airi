@@ -13,36 +13,32 @@ import * as schema from '../../schemas/chats'
 
 const logger = useLogger('chats')
 
-type ChatType = 'private' | 'bot' | 'group' | 'channel'
-type ChatMemberType = 'user' | 'character' | 'bot'
+export type ChatService = ReturnType<typeof createChatService>
+type ChatMemberType = 'bot' | 'character' | 'user'
+
+type ChatType = 'bot' | 'channel' | 'group' | 'private'
 
 interface CreateChatPayload {
   id?: string
-  type?: ChatType
+  members?: { characterId?: string, type: ChatMemberType, userId?: string }[]
   title?: string
-  members?: { type: ChatMemberType, userId?: string, characterId?: string }[]
-}
-
-interface PushMessage {
-  id: string
-  role: string
-  content: string
+  type?: ChatType
 }
 
 // ---------------------------------------------------------------------------
 // Pure helpers (exported for testing)
 // ---------------------------------------------------------------------------
 
+interface PushMessage {
+  content: string
+  id: string
+  role: string
+}
+
 export function clampLimit(limit?: number): number {
   if (!limit || limit <= 0)
     return 100
   return Math.min(limit, 500)
-}
-
-export function resolveSenderId(role: string, userId: string): string | null {
-  if (role === 'user' || role === 'assistant')
-    return userId
-  return null
 }
 
 // ---------------------------------------------------------------------------
@@ -67,7 +63,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
       ),
     })
     if (!member) {
-      logger.withFields({ userId, chatId }).warn('User not a member of chat, forbidden')
+      logger.withFields({ chatId, userId }).warn('User not a member of chat, forbidden')
       throw createForbiddenError()
     }
 
@@ -79,100 +75,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
   return {
     // -- Chat management (REST) ---------------------------------------------
 
-    async createChat(userId: string, payload: CreateChatPayload) {
-      return db.transaction(async (tx) => {
-        const chatId = payload.id ?? nanoid()
-        const now = new Date()
-
-        await tx.insert(schema.chats).values({
-          id: chatId,
-          type: payload.type ?? 'group',
-          title: payload.title ?? null,
-          createdAt: now,
-          updatedAt: now,
-        })
-
-        // Always add creator as a user member
-        await tx.insert(schema.chatMembers).values({
-          chatId,
-          memberType: 'user',
-          userId,
-          characterId: null,
-        })
-
-        // Add additional members if provided
-        if (payload.members && payload.members.length > 0) {
-          const extra = payload.members
-            .filter(m => m.type !== 'user' || m.userId !== userId) // skip duplicate creator
-            .map(m => ({
-              chatId,
-              memberType: m.type,
-              userId: m.type === 'user' ? (m.userId ?? null) : null,
-              characterId: m.type !== 'user' ? (m.characterId ?? null) : null,
-            }))
-
-          if (extra.length > 0) {
-            await tx.insert(schema.chatMembers).values(extra)
-          }
-        }
-
-        return { id: chatId, type: payload.type ?? 'group', title: payload.title ?? null, createdAt: now, updatedAt: now }
-      })
-    },
-
-    async getChat(userId: string, chatId: string) {
-      return db.transaction(async (tx) => {
-        const chat = await verifyMembership(tx, chatId, userId)
-        const members = await tx.query.chatMembers.findMany({
-          where: eq(schema.chatMembers.chatId, chatId),
-        })
-        return { ...chat, members }
-      })
-    },
-
-    async listChats(userId: string) {
-      const rows = await db
-        .select({ chat: schema.chats })
-        .from(schema.chatMembers)
-        .innerJoin(schema.chats, eq(schema.chatMembers.chatId, schema.chats.id))
-        .where(and(
-          eq(schema.chatMembers.memberType, 'user'),
-          eq(schema.chatMembers.userId, userId),
-          isNull(schema.chats.deletedAt),
-        ))
-
-      return rows.map(r => r.chat)
-    },
-
-    async updateChat(userId: string, chatId: string, updates: { title?: string }) {
-      return db.transaction(async (tx) => {
-        await verifyMembership(tx, chatId, userId)
-        const now = new Date()
-
-        const [updated] = await tx.update(schema.chats)
-          .set({ ...updates, updatedAt: now })
-          .where(eq(schema.chats.id, chatId))
-          .returning()
-
-        return updated
-      })
-    },
-
-    async deleteChat(userId: string, chatId: string) {
-      return db.transaction(async (tx) => {
-        await verifyMembership(tx, chatId, userId)
-        const now = new Date()
-
-        const [deleted] = await tx.update(schema.chats)
-          .set({ deletedAt: now, updatedAt: now })
-          .where(eq(schema.chats.id, chatId))
-          .returning()
-
-        return deleted
-      })
-    },
-
-    async addMember(userId: string, chatId: string, member: { type: ChatMemberType, userId?: string, characterId?: string }) {
+    async addMember(userId: string, chatId: string, member: { characterId?: string, type: ChatMemberType, userId?: string }) {
       // TODO: Push these invariants up into the HTTP schema and convert failures to API errors instead of generic Error.
       // Validate that user-type members have a userId and non-user members have a characterId
       if (member.type === 'user' && !member.userId) {
@@ -186,164 +89,55 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
         await verifyMembership(tx, chatId, userId)
 
         const [added] = await tx.insert(schema.chatMembers).values({
+          characterId: member.type !== 'user' ? (member.characterId ?? null) : null,
           chatId,
           memberType: member.type,
           userId: member.type === 'user' ? (member.userId ?? null) : null,
-          characterId: member.type !== 'user' ? (member.characterId ?? null) : null,
         }).returning()
 
         return added
       })
     },
 
-    async getMembers(chatId: string) {
-      return db.query.chatMembers.findMany({
-        where: eq(schema.chatMembers.chatId, chatId),
-      })
-    },
-
-    async removeMember(userId: string, chatId: string, memberId: string) {
+    async createChat(userId: string, payload: CreateChatPayload) {
       return db.transaction(async (tx) => {
-        await verifyMembership(tx, chatId, userId)
-
-        const [removed] = await tx.delete(schema.chatMembers)
-          .where(and(
-            eq(schema.chatMembers.id, memberId),
-            eq(schema.chatMembers.chatId, chatId),
-          ))
-          .returning()
-
-        if (!removed)
-          throw createNotFoundError('Member not found')
-        return removed
-      })
-    },
-
-    // -- Message sync (WS) --------------------------------------------------
-
-    async pushMessages(userId: string, chatId: string, messages: PushMessage[]) {
-      if (messages.some(message => message.role !== 'user' && message.role !== 'assistant'))
-        throw createBadRequestError('Only user and assistant messages can be synchronized')
-
-      const result = await db.transaction(async (tx) => {
-        await verifyMembership(tx, chatId, userId)
-
-        // Lock chat row to serialize seq assignment
-        const [chatRow] = await tx
-          .select({ id: schema.chats.id })
-          .from(schema.chats)
-          .where(eq(schema.chats.id, chatId))
-          .for('update')
-
-        if (!chatRow)
-          throw createNotFoundError('Chat not found')
-
-        // Get current max seq for this chat
-        const [{ maxSeq }] = await tx
-          .select({ maxSeq: sql<number>`coalesce(max(${schema.messages.seq}), 0)` })
-          .from(schema.messages)
-          .where(eq(schema.messages.chatId, chatId))
-
+        const chatId = payload.id ?? nanoid()
         const now = new Date()
 
-        // Split into new vs existing messages
-        const messageIds = messages.map(m => m.id)
-        const existingMessages = messageIds.length > 0
-          ? await tx.select({
-              id: schema.messages.id,
-              chatId: schema.messages.chatId,
-              senderId: schema.messages.senderId,
-              role: schema.messages.role,
-              content: schema.messages.content,
-            }).from(schema.messages).where(inArray(schema.messages.id, messageIds))
-          : []
+        await tx.insert(schema.chats).values({
+          createdAt: now,
+          id: chatId,
+          title: payload.title ?? null,
+          type: payload.type ?? 'group',
+          updatedAt: now,
+        })
 
-        if (existingMessages.some(message => message.chatId !== chatId))
-          throw createConflictError('Message already belongs to another chat')
+        // Always add creator as a user member
+        await tx.insert(schema.chatMembers).values({
+          characterId: null,
+          chatId,
+          memberType: 'user',
+          userId,
+        })
 
-        const existingMessagesById = new Map(existingMessages.map(message => [message.id, message]))
-        const unchangedLegacyAssistantIds = new Set<string>()
-        if (messages.some((message) => {
-          const existingMessage = existingMessagesById.get(message.id)
-          if (existingMessage == null)
-            return false
-
-          if (existingMessage.senderId === resolveSenderId(message.role, userId))
-            return false
-
-          // A pre-ownership assistant row cannot be safely attributed to a user.
-          // An exact retry is nevertheless safe to acknowledge because it does
-          // not mutate the stored message or its sequence.
-          if (
-            existingMessage.senderId == null
-            && existingMessage.role === 'assistant'
-            && message.role === 'assistant'
-            && existingMessage.content === message.content
-          ) {
-            unchangedLegacyAssistantIds.add(message.id)
-            return false
-          }
-
-          return true
-        })) {
-          throw createForbiddenError()
-        }
-
-        const existingIds = new Set(existingMessages.map(m => m.id))
-
-        const newMsgs = messages.filter(m => !existingIds.has(m.id))
-        const updateMsgs = messages.filter(m => existingIds.has(m.id) && !unchangedLegacyAssistantIds.has(m.id))
-
-        let currentSeq = maxSeq
-
-        // Insert new messages with seq
-        if (newMsgs.length > 0) {
-          const values = newMsgs.map((m) => {
-            currentSeq++
-            return {
-              id: m.id,
+        // Add additional members if provided
+        if (payload.members && payload.members.length > 0) {
+          const extra = payload.members
+            .filter(m => m.type !== 'user' || m.userId !== userId) // skip duplicate creator
+            .map(m => ({
+              characterId: m.type !== 'user' ? (m.characterId ?? null) : null,
               chatId,
-              senderId: resolveSenderId(m.role, userId),
-              role: m.role,
-              seq: currentSeq,
-              content: m.content,
-              mediaIds: [] as string[],
-              stickerIds: [] as string[],
-              createdAt: now,
-              updatedAt: now,
-            }
-          })
-          await tx.insert(schema.messages).values(values)
+              memberType: m.type,
+              userId: m.type === 'user' ? (m.userId ?? null) : null,
+            }))
+
+          if (extra.length > 0) {
+            await tx.insert(schema.chatMembers).values(extra)
+          }
         }
 
-        // Update existing messages (content + updatedAt + seq bump)
-        for (const m of updateMsgs) {
-          currentSeq++
-          await tx.update(schema.messages)
-            .set({ content: m.content, seq: currentSeq, updatedAt: now })
-            .where(and(eq(schema.messages.id, m.id), eq(schema.messages.chatId, chatId)))
-        }
-
-        // Update chat updatedAt
-        await tx.update(schema.chats)
-          .set({ updatedAt: now })
-          .where(eq(schema.chats.id, chatId))
-
-        return {
-          seq: currentSeq,
-          fromSeq: maxSeq + 1,
-          toSeq: currentSeq,
-          newCount: newMsgs.length,
-          totalCount: messages.length,
-        }
+        return { createdAt: now, id: chatId, title: payload.title ?? null, type: payload.type ?? 'group', updatedAt: now }
       })
-
-      if (result.totalCount > 0) {
-        metrics?.chatMessages.add(result.totalCount)
-      }
-      metrics?.wsMessagesReceived.add(result.totalCount)
-
-      return { seq: result.seq, fromSeq: result.fromSeq, toSeq: result.toSeq }
     },
 
     /**
@@ -443,12 +237,56 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
       }
 
       logger.withFields({
-        userId,
-        soloChats: soloChatCount,
-        sharedChatMembershipsDropped: droppedMemberships,
-        soloMessages: soloMessageCount,
         preservedSharedMessages,
+        sharedChatMembershipsDropped: droppedMemberships,
+        soloChats: soloChatCount,
+        soloMessages: soloMessageCount,
+        userId,
       }).log('Chats footprint processed for user (solo soft-deleted, shared anonymized)')
+    },
+
+    async deleteChat(userId: string, chatId: string) {
+      return db.transaction(async (tx) => {
+        await verifyMembership(tx, chatId, userId)
+        const now = new Date()
+
+        const [deleted] = await tx.update(schema.chats)
+          .set({ deletedAt: now, updatedAt: now })
+          .where(eq(schema.chats.id, chatId))
+          .returning()
+
+        return deleted
+      })
+    },
+
+    async getChat(userId: string, chatId: string) {
+      return db.transaction(async (tx) => {
+        const chat = await verifyMembership(tx, chatId, userId)
+        const members = await tx.query.chatMembers.findMany({
+          where: eq(schema.chatMembers.chatId, chatId),
+        })
+        return { ...chat, members }
+      })
+    },
+
+    async getMembers(chatId: string) {
+      return db.query.chatMembers.findMany({
+        where: eq(schema.chatMembers.chatId, chatId),
+      })
+    },
+
+    async listChats(userId: string) {
+      const rows = await db
+        .select({ chat: schema.chats })
+        .from(schema.chatMembers)
+        .innerJoin(schema.chats, eq(schema.chatMembers.chatId, schema.chats.id))
+        .where(and(
+          eq(schema.chatMembers.memberType, 'user'),
+          eq(schema.chatMembers.userId, userId),
+          isNull(schema.chats.deletedAt),
+        ))
+
+      return rows.map(r => r.chat)
     },
 
     async pullMessages(userId: string, chatId: string, afterSeq: number, limit?: number) {
@@ -474,20 +312,182 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
           .where(eq(schema.messages.chatId, chatId))
 
         const wireMessages: WireMessage[] = rows.map(r => ({
-          id: r.id,
           chatId: r.chatId,
-          senderId: r.senderId,
-          role: r.role as MessageRole,
           content: r.content,
-          seq: r.seq!,
           createdAt: r.createdAt.getTime(),
+          id: r.id,
+          role: r.role as MessageRole,
+          senderId: r.senderId,
+          seq: r.seq!,
           updatedAt: r.updatedAt.getTime(),
         }))
 
         return { messages: wireMessages, seq: maxSeq }
       })
     },
+
+    // -- Message sync (WS) --------------------------------------------------
+
+    async pushMessages(userId: string, chatId: string, messages: PushMessage[]) {
+      if (messages.some(message => message.role !== 'user' && message.role !== 'assistant'))
+        throw createBadRequestError('Only user and assistant messages can be synchronized')
+
+      const result = await db.transaction(async (tx) => {
+        await verifyMembership(tx, chatId, userId)
+
+        // Lock chat row to serialize seq assignment
+        const [chatRow] = await tx
+          .select({ id: schema.chats.id })
+          .from(schema.chats)
+          .where(eq(schema.chats.id, chatId))
+          .for('update')
+
+        if (!chatRow)
+          throw createNotFoundError('Chat not found')
+
+        // Get current max seq for this chat
+        const [{ maxSeq }] = await tx
+          .select({ maxSeq: sql<number>`coalesce(max(${schema.messages.seq}), 0)` })
+          .from(schema.messages)
+          .where(eq(schema.messages.chatId, chatId))
+
+        const now = new Date()
+
+        // Split into new vs existing messages
+        const messageIds = messages.map(m => m.id)
+        const existingMessages = messageIds.length > 0
+          ? await tx.select({
+              chatId: schema.messages.chatId,
+              content: schema.messages.content,
+              id: schema.messages.id,
+              role: schema.messages.role,
+              senderId: schema.messages.senderId,
+            }).from(schema.messages).where(inArray(schema.messages.id, messageIds))
+          : []
+
+        if (existingMessages.some(message => message.chatId !== chatId))
+          throw createConflictError('Message already belongs to another chat')
+
+        const existingMessagesById = new Map(existingMessages.map(message => [message.id, message]))
+        const unchangedLegacyAssistantIds = new Set<string>()
+        if (messages.some((message) => {
+          const existingMessage = existingMessagesById.get(message.id)
+          if (existingMessage == null)
+            return false
+
+          if (existingMessage.senderId === resolveSenderId(message.role, userId))
+            return false
+
+          // A pre-ownership assistant row cannot be safely attributed to a user.
+          // An exact retry is nevertheless safe to acknowledge because it does
+          // not mutate the stored message or its sequence.
+          if (
+            existingMessage.senderId == null
+            && existingMessage.role === 'assistant'
+            && message.role === 'assistant'
+            && existingMessage.content === message.content
+          ) {
+            unchangedLegacyAssistantIds.add(message.id)
+            return false
+          }
+
+          return true
+        })) {
+          throw createForbiddenError()
+        }
+
+        const existingIds = new Set(existingMessages.map(m => m.id))
+
+        const newMsgs = messages.filter(m => !existingIds.has(m.id))
+        const updateMsgs = messages.filter(m => existingIds.has(m.id) && !unchangedLegacyAssistantIds.has(m.id))
+
+        let currentSeq = maxSeq
+
+        // Insert new messages with seq
+        if (newMsgs.length > 0) {
+          const values = newMsgs.map((m) => {
+            currentSeq++
+            return {
+              chatId,
+              content: m.content,
+              createdAt: now,
+              id: m.id,
+              mediaIds: [] as string[],
+              role: m.role,
+              senderId: resolveSenderId(m.role, userId),
+              seq: currentSeq,
+              stickerIds: [] as string[],
+              updatedAt: now,
+            }
+          })
+          await tx.insert(schema.messages).values(values)
+        }
+
+        // Update existing messages (content + updatedAt + seq bump)
+        for (const m of updateMsgs) {
+          currentSeq++
+          await tx.update(schema.messages)
+            .set({ content: m.content, seq: currentSeq, updatedAt: now })
+            .where(and(eq(schema.messages.id, m.id), eq(schema.messages.chatId, chatId)))
+        }
+
+        // Update chat updatedAt
+        await tx.update(schema.chats)
+          .set({ updatedAt: now })
+          .where(eq(schema.chats.id, chatId))
+
+        return {
+          fromSeq: maxSeq + 1,
+          newCount: newMsgs.length,
+          seq: currentSeq,
+          toSeq: currentSeq,
+          totalCount: messages.length,
+        }
+      })
+
+      if (result.totalCount > 0) {
+        metrics?.chatMessages.add(result.totalCount)
+      }
+      metrics?.wsMessagesReceived.add(result.totalCount)
+
+      return { fromSeq: result.fromSeq, seq: result.seq, toSeq: result.toSeq }
+    },
+
+    async removeMember(userId: string, chatId: string, memberId: string) {
+      return db.transaction(async (tx) => {
+        await verifyMembership(tx, chatId, userId)
+
+        const [removed] = await tx.delete(schema.chatMembers)
+          .where(and(
+            eq(schema.chatMembers.id, memberId),
+            eq(schema.chatMembers.chatId, chatId),
+          ))
+          .returning()
+
+        if (!removed)
+          throw createNotFoundError('Member not found')
+        return removed
+      })
+    },
+
+    async updateChat(userId: string, chatId: string, updates: { title?: string }) {
+      return db.transaction(async (tx) => {
+        await verifyMembership(tx, chatId, userId)
+        const now = new Date()
+
+        const [updated] = await tx.update(schema.chats)
+          .set({ ...updates, updatedAt: now })
+          .where(eq(schema.chats.id, chatId))
+          .returning()
+
+        return updated
+      })
+    },
   }
 }
 
-export type ChatService = ReturnType<typeof createChatService>
+export function resolveSenderId(role: string, userId: string): null | string {
+  if (role === 'user' || role === 'assistant')
+    return userId
+  return null
+}

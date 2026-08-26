@@ -52,11 +52,11 @@ import { invoke } from '@Tauri-apps/api/core'
 
 export const mcp = [
   {
-    name: 'list_tools',
     description: 'List all tools',
     execute: async () => {
       return await invoke('list_tools')
-    }
+    },
+    name: 'list_tools'
   }
 ]
 ```
@@ -157,7 +157,7 @@ async fn call_tool(state: State<'_, Mutex<Option<McpClient>>>, name: String, arg
 ```javascript
 import { invoke } from '@Tauri-apps/api/core'
 
-invoke('call_tool', { name: 'input_swipe', args: { x1: 100, y1: 100, x2: 200, y2: 200, duration: 500 } })
+invoke('call_tool', { args: { duration: 500, x1: 100, x2: 200, y1: 100, y2: 200 }, name: 'input_swipe' })
 ```
 
 超方便！

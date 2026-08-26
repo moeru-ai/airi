@@ -68,15 +68,30 @@ const logger = useLogger('otel')
 export interface AuthMetrics {
   attempts: Counter
   failures: Counter
-  userRegistered: Counter
   userLogin: Counter
+  userRegistered: Counter
+}
+
+export interface DatabaseMetrics {
+  /**
+   * Per-process pg pool counts. Labels: `pool_state` (`max`, `total`, `used`,
+   * `idle`, `waiting`). Use `used / max` for capacity and `waiting > 0` for
+   * saturation. Do not use `used / (used + idle)` as a capacity ratio.
+   */
+  poolConnections: ObservableGauge
+}
+
+export interface EmailMetrics {
+  duration: Histogram
+  failures: Counter
+  send: Counter
 }
 
 export interface EngagementMetrics {
-  chatMessages: Counter
   characterCreated: Counter
   characterDeleted: Counter
   characterEngagement: Counter
+  chatMessages: Counter
   /**
    * Pull-based gauge for active WebSocket connections.
    *
@@ -95,6 +110,8 @@ export interface EngagementMetrics {
    *   `addCallback`. Multiple callbacks would double-count.
    */
   wsConnectionsActive: ObservableGauge
+  wsMessagesReceived: Counter
+  wsMessagesSent: Counter
   /**
    * Cluster-wide distinct users with at least one active chat WebSocket.
    *
@@ -105,19 +122,127 @@ export interface EngagementMetrics {
    * `sum()`.
    */
   wsUsersOnline: ObservableGauge
-  wsMessagesSent: Counter
-  wsMessagesReceived: Counter
+}
+
+export interface GatewayMetrics {
+  /**
+   * Pub/Sub invalidation messages dropped because the HMAC did not verify.
+   * >0 = forged or replayed message — investigate Redis access boundary.
+   */
+  configInvalidHmac: Counter
+  /**
+   * Local in-memory configKV cache reloaded (router config). Labels: `source`
+   * (`pubsub` | `ttl` | `manual`), `service_instance_id`.
+   */
+  configReload: Counter
+  /**
+   * Envelope-crypto decryption auth-tag failures. Any >0 sample indicates
+   * config corruption or a master-key rotation misstep — investigate.
+   * Recommended labels: `provider`, `key_entry_id`.
+   */
+  decryptFailures: Counter
+  /**
+   * Per-attempt fallback event. Increments once per failing key try when the
+   * router moves on to the next key/upstream. Recommended labels:
+   * `provider`, `from_key`, `reason`.
+   */
+  fallbackCount: Counter
+  /**
+   * The configured route exhausted every allowed key and upstream in one
+   * request. The user gets a 5xx. Primary alert source for user-facing
+   * degradation. Recommended labels: `provider`, `status_code`, `surface`.
+   *
+   * Recommended alert:
+   *   Filter to operational status codes before paging on this metric.
+   */
+  keyExhaustedCount: Counter
+  /**
+   * Cluster-wide gauge of current in-flight requests per pool, sourced from
+   * Redis. Label: `app_id`. Every replica reports the same value — dashboards
+   * MUST aggregate with `avg()`, NOT `sum()` (see observability-conventions.md).
+   */
+  poolInflight: ObservableGauge
+  /**
+   * Apool was circuit-broken after exhausting with a 429 (app_id concurrency
+   * exceeded upstream-side). Labels: `provider`, `app_id`. A pool with a high
+   * mark rate is being driven past its real upstream limit.
+   */
+  poolSaturationMarked: Counter
+  /**
+   * Capacity-aware TTS routing skipped a pool because its app_id was already at
+   * the concurrency cap (the pre-read said free but the atomic acquire lost the
+   * race, or every pool was full). Labels: `provider`, `app_id`.
+   *
+   * Recommended alert: sustained rate relative to TTS request volume means the
+   *pool is undersized — add app_ids or raise the cap.
+   */
+  poolSlotRejected: Counter
+  /**
+   * All keys in one request failed with the *same* upstream status code.
+   * Strong signal of account-level (shared-backend) rate limiting that
+   * per-key fallback cannot recover from — see plan D33 risk-acceptance
+   * and the adversarial finding ADV-PLAN-006.
+   * Recommended labels: `provider`, `status_code`.
+   *
+   * Recommended alert:
+   *   `rate(airi_gen_ai_gateway_same_status_exhaustion_total[15m]) / rate(...request_count[15m]) > 0.05`
+   */
+  sameStatusExhaustion: Counter
+  /**
+   * Pub/Sub subscriber lifecycle transitions (`subscribed` |
+   * `reconnecting` | `error` | `closed`). Watch for sustained
+   * `reconnecting` — the TTL self-heal stops being ≤5s once the subscriber
+   * is dead.
+   */
+  subscriberState: Counter
+  /**
+   * Upstream error responses received during fallback iteration. Recommended
+   * labels: `provider`, `status_code`.
+   */
+  upstreamErrors: Counter
+}
+
+export interface GenAiMetrics {
+  firstTokenDuration: Histogram
+  fluxConsumed: Counter
+  operationCount: Counter
+  operationDuration: Histogram
+  streamInterrupted: Counter
+  tokenUsageInput: Counter
+  tokenUsageOutput: Counter
+}
+
+export interface ObservabilityMetrics {
+  /**
+   * Counts failures inside metric-pipeline callbacks (for example, a Redis-
+   * backed ObservableGauge that could not refresh). Use for self-monitoring —
+   * when this is rising, treat the affected gauge's value as potentially
+   * stale.
+   *
+   * Labels: `metric` (the failing gauge's logical name).
+   */
+  metricReadErrors: Counter
+}
+
+export interface OtelInstance {
+  auth: AuthMetrics
+  database: DatabaseMetrics
+  email: EmailMetrics
+  engagement: EngagementMetrics
+  gateway: GatewayMetrics
+  genAi: GenAiMetrics
+  observability: ObservabilityMetrics
+  rateLimit: RateLimitMetrics
+  revenue: RevenueMetrics
+}
+
+export interface RateLimitMetrics {
+  blocked: Counter
 }
 
 export interface RevenueMetrics {
-  stripeCheckoutCreated: Counter
-  stripeCheckoutCompleted: Counter
-  stripePaymentFailed: Counter
-  stripeSubscriptionEvent: Counter
-  stripeEvents: Counter
-  stripeRevenue: Counter
-  fluxInsufficientBalance: Counter
   fluxCredited: Counter
+  fluxInsufficientBalance: Counter
   /**
    * Flux value that the LLM proxy could not collect from the user. Fires from
    * both the streaming and non-streaming completion paths.
@@ -142,139 +267,14 @@ export interface RevenueMetrics {
    *   pages on-call immediately on any sustained leak.
    */
   fluxUnbilled: Counter
+  stripeCheckoutCompleted: Counter
+  stripeCheckoutCreated: Counter
+  stripeEvents: Counter
+  stripePaymentFailed: Counter
+  stripeRevenue: Counter
+  stripeSubscriptionEvent: Counter
   ttsChars: Counter
   ttsPreflightRejections: Counter
-}
-
-export interface GenAiMetrics {
-  operationDuration: Histogram
-  operationCount: Counter
-  tokenUsageInput: Counter
-  tokenUsageOutput: Counter
-  fluxConsumed: Counter
-  firstTokenDuration: Histogram
-  streamInterrupted: Counter
-}
-
-export interface GatewayMetrics {
-  /**
-   * Per-attempt fallback event. Increments once per failing key try when the
-   * router moves on to the next key/upstream. Recommended labels:
-   * `provider`, `from_key`, `reason`.
-   */
-  fallbackCount: Counter
-  /**
-   * Upstream error responses received during fallback iteration. Recommended
-   * labels: `provider`, `status_code`.
-   */
-  upstreamErrors: Counter
-  /**
-   * The configured route exhausted every allowed key and upstream in one
-   * request. The user gets a 5xx. Primary alert source for user-facing
-   * degradation. Recommended labels: `provider`, `status_code`, `surface`.
-   *
-   * Recommended alert:
-   *   Filter to operational status codes before paging on this metric.
-   */
-  keyExhaustedCount: Counter
-  /**
-   * All keys in one request failed with the *same* upstream status code.
-   * Strong signal of account-level (shared-backend) rate limiting that
-   * per-key fallback cannot recover from — see plan D33 risk-acceptance
-   * and the adversarial finding ADV-PLAN-006.
-   * Recommended labels: `provider`, `status_code`.
-   *
-   * Recommended alert:
-   *   `rate(airi_gen_ai_gateway_same_status_exhaustion_total[15m]) / rate(...request_count[15m]) > 0.05`
-   */
-  sameStatusExhaustion: Counter
-  /**
-   * Local in-memory configKV cache reloaded (router config). Labels: `source`
-   * (`pubsub` | `ttl` | `manual`), `service_instance_id`.
-   */
-  configReload: Counter
-  /**
-   * Envelope-crypto decryption auth-tag failures. Any >0 sample indicates
-   * config corruption or a master-key rotation misstep — investigate.
-   * Recommended labels: `provider`, `key_entry_id`.
-   */
-  decryptFailures: Counter
-  /**
-   * Pub/Sub subscriber lifecycle transitions (`subscribed` |
-   * `reconnecting` | `error` | `closed`). Watch for sustained
-   * `reconnecting` — the TTL self-heal stops being ≤5s once the subscriber
-   * is dead.
-   */
-  subscriberState: Counter
-  /**
-   * Pub/Sub invalidation messages dropped because the HMAC did not verify.
-   * >0 = forged or replayed message — investigate Redis access boundary.
-   */
-  configInvalidHmac: Counter
-  /**
-   * Capacity-aware TTS routing skipped a pool because its app_id was already at
-   * the concurrency cap (the pre-read said free but the atomic acquire lost the
-   * race, or every pool was full). Labels: `provider`, `app_id`.
-   *
-   * Recommended alert: sustained rate relative to TTS request volume means the
-   *pool is undersized — add app_ids or raise the cap.
-   */
-  poolSlotRejected: Counter
-  /**
-   * Apool was circuit-broken after exhausting with a 429 (app_id concurrency
-   * exceeded upstream-side). Labels: `provider`, `app_id`. A pool with a high
-   * mark rate is being driven past its real upstream limit.
-   */
-  poolSaturationMarked: Counter
-  /**
-   * Cluster-wide gauge of current in-flight requests per pool, sourced from
-   * Redis. Label: `app_id`. Every replica reports the same value — dashboards
-   * MUST aggregate with `avg()`, NOT `sum()` (see observability-conventions.md).
-   */
-  poolInflight: ObservableGauge
-}
-
-export interface EmailMetrics {
-  send: Counter
-  failures: Counter
-  duration: Histogram
-}
-
-export interface RateLimitMetrics {
-  blocked: Counter
-}
-
-export interface ObservabilityMetrics {
-  /**
-   * Counts failures inside metric-pipeline callbacks (for example, a Redis-
-   * backed ObservableGauge that could not refresh). Use for self-monitoring —
-   * when this is rising, treat the affected gauge's value as potentially
-   * stale.
-   *
-   * Labels: `metric` (the failing gauge's logical name).
-   */
-  metricReadErrors: Counter
-}
-
-export interface DatabaseMetrics {
-  /**
-   * Per-process pg pool counts. Labels: `pool_state` (`max`, `total`, `used`,
-   * `idle`, `waiting`). Use `used / max` for capacity and `waiting > 0` for
-   * saturation. Do not use `used / (used + idle)` as a capacity ratio.
-   */
-  poolConnections: ObservableGauge
-}
-
-export interface OtelInstance {
-  auth: AuthMetrics
-  engagement: EngagementMetrics
-  revenue: RevenueMetrics
-  genAi: GenAiMetrics
-  gateway: GatewayMetrics
-  database: DatabaseMetrics
-  email: EmailMetrics
-  rateLimit: RateLimitMetrics
-  observability: ObservabilityMetrics
 }
 
 /**
@@ -294,7 +294,7 @@ export interface OtelInstance {
  * - Metric bundle with primed counters (so low-traffic series show up in
  *   Prometheus from boot), or `null` when OTel is disabled.
  */
-export function initOtel(env: Env): OtelInstance | null {
+export function initOtel(env: Env): null | OtelInstance {
   if (!env.OTEL_EXPORTER_OTLP_ENDPOINT) {
     logger.log('OpenTelemetry disabled (set OTEL_EXPORTER_OTLP_ENDPOINT to enable)')
     return null
@@ -310,19 +310,16 @@ export function initOtel(env: Env): OtelInstance | null {
     failures: meter.createCounter(METRIC_AUTH_FAILURES, {
       description: 'Number of failed authentication attempts',
     }),
-    userRegistered: meter.createCounter(METRIC_USER_REGISTERED, {
-      description: 'Number of new user registrations',
-    }),
     userLogin: meter.createCounter(METRIC_USER_LOGIN, {
       description: 'Number of user sign-ins',
+    }),
+    userRegistered: meter.createCounter(METRIC_USER_REGISTERED, {
+      description: 'Number of new user registrations',
     }),
   }
 
   // Engagement metrics
   const engagement: EngagementMetrics = {
-    chatMessages: meter.createCounter(METRIC_CHAT_MESSAGES, {
-      description: 'Number of chat messages written or pulled',
-    }),
     characterCreated: meter.createCounter(METRIC_CHARACTER_CREATED, {
       description: 'Number of characters created',
     }),
@@ -332,49 +329,52 @@ export function initOtel(env: Env): OtelInstance | null {
     characterEngagement: meter.createCounter(METRIC_CHARACTER_ENGAGEMENT, {
       description: 'Number of character engagement actions (like/bookmark)',
     }),
+    chatMessages: meter.createCounter(METRIC_CHAT_MESSAGES, {
+      description: 'Number of chat messages written or pulled',
+    }),
     wsConnectionsActive: meter.createObservableGauge(METRIC_WS_CONNECTIONS_ACTIVE, {
       description: 'Active WebSocket connections (live registry size, scraped per export interval)',
     }),
-    wsUsersOnline: meter.createObservableGauge(METRIC_WS_USERS_ONLINE, {
-      description: 'Cluster-wide distinct users with an active chat WebSocket, sourced from unique Redis Pub/Sub channels',
+    wsMessagesReceived: meter.createCounter(METRIC_WS_MESSAGES_RECEIVED, {
+      description: 'Messages received via WebSocket',
     }),
     wsMessagesSent: meter.createCounter(METRIC_WS_MESSAGES_SENT, {
       description: 'Messages sent via WebSocket',
     }),
-    wsMessagesReceived: meter.createCounter(METRIC_WS_MESSAGES_RECEIVED, {
-      description: 'Messages received via WebSocket',
+    wsUsersOnline: meter.createObservableGauge(METRIC_WS_USERS_ONLINE, {
+      description: 'Cluster-wide distinct users with an active chat WebSocket, sourced from unique Redis Pub/Sub channels',
     }),
   }
 
   // Revenue metrics
   const revenue: RevenueMetrics = {
-    stripeCheckoutCreated: meter.createCounter(METRIC_STRIPE_CHECKOUT_CREATED, {
-      description: 'Number of Stripe checkout sessions created',
+    fluxCredited: meter.createCounter(METRIC_AIRI_FLUX_CREDITED, {
+      description: 'Total flux credited to user balances, by source',
+    }),
+    fluxInsufficientBalance: meter.createCounter(METRIC_FLUX_INSUFFICIENT_BALANCE, {
+      description: 'Number of insufficient flux balance errors',
+    }),
+    fluxUnbilled: meter.createCounter(METRIC_AIRI_FLUX_UNBILLED, {
+      description: 'Flux owed but unbilled (post-stream debit failed). Real revenue leak.',
     }),
     stripeCheckoutCompleted: meter.createCounter(METRIC_STRIPE_CHECKOUT_COMPLETED, {
       description: 'Number of Stripe checkout sessions completed',
     }),
-    stripePaymentFailed: meter.createCounter(METRIC_STRIPE_PAYMENT_FAILED, {
-      description: 'Number of failed Stripe payments',
-    }),
-    stripeSubscriptionEvent: meter.createCounter(METRIC_STRIPE_SUBSCRIPTION_EVENT, {
-      description: 'Number of Stripe subscription lifecycle events',
+    stripeCheckoutCreated: meter.createCounter(METRIC_STRIPE_CHECKOUT_CREATED, {
+      description: 'Number of Stripe checkout sessions created',
     }),
     stripeEvents: meter.createCounter(METRIC_STRIPE_EVENTS, {
       description: 'Number of Stripe webhook events processed',
+    }),
+    stripePaymentFailed: meter.createCounter(METRIC_STRIPE_PAYMENT_FAILED, {
+      description: 'Number of failed Stripe payments',
     }),
     stripeRevenue: meter.createCounter(METRIC_AIRI_STRIPE_REVENUE, {
       description: 'Stripe revenue in smallest currency unit (e.g. cents)',
       unit: 'minor_unit',
     }),
-    fluxInsufficientBalance: meter.createCounter(METRIC_FLUX_INSUFFICIENT_BALANCE, {
-      description: 'Number of insufficient flux balance errors',
-    }),
-    fluxCredited: meter.createCounter(METRIC_AIRI_FLUX_CREDITED, {
-      description: 'Total flux credited to user balances, by source',
-    }),
-    fluxUnbilled: meter.createCounter(METRIC_AIRI_FLUX_UNBILLED, {
-      description: 'Flux owed but unbilled (post-stream debit failed). Real revenue leak.',
+    stripeSubscriptionEvent: meter.createCounter(METRIC_STRIPE_SUBSCRIPTION_EVENT, {
+      description: 'Number of Stripe subscription lifecycle events',
     }),
     ttsChars: meter.createCounter(METRIC_AIRI_TTS_CHARS, {
       description: 'TTS input characters processed (billing base unit)',
@@ -386,12 +386,22 @@ export function initOtel(env: Env): OtelInstance | null {
 
   // GenAI metrics (semconv: gen_ai.client.*)
   const genAi: GenAiMetrics = {
+    firstTokenDuration: meter.createHistogram(METRIC_GEN_AI_CLIENT_FIRST_TOKEN_DURATION, {
+      description: 'Time from request start to first streamed token (TTFB for streaming)',
+      unit: 's',
+    }),
+    fluxConsumed: meter.createCounter(METRIC_FLUX_CONSUMED, {
+      description: 'Total flux consumed',
+    }),
+    operationCount: meter.createCounter(METRIC_GEN_AI_CLIENT_OPERATION_COUNT, {
+      description: 'Number of GenAI client operations',
+    }),
     operationDuration: meter.createHistogram(METRIC_GEN_AI_CLIENT_OPERATION_DURATION, {
       description: 'GenAI client operation duration',
       unit: 's',
     }),
-    operationCount: meter.createCounter(METRIC_GEN_AI_CLIENT_OPERATION_COUNT, {
-      description: 'Number of GenAI client operations',
+    streamInterrupted: meter.createCounter(METRIC_AIRI_GEN_AI_STREAM_INTERRUPTED, {
+      description: 'Streaming responses interrupted before completion',
     }),
     tokenUsageInput: meter.createCounter(METRIC_GEN_AI_CLIENT_TOKEN_USAGE_INPUT, {
       description: 'Total input (prompt) tokens consumed',
@@ -399,33 +409,14 @@ export function initOtel(env: Env): OtelInstance | null {
     tokenUsageOutput: meter.createCounter(METRIC_GEN_AI_CLIENT_TOKEN_USAGE_OUTPUT, {
       description: 'Total output (completion) tokens consumed',
     }),
-    fluxConsumed: meter.createCounter(METRIC_FLUX_CONSUMED, {
-      description: 'Total flux consumed',
-    }),
-    firstTokenDuration: meter.createHistogram(METRIC_GEN_AI_CLIENT_FIRST_TOKEN_DURATION, {
-      description: 'Time from request start to first streamed token (TTFB for streaming)',
-      unit: 's',
-    }),
-    streamInterrupted: meter.createCounter(METRIC_AIRI_GEN_AI_STREAM_INTERRUPTED, {
-      description: 'Streaming responses interrupted before completion',
-    }),
   }
 
   // Router gateway metrics (in-process LLM/TTS routing — KTD-3).
   // Every counter alerts on a different failure shape; see metric-handle JSDoc
   // on GatewayMetrics for the recommended PromQL.
   const gateway: GatewayMetrics = {
-    fallbackCount: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_FALLBACK_COUNT, {
-      description: 'Per-attempt fallback events in the in-process LLM/TTS router',
-    }),
-    upstreamErrors: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_UPSTREAM_ERRORS, {
-      description: 'Upstream error responses received during fallback iteration',
-    }),
-    keyExhaustedCount: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_KEY_EXHAUSTED_COUNT, {
-      description: 'All keys (across all upstreams) failed in a single request — primary user-facing alert',
-    }),
-    sameStatusExhaustion: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_SAME_STATUS_EXHAUSTION, {
-      description: 'All keys in one request failed with the same upstream status (account-level rate-limit signal)',
+    configInvalidHmac: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_INVALID_HMAC, {
+      description: 'Pub/Sub invalidation messages dropped due to HMAC mismatch (forged or replayed)',
     }),
     configReload: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_RELOAD, {
       description: 'Local in-memory router config cache reloaded (by source: pubsub / ttl / manual)',
@@ -433,33 +424,42 @@ export function initOtel(env: Env): OtelInstance | null {
     decryptFailures: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_DECRYPT_FAILURES, {
       description: 'Envelope-crypto decryption auth-tag failures (config corruption or rotation misstep)',
     }),
-    subscriberState: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_SUBSCRIBER_STATE, {
-      description: 'Pub/Sub subscriber lifecycle state transitions',
+    fallbackCount: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_FALLBACK_COUNT, {
+      description: 'Per-attempt fallback events in the in-process LLM/TTS router',
     }),
-    configInvalidHmac: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_INVALID_HMAC, {
-      description: 'Pub/Sub invalidation messages dropped due to HMAC mismatch (forged or replayed)',
-    }),
-    poolSlotRejected: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_POOL_SLOT_REJECTED, {
-      description: 'Capacity-aware TTS routing skipped a pool already at its app_id concurrency cap',
-    }),
-    poolSaturationMarked: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_POOL_SATURATION_MARKED, {
-      description: 'TTSpool circuit-broken after exhausting with a 429 (app_id concurrency exceeded)',
+    keyExhaustedCount: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_KEY_EXHAUSTED_COUNT, {
+      description: 'All keys (across all upstreams) failed in a single request — primary user-facing alert',
     }),
     poolInflight: meter.createObservableGauge(METRIC_AIRI_GEN_AI_GATEWAY_POOL_INFLIGHT, {
       description: 'In-flight TTS requests per pool sourced from Redis (cluster-wide; dashboard must use avg(), not sum())',
     }),
+    poolSaturationMarked: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_POOL_SATURATION_MARKED, {
+      description: 'TTSpool circuit-broken after exhausting with a 429 (app_id concurrency exceeded)',
+    }),
+    poolSlotRejected: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_POOL_SLOT_REJECTED, {
+      description: 'Capacity-aware TTS routing skipped a pool already at its app_id concurrency cap',
+    }),
+    sameStatusExhaustion: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_SAME_STATUS_EXHAUSTION, {
+      description: 'All keys in one request failed with the same upstream status (account-level rate-limit signal)',
+    }),
+    subscriberState: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_SUBSCRIBER_STATE, {
+      description: 'Pub/Sub subscriber lifecycle state transitions',
+    }),
+    upstreamErrors: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_UPSTREAM_ERRORS, {
+      description: 'Upstream error responses received during fallback iteration',
+    }),
   }
 
   const email: EmailMetrics = {
-    send: meter.createCounter(METRIC_AIRI_EMAIL_SEND, {
-      description: 'Transactional emails accepted by Resend',
+    duration: meter.createHistogram(METRIC_AIRI_EMAIL_DURATION, {
+      description: 'Email provider call duration',
+      unit: 's',
     }),
     failures: meter.createCounter(METRIC_AIRI_EMAIL_FAILURES, {
       description: 'Transactional email send failures',
     }),
-    duration: meter.createHistogram(METRIC_AIRI_EMAIL_DURATION, {
-      description: 'Email provider call duration',
-      unit: 's',
+    send: meter.createCounter(METRIC_AIRI_EMAIL_SEND, {
+      description: 'Transactional emails accepted by Resend',
     }),
   }
 
@@ -532,16 +532,16 @@ export function initOtel(env: Env): OtelInstance | null {
   ]
   for (const counter of counters) counter.add(0)
 
-  return { auth, engagement, revenue, genAi, gateway, database, email, rateLimit, observability }
+  return { auth, database, email, engagement, gateway, genAi, observability, rateLimit, revenue }
 }
 
 const severityMap: Record<string, SeverityNumber> = {
   debug: SeverityNumber.DEBUG,
-  verbose: SeverityNumber.TRACE,
-  log: SeverityNumber.INFO,
-  info: SeverityNumber.INFO,
-  warn: SeverityNumber.WARN,
   error: SeverityNumber.ERROR,
+  info: SeverityNumber.INFO,
+  log: SeverityNumber.INFO,
+  verbose: SeverityNumber.TRACE,
+  warn: SeverityNumber.WARN,
 }
 
 /**
@@ -552,21 +552,21 @@ export function emitOtelLog(
   level: string,
   context: string,
   message: string,
-  attributes?: Record<string, string | number | boolean>,
+  attributes?: Record<string, boolean | number | string>,
 ): void {
   const otelLogger = logs.getLogger(context)
   const spanContext = trace.getActiveSpan()?.spanContext()
 
   otelLogger.emit({
-    severityNumber: severityMap[level.toLowerCase()] ?? SeverityNumber.INFO,
-    severityText: level.toUpperCase(),
-    body: message,
     attributes: {
       ...attributes,
       ...(spanContext && {
-        trace_id: spanContext.traceId,
         span_id: spanContext.spanId,
+        trace_id: spanContext.traceId,
       }),
     },
+    body: message,
+    severityNumber: severityMap[level.toLowerCase()] ?? SeverityNumber.INFO,
+    severityText: level.toUpperCase(),
   })
 }

@@ -10,56 +10,56 @@ import type {
 
 import { errorMessageFrom, merge } from '@moeru/std'
 
-export type ProviderValidationStepStatus = 'idle' | 'validating' | 'valid' | 'invalid'
-export type ProviderValidationStepKind = 'config' | 'provider'
+export interface ProviderValidationCallbacks {
+  onValidatorError?: (info: { error: unknown, index: number, kind: ProviderValidationStepKind, step: ProviderValidationStep }) => void
+  onValidatorStart?: (info: { index: number, kind: ProviderValidationStepKind, step: ProviderValidationStep }) => void
+  onValidatorSuccess?: (info: { index: number, kind: ProviderValidationStepKind, result: { reason: string, valid: boolean }, step: ProviderValidationStep }) => void
+}
+export interface ProviderValidationPlan {
+  config: Record<string, unknown>
+  configValidators: ProviderConfigValidator<Record<string, unknown>>[]
+  definition: ProviderDefinition
+  providerExtra: ProviderExtraMethods<Record<string, unknown>> | undefined
+  providerValidators: ProviderRuntimeValidator<Record<string, unknown>>[]
+  shouldValidate: boolean
+  steps: ProviderValidationStep[]
+}
 export interface ProviderValidationStep {
   id: string
-  label: string
-  status: ProviderValidationStepStatus
-  reason: string
   kind: ProviderValidationStepKind
+  label: string
+  reason: string
+  status: ProviderValidationStepStatus
 }
 
-export interface ProviderValidationPlan {
-  steps: ProviderValidationStep[]
-  config: Record<string, unknown>
-  definition: ProviderDefinition
-  configValidators: ProviderConfigValidator<Record<string, unknown>>[]
-  providerValidators: ProviderRuntimeValidator<Record<string, unknown>>[]
-  providerExtra: ProviderExtraMethods<Record<string, unknown>> | undefined
-  shouldValidate: boolean
-}
+export type ProviderValidationStepKind = 'config' | 'provider'
 
-export interface ProviderValidationCallbacks {
-  onValidatorStart?: (info: { kind: ProviderValidationStepKind, index: number, step: ProviderValidationStep }) => void
-  onValidatorSuccess?: (info: { kind: ProviderValidationStepKind, index: number, step: ProviderValidationStep, result: { reason: string, valid: boolean } }) => void
-  onValidatorError?: (info: { kind: ProviderValidationStepKind, index: number, step: ProviderValidationStep, error: unknown }) => void
-}
+export type ProviderValidationStepStatus = 'idle' | 'invalid' | 'valid' | 'validating'
 
 export function createConfigValidationSteps(configValidators: ProviderConfigValidator<Record<string, unknown>>[]): ProviderValidationStep[] {
   return configValidators.map(validator => ({
     id: validator.id,
-    label: validator.name,
-    status: 'idle' as ProviderValidationStepStatus,
-    reason: '',
     kind: 'config' as ProviderValidationStepKind,
+    label: validator.name,
+    reason: '',
+    status: 'idle' as ProviderValidationStepStatus,
   }))
 }
 
 export function createProviderValidationSteps(providerValidators: ProviderRuntimeValidator<Record<string, unknown>>[]): ProviderValidationStep[] {
   return providerValidators.map(validator => ({
     id: validator.id,
-    label: validator.name,
-    status: 'idle' as ProviderValidationStepStatus,
-    reason: '',
     kind: 'provider' as ProviderValidationStepKind,
+    label: validator.name,
+    reason: '',
+    status: 'idle' as ProviderValidationStepStatus,
   }))
 }
 
 export async function getProviderValidationIntervalMs(options: {
-  definition: ProviderDefinition
   contextOptions: { t: ComposerTranslation }
   defaultIntervalMs?: number
+  definition: ProviderDefinition
 }) {
   const validators = await Promise.all((options.definition.validators?.validateProvider || []).map(creator => creator(options.contextOptions)))
   const defaultIntervalMs = options.defaultIntervalMs ?? 15_000
@@ -75,10 +75,10 @@ export async function getProviderValidationIntervalMs(options: {
 }
 
 export async function getValidatorsOfProvider(options: {
-  definition: ProviderDefinition
   config: Record<string, unknown>
-  schemaDefaults: Record<string, unknown>
   contextOptions: { t: ComposerTranslation }
+  definition: ProviderDefinition
+  schemaDefaults: Record<string, unknown>
 }): Promise<ProviderValidationPlan> {
   const { definition } = options
 
@@ -97,13 +97,13 @@ export async function getValidatorsOfProvider(options: {
   const shouldValidate = await validationRequired(normalizedConfig)
 
   return {
-    steps,
     config: normalizedConfig,
-    definition,
     configValidators: configValidators as ProviderValidationPlan['configValidators'],
-    providerValidators: providerValidators as ProviderValidationPlan['providerValidators'],
+    definition,
     providerExtra: definition.extraMethods as ProviderValidationPlan['providerExtra'],
+    providerValidators: providerValidators as ProviderValidationPlan['providerValidators'],
     shouldValidate,
+    steps,
   }
 }
 
@@ -112,7 +112,7 @@ export async function validateProvider(
   contextOptions: { t: ComposerTranslation },
   callbacks: ProviderValidationCallbacks = {},
 ) {
-  const { configValidators, providerValidators, steps, config, definition, providerExtra } = plan
+  const { config, configValidators, definition, providerExtra, providerValidators, steps } = plan
   const runContext = {
     ...contextOptions,
     validationCache: new Map<string, unknown>(),
@@ -123,19 +123,19 @@ export async function validateProvider(
     const step = steps[index]
     step.status = 'validating'
     step.reason = ''
-    onValidatorStart?.({ kind: 'config', index, step })
+    onValidatorStart?.({ index, kind: 'config', step })
     try {
       const result = await validatorDefinition.validator(config, runContext)
       step.status = result.valid ? 'valid' : 'invalid'
       step.reason = result.valid ? '' : result.reason
-      onValidatorSuccess?.({ kind: 'config', index, step, result })
+      onValidatorSuccess?.({ index, kind: 'config', result, step })
       return result
     }
     catch (error) {
       step.status = 'invalid'
       step.reason = errorMessageFrom(error) ?? 'Unknown error'
-      onValidatorError?.({ kind: 'config', index, step, error })
-      return { valid: false, reason: step.reason }
+      onValidatorError?.({ error, index, kind: 'config', step })
+      return { reason: step.reason, valid: false }
     }
   }))
 
@@ -169,17 +169,17 @@ export async function validateProvider(
       const step = steps[providerStepOffset + index]
       step.status = 'validating'
       step.reason = ''
-      onValidatorStart?.({ kind: 'provider', index, step })
+      onValidatorStart?.({ index, kind: 'provider', step })
       try {
         const result = await validatorDefinition.validator(config, providerInstance, providerExtra as any, runContext)
         step.status = result.valid ? 'valid' : 'invalid'
         step.reason = result.valid ? '' : result.reason
-        onValidatorSuccess?.({ kind: 'provider', index, step, result })
+        onValidatorSuccess?.({ index, kind: 'provider', result, step })
       }
       catch (error) {
         step.status = 'invalid'
         step.reason = errorMessageFrom(error) ?? 'Unknown error'
-        onValidatorError?.({ kind: 'provider', index, step, error })
+        onValidatorError?.({ error, index, kind: 'provider', step })
       }
     }))
   }

@@ -10,9 +10,9 @@ import { useTranscriptions } from './use-transcriptions'
 function createMockStore() {
   return {
     activeTranscriptionProvider: undefined,
-    configured: ref(false),
-    autoSendEnabled: ref(true),
     autoSendDelay: ref(2000),
+    autoSendEnabled: ref(true),
+    configured: ref(false),
     initializeProvider: vi.fn(),
   }
 }
@@ -24,25 +24,25 @@ interface MockStreamingCallbacks {
   onTranscriptionUpdate?: (text: string) => void
 }
 
+function createMockAudioDevice() {
+  const instance = {
+    askPermission: vi.fn().mockResolvedValue(undefined),
+    enabled: ref(false),
+    startStream: vi.fn(),
+    stream: ref(null),
+  }
+  return instance
+}
+
 function createMockPipeline() {
   return {
     removeStreamingTranscriptionConsumer: vi.fn(),
+    stopStreamingTranscription: vi.fn().mockResolvedValue(undefined),
+    supportsStreamInput: ref(true),
     transcribeForMediaStream: vi.fn().mockImplementation((_stream, options: MockStreamingCallbacks) => {
       options.onSentenceEnd(mockTranscribedContent)
     }),
-    stopStreamingTranscription: vi.fn().mockResolvedValue(undefined),
-    supportsStreamInput: ref(true),
   }
-}
-
-function createMockAudioDevice() {
-  const instance = {
-    enabled: ref(false),
-    stream: ref(null),
-    askPermission: vi.fn().mockResolvedValue(undefined),
-    startStream: vi.fn(),
-  }
-  return instance
 }
 
 let mockHearingStore: ReturnType<typeof createMockStore>
@@ -52,8 +52,8 @@ let mockProvidersStore: ReturnType<typeof createMockStore>
 
 // Mock the modules
 vi.mock('@proj-airi/stage-ui/stores/modules/hearing', () => ({
-  useHearingStore: vi.fn().mockImplementation(() => mockHearingStore),
   useHearingSpeechInputPipeline: vi.fn().mockImplementation(() => mockHearingPipeline),
+  useHearingStore: vi.fn().mockImplementation(() => mockHearingStore),
 }))
 
 vi.mock('@proj-airi/stage-ui/stores/providers/provider', () => ({
@@ -77,8 +77,8 @@ beforeAll(() => {
   // Ensure window is available
   if (typeof window === 'undefined') {
     ;(globalThis as any).window = {
-      webkitSpeechRecognition: undefined,
       SpeechRecognition: undefined,
+      webkitSpeechRecognition: undefined,
     }
   }
 })
@@ -118,9 +118,9 @@ describe('useTranscriptions', () => {
   })
 
   const createOptions = (isTamagotchi = false) => ({
+    isStageTamagotchi: ref(isTamagotchi),
     messageInputRef: ref(''),
     sendMessage: vi.fn(),
-    isStageTamagotchi: ref(isTamagotchi),
   })
 
   describe('initialization', () => {

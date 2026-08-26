@@ -20,8 +20,8 @@ export function createMediaPipeBackend(): MocapBackend {
   const semaphore = new Semaphore(1)
   let busy = false
   let config: MocapConfig | undefined
-  let tasksVision: VisionTaskModule | undefined
-  let vision: VisionTaskWasmFileset | undefined
+  let tasksVision: undefined | VisionTaskModule
+  let vision: undefined | VisionTaskWasmFileset
 
   let poseLandmarker: PoseLandmarker | undefined
   let handLandmarker: HandLandmarker | undefined
@@ -50,8 +50,8 @@ export function createMediaPipeBackend(): MocapBackend {
     const { PoseLandmarker } = tasksVision!
     poseLandmarker = await PoseLandmarker.createFromOptions(vision!, {
       baseOptions: { modelAssetPath: visionTaskAssets.pose },
-      runningMode: 'VIDEO',
       numPoses: 1,
+      runningMode: 'VIDEO',
     })
 
     return poseLandmarker
@@ -64,8 +64,8 @@ export function createMediaPipeBackend(): MocapBackend {
     const { HandLandmarker } = tasksVision!
     handLandmarker = await HandLandmarker.createFromOptions(vision!, {
       baseOptions: { modelAssetPath: visionTaskAssets.hands },
-      runningMode: 'VIDEO',
       numHands: 2,
+      runningMode: 'VIDEO',
     })
 
     return handLandmarker
@@ -78,8 +78,8 @@ export function createMediaPipeBackend(): MocapBackend {
     const { FaceLandmarker } = tasksVision!
     faceLandmarker = await FaceLandmarker.createFromOptions(vision!, {
       baseOptions: { modelAssetPath: visionTaskAssets.face },
-      runningMode: 'VIDEO',
       numFaces: 1,
+      runningMode: 'VIDEO',
     })
 
     return faceLandmarker
@@ -106,10 +106,10 @@ export function createMediaPipeBackend(): MocapBackend {
           partial.pose = {
             landmarks2d: firstPose,
             worldLandmarks: firstWorld.map(p => ({
+              visibility: p.visibility,
               x: p.x,
               y: p.y,
               z: p.z,
-              visibility: p.visibility,
             })),
           }
         }

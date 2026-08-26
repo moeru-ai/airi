@@ -7,7 +7,7 @@ import { shouldForwardSignalToConscious } from './reflex-manager'
 // are now suppressed; critical health still reaches the brain via the separate `low_health` signal.
 
 function sig(type: string, action?: string): any {
-  return { type, metadata: action ? { action } : {} }
+  return { metadata: action ? { action } : {}, type }
 }
 
 describe('shouldForwardSignalToConscious', () => {

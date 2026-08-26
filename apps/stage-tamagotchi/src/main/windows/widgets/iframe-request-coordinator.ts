@@ -8,23 +8,23 @@ import { randomUUID } from 'node:crypto'
 const DEFAULT_WIDGET_IFRAME_REQUEST_TIMEOUT_MS = 30000
 const WIDGET_IFRAME_REQUEST_CLOSED_MESSAGE = 'Gamelet was closed before the request completed.'
 
-interface PendingWidgetIframeRequest {
-  id: string
-  resolve: (result: Record<string, unknown>) => void
-  reject: (error: Error) => void
-  timeout: ReturnType<typeof setTimeout>
-}
-
 /**
  * Runtime hooks used by the widget iframe request coordinator.
  */
 export interface WidgetIframeRequestCoordinatorOptions {
   /** Emits the main-to-renderer iframe request event after pending state is registered. */
   emitRequest: (payload: WidgetsIframeRequestPayload) => void
-  /** Returns whether the widget id currently has a mounted main-process record. */
-  hasWidget: (id: string) => boolean
   /** Returns whether a renderer relay is available to receive iframe request events. */
   hasRelay: () => boolean
+  /** Returns whether the widget id currently has a mounted main-process record. */
+  hasWidget: (id: string) => boolean
+}
+
+interface PendingWidgetIframeRequest {
+  id: string
+  reject: (error: Error) => void
+  resolve: (result: Record<string, unknown>) => void
+  timeout: ReturnType<typeof setTimeout>
 }
 
 /**
@@ -69,16 +69,16 @@ export function createWidgetIframeRequestCoordinator(options: WidgetIframeReques
 
       pendingRequests.set(requestId, {
         id,
-        resolve: result => resolve(result as TResponse),
         reject,
+        resolve: result => resolve(result as TResponse),
         timeout,
       })
     })
 
     options.emitRequest({
       id,
-      requestId,
       payload: payload as WidgetsIframeRequestPayload['payload'],
+      requestId,
       timeoutMs,
     })
 
@@ -116,9 +116,9 @@ export function createWidgetIframeRequestCoordinator(options: WidgetIframeReques
   }
 
   return {
-    requestWidgetIframe,
     publishWidgetIframeRequestResult,
-    rejectPendingWidgetIframeRequests,
     rejectAllPendingWidgetIframeRequests,
+    rejectPendingWidgetIframeRequests,
+    requestWidgetIframe,
   }
 }

@@ -20,12 +20,6 @@ function createMockServer() {
   const handlers = new Map<string, ToolHandler>()
 
   return {
-    server: {
-      tool(name: string, _summaryOrSchema: unknown, schemaOrHandler: unknown, maybeHandler?: ToolHandler) {
-        const handler = (maybeHandler ?? schemaOrHandler) as ToolHandler
-        handlers.set(name, handler)
-      },
-    } as unknown as McpServer,
     async invoke(name: string, args: Record<string, unknown> = {}) {
       const handler = handlers.get(name)
       if (!handler) {
@@ -34,6 +28,12 @@ function createMockServer() {
 
       return await handler(args)
     },
+    server: {
+      tool(name: string, _summaryOrSchema: unknown, schemaOrHandler: unknown, maybeHandler?: ToolHandler) {
+        const handler = (maybeHandler ?? schemaOrHandler) as ToolHandler
+        handlers.set(name, handler)
+      },
+    } as unknown as McpServer,
   }
 }
 
@@ -45,83 +45,83 @@ describe('registerChromeSessionTools', () => {
     pendingActions = []
 
     runtime = {
-      config: createTestConfig({
-        executor: 'macos-local',
-        approvalMode: 'never',
-      }),
-      stateManager: new RunStateManager(),
-      session: {
-        getBudgetState: vi.fn(() => ({ operationsExecuted: 0, operationUnitsConsumed: 0 })),
-        getLastScreenshot: vi.fn(() => undefined),
-        listPendingActions: vi.fn(() => pendingActions),
-        createPendingAction: vi.fn((record: Record<string, unknown>) => {
-          const pending = {
-            ...record,
-            id: `pending-${pendingActions.length + 1}`,
-            createdAt: new Date().toISOString(),
-          }
-          pendingActions.push(pending)
-          return pending
+      browserDomBridge: {
+        getStatus: vi.fn(() => ({
+          connected: false,
+          enabled: false,
+        })),
+      },
+      cdpBridgeManager: {
+        ensureBridge: vi.fn(),
+        probeAvailability: vi.fn().mockResolvedValue({
+          connectable: false,
+          connected: false,
+          endpoint: undefined,
+          lastError: 'CDP unavailable',
         }),
-        record: vi.fn().mockResolvedValue(undefined),
-        consumeOperation: vi.fn(),
+      },
+      chromeSessionManager: {
+        ensureAgentWindow: vi.fn(),
+        getSessionInfo: vi.fn(() => null),
+      },
+      config: createTestConfig({
+        approvalMode: 'never',
+        executor: 'macos-local',
+      }),
+      desktopSessionController: {
+        addOwnedWindow: vi.fn(),
+        begin: vi.fn(() => ({ id: 'desktop-session-1' })),
+        getSession: vi.fn(() => null),
       },
       executor: {
+        getDisplayInfo: vi.fn().mockResolvedValue(createDisplayInfo({
+          note: 'macOS local display',
+          platform: 'darwin',
+        })),
         getExecutionTarget: vi.fn().mockResolvedValue(createLocalExecutionTarget({
           hostName: 'macbook-pro',
           sessionTag: 'local-session',
         })),
         getForegroundContext: vi.fn().mockResolvedValue({
-          available: true,
           appName: 'Finder',
+          available: true,
+          platform: 'darwin',
           windowTitle: 'Desktop',
-          platform: 'darwin',
         }),
-        getDisplayInfo: vi.fn().mockResolvedValue(createDisplayInfo({
-          platform: 'darwin',
-          note: 'macOS local display',
-        })),
       },
+      session: {
+        consumeOperation: vi.fn(),
+        createPendingAction: vi.fn((record: Record<string, unknown>) => {
+          const pending = {
+            ...record,
+            createdAt: new Date().toISOString(),
+            id: `pending-${pendingActions.length + 1}`,
+          }
+          pendingActions.push(pending)
+          return pending
+        }),
+        getBudgetState: vi.fn(() => ({ operationsExecuted: 0, operationUnitsConsumed: 0 })),
+        getLastScreenshot: vi.fn(() => undefined),
+        listPendingActions: vi.fn(() => pendingActions),
+        record: vi.fn().mockResolvedValue(undefined),
+      },
+      stateManager: new RunStateManager(),
       terminalRunner: {
         getState: vi.fn(() => createTerminalState({
           effectiveCwd: '/tmp',
         })),
-      },
-      browserDomBridge: {
-        getStatus: vi.fn(() => ({
-          enabled: false,
-          connected: false,
-        })),
-      },
-      cdpBridgeManager: {
-        probeAvailability: vi.fn().mockResolvedValue({
-          endpoint: undefined,
-          connected: false,
-          connectable: false,
-          lastError: 'CDP unavailable',
-        }),
-        ensureBridge: vi.fn(),
-      },
-      chromeSessionManager: {
-        getSessionInfo: vi.fn(() => null),
-        ensureAgentWindow: vi.fn(),
-      },
-      desktopSessionController: {
-        getSession: vi.fn(() => null),
-        begin: vi.fn(() => ({ id: 'desktop-session-1' })),
-        addOwnedWindow: vi.fn(),
       },
     } as unknown as ComputerUseServerRuntime
   })
 
   it('returns approval_required instead of launching Chrome when approvals are enabled', async () => {
     runtime.config = createTestConfig({
-      executor: 'macos-local',
       approvalMode: 'all',
+      executor: 'macos-local',
     })
 
-    const { server, invoke } = createMockServer()
-    registerChromeSessionTools({ server, runtime })
+    const { invoke, server } = createMockServer()
+    registerChromeSessionTools({ runtime, server })
 
     const result = await invoke('desktop_ensure_chrome', {
       url: 'https://example.com',
@@ -130,20 +130,20 @@ describe('registerChromeSessionTools', () => {
     const structured = result.structuredContent as Record<string, any>
     expect(structured.status).toBe('approval_required')
     expect(structured.action).toEqual({
-      kind: 'desktop_ensure_chrome',
       input: {
         url: 'https://example.com',
       },
+      kind: 'desktop_ensure_chrome',
     })
     expect(structured.transparency.intent).toBe('Open an agent Chrome window with CDP support')
     expect(runtime.chromeSessionManager.ensureAgentWindow).not.toHaveBeenCalled()
     expect(runtime.session.createPendingAction).toHaveBeenCalledTimes(1)
     expect(runtime.session.createPendingAction).toHaveBeenCalledWith(expect.objectContaining({
       action: {
-        kind: 'desktop_ensure_chrome',
         input: {
           url: 'https://example.com',
         },
+        kind: 'desktop_ensure_chrome',
       },
     }))
     expect(runtime.session.consumeOperation).not.toHaveBeenCalled()
@@ -152,16 +152,16 @@ describe('registerChromeSessionTools', () => {
 
   it('consumes operation budget and persists chrome session when approvals are disabled', async () => {
     vi.mocked(runtime.chromeSessionManager.ensureAgentWindow).mockResolvedValue({
+      agentOwned: true,
+      createdAt: new Date().toISOString(),
+      initialUrl: 'https://example.com',
+      pid: 4242,
       wasAlreadyRunning: false,
       windowId: 'chrome-window-1',
-      pid: 4242,
-      agentOwned: true,
-      initialUrl: 'https://example.com',
-      createdAt: new Date().toISOString(),
     })
 
-    const { server, invoke } = createMockServer()
-    registerChromeSessionTools({ server, runtime })
+    const { invoke, server } = createMockServer()
+    registerChromeSessionTools({ runtime, server })
 
     const result = await invoke('desktop_ensure_chrome', {
       url: 'https://example.com',
@@ -171,8 +171,8 @@ describe('registerChromeSessionTools', () => {
     expect((result.content?.[0] as Record<string, unknown>)?.text).toContain('Chrome session launched')
     expect(runtime.session.consumeOperation).toHaveBeenCalledWith(2)
     expect(runtime.stateManager.getState().chromeSession).toMatchObject({
-      windowId: 'chrome-window-1',
       pid: 4242,
+      windowId: 'chrome-window-1',
     })
     expect(runtime.desktopSessionController.begin).toHaveBeenCalledTimes(1)
     expect(runtime.session.record).toHaveBeenCalledTimes(2)
@@ -182,35 +182,35 @@ describe('registerChromeSessionTools', () => {
 
   it('uses focus_app when a chrome session already exists', async () => {
     runtime.config = createTestConfig({
-      executor: 'macos-local',
       approvalMode: 'all',
+      executor: 'macos-local',
     })
     vi.mocked(runtime.chromeSessionManager.getSessionInfo).mockReturnValue({
-      wasAlreadyRunning: false,
-      windowId: 'chrome-window-existing',
-      pid: 9999,
       agentOwned: true,
       createdAt: new Date().toISOString(),
+      pid: 9999,
+      wasAlreadyRunning: false,
+      windowId: 'chrome-window-existing',
     })
 
-    const { server, invoke } = createMockServer()
-    registerChromeSessionTools({ server, runtime })
+    const { invoke, server } = createMockServer()
+    registerChromeSessionTools({ runtime, server })
 
     const result = await invoke('desktop_ensure_chrome')
 
     const structured = result.structuredContent as Record<string, any>
     expect(structured.status).toBe('approval_required')
     expect(structured.action).toEqual({
-      kind: 'desktop_ensure_chrome',
       input: {},
+      kind: 'desktop_ensure_chrome',
     })
     expect(structured.transparency.intent).toBe('Bring the agent Chrome window to the foreground')
     expect(runtime.chromeSessionManager.ensureAgentWindow).not.toHaveBeenCalled()
     expect((runtime.session.record as any).mock.calls[0][0].result.approvalAction).toEqual({
-      kind: 'focus_app',
       input: {
         app: 'Google Chrome',
       },
+      kind: 'focus_app',
     })
   })
 })

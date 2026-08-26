@@ -4,19 +4,6 @@ import { env } from 'node:process'
 
 import { app, shell } from 'electron'
 
-/** Enables Electron's CDP endpoint before the app ready event. */
-export function setupDebugger() {
-  if (/^true$/i.test(env.APP_REMOTE_DEBUG || '')) {
-    const remoteDebugPort = Number(env.APP_REMOTE_DEBUG_PORT || '9222')
-    if (Number.isNaN(remoteDebugPort) || !Number.isInteger(remoteDebugPort) || remoteDebugPort < 0 || remoteDebugPort > 65535) {
-      throw new Error(`Invalid remote debug port: ${env.APP_REMOTE_DEBUG_PORT}`)
-    }
-
-    app.commandLine.appendSwitch('remote-debugging-port', String(remoteDebugPort))
-    app.commandLine.appendSwitch('remote-allow-origins', `http://localhost:${remoteDebugPort}`)
-  }
-}
-
 /**
  * Opens the inspector for the first available Electron renderer target.
  *
@@ -58,5 +45,18 @@ export function openDebugger() {
     }).on('error', (err) => {
       console.error('[Remote Debugging] Failed to fetch metadata from /json:', err)
     })
+  }
+}
+
+/** Enables Electron's CDP endpoint before the app ready event. */
+export function setupDebugger() {
+  if (/^true$/i.test(env.APP_REMOTE_DEBUG || '')) {
+    const remoteDebugPort = Number(env.APP_REMOTE_DEBUG_PORT || '9222')
+    if (Number.isNaN(remoteDebugPort) || !Number.isInteger(remoteDebugPort) || remoteDebugPort < 0 || remoteDebugPort > 65535) {
+      throw new Error(`Invalid remote debug port: ${env.APP_REMOTE_DEBUG_PORT}`)
+    }
+
+    app.commandLine.appendSwitch('remote-debugging-port', String(remoteDebugPort))
+    app.commandLine.appendSwitch('remote-allow-origins', `http://localhost:${remoteDebugPort}`)
   }
 }

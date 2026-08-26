@@ -12,10 +12,6 @@ declare global {
     vadReady: boolean
   }
 
-  interface Window {
-    __airiAudioInputE2E?: BrowserAudioInputState
-  }
-
   // NOTICE:
   // TypeScript 5.9 does not declare the Baseline 2025 Uint8Array Base64 methods.
   // The test runs in current Playwright and Electron Chromium runtimes that implement this API.
@@ -26,6 +22,10 @@ declare global {
       alphabet?: 'base64' | 'base64url'
       omitPadding?: boolean
     }) => string
+  }
+
+  interface Window {
+    __airiAudioInputE2E?: BrowserAudioInputState
   }
 }
 

@@ -9,35 +9,35 @@ import { resolveTerminalSurface } from './surface-resolver'
 // Helpers
 // ---------------------------------------------------------------------------
 
+function base(overrides: Partial<SurfaceResolutionInput> = {}): SurfaceResolutionInput {
+  return {
+    command: 'echo hello',
+    config: { interaction: 'one_shot', mode: 'auto' },
+    state: emptyState(),
+    stepId: 'step-1',
+    taskId: 'task-1',
+    ...overrides,
+  }
+}
+
+function binding(taskId: string, stepId: string, ptySessionId: string) {
+  return { ptySessionId, stepId, surface: 'pty' as const, taskId }
+}
+
 function emptyState(): RunState {
   return {
-    pendingApprovalCount: 0,
     lastApprovalRejected: false,
-    ptySessions: [],
-    workflowStepTerminalBindings: [],
+    pendingApprovalCount: 0,
     ptyApprovalGrants: [],
     ptyAuditLog: [],
+    ptySessions: [],
     updatedAt: new Date().toISOString(),
+    workflowStepTerminalBindings: [],
   }
 }
 
 function ptySession(id: string, alive = true) {
-  return { id, alive, rows: 24, cols: 80, cwd: '/tmp', pid: 1234, createdAt: new Date().toISOString() }
-}
-
-function binding(taskId: string, stepId: string, ptySessionId: string) {
-  return { taskId, stepId, surface: 'pty' as const, ptySessionId }
-}
-
-function base(overrides: Partial<SurfaceResolutionInput> = {}): SurfaceResolutionInput {
-  return {
-    taskId: 'task-1',
-    stepId: 'step-1',
-    config: { mode: 'auto', interaction: 'one_shot' },
-    command: 'echo hello',
-    state: emptyState(),
-    ...overrides,
-  }
+  return { alive, cols: 80, createdAt: new Date().toISOString(), cwd: '/tmp', id, pid: 1234, rows: 24 }
 }
 
 describe('resolveTerminalSurface', () => {
@@ -45,7 +45,7 @@ describe('resolveTerminalSurface', () => {
   describe('explicit mode', () => {
     it('returns exec for mode=exec', () => {
       const res = resolveTerminalSurface(base({
-        config: { mode: 'exec', interaction: 'one_shot' },
+        config: { interaction: 'one_shot', mode: 'exec' },
       }))
       expect(res.surface).toBe('exec')
       expect(res.reason).toBe('explicit_exec')
@@ -53,7 +53,7 @@ describe('resolveTerminalSurface', () => {
 
     it('returns pty for mode=pty (no bound session)', () => {
       const res = resolveTerminalSurface(base({
-        config: { mode: 'pty', interaction: 'one_shot' },
+        config: { interaction: 'one_shot', mode: 'pty' },
       }))
       expect(res.surface).toBe('pty')
       expect(res.reason).toBe('explicit_pty')
@@ -66,7 +66,7 @@ describe('resolveTerminalSurface', () => {
       state.workflowStepTerminalBindings = [binding('task-1', 'step-1', 'pty-1')]
 
       const res = resolveTerminalSurface(base({
-        config: { mode: 'pty', interaction: 'persistent' },
+        config: { interaction: 'persistent', mode: 'pty' },
         state,
       }))
       expect(res.surface).toBe('pty')
@@ -100,7 +100,7 @@ describe('resolveTerminalSurface', () => {
 
     it('condition 2: auto_persistent_interaction', () => {
       const res = resolveTerminalSurface(base({
-        config: { mode: 'auto', interaction: 'persistent' },
+        config: { interaction: 'persistent', mode: 'auto' },
       }))
       expect(res.surface).toBe('pty')
       expect(res.reason).toBe('auto_persistent_interaction')
@@ -155,8 +155,8 @@ describe('resolveTerminalSurface', () => {
       state.workflowStepTerminalBindings = [binding('task-1', 'step-1', 'pty-p')]
 
       const res = resolveTerminalSurface(base({
-        config: { mode: 'auto', interaction: 'persistent' },
         command: 'vim',
+        config: { interaction: 'persistent', mode: 'auto' },
         state,
       }))
       expect(res.reason).toBe('auto_bound_session')
@@ -164,8 +164,8 @@ describe('resolveTerminalSurface', () => {
 
     it('persistent interaction wins over interactive command', () => {
       const res = resolveTerminalSurface(base({
-        config: { mode: 'auto', interaction: 'persistent' },
         command: 'echo plain',
+        config: { interaction: 'persistent', mode: 'auto' },
       }))
       expect(res.reason).toBe('auto_persistent_interaction')
     })
@@ -183,9 +183,9 @@ describe('resolveTerminalSurface', () => {
   describe('explanation', () => {
     it('always provides a non-empty explanation', () => {
       const reasons: Array<Partial<SurfaceResolutionInput>> = [
-        { config: { mode: 'exec', interaction: 'one_shot' } },
-        { config: { mode: 'pty', interaction: 'one_shot' } },
-        { config: { mode: 'auto', interaction: 'persistent' } },
+        { config: { interaction: 'one_shot', mode: 'exec' } },
+        { config: { interaction: 'one_shot', mode: 'pty' } },
+        { config: { interaction: 'persistent', mode: 'auto' } },
         { command: 'vim' },
         { previousExecOutput: 'Password:' },
         {},

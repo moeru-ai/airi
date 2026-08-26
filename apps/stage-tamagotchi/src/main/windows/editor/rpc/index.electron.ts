@@ -13,9 +13,9 @@ import { setupBaseWindowElectronInvokes } from '../../shared/window'
  * Feature-specific RPC handlers should be added here as the editor gains capabilities.
  */
 export async function setupEditorWindowInvokes(params: {
-  window: BrowserWindow
   i18n: I18n
   serverChannel: ServerChannel
+  window: BrowserWindow
 }) {
   // TODO: Remove this once Eventa supports window-namespaced Electron contexts.
   ipcMain.setMaxListeners(0)
@@ -24,9 +24,9 @@ export async function setupEditorWindowInvokes(params: {
 
   await setupBaseWindowElectronInvokes({
     context,
-    window: params.window,
     i18n: params.i18n,
     serverChannel: params.serverChannel,
+    window: params.window,
   })
 
   return context

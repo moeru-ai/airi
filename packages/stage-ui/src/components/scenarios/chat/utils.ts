@@ -1,26 +1,5 @@
 import type { ChatHistoryItem } from '../../../types/chat'
 
-function isTextPart(part: unknown): part is { type: 'text', text?: string } {
-  return typeof part === 'object'
-    && part !== null
-    && 'type' in part
-    && part.type === 'text'
-    && 'text' in part
-}
-
-function getTextFromContentParts(parts: unknown[]): string {
-  return parts.reduce<string[]>((texts, part) => {
-    if (!isTextPart(part))
-      return texts
-
-    const text = part.text?.trim()
-    if (text)
-      texts.push(text)
-
-    return texts
-  }, []).join('\n\n')
-}
-
 export function getChatHistoryItemCopyText(message: ChatHistoryItem): string {
   if (message.role === 'error')
     return message.content
@@ -67,7 +46,7 @@ export function getChatHistoryItemCopyText(message: ChatHistoryItem): string {
   return ''
 }
 
-export function getChatHistoryItemKey(message: ChatHistoryItem | undefined, index: number): string | number {
+export function getChatHistoryItemKey(message: ChatHistoryItem | undefined, index: number): number | string {
   if (!message)
     return index
 
@@ -78,4 +57,25 @@ export function getChatHistoryItemKey(message: ChatHistoryItem | undefined, inde
     return `${message.role}:${message.createdAt}:${index}`
 
   return `${message.role}:${index}`
+}
+
+function getTextFromContentParts(parts: unknown[]): string {
+  return parts.reduce<string[]>((texts, part) => {
+    if (!isTextPart(part))
+      return texts
+
+    const text = part.text?.trim()
+    if (text)
+      texts.push(text)
+
+    return texts
+  }, []).join('\n\n')
+}
+
+function isTextPart(part: unknown): part is { text?: string, type: 'text' } {
+  return typeof part === 'object'
+    && part !== null
+    && 'type' in part
+    && part.type === 'text'
+    && 'text' in part
 }

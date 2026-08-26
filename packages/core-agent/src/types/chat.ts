@@ -1,32 +1,11 @@
 import type { ContextUpdate, MetadataEventSource, WebSocketEventInputs } from '@proj-airi/server-shared/types'
 import type { AssistantMessage, CommonContentPart, CompletionToolCall, Message, SystemMessage, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
-export interface ChatSlicesText {
-  type: 'text'
-  text: string
-}
-
-export interface ChatSlicesToolCall {
-  type: 'tool-call'
-  toolCall: CompletionToolCall
-}
-
-export interface ChatSlicesToolCallResult {
-  type: 'tool-call-result'
-  id: string
-  isError?: boolean
-  result?: string | CommonContentPart[]
-}
-
-export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCallResult
-
 export interface ChatAssistantMessage extends AssistantMessage {
-  slices: ChatSlices[]
-  tool_results: {
-    id: string
-    isError?: boolean
-    result?: string | CommonContentPart[]
-  }[]
+  categorization?: {
+    reasoning: string
+    speech: string
+  }
   /**
    * Exact provider messages that xsAI added for this assistant turn.
    *
@@ -35,29 +14,12 @@ export interface ChatAssistantMessage extends AssistantMessage {
    * protocol order for the next provider request.
    */
   providerTranscript?: Message[]
-  categorization?: {
-    speech: string
-    reasoning: string
-  }
-}
-
-export type ChatMessage = ChatAssistantMessage | SystemMessage | ToolMessage | UserMessage
-
-/** Identifies one model-facing tool without storing its runtime executor. */
-export interface ChatToolReference {
-  name: string
-}
-
-export interface ErrorMessage {
-  role: 'error'
-  content: string
-}
-
-export interface ContextMessage extends ContextUpdate<Record<string, unknown>, unknown> {
-  metadata?: {
-    source: MetadataEventSource
-  }
-  createdAt: number
+  slices: ChatSlices[]
+  tool_results: {
+    id: string
+    isError?: boolean
+    result?: CommonContentPart[] | string
+  }[]
 }
 
 export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
@@ -68,24 +30,62 @@ export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
   tools?: ChatToolReference[]
 }
 
-export interface ChatStreamEventContext {
-  /** Stable correlation id shared by every hook emitted for one user turn. */
-  turnId: string
-  message: ChatHistoryItem
-  contexts: Record<string, ContextMessage[]>
-  composedMessage: Array<Message>
-  input?: WebSocketEventInputs
+export type ChatMessage = ChatAssistantMessage | SystemMessage | ToolMessage | UserMessage
+
+export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCallResult
+
+export interface ChatSlicesText {
+  text: string
+  type: 'text'
+}
+
+export interface ChatSlicesToolCall {
+  toolCall: CompletionToolCall
+  type: 'tool-call'
+}
+
+export interface ChatSlicesToolCallResult {
+  id: string
+  isError?: boolean
+  result?: CommonContentPart[] | string
+  type: 'tool-call-result'
 }
 
 export type ChatStreamEvent
-  = | { type: 'before-compose', message: string, sessionId: string, context: Omit<ChatStreamEventContext, 'composedMessage'> }
-    | { type: 'after-compose', message: string, sessionId: string, context: ChatStreamEventContext }
-    | { type: 'before-send', message: string, sessionId: string, context: ChatStreamEventContext }
-    | { type: 'after-send', message: string, sessionId: string, context: ChatStreamEventContext }
-    | { type: 'token-literal', literal: string, sessionId: string, context: ChatStreamEventContext }
-    | { type: 'token-special', special: string, sessionId: string, context: ChatStreamEventContext }
-    | { type: 'stream-end', sessionId: string, context: ChatStreamEventContext }
-    | { type: 'assistant-end', message: string, sessionId: string, context: ChatStreamEventContext }
-    | { type: 'assistant-message', message: ChatAssistantMessage, sessionId: string, messageText: string, context: ChatStreamEventContext }
+  = | { context: ChatStreamEventContext, literal: string, sessionId: string, type: 'token-literal' }
+    | { context: ChatStreamEventContext, message: ChatAssistantMessage, messageText: string, sessionId: string, type: 'assistant-message' }
+    | { context: ChatStreamEventContext, message: string, sessionId: string, type: 'after-compose' }
+    | { context: ChatStreamEventContext, message: string, sessionId: string, type: 'after-send' }
+    | { context: ChatStreamEventContext, message: string, sessionId: string, type: 'assistant-end' }
+    | { context: ChatStreamEventContext, message: string, sessionId: string, type: 'before-send' }
+    | { context: ChatStreamEventContext, sessionId: string, special: string, type: 'token-special' }
+    | { context: ChatStreamEventContext, sessionId: string, type: 'stream-end' }
+    | { context: Omit<ChatStreamEventContext, 'composedMessage'>, message: string, sessionId: string, type: 'before-compose' }
+
+export interface ChatStreamEventContext {
+  composedMessage: Array<Message>
+  contexts: Record<string, ContextMessage[]>
+  input?: WebSocketEventInputs
+  message: ChatHistoryItem
+  /** Stable correlation id shared by every hook emitted for one user turn. */
+  turnId: string
+}
+
+/** Identifies one model-facing tool without storing its runtime executor. */
+export interface ChatToolReference {
+  name: string
+}
+
+export interface ContextMessage extends ContextUpdate<Record<string, unknown>, unknown> {
+  createdAt: number
+  metadata?: {
+    source: MetadataEventSource
+  }
+}
+
+export interface ErrorMessage {
+  content: string
+  role: 'error'
+}
 
 export type StreamingAssistantMessage = ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number, id?: string }

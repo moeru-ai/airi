@@ -40,52 +40,28 @@ const mockedCreateServer = vi.mocked(createServer)
 
 function makeConfig(): ComputerUseConfig {
   return {
-    executor: 'macos-local',
-    sessionTag: 'test',
-    sessionRoot: '/tmp/test',
-    screenshotsDir: '/tmp/test/screenshots',
-    timeoutMs: 5000,
     approvalMode: 'never',
     binaries: {
-      swift: '/usr/bin/swift',
-      screencapture: '/usr/sbin/screencapture',
       open: '/usr/bin/open',
       osascript: '/usr/bin/osascript',
+      screencapture: '/usr/sbin/screencapture',
+      swift: '/usr/bin/swift',
     },
     browserDomBridge: { enabled: false },
+    executor: 'macos-local',
     openableApps: [],
+    screenshotsDir: '/tmp/test/screenshots',
+    sessionRoot: '/tmp/test',
+    sessionTag: 'test',
+    timeoutMs: 5000,
   } as ComputerUseConfig
 }
 
-function ok(stdout = ''): any {
-  return { stdout, stderr: '' }
-}
-
-function mockPortAvailability(...results: boolean[]) {
-  for (const result of results) {
-    mockedCreateServer.mockImplementationOnce(() => {
-      const handlers = new Map<string, (...args: any[]) => void>()
-      return {
-        once(event: string, handler: (...args: any[]) => void) {
-          handlers.set(event, handler)
-          return this
-        },
-        listen(_port: number, _host: string, callback: () => void) {
-          if (result) {
-            callback()
-          }
-          else {
-            handlers.get('error')?.(new Error('EADDRINUSE'))
-          }
-          return this
-        },
-        close(callback: () => void) {
-          callback()
-          return this
-        },
-      } as any
-    })
-  }
+function mockEnsureWindowMissingFlow(pid: number) {
+  mockedRunProcess
+    .mockResolvedValueOnce(ok(`${pid} /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --user-data-dir=/tmp/test/chrome-profile-abc123 --remote-debugging-port=9222\n`)) // getTrackedChromePid
+    .mockResolvedValueOnce(ok(`${pid}\n`)) // isProcessAlive
+    .mockResolvedValueOnce(ok('0\n')) // hasChromeWindow
 }
 
 function mockLaunchFlow(pid: number, userApp = 'Terminal', cdpPort = 9222, pidLookupAttempts = 4) {
@@ -104,15 +80,31 @@ function mockLaunchFlow(pid: number, userApp = 'Terminal', cdpPort = 9222, pidLo
   }
 }
 
-function primeDefaultPortAvailability() {
-  if (mockedCreateServer.mock.calls.length === 0 && mockedCreateServer.mock.results.length === 0) {
-    mockPortAvailability(true)
+function mockPortAvailability(...results: boolean[]) {
+  for (const result of results) {
+    mockedCreateServer.mockImplementationOnce(() => {
+      const handlers = new Map<string, (...args: any[]) => void>()
+      return {
+        close(callback: () => void) {
+          callback()
+          return this
+        },
+        listen(_port: number, _host: string, callback: () => void) {
+          if (result) {
+            callback()
+          }
+          else {
+            handlers.get('error')?.(new Error('EADDRINUSE'))
+          }
+          return this
+        },
+        once(event: string, handler: (...args: any[]) => void) {
+          handlers.set(event, handler)
+          return this
+        },
+      } as any
+    })
   }
-}
-
-function resetLaunchMocks() {
-  mockedRunProcess.mockReset()
-  mockedCreateServer.mockReset()
 }
 
 function mockReuseFlow(pid: number) {
@@ -122,22 +114,30 @@ function mockReuseFlow(pid: number) {
     .mockResolvedValueOnce(ok('1\n')) // hasChromeWindow
 }
 
+function mockStalePidFlow(pid: number) {
+  mockedRunProcess
+    .mockResolvedValueOnce(ok(`${pid} /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --user-data-dir=/tmp/test/chrome-profile-abc123 --remote-debugging-port=9222\n`)) // getTrackedChromePid
+}
+
 function mockWindowMissingFlow(pid: number) {
   mockedRunProcess
     .mockResolvedValueOnce(ok(`${pid}\n`)) // isProcessAlive
     .mockResolvedValueOnce(ok('0\n')) // hasChromeWindow
 }
 
-function mockEnsureWindowMissingFlow(pid: number) {
-  mockedRunProcess
-    .mockResolvedValueOnce(ok(`${pid} /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --user-data-dir=/tmp/test/chrome-profile-abc123 --remote-debugging-port=9222\n`)) // getTrackedChromePid
-    .mockResolvedValueOnce(ok(`${pid}\n`)) // isProcessAlive
-    .mockResolvedValueOnce(ok('0\n')) // hasChromeWindow
+function ok(stdout = ''): any {
+  return { stderr: '', stdout }
 }
 
-function mockStalePidFlow(pid: number) {
-  mockedRunProcess
-    .mockResolvedValueOnce(ok(`${pid} /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --user-data-dir=/tmp/test/chrome-profile-abc123 --remote-debugging-port=9222\n`)) // getTrackedChromePid
+function primeDefaultPortAvailability() {
+  if (mockedCreateServer.mock.calls.length === 0 && mockedCreateServer.mock.results.length === 0) {
+    mockPortAvailability(true)
+  }
+}
+
+function resetLaunchMocks() {
+  mockedRunProcess.mockReset()
+  mockedCreateServer.mockReset()
 }
 
 describe('chromeSessionManager', () => {
@@ -286,8 +286,8 @@ describe('chromeSessionManager', () => {
       manager.endSession()
 
       expect(mockedRm).toHaveBeenCalledWith('/tmp/test/chrome-profile-abc123', {
-        recursive: true,
         force: true,
+        recursive: true,
       })
       expect(manager.getSessionInfo()).toBeNull()
     })
@@ -307,8 +307,8 @@ describe('chromeSessionManager', () => {
 
       expect(second.pid).toBe(22222)
       expect(mockedRm).toHaveBeenCalledWith('/tmp/test/chrome-profile-abc123', {
-        recursive: true,
         force: true,
+        recursive: true,
       })
     })
 
@@ -327,8 +327,8 @@ describe('chromeSessionManager', () => {
       await expect(manager.ensureAgentWindow()).rejects.toThrow('activate failed')
       expect(mockedRunProcess).toHaveBeenCalledWith('kill', ['-TERM', '11111'], expect.any(Object))
       expect(mockedRm).toHaveBeenCalledWith('/tmp/test/chrome-profile-abc123', {
-        recursive: true,
         force: true,
+        recursive: true,
       })
     })
   })

@@ -13,24 +13,24 @@ import { SatoriOpcode } from './types'
 const log = useLogg('SatoriClient')
 
 export interface SatoriClientConfig {
-  url: string
-  token?: string
   apiBaseUrl?: string
+  token?: string
+  url: string
 }
 
 export class SatoriClient {
-  private ws?: WebSocket
+  private apiClients = new Map<string, SatoriAPI>()
   private config: SatoriClientConfig
   private connected = false
-  private lastSequenceNumber = 0
-  private heartbeatInterval?: NodeJS.Timeout
-  private reconnectTimeout?: NodeJS.Timeout
-  private shouldReconnect = true
-  private apiClients = new Map<string, SatoriAPI>()
-
   // Event handlers
-  private eventHandlers = new Map<string, Set<(event: SatoriEvent) => void | Promise<void>>>()
-  private readyHandler?: (logins: SatoriReadyBody) => void | Promise<void>
+  private eventHandlers = new Map<string, Set<(event: SatoriEvent) => Promise<void> | void>>()
+  private heartbeatInterval?: NodeJS.Timeout
+  private lastSequenceNumber = 0
+  private readyHandler?: (logins: SatoriReadyBody) => Promise<void> | void
+  private reconnectTimeout?: NodeJS.Timeout
+
+  private shouldReconnect = true
+  private ws?: WebSocket
 
   constructor(config: SatoriClientConfig) {
     this.config = config
@@ -84,86 +84,95 @@ export class SatoriClient {
     })
   }
 
-  private sendIdentify(): void {
-    const body: SatoriIdentifyBody = {
-      token: this.config.token,
-      sn: this.lastSequenceNumber,
+  disconnect(): void {
+    this.shouldReconnect = false
+    this.stopHeartbeat()
+
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout)
+      this.reconnectTimeout = undefined
     }
 
-    this.sendSignal({
-      op: SatoriOpcode.IDENTIFY,
-      body,
-    })
+    if (this.ws) {
+      this.ws.removeAllListeners()
+      this.ws.close()
+      this.ws = undefined
+    }
 
-    log.log('Sent IDENTIFY signal')
+    this.connected = false
+    log.log('Disconnected from Satori server')
   }
 
-  private startHeartbeat(): void {
-    // Send PING every 10 seconds
-    this.heartbeatInterval = setInterval(() => {
-      if (this.connected) {
-        this.sendSignal({ op: SatoriOpcode.PING })
+  isConnected(): boolean {
+    return this.connected
+  }
+
+  off(eventType: string, handler?: (event: SatoriEvent) => Promise<void> | void): void {
+    const handlers = this.eventHandlers.get(eventType)
+    if (!handlers) {
+      return
+    }
+
+    if (handler) {
+      handlers.delete(handler)
+      if (handlers.size === 0) {
+        this.eventHandlers.delete(eventType)
       }
-    }, 10000)
-  }
-
-  private stopHeartbeat(): void {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval)
-      this.heartbeatInterval = undefined
+    }
+    else {
+      this.eventHandlers.delete(eventType)
     }
   }
 
-  private async handleMessage(data: WebSocket.Data): Promise<void> {
+  // Event subscription
+  on(eventType: string, handler: (event: SatoriEvent) => Promise<void> | void): void {
+    let handlers = this.eventHandlers.get(eventType)
+    if (!handlers) {
+      handlers = new Set()
+      this.eventHandlers.set(eventType, handlers)
+    }
+    handlers.add(handler)
+  }
+
+  onReady(handler: (logins: SatoriReadyBody) => Promise<void> | void): void {
+    this.readyHandler = handler
+  }
+
+  // Public API for sending messages
+  async sendMessage(platform: string, selfId: string, channelId: string, content: string): Promise<void> {
+    const key = `${platform}:${selfId}`
+    log.debug(`sendMessage called - platform: "${platform}", selfId: "${selfId}", key: "${key}"`)
+    log.debug(`Available API clients: ${Array.from(this.apiClients.keys()).join(', ')}`)
+    const api = this.apiClients.get(key)
+
+    if (!api) {
+      log.error(`No API client found for ${key}`)
+      return
+    }
+
     try {
-      const rawData = JSON.parse(data.toString())
-      const signal = v.parse(SatoriSignalSchema, rawData)
-
-      switch (signal.op) {
-        case SatoriOpcode.READY: {
-          const readyBody = v.parse(SatoriReadyBodySchema, signal.body)
-          log.log('Received READY signal')
-
-          // Initialize API clients for each login
-          this.initializeAPIClients(readyBody)
-
-          if (this.readyHandler) {
-            await this.readyHandler(readyBody)
-          }
-          break
-        }
-
-        case SatoriOpcode.EVENT: {
-          const event = v.parse(SatoriEventSchema, signal.body)
-          this.lastSequenceNumber = event.id
-          await this.handleEvent(event)
-          break
-        }
-
-        case SatoriOpcode.PONG: {
-          // Heartbeat response received
-          break
-        }
-
-        case SatoriOpcode.META: {
-          log.log('Received META signal:', signal.body)
-          break
-        }
-
-        default:
-          log.warn('Unknown opcode received:', signal.op)
-      }
+      await api.sendMessage(channelId, content)
+      log.log(`Message sent to channel ${channelId}`)
     }
     catch (error) {
-      if (v.isValiError(error)) {
-        log.error('Satori protocol validation failed:')
-        for (const issue of error.issues) {
-          log.error(`  - ${issue.path?.map(p => p.key).join('.')}: ${issue.message}`)
-        }
-      }
-      else {
-        log.withError(error as Error).error('Failed to handle message')
-      }
+      log.withError(error as Error).error('Failed to send message')
+    }
+  }
+
+  private handleDisconnect(): void {
+    this.connected = false
+    this.stopHeartbeat()
+
+    if (this.ws) {
+      this.ws.removeAllListeners()
+      this.ws = undefined
+    }
+
+    if (this.shouldReconnect) {
+      log.log('Attempting to reconnect in 5 seconds...')
+      this.reconnectTimeout = setTimeout(() => {
+        void this.connect()
+      }, 5000)
     }
   }
 
@@ -190,29 +199,56 @@ export class SatoriClient {
     }
   }
 
-  private handleDisconnect(): void {
-    this.connected = false
-    this.stopHeartbeat()
+  private async handleMessage(data: WebSocket.Data): Promise<void> {
+    try {
+      const rawData = JSON.parse(data.toString())
+      const signal = v.parse(SatoriSignalSchema, rawData)
 
-    if (this.ws) {
-      this.ws.removeAllListeners()
-      this.ws = undefined
-    }
+      switch (signal.op) {
+        case SatoriOpcode.EVENT: {
+          const event = v.parse(SatoriEventSchema, signal.body)
+          this.lastSequenceNumber = event.id
+          await this.handleEvent(event)
+          break
+        }
 
-    if (this.shouldReconnect) {
-      log.log('Attempting to reconnect in 5 seconds...')
-      this.reconnectTimeout = setTimeout(() => {
-        void this.connect()
-      }, 5000)
-    }
-  }
+        case SatoriOpcode.META: {
+          log.log('Received META signal:', signal.body)
+          break
+        }
 
-  private sendSignal(signal: SatoriSignal): void {
-    if (this.ws && this.connected) {
-      this.ws.send(JSON.stringify(signal))
+        case SatoriOpcode.PONG: {
+          // Heartbeat response received
+          break
+        }
+
+        case SatoriOpcode.READY: {
+          const readyBody = v.parse(SatoriReadyBodySchema, signal.body)
+          log.log('Received READY signal')
+
+          // Initialize API clients for each login
+          this.initializeAPIClients(readyBody)
+
+          if (this.readyHandler) {
+            await this.readyHandler(readyBody)
+          }
+          break
+        }
+
+        default:
+          log.warn('Unknown opcode received:', signal.op)
+      }
     }
-    else {
-      log.warn('Cannot send signal: not connected')
+    catch (error) {
+      if (v.isValiError(error)) {
+        log.error('Satori protocol validation failed:')
+        for (const issue of error.issues) {
+          log.error(`  - ${issue.path?.map(p => p.key).join('.')}: ${issue.message}`)
+        }
+      }
+      else {
+        log.withError(error as Error).error('Failed to handle message')
+      }
     }
   }
 
@@ -224,87 +260,51 @@ export class SatoriClient {
         const key = `${login.platform}:${login.self_id}`
         this.apiClients.set(key, new SatoriAPI({
           baseUrl: apiBaseUrl,
-          token: this.config.token,
           platform: login.platform,
           selfId: login.self_id,
+          token: this.config.token,
         }))
         log.log(`Initialized API client for ${key}`)
       }
     }
   }
 
-  // Public API for sending messages
-  async sendMessage(platform: string, selfId: string, channelId: string, content: string): Promise<void> {
-    const key = `${platform}:${selfId}`
-    log.debug(`sendMessage called - platform: "${platform}", selfId: "${selfId}", key: "${key}"`)
-    log.debug(`Available API clients: ${Array.from(this.apiClients.keys()).join(', ')}`)
-    const api = this.apiClients.get(key)
-
-    if (!api) {
-      log.error(`No API client found for ${key}`)
-      return
+  private sendIdentify(): void {
+    const body: SatoriIdentifyBody = {
+      sn: this.lastSequenceNumber,
+      token: this.config.token,
     }
 
-    try {
-      await api.sendMessage(channelId, content)
-      log.log(`Message sent to channel ${channelId}`)
-    }
-    catch (error) {
-      log.withError(error as Error).error('Failed to send message')
-    }
+    this.sendSignal({
+      body,
+      op: SatoriOpcode.IDENTIFY,
+    })
+
+    log.log('Sent IDENTIFY signal')
   }
 
-  // Event subscription
-  on(eventType: string, handler: (event: SatoriEvent) => void | Promise<void>): void {
-    let handlers = this.eventHandlers.get(eventType)
-    if (!handlers) {
-      handlers = new Set()
-      this.eventHandlers.set(eventType, handlers)
-    }
-    handlers.add(handler)
-  }
-
-  off(eventType: string, handler?: (event: SatoriEvent) => void | Promise<void>): void {
-    const handlers = this.eventHandlers.get(eventType)
-    if (!handlers) {
-      return
-    }
-
-    if (handler) {
-      handlers.delete(handler)
-      if (handlers.size === 0) {
-        this.eventHandlers.delete(eventType)
-      }
+  private sendSignal(signal: SatoriSignal): void {
+    if (this.ws && this.connected) {
+      this.ws.send(JSON.stringify(signal))
     }
     else {
-      this.eventHandlers.delete(eventType)
+      log.warn('Cannot send signal: not connected')
     }
   }
 
-  onReady(handler: (logins: SatoriReadyBody) => void | Promise<void>): void {
-    this.readyHandler = handler
+  private startHeartbeat(): void {
+    // Send PING every 10 seconds
+    this.heartbeatInterval = setInterval(() => {
+      if (this.connected) {
+        this.sendSignal({ op: SatoriOpcode.PING })
+      }
+    }, 10000)
   }
 
-  disconnect(): void {
-    this.shouldReconnect = false
-    this.stopHeartbeat()
-
-    if (this.reconnectTimeout) {
-      clearTimeout(this.reconnectTimeout)
-      this.reconnectTimeout = undefined
+  private stopHeartbeat(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval)
+      this.heartbeatInterval = undefined
     }
-
-    if (this.ws) {
-      this.ws.removeAllListeners()
-      this.ws.close()
-      this.ws = undefined
-    }
-
-    this.connected = false
-    log.log('Disconnected from Satori server')
-  }
-
-  isConnected(): boolean {
-    return this.connected
   }
 }

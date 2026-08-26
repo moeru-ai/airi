@@ -10,59 +10,24 @@ import * as yaml from 'yaml'
 
 import { getFilenames } from '../utils'
 
-export type UpdateTestChannel = 'stable' | 'beta' | 'alpha' | 'nightly' | 'canary'
-
 export interface GenerateManifestFixturesOptions {
-  rootDir: string
+  artifactContent?: string
   channel: UpdateTestChannel
+  releaseNotes: string
+  rootDir: string
   target: string
   version: string
-  releaseNotes: string
-  artifactContent?: string
 }
 
 export interface GenerateManifestFixturesResult {
-  channelDir: string
-  manifestPath: string
-  artifactPath: string
-  latestFilename: string
   artifactFilename: string
+  artifactPath: string
+  channelDir: string
+  latestFilename: string
+  manifestPath: string
 }
 
-export function resolveLatestFilenameForTarget(target: string) {
-  switch (target) {
-    case 'x86_64-pc-windows-msvc':
-      return 'latest-x64.yml'
-    case 'x86_64-unknown-linux-gnu':
-      return 'latest-x64-linux.yml'
-    case 'aarch64-unknown-linux-gnu':
-      return 'latest-arm64-linux-arm64.yml'
-    case 'x86_64-apple-darwin':
-      return 'latest-x64-mac.yml'
-    case 'aarch64-apple-darwin':
-      return 'latest-arm64-mac.yml'
-    default:
-      throw new Error(`Unsupported update-test target: ${target}`)
-  }
-}
-
-function encodeBase64Sha512(content: string) {
-  return createHash('sha512').update(content).digest('base64')
-}
-
-async function resolveArtifactFilename(target: string, version: string) {
-  const filenames = await getFilenames(target, {
-    release: true,
-    autoTag: false,
-    tag: [version],
-  })
-
-  const artifact = filenames.find(entry => !entry.optional && entry.extension !== 'blockmap')
-  if (!artifact)
-    throw new Error(`Unable to determine artifact filename for target: ${target}`)
-
-  return artifact.releaseArtifactFilename
-}
+export type UpdateTestChannel = 'alpha' | 'beta' | 'canary' | 'nightly' | 'stable'
 
 export async function generateManifestFixtures(options: GenerateManifestFixturesOptions): Promise<GenerateManifestFixturesResult> {
   const channelDir = join(options.rootDir, options.channel)
@@ -80,29 +45,50 @@ export async function generateManifestFixtures(options: GenerateManifestFixtures
   const size = Buffer.byteLength(artifactContent)
 
   const manifest = {
-    version: options.version,
     files: [
       {
-        url: artifactFilename,
         sha512,
         size,
+        url: artifactFilename,
       },
     ],
     path: artifactFilename,
-    sha512,
     releaseDate,
     releaseNotes: options.releaseNotes,
+    sha512,
+    version: options.version,
   }
 
   await writeFile(manifestPath, yaml.stringify(manifest), 'utf8')
 
   return {
-    channelDir,
-    manifestPath,
-    artifactPath,
-    latestFilename,
     artifactFilename,
+    artifactPath,
+    channelDir,
+    latestFilename,
+    manifestPath,
   }
+}
+
+export function resolveLatestFilenameForTarget(target: string) {
+  switch (target) {
+    case 'aarch64-apple-darwin':
+      return 'latest-arm64-mac.yml'
+    case 'aarch64-unknown-linux-gnu':
+      return 'latest-arm64-linux-arm64.yml'
+    case 'x86_64-apple-darwin':
+      return 'latest-x64-mac.yml'
+    case 'x86_64-pc-windows-msvc':
+      return 'latest-x64.yml'
+    case 'x86_64-unknown-linux-gnu':
+      return 'latest-x64-linux.yml'
+    default:
+      throw new Error(`Unsupported update-test target: ${target}`)
+  }
+}
+
+function encodeBase64Sha512(content: string) {
+  return createHash('sha512').update(content).digest('base64')
 }
 
 async function main() {
@@ -115,17 +101,31 @@ async function main() {
 
   const parsed = cli.parse()
   const result = await generateManifestFixtures({
-    rootDir: String(parsed.options.root),
     channel: String(parsed.options.channel) as UpdateTestChannel,
+    releaseNotes: String(parsed.options.releaseNotes),
+    rootDir: String(parsed.options.root),
     target: String(parsed.options.target),
     version: String(parsed.options.version),
-    releaseNotes: String(parsed.options.releaseNotes),
   })
 
   // eslint-disable-next-line no-console
   console.log(`Generated ${result.latestFilename} in ${result.channelDir}`)
   // eslint-disable-next-line no-console
   console.log(`Artifact: ${result.artifactFilename}`)
+}
+
+async function resolveArtifactFilename(target: string, version: string) {
+  const filenames = await getFilenames(target, {
+    autoTag: false,
+    release: true,
+    tag: [version],
+  })
+
+  const artifact = filenames.find(entry => !entry.optional && entry.extension !== 'blockmap')
+  if (!artifact)
+    throw new Error(`Unable to determine artifact filename for target: ${target}`)
+
+  return artifact.releaseArtifactFilename
 }
 
 if (import.meta.main) {

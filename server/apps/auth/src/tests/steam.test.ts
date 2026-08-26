@@ -18,6 +18,34 @@ vi.mock('ofetch', () => ({
 /** Test fixture: arbitrary valid-format SteamID64 used in fake OpenID callbacks. */
 const STEAM_ID = '76561198012345678'
 
+/** Builds a fake Steam OpenID `id_res` callback query, as if Steam redirected the browser here. */
+function buildCallbackQuery(state: string, steamId = STEAM_ID): string {
+  const params = new URLSearchParams({
+    'openid.assoc_handle': 'test-handle',
+    'openid.claimed_id': `https://steamcommunity.com/openid/id/${steamId}`,
+    'openid.identity': `https://steamcommunity.com/openid/id/${steamId}`,
+    'openid.mode': 'id_res',
+    'openid.ns': 'http://specs.openid.net/auth/2.0',
+    'openid.op_endpoint': 'https://steamcommunity.com/openid/login',
+    'openid.response_nonce': '2026-07-31T00:00:00Zxxxxx',
+    'openid.return_to': 'http://localhost/api/auth/steam/callback',
+    'openid.sig': 'test-signature',
+    'openid.signed': 'signed,op_endpoint,claimed_id,identity,return_to,response_nonce,assoc_handle',
+    state,
+  })
+  return params.toString()
+}
+
+async function createTestAuth() {
+  const db = await createTestDatabase()
+  return betterAuth({
+    baseURL: 'http://localhost',
+    database: drizzleAdapter(db, { provider: 'pg', schema }),
+    plugins: [steam()],
+    secret: 'test-secret',
+  })
+}
+
 /**
  * Merges `Set-Cookie` headers from one or more responses into a single
  * `Cookie` header value, later sources overriding earlier ones by name.
@@ -45,34 +73,6 @@ function forwardableCookieHeader(...headerSources: Headers[]): string {
     }
   }
   return Array.from(cookies.entries()).map(([name, value]) => `${name}=${value}`).join('; ')
-}
-
-/** Builds a fake Steam OpenID `id_res` callback query, as if Steam redirected the browser here. */
-function buildCallbackQuery(state: string, steamId = STEAM_ID): string {
-  const params = new URLSearchParams({
-    state,
-    'openid.mode': 'id_res',
-    'openid.ns': 'http://specs.openid.net/auth/2.0',
-    'openid.op_endpoint': 'https://steamcommunity.com/openid/login',
-    'openid.claimed_id': `https://steamcommunity.com/openid/id/${steamId}`,
-    'openid.identity': `https://steamcommunity.com/openid/id/${steamId}`,
-    'openid.return_to': 'http://localhost/api/auth/steam/callback',
-    'openid.response_nonce': '2026-07-31T00:00:00Zxxxxx',
-    'openid.assoc_handle': 'test-handle',
-    'openid.signed': 'signed,op_endpoint,claimed_id,identity,return_to,response_nonce,assoc_handle',
-    'openid.sig': 'test-signature',
-  })
-  return params.toString()
-}
-
-async function createTestAuth() {
-  const db = await createTestDatabase()
-  return betterAuth({
-    database: drizzleAdapter(db, { provider: 'pg', schema }),
-    secret: 'test-secret',
-    baseURL: 'http://localhost',
-    plugins: [steam()],
-  })
 }
 
 describe('steam auth plugin', () => {
@@ -119,7 +119,7 @@ describe('steam auth plugin', () => {
     mockSteamVerification(true)
     const context = await auth.$context
 
-    const { response: startResponse, headers: startHeaders } = await auth.api.signInSteam({
+    const { headers: startHeaders, response: startResponse } = await auth.api.signInSteam({
       body: { callbackURL: 'http://localhost/ui/profile' },
       returnHeaders: true,
     })
@@ -141,7 +141,7 @@ describe('steam auth plugin', () => {
     expect(user?.email).toBe(`${STEAM_ID}@steam.placeholder.local`)
     expect(user?.emailVerified).toBe(true)
 
-    const { response: secondStart, headers: secondStartHeaders } = await auth.api.signInSteam({
+    const { headers: secondStartHeaders, response: secondStart } = await auth.api.signInSteam({
       body: { callbackURL: 'http://localhost/ui/profile' },
       returnHeaders: true,
     })
@@ -158,7 +158,7 @@ describe('steam auth plugin', () => {
   it('redirects to an error URL when Steam verification fails', async () => {
     mockSteamVerification(false)
 
-    const { response: startResponse, headers: startHeaders } = await auth.api.signInSteam({
+    const { headers: startHeaders, response: startResponse } = await auth.api.signInSteam({
       body: { callbackURL: 'http://localhost/ui/profile' },
       returnHeaders: true,
     })
@@ -178,7 +178,7 @@ describe('steam auth plugin', () => {
   it('sets a 10-second timeout for Steam callback verification', async () => {
     mockSteamVerification(true)
 
-    const { response: startResponse, headers: startHeaders } = await auth.api.signInSteam({
+    const { headers: startHeaders, response: startResponse } = await auth.api.signInSteam({
       body: { callbackURL: 'http://localhost/ui/profile' },
       returnHeaders: true,
     })
@@ -206,7 +206,7 @@ describe('steam auth plugin', () => {
 
     // Sign in as a fresh user via Steam first, to get a session cookie to link against.
     const primarySteamId = '76561198011111111'
-    const { response: primaryStart, headers: primaryStartHeaders } = await auth.api.signInSteam({
+    const { headers: primaryStartHeaders, response: primaryStart } = await auth.api.signInSteam({
       body: { callbackURL: 'http://localhost/ui/profile' },
       returnHeaders: true,
     })
@@ -220,7 +220,7 @@ describe('steam auth plugin', () => {
 
     // Now link a second Steam account to that same session.
     const secondSteamId = '76561198022222222'
-    const { response: linkStart, headers: linkStartHeaders } = await auth.api.linkSteam({
+    const { headers: linkStartHeaders, response: linkStart } = await auth.api.linkSteam({
       body: { callbackURL: 'http://localhost/ui/profile' },
       headers: { cookie: sessionCookie },
       returnHeaders: true,
@@ -249,13 +249,13 @@ describe('steam auth plugin', () => {
       name: 'Someone Else',
     })).id
     await context.internalAdapter.linkAccount({
-      userId: claimingUserId,
-      providerId: 'steam',
       accountId: claimedSteamId,
+      providerId: 'steam',
+      userId: claimingUserId,
     })
 
     // A second, unrelated user tries to link the same Steam account.
-    const { response: primaryStart, headers: primaryStartHeaders } = await auth.api.signInSteam({
+    const { headers: primaryStartHeaders, response: primaryStart } = await auth.api.signInSteam({
       body: { callbackURL: 'http://localhost/ui/profile' },
       returnHeaders: true,
     })
@@ -267,7 +267,7 @@ describe('steam auth plugin', () => {
     ))
     const sessionCookie = forwardableCookieHeader(primaryCallback.headers)
 
-    const { response: linkStart, headers: linkStartHeaders } = await auth.api.linkSteam({
+    const { headers: linkStartHeaders, response: linkStart } = await auth.api.linkSteam({
       body: { callbackURL: 'http://localhost/ui/profile' },
       headers: { cookie: sessionCookie },
       returnHeaders: true,

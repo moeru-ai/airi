@@ -11,9 +11,9 @@ const mocks = vi.hoisted(() => ({
   client: {},
   service: {
     buildLocal: vi.fn(),
-    fetchRemote: vi.fn(),
     createRemote: vi.fn(),
     deleteRemote: vi.fn(),
+    fetchRemote: vi.fn(),
     patchConfigRemote: vi.fn(),
   },
 }))
@@ -25,11 +25,11 @@ vi.mock('../../libs/providers', () => ({
 }))
 
 const localProvider = {
-  id: 'local-provider',
-  definitionId: 'openai-compatible',
   config: {},
-  status: 'unconfigured',
   configuredBy: 'user',
+  definitionId: 'openai-compatible',
+  id: 'local-provider',
+  status: 'unconfigured',
 } satisfies InferenceServiceProvider
 
 const remoteProvider = {

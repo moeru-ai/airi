@@ -18,32 +18,13 @@ import type { HostDataRecord, PluginRuntime } from '../../../shared/types'
  * - A serializable payload that {@link KitApiBindingRegistryService.bind} stores as canonical binding state
  */
 export interface BindingInput<C extends HostDataRecord = HostDataRecord> {
-  moduleId: string
-  ownerSessionId: string
-  ownerExtensionId: string
+  config: C
   kitId: string
   kitModuleType: string
+  moduleId: string
+  ownerExtensionId: string
+  ownerSessionId: string
   runtime: PluginRuntime
-  config: C
-}
-
-/**
- * Describes an incremental change to a binding record.
- *
- * Use when:
- * - A kit-specific API needs to change binding lifecycle state
- * - A plugin updates binding configuration after initial registration
- *
- * Expects:
- * - `state` follows the host lifecycle rules for the current record
- * - `config` only contains fields that should be shallow-merged into the current config
- *
- * Returns:
- * - A partial mutation applied by {@link KitApiBindingRegistryService.update} or {@link KitApiBindingRegistryService.transition}
- */
-export interface BindingUpdatePatch<C extends HostDataRecord = HostDataRecord> {
-  state?: BindingState
-  config?: Partial<C>
 }
 
 /**
@@ -61,39 +42,34 @@ export interface BindingUpdatePatch<C extends HostDataRecord = HostDataRecord> {
  * - A compact identity tuple used in collision and ownership checks
  */
 export interface BindingOwnerIdentity {
-  ownerSessionId: string
   ownerExtensionId: string
+  ownerSessionId: string
+}
+
+/**
+ * Describes an incremental change to a binding record.
+ *
+ * Use when:
+ * - A kit-specific API needs to change binding lifecycle state
+ * - A plugin updates binding configuration after initial registration
+ *
+ * Expects:
+ * - `state` follows the host lifecycle rules for the current record
+ * - `config` only contains fields that should be shallow-merged into the current config
+ *
+ * Returns:
+ * - A partial mutation applied by {@link KitApiBindingRegistryService.update} or {@link KitApiBindingRegistryService.transition}
+ */
+export interface BindingUpdatePatch<C extends HostDataRecord = HostDataRecord> {
+  config?: Partial<C>
+  state?: BindingState
 }
 
 const allowedBindingTransitions: Record<BindingState, readonly BindingState[]> = {
-  announced: ['active', 'degraded', 'withdrawn'],
   active: ['degraded', 'withdrawn', 'active'],
+  announced: ['active', 'degraded', 'withdrawn'],
   degraded: ['active', 'withdrawn', 'degraded'],
   withdrawn: ['withdrawn'],
-}
-
-function createOwnershipError(
-  moduleId: string,
-  expected: BindingOwnerIdentity,
-  actual: BindingOwnerIdentity,
-) {
-  return new Error(
-    `Ownership violation for module \`${moduleId}\`: owned by \`${expected.ownerSessionId}/${expected.ownerExtensionId}\`, not \`${actual.ownerSessionId}/${actual.ownerExtensionId}\`.`,
-  )
-}
-
-function createModuleCollisionError(
-  moduleId: string,
-  expected: BindingOwnerIdentity,
-  actual: BindingOwnerIdentity,
-) {
-  return new Error(
-    `Module id collision for \`${moduleId}\`: owned by \`${expected.ownerSessionId}/${expected.ownerExtensionId}\`, not \`${actual.ownerSessionId}/${actual.ownerExtensionId}\`.`,
-  )
-}
-
-function createInvalidTransitionError(moduleId: string, from: BindingState, to: BindingState) {
-  return new Error(`Invalid binding lifecycle transition for \`${moduleId}\`: \`${from}\` -> \`${to}\`.`)
 }
 
 /**
@@ -174,6 +150,22 @@ export class KitApiBindingRegistryService<C extends HostDataRecord = HostDataRec
   private readonly bindings = new Map<string, BindingRecord<C>>()
 
   /**
+   * Transitions a bound instance into the `active` lifecycle state.
+   *
+   * Use when:
+   * - The host or a higher-level kit API has completed setup for a bound instance
+   *
+   * Expects:
+   * - The binding exists and is owned by the caller
+   *
+   * Returns:
+   * - The updated active binding record
+   */
+  activate(ownerSessionId: string, ownerExtensionId: string, moduleId: string) {
+    return this.transition({ ownerExtensionId, ownerSessionId }, moduleId, 'active')
+  }
+
+  /**
    * Creates or reuses one binding record for a extension-owned runtime instance.
    *
    * Use when:
@@ -197,12 +189,12 @@ export class KitApiBindingRegistryService<C extends HostDataRecord = HostDataRec
         throw createModuleCollisionError(
           input.moduleId,
           {
-            ownerSessionId: current.ownerSessionId,
             ownerExtensionId: current.ownerExtensionId,
+            ownerSessionId: current.ownerSessionId,
           },
           {
-            ownerSessionId: input.ownerSessionId,
             ownerExtensionId: input.ownerExtensionId,
+            ownerSessionId: input.ownerSessionId,
           },
         )
       }
@@ -211,20 +203,36 @@ export class KitApiBindingRegistryService<C extends HostDataRecord = HostDataRec
     }
 
     const record: BindingRecord<C> = {
-      moduleId: input.moduleId,
-      ownerSessionId: input.ownerSessionId,
-      ownerExtensionId: input.ownerExtensionId,
+      config: input.config,
       kitId: input.kitId,
       kitModuleType: input.kitModuleType,
-      state: 'announced',
-      runtime: input.runtime,
+      moduleId: input.moduleId,
+      ownerExtensionId: input.ownerExtensionId,
+      ownerSessionId: input.ownerSessionId,
       revision: 1,
+      runtime: input.runtime,
+      state: 'announced',
       updatedAt: Date.now(),
-      config: input.config,
     }
 
     this.bindings.set(record.moduleId, record)
     return record
+  }
+
+  /**
+   * Transitions a bound instance into the `degraded` lifecycle state.
+   *
+   * Use when:
+   * - A previously healthy binding loses a dependency or adapter guarantee
+   *
+   * Expects:
+   * - The binding exists and is owned by the caller
+   *
+   * Returns:
+   * - The updated degraded binding record
+   */
+  degrade(ownerSessionId: string, ownerExtensionId: string, moduleId: string) {
+    return this.transition({ ownerExtensionId, ownerSessionId }, moduleId, 'degraded')
   }
 
   /**
@@ -276,20 +284,20 @@ export class KitApiBindingRegistryService<C extends HostDataRecord = HostDataRec
   }
 
   /**
-   * Lists bindings owned by one extension session.
+   * Lists bindings attached to one kit family.
    *
    * Use when:
-   * - Stopping or reloading a session
-   * - Inspecting one plugin's currently active contributions
+   * - A kit adapter needs to enumerate all currently bound instances
+   * - Debug tooling needs to inspect one kit's contribution footprint
    *
    * Expects:
-   * - `ownerSessionId` is the session-scoped owner id stored in each binding
+   * - `kitId` matches the `kitId` stored on each binding record
    *
    * Returns:
-   * - All binding records whose owner session matches the input
+   * - All binding records attached to the requested kit
    */
-  listByOwner(ownerSessionId: string) {
-    return this.list().filter(binding => binding.ownerSessionId === ownerSessionId)
+  listByKit(kitId: string) {
+    return this.list().filter(binding => binding.kitId === kitId)
   }
 
   /**
@@ -313,86 +321,20 @@ export class KitApiBindingRegistryService<C extends HostDataRecord = HostDataRec
   }
 
   /**
-   * Lists bindings attached to one kit family.
+   * Lists bindings owned by one extension session.
    *
    * Use when:
-   * - A kit adapter needs to enumerate all currently bound instances
-   * - Debug tooling needs to inspect one kit's contribution footprint
+   * - Stopping or reloading a session
+   * - Inspecting one plugin's currently active contributions
    *
    * Expects:
-   * - `kitId` matches the `kitId` stored on each binding record
+   * - `ownerSessionId` is the session-scoped owner id stored in each binding
    *
    * Returns:
-   * - All binding records attached to the requested kit
+   * - All binding records whose owner session matches the input
    */
-  listByKit(kitId: string) {
-    return this.list().filter(binding => binding.kitId === kitId)
-  }
-
-  /**
-   * Applies a shallow config and/or state update to an existing binding.
-   *
-   * Use when:
-   * - A kit helper wants to mutate config after the initial bind
-   * - A caller wants transition semantics and config merge in one operation
-   *
-   * Expects:
-   * - The caller owns the binding
-   * - Any requested `state` is valid from the current lifecycle state
-   *
-   * Returns:
-   * - The updated binding record with incremented revision and timestamp
-   */
-  update(ownerSessionId: string, ownerExtensionId: string, moduleId: string, patch: BindingUpdatePatch<C>) {
-    return this.transition({ ownerSessionId, ownerExtensionId }, moduleId, patch.state, patch)
-  }
-
-  /**
-   * Transitions a bound instance into the `active` lifecycle state.
-   *
-   * Use when:
-   * - The host or a higher-level kit API has completed setup for a bound instance
-   *
-   * Expects:
-   * - The binding exists and is owned by the caller
-   *
-   * Returns:
-   * - The updated active binding record
-   */
-  activate(ownerSessionId: string, ownerExtensionId: string, moduleId: string) {
-    return this.transition({ ownerSessionId, ownerExtensionId }, moduleId, 'active')
-  }
-
-  /**
-   * Transitions a bound instance into the `degraded` lifecycle state.
-   *
-   * Use when:
-   * - A previously healthy binding loses a dependency or adapter guarantee
-   *
-   * Expects:
-   * - The binding exists and is owned by the caller
-   *
-   * Returns:
-   * - The updated degraded binding record
-   */
-  degrade(ownerSessionId: string, ownerExtensionId: string, moduleId: string) {
-    return this.transition({ ownerSessionId, ownerExtensionId }, moduleId, 'degraded')
-  }
-
-  /**
-   * Transitions a bound instance into the `withdrawn` lifecycle state.
-   *
-   * Use when:
-   * - A plugin wants the host to stop treating a binding as live before eventual removal
-   *
-   * Expects:
-   * - The binding exists and is owned by the caller
-   *
-   * Returns:
-   * - The updated withdrawn binding record
-   */
-  withdraw(ownerSessionId: string, ownerExtensionId: string, moduleId: string) {
-    return this.transition({ ownerSessionId, ownerExtensionId }, moduleId, 'withdrawn')
+  listByOwner(ownerSessionId: string) {
+    return this.list().filter(binding => binding.ownerSessionId === ownerSessionId)
   }
 
   /**
@@ -426,8 +368,8 @@ export class KitApiBindingRegistryService<C extends HostDataRecord = HostDataRec
       throw createOwnershipError(
         moduleId,
         {
-          ownerSessionId: current.ownerSessionId,
           ownerExtensionId: current.ownerExtensionId,
+          ownerSessionId: current.ownerSessionId,
         },
         owner,
       )
@@ -440,10 +382,10 @@ export class KitApiBindingRegistryService<C extends HostDataRecord = HostDataRec
 
     const next: BindingRecord<C> = {
       ...current,
-      state: nextState,
-      revision: current.revision + 1,
-      updatedAt: Date.now(),
       config: patch.config ? ({ ...current.config, ...patch.config } as C) : current.config,
+      revision: current.revision + 1,
+      state: nextState,
+      updatedAt: Date.now(),
     }
 
     this.bindings.set(moduleId, next)
@@ -477,12 +419,12 @@ export class KitApiBindingRegistryService<C extends HostDataRecord = HostDataRec
       throw createOwnershipError(
         moduleId,
         {
-          ownerSessionId: current.ownerSessionId,
           ownerExtensionId: current.ownerExtensionId,
+          ownerSessionId: current.ownerSessionId,
         },
         {
-          ownerSessionId,
           ownerExtensionId,
+          ownerSessionId,
         },
       )
     }
@@ -490,4 +432,62 @@ export class KitApiBindingRegistryService<C extends HostDataRecord = HostDataRec
     this.bindings.delete(moduleId)
     return current
   }
+
+  /**
+   * Applies a shallow config and/or state update to an existing binding.
+   *
+   * Use when:
+   * - A kit helper wants to mutate config after the initial bind
+   * - A caller wants transition semantics and config merge in one operation
+   *
+   * Expects:
+   * - The caller owns the binding
+   * - Any requested `state` is valid from the current lifecycle state
+   *
+   * Returns:
+   * - The updated binding record with incremented revision and timestamp
+   */
+  update(ownerSessionId: string, ownerExtensionId: string, moduleId: string, patch: BindingUpdatePatch<C>) {
+    return this.transition({ ownerExtensionId, ownerSessionId }, moduleId, patch.state, patch)
+  }
+
+  /**
+   * Transitions a bound instance into the `withdrawn` lifecycle state.
+   *
+   * Use when:
+   * - A plugin wants the host to stop treating a binding as live before eventual removal
+   *
+   * Expects:
+   * - The binding exists and is owned by the caller
+   *
+   * Returns:
+   * - The updated withdrawn binding record
+   */
+  withdraw(ownerSessionId: string, ownerExtensionId: string, moduleId: string) {
+    return this.transition({ ownerExtensionId, ownerSessionId }, moduleId, 'withdrawn')
+  }
+}
+
+function createInvalidTransitionError(moduleId: string, from: BindingState, to: BindingState) {
+  return new Error(`Invalid binding lifecycle transition for \`${moduleId}\`: \`${from}\` -> \`${to}\`.`)
+}
+
+function createModuleCollisionError(
+  moduleId: string,
+  expected: BindingOwnerIdentity,
+  actual: BindingOwnerIdentity,
+) {
+  return new Error(
+    `Module id collision for \`${moduleId}\`: owned by \`${expected.ownerSessionId}/${expected.ownerExtensionId}\`, not \`${actual.ownerSessionId}/${actual.ownerExtensionId}\`.`,
+  )
+}
+
+function createOwnershipError(
+  moduleId: string,
+  expected: BindingOwnerIdentity,
+  actual: BindingOwnerIdentity,
+) {
+  return new Error(
+    `Ownership violation for module \`${moduleId}\`: owned by \`${expected.ownerSessionId}/${expected.ownerExtensionId}\`, not \`${actual.ownerSessionId}/${actual.ownerExtensionId}\`.`,
+  )
 }

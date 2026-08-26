@@ -40,6 +40,13 @@ describe('windowRoot', () => {
     const uiScaleRef = ref(1)
 
     const app = createApp({
+      provide: {
+        [injectPlatformLayout as symbol]: {
+          dock: dockRef,
+          root: readonly(platformRef),
+          uiScale: readonly(uiScaleRef),
+        },
+      },
       setup() {
         return () => h('div', { ref: platformRef }, [
           h(WindowRoot, {
@@ -53,13 +60,6 @@ describe('windowRoot', () => {
             },
           }, () => h('div')),
         ])
-      },
-      provide: {
-        [injectPlatformLayout as symbol]: {
-          dock: dockRef,
-          root: readonly(platformRef),
-          uiScale: readonly(uiScaleRef),
-        },
       },
     })
 
@@ -103,6 +103,13 @@ describe('windowRoot', () => {
     const uiScaleRef = ref(1.25)
 
     const app = createApp({
+      provide: {
+        [injectPlatformLayout as symbol]: {
+          dock: dockRef,
+          root: readonly(platformRef),
+          uiScale: readonly(uiScaleRef),
+        },
+      },
       setup() {
         return () => h('div', { ref: platformRef }, [
           h(WindowRoot, {
@@ -116,13 +123,6 @@ describe('windowRoot', () => {
             },
           }, () => h('div')),
         ])
-      },
-      provide: {
-        [injectPlatformLayout as symbol]: {
-          dock: dockRef,
-          root: readonly(platformRef),
-          uiScale: readonly(uiScaleRef),
-        },
       },
     })
 

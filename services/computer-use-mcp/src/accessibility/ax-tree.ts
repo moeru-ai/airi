@@ -15,6 +15,164 @@ import { runSwiftScript } from '../utils/swift'
 
 let nextSnapshotId = 1
 
+interface RawAXNode {
+  bounds?: { height: number, width: number, x: number, y: number }
+  children?: RawAXNode[]
+  description?: string
+  enabled?: boolean
+  focused?: boolean
+  role: string
+  title?: string
+  value?: string
+}
+
+interface RawAXOutput {
+  appName: string
+  pid: number
+  root?: RawAXNode
+  truncated: boolean
+}
+
+/**
+ * Capture the accessibility tree of the frontmost (or specified) macOS app.
+ */
+export async function captureAXTree(
+  config: ComputerUseConfig,
+  request: AXSnapshotRequest = {},
+): Promise<AXSnapshot> {
+  if (platform !== 'darwin') {
+    throw new Error('accessibility tree capture is only supported on macOS')
+  }
+
+  const { stdout } = await runSwiftScript({
+    source: axTreeScript(),
+    stdinPayload: {
+      maxDepth: request.maxDepth ?? 15,
+      maxNodes: request.maxNodes ?? 2000,
+      pid: request.pid,
+      verbose: request.verbose ?? false,
+    },
+    swiftBinary: config.binaries.swift,
+    timeoutMs: config.timeoutMs,
+  })
+
+  const raw = JSON.parse(stdout.trim()) as RawAXOutput
+  const snapshotId = String(nextSnapshotId++)
+  const uidToNode = new Map<string, AXNode>()
+
+  const root: AXNode = raw.root
+    ? assignUids(raw.root, snapshotId, uidToNode)
+    : { children: [], role: 'AXApplication', uid: `${snapshotId}_0` }
+
+  if (!raw.root) {
+    uidToNode.set(root.uid, root)
+  }
+
+  return {
+    appName: raw.appName,
+    capturedAt: new Date().toISOString(),
+    maxDepth: request.maxDepth ?? 15,
+    pid: raw.pid,
+    root,
+    snapshotId,
+    truncated: raw.truncated,
+    uidToNode,
+  }
+}
+
+/**
+ * Find a node by uid in the snapshot.
+ */
+export function findAXNodeByUid(snapshot: AXSnapshot, uid: string): AXNode | undefined {
+  return snapshot.uidToNode.get(uid)
+}
+
+/**
+ * Format an AXSnapshot as an indented text tree suitable for LLM context.
+ */
+export function formatAXSnapshotAsText(
+  snapshot: AXSnapshot,
+  options: AXSnapshotTextOptions = {},
+): string {
+  const indent = options.indent ?? '  '
+  const includeBounds = options.includeBounds ?? false
+  const includeUids = options.includeUids ?? true
+
+  const lines: string[] = []
+  lines.push(`[AXTree] ${snapshot.appName} (pid ${snapshot.pid})${snapshot.truncated ? ' [TRUNCATED]' : ''}`)
+
+  function walk(node: AXNode, depth: number) {
+    const prefix = indent.repeat(depth)
+    const parts: string[] = []
+
+    if (includeUids) {
+      parts.push(`[${node.uid}]`)
+    }
+
+    parts.push(node.role || '(no role)')
+
+    if (node.title) {
+      parts.push(`"${node.title}"`)
+    }
+    if (node.value) {
+      const truncated = node.value.length > 80 ? `${node.value.slice(0, 77)}...` : node.value
+      parts.push(`val="${truncated}"`)
+    }
+    if (node.description) {
+      parts.push(`desc="${node.description}"`)
+    }
+    if (node.focused) {
+      parts.push('[focused]')
+    }
+    if (node.enabled === false) {
+      parts.push('[disabled]')
+    }
+    if (includeBounds && node.bounds) {
+      const b = node.bounds
+      parts.push(`@(${b.x},${b.y} ${b.width}x${b.height})`)
+    }
+
+    lines.push(`${prefix}${parts.join(' ')}`)
+
+    for (const child of node.children) {
+      walk(child, depth + 1)
+    }
+  }
+
+  walk(snapshot.root, 0)
+  return lines.join('\n')
+}
+
+/**
+ * Assign stable uids to each node and build a flat lookup table.
+ */
+function assignUids(
+  raw: RawAXNode,
+  snapshotId: string,
+  uidToNode: Map<string, AXNode>,
+): AXNode {
+  let counter = 0
+
+  function walk(node: RawAXNode): AXNode {
+    const uid = `${snapshotId}_${counter++}`
+    const axNode: AXNode = {
+      bounds: node.bounds,
+      children: (node.children ?? []).map(walk),
+      description: node.description,
+      enabled: node.enabled,
+      focused: node.focused,
+      role: node.role,
+      title: node.title,
+      uid,
+      value: node.value,
+    }
+    uidToNode.set(uid, axNode)
+    return axNode
+  }
+
+  return walk(raw)
+}
+
 /**
  * Swift source that uses ApplicationServices / AXUIElement to walk the
  * accessibility tree of a target process. Input is passed via the
@@ -181,162 +339,4 @@ let encoder = JSONEncoder()
 let data = try encoder.encode(output)
 print(String(data: data, encoding: .utf8)!)
 `
-}
-
-interface RawAXNode {
-  role: string
-  title?: string
-  value?: string
-  description?: string
-  enabled?: boolean
-  focused?: boolean
-  bounds?: { x: number, y: number, width: number, height: number }
-  children?: RawAXNode[]
-}
-
-interface RawAXOutput {
-  pid: number
-  appName: string
-  root?: RawAXNode
-  truncated: boolean
-}
-
-/**
- * Assign stable uids to each node and build a flat lookup table.
- */
-function assignUids(
-  raw: RawAXNode,
-  snapshotId: string,
-  uidToNode: Map<string, AXNode>,
-): AXNode {
-  let counter = 0
-
-  function walk(node: RawAXNode): AXNode {
-    const uid = `${snapshotId}_${counter++}`
-    const axNode: AXNode = {
-      uid,
-      role: node.role,
-      title: node.title,
-      value: node.value,
-      description: node.description,
-      enabled: node.enabled,
-      focused: node.focused,
-      bounds: node.bounds,
-      children: (node.children ?? []).map(walk),
-    }
-    uidToNode.set(uid, axNode)
-    return axNode
-  }
-
-  return walk(raw)
-}
-
-/**
- * Capture the accessibility tree of the frontmost (or specified) macOS app.
- */
-export async function captureAXTree(
-  config: ComputerUseConfig,
-  request: AXSnapshotRequest = {},
-): Promise<AXSnapshot> {
-  if (platform !== 'darwin') {
-    throw new Error('accessibility tree capture is only supported on macOS')
-  }
-
-  const { stdout } = await runSwiftScript({
-    swiftBinary: config.binaries.swift,
-    timeoutMs: config.timeoutMs,
-    source: axTreeScript(),
-    stdinPayload: {
-      pid: request.pid,
-      maxDepth: request.maxDepth ?? 15,
-      maxNodes: request.maxNodes ?? 2000,
-      verbose: request.verbose ?? false,
-    },
-  })
-
-  const raw = JSON.parse(stdout.trim()) as RawAXOutput
-  const snapshotId = String(nextSnapshotId++)
-  const uidToNode = new Map<string, AXNode>()
-
-  const root: AXNode = raw.root
-    ? assignUids(raw.root, snapshotId, uidToNode)
-    : { uid: `${snapshotId}_0`, role: 'AXApplication', children: [] }
-
-  if (!raw.root) {
-    uidToNode.set(root.uid, root)
-  }
-
-  return {
-    snapshotId,
-    pid: raw.pid,
-    appName: raw.appName,
-    root,
-    uidToNode,
-    capturedAt: new Date().toISOString(),
-    maxDepth: request.maxDepth ?? 15,
-    truncated: raw.truncated,
-  }
-}
-
-/**
- * Format an AXSnapshot as an indented text tree suitable for LLM context.
- */
-export function formatAXSnapshotAsText(
-  snapshot: AXSnapshot,
-  options: AXSnapshotTextOptions = {},
-): string {
-  const indent = options.indent ?? '  '
-  const includeBounds = options.includeBounds ?? false
-  const includeUids = options.includeUids ?? true
-
-  const lines: string[] = []
-  lines.push(`[AXTree] ${snapshot.appName} (pid ${snapshot.pid})${snapshot.truncated ? ' [TRUNCATED]' : ''}`)
-
-  function walk(node: AXNode, depth: number) {
-    const prefix = indent.repeat(depth)
-    const parts: string[] = []
-
-    if (includeUids) {
-      parts.push(`[${node.uid}]`)
-    }
-
-    parts.push(node.role || '(no role)')
-
-    if (node.title) {
-      parts.push(`"${node.title}"`)
-    }
-    if (node.value) {
-      const truncated = node.value.length > 80 ? `${node.value.slice(0, 77)}...` : node.value
-      parts.push(`val="${truncated}"`)
-    }
-    if (node.description) {
-      parts.push(`desc="${node.description}"`)
-    }
-    if (node.focused) {
-      parts.push('[focused]')
-    }
-    if (node.enabled === false) {
-      parts.push('[disabled]')
-    }
-    if (includeBounds && node.bounds) {
-      const b = node.bounds
-      parts.push(`@(${b.x},${b.y} ${b.width}x${b.height})`)
-    }
-
-    lines.push(`${prefix}${parts.join(' ')}`)
-
-    for (const child of node.children) {
-      walk(child, depth + 1)
-    }
-  }
-
-  walk(snapshot.root, 0)
-  return lines.join('\n')
-}
-
-/**
- * Find a node by uid in the snapshot.
- */
-export function findAXNodeByUid(snapshot: AXSnapshot, uid: string): AXNode | undefined {
-  return snapshot.uidToNode.get(uid)
 }

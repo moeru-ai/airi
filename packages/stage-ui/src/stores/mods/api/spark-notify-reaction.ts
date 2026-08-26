@@ -4,33 +4,29 @@ import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 
 import { array, boolean, finite, looseObject, nonEmpty, number, optional, picklist, pipe, record, string, trim, unknown } from 'valibot'
 
-type SparkNotifyProtocolEvent = WebSocketEventOf<'spark:notify'>
-type SparkNotifyProtocolData = SparkNotifyProtocolEvent['data']
-
+/**
+ * Result returned by the call-aware spark notify reaction bridge.
+ */
+export interface SparkNotifyPerformanceResult {
+  /** Name of the generic performance call that resolved the request, when applicable. */
+  name?: string
+  /** Payload emitted by the matching CALL token, when applicable. */
+  payload?: Record<string, unknown>
+  /** Text reaction produced by the existing spark notify path. */
+  reaction: string
+  /** Terminal state for the performance request. */
+  type: 'called' | 'cancelled' | 'completed' | 'timeout'
+}
 export type SparkNotifyReactionCallHandler = (payload?: Record<string, unknown>) => Promise<void> | void
 
 /**
  * Registered performance call available during one spark notify reaction.
  */
 export interface SparkNotifyReactionCallRegistration {
-  /** Prompt manifest rendered into the model instructions and used as the dispatch key. */
-  manifest: LlmStreamingControlCallManifest
   /** Runtime callback executed when the matching CALL token is emitted. */
   handler: SparkNotifyReactionCallHandler
-}
-
-/**
- * Result returned by the call-aware spark notify reaction bridge.
- */
-export interface SparkNotifyPerformanceResult {
-  /** Text reaction produced by the existing spark notify path. */
-  reaction: string
-  /** Terminal state for the performance request. */
-  type: 'called' | 'completed' | 'timeout' | 'cancelled'
-  /** Name of the generic performance call that resolved the request, when applicable. */
-  name?: string
-  /** Payload emitted by the matching CALL token, when applicable. */
-  payload?: Record<string, unknown>
+  /** Prompt manifest rendered into the model instructions and used as the dispatch key. */
+  manifest: LlmStreamingControlCallManifest
 }
 
 /**
@@ -40,16 +36,24 @@ export interface SparkNotifyReactionOptions
   extends Partial<Pick<
     SparkNotifyProtocolData,
     | 'lane'
+    | 'metadata'
     | 'note'
     | 'payload'
-    | 'ttlMs'
     | 'requiresAck'
-    | 'metadata'
+    | 'ttlMs'
   >>, SparkNotifyResponseControl {
-  /** Short title for the event that should be visible to the reaction runtime. */
-  headline: SparkNotifyProtocolData['headline']
+  /** Generic performance calls allowed during this spark notify reaction request. */
+  calls?: SparkNotifyReactionCallRegistration[]
+  /**
+   * Target reaction destinations.
+   *
+   * @default ['character']
+   */
+  destinations?: SparkNotifyProtocolData['destinations']
   /** Response text returned when the reaction runtime cannot produce a usable response. */
   fallbackResponseText: string
+  /** Short title for the event that should be visible to the reaction runtime. */
+  headline: SparkNotifyProtocolData['headline']
   /**
    * Notification category.
    *
@@ -57,47 +61,43 @@ export interface SparkNotifyReactionOptions
    */
   kind?: SparkNotifyProtocolData['kind']
   /**
-   * Notification scheduling urgency.
-   *
-   * @default 'immediate'
-   */
-  urgency?: SparkNotifyProtocolData['urgency']
-  /**
-   * Target reaction destinations.
-   *
-   * @default ['character']
-   */
-  destinations?: SparkNotifyProtocolData['destinations']
-  /**
    * Event source label used by the downstream spark notification event.
    *
    * @default 'plugin-module-host'
    */
   source?: SparkNotifyProtocolEvent['source']
-  /** Generic performance calls allowed during this spark notify reaction request. */
-  calls?: SparkNotifyReactionCallRegistration[]
   /**
    * Maximum time to wait for a registered performance call after spark notify starts.
    *
    * @default 5000
    */
   timeoutMs?: number
+  /**
+   * Notification scheduling urgency.
+   *
+   * @default 'immediate'
+   */
+  urgency?: SparkNotifyProtocolData['urgency']
 }
 
+type SparkNotifyProtocolData = SparkNotifyProtocolEvent['data']
+
+type SparkNotifyProtocolEvent = WebSocketEventOf<'spark:notify'>
+
 export const sparkNotifyReactionOptionsSchema = looseObject({
-  headline: pipe(string(), trim(), nonEmpty()),
+  destinations: optional(array(string())),
   fallbackResponseText: string(),
+  forceResponse: optional(boolean()),
+  forceSparkCommandResponse: optional(boolean()),
+  forceTextResponse: optional(boolean()),
+  headline: pipe(string(), trim(), nonEmpty()),
   kind: optional(picklist(['alarm', 'ping', 'reminder'])),
-  urgency: optional(picklist(['immediate', 'soon', 'later'])),
+  lane: optional(string()),
+  metadata: optional(record(string(), unknown())),
   note: optional(string()),
   payload: optional(record(string(), unknown())),
-  metadata: optional(record(string(), unknown())),
-  lane: optional(string()),
-  destinations: optional(array(string())),
+  requiresAck: optional(boolean()),
   source: optional(string()),
   ttlMs: optional(pipe(number(), finite())),
-  requiresAck: optional(boolean()),
-  forceResponse: optional(boolean()),
-  forceTextResponse: optional(boolean()),
-  forceSparkCommandResponse: optional(boolean()),
+  urgency: optional(picklist(['immediate', 'soon', 'later'])),
 })

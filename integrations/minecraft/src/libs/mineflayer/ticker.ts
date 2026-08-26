@@ -14,8 +14,8 @@ export type TickEventsHandler<K extends TickEvents> = TickEventHandlers[K]
 
 // This update loop ensures that each update() is called one at a time, even if it takes longer than the interval
 export class Ticker extends EventEmitter<TickEventHandlers> {
+  private initialTimer: null | ReturnType<typeof setTimeout> = null
   private stopping = false
-  private initialTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(options?: { interval?: number }) {
     super()

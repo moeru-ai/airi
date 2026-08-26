@@ -9,9 +9,9 @@ describe('useCaptionItems', () => {
     try {
       const captions = useCaptionItems({ ttlMs: 1000 })
 
-      captions.add({ type: 'caption-speaker', text: 'first' })
+      captions.add({ text: 'first', type: 'caption-speaker' })
       vi.advanceTimersByTime(500)
-      captions.add({ type: 'caption-speaker', text: 'second' })
+      captions.add({ text: 'second', type: 'caption-speaker' })
 
       expect(captions.items.value.map(item => item.text)).toEqual(['first', 'second'])
 
@@ -34,9 +34,9 @@ describe('useCaptionItems', () => {
     try {
       const captions = useCaptionItems({ ttlMs: 1000 })
 
-      captions.add({ type: 'caption-speaker', text: 'speaker' })
-      captions.add({ type: 'caption-assistant', text: 'assistant' })
-      captions.add({ type: 'caption-speaker', text: '' })
+      captions.add({ text: 'speaker', type: 'caption-speaker' })
+      captions.add({ text: 'assistant', type: 'caption-assistant' })
+      captions.add({ text: '', type: 'caption-speaker' })
 
       expect(captions.items.value.map(item => item.text)).toEqual(['assistant'])
 
@@ -59,9 +59,9 @@ describe('useCaptionItems', () => {
     try {
       const captions = useCaptionItems({ ttlMs: 1000 })
 
-      captions.add({ operation: 'replace', type: 'caption-speaker', text: '今天天气很号' })
+      captions.add({ operation: 'replace', text: '今天天气很号', type: 'caption-speaker' })
       vi.advanceTimersByTime(500)
-      captions.add({ operation: 'replace', type: 'caption-speaker', text: '今天天气很好' })
+      captions.add({ operation: 'replace', text: '今天天气很好', type: 'caption-speaker' })
 
       expect(captions.items.value).toHaveLength(1)
       expect(captions.items.value[0]?.text).toBe('今天天气很好')

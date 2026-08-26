@@ -15,7 +15,43 @@ import { registerWidgetPluginKit } from './widget'
 type GameletKitClient = ReturnType<typeof gameletKit.createClient>
 type ToolKitClient = ReturnType<typeof toolKit.createClient>
 
-function createHostGameletKit(options: { host: ExtensionHost, gamelets: GameletOrchestrationRuntime }): KitRef<GameletKitClient> {
+/**
+ * Creates the built-in kit runtime installed by the Electron extension host.
+ *
+ * Use when:
+ * - Host bootstrap should depend on a kit-layer API instead of wiring widget/gamelet details inline
+ * - Built-in kit registration should remain outside the host layer
+ *
+ * Expects:
+ * - `widgetsManager` is initialized before host construction
+ *
+ * Returns:
+ * - Helpers to register built-in kits on the host
+ */
+export function createBuiltInExtensionKitRuntime(options: SetupExtensionHostOptions): {
+  dispose: () => void
+  registerHostKits: (host: ExtensionHost) => void
+  tools: TamagotchiToolRegistry
+} {
+  const gamelets = createGameletOrchestrationRuntime(options.widgetsManager)
+  const tools = new TamagotchiToolRegistry()
+
+  return {
+    dispose() {
+      gamelets.dispose()
+      tools.clear()
+    },
+    registerHostKits(host) {
+      registerWidgetPluginKit(host)
+      registerGameletPluginKit(host)
+      host.registerKitApi(createHostGameletKit({ gamelets, host }))
+      host.registerKitApi(createHostToolKit({ tools }))
+    },
+    tools,
+  }
+}
+
+function createHostGameletKit(options: { gamelets: GameletOrchestrationRuntime, host: ExtensionHost }): KitRef<GameletKitClient> {
   return {
     ...gameletKit,
     createClient(runtime) {
@@ -56,18 +92,18 @@ function createHostToolKit(options: { tools: TamagotchiToolRegistry }): KitRef<T
           register: (input) => {
             ensureCleanup()
             options.tools.register({
-              ownerSessionId: runtime.sessionId,
               ownerExtensionId: runtime.extensionId,
               ownerModuleId: runtime.moduleId,
+              ownerSessionId: runtime.sessionId,
               ...input,
             })
           },
           registerToolsetPrompt: (input) => {
             ensureCleanup()
             options.tools.registerToolsetPrompt({
-              ownerSessionId: runtime.sessionId,
               ownerExtensionId: runtime.extensionId,
               ownerModuleId: runtime.moduleId,
+              ownerSessionId: runtime.sessionId,
               toolset: input,
             })
           },
@@ -75,42 +111,6 @@ function createHostToolKit(options: { tools: TamagotchiToolRegistry }): KitRef<T
       }
 
       return toolKit.createClient(hostRuntime)
-    },
-  }
-}
-
-/**
- * Creates the built-in kit runtime installed by the Electron extension host.
- *
- * Use when:
- * - Host bootstrap should depend on a kit-layer API instead of wiring widget/gamelet details inline
- * - Built-in kit registration should remain outside the host layer
- *
- * Expects:
- * - `widgetsManager` is initialized before host construction
- *
- * Returns:
- * - Helpers to register built-in kits on the host
- */
-export function createBuiltInExtensionKitRuntime(options: SetupExtensionHostOptions): {
-  registerHostKits: (host: ExtensionHost) => void
-  tools: TamagotchiToolRegistry
-  dispose: () => void
-} {
-  const gamelets = createGameletOrchestrationRuntime(options.widgetsManager)
-  const tools = new TamagotchiToolRegistry()
-
-  return {
-    registerHostKits(host) {
-      registerWidgetPluginKit(host)
-      registerGameletPluginKit(host)
-      host.registerKitApi(createHostGameletKit({ host, gamelets }))
-      host.registerKitApi(createHostToolKit({ tools }))
-    },
-    tools,
-    dispose() {
-      gamelets.dispose()
-      tools.clear()
     },
   }
 }

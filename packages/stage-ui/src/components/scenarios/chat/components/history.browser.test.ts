@@ -28,20 +28,20 @@ describe('chat history', () => {
   // We virtualize the history and mount only the viewport plus a small overscan area.
   it('virtualizes long histories and reveals messages inside the viewport', async () => {
     const messages: ChatHistoryItem[] = Array.from({ length: 100 }, (_, index) => ({
-      id: `user-${index}`,
-      role: 'user',
       content: `Message ${index} `.repeat(index % 6 + 1),
       createdAt: index,
+      id: `user-${index}`,
+      role: 'user',
     }))
 
     const screen = await render(ChatHistory, {
-      props: {
-        messages,
-        variant: 'mobile',
-        style: 'height: 240px; width: 320px; overflow-y: auto;',
-      },
       global: {
         plugins: [createEnglishI18n()],
+      },
+      props: {
+        messages,
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+        variant: 'mobile',
       },
     })
 
@@ -78,13 +78,13 @@ describe('chat history', () => {
 
   it('keeps a stable mask on each mobile message container', async () => {
     const screen = await render(ChatHistory, {
-      props: {
-        messages: [{ role: 'user', content: 'hello' }],
-        variant: 'mobile',
-        style: 'height: 240px; width: 320px; overflow-y: auto;',
-      },
       global: {
         plugins: [createEnglishI18n()],
+      },
+      props: {
+        messages: [{ content: 'hello', role: 'user' }],
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+        variant: 'mobile',
       },
     })
 
@@ -111,20 +111,20 @@ describe('chat history', () => {
   // We fixed this by rendering only a stream that has the stable id assigned to the assistant turn.
   it('does not render the initial empty stream while a synchronized send starts', async () => {
     const screen = await render(ChatHistory, {
+      global: {
+        plugins: [createEnglishI18n()],
+      },
       props: {
         messages: [],
         sending: true,
         streamingMessage: {
-          role: 'assistant',
           content: '',
+          createdAt: 1710000000000,
+          role: 'assistant',
           slices: [],
           tool_results: [],
-          createdAt: 1710000000000,
         },
         style: 'height: 240px; width: 320px; overflow-y: auto;',
-      },
-      global: {
-        plugins: [createEnglishI18n()],
       },
     })
 
@@ -133,17 +133,17 @@ describe('chat history', () => {
 
   it('emits retry-message when the retry button is clicked for an error after a user message', async () => {
     const messages: ChatHistoryItem[] = [
-      { role: 'user', content: 'hello' },
-      { role: 'error', content: 'Remote sent 400 response' },
+      { content: 'hello', role: 'user' },
+      { content: 'Remote sent 400 response', role: 'error' },
     ]
 
     const screen = await render(ChatHistory, {
+      global: {
+        plugins: [createEnglishI18n()],
+      },
       props: {
         messages,
         style: 'height: 480px; width: 480px; overflow-y: auto;',
-      },
-      global: {
-        plugins: [createEnglishI18n()],
       },
     })
 
@@ -151,24 +151,24 @@ describe('chat history', () => {
 
     expect(screen.emitted('retryMessage')).toEqual([[
       {
-        message: messages[1],
         index: 1,
         key: getChatHistoryItemKey(messages[1], 1),
+        message: messages[1],
       },
     ]])
   })
 
   it('does not render the retry button when the error is not preceded by a user message', async () => {
     const screen = await render(ChatHistory, {
-      props: {
-        messages: [
-          { role: 'assistant', content: 'hello', slices: [], tool_results: [] },
-          { role: 'error', content: 'Remote sent 400 response' },
-        ],
-        style: 'height: 480px; width: 480px; overflow-y: auto;',
-      },
       global: {
         plugins: [createEnglishI18n()],
+      },
+      props: {
+        messages: [
+          { content: 'hello', role: 'assistant', slices: [], tool_results: [] },
+          { content: 'Remote sent 400 response', role: 'error' },
+        ],
+        style: 'height: 480px; width: 480px; overflow-y: auto;',
       },
     })
 
@@ -178,34 +178,34 @@ describe('chat history', () => {
   it('emits tool-call-rerun with message context when a tool call rerun button is clicked', async () => {
     const args = JSON.stringify({ location: 'Tokyo' })
     const assistantMessage: ChatHistoryItem = {
-      role: 'assistant',
       content: '',
+      createdAt: 1710000000000,
+      role: 'assistant',
       slices: [
         {
-          type: 'tool-call',
           toolCall: {
+            args,
             toolCallId: 'call-weather',
             toolCallType: 'function',
             toolName: 'weather',
-            args,
           },
+          type: 'tool-call',
         },
       ],
       tool_results: [],
-      createdAt: 1710000000000,
     }
     const messages: ChatHistoryItem[] = [
-      { role: 'user', content: 'weather in Tokyo' },
+      { content: 'weather in Tokyo', role: 'user' },
       assistantMessage,
     ]
 
     const screen = await render(ChatHistory, {
+      global: {
+        plugins: [createEnglishI18n()],
+      },
       props: {
         messages,
         style: 'height: 480px; width: 480px; overflow-y: auto;',
-      },
-      global: {
-        plugins: [createEnglishI18n()],
       },
     })
 
@@ -213,12 +213,12 @@ describe('chat history', () => {
 
     expect(screen.emitted('toolCallRerun')).toEqual([[
       {
-        message: assistantMessage,
+        args,
         index: 1,
         key: getChatHistoryItemKey(assistantMessage, 1),
+        message: assistantMessage,
         toolCallId: 'call-weather',
         toolName: 'weather',
-        args,
       },
     ]])
   })

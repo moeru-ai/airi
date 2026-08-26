@@ -16,27 +16,27 @@ describe('tool-lane-hygiene', () => {
   describe('buildCrossLaneAdvisory', () => {
     it('returns null when no active lane is established', () => {
       const result = buildCrossLaneAdvisory({
-        toolName: 'browser_dom_click',
-        toolLane: 'browser_dom',
         inferredActiveLane: undefined,
+        toolLane: 'browser_dom',
+        toolName: 'browser_dom_click',
       })
       expect(result).toBeNull()
     })
 
     it('returns null when tool lane matches active lane', () => {
       const result = buildCrossLaneAdvisory({
-        toolName: 'coding_read_file',
-        toolLane: 'coding',
         inferredActiveLane: 'coding',
+        toolLane: 'coding',
+        toolName: 'coding_read_file',
       })
       expect(result).toBeNull()
     })
 
     it('returns advisory when tool lane differs from active lane', () => {
       const result = buildCrossLaneAdvisory({
-        toolName: 'browser_dom_click',
-        toolLane: 'browser_dom',
         inferredActiveLane: 'coding',
+        toolLane: 'browser_dom',
+        toolName: 'browser_dom_click',
       })
       expect(result).toContain('Advisory')
       expect(result).toContain('coding')
@@ -46,27 +46,27 @@ describe('tool-lane-hygiene', () => {
 
     it('does not trigger advisory when tool lane is workflow', () => {
       const result = buildCrossLaneAdvisory({
-        toolName: 'workflow_coding_loop',
-        toolLane: 'workflow',
         inferredActiveLane: 'coding',
+        toolLane: 'workflow',
+        toolName: 'workflow_coding_loop',
       })
       expect(result).toBeNull()
     })
 
     it('does not trigger advisory when active lane is exempt', () => {
       const result = buildCrossLaneAdvisory({
-        toolName: 'browser_dom_click',
-        toolLane: 'browser_dom',
         inferredActiveLane: 'workflow',
+        toolLane: 'browser_dom',
+        toolName: 'browser_dom_click',
       })
       expect(result).toBeNull()
     })
 
     it('triggers advisory for desktop to coding cross-lane usage', () => {
       const result = buildCrossLaneAdvisory({
-        toolName: 'coding_apply_patch',
-        toolLane: 'coding',
         inferredActiveLane: 'desktop',
+        toolLane: 'coding',
+        toolName: 'coding_apply_patch',
       })
       expect(result).toContain('Advisory')
       expect(result).toContain('desktop')

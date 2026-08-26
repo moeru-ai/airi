@@ -5,10 +5,10 @@ import { createDevValidateWorkspaceWorkflow } from './dev-validate-workspace'
 describe('createDevValidateWorkspaceWorkflow', () => {
   it('opens the workspace, inspects changes, and runs validation from the project cwd', () => {
     const workflow = createDevValidateWorkspaceWorkflow({
-      projectPath: '/tmp/workspace',
-      ideApp: 'VS Code',
       changesCommand: 'git diff --stat',
       checkCommand: 'pnpm typecheck',
+      ideApp: 'VS Code',
+      projectPath: '/tmp/workspace',
     })
 
     expect(workflow.id).toBe('dev_validate_workspace')

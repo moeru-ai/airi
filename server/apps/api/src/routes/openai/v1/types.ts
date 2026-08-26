@@ -18,19 +18,19 @@ export interface LlmTracingDeps {
 }
 
 export interface V1RouteDeps {
-  fluxService: FluxService
   billingService: BillingService
   configKV: ConfigKVService
-  requestLogService: RequestLogService
-  productEventService: ProductEventService
-  ttsMeter: FluxMeter
-  llmRouter: LlmRouterService
-  voicePackService: VoicePackService
-  providerCatalogService: ProviderCatalogService
+  fluxService: FluxService
   genAi?: GenAiMetrics | null
-  revenue?: RevenueMetrics | null
-  rateLimitMetrics?: RateLimitMetrics | null
+  llmRouter: LlmRouterService
   llmTracing: LlmTracingDeps
+  productEventService: ProductEventService
+  providerCatalogService: ProviderCatalogService
+  rateLimitMetrics?: null | RateLimitMetrics
+  requestLogService: RequestLogService
+  revenue?: null | RevenueMetrics
+  ttsMeter: FluxMeter
+  voicePackService: VoicePackService
 }
 
 export const defaultLlmTracing: LlmTracingDeps = {

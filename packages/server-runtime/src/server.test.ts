@@ -37,8 +37,8 @@ vi.mock('h3', () => ({
     get = vi.fn()
   },
   serve: vi.fn(() => ({
-    serve: serveMocks.serveCall,
     close: serveMocks.closeCall,
+    serve: serveMocks.serveCall,
   })),
 }))
 
@@ -110,11 +110,11 @@ describe('createServer', async () => {
   it('merges nested config updates instead of replacing sibling logger settings', async () => {
     const server = createServer({
       hostname: '127.0.0.1',
-      port: 6121,
       logger: {
         app: { level: LogLevelString.Log },
         websocket: { format: Format.Pretty },
       },
+      port: 6121,
     })
 
     server.updateConfig({
@@ -130,8 +130,8 @@ describe('createServer', async () => {
     expect(serveMocks.setupAppCall).toHaveBeenCalledWith(expect.objectContaining({
       logger: {
         app: {
-          level: LogLevelString.Log,
           format: Format.Pretty,
+          level: LogLevelString.Log,
         },
         websocket: {
           format: Format.Pretty,

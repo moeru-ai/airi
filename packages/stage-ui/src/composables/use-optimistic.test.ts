@@ -25,9 +25,9 @@ describe('useOptimistic', () => {
       return state.value
     })
 
-    const { state: resultState, isLoading } = useOptimisticMutation({
-      apply,
+    const { isLoading, state: resultState } = useOptimisticMutation({
       action,
+      apply,
       onSuccess,
     })
 
@@ -64,8 +64,8 @@ describe('useOptimistic', () => {
     })
 
     const { error: errorState, isLoading } = useOptimisticMutation({
-      apply,
       action,
+      apply,
     })
 
     expect(state.value).toBe('optimistic')
@@ -97,8 +97,8 @@ describe('useOptimistic', () => {
     }
 
     const { execute } = useOptimisticMutation({
-      apply,
       action,
+      apply,
     })
 
     await execute()
@@ -111,10 +111,10 @@ describe('useOptimistic', () => {
       throw new Error('fail')
     })
 
-    const { execute, error } = useOptimisticMutation({
+    const { error, execute } = useOptimisticMutation({
+      action,
       // @ts-expect-error - testing invalid return
       apply: () => null,
-      action,
     })
 
     await execute()
@@ -133,10 +133,10 @@ describe('useOptimistic', () => {
     const skipActionIf = vi.fn(() => true)
 
     const { execute, state: resultState } = useOptimisticMutation({
-      apply,
       action,
-      skipActionIf,
+      apply,
       lazy: true,
+      skipActionIf,
     })
 
     await execute()

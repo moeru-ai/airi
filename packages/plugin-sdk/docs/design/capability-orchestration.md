@@ -119,14 +119,14 @@ Capability record baseline:
 ```ts
 interface CapabilityRecord {
   capabilityId: string
-  providerModuleId: string
+  health?: 'degraded' | 'ok' | 'unknown'
   hostId: string
   instanceId?: string
-  runtime: 'electron' | 'web' | 'pocket' | 'node'
-  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
-  version?: string
-  health?: 'ok' | 'degraded' | 'unknown'
   metadata?: Record<string, unknown>
+  providerModuleId: string
+  runtime: 'electron' | 'node' | 'pocket' | 'web'
+  state: 'announced' | 'degraded' | 'ready' | 'withdrawn'
+  version?: string
 }
 ```
 

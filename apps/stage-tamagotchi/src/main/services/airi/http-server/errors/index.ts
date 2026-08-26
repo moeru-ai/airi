@@ -1,16 +1,16 @@
 import { HTTPError } from 'h3'
 
-export interface HttpErrorInput {
-  status: number
-  code: string
-  message: string
-  reason?: string
-  details?: unknown
-  expose?: boolean
-}
-
 export interface H3HttpErrorOptions {
   headers?: HeadersInit
+}
+
+export interface HttpErrorInput {
+  code: string
+  details?: unknown
+  expose?: boolean
+  message: string
+  reason?: string
+  status: number
 }
 
 /**
@@ -28,11 +28,11 @@ export interface H3HttpErrorOptions {
  * - Error instance with status and structured metadata
  */
 export class HttpError extends Error {
-  readonly status: number
   readonly code: string
-  readonly reason?: string
   readonly details?: unknown
   readonly expose: boolean
+  readonly reason?: string
+  readonly status: number
 
   constructor(input: HttpErrorInput) {
     super(input.message)

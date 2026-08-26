@@ -11,11 +11,11 @@ import { canonicalizeKnownAppName } from '../app-aliases'
 import { createOpenWorkspaceSteps } from './dev-open-workspace'
 
 export function createDevValidateWorkspaceWorkflow(params?: {
-  projectPath?: string
-  ideApp?: string
-  fileManagerApp?: string
   changesCommand?: string
   checkCommand?: string
+  fileManagerApp?: string
+  ideApp?: string
+  projectPath?: string
 }): WorkflowDefinition {
   const projectPath = params?.projectPath ?? '{projectPath}'
   const ideApp = canonicalizeKnownAppName(params?.ideApp ?? 'Cursor')
@@ -24,49 +24,49 @@ export function createDevValidateWorkspaceWorkflow(params?: {
   const checkCommand = params?.checkCommand ?? 'pnpm typecheck'
 
   return {
-    id: 'dev_validate_workspace',
-    name: `Open workspace in ${ideApp} and validate project state`,
     description: `Reveal "${projectPath}" in ${fileManagerApp}, open it in ${ideApp}, inspect local changes with "${changesCommand}", run "${checkCommand}", and summarize the results.`,
+    id: 'dev_validate_workspace',
     maxRetries: 2,
+    name: `Open workspace in ${ideApp} and validate project state`,
     steps: [
-      ...createOpenWorkspaceSteps({ projectPath, ideApp, fileManagerApp }),
+      ...createOpenWorkspaceSteps({ fileManagerApp, ideApp, projectPath }),
       {
-        label: 'Confirm project working directory',
-        kind: 'run_command',
+        critical: true,
         description: 'Run pwd in the target workspace to confirm the terminal is anchored to the project root.',
+        kind: 'run_command',
+        label: 'Confirm project working directory',
         params: {
           command: 'pwd',
           cwd: projectPath,
           timeoutMs: 30_000,
         },
-        critical: true,
       },
       {
-        label: 'Inspect local changes',
-        kind: 'run_command',
+        critical: true,
         description: `Inspect the local workspace changes using "${changesCommand}".`,
+        kind: 'run_command',
+        label: 'Inspect local changes',
         params: {
           command: changesCommand,
           cwd: projectPath,
           timeoutMs: 30_000,
         },
-        critical: true,
       },
       {
-        label: 'Run workspace validation',
-        kind: 'run_command',
+        critical: true,
         description: `Run the validation command "${checkCommand}".`,
+        kind: 'run_command',
+        label: 'Run workspace validation',
         params: {
           command: checkCommand,
           cwd: projectPath,
           timeoutMs: 120_000,
         },
-        critical: true,
       },
       {
-        label: 'Summarize workspace validation',
-        kind: 'summarize',
         description: 'Summarize the opened apps, confirmed working directory, local change status, and validation result.',
+        kind: 'summarize',
+        label: 'Summarize workspace validation',
         params: {},
       },
     ],

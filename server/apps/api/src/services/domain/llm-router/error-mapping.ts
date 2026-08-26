@@ -3,20 +3,12 @@ import type { ApiError } from '../../../utils/error'
 import { createBadGatewayError, createGatewayTimeoutError, createInternalError, createServiceUnavailableError } from '../../../utils/error'
 
 /**
- * Sanitized context for `mapUpstreamError`.
- *
- * Per SEC-5: upstream response bodies and headers must never enter this
- * shape. Body content can leak provider-internal info (subscription IDs,
- * region tags, rate-limit metadata) to the end client. Only counts and the
- * final status code are safe to surface.
+ * Server-only cause attached to the {@link ApiError} that
+ * {@link mapUpstreamError} produces. Surfaced through logger + OTel
+ * span attributes, never through the HTTP response body.
  */
-export interface UpstreamErrorContext {
-  /** How many distinct keys were attempted across all upstreams. */
-  triedKeys: number
-  /** How many distinct upstreams were attempted. */
-  triedUpstreams: number
-  /** The status of the **last** attempt — drives the 502/503/504 selection. */
-  lastStatusCode: number | 'timeout'
+export interface RouterErrorCause {
+  attempts: UpstreamAttempt[]
 }
 
 /**
@@ -26,9 +18,6 @@ export interface UpstreamErrorContext {
  * SEC-5 (no upstream content in client-facing response body) still holds.
  */
 export interface UpstreamAttempt {
-  provider: string
-  keyId: string
-  status: number | 'timeout'
   /**
    * First ≤256 bytes of the upstream response body when the attempt
    * received an HTTP response. Helps tell apart "key invalid", "region
@@ -43,15 +32,26 @@ export interface UpstreamAttempt {
    * upstreams populate `errorMessage`.
    */
   errorMessage?: string
+  keyId: string
+  provider: string
+  status: 'timeout' | number
 }
 
 /**
- * Server-only cause attached to the {@link ApiError} that
- * {@link mapUpstreamError} produces. Surfaced through logger + OTel
- * span attributes, never through the HTTP response body.
+ * Sanitized context for `mapUpstreamError`.
+ *
+ * Per SEC-5: upstream response bodies and headers must never enter this
+ * shape. Body content can leak provider-internal info (subscription IDs,
+ * region tags, rate-limit metadata) to the end client. Only counts and the
+ * final status code are safe to surface.
  */
-export interface RouterErrorCause {
-  attempts: UpstreamAttempt[]
+export interface UpstreamErrorContext {
+  /** The status of the **last** attempt — drives the 502/503/504 selection. */
+  lastStatusCode: 'timeout' | number
+  /** How many distinct keys were attempted across all upstreams. */
+  triedKeys: number
+  /** How many distinct upstreams were attempted. */
+  triedUpstreams: number
 }
 
 /**
@@ -78,14 +78,14 @@ export interface RouterErrorCause {
  *   5xx, anything else).
  */
 export function mapUpstreamError(
-  status: number | 'timeout',
+  status: 'timeout' | number,
   context: UpstreamErrorContext,
   attempts?: UpstreamAttempt[],
 ): ApiError {
   const details = {
+    lastStatusCode: context.lastStatusCode,
     triedKeys: context.triedKeys,
     triedUpstreams: context.triedUpstreams,
-    lastStatusCode: context.lastStatusCode,
   }
 
   const apiErr = buildApiError(status, details)
@@ -98,7 +98,7 @@ export function mapUpstreamError(
   return apiErr
 }
 
-function buildApiError(status: number | 'timeout', details: UpstreamErrorContext): ApiError {
+function buildApiError(status: 'timeout' | number, details: UpstreamErrorContext): ApiError {
   if (status === 'timeout')
     return createGatewayTimeoutError('Upstream timeout', details)
 

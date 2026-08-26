@@ -14,38 +14,38 @@ function createTestDeps() {
   }
 
   return {
-    db: { query: { user: { findFirst: vi.fn() } } } as never,
+    billingService: {} as never,
     characterService: {} as never,
     chatService: {} as never,
-    providerService: {} as never,
-    fluxService: {} as never,
-    fluxTransactionService: {} as never,
-    stripeService: {} as never,
-    billingService: {} as never,
-    ttsMeter: {} as never,
-    requestLogService: {} as never,
-    voicePackService: {} as never,
-    providerCatalogService: {} as never,
-    productEventService: {
-      track: vi.fn(async () => undefined),
-      trackGeneration: vi.fn(async () => undefined),
-    } as never,
     configKV: { getOrThrow: vi.fn() } as never,
-    redis: redis as never,
+    db: { query: { user: { findFirst: vi.fn() } } } as never,
     env: {
       API_SERVER_URL: 'https://api.airi.build',
       AUTH_SERVER_URL: 'https://api.airi.build',
     } as never,
-    otel: null,
-    userDeletionService: { register: vi.fn(), softDeleteAll: vi.fn() },
-    llmRouter: {
-      route: vi.fn(async () => new Response('{}', { status: 200 })),
-      invalidateConfig: vi.fn(),
-    } as never,
     envelopeCrypto: {
-      encryptKey: vi.fn(),
       decryptKey: vi.fn(),
+      encryptKey: vi.fn(),
     } as never,
+    fluxService: {} as never,
+    fluxTransactionService: {} as never,
+    llmRouter: {
+      invalidateConfig: vi.fn(),
+      route: vi.fn(async () => new Response('{}', { status: 200 })),
+    } as never,
+    otel: null,
+    productEventService: {
+      track: vi.fn(async () => undefined),
+      trackGeneration: vi.fn(async () => undefined),
+    } as never,
+    providerCatalogService: {} as never,
+    providerService: {} as never,
+    redis: redis as never,
+    requestLogService: {} as never,
+    stripeService: {} as never,
+    ttsMeter: {} as never,
+    userDeletionService: { register: vi.fn(), softDeleteAll: vi.fn() },
+    voicePackService: {} as never,
   }
 }
 

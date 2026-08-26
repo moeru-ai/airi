@@ -32,27 +32,18 @@ const NonEmptyChatBroadcastOriginInstanceIdSchema = pipe(
 
 const ChatBroadcastPayloadSchema = object({
   chatId: NonEmptyChatBroadcastChatIdSchema,
-  messages: ChatBroadcastMessagesSchema,
   fromSeq: ChatBroadcastFromSeqSchema,
+  messages: ChatBroadcastMessagesSchema,
   toSeq: ChatBroadcastToSeqSchema,
 })
 
 const ChatBroadcastMessageSchema = object({
-  userId: NonEmptyChatBroadcastUserIdSchema,
-  payload: ChatBroadcastPayloadSchema,
   originInstanceId: NonEmptyChatBroadcastOriginInstanceIdSchema,
+  payload: ChatBroadcastPayloadSchema,
+  userId: NonEmptyChatBroadcastUserIdSchema,
 })
 
-export interface ChatBroadcastPayload {
-  chatId: string
-  messages: unknown[]
-  fromSeq: number
-  toSeq: number
-}
-
 export interface ChatBroadcastMessage {
-  userId: string
-  payload: ChatBroadcastPayload
   /**
    * Stable identifier of the api instance that published this broadcast.
    *
@@ -63,6 +54,15 @@ export interface ChatBroadcastMessage {
    * the sender's own ctx).
    */
   originInstanceId: string
+  payload: ChatBroadcastPayload
+  userId: string
+}
+
+export interface ChatBroadcastPayload {
+  chatId: string
+  fromSeq: number
+  messages: unknown[]
+  toSeq: number
 }
 
 /**
@@ -86,7 +86,7 @@ export function createChatBroadcastMessage(
   payload: ChatBroadcastPayload,
   originInstanceId: string,
 ): ChatBroadcastMessage {
-  return parse(ChatBroadcastMessageSchema, { userId, payload, originInstanceId })
+  return parse(ChatBroadcastMessageSchema, { originInstanceId, payload, userId })
 }
 
 /**
@@ -124,13 +124,13 @@ export function parseChatBroadcastMessage(raw: string): ChatBroadcastMessage {
   const payloadRecord = payload as Record<string, unknown>
 
   return parse(ChatBroadcastMessageSchema, {
-    userId: message.userId,
+    originInstanceId: message.originInstanceId,
     payload: {
       chatId: payloadRecord.chatId,
-      messages: payloadRecord.messages,
       fromSeq: payloadRecord.fromSeq,
+      messages: payloadRecord.messages,
       toSeq: payloadRecord.toSeq,
     },
-    originInstanceId: message.originInstanceId,
+    userId: message.userId,
   })
 }

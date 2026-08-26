@@ -18,9 +18,9 @@ export async function dispatchAction(
 
   if (!parseResult.success) {
     return {
-      success: false,
-      shouldContinue: true,
       result: `System Error: Invalid action payload: ${parseResult.issues.map(i => i.message).join(', ')}`,
+      shouldContinue: true,
+      success: false,
     }
   }
 
@@ -29,9 +29,9 @@ export async function dispatchAction(
 
   if (!handler) {
     return {
-      success: false,
-      shouldContinue: true,
       result: `System Error: Action "${validatedAction.action}" is not implemented.`,
+      shouldContinue: true,
+      success: false,
     }
   }
 
@@ -50,9 +50,9 @@ export async function dispatchAction(
   catch (error) {
     log.withError(error as Error).error('Action execution failed')
     return {
-      success: false,
-      shouldContinue: true,
       result: `System Error: Execution failed: ${(error as Error).message}`,
+      shouldContinue: true,
+      success: false,
     }
   }
 }

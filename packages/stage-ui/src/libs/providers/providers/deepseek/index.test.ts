@@ -10,10 +10,6 @@ import { providerDeepSeek } from './index'
 
 type DeepSeekChatProvider = ChatProviderWithExtraOptions<string, ChatRequestOptions>
 
-function isDeepSeekChatProvider(provider: ProviderInstance): provider is DeepSeekChatProvider {
-  return 'chat' in provider && typeof provider.chat === 'function'
-}
-
 async function createDeepSeekChatProvider(
   thinkingMode: 'auto' | 'disable' | 'enable',
 ): Promise<DeepSeekChatProvider> {
@@ -27,6 +23,10 @@ async function createDeepSeekChatProvider(
     throw new Error('DeepSeek provider must support chat')
 
   return provider
+}
+
+function isDeepSeekChatProvider(provider: ProviderInstance): provider is DeepSeekChatProvider {
+  return 'chat' in provider && typeof provider.chat === 'function'
 }
 
 describe('providerDeepSeek.createProvider chat options', () => {

@@ -6,18 +6,18 @@ import { defendBehavior, isEngageableMob } from './defend'
 // the bot is handled by the master-identity rules / brain, not by the reflex swinging back.
 describe('isEngageableMob', () => {
   it('engages hostile mobs', () => {
-    expect(isEngageableMob({ type: 'hostile', name: 'zombie' })).toBe(true)
-    expect(isEngageableMob({ type: 'mob', name: 'skeleton' })).toBe(true)
-    expect(isEngageableMob({ type: 'hostile', name: 'pillager' })).toBe(true)
+    expect(isEngageableMob({ name: 'zombie', type: 'hostile' })).toBe(true)
+    expect(isEngageableMob({ name: 'skeleton', type: 'mob' })).toBe(true)
+    expect(isEngageableMob({ name: 'pillager', type: 'hostile' })).toBe(true)
   })
 
   it('never engages a player (master or otherwise)', () => {
-    expect(isEngageableMob({ type: 'player', name: 'dssadg' })).toBe(false)
+    expect(isEngageableMob({ name: 'dssadg', type: 'player' })).toBe(false)
   })
 
   it('does not engage friendly/passive entities', () => {
-    expect(isEngageableMob({ type: 'mob', name: 'iron_golem' })).toBe(false)
-    expect(isEngageableMob({ type: 'animal', name: 'cow' })).toBe(false)
+    expect(isEngageableMob({ name: 'iron_golem', type: 'mob' })).toBe(false)
+    expect(isEngageableMob({ name: 'cow', type: 'animal' })).toBe(false)
   })
 
   it('ignores no/environmental attacker', () => {

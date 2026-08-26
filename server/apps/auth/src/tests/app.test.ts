@@ -6,24 +6,24 @@ function createTestDeps() {
   return {
     auth: {
       api: {
-        getSession: vi.fn(async () => null),
         getOAuthServerConfig: vi.fn(async () => ({ issuer: 'https://api.airi.build/api/auth' })),
         getOpenIdConfig: vi.fn(async () => ({ issuer: 'https://api.airi.build/api/auth' })),
+        getSession: vi.fn(async () => null),
       },
       handler: vi.fn(async () => new Response('auth-handler')),
     } as any,
     db: {
       execute: vi.fn(async () => []),
     } as any,
+    env: {
+      ADDITIONAL_TRUSTED_ORIGINS: [],
+      AUTH_UI_URL: 'https://accounts.airi.build/ui',
+      PUBLIC_URL: 'https://api.airi.build',
+    } as any,
+    rateLimitMetrics: null,
     redis: {
       ping: vi.fn(async () => 'PONG'),
     } as any,
-    env: {
-      PUBLIC_URL: 'https://api.airi.build',
-      AUTH_UI_URL: 'https://accounts.airi.build/ui',
-      ADDITIONAL_TRUSTED_ORIGINS: [],
-    } as any,
-    rateLimitMetrics: null,
   }
 }
 
@@ -45,9 +45,9 @@ describe('standalone auth app', () => {
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({
-      service: 'airi-auth',
-      issuer: 'https://api.airi.build/api/auth',
       accounts: 'https://accounts.airi.build/ui',
+      issuer: 'https://api.airi.build/api/auth',
+      service: 'airi-auth',
     })
   })
 
@@ -67,8 +67,8 @@ describe('standalone auth app', () => {
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({
-      status: 'ready',
       checks: { db: 'ok', redis: 'ok' },
+      status: 'ready',
     })
     expect(deps.db.execute).toHaveBeenCalledWith('SELECT 1 FROM "user" LIMIT 1')
     expect(deps.redis.ping).toHaveBeenCalledTimes(1)

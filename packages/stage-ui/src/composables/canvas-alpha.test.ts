@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { isCanvasRegionTransparent } from './canvas-alpha'
 
 interface GlMockOptions {
-  hotPixel?: { x: number, y: number, alpha?: number }
-  width?: number
   height?: number
+  hotPixel?: { alpha?: number, x: number, y: number }
+  width?: number
 }
 
 /**
@@ -19,8 +19,8 @@ function createGlMock(options: GlMockOptions = {}) {
   const hotPixel = options.hotPixel
 
   const gl = {
-    drawingBufferWidth,
     drawingBufferHeight,
+    drawingBufferWidth,
     readPixels: (
       startX: number,
       startY: number,
@@ -35,7 +35,7 @@ function createGlMock(options: GlMockOptions = {}) {
       if (!hotPixel)
         return
 
-      const { x, y, alpha = 255 } = hotPixel
+      const { alpha = 255, x, y } = hotPixel
       const withinX = x >= startX && x < startX + readWidth
       const withinY = y >= startY && y < startY + readHeight
       if (!withinX || !withinY)
@@ -56,69 +56,69 @@ describe('isCanvasRegionTransparent', () => {
     const gl = createGlMock()
 
     const result = isCanvasRegionTransparent({
-      gl,
       clientX: 150,
       clientY: 150,
-      left: 0,
-      top: 0,
-      width: 100,
+      gl,
       height: 100,
+      left: 0,
       radius: 10,
       threshold: 10,
+      top: 0,
+      width: 100,
     })
 
     expect(result).toBe(true)
   })
 
   it('returns false when an opaque pixel is inside the circular region', () => {
-    const gl = createGlMock({ hotPixel: { x: 50, y: 49, alpha: 255 } })
+    const gl = createGlMock({ hotPixel: { alpha: 255, x: 50, y: 49 } })
 
     const result = isCanvasRegionTransparent({
-      gl,
       clientX: 50,
       clientY: 50,
-      left: 0,
-      top: 0,
-      width: 100,
+      gl,
       height: 100,
+      left: 0,
       radius: 10,
       threshold: 10,
+      top: 0,
+      width: 100,
     })
 
     expect(result).toBe(false)
   })
 
   it('ignores opaque pixels outside the circular region but inside read bounds', () => {
-    const gl = createGlMock({ hotPixel: { x: 80, y: 80, alpha: 255 } })
+    const gl = createGlMock({ hotPixel: { alpha: 255, x: 80, y: 80 } })
 
     const result = isCanvasRegionTransparent({
-      gl,
       clientX: 50,
       clientY: 50,
-      left: 0,
-      top: 0,
-      width: 100,
+      gl,
       height: 100,
+      left: 0,
       radius: 5,
       threshold: 10,
+      top: 0,
+      width: 100,
     })
 
     expect(result).toBe(true)
   })
 
   it('uses only the exact cursor pixel when the radius is zero', () => {
-    const gl = createGlMock({ hotPixel: { x: 50, y: 49, alpha: 255 } })
+    const gl = createGlMock({ hotPixel: { alpha: 255, x: 50, y: 49 } })
 
     const result = isCanvasRegionTransparent({
-      gl,
       clientX: 50,
       clientY: 50,
-      left: 0,
-      top: 0,
-      width: 100,
+      gl,
       height: 100,
+      left: 0,
       radius: 0,
       threshold: 10,
+      top: 0,
+      width: 100,
     })
 
     expect(result).toBe(false)

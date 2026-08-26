@@ -89,7 +89,7 @@ describe('useServerChannelSettingsStore', async () => {
     let resolveApply: ((config: {
       authToken: string
       hostname: string
-      tlsConfig: Record<string, never> | null
+      tlsConfig: null | Record<string, never>
     }) => void) | undefined
     invokeMocks.applyConfig.mockImplementationOnce(async () => await new Promise((resolve) => {
       resolveApply = resolve

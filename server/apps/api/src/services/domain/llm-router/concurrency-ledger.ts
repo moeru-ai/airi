@@ -48,6 +48,8 @@ end
 return 0
 `
 
+export type ConcurrencyLedger = ReturnType<typeof createConcurrencyLedger>
+
 /**
  * Tracks per-pool in-flight concurrency in Redis so the TTS router can spread
  * load across multiple app_ids without overshooting any one app_id's cap.
@@ -131,19 +133,17 @@ export function createConcurrencyLedger(redis: Redis, options?: {
    * reads the known-pools set, then MGETs each counter in one round-trip.
    * Returns an empty array when no pool has ever been acquired.
    */
-  async function snapshot(): Promise<Array<{ poolId: string, inflight: number }>> {
+  async function snapshot(): Promise<Array<{ inflight: number, poolId: string }>> {
     const poolIds = await redis.smembers(knownKey)
     if (poolIds.length === 0)
       return []
 
     const values = await redis.mget(poolIds.map(ttsPoolInflightRedisKey))
     return poolIds.map((poolId, i) => ({
-      poolId,
       inflight: values[i] == null ? 0 : Number(values[i]),
+      poolId,
     }))
   }
 
-  return { tryAcquire, release, markSaturated, isSaturated, currentInflight, snapshot }
+  return { currentInflight, isSaturated, markSaturated, release, snapshot, tryAcquire }
 }
-
-export type ConcurrencyLedger = ReturnType<typeof createConcurrencyLedger>

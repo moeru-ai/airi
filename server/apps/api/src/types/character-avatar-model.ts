@@ -1,9 +1,9 @@
 // TODO: Implement the config for the avatar model
 export interface AvatarModelConfig {
-  vrm: {
+  live2d: {
     urls: string[]
   }
-  live2d: {
+  vrm: {
     urls: string[]
   }
 }

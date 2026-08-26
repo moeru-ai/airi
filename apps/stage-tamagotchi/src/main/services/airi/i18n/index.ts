@@ -11,7 +11,7 @@ import { injeca } from 'injeca'
 
 import { i18nGetLocale, i18nSetLocale } from '../../../../shared/eventa'
 
-export async function createI18nService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow, i18n: I18n }) {
+export async function createI18nService(params: { context: ReturnType<typeof createContext>['context'], i18n: I18n, window: BrowserWindow }) {
   const { config } = await injeca.resolve({ config: 'configs:app' } as { config: ProvidedBy<Config<typeof globalAppConfigSchema>> })
   params.i18n.locale(config.get()?.language || 'en')
 

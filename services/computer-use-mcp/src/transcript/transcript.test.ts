@@ -12,19 +12,6 @@ import { InMemoryTranscriptStore } from './store'
 // ---------------------------------------------------------------------------
 
 let idCounter = 0
-function resetIds() {
-  idCounter = 0
-}
-
-function entry(role: TranscriptEntry['role'], content: string | unknown[], extra?: Partial<TranscriptEntry>): TranscriptEntry {
-  const id = idCounter++
-  return { id, at: new Date().toISOString(), role, content, ...extra }
-}
-
-function userEntry(content: string) {
-  return entry('user', content)
-}
-
 function assistantText(content: string) {
   return entry('assistant', content)
 }
@@ -32,19 +19,32 @@ function assistantText(content: string) {
 function assistantWithTools(toolIds: string[], content = '') {
   return entry('assistant', content, {
     toolCalls: toolIds.map(id => ({
+      function: { arguments: '{}', name: `tool_${id}` },
       id,
       type: 'function' as const,
-      function: { name: `tool_${id}`, arguments: '{}' },
     })),
   })
+}
+
+function entry(role: TranscriptEntry['role'], content: string | unknown[], extra?: Partial<TranscriptEntry>): TranscriptEntry {
+  const id = idCounter++
+  return { at: new Date().toISOString(), content, id, role, ...extra }
+}
+
+function resetIds() {
+  idCounter = 0
+}
+
+function systemEntry(content: string) {
+  return entry('system', content)
 }
 
 function toolResult(toolCallId: string, content: string | unknown[] = `result for ${toolCallId}`) {
   return entry('tool', content, { toolCallId })
 }
 
-function systemEntry(content: string) {
-  return entry('system', content)
+function userEntry(content: string) {
+  return entry('user', content)
 }
 
 // ---------------------------------------------------------------------------
@@ -59,7 +59,7 @@ describe('transcriptStore', () => {
     await store.appendUser('task')
     await store.appendAssistantText('thinking')
     await store.appendAssistantToolCalls(
-      [{ id: 'tc1', type: 'function', function: { name: 'read', arguments: '{}' } }],
+      [{ function: { arguments: '{}', name: 'read' }, id: 'tc1', type: 'function' }],
       '',
     )
     await store.appendToolResult('tc1', 'file content')
@@ -94,8 +94,8 @@ describe('transcriptStore', () => {
     await store.init()
 
     const structuredContent = [
-      { type: 'text', text: 'hello' },
-      { type: 'image_url', image_url: { url: 'data:...' } },
+      { text: 'hello', type: 'text' },
+      { image_url: { url: 'data:...' }, type: 'image_url' },
     ]
     await store.appendUser(structuredContent)
 
@@ -112,26 +112,26 @@ describe('transcriptStore', () => {
 
     // Assistant with tool calls
     await store.appendRawMessage({
-      role: 'assistant',
       content: 'let me check',
+      role: 'assistant',
       tool_calls: [{
+        function: { arguments: '{"path": "foo.ts"}', name: 'read_file' },
         id: 'tc1',
         type: 'function',
-        function: { name: 'read_file', arguments: '{"path": "foo.ts"}' },
       }],
     })
 
     // Tool result
     await store.appendRawMessage({
-      role: 'tool',
       content: 'file contents here',
+      role: 'tool',
       tool_call_id: 'tc1',
     })
 
     // Plain assistant text
     await store.appendRawMessage({
-      role: 'assistant',
       content: 'I see the issue',
+      role: 'assistant',
     })
 
     const all = store.getAll()
@@ -147,7 +147,7 @@ describe('transcriptStore', () => {
     const store = new InMemoryTranscriptStore()
     await store.init()
 
-    const result = await store.appendRawMessage({ role: 'weird_role' as any, content: 'hmm' })
+    const result = await store.appendRawMessage({ content: 'hmm', role: 'weird_role' as any })
     expect(result).toBeNull()
     expect(store.length).toBe(0)
   })
@@ -159,21 +159,21 @@ describe('transcriptStore', () => {
     // Step 1: user + assistant + tool
     await store.appendUser('initial task')
     await store.appendRawMessage({
-      role: 'assistant',
       content: '',
-      tool_calls: [{ id: 'tc1', type: 'function', function: { name: 'read', arguments: '{}' } }],
+      role: 'assistant',
+      tool_calls: [{ function: { arguments: '{}', name: 'read' }, id: 'tc1', type: 'function' }],
     })
-    await store.appendRawMessage({ role: 'tool', content: 'result1', tool_call_id: 'tc1' })
+    await store.appendRawMessage({ content: 'result1', role: 'tool', tool_call_id: 'tc1' })
 
     expect(store.length).toBe(3)
 
     // Step 2: simulate delta-only append (only new messages from this step)
     await store.appendRawMessage({
-      role: 'assistant',
       content: '',
-      tool_calls: [{ id: 'tc2', type: 'function', function: { name: 'write', arguments: '{}' } }],
+      role: 'assistant',
+      tool_calls: [{ function: { arguments: '{}', name: 'write' }, id: 'tc2', type: 'function' }],
     })
-    await store.appendRawMessage({ role: 'tool', content: 'result2', tool_call_id: 'tc2' })
+    await store.appendRawMessage({ content: 'result2', role: 'tool', tool_call_id: 'tc2' })
 
     // Total should be 5 (3 from step 1 + 2 from step 2), NOT 8 (if we re-appended everything)
     expect(store.length).toBe(5)
@@ -404,7 +404,7 @@ describe('compactBlock', () => {
     resetIds()
     const block = parseTranscriptBlocks([
       entry('assistant', [
-        { type: 'text', text: 'structured response here' },
+        { text: 'structured response here', type: 'text' },
       ]),
     ])[0]
 
@@ -434,9 +434,9 @@ describe('projectTranscript', () => {
 
     const result = projectTranscript(entries, {
       ...baseOpts,
-      maxFullToolBlocks: 2,
-      maxFullTextBlocks: 1,
       maxCompactedBlocks: 2,
+      maxFullTextBlocks: 1,
+      maxFullToolBlocks: 2,
     })
 
     // First message must always be the pinned user task
@@ -458,8 +458,8 @@ describe('projectTranscript', () => {
 
     const result = projectTranscript(entries, {
       ...baseOpts,
-      maxFullToolBlocks: 2,
       maxCompactedBlocks: 0,
+      maxFullToolBlocks: 2,
     })
 
     // tc1 should be dropped, tc2 and tc3 kept in full
@@ -483,8 +483,8 @@ describe('projectTranscript', () => {
 
     const result = projectTranscript(entries, {
       ...baseOpts,
-      maxFullToolBlocks: 3,
       maxCompactedBlocks: 2,
+      maxFullToolBlocks: 3,
     })
 
     // Collect all tool_call ids declared in assistant messages
@@ -515,8 +515,8 @@ describe('projectTranscript', () => {
 
     const result = projectTranscript(entries, {
       ...baseOpts,
-      maxFullToolBlocks: 1,
       maxCompactedBlocks: 1,
+      maxFullToolBlocks: 1,
     })
 
     expect(result.system).toBe('You are a coding assistant.')
@@ -542,8 +542,8 @@ describe('projectTranscript', () => {
 
     const result = projectTranscript(entries, {
       ...baseOpts,
-      maxFullToolBlocks: 2,
       maxCompactedBlocks: 4,
+      maxFullToolBlocks: 2,
     })
 
     // No message should be a synthetic compaction entry
@@ -574,8 +574,8 @@ describe('projectTranscript', () => {
 
     const result = projectTranscript(entries, {
       ...baseOpts,
-      maxFullToolBlocks: 2,
       maxCompactedBlocks: 2,
+      maxFullToolBlocks: 2,
     })
 
     expect(result.metadata.totalTranscriptEntries).toBe(11)
@@ -608,9 +608,9 @@ describe('projectTranscript', () => {
 
     const result = projectTranscript(entries, {
       ...baseOpts,
-      maxFullToolBlocks: 5, // keep all tool blocks
-      maxFullTextBlocks: 1, // only keep latest text block
       maxCompactedBlocks: 0, // no compaction
+      maxFullTextBlocks: 1, // only keep latest text block
+      maxFullToolBlocks: 5, // keep all tool blocks
     })
 
     // All tool blocks should be present
@@ -637,8 +637,8 @@ describe('projectTranscript', () => {
 
     const r1 = projectTranscript(small, {
       ...baseOpts,
-      maxFullToolBlocks: 2,
       maxCompactedBlocks: 2,
+      maxFullToolBlocks: 2,
     })
     expect(r1.metadata.compactedBlocks).toBe(0)
     expect(r1.metadata.droppedBlocks).toBe(0)
@@ -655,8 +655,8 @@ describe('projectTranscript', () => {
 
     const r2 = projectTranscript(large, {
       ...baseOpts,
-      maxFullToolBlocks: 2,
       maxCompactedBlocks: 2,
+      maxFullToolBlocks: 2,
     })
     expect(r2.metadata.compactedBlocks).toBeGreaterThan(0)
     expect(r2.metadata.projectedMessageCount).toBeLessThan(large.length)

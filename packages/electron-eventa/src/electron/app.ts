@@ -6,8 +6,8 @@ const isLinux = defineInvokeEventa<boolean>('eventa:invoke:electron:app:is-linux
 const quit = defineInvokeEventa<void>('eventa:invoke:electron:app:quit')
 
 export const app = {
+  isLinux,
   isMacOS,
   isWindows,
-  isLinux,
   quit,
 }

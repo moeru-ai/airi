@@ -17,30 +17,54 @@ const FALL_VELOCITY_THRESHOLD = -0.45
  */
 const FALL_RECENCY_MS = 400
 
-/** Minimal structural view of the bot's own entity needed to track vertical motion. */
-interface VerticalMotion {
-  velocity?: { y?: number }
-  onGround?: boolean
-}
-
 interface FallState {
   /** whether the entity was airborne on the previously sampled tick */
   airborne: boolean
-  /** most-negative velocity.y seen during the current airborne phase */
-  peakFallVelocity: number
   /** timestamp (ms) of the landing that ended the last airborne phase, or null if none yet */
-  landedAt: number | null
+  landedAt: null | number
   /** peakFallVelocity frozen at that landing */
   landedPeakVelocity: number
+  /** most-negative velocity.y seen during the current airborne phase */
+  peakFallVelocity: number
+}
+
+/** Minimal structural view of the bot's own entity needed to track vertical motion. */
+interface VerticalMotion {
+  onGround?: boolean
+  velocity?: { y?: number }
 }
 
 // NOTICE: module-level singleton, mirroring the existing per-event state in damage-taken.ts. The
 // EventRegistry owns a single bot per process, so one fall tracker is sufficient.
 const fallState: FallState = {
   airborne: false,
-  peakFallVelocity: 0,
   landedAt: null,
   landedPeakVelocity: 0,
+  peakFallVelocity: 0,
+}
+
+/**
+ * Decide whether damage taken at `now` is attributable to falling.
+ *
+ * Use when:
+ * - Classifying a damage source where the engine gives no explicit cause (see damage-taken.ts).
+ *
+ * Returns:
+ * - true when the entity is still mid-air descending fast (a second hit before touching ground),
+ *   or it has just landed from a fast descent within {@link FALL_RECENCY_MS}; false otherwise.
+ */
+export function classifyRecentFall(entity: undefined | VerticalMotion, now: number): boolean {
+  const vy = typeof entity?.velocity?.y === 'number' ? entity.velocity.y : null
+  const onGround = typeof entity?.onGround === 'boolean' ? entity.onGround : null
+
+  // still airborne and descending fast at the moment the damage hit
+  if (vy !== null && onGround === false && vy < FALL_VELOCITY_THRESHOLD)
+    return true
+
+  // landed from a fast descent a few ticks ago (the common case: the health packet lags the landing)
+  return fallState.landedAt !== null
+    && now - fallState.landedAt <= FALL_RECENCY_MS
+    && fallState.landedPeakVelocity < FALL_VELOCITY_THRESHOLD
 }
 
 /**
@@ -55,7 +79,7 @@ const fallState: FallState = {
  * - `entity` is the bot's own entity; `now` is the sampling time in ms (injected so the heuristic
  *   stays deterministic under test).
  */
-export function recordPhysicsTick(entity: VerticalMotion | undefined, now: number): void {
+export function recordPhysicsTick(entity: undefined | VerticalMotion, now: number): void {
   const vy = typeof entity?.velocity?.y === 'number' ? entity.velocity.y : null
   const onGround = typeof entity?.onGround === 'boolean' ? entity.onGround : null
   if (vy === null || onGround === null)
@@ -83,41 +107,16 @@ export function recordPhysicsTick(entity: VerticalMotion | undefined, now: numbe
 }
 
 /**
- * Decide whether damage taken at `now` is attributable to falling.
- *
- * Use when:
- * - Classifying a damage source where the engine gives no explicit cause (see damage-taken.ts).
- *
- * Returns:
- * - true when the entity is still mid-air descending fast (a second hit before touching ground),
- *   or it has just landed from a fast descent within {@link FALL_RECENCY_MS}; false otherwise.
- */
-export function classifyRecentFall(entity: VerticalMotion | undefined, now: number): boolean {
-  const vy = typeof entity?.velocity?.y === 'number' ? entity.velocity.y : null
-  const onGround = typeof entity?.onGround === 'boolean' ? entity.onGround : null
-
-  // still airborne and descending fast at the moment the damage hit
-  if (vy !== null && onGround === false && vy < FALL_VELOCITY_THRESHOLD)
-    return true
-
-  // landed from a fast descent a few ticks ago (the common case: the health packet lags the landing)
-  return fallState.landedAt !== null
-    && now - fallState.landedAt <= FALL_RECENCY_MS
-    && fallState.landedPeakVelocity < FALL_VELOCITY_THRESHOLD
-}
-
-/**
  * Pure side-effect perception event: samples vertical motion every physics tick and never emits a
  * signal. Exists so {@link classifyRecentFall} has the pre-landing fall history that the
  * `damage_taken` event needs to label fall damage correctly.
  */
 export const fallTrackerEvent = definePerceptionEvent<[], Record<string, never>>({
   id: 'fall_tracker',
-  modality: 'felt',
   kind: 'fall_tracker',
-
   mineflayer: {
     event: 'physicsTick',
+    extract: () => ({}),
     // NOTICE: the recording happens here in `filter` (which always returns false, so nothing is
     // emitted), matching damage-taken.ts which likewise updates state inside its filter. Using the
     // filter as the per-tick hook keeps the tracker inside the EventRegistry attach/detach
@@ -126,6 +125,7 @@ export const fallTrackerEvent = definePerceptionEvent<[], Record<string, never>>
       recordPhysicsTick(ctx.bot.entity as VerticalMotion, Date.now())
       return false
     },
-    extract: () => ({}),
   },
+
+  modality: 'felt',
 })

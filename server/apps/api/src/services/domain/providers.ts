@@ -7,20 +7,79 @@ import * as schema from '../../schemas/providers'
 
 const logger = useLogger('providers')
 
+export type ProviderService = ReturnType<typeof createProviderService>
+
 export function createProviderService(db: Database) {
   return {
+    async createSystemConfig(data: schema.NewSystemProviderConfig) {
+      const [inserted] = await db.insert(schema.systemProviderConfigs).values(data).returning()
+      logger.withFields({ definitionId: data.definitionId, id: inserted.id }).log('Created system provider config')
+      return inserted
+    },
+
+    async createUserConfig(data: schema.NewUserProviderConfig) {
+      const [inserted] = await db.insert(schema.userProviderConfigs).values(data).returning()
+      logger.withFields({ definitionId: data.definitionId, id: inserted.id, ownerId: data.ownerId }).log('Created user provider config')
+      return inserted
+    },
+
+    /**
+     * Soft-delete every `user_provider_configs` row owned by the user.
+     * Called from the user-deletion pipeline. System configs are not
+     * touched (they are not user-scoped).
+     *
+     * Idempotent: `WHERE deletedAt IS NULL` skips already-stamped rows.
+     */
+    async deleteAllForUser(userId: string) {
+      const now = new Date()
+
+      const result = await db.update(schema.userProviderConfigs)
+        .set({ deletedAt: now, updatedAt: now })
+        .where(and(
+          eq(schema.userProviderConfigs.ownerId, userId),
+          isNull(schema.userProviderConfigs.deletedAt),
+        ))
+        .returning({ id: schema.userProviderConfigs.id })
+
+      logger.withFields({ count: result.length, userId }).log('Provider configs soft-deleted for user')
+    },
+
+    async deleteSystemConfig(id: string) {
+      const result = await db.update(schema.systemProviderConfigs)
+        .set({ deletedAt: new Date() })
+        .where(and(
+          eq(schema.systemProviderConfigs.id, id),
+          isNull(schema.systemProviderConfigs.deletedAt),
+        ))
+        .returning()
+      logger.withFields({ id }).log('Deleted system provider config')
+      return result
+    },
+
+    async deleteUserConfig(id: string) {
+      const result = await db.update(schema.userProviderConfigs)
+        .set({ deletedAt: new Date() })
+        .where(and(
+          eq(schema.userProviderConfigs.id, id),
+          isNull(schema.userProviderConfigs.deletedAt),
+        ))
+        .returning()
+      logger.withFields({ id }).log('Deleted user provider config')
+      return result
+    },
+
     async findAll(ownerId: string) {
       const userConfigs = db
         .select({
-          id: schema.userProviderConfigs.id,
-          definitionId: schema.userProviderConfigs.definitionId,
-          name: schema.userProviderConfigs.name,
           config: schema.userProviderConfigs.config,
+          createdAt: schema.userProviderConfigs.createdAt,
+          definitionId: schema.userProviderConfigs.definitionId,
+          id: schema.userProviderConfigs.id,
+          isSystem: sql<boolean>`false`.as('is_system'),
+          name: schema.userProviderConfigs.name,
+          updatedAt: schema.userProviderConfigs.updatedAt,
           validated: schema.userProviderConfigs.validated,
           validationBypassed: schema.userProviderConfigs.validationBypassed,
-          createdAt: schema.userProviderConfigs.createdAt,
-          updatedAt: schema.userProviderConfigs.updatedAt,
-          isSystem: sql<boolean>`false`.as('is_system'),
         })
         .from(schema.userProviderConfigs)
         .where(
@@ -32,29 +91,20 @@ export function createProviderService(db: Database) {
 
       const systemConfigs = db
         .select({
-          id: schema.systemProviderConfigs.id,
-          definitionId: schema.systemProviderConfigs.definitionId,
-          name: schema.systemProviderConfigs.name,
           config: schema.systemProviderConfigs.config,
+          createdAt: schema.systemProviderConfigs.createdAt,
+          definitionId: schema.systemProviderConfigs.definitionId,
+          id: schema.systemProviderConfigs.id,
+          isSystem: sql<boolean>`true`.as('is_system'),
+          name: schema.systemProviderConfigs.name,
+          updatedAt: schema.systemProviderConfigs.updatedAt,
           validated: schema.systemProviderConfigs.validated,
           validationBypassed: schema.systemProviderConfigs.validationBypassed,
-          createdAt: schema.systemProviderConfigs.createdAt,
-          updatedAt: schema.systemProviderConfigs.updatedAt,
-          isSystem: sql<boolean>`true`.as('is_system'),
         })
         .from(schema.systemProviderConfigs)
         .where(isNull(schema.systemProviderConfigs.deletedAt))
 
       return await userConfigs.unionAll(systemConfigs)
-    },
-
-    async findUserConfigsByOwnerId(ownerId: string) {
-      return await db.query.userProviderConfigs.findMany({
-        where: and(
-          eq(schema.userProviderConfigs.ownerId, ownerId),
-          isNull(schema.userProviderConfigs.deletedAt),
-        ),
-      })
     },
 
     async findById(id: string, ownerId: string) {
@@ -84,52 +134,6 @@ export function createProviderService(db: Database) {
       return null
     },
 
-    async findUserConfigById(id: string) {
-      return await db.query.userProviderConfigs.findFirst({
-        where: and(
-          eq(schema.userProviderConfigs.id, id),
-          isNull(schema.userProviderConfigs.deletedAt),
-        ),
-      })
-    },
-
-    async createUserConfig(data: schema.NewUserProviderConfig) {
-      const [inserted] = await db.insert(schema.userProviderConfigs).values(data).returning()
-      logger.withFields({ id: inserted.id, ownerId: data.ownerId, definitionId: data.definitionId }).log('Created user provider config')
-      return inserted
-    },
-
-    async updateUserConfig(id: string, data: Partial<schema.NewUserProviderConfig>) {
-      const [updated] = await db.update(schema.userProviderConfigs)
-        .set({ ...data, updatedAt: new Date() })
-        .where(and(
-          eq(schema.userProviderConfigs.id, id),
-          isNull(schema.userProviderConfigs.deletedAt),
-        ))
-        .returning()
-      logger.withFields({ id }).log('Updated user provider config')
-      return updated
-    },
-
-    async deleteUserConfig(id: string) {
-      const result = await db.update(schema.userProviderConfigs)
-        .set({ deletedAt: new Date() })
-        .where(and(
-          eq(schema.userProviderConfigs.id, id),
-          isNull(schema.userProviderConfigs.deletedAt),
-        ))
-        .returning()
-      logger.withFields({ id }).log('Deleted user provider config')
-      return result
-    },
-
-    // System Provider Configs
-    async findSystemConfigs() {
-      return await db.query.systemProviderConfigs.findMany({
-        where: isNull(schema.systemProviderConfigs.deletedAt),
-      })
-    },
-
     async findSystemConfigById(id: string) {
       return await db.query.systemProviderConfigs.findFirst({
         where: and(
@@ -139,10 +143,29 @@ export function createProviderService(db: Database) {
       })
     },
 
-    async createSystemConfig(data: schema.NewSystemProviderConfig) {
-      const [inserted] = await db.insert(schema.systemProviderConfigs).values(data).returning()
-      logger.withFields({ id: inserted.id, definitionId: data.definitionId }).log('Created system provider config')
-      return inserted
+    // System Provider Configs
+    async findSystemConfigs() {
+      return await db.query.systemProviderConfigs.findMany({
+        where: isNull(schema.systemProviderConfigs.deletedAt),
+      })
+    },
+
+    async findUserConfigById(id: string) {
+      return await db.query.userProviderConfigs.findFirst({
+        where: and(
+          eq(schema.userProviderConfigs.id, id),
+          isNull(schema.userProviderConfigs.deletedAt),
+        ),
+      })
+    },
+
+    async findUserConfigsByOwnerId(ownerId: string) {
+      return await db.query.userProviderConfigs.findMany({
+        where: and(
+          eq(schema.userProviderConfigs.ownerId, ownerId),
+          isNull(schema.userProviderConfigs.deletedAt),
+        ),
+      })
     },
 
     async updateSystemConfig(id: string, data: Partial<schema.NewSystemProviderConfig>) {
@@ -157,39 +180,16 @@ export function createProviderService(db: Database) {
       return updated
     },
 
-    async deleteSystemConfig(id: string) {
-      const result = await db.update(schema.systemProviderConfigs)
-        .set({ deletedAt: new Date() })
+    async updateUserConfig(id: string, data: Partial<schema.NewUserProviderConfig>) {
+      const [updated] = await db.update(schema.userProviderConfigs)
+        .set({ ...data, updatedAt: new Date() })
         .where(and(
-          eq(schema.systemProviderConfigs.id, id),
-          isNull(schema.systemProviderConfigs.deletedAt),
-        ))
-        .returning()
-      logger.withFields({ id }).log('Deleted system provider config')
-      return result
-    },
-
-    /**
-     * Soft-delete every `user_provider_configs` row owned by the user.
-     * Called from the user-deletion pipeline. System configs are not
-     * touched (they are not user-scoped).
-     *
-     * Idempotent: `WHERE deletedAt IS NULL` skips already-stamped rows.
-     */
-    async deleteAllForUser(userId: string) {
-      const now = new Date()
-
-      const result = await db.update(schema.userProviderConfigs)
-        .set({ deletedAt: now, updatedAt: now })
-        .where(and(
-          eq(schema.userProviderConfigs.ownerId, userId),
+          eq(schema.userProviderConfigs.id, id),
           isNull(schema.userProviderConfigs.deletedAt),
         ))
-        .returning({ id: schema.userProviderConfigs.id })
-
-      logger.withFields({ userId, count: result.length }).log('Provider configs soft-deleted for user')
+        .returning()
+      logger.withFields({ id }).log('Updated user provider config')
+      return updated
     },
   }
 }
-
-export type ProviderService = ReturnType<typeof createProviderService>

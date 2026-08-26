@@ -48,8 +48,8 @@ describe('sponsorKit OpenCollective pnpm patch', () => {
 
     vi.stubGlobal('fetch', vi.fn(async (url, init) => {
       requests.push({
-        url,
         headers: normalizeHeaders(init?.headers),
+        url,
       })
 
       return createGraphqlResponse(requests.length === 1 ? 'orders' : 'transactions')

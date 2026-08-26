@@ -13,13 +13,13 @@ import {
 
 function createBaseState(overrides: Partial<RunState> = {}): RunState {
   return {
-    pendingApprovalCount: 0,
     lastApprovalRejected: false,
-    ptySessions: [],
-    workflowStepTerminalBindings: [],
+    pendingApprovalCount: 0,
     ptyApprovalGrants: [],
     ptyAuditLog: [],
+    ptySessions: [],
     updatedAt: new Date().toISOString(),
+    workflowStepTerminalBindings: [],
     ...overrides,
   }
 }
@@ -30,7 +30,7 @@ describe('evaluateStrategy', () => {
       displayInfo: { available: true, platform: 'darwin' },
     })
     const advisories = evaluateStrategy({
-      proposedAction: { kind: 'screenshot', input: {} },
+      proposedAction: { input: {}, kind: 'screenshot' },
       state,
     })
 
@@ -44,7 +44,7 @@ describe('evaluateStrategy', () => {
       lastRejectionReason: 'Too dangerous',
     })
     const advisories = evaluateStrategy({
-      proposedAction: { kind: 'screenshot', input: {} },
+      proposedAction: { input: {}, kind: 'screenshot' },
       state,
     })
 
@@ -54,30 +54,30 @@ describe('evaluateStrategy', () => {
   it('should advise focus when wrong app is in foreground', () => {
     const state = createBaseState({
       activeTask: {
-        id: '1',
-        goal: 'Test',
-        phase: 'executing',
-        steps: [{ index: 1, stepId: 'step_1', label: 'Click in Terminal' }],
         currentStepIndex: 0,
-        startedAt: new Date().toISOString(),
         failureCount: 0,
+        goal: 'Test',
+        id: '1',
         maxConsecutiveFailures: 3,
+        phase: 'executing',
+        startedAt: new Date().toISOString(),
+        steps: [{ index: 1, label: 'Click in Terminal', stepId: 'step_1' }],
       },
       foregroundContext: {
-        available: true,
         appName: 'Finder',
+        available: true,
         platform: 'darwin',
       },
     })
     const freshContext: ForegroundContext = {
-      available: true,
       appName: 'Finder',
+      available: true,
       platform: 'darwin',
     }
     const advisories = evaluateStrategy({
-      proposedAction: { kind: 'click', input: { x: 100, y: 100 } },
-      state,
       freshContext,
+      proposedAction: { input: { x: 100, y: 100 }, kind: 'click' },
+      state,
     })
 
     expect(advisories.some(a => a.kind === 'focus_app_first')).toBe(true)
@@ -86,24 +86,24 @@ describe('evaluateStrategy', () => {
   it('should recognize VS Code aliases when inferring the target app', () => {
     const state = createBaseState({
       activeTask: {
-        id: '1',
-        goal: 'Workspace',
-        phase: 'executing',
-        steps: [{ index: 1, stepId: 'step_1', label: 'Focus VS Code' }],
         currentStepIndex: 0,
-        startedAt: new Date().toISOString(),
         failureCount: 0,
+        goal: 'Workspace',
+        id: '1',
         maxConsecutiveFailures: 3,
+        phase: 'executing',
+        startedAt: new Date().toISOString(),
+        steps: [{ index: 1, label: 'Focus VS Code', stepId: 'step_1' }],
       },
       foregroundContext: {
-        available: true,
         appName: 'Finder',
+        available: true,
         platform: 'darwin',
       },
     })
 
     const advisories = evaluateStrategy({
-      proposedAction: { kind: 'click', input: { x: 80, y: 120 } },
+      proposedAction: { input: { x: 80, y: 120 }, kind: 'click' },
       state,
     })
 
@@ -113,15 +113,15 @@ describe('evaluateStrategy', () => {
   it('should advise screenshot first on tainted remote runner', () => {
     const state = createBaseState({
       executionTarget: {
-        mode: 'remote',
-        transport: 'ssh-stdio',
         hostName: 'test-host',
         isolated: false,
+        mode: 'remote',
         tainted: true,
+        transport: 'ssh-stdio',
       },
     })
     const advisories = evaluateStrategy({
-      proposedAction: { kind: 'click', input: { x: 100, y: 100 } },
+      proposedAction: { input: { x: 100, y: 100 }, kind: 'click' },
       state,
     })
 
@@ -132,16 +132,16 @@ describe('evaluateStrategy', () => {
     const state = createBaseState({
       lastTerminalResult: {
         command: 'pnpm test',
-        stdout: '',
-        stderr: 'Error: tests failed',
-        exitCode: 1,
-        effectiveCwd: '/test',
         durationMs: 100,
+        effectiveCwd: '/test',
+        exitCode: 1,
+        stderr: 'Error: tests failed',
+        stdout: '',
         timedOut: false,
       },
     })
     const advisories = evaluateStrategy({
-      proposedAction: { kind: 'terminal_exec', input: { command: 'pnpm test' } },
+      proposedAction: { input: { command: 'pnpm test' }, kind: 'terminal_exec' },
       state,
     })
 
@@ -151,22 +151,22 @@ describe('evaluateStrategy', () => {
   it('should advise abort when too many failures', () => {
     const state = createBaseState({
       activeTask: {
-        id: '1',
-        goal: 'Test',
-        phase: 'executing',
-        steps: [
-          { index: 1, stepId: 'step_1', label: 'Step 1', outcome: 'failure', outcomeReason: 'err1' },
-          { index: 2, stepId: 'step_2', label: 'Step 2', outcome: 'failure', outcomeReason: 'err2' },
-          { index: 3, stepId: 'step_3', label: 'Step 3', outcome: 'failure', outcomeReason: 'err3' },
-        ],
         currentStepIndex: 2,
-        startedAt: new Date().toISOString(),
         failureCount: 3,
+        goal: 'Test',
+        id: '1',
         maxConsecutiveFailures: 3,
+        phase: 'executing',
+        startedAt: new Date().toISOString(),
+        steps: [
+          { index: 1, label: 'Step 1', outcome: 'failure', outcomeReason: 'err1', stepId: 'step_1' },
+          { index: 2, label: 'Step 2', outcome: 'failure', outcomeReason: 'err2', stepId: 'step_2' },
+          { index: 3, label: 'Step 3', outcome: 'failure', outcomeReason: 'err3', stepId: 'step_3' },
+        ],
       },
     })
     const advisories = evaluateStrategy({
-      proposedAction: { kind: 'terminal_exec', input: { command: 'test' } },
+      proposedAction: { input: { command: 'test' }, kind: 'terminal_exec' },
       state,
     })
 
@@ -179,31 +179,31 @@ describe('evaluateStrategy', () => {
 
   it('should advise browser surface when UI action targets a browser', () => {
     const state = createBaseState({
-      foregroundContext: {
-        available: true,
-        appName: 'Google Chrome',
-        platform: 'darwin',
-      },
       browserSurfaceAvailability: {
-        executionMode: 'local-windowed',
-        suitable: true,
         availableSurfaces: ['browser_cdp'],
-        preferredSurface: 'browser_cdp',
-        selectedToolName: 'browser_cdp_collect_elements',
-        reason: 'CDP is connected.',
-        extension: {
-          enabled: true,
-          connected: false,
-        },
         cdp: {
-          endpoint: 'http://localhost:9222',
-          connected: true,
           connectable: true,
+          connected: true,
+          endpoint: 'http://localhost:9222',
         },
+        executionMode: 'local-windowed',
+        extension: {
+          connected: false,
+          enabled: true,
+        },
+        preferredSurface: 'browser_cdp',
+        reason: 'CDP is connected.',
+        selectedToolName: 'browser_cdp_collect_elements',
+        suitable: true,
+      },
+      foregroundContext: {
+        appName: 'Google Chrome',
+        available: true,
+        platform: 'darwin',
       },
     })
     const advisories = evaluateStrategy({
-      proposedAction: { kind: 'click', input: { x: 200, y: 300 } },
+      proposedAction: { input: { x: 200, y: 300 }, kind: 'click' },
       state,
     })
 
@@ -214,32 +214,32 @@ describe('evaluateStrategy', () => {
 
   it('should prefer browser extension surface when the extension bridge is connected', () => {
     const state = createBaseState({
-      foregroundContext: {
-        available: true,
-        appName: 'Google Chrome',
-        platform: 'darwin',
-      },
       browserSurfaceAvailability: {
-        executionMode: 'local-windowed',
-        suitable: true,
         availableSurfaces: ['browser_dom', 'browser_cdp'],
-        preferredSurface: 'browser_dom',
-        selectedToolName: 'browser_dom_read_page',
-        reason: 'Extension bridge is already connected.',
-        extension: {
-          enabled: true,
-          connected: true,
-        },
         cdp: {
-          endpoint: 'http://localhost:9222',
-          connected: true,
           connectable: true,
+          connected: true,
+          endpoint: 'http://localhost:9222',
         },
+        executionMode: 'local-windowed',
+        extension: {
+          connected: true,
+          enabled: true,
+        },
+        preferredSurface: 'browser_dom',
+        reason: 'Extension bridge is already connected.',
+        selectedToolName: 'browser_dom_read_page',
+        suitable: true,
+      },
+      foregroundContext: {
+        appName: 'Google Chrome',
+        available: true,
+        platform: 'darwin',
       },
     })
 
     const advisories = evaluateStrategy({
-      proposedAction: { kind: 'click', input: { x: 200, y: 300 } },
+      proposedAction: { input: { x: 200, y: 300 }, kind: 'click' },
       state,
     })
 
@@ -251,37 +251,37 @@ describe('evaluateStrategy', () => {
 
   it('should not reroute to browser surface when the execution target is remote', () => {
     const state = createBaseState({
-      foregroundContext: {
-        available: true,
-        appName: 'Google Chrome',
-        platform: 'darwin',
+      browserSurfaceAvailability: {
+        availableSurfaces: [],
+        cdp: {
+          connectable: true,
+          connected: true,
+          endpoint: 'http://localhost:9222',
+        },
+        executionMode: 'remote',
+        extension: {
+          connected: true,
+          enabled: true,
+        },
+        reason: 'Browser surfaces are not suitable for remote desktop.',
+        suitable: false,
       },
       executionTarget: {
-        mode: 'remote',
-        transport: 'ssh-stdio',
         hostName: 'remote-browser-host',
         isolated: false,
+        mode: 'remote',
         tainted: false,
+        transport: 'ssh-stdio',
       },
-      browserSurfaceAvailability: {
-        executionMode: 'remote',
-        suitable: false,
-        availableSurfaces: [],
-        reason: 'Browser surfaces are not suitable for remote desktop.',
-        extension: {
-          enabled: true,
-          connected: true,
-        },
-        cdp: {
-          endpoint: 'http://localhost:9222',
-          connected: true,
-          connectable: true,
-        },
+      foregroundContext: {
+        appName: 'Google Chrome',
+        available: true,
+        platform: 'darwin',
       },
     })
 
     const advisories = evaluateStrategy({
-      proposedAction: { kind: 'click', input: { x: 200, y: 300 } },
+      proposedAction: { input: { x: 200, y: 300 }, kind: 'click' },
       state,
     })
 
@@ -291,10 +291,10 @@ describe('evaluateStrategy', () => {
   it('should advise browser surface for various browser names', () => {
     for (const browser of ['Firefox', 'Safari', 'Arc', 'Brave Browser', 'Microsoft Edge']) {
       const state = createBaseState({
-        foregroundContext: { available: true, appName: browser, platform: 'darwin' },
+        foregroundContext: { appName: browser, available: true, platform: 'darwin' },
       })
       const advisories = evaluateStrategy({
-        proposedAction: { kind: 'type_text', input: { text: 'hello' } },
+        proposedAction: { input: { text: 'hello' }, kind: 'type_text' },
         state,
       })
       expect(advisories.some(a => a.kind === 'use_browser_surface'), `expected browser surface for ${browser}`).toBe(true)
@@ -304,13 +304,13 @@ describe('evaluateStrategy', () => {
   it('should advise accessibility grounding on macOS for non-browser screenshot', () => {
     const state = createBaseState({
       foregroundContext: {
-        available: true,
         appName: 'Finder',
+        available: true,
         platform: 'darwin',
       },
     })
     const advisories = evaluateStrategy({
-      proposedAction: { kind: 'screenshot', input: {} },
+      proposedAction: { input: {}, kind: 'screenshot' },
       state,
     })
 
@@ -322,13 +322,13 @@ describe('evaluateStrategy', () => {
   it('should NOT advise accessibility grounding when foreground is a browser', () => {
     const state = createBaseState({
       foregroundContext: {
-        available: true,
         appName: 'Google Chrome',
+        available: true,
         platform: 'darwin',
       },
     })
     const advisories = evaluateStrategy({
-      proposedAction: { kind: 'screenshot', input: {} },
+      proposedAction: { input: {}, kind: 'screenshot' },
       state,
     })
 
@@ -337,26 +337,26 @@ describe('evaluateStrategy', () => {
 
   it('should advise PTY surface when terminal_exec targets a TUI session', () => {
     const state = createBaseState({
+      activePtySessionId: 'pty_1',
       foregroundContext: {
-        available: true,
         appName: 'Terminal',
-        windowTitle: 'vim — ~/project/main.ts',
+        available: true,
         platform: 'darwin',
+        windowTitle: 'vim — ~/project/main.ts',
       },
       ptySessions: [
         {
-          id: 'pty_1',
           alive: true,
-          rows: 24,
           cols: 80,
-          pid: 4242,
           createdAt: new Date().toISOString(),
+          id: 'pty_1',
+          pid: 4242,
+          rows: 24,
         },
       ],
-      activePtySessionId: 'pty_1',
     })
     const advisories = evaluateStrategy({
-      proposedAction: { kind: 'terminal_exec', input: { command: ':wq' } },
+      proposedAction: { input: { command: ':wq' }, kind: 'terminal_exec' },
       state,
     })
 
@@ -368,14 +368,14 @@ describe('evaluateStrategy', () => {
   it('should NOT advise PTY when terminal is not running a TUI', () => {
     const state = createBaseState({
       foregroundContext: {
-        available: true,
         appName: 'Terminal',
-        windowTitle: 'zsh — ~/project',
+        available: true,
         platform: 'darwin',
+        windowTitle: 'zsh — ~/project',
       },
     })
     const advisories = evaluateStrategy({
-      proposedAction: { kind: 'terminal_exec', input: { command: 'ls' } },
+      proposedAction: { input: { command: 'ls' }, kind: 'terminal_exec' },
       state,
     })
 
@@ -385,7 +385,7 @@ describe('evaluateStrategy', () => {
   it('should advise display enumeration when displayInfo is missing', () => {
     const state = createBaseState({ displayInfo: undefined })
     const advisories = evaluateStrategy({
-      proposedAction: { kind: 'screenshot', input: {} },
+      proposedAction: { input: {}, kind: 'screenshot' },
       state,
     })
 
@@ -398,13 +398,13 @@ describe('evaluateStrategy', () => {
     const state = createBaseState({
       displayInfo: {
         available: true,
-        platform: 'darwin',
-        logicalWidth: 1920,
         logicalHeight: 1080,
+        logicalWidth: 1920,
+        platform: 'darwin',
       },
     })
     const advisories = evaluateStrategy({
-      proposedAction: { kind: 'screenshot', input: {} },
+      proposedAction: { input: {}, kind: 'screenshot' },
       state,
     })
 
@@ -414,15 +414,15 @@ describe('evaluateStrategy', () => {
   it('should emit multiple surface advisories when applicable', () => {
     // macOS + non-browser + screenshot + no displayInfo → accessibility + display
     const state = createBaseState({
+      displayInfo: undefined,
       foregroundContext: {
-        available: true,
         appName: 'Cursor',
+        available: true,
         platform: 'darwin',
       },
-      displayInfo: undefined,
     })
     const advisories = evaluateStrategy({
-      proposedAction: { kind: 'screenshot', input: {} },
+      proposedAction: { input: {}, kind: 'screenshot' },
       state,
     })
 
@@ -435,8 +435,8 @@ describe('evaluateStrategy', () => {
 describe('buildRecoveryPlan', () => {
   it('should suggest wait_and_retry on timeout', () => {
     const result = buildRecoveryPlan({
-      failedAction: { kind: 'terminal_exec', input: { command: 'slow-cmd' } },
       errorMessage: 'process timeout after 30000ms',
+      failedAction: { input: { command: 'slow-cmd' }, kind: 'terminal_exec' },
       state: createBaseState(),
     })
 
@@ -445,16 +445,16 @@ describe('buildRecoveryPlan', () => {
 
   it('should suggest read_error_first on terminal failure', () => {
     const result = buildRecoveryPlan({
-      failedAction: { kind: 'terminal_exec', input: { command: 'bad-cmd' } },
       errorMessage: 'command not found',
+      failedAction: { input: { command: 'bad-cmd' }, kind: 'terminal_exec' },
       state: createBaseState({
         lastTerminalResult: {
           command: 'bad-cmd',
-          stdout: '',
-          stderr: 'command not found: bad-cmd',
-          exitCode: 127,
-          effectiveCwd: '/test',
           durationMs: 10,
+          effectiveCwd: '/test',
+          exitCode: 127,
+          stderr: 'command not found: bad-cmd',
+          stdout: '',
           timedOut: false,
         },
       }),
@@ -467,8 +467,8 @@ describe('buildRecoveryPlan', () => {
 
   it('should suggest screenshot on generic UI failure', () => {
     const result = buildRecoveryPlan({
-      failedAction: { kind: 'click', input: { x: 100, y: 100 } },
       errorMessage: 'click failed',
+      failedAction: { input: { x: 100, y: 100 }, kind: 'click' },
       state: createBaseState(),
     })
 
@@ -482,26 +482,26 @@ describe('buildRecoveryPlan', () => {
 
   it('should suggest PTY when terminal_exec fails in a TUI session', () => {
     const result = buildRecoveryPlan({
-      failedAction: { kind: 'terminal_exec', input: { command: ':wq' } },
       errorMessage: 'command not found: :wq',
+      failedAction: { input: { command: ':wq' }, kind: 'terminal_exec' },
       state: createBaseState({
+        activePtySessionId: 'pty_1',
+        activeWindowTitle: 'nvim — main.ts',
         foregroundContext: {
-          available: true,
           appName: 'iTerm2',
+          available: true,
           platform: 'darwin',
         },
-        activeWindowTitle: 'nvim — main.ts',
         ptySessions: [
           {
-            id: 'pty_1',
             alive: true,
-            rows: 24,
             cols: 80,
-            pid: 4242,
             createdAt: new Date().toISOString(),
+            id: 'pty_1',
+            pid: 4242,
+            rows: 24,
           },
         ],
-        activePtySessionId: 'pty_1',
       }),
     })
 
@@ -511,31 +511,31 @@ describe('buildRecoveryPlan', () => {
 
   it('should suggest browser surface when UI action fails in a browser', () => {
     const result = buildRecoveryPlan({
-      failedAction: { kind: 'click', input: { x: 400, y: 300 } },
       errorMessage: 'element not found at coordinates',
+      failedAction: { input: { x: 400, y: 300 }, kind: 'click' },
       state: createBaseState({
-        foregroundContext: {
-          available: true,
-          appName: 'Google Chrome',
-          platform: 'darwin',
-        },
         browserSurfaceAvailability: {
-          executionMode: 'local-windowed',
-          suitable: true,
           availableSurfaces: ['browser_dom'],
-          preferredSurface: 'browser_dom',
-          selectedToolName: 'browser_dom_read_page',
-          reason: 'Extension bridge is already connected.',
-          extension: {
-            enabled: true,
-            connected: true,
-          },
           cdp: {
-            endpoint: 'http://localhost:9222',
-            connected: false,
             connectable: false,
+            connected: false,
+            endpoint: 'http://localhost:9222',
             lastError: 'connection refused',
           },
+          executionMode: 'local-windowed',
+          extension: {
+            connected: true,
+            enabled: true,
+          },
+          preferredSurface: 'browser_dom',
+          reason: 'Extension bridge is already connected.',
+          selectedToolName: 'browser_dom_read_page',
+          suitable: true,
+        },
+        foregroundContext: {
+          appName: 'Google Chrome',
+          available: true,
+          platform: 'darwin',
         },
       }),
     })
@@ -546,35 +546,35 @@ describe('buildRecoveryPlan', () => {
 
   it('should not fall back to CDP in recovery when browser surfaces are unsuitable', () => {
     const result = buildRecoveryPlan({
-      failedAction: { kind: 'click', input: { x: 400, y: 300 } },
       errorMessage: 'element not found at coordinates',
+      failedAction: { input: { x: 400, y: 300 }, kind: 'click' },
       state: createBaseState({
-        foregroundContext: {
-          available: true,
-          appName: 'Google Chrome',
-          platform: 'darwin',
+        browserSurfaceAvailability: {
+          availableSurfaces: [],
+          cdp: {
+            connectable: true,
+            connected: true,
+            endpoint: 'http://localhost:9222',
+          },
+          executionMode: 'remote',
+          extension: {
+            connected: true,
+            enabled: true,
+          },
+          reason: 'Browser surfaces are not suitable for remote desktop.',
+          suitable: false,
         },
         executionTarget: {
-          mode: 'remote',
-          transport: 'ssh-stdio',
           hostName: 'remote-browser-host',
           isolated: false,
+          mode: 'remote',
           tainted: false,
+          transport: 'ssh-stdio',
         },
-        browserSurfaceAvailability: {
-          executionMode: 'remote',
-          suitable: false,
-          availableSurfaces: [],
-          reason: 'Browser surfaces are not suitable for remote desktop.',
-          extension: {
-            enabled: true,
-            connected: true,
-          },
-          cdp: {
-            endpoint: 'http://localhost:9222',
-            connected: true,
-            connectable: true,
-          },
+        foregroundContext: {
+          appName: 'Google Chrome',
+          available: true,
+          platform: 'darwin',
         },
       }),
     })
@@ -585,12 +585,12 @@ describe('buildRecoveryPlan', () => {
 
   it('should suggest accessibility when observation fails on macOS', () => {
     const result = buildRecoveryPlan({
-      failedAction: { kind: 'screenshot', input: {} },
       errorMessage: 'screen recording permission denied',
+      failedAction: { input: {}, kind: 'screenshot' },
       state: createBaseState({
         foregroundContext: {
-          available: true,
           appName: 'Finder',
+          available: true,
           platform: 'darwin',
         },
       }),
@@ -602,12 +602,12 @@ describe('buildRecoveryPlan', () => {
 
   it('should fall through to generic screenshot for non-macOS observation failure', () => {
     const result = buildRecoveryPlan({
-      failedAction: { kind: 'screenshot', input: {} },
       errorMessage: 'display capture failed',
+      failedAction: { input: {}, kind: 'screenshot' },
       state: createBaseState({
         foregroundContext: {
-          available: true,
           appName: 'Files',
+          available: true,
           platform: 'linux',
         },
       }),
@@ -620,9 +620,9 @@ describe('buildRecoveryPlan', () => {
 describe('summarizeAdvisories', () => {
   it('should return empty string for proceed-only', () => {
     const result = summarizeAdvisories([{
+      category: 'informational',
       kind: 'proceed',
       reason: 'ok',
-      category: 'informational',
       recommendedSurface: 'none',
     }])
     expect(result).toBe('')
@@ -631,15 +631,15 @@ describe('summarizeAdvisories', () => {
   it('should format advisory summary with category and surface', () => {
     const result = summarizeAdvisories([
       {
+        category: 'prep',
         kind: 'focus_app_first',
         reason: 'Wrong app',
-        category: 'prep',
         recommendedSurface: 'desktop',
       },
       {
+        category: 'recovery',
         kind: 'read_error_first',
         reason: 'Error exists',
-        category: 'recovery',
         recommendedSurface: 'terminal',
       },
     ])
@@ -651,9 +651,9 @@ describe('summarizeAdvisories', () => {
 
   it('should omit surface arrow for none surface', () => {
     const result = summarizeAdvisories([{
+      category: 'recovery',
       kind: 'abort_task',
       reason: 'Too many failures',
-      category: 'recovery',
       recommendedSurface: 'none',
     }])
     expect(result).toContain('[recovery/abort_task]')
@@ -668,15 +668,15 @@ describe('summarizeAdvisories', () => {
 describe('advisory maps', () => {
   it('all advisories should have category and recommendedSurface populated', () => {
     const state = createBaseState({
+      displayInfo: undefined,
       foregroundContext: {
-        available: true,
         appName: 'Finder',
+        available: true,
         platform: 'darwin',
       },
-      displayInfo: undefined,
     })
     const advisories = evaluateStrategy({
-      proposedAction: { kind: 'screenshot', input: {} },
+      proposedAction: { input: {}, kind: 'screenshot' },
       state,
     })
 
@@ -690,8 +690,8 @@ describe('advisory maps', () => {
 
   it('buildRecoveryPlan should return advisory with category and surface', () => {
     const result = buildRecoveryPlan({
-      failedAction: { kind: 'click', input: { x: 100, y: 100 } },
       errorMessage: 'click failed',
+      failedAction: { input: { x: 100, y: 100 }, kind: 'click' },
       state: createBaseState(),
     })
     expect(result.category).toBe('prep')

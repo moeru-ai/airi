@@ -1,8 +1,6 @@
 import type { RateLimitMetrics } from '../../../../otel'
 import type { GatewayMiddleware, V1GatewayContext, V1GatewayOperationName } from '../gateway'
 
-type RateLimitKeyType = 'ip' | 'model' | 'user'
-
 interface GatewayRateLimitClassification {
   key: string
   keyType: RateLimitKeyType
@@ -12,7 +10,7 @@ interface GatewayRateLimitClassification {
 interface GatewayRateLimitOptions<Name extends V1GatewayOperationName> {
   classify: (context: V1GatewayContext<Name>) => GatewayRateLimitClassification
   max: number
-  metrics?: RateLimitMetrics | null
+  metrics?: null | RateLimitMetrics
   routeLabel: string
   windowSec: number
 }
@@ -22,8 +20,10 @@ interface RateLimitBucket {
   resetAt: number
 }
 
+type RateLimitKeyType = 'ip' | 'model' | 'user'
+
 export function chatCompletionsRateLimit(input: {
-  metrics?: RateLimitMetrics | null
+  metrics?: null | RateLimitMetrics
 }): GatewayMiddleware<'chat.completions'> {
   return createGatewayRateLimiter({
     classify: context => ({
@@ -52,21 +52,21 @@ function createGatewayRateLimiter<Name extends V1GatewayOperationName>(opts: Gat
 
     if (bucket.count >= opts.max) {
       opts.metrics?.blocked.add(1, {
-        route: opts.routeLabel,
         key_type: classification.keyType,
         limit: String(opts.max),
+        route: opts.routeLabel,
       })
       const retryAfterSec = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000))
       return Response.json(
         { error: 'TOO_MANY_REQUESTS', message: 'Too many requests' },
         {
-          status: 429,
           headers: {
             'RateLimit-Limit': String(opts.max),
             'RateLimit-Remaining': '0',
             'RateLimit-Reset': String(retryAfterSec),
             'Retry-After': String(retryAfterSec),
           },
+          status: 429,
         },
       )
     }

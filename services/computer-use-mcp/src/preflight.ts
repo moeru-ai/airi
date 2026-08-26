@@ -9,52 +9,24 @@ import type {
 
 import { buildCoordinateSpaceInfo, resolveLaunchContext } from './runtime-probes'
 
-function getScreenshotBindingIssue(params: {
-  config: ComputerUseConfig
-  lastScreenshot?: LastScreenshotInfo
-  executionTarget: ExecutionTarget
-}) {
-  if (!params.lastScreenshot) {
-    return 'capture a fresh screenshot before mutating the remote desktop'
-  }
-
-  if (params.executionTarget.mode !== params.lastScreenshot.executionTargetMode) {
-    return 'the latest screenshot was captured from a different execution target mode'
-  }
-
-  if (params.executionTarget.hostName !== params.lastScreenshot.sourceHostName) {
-    return 'the latest screenshot was captured on a different remote host'
-  }
-
-  if (params.executionTarget.displayId !== params.lastScreenshot.sourceDisplayId) {
-    return 'the latest screenshot was captured from a different remote display'
-  }
-
-  if (params.config.sessionTag && params.config.sessionTag !== params.lastScreenshot.sourceSessionTag) {
-    return 'the latest screenshot was captured from a different remote session tag'
-  }
-
-  return undefined
-}
-
 export interface RuntimePreflight {
-  launchContext: LaunchContext
-  coordinateSpace: CoordinateSpaceInfo
   blockingIssues: string[]
+  coordinateSpace: CoordinateSpaceInfo
+  launchContext: LaunchContext
   mutationReadinessIssues: string[]
 }
 
 export function getRuntimePreflight(params: {
   config: ComputerUseConfig
-  lastScreenshot?: LastScreenshotInfo
   displayInfo: DisplayInfo
   executionTarget: ExecutionTarget
+  lastScreenshot?: LastScreenshotInfo
 }): RuntimePreflight {
   const launchContext = resolveLaunchContext(params.config)
   const coordinateSpace = buildCoordinateSpaceInfo({
     config: params.config,
-    lastScreenshot: params.lastScreenshot,
     displayInfo: params.displayInfo,
+    lastScreenshot: params.lastScreenshot,
   })
 
   const blockingIssues: string[] = []
@@ -88,8 +60,8 @@ export function getRuntimePreflight(params: {
 
     const screenshotBindingIssue = getScreenshotBindingIssue({
       config: params.config,
-      lastScreenshot: params.lastScreenshot,
       executionTarget: params.executionTarget,
+      lastScreenshot: params.lastScreenshot,
     })
     if (screenshotBindingIssue) {
       mutationReadinessIssues.push(screenshotBindingIssue)
@@ -101,9 +73,37 @@ export function getRuntimePreflight(params: {
   }
 
   return {
-    launchContext,
-    coordinateSpace,
     blockingIssues,
+    coordinateSpace,
+    launchContext,
     mutationReadinessIssues,
   }
+}
+
+function getScreenshotBindingIssue(params: {
+  config: ComputerUseConfig
+  executionTarget: ExecutionTarget
+  lastScreenshot?: LastScreenshotInfo
+}) {
+  if (!params.lastScreenshot) {
+    return 'capture a fresh screenshot before mutating the remote desktop'
+  }
+
+  if (params.executionTarget.mode !== params.lastScreenshot.executionTargetMode) {
+    return 'the latest screenshot was captured from a different execution target mode'
+  }
+
+  if (params.executionTarget.hostName !== params.lastScreenshot.sourceHostName) {
+    return 'the latest screenshot was captured on a different remote host'
+  }
+
+  if (params.executionTarget.displayId !== params.lastScreenshot.sourceDisplayId) {
+    return 'the latest screenshot was captured from a different remote display'
+  }
+
+  if (params.config.sessionTag && params.config.sessionTag !== params.lastScreenshot.sourceSessionTag) {
+    return 'the latest screenshot was captured from a different remote session tag'
+  }
+
+  return undefined
 }

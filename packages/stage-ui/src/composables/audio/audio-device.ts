@@ -6,13 +6,6 @@ import { useAnalytics } from '../use-analytics'
 const UNKNOWN_STT_PROVIDER_ID = 'unknown'
 
 /**
- * Selects the default microphone when available, otherwise the first detected input.
- */
-function resolvePreferredAudioInput(audioInputs: MediaDeviceInfo[]) {
-  return audioInputs.find(device => device.deviceId === 'default')?.deviceId || audioInputs[0]?.deviceId || ''
-}
-
-/**
  * Detects browser errors caused by a stale or unavailable microphone device.
  */
 export function isMissingAudioInputDeviceError(error: unknown) {
@@ -27,25 +20,15 @@ export function isMissingAudioInputDeviceError(error: unknown) {
 }
 
 /**
- * Normalizes browser microphone failures into low-cardinality analytics codes.
- */
-function audioDeviceErrorCode(error: unknown): 'permission_denied' | 'device_unavailable' {
-  if (error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError'))
-    return 'permission_denied'
-
-  return 'device_unavailable'
-}
-
-/**
  * Provides microphone device selection, permission requests, and audio stream lifecycle state.
  */
 export function useAudioDevice(requestPermission: boolean = false) {
   const { trackMicrophonePermissionDenied } = useAnalytics()
   const {
-    devices,
     audioInputs,
-    permissionGranted,
+    devices,
     ensurePermissions,
+    permissionGranted,
   } = useDevicesList({
     constraints: { audio: true },
     requestPermissions: requestPermission,
@@ -72,8 +55,8 @@ export function useAudioDevice(requestPermission: boolean = false) {
   const deviceConstraints = computed<MediaStreamConstraints>(() => ({
     audio: selectedAudioInput.value
       ? {
-          deviceId: { exact: selectedAudioInput.value },
           autoGainControl: true,
+          deviceId: { exact: selectedAudioInput.value },
           echoCancellation: true,
           noiseSuppression: true,
         }
@@ -83,7 +66,7 @@ export function useAudioDevice(requestPermission: boolean = false) {
           noiseSuppression: true,
         },
   }))
-  const { stream, stop: stopStream, start: startUserMediaStream } = useUserMedia({ constraints: deviceConstraints, enabled: false, autoSwitch: true })
+  const { start: startUserMediaStream, stop: stopStream, stream } = useUserMedia({ autoSwitch: true, constraints: deviceConstraints, enabled: false })
 
   watch(audioInputs, () => {
     selectAvailableAudioInput()
@@ -108,8 +91,8 @@ export function useAudioDevice(requestPermission: boolean = false) {
       const errorCode = audioDeviceErrorCode(error)
       if (errorCode === 'permission_denied') {
         trackMicrophonePermissionDenied({
-          stt_provider_id: UNKNOWN_STT_PROVIDER_ID,
           error_code: errorCode,
+          stt_provider_id: UNKNOWN_STT_PROVIDER_ID,
         })
       }
       console.error('Error ensuring permissions:', error)
@@ -142,15 +125,32 @@ export function useAudioDevice(requestPermission: boolean = false) {
   }
 
   return {
-    audioInputs,
+    askPermission,
     audioInputOptions,
-    selectedAudioInput,
-    stream,
+    audioInputs,
     deviceConstraints,
     permissionGranted,
+    selectedAudioInput,
 
-    askPermission,
     startStream,
     stopStream,
+    stream,
   }
+}
+
+/**
+ * Normalizes browser microphone failures into low-cardinality analytics codes.
+ */
+function audioDeviceErrorCode(error: unknown): 'device_unavailable' | 'permission_denied' {
+  if (error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError'))
+    return 'permission_denied'
+
+  return 'device_unavailable'
+}
+
+/**
+ * Selects the default microphone when available, otherwise the first detected input.
+ */
+function resolvePreferredAudioInput(audioInputs: MediaDeviceInfo[]) {
+  return audioInputs.find(device => device.deviceId === 'default')?.deviceId || audioInputs[0]?.deviceId || ''
 }

@@ -20,14 +20,14 @@ import { ApiError } from './error'
  * - `to` is already validated by Better Auth (we trust caller for internal flows).
  */
 export interface EmailPayload {
-  /** Recipient address. Single address — Better Auth callbacks always emit one. */
-  to: string
-  /** Subject line. Plain text. */
-  subject: string
   /** HTML body. */
   html: string
+  /** Subject line. Plain text. */
+  subject: string
   /** Plain-text body. Required for spam-filter parity and accessibility. */
   text: string
+  /** Recipient address. Single address — Better Auth callbacks always emit one. */
+  to: string
 }
 
 /**
@@ -45,10 +45,7 @@ export interface EmailPayload {
  */
 export interface EmailService {
   send: (payload: EmailPayload) => Promise<void>
-  sendVerification: (params: { to: string, url: string }) => Promise<void>
-  sendPasswordReset: (params: { to: string, url: string }) => Promise<void>
-  sendMagicLink: (params: { to: string, url: string }) => Promise<void>
-  sendChangeEmailConfirmation: (params: { to: string, newEmail: string, url: string }) => Promise<void>
+  sendChangeEmailConfirmation: (params: { newEmail: string, to: string, url: string }) => Promise<void>
   /**
    * Send the irreversible-action confirmation for `user.deleteUser` flow.
    *
@@ -60,27 +57,15 @@ export interface EmailService {
    * Source: node_modules/better-auth/dist/api/routes/update-user.mjs L286-300.
    */
   sendDeleteAccountVerification: (params: { to: string, url: string }) => Promise<void>
+  sendMagicLink: (params: { to: string, url: string }) => Promise<void>
+  sendPasswordReset: (params: { to: string, url: string }) => Promise<void>
+  sendVerification: (params: { to: string, url: string }) => Promise<void>
 }
 
 interface EmailConfig {
   apiKey: string
   fromEmail: string
   fromName?: string
-}
-
-/**
- * Format an RFC 5322 display-name + address pair for the `From` header.
- *
- * Before:
- * - `{ fromEmail: 'noreply@a.io', fromName: 'AIRI' }`
- *
- * After:
- * - `'AIRI <noreply@a.io>'`
- */
-function formatFrom(config: EmailConfig): string {
-  if (config.fromName)
-    return `${config.fromName} <${config.fromEmail}>`
-  return config.fromEmail
 }
 
 /**
@@ -103,7 +88,7 @@ export function createEmailService(config: EmailConfig, logger: Logger = useLogg
   // keys; explicit guard keeps the failure mode visible at the call site.
   // Source: node_modules/.pnpm/resend@*/node_modules/resend/dist/index.cjs
   // Removal condition: when we make RESEND_API_KEY required at env-parse time.
-  let client: Resend | null = null
+  let client: null | Resend = null
   function getClient(): Resend {
     if (!client) {
       if (!config.apiKey) {
@@ -125,82 +110,77 @@ export function createEmailService(config: EmailConfig, logger: Logger = useLogg
     try {
       const { error } = await getClient().emails.send({
         from,
-        to: [payload.to],
-        subject: payload.subject,
         html: payload.html,
+        subject: payload.subject,
         text: payload.text,
+        to: [payload.to],
       })
 
       if (error) {
-        logger.withFields({ to: payload.to, subject: payload.subject, errorName: error.name }).error(error.message)
-        metrics?.failures.add(1, { template, error_name: error.name })
-        metrics?.duration.record((Date.now() - startedAt) / 1000, { template, outcome: 'error' })
+        logger.withFields({ errorName: error.name, subject: payload.subject, to: payload.to }).error(error.message)
+        metrics?.failures.add(1, { error_name: error.name, template })
+        metrics?.duration.record((Date.now() - startedAt) / 1000, { outcome: 'error', template })
         throw new ApiError(502, 'email/send_failed', error.message, { providerError: error.name })
       }
       metrics?.send.add(1, { template })
-      metrics?.duration.record((Date.now() - startedAt) / 1000, { template, outcome: 'ok' })
+      metrics?.duration.record((Date.now() - startedAt) / 1000, { outcome: 'ok', template })
     }
     catch (error) {
       if (error instanceof ApiError)
         throw error
 
       const message = errorMessageFrom(error) ?? 'Unknown email send error'
-      logger.withFields({ to: payload.to, subject: payload.subject }).error(message)
-      metrics?.failures.add(1, { template, error_name: 'unhandled' })
-      metrics?.duration.record((Date.now() - startedAt) / 1000, { template, outcome: 'error' })
+      logger.withFields({ subject: payload.subject, to: payload.to }).error(message)
+      metrics?.failures.add(1, { error_name: 'unhandled', template })
+      metrics?.duration.record((Date.now() - startedAt) / 1000, { outcome: 'error', template })
       throw new ApiError(502, 'email/send_failed', message)
     }
   }
 
   return {
     send,
-    async sendVerification({ to, url }) {
+    async sendChangeEmailConfirmation({ newEmail, to, url }) {
       await send({
-        to,
-        subject: 'Verify your email for Project AIRI',
-        html: renderVerificationHtml(url),
-        text: renderVerificationText(url),
-      }, 'verification')
-    },
-    async sendPasswordReset({ to, url }) {
-      await send({
-        to,
-        subject: 'Reset your Project AIRI password',
-        html: renderPasswordResetHtml(url),
-        text: renderPasswordResetText(url),
-      }, 'password_reset')
-    },
-    async sendMagicLink({ to, url }) {
-      await send({
-        to,
-        subject: 'Your Project AIRI sign-in link',
-        html: renderMagicLinkHtml(url),
-        text: renderMagicLinkText(url),
-      }, 'magic_link')
-    },
-    async sendChangeEmailConfirmation({ to, newEmail, url }) {
-      await send({
-        to,
-        subject: 'Confirm your new email address for Project AIRI',
         html: renderChangeEmailHtml(url, newEmail),
+        subject: 'Confirm your new email address for Project AIRI',
         text: renderChangeEmailText(url, newEmail),
+        to,
       }, 'change_email')
     },
     async sendDeleteAccountVerification({ to, url }) {
       await send({
-        to,
-        subject: 'Confirm account deletion for Project AIRI',
         html: renderDeleteAccountHtml(url),
+        subject: 'Confirm account deletion for Project AIRI',
         text: renderDeleteAccountText(url),
+        to,
       }, 'delete_account')
+    },
+    async sendMagicLink({ to, url }) {
+      await send({
+        html: renderMagicLinkHtml(url),
+        subject: 'Your Project AIRI sign-in link',
+        text: renderMagicLinkText(url),
+        to,
+      }, 'magic_link')
+    },
+    async sendPasswordReset({ to, url }) {
+      await send({
+        html: renderPasswordResetHtml(url),
+        subject: 'Reset your Project AIRI password',
+        text: renderPasswordResetText(url),
+        to,
+      }, 'password_reset')
+    },
+    async sendVerification({ to, url }) {
+      await send({
+        html: renderVerificationHtml(url),
+        subject: 'Verify your email for Project AIRI',
+        text: renderVerificationText(url),
+        to,
+      }, 'verification')
     },
   }
 }
-
-// NOTICE:
-// Templates are intentionally minimal inline HTML. Goal here is functional
-// delivery + plaintext fallback. Visual design is deferred (see
-// docs/ai/context/email-auth-resend.md "不做" section).
 
 function escapeHtml(value: string): string {
   return value
@@ -211,7 +191,27 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;')
 }
 
-function renderActionEmailHtml(args: { heading: string, body: string, ctaLabel: string, url: string, footer: string }): string {
+// NOTICE:
+// Templates are intentionally minimal inline HTML. Goal here is functional
+// delivery + plaintext fallback. Visual design is deferred (see
+// docs/ai/context/email-auth-resend.md "不做" section).
+
+/**
+ * Format an RFC 5322 display-name + address pair for the `From` header.
+ *
+ * Before:
+ * - `{ fromEmail: 'noreply@a.io', fromName: 'AIRI' }`
+ *
+ * After:
+ * - `'AIRI <noreply@a.io>'`
+ */
+function formatFrom(config: EmailConfig): string {
+  if (config.fromName)
+    return `${config.fromName} <${config.fromEmail}>`
+  return config.fromEmail
+}
+
+function renderActionEmailHtml(args: { body: string, ctaLabel: string, footer: string, heading: string, url: string }): string {
   const safeUrl = escapeHtml(args.url)
   return `<!doctype html>
 <html><body style="font-family: -apple-system, Segoe UI, sans-serif; color: #111; max-width: 480px; margin: 24px auto; padding: 0 16px;">
@@ -223,83 +223,26 @@ function renderActionEmailHtml(args: { heading: string, body: string, ctaLabel: 
 </body></html>`
 }
 
-function renderActionEmailText(args: { heading: string, body: string, url: string, footer: string }): string {
+function renderActionEmailText(args: { body: string, footer: string, heading: string, url: string }): string {
   return `${args.heading}\n\n${args.body}\n\n${args.url}\n\n${args.footer}\n`
-}
-
-function renderVerificationHtml(url: string): string {
-  return renderActionEmailHtml({
-    heading: 'Verify your email',
-    body: 'Welcome to Project AIRI. Click the button below to confirm this is your email address.',
-    ctaLabel: 'Verify email',
-    url,
-    footer: 'If you did not create an account, you can safely ignore this email.',
-  })
-}
-
-function renderVerificationText(url: string): string {
-  return renderActionEmailText({
-    heading: 'Verify your email',
-    body: 'Welcome to Project AIRI. Open this link to confirm your email address:',
-    url,
-    footer: 'If you did not create an account, you can safely ignore this email.',
-  })
-}
-
-function renderPasswordResetHtml(url: string): string {
-  return renderActionEmailHtml({
-    heading: 'Reset your password',
-    body: 'We received a request to reset the password for your Project AIRI account.',
-    ctaLabel: 'Reset password',
-    url,
-    footer: 'If you did not request this, you can safely ignore this email — your password will not change.',
-  })
-}
-
-function renderPasswordResetText(url: string): string {
-  return renderActionEmailText({
-    heading: 'Reset your password',
-    body: 'Open this link to reset your Project AIRI password:',
-    url,
-    footer: 'If you did not request this, you can safely ignore this email — your password will not change.',
-  })
-}
-
-function renderMagicLinkHtml(url: string): string {
-  return renderActionEmailHtml({
-    heading: 'Sign in to Project AIRI',
-    body: 'Click the button below to sign in. This link expires shortly and can be used once.',
-    ctaLabel: 'Sign in',
-    url,
-    footer: 'If you did not request this link, you can safely ignore this email.',
-  })
-}
-
-function renderMagicLinkText(url: string): string {
-  return renderActionEmailText({
-    heading: 'Sign in to Project AIRI',
-    body: 'Open this link to sign in (single-use, expires shortly):',
-    url,
-    footer: 'If you did not request this link, you can safely ignore this email.',
-  })
 }
 
 function renderChangeEmailHtml(url: string, newEmail: string): string {
   return renderActionEmailHtml({
-    heading: 'Confirm your new email',
     body: `Confirm that ${newEmail} should become your Project AIRI account email.`,
     ctaLabel: 'Confirm new email',
-    url,
     footer: 'If you did not request this change, contact support immediately.',
+    heading: 'Confirm your new email',
+    url,
   })
 }
 
 function renderChangeEmailText(url: string, newEmail: string): string {
   return renderActionEmailText({
-    heading: 'Confirm your new email',
     body: `Confirm that ${newEmail} should become your Project AIRI account email by opening this link:`,
-    url,
     footer: 'If you did not request this change, contact support immediately.',
+    heading: 'Confirm your new email',
+    url,
   })
 }
 
@@ -310,19 +253,76 @@ function renderChangeEmailText(url: string, newEmail: string): string {
 // See `server/apps/api/docs/ai-context/account-deletion.md`.
 function renderDeleteAccountHtml(url: string): string {
   return renderActionEmailHtml({
-    heading: 'Confirm account deletion',
     body: 'Click below to permanently delete your Project AIRI account. This cannot be undone. Active subscription will be canceled, Flux balance cleared. Link expires in 24 hours.',
     ctaLabel: 'Delete my account',
-    url,
     footer: 'Did not request this? Ignore this email and rotate your password.',
+    heading: 'Confirm account deletion',
+    url,
   })
 }
 
 function renderDeleteAccountText(url: string): string {
   return renderActionEmailText({
-    heading: 'Confirm account deletion',
     body: 'Open this link to permanently delete your Project AIRI account. This cannot be undone. Active subscription will be canceled, Flux balance cleared. Link expires in 24 hours.',
-    url,
     footer: 'Did not request this? Ignore this email and rotate your password.',
+    heading: 'Confirm account deletion',
+    url,
+  })
+}
+
+function renderMagicLinkHtml(url: string): string {
+  return renderActionEmailHtml({
+    body: 'Click the button below to sign in. This link expires shortly and can be used once.',
+    ctaLabel: 'Sign in',
+    footer: 'If you did not request this link, you can safely ignore this email.',
+    heading: 'Sign in to Project AIRI',
+    url,
+  })
+}
+
+function renderMagicLinkText(url: string): string {
+  return renderActionEmailText({
+    body: 'Open this link to sign in (single-use, expires shortly):',
+    footer: 'If you did not request this link, you can safely ignore this email.',
+    heading: 'Sign in to Project AIRI',
+    url,
+  })
+}
+
+function renderPasswordResetHtml(url: string): string {
+  return renderActionEmailHtml({
+    body: 'We received a request to reset the password for your Project AIRI account.',
+    ctaLabel: 'Reset password',
+    footer: 'If you did not request this, you can safely ignore this email — your password will not change.',
+    heading: 'Reset your password',
+    url,
+  })
+}
+
+function renderPasswordResetText(url: string): string {
+  return renderActionEmailText({
+    body: 'Open this link to reset your Project AIRI password:',
+    footer: 'If you did not request this, you can safely ignore this email — your password will not change.',
+    heading: 'Reset your password',
+    url,
+  })
+}
+
+function renderVerificationHtml(url: string): string {
+  return renderActionEmailHtml({
+    body: 'Welcome to Project AIRI. Click the button below to confirm this is your email address.',
+    ctaLabel: 'Verify email',
+    footer: 'If you did not create an account, you can safely ignore this email.',
+    heading: 'Verify your email',
+    url,
+  })
+}
+
+function renderVerificationText(url: string): string {
+  return renderActionEmailText({
+    body: 'Welcome to Project AIRI. Open this link to confirm your email address:',
+    footer: 'If you did not create an account, you can safely ignore this email.',
+    heading: 'Verify your email',
+    url,
   })
 }

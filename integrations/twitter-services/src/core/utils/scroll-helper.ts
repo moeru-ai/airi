@@ -4,6 +4,16 @@ import { SELECTORS } from '../../parsers/selectors'
 import { logger } from '../../utils/logger'
 
 /**
+ * Count visible elements on the page
+ * @param page Playwright page instance
+ * @param selector Element selector
+ */
+export async function countVisibleElements(page: Page, selector: string): Promise<number> {
+  const elements = await page.$$(selector)
+  return elements.length
+}
+
+/**
  * Scroll the page to load more tweets
  * @param page Playwright page instance
  * @param targetCount Target number of tweets to load
@@ -49,14 +59,4 @@ export async function scrollToLoadMoreTweets(
   catch (error) {
     logger.main.errorWithError('Error while scrolling to load more content:', (error as Error).message)
   }
-}
-
-/**
- * Count visible elements on the page
- * @param page Playwright page instance
- * @param selector Element selector
- */
-export async function countVisibleElements(page: Page, selector: string): Promise<number> {
-  const elements = await page.$$(selector)
-  return elements.length
 }

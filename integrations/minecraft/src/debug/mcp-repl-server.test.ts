@@ -5,10 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { McpReplServer } from './mcp-repl-server'
 
 const mocks = vi.hoisted(() => ({
-  resource: vi.fn(),
-  tool: vi.fn(),
   connect: vi.fn(),
   McpServerConstructor: vi.fn(),
+  resource: vi.fn(),
+  tool: vi.fn(),
 }))
 
 vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
@@ -17,9 +17,9 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
       constructor(config: any) {
         mocks.McpServerConstructor(config)
         return {
+          connect: mocks.connect,
           resource: mocks.resource,
           tool: mocks.tool,
-          connect: mocks.connect,
         }
       }
     },
@@ -40,38 +40,38 @@ describe('mcpReplServer', () => {
 
     // Mock Brain
     brain = {
+      executeDebugRepl: vi.fn().mockResolvedValue({ result: 'success' }),
       getDebugSnapshot: vi.fn().mockReturnValue({
-        isProcessing: false,
-        queueLength: 0,
-        turnCounter: 1,
-        givenUp: false,
-        paused: false,
         contextView: 'test context',
         conversationHistory: [],
+        givenUp: false,
+        isProcessing: false,
         llmLogEntries: [],
+        paused: false,
+        queueLength: 0,
+        turnCounter: 1,
       }),
-      executeDebugRepl: vi.fn().mockResolvedValue({ result: 'success' }),
-      injectDebugEvent: vi.fn().mockResolvedValue(undefined),
-      getReplState: vi.fn().mockReturnValue({ variables: [], updatedAt: 0 }),
       getLastLlmInput: vi.fn().mockReturnValue({
-        systemPrompt: 'sys',
-        userMessage: 'user',
-        messages: [
-          { role: 'system', content: 'sys' },
-          { role: 'user', content: 'user' },
-        ],
-        conversationHistory: [],
-        updatedAt: 0,
         attempt: 1,
+        conversationHistory: [],
+        messages: [
+          { content: 'sys', role: 'system' },
+          { content: 'user', role: 'user' },
+        ],
+        systemPrompt: 'sys',
+        updatedAt: 0,
+        userMessage: 'user',
       }),
       getLlmLogs: vi.fn().mockReturnValue([{ id: 1, text: 'log' }]),
       getLlmTrace: vi.fn().mockReturnValue([{
-        id: 1,
-        turnId: 1,
         content: 'await skip()',
-        messageCount: 2,
         estimatedTokens: 10,
+        id: 1,
+        messageCount: 2,
+        turnId: 1,
       }]),
+      getReplState: vi.fn().mockReturnValue({ updatedAt: 0, variables: [] }),
+      injectDebugEvent: vi.fn().mockResolvedValue(undefined),
     } as unknown as Brain
 
     void new McpReplServer(brain)
@@ -110,14 +110,14 @@ describe('mcpReplServer', () => {
     const injectChatCall = mocks.tool.mock.calls.find(call => call[0] === 'inject_chat')
     const handler = injectChatCall![2]
 
-    await handler({ username: 'steve', message: 'hi' })
+    await handler({ message: 'hi', username: 'steve' })
 
     expect(brain.injectDebugEvent).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'perception',
       payload: expect.objectContaining({
+        metadata: { message: 'hi', username: 'steve' },
         type: 'chat_message',
-        metadata: { username: 'steve', message: 'hi' },
       }),
+      type: 'perception',
     }))
   })
 
@@ -126,37 +126,37 @@ describe('mcpReplServer', () => {
     const handler = injectEventCall[2]
 
     await handler({
-      type: 'perception',
       payload: {
-        type: 'chat_message',
-        description: 'Chat from steve: "hi"',
-        sourceId: 'steve',
         confidence: 1,
-        timestamp: 123,
+        description: 'Chat from steve: "hi"',
         metadata: {
-          username: 'steve',
           message: 'hi',
+          username: 'steve',
         },
+        sourceId: 'steve',
+        timestamp: 123,
+        type: 'chat_message',
       },
       source: {
-        type: 'minecraft',
         id: 'steve',
+        type: 'minecraft',
       },
+      type: 'perception',
     })
 
     expect(brain.injectDebugEvent).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'perception',
       payload: expect.objectContaining({
-        type: 'chat_message',
         metadata: {
-          username: 'steve',
           message: 'hi',
+          username: 'steve',
         },
+        type: 'chat_message',
       }),
       source: {
-        type: 'minecraft',
         id: 'steve',
+        type: 'minecraft',
       },
+      type: 'perception',
     }))
   })
 
@@ -165,18 +165,18 @@ describe('mcpReplServer', () => {
     const handler = injectEventCall[2]
 
     await expect(handler({
-      type: 'perception',
       payload: {
-        type: 'chat_message',
-        description: 'Chat from steve: "hi"',
         confidence: 2,
-        timestamp: 123,
+        description: 'Chat from steve: "hi"',
         metadata: {},
+        timestamp: 123,
+        type: 'chat_message',
       },
       source: {
-        type: 'minecraft',
         id: 'steve',
+        type: 'minecraft',
       },
+      type: 'perception',
     })).rejects.toThrow()
   })
 

@@ -17,7 +17,7 @@ export function useVersionedLocalStorageManualReset<T>(
   const localStorageState = useVersionedLocalStorage<T>(key, value, options)
   const state = refManualReset<T>(localStorageState)
 
-  const { resume, pause } = watch(state, newValue => localStorageState.value = newValue, options)
+  const { pause, resume } = watch(state, newValue => localStorageState.value = newValue, options)
   watch(localStorageState, (newValue) => {
     pause()
     state.value = newValue

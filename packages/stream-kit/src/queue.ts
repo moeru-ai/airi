@@ -1,16 +1,18 @@
+export interface Events<T> {
+  dequeue: Array<(payload: T, queueLength: number) => void>
+  drain: Array<() => void>
+  enqueue: Array<(payload: T, queueLength: number) => void>
+  error: Array<(payload: T, error: unknown, handler: (param: HandlerContext<T>) => Promise<any>) => void>
+  process: Array<(payload: T, handler: (param: HandlerContext<T>) => Promise<any>) => void>
+  result: Array<<R>(payload: T, result: R, handler: (param: HandlerContext<T>) => Promise<any>) => void>
+}
+
 export interface HandlerContext<T> {
   data: T
   emit: (eventName: string, ...params: any[]) => void
 }
 
-export interface Events<T> {
-  enqueue: Array<(payload: T, queueLength: number) => void>
-  dequeue: Array<(payload: T, queueLength: number) => void>
-  process: Array<(payload: T, handler: (param: HandlerContext<T>) => Promise<any>) => void>
-  error: Array<(payload: T, error: unknown, handler: (param: HandlerContext<T>) => Promise<any>) => void>
-  result: Array<<R>(payload: T, result: R, handler: (param: HandlerContext<T>) => Promise<any>) => void>
-  drain: Array<() => void>
-}
+export type UseQueueReturn<T> = ReturnType<typeof createQueue<T>>
 
 export function createQueue<T>(options: {
   handlers: Array<(ctx: HandlerContext<T>) => Promise<void>>
@@ -19,12 +21,12 @@ export function createQueue<T>(options: {
   let drainTask: Promise<any> | undefined
 
   const internalEventListeners: Events<T> = {
-    enqueue: [],
     dequeue: [],
-    process: [],
-    error: [],
-    result: [],
     drain: [],
+    enqueue: [],
+    error: [],
+    process: [],
+    result: [],
   }
   const internalHandlerEventListeners: Record<string, Array<(...params: any[]) => void>> = {}
 
@@ -85,12 +87,10 @@ export function createQueue<T>(options: {
   }
 
   return {
-    enqueue,
     clear,
+    enqueue,
     length,
     on,
     onHandlerEvent,
   }
 }
-
-export type UseQueueReturn<T> = ReturnType<typeof createQueue<T>>

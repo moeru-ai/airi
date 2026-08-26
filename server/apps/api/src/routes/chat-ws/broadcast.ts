@@ -23,12 +23,12 @@ export interface ChatBroadcastCoordinator {
 }
 
 export interface ChatBroadcastCoordinatorOptions {
+  /** Stable per-process id used to skip self-published messages. */
+  instanceId: string
   /** Redis connection used for publish and duplicate subscriber creation. */
   redis: Redis
   /** Local registry that receives messages from other instances. */
   registry: ChatConnectionRegistry
-  /** Stable per-process id used to skip self-published messages. */
-  instanceId: string
 }
 
 /**

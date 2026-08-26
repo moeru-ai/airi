@@ -59,11 +59,11 @@ callback. JSONL is an adapter over the same envelope.
 
 ```ts
 interface RunnerEventEnvelope<TKind extends string = string, TPayload = unknown> {
-  runId: string
-  seq: number
   at: string
   kind: TKind
   payload: TPayload
+  runId: string
+  seq: number
 }
 ```
 
@@ -94,10 +94,10 @@ Contract rules:
 
 ```ts
 interface RunStartedPayload {
-  workspacePath: string
-  taskGoal: string
   maxSteps: number
   stepTimeoutMs: number
+  taskGoal: string
+  workspacePath: string
 }
 ```
 
@@ -105,8 +105,8 @@ interface RunStartedPayload {
 
 ```ts
 interface StepStartedPayload {
-  stepIndex: number
   maxSteps: number
+  stepIndex: number
 }
 ```
 
@@ -114,8 +114,8 @@ interface StepStartedPayload {
 
 ```ts
 interface ToolCallStartedPayload {
-  toolName: string
   argsSummary: string
+  toolName: string
 }
 ```
 
@@ -123,11 +123,11 @@ interface ToolCallStartedPayload {
 
 ```ts
 interface ToolCallCompletedPayload {
-  toolName: string
+  error?: string
   ok: boolean
   status?: string
   summary: string
-  error?: string
+  toolName: string
 }
 ```
 
@@ -143,7 +143,7 @@ interface AssistantMessagePayload {
 
 ```ts
 interface ReportStatusPayload {
-  status: 'completed' | 'failed' | 'blocked'
+  status: 'blocked' | 'completed' | 'failed'
   summary?: string
 }
 ```
@@ -152,9 +152,9 @@ interface ReportStatusPayload {
 
 ```ts
 interface RunFinishedPayload {
-  finalStatus: 'completed' | 'failed' | 'blocked' | 'timeout'
-  totalSteps: number
   error?: string
+  finalStatus: 'blocked' | 'completed' | 'failed' | 'timeout'
+  totalSteps: number
 }
 ```
 

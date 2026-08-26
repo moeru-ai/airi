@@ -16,29 +16,29 @@ export const defaultModelParameters = {
   angleX: 0,
   angleY: 0,
   angleZ: 0,
-  leftEyeOpen: 1,
-  rightEyeOpen: 1,
-  leftEyeSmile: 0,
-  rightEyeSmile: 0,
-  leftEyebrowLR: 0,
-  rightEyebrowLR: 0,
-  leftEyebrowY: 0,
-  rightEyebrowY: 0,
-  leftEyebrowAngle: 0,
-  rightEyebrowAngle: 0,
-  leftEyebrowForm: 0,
-  rightEyebrowForm: 0,
-  mouthOpen: 0,
-  mouthForm: 0,
-  cheek: 0,
   bodyAngleX: 0,
   bodyAngleY: 0,
   bodyAngleZ: 0,
   breath: 0,
+  cheek: 0,
+  leftEyebrowAngle: 0,
+  leftEyebrowForm: 0,
+  leftEyebrowLR: 0,
+  leftEyebrowY: 0,
+  leftEyeOpen: 1,
+  leftEyeSmile: 0,
+  mouthForm: 0,
+  mouthOpen: 0,
+  rightEyebrowAngle: 0,
+  rightEyebrowForm: 0,
+  rightEyebrowLR: 0,
+  rightEyebrowY: 0,
+  rightEyeOpen: 1,
+  rightEyeSmile: 0,
 }
 
 export const useLive2dParams = defineStore('live2d', () => {
-  const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-stage-ui-live2d' })
+  const { data, post } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-stage-ui-live2d' })
   const shouldUpdateViewHooks = ref(new Set<() => void>())
 
   const onShouldUpdateView = (hook: () => void) => {
@@ -60,7 +60,7 @@ export const useLive2dParams = defineStore('live2d', () => {
   })
 
   const currentMotion = useLocalStorageManualReset<{ group: string, index?: number }>('settings/live2d/current-motion', () => ({ group: 'Idle', index: 0 }))
-  const availableMotions = useLocalStorageManualReset<{ motionName: string, motionIndex: number, fileName: string }[]>('settings/live2d/available-motions', () => [])
+  const availableMotions = useLocalStorageManualReset<{ fileName: string, motionIndex: number, motionName: string }[]>('settings/live2d/available-motions', () => [])
   const motionMap = useLocalStorageManualReset<Record<string, string>>('settings/live2d/motion-map', {})
   const { position, scale, set: setViewControl } = useL2dViewControl()
 
@@ -77,16 +77,16 @@ export const useLive2dParams = defineStore('live2d', () => {
   }
 
   return {
-    position,
-    currentMotion,
     availableMotions,
-    motionMap,
-    scale,
+    currentMotion,
     modelParameters,
-
+    motionMap,
     onShouldUpdateView,
-    shouldUpdateView,
+    position,
+
     resetState,
+    scale,
+    shouldUpdateView,
   }
 })
 export { useL2dViewControl }

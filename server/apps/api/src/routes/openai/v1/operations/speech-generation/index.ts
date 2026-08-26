@@ -4,10 +4,10 @@ import type { V1RouteDeps } from '../../types'
 import { createOpenAiSpeechService } from '../../../../../services/domain/openai-speech'
 
 export interface SpeechGenerationOperationRequest {
-  userId: string
+  abortSignal?: AbortSignal
   body: Record<string, unknown>
   sessionId?: string
-  abortSignal?: AbortSignal
+  userId: string
 }
 
 export function speechGeneration(deps: V1RouteDeps): GatewayCallback<'speech.generate'> {

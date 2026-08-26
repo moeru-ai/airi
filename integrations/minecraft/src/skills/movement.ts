@@ -20,72 +20,85 @@ export type { PathfindProgressInfo, PathfindResult } from './patched-goto'
 const logger = useLogger()
 const { goals, Movements } = pathfinder
 
-function resetNavigationMovements(mineflayer: Mineflayer): void {
-  mineflayer.bot.pathfinder.setMovements(new Movements(mineflayer.bot))
-}
-
-export async function goToPosition(
+export async function followPlayer(
   mineflayer: Mineflayer,
-  x: number,
-  y: number,
-  z: number,
-  minDistance = 2,
-  options: { onProgress?: (info: PathfindProgressInfo) => void } = {},
-): Promise<PathfindResult> {
-  if (x == null || y == null || z == null) {
-    log(mineflayer, `Missing coordinates, given x:${x} y:${y} z:${z}`)
-    return {
-      ok: false,
-      reason: 'error',
-      message: `Missing coordinates, given x:${x} y:${y} z:${z}`,
-      startPos: { x: 0, y: 0, z: 0 },
-      endPos: { x: 0, y: 0, z: 0 },
-      distanceTraveled: 0,
-      distanceToTarget: 0,
-      elapsedMs: 0,
-      estimatedTimeMs: 0,
-      pathCost: 0,
-    }
+  username: string,
+  distance = 4,
+): Promise<boolean> {
+  const player = mineflayer.bot.players[username]?.entity
+  if (!player) {
+    return false
   }
 
-  if (mineflayer.allowCheats) {
-    mineflayer.bot.chat(`/tp @s ${x} ${y} ${z}`)
-    log(mineflayer, `Teleported to ${x}, ${y}, ${z}.`)
-    return {
-      ok: true,
-      reason: 'success',
-      message: `Teleported to ${x}, ${y}, ${z}.`,
-      startPos: { x: 0, y: 0, z: 0 },
-      endPos: { x, y, z },
-      distanceTraveled: 0,
-      distanceToTarget: 0,
-      elapsedMs: 0,
-      estimatedTimeMs: 0,
-      pathCost: 0,
-    }
-  }
-  const targetBlock = mineflayer.bot.blockAt(new Vec3(Math.floor(x), Math.floor(y), Math.floor(z)))
-  const blockAbove1 = mineflayer.bot.blockAt(new Vec3(Math.floor(x), Math.floor(y) + 1, Math.floor(z)))
-  const blockAbove2 = mineflayer.bot.blockAt(new Vec3(Math.floor(x), Math.floor(y) + 2, Math.floor(z)))
+  log(mineflayer, `I am now actively following player ${username}.`)
 
-  if (targetBlock?.name !== 'air' && blockAbove1?.name === 'air' && blockAbove2?.name === 'air') {
-    // Nudge one block up so we don't dig a silly hole in the ground when using the ground block as reference
-    y += 1
-  }
+  const movements = new Movements(mineflayer.bot)
+  mineflayer.bot.pathfinder.setMovements(movements)
+  mineflayer.bot.pathfinder.setGoal(new goals.GoalFollow(player, distance), true)
 
-  resetNavigationMovements(mineflayer)
-  const result = await patchedGoto(mineflayer.bot, new goals.GoalNear(x, y, z, minDistance), {
-    onProgress: options.onProgress,
+  mineflayer.once('interrupt', () => {
+    mineflayer.bot.pathfinder.stop()
   })
 
-  if (result.ok) {
-    log(mineflayer, `You have reached ${x}, ${y}, ${z}.`)
-  }
-  else {
-    log(mineflayer, `Navigation to ${x}, ${y}, ${z} ended: ${result.reason} — ${result.message}`)
+  return true
+}
+
+export async function goToBed(mineflayer: Mineflayer): Promise<boolean> {
+  // Consider several nearby beds, not just the closest. The closest is often already occupied (e.g.
+  // the master is lying in it), and mineflayer's bot.sleep throws "the bed is occupied" — we want to
+  // fall through to a free bed instead of giving up. `name.includes('bed')` matches every colour
+  // variant (white_bed, red_bed, ...); the literal name "bed" does not exist in modern Minecraft.
+  const bedPositions = mineflayer.bot.findBlocks({
+    count: 24,
+    matching: block => block.name.includes('bed'),
+    maxDistance: 32,
+  })
+
+  if (bedPositions.length === 0) {
+    log(mineflayer, 'I could not find a bed to sleep in.')
+    return false
   }
 
-  return result
+  let lastError: null | string = null
+
+  for (const loc of bedPositions) {
+    const bed = mineflayer.bot.blockAt(loc)
+    if (!bed)
+      continue
+
+    // Skip beds already in use (the occupied bedstate, e.g. the master's bed) without walking over.
+    const occupied = (bed.getProperties?.() as undefined | { occupied?: unknown })?.occupied
+    if (occupied === true || occupied === 'true')
+      continue
+
+    await goToPosition(mineflayer, loc.x, loc.y, loc.z)
+
+    const bedNow = mineflayer.bot.blockAt(loc)
+    if (!bedNow)
+      continue
+
+    try {
+      await mineflayer.bot.sleep(bedNow)
+    }
+    catch (err) {
+      lastError = errorMessageFrom(err) ?? ''
+      // Sleeping only works at night / during a thunderstorm — no other bed will help, so stop.
+      if (lastError.includes('not night'))
+        break
+      // Otherwise this bed was occupied/unreachable; try the next nearest one.
+      continue
+    }
+
+    log(mineflayer, 'I am in bed.')
+    while (mineflayer.bot.isSleeping) {
+      await sleep(500)
+    }
+    log(mineflayer, 'I have woken up.')
+    return true
+  }
+
+  log(mineflayer, `I could not sleep in any nearby bed${lastError ? ` (${lastError})` : ''}.`)
+  return false
 }
 
 export async function goToNearestBlock(
@@ -152,16 +165,16 @@ export async function goToPlayer(
     mineflayer.bot.chat(`/tp @s ${username}`)
     log(mineflayer, `Teleported to ${username}.`)
     return {
-      ok: true,
-      reason: 'success',
-      message: `Teleported to ${username}.`,
-      startPos: { x: 0, y: 0, z: 0 },
-      endPos: { x: 0, y: 0, z: 0 },
-      distanceTraveled: 0,
       distanceToTarget: 0,
+      distanceTraveled: 0,
       elapsedMs: 0,
+      endPos: { x: 0, y: 0, z: 0 },
       estimatedTimeMs: 0,
+      message: `Teleported to ${username}.`,
+      ok: true,
       pathCost: 0,
+      reason: 'success',
+      startPos: { x: 0, y: 0, z: 0 },
     }
   }
 
@@ -169,16 +182,16 @@ export async function goToPlayer(
   if (!player) {
     log(mineflayer, `Could not find ${username}.`)
     return {
-      ok: false,
-      reason: 'error',
-      message: `Could not find ${username}.`,
-      startPos: { x: 0, y: 0, z: 0 },
-      endPos: { x: 0, y: 0, z: 0 },
-      distanceTraveled: 0,
       distanceToTarget: 0,
+      distanceTraveled: 0,
       elapsedMs: 0,
+      endPos: { x: 0, y: 0, z: 0 },
       estimatedTimeMs: 0,
+      message: `Could not find ${username}.`,
+      ok: false,
       pathCost: 0,
+      reason: 'error',
+      startPos: { x: 0, y: 0, z: 0 },
     }
   }
 
@@ -197,27 +210,68 @@ export async function goToPlayer(
   return result
 }
 
-export async function followPlayer(
+export async function goToPosition(
   mineflayer: Mineflayer,
-  username: string,
-  distance = 4,
-): Promise<boolean> {
-  const player = mineflayer.bot.players[username]?.entity
-  if (!player) {
-    return false
+  x: number,
+  y: number,
+  z: number,
+  minDistance = 2,
+  options: { onProgress?: (info: PathfindProgressInfo) => void } = {},
+): Promise<PathfindResult> {
+  if (x == null || y == null || z == null) {
+    log(mineflayer, `Missing coordinates, given x:${x} y:${y} z:${z}`)
+    return {
+      distanceToTarget: 0,
+      distanceTraveled: 0,
+      elapsedMs: 0,
+      endPos: { x: 0, y: 0, z: 0 },
+      estimatedTimeMs: 0,
+      message: `Missing coordinates, given x:${x} y:${y} z:${z}`,
+      ok: false,
+      pathCost: 0,
+      reason: 'error',
+      startPos: { x: 0, y: 0, z: 0 },
+    }
   }
 
-  log(mineflayer, `I am now actively following player ${username}.`)
+  if (mineflayer.allowCheats) {
+    mineflayer.bot.chat(`/tp @s ${x} ${y} ${z}`)
+    log(mineflayer, `Teleported to ${x}, ${y}, ${z}.`)
+    return {
+      distanceToTarget: 0,
+      distanceTraveled: 0,
+      elapsedMs: 0,
+      endPos: { x, y, z },
+      estimatedTimeMs: 0,
+      message: `Teleported to ${x}, ${y}, ${z}.`,
+      ok: true,
+      pathCost: 0,
+      reason: 'success',
+      startPos: { x: 0, y: 0, z: 0 },
+    }
+  }
+  const targetBlock = mineflayer.bot.blockAt(new Vec3(Math.floor(x), Math.floor(y), Math.floor(z)))
+  const blockAbove1 = mineflayer.bot.blockAt(new Vec3(Math.floor(x), Math.floor(y) + 1, Math.floor(z)))
+  const blockAbove2 = mineflayer.bot.blockAt(new Vec3(Math.floor(x), Math.floor(y) + 2, Math.floor(z)))
 
-  const movements = new Movements(mineflayer.bot)
-  mineflayer.bot.pathfinder.setMovements(movements)
-  mineflayer.bot.pathfinder.setGoal(new goals.GoalFollow(player, distance), true)
+  if (targetBlock?.name !== 'air' && blockAbove1?.name === 'air' && blockAbove2?.name === 'air') {
+    // Nudge one block up so we don't dig a silly hole in the ground when using the ground block as reference
+    y += 1
+  }
 
-  mineflayer.once('interrupt', () => {
-    mineflayer.bot.pathfinder.stop()
+  resetNavigationMovements(mineflayer)
+  const result = await patchedGoto(mineflayer.bot, new goals.GoalNear(x, y, z, minDistance), {
+    onProgress: options.onProgress,
   })
 
-  return true
+  if (result.ok) {
+    log(mineflayer, `You have reached ${x}, ${y}, ${z}.`)
+  }
+  else {
+    log(mineflayer, `Navigation to ${x}, ${y}, ${z} ended: ${result.reason} — ${result.message}`)
+  }
+
+  return result
 }
 
 export async function moveAway(mineflayer: Mineflayer, distance: number): Promise<boolean> {
@@ -284,60 +338,6 @@ export async function stay(mineflayer: Mineflayer, seconds = 30): Promise<boolea
   return true
 }
 
-export async function goToBed(mineflayer: Mineflayer): Promise<boolean> {
-  // Consider several nearby beds, not just the closest. The closest is often already occupied (e.g.
-  // the master is lying in it), and mineflayer's bot.sleep throws "the bed is occupied" — we want to
-  // fall through to a free bed instead of giving up. `name.includes('bed')` matches every colour
-  // variant (white_bed, red_bed, ...); the literal name "bed" does not exist in modern Minecraft.
-  const bedPositions = mineflayer.bot.findBlocks({
-    matching: block => block.name.includes('bed'),
-    maxDistance: 32,
-    count: 24,
-  })
-
-  if (bedPositions.length === 0) {
-    log(mineflayer, 'I could not find a bed to sleep in.')
-    return false
-  }
-
-  let lastError: string | null = null
-
-  for (const loc of bedPositions) {
-    const bed = mineflayer.bot.blockAt(loc)
-    if (!bed)
-      continue
-
-    // Skip beds already in use (the occupied bedstate, e.g. the master's bed) without walking over.
-    const occupied = (bed.getProperties?.() as { occupied?: unknown } | undefined)?.occupied
-    if (occupied === true || occupied === 'true')
-      continue
-
-    await goToPosition(mineflayer, loc.x, loc.y, loc.z)
-
-    const bedNow = mineflayer.bot.blockAt(loc)
-    if (!bedNow)
-      continue
-
-    try {
-      await mineflayer.bot.sleep(bedNow)
-    }
-    catch (err) {
-      lastError = errorMessageFrom(err) ?? ''
-      // Sleeping only works at night / during a thunderstorm — no other bed will help, so stop.
-      if (lastError.includes('not night'))
-        break
-      // Otherwise this bed was occupied/unreachable; try the next nearest one.
-      continue
-    }
-
-    log(mineflayer, 'I am in bed.')
-    while (mineflayer.bot.isSleeping) {
-      await sleep(500)
-    }
-    log(mineflayer, 'I have woken up.')
-    return true
-  }
-
-  log(mineflayer, `I could not sleep in any nearby bed${lastError ? ` (${lastError})` : ''}.`)
-  return false
+function resetNavigationMovements(mineflayer: Mineflayer): void {
+  mineflayer.bot.pathfinder.setMovements(new Movements(mineflayer.bot))
 }

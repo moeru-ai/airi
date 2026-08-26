@@ -3,39 +3,39 @@ import type { UserConfig } from 'tsdown'
 import { defineConfig } from 'tsdown'
 
 const sharedConfig: UserConfig = {
-  format: 'esm',
+  exports: true,
   external: [
     'electron',
     'vue',
   ],
-  exports: true,
+  format: 'esm',
 }
 
 export default defineConfig([
   {
     ...sharedConfig,
-    platform: 'node',
     entry: {
       main: 'src/main/index.ts',
     },
     inlineOnly: false,
+    platform: 'node',
   },
   {
     ...sharedConfig,
-    platform: 'neutral',
     entry: {
       index: 'src/index.ts',
     },
     inlineOnly: false,
+    platform: 'neutral',
   },
   {
     ...sharedConfig,
-    unbundle: true,
-    platform: 'browser',
     entry: {
-      vue: 'src/vue/index.ts',
       renderer: 'src/renderer.ts',
+      vue: 'src/vue/index.ts',
     },
     inlineOnly: false,
+    platform: 'browser',
+    unbundle: true,
   },
 ])

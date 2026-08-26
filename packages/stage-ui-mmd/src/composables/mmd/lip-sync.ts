@@ -38,8 +38,8 @@ const RAW_TO_LIP: Record<typeof RAW_KEYS[number], LipKey> = {
   E: 'E',
   I: 'I',
   O: 'O',
-  U: 'U',
   S: 'I',
+  U: 'U',
 }
 
 const ATTACK = 50 // approach speed toward the next mouth shape
@@ -62,7 +62,7 @@ const IDLE_MS = 160
  */
 export function useMMDLipSync(audioNode: Ref<AudioBufferSourceNode | undefined>) {
   const { audioContext } = useAudioContext()
-  const { state: lipSyncNode, isReady } = useAsyncState(createWLipSyncNode(audioContext, profile as Profile), undefined)
+  const { isReady, state: lipSyncNode } = useAsyncState(createWLipSyncNode(audioContext, profile as Profile), undefined)
 
   const smoothState: Record<LipKey, number> = { A: 0, E: 0, I: 0, O: 0, U: 0 }
   let lastActiveAt = 0

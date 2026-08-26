@@ -6,16 +6,16 @@ import { bindingRecordSchema } from './bindings'
 describe('bindingRecordSchema', () => {
   it('accepts generic host-level module record without business coupling', () => {
     const parsed = parse(bindingRecordSchema, {
-      moduleId: 'board-main',
-      ownerSessionId: 'extension-session-1',
-      ownerExtensionId: 'demo-plugin',
+      config: { mountPoint: 'widgets' },
       kitId: 'kit.widget',
       kitModuleType: 'panel',
-      state: 'announced',
-      runtime: 'electron',
+      moduleId: 'board-main',
+      ownerExtensionId: 'demo-plugin',
+      ownerSessionId: 'extension-session-1',
       revision: 1,
+      runtime: 'electron',
+      state: 'announced',
       updatedAt: Date.now(),
-      config: { mountPoint: 'widgets' },
     })
 
     expect(parsed.kitModuleType).toBe('panel')
@@ -25,16 +25,16 @@ describe('bindingRecordSchema', () => {
   it('rejects an unsupported module state', () => {
     expect(() =>
       parse(bindingRecordSchema, {
-        moduleId: 'board-main',
-        ownerSessionId: 'extension-session-1',
-        ownerExtensionId: 'demo-plugin',
+        config: { mountPoint: 'widgets' },
         kitId: 'kit.widget',
         kitModuleType: 'panel',
-        state: 'booting',
-        runtime: 'electron',
+        moduleId: 'board-main',
+        ownerExtensionId: 'demo-plugin',
+        ownerSessionId: 'extension-session-1',
         revision: 1,
+        runtime: 'electron',
+        state: 'booting',
         updatedAt: 1712500000000,
-        config: { mountPoint: 'widgets' },
       }),
     ).toThrowError()
   })
@@ -42,16 +42,16 @@ describe('bindingRecordSchema', () => {
   it('rejects a negative revision', () => {
     expect(() =>
       parse(bindingRecordSchema, {
-        moduleId: 'board-main',
-        ownerSessionId: 'extension-session-1',
-        ownerExtensionId: 'demo-plugin',
+        config: { mountPoint: 'widgets' },
         kitId: 'kit.widget',
         kitModuleType: 'panel',
-        state: 'announced',
-        runtime: 'electron',
+        moduleId: 'board-main',
+        ownerExtensionId: 'demo-plugin',
+        ownerSessionId: 'extension-session-1',
         revision: -1,
+        runtime: 'electron',
+        state: 'announced',
         updatedAt: 1712500000000,
-        config: { mountPoint: 'widgets' },
       }),
     ).toThrowError()
   })
@@ -63,21 +63,21 @@ describe('bindingRecordSchema', () => {
 
     expect(() =>
       parse(bindingRecordSchema, {
-        moduleId: 'board-main',
-        ownerSessionId: 'extension-session-1',
-        ownerExtensionId: 'demo-plugin',
+        config: {
+          big: 1n,
+          callback: () => undefined,
+          mountPoint: new ConfigShape(),
+          symbol: Symbol('nope'),
+        },
         kitId: 'kit.widget',
         kitModuleType: 'panel',
-        state: 'announced',
-        runtime: 'electron',
+        moduleId: 'board-main',
+        ownerExtensionId: 'demo-plugin',
+        ownerSessionId: 'extension-session-1',
         revision: 1,
+        runtime: 'electron',
+        state: 'announced',
         updatedAt: 1712500000000,
-        config: {
-          mountPoint: new ConfigShape(),
-          callback: () => undefined,
-          symbol: Symbol('nope'),
-          big: 1n,
-        },
       }),
     ).toThrowError()
   })

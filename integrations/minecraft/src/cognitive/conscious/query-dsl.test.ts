@@ -9,32 +9,32 @@ vi.mock('../../skills/world', () => ({
 
 function createMineflayerStub() {
   const blocks = new Map<string, any>([
-    ['1,64,0', { name: 'coal_ore', position: new Vec3(1, 64, 0), diggable: true, boundingBox: 'block', transparent: false }],
-    ['2,64,0', { name: 'stone', position: new Vec3(2, 64, 0), diggable: true, boundingBox: 'block', transparent: false }],
-    ['3,64,0', { name: 'coal_ore', position: new Vec3(3, 64, 0), diggable: true, boundingBox: 'block', transparent: false }],
-    ['4,64,0', { name: 'ancient_debris', position: new Vec3(4, 64, 0), diggable: true, boundingBox: 'block', transparent: false }],
+    ['1,64,0', { boundingBox: 'block', diggable: true, name: 'coal_ore', position: new Vec3(1, 64, 0), transparent: false }],
+    ['2,64,0', { boundingBox: 'block', diggable: true, name: 'stone', position: new Vec3(2, 64, 0), transparent: false }],
+    ['3,64,0', { boundingBox: 'block', diggable: true, name: 'coal_ore', position: new Vec3(3, 64, 0), transparent: false }],
+    ['4,64,0', { boundingBox: 'block', diggable: true, name: 'ancient_debris', position: new Vec3(4, 64, 0), transparent: false }],
   ])
 
   return {
     bot: {
+      blockAt: (pos: Vec3) => blocks.get(`${pos.x},${pos.y},${pos.z}`) ?? null,
+      entities: {
+        1: { id: 1, name: 'zombie', position: new Vec3(2, 64, 0), type: 'mob' },
+        2: { id: 2, name: 'player', position: new Vec3(6, 64, 0), type: 'player', username: 'Alex' },
+        99: { id: 99, name: 'player', position: new Vec3(0, 64, 0), type: 'player', username: 'Self' },
+      },
       entity: {
         id: 99,
         position: new Vec3(0, 64, 0),
       },
-      entities: {
-        1: { id: 1, name: 'zombie', type: 'mob', position: new Vec3(2, 64, 0) },
-        2: { id: 2, name: 'player', type: 'player', username: 'Alex', position: new Vec3(6, 64, 0) },
-        99: { id: 99, name: 'player', type: 'player', username: 'Self', position: new Vec3(0, 64, 0) },
-      },
+      findBlocks: () => Array.from(blocks.values()).map(block => block.position),
       inventory: {
         items: () => [
-          { name: 'bread', count: 3, slot: 10, displayName: 'Bread' },
-          { name: 'cobblestone', count: 16, slot: 12, displayName: 'Cobblestone' },
-          { name: 'bread', count: 2, slot: 13, displayName: 'Bread' },
+          { count: 3, displayName: 'Bread', name: 'bread', slot: 10 },
+          { count: 16, displayName: 'Cobblestone', name: 'cobblestone', slot: 12 },
+          { count: 2, displayName: 'Bread', name: 'bread', slot: 13 },
         ],
       },
-      findBlocks: () => Array.from(blocks.values()).map(block => block.position),
-      blockAt: (pos: Vec3) => blocks.get(`${pos.x},${pos.y},${pos.z}`) ?? null,
     },
   } as any
 }
@@ -98,8 +98,8 @@ describe('query DSL', () => {
     expect(query.inventory().has('bread', 5)).toBe(true)
     expect(query.inventory().has('bread', 6)).toBe(false)
     expect(query.inventory().summary()).toEqual([
-      { name: 'cobblestone', count: 16 },
-      { name: 'bread', count: 5 },
+      { count: 16, name: 'cobblestone' },
+      { count: 5, name: 'bread' },
     ])
   })
 

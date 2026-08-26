@@ -14,8 +14,8 @@ describe('dependencyService', () => {
       const announced = service.announce('cap:dynamic', { source: 'announce' })
       expect(announced).toMatchObject({
         key: 'cap:dynamic',
-        state: 'announced',
         metadata: { source: 'announce' },
+        state: 'announced',
       })
       expect(service.isReady('cap:dynamic')).toBe(false)
       expect(service.list()).toEqual([
@@ -30,8 +30,8 @@ describe('dependencyService', () => {
       const degraded = service.markDegraded('cap:dynamic')
       expect(degraded).toMatchObject({
         key: 'cap:dynamic',
-        state: 'degraded',
         metadata: { source: 'announce' },
+        state: 'degraded',
       })
       expect(service.isReady('cap:dynamic')).toBe(false)
       expect(service.list()).toEqual([
@@ -46,15 +46,15 @@ describe('dependencyService', () => {
       const withdrawn = service.withdraw('cap:dynamic', { reason: 'disabled' })
       expect(withdrawn).toMatchObject({
         key: 'cap:dynamic',
-        state: 'withdrawn',
         metadata: { reason: 'disabled' },
+        state: 'withdrawn',
       })
       expect(service.isReady('cap:dynamic')).toBe(false)
       expect(service.list()).toEqual([
         expect.objectContaining({
           key: 'cap:dynamic',
-          state: 'withdrawn',
           metadata: { reason: 'disabled' },
+          state: 'withdrawn',
         }),
       ])
     }
@@ -62,15 +62,15 @@ describe('dependencyService', () => {
     const ready = service.markReady('cap:dynamic')
     expect(ready).toMatchObject({
       key: 'cap:dynamic',
-      state: 'ready',
       metadata: { reason: 'disabled' },
+      state: 'ready',
     })
     expect(service.isReady('cap:dynamic')).toBe(true)
     expect(service.list()).toEqual([
       expect.objectContaining({
         key: 'cap:dynamic',
-        state: 'ready',
         metadata: { reason: 'disabled' },
+        state: 'ready',
       }),
     ])
   })

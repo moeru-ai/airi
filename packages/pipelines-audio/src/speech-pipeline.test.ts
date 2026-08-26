@@ -4,28 +4,38 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { createSpeechPipeline } from './speech-pipeline'
 
-function delay(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
-
-function deferred<T>() {
-  let resolve!: (value: T | PromiseLike<T>) => void
-  let reject!: (reason?: unknown) => void
-
-  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
-    resolve = resolvePromise
-    reject = rejectPromise
-  })
+function createPlaybackSpy(options?: { autoEnd?: boolean }) {
+  const scheduled: Array<PlaybackItem<string>> = []
+  const endListeners: Array<(event: { endedAt: number, item: PlaybackItem<string> }) => void> = []
+  const autoEnd = options?.autoEnd ?? true
 
   return {
-    promise,
-    resolve,
-    reject,
+    end(item: PlaybackItem<string>) {
+      for (const listener of endListeners)
+        listener({ endedAt: Date.now(), item })
+    },
+    playback: {
+      onEnd(listener: (event: { endedAt: number, item: PlaybackItem<string> }) => void) {
+        endListeners.push(listener)
+      },
+      onInterrupt: vi.fn(),
+      onReject: vi.fn(),
+      onStart: vi.fn(),
+      schedule(item: PlaybackItem<string>) {
+        scheduled.push(item)
+        if (autoEnd)
+          queueMicrotask(() => endListeners.forEach(listener => listener({ endedAt: Date.now(), item })))
+      },
+      stopAll: vi.fn(),
+      stopByIntent: vi.fn(),
+      stopByOwner: vi.fn(),
+    },
+    scheduled,
   }
 }
 
 function createSegmenter(texts: string[]) {
-  return (_tokens: ReadableStream<TextToken>, meta: { streamId: string, intentId: string }) => {
+  return (_tokens: ReadableStream<TextToken>, meta: { intentId: string, streamId: string }) => {
     let index = 0
 
     return new ReadableStream<TextSegment>({
@@ -37,13 +47,13 @@ function createSegmenter(texts: string[]) {
         }
 
         controller.enqueue({
-          streamId: meta.streamId,
-          intentId: meta.intentId,
-          segmentId: `${meta.streamId}:${index}`,
-          text,
-          special: null,
-          reason: 'flush',
           createdAt: Date.now(),
+          intentId: meta.intentId,
+          reason: 'flush',
+          segmentId: `${meta.streamId}:${index}`,
+          special: null,
+          streamId: meta.streamId,
+          text,
         })
         index += 1
       },
@@ -51,44 +61,33 @@ function createSegmenter(texts: string[]) {
   }
 }
 
-function createPlaybackSpy(options?: { autoEnd?: boolean }) {
-  const scheduled: Array<PlaybackItem<string>> = []
-  const endListeners: Array<(event: { item: PlaybackItem<string>, endedAt: number }) => void> = []
-  const autoEnd = options?.autoEnd ?? true
+function deferred<T>() {
+  let resolve!: (value: PromiseLike<T> | T) => void
+  let reject!: (reason?: unknown) => void
+
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
 
   return {
-    scheduled,
-    end(item: PlaybackItem<string>) {
-      for (const listener of endListeners)
-        listener({ item, endedAt: Date.now() })
-    },
-    playback: {
-      schedule(item: PlaybackItem<string>) {
-        scheduled.push(item)
-        if (autoEnd)
-          queueMicrotask(() => endListeners.forEach(listener => listener({ item, endedAt: Date.now() })))
-      },
-      stopAll: vi.fn(),
-      stopByIntent: vi.fn(),
-      stopByOwner: vi.fn(),
-      onStart: vi.fn(),
-      onEnd(listener: (event: { item: PlaybackItem<string>, endedAt: number }) => void) {
-        endListeners.push(listener)
-      },
-      onInterrupt: vi.fn(),
-      onReject: vi.fn(),
-    },
+    promise,
+    reject,
+    resolve,
   }
+}
+
+function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 describe('createSpeechPipeline', () => {
   it('preserves playback order when TTS completes out of order', async () => {
-    const { scheduled, playback } = createPlaybackSpy()
+    const { playback, scheduled } = createPlaybackSpy()
 
     const pipeline = createSpeechPipeline<string>({
-      ttsMaxConcurrent: 2,
-      segmenter: createSegmenter(['first', 'second', 'third']),
       playback,
+      segmenter: createSegmenter(['first', 'second', 'third']),
       async tts(request) {
         if (request.sequence === 0)
           await delay(30)
@@ -97,6 +96,7 @@ describe('createSpeechPipeline', () => {
 
         return request.text
       },
+      ttsMaxConcurrent: 2,
     })
 
     const intentFinished = new Promise<void>((resolve) => {
@@ -124,9 +124,8 @@ describe('createSpeechPipeline', () => {
     let maxInFlight = 0
 
     const pipeline = createSpeechPipeline<string>({
-      ttsMaxConcurrent: 2,
-      segmenter: createSegmenter(['alpha', 'beta', 'gamma']),
       playback,
+      segmenter: createSegmenter(['alpha', 'beta', 'gamma']),
       async tts(request: TtsRequest) {
         startedRequests.push(request.sequence)
         inFlight += 1
@@ -139,6 +138,7 @@ describe('createSpeechPipeline', () => {
           inFlight -= 1
         }
       },
+      ttsMaxConcurrent: 2,
     })
 
     const intentFinished = new Promise<void>((resolve) => {
@@ -166,21 +166,21 @@ describe('createSpeechPipeline', () => {
   })
 
   it('cancels in-flight TTS work without scheduling stale playback', async () => {
-    const { scheduled, playback } = createPlaybackSpy()
+    const { playback, scheduled } = createPlaybackSpy()
     const abortedRequests: number[] = []
 
     const pipeline = createSpeechPipeline<string>({
-      ttsMaxConcurrent: 2,
-      segmenter: createSegmenter(['left', 'right']),
       playback,
+      segmenter: createSegmenter(['left', 'right']),
       tts(request, signal) {
-        return new Promise<string | null>((resolve) => {
+        return new Promise<null | string>((resolve) => {
           signal.addEventListener('abort', () => {
             abortedRequests.push(request.sequence)
             resolve(null)
           }, { once: true })
         })
       },
+      ttsMaxConcurrent: 2,
     })
 
     const intentCanceled = new Promise<void>((resolve) => {
@@ -199,43 +199,43 @@ describe('createSpeechPipeline', () => {
   })
 
   it('dispatches special controls only after the preceding playback item ends', async () => {
-    const { scheduled, playback, end } = createPlaybackSpy({ autoEnd: false })
+    const { end, playback, scheduled } = createPlaybackSpy({ autoEnd: false })
     const events: string[] = []
 
     const pipeline = createSpeechPipeline<string>({
-      ttsMaxConcurrent: 2,
+      playback,
       segmenter: (_tokens, meta) => {
         return new ReadableStream<TextSegment>({
           start(controller) {
             controller.enqueue({
-              turnId: meta.turnId,
-              streamId: meta.streamId,
-              intentId: meta.intentId,
-              segmentId: 'segment:0',
-              text: 'before',
-              special: null,
-              reason: 'flush',
               createdAt: Date.now(),
+              intentId: meta.intentId,
+              reason: 'flush',
+              segmentId: 'segment:0',
+              special: null,
+              streamId: meta.streamId,
+              text: 'before',
+              turnId: meta.turnId,
             })
             controller.enqueue({
-              turnId: meta.turnId,
-              streamId: meta.streamId,
-              intentId: meta.intentId,
-              segmentId: 'segment:1',
-              text: '',
-              special: '<|CALL ["plugin.action"]|>',
-              reason: 'special',
               createdAt: Date.now(),
+              intentId: meta.intentId,
+              reason: 'special',
+              segmentId: 'segment:1',
+              special: '<|CALL ["plugin.action"]|>',
+              streamId: meta.streamId,
+              text: '',
+              turnId: meta.turnId,
             })
             controller.close()
           },
         })
       },
-      playback,
       async tts(request) {
         events.push(`tts:${request.text}`)
         return request.text
       },
+      ttsMaxConcurrent: 2,
     })
 
     pipeline.on('onSpecial', (segment) => {
@@ -261,41 +261,41 @@ describe('createSpeechPipeline', () => {
   })
 
   it('does not schedule queued timeline playback after the owning intent is cancelled', async () => {
-    const { scheduled, playback, end } = createPlaybackSpy({ autoEnd: false })
+    const { end, playback, scheduled } = createPlaybackSpy({ autoEnd: false })
 
     const pipeline = createSpeechPipeline<string>({
-      ttsMaxConcurrent: 2,
+      playback,
       segmenter: (_tokens, meta) => {
         return new ReadableStream<TextSegment>({
           start(controller) {
             controller.enqueue({
-              turnId: meta.turnId,
-              streamId: meta.streamId,
-              intentId: meta.intentId,
-              segmentId: 'segment:0',
-              text: 'first',
-              special: null,
-              reason: 'flush',
               createdAt: Date.now(),
+              intentId: meta.intentId,
+              reason: 'flush',
+              segmentId: 'segment:0',
+              special: null,
+              streamId: meta.streamId,
+              text: 'first',
+              turnId: meta.turnId,
             })
             controller.enqueue({
-              turnId: meta.turnId,
-              streamId: meta.streamId,
-              intentId: meta.intentId,
-              segmentId: 'segment:1',
-              text: 'second',
-              special: null,
-              reason: 'flush',
               createdAt: Date.now(),
+              intentId: meta.intentId,
+              reason: 'flush',
+              segmentId: 'segment:1',
+              special: null,
+              streamId: meta.streamId,
+              text: 'second',
+              turnId: meta.turnId,
             })
             controller.close()
           },
         })
       },
-      playback,
       async tts(request) {
         return request.text
       },
+      ttsMaxConcurrent: 2,
     })
 
     const intent = pipeline.openIntent({ intentId: 'intent-1', turnId: 'turn-1' })

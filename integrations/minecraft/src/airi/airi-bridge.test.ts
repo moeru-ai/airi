@@ -9,23 +9,23 @@ import { AiriBridge } from './airi-bridge'
 interface TestCommandEvent {
   data: {
     commandId: string
-    intent: 'plan' | 'proposal' | 'action' | 'pause' | 'resume' | 'reroute' | 'context'
-    interrupt: 'force' | 'soft' | false
-    priority: 'critical' | 'high' | 'normal' | 'low'
     guidance?: {
       options?: Array<{ label: string, steps: string[] }>
     }
+    intent: 'action' | 'context' | 'pause' | 'plan' | 'proposal' | 'reroute' | 'resume'
+    interrupt: 'force' | 'soft' | false
+    priority: 'critical' | 'high' | 'low' | 'normal'
   }
 }
 
 function createBridgeHarness(options: { commandAvailable?: boolean } = {}) {
   const handlers = new Map<string, (event: TestCommandEvent) => void>()
   const client = {
-    send: vi.fn(),
+    offEvent: vi.fn(),
     onEvent: vi.fn((type: string, handler: (event: TestCommandEvent) => void) => {
       handlers.set(type, handler)
     }),
-    offEvent: vi.fn(),
+    send: vi.fn(),
   }
   const eventBus = {
     emit: vi.fn(),
@@ -60,9 +60,6 @@ describe('airiBridge spark command routing', () => {
     commandHandler?.({
       data: {
         commandId: 'spark-1',
-        intent: 'action',
-        interrupt: false,
-        priority: 'normal',
         guidance: {
           options: [
             {
@@ -71,21 +68,24 @@ describe('airiBridge spark command routing', () => {
             },
           ],
         },
+        intent: 'action',
+        interrupt: false,
+        priority: 'normal',
       },
     })
 
     expect(eventBus.emit).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'signal:airi_command',
       payload: expect.objectContaining({
-        type: 'airi_command',
         description: 'Directive from AIRI: "collect wood"',
-        sourceId: 'airi',
         metadata: expect.objectContaining({
           message: 'collect wood',
           sparkCommandId: 'spark-1',
           sparkIntent: 'action',
         }),
+        sourceId: 'airi',
+        type: 'airi_command',
       }),
+      type: 'signal:airi_command',
     }))
     expect(eventBus.emit).not.toHaveBeenCalledWith(expect.objectContaining({
       type: 'signal:chat_message',
@@ -105,9 +105,6 @@ describe('airiBridge spark command routing', () => {
     commandHandler?.({
       data: {
         commandId: 'spark-offline',
-        intent: 'action',
-        interrupt: false,
-        priority: 'normal',
         guidance: {
           options: [
             {
@@ -116,16 +113,19 @@ describe('airiBridge spark command routing', () => {
             },
           ],
         },
+        intent: 'action',
+        interrupt: false,
+        priority: 'normal',
       },
     })
 
     expect(client.send).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'spark:emit',
       data: expect.objectContaining({
         eventId: 'spark-offline',
-        state: 'dropped',
         note: 'Minecraft bot is offline',
+        state: 'dropped',
       }),
+      type: 'spark:emit',
     }))
     expect(eventBus.emit).not.toHaveBeenCalled()
 

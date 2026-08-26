@@ -9,9 +9,9 @@ import { ipcMain } from 'electron'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export async function setupInlayWindowInvokes(params: {
+  i18n: I18n
   inlayWindow: BrowserWindow
   serverChannel: ServerChannel
-  i18n: I18n
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -22,8 +22,8 @@ export async function setupInlayWindowInvokes(params: {
 
   await setupBaseWindowElectronInvokes({
     context,
-    window: params.inlayWindow,
-    serverChannel: params.serverChannel,
     i18n: params.i18n,
+    serverChannel: params.serverChannel,
+    window: params.inlayWindow,
   })
 }

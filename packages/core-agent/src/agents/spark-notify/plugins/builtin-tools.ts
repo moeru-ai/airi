@@ -15,19 +15,19 @@ export function createSparkNotifyBuiltinToolsPlugin(): SparkNotifyPlugin {
       let noResponse = false
 
       const { tools } = await createSparkNotifyTools({
+        allowNoResponse: turn.policy.allowNoResponse,
+        allowSparkCommand: turn.policy.allowSparkCommand,
         onCommands: drafts => commands.push(...drafts),
         onEvent: event => events.push(event),
         onNoResponse: () => {
           noResponse = true
         },
-        allowNoResponse: turn.policy.allowNoResponse,
-        allowSparkCommand: turn.policy.allowSparkCommand,
       })
 
       return {
-        tools,
-        getResult: () => ({ commands, noResponse }),
         getPendingEvents: () => events.splice(0),
+        getResult: () => ({ commands, noResponse }),
+        tools,
       }
     },
   }

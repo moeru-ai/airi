@@ -17,11 +17,11 @@ describe('generateBrainSystemPrompt', () => {
   it('includes chat feedback loop guard guidance', () => {
     const prompt = generateBrainSystemPrompt([
       {
-        name: 'chat',
         description: 'Send a chat message',
         execution: 'sync',
-        schema: z.object({ message: z.string(), feedback: z.boolean().optional() }),
+        name: 'chat',
         perform: () => () => '',
+        schema: z.object({ feedback: z.boolean().optional(), message: z.string() }),
       },
     ] satisfies Action[])
 
@@ -51,11 +51,11 @@ describe('generateBrainSystemPrompt', () => {
   })
 
   const chatAction = [{
-    name: 'chat',
     description: 'Send a chat message',
     execution: 'sync',
-    schema: z.object({ message: z.string() }),
+    name: 'chat',
     perform: () => () => '',
+    schema: z.object({ message: z.string() }),
   }] satisfies Action[]
 
   /**

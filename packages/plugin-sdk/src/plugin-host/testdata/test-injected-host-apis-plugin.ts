@@ -21,13 +21,13 @@ interface TestWidgetKitClient {
 }
 
 export const testWidgetKit = {
-  id: 'kit.widget.test',
-  version: '1.0.0',
   createClient() {
     return {
       mount() {},
     }
   },
+  id: 'kit.widget.test',
+  version: '1.0.0',
 } satisfies KitRef<TestWidgetKitClient>
 
 export default defineExtension({
@@ -36,7 +36,7 @@ export default defineExtension({
     const module = await ctx.modules.register({
       id: 'test-injected-host-apis-module',
       permissions: {
-        apis: [{ key: testWidgetKit.id, actions: ['invoke'] }],
+        apis: [{ actions: ['invoke'], key: testWidgetKit.id }],
       },
     })
 

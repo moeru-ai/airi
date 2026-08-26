@@ -30,7 +30,7 @@ export function detectSpineVersionFromBinary(data: Uint8Array): SpineVersion | u
     let offset = 8
     // Read varint-encoded string length. Spine stores (byteLength + 1):
     // 0 → null, 1 → "". Subtract 1 to get the real UTF-8 byte count.
-    const { value: rawLength, bytesRead } = readVarint(data, offset)
+    const { bytesRead, value: rawLength } = readVarint(data, offset)
     offset += bytesRead
     if (rawLength <= 1)
       return undefined
@@ -81,7 +81,7 @@ function parseSpineVersionString(version: string): SpineVersion | undefined {
  * Reads a Spine-format varint (variable-length int, 7 bits per byte,
  * high bit = continuation).
  */
-function readVarint(data: Uint8Array, offset: number): { value: number, bytesRead: number } {
+function readVarint(data: Uint8Array, offset: number): { bytesRead: number, value: number } {
   let value = 0
   let shift = 0
   let bytesRead = 0
@@ -93,5 +93,5 @@ function readVarint(data: Uint8Array, offset: number): { value: number, bytesRea
       break
     shift += 7
   }
-  return { value, bytesRead }
+  return { bytesRead, value }
 }

@@ -52,19 +52,6 @@ const googleGeminiTtsVoices: Array<[string, string]> = [
   ['Sulafat', 'Warm'],
 ]
 
-function normalizeBaseUrl(baseUrl: string | undefined) {
-  const value = baseUrl?.trim() || DEFAULT_BASE_URL
-  return value.endsWith('/') ? value : `${value}/`
-}
-
-function decodeBase64(base64: string) {
-  const binary = atob(base64)
-  const bytes = new Uint8Array(binary.length)
-  for (let index = 0; index < binary.length; index++)
-    bytes[index] = binary.charCodeAt(index)
-  return bytes
-}
-
 function createAudioFetch(apiKey: string, baseUrl: string) {
   return async (_input: RequestInfo | URL, init?: RequestInit) => {
     if (!init?.body || typeof init.body !== 'string')
@@ -73,8 +60,8 @@ function createAudioFetch(apiKey: string, baseUrl: string) {
     const body = JSON.parse(init.body) as {
       input?: string
       model?: string
-      voice?: string
       temperature?: number
+      voice?: string
     }
     if (!body.input)
       throw new Error('Missing input text for Gemini TTS')
@@ -82,8 +69,6 @@ function createAudioFetch(apiKey: string, baseUrl: string) {
       throw new Error('Missing model for Gemini TTS')
 
     const response = await globalThis.fetch(new URL(`models/${body.model}:generateContent`, baseUrl), {
-      method: 'POST',
-      headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: body.input }] }],
         generationConfig: {
@@ -94,6 +79,8 @@ function createAudioFetch(apiKey: string, baseUrl: string) {
           ...(body.temperature !== undefined ? { temperature: body.temperature } : {}),
         },
       }),
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      method: 'POST',
     })
     if (!response.ok)
       throw new Error(`Gemini TTS request failed: ${response.status} ${await response.text().catch(() => '')}`)
@@ -106,22 +93,26 @@ function createAudioFetch(apiKey: string, baseUrl: string) {
       throw new Error('Gemini TTS response missing audio data')
 
     return new Response(toWavFromPCM16(decodeBase64(audio), 24000), {
-      status: 200,
       headers: { 'Content-Type': 'audio/wav' },
+      status: 200,
     })
   }
 }
 
+function decodeBase64(base64: string) {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index++)
+    bytes[index] = binary.charCodeAt(index)
+  return bytes
+}
+
+function normalizeBaseUrl(baseUrl: string | undefined) {
+  const value = baseUrl?.trim() || DEFAULT_BASE_URL
+  return value.endsWith('/') ? value : `${value}/`
+}
+
 export const providerGoogleGeminiAudioSpeech = defineProvider<GoogleGeminiSpeechConfig>({
-  id: 'google-gemini-audio-speech',
-  name: 'Google Gemini',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.google-gemini-audio-speech.title'),
-  description: 'aistudio.google.com',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.google-gemini-audio-speech.description'),
-  tasks: ['text-to-speech', 'tts'],
-  icon: 'i-lobe-icons:gemini',
-  iconColor: 'i-lobe-icons:gemini-color',
-  createProviderConfig: () => googleGeminiSpeechConfigSchema,
   createProvider(config) {
     const apiKey = config.apiKey.trim()
     const baseUrl = normalizeBaseUrl(config.baseUrl)
@@ -134,6 +125,32 @@ export const providerGoogleGeminiAudioSpeech = defineProvider<GoogleGeminiSpeech
       }),
     }
   },
+  createProviderConfig: () => googleGeminiSpeechConfigSchema,
+  description: 'aistudio.google.com',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.google-gemini-audio-speech.description'),
+  extraMethods: {
+    listModels: async () => googleGeminiTtsModels.map(id => ({
+      capabilities: ['text-to-speech'],
+      description: 'Gemini API text-to-speech model',
+      id,
+      name: id.split('-').map(word => `${word[0].toUpperCase()}${word.slice(1)}`).join(' '),
+      provider: 'google-gemini-audio-speech',
+    })),
+    listVoices: async () => googleGeminiTtsVoices.map(([id, style]) => ({
+      compatibleModels: [...googleGeminiTtsModels],
+      description: style,
+      id,
+      languages: [{ code: 'auto', title: 'Auto' }],
+      name: id,
+      provider: 'google-gemini-audio-speech',
+    })),
+  },
+  icon: 'i-lobe-icons:gemini',
+  iconColor: 'i-lobe-icons:gemini-color',
+  id: 'google-gemini-audio-speech',
+  name: 'Google Gemini',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.google-gemini-audio-speech.title'),
+  tasks: ['text-to-speech', 'tts'],
   validationRequiredWhen: config => Boolean(config.apiKey?.trim()),
   validators: {
     validateConfig: [
@@ -151,22 +168,5 @@ export const providerGoogleGeminiAudioSpeech = defineProvider<GoogleGeminiSpeech
         },
       }),
     ],
-  },
-  extraMethods: {
-    listModels: async () => googleGeminiTtsModels.map(id => ({
-      id,
-      name: id.split('-').map(word => `${word[0].toUpperCase()}${word.slice(1)}`).join(' '),
-      provider: 'google-gemini-audio-speech',
-      description: 'Gemini API text-to-speech model',
-      capabilities: ['text-to-speech'],
-    })),
-    listVoices: async () => googleGeminiTtsVoices.map(([id, style]) => ({
-      id,
-      name: id,
-      provider: 'google-gemini-audio-speech',
-      description: style,
-      languages: [{ code: 'auto', title: 'Auto' }],
-      compatibleModels: [...googleGeminiTtsModels],
-    })),
   },
 })

@@ -6,9 +6,9 @@ import { startChatGeneration, startTtsGeneration } from '.'
 // real exporter. `startObservation` returns a stub generation whose methods are
 // spies; `otelSpan.setAttribute` captures trace-identity attributes.
 const generationStub = {
+  end: vi.fn(),
   otelSpan: { setAttribute: vi.fn() },
   update: vi.fn(),
-  end: vi.fn(),
 }
 const startObservation = vi.fn((_name: string, _attributes: unknown, _options: unknown) => generationStub)
 vi.mock('@langfuse/tracing', () => ({
@@ -16,7 +16,7 @@ vi.mock('@langfuse/tracing', () => ({
 }))
 
 const BASE_INPUT = {
-  input: [{ role: 'user', content: 'hi' }],
+  input: [{ content: 'hi', role: 'user' }],
   model: 'openai/gpt-5-mini',
   requestId: 'req-1',
   stream: false,
@@ -40,7 +40,7 @@ describe('startChatGeneration', () => {
       // @example disabled deployment: no env set
       const trace = startChatGeneration(BASE_INPUT)
       trace.appendStreamChunk('data: {"choices":[{"delta":{"content":"x"}}]}\n')
-      trace.succeed({ output: 'x', promptTokens: 1, completionTokens: 1 })
+      trace.succeed({ completionTokens: 1, output: 'x', promptTokens: 1 })
       trace.fail('should be ignored')
 
       expect(startObservation).not.toHaveBeenCalled()
@@ -62,8 +62,8 @@ describe('startChatGeneration', () => {
         'chat.completion',
         {
           input: BASE_INPUT.input,
-          model: BASE_INPUT.model,
           metadata: { requestId: 'req-1', stream: true },
+          model: BASE_INPUT.model,
         },
         { asType: 'generation' },
       )
@@ -82,12 +82,12 @@ describe('startChatGeneration', () => {
     it('records explicit output + usage + flux on succeed (non-streaming)', () => {
       // @example non-streaming completion passes the parsed response body
       const trace = startChatGeneration(BASE_INPUT)
-      trace.succeed({ output: { ok: true }, promptTokens: 12, completionTokens: 34, fluxConsumed: 5 })
+      trace.succeed({ completionTokens: 34, fluxConsumed: 5, output: { ok: true }, promptTokens: 12 })
 
       expect(generationStub.update).toHaveBeenCalledWith({
+        metadata: { fluxConsumed: 5, requestId: 'req-1', stream: false },
         output: { ok: true },
         usageDetails: { input: 12, output: 34 },
-        metadata: { requestId: 'req-1', stream: false, fluxConsumed: 5 },
       })
       expect(generationStub.end).toHaveBeenCalledTimes(1)
     })
@@ -99,12 +99,12 @@ describe('startChatGeneration', () => {
       trace.appendStreamChunk('data: {"choices":[{"delta":{"con')
       trace.appendStreamChunk('tent":"Hel"}}]}\ndata: {"choices":[{"delta":{"content":"lo"}}]}\n')
       trace.appendStreamChunk('data: [DONE]\n')
-      trace.succeed({ promptTokens: 2, completionTokens: 1, fluxConsumed: 1 })
+      trace.succeed({ completionTokens: 1, fluxConsumed: 1, promptTokens: 2 })
 
       expect(generationStub.update).toHaveBeenCalledWith({
+        metadata: { fluxConsumed: 1, requestId: 'req-1', stream: true },
         output: 'Hello',
         usageDetails: { input: 2, output: 1 },
-        metadata: { requestId: 'req-1', stream: true, fluxConsumed: 1 },
       })
     })
 
@@ -129,8 +129,8 @@ describe('startChatGeneration', () => {
 
       expect(generationStub.update).toHaveBeenCalledWith({
         level: 'ERROR',
-        statusMessage: 'Gateway 502',
         metadata: { requestId: 'req-1', stream: false },
+        statusMessage: 'Gateway 502',
       })
       expect(generationStub.end).toHaveBeenCalledTimes(1)
     })
@@ -160,44 +160,44 @@ describe('startChatGeneration', () => {
     it('creates a TTS generation and records character usage without buffering audio', () => {
       // @example /audio/speech request: text in, content-type metadata out
       const trace = startTtsGeneration({
-        input: { text: 'hello', voice: 'alloy', responseFormat: 'mp3' },
+        input: { responseFormat: 'mp3', text: 'hello', voice: 'alloy' },
         model: 'tts-1',
         requestId: 'tts-1',
-        userId: 'user-1',
         sessionId: 'sess-1',
+        userId: 'user-1',
       })
       trace.succeed({
-        inputChars: 5,
         fluxConsumed: 2,
+        inputChars: 5,
         output: { contentType: 'audio/mpeg' },
       })
 
       expect(startObservation).toHaveBeenCalledWith(
         'tts.speech',
         {
-          input: { text: 'hello', voice: 'alloy', responseFormat: 'mp3' },
-          model: 'tts-1',
+          input: { responseFormat: 'mp3', text: 'hello', voice: 'alloy' },
           metadata: {
-            requestId: 'tts-1',
             inputChars: 5,
-            voice: 'alloy',
-            speed: undefined,
+            requestId: 'tts-1',
             responseFormat: 'mp3',
+            speed: undefined,
+            voice: 'alloy',
           },
+          model: 'tts-1',
         },
         { asType: 'generation' },
       )
       expect(generationStub.update).toHaveBeenCalledWith({
+        metadata: {
+          fluxConsumed: 2,
+          inputChars: 5,
+          requestId: 'tts-1',
+          responseFormat: 'mp3',
+          speed: undefined,
+          voice: 'alloy',
+        },
         output: { contentType: 'audio/mpeg' },
         usageDetails: { input: 5 },
-        metadata: {
-          requestId: 'tts-1',
-          inputChars: 5,
-          voice: 'alloy',
-          speed: undefined,
-          responseFormat: 'mp3',
-          fluxConsumed: 2,
-        },
       })
       expect(generationStub.otelSpan.setAttribute).toHaveBeenCalledWith('langfuse.session.id', 'sess-1')
       expect(generationStub.end).toHaveBeenCalledTimes(1)

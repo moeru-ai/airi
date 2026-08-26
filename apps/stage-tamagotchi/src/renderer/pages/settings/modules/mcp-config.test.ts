@@ -24,8 +24,8 @@ describe('mcp-config helpers', () => {
   it('preserves the selected server identity when rows are reloaded', () => {
     const config = {
       mcpServers: {
-        filesystem: { command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem'] },
-        github: { command: 'npx', args: ['-y', '@modelcontextprotocol/server-github'] },
+        filesystem: { args: ['-y', '@modelcontextprotocol/server-filesystem'], command: 'npx' },
+        github: { args: ['-y', '@modelcontextprotocol/server-github'], command: 'npx' },
       },
     }
 
@@ -41,29 +41,29 @@ describe('mcp-config helpers', () => {
 
   it('keeps cwd when converting form rows into MCP config', () => {
     const server = {
-      rowId: 'mcp-static',
-      identifier: 'filesystem',
-      command: ' npx ',
       argsText: '-y\n@modelcontextprotocol/server-filesystem',
-      envEntries: [{ key: ' ROOT ', value: '/tmp' }],
+      command: ' npx ',
       cwd: ' /Users/doji/dojiwork/airi ',
       enabled: true,
+      envEntries: [{ key: ' ROOT ', value: '/tmp' }],
+      identifier: 'filesystem',
+      rowId: 'mcp-static',
     }
 
     expect(buildServerConfig(server)).toEqual({
-      command: 'npx',
       args: ['-y', '@modelcontextprotocol/server-filesystem'],
-      env: { ROOT: '/tmp' },
+      command: 'npx',
       cwd: '/Users/doji/dojiwork/airi',
+      env: { ROOT: '/tmp' },
     })
 
     expect(buildConfigFile([server], translateMessage)).toEqual({
       mcpServers: {
         filesystem: {
-          command: 'npx',
           args: ['-y', '@modelcontextprotocol/server-filesystem'],
-          env: { ROOT: '/tmp' },
+          command: 'npx',
           cwd: '/Users/doji/dojiwork/airi',
+          env: { ROOT: '/tmp' },
         },
       },
     })
@@ -74,13 +74,13 @@ describe('mcp-config helpers', () => {
 
     const result = syncJsonDraftFromServers(
       [{
-        rowId: 'pending',
-        identifier: '',
-        command: '',
         argsText: '',
-        envEntries: [],
+        command: '',
         cwd: '',
         enabled: true,
+        envEntries: [],
+        identifier: '',
+        rowId: 'pending',
       }],
       previousDraft,
       translateMessage,

@@ -12,13 +12,13 @@ function jsonResponse(body: unknown): Response {
 describe('steamClient', () => {
   it('adds linkSteam, posting to /link/steam with the OAuth-style body', async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => jsonResponse({
-      url: 'https://steamcommunity.com/openid/login?...',
       redirect: true,
+      url: 'https://steamcommunity.com/openid/login?...',
     }))
     const client = createAuthClient({
       baseURL: 'https://api.airi.test',
-      plugins: [steamClient()],
       fetchOptions: { customFetchImpl: fetchImpl },
+      plugins: [steamClient()],
     })
 
     const result = await client.linkSteam({
@@ -39,13 +39,13 @@ describe('steamClient', () => {
 
   it('adds signIn.steam, posting to /sign-in/steam without a provider field', async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => jsonResponse({
-      url: 'https://steamcommunity.com/openid/login?...',
       redirect: true,
+      url: 'https://steamcommunity.com/openid/login?...',
     }))
     const client = createAuthClient({
       baseURL: 'https://api.airi.test',
-      plugins: [steamClient()],
       fetchOptions: { customFetchImpl: fetchImpl },
+      plugins: [steamClient()],
     })
 
     const result = await client.signIn.steam({ callbackURL: '/profile' })

@@ -8,12 +8,12 @@ installStrictToolSchemaMatchers()
 
 function createTool(parameters: unknown): Tool {
   return {
-    type: 'function',
     function: {
-      name: 'test_tool',
       description: 'Test tool.',
+      name: 'test_tool',
       parameters,
     },
+    type: 'function',
   } as Tool
 }
 
@@ -24,14 +24,14 @@ describe('strict tool schema matchers', () => {
    */
   it('accepts a strict provider-safe tool schema', () => {
     const tool = createTool({
-      type: 'object',
+      additionalProperties: false,
       properties: {
         mode: {
           type: ['string', 'null'],
         },
       },
       required: ['mode'],
-      additionalProperties: false,
+      type: 'object',
     })
 
     expect(tool).toSatisfyStrictToolSchema()
@@ -43,14 +43,14 @@ describe('strict tool schema matchers', () => {
    */
   it('reports missing required keys with schema paths', () => {
     const tool = createTool({
-      type: 'object',
+      additionalProperties: false,
       properties: {
         mode: {
           type: ['string', 'null'],
         },
       },
       required: [],
-      additionalProperties: false,
+      type: 'object',
     })
 
     expect(() => expect(tool).toSatisfyStrictToolSchema()).toThrow(/test_tool\.parameters.*mode/)
@@ -62,10 +62,10 @@ describe('strict tool schema matchers', () => {
    */
   it('checks a list of tools', () => {
     const tool = createTool({
-      type: 'object',
+      additionalProperties: false,
       properties: {},
       required: [],
-      additionalProperties: false,
+      type: 'object',
     })
 
     expect([tool]).toSatisfyStrictToolSchemas()

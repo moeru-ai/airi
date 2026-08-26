@@ -10,35 +10,17 @@ import { describe, expect, it } from 'vitest'
 
 import { bindSpeakingStateToPlaybackManager } from './playback-speaking-state'
 
-function createPlaybackItem(): PlaybackItem<AudioBuffer> {
-  return {
-    id: 'playback-1',
-    streamId: 'stream-1',
-    intentId: 'intent-1',
-    segmentId: 'segment-1',
-    sequence: 1,
-    priority: 0,
-    text: 'hello',
-    special: null,
-    audio: {} as AudioBuffer,
-    createdAt: 1000,
-  }
-}
-
 function createFakePlaybackManager() {
   const listeners = {
-    start: [] as Array<(event: PlaybackStartEvent<AudioBuffer>) => void>,
     end: [] as Array<(event: PlaybackEndEvent<AudioBuffer>) => void>,
     interrupt: [] as Array<(event: PlaybackInterruptEvent<AudioBuffer>) => void>,
     reject: [] as Array<(event: PlaybackRejectEvent<AudioBuffer>) => void>,
+    start: [] as Array<(event: PlaybackStartEvent<AudioBuffer>) => void>,
   }
 
   return {
     listeners,
     manager: {
-      onStart: (listener: (event: PlaybackStartEvent<AudioBuffer>) => void) => {
-        listeners.start.push(listener)
-      },
       onEnd: (listener: (event: PlaybackEndEvent<AudioBuffer>) => void) => {
         listeners.end.push(listener)
       },
@@ -48,7 +30,25 @@ function createFakePlaybackManager() {
       onReject: (listener: (event: PlaybackRejectEvent<AudioBuffer>) => void) => {
         listeners.reject.push(listener)
       },
+      onStart: (listener: (event: PlaybackStartEvent<AudioBuffer>) => void) => {
+        listeners.start.push(listener)
+      },
     },
+  }
+}
+
+function createPlaybackItem(): PlaybackItem<AudioBuffer> {
+  return {
+    audio: {} as AudioBuffer,
+    createdAt: 1000,
+    id: 'playback-1',
+    intentId: 'intent-1',
+    priority: 0,
+    segmentId: 'segment-1',
+    sequence: 1,
+    special: null,
+    streamId: 'stream-1',
+    text: 'hello',
   }
 }
 
@@ -67,7 +67,7 @@ describe('bindSpeakingStateToPlaybackManager', () => {
     playback.listeners.start.forEach(listener => listener({ item, startedAt: 1000 }))
     expect(speaking).toBe(true)
 
-    playback.listeners.interrupt.forEach(listener => listener({ item, reason: 'playback-error', interruptedAt: 1100 }))
+    playback.listeners.interrupt.forEach(listener => listener({ interruptedAt: 1100, item, reason: 'playback-error' }))
     expect(speaking).toBe(false)
   })
 

@@ -5,26 +5,6 @@ import { tool } from '@xsai/tool'
 import { z } from 'zod'
 
 /**
- * Describes an MCP tool that can be exposed to the shared LLM runtime.
- *
- * Use when:
- * - A runtime needs to list available MCP tools before exposing them to models
- *
- * Expects:
- * - `name` is the fully-qualified tool name used for invocation
- *
- * Returns:
- * - The MCP tool descriptor metadata reported by the runtime
- */
-export interface McpToolDescriptor {
-  serverName: string
-  name: string
-  toolName: string
-  description?: string
-  inputSchema: Record<string, unknown>
-}
-
-/**
  * Payload for invoking an MCP tool through a runtime-specific transport.
  *
  * Use when:
@@ -38,8 +18,8 @@ export interface McpToolDescriptor {
  * - The MCP tool call input envelope
  */
 export interface McpCallToolPayload {
-  name: string
   arguments?: Record<string, unknown>
+  name: string
 }
 
 /**
@@ -56,9 +36,29 @@ export interface McpCallToolPayload {
  */
 export interface McpCallToolResult {
   content?: Array<Record<string, unknown>>
+  isError?: boolean
   structuredContent?: Record<string, unknown>
   toolResult?: unknown
-  isError?: boolean
+}
+
+/**
+ * Describes an MCP tool that can be exposed to the shared LLM runtime.
+ *
+ * Use when:
+ * - A runtime needs to list available MCP tools before exposing them to models
+ *
+ * Expects:
+ * - `name` is the fully-qualified tool name used for invocation
+ *
+ * Returns:
+ * - The MCP tool descriptor metadata reported by the runtime
+ */
+export interface McpToolDescriptor {
+  description?: string
+  inputSchema: Record<string, unknown>
+  name: string
+  serverName: string
+  toolName: string
 }
 
 /**
@@ -74,8 +74,8 @@ export interface McpCallToolResult {
  * - An object that can back `createMcpTools`
  */
 export interface McpToolRuntime {
-  listTools: () => Promise<McpToolDescriptor[]>
   callTool: (payload: McpCallToolPayload) => Promise<McpCallToolResult>
+  listTools: () => Promise<McpToolDescriptor[]>
 }
 
 /**
@@ -93,7 +93,6 @@ export interface McpToolRuntime {
 export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
   return [
     tool({
-      name: 'builtIn_mcpListTools',
       description: 'List all available MCP tools. Call this first to discover tool names before calling builtIn_mcpCallTool.',
       execute: async () => {
         try {
@@ -104,42 +103,32 @@ export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
           return ''
         }
       },
+      name: 'builtIn_mcpListTools',
       parameters: z.object({}).strict(),
     }),
     tool({
-      name: 'builtIn_mcpCallTool',
       description: 'Call an MCP tool by name. Use builtIn_mcpListTools first to get available tool names.',
-      execute: async ({ name, arguments: argsJson }) => {
+      execute: async ({ arguments: argsJson, name }) => {
         try {
           const args = argsJson ? JSON.parse(argsJson) : {}
-          return await runtime.callTool({ name, arguments: args })
+          return await runtime.callTool({ arguments: args, name })
         }
         catch (error) {
           return {
+            content: [{ text: errorMessageFromValue(error), type: 'text' }],
             isError: true,
-            content: [{ type: 'text', text: errorMessageFromValue(error) }],
           }
         }
       },
+      name: 'builtIn_mcpCallTool',
       // NOTICE: `arguments` is z.string() (JSON) because z.unknown() produces `{}` (no `type` key)
       // and z.record() emits `propertyNames`, both rejected by OpenAI.
       parameters: z.object({
-        name: z.string().describe('Tool name in "<serverName>::<toolName>" format'),
         arguments: z.string().describe('JSON object of tool arguments, e.g. {"query":"hello","limit":10}'),
+        name: z.string().describe('Tool name in "<serverName>::<toolName>" format'),
       }).strict(),
     }),
   ]
-}
-
-function createUnavailableMcpToolRuntime(): McpToolRuntime {
-  return {
-    async listTools() {
-      throw new Error('MCP tools are not available in this runtime.')
-    },
-    async callTool() {
-      throw new Error('MCP tools are not available in this runtime.')
-    },
-  }
 }
 
 /**
@@ -156,4 +145,15 @@ function createUnavailableMcpToolRuntime(): McpToolRuntime {
  */
 export async function mcp(): Promise<Tool[]> {
   return await Promise.all(createMcpTools(createUnavailableMcpToolRuntime()))
+}
+
+function createUnavailableMcpToolRuntime(): McpToolRuntime {
+  return {
+    async callTool() {
+      throw new Error('MCP tools are not available in this runtime.')
+    },
+    async listTools() {
+      throw new Error('MCP tools are not available in this runtime.')
+    },
+  }
 }

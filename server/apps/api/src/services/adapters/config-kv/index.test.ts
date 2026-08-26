@@ -5,10 +5,10 @@ import { createConfigKVService } from './index'
 function createMockStore() {
   const store = new Map<string, string>()
   return {
-    getRaw: vi.fn(async (key: string) => store.get(key) ?? null),
-    getFreshRaw: vi.fn(async (key: string) => store.get(key) ?? null),
-    invalidateCache: vi.fn(async () => {}),
     _store: store,
+    getFreshRaw: vi.fn(async (key: string) => store.get(key) ?? null),
+    getRaw: vi.fn(async (key: string) => store.get(key) ?? null),
+    invalidateCache: vi.fn(async () => {}),
   }
 }
 
@@ -76,8 +76,8 @@ describe('configKVService', () => {
     await expect(service.getOptional('LLM_ROUTER_CONFIG'))
       .rejects
       .toMatchObject({
-        statusCode: 503,
         errorCode: 'CONFIG_INVALID',
+        statusCode: 503,
       })
   })
 
@@ -87,8 +87,8 @@ describe('configKVService', () => {
     await expect(service.getOptional('FLUX_PER_REQUEST'))
       .rejects
       .toMatchObject({
-        statusCode: 503,
         errorCode: 'CONFIG_INVALID',
+        statusCode: 503,
       })
   })
 
@@ -98,8 +98,8 @@ describe('configKVService', () => {
     await expect(service.getOrThrow('FLUX_PER_REQUEST'))
       .rejects
       .toMatchObject({
-        statusCode: 503,
         errorCode: 'CONFIG_UNAVAILABLE',
+        statusCode: 503,
       })
   })
 
@@ -109,28 +109,28 @@ describe('configKVService', () => {
    */
   it('llm router config should preserve official ASR model config', async () => {
     store._store.set('LLM_ROUTER_CONFIG', JSON.stringify({
-      llm: { models: {} },
-      tts: { models: {} },
       asr: {
         models: {
           auto: {
             provider: 'aliyun-nls',
             upstreams: [{
-              keys: [{ id: 'aliyun-nls-asr-prod-1', ciphertext: 'ciphertext' }],
               adapterParams: {
                 accessKeyId: 'ak',
                 appKey: 'app',
                 region: 'cn-shanghai',
               },
+              keys: [{ ciphertext: 'ciphertext', id: 'aliyun-nls-asr-prod-1' }],
             }],
           },
         },
       },
       defaults: {
-        perAttemptTimeoutMs: 30000,
-        fullChainTimeoutMs: 60000,
         fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504],
+        fullChainTimeoutMs: 60000,
+        perAttemptTimeoutMs: 30000,
       },
+      llm: { models: {} },
+      tts: { models: {} },
     }))
 
     const value = await service.getOrThrow('LLM_ROUTER_CONFIG')
@@ -148,92 +148,92 @@ describe('configKVService', () => {
 
   it('llm router config should preserve explicit LLM and TTS provider groups', async () => {
     store._store.set('LLM_ROUTER_CONFIG', JSON.stringify({
+      defaults: {
+        fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504],
+        fullChainTimeoutMs: 60000,
+        perAttemptTimeoutMs: 30000,
+      },
       llm: {
         models: {
           'step-3.5-flash': {
-            upstreams: [
-              {
-                id: 'plan',
-                baseURL: 'https://api.stepfun.com/step_plan/v1',
-                keys: [{ id: 'plan-key', ciphertext: 'plan-ciphertext' }],
-                headerTemplate: 'Bearer {KEY}',
-              },
-              {
-                id: 'paygo',
-                baseURL: 'https://api.stepfun.com/v1',
-                keys: [{ id: 'paygo-key', ciphertext: 'paygo-ciphertext' }],
-                headerTemplate: 'Bearer {KEY}',
-              },
-            ],
-            routing: {
-              groups: [
-                {
-                  id: 'plan',
-                  upstreamIds: ['plan'],
-                  retryOn: { httpCodes: [402, 429, 500, 502, 503, 504], onTimeout: true },
-                  continueOn: { httpCodes: [402], onTimeout: false },
-                },
-                {
-                  id: 'paygo',
-                  upstreamIds: ['paygo'],
-                  retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
-                },
-              ],
-            },
             fallbackTriggers: {
               httpCodes: [401, 402, 403, 429, 500, 502, 503, 504],
               onTimeout: true,
             },
+            routing: {
+              groups: [
+                {
+                  continueOn: { httpCodes: [402], onTimeout: false },
+                  id: 'plan',
+                  retryOn: { httpCodes: [402, 429, 500, 502, 503, 504], onTimeout: true },
+                  upstreamIds: ['plan'],
+                },
+                {
+                  id: 'paygo',
+                  retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
+                  upstreamIds: ['paygo'],
+                },
+              ],
+            },
+            upstreams: [
+              {
+                baseURL: 'https://api.stepfun.com/step_plan/v1',
+                headerTemplate: 'Bearer {KEY}',
+                id: 'plan',
+                keys: [{ ciphertext: 'plan-ciphertext', id: 'plan-key' }],
+              },
+              {
+                baseURL: 'https://api.stepfun.com/v1',
+                headerTemplate: 'Bearer {KEY}',
+                id: 'paygo',
+                keys: [{ ciphertext: 'paygo-ciphertext', id: 'paygo-key' }],
+              },
+            ],
           },
         },
       },
       tts: {
         models: {
           'stepfun/stepaudio-2.5-tts': {
-            provider: 'stepfun',
-            upstreams: [
-              {
-                id: 'plan',
-                baseURL: 'https://api.stepfun.com',
-                keys: [{ id: 'plan-key', ciphertext: 'plan-ciphertext' }],
-                adapterParams: { endpointProfile: 'step-plan' },
-                maxConcurrency: 1,
-              },
-              {
-                id: 'paygo',
-                baseURL: 'https://api.stepfun.com',
-                keys: [{ id: 'paygo-key', ciphertext: 'paygo-ciphertext' }],
-                adapterParams: { endpointProfile: 'default' },
-              },
-            ],
-            routing: {
-              groups: [
-                {
-                  id: 'plan',
-                  upstreamIds: ['plan'],
-                  strategy: 'least-inflight',
-                  retryOn: { httpCodes: [402, 429, 500, 502, 503, 504], onTimeout: true },
-                  continueOn: { httpCodes: [402], onTimeout: false },
-                },
-                {
-                  id: 'paygo',
-                  upstreamIds: ['paygo'],
-                  strategy: 'ordered',
-                  retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
-                },
-              ],
-            },
             fallbackTriggers: {
               httpCodes: [401, 402, 429, 500, 502, 503, 504],
               onTimeout: true,
             },
+            provider: 'stepfun',
+            routing: {
+              groups: [
+                {
+                  continueOn: { httpCodes: [402], onTimeout: false },
+                  id: 'plan',
+                  retryOn: { httpCodes: [402, 429, 500, 502, 503, 504], onTimeout: true },
+                  strategy: 'least-inflight',
+                  upstreamIds: ['plan'],
+                },
+                {
+                  id: 'paygo',
+                  retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
+                  strategy: 'ordered',
+                  upstreamIds: ['paygo'],
+                },
+              ],
+            },
+            upstreams: [
+              {
+                adapterParams: { endpointProfile: 'step-plan' },
+                baseURL: 'https://api.stepfun.com',
+                id: 'plan',
+                keys: [{ ciphertext: 'plan-ciphertext', id: 'plan-key' }],
+                maxConcurrency: 1,
+              },
+              {
+                adapterParams: { endpointProfile: 'default' },
+                baseURL: 'https://api.stepfun.com',
+                id: 'paygo',
+                keys: [{ ciphertext: 'paygo-ciphertext', id: 'paygo-key' }],
+              },
+            ],
           },
         },
-      },
-      defaults: {
-        perAttemptTimeoutMs: 30000,
-        fullChainTimeoutMs: 60000,
-        fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504],
       },
     }))
 
@@ -255,19 +255,19 @@ describe('configKVService', () => {
         models: {
           tts: {
             provider: 'stepfun',
-            upstreams: [{
-              id: 'plan',
-              baseURL: 'https://api.stepfun.com',
-              keys: [{ id: 'plan-key', ciphertext: 'ciphertext' }],
-            }],
             routing: {
               groups: [{
                 id: 'plan',
-                upstreamIds: ['missing'],
-                strategy: 'ordered',
                 retryOn: { httpCodes: [402], onTimeout: false },
+                strategy: 'ordered',
+                upstreamIds: ['missing'],
               }],
             },
+            upstreams: [{
+              baseURL: 'https://api.stepfun.com',
+              id: 'plan',
+              keys: [{ ciphertext: 'ciphertext', id: 'plan-key' }],
+            }],
           },
         },
       },
@@ -276,8 +276,8 @@ describe('configKVService', () => {
     await expect(service.getOptional('LLM_ROUTER_CONFIG'))
       .rejects
       .toMatchObject({
-        statusCode: 503,
         errorCode: 'CONFIG_INVALID',
+        statusCode: 503,
       })
   })
 
@@ -288,19 +288,19 @@ describe('configKVService', () => {
         models: {
           tts: {
             provider: 'stepfun',
-            upstreams: [{
-              id: 'plan',
-              baseURL: 'https://api.stepfun.com',
-              keys: [{ id: 'plan-key', ciphertext: 'ciphertext' }],
-            }],
             routing: {
               groups: [{
                 id: 'plan',
-                upstreamIds: ['plan'],
-                strategy: 'least-inflight',
                 retryOn: { httpCodes: [402], onTimeout: false },
+                strategy: 'least-inflight',
+                upstreamIds: ['plan'],
               }],
             },
+            upstreams: [{
+              baseURL: 'https://api.stepfun.com',
+              id: 'plan',
+              keys: [{ ciphertext: 'ciphertext', id: 'plan-key' }],
+            }],
           },
         },
       },
@@ -309,8 +309,8 @@ describe('configKVService', () => {
     await expect(service.getOptional('LLM_ROUTER_CONFIG'))
       .rejects
       .toMatchObject({
-        statusCode: 503,
         errorCode: 'CONFIG_INVALID',
+        statusCode: 503,
       })
   })
 

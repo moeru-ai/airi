@@ -16,9 +16,9 @@ import { errorMessageFromValue } from './error-message'
 import { visionTaskAssets } from './tasks'
 
 const taskSources: Record<keyof VisionTaskAssets, string> = {
-  pose: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
-  hands: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
   face: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+  hands: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+  pose: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
 }
 
 const assetsRoot = fileURLToPath(new URL('./assets', import.meta.url))
@@ -26,19 +26,9 @@ const wasmSourceDir = fileURLToPath(new URL('../node_modules/@mediapipe/tasks-vi
 const wasmOutputDir = fileURLToPath(new URL('./assets/wasm', import.meta.url))
 const taskTargets = Object.entries(taskSources).map(([key, source]) => ({
   key: key as keyof VisionTaskAssets,
-  source,
   outputPath: fileURLToPath(visionTaskAssets[key as keyof VisionTaskAssets]),
+  source,
 }))
-
-async function isUsableFile(path: string) {
-  try {
-    const stat = await fs.stat(path)
-    return stat.isFile() && stat.size > 0
-  }
-  catch {
-    return false
-  }
-}
 
 async function downloadAsset(key: string, url: string, outputPath: string) {
   const tempPath = `${outputPath}.download`
@@ -78,9 +68,19 @@ async function downloadAsset(key: string, url: string, outputPath: string) {
   }
 }
 
+async function isUsableFile(path: string) {
+  try {
+    const stat = await fs.stat(path)
+    return stat.isFile() && stat.size > 0
+  }
+  catch {
+    return false
+  }
+}
+
 await fs.mkdir(assetsRoot, { recursive: true })
 
-for (const { key, source, outputPath } of taskTargets) {
+for (const { key, outputPath, source } of taskTargets) {
   if (await isUsableFile(outputPath)) {
     console.log(`MediaPipe vision task asset for ${key} already exists at ${outputPath}, skipping download.`)
     continue
@@ -92,7 +92,7 @@ for (const { key, source, outputPath } of taskTargets) {
 }
 
 await fs.mkdir(wasmOutputDir, { recursive: true })
-await fs.cp(wasmSourceDir, wasmOutputDir, { recursive: true, force: true })
+await fs.cp(wasmSourceDir, wasmOutputDir, { force: true, recursive: true })
 
 const wasmEntries = await fs.readdir(wasmOutputDir)
 if (!wasmEntries.length)

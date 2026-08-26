@@ -15,14 +15,6 @@ export interface RunCapViteOptions {
   cwd?: string
 }
 
-interface PreparedViteLaunch {
-  baseConfigFile?: string
-  configLoader?: 'bundle' | 'native' | 'runner'
-  projectRoot: string
-  viteArgs: string[]
-  wrapperConfigFile: string
-}
-
 interface ParsedViteArg {
   baseConfigFile?: string
   configLoader?: 'bundle' | 'native' | 'runner'
@@ -30,96 +22,12 @@ interface ParsedViteArg {
   forwardedArgs: string[]
 }
 
-function resolveWrapperConfigFile(): string {
-  const currentModulePath = fileURLToPath(import.meta.url)
-  const wrapperExtension = extname(currentModulePath) === '.ts' ? '.ts' : '.mjs'
-  return fileURLToPath(new URL(`./vite-wrapper-config${wrapperExtension}`, import.meta.url))
-}
-
-function parseViteConfigLoader(value: string | undefined): 'bundle' | 'native' | 'runner' | undefined {
-  if (value === 'bundle' || value === 'native' || value === 'runner') {
-    return value
-  }
-
-  return undefined
-}
-
-function resolveConfigPath(cwd: string, value: string): string {
-  return resolve(cwd, value)
-}
-
-function readRequiredOptionValue(viteArgs: string[], index: number, optionName: string): string {
-  const value = viteArgs[index + 1]
-  if (!value) {
-    throw new Error(`Missing value for \`${optionName}\`.`)
-  }
-
-  return value
-}
-
-function parseConfigArg(viteArgs: string[], index: number, cwd: string): ParsedViteArg | null {
-  const arg = viteArgs[index]
-
-  // NOTICE: Vite only accepts one `--config` entrypoint. cap-vite consumes that slot
-  // for its wrapper config, then loads the user config from inside the wrapper.
-  if (arg === '--config' || arg === '-c') {
-    return {
-      baseConfigFile: resolveConfigPath(cwd, readRequiredOptionValue(viteArgs, index, '--config')),
-      consumedArgs: 2,
-      forwardedArgs: [],
-    }
-  }
-
-  if (arg.startsWith('--config=')) {
-    return {
-      baseConfigFile: resolveConfigPath(cwd, arg.slice('--config='.length)),
-      consumedArgs: 1,
-      forwardedArgs: [],
-    }
-  }
-
-  return null
-}
-
-function parseConfigLoaderArg(viteArgs: string[], index: number): ParsedViteArg | null {
-  const arg = viteArgs[index]
-
-  if (arg === '--configLoader') {
-    const value = readRequiredOptionValue(viteArgs, index, '--configLoader')
-
-    return {
-      configLoader: parseViteConfigLoader(value),
-      consumedArgs: 2,
-      forwardedArgs: [arg, value],
-    }
-  }
-
-  if (arg.startsWith('--configLoader=')) {
-    return {
-      configLoader: parseViteConfigLoader(arg.slice('--configLoader='.length)),
-      consumedArgs: 1,
-      forwardedArgs: [arg],
-    }
-  }
-
-  return null
-}
-
-function parseViteArg(viteArgs: string[], index: number, cwd: string): ParsedViteArg {
-  return parseConfigArg(viteArgs, index, cwd)
-    ?? parseConfigLoaderArg(viteArgs, index)
-    ?? {
-      consumedArgs: 1,
-      forwardedArgs: [viteArgs[index]],
-    }
-}
-
-function resolveProjectRoot(viteArgs: string[], cwd: string): string {
-  const firstArg = viteArgs[0]
-
-  return firstArg && !firstArg.startsWith('-')
-    ? resolve(cwd, firstArg)
-    : cwd
+interface PreparedViteLaunch {
+  baseConfigFile?: string
+  configLoader?: 'bundle' | 'native' | 'runner'
+  projectRoot: string
+  viteArgs: string[]
+  wrapperConfigFile: string
 }
 
 export function prepareCapViteLaunch(viteArgs: string[], cwd: string = process.cwd()): PreparedViteLaunch {
@@ -161,7 +69,6 @@ export async function runCapVite(
   const prepared = prepareCapViteLaunch(viteArgs, cwd)
 
   return await x('vite', ['--config', prepared.wrapperConfigFile, ...prepared.viteArgs], {
-    throwOnError: false,
     nodeOptions: {
       cwd,
       env: {
@@ -172,5 +79,98 @@ export async function runCapVite(
       },
       stdio: 'inherit',
     },
+    throwOnError: false,
   })
+}
+
+function parseConfigArg(viteArgs: string[], index: number, cwd: string): null | ParsedViteArg {
+  const arg = viteArgs[index]
+
+  // NOTICE: Vite only accepts one `--config` entrypoint. cap-vite consumes that slot
+  // for its wrapper config, then loads the user config from inside the wrapper.
+  if (arg === '--config' || arg === '-c') {
+    return {
+      baseConfigFile: resolveConfigPath(cwd, readRequiredOptionValue(viteArgs, index, '--config')),
+      consumedArgs: 2,
+      forwardedArgs: [],
+    }
+  }
+
+  if (arg.startsWith('--config=')) {
+    return {
+      baseConfigFile: resolveConfigPath(cwd, arg.slice('--config='.length)),
+      consumedArgs: 1,
+      forwardedArgs: [],
+    }
+  }
+
+  return null
+}
+
+function parseConfigLoaderArg(viteArgs: string[], index: number): null | ParsedViteArg {
+  const arg = viteArgs[index]
+
+  if (arg === '--configLoader') {
+    const value = readRequiredOptionValue(viteArgs, index, '--configLoader')
+
+    return {
+      configLoader: parseViteConfigLoader(value),
+      consumedArgs: 2,
+      forwardedArgs: [arg, value],
+    }
+  }
+
+  if (arg.startsWith('--configLoader=')) {
+    return {
+      configLoader: parseViteConfigLoader(arg.slice('--configLoader='.length)),
+      consumedArgs: 1,
+      forwardedArgs: [arg],
+    }
+  }
+
+  return null
+}
+
+function parseViteArg(viteArgs: string[], index: number, cwd: string): ParsedViteArg {
+  return parseConfigArg(viteArgs, index, cwd)
+    ?? parseConfigLoaderArg(viteArgs, index)
+    ?? {
+      consumedArgs: 1,
+      forwardedArgs: [viteArgs[index]],
+    }
+}
+
+function parseViteConfigLoader(value: string | undefined): 'bundle' | 'native' | 'runner' | undefined {
+  if (value === 'bundle' || value === 'native' || value === 'runner') {
+    return value
+  }
+
+  return undefined
+}
+
+function readRequiredOptionValue(viteArgs: string[], index: number, optionName: string): string {
+  const value = viteArgs[index + 1]
+  if (!value) {
+    throw new Error(`Missing value for \`${optionName}\`.`)
+  }
+
+  return value
+}
+
+function resolveConfigPath(cwd: string, value: string): string {
+  return resolve(cwd, value)
+}
+
+function resolveProjectRoot(viteArgs: string[], cwd: string): string {
+  const firstArg = viteArgs[0]
+
+  return firstArg && !firstArg.startsWith('-')
+    ? resolve(cwd, firstArg)
+    : cwd
+}
+
+function resolveWrapperConfigFile(): string {
+  const currentModulePath = fileURLToPath(import.meta.url)
+  const wrapperExtension = extname(currentModulePath) === '.ts' ? '.ts' : '.mjs'
+  return fileURLToPath(new URL(`./vite-wrapper-config${wrapperExtension}`, import.meta.url))
 }

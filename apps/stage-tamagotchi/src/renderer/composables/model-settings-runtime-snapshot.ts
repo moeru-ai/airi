@@ -61,7 +61,7 @@ export function useModelSettingsRuntimeSnapshot() {
   })
 
   return {
-    runtimeSnapshot,
     requestCurrent,
+    runtimeSnapshot,
   }
 }

@@ -23,12 +23,12 @@ vi.mock('./providers/config', async () => {
 
   return {
     useProviderConfigStore: defineStore('provider-config', {
-      state: () => ({
-        configuredProviders: {},
-      }),
       actions: {
         getProviderConfig: () => undefined,
       },
+      state: () => ({
+        configuredProviders: {},
+      }),
     }),
   }
 })

@@ -9,13 +9,36 @@ import { timeout as promiseTimeout } from 'es-toolkit/promise'
 import { createAliyunNLSSession } from './session'
 import { nlsWebSocketEndpointFromRegion } from './utils'
 
-type SessionOptions = NonNullable<Parameters<typeof createAliyunNLSSession>[3]>
 type AudioChunk = ArrayBuffer | ArrayBufferView
+type SessionOptions = NonNullable<Parameters<typeof createAliyunNLSSession>[3]>
+
+function createWaiter(timeoutMs: number, abortSignal?: AbortSignal) {
+  let resolve!: () => void
+  let reject!: (reason?: unknown) => void
+  const deferred = new Promise<void>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+
+  function wait() {
+    return Promise.race([
+      deferred,
+      timeoutMs > 0 ? promiseTimeout(timeoutMs) : deferred,
+      abortSignal ? promiseOfAbortSignal(abortSignal) : deferred,
+    ]) as Promise<void>
+  }
+
+  return {
+    cancel: (reason?: unknown) => reject?.(reason),
+    trigger: () => resolve?.(),
+    wait,
+  }
+}
 
 function eventListenerOf(type: string, listener: EventListenerOrEventListenerObject, on?: EventTarget, options?: AddEventListenerOptions) {
   return {
-    on: () => on?.addEventListener(type, listener, options),
     off: () => on?.removeEventListener(type, listener, options),
+    on: () => on?.addEventListener(type, listener, options),
   }
 }
 
@@ -35,29 +58,6 @@ function promiseOfAbortSignal(signal?: AbortSignal) {
   })
 }
 
-function createWaiter(timeoutMs: number, abortSignal?: AbortSignal) {
-  let resolve!: () => void
-  let reject!: (reason?: unknown) => void
-  const deferred = new Promise<void>((res, rej) => {
-    resolve = res
-    reject = rej
-  })
-
-  function wait() {
-    return Promise.race([
-      deferred,
-      timeoutMs > 0 ? promiseTimeout(timeoutMs) : deferred,
-      abortSignal ? promiseOfAbortSignal(abortSignal) : deferred,
-    ]) as Promise<void>
-  }
-
-  return {
-    wait,
-    trigger: () => resolve?.(),
-    cancel: (reason?: unknown) => reject?.(reason),
-  }
-}
-
 const DEFAULT_SESSION_OPTIONS: EventStartTranscription['payload'] = {
   enable_intermediate_result: true,
   format: 'pcm',
@@ -65,18 +65,22 @@ const DEFAULT_SESSION_OPTIONS: EventStartTranscription['payload'] = {
 }
 
 export interface AliyunRealtimeSpeechExtraOptions {
-  region?: SessionOptions['region']
   abortSignal?: AbortSignal
-  sessionOptions?: EventStartTranscription['payload']
-  inputAudioStream?: ReadableStream<AudioChunk>
   hooks?: {
-    onWebSocketConnecting?: () => Promise<void> | void
-    onWebSocketOpen?: () => Promise<void> | void
-    onWebSocketClose?: (code: number, reason: string) => Promise<void> | void
-    onWebSocketError?: (event: Event) => Promise<void> | void
     onServerEvent?: (event: ServerEvent) => Promise<void> | void
+    onWebSocketClose?: (code: number, reason: string) => Promise<void> | void
+    onWebSocketConnecting?: () => Promise<void> | void
+    onWebSocketError?: (event: Event) => Promise<void> | void
+    onWebSocketOpen?: () => Promise<void> | void
   }
+  inputAudioStream?: ReadableStream<AudioChunk>
   onSessionTerminated?: (error?: unknown) => Promise<void> | void
+  region?: SessionOptions['region']
+  sessionOptions?: EventStartTranscription['payload']
+}
+
+export interface AliyunStreamTranscriptionHandle {
+  close: () => Promise<void>
 }
 
 export interface CreateAliyunStreamTranscriptionOptions extends AliyunRealtimeSpeechExtraOptions {
@@ -84,10 +88,6 @@ export interface CreateAliyunStreamTranscriptionOptions extends AliyunRealtimeSp
   accessKeySecret: string
   appKey: string
   audioStream: ReadableStream<AudioChunk>
-}
-
-export interface AliyunStreamTranscriptionHandle {
-  close: () => Promise<void>
 }
 
 function toArrayBuffer(chunk: AudioChunk): ArrayBuffer {
@@ -110,29 +110,115 @@ type AliyunTranscriptionSSEEvent
   = | StreamTranscriptionSnapshot
     | { delta: string, type: 'transcript.text.done' }
 
+interface InternalRealtimeOptions extends CreateAliyunStreamTranscriptionOptions {
+  idleTimeoutMs?: number
+  onTranscriptSnapshot?: (snapshot: StreamTranscriptionSnapshot) => Promise<void> | void
+  stopAckTimeoutMs?: number
+}
+
+export function createAliyunNLSProvider(
+  accessKeyId: string,
+  accessKeySecret: string,
+  appKey: string,
+  options?: {
+    region?: SessionOptions['region']
+  },
+): SpeechProviderWithExtraOptions<string, AliyunRealtimeSpeechExtraOptions> & { dispose: () => Promise<void> } {
+  return {
+    // Allow external caches to dispose provider instances; no persistent resources to release here.
+    async dispose() {
+
+    },
+    speech(_, extraOptions) {
+      return {
+        baseURL: nlsWebSocketEndpointFromRegion(extraOptions?.region ?? options?.region),
+        fetch: async (_request: RequestInfo | URL, init?: RequestInit) => {
+          const streamSource = (init?.body ?? extraOptions?.inputAudioStream)
+          if (!(streamSource instanceof ReadableStream))
+            throw new TypeError('Audio stream must be provided as a ReadableStream for Aliyun NLS streaming transcription.')
+
+          let sessionHandle: AliyunStreamTranscriptionHandle | undefined
+          let controllerClosed = false
+
+          const stream = new ReadableStream<Uint8Array>({
+            cancel: async () => {
+              if (!controllerClosed)
+                await sessionHandle?.close()
+            },
+            start(controller) {
+              startRealtimeSession({
+                abortSignal: extraOptions?.abortSignal || init?.signal || undefined,
+                accessKeyId,
+                accessKeySecret,
+                appKey,
+                audioStream: streamSource as ReadableStream<AudioChunk>,
+                hooks: extraOptions?.hooks,
+                onSessionTerminated: async (sessionError) => {
+                  controllerClosed = true
+                  try {
+                    await extraOptions?.onSessionTerminated?.(sessionError)
+                    if (sessionError) {
+                      controller.error(sessionError instanceof Error ? sessionError : new Error(String(sessionError)))
+                      return
+                    }
+
+                    controller.enqueue(encodeSSE({ delta: '', type: 'transcript.text.done' }))
+                    controller.close()
+                  }
+                  catch (error) {
+                    console.error('error in onSessionTerminated hook:', error)
+                    controller.error(error instanceof Error ? error : new Error(String(error)))
+                  }
+                },
+                onTranscriptSnapshot: async (snapshot) => {
+                  controller.enqueue(encodeSSE(snapshot))
+                },
+                region: extraOptions?.region ?? options?.region,
+                sessionOptions: extraOptions?.sessionOptions,
+              }).then((handle) => {
+                sessionHandle = handle
+              }).catch(async (error) => {
+                controllerClosed = true
+                try {
+                  await extraOptions?.onSessionTerminated?.(error)
+                }
+                finally {
+                  controller.error(error instanceof Error ? error : new Error(String(error)))
+                }
+              })
+            },
+          })
+
+          return new Response(stream, {
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Content-Type': 'text/event-stream',
+            },
+          })
+        },
+        model: 'aliyun-nls-v1',
+      }
+    },
+  }
+}
+
 function encodeSSE(payload: AliyunTranscriptionSSEEvent): Uint8Array {
   return sseEncoder.encode(`data: ${JSON.stringify(payload)}\n\n`)
 }
 
-interface InternalRealtimeOptions extends CreateAliyunStreamTranscriptionOptions {
-  onTranscriptSnapshot?: (snapshot: StreamTranscriptionSnapshot) => Promise<void> | void
-  idleTimeoutMs?: number
-  stopAckTimeoutMs?: number
-}
-
 async function startRealtimeSession(options: InternalRealtimeOptions): Promise<AliyunStreamTranscriptionHandle> {
   const {
+    abortSignal,
     accessKeyId,
     accessKeySecret,
     appKey,
-    region,
-    sessionOptions,
     audioStream,
-    abortSignal,
     hooks,
+    idleTimeoutMs = 8000,
     onSessionTerminated,
     onTranscriptSnapshot,
-    idleTimeoutMs = 8000,
+    region,
+    sessionOptions,
     stopAckTimeoutMs = 2000,
   } = options
 
@@ -170,12 +256,12 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<A
     const startMilliseconds = Math.min(...sentenceStartMillisecondsByIndex.values(), payload.time)
 
     return {
-      type: 'transcript.text.snapshot',
-      text: orderedText,
+      durationMilliseconds: Math.max(0, payload.time - startMilliseconds),
       isFinal,
       locale: 'und',
       startMilliseconds,
-      durationMilliseconds: Math.max(0, payload.time - startMilliseconds),
+      text: orderedText,
+      type: 'transcript.text.snapshot',
     }
   }
 
@@ -211,23 +297,23 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<A
 
   bumpIdle()
 
-  function cleanup(error?: unknown, options?: { sendStop?: boolean, closeSocket?: boolean }) {
+  function cleanup(error?: unknown, options?: { closeSocket?: boolean, sendStop?: boolean }) {
     if (cleanupPromise)
       return cleanupPromise
 
     cleanupPromise = (async () => {
-      const { sendStop = true, closeSocket = true } = options ?? {}
+      const { closeSocket = true, sendStop = true } = options ?? {}
       abortHandler?.off()
       await tryCatch(async () => await reader.cancel())
 
       if (websocket && closeSocket) {
         switch (websocket.readyState) {
+          case WebSocket.CONNECTING:
+            websocket.close(1000, 'client closed')
+            break
           case WebSocket.OPEN:
             if (sendStop)
               await tryCatch(() => session.stop(websocket))
-            websocket.close(1000, 'client closed')
-            break
-          case WebSocket.CONNECTING:
             websocket.close(1000, 'client closed')
             break
           default:
@@ -280,17 +366,9 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<A
 
       try {
         switch (event.header.name) {
-          case 'TranscriptionStarted':
-            onTranscriptionStarted()
-            break
           case 'SentenceBegin': {
             const payload = event.payload as ServerEvents['SentenceBegin']
             sentenceStartMillisecondsByIndex.set(payload.index, payload.time)
-            break
-          }
-          case 'TranscriptionResultChanged': {
-            const payload = event.payload as ServerEvents['TranscriptionResultChanged']
-            await onTranscriptSnapshot?.(transcriptSnapshot(payload, false))
             break
           }
           case 'SentenceEnd': {
@@ -301,7 +379,15 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<A
           }
           case 'TranscriptionCompleted':
             stopWaiter.trigger()
-            await cleanup(undefined, { sendStop: false, closeSocket: false })
+            await cleanup(undefined, { closeSocket: false, sendStop: false })
+            break
+          case 'TranscriptionResultChanged': {
+            const payload = event.payload as ServerEvents['TranscriptionResultChanged']
+            await onTranscriptSnapshot?.(transcriptSnapshot(payload, false))
+            break
+          }
+          case 'TranscriptionStarted':
+            onTranscriptionStarted()
             break
           default:
             break
@@ -334,90 +420,4 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<A
     throw abortSignal.reason ?? new DOMException('Aborted', 'AbortError')
 
   return handle
-}
-
-export function createAliyunNLSProvider(
-  accessKeyId: string,
-  accessKeySecret: string,
-  appKey: string,
-  options?: {
-    region?: SessionOptions['region']
-  },
-): SpeechProviderWithExtraOptions<string, AliyunRealtimeSpeechExtraOptions> & { dispose: () => Promise<void> } {
-  return {
-    speech(_, extraOptions) {
-      return {
-        baseURL: nlsWebSocketEndpointFromRegion(extraOptions?.region ?? options?.region),
-        model: 'aliyun-nls-v1',
-        fetch: async (_request: RequestInfo | URL, init?: RequestInit) => {
-          const streamSource = (init?.body ?? extraOptions?.inputAudioStream)
-          if (!(streamSource instanceof ReadableStream))
-            throw new TypeError('Audio stream must be provided as a ReadableStream for Aliyun NLS streaming transcription.')
-
-          let sessionHandle: AliyunStreamTranscriptionHandle | undefined
-          let controllerClosed = false
-
-          const stream = new ReadableStream<Uint8Array>({
-            start(controller) {
-              startRealtimeSession({
-                accessKeyId,
-                accessKeySecret,
-                appKey,
-                region: extraOptions?.region ?? options?.region,
-                sessionOptions: extraOptions?.sessionOptions,
-                audioStream: streamSource as ReadableStream<AudioChunk>,
-                abortSignal: extraOptions?.abortSignal || init?.signal || undefined,
-                hooks: extraOptions?.hooks,
-                onSessionTerminated: async (sessionError) => {
-                  controllerClosed = true
-                  try {
-                    await extraOptions?.onSessionTerminated?.(sessionError)
-                    if (sessionError) {
-                      controller.error(sessionError instanceof Error ? sessionError : new Error(String(sessionError)))
-                      return
-                    }
-
-                    controller.enqueue(encodeSSE({ delta: '', type: 'transcript.text.done' }))
-                    controller.close()
-                  }
-                  catch (error) {
-                    console.error('error in onSessionTerminated hook:', error)
-                    controller.error(error instanceof Error ? error : new Error(String(error)))
-                  }
-                },
-                onTranscriptSnapshot: async (snapshot) => {
-                  controller.enqueue(encodeSSE(snapshot))
-                },
-              }).then((handle) => {
-                sessionHandle = handle
-              }).catch(async (error) => {
-                controllerClosed = true
-                try {
-                  await extraOptions?.onSessionTerminated?.(error)
-                }
-                finally {
-                  controller.error(error instanceof Error ? error : new Error(String(error)))
-                }
-              })
-            },
-            cancel: async () => {
-              if (!controllerClosed)
-                await sessionHandle?.close()
-            },
-          })
-
-          return new Response(stream, {
-            headers: {
-              'Cache-Control': 'no-cache',
-              'Content-Type': 'text/event-stream',
-            },
-          })
-        },
-      }
-    },
-    // Allow external caches to dispose provider instances; no persistent resources to release here.
-    async dispose() {
-
-    },
-  }
 }

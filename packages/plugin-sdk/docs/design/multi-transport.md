@@ -64,11 +64,11 @@ Define a small transport config type owned by the Plugin Host:
 
 ```ts
 export type PluginTransport
-  = | { kind: 'in-memory' }
-    | { kind: 'websocket', url: string, protocols?: string[] }
-    | { kind: 'web-worker', worker: Worker }
+  = | { kind: 'electron', target: 'main' | 'renderer', webContentsId?: number }
+    | { kind: 'in-memory' }
     | { kind: 'node-worker', worker: import('node:worker_threads').Worker }
-    | { kind: 'electron', target: 'main' | 'renderer', webContentsId?: number }
+    | { kind: 'web-worker', worker: Worker }
+    | { kind: 'websocket', protocols?: string[], url: string }
 ```
 
 `createPluginContext(transport)` creates and returns an Eventa context based on the transport adapter (in-memory, WebSocket, worker, electron).
@@ -99,16 +99,16 @@ Context creation happens during host setup, before any plugin lifecycle method i
 Replace direct channel usage with context-bound factories:
 
 ```ts
+export function createApis(ctx: EventaContext) {
+  return { providers: createProviders(ctx) }
+}
+
 export function createProviders(ctx: EventaContext) {
   return {
     listProviders() {
       return defineInvoke(ctx, protocolListProviders)()
     },
   }
-}
-
-export function createApis(ctx: EventaContext) {
-  return { providers: createProviders(ctx) }
 }
 ```
 

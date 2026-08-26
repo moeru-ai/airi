@@ -19,12 +19,12 @@ describe('airi card editor validation', () => {
     // boundary fields through the shared Valibot schema.
     const result = safeParseAiriCardDraft({
       ...createCard(),
-      name: '  ReLU Chan  ',
       description: '',
+      name: '  ReLU Chan  ',
       personality: '',
+      postHistoryInstructions: '',
       scenario: '',
       systemPrompt: '',
-      postHistoryInstructions: '',
     }, '{ "steps": 12 }')
 
     expect(result.success).toBe(true)
@@ -43,20 +43,20 @@ describe('airi card editor validation', () => {
   // https://github.com/moeru-ai/airi/issues/2108
   it('rejects invalid required fields and Artistry JSON for Issue #2108', () => {
     expect(safeParseAiriCardDraft({ ...createCard(), name: '   ' }, '{}')).toEqual({
-      success: false,
       error: 'name',
+      success: false,
     })
     expect(safeParseAiriCardDraft({ ...createCard(), version: 'v1' }, '{}')).toEqual({
-      success: false,
       error: 'version',
+      success: false,
     })
     expect(safeParseAiriCardDraft(createCard(), '[]')).toEqual({
-      success: false,
       error: 'invalid_artistry_json',
+      success: false,
     })
     expect(safeParseAiriCardDraft(createCard(), '{')).toEqual({
-      success: false,
       error: 'invalid_artistry_json',
+      success: false,
     })
   })
 
@@ -81,92 +81,92 @@ describe('airi card editor validation', () => {
     // We fix this by applying the editor-owned fields as a structured patch
     // over the existing extension.
     const existing: AiriExtension = {
+      agents: {
+        minecraft: { enabled: true, prompt: 'Keep building.' },
+      },
       modules: {
-        consciousness: { provider: 'old-chat', model: 'old-chat-model' },
-        vision: { provider: 'old-vision', model: 'old-vision-model' },
-        speech: {
-          provider: 'old-speech',
-          model: 'old-speech-model',
-          voice_id: 'old-voice',
-          pitch: 1.2,
-          rate: 0.9,
-          ssml: true,
-          language: 'ja',
-        },
-        vrm: { source: 'url', url: 'https://example.com/avatar.vrm' },
-        live2d: { source: 'file', file: 'models/avatar.model3.json' },
-        displayModelId: 'old-display-model',
         activeBackgroundId: 'background-1',
         artistry: {
-          enabled: true,
-          provider: 'old-artistry',
-          model: 'old-artistry-model',
-          workflowId: 'workflow-1',
           autonomousTarget: 'user',
+          enabled: true,
+          model: 'old-artistry-model',
+          provider: 'old-artistry',
+          workflowId: 'workflow-1',
         },
-      },
-      agents: {
-        minecraft: { prompt: 'Keep building.', enabled: true },
+        consciousness: { model: 'old-chat-model', provider: 'old-chat' },
+        displayModelId: 'old-display-model',
+        live2d: { file: 'models/avatar.model3.json', source: 'file' },
+        speech: {
+          language: 'ja',
+          model: 'old-speech-model',
+          pitch: 1.2,
+          provider: 'old-speech',
+          rate: 0.9,
+          ssml: true,
+          voice_id: 'old-voice',
+        },
+        vision: { model: 'old-vision-model', provider: 'old-vision' },
+        vrm: { source: 'url', url: 'https://example.com/avatar.vrm' },
       },
     }
 
     const result = applyAiriCardEditorModules({
       ...createCard(),
       extensions: {
-        thirdParty: { keep: true },
         airi: {
           ...existing,
           futureRootField: { keep: true },
         },
+        thirdParty: { keep: true },
       },
     }, {
-      consciousness: { provider: 'new-chat', model: 'new-chat-model' },
-      vision: { provider: 'new-vision', model: 'new-vision-model' },
-      speech: { provider: 'new-speech', model: 'new-speech-model', voice_id: 'new-voice' },
-      displayModelId: 'new-display-model',
       artistry: {
-        provider: 'new-artistry',
-        model: 'new-artistry-model',
-        promptPrefix: 'portrait',
-        widgetInstruction: 'Use the image widget.',
-        spawnMode: 'widget',
-        options: { steps: 12 },
         autonomousEnabled: true,
         autonomousThreshold: 80,
+        model: 'new-artistry-model',
+        options: { steps: 12 },
+        promptPrefix: 'portrait',
+        provider: 'new-artistry',
+        spawnMode: 'widget',
+        widgetInstruction: 'Use the image widget.',
       },
+      consciousness: { model: 'new-chat-model', provider: 'new-chat' },
+      displayModelId: 'new-display-model',
+      speech: { model: 'new-speech-model', provider: 'new-speech', voice_id: 'new-voice' },
+      vision: { model: 'new-vision-model', provider: 'new-vision' },
     })
 
     const extension = result.extensions.airi
 
     expect(result.extensions.thirdParty).toEqual({ keep: true })
     expect(extension).toHaveProperty('futureRootField', { keep: true })
-    expect(extension.modules.consciousness).toEqual({ provider: 'new-chat', model: 'new-chat-model' })
-    expect(extension.modules.vision).toEqual({ provider: 'new-vision', model: 'new-vision-model' })
+    expect(extension.modules.consciousness).toEqual({ model: 'new-chat-model', provider: 'new-chat' })
+    expect(extension.modules.vision).toEqual({ model: 'new-vision-model', provider: 'new-vision' })
     expect(extension.modules.speech).toEqual({
-      provider: 'new-speech',
+      language: 'ja',
       model: 'new-speech-model',
-      voice_id: 'new-voice',
       pitch: 1.2,
+      provider: 'new-speech',
       rate: 0.9,
       ssml: true,
-      language: 'ja',
+      voice_id: 'new-voice',
     })
     expect(extension.modules.vrm).toEqual(existing.modules.vrm)
     expect(extension.modules.live2d).toEqual(existing.modules.live2d)
     expect(extension.modules.displayModelId).toBe('new-display-model')
     expect(extension.modules.activeBackgroundId).toBe('background-1')
     expect(extension.modules.artistry).toEqual({
-      enabled: true,
-      provider: 'new-artistry',
-      model: 'new-artistry-model',
-      promptPrefix: 'portrait',
-      workflowId: 'workflow-1',
-      widgetInstruction: 'Use the image widget.',
-      spawnMode: 'widget',
-      options: { steps: 12 },
       autonomousEnabled: true,
-      autonomousThreshold: 80,
       autonomousTarget: 'user',
+      autonomousThreshold: 80,
+      enabled: true,
+      model: 'new-artistry-model',
+      options: { steps: 12 },
+      promptPrefix: 'portrait',
+      provider: 'new-artistry',
+      spawnMode: 'widget',
+      widgetInstruction: 'Use the image widget.',
+      workflowId: 'workflow-1',
     })
     expect(extension.agents).toEqual(existing.agents)
   })
@@ -174,9 +174,9 @@ describe('airi card editor validation', () => {
 
 function createCard(): Card {
   return {
-    name: 'ReLU',
-    version: '1.0',
     greetings: [],
     messageExample: [],
+    name: 'ReLU',
+    version: '1.0',
   }
 }

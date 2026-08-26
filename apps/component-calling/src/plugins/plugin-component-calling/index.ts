@@ -6,9 +6,9 @@ import { toJsonSchema } from 'xsschema'
 
 export function defineCallingComponent<T extends Schema>(name: string, component: Component, schema: T, exampleProps?: Record<string, any>) {
   return {
-    name,
-    schema: toJsonSchema(schema),
     component: markRaw(component),
     exampleProps,
+    name,
+    schema: toJsonSchema(schema),
   }
 }

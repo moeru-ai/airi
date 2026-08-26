@@ -9,11 +9,11 @@ import { errorMessageFromValue } from '../utils/error-message'
 import { textContent } from './content'
 
 export interface RegisterDisplayToolsOptions {
-  server: McpServer
   runtime: ComputerUseServerRuntime
+  server: McpServer
 }
 
-export function registerDisplayTools({ server, runtime }: RegisterDisplayToolsOptions) {
+export function registerDisplayTools({ runtime, server }: RegisterDisplayToolsOptions) {
   server.tool(
     'display_enumerate',
     {},
@@ -27,32 +27,32 @@ export function registerDisplayTools({ server, runtime }: RegisterDisplayToolsOp
             textContent(summary),
           ],
           structuredContent: {
-            status: 'ok',
+            capturedAt: snapshot.capturedAt,
+            combinedBounds: snapshot.combinedBounds,
             displayCount: snapshot.displays.length,
             displays: snapshot.displays.map(d => ({
-              displayId: d.displayId,
-              isMain: d.isMain,
-              isBuiltIn: d.isBuiltIn,
               bounds: d.bounds,
-              visibleBounds: d.visibleBounds,
-              scaleFactor: d.scaleFactor,
-              pixelWidth: d.pixelWidth,
+              displayId: d.displayId,
+              isBuiltIn: d.isBuiltIn,
+              isMain: d.isMain,
               pixelHeight: d.pixelHeight,
+              pixelWidth: d.pixelWidth,
+              scaleFactor: d.scaleFactor,
+              visibleBounds: d.visibleBounds,
             })),
-            combinedBounds: snapshot.combinedBounds,
-            capturedAt: snapshot.capturedAt,
+            status: 'ok',
           },
         }
       }
       catch (error) {
         return {
-          isError: true,
           content: [
             textContent(`Display enumeration failed: ${errorMessageFromValue(error)}`),
           ],
+          isError: true,
           structuredContent: {
-            status: 'error',
             error: errorMessageFromValue(error),
+            status: 'error',
           },
         }
       }
@@ -76,12 +76,12 @@ export function registerDisplayTools({ server, runtime }: RegisterDisplayToolsOp
               textContent(`Point (${x}, ${y}) is outside all connected displays.`),
             ],
             structuredContent: {
-              status: 'outside',
-              point: { x, y },
               displays: snapshot.displays.map(d => ({
-                displayId: d.displayId,
                 bounds: d.bounds,
+                displayId: d.displayId,
               })),
+              point: { x, y },
+              status: 'outside',
             },
           }
         }
@@ -91,30 +91,30 @@ export function registerDisplayTools({ server, runtime }: RegisterDisplayToolsOp
             textContent(`Point (${x}, ${y}) is on display #${display.displayId}${display.isMain ? ' (main)' : ''} — ${display.bounds.width}x${display.bounds.height}.`),
           ],
           structuredContent: {
-            status: 'ok',
-            point: { x, y },
             display: {
+              bounds: display.bounds,
               displayId: display.displayId,
               isMain: display.isMain,
-              bounds: display.bounds,
               scaleFactor: display.scaleFactor,
             },
             localCoord: {
               x: x - display.bounds.x,
               y: y - display.bounds.y,
             },
+            point: { x, y },
+            status: 'ok',
           },
         }
       }
       catch (error) {
         return {
-          isError: true,
           content: [
             textContent(`Display identify failed: ${errorMessageFromValue(error)}`),
           ],
+          isError: true,
           structuredContent: {
-            status: 'error',
             error: errorMessageFromValue(error),
+            status: 'error',
           },
         }
       }

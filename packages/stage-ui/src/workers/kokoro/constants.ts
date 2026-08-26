@@ -4,14 +4,11 @@
  */
 
 /**
- * Platform types for Kokoro models
- */
-export type KokoroPlatform = 'webgpu' | 'wasm'
-
-/**
  * Kokoro model definition
  */
 export interface KokoroModel {
+  /** i18n key for model description */
+  descriptionKey: string
   /** Model identifier/quantization string */
   id: string
   /** Human-readable name */
@@ -20,62 +17,65 @@ export interface KokoroModel {
   platform: KokoroPlatform
   /** Quantization value to pass to loadModel */
   quantization: string
-  /** i18n key for model description */
-  descriptionKey: string
 }
+
+/**
+ * Platform types for Kokoro models
+ */
+export type KokoroPlatform = 'wasm' | 'webgpu'
 
 /**
  * Available Kokoro models with their platform requirements
  */
 export const KOKORO_MODELS = [
   {
+    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.fp16-webgpu.description',
     id: 'fp16-webgpu',
     name: 'FP16 (WebGPU)',
     platform: 'webgpu',
     quantization: 'fp16',
-    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.fp16-webgpu.description',
   },
   {
+    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.fp32-webgpu.description',
     id: 'fp32-webgpu',
     name: 'FP32 (WebGPU)',
     platform: 'webgpu',
     quantization: 'fp32',
-    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.fp32-webgpu.description',
   },
   {
+    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.fp32.description',
     id: 'fp32',
     name: 'FP32 (WASM)',
     platform: 'wasm',
     quantization: 'fp32',
-    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.fp32.description',
   },
   {
+    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.fp16.description',
     id: 'fp16',
     name: 'FP16 (WASM)',
     platform: 'wasm',
     quantization: 'fp16',
-    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.fp16.description',
   },
   {
+    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.q8.description',
     id: 'q8',
     name: 'Q8 (WASM)',
     platform: 'wasm',
     quantization: 'q8',
-    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.q8.description',
   },
   {
+    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.q4.description',
     id: 'q4',
     name: 'Q4 (WASM)',
     platform: 'wasm',
     quantization: 'q4',
-    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.q4.description',
   },
   {
+    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.q4f16.description',
     id: 'q4f16',
     name: 'Q4F16 (WASM)',
     platform: 'wasm',
     quantization: 'q4f16',
-    descriptionKey: 'settings.pages.providers.provider.kokoro-local.models.q4f16.description',
   },
 ] as const
 
@@ -83,6 +83,18 @@ export const KOKORO_MODELS = [
  * Type for Kokoro quantization options
  */
 export type KokoroQuantization = typeof KOKORO_MODELS[number]['id']
+
+/**
+ * Get the default model based on WebGPU availability
+ * @param hasWebGPU - Whether WebGPU is available
+ * @returns The default model to use
+ */
+export function getDefaultKokoroModel(hasWebGPU: boolean, fp16Supported?: boolean): KokoroQuantization {
+  if (hasWebGPU) {
+    return fp16Supported ? 'fp16-webgpu' : 'fp32-webgpu'
+  }
+  return 'q4f16'
+}
 
 /**
  * Convert Kokoro models to ModelInfo array
@@ -102,21 +114,9 @@ export function kokoroModelsToModelInfo(hasWebGPU: boolean, t?: (key: string) =>
       return true
     })
     .map(model => ({
+      description: t ? t(model.descriptionKey) : model.descriptionKey,
       id: model.id,
       name: model.name,
       provider: 'kokoro-local',
-      description: t ? t(model.descriptionKey) : model.descriptionKey,
     }))
-}
-
-/**
- * Get the default model based on WebGPU availability
- * @param hasWebGPU - Whether WebGPU is available
- * @returns The default model to use
- */
-export function getDefaultKokoroModel(hasWebGPU: boolean, fp16Supported?: boolean): KokoroQuantization {
-  if (hasWebGPU) {
-    return fp16Supported ? 'fp16-webgpu' : 'fp32-webgpu'
-  }
-  return 'q4f16'
 }

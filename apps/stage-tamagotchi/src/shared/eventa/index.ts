@@ -42,20 +42,20 @@ export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windo
 export const electronSpotlightHide = defineInvokeEventa<void>('eventa:invoke:electron:windows:spotlight:hide')
 export const electronSpotlightShowResultNotification = defineInvokeEventa<void, { body: string }>('eventa:invoke:electron:windows:spotlight:show-result-notification')
 export const electronSpotlightShortcutGet = defineInvokeEventa<ShortcutAccelerator>('eventa:invoke:electron:windows:spotlight:shortcut:get')
-export const electronSpotlightShortcutSet = defineInvokeEventa<ShortcutRegistrationResult, { accelerator: ShortcutAccelerator | null }>('eventa:invoke:electron:windows:spotlight:shortcut:set')
+export const electronSpotlightShortcutSet = defineInvokeEventa<ShortcutRegistrationResult, { accelerator: null | ShortcutAccelerator }>('eventa:invoke:electron:windows:spotlight:shortcut:set')
 export const electronOpenSettingsDevtools = defineInvokeEventa('eventa:invoke:electron:windows:settings:devtools:open')
-export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { key: string, route?: string, width?: number, height?: number, x?: number, y?: number }>('eventa:invoke:electron:windows:devtools:open')
+export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { height?: number, key: string, route?: string, width?: number, x?: number, y?: number }>('eventa:invoke:electron:windows:devtools:open')
 
 export interface ElectronServerChannelConfig {
-  tlsConfig?: ServerOptions['tlsConfig'] | null
   authToken: string
   hostname: string
+  tlsConfig?: null | ServerOptions['tlsConfig']
 }
 export const electronGetServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig>('eventa:invoke:electron:server-channel:get-config')
 export const electronApplyServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig, Partial<ElectronServerChannelConfig>>('eventa:invoke:electron:server-channel:apply-config')
 export const electronGetServerChannelQrPayload = defineInvokeEventa<ServerChannelQrPayload>('eventa:invoke:electron:server-channel:get-qr-payload')
 
-export type ElectronUpdaterChannel = 'latest' | 'stable' | 'alpha' | 'beta' | 'nightly' | 'canary'
+export type ElectronUpdaterChannel = 'alpha' | 'beta' | 'canary' | 'latest' | 'nightly' | 'stable'
 
 export interface ElectronUpdaterPreferences {
   channel?: ElectronUpdaterChannel
@@ -70,8 +70,8 @@ export * from './plugin/host'
 export * from './plugin/tools'
 
 export interface DesktopOverlayReadiness {
-  state: 'booting' | 'ready' | 'degraded'
   error?: string
+  state: 'booting' | 'degraded' | 'ready'
 }
 
 export const getDesktopOverlayReadinessContract = defineInvokeEventa<DesktopOverlayReadiness>('eventa:invoke:electron:windows:desktop-overlay:get-readiness')
@@ -79,76 +79,173 @@ export const getDesktopOverlayReadinessContract = defineInvokeEventa<DesktopOver
 export const captionIsFollowingWindowChanged = defineEventa<boolean>('eventa:event:electron:windows:caption-overlay:is-following-window-changed')
 export const captionGetIsFollowingWindow = defineInvokeEventa<boolean>('eventa:invoke:electron:windows:caption-overlay:get-is-following-window')
 
-export type RequestWindowActionDefault = 'confirm' | 'cancel' | 'close'
+// Reference window helpers are generic; callers can alias for clarity
+export type NoticeAction = 'cancel' | 'close' | 'confirm'
+export type RequestWindowActionDefault = 'cancel' | 'close' | 'confirm'
 export interface RequestWindowPayload {
   id?: string
+  payload?: Record<string, any>
   route: string
   type?: string
-  payload?: Record<string, any>
-}
-export interface RequestWindowPending {
-  id: string
-  type?: string
-  payload?: Record<string, any>
 }
 
-// Reference window helpers are generic; callers can alias for clarity
-export type NoticeAction = 'confirm' | 'cancel' | 'close'
+export interface RequestWindowPending {
+  id: string
+  payload?: Record<string, any>
+  type?: string
+}
 
 export function createRequestWindowEventa(namespace: string) {
   const prefix = (name: string) => `eventa:${name}:electron:windows:${namespace}`
   return {
     openWindow: defineInvokeEventa<boolean, RequestWindowPayload>(prefix('invoke:open')),
-    windowAction: defineInvokeEventa<void, { id: string, action: RequestWindowActionDefault }>(prefix('invoke:action')),
     pageMounted: defineInvokeEventa<RequestWindowPending | undefined, { id?: string }>(prefix('invoke:page-mounted')),
     pageUnmounted: defineInvokeEventa<void, { id?: string }>(prefix('invoke:page-unmounted')),
+    windowAction: defineInvokeEventa<void, { action: RequestWindowActionDefault, id: string }>(prefix('invoke:action')),
   }
 }
 
 // Notice window events built from generic factory
 export const noticeWindowEventa = createRequestWindowEventa('notice')
 
-// Widgets / Adhoc window events
-export interface WidgetWindowSize {
-  width?: number
-  height?: number
-  minWidth?: number
-  minHeight?: number
-  maxWidth?: number
-  maxHeight?: number
+export interface ElectronMcpCallToolPayload {
+  arguments?: Record<string, unknown>
+  name: string
 }
 
-export type WidgetGridSize = 's' | 'm' | 'l' | { cols?: number, rows?: number }
+export interface ElectronMcpCallToolResult {
+  content?: Array<Record<string, unknown>>
+  isError?: boolean
+  structuredContent?: Record<string, unknown>
+  toolResult?: unknown
+}
+
+export interface ElectronMcpStdioApplyResult {
+  failed: Array<{ error: string, name: string }>
+  path: string
+  skipped: Array<{ name: string, reason: string }>
+  started: Array<{ name: string }>
+}
+
+export interface ElectronMcpStdioConfigFile {
+  mcpServers: Record<string, ElectronMcpStdioServerConfig>
+}
+
+export interface ElectronMcpStdioConfigText {
+  path: string
+  text: string
+}
+
+export interface ElectronMcpStdioRuntimeStatus {
+  path: string
+  servers: ElectronMcpStdioServerRuntimeStatus[]
+  updatedAt: number
+}
+
+export interface ElectronMcpStdioServerConfig {
+  args?: string[]
+  command: string
+  cwd?: string
+  enabled?: boolean
+  env?: Record<string, string>
+}
+
+export interface ElectronMcpStdioServerRuntimeStatus {
+  args: string[]
+  command: string
+  lastError?: string
+  name: string
+  pid: null | number
+  state: 'error' | 'running' | 'stopped'
+}
+
+export interface ElectronMcpStdioTestPayload {
+  config: ElectronMcpStdioServerConfig
+  name: string
+}
+
+export interface ElectronMcpStdioTestResult {
+  durationMs: number
+  error?: string
+  ok: boolean
+  tools?: string[]
+}
+
+export interface ElectronMcpToolDescriptor {
+  description?: string
+  inputSchema: Record<string, unknown>
+  name: string
+  serverName: string
+  toolName: string
+}
+
+// TODO: Replace these manually duplicated IPC types with re-exports from
+// @proj-airi/plugin-sdk (CapabilityDescriptor) once stage-ui and the shared
+// eventa layer can depend on the SDK without introducing unwanted coupling.
+export interface PluginCapabilityPayload {
+  key: string
+  metadata?: Record<string, unknown>
+  state: 'announced' | 'degraded' | 'ready' | 'withdrawn'
+}
+
+export interface PluginCapabilityState {
+  key: string
+  metadata?: Record<string, unknown>
+  state: 'announced' | 'degraded' | 'ready' | 'withdrawn'
+  updatedAt: number
+}
+
+export interface PluginHostDebugSnapshot {
+  capabilities: PluginCapabilityState[]
+  refreshedAt: number
+  registry: PluginRegistrySnapshot
+  sessions: PluginHostSessionSummary[]
+}
+
+export interface PluginHostSessionSummary {
+  extensionId: string
+  id: string
+  moduleId: string
+  phase: string
+  runtime: 'electron' | 'node' | 'web'
+}
+
+export interface PluginManifestSummary {
+  enabled: boolean
+  entrypoints: Record<string, string | undefined>
+  extensionId: string
+  isNew: boolean
+  loaded: boolean
+  path: string
+}
+
+export interface PluginRegistrySnapshot {
+  plugins: PluginManifestSummary[]
+  root: string
+}
+
+export type WidgetGridSize = 'l' | 'm' | 's' | { cols?: number, rows?: number }
 
 export interface WidgetsAddPayload {
-  id?: string
+  alwaysOnTop?: boolean
   componentName: string
   componentProps?: Record<string, any>
-  alwaysOnTop?: boolean
+  id?: string
   // size presets or explicit spans; renderer decides mapping
   size?: WidgetGridSize
-  windowSize?: WidgetWindowSize | Record<string, unknown>
   // auto-dismiss in ms; if omitted, persistent until closed by user
   ttlMs?: number
+  windowSize?: Record<string, unknown> | WidgetWindowSize
 }
 
-export interface WidgetsUpdatePayload {
-  id: string
-  componentProps?: Record<string, any>
-  alwaysOnTop?: boolean
-  size?: WidgetGridSize
-  windowSize?: WidgetWindowSize | Record<string, unknown>
-  ttlMs?: number
-}
-
-export interface WidgetSnapshot {
-  id: string
-  componentName: string
-  componentProps: Record<string, any>
-  alwaysOnTop: boolean
-  size: WidgetGridSize
-  windowSize?: WidgetWindowSize
-  ttlMs: number
+/**
+ * Failed renderer-to-main iframe request result.
+ */
+export interface WidgetsIframeRequestFailurePayload extends WidgetsIframeRequestResultBasePayload {
+  /** Error message returned when the iframe request fails. */
+  error: string
+  /** Marks this result as a failed iframe response. */
+  ok: false
 }
 
 /**
@@ -157,10 +254,10 @@ export interface WidgetSnapshot {
 export interface WidgetsIframeRequestPayload {
   /** Widget id that identifies the mounted iframe target. */
   id: string
-  /** Relay correlation id echoed by the renderer-to-main result event. */
-  requestId: string
   /** Structured-clone-safe request record forwarded into the iframe Eventa runtime. */
   payload: GameletIframeInvokePayload['payload']
+  /** Relay correlation id echoed by the renderer-to-main result event. */
+  requestId: string
   /** Request timeout budget in milliseconds. */
   timeoutMs: number
 }
@@ -176,6 +273,13 @@ export interface WidgetsIframeRequestResultBasePayload {
 }
 
 /**
+ * Result relayed from the widgets renderer back to Electron main for one iframe request.
+ */
+export type WidgetsIframeRequestResultPayload
+  = | WidgetsIframeRequestFailurePayload
+    | WidgetsIframeRequestSuccessPayload
+
+/**
  * Successful renderer-to-main iframe request result.
  */
 export interface WidgetsIframeRequestSuccessPayload extends WidgetsIframeRequestResultBasePayload {
@@ -185,137 +289,33 @@ export interface WidgetsIframeRequestSuccessPayload extends WidgetsIframeRequest
   result: GameletIframeResponsePayload
 }
 
-/**
- * Failed renderer-to-main iframe request result.
- */
-export interface WidgetsIframeRequestFailurePayload extends WidgetsIframeRequestResultBasePayload {
-  /** Marks this result as a failed iframe response. */
-  ok: false
-  /** Error message returned when the iframe request fails. */
-  error: string
-}
-
-/**
- * Result relayed from the widgets renderer back to Electron main for one iframe request.
- */
-export type WidgetsIframeRequestResultPayload
-  = | WidgetsIframeRequestSuccessPayload
-    | WidgetsIframeRequestFailurePayload
-
-export interface PluginManifestSummary {
-  extensionId: string
-  entrypoints: Record<string, string | undefined>
-  path: string
-  enabled: boolean
-  loaded: boolean
-  isNew: boolean
-}
-
-export interface PluginRegistrySnapshot {
-  root: string
-  plugins: PluginManifestSummary[]
-}
-
-// TODO: Replace these manually duplicated IPC types with re-exports from
-// @proj-airi/plugin-sdk (CapabilityDescriptor) once stage-ui and the shared
-// eventa layer can depend on the SDK without introducing unwanted coupling.
-export interface PluginCapabilityPayload {
-  key: string
-  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
-  metadata?: Record<string, unknown>
-}
-
-export interface PluginCapabilityState {
-  key: string
-  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
-  metadata?: Record<string, unknown>
-  updatedAt: number
-}
-
-export interface PluginHostSessionSummary {
+export interface WidgetSnapshot {
+  alwaysOnTop: boolean
+  componentName: string
+  componentProps: Record<string, any>
   id: string
-  extensionId: string
-  phase: string
-  runtime: 'electron' | 'node' | 'web'
-  moduleId: string
+  size: WidgetGridSize
+  ttlMs: number
+  windowSize?: WidgetWindowSize
 }
 
-export interface PluginHostDebugSnapshot {
-  registry: PluginRegistrySnapshot
-  sessions: PluginHostSessionSummary[]
-  capabilities: PluginCapabilityState[]
-  refreshedAt: number
+export interface WidgetsUpdatePayload {
+  alwaysOnTop?: boolean
+  componentProps?: Record<string, any>
+  id: string
+  size?: WidgetGridSize
+  ttlMs?: number
+  windowSize?: Record<string, unknown> | WidgetWindowSize
 }
 
-export interface ElectronMcpStdioServerConfig {
-  command: string
-  args?: string[]
-  env?: Record<string, string>
-  cwd?: string
-  enabled?: boolean
-}
-
-export interface ElectronMcpStdioConfigFile {
-  mcpServers: Record<string, ElectronMcpStdioServerConfig>
-}
-
-export interface ElectronMcpStdioApplyResult {
-  path: string
-  started: Array<{ name: string }>
-  failed: Array<{ name: string, error: string }>
-  skipped: Array<{ name: string, reason: string }>
-}
-
-export interface ElectronMcpStdioServerRuntimeStatus {
-  name: string
-  state: 'running' | 'stopped' | 'error'
-  command: string
-  args: string[]
-  pid: number | null
-  lastError?: string
-}
-
-export interface ElectronMcpStdioRuntimeStatus {
-  path: string
-  servers: ElectronMcpStdioServerRuntimeStatus[]
-  updatedAt: number
-}
-
-export interface ElectronMcpToolDescriptor {
-  serverName: string
-  name: string
-  toolName: string
-  description?: string
-  inputSchema: Record<string, unknown>
-}
-
-export interface ElectronMcpCallToolPayload {
-  name: string
-  arguments?: Record<string, unknown>
-}
-
-export interface ElectronMcpCallToolResult {
-  content?: Array<Record<string, unknown>>
-  structuredContent?: Record<string, unknown>
-  toolResult?: unknown
-  isError?: boolean
-}
-
-export interface ElectronMcpStdioConfigText {
-  path: string
-  text: string
-}
-
-export interface ElectronMcpStdioTestResult {
-  ok: boolean
-  error?: string
-  tools?: string[]
-  durationMs: number
-}
-
-export interface ElectronMcpStdioTestPayload {
-  name: string
-  config: ElectronMcpStdioServerConfig
+// Widgets / Adhoc window events
+export interface WidgetWindowSize {
+  height?: number
+  maxHeight?: number
+  maxWidth?: number
+  minHeight?: number
+  minWidth?: number
+  width?: number
 }
 
 export const electronMcpOpenConfigFile = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:mcp:open-config-file')
@@ -333,20 +333,20 @@ export const widgetsAdd = defineInvokeEventa<string | undefined, WidgetsAddPaylo
 export const widgetsRemove = defineInvokeEventa<void, { id: string }>('eventa:invoke:electron:windows:widgets:remove')
 export const widgetsClear = defineInvokeEventa('eventa:invoke:electron:windows:widgets:clear')
 export const widgetsUpdate = defineInvokeEventa<void, WidgetsUpdatePayload>('eventa:invoke:electron:windows:widgets:update')
-export const widgetsFetch = defineInvokeEventa<WidgetSnapshot | void, { id: string }>('eventa:invoke:electron:windows:widgets:fetch')
+export const widgetsFetch = defineInvokeEventa<void | WidgetSnapshot, { id: string }>('eventa:invoke:electron:windows:widgets:fetch')
 export const widgetsPrepareWindow = defineInvokeEventa<string | undefined, { id?: string }>('eventa:invoke:electron:windows:widgets:prepare')
-export const widgetsIframePublish = defineInvokeEventa<void, { id: string, event: Record<string, unknown> }>('eventa:invoke:electron:windows:widgets:iframe-publish')
+export const widgetsIframePublish = defineInvokeEventa<void, { event: Record<string, unknown>, id: string }>('eventa:invoke:electron:windows:widgets:iframe-publish')
 
 export const electronWindowClose = defineInvokeEventa<void>('eventa:invoke:electron:window:close')
 export type ElectronWindowLifecycleReason
-  = | 'initial'
-    | 'snapshot'
-    | 'show'
+  = | 'blur'
+    | 'focus'
     | 'hide'
+    | 'initial'
     | 'minimize'
     | 'restore'
-    | 'focus'
-    | 'blur'
+    | 'show'
+    | 'snapshot'
 
 export interface ElectronWindowLifecycleState {
   focused: boolean
@@ -362,7 +362,28 @@ export const electronWindowSetAlwaysOnTop = defineInvokeEventa<void, boolean>('e
 export const electronAppOpenUserDataFolder = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:app:open-user-data-folder')
 export const electronAppQuit = defineInvokeEventa<void>('eventa:invoke:electron:app:quit')
 
-export type ElectronGodotStageState = 'stopped' | 'starting' | 'running' | 'stopping' | 'error'
+/**
+ * Serialized scene input payload forwarded from renderer to Electron main.
+ *
+ * Use when:
+ * - The selected model should be materialized to disk and applied to the Godot scene
+ *
+ * Expects:
+ * - `data` contains the full model file bytes
+ * - `fileName` matches the original model asset name when available
+ *
+ * Returns:
+ * - N/A
+ */
+export interface ElectronGodotStageSceneInputPayload {
+  data: Uint8Array
+  fileName: string
+  format: 'vrm'
+  modelId: string
+  name: string
+}
+
+export type ElectronGodotStageState = 'error' | 'running' | 'starting' | 'stopped' | 'stopping'
 
 /**
  * Snapshot of the Godot sidecar lifecycle owned by Electron main.
@@ -379,38 +400,17 @@ export type ElectronGodotStageState = 'stopped' | 'starting' | 'running' | 'stop
  * - N/A
  */
 export interface ElectronGodotStageStatus {
-  state: ElectronGodotStageState
-  pid: number | null
   lastError?: string
+  pid: null | number
+  state: ElectronGodotStageState
   updatedAt: number
-}
-
-/**
- * Serialized scene input payload forwarded from renderer to Electron main.
- *
- * Use when:
- * - The selected model should be materialized to disk and applied to the Godot scene
- *
- * Expects:
- * - `data` contains the full model file bytes
- * - `fileName` matches the original model asset name when available
- *
- * Returns:
- * - N/A
- */
-export interface ElectronGodotStageSceneInputPayload {
-  modelId: string
-  format: 'vrm'
-  name: string
-  fileName: string
-  data: Uint8Array
 }
 
 export const electronGodotStageStart = defineInvokeEventa<ElectronGodotStageStatus>('eventa:invoke:electron:godot-stage:start')
 export const electronGodotStageStop = defineInvokeEventa<ElectronGodotStageStatus>('eventa:invoke:electron:godot-stage:stop')
 export const electronGodotStageGetStatus = defineInvokeEventa<ElectronGodotStageStatus>('eventa:invoke:electron:godot-stage:get-status')
 export const electronGodotStageApplySceneInput = defineInvokeEventa<void, ElectronGodotStageSceneInputPayload>('eventa:invoke:electron:godot-stage:apply-scene-input')
-export const electronGodotStageGetViewSnapshot = defineInvokeEventa<StageViewSnapshotPayload | null>('eventa:invoke:electron:godot-stage:view-snapshot:get')
+export const electronGodotStageGetViewSnapshot = defineInvokeEventa<null | StageViewSnapshotPayload>('eventa:invoke:electron:godot-stage:view-snapshot:get')
 export const electronGodotStageApplyViewPatch = defineInvokeEventa<StageViewRequestAckPayload, StageViewPatch>('eventa:invoke:electron:godot-stage:view-state:apply-patch')
 export const electronGodotStageRequestViewSnapshot = defineInvokeEventa<StageViewRequestAckPayload>('eventa:invoke:electron:godot-stage:view-state:request-snapshot')
 export const electronGodotStageStatusChanged = defineEventa<ElectronGodotStageStatus>('eventa:event:electron:godot-stage:status-changed')
@@ -418,15 +418,6 @@ export const electronGodotStageViewSnapshotChanged = defineEventa<StageViewSnaps
 export const electronGodotStageViewStateError = defineEventa<StageViewErrorPayload>('eventa:event:electron:godot-stage:view-state-error')
 
 // Global shortcut ->
-
-/**
- * Phase of a shortcut trigger event.
- *
- * - `down` — key combination pressed
- * - `up`   — key combination released; only emitted by drivers that
- *            accepted a binding with `receiveKeyUps: true`
- */
-export type ElectronShortcutTriggerPhase = 'down' | 'up'
 
 /**
  * Payload broadcast to all subscribed windows when a registered shortcut
@@ -437,6 +428,15 @@ export interface ElectronShortcutTriggerPayload {
   phase: ElectronShortcutTriggerPhase
 }
 
+/**
+ * Phase of a shortcut trigger event.
+ *
+ * - `down` — key combination pressed
+ * - `up`   — key combination released; only emitted by drivers that
+ *            accepted a binding with `receiveKeyUps: true`
+ */
+export type ElectronShortcutTriggerPhase = 'down' | 'up'
+
 export const electronShortcutRegister = defineInvokeEventa<ShortcutRegistrationResult, ShortcutBinding>('eventa:invoke:electron:shortcut:register')
 export const electronShortcutUnregister = defineInvokeEventa<void, { id: string }>('eventa:invoke:electron:shortcut:unregister')
 export const electronShortcutUnregisterAll = defineInvokeEventa<void>('eventa:invoke:electron:shortcut:unregister-all')
@@ -446,14 +446,14 @@ export const electronShortcutTriggered = defineEventa<ElectronShortcutTriggerPay
 // <- Global shortcut
 
 export type StageThreeRuntimeTraceEnvelope
-  = | { type: 'three-render-info', payload: ThreeSceneRenderInfoTracePayload }
-    | { type: 'three-hit-test-read', payload: ThreeHitTestReadTracePayload }
-    | { type: 'vrm-update-frame', payload: VrmUpdateFrameTracePayload }
-    | { type: 'vrm-load-start', payload: VrmLoadStartTracePayload }
-    | { type: 'vrm-load-end', payload: VrmLoadEndTracePayload }
-    | { type: 'vrm-load-error', payload: VrmLoadErrorTracePayload }
-    | { type: 'vrm-dispose-start', payload: VrmDisposeStartTracePayload }
-    | { type: 'vrm-dispose-end', payload: VrmDisposeEndTracePayload }
+  = | { payload: ThreeHitTestReadTracePayload, type: 'three-hit-test-read' }
+    | { payload: ThreeSceneRenderInfoTracePayload, type: 'three-render-info' }
+    | { payload: VrmDisposeEndTracePayload, type: 'vrm-dispose-end' }
+    | { payload: VrmDisposeStartTracePayload, type: 'vrm-dispose-start' }
+    | { payload: VrmLoadEndTracePayload, type: 'vrm-load-end' }
+    | { payload: VrmLoadErrorTracePayload, type: 'vrm-load-error' }
+    | { payload: VrmLoadStartTracePayload, type: 'vrm-load-start' }
+    | { payload: VrmUpdateFrameTracePayload, type: 'vrm-update-frame' }
 
 export interface StageThreeRuntimeTraceForwardedPayload {
   envelope: StageThreeRuntimeTraceEnvelope
@@ -485,9 +485,9 @@ export const electronOpenOnboarding = defineInvokeEventa('eventa:invoke:electron
 // Auth — OIDC Authorization Code + PKCE flow via system browser
 export interface ElectronAuthTokens {
   accessToken: string
-  refreshToken?: string
-  idToken?: string
   expiresIn: number
+  idToken?: string
+  refreshToken?: string
 }
 export const electronAuthStartLogin = defineInvokeEventa<void>('eventa:invoke:electron:auth:start-login')
 export const electronAuthCallback = defineEventa<ElectronAuthTokens>('eventa:event:electron:auth:callback')

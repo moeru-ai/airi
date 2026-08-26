@@ -5,37 +5,37 @@ import { TWITTER_BASE_URL } from '../../constants'
 import { logger } from '../../utils/logger'
 
 /**
+ * User Link
+ */
+export interface UserLink {
+  title: string
+  type: string
+  url: string
+}
+
+/**
  * User Profile
  */
 export interface UserProfile {
-  username: string
-  displayName: string
-  bio?: string
   avatarUrl?: string
   bannerUrl?: string
+  bio?: string
+  displayName: string
   followersCount?: number
   followingCount?: number
-  tweetCount?: number
   isVerified?: boolean
   joinDate?: string
+  tweetCount?: number
+  username: string
 }
 
 /**
  * User Stats
  */
 export interface UserStats {
-  tweets: number
-  following: number
   followers: number
-}
-
-/**
- * User Link
- */
-export interface UserLink {
-  type: string
-  url: string
-  title: string
+  following: number
+  tweets: number
 }
 
 export function useTwitterUserServices(ctx: Context): TwitterService {
@@ -76,12 +76,12 @@ export function useTwitterUserServices(ctx: Context): TwitterService {
         : undefined
 
       return {
-        username,
-        displayName,
-        bio: bio || undefined,
         avatarUrl: avatarUrl || undefined,
+        bio: bio || undefined,
+        displayName,
         followersCount: followerCount || undefined,
         followingCount: followingCount || undefined,
+        username,
       }
     }
     catch (error) {

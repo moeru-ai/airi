@@ -20,8 +20,8 @@ Shared audio-pipeline orchestration for AIRI. The package owns reusable streamin
 import { createTranscriptBuffer } from '@proj-airi/pipelines-audio'
 
 const buffer = createTranscriptBuffer({
-  flushDelayMs: 1200,
   flush: async text => sendToChat(text),
+  flushDelayMs: 1200,
 })
 
 buffer.push('hello')

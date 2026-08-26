@@ -10,16 +10,16 @@ import ControlsIslandRoot from './controls-island-root.vue'
 import { resolveControlsIslandDock, useControlsIslandPlacement } from './use-controls-island-placement'
 
 const primaryDisplay = {
-  bounds: { x: 0, y: 0, width: 1920, height: 1080 },
-  workArea: { x: 0, y: 25, width: 1920, height: 1055 },
+  bounds: { height: 1080, width: 1920, x: 0, y: 0 },
+  workArea: { height: 1055, width: 1920, x: 0, y: 25 },
 } as Display
 
 const displays = shallowRef([primaryDisplay])
 const windowBounds = {
+  height: shallowRef(600),
+  width: shallowRef(450),
   x: shallowRef(1370),
   y: shallowRef(430),
-  width: shallowRef(450),
-  height: shallowRef(600),
 }
 vi.mock('@proj-airi/electron-vueuse', () => ({
   useElectronAllDisplays: () => displays,
@@ -27,14 +27,6 @@ vi.mock('@proj-airi/electron-vueuse', () => ({
 }))
 
 const mountedApps: Array<{ host: HTMLElement, unmount: () => void }> = []
-
-function resolve(windowBounds: Rectangle) {
-  return resolveControlsIslandDock({
-    displays: [primaryDisplay],
-    previousDock: 'bottom-right',
-    windowBounds,
-  })
-}
 
 function mountRoot() {
   const frozen = shallowRef(false)
@@ -76,6 +68,14 @@ function readPlacement(host: HTMLElement) {
   }
 }
 
+function resolve(windowBounds: Rectangle) {
+  return resolveControlsIslandDock({
+    displays: [primaryDisplay],
+    previousDock: 'bottom-right',
+    windowBounds,
+  })
+}
+
 beforeEach(() => {
   vi.stubGlobal('matchMedia', vi.fn((query: string): MediaQueryList => ({
     addEventListener: vi.fn(),
@@ -106,31 +106,31 @@ afterEach(() => {
 
 describe('resolveControlsIslandDock', () => {
   it('places the island in the top-left screen quadrant', () => {
-    expect(resolve({ x: 100, y: 100, width: 450, height: 600 })).toBe('top-left')
+    expect(resolve({ height: 600, width: 450, x: 100, y: 100 })).toBe('top-left')
   })
 
   it('places the island in the top-right screen quadrant', () => {
-    expect(resolve({ x: 1370, y: 100, width: 450, height: 600 })).toBe('top-right')
+    expect(resolve({ height: 600, width: 450, x: 1370, y: 100 })).toBe('top-right')
   })
 
   it('places the island in the bottom-left screen quadrant', () => {
-    expect(resolve({ x: 100, y: 430, width: 450, height: 600 })).toBe('bottom-left')
+    expect(resolve({ height: 600, width: 450, x: 100, y: 430 })).toBe('bottom-left')
   })
 
   it('places the island in the bottom-right screen quadrant', () => {
-    expect(resolve({ x: 1370, y: 430, width: 450, height: 600 })).toBe('bottom-right')
+    expect(resolve({ height: 600, width: 450, x: 1370, y: 430 })).toBe('bottom-right')
   })
 
   it('uses the display that contains the largest window area', () => {
     const secondaryDisplay = {
-      bounds: { x: -1600, y: -900, width: 1600, height: 900 },
-      workArea: { x: -1600, y: -900, width: 1600, height: 860 },
+      bounds: { height: 900, width: 1600, x: -1600, y: -900 },
+      workArea: { height: 860, width: 1600, x: -1600, y: -900 },
     } as Display
 
     const dock = resolveControlsIslandDock({
       displays: [primaryDisplay, secondaryDisplay],
       previousDock: 'bottom-right',
-      windowBounds: { x: -500, y: -300, width: 450, height: 600 },
+      windowBounds: { height: 600, width: 450, x: -500, y: -300 },
     })
 
     expect(dock).toBe('bottom-right')
@@ -140,7 +140,7 @@ describe('resolveControlsIslandDock', () => {
     const dock = resolveControlsIslandDock({
       displays: [primaryDisplay],
       previousDock: 'top-left',
-      windowBounds: { x: 735, y: 253, width: 450, height: 600 },
+      windowBounds: { height: 600, width: 450, x: 735, y: 253 },
     })
 
     expect(dock).toBe('top-left')
@@ -150,7 +150,7 @@ describe('resolveControlsIslandDock', () => {
     const dock = resolveControlsIslandDock({
       displays: [],
       previousDock: 'top-right',
-      windowBounds: { x: 100, y: 100, width: 450, height: 600 },
+      windowBounds: { height: 600, width: 450, x: 100, y: 100 },
     })
 
     expect(dock).toBe('top-right')
@@ -160,7 +160,7 @@ describe('resolveControlsIslandDock', () => {
     const dock = resolveControlsIslandDock({
       displays: [primaryDisplay],
       previousDock: 'bottom-right',
-      windowBounds: { x: 0, y: 0, width: 0, height: 0 },
+      windowBounds: { height: 0, width: 0, x: 0, y: 0 },
     })
 
     expect(dock).toBe('bottom-right')

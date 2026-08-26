@@ -13,27 +13,13 @@ type OllamaThinkingMode = 'auto' | 'disable' | 'enable' | 'high' | 'low' | 'medi
 const ollamaConfigSchema = z.object({
   baseUrl: z.string()
     .default('http://localhost:11434/v1/'),
-  thinkingMode: z.enum(['auto', 'disable', 'enable', 'low', 'medium', 'high'])
-    .default('auto'),
   headers: z.record(z.string(), z.string())
     .optional(),
+  thinkingMode: z.enum(['auto', 'disable', 'enable', 'low', 'medium', 'high'])
+    .default('auto'),
 })
 
 type OllamaConfig = z.input<typeof ollamaConfigSchema>
-
-function normalizeOllamaThinkingMode(value: unknown): OllamaThinkingMode {
-  switch (value) {
-    case 'auto':
-    case 'disable':
-    case 'enable':
-    case 'high':
-    case 'low':
-    case 'medium':
-      return value
-    default:
-      return 'auto'
-  }
-}
 
 /**
  * Maps the persisted Ollama setting to its OpenAI-compatible effort value.
@@ -52,39 +38,82 @@ export function resolveOllamaReasoningEffort(modeRaw: unknown): OllamaReasoningE
       return 'none'
     case 'enable':
       return 'medium'
+    case 'high':
     case 'low':
     case 'medium':
-    case 'high':
       return mode
     default:
       return undefined
   }
 }
 
-export const providerOllama = defineProvider<OllamaConfig>({
-  id: 'ollama',
-  order: 2,
-  name: 'Ollama',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.ollama.title'),
-  description: 'Local Ollama server for fast model iteration.',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.ollama.description'),
-  tasks: ['chat'],
-  capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
-  icon: 'i-lobe-icons:ollama',
+function normalizeOllamaThinkingMode(value: unknown): OllamaThinkingMode {
+  switch (value) {
+    case 'auto':
+    case 'disable':
+    case 'enable':
+    case 'high':
+    case 'low':
+    case 'medium':
+      return value
+    default:
+      return 'auto'
+  }
+}
 
+export const providerOllama = defineProvider<OllamaConfig>({
+  business: ({ t }) => ({
+    troubleshooting: {
+      validators: {
+        openaiCompatibleCheckConnectivity: {
+          content: t('settings.pages.providers.catalog.edit.providers.provider.ollama.troubleshooting.validators.openai-compatible-check-connectivity.content'),
+          label: t('settings.pages.providers.catalog.edit.providers.provider.ollama.troubleshooting.validators.openai-compatible-check-connectivity.label'),
+        },
+      },
+    },
+  }),
+  capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
+  createProvider(config) {
+    const baseProvider = createOllama('', config.baseUrl)
+
+    return {
+      ...baseProvider,
+      chat(model: string, options?: ChatRequestOptions) {
+        const chatOptions = baseProvider.chat(model)
+        if (options?.reasoning) {
+          return {
+            ...chatOptions,
+            reasoningEffort: options.reasoning === 'enabled' ? 'medium' : 'none',
+          }
+        }
+
+        const reasoningEffort = resolveOllamaReasoningEffort(config.thinkingMode)
+
+        if (reasoningEffort === undefined)
+          return chatOptions
+
+        return { ...chatOptions, reasoningEffort }
+      },
+    }
+  },
   createProviderConfig: ({ t }) => ollamaConfigSchema.extend({
     baseUrl: ollamaConfigSchema.shape.baseUrl
       .meta({
-        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
         descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
+        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
         placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
+      }),
+    headers: ollamaConfigSchema.shape.headers
+      .meta({
+        descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.headers.description'),
+        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.headers.label'),
+        section: 'advanced',
+        type: 'key-values',
       }),
     thinkingMode: ollamaConfigSchema.shape.thinkingMode
       .meta({
-        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.label'),
         descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.description'),
-        section: 'advanced',
-        type: 'select',
+        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.label'),
         options: [
           {
             label: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.options.auto'),
@@ -111,38 +140,19 @@ export const providerOllama = defineProvider<OllamaConfig>({
             value: 'high',
           },
         ],
-      }),
-    headers: ollamaConfigSchema.shape.headers
-      .meta({
-        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.headers.label'),
-        descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.headers.description'),
         section: 'advanced',
-        type: 'key-values',
+        type: 'select',
       }),
   }),
-  createProvider(config) {
-    const baseProvider = createOllama('', config.baseUrl)
+  description: 'Local Ollama server for fast model iteration.',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.ollama.description'),
+  icon: 'i-lobe-icons:ollama',
+  id: 'ollama',
+  name: 'Ollama',
 
-    return {
-      ...baseProvider,
-      chat(model: string, options?: ChatRequestOptions) {
-        const chatOptions = baseProvider.chat(model)
-        if (options?.reasoning) {
-          return {
-            ...chatOptions,
-            reasoningEffort: options.reasoning === 'enabled' ? 'medium' : 'none',
-          }
-        }
-
-        const reasoningEffort = resolveOllamaReasoningEffort(config.thinkingMode)
-
-        if (reasoningEffort === undefined)
-          return chatOptions
-
-        return { ...chatOptions, reasoningEffort }
-      },
-    }
-  },
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.ollama.title'),
+  order: 2,
+  tasks: ['chat'],
   validationRequiredWhen: () => true,
   validators: {
     validateConfig: [
@@ -178,22 +188,12 @@ export const providerOllama = defineProvider<OllamaConfig>({
     ],
     validateProvider: createOpenAICompatibleValidators({
       checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
-      schedule: {
-        mode: 'interval',
-        intervalMs: 15_000,
-      },
       connectivityFailureReason: ({ errorMessage }) =>
         `Failed to reach Ollama server, error: ${errorMessage} occurred.\n\nIf you are using Ollama locally, this is likely the CORS (Cross-Origin Resource Sharing) security issue, where you will need to set OLLAMA_ORIGINS=* or OLLAMA_ORIGINS=https://airi.moeru.ai,http://localhost environment variable before launching Ollama server to make this work.`,
+      schedule: {
+        intervalMs: 15_000,
+        mode: 'interval',
+      },
     })!.validateProvider,
   },
-  business: ({ t }) => ({
-    troubleshooting: {
-      validators: {
-        openaiCompatibleCheckConnectivity: {
-          label: t('settings.pages.providers.catalog.edit.providers.provider.ollama.troubleshooting.validators.openai-compatible-check-connectivity.label'),
-          content: t('settings.pages.providers.catalog.edit.providers.provider.ollama.troubleshooting.validators.openai-compatible-check-connectivity.content'),
-        },
-      },
-    },
-  }),
 })

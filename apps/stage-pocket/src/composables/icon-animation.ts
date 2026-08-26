@@ -22,8 +22,8 @@ export function useIconAnimation(icon: string) {
   })
 
   return {
+    animationIcon,
     iconAnimationStarted,
     showIconAnimation,
-    animationIcon,
   }
 }

@@ -4,33 +4,82 @@ import type { AuthenticatedPeer } from '../types'
 
 import { matchesDestinations, matchesLabelSelectors } from './route/match-expression'
 
-export type RouteDecision
-  = | { type: 'drop' }
-    | { type: 'broadcast' }
-    | { type: 'targets', targetIds: Set<string> }
-
-export interface RoutingPolicy {
-  allowExtensions?: string[]
-  denyExtensions?: string[]
-  allowLabels?: string[]
-  denyLabels?: string[]
-}
-
 export interface RouteContext {
+  destinations?: Array<RouteTargetExpression | string>
   event: WebSocketEvent
   fromPeer: AuthenticatedPeer
   peers: Map<string, AuthenticatedPeer>
-  destinations?: Array<string | RouteTargetExpression>
 }
+
+export type RouteDecision
+  = | { targetIds: Set<string>, type: 'targets' }
+    | { type: 'broadcast' }
+    | { type: 'drop' }
 
 export type RouteMiddleware = (context: RouteContext) => RouteDecision | void
 
-type DestinationList = Array<string | RouteTargetExpression>
+export interface RoutingPolicy {
+  allowExtensions?: string[]
+  allowLabels?: string[]
+  denyExtensions?: string[]
+  denyLabels?: string[]
+}
 
-function getPeerLabels(peer: AuthenticatedPeer) {
-  return {
-    ...peer.extensionIdentity?.labels,
-    ...peer.identity?.labels,
+type DestinationList = Array<RouteTargetExpression | string>
+
+/**
+ * Collects explicit route destinations from the route envelope or event payload.
+ *
+ * Use when:
+ * - Routing middleware needs the effective destination override for a websocket event
+ * - Callers must preserve explicit empty destination lists instead of falling back to broadcast
+ *
+ * Expects:
+ * - A websocket event whose `route.destinations` or `data.destinations` may be present
+ * - `data.destinations` is only treated as valid when it is an array-shaped override
+ *
+ * Returns:
+ * - The explicit destination list when present
+ * - `undefined` when no destination override was provided
+ */
+export function collectDestinations(
+  event: (Omit<WebSocketEvent, 'metadata'> & Partial<Pick<WebSocketEvent, 'metadata'>>) | WebSocketEvent,
+): DestinationList | undefined {
+  if (event.route && 'destinations' in event.route) {
+    return event.route.destinations
+  }
+
+  const data = event.data as unknown
+  if (typeof data === 'object' && data !== null && 'destinations' in data && Array.isArray(data.destinations)) {
+    return data.destinations
+  }
+
+  return undefined
+}
+
+/**
+ * Creates a routing middleware from a static allow/deny policy.
+ *
+ * Use when:
+ * - Server-wide routing rules should be applied consistently
+ * - Destination filtering should be derived from peer metadata instead of event payloads
+ *
+ * Expects:
+ * - Route bypass authorization to be handled by the caller, not by the policy itself
+ *
+ * Returns:
+ * - A middleware that narrows delivery to the peers allowed by the policy
+ */
+export function createPolicyMiddleware(policy: RoutingPolicy): RouteMiddleware {
+  return ({ peers }) => {
+    const targetIds = new Set<string>()
+    for (const [id, peer] of peers.entries()) {
+      if (peerMatchesPolicy(peer, policy)) {
+        targetIds.add(id)
+      }
+    }
+
+    return { targetIds, type: 'targets' }
   }
 }
 
@@ -93,60 +142,11 @@ export function peerMatchesPolicy(peer: AuthenticatedPeer, policy: RoutingPolicy
   return true
 }
 
-/**
- * Creates a routing middleware from a static allow/deny policy.
- *
- * Use when:
- * - Server-wide routing rules should be applied consistently
- * - Destination filtering should be derived from peer metadata instead of event payloads
- *
- * Expects:
- * - Route bypass authorization to be handled by the caller, not by the policy itself
- *
- * Returns:
- * - A middleware that narrows delivery to the peers allowed by the policy
- */
-export function createPolicyMiddleware(policy: RoutingPolicy): RouteMiddleware {
-  return ({ peers }) => {
-    const targetIds = new Set<string>()
-    for (const [id, peer] of peers.entries()) {
-      if (peerMatchesPolicy(peer, policy)) {
-        targetIds.add(id)
-      }
-    }
-
-    return { type: 'targets', targetIds }
+function getPeerLabels(peer: AuthenticatedPeer) {
+  return {
+    ...peer.extensionIdentity?.labels,
+    ...peer.identity?.labels,
   }
-}
-
-/**
- * Collects explicit route destinations from the route envelope or event payload.
- *
- * Use when:
- * - Routing middleware needs the effective destination override for a websocket event
- * - Callers must preserve explicit empty destination lists instead of falling back to broadcast
- *
- * Expects:
- * - A websocket event whose `route.destinations` or `data.destinations` may be present
- * - `data.destinations` is only treated as valid when it is an array-shaped override
- *
- * Returns:
- * - The explicit destination list when present
- * - `undefined` when no destination override was provided
- */
-export function collectDestinations(
-  event: WebSocketEvent | (Omit<WebSocketEvent, 'metadata'> & Partial<Pick<WebSocketEvent, 'metadata'>>),
-): DestinationList | undefined {
-  if (event.route && 'destinations' in event.route) {
-    return event.route.destinations
-  }
-
-  const data = event.data as unknown
-  if (typeof data === 'object' && data !== null && 'destinations' in data && Array.isArray(data.destinations)) {
-    return data.destinations
-  }
-
-  return undefined
 }
 
 export { matchesDestinations }

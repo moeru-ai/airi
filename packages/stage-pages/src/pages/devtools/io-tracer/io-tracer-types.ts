@@ -3,19 +3,19 @@ import type { IOSubsystem } from '@proj-airi/stage-shared'
 import { IOSubsystems } from '@proj-airi/stage-shared'
 
 export interface SubsystemConfig {
-  subsystem: IOSubsystem
-  label: string
-  color: string
   bgColor: string
+  color: string
   icon: string
+  label: string
+  subsystem: IOSubsystem
 }
 
 export const SUBSYSTEM_CONFIGS: SubsystemConfig[] = [
-  { subsystem: IOSubsystems.ASR, label: 'ASR', color: '#3b82f6', bgColor: '#3b82f618', icon: 'i-lucide:mic' },
-  { subsystem: IOSubsystems.LLM, label: 'LLM', color: '#a855f7', bgColor: '#a855f718', icon: 'i-lucide:brain' },
-  { subsystem: IOSubsystems.StreamingControl, label: 'Streaming Control', color: '#06b6d4', bgColor: '#06b6d418', icon: 'i-lucide:radio-tower' },
-  { subsystem: IOSubsystems.TTS, label: 'TTS', color: '#22c55e', bgColor: '#22c55e18', icon: 'i-lucide:audio-lines' },
-  { subsystem: IOSubsystems.Playback, label: 'Playback', color: '#f87171', bgColor: '#f8717118', icon: 'i-lucide:play' },
+  { bgColor: '#3b82f618', color: '#3b82f6', icon: 'i-lucide:mic', label: 'ASR', subsystem: IOSubsystems.ASR },
+  { bgColor: '#a855f718', color: '#a855f7', icon: 'i-lucide:brain', label: 'LLM', subsystem: IOSubsystems.LLM },
+  { bgColor: '#06b6d418', color: '#06b6d4', icon: 'i-lucide:radio-tower', label: 'Streaming Control', subsystem: IOSubsystems.StreamingControl },
+  { bgColor: '#22c55e18', color: '#22c55e', icon: 'i-lucide:audio-lines', label: 'TTS', subsystem: IOSubsystems.TTS },
+  { bgColor: '#f8717118', color: '#f87171', icon: 'i-lucide:play', label: 'Playback', subsystem: IOSubsystems.Playback },
 ]
 
 export const SUBSYSTEM_CONFIG_MAP = new Map(SUBSYSTEM_CONFIGS.map(c => [c.subsystem, c]))

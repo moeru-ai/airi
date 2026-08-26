@@ -15,41 +15,20 @@ import { escapeHazardBehavior } from './behaviors/escape-hazard'
 import { idleGazeBehavior } from './behaviors/idle-gaze'
 import { ReflexRuntime } from './runtime'
 
-/**
- * Whether a perception signal should wake the conscious brain.
- *
- * - `entity_attention` (movement/punch attention) is handled entirely by reflex behaviors → never
- *   forwarded.
- * - While the bot is actively attacking (`isAttacking`), routine `damage` signals are suppressed so
- *   the brain does not re-plan on every incoming hit and `stop` its own attack — the combat-thrashing
- *   that got it killed against a kiting pillager. Critical health still reaches the brain via the
- *   separate `low_health` signal (action !== 'damage'), so it can still choose to retreat.
- */
-export function shouldForwardSignalToConscious(
-  signal: Pick<PerceptionSignal, 'type' | 'metadata'>,
-  isAttacking: boolean,
-): boolean {
-  if (signal.type === 'entity_attention')
-    return false
-  if (isAttacking && signal.metadata?.action === 'damage')
-    return false
-  return true
-}
-
 export class ReflexManager {
   private bot: MineflayerWithAgents | null = null
-  private readonly runtime: ReflexRuntime
-  private unsubscribe: (() => void) | null = null
-  private unsubscribeTaskExecutor: (() => void) | null = null
   private readonly botSignal = signal<MineflayerWithAgents | null>(null)
   private readonly inFlightActionsCount = signal(0)
   private readonly isWorking = computed(() => this.inFlightActionsCount() > 0)
+  private readonly runtime: ReflexRuntime
+  private unsubscribe: (() => void) | null = null
+  private unsubscribeTaskExecutor: (() => void) | null = null
 
   constructor(
     private readonly deps: {
       eventBus: EventBus
-      taskExecutor: TaskExecutor
       logger: Logg
+      taskExecutor: TaskExecutor
     },
   ) {
     this.runtime = new ReflexRuntime({
@@ -74,11 +53,41 @@ export class ReflexManager {
         return
 
       DebugService.getInstance().emitReflexState({
-        mode: this.runtime.getMode(),
         activeBehaviorId: this.runtime.getActiveBehaviorId(),
         context: this.runtime.getContext().getSnapshot(),
+        mode: this.runtime.getMode(),
       })
     })
+  }
+
+  public clearFollowTarget(): void {
+    this.runtime.clearAutoFollowTarget(this.bot)
+  }
+
+  public destroy(): void {
+    if (this.bot)
+      this.runtime.transitionMode('idle', this.bot)
+
+    if (this.unsubscribe) {
+      this.unsubscribe()
+      this.unsubscribe = null
+    }
+    if (this.unsubscribeTaskExecutor) {
+      this.unsubscribeTaskExecutor()
+      this.unsubscribeTaskExecutor = null
+    }
+    this.inFlightActionsCount(0)
+    this.runtime.setActiveBot(null)
+    this.botSignal(null)
+    this.bot = null
+  }
+
+  public getContextSnapshot(): ReflexContextState {
+    return this.runtime.getContext().getSnapshot()
+  }
+
+  public getMode(): ReturnType<ReflexRuntime['getMode']> {
+    return this.runtime.getMode()
   }
 
   public init(bot: MineflayerWithAgents): void {
@@ -113,49 +122,24 @@ export class ReflexManager {
     }
   }
 
-  public destroy(): void {
-    if (this.bot)
-      this.runtime.transitionMode('idle', this.bot)
+  public refreshFromBotState(): void {
+    if (!this.bot)
+      return
 
-    if (this.unsubscribe) {
-      this.unsubscribe()
-      this.unsubscribe = null
-    }
-    if (this.unsubscribeTaskExecutor) {
-      this.unsubscribeTaskExecutor()
-      this.unsubscribeTaskExecutor = null
-    }
-    this.inFlightActionsCount(0)
-    this.runtime.setActiveBot(null)
-    this.botSignal(null)
-    this.bot = null
-  }
-
-  public getContextSnapshot(): ReflexContextState {
-    return this.runtime.getContext().getSnapshot()
-  }
-
-  public getMode(): ReturnType<ReflexRuntime['getMode']> {
-    return this.runtime.getMode()
-  }
-
-  public updateEnvironment(patch: Partial<ReflexContextState['environment']>): void {
-    this.runtime.getContext().updateEnvironment(patch)
+    this.runtime.tick(this.bot, 0)
   }
 
   public setFollowTarget(playerName: string, followDistance = 2): void {
     this.runtime.setAutoFollowTarget(playerName, followDistance)
   }
 
-  public clearFollowTarget(): void {
-    this.runtime.clearAutoFollowTarget(this.bot)
+  public updateEnvironment(patch: Partial<ReflexContextState['environment']>): void {
+    this.runtime.getContext().updateEnvironment(patch)
   }
 
-  public refreshFromBotState(): void {
-    if (!this.bot)
-      return
-
-    this.runtime.tick(this.bot, 0)
+  /** mineflayer-pvp sets `bot.pvp.target` while the bot is actively attacking an entity. */
+  private isAttacking(): boolean {
+    return Boolean((this.bot?.bot as any)?.pvp?.target)
   }
 
   private onSignal(event: TracedEvent<PerceptionSignal>): void {
@@ -169,9 +153,9 @@ export class ReflexManager {
     // Update Context
     this.runtime.getContext().updateNow(now)
     this.runtime.getContext().updateAttention({
-      lastSignalType: signal.type,
-      lastSignalSourceId: signal.sourceId ?? null,
       lastSignalAt: now,
+      lastSignalSourceId: signal.sourceId ?? null,
+      lastSignalType: signal.type,
     })
 
     if (signal.type === 'social_gesture') {
@@ -191,9 +175,9 @@ export class ReflexManager {
         : null
 
       this.runtime.getContext().updateSocial({
-        lastSpeaker: username,
         lastMessage: message,
         lastMessageAt: now,
+        lastSpeaker: username,
       })
     }
 
@@ -207,9 +191,9 @@ export class ReflexManager {
     // Forward signals to conscious layer (Brain) ONLY when Reflex decides.
     if (this.shouldForwardToConscious(signal)) {
       this.deps.eventBus.emitChild(event, {
-        type: `conscious:signal:${signal.type}`,
         payload: signal,
         source: { component: 'reflex', id: 'reflexManager' },
+        type: `conscious:signal:${signal.type}`,
       })
     }
   }
@@ -217,9 +201,25 @@ export class ReflexManager {
   private shouldForwardToConscious(signal: PerceptionSignal): boolean {
     return shouldForwardSignalToConscious(signal, this.isAttacking())
   }
+}
 
-  /** mineflayer-pvp sets `bot.pvp.target` while the bot is actively attacking an entity. */
-  private isAttacking(): boolean {
-    return Boolean((this.bot?.bot as any)?.pvp?.target)
-  }
+/**
+ * Whether a perception signal should wake the conscious brain.
+ *
+ * - `entity_attention` (movement/punch attention) is handled entirely by reflex behaviors → never
+ *   forwarded.
+ * - While the bot is actively attacking (`isAttacking`), routine `damage` signals are suppressed so
+ *   the brain does not re-plan on every incoming hit and `stop` its own attack — the combat-thrashing
+ *   that got it killed against a kiting pillager. Critical health still reaches the brain via the
+ *   separate `low_health` signal (action !== 'damage'), so it can still choose to retreat.
+ */
+export function shouldForwardSignalToConscious(
+  signal: Pick<PerceptionSignal, 'metadata' | 'type'>,
+  isAttacking: boolean,
+): boolean {
+  if (signal.type === 'entity_attention')
+    return false
+  if (isAttacking && signal.metadata?.action === 'damage')
+    return false
+  return true
 }

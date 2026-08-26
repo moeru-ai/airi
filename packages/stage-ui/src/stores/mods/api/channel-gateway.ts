@@ -1,30 +1,30 @@
 import type { EventEnvelope } from './events'
 
-export type GatewayEvent = EventEnvelope
-
-export interface GatewayChannel {
-  name: string
-  in?: ReadableStream<GatewayEvent>
-  out?: (event: GatewayEvent) => void
-  canHandle?: (event: GatewayEvent) => boolean
-}
-
-export interface GatewayRoute {
-  match: (event: GatewayEvent) => boolean
-  to: string[]
-  mode?: 'fan-out' | 'first' | 'all'
+export interface ChannelGateway {
+  clearRoutes: () => void
+  dispatch: (event: GatewayEvent, options?: DispatchOptions) => void
+  register: (channel: GatewayChannel) => void
+  route: (rule: GatewayRoute) => void
+  unregister: (name: string) => void
 }
 
 export interface DispatchOptions {
   origin?: string
 }
 
-export interface ChannelGateway {
-  register: (channel: GatewayChannel) => void
-  unregister: (name: string) => void
-  dispatch: (event: GatewayEvent, options?: DispatchOptions) => void
-  route: (rule: GatewayRoute) => void
-  clearRoutes: () => void
+export interface GatewayChannel {
+  canHandle?: (event: GatewayEvent) => boolean
+  in?: ReadableStream<GatewayEvent>
+  name: string
+  out?: (event: GatewayEvent) => void
+}
+
+export type GatewayEvent = EventEnvelope
+
+export interface GatewayRoute {
+  match: (event: GatewayEvent) => boolean
+  mode?: 'all' | 'fan-out' | 'first'
+  to: string[]
 }
 
 export function createChannelGateway(): ChannelGateway {
@@ -114,10 +114,10 @@ export function createChannelGateway(): ChannelGateway {
   }
 
   return {
-    register,
-    unregister,
-    dispatch,
-    route,
     clearRoutes,
+    dispatch,
+    register,
+    route,
+    unregister,
   }
 }

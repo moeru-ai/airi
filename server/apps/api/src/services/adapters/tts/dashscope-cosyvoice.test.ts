@@ -9,8 +9,8 @@ const SPEECH_URL = `${UNSPEECH}/v1/audio/speech`
 
 function binaryResponse(bytes: Uint8Array, status = 200) {
   return new Response(bytes, {
-    status,
     headers: { 'content-type': 'audio/mpeg' },
+    status,
   })
 }
 
@@ -20,13 +20,13 @@ describe('dashscopeCosyvoiceAdapter', () => {
     const fetchImpl = vi.fn().mockResolvedValueOnce(binaryResponse(audioBytes))
 
     const result = await dashscopeCosyvoiceAdapter.send(
-      { text: 'hi there', voice: 'longxiaochun_v2', responseFormat: 'mp3' },
+      { responseFormat: 'mp3', text: 'hi there', voice: 'longxiaochun_v2' },
       {
-        keyPlaintext: Buffer.from('sk-test', 'utf8'),
-        baseURL: 'https://dashscope-intl.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer',
-        unspeechBaseURL: UNSPEECH,
         adapterParams: { model: 'cosyvoice-v2' },
+        baseURL: 'https://dashscope-intl.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer',
         fetchImpl: fetchImpl as unknown as typeof fetch,
+        keyPlaintext: Buffer.from('sk-test', 'utf8'),
+        unspeechBaseURL: UNSPEECH,
       },
     )
 
@@ -37,10 +37,10 @@ describe('dashscopeCosyvoiceAdapter', () => {
 
     const body = JSON.parse(init.body as string)
     expect(body).toEqual({
-      model: 'alibaba/cosyvoice-v2',
       input: 'hi there',
-      voice: 'longxiaochun_v2',
+      model: 'alibaba/cosyvoice-v2',
       response_format: 'mp3',
+      voice: 'longxiaochun_v2',
     })
 
     const headers = init.headers as Record<string, string>
@@ -59,14 +59,14 @@ describe('dashscopeCosyvoiceAdapter', () => {
       dashscopeCosyvoiceAdapter.send(
         { text: 'hi', voice: 'longxiaochun_v2' },
         {
-          keyPlaintext: Buffer.from('sk-test', 'utf8'),
-          baseURL: 'https://dashscope-intl.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer',
-          unspeechBaseURL: UNSPEECH,
           adapterParams: {},
+          baseURL: 'https://dashscope-intl.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer',
           fetchImpl: fetchImpl as unknown as typeof fetch,
+          keyPlaintext: Buffer.from('sk-test', 'utf8'),
+          unspeechBaseURL: UNSPEECH,
         },
       ),
-    ).rejects.toMatchObject({ status: 401, message: expect.stringContaining('401') })
+    ).rejects.toMatchObject({ message: expect.stringContaining('401'), status: 401 })
 
     expect(fetchImpl).toHaveBeenCalledTimes(1)
   })
@@ -77,11 +77,11 @@ describe('dashscopeCosyvoiceAdapter', () => {
     await expect(dashscopeCosyvoiceAdapter.send(
       { text: 'hi' },
       {
-        keyPlaintext: Buffer.from('sk-test', 'utf8'),
-        baseURL: 'https://dashscope-intl.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer',
-        unspeechBaseURL: UNSPEECH,
         adapterParams: {},
+        baseURL: 'https://dashscope-intl.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer',
         fetchImpl: fetchImpl as unknown as typeof fetch,
+        keyPlaintext: Buffer.from('sk-test', 'utf8'),
+        unspeechBaseURL: UNSPEECH,
       },
     )).rejects.toMatchObject({ statusCode: 400 })
 
@@ -97,18 +97,18 @@ describe('dashscopeCosyvoiceAdapter', () => {
 
     await expect(dashscopeCosyvoiceAdapter.send(
       {
-        text: 'hi',
-        voice: 'longxiaochun_v2',
         extraOptions: {
           volume: 5,
         },
+        text: 'hi',
+        voice: 'longxiaochun_v2',
       },
       {
-        keyPlaintext: Buffer.from('sk-test', 'utf8'),
-        baseURL: 'https://dashscope-intl.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer',
-        unspeechBaseURL: UNSPEECH,
         adapterParams: {},
+        baseURL: 'https://dashscope-intl.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer',
         fetchImpl: fetchImpl as unknown as typeof fetch,
+        keyPlaintext: Buffer.from('sk-test', 'utf8'),
+        unspeechBaseURL: UNSPEECH,
       },
     )).rejects.toMatchObject({ statusCode: 400 })
 
@@ -125,15 +125,15 @@ describe('dashscopeCosyvoiceAdapter', () => {
     }), { status: 200 })) as unknown as typeof fetch
     const catalog = await dashscopeCosyvoiceAdapter.getVoiceCatalog({
       adapterParams: { model: 'cosyvoice-v2' },
-      unspeechBaseURL: UNSPEECH,
       fetchImpl,
+      unspeechBaseURL: UNSPEECH,
     })
     expect(catalog).toEqual([{ id: 'longxiaochun_v2', name: 'Longxiaochun v2' }])
     expect(fetchImpl).toHaveBeenCalledWith(
       `${UNSPEECH}/api/voices?provider=alibaba&model=cosyvoice-v2`,
       expect.objectContaining({
-        method: 'GET',
         headers: { Accept: 'application/json' },
+        method: 'GET',
       }),
     )
   })

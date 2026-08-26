@@ -129,7 +129,7 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
 
     const stream = await selectWithSource(
       () => sourceId,
-      async () => await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }),
+      async () => await navigator.mediaDevices.getDisplayMedia({ audio: false, video: true }),
     )
     if (!isActiveStream(stream)) {
       stream.getTracks().forEach(track => track.stop())
@@ -175,16 +175,16 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
   }
 
   return {
-    sources,
-    activeSourceId,
     activeSource,
+    activeSourceId,
     activeStream,
-    isRefetching,
+    captureFrame,
+    cleanup,
     hasFetchedOnce,
+    isRefetching,
     refetchSources,
+    sources,
     startStream,
     stopStream,
-    cleanup,
-    captureFrame,
   }
 }

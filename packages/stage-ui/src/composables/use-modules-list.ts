@@ -18,15 +18,15 @@ import { useVisionStore } from '../stores/modules/vision'
 import { useWebSearchStore } from '../stores/modules/web-search'
 
 export interface Module {
-  id: string
-  name: string
+  category: string
+  configured: boolean
   description: string
   icon?: string
   iconColor?: string
   iconImage?: string
+  id: string
+  name: string
   to: string
-  configured: boolean
-  category: string
 }
 
 export function useModulesList() {
@@ -50,131 +50,131 @@ export function useModulesList() {
 
   const modulesList = computed<Module[]>(() => [
     {
-      id: 'consciousness',
-      name: t('settings.pages.modules.consciousness.title'),
+      category: 'essential',
+      configured: consciousnessStore.configured,
       description: t('settings.pages.modules.consciousness.description'),
       icon: 'i-solar:ghost-bold-duotone',
+      id: 'consciousness',
+      name: t('settings.pages.modules.consciousness.title'),
       to: '/settings/modules/consciousness',
-      configured: consciousnessStore.configured,
-      category: 'essential',
     },
     {
-      id: 'speech',
-      name: t('settings.pages.modules.speech.title'),
+      category: 'essential',
+      configured: speechStore.configured,
       description: t('settings.pages.modules.speech.description'),
       icon: 'i-solar:user-speak-rounded-bold-duotone',
+      id: 'speech',
+      name: t('settings.pages.modules.speech.title'),
       to: '/settings/modules/speech',
-      configured: speechStore.configured,
-      category: 'essential',
     },
     {
-      id: 'hearing',
-      name: t('settings.pages.modules.hearing.title'),
+      category: 'essential',
+      configured: hearingStore.configured,
       description: t('settings.pages.modules.hearing.description'),
       icon: 'i-solar:microphone-3-bold-duotone',
+      id: 'hearing',
+      name: t('settings.pages.modules.hearing.title'),
       to: '/settings/modules/hearing',
-      configured: hearingStore.configured,
-      category: 'essential',
     },
     {
-      id: 'vision',
-      name: t('settings.pages.modules.vision.title'),
+      category: 'essential',
+      configured: visionStore.configured,
       description: t('settings.pages.modules.vision.description'),
       icon: 'i-solar:eye-closed-bold-duotone',
+      id: 'vision',
+      name: t('settings.pages.modules.vision.title'),
       to: '/settings/modules/vision',
-      configured: visionStore.configured,
-      category: 'essential',
     },
     {
-      id: 'web-search',
-      name: t('settings.pages.modules.web-search.title'),
+      category: 'essential',
+      configured: webSearchStore.configured,
       description: t('settings.pages.modules.web-search.description'),
       icon: 'i-solar:magnifer-bold-duotone',
+      id: 'web-search',
+      name: t('settings.pages.modules.web-search.title'),
       to: '/settings/modules/web-search',
-      configured: webSearchStore.configured,
-      category: 'essential',
     },
     {
-      id: 'artistry',
-      name: t('settings.pages.modules.artistry.title'),
+      category: 'essential',
+      configured: artistryStore.configured,
       description: t('settings.pages.modules.artistry.description'),
       icon: 'i-solar:palette-bold-duotone',
+      id: 'artistry',
+      name: t('settings.pages.modules.artistry.title'),
       to: '/settings/modules/artistry',
-      configured: artistryStore.configured,
-      category: 'essential',
     },
     {
-      id: 'memory-short-term',
-      name: t('settings.pages.modules.memory-short-term.title'),
+      category: 'essential',
+      configured: false,
       description: t('settings.pages.modules.memory-short-term.description'),
       icon: 'i-solar:bookmark-bold-duotone',
+      id: 'memory-short-term',
+      name: t('settings.pages.modules.memory-short-term.title'),
       to: '/settings/modules/memory-short-term',
-      configured: false,
-      category: 'essential',
     },
     {
-      id: 'memory-long-term',
-      name: t('settings.pages.modules.memory-long-term.title'),
+      category: 'essential',
+      configured: false,
       description: t('settings.pages.modules.memory-long-term.description'),
       icon: 'i-solar:book-bookmark-bold-duotone',
+      id: 'memory-long-term',
+      name: t('settings.pages.modules.memory-long-term.title'),
       to: '/settings/modules/memory-long-term',
-      configured: false,
-      category: 'essential',
     },
     {
-      id: 'messaging-discord',
-      name: t('settings.pages.modules.messaging-discord.title'),
+      category: 'messaging',
+      configured: discordStore.configured,
       description: t('settings.pages.modules.messaging-discord.description'),
       icon: 'i-simple-icons:discord',
+      id: 'messaging-discord',
+      name: t('settings.pages.modules.messaging-discord.title'),
       to: '/settings/modules/messaging-discord',
-      configured: discordStore.configured,
-      category: 'messaging',
     },
     {
-      id: 'x',
-      name: t('settings.pages.modules.x.title'),
+      category: 'messaging',
+      configured: twitterStore.configured,
       description: t('settings.pages.modules.x.description'),
       icon: 'i-simple-icons:x',
+      id: 'x',
+      name: t('settings.pages.modules.x.title'),
       to: '/settings/modules/x',
-      configured: twitterStore.configured,
-      category: 'messaging',
     },
     {
-      id: 'gaming-minecraft',
-      name: t('settings.pages.modules.gaming-minecraft.title'),
+      category: 'gaming',
+      configured: minecraftStore.configured,
       description: t('settings.pages.modules.gaming-minecraft.description'),
       iconColor: 'i-vscode-icons:file-type-minecraft',
+      id: 'gaming-minecraft',
+      name: t('settings.pages.modules.gaming-minecraft.title'),
       to: '/settings/modules/gaming-minecraft',
-      configured: minecraftStore.configured,
-      category: 'gaming',
     },
     {
-      id: 'gaming-factorio',
-      name: t('settings.pages.modules.gaming-factorio.title'),
+      category: 'gaming',
+      configured: factorioStore.configured,
       description: t('settings.pages.modules.gaming-factorio.description'),
       iconImage: factorioIcon,
+      id: 'gaming-factorio',
+      name: t('settings.pages.modules.gaming-factorio.title'),
       to: '/settings/modules/gaming-factorio',
-      configured: factorioStore.configured,
-      category: 'gaming',
     },
     {
-      id: 'mcp-server',
-      name: t('settings.pages.modules.mcp-server.title'),
+      category: 'essential',
+      configured: false,
       description: t('settings.pages.modules.mcp-server.description'),
       icon: 'i-solar:server-bold-duotone',
+      id: 'mcp-server',
+      name: t('settings.pages.modules.mcp-server.title'),
       to: '/settings/modules/mcp',
-      configured: false,
-      category: 'essential',
     },
     ...(beatSyncSupported
       ? [{
-          id: 'beat-sync',
-          name: t('settings.pages.modules.beat_sync.title'),
+          category: 'essential',
+          configured: beatSyncState.value?.isActive ?? false,
           description: t('settings.pages.modules.beat_sync.description'),
           icon: 'i-solar:music-notes-bold-duotone',
+          id: 'beat-sync',
+          name: t('settings.pages.modules.beat_sync.title'),
           to: '/settings/modules/beat-sync',
-          configured: beatSyncState.value?.isActive ?? false,
-          category: 'essential',
         }]
       : []),
   ])
@@ -193,8 +193,8 @@ export function useModulesList() {
   // Define category display names
   const categoryNames = computed(() => ({
     essential: t('settings.pages.modules.categories.essential'),
-    messaging: t('settings.pages.modules.categories.messaging'),
     gaming: t('settings.pages.modules.categories.gaming'),
+    messaging: t('settings.pages.modules.categories.messaging'),
   }))
 
   // TODO(Makito): We can make this a reactive value from a synthetic store.
@@ -208,8 +208,8 @@ export function useModulesList() {
   })
 
   return {
-    modulesList,
     categorizedModules,
     categoryNames,
+    modulesList,
   }
 }

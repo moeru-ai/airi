@@ -8,28 +8,6 @@ interface SingleInstanceGuardOptions {
 }
 
 /**
- * Focuses the main AIRI window after a duplicate launch.
- *
- * Use when:
- * - Electron forwards a second process launch to the primary instance
- * - The app should show the already-running UI instead of starting another runtime
- *
- * Expects:
- * - `getWindow` returns the main user-facing window when it has been created
- *
- * Returns:
- * - N/A
- */
-function focusMainWindow(getWindow: SingleInstanceGuardOptions['getWindow']) {
-  const window = getWindow()
-  if (!window) {
-    return
-  }
-
-  toggleWindowShow(window)
-}
-
-/**
  * Installs Electron's single-instance guard for the desktop runtime.
  *
  * Use when:
@@ -54,4 +32,26 @@ export function installSingleInstanceGuard(options: SingleInstanceGuardOptions) 
   })
 
   return true
+}
+
+/**
+ * Focuses the main AIRI window after a duplicate launch.
+ *
+ * Use when:
+ * - Electron forwards a second process launch to the primary instance
+ * - The app should show the already-running UI instead of starting another runtime
+ *
+ * Expects:
+ * - `getWindow` returns the main user-facing window when it has been created
+ *
+ * Returns:
+ * - N/A
+ */
+function focusMainWindow(getWindow: SingleInstanceGuardOptions['getWindow']) {
+  const window = getWindow()
+  if (!window) {
+    return
+  }
+
+  toggleWindowShow(window)
 }

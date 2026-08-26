@@ -1,6 +1,6 @@
 import type { ReflexContextState } from './context'
 
-export type ReflexModeId = 'idle' | 'social' | 'alert' | 'work' | 'wander'
+export type ReflexModeId = 'alert' | 'idle' | 'social' | 'wander' | 'work'
 
 export function selectMode(ctx: ReflexContextState): ReflexModeId {
   if (ctx.threat.threatScore > 0)

@@ -5,30 +5,30 @@ import { getProviderBootstrapConfig, resolveGithubModelsApiKey } from './provide
 describe('provider bootstrap', () => {
   it('prefers explicit github models env keys before legacy aliases', () => {
     expect(resolveGithubModelsApiKey({
-      processEnv: {
-        GITHUB_TOKEN: 'ghp-fallback',
-        GITHUB_MODELS_API_KEY: 'ghp-preferred',
-      },
       dotenvValues: {},
+      processEnv: {
+        GITHUB_MODELS_API_KEY: 'ghp-preferred',
+        GITHUB_TOKEN: 'ghp-fallback',
+      },
     })).toBe('ghp-preferred')
   })
 
   it('falls back to legacy GitHub_token from .env for this repo', () => {
     expect(resolveGithubModelsApiKey({
-      processEnv: {},
       dotenvValues: {
         GitHub_token: 'ghp-legacy',
       },
+      processEnv: {},
     })).toBe('ghp-legacy')
   })
 
   it('builds github-models bootstrap config with the default inference base url', () => {
     expect(getProviderBootstrapConfig({
-      providerId: 'github-models',
-      processEnv: {},
       dotenvValues: {
         GitHub_token: 'ghp-legacy',
       },
+      processEnv: {},
+      providerId: 'github-models',
     })).toEqual({
       apiKey: 'ghp-legacy',
       baseUrl: 'https://models.github.ai/inference',
@@ -37,11 +37,11 @@ describe('provider bootstrap', () => {
 
   it('does not fabricate bootstrap config for unrelated providers', () => {
     expect(getProviderBootstrapConfig({
-      providerId: 'openrouter',
+      dotenvValues: {},
       processEnv: {
         GITHUB_MODELS_API_KEY: 'ghp-test',
       },
-      dotenvValues: {},
+      providerId: 'openrouter',
     })).toBeUndefined()
   })
 })

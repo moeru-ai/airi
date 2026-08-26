@@ -21,24 +21,19 @@ const audioTestAPI = createAudioTestAPI<
   { audio: AudioInputSession },
   AudioInputPreflightContext
 >({
-  preflight: definition => definition.preflight,
   createPlans(name, testCase) {
     const task = createAudioTestTask(name, testCase)
     return [{
-      name: task.name,
       definition: task,
       metadata: {
         input: fileURLToPath(task.input),
         runtime: inject('fakemicRuntime').name,
       },
+      name: task.name,
     }]
   },
-  async execute({ plan, task, invokeHandler, runPreflight }) {
+  async execute({ invokeHandler, plan, runPreflight, task }) {
     await runAudioTestSession({
-      start() {
-        const microphoneInput = fileURLToPath(plan.definition.input)
-        return startFakemicRuntime<AudioInputSession>(microphoneInput)
-      },
       async execute(session) {
         await runPreflight({
           env,
@@ -62,8 +57,13 @@ const audioTestAPI = createAudioTestAPI<
           contentType: 'application/json',
         })
       },
+      start() {
+        const microphoneInput = fileURLToPath(plan.definition.input)
+        return startFakemicRuntime<AudioInputSession>(microphoneInput)
+      },
     })
   },
+  preflight: definition => definition.preflight,
 })
 
 /** Groups AIRI audio-input tests in the Vitest task tree. */

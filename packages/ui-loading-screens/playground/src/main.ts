@@ -9,7 +9,7 @@ import '@unocss/reset/tailwind.css'
 import 'uno.css'
 import '@proj-airi/font-departure-mono/index.css'
 
-const router = createRouter({ routes, history: createWebHashHistory() })
+const router = createRouter({ history: createWebHashHistory(), routes })
 
 createApp(App)
   .use(MotionPlugin)

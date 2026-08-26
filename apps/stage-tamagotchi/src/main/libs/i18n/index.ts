@@ -13,6 +13,12 @@ import { createCoreContext, translate } from '@intlify/core'
 import { effect, signal } from 'alien-signals'
 import { isString } from 'es-toolkit'
 
+export interface I18n<Schema extends Record<string, any> = Record<string, any>> {
+  locale:
+    (() => (LocaleDetector<any[]> | string | undefined)) | ((value: LocaleDetector<any[]> | string | undefined) => void)
+  t: TranslationFunction<Schema>
+}
+
 type ResolveResourceKeys<
   // eslint-disable-next-line ts/no-empty-object-type
   Schema extends Record<string, any> = {},
@@ -28,7 +34,7 @@ type ResolveResourceKeys<
       [K in keyof DefinedLocaleMessage]: DefinedLocaleMessage[K]
     }>
     : never,
-> = SchemaPaths | DefineMessagesPaths
+> = DefineMessagesPaths | SchemaPaths
 
 interface TranslationFunction<
   // eslint-disable-next-line ts/no-empty-object-type
@@ -132,23 +138,17 @@ interface TranslationFunction<
   ): string
 }
 
-export interface I18n<Schema extends Record<string, any> = Record<string, any>> {
-  t: TranslationFunction<Schema>
-  locale:
-    (() => (string | LocaleDetector<any[]> | undefined)) | ((value: string | LocaleDetector<any[]> | undefined) => void)
-}
-
 export function createI18n<Schema extends Record<string, any> = Record<string, any>>(options: CoreOptions): I18n<Schema> {
   const log = useLogg('i18n').useGlobalConfig()
 
   const locale = signal(options.locale)
 
   const context = createCoreContext({
+    fallbackFormat: true,
     fallbackLocale: options.fallbackLocale,
     fallbackWarn: false,
     missingWarn: false,
     warnHtmlMessage: false,
-    fallbackFormat: true,
     ...options,
   })
 
@@ -178,7 +178,7 @@ export function createI18n<Schema extends Record<string, any> = Record<string, a
   })
 
   return {
-    t,
     locale,
+    t,
   }
 }

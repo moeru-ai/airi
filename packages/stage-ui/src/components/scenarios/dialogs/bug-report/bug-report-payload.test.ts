@@ -5,17 +5,17 @@ import { buildBugReportPayload, createBugReportPageContext } from './bug-report-
 describe('bug report payload helpers', () => {
   it('builds markdown payload with description and optional context/screenshot flags', () => {
     const payload = buildBugReportPayload({
-      description: 'Clicking send does nothing',
-      includeTriageContext: true,
       context: {
-        url: 'https://airi.local/chat?room=debug',
+        language: 'en-US',
+        timestamp: '2026-04-09T11:22:33.000Z',
+        timeZone: 'Asia/Shanghai',
         title: 'AIRI Chat',
+        url: 'https://airi.local/chat?room=debug',
         userAgent: 'test-agent',
         viewport: '1440x900',
-        language: 'en-US',
-        timeZone: 'Asia/Shanghai',
-        timestamp: '2026-04-09T11:22:33.000Z',
       },
+      description: 'Clicking send does nothing',
+      includeTriageContext: true,
       screenshotAttached: true,
     })
 
@@ -33,36 +33,36 @@ describe('bug report payload helpers', () => {
 
   it('extracts page context from a window-like object', () => {
     const context = createBugReportPageContext({
-      location: {
-        href: 'https://airi.local/settings?tab=providers',
+      Date: {
+        now: () => 1_700_000_000_000,
       },
       document: {
         title: 'Settings',
       },
-      navigator: {
-        userAgent: 'unit-test',
-        language: 'en-US',
-      },
-      innerWidth: 1280,
       innerHeight: 720,
+      innerWidth: 1280,
       Intl: {
         DateTimeFormat: () => ({
           resolvedOptions: () => ({ timeZone: 'UTC' }),
         }),
       },
-      Date: {
-        now: () => 1_700_000_000_000,
+      location: {
+        href: 'https://airi.local/settings?tab=providers',
+      },
+      navigator: {
+        language: 'en-US',
+        userAgent: 'unit-test',
       },
     })
 
     expect(context).toEqual({
-      url: 'https://airi.local/settings?tab=providers',
+      language: 'en-US',
+      timestamp: '2023-11-14T22:13:20.000Z',
+      timeZone: 'UTC',
       title: 'Settings',
+      url: 'https://airi.local/settings?tab=providers',
       userAgent: 'unit-test',
       viewport: '1280x720',
-      language: 'en-US',
-      timeZone: 'UTC',
-      timestamp: '2023-11-14T22:13:20.000Z',
     })
   })
 })

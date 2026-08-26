@@ -9,10 +9,6 @@ import { useProviderConfigStore } from './providers/config'
 const essentialProviderIds = ['openai', 'azure-openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'ollama', 'deepseek', 'openai-compatible', 'official-provider'] as const
 const credentialBasedEssentialProviderIds = ['openai', 'azure-openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'deepseek'] as const
 
-function hasNonEmptyText(value: unknown): boolean {
-  return typeof value === 'string' && value.trim().length > 0
-}
-
 function createLocalStorageForOnboarding() {
   const keys = {
     completed: 'onboarding/completed',
@@ -25,6 +21,10 @@ function createLocalStorageForOnboarding() {
     setCompleted: (value: boolean) => localStorage.setItem(keys.completed, String(value)),
     setSkipped: (value: boolean) => localStorage.setItem(keys.skipped, String(value)),
   }
+}
+
+function hasNonEmptyText(value: unknown): boolean {
+  return typeof value === 'string' && value.trim().length > 0
 }
 
 const useOnboardingStateStore = defineStore('onboarding-state', () => {
@@ -157,18 +157,18 @@ export const useOnboardingStore = defineStore('onboarding', () => {
   }
 
   return {
-    hasCompletedSetup,
-    hasSkippedSetup,
-    showingSetup,
+    closeAfterAuthentication,
     closeRequestId,
+    forceShowSetup,
+    hasCompletedSetup,
     hasEssentialProviderConfigured,
     hasEssentialProviderCredentialConfigured,
-    needsOnboarding,
+    hasSkippedSetup,
 
-    closeAfterAuthentication,
     markSetupCompleted,
     markSetupSkipped,
+    needsOnboarding,
     resetSetupState,
-    forceShowSetup,
+    showingSetup,
   }
 })

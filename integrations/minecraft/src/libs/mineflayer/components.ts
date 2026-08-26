@@ -12,8 +12,9 @@ export class Components {
     this.logger = useLogger()
   }
 
-  register(componentName: string, component: Handler) {
-    this.components.set(componentName, component)
+  cleanup() {
+    this.logger.log('Cleaning up components')
+    this.components.clear()
   }
 
   get(componentName: string) {
@@ -24,8 +25,7 @@ export class Components {
     return Array.from(this.components.keys())
   }
 
-  cleanup() {
-    this.logger.log('Cleaning up components')
-    this.components.clear()
+  register(componentName: string, component: Handler) {
+    this.components.set(componentName, component)
   }
 }

@@ -1,7 +1,7 @@
 /**
  * Represents supported chat message action identifiers.
  */
-export type ChatActionMenuAction = 'copy' | 'retry' | 'delete'
+export type ChatActionMenuAction = 'copy' | 'delete' | 'retry'
 
 /**
  * Represents one visible action in a chat message action menu.
@@ -12,17 +12,17 @@ export interface ChatActionMenuItem {
    */
   action: ChatActionMenuAction
   /**
-   * Human-readable menu label.
+   * Marks destructive actions for danger styling.
    */
-  label: string
+  danger?: boolean
   /**
    * UnoCSS Iconify class used for the item icon.
    */
   icon: string
   /**
-   * Marks destructive actions for danger styling.
+   * Human-readable menu label.
    */
-  danger?: boolean
+  label: string
 }
 
 /**
@@ -54,31 +54,31 @@ export interface ChatActionMenuTriggerState {
  */
 export function createChatActionMenuItems(options: {
   canCopy: boolean
-  canRetry: boolean
   canDelete: boolean
+  canRetry: boolean
   retryLabel?: string
 }): ChatActionMenuItem[] {
   return [
     options.canCopy
       ? {
           action: 'copy',
-          label: 'Copy',
           icon: 'i-solar:copy-bold',
+          label: 'Copy',
         }
       : null,
     options.canRetry
       ? {
           action: 'retry',
-          label: options.retryLabel ?? 'Retry',
           icon: 'i-solar:refresh-bold',
+          label: options.retryLabel ?? 'Retry',
         }
       : null,
     options.canDelete
       ? {
           action: 'delete',
-          label: 'Delete',
-          icon: 'i-solar:trash-bin-minimalistic-bold',
           danger: true,
+          icon: 'i-solar:trash-bin-minimalistic-bold',
+          label: 'Delete',
         }
       : null,
   ].filter(Boolean) as ChatActionMenuItem[]

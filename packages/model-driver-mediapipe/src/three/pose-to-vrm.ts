@@ -8,9 +8,9 @@ export interface PoseToVrmOptions {
    * This is a pragmatic default; adjust if you see mirrored or inverted motion.
    */
   axis?: {
-    x: 1 | -1
-    y: 1 | -1
-    z: 1 | -1
+    x: -1 | 1
+    y: -1 | 1
+    z: -1 | 1
   }
 
   /**
@@ -19,38 +19,38 @@ export interface PoseToVrmOptions {
    */
   confidence?: {
     /**
-     * Min `visibility` in [0..1]. Only enforced when the field exists on the landmark.
-     */
-    minVisibility?: number
-    /**
      * Min `presence` in [0..1]. Only enforced when the field exists on the landmark.
      */
     minPresence?: number
+    /**
+     * Min `visibility` in [0..1]. Only enforced when the field exists on the landmark.
+     */
+    minVisibility?: number
   }
 
   /**
    * Use previous frame information to avoid sudden 180° flips caused by ambiguous poles.
    */
   stabilize?: {
-    previousTargets?: VrmPoseTargets
     previousForward?: Vector3Like
+    previousTargets?: VrmPoseTargets
   }
 }
 
 export type VrmPoseDirections = Partial<Record<
-  | 'hips'
-  | 'spine'
   | 'chest'
-  | 'leftShoulder'
-  | 'rightShoulder'
-  | 'leftUpperArm'
+  | 'hips'
   | 'leftLowerArm'
-  | 'rightUpperArm'
-  | 'rightLowerArm'
-  | 'leftUpperLeg'
   | 'leftLowerLeg'
+  | 'leftShoulder'
+  | 'leftUpperArm'
+  | 'leftUpperLeg'
+  | 'rightLowerArm'
+  | 'rightLowerLeg'
+  | 'rightShoulder'
+  | 'rightUpperArm'
   | 'rightUpperLeg'
-  | 'rightLowerLeg',
+  | 'spine',
   Vector3Like
 >>
 
@@ -65,109 +65,20 @@ const DEFAULT_AXIS = { x: 1 as const, y: 1 as const, z: 1 as const }
 const DEFAULT_MIN_VISIBILITY = 0.5
 const DEFAULT_MIN_PRESENCE = 0
 
-// TODO: Consider consolidating these vector helpers into a shared math utility if more drivers need them.
-function vSub(a: Vector3Like, b: Vector3Like): Vector3Like {
-  return { x: a.x - b.x, y: a.y - b.y, z: (a.z ?? 0) - (b.z ?? 0) }
-}
-
-function vAdd(a: Vector3Like, b: Vector3Like): Vector3Like {
-  return { x: a.x + b.x, y: a.y + b.y, z: (a.z ?? 0) + (b.z ?? 0) }
-}
-
-function vScale(v: Vector3Like, s: number): Vector3Like {
-  return { x: v.x * s, y: v.y * s, z: (v.z ?? 0) * s }
-}
-
-function vLen(v: Vector3Like): number {
-  return Math.hypot(v.x, v.y, v.z ?? 0)
-}
-
-function vNormalize(v: Vector3Like): Vector3Like | null {
-  const len = vLen(v)
-  if (!Number.isFinite(len) || len <= 1e-6)
-    return null
-  return vScale(v, 1 / len)
-}
-
-function vRemapAxis(v: Vector3Like, axis: { x: 1 | -1, y: 1 | -1, z: 1 | -1 }): Vector3Like {
-  return { x: v.x * axis.x, y: v.y * axis.y, z: (v.z ?? 0) * axis.z }
-}
-
-function vCross(a: Vector3Like, b: Vector3Like): Vector3Like {
-  const az = a.z ?? 0
-  const bz = b.z ?? 0
-  return {
-    x: a.y * bz - az * b.y,
-    y: az * b.x - a.x * bz,
-    z: a.x * b.y - a.y * b.x,
-  }
-}
-
-function vDot(a: Vector3Like, b: Vector3Like): number {
-  return a.x * b.x + a.y * b.y + (a.z ?? 0) * (b.z ?? 0)
-}
-
-function vNeg(v: Vector3Like): Vector3Like {
-  return { x: -v.x, y: -v.y, z: -(v.z ?? 0) }
-}
-
-function safePole(dir: Vector3Like, pole: Vector3Like, threshold = 0.85): Vector3Like | null {
-  const d = Math.abs(vDot(dir, pole))
-  if (!Number.isFinite(d))
-    return null
-  return d > threshold ? null : pole
-}
-
-function get(points: Vector3Like[], index: number): Vector3Like | null {
-  const p = points[index]
-  if (!p)
-    return null
-  if (!Number.isFinite(p.x) || !Number.isFinite(p.y))
-    return null
-  return { x: p.x, y: p.y, z: p.z ?? 0 }
-}
-
 // NOTICE: mediapipe doesn't provide this type correctly, so we define it here.
 interface LandmarkWithPresence { presence?: number }
+
 interface LandmarkWithVisibility { visibility?: number }
 
-function getOptionalPresence(landmark: unknown): number | undefined {
-  if (landmark && typeof landmark === 'object' && 'presence' in landmark)
-    return (landmark as LandmarkWithPresence).presence
-  return undefined
-}
-
-function getOptionalVisibility(landmark: unknown): number | undefined {
-  if (landmark && typeof landmark === 'object' && 'visibility' in landmark)
-    return (landmark as LandmarkWithVisibility).visibility
-  return undefined
-}
-
-function isConfident(pose: PoseState, index: number, thresholds: { minVisibility: number, minPresence: number }): boolean {
-  // User requirement: do not output anything when `visibility` is missing.
-  // Prefer 2D landmarks for visibility/presence (they are more consistently populated),
-  // but still allow fallback to world landmarks when needed.
-  const lm2d = pose.landmarks2d?.[index]
-  const lm3d = pose.worldLandmarks?.[index]
-  if (!lm2d && !lm3d)
-    return false
-
-  const visibility = getOptionalVisibility(lm2d) ?? getOptionalVisibility(lm3d)
-  if (visibility == null || !Number.isFinite(visibility))
-    return false
-  if (visibility < thresholds.minVisibility)
-    return false
-
-  if (thresholds.minPresence > 0) {
-    const presence = getOptionalPresence(lm2d) ?? getOptionalPresence(lm3d)
-    if (presence != null && Number.isFinite(presence) && presence < thresholds.minPresence)
-      return false
-  }
-  return true
-}
-
-function mid(a: Vector3Like, b: Vector3Like): Vector3Like {
-  return vScale(vAdd(a, b), 0.5)
+export function poseToVrmDirections(pose: PoseState, options?: PoseToVrmOptions): VrmPoseDirections {
+  const targets = poseToVrmTargets(pose, options)
+  const out: VrmPoseDirections = {}
+  ;(Object.keys(targets) as (keyof VrmPoseDirections)[]).forEach((k) => {
+    const t = targets[k]
+    if (t)
+      out[k] = t.dir
+  })
+  return out
 }
 
 export function poseToVrmTargets(pose: PoseState, options?: PoseToVrmOptions): VrmPoseTargets {
@@ -178,8 +89,8 @@ export function poseToVrmTargets(pose: PoseState, options?: PoseToVrmOptions): V
 
   const axis = options?.axis ?? DEFAULT_AXIS
   const thresholds = {
-    minVisibility: options?.confidence?.minVisibility ?? DEFAULT_MIN_VISIBILITY,
     minPresence: options?.confidence?.minPresence ?? DEFAULT_MIN_PRESENCE,
+    minVisibility: options?.confidence?.minVisibility ?? DEFAULT_MIN_VISIBILITY,
   }
 
   const getC = (index: number) => (isConfident(pose, index, thresholds) ? get(points, index) : null)
@@ -217,7 +128,7 @@ export function poseToVrmTargets(pose: PoseState, options?: PoseToVrmOptions): V
   //
   // NOTICE: In apply-pose-to-vrm.ts, pole is used as the Z axis in `makeBasis(X=dir, Y=..., Z=pole)`,
   // so torso pole must be "forward-like" (body facing), not "right-like" (shoulder line).
-  let torsoForward: Vector3Like | null = null
+  let torsoForward: null | Vector3Like = null
   if (hipCenter && shoulderCenter && leftShoulder && rightShoulder) {
     const rightRaw = vSub(rightShoulder, leftShoulder)
     const upRaw = vSub(shoulderCenter, hipCenter)
@@ -335,13 +246,102 @@ export function poseToVrmTargets(pose: PoseState, options?: PoseToVrmOptions): V
   return out
 }
 
-export function poseToVrmDirections(pose: PoseState, options?: PoseToVrmOptions): VrmPoseDirections {
-  const targets = poseToVrmTargets(pose, options)
-  const out: VrmPoseDirections = {}
-  ;(Object.keys(targets) as (keyof VrmPoseDirections)[]).forEach((k) => {
-    const t = targets[k]
-    if (t)
-      out[k] = t.dir
-  })
-  return out
+function get(points: Vector3Like[], index: number): null | Vector3Like {
+  const p = points[index]
+  if (!p)
+    return null
+  if (!Number.isFinite(p.x) || !Number.isFinite(p.y))
+    return null
+  return { x: p.x, y: p.y, z: p.z ?? 0 }
+}
+
+function getOptionalPresence(landmark: unknown): number | undefined {
+  if (landmark && typeof landmark === 'object' && 'presence' in landmark)
+    return (landmark as LandmarkWithPresence).presence
+  return undefined
+}
+
+function getOptionalVisibility(landmark: unknown): number | undefined {
+  if (landmark && typeof landmark === 'object' && 'visibility' in landmark)
+    return (landmark as LandmarkWithVisibility).visibility
+  return undefined
+}
+
+function isConfident(pose: PoseState, index: number, thresholds: { minPresence: number, minVisibility: number }): boolean {
+  // User requirement: do not output anything when `visibility` is missing.
+  // Prefer 2D landmarks for visibility/presence (they are more consistently populated),
+  // but still allow fallback to world landmarks when needed.
+  const lm2d = pose.landmarks2d?.[index]
+  const lm3d = pose.worldLandmarks?.[index]
+  if (!lm2d && !lm3d)
+    return false
+
+  const visibility = getOptionalVisibility(lm2d) ?? getOptionalVisibility(lm3d)
+  if (visibility == null || !Number.isFinite(visibility))
+    return false
+  if (visibility < thresholds.minVisibility)
+    return false
+
+  if (thresholds.minPresence > 0) {
+    const presence = getOptionalPresence(lm2d) ?? getOptionalPresence(lm3d)
+    if (presence != null && Number.isFinite(presence) && presence < thresholds.minPresence)
+      return false
+  }
+  return true
+}
+
+function mid(a: Vector3Like, b: Vector3Like): Vector3Like {
+  return vScale(vAdd(a, b), 0.5)
+}
+
+function safePole(dir: Vector3Like, pole: Vector3Like, threshold = 0.85): null | Vector3Like {
+  const d = Math.abs(vDot(dir, pole))
+  if (!Number.isFinite(d))
+    return null
+  return d > threshold ? null : pole
+}
+
+function vAdd(a: Vector3Like, b: Vector3Like): Vector3Like {
+  return { x: a.x + b.x, y: a.y + b.y, z: (a.z ?? 0) + (b.z ?? 0) }
+}
+
+function vCross(a: Vector3Like, b: Vector3Like): Vector3Like {
+  const az = a.z ?? 0
+  const bz = b.z ?? 0
+  return {
+    x: a.y * bz - az * b.y,
+    y: az * b.x - a.x * bz,
+    z: a.x * b.y - a.y * b.x,
+  }
+}
+function vDot(a: Vector3Like, b: Vector3Like): number {
+  return a.x * b.x + a.y * b.y + (a.z ?? 0) * (b.z ?? 0)
+}
+
+function vLen(v: Vector3Like): number {
+  return Math.hypot(v.x, v.y, v.z ?? 0)
+}
+
+function vNeg(v: Vector3Like): Vector3Like {
+  return { x: -v.x, y: -v.y, z: -(v.z ?? 0) }
+}
+
+function vNormalize(v: Vector3Like): null | Vector3Like {
+  const len = vLen(v)
+  if (!Number.isFinite(len) || len <= 1e-6)
+    return null
+  return vScale(v, 1 / len)
+}
+
+function vRemapAxis(v: Vector3Like, axis: { x: -1 | 1, y: -1 | 1, z: -1 | 1 }): Vector3Like {
+  return { x: v.x * axis.x, y: v.y * axis.y, z: (v.z ?? 0) * axis.z }
+}
+
+function vScale(v: Vector3Like, s: number): Vector3Like {
+  return { x: v.x * s, y: v.y * s, z: (v.z ?? 0) * s }
+}
+
+// TODO: Consider consolidating these vector helpers into a shared math utility if more drivers need them.
+function vSub(a: Vector3Like, b: Vector3Like): Vector3Like {
+  return { x: a.x - b.x, y: a.y - b.y, z: (a.z ?? 0) - (b.z ?? 0) }
 }

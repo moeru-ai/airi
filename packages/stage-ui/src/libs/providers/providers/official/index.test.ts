@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest'
 import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID, providerOfficialSpeech, providerOfficialSpeechStreaming, providerOfficialTranscription } from './index'
 
 interface OfficialSpeechOptions {
-  speed?: number
   extraBody?: {
     airi_analytics?: {
       source: string
@@ -15,6 +14,7 @@ interface OfficialSpeechOptions {
       pitch?: number
     }
   }
+  speed?: number
 }
 
 describe('official speech provider', () => {
@@ -26,12 +26,12 @@ describe('official speech provider', () => {
     const provider = await providerOfficialSpeech.createProvider({}) as SpeechProviderWithExtraOptions<string, OfficialSpeechOptions>
 
     const request = provider.speech('microsoft/v1', {
-      speed: 1.2,
       extraBody: {
         voice_pack: {
           pitch: 20,
         },
       },
+      speed: 1.2,
     })
 
     expect(request.model).toBe('microsoft/v1')
@@ -103,10 +103,10 @@ describe('official transcription provider', () => {
 
     expect(models).toEqual([
       {
+        description: 'Realtime transcription routed by AIRI',
         id: 'auto',
         name: 'Auto',
         provider: OFFICIAL_TRANSCRIPTION_PROVIDER_ID,
-        description: 'Realtime transcription routed by AIRI',
       },
     ])
   })

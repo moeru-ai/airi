@@ -8,10 +8,6 @@ export interface VelinModule {
   render: <P>(data: P) => Promise<string>
 }
 
-function isMarkdown(module: string) {
-  return module.endsWith('.md') || module.endsWith('.velin.md')
-}
-
 export function importVelin(module: string, base: string): VelinModule {
   return {
     render: async (data) => {
@@ -29,4 +25,8 @@ export function importVelin(module: string, base: string): VelinModule {
 
 export function velin<P = undefined>(module: string, base: string): (data?: P) => Promise<string> {
   return importVelin(module, base).render
+}
+
+function isMarkdown(module: string) {
+  return module.endsWith('.md') || module.endsWith('.velin.md')
 }

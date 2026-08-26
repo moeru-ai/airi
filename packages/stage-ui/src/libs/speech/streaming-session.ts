@@ -9,17 +9,46 @@ import { SERVER_URL } from '../server'
  * envelope.
  */
 export interface StreamingTtsServerEvent {
-  event:
-    | 'session.started'
-    | 'sentence.start'
-    | 'sentence.end'
-    | 'subtitle'
-    | 'session.finished'
-    | 'error'
-  text?: string
   code?: string
+  event:
+    | 'error'
+    | 'sentence.end'
+    | 'sentence.start'
+    | 'session.finished'
+    | 'session.started'
+    | 'subtitle'
   message?: string
   payload?: Record<string, unknown>
+  text?: string
+}
+
+export interface StreamingTtsSessionOptions {
+  /**
+   * Backend-specific knobs forwarded verbatim into the `extra_body` of the
+   * `start` frame. For Volcengine: `api_resource_id`, `audio.*`, `additions`,
+   * `section_id`, `context_texts`, etc.
+   */
+  extraBody?: Record<string, unknown>
+  /** The text to synthesize. */
+  input: string
+  /** unspeech-routed model id, e.g. `volcengine/seed-tts-2.0`. */
+  model: string
+  /** OpenAI-style format. `mp3` default; streaming upstream rejects `wav`. */
+  responseFormat?: 'aac' | 'flac' | 'mp3' | 'opus' | 'pcm'
+  /** Server URL override. Defaults to {@link SERVER_URL}. */
+  serverUrl?: string
+  /** Caller-side abort signal. Closes the ws and rejects with `AbortError`. */
+  signal?: AbortSignal
+  /** Override the auth token (Bearer). Defaults to {@link getAuthToken}. */
+  token?: string
+  /** Low-cardinality source hint sent to server-side product analytics. */
+  ttsSource?: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+  /** Business trigger hint sent to server-side product analytics. */
+  ttsTrigger?: 'auto' | 'manual'
+  /** Low-cardinality voice bucket sent to server-side product analytics. */
+  ttsVoiceType?: 'custom_configured' | 'official_default' | 'official_selected' | 'unknown' | 'voice_pack'
+  /** Upstream voice / speaker id. */
+  voice: string
 }
 
 /**
@@ -29,39 +58,10 @@ export interface StreamingTtsServerEvent {
  */
 export interface StreamingTtsSessionResult {
   audio: ArrayBuffer
-  /** Sentence-level events received from the gateway, in arrival order. */
-  sentences: Array<{ kind: 'start' | 'end' | 'subtitle', payload?: Record<string, unknown> }>
   /** Total bytes accumulated across all binary audio frames. */
   byteLength: number
-}
-
-export interface StreamingTtsSessionOptions {
-  /** Server URL override. Defaults to {@link SERVER_URL}. */
-  serverUrl?: string
-  /** Override the auth token (Bearer). Defaults to {@link getAuthToken}. */
-  token?: string
-  /** unspeech-routed model id, e.g. `volcengine/seed-tts-2.0`. */
-  model: string
-  /** Upstream voice / speaker id. */
-  voice: string
-  /** The text to synthesize. */
-  input: string
-  /** OpenAI-style format. `mp3` default; streaming upstream rejects `wav`. */
-  responseFormat?: 'mp3' | 'opus' | 'aac' | 'flac' | 'pcm'
-  /**
-   * Backend-specific knobs forwarded verbatim into the `extra_body` of the
-   * `start` frame. For Volcengine: `api_resource_id`, `audio.*`, `additions`,
-   * `section_id`, `context_texts`, etc.
-   */
-  extraBody?: Record<string, unknown>
-  /** Business trigger hint sent to server-side product analytics. */
-  ttsTrigger?: 'auto' | 'manual'
-  /** Low-cardinality source hint sent to server-side product analytics. */
-  ttsSource?: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
-  /** Low-cardinality voice bucket sent to server-side product analytics. */
-  ttsVoiceType?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
-  /** Caller-side abort signal. Closes the ws and rejects with `AbortError`. */
-  signal?: AbortSignal
+  /** Sentence-level events received from the gateway, in arrival order. */
+  sentences: Array<{ kind: 'end' | 'start' | 'subtitle', payload?: Record<string, unknown> }>
 }
 
 const DEFAULT_RESPONSE_FORMAT = 'mp3' as const
@@ -92,8 +92,8 @@ export async function streamingSynthesize(options: StreamingTtsSessionOptions): 
 
   const baseUrl = options.serverUrl ?? SERVER_URL
   const wsUrl = toWebSocketUrl(baseUrl, '/api/v1/audio/speech/ws', token, {
-    ttsTrigger: options.ttsTrigger ?? 'manual',
     ttsSource: options.ttsSource ?? 'manual_preview',
+    ttsTrigger: options.ttsTrigger ?? 'manual',
     ttsVoiceType: options.ttsVoiceType ?? 'unknown',
   })
 
@@ -146,8 +146,8 @@ export async function streamingSynthesize(options: StreamingTtsSessionOptions): 
       const startFrame = {
         event: 'start',
         model: options.model,
-        voice: options.voice,
         response_format: options.responseFormat ?? DEFAULT_RESPONSE_FORMAT,
+        voice: options.voice,
         ...(options.extraBody ? { extra_body: options.extraBody } : {}),
       }
       ws.send(JSON.stringify(startFrame))
@@ -175,29 +175,29 @@ export async function streamingSynthesize(options: StreamingTtsSessionOptions): 
         }
 
         switch (evt.event) {
-          case 'sentence.start':
-            sentences.push({ kind: 'start', payload: evt.payload })
-            break
-          case 'sentence.end':
-            sentences.push({ kind: 'end', payload: evt.payload })
-            break
-          case 'subtitle':
-            sentences.push({ kind: 'subtitle', payload: evt.payload })
-            break
-          case 'session.finished': {
-            sawSessionFinished = true
-            settle(() => {
-              const audio = concatArrayBuffers(audioChunks)
-              resolve({ audio, sentences, byteLength: totalBytes })
-            })
-            break
-          }
           case 'error': {
             const code = evt.code ?? 'streaming_tts_error'
             const message = evt.message ?? code
             settle(() => reject(new Error(`${code}: ${message}`)))
             break
           }
+          case 'sentence.end':
+            sentences.push({ kind: 'end', payload: evt.payload })
+            break
+          case 'sentence.start':
+            sentences.push({ kind: 'start', payload: evt.payload })
+            break
+          case 'session.finished': {
+            sawSessionFinished = true
+            settle(() => {
+              const audio = concatArrayBuffers(audioChunks)
+              resolve({ audio, byteLength: totalBytes, sentences })
+            })
+            break
+          }
+          case 'subtitle':
+            sentences.push({ kind: 'subtitle', payload: evt.payload })
+            break
         }
         return
       }
@@ -225,7 +225,7 @@ export async function streamingSynthesize(options: StreamingTtsSessionOptions): 
           // settle() above already resolved on session.finished; this branch
           // exists for the rare ordering where the close arrives before the
           // settle from session.finished took effect — still a success.
-          resolve({ audio: concatArrayBuffers(audioChunks), sentences, byteLength: totalBytes })
+          resolve({ audio: concatArrayBuffers(audioChunks), byteLength: totalBytes, sentences })
           return
         }
         const reason = ev.reason || `closed_${ev.code}`
@@ -233,25 +233,6 @@ export async function streamingSynthesize(options: StreamingTtsSessionOptions): 
       })
     })
   })
-}
-
-function toWebSocketUrl(
-  httpBase: string,
-  path: string,
-  token: string,
-  analytics: {
-    ttsTrigger: 'auto' | 'manual'
-    ttsSource: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
-    ttsVoiceType: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
-  },
-): string {
-  const u = new URL(path, httpBase)
-  u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:'
-  u.searchParams.set('token', token)
-  u.searchParams.set('tts_trigger', analytics.ttsTrigger)
-  u.searchParams.set('tts_source', analytics.ttsSource)
-  u.searchParams.set('tts_voice_type', analytics.ttsVoiceType)
-  return u.toString()
 }
 
 function concatArrayBuffers(parts: ArrayBuffer[]): ArrayBuffer {
@@ -267,4 +248,23 @@ function concatArrayBuffers(parts: ArrayBuffer[]): ArrayBuffer {
     offset += part.byteLength
   }
   return out.buffer
+}
+
+function toWebSocketUrl(
+  httpBase: string,
+  path: string,
+  token: string,
+  analytics: {
+    ttsSource: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+    ttsTrigger: 'auto' | 'manual'
+    ttsVoiceType: 'custom_configured' | 'official_default' | 'official_selected' | 'unknown' | 'voice_pack'
+  },
+): string {
+  const u = new URL(path, httpBase)
+  u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:'
+  u.searchParams.set('token', token)
+  u.searchParams.set('tts_trigger', analytics.ttsTrigger)
+  u.searchParams.set('tts_source', analytics.ttsSource)
+  u.searchParams.set('tts_voice_type', analytics.ttsVoiceType)
+  return u.toString()
 }

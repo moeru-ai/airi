@@ -7,151 +7,78 @@ import type {
   TerminalState,
 } from './types'
 
-export function createTestConfig(overrides: Partial<ComputerUseConfig> = {}): ComputerUseConfig {
-  const baseConfig: ComputerUseConfig = {
-    sessionRoot: '/tmp/computer-use-mcp',
-    screenshotsDir: '/tmp/computer-use-mcp/screenshots',
-    auditLogPath: '/tmp/computer-use-mcp/audit.jsonl',
-    executor: 'linux-x11',
-    approvalMode: 'actions',
-    defaultCaptureAfter: true,
-    maxOperations: 80,
-    maxOperationUnits: 160,
-    maxPendingActions: 24,
-    allowedBounds: { x: 0, y: 0, width: 1280, height: 720 },
-    allowApps: [],
-    denyApps: ['airi'],
-    denyWindowTitles: ['keychain'],
-    openableApps: ['Finder', 'Terminal', 'Cursor', 'Visual Studio Code', 'Google Chrome'],
-    timeoutMs: 15_000,
-    sessionTag: 'vm-local-1',
-    launchHostProcess: 'Terminal',
-    permissionChainHint: 'Terminal -> ssh -> remote desktop-runner',
-    requireSessionTagForMutatingActions: true,
-    requireAllowedBoundsForMutatingActions: true,
-    requireCoordinateAlignmentForMutatingActions: true,
-    terminalShell: '/bin/zsh',
-    remoteSshHost: '20.196.212.37',
-    remoteSshUser: 'airi',
-    remoteSshPort: 22,
-    remoteRunnerCommand: '$HOME/.local/bin/airi-desktop-runner',
-    remoteDisplaySize: {
-      width: 1280,
-      height: 720,
-    },
-    remoteObservationBaseUrl: undefined,
-    remoteObservationServePort: undefined,
-    remoteObservationToken: undefined,
-    browserDomBridge: {
-      enabled: true,
-      host: '127.0.0.1',
-      port: 8765,
-      requestTimeoutMs: 10_000,
-    },
-    binaries: {
-      swift: 'swift',
-      osascript: 'osascript',
-      screencapture: 'screencapture',
-      pbcopy: 'pbcopy',
-      pbpaste: 'pbpaste',
-      ssh: 'ssh',
-      tar: 'tar',
-      open: 'open',
-    },
-  }
-
+export function createDisplayInfo(overrides: Partial<DisplayInfo> = {}): DisplayInfo {
   return {
-    ...baseConfig,
+    available: true,
+    isRetina: false,
+    logicalHeight: 720,
+    logicalWidth: 1280,
+    note: 'managed virtual X session :99',
+    pixelHeight: 720,
+    pixelWidth: 1280,
+    platform: 'linux',
+    scaleFactor: 1,
     ...overrides,
-    remoteDisplaySize: {
-      width: overrides.remoteDisplaySize?.width ?? baseConfig.remoteDisplaySize.width,
-      height: overrides.remoteDisplaySize?.height ?? baseConfig.remoteDisplaySize.height,
-    },
-    binaries: {
-      swift: overrides.binaries?.swift ?? baseConfig.binaries.swift,
-      osascript: overrides.binaries?.osascript ?? baseConfig.binaries.osascript,
-      screencapture: overrides.binaries?.screencapture ?? baseConfig.binaries.screencapture,
-      pbcopy: overrides.binaries?.pbcopy ?? baseConfig.binaries.pbcopy,
-      pbpaste: overrides.binaries?.pbpaste ?? baseConfig.binaries.pbpaste,
-      ssh: overrides.binaries?.ssh ?? baseConfig.binaries.ssh,
-      tar: overrides.binaries?.tar ?? baseConfig.binaries.tar,
-      open: overrides.binaries?.open ?? baseConfig.binaries.open,
-    },
   }
 }
 
-export function createRemoteExecutionTarget(overrides: Partial<ExecutionTarget> = {}): ExecutionTarget {
+export function createLastScreenshot(overrides: Partial<LastScreenshotInfo> = {}): LastScreenshotInfo {
   return {
-    mode: 'remote',
-    transport: 'ssh-stdio',
-    hostName: 'fake-remote',
-    remoteUser: 'airi',
-    displayId: ':99',
-    sessionTag: 'vm-local-1',
-    isolated: true,
-    tainted: false,
+    capturedAt: '2026-03-09T00:00:00.000Z',
+    executionTargetMode: 'remote',
+    height: 720,
+    path: '/tmp/computer-use-mcp/screenshots/last.png',
+    placeholder: false,
+    sourceDisplayId: ':99',
+    sourceHostName: 'fake-remote',
+    sourceSessionTag: 'vm-local-1',
+    width: 1280,
     ...overrides,
   }
 }
 
 export function createLocalExecutionTarget(overrides: Partial<ExecutionTarget> = {}): ExecutionTarget {
   return {
-    mode: 'local-windowed',
-    transport: 'local',
     hostName: 'macbook-pro',
-    sessionTag: 'local-session',
     isolated: false,
+    mode: 'local-windowed',
+    sessionTag: 'local-session',
     tainted: false,
-    ...overrides,
-  }
-}
-
-export function createDisplayInfo(overrides: Partial<DisplayInfo> = {}): DisplayInfo {
-  return {
-    available: true,
-    platform: 'linux',
-    logicalWidth: 1280,
-    logicalHeight: 720,
-    pixelWidth: 1280,
-    pixelHeight: 720,
-    scaleFactor: 1,
-    isRetina: false,
-    note: 'managed virtual X session :99',
+    transport: 'local',
     ...overrides,
   }
 }
 
 export function createPermissionInfo(): PermissionInfo {
   return {
-    screenRecording: {
-      status: 'granted',
-      target: ':99 via scrot',
-      checkedBy: 'scrot',
-    },
     accessibility: {
+      note: 'linux-x11 runner does not rely on accessibility APIs',
       status: 'unsupported',
       target: ':99 linux-x11 session',
-      note: 'linux-x11 runner does not rely on accessibility APIs',
     },
     automationToSystemEvents: {
+      note: 'linux-x11 runner does not use System Events',
       status: 'unsupported',
       target: ':99 linux-x11 session',
-      note: 'linux-x11 runner does not use System Events',
+    },
+    screenRecording: {
+      checkedBy: 'scrot',
+      status: 'granted',
+      target: ':99 via scrot',
     },
   }
 }
 
-export function createLastScreenshot(overrides: Partial<LastScreenshotInfo> = {}): LastScreenshotInfo {
+export function createRemoteExecutionTarget(overrides: Partial<ExecutionTarget> = {}): ExecutionTarget {
   return {
-    path: '/tmp/computer-use-mcp/screenshots/last.png',
-    width: 1280,
-    height: 720,
-    capturedAt: '2026-03-09T00:00:00.000Z',
-    placeholder: false,
-    executionTargetMode: 'remote',
-    sourceHostName: 'fake-remote',
-    sourceDisplayId: ':99',
-    sourceSessionTag: 'vm-local-1',
+    displayId: ':99',
+    hostName: 'fake-remote',
+    isolated: true,
+    mode: 'remote',
+    remoteUser: 'airi',
+    sessionTag: 'vm-local-1',
+    tainted: false,
+    transport: 'ssh-stdio',
     ...overrides,
   }
 }
@@ -159,8 +86,81 @@ export function createLastScreenshot(overrides: Partial<LastScreenshotInfo> = {}
 export function createTerminalState(overrides: Partial<TerminalState> = {}): TerminalState {
   return {
     effectiveCwd: '/workspace/airi',
-    lastExitCode: 0,
     lastCommandSummary: 'pwd',
+    lastExitCode: 0,
     ...overrides,
+  }
+}
+
+export function createTestConfig(overrides: Partial<ComputerUseConfig> = {}): ComputerUseConfig {
+  const baseConfig: ComputerUseConfig = {
+    allowApps: [],
+    allowedBounds: { height: 720, width: 1280, x: 0, y: 0 },
+    approvalMode: 'actions',
+    auditLogPath: '/tmp/computer-use-mcp/audit.jsonl',
+    binaries: {
+      open: 'open',
+      osascript: 'osascript',
+      pbcopy: 'pbcopy',
+      pbpaste: 'pbpaste',
+      screencapture: 'screencapture',
+      ssh: 'ssh',
+      swift: 'swift',
+      tar: 'tar',
+    },
+    browserDomBridge: {
+      enabled: true,
+      host: '127.0.0.1',
+      port: 8765,
+      requestTimeoutMs: 10_000,
+    },
+    defaultCaptureAfter: true,
+    denyApps: ['airi'],
+    denyWindowTitles: ['keychain'],
+    executor: 'linux-x11',
+    launchHostProcess: 'Terminal',
+    maxOperations: 80,
+    maxOperationUnits: 160,
+    maxPendingActions: 24,
+    openableApps: ['Finder', 'Terminal', 'Cursor', 'Visual Studio Code', 'Google Chrome'],
+    permissionChainHint: 'Terminal -> ssh -> remote desktop-runner',
+    remoteDisplaySize: {
+      height: 720,
+      width: 1280,
+    },
+    remoteObservationBaseUrl: undefined,
+    remoteObservationServePort: undefined,
+    remoteObservationToken: undefined,
+    remoteRunnerCommand: '$HOME/.local/bin/airi-desktop-runner',
+    remoteSshHost: '20.196.212.37',
+    remoteSshPort: 22,
+    remoteSshUser: 'airi',
+    requireAllowedBoundsForMutatingActions: true,
+    requireCoordinateAlignmentForMutatingActions: true,
+    requireSessionTagForMutatingActions: true,
+    screenshotsDir: '/tmp/computer-use-mcp/screenshots',
+    sessionRoot: '/tmp/computer-use-mcp',
+    sessionTag: 'vm-local-1',
+    terminalShell: '/bin/zsh',
+    timeoutMs: 15_000,
+  }
+
+  return {
+    ...baseConfig,
+    ...overrides,
+    binaries: {
+      open: overrides.binaries?.open ?? baseConfig.binaries.open,
+      osascript: overrides.binaries?.osascript ?? baseConfig.binaries.osascript,
+      pbcopy: overrides.binaries?.pbcopy ?? baseConfig.binaries.pbcopy,
+      pbpaste: overrides.binaries?.pbpaste ?? baseConfig.binaries.pbpaste,
+      screencapture: overrides.binaries?.screencapture ?? baseConfig.binaries.screencapture,
+      ssh: overrides.binaries?.ssh ?? baseConfig.binaries.ssh,
+      swift: overrides.binaries?.swift ?? baseConfig.binaries.swift,
+      tar: overrides.binaries?.tar ?? baseConfig.binaries.tar,
+    },
+    remoteDisplaySize: {
+      height: overrides.remoteDisplaySize?.height ?? baseConfig.remoteDisplaySize.height,
+      width: overrides.remoteDisplaySize?.width ?? baseConfig.remoteDisplaySize.width,
+    },
   }
 }

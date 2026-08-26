@@ -8,16 +8,16 @@ import PoppinText from './PoppinText.web.vue'
 type AnimatorMock = ReturnType<typeof vi.fn<Animator>>
 
 async function mountPoppinText(params: {
-  text: ReturnType<typeof ref<Array<{ key: string, text: string }>>>
   animator: AnimatorMock
+  text: ReturnType<typeof ref<Array<{ key: string, text: string }>>>
 }) {
   const host = document.createElement('div')
   document.body.appendChild(host)
 
   const app = createApp({
     render: () => h(PoppinText, {
-      text: params.text.value,
       animator: params.animator,
+      text: params.text.value,
     }),
   })
 
@@ -34,7 +34,7 @@ describe('poppin text', () => {
   it('animates only newly appended keyed text segments', async () => {
     const text = ref([{ key: 'first', text: 'Hi' }])
     const animator = vi.fn<Animator>()
-    const { app, host } = await mountPoppinText({ text, animator })
+    const { app, host } = await mountPoppinText({ animator, text })
 
     expect(animator.mock.calls.map(([elements]) => elements.length)).toEqual([2])
 
@@ -58,7 +58,7 @@ describe('poppin text', () => {
       { key: 'second', text: '!' },
     ])
     const animator = vi.fn<Animator>()
-    const { app, host } = await mountPoppinText({ text, animator })
+    const { app, host } = await mountPoppinText({ animator, text })
 
     expect(animator.mock.calls.map(([elements]) => elements.length)).toEqual([3])
 

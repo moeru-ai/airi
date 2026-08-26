@@ -36,22 +36,22 @@ export function createAudioSpeechWsHandlers(opts: AudioSpeechWsHandlersOptions) 
     const sessionState = createSessionState(userId, opts, analytics)
 
     return {
-      onOpen(_event, ws) {
-        sessionState.attachClient(ws)
-      },
-      onMessage(message, ws) {
-        sessionState.handleClientMessage(message, ws)
-      },
       onClose(_event, _ws) {
         sessionState.handleClientClose()
       },
       onError(event, ws) {
-        log.withFields({ userId, event: String(event) }).warn('client ws error')
+        log.withFields({ event: String(event), userId }).warn('client ws error')
         sessionState.handleClientClose()
         try {
           ws.close(1011, 'internal_error')
         }
         catch {}
+      },
+      onMessage(message, ws) {
+        sessionState.handleClientMessage(message, ws)
+      },
+      onOpen(_event, ws) {
+        sessionState.attachClient(ws)
       },
     }
   }

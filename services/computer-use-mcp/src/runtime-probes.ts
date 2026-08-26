@@ -18,31 +18,55 @@ import { errorMessageFromValue } from './utils/error-message'
 import { runProcess } from './utils/process'
 import { runSwiftScript } from './utils/swift'
 
-function unsupportedProbe(target: string, note: string): PermissionProbe {
-  return {
-    status: 'unsupported',
-    target,
-    note,
+export function buildCoordinateSpaceInfo(params: {
+  config: ComputerUseConfig
+  displayInfo?: DisplayInfo
+  lastScreenshot?: LastScreenshotInfo
+}): CoordinateSpaceInfo {
+  const { allowedBounds } = params.config
+
+  if (!allowedBounds) {
+    return {
+      allowedBounds,
+      lastScreenshot: params.lastScreenshot,
+      readyForMutations: false,
+      reason: 'allowed bounds are not configured',
+    }
   }
-}
 
-function inferLaunchHostProcess(config: ComputerUseConfig) {
-  const argv0 = argv[0]?.trim()
-  return config.launchHostProcess || basename(argv0 || 'node')
-}
+  if (!params.lastScreenshot?.width || !params.lastScreenshot?.height) {
+    return {
+      allowedBounds,
+      lastScreenshot: params.lastScreenshot,
+      readyForMutations: false,
+      reason: 'capture a screenshot before real input so the coordinate spaces can be compared',
+    }
+  }
 
-export function resolveLaunchContext(config: ComputerUseConfig): LaunchContext {
-  const launchHostProcess = inferLaunchHostProcess(config)
+  if (allowedBounds.width === params.lastScreenshot.width && allowedBounds.height === params.lastScreenshot.height) {
+    return {
+      aligned: true,
+      allowedBounds,
+      lastScreenshot: params.lastScreenshot,
+      readyForMutations: true,
+      reason: 'screenshot dimensions match allowed bounds',
+    }
+  }
+
+  const physicalPixelMismatch = params.displayInfo?.available
+    && params.displayInfo.pixelWidth === params.lastScreenshot.width
+    && params.displayInfo.pixelHeight === params.lastScreenshot.height
+    && params.displayInfo.logicalWidth === allowedBounds.width
+    && params.displayInfo.logicalHeight === allowedBounds.height
 
   return {
-    hostName: hostname(),
-    sessionTag: config.sessionTag,
-    pid,
-    ppid,
-    processTitle: title,
-    argv: [...argv],
-    launchHostProcess,
-    permissionChainHint: config.permissionChainHint || `${launchHostProcess} -> ${config.binaries.osascript} -> System Events`,
+    aligned: false,
+    allowedBounds,
+    lastScreenshot: params.lastScreenshot,
+    readyForMutations: false,
+    reason: physicalPixelMismatch
+      ? 'screenshot dimensions match physical pixels while allowed bounds match logical points; align Retina/backing scale before real input'
+      : `screenshot ${params.lastScreenshot.width}x${params.lastScreenshot.height} does not match allowed bounds ${allowedBounds.width}x${allowedBounds.height}`,
   }
 }
 
@@ -68,28 +92,28 @@ export function buildDisplayInfoFromSnapshot(
   if (!mainDisplay) {
     return {
       available: false,
-      platform: targetPlatform,
+      capturedAt: snapshot.capturedAt,
+      combinedBounds: snapshot.combinedBounds,
       displayCount: 0,
       displays: [],
-      combinedBounds: snapshot.combinedBounds,
-      capturedAt: snapshot.capturedAt,
       note: 'display enumeration returned no connected displays',
+      platform: targetPlatform,
     }
   }
 
   return {
     available: true,
-    platform: targetPlatform,
-    logicalWidth: mainDisplay.bounds.width,
-    logicalHeight: mainDisplay.bounds.height,
-    pixelWidth: mainDisplay.pixelWidth,
-    pixelHeight: mainDisplay.pixelHeight,
-    scaleFactor: mainDisplay.scaleFactor,
-    isRetina: mainDisplay.scaleFactor > 1,
+    capturedAt: snapshot.capturedAt,
+    combinedBounds: snapshot.combinedBounds,
     displayCount: snapshot.displays.length,
     displays: snapshot.displays,
-    combinedBounds: snapshot.combinedBounds,
-    capturedAt: snapshot.capturedAt,
+    isRetina: mainDisplay.scaleFactor > 1,
+    logicalHeight: mainDisplay.bounds.height,
+    logicalWidth: mainDisplay.bounds.width,
+    pixelHeight: mainDisplay.pixelHeight,
+    pixelWidth: mainDisplay.pixelWidth,
+    platform: targetPlatform,
+    scaleFactor: mainDisplay.scaleFactor,
   }
 }
 
@@ -97,8 +121,8 @@ export async function probeDisplayInfo(config: ComputerUseConfig): Promise<Displ
   if (platform !== 'darwin') {
     return {
       available: false,
-      platform,
       note: 'display probe is only implemented for macOS in this PoC',
+      platform,
     }
   }
 
@@ -108,10 +132,44 @@ export async function probeDisplayInfo(config: ComputerUseConfig): Promise<Displ
   catch (error) {
     return {
       available: false,
-      platform,
       note: errorMessageFromValue(error),
+      platform,
     }
   }
+}
+
+export async function probePermissionInfo(config: ComputerUseConfig): Promise<PermissionInfo> {
+  const [screenRecording, accessibility, automationToSystemEvents] = await Promise.all([
+    probeScreenRecording(config),
+    probeAccessibility(config),
+    probeAutomation(config),
+  ])
+
+  return {
+    accessibility,
+    automationToSystemEvents,
+    screenRecording,
+  }
+}
+
+export function resolveLaunchContext(config: ComputerUseConfig): LaunchContext {
+  const launchHostProcess = inferLaunchHostProcess(config)
+
+  return {
+    argv: [...argv],
+    hostName: hostname(),
+    launchHostProcess,
+    permissionChainHint: config.permissionChainHint || `${launchHostProcess} -> ${config.binaries.osascript} -> System Events`,
+    pid,
+    ppid,
+    processTitle: title,
+    sessionTag: config.sessionTag,
+  }
+}
+
+function inferLaunchHostProcess(config: ComputerUseConfig) {
+  const argv0 = argv[0]?.trim()
+  return config.launchHostProcess || basename(argv0 || 'node')
 }
 
 async function probeAccessibility(config: ComputerUseConfig): Promise<PermissionProbe> {
@@ -126,57 +184,23 @@ print(AXIsProcessTrusted() ? "granted" : "missing")
 
   try {
     const { stdout } = await runSwiftScript({
+      source: script,
       swiftBinary: config.binaries.swift,
       timeoutMs: config.timeoutMs,
-      source: script,
     })
 
     return {
+      checkedBy: 'AXIsProcessTrusted',
       status: stdout.trim() === 'granted' ? 'granted' : 'missing',
       target: resolveLaunchContext(config).launchHostProcess,
-      checkedBy: 'AXIsProcessTrusted',
     }
   }
   catch (error) {
     return {
-      status: 'unknown',
-      target: resolveLaunchContext(config).launchHostProcess,
       checkedBy: 'AXIsProcessTrusted',
       note: errorMessageFromValue(error),
-    }
-  }
-}
-
-async function probeScreenRecording(config: ComputerUseConfig): Promise<PermissionProbe> {
-  if (platform !== 'darwin') {
-    return unsupportedProbe(resolveLaunchContext(config).launchHostProcess, 'screen recording probe is only implemented on macOS')
-  }
-
-  const script = `
-import CoreGraphics
-import Foundation
-print(CGPreflightScreenCaptureAccess() ? "granted" : "missing")
-`
-
-  try {
-    const { stdout } = await runSwiftScript({
-      swiftBinary: config.binaries.swift,
-      timeoutMs: config.timeoutMs,
-      source: script,
-    })
-
-    return {
-      status: stdout.trim() === 'granted' ? 'granted' : 'missing',
-      target: resolveLaunchContext(config).launchHostProcess,
-      checkedBy: 'CGPreflightScreenCaptureAccess',
-    }
-  }
-  catch (error) {
-    return {
       status: 'unknown',
       target: resolveLaunchContext(config).launchHostProcess,
-      checkedBy: 'CGPreflightScreenCaptureAccess',
-      note: errorMessageFromValue(error),
     }
   }
 }
@@ -201,83 +225,59 @@ async function probeAutomation(config: ComputerUseConfig): Promise<PermissionPro
     })
 
     return {
+      checkedBy: 'osascript/System Events foreground probe',
       status: 'granted',
       target: `${launchContext.launchHostProcess} -> System Events`,
-      checkedBy: 'osascript/System Events foreground probe',
     }
   }
   catch (error) {
     return {
-      status: 'missing',
-      target: `${launchContext.launchHostProcess} -> System Events`,
       checkedBy: 'osascript/System Events foreground probe',
       note: errorMessageFromValue(error),
+      status: 'missing',
+      target: `${launchContext.launchHostProcess} -> System Events`,
     }
   }
 }
 
-export async function probePermissionInfo(config: ComputerUseConfig): Promise<PermissionInfo> {
-  const [screenRecording, accessibility, automationToSystemEvents] = await Promise.all([
-    probeScreenRecording(config),
-    probeAccessibility(config),
-    probeAutomation(config),
-  ])
+async function probeScreenRecording(config: ComputerUseConfig): Promise<PermissionProbe> {
+  if (platform !== 'darwin') {
+    return unsupportedProbe(resolveLaunchContext(config).launchHostProcess, 'screen recording probe is only implemented on macOS')
+  }
 
-  return {
-    screenRecording,
-    accessibility,
-    automationToSystemEvents,
+  const script = `
+import CoreGraphics
+import Foundation
+print(CGPreflightScreenCaptureAccess() ? "granted" : "missing")
+`
+
+  try {
+    const { stdout } = await runSwiftScript({
+      source: script,
+      swiftBinary: config.binaries.swift,
+      timeoutMs: config.timeoutMs,
+    })
+
+    return {
+      checkedBy: 'CGPreflightScreenCaptureAccess',
+      status: stdout.trim() === 'granted' ? 'granted' : 'missing',
+      target: resolveLaunchContext(config).launchHostProcess,
+    }
+  }
+  catch (error) {
+    return {
+      checkedBy: 'CGPreflightScreenCaptureAccess',
+      note: errorMessageFromValue(error),
+      status: 'unknown',
+      target: resolveLaunchContext(config).launchHostProcess,
+    }
   }
 }
 
-export function buildCoordinateSpaceInfo(params: {
-  config: ComputerUseConfig
-  lastScreenshot?: LastScreenshotInfo
-  displayInfo?: DisplayInfo
-}): CoordinateSpaceInfo {
-  const { allowedBounds } = params.config
-
-  if (!allowedBounds) {
-    return {
-      readyForMutations: false,
-      reason: 'allowed bounds are not configured',
-      allowedBounds,
-      lastScreenshot: params.lastScreenshot,
-    }
-  }
-
-  if (!params.lastScreenshot?.width || !params.lastScreenshot?.height) {
-    return {
-      readyForMutations: false,
-      reason: 'capture a screenshot before real input so the coordinate spaces can be compared',
-      allowedBounds,
-      lastScreenshot: params.lastScreenshot,
-    }
-  }
-
-  if (allowedBounds.width === params.lastScreenshot.width && allowedBounds.height === params.lastScreenshot.height) {
-    return {
-      readyForMutations: true,
-      aligned: true,
-      reason: 'screenshot dimensions match allowed bounds',
-      allowedBounds,
-      lastScreenshot: params.lastScreenshot,
-    }
-  }
-
-  const physicalPixelMismatch = params.displayInfo?.available
-    && params.displayInfo.pixelWidth === params.lastScreenshot.width
-    && params.displayInfo.pixelHeight === params.lastScreenshot.height
-    && params.displayInfo.logicalWidth === allowedBounds.width
-    && params.displayInfo.logicalHeight === allowedBounds.height
-
+function unsupportedProbe(target: string, note: string): PermissionProbe {
   return {
-    readyForMutations: false,
-    aligned: false,
-    reason: physicalPixelMismatch
-      ? 'screenshot dimensions match physical pixels while allowed bounds match logical points; align Retina/backing scale before real input'
-      : `screenshot ${params.lastScreenshot.width}x${params.lastScreenshot.height} does not match allowed bounds ${allowedBounds.width}x${allowedBounds.height}`,
-    allowedBounds,
-    lastScreenshot: params.lastScreenshot,
+    note,
+    status: 'unsupported',
+    target,
   }
 }

@@ -11,17 +11,17 @@ import { buildTargetCandidates, captureDesktopGrounding, formatGroundingForAgent
 
 function makeAXSnapshot(nodes: Partial<AXNode>[]): AXSnapshot {
   const root: AXNode = {
-    uid: 'root_0',
-    role: 'AXApplication',
     children: nodes.map((n, i) => ({
-      uid: n.uid ?? `node_${i}`,
-      role: n.role ?? 'AXButton',
-      title: n.title ?? `Button ${i}`,
-      bounds: n.bounds ?? { x: 100 + i * 60, y: 100, width: 50, height: 30 },
+      bounds: n.bounds ?? { height: 30, width: 50, x: 100 + i * 60, y: 100 },
+      children: n.children ?? [],
       enabled: n.enabled ?? true,
       focused: n.focused ?? false,
-      children: n.children ?? [],
+      role: n.role ?? 'AXButton',
+      title: n.title ?? `Button ${i}`,
+      uid: n.uid ?? `node_${i}`,
     })),
+    role: 'AXApplication',
+    uid: 'root_0',
   }
 
   const uidToNode = new Map<string, AXNode>()
@@ -32,35 +32,35 @@ function makeAXSnapshot(nodes: Partial<AXNode>[]): AXSnapshot {
   walk(root)
 
   return {
-    snapshotId: 'ax_1',
-    pid: 1234,
     appName: 'Google Chrome',
-    root,
-    uidToNode,
     capturedAt: new Date().toISOString(),
     maxDepth: 15,
+    pid: 1234,
+    root,
+    snapshotId: 'ax_1',
     truncated: false,
+    uidToNode,
   }
 }
 
 function makeChromeSnapshot(elements: Array<{
+  disabled?: boolean
+  rect?: { h: number, w: number, x: number, y: number }
+  role?: string
   tag?: string
   text?: string
-  role?: string
-  rect?: { x: number, y: number, w: number, h: number }
-  disabled?: boolean
 }>): ChromeSemanticSnapshot {
   return {
-    pageUrl: 'https://example.com',
-    pageTitle: 'Example Page',
+    capturedAt: new Date().toISOString(),
     interactiveElements: elements.map(el => ({
+      disabled: el.disabled,
+      rect: el.rect ?? { h: 30, w: 100, x: 50, y: 50 },
+      role: el.role,
       tag: el.tag ?? 'button',
       text: el.text ?? 'Click me',
-      role: el.role,
-      rect: el.rect ?? { x: 50, y: 50, w: 100, h: 30 },
-      disabled: el.disabled,
     })),
-    capturedAt: new Date().toISOString(),
+    pageTitle: 'Example Page',
+    pageUrl: 'https://example.com',
     source: 'extension',
   }
 }
@@ -92,12 +92,12 @@ describe('buildTargetCandidates', () => {
 
   it('chrome only: converts elements to candidates', () => {
     const chrome = makeChromeSnapshot([
-      { tag: 'button', text: 'Submit', rect: { x: 10, y: 10, w: 80, h: 30 } },
-      { tag: 'a', text: 'Link', rect: { x: 10, y: 50, w: 60, h: 20 } },
+      { rect: { h: 30, w: 80, x: 10, y: 10 }, tag: 'button', text: 'Submit' },
+      { rect: { h: 20, w: 60, x: 10, y: 50 }, tag: 'a', text: 'Link' },
     ])
     const candidates = buildTargetCandidates({
       chromeSnapshot: chrome,
-      chromeWindowBounds: { x: 0, y: 0, width: 1920, height: 1080 },
+      chromeWindowBounds: { height: 1080, width: 1920, x: 0, y: 0 },
       foregroundApp: 'Google Chrome',
     })
 
@@ -110,22 +110,22 @@ describe('buildTargetCandidates', () => {
   it('chrome + AX: deduplicates overlapping candidates', () => {
     // Chrome element and AX node at same position → AX should be removed
     const chrome = makeChromeSnapshot([
-      { tag: 'button', text: 'Submit', rect: { x: 100, y: 12, w: 50, h: 30 } },
+      { rect: { h: 30, w: 50, x: 100, y: 12 }, tag: 'button', text: 'Submit' },
     ])
     const ax = makeAXSnapshot([
       {
-        role: 'AXButton',
-        title: 'Submit',
         // After chrome chrome height offset (88px), chrome rect becomes
         // screen-absolute: x=100, y=100, w=50, h=30 — same as AX
-        bounds: { x: 100, y: 100, width: 50, height: 30 },
+        bounds: { height: 30, width: 50, x: 100, y: 100 },
+        role: 'AXButton',
+        title: 'Submit',
       },
     ])
 
     const candidates = buildTargetCandidates({
       axSnapshot: ax,
       chromeSnapshot: chrome,
-      chromeWindowBounds: { x: 0, y: 0, width: 1920, height: 1080 },
+      chromeWindowBounds: { height: 1080, width: 1920, x: 0, y: 0 },
       foregroundApp: 'Google Chrome',
     })
 
@@ -152,9 +152,9 @@ describe('buildTargetCandidates', () => {
 
   it('limits to 50 candidates', () => {
     const nodes = Array.from({ length: 60 }, (_, i) => ({
+      bounds: { height: 30, width: 50, x: i * 60, y: 100 },
       role: 'AXButton' as const,
       title: `Btn ${i}`,
-      bounds: { x: i * 60, y: 100, width: 50, height: 30 },
     }))
     const ax = makeAXSnapshot(nodes)
     const candidates = buildTargetCandidates({ axSnapshot: ax, foregroundApp: 'Finder' })
@@ -163,7 +163,7 @@ describe('buildTargetCandidates', () => {
 
   it('disabled AX nodes have interactable=false', () => {
     const ax = makeAXSnapshot([
-      { role: 'AXButton', title: 'Disabled', enabled: false },
+      { enabled: false, role: 'AXButton', title: 'Disabled' },
     ])
     const candidates = buildTargetCandidates({ axSnapshot: ax, foregroundApp: 'Finder' })
     expect(candidates[0].interactable).toBe(false)
@@ -171,12 +171,12 @@ describe('buildTargetCandidates', () => {
 
   it('keeps chrome_dom candidates attached to Google Chrome even when another app is foreground', () => {
     const chrome = makeChromeSnapshot([
-      { tag: 'button', text: 'Submit', rect: { x: 10, y: 10, w: 80, h: 30 } },
+      { rect: { h: 30, w: 80, x: 10, y: 10 }, tag: 'button', text: 'Submit' },
     ])
 
     const candidates = buildTargetCandidates({
       chromeSnapshot: chrome,
-      chromeWindowBounds: { x: 0, y: 0, width: 1920, height: 1080 },
+      chromeWindowBounds: { height: 1080, width: 1920, x: 0, y: 0 },
       foregroundApp: 'Finder',
     })
 
@@ -188,70 +188,70 @@ describe('buildTargetCandidates', () => {
 
 describe('captureDesktopGrounding', () => {
   it('retries window observation with app filter when Chrome is foreground and the generic list misses it', async () => {
-    const chromeWindow = { x: 0, y: 0, width: 1920, height: 1080 }
+    const chromeWindow = { height: 1080, width: 1920, x: 0, y: 0 }
     const chromeElements = [
-      { tag: 'button', text: 'Submit', rect: { x: 10, y: 10, w: 80, h: 30 } },
+      { rect: { h: 30, w: 80, x: 10, y: 10 }, tag: 'button', text: 'Submit' },
     ]
 
     const executor = {
-      takeScreenshot: vi.fn().mockResolvedValue({
-        dataBase64: '',
-        mimeType: 'image/png',
-        path: '/tmp/screenshot.png',
-        capturedAt: new Date().toISOString(),
+      click: vi.fn(),
+      describe: vi.fn(),
+      focusApp: vi.fn(),
+      getDisplayInfo: vi.fn(),
+      getExecutionTarget: vi.fn(),
+      getForegroundContext: vi.fn().mockResolvedValue({
+        appName: 'Google Chrome',
+        available: true,
+        platform: 'darwin',
       }),
       observeWindows: vi.fn()
         .mockResolvedValueOnce({
           frontmostAppName: 'Google Chrome',
           frontmostWindowTitle: 'Chrome',
+          observedAt: new Date().toISOString(),
           windows: [
             {
               appName: 'Control Center',
+              bounds: { height: 30, width: 100, x: 0, y: 0 },
               title: 'Clock',
-              bounds: { x: 0, y: 0, width: 100, height: 30 },
             },
           ],
-          observedAt: new Date().toISOString(),
         })
         .mockResolvedValueOnce({
           frontmostAppName: 'Google Chrome',
           frontmostWindowTitle: 'Chrome',
+          observedAt: new Date().toISOString(),
           windows: [
             {
               appName: 'Google Chrome',
-              title: 'Chrome',
               bounds: chromeWindow,
-              ownerPid: 1234,
               id: '1234:0:Chrome',
-              layer: 0,
               isOnScreen: true,
+              layer: 0,
+              ownerPid: 1234,
+              title: 'Chrome',
             },
           ],
-          observedAt: new Date().toISOString(),
         }),
-      focusApp: vi.fn(),
       openApp: vi.fn(),
-      click: vi.fn(),
-      typeText: vi.fn(),
       pressKeys: vi.fn(),
       scroll: vi.fn(),
-      getForegroundContext: vi.fn().mockResolvedValue({
-        available: true,
-        appName: 'Google Chrome',
-        platform: 'darwin',
+      takeScreenshot: vi.fn().mockResolvedValue({
+        capturedAt: new Date().toISOString(),
+        dataBase64: '',
+        mimeType: 'image/png',
+        path: '/tmp/screenshot.png',
       }),
-      getDisplayInfo: vi.fn(),
-      getExecutionTarget: vi.fn(),
-      describe: vi.fn(),
+      typeText: vi.fn(),
     } as any
 
     const cdpBridge = {
+      collectInteractiveElements: vi.fn().mockResolvedValue(chromeElements),
       getStatus: vi.fn().mockReturnValue({
         connected: true,
-        pageUrl: 'https://example.com',
         pageTitle: 'Example Page',
+        pageUrl: 'https://example.com',
       }),
-      collectInteractiveElements: vi.fn().mockResolvedValue(chromeElements),
     } as any
 
     const config = {
@@ -259,10 +259,10 @@ describe('captureDesktopGrounding', () => {
     } as any
 
     const snapshot = await captureDesktopGrounding({
+      cdpBridge,
       config,
       executor,
       input: { includeChrome: true },
-      cdpBridge,
     })
 
     expect(executor.observeWindows).toHaveBeenNthCalledWith(1, { limit: 12 })
@@ -278,24 +278,24 @@ describe('captureDesktopGrounding', () => {
 describe('formatGroundingForAgent', () => {
   function makeFullSnapshot(candidateCount = 2): DesktopGroundingSnapshot {
     const candidates = Array.from({ length: candidateCount }, (_, i) => ({
-      id: `t_${i}`,
-      source: 'ax' as const,
       appName: 'Finder',
-      role: 'AXButton',
-      label: `Button ${i}`,
-      bounds: { x: 100 + i * 60, y: 100, width: 50, height: 30 },
+      bounds: { height: 30, width: 50, x: 100 + i * 60, y: 100 },
       confidence: 0.8,
+      id: `t_${i}`,
       interactable: true,
+      label: `Button ${i}`,
+      role: 'AXButton',
+      source: 'ax' as const,
     }))
 
     return {
-      snapshotId: 'dg_1',
       capturedAt: new Date().toISOString(),
       foregroundApp: 'Finder',
-      windows: [{ id: '1', appName: 'Finder', title: 'Desktop' }],
-      screenshot: { dataBase64: '', mimeType: 'image/png', path: '', capturedAt: new Date().toISOString() },
+      screenshot: { capturedAt: new Date().toISOString(), dataBase64: '', mimeType: 'image/png', path: '' },
+      snapshotId: 'dg_1',
+      staleFlags: { ax: false, chromeSemantic: true, screenshot: false },
       targetCandidates: candidates,
-      staleFlags: { screenshot: false, ax: false, chromeSemantic: true },
+      windows: [{ appName: 'Finder', id: '1', title: 'Desktop' }],
     } as DesktopGroundingSnapshot
   }
 
@@ -325,10 +325,10 @@ describe('formatGroundingForAgent', () => {
   it('shows Chrome page info when chrome snapshot present', () => {
     const snapshot = makeFullSnapshot()
     snapshot.chromeSemanticSnapshot = {
-      pageUrl: 'https://example.com',
-      pageTitle: 'Example',
-      interactiveElements: [],
       capturedAt: new Date().toISOString(),
+      interactiveElements: [],
+      pageTitle: 'Example',
+      pageUrl: 'https://example.com',
       source: 'extension',
     }
     const text = formatGroundingForAgent(snapshot)

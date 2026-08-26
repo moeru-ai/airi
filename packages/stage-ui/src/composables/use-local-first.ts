@@ -3,23 +3,15 @@ import { ref } from 'vue'
 
 import { useAuthStore } from '../stores/auth'
 
-async function canUseRemote(allowRemote?: () => boolean | Promise<boolean>) {
-  if (allowRemote)
-    return await allowRemote()
-  if (!getActivePinia())
-    return true
-  return useAuthStore().isAuthenticated
-}
-
 export interface UseLocalFirstRequestOptions<T> {
-  local: () => Promise<T> | T
-  remote: () => Promise<T>
   allowRemote?: () => boolean | Promise<boolean>
   lazy?: boolean
+  local: () => Promise<T> | T
+  remote: () => Promise<T>
 }
 
 export function useLocalFirstRequest<T>(options: UseLocalFirstRequestOptions<T>) {
-  const { local, remote, allowRemote, lazy = false } = options
+  const { allowRemote, lazy = false, local, remote } = options
 
   const state = ref<T>()
   const isLoading = ref(false)
@@ -51,9 +43,17 @@ export function useLocalFirstRequest<T>(options: UseLocalFirstRequestOptions<T>)
     execute()
 
   return {
-    state,
-    isLoading,
     error,
     execute,
+    isLoading,
+    state,
   }
+}
+
+async function canUseRemote(allowRemote?: () => boolean | Promise<boolean>) {
+  if (allowRemote)
+    return await allowRemote()
+  if (!getActivePinia())
+    return true
+  return useAuthStore().isAuthenticated
 }

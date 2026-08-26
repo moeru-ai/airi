@@ -51,21 +51,21 @@ describe('pushMessages', () => {
       { chatId: 'group', memberType: 'user', userId: 'member' },
     ])
     await db.insert(schema.messages).values({
-      id: 'message',
       chatId: 'group',
-      senderId: 'author',
-      role: 'user',
-      seq: 1,
       content: 'original',
+      id: 'message',
       mediaIds: [],
+      role: 'user',
+      senderId: 'author',
+      seq: 1,
       stickerIds: [],
     })
 
     const service = createChatService(db)
 
-    await expect(service.pushMessages('member', 'group', [{ id: 'message', role: 'user', content: 'forged' }]))
+    await expect(service.pushMessages('member', 'group', [{ content: 'forged', id: 'message', role: 'user' }]))
       .rejects
-      .toMatchObject({ statusCode: 403, errorCode: 'FORBIDDEN', message: 'Forbidden' })
+      .toMatchObject({ errorCode: 'FORBIDDEN', message: 'Forbidden', statusCode: 403 })
 
     const message = await db.query.messages.findFirst({ where: eq(schema.messages.id, 'message') })
     expect(message?.content).toBe('original')
@@ -83,21 +83,21 @@ describe('pushMessages', () => {
       { chatId: 'target', memberType: 'user', userId: 'member' },
     ])
     await db.insert(schema.messages).values({
-      id: 'message',
       chatId: 'source',
-      senderId: 'member',
-      role: 'user',
-      seq: 1,
       content: 'source message',
+      id: 'message',
       mediaIds: [],
+      role: 'user',
+      senderId: 'member',
+      seq: 1,
       stickerIds: [],
     })
 
     const service = createChatService(db)
 
-    await expect(service.pushMessages('member', 'target', [{ id: 'message', role: 'user', content: 'target message' }]))
+    await expect(service.pushMessages('member', 'target', [{ content: 'target message', id: 'message', role: 'user' }]))
       .rejects
-      .toMatchObject({ statusCode: 409, errorCode: 'CONFLICT', message: 'Message already belongs to another chat' })
+      .toMatchObject({ errorCode: 'CONFLICT', message: 'Message already belongs to another chat', statusCode: 409 })
 
     const sourceMessage = await db.query.messages.findFirst({ where: eq(schema.messages.id, 'message') })
     const targetMessages = await db.query.messages.findMany({ where: eq(schema.messages.chatId, 'target') })
@@ -109,21 +109,21 @@ describe('pushMessages', () => {
     await db.insert(schema.chats).values({ id: 'group', type: 'group' })
     await db.insert(schema.chatMembers).values({ chatId: 'group', memberType: 'user', userId: 'author' })
     await db.insert(schema.messages).values({
-      id: 'message',
       chatId: 'group',
-      senderId: 'author',
-      role: 'user',
-      seq: 1,
       content: 'original',
+      id: 'message',
       mediaIds: [],
+      role: 'user',
+      senderId: 'author',
+      seq: 1,
       stickerIds: [],
     })
 
     const service = createChatService(db)
 
-    await expect(service.pushMessages('author', 'group', [{ id: 'message', role: 'user', content: 'updated' }]))
+    await expect(service.pushMessages('author', 'group', [{ content: 'updated', id: 'message', role: 'user' }]))
       .resolves
-      .toMatchObject({ seq: 2, fromSeq: 2, toSeq: 2 })
+      .toMatchObject({ fromSeq: 2, seq: 2, toSeq: 2 })
 
     const message = await db.query.messages.findFirst({ where: eq(schema.messages.id, 'message') })
     expect(message?.content).toBe('updated')
@@ -137,21 +137,21 @@ describe('pushMessages', () => {
     await db.insert(schema.chats).values({ id: 'group', type: 'group' })
     await db.insert(schema.chatMembers).values({ chatId: 'group', memberType: 'user', userId: 'member' })
     await db.insert(schema.messages).values({
-      id: 'message',
       chatId: 'group',
-      senderId: null,
-      role: 'assistant',
-      seq: 1,
       content: 'original response',
+      id: 'message',
       mediaIds: [],
+      role: 'assistant',
+      senderId: null,
+      seq: 1,
       stickerIds: [],
     })
 
     const service = createChatService(db)
 
-    await expect(service.pushMessages('member', 'group', [{ id: 'message', role: 'assistant', content: 'original response' }]))
+    await expect(service.pushMessages('member', 'group', [{ content: 'original response', id: 'message', role: 'assistant' }]))
       .resolves
-      .toMatchObject({ seq: 1, fromSeq: 2, toSeq: 1 })
+      .toMatchObject({ fromSeq: 2, seq: 1, toSeq: 1 })
 
     const message = await db.query.messages.findFirst({ where: eq(schema.messages.id, 'message') })
     expect(message?.content).toBe('original response')
@@ -164,28 +164,28 @@ describe('pushMessages', () => {
     await db.insert(schema.chats).values({ id: 'group', type: 'group' })
     await db.insert(schema.chatMembers).values({ chatId: 'group', memberType: 'user', userId: 'member' })
     await db.insert(schema.messages).values({
-      id: 'legacy-assistant',
       chatId: 'group',
-      senderId: null,
-      role: 'assistant',
-      seq: 1,
       content: 'original response',
+      id: 'legacy-assistant',
       mediaIds: [],
+      role: 'assistant',
+      senderId: null,
+      seq: 1,
       stickerIds: [],
     })
 
     const service = createChatService(db)
 
     await expect(service.pushMessages('member', 'group', [
-      { id: 'legacy-assistant', role: 'assistant', content: 'original response' },
-      { id: 'new-user-message', role: 'user', content: 'next turn' },
+      { content: 'original response', id: 'legacy-assistant', role: 'assistant' },
+      { content: 'next turn', id: 'new-user-message', role: 'user' },
     ]))
       .resolves
-      .toMatchObject({ seq: 2, fromSeq: 2, toSeq: 2 })
+      .toMatchObject({ fromSeq: 2, seq: 2, toSeq: 2 })
 
     const messages = await db.query.messages.findMany({
-      where: eq(schema.messages.chatId, 'group'),
       orderBy: schema.messages.seq,
+      where: eq(schema.messages.chatId, 'group'),
     })
     expect(messages).toHaveLength(2)
     expect(messages[0]?.id).toBe('legacy-assistant')
@@ -201,9 +201,9 @@ describe('pushMessages', () => {
 
     const service = createChatService(db)
 
-    await expect(service.pushMessages('member', 'group', [{ id: 'message', role: 'assistant', content: 'response' }]))
+    await expect(service.pushMessages('member', 'group', [{ content: 'response', id: 'message', role: 'assistant' }]))
       .resolves
-      .toMatchObject({ seq: 1, fromSeq: 1, toSeq: 1 })
+      .toMatchObject({ fromSeq: 1, seq: 1, toSeq: 1 })
 
     const message = await db.query.messages.findFirst({ where: eq(schema.messages.id, 'message') })
     expect(message?.role).toBe('assistant')
@@ -218,21 +218,21 @@ describe('pushMessages', () => {
       { chatId: 'group', memberType: 'user', userId: 'member' },
     ])
     await db.insert(schema.messages).values({
-      id: 'message',
       chatId: 'group',
-      senderId: null,
-      role: 'assistant',
-      seq: 1,
       content: 'original response',
+      id: 'message',
       mediaIds: [],
+      role: 'assistant',
+      senderId: null,
+      seq: 1,
       stickerIds: [],
     })
 
     const service = createChatService(db)
 
-    await expect(service.pushMessages('member', 'group', [{ id: 'message', role: 'assistant', content: 'forged response' }]))
+    await expect(service.pushMessages('member', 'group', [{ content: 'forged response', id: 'message', role: 'assistant' }]))
       .rejects
-      .toMatchObject({ statusCode: 403, errorCode: 'FORBIDDEN', message: 'Forbidden' })
+      .toMatchObject({ errorCode: 'FORBIDDEN', message: 'Forbidden', statusCode: 403 })
 
     const message = await db.query.messages.findFirst({ where: eq(schema.messages.id, 'message') })
     expect(message?.content).toBe('original response')
@@ -245,9 +245,9 @@ describe('pushMessages', () => {
 
     const service = createChatService(db)
 
-    await expect(service.pushMessages('member', 'group', [{ id: 'message', role: 'system', content: 'local prompt' }]))
+    await expect(service.pushMessages('member', 'group', [{ content: 'local prompt', id: 'message', role: 'system' }]))
       .rejects
-      .toMatchObject({ statusCode: 400, errorCode: 'BAD_REQUEST', message: 'Only user and assistant messages can be synchronized' })
+      .toMatchObject({ errorCode: 'BAD_REQUEST', message: 'Only user and assistant messages can be synchronized', statusCode: 400 })
 
     const messages = await db.query.messages.findMany({ where: eq(schema.messages.chatId, 'group') })
     expect(messages).toHaveLength(0)

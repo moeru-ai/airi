@@ -1,131 +1,144 @@
-export type ApprovalMode = 'never' | 'actions' | 'all'
-export type ExecutorKind = 'dry-run' | 'macos-local' | 'linux-x11'
-export type ExecutionMode = 'dry-run' | 'local-windowed' | 'remote'
-export type ExecutionTransport = 'local' | 'ssh-stdio'
-export type RiskLevel = 'low' | 'medium' | 'high'
-export type MouseButton = 'left' | 'right' | 'middle'
+export type ActionInvocation
+  = | { input: ClickActionInput, kind: 'click' }
+    | { input: ClipboardReadTextActionInput, kind: 'clipboard_read_text' }
+    | { input: ClipboardWriteTextActionInput, kind: 'clipboard_write_text' }
+    | { input: DesktopClickTargetInput, kind: 'desktop_click_target' }
+    | { input: DesktopObserveInput, kind: 'desktop_observe' }
+    | { input: FocusAppActionInput, kind: 'focus_app' }
+    | { input: ObserveWindowsRequest, kind: 'observe_windows' }
+    | { input: OpenAppActionInput, kind: 'open_app' }
+    | { input: PressKeysActionInput, kind: 'press_keys' }
+    | { input: ScreenshotRequest, kind: 'screenshot' }
+    | { input: ScrollActionInput, kind: 'scroll' }
+    | { input: SecretReadEnvValueActionInput, kind: 'secret_read_env_value' }
+    | { input: TerminalExecActionInput, kind: 'terminal_exec' }
+    | { input: TerminalResetActionInput, kind: 'terminal_reset' }
+    | { input: TypeTextActionInput, kind: 'type_text' }
+    | { input: WaitActionInput, kind: 'wait' }
 export type ActionKind
-  = | 'screenshot'
-    | 'observe_windows'
-    | 'desktop_observe'
-    | 'desktop_click_target'
-    | 'open_app'
-    | 'focus_app'
-    | 'secret_read_env_value'
+  = | 'click'
     | 'clipboard_read_text'
     | 'clipboard_write_text'
-    | 'click'
-    | 'type_text'
+    | 'desktop_click_target'
+    | 'desktop_observe'
+    | 'focus_app'
+    | 'observe_windows'
+    | 'open_app'
     | 'press_keys'
+    | 'screenshot'
     | 'scroll'
-    | 'wait'
+    | 'secret_read_env_value'
     | 'terminal_exec'
     | 'terminal_reset'
-export type ApprovalGrantScope = 'terminal_and_apps' | 'pty_session'
+    | 'type_text'
+    | 'wait'
+export type ApprovalGrantScope = 'pty_session' | 'terminal_and_apps'
+export type ApprovalMode = 'actions' | 'all' | 'never'
+export interface Bounds {
+  height: number
+  width: number
+  x: number
+  y: number
+}
+export interface BrowserDomBridgeConfig {
+  enabled: boolean
+  host: string
+  port: number
+  requestTimeoutMs: number
+}
+export interface BrowserDomBridgeHello {
+  connectedAt?: string
+  source?: string
+  version?: string
+}
+export interface BrowserDomBridgeStatus {
+  connected: boolean
+  enabled: boolean
+  host: string
+  lastError?: string
+  lastHello?: BrowserDomBridgeHello
+  pendingRequests: number
+  port: number
+}
 
 // ---------------------------------------------------------------------------
 // Terminal lane — formal surface / transport split
 // ---------------------------------------------------------------------------
 
-/** Which terminal surface a step/tool targets. */
-export type TerminalSurface = 'exec' | 'pty' | 'vscode' | null
+export interface BrowserDomFrameDom {
+  bodyText?: string
+  frameName?: string
+  frameOffset?: {
+    x: number
+    y: number
+  }
+  frameOffsetInParent?: {
+    x: number
+    y: number
+  }
+  frameRect?: {
+    h: number
+    w: number
+    x: number
+    y: number
+  }
+  interactiveElements?: BrowserDomInteractiveElement[]
+  title?: string
+  url?: string
+}
 
-/**
- * How bytes actually reach the OS process.
- * v1: `vscode` always uses `exec` transport — no vscode+pty combo.
- */
-export type TerminalTransport = 'exec' | 'pty' | null
+export interface BrowserDomFrameResult<T = unknown> {
+  frameId: number
+  result: T
+}
 
-/** Persisted decision for the most recent surface routing. */
-export interface SurfaceDecision {
-  surface: TerminalSurface
-  transport: TerminalTransport
-  /** Why this surface was chosen. */
+export interface BrowserDomInteractiveElement {
+  center?: {
+    x: number
+    y: number
+  }
+  checked?: boolean
+  className?: string
+  disabled?: boolean
+  href?: string
+  id?: string
+  name?: string
+  placeholder?: string
+  rect?: {
+    h: number
+    w: number
+    x: number
+    y: number
+  }
+  role?: string
+  tag?: string
+  text?: string
+  type?: string
+  value?: string
+  visible?: boolean
+}
+
+export interface BrowserSurfaceAvailability {
+  availableSurfaces: BrowserSurfaceKind[]
+  cdp: {
+    connectable: boolean
+    connected: boolean
+    endpoint: string
+    lastError?: string
+  }
+  executionMode: ExecutionMode
+  extension: {
+    connected: boolean
+    enabled: boolean
+    lastError?: string
+  }
+  preferredSurface?: BrowserSurfaceKind
   reason: string
-  /** Where the decision originated (e.g. 'strategy', 'workflow_reroute'). */
-  source: string
-  /** ISO timestamp. */
-  at: string
+  selectedToolName?: 'browser_cdp_collect_elements' | 'browser_dom_read_page'
+  suitable: boolean
 }
 
-/** Binds a workflow step to a terminal session. */
-export interface WorkflowStepTerminalBinding {
-  taskId: string
-  stepId: string
-  surface: TerminalSurface
-  ptySessionId?: string
-}
-
-/** Open Grant record for a PTY session. */
-export interface PtyApprovalGrant {
-  approvalSessionId: string
-  ptySessionId: string
-  /** ISO timestamp when the grant was created. */
-  grantedAt: string
-  /** Whether the grant is still active. */
-  active: boolean
-}
-
-/** Minimal audit record for a PTY operation. */
-export interface PtyAuditEntry {
-  taskId?: string
-  stepId?: string
-  ptySessionId: string
-  event: 'create' | 'send_input' | 'read_screen' | 'resize' | 'destroy'
-  /** ISO timestamp. */
-  at: string
-  // create
-  cwd?: string
-  rows?: number
-  cols?: number
-  pid?: number
-  // send_input
-  byteCount?: number
-  inputPreview?: string
-  // read_screen
-  returnedLineCount?: number
-  alive?: boolean
-  // destroy
-  actor?: string
-  outcome?: string
-}
-
-export interface Bounds {
-  x: number
-  y: number
-  width: number
-  height: number
-}
-
-export interface DisplaySize {
-  width: number
-  height: number
-}
-
-export interface ExecutionTarget {
-  mode: ExecutionMode
-  transport: ExecutionTransport
-  hostName: string
-  remoteUser?: string
-  displayId?: string
-  sessionTag?: string
-  isolated: boolean
-  tainted: boolean
-  note?: string
-}
-
-export interface ForegroundContext {
-  available: boolean
-  appName?: string
-  windowTitle?: string
-  windowBounds?: Bounds
-  platform: NodeJS.Platform
-  unavailableReason?: string
-  /** Whether the current foreground app is agent-owned (launched/managed by the agent). */
-  agentOwned?: boolean
-  /** PID of the agent-owned window (if any). */
-  agentWindowPid?: number
-}
+export type BrowserSurfaceKind = 'browser_cdp' | 'browser_dom'
 
 /**
  * State of the agent's dedicated Chrome session.
@@ -134,113 +147,30 @@ export interface ForegroundContext {
  * `RunState.chromeSession` for the lifetime of the agent session.
  */
 export interface ChromeSessionInfo {
+  /** Whether the agent started this Chrome instance. */
+  agentOwned: boolean
+  /** CDP WebSocket URL if Chrome was launched with --remote-debugging-port. */
+  cdpUrl?: string
+  /** ISO timestamp of session creation. */
+  createdAt: string
+  /** The URL navigated to (if any). */
+  initialUrl?: string
+  /** Chrome process PID. */
+  pid: number
   /** Whether Chrome was already running before the agent launched it. */
   wasAlreadyRunning: boolean
   /** Window identity string from observe-windows (ownerPid:layer:title). */
   windowId: string
-  /** CDP WebSocket URL if Chrome was launched with --remote-debugging-port. */
-  cdpUrl?: string
-  /** Chrome process PID. */
-  pid: number
-  /** Whether the agent started this Chrome instance. */
-  agentOwned: boolean
-  /** The URL navigated to (if any). */
-  initialUrl?: string
-  /** ISO timestamp of session creation. */
-  createdAt: string
-}
-
-export interface WindowInfo {
-  id: string
-  appName: string
-  title?: string
-  bounds?: Bounds
-  ownerPid?: number
-  layer?: number
-  isOnScreen?: boolean
-}
-
-export interface WindowObservation {
-  frontmostAppName?: string
-  frontmostWindowTitle?: string
-  windows: WindowInfo[]
-  observedAt: string
-}
-
-export interface ScreenshotArtifact {
-  dataBase64: string
-  mimeType: 'image/png'
-  path: string
-  publicUrl?: string
-  observationRef?: string
-  width?: number
-  height?: number
-  capturedAt?: string
-  placeholder?: boolean
-  note?: string
-  executionTargetMode?: ExecutionMode
-  sourceHostName?: string
-  sourceDisplayId?: string
-  sourceSessionTag?: string
-}
-
-export interface PointerTracePoint {
-  x: number
-  y: number
-  delayMs: number
 }
 
 export interface ClickActionInput {
+  button?: MouseButton
+  captureAfter?: boolean
+  clickCount?: number
   /** Global logical screen coordinate, not Retina backing pixels. */
   x: number
   /** Global logical screen coordinate, not Retina backing pixels. */
   y: number
-  button?: MouseButton
-  clickCount?: number
-  captureAfter?: boolean
-}
-
-export interface TypeTextActionInput {
-  text: string
-  /** Optional global logical screen coordinate to focus before typing. */
-  x?: number
-  /** Optional global logical screen coordinate to focus before typing. */
-  y?: number
-  pressEnter?: boolean
-  captureAfter?: boolean
-}
-
-export interface PressKeysActionInput {
-  keys: string[]
-  captureAfter?: boolean
-}
-
-export interface ScrollActionInput {
-  /** Optional global logical screen coordinate to move to before scrolling. */
-  x?: number
-  /** Optional global logical screen coordinate to move to before scrolling. */
-  y?: number
-  deltaX?: number
-  deltaY: number
-  captureAfter?: boolean
-}
-
-export interface WaitActionInput {
-  durationMs: number
-  captureAfter?: boolean
-}
-
-export interface ObserveWindowsRequest {
-  limit?: number
-  app?: string
-}
-
-export interface OpenAppActionInput {
-  app: string
-}
-
-export interface FocusAppActionInput {
-  app: string
 }
 
 export interface ClipboardReadTextActionInput {
@@ -248,33 +178,371 @@ export interface ClipboardReadTextActionInput {
   trim?: boolean
 }
 
-export interface SecretReadEnvValueActionInput {
-  filePath: string
-  keys: string[]
-  allowPlaceholder?: boolean
-}
-
 export interface ClipboardWriteTextActionInput {
   text: string
+}
+
+export interface ComputerUseConfig {
+  allowApps: string[]
+  allowedBounds?: Bounds
+  approvalMode: ApprovalMode
+  auditLogPath: string
+  binaries: {
+    open: string
+    osascript: string
+    pbcopy: string
+    pbpaste: string
+    screencapture: string
+    ssh: string
+    swift: string
+    tar: string
+  }
+  browserDomBridge: BrowserDomBridgeConfig
+  defaultCaptureAfter: boolean
+  denyApps: string[]
+  denyWindowTitles: string[]
+  executor: ExecutorKind
+  launchHostProcess: string
+  maxOperations: number
+  maxOperationUnits: number
+  maxPendingActions: number
+  openableApps: string[]
+  permissionChainHint: string
+  remoteDisplaySize: DisplaySize
+  remoteObservationBaseUrl?: string
+  remoteObservationServePort?: number
+  remoteObservationToken?: string
+  remoteRunnerCommand: string
+  remoteSshHost?: string
+  remoteSshPort: number
+  remoteSshUser?: string
+  requireAllowedBoundsForMutatingActions: boolean
+  requireCoordinateAlignmentForMutatingActions: boolean
+  requireSessionTagForMutatingActions: boolean
+  screenshotsDir: string
+  sessionRoot: string
+  sessionTag?: string
+  terminalShell: string
+  timeoutMs: number
+}
+
+export interface CoordinateSpaceInfo {
+  aligned?: boolean
+  allowedBounds?: Bounds
+  lastScreenshot?: LastScreenshotInfo
+  readyForMutations: boolean
+  reason: string
+}
+
+export interface DesktopClickTargetInput {
+  button?: MouseButton
+  candidateId: string
+  clickCount?: number
+}
+
+export interface DesktopEnsureChromeApprovalInput {
+  cdpPort?: number
+  url?: string
+}
+
+export interface DesktopExecutor {
+  click: (input: ClickActionInput & { pointerTrace: PointerTracePoint[] }) => Promise<ExecutorActionResult>
+  close?: () => Promise<void>
+  describe: () => { kind: ExecutorKind, notes: string[] }
+  focusApp: (input: FocusAppActionInput) => Promise<ExecutorActionResult>
+  getDisplayInfo: () => Promise<DisplayInfo>
+  getExecutionTarget: () => Promise<ExecutionTarget>
+  getForegroundContext: () => Promise<ForegroundContext>
+  getPermissionInfo: () => Promise<PermissionInfo>
+  kind: ExecutorKind
+  observeWindows: (request: ObserveWindowsRequest) => Promise<WindowObservation>
+  openApp: (input: OpenAppActionInput) => Promise<ExecutorActionResult>
+  openTestTarget?: () => Promise<TestTargetLaunchResult>
+  pressKeys: (input: PressKeysActionInput) => Promise<ExecutorActionResult>
+  scroll: (input: ScrollActionInput) => Promise<ExecutorActionResult>
+  takeScreenshot: (request: ScreenshotRequest) => Promise<ScreenshotArtifact>
+  typeText: (input: TypeTextActionInput) => Promise<ExecutorActionResult>
+  wait: (input: WaitActionInput) => Promise<ExecutorActionResult>
 }
 
 export interface DesktopObserveInput {
   includeChrome?: boolean
 }
 
-export interface DesktopClickTargetInput {
-  candidateId: string
-  clickCount?: number
-  button?: MouseButton
+export interface DisplayInfo {
+  available: boolean
+  capturedAt?: string
+  combinedBounds?: Bounds
+  displayCount?: number
+  displays?: Array<{
+    bounds: Bounds
+    displayId: number
+    isBuiltIn: boolean
+    isMain: boolean
+    pixelHeight: number
+    pixelWidth: number
+    scaleFactor: number
+    visibleBounds: Bounds
+  }>
+  isRetina?: boolean
+  logicalHeight?: number
+  logicalWidth?: number
+  note?: string
+  pixelHeight?: number
+  pixelWidth?: number
+  platform: NodeJS.Platform
+  scaleFactor?: number
 }
 
-export interface DesktopEnsureChromeApprovalInput {
-  url?: string
-  cdpPort?: number
+export interface DisplaySize {
+  height: number
+  width: number
+}
+
+export type ExecutionMode = 'dry-run' | 'local-windowed' | 'remote'
+
+export interface ExecutionTarget {
+  displayId?: string
+  hostName: string
+  isolated: boolean
+  mode: ExecutionMode
+  note?: string
+  remoteUser?: string
+  sessionTag?: string
+  tainted: boolean
+  transport: ExecutionTransport
+}
+
+export type ExecutionTransport = 'local' | 'ssh-stdio'
+
+export interface ExecutorActionResult {
+  backend: ExecutorKind
+  executionTarget?: ExecutionTarget
+  notes: string[]
+  performed: boolean
+  pointerTrace?: PointerTracePoint[]
+}
+
+export type ExecutorKind = 'dry-run' | 'linux-x11' | 'macos-local'
+
+export interface FocusAppActionInput {
+  app: string
+}
+
+export interface ForegroundContext {
+  /** Whether the current foreground app is agent-owned (launched/managed by the agent). */
+  agentOwned?: boolean
+  /** PID of the agent-owned window (if any). */
+  agentWindowPid?: number
+  appName?: string
+  available: boolean
+  platform: NodeJS.Platform
+  unavailableReason?: string
+  windowBounds?: Bounds
+  windowTitle?: string
+}
+
+export interface LastScreenshotInfo {
+  capturedAt?: string
+  executionTargetMode?: ExecutionMode
+  height?: number
+  note?: string
+  path: string
+  placeholder: boolean
+  sourceDisplayId?: string
+  sourceHostName?: string
+  sourceSessionTag?: string
+  width?: number
+}
+
+export interface LaunchContext {
+  argv: string[]
+  hostName: string
+  launchHostProcess: string
+  permissionChainHint: string
+  pid: number
+  ppid: number
+  processTitle: string
+  sessionTag?: string
+}
+
+export type MouseButton = 'left' | 'middle' | 'right'
+
+export interface ObserveWindowsRequest {
+  app?: string
+  limit?: number
+}
+
+export interface OpenAppActionInput {
+  app: string
+}
+
+export interface PendingActionRecord {
+  action: PendingExecutableAction
+  context: ForegroundContext
+  createdAt: string
+  id: string
+  policy: PolicyDecision
+  toolName: string
+}
+
+export type PendingExecutableAction
+  = | ActionInvocation
+    | { input: DesktopEnsureChromeApprovalInput, kind: 'desktop_ensure_chrome' }
+    | { input: PtyCreateApprovalInput, kind: 'pty_create' }
+
+export interface PermissionInfo {
+  accessibility: PermissionProbe
+  automationToSystemEvents: PermissionProbe
+  screenRecording: PermissionProbe
+}
+
+export interface PermissionProbe {
+  checkedBy?: string
+  note?: string
+  status: PermissionStatus
+  target: string
+}
+
+export type PermissionStatus = 'granted' | 'missing' | 'unknown' | 'unsupported'
+
+export interface PointerTracePoint {
+  delayMs: number
+  x: number
+  y: number
+}
+
+export interface PolicyDecision {
+  allowed: boolean
+  estimatedOperationUnits: number
+  reason?: string
+  reasons: string[]
+  requiresApproval: boolean
+  riskLevel: RiskLevel
+}
+
+export interface PressKeysActionInput {
+  captureAfter?: boolean
+  keys: string[]
+}
+
+/** Open Grant record for a PTY session. */
+export interface PtyApprovalGrant {
+  /** Whether the grant is still active. */
+  active: boolean
+  approvalSessionId: string
+  /** ISO timestamp when the grant was created. */
+  grantedAt: string
+  ptySessionId: string
+}
+
+/** Minimal audit record for a PTY operation. */
+export interface PtyAuditEntry {
+  // destroy
+  actor?: string
+  alive?: boolean
+  /** ISO timestamp. */
+  at: string
+  // send_input
+  byteCount?: number
+  cols?: number
+  // create
+  cwd?: string
+  event: 'create' | 'destroy' | 'read_screen' | 'resize' | 'send_input'
+  inputPreview?: string
+  outcome?: string
+  pid?: number
+  ptySessionId: string
+  // read_screen
+  returnedLineCount?: number
+  rows?: number
+  stepId?: string
+  taskId?: string
+}
+
+export interface PtyCreateApprovalInput {
+  approvalSessionId?: string
+  cols?: number
+  cwd?: string
+  rows?: number
+  stepId?: string
+  workflowStepLabel?: string
+}
+
+export type RiskLevel = 'high' | 'low' | 'medium'
+
+export interface ScreenshotArtifact {
+  capturedAt?: string
+  dataBase64: string
+  executionTargetMode?: ExecutionMode
+  height?: number
+  mimeType: 'image/png'
+  note?: string
+  observationRef?: string
+  path: string
+  placeholder?: boolean
+  publicUrl?: string
+  sourceDisplayId?: string
+  sourceHostName?: string
+  sourceSessionTag?: string
+  width?: number
 }
 
 export interface ScreenshotRequest {
   label?: string
+}
+
+export interface ScrollActionInput {
+  captureAfter?: boolean
+  deltaX?: number
+  deltaY: number
+  /** Optional global logical screen coordinate to move to before scrolling. */
+  x?: number
+  /** Optional global logical screen coordinate to move to before scrolling. */
+  y?: number
+}
+
+export interface SecretReadEnvValueActionInput {
+  allowPlaceholder?: boolean
+  filePath: string
+  keys: string[]
+}
+
+export interface SessionTraceEntry {
+  action: PendingExecutableAction
+  at: string
+  context: ForegroundContext
+  event: 'approval_required' | 'approved' | 'denied' | 'executed' | 'failed' | 'rejected' | 'requested'
+  id: string
+  policy: PolicyDecision
+  result?: Record<string, unknown>
+  toolName: string
+}
+
+/** Persisted decision for the most recent surface routing. */
+export interface SurfaceDecision {
+  /** ISO timestamp. */
+  at: string
+  /** Why this surface was chosen. */
+  reason: string
+  /** Where the decision originated (e.g. 'strategy', 'workflow_reroute'). */
+  source: string
+  surface: TerminalSurface
+  transport: TerminalTransport
+}
+
+export interface TerminalCommandResult {
+  command: string
+  durationMs: number
+  effectiveCwd: string
+  exitCode: number
+  stderr: string
+  stderrOriginalLength?: number
+  stderrTruncated?: boolean
+  stdout: string
+  stdoutOriginalLength?: number
+  stdoutTruncated?: boolean
+  timedOut: boolean
 }
 
 export interface TerminalExecActionInput {
@@ -287,44 +555,46 @@ export interface TerminalResetActionInput {
   reason?: string
 }
 
-export interface PtyCreateApprovalInput {
-  rows?: number
-  cols?: number
-  cwd?: string
-  stepId?: string
-  workflowStepLabel?: string
-  approvalSessionId?: string
-}
-
-export interface TerminalCommandResult {
-  command: string
-  stdout: string
-  stderr: string
-  stdoutTruncated?: boolean
-  stderrTruncated?: boolean
-  stdoutOriginalLength?: number
-  stderrOriginalLength?: number
-  exitCode: number
-  effectiveCwd: string
-  durationMs: number
-  timedOut: boolean
+export interface TerminalRunner {
+  describe: () => { kind: 'local-shell-runner', notes: string[] }
+  execute: (input: TerminalExecActionInput) => Promise<TerminalCommandResult>
+  getState: () => TerminalState
+  resetState: (reason?: string) => TerminalState
 }
 
 export interface TerminalState {
-  effectiveCwd: string
-  lastExitCode?: number
-  lastCommandSummary?: string
-  approvalSessionActive?: boolean
   approvalGrantedScope?: ApprovalGrantScope
+  approvalSessionActive?: boolean
+  effectiveCwd: string
+  lastCommandSummary?: string
+  lastExitCode?: number
 }
 
-export interface VscodeProblem {
-  file: string
-  line: number
-  column: number
-  severity: string
-  code: string
-  message: string
+/** Which terminal surface a step/tool targets. */
+export type TerminalSurface = 'exec' | 'pty' | 'vscode' | null
+
+/**
+ * How bytes actually reach the OS process.
+ * v1: `vscode` always uses `exec` transport — no vscode+pty combo.
+ */
+export type TerminalTransport = 'exec' | 'pty' | null
+
+export interface TestTargetLaunchResult {
+  appName: string
+  executionTarget: ExecutionTarget
+  launched: boolean
+  recommendedClickPoint: { x: number, y: number }
+  windowTitle?: string
+}
+
+export interface TypeTextActionInput {
+  captureAfter?: boolean
+  pressEnter?: boolean
+  text: string
+  /** Optional global logical screen coordinate to focus before typing. */
+  x?: number
+  /** Optional global logical screen coordinate to focus before typing. */
+  y?: number
 }
 
 export interface VscodeControllerState {
@@ -332,16 +602,10 @@ export interface VscodeControllerState {
     cli: string
     path: string
   }
-  workspacePath?: string
   currentFile?: {
+    column?: number
     filePath: string
     line?: number
-    column?: number
-  }
-  lastTask?: {
-    command: string
-    cwd: string
-    exitCode: number
   }
   lastProblems?: {
     command: string
@@ -349,314 +613,50 @@ export interface VscodeControllerState {
     problemCount: number
     problems: VscodeProblem[]
   }
+  lastTask?: {
+    command: string
+    cwd: string
+    exitCode: number
+  }
   updatedAt: string
+  workspacePath?: string
 }
 
-export interface TestTargetLaunchResult {
-  launched: boolean
+export interface VscodeProblem {
+  code: string
+  column: number
+  file: string
+  line: number
+  message: string
+  severity: string
+}
+
+export interface WaitActionInput {
+  captureAfter?: boolean
+  durationMs: number
+}
+
+export interface WindowInfo {
   appName: string
-  windowTitle?: string
-  recommendedClickPoint: { x: number, y: number }
-  executionTarget: ExecutionTarget
-}
-
-export type ActionInvocation
-  = | { kind: 'screenshot', input: ScreenshotRequest }
-    | { kind: 'observe_windows', input: ObserveWindowsRequest }
-    | { kind: 'desktop_observe', input: DesktopObserveInput }
-    | { kind: 'desktop_click_target', input: DesktopClickTargetInput }
-    | { kind: 'open_app', input: OpenAppActionInput }
-    | { kind: 'focus_app', input: FocusAppActionInput }
-    | { kind: 'secret_read_env_value', input: SecretReadEnvValueActionInput }
-    | { kind: 'clipboard_read_text', input: ClipboardReadTextActionInput }
-    | { kind: 'clipboard_write_text', input: ClipboardWriteTextActionInput }
-    | { kind: 'click', input: ClickActionInput }
-    | { kind: 'type_text', input: TypeTextActionInput }
-    | { kind: 'press_keys', input: PressKeysActionInput }
-    | { kind: 'scroll', input: ScrollActionInput }
-    | { kind: 'wait', input: WaitActionInput }
-    | { kind: 'terminal_exec', input: TerminalExecActionInput }
-    | { kind: 'terminal_reset', input: TerminalResetActionInput }
-
-export type PendingExecutableAction
-  = | ActionInvocation
-    | { kind: 'desktop_ensure_chrome', input: DesktopEnsureChromeApprovalInput }
-    | { kind: 'pty_create', input: PtyCreateApprovalInput }
-
-export interface PolicyDecision {
-  allowed: boolean
-  requiresApproval: boolean
-  reason?: string
-  reasons: string[]
-  riskLevel: RiskLevel
-  estimatedOperationUnits: number
-}
-
-export interface SessionTraceEntry {
+  bounds?: Bounds
   id: string
-  at: string
-  event: 'requested' | 'approval_required' | 'approved' | 'rejected' | 'executed' | 'denied' | 'failed'
-  toolName: string
-  action: PendingExecutableAction
-  context: ForegroundContext
-  policy: PolicyDecision
-  result?: Record<string, unknown>
-}
-
-export interface PendingActionRecord {
-  id: string
-  createdAt: string
-  toolName: string
-  action: PendingExecutableAction
-  policy: PolicyDecision
-  context: ForegroundContext
-}
-
-export interface LaunchContext {
-  hostName: string
-  sessionTag?: string
-  pid: number
-  ppid: number
-  processTitle: string
-  argv: string[]
-  launchHostProcess: string
-  permissionChainHint: string
-}
-
-export interface DisplayInfo {
-  available: boolean
-  platform: NodeJS.Platform
-  logicalWidth?: number
-  logicalHeight?: number
-  pixelWidth?: number
-  pixelHeight?: number
-  scaleFactor?: number
-  isRetina?: boolean
-  displayCount?: number
-  displays?: Array<{
-    displayId: number
-    isMain: boolean
-    isBuiltIn: boolean
-    bounds: Bounds
-    visibleBounds: Bounds
-    scaleFactor: number
-    pixelWidth: number
-    pixelHeight: number
-  }>
-  combinedBounds?: Bounds
-  capturedAt?: string
-  note?: string
-}
-
-export type PermissionStatus = 'granted' | 'missing' | 'unknown' | 'unsupported'
-
-export interface PermissionProbe {
-  status: PermissionStatus
-  target: string
-  checkedBy?: string
-  note?: string
-}
-
-export interface PermissionInfo {
-  screenRecording: PermissionProbe
-  accessibility: PermissionProbe
-  automationToSystemEvents: PermissionProbe
-}
-
-export interface LastScreenshotInfo {
-  path: string
-  width?: number
-  height?: number
-  capturedAt?: string
-  placeholder: boolean
-  note?: string
-  executionTargetMode?: ExecutionMode
-  sourceHostName?: string
-  sourceDisplayId?: string
-  sourceSessionTag?: string
-}
-
-export interface CoordinateSpaceInfo {
-  readyForMutations: boolean
-  aligned?: boolean
-  reason: string
-  allowedBounds?: Bounds
-  lastScreenshot?: LastScreenshotInfo
-}
-
-export interface BrowserDomBridgeConfig {
-  enabled: boolean
-  host: string
-  port: number
-  requestTimeoutMs: number
-}
-
-export interface BrowserDomBridgeHello {
-  source?: string
-  version?: string
-  connectedAt?: string
-}
-
-export interface BrowserDomBridgeStatus {
-  enabled: boolean
-  host: string
-  port: number
-  connected: boolean
-  pendingRequests: number
-  lastHello?: BrowserDomBridgeHello
-  lastError?: string
-}
-
-export type BrowserSurfaceKind = 'browser_dom' | 'browser_cdp'
-
-export interface BrowserSurfaceAvailability {
-  executionMode: ExecutionMode
-  suitable: boolean
-  availableSurfaces: BrowserSurfaceKind[]
-  preferredSurface?: BrowserSurfaceKind
-  selectedToolName?: 'browser_dom_read_page' | 'browser_cdp_collect_elements'
-  reason: string
-  extension: {
-    enabled: boolean
-    connected: boolean
-    lastError?: string
-  }
-  cdp: {
-    endpoint: string
-    connected: boolean
-    connectable: boolean
-    lastError?: string
-  }
-}
-
-export interface BrowserDomInteractiveElement {
-  tag?: string
-  id?: string
-  name?: string
-  type?: string
-  className?: string
-  text?: string
-  value?: string
-  href?: string
-  placeholder?: string
-  role?: string
-  disabled?: boolean
-  checked?: boolean
-  visible?: boolean
-  rect?: {
-    x: number
-    y: number
-    w: number
-    h: number
-  }
-  center?: {
-    x: number
-    y: number
-  }
-}
-
-export interface BrowserDomFrameDom {
-  url?: string
+  isOnScreen?: boolean
+  layer?: number
+  ownerPid?: number
   title?: string
-  frameName?: string
-  frameOffset?: {
-    x: number
-    y: number
-  }
-  frameOffsetInParent?: {
-    x: number
-    y: number
-  }
-  bodyText?: string
-  frameRect?: {
-    x: number
-    y: number
-    w: number
-    h: number
-  }
-  interactiveElements?: BrowserDomInteractiveElement[]
 }
 
-export interface BrowserDomFrameResult<T = unknown> {
-  frameId: number
-  result: T
+export interface WindowObservation {
+  frontmostAppName?: string
+  frontmostWindowTitle?: string
+  observedAt: string
+  windows: WindowInfo[]
 }
 
-export interface ComputerUseConfig {
-  sessionRoot: string
-  screenshotsDir: string
-  auditLogPath: string
-  executor: ExecutorKind
-  approvalMode: ApprovalMode
-  defaultCaptureAfter: boolean
-  maxOperations: number
-  maxOperationUnits: number
-  maxPendingActions: number
-  allowedBounds?: Bounds
-  allowApps: string[]
-  denyApps: string[]
-  denyWindowTitles: string[]
-  openableApps: string[]
-  timeoutMs: number
-  sessionTag?: string
-  launchHostProcess: string
-  permissionChainHint: string
-  requireSessionTagForMutatingActions: boolean
-  requireAllowedBoundsForMutatingActions: boolean
-  requireCoordinateAlignmentForMutatingActions: boolean
-  terminalShell: string
-  remoteSshHost?: string
-  remoteSshUser?: string
-  remoteSshPort: number
-  remoteRunnerCommand: string
-  remoteDisplaySize: DisplaySize
-  remoteObservationBaseUrl?: string
-  remoteObservationServePort?: number
-  remoteObservationToken?: string
-  browserDomBridge: BrowserDomBridgeConfig
-  binaries: {
-    swift: string
-    osascript: string
-    screencapture: string
-    pbcopy: string
-    pbpaste: string
-    ssh: string
-    tar: string
-    open: string
-  }
-}
-
-export interface ExecutorActionResult {
-  performed: boolean
-  backend: ExecutorKind
-  notes: string[]
-  pointerTrace?: PointerTracePoint[]
-  executionTarget?: ExecutionTarget
-}
-
-export interface DesktopExecutor {
-  kind: ExecutorKind
-  describe: () => { kind: ExecutorKind, notes: string[] }
-  getExecutionTarget: () => Promise<ExecutionTarget>
-  getForegroundContext: () => Promise<ForegroundContext>
-  getDisplayInfo: () => Promise<DisplayInfo>
-  getPermissionInfo: () => Promise<PermissionInfo>
-  observeWindows: (request: ObserveWindowsRequest) => Promise<WindowObservation>
-  takeScreenshot: (request: ScreenshotRequest) => Promise<ScreenshotArtifact>
-  openApp: (input: OpenAppActionInput) => Promise<ExecutorActionResult>
-  focusApp: (input: FocusAppActionInput) => Promise<ExecutorActionResult>
-  click: (input: ClickActionInput & { pointerTrace: PointerTracePoint[] }) => Promise<ExecutorActionResult>
-  typeText: (input: TypeTextActionInput) => Promise<ExecutorActionResult>
-  pressKeys: (input: PressKeysActionInput) => Promise<ExecutorActionResult>
-  scroll: (input: ScrollActionInput) => Promise<ExecutorActionResult>
-  wait: (input: WaitActionInput) => Promise<ExecutorActionResult>
-  openTestTarget?: () => Promise<TestTargetLaunchResult>
-  close?: () => Promise<void>
-}
-
-export interface TerminalRunner {
-  describe: () => { kind: 'local-shell-runner', notes: string[] }
-  execute: (input: TerminalExecActionInput) => Promise<TerminalCommandResult>
-  getState: () => TerminalState
-  resetState: (reason?: string) => TerminalState
+/** Binds a workflow step to a terminal session. */
+export interface WorkflowStepTerminalBinding {
+  ptySessionId?: string
+  stepId: string
+  surface: TerminalSurface
+  taskId: string
 }

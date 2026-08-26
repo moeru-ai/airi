@@ -1,14 +1,14 @@
 import { defineConfig } from 'tsdown'
 
 export default defineConfig({
+  dts: true,
   entry: {
-    'index': 'src/index.ts',
     'bin/run': 'src/bin/run.ts',
+    'index': 'src/index.ts',
     'vite-plugin': 'src/vite-plugin.ts',
     'vite-wrapper-config': 'src/vite-wrapper-config.ts',
   },
-  target: 'node18',
   outDir: 'dist',
-  dts: true,
   sourcemap: true,
+  target: 'node18',
 })

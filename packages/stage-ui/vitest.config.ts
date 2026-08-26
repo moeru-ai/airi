@@ -10,22 +10,22 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig(({ mode }) => {
   return {
-    root: import.meta.dirname,
     plugins: [
       Info(),
     ],
+    root: import.meta.dirname,
     test: {
       projects: [
         {
           extends: true,
           test: {
-            name: 'node',
-            include: ['src/**/*.test.ts'],
-            exclude: ['src/**/*.browser.test.ts'],
             env: loadEnv(mode, join(cwd(), 'packages', 'stage-ui'), ''),
+            exclude: ['src/**/*.browser.test.ts'],
             fileParallelism: false,
             hookTimeout: 20_000,
+            include: ['src/**/*.test.ts'],
             maxWorkers: 1,
+            name: 'node',
             testTimeout: 20_000,
           },
         },
@@ -35,17 +35,17 @@ export default defineConfig(({ mode }) => {
             Vue(),
           ],
           test: {
-            name: 'browser',
-            include: ['**/*.browser.{spec,test}.ts'],
-            exclude: ['**/node_modules/**'],
             browser: {
               enabled: true,
               headless: true,
-              provider: playwright(),
               instances: [
                 { browser: 'chromium' },
               ],
+              provider: playwright(),
             },
+            exclude: ['**/node_modules/**'],
+            include: ['**/*.browser.{spec,test}.ts'],
+            name: 'browser',
           },
         },
       ],

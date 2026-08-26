@@ -5,17 +5,11 @@ import { platform } from 'node:process'
 import { runProcess } from './process'
 
 export interface ClipboardReadResult {
-  text: string
   originalLength: number
   returnedLength: number
+  text: string
   trimmed: boolean
   truncated: boolean
-}
-
-function requireMacOSClipboard() {
-  if (platform !== 'darwin') {
-    throw new Error(`system clipboard tools are currently supported on macOS only (current platform: ${platform})`)
-  }
 }
 
 export function maskClipboardPreview(text: string) {
@@ -48,9 +42,9 @@ export async function readClipboardText(config: ComputerUseConfig, input: {
   const text = maxLength ? rawText.slice(0, maxLength) : rawText
 
   return {
-    text,
     originalLength: rawText.length,
     returnedLength: text.length,
+    text,
     trimmed: input.trim !== false,
     truncated: Boolean(maxLength && rawText.length > maxLength),
   } satisfies ClipboardReadResult
@@ -66,5 +60,11 @@ export async function writeClipboardText(config: ComputerUseConfig, text: string
 
   return {
     textLength: text.length,
+  }
+}
+
+function requireMacOSClipboard() {
+  if (platform !== 'darwin') {
+    throw new Error(`system clipboard tools are currently supported on macOS only (current platform: ${platform})`)
   }
 }

@@ -21,22 +21,15 @@ import { InferenceAbortError } from './protocol'
 // Types
 // ---------------------------------------------------------------------------
 
-interface QueueEntry<T> {
-  modelId: string
-  priority: number
-  loader: () => Promise<T>
-  resolve: (value: T) => void
-  reject: (error: unknown) => void
-  signal?: AbortSignal
-  abortHandler?: () => void
-}
-
 export interface EnqueueOptions {
   /** Abort the enqueued load. Rejects the returned promise with `InferenceAbortError`. */
   signal?: AbortSignal
 }
 
 export interface LoadQueue {
+  /** Model ID currently loading, or null */
+  readonly active: null | string
+
   /**
    * Enqueue a model load. Returns a promise that resolves when
    * the loader completes. If another load is in progress, this
@@ -51,9 +44,16 @@ export interface LoadQueue {
 
   /** Model IDs waiting in the queue */
   readonly pending: string[]
+}
 
-  /** Model ID currently loading, or null */
-  readonly active: string | null
+interface QueueEntry<T> {
+  abortHandler?: () => void
+  loader: () => Promise<T>
+  modelId: string
+  priority: number
+  reject: (error: unknown) => void
+  resolve: (value: T) => void
+  signal?: AbortSignal
 }
 
 // ---------------------------------------------------------------------------
@@ -62,7 +62,7 @@ export interface LoadQueue {
 
 export function createLoadQueue(): LoadQueue {
   const queue: QueueEntry<any>[] = []
-  let active: string | null = null
+  let active: null | string = null
   let running = false
 
   function detachAbortHandler(entry: QueueEntry<any>): void {
@@ -116,11 +116,11 @@ export function createLoadQueue(): LoadQueue {
   ): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const entry: QueueEntry<T> = {
+        loader,
         modelId,
         priority,
-        loader,
-        resolve,
         reject,
+        resolve,
         signal: options?.signal,
       }
 
@@ -150,9 +150,9 @@ export function createLoadQueue(): LoadQueue {
   }
 
   return {
+    get active() { return active },
     enqueue,
     get pending() { return queue.map(e => e.modelId) },
-    get active() { return active },
   }
 }
 
@@ -161,7 +161,7 @@ export function createLoadQueue(): LoadQueue {
 // ---------------------------------------------------------------------------
 
 export const LOAD_PRIORITY = {
-  TTS: 10,
   ASR: 5,
   BACKGROUND_REMOVAL: 1,
+  TTS: 10,
 } as const

@@ -14,8 +14,8 @@ import { defineInvokeEventa } from '@moeru/eventa'
  */
 export interface PluginCapabilityPayload {
   key: string
-  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
   metadata?: Record<string, unknown>
+  state: 'announced' | 'degraded' | 'ready' | 'withdrawn'
 }
 
 /**
@@ -32,8 +32,8 @@ export interface PluginCapabilityPayload {
  */
 export interface PluginCapabilityState {
   key: string
-  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
   metadata?: Record<string, unknown>
+  state: 'announced' | 'degraded' | 'ready' | 'withdrawn'
   updatedAt: number
 }
 

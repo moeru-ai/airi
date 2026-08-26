@@ -40,8 +40,8 @@ describe('origin utils', () => {
   it('prefers a trusted referer origin', () => {
     const request = new Request('http://localhost/api/v1/stripe/checkout', {
       headers: {
-        referer: 'https://airi.moeru.ai/settings/flux',
         origin: 'https://example.com',
+        referer: 'https://airi.moeru.ai/settings/flux',
       },
     })
 
@@ -83,9 +83,9 @@ describe('origin utils', () => {
     // which Stripe accepts as a success_url/cancel_url base.
     it('falls back to the web app URL when the request has no trusted origin (Electron file://)', () => {
       const request = new Request('http://localhost/api/v1/stripe/checkout', {
-        method: 'POST',
         // file:// renderers send no Referer; Origin is absent or the opaque literal "null".
         headers: { origin: 'null' },
+        method: 'POST',
       })
 
       expect(resolveTrustedRequestOrigin(request, [])).toBeUndefined()

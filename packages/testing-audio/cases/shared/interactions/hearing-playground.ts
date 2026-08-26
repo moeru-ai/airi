@@ -4,6 +4,18 @@ import type { AudioInputSession } from '../../../src/types'
 
 import { captureStreamingTranscription } from './streaming-transcription'
 
+/** Enables microphone monitoring on an open hearing playground. */
+export async function enableHearingPlaygroundMicrophone(page: Page): Promise<void> {
+  await captureStreamingTranscription(page, '[data-testid="hearing-playground-current"] p')
+
+  const modelBasedToggle = page.getByRole('switch').last()
+  if (await modelBasedToggle.isChecked())
+    await modelBasedToggle.click()
+
+  const monitorToggle = page.getByTestId('hearing-playground-monitor-toggle')
+  await monitorToggle.click()
+}
+
 /** Opens the Electron hearing playground for a case that selects this input UI. */
 export async function openHearingPlayground(runtime: AudioInputSession): Promise<Page> {
   const app = runtime.electronApp
@@ -24,18 +36,6 @@ export async function openHearingPlayground(runtime: AudioInputSession): Promise
   await settingsPage.waitForURL(/#\/settings\/modules\/hearing/)
   await settingsPage.getByTestId('hearing-playground-monitor-toggle').waitFor({ state: 'visible', timeout: 60_000 })
   return settingsPage
-}
-
-/** Enables microphone monitoring on an open hearing playground. */
-export async function enableHearingPlaygroundMicrophone(page: Page): Promise<void> {
-  await captureStreamingTranscription(page, '[data-testid="hearing-playground-current"] p')
-
-  const modelBasedToggle = page.getByRole('switch').last()
-  if (await modelBasedToggle.isChecked())
-    await modelBasedToggle.click()
-
-  const monitorToggle = page.getByTestId('hearing-playground-monitor-toggle')
-  await monitorToggle.click()
 }
 
 /** Reads the requested number of final hearing playground transcripts. */

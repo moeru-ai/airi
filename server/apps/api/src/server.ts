@@ -5,10 +5,6 @@ import { serve } from '@hono/node-server'
 
 import { createApp } from './app'
 
-function handleProcessError(error: unknown, type: string) {
-  useLogger().withError(error).error(type)
-}
-
 /**
  * Starts the dedicated resource API HTTP/WebSocket process.
  *
@@ -20,8 +16,8 @@ function handleProcessError(error: unknown, type: string) {
  *       -> business HTTP and WebSocket routes
  */
 export async function runApiServer(): Promise<void> {
-  const { app, injectWebSocket, port, hostname } = await createApp()
-  const server = serve({ fetch: app.fetch, port, hostname })
+  const { app, hostname, injectWebSocket, port } = await createApp()
+  const server = serve({ fetch: app.fetch, hostname, port })
   injectWebSocket(server)
 
   process.on('uncaughtException', error => handleProcessError(error, 'Uncaught exception'))
@@ -31,4 +27,8 @@ export async function runApiServer(): Promise<void> {
     server.once('close', () => resolve())
     server.once('error', error => reject(error))
   })
+}
+
+function handleProcessError(error: unknown, type: string) {
+  useLogger().withError(error).error(type)
 }

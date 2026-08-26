@@ -4,16 +4,16 @@ import type { ChatBroadcastPayload } from '../../utils/chat-broadcast'
  * In-process websocket connection registry keyed by authenticated user id.
  */
 export interface ChatConnectionRegistry {
-  /** Adds one version-specific websocket emitter for the user. */
-  add: (userId: string, connectionId: string, emit: (payload: ChatBroadcastPayload) => void) => void
-  /** Removes one websocket emitter and deletes the user bucket when empty. */
-  remove: (userId: string, connectionId: string) => void
-  /** Returns whether this process still has local connections for the user. */
-  hasUser: (userId: string) => boolean
   /** Counts all local websocket connections across users for metrics export. */
   activeCount: () => number
+  /** Adds one version-specific websocket emitter for the user. */
+  add: (userId: string, connectionId: string, emit: (payload: ChatBroadcastPayload) => void) => void
   /** Emits `chat:new-messages` to all local user devices except an optional sender context. */
-  emitNewMessages: (userId: string, excludeConnectionId: string | null, payload: ChatBroadcastPayload) => void
+  emitNewMessages: (userId: string, excludeConnectionId: null | string, payload: ChatBroadcastPayload) => void
+  /** Returns whether this process still has local connections for the user. */
+  hasUser: (userId: string) => boolean
+  /** Removes one websocket emitter and deletes the user bucket when empty. */
+  remove: (userId: string, connectionId: string) => void
 }
 
 /**
@@ -33,6 +33,13 @@ export function createChatConnectionRegistry(): ChatConnectionRegistry {
   const userConnections = new Map<string, Map<string, (payload: ChatBroadcastPayload) => void>>()
 
   return {
+    activeCount() {
+      let total = 0
+      for (const conns of userConnections.values())
+        total += conns.size
+      return total
+    },
+
     add(userId, connectionId, emit) {
       let conns = userConnections.get(userId)
       if (!conns) {
@@ -40,26 +47,6 @@ export function createChatConnectionRegistry(): ChatConnectionRegistry {
         userConnections.set(userId, conns)
       }
       conns.set(connectionId, emit)
-    },
-
-    remove(userId, connectionId) {
-      const conns = userConnections.get(userId)
-      if (!conns)
-        return
-      conns.delete(connectionId)
-      if (conns.size === 0)
-        userConnections.delete(userId)
-    },
-
-    hasUser(userId) {
-      return userConnections.has(userId)
-    },
-
-    activeCount() {
-      let total = 0
-      for (const conns of userConnections.values())
-        total += conns.size
-      return total
     },
 
     emitNewMessages(userId, excludeConnectionId, payload) {
@@ -70,6 +57,19 @@ export function createChatConnectionRegistry(): ChatConnectionRegistry {
         if (connectionId !== excludeConnectionId)
           emit(payload)
       }
+    },
+
+    hasUser(userId) {
+      return userConnections.has(userId)
+    },
+
+    remove(userId, connectionId) {
+      const conns = userConnections.get(userId)
+      if (!conns)
+        return
+      conns.delete(connectionId)
+      if (conns.size === 0)
+        userConnections.delete(userId)
     },
   }
 }

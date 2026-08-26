@@ -32,6 +32,18 @@ const DEFAULT_CDP_PORT_SCAN_ATTEMPTS = 20
 
 export interface ChromeSessionManager {
   /**
+   * Bring the agent's Chrome window to the foreground.
+   * Returns false if the tracked session is missing, Chrome is no longer
+   * running, or the tracked window is gone.
+   */
+  bringToFront: () => Promise<boolean>
+
+  /**
+   * End the session. Does NOT close Chrome — just clears the tracked state.
+   */
+  endSession: () => void
+
+  /**
    * Ensure the agent has a usable Chrome window.
    *
    * - No active agent session → launch a dedicated Chrome profile with CDP
@@ -40,19 +52,7 @@ export interface ChromeSessionManager {
    * Human-owned Chrome instances are not reused. The agent always launches its
    * own profile so browser-dom/CDP capture has a stable endpoint.
    */
-  ensureAgentWindow: (options?: { url?: string, cdpPort?: number }) => Promise<ChromeSessionInfo>
-
-  /**
-   * Bring the agent's Chrome window to the foreground.
-   * Returns false if the tracked session is missing, Chrome is no longer
-   * running, or the tracked window is gone.
-   */
-  bringToFront: () => Promise<boolean>
-
-  /**
-   * Restore the user's previous foreground app (recorded at session start).
-   */
-  restorePreviousForeground: () => Promise<void>
+  ensureAgentWindow: (options?: { cdpPort?: number, url?: string }) => Promise<ChromeSessionInfo>
 
   /**
    * Get the current session info (null if no session).
@@ -60,9 +60,9 @@ export interface ChromeSessionManager {
   getSessionInfo: () => ChromeSessionInfo | null
 
   /**
-   * End the session. Does NOT close Chrome — just clears the tracked state.
+   * Restore the user's previous foreground app (recorded at session start).
    */
-  endSession: () => void
+  restorePreviousForeground: () => Promise<void>
 }
 
 // ---------------------------------------------------------------------------
@@ -149,7 +149,7 @@ export function createChromeSessionManager(
     if (activeProfileDir) {
       const profileDir = activeProfileDir
       activeProfileDir = undefined
-      await rm(profileDir, { recursive: true, force: true }).catch(() => {})
+      await rm(profileDir, { force: true, recursive: true }).catch(() => {})
       return
     }
     activeProfileDir = undefined
@@ -292,6 +292,28 @@ export function createChromeSessionManager(
   // -- Public API ---------------------------------------------------------
 
   return {
+    async bringToFront() {
+      if (!session)
+        return false
+      const stillRunning = await isProcessAlive(session.pid)
+      const stillHasWindow = stillRunning && await hasChromeWindow(session.pid)
+      if (!stillHasWindow) {
+        await clearSessionState()
+        onSessionLost?.()
+        return false
+      }
+      await activateChrome()
+      return true
+    },
+
+    endSession() {
+      const hadSession = session !== null
+      void clearSessionState()
+      if (hadSession) {
+        onSessionLost?.()
+      }
+    },
+
     async ensureAgentWindow(options) {
       let ensureOutcome: ChromeSessionInfo['ensureOutcome'] = 'launched'
 
@@ -365,14 +387,14 @@ export function createChromeSessionManager(
         }
 
         session = {
+          agentOwned: true,
+          cdpUrl: `http://127.0.0.1:${cdpPort}`,
+          createdAt: new Date().toISOString(),
           ensureOutcome,
+          initialUrl: options?.url,
+          pid,
           wasAlreadyRunning,
           windowId: `${pid}:0:${CHROME_APP_NAME}`,
-          cdpUrl: `http://127.0.0.1:${cdpPort}`,
-          pid,
-          agentOwned: true,
-          initialUrl: options?.url,
-          createdAt: new Date().toISOString(),
         }
 
         return session
@@ -384,35 +406,13 @@ export function createChromeSessionManager(
       }
     },
 
-    async bringToFront() {
-      if (!session)
-        return false
-      const stillRunning = await isProcessAlive(session.pid)
-      const stillHasWindow = stillRunning && await hasChromeWindow(session.pid)
-      if (!stillHasWindow) {
-        await clearSessionState()
-        onSessionLost?.()
-        return false
-      }
-      await activateChrome()
-      return true
+    getSessionInfo() {
+      return session
     },
 
     async restorePreviousForeground() {
       if (previousForegroundApp && previousForegroundApp !== CHROME_APP_NAME) {
         await activateApp(previousForegroundApp)
-      }
-    },
-
-    getSessionInfo() {
-      return session
-    },
-
-    endSession() {
-      const hadSession = session !== null
-      void clearSessionState()
-      if (hadSession) {
-        onSessionLost?.()
       }
     },
   }

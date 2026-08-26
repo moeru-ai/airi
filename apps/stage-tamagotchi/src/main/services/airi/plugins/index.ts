@@ -56,8 +56,8 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
   defineInvokeHandler(context, electronPluginSetEnabled, async (payload) => {
     const result = await hostService.setEnabled(payload)
     context.emit(electronPluginToolsChanged, {
-      reason: 'enabled-state-changed',
       extensionId: payload.extensionId,
+      reason: 'enabled-state-changed',
     })
     return result
   })
@@ -77,8 +77,8 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
   defineInvokeHandler(context, electronPluginLoad, async (payload) => {
     const result = await hostService.load(payload.extensionId)
     context.emit(electronPluginToolsChanged, {
-      reason: 'loaded',
       extensionId: payload.extensionId,
+      reason: 'loaded',
     })
     return result
   })
@@ -86,8 +86,8 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
   defineInvokeHandler(context, electronPluginUnload, async (payload) => {
     const result = await hostService.unload(payload.extensionId)
     context.emit(electronPluginToolsChanged, {
-      reason: 'unloaded',
       extensionId: payload.extensionId,
+      reason: 'unloaded',
     })
     return result
   })
@@ -123,10 +123,10 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
     switch (payload.state) {
       case 'announced':
         return hostService.host.announceCapability(payload.key, payload.metadata)
-      case 'ready':
-        return hostService.host.markCapabilityReady(payload.key, payload.metadata)
       case 'degraded':
         return hostService.host.markCapabilityDegraded(payload.key, payload.metadata)
+      case 'ready':
+        return hostService.host.markCapabilityReady(payload.key, payload.metadata)
       case 'withdrawn':
         return hostService.host.withdrawCapability(payload.key, payload.metadata)
       default: {

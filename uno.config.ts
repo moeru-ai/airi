@@ -36,6 +36,14 @@ import { parseColor } from 'unocss/preset-mini'
 // [^1]: https://github.com/nodejs/node/pull/44731/files#diff-d76469e9e7f555294a7a5488c5c8fc4ef8ce5aea448cc26a1322d1ab693e09caR921
 setDefaultAutoSelectFamilyAttemptTimeout(1000)
 
+export function histoireUnoConfig() {
+  return defineConfig({
+    presets: [
+      presetStoryMockHover(),
+    ],
+  })
+}
+
 export function presetStoryMockHover(): PresetOrFactoryAwaitable {
   return {
     name: 'story-mock-hover',
@@ -53,6 +61,64 @@ export function presetStoryMockHover(): PresetOrFactoryAwaitable {
         }
       },
     ],
+  }
+}
+
+export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<string, (string | WebFontMeta)[] | string | WebFontMeta> {
+  return {
+    'comfortaa': {
+      name: provider === 'fontsource' ? 'Comfortaa' : 'Comfortaa Variable',
+      provider,
+    },
+    'cuteen': {
+      name: provider === 'fontsource' ? 'Nunito' : 'Nunito Variable',
+      provider,
+    },
+    'cutejp': {
+      name: 'Kiwi Maru',
+      provider,
+      subsets: ['latin', 'japanese'],
+    },
+    'gugi': {
+      name: 'Gugi',
+      provider,
+    },
+    'jura': {
+      name: provider === 'fontsource' ? 'Jura' : 'Jura Variable',
+      provider,
+    },
+    'm-plus-rounded': {
+      name: 'M PLUS Rounded 1c',
+      provider,
+    },
+    'mono': {
+      name: 'DM Mono',
+      provider,
+    },
+    'quanlai': {
+      name: 'cjkfonts AllSeto',
+      provider: 'none',
+    },
+    'quicksand': {
+      name: provider === 'fontsource' ? 'Quicksand' : 'Quicksand Variable',
+      provider,
+    },
+    'sans': {
+      name: provider === 'fontsource' ? 'DM Sans' : 'DM Sans Variable',
+      provider,
+    },
+    'serif': {
+      name: 'DM Serif Display',
+      provider,
+    },
+    'urbanist': {
+      name: provider === 'fontsource' ? 'Urbanist' : 'Urbanist Variable',
+      provider,
+    },
+    'xiaolai': {
+      name: 'Xiaolai SC',
+      provider: 'none',
+    },
   }
 }
 
@@ -80,97 +146,8 @@ export function safelistSettingsEntryIcons(): string[] {
   ]
 }
 
-export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<string, string | WebFontMeta | (string | WebFontMeta)[]> {
-  return {
-    'sans': {
-      name: provider === 'fontsource' ? 'DM Sans' : 'DM Sans Variable',
-      provider,
-    },
-    'serif': {
-      name: 'DM Serif Display',
-      provider,
-    },
-    'mono': {
-      name: 'DM Mono',
-      provider,
-    },
-    'cutejp': {
-      name: 'Kiwi Maru',
-      provider,
-      subsets: ['latin', 'japanese'],
-    },
-    'cuteen': {
-      name: provider === 'fontsource' ? 'Nunito' : 'Nunito Variable',
-      provider,
-    },
-    'jura': {
-      name: provider === 'fontsource' ? 'Jura' : 'Jura Variable',
-      provider,
-    },
-    'gugi': {
-      name: 'Gugi',
-      provider,
-    },
-    'quicksand': {
-      name: provider === 'fontsource' ? 'Quicksand' : 'Quicksand Variable',
-      provider,
-    },
-    'urbanist': {
-      name: provider === 'fontsource' ? 'Urbanist' : 'Urbanist Variable',
-      provider,
-    },
-    'comfortaa': {
-      name: provider === 'fontsource' ? 'Comfortaa' : 'Comfortaa Variable',
-      provider,
-    },
-    'm-plus-rounded': {
-      name: 'M PLUS Rounded 1c',
-      provider,
-    },
-    'quanlai': {
-      name: 'cjkfonts AllSeto',
-      provider: 'none',
-    },
-    'xiaolai': {
-      name: 'Xiaolai SC',
-      provider: 'none',
-    },
-  }
-}
-
 export function sharedUnoConfig() {
   return defineConfig({
-    presets: [
-      presetWind3(),
-      presetAttributify(),
-      presetTypography(),
-      presetIcons({
-        scale: 1.2,
-        collections: {
-          ...createExternalPackageIconLoader('@proj-airi/lobe-icons'),
-          ...createExternalPackageIconLoader('@proj-airi/iconify-meteocons'),
-        },
-      }),
-      presetScrollbar(),
-      presetChromatic({
-        baseHue: 220.44,
-        colors: {
-          primary: 0,
-          complementary: 180,
-        },
-      }) as Preset,
-    ],
-    transformers: [
-      transformerDirectives({
-        applyVariable: ['--at-apply'],
-      }),
-      transformerVariantGroup(),
-    ],
-    safelist: [
-      ...'prose prose-sm m-auto text-left'.split(' '),
-      ...safelistAllPrimaryBackgrounds(),
-      ...safelistSettingsEntryIcons(),
-    ],
     // hyoban/unocss-preset-shadcn: Use shadcn ui with UnoCSS
     // https://github.com/hyoban/unocss-preset-shadcn
     //
@@ -183,6 +160,10 @@ export function sharedUnoConfig() {
     // It's necessary to add the following configuration if you use shadcn-vue or shadcn-svelte.
     content: {
       pipeline: {
+        exclude: [
+
+          /\/node_modules\//, // DO NOT SCAN THE BLACK HOLE
+        ],
         include: [
           // the default
 
@@ -192,12 +173,28 @@ export function sharedUnoConfig() {
           '**/stage-ui/**/*.{vue,js,ts}', // THIS TOO
           '**/ui/**/*.{vue,js,ts}', // THIS TOO
         ],
-        exclude: [
-
-          /\/node_modules\//, // DO NOT SCAN THE BLACK HOLE
-        ],
       },
     },
+    presets: [
+      presetWind3(),
+      presetAttributify(),
+      presetTypography(),
+      presetIcons({
+        collections: {
+          ...createExternalPackageIconLoader('@proj-airi/lobe-icons'),
+          ...createExternalPackageIconLoader('@proj-airi/iconify-meteocons'),
+        },
+        scale: 1.2,
+      }),
+      presetScrollbar(),
+      presetChromatic({
+        baseHue: 220.44,
+        colors: {
+          complementary: 180,
+          primary: 0,
+        },
+      }) as Preset,
+    ],
     rules: [
 
       [/^mask-\[(.*)\]$/, ([, suffix]) => ({ '-webkit-mask-image': suffix.replace(/_/g, ' ') })],
@@ -206,71 +203,74 @@ export function sharedUnoConfig() {
         const parsedColor = parseColor(color, theme)
         // Util usage: https://github.com/unocss/unocss/blob/f57ef6ae50006a92f444738e50f3601c0d1121f2/packages-presets/preset-mini/src/_utils/utilities.ts#L186
         return {
-          'background-image': `radial-gradient(circle at 1px 1px, ${colorToString(parsedColor?.cssColor ?? parsedColor?.color ?? color, 'var(--un-background-opacity)')} 1px, transparent 0)`,
           '--un-background-opacity': parsedColor?.cssColor?.alpha ?? parsedColor?.alpha ?? 1,
+          'background-image': `radial-gradient(circle at 1px 1px, ${colorToString(parsedColor?.cssColor ?? parsedColor?.color ?? color, 'var(--un-background-opacity)')} 1px, transparent 0)`,
         }
       }],
 
       [/drag-region/, () => ({ 'app-region': 'drag' })],
     ],
+    safelist: [
+      ...'prose prose-sm m-auto text-left'.split(' '),
+      ...safelistAllPrimaryBackgrounds(),
+      ...safelistSettingsEntryIcons(),
+    ],
     theme: {
-      fontFamily: {
-        'sans': `"DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
-        'sans-rounded': `"Comfortaa Variable", "Comfortaa", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
-        'cute': `"Nunito Variable", "Nunito", "ChillRoundM", "Kiwi Maru", "Comfortaa Variable", "Comfortaa", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
-        'cuteen': `"Nunito Variable", "Nunito", "ChillRoundM", "Kiwi Maru", "Comfortaa Variable", "Comfortaa", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
-        'cutejp': `"Nunito Variable", "Nunito", "ChillRoundM", "Kiwi Maru", "Comfortaa Variable", "Comfortaa", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
-      },
       /**
        * https://github.com/unocss/unocss/blob/1031312057a3bea1082b7d938eb2ad640f57613a/packages-presets/preset-wind4/src/theme/animate.ts
        * https://unocss.dev/presets/wind4#transformdirectives
        */
       animation: {
-        keyframes: {
-          overlayShow: '{from{opacity:0;}to{opacity:1;}}',
-          overlayHide: '{from{opacity:1;}to{opacity:0;}}',
-          contentShow: '{from:{opacity:0;transform:translate(-50%,-48%) scale(0.96);}to:{opacity:1;transform:translate(-50%,-50%) scale(1);}}',
-          contentHide: '{from:{opacity:1;transform:translate(-50%,-50%) scale(1);}to:{opacity:0;transform:translate(-50%,-48%) scale(0.96);}}',
-          slideUpAndFade: '{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:translateY(0)}}',
-          slideRightAndFade: '{from{opacity:0;transform:translateX(-2px)}to{opacity:1;transform:translateX(0)}}',
-          slideDownAndFade: '{from{opacity:0;transform:translateY(-2px)}to{opacity:1;transform:translateY(0)}}',
-          slideLeftAndFade: '{from{opacity:0;transform:translateX(2px)}to{opacity:1;transform:translateX(0)}}',
-          fadeIn: '{from{opacity:0;}to{opacity:1;}}',
-          fadeOut: '{from{opacity:1;}to{opacity:0;}}',
-        },
         durations: {
-          overlayShow: '300ms',
-          overlayHide: '300ms',
-          contentShow: '150ms',
           contentHide: '150ms',
-          slideUpAndFade: '400ms',
-          slideRightAndFade: '400ms',
-          slideDownAndFade: '400ms',
-          slideLeftAndFade: '400ms',
+          contentShow: '150ms',
           fadeIn: '200ms',
           fadeOut: '200ms',
+          overlayHide: '300ms',
+          overlayShow: '300ms',
+          slideDownAndFade: '400ms',
+          slideLeftAndFade: '400ms',
+          slideRightAndFade: '400ms',
+          slideUpAndFade: '400ms',
+        },
+        keyframes: {
+          contentHide: '{from:{opacity:1;transform:translate(-50%,-50%) scale(1);}to:{opacity:0;transform:translate(-50%,-48%) scale(0.96);}}',
+          contentShow: '{from:{opacity:0;transform:translate(-50%,-48%) scale(0.96);}to:{opacity:1;transform:translate(-50%,-50%) scale(1);}}',
+          fadeIn: '{from{opacity:0;}to{opacity:1;}}',
+          fadeOut: '{from{opacity:1;}to{opacity:0;}}',
+          overlayHide: '{from{opacity:1;}to{opacity:0;}}',
+          overlayShow: '{from{opacity:0;}to{opacity:1;}}',
+          slideDownAndFade: '{from{opacity:0;transform:translateY(-2px)}to{opacity:1;transform:translateY(0)}}',
+          slideLeftAndFade: '{from{opacity:0;transform:translateX(2px)}to{opacity:1;transform:translateX(0)}}',
+          slideRightAndFade: '{from{opacity:0;transform:translateX(-2px)}to{opacity:1;transform:translateX(0)}}',
+          slideUpAndFade: '{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:translateY(0)}}',
         },
         timingFns: {
-          overlayShow: 'cubic-bezier(0.16, 1, 0.3, 1)',
-          overlayHide: 'cubic-bezier(0.16, 1, 0.3, 1)',
-          contentShow: 'cubic-bezier(0.16, 1, 0.3, 1)',
           contentHide: 'cubic-bezier(0.16, 1, 0.3, 1)',
-          slideUpAndFade: 'cubic-bezier(0.16, 1, 0.3, 1)',
-          slideRightAndFade: 'cubic-bezier(0.16, 1, 0.3, 1)',
-          slideDownAndFade: 'cubic-bezier(0.16, 1, 0.3, 1)',
-          slideLeftAndFade: 'cubic-bezier(0.16, 1, 0.3, 1)',
+          contentShow: 'cubic-bezier(0.16, 1, 0.3, 1)',
           fadeIn: 'ease-in-out',
           fadeOut: 'ease-in-out',
+          overlayHide: 'cubic-bezier(0.16, 1, 0.3, 1)',
+          overlayShow: 'cubic-bezier(0.16, 1, 0.3, 1)',
+          slideDownAndFade: 'cubic-bezier(0.16, 1, 0.3, 1)',
+          slideLeftAndFade: 'cubic-bezier(0.16, 1, 0.3, 1)',
+          slideRightAndFade: 'cubic-bezier(0.16, 1, 0.3, 1)',
+          slideUpAndFade: 'cubic-bezier(0.16, 1, 0.3, 1)',
         },
       },
+      fontFamily: {
+        'cute': `"Nunito Variable", "Nunito", "ChillRoundM", "Kiwi Maru", "Comfortaa Variable", "Comfortaa", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
+        'cuteen': `"Nunito Variable", "Nunito", "ChillRoundM", "Kiwi Maru", "Comfortaa Variable", "Comfortaa", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
+        'cutejp': `"Nunito Variable", "Nunito", "ChillRoundM", "Kiwi Maru", "Comfortaa Variable", "Comfortaa", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
+        'sans': `"DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
+        'sans-rounded': `"Comfortaa Variable", "Comfortaa", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
+      },
     },
-  })
-}
-
-export function histoireUnoConfig() {
-  return defineConfig({
-    presets: [
-      presetStoryMockHover(),
+    transformers: [
+      transformerDirectives({
+        applyVariable: ['--at-apply'],
+      }),
+      transformerVariantGroup(),
     ],
   })
 }

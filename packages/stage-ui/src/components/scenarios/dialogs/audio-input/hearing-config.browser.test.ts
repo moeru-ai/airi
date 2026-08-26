@@ -29,17 +29,17 @@ vi.mock('../../../../composables/audio', async () => {
 
   return {
     useAudioDevice: () => ({
-      audioInputs: ref([createAudioInput('store-microphone', 'Store microphone')]),
+      askPermission: audioDeviceMocks.storeAskPermission,
       audioInputOptions: computed(() => [
         { label: 'Store microphone', value: 'store-microphone' },
       ]),
-      selectedAudioInput: ref('store-microphone'),
-      stream: shallowRef<MediaStream>(),
+      audioInputs: ref([createAudioInput('store-microphone', 'Store microphone')]),
       deviceConstraints: computed(() => ({ audio: true })),
       permissionGranted,
-      askPermission: audioDeviceMocks.storeAskPermission,
+      selectedAudioInput: ref('store-microphone'),
       startStream: vi.fn().mockResolvedValue(undefined),
       stopStream: vi.fn(),
+      stream: shallowRef<MediaStream>(),
     }),
   }
 })
@@ -55,9 +55,9 @@ vi.mock('../../../../composables', async () => {
   return {
     useAudioAnalyzer: () => ({ volumeLevel: ref(0) }),
     useAudioDevice: () => ({
+      askPermission: audioDeviceMocks.componentAskPermission,
       audioInputs: ref([createAudioInput('detached-microphone', 'Detached microphone')]),
       permissionGranted,
-      askPermission: audioDeviceMocks.componentAskPermission,
     }),
   }
 })
@@ -76,8 +76,8 @@ vi.mock('@proj-airi/ui', async () => {
     FieldCombobox: defineComponent({
       props: {
         options: {
-          type: Array as () => Array<{ label: string, value: string }>,
           default: () => [],
+          type: Array as () => Array<{ label: string, value: string }>,
         },
       },
       setup(props) {

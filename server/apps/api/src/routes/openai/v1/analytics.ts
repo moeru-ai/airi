@@ -4,7 +4,7 @@ export const AIRI_CHAT_SESSION_ID_HEADER = 'x-airi-session-id'
 export const AIRI_CHAT_ROUND_ID_HEADER = 'x-airi-round-id'
 export const AIRI_CHAT_APP_SURFACE_HEADER = 'x-airi-app-surface'
 
-const CLIENT_CHAT_ANALYTICS_SURFACES = new Set<AiGenerationAppSurface>(['web', 'mobile', 'electron'])
+const CLIENT_CHAT_ANALYTICS_SURFACES = new Set<AiGenerationAppSurface>(['electron', 'mobile', 'web'])
 
 /**
  * Resolves the product runtime from a trusted client hint.

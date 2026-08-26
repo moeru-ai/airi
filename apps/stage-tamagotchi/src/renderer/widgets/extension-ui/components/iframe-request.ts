@@ -15,37 +15,14 @@ export interface ExtensionUiIframeRequestHandlerInput {
 }
 
 export interface ExtensionUiIframeRequestQueueProcessorInput {
-  /** Returns whether this mounted iframe owns the request. */
-  shouldHandle: (request: WidgetsIframeRequestPayload) => boolean
+  /** Emits one correlated request result back to the widget host. */
+  emitResult: (result: WidgetsIframeRequestResultPayload) => void
   /** Returns whether the iframe has announced its invoke handlers are ready. */
   isReady?: () => boolean
   /** Invokes the mounted iframe and returns its response record. */
   requestWidgetIframe: (request: WidgetsIframeRequestPayload) => Promise<GameletIframeResponsePayload>
-  /** Emits one correlated request result back to the widget host. */
-  emitResult: (result: WidgetsIframeRequestResultPayload) => void
-}
-
-function createTimeoutSignal(timeoutMs: number): { signal: AbortSignal, cleanup: () => void } {
-  const timeout = (AbortSignal as typeof AbortSignal & {
-    timeout?: (milliseconds: number) => AbortSignal
-  }).timeout
-
-  if (timeout) {
-    return {
-      signal: timeout(timeoutMs),
-      cleanup: () => {},
-    }
-  }
-
-  const controller = new AbortController()
-  const timer = setTimeout(() => {
-    controller.abort(new DOMException('The operation timed out.', 'TimeoutError'))
-  }, timeoutMs)
-
-  return {
-    signal: controller.signal,
-    cleanup: () => clearTimeout(timer),
-  }
+  /** Returns whether this mounted iframe owns the request. */
+  shouldHandle: (request: WidgetsIframeRequestPayload) => boolean
 }
 
 /**
@@ -67,8 +44,8 @@ export function createExtensionUiIframeRequestHandler(input: ExtensionUiIframeRe
 
     try {
       return await invokeGameletIframeRequest({
-        requestId: request.requestId,
         payload: request.payload,
+        requestId: request.requestId,
       }, {
         signal: timeoutSignal.signal,
       })
@@ -104,19 +81,42 @@ export function createExtensionUiIframeRequestQueueProcessor(input: ExtensionUiI
         .then((result) => {
           input.emitResult({
             id: request.id,
-            requestId: request.requestId,
             ok: true,
+            requestId: request.requestId,
             result,
           })
         })
         .catch((error: unknown) => {
           input.emitResult({
-            id: request.id,
-            requestId: request.requestId,
-            ok: false,
             error: errorMessageFrom(error) ?? 'Gamelet request failed.',
+            id: request.id,
+            ok: false,
+            requestId: request.requestId,
           })
         })
     }
+  }
+}
+
+function createTimeoutSignal(timeoutMs: number): { cleanup: () => void, signal: AbortSignal } {
+  const timeout = (AbortSignal as typeof AbortSignal & {
+    timeout?: (milliseconds: number) => AbortSignal
+  }).timeout
+
+  if (timeout) {
+    return {
+      cleanup: () => {},
+      signal: timeout(timeoutMs),
+    }
+  }
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => {
+    controller.abort(new DOMException('The operation timed out.', 'TimeoutError'))
+  }, timeoutMs)
+
+  return {
+    cleanup: () => clearTimeout(timer),
+    signal: controller.signal,
   }
 }

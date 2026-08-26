@@ -28,8 +28,8 @@ describe('fluxService.deleteAllForUser', () => {
   })
 
   it('marks userFlux.deletedAt and invalidates Redis cache', async () => {
-    await db.insert(schema.user).values({ id: 'u-flux-1', name: 'A', email: 'a@example.com' })
-    await db.insert(schema.userFlux).values({ userId: 'u-flux-1', flux: 100 })
+    await db.insert(schema.user).values({ email: 'a@example.com', id: 'u-flux-1', name: 'A' })
+    await db.insert(schema.userFlux).values({ flux: 100, userId: 'u-flux-1' })
 
     const redis = createTestRedis()
     const del = vi.spyOn(redis, 'del')
@@ -43,8 +43,8 @@ describe('fluxService.deleteAllForUser', () => {
   })
 
   it('is idempotent on retry — already-soft-deleted rows stay unchanged', async () => {
-    await db.insert(schema.user).values({ id: 'u-flux-2', name: 'B', email: 'b@example.com' })
-    await db.insert(schema.userFlux).values({ userId: 'u-flux-2', flux: 50 })
+    await db.insert(schema.user).values({ email: 'b@example.com', id: 'u-flux-2', name: 'B' })
+    await db.insert(schema.userFlux).values({ flux: 50, userId: 'u-flux-2' })
 
     const redis = createTestRedis()
     const service = createFluxService(db, redis, fakeConfigKV())
@@ -69,10 +69,10 @@ describe('providerService.deleteAllForUser', () => {
   })
 
   it('marks every userProviderConfigs row owned by the user', async () => {
-    await db.insert(schema.user).values({ id: 'u-prov-1', name: 'P', email: 'p@example.com' })
+    await db.insert(schema.user).values({ email: 'p@example.com', id: 'u-prov-1', name: 'P' })
     await db.insert(schema.userProviderConfigs).values([
-      { ownerId: 'u-prov-1', definitionId: 'openai', name: 'a' },
-      { ownerId: 'u-prov-1', definitionId: 'anthropic', name: 'b' },
+      { definitionId: 'openai', name: 'a', ownerId: 'u-prov-1' },
+      { definitionId: 'anthropic', name: 'b', ownerId: 'u-prov-1' },
     ])
 
     const service = createProviderService(db)
@@ -84,8 +84,8 @@ describe('providerService.deleteAllForUser', () => {
   })
 
   it('does not touch other users rows', async () => {
-    await db.insert(schema.user).values({ id: 'u-prov-other', name: 'O', email: 'o@example.com' })
-    await db.insert(schema.userProviderConfigs).values({ ownerId: 'u-prov-other', definitionId: 'openai', name: 'kept' })
+    await db.insert(schema.user).values({ email: 'o@example.com', id: 'u-prov-other', name: 'O' })
+    await db.insert(schema.userProviderConfigs).values({ definitionId: 'openai', name: 'kept', ownerId: 'u-prov-other' })
 
     const service = createProviderService(db)
     await service.deleteAllForUser('u-prov-1')
@@ -104,13 +104,13 @@ describe('characterService.deleteAllForUser', () => {
 
   it('soft-deletes characters where the user is owner OR creator', async () => {
     await db.insert(schema.user).values([
-      { id: 'u-char-1', name: 'C1', email: 'c1@example.com' },
-      { id: 'u-char-2', name: 'C2', email: 'c2@example.com' },
+      { email: 'c1@example.com', id: 'u-char-1', name: 'C1' },
+      { email: 'c2@example.com', id: 'u-char-2', name: 'C2' },
     ])
     await db.insert(schema.character).values([
-      { id: 'char-owner', version: '1', coverUrl: '', creatorId: 'u-char-2', ownerId: 'u-char-1', characterId: 'cid-1' },
-      { id: 'char-creator', version: '1', coverUrl: '', creatorId: 'u-char-1', ownerId: 'u-char-2', characterId: 'cid-2' },
-      { id: 'char-other', version: '1', coverUrl: '', creatorId: 'u-char-2', ownerId: 'u-char-2', characterId: 'cid-3' },
+      { characterId: 'cid-1', coverUrl: '', creatorId: 'u-char-2', id: 'char-owner', ownerId: 'u-char-1', version: '1' },
+      { characterId: 'cid-2', coverUrl: '', creatorId: 'u-char-1', id: 'char-creator', ownerId: 'u-char-2', version: '1' },
+      { characterId: 'cid-3', coverUrl: '', creatorId: 'u-char-2', id: 'char-other', ownerId: 'u-char-2', version: '1' },
     ])
 
     const service = createCharacterService(db)
@@ -127,21 +127,21 @@ describe('characterService.deleteAllForUser', () => {
 
   it('decrements character engagement counters for soft-deleted likes and bookmarks', async () => {
     await db.insert(schema.user).values([
-      { id: 'u-char-counts', name: 'Counts', email: 'counts@example.com' },
-      { id: 'u-char-owner', name: 'Owner', email: 'owner@example.com' },
+      { email: 'counts@example.com', id: 'u-char-counts', name: 'Counts' },
+      { email: 'owner@example.com', id: 'u-char-owner', name: 'Owner' },
     ])
     await db.insert(schema.character).values({
-      id: 'char-counts',
-      version: '1',
+      bookmarksCount: 1,
+      characterId: 'cid-counts',
       coverUrl: '',
       creatorId: 'u-char-owner',
-      ownerId: 'u-char-owner',
-      characterId: 'cid-counts',
+      id: 'char-counts',
       likesCount: 1,
-      bookmarksCount: 1,
+      ownerId: 'u-char-owner',
+      version: '1',
     })
-    await db.insert(schema.characterLikes).values({ userId: 'u-char-counts', characterId: 'char-counts' })
-    await db.insert(schema.characterBookmarks).values({ userId: 'u-char-counts', characterId: 'char-counts' })
+    await db.insert(schema.characterLikes).values({ characterId: 'char-counts', userId: 'u-char-counts' })
+    await db.insert(schema.characterBookmarks).values({ characterId: 'char-counts', userId: 'u-char-counts' })
 
     const service = createCharacterService(db)
     await service.deleteAllForUser('u-char-counts')
@@ -158,17 +158,17 @@ describe('characterService.deleteAllForUser', () => {
   })
 
   it('soft-deletes the user likes and bookmarks', async () => {
-    await db.insert(schema.user).values({ id: 'u-char-3', name: 'C3', email: 'c3@example.com' })
+    await db.insert(schema.user).values({ email: 'c3@example.com', id: 'u-char-3', name: 'C3' })
     await db.insert(schema.character).values({
-      id: 'char-z',
-      version: '1',
+      characterId: 'cid-z',
       coverUrl: '',
       creatorId: 'u-char-3',
+      id: 'char-z',
       ownerId: 'u-char-3',
-      characterId: 'cid-z',
+      version: '1',
     })
-    await db.insert(schema.characterLikes).values({ userId: 'u-char-3', characterId: 'char-z' })
-    await db.insert(schema.characterBookmarks).values({ userId: 'u-char-3', characterId: 'char-z' })
+    await db.insert(schema.characterLikes).values({ characterId: 'char-z', userId: 'u-char-3' })
+    await db.insert(schema.characterBookmarks).values({ characterId: 'char-z', userId: 'u-char-3' })
 
     const service = createCharacterService(db)
     await service.deleteAllForUser('u-char-3')
@@ -189,10 +189,10 @@ describe('chatService.deleteAllForUser', () => {
   })
 
   it('soft-deletes chats the user is a member of', async () => {
-    await db.insert(schema.user).values({ id: 'u-chat-1', name: 'C', email: 'chat@example.com' })
+    await db.insert(schema.user).values({ email: 'chat@example.com', id: 'u-chat-1', name: 'C' })
     await db.insert(schema.chats).values([
-      { id: 'chat-mine', type: 'private', title: 'mine' },
-      { id: 'chat-other', type: 'private', title: 'other' },
+      { id: 'chat-mine', title: 'mine', type: 'private' },
+      { id: 'chat-other', title: 'other', type: 'private' },
     ])
     await db.insert(schema.chatMembers).values({ chatId: 'chat-mine', memberType: 'user', userId: 'u-chat-1' })
 
@@ -210,10 +210,10 @@ describe('chatService.deleteAllForUser', () => {
     // Two users in a shared group chat. When user A is deleted, the chat
     // row must survive for user B; only A's chat_members row goes.
     await db.insert(schema.user).values([
-      { id: 'u-grp-a', name: 'A', email: 'grpa@example.com' },
-      { id: 'u-grp-b', name: 'B', email: 'grpb@example.com' },
+      { email: 'grpa@example.com', id: 'u-grp-a', name: 'A' },
+      { email: 'grpb@example.com', id: 'u-grp-b', name: 'B' },
     ])
-    await db.insert(schema.chats).values({ id: 'chat-grp', type: 'group', title: 'team' })
+    await db.insert(schema.chats).values({ id: 'chat-grp', title: 'team', type: 'group' })
     await db.insert(schema.chatMembers).values([
       { chatId: 'chat-grp', memberType: 'user', userId: 'u-grp-a' },
       { chatId: 'chat-grp', memberType: 'user', userId: 'u-grp-b' },
@@ -236,17 +236,17 @@ describe('chatService.deleteAllForUser', () => {
     // The senderId stays as the (now-orphan) user.id string; the UI renders
     // it as "Deleted User" once it cannot resolve the id to a real user.
     await db.insert(schema.user).values([
-      { id: 'u-anon-a', name: 'A', email: 'anona@example.com' },
-      { id: 'u-anon-b', name: 'B', email: 'anonb@example.com' },
+      { email: 'anona@example.com', id: 'u-anon-a', name: 'A' },
+      { email: 'anonb@example.com', id: 'u-anon-b', name: 'B' },
     ])
-    await db.insert(schema.chats).values({ id: 'chat-anon-grp', type: 'group', title: 'team' })
+    await db.insert(schema.chats).values({ id: 'chat-anon-grp', title: 'team', type: 'group' })
     await db.insert(schema.chatMembers).values([
       { chatId: 'chat-anon-grp', memberType: 'user', userId: 'u-anon-a' },
       { chatId: 'chat-anon-grp', memberType: 'user', userId: 'u-anon-b' },
     ])
     await db.insert(schema.messages).values([
-      { id: 'm-a-1', chatId: 'chat-anon-grp', senderId: 'u-anon-a', role: 'user', content: 'hi from A', mediaIds: [], stickerIds: [] },
-      { id: 'm-b-1', chatId: 'chat-anon-grp', senderId: 'u-anon-b', role: 'user', content: 'hi from B', mediaIds: [], stickerIds: [] },
+      { chatId: 'chat-anon-grp', content: 'hi from A', id: 'm-a-1', mediaIds: [], role: 'user', senderId: 'u-anon-a', stickerIds: [] },
+      { chatId: 'chat-anon-grp', content: 'hi from B', id: 'm-b-1', mediaIds: [], role: 'user', senderId: 'u-anon-b', stickerIds: [] },
     ])
 
     const service = createChatService(db)
@@ -264,26 +264,26 @@ describe('chatService.deleteAllForUser', () => {
   })
 
   it('soft-deletes messages the user sent in private/bot chats', async () => {
-    await db.insert(schema.user).values({ id: 'u-chat-2', name: 'M', email: 'msg@example.com' })
-    await db.insert(schema.chats).values({ id: 'chat-msg', type: 'private', title: 't' })
+    await db.insert(schema.user).values({ email: 'msg@example.com', id: 'u-chat-2', name: 'M' })
+    await db.insert(schema.chats).values({ id: 'chat-msg', title: 't', type: 'private' })
     await db.insert(schema.chatMembers).values({ chatId: 'chat-msg', memberType: 'user', userId: 'u-chat-2' })
     await db.insert(schema.messages).values([
       {
-        id: 'msg-mine',
         chatId: 'chat-msg',
-        senderId: 'u-chat-2',
-        role: 'user',
         content: 'hi',
+        id: 'msg-mine',
         mediaIds: [],
+        role: 'user',
+        senderId: 'u-chat-2',
         stickerIds: [],
       },
       {
-        id: 'msg-other',
         chatId: 'chat-msg',
-        senderId: 'someone-else',
-        role: 'assistant',
         content: 'hello',
+        id: 'msg-other',
         mediaIds: [],
+        role: 'assistant',
+        senderId: 'someone-else',
         stickerIds: [],
       },
     ])

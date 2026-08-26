@@ -24,8 +24,8 @@ export const ListChannelsActionSchema = v.object({
 
 export const SendMessageActionSchema = v.object({
   action: v.literal('send_message'),
-  content: v.string(),
   channelId: v.string(),
+  content: v.string(),
 })
 
 export const ReadUnreadMessagesActionSchema = v.object({
@@ -44,9 +44,42 @@ export const ActionSchema = v.union([
 
 export type Action = v.InferOutput<typeof ActionSchema>
 
+export interface BotContext {
+  chats: Map<string, ChatContext>
+  currentProcessingStartTime?: number
+  eventQueue: PendingEvent[]
+  lastInteractedChannelIds: string[]
+  logger: Logg
+  processedIds: Set<string>
+  unreadEvents: Record<string, StoredUnreadEvent[]> // channelId -> events
+}
+
 export interface CancellablePromise<T> {
-  promise: Promise<T>
   cancel: () => void
+  promise: Promise<T>
+}
+
+export interface ChatContext {
+  actions: { action: Action, result: unknown }[]
+  channelId: string
+  currentAbortController?: AbortController
+  currentTask?: CancellablePromise<void>
+
+  isProcessing: boolean
+  platform: string
+
+  selfId: string
+}
+
+export interface PendingEvent {
+  event: SatoriEvent
+  id: string
+  status: 'pending' | 'ready'
+}
+
+export interface StoredUnreadEvent {
+  event: SatoriEvent
+  id: string
 }
 
 export function cancellable<T>(promise: Promise<T>): CancellablePromise<T> {
@@ -58,40 +91,7 @@ export function cancellable<T>(promise: Promise<T>): CancellablePromise<T> {
   })
 
   return {
-    promise: wrappedPromise,
     cancel: () => cancel?.(),
+    promise: wrappedPromise,
   }
-}
-
-export interface PendingEvent {
-  id: string
-  event: SatoriEvent
-  status: 'pending' | 'ready'
-}
-
-export interface StoredUnreadEvent {
-  id: string
-  event: SatoriEvent
-}
-
-export interface BotContext {
-  logger: Logg
-  eventQueue: PendingEvent[]
-  unreadEvents: Record<string, StoredUnreadEvent[]> // channelId -> events
-  processedIds: Set<string>
-  lastInteractedChannelIds: string[]
-  currentProcessingStartTime?: number
-  chats: Map<string, ChatContext>
-}
-
-export interface ChatContext {
-  channelId: string
-  platform: string
-  selfId: string
-  isProcessing: boolean
-
-  currentTask?: CancellablePromise<void>
-  currentAbortController?: AbortController
-
-  actions: { action: Action, result: unknown }[]
 }

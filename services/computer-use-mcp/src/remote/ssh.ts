@@ -8,18 +8,6 @@ import { runProcess } from '../utils/process'
 
 const HOME_PREFIX_RE = /^~(?=\/|$)/
 
-function buildSshTarget(config: ComputerUseConfig) {
-  if (!config.remoteSshHost || !config.remoteSshUser) {
-    throw new Error('remote linux-x11 execution requires COMPUTER_USE_REMOTE_SSH_HOST and COMPUTER_USE_REMOTE_SSH_USER')
-  }
-
-  return `${config.remoteSshUser}@${config.remoteSshHost}`
-}
-
-export function normalizeRemoteShellPath(value: string) {
-  return value.replace(HOME_PREFIX_RE, '$HOME')
-}
-
 export function buildRemoteShellCommandArgs(config: ComputerUseConfig, command: string) {
   return [
     '-T',
@@ -38,20 +26,24 @@ export function buildRemoteShellCommandArgs(config: ComputerUseConfig, command: 
   ]
 }
 
+export function normalizeRemoteShellPath(value: string) {
+  return value.replace(HOME_PREFIX_RE, '$HOME')
+}
+
 export async function runRemoteCommand(config: ComputerUseConfig, command: string, options: {
-  timeoutMs?: number
   stdin?: string
+  timeoutMs?: number
 } = {}) {
   return await runProcess(config.binaries.ssh, buildRemoteShellCommandArgs(config, command), {
-    timeoutMs: options.timeoutMs,
-    stdin: options.stdin,
     env: process.env,
+    stdin: options.stdin,
+    timeoutMs: options.timeoutMs,
   })
 }
 
 export async function uploadDirectoryToRemote(config: ComputerUseConfig, params: {
-  sourceDir: string
   remoteDir: string
+  sourceDir: string
   timeoutMs?: number
 }) {
   const remoteDir = normalizeRemoteShellPath(params.remoteDir)
@@ -61,8 +53,8 @@ export async function uploadDirectoryToRemote(config: ComputerUseConfig, params:
     const tar = spawn(config.binaries.tar, ['-czf', '-', '-C', params.sourceDir, '.'], {
       env: {
         ...process.env,
-        COPYFILE_DISABLE: '1',
         COPY_EXTENDED_ATTRIBUTES_DISABLE: '1',
+        COPYFILE_DISABLE: '1',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
@@ -162,4 +154,12 @@ export async function uploadDirectoryToRemote(config: ComputerUseConfig, params:
       maybeResolve()
     })
   })
+}
+
+function buildSshTarget(config: ComputerUseConfig) {
+  if (!config.remoteSshHost || !config.remoteSshUser) {
+    throw new Error('remote linux-x11 execution requires COMPUTER_USE_REMOTE_SSH_HOST and COMPUTER_USE_REMOTE_SSH_USER')
+  }
+
+  return `${config.remoteSshUser}@${config.remoteSshHost}`
 }

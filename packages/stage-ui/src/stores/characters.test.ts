@@ -8,36 +8,36 @@ import { ref } from 'vue'
 import { createCharactersListQueryOptions, createCharacterStoreController } from './characters'
 
 const character = {
-  id: 'character-1',
-  version: '1',
-  coverUrl: 'cover.png',
-  avatarUrl: undefined,
-  characterAvatarUrl: undefined,
-  coverBackgroundUrl: undefined,
-  creatorRole: undefined,
-  priceCredit: '0',
-  likesCount: 0,
-  bookmarksCount: 0,
-  interactionsCount: 0,
-  forksCount: 0,
-  creatorId: 'user-1',
-  ownerId: 'user-1',
-  characterId: 'airi',
-  createdAt: new Date('2026-05-08T00:00:00.000Z'),
-  updatedAt: new Date('2026-05-08T00:00:00.000Z'),
-  deletedAt: undefined,
-  capabilities: [],
   avatarModels: [],
-  i18n: [],
-  prompts: [],
-  likes: [],
+  avatarUrl: undefined,
   bookmarks: [],
+  bookmarksCount: 0,
+  capabilities: [],
+  characterAvatarUrl: undefined,
+  characterId: 'airi',
+  coverBackgroundUrl: undefined,
+  coverUrl: 'cover.png',
+  createdAt: new Date('2026-05-08T00:00:00.000Z'),
+  creatorId: 'user-1',
+  creatorRole: undefined,
+  deletedAt: undefined,
+  forksCount: 0,
+  i18n: [],
+  id: 'character-1',
+  interactionsCount: 0,
+  likes: [],
+  likesCount: 0,
+  ownerId: 'user-1',
+  priceCredit: '0',
+  prompts: [],
+  updatedAt: new Date('2026-05-08T00:00:00.000Z'),
+  version: '1',
 } satisfies Character
 
 const payload = {
-  character: { version: '1', coverUrl: 'cover.png', characterId: 'airi' },
-  capabilities: [],
   avatarModels: [],
+  capabilities: [],
+  character: { characterId: 'airi', coverUrl: 'cover.png', version: '1' },
   i18n: [],
   prompts: [],
 } satisfies CreateCharacterPayload
@@ -60,19 +60,19 @@ function createMutation<TVars, TData>(mutation: (vars: TVars) => Promise<TData>)
 function setupController() {
   const model: CharactersModel = {
     list: vi.fn(async () => []),
+    remove: vi.fn(async () => {}),
     saveAll: vi.fn(async () => {}),
     upsert: vi.fn(async () => {}),
-    remove: vi.fn(async () => {}),
   }
   const service: CharactersService = {
+    bookmarkRemote: vi.fn(async () => ({ ...character, bookmarksCount: 1 })),
     buildLocal: vi.fn(() => ({ ...character, id: 'local-character' })),
+    createRemote: vi.fn(async () => character),
     fetchRemote: vi.fn(async () => []),
     fetchRemoteById: vi.fn(async () => character),
-    createRemote: vi.fn(async () => character),
-    updateRemote: vi.fn(async () => character),
-    removeRemote: vi.fn(async () => {}),
     likeRemote: vi.fn(async () => ({ ...character, likesCount: 1 })),
-    bookmarkRemote: vi.fn(async () => ({ ...character, bookmarksCount: 1 })),
+    removeRemote: vi.fn(async () => {}),
+    updateRemote: vi.fn(async () => character),
   }
   const listQuery = {
     error: ref<Error | null>(null),
@@ -90,7 +90,7 @@ function setupController() {
     model,
     removeMutation: createMutation<string, void>(id => service.removeRemote({} as CharactersRemoteClient, id)),
     service,
-    updateMutation: createMutation<{ id: string, data: UpdateCharacterPayload }, Character>(vars => service.updateRemote({} as CharactersRemoteClient, vars.id, vars.data)),
+    updateMutation: createMutation<{ data: UpdateCharacterPayload, id: string }, Character>(vars => service.updateRemote({} as CharactersRemoteClient, vars.id, vars.data)),
   })
 
   return { controller, listQuery, model, service }

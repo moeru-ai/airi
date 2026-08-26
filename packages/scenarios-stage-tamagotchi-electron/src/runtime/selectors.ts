@@ -4,28 +4,8 @@ import { sleep } from '@moeru/std'
 
 const controlsIslandReadyTimeoutMs = 30_000
 
-export async function waitForControlsIslandReady(page: Page): Promise<void> {
-  const button = controlButtonsByIcon(page, 'i-solar:alt-arrow-up-line-duotone').first()
-
-  await button.waitFor({ state: 'visible', timeout: controlsIslandReadyTimeoutMs })
-}
-
 export async function expandControlsIsland(page: Page): Promise<void> {
   await clickControlButtonByIcon(page, 'i-solar:alt-arrow-up-line-duotone')
-}
-
-export async function openSettingsFromControlsIsland(page: Page): Promise<void> {
-  await waitForControlsIslandReady(page)
-
-  try {
-    await clickControlButtonByIcon(page, 'i-solar:settings-minimalistic-outline')
-  }
-  catch {
-    // NOTICE: The island can report ready while still collapsed on slower frames.
-    // Expand once and retry settings click to reduce flakiness during capture.
-    await expandControlsIsland(page).catch(() => {})
-    await clickControlButtonByIcon(page, 'i-solar:settings-minimalistic-outline')
-  }
 }
 
 export async function openChatFromControlsIsland(page: Page): Promise<void> {
@@ -45,8 +25,32 @@ export async function openHearingFromControlsIsland(page: Page): Promise<Page> {
   return page
 }
 
-function iconAttributeSelector(iconName: string): string {
-  return `[${iconName.replace(':', '\\:')}]`
+export async function openSettingsFromControlsIsland(page: Page): Promise<void> {
+  await waitForControlsIslandReady(page)
+
+  try {
+    await clickControlButtonByIcon(page, 'i-solar:settings-minimalistic-outline')
+  }
+  catch {
+    // NOTICE: The island can report ready while still collapsed on slower frames.
+    // Expand once and retry settings click to reduce flakiness during capture.
+    await expandControlsIsland(page).catch(() => {})
+    await clickControlButtonByIcon(page, 'i-solar:settings-minimalistic-outline')
+  }
+}
+
+export async function waitForControlsIslandReady(page: Page): Promise<void> {
+  const button = controlButtonsByIcon(page, 'i-solar:alt-arrow-up-line-duotone').first()
+
+  await button.waitFor({ state: 'visible', timeout: controlsIslandReadyTimeoutMs })
+}
+
+async function clickControlButtonByIcon(page: Page, iconName: string): Promise<void> {
+  const button = controlButtonsByIcon(page, iconName).first()
+
+  await button.waitFor({ state: 'visible', timeout: controlsIslandReadyTimeoutMs })
+  await button.click({ force: true })
+  await sleep(100)
 }
 
 function controlButtonsByIcon(page: Page, iconName: string) {
@@ -57,10 +61,6 @@ function controlButtonsByIcon(page: Page, iconName: string) {
     })
 }
 
-async function clickControlButtonByIcon(page: Page, iconName: string): Promise<void> {
-  const button = controlButtonsByIcon(page, iconName).first()
-
-  await button.waitFor({ state: 'visible', timeout: controlsIslandReadyTimeoutMs })
-  await button.click({ force: true })
-  await sleep(100)
+function iconAttributeSelector(iconName: string): string {
+  return `[${iconName.replace(':', '\\:')}]`
 }

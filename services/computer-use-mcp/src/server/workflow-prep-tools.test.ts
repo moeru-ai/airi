@@ -25,37 +25,37 @@ describe('createWorkflowPrepToolExecutor', () => {
     vi.clearAllMocks()
     stateManager = new RunStateManager()
     stateManager.startTask({
-      id: 'task_workflow_prep',
+      currentStepIndex: 0,
+      failureCount: 0,
       goal: 'workflow prep test',
-      workflowId: 'wf_test',
+      id: 'task_workflow_prep',
+      maxConsecutiveFailures: 2,
       phase: 'executing',
+      startedAt: new Date().toISOString(),
       steps: [
         {
           index: 1,
-          stepId: 'step_workflow_prep',
           label: 'Run interactive validation',
           outcome: undefined,
+          stepId: 'step_workflow_prep',
         },
       ],
-      currentStepIndex: 0,
-      startedAt: new Date().toISOString(),
-      failureCount: 0,
-      maxConsecutiveFailures: 2,
+      workflowId: 'wf_test',
     })
     stateManager.registerPtySession({
-      id: 'pty_1',
       alive: true,
-      rows: 24,
       cols: 80,
-      pid: 1234,
       cwd: '/tmp',
+      id: 'pty_1',
+      pid: 1234,
+      rows: 24,
     })
 
     runtime = {
-      config: createTestConfig({ approvalMode: 'never' }),
-      stateManager,
       browserDomBridge: { getStatus: vi.fn(), readAllFramesDom: vi.fn() },
       cdpBridgeManager: { ensureBridge: vi.fn() },
+      config: createTestConfig({ approvalMode: 'never' }),
+      stateManager,
     } as unknown as ComputerUseServerRuntime
   })
 
@@ -63,12 +63,12 @@ describe('createWorkflowPrepToolExecutor', () => {
     const executePrepTool = createWorkflowPrepToolExecutor(runtime)
 
     vi.mocked(readPtyScreen).mockReturnValue({
-      id: 'pty_1',
       alive: true,
-      rows: 24,
       cols: 80,
-      screenContent: 'VIM - Vi IMproved\nversion 9.0\n',
+      id: 'pty_1',
       pid: 1234,
+      rows: 24,
+      screenContent: 'VIM - Vi IMproved\nversion 9.0\n',
     })
 
     await executePrepTool('pty_send_input:pty_1:vim --version')
@@ -84,13 +84,13 @@ describe('createWorkflowPrepToolExecutor', () => {
       'destroy',
     ])
     expect(stateManager.getPtyAuditForSession('pty_1')[0]).toMatchObject({
-      taskId: 'task_workflow_prep',
-      stepId: 'step_workflow_prep',
       byteCount: 'vim --version'.length,
+      stepId: 'step_workflow_prep',
+      taskId: 'task_workflow_prep',
     })
     expect(stateManager.getPtyAuditForSession('pty_1')[1]).toMatchObject({
-      returnedLineCount: 2,
       alive: true,
+      returnedLineCount: 2,
     })
   })
 
@@ -102,9 +102,9 @@ describe('createWorkflowPrepToolExecutor', () => {
 
     expect(result.isError).toBe(true)
     expect(result.structuredContent).toMatchObject({
-      status: 'pty_grant_required',
       operation: 'pty_send_input',
       sessionId: 'pty_1',
+      status: 'pty_grant_required',
     })
     expect(writeToPty).not.toHaveBeenCalled()
   })

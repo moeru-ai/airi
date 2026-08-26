@@ -39,10 +39,10 @@ export interface ExecuteTerminalCommandFn {
 }
 
 export interface RegisterVscodeToolsOptions {
-  server: McpServer
-  runtime: ComputerUseServerRuntime
   /** Function to execute a terminal command through the standard pipeline. */
   executeTerminalCommand: ExecuteTerminalCommandFn
+  runtime: ComputerUseServerRuntime
+  server: McpServer
 }
 
 // NOTICE: VS Code CLI path varies by installation.
@@ -61,36 +61,17 @@ const VUE_TSC_ERROR_LINE_RE = /^([^:]+):(\d+):(\d+) +- +(error|warning) +(TS\d+)
  * Returns the first candidate that resolves via `which`.
  */
 type CodeCliProbeResult
-  = | { status: 'resolved', cli: string, path: string }
+  = | { callToolResult: CallToolResult, status: 'passthrough' }
+    | { cli: string, path: string, status: 'resolved' }
     | { status: 'missing' }
-    | { status: 'passthrough', callToolResult: CallToolResult }
 
-async function detectCodeCli(
-  exec: RegisterVscodeToolsOptions['executeTerminalCommand'],
-): Promise<CodeCliProbeResult> {
-  for (const cli of CODE_CLI_CANDIDATES) {
-    const terminal = await runTerminalCommand(exec, {
-      command: `which ${cli}`,
-      timeoutMs: 5_000,
-    }, `vscode_resolve_code_cli_probe_${cli}`)
-    if (terminal.status !== 'executed') {
-      return {
-        status: 'passthrough',
-        callToolResult: terminal.callToolResult,
-      }
-    }
+type TerminalCommandExecution
+  = | { callToolResult: CallToolResult, status: 'passthrough' }
+    | { result: TerminalCommandResult, status: 'executed' }
 
-    if (terminal.result.exitCode === 0 && terminal.result.stdout.trim()) {
-      return { status: 'resolved', cli, path: terminal.result.stdout.trim() }
-    }
-  }
-
-  return { status: 'missing' }
-}
-
-export function registerVscodeTools({ server, runtime, executeTerminalCommand }: RegisterVscodeToolsOptions) {
+export function registerVscodeTools({ executeTerminalCommand, runtime, server }: RegisterVscodeToolsOptions) {
   // Cache the detected CLI to avoid re-probing on every call
-  let cachedCli: { cli: string, path: string } | undefined
+  let cachedCli: undefined | { cli: string, path: string }
   let codeCliProbeCompleted = false
 
   async function getCodeCli(): Promise<CodeCliProbeResult> {
@@ -130,8 +111,8 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
 
       if (probe.status !== 'resolved') {
         return {
-          isError: true,
           content: [textContent('No VS Code CLI found. Tried: code, code-insiders, cursor.')],
+          isError: true,
           structuredContent: {
             status: 'unavailable',
             triedCandidates: [...CODE_CLI_CANDIDATES],
@@ -144,9 +125,9 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
       return {
         content: [textContent(`VS Code CLI: ${probe.cli} → ${probe.path}`)],
         structuredContent: {
-          status: 'ok',
           cli: probe.cli,
           path: probe.path,
+          status: 'ok',
         },
       }
     },
@@ -169,8 +150,8 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
       }
       if (probe.status !== 'resolved') {
         return {
-          isError: true,
           content: [textContent('VS Code CLI not available.')],
+          isError: true,
           structuredContent: { status: 'unavailable' },
         }
       }
@@ -190,11 +171,11 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
 
       if (result.exitCode !== 0) {
         return {
-          isError: true,
           content: [textContent(`Failed to open workspace: ${result.stderr || result.stdout}`)],
+          isError: true,
           structuredContent: {
-            status: 'error',
             exitCode: result.exitCode,
+            status: 'error',
             stderr: result.stderr,
           },
         }
@@ -206,9 +187,9 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
       return {
         content: [textContent(`Opened workspace: ${folderPath}`)],
         structuredContent: {
-          status: 'ok',
-          folderPath,
           cli: probe.cli,
+          folderPath,
+          status: 'ok',
         },
       }
     },
@@ -221,20 +202,20 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
   server.tool(
     'vscode_open_file',
     {
+      column: z.number().int().min(1).optional().describe('Column number to jump to (1-based)'),
       filePath: z.string().min(1).describe('Absolute path to the file to open'),
       line: z.number().int().min(1).optional().describe('Line number to jump to (1-based)'),
-      column: z.number().int().min(1).optional().describe('Column number to jump to (1-based)'),
       reuseWindow: z.boolean().optional().describe('Reuse existing window (default: true)'),
     },
-    async ({ filePath, line, column, reuseWindow }) => {
+    async ({ column, filePath, line, reuseWindow }) => {
       const probe = await getCodeCli()
       if (probe.status === 'passthrough') {
         return probe.callToolResult
       }
       if (probe.status !== 'resolved') {
         return {
-          isError: true,
           content: [textContent('VS Code CLI not available.')],
+          isError: true,
           structuredContent: { status: 'unavailable' },
         }
       }
@@ -262,11 +243,11 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
 
       if (result.exitCode !== 0) {
         return {
-          isError: true,
           content: [textContent(`Failed to open file: ${result.stderr || result.stdout}`)],
+          isError: true,
           structuredContent: {
-            status: 'error',
             exitCode: result.exitCode,
+            status: 'error',
             stderr: result.stderr,
           },
         }
@@ -274,19 +255,19 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
 
       runtime.stateManager.updateVscodeCli(probe)
       runtime.stateManager.updateVscodeCurrentFile({
+        column,
         filePath,
         line,
-        column,
       })
 
       return {
         content: [textContent(`Opened ${target} in ${probe.cli}`)],
         structuredContent: {
-          status: 'ok',
+          cli: probe.cli,
+          column,
           filePath,
           line,
-          column,
-          cli: probe.cli,
+          status: 'ok',
         },
       }
     },
@@ -337,14 +318,14 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
           ),
         ],
         structuredContent: {
-          status: hasErrors ? 'failed' : 'ok',
           command,
-          exitCode: result.exitCode,
-          stdout: result.stdout,
-          stderr: result.stderr,
-          outputLineCount: outputLines.length,
-          stderrLineCount: stderrLines.length,
           cwd: result.effectiveCwd,
+          exitCode: result.exitCode,
+          outputLineCount: outputLines.length,
+          status: hasErrors ? 'failed' : 'ok',
+          stderr: result.stderr,
+          stderrLineCount: stderrLines.length,
+          stdout: result.stdout,
         },
       }
     },
@@ -357,11 +338,11 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
   server.tool(
     'vscode_list_problems',
     {
-      cwd: z.string().optional().describe('Project root to run diagnostics from'),
       checkCommand: z.string().optional().describe('Diagnostic command (default: "pnpm typecheck 2>&1")'),
+      cwd: z.string().optional().describe('Project root to run diagnostics from'),
       maxLines: z.number().int().min(10).max(500).optional().describe('Maximum output lines to return (default: 200)'),
     },
-    async ({ cwd, checkCommand, maxLines }) => {
+    async ({ checkCommand, cwd, maxLines }) => {
       const command = checkCommand ?? 'pnpm typecheck 2>&1'
       const limit = maxLines ?? 200
       const terminal = await runTerminalCommand(executeTerminalCommand, {
@@ -387,12 +368,12 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
         const match = line.match(TYPESCRIPT_ERROR_LINE_RE)
         if (match) {
           problems.push({
+            code: match[5],
+            column: Number(match[3]),
             file: match[1],
             line: Number(match[2]),
-            column: Number(match[3]),
-            severity: match[4],
-            code: match[5],
             message: match[6],
+            severity: match[4],
           })
         }
       }
@@ -402,12 +383,12 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
         const match = line.match(VUE_TSC_ERROR_LINE_RE)
         if (match && !problems.some(p => p.file === match[1] && p.line === Number(match[2]))) {
           problems.push({
+            code: match[5],
+            column: Number(match[3]),
             file: match[1],
             line: Number(match[2]),
-            column: Number(match[3]),
-            severity: match[4],
-            code: match[5],
             message: match[6],
+            severity: match[4],
           })
         }
       }
@@ -433,23 +414,42 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
           ),
         ],
         structuredContent: {
-          status: result.exitCode === 0 ? 'ok' : 'has_problems',
-          exitCode: result.exitCode,
-          problemCount: problems.length,
-          problems,
-          output,
-          truncated,
           command,
           cwd: result.effectiveCwd,
+          exitCode: result.exitCode,
+          output,
+          problemCount: problems.length,
+          problems,
+          status: result.exitCode === 0 ? 'ok' : 'has_problems',
+          truncated,
         },
       }
     },
   )
 }
 
-type TerminalCommandExecution
-  = | { status: 'executed', result: TerminalCommandResult }
-    | { status: 'passthrough', callToolResult: CallToolResult }
+async function detectCodeCli(
+  exec: RegisterVscodeToolsOptions['executeTerminalCommand'],
+): Promise<CodeCliProbeResult> {
+  for (const cli of CODE_CLI_CANDIDATES) {
+    const terminal = await runTerminalCommand(exec, {
+      command: `which ${cli}`,
+      timeoutMs: 5_000,
+    }, `vscode_resolve_code_cli_probe_${cli}`)
+    if (terminal.status !== 'executed') {
+      return {
+        callToolResult: terminal.callToolResult,
+        status: 'passthrough',
+      }
+    }
+
+    if (terminal.result.exitCode === 0 && terminal.result.stdout.trim()) {
+      return { cli, path: terminal.result.stdout.trim(), status: 'resolved' }
+    }
+  }
+
+  return { status: 'missing' }
+}
 
 async function runTerminalCommand(
   executeTerminalCommand: ExecuteTerminalCommandFn,
@@ -462,22 +462,22 @@ async function runTerminalCommand(
 
   if (!structured || structured.status !== 'executed' || !backendResult) {
     return {
-      status: 'passthrough',
       callToolResult: result,
+      status: 'passthrough',
     }
   }
 
   return {
-    status: 'executed',
     result: {
       command: typeof backendResult.command === 'string' ? backendResult.command : input.command,
-      stdout: typeof backendResult.stdout === 'string' ? backendResult.stdout : '',
-      stderr: typeof backendResult.stderr === 'string' ? backendResult.stderr : '',
-      exitCode: typeof backendResult.exitCode === 'number' ? backendResult.exitCode : 1,
-      effectiveCwd: typeof backendResult.effectiveCwd === 'string' ? backendResult.effectiveCwd : (input.cwd ?? ''),
       durationMs: typeof backendResult.durationMs === 'number' ? backendResult.durationMs : 0,
+      effectiveCwd: typeof backendResult.effectiveCwd === 'string' ? backendResult.effectiveCwd : (input.cwd ?? ''),
+      exitCode: typeof backendResult.exitCode === 'number' ? backendResult.exitCode : 1,
+      stderr: typeof backendResult.stderr === 'string' ? backendResult.stderr : '',
+      stdout: typeof backendResult.stdout === 'string' ? backendResult.stdout : '',
       timedOut: Boolean(backendResult.timedOut),
     },
+    status: 'executed',
   }
 }
 

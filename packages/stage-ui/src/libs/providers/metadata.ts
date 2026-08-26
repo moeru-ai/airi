@@ -9,17 +9,6 @@ import { resolveProviderAttributes } from './attributes'
 /** Inference category used to group provider definitions in the UI. */
 export type ProviderCategory = 'chat' | 'embed' | 'speech' | 'transcription' | 'vision'
 
-type ProviderMetadataField
-  = | 'id'
-    | 'order'
-    | 'tasks'
-    | 'name'
-    | 'description'
-    | 'icon'
-    | 'iconColor'
-    | 'iconImage'
-    | 'requiresCredentials'
-
 /**
  * Serializable UI metadata selected from a provider definition.
  *
@@ -27,32 +16,43 @@ type ProviderMetadataField
  * store in Pinia state and copy across renderer contexts.
  */
 export interface ProviderMetadata extends Pick<ProviderDefinition, ProviderMetadataField> {
+  beginnerRecommended?: boolean
   category: ProviderCategory
-  to?: string
-  nameKey: string
-  localizedName: string
-  descriptionKey: string
-  localizedDescription: string
   configured: boolean
   defaultConfig: Record<string, unknown>
+  deployment?: ProviderDeployment
+  descriptionKey: string
+  localizedDescription: string
+  localizedName: string
+  nameKey: string
   onboardingFields?: ProviderOnboardingField[]
+  pricing?: ProviderPricing
+  to?: string
   transcriptionFeatures?: {
     supportsGenerate: boolean
-    supportsStreamOutput: boolean
     supportsStreamInput: boolean
+    supportsStreamOutput: boolean
   }
-  pricing?: ProviderPricing
-  deployment?: ProviderDeployment
-  beginnerRecommended?: boolean
 }
+
+type ProviderMetadataField
+  = | 'description'
+    | 'icon'
+    | 'iconColor'
+    | 'iconImage'
+    | 'id'
+    | 'name'
+    | 'order'
+    | 'requiresCredentials'
+    | 'tasks'
 
 /** Classifies a provider from its declared inference tasks. */
 export function getProviderCategory(tasks: string[]): ProviderCategory {
-  if (tasks.some(task => ['vision', 'image-understanding', 'image-to-text', 'multimodal'].includes(task.toLowerCase())))
+  if (tasks.some(task => ['image-to-text', 'image-understanding', 'multimodal', 'vision'].includes(task.toLowerCase())))
     return 'vision'
-  if (tasks.some(task => ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'].includes(task.toLowerCase())))
+  if (tasks.some(task => ['asr', 'automatic-speech-recognition', 'speech-to-text', 'stt'].includes(task.toLowerCase())))
     return 'transcription'
-  if (tasks.some(task => ['text-to-speech', 'speech', 'tts'].includes(task.toLowerCase())))
+  if (tasks.some(task => ['speech', 'text-to-speech', 'tts'].includes(task.toLowerCase())))
     return 'speech'
   if (tasks.some(task => ['embed', 'embedding'].includes(task.toLowerCase())))
     return 'embed'
@@ -81,19 +81,19 @@ export async function selectProviderMetadata(
     : undefined
 
   return {
+    category: options.category ?? getProviderCategory(tasks),
     id: options.id ?? definition.id,
     order: definition.order,
     tasks: [...tasks],
-    category: options.category ?? getProviderCategory(tasks),
     ...(options.to ? { to: options.to } : {}),
-    name: definition.name,
-    nameKey: definition.nameLocalize({ t: key }),
-    localizedName: definition.nameLocalize({ t }),
+    configured: options.configured ?? false,
+    defaultConfig: getSchemaDefault(schema) as Record<string, unknown>,
     description: definition.description,
     descriptionKey: definition.descriptionLocalize({ t: key }),
     localizedDescription: definition.descriptionLocalize({ t }),
-    configured: options.configured ?? false,
-    defaultConfig: getSchemaDefault(schema) as Record<string, unknown>,
+    localizedName: definition.nameLocalize({ t }),
+    name: definition.name,
+    nameKey: definition.nameLocalize({ t: key }),
     ...(definition.icon ? { icon: definition.icon } : {}),
     ...(definition.iconColor ? { iconColor: definition.iconColor } : {}),
     ...(definition.iconImage ? { iconImage: definition.iconImage } : {}),
@@ -103,8 +103,8 @@ export async function selectProviderMetadata(
       ? {
           transcriptionFeatures: {
             supportsGenerate: transcription.generateOutput,
-            supportsStreamOutput: transcription.streamOutput,
             supportsStreamInput: transcription.streamInput,
+            supportsStreamOutput: transcription.streamOutput,
           },
         }
       : {}),

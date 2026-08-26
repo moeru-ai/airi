@@ -2,7 +2,7 @@ import { defineStageTamagotchiScenario } from '../context'
 
 export default defineStageTamagotchiScenario({
   id: 'demo-hearing-dialog',
-  async run({ capture, controlsIsland, stageWindows, drawers }) {
+  async run({ capture, controlsIsland, drawers, stageWindows }) {
     const mainWindow = await stageWindows.waitFor('main')
 
     const page = await controlsIsland.openHearing(mainWindow.page)

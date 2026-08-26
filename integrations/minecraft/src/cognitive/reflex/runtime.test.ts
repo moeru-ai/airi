@@ -24,13 +24,13 @@ vi.mock('mineflayer-pathfinder', () => ({
 
 function createLogger() {
   const logger = {
+    debug: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    log: vi.fn(),
+    warn: vi.fn(),
     withError: vi.fn(),
     withFields: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
-    log: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
   } as any
   logger.withError.mockReturnValue(logger)
   // reconcileAutoFollow chains `logger.withFields({...}).log(...)`; return a chainable stub.
@@ -48,19 +48,19 @@ function createMockBot() {
 
   const bot = {
     bot: {
-      username: 'AiriBot',
       entity: { position: selfPosition },
-      health: 20,
       food: 20,
+      health: 20,
       heldItem: null,
-      time: { timeOfDay: 1000 },
       isRaining: false,
-      players: {} as Record<string, { entity?: any }>,
       pathfinder: {
-        setMovements,
         setGoal,
+        setMovements,
         stop,
       },
+      players: {} as Record<string, { entity?: any }>,
+      time: { timeOfDay: 1000 },
+      username: 'AiriBot',
     },
   } as any
 
@@ -93,9 +93,9 @@ describe('reflexRuntime auto-follow visibility reconciliation', () => {
     })
 
     const targetEntity = {
+      heldItem: null,
       id: 42,
       position: { x: 8, y: 64, z: 5 },
-      heldItem: null,
     }
     bot.bot.players.Alex = { entity: targetEntity }
 
@@ -117,9 +117,9 @@ describe('reflexRuntime auto-follow visibility reconciliation', () => {
 
     bot.bot.players.Alex = {
       entity: {
+        heldItem: null,
         id: 99,
         position: { x: 3, y: 64, z: 2 },
-        heldItem: null,
       },
     }
 
@@ -175,19 +175,19 @@ describe('reflexRuntime async behavior slot locking', () => {
     const preemptorRun = vi.fn()
 
     runtime.registerBehavior({
+      cooldownMs: 3000,
       id: 'slow-survival',
       modes: ['idle', 'social', 'work', 'wander', 'alert'],
-      cooldownMs: 3000,
-      when: () => true,
-      score: () => 1000,
       run: slowRun,
+      score: () => 1000,
+      when: () => true,
     })
     runtime.registerBehavior({
       id: 'preemptor',
       modes: ['idle', 'social', 'work', 'wander', 'alert'],
-      when: () => true,
-      score: () => 500,
       run: preemptorRun,
+      score: () => 500,
+      when: () => true,
     })
 
     runtime.setActiveBot(bot)

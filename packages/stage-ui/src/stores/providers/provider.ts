@@ -39,10 +39,10 @@ export type { ModelInfo, VoiceInfo } from '../../libs/providers/types'
 
 /** Serializable request and model-discovery state for one provider instance. */
 export interface ProviderRuntimeState {
-  validatedCredentialHash?: string
+  modelError: null | string
   models: ModelInfo[]
-  modelStatus: 'idle' | 'loading' | 'ready' | 'error'
-  modelError: string | null
+  modelStatus: 'error' | 'idle' | 'loading' | 'ready'
+  validatedCredentialHash?: string
 }
 
 /** Stable fallback for reactive consumers when a provider has no cached catalog. */
@@ -71,8 +71,8 @@ const useProviderStateStore = defineStore('provider-state', () => {
   const availabilityOverrides = ref<Record<string, boolean>>({})
 
   return {
-    runtime,
     availabilityOverrides,
+    runtime,
   }
 }, {
   synced: {
@@ -120,8 +120,8 @@ export const useProviderStore = defineStore('provider', () => {
 
     await Promise.all(definedProviders.map(async (definition) => {
       const intervalMs = await getProviderValidationIntervalMs({
-        definition,
         contextOptions: { t },
+        definition,
       })
       if (!intervalMs || intervalMs <= 0)
         return
@@ -135,10 +135,10 @@ export const useProviderStore = defineStore('provider', () => {
       .map(async (definition) => {
         const id = `${VISION_PROVIDER_ID_PREFIX}${definition.id}`
         metadata[id] = await selectProviderMetadata(definition, t, {
-          id,
-          to: `/settings/providers/vision/${definition.id}`,
           category: 'vision',
-          tasks: Array.from(new Set([...definition.tasks, 'vision', 'image-understanding'])),
+          id,
+          tasks: Array.from(new Set([...definition.tasks, 'image-understanding', 'vision'])),
+          to: `/settings/providers/vision/${definition.id}`,
         })
       }))
 
@@ -220,10 +220,10 @@ export const useProviderStore = defineStore('provider', () => {
     const definition = getProviderDefinition(providerId)
     const schemaDefaults = getDefaultProviderConfig(providerId)
     const plan = await getValidatorsOfProvider({
-      definition,
       config,
-      schemaDefaults,
       contextOptions: { t },
+      definition,
+      schemaDefaults,
     })
 
     if (options.onlyChatPingCheck) {
@@ -364,9 +364,9 @@ export const useProviderStore = defineStore('provider', () => {
   function initializeProviderRuntimeState(providerId: string) {
     if (!providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId] = {
+        modelError: null,
         models: [],
         modelStatus: 'idle',
-        modelError: null,
       }
     }
   }
@@ -462,7 +462,7 @@ export const useProviderStore = defineStore('provider', () => {
   })
 
   const modelLoadError = computed(() => {
-    const result: Record<string, string | null> = {}
+    const result: Record<string, null | string> = {}
     for (const [key, state] of Object.entries(providerRuntimeState.value)) {
       result[key] = state.modelError
     }
@@ -513,12 +513,12 @@ export const useProviderStore = defineStore('provider', () => {
     name?: string
   }>) {
     return models.map(model => ({
+      contextLength: model.contextLength ?? model.context_length ?? 0,
+      deprecated: model.deprecated ?? false,
+      description: model.description ?? '',
       id: model.id,
       name: model.name ?? model.display_name ?? model.id,
       provider: providerId,
-      description: model.description ?? '',
-      contextLength: model.contextLength ?? model.context_length ?? 0,
-      deprecated: model.deprecated ?? false,
     }))
   }
 
@@ -614,8 +614,8 @@ export const useProviderStore = defineStore('provider', () => {
       ...providerRuntimeState.value,
       [providerId]: {
         ...providerRuntimeState.value[providerId],
-        modelStatus: 'loading',
         modelError: null,
+        modelStatus: 'loading',
       },
     }
 
@@ -623,11 +623,11 @@ export const useProviderStore = defineStore('provider', () => {
       const models = await listProviderModels(providerId, config || {})
       const normalizedModels = uniqBy(models.filter(model => !!model.id), m => m.id)
         .map(model => ({
-          id: model.id,
-          name: model.name,
-          description: model.description,
           contextLength: model.contextLength,
           deprecated: model.deprecated,
+          description: model.description,
+          id: model.id,
+          name: model.name,
           provider: providerId,
         }))
 
@@ -641,9 +641,9 @@ export const useProviderStore = defineStore('provider', () => {
           ...providerRuntimeState.value,
           [providerId]: {
             ...currentRuntimeState,
+            modelError: null,
             models: normalizedModels,
             modelStatus: 'ready',
-            modelError: null,
           },
         }
         // Synced action results pass through structuredClone. Return the local
@@ -660,8 +660,8 @@ export const useProviderStore = defineStore('provider', () => {
           ...providerRuntimeState.value,
           [providerId]: {
             ...currentRuntimeState,
-            modelStatus: 'error',
             modelError: errorMessageFrom(error) ?? 'Unknown error',
+            modelStatus: 'error',
           },
         }
       }
@@ -718,14 +718,14 @@ export const useProviderStore = defineStore('provider', () => {
 
     return {
       ...metadata,
+      configured: configuredProvider?.status === 'configured',
       id: providerId,
-      localizedName: metadata.nameKey === metadata.name
-        ? metadata.name
-        : t(metadata.nameKey, metadata.name),
       localizedDescription: metadata.descriptionKey === metadata.description
         ? metadata.description
         : t(metadata.descriptionKey, metadata.description),
-      configured: configuredProvider?.status === 'configured',
+      localizedName: metadata.nameKey === metadata.name
+        ? metadata.name
+        : t(metadata.nameKey, metadata.name),
     }
   }
 
@@ -761,8 +761,8 @@ export const useProviderStore = defineStore('provider', () => {
 
     return {
       supportsGenerate: features?.generateOutput ?? true,
-      supportsStreamOutput: features?.streamOutput ?? false,
       supportsStreamInput: features?.streamInput ?? false,
+      supportsStreamOutput: features?.streamOutput ?? false,
     }
   }
 
@@ -825,7 +825,7 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   async function disposeProviderInstance(providerId: string) {
-    const instance = providerInstanceCache.get(providerId) as { dispose?: () => Promise<void> | void } | undefined
+    const instance = providerInstanceCache.get(providerId) as undefined | { dispose?: () => Promise<void> | void }
     if (instance?.dispose)
       await instance.dispose()
 
@@ -968,49 +968,49 @@ export const useProviderStore = defineStore('provider', () => {
   })
 
   return {
-    deleteProvider,
-    providerRuntimeState,
-    providerAvailabilityOverrides,
-    getProviderDefinition,
-    findProviderDefinition,
-    getDefaultProviderConfig,
-    validateProviderConfig,
-    hasManualProviderValidators,
-    supportsModelListing,
-    getTranscriptionFeatures,
-    initializeProvider,
-    validateProvider,
-    refreshListedProviderValidation,
-    refreshModelsForChangedCredentials,
-    isLoadingModels,
-    modelLoadError,
-    fetchModelsForProvider,
-    getModelsForProvider,
-    listProviderVoices,
-    loadProviderModel,
-    loadModelsForConfiguredProviders,
-    getProviderInstance,
-    getChatProviderInstance,
-    disposeProviderInstance,
-    resetProviderSettings,
-    forceProviderConfigured,
-    setProviderUnconfigured,
-    setProviderAvailabilityOverride,
-    availableProvidersMetadata,
-    allChatProvidersMetadata,
     allAudioSpeechProvidersMetadata,
     allAudioTranscriptionProvidersMetadata,
+    allChatProvidersMetadata,
     allVisionProvidersMetadata,
+    availableProvidersMetadata,
     configuredChatProvidersMetadata,
     configuredSpeechProvidersMetadata,
     configuredTranscriptionProvidersMetadata,
     configuredVisionProvidersMetadata,
+    deleteProvider,
+    disposeProviderInstance,
+    fetchModelsForProvider,
+    findProviderDefinition,
+    forceProviderConfigured,
+    getChatProviderInstance,
+    getDefaultProviderConfig,
+    getModelsForProvider,
+    getProviderDefinition,
+    getProviderInstance,
+    getTranscriptionFeatures,
+    hasManualProviderValidators,
+    initializeProvider,
+    isLoadingModels,
+    listProviderVoices,
+    loadModelsForConfiguredProviders,
+    loadProviderModel,
+    modelLoadError,
     moduleChatProvidersMetadata,
     moduleSpeechProvidersMetadata,
     moduleTranscriptionProvidersMetadata,
     moduleVisionProvidersMetadata,
     persistedChatProvidersMetadata,
     persistedVisionProvidersMetadata,
+    providerAvailabilityOverrides,
+    providerRuntimeState,
+    refreshListedProviderValidation,
+    refreshModelsForChangedCredentials,
+    resetProviderSettings,
+    setProviderAvailabilityOverride,
+    setProviderUnconfigured,
+    supportsModelListing,
+    validateProvider,
+    validateProviderConfig,
   }
 }, {
   synced: {

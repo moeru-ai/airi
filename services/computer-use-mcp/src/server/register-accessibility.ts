@@ -9,26 +9,26 @@ import { errorMessageFromValue } from '../utils/error-message'
 import { textContent } from './content'
 
 export interface RegisterAccessibilityToolsOptions {
-  server: McpServer
   runtime: ComputerUseServerRuntime
+  server: McpServer
 }
 
-export function registerAccessibilityTools({ server, runtime }: RegisterAccessibilityToolsOptions) {
+export function registerAccessibilityTools({ runtime, server }: RegisterAccessibilityToolsOptions) {
   server.tool(
     'accessibility_snapshot',
     {
-      pid: z.number().int().min(1).optional().describe('Target a specific process by PID; defaults to the frontmost application'),
+      includeBounds: z.boolean().optional().describe('Include screen-coordinate bounding rects in the text output'),
       maxDepth: z.number().int().min(1).max(30).optional().describe('Maximum tree depth to traverse (default: 15)'),
       maxNodes: z.number().int().min(1).max(10000).optional().describe('Maximum total nodes to collect (default: 2000)'),
+      pid: z.number().int().min(1).optional().describe('Target a specific process by PID; defaults to the frontmost application'),
       verbose: z.boolean().optional().describe('Include all nodes, even those with empty roles/titles'),
-      includeBounds: z.boolean().optional().describe('Include screen-coordinate bounding rects in the text output'),
     },
-    async ({ pid, maxDepth, maxNodes, verbose, includeBounds }) => {
+    async ({ includeBounds, maxDepth, maxNodes, pid, verbose }) => {
       try {
         const snapshot = await captureAXTree(runtime.config, {
-          pid,
           maxDepth,
           maxNodes,
+          pid,
           verbose,
         })
 
@@ -42,25 +42,25 @@ export function registerAccessibilityTools({ server, runtime }: RegisterAccessib
             textContent(text),
           ],
           structuredContent: {
-            status: 'ok',
             appName: snapshot.appName,
+            capturedAt: snapshot.capturedAt,
+            nodeCount: snapshot.uidToNode.size,
             pid: snapshot.pid,
             snapshotId: snapshot.snapshotId,
-            nodeCount: snapshot.uidToNode.size,
+            status: 'ok',
             truncated: snapshot.truncated,
-            capturedAt: snapshot.capturedAt,
           },
         }
       }
       catch (error) {
         return {
-          isError: true,
           content: [
             textContent(`Accessibility snapshot failed: ${errorMessageFromValue(error)}`),
           ],
+          isError: true,
           structuredContent: {
-            status: 'error',
             error: errorMessageFromValue(error),
+            status: 'error',
           },
         }
       }
@@ -70,27 +70,27 @@ export function registerAccessibilityTools({ server, runtime }: RegisterAccessib
   server.tool(
     'accessibility_find_element',
     {
+      maxResults: z.number().int().min(1).max(50).optional().describe('Maximum matches to return (default: 10)'),
+      pid: z.number().int().min(1).optional().describe('Target process PID; defaults to frontmost app'),
       role: z.string().optional().describe('AX role to search for, e.g. AXButton, AXTextField'),
       title: z.string().optional().describe('Title substring to match (case-insensitive)'),
-      pid: z.number().int().min(1).optional().describe('Target process PID; defaults to frontmost app'),
-      maxResults: z.number().int().min(1).max(50).optional().describe('Maximum matches to return (default: 10)'),
     },
-    async ({ role, title, pid, maxResults }) => {
+    async ({ maxResults, pid, role, title }) => {
       try {
         const snapshot = await captureAXTree(runtime.config, {
-          pid,
           maxDepth: 20,
           maxNodes: 5000,
+          pid,
           verbose: true,
         })
 
         const limit = maxResults ?? 10
         const matches: Array<{
-          uid: string
+          bounds?: { height: number, width: number, x: number, y: number }
           role: string
           title?: string
+          uid: string
           value?: string
-          bounds?: { x: number, y: number, width: number, height: number }
         }> = []
 
         const titleLower = title?.toLowerCase()
@@ -104,11 +104,11 @@ export function registerAccessibilityTools({ server, runtime }: RegisterAccessib
 
           if (roleMatch && titleMatch) {
             matches.push({
-              uid,
+              bounds: node.bounds,
               role: node.role,
               title: node.title,
+              uid,
               value: node.value,
-              bounds: node.bounds,
             })
           }
         }
@@ -118,22 +118,22 @@ export function registerAccessibilityTools({ server, runtime }: RegisterAccessib
             textContent(`Found ${matches.length} element(s) matching role=${role ?? 'any'}, title=${title ?? 'any'} in ${snapshot.appName}.`),
           ],
           structuredContent: {
-            status: 'ok',
             appName: snapshot.appName,
-            pid: snapshot.pid,
             matches,
+            pid: snapshot.pid,
+            status: 'ok',
           },
         }
       }
       catch (error) {
         return {
-          isError: true,
           content: [
             textContent(`Accessibility find failed: ${errorMessageFromValue(error)}`),
           ],
+          isError: true,
           structuredContent: {
-            status: 'error',
             error: errorMessageFromValue(error),
+            status: 'error',
           },
         }
       }

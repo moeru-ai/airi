@@ -12,25 +12,25 @@ export default defineConfig({
       {
         extends: true,
         test: {
-          name: 'unit',
           environment: 'jsdom',
-          include: ['src/**/*.test.ts'],
           exclude: ['src/**/*.browser.test.ts'],
+          include: ['src/**/*.test.ts'],
+          name: 'unit',
         },
       },
       mergeConfig(stageWebConfig, defineConfig({
         test: {
-          name: 'browser',
-          include: ['src/**/*.browser.test.ts'],
-          setupFiles: ['./src/test/setup-live2d.browser.ts'],
           browser: {
             enabled: true,
             headless: true,
-            provider: playwright(),
             instances: [
               { browser: 'chromium' },
             ],
+            provider: playwright(),
           },
+          include: ['src/**/*.browser.test.ts'],
+          name: 'browser',
+          setupFiles: ['./src/test/setup-live2d.browser.ts'],
         },
       })),
     ],

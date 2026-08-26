@@ -48,8 +48,8 @@ describe('useVersionedLocalStorage', () => {
     await nextTick()
 
     expect(JSON.parse(storage.getItem('settings/live2d/auto-blink-enabled')!)).toEqual({
-      version: '2.0.0',
       data: false,
+      version: '2.0.0',
     })
   })
 })

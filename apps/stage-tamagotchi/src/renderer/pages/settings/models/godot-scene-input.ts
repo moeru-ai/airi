@@ -3,23 +3,6 @@ import type { DisplayModel } from '@proj-airi/stage-ui/stores/display-models'
 import { DisplayModelFormat } from '@proj-airi/stage-ui/stores/display-models'
 
 /**
- * Checks whether a display model can be sent to the Godot stage scene input path.
- *
- * Use when:
- * - Settings needs to decide whether to materialize a selected display model for Godot
- * - Godot stage mode needs to reject formats outside the G1.1 VRM baseline
- *
- * Expects:
- * - The display model comes from the shared display model store
- *
- * Returns:
- * - `true` only for VRM display models
- */
-export function isGodotSceneInputSupportedDisplayModel(model: DisplayModel): boolean {
-  return model.format === DisplayModelFormat.VRM
-}
-
-/**
  * Rejects display models that the Godot stage G1.1 scene input path cannot load.
  *
  * Use when:
@@ -34,4 +17,21 @@ export function isGodotSceneInputSupportedDisplayModel(model: DisplayModel): boo
 export function assertGodotSceneInputSupportedDisplayModel(model: DisplayModel): void {
   if (!isGodotSceneInputSupportedDisplayModel(model))
     throw new Error('Godot Stage currently supports VRM models only.')
+}
+
+/**
+ * Checks whether a display model can be sent to the Godot stage scene input path.
+ *
+ * Use when:
+ * - Settings needs to decide whether to materialize a selected display model for Godot
+ * - Godot stage mode needs to reject formats outside the G1.1 VRM baseline
+ *
+ * Expects:
+ * - The display model comes from the shared display model store
+ *
+ * Returns:
+ * - `true` only for VRM display models
+ */
+export function isGodotSceneInputSupportedDisplayModel(model: DisplayModel): boolean {
+  return model.format === DisplayModelFormat.VRM
 }

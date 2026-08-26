@@ -8,11 +8,6 @@ export interface RendererWindowContext {
   stageRuntime: 'full' | 'minimal'
 }
 
-function normalizeRoutePath(routePath: string) {
-  const [path = ''] = routePath.split(/[?#]/)
-  return path || '/'
-}
-
 /**
  * Resolves the initial renderer route before Vue Router hydrates the hash.
  *
@@ -48,4 +43,9 @@ export function resolveRendererWindowContext(search = globalThis.location?.searc
     leadership: syncedLeader === 'true' ? 'leader-only' : 'follower-only',
     stageRuntime: stageRuntime === 'minimal' ? 'minimal' : 'full',
   }
+}
+
+function normalizeRoutePath(routePath: string) {
+  const [path = ''] = routePath.split(/[?#]/)
+  return path || '/'
 }

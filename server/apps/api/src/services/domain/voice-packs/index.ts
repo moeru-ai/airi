@@ -10,8 +10,8 @@ import * as schema from '../../../schemas/voice-packs'
 
 export const VoicePackParamsSchema = object({
   pitch: optional(number()),
-  volume: optional(number()),
   rate: optional(pipe(number(), minValue(0.01, 'rate must be positive'))),
+  volume: optional(number()),
 })
 
 export const VoicePackCostMultiplierSchema = pipe(
@@ -20,29 +20,29 @@ export const VoicePackCostMultiplierSchema = pipe(
 )
 
 export const CreateVoicePackInputSchema = object({
-  name: pipe(string(), nonEmpty('name is required'), maxLength(120)),
-  description: optional(pipe(string(), maxLength(500))),
-  provider: pipe(string(), nonEmpty('provider is required'), maxLength(100)),
-  model: pipe(string(), nonEmpty('model is required'), maxLength(200)),
-  voiceId: pipe(string(), nonEmpty('voiceId is required'), maxLength(200)),
-  upstreamVoiceId: pipe(string(), nonEmpty('upstreamVoiceId is required'), maxLength(200)),
-  ttsModelId: pipe(string(), nonEmpty('ttsModelId is required'), maxLength(200)),
-  params: optional(VoicePackParamsSchema, {}),
   costMultiplier: VoicePackCostMultiplierSchema,
+  description: optional(pipe(string(), maxLength(500))),
   enabled: optional(boolean(), true),
+  model: pipe(string(), nonEmpty('model is required'), maxLength(200)),
+  name: pipe(string(), nonEmpty('name is required'), maxLength(120)),
+  params: optional(VoicePackParamsSchema, {}),
+  provider: pipe(string(), nonEmpty('provider is required'), maxLength(100)),
+  ttsModelId: pipe(string(), nonEmpty('ttsModelId is required'), maxLength(200)),
+  upstreamVoiceId: pipe(string(), nonEmpty('upstreamVoiceId is required'), maxLength(200)),
+  voiceId: pipe(string(), nonEmpty('voiceId is required'), maxLength(200)),
 })
 
 export const UpdateVoicePackInputSchema = object({
-  name: optional(pipe(string(), nonEmpty('name must not be empty'), maxLength(120))),
-  description: optional(pipe(string(), maxLength(500))),
-  provider: optional(pipe(string(), nonEmpty('provider must not be empty'), maxLength(100))),
-  model: optional(pipe(string(), nonEmpty('model must not be empty'), maxLength(200))),
-  voiceId: optional(pipe(string(), nonEmpty('voiceId must not be empty'), maxLength(200))),
-  upstreamVoiceId: optional(pipe(string(), nonEmpty('upstreamVoiceId must not be empty'), maxLength(200))),
-  ttsModelId: optional(pipe(string(), nonEmpty('ttsModelId must not be empty'), maxLength(200))),
-  params: optional(VoicePackParamsSchema),
   costMultiplier: optional(VoicePackCostMultiplierSchema),
+  description: optional(pipe(string(), maxLength(500))),
   enabled: optional(boolean()),
+  model: optional(pipe(string(), nonEmpty('model must not be empty'), maxLength(200))),
+  name: optional(pipe(string(), nonEmpty('name must not be empty'), maxLength(120))),
+  params: optional(VoicePackParamsSchema),
+  provider: optional(pipe(string(), nonEmpty('provider must not be empty'), maxLength(100))),
+  ttsModelId: optional(pipe(string(), nonEmpty('ttsModelId must not be empty'), maxLength(200))),
+  upstreamVoiceId: optional(pipe(string(), nonEmpty('upstreamVoiceId must not be empty'), maxLength(200))),
+  voiceId: optional(pipe(string(), nonEmpty('voiceId must not be empty'), maxLength(200))),
 })
 
 /**
@@ -54,6 +54,8 @@ export type CreateVoicePackInput = InferOutput<typeof CreateVoicePackInputSchema
  * Voice Pack update input accepted by catalog management callers.
  */
 export type UpdateVoicePackInput = InferOutput<typeof UpdateVoicePackInputSchema>
+
+export type VoicePackService = ReturnType<typeof createVoicePackService>
 
 /**
  * Handles the curated server-side Voice Pack library.
@@ -72,32 +74,31 @@ export function createVoicePackService(db: Database) {
   return {
     async create(input: CreateVoicePackInput) {
       const [inserted] = await db.insert(schema.voicePacks).values({
-        name: input.name,
-        description: input.description,
-        provider: input.provider,
-        model: input.model,
-        voiceId: input.voiceId,
-        upstreamVoiceId: input.upstreamVoiceId,
-        ttsModelId: input.ttsModelId,
-        params: input.params,
         costMultiplier: input.costMultiplier,
+        description: input.description,
         enabled: input.enabled,
+        model: input.model,
+        name: input.name,
+        params: input.params,
+        provider: input.provider,
+        ttsModelId: input.ttsModelId,
+        upstreamVoiceId: input.upstreamVoiceId,
+        voiceId: input.voiceId,
       }).returning()
 
       return inserted
     },
 
-    async list() {
-      return await db.query.voicePacks.findMany({
-        orderBy: (voicePacks, { desc }) => [desc(voicePacks.createdAt)],
-      })
-    },
+    async disable(id: string): Promise<null | VoicePack> {
+      const [updated] = await db.update(schema.voicePacks)
+        .set({ enabled: false, updatedAt: new Date() })
+        .where(and(
+          eq(schema.voicePacks.id, id),
+          eq(schema.voicePacks.enabled, true),
+        ))
+        .returning()
 
-    async listEnabled() {
-      return await db.query.voicePacks.findMany({
-        where: eq(schema.voicePacks.enabled, true),
-        orderBy: (voicePacks, { desc }) => [desc(voicePacks.createdAt)],
-      })
+      return updated ?? null
     },
 
     async findById(id: string) {
@@ -115,7 +116,20 @@ export function createVoicePackService(db: Database) {
       })
     },
 
-    async update(id: string, input: UpdateVoicePackInput): Promise<VoicePack | null> {
+    async list() {
+      return await db.query.voicePacks.findMany({
+        orderBy: (voicePacks, { desc }) => [desc(voicePacks.createdAt)],
+      })
+    },
+
+    async listEnabled() {
+      return await db.query.voicePacks.findMany({
+        orderBy: (voicePacks, { desc }) => [desc(voicePacks.createdAt)],
+        where: eq(schema.voicePacks.enabled, true),
+      })
+    },
+
+    async update(id: string, input: UpdateVoicePackInput): Promise<null | VoicePack> {
       const [updated] = await db.update(schema.voicePacks)
         .set({ ...input, updatedAt: new Date() })
         .where(eq(schema.voicePacks.id, id))
@@ -123,19 +137,5 @@ export function createVoicePackService(db: Database) {
 
       return updated ?? null
     },
-
-    async disable(id: string): Promise<VoicePack | null> {
-      const [updated] = await db.update(schema.voicePacks)
-        .set({ enabled: false, updatedAt: new Date() })
-        .where(and(
-          eq(schema.voicePacks.id, id),
-          eq(schema.voicePacks.enabled, true),
-        ))
-        .returning()
-
-      return updated ?? null
-    },
   }
 }
-
-export type VoicePackService = ReturnType<typeof createVoicePackService>

@@ -9,7 +9,7 @@ import {
 describe('createDesktopOverlayWindowOptions', () => {
   it('creates non-focusable transparent overlay window options for display bounds', () => {
     const options = createDesktopOverlayWindowOptions({
-      bounds: { x: -222, y: -1080, width: 1920, height: 1080 },
+      bounds: { height: 1080, width: 1920, x: -222, y: -1080 },
       preloadPath: '/tmp/airi-overlay-preload.js',
     })
 

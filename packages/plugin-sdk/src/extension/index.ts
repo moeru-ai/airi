@@ -35,9 +35,9 @@ export async function createModule(
   ctx.subscriptions.add({ dispose })
 
   return {
+    dispose,
     id: module.id,
     kits: module.kits,
     subscriptions: module.subscriptions,
-    dispose,
   }
 }

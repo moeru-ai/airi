@@ -3,9 +3,9 @@ import * as v from 'valibot'
 const NonEmptyStringSchema = v.pipe(v.string(), v.minLength(1))
 
 const SendMessageSchema = v.object({
+  content: v.string(),
   id: NonEmptyStringSchema,
   role: v.string(),
-  content: v.string(),
 })
 
 export const SendMessagesRequestSchema = v.object({
@@ -14,28 +14,18 @@ export const SendMessagesRequestSchema = v.object({
 })
 
 export const PullMessagesRequestSchema = v.object({
-  chatId: NonEmptyStringSchema,
   afterSeq: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  chatId: NonEmptyStringSchema,
   limit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
 })
 
-export interface WireMessage {
-  id: string
-  chatId: string
-  senderId: string | null
-  role: 'system' | 'user' | 'assistant' | 'tool' | 'error'
-  content: string
-  seq: number
-  createdAt: number
-  updatedAt: number
-}
-
 export type MessageRole = WireMessage['role']
 
-export type SendMessagesRequest = v.InferOutput<typeof SendMessagesRequestSchema>
-
-export interface SendMessagesResponse {
-  seq: number
+export interface NewMessagesPayload {
+  chatId: string
+  fromSeq: number
+  messages: WireMessage[]
+  toSeq: number
 }
 
 export type PullMessagesRequest = v.InferOutput<typeof PullMessagesRequestSchema>
@@ -45,19 +35,29 @@ export interface PullMessagesResponse {
   seq: number
 }
 
-export interface NewMessagesPayload {
-  chatId: string
-  messages: WireMessage[]
-  fromSeq: number
-  toSeq: number
+export type SendMessagesRequest = v.InferOutput<typeof SendMessagesRequestSchema>
+
+export interface SendMessagesResponse {
+  seq: number
 }
 
-/** Parses a `chat:send-messages` payload at the WebSocket boundary. */
-export function parseSendMessagesRequest(request: unknown): SendMessagesRequest {
-  return v.parse(SendMessagesRequestSchema, request)
+export interface WireMessage {
+  chatId: string
+  content: string
+  createdAt: number
+  id: string
+  role: 'assistant' | 'error' | 'system' | 'tool' | 'user'
+  senderId: null | string
+  seq: number
+  updatedAt: number
 }
 
 /** Parses a `chat:pull-messages` payload at the WebSocket boundary. */
 export function parsePullMessagesRequest(request: unknown): PullMessagesRequest {
   return v.parse(PullMessagesRequestSchema, request)
+}
+
+/** Parses a `chat:send-messages` payload at the WebSocket boundary. */
+export function parseSendMessagesRequest(request: unknown): SendMessagesRequest {
+  return v.parse(SendMessagesRequestSchema, request)
 }

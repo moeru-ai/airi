@@ -32,23 +32,22 @@ function createRateTraceWindow(): RateTraceWindow {
   }
 }
 
+function emitActionEvent(
+  event: Omit<PiniaActionEvent, 'status' | 'timestamp'>,
+  status: PiniaActionEventStatus,
+  error?: unknown,
+): void {
+  piniaActionChannel ??= new BroadcastChannel(piniaActionTracingChannelName)
+  piniaActionChannel.postMessage({
+    ...event,
+    status,
+    timestamp: Date.now(),
+    ...(status === 'failed' ? { errorMessage: errorMessageFrom(error) ?? 'Unknown action failure' } : {}),
+  })
+}
+
 function incrementRateTraceCount(counts: Map<string, number>, key: string): void {
   counts.set(key, (counts.get(key) ?? 0) + 1)
-}
-
-function totalRateTraceCount(counts: Map<string, number>): number {
-  let total = 0
-  for (const count of counts.values())
-    total += count
-
-  return total
-}
-
-function topRateTraceCounts(counts: Map<string, number>): Array<{ count: number, name: string }> {
-  return [...counts.entries()]
-    .sort((left, right) => right[1] - left[1])
-    .slice(0, rateTraceLimit)
-    .map(([name, count]) => ({ count, name }))
 }
 
 function reportRateTraceWindow(): void {
@@ -98,18 +97,19 @@ function startRateTracing(): RateTraceWindow | undefined {
   return rateTraceWindow
 }
 
-function emitActionEvent(
-  event: Omit<PiniaActionEvent, 'status' | 'timestamp'>,
-  status: PiniaActionEventStatus,
-  error?: unknown,
-): void {
-  piniaActionChannel ??= new BroadcastChannel(piniaActionTracingChannelName)
-  piniaActionChannel.postMessage({
-    ...event,
-    status,
-    timestamp: Date.now(),
-    ...(status === 'failed' ? { errorMessage: errorMessageFrom(error) ?? 'Unknown action failure' } : {}),
-  })
+function topRateTraceCounts(counts: Map<string, number>): Array<{ count: number, name: string }> {
+  return [...counts.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, rateTraceLimit)
+    .map(([name, count]) => ({ count, name }))
+}
+
+function totalRateTraceCount(counts: Map<string, number>): number {
+  let total = 0
+  for (const count of counts.values())
+    total += count
+
+  return total
 }
 
 /**
@@ -129,14 +129,14 @@ export const piniaPluginTracing: PiniaPlugin = ({ store }) => {
     }, { detached: true, flush: 'sync' })
   }
 
-  store.$onAction(({ name, after, onError }) => {
+  store.$onAction(({ after, name, onError }) => {
     if (tracedWindow)
       incrementRateTraceCount(tracedWindow.actions, `${store.$id}.${name}`)
 
     const event = {
+      actionName: name,
       invocationId: nanoid(),
       storeId: store.$id,
-      actionName: name,
       ...(typeof location === 'undefined' ? {} : { sourceUrl: location.href }),
     }
 

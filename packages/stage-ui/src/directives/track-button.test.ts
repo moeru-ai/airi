@@ -23,8 +23,8 @@ describe('createTrackButtonDirective', () => {
   it('captures the current descriptor before the button handler runs', async () => {
     const calls: string[] = []
     const event = ref<TrackButtonEvent>({
-      name: 'controls_island_action',
       action: 'switch_to_dark_mode',
+      name: 'controls_island_action',
     })
     const capture = vi.fn((value: TrackButtonEvent) => calls.push(`track:${'action' in value ? value.action : value.name}`))
     const directive = createTrackButtonDirective(capture)
@@ -46,8 +46,8 @@ describe('createTrackButtonDirective', () => {
 
     calls.length = 0
     event.value = {
-      name: 'controls_island_action',
       action: 'switch_to_light_mode',
+      name: 'controls_island_action',
     }
     await nextTick()
     button.click()
@@ -63,7 +63,7 @@ describe('createTrackButtonDirective', () => {
     const app = createApp({
       render: () => withDirectives(
         h('button'),
-        [[directive, { name: 'mcp_server_updated', action: 'add' } satisfies TrackButtonEvent]],
+        [[directive, { action: 'add', name: 'mcp_server_updated' } satisfies TrackButtonEvent]],
       ),
     })
 

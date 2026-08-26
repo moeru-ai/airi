@@ -7,12 +7,12 @@ describe('kitApiBindingRegistryService', () => {
     const service = new KitApiBindingRegistryService()
 
     const binding = service.bind({
-      moduleId: 'chess-gamelet',
-      ownerSessionId: 'session-1',
-      ownerExtensionId: 'airi-extension-chess',
+      config: { title: 'Chess' },
       kitId: 'kit.gamelet',
       kitModuleType: 'gamelet',
-      config: { title: 'Chess' },
+      moduleId: 'chess-gamelet',
+      ownerExtensionId: 'airi-extension-chess',
+      ownerSessionId: 'session-1',
       runtime: 'electron',
     })
 
@@ -24,12 +24,12 @@ describe('kitApiBindingRegistryService', () => {
     const service = new KitApiBindingRegistryService()
 
     service.bind({
-      moduleId: 'm1',
-      ownerSessionId: 'session-a',
-      ownerExtensionId: 'plugin-a',
+      config: {},
       kitId: 'kit.widget',
       kitModuleType: 'panel',
-      config: {},
+      moduleId: 'm1',
+      ownerExtensionId: 'plugin-a',
+      ownerSessionId: 'session-a',
       runtime: 'electron',
     })
 
@@ -40,12 +40,12 @@ describe('kitApiBindingRegistryService', () => {
     const service = new KitApiBindingRegistryService()
 
     const announced = service.bind({
-      moduleId: 'm2',
-      ownerSessionId: 'session-a',
-      ownerExtensionId: 'plugin-a',
+      config: { mountPoint: 'widgets' },
       kitId: 'kit.widget',
       kitModuleType: 'panel',
-      config: { mountPoint: 'widgets' },
+      moduleId: 'm2',
+      ownerExtensionId: 'plugin-a',
+      ownerSessionId: 'session-a',
       runtime: 'web',
     })
 
@@ -65,12 +65,12 @@ describe('kitApiBindingRegistryService', () => {
     const service = new KitApiBindingRegistryService()
 
     service.bind({
-      moduleId: 'm3',
-      ownerSessionId: 'session-a',
-      ownerExtensionId: 'plugin-a',
+      config: {},
       kitId: 'kit.widget',
       kitModuleType: 'panel',
-      config: {},
+      moduleId: 'm3',
+      ownerExtensionId: 'plugin-a',
+      ownerSessionId: 'session-a',
       runtime: 'electron',
     })
 
@@ -83,23 +83,23 @@ describe('kitApiBindingRegistryService', () => {
     const service = new KitApiBindingRegistryService()
 
     service.bind({
-      moduleId: 'm4',
-      ownerSessionId: 'session-a',
-      ownerExtensionId: 'plugin-a',
+      config: {},
       kitId: 'kit.widget',
       kitModuleType: 'panel',
-      config: {},
+      moduleId: 'm4',
+      ownerExtensionId: 'plugin-a',
+      ownerSessionId: 'session-a',
       runtime: 'electron',
     })
 
     expect(() =>
       service.bind({
-        moduleId: 'm4',
-        ownerSessionId: 'session-b',
-        ownerExtensionId: 'plugin-b',
+        config: {},
         kitId: 'kit.widget',
         kitModuleType: 'panel',
-        config: {},
+        moduleId: 'm4',
+        ownerExtensionId: 'plugin-b',
+        ownerSessionId: 'session-b',
         runtime: 'electron',
       }),
     ).toThrowError(/module id collision/i)
@@ -109,22 +109,22 @@ describe('kitApiBindingRegistryService', () => {
     const service = new KitApiBindingRegistryService()
 
     const original = service.bind({
-      moduleId: 'm5',
-      ownerSessionId: 'session-a',
-      ownerExtensionId: 'plugin-a',
+      config: { mountPoint: 'widgets' },
       kitId: 'kit.widget',
       kitModuleType: 'panel',
-      config: { mountPoint: 'widgets' },
+      moduleId: 'm5',
+      ownerExtensionId: 'plugin-a',
+      ownerSessionId: 'session-a',
       runtime: 'electron',
     })
 
     const duplicate = service.bind({
-      moduleId: 'm5',
-      ownerSessionId: 'session-a',
-      ownerExtensionId: 'plugin-a',
+      config: { mountPoint: 'mutated', width: 480 },
       kitId: 'kit.widget',
       kitModuleType: 'dialog',
-      config: { mountPoint: 'mutated', width: 480 },
+      moduleId: 'm5',
+      ownerExtensionId: 'plugin-a',
+      ownerSessionId: 'session-a',
       runtime: 'web',
     })
 
@@ -138,23 +138,23 @@ describe('kitApiBindingRegistryService', () => {
     const service = new KitApiBindingRegistryService()
 
     service.bind({
-      moduleId: 'm6',
-      ownerSessionId: 'session-a',
-      ownerExtensionId: 'plugin-a',
+      config: {},
       kitId: 'kit.widget',
       kitModuleType: 'panel',
-      config: {},
+      moduleId: 'm6',
+      ownerExtensionId: 'plugin-a',
+      ownerSessionId: 'session-a',
       runtime: 'electron',
     })
 
     expect(() =>
       service.bind({
-        moduleId: 'm6',
-        ownerSessionId: 'session-a',
-        ownerExtensionId: 'plugin-b',
+        config: {},
         kitId: 'kit.widget',
         kitModuleType: 'panel',
-        config: {},
+        moduleId: 'm6',
+        ownerExtensionId: 'plugin-b',
+        ownerSessionId: 'session-a',
         runtime: 'electron',
       }),
     ).toThrowError(/module id collision/i)
@@ -164,12 +164,12 @@ describe('kitApiBindingRegistryService', () => {
     const service = new KitApiBindingRegistryService()
 
     service.bind({
-      moduleId: 'm7',
-      ownerSessionId: 'session-a',
-      ownerExtensionId: 'plugin-a',
+      config: {},
       kitId: 'kit.widget',
       kitModuleType: 'panel',
-      config: {},
+      moduleId: 'm7',
+      ownerExtensionId: 'plugin-a',
+      ownerSessionId: 'session-a',
       runtime: 'electron',
     })
 

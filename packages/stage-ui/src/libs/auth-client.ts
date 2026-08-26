@@ -3,22 +3,22 @@ import { createAuthClient } from 'better-auth/vue'
 import { SERVER_URL } from './server'
 import { steamClient } from './steam-auth-client'
 
-function getPersistedAuthToken(): string | null {
+function getPersistedAuthToken(): null | string {
   return localStorage.getItem('auth/v1/token')
 }
 
 export const authClient = createAuthClient({
   baseURL: SERVER_URL,
-  plugins: [steamClient()],
   fetchOptions: {
+    auth: {
+      token: () => getPersistedAuthToken() ?? '',
+      type: 'Bearer',
+    },
     // NOTICE: better-auth sets `credentials: "include"` by default.
     // AIRI uses Bearer authentication and must not attach a browser session cookie.
     credentials: 'omit',
-    auth: {
-      type: 'Bearer',
-      token: () => getPersistedAuthToken() ?? '',
-    },
   },
+  plugins: [steamClient()],
 })
 
 /**
@@ -26,15 +26,15 @@ export const authClient = createAuthClient({
  *
  * The explicit token keeps the request independent from asynchronous storage writes.
  */
-export async function requestAuthSession(accessToken: string | null) {
+export async function requestAuthSession(accessToken: null | string) {
   if (!accessToken)
     return null
 
   const { data } = await authClient.getSession({
     fetchOptions: {
       auth: {
-        type: 'Bearer',
         token: accessToken,
+        type: 'Bearer',
       },
     },
   })

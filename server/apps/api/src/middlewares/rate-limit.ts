@@ -9,18 +9,10 @@ import { getConnInfo } from '@hono/node-server/conninfo'
 import { rateLimiter as createRateLimiter } from 'hono-rate-limiter'
 
 interface RateLimitOptions {
-  /** Max requests allowed within the window */
-  max: number
-  /** Window size in seconds */
-  windowSec: number
   /** Key generator: extracts a unique identifier from the request */
   keyGenerator?: (c: Context<HonoEnv>) => string
-  /**
-   * Reverse proxy whose client-address header is safe to use. The caller must
-   * select this only when the deployment guarantees that the named proxy owns
-   * and overwrites that header before the request reaches the application.
-   */
-  trustedProxy?: 'railway'
+  /** Max requests allowed within the window */
+  max: number
   /**
    * Optional metrics handle. When provided, blocked requests increment
    * `airi_rate_limit_blocked_total{route, key_type, limit}`.
@@ -28,13 +20,21 @@ interface RateLimitOptions {
    * or remote IP — important for distinguishing logged-in abuse from
    * anonymous scraping.
    */
-  metrics?: RateLimitMetrics | null
+  metrics?: null | RateLimitMetrics
   /**
    * Stable label for the route this limiter guards (e.g. `auth.api`,
    * `openai.completions`, `stripe.checkout`). Avoids high-cardinality URL
    * paths in metric labels.
    */
   routeLabel?: string
+  /**
+   * Reverse proxy whose client-address header is safe to use. The caller must
+   * select this only when the deployment guarantees that the named proxy owns
+   * and overwrites that header before the request reaches the application.
+   */
+  trustedProxy?: 'railway'
+  /** Window size in seconds */
+  windowSec: number
 }
 
 /**
@@ -65,24 +65,24 @@ export function rateLimiter(opts: RateLimitOptions) {
     })
 
   return createRateLimiter<HonoEnv>({
-    windowMs: opts.windowSec * 1000,
-    limit: opts.max,
-    // NOTICE: keep `draft-6` so the middleware emits the widely supported
-    // `RateLimit-*` header set. `draft-7`/`draft-8` switch to newer combined
-    // header formats that are easier to break in existing clients and proxies.
-    standardHeaders: 'draft-6',
-    keyGenerator: keyGen,
     handler: (c) => {
       // Record before producing the 429 response so the time series captures
       // every block, even when the response shape later changes.
       const keyType = c.get('user')?.id ? 'user' : 'ip'
       opts.metrics?.blocked.add(1, {
-        route: opts.routeLabel ?? 'unknown',
         key_type: keyType,
         limit: String(opts.max),
+        route: opts.routeLabel ?? 'unknown',
       })
       return c.json({ error: 'TOO_MANY_REQUESTS', message: 'Too many requests' }, 429)
     },
+    keyGenerator: keyGen,
+    limit: opts.max,
+    // NOTICE: keep `draft-6` so the middleware emits the widely supported
+    // `RateLimit-*` header set. `draft-7`/`draft-8` switch to newer combined
+    // header formats that are easier to break in existing clients and proxies.
+    standardHeaders: 'draft-6',
+    windowMs: opts.windowSec * 1000,
   })
 }
 

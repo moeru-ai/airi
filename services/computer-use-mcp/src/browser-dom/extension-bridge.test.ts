@@ -24,8 +24,8 @@ async function createConnectedBridge(config?: Partial<{
   await new Promise<void>((resolve, reject) => {
     client.once('open', () => {
       client.send(JSON.stringify({
-        type: 'hello',
         source: 'test-extension',
+        type: 'hello',
         version: 'bridge-test',
       }))
       resolve()
@@ -72,8 +72,8 @@ function mockClientAction(
 
 describe('browserDomExtensionBridge', () => {
   let bridge: BrowserDomExtensionBridge | undefined
-  let client: WebSocket | undefined
-  let blocker: WebSocketServer | undefined
+  let client: undefined | WebSocket
+  let blocker: undefined | WebSocketServer
 
   afterEach(async () => {
     client?.close()
@@ -141,12 +141,12 @@ describe('browserDomExtensionBridge', () => {
       {
         frameId: 0,
         result: {
-          success: true,
-          value: 'hello world',
-          tag: 'input',
           id: 'search',
           name: 'q',
+          success: true,
+          tag: 'input',
           type: 'text',
+          value: 'hello world',
         },
       },
     ]))
@@ -157,12 +157,12 @@ describe('browserDomExtensionBridge', () => {
       {
         frameId: 0,
         result: {
-          success: true,
-          value: 'hello world',
-          tag: 'input',
           id: 'search',
           name: 'q',
+          success: true,
+          tag: 'input',
           type: 'text',
+          value: 'hello world',
         },
       },
     ])
@@ -177,31 +177,31 @@ describe('browserDomExtensionBridge', () => {
       {
         frameId: 0,
         result: {
-          success: true,
           styles: {
             display: 'block',
-            visibility: 'visible',
             opacity: '1',
+            visibility: 'visible',
           },
+          success: true,
         },
       },
     ]))
 
     const frames = await bridge.getComputedStyles({
-      selector: '.container',
       properties: ['display', 'visibility', 'opacity'],
+      selector: '.container',
     })
 
     expect(frames).toEqual([
       {
         frameId: 0,
         result: {
-          success: true,
           styles: {
             display: 'block',
-            visibility: 'visible',
             opacity: '1',
+            visibility: 'visible',
           },
+          success: true,
         },
       },
     ])
@@ -218,7 +218,7 @@ describe('browserDomExtensionBridge', () => {
     mockClientAction(client, 'waitForElement', () => ([
       {
         frameId: 0,
-        result: { success: true, elements: [{ tag: 'div', id: 'lazy' }] },
+        result: { elements: [{ id: 'lazy', tag: 'div' }], success: true },
       },
     ]), { delayMs: 800 })
 
@@ -232,7 +232,7 @@ describe('browserDomExtensionBridge', () => {
     expect(frames).toEqual([
       {
         frameId: 0,
-        result: { success: true, elements: [{ tag: 'div', id: 'lazy' }] },
+        result: { elements: [{ id: 'lazy', tag: 'div' }], success: true },
       },
     ])
   })
@@ -271,10 +271,10 @@ describe('browserDomExtensionBridge', () => {
       {
         frameId: 0,
         result: {
-          success: false,
-          selector: data.selector,
-          timeoutMs: data.timeoutMs,
           error: 'timed out waiting for selector "#missing"',
+          selector: data.selector,
+          success: false,
+          timeoutMs: data.timeoutMs,
         },
       },
     ]), { delayMs: 300 })
@@ -285,10 +285,10 @@ describe('browserDomExtensionBridge', () => {
       {
         frameId: 0,
         result: {
-          success: false,
-          selector: '#missing',
-          timeoutMs: 200,
           error: 'timed out waiting for selector "#missing"',
+          selector: '#missing',
+          success: false,
+          timeoutMs: 200,
         },
       },
     ])
@@ -325,9 +325,9 @@ describe('browserDomExtensionBridge', () => {
         return
 
       client.send(JSON.stringify({
+        error: 'unknown action: getActiveTab',
         id: data.id,
         ok: false,
-        error: 'unknown action: getActiveTab',
       }))
     })
 
@@ -374,8 +374,8 @@ describe('browserDomExtensionBridge', () => {
     expect(bridge.getStatus().connected).toBe(true)
 
     client.send(JSON.stringify({
-      type: 'hello',
       source: 'test-extension',
+      type: 'hello',
       version: 'bridge-test',
     }))
 

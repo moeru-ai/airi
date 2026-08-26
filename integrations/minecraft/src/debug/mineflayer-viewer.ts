@@ -3,8 +3,8 @@ import type { Bot } from 'mineflayer'
 import { useLogger } from '../utils/logger'
 
 interface MineflayerViewerOptions {
-  port: number
   firstPerson?: boolean
+  port: number
 }
 
 export function setupMineflayerViewer(mineflayer: { bot: Bot }, options: MineflayerViewerOptions): void {
@@ -21,8 +21,8 @@ export function setupMineflayerViewer(mineflayer: { bot: Bot }, options: Minefla
       const { mineflayer: mineflayerViewer } = await import('prismarine-viewer')
 
       mineflayerViewer(mineflayer.bot, {
-        port: options.port,
         firstPerson: options.firstPerson ?? true,
+        port: options.port,
       })
 
       logger.log(`Mineflayer viewer running at http://localhost:${options.port}`)

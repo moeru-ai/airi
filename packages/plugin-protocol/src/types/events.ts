@@ -3,56 +3,92 @@ import type { AssistantMessage, CommonContentPart, Message, ToolMessage, UserMes
 
 import { defineEventa } from '@moeru/eventa'
 
-export interface DiscordGuildMember {
-  nickname: string
-  displayName: string
-  id: string
+export enum ContextUpdateStrategy {
+  AppendSelf = 'append-self',
+  ReplaceSelf = 'replace-self',
 }
+
+export enum MessageHeartbeat {
+  Ping = '🩵',
+  Pong = '💛',
+}
+
+export enum MessageHeartbeatKind {
+  Ping = 'ping',
+  Pong = 'pong',
+}
+
+export enum WebSocketEventSource {
+  Server = 'proj-airi:server-runtime',
+  StageTamagotchi = 'proj-airi:stage-tamagotchi',
+  StageWeb = 'proj-airi:stage-web',
+}
+
+export interface ContextUpdate<
+  Metadata extends Record<string, any> = Record<string, unknown>,
+  // eslint-disable-next-line ts/no-unnecessary-type-constraint
+  Content extends any = undefined,
+> {
+  content?: Content
+  /**
+   * Can be the same if same update sends multiple time as attempts
+   * and trials, (e.g. notified first but not ACKed, then retried).
+   */
+  contextId: string
+  destinations?: Array<string> | ContextUpdateDestinationFilter
+  hints?: Array<string>
+  id: string
+  ideas?: Array<string>
+  lane?: string
+  metadata?: Metadata
+  strategy: ContextUpdateStrategy
+  text: string
+}
+
+export interface ContextUpdateDestinationAll {
+  all: true
+}
+
+export type ContextUpdateDestinationFilter
+  = | ContextUpdateDestinationAll
+    | ContextUpdateDestinationList
+
+export interface ContextUpdateDestinationList {
+  exclude?: Array<string>
+  include?: Array<string>
+}
+
+export interface DeliveryConfig {
+  group?: string
+  mode?: DeliveryMode
+  required?: boolean
+  selection?: DeliverySelectionStrategy
+  stickyKey?: string
+}
+
+export type DeliveryMode = 'broadcast' | 'consumer' | 'consumer-group'
+
+export type DeliverySelectionStrategy = 'first' | 'priority' | 'round-robin' | 'sticky'
 
 export interface Discord {
-  guildMember?: DiscordGuildMember
-  guildId?: string
-  guildName?: string
   channelId?: string
+  guildId?: string
+  guildMember?: DiscordGuildMember
+  guildName?: string
 }
 
-export interface PluginIdentity {
-  /**
-   * Stable plugin identifier (shared across instances).
-   * Example: "telegram-bot", "stage-tamagotchi".
-   */
+export interface DiscordGuildMember {
+  displayName: string
   id: string
-  /**
-   * Optional semantic version for the plugin.
-   * Example: "0.8.1-beta.7".
-   */
-  version?: string
-  /**
-   * Optional labels attached to the extension manifest.
-   * Example: { env: "prod", app: "telegram", devtools: "true" }.
-   */
-  labels?: Record<string, string>
+  nickname: string
 }
 
-export interface ModuleIdentity {
-  /**
-   * Unique module instance id for this module run (per process/deployment).
-   * Example: "telegram-01", "stage-ui-2f7c9".
-   */
-  id: string
-  /**
-   * Module identity kind. For now only plugin-backed modules are supported.
-   */
-  kind: 'plugin'
-  /**
-   * Plugin identity associated with this module instance.
-   */
-  plugin: PluginIdentity
-  /**
-   * K8s-style labels for routing and policy selectors.
-   * Example: { env: "prod", app: "telegram", devtools: "true" }.
-   */
-  labels?: Record<string, string>
+export interface EventBaseMetadata {
+  event?: {
+    id?: string
+    parentId?: string
+  }
+  source?: ModuleIdentity
 }
 
 /**
@@ -67,35 +103,17 @@ export interface ExtensionIdentity {
    */
   id: string
   /**
-   * Optional semantic version for the extension package.
+   * Optional labels used for routing, inspection, and policy selectors.
    */
-  version?: string
+  labels?: Record<string, string>
   /**
    * Optional runtime session id assigned by the host for this loaded extension.
    */
   sessionId?: string
   /**
-   * Optional labels used for routing, inspection, and policy selectors.
+   * Optional semantic version for the extension package.
    */
-  labels?: Record<string, string>
-}
-
-/**
- * Identifies one runtime module registered by an extension setup function.
- */
-export interface ExtensionModuleIdentity {
-  /**
-   * Stable module id within one extension session.
-   */
-  id: string
-  /**
-   * Owning extension session identity.
-   */
-  extension: ExtensionIdentity
-  /**
-   * Optional labels used for routing, inspection, and policy selectors.
-   */
-  labels?: Record<string, string>
+  version?: string
 }
 
 /**
@@ -107,20 +125,209 @@ export interface ExtensionKitIdentity {
    */
   id: string
   /**
-   * Optional semantic version for compatibility checks.
+   * Optional labels used for routing, inspection, and policy selectors.
    */
-  version?: string
+  labels?: Record<string, string>
   /**
    * Optional owner for future extension-provided kits. Host-provided kits omit this field.
    */
   ownerExtension?: ExtensionIdentity
+  /**
+   * Optional semantic version for compatibility checks.
+   */
+  version?: string
+}
+
+/**
+ * Identifies one runtime module registered by an extension setup function.
+ */
+export interface ExtensionModuleIdentity {
+  /**
+   * Owning extension session identity.
+   */
+  extension: ExtensionIdentity
+  /**
+   * Stable module id within one extension session.
+   */
+  id: string
   /**
    * Optional labels used for routing, inspection, and policy selectors.
    */
   labels?: Record<string, string>
 }
 
-export type MetadataEventSource = ModuleIdentity | ExtensionIdentity | ExtensionModuleIdentity | ExtensionKitIdentity
+export type InputContextUpdate
+  = Omit<ContextUpdate<Record<string, unknown>, CommonContentPart[] | string>, 'contextId' | 'id'>
+    & Partial<Pick<ContextUpdate<Record<string, unknown>, CommonContentPart[] | string>, 'contextId' | 'id'>>
+
+export type InputEventData = WebSocketEventInputText | WebSocketEventInputTextVoice | WebSocketEventInputVoice
+
+export type InputEventEnvelope
+  = | { data: WebSocketEventInputText, type: 'input:text' }
+    | { data: WebSocketEventInputTextVoice, type: 'input:text:voice' }
+    | { data: WebSocketEventInputVoice, type: 'input:voice' }
+
+export interface InputMessageOverrides {
+  messagePrefix?: string
+  sessionId?: string
+}
+
+export type Localizable
+  = | string
+    | {
+    /**
+     * Fallback display string when translation is unavailable.
+     */
+      fallback?: string
+      /**
+       * Localization key owned by the module.
+       * Example: "config.deprecated.model_driver.legacy"
+       */
+      key: string
+      /**
+       * Params for string interpolation.
+       */
+      params?: Record<string, boolean | number | string>
+    }
+
+export type MetadataEventSource = ExtensionIdentity | ExtensionKitIdentity | ExtensionModuleIdentity | ModuleIdentity
+
+export interface ModuleAnnouncedEvent {
+  identity: ModuleIdentity
+  index?: number
+  name: string
+}
+
+export interface ModuleCapability {
+  /**
+   * Capability-specific config schema (if needed).
+   */
+  configSchema?: ModuleConfigSchema
+  /**
+   * Optional localized description.
+   */
+  description?: Localizable
+  /**
+   * Stable capability id within a module.
+   * Example: "memory.write", "vision.ocr".
+   */
+  id: string
+  /**
+   * Additional metadata for tooling/UI.
+   */
+  metadata?: Record<string, unknown>
+  /**
+   * Human-friendly name.
+   */
+  name?: string
+}
+
+/**
+ * Config payload envelope for plan/apply/validate/commit.
+ *
+ * Example:
+ *  {
+ *    configId: "stage-ui-live2d",
+ *    revision: 12,
+ *    schemaVersion: 2,
+ *    full: { model: "Hiyori", driver: { type: "live2d" } },
+ *  }
+ */
+export interface ModuleConfigEnvelope<C = Record<string, unknown>> {
+  /**
+   * If patch is used, baseRevision should be set for optimistic concurrency.
+   */
+  baseRevision?: number
+  configId: string
+  /**
+   * Full config payload (use when first applying or rehydrating).
+   */
+  full?: C
+  /**
+   * Partial patch payload (use when updating or filling missing fields).
+   */
+  patch?: Partial<C>
+  /**
+   * Monotonic revision number for this configId.
+   */
+  revision: number
+  /**
+   * Schema version this config targets.
+   */
+  schemaVersion: number
+  /**
+   * Optional source identity (who produced this config).
+   */
+  source?: ModuleIdentity
+}
+
+export interface ModuleConfigNotice {
+  /**
+   * Machine-friendly key for analytics or client-side mapping.
+   */
+  code?: string
+  /**
+   * Link to docs or migration guide.
+   */
+  link?: string
+  /**
+   * Human readable message or localization key.
+   */
+  message?: Localizable
+  /**
+   * JSON pointer or dotted path in config.
+   * Example: "driver.legacyModelPath"
+   */
+  path?: string
+  /**
+   * Suggested replacement path or alternative.
+   */
+  replacedBy?: string
+  /**
+   * Version since the notice applies.
+   */
+  since?: number
+}
+
+export interface ModuleConfigPlan {
+  /**
+   * Recommended defaults computed at runtime (may be environment-specific).
+   */
+  defaults?: Record<string, unknown>
+  /**
+   * Deprecated fields/behaviors detected in current config.
+   */
+  deprecated?: Array<ModuleConfigNotice | string>
+  /**
+   * Invalid fields with reasons (runtime validation result).
+   */
+  invalid?: Array<{ path: string, reason: string }>
+  /**
+   * Suggested migration steps between schema versions.
+   */
+  migrations?: Array<{
+    from: number
+    notes?: Array<ModuleConfigNotice | string>
+    steps?: Array<ModuleConfigStep | string>
+    to: number
+  }>
+  /**
+   * Missing required paths for current schema/version.
+   */
+  missing?: string[]
+  /**
+   * Human- or UI-friendly next actions to resolve partial config.
+   */
+  nextSteps?: Array<ModuleConfigStep | string>
+  /**
+   * Schema that this plan targets.
+   */
+  schema: ModuleConfigSchema
+  /**
+   * Non-blocking issues that should be shown to the user/operator.
+   */
+  warnings?: Array<ModuleConfigNotice | string>
+}
 
 /**
  * Static schema metadata for module configuration.
@@ -135,44 +342,48 @@ export type MetadataEventSource = ModuleIdentity | ExtensionIdentity | Extension
  */
 export interface ModuleConfigSchema {
   id: string
-  version: number
   /**
    * Optional JSON Schema-like descriptor for tooling/validation.
    * Keep it JSON-serializable and avoid runtime-only values.
    */
   schema?: Record<string, unknown>
+  version: number
 }
 
-/**
- * Module dependency declaration.
- *
- * Use this during prepare/probe to describe what a module needs before
- * it can decide its dynamic contributions. Dependencies can change at
- * runtime if peers go offline.
- *
- * Example:
- *  { role: "llm:orchestrator", min: "v1", optional: true }
- */
-export interface ModuleDependency {
+export interface ModuleConfigStep {
   /**
-   * Logical dependency role (preferred over hard-coded plugin ids).
-   * Example: "llm:orchestrator"
+   * Suggested action to complete configuration.
+   * Use code for UI rendering or message for fallback.
    */
-  role: string
+  code?: string
+  message?: Localizable
   /**
-   * Optional dependency flag.
+   * Optional targeted field(s).
    */
-  optional?: boolean
+  paths?: string[]
+}
+
+export interface ModuleConfigValidation {
   /**
-   * Version constraint hints.
+   * Invalid fields with reasons (only for invalid).
    */
-  version?: string
-  min?: string
-  max?: string
+  invalid?: Array<{ path: string, reason: Localizable }>
   /**
-   * Additional constraint metadata (JSON-serializable).
+   * Missing required fields (only for partial/invalid).
    */
-  constraints?: Record<string, unknown>
+  missing?: string[]
+  /**
+   * Overall validation status.
+   *
+   * - valid: all required fields present and valid.
+   * - partial: config is structurally OK but missing required fields; can be fixed by patches.
+   * - invalid: one or more fields are present but invalid (type/range/format); requires correction.
+   */
+  status: 'invalid' | 'partial' | 'valid'
+  /**
+   * Non-blocking issues (e.g., deprecations, best-practice notices).
+   */
+  warnings?: Array<ModuleConfigNotice | string>
 }
 
 /**
@@ -195,252 +406,85 @@ export interface ModuleContribution {
    */
   capabilities?: string[]
   /**
-   * Provider registry contributions (shape defined by the host).
-   */
-  providers?: Array<Record<string, unknown>>
-  /**
-   * UI contribution descriptors (widgets, toolbar items, etc).
-   */
-  ui?: Record<string, unknown>
-  /**
    * Hook registrations (event handlers, interceptors, etc).
    */
   hooks?: Array<Record<string, unknown>>
   /**
+   * Provider registry contributions (shape defined by the host).
+   */
+  providers?: Array<Record<string, unknown>>
+  /**
    * Additional resources or metadata.
    */
   resources?: Record<string, unknown>
+  /**
+   * UI contribution descriptors (widgets, toolbar items, etc).
+   */
+  ui?: Record<string, unknown>
 }
 
 /**
- * Lifecycle phases for module orchestration and UX.
- */
-export type ModulePhase
-  = | 'announced'
-    | 'preparing'
-    | 'prepared'
-    | 'configuration-needed'
-    | 'configured'
-    | 'ready'
-    | 'failed'
-
-export type Localizable
-  = | string
-    | {
-    /**
-     * Localization key owned by the module.
-     * Example: "config.deprecated.model_driver.legacy"
-     */
-      key: string
-      /**
-       * Fallback display string when translation is unavailable.
-       */
-      fallback?: string
-      /**
-       * Params for string interpolation.
-       */
-      params?: Record<string, string | number | boolean>
-    }
-
-export interface ModuleConfigNotice {
-  /**
-   * Machine-friendly key for analytics or client-side mapping.
-   */
-  code?: string
-  /**
-   * Human readable message or localization key.
-   */
-  message?: Localizable
-  /**
-   * JSON pointer or dotted path in config.
-   * Example: "driver.legacyModelPath"
-   */
-  path?: string
-  /**
-   * Suggested replacement path or alternative.
-   */
-  replacedBy?: string
-  /**
-   * Version since the notice applies.
-   */
-  since?: number
-  /**
-   * Link to docs or migration guide.
-   */
-  link?: string
-}
-
-export interface ModuleConfigStep {
-  /**
-   * Suggested action to complete configuration.
-   * Use code for UI rendering or message for fallback.
-   */
-  code?: string
-  message?: Localizable
-  /**
-   * Optional targeted field(s).
-   */
-  paths?: string[]
-}
-
-export interface ModuleConfigPlan {
-  /**
-   * Schema that this plan targets.
-   */
-  schema: ModuleConfigSchema
-  /**
-   * Missing required paths for current schema/version.
-   */
-  missing?: string[]
-  /**
-   * Invalid fields with reasons (runtime validation result).
-   */
-  invalid?: Array<{ path: string, reason: string }>
-  /**
-   * Recommended defaults computed at runtime (may be environment-specific).
-   */
-  defaults?: Record<string, unknown>
-  /**
-   * Deprecated fields/behaviors detected in current config.
-   */
-  deprecated?: Array<string | ModuleConfigNotice>
-  /**
-   * Suggested migration steps between schema versions.
-   */
-  migrations?: Array<{
-    from: number
-    to: number
-    steps?: Array<string | ModuleConfigStep>
-    notes?: Array<string | ModuleConfigNotice>
-  }>
-  /**
-   * Human- or UI-friendly next actions to resolve partial config.
-   */
-  nextSteps?: Array<string | ModuleConfigStep>
-  /**
-   * Non-blocking issues that should be shown to the user/operator.
-   */
-  warnings?: Array<string | ModuleConfigNotice>
-}
-
-export interface ModuleConfigValidation {
-  /**
-   * Overall validation status.
-   *
-   * - valid: all required fields present and valid.
-   * - partial: config is structurally OK but missing required fields; can be fixed by patches.
-   * - invalid: one or more fields are present but invalid (type/range/format); requires correction.
-   */
-  status: 'partial' | 'valid' | 'invalid'
-  /**
-   * Missing required fields (only for partial/invalid).
-   */
-  missing?: string[]
-  /**
-   * Invalid fields with reasons (only for invalid).
-   */
-  invalid?: Array<{ path: string, reason: Localizable }>
-  /**
-   * Non-blocking issues (e.g., deprecations, best-practice notices).
-   */
-  warnings?: Array<string | ModuleConfigNotice>
-}
-
-/**
- * Config payload envelope for plan/apply/validate/commit.
+ * Module dependency declaration.
+ *
+ * Use this during prepare/probe to describe what a module needs before
+ * it can decide its dynamic contributions. Dependencies can change at
+ * runtime if peers go offline.
  *
  * Example:
- *  {
- *    configId: "stage-ui-live2d",
- *    revision: 12,
- *    schemaVersion: 2,
- *    full: { model: "Hiyori", driver: { type: "live2d" } },
- *  }
+ *  { role: "llm:orchestrator", min: "v1", optional: true }
  */
-export interface ModuleConfigEnvelope<C = Record<string, unknown>> {
-  configId: string
+export interface ModuleDependency {
   /**
-   * Monotonic revision number for this configId.
+   * Additional constraint metadata (JSON-serializable).
    */
-  revision: number
+  constraints?: Record<string, unknown>
+  max?: string
+  min?: string
   /**
-   * Schema version this config targets.
+   * Optional dependency flag.
    */
-  schemaVersion: number
+  optional?: boolean
   /**
-   * Optional source identity (who produced this config).
+   * Logical dependency role (preferred over hard-coded plugin ids).
+   * Example: "llm:orchestrator"
    */
-  source?: ModuleIdentity
+  role: string
   /**
-   * Full config payload (use when first applying or rehydrating).
+   * Version constraint hints.
    */
-  full?: C
-  /**
-   * Partial patch payload (use when updating or filling missing fields).
-   */
-  patch?: Partial<C>
-  /**
-   * If patch is used, baseRevision should be set for optimistic concurrency.
-   */
-  baseRevision?: number
+  version?: string
 }
 
-export interface ModuleCapability {
+export interface ModuleIdentity {
   /**
-   * Stable capability id within a module.
-   * Example: "memory.write", "vision.ocr".
+   * Unique module instance id for this module run (per process/deployment).
+   * Example: "telegram-01", "stage-ui-2f7c9".
    */
   id: string
   /**
-   * Human-friendly name.
+   * Module identity kind. For now only plugin-backed modules are supported.
    */
-  name?: string
+  kind: 'plugin'
   /**
-   * Optional localized description.
+   * K8s-style labels for routing and policy selectors.
+   * Example: { env: "prod", app: "telegram", devtools: "true" }.
    */
-  description?: Localizable
+  labels?: Record<string, string>
   /**
-   * Capability-specific config schema (if needed).
+   * Plugin identity associated with this module instance.
    */
-  configSchema?: ModuleConfigSchema
-  /**
-   * Additional metadata for tooling/UI.
-   */
-  metadata?: Record<string, unknown>
+  plugin: PluginIdentity
 }
 
-export type ModulePermissionArea = 'apis' | 'resources' | 'capabilities' | 'processors' | 'pipelines'
-
-export interface ModulePermissionSpec<
-  Area extends ModulePermissionArea = ModulePermissionArea,
-  Action extends string = string,
-> {
-  key: string
-  actions: Action[]
-  /**
-   * Human-facing explanation for consent/permission UI.
-   * Prefer i18n key form over raw strings for localization.
-   */
-  reason?: Localizable
-  /**
-   * Optional short display label for permission prompts.
-   * Prefer i18n key form over raw strings for localization.
-   */
-  label?: Localizable
-  required?: boolean
-  metadata?: Record<string, unknown>
-  area?: Area
-}
+export type ModulePermissionArea = 'apis' | 'capabilities' | 'pipelines' | 'processors' | 'resources'
 
 export interface ModulePermissionDeclaration {
-  apis?: ModulePermissionSpec<'apis', 'invoke' | 'emit'>[]
-  resources?: ModulePermissionSpec<'resources', 'read' | 'write' | 'subscribe'>[]
-  capabilities?: ModulePermissionSpec<'capabilities', 'wait' | 'snapshot'>[]
-  processors?: ModulePermissionSpec<'processors', 'register' | 'execute' | 'manage'>[]
-  pipelines?: ModulePermissionSpec<'pipelines', 'hook' | 'process' | 'emit' | 'manage'>[]
+  apis?: ModulePermissionSpec<'apis', 'emit' | 'invoke'>[]
+  capabilities?: ModulePermissionSpec<'capabilities', 'snapshot' | 'wait'>[]
+  pipelines?: ModulePermissionSpec<'pipelines', 'emit' | 'hook' | 'manage' | 'process'>[]
+  processors?: ModulePermissionSpec<'processors', 'execute' | 'manage' | 'register'>[]
+  resources?: ModulePermissionSpec<'resources', 'read' | 'subscribe' | 'write'>[]
 }
-
-export type ModulePermissionGrant = ModulePermissionDeclaration
 
 /**
  * Describes a single authorization failure produced by host-side permission checks.
@@ -453,182 +497,126 @@ export type ModulePermissionGrant = ModulePermissionDeclaration
  * - plugins should not treat `reason` as a stable machine-readable code
  */
 export interface ModulePermissionError {
-  area: ModulePermissionArea
   action: string
+  area: ModulePermissionArea
   key: string
   reason?: Localizable
   recoverable?: boolean
 }
 
-export type DeliveryMode = 'broadcast' | 'consumer' | 'consumer-group'
+export type ModulePermissionGrant = ModulePermissionDeclaration
 
-export type DeliverySelectionStrategy = 'first' | 'round-robin' | 'priority' | 'sticky'
-
-export interface DeliveryConfig {
-  mode?: DeliveryMode
-  group?: string
+export interface ModulePermissionSpec<
+  Area extends ModulePermissionArea = ModulePermissionArea,
+  Action extends string = string,
+> {
+  actions: Action[]
+  area?: Area
+  key: string
+  /**
+   * Optional short display label for permission prompts.
+   * Prefer i18n key form over raw strings for localization.
+   */
+  label?: Localizable
+  metadata?: Record<string, unknown>
+  /**
+   * Human-facing explanation for consent/permission UI.
+   * Prefer i18n key form over raw strings for localization.
+   */
+  reason?: Localizable
   required?: boolean
-  selection?: DeliverySelectionStrategy
-  stickyKey?: string
+}
+
+/**
+ * Lifecycle phases for module orchestration and UX.
+ */
+export type ModulePhase
+  = | 'announced'
+    | 'configuration-needed'
+    | 'configured'
+    | 'failed'
+    | 'prepared'
+    | 'preparing'
+    | 'ready'
+
+export interface PluginIdentity {
+  /**
+   * Stable plugin identifier (shared across instances).
+   * Example: "telegram-bot", "stage-tamagotchi".
+   */
+  id: string
+  /**
+   * Optional labels attached to the extension manifest.
+   * Example: { env: "prod", app: "telegram", devtools: "true" }.
+   */
+  labels?: Record<string, string>
+  /**
+   * Optional semantic version for the plugin.
+   * Example: "0.8.1-beta.7".
+   */
+  version?: string
+}
+
+export type ProtocolEventa<P = undefined>
+  = Eventa<P, ProtocolEventaMetadata, ProtocolEventaInvokeMetadata>
+
+export interface ProtocolEventaInvokeMetadata {
+  delivery?: Partial<DeliveryConfig>
 }
 
 export interface ProtocolEventaMetadata {
   delivery?: DeliveryConfig
 }
 
-export interface ProtocolEventaInvokeMetadata {
-  delivery?: Partial<DeliveryConfig>
+export interface RegistryModulesSyncEvent {
+  modules: Array<{
+    identity: MetadataEventSource
+    index?: number
+    name: string
+  }>
 }
 
-export type ProtocolEventa<P = undefined>
-  = Eventa<P, ProtocolEventaMetadata, ProtocolEventaInvokeMetadata>
-
-function defineProtocolEventa<P = undefined>(
-  id: string,
-  options?: {
-    inheritFrom?: ProtocolEventa<P>
-    metadata?: ProtocolEventaMetadata
-    invokeMetadata?: ProtocolEventaInvokeMetadata
-  },
-): ProtocolEventa<P> {
-  return defineEventa<P, ProtocolEventaMetadata, ProtocolEventaInvokeMetadata>(id, options)
+export interface RouteConfig {
+  bypass?: boolean
+  delivery?: DeliveryConfig
+  destinations?: Array<RouteTargetExpression | string>
 }
 
 export type RouteTargetExpression
-  = | { type: 'and', all: RouteTargetExpression[] }
-    | { type: 'or', any: RouteTargetExpression[] }
-    | { type: 'glob', glob: string, inverted?: boolean }
-    | { type: 'ids', ids: string[], inverted?: boolean }
-    | { type: 'plugin', plugins: string[], inverted?: boolean }
-    | { type: 'instance', instances: string[], inverted?: boolean }
-    | { type: 'label', selectors: string[], inverted?: boolean }
-    | { type: 'module', modules: string[], inverted?: boolean }
-    | { type: 'source', sources: string[], inverted?: boolean }
+  = | { all: RouteTargetExpression[], type: 'and' }
+    | { any: RouteTargetExpression[], type: 'or' }
+    | { glob: string, inverted?: boolean, type: 'glob' }
+    | { ids: string[], inverted?: boolean, type: 'ids' }
+    | { instances: string[], inverted?: boolean, type: 'instance' }
+    | { inverted?: boolean, modules: string[], type: 'module' }
+    | { inverted?: boolean, plugins: string[], type: 'plugin' }
+    | { inverted?: boolean, selectors: string[], type: 'label' }
+    | { inverted?: boolean, sources: string[], type: 'source' }
 
-export interface RouteConfig {
-  destinations?: Array<string | RouteTargetExpression>
-  bypass?: boolean
-  delivery?: DeliveryConfig
-}
-
-export enum MessageHeartbeatKind {
-  Ping = 'ping',
-  Pong = 'pong',
-}
-
-export enum MessageHeartbeat {
-  Ping = '🩵',
-  Pong = '💛',
-}
-
-export enum WebSocketEventSource {
-  Server = 'proj-airi:server-runtime',
-  StageWeb = 'proj-airi:stage-web',
-  StageTamagotchi = 'proj-airi:stage-tamagotchi',
-}
-
-interface InputSource {
-  'stage-web': boolean
-  'stage-tamagotchi': boolean
-  'discord': Discord
-}
-
-interface OutputSource {
-  'gen-ai:chat': {
-    message: UserMessage
-    contexts: Record<string, ContextUpdate<Record<string, any>, unknown>[]>
-    composedMessage: Array<Message>
-    input?: InputEventEnvelope
-  }
-}
-
-export enum ContextUpdateStrategy {
-  ReplaceSelf = 'replace-self',
-  AppendSelf = 'append-self',
-}
-
-export interface ContextUpdateDestinationAll {
-  all: true
-}
-
-export interface ContextUpdateDestinationList {
-  include?: Array<string>
-  exclude?: Array<string>
-}
-
-export type ContextUpdateDestinationFilter
-  = | ContextUpdateDestinationAll
-    | ContextUpdateDestinationList
-
-export interface ContextUpdate<
-  Metadata extends Record<string, any> = Record<string, unknown>,
-  // eslint-disable-next-line ts/no-unnecessary-type-constraint
-  Content extends any = undefined,
-> {
-  id: string
-  /**
-   * Can be the same if same update sends multiple time as attempts
-   * and trials, (e.g. notified first but not ACKed, then retried).
-   */
-  contextId: string
-  lane?: string
-  ideas?: Array<string>
-  hints?: Array<string>
-  strategy: ContextUpdateStrategy
-  text: string
-  content?: Content
-  destinations?: Array<string> | ContextUpdateDestinationFilter
-  metadata?: Metadata
-}
-
-export interface InputMessageOverrides {
-  sessionId?: string
-  messagePrefix?: string
-}
-
-export type InputContextUpdate
-  = Omit<ContextUpdate<Record<string, unknown>, string | CommonContentPart[]>, 'id' | 'contextId'>
-    & Partial<Pick<ContextUpdate<Record<string, unknown>, string | CommonContentPart[]>, 'id' | 'contextId'>>
+export type WebSocketEventInputText = Partial<WithInputSource<'discord' | 'stage-tamagotchi' | 'stage-web'>> & WebSocketEventInputTextBase
 
 export interface WebSocketEventInputTextBase {
+  contextUpdates?: InputContextUpdate[]
+  overrides?: InputMessageOverrides
   text: string
   textRaw?: string
-  overrides?: InputMessageOverrides
-  contextUpdates?: InputContextUpdate[]
 }
 
-export type WebSocketEventInputText = WebSocketEventInputTextBase & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
+export type WebSocketEventInputTextVoice = Partial<WithInputSource<'discord' | 'stage-tamagotchi' | 'stage-web'>> & WebSocketEventInputTextVoiceBase
 
 export interface WebSocketEventInputTextVoiceBase {
-  transcription: string
-  textRaw?: string
-  overrides?: InputMessageOverrides
   contextUpdates?: InputContextUpdate[]
+  overrides?: InputMessageOverrides
+  textRaw?: string
+  transcription: string
 }
 
-export type WebSocketEventInputTextVoice = WebSocketEventInputTextVoiceBase & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
+export type WebSocketEventInputVoice = Partial<WithInputSource<'discord' | 'stage-tamagotchi' | 'stage-web'>> & WebSocketEventInputVoiceBase
 
 export interface WebSocketEventInputVoiceBase {
   audio: ArrayBuffer
-  overrides?: InputMessageOverrides
   contextUpdates?: InputContextUpdate[]
-}
-
-export type WebSocketEventInputVoice = WebSocketEventInputVoiceBase & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
-
-export type InputEventData = WebSocketEventInputText | WebSocketEventInputTextVoice | WebSocketEventInputVoice
-
-export type InputEventEnvelope
-  = | { type: 'input:text', data: WebSocketEventInputText }
-    | { type: 'input:text:voice', data: WebSocketEventInputTextVoice }
-    | { type: 'input:voice', data: WebSocketEventInputVoice }
-
-export interface EventBaseMetadata {
-  source?: ModuleIdentity
-  event?: {
-    id?: string
-    parentId?: string
-  }
+  overrides?: InputMessageOverrides
 }
 
 export type WithInputSource<Source extends keyof InputSource> = {
@@ -638,6 +626,8 @@ export type WithInputSource<Source extends keyof InputSource> = {
 export type WithOutputSource<Source extends keyof OutputSource> = {
   [S in Source]: OutputSource[S]
 }
+
+type ContextUpdateEvent = ContextUpdate
 
 // Module orchestration (local or remote transport):
 //
@@ -653,24 +643,23 @@ export type WithOutputSource<Source extends keyof OutputSource> = {
 // 10) module:status (ready)
 // 11) module:status:change (to re-run phases)
 
-interface PeerAuthenticateEvent {
-  token?: string
-  peerId?: string
+interface ErrorEvent {
+  message: string
 }
 
-interface PeerAuthenticatedEvent {
+interface ErrorPermissionEvent {
+  error: ModulePermissionError
+  identity?: ModuleIdentity
+}
+
+interface ExtensionAnnounceEvent {
+  identity: ExtensionIdentity
+  permissions?: ModulePermissionDeclaration
+}
+
+interface ExtensionAuthenticatedEvent {
   authenticated: boolean
-  peerId: string
-}
-
-interface PeerStatusEvent {
-  peerId: string
-  phase: 'connected' | 'authenticated' | 'de-authenticated' | 'closed' | 'failed'
-  reason?: string
-}
-
-interface PeerDeAuthenticatedEvent {
-  peerId: string
+  identity: ExtensionIdentity
   reason?: string
 }
 
@@ -679,103 +668,244 @@ interface ExtensionAuthenticateEvent {
   token?: string
 }
 
-interface ExtensionAuthenticatedEvent {
-  identity: ExtensionIdentity
-  authenticated: boolean
-  reason?: string
-}
-
-interface ExtensionAnnounceEvent {
-  identity: ExtensionIdentity
-  permissions?: ModulePermissionDeclaration
+interface ExtensionKitAnnounceEvent {
+  capabilities?: ModuleCapability[]
+  identity: ExtensionKitIdentity
 }
 
 interface ExtensionModuleAnnounceEvent<C = undefined> {
-  name: string
-  identity: ExtensionModuleIdentity
-  possibleEvents: Array<(keyof ProtocolEvents<C>)>
-  permissions?: ModulePermissionDeclaration
   configSchema?: ModuleConfigSchema
   dependencies?: ModuleDependency[]
+  identity: ExtensionModuleIdentity
+  name: string
+  permissions?: ModulePermissionDeclaration
+  possibleEvents: Array<(keyof ProtocolEvents<C>)>
 }
 
-interface ExtensionKitAnnounceEvent {
-  identity: ExtensionKitIdentity
-  capabilities?: ModuleCapability[]
+interface InputSource {
+  'discord': Discord
+  'stage-tamagotchi': boolean
+  'stage-web': boolean
 }
 
-interface ModuleAuthenticateEvent {
-  token: string
+interface ModuleAnnounceEvent<C = undefined> {
+  configSchema?: ModuleConfigSchema
+  dependencies?: ModuleDependency[]
+  identity: ModuleIdentity
+  name: string
+  permissions?: ModulePermissionDeclaration
+  possibleEvents: Array<(keyof ProtocolEvents<C>)>
 }
 
 interface ModuleAuthenticatedEvent {
   authenticated: boolean
 }
 
+interface ModuleAuthenticateEvent {
+  token: string
+}
+
 interface ModuleCompatibilityRequestEvent {
-  protocolVersion: string
   apiVersion: string
-  supportedProtocolVersions?: string[]
+  protocolVersion: string
   supportedApiVersions?: string[]
+  supportedProtocolVersions?: string[]
 }
 
 interface ModuleCompatibilityResultEvent {
-  protocolVersion: string
   apiVersion: string
-  mode: 'exact' | 'downgraded' | 'rejected'
+  mode: 'downgraded' | 'exact' | 'rejected'
+  protocolVersion: string
   reason?: string
 }
 
-export interface RegistryModulesSyncEvent {
-  modules: Array<{
-    name: string
-    index?: number
-    identity: MetadataEventSource
-  }>
-}
-
-interface ErrorEvent {
-  message: string
-}
-
-interface ErrorPermissionEvent {
-  identity?: ModuleIdentity
-  error: ModulePermissionError
-}
-
-interface ModuleAnnounceEvent<C = undefined> {
-  name: string
+interface ModuleConfigurationCommitEvent<C = undefined> {
+  config: ModuleConfigEnvelope<C>
   identity: ModuleIdentity
-  possibleEvents: Array<(keyof ProtocolEvents<C>)>
-  permissions?: ModulePermissionDeclaration
-  configSchema?: ModuleConfigSchema
-  dependencies?: ModuleDependency[]
 }
-export interface ModuleAnnouncedEvent {
-  name: string
-  index?: number
+
+interface ModuleConfigurationCommitStatusEvent {
+  identity: ModuleIdentity
+  note?: string
+  progress?: number
+  state: 'done' | 'failed' | 'queued' | 'working'
+}
+
+interface ModuleConfigurationConfiguredEvent<C = undefined> {
+  config: ModuleConfigEnvelope<C>
+  identity: ModuleIdentity
+}
+
+interface ModuleConfigurationNeededEvent<C = undefined> {
+  current?: ModuleConfigEnvelope<C>
+  identity: ModuleIdentity
+  reason?: string
+  schema?: ModuleConfigSchema
+}
+interface ModuleConfigurationPlanRequestEvent<C = undefined> {
+  current?: ModuleConfigEnvelope<C>
+  identity: ModuleIdentity
+  plan?: ModuleConfigPlan
+}
+
+interface ModuleConfigurationPlanResponseEvent<C = undefined> {
+  current?: ModuleConfigEnvelope<C>
+  identity: ModuleIdentity
+  plan: ModuleConfigPlan
+}
+
+interface ModuleConfigurationPlanStatusEvent {
+  identity: ModuleIdentity
+  note?: string
+  progress?: number
+  state: 'done' | 'failed' | 'queued' | 'working'
+}
+
+interface ModuleConfigurationValidateRequestEvent<C = undefined> {
+  current?: ModuleConfigEnvelope<C>
+  identity: ModuleIdentity
+}
+
+interface ModuleConfigurationValidateResponseEvent<C = undefined> {
+  current?: ModuleConfigEnvelope<C>
+  identity: ModuleIdentity
+  plan?: ModuleConfigPlan
+  validation: ModuleConfigValidation
+}
+
+interface ModuleConfigurationValidateStatusEvent {
+  identity: ModuleIdentity
+  note?: string
+  progress?: number
+  state: 'done' | 'failed' | 'queued' | 'working'
+}
+
+interface ModuleConfigureEvent<C = undefined> {
+  config: C | Record<string, unknown>
+}
+
+interface ModuleConsumerRegisterEvent {
+  event: string
+  group?: string
+  mode?: Exclude<DeliveryMode, 'broadcast'>
+  priority?: number
+}
+
+interface ModuleConsumerUnregisterEvent {
+  event: string
+  group?: string
+  mode?: Exclude<DeliveryMode, 'broadcast'>
+}
+
+interface ModuleContributeCapabilityActivatedEvent {
+  active: boolean
+  capabilityId: string
+  identity: ModuleIdentity
+  reason?: string
+}
+
+interface ModuleContributeCapabilityConfigurationCommitEvent<C = undefined> {
+  capabilityId: string
+  config: ModuleConfigEnvelope<C>
+  identity: ModuleIdentity
+}
+
+interface ModuleContributeCapabilityConfigurationCommitStatusEvent {
+  capabilityId: string
+  identity: ModuleIdentity
+  note?: string
+  progress?: number
+  state: 'done' | 'failed' | 'queued' | 'working'
+}
+
+interface ModuleContributeCapabilityConfigurationConfiguredEvent<C = undefined> {
+  capabilityId: string
+  config: ModuleConfigEnvelope<C>
+  identity: ModuleIdentity
+}
+
+interface ModuleContributeCapabilityConfigurationNeededEvent<C = undefined> {
+  capabilityId: string
+  current?: ModuleConfigEnvelope<C>
+  identity: ModuleIdentity
+  reason?: string
+  schema?: ModuleConfigSchema
+}
+
+interface ModuleContributeCapabilityConfigurationPlanRequestEvent<C = undefined> {
+  capabilityId: string
+  current?: ModuleConfigEnvelope<C>
+  identity: ModuleIdentity
+  plan?: ModuleConfigPlan
+}
+
+interface ModuleContributeCapabilityConfigurationPlanResponseEvent<C = undefined> {
+  capabilityId: string
+  current?: ModuleConfigEnvelope<C>
+  identity: ModuleIdentity
+  plan: ModuleConfigPlan
+}
+
+interface ModuleContributeCapabilityConfigurationPlanStatusEvent {
+  capabilityId: string
+  identity: ModuleIdentity
+  note?: string
+  progress?: number
+  state: 'done' | 'failed' | 'queued' | 'working'
+}
+
+interface ModuleContributeCapabilityConfigurationValidateRequestEvent<C = undefined> {
+  capabilityId: string
+  current?: ModuleConfigEnvelope<C>
+  identity: ModuleIdentity
+}
+
+interface ModuleContributeCapabilityConfigurationValidateResponseEvent<C = undefined> {
+  capabilityId: string
+  current?: ModuleConfigEnvelope<C>
+  identity: ModuleIdentity
+  plan?: ModuleConfigPlan
+  validation: ModuleConfigValidation
+}
+
+interface ModuleContributeCapabilityConfigurationValidateStatusEvent {
+  capabilityId: string
+  identity: ModuleIdentity
+  note?: string
+  progress?: number
+  state: 'done' | 'failed' | 'queued' | 'working'
+}
+
+interface ModuleContributeCapabilityOfferEvent {
+  capability: ModuleCapability
   identity: ModuleIdentity
 }
 
 interface ModuleDeAnnouncedEvent {
-  name: string
-  index?: number
   identity: ModuleIdentity
+  index?: number
+  name: string
   reason?: string
 }
 
-interface RegistryModulesHealthUnhealthyEvent {
-  name: string
-  index?: number
-  identity: MetadataEventSource
-  reason?: string
-}
-
-interface RegistryModulesHealthHealthyEvent {
-  name: string
-  index?: number
-  identity: MetadataEventSource
-
+/**
+ * Emitted with the module's reconciled current permission snapshot.
+ *
+ * Typical use cases:
+ * - bootstrapping extension runtime state after startup or reload
+ * - synchronizing UI/debug tools with the final requested vs granted view
+ *
+ * Protocol expectations:
+ * - this is the authoritative event for "what is currently allowed"
+ * - `requested` is the normalized declaration baseline known to the host
+ * - `granted` is the currently granted subset that authorization checks should follow
+ * - plugins should prefer this snapshot over local assumptions when reconciling runtime state
+ */
+interface ModulePermissionsCurrentEvent {
+  granted: ModulePermissionGrant
+  identity: ModuleIdentity
+  requested: ModulePermissionDeclaration
+  revision: number
 }
 
 /**
@@ -798,22 +928,23 @@ interface ModulePermissionsDeclareEvent {
 }
 
 /**
- * Emitted when a module actively asks the host to approve some or all declared permissions.
+ * Emitted when some requested permissions are rejected or remain unavailable.
  *
  * Typical use cases:
- * - deferred consent before first use of a sensitive API or resource
- * - requesting optional capabilities only when a feature is enabled by the user
+ * - surfacing partial denials after a consent flow
+ * - explaining why a feature must stay disabled or degraded
  *
  * Protocol expectations:
- * - hosts may prompt the user, auto-approve, partially approve, or deny the request
- * - plugins must treat this as a request for evaluation, not as confirmation of access
- * - plugins should provide a user-facing `reason` when approval UX needs explanatory context
- * - the host response may later be expressed through granted, denied, and current permission events
+ * - `denied` describes the requested permissions that are not available after evaluation
+ * - plugins must handle denial gracefully and should provide fallback behavior when feasible
+ * - `reason` is intended for diagnostics or UX context and should not be treated as a stable machine-readable code
+ * - `revision` identifies the permission-state version associated with this denial result
  */
-interface ModulePermissionsRequestEvent {
+interface ModulePermissionsDeniedEvent {
+  denied: ModulePermissionDeclaration
   identity: ModuleIdentity
-  requested: ModulePermissionDeclaration
   reason?: string
+  revision: number
 }
 
 /**
@@ -830,49 +961,28 @@ interface ModulePermissionsRequestEvent {
  * - hosts may emit this event before or together with an updated current snapshot
  */
 interface ModulePermissionsGrantedEvent {
-  identity: ModuleIdentity
   granted: ModulePermissionGrant
+  identity: ModuleIdentity
   revision: number
 }
 
 /**
- * Emitted when some requested permissions are rejected or remain unavailable.
+ * Emitted when a module actively asks the host to approve some or all declared permissions.
  *
  * Typical use cases:
- * - surfacing partial denials after a consent flow
- * - explaining why a feature must stay disabled or degraded
+ * - deferred consent before first use of a sensitive API or resource
+ * - requesting optional capabilities only when a feature is enabled by the user
  *
  * Protocol expectations:
- * - `denied` describes the requested permissions that are not available after evaluation
- * - plugins must handle denial gracefully and should provide fallback behavior when feasible
- * - `reason` is intended for diagnostics or UX context and should not be treated as a stable machine-readable code
- * - `revision` identifies the permission-state version associated with this denial result
+ * - hosts may prompt the user, auto-approve, partially approve, or deny the request
+ * - plugins must treat this as a request for evaluation, not as confirmation of access
+ * - plugins should provide a user-facing `reason` when approval UX needs explanatory context
+ * - the host response may later be expressed through granted, denied, and current permission events
  */
-interface ModulePermissionsDeniedEvent {
+interface ModulePermissionsRequestEvent {
   identity: ModuleIdentity
-  denied: ModulePermissionDeclaration
   reason?: string
-  revision: number
-}
-
-/**
- * Emitted with the module's reconciled current permission snapshot.
- *
- * Typical use cases:
- * - bootstrapping extension runtime state after startup or reload
- * - synchronizing UI/debug tools with the final requested vs granted view
- *
- * Protocol expectations:
- * - this is the authoritative event for "what is currently allowed"
- * - `requested` is the normalized declaration baseline known to the host
- * - `granted` is the currently granted subset that authorization checks should follow
- * - plugins should prefer this snapshot over local assumptions when reconciling runtime state
- */
-interface ModulePermissionsCurrentEvent {
-  identity: ModuleIdentity
   requested: ModulePermissionDeclaration
-  granted: ModulePermissionGrant
-  revision: number
 }
 
 interface ModulePreparedEvent {
@@ -880,246 +990,101 @@ interface ModulePreparedEvent {
   missingDependencies?: ModuleDependency[]
 }
 
-interface ModuleConfigurationNeededEvent<C = undefined> {
+interface ModuleStatusChangeEvent {
+  details?: Record<string, unknown>
   identity: ModuleIdentity
-  schema?: ModuleConfigSchema
-  current?: ModuleConfigEnvelope<C>
+  phase: ModulePhase
   reason?: string
 }
 
 interface ModuleStatusEvent {
+  details?: Record<string, unknown>
   identity: ModuleIdentity
   phase: ModulePhase
   reason?: string
-  details?: Record<string, unknown>
 }
 
-interface ModuleConfigurationValidateRequestEvent<C = undefined> {
-  identity: ModuleIdentity
-  current?: ModuleConfigEnvelope<C>
-}
-
-interface ModuleConfigurationValidateResponseEvent<C = undefined> {
-  identity: ModuleIdentity
-  validation: ModuleConfigValidation
-  plan?: ModuleConfigPlan
-  current?: ModuleConfigEnvelope<C>
-}
-
-interface ModuleConfigurationValidateStatusEvent {
-  identity: ModuleIdentity
-  state: 'queued' | 'working' | 'done' | 'failed'
-  note?: string
-  progress?: number
-}
-
-interface ModuleConfigurationPlanRequestEvent<C = undefined> {
-  identity: ModuleIdentity
-  plan?: ModuleConfigPlan
-  current?: ModuleConfigEnvelope<C>
-}
-
-interface ModuleConfigurationPlanResponseEvent<C = undefined> {
-  identity: ModuleIdentity
-  plan: ModuleConfigPlan
-  current?: ModuleConfigEnvelope<C>
-}
-
-interface ModuleConfigurationPlanStatusEvent {
-  identity: ModuleIdentity
-  state: 'queued' | 'working' | 'done' | 'failed'
-  note?: string
-  progress?: number
-}
-
-interface ModuleConfigurationCommitEvent<C = undefined> {
-  identity: ModuleIdentity
-  config: ModuleConfigEnvelope<C>
-}
-
-interface ModuleConfigurationCommitStatusEvent {
-  identity: ModuleIdentity
-  state: 'queued' | 'working' | 'done' | 'failed'
-  note?: string
-  progress?: number
-}
-
-interface ModuleConfigurationConfiguredEvent<C = undefined> {
-  identity: ModuleIdentity
-  config: ModuleConfigEnvelope<C>
-}
-
-interface ModuleContributeCapabilityOfferEvent {
-  identity: ModuleIdentity
-  capability: ModuleCapability
-}
-
-interface ModuleContributeCapabilityConfigurationNeededEvent<C = undefined> {
-  identity: ModuleIdentity
-  capabilityId: string
-  schema?: ModuleConfigSchema
-  current?: ModuleConfigEnvelope<C>
-  reason?: string
-}
-
-interface ModuleContributeCapabilityConfigurationValidateRequestEvent<C = undefined> {
-  identity: ModuleIdentity
-  capabilityId: string
-  current?: ModuleConfigEnvelope<C>
-}
-
-interface ModuleContributeCapabilityConfigurationValidateResponseEvent<C = undefined> {
-  identity: ModuleIdentity
-  capabilityId: string
-  validation: ModuleConfigValidation
-  plan?: ModuleConfigPlan
-  current?: ModuleConfigEnvelope<C>
-}
-
-interface ModuleContributeCapabilityConfigurationValidateStatusEvent {
-  identity: ModuleIdentity
-  capabilityId: string
-  state: 'queued' | 'working' | 'done' | 'failed'
-  note?: string
-  progress?: number
-}
-
-interface ModuleContributeCapabilityConfigurationPlanRequestEvent<C = undefined> {
-  identity: ModuleIdentity
-  capabilityId: string
-  plan?: ModuleConfigPlan
-  current?: ModuleConfigEnvelope<C>
-}
-
-interface ModuleContributeCapabilityConfigurationPlanResponseEvent<C = undefined> {
-  identity: ModuleIdentity
-  capabilityId: string
-  plan: ModuleConfigPlan
-  current?: ModuleConfigEnvelope<C>
-}
-
-interface ModuleContributeCapabilityConfigurationPlanStatusEvent {
-  identity: ModuleIdentity
-  capabilityId: string
-  state: 'queued' | 'working' | 'done' | 'failed'
-  note?: string
-  progress?: number
-}
-
-interface ModuleContributeCapabilityConfigurationCommitEvent<C = undefined> {
-  identity: ModuleIdentity
-  capabilityId: string
-  config: ModuleConfigEnvelope<C>
-}
-
-interface ModuleContributeCapabilityConfigurationCommitStatusEvent {
-  identity: ModuleIdentity
-  capabilityId: string
-  state: 'queued' | 'working' | 'done' | 'failed'
-  note?: string
-  progress?: number
-}
-
-interface ModuleContributeCapabilityConfigurationConfiguredEvent<C = undefined> {
-  identity: ModuleIdentity
-  capabilityId: string
-  config: ModuleConfigEnvelope<C>
-}
-
-interface ModuleContributeCapabilityActivatedEvent {
-  identity: ModuleIdentity
-  capabilityId: string
-  active: boolean
-  reason?: string
-}
-
-interface ModuleStatusChangeEvent {
-  identity: ModuleIdentity
-  phase: ModulePhase
-  reason?: string
-  details?: Record<string, unknown>
-}
-
-interface ModuleConfigureEvent<C = undefined> {
-  config: C | Record<string, unknown>
-}
-
-interface ModuleConsumerRegisterEvent {
-  event: string
-  mode?: Exclude<DeliveryMode, 'broadcast'>
-  group?: string
-  priority?: number
-}
-
-interface ModuleConsumerUnregisterEvent {
-  event: string
-  mode?: Exclude<DeliveryMode, 'broadcast'>
-  group?: string
-}
-
-interface UiConfigureEvent<C = undefined> {
-  moduleName: string
-  moduleIndex?: number
-  config: C | Record<string, unknown>
-}
-
-type OutputGenAiChatToolCallEvent = {
-  toolCalls: ToolMessage[]
-} & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> & Partial<WithOutputSource<'gen-ai:chat'>>
-
-type OutputGenAiChatMessageEvent = {
-  message: AssistantMessage
-} & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> & Partial<WithOutputSource<'gen-ai:chat'>>
-
-interface OutputGenAiChatUsage {
-  promptTokens: number
-  completionTokens: number
-  totalTokens: number
-  source: 'provider-based' | 'estimate-based'
-}
-
-type OutputGenAiChatCompleteEvent = {
+type OutputGenAiChatCompleteEvent = Partial<WithInputSource<'discord' | 'stage-tamagotchi' | 'stage-web'>> & Partial<WithOutputSource<'gen-ai:chat'>> & {
   message: AssistantMessage
   toolCalls: ToolMessage[]
   usage: OutputGenAiChatUsage
-} & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> & Partial<WithOutputSource<'gen-ai:chat'>>
-
-interface SparkNotifyEvent {
-  id: string
-  eventId: string
-  lane?: string
-  kind: 'alarm' | 'ping' | 'reminder'
-  urgency: 'immediate' | 'soon' | 'later'
-  headline: string
-  note?: string
-  payload?: Record<string, unknown>
-  ttlMs?: number
-  requiresAck?: boolean
-  destinations: Array<string>
-  metadata?: Record<string, unknown>
 }
 
-interface SparkEmitEvent {
-  id: string
+type OutputGenAiChatMessageEvent = Partial<WithInputSource<'discord' | 'stage-tamagotchi' | 'stage-web'>> & Partial<WithOutputSource<'gen-ai:chat'>> & {
+  message: AssistantMessage
+}
+
+type OutputGenAiChatToolCallEvent = Partial<WithInputSource<'discord' | 'stage-tamagotchi' | 'stage-web'>> & Partial<WithOutputSource<'gen-ai:chat'>> & {
+  toolCalls: ToolMessage[]
+}
+
+interface OutputGenAiChatUsage {
+  completionTokens: number
+  promptTokens: number
+  source: 'estimate-based' | 'provider-based'
+  totalTokens: number
+}
+
+interface OutputSource {
+  'gen-ai:chat': {
+    composedMessage: Array<Message>
+    contexts: Record<string, ContextUpdate<Record<string, any>, unknown>[]>
+    input?: InputEventEnvelope
+    message: UserMessage
+  }
+}
+
+interface PeerAuthenticatedEvent {
+  authenticated: boolean
+  peerId: string
+}
+
+interface PeerAuthenticateEvent {
+  peerId?: string
+  token?: string
+}
+
+interface PeerDeAuthenticatedEvent {
+  peerId: string
+  reason?: string
+}
+
+interface PeerStatusEvent {
+  peerId: string
+  phase: 'authenticated' | 'closed' | 'connected' | 'de-authenticated' | 'failed'
+  reason?: string
+}
+
+interface RegistryModulesHealthHealthyEvent {
+  identity: MetadataEventSource
+  index?: number
+  name: string
+
+}
+
+interface RegistryModulesHealthUnhealthyEvent {
+  identity: MetadataEventSource
+  index?: number
+  name: string
+  reason?: string
+}
+
+interface SparkCommandEvent {
+  ack?: string
+  commandId: string
+  contexts?: Array<ContextUpdate>
+  destinations: Array<string>
   eventId?: string
-  state: 'queued' | 'working' | 'done' | 'dropped' | 'blocked' | 'expired'
-  note?: string
-  destinations: Array<string>
-  metadata?: Record<string, unknown>
-}
-
-interface SparkCommandGuidanceOption {
-  label: string
-  steps: Array<string>
-  rationale?: string
-  possibleOutcome?: Array<string>
-  risk?: 'high' | 'medium' | 'low' | 'none'
-  fallback?: Array<string>
-  triggers?: Array<string>
+  guidance?: SparkCommandGuidance
+  id: string
+  intent: 'action' | 'context' | 'pause' | 'plan' | 'proposal' | 'reroute' | 'resume'
+  interrupt: 'force' | 'soft' | false
+  parentEventId?: string
+  priority: 'critical' | 'high' | 'low' | 'normal'
 }
 
 interface SparkCommandGuidance {
-  type: 'proposal' | 'instruction' | 'memory-recall'
+  options: Array<SparkCommandGuidanceOption>
   /**
    * Personas can be used to adjust the behavior of sub-agents.
    * For example, when using as NPC in games, or player in Minecraft,
@@ -1132,31 +1097,66 @@ interface SparkCommandGuidance {
    *    "friendliness": "medium"
    *  }
    */
-  persona?: Record<string, 'very-high' | 'high' | 'medium' | 'low' | 'very-low'>
-  options: Array<SparkCommandGuidanceOption>
+  persona?: Record<string, 'high' | 'low' | 'medium' | 'very-high' | 'very-low'>
+  type: 'instruction' | 'memory-recall' | 'proposal'
 }
 
-interface SparkCommandEvent {
-  id: string
-  eventId?: string
-  parentEventId?: string
-  commandId: string
-  interrupt: 'force' | 'soft' | false
-  priority: 'critical' | 'high' | 'normal' | 'low'
-  intent: 'plan' | 'proposal' | 'action' | 'pause' | 'resume' | 'reroute' | 'context'
-  ack?: string
-  guidance?: SparkCommandGuidance
-  contexts?: Array<ContextUpdate>
+interface SparkCommandGuidanceOption {
+  fallback?: Array<string>
+  label: string
+  possibleOutcome?: Array<string>
+  rationale?: string
+  risk?: 'high' | 'low' | 'medium' | 'none'
+  steps: Array<string>
+  triggers?: Array<string>
+}
+
+interface SparkEmitEvent {
   destinations: Array<string>
+  eventId?: string
+  id: string
+  metadata?: Record<string, unknown>
+  note?: string
+  state: 'blocked' | 'done' | 'dropped' | 'expired' | 'queued' | 'working'
+}
+
+interface SparkNotifyEvent {
+  destinations: Array<string>
+  eventId: string
+  headline: string
+  id: string
+  kind: 'alarm' | 'ping' | 'reminder'
+  lane?: string
+  metadata?: Record<string, unknown>
+  note?: string
+  payload?: Record<string, unknown>
+  requiresAck?: boolean
+  ttlMs?: number
+  urgency: 'immediate' | 'later' | 'soon'
 }
 
 interface TransportConnectionHeartbeatEvent {
+  at?: number
   kind: MessageHeartbeatKind
   message: MessageHeartbeat | string
-  at?: number
 }
 
-type ContextUpdateEvent = ContextUpdate
+interface UiConfigureEvent<C = undefined> {
+  config: C | Record<string, unknown>
+  moduleIndex?: number
+  moduleName: string
+}
+
+function defineProtocolEventa<P = undefined>(
+  id: string,
+  options?: {
+    inheritFrom?: ProtocolEventa<P>
+    invokeMetadata?: ProtocolEventaInvokeMetadata
+    metadata?: ProtocolEventaMetadata
+  },
+): ProtocolEventa<P> {
+  return defineEventa<P, ProtocolEventaMetadata, ProtocolEventaInvokeMetadata>(id, options)
+}
 
 export const peerAuthenticate = defineEventa<PeerAuthenticateEvent>('peer:authenticate')
 export const peerAuthenticated = defineEventa<PeerAuthenticatedEvent>('peer:authenticated')
@@ -1242,8 +1242,8 @@ export const uiConfigure = defineProtocolEventa<UiConfigureEvent>('ui:configure'
 export const inputText = defineProtocolEventa<WebSocketEventInputText>('input:text', {
   metadata: {
     delivery: {
-      mode: 'consumer-group',
       group: 'chat-ingestion',
+      mode: 'consumer-group',
       selection: 'first',
     },
   },
@@ -1251,8 +1251,8 @@ export const inputText = defineProtocolEventa<WebSocketEventInputText>('input:te
 export const inputTextVoice = defineProtocolEventa<WebSocketEventInputTextVoice>('input:text:voice', {
   metadata: {
     delivery: {
-      mode: 'consumer-group',
       group: 'chat-ingestion',
+      mode: 'consumer-group',
       selection: 'first',
     },
   },
@@ -1260,8 +1260,8 @@ export const inputTextVoice = defineProtocolEventa<WebSocketEventInputTextVoice>
 export const inputVoice = defineProtocolEventa<WebSocketEventInputVoice>('input:voice', {
   metadata: {
     delivery: {
-      mode: 'consumer-group',
       group: 'chat-ingestion',
+      mode: 'consumer-group',
       selection: 'first',
     },
   },
@@ -1284,58 +1284,35 @@ export const protocolEventMetadataByType = {
   [inputVoice.id]: inputVoice.metadata,
 } satisfies Partial<Record<keyof ProtocolEvents, ProtocolEventaMetadata | undefined>>
 
-export function getProtocolEventMetadata(eventType: keyof ProtocolEvents | string) {
-  return protocolEventMetadataByType[eventType as keyof typeof protocolEventMetadataByType]
-}
+export type ProtocolEventOf<E, C = undefined> = E extends keyof ProtocolEvents<C>
+  ? Omit<ProtocolEvents<C>[E], 'metadata'> & { metadata?: Record<string, unknown> }
+  : never
 
 // Thanks to:
 //
 // A little hack for creating extensible discriminated unions : r/typescript
 // https://www.reddit.com/r/typescript/comments/1064ibt/a_little_hack_for_creating_extensible/
 export interface ProtocolEvents<C = undefined> {
+  'context:update': ContextUpdateEvent
   'error': ErrorEvent
+
   'error:permission': ErrorPermissionEvent
-
-  'peer:authenticate': PeerAuthenticateEvent
-  'peer:authenticated': PeerAuthenticatedEvent
-  'peer:status': PeerStatusEvent
-  'peer:de-authenticated': PeerDeAuthenticatedEvent
-
-  'extension:authenticate': ExtensionAuthenticateEvent
-  'extension:authenticated': ExtensionAuthenticatedEvent
   'extension:announce': ExtensionAnnounceEvent
   'extension:announced': ExtensionAnnounceEvent
+  'extension:authenticate': ExtensionAuthenticateEvent
+
+  'extension:authenticated': ExtensionAuthenticatedEvent
   'extension:de-announced': ExtensionAnnounceEvent & { reason?: string }
-  'extension:module:announce': ExtensionModuleAnnounceEvent<C>
-  'extension:module:announced': ExtensionModuleAnnounceEvent<C>
-  'extension:module:de-announced': ExtensionModuleAnnounceEvent<C> & { reason?: string }
   'extension:kit:announce': ExtensionKitAnnounceEvent
   'extension:kit:announced': ExtensionKitAnnounceEvent
   'extension:kit:de-announced': ExtensionKitAnnounceEvent & { reason?: string }
+  'extension:module:announce': ExtensionModuleAnnounceEvent<C>
+  'extension:module:announced': ExtensionModuleAnnounceEvent<C>
+  'extension:module:de-announced': ExtensionModuleAnnounceEvent<C> & { reason?: string }
+  'input:text': WebSocketEventInputText
+  'input:text:voice': WebSocketEventInputTextVoice
+  'input:voice': WebSocketEventInputVoice
 
-  'module:authenticate': ModuleAuthenticateEvent
-  'module:authenticated': ModuleAuthenticatedEvent
-  /**
-   * Plugin asks host to negotiate protocol + API compatibility.
-   */
-  'module:compatibility:request': ModuleCompatibilityRequestEvent
-  /**
-   * Host replies with accepted mode/result for protocol + API compatibility.
-   */
-  'module:compatibility:result': ModuleCompatibilityResultEvent
-  /**
-   * Server-side registry sync for known online modules.
-   * Sent to newly authenticated peers to bootstrap module discovery.
-   */
-  'registry:modules:sync': RegistryModulesSyncEvent
-  /**
-   * Broadcast when a module's heartbeat expires (unhealthy).
-   */
-  'registry:modules:health:unhealthy': RegistryModulesHealthUnhealthyEvent
-  /**
-   * Broadcast when a previously unhealthy module resumes heartbeating (healthy again).
-   */
-  'registry:modules:health:healthy': RegistryModulesHealthHealthyEvent
   /**
    * Broadcast to all peers when a module announces itself, with its identity, static metadata, and declared dependencies.
    * Host can use this to decide when to prepare/configure modules based on their needs and capabilities.
@@ -1346,61 +1323,20 @@ export interface ProtocolEvents<C = undefined> {
    * module:announced or module:de-announced, or registry:modules:sync and registry:modules:health:* events for more reliable discovery and tracking.
    */
   'module:announce': ModuleAnnounceEvent<C>
-  'module:permissions:declare': ModulePermissionsDeclareEvent
-  'module:permissions:request': ModulePermissionsRequestEvent
-  'module:permissions:granted': ModulePermissionsGrantedEvent
-  'module:permissions:denied': ModulePermissionsDeniedEvent
-  'module:permissions:current': ModulePermissionsCurrentEvent
   /**
    * Broadcast to all peers when a module successfully announces.
    */
   'module:announced': ModuleAnnouncedEvent
+  'module:authenticate': ModuleAuthenticateEvent
+  'module:authenticated': ModuleAuthenticatedEvent
   /**
-   * Broadcast to all peers when a module is unregistered (disconnect, heartbeat expiry, error, etc).
+   * Plugin asks host to negotiate protocol + API compatibility.
    */
-  'module:de-announced': ModuleDeAnnouncedEvent
+  'module:compatibility:request': ModuleCompatibilityRequestEvent
   /**
-   * Prepare completed. Host can move into config apply/validate.
-   *
-   * Example:
-   *  module:prepared { missingDependencies: [] }
+   * Host replies with accepted mode/result for protocol + API compatibility.
    */
-  'module:prepared': ModulePreparedEvent
-  /**
-   * Module needs configuration to proceed to prepared/configured.
-   */
-  'module:configuration:needed': ModuleConfigurationNeededEvent<C>
-  /**
-   * Lifecycle status updates for orchestration/UX.
-   *
-   * Example:
-   *  module:status { phase: "ready" }
-   */
-  'module:status': ModuleStatusEvent
-  /**
-   * Ask the module to validate current config (host → module).
-   */
-  'module:configuration:validate:request': ModuleConfigurationValidateRequestEvent<C>
-  /**
-   * Validation response (module → host), with optional plan suggestions.
-   */
-  'module:configuration:validate:response': ModuleConfigurationValidateResponseEvent<C>
-  /**
-   * Status updates for validation (module → host).
-   */
-  'module:configuration:validate:status': ModuleConfigurationValidateStatusEvent
-  /**
-   * Configuration planning request (host → module).
-   */
-  'module:configuration:plan:request': ModuleConfigurationPlanRequestEvent<C>
-  /**
-   * Configuration planning response (module → host).
-   */
-  'module:configuration:plan:response': ModuleConfigurationPlanResponseEvent<C>
-  /**
-   * Status updates for planning (module → host).
-   */
-  'module:configuration:plan:status': ModuleConfigurationPlanStatusEvent
+  'module:compatibility:result': ModuleCompatibilityResultEvent
   /**
    * Commit a config as "active" (host → module).
    */
@@ -1414,27 +1350,33 @@ export interface ProtocolEvents<C = undefined> {
    */
   'module:configuration:configured': ModuleConfigurationConfiguredEvent<C>
   /**
-   * Capability offer emitted after module configuration.
+   * Module needs configuration to proceed to prepared/configured.
    */
-  'module:contribute:capability:offer': ModuleContributeCapabilityOfferEvent
+  'module:configuration:needed': ModuleConfigurationNeededEvent<C>
   /**
-   * Capability needs configuration before activation.
+   * Configuration planning request (host → module).
    */
-  'module:contribute:capability:configuration:needed': ModuleContributeCapabilityConfigurationNeededEvent<C>
-  'module:contribute:capability:configuration:validate:request': ModuleContributeCapabilityConfigurationValidateRequestEvent<C>
-  'module:contribute:capability:configuration:validate:response': ModuleContributeCapabilityConfigurationValidateResponseEvent<C>
-  'module:contribute:capability:configuration:validate:status': ModuleContributeCapabilityConfigurationValidateStatusEvent
-  'module:contribute:capability:configuration:plan:request': ModuleContributeCapabilityConfigurationPlanRequestEvent<C>
-  'module:contribute:capability:configuration:plan:response': ModuleContributeCapabilityConfigurationPlanResponseEvent<C>
-  'module:contribute:capability:configuration:plan:status': ModuleContributeCapabilityConfigurationPlanStatusEvent
-  'module:contribute:capability:configuration:commit': ModuleContributeCapabilityConfigurationCommitEvent<C>
-  'module:contribute:capability:configuration:commit:status': ModuleContributeCapabilityConfigurationCommitStatusEvent
-  'module:contribute:capability:configuration:configured': ModuleContributeCapabilityConfigurationConfiguredEvent<C>
-  'module:contribute:capability:activated': ModuleContributeCapabilityActivatedEvent
+  'module:configuration:plan:request': ModuleConfigurationPlanRequestEvent<C>
   /**
-   * Request a phase transition (module → host).
+   * Configuration planning response (module → host).
    */
-  'module:status:change': ModuleStatusChangeEvent
+  'module:configuration:plan:response': ModuleConfigurationPlanResponseEvent<C>
+  /**
+   * Status updates for planning (module → host).
+   */
+  'module:configuration:plan:status': ModuleConfigurationPlanStatusEvent
+  /**
+   * Ask the module to validate current config (host → module).
+   */
+  'module:configuration:validate:request': ModuleConfigurationValidateRequestEvent<C>
+  /**
+   * Validation response (module → host), with optional plan suggestions.
+   */
+  'module:configuration:validate:response': ModuleConfigurationValidateResponseEvent<C>
+  /**
+   * Status updates for validation (module → host).
+   */
+  'module:configuration:validate:status': ModuleConfigurationValidateStatusEvent
   /**
    * Push configuration down to module (host → module).
    */
@@ -1447,16 +1389,95 @@ export interface ProtocolEvents<C = undefined> {
    * Unregister the current module instance from an event consumer registration.
    */
   'module:consumer:unregister': ModuleConsumerUnregisterEvent
-
-  'ui:configure': UiConfigureEvent<C>
-
-  'input:text': WebSocketEventInputText
-  'input:text:voice': WebSocketEventInputTextVoice
-  'input:voice': WebSocketEventInputVoice
-
-  'output:gen-ai:chat:tool-call': OutputGenAiChatToolCallEvent
-  'output:gen-ai:chat:message': OutputGenAiChatMessageEvent
+  'module:contribute:capability:activated': ModuleContributeCapabilityActivatedEvent
+  'module:contribute:capability:configuration:commit': ModuleContributeCapabilityConfigurationCommitEvent<C>
+  'module:contribute:capability:configuration:commit:status': ModuleContributeCapabilityConfigurationCommitStatusEvent
+  'module:contribute:capability:configuration:configured': ModuleContributeCapabilityConfigurationConfiguredEvent<C>
+  /**
+   * Capability needs configuration before activation.
+   */
+  'module:contribute:capability:configuration:needed': ModuleContributeCapabilityConfigurationNeededEvent<C>
+  'module:contribute:capability:configuration:plan:request': ModuleContributeCapabilityConfigurationPlanRequestEvent<C>
+  'module:contribute:capability:configuration:plan:response': ModuleContributeCapabilityConfigurationPlanResponseEvent<C>
+  'module:contribute:capability:configuration:plan:status': ModuleContributeCapabilityConfigurationPlanStatusEvent
+  'module:contribute:capability:configuration:validate:request': ModuleContributeCapabilityConfigurationValidateRequestEvent<C>
+  'module:contribute:capability:configuration:validate:response': ModuleContributeCapabilityConfigurationValidateResponseEvent<C>
+  'module:contribute:capability:configuration:validate:status': ModuleContributeCapabilityConfigurationValidateStatusEvent
+  /**
+   * Capability offer emitted after module configuration.
+   */
+  'module:contribute:capability:offer': ModuleContributeCapabilityOfferEvent
+  /**
+   * Broadcast to all peers when a module is unregistered (disconnect, heartbeat expiry, error, etc).
+   */
+  'module:de-announced': ModuleDeAnnouncedEvent
+  'module:permissions:current': ModulePermissionsCurrentEvent
+  'module:permissions:declare': ModulePermissionsDeclareEvent
+  'module:permissions:denied': ModulePermissionsDeniedEvent
+  'module:permissions:granted': ModulePermissionsGrantedEvent
+  'module:permissions:request': ModulePermissionsRequestEvent
+  /**
+   * Prepare completed. Host can move into config apply/validate.
+   *
+   * Example:
+   *  module:prepared { missingDependencies: [] }
+   */
+  'module:prepared': ModulePreparedEvent
+  /**
+   * Lifecycle status updates for orchestration/UX.
+   *
+   * Example:
+   *  module:status { phase: "ready" }
+   */
+  'module:status': ModuleStatusEvent
+  /**
+   * Request a phase transition (module → host).
+   */
+  'module:status:change': ModuleStatusChangeEvent
   'output:gen-ai:chat:complete': OutputGenAiChatCompleteEvent
+  'output:gen-ai:chat:message': OutputGenAiChatMessageEvent
+  'output:gen-ai:chat:tool-call': OutputGenAiChatToolCallEvent
+
+  'peer:authenticate': PeerAuthenticateEvent
+
+  'peer:authenticated': PeerAuthenticatedEvent
+  'peer:de-authenticated': PeerDeAuthenticatedEvent
+  'peer:status': PeerStatusEvent
+
+  /**
+   * Broadcast when a previously unhealthy module resumes heartbeating (healthy again).
+   */
+  'registry:modules:health:healthy': RegistryModulesHealthHealthyEvent
+  /**
+   * Broadcast when a module's heartbeat expires (unhealthy).
+   */
+  'registry:modules:health:unhealthy': RegistryModulesHealthUnhealthyEvent
+  /**
+   * Server-side registry sync for known online modules.
+   * Sent to newly authenticated peers to bootstrap module discovery.
+   */
+  'registry:modules:sync': RegistryModulesSyncEvent
+
+  /**
+   * Character issues instructions or context to a sub-agent.
+   * interrupt: force = hard preempt; soft = merge/queue.
+   * Examples:
+   * - Witch attack: interrupt=force, priority=critical, intent=action with options (aggressive/cautious).
+   *   e.g., options to block/retreat vs push with shield/sword, with fallback steps.
+   * - Prep plan: interrupt=soft, priority=high, intent=plan with steps/fallbacks.
+   * - Contextual hints: intent=context with contextPatch ideas/hints.
+   */
+  'spark:command': SparkCommandEvent
+
+  /**
+   * Acknowledgement/progress/state for a spark or command (bidirectional).
+   * Examples:
+   * - Character: state=working, note="Seen it, responding".
+   * - Sub-agent: state=done, note="Healed and safe".
+   * - Sub-agent: state=blocked/dropped with note when it cannot comply.
+   * - Minecraft: state=working, note="Pillared up; healing" in reply to a command.
+   */
+  'spark:emit': SparkEmitEvent
 
   /**
    * Spark used for allowing agents in a network to raise an event toward the other destinations (e.g. character).
@@ -1485,32 +1506,11 @@ export interface ProtocolEvents<C = undefined> {
    */
   'spark:notify': SparkNotifyEvent
 
-  /**
-   * Acknowledgement/progress/state for a spark or command (bidirectional).
-   * Examples:
-   * - Character: state=working, note="Seen it, responding".
-   * - Sub-agent: state=done, note="Healed and safe".
-   * - Sub-agent: state=blocked/dropped with note when it cannot comply.
-   * - Minecraft: state=working, note="Pillared up; healing" in reply to a command.
-   */
-  'spark:emit': SparkEmitEvent
-
-  /**
-   * Character issues instructions or context to a sub-agent.
-   * interrupt: force = hard preempt; soft = merge/queue.
-   * Examples:
-   * - Witch attack: interrupt=force, priority=critical, intent=action with options (aggressive/cautious).
-   *   e.g., options to block/retreat vs push with shield/sword, with fallback steps.
-   * - Prep plan: interrupt=soft, priority=high, intent=plan with steps/fallbacks.
-   * - Contextual hints: intent=context with contextPatch ideas/hints.
-   */
-  'spark:command': SparkCommandEvent
-
   'transport:connection:heartbeat': TransportConnectionHeartbeatEvent
 
-  'context:update': ContextUpdateEvent
+  'ui:configure': UiConfigureEvent<C>
 }
 
-export type ProtocolEventOf<E, C = undefined> = E extends keyof ProtocolEvents<C>
-  ? Omit<ProtocolEvents<C>[E], 'metadata'> & { metadata?: Record<string, unknown> }
-  : never
+export function getProtocolEventMetadata(eventType: keyof ProtocolEvents | string) {
+  return protocolEventMetadataByType[eventType as keyof typeof protocolEventMetadataByType]
+}

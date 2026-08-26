@@ -55,7 +55,7 @@ const avifTransformer: ArtifactTransformer = async (artifact) => {
   }
 }
 
-if (!['png', 'avif'].includes(requestedFormat)) {
+if (!['avif', 'png'].includes(requestedFormat)) {
   throw new Error(`Unsupported capture format "${requestedFormat}". Expected "png" or "avif".`)
 }
 
@@ -103,13 +103,13 @@ await captureBrowserRoots({
   imageTransformers: requestedFormat === 'avif'
     ? [avifTransformer]
     : undefined,
-  sceneAppRoot,
-  routePath,
   outputDir,
+  routePath,
+  sceneAppRoot,
   settleMs,
   viewport: {
-    width: 1920,
-    height: 1080,
     deviceScaleFactor: 2,
+    height: 1080,
+    width: 1920,
   },
 })

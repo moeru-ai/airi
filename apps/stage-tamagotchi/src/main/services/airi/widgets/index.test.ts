@@ -6,20 +6,12 @@ import { describe, expect, it, vi } from 'vitest'
 import { widgetsIframeRequestResultEvent } from '../../../../shared/eventa'
 import { createWidgetsService } from './index'
 
-function createWindow(id: number): BrowserWindow {
-  return {
-    webContents: {
-      id,
-    },
-  } as BrowserWindow
-}
-
 function createWidgetsManager() {
   return {
     clearWidgets: vi.fn(),
     fetchWidget: vi.fn(),
-    getWindow: vi.fn(),
     getWidgetSnapshot: vi.fn(),
+    getWindow: vi.fn(),
     hideWindow: vi.fn(),
     onWidgetEvent: vi.fn(),
     openWindow: vi.fn(),
@@ -31,6 +23,14 @@ function createWidgetsManager() {
     requestWidgetIframe: vi.fn(),
     updateWidget: vi.fn(),
   }
+}
+
+function createWindow(id: number): BrowserWindow {
+  return {
+    webContents: {
+      id,
+    },
+  } as BrowserWindow
 }
 
 describe('createWidgetsService', () => {
@@ -46,8 +46,8 @@ describe('createWidgetsService', () => {
 
     context.emit(widgetsIframeRequestResultEvent, {
       id: 'kit-module:board',
-      requestId: 'req-1',
       ok: true,
+      requestId: 'req-1',
       result: { fen: 'fen-after-request' },
     }, {
       raw: {
@@ -59,8 +59,8 @@ describe('createWidgetsService', () => {
 
     expect(widgetsManager.publishWidgetIframeRequestResult).toHaveBeenCalledWith({
       id: 'kit-module:board',
-      requestId: 'req-1',
       ok: true,
+      requestId: 'req-1',
       result: { fen: 'fen-after-request' },
     })
   })
@@ -77,8 +77,8 @@ describe('createWidgetsService', () => {
 
     context.emit(widgetsIframeRequestResultEvent, {
       id: 'kit-module:board',
-      requestId: 'req-1',
       ok: true,
+      requestId: 'req-1',
       result: { fen: 'fen-after-request' },
     }, {
       raw: {

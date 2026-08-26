@@ -4,8 +4,8 @@ import type { JsonSchema } from 'xsschema'
 import { expect } from 'vitest'
 
 interface StrictToolSchemaIssue {
-  path: string
   message: string
+  path: string
 }
 
 declare module 'vitest' {
@@ -19,12 +19,61 @@ declare module 'vitest' {
   }
 }
 
-function isSchemaRecord(value: unknown): value is JsonSchema {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+/**
+ * Collects strict provider schema issues from one xsAI tool.
+ *
+ * Use when:
+ * - Vitest checks need diagnostics instead of throwing immediately
+ * - A provider rejects schemas that omit `required` keys or allow extra object properties
+ *
+ * Expects:
+ * - `tool.function.parameters` contains the provider-facing JSON Schema
+ *
+ * Returns:
+ * - A list of path-qualified issues; empty means the schema satisfies the local strict rules
+ */
+export function collectStrictToolSchemaIssues(tool: Tool): StrictToolSchemaIssue[] {
+  const issues: StrictToolSchemaIssue[] = []
+  collectSchemaIssues(tool.function.parameters, `${tool.function.name}.parameters`, issues)
+  return issues
 }
 
-function sorted(values: string[]): string[] {
-  return [...values].sort((left, right) => left.localeCompare(right))
+/**
+ * Installs Vitest matchers for strict provider-facing tool schema checks.
+ *
+ * Use when:
+ * - A test file wants `expect(tool).toSatisfyStrictToolSchema()`
+ * - A test file wants `expect(tools).toSatisfyStrictToolSchemas()`
+ *
+ * Expects:
+ * - Called before the matcher is used in the current Vitest worker
+ *
+ * Returns:
+ * - Registers matchers on Vitest's `expect` object
+ */
+export function installStrictToolSchemaMatchers(): void {
+  expect.extend({
+    toSatisfyStrictToolSchema(received: Tool) {
+      const issues = collectStrictToolSchemaIssues(received)
+
+      return {
+        message: () => issues.length
+          ? `Expected tool schema to satisfy strict provider rules:\n${formatIssues(issues)}`
+          : 'Expected tool schema not to satisfy strict provider rules.',
+        pass: issues.length === 0,
+      }
+    },
+    toSatisfyStrictToolSchemas(received: Tool[]) {
+      const issues = received.flatMap(tool => collectStrictToolSchemaIssues(tool))
+
+      return {
+        message: () => issues.length
+          ? `Expected tool schemas to satisfy strict provider rules:\n${formatIssues(issues)}`
+          : 'Expected tool schemas not to satisfy strict provider rules.',
+        pass: issues.length === 0,
+      }
+    },
+  })
 }
 
 function collectSchemaIssues(schema: unknown, path: string, issues: StrictToolSchemaIssue[]): void {
@@ -38,27 +87,27 @@ function collectSchemaIssues(schema: unknown, path: string, issues: StrictToolSc
 
     if (!Array.isArray(schema.required)) {
       issues.push({
-        path,
         message: '`required` must be supplied when `properties` is present.',
+        path,
       })
     }
     else if (sorted(required).join('\0') !== sorted(propertyKeys).join('\0')) {
       const missing = propertyKeys.filter(key => !required.includes(key))
       const extra = required.filter(key => !propertyKeys.includes(key))
       issues.push({
-        path,
         message: [
           '`required` must include every key in `properties`.',
           missing.length ? `Missing: ${missing.join(', ')}.` : '',
           extra.length ? `Extra: ${extra.join(', ')}.` : '',
         ].filter(Boolean).join(' '),
+        path,
       })
     }
 
     if (schema.additionalProperties !== false) {
       issues.push({
-        path,
         message: '`additionalProperties` must be false when `properties` is present.',
+        path,
       })
     }
 
@@ -82,63 +131,14 @@ function collectSchemaIssues(schema: unknown, path: string, issues: StrictToolSc
   }
 }
 
-/**
- * Collects strict provider schema issues from one xsAI tool.
- *
- * Use when:
- * - Vitest checks need diagnostics instead of throwing immediately
- * - A provider rejects schemas that omit `required` keys or allow extra object properties
- *
- * Expects:
- * - `tool.function.parameters` contains the provider-facing JSON Schema
- *
- * Returns:
- * - A list of path-qualified issues; empty means the schema satisfies the local strict rules
- */
-export function collectStrictToolSchemaIssues(tool: Tool): StrictToolSchemaIssue[] {
-  const issues: StrictToolSchemaIssue[] = []
-  collectSchemaIssues(tool.function.parameters, `${tool.function.name}.parameters`, issues)
-  return issues
-}
-
 function formatIssues(issues: StrictToolSchemaIssue[]): string {
   return issues.map(issue => `- ${issue.path}: ${issue.message}`).join('\n')
 }
 
-/**
- * Installs Vitest matchers for strict provider-facing tool schema checks.
- *
- * Use when:
- * - A test file wants `expect(tool).toSatisfyStrictToolSchema()`
- * - A test file wants `expect(tools).toSatisfyStrictToolSchemas()`
- *
- * Expects:
- * - Called before the matcher is used in the current Vitest worker
- *
- * Returns:
- * - Registers matchers on Vitest's `expect` object
- */
-export function installStrictToolSchemaMatchers(): void {
-  expect.extend({
-    toSatisfyStrictToolSchema(received: Tool) {
-      const issues = collectStrictToolSchemaIssues(received)
+function isSchemaRecord(value: unknown): value is JsonSchema {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+}
 
-      return {
-        pass: issues.length === 0,
-        message: () => issues.length
-          ? `Expected tool schema to satisfy strict provider rules:\n${formatIssues(issues)}`
-          : 'Expected tool schema not to satisfy strict provider rules.',
-      }
-    },
-    toSatisfyStrictToolSchemas(received: Tool[]) {
-      const issues = received.flatMap(tool => collectStrictToolSchemaIssues(tool))
-
-      return {
-        pass: issues.length === 0,
-        message: () => issues.length
-          ? `Expected tool schemas to satisfy strict provider rules:\n${formatIssues(issues)}`
-          : 'Expected tool schemas not to satisfy strict provider rules.',
-      }
-    },
-  })
+function sorted(values: string[]): string[] {
+  return [...values].sort((left, right) => left.localeCompare(right))
 }

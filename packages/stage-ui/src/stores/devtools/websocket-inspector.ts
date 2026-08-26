@@ -5,10 +5,10 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export interface WebSocketHistoryItem {
-  id: string
-  timestamp: number
   direction: 'incoming' | 'outgoing'
   event: WebSocketEvent
+  id: string
+  timestamp: number
 }
 
 export const useWebSocketInspectorStore = defineStore('devtools:websocket-inspector', () => {
@@ -21,10 +21,10 @@ export const useWebSocketInspectorStore = defineStore('devtools:websocket-inspec
       return
 
     history.value.unshift({
-      id: nanoid(),
-      timestamp: Date.now(),
       direction,
       event,
+      id: nanoid(),
+      timestamp: Date.now(),
     })
 
     if (history.value.length > maxHistory.value) {
@@ -37,10 +37,10 @@ export const useWebSocketInspectorStore = defineStore('devtools:websocket-inspec
   }
 
   return {
+    add,
+    clear,
     history,
     isEnabled,
     maxHistory,
-    add,
-    clear,
   }
 })

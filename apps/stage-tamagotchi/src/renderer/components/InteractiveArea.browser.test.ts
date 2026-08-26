@@ -21,42 +21,42 @@ import InteractiveArea from './InteractiveArea.vue'
 
 function createTestI18n() {
   return createI18n({
+    fallbackWarn: false,
     legacy: false,
     locale: 'en',
-    missingWarn: false,
-    fallbackWarn: false,
     messages: { en: {} },
+    missingWarn: false,
   })
 }
 
 async function renderArea(component: Component = InteractiveArea) {
   const sessionB: ChatSessionMeta = {
-    sessionId: 'session-b',
-    userId: 'local',
     characterId: 'default',
     createdAt: 1,
+    sessionId: 'session-b',
     updatedAt: 1,
+    userId: 'local',
   }
   const sessionA: ChatSessionMeta = {
     ...sessionB,
-    sessionId: 'session-a',
     createdAt: 2,
+    sessionId: 'session-a',
     updatedAt: 2,
   }
   const pinia = createPinia()
   pinia.state.value = {
-    'chat-session-selection': { activeSessionId: 'session-b' },
     'chat-session': {
-      sessionMetas: { 'session-a': sessionA, 'session-b': sessionB },
       sessionMessages: {
-        'session-a': [{ id: 'system-a', role: 'system', content: 'session A prompt' }],
-        'session-b': [{ id: 'system', role: 'system', content: 'system prompt' }],
+        'session-a': [{ content: 'session A prompt', id: 'system-a', role: 'system' }],
+        'session-b': [{ content: 'system prompt', id: 'system', role: 'system' }],
       },
+      sessionMetas: { 'session-a': sessionA, 'session-b': sessionB },
     },
+    'chat-session-selection': { activeSessionId: 'session-b' },
   }
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/', component: { template: '<div />' } }],
+    routes: [{ component: { template: '<div />' }, path: '/' }],
   })
   await router.push('/')
   await router.isReady()
@@ -92,23 +92,23 @@ describe('interactive area synchronized state', () => {
     chat.$patch({
       activeSendSessionId: 'session-b',
       activeStreamingMessage: {
+        content: 'Follower B live response',
+        createdAt: 2,
         id: 'follower-b-stream',
         role: 'assistant',
-        content: 'Follower B live response',
-        slices: [{ type: 'text', text: 'Follower B live response' }],
+        slices: [{ text: 'Follower B live response', type: 'text' }],
         tool_results: [],
-        createdAt: 2,
       },
       sending: true,
     })
     chatStream.$patch({
       streamingMessage: {
+        content: 'Leader A foreground response',
+        createdAt: 3,
         id: 'leader-a-stream',
         role: 'assistant',
-        content: 'Leader A foreground response',
-        slices: [{ type: 'text', text: 'Leader A foreground response' }],
+        slices: [{ text: 'Leader A foreground response', type: 'text' }],
         tool_results: [],
-        createdAt: 3,
       },
     })
     await nextTick()
@@ -128,23 +128,23 @@ describe('interactive area synchronized state', () => {
     chat.$patch({
       activeSendSessionId: 'session-a',
       activeStreamingMessage: {
+        content: 'Session A live response',
+        createdAt: 2,
         id: 'session-a-stream',
         role: 'assistant',
-        content: 'Session A live response',
-        slices: [{ type: 'text', text: 'Session A live response' }],
+        slices: [{ text: 'Session A live response', type: 'text' }],
         tool_results: [],
-        createdAt: 2,
       },
       sending: true,
     })
     chatStream.$patch({
       streamingMessage: {
+        content: 'Session A live response',
+        createdAt: 2,
         id: 'session-a-foreground',
         role: 'assistant',
-        content: 'Session A live response',
-        slices: [{ type: 'text', text: 'Session A live response' }],
+        slices: [{ text: 'Session A live response', type: 'text' }],
         tool_results: [],
-        createdAt: 2,
       },
     })
     await nextTick()
@@ -153,12 +153,12 @@ describe('interactive area synchronized state', () => {
     chat.$patch({
       activeSendSessionId: 'session-b',
       activeStreamingMessage: {
+        content: 'Session B live response',
+        createdAt: 3,
         id: 'session-b-stream',
         role: 'assistant',
-        content: 'Session B live response',
-        slices: [{ type: 'text', text: 'Session B live response' }],
+        slices: [{ text: 'Session B live response', type: 'text' }],
         tool_results: [],
-        createdAt: 3,
       },
     })
     await nextTick()
@@ -176,23 +176,23 @@ describe('interactive area synchronized state', () => {
     chat.$patch({
       activeSendSessionId: 'session-b',
       activeStreamingMessage: {
+        content: 'Session B web response',
+        createdAt: 2,
         id: 'session-b-web-stream',
         role: 'assistant',
-        content: 'Session B web response',
-        slices: [{ type: 'text', text: 'Session B web response' }],
+        slices: [{ text: 'Session B web response', type: 'text' }],
         tool_results: [],
-        createdAt: 2,
       },
       sending: true,
     })
     chatStream.$patch({
       streamingMessage: {
+        content: 'Session A foreground response',
+        createdAt: 3,
         id: 'session-a-web-foreground',
         role: 'assistant',
-        content: 'Session A foreground response',
-        slices: [{ type: 'text', text: 'Session A foreground response' }],
+        slices: [{ text: 'Session A foreground response', type: 'text' }],
         tool_results: [],
-        createdAt: 3,
       },
     })
     await nextTick()

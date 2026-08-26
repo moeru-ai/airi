@@ -8,30 +8,28 @@ const RAW_TO_VOWEL: Record<typeof RAW_KEYS[number], VowelKey> = {
   E: 'E',
   I: 'I',
   O: 'O',
-  U: 'U',
   // Treat S as silence/closed; map to a small I-like mouth to avoid a hard snap
   S: 'I',
+  U: 'U',
 }
-
-export type VowelKey = 'A' | 'E' | 'I' | 'O' | 'U'
 
 export interface Live2DLipSync {
   /**
-   * The underlying wLipSync AudioWorkletNode. Connect your audio source to it.
+   * Convenience helper to connect an audio source node to the lip sync node.
    */
-  node: Awaited<ReturnType<typeof createWLipSyncNode>>
-  /**
-   * Get per-vowel weights (already remapped from AEIOUS to AEIOU) scaled by current volume.
-   */
-  getVowelWeights: () => Record<VowelKey, number>
+  connectSource: (source: AudioNode) => void
   /**
    * Get a single mouth-open value (0-1) derived from the loudest vowel weight.
    */
   getMouthOpen: () => number
   /**
-   * Convenience helper to connect an audio source node to the lip sync node.
+   * Get per-vowel weights (already remapped from AEIOUS to AEIOU) scaled by current volume.
    */
-  connectSource: (source: AudioNode) => void
+  getVowelWeights: () => Record<VowelKey, number>
+  /**
+   * The underlying wLipSync AudioWorkletNode. Connect your audio source to it.
+   */
+  node: Awaited<ReturnType<typeof createWLipSyncNode>>
 }
 
 export interface Live2DLipSyncOptions {
@@ -41,26 +39,28 @@ export interface Live2DLipSyncOptions {
    */
   cap?: number
   /**
-   * Volume multiplier applied before exponent.
-   * Defaults to 0.9.
+   * Lerp window (ms) for smoothing mouth-open changes.
+   * Defaults to 120ms; set to 0 to disable smoothing.
    */
-  volumeScale?: number
-  /**
-   * Exponent for the volume curve to soften peaks.
-   * Defaults to 0.7.
-   */
-  volumeExponent?: number
+  mouthLerpWindowMs?: number
   /**
    * Minimum interval (ms) between mouth-open recalculations.
    * Defaults to 40ms (~25fps) to avoid overly chattery updates.
    */
   mouthUpdateIntervalMs?: number
   /**
-   * Lerp window (ms) for smoothing mouth-open changes.
-   * Defaults to 120ms; set to 0 to disable smoothing.
+   * Exponent for the volume curve to soften peaks.
+   * Defaults to 0.7.
    */
-  mouthLerpWindowMs?: number
+  volumeExponent?: number
+  /**
+   * Volume multiplier applied before exponent.
+   * Defaults to 0.9.
+   */
+  volumeScale?: number
 }
+
+export type VowelKey = 'A' | 'E' | 'I' | 'O' | 'U'
 
 /**
  * Create a Live2D-friendly lip sync helper using the wLipSync worklet.
@@ -149,9 +149,9 @@ export async function createLive2DLipSync(
   }
 
   return {
-    node,
-    getVowelWeights,
-    getMouthOpen,
     connectSource,
+    getMouthOpen,
+    getVowelWeights,
+    node,
   }
 }

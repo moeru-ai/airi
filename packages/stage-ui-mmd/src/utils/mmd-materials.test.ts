@@ -22,6 +22,12 @@ import {
   setMMDMaterialGlow,
 } from './mmd-materials'
 
+function countDisposals(resource: BufferGeometry | MeshBasicMaterial | MeshDepthMaterial | MeshDistanceMaterial | MMDToonMaterial) {
+  let count = 0
+  resource.addEventListener('dispose', () => count++)
+  return () => count
+}
+
 function createDescriptor(name: string, opacity = 1, transparent = false): MMDMaterialDescriptor {
   return {
     ambient: new Color(0.1, 0.2, 0.3),
@@ -42,12 +48,6 @@ function createDescriptor(name: string, opacity = 1, transparent = false): MMDMa
     toonMapFileName: 'toon01.bmp',
     transparent,
   }
-}
-
-function countDisposals(resource: BufferGeometry | MeshBasicMaterial | MeshDepthMaterial | MeshDistanceMaterial | MMDToonMaterial) {
-  let count = 0
-  resource.addEventListener('dispose', () => count++)
-  return () => count
 }
 
 describe('mmd surface materials', () => {

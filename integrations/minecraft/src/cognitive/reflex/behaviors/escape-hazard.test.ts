@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest'
 
 import { escapeHazardBehavior, findNearestSafeStand } from './escape-hazard'
 
-const STONE = { name: 'stone', boundingBox: 'block' }
-const AIR = { name: 'air', boundingBox: 'empty' }
-const LAVA = { name: 'lava', boundingBox: 'empty' } // liquid: not standable, and a hazard so not "clear"
+const STONE = { boundingBox: 'block', name: 'stone' }
+const AIR = { boundingBox: 'empty', name: 'air' }
+const LAVA = { boundingBox: 'empty', name: 'lava' } // liquid: not standable, and a hazard so not "clear"
 
 /**
  * Fake world: a small lava pool. Columns with |x|>=2 or |z|>=2 are dry land (stone floor at y<=63,
@@ -47,6 +47,7 @@ describe('escapeHazardBehavior re-entry guard', () => {
     // rest of the process. Fixed by resetting escapeInFlight in finally (mirrors defend.ts/combatInFlight).
     const state = { lava: true }
     const bot: any = {
+      blockAt: () => null,
       entity: {
         get isInLava() {
           return state.lava
@@ -54,12 +55,11 @@ describe('escapeHazardBehavior re-entry guard', () => {
         isInWater: false,
         position: new Vec3(0, 64, 0),
       },
-      oxygenLevel: 20,
-      pathfinder: { stop() {} },
-      blockAt: () => null,
       lookAt: async () => {
         state.lava = false // simulate the bot climbing out partway through the attempt
       },
+      oxygenLevel: 20,
+      pathfinder: { stop() {} },
       setControlState: () => {},
     }
     const api: any = { bot: { bot }, context: { updateAutonomy: () => {} } }

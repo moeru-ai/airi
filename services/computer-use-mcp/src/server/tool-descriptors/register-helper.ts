@@ -28,14 +28,49 @@ export interface DescriptorToolOptions<TSchema extends ZodRawShape> {
   descriptor: ToolDescriptor
 
   /**
-   * Zod schema for input validation.
-   */
-  schema: TSchema
-
-  /**
    * Tool handler function.
    */
   handler: (input: { [K in keyof TSchema]: TSchema[K] extends ZodTypeAny ? TSchema[K]['_output'] : never }, extra: unknown) => Promise<CallToolResult>
+
+  /**
+   * Zod schema for input validation.
+   */
+  schema: TSchema
+}
+
+/**
+ * Get the kind for a tool.
+ */
+export function getToolKind(canonicalName: string): string {
+  return globalRegistry.get(canonicalName).kind
+}
+
+/**
+ * Get the lane for a tool.
+ */
+export function getToolLane(canonicalName: string): string {
+  return globalRegistry.get(canonicalName).lane
+}
+
+/**
+ * Get descriptor summary for use in tool registration.
+ */
+export function getToolSummary(canonicalName: string): string {
+  return globalRegistry.get(canonicalName).summary
+}
+
+/**
+ * Check if a tool is concurrency-safe according to its descriptor.
+ */
+export function isToolConcurrencySafe(canonicalName: string): boolean {
+  return globalRegistry.get(canonicalName).concurrencySafe
+}
+
+/**
+ * Check if a tool is read-only according to its descriptor.
+ */
+export function isToolReadOnly(canonicalName: string): boolean {
+  return globalRegistry.get(canonicalName).readOnly
 }
 
 /**
@@ -46,7 +81,7 @@ export function registerToolWithDescriptor<TSchema extends ZodRawShape>(
   server: McpServer,
   options: DescriptorToolOptions<TSchema>,
 ): RegisteredTool {
-  const { descriptor, schema, handler } = options
+  const { descriptor, handler, schema } = options
 
   // Validate descriptor is in registry (fail-closed)
   if (!globalRegistry.has(descriptor.canonicalName)) {
@@ -86,20 +121,6 @@ export function requireDescriptor(canonicalName: string): ToolDescriptor {
 }
 
 /**
- * Get descriptor summary for use in tool registration.
- */
-export function getToolSummary(canonicalName: string): string {
-  return globalRegistry.get(canonicalName).summary
-}
-
-/**
- * Check if a tool is read-only according to its descriptor.
- */
-export function isToolReadOnly(canonicalName: string): boolean {
-  return globalRegistry.get(canonicalName).readOnly
-}
-
-/**
  * Check if a tool requires approval by default according to its descriptor.
  */
 export function toolRequiresApprovalByDefault(canonicalName: string): boolean {
@@ -107,41 +128,20 @@ export function toolRequiresApprovalByDefault(canonicalName: string): boolean {
 }
 
 /**
- * Check if a tool is concurrency-safe according to its descriptor.
- */
-export function isToolConcurrencySafe(canonicalName: string): boolean {
-  return globalRegistry.get(canonicalName).concurrencySafe
-}
-
-/**
- * Get the lane for a tool.
- */
-export function getToolLane(canonicalName: string): string {
-  return globalRegistry.get(canonicalName).lane
-}
-
-/**
- * Get the kind for a tool.
- */
-export function getToolKind(canonicalName: string): string {
-  return globalRegistry.get(canonicalName).kind
-}
-
-/**
  * Validate that all tool names have registered descriptors.
  * Useful for testing registry completeness.
  */
 export function validateToolsHaveDescriptors(toolNames: string[]): {
-  valid: boolean
   missing: string[]
   orphans: string[]
+  valid: boolean
 } {
   const missing = globalRegistry.validateCompleteness(toolNames)
   const orphans = globalRegistry.findOrphans(toolNames)
 
   return {
-    valid: missing.length === 0,
     missing,
     orphans,
+    valid: missing.length === 0,
   }
 }

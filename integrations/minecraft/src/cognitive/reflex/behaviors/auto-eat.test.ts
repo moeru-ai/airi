@@ -2,19 +2,19 @@ import { describe, expect, it } from 'vitest'
 
 import { autoEatBehavior } from './auto-eat'
 
-/** Minimal reflex snapshot stub: the self fields + autonomy.reflexEngaged auto-eat reads. */
-function snapshot(health: number, food: number, reflexEngaged = false): any {
-  // @example snapshot(6, 10) -> critical health, hungry enough to benefit from eating
-  return { self: { health, food }, autonomy: { reflexEngaged } }
-}
-
 /** Minimal ReflexApi stub exposing an inventory for selectReadyFood. */
-function apiWith(items: Array<{ name: string, foodPoints?: number }>): any {
+function apiWith(items: Array<{ foodPoints?: number, name: string }>): any {
   return { bot: { bot: { inventory: { items: () => items } } } }
 }
 
-const bread = { name: 'bread', foodPoints: 5 }
-const rawBeef = { name: 'beef', foodPoints: 3 }
+/** Minimal reflex snapshot stub: the self fields + autonomy.reflexEngaged auto-eat reads. */
+function snapshot(health: number, food: number, reflexEngaged = false): any {
+  // @example snapshot(6, 10) -> critical health, hungry enough to benefit from eating
+  return { autonomy: { reflexEngaged }, self: { food, health } }
+}
+
+const bread = { foodPoints: 5, name: 'bread' }
+const rawBeef = { foodPoints: 3, name: 'beef' }
 
 describe('autoEatBehavior.when', () => {
   it('triggers when critically hurt, hungry, and holding ready food', () => {
@@ -44,21 +44,21 @@ describe('autoEatBehavior.when', () => {
 })
 
 /** ReflexApi stub that records reflexEngaged at each step + runs equip/consume hooks. */
-function runApi(opts: { onEquip?: () => void, onConsume?: () => void | Promise<void> }) {
+function runApi(opts: { onConsume?: () => Promise<void> | void, onEquip?: () => void }) {
   const autonomy = { reflexEngaged: false }
   const seen: boolean[] = []
   const api: any = {
     bot: {
       bot: {
-        inventory: { items: () => [bread] },
-        equip: async () => {
-          seen.push(autonomy.reflexEngaged)
-          opts.onEquip?.()
-        },
         consume: async () => {
           seen.push(autonomy.reflexEngaged)
           await opts.onConsume?.()
         },
+        equip: async () => {
+          seen.push(autonomy.reflexEngaged)
+          opts.onEquip?.()
+        },
+        inventory: { items: () => [bread] },
       },
     },
     context: { updateAutonomy: (p: { reflexEngaged: boolean }) => { autonomy.reflexEngaged = p.reflexEngaged } },

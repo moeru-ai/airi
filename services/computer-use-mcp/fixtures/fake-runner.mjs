@@ -5,59 +5,59 @@ import { createInterface } from 'node:readline'
 const tinyPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn8vO0AAAAASUVORK5CYII='
 
 const state = {
-  sessionTag: env.FAKE_RUNNER_SESSION_TAG || 'vm-local-1',
   displayId: env.FAKE_RUNNER_DISPLAY_ID || ':99',
-  hostName: env.FAKE_RUNNER_HOST_NAME || 'fake-remote',
-  remoteUser: env.FAKE_RUNNER_REMOTE_USER || 'airi',
-  width: Number.parseInt(env.FAKE_RUNNER_WIDTH || '1280', 10),
   height: Number.parseInt(env.FAKE_RUNNER_HEIGHT || '720', 10),
+  hostName: env.FAKE_RUNNER_HOST_NAME || 'fake-remote',
   observationBaseUrl: env.FAKE_RUNNER_OBSERVATION_BASE_URL || '',
-}
-
-function executionTarget() {
-  return {
-    mode: 'remote',
-    transport: 'ssh-stdio',
-    hostName: state.hostName,
-    remoteUser: state.remoteUser,
-    displayId: state.displayId,
-    sessionTag: state.sessionTag,
-    isolated: true,
-    tainted: false,
-  }
-}
-
-function permissionInfo() {
-  return {
-    screenRecording: {
-      status: 'granted',
-      target: `${state.displayId} via scrot`,
-      checkedBy: 'scrot',
-    },
-    accessibility: {
-      status: 'unsupported',
-      target: `${state.displayId} linux-x11 session`,
-      note: 'linux-x11 runner does not rely on accessibility APIs',
-    },
-    automationToSystemEvents: {
-      status: 'unsupported',
-      target: `${state.displayId} linux-x11 session`,
-      note: 'linux-x11 runner does not use System Events',
-    },
-  }
+  remoteUser: env.FAKE_RUNNER_REMOTE_USER || 'airi',
+  sessionTag: env.FAKE_RUNNER_SESSION_TAG || 'vm-local-1',
+  width: Number.parseInt(env.FAKE_RUNNER_WIDTH || '1280', 10),
 }
 
 function displayInfo() {
   return {
     available: true,
-    platform: 'linux',
-    logicalWidth: state.width,
-    logicalHeight: state.height,
-    pixelWidth: state.width,
-    pixelHeight: state.height,
-    scaleFactor: 1,
     isRetina: false,
+    logicalHeight: state.height,
+    logicalWidth: state.width,
     note: `managed virtual X session ${state.displayId}`,
+    pixelHeight: state.height,
+    pixelWidth: state.width,
+    platform: 'linux',
+    scaleFactor: 1,
+  }
+}
+
+function executionTarget() {
+  return {
+    displayId: state.displayId,
+    hostName: state.hostName,
+    isolated: true,
+    mode: 'remote',
+    remoteUser: state.remoteUser,
+    sessionTag: state.sessionTag,
+    tainted: false,
+    transport: 'ssh-stdio',
+  }
+}
+
+function permissionInfo() {
+  return {
+    accessibility: {
+      note: 'linux-x11 runner does not rely on accessibility APIs',
+      status: 'unsupported',
+      target: `${state.displayId} linux-x11 session`,
+    },
+    automationToSystemEvents: {
+      note: 'linux-x11 runner does not use System Events',
+      status: 'unsupported',
+      target: `${state.displayId} linux-x11 session`,
+    },
+    screenRecording: {
+      checkedBy: 'scrot',
+      status: 'granted',
+      target: `${state.displayId} via scrot`,
+    },
   }
 }
 
@@ -66,8 +66,8 @@ function writeResponse(response) {
 }
 
 const rl = createInterface({
-  input: stdin,
   crlfDelay: Infinity,
+  input: stdin,
 })
 
 rl.on('line', (line) => {
@@ -77,27 +77,25 @@ rl.on('line', (line) => {
   }
 
   const request = JSON.parse(trimmed)
-  if (env.FAKE_RUNNER_CLOSE_ON_MUTATION === '1' && ['click', 'typeText', 'pressKeys', 'scroll'].includes(request.method)) {
+  if (env.FAKE_RUNNER_CLOSE_ON_MUTATION === '1' && ['click', 'pressKeys', 'scroll', 'typeText'].includes(request.method)) {
     exit(1)
   }
 
   switch (request.method) {
-    case 'initialize':
+    case 'click':
+    case 'pressKeys':
+    case 'scroll':
+    case 'typeText':
+    case 'wait':
       writeResponse({
         id: request.id,
         ok: true,
         result: {
+          backend: 'linux-x11',
           executionTarget: executionTarget(),
-          displayInfo: displayInfo(),
-          permissionInfo: permissionInfo(),
+          notes: [`${request.method} executed`],
+          performed: true,
         },
-      })
-      return
-    case 'getExecutionTarget':
-      writeResponse({
-        id: request.id,
-        ok: true,
-        result: executionTarget(),
       })
       return
     case 'getDisplayInfo':
@@ -107,15 +105,22 @@ rl.on('line', (line) => {
         result: displayInfo(),
       })
       return
+    case 'getExecutionTarget':
+      writeResponse({
+        id: request.id,
+        ok: true,
+        result: executionTarget(),
+      })
+      return
     case 'getForegroundContext':
       writeResponse({
         id: request.id,
         ok: true,
         result: {
-          available: true,
           appName: 'mousepad',
-          windowTitle: 'Mousepad',
+          available: true,
           platform: 'linux',
+          windowTitle: 'Mousepad',
         },
       })
       return
@@ -124,6 +129,33 @@ rl.on('line', (line) => {
         id: request.id,
         ok: true,
         result: permissionInfo(),
+      })
+      return
+    case 'initialize':
+      writeResponse({
+        id: request.id,
+        ok: true,
+        result: {
+          displayInfo: displayInfo(),
+          executionTarget: executionTarget(),
+          permissionInfo: permissionInfo(),
+        },
+      })
+      return
+    case 'openTestTarget':
+      writeResponse({
+        id: request.id,
+        ok: true,
+        result: {
+          appName: 'mousepad',
+          executionTarget: executionTarget(),
+          launched: true,
+          recommendedClickPoint: {
+            x: 180,
+            y: 150,
+          },
+          windowTitle: 'Mousepad',
+        },
       })
       return
     case 'takeScreenshot':
@@ -138,41 +170,9 @@ rl.on('line', (line) => {
                 publicUrl: `${state.observationBaseUrl.replace(/\/$/, '')}/fake-screenshot.png`,
               }
             : {}),
-          width: state.width,
+          executionTarget: executionTarget(),
           height: state.height,
-          executionTarget: executionTarget(),
-        },
-      })
-      return
-    case 'click':
-    case 'typeText':
-    case 'pressKeys':
-    case 'scroll':
-    case 'wait':
-      writeResponse({
-        id: request.id,
-        ok: true,
-        result: {
-          performed: true,
-          backend: 'linux-x11',
-          notes: [`${request.method} executed`],
-          executionTarget: executionTarget(),
-        },
-      })
-      return
-    case 'openTestTarget':
-      writeResponse({
-        id: request.id,
-        ok: true,
-        result: {
-          launched: true,
-          appName: 'mousepad',
-          windowTitle: 'Mousepad',
-          recommendedClickPoint: {
-            x: 180,
-            y: 150,
-          },
-          executionTarget: executionTarget(),
+          width: state.width,
         },
       })
       return

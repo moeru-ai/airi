@@ -11,11 +11,11 @@ export default mergeConfigs([
         fonts: {
           ...presetWebFontsFonts('none'),
         },
-        timeouts: {
-          warning: 5000,
-          failure: 10000,
-        },
         processors: createLocalFontProcessor(),
+        timeouts: {
+          failure: 10000,
+          warning: 5000,
+        },
       }),
     ],
   }),

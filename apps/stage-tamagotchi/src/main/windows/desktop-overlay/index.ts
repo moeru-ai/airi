@@ -55,6 +55,23 @@ export function isDesktopOverlayPollHeartbeatEnabled(): boolean {
 let overlayWindow: BrowserWindow | null = null
 
 /**
+ * Tear down the overlay window.
+ */
+export function destroyDesktopOverlay(): void {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.close()
+    overlayWindow = null
+  }
+}
+
+/**
+ * Get the current overlay window instance (if active).
+ */
+export function getDesktopOverlayWindow(): BrowserWindow | null {
+  return overlayWindow
+}
+
+/**
  * Create the transparent overlay window covering the full primary display.
  * The window is:
  * - Always on top (screen level)
@@ -65,9 +82,9 @@ let overlayWindow: BrowserWindow | null = null
  * Returns null if AIRI_DESKTOP_OVERLAY is not set.
  */
 export async function setupDesktopOverlayWindow(params: {
+  i18n: I18n
   mcpStdioManager: McpStdioManager
   serverChannel: ServerChannel
-  i18n: I18n
 }): Promise<BrowserWindow | null> {
   if (!isDesktopOverlayEnabled()) {
     return null
@@ -109,10 +126,10 @@ export async function setupDesktopOverlayWindow(params: {
   // this window), and all subsequent poll cycles never fire because
   // the poll loop awaits each call sequentially.
   await setupDesktopOverlayElectronInvokes({
-    window: overlayWindow,
+    i18n: params.i18n,
     mcpStdioManager: params.mcpStdioManager,
     serverChannel: params.serverChannel,
-    i18n: params.i18n,
+    window: overlayWindow,
   })
 
   // Load the overlay renderer page
@@ -128,21 +145,4 @@ export async function setupDesktopOverlayWindow(params: {
   )
 
   return overlayWindow
-}
-
-/**
- * Get the current overlay window instance (if active).
- */
-export function getDesktopOverlayWindow(): BrowserWindow | null {
-  return overlayWindow
-}
-
-/**
- * Tear down the overlay window.
- */
-export function destroyDesktopOverlay(): void {
-  if (overlayWindow && !overlayWindow.isDestroyed()) {
-    overlayWindow.close()
-    overlayWindow = null
-  }
 }

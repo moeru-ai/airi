@@ -39,6 +39,31 @@ import {
 
 export const TRACE_HISTORY_LIMIT = 20
 
+export interface StageThreeRuntimeHitTestDiagnostics {
+  lastDurationMs: number
+  lastReadHeight: number
+  lastReadWidth: number
+  lastTimestampMs: number
+  readCount: number
+  totalDurationMs: number
+}
+
+export interface StageThreeRuntimeResourceSnapshotDiagnostics {
+  history: StageThreeRuntimeResourceSnapshotRecord[]
+  lastAfterDispose?: StageThreeRuntimeResourceSnapshotRecord
+  lastAfterLoad?: StageThreeRuntimeResourceSnapshotRecord
+  lastBeforeDispose?: StageThreeRuntimeResourceSnapshotRecord
+}
+
+export interface StageThreeRuntimeResourceSnapshotRecord {
+  modelSrc?: string
+  phase: 'after-dispose' | 'after-load' | 'before-dispose'
+  reason?: VrmLifecycleReason
+  rendererMemory?: ThreeRendererMemorySnapshot
+  sceneSummary?: VrmSceneSummarySnapshot
+  ts: number
+}
+
 export interface StageThreeRuntimeThreeRenderDiagnostics {
   drawCalls: number
   geometries: number
@@ -48,6 +73,18 @@ export interface StageThreeRuntimeThreeRenderDiagnostics {
   renderCount: number
   textures: number
   triangles: number
+}
+
+export interface StageThreeRuntimeVrmLifecycleDiagnostics {
+  lastDisposeDurationMs: number
+  lastDisposeEndAt: number
+  lastDisposeStartAt: number
+  lastErrorMessage: string
+  lastLoadDurationMs: number
+  lastLoadEndAt: number
+  lastLoadStartAt: number
+  lastModelSrc: string
+  lastReason?: VrmLifecycleReason
 }
 
 export interface StageThreeRuntimeVrmUpdateDiagnostics {
@@ -67,111 +104,37 @@ export interface StageThreeRuntimeVrmUpdateDiagnostics {
   vrmRuntimeHookMs: number
 }
 
-export interface StageThreeRuntimeHitTestDiagnostics {
-  lastDurationMs: number
-  lastReadHeight: number
-  lastReadWidth: number
-  lastTimestampMs: number
-  readCount: number
-  totalDurationMs: number
-}
-
-export interface StageThreeRuntimeVrmLifecycleDiagnostics {
-  lastDisposeDurationMs: number
-  lastDisposeEndAt: number
-  lastDisposeStartAt: number
-  lastErrorMessage: string
-  lastLoadDurationMs: number
-  lastLoadEndAt: number
-  lastLoadStartAt: number
-  lastModelSrc: string
-  lastReason?: VrmLifecycleReason
-}
-
-export interface StageThreeRuntimeResourceSnapshotRecord {
-  modelSrc?: string
-  phase: 'after-dispose' | 'after-load' | 'before-dispose'
-  reason?: VrmLifecycleReason
-  rendererMemory?: ThreeRendererMemorySnapshot
-  sceneSummary?: VrmSceneSummarySnapshot
-  ts: number
-}
-
-export interface StageThreeRuntimeResourceSnapshotDiagnostics {
-  history: StageThreeRuntimeResourceSnapshotRecord[]
-  lastAfterDispose?: StageThreeRuntimeResourceSnapshotRecord
-  lastAfterLoad?: StageThreeRuntimeResourceSnapshotRecord
-  lastBeforeDispose?: StageThreeRuntimeResourceSnapshotRecord
-}
-
-export function createDefaultStageThreeRenderDiagnostics(): StageThreeRuntimeThreeRenderDiagnostics {
+export function applyHitTestTracePayload(
+  current: StageThreeRuntimeHitTestDiagnostics,
+  payload: ThreeHitTestReadTracePayload,
+): StageThreeRuntimeHitTestDiagnostics {
   return {
-    drawCalls: 0,
-    geometries: 0,
-    lastTimestampMs: 0,
-    lines: 0,
-    points: 0,
-    renderCount: 0,
-    textures: 0,
-    triangles: 0,
+    lastDurationMs: payload.durationMs,
+    lastReadHeight: payload.readHeight,
+    lastReadWidth: payload.readWidth,
+    lastTimestampMs: payload.ts,
+    readCount: current.readCount + 1,
+    totalDurationMs: current.totalDurationMs + payload.durationMs,
   }
 }
 
-export function createDefaultStageVrmUpdateDiagnostics(): StageThreeRuntimeVrmUpdateDiagnostics {
-  return {
-    animationMixerMs: 0,
-    blinkAndSaccadeMs: 0,
-    deltaMs: 0,
-    emoteMs: 0,
-    expressionMs: 0,
-    frameCount: 0,
-    humanoidMs: 0,
-    lastTimestampMs: 0,
-    lipSyncMs: 0,
-    lookAtMs: 0,
-    springBoneMs: 0,
-    totalMs: 0,
-    vrmFrameHookMs: 0,
-    vrmRuntimeHookMs: 0,
-  }
-}
-
-export function createDefaultStageHitTestDiagnostics(): StageThreeRuntimeHitTestDiagnostics {
-  return {
-    lastDurationMs: 0,
-    lastReadHeight: 0,
-    lastReadWidth: 0,
-    lastTimestampMs: 0,
-    readCount: 0,
-    totalDurationMs: 0,
-  }
-}
-
-export function createDefaultStageVrmLifecycleDiagnostics(): StageThreeRuntimeVrmLifecycleDiagnostics {
-  return {
-    lastDisposeDurationMs: 0,
-    lastDisposeEndAt: 0,
-    lastDisposeStartAt: 0,
-    lastErrorMessage: '',
-    lastLoadDurationMs: 0,
-    lastLoadEndAt: 0,
-    lastLoadStartAt: 0,
-    lastModelSrc: '',
-  }
-}
-
-export function createDefaultStageResourceSnapshotDiagnostics(): StageThreeRuntimeResourceSnapshotDiagnostics {
-  return {
-    history: [],
-  }
-}
-
-export function pushTraceHistory(
-  history: StageThreeRuntimeResourceSnapshotRecord[],
+export function applySnapshotRecord(
+  current: StageThreeRuntimeResourceSnapshotDiagnostics,
   record: StageThreeRuntimeResourceSnapshotRecord,
-) {
-  const nextHistory = [...history, record]
-  return nextHistory.slice(-TRACE_HISTORY_LIMIT)
+): StageThreeRuntimeResourceSnapshotDiagnostics {
+  const next: StageThreeRuntimeResourceSnapshotDiagnostics = {
+    ...current,
+    history: pushTraceHistory(current.history, record),
+  }
+
+  if (record.phase === 'after-load')
+    next.lastAfterLoad = record
+  else if (record.phase === 'before-dispose')
+    next.lastBeforeDispose = record
+  else if (record.phase === 'after-dispose')
+    next.lastAfterDispose = record
+
+  return next
 }
 
 export function applyThreeRenderTracePayload(
@@ -187,20 +150,6 @@ export function applyThreeRenderTracePayload(
     renderCount: current.renderCount + 1,
     textures: payload.textures,
     triangles: payload.triangles,
-  }
-}
-
-export function applyHitTestTracePayload(
-  current: StageThreeRuntimeHitTestDiagnostics,
-  payload: ThreeHitTestReadTracePayload,
-): StageThreeRuntimeHitTestDiagnostics {
-  return {
-    lastDurationMs: payload.durationMs,
-    lastReadHeight: payload.readHeight,
-    lastReadWidth: payload.readWidth,
-    lastTimestampMs: payload.ts,
-    readCount: current.readCount + 1,
-    totalDurationMs: current.totalDurationMs + payload.durationMs,
   }
 }
 
@@ -226,15 +175,97 @@ export function applyVrmUpdateTracePayload(
   }
 }
 
-function applyLoadStartPayload(
+export function createDefaultStageHitTestDiagnostics(): StageThreeRuntimeHitTestDiagnostics {
+  return {
+    lastDurationMs: 0,
+    lastReadHeight: 0,
+    lastReadWidth: 0,
+    lastTimestampMs: 0,
+    readCount: 0,
+    totalDurationMs: 0,
+  }
+}
+
+export function createDefaultStageResourceSnapshotDiagnostics(): StageThreeRuntimeResourceSnapshotDiagnostics {
+  return {
+    history: [],
+  }
+}
+
+export function createDefaultStageThreeRenderDiagnostics(): StageThreeRuntimeThreeRenderDiagnostics {
+  return {
+    drawCalls: 0,
+    geometries: 0,
+    lastTimestampMs: 0,
+    lines: 0,
+    points: 0,
+    renderCount: 0,
+    textures: 0,
+    triangles: 0,
+  }
+}
+
+export function createDefaultStageVrmLifecycleDiagnostics(): StageThreeRuntimeVrmLifecycleDiagnostics {
+  return {
+    lastDisposeDurationMs: 0,
+    lastDisposeEndAt: 0,
+    lastDisposeStartAt: 0,
+    lastErrorMessage: '',
+    lastLoadDurationMs: 0,
+    lastLoadEndAt: 0,
+    lastLoadStartAt: 0,
+    lastModelSrc: '',
+  }
+}
+
+export function createDefaultStageVrmUpdateDiagnostics(): StageThreeRuntimeVrmUpdateDiagnostics {
+  return {
+    animationMixerMs: 0,
+    blinkAndSaccadeMs: 0,
+    deltaMs: 0,
+    emoteMs: 0,
+    expressionMs: 0,
+    frameCount: 0,
+    humanoidMs: 0,
+    lastTimestampMs: 0,
+    lipSyncMs: 0,
+    lookAtMs: 0,
+    springBoneMs: 0,
+    totalMs: 0,
+    vrmFrameHookMs: 0,
+    vrmRuntimeHookMs: 0,
+  }
+}
+
+export function pushTraceHistory(
+  history: StageThreeRuntimeResourceSnapshotRecord[],
+  record: StageThreeRuntimeResourceSnapshotRecord,
+) {
+  const nextHistory = [...history, record]
+  return nextHistory.slice(-TRACE_HISTORY_LIMIT)
+}
+
+function applyDisposeEndPayload(
   current: StageThreeRuntimeVrmLifecycleDiagnostics,
-  payload: VrmLoadStartTracePayload,
+  payload: VrmDisposeEndTracePayload,
 ): StageThreeRuntimeVrmLifecycleDiagnostics {
   return {
     ...current,
-    lastErrorMessage: '',
-    lastLoadStartAt: payload.ts,
-    lastModelSrc: payload.modelSrc ?? '',
+    lastDisposeDurationMs: payload.durationMs ?? 0,
+    lastDisposeEndAt: payload.ts,
+    lastModelSrc: payload.modelSrc ?? current.lastModelSrc,
+    lastReason: payload.reason,
+  }
+}
+
+function applyDisposeStartPayload(
+  current: StageThreeRuntimeVrmLifecycleDiagnostics,
+  payload: VrmDisposeStartTracePayload,
+): StageThreeRuntimeVrmLifecycleDiagnostics {
+  return {
+    ...current,
+    lastDisposeStartAt: payload.ts,
+    lastModelSrc: payload.modelSrc ?? current.lastModelSrc,
     lastReason: payload.reason,
   }
 }
@@ -265,34 +296,22 @@ function applyLoadErrorPayload(
   }
 }
 
-function applyDisposeStartPayload(
+function applyLoadStartPayload(
   current: StageThreeRuntimeVrmLifecycleDiagnostics,
-  payload: VrmDisposeStartTracePayload,
+  payload: VrmLoadStartTracePayload,
 ): StageThreeRuntimeVrmLifecycleDiagnostics {
   return {
     ...current,
-    lastDisposeStartAt: payload.ts,
-    lastModelSrc: payload.modelSrc ?? current.lastModelSrc,
-    lastReason: payload.reason,
-  }
-}
-
-function applyDisposeEndPayload(
-  current: StageThreeRuntimeVrmLifecycleDiagnostics,
-  payload: VrmDisposeEndTracePayload,
-): StageThreeRuntimeVrmLifecycleDiagnostics {
-  return {
-    ...current,
-    lastDisposeDurationMs: payload.durationMs ?? 0,
-    lastDisposeEndAt: payload.ts,
-    lastModelSrc: payload.modelSrc ?? current.lastModelSrc,
+    lastErrorMessage: '',
+    lastLoadStartAt: payload.ts,
+    lastModelSrc: payload.modelSrc ?? '',
     lastReason: payload.reason,
   }
 }
 
 function createSnapshotRecord(
   phase: StageThreeRuntimeResourceSnapshotRecord['phase'],
-  payload: VrmDisposeStartTracePayload | VrmDisposeEndTracePayload | VrmLoadEndTracePayload,
+  payload: VrmDisposeEndTracePayload | VrmDisposeStartTracePayload | VrmLoadEndTracePayload,
 ): StageThreeRuntimeResourceSnapshotRecord {
   return {
     modelSrc: payload.modelSrc,
@@ -302,25 +321,6 @@ function createSnapshotRecord(
     sceneSummary: payload.sceneSummary,
     ts: payload.ts,
   }
-}
-
-export function applySnapshotRecord(
-  current: StageThreeRuntimeResourceSnapshotDiagnostics,
-  record: StageThreeRuntimeResourceSnapshotRecord,
-): StageThreeRuntimeResourceSnapshotDiagnostics {
-  const next: StageThreeRuntimeResourceSnapshotDiagnostics = {
-    ...current,
-    history: pushTraceHistory(current.history, record),
-  }
-
-  if (record.phase === 'after-load')
-    next.lastAfterLoad = record
-  else if (record.phase === 'before-dispose')
-    next.lastBeforeDispose = record
-  else if (record.phase === 'after-dispose')
-    next.lastAfterDispose = record
-
-  return next
 }
 
 export const useStageThreeRuntimeDiagnosticsStore = defineStore('stageThreeRuntimeDiagnostics', () => {
@@ -390,17 +390,17 @@ export const useStageThreeRuntimeDiagnosticsStore = defineStore('stageThreeRunti
     const envelope: StageThreeRuntimeTraceEnvelope = payload.envelope
 
     switch (envelope.type) {
-      case 'three-render-info':
-        applyRenderPayload(envelope.payload)
-        break
       case 'three-hit-test-read':
         applyHitTestPayload(envelope.payload)
         break
-      case 'vrm-update-frame':
-        applyVrmUpdatePayload(envelope.payload)
+      case 'three-render-info':
+        applyRenderPayload(envelope.payload)
         break
-      case 'vrm-load-start':
-        applyVrmLoadStartPayload(envelope.payload)
+      case 'vrm-dispose-end':
+        applyVrmDisposeEndPayload(envelope.payload)
+        break
+      case 'vrm-dispose-start':
+        applyVrmDisposeStartPayload(envelope.payload)
         break
       case 'vrm-load-end':
         applyVrmLoadEndPayload(envelope.payload)
@@ -408,11 +408,11 @@ export const useStageThreeRuntimeDiagnosticsStore = defineStore('stageThreeRunti
       case 'vrm-load-error':
         applyVrmLoadErrorPayload(envelope.payload)
         break
-      case 'vrm-dispose-start':
-        applyVrmDisposeStartPayload(envelope.payload)
+      case 'vrm-load-start':
+        applyVrmLoadStartPayload(envelope.payload)
         break
-      case 'vrm-dispose-end':
-        applyVrmDisposeEndPayload(envelope.payload)
+      case 'vrm-update-frame':
+        applyVrmUpdatePayload(envelope.payload)
         break
       default:
         break
@@ -479,8 +479,8 @@ export const useStageThreeRuntimeDiagnosticsStore = defineStore('stageThreeRunti
 
   return {
     hitTest,
-    resourceSnapshots,
     resetSamples,
+    resourceSnapshots,
     startTracing,
     stopTracing,
     threeRender,

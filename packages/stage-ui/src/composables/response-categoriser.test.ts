@@ -138,11 +138,11 @@ describe('createStreamingCategorizer', () => {
     // eslint-disable-next-line no-console
     console.log({
       input: text,
-      segmentsFound: result.segments.length,
-      tagName: result.segments[0]?.tagName,
-      segmentContent: result.segments[0]?.content,
       reasoning: result.reasoning,
+      segmentContent: result.segments[0]?.content,
+      segmentsFound: result.segments.length,
       speech: result.speech,
+      tagName: result.segments[0]?.tagName,
     })
 
     // Verify tag is recognized
@@ -176,11 +176,11 @@ describe('createStreamingCategorizer', () => {
     // eslint-disable-next-line no-console
     console.log({
       input: text,
-      segmentsFound: result.segments.length,
-      tagName: result.segments[0]?.tagName,
-      segmentContent: result.segments[0]?.content,
       reasoning: result.reasoning,
+      segmentContent: result.segments[0]?.content,
+      segmentsFound: result.segments.length,
       speech: result.speech,
+      tagName: result.segments[0]?.tagName,
     })
 
     // Verify tag is recognized
@@ -259,9 +259,9 @@ describe('createStreamingCategorizer', () => {
   })
 
   it('should call onSegment callback when segments are detected', () => {
-    const segments: Array<{ tagName: string, content: string }> = []
+    const segments: Array<{ content: string, tagName: string }> = []
     const categorizer = createStreamingCategorizer(undefined, (segment) => {
-      segments.push({ tagName: segment.tagName, content: segment.content })
+      segments.push({ content: segment.content, tagName: segment.tagName })
     })
 
     const text = 'Hello <reasoning>thought1</reasoning> <think>thought2</think> world!'

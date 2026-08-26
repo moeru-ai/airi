@@ -10,56 +10,36 @@ import { app } from 'electron'
 import { throttle } from 'es-toolkit'
 import { safeParse } from 'valibot'
 
-type ConfigStatus = 'ok' | 'missing' | 'invalid' | 'read-error'
-
 export interface ConfigDiagnostics<T> {
-  status: ConfigStatus
-  path: string
-  issues?: BaseIssue<unknown>[]
   error?: unknown
-  raw?: string
   healed?: boolean
+  issues?: BaseIssue<unknown>[]
+  path: string
+  raw?: string
+  status: ConfigStatus
   value?: T
 }
 
 export interface CreateConfigOptions<T> {
-  default?: T
   autoHeal?: boolean
-  onValidationFailure?: (diagnostics: ConfigDiagnostics<T>) => void
+  default?: T
   onReadError?: (diagnostics: ConfigDiagnostics<T>) => void
+  onValidationFailure?: (diagnostics: ConfigDiagnostics<T>) => void
 }
+
+type ConfigStatus = 'invalid' | 'missing' | 'ok' | 'read-error'
 
 const persistenceMap = new Map<string, unknown>()
 const diagnosticsMap = new Map<string, ConfigDiagnostics<unknown>>()
 
-function createConfigPath(namespace: string, filename: string) {
-  return join(app.getPath('userData'), `${namespace}-${filename}`)
-}
-
-async function ensureConfigDirectory(path: string) {
-  await mkdir(dirname(path), { recursive: true })
+export interface Config<TSchema extends PersistedSchema> {
+  get: () => InferOutput<TSchema> | undefined
+  getDiagnostics: () => ConfigDiagnostics<InferOutput<TSchema>> | undefined
+  setup: () => ConfigDiagnostics<InferOutput<TSchema>>
+  update: (newData: InferOutput<TSchema>) => void
 }
 
 type PersistedSchema = BaseSchema<unknown, unknown, BaseIssue<unknown>>
-
-function parseWithSchema<TSchema extends PersistedSchema>(
-  raw: string,
-  schema: TSchema,
-): { value?: InferOutput<TSchema>, issues?: InferIssue<TSchema>[] } {
-  const parsed = safeDestr<unknown>(raw)
-  const result = safeParse(schema, parsed)
-  if (result.success) {
-    return { value: result.output }
-  }
-  return { issues: result.issues }
-}
-
-export interface Config<TSchema extends PersistedSchema> {
-  setup: () => ConfigDiagnostics<InferOutput<TSchema>>
-  get: () => InferOutput<TSchema> | undefined
-  update: (newData: InferOutput<TSchema>) => void
-  getDiagnostics: () => ConfigDiagnostics<InferOutput<TSchema>> | undefined
-}
 
 export function createConfig<TSchema extends PersistedSchema>(
   namespace: string,
@@ -110,8 +90,8 @@ export function createConfig<TSchema extends PersistedSchema>(
     const path = configPath()
     if (!existsSync(path)) {
       const diagnostics = recordDiagnostics({
-        status: 'missing',
         path,
+        status: 'missing',
         value: options?.default,
       })
       persistenceMap.set(key, options?.default)
@@ -123,8 +103,8 @@ export function createConfig<TSchema extends PersistedSchema>(
       const parsed = parseWithSchema(raw, schema)
       if (parsed.value !== undefined) {
         const diagnostics = recordDiagnostics({
-          status: 'ok',
           path,
+          status: 'ok',
           value: parsed.value,
         })
         persistenceMap.set(key, parsed.value)
@@ -133,10 +113,10 @@ export function createConfig<TSchema extends PersistedSchema>(
 
       const fallback = options?.default
       const diagnostics = recordDiagnostics({
-        status: 'invalid',
-        path,
         issues: parsed.issues,
+        path,
         raw,
+        status: 'invalid',
         value: fallback,
       })
       options?.onValidationFailure?.(diagnostics)
@@ -154,9 +134,9 @@ export function createConfig<TSchema extends PersistedSchema>(
     catch (error) {
       const fallback = options?.default
       const diagnostics = recordDiagnostics({
-        status: 'read-error',
-        path,
         error,
+        path,
+        status: 'read-error',
         value: fallback,
       })
       options?.onReadError?.(diagnostics)
@@ -175,9 +155,29 @@ export function createConfig<TSchema extends PersistedSchema>(
   const getDiagnostics = () => diagnosticsMap.get(key) as ConfigDiagnostics<InferOutput<TSchema>> | undefined
 
   return {
-    setup,
     get,
-    update,
     getDiagnostics,
+    setup,
+    update,
   }
+}
+
+function createConfigPath(namespace: string, filename: string) {
+  return join(app.getPath('userData'), `${namespace}-${filename}`)
+}
+
+async function ensureConfigDirectory(path: string) {
+  await mkdir(dirname(path), { recursive: true })
+}
+
+function parseWithSchema<TSchema extends PersistedSchema>(
+  raw: string,
+  schema: TSchema,
+): { issues?: InferIssue<TSchema>[], value?: InferOutput<TSchema> } {
+  const parsed = safeDestr<unknown>(raw)
+  const result = safeParse(schema, parsed)
+  if (result.success) {
+    return { value: result.output }
+  }
+  return { issues: result.issues }
 }

@@ -8,16 +8,16 @@ import { nanoid } from '../utils/id'
 // hard-delete of user.id must not cascade-wipe the ledger.
 // See `server/apps/api/docs/ai-context/account-deletion.md`.
 export const fluxTransaction = pgTable('flux_transaction', {
-  id: text('id').primaryKey().$defaultFn(() => nanoid()),
-  userId: text('user_id').notNull(),
-  type: text('type').notNull(), // 'credit' | 'debit' | 'initial' | 'promo' | 'admin_set'
   amount: bigint('amount', { mode: 'number' }).notNull(), // always positive
-  balanceBefore: bigint('balance_before', { mode: 'number' }).notNull(),
   balanceAfter: bigint('balance_after', { mode: 'number' }).notNull(),
-  requestId: text('request_id'), // nullable; used for idempotency on debit/credit
-  description: text('description').notNull(),
-  metadata: jsonb('metadata'), // { promptTokens, completionTokens, stripeSessionId, ... }
+  balanceBefore: bigint('balance_before', { mode: 'number' }).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  description: text('description').notNull(),
+  id: text('id').primaryKey().$defaultFn(() => nanoid()),
+  metadata: jsonb('metadata'), // { promptTokens, completionTokens, stripeSessionId, ... }
+  requestId: text('request_id'), // nullable; used for idempotency on debit/credit
+  type: text('type').notNull(), // 'credit' | 'debit' | 'initial' | 'promo' | 'admin_set'
+  userId: text('user_id').notNull(),
 }, table => [
   index('flux_tx_user_id_idx').on(table.userId),
   index('flux_tx_created_at_idx').on(table.createdAt),

@@ -4,8 +4,8 @@ import { calculateFluxFromUsage, extractUsageFromBody } from '../billing'
 
 describe('extractUsageFromBody', () => {
   it('returns promptTokens and completionTokens from a normal body', () => {
-    const body = { usage: { prompt_tokens: 100, completion_tokens: 200 } }
-    expect(extractUsageFromBody(body)).toEqual({ promptTokens: 100, completionTokens: 200 })
+    const body = { usage: { completion_tokens: 200, prompt_tokens: 100 } }
+    expect(extractUsageFromBody(body)).toEqual({ completionTokens: 200, promptTokens: 100 })
   })
 
   it('returns empty object when body has no usage field', () => {
@@ -43,14 +43,14 @@ describe('extractUsageFromBody', () => {
   })
 
   it('treats explicit null fields in usage as undefined', () => {
-    const body = { usage: { prompt_tokens: null, completion_tokens: null } }
+    const body = { usage: { completion_tokens: null, prompt_tokens: null } }
     const result = extractUsageFromBody(body)
     expect(result.promptTokens).toBeUndefined()
     expect(result.completionTokens).toBeUndefined()
   })
 
   it('handles zero token values correctly', () => {
-    const body = { usage: { prompt_tokens: 0, completion_tokens: 0 } }
+    const body = { usage: { completion_tokens: 0, prompt_tokens: 0 } }
     const result = extractUsageFromBody(body)
     expect(result.promptTokens).toBe(0)
     expect(result.completionTokens).toBe(0)
@@ -59,25 +59,25 @@ describe('extractUsageFromBody', () => {
 
 describe('calculateFluxFromUsage', () => {
   it('calculates flux based on total tokens and rate', () => {
-    const usage = { promptTokens: 500, completionTokens: 500 }
+    const usage = { completionTokens: 500, promptTokens: 500 }
     // 1000 tokens * 1 per 1k = 1
     expect(calculateFluxFromUsage(usage, 1, 5)).toBe(1)
   })
 
   it('applies ceiling to fractional flux values', () => {
-    const usage = { promptTokens: 500, completionTokens: 501 }
+    const usage = { completionTokens: 501, promptTokens: 500 }
     // 1001 tokens * 1 per 1k = 1.001 → ceil → 2
     expect(calculateFluxFromUsage(usage, 1, 5)).toBe(2)
   })
 
   it('enforces a minimum of 1 flux even when calculation yields 0', () => {
-    const usage = { promptTokens: 1, completionTokens: 1 }
+    const usage = { completionTokens: 1, promptTokens: 1 }
     // 2 tokens * 1 per 1k = 0.002 → ceil → 1, max(1, 1) = 1
     expect(calculateFluxFromUsage(usage, 1, 5)).toBe(1)
   })
 
   it('enforces minimum of 1 flux when tokens are zero', () => {
-    const usage = { promptTokens: 0, completionTokens: 0 }
+    const usage = { completionTokens: 0, promptTokens: 0 }
     // 0 tokens * anything = 0 → ceil → 0, max(1, 0) = 1
     expect(calculateFluxFromUsage(usage, 1, 5)).toBe(1)
   })
@@ -97,31 +97,31 @@ describe('calculateFluxFromUsage', () => {
   })
 
   it('uses a higher fluxPer1kTokens multiplier correctly', () => {
-    const usage = { promptTokens: 1000, completionTokens: 1000 }
+    const usage = { completionTokens: 1000, promptTokens: 1000 }
     // 2000 tokens * 5 per 1k = 10
     expect(calculateFluxFromUsage(usage, 5, 1)).toBe(10)
   })
 
   it('uses a fractional fluxPer1kTokens multiplier with ceiling', () => {
-    const usage = { promptTokens: 200, completionTokens: 200 }
+    const usage = { completionTokens: 200, promptTokens: 200 }
     // 400 tokens * 0.5 per 1k = 0.2 → ceil → 1, max(1, 1) = 1
     expect(calculateFluxFromUsage(usage, 0.5, 3)).toBe(1)
   })
 
   it('handles very large token counts', () => {
-    const usage = { promptTokens: 1_000_000, completionTokens: 1_000_000 }
+    const usage = { completionTokens: 1_000_000, promptTokens: 1_000_000 }
     // 2_000_000 tokens * 1 per 1k = 2000
     expect(calculateFluxFromUsage(usage, 1, 5)).toBe(2000)
   })
 
   it('handles exact 1k token boundary without ceiling', () => {
-    const usage = { promptTokens: 500, completionTokens: 500 }
+    const usage = { completionTokens: 500, promptTokens: 500 }
     // 1000 tokens * 2 per 1k = 2 (exact, no ceiling needed)
     expect(calculateFluxFromUsage(usage, 2, 5)).toBe(2)
   })
 
   it('returns fallbackRate when both token fields are undefined (not null)', () => {
-    const usage = { promptTokens: undefined, completionTokens: undefined }
+    const usage = { completionTokens: undefined, promptTokens: undefined }
     expect(calculateFluxFromUsage(usage, 1, 99)).toBe(99)
   })
 })

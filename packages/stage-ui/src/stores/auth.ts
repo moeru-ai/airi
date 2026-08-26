@@ -14,16 +14,25 @@ import { authClient, requestAuthSession } from '../libs/auth-client'
 import { refreshAccessToken } from '../libs/auth-oidc'
 import { SERVER_URL } from '../libs/server'
 
+/** Tokens that complete one OIDC sign-in flow. */
+export interface AuthTokenSet {
+  accessToken: string
+  clientId: string
+  expiresIn: number
+  idToken?: string
+  refreshToken?: string
+}
+
 function createLocalStorageForAuth() {
   const keys = {
     accessToken: 'auth/v1/token',
-    refreshToken: 'auth/v1/refresh-token',
     idToken: 'auth/v1/oidc-id-token',
     oidcClientId: 'auth/v1/oidc-client-id',
+    refreshToken: 'auth/v1/refresh-token',
     tokenExpiry: 'auth/v1/oidc-token-expiry',
   } as const
 
-  function setOptional(key: string, value: string | null): void {
+  function setOptional(key: string, value: null | string): void {
     if (value === null) {
       localStorage.removeItem(key)
       return
@@ -38,28 +47,19 @@ function createLocalStorageForAuth() {
         localStorage.removeItem(key)
     },
     getAccessToken: () => localStorage.getItem(keys.accessToken),
-    getRefreshToken: () => localStorage.getItem(keys.refreshToken),
     getIdToken: () => localStorage.getItem(keys.idToken),
     getOidcClientId: () => localStorage.getItem(keys.oidcClientId),
+    getRefreshToken: () => localStorage.getItem(keys.refreshToken),
     getTokenExpiry() {
       const expiry = Number.parseInt(localStorage.getItem(keys.tokenExpiry) ?? '', 10)
       return Number.isFinite(expiry) ? expiry : null
     },
-    setAccessToken: (value: string | null) => setOptional(keys.accessToken, value),
-    setRefreshToken: (value: string | null) => setOptional(keys.refreshToken, value),
-    setIdToken: (value: string | null) => setOptional(keys.idToken, value),
-    setOidcClientId: (value: string | null) => setOptional(keys.oidcClientId, value),
-    setTokenExpiry: (value: number | null) => setOptional(keys.tokenExpiry, value?.toString() ?? null),
+    setAccessToken: (value: null | string) => setOptional(keys.accessToken, value),
+    setIdToken: (value: null | string) => setOptional(keys.idToken, value),
+    setOidcClientId: (value: null | string) => setOptional(keys.oidcClientId, value),
+    setRefreshToken: (value: null | string) => setOptional(keys.refreshToken, value),
+    setTokenExpiry: (value: null | number) => setOptional(keys.tokenExpiry, value?.toString() ?? null),
   }
-}
-
-/** Tokens that complete one OIDC sign-in flow. */
-export interface AuthTokenSet {
-  accessToken: string
-  refreshToken?: string
-  idToken?: string
-  expiresIn: number
-  clientId: string
 }
 
 /**
@@ -73,22 +73,22 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Pinia owns live auth state. Persistence is command-driven so a state patch
   // received from another window cannot write back into the transport.
-  const user = ref<User | null>(null)
-  const session = ref<Session | null>(null)
-  const token = ref<string | null>(null)
-  const refreshToken = ref<string | null>(null)
+  const user = ref<null | User>(null)
+  const session = ref<null | Session>(null)
+  const token = ref<null | string>(null)
+  const refreshToken = ref<null | string>(null)
   // NOTICE:
   // Persisted to drive `id_token_hint` on RP-Initiated Logout
   // (`/api/auth/oauth2/end-session`). The `sid` claim inside the ID token is
   // what lets the OIDC provider locate the server-side session row to delete
   // — without this we'd be back to relying on cross-site session cookies.
-  const idToken = ref<string | null>(null)
+  const idToken = ref<null | string>(null)
   const isAuthenticated = computed(() => !!user.value && !!session.value)
   const userId = computed(() => user.value?.id ?? 'local')
 
   // --- OIDC token refresh state ---
-  const oidcClientId = ref<string | null>(null)
-  const tokenExpiry = ref<number | null>(null)
+  const oidcClientId = ref<null | string>(null)
+  const tokenExpiry = ref<null | number>(null)
   const initialized = ref(false)
 
   const credits = ref(0)
@@ -116,7 +116,7 @@ export const useAuthStore = defineStore('auth', () => {
   watch(isMobile, () => needsLogin.value = false)
 
   // --- Lifecycle hooks ---
-  type AuthHook = () => void | Promise<void>
+  type AuthHook = () => Promise<void> | void
   const authenticatedHooks: AuthHook[] = []
   const logoutHooks: AuthHook[] = []
 
@@ -150,9 +150,9 @@ export const useAuthStore = defineStore('auth', () => {
   const refreshDelayMs = ref(0)
   // Single-flight refresh: multiple concurrent callers (timer + 401 retry + restore)
   // must not trigger multiple token exchanges. All share one in-flight promise.
-  let inflightRefresh: Promise<string | null> | null = null
+  let inflightRefresh: null | Promise<null | string> = null
 
-  async function refreshTokenNow(): Promise<string | null> {
+  async function refreshTokenNow(): Promise<null | string> {
     if (inflightRefresh)
       return inflightRefresh
 
@@ -272,7 +272,7 @@ export const useAuthStore = defineStore('auth', () => {
     return await fetchSession(tokens.accessToken)
   }
 
-  async function fetchSession(accessToken: string | null = token.value): Promise<boolean> {
+  async function fetchSession(accessToken: null | string = token.value): Promise<boolean> {
     const data = await requestAuthSession(accessToken)
     if (data) {
       user.value = data.user
@@ -288,8 +288,8 @@ export const useAuthStore = defineStore('auth', () => {
     return await authClient.listSessions({
       fetchOptions: {
         auth: {
-          type: 'Bearer',
           token: token.value ?? '',
+          type: 'Bearer',
         },
       },
     })
@@ -312,8 +312,8 @@ export const useAuthStore = defineStore('auth', () => {
       else if (bearerToken) {
         const url = new URL('/api/auth/sign-out', SERVER_URL)
         await fetch(url.toString(), {
-          method: 'POST',
           headers: { Authorization: `Bearer ${bearerToken}` },
+          method: 'POST',
         })
       }
     }
@@ -394,30 +394,30 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   return {
-    user,
-    userId,
-    session,
-    token,
-    refreshToken,
-    idToken,
-    isAuthenticated,
+    clearAllAuthState,
+    completeSignIn,
     credits,
-    updateCredits,
+    fetchSession,
+    idToken,
+    initialize,
+    isAuthenticated,
+    listSessions,
     needsLogin,
+    // OIDC token refresh
+    oidcClientId,
     onAuthenticated,
     onLogout,
 
-    // OIDC token refresh
-    oidcClientId,
-    tokenExpiry,
-    scheduleTokenRefresh,
-    initialize,
-    completeSignIn,
-    fetchSession,
-    listSessions,
-    signOut,
+    refreshToken,
     refreshTokenNow,
-    clearAllAuthState,
+    scheduleTokenRefresh,
+    session,
+    signOut,
+    token,
+    tokenExpiry,
+    updateCredits,
+    user,
+    userId,
   }
 }, {
   synced: {

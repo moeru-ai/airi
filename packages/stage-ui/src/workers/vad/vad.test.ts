@@ -18,10 +18,10 @@ vi.mock('@huggingface/transformers', async (importOriginal) => {
 
 function createProbabilityModel(probabilities: number[]) {
   return vi.fn(async (input: { state: unknown }) => ({
-    stateN: input.state,
     output: {
       data: new Float32Array([probabilities.shift() ?? 0]),
     },
+    stateN: input.state,
   })) as unknown as PreTrainedModel
 }
 
@@ -41,10 +41,10 @@ describe('vad speech duration', () => {
     const probabilities = [0.9, ...Array.from<number>({ length: 80 }).fill(0)]
     vi.mocked(AutoModel.from_pretrained).mockResolvedValue(createProbabilityModel(probabilities))
     const vad = new VAD({
-      sampleRate: 16000,
-      newBufferSize: 160,
       minSilenceDurationMs: 800,
       minSpeechDurationMs: 300,
+      newBufferSize: 160,
+      sampleRate: 16000,
     })
     const onSpeechReady = vi.fn()
     const onSpeechCancel = vi.fn()
@@ -66,10 +66,10 @@ describe('vad speech duration', () => {
     ]
     vi.mocked(AutoModel.from_pretrained).mockResolvedValue(createProbabilityModel(probabilities))
     const vad = new VAD({
-      sampleRate: 16000,
-      newBufferSize: 160,
       minSilenceDurationMs: 800,
       minSpeechDurationMs: 300,
+      newBufferSize: 160,
+      sampleRate: 16000,
     })
     const onSpeechReady = vi.fn()
     vad.on('speech-ready', onSpeechReady)
@@ -98,10 +98,10 @@ describe('vad speech duration', () => {
     ]
     vi.mocked(AutoModel.from_pretrained).mockResolvedValue(createProbabilityModel(probabilities))
     const vad = new VAD({
-      sampleRate: 16000,
-      newBufferSize: 160,
       minSilenceDurationMs: 800,
       minSpeechDurationMs: 300,
+      newBufferSize: 160,
+      sampleRate: 16000,
     })
     const onSpeechReady = vi.fn()
     vad.on('speech-ready', onSpeechReady)

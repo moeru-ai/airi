@@ -18,6 +18,15 @@ export function base64UrlEncode(buffer: Uint8Array): string {
 }
 
 /**
+ * Derive a S256 code challenge from a code verifier (RFC 7636 S4.2).
+ */
+export async function generateCodeChallenge(verifier: string): Promise<string> {
+  const data = new TextEncoder().encode(verifier)
+  const digest = await crypto.subtle.digest('SHA-256', data)
+  return base64UrlEncode(new Uint8Array(digest))
+}
+
+/**
  * Generate a cryptographically random code verifier (RFC 7636 S4.1).
  * 43-128 characters from the unreserved URL character set.
  */
@@ -25,15 +34,6 @@ export function generateCodeVerifier(length = 64): string {
   const array = new Uint8Array(length)
   crypto.getRandomValues(array)
   return base64UrlEncode(array)
-}
-
-/**
- * Derive a S256 code challenge from a code verifier (RFC 7636 S4.2).
- */
-export async function generateCodeChallenge(verifier: string): Promise<string> {
-  const data = new TextEncoder().encode(verifier)
-  const digest = await crypto.subtle.digest('SHA-256', data)
-  return base64UrlEncode(new Uint8Array(digest))
 }
 
 /**

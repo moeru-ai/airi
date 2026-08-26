@@ -9,27 +9,27 @@ import { useChatContextStore } from './context-store'
 
 type TestContextMessage = ContextMessage & { source?: string }
 
-function createMetadata(extensionId: string, moduleId: string): NonNullable<ContextMessage['metadata']> {
-  return {
-    source: {
-      id: moduleId,
-      extension: {
-        id: extensionId,
-      },
-    },
-  }
-}
-
 function createContextMessage(overrides: Partial<TestContextMessage> = {}): TestContextMessage {
   const id = overrides.id ?? 'context-1'
 
   return {
-    id,
     contextId: overrides.contextId ?? id,
+    createdAt: overrides.createdAt ?? 1,
+    id,
     strategy: overrides.strategy ?? ContextUpdateStrategy.ReplaceSelf,
     text: overrides.text ?? 'context text',
-    createdAt: overrides.createdAt ?? 1,
     ...overrides,
+  }
+}
+
+function createMetadata(extensionId: string, moduleId: string): NonNullable<ContextMessage['metadata']> {
+  return {
+    source: {
+      extension: {
+        id: extensionId,
+      },
+      id: moduleId,
+    },
   }
 }
 
@@ -66,14 +66,14 @@ describe('useChatContextStore', () => {
     const secondResult = store.ingestContextMessage(secondMessage)
 
     expect(firstResult).toEqual({
-      sourceKey: 'weather:station-1',
-      mutation: 'append',
       entryCount: 1,
+      mutation: 'append',
+      sourceKey: 'weather:station-1',
     })
     expect(secondResult).toEqual({
-      sourceKey: 'weather:station-1',
-      mutation: 'append',
       entryCount: 2,
+      mutation: 'append',
+      sourceKey: 'weather:station-1',
     })
     expect(store.activeContexts).toEqual(store.getContextsSnapshot())
     expect(store.activeContexts['weather:station-1']?.map(message => message.text)).toEqual(['sunny', 'windy'])
@@ -95,9 +95,9 @@ describe('useChatContextStore', () => {
     const result = store.ingestContextMessage(reactiveMessage)
 
     expect(result).toEqual({
-      sourceKey: 'weather:station-1',
-      mutation: 'replace',
       entryCount: 1,
+      mutation: 'replace',
+      sourceKey: 'weather:station-1',
     })
     expect(store.getContextsSnapshot()['weather:station-1']?.[0]?.text).toBe('reactive weather')
   })
@@ -170,18 +170,18 @@ describe('useChatContextStore', () => {
     const store = useChatContextStore()
 
     store.ingestContextMessage(createContextMessage({
+      createdAt: 10,
       id: 'first',
       source: 'sensor',
       strategy: ContextUpdateStrategy.AppendSelf,
       text: 'early',
-      createdAt: 10,
     }))
     store.ingestContextMessage(createContextMessage({
+      createdAt: 30,
       id: 'second',
       source: 'sensor',
       strategy: ContextUpdateStrategy.AppendSelf,
       text: 'late',
-      createdAt: 30,
     }))
 
     const bucket = store.getContextBucketsSnapshot().find(snapshot => snapshot.sourceKey === 'sensor')

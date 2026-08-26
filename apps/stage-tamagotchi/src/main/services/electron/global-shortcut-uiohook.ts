@@ -17,128 +17,26 @@ import { uIOhook, UiohookKey } from 'uiohook-napi'
 type Logger = ReturnType<ReturnType<typeof useLogg>['useGlobalConfig']>
 
 interface ModifierMask {
-  ctrl: boolean
-  shift: boolean
   alt: boolean
+  ctrl: boolean
   meta: boolean
+  shift: boolean
 }
 
 interface UiohookEntry {
   binding: ShortcutBinding
-  predicate: (event: UiohookKeyboardEvent) => boolean
   expectedKeycode: number
+  predicate: (event: UiohookKeyboardEvent) => boolean
   pressed: boolean
 }
 
 const W3C_TO_UIOHOOK: Readonly<Record<ShortcutKey, number>> = buildKeycodeMap()
 
-function buildKeycodeMap(): Record<ShortcutKey, number> {
-  const map: Record<string, number> = {}
-
-  for (let i = 0; i < 26; i++) {
-    const letter = String.fromCharCode(65 + i)
-    map[`Key${letter}`] = (UiohookKey as unknown as Record<string, number>)[letter]
-  }
-
-  for (let i = 0; i <= 9; i++) {
-    map[`Digit${i}`] = (UiohookKey as unknown as Record<string, number>)[String(i)]
-  }
-
-  for (let i = 1; i <= 24; i++) {
-    map[`F${i}`] = (UiohookKey as unknown as Record<string, number>)[`F${i}`]
-  }
-
-  const named: Record<string, keyof typeof UiohookKey> = {
-    Space: 'Space',
-    Tab: 'Tab',
-    Enter: 'Enter',
-    Escape: 'Escape',
-    Backspace: 'Backspace',
-    Delete: 'Delete',
-    Insert: 'Insert',
-    ArrowUp: 'ArrowUp',
-    ArrowDown: 'ArrowDown',
-    ArrowLeft: 'ArrowLeft',
-    ArrowRight: 'ArrowRight',
-    Home: 'Home',
-    End: 'End',
-    PageUp: 'PageUp',
-    PageDown: 'PageDown',
-    Backquote: 'Backquote',
-    Minus: 'Minus',
-    Equal: 'Equal',
-    BracketLeft: 'BracketLeft',
-    BracketRight: 'BracketRight',
-    Backslash: 'Backslash',
-    Semicolon: 'Semicolon',
-    Quote: 'Quote',
-    Comma: 'Comma',
-    Period: 'Period',
-    Slash: 'Slash',
-  }
-  for (const [w3c, uioName] of Object.entries(named))
-    map[w3c] = (UiohookKey as unknown as Record<string, number>)[uioName as string]
-
-  return map
-}
-
-function resolveModifierMask(modifiers: readonly ShortcutModifier[], platform: NodeJS.Platform): ModifierMask {
-  const mask: ModifierMask = { ctrl: false, shift: false, alt: false, meta: false }
-  for (const m of modifiers) {
-    switch (m) {
-      case 'cmd-or-ctrl':
-        if (platform === 'darwin')
-          mask.meta = true
-        else
-          mask.ctrl = true
-        break
-      case 'cmd':
-      case 'super':
-        // libuiohook surfaces macOS Cmd, Windows key, and X11 Super
-        // through the same `metaKey` flag.
-        mask.meta = true
-        break
-      case 'ctrl':
-        mask.ctrl = true
-        break
-      case 'alt':
-        mask.alt = true
-        break
-      case 'shift':
-        mask.shift = true
-        break
-    }
-  }
-  return mask
-}
-
-function buildPredicate(acc: ShortcutAccelerator, platform: NodeJS.Platform): { predicate: UiohookEntry['predicate'], expectedKeycode: number } | undefined {
-  const expectedKeycode = W3C_TO_UIOHOOK[acc.key]
-  if (expectedKeycode === undefined)
-    return undefined
-  const required = resolveModifierMask(acc.modifiers, platform)
-  const predicate: UiohookEntry['predicate'] = e =>
-    e.keycode === expectedKeycode
-    && e.ctrlKey === required.ctrl
-    && e.shiftKey === required.shift
-    && e.altKey === required.alt
-    && e.metaKey === required.meta
-  return { predicate, expectedKeycode }
-}
-
-function isNativeWayland(platform: NodeJS.Platform, sessionType: string | undefined): boolean {
-  return platform === 'linux' && sessionType === 'wayland'
-}
-
-function isMacAccessibilityTrusted(platform: NodeJS.Platform, prompt: boolean): boolean {
-  if (platform !== 'darwin')
-    return true
-  try {
-    return systemPreferences.isTrustedAccessibilityClient(prompt)
-  }
-  catch {
-    return true
-  }
+export interface UiohookDriver {
+  dispose: () => void
+  tryRegister: (binding: ShortcutBinding) => ShortcutRegistrationResult
+  unregisterAll: () => void
+  unregisterById: (id: string) => void
 }
 
 export interface UiohookDriverOptions {
@@ -158,13 +56,6 @@ export interface UiohookDriverOptions {
    * @default process.env.XDG_SESSION_TYPE
    */
   sessionType?: string
-}
-
-export interface UiohookDriver {
-  tryRegister: (binding: ShortcutBinding) => ShortcutRegistrationResult
-  unregisterById: (id: string) => void
-  unregisterAll: () => void
-  dispose: () => void
 }
 
 /**
@@ -282,8 +173,8 @@ export function createUiohookDriver(options: UiohookDriverOptions): UiohookDrive
 
     entries.set(binding.id, {
       binding,
-      predicate: built.predicate,
       expectedKeycode: built.expectedKeycode,
+      predicate: built.predicate,
       pressed: false,
     })
     ensureListeners()
@@ -313,5 +204,114 @@ export function createUiohookDriver(options: UiohookDriverOptions): UiohookDrive
     }
   }
 
-  return { tryRegister, unregisterById, unregisterAll, dispose }
+  return { dispose, tryRegister, unregisterAll, unregisterById }
+}
+
+function buildKeycodeMap(): Record<ShortcutKey, number> {
+  const map: Record<string, number> = {}
+
+  for (let i = 0; i < 26; i++) {
+    const letter = String.fromCharCode(65 + i)
+    map[`Key${letter}`] = (UiohookKey as unknown as Record<string, number>)[letter]
+  }
+
+  for (let i = 0; i <= 9; i++) {
+    map[`Digit${i}`] = (UiohookKey as unknown as Record<string, number>)[String(i)]
+  }
+
+  for (let i = 1; i <= 24; i++) {
+    map[`F${i}`] = (UiohookKey as unknown as Record<string, number>)[`F${i}`]
+  }
+
+  const named: Record<string, keyof typeof UiohookKey> = {
+    ArrowDown: 'ArrowDown',
+    ArrowLeft: 'ArrowLeft',
+    ArrowRight: 'ArrowRight',
+    ArrowUp: 'ArrowUp',
+    Backquote: 'Backquote',
+    Backslash: 'Backslash',
+    Backspace: 'Backspace',
+    BracketLeft: 'BracketLeft',
+    BracketRight: 'BracketRight',
+    Comma: 'Comma',
+    Delete: 'Delete',
+    End: 'End',
+    Enter: 'Enter',
+    Equal: 'Equal',
+    Escape: 'Escape',
+    Home: 'Home',
+    Insert: 'Insert',
+    Minus: 'Minus',
+    PageDown: 'PageDown',
+    PageUp: 'PageUp',
+    Period: 'Period',
+    Quote: 'Quote',
+    Semicolon: 'Semicolon',
+    Slash: 'Slash',
+    Space: 'Space',
+    Tab: 'Tab',
+  }
+  for (const [w3c, uioName] of Object.entries(named))
+    map[w3c] = (UiohookKey as unknown as Record<string, number>)[uioName as string]
+
+  return map
+}
+
+function buildPredicate(acc: ShortcutAccelerator, platform: NodeJS.Platform): undefined | { expectedKeycode: number, predicate: UiohookEntry['predicate'] } {
+  const expectedKeycode = W3C_TO_UIOHOOK[acc.key]
+  if (expectedKeycode === undefined)
+    return undefined
+  const required = resolveModifierMask(acc.modifiers, platform)
+  const predicate: UiohookEntry['predicate'] = e =>
+    e.keycode === expectedKeycode
+    && e.ctrlKey === required.ctrl
+    && e.shiftKey === required.shift
+    && e.altKey === required.alt
+    && e.metaKey === required.meta
+  return { expectedKeycode, predicate }
+}
+
+function isMacAccessibilityTrusted(platform: NodeJS.Platform, prompt: boolean): boolean {
+  if (platform !== 'darwin')
+    return true
+  try {
+    return systemPreferences.isTrustedAccessibilityClient(prompt)
+  }
+  catch {
+    return true
+  }
+}
+
+function isNativeWayland(platform: NodeJS.Platform, sessionType: string | undefined): boolean {
+  return platform === 'linux' && sessionType === 'wayland'
+}
+
+function resolveModifierMask(modifiers: readonly ShortcutModifier[], platform: NodeJS.Platform): ModifierMask {
+  const mask: ModifierMask = { alt: false, ctrl: false, meta: false, shift: false }
+  for (const m of modifiers) {
+    switch (m) {
+      case 'alt':
+        mask.alt = true
+        break
+      case 'cmd':
+      case 'super':
+        // libuiohook surfaces macOS Cmd, Windows key, and X11 Super
+        // through the same `metaKey` flag.
+        mask.meta = true
+        break
+      case 'cmd-or-ctrl':
+        if (platform === 'darwin')
+          mask.meta = true
+        else
+          mask.ctrl = true
+        break
+      case 'ctrl':
+        mask.ctrl = true
+        break
+      case 'shift':
+        mask.shift = true
+        break
+    }
+  }
+  return mask
 }

@@ -13,51 +13,23 @@ import { handlePing, registerCommands, VoiceManager } from '../bots/discord/comm
 const log = useLogg('DiscordAdapter').useGlobalConfig()
 
 export interface DiscordAdapterConfig {
-  discordToken?: string
   airiToken?: string
   airiUrl?: string
+  discordToken?: string
 }
 
 // Define Discord configuration type
 interface DiscordConfig {
-  token?: string
   enabled?: boolean
-}
-
-// Type guard to safely validate the configuration object
-function isDiscordConfig(config: unknown): config is DiscordConfig {
-  if (typeof config !== 'object' || config === null)
-    return false
-  const c = config as Record<string, unknown>
-  return (typeof c.token === 'string' || typeof c.token === 'undefined')
-    && (typeof c.enabled === 'boolean' || typeof c.enabled === 'undefined')
-}
-
-function normalizeDiscordMetadata(discord?: Discord): Discord | undefined {
-  if (!discord)
-    return undefined
-
-  if (!discord.guildMember)
-    return discord
-
-  const { guildMember } = discord
-
-  return {
-    ...discord,
-    guildMember: {
-      id: guildMember.id ?? guildMember.displayName ?? guildMember.nickname ?? '',
-      nickname: guildMember.nickname ?? guildMember.displayName ?? '',
-      displayName: guildMember.displayName ?? guildMember.nickname ?? '',
-    },
-  }
+  token?: string
 }
 
 export class DiscordAdapter {
   private airiClient: ServerChannel
   private discordClient: Client
   private discordToken: string
-  private voiceManager: VoiceManager
   private isReconnecting = false
+  private voiceManager: VoiceManager
 
   constructor(config: DiscordAdapterConfig) {
     this.discordToken = config.discordToken || env.DISCORD_TOKEN || ''
@@ -93,6 +65,38 @@ export class DiscordAdapter {
     this.setupEventHandlers()
   }
 
+  async start(): Promise<void> {
+    log.log('Starting Discord adapter...')
+
+    try {
+      // Log in to Discord if token is available
+      if (this.discordToken) {
+        await this.discordClient.login(this.discordToken)
+        log.log('Discord adapter started successfully')
+      }
+      else {
+        log.warn('Discord token not provided. Waiting for configuration from UI.')
+      }
+    }
+    catch (error) {
+      log.withError(error).error('Failed to start Discord adapter')
+      throw error
+    }
+  }
+
+  async stop(): Promise<void> {
+    log.log('Stopping Discord adapter...')
+    try {
+      await this.discordClient.destroy()
+      this.airiClient.close()
+      log.log('Discord adapter stopped')
+    }
+    catch (error) {
+      log.withError(error).error('Error stopping Discord adapter')
+      throw error
+    }
+  }
+
   private setupEventHandlers(): void {
     // Handle configuration from UI
     this.airiClient.onEvent('module:configure', async (event) => {
@@ -106,7 +110,7 @@ export class DiscordAdapter {
 
         if (isDiscordConfig(event.data.config)) {
           const config = event.data.config as DiscordConfig
-          const { token, enabled } = config
+          const { enabled, token } = config
 
           if (enabled === false) {
             if (this.discordClient.isReady) {
@@ -230,12 +234,12 @@ export class DiscordAdapter {
         const discordContext: Discord = {
           channelId: message.channelId,
           guildId: message.guildId ?? undefined,
-          guildName: message.guild?.name ?? undefined,
           guildMember: {
-            id: message.author.id,
             displayName: message.member?.displayName ?? message.author.username,
+            id: message.author.id,
             nickname: message.member?.nickname ?? message.author.username,
           },
+          guildName: message.guild?.name ?? undefined,
         }
         const normalizedDiscord = normalizeDiscordMetadata(discordContext)
         const displayName = normalizedDiscord?.guildMember?.displayName
@@ -260,28 +264,28 @@ export class DiscordAdapter {
           : undefined
 
         this.airiClient.send({
-          type: 'input:text',
           data: {
-            text: content,
-            textRaw: rawContent,
+            contextUpdates: discordNotice
+              ? [{
+                  content: discordNotice,
+                  metadata: {
+                    discord: normalizedDiscord,
+                  },
+                  strategy: ContextUpdateStrategy.AppendSelf,
+                  text: discordNotice,
+                }]
+              : undefined,
+            discord: normalizedDiscord,
             overrides: {
               messagePrefix: displayName
                 ? `(From Discord user ${displayName} ${contextPrefix}): `
                 : `(From Discord user ${contextPrefix}): `,
               sessionId: targetSessionId,
             },
-            contextUpdates: discordNotice
-              ? [{
-                  strategy: ContextUpdateStrategy.AppendSelf,
-                  text: discordNotice,
-                  content: discordNotice,
-                  metadata: {
-                    discord: normalizedDiscord,
-                  },
-                }]
-              : undefined,
-            discord: normalizedDiscord,
+            text: content,
+            textRaw: rawContent,
           },
+          type: 'input:text',
         })
       }
     })
@@ -302,36 +306,32 @@ export class DiscordAdapter {
       }
     })
   }
+}
 
-  async start(): Promise<void> {
-    log.log('Starting Discord adapter...')
+// Type guard to safely validate the configuration object
+function isDiscordConfig(config: unknown): config is DiscordConfig {
+  if (typeof config !== 'object' || config === null)
+    return false
+  const c = config as Record<string, unknown>
+  return (typeof c.token === 'string' || typeof c.token === 'undefined')
+    && (typeof c.enabled === 'boolean' || typeof c.enabled === 'undefined')
+}
 
-    try {
-      // Log in to Discord if token is available
-      if (this.discordToken) {
-        await this.discordClient.login(this.discordToken)
-        log.log('Discord adapter started successfully')
-      }
-      else {
-        log.warn('Discord token not provided. Waiting for configuration from UI.')
-      }
-    }
-    catch (error) {
-      log.withError(error).error('Failed to start Discord adapter')
-      throw error
-    }
-  }
+function normalizeDiscordMetadata(discord?: Discord): Discord | undefined {
+  if (!discord)
+    return undefined
 
-  async stop(): Promise<void> {
-    log.log('Stopping Discord adapter...')
-    try {
-      await this.discordClient.destroy()
-      this.airiClient.close()
-      log.log('Discord adapter stopped')
-    }
-    catch (error) {
-      log.withError(error).error('Error stopping Discord adapter')
-      throw error
-    }
+  if (!discord.guildMember)
+    return discord
+
+  const { guildMember } = discord
+
+  return {
+    ...discord,
+    guildMember: {
+      displayName: guildMember.displayName ?? guildMember.nickname ?? '',
+      id: guildMember.id ?? guildMember.displayName ?? guildMember.nickname ?? '',
+      nickname: guildMember.nickname ?? guildMember.displayName ?? '',
+    },
   }
 }

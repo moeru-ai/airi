@@ -7,9 +7,9 @@ import { parseEnv } from '../env'
 function baseEnv(): Record<string, string> {
   return {
     DATABASE_URL: 'postgres://example',
-    REDIS_URL: 'redis://example',
     // Required: a deterministic 32-byte base64 value so env parse succeeds.
     LLM_ROUTER_MASTER_KEY: Buffer.alloc(32, 0xAA).toString('base64'),
+    REDIS_URL: 'redis://example',
   }
 }
 
@@ -53,8 +53,8 @@ describe('parseEnv', () => {
     const env = parseEnv({
       ...baseEnv(),
       TEST_AUTH_TOKEN: 'local-test-token',
-      TEST_AUTH_USER_ID: 'admin-user',
       TEST_AUTH_USER_EMAIL: 'admin@example.com',
+      TEST_AUTH_USER_ID: 'admin-user',
       TEST_AUTH_USER_NAME: 'Admin User',
     })
 

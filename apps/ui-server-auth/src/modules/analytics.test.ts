@@ -30,11 +30,11 @@ describe('auth analytics', () => {
   it('keeps anonymous signup UI completion separate from the canonical server signup fact', async () => {
     await expect(loadAnalyticsAdapter(async () => adapterMocks)).resolves.toBe(true)
 
-    trackSignupFormCompleted({ source: 'email', requires_verification: true })
+    trackSignupFormCompleted({ requires_verification: true, source: 'email' })
 
     expect(adapterMocks.capture).toHaveBeenCalledWith(
       'signup_form_completed',
-      { source: 'email', requires_verification: true },
+      { requires_verification: true, source: 'email' },
       { beforeNavigation: false },
     )
   })

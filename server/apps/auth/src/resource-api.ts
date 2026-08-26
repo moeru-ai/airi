@@ -2,12 +2,10 @@ import { useLogger } from '@guiiai/logg'
 
 import { createBadGatewayError } from './error'
 
-export type UserDeletionReason = 'user-requested' | 'admin' | 'compliance'
-
 export interface AuthEventInput {
-  userId: string
   action: 'user_signed_up'
   source: 'better-auth.user.create'
+  userId: string
 }
 
 /**
@@ -16,9 +14,11 @@ export interface AuthEventInput {
  * expose `/internal/*`.
  */
 export interface ResourceApi {
-  softDeleteUserData: (input: { userId: string, reason: UserDeletionReason }) => Promise<void>
+  softDeleteUserData: (input: { reason: UserDeletionReason, userId: string }) => Promise<void>
   trackAuthEvent: (input: AuthEventInput) => Promise<void>
 }
+
+export type UserDeletionReason = 'admin' | 'compliance' | 'user-requested'
 
 /** Creates the single private HTTP boundary from Auth to the resource API. */
 export function createResourceApi(
@@ -30,9 +30,9 @@ export function createResourceApi(
   return {
     async softDeleteUserData(input) {
       const response = await fetchRequest(new URL('/internal/auth/user-deletion', resourceServerUrl), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
       })
 
       if (!response.ok) {
@@ -45,12 +45,12 @@ export function createResourceApi(
     async trackAuthEvent(input) {
       try {
         const response = await fetchRequest(new URL('/internal/auth/events', resourceServerUrl), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(input),
+          headers: { 'Content-Type': 'application/json' },
+          method: 'POST',
         })
         if (!response.ok)
-          logger.withFields({ statusCode: response.status, action: input.action }).warn('Resource API rejected auth event')
+          logger.withFields({ action: input.action, statusCode: response.status }).warn('Resource API rejected auth event')
       }
       catch (error) {
         // Analytics must never make signup or login unavailable.

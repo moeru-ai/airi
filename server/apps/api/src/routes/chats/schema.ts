@@ -18,13 +18,13 @@ const ChatMemberTypeSchema = union([
 // - non-user member types require characterId
 export const CreateChatSchema = object({
   id: optional(pipe(string(), minLength(1), maxLength(30))),
-  type: optional(ChatTypeSchema),
-  title: optional(string()),
   members: optional(array(object({
+    characterId: optional(string()),
     type: ChatMemberTypeSchema,
     userId: optional(string()),
-    characterId: optional(string()),
   }))),
+  title: optional(string()),
+  type: optional(ChatTypeSchema),
 })
 
 export const UpdateChatSchema = object({
@@ -33,7 +33,7 @@ export const UpdateChatSchema = object({
 
 // TODO: Promote the same discriminated validation rules to AddMemberSchema so invalid combinations fail as 4xx at the HTTP boundary.
 export const AddMemberSchema = object({
+  characterId: optional(string()),
   type: ChatMemberTypeSchema,
   userId: optional(string()),
-  characterId: optional(string()),
 })

@@ -18,20 +18,20 @@ describe('providerService', () => {
 
     // Create a test user for foreign key constraints
     const [user] = await db.insert(schema.user).values({
+      email: 'test@example.com',
       id: 'user-1',
       name: 'Test User',
-      email: 'test@example.com',
     }).returning()
     testUser = user
   })
 
   it('createUserConfig should handle provider config creation', async () => {
     const providerData = {
-      id: 'prov-1',
-      ownerId: testUser.id,
-      definitionId: 'openai',
-      name: 'My OpenAI',
       config: { apiKey: 'sk-123' },
+      definitionId: 'openai',
+      id: 'prov-1',
+      name: 'My OpenAI',
+      ownerId: testUser.id,
       validated: true,
       validationBypassed: false,
     }
@@ -55,10 +55,10 @@ describe('providerService', () => {
   it('findAll should return both user and system configs', async () => {
     // Create a system config
     await db.insert(schema.systemProviderConfigs).values({
-      id: 'sys-1',
-      definitionId: 'anthropic',
-      name: 'System Anthropic',
       config: { apiKey: 'sys-sk' },
+      definitionId: 'anthropic',
+      id: 'sys-1',
+      name: 'System Anthropic',
     })
 
     const result = await service.findAll(testUser.id)

@@ -3,8 +3,8 @@ import type { StageTamagotchiScenarioContext } from '../context'
 import { defineStageTamagotchiScenario } from '../context'
 
 type ElectronApplication = StageTamagotchiScenarioContext['electronApp']
-type Page = Parameters<StageTamagotchiScenarioContext['capture']>[1]
 type Frame = ReturnType<Page['frame']>
+type Page = Parameters<StageTamagotchiScenarioContext['capture']>[1]
 
 const extensionId = 'airi-plugin-game-chess'
 const pluginModuleId = 'chess-like-main'
@@ -13,91 +13,24 @@ const spawnedWidgetPattern = /Spawned widget/i
 const whitespacePattern = /\s+/g
 const extensionRoutePathPrefix = `/_airi/extensions/${extensionId}/sessions/`
 
-function inferRouteFromUrl(url: string): string {
-  const hashIndex = url.indexOf('#')
-  if (hashIndex === -1) {
-    return ''
+function assertExtensionAssetUrl(url: string, label: string) {
+  if (!url) {
+    throw new Error(`${label} is empty.`)
   }
 
-  const hash = url.slice(hashIndex + 1)
-  if (!hash) {
-    return '/'
+  const parsed = new URL(url)
+  if (parsed.protocol !== 'http:') {
+    throw new Error(`${label} must use http protocol, got ${parsed.protocol} (${url}).`)
   }
-
-  return hash.startsWith('/') ? hash : `/${hash}`
-}
-
-function normalizeRoutePath(route: string): string {
-  if (!route) {
-    return ''
+  if (parsed.hostname !== '127.0.0.1') {
+    throw new Error(`${label} must use 127.0.0.1, got ${parsed.hostname} (${url}).`)
   }
-
-  const queryIndex = route.indexOf('?')
-  if (queryIndex >= 0) {
-    return route.slice(0, queryIndex)
+  if (!parsed.pathname.startsWith(extensionRoutePathPrefix) || !parsed.pathname.includes('/ui/')) {
+    throw new Error(`${label} must use ${extensionRoutePathPrefix}:assetSessionId/ui/... path, got ${parsed.pathname} (${url}).`)
   }
-
-  return route
-}
-
-function excerpt(text: string, maxLength = 1800) {
-  const normalized = text.replaceAll(whitespacePattern, ' ').trim()
-  if (normalized.length <= maxLength) {
-    return normalized
+  if (parsed.searchParams.has('t')) {
+    throw new Error(`${label} must not contain legacy auth token query param "t", got ${url}.`)
   }
-  return `${normalized.slice(0, maxLength)}...`
-}
-
-async function getPageText(page: Page) {
-  return await page.locator('body').textContent().catch(() => '') ?? ''
-}
-
-async function waitForCondition(
-  check: () => Promise<boolean>,
-  timeoutMs: number,
-  failureMessage: () => Promise<string> | string,
-) {
-  const deadline = Date.now() + timeoutMs
-  while (Date.now() < deadline) {
-    if (await check()) {
-      return
-    }
-    await new Promise(resolve => setTimeout(resolve, 250))
-  }
-
-  const message = typeof failureMessage === 'string'
-    ? failureMessage
-    : await failureMessage()
-  throw new Error(message)
-}
-
-async function waitForWidgetsWindowPage(electronApp: ElectronApplication, timeoutMs = 30_000): Promise<Page> {
-  const deadline = Date.now() + timeoutMs
-  let lastSeenWindows = ''
-  while (Date.now() < deadline) {
-    for (const page of electronApp.windows()) {
-      const title = await page.title().catch(() => '')
-      const url = page.url()
-      const route = inferRouteFromUrl(url)
-      const routePath = normalizeRoutePath(route)
-      if (title === 'Widgets' || routePath === '/widgets') {
-        return page
-      }
-    }
-
-    const snapshots = await Promise.all(
-      electronApp.windows().map(async (page) => {
-        const title = await page.title().catch(() => '')
-        const url = page.url()
-        const route = inferRouteFromUrl(url)
-        return `${title || '(untitled)'} :: ${route || '(no-route)'} :: ${url}`
-      }),
-    )
-    lastSeenWindows = snapshots.join('\n')
-    await new Promise(resolve => setTimeout(resolve, 250))
-  }
-
-  throw new Error(`Timed out waiting for Widgets window.\nSeen windows:\n${lastSeenWindows}`)
 }
 
 async function ensurePluginEnabledAndLoaded(pluginHostPage: Page) {
@@ -147,24 +80,12 @@ async function ensurePluginEnabledAndLoaded(pluginHostPage: Page) {
   )
 }
 
-async function waitForSpawnedWidget(widgetsCallingPage: Page) {
-  await waitForCondition(
-    async () => {
-      const text = await getPageText(widgetsCallingPage)
-      return spawnedWidgetPattern.test(text)
-    },
-    15_000,
-    async () => {
-      const text = await getPageText(widgetsCallingPage)
-      if (text.includes(`Plugin manifest not found: ${extensionId}`)) {
-        return `Widget spawn failed: Plugin manifest not found: ${extensionId}\nPage excerpt: ${excerpt(text)}`
-      }
-      if (text.includes(`Plugin module "${pluginModuleId}" is not registered.`)) {
-        return `Widget spawn failed: Plugin module "${pluginModuleId}" is not registered.\nPage excerpt: ${excerpt(text)}`
-      }
-      return `Widget spawn timed out. Page excerpt: ${excerpt(text)}`
-    },
-  )
+function excerpt(text: string, maxLength = 1800) {
+  const normalized = text.replaceAll(whitespacePattern, ' ').trim()
+  if (normalized.length <= maxLength) {
+    return normalized
+  }
+  return `${normalized.slice(0, maxLength)}...`
 }
 
 async function getFrameText(frame: Frame | null | undefined) {
@@ -172,6 +93,56 @@ async function getFrameText(frame: Frame | null | undefined) {
     return ''
   }
   return await frame.locator('body').textContent().catch(() => '') ?? ''
+}
+
+async function getPageText(page: Page) {
+  return await page.locator('body').textContent().catch(() => '') ?? ''
+}
+
+function inferRouteFromUrl(url: string): string {
+  const hashIndex = url.indexOf('#')
+  if (hashIndex === -1) {
+    return ''
+  }
+
+  const hash = url.slice(hashIndex + 1)
+  if (!hash) {
+    return '/'
+  }
+
+  return hash.startsWith('/') ? hash : `/${hash}`
+}
+
+function normalizeRoutePath(route: string): string {
+  if (!route) {
+    return ''
+  }
+
+  const queryIndex = route.indexOf('?')
+  if (queryIndex >= 0) {
+    return route.slice(0, queryIndex)
+  }
+
+  return route
+}
+
+async function waitForCondition(
+  check: () => Promise<boolean>,
+  timeoutMs: number,
+  failureMessage: () => Promise<string> | string,
+) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (await check()) {
+      return
+    }
+    await new Promise(resolve => setTimeout(resolve, 250))
+  }
+
+  const message = typeof failureMessage === 'string'
+    ? failureMessage
+    : await failureMessage()
+  throw new Error(message)
 }
 
 async function waitForExtensionFrame(widgetsPage: Page) {
@@ -205,24 +176,53 @@ async function waitForExtensionFrame(widgetsPage: Page) {
   return frame
 }
 
-function assertExtensionAssetUrl(url: string, label: string) {
-  if (!url) {
-    throw new Error(`${label} is empty.`)
+async function waitForSpawnedWidget(widgetsCallingPage: Page) {
+  await waitForCondition(
+    async () => {
+      const text = await getPageText(widgetsCallingPage)
+      return spawnedWidgetPattern.test(text)
+    },
+    15_000,
+    async () => {
+      const text = await getPageText(widgetsCallingPage)
+      if (text.includes(`Plugin manifest not found: ${extensionId}`)) {
+        return `Widget spawn failed: Plugin manifest not found: ${extensionId}\nPage excerpt: ${excerpt(text)}`
+      }
+      if (text.includes(`Plugin module "${pluginModuleId}" is not registered.`)) {
+        return `Widget spawn failed: Plugin module "${pluginModuleId}" is not registered.\nPage excerpt: ${excerpt(text)}`
+      }
+      return `Widget spawn timed out. Page excerpt: ${excerpt(text)}`
+    },
+  )
+}
+
+async function waitForWidgetsWindowPage(electronApp: ElectronApplication, timeoutMs = 30_000): Promise<Page> {
+  const deadline = Date.now() + timeoutMs
+  let lastSeenWindows = ''
+  while (Date.now() < deadline) {
+    for (const page of electronApp.windows()) {
+      const title = await page.title().catch(() => '')
+      const url = page.url()
+      const route = inferRouteFromUrl(url)
+      const routePath = normalizeRoutePath(route)
+      if (title === 'Widgets' || routePath === '/widgets') {
+        return page
+      }
+    }
+
+    const snapshots = await Promise.all(
+      electronApp.windows().map(async (page) => {
+        const title = await page.title().catch(() => '')
+        const url = page.url()
+        const route = inferRouteFromUrl(url)
+        return `${title || '(untitled)'} :: ${route || '(no-route)'} :: ${url}`
+      }),
+    )
+    lastSeenWindows = snapshots.join('\n')
+    await new Promise(resolve => setTimeout(resolve, 250))
   }
 
-  const parsed = new URL(url)
-  if (parsed.protocol !== 'http:') {
-    throw new Error(`${label} must use http protocol, got ${parsed.protocol} (${url}).`)
-  }
-  if (parsed.hostname !== '127.0.0.1') {
-    throw new Error(`${label} must use 127.0.0.1, got ${parsed.hostname} (${url}).`)
-  }
-  if (!parsed.pathname.startsWith(extensionRoutePathPrefix) || !parsed.pathname.includes('/ui/')) {
-    throw new Error(`${label} must use ${extensionRoutePathPrefix}:assetSessionId/ui/... path, got ${parsed.pathname} (${url}).`)
-  }
-  if (parsed.searchParams.has('t')) {
-    throw new Error(`${label} must not contain legacy auth token query param "t", got ${url}.`)
-  }
+  throw new Error(`Timed out waiting for Widgets window.\nSeen windows:\n${lastSeenWindows}`)
 }
 
 /**

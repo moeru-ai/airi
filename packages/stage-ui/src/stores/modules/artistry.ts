@@ -4,19 +4,19 @@ import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed, isRef, ref, watch } from 'vue'
 
-export interface ResolvedArtistryConfig {
-  provider?: string
-  model?: string
-  promptPrefix?: string
-  options?: Record<string, any>
-  globals: Record<string, any>
-}
-
 export interface ComfyUIWorkflowTemplate {
+  exposedFields: Record<string, string[]>
   id: string
   name: string
   workflow: Record<string, any>
-  exposedFields: Record<string, string[]>
+}
+
+export interface ResolvedArtistryConfig {
+  globals: Record<string, any>
+  model?: string
+  options?: Record<string, any>
+  promptPrefix?: string
+  provider?: string
 }
 
 export const useArtistryStore = defineStore('artistry', () => {
@@ -152,51 +152,51 @@ export const useArtistryStore = defineStore('artistry', () => {
   })
 
   const artistryGlobals = computed(() => ({
-    comfyuiServerUrl: comfyuiServerUrl.value,
-    comfyuiSavedWorkflows: comfyuiSavedWorkflows.value,
     comfyuiActiveWorkflow: comfyuiActiveWorkflow.value,
-    replicateApiKey: replicateApiKey.value,
-    replicateDefaultModel: replicateDefaultModel.value,
-    replicateAspectRatio: replicateAspectRatio.value,
-    replicateInferenceSteps: replicateInferenceSteps.value,
+    comfyuiSavedWorkflows: comfyuiSavedWorkflows.value,
+    comfyuiServerUrl: comfyuiServerUrl.value,
     nanobananaApiKey: nanobananaApiKey.value,
     nanobananaModel: nanobananaModel.value,
     nanobananaResolution: nanobananaResolution.value,
+    replicateApiKey: replicateApiKey.value,
+    replicateAspectRatio: replicateAspectRatio.value,
+    replicateDefaultModel: replicateDefaultModel.value,
+    replicateInferenceSteps: replicateInferenceSteps.value,
   }))
 
   return {
-    configured,
-    artistryGlobals,
+    activeModel,
     // Active settings (transient, resolved per card)
     activeProvider,
-    activeModel,
+    artistryGlobals,
+    comfyuiActiveWorkflow,
+    comfyuiSavedWorkflows,
+    // ComfyUI provider config
+    comfyuiServerUrl,
+
+    configured,
     defaultPromptPrefix,
-    providerOptions,
+    globalModel,
+    globalPromptPrefix,
 
     // Global settings (persistent user preferences)
     globalProvider,
-    globalModel,
-    globalPromptPrefix,
     globalProviderOptions,
-
-    // ComfyUI provider config
-    comfyuiServerUrl,
-    comfyuiSavedWorkflows,
-    comfyuiActiveWorkflow,
-
-    // Replicate provider config
-    replicateApiKey,
-    replicateDefaultModel,
-    replicateAspectRatio,
-    replicateInferenceSteps,
-
     // Nano Banana provider config
     nanobananaApiKey,
+
     nanobananaModel,
     nanobananaResolution,
+    providerOptions,
+    // Replicate provider config
+    replicateApiKey,
 
-    resetToGlobal,
+    replicateAspectRatio,
+    replicateDefaultModel,
+    replicateInferenceSteps,
+
     resetState,
+    resetToGlobal,
   }
 }, {
   synced: {
@@ -224,21 +224,21 @@ export function resolveArtistryConfigFromStore(store: any): ResolvedArtistryConf
   }
 
   return {
-    provider: unwrap(store.activeProvider),
-    model: unwrap(store.activeModel),
-    promptPrefix: unwrap(store.defaultPromptPrefix),
-    options: unwrap(store.providerOptions),
     globals: {
-      comfyuiServerUrl: unwrap(store.comfyuiServerUrl),
-      comfyuiSavedWorkflows: unwrap(store.comfyuiSavedWorkflows),
       comfyuiActiveWorkflow: unwrap(store.comfyuiActiveWorkflow),
-      replicateApiKey: unwrap(store.replicateApiKey),
-      replicateDefaultModel: unwrap(store.replicateDefaultModel),
-      replicateAspectRatio: unwrap(store.replicateAspectRatio),
-      replicateInferenceSteps: unwrap(store.replicateInferenceSteps),
+      comfyuiSavedWorkflows: unwrap(store.comfyuiSavedWorkflows),
+      comfyuiServerUrl: unwrap(store.comfyuiServerUrl),
       nanobananaApiKey: unwrap(store.nanobananaApiKey),
       nanobananaModel: unwrap(store.nanobananaModel),
       nanobananaResolution: unwrap(store.nanobananaResolution),
+      replicateApiKey: unwrap(store.replicateApiKey),
+      replicateAspectRatio: unwrap(store.replicateAspectRatio),
+      replicateDefaultModel: unwrap(store.replicateDefaultModel),
+      replicateInferenceSteps: unwrap(store.replicateInferenceSteps),
     },
+    model: unwrap(store.activeModel),
+    options: unwrap(store.providerOptions),
+    promptPrefix: unwrap(store.defaultPromptPrefix),
+    provider: unwrap(store.activeProvider),
   }
 }

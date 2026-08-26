@@ -38,10 +38,10 @@ describe('performance overlay recording controls', () => {
       },
     })
 
-    await screen.getByRole('button', { name: 'Record', exact: true }).click()
+    await screen.getByRole('button', { exact: true, name: 'Record' }).click()
     expect(store.recording).toBe(true)
 
-    await screen.getByRole('button', { name: 'Stop', exact: true }).click()
+    await screen.getByRole('button', { exact: true, name: 'Stop' }).click()
     expect(store.recording).toBe(false)
     expect(exportCsv).not.toHaveBeenCalled()
 

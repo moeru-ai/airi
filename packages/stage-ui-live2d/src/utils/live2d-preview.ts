@@ -29,15 +29,15 @@ export async function loadLive2DModelPreview(file: File) {
   document.body.appendChild(offscreenCanvas)
 
   const app = new Application({
-    view: offscreenCanvas,
-    width: offscreenCanvas.width,
+    autoDensity: false,
+    autoStart: false,
+    backgroundAlpha: 0,
     height: offscreenCanvas.height,
     // Ensure the drawing buffer persists so toDataURL() can read pixels
     preserveDrawingBuffer: true,
-    backgroundAlpha: 0,
-    autoDensity: false,
     resolution: 1,
-    autoStart: false,
+    view: offscreenCanvas,
+    width: offscreenCanvas.width,
   })
   app.stage.scale.set(previewResolution)
   app.ticker.stop()

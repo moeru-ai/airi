@@ -56,13 +56,13 @@ export interface PluginToolActivationDefinition {
  * - A friendly authoring record consumed by {@link ToolKitClient.registerTool}
  */
 export interface PluginToolDefinition<TInputSchema = unknown> {
-  id: string
-  title: string
-  description: string
   activation?: PluginToolActivationDefinition
-  inputSchema: TInputSchema
-  isAvailable?: () => Promise<boolean> | boolean
+  description: string
   execute: (input: unknown) => Promise<unknown> | unknown
+  id: string
+  inputSchema: TInputSchema
+  isAvailable?: () => boolean | Promise<boolean>
+  title: string
 }
 
 /**
@@ -99,12 +99,16 @@ export interface ToolKitRuntime extends KitClientRuntime {
    */
   tools?: {
     register: (input: {
-      tool: PluginToolDefinitionRecord
-      availability?: () => Promise<boolean> | boolean
+      availability?: () => boolean | Promise<boolean>
       execute: (input: unknown) => Promise<unknown> | unknown
+      tool: PluginToolDefinitionRecord
     }) => Promise<void> | void
     registerToolsetPrompt: (input: PluginToolsetPromptDefinitionRecord) => Promise<void> | void
   }
+}
+
+function isJsonSchemaNode(value: boolean | JsonSchema | JsonSchema[] | undefined): value is JsonSchema {
+  return Boolean(value && !Array.isArray(value) && typeof value === 'object')
 }
 
 /**
@@ -145,51 +149,6 @@ function isStandardSchema(inputSchema: unknown): inputSchema is StandardSchemaV1
     && typeof inputSchema === 'object'
     && '~standard' in inputSchema,
   )
-}
-
-/**
- * Validates that one plain object can cross the plugin-host boundary as `HostDataRecord`.
- *
- * Before:
- * - A generic schema-shaped object with unknown property value types
- *
- * After:
- * - The same object narrowed to `HostDataRecord` after runtime validation succeeds
- */
-function toHostDataRecord(value: object): HostDataRecord {
-  parse(hostDataRecordSchema, value)
-
-  return value as HostDataRecord
-}
-
-function isJsonSchemaNode(value: JsonSchema | boolean | JsonSchema[] | undefined): value is JsonSchema {
-  return Boolean(value && !Array.isArray(value) && typeof value === 'object')
-}
-
-function withNullableValue(schema: JsonSchema): JsonSchema {
-  const next: JsonSchema = { ...schema }
-
-  if (Array.isArray(next.enum)) {
-    next.enum = next.enum.includes(null) ? next.enum : [...next.enum, null]
-  }
-
-  if (Array.isArray(next.type)) {
-    next.type = next.type.includes('null') ? next.type : [...next.type, 'null']
-    return next
-  }
-
-  if (typeof next.type === 'string') {
-    next.type = next.type === 'null' ? next.type : [next.type, 'null']
-    return next
-  }
-
-  // An enum without a type already accepts every enum value, including null.
-  if (Array.isArray(next.enum)) {
-    return next
-  }
-
-  next.anyOf = [...(next.anyOf ?? []), { type: 'null' }]
-  return next
 }
 
 /**
@@ -270,6 +229,47 @@ async function serializeToolParameters(inputSchema: unknown): Promise<HostDataRe
 }
 
 /**
+ * Validates that one plain object can cross the plugin-host boundary as `HostDataRecord`.
+ *
+ * Before:
+ * - A generic schema-shaped object with unknown property value types
+ *
+ * After:
+ * - The same object narrowed to `HostDataRecord` after runtime validation succeeds
+ */
+function toHostDataRecord(value: object): HostDataRecord {
+  parse(hostDataRecordSchema, value)
+
+  return value as HostDataRecord
+}
+
+function withNullableValue(schema: JsonSchema): JsonSchema {
+  const next: JsonSchema = { ...schema }
+
+  if (Array.isArray(next.enum)) {
+    next.enum = next.enum.includes(null) ? next.enum : [...next.enum, null]
+  }
+
+  if (Array.isArray(next.type)) {
+    next.type = next.type.includes('null') ? next.type : [...next.type, 'null']
+    return next
+  }
+
+  if (typeof next.type === 'string') {
+    next.type = next.type === 'null' ? next.type : [next.type, 'null']
+    return next
+  }
+
+  // An enum without a type already accepts every enum value, including null.
+  if (Array.isArray(next.enum)) {
+    return next
+  }
+
+  next.anyOf = [...(next.anyOf ?? []), { type: 'null' }]
+  return next
+}
+
+/**
  * Exposes tamagotchi tool registration as a module-scoped extension kit.
  *
  * Use when:
@@ -283,10 +283,7 @@ async function serializeToolParameters(inputSchema: unknown): Promise<HostDataRe
  * - A client that registers LLM tools without depending on domain-specific kits
  */
 export const toolKit = defineKit<ToolKitClient>({
-  id: 'kit.tool',
-  version: '1.0.0',
   allowedExposePolicies: ['local-only', 'remote-observable'],
-  defaultExposePolicy: 'local-only',
   createClient(runtime) {
     const toolRuntime = runtime as ToolKitRuntime
 
@@ -299,18 +296,18 @@ export const toolKit = defineKit<ToolKitClient>({
         const isAvailable = definition.isAvailable
 
         await toolRuntime.tools.register({
+          availability: isAvailable,
+          execute: definition.execute,
           tool: {
-            id: definition.id,
-            title: definition.title,
-            description: definition.description,
             activation: {
               keywords: definition.activation?.keywords ?? [],
               patterns: (definition.activation?.patterns ?? []).map(pattern => pattern.source),
             },
+            description: definition.description,
+            id: definition.id,
             parameters: await serializeToolParameters(definition.inputSchema),
+            title: definition.title,
           },
-          availability: isAvailable,
-          execute: definition.execute,
         })
       },
       async registerToolsetPrompt(registration) {
@@ -322,4 +319,7 @@ export const toolKit = defineKit<ToolKitClient>({
       },
     }
   },
+  defaultExposePolicy: 'local-only',
+  id: 'kit.tool',
+  version: '1.0.0',
 })

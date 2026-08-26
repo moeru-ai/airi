@@ -22,73 +22,6 @@ import { errorMessageFromValue } from '@proj-airi/stage-shared'
 // Progress
 // ---------------------------------------------------------------------------
 
-export type ProgressPhase = 'download' | 'compile' | 'warmup' | 'inference'
-
-export interface ProgressPayload {
-  phase: ProgressPhase
-  /**
-   * Progress percentage, normalized to 0-100 range.
-   * Use -1 when the progress is indeterminate.
-   *
-   * Adapters are responsible for normalizing worker-specific ranges:
-   * - @huggingface/transformers progress_callback: already 0-100
-   * - Whisper status 'progress': 0-1 → multiply by 100
-   */
-  percent: number
-  /** Optional human-readable status */
-  message?: string
-  /** File being downloaded (for download phase) */
-  file?: string
-  /** Bytes loaded / total (for download phase) */
-  loaded?: number
-  total?: number
-}
-
-// ---------------------------------------------------------------------------
-// Errors
-// ---------------------------------------------------------------------------
-
-export type InferenceErrorCode
-  = | 'OOM'
-    | 'TIMEOUT'
-    | 'DEVICE_LOST'
-    | 'LOAD_FAILED'
-    | 'INFERENCE_FAILED'
-    | 'CANCELLED'
-    | 'UNKNOWN'
-
-export interface ErrorPayload {
-  code: InferenceErrorCode
-  message: string
-  /** Whether the operation can be retried (e.g. with WASM fallback) */
-  recoverable: boolean
-}
-
-// ---------------------------------------------------------------------------
-// Main → Worker requests
-// ---------------------------------------------------------------------------
-
-export interface LoadModelRequest {
-  type: 'load-model'
-  requestId: string
-  modelId: string
-  device: 'webgpu' | 'wasm' | 'cpu'
-  dtype?: string
-  /** Adapter-specific options passed through opaquely */
-  options?: Record<string, unknown>
-}
-
-export interface RunInferenceRequest<TInput = unknown> {
-  type: 'run-inference'
-  requestId: string
-  input: TInput
-}
-
-export interface UnloadModelRequest {
-  type: 'unload-model'
-  requestId: string
-}
-
 /**
  * Cancel an in-flight or queued request. The worker should stop any
  * ongoing work tied to `targetRequestId` and must NOT send a normal
@@ -103,62 +36,129 @@ export interface UnloadModelRequest {
  * eventually arrives.
  */
 export interface CancelRequest {
-  type: 'cancel'
   requestId: string
   /** The requestId of the operation to cancel */
   targetRequestId: string
+  type: 'cancel'
 }
 
-export type WorkerInboundMessage<TInput = unknown>
-  = | LoadModelRequest
-    | RunInferenceRequest<TInput>
-    | UnloadModelRequest
-    | CancelRequest
+export interface ErrorPayload {
+  code: InferenceErrorCode
+  message: string
+  /** Whether the operation can be retried (e.g. with WASM fallback) */
+  recoverable: boolean
+}
+
+// ---------------------------------------------------------------------------
+// Errors
+// ---------------------------------------------------------------------------
+
+export interface ErrorResponse {
+  payload: ErrorPayload
+  requestId: string
+  type: 'error'
+}
+
+export type InferenceErrorCode
+  = | 'CANCELLED'
+    | 'DEVICE_LOST'
+    | 'INFERENCE_FAILED'
+    | 'LOAD_FAILED'
+    | 'OOM'
+    | 'TIMEOUT'
+    | 'UNKNOWN'
+
+// ---------------------------------------------------------------------------
+// Main → Worker requests
+// ---------------------------------------------------------------------------
+
+export interface InferenceResultResponse<TOutput = unknown> {
+  /** Worker-side timing in milliseconds */
+  durationMs?: number
+  output: TOutput
+  requestId: string
+  type: 'inference-result'
+}
+
+export interface LoadModelRequest {
+  device: 'cpu' | 'wasm' | 'webgpu'
+  dtype?: string
+  modelId: string
+  /** Adapter-specific options passed through opaquely */
+  options?: Record<string, unknown>
+  requestId: string
+  type: 'load-model'
+}
+
+export interface ModelReadyResponse {
+  device: 'cpu' | 'wasm' | 'webgpu'
+  /** Domain-specific metadata (e.g. Kokoro voices) */
+  metadata?: Record<string, unknown>
+  modelId: string
+  requestId: string
+  type: 'model-ready'
+}
+
+export interface ModelUnloadedResponse {
+  requestId: string
+  type: 'model-unloaded'
+}
+
+export interface ProgressPayload {
+  /** File being downloaded (for download phase) */
+  file?: string
+  /** Bytes loaded / total (for download phase) */
+  loaded?: number
+  /** Optional human-readable status */
+  message?: string
+  /**
+   * Progress percentage, normalized to 0-100 range.
+   * Use -1 when the progress is indeterminate.
+   *
+   * Adapters are responsible for normalizing worker-specific ranges:
+   * - @huggingface/transformers progress_callback: already 0-100
+   * - Whisper status 'progress': 0-1 → multiply by 100
+   */
+  percent: number
+  phase: ProgressPhase
+  total?: number
+}
 
 // ---------------------------------------------------------------------------
 // Worker → Main responses
 // ---------------------------------------------------------------------------
 
-export interface ModelReadyResponse {
-  type: 'model-ready'
-  requestId: string
-  modelId: string
-  device: 'webgpu' | 'wasm' | 'cpu'
-  /** Domain-specific metadata (e.g. Kokoro voices) */
-  metadata?: Record<string, unknown>
-}
-
-export interface InferenceResultResponse<TOutput = unknown> {
-  type: 'inference-result'
-  requestId: string
-  output: TOutput
-  /** Worker-side timing in milliseconds */
-  durationMs?: number
-}
+export type ProgressPhase = 'compile' | 'download' | 'inference' | 'warmup'
 
 export interface ProgressResponse {
-  type: 'progress'
-  requestId: string
   payload: ProgressPayload
+  requestId: string
+  type: 'progress'
 }
 
-export interface ErrorResponse {
-  type: 'error'
+export interface RunInferenceRequest<TInput = unknown> {
+  input: TInput
   requestId: string
-  payload: ErrorPayload
+  type: 'run-inference'
 }
 
-export interface ModelUnloadedResponse {
-  type: 'model-unloaded'
+export interface UnloadModelRequest {
   requestId: string
+  type: 'unload-model'
 }
+
+export type WorkerInboundMessage<TInput = unknown>
+  = | CancelRequest
+    | LoadModelRequest
+    | RunInferenceRequest<TInput>
+    | UnloadModelRequest
 
 export type WorkerOutboundMessage<TOutput = unknown>
-  = | ModelReadyResponse
+  = | ErrorResponse
     | InferenceResultResponse<TOutput>
-    | ProgressResponse
-    | ErrorResponse
+    | ModelReadyResponse
     | ModelUnloadedResponse
+    | ProgressResponse
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -191,35 +191,22 @@ const DEVICE_LOSS_PATTERNS = [
   'webgpu device is invalid',
 ] as const
 
-/**
- * Classify an unknown error into an `InferenceErrorCode`.
- * Used by worker adapters to normalise caught exceptions.
- *
- * Specific error patterns (OOM, DEVICE_LOST, TIMEOUT) take priority
- * over the `phase` hint. When no specific pattern matches, `phase`
- * determines whether the code is `LOAD_FAILED` or `INFERENCE_FAILED`.
- */
-export function classifyError(error: unknown, phase?: 'load' | 'inference'): InferenceErrorCode {
-  const msg = errorMessageFromValue(error)
-  const lower = msg.toLowerCase()
-
-  if (lower.includes('out of memory') || lower.includes('allocation failed'))
-    return 'OOM'
-  if (DEVICE_LOSS_PATTERNS.some(p => lower.includes(p)))
-    return 'DEVICE_LOST'
-  if (lower.includes('timeout'))
-    return 'TIMEOUT'
-
-  if (phase === 'load')
-    return 'LOAD_FAILED'
-  if (phase === 'inference')
-    return 'INFERENCE_FAILED'
-
-  return 'UNKNOWN'
-}
-
 /** Reason classification for a device-loss event, following `GPUDeviceLostInfo.reason`. */
 export type DeviceLossReason = 'destroyed' | 'unknown'
+
+/**
+ * Canonical error thrown by inference adapters when an operation is
+ * cancelled via AbortSignal. Matches the DOM convention of `name === 'AbortError'`
+ * so existing `if (err.name === 'AbortError')` checks work unchanged.
+ */
+export class InferenceAbortError extends Error {
+  readonly code = 'CANCELLED' as const
+  override readonly name = 'AbortError'
+
+  constructor(message = 'The operation was aborted') {
+    super(message)
+  }
+}
 
 /**
  * Best-effort classification of a device-loss reason from an error message
@@ -244,26 +231,39 @@ export function classifyDeviceLossReason(error: unknown): DeviceLossReason {
 }
 
 /**
+ * Classify an unknown error into an `InferenceErrorCode`.
+ * Used by worker adapters to normalise caught exceptions.
+ *
+ * Specific error patterns (OOM, DEVICE_LOST, TIMEOUT) take priority
+ * over the `phase` hint. When no specific pattern matches, `phase`
+ * determines whether the code is `LOAD_FAILED` or `INFERENCE_FAILED`.
+ */
+export function classifyError(error: unknown, phase?: 'inference' | 'load'): InferenceErrorCode {
+  const msg = errorMessageFromValue(error)
+  const lower = msg.toLowerCase()
+
+  if (lower.includes('out of memory') || lower.includes('allocation failed'))
+    return 'OOM'
+  if (DEVICE_LOSS_PATTERNS.some(p => lower.includes(p)))
+    return 'DEVICE_LOST'
+  if (lower.includes('timeout'))
+    return 'TIMEOUT'
+
+  if (phase === 'load')
+    return 'LOAD_FAILED'
+  if (phase === 'inference')
+    return 'INFERENCE_FAILED'
+
+  return 'UNKNOWN'
+}
+
+/**
  * Determine whether an error code represents a potentially recoverable
  * condition. TIMEOUT and DEVICE_LOST may succeed on retry (e.g. with
  * WASM fallback or after device re-acquisition).
  */
 export function isRecoverable(code: InferenceErrorCode): boolean {
   return code === 'TIMEOUT' || code === 'DEVICE_LOST'
-}
-
-/**
- * Canonical error thrown by inference adapters when an operation is
- * cancelled via AbortSignal. Matches the DOM convention of `name === 'AbortError'`
- * so existing `if (err.name === 'AbortError')` checks work unchanged.
- */
-export class InferenceAbortError extends Error {
-  override readonly name = 'AbortError'
-  readonly code = 'CANCELLED' as const
-
-  constructor(message = 'The operation was aborted') {
-    super(message)
-  }
 }
 
 /** Throw `InferenceAbortError` if the signal is already aborted. */

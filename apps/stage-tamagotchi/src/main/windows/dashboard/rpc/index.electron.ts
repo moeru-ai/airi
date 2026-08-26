@@ -14,12 +14,12 @@ import { toggleWindowShow } from '../../shared'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export async function setupDashboardWindowElectronInvokes(params: {
-  window: BrowserWindow
-  settingsWindow: SettingsWindowManager
   chatWindow: () => Promise<BrowserWindow>
-  noticeWindow: NoticeWindowManager
   i18n: I18n
+  noticeWindow: NoticeWindowManager
   serverChannel: ServerChannel
+  settingsWindow: SettingsWindowManager
+  window: BrowserWindow
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -28,7 +28,7 @@ export async function setupDashboardWindowElectronInvokes(params: {
 
   const { context } = createContext(ipcMain, params.window)
 
-  await setupBaseWindowElectronInvokes({ context, window: params.window, serverChannel: params.serverChannel, i18n: params.i18n })
+  await setupBaseWindowElectronInvokes({ context, i18n: params.i18n, serverChannel: params.serverChannel, window: params.window })
 
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenSettings, payload => params.settingsWindow.openWindow(payload?.route))

@@ -18,60 +18,46 @@ import type { DeviceLossReason } from './protocol'
 // Types
 // ---------------------------------------------------------------------------
 
-export type MemoryPressureLevel = 'warning' | 'critical'
-
 export interface AllocationToken {
-  modelId: string
-  bytes: number
   allocatedAt: number
+  bytes: number
   lastUsedAt: number
-}
-
-export interface GPUResourceUsage {
-  /** Total bytes currently allocated (sum of all tokens) */
-  allocated: number
-  /** Estimated budget in bytes */
-  budget: number
-  /** Currently loaded model IDs */
-  models: string[]
+  modelId: string
 }
 
 export interface DeviceLossEvent {
   modelId: string
-  reason: DeviceLossReason
   occurredAt: number
+  reason: DeviceLossReason
 }
 
 export interface DeviceLossMetrics {
-  /** Total device-loss events recorded across all models */
-  totalCount: number
   /** Per-model device-loss counts */
   byModel: Record<string, number>
   /** Most recent event, or null if none recorded */
   lastEvent: DeviceLossEvent | null
+  /** Total device-loss events recorded across all models */
+  totalCount: number
 }
 
 export interface GPUResourceCoordinator {
-  /**
-   * Request an allocation for a model.
-   * Returns the token. May trigger memory pressure events if over budget.
-   */
-  requestAllocation: (modelId: string, estimatedBytes: number) => AllocationToken
-
-  /** Release a previously allocated token */
-  release: (token: AllocationToken) => void
-
-  /** Mark a model as recently used (updates LRU ordering) */
-  touch: (modelId: string) => void
-
-  /** Get current resource usage */
-  getUsage: () => GPUResourceUsage
+  /** Get current device-loss telemetry across all models */
+  getDeviceLossMetrics: () => DeviceLossMetrics
 
   /**
    * Get the least-recently-used model ID, or null if none loaded.
    * Useful for deciding which model to unload under pressure.
    */
-  getLRUModel: () => string | null
+  getLRUModel: () => null | string
+
+  /** Get current resource usage */
+  getUsage: () => GPUResourceUsage
+
+  /**
+   * Subscribe to device-loss events. Fired after `recordDeviceLoss()`.
+   * Returns an unsubscribe function.
+   */
+  onDeviceLoss: (handler: (event: DeviceLossEvent) => void) => () => void
 
   /**
    * Subscribe to memory pressure events.
@@ -86,15 +72,29 @@ export interface GPUResourceCoordinator {
    */
   recordDeviceLoss: (event: DeviceLossEvent) => void
 
-  /** Get current device-loss telemetry across all models */
-  getDeviceLossMetrics: () => DeviceLossMetrics
+  /** Release a previously allocated token */
+  release: (token: AllocationToken) => void
 
   /**
-   * Subscribe to device-loss events. Fired after `recordDeviceLoss()`.
-   * Returns an unsubscribe function.
+   * Request an allocation for a model.
+   * Returns the token. May trigger memory pressure events if over budget.
    */
-  onDeviceLoss: (handler: (event: DeviceLossEvent) => void) => () => void
+  requestAllocation: (modelId: string, estimatedBytes: number) => AllocationToken
+
+  /** Mark a model as recently used (updates LRU ordering) */
+  touch: (modelId: string) => void
 }
+
+export interface GPUResourceUsage {
+  /** Total bytes currently allocated (sum of all tokens) */
+  allocated: number
+  /** Estimated budget in bytes */
+  budget: number
+  /** Currently loaded model IDs */
+  models: string[]
+}
+
+export type MemoryPressureLevel = 'critical' | 'warning'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -152,10 +152,10 @@ export function createGPUResourceCoordinator(
     }
 
     const token: AllocationToken = {
-      modelId,
-      bytes: estimatedBytes,
       allocatedAt: Date.now(),
+      bytes: estimatedBytes,
       lastUsedAt: Date.now(),
+      modelId,
     }
     allocations.set(modelId, token)
     checkPressure()
@@ -180,7 +180,7 @@ export function createGPUResourceCoordinator(
     }
   }
 
-  function getLRUModel(): string | null {
+  function getLRUModel(): null | string {
     let oldest: AllocationToken | null = null
     for (const token of allocations.values()) {
       if (!oldest || token.lastUsedAt < oldest.lastUsedAt)
@@ -204,9 +204,9 @@ export function createGPUResourceCoordinator(
 
   function getDeviceLossMetrics(): DeviceLossMetrics {
     return {
-      totalCount: deviceLossTotal,
       byModel: Object.fromEntries(deviceLossByModel),
       lastEvent: lastDeviceLossEvent,
+      totalCount: deviceLossTotal,
     }
   }
 
@@ -216,14 +216,14 @@ export function createGPUResourceCoordinator(
   }
 
   return {
-    requestAllocation,
-    release,
-    touch,
-    getUsage,
+    getDeviceLossMetrics,
     getLRUModel,
+    getUsage,
+    onDeviceLoss,
     onMemoryPressure,
     recordDeviceLoss,
-    getDeviceLossMetrics,
-    onDeviceLoss,
+    release,
+    requestAllocation,
+    touch,
   }
 }

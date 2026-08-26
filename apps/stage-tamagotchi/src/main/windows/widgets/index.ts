@@ -47,6 +47,32 @@ import { setupWidgetsWindowInvokes } from './rpc/index.electron'
  */
 export interface WidgetsWindowManager {
   /**
+   * Removes all widgets and closes any live widget windows.
+   *
+   * Use when:
+   * - The overlay surface should reset to an empty state
+   *
+   * Expects:
+   * - No additional input
+   *
+   * Returns:
+   * - Resolves after the registry, renderer, and child windows have been cleared
+   */
+  clearWidgets: () => Promise<void>
+  /**
+   * Reads the current snapshot for a single widget id.
+   *
+   * Use when:
+   * - Another service needs to inspect a widget before opening or mutating it
+   *
+   * Expects:
+   * - `id` is the widget identifier to inspect
+   *
+   * Returns:
+   * - The current snapshot, or `undefined` when the widget is unknown
+   */
+  getWidgetSnapshot: (id: string) => undefined | WidgetSnapshot
+  /**
    * Resolves the shared widgets window instance.
    *
    * Use when:
@@ -59,6 +85,8 @@ export interface WidgetsWindowManager {
    * - The live widgets {@link BrowserWindow}, creating it if necessary
    */
   getWindow: () => Promise<BrowserWindow>
+  hideWindow: (params?: { id?: string }) => Promise<void>
+  onWidgetEvent: (listener: (event: { event: Record<string, unknown>, id: string }) => void) => () => void
   /**
    * Opens the widgets window, optionally focusing a prepared widget route.
    *
@@ -74,6 +102,33 @@ export interface WidgetsWindowManager {
    */
   openWindow: (params?: { id?: string }) => Promise<void>
   /**
+   * Reserves a widget id before content is pushed into the widgets window.
+   *
+   * Use when:
+   * - The caller wants a stable route or window context before rendering
+   *
+   * Expects:
+   * - `options.id`, when provided, should be stable for later reuse
+   *
+   * Returns:
+   * - The prepared widget id bound to a future window context
+   */
+  prepareWidgetWindow: (options?: { id?: string }) => string
+  publishWidgetEvent: (id: string, event: Record<string, unknown>) => void
+  /**
+   * Publishes a renderer-to-main iframe request result into the pending request coordinator.
+   *
+   * Use when:
+   * - The widgets renderer reports a completed iframe request
+   *
+   * Expects:
+   * - `result.requestId` matches a request previously emitted by {@link WidgetsWindowManager.requestWidgetIframe}
+   *
+   * Returns:
+   * - Nothing; unknown or mismatched results are ignored
+   */
+  publishWidgetIframeRequestResult: (result: WidgetsIframeRequestResultPayload) => void
+  /**
    * Inserts or replaces a widget snapshot and renders it in the widgets window.
    *
    * Use when:
@@ -88,19 +143,6 @@ export interface WidgetsWindowManager {
    */
   pushWidget: (payload: WidgetsAddPayload) => Promise<string>
   /**
-   * Applies partial widget changes to an existing widget snapshot.
-   *
-   * Use when:
-   * - A widget's props, size, or time-to-live must change without respawning it
-   *
-   * Expects:
-   * - `payload.id` references an existing widget managed by this instance
-   *
-   * Returns:
-   * - Resolves after in-memory state and renderer events have been updated
-   */
-  updateWidget: (payload: WidgetsUpdatePayload) => Promise<void>
-  /**
    * Removes a single widget from the registry and renderer surface.
    *
    * Use when:
@@ -113,35 +155,6 @@ export interface WidgetsWindowManager {
    * - Resolves after the widget has been removed and the renderer notified
    */
   removeWidget: (id: string) => Promise<void>
-  /**
-   * Removes all widgets and closes any live widget windows.
-   *
-   * Use when:
-   * - The overlay surface should reset to an empty state
-   *
-   * Expects:
-   * - No additional input
-   *
-   * Returns:
-   * - Resolves after the registry, renderer, and child windows have been cleared
-   */
-  clearWidgets: () => Promise<void>
-  hideWindow: (params?: { id?: string }) => Promise<void>
-  /**
-   * Reads the current snapshot for a single widget id.
-   *
-   * Use when:
-   * - Another service needs to inspect a widget before opening or mutating it
-   *
-   * Expects:
-   * - `id` is the widget identifier to inspect
-   *
-   * Returns:
-   * - The current snapshot, or `undefined` when the widget is unknown
-   */
-  getWidgetSnapshot: (id: string) => WidgetSnapshot | undefined
-  publishWidgetEvent: (id: string, event: Record<string, unknown>) => void
-  onWidgetEvent: (listener: (event: { id: string, event: Record<string, unknown> }) => void) => () => void
   /**
    * Sends a correlated request to a mounted widget iframe through the widgets renderer.
    *
@@ -160,110 +173,39 @@ export interface WidgetsWindowManager {
     options?: { timeoutMs?: number },
   ) => Promise<TResponse>
   /**
-   * Publishes a renderer-to-main iframe request result into the pending request coordinator.
+   * Applies partial widget changes to an existing widget snapshot.
    *
    * Use when:
-   * - The widgets renderer reports a completed iframe request
+   * - A widget's props, size, or time-to-live must change without respawning it
    *
    * Expects:
-   * - `result.requestId` matches a request previously emitted by {@link WidgetsWindowManager.requestWidgetIframe}
+   * - `payload.id` references an existing widget managed by this instance
    *
    * Returns:
-   * - Nothing; unknown or mismatched results are ignored
+   * - Resolves after in-memory state and renderer events have been updated
    */
-  publishWidgetIframeRequestResult: (result: WidgetsIframeRequestResultPayload) => void
-  /**
-   * Reserves a widget id before content is pushed into the widgets window.
-   *
-   * Use when:
-   * - The caller wants a stable route or window context before rendering
-   *
-   * Expects:
-   * - `options.id`, when provided, should be stable for later reuse
-   *
-   * Returns:
-   * - The prepared widget id bound to a future window context
-   */
-  prepareWidgetWindow: (options?: { id?: string }) => string
+  updateWidget: (payload: WidgetsUpdatePayload) => Promise<void>
 }
 
 const widgetsWindowConfigSchema = object({
   bounds: optional(object({
+    height: number(),
+    width: number(),
     x: number(),
     y: number(),
-    width: number(),
-    height: number(),
   })),
 })
-
-type WidgetsWindowConfig = InferOutput<typeof widgetsWindowConfigSchema>
-
-function computeDefaultBounds(): Rectangle {
-  const primary = screen.getPrimaryDisplay().workArea
-  const width = Math.min(500, Math.floor(primary.width * 0.35))
-  const height = Math.min(500, Math.floor(primary.height * 0.6))
-  const x = primary.x + primary.width - width - 16
-  const y = primary.y + 16
-  return { x, y, width, height }
-}
-
-function resolveWindowSizeFromPayload(payload: Pick<WidgetsAddPayload, 'componentName' | 'componentProps' | 'windowSize'>) {
-  const explicitWindowSize = normalizeWidgetWindowSize(payload.windowSize)
-  if (explicitWindowSize)
-    return explicitWindowSize
-
-  if (payload.componentName?.trim().toLowerCase() !== 'plugin-module')
-    return undefined
-
-  const pluginModulePayload = payload.componentProps as PluginModuleWidgetPayload | undefined
-  return normalizeWidgetWindowSize(pluginModulePayload?.windowSize)
-}
-
-function createWidgetsWindow() {
-  const window = new ElectronBrowserWindow({
-    title: 'Widgets',
-    width: 620,
-    height: 760,
-    show: false,
-    icon,
-    webPreferences: {
-      preload: join(getElectronMainDirname(), '../preload/index.mjs'),
-      sandbox: false,
-    },
-    // Top-level overlay style like other overlay windows
-    type: 'panel',
-    ...transparentWindowConfig(),
-    ...spotlightLikeWindowConfig(),
-  })
-
-  window.setFullScreenable(false)
-  window.setVisibleOnAllWorkspaces(true)
-  if (isMacOS)
-    window.setWindowButtonVisibility(false)
-
-  window.on('ready-to-show', () => window.show())
-  protectPrivilegedWindowNavigation(window)
-
-  return window
-}
-
-function applyAlwaysOnTop(window: BrowserWindow, enabled: boolean) {
-  if (enabled) {
-    window.setAlwaysOnTop(true, 'screen-saver', 1)
-    return
-  }
-
-  window.setAlwaysOnTop(false)
-}
 
 interface WidgetRecord extends WidgetSnapshot {
   timer?: ReturnType<typeof setTimeout>
 }
 
+type WidgetsWindowConfig = InferOutput<typeof widgetsWindowConfigSchema>
+
 interface WidgetWindowContext {
   widgetId: string
-  windowBuilder: () => Promise<BrowserWindow>
   window?: BrowserWindow
+  windowBuilder: () => Promise<BrowserWindow>
 }
 
 /**
@@ -288,24 +230,24 @@ interface WidgetWindowContext {
  *       -> {@link createContext}
  */
 export function setupWidgetsWindowManager(params: {
-  serverChannel: ServerChannel
   i18n: I18n
+  serverChannel: ServerChannel
 }): WidgetsWindowManager {
-  const { setup, get: getConfigRaw, update } = createConfig('windows-widgets', 'config.json', widgetsWindowConfigSchema, {
-    default: {},
+  const { get: getConfigRaw, setup, update } = createConfig('windows-widgets', 'config.json', widgetsWindowConfigSchema, {
     autoHeal: true,
+    default: {},
   })
   const getConfig = (): WidgetsWindowConfig => getConfigRaw() ?? {}
   setup()
 
   let eventaContext: ReturnType<typeof createContext>['context'] | undefined
   const widgetRecords = new Map<string, WidgetRecord>()
-  const widgetEventListeners = new Set<(event: { id: string, event: Record<string, unknown> }) => void>()
+  const widgetEventListeners = new Set<(event: { event: Record<string, unknown>, id: string }) => void>()
   const windowContexts = new Map<string, WidgetWindowContext>()
   const iframeRequests = createWidgetIframeRequestCoordinator({
-    hasWidget: id => widgetRecords.has(id),
-    hasRelay: () => Boolean(eventaContext),
     emitRequest: payload => eventaContext?.emit(widgetsIframeRequestEvent, payload),
+    hasRelay: () => Boolean(eventaContext),
+    hasWidget: id => widgetRecords.has(id),
   })
 
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
@@ -316,7 +258,7 @@ export function setupWidgetsWindowManager(params: {
   let activeWidgetsWindow: BrowserWindow | undefined
   let persistWindowBounds = true
 
-  let widgetsManager: WidgetsWindowManager | undefined
+  let widgetsManager: undefined | WidgetsWindowManager
 
   const reusable = createReusableWindow(async () => {
     // TODO: once we refactored eventa to support window-namespaced contexts,
@@ -333,10 +275,10 @@ export function setupWidgetsWindowManager(params: {
     if (saved) {
       const work = screen.getDisplayMatching(saved).workArea
       const clamped: Rectangle = {
+        height: Math.min(saved.height, work.height),
+        width: Math.min(saved.width, work.width),
         x: Math.min(Math.max(saved.x, work.x), work.x + work.width - saved.width),
         y: Math.min(Math.max(saved.y, work.y), work.y + work.height - saved.height),
-        width: Math.min(saved.width, work.width),
-        height: Math.min(saved.height, work.height),
       }
       window.setBounds(clamped)
     }
@@ -354,10 +296,10 @@ export function setupWidgetsWindowManager(params: {
 
     const initialRoute = pendingRoute ?? defaultRoute
     await setupWidgetsWindowInvokes({
-      widgetWindow: window,
-      widgetsManager: widgetsManager!,
       i18n: params.i18n,
       serverChannel: params.serverChannel,
+      widgetsManager: widgetsManager!,
+      widgetWindow: window,
     })
 
     await loadWithRoute(window, initialRoute)
@@ -396,8 +338,8 @@ export function setupWidgetsWindowManager(params: {
     if (!windowContexts.has(id)) {
       windowContexts.set(id, {
         widgetId: id,
-        windowBuilder: () => getWindow(),
         window: undefined,
+        windowBuilder: () => getWindow(),
       })
     }
     return id
@@ -453,10 +395,10 @@ export function setupWidgetsWindowManager(params: {
       const width = Math.min(saved.width, work.width)
       const height = Math.min(saved.height, work.height)
       const clamped: Rectangle = {
+        height,
+        width,
         x: clamp(saved.x, work.x, work.x + work.width - width),
         y: clamp(saved.y, work.y, work.y + work.height - height),
-        width,
-        height,
       }
       window.setBounds(clamped)
       return
@@ -490,10 +432,10 @@ export function setupWidgetsWindowManager(params: {
     window.setMinimumSize(minWidth, minHeight)
     window.setMaximumSize(maxWidth, maxHeight)
     window.setBounds({
+      height,
+      width,
       x: clamp(currentBounds.x, work.x, work.x + work.width - width),
       y: clamp(currentBounds.y, work.y, work.y + work.height - height),
-      width,
-      height,
     })
   }
 
@@ -572,13 +514,13 @@ export function setupWidgetsWindowManager(params: {
   async function pushWidget(payload: WidgetsAddPayload): Promise<string> {
     const id = prepareWidgetWindow({ id: payload.id })
     const snapshot: WidgetSnapshot = {
-      id,
+      alwaysOnTop: payload.alwaysOnTop ?? false,
       componentName: payload.componentName,
       componentProps: payload.componentProps ?? {},
-      alwaysOnTop: payload.alwaysOnTop ?? false,
+      id,
       size: payload.size ?? 'm',
-      windowSize: resolveWindowSizeFromPayload(payload),
       ttlMs: payload.ttlMs ?? 0,
+      windowSize: resolveWindowSizeFromPayload(payload),
     }
     upsertRecord(snapshot)
     const context = windowContexts.get(id)
@@ -610,11 +552,11 @@ export function setupWidgetsWindowManager(params: {
 
     const nextSnapshot: WidgetSnapshot = {
       ...toSnapshot(existing),
-      componentProps: payload.componentProps ?? existing.componentProps,
       alwaysOnTop: payload.alwaysOnTop ?? existing.alwaysOnTop,
+      componentProps: payload.componentProps ?? existing.componentProps,
       size: payload.size ?? existing.size,
-      windowSize: normalizeWidgetWindowSize(payload.windowSize) ?? existing.windowSize,
       ttlMs: payload.ttlMs ?? existing.ttlMs,
+      windowSize: normalizeWidgetWindowSize(payload.windowSize) ?? existing.windowSize,
     }
 
     upsertRecord(nextSnapshot)
@@ -627,12 +569,12 @@ export function setupWidgetsWindowManager(params: {
     }
 
     eventaContext?.emit(widgetsUpdateEvent, {
-      id: nextSnapshot.id,
-      componentProps: nextSnapshot.componentProps,
       alwaysOnTop: nextSnapshot.alwaysOnTop,
+      componentProps: nextSnapshot.componentProps,
+      id: nextSnapshot.id,
       size: nextSnapshot.size,
-      windowSize: nextSnapshot.windowSize,
       ttlMs: nextSnapshot.ttlMs,
+      windowSize: nextSnapshot.windowSize,
     })
   }
 
@@ -711,11 +653,11 @@ export function setupWidgetsWindowManager(params: {
 
   function publishWidgetEvent(id: string, event: Record<string, unknown>) {
     for (const listener of widgetEventListeners) {
-      listener({ id, event })
+      listener({ event, id })
     }
   }
 
-  function onWidgetEvent(listener: (event: { id: string, event: Record<string, unknown> }) => void) {
+  function onWidgetEvent(listener: (event: { event: Record<string, unknown>, id: string }) => void) {
     widgetEventListeners.add(listener)
     return () => {
       widgetEventListeners.delete(listener)
@@ -743,20 +685,78 @@ export function setupWidgetsWindowManager(params: {
   }
 
   widgetsManager = {
-    getWindow,
-    openWindow,
-    pushWidget,
-    updateWidget,
-    removeWidget,
     clearWidgets,
-    hideWindow,
     getWidgetSnapshot,
-    publishWidgetEvent,
+    getWindow,
+    hideWindow,
     onWidgetEvent,
-    requestWidgetIframe,
-    publishWidgetIframeRequestResult,
+    openWindow,
     prepareWidgetWindow,
+    publishWidgetEvent,
+    publishWidgetIframeRequestResult,
+    pushWidget,
+    removeWidget,
+    requestWidgetIframe,
+    updateWidget,
   }
 
   return widgetsManager!
+}
+
+function applyAlwaysOnTop(window: BrowserWindow, enabled: boolean) {
+  if (enabled) {
+    window.setAlwaysOnTop(true, 'screen-saver', 1)
+    return
+  }
+
+  window.setAlwaysOnTop(false)
+}
+
+function computeDefaultBounds(): Rectangle {
+  const primary = screen.getPrimaryDisplay().workArea
+  const width = Math.min(500, Math.floor(primary.width * 0.35))
+  const height = Math.min(500, Math.floor(primary.height * 0.6))
+  const x = primary.x + primary.width - width - 16
+  const y = primary.y + 16
+  return { height, width, x, y }
+}
+
+function createWidgetsWindow() {
+  const window = new ElectronBrowserWindow({
+    height: 760,
+    icon,
+    show: false,
+    title: 'Widgets',
+    // Top-level overlay style like other overlay windows
+    type: 'panel',
+    webPreferences: {
+      preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+      sandbox: false,
+    },
+    width: 620,
+    ...transparentWindowConfig(),
+    ...spotlightLikeWindowConfig(),
+  })
+
+  window.setFullScreenable(false)
+  window.setVisibleOnAllWorkspaces(true)
+  if (isMacOS)
+    window.setWindowButtonVisibility(false)
+
+  window.on('ready-to-show', () => window.show())
+  protectPrivilegedWindowNavigation(window)
+
+  return window
+}
+
+function resolveWindowSizeFromPayload(payload: Pick<WidgetsAddPayload, 'componentName' | 'componentProps' | 'windowSize'>) {
+  const explicitWindowSize = normalizeWidgetWindowSize(payload.windowSize)
+  if (explicitWindowSize)
+    return explicitWindowSize
+
+  if (payload.componentName?.trim().toLowerCase() !== 'plugin-module')
+    return undefined
+
+  const pluginModulePayload = payload.componentProps as PluginModuleWidgetPayload | undefined
+  return normalizeWidgetWindowSize(pluginModulePayload?.windowSize)
 }

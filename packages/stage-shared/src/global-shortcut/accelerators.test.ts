@@ -11,13 +11,13 @@ import {
 describe('parseAccelerator', () => {
   it('parses a single key with no modifiers', () => {
     // @example "Escape" — bare key, valid on its own
-    expect(parseAccelerator('Escape')).toEqual({ modifiers: [], key: 'Escape' })
+    expect(parseAccelerator('Escape')).toEqual({ key: 'Escape', modifiers: [] })
   })
 
   it('parses a typical accelerator with modifiers', () => {
     // @example "Mod+Shift+K" — common Cmd/Ctrl shortcut
     expect(parseAccelerator('Mod+Shift+K'))
-      .toEqual({ modifiers: ['cmd-or-ctrl', 'shift'], key: 'KeyK' })
+      .toEqual({ key: 'KeyK', modifiers: ['cmd-or-ctrl', 'shift'] })
   })
 
   it('treats Mod, CmdOrCtrl, and CommandOrControl as the same modifier', () => {
@@ -135,57 +135,57 @@ describe('formatAccelerator', () => {
   it('emits canonical IR with modifier ordering normalized', () => {
     // @example modifiers given in author order ['shift', 'cmd-or-ctrl']
     // serialize as 'Mod+Shift+KeyK', not 'Shift+Mod+KeyK'
-    expect(formatAccelerator({ modifiers: ['shift', 'cmd-or-ctrl'], key: 'KeyK' }))
+    expect(formatAccelerator({ key: 'KeyK', modifiers: ['shift', 'cmd-or-ctrl'] }))
       .toBe('Mod+Shift+KeyK')
   })
 
   it('emits a bare key when there are no modifiers', () => {
-    expect(formatAccelerator({ modifiers: [], key: 'Escape' })).toBe('Escape')
+    expect(formatAccelerator({ key: 'Escape', modifiers: [] })).toBe('Escape')
   })
 
   it('orders modifiers as cmd-or-ctrl, cmd, ctrl, alt, shift, super', () => {
     expect(formatAccelerator({
-      modifiers: ['super', 'shift', 'alt', 'ctrl', 'cmd', 'cmd-or-ctrl'],
       key: 'KeyK',
+      modifiers: ['super', 'shift', 'alt', 'ctrl', 'cmd', 'cmd-or-ctrl'],
     })).toBe('Mod+Cmd+Ctrl+Alt+Shift+Super+KeyK')
   })
 })
 
 describe('formatElectronAccelerator', () => {
   it('rewrites cmd-or-ctrl to CmdOrCtrl', () => {
-    expect(formatElectronAccelerator({ modifiers: ['cmd-or-ctrl', 'shift'], key: 'KeyK' }))
+    expect(formatElectronAccelerator({ key: 'KeyK', modifiers: ['cmd-or-ctrl', 'shift'] }))
       .toBe('CmdOrCtrl+Shift+K')
   })
 
   it('strips the Key prefix from letter keys', () => {
     // @example "KeyK" -> "K"
-    expect(formatElectronAccelerator({ modifiers: ['alt'], key: 'KeyA' }))
+    expect(formatElectronAccelerator({ key: 'KeyA', modifiers: ['alt'] }))
       .toBe('Alt+A')
   })
 
   it('strips the Digit prefix from digit keys', () => {
     // @example "Digit1" -> "1"
-    expect(formatElectronAccelerator({ modifiers: ['cmd-or-ctrl'], key: 'Digit1' }))
+    expect(formatElectronAccelerator({ key: 'Digit1', modifiers: ['cmd-or-ctrl'] }))
       .toBe('CmdOrCtrl+1')
   })
 
   it('rewrites arrow keys to Electron short names', () => {
-    expect(formatElectronAccelerator({ modifiers: [], key: 'ArrowUp' })).toBe('Up')
-    expect(formatElectronAccelerator({ modifiers: [], key: 'ArrowDown' })).toBe('Down')
+    expect(formatElectronAccelerator({ key: 'ArrowUp', modifiers: [] })).toBe('Up')
+    expect(formatElectronAccelerator({ key: 'ArrowDown', modifiers: [] })).toBe('Down')
   })
 
   it('rewrites Escape to Esc', () => {
-    expect(formatElectronAccelerator({ modifiers: [], key: 'Escape' })).toBe('Esc')
+    expect(formatElectronAccelerator({ key: 'Escape', modifiers: [] })).toBe('Esc')
   })
 
   it('rewrites punctuation keys to literal characters', () => {
-    expect(formatElectronAccelerator({ modifiers: [], key: 'Equal' })).toBe('=')
-    expect(formatElectronAccelerator({ modifiers: ['shift'], key: 'Slash' })).toBe('Shift+/')
+    expect(formatElectronAccelerator({ key: 'Equal', modifiers: [] })).toBe('=')
+    expect(formatElectronAccelerator({ key: 'Slash', modifiers: ['shift'] })).toBe('Shift+/')
   })
 
   it('passes function and named keys through unchanged', () => {
-    expect(formatElectronAccelerator({ modifiers: ['alt'], key: 'F12' })).toBe('Alt+F12')
-    expect(formatElectronAccelerator({ modifiers: [], key: 'Space' })).toBe('Space')
+    expect(formatElectronAccelerator({ key: 'F12', modifiers: ['alt'] })).toBe('Alt+F12')
+    expect(formatElectronAccelerator({ key: 'Space', modifiers: [] })).toBe('Space')
   })
 })
 

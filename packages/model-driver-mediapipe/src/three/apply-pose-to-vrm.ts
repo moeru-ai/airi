@@ -24,111 +24,77 @@ export interface VrmPoseApplyOptions {
   minPoleDotBeforeReject?: number
 }
 
-type BoneKey = keyof VrmPoseDirections
-
 interface BoneChain {
   bone: string
   childCandidates: readonly string[]
 }
 
+type BoneKey = keyof VrmPoseDirections
+
 const DEFAULT_ALPHA = 0.35
 
 const CHAINS: Readonly<Record<BoneKey, BoneChain>> = {
-  hips: {
-    bone: 'hips',
-    childCandidates: ['spine'],
-  },
-  spine: {
-    bone: 'spine',
-    childCandidates: ['chest', 'upperChest', 'neck'],
-  },
   chest: {
     bone: 'chest',
     childCandidates: ['upperChest', 'neck'],
   },
-  leftShoulder: {
-    bone: 'leftShoulder',
-    childCandidates: ['leftUpperArm'],
-  },
-  rightShoulder: {
-    bone: 'rightShoulder',
-    childCandidates: ['rightUpperArm'],
-  },
-  leftUpperArm: {
-    bone: 'leftUpperArm',
-    childCandidates: ['leftLowerArm'],
+  hips: {
+    bone: 'hips',
+    childCandidates: ['spine'],
   },
   leftLowerArm: {
     bone: 'leftLowerArm',
     childCandidates: ['leftHand'],
   },
-  rightUpperArm: {
-    bone: 'rightUpperArm',
-    childCandidates: ['rightLowerArm'],
+  leftLowerLeg: {
+    bone: 'leftLowerLeg',
+    childCandidates: ['leftFoot'],
   },
-  rightLowerArm: {
-    bone: 'rightLowerArm',
-    childCandidates: ['rightHand'],
+  leftShoulder: {
+    bone: 'leftShoulder',
+    childCandidates: ['leftUpperArm'],
+  },
+  leftUpperArm: {
+    bone: 'leftUpperArm',
+    childCandidates: ['leftLowerArm'],
   },
   leftUpperLeg: {
     bone: 'leftUpperLeg',
     childCandidates: ['leftLowerLeg'],
   },
-  leftLowerLeg: {
-    bone: 'leftLowerLeg',
-    childCandidates: ['leftFoot'],
+  rightLowerArm: {
+    bone: 'rightLowerArm',
+    childCandidates: ['rightHand'],
+  },
+  rightLowerLeg: {
+    bone: 'rightLowerLeg',
+    childCandidates: ['rightFoot'],
+  },
+  rightShoulder: {
+    bone: 'rightShoulder',
+    childCandidates: ['rightUpperArm'],
+  },
+  rightUpperArm: {
+    bone: 'rightUpperArm',
+    childCandidates: ['rightLowerArm'],
   },
   rightUpperLeg: {
     bone: 'rightUpperLeg',
     childCandidates: ['rightLowerLeg'],
   },
-  rightLowerLeg: {
-    bone: 'rightLowerLeg',
-    childCandidates: ['rightFoot'],
+  spine: {
+    bone: 'spine',
+    childCandidates: ['chest', 'upperChest', 'neck'],
   },
 } as const
 
 const POLE_KEYS: ReadonlySet<BoneKey> = new Set(Object.keys(CHAINS) as BoneKey[])
 const LIMB_POLE_KEYS: ReadonlySet<BoneKey> = new Set([
   'leftUpperArm',
-  'rightUpperArm',
   'leftUpperLeg',
+  'rightUpperArm',
   'rightUpperLeg',
 ])
-
-function isFiniteVec3(v: { x: number, y: number, z?: number } | undefined): v is { x: number, y: number, z?: number } {
-  if (!v)
-    return false
-  return Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z ?? 0)
-}
-
-function firstExistingBone(vrm: VRM, candidates: readonly string[]) {
-  for (const name of candidates) {
-    const node = vrm.humanoid?.getNormalizedBoneNode(name as any)
-    if (node)
-      return node
-  }
-  return null
-}
-
-function grandchildCandidatesFor(key: BoneKey): readonly string[] {
-  if (key === 'leftUpperArm')
-    return ['leftHand']
-  if (key === 'rightUpperArm')
-    return ['rightHand']
-  if (key === 'leftUpperLeg')
-    return ['leftFoot']
-  if (key === 'rightUpperLeg')
-    return ['rightFoot']
-  return []
-}
-
-function orthonormalizePole(dir: Vector3, pole: Vector3): Vector3 | null {
-  const poleOrtho = pole.clone().addScaledVector(dir, -pole.dot(dir))
-  if (poleOrtho.lengthSq() <= 1e-12)
-    return null
-  return poleOrtho.normalize()
-}
 
 export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
   const alpha = options?.alpha ?? DEFAULT_ALPHA
@@ -164,7 +130,7 @@ export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
   const tmpTargetYWorld = new Vector3()
   const tmpWorldForward = new Vector3(0, 0, -1)
 
-  function ensureRestDirection(vrm: VRM, key: BoneKey): Vector3 | null {
+  function ensureRestDirection(vrm: VRM, key: BoneKey): null | Vector3 {
     const existing = restDirLocal[key]
     if (existing)
       return existing
@@ -193,7 +159,7 @@ export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
     return stored
   }
 
-  function ensureRestPole(vrm: VRM, key: BoneKey): Vector3 | null {
+  function ensureRestPole(vrm: VRM, key: BoneKey): null | Vector3 {
     if (!POLE_KEYS.has(key))
       return null
 
@@ -358,4 +324,38 @@ export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
   }
 
   return { applyPoseDirectionsToVrm, applyPoseTargetsToVrm }
+}
+
+function firstExistingBone(vrm: VRM, candidates: readonly string[]) {
+  for (const name of candidates) {
+    const node = vrm.humanoid?.getNormalizedBoneNode(name as any)
+    if (node)
+      return node
+  }
+  return null
+}
+
+function grandchildCandidatesFor(key: BoneKey): readonly string[] {
+  if (key === 'leftUpperArm')
+    return ['leftHand']
+  if (key === 'rightUpperArm')
+    return ['rightHand']
+  if (key === 'leftUpperLeg')
+    return ['leftFoot']
+  if (key === 'rightUpperLeg')
+    return ['rightFoot']
+  return []
+}
+
+function isFiniteVec3(v: undefined | { x: number, y: number, z?: number }): v is { x: number, y: number, z?: number } {
+  if (!v)
+    return false
+  return Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z ?? 0)
+}
+
+function orthonormalizePole(dir: Vector3, pole: Vector3): null | Vector3 {
+  const poleOrtho = pole.clone().addScaledVector(dir, -pole.dot(dir))
+  if (poleOrtho.lengthSq() <= 1e-12)
+    return null
+  return poleOrtho.normalize()
 }

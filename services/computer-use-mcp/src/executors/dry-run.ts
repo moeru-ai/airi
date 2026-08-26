@@ -22,6 +22,58 @@ import { platform } from 'node:process'
 import { probeDisplayInfo, probePermissionInfo } from '../runtime-probes'
 import { captureScreenshotArtifact } from '../utils/screenshot'
 
+export function createDryRunExecutor(config: ComputerUseConfig): DesktopExecutor {
+  const executionTarget = getDryRunExecutionTarget(config)
+
+  return {
+    click: async (_input: ClickActionInput & { pointerTrace: PointerTracePoint[] }) => result(['dry-run: click not injected'], executionTarget),
+    describe: () => ({
+      kind: 'dry-run',
+      notes: [
+        'desktop input is not injected',
+        'screenshots are still attempted on the current host for debugging',
+      ],
+    }),
+    focusApp: async (_input: FocusAppActionInput) => result(['dry-run: app not focused'], executionTarget),
+    getDisplayInfo: () => probeDisplayInfo(config),
+    getExecutionTarget: async () => executionTarget,
+    getForegroundContext: getBestEffortForegroundContext,
+    getPermissionInfo: () => probePermissionInfo(config),
+    kind: 'dry-run',
+    observeWindows: async request => observeWindows(request),
+    openApp: async (_input: OpenAppActionInput) => result(['dry-run: app not opened'], executionTarget),
+    openTestTarget: async () => ({
+      appName: 'dry-run-target',
+      executionTarget,
+      launched: true,
+      recommendedClickPoint: {
+        x: 180,
+        y: 150,
+      },
+      windowTitle: 'Dry Run Desktop Target',
+    }),
+    pressKeys: async (_input: PressKeysActionInput) => result(['dry-run: shortcut not injected'], executionTarget),
+    scroll: async (_input: ScrollActionInput) => result(['dry-run: scroll not injected'], executionTarget),
+    takeScreenshot: request => captureScreenshotArtifact({
+      executionTarget,
+      label: request.label,
+      screenshotBinary: config.binaries.screencapture,
+      screenshotsDir: config.screenshotsDir,
+      timeoutMs: config.timeoutMs,
+    }),
+    typeText: async (_input: TypeTextActionInput) => result(['dry-run: text not injected'], executionTarget),
+    wait: async (input: WaitActionInput) => {
+      await new Promise(resolve => setTimeout(resolve, Math.max(input.durationMs, 0)))
+      return {
+        backend: 'dry-run',
+        executionTarget,
+        notes: ['dry-run: waited without desktop mutation'],
+        performed: true,
+      }
+    },
+  }
+}
+
 async function getBestEffortForegroundContext(): Promise<ForegroundContext> {
   return {
     available: false,
@@ -30,83 +82,31 @@ async function getBestEffortForegroundContext(): Promise<ForegroundContext> {
   }
 }
 
-function result(notes: string[], executionTarget: ExecutionTarget): ExecutorActionResult {
-  return {
-    performed: false,
-    backend: 'dry-run',
-    notes,
-    executionTarget,
-  }
-}
-
 function getDryRunExecutionTarget(config: ComputerUseConfig): ExecutionTarget {
   return {
-    mode: 'dry-run',
-    transport: 'local',
     hostName: hostname(),
-    sessionTag: config.sessionTag,
     isolated: false,
-    tainted: false,
+    mode: 'dry-run',
     note: 'dry-run mode never injects desktop input',
+    sessionTag: config.sessionTag,
+    tainted: false,
+    transport: 'local',
   }
 }
 
 function observeWindows(request: ObserveWindowsRequest): WindowObservation {
   return {
     frontmostAppName: request.app,
-    windows: [],
     observedAt: new Date().toISOString(),
+    windows: [],
   }
 }
 
-export function createDryRunExecutor(config: ComputerUseConfig): DesktopExecutor {
-  const executionTarget = getDryRunExecutionTarget(config)
-
+function result(notes: string[], executionTarget: ExecutionTarget): ExecutorActionResult {
   return {
-    kind: 'dry-run',
-    describe: () => ({
-      kind: 'dry-run',
-      notes: [
-        'desktop input is not injected',
-        'screenshots are still attempted on the current host for debugging',
-      ],
-    }),
-    getExecutionTarget: async () => executionTarget,
-    getForegroundContext: getBestEffortForegroundContext,
-    getDisplayInfo: () => probeDisplayInfo(config),
-    getPermissionInfo: () => probePermissionInfo(config),
-    observeWindows: async request => observeWindows(request),
-    takeScreenshot: request => captureScreenshotArtifact({
-      label: request.label,
-      screenshotsDir: config.screenshotsDir,
-      screenshotBinary: config.binaries.screencapture,
-      timeoutMs: config.timeoutMs,
-      executionTarget,
-    }),
-    openApp: async (_input: OpenAppActionInput) => result(['dry-run: app not opened'], executionTarget),
-    focusApp: async (_input: FocusAppActionInput) => result(['dry-run: app not focused'], executionTarget),
-    click: async (_input: ClickActionInput & { pointerTrace: PointerTracePoint[] }) => result(['dry-run: click not injected'], executionTarget),
-    typeText: async (_input: TypeTextActionInput) => result(['dry-run: text not injected'], executionTarget),
-    pressKeys: async (_input: PressKeysActionInput) => result(['dry-run: shortcut not injected'], executionTarget),
-    scroll: async (_input: ScrollActionInput) => result(['dry-run: scroll not injected'], executionTarget),
-    wait: async (input: WaitActionInput) => {
-      await new Promise(resolve => setTimeout(resolve, Math.max(input.durationMs, 0)))
-      return {
-        performed: true,
-        backend: 'dry-run',
-        notes: ['dry-run: waited without desktop mutation'],
-        executionTarget,
-      }
-    },
-    openTestTarget: async () => ({
-      launched: true,
-      appName: 'dry-run-target',
-      windowTitle: 'Dry Run Desktop Target',
-      recommendedClickPoint: {
-        x: 180,
-        y: 150,
-      },
-      executionTarget,
-    }),
+    backend: 'dry-run',
+    executionTarget,
+    notes,
+    performed: false,
   }
 }

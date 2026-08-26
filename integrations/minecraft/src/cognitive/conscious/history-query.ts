@@ -6,17 +6,17 @@ import type { LlmLogEntry } from './llm-log'
  * Compact turn summary returned by history.turns().
  */
 export interface TurnSummary {
-  turnId: number
-  eventType: string
   actionCount: number
+  eventType: string
   hasError: boolean
   text: string
+  turnId: number
 }
 
 interface HistoryQueryDeps {
   getConversationHistory: () => readonly Message[]
-  getLlmLogEntries: () => readonly LlmLogEntry[]
   getCurrentTurnId: () => number
+  getLlmLogEntries: () => readonly LlmLogEntry[]
 }
 
 /**
@@ -26,19 +26,54 @@ interface HistoryQueryDeps {
 export function createHistoryRuntime(deps: HistoryQueryDeps) {
   return {
     /**
+     * Total message count in the conversation history.
+     */
+    count(): number {
+      return deps.getConversationHistory().length
+    },
+
+    /**
+     * Current turn ID.
+     */
+    currentTurn(): number {
+      return deps.getCurrentTurnId()
+    },
+
+    /**
+     * Last N player chat messages extracted from conversation history.
+     */
+    playerChats(n = 5): string[] {
+      const history = deps.getConversationHistory()
+      const chats: string[] = []
+
+      for (let i = history.length - 1; i >= 0 && chats.length < n; i--) {
+        const msg = history[i]
+        if (msg.role !== 'user' || typeof msg.content !== 'string')
+          continue
+        // eslint-disable-next-line regexp/no-super-linear-backtracking
+        const match = msg.content.match(/\[EVENT\]\s*([^:\n]+:[^\n]+)/)
+        if (match?.[1] && !match[1].startsWith('Perception Signal:')) {
+          chats.unshift(match[1])
+        }
+      }
+
+      return chats
+    },
+
+    /**
      * Last N user/assistant message pairs from conversation history.
      */
-    recent(n = 5): Array<{ role: string, content: string }> {
+    recent(n = 5): Array<{ content: string, role: string }> {
       const history = deps.getConversationHistory()
-      const pairs: Array<{ role: string, content: string }> = []
+      const pairs: Array<{ content: string, role: string }> = []
 
       // Walk backwards collecting user/assistant pairs
       for (let i = history.length - 1; i >= 0 && pairs.length < n * 2; i--) {
         const msg = history[i]
         if (msg.role === 'user' || msg.role === 'assistant') {
           pairs.unshift({
-            role: msg.role,
             content: typeof msg.content === 'string' ? msg.content : String(msg.content),
+            role: msg.role,
           })
         }
       }
@@ -50,19 +85,19 @@ export function createHistoryRuntime(deps: HistoryQueryDeps) {
      * Text search across conversation history.
      * Returns matching messages with their role and a content snippet.
      */
-    search(query: string, maxResults = 10): Array<{ role: string, content: string, source: 'conversation' }> {
+    search(query: string, maxResults = 10): Array<{ content: string, role: string, source: 'conversation' }> {
       if (!query || typeof query !== 'string')
         return []
 
       const needle = query.toLowerCase()
-      const results: Array<{ role: string, content: string, source: 'conversation' }> = []
+      const results: Array<{ content: string, role: string, source: 'conversation' }> = []
 
       for (const msg of deps.getConversationHistory()) {
         const content = typeof msg.content === 'string' ? msg.content : String(msg.content)
         if (content.toLowerCase().includes(needle)) {
           results.push({
-            role: msg.role,
             content: content.length > 300 ? `${content.slice(0, 297)}...` : content,
+            role: msg.role,
             source: 'conversation',
           })
           if (results.length >= maxResults)
@@ -85,11 +120,11 @@ export function createHistoryRuntime(deps: HistoryQueryDeps) {
         if (entry.kind !== 'turn_input')
           continue
         turnMap.set(entry.turnId, {
-          turnId: entry.turnId,
-          eventType: entry.eventType,
           actionCount: 0,
+          eventType: entry.eventType,
           hasError: false,
           text: entry.text,
+          turnId: entry.turnId,
         })
       }
 
@@ -119,41 +154,6 @@ export function createHistoryRuntime(deps: HistoryQueryDeps) {
 
       const sorted = [...turnMap.values()].sort((a, b) => b.turnId - a.turnId)
       return sorted.slice(0, Math.max(1, Math.floor(n)))
-    },
-
-    /**
-     * Last N player chat messages extracted from conversation history.
-     */
-    playerChats(n = 5): string[] {
-      const history = deps.getConversationHistory()
-      const chats: string[] = []
-
-      for (let i = history.length - 1; i >= 0 && chats.length < n; i--) {
-        const msg = history[i]
-        if (msg.role !== 'user' || typeof msg.content !== 'string')
-          continue
-        // eslint-disable-next-line regexp/no-super-linear-backtracking
-        const match = msg.content.match(/\[EVENT\]\s*([^:\n]+:[^\n]+)/)
-        if (match?.[1] && !match[1].startsWith('Perception Signal:')) {
-          chats.unshift(match[1])
-        }
-      }
-
-      return chats
-    },
-
-    /**
-     * Total message count in the conversation history.
-     */
-    count(): number {
-      return deps.getConversationHistory().length
-    },
-
-    /**
-     * Current turn ID.
-     */
-    currentTurn(): number {
-      return deps.getCurrentTurnId()
     },
   }
 }

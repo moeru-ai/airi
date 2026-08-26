@@ -1,33 +1,29 @@
 export interface BugReportPageContext {
-  url: string
+  language: string
+  timestamp: string
+  timeZone: string
   title: string
+  url: string
   userAgent: string
   viewport: string
-  language: string
-  timeZone: string
-  timestamp: string
 }
 
 export interface BuildBugReportPayloadOptions {
+  context?: BugReportPageContext | null
   description: string
   includeTriageContext?: boolean
-  context?: BugReportPageContext | null
   screenshotAttached?: boolean
 }
 
 interface WindowLike {
-  location?: {
-    href?: string
+  Date?: {
+    now?: () => number
   }
   document?: {
     title?: string
   }
-  navigator?: {
-    userAgent?: string
-    language?: string
-  }
-  innerWidth?: number
   innerHeight?: number
+  innerWidth?: number
   Intl?: {
     DateTimeFormat?: () => {
       resolvedOptions?: () => {
@@ -35,26 +31,12 @@ interface WindowLike {
       }
     }
   }
-  Date?: {
-    now?: () => number
+  location?: {
+    href?: string
   }
-}
-
-export function createBugReportPageContext(win: WindowLike | undefined = globalThis.window): BugReportPageContext | null {
-  if (!win)
-    return null
-
-  const now = win.Date?.now?.() ?? Date.now()
-  const timeZone = win.Intl?.DateTimeFormat?.()?.resolvedOptions?.()?.timeZone ?? 'unknown'
-
-  return {
-    url: win.location?.href ?? 'unknown',
-    title: win.document?.title ?? '',
-    userAgent: win.navigator?.userAgent ?? 'unknown',
-    viewport: `${win.innerWidth ?? 0}x${win.innerHeight ?? 0}`,
-    language: win.navigator?.language ?? 'unknown',
-    timeZone,
-    timestamp: new Date(now).toISOString(),
+  navigator?: {
+    language?: string
+    userAgent?: string
   }
 }
 
@@ -88,4 +70,22 @@ export function buildBugReportPayload(options: BuildBugReportPayloadOptions): st
   sections.push(`- Screenshot attached: ${options.screenshotAttached ? 'yes' : 'no'}`)
 
   return sections.join('\n')
+}
+
+export function createBugReportPageContext(win: undefined | WindowLike = globalThis.window): BugReportPageContext | null {
+  if (!win)
+    return null
+
+  const now = win.Date?.now?.() ?? Date.now()
+  const timeZone = win.Intl?.DateTimeFormat?.()?.resolvedOptions?.()?.timeZone ?? 'unknown'
+
+  return {
+    language: win.navigator?.language ?? 'unknown',
+    timestamp: new Date(now).toISOString(),
+    timeZone,
+    title: win.document?.title ?? '',
+    url: win.location?.href ?? 'unknown',
+    userAgent: win.navigator?.userAgent ?? 'unknown',
+    viewport: `${win.innerWidth ?? 0}x${win.innerHeight ?? 0}`,
+  }
 }

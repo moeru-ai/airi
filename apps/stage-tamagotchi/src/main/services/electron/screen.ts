@@ -11,11 +11,11 @@ import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecy
 
 export function createScreenService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
   const { start, stop } = createRendererLoop({
-    window: params.window,
     run: () => {
       const dipPos = screen.getCursorScreenPoint()
       params.context.emit(cursorScreenPoint, dipPos)
     },
+    window: params.window,
   })
 
   onAppWindowAllClosed(() => stop())

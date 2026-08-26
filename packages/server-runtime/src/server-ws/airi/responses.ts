@@ -10,19 +10,19 @@ import packageJSON from '../../../package.json'
 export function createEventMetadata(
   serverInstanceId: string,
   parentId?: string,
-): { source: MetadataEventSource, event: { id: string, parentId?: string } } {
+): { event: { id: string, parentId?: string }, source: MetadataEventSource } {
   return {
     event: {
       id: nanoid(),
       parentId,
     },
     source: {
+      id: serverInstanceId,
       kind: 'plugin',
       plugin: {
         id: WebSocketEventSource.Server,
         version: packageJSON.version,
       },
-      id: serverInstanceId,
     },
   }
 }
@@ -32,44 +32,44 @@ export function createResponses(serverInstanceId: string) {
   return {
     authenticated(parentId?: string) {
       return {
-        type: 'module:authenticated',
         data: { authenticated: true },
         metadata: createEventMetadata(serverInstanceId, parentId),
-      } satisfies WebSocketEvent<Record<string, unknown>>
-    },
-    peerAuthenticated(peerId: string, parentId?: string) {
-      return {
-        type: 'peer:authenticated',
-        data: { authenticated: true, peerId },
-        metadata: createEventMetadata(serverInstanceId, parentId),
-      } satisfies WebSocketEvent<Record<string, unknown>>
-    },
-    extensionAuthenticated(identity: ExtensionIdentity, parentId?: string) {
-      return {
-        type: 'extension:authenticated',
-        data: { identity, authenticated: true },
-        metadata: createEventMetadata(serverInstanceId, parentId),
-      } satisfies WebSocketEvent<Record<string, unknown>>
-    },
-    notAuthenticated(parentId?: string) {
-      return {
-        type: 'error',
-        data: { message: ServerErrorMessages.notAuthenticated },
-        metadata: createEventMetadata(serverInstanceId, parentId),
+        type: 'module:authenticated',
       } satisfies WebSocketEvent<Record<string, unknown>>
     },
     error(message: string, parentId?: string) {
       return {
-        type: 'error',
         data: { message },
         metadata: createEventMetadata(serverInstanceId, parentId),
+        type: 'error',
+      } satisfies WebSocketEvent<Record<string, unknown>>
+    },
+    extensionAuthenticated(identity: ExtensionIdentity, parentId?: string) {
+      return {
+        data: { authenticated: true, identity },
+        metadata: createEventMetadata(serverInstanceId, parentId),
+        type: 'extension:authenticated',
       } satisfies WebSocketEvent<Record<string, unknown>>
     },
     heartbeat(kind: MessageHeartbeatKind, message: MessageHeartbeat | string, parentId?: string) {
       return {
-        type: 'transport:connection:heartbeat',
-        data: { kind, message, at: Date.now() },
+        data: { at: Date.now(), kind, message },
         metadata: createEventMetadata(serverInstanceId, parentId),
+        type: 'transport:connection:heartbeat',
+      } satisfies WebSocketEvent<Record<string, unknown>>
+    },
+    notAuthenticated(parentId?: string) {
+      return {
+        data: { message: ServerErrorMessages.notAuthenticated },
+        metadata: createEventMetadata(serverInstanceId, parentId),
+        type: 'error',
+      } satisfies WebSocketEvent<Record<string, unknown>>
+    },
+    peerAuthenticated(peerId: string, parentId?: string) {
+      return {
+        data: { authenticated: true, peerId },
+        metadata: createEventMetadata(serverInstanceId, parentId),
+        type: 'peer:authenticated',
       } satisfies WebSocketEvent<Record<string, unknown>>
     },
   }

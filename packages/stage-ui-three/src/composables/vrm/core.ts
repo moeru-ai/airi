@@ -12,16 +12,16 @@ interface GLTFUserdata extends Record<string, any> {
 }
 
 export async function loadVrm(model: string, options?: {
-  scene?: Scene
   lookAt?: boolean
-  onProgress?: (progress: ProgressEvent<EventTarget>) => void | Promise<void>
-}): Promise<{
+  onProgress?: (progress: ProgressEvent<EventTarget>) => Promise<void> | void
+  scene?: Scene
+}): Promise<undefined | {
   _vrm: VRM
   _vrmGroup: Group
+  initialCameraOffset: Vector3
   modelCenter: Vector3
   modelSize: Vector3
-  initialCameraOffset: Vector3
-} | undefined> {
+}> {
   const loader = useVRMLoader()
   const gltf = await loader.loadAsync(model, progress => options?.onProgress?.(progress))
 
@@ -126,8 +126,8 @@ export async function loadVrm(model: string, options?: {
   return {
     _vrm,
     _vrmGroup,
+    initialCameraOffset,
     modelCenter,
     modelSize,
-    initialCameraOffset,
   }
 }

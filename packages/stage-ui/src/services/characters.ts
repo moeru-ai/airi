@@ -5,13 +5,14 @@ import { parse as parseValibot } from 'valibot'
 
 import { CharacterWithRelationsSchema } from '../types/character'
 
-interface RequestOptions {
-  init: { signal: AbortSignal }
-}
-
-interface RemoteResponse<T> {
-  json: () => Promise<T>
-  ok: boolean
+/**
+ * Options shared by character service operations.
+ */
+export interface CharacterServiceOptions {
+  /**
+   * Cancels the operation before or after remote IO.
+   */
+  abortSignal?: AbortSignal
 }
 
 /**
@@ -40,35 +41,34 @@ export interface CharactersRemoteClient {
 }
 
 /**
- * Options shared by character service operations.
- */
-export interface CharacterServiceOptions {
-  /**
-   * Cancels the operation before or after remote IO.
-   */
-  abortSignal?: AbortSignal
-}
-
-/**
  * Character domain operations used by controller stores.
  */
 export interface CharactersService {
+  /** Bookmarks and parses one remote character. */
+  bookmarkRemote: (client: CharactersRemoteClient, id: string, options?: CharacterServiceOptions) => Promise<Character>
   /** Builds an optimistic local character from a create payload. */
   buildLocal: (userId: string, payload: CreateCharacterPayload) => Character
+  /** Creates and parses one remote character. */
+  createRemote: (client: CharactersRemoteClient, payload: CreateCharacterPayload, options?: CharacterServiceOptions) => Promise<Character>
   /** Fetches and parses the remote character list. */
   fetchRemote: (client: CharactersRemoteClient, params: { all?: boolean }, options?: CharacterServiceOptions) => Promise<Character[]>
   /** Fetches and parses one remote character. */
   fetchRemoteById: (client: CharactersRemoteClient, id: string, options?: CharacterServiceOptions) => Promise<Character>
-  /** Creates and parses one remote character. */
-  createRemote: (client: CharactersRemoteClient, payload: CreateCharacterPayload, options?: CharacterServiceOptions) => Promise<Character>
-  /** Updates and parses one remote character. */
-  updateRemote: (client: CharactersRemoteClient, id: string, payload: UpdateCharacterPayload, options?: CharacterServiceOptions) => Promise<Character>
-  /** Removes one remote character. */
-  removeRemote: (client: CharactersRemoteClient, id: string, options?: CharacterServiceOptions) => Promise<void>
   /** Likes and parses one remote character. */
   likeRemote: (client: CharactersRemoteClient, id: string, options?: CharacterServiceOptions) => Promise<Character>
-  /** Bookmarks and parses one remote character. */
-  bookmarkRemote: (client: CharactersRemoteClient, id: string, options?: CharacterServiceOptions) => Promise<Character>
+  /** Removes one remote character. */
+  removeRemote: (client: CharactersRemoteClient, id: string, options?: CharacterServiceOptions) => Promise<void>
+  /** Updates and parses one remote character. */
+  updateRemote: (client: CharactersRemoteClient, id: string, payload: UpdateCharacterPayload, options?: CharacterServiceOptions) => Promise<Character>
+}
+
+interface RemoteResponse<T> {
+  json: () => Promise<T>
+  ok: boolean
+}
+
+interface RequestOptions {
+  init: { signal: AbortSignal }
 }
 
 /**
@@ -98,59 +98,59 @@ export function createCharactersService(): CharactersService {
     const now = new Date()
 
     return parseValibot(CharacterWithRelationsSchema, {
-      id,
-      version: payload.character.version,
-      coverUrl: payload.character.coverUrl,
-      avatarUrl: undefined,
-      characterAvatarUrl: undefined,
-      coverBackgroundUrl: undefined,
-      creatorRole: undefined,
-      priceCredit: '0',
-      likesCount: 0,
-      bookmarksCount: 0,
-      interactionsCount: 0,
-      forksCount: 0,
-      creatorId: userId,
-      ownerId: userId,
-      characterId: payload.character.characterId,
-      createdAt: now,
-      updatedAt: now,
-      deletedAt: undefined,
-      capabilities: payload.capabilities?.map(capability => ({
-        id: nanoid(),
-        characterId: id,
-        type: capability.type,
-        config: capability.config,
-      })),
       avatarModels: payload.avatarModels?.map(model => ({
-        id: nanoid(),
         characterId: id,
-        name: model.name,
-        type: model.type,
-        description: model.description,
         config: model.config,
         createdAt: now,
+        description: model.description,
+        id: nanoid(),
+        name: model.name,
+        type: model.type,
         updatedAt: now,
       })),
-      i18n: payload.i18n?.map(item => ({
-        id: nanoid(),
+      avatarUrl: undefined,
+      bookmarks: [],
+      bookmarksCount: 0,
+      capabilities: payload.capabilities?.map(capability => ({
         characterId: id,
+        config: capability.config,
+        id: nanoid(),
+        type: capability.type,
+      })),
+      characterAvatarUrl: undefined,
+      characterId: payload.character.characterId,
+      coverBackgroundUrl: undefined,
+      coverUrl: payload.character.coverUrl,
+      createdAt: now,
+      creatorId: userId,
+      creatorRole: undefined,
+      deletedAt: undefined,
+      forksCount: 0,
+      i18n: payload.i18n?.map(item => ({
+        characterId: id,
+        createdAt: now,
+        description: item.description,
+        id: nanoid(),
         language: item.language,
         name: item.name,
-        description: item.description,
         tags: item.tags,
-        createdAt: now,
         updatedAt: now,
       })),
+      id,
+      interactionsCount: 0,
+      likes: [],
+      likesCount: 0,
+      ownerId: userId,
+      priceCredit: '0',
       prompts: payload.prompts?.map(prompt => ({
-        id: nanoid(),
         characterId: id,
+        content: prompt.content,
+        id: nanoid(),
         language: prompt.language,
         type: prompt.type,
-        content: prompt.content,
       })),
-      likes: [],
-      bookmarks: [],
+      updatedAt: now,
+      version: payload.character.version,
     })
   }
 
@@ -192,8 +192,8 @@ export function createCharactersService(): CharactersService {
   async function updateRemote(client: CharactersRemoteClient, id: string, payload: UpdateCharacterPayload, options?: CharacterServiceOptions): Promise<Character> {
     options?.abortSignal?.throwIfAborted()
     const res = await client.api.v1.characters[':id'].$patch({
-      param: { id },
       json: payload,
+      param: { id },
     }, requestOptions(options))
     if (!res.ok)
       throw new Error('Failed to update character')
@@ -234,14 +234,14 @@ export function createCharactersService(): CharactersService {
   }
 
   return {
+    bookmarkRemote,
     buildLocal,
+    createRemote,
     fetchRemote,
     fetchRemoteById,
-    createRemote,
-    updateRemote,
-    removeRemote,
     likeRemote,
-    bookmarkRemote,
+    removeRemote,
+    updateRemote,
   }
 }
 

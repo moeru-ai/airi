@@ -21,11 +21,11 @@ export async function probeServerChannelQrPayload(payload: ServerChannelQrPayloa
     const client = new Client({
       autoConnect: false,
       autoReconnect: false,
+      connector: createTextProtocolConnector(connector),
       connectTimeoutMs: 2_000,
       name: WebSocketEventSource.StageWeb,
       token: payload.authToken,
       url,
-      connector: createTextProtocolConnector(connector),
     })
 
     try {

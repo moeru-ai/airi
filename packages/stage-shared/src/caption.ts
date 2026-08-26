@@ -5,5 +5,5 @@ export interface CaptionChannelEvent {
   /** Text rendered by the caption overlay. Empty text clears this source. */
   text: string
   /** Identifies the speaker that owns this caption text. */
-  type: 'caption-speaker' | 'caption-assistant'
+  type: 'caption-assistant' | 'caption-speaker'
 }

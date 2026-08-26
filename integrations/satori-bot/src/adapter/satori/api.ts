@@ -10,9 +10,9 @@ const log = useLogg('SatoriAPI')
 
 export interface SatoriAPIConfig {
   baseUrl: string
-  token?: string
   platform: string
   selfId: string
+  token?: string
 }
 
 export class SatoriAPI {
@@ -20,6 +20,43 @@ export class SatoriAPI {
 
   constructor(config: SatoriAPIConfig) {
     this.config = config
+  }
+
+  async deleteMessage(channelId: string, messageId: string): Promise<void> {
+    await this.request('/message.delete', {
+      channel_id: channelId,
+      message_id: messageId,
+    })
+  }
+
+  async getMessage(channelId: string, messageId: string): Promise<SatoriMessage> {
+    const response = await this.request<unknown>('/message.get', {
+      channel_id: channelId,
+      message_id: messageId,
+    })
+    return v.parse(SatoriMessageSchema, response)
+  }
+
+  async sendMessage(
+    channelId: string,
+    content: string,
+  ): Promise<SatoriMessageCreateResponse[]> {
+    const body: SatoriMessageCreateRequest = {
+      channel_id: channelId,
+      content,
+    }
+
+    log.log(`Sending message to channel ${channelId}: ${content}`)
+    const response = await this.request<unknown[]>('/message.create', body)
+    return v.parse(v.array(SatoriMessageCreateResponseSchema), response)
+  }
+
+  async updateMessage(channelId: string, messageId: string, content: string): Promise<void> {
+    await this.request('/message.update', {
+      channel_id: channelId,
+      content,
+      message_id: messageId,
+    })
   }
 
   private getHeaders(): Record<string, string> {
@@ -44,9 +81,9 @@ export class SatoriAPI {
 
     try {
       const response = await fetch(url, {
-        method: 'POST',
-        headers: this.getHeaders(),
         body: body ? JSON.stringify(body) : undefined,
+        headers: this.getHeaders(),
+        method: 'POST',
         signal: AbortSignal.timeout(10000),
       })
 
@@ -61,42 +98,5 @@ export class SatoriAPI {
       log.withError(error as Error).error(`Failed to call ${endpoint}`)
       throw error
     }
-  }
-
-  async sendMessage(
-    channelId: string,
-    content: string,
-  ): Promise<SatoriMessageCreateResponse[]> {
-    const body: SatoriMessageCreateRequest = {
-      channel_id: channelId,
-      content,
-    }
-
-    log.log(`Sending message to channel ${channelId}: ${content}`)
-    const response = await this.request<unknown[]>('/message.create', body)
-    return v.parse(v.array(SatoriMessageCreateResponseSchema), response)
-  }
-
-  async getMessage(channelId: string, messageId: string): Promise<SatoriMessage> {
-    const response = await this.request<unknown>('/message.get', {
-      channel_id: channelId,
-      message_id: messageId,
-    })
-    return v.parse(SatoriMessageSchema, response)
-  }
-
-  async deleteMessage(channelId: string, messageId: string): Promise<void> {
-    await this.request('/message.delete', {
-      channel_id: channelId,
-      message_id: messageId,
-    })
-  }
-
-  async updateMessage(channelId: string, messageId: string, content: string): Promise<void> {
-    await this.request('/message.update', {
-      channel_id: channelId,
-      message_id: messageId,
-      content,
-    })
   }
 }

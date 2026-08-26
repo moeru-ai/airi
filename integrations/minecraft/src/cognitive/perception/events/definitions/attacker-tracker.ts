@@ -9,20 +9,14 @@ const ATTACKER_RECENCY_MS = 600
 
 /** Minimal structural view of the attacking entity that damage attribution reads. */
 export interface AttackerEntity {
-  type?: string
-  name?: string
-  username?: string
   id?: number | string
+  name?: string
+  type?: string
+  username?: string
 }
 
 // NOTICE: module-level singleton, mirroring the other per-event trackers. One bot per process.
-let lastAttacker: { entity: AttackerEntity, at: number } | null = null
-
-export function recordAttacker(entity: AttackerEntity | null | undefined, now: number): void {
-  if (!entity)
-    return
-  lastAttacker = { entity, at: now }
-}
+let lastAttacker: null | { at: number, entity: AttackerEntity } = null
 
 /**
  * The entity that actually dealt the bot's most recent damage, if it is still recent.
@@ -41,6 +35,12 @@ export function recentAttacker(now: number): AttackerEntity | null {
   return now - lastAttacker.at <= ATTACKER_RECENCY_MS ? lastAttacker.entity : null
 }
 
+export function recordAttacker(entity: AttackerEntity | null | undefined, now: number): void {
+  if (!entity)
+    return
+  lastAttacker = { at: now, entity }
+}
+
 /**
  * Pure side-effect perception event: records the REAL attacker from mineflayer's `entityHurt`.
  *
@@ -51,17 +51,17 @@ export function recentAttacker(now: number): AttackerEntity | null {
  */
 export const attackerTrackerEvent = definePerceptionEvent<[any, any], Record<string, never>>({
   id: 'attacker_tracker',
-  modality: 'felt',
   kind: 'attacker_tracker',
-
   mineflayer: {
     event: 'entityHurt',
+    extract: () => ({}),
     filter: (ctx, victim, source) => {
       const self = ctx.bot.entity
       if (victim && self && victim.id === self.id)
         recordAttacker(source as AttackerEntity, Date.now())
       return false
     },
-    extract: () => ({}),
   },
+
+  modality: 'felt',
 })

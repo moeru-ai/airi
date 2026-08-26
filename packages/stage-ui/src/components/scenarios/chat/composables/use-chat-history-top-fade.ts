@@ -3,28 +3,6 @@ import type { Ref, ShallowRef } from 'vue'
 import { useEventListener, useMutationObserver, useRafFn, useResizeObserver } from '@vueuse/core'
 import { shallowRef, watch } from 'vue'
 
-function useObservedElements(
-  root: Readonly<ShallowRef<HTMLElement | null>>,
-  selector: string,
-) {
-  const elements = shallowRef<HTMLElement[]>([])
-
-  const collectElements = () => {
-    const currentRoot = root.value
-    elements.value = currentRoot
-      ? Array.from(currentRoot.querySelectorAll<HTMLElement>(selector))
-      : []
-  }
-
-  watch(root, collectElements, { flush: 'post', immediate: true })
-  useMutationObserver(root, collectElements, {
-    childList: true,
-    subtree: true,
-  })
-
-  return elements
-}
-
 /**
  * Updates the mask stops for the message containers inside one chat viewport.
  *
@@ -77,4 +55,26 @@ export function useChatHistoryTopFade({
     flush: 'post',
     immediate: true,
   })
+}
+
+function useObservedElements(
+  root: Readonly<ShallowRef<HTMLElement | null>>,
+  selector: string,
+) {
+  const elements = shallowRef<HTMLElement[]>([])
+
+  const collectElements = () => {
+    const currentRoot = root.value
+    elements.value = currentRoot
+      ? Array.from(currentRoot.querySelectorAll<HTMLElement>(selector))
+      : []
+  }
+
+  watch(root, collectElements, { flush: 'post', immediate: true })
+  useMutationObserver(root, collectElements, {
+    childList: true,
+    subtree: true,
+  })
+
+  return elements
 }

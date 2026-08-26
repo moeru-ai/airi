@@ -2,19 +2,6 @@ import type { AboutBuildInfo } from '../../components/scenarios/about/types'
 
 import { isEnvTruthy } from '@proj-airi/stage-shared'
 
-export interface AnalyticsIdentitySnapshot {
-  /** Current provider distinct id for the browser, device, or user. */
-  distinctId: string
-  /** Current provider session id, when one exists. */
-  sessionId?: string
-}
-
-/** Provider-neutral delivery options for one product event. */
-export interface AnalyticsCaptureOptions {
-  /** Selects an unload-safe delivery method before document navigation. */
-  beforeNavigation?: boolean
-}
-
 /** Provider contract behind the product analytics facade. */
 export interface AnalyticsAdapter {
   capture: (name: string, properties: object, options?: AnalyticsCaptureOptions) => boolean
@@ -25,22 +12,35 @@ export interface AnalyticsAdapter {
   setCaptureEnabled: (enabled: boolean) => boolean
 }
 
+/** Loads one analytics provider adapter. */
+export type AnalyticsAdapterLoader = (options: AnalyticsAdapterOptions) => Promise<AnalyticsAdapter>
+
 /** Initial state given to an asynchronously loaded analytics provider. */
 export interface AnalyticsAdapterOptions {
   enabled: boolean
 }
 
-/** Loads one analytics provider adapter. */
-export type AnalyticsAdapterLoader = (options: AnalyticsAdapterOptions) => Promise<AnalyticsAdapter>
+/** Provider-neutral delivery options for one product event. */
+export interface AnalyticsCaptureOptions {
+  /** Selects an unload-safe delivery method before document navigation. */
+  beforeNavigation?: boolean
+}
 
-type PendingOperation
-  = | { kind: 'capture', name: string, properties: object, options?: AnalyticsCaptureOptions }
-    | { kind: 'identify', userId: string }
-    | { kind: 'register-build-info', buildInfo: AboutBuildInfo }
-    | { kind: 'reset-identity' }
-    | { kind: 'set-capture-enabled', enabled: boolean }
+export interface AnalyticsIdentitySnapshot {
+  /** Current provider distinct id for the browser, device, or user. */
+  distinctId: string
+  /** Current provider session id, when one exists. */
+  sessionId?: string
+}
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'unavailable'
+
+type PendingOperation
+  = | { buildInfo: AboutBuildInfo, kind: 'register-build-info' }
+    | { enabled: boolean, kind: 'set-capture-enabled' }
+    | { kind: 'capture', name: string, options?: AnalyticsCaptureOptions, properties: object }
+    | { kind: 'identify', userId: string }
+    | { kind: 'reset-identity' }
 
 /**
  * Owns an optional provider lifecycle and keeps provider loading outside the
@@ -55,6 +55,21 @@ export class AnalyticsClient {
 
   constructor(private readonly loader: AnalyticsAdapterLoader) {}
 
+  capture(name: string, properties: object, options?: AnalyticsCaptureOptions): boolean {
+    if (!this.captureEnabled)
+      return false
+
+    if (this.adapter)
+      return this.adapter.capture(name, properties, options)
+
+    if (this.loadState === 'loading') {
+      this.enqueue({ kind: 'capture', name, options, properties })
+      return true
+    }
+
+    return false
+  }
+
   ensureInitialized(enabled: boolean): boolean {
     this.captureEnabled = enabled
     if (!enabled || this.loadState === 'unavailable')
@@ -66,24 +81,8 @@ export class AnalyticsClient {
     return true
   }
 
-  syncCapture(enabled: boolean): boolean {
-    this.captureEnabled = enabled
-    if (enabled)
-      return this.ensureInitialized(true)
-
-    if (this.adapter)
-      this.adapter.setCaptureEnabled(false)
-    else if (this.loadState === 'loading')
-      this.enqueue({ kind: 'set-capture-enabled', enabled: false })
-
-    return false
-  }
-
-  registerBuildInfo(buildInfo: AboutBuildInfo): void {
-    if (this.adapter)
-      this.adapter.registerBuildInfo(buildInfo)
-    else if (this.loadState === 'loading')
-      this.enqueue({ kind: 'register-build-info', buildInfo })
+  getIdentitySnapshot(): AnalyticsIdentitySnapshot | null {
+    return this.adapter?.getIdentitySnapshot() ?? null
   }
 
   identify(userId: string): void {
@@ -93,6 +92,13 @@ export class AnalyticsClient {
       this.enqueue({ kind: 'identify', userId })
   }
 
+  registerBuildInfo(buildInfo: AboutBuildInfo): void {
+    if (this.adapter)
+      this.adapter.registerBuildInfo(buildInfo)
+    else if (this.loadState === 'loading')
+      this.enqueue({ buildInfo, kind: 'register-build-info' })
+  }
+
   resetIdentity(): void {
     if (this.adapter)
       this.adapter.resetIdentity()
@@ -100,45 +106,17 @@ export class AnalyticsClient {
       this.enqueue({ kind: 'reset-identity' })
   }
 
-  getIdentitySnapshot(): AnalyticsIdentitySnapshot | null {
-    return this.adapter?.getIdentitySnapshot() ?? null
-  }
-
-  capture(name: string, properties: object, options?: AnalyticsCaptureOptions): boolean {
-    if (!this.captureEnabled)
-      return false
+  syncCapture(enabled: boolean): boolean {
+    this.captureEnabled = enabled
+    if (enabled)
+      return this.ensureInitialized(true)
 
     if (this.adapter)
-      return this.adapter.capture(name, properties, options)
-
-    if (this.loadState === 'loading') {
-      this.enqueue({ kind: 'capture', name, properties, options })
-      return true
-    }
+      this.adapter.setCaptureEnabled(false)
+    else if (this.loadState === 'loading')
+      this.enqueue({ enabled: false, kind: 'set-capture-enabled' })
 
     return false
-  }
-
-  private load(enabled: boolean): Promise<boolean> {
-    if (this.loadPromise)
-      return this.loadPromise
-
-    this.loadState = 'loading'
-    this.loadPromise = Promise.resolve()
-      .then(() => this.loader({ enabled }))
-      .then((adapter) => {
-        this.adapter = adapter
-        this.loadState = 'ready'
-        this.flush()
-        return true
-      })
-      .catch(() => {
-        this.pendingOperations.length = 0
-        this.loadState = 'unavailable'
-        return false
-      })
-
-    return this.loadPromise
   }
 
   private enqueue(operation: PendingOperation): void {
@@ -171,6 +149,28 @@ export class AnalyticsClient {
     }
     this.pendingOperations.length = 0
   }
+
+  private load(enabled: boolean): Promise<boolean> {
+    if (this.loadPromise)
+      return this.loadPromise
+
+    this.loadState = 'loading'
+    this.loadPromise = Promise.resolve()
+      .then(() => this.loader({ enabled }))
+      .then((adapter) => {
+        this.adapter = adapter
+        this.loadState = 'ready'
+        this.flush()
+        return true
+      })
+      .catch(() => {
+        this.pendingOperations.length = 0
+        this.loadState = 'unavailable'
+        return false
+      })
+
+    return this.loadPromise
+  }
 }
 
 let adapterLoader: AnalyticsAdapterLoader | undefined
@@ -180,25 +180,25 @@ const analyticsClient = new AnalyticsClient(async (options) => {
   return adapterLoader(options)
 })
 
+export function captureAnalyticsEvent(name: string, properties: object, options?: AnalyticsCaptureOptions): boolean {
+  return analyticsClient.capture(name, properties, options)
+}
+
 /** Configures the provider adapter before analytics starts. */
 export function configureAnalyticsAdapter(loader: AnalyticsAdapterLoader): void {
   adapterLoader = loader
-}
-
-export function isAnalyticsAvailableInBuild(): boolean {
-  return isEnvTruthy(import.meta.env.VITE_ENABLE_POSTHOG)
-}
-
-export function enableAnalyticsCapture(): boolean {
-  if (!isAnalyticsAvailableInBuild() || !adapterLoader)
-    return false
-  return analyticsClient.syncCapture(true)
 }
 
 export function disableAnalyticsCapture(): void {
   if (!isAnalyticsAvailableInBuild() || !adapterLoader)
     return
   analyticsClient.syncCapture(false)
+}
+
+export function enableAnalyticsCapture(): boolean {
+  if (!isAnalyticsAvailableInBuild() || !adapterLoader)
+    return false
+  return analyticsClient.syncCapture(true)
 }
 
 export function getAnalyticsIdentitySnapshot(): AnalyticsIdentitySnapshot | null {
@@ -209,14 +209,14 @@ export function identifyAnalyticsUser(userId: string): void {
   analyticsClient.identify(userId)
 }
 
+export function isAnalyticsAvailableInBuild(): boolean {
+  return isEnvTruthy(import.meta.env.VITE_ENABLE_POSTHOG)
+}
+
 export function registerAnalyticsBuildInfo(buildInfo: AboutBuildInfo): void {
   analyticsClient.registerBuildInfo(buildInfo)
 }
 
 export function resetAnalyticsIdentity(): void {
   analyticsClient.resetIdentity()
-}
-
-export function captureAnalyticsEvent(name: string, properties: object, options?: AnalyticsCaptureOptions): boolean {
-  return analyticsClient.capture(name, properties, options)
 }

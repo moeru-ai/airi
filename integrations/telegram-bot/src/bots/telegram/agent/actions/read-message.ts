@@ -21,8 +21,8 @@ export async function readMessage(
   unreadMessages: Message[],
   abortController: AbortController,
 ): Promise<{
-  loop?: boolean
   break?: boolean
+  loop?: boolean
   result: string
 }> {
   const logger = useLogg('readMessage').useGlobalConfig()
@@ -50,11 +50,11 @@ export async function readMessage(
               span.setAttribute('llm.provider.api_base_url', env.EMBEDDING_API_BASE_URL!)
 
               const res = await embed({
-                baseURL: env.EMBEDDING_API_BASE_URL!,
-                apiKey: env.EMBEDDING_API_KEY!,
-                model: env.EMBEDDING_MODEL!,
-                input: msg.text || msg.caption || '',
                 abortSignal: abortController.signal,
+                apiKey: env.EMBEDDING_API_KEY!,
+                baseURL: env.EMBEDDING_API_BASE_URL!,
+                input: msg.text || msg.caption || '',
+                model: env.EMBEDDING_MODEL!,
               })
 
               span.end()
@@ -93,8 +93,8 @@ export async function readMessage(
       break: true,
       result: await actionReadMessages({
         lastMessages: lastNMessagesOneliner,
-        unreadHistoryMessages: unreadHistoryMessageOneliner,
         relevantChatMessages: relevantChatMessagesOneliner,
+        unreadHistoryMessages: unreadHistoryMessageOneliner,
       }),
     }
   })

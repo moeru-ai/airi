@@ -10,34 +10,26 @@ import { captureTrackButtonEvent } from '../libs/analytics/events/interaction'
 import { useSettingsAnalytics } from '../stores/settings/analytics'
 import { useSettingsGeneral } from '../stores/settings/general'
 
-/**
- * User-facing chat surfaces that can emit product analytics.
- */
-export type ConversationAnalyticsSurface = 'web' | 'mobile' | 'electron'
+export type AiUsageSource = 'estimated' | 'reported' | 'unavailable'
+
+export type ChatActivationFailureStage = 'llm_response' | 'message_send' | 'model_list' | 'provider_config' | 'tts'
 
 /**
  * Low-cardinality source names for conversation action events.
  */
 export type ConversationAnalyticsSource = 'chat_controls' | 'history' | 'sessions_drawer'
-
-export type ProviderMode = 'official' | 'custom' | 'unknown'
-export type ChatActivationFailureStage = 'provider_config' | 'model_list' | 'message_send' | 'llm_response' | 'tts'
-export type VoiceType = 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
-export type VoiceAnalyticsSource = 'settings' | 'onboarding' | 'chat_auto_tts' | 'manual_preview'
-export type OfficialTtsExposureSource = 'settings' | 'onboarding' | 'post_first_chat' | 'chat_controls'
-export type FluxBalanceBucket = 'zero' | '1_100' | '101_1000' | '1001_10000' | '10000_plus' | 'unknown'
-export type FeedbackSource = 'app' | 'discord' | 'qq' | 'github' | 'email' | 'other'
-export type FeedbackCategory = 'provider_config' | 'model_list' | 'chat_activation' | 'tts' | 'voice_input' | 'performance' | 'payment' | 'ui_ux' | 'crash' | 'update' | 'live2d' | 'desktop_window' | 'mobile' | 'unknown'
+/**
+ * User-facing chat surfaces that can emit product analytics.
+ */
+export type ConversationAnalyticsSurface = 'electron' | 'mobile' | 'web'
+export type ConversationEventSource = 'fork' | 'history' | 'new_session' | 'share_button' | 'unknown'
+export type FeedbackCategory = 'chat_activation' | 'crash' | 'desktop_window' | 'live2d' | 'mobile' | 'model_list' | 'payment' | 'performance' | 'provider_config' | 'tts' | 'ui_ux' | 'unknown' | 'update' | 'voice_input'
+export type FeedbackDescriptionLengthBucket = 'empty' | 'long' | 'medium' | 'short'
 export type FeedbackSeverity = 'blocker' | 'major' | 'minor' | 'suggestion'
-export type FeedbackUserType = 'new_user' | 'paid_user' | 'overseas_user' | 'developer_user' | 'role_chat_user' | 'unknown'
-export type FeedbackDescriptionLengthBucket = 'empty' | 'short' | 'medium' | 'long'
-export type ProductAnalyticsEntry = 'app_start' | 'onboarding' | 'settings' | 'chat' | 'pricing' | 'quota_banner' | 'unknown'
+export type FeedbackSource = 'app' | 'discord' | 'email' | 'github' | 'other' | 'qq'
+export type FeedbackUserType = 'developer_user' | 'new_user' | 'overseas_user' | 'paid_user' | 'role_chat_user' | 'unknown'
+export type FluxBalanceBucket = '1_100' | '101_1000' | '1001_10000' | '10000_plus' | 'unknown' | 'zero'
 export type MessageInputMode = 'text' | 'voice'
-export type ConversationEventSource = 'new_session' | 'fork' | 'history' | 'share_button' | 'unknown'
-export type AiUsageSource = 'reported' | 'estimated' | 'unavailable'
-/** Stable, low-cardinality actions emitted by the Electron controls island. */
-export type { ControlsIslandAction } from '../libs/analytics/events/controls-island'
-
 /**
  * Full stage vocabulary of the cross-surface `oauth_callback_failed` event.
  * The web/PKCE stages fire from `pages/auth/callback.vue`; the electron
@@ -45,12 +37,20 @@ export type { ControlsIslandAction } from '../libs/analytics/events/controls-isl
  * imports this type so the two emitters can't drift apart silently.
  */
 export type OauthCallbackFailureStage
-  = | 'provider_error'
-    | 'missing_code_or_state'
+  = | 'missing_code_or_state'
     | 'missing_flow_state'
-    | 'token_exchange_failed'
     | 'parse'
+    | 'provider_error'
     | 'relay_unreachable'
+    | 'token_exchange_failed'
+export type OfficialTtsExposureSource = 'chat_controls' | 'onboarding' | 'post_first_chat' | 'settings'
+export type ProductAnalyticsEntry = 'app_start' | 'chat' | 'onboarding' | 'pricing' | 'quota_banner' | 'settings' | 'unknown'
+export type ProviderMode = 'custom' | 'official' | 'unknown'
+export type VoiceAnalyticsSource = 'chat_auto_tts' | 'manual_preview' | 'onboarding' | 'settings'
+/** Stable, low-cardinality actions emitted by the Electron controls island. */
+export type { ControlsIslandAction } from '../libs/analytics/events/controls-island'
+
+export type VoiceType = 'custom_configured' | 'official_default' | 'official_selected' | 'unknown' | 'voice_pack'
 
 interface ChatRoundCorrelationProperties {
   conversation_id: string
@@ -58,21 +58,31 @@ interface ChatRoundCorrelationProperties {
   turn_index: number
 }
 
-interface TtsVoiceBaseProperties {
-  tts_provider_id: string
-  tts_model_id: string
-  source: VoiceAnalyticsSource
+interface ConversationBaseProperties {
+  conversation_id: string
+  model: string
+  provider_name: string
+  provider_type: ProviderMode
+}
+
+interface FeedbackBaseProperties {
+  category: FeedbackCategory
+  entrypoint: string
+  severity: FeedbackSeverity
+  source: FeedbackSource
+  user_type: FeedbackUserType
 }
 
 interface OfficialTtsBaseProperties {
-  tts_provider_id: string
-  tts_model_id: string
   source: OfficialTtsExposureSource
+  tts_model_id: string
+  tts_provider_id: string
 }
 
-interface VoiceInputBaseProperties {
-  stt_provider_id: string
-  duration_ms?: number
+interface OnboardingProviderProperties {
+  selected_provider_id?: string
+  selected_provider_type: ProviderMode
+  selected_use_case?: string
 }
 
 interface ProviderConnectionTestProperties {
@@ -80,25 +90,15 @@ interface ProviderConnectionTestProperties {
   provider_mode: ProviderMode
 }
 
-interface FeedbackBaseProperties {
-  source: FeedbackSource
-  category: FeedbackCategory
-  severity: FeedbackSeverity
-  user_type: FeedbackUserType
-  entrypoint: string
+interface TtsVoiceBaseProperties {
+  source: VoiceAnalyticsSource
+  tts_model_id: string
+  tts_provider_id: string
 }
 
-interface OnboardingProviderProperties {
-  selected_provider_type: ProviderMode
-  selected_provider_id?: string
-  selected_use_case?: string
-}
-
-interface ConversationBaseProperties {
-  conversation_id: string
-  provider_type: ProviderMode
-  provider_name: string
-  model: string
+interface VoiceInputBaseProperties {
+  duration_ms?: number
+  stt_provider_id: string
 }
 
 export function getConversationAnalyticsSurface(): ConversationAnalyticsSurface {
@@ -133,9 +133,9 @@ export function useAnalytics() {
       return
 
     captureAnalyticsEvent('provider_card_clicked', {
-      provider_id: providerId,
-      module,
       app_surface: getConversationAnalyticsSurface(),
+      module,
+      provider_id: providerId,
       trigger_method: 'provider_card',
       trigger_type: 'user_action',
     })
@@ -161,7 +161,7 @@ export function useAnalytics() {
    * - `entry_surface` is a stable identifier — don't rename without coordinating
    *   PostHog funnel definitions in `docs/ai-context/metrics-ownership.md`.
    */
-  function trackPricingViewed(entrySurface: string, planPeriod?: 'monthly' | 'annual' | 'one_time') {
+  function trackPricingViewed(entrySurface: string, planPeriod?: 'annual' | 'monthly' | 'one_time') {
     if (!canCapture())
       return
     captureAnalyticsEvent('pricing_page_viewed', { entry_surface: entrySurface, ...(planPeriod && { plan_period: planPeriod }) })
@@ -171,7 +171,7 @@ export function useAnalytics() {
    * Pricing funnel — step 2. Fires when the user picks a plan/package but
    * hasn't yet kicked off the Stripe checkout redirect.
    */
-  function trackPlanSelected(planId: string, properties: { entry_surface: string, price_minor_unit?: number, currency?: string }) {
+  function trackPlanSelected(planId: string, properties: { currency?: string, entry_surface: string, price_minor_unit?: number }) {
     if (!canCapture())
       return
     captureAnalyticsEvent('plan_selected', { plan_id: planId, ...properties })
@@ -191,7 +191,7 @@ export function useAnalytics() {
    * server-side by the product-events service, keyed by the Better Auth
    * user id.
    */
-  function trackCheckoutStarted(planId: string, properties: { entry_surface: string, checkout_session_id?: string, price_minor_unit?: number, currency?: string }) {
+  function trackCheckoutStarted(planId: string, properties: { checkout_session_id?: string, currency?: string, entry_surface: string, price_minor_unit?: number }) {
     if (!canCapture())
       return
     captureAnalyticsEvent(
@@ -203,16 +203,16 @@ export function useAnalytics() {
 
   function trackPaywallSeen(properties: {
     entry_surface: string
-    reason: 'manual_topup' | 'insufficient_balance' | 'checkout_recovery' | 'unknown'
     flux_balance_bucket: FluxBalanceBucket
+    reason: 'checkout_recovery' | 'insufficient_balance' | 'manual_topup' | 'unknown'
   }) {
     if (!canCapture())
       return
     captureAnalyticsEvent('paywall_seen', {
-      entry_surface: properties.entry_surface,
       app_surface: getConversationAnalyticsSurface(),
-      reason: properties.reason,
+      entry_surface: properties.entry_surface,
       flux_balance_bucket: properties.flux_balance_bucket,
+      reason: properties.reason,
     })
   }
 
@@ -222,7 +222,7 @@ export function useAnalytics() {
    * the funnel can tell a provider-side denial from a lost PKCE state.
    */
   function trackOauthCallbackFailed(properties: {
-    stage: Extract<OauthCallbackFailureStage, 'provider_error' | 'missing_code_or_state' | 'missing_flow_state' | 'token_exchange_failed'>
+    stage: Extract<OauthCallbackFailureStage, 'missing_code_or_state' | 'missing_flow_state' | 'provider_error' | 'token_exchange_failed'>
   }) {
     if (!canCapture())
       return
@@ -320,14 +320,14 @@ export function useAnalytics() {
    * routing/auto-pick changes are needed. Reason discriminates manual UI
    * switch vs future auto-routing decisions.
    */
-  function trackModelSwitched(fromModel: string, toModel: string, reason: 'manual' | 'auto' = 'manual') {
+  function trackModelSwitched(fromModel: string, toModel: string, reason: 'auto' | 'manual' = 'manual') {
     if (!canCapture())
       return
     captureAnalyticsEvent('model_switched', {
-      from_model: fromModel,
-      to_model: toModel,
-      reason,
       app_surface: getConversationAnalyticsSurface(),
+      from_model: fromModel,
+      reason,
+      to_model: toModel,
       trigger_method: reason === 'manual' ? 'selection' : 'automatic',
       trigger_type: reason === 'manual' ? 'user_action' : 'user_flow_result',
     })
@@ -347,14 +347,14 @@ export function useAnalytics() {
   /** Cost-fact event for one custom-provider generation; content is intentionally excluded. */
   function trackAiGeneration(properties: {
     conversation_id: string
-    round_id: string
-    provider_type: ProviderMode
-    provider_id: string
-    model_id: string
-    usage_source: AiUsageSource
     input_tokens?: number
+    model_id: string
     output_tokens?: number
+    provider_id: string
+    provider_type: ProviderMode
+    round_id: string
     total_tokens?: number
+    usage_source: AiUsageSource
   }) {
     if (!canCapture())
       return
@@ -365,11 +365,11 @@ export function useAnalytics() {
         : undefined)
 
     captureAnalyticsEvent('$ai_generation', {
-      $ai_trace_id: properties.conversation_id,
-      $ai_session_id: properties.conversation_id,
-      $ai_span_id: properties.round_id,
       $ai_model: properties.model_id,
       $ai_provider: properties.provider_id,
+      $ai_session_id: properties.conversation_id,
+      $ai_span_id: properties.round_id,
+      $ai_trace_id: properties.conversation_id,
       ...(properties.input_tokens != null && { $ai_input_tokens: properties.input_tokens }),
       ...(properties.output_tokens != null && { $ai_output_tokens: properties.output_tokens }),
       ...(totalTokens != null && { $ai_total_tokens: totalTokens }),
@@ -378,12 +378,12 @@ export function useAnalytics() {
       capture_surface: 'client',
       conversation_id: properties.conversation_id,
       conversation_id_source: 'client_runtime',
-      round_id: properties.round_id,
-      provider_type: properties.provider_type,
-      usage_source: properties.usage_source,
-      token_usage_available: properties.usage_source !== 'unavailable',
-      cost_usd_source: 'unavailable',
       cost_usd_known: false,
+      cost_usd_source: 'unavailable',
+      provider_type: properties.provider_type,
+      round_id: properties.round_id,
+      token_usage_available: properties.usage_source !== 'unavailable',
+      usage_source: properties.usage_source,
     })
   }
 
@@ -391,8 +391,8 @@ export function useAnalytics() {
   function trackMessageRound(properties: ChatRoundCorrelationProperties & {
     duration_ms: number
     has_voice: boolean
-    model: string
     input_tokens?: number
+    model: string
     output_tokens?: number
     total_tokens?: number
     usage_source?: AiUsageSource
@@ -404,11 +404,11 @@ export function useAnalytics() {
 
   /** Canonical failure event for every user-to-assistant round, including post-activation turns. */
   function trackMessageRoundFailed(properties: ChatRoundCorrelationProperties & {
-    provider_id: string
-    model_id: string
-    source: 'text' | 'voice'
     error_code: string
     failure_stage: ChatActivationFailureStage
+    model_id: string
+    provider_id: string
+    source: 'text' | 'voice'
   }) {
     if (!canCapture())
       return
@@ -419,13 +419,13 @@ export function useAnalytics() {
   }
 
   function trackMessageSent(properties: ConversationBaseProperties & {
-    round_id: string
-    turn_index: number
+    has_attachment: boolean
     message_id?: string
     message_index?: number
     message_length?: number
-    has_attachment: boolean
     mode: MessageInputMode
+    round_id: string
+    turn_index: number
   }) {
     if (!canCapture())
       return
@@ -450,8 +450,8 @@ export function useAnalytics() {
 
   function trackProviderConnectionTestCompleted(properties: ProviderConnectionTestProperties & {
     duration_ms: number
-    success: boolean
     error_code?: string
+    success: boolean
   }) {
     if (!canCapture())
       return
@@ -486,7 +486,7 @@ export function useAnalytics() {
     })
   }
 
-  function trackChatSessionSelected(properties: { source: 'sessions_drawer', message_count: number, cloud_synced: boolean }) {
+  function trackChatSessionSelected(properties: { cloud_synced: boolean, message_count: number, source: 'sessions_drawer' }) {
     if (!canCapture())
       return
     captureAnalyticsEvent('chat_session_selected', {
@@ -495,7 +495,7 @@ export function useAnalytics() {
     })
   }
 
-  function trackChatMessageDeleted(properties: { source: 'history', message_role: string }) {
+  function trackChatMessageDeleted(properties: { message_role: string, source: 'history' }) {
     if (!canCapture())
       return
     captureAnalyticsEvent('chat_message_deleted', {
@@ -504,7 +504,7 @@ export function useAnalytics() {
     })
   }
 
-  function trackChatMessagesCleared(properties: { source: 'chat_controls', message_count: number }) {
+  function trackChatMessagesCleared(properties: { message_count: number, source: 'chat_controls' }) {
     if (!canCapture())
       return
     captureAnalyticsEvent('chat_messages_cleared', {
@@ -523,10 +523,10 @@ export function useAnalytics() {
   }
 
   function trackConversationCreated(properties: {
-    conversation_id: string
-    source: ConversationEventSource
     character_id?: string
     cloud_synced: boolean
+    conversation_id: string
+    source: ConversationEventSource
   }) {
     if (!canCapture())
       return
@@ -561,9 +561,9 @@ export function useAnalytics() {
   }
 
   function trackConversationDeleted(properties: {
+    cloud_synced: boolean
     conversation_id: string
     message_count: number
-    cloud_synced: boolean
   }) {
     if (!canCapture())
       return
@@ -575,13 +575,13 @@ export function useAnalytics() {
 
   // ─── STT events ──────────────────────────────────────────────────────
 
-  function trackSttSucceeded(properties: { provider: string, latency_ms: number, char_count: number, stream: boolean }) {
+  function trackSttSucceeded(properties: { char_count: number, latency_ms: number, provider: string, stream: boolean }) {
     if (!canCapture())
       return
     captureAnalyticsEvent('stt_succeeded', properties)
   }
 
-  function trackSttFailed(properties: { provider: string, error_code?: string }) {
+  function trackSttFailed(properties: { error_code?: string, provider: string }) {
     if (!canCapture())
       return
     captureAnalyticsEvent('stt_failed', properties)
@@ -676,8 +676,8 @@ export function useAnalytics() {
 
   function trackVoiceSelected(properties: TtsVoiceBaseProperties & {
     voice_id: string
-    voice_type: VoiceType
     voice_pack_id?: string
+    voice_type: VoiceType
   }) {
     if (!canCapture())
       return
@@ -689,8 +689,8 @@ export function useAnalytics() {
 
   function trackVoicePreviewPlayed(properties: TtsVoiceBaseProperties & {
     voice_id: string
-    voice_type: VoiceType
     voice_pack_id?: string
+    voice_type: VoiceType
   }) {
     if (!canCapture())
       return
@@ -713,7 +713,7 @@ export function useAnalytics() {
   }
 
   function trackAttachmentUploaded(properties: {
-    attachment_type: 'image' | 'audio' | 'document' | 'unknown'
+    attachment_type: 'audio' | 'document' | 'image' | 'unknown'
     size_bytes?: number
     source: ProductAnalyticsEntry
     success: boolean
@@ -737,7 +737,7 @@ export function useAnalytics() {
 
   function trackPresetUsed(properties: {
     preset_id: string
-    preset_type: 'character' | 'stage_model' | 'voice' | 'background' | 'unknown'
+    preset_type: 'background' | 'character' | 'stage_model' | 'unknown' | 'voice'
     source: ProductAnalyticsEntry
   }) {
     if (!canCapture())
@@ -749,10 +749,10 @@ export function useAnalytics() {
   }
 
   function trackOfficialTtsPreviewStarted(properties: Omit<TtsVoiceBaseProperties, 'source'> & {
-    voice_id: string
-    voice_type: VoiceType
-    voice_pack_id?: string
     source: Extract<VoiceAnalyticsSource, 'manual_preview'>
+    voice_id: string
+    voice_pack_id?: string
+    voice_type: VoiceType
   }) {
     if (!canCapture())
       return
@@ -763,11 +763,11 @@ export function useAnalytics() {
   }
 
   function trackOfficialTtsPreviewSucceeded(properties: Omit<TtsVoiceBaseProperties, 'source'> & {
-    voice_id: string
-    voice_type: VoiceType
-    voice_pack_id?: string
-    source: Extract<VoiceAnalyticsSource, 'manual_preview'>
     duration_ms: number
+    source: Extract<VoiceAnalyticsSource, 'manual_preview'>
+    voice_id: string
+    voice_pack_id?: string
+    voice_type: VoiceType
   }) {
     if (!canCapture())
       return
@@ -778,9 +778,9 @@ export function useAnalytics() {
   }
 
   function trackSettingsChanged(properties: {
+    new_value: boolean | number | string
+    previous_value?: boolean | number | string
     setting_name: string
-    previous_value?: string | number | boolean
-    new_value: string | number | boolean
     source: ProductAnalyticsEntry
   }) {
     if (!canCapture())
@@ -792,9 +792,9 @@ export function useAnalytics() {
   }
 
   function trackSupportContacted(properties: {
+    category?: FeedbackCategory
     channel: FeedbackSource
     source: ProductAnalyticsEntry
-    category?: FeedbackCategory
   }) {
     if (!canCapture())
       return
@@ -829,7 +829,7 @@ export function useAnalytics() {
   }
 
   /** Stage background switched on the active card. `cleared` = set to none. */
-  function trackSceneBackgroundSet(properties: { source: 'scene_settings' | 'card_gallery', cleared: boolean }) {
+  function trackSceneBackgroundSet(properties: { cleared: boolean, source: 'card_gallery' | 'scene_settings' }) {
     if (!canCapture())
       return
     captureAnalyticsEvent('scene_background_set', {
@@ -846,7 +846,7 @@ export function useAnalytics() {
 
   // ─── App lifecycle ───────────────────────────────────────────────────
 
-  function trackAppLoaded(properties: { platform: 'web' | 'desktop' | 'mobile', version: string, cold_start_ms?: number }) {
+  function trackAppLoaded(properties: { cold_start_ms?: number, platform: 'desktop' | 'mobile' | 'web', version: string }) {
     if (!canCapture())
       return
     captureAnalyticsEvent('app_loaded', properties)
@@ -866,7 +866,7 @@ export function useAnalytics() {
     captureAnalyticsEvent('character_switched', properties)
   }
 
-  function trackChatSessionDeleted(properties: { session_id: string, message_count: number }) {
+  function trackChatSessionDeleted(properties: { message_count: number, session_id: string }) {
     if (!canCapture())
       return
     captureAnalyticsEvent('chat_session_deleted', properties)
@@ -899,10 +899,10 @@ export function useAnalytics() {
   }
 
   function trackQuotaLimitReached(properties: {
-    limit_type: 'flux' | 'rate_limit' | 'subscription'
     current_usage: number
-    limit_value?: number
     entry: ProductAnalyticsEntry
+    limit_type: 'flux' | 'rate_limit' | 'subscription'
+    limit_value?: number
   }) {
     if (!canCapture())
       return
@@ -910,9 +910,9 @@ export function useAnalytics() {
   }
 
   function trackUpgradeClicked(properties: {
-    source_page: string
     current_plan?: string
-    trigger: 'quota_limit' | 'pricing_page' | 'manual_topup' | 'feature_gate'
+    source_page: string
+    trigger: 'feature_gate' | 'manual_topup' | 'pricing_page' | 'quota_limit'
   }) {
     if (!canCapture())
       return
@@ -920,9 +920,9 @@ export function useAnalytics() {
   }
 
   function trackFeatureUsed(properties: {
-    feature_name: string
     business_domain: string
     entry: ProductAnalyticsEntry
+    feature_name: string
     success: boolean
   }) {
     if (!canCapture())
@@ -942,7 +942,7 @@ export function useAnalytics() {
    * succeeded — a failed wipe is not a churn signal.
    */
   function trackDataAction(properties: {
-    action: 'chats_exported' | 'chats_imported' | 'chats_cleared' | 'app_data_cleared' | 'models_cache_cleared' | 'modules_settings_reset' | 'provider_settings_reset' | 'desktop_state_reset'
+    action: 'app_data_cleared' | 'chats_cleared' | 'chats_exported' | 'chats_imported' | 'desktop_state_reset' | 'models_cache_cleared' | 'modules_settings_reset' | 'provider_settings_reset'
   }) {
     if (!canCapture())
       return
@@ -990,11 +990,11 @@ export function useAnalytics() {
   }
 
   function trackMcpServerAdded() {
-    captureTrackButtonEvent({ name: 'mcp_server_updated', action: 'add' })
+    captureTrackButtonEvent({ action: 'add', name: 'mcp_server_updated' })
   }
 
   function trackMcpServerRemoved() {
-    captureTrackButtonEvent({ name: 'mcp_server_updated', action: 'remove' })
+    captureTrackButtonEvent({ action: 'remove', name: 'mcp_server_updated' })
   }
 
   function trackMcpConnectionTestRun(properties: { success: boolean }) {
@@ -1028,96 +1028,96 @@ export function useAnalytics() {
 
   return {
     privacyPolicyUrl,
-    trackProviderClick,
-    trackFirstMessage,
-    trackPricingViewed,
-    trackPlanSelected,
-    trackCheckoutStarted,
-    trackPaywallSeen,
-    trackOauthCallbackFailed,
-    trackPasswordChanged,
-    trackPasswordResetRequested,
-    trackOauthProviderLinkStarted,
-    trackOauthProviderUnlinked,
     trackAccountDeletionRequested,
-    trackOnboardingStarted,
-    trackOnboardingCompleted,
-    trackCharacterCreated,
-    trackVoiceModeActivated,
-    trackModelSwitched,
-    trackChatSessionStarted,
-
     trackAiGeneration,
+    trackAppLoaded,
+    trackAttachmentUploaded,
+    trackAutonomousGenerateText,
+    trackBugReportSubmitted,
+    trackCardEdited,
+    trackCharacterCreated,
+    trackCharacterDeleted,
+    trackCharacterSwitched,
+    trackCharacterUpdated,
+    trackChatMessageDeleted,
+    trackChatMessageRetried,
+    trackChatMessagesCleared,
+    trackChatSessionDeleted,
+    trackChatSessionSelected,
+    trackChatSessionStarted,
+    trackCheckoutStarted,
+
+    trackControlsIslandAction,
+    trackConversationCreated,
+    trackConversationDeleted,
+    trackConversationRenamed,
+    trackConversationShared,
+    trackDataAction,
+    trackDeviceChannelConnected,
+    trackDevicePairingQrShown,
+    trackFeatureUsed,
+    trackFeedbackSubmitted,
+    trackFirstMessage,
+    trackFluxLowWarningShown,
+    trackFluxTopupClicked,
+    trackMcpConnectionTestRun,
+    trackMcpServerAdded,
+    trackMcpServerRemoved,
+
     trackMessageRound,
     trackMessageRoundFailed,
     trackMessageSent,
-    trackProviderConnectionTestStarted,
-    trackProviderConnectionTestCompleted,
-    trackTtsStopClicked,
-    trackSpeechMuteToggled,
-    trackChatSessionSelected,
-    trackChatMessageDeleted,
-    trackChatMessagesCleared,
-    trackChatMessageRetried,
-    trackConversationCreated,
-    trackConversationRenamed,
-    trackConversationShared,
-    trackConversationDeleted,
-
-    trackSttSucceeded,
-    trackSttFailed,
-    trackVoiceInputStarted,
     trackMicrophonePermissionDenied,
-    trackVoiceInputCancelled,
-    trackBugReportSubmitted,
-    trackFeedbackSubmitted,
+    trackModelSwitched,
+    trackOauthCallbackFailed,
+    trackOauthProviderLinkStarted,
 
-    trackPttPressed,
-    trackPttReleased,
-
-    trackTtsProviderSelected,
-    trackVoiceSelected,
-    trackVoicePreviewPlayed,
-    trackVoicePackBound,
-    trackAttachmentUploaded,
-    trackPresetUsed,
-    trackSettingsChanged,
-    trackSupportContacted,
+    trackOauthProviderUnlinked,
     trackOfficialTtsExposed,
+
     trackOfficialTtsPreviewStarted,
     trackOfficialTtsPreviewSucceeded,
-
-    trackAutonomousGenerateText,
-
-    trackAppLoaded,
-
-    trackCardEdited,
-    trackSceneBackgroundSet,
-    trackCharacterUpdated,
-    trackCharacterDeleted,
-    trackCharacterSwitched,
-    trackChatSessionDeleted,
-    trackOnboardingStepCompleted,
+    trackOnboardingCompleted,
     trackOnboardingSkipped,
+    trackOnboardingStarted,
+    trackOnboardingStepCompleted,
+    trackPasswordChanged,
+    trackPasswordResetRequested,
+    trackPaywallSeen,
+    trackPlanSelected,
+    trackPresetUsed,
 
-    trackFluxLowWarningShown,
-    trackFluxTopupClicked,
+    trackPricingViewed,
+
+    trackProviderClick,
+
+    trackProviderConnectionTestCompleted,
+    trackProviderConnectionTestStarted,
+    trackPttPressed,
+    trackPttReleased,
     trackQuotaLimitReached,
-    trackUpgradeClicked,
-    trackFeatureUsed,
-    trackVoiceCloneCreated,
-    trackDeviceChannelConnected,
+    trackSceneBackgroundSet,
+    trackSettingsChanged,
+    trackSpeechMuteToggled,
 
-    trackDataAction,
-    trackControlsIslandAction,
     trackSpotlightUsed,
-    trackWidgetOpened,
+    trackSttFailed,
+    trackSttSucceeded,
+    trackSupportContacted,
+    trackTtsProviderSelected,
+    trackTtsStopClicked,
     trackUpdateCheckClicked,
+
     trackUpdateDownloaded,
     trackUpdateInstallClicked,
-    trackMcpServerAdded,
-    trackMcpServerRemoved,
-    trackMcpConnectionTestRun,
-    trackDevicePairingQrShown,
+    trackUpgradeClicked,
+    trackVoiceCloneCreated,
+    trackVoiceInputCancelled,
+    trackVoiceInputStarted,
+    trackVoiceModeActivated,
+    trackVoicePackBound,
+    trackVoicePreviewPlayed,
+    trackVoiceSelected,
+    trackWidgetOpened,
   }
 }

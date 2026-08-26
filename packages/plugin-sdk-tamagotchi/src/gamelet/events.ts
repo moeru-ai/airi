@@ -6,10 +6,10 @@ import { defineInvokeEventa } from '@moeru/eventa'
  * Request payload sent from the host gamelet runtime to one mounted iframe.
  */
 export interface GameletIframeRequestPayload {
-  /** Host-generated correlation id used outside Eventa invoke for main/renderer relay isolation. */
-  requestId: string
   /** JSON-compatible command payload supplied by the extension-side gamelet client. */
   payload: HostDataRecord
+  /** Host-generated correlation id used outside Eventa invoke for main/renderer relay isolation. */
+  requestId: string
 }
 
 /**

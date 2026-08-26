@@ -1,18 +1,21 @@
 import type { ClientConnector, ClientEvents } from '@proj-airi/server-sdk'
 
 type HostBridgeCommand
-  = | { kind: 'connect', id: string, url: string }
-    | { kind: 'send', id: string, data: string }
-    | { kind: 'close', id: string, code?: number, reason?: string }
+  = | { code?: number, id: string, kind: 'close', reason?: string }
+    | { data: string, id: string, kind: 'send' }
+    | { id: string, kind: 'connect', url: string }
 
 type HostBridgeEvent
-  = | { kind: 'open', id: string }
-    | { kind: 'message', id: string, data: string }
-    | { kind: 'error', id: string, message: string }
-    | { kind: 'close', id: string, code?: number, reason?: string }
+  = | { code?: number, id: string, kind: 'close', reason?: string }
+    | { data: string, id: string, kind: 'message' }
+    | { id: string, kind: 'error', message: string }
+    | { id: string, kind: 'open' }
 
 declare global {
   interface Window {
+    __airiHostBridge?: {
+      onNativeMessage?: (payload: string) => void
+    }
     AiriHostBridge?: {
       postMessage: (payload: string) => void
     }
@@ -23,37 +26,10 @@ declare global {
         }
       }
     }
-    __airiHostBridge?: {
-      onNativeMessage?: (payload: string) => void
-    }
   }
 }
 
 const connections = new Map<string, HostBridgeConnection>()
-
-function postBridgeMessage(command: HostBridgeCommand) {
-  if (window.AiriHostBridge) {
-    window.AiriHostBridge.postMessage(JSON.stringify(command))
-    return
-  }
-
-  if (window.webkit?.messageHandlers?.airiHostBridge) {
-    window.webkit.messageHandlers.airiHostBridge.postMessage(JSON.stringify(command))
-    return
-  }
-
-  throw new Error('AIRI host websocket bridge is unavailable')
-}
-
-function dispatchNativeEvent(payload: string) {
-  const event = JSON.parse(payload) as HostBridgeEvent
-  const connection = connections.get(event.id)
-  if (!connection) {
-    return
-  }
-
-  connection.handleNativeEvent(event)
-}
 
 class HostBridgeConnection {
   readonly id = crypto.randomUUID()
@@ -69,24 +45,10 @@ class HostBridgeConnection {
     connections.set(this.id, this)
 
     postBridgeMessage({
-      kind: 'connect',
       id: this.id,
+      kind: 'connect',
       url: this.url,
     })
-  }
-
-  send(data: string) {
-    if (!this.opened) {
-      return false
-    }
-
-    postBridgeMessage({
-      kind: 'send',
-      id: this.id,
-      data,
-    })
-
-    return true
   }
 
   close(code?: number, reason?: string) {
@@ -95,23 +57,25 @@ class HostBridgeConnection {
     }
 
     postBridgeMessage({
-      kind: 'close',
-      id: this.id,
       code,
+      id: this.id,
+      kind: 'close',
       reason,
     })
   }
 
   handleNativeEvent(event: HostBridgeEvent) {
     switch (event.kind) {
-      case 'open':
-        this.opened = true
-        this.settled = true
-        this.resolve()
-        break
+      case 'close':
+        connections.delete(this.id)
+        if (!this.settled) {
+          this.settled = true
+          this.reject(createCloseBeforeOpenError(event))
+          return
+        }
 
-      case 'message':
-        this.events.message(event.data)
+        this.opened = false
+        this.events.close({ code: event.code, reason: event.reason })
         break
 
       case 'error':
@@ -125,25 +89,31 @@ class HostBridgeConnection {
         this.events.error(new Error(event.message))
         break
 
-      case 'close':
-        connections.delete(this.id)
-        if (!this.settled) {
-          this.settled = true
-          this.reject(createCloseBeforeOpenError(event))
-          return
-        }
+      case 'message':
+        this.events.message(event.data)
+        break
 
-        this.opened = false
-        this.events.close({ code: event.code, reason: event.reason })
+      case 'open':
+        this.opened = true
+        this.settled = true
+        this.resolve()
         break
     }
   }
-}
 
-function createCloseBeforeOpenError(event: Extract<HostBridgeEvent, { kind: 'close' }>) {
-  const reason = event.reason ? ` ${event.reason}` : ''
-  const code = typeof event.code === 'number' ? ` with code ${event.code}` : ''
-  return new Error(`AIRI host websocket bridge closed before opening${code}.${reason}`)
+  send(data: string) {
+    if (!this.opened) {
+      return false
+    }
+
+    postBridgeMessage({
+      data,
+      id: this.id,
+      kind: 'send',
+    })
+
+    return true
+  }
 }
 
 export function getHostWebSocketConnector(url: string): ClientConnector<string> | undefined {
@@ -168,10 +138,40 @@ export function getHostWebSocketConnector(url: string): ClientConnector<string> 
         }
 
         return {
-          send: message => activeConnection.send(message),
           close: (code?: number, reason?: string) => activeConnection.close(code, reason),
+          send: message => activeConnection.send(message),
         }
       })
     },
   }
+}
+
+function createCloseBeforeOpenError(event: Extract<HostBridgeEvent, { kind: 'close' }>) {
+  const reason = event.reason ? ` ${event.reason}` : ''
+  const code = typeof event.code === 'number' ? ` with code ${event.code}` : ''
+  return new Error(`AIRI host websocket bridge closed before opening${code}.${reason}`)
+}
+
+function dispatchNativeEvent(payload: string) {
+  const event = JSON.parse(payload) as HostBridgeEvent
+  const connection = connections.get(event.id)
+  if (!connection) {
+    return
+  }
+
+  connection.handleNativeEvent(event)
+}
+
+function postBridgeMessage(command: HostBridgeCommand) {
+  if (window.AiriHostBridge) {
+    window.AiriHostBridge.postMessage(JSON.stringify(command))
+    return
+  }
+
+  if (window.webkit?.messageHandlers?.airiHostBridge) {
+    window.webkit.messageHandlers.airiHostBridge.postMessage(JSON.stringify(command))
+    return
+  }
+
+  throw new Error('AIRI host websocket bridge is unavailable')
 }

@@ -1,5 +1,7 @@
 /** Options for grouping nearby ASR fragments into one transcript. */
 export interface TranscriptBufferOptions {
+  /** Receives serialized, normalized transcript text. */
+  flush: (text: string) => Promise<void> | void
   /** Delay after the latest fragment before the buffer flushes. */
   flushDelayMs: number
   /**
@@ -8,34 +10,11 @@ export interface TranscriptBufferOptions {
    * @default 80
    */
   maxBufferedTextLength?: number
-  /** Receives serialized, normalized transcript text. */
-  flush: (text: string) => Promise<void> | void
 }
 
 const DEFAULT_MAX_BUFFERED_TEXT_LENGTH = 80
 const CJK_BOUNDARY_RE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]$/u
 const CJK_START_RE = /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u
-
-/**
- * Normalizes the boundary between two ASR transcript fragments.
- *
- * Before:
- * - `"你好"`, `"世界"`
- * - `"hello"`, `"world"`
- *
- * After:
- * - `"你好世界"`
- * - `"hello world"`
- */
-function joinTranscriptFragments(previous: string, next: string) {
-  if (!previous)
-    return next
-
-  if (CJK_BOUNDARY_RE.test(previous) && CJK_START_RE.test(next))
-    return `${previous}${next}`
-
-  return `${previous} ${next}`
-}
 
 /**
  * Groups nearby ASR fragments into serialized transcript flushes.
@@ -117,9 +96,30 @@ export function createTranscriptBuffer(options: TranscriptBufferOptions) {
   }
 
   return {
-    push,
-    flushNow,
     clear,
     dispose,
+    flushNow,
+    push,
   }
+}
+
+/**
+ * Normalizes the boundary between two ASR transcript fragments.
+ *
+ * Before:
+ * - `"你好"`, `"世界"`
+ * - `"hello"`, `"world"`
+ *
+ * After:
+ * - `"你好世界"`
+ * - `"hello world"`
+ */
+function joinTranscriptFragments(previous: string, next: string) {
+  if (!previous)
+    return next
+
+  if (CJK_BOUNDARY_RE.test(previous) && CJK_START_RE.test(next))
+    return `${previous}${next}`
+
+  return `${previous} ${next}`
 }

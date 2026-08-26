@@ -17,34 +17,34 @@ const cometApiConfigSchema = z.object({
 type CometApiConfig = z.input<typeof cometApiConfigSchema>
 
 export const providerCometAPI = defineProvider<CometApiConfig>({
-  id: 'comet-api',
-  name: 'CometAPI',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.comet-api.title'),
-  description: 'cometapi.com',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.comet-api.description'),
-  tasks: ['chat'],
-  icon: 'i-lobe-icons:cometapi',
-  iconColor: 'i-lobe-icons:cometapi-color',
-
-  createProviderConfig: ({ t }) => cometApiConfigSchema.extend({
-    apiKey: cometApiConfigSchema.shape.apiKey.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
-      type: 'password',
-    }),
-    baseUrl: cometApiConfigSchema.shape.baseUrl.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
-    }),
-  }),
   createProvider(config) {
     return merge(
       createChatProvider({ apiKey: config.apiKey, baseURL: config.baseUrl! }),
       createModelProvider({ apiKey: config.apiKey, baseURL: config.baseUrl! }),
     )
   },
+  createProviderConfig: ({ t }) => cometApiConfigSchema.extend({
+    apiKey: cometApiConfigSchema.shape.apiKey.meta({
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+      type: 'password',
+    }),
+    baseUrl: cometApiConfigSchema.shape.baseUrl.meta({
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
+    }),
+  }),
+  description: 'cometapi.com',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.comet-api.description'),
+  icon: 'i-lobe-icons:cometapi',
+  iconColor: 'i-lobe-icons:cometapi-color',
+  id: 'comet-api',
+  name: 'CometAPI',
+
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.comet-api.title'),
+  tasks: ['chat'],
 
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()
@@ -57,36 +57,28 @@ export const providerCometAPI = defineProvider<CometApiConfig>({
 })
 
 export const providerCometAPISpeech = defineProvider<CometApiConfig>({
-  id: 'comet-api-speech',
-  name: 'CometAPI Speech',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.comet-api.title'),
-  description: 'cometapi.com',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.comet-api.description'),
-  tasks: ['text-to-speech'],
-  icon: 'i-lobe-icons:cometapi',
-  createProviderConfig: providerCometAPI.createProviderConfig,
   createProvider(config) {
     return merge(
       createModelProvider({ apiKey: config.apiKey, baseURL: config.baseUrl! }),
       createSpeechProvider({ apiKey: config.apiKey, baseURL: config.baseUrl! }),
     )
   },
+  createProviderConfig: providerCometAPI.createProviderConfig,
+  description: 'cometapi.com',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.comet-api.description'),
+  icon: 'i-lobe-icons:cometapi',
+  id: 'comet-api-speech',
+  name: 'CometAPI Speech',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.comet-api.title'),
+  tasks: ['text-to-speech'],
   validationRequiredWhen: config => Boolean(config.apiKey?.trim()),
   validators: createOpenAICompatibleValidators({ checks: [ProviderValidationCheck.ModelList] }),
 })
 
 export const providerCometAPITranscription = defineProvider<CometApiConfig>({
-  id: 'comet-api-transcription',
-  name: 'CometAPI Transcription',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.comet-api.title'),
-  description: 'cometapi.com',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.comet-api.description'),
-  tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
-  icon: 'i-lobe-icons:cometapi',
   capabilities: {
-    transcription: { protocol: 'http', generateOutput: true, streamOutput: false, streamInput: false },
+    transcription: { generateOutput: true, protocol: 'http', streamInput: false, streamOutput: false },
   },
-  createProviderConfig: providerCometAPI.createProviderConfig,
   createProvider(config) {
     const provider = merge(
       createModelProvider({ apiKey: config.apiKey, baseURL: config.baseUrl! }),
@@ -99,6 +91,14 @@ export const providerCometAPITranscription = defineProvider<CometApiConfig>({
     })
     return provider
   },
+  createProviderConfig: providerCometAPI.createProviderConfig,
+  description: 'cometapi.com',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.comet-api.description'),
+  icon: 'i-lobe-icons:cometapi',
+  id: 'comet-api-transcription',
+  name: 'CometAPI Transcription',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.comet-api.title'),
+  tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
   validationRequiredWhen: config => Boolean(config.apiKey?.trim()),
   validators: createOpenAICompatibleValidators({ checks: [ProviderValidationCheck.ModelList] }),
 })

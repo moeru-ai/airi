@@ -20,14 +20,14 @@ const TRUSTED_LOCAL_ADMIN_REDIRECT_ORIGIN_PATTERNS = [
 
 export interface ServerSignInContext {
   callbackURL: string
-  requestedProvider: string | null
+  requestedProvider: null | string
 }
 
 export interface SocialSignInRedirectParams {
   apiServerUrl: string
-  provider: OAuthProvider
   callbackURL: string
   fetchImpl?: typeof fetch
+  provider: OAuthProvider
   /**
    * Maximum wait for provider discovery before the UI restores sign-in controls.
    * @default 15_000
@@ -83,7 +83,34 @@ export function createServerSignInContext(currentUrl: string, apiServerUrl: stri
   }
 }
 
-function normalizeStandaloneRedirect(currentUrl: URL, redirect: string | null): string | null {
+export async function requestSocialSignInRedirect(params: SocialSignInRedirectParams): Promise<string> {
+  const requestController = new AbortController()
+  const client = getAuthClient({
+    apiServerUrl: params.apiServerUrl,
+    fetchImpl: params.fetchImpl,
+    requestSignal: requestController.signal,
+  })
+
+  // Steam is OpenID 2.0, not OAuth2 — the server steam plugin exposes
+  // `/sign-in/steam`, surfaced here as the typed `signIn.steam` action.
+  // Other providers use the standard `/sign-in/social`.
+  const request = params.provider === 'steam'
+    ? client.signIn.steam({ callbackURL: params.callbackURL, disableRedirect: true })
+    : client.signIn.social({ callbackURL: params.callbackURL, disableRedirect: true, provider: params.provider })
+  const result = await settleSocialSignInRequest(
+    request,
+    params.timeoutMs ?? SOCIAL_SIGN_IN_REQUEST_TIMEOUT_MS,
+    requestController,
+  )
+
+  const url = result.data?.url
+  if (typeof url === 'string')
+    return url
+
+  throw new Error(extractAuthError(result.data ?? result.error) ?? 'Unexpected response')
+}
+
+function normalizeStandaloneRedirect(currentUrl: URL, redirect: null | string): null | string {
   if (!redirect)
     return null
 
@@ -100,7 +127,7 @@ function normalizeStandaloneRedirect(currentUrl: URL, redirect: string | null): 
   return `${currentUrl.origin}${buildAuthUiPath(redirect)}`
 }
 
-function normalizeTrustedAdminRedirect(redirect: string): string | null {
+function normalizeTrustedAdminRedirect(redirect: string): null | string {
   try {
     const url = new URL(redirect)
     if (TRUSTED_ADMIN_REDIRECT_ORIGINS.includes(url.origin))
@@ -114,33 +141,6 @@ function normalizeTrustedAdminRedirect(redirect: string): string | null {
   catch {
     return null
   }
-}
-
-export async function requestSocialSignInRedirect(params: SocialSignInRedirectParams): Promise<string> {
-  const requestController = new AbortController()
-  const client = getAuthClient({
-    apiServerUrl: params.apiServerUrl,
-    fetchImpl: params.fetchImpl,
-    requestSignal: requestController.signal,
-  })
-
-  // Steam is OpenID 2.0, not OAuth2 — the server steam plugin exposes
-  // `/sign-in/steam`, surfaced here as the typed `signIn.steam` action.
-  // Other providers use the standard `/sign-in/social`.
-  const request = params.provider === 'steam'
-    ? client.signIn.steam({ callbackURL: params.callbackURL, disableRedirect: true })
-    : client.signIn.social({ provider: params.provider, callbackURL: params.callbackURL, disableRedirect: true })
-  const result = await settleSocialSignInRequest(
-    request,
-    params.timeoutMs ?? SOCIAL_SIGN_IN_REQUEST_TIMEOUT_MS,
-    requestController,
-  )
-
-  const url = result.data?.url
-  if (typeof url === 'string')
-    return url
-
-  throw new Error(extractAuthError(result.data ?? result.error) ?? 'Unexpected response')
 }
 
 /**

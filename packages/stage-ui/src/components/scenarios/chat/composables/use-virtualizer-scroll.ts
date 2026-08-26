@@ -5,7 +5,7 @@ import { useRafFn } from '@vueuse/core'
 import { shallowRef } from 'vue'
 
 interface VirtualScrollRequest {
-  align: 'start' | 'end'
+  align: 'end' | 'start'
   index: number
 }
 
@@ -16,7 +16,7 @@ interface VirtualScrollRequest {
  * a non-zero viewport size. This adapter polls only while one request waits for that value.
  */
 export function useVirtualizerScroll(
-  virtualizer: Readonly<ShallowRef<VirtualizerHandle | null>>,
+  virtualizer: Readonly<ShallowRef<null | VirtualizerHandle>>,
 ) {
   let didObserveReadyFrame = false
   const pendingRequest = shallowRef<VirtualScrollRequest>()
@@ -47,7 +47,7 @@ export function useVirtualizerScroll(
   }, { immediate: false })
 
   return {
-    scrollToIndex(index: number, align: 'start' | 'end') {
+    scrollToIndex(index: number, align: 'end' | 'start') {
       pendingRequest.value = { align, index }
       didObserveReadyFrame = false
       resume()

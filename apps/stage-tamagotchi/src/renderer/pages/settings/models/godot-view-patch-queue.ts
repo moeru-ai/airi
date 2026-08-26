@@ -24,47 +24,6 @@ export interface GodotViewPatchQueueOptions {
   onError?: (error: unknown) => void
 }
 
-function mergeVec3Patch(
-  current: Partial<StageViewVec3> | undefined,
-  next: Partial<StageViewVec3> | undefined,
-) {
-  if (!next)
-    return current
-
-  return {
-    ...current,
-    ...next,
-  }
-}
-
-/**
- * Merges two Godot stage view-state patches.
- *
- * Use when:
- * - Several UI updates arrive before the next throttled bridge send
- * - The latest field value should replace older queued values
- *
- * Expects:
- * - Patch payloads have already passed component-level construction
- *
- * Returns:
- * - A patch containing the newest value for each touched model and camera field
- */
-export function mergeGodotViewPatch(
-  current: StageViewPatch | undefined,
-  next: StageViewPatch,
-): StageViewPatch {
-  return {
-    camera: current?.camera || next.camera
-      ? {
-          ...current?.camera,
-          ...next.camera,
-          position: mergeVec3Patch(current?.camera?.position, next.camera?.position),
-        }
-      : undefined,
-  }
-}
-
 /**
  * Creates a leading-and-trailing queue for Godot view-state patches.
  *
@@ -170,5 +129,46 @@ export function createGodotViewPatchQueue(
       schedule()
     },
     reset,
+  }
+}
+
+/**
+ * Merges two Godot stage view-state patches.
+ *
+ * Use when:
+ * - Several UI updates arrive before the next throttled bridge send
+ * - The latest field value should replace older queued values
+ *
+ * Expects:
+ * - Patch payloads have already passed component-level construction
+ *
+ * Returns:
+ * - A patch containing the newest value for each touched model and camera field
+ */
+export function mergeGodotViewPatch(
+  current: StageViewPatch | undefined,
+  next: StageViewPatch,
+): StageViewPatch {
+  return {
+    camera: current?.camera || next.camera
+      ? {
+          ...current?.camera,
+          ...next.camera,
+          position: mergeVec3Patch(current?.camera?.position, next.camera?.position),
+        }
+      : undefined,
+  }
+}
+
+function mergeVec3Patch(
+  current: Partial<StageViewVec3> | undefined,
+  next: Partial<StageViewVec3> | undefined,
+) {
+  if (!next)
+    return current
+
+  return {
+    ...current,
+    ...next,
   }
 }

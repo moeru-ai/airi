@@ -11,61 +11,61 @@ import SessionsDrawer from './sessions-drawer.vue'
 import { useChatStore } from '../../../../stores/chat'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
 
-function createTestI18n() {
-  return createI18n({
-    legacy: false,
-    locale: 'en',
-    missingWarn: false,
-    fallbackWarn: false,
-    messages: {
-      en: {
-        stage: {
-          chat: {
-            sessions: {
-              'title': 'Chats',
-              'new': 'New chat',
-              'empty': 'No chats',
-              'delete': 'Delete',
-              'cloud-badge': 'Cloud synced',
-            },
-          },
-        },
-      },
-    },
-  })
-}
-
-function sessionMeta(sessionId: string, title: string, updatedAt: number): ChatSessionMeta {
-  return {
-    sessionId,
-    title,
-    characterId: 'default',
-    userId: 'local',
-    createdAt: updatedAt,
-    updatedAt,
-  }
-}
-
 function createSessionsPinia() {
   const pinia = createPinia()
   pinia.state.value = {
-    'chat-session-selection': {
-      activeSessionId: 'session-b',
-    },
     'chat-session': {
-      sessionMetas: {
-        'session-a': sessionMeta('session-a', 'Chat A', 1),
-        'session-b': sessionMeta('session-b', 'Chat B', 3),
-        'session-c': sessionMeta('session-c', 'Chat C', 2),
-      },
       sessionMessages: {
         'session-a': [],
         'session-b': [],
         'session-c': [],
       },
+      sessionMetas: {
+        'session-a': sessionMeta('session-a', 'Chat A', 1),
+        'session-b': sessionMeta('session-b', 'Chat B', 3),
+        'session-c': sessionMeta('session-c', 'Chat C', 2),
+      },
+    },
+    'chat-session-selection': {
+      activeSessionId: 'session-b',
     },
   }
   return pinia
+}
+
+function createTestI18n() {
+  return createI18n({
+    fallbackWarn: false,
+    legacy: false,
+    locale: 'en',
+    messages: {
+      en: {
+        stage: {
+          chat: {
+            sessions: {
+              'cloud-badge': 'Cloud synced',
+              'delete': 'Delete',
+              'empty': 'No chats',
+              'new': 'New chat',
+              'title': 'Chats',
+            },
+          },
+        },
+      },
+    },
+    missingWarn: false,
+  })
+}
+
+function sessionMeta(sessionId: string, title: string, updatedAt: number): ChatSessionMeta {
+  return {
+    characterId: 'default',
+    createdAt: updatedAt,
+    sessionId,
+    title,
+    updatedAt,
+    userId: 'local',
+  }
 }
 
 describe('sessions drawer orchestration', () => {
@@ -79,10 +79,10 @@ describe('sessions drawer orchestration', () => {
     const pinia = createSessionsPinia()
 
     const screen = await render(SessionsDrawer, {
-      props: { modelValue: false },
       global: {
         plugins: [pinia, PiniaColada, createTestI18n()],
       },
+      props: { modelValue: false },
     })
     const chatSession = useChatSessionStore(pinia)
     const chat = useChatStore(pinia)
@@ -118,10 +118,10 @@ describe('sessions drawer orchestration', () => {
     // newer row selection was overwritten when creation eventually resolved.
     const pinia = createSessionsPinia()
     const screen = await render(SessionsDrawer, {
-      props: { modelValue: false },
       global: {
         plugins: [pinia, PiniaColada, createTestI18n()],
       },
+      props: { modelValue: false },
     })
     const chatSession = useChatSessionStore(pinia)
     let resolveCreate: ((sessionId: string) => void) | undefined

@@ -1,6 +1,15 @@
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 
+function calculateVolume(analyser: AnalyserNode, mode: 'linear' | 'minmax' = 'linear') {
+  switch (mode) {
+    case 'linear':
+      return calculateVolumeWithLinearNormalize(analyser)
+    case 'minmax':
+      return calculateVolumeWithMinMaxNormalize(analyser)
+  }
+}
+
 function calculateVolumeWithLinearNormalize(analyser: AnalyserNode) {
   const dataBuffer = new Uint8Array(analyser.frequencyBinCount)
   analyser.getByteFrequencyData(dataBuffer)
@@ -53,15 +62,6 @@ function calculateVolumeWithMinMaxNormalize(analyser: AnalyserNode) {
 
   // Average the volume values
   return volumeSum / dataBuffer.length
-}
-
-function calculateVolume(analyser: AnalyserNode, mode: 'linear' | 'minmax' = 'linear') {
-  switch (mode) {
-    case 'linear':
-      return calculateVolumeWithLinearNormalize(analyser)
-    case 'minmax':
-      return calculateVolumeWithMinMaxNormalize(analyser)
-  }
 }
 
 export const useAudioContext = defineStore('audio-context', () => {

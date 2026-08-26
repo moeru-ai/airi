@@ -7,7 +7,7 @@ interface FakemicTaskExecution {
 }
 
 const registryKey = Symbol.for('airi.vitest-plugin-fakemic.executions')
-const registryHost = globalThis as typeof globalThis & Record<typeof registryKey, WeakMap<RunnerTestCase, FakemicTaskExecution> | undefined>
+const registryHost = globalThis as Record<typeof registryKey, undefined | WeakMap<RunnerTestCase, FakemicTaskExecution>> & typeof globalThis
 const fakemicTaskExecutions = registryHost[registryKey] ??= new WeakMap()
 
 /**

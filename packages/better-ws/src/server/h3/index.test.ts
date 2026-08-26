@@ -3,7 +3,7 @@ import type { Hooks } from 'crossws'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('h3', () => ({
-  defineWebSocketHandler: vi.fn(hooks => ({ kind: 'h3-handler', hooks })),
+  defineWebSocketHandler: vi.fn(hooks => ({ hooks, kind: 'h3-handler' })),
 }))
 
 vi.mock('crossws/server', () => ({
@@ -19,11 +19,11 @@ describe('better-ws H3 adapter', () => {
     const handler = toH3Handler(server)
 
     expect(handler).toMatchObject({
-      kind: 'h3-handler',
       hooks: {
-        open: expect.any(Function),
         message: expect.any(Function),
+        open: expect.any(Function),
       },
+      kind: 'h3-handler',
     })
   })
 

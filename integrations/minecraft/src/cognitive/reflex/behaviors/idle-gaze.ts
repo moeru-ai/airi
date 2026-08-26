@@ -18,50 +18,12 @@ const LOOK_DEADZONE_RAD = 0.07
 // Avoid rapid oscillation when switching between nearby candidates.
 const RETARGET_DEBOUNCE_MS = 650
 
-const smoothingByBot = new WeakMap<object, { lastTargetId: number | null, lastLookAtAt: number }>()
+const smoothingByBot = new WeakMap<object, { lastLookAtAt: number, lastTargetId: null | number }>()
 
 interface GazeCandidate {
   entity: Entity
-  score: number
   isAttention: boolean
-}
-
-function horizontalSpeed(entity: Entity): number {
-  const v = entity.velocity
-  if (!v)
-    return 0
-  return Math.sqrt(v.x * v.x + v.z * v.z)
-}
-
-function headLookOffset(entity: Entity): number {
-  return Number.isFinite(entity.height) ? entity.height * 0.85 : 1.5
-}
-
-function normalizeAngle(rad: number): number {
-  let a = rad
-  while (a > Math.PI) a -= Math.PI * 2
-  while (a < -Math.PI) a += Math.PI * 2
-  return a
-}
-
-function getLookDeltaRad(from: Entity, to: { x: number, y: number, z: number }): number {
-  const dx = to.x - from.position.x
-  const dy = to.y - from.position.y
-  const dz = to.z - from.position.z
-  const hDist = Math.hypot(dx, dz)
-
-  const yawDelta = Math.abs(normalizeAngle(Math.atan2(-dx, -dz) - (from.yaw ?? 0)))
-  const pitchDelta = Math.abs(Math.atan2(dy, hDist) - (from.pitch ?? 0))
-  return Math.max(yawDelta, pitchDelta)
-}
-
-function getSmoothingState(bot: object): { lastTargetId: number | null, lastLookAtAt: number } {
-  let state = smoothingByBot.get(bot)
-  if (!state) {
-    state = { lastTargetId: null, lastLookAtAt: 0 }
-    smoothingByBot.set(bot, state)
-  }
-  return state
+  score: number
 }
 
 /**
@@ -87,7 +49,7 @@ function findGazeTarget(
     if (target) {
       const dist = selfPos.distanceTo(target.position)
       if (dist <= GAZE_RANGE)
-        return { entity: target, score: 25 + 35 * (1 - dist / GAZE_RANGE), isAttention: true }
+        return { entity: target, isAttention: true, score: 25 + 35 * (1 - dist / GAZE_RANGE) }
     }
   }
 
@@ -108,11 +70,49 @@ function findGazeTarget(
 
     if (dist < bestDist) {
       bestDist = dist
-      best = { entity, score: 10 + 30 * (1 - dist / GAZE_RANGE), isAttention: false }
+      best = { entity, isAttention: false, score: 10 + 30 * (1 - dist / GAZE_RANGE) }
     }
   }
 
   return best
+}
+
+function getLookDeltaRad(from: Entity, to: { x: number, y: number, z: number }): number {
+  const dx = to.x - from.position.x
+  const dy = to.y - from.position.y
+  const dz = to.z - from.position.z
+  const hDist = Math.hypot(dx, dz)
+
+  const yawDelta = Math.abs(normalizeAngle(Math.atan2(-dx, -dz) - (from.yaw ?? 0)))
+  const pitchDelta = Math.abs(Math.atan2(dy, hDist) - (from.pitch ?? 0))
+  return Math.max(yawDelta, pitchDelta)
+}
+
+function getSmoothingState(bot: object): { lastLookAtAt: number, lastTargetId: null | number } {
+  let state = smoothingByBot.get(bot)
+  if (!state) {
+    state = { lastLookAtAt: 0, lastTargetId: null }
+    smoothingByBot.set(bot, state)
+  }
+  return state
+}
+
+function headLookOffset(entity: Entity): number {
+  return Number.isFinite(entity.height) ? entity.height * 0.85 : 1.5
+}
+
+function horizontalSpeed(entity: Entity): number {
+  const v = entity.velocity
+  if (!v)
+    return 0
+  return Math.sqrt(v.x * v.x + v.z * v.z)
+}
+
+function normalizeAngle(rad: number): number {
+  let a = rad
+  while (a > Math.PI) a -= Math.PI * 2
+  while (a < -Math.PI) a += Math.PI * 2
+  return a
 }
 
 /**
@@ -126,13 +126,9 @@ function findGazeTarget(
  * - Smooth look turns with anti-jitter retarget guards
  */
 export const idleGazeBehavior: ReflexBehavior = {
+  cooldownMs: COOLDOWN_MS,
   id: 'idle-gaze',
   modes: ['idle', 'social'],
-  cooldownMs: COOLDOWN_MS,
-
-  when: (ctx, api) => api ? findGazeTarget(api.bot.bot, ctx) !== null : false,
-
-  score: (ctx, api) => api ? (findGazeTarget(api.bot.bot, ctx)?.score ?? 0) : 0,
 
   run: async ({ bot: mfBot, context }) => {
     const bot = mfBot.bot
@@ -165,4 +161,8 @@ export const idleGazeBehavior: ReflexBehavior = {
     smoothing.lastTargetId = targetId
     smoothing.lastLookAtAt = now
   },
+
+  score: (ctx, api) => api ? (findGazeTarget(api.bot.bot, ctx)?.score ?? 0) : 0,
+
+  when: (ctx, api) => api ? findGazeTarget(api.bot.bot, ctx) !== null : false,
 }

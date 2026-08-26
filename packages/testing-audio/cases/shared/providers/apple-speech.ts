@@ -9,11 +9,11 @@ export interface AppleSpeechAsrOptions {
 /** Creates the macOS Apple Speech Provider configuration for one Electron case. */
 export function appleSpeechAsr(options: AppleSpeechAsrOptions = {}): ProviderConfiguration {
   return {
-    id: 'apple-speech-transcription',
-    definitionId: 'apple-speech-transcription',
-    model: 'apple-speech',
     config: {
       locale: options.locale ?? 'en-US',
     },
+    definitionId: 'apple-speech-transcription',
+    id: 'apple-speech-transcription',
+    model: 'apple-speech',
   }
 }

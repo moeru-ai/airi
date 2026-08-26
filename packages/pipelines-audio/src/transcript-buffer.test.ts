@@ -22,10 +22,10 @@ describe('createTranscriptBuffer', () => {
   it('merges adjacent transcription fragments before flushing', async () => {
     const flushed: string[] = []
     const buffer = createTranscriptBuffer({
-      flushDelayMs: 1200,
       async flush(text) {
         flushed.push(text)
       },
+      flushDelayMs: 1200,
     })
 
     buffer.push('我今天想测试一下')
@@ -47,10 +47,10 @@ describe('createTranscriptBuffer', () => {
   it('keeps a separator between Latin fragments', async () => {
     const flushed: string[] = []
     const buffer = createTranscriptBuffer({
-      flushDelayMs: 1200,
       async flush(text) {
         flushed.push(text)
       },
+      flushDelayMs: 1200,
     })
 
     buffer.push('hello')
@@ -71,11 +71,11 @@ describe('createTranscriptBuffer', () => {
   it('flushes immediately at the configured text-length limit', async () => {
     const flushed: string[] = []
     const buffer = createTranscriptBuffer({
-      flushDelayMs: 1200,
-      maxBufferedTextLength: 6,
       async flush(text) {
         flushed.push(text)
       },
+      flushDelayMs: 1200,
+      maxBufferedTextLength: 6,
     })
 
     buffer.push('这是一段很长的文字')
@@ -95,10 +95,10 @@ describe('createTranscriptBuffer', () => {
   it('flushes pending text when disposed', async () => {
     const flushed: string[] = []
     const buffer = createTranscriptBuffer({
-      flushDelayMs: 1200,
       async flush(text) {
         flushed.push(text)
       },
+      flushDelayMs: 1200,
     })
 
     buffer.push('关闭之前还有一句话')
@@ -118,10 +118,10 @@ describe('createTranscriptBuffer', () => {
   it('clears pending text without flushing it', async () => {
     const flushed: string[] = []
     const buffer = createTranscriptBuffer({
-      flushDelayMs: 1200,
       async flush(text) {
         flushed.push(text)
       },
+      flushDelayMs: 1200,
     })
 
     buffer.push('这句话不应该发送')
@@ -144,8 +144,8 @@ describe('createTranscriptBuffer', () => {
       .mockRejectedValueOnce(new Error('temporary send failure'))
       .mockResolvedValue(undefined)
     const buffer = createTranscriptBuffer({
-      flushDelayMs: 1200,
       flush,
+      flushDelayMs: 1200,
     })
 
     buffer.push('first transcript')

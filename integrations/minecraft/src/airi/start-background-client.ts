@@ -22,8 +22,8 @@ export function startAiriClientConnection(client: AiriClientLike, deps: {
 
     unavailableReported = true
     deps.logger.withFields({
-      url: deps.url,
       error: errorMessageFrom(error) ?? 'Unknown error',
+      url: deps.url,
     }).warn('AIRI server is unavailable; continuing startup without AIRI and retrying in background')
   }
 
@@ -46,13 +46,13 @@ export function startAiriClientConnection(client: AiriClientLike, deps: {
     })
     .catch((error) => {
       deps.logger.withFields({
-        url: deps.url,
         error: errorMessageFrom(error) ?? 'Unknown error',
+        url: deps.url,
       }).warn('AIRI client stopped retrying')
     })
 
   return {
-    reportUnavailable,
     reportDisconnected,
+    reportUnavailable,
   }
 }

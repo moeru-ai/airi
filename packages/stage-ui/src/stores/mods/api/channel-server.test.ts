@@ -6,28 +6,25 @@ const serverSdkMocks = vi.hoisted(() => {
   class MockClient {
     static instances: MockClient[] = []
 
-    readonly listeners = new Map<string, Set<(event: any) => void | Promise<void>>>()
+    readonly listeners = new Map<string, Set<(event: any) => Promise<void> | void>>()
     readonly sent: any[] = []
 
     constructor(public readonly options: Record<string, any>) {
       MockClient.instances.push(this)
     }
 
-    onEvent(type: string, callback: (event: any) => void | Promise<void>) {
-      let callbacks = this.listeners.get(type)
-      if (!callbacks) {
-        callbacks = new Set()
-        this.listeners.set(type, callbacks)
-      }
+    close(code?: number, reason?: string) {
+      this.options.onClose?.(code, reason)
+    }
 
-      callbacks.add(callback)
-
-      return () => {
-        this.offEvent(type, callback)
+    emit(type: string, data: any) {
+      const event = { data, type }
+      for (const callback of this.listeners.get(type) ?? []) {
+        void callback(event)
       }
     }
 
-    offEvent(type: string, callback?: (event: any) => void | Promise<void>) {
+    offEvent(type: string, callback?: (event: any) => Promise<void> | void) {
       const callbacks = this.listeners.get(type)
       if (!callbacks) {
         return
@@ -44,44 +41,47 @@ const serverSdkMocks = vi.hoisted(() => {
       this.listeners.delete(type)
     }
 
+    onEvent(type: string, callback: (event: any) => Promise<void> | void) {
+      let callbacks = this.listeners.get(type)
+      if (!callbacks) {
+        callbacks = new Set()
+        this.listeners.set(type, callbacks)
+      }
+
+      callbacks.add(callback)
+
+      return () => {
+        this.offEvent(type, callback)
+      }
+    }
+
     send(event: any) {
       this.sent.push(event)
       return true
-    }
-
-    close(code?: number, reason?: string) {
-      this.options.onClose?.(code, reason)
-    }
-
-    emit(type: string, data: any) {
-      const event = { type, data }
-      for (const callback of this.listeners.get(type) ?? []) {
-        void callback(event)
-      }
     }
 
     simulateAuthenticated() {
       this.emit('module:authenticated', { authenticated: true })
     }
 
-    simulateTransientDisconnect() {
-      this.options.onClose?.(1005, '')
-    }
-
     simulateClose(code?: number, reason?: string) {
       this.options.onClose?.(code, reason)
-    }
-
-    simulateReconnectReady() {
-      this.options.onReady?.()
     }
 
     simulateError(error: unknown) {
       this.options.onError?.(error)
     }
 
+    simulateReconnectReady() {
+      this.options.onReady?.()
+    }
+
     simulateStateChange(previousStatus: string, status: string) {
       this.options.onStateChange?.({ previousStatus, status })
+    }
+
+    simulateTransientDisconnect() {
+      this.options.onClose?.(1005, '')
     }
   }
 
@@ -134,8 +134,8 @@ describe('channel-server store reconnect', () => {
     const store = useModsServerChannelStore()
 
     store.send({
-      type: 'spark:notify',
       data: { message: 'before-init' },
+      type: 'spark:notify',
     } as any)
 
     const initializePromise = store.initialize({ token: 'secret' })
@@ -148,8 +148,8 @@ describe('channel-server store reconnect', () => {
     expect(store.pendingSendCount).toBe(0)
     expect(client.sent).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        type: 'spark:notify',
         data: { message: 'before-init' },
+        type: 'spark:notify',
       }),
     ]))
 
@@ -158,8 +158,8 @@ describe('channel-server store reconnect', () => {
     expect(store.connected).toBe(false)
 
     store.send({
-      type: 'spark:notify',
       data: { message: 'queued-during-disconnect' },
+      type: 'spark:notify',
     } as any)
 
     expect(store.pendingSendCount).toBe(1)
@@ -170,8 +170,8 @@ describe('channel-server store reconnect', () => {
     expect(store.pendingSendCount).toBe(0)
     expect(client.sent).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        type: 'spark:notify',
         data: { message: 'queued-during-disconnect' },
+        type: 'spark:notify',
       }),
     ]))
   })
@@ -186,8 +186,8 @@ describe('channel-server store reconnect', () => {
     await initializePromise
 
     expect(client.options.heartbeat).toEqual({
-      readTimeout: 60_000,
       pingInterval: 20_000,
+      readTimeout: 60_000,
     })
   })
 
@@ -354,8 +354,8 @@ describe('channel-server store reconnect', () => {
     client.simulateTransientDisconnect()
 
     store.send({
-      type: 'spark:notify',
       data: { message: 'reconnect-authenticated-queued' },
+      type: 'spark:notify',
     } as any)
 
     expect(store.pendingSendCount).toBe(1)
@@ -371,8 +371,8 @@ describe('channel-server store reconnect', () => {
     expect(store.pendingSendCount).toBe(0)
     expect(client.sent).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        type: 'spark:notify',
         data: { message: 'reconnect-authenticated-queued' },
+        type: 'spark:notify',
       }),
     ]))
   })

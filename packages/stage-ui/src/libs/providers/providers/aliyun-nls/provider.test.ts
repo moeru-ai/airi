@@ -3,11 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createAliyunNLSProvider } from './provider'
 
 class FakeWebSocket extends EventTarget {
-  static readonly CONNECTING = 0
-  static readonly OPEN = 1
-  static readonly CLOSING = 2
   static readonly CLOSED = 3
+  static readonly CLOSING = 2
+  static readonly CONNECTING = 0
   static readonly instances: FakeWebSocket[] = []
+  static readonly OPEN = 1
 
   binaryType: BinaryType = 'blob'
   onclose: ((event: { code: number, reason: string }) => void) | null = null
@@ -55,9 +55,9 @@ describe('aliyun NLS provider', () => {
     vi.stubGlobal('WebSocket', FakeWebSocket)
     vi.stubGlobal('fetch', vi.fn(async () => new Response(
       JSON.stringify({
+        ErrMsg: '',
         NlsRequestId: 'nls-request',
         RequestId: 'request',
-        ErrMsg: '',
         Token: {
           ExpireTime: Math.floor(Date.now() / 1000) + 3600,
           Id: 'token',

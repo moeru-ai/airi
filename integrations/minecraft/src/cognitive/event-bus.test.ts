@@ -12,10 +12,10 @@ describe('eventBus', () => {
       const bus = createTestBus()
 
       const event = bus.emit({
-        type: 'test:event',
         payload: { foo: 'bar' },
-        traceId: 'trace-1',
         source: { component: 'test' },
+        traceId: 'trace-1',
+        type: 'test:event',
       })
 
       expect(event.id).toBeDefined()
@@ -30,9 +30,9 @@ describe('eventBus', () => {
       const bus = createTestBus()
 
       const event = bus.emit({
-        type: 'test:event',
         payload: {},
         source: { component: 'test' },
+        type: 'test:event',
       })
 
       expect(event.traceId).toBeDefined()
@@ -43,9 +43,9 @@ describe('eventBus', () => {
       const bus = createTestBus()
 
       const event = bus.emit({
-        type: 'test:event',
         payload: { mutable: 'data' },
         source: { component: 'test' },
+        type: 'test:event',
       })
 
       expect(Object.isFrozen(event)).toBe(true)
@@ -57,16 +57,16 @@ describe('eventBus', () => {
       const bus = createTestBus()
 
       const event = bus.emit({
-        type: 'test:event',
         payload: {
+          array: [{ item: 1 }, { item: 2 }],
           level1: {
             level2: {
               value: 42,
             },
           },
-          array: [{ item: 1 }, { item: 2 }],
         },
         source: { component: 'test' },
+        type: 'test:event',
       })
 
       expect(Object.isFrozen(event.payload)).toBe(true)
@@ -82,15 +82,15 @@ describe('eventBus', () => {
       const bus = createTestBus()
 
       const parent = bus.emit({
-        type: 'parent:event',
         payload: {},
         source: { component: 'test' },
+        type: 'parent:event',
       })
 
       const child = bus.emitChild(parent, {
-        type: 'child:event',
         payload: { derived: true },
         source: { component: 'test' },
+        type: 'child:event',
       })
 
       expect(child.traceId).toBe(parent.traceId)
@@ -105,9 +105,9 @@ describe('eventBus', () => {
 
       bus.subscribe('test:event', handler)
       bus.emit({
-        type: 'test:event',
         payload: { data: 123 },
         source: { component: 'test' },
+        type: 'test:event',
       })
 
       expect(handler).toHaveBeenCalledTimes(1)
@@ -121,19 +121,19 @@ describe('eventBus', () => {
       bus.subscribe('raw:*', handler)
 
       bus.emit({
+        payload: {},
+        source: { component: 'test' },
         type: 'raw:sighted:punch',
-        payload: {},
-        source: { component: 'test' },
       })
       bus.emit({
+        payload: {},
+        source: { component: 'test' },
         type: 'raw:heard:sound',
-        payload: {},
-        source: { component: 'test' },
       })
       bus.emit({
-        type: 'signal:attention',
         payload: {},
         source: { component: 'test' },
+        type: 'signal:attention',
       })
 
       expect(handler).toHaveBeenCalledTimes(2)
@@ -146,18 +146,18 @@ describe('eventBus', () => {
       const unsub = bus.subscribe('test:*', handler)
 
       bus.emit({
-        type: 'test:one',
         payload: {},
         source: { component: 'test' },
+        type: 'test:one',
       })
       expect(handler).toHaveBeenCalledTimes(1)
 
       unsub()
 
       bus.emit({
-        type: 'test:two',
         payload: {},
         source: { component: 'test' },
+        type: 'test:two',
       })
       expect(handler).toHaveBeenCalledTimes(1)
     })
@@ -174,17 +174,17 @@ describe('eventBus', () => {
       bus.subscribe('test:event', healthyHandler)
 
       const emittedEvent = bus.emit({
-        type: 'test:event',
         payload: { value: 1 },
         source: { component: 'test' },
+        type: 'test:event',
       })
 
       expect(healthyHandler).toHaveBeenCalledTimes(1)
       expect(onSubscriberError).toHaveBeenCalledTimes(1)
       expect(onSubscriberError).toHaveBeenCalledWith({
+        error: subscriberError,
         event: emittedEvent,
         pattern: 'test:event',
-        error: subscriberError,
       })
     })
   })
@@ -196,16 +196,16 @@ describe('eventBus', () => {
 
       bus.subscribe('parent:event', () => {
         childEvent = bus.emit({
-          type: 'child:event',
           payload: {},
           source: { component: 'handler' },
+          type: 'child:event',
         })
       })
 
       const parent = bus.emit({
-        type: 'parent:event',
         payload: {},
         source: { component: 'test' },
+        type: 'parent:event',
       })
 
       expect(childEvent).toBeDefined()

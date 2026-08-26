@@ -13,31 +13,31 @@ import { characterBookmarks, characterLikes } from './user-character'
 export const character = pgTable(
   'characters',
   {
-    id: text('id').primaryKey().$defaultFn(() => nanoid()),
-    version: text('version').notNull(),
-    coverUrl: text('cover_url').notNull(),
+    avatarUrl: text('avatar_url'),
+    bookmarksCount: integer('bookmarks_count').default(0).notNull(),
+    characterId: text('character_id').notNull(),
 
     // TODO: json patch?
 
+    coverUrl: text('cover_url').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
     // NOTICE: bare creatorId / ownerId is intentional — no FK to user.id.
     // better-auth hard-deletes the user row; a cascade would wipe these
     // soft-delete archive rows.
     // See `server/apps/api/docs/ai-context/account-deletion.md`.
     creatorId: text('creator_id').notNull(),
-    ownerId: text('owner_id').notNull(),
-    characterId: text('character_id').notNull(),
-    avatarUrl: text('avatar_url'),
     creatorRole: text('creator_role'),
-    priceCredit: text('price_credit').default('0').notNull(),
-
-    likesCount: integer('likes_count').default(0).notNull(),
-    bookmarksCount: integer('bookmarks_count').default(0).notNull(),
-    interactionsCount: integer('interactions_count').default(0).notNull(),
+    deletedAt: timestamp('deleted_at'),
     forksCount: integer('forks_count').default(0).notNull(),
 
-    createdAt: timestamp('created_at').defaultNow().notNull(),
+    id: text('id').primaryKey().$defaultFn(() => nanoid()),
+    interactionsCount: integer('interactions_count').default(0).notNull(),
+    likesCount: integer('likes_count').default(0).notNull(),
+    ownerId: text('owner_id').notNull(),
+
+    priceCredit: text('price_credit').default('0').notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
-    deletedAt: timestamp('deleted_at'),
+    version: text('version').notNull(),
   },
 )
 
@@ -47,15 +47,15 @@ export type NewCharacter = InferInsertModel<typeof character>
 export const characterCovers = pgTable(
   'character_covers',
   {
-    id: text('id').primaryKey().$defaultFn(() => nanoid()),
+    backgroundUrl: text('background_url').notNull(),
     characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
 
-    foregroundUrl: text('foreground_url').notNull(),
-    backgroundUrl: text('background_url').notNull(),
-
     createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
     deletedAt: timestamp('deleted_at'),
+
+    foregroundUrl: text('foreground_url').notNull(),
+    id: text('id').primaryKey().$defaultFn(() => nanoid()),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
 )
 export type CharacterCover = InferSelectModel<typeof characterCovers>
@@ -64,17 +64,17 @@ export type NewCharacterCover = InferInsertModel<typeof characterCovers>
 export const avatarModel = pgTable(
   'avatar_model',
   {
-    id: text('id').primaryKey().$defaultFn(() => nanoid()),
     characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
-    name: text('name').notNull(),
-    type: text('type').notNull().$type<keyof AvatarModelConfig>(),
+    config: jsonb('config').notNull().$type<AvatarModelConfig[keyof AvatarModelConfig]>(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    deletedAt: timestamp('deleted_at'),
 
     description: text('description').notNull(),
 
-    config: jsonb('config').notNull().$type<AvatarModelConfig[keyof AvatarModelConfig]>(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
+    id: text('id').primaryKey().$defaultFn(() => nanoid()),
+    name: text('name').notNull(),
+    type: text('type').notNull().$type<keyof AvatarModelConfig>(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
-    deletedAt: timestamp('deleted_at'),
   },
 )
 
@@ -84,12 +84,12 @@ export type NewAvatarModel = InferInsertModel<typeof avatarModel>
 export const characterCapabilities = pgTable(
   'character_capabilities',
   {
-    id: text('id').primaryKey().$defaultFn(() => nanoid()),
     characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
+    config: jsonb('config').notNull().$type<CharacterCapabilityConfig[keyof CharacterCapabilityConfig]>(),
+
+    id: text('id').primaryKey().$defaultFn(() => nanoid()),
 
     type: text('type').notNull().$type<keyof CharacterCapabilityConfig>(),
-
-    config: jsonb('config').notNull().$type<CharacterCapabilityConfig[keyof CharacterCapabilityConfig]>(),
   },
 )
 
@@ -99,15 +99,15 @@ export type NewCharacterCapability = InferInsertModel<typeof characterCapabiliti
 export const characterI18n = pgTable(
   'character_i18n',
   {
-    id: text('id').primaryKey().$defaultFn(() => nanoid()),
     characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
 
-    language: text('language').notNull(),
+    deletedAt: timestamp('deleted_at'),
 
-    name: text('name').notNull(),
-    tagline: text('tagline'),
     description: text('description').notNull(),
-    tags: text('tags').array().notNull(),
+    id: text('id').primaryKey().$defaultFn(() => nanoid()),
+    language: text('language').notNull(),
+    name: text('name').notNull(),
 
     // TODO: Implement the system prompt
     // systemPrompt: text('system_prompt').notNull(),
@@ -121,26 +121,26 @@ export const characterI18n = pgTable(
     // TODO: notes?
     // TODO: metadata?
 
-    createdAt: timestamp('created_at').defaultNow().notNull(),
+    tagline: text('tagline'),
+    tags: text('tags').array().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
-    deletedAt: timestamp('deleted_at'),
   },
 )
 
 export type CharacterI18n = InferSelectModel<typeof characterI18n>
 export type NewCharacterI18n = InferInsertModel<typeof characterI18n>
 
-type PromptType = 'system' | 'personality' | 'greetings'
+type PromptType = 'greetings' | 'personality' | 'system'
 
 export const characterPrompts = pgTable(
   'character_prompts',
   {
-    id: text('id').primaryKey().$defaultFn(() => nanoid()),
     characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
+    content: text('content').notNull(),
 
+    id: text('id').primaryKey().$defaultFn(() => nanoid()),
     language: text('language').notNull(),
     type: text('type').notNull().$type<PromptType>(),
-    content: text('content').notNull(),
   },
 )
 
@@ -149,25 +149,25 @@ export type NewCharacterPrompt = InferInsertModel<typeof characterPrompts>
 
 export const characterRelations = relations(
   character,
-  ({ one, many }) => ({
-    capabilities: many(characterCapabilities),
+  ({ many, one }) => ({
     avatarModels: many(avatarModel),
-    i18n: many(characterI18n),
-    prompts: many(characterPrompts),
-    likes: many(characterLikes),
     bookmarks: many(characterBookmarks),
-    owner: one(user, {
-      fields: [character.ownerId],
-      references: [user.id],
+    capabilities: many(characterCapabilities),
+    cover: one(characterCovers, {
+      fields: [character.id],
+      references: [characterCovers.characterId],
     }),
     creator: one(user, {
       fields: [character.creatorId],
       references: [user.id],
     }),
-    cover: one(characterCovers, {
-      fields: [character.id],
-      references: [characterCovers.characterId],
+    i18n: many(characterI18n),
+    likes: many(characterLikes),
+    owner: one(user, {
+      fields: [character.ownerId],
+      references: [user.id],
     }),
+    prompts: many(characterPrompts),
   }),
 )
 

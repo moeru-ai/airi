@@ -56,14 +56,14 @@ const GenderSchema = v.picklist(['masculine', 'feminine', 'neuter', 'other'])
  *   note           -> <note>
  */
 const TermSchema = v.object({
-  'text': v.pipe(v.string(), v.nonEmpty()),
-  'part-of-speech': PartOfSpeechSchema,
-  'status': UsageStatusSchema,
-  'type': v.optional(TermTypeSchema),
-  'gender': v.optional(GenderSchema),
   /** A sentence that shows the term in use. TBX allows a context at term level only. */
   'context': v.optional(v.string()),
+  'gender': v.optional(GenderSchema),
   'note': v.optional(v.string()),
+  'part-of-speech': PartOfSpeechSchema,
+  'status': UsageStatusSchema,
+  'text': v.pipe(v.string(), v.nonEmpty()),
+  'type': v.optional(TermTypeSchema),
 })
 
 /**
@@ -80,18 +80,18 @@ const TermSchema = v.object({
  *   terms        -> <langSec xml:lang="en"> with one <termSec> for each term
  */
 const ConceptSchema = v.object({
+  /** One sentence. Write two only when one cannot carry the meaning. */
+  definition: v.pipe(v.string(), v.nonEmpty()),
   /**
    * Stable identifier in kebab case. A change here creates a new concept in Crowdin rather
    * than updating the existing one, so it must survive a rename of the terms.
    */
   id: v.pipe(v.string(), v.regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'id must be kebab case')),
-  subject: v.pipe(v.string(), v.nonEmpty()),
-  translatable: v.boolean(),
-  /** One sentence. Write two only when one cannot carry the meaning. */
-  definition: v.pipe(v.string(), v.nonEmpty()),
   note: v.optional(v.string()),
-  url: v.optional(v.pipe(v.string(), v.url())),
+  subject: v.pipe(v.string(), v.nonEmpty()),
   terms: v.pipe(v.array(TermSchema), v.minLength(1)),
+  translatable: v.boolean(),
+  url: v.optional(v.pipe(v.string(), v.url())),
 })
 
 export const GlossarySchema = v.pipe(
@@ -103,8 +103,8 @@ export const GlossarySchema = v.pipe(
   ),
 )
 
-export type Term = v.InferOutput<typeof TermSchema>
 export type Concept = v.InferOutput<typeof ConceptSchema>
+export type Term = v.InferOutput<typeof TermSchema>
 
 /**
  * Parses and validates the contents of `terms.yaml`.

@@ -42,8 +42,8 @@ export const useConsciousnessSettingsStore = defineStore('consciousness-settings
 
   return {
     reasoning,
-    setReasoning,
     resetState,
+    setReasoning,
   }
 }, {
   synced: {

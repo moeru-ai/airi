@@ -1,9 +1,61 @@
 import ts from 'typescript'
 
 interface TextReplacement {
-  start: number
   end: number
+  start: number
   value: string
+}
+
+export function normalizeReplScript(code: string): string {
+  const sourceFile = ts.createSourceFile('repl.ts', code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  const diagnostics = (sourceFile as ts.SourceFile & {
+    parseDiagnostics?: readonly ts.DiagnosticWithLocation[]
+  }).parseDiagnostics
+
+  if (diagnostics && diagnostics.length > 0)
+    return code
+
+  const replacements: TextReplacement[] = []
+
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement))
+      continue
+
+    const start = statement.getStart(sourceFile, false)
+    const end = statement.getEnd()
+    replacements.push({
+      end,
+      start,
+      value: normalizeVariableStatement(sourceFile, statement),
+    })
+  }
+
+  const hasTopLevelReturn = sourceFile.statements.some(statement => ts.isReturnStatement(statement))
+  if (!hasTopLevelReturn && sourceFile.statements.length > 0) {
+    const lastStatement = sourceFile.statements.at(-1)
+    if (lastStatement && ts.isExpressionStatement(lastStatement)) {
+      const expressionText = getNodeText(sourceFile, lastStatement.expression)
+      replacements.push({
+        end: lastStatement.getEnd(),
+        start: lastStatement.getStart(sourceFile, false),
+        value: `return (${expressionText})`,
+      })
+    }
+  }
+
+  return applyReplacements(code, replacements)
+}
+
+function applyReplacements(code: string, replacements: TextReplacement[]): string {
+  if (replacements.length === 0)
+    return code
+
+  let output = code
+  const sorted = [...replacements].sort((a, b) => b.start - a.start)
+  for (const replacement of sorted) {
+    output = `${output.slice(0, replacement.start)}${replacement.value}${output.slice(replacement.end)}`
+  }
+  return output
 }
 
 function getNodeText(sourceFile: ts.SourceFile, node: ts.Node): string {
@@ -36,56 +88,4 @@ function normalizeVariableStatement(sourceFile: ts.SourceFile, statement: ts.Var
   }
 
   return fragments.join('\n')
-}
-
-function applyReplacements(code: string, replacements: TextReplacement[]): string {
-  if (replacements.length === 0)
-    return code
-
-  let output = code
-  const sorted = [...replacements].sort((a, b) => b.start - a.start)
-  for (const replacement of sorted) {
-    output = `${output.slice(0, replacement.start)}${replacement.value}${output.slice(replacement.end)}`
-  }
-  return output
-}
-
-export function normalizeReplScript(code: string): string {
-  const sourceFile = ts.createSourceFile('repl.ts', code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-  const diagnostics = (sourceFile as ts.SourceFile & {
-    parseDiagnostics?: readonly ts.DiagnosticWithLocation[]
-  }).parseDiagnostics
-
-  if (diagnostics && diagnostics.length > 0)
-    return code
-
-  const replacements: TextReplacement[] = []
-
-  for (const statement of sourceFile.statements) {
-    if (!ts.isVariableStatement(statement))
-      continue
-
-    const start = statement.getStart(sourceFile, false)
-    const end = statement.getEnd()
-    replacements.push({
-      start,
-      end,
-      value: normalizeVariableStatement(sourceFile, statement),
-    })
-  }
-
-  const hasTopLevelReturn = sourceFile.statements.some(statement => ts.isReturnStatement(statement))
-  if (!hasTopLevelReturn && sourceFile.statements.length > 0) {
-    const lastStatement = sourceFile.statements.at(-1)
-    if (lastStatement && ts.isExpressionStatement(lastStatement)) {
-      const expressionText = getNodeText(sourceFile, lastStatement.expression)
-      replacements.push({
-        start: lastStatement.getStart(sourceFile, false),
-        end: lastStatement.getEnd(),
-        value: `return (${expressionText})`,
-      })
-    }
-  }
-
-  return applyReplacements(code, replacements)
 }

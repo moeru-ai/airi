@@ -7,14 +7,14 @@ import { loadEnv } from 'vite'
 import { defineProject } from 'vitest/config'
 
 export default defineProject({
-  root: import.meta.dirname,
   plugins: [Info(), vue()],
+  root: import.meta.dirname,
   test: {
-    name: 'stage-tamagotchi:node',
     env: loadEnv('test', cwd(), ''),
-    include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
     exclude: ['src/**/*.browser.test.ts', '**/node_modules/**', '**/.git/**'],
     fileParallelism: false,
+    include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
     maxWorkers: 1,
+    name: 'stage-tamagotchi:node',
   },
 })

@@ -37,6 +37,12 @@ const STREAM_MODEL_LABEL_FALLBACK = 'streaming-tts'
 
 const tracer = trace.getTracer('audio-speech-ws')
 
+export interface AudioSpeechSessionAnalytics {
+  source?: StreamingTtsSource
+  trigger?: StreamingTtsTrigger
+  voiceType?: StreamingTtsVoiceType
+}
+
 /**
  * Mutable state for one streaming speech websocket connection.
  */
@@ -45,20 +51,20 @@ export interface AudioSpeechSessionState {
   attachClient: (ws: WSContext) => void
   /** Reads config, checks balance, decrypts the upstream key, and dials upstream after the start frame is accepted. */
   dialUpstream: () => Promise<void>
-  /** Forwards a client frame or queues it while the upstream connection opens. */
-  handleClientMessage: (message: { data: unknown }, ws: WSContext) => void
   /** Cancels upstream and finalizes the span when the client disconnects. */
   handleClientClose: () => void
+  /** Forwards a client frame or queues it while the upstream connection opens. */
+  handleClientMessage: (message: { data: unknown }, ws: WSContext) => void
 }
-
-export type StreamingTtsTrigger = 'auto' | 'manual'
 export type StreamingTtsSource = 'audio.speech.ws' | 'chat_auto_tts' | 'manual_preview' | 'settings_test'
-export type StreamingTtsVoiceType = 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
+export type StreamingTtsTrigger = 'auto' | 'manual'
 
-export interface AudioSpeechSessionAnalytics {
-  trigger?: StreamingTtsTrigger
-  source?: StreamingTtsSource
-  voiceType?: StreamingTtsVoiceType
+export type StreamingTtsVoiceType = 'custom_configured' | 'official_default' | 'official_selected' | 'unknown' | 'voice_pack'
+
+interface StreamingTtsStartFrame {
+  event: 'start'
+  model: string
+  voice: string
 }
 
 /**
@@ -88,8 +94,8 @@ export function createSessionState(
     },
   })
 
-  let clientWs: WSContext | null = null
-  let upstreamWs: WebSocket | null = null
+  let clientWs: null | WSContext = null
+  let upstreamWs: null | WebSocket = null
   let upstreamReady = false
   let closed = false
   let billed = false
@@ -156,8 +162,8 @@ export function createSessionState(
     let keyPlaintext: Buffer
     try {
       keyPlaintext = opts.envelopeCrypto.decryptKey(entry.ciphertext, {
-        modelName: STREAM_MODEL_LABEL_FALLBACK,
         keyEntryId: entry.id,
+        modelName: STREAM_MODEL_LABEL_FALLBACK,
       })
     }
     catch (err) {
@@ -205,7 +211,7 @@ export function createSessionState(
     })
 
     upstream.on('close', (code, reason) => {
-      log.withFields({ userId, code, reason: reason?.toString() }).debug('upstream ws closed')
+      log.withFields({ code, reason: reason?.toString(), userId }).debug('upstream ws closed')
       finalize()
     })
 
@@ -215,8 +221,8 @@ export function createSessionState(
       span.setStatus({ code: SpanStatusCode.ERROR, message: err.message })
       try {
         clientWs?.send(JSON.stringify({
-          event: 'error',
           code: 'upstream_error',
+          event: 'error',
           message: err.message,
         }))
       }
@@ -344,6 +350,12 @@ export function createSessionState(
 
   function handleUpstreamControlEvent(evt: { event?: string, payload?: Record<string, unknown> }) {
     switch (evt.event) {
+      case 'error': {
+        const code = typeof evt.payload?.code === 'string' ? evt.payload.code : 'upstream_error'
+        log.withFields({ code, message: String(evt.payload?.message ?? ''), userId }).warn('upstream sent error event')
+        span.setStatus({ code: SpanStatusCode.ERROR, message: code })
+        break
+      }
       case 'session.finished': {
         // Pull authoritative usage from upstream when present. Falls back to
         // the client-text-frame estimate accumulated in handleClientMessage.
@@ -353,12 +365,6 @@ export function createSessionState(
           void billSession(billUnits, 'session.finished')
         else
           finalize()
-        break
-      }
-      case 'error': {
-        const code = typeof evt.payload?.code === 'string' ? evt.payload.code : 'upstream_error'
-        log.withFields({ userId, code, message: String(evt.payload?.message ?? '') }).warn('upstream sent error event')
-        span.setStatus({ code: SpanStatusCode.ERROR, message: code })
         break
       }
       // session.started / sentence.* / subtitle — no server-side action, pure
@@ -454,11 +460,11 @@ export function createSessionState(
     try {
       const result = await otelContext.with(trace.setSpan(otelContext.active(), span), () =>
         opts.ttsMeter.accumulate({
-          userId,
-          units,
           currentBalance: flux.flux,
-          requestId,
           metadata: { model: modelLabel },
+          requestId,
+          units,
+          userId,
         }))
       fluxConsumed = result.fluxDebited
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
@@ -467,7 +473,7 @@ export function createSessionState(
       // Billing failure is surfaced but does not retroactively reject the
       // already-delivered audio — the user got the audio, the meter retains
       // the debt for the next request to settle (per FluxMeter rollback path).
-      log.withError(err).withFields({ userId, units, reason }).error('billing accumulate failed for streaming tts')
+      log.withError(err).withFields({ reason, units, userId }).error('billing accumulate failed for streaming tts')
       span.recordException(err as Error)
       span.setStatus({ code: SpanStatusCode.ERROR, message: 'billing_failed' })
     }
@@ -475,11 +481,11 @@ export function createSessionState(
     const durationMs = Date.now() - startedAt
     try {
       await opts.requestLogService.logRequest({
-        userId,
-        model: modelLabel,
-        status: 200,
         durationMs,
         fluxConsumed,
+        model: modelLabel,
+        status: 200,
+        userId,
       })
     }
     catch (err) {
@@ -510,7 +516,7 @@ export function createSessionState(
     span.setStatus({ code: SpanStatusCode.ERROR, message: reason })
     if (clientWs) {
       try {
-        clientWs.send(JSON.stringify({ event: 'error', code: reason, message: reason }))
+        clientWs.send(JSON.stringify({ code: reason, event: 'error', message: reason }))
       }
       catch {}
       try {
@@ -527,7 +533,7 @@ export function createSessionState(
       return
     if (clientWs) {
       try {
-        clientWs.send(JSON.stringify({ event: 'error', code: reason, message: reason }))
+        clientWs.send(JSON.stringify({ code: reason, event: 'error', message: reason }))
       }
       catch {}
       try {
@@ -542,8 +548,8 @@ export function createSessionState(
   return {
     attachClient,
     dialUpstream,
-    handleClientMessage,
     handleClientClose,
+    handleClientMessage,
   }
 }
 
@@ -556,13 +562,7 @@ function isPaymentRequiredError(err: unknown): boolean {
     && (err as { statusCode?: unknown }).statusCode === 402
 }
 
-interface StreamingTtsStartFrame {
-  event: 'start'
-  model: string
-  voice: string
-}
-
-function parseStartFrame(rawText: string): StreamingTtsStartFrame | null {
+function parseStartFrame(rawText: string): null | StreamingTtsStartFrame {
   try {
     const parsed = JSON.parse(rawText) as Record<string, unknown>
     if (parsed.event !== 'start')
@@ -586,7 +586,14 @@ function streamingModelResourceId(model: string): string {
   return model.includes('/') ? model.split('/', 2)[1] : model
 }
 
-function streamingVoicesURL(restBaseURL: string, resourceId: string): string | null {
+function streamingVoiceId(voice: unknown): null | string {
+  if (typeof voice !== 'object' || voice == null)
+    return null
+  const id = (voice as { id?: unknown }).id
+  return typeof id === 'string' && id.length > 0 ? id : null
+}
+
+function streamingVoicesURL(restBaseURL: string, resourceId: string): null | string {
   try {
     const url = new URL(restBaseURL)
     url.pathname = '/api/voices'
@@ -594,17 +601,10 @@ function streamingVoicesURL(restBaseURL: string, resourceId: string): string | n
     // Volcengine Unspeech adapter. If another streaming provider is added,
     // thread provider identity through the start-frame validation path instead
     // of deriving it from the model id here.
-    url.search = new URLSearchParams({ provider: 'volcengine', model: resourceId }).toString()
+    url.search = new URLSearchParams({ model: resourceId, provider: 'volcengine' }).toString()
     return url.toString()
   }
   catch {
     return null
   }
-}
-
-function streamingVoiceId(voice: unknown): string | null {
-  if (typeof voice !== 'object' || voice == null)
-    return null
-  const id = (voice as { id?: unknown }).id
-  return typeof id === 'string' && id.length > 0 ? id : null
 }

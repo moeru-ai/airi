@@ -13,29 +13,29 @@ import { errorMessageFromUnknown } from '../../../utils/error-message'
 
 const logger = useLogger('stripe')
 
-interface StripeSubscriptionEventContext {
-  userId: string
-  stripeCustomerId: string
-  stripeSubscriptionId: string
-  stripePriceId?: string
-  subscriptionStatus?: string
-  amountPaid?: number
-  currency?: string
-}
-
 export interface WebhookOperationDeps {
-  stripe: Stripe | null
-  webhookSecret: string | undefined
-  fluxService: FluxService
-  stripeService: StripeService
   billingService: BillingService
-  metrics?: RevenueMetrics | null
+  fluxService: FluxService
+  metrics?: null | RevenueMetrics
   productEventService?: ProductEventService
+  stripe: null | Stripe
+  stripeService: StripeService
+  webhookSecret: string | undefined
 }
 
 export interface WebhookOperationInput {
-  signature: string | null
   body: string
+  signature: null | string
+}
+
+interface StripeSubscriptionEventContext {
+  amountPaid?: number
+  currency?: string
+  stripeCustomerId: string
+  stripePriceId?: string
+  stripeSubscriptionId: string
+  subscriptionStatus?: string
+  userId: string
 }
 
 /**
@@ -67,7 +67,7 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
       throw createBadRequestError(`Webhook Error: ${errorMessageFromUnknown(err)}`, 'WEBHOOK_ERROR')
     }
 
-    logger.withFields({ type: event.type, id: event.id }).log('Webhook event received')
+    logger.withFields({ id: event.id, type: event.type }).log('Webhook event received')
     deps.metrics?.stripeEvents.add(1, { event_type: event.type })
 
     switch (event.type) {
@@ -92,12 +92,9 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
             const posthogDistinctId = event.data.object.metadata?.posthogDistinctId
             const posthogSessionId = event.data.object.metadata?.posthogSessionId
             void deps.productEventService?.track({
-              userId,
-              feature: 'billing',
               action: 'payment_completed',
-              status: 'succeeded',
               eventId: event.data.object.id,
-              source: 'stripe.webhook',
+              feature: 'billing',
               metadata: {
                 amount_total: event.data.object.amount_total,
                 currency: event.data.object.currency,
@@ -107,6 +104,9 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
                 ...(posthogDistinctId && { posthog_distinct_id: posthogDistinctId }),
                 ...(posthogSessionId && { posthog_session_id: posthogSessionId }),
               },
+              source: 'stripe.webhook',
+              status: 'succeeded',
+              userId,
             })
           }
         }
@@ -118,16 +118,16 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
         break
       }
       case 'customer.subscription.created':
-      case 'customer.subscription.updated':
-      case 'customer.subscription.deleted': {
+      case 'customer.subscription.deleted':
+      case 'customer.subscription.updated': {
         await handleSubscriptionEvent(event.data.object, deps.stripeService)
         deps.metrics?.stripeSubscriptionEvent.add(1, { event_type: event.type.replace('customer.subscription.', '') })
         break
       }
       case 'invoice.created':
-      case 'invoice.updated':
       case 'invoice.paid':
-      case 'invoice.payment_failed': {
+      case 'invoice.payment_failed':
+      case 'invoice.updated': {
         await handleInvoiceEvent(event.data.object, deps.stripeService)
         if (event.type === 'invoice.payment_failed')
           deps.metrics?.stripePaymentFailed.add(1)
@@ -158,34 +158,34 @@ async function handleCheckoutSessionCompleted(
     return { processed: false }
   }
 
-  logger.withFields({ userId, sessionId: session.id, mode: session.mode, amount: session.amount_total, currency: session.currency }).log('Processing checkout session')
+  logger.withFields({ amount: session.amount_total, currency: session.currency, mode: session.mode, sessionId: session.id, userId }).log('Processing checkout session')
 
   // Upsert customer record if we got a customer back.
   if (session.customer) {
     const stripeCustomerId = typeof session.customer === 'string' ? session.customer : session.customer.id
     await stripeService.upsertCustomer({
-      userId,
-      stripeCustomerId,
       email: session.customer_email ?? undefined,
+      stripeCustomerId,
+      userId,
     })
     await fluxService.updateStripeCustomerId(userId, stripeCustomerId)
   }
 
   await stripeService.upsertCheckoutSession({
-    userId,
-    stripeSessionId: session.id,
-    stripeCustomerId: typeof session.customer === 'string' ? session.customer : session.customer?.id,
-    mode: session.mode ?? 'payment',
-    status: session.status,
-    paymentStatus: session.payment_status,
     amountTotal: session.amount_total,
-    currency: session.currency,
-    successUrl: session.success_url,
     cancelUrl: session.cancel_url,
-    stripePaymentIntentId: typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id,
-    stripeSubscriptionId: typeof session.subscription === 'string' ? session.subscription : session.subscription?.id,
-    metadata: session.metadata ? JSON.stringify(session.metadata) : null,
+    currency: session.currency,
     expiresAt: session.expires_at ? new Date(session.expires_at * 1000) : null,
+    metadata: session.metadata ? JSON.stringify(session.metadata) : null,
+    mode: session.mode ?? 'payment',
+    paymentStatus: session.payment_status,
+    status: session.status,
+    stripeCustomerId: typeof session.customer === 'string' ? session.customer : session.customer?.id,
+    stripePaymentIntentId: typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id,
+    stripeSessionId: session.id,
+    stripeSubscriptionId: typeof session.subscription === 'string' ? session.subscription : session.subscription?.id,
+    successUrl: session.success_url,
+    userId,
   })
 
   // Idempotent flux credit: use fluxCredited flag inside a transaction
@@ -198,35 +198,35 @@ async function handleCheckoutSessionCompleted(
   // a card) deliberately skip crediting and still count as processed.
   if (session.mode === 'payment') {
     if (session.amount_total == null) {
-      logger.withFields({ userId, sessionId: session.id }).warn('Payment-mode checkout missing amount_total; skipping credit and capture')
+      logger.withFields({ sessionId: session.id, userId }).warn('Payment-mode checkout missing amount_total; skipping credit and capture')
       return { processed: false }
     }
     const metadataFlux = session.metadata?.fluxAmount
     if (!metadataFlux) {
-      logger.withFields({ userId, sessionId: session.id }).warn('Payment-mode checkout missing metadata.fluxAmount; skipping credit and capture')
+      logger.withFields({ sessionId: session.id, userId }).warn('Payment-mode checkout missing metadata.fluxAmount; skipping credit and capture')
       return { processed: false }
     }
     const fluxAmount = Number(metadataFlux)
     if (!Number.isFinite(fluxAmount) || fluxAmount <= 0) {
-      logger.withFields({ userId, sessionId: session.id, metadataFlux }).warn('Invalid fluxAmount in session metadata, skipping credit')
+      logger.withFields({ metadataFlux, sessionId: session.id, userId }).warn('Invalid fluxAmount in session metadata, skipping credit')
       return { processed: false }
     }
 
     const result = await billingService.creditFluxFromStripeCheckout({
-      stripeEventId,
-      userId,
-      stripeSessionId: session.id,
       amountTotal: session.amount_total,
       currency: session.currency,
       fluxAmount,
+      stripeEventId,
+      stripeSessionId: session.id,
+      userId,
     })
 
     logger.withFields({
-      userId,
-      fluxAmount,
       amountTotal: session.amount_total,
       applied: result.applied,
       balanceAfter: result.balanceAfter,
+      fluxAmount,
+      userId,
     }).log('Processed flux credit for one-time payment')
   }
 
@@ -246,51 +246,17 @@ async function handleCustomerEvent(
     return
 
   await stripeService.upsertCustomer({
-    userId: existing.userId,
-    stripeCustomerId: customer.id,
     email: customer.email ?? undefined,
     name: customer.name ?? undefined,
+    stripeCustomerId: customer.id,
+    userId: existing.userId,
   })
-}
-
-async function handleSubscriptionEvent(
-  subscription: Stripe.Subscription,
-  stripeService: StripeService,
-): Promise<StripeSubscriptionEventContext | null> {
-  const stripeCustomerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id
-  const customer = await stripeService.getCustomerByStripeId(stripeCustomerId)
-  if (!customer)
-    return null
-
-  // In newer Stripe API, period info is on subscription items.
-  const firstItem = subscription.items.data[0]
-  await stripeService.upsertSubscription({
-    userId: customer.userId,
-    stripeSubscriptionId: subscription.id,
-    stripeCustomerId,
-    stripePriceId: firstItem?.price?.id,
-    status: subscription.status,
-    currentPeriodStart: firstItem?.current_period_start ? new Date(firstItem.current_period_start * 1000) : null,
-    currentPeriodEnd: firstItem?.current_period_end ? new Date(firstItem.current_period_end * 1000) : null,
-    cancelAtPeriodEnd: subscription.cancel_at_period_end,
-    canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
-    endedAt: subscription.ended_at ? new Date(subscription.ended_at * 1000) : null,
-    metadata: subscription.metadata ? JSON.stringify(subscription.metadata) : null,
-  })
-
-  return {
-    userId: customer.userId,
-    stripeCustomerId,
-    stripeSubscriptionId: subscription.id,
-    stripePriceId: firstItem?.price?.id,
-    subscriptionStatus: subscription.status,
-  }
 }
 
 async function handleInvoiceEvent(
   invoice: Stripe.Invoice,
   stripeService: StripeService,
-): Promise<StripeSubscriptionEventContext | null> {
+): Promise<null | StripeSubscriptionEventContext> {
   const stripeCustomerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id
   if (!stripeCustomerId)
     return null
@@ -306,32 +272,66 @@ async function handleInvoiceEvent(
     : undefined
 
   await stripeService.upsertInvoice({
-    userId: customer.userId,
-    stripeInvoiceId: invoice.id,
-    stripeCustomerId,
-    stripeSubscriptionId: subscriptionId,
-    status: invoice.status,
     amountDue: invoice.amount_due,
     amountPaid: invoice.amount_paid,
     currency: invoice.currency,
-    invoiceUrl: invoice.hosted_invoice_url,
     invoicePdf: invoice.invoice_pdf,
-    periodStart: new Date(invoice.period_start * 1000),
-    periodEnd: new Date(invoice.period_end * 1000),
-    paidAt: invoice.status_transitions?.paid_at ? new Date(invoice.status_transitions.paid_at * 1000) : null,
+    invoiceUrl: invoice.hosted_invoice_url,
     metadata: invoice.metadata ? JSON.stringify(invoice.metadata) : null,
+    paidAt: invoice.status_transitions?.paid_at ? new Date(invoice.status_transitions.paid_at * 1000) : null,
+    periodEnd: new Date(invoice.period_end * 1000),
+    periodStart: new Date(invoice.period_start * 1000),
+    status: invoice.status,
+    stripeCustomerId,
+    stripeInvoiceId: invoice.id,
+    stripeSubscriptionId: subscriptionId,
+    userId: customer.userId,
   })
 
   // TODO: implement subscription-based flux crediting when subscriptions are enabled
   if (invoice.status === 'paid' && invoice.amount_paid && subscriptionId)
-    logger.withFields({ userId: customer.userId, invoiceId: invoice.id, amountPaid: invoice.amount_paid }).warn('Subscription invoice paid but flux crediting for subscriptions is not yet implemented')
+    logger.withFields({ amountPaid: invoice.amount_paid, invoiceId: invoice.id, userId: customer.userId }).warn('Subscription invoice paid but flux crediting for subscriptions is not yet implemented')
 
   return {
-    userId: customer.userId,
+    amountPaid: invoice.amount_paid,
+    currency: invoice.currency,
     stripeCustomerId,
     stripeSubscriptionId: subscriptionId ?? '',
     subscriptionStatus: invoice.status ?? undefined,
-    amountPaid: invoice.amount_paid,
-    currency: invoice.currency,
+    userId: customer.userId,
+  }
+}
+
+async function handleSubscriptionEvent(
+  subscription: Stripe.Subscription,
+  stripeService: StripeService,
+): Promise<null | StripeSubscriptionEventContext> {
+  const stripeCustomerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id
+  const customer = await stripeService.getCustomerByStripeId(stripeCustomerId)
+  if (!customer)
+    return null
+
+  // In newer Stripe API, period info is on subscription items.
+  const firstItem = subscription.items.data[0]
+  await stripeService.upsertSubscription({
+    cancelAtPeriodEnd: subscription.cancel_at_period_end,
+    canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
+    currentPeriodEnd: firstItem?.current_period_end ? new Date(firstItem.current_period_end * 1000) : null,
+    currentPeriodStart: firstItem?.current_period_start ? new Date(firstItem.current_period_start * 1000) : null,
+    endedAt: subscription.ended_at ? new Date(subscription.ended_at * 1000) : null,
+    metadata: subscription.metadata ? JSON.stringify(subscription.metadata) : null,
+    status: subscription.status,
+    stripeCustomerId,
+    stripePriceId: firstItem?.price?.id,
+    stripeSubscriptionId: subscription.id,
+    userId: customer.userId,
+  })
+
+  return {
+    stripeCustomerId,
+    stripePriceId: firstItem?.price?.id,
+    stripeSubscriptionId: subscription.id,
+    subscriptionStatus: subscription.status,
+    userId: customer.userId,
   }
 }

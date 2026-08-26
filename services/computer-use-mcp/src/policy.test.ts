@@ -6,9 +6,9 @@ import { evaluateActionPolicy } from './policy'
 import { createTestConfig } from './test-fixtures'
 
 const baseConfig: ComputerUseConfig = createTestConfig({
+  denyApps: ['airi'],
   executor: 'dry-run',
   permissionChainHint: 'Terminal -> local dry-run',
-  denyApps: ['airi'],
   requireAllowedBoundsForMutatingActions: false,
   requireCoordinateAlignmentForMutatingActions: false,
   requireSessionTagForMutatingActions: false,
@@ -18,16 +18,16 @@ describe('evaluateActionPolicy', () => {
   it('requires approval for mutating ui actions in actions mode', () => {
     const decision = evaluateActionPolicy({
       action: {
-        kind: 'click',
         input: {
           x: 10,
           y: 12,
         },
+        kind: 'click',
       },
       config: baseConfig,
       context: {
-        available: true,
         appName: 'Finder',
+        available: true,
         platform: 'darwin',
       },
       operationsExecuted: 0,
@@ -41,10 +41,10 @@ describe('evaluateActionPolicy', () => {
   it('requires approval for terminal execution in actions mode', () => {
     const decision = evaluateActionPolicy({
       action: {
-        kind: 'terminal_exec',
         input: {
           command: 'pwd',
         },
+        kind: 'terminal_exec',
       },
       config: {
         ...baseConfig,
@@ -66,10 +66,10 @@ describe('evaluateActionPolicy', () => {
   it('skips approval for terminal execution in never mode', () => {
     const decision = evaluateActionPolicy({
       action: {
-        kind: 'terminal_exec',
         input: {
           command: 'pwd',
         },
+        kind: 'terminal_exec',
       },
       config: {
         ...baseConfig,
@@ -91,11 +91,11 @@ describe('evaluateActionPolicy', () => {
   it('treats secret env reads as high-risk but non-mutating', () => {
     const decision = evaluateActionPolicy({
       action: {
-        kind: 'secret_read_env_value',
         input: {
           filePath: '/workspace/airi/.env',
           keys: ['DISCORD_BOT_TOKEN'],
         },
+        kind: 'secret_read_env_value',
       },
       config: {
         ...baseConfig,
@@ -117,15 +117,15 @@ describe('evaluateActionPolicy', () => {
   it('denies sensitive foreground apps for ui actions', () => {
     const decision = evaluateActionPolicy({
       action: {
-        kind: 'press_keys',
         input: {
           keys: ['command', 'l'],
         },
+        kind: 'press_keys',
       },
       config: baseConfig,
       context: {
-        available: true,
         appName: 'AIRI',
+        available: true,
         platform: 'darwin',
       },
       operationsExecuted: 0,
@@ -139,10 +139,10 @@ describe('evaluateActionPolicy', () => {
   it('denies opening apps outside the configured openable list', () => {
     const decision = evaluateActionPolicy({
       action: {
-        kind: 'open_app',
         input: {
           app: 'Safari',
         },
+        kind: 'open_app',
       },
       config: baseConfig,
       context: {
@@ -160,10 +160,10 @@ describe('evaluateActionPolicy', () => {
   it('allows app aliases when the canonical app is configured', () => {
     const decision = evaluateActionPolicy({
       action: {
-        kind: 'open_app',
         input: {
           app: 'VS Code',
         },
+        kind: 'open_app',
       },
       config: baseConfig,
       context: {
@@ -180,10 +180,10 @@ describe('evaluateActionPolicy', () => {
   it('denies app actions on the legacy linux-x11 executor', () => {
     const decision = evaluateActionPolicy({
       action: {
-        kind: 'focus_app',
         input: {
           app: 'Terminal',
         },
+        kind: 'focus_app',
       },
       config: {
         ...baseConfig,

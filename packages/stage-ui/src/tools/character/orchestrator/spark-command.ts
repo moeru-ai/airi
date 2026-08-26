@@ -26,39 +26,37 @@ export async function createSparkCommandTool(options: CreateSparkCommandToolOpti
 
   return [
     rawTool({
-      name: 'builtIn_emitSparkCommand',
       description: 'Send a spark:command to one or more frontend-connected modules or sub-agents.',
-      parameters,
       execute: async (rawPayload) => {
         const payload = rawPayload as z.infer<typeof sparkCommandToolSchema>
         const command = {
-          id: nanoid(),
-          eventId: nanoid(),
-          parentEventId: payload.parentEventId ?? undefined,
-          commandId: nanoid(),
-          interrupt: payload.interrupt ?? false,
-          priority: payload.priority ?? 'normal',
-          intent: payload.intent ?? 'action',
           ack: payload.ack ?? undefined,
-          guidance: payload.guidance
-            ? {
-                type: payload.guidance.type,
-                persona: normalizeSparkCommandPersona(payload.guidance.persona ?? undefined),
-                options: normalizeSparkCommandGuidanceOptions(payload.guidance.options),
-              }
-            : undefined,
+          commandId: nanoid(),
           contexts: payload.contexts?.map(context => ({
-            id: nanoid(),
             contextId: nanoid(),
-            lane: normalizeSparkCommandStringValue(context.lane),
-            ideas: normalizeSparkCommandStringList(context.ideas),
+            destinations: normalizeSparkCommandDestinations(context.destinations),
             hints: normalizeSparkCommandStringList(context.hints),
+            id: nanoid(),
+            ideas: normalizeSparkCommandStringList(context.ideas),
+            lane: normalizeSparkCommandStringValue(context.lane),
+            metadata: normalizeSparkCommandMetadata(context.metadata ?? undefined),
             strategy: context.strategy,
             text: context.text,
-            destinations: normalizeSparkCommandDestinations(context.destinations),
-            metadata: normalizeSparkCommandMetadata(context.metadata ?? undefined),
           })),
           destinations: payload.destinations,
+          eventId: nanoid(),
+          guidance: payload.guidance
+            ? {
+                options: normalizeSparkCommandGuidanceOptions(payload.guidance.options),
+                persona: normalizeSparkCommandPersona(payload.guidance.persona ?? undefined),
+                type: payload.guidance.type,
+              }
+            : undefined,
+          id: nanoid(),
+          intent: payload.intent ?? 'action',
+          interrupt: payload.interrupt ?? false,
+          parentEventId: payload.parentEventId ?? undefined,
+          priority: payload.priority ?? 'normal',
         } satisfies WebSocketEvents['spark:command']
 
         options.sendSparkCommand(command)
@@ -71,6 +69,8 @@ export async function createSparkCommandTool(options: CreateSparkCommandToolOpti
           : 'all authenticated peers (broadcast)'
         return `spark:command sent (${command.commandId}) to ${dests}`
       },
+      name: 'builtIn_emitSparkCommand',
+      parameters,
     }),
   ]
 }

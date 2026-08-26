@@ -13,12 +13,51 @@ import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
  * - N/A
  */
 export interface ElectronPluginToolDescriptor {
-  id: string
-  title: string
-  description: string
   activation: {
     keywords: string[]
     patterns: string[]
+  }
+  description: string
+  id: string
+  title: string
+}
+
+/**
+ * Describes why plugin-backed runtime tools should be refreshed.
+ *
+ * Use when:
+ * - The main process notifies renderers after plugin lifecycle changes
+ *
+ * Expects:
+ * - `extensionId` is present when the change is scoped to one extension
+ *
+ * Returns:
+ * - N/A
+ */
+export interface ElectronPluginToolsChangedPayload {
+  extensionId?: string
+  reason: 'enabled-state-changed' | 'load-enabled' | 'loaded' | 'unloaded'
+}
+
+/**
+ * Serialized toolset prompt exposed by the plugin host.
+ *
+ * Use when:
+ * - Registering plugin-backed prompt guidance in the renderer
+ *
+ * Expects:
+ * - `content` is already model-facing prompt text
+ *
+ * Returns:
+ * - N/A
+ */
+export interface ElectronPluginToolsetPromptDefinition {
+  id: string
+  ownerExtensionId: string
+  prompt: {
+    content: string
+    id: string
+    title?: string
   }
 }
 
@@ -35,32 +74,10 @@ export interface ElectronPluginToolDescriptor {
  * - N/A
  */
 export interface ElectronPluginXsaiToolDefinition {
-  ownerExtensionId: string
-  name: string
   description: string
-  parameters: Record<string, unknown>
-}
-
-/**
- * Serialized toolset prompt exposed by the plugin host.
- *
- * Use when:
- * - Registering plugin-backed prompt guidance in the renderer
- *
- * Expects:
- * - `content` is already model-facing prompt text
- *
- * Returns:
- * - N/A
- */
-export interface ElectronPluginToolsetPromptDefinition {
+  name: string
   ownerExtensionId: string
-  id: string
-  prompt: {
-    id: string
-    title?: string
-    content: string
-  }
+  parameters: Record<string, unknown>
 }
 
 /**
@@ -76,32 +93,15 @@ export interface ElectronPluginToolsetPromptDefinition {
  * - N/A
  */
 export interface ElectronPluginXsaiToolsetDefinition {
-  tools: ElectronPluginXsaiToolDefinition[]
   prompts: ElectronPluginToolsetPromptDefinition[]
-}
-
-/**
- * Describes why plugin-backed runtime tools should be refreshed.
- *
- * Use when:
- * - The main process notifies renderers after plugin lifecycle changes
- *
- * Expects:
- * - `extensionId` is present when the change is scoped to one extension
- *
- * Returns:
- * - N/A
- */
-export interface ElectronPluginToolsChangedPayload {
-  reason: 'loaded' | 'load-enabled' | 'unloaded' | 'enabled-state-changed'
-  extensionId?: string
+  tools: ElectronPluginXsaiToolDefinition[]
 }
 
 export const electronPluginListAgentTools = defineInvokeEventa<ElectronPluginToolDescriptor[]>('eventa:invoke:electron:plugins:tools:list')
 export const electronPluginListXsaiTools = defineInvokeEventa<ElectronPluginXsaiToolsetDefinition>('eventa:invoke:electron:plugins:tools:list-xsai')
 export const electronPluginInvokeTool = defineInvokeEventa<unknown, {
-  ownerExtensionId: string
-  name: string
   input: unknown
+  name: string
+  ownerExtensionId: string
 }>('eventa:invoke:electron:plugins:tools:invoke')
 export const electronPluginToolsChanged = defineEventa<ElectronPluginToolsChangedPayload>('eventa:event:electron:plugins:tools:changed')

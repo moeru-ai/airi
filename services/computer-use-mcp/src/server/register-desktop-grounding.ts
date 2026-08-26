@@ -36,11 +36,11 @@ import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptor
  * the overlay, and strategy rules.
  */
 export function registerDesktopGroundingTools(params: {
-  server: McpServer
-  runtime: ComputerUseServerRuntime
   executeAction: ExecuteAction
+  runtime: ComputerUseServerRuntime
+  server: McpServer
 }) {
-  const { server, runtime, executeAction } = params
+  const { executeAction, runtime, server } = params
 
   // -----------------------------------------------------------------------
   // desktop_observe
@@ -48,10 +48,6 @@ export function registerDesktopGroundingTools(params: {
 
   registerToolWithDescriptor(server, {
     descriptor: requireDescriptor('desktop_observe'),
-
-    schema: {
-      includeChrome: z.boolean().optional().describe('Whether to include Chrome semantic data. Default: best-effort when browser surfaces are available.'),
-    },
 
     handler: async ({ includeChrome }) => {
       try {
@@ -77,11 +73,11 @@ export function registerDesktopGroundingTools(params: {
         }
 
         const snapshot = await captureDesktopGrounding({
+          cdpBridge,
           config: runtime.config,
           executor: runtime.executor,
-          input: { includeChrome },
           extensionBridge: runtime.browserDomBridge,
-          cdpBridge,
+          input: { includeChrome },
         })
 
         // Update RunState — grounding snapshot
@@ -92,11 +88,11 @@ export function registerDesktopGroundingTools(params: {
         if (snapshot.screenshot && !snapshot.screenshot.placeholder) {
           runtime.session.setLastScreenshot(snapshot.screenshot)
           runtime.stateManager.updateLastScreenshot({
-            path: snapshot.screenshot.path || '',
-            width: snapshot.screenshot.width,
-            height: snapshot.screenshot.height,
             capturedAt: snapshot.screenshot.capturedAt,
+            height: snapshot.screenshot.height,
+            path: snapshot.screenshot.path || '',
             placeholder: false,
+            width: snapshot.screenshot.width,
           })
         }
 
@@ -108,26 +104,26 @@ export function registerDesktopGroundingTools(params: {
             : false
 
           runtime.stateManager.updateForegroundContext({
-            available: true,
-            appName: snapshot.foregroundApp,
-            platform: process.platform,
             agentOwned: isAgentOwned,
             agentWindowPid: isAgentOwned ? chromeSession?.pid : undefined,
+            appName: snapshot.foregroundApp,
+            available: true,
+            platform: process.platform,
           })
         }
 
         const text = formatGroundingForAgent(snapshot)
 
         // Include screenshot as image content if available
-        const content: Array<{ type: 'text', text: string } | { type: 'image', data: string, mimeType: 'image/png' }> = [
-          { type: 'text', text },
+        const content: Array<{ data: string, mimeType: 'image/png', type: 'image' } | { text: string, type: 'text' }> = [
+          { text, type: 'text' },
         ]
 
         if (snapshot.screenshot.dataBase64 && !snapshot.screenshot.placeholder) {
           content.push({
-            type: 'image',
             data: snapshot.screenshot.dataBase64,
             mimeType: 'image/png',
+            type: 'image',
           })
         }
 
@@ -141,6 +137,10 @@ export function registerDesktopGroundingTools(params: {
         }
       }
     },
+
+    schema: {
+      includeChrome: z.boolean().optional().describe('Whether to include Chrome semantic data. Default: best-effort when browser surfaces are available.'),
+    },
   })
 
   // -----------------------------------------------------------------------
@@ -150,13 +150,13 @@ export function registerDesktopGroundingTools(params: {
   registerToolWithDescriptor(server, {
     descriptor: requireDescriptor('desktop_click_target'),
 
+    handler: async (input: DesktopClickTargetInput) =>
+      executeAction({ input, kind: 'desktop_click_target' }, 'desktop_click_target'),
+
     schema: {
+      button: z.enum(['left', 'right', 'middle']).optional().describe('Mouse button (default: left)'),
       candidateId: z.string().describe('Target candidate id from the last desktop_observe snapshot (e.g. "t_0")'),
       clickCount: z.number().int().min(1).max(3).optional().describe('Number of clicks (default: 1, 2 = double-click)'),
-      button: z.enum(['left', 'right', 'middle']).optional().describe('Mouse button (default: left)'),
     },
-
-    handler: async (input: DesktopClickTargetInput) =>
-      executeAction({ kind: 'desktop_click_target', input }, 'desktop_click_target'),
   })
 }

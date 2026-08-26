@@ -5,14 +5,13 @@ import { useLogg } from '@guiiai/logg'
 import { deleteUnreadEventsByIds } from '../../lib/db'
 
 export const readMessagesAction: ActionHandler = {
-  name: 'read_unread_messages',
   description: 'Read unread messages from a specific channel',
   execute: async (botContext, chatCtx, args): Promise<ActionResult> => {
     if (args.action !== 'read_unread_messages') {
       return {
-        success: false,
-        shouldContinue: true,
         result: 'System Error: Action mismatch for read_unread_messages.',
+        shouldContinue: true,
+        success: false,
       }
     }
     const logger = useLogg('readMessagesAction').useGlobalConfig()
@@ -20,9 +19,9 @@ export const readMessagesAction: ActionHandler = {
 
     if (!channelId) {
       return {
-        success: false,
-        shouldContinue: true,
         result: 'System Error: No channelId provided for read_unread_messages.',
+        shouldContinue: true,
+        success: false,
       }
     }
 
@@ -31,9 +30,9 @@ export const readMessagesAction: ActionHandler = {
     if (!unreadEventsForThisChannel || unreadEventsForThisChannel.length === 0) {
       delete botContext.unreadEvents[channelId]
       return {
-        success: true,
-        shouldContinue: true,
         result: 'AIRI System: No unread messages found.',
+        shouldContinue: true,
+        success: true,
       }
     }
 
@@ -60,9 +59,10 @@ export const readMessagesAction: ActionHandler = {
     logger.log(`Read ${unreadEventsForThisChannel.length} unread events from channel ${channelId}`)
 
     return {
-      success: true,
-      shouldContinue: true,
       result: `AIRI System: Read ${unreadEventsForThisChannel.length} unread events from channel ${channelId}:\n${formattedMessages}`,
+      shouldContinue: true,
+      success: true,
     }
   },
+  name: 'read_unread_messages',
 }

@@ -16,18 +16,18 @@ setGlobalLogLevel(LogLevel.Debug)
 
 async function main() {
   const sdk = new NodeSDK({
+    metricReader: new PeriodicExportingMetricReader({
+      exporter: new OTLPMetricExporter({
+        url: env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT || 'http://localhost:4318/v1/metrics',
+      }),
+      exportIntervalMillis: 5000,
+    }),
     resource: resourceFromAttributes({
       [ATTR_SERVICE_NAME]: 'moeru_ai.airi.telegram_bot',
       [ATTR_SERVICE_VERSION]: '1.0.0',
     }),
     traceExporter: new OTLPTraceExporter({
       url: env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT || 'http://localhost:4318/v1/traces',
-    }),
-    metricReader: new PeriodicExportingMetricReader({
-      exporter: new OTLPMetricExporter({
-        url: env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT || 'http://localhost:4318/v1/metrics',
-      }),
-      exportIntervalMillis: 5000,
     }),
   })
 

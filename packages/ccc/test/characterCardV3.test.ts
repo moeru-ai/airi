@@ -8,67 +8,67 @@ import {
 } from '../src'
 
 const completeCard = {
-  spec: 'chara_card_v3',
-  spec_version: '3.0',
   data: {
-    name: 'ReLU',
-    description: 'A curious AI.',
-    personality: 'Warm and precise.',
-    scenario: 'A quiet observatory.',
-    first_mes: 'Welcome, {{user}}.',
-    mes_example: '<START>\n{{user}}: Hello\n{{char}}: Hi!',
     alternate_greetings: ['Good evening.'],
-    group_only_greetings: ['Hello, everyone.'],
+    assets: [
+      {
+        ext: 'png',
+        future_asset_field: 'preserved',
+        name: 'main',
+        type: 'icon',
+        uri: 'ccdefault:',
+      },
+    ],
+    character_book: {
+      entries: [
+        {
+          content: 'The comet returns every 72 years.',
+          enabled: true,
+          extensions: {},
+          future_entry_field: true,
+          id: 'comet-entry',
+          insertion_order: 10,
+          keys: ['comet'],
+          use_regex: false,
+        },
+      ],
+      extensions: {
+        vendor: 'airi',
+      },
+      future_book_field: 42,
+      name: 'Observatory',
+    },
     character_version: '1.0.0',
+    creation_date: 1_700_000_000,
     creator: 'AIRI',
     creator_notes: 'Created for codec coverage.',
     creator_notes_multilingual: {
       ja: 'コーデックテスト用です。',
     },
-    system_prompt: 'Stay in character.',
-    post_history_instructions: 'Answer the latest message.',
-    tags: ['assistant'],
-    source: ['https://example.com/relu'],
-    creation_date: 1_700_000_000,
-    modification_date: 1_700_000_100,
-    assets: [
-      {
-        type: 'icon',
-        uri: 'ccdefault:',
-        name: 'main',
-        ext: 'png',
-        future_asset_field: 'preserved',
-      },
-    ],
-    character_book: {
-      name: 'Observatory',
-      extensions: {
-        vendor: 'airi',
-      },
-      entries: [
-        {
-          keys: ['comet'],
-          content: 'The comet returns every 72 years.',
-          extensions: {},
-          enabled: true,
-          insertion_order: 10,
-          use_regex: false,
-          id: 'comet-entry',
-          future_entry_field: true,
-        },
-      ],
-      future_book_field: 42,
-    },
+    description: 'A curious AI.',
     extensions: {
       airi: {
         modules: {},
       },
     },
+    first_mes: 'Welcome, {{user}}.',
     future_data_field: {
       keep: true,
     },
+    group_only_greetings: ['Hello, everyone.'],
+    mes_example: '<START>\n{{user}}: Hello\n{{char}}: Hi!',
+    modification_date: 1_700_000_100,
+    name: 'ReLU',
+    personality: 'Warm and precise.',
+    post_history_instructions: 'Answer the latest message.',
+    scenario: 'A quiet observatory.',
+    source: ['https://example.com/relu'],
+    system_prompt: 'Stay in character.',
+    tags: ['assistant'],
   },
   future_envelope_field: 'preserved',
+  spec: 'chara_card_v3',
+  spec_version: '3.0',
 } as const
 
 describe('character card V3 codec', () => {
@@ -109,19 +109,19 @@ describe('character card V3 codec', () => {
 
   it('exports every standard CCv3 field represented by the domain card', () => {
     const exported = exportToJSON({
-      name: completeCard.data.name,
-      nickname: 'Re',
-      version: completeCard.data.character_version,
       assets: [...completeCard.data.assets],
       characterBook: completeCard.data.character_book,
       creationDate: completeCard.data.creation_date,
       description: completeCard.data.description,
+      extensions: completeCard.data.extensions,
       greetings: [
         completeCard.data.first_mes,
         ...completeCard.data.alternate_greetings,
       ],
       greetingsGroupOnly: [...completeCard.data.group_only_greetings],
       modificationDate: completeCard.data.modification_date,
+      name: completeCard.data.name,
+      nickname: 'Re',
       notes: completeCard.data.creator_notes,
       notesMultilingual: completeCard.data.creator_notes_multilingual,
       personality: completeCard.data.personality,
@@ -130,7 +130,7 @@ describe('character card V3 codec', () => {
       source: [...completeCard.data.source],
       systemPrompt: completeCard.data.system_prompt,
       tags: [...completeCard.data.tags],
-      extensions: completeCard.data.extensions,
+      version: completeCard.data.character_version,
     })
 
     expect(exported.data.assets).toEqual(completeCard.data.assets)

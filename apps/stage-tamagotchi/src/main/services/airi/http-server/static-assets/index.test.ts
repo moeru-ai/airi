@@ -21,7 +21,7 @@ describe('createStaticAssetService', () => {
     }
 
     for (const root of tempRoots) {
-      await rm(root, { recursive: true, force: true })
+      await rm(root, { force: true, recursive: true })
     }
     tempRoots.length = 0
   })
@@ -53,10 +53,10 @@ describe('createStaticAssetService', () => {
 
     const session = server.createSession({
       extensionId,
-      version,
       ownerSessionId: 'session-1',
       pathPrefix: '',
       ttlMs: 60_000,
+      version,
     })
 
     const baseUrl = server.getBaseUrl()
@@ -69,13 +69,13 @@ describe('createStaticAssetService', () => {
     })
     const responseBody = await response.text()
     expect({
+      responseBody,
       status: response.status,
       validateInputs,
-      responseBody,
     }).toEqual({
+      responseBody: 'console.log("ok")\n',
       status: 200,
       validateInputs: ['assets/app.js'],
-      responseBody: 'console.log("ok")\n',
     })
   })
 
@@ -89,10 +89,10 @@ describe('createStaticAssetService', () => {
 
     const session = server.createSession({
       extensionId,
-      version: '1.0.0',
       ownerSessionId: 'session-1',
       pathPrefix: '',
       ttlMs: 60_000,
+      version: '1.0.0',
     })
 
     const response = await fetch(`${server.getBaseUrl()}/_airi/extensions/${extensionId}/sessions/${session.assetSessionId}/ui/assets/app.js`, {
@@ -127,10 +127,10 @@ describe('createStaticAssetService', () => {
     const { extensionId, server } = await createStartedAssetServer()
     const session = server.createSession({
       extensionId,
-      version: '1.0.0',
       ownerSessionId: 'session-1',
       pathPrefix: '',
       ttlMs: 60_000,
+      version: '1.0.0',
     })
 
     const response = await fetch(`${server.getBaseUrl()}/_airi/extensions/${extensionId}/sessions/${session.assetSessionId}/ui/assets/app.js`)
@@ -145,10 +145,10 @@ describe('createStaticAssetService', () => {
     const { extensionId, server } = await createStartedAssetServer()
     const session = server.createSession({
       extensionId,
-      version: '1.0.0',
       ownerSessionId: 'session-1',
       pathPrefix: '',
       ttlMs: 60_000,
+      version: '1.0.0',
     })
     const url = `${server.getBaseUrl()}/_airi/extensions/${extensionId}/sessions/${session.assetSessionId}/ui/assets/app.js`
     const headers = {
@@ -171,10 +171,10 @@ describe('createStaticAssetService', () => {
     const { extensionId, server } = await createStartedAssetServer()
     const session = server.createSession({
       extensionId,
-      version: '1.0.0',
       ownerSessionId: 'session-1',
       pathPrefix: '',
       ttlMs: 60_000,
+      version: '1.0.0',
     })
 
     const response = await fetch(`${server.getBaseUrl()}/_airi/extensions/${extensionId}/sessions/${session.assetSessionId}/ui/assets/missing.js`, {
@@ -213,10 +213,10 @@ describe('createStaticAssetService', () => {
 
     const session = server.createSession({
       extensionId,
-      version,
       ownerSessionId: 'session-1',
       pathPrefix: '',
       ttlMs: 60_000,
+      version,
     })
 
     const response = await fetch(`${server.getBaseUrl()}/_airi/extensions/${extensionId}/sessions/${session.assetSessionId}/ui/assets/app.js`, {

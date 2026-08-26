@@ -34,26 +34,26 @@ export function setupEditorWindowManager(params: {
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
   const reusable = createReusableWindow(async () => {
     const window = new ElectronBrowserWindow({
-      title: 'AIRI Editor',
-      width: 1200,
       height: 800,
-      minWidth: 800,
-      minHeight: 600,
-      show: false,
       icon,
+      minHeight: 600,
+      minWidth: 800,
+      show: false,
+      title: 'AIRI Editor',
       webPreferences: {
         preload: join(getElectronMainDirname(), '../preload/index.mjs'),
         sandbox: false,
       },
+      width: 1200,
     })
 
     window.on('ready-to-show', () => window.show())
     protectPrivilegedWindowNavigation(window)
 
     await setupEditorWindowInvokes({
-      window,
       i18n: params.i18n,
       serverChannel: params.serverChannel,
+      window,
     })
     await load(window, withHashRoute(rendererBase, '/editor', {
       query: {

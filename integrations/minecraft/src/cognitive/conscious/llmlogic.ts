@@ -1,18 +1,18 @@
 import type { Message } from '@xsai/shared-chat'
 
 export interface LLMTraceData {
-  route: string
-  messages: Message[]
   content: string
-  reasoning?: string
-  usage: any
-  model: string
   duration: number
+  messages: Message[]
+  model: string
+  reasoning?: string
+  route: string
+  usage: any
 }
 
 export interface RetryDecision {
-  shouldRetry: boolean
   remainingAttempts: number
+  shouldRetry: boolean
 }
 
 /**
@@ -20,36 +20,27 @@ export interface RetryDecision {
  */
 export function buildMessages(sysPrompt: string, userMsg: string): Message[] {
   return [
-    { role: 'system', content: sysPrompt },
-    { role: 'user', content: userMsg },
+    { content: sysPrompt, role: 'system' },
+    { content: userMsg, role: 'user' },
   ]
 }
 
 /**
- * Pure function to convert error to message string
+ * Pure function to extract JSON from LLM response
  */
-export function toErrorMessage(err: unknown): string {
-  if (err instanceof Error)
-    return err.message
-  if (typeof err === 'string')
-    return err
-  if (typeof err === 'object' && err !== null && 'message' in err && typeof (err as { message: unknown }).message === 'string')
-    return (err as { message: string }).message
-  try {
-    return JSON.stringify(err)
-  }
-  catch {
-    return String(err)
-  }
-}
+export function extractJsonCandidate(input: string): string {
+  const trimmed = input.trim()
+  // eslint-disable-next-line regexp/no-super-linear-backtracking
+  const fenced = trimmed.match(/^```(?:json)?[^\S\r\n]*\r?\n?([\s\S]*?)\r?\n?```$/i)
+  if (fenced?.[1])
+    return fenced[1].trim()
 
-/**
- * Pure function to get HTTP status from error
- */
-export function getErrorStatus(err: unknown): number | undefined {
-  const anyErr = err as any
-  const status = anyErr?.status ?? anyErr?.response?.status ?? anyErr?.cause?.status
-  return typeof status === 'number' ? status : undefined
+  const start = trimmed.indexOf('{')
+  const end = trimmed.lastIndexOf('}')
+  if (start >= 0 && end > start)
+    return trimmed.slice(start, end + 1)
+
+  return trimmed
 }
 
 /**
@@ -59,6 +50,15 @@ export function getErrorCode(err: unknown): string | undefined {
   const anyErr = err as any
   const code = anyErr?.code ?? anyErr?.cause?.code
   return typeof code === 'string' ? code : undefined
+}
+
+/**
+ * Pure function to get HTTP status from error
+ */
+export function getErrorStatus(err: unknown): number | undefined {
+  const anyErr = err as any
+  const status = anyErr?.status ?? anyErr?.response?.status ?? anyErr?.cause?.status
+  return typeof status === 'number' ? status : undefined
 }
 
 /**
@@ -79,6 +79,39 @@ export function isLikelyAuthOrBadArgError(err: unknown): boolean {
     || msg.includes('bad arg')
     || msg.includes('invalid argument')
     || msg.includes('invalid_request_error')
+  )
+}
+
+/**
+ * Pure function to check if error is likely recoverable
+ */
+export function isLikelyRecoverableError(err: unknown): boolean {
+  if (err instanceof SyntaxError)
+    return true
+
+  const status = getErrorStatus(err)
+  if (status === 429)
+    return true
+  if (typeof status === 'number' && status >= 500)
+    return true
+
+  const code = getErrorCode(err)
+  if (code && ['EAI_AGAIN', 'ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'ETIMEDOUT'].includes(code))
+    return true
+
+  const msg = toErrorMessage(err).toLowerCase()
+  return (
+    msg.includes('timeout')
+    || msg.includes('timed out')
+    || msg.includes('rate limit')
+    || msg.includes('token quota')
+    || msg.includes('token_quota_exceeded')
+    || msg.includes('tokens per minute')
+    || msg.includes('too many tokens')
+    || msg.includes('overloaded')
+    || msg.includes('temporarily')
+    || msg.includes('try again')
+    || (msg.includes('in json') && msg.includes('position'))
   )
 }
 
@@ -105,81 +138,6 @@ export function isRateLimitError(err: unknown): boolean {
 }
 
 /**
- * Pure function to check if error is likely recoverable
- */
-export function isLikelyRecoverableError(err: unknown): boolean {
-  if (err instanceof SyntaxError)
-    return true
-
-  const status = getErrorStatus(err)
-  if (status === 429)
-    return true
-  if (typeof status === 'number' && status >= 500)
-    return true
-
-  const code = getErrorCode(err)
-  if (code && ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'].includes(code))
-    return true
-
-  const msg = toErrorMessage(err).toLowerCase()
-  return (
-    msg.includes('timeout')
-    || msg.includes('timed out')
-    || msg.includes('rate limit')
-    || msg.includes('token quota')
-    || msg.includes('token_quota_exceeded')
-    || msg.includes('tokens per minute')
-    || msg.includes('too many tokens')
-    || msg.includes('overloaded')
-    || msg.includes('temporarily')
-    || msg.includes('try again')
-    || (msg.includes('in json') && msg.includes('position'))
-  )
-}
-
-/**
- * Pure function to decide whether to retry
- */
-export function shouldRetryError(err: unknown, remainingAttempts: number): RetryDecision {
-  const shouldRetry = remainingAttempts > 0 && !isLikelyAuthOrBadArgError(err) && isLikelyRecoverableError(err)
-  return {
-    shouldRetry,
-    remainingAttempts,
-  }
-}
-
-/**
- * Pure function to extract JSON from LLM response
- */
-export function extractJsonCandidate(input: string): string {
-  const trimmed = input.trim()
-  // eslint-disable-next-line regexp/no-super-linear-backtracking
-  const fenced = trimmed.match(/^```(?:json)?[^\S\r\n]*\r?\n?([\s\S]*?)\r?\n?```$/i)
-  if (fenced?.[1])
-    return fenced[1].trim()
-
-  const start = trimmed.indexOf('{')
-  const end = trimmed.lastIndexOf('}')
-  if (start >= 0 && end > start)
-    return trimmed.slice(start, end + 1)
-
-  return trimmed
-}
-
-/**
- * Get JSON error position from error message
- */
-function getJsonErrorPosition(err: unknown): number | null {
-  const msg = toErrorMessage(err)
-  const match = msg.match(/position\s+(\d+)/i)
-  if (!match)
-    return null
-
-  const pos = Number.parseInt(match[1], 10)
-  return Number.isFinite(pos) ? pos : null
-}
-
-/**
  * Pure function to parse LLM JSON response
  */
 export function parseLLMResponseJson<T>(response: string): T {
@@ -198,8 +156,50 @@ export function parseLLMResponseJson<T>(response: string): T {
 }
 
 /**
+ * Pure function to decide whether to retry
+ */
+export function shouldRetryError(err: unknown, remainingAttempts: number): RetryDecision {
+  const shouldRetry = remainingAttempts > 0 && !isLikelyAuthOrBadArgError(err) && isLikelyRecoverableError(err)
+  return {
+    remainingAttempts,
+    shouldRetry,
+  }
+}
+
+/**
  * Sleep utility
  */
 export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+/**
+ * Pure function to convert error to message string
+ */
+export function toErrorMessage(err: unknown): string {
+  if (err instanceof Error)
+    return err.message
+  if (typeof err === 'string')
+    return err
+  if (typeof err === 'object' && err !== null && 'message' in err && typeof (err as { message: unknown }).message === 'string')
+    return (err as { message: string }).message
+  try {
+    return JSON.stringify(err)
+  }
+  catch {
+    return String(err)
+  }
+}
+
+/**
+ * Get JSON error position from error message
+ */
+function getJsonErrorPosition(err: unknown): null | number {
+  const msg = toErrorMessage(err)
+  const match = msg.match(/position\s+(\d+)/i)
+  if (!match)
+    return null
+
+  const pos = Number.parseInt(match[1], 10)
+  return Number.isFinite(pos) ? pos : null
 }

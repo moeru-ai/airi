@@ -9,7 +9,7 @@ export interface ConsciousnessModuleConfiguration {
   provider: ProviderConfiguration
 }
 
-type ConsciousnessModuleResolver = (context: AudioInputPreflightContext) => ConsciousnessModuleConfiguration | undefined | Promise<ConsciousnessModuleConfiguration | undefined>
+type ConsciousnessModuleResolver = (context: AudioInputPreflightContext) => ConsciousnessModuleConfiguration | Promise<ConsciousnessModuleConfiguration | undefined> | undefined
 
 /** Configures the consciousness module with the LLM Provider selected by one case. */
 export function configureModuleConsciousness(resolve: ConsciousnessModuleResolver): AudioInputPreflightCallback {
@@ -21,13 +21,13 @@ export function configureModuleConsciousness(resolve: ConsciousnessModuleResolve
     await configureProvider(context.runtime, configuration.provider)
     await configureActiveCardModules(context.runtime, {
       consciousness: {
-        provider: configuration.provider.id,
         model: configuration.provider.model,
+        provider: configuration.provider.id,
       },
     })
     await configureStorage(context.runtime, {
-      'settings/consciousness/active-provider': configuration.provider.id,
       'settings/consciousness/active-model': configuration.provider.model,
+      'settings/consciousness/active-provider': configuration.provider.id,
     })
   }
 }

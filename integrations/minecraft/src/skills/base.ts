@@ -5,12 +5,9 @@ import { useLogger } from '../utils/logger'
 const logger = useLogger()
 
 /**
- * Log a message to the context's output buffer
+ * Block face direction
  */
-export function log(_mineflayer: Mineflayer, message: string): void {
-  logger.log(message)
-  // mineflayer.bot.chat(message)
-}
+export type BlockFace = 'bottom' | 'east' | 'north' | 'side' | 'south' | 'top' | 'west'
 
 /**
  * Position in the world
@@ -22,6 +19,9 @@ export interface Position {
 }
 
 /**
- * Block face direction
+ * Log a message to the context's output buffer
  */
-export type BlockFace = 'top' | 'bottom' | 'north' | 'south' | 'east' | 'west' | 'side'
+export function log(_mineflayer: Mineflayer, message: string): void {
+  logger.log(message)
+  // mineflayer.bot.chat(message)
+}

@@ -4,15 +4,7 @@ import { onBeforeRouteLeave, useRoute } from 'vue-router'
 
 // inlined store since this shouldn't be used anywhere else
 const useRippleGridStore = defineStore('rippleGrid', {
-  state: () => ({
-    clickedIndices: new Map<string, number>(),
-  }),
-
   actions: {
-    setClickedIndex(key: string, index: number) {
-      this.clickedIndices.set(key, index)
-    },
-
     getClickedIndex(key: string) {
       return this.clickedIndices.get(key) ?? 0
     },
@@ -20,7 +12,15 @@ const useRippleGridStore = defineStore('rippleGrid', {
     resetClickedIndex(key: string) {
       this.clickedIndices.delete(key)
     },
+
+    setClickedIndex(key: string, index: number) {
+      this.clickedIndices.set(key, index)
+    },
   },
+
+  state: () => ({
+    clickedIndices: new Map<string, number>(),
+  }),
 })
 
 export function useRippleGridState(key?: string) {

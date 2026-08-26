@@ -42,10 +42,6 @@ const LOG_FILE_PREFIX = 'airi-tamagotchi'
  * Handle for the file logger, providing access to the log file and append operations.
  */
 export interface FileLoggerHandle {
-  /** Path to the current session's log file, or null if initialization failed */
-  logFilePath: string | null
-  /** File descriptor for the current session's log file, or null if initialization failed */
-  logFileFd: number | null
   /**
    * Appends a log entry to the file.
    * @param content - The formatted log content to append
@@ -55,66 +51,21 @@ export interface FileLoggerHandle {
    * Closes the log file and releases resources.
    */
   close: () => Promise<void>
+  /** File descriptor for the current session's log file, or null if initialization failed */
+  logFileFd: null | number
+  /** Path to the current session's log file, or null if initialization failed */
+  logFilePath: null | string
 }
 
 export const nullFileLoggerHandle: FileLoggerHandle = {
-  logFilePath: null,
-  logFileFd: null,
   appendLog: async () => {},
   close: async () => {},
+  logFileFd: null,
+  logFilePath: null,
 }
 
 // ============================================================================
 // Internal Functions
-// ============================================================================
-
-/**
- * Extracts a human-readable error message from an unknown error object.
- */
-function getErrorMessage(error: unknown): string {
-  return errorMessageFromValue(error)
-}
-
-/**
- * Generates the log file path for the current session.
- * Format: {userData}/logs/airi-tamagotchi-{timestamp}.log
- */
-function createLogFilePath(logsDir: string, timestamp: number): string {
-  return join(logsDir, `${LOG_FILE_PREFIX}-${timestamp}.log`)
-}
-
-/**
- * Ensures the logs directory exists.
- * Returns the logs directory path if successful, null otherwise.
- */
-async function ensureLogsDirectory(): Promise<string | null> {
-  try {
-    const logsDir = join(app.getPath('userData'), 'logs')
-    await mkdir(logsDir, { recursive: true })
-    return logsDir
-  }
-  catch (error) {
-    const message = getErrorMessage(error)
-    console.error(`[FileLogger] Failed to create logs directory: ${message}`)
-    return null
-  }
-}
-
-/**
- * Checks if the current log file exists and returns its size.
- */
-async function getLogFileSize(filePath: string): Promise<number | null> {
-  try {
-    const stats = await stat(filePath)
-    return stats.size
-  }
-  catch {
-    return null
-  }
-}
-
-// ============================================================================
-// Public API
 // ============================================================================
 
 /**
@@ -186,11 +137,60 @@ export async function setupFileLogger(): Promise<FileLoggerHandle> {
       console.info(`[FileLogger] Session log file: ${logFilePath}${sizeInfo}`)
     }
 
-    return { logFilePath, logFileFd, appendLog, close }
+    return { appendLog, close, logFileFd, logFilePath }
   }
   catch (error) {
     const message = getErrorMessage(error)
     console.error(`[FileLogger] Failed to create log file - logging to console only: ${message}`)
     return nullFileLoggerHandle
+  }
+}
+
+/**
+ * Generates the log file path for the current session.
+ * Format: {userData}/logs/airi-tamagotchi-{timestamp}.log
+ */
+function createLogFilePath(logsDir: string, timestamp: number): string {
+  return join(logsDir, `${LOG_FILE_PREFIX}-${timestamp}.log`)
+}
+
+/**
+ * Ensures the logs directory exists.
+ * Returns the logs directory path if successful, null otherwise.
+ */
+async function ensureLogsDirectory(): Promise<null | string> {
+  try {
+    const logsDir = join(app.getPath('userData'), 'logs')
+    await mkdir(logsDir, { recursive: true })
+    return logsDir
+  }
+  catch (error) {
+    const message = getErrorMessage(error)
+    console.error(`[FileLogger] Failed to create logs directory: ${message}`)
+    return null
+  }
+}
+
+/**
+ * Extracts a human-readable error message from an unknown error object.
+ */
+function getErrorMessage(error: unknown): string {
+  return errorMessageFromValue(error)
+}
+
+// ============================================================================
+// Public API
+// ============================================================================
+
+/**
+ * Checks if the current log file exists and returns its size.
+ */
+async function getLogFileSize(filePath: string): Promise<null | number> {
+  try {
+    const stats = await stat(filePath)
+    return stats.size
+  }
+  catch {
+    return null
   }
 }

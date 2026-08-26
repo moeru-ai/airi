@@ -15,10 +15,6 @@ import { errorMessageFrom } from '@moeru/std'
 
 import { postAuthJSON } from './auth-fetch'
 
-interface CheckEmailArgs extends AuthFetchBase {
-  email: string
-}
-
 /**
  * Result of the email-first identifier probe.
  *
@@ -33,19 +29,23 @@ export interface CheckEmailResult {
   hasPassword: boolean
 }
 
+interface CheckEmailArgs extends AuthFetchBase {
+  email: string
+}
+
 interface EmailSignInArgs extends AuthFetchBase {
+  callbackURL?: string
   email: string
   password: string
-  callbackURL?: string
   /** @default true */
   rememberMe?: boolean
 }
 
 interface EmailSignUpArgs extends AuthFetchBase {
-  email: string
-  password: string
-  name: string
   callbackURL?: string
+  email: string
+  name: string
+  password: string
 }
 
 interface RequestPasswordResetArgs extends AuthFetchBase {
@@ -64,7 +64,7 @@ interface ResetPasswordArgs extends AuthFetchBase {
 
 interface SignInResult {
   /** Set when better-auth allows browser to follow the OIDC redirect itself. */
-  redirectURL: string | null
+  redirectURL: null | string
   /**
    * True if email verification is still pending; UI should route to
    * the `verify-email` notice page.
@@ -106,51 +106,8 @@ export async function checkEmail(args: CheckEmailArgs): Promise<CheckEmailResult
   )
 }
 
-export async function signInWithEmail(args: EmailSignInArgs): Promise<SignInResult> {
-  return postAuthJSON(
-    args,
-    '/sign-in/email',
-    {
-      email: args.email,
-      password: args.password,
-      callbackURL: args.callbackURL,
-      rememberMe: args.rememberMe ?? true,
-    },
-    (data) => {
-      const url = typeof (data as { url?: unknown })?.url === 'string'
-        ? (data as { url: string }).url
-        : null
-      // NOTICE:
-      // better-auth surfaces `requiresEmailVerification` (rather than throwing)
-      // when emailAndPassword.requireEmailVerification is true and the user is
-      // not yet verified. Frontend uses this to route into the `verify-email`
-      // notice page instead of bouncing to the OIDC callback.
-      // Source: node_modules/better-auth/dist/api/routes/sign-in.mjs L235+
-      const requiresVerification = Boolean(
-        (data as { requiresEmailVerification?: unknown })?.requiresEmailVerification,
-      )
-      return { redirectURL: url, requiresVerification }
-    },
-  )
-}
-
-export async function signUpWithEmail(args: EmailSignUpArgs): Promise<SignUpResult> {
-  return postAuthJSON(
-    args,
-    '/sign-up/email',
-    {
-      email: args.email,
-      password: args.password,
-      name: args.name,
-      callbackURL: args.callbackURL,
-    },
-    (data) => {
-      // When verification is required, better-auth returns `{ token: null, user: ... }`
-      // and queues the verification email; otherwise it returns a session token.
-      const token = (data as { token?: unknown })?.token
-      return { requiresVerification: token === null || token === undefined }
-    },
-  )
+export function describeAuthError(error: unknown): string {
+  return errorMessageFrom(error) ?? 'Unexpected error'
 }
 
 export async function requestPasswordReset(args: RequestPasswordResetArgs): Promise<void> {
@@ -177,6 +134,49 @@ export async function resetPasswordWithToken(args: ResetPasswordArgs): Promise<v
   )
 }
 
-export function describeAuthError(error: unknown): string {
-  return errorMessageFrom(error) ?? 'Unexpected error'
+export async function signInWithEmail(args: EmailSignInArgs): Promise<SignInResult> {
+  return postAuthJSON(
+    args,
+    '/sign-in/email',
+    {
+      callbackURL: args.callbackURL,
+      email: args.email,
+      password: args.password,
+      rememberMe: args.rememberMe ?? true,
+    },
+    (data) => {
+      const url = typeof (data as { url?: unknown })?.url === 'string'
+        ? (data as { url: string }).url
+        : null
+      // NOTICE:
+      // better-auth surfaces `requiresEmailVerification` (rather than throwing)
+      // when emailAndPassword.requireEmailVerification is true and the user is
+      // not yet verified. Frontend uses this to route into the `verify-email`
+      // notice page instead of bouncing to the OIDC callback.
+      // Source: node_modules/better-auth/dist/api/routes/sign-in.mjs L235+
+      const requiresVerification = Boolean(
+        (data as { requiresEmailVerification?: unknown })?.requiresEmailVerification,
+      )
+      return { redirectURL: url, requiresVerification }
+    },
+  )
+}
+
+export async function signUpWithEmail(args: EmailSignUpArgs): Promise<SignUpResult> {
+  return postAuthJSON(
+    args,
+    '/sign-up/email',
+    {
+      callbackURL: args.callbackURL,
+      email: args.email,
+      name: args.name,
+      password: args.password,
+    },
+    (data) => {
+      // When verification is required, better-auth returns `{ token: null, user: ... }`
+      // and queues the verification email; otherwise it returns a session token.
+      const token = (data as { token?: unknown })?.token
+      return { requiresVerification: token === null || token === undefined }
+    },
+  )
 }

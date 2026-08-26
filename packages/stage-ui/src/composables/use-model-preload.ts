@@ -14,14 +14,14 @@
 import { onUnmounted, ref } from 'vue'
 
 export interface PreloadTask {
-  /** Human-readable model name for logging */
-  modelId: string
   /**
    * The async function that loads the model. Receives an `AbortSignal`
    * that will fire if the preload is cancelled; loaders should forward
    * it to adapter methods (e.g. `adapter.loadModel(q, d, { signal })`).
    */
   loader: (signal: AbortSignal) => Promise<void>
+  /** Human-readable model name for logging */
+  modelId: string
 }
 
 export interface UseModelPreloadOptions {
@@ -104,15 +104,15 @@ export function useModelPreload(options: UseModelPreloadOptions = {}) {
   })
 
   return {
-    /** Whether a preload is currently in progress */
-    preloading,
-    /** Model IDs that have been successfully preloaded */
-    preloadedModels,
-    /** Model IDs that failed to preload (non-fatal) */
-    failedModels,
-    /** Schedule models for idle-time preloading */
-    schedulePreload,
     /** Cancel any pending or in-progress preloads */
     cancelPreload,
+    /** Model IDs that failed to preload (non-fatal) */
+    failedModels,
+    /** Model IDs that have been successfully preloaded */
+    preloadedModels,
+    /** Whether a preload is currently in progress */
+    preloading,
+    /** Schedule models for idle-time preloading */
+    schedulePreload,
   }
 }

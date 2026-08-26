@@ -11,93 +11,18 @@ import { Mutex } from 'es-toolkit'
 import { isModelProvider, ProviderValidationCheck } from '../types'
 
 interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, baseUrl?: string }> {
-  checks?: ProviderValidationCheck[]
   additionalHeaders?: Record<string, string>
   allowValidationWithoutModel?: boolean
-  normalizeModelId?: (modelId: string) => string
-  schedule?: {
-    mode: 'once' | 'interval'
-    intervalMs?: number
-  }
-  skipApiKeyCheck?: boolean
+  chatCompletionTokenParameter?: 'max_completion_tokens' | 'max_tokens'
+  checks?: ProviderValidationCheck[]
   connectivityFailureReason?: (input: { config: TConfig, error: unknown, errorMessage: string }) => string
   modelListFailureReason?: (input: { config: TConfig, error: unknown, errorMessage: string }) => string
-  chatCompletionTokenParameter?: 'max_tokens' | 'max_completion_tokens'
-}
-
-function extractStatusCode(error: unknown): number | null {
-  if (!error)
-    return null
-
-  const anyError = error as {
-    cause?: {
-      status?: unknown
-      statusCode?: unknown
-      response?: { status?: unknown }
-    }
+  normalizeModelId?: (modelId: string) => string
+  schedule?: {
+    intervalMs?: number
+    mode: 'interval' | 'once'
   }
-
-  const candidates = [
-    anyError.cause?.status,
-    anyError.cause?.statusCode,
-    anyError.cause?.response?.status,
-  ]
-
-  for (const candidate of candidates) {
-    if (typeof candidate === 'number')
-      return candidate
-  }
-
-  return null
-}
-
-function extractModelId(model: any): string {
-  if (!model)
-    return ''
-  if (typeof model === 'string')
-    return model
-  if (typeof model.id === 'string')
-    return model.id
-
-  return ''
-}
-
-function shouldSkipModelId(modelId: string): boolean {
-  return [
-    'embed',
-    'tts',
-    'models/gemini-2.5-pro',
-  ].some(fragment => modelId.includes(fragment))
-}
-
-async function resolveModels<TConfig extends { apiKey?: string | null, baseUrl?: string | URL | null }>(
-  config: TConfig,
-  provider: ProviderInstance,
-  providerExtra: ProviderExtraMethods<TConfig> | undefined,
-) {
-  if (providerExtra?.listModels) {
-    return providerExtra.listModels(config, provider)
-  }
-  if (!isModelProvider(provider)) {
-    return listModels({ baseURL: config.baseUrl!, apiKey: config.apiKey! })
-  }
-
-  return listModels(provider.model())
-}
-
-async function pickValidationModel<TConfig extends { apiKey?: string | null, baseUrl?: string | URL | null }>(
-  config: TConfig,
-  provider: ProviderInstance,
-  providerExtra: ProviderExtraMethods<TConfig> | undefined,
-): Promise<string | null> {
-  try {
-    const models = await resolveModels(config, provider, providerExtra)
-    const modelId = extractModelId(models.find(model => !shouldSkipModelId(extractModelId(model))))
-    return modelId || null
-  }
-  catch {
-    return null
-  }
+  skipApiKeyCheck?: boolean
 }
 
 export function createOpenAICompatibleValidators<TConfig extends { apiKey?: string, baseUrl?: string }>(
@@ -108,10 +33,10 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
   const missingValidationModelReason = 'No model available for validation. Configure a model manually and try again.'
 
   interface ChatCheckResult {
-    connectivityOk: boolean
     chatOk: boolean
-    errorMessage?: string
+    connectivityOk: boolean
     error?: unknown
+    errorMessage?: string
   }
 
   async function runChatCheck(
@@ -124,12 +49,12 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
 
     if (!normalizedModel) {
       if (options?.allowValidationWithoutModel) {
-        return { connectivityOk: true, chatOk: true }
+        return { chatOk: true, connectivityOk: true }
       }
 
       return {
-        connectivityOk: false,
         chatOk: false,
+        connectivityOk: false,
         errorMessage: missingValidationModelReason,
       }
     }
@@ -139,8 +64,8 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
         apiKey: config.apiKey,
         baseURL: config.baseUrl!,
         headers: additionalHeaders,
-        model: normalizedModel,
         messages: message.messages(message.user('ping')),
+        model: normalizedModel,
         // NOTICE:
         // Some OpenAI-compatible providers reject output limits below 16.
         // OpenRouter documents this minimum for some upstream providers.
@@ -151,16 +76,16 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
           : { max_tokens: 16 }),
       })
 
-      return { connectivityOk: true, chatOk: true }
+      return { chatOk: true, connectivityOk: true }
     }
     catch (e) {
       if (isNetworkError(e)) {
-        return { connectivityOk: false, chatOk: false, error: e, errorMessage: errorMessageFrom(e) }
+        return { chatOk: false, connectivityOk: false, error: e, errorMessage: errorMessageFrom(e) }
       }
 
       const status = extractStatusCode(e)
       const chatOk = status === 400 || Boolean(status && status >= 200 && status < 300)
-      return { connectivityOk: true, chatOk, errorMessage: errorMessageFrom(e) }
+      return { chatOk, connectivityOk: true, errorMessage: errorMessageFrom(e) }
     }
   }
 
@@ -216,7 +141,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     validator: async (config) => {
       const errors: Array<{ error: unknown }> = []
       const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
-      const baseUrl = (config.baseUrl as string | URL | undefined) instanceof URL ? config.baseUrl?.toString() : (typeof config.baseUrl === 'string' ? config.baseUrl.trim() : '')
+      const baseUrl = (config.baseUrl as string | undefined | URL) instanceof URL ? config.baseUrl?.toString() : (typeof config.baseUrl === 'string' ? config.baseUrl.trim() : '')
 
       if (!options?.skipApiKeyCheck && !apiKey)
         errors.push({ error: new Error('API key is required.') })
@@ -257,11 +182,11 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
 
         try {
           const response = await fetch(modelsUrl, {
-            method: 'GET',
             headers: {
               ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
               ...additionalHeaders,
             },
+            method: 'GET',
             signal: controller.signal,
           })
 
@@ -305,7 +230,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
           config,
           provider,
           providerExtra,
-          contextOptions as { validationCache?: Map<string, unknown> } | undefined,
+          contextOptions as undefined | { validationCache?: Map<string, unknown> },
         )
         if (!result.chatOk) {
           errors.push({ error: new Error(`Chat completions check failed: ${result.errorMessage || 'Unknown error.'}`) })
@@ -353,4 +278,79 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
   }
 
   return validatorConfig
+}
+
+function extractModelId(model: any): string {
+  if (!model)
+    return ''
+  if (typeof model === 'string')
+    return model
+  if (typeof model.id === 'string')
+    return model.id
+
+  return ''
+}
+
+function extractStatusCode(error: unknown): null | number {
+  if (!error)
+    return null
+
+  const anyError = error as {
+    cause?: {
+      response?: { status?: unknown }
+      status?: unknown
+      statusCode?: unknown
+    }
+  }
+
+  const candidates = [
+    anyError.cause?.status,
+    anyError.cause?.statusCode,
+    anyError.cause?.response?.status,
+  ]
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'number')
+      return candidate
+  }
+
+  return null
+}
+
+async function pickValidationModel<TConfig extends { apiKey?: null | string, baseUrl?: null | string | URL }>(
+  config: TConfig,
+  provider: ProviderInstance,
+  providerExtra: ProviderExtraMethods<TConfig> | undefined,
+): Promise<null | string> {
+  try {
+    const models = await resolveModels(config, provider, providerExtra)
+    const modelId = extractModelId(models.find(model => !shouldSkipModelId(extractModelId(model))))
+    return modelId || null
+  }
+  catch {
+    return null
+  }
+}
+
+async function resolveModels<TConfig extends { apiKey?: null | string, baseUrl?: null | string | URL }>(
+  config: TConfig,
+  provider: ProviderInstance,
+  providerExtra: ProviderExtraMethods<TConfig> | undefined,
+) {
+  if (providerExtra?.listModels) {
+    return providerExtra.listModels(config, provider)
+  }
+  if (!isModelProvider(provider)) {
+    return listModels({ apiKey: config.apiKey!, baseURL: config.baseUrl! })
+  }
+
+  return listModels(provider.model())
+}
+
+function shouldSkipModelId(modelId: string): boolean {
+  return [
+    'embed',
+    'tts',
+    'models/gemini-2.5-pro',
+  ].some(fragment => modelId.includes(fragment))
 }

@@ -44,9 +44,9 @@ export function useAudioContextFromStream(
   return {
     audioContext,
 
+    dispose,
     initialize,
     pause,
     resume,
-    dispose,
   }
 }

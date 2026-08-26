@@ -105,14 +105,14 @@ describe('gpuResourceCoordinator', () => {
     it('should aggregate device-loss events across models', () => {
       const coordinator = createGPUResourceCoordinator(VRAM)
 
-      coordinator.recordDeviceLoss({ modelId: 'kokoro', reason: 'unknown', occurredAt: 100 })
-      coordinator.recordDeviceLoss({ modelId: 'kokoro', reason: 'unknown', occurredAt: 200 })
-      coordinator.recordDeviceLoss({ modelId: 'whisper', reason: 'destroyed', occurredAt: 300 })
+      coordinator.recordDeviceLoss({ modelId: 'kokoro', occurredAt: 100, reason: 'unknown' })
+      coordinator.recordDeviceLoss({ modelId: 'kokoro', occurredAt: 200, reason: 'unknown' })
+      coordinator.recordDeviceLoss({ modelId: 'whisper', occurredAt: 300, reason: 'destroyed' })
 
       const metrics = coordinator.getDeviceLossMetrics()
       expect(metrics.totalCount).toBe(3)
       expect(metrics.byModel).toEqual({ kokoro: 2, whisper: 1 })
-      expect(metrics.lastEvent).toEqual({ modelId: 'whisper', reason: 'destroyed', occurredAt: 300 })
+      expect(metrics.lastEvent).toEqual({ modelId: 'whisper', occurredAt: 300, reason: 'destroyed' })
     })
 
     it('should notify subscribers on device-loss events', () => {
@@ -120,7 +120,7 @@ describe('gpuResourceCoordinator', () => {
       const handler = vi.fn()
       coordinator.onDeviceLoss(handler)
 
-      const event = { modelId: 'kokoro', reason: 'unknown' as const, occurredAt: 100 }
+      const event = { modelId: 'kokoro', occurredAt: 100, reason: 'unknown' as const }
       coordinator.recordDeviceLoss(event)
 
       expect(handler).toHaveBeenCalledTimes(1)
@@ -133,7 +133,7 @@ describe('gpuResourceCoordinator', () => {
       const unsub = coordinator.onDeviceLoss(handler)
 
       unsub()
-      coordinator.recordDeviceLoss({ modelId: 'x', reason: 'unknown', occurredAt: 1 })
+      coordinator.recordDeviceLoss({ modelId: 'x', occurredAt: 1, reason: 'unknown' })
 
       expect(handler).not.toHaveBeenCalled()
     })

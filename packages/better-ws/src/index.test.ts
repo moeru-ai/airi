@@ -6,32 +6,24 @@ import { createServer, toCrossWsHooks } from './server'
 
 import * as betterWs from './index'
 
-function errorText(error: unknown) {
-  if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
-    return error.message
-  }
-
-  return String(error)
-}
-
 class FakeWebSocket extends EventTarget implements WebSocket {
-  static readonly CONNECTING = 0
-  static readonly OPEN = 1
-  static readonly CLOSING = 2
   static readonly CLOSED = 3
+  static readonly CLOSING = 2
+  static readonly CONNECTING = 0
   static readonly instances: FakeWebSocket[] = []
+  static readonly OPEN = 1
 
-  readonly CONNECTING = 0
-  readonly OPEN = 1
-  readonly CLOSING = 2
-  readonly CLOSED = 3
   binaryType: BinaryType = 'blob'
   readonly bufferedAmount = 0
+  readonly CLOSED = 3
+  readonly CLOSING = 2
+  readonly CONNECTING = 0
   readonly extensions = ''
   onclose: ((this: WebSocket, ev: CloseEvent) => unknown) | null = null
   onerror: ((this: WebSocket, ev: Event) => unknown) | null = null
   onmessage: ((this: WebSocket, ev: MessageEvent<string>) => unknown) | null = null
   onopen: ((this: WebSocket, ev: Event) => unknown) | null = null
+  readonly OPEN = 1
   readonly protocol = ''
   readonly readyState = FakeWebSocket.CONNECTING
 
@@ -45,28 +37,28 @@ class FakeWebSocket extends EventTarget implements WebSocket {
     FakeWebSocket.instances.push(this)
   }
 
-  send(message: string | ArrayBufferLike | Blob | ArrayBufferView) {
-    if (typeof message === 'string') {
-      this.sent.push(message)
-    }
-  }
-
   close() {}
 
-  open() {
-    this.onopen?.(new Event('open'))
+  closeEvent() {
+    this.onclose?.(new CloseEvent('close', { code: 1006, reason: 'open failed', wasClean: false }))
   }
 
   error() {
     this.onerror?.(new Event('error'))
   }
 
-  closeEvent() {
-    this.onclose?.(new CloseEvent('close', { code: 1006, reason: 'open failed', wasClean: false }))
+  open() {
+    this.onopen?.(new Event('open'))
   }
 
   receive(message: string) {
     this.onmessage?.(new MessageEvent('message', { data: message }))
+  }
+
+  send(message: ArrayBufferLike | ArrayBufferView | Blob | string) {
+    if (typeof message === 'string') {
+      this.sent.push(message)
+    }
   }
 }
 
@@ -88,6 +80,14 @@ function createFakeSocketClient() {
       return socket()
     },
   }
+}
+
+function errorText(error: unknown) {
+  if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
+    return error.message
+  }
+
+  return String(error)
 }
 
 describe('better-ws package exports', () => {
@@ -133,14 +133,14 @@ describe('better-ws server runtime', () => {
     const server = createServer<string>()
     const replacementSend = vi.fn(() => true)
     const first = server.accept({
-      id: 'peer-1',
-      send: vi.fn(() => true),
       close: () => {
         server.accept({
           id: 'peer-1',
           send: replacementSend,
         })
       },
+      id: 'peer-1',
+      send: vi.fn(() => true),
     })
 
     first.close()
@@ -158,14 +158,14 @@ describe('better-ws server runtime', () => {
     const secondClose = vi.fn()
 
     server.accept({
+      close: firstClose,
       id: 'first',
       send: vi.fn(() => true),
-      close: firstClose,
     })
     server.accept({
+      close: secondClose,
       id: 'second',
       send: vi.fn(() => true),
-      close: secondClose,
     })
 
     expect(() => server.close()).toThrow('first close failed')
@@ -193,9 +193,9 @@ describe('better-ws server runtime', () => {
   it('registers peers, dispatches raw messages, and disposes peer handlers', () => {
     const server = createServer<string>()
     const sent: string[] = []
-    const received: Array<{ peerId: string, message: string }> = []
+    const received: Array<{ message: string, peerId: string }> = []
     const unsubscribe = server.onMessage((context) => {
-      received.push({ peerId: context.peer.id, message: context.message })
+      received.push({ message: context.message, peerId: context.peer.id })
     })
 
     const peer = server.accept({
@@ -212,7 +212,7 @@ describe('better-ws server runtime', () => {
     peer.receive('ignored')
 
     expect(server.peers.size).toBe(1)
-    expect(received).toEqual([{ peerId: 'peer-1', message: 'hello' }])
+    expect(received).toEqual([{ message: 'hello', peerId: 'peer-1' }])
     expect(sent).toEqual(['reply'])
   })
 
@@ -235,10 +235,10 @@ describe('better-ws server runtime', () => {
     const room = server.to('room:a').send('room-only')
 
     expect(broadcast).toEqual([
-      { peerId: 'first', ok: true },
-      { peerId: 'second', ok: true },
+      { ok: true, peerId: 'first' },
+      { ok: true, peerId: 'second' },
     ])
-    expect(room).toEqual([{ peerId: 'first', ok: true }])
+    expect(room).toEqual([{ ok: true, peerId: 'first' }])
     expect(firstSent).toEqual(['global', 'room-only'])
     expect(secondSent).toEqual(['global'])
   })
@@ -253,11 +253,11 @@ describe('better-ws server runtime', () => {
 
     const hooks = toCrossWsHooks(server)
     const peer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: (message: unknown) => {
         sent.push(String(message))
       },
-      close: vi.fn(),
     }
 
     // NOTICE:
@@ -277,9 +277,9 @@ describe('better-ws server runtime', () => {
     const server = createServer<string>()
     const hooks = toCrossWsHooks(server)
     const peer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
 
     // NOTICE:
@@ -296,24 +296,24 @@ describe('better-ws server runtime', () => {
   it('passes CrossWS close details to peer close handlers', async () => {
     const server = createServer<string>()
     const hooks = toCrossWsHooks(server)
-    const closed: Array<{ peerId: string, code?: number, reason?: string }> = []
-    server.onPeerClose(({ peerId, details }) => {
+    const closed: Array<{ code?: number, peerId: string, reason?: string }> = []
+    server.onPeerClose(({ details, peerId }) => {
       closed.push({
-        peerId,
         code: details?.code,
+        peerId,
         reason: details?.reason,
       })
     })
     const peer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
 
     hooks.open?.(peer as unknown as CrossWsPeer)
     await hooks.close?.(peer as unknown as CrossWsPeer, { code: 1001, reason: 'runtime close' })
 
-    expect(closed).toEqual([{ peerId: 'crossws-peer', code: 1001, reason: 'runtime close' }])
+    expect(closed).toEqual([{ code: 1001, peerId: 'crossws-peer', reason: 'runtime close' }])
   })
 
   it('replaces an existing peer when the adapter reuses a peer id', () => {
@@ -357,11 +357,11 @@ describe('better-ws server runtime', () => {
     })
 
     expect(previous).toEqual({
-      id: 'peer-1',
-      state: { token: 'first-token' },
       groups: ['ready'],
+      id: 'peer-1',
       lastSeenAt: expect.any(Number),
       reason: 'replaced',
+      state: { token: 'first-token' },
     })
     expect(second.state).toEqual({ token: 'first-token' })
     expect(second.isIn('ready')).toBe(false)
@@ -379,16 +379,16 @@ describe('better-ws server runtime', () => {
     })
 
     const first = server.peers.accept({
+      close: firstClose,
       id: 'peer-1',
       send: firstSend,
-      close: firstClose,
     }).peer
     first.join('room')
 
     const second = server.peers.accept({
+      close: secondClose,
       id: 'peer-1',
       send: secondSend,
-      close: secondClose,
     }).peer
     second.join('room')
 
@@ -402,7 +402,7 @@ describe('better-ws server runtime', () => {
     expect(secondClose).not.toHaveBeenCalled()
     expect(received).toEqual([])
     expect(server.peers.get('peer-1')).toBe(second)
-    expect(server.to('room').send('fresh')).toEqual([{ peerId: 'peer-1', ok: true }])
+    expect(server.to('room').send('fresh')).toEqual([{ ok: true, peerId: 'peer-1' }])
   })
 
   it('keeps stale peer handles inert after replacement', () => {
@@ -411,22 +411,22 @@ describe('better-ws server runtime', () => {
     const firstClose = vi.fn()
     const secondSend = vi.fn(() => true)
     const secondClose = vi.fn()
-    const received: Array<{ peerId: string, message: string }> = []
-    server.onMessage(({ peer, message }) => {
-      received.push({ peerId: peer.id, message })
+    const received: Array<{ message: string, peerId: string }> = []
+    server.onMessage(({ message, peer }) => {
+      received.push({ message, peerId: peer.id })
     })
 
     const firstPeer = server.accept({
+      close: firstClose,
       id: 'peer-1',
       send: firstSend,
-      close: firstClose,
     })
     firstPeer.join('room')
 
     const secondPeer = server.accept({
+      close: secondClose,
       id: 'peer-1',
       send: secondSend,
-      close: secondClose,
     })
     secondPeer.join('room')
 
@@ -442,7 +442,7 @@ describe('better-ws server runtime', () => {
     expect(received).toEqual([])
     expect(server.peers.get('peer-1')).toBe(secondPeer)
     expect(secondPeer.isIn('room')).toBe(true)
-    expect(server.to('room').send('current-room')).toEqual([{ peerId: 'peer-1', ok: true }])
+    expect(server.to('room').send('current-room')).toEqual([{ ok: true, peerId: 'peer-1' }])
     expect(server.to('stale-room').send('stale-room')).toEqual([])
     expect(secondSend).toHaveBeenCalledExactlyOnceWith('current-room')
   })
@@ -451,14 +451,14 @@ describe('better-ws server runtime', () => {
     const server = createServer<string>()
     const hooks = toCrossWsHooks(server)
     const firstRawPeer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
     const secondRawPeer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
 
     // NOTICE:
@@ -478,14 +478,14 @@ describe('better-ws server runtime', () => {
     const server = createServer<string>()
     const hooks = toCrossWsHooks(server)
     const firstRawPeer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
     const secondRawPeer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
 
     // NOTICE:
@@ -506,19 +506,19 @@ describe('better-ws server runtime', () => {
   it('ignores late CrossWS messages from a stale raw peer after same-id reopen', async () => {
     const server = createServer<string>()
     const hooks = toCrossWsHooks(server)
-    const received: Array<{ peerId: string, message: string }> = []
-    server.onMessage(({ peer, message }) => {
-      received.push({ peerId: peer.id, message })
+    const received: Array<{ message: string, peerId: string }> = []
+    server.onMessage(({ message, peer }) => {
+      received.push({ message, peerId: peer.id })
     })
     const firstRawPeer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
     const secondRawPeer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
 
     // NOTICE:
@@ -542,14 +542,14 @@ describe('better-ws server runtime', () => {
       received.push(message)
     })
     const firstRawPeer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
     const secondRawPeer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
 
     await hooks.open?.(firstRawPeer as unknown as CrossWsPeer)
@@ -566,14 +566,14 @@ describe('better-ws server runtime', () => {
     const close = vi.fn()
     const hooks = toCrossWsHooks(server, { close })
     const firstRawPeer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
     const secondRawPeer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
 
     // NOTICE:
@@ -594,14 +594,14 @@ describe('better-ws server runtime', () => {
     const server = createServer<string>()
     const hooks = toCrossWsHooks(server)
     const firstRawPeer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
     const secondRawPeer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
 
     // NOTICE:
@@ -611,9 +611,9 @@ describe('better-ws server runtime', () => {
     // Remove this when CrossWS exposes a narrow fake peer helper.
     await hooks.open?.(firstRawPeer as unknown as CrossWsPeer)
     server.accept({
+      close: (code, reason) => secondRawPeer.close(code, reason),
       id: 'crossws-peer',
       send: message => secondRawPeer.send(message),
-      close: (code, reason) => secondRawPeer.close(code, reason),
     })
     await hooks.close?.(firstRawPeer as unknown as CrossWsPeer, { code: 1000, reason: 'stale' })
     server.peers.get('crossws-peer')?.send('reply')
@@ -631,14 +631,14 @@ describe('better-ws server runtime', () => {
       received.push(message)
     })
     const firstRawPeer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
     const secondRawPeer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
 
     // NOTICE:
@@ -648,9 +648,9 @@ describe('better-ws server runtime', () => {
     // Remove this when CrossWS exposes a narrow fake peer helper.
     await hooks.open?.(firstRawPeer as unknown as CrossWsPeer)
     server.accept({
+      close: (code, reason) => secondRawPeer.close(code, reason),
       id: 'crossws-peer',
       send: message => secondRawPeer.send(message),
-      close: (code, reason) => secondRawPeer.close(code, reason),
     })
     hooks.message?.(firstRawPeer as unknown as CrossWsPeer, { text: () => 'stale-message' } as unknown as CrossWsMessage)
     server.peers.get('crossws-peer')?.send('reply')
@@ -669,21 +669,21 @@ describe('better-ws server runtime', () => {
       received.push(message)
     })
     const firstRawPeer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
     const secondRawPeer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
 
     await hooks.open?.(firstRawPeer as unknown as CrossWsPeer)
     const replacement = server.accept({
+      close: (code, reason) => secondRawPeer.close(code, reason),
       id: 'crossws-peer',
       send: message => secondRawPeer.send(message),
-      close: (code, reason) => secondRawPeer.close(code, reason),
     })
     replacement.close()
     hooks.message?.(firstRawPeer as unknown as CrossWsPeer, { text: () => 'stale-after-server-close' } as unknown as CrossWsMessage)
@@ -700,9 +700,9 @@ describe('better-ws server runtime', () => {
       received.push(message)
     })
     const rawPeer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
 
     // NOTICE:
@@ -725,14 +725,14 @@ describe('better-ws server runtime', () => {
     const server = createServer<string>()
     const hooks = toCrossWsHooks(server)
     const firstRawPeer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
     const secondRawPeer = {
+      close: vi.fn(),
       id: 'crossws-peer',
       send: vi.fn(),
-      close: vi.fn(),
     }
 
     // NOTICE:
@@ -758,13 +758,13 @@ describe('better-ws client runtime', () => {
     vi.spyOn(Math, 'random').mockReturnValue(1)
     FakeWebSocket.instances.length = 0
     const client = betterWs.createClient({
-      url: 'ws://localhost/ws',
-      wsConstructor: FakeWebSocket,
       reconnect: {
-        retries: 1,
         delay: 1000,
         reconnectRandomFactor: 0.5,
+        retries: 1,
       },
+      url: 'ws://localhost/ws',
+      wsConstructor: FakeWebSocket,
     })
 
     void client.connect()
@@ -785,13 +785,13 @@ describe('better-ws client runtime', () => {
     vi.useFakeTimers()
     FakeWebSocket.instances.length = 0
     const client = betterWs.createClient({
-      url: 'ws://localhost/ws',
-      wsConstructor: FakeWebSocket,
       reconnect: {
-        retries: 2,
         delay: attempt => attempt * 100,
         reconnectMinConnectedDuration: 1000,
+        retries: 2,
       },
+      url: 'ws://localhost/ws',
+      wsConstructor: FakeWebSocket,
     })
 
     void client.connect()
@@ -811,17 +811,17 @@ describe('better-ws client runtime', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0)
     const reconnectDelays: number[] = []
     const client = betterWs.createClient({
-      url: 'ws://localhost/ws',
-      wsConstructor: FakeWebSocket,
       reconnect: {
-        retries: 1,
         delay: 1000,
         reconnectRandomFactor: 2,
+        retries: 1,
       },
       schedule: (delay, run) => {
         reconnectDelays.push(delay)
         return { cancel: vi.fn(), run }
       },
+      url: 'ws://localhost/ws',
+      wsConstructor: FakeWebSocket,
     })
 
     void client.connect()
@@ -836,13 +836,13 @@ describe('better-ws client runtime', () => {
     vi.useFakeTimers()
     FakeWebSocket.instances.length = 0
     const client = betterWs.createClient({
-      url: 'ws://localhost/ws',
-      wsConstructor: FakeWebSocket,
       reconnect: {
-        retries: 2,
         delay: attempt => attempt * 100,
         reconnectMinConnectedDuration: 1000,
+        retries: 2,
       },
+      url: 'ws://localhost/ws',
+      wsConstructor: FakeWebSocket,
     })
 
     void client.connect()
@@ -867,19 +867,9 @@ describe('better-ws client runtime', () => {
     const client = betterWs.createClient<string>({
       connector: {
         connect: () => ({
-          send: vi.fn(() => true),
           close: vi.fn(),
+          send: vi.fn(() => true),
         }),
-      },
-      reconnect: {
-        retries: 3,
-        delay: attempt => attempt * 100,
-        reconnectMinConnectedDuration: 1000,
-      },
-      schedule: (delay, run) => {
-        reconnectDelays.push(delay)
-        scheduled.push(run)
-        return { cancel: vi.fn(), run }
       },
       prepare: async ({ attempt }) => {
         if (attempt === 0) {
@@ -888,6 +878,16 @@ describe('better-ws client runtime', () => {
 
         await new Promise(resolve => setTimeout(resolve, 1000))
         throw new Error('retry prepare failed')
+      },
+      reconnect: {
+        delay: attempt => attempt * 100,
+        reconnectMinConnectedDuration: 1000,
+        retries: 3,
+      },
+      schedule: (delay, run) => {
+        reconnectDelays.push(delay)
+        scheduled.push(run)
+        return { cancel: vi.fn(), run }
       },
     })
 
@@ -940,13 +940,13 @@ describe('better-ws client runtime', () => {
   it('rejects a url client open error without scheduling reconnect when reconnect is disabled', async () => {
     const reconnectDelays: number[] = []
     const client = betterWs.createClient({
-      url: 'ws://localhost/ws',
-      wsConstructor: FakeWebSocket,
       reconnect: false,
       schedule: (delay, run) => {
         reconnectDelays.push(delay)
         return { cancel: vi.fn(), run }
       },
+      url: 'ws://localhost/ws',
+      wsConstructor: FakeWebSocket,
     })
 
     const connecting = client.connect()
@@ -973,12 +973,12 @@ describe('better-ws client runtime', () => {
           }
 
           return {
-            send: vi.fn(() => true),
             close: vi.fn(),
+            send: vi.fn(() => true),
           }
         },
       },
-      reconnect: { retries: 1, delay: attempt => attempt },
+      reconnect: { delay: attempt => attempt, retries: 1 },
       schedule: (delay, run) => {
         reconnectDelays.push(delay)
         scheduled.push(run)
@@ -1006,11 +1006,11 @@ describe('better-ws client runtime', () => {
         connect(events) {
           serverMessage = events.message
           return {
+            close: vi.fn(),
             send: (message) => {
               sent.push(message)
               return true
             },
-            close: vi.fn(),
           }
         },
       },
@@ -1038,16 +1038,16 @@ describe('better-ws client runtime', () => {
   it('rejects prepare when waitFor times out', async () => {
     const closed = vi.fn()
     const client = betterWs.createClient<string>({
-      reconnect: false,
       connector: {
         connect: () => ({
-          send: vi.fn(() => true),
           close: closed,
+          send: vi.fn(() => true),
         }),
       },
       async prepare(ctx) {
         await ctx.waitFor(message => message === 'never', { timeout: 1 })
       },
+      reconnect: false,
     })
 
     await expect(client.connect()).rejects.toThrow('Timed out waiting for message.')
@@ -1062,8 +1062,8 @@ describe('better-ws client runtime', () => {
     const client = betterWs.createClient<string>({
       connector: {
         connect: () => ({
-          send: vi.fn(() => true),
           close: closed,
+          send: vi.fn(() => true),
         }),
       },
       async prepare(ctx) {
@@ -1092,13 +1092,12 @@ describe('better-ws client runtime', () => {
     let resolvePrepare: (() => void) | undefined
     const states: string[] = []
     const client = betterWs.createClient<string>({
-      reconnect: false,
       connector: {
         connect: (events) => {
           closeTransport = () => events.close({ code: 1006, reason: 'lost' })
           return {
-            send: vi.fn(() => true),
             close: vi.fn(),
+            send: vi.fn(() => true),
           }
         },
       },
@@ -1107,6 +1106,7 @@ describe('better-ws client runtime', () => {
           resolvePrepare = resolve
         })
       },
+      reconnect: false,
     })
     client.onStateChange(({ state }) => states.push(state))
 
@@ -1132,8 +1132,8 @@ describe('better-ws client runtime', () => {
           const connectionIndex = connectCount++
           serverMessage = events.message
           return {
-            send: vi.fn(() => true),
             close: closed[connectionIndex],
+            send: vi.fn(() => true),
           }
         },
       },
@@ -1175,8 +1175,8 @@ describe('better-ws client runtime', () => {
           const connectionIndex = connectCount++
           serverMessage = events.message
           return {
-            send: vi.fn(() => true),
             close: closed[connectionIndex],
+            send: vi.fn(() => true),
           }
         },
       },
@@ -1217,19 +1217,19 @@ describe('better-ws client runtime', () => {
     const reconnects: number[] = []
     const closed = vi.fn()
     const client = betterWs.createClient<string>({
-      reconnect: { retries: 1, delay: attempt => attempt },
-      schedule: (delay, run) => {
-        reconnects.push(delay)
-        return { cancel: vi.fn(), run }
-      },
       connector: {
         connect: () => ({
-          send: vi.fn(() => true),
           close: closed,
+          send: vi.fn(() => true),
         }),
       },
       async prepare() {
         throw new Error('prepare failed')
+      },
+      reconnect: { delay: attempt => attempt, retries: 1 },
+      schedule: (delay, run) => {
+        reconnects.push(delay)
+        return { cancel: vi.fn(), run }
       },
     })
 
@@ -1244,15 +1244,10 @@ describe('better-ws client runtime', () => {
     let scheduledRun: (() => void) | undefined
     const prepareAttempts: Array<{ attempt: number, reconnecting: boolean }> = []
     const client = betterWs.createClient<string>({
-      reconnect: { retries: 1, delay: attempt => attempt },
-      schedule: (_delay, run) => {
-        scheduledRun = run
-        return { cancel: vi.fn() }
-      },
       connector: {
         connect: () => ({
-          send: vi.fn(() => true),
           close: vi.fn(),
+          send: vi.fn(() => true),
         }),
       },
       async prepare(ctx) {
@@ -1260,6 +1255,11 @@ describe('better-ws client runtime', () => {
         if (prepareAttempts.length === 1) {
           throw new Error('prepare failed')
         }
+      },
+      reconnect: { delay: attempt => attempt, retries: 1 },
+      schedule: (_delay, run) => {
+        scheduledRun = run
+        return { cancel: vi.fn() }
       },
     })
 
@@ -1280,22 +1280,22 @@ describe('better-ws client runtime', () => {
     const closed = vi.fn()
     let closeTransport: (() => void) | undefined
     const client = betterWs.createClient<string>({
-      reconnect: { retries: 2, delay: attempt => attempt },
-      schedule: (delay, run) => {
-        reconnects.push(delay)
-        return { cancel: vi.fn(), run }
-      },
       connector: {
         connect: (events) => {
           closeTransport = () => events.close({ code: 1006, reason: 'late close' })
           return {
-            send: vi.fn(() => true),
             close: closed,
+            send: vi.fn(() => true),
           }
         },
       },
       async prepare() {
         throw new Error('prepare failed')
+      },
+      reconnect: { delay: attempt => attempt, retries: 2 },
+      schedule: (delay, run) => {
+        reconnects.push(delay)
+        return { cancel: vi.fn(), run }
       },
     })
 
@@ -1309,7 +1309,7 @@ describe('better-ws client runtime', () => {
 
   it('blocks normal send before ready', async () => {
     const sent: string[] = []
-    let resolveConnection: ((connection: { send: (message: string) => void, close: () => void }) => void) | undefined
+    let resolveConnection: ((connection: { close: () => void, send: (message: string) => void }) => void) | undefined
     const client = betterWs.createClient<string>({
       connector: {
         connect: () => new Promise((resolve) => {
@@ -1323,8 +1323,8 @@ describe('better-ws client runtime', () => {
     expect(client.send('before-open')).toEqual({ ok: false, reason: 'closed' })
 
     resolveConnection?.({
-      send: message => sent.push(message),
       close: vi.fn(),
+      send: message => sent.push(message),
     })
     await connecting
 
@@ -1334,7 +1334,7 @@ describe('better-ws client runtime', () => {
 
   it('allows send during open before ready when requireReady is false', async () => {
     const sent: string[] = []
-    let resolveConnection: ((connection: { send: (message: string) => void, close: () => void }) => void) | undefined
+    let resolveConnection: ((connection: { close: () => void, send: (message: string) => void }) => void) | undefined
     const client = betterWs.createClient<string>({
       connector: {
         connect: () => new Promise((resolve) => {
@@ -1351,8 +1351,8 @@ describe('better-ws client runtime', () => {
 
     const connecting = client.connect()
     resolveConnection?.({
-      send: message => sent.push(message),
       close: vi.fn(),
+      send: message => sent.push(message),
     })
     await connecting
 
@@ -1368,11 +1368,11 @@ describe('better-ws client runtime', () => {
         connect: async ({ message }) => {
           adapterMessage = message
           return {
+            close: vi.fn(),
             send: (nextMessage) => {
               sent.push(nextMessage)
               return true
             },
-            close: vi.fn(),
           }
         },
       },
@@ -1398,28 +1398,28 @@ describe('better-ws client runtime', () => {
     const cancelHeartbeatTimeout = vi.fn()
     const scheduled: Array<{ delay: number, run: () => void }> = []
     const client = betterWs.createClient<string>({
-      heartbeat: {
-        mode: 'message',
-        interval: 10,
-        timeout: 20,
-        message: 'ping',
-        isResponse: message => message === 'pong',
-      },
-      schedule: (_delay, run) => {
-        scheduled.push({ delay: _delay, run })
-        return { cancel: scheduled.length === 2 ? cancelHeartbeatTimeout : vi.fn() }
-      },
       connector: {
         connect: (events) => {
           serverMessage = events.message
           return {
+            close: vi.fn(),
             send: (message) => {
               sent.push(message)
               return true
             },
-            close: vi.fn(),
           }
         },
+      },
+      heartbeat: {
+        interval: 10,
+        isResponse: message => message === 'pong',
+        message: 'ping',
+        mode: 'message',
+        timeout: 20,
+      },
+      schedule: (_delay, run) => {
+        scheduled.push({ delay: _delay, run })
+        return { cancel: scheduled.length === 2 ? cancelHeartbeatTimeout : vi.fn() }
       },
     })
 
@@ -1433,37 +1433,37 @@ describe('better-ws client runtime', () => {
   })
 
   it('does not let strict non-response messages defer heartbeat timeout', async () => {
-    const scheduled: Array<{ delay: number, run: () => void, cancel: ReturnType<typeof vi.fn> }> = []
+    const scheduled: Array<{ cancel: ReturnType<typeof vi.fn>, delay: number, run: () => void }> = []
     const reconnectErrors: unknown[] = []
     let serverMessage: ((message: string) => void) | undefined
     const client = betterWs.createClient<string>({
-      reconnect: {
-        retries: 1,
-        delay: (_attempt, error) => {
-          reconnectErrors.push(error)
-          return 10
-        },
-      },
-      heartbeat: {
-        mode: 'message',
-        interval: 1,
-        timeout: 5,
-        message: 'ping',
-        isResponse: message => message === 'pong',
-      },
-      schedule: (delay, run) => {
-        const task = { delay, run, cancel: vi.fn() }
-        scheduled.push(task)
-        return task
-      },
       connector: {
         connect: (events) => {
           serverMessage = events.message
           return {
-            send: vi.fn(() => true),
             close: vi.fn(),
+            send: vi.fn(() => true),
           }
         },
+      },
+      heartbeat: {
+        interval: 1,
+        isResponse: message => message === 'pong',
+        message: 'ping',
+        mode: 'message',
+        timeout: 5,
+      },
+      reconnect: {
+        delay: (_attempt, error) => {
+          reconnectErrors.push(error)
+          return 10
+        },
+        retries: 1,
+      },
+      schedule: (delay, run) => {
+        const task = { cancel: vi.fn(), delay, run }
+        scheduled.push(task)
+        return task
       },
     })
 
@@ -1488,24 +1488,24 @@ describe('better-ws client runtime', () => {
     const scheduled: Array<{ delay: number, run: () => void }> = []
     let serverMessage: ((message: string) => void) | undefined
     const client = betterWs.createClient<string>({
-      heartbeat: {
-        mode: 'message',
-        interval: 1,
-        timeout: 5,
-        message: 'ping',
-      },
-      schedule: (delay, run) => {
-        scheduled.push({ delay, run })
-        return { cancel: scheduled.length === 2 ? cancelHeartbeatTimeout : vi.fn() }
-      },
       connector: {
         connect: (events) => {
           serverMessage = events.message
           return {
-            send: vi.fn(() => true),
             close: vi.fn(),
+            send: vi.fn(() => true),
           }
         },
+      },
+      heartbeat: {
+        interval: 1,
+        message: 'ping',
+        mode: 'message',
+        timeout: 5,
+      },
+      schedule: (delay, run) => {
+        scheduled.push({ delay, run })
+        return { cancel: scheduled.length === 2 ? cancelHeartbeatTimeout : vi.fn() }
       },
     })
 
@@ -1519,31 +1519,31 @@ describe('better-ws client runtime', () => {
   })
 
   it('reconnects when heartbeat response times out', async () => {
-    const scheduled: Array<{ label: string, delay: number, run: () => void }> = []
+    const scheduled: Array<{ delay: number, label: string, run: () => void }> = []
     const closed = vi.fn()
     const client = betterWs.createClient<string>({
-      reconnect: { retries: 1, delay: 5 },
-      heartbeat: {
-        mode: 'message',
-        interval: 1,
-        timeout: 1,
-        message: 'ping',
-        isResponse: message => message === 'pong',
+      connector: {
+        connect: () => ({
+          close: closed,
+          send: vi.fn(() => true),
+        }),
       },
+      heartbeat: {
+        interval: 1,
+        isResponse: message => message === 'pong',
+        message: 'ping',
+        mode: 'message',
+        timeout: 1,
+      },
+      reconnect: { delay: 5, retries: 1 },
       schedule: (delay, run) => {
         const label = scheduled.length === 0
           ? 'heartbeat interval'
           : scheduled.length === 1
             ? 'heartbeat timeout'
             : 'reconnect delay'
-        scheduled.push({ label, delay, run })
+        scheduled.push({ delay, label, run })
         return { cancel: vi.fn() }
-      },
-      connector: {
-        connect: () => ({
-          send: vi.fn(() => true),
-          close: closed,
-        }),
       },
     })
 
@@ -1554,9 +1554,9 @@ describe('better-ws client runtime', () => {
     expect(closed).toHaveBeenCalledOnce()
     expect(client.state).toBe('reconnecting')
     expect(scheduled).toMatchObject([
-      { label: 'heartbeat interval', delay: 1 },
-      { label: 'heartbeat timeout', delay: 1 },
-      { label: 'reconnect delay', delay: 5 },
+      { delay: 1, label: 'heartbeat interval' },
+      { delay: 1, label: 'heartbeat timeout' },
+      { delay: 5, label: 'reconnect delay' },
     ])
   })
 
@@ -1564,14 +1564,20 @@ describe('better-ws client runtime', () => {
     const reconnects: number[] = []
     const scheduled: Array<{ label: string, run: () => void }> = []
     const client = betterWs.createClient<string>({
-      reconnect: { retries: 2, delay: attempt => attempt },
-      heartbeat: {
-        mode: 'message',
-        interval: 1,
-        timeout: 1,
-        message: 'ping',
-        isResponse: message => message === 'pong',
+      connector: {
+        connect: ({ close }) => ({
+          close: () => close({ code: 1006, reason: 'heartbeat timeout' }),
+          send: vi.fn(() => true),
+        }),
       },
+      heartbeat: {
+        interval: 1,
+        isResponse: message => message === 'pong',
+        message: 'ping',
+        mode: 'message',
+        timeout: 1,
+      },
+      reconnect: { delay: attempt => attempt, retries: 2 },
       schedule: (delay, run) => {
         if (scheduled.length < 2) {
           scheduled.push({
@@ -1583,12 +1589,6 @@ describe('better-ws client runtime', () => {
           reconnects.push(delay)
         }
         return { cancel: vi.fn() }
-      },
-      connector: {
-        connect: ({ close }) => ({
-          send: vi.fn(() => true),
-          close: () => close({ code: 1006, reason: 'heartbeat timeout' }),
-        }),
       },
     })
 
@@ -1604,20 +1604,20 @@ describe('better-ws client runtime', () => {
     const ping = vi.fn(() => true)
     let scheduled: (() => void) | undefined
     const client = betterWs.createClient<string>({
+      connector: {
+        connect: () => ({
+          close: vi.fn(),
+          ping,
+          send: vi.fn(() => true),
+        }),
+      },
       heartbeat: {
-        mode: 'auto',
         interval: 10,
+        mode: 'auto',
       },
       schedule: (_delay, run) => {
         scheduled = run
         return { cancel: vi.fn() }
-      },
-      connector: {
-        connect: () => ({
-          send: vi.fn(() => true),
-          ping,
-          close: vi.fn(),
-        }),
       },
     })
 
@@ -1632,23 +1632,23 @@ describe('better-ws client runtime', () => {
     const sent: string[] = []
     let scheduled: (() => void) | undefined
     const client = betterWs.createClient<string>({
-      heartbeat: {
-        mode: 'auto',
-        interval: 10,
-        message: 'ping',
-      },
-      schedule: (_delay, run) => {
-        scheduled = run
-        return { cancel: vi.fn() }
-      },
       connector: {
         connect: () => ({
+          close: vi.fn(),
           send: (message) => {
             sent.push(message)
             return true
           },
-          close: vi.fn(),
         }),
+      },
+      heartbeat: {
+        interval: 10,
+        message: 'ping',
+        mode: 'auto',
+      },
+      schedule: (_delay, run) => {
+        scheduled = run
+        return { cancel: vi.fn() }
       },
     })
 
@@ -1663,26 +1663,26 @@ describe('better-ws client runtime', () => {
     const reconnectErrors: unknown[] = []
     let scheduled: (() => void) | undefined
     const client = betterWs.createClient<string>({
+      connector: {
+        connect: () => ({
+          close: vi.fn(),
+          send: vi.fn(() => true),
+        }),
+      },
+      heartbeat: {
+        interval: 1,
+        mode: 'native',
+      },
       reconnect: {
-        retries: 1,
         delay: (_attempt, error) => {
           reconnectErrors.push(error)
           return 10
         },
-      },
-      heartbeat: {
-        mode: 'native',
-        interval: 1,
+        retries: 1,
       },
       schedule: (_delay, run) => {
         scheduled = run
         return { cancel: vi.fn() }
-      },
-      connector: {
-        connect: () => ({
-          send: vi.fn(() => true),
-          close: vi.fn(),
-        }),
       },
     })
 
@@ -1698,26 +1698,26 @@ describe('better-ws client runtime', () => {
     const reconnectErrors: unknown[] = []
     let scheduled: (() => void) | undefined
     const client = betterWs.createClient<string>({
+      connector: {
+        connect: () => ({
+          close: vi.fn(),
+          send: vi.fn(() => true),
+        }),
+      },
+      heartbeat: {
+        interval: 1,
+        mode: 'message',
+      },
       reconnect: {
-        retries: 1,
         delay: (_attempt, error) => {
           reconnectErrors.push(error)
           return 10
         },
-      },
-      heartbeat: {
-        mode: 'message',
-        interval: 1,
+        retries: 1,
       },
       schedule: (_delay, run) => {
         scheduled = run
         return { cancel: vi.fn() }
-      },
-      connector: {
-        connect: () => ({
-          send: vi.fn(() => true),
-          close: vi.fn(),
-        }),
       },
     })
 
@@ -1735,12 +1735,18 @@ describe('better-ws client runtime', () => {
     let scheduledCount = 0
     const closed = vi.fn()
     const client = betterWs.createClient<string>({
+      connector: {
+        connect: () => ({
+          close: closed,
+          send: vi.fn(() => true),
+        }),
+      },
       heartbeat: {
-        mode: 'message',
         interval: 1,
-        timeout: 1,
-        message: 'ping',
         isResponse: message => message === 'pong',
+        message: 'ping',
+        mode: 'message',
+        timeout: 1,
       },
       schedule: (_delay, run) => {
         scheduledCount += 1
@@ -1748,12 +1754,6 @@ describe('better-ws client runtime', () => {
           cancel: scheduledCount === 1 ? cancelHeartbeatInterval : cancelHeartbeatTimeout,
           run,
         }
-      },
-      connector: {
-        connect: () => ({
-          send: vi.fn(() => true),
-          close: closed,
-        }),
       },
     })
 
@@ -1771,26 +1771,26 @@ describe('better-ws client runtime', () => {
     const closed = [vi.fn(), vi.fn()]
     let connectCount = 0
     const client = betterWs.createClient<string>({
-      reconnect: { retries: 1, delay: 5 },
-      heartbeat: {
-        mode: 'message',
-        interval: 1,
-        timeout: 1,
-        message: 'ping',
-        isResponse: message => message === 'pong',
-      },
-      schedule: (delay, run) => {
-        scheduled.push({ delay, run })
-        return { cancel: vi.fn() }
-      },
       connector: {
         connect: () => {
           const connectionIndex = connectCount++
           return {
-            send: vi.fn(() => true),
             close: closed[connectionIndex],
+            send: vi.fn(() => true),
           }
         },
+      },
+      heartbeat: {
+        interval: 1,
+        isResponse: message => message === 'pong',
+        message: 'ping',
+        mode: 'message',
+        timeout: 1,
+      },
+      reconnect: { delay: 5, retries: 1 },
+      schedule: (delay, run) => {
+        scheduled.push({ delay, run })
+        return { cancel: vi.fn() }
       },
     })
 
@@ -1809,19 +1809,19 @@ describe('better-ws client runtime', () => {
     const reconnects: number[] = []
     let closeHandler: ((details?: { code?: number, reason?: string }) => void) | undefined
     const client = betterWs.createClient<string>({
-      reconnect: { retries: 2, delay: attempt => attempt * 10 },
-      schedule: (delay, run) => {
-        reconnects.push(delay)
-        return { cancel: vi.fn(), run }
-      },
       connector: {
         connect: async ({ close }) => {
           closeHandler = close
           return {
-            send: vi.fn(() => true),
             close: vi.fn(),
+            send: vi.fn(() => true),
           }
         },
+      },
+      reconnect: { delay: attempt => attempt * 10, retries: 2 },
+      schedule: (delay, run) => {
+        reconnects.push(delay)
+        return { cancel: vi.fn(), run }
       },
     })
 
@@ -1841,12 +1841,12 @@ describe('better-ws client runtime', () => {
         connect(events) {
           emitError = events.error
           return {
-            send: vi.fn(() => true),
             close,
+            send: vi.fn(() => true),
           }
         },
       },
-      reconnect: { retries: 1, delay: attempt => attempt },
+      reconnect: { delay: attempt => attempt, retries: 1 },
       schedule: (delay, run) => {
         reconnects.push(delay)
         return { cancel: vi.fn(), run }
@@ -1866,19 +1866,19 @@ describe('better-ws client runtime', () => {
     let closeHandler: (() => void) | undefined
     let connects = 0
     const client = betterWs.createClient<string>({
-      schedule: (delay, run) => {
-        reconnectDelays.push(delay)
-        return { cancel: vi.fn(), run }
-      },
       connector: {
         connect: ({ close }) => {
           connects += 1
           closeHandler = close
           return {
-            send: vi.fn(() => true),
             close: vi.fn(),
+            send: vi.fn(() => true),
           }
         },
+      },
+      schedule: (delay, run) => {
+        reconnectDelays.push(delay)
+        return { cancel: vi.fn(), run }
       },
     })
 
@@ -1894,19 +1894,19 @@ describe('better-ws client runtime', () => {
     const onFailed = vi.fn()
     let closeHandler: (() => void) | undefined
     const client = betterWs.createClient<string>({
-      reconnect: {
-        retries: attempt => attempt < 1,
-        delay: 1,
-        onFailed,
-      },
       connector: {
         connect: ({ close }) => {
           closeHandler = close
           return {
-            send: vi.fn(() => true),
             close: vi.fn(),
+            send: vi.fn(() => true),
           }
         },
+      },
+      reconnect: {
+        delay: 1,
+        onFailed,
+        retries: attempt => attempt < 1,
       },
     })
 
@@ -1924,12 +1924,6 @@ describe('better-ws client runtime', () => {
     let closeHandler: (() => void) | undefined
     let connects = 0
     const client = betterWs.createClient<string>({
-      reconnect: { retries: 2, delay: attempt => attempt },
-      schedule: (delay, run) => {
-        reconnectDelays.push(delay)
-        scheduledRuns.push(run)
-        return { cancel: vi.fn(), run }
-      },
       connector: {
         connect: ({ close }) => {
           connects += 1
@@ -1939,10 +1933,16 @@ describe('better-ws client runtime', () => {
 
           closeHandler = close
           return {
-            send: vi.fn(() => true),
             close: vi.fn(),
+            send: vi.fn(() => true),
           }
         },
+      },
+      reconnect: { delay: attempt => attempt, retries: 2 },
+      schedule: (delay, run) => {
+        reconnectDelays.push(delay)
+        scheduledRuns.push(run)
+        return { cancel: vi.fn(), run }
       },
     })
 
@@ -1962,19 +1962,19 @@ describe('better-ws client runtime', () => {
     const scheduledRuns: Array<() => void> = []
     let closeHandler: (() => void) | undefined
     const client = betterWs.createClient<string>({
-      reconnect: { retries: 1, delay: 1 },
-      schedule: (_delay, run) => {
-        scheduledRuns.push(run)
-        return { cancel: vi.fn(), run }
-      },
       connector: {
         connect: ({ close }) => {
           closeHandler = close
           return {
-            send: vi.fn(() => true),
             close: vi.fn(),
+            send: vi.fn(() => true),
           }
         },
+      },
+      reconnect: { delay: 1, retries: 1 },
+      schedule: (_delay, run) => {
+        scheduledRuns.push(run)
+        return { cancel: vi.fn(), run }
       },
     })
     client.onStateChange(({ state }) => states.push(state))
@@ -2001,26 +2001,26 @@ describe('better-ws client runtime', () => {
     const closeHandlers: Array<() => void> = []
     const errorHandlers: Array<(error: unknown) => void> = []
     const client = betterWs.createClient<string>({
-      reconnect: {
-        retries: 2,
-        delay: (_attempt, error) => {
-          reconnectErrors.push(error)
-          return 1
-        },
-      },
-      schedule: (_delay, run) => {
-        scheduledRuns.push(run)
-        return { cancel: vi.fn(), run }
-      },
       connector: {
         connect: ({ close, error }) => {
           closeHandlers.push(close)
           errorHandlers.push(error)
           return {
-            send: vi.fn(() => true),
             close: vi.fn(),
+            send: vi.fn(() => true),
           }
         },
+      },
+      reconnect: {
+        delay: (_attempt, error) => {
+          reconnectErrors.push(error)
+          return 1
+        },
+        retries: 2,
+      },
+      schedule: (_delay, run) => {
+        scheduledRuns.push(run)
+        return { cancel: vi.fn(), run }
       },
     })
 
@@ -2044,20 +2044,20 @@ describe('better-ws client runtime', () => {
     const onFailed = vi.fn()
     let closeHandler: (() => void) | undefined
     const client = betterWs.createClient<string>({
-      reconnect: {
-        retries: () => {
-          throw policyError
-        },
-        delay: 1,
-        onFailed,
-      },
       connector: {
         connect: ({ close }) => {
           closeHandler = close
           return {
-            send: vi.fn(() => true),
             close: vi.fn(),
+            send: vi.fn(() => true),
           }
+        },
+      },
+      reconnect: {
+        delay: 1,
+        onFailed,
+        retries: () => {
+          throw policyError
         },
       },
     })
@@ -2075,21 +2075,21 @@ describe('better-ws client runtime', () => {
     const onFailed = vi.fn()
     let closeHandler: (() => void) | undefined
     const client = betterWs.createClient<string>({
-      reconnect: {
-        retries: 1,
-        delay: () => {
-          throw policyError
-        },
-        onFailed,
-      },
       connector: {
         connect: ({ close }) => {
           closeHandler = close
           return {
-            send: vi.fn(() => true),
             close: vi.fn(),
+            send: vi.fn(() => true),
           }
         },
+      },
+      reconnect: {
+        delay: () => {
+          throw policyError
+        },
+        onFailed,
+        retries: 1,
       },
     })
 
@@ -2107,24 +2107,24 @@ describe('better-ws client runtime', () => {
     const connectionErrors: Array<(error: unknown) => void> = []
     let currentCloseHandler: (() => void) | undefined
     const client = betterWs.createClient<string>({
-      reconnect: {
-        retries: 1,
-        delay: (_attempt, error) => {
-          reconnectErrors.push(error)
-          return 1
-        },
-      },
-      schedule: (_delay, run) => ({ cancel: vi.fn(), run }),
       connector: {
         connect: ({ close, error }) => {
           connectionErrors.push(error)
           currentCloseHandler = close
           return {
-            send: vi.fn(() => true),
             close: vi.fn(),
+            send: vi.fn(() => true),
           }
         },
       },
+      reconnect: {
+        delay: (_attempt, error) => {
+          reconnectErrors.push(error)
+          return 1
+        },
+        retries: 1,
+      },
+      schedule: (_delay, run) => ({ cancel: vi.fn(), run }),
     })
 
     // ROOT CAUSE:
@@ -2146,19 +2146,19 @@ describe('better-ws client runtime', () => {
   it('schedules one reconnect when prepare failure close emits synchronously', async () => {
     const reconnects: number[] = []
     const client = betterWs.createClient<string>({
-      reconnect: { retries: 2, delay: attempt => attempt },
-      schedule: (delay, run) => {
-        reconnects.push(delay)
-        return { cancel: vi.fn(), run }
-      },
       connector: {
         connect: ({ close }) => ({
-          send: vi.fn(() => true),
           close: () => close({ code: 1006, reason: 'prepare close' }),
+          send: vi.fn(() => true),
         }),
       },
       async prepare() {
         throw new Error('prepare failed')
+      },
+      reconnect: { delay: attempt => attempt, retries: 2 },
+      schedule: (delay, run) => {
+        reconnects.push(delay)
+        return { cancel: vi.fn(), run }
       },
     })
 
@@ -2176,15 +2176,15 @@ describe('better-ws client runtime', () => {
   it('returns to closed when a connector fails to open with reconnect disabled', async () => {
     const reconnectDelays: number[] = []
     const client = betterWs.createClient<string>({
-      reconnect: false,
-      schedule: (delay, run) => {
-        reconnectDelays.push(delay)
-        return { cancel: vi.fn(), run }
-      },
       connector: {
         connect: async () => {
           throw new Error('connect failed')
         },
+      },
+      reconnect: false,
+      schedule: (delay, run) => {
+        reconnectDelays.push(delay)
+        return { cancel: vi.fn(), run }
       },
     })
 
@@ -2195,10 +2195,10 @@ describe('better-ws client runtime', () => {
   })
 
   it('keeps a client closed when a pending connect resolves after manual close', async () => {
-    let resolveConnection: ((connection: { send: (message: string) => boolean, close: () => void }) => void) | undefined
+    let resolveConnection: ((connection: { close: () => void, send: (message: string) => boolean }) => void) | undefined
     const connection = {
-      send: vi.fn(() => true),
       close: vi.fn(),
+      send: vi.fn(() => true),
     }
     const client = betterWs.createClient<string>({
       connector: {
@@ -2221,12 +2221,12 @@ describe('better-ws client runtime', () => {
 
 describe('better-ws server control messages', () => {
   it('routes heartbeat control messages to onPing and onPong without business onMessage', () => {
-    type Message = { type: 'ping' } | { type: 'pong' } | { type: 'data', value: string }
+    type Message = { type: 'data', value: string } | { type: 'ping' } | { type: 'pong' }
     const server = createServer<Message>({
       heartbeat: {
-        message: () => ({ type: 'ping' }),
         isPing: message => message.type === 'ping',
         isPong: message => message.type === 'pong',
+        message: () => ({ type: 'ping' }),
       },
     })
     const messages: Message[] = []
@@ -2256,13 +2256,13 @@ describe('better-ws server control messages', () => {
 describe('better-ws server lifecycle procedures', () => {
   it('passes peers and previous snapshot to peer open handlers', () => {
     const server = createServer<string, { ready: boolean }>()
-    const opens: Array<{ id: string, previousState?: { ready: boolean }, peerCount: number }> = []
+    const opens: Array<{ id: string, peerCount: number, previousState?: { ready: boolean } }> = []
 
-    server.onPeerOpen(({ peer, previous, peers }) => {
+    server.onPeerOpen(({ peer, peers, previous }) => {
       opens.push({
         id: peer.id,
-        previousState: previous?.state,
         peerCount: peers.list().length,
+        previousState: previous?.state,
       })
     })
 
@@ -2270,8 +2270,8 @@ describe('better-ws server lifecycle procedures', () => {
     server.peers.accept({ id: 'peer-1', send: vi.fn(() => true) })
 
     expect(opens).toEqual([
-      { id: 'peer-1', previousState: undefined, peerCount: 1 },
-      { id: 'peer-1', previousState: { ready: false }, peerCount: 1 },
+      { id: 'peer-1', peerCount: 1, previousState: undefined },
+      { id: 'peer-1', peerCount: 1, previousState: { ready: false } },
     ])
   })
 
@@ -2292,36 +2292,36 @@ describe('better-ws server lifecycle procedures', () => {
 
   it('emits peer close for direct close, manager close, liveness, and replacement', () => {
     const server = createServer<string>({
-      peers: {
-        unhealthyTimeout: 10,
-        closeTimeout: 10,
-      },
       heartbeat: {
         timeout: 10,
       },
+      peers: {
+        closeTimeout: 10,
+        unhealthyTimeout: 10,
+      },
     })
-    const closed: Array<{ peerId: string, code?: number, reason?: string }> = []
-    server.onPeerClose(({ peerId, details }) => {
-      closed.push({ peerId, code: details?.code, reason: details?.reason })
+    const closed: Array<{ code?: number, peerId: string, reason?: string }> = []
+    server.onPeerClose(({ details, peerId }) => {
+      closed.push({ code: details?.code, peerId, reason: details?.reason })
     })
 
-    const direct = server.peers.accept({ id: 'direct', send: vi.fn(() => true), close: vi.fn() }).peer
+    const direct = server.peers.accept({ close: vi.fn(), id: 'direct', send: vi.fn(() => true) }).peer
     direct.close(4000, 'direct close')
 
-    server.peers.accept({ id: 'manager', send: vi.fn(() => true), close: vi.fn() })
+    server.peers.accept({ close: vi.fn(), id: 'manager', send: vi.fn(() => true) })
     server.peers.close('manager', 4001, 'manager close')
 
-    server.peers.accept({ id: 'liveness', send: vi.fn(() => true), close: vi.fn() })
+    server.peers.accept({ close: vi.fn(), id: 'liveness', send: vi.fn(() => true) })
     server.checkLiveness(Date.now() + 10)
 
-    server.peers.accept({ id: 'replace', send: vi.fn(() => true), close: vi.fn() })
-    server.peers.accept({ id: 'replace', send: vi.fn(() => true), close: vi.fn() })
+    server.peers.accept({ close: vi.fn(), id: 'replace', send: vi.fn(() => true) })
+    server.peers.accept({ close: vi.fn(), id: 'replace', send: vi.fn(() => true) })
 
     expect(closed).toEqual([
-      { peerId: 'direct', code: 4000, reason: 'direct close' },
-      { peerId: 'manager', code: 4001, reason: 'manager close' },
-      { peerId: 'liveness', code: undefined, reason: undefined },
-      { peerId: 'replace', code: undefined, reason: undefined },
+      { code: 4000, peerId: 'direct', reason: 'direct close' },
+      { code: 4001, peerId: 'manager', reason: 'manager close' },
+      { code: undefined, peerId: 'liveness', reason: undefined },
+      { code: undefined, peerId: 'replace', reason: undefined },
     ])
   })
 
@@ -2442,11 +2442,11 @@ describe('better-ws integrated runtime', () => {
   it('connects a client connector to a server peer and exchanges messages both ways', async () => {
     const server = createServer<string>()
     const clientReceived: string[] = []
-    const serverReceived: Array<{ peerId: string, message: string }> = []
+    const serverReceived: Array<{ message: string, peerId: string }> = []
     let serverPeerId: string | undefined
 
-    server.onMessage(({ peer, message }) => {
-      serverReceived.push({ peerId: peer.id, message })
+    server.onMessage(({ message, peer }) => {
+      serverReceived.push({ message, peerId: peer.id })
       peer.send(`ack:${message}`)
     })
 
@@ -2463,8 +2463,8 @@ describe('better-ws integrated runtime', () => {
           serverPeerId = peer.id
 
           return {
-            send: clientMessage => peer.receive(clientMessage),
             close: () => server.remove(peer.id),
+            send: clientMessage => peer.receive(clientMessage),
           }
         },
       },
@@ -2479,7 +2479,7 @@ describe('better-ws integrated runtime', () => {
     expect(sendResult).toEqual({ ok: true })
     expect(serverPeerId).toBe('client-1')
     expect(server.peers.has('client-1')).toBe(true)
-    expect(serverReceived).toEqual([{ peerId: 'client-1', message: 'hello' }])
+    expect(serverReceived).toEqual([{ message: 'hello', peerId: 'client-1' }])
     expect(clientReceived).toEqual(['ack:hello'])
 
     client.close()

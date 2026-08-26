@@ -18,9 +18,9 @@ describe('useLlmToolsetPromptsStore', () => {
 
     store.registerToolsetPrompts('plugin-tools', [
       {
+        content: 'Do not pass fen or pgn when mode is "new".',
         id: 'airi-plugin-game-chess.prompt',
         title: 'Chess Plugin Guidance',
-        content: 'Do not pass fen or pgn when mode is "new".',
       },
     ])
 

@@ -27,23 +27,9 @@ const SCORE = 1_000
  * eating ready food only equips+consumes in place (no pathfinding), so it does not fight auto-follow.
  */
 export const autoEatBehavior: ReflexBehavior = {
+  cooldownMs: COOLDOWN_MS,
   id: 'auto-eat',
   modes: ['idle', 'social', 'work', 'wander', 'alert'],
-  cooldownMs: COOLDOWN_MS,
-  when: (ctx, api) => {
-    if (ctx.self.health > LOW_HEALTH_THRESHOLD)
-      return false
-    if (ctx.self.food >= REGEN_FOOD_THRESHOLD)
-      return false
-    // Don't eat mid-fight: consuming food equips it to the hand, dropping the weapon. The defend
-    // reflex owns this window; the conscious brain still decides flee-vs-fight via low_health.
-    if (ctx.autonomy.reflexEngaged)
-      return false
-    if (!api)
-      return false
-    return selectReadyFood(api.bot.bot) !== null
-  },
-  score: () => SCORE,
   run: async (api) => {
     const bot = api.bot.bot
     const item = selectReadyFood(bot)
@@ -62,5 +48,19 @@ export const autoEatBehavior: ReflexBehavior = {
     finally {
       api.context.updateAutonomy({ reflexEngaged: false })
     }
+  },
+  score: () => SCORE,
+  when: (ctx, api) => {
+    if (ctx.self.health > LOW_HEALTH_THRESHOLD)
+      return false
+    if (ctx.self.food >= REGEN_FOOD_THRESHOLD)
+      return false
+    // Don't eat mid-fight: consuming food equips it to the hand, dropping the weapon. The defend
+    // reflex owns this window; the conscious brain still decides flee-vs-fight via low_health.
+    if (ctx.autonomy.reflexEngaged)
+      return false
+    if (!api)
+      return false
+    return selectReadyFood(api.bot.bot) !== null
   },
 }

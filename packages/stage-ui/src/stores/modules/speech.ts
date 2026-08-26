@@ -18,20 +18,10 @@ import { getDefaultSpeechModel, getDefaultStreamingModel, OFFICIAL_SPEECH_PROVID
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 
-export function toSignedPercent(value: number): string {
-  if (value > 0)
-    return `+${value}%`
-  if (value < 0)
-    return `-${Math.abs(value)}%`
-  return '0%'
-}
-
-interface SpeechInputOptions {
-  text: string
-  voice: VoiceInfo
-  providerConfig?: Record<string, unknown>
-  forceSSML?: boolean
-  supportsSSML?: boolean
+interface SpeechAnalytics {
+  source: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+  trigger: 'auto' | 'manual'
+  voice_type?: 'custom_configured' | 'official_default' | 'official_selected' | 'voice_pack'
 }
 
 interface SpeechInput {
@@ -39,10 +29,20 @@ interface SpeechInput {
   providerConfig: Record<string, unknown>
 }
 
-interface SpeechAnalytics {
-  trigger: 'auto' | 'manual'
-  source: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
-  voice_type?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack'
+interface SpeechInputOptions {
+  forceSSML?: boolean
+  providerConfig?: Record<string, unknown>
+  supportsSSML?: boolean
+  text: string
+  voice: VoiceInfo
+}
+
+export function toSignedPercent(value: number): string {
+  if (value > 0)
+    return `+${value}%`
+  if (value < 0)
+    return `-${Math.abs(value)}%`
+  return '0%'
 }
 
 export const useSpeechStore = defineStore('speech', () => {
@@ -59,13 +59,13 @@ export const useSpeechStore = defineStore('speech', () => {
   const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', 'speech-noop', persistenceOptions)
   const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', '', persistenceOptions)
   const activeSpeechVoiceId = useLocalStorageManualReset<string>('settings/speech/voice', '', persistenceOptions)
-  const activeSpeechVoice = refManualReset<VoiceInfo | undefined>(undefined)
+  const activeSpeechVoice = refManualReset<undefined | VoiceInfo>(undefined)
 
   const pitch = useLocalStorageManualReset<number>('settings/speech/pitch', 0, persistenceOptions)
   const rate = useLocalStorageManualReset<number>('settings/speech/rate', 1, persistenceOptions)
   const ssmlEnabled = useLocalStorageManualReset<boolean>('settings/speech/ssml-enabled', false, persistenceOptions)
   const isLoadingSpeechProviderVoices = refManualReset<boolean>(false)
-  const speechProviderError = refManualReset<string | null>(null)
+  const speechProviderError = refManualReset<null | string>(null)
   const availableVoices = refManualReset<Record<string, VoiceInfo[]>>(() => ({}))
   const modelSearchQuery = refManualReset<string>('')
 
@@ -108,7 +108,7 @@ export const useSpeechStore = defineStore('speech', () => {
     if (activeSpeechProvider.value === 'alibaba-cloud-model-studio' && activeSpeechModel.value === 'cosyvoice-v2') {
       return true
     }
-    return ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(activeSpeechProvider.value)
+    return ['azure-speech', 'elevenlabs', 'microsoft-speech'].includes(activeSpeechProvider.value)
   })
 
   async function loadVoicesForProvider(provider: string, model?: string) {
@@ -231,16 +231,16 @@ export const useSpeechStore = defineStore('speech', () => {
     if (!voiceId)
       return
 
-    let nextVoice: VoiceInfo | undefined
+    let nextVoice: undefined | VoiceInfo
     if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
       nextVoice = {
-        id: voiceId,
-        name: voiceId,
         description: voiceId,
-        previewURL: '',
-        languages: [{ code: 'en', title: 'English' }],
-        provider: activeSpeechProvider.value,
         gender: 'neutral',
+        id: voiceId,
+        languages: [{ code: 'en', title: 'English' }],
+        name: voiceId,
+        previewURL: '',
+        provider: activeSpeechProvider.value,
       }
     }
     else {
@@ -252,8 +252,8 @@ export const useSpeechStore = defineStore('speech', () => {
 
     activeSpeechVoice.value = nextVoice
   }, {
-    immediate: true,
     deep: true,
+    immediate: true,
   })
 
   /**
@@ -273,8 +273,8 @@ export const useSpeechStore = defineStore('speech', () => {
     voice: string,
     providerConfig: Record<string, any> = {},
     analytics: SpeechAnalytics = {
-      trigger: 'manual',
       source: 'manual_preview',
+      trigger: 'manual',
       voice_type: resolveVoiceType(voice),
     },
   ): Promise<ArrayBuffer> {
@@ -307,7 +307,7 @@ export const useSpeechStore = defineStore('speech', () => {
   /**
    * Classifies the active speech voice before forwarding analytics to the server.
    */
-  function resolveVoiceType(voiceId: string): 'official_selected' | 'custom_configured' {
+  function resolveVoiceType(voiceId: string): 'custom_configured' | 'official_selected' {
     const catalogVoice = availableVoices.value[activeSpeechProvider.value]?.some(voice => voice.id === voiceId)
     return activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID && catalogVoice ? 'official_selected' : 'custom_configured'
   }
@@ -337,8 +337,8 @@ export const useSpeechStore = defineStore('speech', () => {
 
     const hasProsody = Object.values(prosody).some(value => value != null)
 
-    const ssmlXast = x('speak', { 'version': '1.0', 'xmlns': 'http://www.w3.org/2001/10/synthesis', 'xml:lang': voice.languages[0]?.code || 'en-US' }, [
-      x('voice', { name: voice.id, gender: voice.gender || 'neutral' }, [
+    const ssmlXast = x('speak', { 'version': '1.0', 'xml:lang': voice.languages[0]?.code || 'en-US', 'xmlns': 'http://www.w3.org/2001/10/synthesis' }, [
+      x('voice', { gender: voice.gender || 'neutral', name: voice.id }, [
         hasProsody
           ? x('prosody', {
               pitch: prosody.pitch,
@@ -401,38 +401,38 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 
   return {
-    // State
-    configured,
-    activeSpeechProvider,
+    activeProviderModelError,
     activeSpeechModel,
+    activeSpeechProvider,
     activeSpeechVoice,
     activeSpeechVoiceId,
-    pitch,
-    rate,
-    ssmlEnabled,
-    isLoadingSpeechProviderVoices,
-    speechProviderError,
-    availableVoices,
-    modelSearchQuery,
-
     // Computed
     availableSpeechProvidersMetadata,
-    supportsSSML,
-    supportsModelListing,
-    providerModels,
-    isLoadingActiveProviderModels,
-    activeProviderModelError,
+    availableVoices,
+    // State
+    configured,
+    ensureActiveSpeechModel,
+    ensureStreamingDefaultModel,
     filteredModels,
+    generateSSML,
 
+    getVoicesForProvider,
+    isLoadingActiveProviderModels,
+    isLoadingSpeechProviderVoices,
+    loadVoicesForProvider,
+    modelSearchQuery,
+    pitch,
+    providerModels,
+
+    rate,
+    resetState,
+    resolveSpeechInput,
     // Actions
     speech,
-    loadVoicesForProvider,
-    getVoicesForProvider,
-    ensureStreamingDefaultModel,
-    ensureActiveSpeechModel,
-    generateSSML,
-    resolveSpeechInput,
-    resetState,
+    speechProviderError,
+    ssmlEnabled,
+    supportsModelListing,
+    supportsSSML,
   }
 }, {
   synced: {

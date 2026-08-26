@@ -1,18 +1,6 @@
 import type { CommonRequestOptions } from '@xsai/shared'
 import type { StreamTranscriptionDelta, StreamTranscriptionResult } from '@xsai/stream-transcription'
 
-type AudioChunk = ArrayBuffer | ArrayBufferView
-
-/** A complete transcript snapshot that replaces earlier volatile text. */
-export interface StreamTranscriptionSnapshot {
-  durationMilliseconds: number
-  isFinal: boolean
-  locale: string
-  startMilliseconds: number
-  text: string
-  type: 'transcript.text.snapshot'
-}
-
 export type AIRIStreamTranscriptionDelta = StreamTranscriptionDelta | StreamTranscriptionSnapshot
 
 /** xsAI stream result with AIRI's replaceable snapshot event. */
@@ -25,87 +13,23 @@ export interface StreamTranscriptionOptions {
   abortSignal?: AbortSignal
   baseURL?: CommonRequestOptions['baseURL']
   fetch?: CommonRequestOptions['fetch']
-  headers?: HeadersInit
   file?: Blob
+  headers?: HeadersInit
   inputAudioStream?: ReadableStream<AudioChunk>
   inputStream?: ReadableStream<AudioChunk>
 }
 
-function createDeferred<T>() {
-  let resolve!: (value: T | PromiseLike<T>) => void
-  let reject!: (reason?: unknown) => void
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res
-    reject = rej
-  })
-
-  return { promise, resolve, reject }
+/** A complete transcript snapshot that replaces earlier volatile text. */
+export interface StreamTranscriptionSnapshot {
+  durationMilliseconds: number
+  isFinal: boolean
+  locale: string
+  startMilliseconds: number
+  text: string
+  type: 'transcript.text.snapshot'
 }
 
-/**
- * Normalizes an audio chunk for a streaming fetch body.
- *
- * @example
- * normalizeAudioChunk(new Uint8Array([1, 2]).buffer)
- * // => Uint8Array([1, 2])
- */
-function normalizeAudioChunk(chunk: AudioChunk): Uint8Array {
-  if (ArrayBuffer.isView(chunk))
-    return new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength)
-
-  return new Uint8Array(chunk)
-}
-
-function resolveAudioStream(options: StreamTranscriptionOptions): ReadableStream<Uint8Array> {
-  const stream = options.inputAudioStream ?? options.inputStream ?? options.file?.stream()
-  if (!stream)
-    throw new TypeError('Audio stream or file is required for streaming transcription.')
-
-  return (stream as ReadableStream<AudioChunk>).pipeThrough(new TransformStream<AudioChunk, Uint8Array>({
-    transform(chunk, controller) {
-      controller.enqueue(normalizeAudioChunk(chunk))
-    },
-  }))
-}
-
-function parseSSELine(line: string): AIRIStreamTranscriptionDelta | undefined {
-  if (!line || !line.startsWith('data:'))
-    return undefined
-
-  const content = line.slice('data:'.length)
-  const data = content.startsWith(' ') ? content.slice(1) : content
-  if (!data)
-    return undefined
-
-  return JSON.parse(data) as AIRIStreamTranscriptionDelta
-}
-
-function createSSETransformer() {
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  return new TransformStream<Uint8Array, AIRIStreamTranscriptionDelta>({
-    transform: (chunk, controller) => {
-      buffer += decoder.decode(chunk, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''
-
-      for (const line of lines) {
-        const parsed = parseSSELine(line)
-        if (parsed)
-          controller.enqueue(parsed)
-      }
-    },
-    flush: (controller) => {
-      if (!buffer)
-        return
-
-      const parsed = parseSSELine(buffer)
-      if (parsed)
-        controller.enqueue(parsed)
-    },
-  })
-}
+type AudioChunk = ArrayBuffer | ArrayBufferView
 
 /**
  * Converts an SSE transcription endpoint into xsAI's streaming result shape.
@@ -159,6 +83,14 @@ export function streamTranscription(options: StreamTranscriptionOptions): AIRISt
       await response.body
         .pipeThrough(createSSETransformer())
         .pipeTo(new WritableStream<AIRIStreamTranscriptionDelta>({
+          abort: (reason) => {
+            fullStreamCtrl?.error(reason)
+            textStreamCtrl?.error(reason)
+          },
+          close: () => {
+            fullStreamCtrl?.close()
+            textStreamCtrl?.close()
+          },
           write: (chunk) => {
             fullStreamCtrl?.enqueue(chunk)
             if (chunk.type === 'transcript.text.delta') {
@@ -168,14 +100,6 @@ export function streamTranscription(options: StreamTranscriptionOptions): AIRISt
             else if (chunk.type === 'transcript.text.snapshot') {
               text = chunk.text
             }
-          },
-          close: () => {
-            fullStreamCtrl?.close()
-            textStreamCtrl?.close()
-          },
-          abort: (reason) => {
-            fullStreamCtrl?.error(reason)
-            textStreamCtrl?.error(reason)
           },
         }))
       deferredText.resolve(text)
@@ -192,4 +116,80 @@ export function streamTranscription(options: StreamTranscriptionOptions): AIRISt
     text: deferredText.promise,
     textStream,
   }
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: PromiseLike<T> | T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+
+  return { promise, reject, resolve }
+}
+
+function createSSETransformer() {
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  return new TransformStream<Uint8Array, AIRIStreamTranscriptionDelta>({
+    flush: (controller) => {
+      if (!buffer)
+        return
+
+      const parsed = parseSSELine(buffer)
+      if (parsed)
+        controller.enqueue(parsed)
+    },
+    transform: (chunk, controller) => {
+      buffer += decoder.decode(chunk, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+
+      for (const line of lines) {
+        const parsed = parseSSELine(line)
+        if (parsed)
+          controller.enqueue(parsed)
+      }
+    },
+  })
+}
+
+/**
+ * Normalizes an audio chunk for a streaming fetch body.
+ *
+ * @example
+ * normalizeAudioChunk(new Uint8Array([1, 2]).buffer)
+ * // => Uint8Array([1, 2])
+ */
+function normalizeAudioChunk(chunk: AudioChunk): Uint8Array {
+  if (ArrayBuffer.isView(chunk))
+    return new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+
+  return new Uint8Array(chunk)
+}
+
+function parseSSELine(line: string): AIRIStreamTranscriptionDelta | undefined {
+  if (!line || !line.startsWith('data:'))
+    return undefined
+
+  const content = line.slice('data:'.length)
+  const data = content.startsWith(' ') ? content.slice(1) : content
+  if (!data)
+    return undefined
+
+  return JSON.parse(data) as AIRIStreamTranscriptionDelta
+}
+
+function resolveAudioStream(options: StreamTranscriptionOptions): ReadableStream<Uint8Array> {
+  const stream = options.inputAudioStream ?? options.inputStream ?? options.file?.stream()
+  if (!stream)
+    throw new TypeError('Audio stream or file is required for streaming transcription.')
+
+  return (stream as ReadableStream<AudioChunk>).pipeThrough(new TransformStream<AudioChunk, Uint8Array>({
+    transform(chunk, controller) {
+      controller.enqueue(normalizeAudioChunk(chunk))
+    },
+  }))
 }

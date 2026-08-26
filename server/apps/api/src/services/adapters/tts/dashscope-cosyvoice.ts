@@ -47,6 +47,21 @@ const DEFAULT_COSYVOICE_MODEL = 'cosyvoice-v2'
  *   contract as the Azure / Volcengine paths.
  */
 export const dashscopeCosyvoiceAdapter: TtsAdapter = {
+  async getVoiceCatalog(ctx: TtsVoiceCatalogContext): Promise<Voice[]> {
+    // unspeech's alibaba backend embeds the catalog at build time
+    // (unspeech/pkg/backend/alibaba/voices.go `//go:embed voices.json`),
+    // so this call is in-memory on unspeech's side and only crosses a TCP
+    // hop. No upstream credential is required.
+    const params = new URLSearchParams({ provider: 'alibaba' })
+    if (typeof ctx.adapterParams.model === 'string')
+      params.set('model', ctx.adapterParams.model)
+    return listVoicesViaUnSpeech({
+      ctx,
+      providerLabel: 'cosyvoice',
+      query: params.toString(),
+    })
+  },
+
   id: 'dashscope-cosyvoice',
 
   async send(input: TtsInput, ctx: TtsAdapterContext): Promise<TtsResult> {
@@ -66,27 +81,12 @@ export const dashscopeCosyvoiceAdapter: TtsAdapter = {
 
     return sendSpeechViaUnSpeech({
       ctx,
-      model: `alibaba/${model}`,
-      input: input.text,
-      voice,
-      responseFormat: format,
       fallbackContentType: audioMimeFromFormat(format),
+      input: input.text,
+      model: `alibaba/${model}`,
       providerLabel: 'dashscope-cosyvoice',
-    })
-  },
-
-  async getVoiceCatalog(ctx: TtsVoiceCatalogContext): Promise<Voice[]> {
-    // unspeech's alibaba backend embeds the catalog at build time
-    // (unspeech/pkg/backend/alibaba/voices.go `//go:embed voices.json`),
-    // so this call is in-memory on unspeech's side and only crosses a TCP
-    // hop. No upstream credential is required.
-    const params = new URLSearchParams({ provider: 'alibaba' })
-    if (typeof ctx.adapterParams.model === 'string')
-      params.set('model', ctx.adapterParams.model)
-    return listVoicesViaUnSpeech({
-      ctx,
-      query: params.toString(),
-      providerLabel: 'cosyvoice',
+      responseFormat: format,
+      voice,
     })
   },
 }

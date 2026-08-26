@@ -8,21 +8,11 @@ import { errorToMessage } from '../../utils/error'
 import { scrollToLoadMoreTweets } from '../utils/scroll-helper'
 
 /**
- * Tweet Interface
+ * Post Options
  */
-export interface Tweet {
-  id: string
-  text: string
-  author: {
-    username: string
-    displayName: string
-    avatarUrl?: string
-  }
-  timestamp: string
-  likeCount?: number
-  retweetCount?: number
-  replyCount?: number
-  mediaUrls?: string[]
+export interface PostOptions {
+  inReplyTo?: string
+  media?: string[]
 }
 
 /**
@@ -30,23 +20,33 @@ export interface Tweet {
  */
 export interface SearchOptions {
   count?: number
-  filter?: 'latest' | 'photos' | 'videos' | 'top'
+  filter?: 'latest' | 'photos' | 'top' | 'videos'
 }
 
 /**
- * Post Options
+ * Tweet Interface
  */
-export interface PostOptions {
-  media?: string[]
-  inReplyTo?: string
+export interface Tweet {
+  author: {
+    avatarUrl?: string
+    displayName: string
+    username: string
+  }
+  id: string
+  likeCount?: number
+  mediaUrls?: string[]
+  replyCount?: number
+  retweetCount?: number
+  text: string
+  timestamp: string
 }
 
 /**
  * Tweet Detail
  */
 export interface TweetDetail extends Tweet {
-  replies?: Tweet[]
   quotedTweet?: Tweet
+  replies?: Tweet[]
 }
 
 export function useTwitterTweetServices(ctx: Context): TwitterService {
@@ -72,14 +72,14 @@ export function useTwitterTweetServices(ctx: Context): TwitterService {
           case 'latest':
             await page.click(SELECTORS.SEARCH.LATEST_TAB)
             break
-          case 'top':
-            await page.click(SELECTORS.SEARCH.TOP_TAB)
-            break
           case 'photos':
           case 'videos':
             // These require custom filter selection from the filter button
             await page.click(SELECTORS.SEARCH.SEARCH_FILTERS)
             await page.click(`[role="menuitem"]:has-text("${options.filter === 'photos' ? 'Photos' : 'Videos'}")`)
+            break
+          case 'top':
+            await page.click(SELECTORS.SEARCH.TOP_TAB)
             break
         }
       }
@@ -315,8 +315,8 @@ export function useTwitterTweetServices(ctx: Context): TwitterService {
       // Construct the detailed tweet
       const tweetDetail: TweetDetail = {
         ...mainTweet,
-        replies: replies.length > 0 ? replies : undefined,
         quotedTweet,
+        replies: replies.length > 0 ? replies : undefined,
       }
 
       return tweetDetail
@@ -328,10 +328,10 @@ export function useTwitterTweetServices(ctx: Context): TwitterService {
   }
 
   return {
-    searchTweets,
-    likeTweet,
-    retweet,
-    postTweet,
     getTweetDetails,
+    likeTweet,
+    postTweet,
+    retweet,
+    searchTweets,
   }
 }

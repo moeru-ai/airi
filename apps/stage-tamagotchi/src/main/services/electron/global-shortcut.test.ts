@@ -6,23 +6,28 @@ import type { EventaContext } from './global-shortcut'
 import { ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-function exampleBinding(id: string, key = 'KeyK'): ShortcutBinding {
-  return {
-    id,
-    accelerator: { modifiers: ['cmd-or-ctrl', 'shift'], key },
-    scope: 'global',
-  }
-}
-
 interface MockContext {
   emit: ReturnType<typeof vi.fn>
   invokeHandlers: Map<string, (payload: unknown) => unknown>
 }
 
 interface MockWindow {
-  on: ReturnType<typeof vi.fn>
   /** Manually trigger the registered `closed` handler. */
   close: () => void
+  on: ReturnType<typeof vi.fn>
+}
+
+function asBrowserWindow(window: MockWindow): BrowserWindow {
+  return window as unknown as BrowserWindow
+}
+
+// NOTICE:
+// MockContext / MockWindow are intentionally minimal — only what the
+// driver touches. Casting through `unknown` lets us pass them to
+// `service.registerWindow` whose typed signature wants the full
+// `EventaContext` and `BrowserWindow` types.
+function asEventaContext(ctx: MockContext): EventaContext {
+  return ctx as unknown as EventaContext
 }
 
 function createMockContext(): MockContext {
@@ -39,27 +44,22 @@ function createMockContext(): MockContext {
 function createMockWindow(): MockWindow {
   let closedHandler: (() => void) | undefined
   return {
+    close() {
+      closedHandler?.()
+    },
     on: vi.fn((event: string, handler: () => void) => {
       if (event === 'closed')
         closedHandler = handler
     }),
-    close() {
-      closedHandler?.()
-    },
   }
 }
 
-// NOTICE:
-// MockContext / MockWindow are intentionally minimal — only what the
-// driver touches. Casting through `unknown` lets us pass them to
-// `service.registerWindow` whose typed signature wants the full
-// `EventaContext` and `BrowserWindow` types.
-function asEventaContext(ctx: MockContext): EventaContext {
-  return ctx as unknown as EventaContext
-}
-
-function asBrowserWindow(window: MockWindow): BrowserWindow {
-  return window as unknown as BrowserWindow
+function exampleBinding(id: string, key = 'KeyK'): ShortcutBinding {
+  return {
+    accelerator: { key, modifiers: ['cmd-or-ctrl', 'shift'] },
+    id,
+    scope: 'global',
+  }
 }
 
 function registerMockWindow(service: { registerWindow: (params: { context: EventaContext, window: BrowserWindow }) => void }, ctx: MockContext): MockWindow {
@@ -93,7 +93,7 @@ async function setupMocks() {
     triggerCallbacks.clear()
   })
 
-  const onAppBeforeQuitMock = vi.fn<(fn: () => void | Promise<void>) => void>()
+  const onAppBeforeQuitMock = vi.fn<(fn: () => Promise<void> | void) => void>()
 
   vi.doMock('electron', () => ({
     globalShortcut: {
@@ -108,10 +108,10 @@ async function setupMocks() {
 
   vi.doMock('./global-shortcut-uiohook', () => ({
     createUiohookDriver: () => ({
-      tryRegister: vi.fn(async (binding: ShortcutBinding) => ({ id: binding.id, ok: true })),
-      unregisterById: vi.fn(),
-      unregisterAll: vi.fn(),
       dispose: vi.fn(),
+      tryRegister: vi.fn(async (binding: ShortcutBinding) => ({ id: binding.id, ok: true })),
+      unregisterAll: vi.fn(),
+      unregisterById: vi.fn(),
     }),
   }))
 
@@ -144,12 +144,12 @@ async function setupMocks() {
   const { setupGlobalShortcutService } = await import('./global-shortcut')
 
   return {
-    setupGlobalShortcutService,
-    registerMock,
-    unregisterMock,
-    unregisterAllMock,
-    triggerCallbacks,
     onAppBeforeQuitMock,
+    registerMock,
+    setupGlobalShortcutService,
+    triggerCallbacks,
+    unregisterAllMock,
+    unregisterMock,
   }
 }
 
@@ -417,7 +417,7 @@ describe('setupGlobalShortcutService', () => {
     const reg = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!
     expect(() => reg({})).toThrow(TypeError)
     expect(() => reg({ id: 'no-accel' })).toThrow(TypeError)
-    expect(() => reg({ accelerator: { modifiers: [], key: 'KeyK' } })).toThrow(TypeError)
+    expect(() => reg({ accelerator: { key: 'KeyK', modifiers: [] } })).toThrow(TypeError)
     expect(m.registerMock).not.toHaveBeenCalled()
   })
 

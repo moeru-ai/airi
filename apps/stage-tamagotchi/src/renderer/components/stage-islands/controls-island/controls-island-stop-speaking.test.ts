@@ -25,8 +25,8 @@ vi.mock('@proj-airi/stage-ui/stores/audio', () => ({
 
 vi.mock('@proj-airi/stage-layouts/composables/useStopSpeakingButton', () => ({
   useStopSpeakingButton: () => ({
-    stopAllSpeaking: stopAllSpeakingMock,
     showStopSpeakingButton: nowSpeakingRef,
+    stopAllSpeaking: stopAllSpeakingMock,
     stopSpeakingFromChat: vi.fn(),
   }),
 }))
@@ -42,7 +42,7 @@ vi.mock('pinia', () => ({
 }))
 
 vi.mock('reka-ui', () => ({
-  TooltipContent: { template: '<div><slot /></div>', inheritAttrs: false },
+  TooltipContent: { inheritAttrs: false, template: '<div><slot /></div>' },
   TooltipProvider: { template: '<div><slot /></div>' },
   TooltipRoot: { template: '<div><slot /></div>' },
   TooltipTrigger: { template: '<div><slot /></div>' },
@@ -60,12 +60,12 @@ describe('controlsIslandStopSpeaking', () => {
     })
     app.provide(controlsIslandPlacementKey, placement)
     app.mount(host)
-    return { host, app }
+    return { app, host }
   }
 
   it('renders idle state when not speaking', async () => {
     nowSpeakingRef.value = false
-    const { host, app } = mountComponent()
+    const { app, host } = mountComponent()
     await nextTick()
     expect(host.querySelectorAll('button').length).toBeGreaterThan(0)
     app.unmount()
@@ -74,7 +74,7 @@ describe('controlsIslandStopSpeaking', () => {
 
   it('renders active state when speaking', async () => {
     nowSpeakingRef.value = true
-    const { host, app } = mountComponent()
+    const { app, host } = mountComponent()
     await nextTick()
     expect(host.querySelectorAll('button').length).toBeGreaterThan(0)
     app.unmount()
@@ -84,7 +84,7 @@ describe('controlsIslandStopSpeaking', () => {
   it('calls stopAllSpeaking on click', async () => {
     stopAllSpeakingMock.mockClear()
     nowSpeakingRef.value = false
-    const { host, app } = mountComponent()
+    const { app, host } = mountComponent()
     await nextTick()
     const button = host.querySelector('button')
     expect(button).toBeTruthy()

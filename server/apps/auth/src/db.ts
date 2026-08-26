@@ -12,7 +12,7 @@ const logger = useLogger('db')
 /** Database projection visible to the Auth runtime. */
 export type AuthDatabase = ReturnType<typeof createAuthDrizzle>['db']
 
-type AuthDrizzleEnv = Pick<AuthEnv, 'DATABASE_URL' | 'DB_POOL_MAX' | 'DB_POOL_IDLE_TIMEOUT_MS' | 'DB_POOL_CONNECTION_TIMEOUT_MS' | 'DB_POOL_KEEPALIVE_INITIAL_DELAY_MS'>
+type AuthDrizzleEnv = Pick<AuthEnv, 'DATABASE_URL' | 'DB_POOL_CONNECTION_TIMEOUT_MS' | 'DB_POOL_IDLE_TIMEOUT_MS' | 'DB_POOL_KEEPALIVE_INITIAL_DELAY_MS' | 'DB_POOL_MAX'>
 
 /**
  * Creates the auth service's database projection. Business tables are not
@@ -23,11 +23,11 @@ export function createAuthDrizzle(env: AuthDrizzleEnv) {
   // before the Auth application modules are evaluated.
   const pool = new pg.Pool({
     connectionString: env.DATABASE_URL,
-    max: env.DB_POOL_MAX,
-    idleTimeoutMillis: env.DB_POOL_IDLE_TIMEOUT_MS,
     connectionTimeoutMillis: env.DB_POOL_CONNECTION_TIMEOUT_MS,
+    idleTimeoutMillis: env.DB_POOL_IDLE_TIMEOUT_MS,
     keepAlive: true,
     keepAliveInitialDelayMillis: env.DB_POOL_KEEPALIVE_INITIAL_DELAY_MS,
+    max: env.DB_POOL_MAX,
   })
 
   pool.on('error', (error) => {

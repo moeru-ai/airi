@@ -15,64 +15,101 @@ import { desktopOverlayPollHeartbeatMarker, desktopOverlayPollHeartbeatQueryPara
 // Types — minimal shapes matching RunState fields the overlay consumes
 // ---------------------------------------------------------------------------
 
-export interface OverlayTargetCandidate {
-  id: string
-  source: string
-  role: string
-  label: string
-  bounds: { x: number, y: number, width: number, height: number }
-  confidence: number
-}
-
 export interface OverlayPointerIntent {
-  snappedPoint: { x: number, y: number }
   candidateId?: string
-  source: string
   confidence: number
+  executionResult?: 'error' | 'fallback' | 'success'
   mode: string
-  phase?: 'preview' | 'executing' | 'completed'
-  executionResult?: 'success' | 'fallback' | 'error'
-}
-
-export interface OverlayStaleFlags {
-  screenshot: boolean
-  ax: boolean
-  chromeSemantic: boolean
-}
-
-export interface OverlayState {
-  hasSnapshot: boolean
-  snapshotId: string
-  candidates: OverlayTargetCandidate[]
-  staleFlags: OverlayStaleFlags
-  pointerIntent: OverlayPointerIntent | null
-  bootstrapState: 'booting' | 'ready' | 'degraded'
-  lastBootstrapError?: string
+  phase?: 'completed' | 'executing' | 'preview'
+  snappedPoint: { x: number, y: number }
+  source: string
 }
 
 export interface OverlayPollHeartbeat {
-  snapshotId: string
   candidateCount: number
   hasPointerIntent: boolean
+  snapshotId: string
+}
+
+export interface OverlayStaleFlags {
+  ax: boolean
+  chromeSemantic: boolean
+  screenshot: boolean
+}
+
+export interface OverlayState {
+  bootstrapState: 'booting' | 'degraded' | 'ready'
+  candidates: OverlayTargetCandidate[]
+  hasSnapshot: boolean
+  lastBootstrapError?: string
+  pointerIntent: null | OverlayPointerIntent
+  snapshotId: string
+  staleFlags: OverlayStaleFlags
+}
+
+export interface OverlayTargetCandidate {
+  bounds: { height: number, width: number, x: number, y: number }
+  confidence: number
+  id: string
+  label: string
+  role: string
+  source: string
 }
 
 // ---------------------------------------------------------------------------
 // State extraction
 // ---------------------------------------------------------------------------
 
-const EMPTY_STALE: OverlayStaleFlags = { screenshot: false, ax: false, chromeSemantic: false }
+const EMPTY_STALE: OverlayStaleFlags = { ax: false, chromeSemantic: false, screenshot: false }
+
+export interface OverlayPollConfig {
+  /** Per-call timeout in ms. Default: 5000. Prevents poll loop hang on startup race. */
+  callTimeoutMs?: number
+  /** Function to call MCP tool. */
+  callTool: (name: string) => Promise<McpCallToolResult>
+  /** Fallback interval on error in ms. Default: 500. */
+  fallbackIntervalMs?: number
+  /** Function to ping main process readiness contract via Eventa. */
+  getReadiness: () => Promise<{ error?: string, state: 'booting' | 'degraded' | 'ready' }>
+  /** Normal poll interval in ms. Default: 250. */
+  intervalMs?: number
+  /** Optional debug-only callback with a small heartbeat marker. */
+  onHeartbeat?: (heartbeat: OverlayPollHeartbeat) => void
+  /** Callback with extracted state on each successful poll. */
+  onState: (state: OverlayState) => void
+}
+
+export interface OverlayPollController {
+  /** Whether the controller is actively polling. */
+  isRunning: () => boolean
+  /** Start polling. No-op if already running. */
+  start: () => void
+  /** Stop polling. */
+  stop: () => void
+}
 
 /**
  * Create a default empty overlay state.
  */
 export function createEmptyOverlayState(): OverlayState {
   return {
-    hasSnapshot: false,
-    snapshotId: '',
-    candidates: [],
-    staleFlags: { ...EMPTY_STALE },
-    pointerIntent: null,
     bootstrapState: 'booting',
+    candidates: [],
+    hasSnapshot: false,
+    pointerIntent: null,
+    snapshotId: '',
+    staleFlags: { ...EMPTY_STALE },
+  }
+}
+
+export function createOverlayPollHeartbeat(state: OverlayState): OverlayPollHeartbeat | undefined {
+  if (!state.hasSnapshot || !state.snapshotId)
+    return undefined
+
+  return {
+    candidateCount: state.candidates.length,
+    hasPointerIntent: state.pointerIntent !== null,
+    snapshotId: state.snapshotId,
   }
 }
 
@@ -121,16 +158,9 @@ export function extractRunStateFromResult(result: McpCallToolResult): Record<str
   return sc as Record<string, unknown>
 }
 
-export function createOverlayPollHeartbeat(state: OverlayState): OverlayPollHeartbeat | undefined {
-  if (!state.hasSnapshot || !state.snapshotId)
-    return undefined
-
-  return {
-    snapshotId: state.snapshotId,
-    candidateCount: state.candidates.length,
-    hasPointerIntent: state.pointerIntent !== null,
-  }
-}
+// ---------------------------------------------------------------------------
+// Polling controller (framework-agnostic)
+// ---------------------------------------------------------------------------
 
 export function formatOverlayPollHeartbeat(heartbeat: OverlayPollHeartbeat): string {
   return [
@@ -152,36 +182,6 @@ export function isOverlayPollHeartbeatEnabled(locationLike: Pick<Location, 'hash
     || searchParams.get(desktopOverlayPollHeartbeatQueryParam) === '1'
 }
 
-// ---------------------------------------------------------------------------
-// Polling controller (framework-agnostic)
-// ---------------------------------------------------------------------------
-
-export interface OverlayPollController {
-  /** Start polling. No-op if already running. */
-  start: () => void
-  /** Stop polling. */
-  stop: () => void
-  /** Whether the controller is actively polling. */
-  isRunning: () => boolean
-}
-
-export interface OverlayPollConfig {
-  /** Function to call MCP tool. */
-  callTool: (name: string) => Promise<McpCallToolResult>
-  /** Callback with extracted state on each successful poll. */
-  onState: (state: OverlayState) => void
-  /** Optional debug-only callback with a small heartbeat marker. */
-  onHeartbeat?: (heartbeat: OverlayPollHeartbeat) => void
-  /** Function to ping main process readiness contract via Eventa. */
-  getReadiness: () => Promise<{ state: 'booting' | 'ready' | 'degraded', error?: string }>
-  /** Normal poll interval in ms. Default: 250. */
-  intervalMs?: number
-  /** Fallback interval on error in ms. Default: 500. */
-  fallbackIntervalMs?: number
-  /** Per-call timeout in ms. Default: 5000. Prevents poll loop hang on startup race. */
-  callTimeoutMs?: number
-}
-
 const DEFAULT_INTERVAL = 250
 const DEFAULT_FALLBACK_INTERVAL = 500
 const DEFAULT_CALL_TIMEOUT = 5000
@@ -201,17 +201,17 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
   const normalInterval = config.intervalMs ?? DEFAULT_INTERVAL
   const fallbackInterval = config.fallbackIntervalMs ?? DEFAULT_FALLBACK_INTERVAL
 
-  let timer: ReturnType<typeof setTimeout> | null = null
-  let bootstrapTimer: ReturnType<typeof setTimeout> | null = null
+  let timer: null | ReturnType<typeof setTimeout> = null
+  let bootstrapTimer: null | ReturnType<typeof setTimeout> = null
   let running = false
-  let inFlightCall: Promise<McpCallToolResult> | null = null
+  let inFlightCall: null | Promise<McpCallToolResult> = null
   let backgroundHungCalls: Array<{
     call: Promise<McpCallToolResult>
     timedOutAt: number
   }> = []
-  let lastHungRecoveryProbeAt: number | null = null
+  let lastHungRecoveryProbeAt: null | number = null
 
-  let currentBootstrapState: 'booting' | 'ready' | 'degraded' = 'booting'
+  let currentBootstrapState: 'booting' | 'degraded' | 'ready' = 'booting'
   let currentBootstrapError: string | undefined
 
   function scheduleNext(nextInterval: number) {
@@ -365,6 +365,10 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
   }
 
   return {
+    isRunning() {
+      return running
+    },
+
     start() {
       if (running)
         return
@@ -383,10 +387,6 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
         clearTimeout(bootstrapTimer)
         bootstrapTimer = null
       }
-    },
-
-    isRunning() {
-      return running
     },
   }
 }

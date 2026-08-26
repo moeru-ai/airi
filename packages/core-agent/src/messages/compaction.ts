@@ -10,76 +10,10 @@ export interface CompactConversationEntriesOptions {
   recentTurnLimit: number
   /** Optional domain-aware summary formatter used for removed history windows. */
   summarizeCompactedHistory?: (input: {
-    removedTurnCount: number
-    originalItems: HistoryItem[]
     keptItems: HistoryItem[]
+    originalItems: HistoryItem[]
+    removedTurnCount: number
   }) => string
-}
-
-function isStructuredMessage(entry: Message | RawMessage): entry is Message {
-  return 'segments' in entry
-}
-
-function countTurns(items: HistoryItem[]) {
-  return items.reduce((count, item) => count + (item.type === 'turn' ? 1 : 0), 0)
-}
-
-function keepRecentHistoryItems(items: HistoryItem[], recentTurnLimit: number) {
-  const keptItems: HistoryItem[] = []
-  let turnCount = 0
-
-  for (let index = items.length - 1; index >= 0; index -= 1) {
-    keptItems.unshift(items[index])
-    if (items[index].type === 'turn')
-      turnCount += 1
-
-    if (turnCount >= recentTurnLimit)
-      break
-  }
-
-  return keptItems
-}
-
-function compactHistoryBlock(
-  segment: MessageHistoryBlockSegment,
-  recentTurnLimit: number,
-  summarizeCompactedHistory?: (input: {
-    removedTurnCount: number
-    originalItems: HistoryItem[]
-    keptItems: HistoryItem[]
-  }) => string,
-): MessageHistoryBlockSegment {
-  if (segment.compacted)
-    return segment
-
-  const historyTurnCount = countTurns(segment.items)
-  if (historyTurnCount <= recentTurnLimit)
-    return segment
-
-  const keptItems = keepRecentHistoryItems(segment.items, recentTurnLimit)
-  const removedTurnCount = historyTurnCount - recentTurnLimit
-
-  return {
-    type: 'history-block',
-    compacted: true,
-    items: [
-      {
-        type: 'summary',
-        text: summarizeCompactedHistory?.({
-          removedTurnCount,
-          originalItems: segment.items,
-          keptItems,
-        }) ?? `Compacted ${removedTurnCount} older turns with paired reactions.`,
-        fromTurnIndex: segment.items.find(item => item.type === 'turn')?.type === 'turn'
-          ? (segment.items.find(item => item.type === 'turn')?.turnIndex ?? undefined)
-          : undefined,
-        toTurnIndex: keptItems.findLast(item => item.type === 'turn')?.type === 'turn'
-          ? keptItems.findLast(item => item.type === 'turn')?.turnIndex
-          : undefined,
-      },
-      ...keptItems,
-    ],
-  }
 }
 
 /**
@@ -115,4 +49,70 @@ export function compactConversationEntries(input: CompactConversationEntriesOpti
       }),
     }
   })
+}
+
+function compactHistoryBlock(
+  segment: MessageHistoryBlockSegment,
+  recentTurnLimit: number,
+  summarizeCompactedHistory?: (input: {
+    keptItems: HistoryItem[]
+    originalItems: HistoryItem[]
+    removedTurnCount: number
+  }) => string,
+): MessageHistoryBlockSegment {
+  if (segment.compacted)
+    return segment
+
+  const historyTurnCount = countTurns(segment.items)
+  if (historyTurnCount <= recentTurnLimit)
+    return segment
+
+  const keptItems = keepRecentHistoryItems(segment.items, recentTurnLimit)
+  const removedTurnCount = historyTurnCount - recentTurnLimit
+
+  return {
+    compacted: true,
+    items: [
+      {
+        fromTurnIndex: segment.items.find(item => item.type === 'turn')?.type === 'turn'
+          ? (segment.items.find(item => item.type === 'turn')?.turnIndex ?? undefined)
+          : undefined,
+        text: summarizeCompactedHistory?.({
+          keptItems,
+          originalItems: segment.items,
+          removedTurnCount,
+        }) ?? `Compacted ${removedTurnCount} older turns with paired reactions.`,
+        toTurnIndex: keptItems.findLast(item => item.type === 'turn')?.type === 'turn'
+          ? keptItems.findLast(item => item.type === 'turn')?.turnIndex
+          : undefined,
+        type: 'summary',
+      },
+      ...keptItems,
+    ],
+    type: 'history-block',
+  }
+}
+
+function countTurns(items: HistoryItem[]) {
+  return items.reduce((count, item) => count + (item.type === 'turn' ? 1 : 0), 0)
+}
+
+function isStructuredMessage(entry: Message | RawMessage): entry is Message {
+  return 'segments' in entry
+}
+
+function keepRecentHistoryItems(items: HistoryItem[], recentTurnLimit: number) {
+  const keptItems: HistoryItem[] = []
+  let turnCount = 0
+
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    keptItems.unshift(items[index])
+    if (items[index].type === 'turn')
+      turnCount += 1
+
+    if (turnCount >= recentTurnLimit)
+      break
+  }
+
+  return keptItems
 }

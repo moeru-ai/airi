@@ -15,10 +15,6 @@ import { pickupNearbyItems } from './world-interactions'
 
 const logger = useLogger()
 
-function isMessagable(err: unknown): err is { message: string } {
-  return (err instanceof Error || (typeof err === 'object' && !!err && 'message' in err && typeof err.message === 'string'))
-}
-
 export async function collectBlock(
   mineflayer: Mineflayer,
   blockType: string,
@@ -120,14 +116,6 @@ export async function collectBlock(
   return collected
 }
 
-// Helper function to mine a block and collect drops
-async function mineAndCollect(mineflayer: Mineflayer, block: Block): Promise<void> {
-  // Break the block
-  await breakBlockAt(mineflayer, block.position.x, block.position.y, block.position.z)
-  // Use your existing function to pick up nearby items
-  await pickupNearbyItems(mineflayer, 5)
-}
-
 // Function to find connected blocks (vein mining)
 function findVeinBlocks(
   mineflayer: Mineflayer,
@@ -174,4 +162,16 @@ function findVeinBlocks(
   }
 
   return veinBlocks
+}
+
+function isMessagable(err: unknown): err is { message: string } {
+  return (err instanceof Error || (typeof err === 'object' && !!err && 'message' in err && typeof err.message === 'string'))
+}
+
+// Helper function to mine a block and collect drops
+async function mineAndCollect(mineflayer: Mineflayer, block: Block): Promise<void> {
+  // Break the block
+  await breakBlockAt(mineflayer, block.position.x, block.position.y, block.position.z)
+  // Use your existing function to pick up nearby items
+  await pickupNearbyItems(mineflayer, 5)
 }

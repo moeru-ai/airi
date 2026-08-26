@@ -11,10 +11,10 @@ import { createAutoUpdaterService } from '../../../services/electron'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export async function setupAboutWindowElectronInvokes(params: {
-  window: BrowserWindow
   autoUpdater: AutoUpdater
   i18n: I18n
   serverChannel: ServerChannel
+  window: BrowserWindow
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -23,7 +23,7 @@ export async function setupAboutWindowElectronInvokes(params: {
 
   const { context } = createContext(ipcMain, params.window)
 
-  await setupBaseWindowElectronInvokes({ context, window: params.window, i18n: params.i18n, serverChannel: params.serverChannel })
+  await setupBaseWindowElectronInvokes({ context, i18n: params.i18n, serverChannel: params.serverChannel, window: params.window })
 
-  createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
+  createAutoUpdaterService({ context, service: params.autoUpdater, window: params.window })
 }

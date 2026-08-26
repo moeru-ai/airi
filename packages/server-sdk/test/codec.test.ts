@@ -8,12 +8,12 @@ import { InvalidMessageError, parseEvent, stringifyEvent } from '../src/codec'
 describe('server-sdk codec', () => {
   it('parses SuperJSON and plain JSON protocol events', () => {
     const event: WebSocketEvent = {
-      type: 'module:authenticate',
       data: { token: 'secret' },
       metadata: {
-        source: { kind: 'plugin', plugin: { id: 'plugin-1' }, id: 'plugin-1' },
         event: { id: 'event-1' },
+        source: { id: 'plugin-1', kind: 'plugin', plugin: { id: 'plugin-1' } },
       },
+      type: 'module:authenticate',
     }
 
     expect(parseEvent(stringifySuperJson(event))).toEqual(event)
@@ -21,7 +21,7 @@ describe('server-sdk codec', () => {
   })
 
   it('throws debuggable errors for invalid messages', () => {
-    const source = { type: 'module:authenticate', data: 'secret' }
+    const source = { data: 'secret', type: 'module:authenticate' }
 
     try {
       parseEvent(JSON.stringify(source))
@@ -35,7 +35,7 @@ describe('server-sdk codec', () => {
   })
 
   it('rejects array event data with validation context', () => {
-    const source = { type: 'module:authenticate', data: ['secret'] }
+    const source = { data: ['secret'], type: 'module:authenticate' }
 
     expect(() => parseEvent(JSON.stringify(source))).toThrow(InvalidMessageError)
 
@@ -64,8 +64,8 @@ describe('server-sdk codec', () => {
 
   it('stringifies protocol events with SuperJSON', () => {
     expect(stringifyEvent({
-      type: 'module:authenticate',
       data: { token: 'secret' },
+      type: 'module:authenticate',
     })).toContain('module:authenticate')
   })
 })

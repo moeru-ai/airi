@@ -5,35 +5,33 @@
 // "what are we doing, what's confirmed, what's blocking, what's next."
 // ---------------------------------------------------------------------------
 
-export type TaskMemoryStatus = 'active' | 'blocked' | 'done'
-
-export interface TaskMemoryArtifact {
-  label: string
-  value: string
-  kind: 'file' | 'url' | 'tool' | 'note'
-}
-
 /**
  * Primary task execution state attached to a computer-use session.
  */
 export interface TaskMemory {
-  // --- Primary fields ---
-  status: TaskMemoryStatus
-  goal: string | null
-  currentStep: string | null
-  confirmedFacts: string[]
   artifacts: TaskMemoryArtifact[]
   blockers: string[]
-  nextStep: string | null
-  updatedAt: number
-  /** Identifies which tool invocation / turn produced this snapshot. */
-  sourceTurnId: string
-
+  completionCriteria?: string[]
+  confirmedFacts: string[]
+  currentStep: null | string
+  goal: null | string
+  nextStep: null | string
   // --- Secondary fields (all optional) ---
   plan?: string[]
+  recentFailureReason?: null | string
+
+  /** Identifies which tool invocation / turn produced this snapshot. */
+  sourceTurnId: string
+  // --- Primary fields ---
+  status: TaskMemoryStatus
+  updatedAt: number
   workingAssumptions?: string[]
-  recentFailureReason?: string | null
-  completionCriteria?: string[]
+}
+
+export interface TaskMemoryArtifact {
+  kind: 'file' | 'note' | 'tool' | 'url'
+  label: string
+  value: string
 }
 
 /**
@@ -41,20 +39,22 @@ export interface TaskMemory {
  * Used as input to the validated merge function.
  */
 export interface TaskMemoryExtraction {
-  status?: TaskMemoryStatus
-  goal?: string | null
-  currentStep?: string | null
-  confirmedFacts?: string[]
   artifacts?: TaskMemoryArtifact[]
   blockers?: string[]
-  nextStep?: string | null
-  plan?: string[]
-  workingAssumptions?: string[]
-  recentFailureReason?: string | null
   completionCriteria?: string[]
+  confirmedFacts?: string[]
+  currentStep?: null | string
+  goal?: null | string
   /** Signals a clearly new task, triggering soft reset. */
   newTask?: boolean
+  nextStep?: null | string
+  plan?: string[]
+  recentFailureReason?: null | string
+  status?: TaskMemoryStatus
+  workingAssumptions?: string[]
 }
+
+export type TaskMemoryStatus = 'active' | 'blocked' | 'done'
 
 export interface TaskMemoryUpdateSource {
   /** Stable identifier of the completed turn that produced this update. */
@@ -65,10 +65,10 @@ export interface TaskMemoryUpdateSource {
 
 /** List length limits — v1, hard-coded. */
 export const TASK_MEMORY_LIMITS = {
-  confirmedFacts: 10,
   artifacts: 8,
   blockers: 5,
+  completionCriteria: 6,
+  confirmedFacts: 10,
   plan: 6,
   workingAssumptions: 6,
-  completionCriteria: 6,
 } as const

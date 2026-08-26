@@ -2,23 +2,23 @@ import type { Message } from '@xsai/shared-chat'
 
 import { generateText } from '@xsai/generate-text'
 
-export interface LLMConfig {
-  baseURL: string
-  apiKey: string
-  model: string
-}
-
 export interface LLMCallOptions {
-  messages: Message[]
-  responseFormat?: { type: 'json_object' }
-  reasoning?: { effort: 'low' | 'medium' | 'high' }
   abortSignal?: AbortSignal
+  messages: Message[]
+  reasoning?: { effort: 'high' | 'low' | 'medium' }
+  responseFormat?: { type: 'json_object' }
   timeoutMs?: number
 }
 
+export interface LLMConfig {
+  apiKey: string
+  baseURL: string
+  model: string
+}
+
 export interface LLMResult {
-  text: string
   reasoning?: string
+  text: string
   // FIXME unsafe type
   usage: any
 }
@@ -29,9 +29,51 @@ export interface LLMResult {
 export class LLMAgent {
   constructor(private config: LLMConfig) { }
 
-  private isCerebrasBaseURL(baseURL: string): boolean {
-    const normalized = baseURL.toLowerCase()
-    return normalized.includes('cerebras.ai') || normalized.includes('cerebras.com')
+  /**
+   * Call LLM with the given messages
+   */
+  async callLLM(options: LLMCallOptions): Promise<LLMResult> {
+    const shouldSendReasoning = !this.isCerebrasBaseURL(this.config.baseURL)
+    const { controller, dispose } = this.createLinkedAbortController(options.abortSignal)
+    const timeoutMs = typeof options.timeoutMs === 'number' && Number.isFinite(options.timeoutMs) && options.timeoutMs > 0
+      ? Math.floor(options.timeoutMs)
+      : null
+    const timeoutError = timeoutMs
+      ? Object.assign(new Error(`LLM provider call timeout after ${timeoutMs}ms`), { name: 'TimeoutError' })
+      : null
+    const timeoutHandle = timeoutMs
+      ? setTimeout(() => {
+          if (!controller.signal.aborted)
+            controller.abort(timeoutError)
+        }, timeoutMs)
+      : undefined
+
+    try {
+      const response = await generateText({
+        abortSignal: controller.signal,
+        apiKey: this.config.apiKey,
+        baseURL: this.config.baseURL,
+        headers: { 'Accept-Encoding': 'identity' },
+        messages: options.messages,
+        model: this.config.model,
+        ...(options.responseFormat && { responseFormat: options.responseFormat }),
+        ...(shouldSendReasoning && {
+          // Enable reasoning with configurable effort (default: low)
+          reasoning: options.reasoning ?? { effort: 'low' },
+        }),
+      } as Parameters<typeof generateText>[0])
+
+      return {
+        reasoning: (response as any).reasoningText,
+        text: response.text ?? '',
+        usage: response.usage,
+      }
+    }
+    finally {
+      if (timeoutHandle)
+        clearTimeout(timeoutHandle)
+      dispose()
+    }
   }
 
   private createLinkedAbortController(parentSignal?: AbortSignal): {
@@ -64,50 +106,8 @@ export class LLMAgent {
     }
   }
 
-  /**
-   * Call LLM with the given messages
-   */
-  async callLLM(options: LLMCallOptions): Promise<LLMResult> {
-    const shouldSendReasoning = !this.isCerebrasBaseURL(this.config.baseURL)
-    const { controller, dispose } = this.createLinkedAbortController(options.abortSignal)
-    const timeoutMs = typeof options.timeoutMs === 'number' && Number.isFinite(options.timeoutMs) && options.timeoutMs > 0
-      ? Math.floor(options.timeoutMs)
-      : null
-    const timeoutError = timeoutMs
-      ? Object.assign(new Error(`LLM provider call timeout after ${timeoutMs}ms`), { name: 'TimeoutError' })
-      : null
-    const timeoutHandle = timeoutMs
-      ? setTimeout(() => {
-          if (!controller.signal.aborted)
-            controller.abort(timeoutError)
-        }, timeoutMs)
-      : undefined
-
-    try {
-      const response = await generateText({
-        baseURL: this.config.baseURL,
-        apiKey: this.config.apiKey,
-        model: this.config.model,
-        messages: options.messages,
-        headers: { 'Accept-Encoding': 'identity' },
-        abortSignal: controller.signal,
-        ...(options.responseFormat && { responseFormat: options.responseFormat }),
-        ...(shouldSendReasoning && {
-          // Enable reasoning with configurable effort (default: low)
-          reasoning: options.reasoning ?? { effort: 'low' },
-        }),
-      } as Parameters<typeof generateText>[0])
-
-      return {
-        text: response.text ?? '',
-        reasoning: (response as any).reasoningText,
-        usage: response.usage,
-      }
-    }
-    finally {
-      if (timeoutHandle)
-        clearTimeout(timeoutHandle)
-      dispose()
-    }
+  private isCerebrasBaseURL(baseURL: string): boolean {
+    const normalized = baseURL.toLowerCase()
+    return normalized.includes('cerebras.ai') || normalized.includes('cerebras.com')
   }
 }

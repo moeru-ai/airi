@@ -19,6 +19,25 @@ import { getInventoryCounts, getNearestBlock, getNearestFreeSpace } from './worl
 
 const logger = useLogger()
 
+export async function clearNearestFurnace(mineflayer: Mineflayer): Promise<boolean> {
+  const furnaceBlock = getNearestBlock(mineflayer, 'furnace', 6)
+  if (!furnaceBlock) {
+    throw new ActionError('NAVIGATION_FAILED', 'No furnace nearby to clear')
+  }
+
+  logger.log('clearing furnace...')
+  return withFurnace(mineflayer, furnaceBlock, async (furnace) => {
+    logger.log('opened furnace...')
+    if (furnace.outputItem())
+      await furnace.takeOutput()
+    if (furnace.inputItem())
+      await furnace.takeInput()
+    if (furnace.fuelItem())
+      await furnace.takeFuel()
+    return true
+  })
+}
+
 export async function craftRecipe(
   mineflayer: Mineflayer,
   incomingItemName: string,
@@ -37,7 +56,7 @@ export async function craftRecipe(
 
   // Helper function to attempt crafting
   async function attemptCraft(
-    recipes: Recipe[] | null,
+    recipes: null | Recipe[],
     craftingTable: Block | null = null,
   ): Promise<boolean> {
     if (recipes && recipes.length > 0) {
@@ -335,23 +354,4 @@ export async function smeltItem(mineflayer: Mineflayer, itemName: string, num = 
   finally {
     await cleanupPlacedFurnace()
   }
-}
-
-export async function clearNearestFurnace(mineflayer: Mineflayer): Promise<boolean> {
-  const furnaceBlock = getNearestBlock(mineflayer, 'furnace', 6)
-  if (!furnaceBlock) {
-    throw new ActionError('NAVIGATION_FAILED', 'No furnace nearby to clear')
-  }
-
-  logger.log('clearing furnace...')
-  return withFurnace(mineflayer, furnaceBlock, async (furnace) => {
-    logger.log('opened furnace...')
-    if (furnace.outputItem())
-      await furnace.takeOutput()
-    if (furnace.inputItem())
-      await furnace.takeInput()
-    if (furnace.fuelItem())
-      await furnace.takeFuel()
-    return true
-  })
 }

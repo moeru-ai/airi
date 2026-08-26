@@ -5,16 +5,16 @@ import type {
   PlaybackStartEvent,
 } from '@proj-airi/pipelines-audio'
 
+export interface PlaybackSpeakingStateHandlers<TAudio> {
+  onStart?: (event: PlaybackStartEvent<TAudio>) => void
+  setSpeaking: (value: boolean) => void
+}
+
 export interface PlaybackSpeakingStateManager<TAudio> {
-  onStart: (listener: (event: PlaybackStartEvent<TAudio>) => void) => void
   onEnd: (listener: (event: PlaybackEndEvent<TAudio>) => void) => void
   onInterrupt: (listener: (event: PlaybackInterruptEvent<TAudio>) => void) => void
   onReject: (listener: (event: PlaybackRejectEvent<TAudio>) => void) => void
-}
-
-export interface PlaybackSpeakingStateHandlers<TAudio> {
-  setSpeaking: (value: boolean) => void
-  onStart?: (event: PlaybackStartEvent<TAudio>) => void
+  onStart: (listener: (event: PlaybackStartEvent<TAudio>) => void) => void
 }
 
 /**

@@ -1,46 +1,27 @@
-export interface BaseVADConfig {
-  // Sample rate of the audio
-  sampleRate: number
-  // Probabilities above this value are considered speech
-  speechThreshold: number
-  // Threshold to exit speech state
-  exitThreshold: number
-  // Minimum silence duration to consider speech ended (ms)
-  minSilenceDurationMs: number
-  // Padding to add before and after speech (ms)
-  speechPadMs: number
-  // Minimum duration of speech to consider valid (ms)
-  minSpeechDurationMs: number
-  // Maximum buffer duration in seconds
-  maxBufferDuration: number
-  // Size of input buffers from audio source
-  newBufferSize: number
-}
-
-export interface VADEvents {
-  // Emitted when speech is detected
-  'speech-start': void
-  // Emitted with each PCM chunk that belongs to the active speech segment
-  'speech-audio': { buffer: Float32Array }
-  // Emitted when speech has ended
-  'speech-end': void
-  // Emitted when detected speech is too short to produce a segment
-  'speech-cancel': void
-  // Emitted when a complete speech segment is ready for transcription
-  'speech-ready': { buffer: Float32Array, duration: number }
-  // Emitted for status updates and errors
-  'status': { type: string, message: string }
-  // Debug info
-  'debug': { message: string, data?: any }
-}
-
-export type VADEventCallback<K extends keyof VADEvents> = (event: VADEvents[K]) => void
-
 export interface BaseVAD {
   initialize: () => Promise<void>
-  processAudio: (inputBuffer: Float32Array) => Promise<void>
-  on: <K extends keyof VADEvents>(event: K, callback: VADEventCallback<K>) => void
   off: <K extends keyof VADEvents>(event: K, callback: VADEventCallback<K>) => void
+  on: <K extends keyof VADEvents>(event: K, callback: VADEventCallback<K>) => void
+  processAudio: (inputBuffer: Float32Array) => Promise<void>
+}
+
+export interface BaseVADConfig {
+  // Threshold to exit speech state
+  exitThreshold: number
+  // Maximum buffer duration in seconds
+  maxBufferDuration: number
+  // Minimum silence duration to consider speech ended (ms)
+  minSilenceDurationMs: number
+  // Minimum duration of speech to consider valid (ms)
+  minSpeechDurationMs: number
+  // Size of input buffers from audio source
+  newBufferSize: number
+  // Sample rate of the audio
+  sampleRate: number
+  // Padding to add before and after speech (ms)
+  speechPadMs: number
+  // Probabilities above this value are considered speech
+  speechThreshold: number
 }
 
 export interface VADAudioOptions {
@@ -60,6 +41,25 @@ export interface VADAudioOptions {
   vadConfig?: Partial<BaseVADConfig>
 }
 
+export type VADEventCallback<K extends keyof VADEvents> = (event: VADEvents[K]) => void
+
+export interface VADEvents {
+  // Debug info
+  'debug': { data?: any, message: string }
+  // Emitted with each PCM chunk that belongs to the active speech segment
+  'speech-audio': { buffer: Float32Array }
+  // Emitted when detected speech is too short to produce a segment
+  'speech-cancel': void
+  // Emitted when speech has ended
+  'speech-end': void
+  // Emitted when a complete speech segment is ready for transcription
+  'speech-ready': { buffer: Float32Array, duration: number }
+  // Emitted when speech is detected
+  'speech-start': void
+  // Emitted for status updates and errors
+  'status': { message: string, type: string }
+}
+
 export function createVADStates(vad: BaseVAD, vadAudioWorkletUrl: string, options?: VADAudioOptions) {
   let audioWorkletNode: AudioWorkletNode | null
   let mediaStream: MediaStream | null
@@ -69,8 +69,8 @@ export function createVADStates(vad: BaseVAD, vadAudioWorkletUrl: string, option
 
   const {
     audioContextOptions = {
-      sampleRate: 16000,
       latencyHint: 'interactive',
+      sampleRate: 16000,
     },
   } = options || {}
 
@@ -169,9 +169,9 @@ export function createVADStates(vad: BaseVAD, vadAudioWorkletUrl: string, option
   }
 
   return {
+    dispose,
     initialize,
     start,
     stop,
-    dispose,
   }
 }

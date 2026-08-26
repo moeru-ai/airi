@@ -3,30 +3,63 @@ import type { PatternCard, PatternRuntime } from './types'
 const DEFAULT_LIMIT = 10
 const MAX_LIMIT = 25
 
-function normalizeLimit(limit: number | undefined): number {
-  const fallback = Number.isFinite(limit) ? Number(limit) : DEFAULT_LIMIT
-  return Math.max(1, Math.min(MAX_LIMIT, Math.floor(fallback)))
-}
+export function createPatternRuntime(catalog: PatternCard[]): PatternRuntime {
+  const cards = [...catalog]
+  const byId = new Map(cards.map(card => [card.id, card]))
+  const sortedIds = [...byId.keys()].sort((a, b) => a.localeCompare(b))
 
-function tokenize(input: string): string[] {
-  return [...new Set(
-    input
-      .toLowerCase()
-      .split(/[^a-z0-9_]+/g)
-      .map(token => token.trim())
-      .filter(Boolean),
-  )]
+  return {
+    find(query: string, limit?: number): PatternCard[] {
+      if (typeof query !== 'string' || query.trim().length === 0)
+        return []
+
+      const max = normalizeLimit(limit)
+      const tokens = tokenize(query)
+      const ranked = cards
+        .map(card => ({ card, score: scoreCard(card, tokens) }))
+        .filter(entry => entry.score > 0)
+        .sort((a, b) => {
+          if (b.score !== a.score)
+            return b.score - a.score
+          return a.card.id.localeCompare(b.card.id)
+        })
+        .slice(0, max)
+
+      return ranked.map(entry => cloneCard(entry.card))
+    },
+
+    get(id: string): null | PatternCard {
+      if (typeof id !== 'string' || id.trim().length === 0)
+        return null
+
+      const card = byId.get(id.trim())
+      return card ? cloneCard(card) : null
+    },
+
+    ids(): string[] {
+      return [...sortedIds]
+    },
+
+    list(limit?: number): PatternCard[] {
+      const max = normalizeLimit(limit)
+      return sortedIds
+        .slice(0, max)
+        .map(id => byId.get(id))
+        .filter((card): card is PatternCard => Boolean(card))
+        .map(card => cloneCard(card))
+    },
+  }
 }
 
 function cloneCard(card: PatternCard): PatternCard {
   const cloned: PatternCard = {
-    id: card.id,
-    title: card.title,
-    intent: card.intent,
-    whenToUse: [...card.whenToUse],
-    steps: [...card.steps],
     code: card.code,
+    id: card.id,
+    intent: card.intent,
+    steps: [...card.steps],
     tags: [...card.tags],
+    title: card.title,
+    whenToUse: [...card.whenToUse],
     ...(card.pitfalls ? { pitfalls: [...card.pitfalls] } : {}),
   }
 
@@ -36,6 +69,11 @@ function cloneCard(card: PatternCard): PatternCard {
   if (cloned.pitfalls)
     Object.freeze(cloned.pitfalls)
   return Object.freeze(cloned)
+}
+
+function normalizeLimit(limit: number | undefined): number {
+  const fallback = Number.isFinite(limit) ? Number(limit) : DEFAULT_LIMIT
+  return Math.max(1, Math.min(MAX_LIMIT, Math.floor(fallback)))
 }
 
 function scoreCard(card: PatternCard, tokens: string[]): number {
@@ -63,50 +101,12 @@ function scoreCard(card: PatternCard, tokens: string[]): number {
   return score
 }
 
-export function createPatternRuntime(catalog: PatternCard[]): PatternRuntime {
-  const cards = [...catalog]
-  const byId = new Map(cards.map(card => [card.id, card]))
-  const sortedIds = [...byId.keys()].sort((a, b) => a.localeCompare(b))
-
-  return {
-    get(id: string): PatternCard | null {
-      if (typeof id !== 'string' || id.trim().length === 0)
-        return null
-
-      const card = byId.get(id.trim())
-      return card ? cloneCard(card) : null
-    },
-
-    find(query: string, limit?: number): PatternCard[] {
-      if (typeof query !== 'string' || query.trim().length === 0)
-        return []
-
-      const max = normalizeLimit(limit)
-      const tokens = tokenize(query)
-      const ranked = cards
-        .map(card => ({ card, score: scoreCard(card, tokens) }))
-        .filter(entry => entry.score > 0)
-        .sort((a, b) => {
-          if (b.score !== a.score)
-            return b.score - a.score
-          return a.card.id.localeCompare(b.card.id)
-        })
-        .slice(0, max)
-
-      return ranked.map(entry => cloneCard(entry.card))
-    },
-
-    ids(): string[] {
-      return [...sortedIds]
-    },
-
-    list(limit?: number): PatternCard[] {
-      const max = normalizeLimit(limit)
-      return sortedIds
-        .slice(0, max)
-        .map(id => byId.get(id))
-        .filter((card): card is PatternCard => Boolean(card))
-        .map(card => cloneCard(card))
-    },
-  }
+function tokenize(input: string): string[] {
+  return [...new Set(
+    input
+      .toLowerCase()
+      .split(/[^a-z0-9_]+/g)
+      .map(token => token.trim())
+      .filter(Boolean),
+  )]
 }

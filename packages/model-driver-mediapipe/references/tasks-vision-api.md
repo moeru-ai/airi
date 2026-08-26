@@ -10,8 +10,8 @@ import { FilesetResolver, PoseLandmarker } from '@mediapipe/tasks-vision'
 const vision = await FilesetResolver.forVisionTasks(wasmRoot)
 const pose = await PoseLandmarker.createFromOptions(vision, {
   baseOptions: { modelAssetPath: poseModelUrl },
-  runningMode: 'VIDEO',
   numPoses: 1,
+  runningMode: 'VIDEO',
 })
 ```
 

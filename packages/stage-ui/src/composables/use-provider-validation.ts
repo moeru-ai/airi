@@ -14,18 +14,6 @@ import { useProviderConfigStore } from '../stores/providers/config'
 import { useProviderStore } from '../stores/providers/provider'
 import { useAnalytics } from './use-analytics'
 
-/**
- * Classifies provider ids into bounded analytics buckets.
- */
-function providerModeForAnalytics(providerId: string): ProviderMode {
-  if (!providerId)
-    return 'unknown'
-
-  return providerId.startsWith('official-provider') || providerId.startsWith('vision-official-provider')
-    ? 'official'
-    : 'custom'
-}
-
 export function useProviderValidation(providerId: string) {
   const { t } = useI18n()
   const router = useRouter()
@@ -40,8 +28,8 @@ export function useProviderValidation(providerId: string) {
   const providerMetadata = computedAsync(async () => {
     const definition = providersStore.getProviderDefinition(providerId)
     return await selectProviderMetadata(definition, t, {
-      id: providerId,
       configured: providerStore.getProvider(providerId)?.status === 'configured',
+      id: providerId,
     })
   }, undefined)
 
@@ -179,8 +167,8 @@ export function useProviderValidation(providerId: string) {
         manualTestMessage.value = result.reason
         trackProviderConnectionTestCompleted({
           ...providerConnectionTestAnalyticsBase(),
-          error_code: 'validation_failed',
           duration_ms: Math.round(performance.now() - startedAt),
+          error_code: 'validation_failed',
           success: false,
         })
       }
@@ -190,8 +178,8 @@ export function useProviderValidation(providerId: string) {
       manualTestMessage.value = errorMessageFrom(error) ?? 'Generic error (e56ae24f)'
       trackProviderConnectionTestCompleted({
         ...providerConnectionTestAnalyticsBase(),
-        error_code: 'provider_error',
         duration_ms: Math.round(performance.now() - startedAt),
+        error_code: 'provider_error',
         success: false,
       })
     }
@@ -255,22 +243,34 @@ export function useProviderValidation(providerId: string) {
   }
 
   return {
-    t,
-    router,
-    providerMetadata,
+    accountId,
     apiKey,
     baseUrl,
-    accountId,
-    isValidating,
-    isValid,
-    validationMessage,
-    handleResetSettings,
     forceValid,
+    handleResetSettings,
     // Manual test generation
     hasManualValidators,
     isManualTesting,
-    manualTestPassed,
+    isValid,
+    isValidating,
     manualTestMessage,
+    manualTestPassed,
+    providerMetadata,
+    router,
     runManualTest,
+    t,
+    validationMessage,
   }
+}
+
+/**
+ * Classifies provider ids into bounded analytics buckets.
+ */
+function providerModeForAnalytics(providerId: string): ProviderMode {
+  if (!providerId)
+    return 'unknown'
+
+  return providerId.startsWith('official-provider') || providerId.startsWith('vision-official-provider')
+    ? 'official'
+    : 'custom'
 }

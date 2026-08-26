@@ -3,6 +3,24 @@ import type { ShortcutBinding } from '@proj-airi/stage-shared/global-shortcut'
 import { ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+interface KeyboardEvent {
+  altKey: boolean
+  ctrlKey: boolean
+  keycode: number
+  metaKey: boolean
+  shiftKey: boolean
+}
+
+function event(partial: Partial<KeyboardEvent> & Pick<KeyboardEvent, 'keycode'>): KeyboardEvent {
+  return {
+    altKey: false,
+    ctrlKey: false,
+    metaKey: false,
+    shiftKey: false,
+    ...partial,
+  }
+}
+
 /**
  * Builds a binding for the uiohook driver.
  *
@@ -17,28 +35,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
  */
 function exampleBinding(id: string, modifiers: ShortcutBinding['accelerator']['modifiers'] = ['shift'], key = 'KeyK'): ShortcutBinding {
   return {
+    accelerator: { key, modifiers },
     id,
-    accelerator: { modifiers, key },
-    scope: 'global',
     receiveKeyUps: true,
-  }
-}
-
-interface KeyboardEvent {
-  keycode: number
-  altKey: boolean
-  ctrlKey: boolean
-  metaKey: boolean
-  shiftKey: boolean
-}
-
-function event(partial: Partial<KeyboardEvent> & Pick<KeyboardEvent, 'keycode'>): KeyboardEvent {
-  return {
-    altKey: false,
-    ctrlKey: false,
-    metaKey: false,
-    shiftKey: false,
-    ...partial,
+    scope: 'global',
   }
 }
 
@@ -78,8 +78,8 @@ async function setupMocks() {
   // mapper. KeyK = 37, KeyA = 30 (matches real upstream constants so
   // tests assert real keycodes, not arbitrary numbers).
   const UiohookKey = {
-    K: 37,
     A: 30,
+    K: 37,
     Q: 16,
   } as const
 
@@ -118,17 +118,17 @@ async function setupMocks() {
       platform: overrides.platform ?? 'darwin',
       sessionType: overrides.sessionType,
     })
-    return { driver, broadcastTriggered, logger }
+    return { broadcastTriggered, driver, logger }
   }
 
   return {
+    createDriver,
+    fire,
+    isTrustedAccessibilityClientMock,
     onMock,
     removeListenerMock,
     startMock,
     stopMock,
-    isTrustedAccessibilityClientMock,
-    fire,
-    createDriver,
   }
 }
 
@@ -171,7 +171,7 @@ describe('createUiohookDriver', () => {
 
   it('broadcasts a "down" event when a matching keydown arrives', async () => {
     const m = await setupMocks()
-    const { driver, broadcastTriggered } = m.createDriver()
+    const { broadcastTriggered, driver } = m.createDriver()
     driver.tryRegister(exampleBinding('ptt', ['shift'], 'KeyK'))
 
     m.fire('keydown', event({ keycode: 37, shiftKey: true }))
@@ -189,7 +189,7 @@ describe('createUiohookDriver', () => {
     // would emit hundreds of `down` broadcasts per second and the mic
     // would start/stop frantically.
     const m = await setupMocks()
-    const { driver, broadcastTriggered } = m.createDriver()
+    const { broadcastTriggered, driver } = m.createDriver()
     driver.tryRegister(exampleBinding('ptt', ['shift'], 'KeyK'))
 
     m.fire('keydown', event({ keycode: 37, shiftKey: true }))
@@ -202,7 +202,7 @@ describe('createUiohookDriver', () => {
 
   it('broadcasts "up" on matching keyup and re-arms the binding for the next press', async () => {
     const m = await setupMocks()
-    const { driver, broadcastTriggered } = m.createDriver()
+    const { broadcastTriggered, driver } = m.createDriver()
     driver.tryRegister(exampleBinding('ptt', ['shift'], 'KeyK'))
 
     m.fire('keydown', event({ keycode: 37, shiftKey: true }))
@@ -222,7 +222,7 @@ describe('createUiohookDriver', () => {
     // The driver keys the "up" broadcast off the prior `pressed`
     // state rather than the modifier predicate.
     const m = await setupMocks()
-    const { driver, broadcastTriggered } = m.createDriver()
+    const { broadcastTriggered, driver } = m.createDriver()
     driver.tryRegister(exampleBinding('ptt', ['cmd-or-ctrl'], 'KeyK'))
 
     m.fire('keydown', event({ keycode: 37, metaKey: true }))
@@ -234,7 +234,7 @@ describe('createUiohookDriver', () => {
 
   it('ignores keyup when no matching keydown was tracked', async () => {
     const m = await setupMocks()
-    const { driver, broadcastTriggered } = m.createDriver()
+    const { broadcastTriggered, driver } = m.createDriver()
     driver.tryRegister(exampleBinding('ptt', ['shift'], 'KeyK'))
 
     m.fire('keyup', event({ keycode: 37, shiftKey: true }))
@@ -246,21 +246,21 @@ describe('createUiohookDriver', () => {
     // Strict matching mirrors Electron's accelerator semantics: a
     // `Shift+K` binding must not fire on `Cmd+Shift+K`.
     const m = await setupMocks()
-    const { driver, broadcastTriggered } = m.createDriver()
+    const { broadcastTriggered, driver } = m.createDriver()
     driver.tryRegister(exampleBinding('ptt', ['shift'], 'KeyK'))
 
-    m.fire('keydown', event({ keycode: 37, shiftKey: true, metaKey: true }))
+    m.fire('keydown', event({ keycode: 37, metaKey: true, shiftKey: true }))
 
     expect(broadcastTriggered).not.toHaveBeenCalled()
   })
 
   it('maps cmd-or-ctrl to metaKey on darwin', async () => {
     const m = await setupMocks()
-    const { driver, broadcastTriggered } = m.createDriver({ platform: 'darwin' })
+    const { broadcastTriggered, driver } = m.createDriver({ platform: 'darwin' })
     driver.tryRegister(exampleBinding('ptt', ['cmd-or-ctrl'], 'KeyK'))
 
     m.fire('keydown', event({ keycode: 37, metaKey: true }))
-    m.fire('keydown', event({ keycode: 37, ctrlKey: true }))
+    m.fire('keydown', event({ ctrlKey: true, keycode: 37 }))
 
     expect(broadcastTriggered).toHaveBeenCalledTimes(1)
     expect(broadcastTriggered).toHaveBeenCalledWith('ptt', 'down')
@@ -268,10 +268,10 @@ describe('createUiohookDriver', () => {
 
   it('maps cmd-or-ctrl to ctrlKey on non-darwin platforms', async () => {
     const m = await setupMocks()
-    const { driver, broadcastTriggered } = m.createDriver({ platform: 'win32' })
+    const { broadcastTriggered, driver } = m.createDriver({ platform: 'win32' })
     driver.tryRegister(exampleBinding('ptt', ['cmd-or-ctrl'], 'KeyK'))
 
-    m.fire('keydown', event({ keycode: 37, ctrlKey: true }))
+    m.fire('keydown', event({ ctrlKey: true, keycode: 37 }))
     m.fire('keydown', event({ keycode: 37, metaKey: true }))
 
     // First (ctrl) matches; second (meta) does not — the pressed
@@ -327,7 +327,7 @@ describe('createUiohookDriver', () => {
 
   it('unregisterAll clears every binding and stops the hook in one shot', async () => {
     const m = await setupMocks()
-    const { driver, broadcastTriggered } = m.createDriver()
+    const { broadcastTriggered, driver } = m.createDriver()
 
     driver.tryRegister(exampleBinding('a', ['shift'], 'KeyA'))
     driver.tryRegister(exampleBinding('b', ['shift'], 'KeyQ'))
@@ -353,7 +353,7 @@ describe('createUiohookDriver', () => {
 
   it('keeps per-binding pressed state independent across multiple bindings', async () => {
     const m = await setupMocks()
-    const { driver, broadcastTriggered } = m.createDriver()
+    const { broadcastTriggered, driver } = m.createDriver()
     driver.tryRegister(exampleBinding('a', ['shift'], 'KeyA'))
     driver.tryRegister(exampleBinding('b', ['shift'], 'KeyQ'))
 

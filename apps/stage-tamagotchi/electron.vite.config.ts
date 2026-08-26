@@ -73,8 +73,8 @@ export default defineConfig({
     resolve: {
       alias: {
         '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
-        '@proj-airi/server-runtime/server': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-runtime', 'src', 'server', 'index.ts')),
         '@proj-airi/server-runtime': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-runtime', 'src', 'index.ts')),
+        '@proj-airi/server-runtime/server': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-runtime', 'src', 'server', 'index.ts')),
       },
     },
   },
@@ -83,8 +83,8 @@ export default defineConfig({
     build: {
       lib: {
         entry: {
-          'index': resolve(join(import.meta.dirname, 'src', 'preload', 'index.ts')),
           'beat-sync': resolve(join(import.meta.dirname, 'src', 'preload', 'beat-sync.ts')),
+          'index': resolve(join(import.meta.dirname, 'src', 'preload', 'index.ts')),
         },
       },
     },
@@ -100,8 +100,8 @@ export default defineConfig({
     build: {
       rolldownOptions: {
         input: {
-          'main': resolve(join(import.meta.dirname, 'src', 'renderer', 'index.html')),
           'beat-sync': resolve(join(import.meta.dirname, 'src', 'renderer', 'beat-sync.html')),
+          'main': resolve(join(import.meta.dirname, 'src', 'renderer', 'index.html')),
         },
       },
     },
@@ -135,18 +135,102 @@ export default defineConfig({
       ],
     },
 
+    plugins: [
+      Info(),
+
+      {
+        config(ctx) {
+          const define: Record<string, any> = {
+            'import.meta.env.RUNTIME_ENVIRONMENT': '\'electron\'',
+          }
+          if (ctx.mode === 'development') {
+            define['import.meta.env.URL_MODE'] = '\'server\''
+          }
+          if (ctx.mode === 'production') {
+            define['import.meta.env.URL_MODE'] = '\'file\''
+          }
+
+          return { define }
+        },
+        name: 'proj-airi:defines',
+      },
+
+      Inspect(),
+
+      Yaml(),
+
+      VueMacros({
+        betterDefine: false,
+        plugins: {
+          vue: Vue({
+            include: [/\.vue$/, /\.md$/],
+            ...templateCompilerOptions,
+          }),
+          vueJsx: false,
+        },
+      }),
+
+      VueRouter({
+        dts: resolve(import.meta.dirname, 'src/renderer/typed-router.d.ts'),
+        exclude: ['**/components/**'],
+        routesFolder: [
+          {
+            exclude: base => [
+              ...base,
+              '**/settings/account/index.vue',
+              '**/settings/connection/index.vue',
+              '**/settings/data/index.vue',
+              '**/settings/models/index.vue',
+              '**/settings/system/general.vue',
+              '**/settings/modules/mcp.vue',
+              '**/devtools/index.vue',
+              '**/settings/index.vue',
+            ],
+            src: resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
+          },
+          resolve(import.meta.dirname, 'src', 'renderer', 'pages'),
+        ],
+      }),
+
+      VitePluginVueDevTools(),
+
+      // https://github.com/JohnCampionJr/vite-plugin-vue-layouts
+      Layouts({
+        layoutsDirs: [
+          resolve(import.meta.dirname, 'src', 'renderer', 'layouts'),
+          resolve(import.meta.dirname, '..', '..', 'packages', 'stage-layouts', 'src', 'layouts'),
+        ],
+        pagesDirs: [resolve(import.meta.dirname, 'src', 'renderer', 'pages')],
+      }),
+
+      UnoCss(),
+
+      // https://github.com/intlify/bundle-tools/tree/main/packages/unplugin-vue-i18n
+      VueI18n({
+        compositionOnly: true,
+        fullInstall: true,
+        runtimeOnly: true,
+      }),
+
+      DownloadLive2DSDK(),
+      Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { cacheDir: sharedCacheDir, parentDir: stageUIAssetsRoot }),
+      Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { cacheDir: sharedCacheDir, parentDir: stageUIAssetsRoot }),
+      Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'vrm/models/AvatarSample-A', { cacheDir: sharedCacheDir, parentDir: stageUIAssetsRoot }),
+      Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'vrm/models/AvatarSample-B', { cacheDir: sharedCacheDir, parentDir: stageUIAssetsRoot }),
+    ],
+
     resolve: {
       alias: {
-        '@proj-airi/server-sdk': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-sdk', 'src')),
         '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
+        '@proj-airi/server-sdk': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-sdk', 'src')),
+        '@proj-airi/stage-pages': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src')),
+        '@proj-airi/stage-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-shared', 'src')),
+        '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
         // NOTICE: the @proj-airi/stage-ui alias resolves to a directory; rolldown
         // concatenates sub-paths without a file extension, so bare .ts files at the
         // stores/ root (e.g. mcp-tool-bridge.ts) are not found.  Add explicit aliases
         // for each such file that the renderer imports from @proj-airi/stage-ui.
         '@proj-airi/stage-ui/stores/mcp-tool-bridge': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'stores', 'mcp-tool-bridge.ts')),
-        '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
-        '@proj-airi/stage-pages': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src')),
-        '@proj-airi/stage-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-shared', 'src')),
       },
     },
 
@@ -174,89 +258,5 @@ export default defineConfig({
         },
       },
     },
-
-    plugins: [
-      Info(),
-
-      {
-        name: 'proj-airi:defines',
-        config(ctx) {
-          const define: Record<string, any> = {
-            'import.meta.env.RUNTIME_ENVIRONMENT': '\'electron\'',
-          }
-          if (ctx.mode === 'development') {
-            define['import.meta.env.URL_MODE'] = '\'server\''
-          }
-          if (ctx.mode === 'production') {
-            define['import.meta.env.URL_MODE'] = '\'file\''
-          }
-
-          return { define }
-        },
-      },
-
-      Inspect(),
-
-      Yaml(),
-
-      VueMacros({
-        plugins: {
-          vue: Vue({
-            include: [/\.vue$/, /\.md$/],
-            ...templateCompilerOptions,
-          }),
-          vueJsx: false,
-        },
-        betterDefine: false,
-      }),
-
-      VueRouter({
-        dts: resolve(import.meta.dirname, 'src/renderer/typed-router.d.ts'),
-        routesFolder: [
-          {
-            src: resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
-            exclude: base => [
-              ...base,
-              '**/settings/account/index.vue',
-              '**/settings/connection/index.vue',
-              '**/settings/data/index.vue',
-              '**/settings/models/index.vue',
-              '**/settings/system/general.vue',
-              '**/settings/modules/mcp.vue',
-              '**/devtools/index.vue',
-              '**/settings/index.vue',
-            ],
-          },
-          resolve(import.meta.dirname, 'src', 'renderer', 'pages'),
-        ],
-        exclude: ['**/components/**'],
-      }),
-
-      VitePluginVueDevTools(),
-
-      // https://github.com/JohnCampionJr/vite-plugin-vue-layouts
-      Layouts({
-        layoutsDirs: [
-          resolve(import.meta.dirname, 'src', 'renderer', 'layouts'),
-          resolve(import.meta.dirname, '..', '..', 'packages', 'stage-layouts', 'src', 'layouts'),
-        ],
-        pagesDirs: [resolve(import.meta.dirname, 'src', 'renderer', 'pages')],
-      }),
-
-      UnoCss(),
-
-      // https://github.com/intlify/bundle-tools/tree/main/packages/unplugin-vue-i18n
-      VueI18n({
-        runtimeOnly: true,
-        compositionOnly: true,
-        fullInstall: true,
-      }),
-
-      DownloadLive2DSDK(),
-      Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
-      Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
-      Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'vrm/models/AvatarSample-A', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
-      Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'vrm/models/AvatarSample-B', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
-    ],
   },
 })

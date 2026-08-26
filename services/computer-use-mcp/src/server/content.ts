@@ -2,17 +2,17 @@ import type { ImageContent, TextContent } from '@modelcontextprotocol/sdk/types.
 
 import type { ScreenshotArtifact } from '../types'
 
-export function textContent(text: string): TextContent {
+export function imageContent(screenshot: ScreenshotArtifact): ImageContent {
   return {
-    type: 'text',
-    text,
+    data: screenshot.dataBase64,
+    mimeType: screenshot.mimeType,
+    type: 'image',
   }
 }
 
-export function imageContent(screenshot: ScreenshotArtifact): ImageContent {
+export function textContent(text: string): TextContent {
   return {
-    type: 'image',
-    data: screenshot.dataBase64,
-    mimeType: screenshot.mimeType,
+    text,
+    type: 'text',
   }
 }

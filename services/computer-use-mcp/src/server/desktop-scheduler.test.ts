@@ -6,28 +6,28 @@ import { decideDesktopExecutionMode } from './desktop-scheduler'
 
 function makeBrowserSurfaceAvailability(): BrowserSurfaceAvailability {
   return {
-    executionMode: 'local-windowed' as const,
-    suitable: true,
     availableSurfaces: ['browser_dom', 'browser_cdp'],
-    preferredSurface: 'browser_dom' as const,
-    selectedToolName: 'browser_dom_read_page' as const,
-    reason: 'connected',
-    extension: {
-      enabled: true,
-      connected: true,
-    },
     cdp: {
-      endpoint: 'http://localhost:9222',
-      connected: true,
       connectable: true,
+      connected: true,
+      endpoint: 'http://localhost:9222',
     },
+    executionMode: 'local-windowed' as const,
+    extension: {
+      connected: true,
+      enabled: true,
+    },
+    preferredSurface: 'browser_dom' as const,
+    reason: 'connected',
+    selectedToolName: 'browser_dom_read_page' as const,
+    suitable: true,
   }
 }
 
 describe('decideDesktopExecutionMode', () => {
   it('keeps desktop_observe background when Chrome capture is disabled', () => {
     const decision = decideDesktopExecutionMode({
-      action: { kind: 'desktop_observe', input: { includeChrome: false } },
+      action: { input: { includeChrome: false }, kind: 'desktop_observe' },
     })
 
     expect(decision).toMatchObject({
@@ -38,37 +38,37 @@ describe('decideDesktopExecutionMode', () => {
 
   it('treats desktop_observe as browser_surface when browser surfaces are available', () => {
     const decision = decideDesktopExecutionMode({
-      action: { kind: 'desktop_observe', input: { includeChrome: true } },
+      action: { input: { includeChrome: true }, kind: 'desktop_observe' },
       browserSurface: makeBrowserSurfaceAvailability(),
     })
 
     expect(decision).toMatchObject({
-      executionMode: 'browser_surface',
       browserSurfacePreferred: true,
+      executionMode: 'browser_surface',
       foregroundRequired: false,
     })
   })
 
   it('keeps desktop_click_target background-safe when browser_dom is available', () => {
     const decision = decideDesktopExecutionMode({
-      action: { kind: 'desktop_click_target', input: { candidateId: 't_0' } },
-      browserSurface: makeBrowserSurfaceAvailability(),
+      action: { input: { candidateId: 't_0' }, kind: 'desktop_click_target' },
       browserDomRoute: true,
+      browserSurface: makeBrowserSurfaceAvailability(),
     })
 
     expect(decision).toMatchObject({
-      executionMode: 'browser_surface',
       browserSurfacePreferred: true,
+      executionMode: 'browser_surface',
       foregroundRequired: false,
     })
   })
 
   it('treats clipboard and wait actions as background-safe', () => {
     const waitDecision = decideDesktopExecutionMode({
-      action: { kind: 'wait', input: { durationMs: 250 } },
+      action: { input: { durationMs: 250 }, kind: 'wait' },
     })
     const clipboardDecision = decideDesktopExecutionMode({
-      action: { kind: 'clipboard_read_text', input: {} },
+      action: { input: {}, kind: 'clipboard_read_text' },
     })
 
     expect(waitDecision).toMatchObject({

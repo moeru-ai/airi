@@ -11,16 +11,16 @@
 
 /** HuggingFace model repository identifiers */
 export const MODEL_IDS = {
+  BG_REMOVAL: 'Xenova/modnet',
   KOKORO: 'onnx-community/Kokoro-82M-v1.0-ONNX',
   WHISPER: 'onnx-community/whisper-large-v3-turbo',
-  BG_REMOVAL: 'Xenova/modnet',
 } as const
 
 /** Short model identifiers used in adapter state tracking and logging */
 export const MODEL_NAMES = {
+  BG_REMOVAL: 'modnet',
   KOKORO: 'kokoro-82m',
   WHISPER: 'whisper-large-v3-turbo',
-  BG_REMOVAL: 'modnet',
 } as const
 
 // ---------------------------------------------------------------------------
@@ -28,20 +28,20 @@ export const MODEL_NAMES = {
 // ---------------------------------------------------------------------------
 
 export const TIMEOUTS = {
-  /** Kokoro model load timeout */
-  KOKORO_LOAD: 120_000,
+  /** Background removal model load timeout */
+  BG_REMOVAL_LOAD: 120_000,
+  /** Background removal per-image processing timeout */
+  BG_REMOVAL_PROCESS: 60_000,
+
   /** Kokoro audio generation timeout */
   KOKORO_GENERATE: 120_000,
+  /** Kokoro model load timeout */
+  KOKORO_LOAD: 120_000,
 
   /** Whisper model load timeout (larger model, allow more time) */
   WHISPER_LOAD: 180_000,
   /** Whisper transcription timeout */
   WHISPER_TRANSCRIBE: 120_000,
-
-  /** Background removal model load timeout */
-  BG_REMOVAL_LOAD: 120_000,
-  /** Background removal per-image processing timeout */
-  BG_REMOVAL_PROCESS: 60_000,
 } as const
 
 // ---------------------------------------------------------------------------

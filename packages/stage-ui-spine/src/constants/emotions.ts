@@ -1,13 +1,13 @@
 export enum Emotion {
-  Happy = 'happy',
-  Sad = 'sad',
   Angry = 'angry',
-  Think = 'think',
-  Surprise = 'surprised',
   Awkward = 'awkward',
-  Question = 'question',
   Curious = 'curious',
+  Happy = 'happy',
   Neutral = 'neutral',
+  Question = 'question',
+  Sad = 'sad',
+  Surprise = 'surprised',
+  Think = 'think',
 }
 
 export const EMOTION_VALUES = Object.values(Emotion)
@@ -33,16 +33,16 @@ export const SPINE_EMOTION_TRACK = 1
  * names can override the mapping at runtime through the settings panel.
  */
 export const SpineAnimationName = {
-  Idle: 'idle',
-  Happy: 'celebrate',
-  Sad: 'sad',
   Angry: 'angry',
   Awkward: 'awkward',
-  Think: 'think',
-  Surprise: 'surprise',
-  Question: 'question',
   Curious: 'curious',
+  Happy: 'celebrate',
+  Idle: 'idle',
   Neutral: 'idle',
+  Question: 'question',
+  Sad: 'sad',
+  Surprise: 'surprise',
+  Think: 'think',
 } as const
 
 export type SpineAnimationKey = keyof typeof SpineAnimationName
@@ -54,13 +54,13 @@ export type SpineAnimationKey = keyof typeof SpineAnimationName
  * exists on the loaded skeleton — see useSpineAnimationManager().
  */
 export const EMOTION_SpineAnimationName_value: Record<Emotion, string> = {
-  [Emotion.Happy]: SpineAnimationName.Happy,
-  [Emotion.Sad]: SpineAnimationName.Sad,
   [Emotion.Angry]: SpineAnimationName.Angry,
-  [Emotion.Think]: SpineAnimationName.Think,
-  [Emotion.Surprise]: SpineAnimationName.Surprise,
   [Emotion.Awkward]: SpineAnimationName.Awkward,
-  [Emotion.Question]: SpineAnimationName.Question,
-  [Emotion.Neutral]: SpineAnimationName.Neutral,
   [Emotion.Curious]: SpineAnimationName.Curious,
+  [Emotion.Happy]: SpineAnimationName.Happy,
+  [Emotion.Neutral]: SpineAnimationName.Neutral,
+  [Emotion.Question]: SpineAnimationName.Question,
+  [Emotion.Sad]: SpineAnimationName.Sad,
+  [Emotion.Surprise]: SpineAnimationName.Surprise,
+  [Emotion.Think]: SpineAnimationName.Think,
 }

@@ -11,12 +11,12 @@ export const weatherComponent = defineCallingComponent(
   Weather,
   object({
     city: string(),
-    temperature: string(),
     condition: string(),
+    temperature: string(),
   }),
   {
     city: 'Tokyo',
-    temperature: '25°',
     condition: 'Sunny',
+    temperature: '25°',
   },
 )

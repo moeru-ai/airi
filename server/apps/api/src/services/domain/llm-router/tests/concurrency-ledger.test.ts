@@ -62,8 +62,8 @@ describe('concurrencyLedger', () => {
     await ledger.tryAcquire('app-1', 10)
     await ledger.tryAcquire('app-2', 10)
     const snap = await ledger.snapshot()
-    expect(snap).toContainEqual({ poolId: 'app-1', inflight: 2 })
-    expect(snap).toContainEqual({ poolId: 'app-2', inflight: 1 })
+    expect(snap).toContainEqual({ inflight: 2, poolId: 'app-1' })
+    expect(snap).toContainEqual({ inflight: 1, poolId: 'app-2' })
   })
 
   it('snapshot is empty before any pool is acquired', async () => {

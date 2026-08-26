@@ -26,7 +26,7 @@ export function themeColorFromPropertyOf(colorFromClass: string, property: strin
  * Reading VitePress' `isDark` also avoids stray `useDark()` instances that
  * force the theme back to the system preference.
  */
-export function themeColorFromValue(value: string | { light: string, dark: string }): () => Promise<string> {
+export function themeColorFromValue(value: string | { dark: string, light: string }): () => Promise<string> {
   const { isDark } = useData()
   return async () => {
     if (typeof value === 'string') {
@@ -36,7 +36,7 @@ export function themeColorFromValue(value: string | { light: string, dark: strin
   }
 }
 
-export function useThemeColor(colorFrom: () => string | Promise<string>) {
+export function useThemeColor(colorFrom: () => Promise<string> | string) {
   async function updateThemeColor() {
     if (!('document' in globalThis) || globalThis.document == null)
       return

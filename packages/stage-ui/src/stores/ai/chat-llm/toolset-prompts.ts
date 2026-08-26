@@ -2,9 +2,9 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 export interface LlmToolsetPromptContribution {
+  content: string
   id: string
   title?: string
-  content: string
 }
 
 function renderToolsetPrompts(prompts: LlmToolsetPromptContribution[]) {

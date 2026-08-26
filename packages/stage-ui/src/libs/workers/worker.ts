@@ -54,9 +54,9 @@ export interface WhisperOutput {
 
 /** Streaming update sent during transcription as a progress message */
 export interface WhisperStreamUpdate {
+  numTokens: number
   output: ModelOutput | Tensor
   tps?: number
-  numTokens: number
 }
 
 // ---------------------------------------------------------------------------
@@ -88,15 +88,15 @@ async function detectWebGPUInWorker(): Promise<boolean> {
 }
 
 // Track which device was actually used (for reporting back to main thread)
-let resolvedDevice: 'webgpu' | 'wasm' | 'cpu' = 'webgpu'
+let resolvedDevice: 'cpu' | 'wasm' | 'webgpu' = 'webgpu'
 
 class AutomaticSpeechRecognitionPipeline {
-  static model_id: string | null = null
-  static tokenizer: Promise<PreTrainedTokenizer>
-  static processor: Promise<Processor>
   static model: Promise<PreTrainedModel>
+  static model_id: null | string = null
+  static processor: Promise<Processor>
+  static tokenizer: Promise<PreTrainedTokenizer>
 
-  static async getInstance(progress_callback?: ProgressCallback, device: 'webgpu' | 'wasm' | 'cpu' = 'webgpu') {
+  static async getInstance(progress_callback?: ProgressCallback, device: 'cpu' | 'wasm' | 'webgpu' = 'webgpu') {
     this.model_id = MODEL_ID
 
     // Auto-detect: if WebGPU was requested but unavailable, fall back to WASM
@@ -124,11 +124,11 @@ class AutomaticSpeechRecognitionPipeline {
     this.model ??= (async () => {
       try {
         return await WhisperForConditionalGeneration.from_pretrained(this.model_id!, {
-          dtype: {
-            encoder_model: 'fp16',
-            decoder_model_merged: 'q4',
-          },
           device: actualDevice,
+          dtype: {
+            decoder_model_merged: 'q4',
+            encoder_model: 'fp16',
+          },
           progress_callback,
         })
       }
@@ -138,11 +138,11 @@ class AutomaticSpeechRecognitionPipeline {
           errorMessageFromValue(error),
         )
         return await WhisperForConditionalGeneration.from_pretrained(this.model_id!, {
-          dtype: {
-            encoder_model: 'fp32',
-            decoder_model_merged: 'q4',
-          },
           device: actualDevice,
+          dtype: {
+            decoder_model_merged: 'q4',
+            encoder_model: 'fp32',
+          },
           progress_callback,
         })
       }
@@ -182,55 +182,55 @@ async function base64ToFeatures(base64Audio: string): Promise<Float32Array> {
  */
 const cancelledRequestIds = new Set<string>()
 
-function markCancelled(targetRequestId: string): void {
-  cancelledRequestIds.add(targetRequestId)
-  // Emit the error now so the adapter can resolve immediately even if
-  // the inference keeps running in the background.
-  const msg: ErrorResponse = {
-    type: 'error',
-    requestId: targetRequestId,
-    payload: {
-      code: 'CANCELLED',
-      message: 'Operation cancelled by caller',
-      recoverable: false,
-    },
-  }
-  globalThis.postMessage(msg)
+function clearCancelled(requestId: string): void {
+  cancelledRequestIds.delete(requestId)
 }
 
 function isCancelled(requestId: string): boolean {
   return cancelledRequestIds.has(requestId)
 }
 
-function clearCancelled(requestId: string): void {
-  cancelledRequestIds.delete(requestId)
-}
-
-function sendProgress(requestId: string, phase: 'download' | 'compile' | 'warmup' | 'inference', percent: number, message?: string, extra?: Record<string, unknown>): void {
-  const msg: ProgressResponse = {
-    type: 'progress',
-    requestId,
+function markCancelled(targetRequestId: string): void {
+  cancelledRequestIds.add(targetRequestId)
+  // Emit the error now so the adapter can resolve immediately even if
+  // the inference keeps running in the background.
+  const msg: ErrorResponse = {
     payload: {
-      phase,
-      percent,
-      message,
-      ...extra,
+      code: 'CANCELLED',
+      message: 'Operation cancelled by caller',
+      recoverable: false,
     },
+    requestId: targetRequestId,
+    type: 'error',
   }
   globalThis.postMessage(msg)
 }
 
-function sendError(requestId: string, error: unknown, phase?: 'load' | 'inference'): void {
+function sendError(requestId: string, error: unknown, phase?: 'inference' | 'load'): void {
   const message = errorMessageFromValue(error)
   const code = classifyError(error, phase)
   const msg: ErrorResponse = {
-    type: 'error',
-    requestId,
     payload: {
       code,
       message,
       recoverable: isRecoverable(code),
     },
+    requestId,
+    type: 'error',
+  }
+  globalThis.postMessage(msg)
+}
+
+function sendProgress(requestId: string, phase: 'compile' | 'download' | 'inference' | 'warmup', percent: number, message?: string, extra?: Record<string, unknown>): void {
+  const msg: ProgressResponse = {
+    payload: {
+      message,
+      percent,
+      phase,
+      ...extra,
+    },
+    requestId,
+    type: 'progress',
   }
   globalThis.postMessage(msg)
 }
@@ -240,10 +240,10 @@ function sendError(requestId: string, error: unknown, phase?: 'load' | 'inferenc
 // ---------------------------------------------------------------------------
 
 // Track the requestId of the current load operation for progress callbacks
-let currentLoadRequestId: string | null = null
+let currentLoadRequestId: null | string = null
 
 async function loadModel(request: LoadModelRequest): Promise<void> {
-  const { requestId, device } = request
+  const { device, requestId } = request
   currentLoadRequestId = requestId
 
   try {
@@ -263,7 +263,7 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
           sendProgress(currentLoadRequestId, 'download', 0, `Loading ${x.file}`, { file: x.file })
         }
       }
-    }, device as 'webgpu' | 'wasm' | 'cpu')
+    }, device as 'cpu' | 'wasm' | 'webgpu')
 
     sendProgress(requestId, 'warmup', -1, 'Compiling shaders and warming up model...')
 
@@ -281,10 +281,10 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
     }
     else {
       const ready: ModelReadyResponse = {
-        type: 'model-ready',
-        requestId,
-        modelId: MODEL_NAMES.WHISPER,
         device: resolvedDevice,
+        modelId: MODEL_NAMES.WHISPER,
+        requestId,
+        type: 'model-ready',
       }
       globalThis.postMessage(ready)
     }
@@ -307,7 +307,7 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
 let processing = false
 
 async function runInference(request: RunInferenceRequest<WhisperInput>): Promise<void> {
-  const { requestId, input } = request
+  const { input, requestId } = request
 
   if (processing) {
     sendError(requestId, new Error('Worker is busy processing another request'), 'inference')
@@ -332,21 +332,21 @@ async function runInference(request: RunInferenceRequest<WhisperInput>): Promise
       }
 
       // Send streaming updates as progress messages with inference phase
-      sendProgress(requestId, 'inference', -1, undefined, { output, tps, numTokens } as any)
+      sendProgress(requestId, 'inference', -1, undefined, { numTokens, output, tps } as any)
     }
 
     const streamer = new TextStreamer(tokenizer, {
-      skip_prompt: true,
-      decode_kwargs: { skip_special_tokens: true },
       callback_function,
+      decode_kwargs: { skip_special_tokens: true },
+      skip_prompt: true,
     })
 
     const inputs = await processor(audioData)
 
     const outputs = await model.generate({
       ...inputs,
-      max_new_tokens: MAX_NEW_TOKENS,
       language: input.language,
+      max_new_tokens: MAX_NEW_TOKENS,
       streamer,
     })
 
@@ -357,9 +357,9 @@ async function runInference(request: RunInferenceRequest<WhisperInput>): Promise
     }
     else {
       const result: InferenceResultResponse<WhisperOutput> = {
-        type: 'inference-result',
-        requestId,
         output: { text: outputText },
+        requestId,
+        type: 'inference-result',
       }
       globalThis.postMessage(result)
     }
@@ -383,6 +383,9 @@ globalThis.addEventListener('message', async (event: MessageEvent<WorkerInboundM
   const message = event.data
 
   switch (message.type) {
+    case 'cancel':
+      markCancelled(message.targetRequestId)
+      break
     case 'load-model':
       await loadModel(message)
       break
@@ -391,10 +394,7 @@ globalThis.addEventListener('message', async (event: MessageEvent<WorkerInboundM
       break
     case 'unload-model':
       // Whisper uses singleton pattern — can't fully unload, but acknowledge
-      globalThis.postMessage({ type: 'model-unloaded', requestId: message.requestId })
-      break
-    case 'cancel':
-      markCancelled(message.targetRequestId)
+      globalThis.postMessage({ requestId: message.requestId, type: 'model-unloaded' })
       break
   }
 })

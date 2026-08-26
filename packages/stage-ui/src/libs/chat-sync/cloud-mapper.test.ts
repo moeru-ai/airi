@@ -7,21 +7,21 @@ import { applyCreateActions, createCloudChatMapper, reconcileLocalAndRemote } fr
 
 function makeMeta(partial: Partial<ChatSessionMeta>): ChatSessionMeta {
   return {
-    sessionId: partial.sessionId ?? 'session-x',
-    userId: partial.userId ?? 'user-1',
     characterId: partial.characterId ?? 'char-1',
     createdAt: partial.createdAt ?? 0,
+    sessionId: partial.sessionId ?? 'session-x',
     updatedAt: partial.updatedAt ?? 0,
+    userId: partial.userId ?? 'user-1',
     ...partial,
   }
 }
 
 function makeRemote(partial: Partial<RemoteChat>): RemoteChat {
   return {
-    id: partial.id ?? 'chat-1',
-    type: partial.type ?? 'bot',
-    title: partial.title ?? null,
     createdAt: partial.createdAt ?? '2026-01-01T00:00:00.000Z',
+    id: partial.id ?? 'chat-1',
+    title: partial.title ?? null,
+    type: partial.type ?? 'bot',
     updatedAt: partial.updatedAt ?? '2026-01-01T00:00:00.000Z',
   }
 }
@@ -37,7 +37,7 @@ describe('reconcileLocalAndRemote', () => {
       [makeMeta({ sessionId: 'abc' })],
       [makeRemote({ id: 'abc' })],
     )
-    expect(plan.claim).toEqual([{ sessionId: 'abc', cloudChatId: 'abc' }])
+    expect(plan.claim).toEqual([{ cloudChatId: 'abc', sessionId: 'abc' }])
     expect(plan.create).toEqual([])
     expect(plan.adopt).toEqual([])
   })
@@ -49,11 +49,11 @@ describe('reconcileLocalAndRemote', () => {
    */
   it('schedules a create when no remote match exists for an unmapped local session', () => {
     const plan = reconcileLocalAndRemote(
-      [makeMeta({ sessionId: 'abc', characterId: 'char-42' })],
+      [makeMeta({ characterId: 'char-42', sessionId: 'abc' })],
       [],
     )
     expect(plan.claim).toEqual([])
-    expect(plan.create).toEqual([{ sessionId: 'abc', characterId: 'char-42' }])
+    expect(plan.create).toEqual([{ characterId: 'char-42', sessionId: 'abc' }])
     expect(plan.adopt).toEqual([])
   })
 
@@ -76,7 +76,7 @@ describe('reconcileLocalAndRemote', () => {
    */
   it('skips already-mapped sessions on both sides', () => {
     const plan = reconcileLocalAndRemote(
-      [makeMeta({ sessionId: 'abc', cloudChatId: 'abc' })],
+      [makeMeta({ cloudChatId: 'abc', sessionId: 'abc' })],
       [makeRemote({ id: 'abc' })],
     )
     expect(plan.claim).toEqual([])
@@ -92,15 +92,15 @@ describe('reconcileLocalAndRemote', () => {
     const plan = reconcileLocalAndRemote(
       [
         makeMeta({ sessionId: 's1' }), // matches remote r1 → claim
-        makeMeta({ sessionId: 's2', characterId: 'c2' }), // no remote → create
+        makeMeta({ characterId: 'c2', sessionId: 's2' }), // no remote → create
       ],
       [
         makeRemote({ id: 's1' }),
         makeRemote({ id: 'r3' }), // no local → adopt
       ],
     )
-    expect(plan.claim).toEqual([{ sessionId: 's1', cloudChatId: 's1' }])
-    expect(plan.create).toEqual([{ sessionId: 's2', characterId: 'c2' }])
+    expect(plan.claim).toEqual([{ cloudChatId: 's1', sessionId: 's1' }])
+    expect(plan.create).toEqual([{ characterId: 'c2', sessionId: 's2' }])
     expect(plan.adopt.map(r => r.id)).toEqual(['r3'])
   })
 
@@ -112,7 +112,7 @@ describe('reconcileLocalAndRemote', () => {
    */
   it('keeps stale cloud mapping when the remote chat is gone', () => {
     const plan = reconcileLocalAndRemote(
-      [makeMeta({ sessionId: 'abc', cloudChatId: 'gone' })],
+      [makeMeta({ cloudChatId: 'gone', sessionId: 'abc' })],
       [],
     )
     expect(plan.claim).toEqual([])
@@ -132,23 +132,23 @@ describe('reconcileLocalAndRemote', () => {
       [makeMeta({ sessionId: 'abc' })],
       [makeRemote({ id: 'abc' })],
     )
-    expect(plan.claim).toEqual([{ sessionId: 'abc', cloudChatId: 'abc' }])
+    expect(plan.claim).toEqual([{ cloudChatId: 'abc', sessionId: 'abc' }])
     expect(plan.adopt).toEqual([])
   })
 })
-
-function jsonResponse(body: unknown, init: { status?: number, statusText?: string } = {}): Response {
-  return new Response(JSON.stringify(body), {
-    status: init.status ?? 200,
-    statusText: init.statusText ?? 'OK',
-    headers: { 'Content-Type': 'application/json' },
-  })
-}
 
 function emptyResponse(init: { status?: number, statusText?: string } = {}): Response {
   return new Response(null, {
     status: init.status ?? 204,
     statusText: init.statusText ?? 'No Content',
+  })
+}
+
+function jsonResponse(body: unknown, init: { status?: number, statusText?: string } = {}): Response {
+  return new Response(JSON.stringify(body), {
+    headers: { 'Content-Type': 'application/json' },
+    status: init.status ?? 200,
+    statusText: init.statusText ?? 'OK',
   })
 }
 
@@ -159,9 +159,9 @@ describe('createCloudChatMapper.listChats', () => {
    */
   it('returns the chats array on 2xx', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({
-      chats: [{ id: 'a', type: 'bot', title: null, createdAt: '2026-01-01', updatedAt: '2026-01-01' }],
+      chats: [{ createdAt: '2026-01-01', id: 'a', title: null, type: 'bot', updatedAt: '2026-01-01' }],
     }))
-    const mapper = createCloudChatMapper({ serverUrl: 'https://api.example.com', fetch: fetchMock as unknown as typeof fetch })
+    const mapper = createCloudChatMapper({ fetch: fetchMock as unknown as typeof fetch, serverUrl: 'https://api.example.com' })
     const chats = await mapper.listChats()
     expect(chats.map(c => c.id)).toEqual(['a'])
     expect(fetchMock).toHaveBeenCalledWith(
@@ -177,7 +177,7 @@ describe('createCloudChatMapper.listChats', () => {
    */
   it('rejects malformed responses on 2xx via schema validation', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({ chats: null }))
-    const mapper = createCloudChatMapper({ serverUrl: 'https://api.example.com', fetch: fetchMock as unknown as typeof fetch })
+    const mapper = createCloudChatMapper({ fetch: fetchMock as unknown as typeof fetch, serverUrl: 'https://api.example.com' })
     await expect(mapper.listChats()).rejects.toThrow()
   })
 
@@ -187,7 +187,7 @@ describe('createCloudChatMapper.listChats', () => {
    */
   it('throws with body-derived detail on non-2xx JSON errors', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({ message: 'token expired' }, { status: 401, statusText: 'Unauthorized' }))
-    const mapper = createCloudChatMapper({ serverUrl: 'https://api.example.com', fetch: fetchMock as unknown as typeof fetch })
+    const mapper = createCloudChatMapper({ fetch: fetchMock as unknown as typeof fetch, serverUrl: 'https://api.example.com' })
     await expect(mapper.listChats()).rejects.toThrow(/HTTP 401: token expired/)
   })
 
@@ -199,11 +199,11 @@ describe('createCloudChatMapper.listChats', () => {
    */
   it('falls back to statusText when the error body is not JSON', async () => {
     const fetchMock = vi.fn(async () => new Response('<html>oops</html>', {
+      headers: { 'Content-Type': 'text/html' },
       status: 502,
       statusText: 'Bad Gateway',
-      headers: { 'Content-Type': 'text/html' },
     }))
-    const mapper = createCloudChatMapper({ serverUrl: 'https://api.example.com', fetch: fetchMock as unknown as typeof fetch })
+    const mapper = createCloudChatMapper({ fetch: fetchMock as unknown as typeof fetch, serverUrl: 'https://api.example.com' })
     await expect(mapper.listChats()).rejects.toThrow(/HTTP 502: Bad Gateway/)
   })
 })
@@ -215,13 +215,13 @@ describe('createCloudChatMapper.createChat', () => {
    */
   it('returns the created chat on 2xx', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({
-      id: 'minted',
-      type: 'bot',
-      title: null,
       createdAt: '2026-01-01',
+      id: 'minted',
+      title: null,
+      type: 'bot',
       updatedAt: '2026-01-01',
     }, { status: 201, statusText: 'Created' }))
-    const mapper = createCloudChatMapper({ serverUrl: 'https://api.example.com', fetch: fetchMock as unknown as typeof fetch })
+    const mapper = createCloudChatMapper({ fetch: fetchMock as unknown as typeof fetch, serverUrl: 'https://api.example.com' })
     const chat = await mapper.createChat({ id: 'minted', type: 'bot' })
     expect(chat.id).toBe('minted')
   })
@@ -237,9 +237,9 @@ describe('createCloudChatMapper.createChat', () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ message: 'already exists' }, { status: 409, statusText: 'Conflict' }))
       .mockResolvedValueOnce(jsonResponse({
-        chats: [{ id: 'minted', type: 'bot', title: null, createdAt: '2026-01-01', updatedAt: '2026-01-01' }],
+        chats: [{ createdAt: '2026-01-01', id: 'minted', title: null, type: 'bot', updatedAt: '2026-01-01' }],
       }))
-    const mapper = createCloudChatMapper({ serverUrl: 'https://api.example.com', fetch: fetchMock as unknown as typeof fetch })
+    const mapper = createCloudChatMapper({ fetch: fetchMock as unknown as typeof fetch, serverUrl: 'https://api.example.com' })
     const chat = await mapper.createChat({ id: 'minted', type: 'bot' })
     expect(chat.id).toBe('minted')
     expect(fetchMock).toHaveBeenCalledTimes(2)
@@ -253,7 +253,7 @@ describe('createCloudChatMapper.createChat', () => {
    */
   it('does not attempt 409 idempotency without a client-supplied id', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({ message: 'conflict' }, { status: 409, statusText: 'Conflict' }))
-    const mapper = createCloudChatMapper({ serverUrl: 'https://api.example.com', fetch: fetchMock as unknown as typeof fetch })
+    const mapper = createCloudChatMapper({ fetch: fetchMock as unknown as typeof fetch, serverUrl: 'https://api.example.com' })
     await expect(mapper.createChat({ type: 'bot' })).rejects.toThrow(/HTTP 409/)
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
@@ -266,7 +266,7 @@ describe('createCloudChatMapper.deleteChat', () => {
    */
   it('resolves on 2xx', async () => {
     const fetchMock = vi.fn(async () => emptyResponse())
-    const mapper = createCloudChatMapper({ serverUrl: 'https://api.example.com', fetch: fetchMock as unknown as typeof fetch })
+    const mapper = createCloudChatMapper({ fetch: fetchMock as unknown as typeof fetch, serverUrl: 'https://api.example.com' })
     await expect(mapper.deleteChat('abc')).resolves.toBeUndefined()
     expect(fetchMock).toHaveBeenCalledWith(
       'https://api.example.com/api/v1/chats/abc',
@@ -281,7 +281,7 @@ describe('createCloudChatMapper.deleteChat', () => {
    */
   it('encodes chat ids in the path', async () => {
     const fetchMock = vi.fn(async () => emptyResponse())
-    const mapper = createCloudChatMapper({ serverUrl: 'https://api.example.com', fetch: fetchMock as unknown as typeof fetch })
+    const mapper = createCloudChatMapper({ fetch: fetchMock as unknown as typeof fetch, serverUrl: 'https://api.example.com' })
     await mapper.deleteChat('a/b c')
     expect(fetchMock).toHaveBeenCalledWith(
       'https://api.example.com/api/v1/chats/a%2Fb%20c',
@@ -296,7 +296,7 @@ describe('createCloudChatMapper.deleteChat', () => {
    */
   it('throws on non-2xx with structured detail', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({ error: 'kaboom' }, { status: 500, statusText: 'Internal' }))
-    const mapper = createCloudChatMapper({ serverUrl: 'https://api.example.com', fetch: fetchMock as unknown as typeof fetch })
+    const mapper = createCloudChatMapper({ fetch: fetchMock as unknown as typeof fetch, serverUrl: 'https://api.example.com' })
     await expect(mapper.deleteChat('abc')).rejects.toThrow(/HTTP 500: kaboom/)
   })
 })
@@ -308,17 +308,17 @@ describe('applyCreateActions', () => {
    */
   it('returns one cloudChatId entry per successful create', async () => {
     const mapper: CloudChatMapper = {
-      listChats: async () => [],
-      createChat: async input => ({ id: input.id!, type: 'bot', title: null, createdAt: '', updatedAt: '' }),
+      createChat: async input => ({ createdAt: '', id: input.id!, title: null, type: 'bot', updatedAt: '' }),
       deleteChat: async () => {},
+      listChats: async () => [],
     }
     const results = await applyCreateActions(mapper, [
-      { sessionId: 's1', characterId: 'c1' },
-      { sessionId: 's2', characterId: 'c2' },
+      { characterId: 'c1', sessionId: 's1' },
+      { characterId: 'c2', sessionId: 's2' },
     ])
     expect(results).toEqual([
-      { sessionId: 's1', cloudChatId: 's1' },
-      { sessionId: 's2', cloudChatId: 's2' },
+      { cloudChatId: 's1', sessionId: 's1' },
+      { cloudChatId: 's2', sessionId: 's2' },
     ])
   })
 
@@ -330,23 +330,23 @@ describe('applyCreateActions', () => {
    */
   it('records partial failures without aborting the run', async () => {
     const mapper: CloudChatMapper = {
-      listChats: async () => [],
       createChat: async (input) => {
         if (input.id === 's2')
           throw new Error('boom')
-        return { id: input.id!, type: 'bot', title: null, createdAt: '', updatedAt: '' }
+        return { createdAt: '', id: input.id!, title: null, type: 'bot', updatedAt: '' }
       },
       deleteChat: async () => {},
+      listChats: async () => [],
     }
     const results = await applyCreateActions(mapper, [
-      { sessionId: 's1', characterId: 'c1' },
-      { sessionId: 's2', characterId: 'c2' },
-      { sessionId: 's3', characterId: 'c3' },
+      { characterId: 'c1', sessionId: 's1' },
+      { characterId: 'c2', sessionId: 's2' },
+      { characterId: 'c3', sessionId: 's3' },
     ])
     expect(results).toEqual([
-      { sessionId: 's1', cloudChatId: 's1' },
-      { sessionId: 's2', error: 'boom' },
-      { sessionId: 's3', cloudChatId: 's3' },
+      { cloudChatId: 's1', sessionId: 's1' },
+      { error: 'boom', sessionId: 's2' },
+      { cloudChatId: 's3', sessionId: 's3' },
     ])
   })
 
@@ -357,9 +357,9 @@ describe('applyCreateActions', () => {
   it('returns an empty array on empty input', async () => {
     const createChat = vi.fn()
     const mapper: CloudChatMapper = {
-      listChats: async () => [],
       createChat: createChat as unknown as CloudChatMapper['createChat'],
       deleteChat: async () => {},
+      listChats: async () => [],
     }
     expect(await applyCreateActions(mapper, [])).toEqual([])
     expect(createChat).not.toHaveBeenCalled()

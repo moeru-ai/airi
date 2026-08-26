@@ -9,9 +9,39 @@ import defaultSkyBoxSrc from '../components/Environment/assets/sky_linekotsi_23_
 import { DEFAULT_CAMERA_POSITION, useThreeCamera } from './camera'
 import { supportedControl, useThreeViewControl } from './view-control'
 
-// TODO: this is for future type injection features
-// TODO: make a separate type.ts
-export interface Vec3 { x: number, y: number, z: number }
+export type ColorField = FieldBase<HexColor> & {
+  type: 'color'
+}
+export interface FieldBase<T> {
+  default: T // default value
+  group: string
+  key: string // name key
+  // For future setting components UI display
+  label: string
+  order: number
+  space: string // name space
+}
+// type of Field
+export type FieldDef = FieldKindMap[keyof FieldKindMap]['def']
+export interface FieldKindMap {
+  color: { def: ColorField, value: HexColor }
+  number: { def: NumberField, value: number }
+  select: { def: SelectField<any>, value: string }
+  vec3: { def: Vec3Field, value: Vector3 }
+}
+// type of value
+export type FieldValueOf<D> = D extends SelectField<infer T> ? T
+  : D extends { type: infer K }
+    ? K extends keyof FieldKindMap ? FieldKindMap[K]['value'] : never
+    : never
+
+export type HexColor = string & { __hex?: true }
+export type NumberField = FieldBase<number> & {
+  max?: number
+  min?: number
+  step?: number
+  type: 'number'
+}
 export interface SceneBootstrap {
   cacheHit: boolean
   cameraDistance: number
@@ -22,60 +52,30 @@ export interface SceneBootstrap {
   modelOrigin: Vec3
   modelSize: Vec3
 }
-export type TrackingMode = 'camera' | 'mouse' | 'none'
-export type ScenePhase = 'pending' | 'loading' | 'binding' | 'mounted' | 'no-model' | 'error'
-export type HexColor = string & { __hex?: true }
+export type ScenePhase = 'binding' | 'error' | 'loading' | 'mounted' | 'no-model' | 'pending'
+export type SelectField<T extends string = string> = FieldBase<T> & {
+  options: readonly { label: string, value: T }[]
+  type: 'select'
+}
 
-export interface FieldBase<T> {
-  space: string // name space
-  key: string // name key
-  default: T // default value
-  // For future setting components UI display
-  label: string
-  group: string
-  order: number
-}
-export type NumberField = FieldBase<number> & {
-  type: 'number'
-  min?: number
-  max?: number
-  step?: number
-}
+export type TrackingMode = 'camera' | 'mouse' | 'none'
+// TODO: this is for future type injection features
+// TODO: make a separate type.ts
+export interface Vec3 { x: number, y: number, z: number }
 export type Vec3Field = FieldBase<Vector3> & {
   type: 'vec3'
 }
-export type ColorField = FieldBase<HexColor> & {
-  type: 'color'
-}
-export type SelectField<T extends string = string> = FieldBase<T> & {
-  type: 'select'
-  options: readonly { label: string, value: T }[]
-}
-
-export interface FieldKindMap {
-  number: { def: NumberField, value: number }
-  vec3: { def: Vec3Field, value: Vector3 }
-  color: { def: ColorField, value: HexColor }
-  select: { def: SelectField<any>, value: string }
-}
-// type of Field
-export type FieldDef = FieldKindMap[keyof FieldKindMap]['def']
-// type of value
-export type FieldValueOf<D> = D extends SelectField<infer T> ? T
-  : D extends { type: infer K }
-    ? K extends keyof FieldKindMap ? FieldKindMap[K]['value'] : never
-    : never
 
 type BroadcastChannelEvents
   = | BroadcastChannelEventShouldUpdateView
 
 interface BroadcastChannelEventShouldUpdateView {
-  type: 'vrm-should-update-view'
   href: string
   instanceId: string
   reason: string
   sentAt: number
   stack?: string
+  type: 'vrm-should-update-view'
 }
 
 const vrmViewUpdateRuntimeInstanceId = Math.random().toString(36).slice(2, 10)
@@ -87,7 +87,7 @@ const modelRotationY = useLocalStorage('settings/stage-ui-three/modelRotationY',
 const trackingMode = useLocalStorage<TrackingMode>('settings/stage-ui-three/trackingMode', 'none')
 
 export const useModelStore = defineStore('modelStore', () => {
-  const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-stage-ui-three-vrm' })
+  const { data, post } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-stage-ui-three-vrm' })
   const shouldUpdateViewHooks = ref(new Set<() => void>())
 
   const onShouldUpdateView = (hook: () => void) => {
@@ -99,12 +99,12 @@ export const useModelStore = defineStore('modelStore', () => {
 
   function shouldUpdateView(reason = 'unknown') {
     const event: BroadcastChannelEventShouldUpdateView = {
-      type: 'vrm-should-update-view',
       href: typeof window !== 'undefined' ? window.location.href : 'unknown',
       instanceId: `${vrmViewUpdateRuntimeInstanceId}:${++vrmViewUpdateMessageSequence}`,
       reason,
       sentAt: Date.now(),
       stack: new Error('[VRM shouldUpdateView]').stack,
+      type: 'vrm-should-update-view',
     }
 
     post(event)
@@ -206,51 +206,51 @@ export const useModelStore = defineStore('modelStore', () => {
   const skyBoxIntensity = useLocalStorage('settings/stage-ui-three/skyBoxIntensity', 0.1)
 
   return {
-    scenePhase,
-    sceneTransactionDepth,
-    sceneMutationLocked,
+    ambientLightColor,
+    ambientLightIntensity,
+    beginSceneBindingTransaction,
 
-    lastCommittedModelSrc,
-
-    modelSize,
-    modelOrigin,
-    modelOffset,
-    modelRotationY,
+    cameraDistance,
 
     cameraFOV,
     cameraPosition,
-    cameraDistance,
+    directionalLightColor,
+    directionalLightIntensity,
 
     directionalLightPosition,
-    directionalLightTarget,
     directionalLightRotation,
-    directionalLightIntensity,
-    directionalLightColor,
+    directionalLightTarget,
 
-    ambientLightIntensity,
-    ambientLightColor,
-
-    hemisphereSkyColor,
+    endSceneBindingTransaction,
+    envSelect,
+    eyeHeight,
     hemisphereGroundColor,
     hemisphereLightIntensity,
 
+    hemisphereSkyColor,
+    lastCommittedModelSrc,
+
     lookAtTarget,
-    trackingMode,
-    eyeHeight,
-    renderScale,
+    modelOffset,
+    modelOrigin,
+
+    modelRotationY,
+    modelSize,
     multisampling,
-
-    envSelect,
-    skyBoxSrc,
-    skyBoxIntensity,
-
     onShouldUpdateView,
-    shouldUpdateView,
-    setScenePhase,
-    beginSceneBindingTransaction,
-    endSceneBindingTransaction,
-    resetSceneBindingTransactions,
+    renderScale,
 
     resetModelStore,
+    resetSceneBindingTransactions,
+    sceneMutationLocked,
+
+    scenePhase,
+    sceneTransactionDepth,
+    setScenePhase,
+    shouldUpdateView,
+    skyBoxIntensity,
+    skyBoxSrc,
+
+    trackingMode,
   }
 })

@@ -2,8 +2,8 @@ import { useLocalStorage } from '@vueuse/core'
 import { ref } from 'vue'
 
 export const supportedControl = ['x', 'y', 'scale'] as const
+interface ControlConfig { default: number, format: (val: number) => string, max: number, min: number, step: number }
 type SupportedControl = typeof supportedControl[number]
-interface ControlConfig { min: number, max: number, step: number, default: number, format: (val: number) => string }
 
 const viewControlsEnabled = ref(false)
 const viewControlMode = ref<SupportedControl>('scale')
@@ -20,31 +20,31 @@ const formatToPercent = (val: number) => `${(val * 100).toFixed(0)}%`
 // in Model.vue: `skeleton.x = w / 2 + position.x`), so the x/y controls use a
 // pixel range and formatter matching the settings panel sliders.
 export const controlConfig: Record<SupportedControl, ControlConfig> = {
-  x: { min: -3000, max: 3000, step: 1, default: 0, format: formatPixels },
-  y: { min: -3000, max: 3000, step: 1, default: 0, format: formatPixels },
-  scale: { min: 0.1, max: 3, step: 0.01, default: 1, format: formatToPercent },
+  scale: { default: 1, format: formatToPercent, max: 3, min: 0.1, step: 0.01 },
+  x: { default: 0, format: formatPixels, max: 3000, min: -3000, step: 1 },
+  y: { default: 0, format: formatPixels, max: 3000, min: -3000, step: 1 },
 }
 
 export function useSpineViewControl() {
   function reset(key: SupportedControl) {
     switch (key) {
+      case 'scale':
+        scale.value = controlConfig.scale.default
+        break
       case 'x':
         position.value.x = controlConfig.x.default
         break
       case 'y':
         position.value.y = controlConfig.y.default
         break
-      case 'scale':
-        scale.value = controlConfig.scale.default
-        break
     }
   }
 
   return {
     position,
-    scale,
     reset,
-    viewControlsEnabled,
+    scale,
     viewControlMode,
+    viewControlsEnabled,
   }
 }

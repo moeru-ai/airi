@@ -5,8 +5,8 @@ import { createDevOpenWorkspaceWorkflow } from './dev-open-workspace'
 describe('createDevOpenWorkspaceWorkflow', () => {
   it('builds a fallback open command for VS Code launch name variants', () => {
     const workflow = createDevOpenWorkspaceWorkflow({
-      projectPath: '/tmp/workspace',
       ideApp: 'VS Code',
+      projectPath: '/tmp/workspace',
     })
 
     const openStep = workflow.steps[2]

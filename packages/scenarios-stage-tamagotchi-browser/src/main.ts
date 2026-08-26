@@ -8,8 +8,8 @@ import '@unocss/reset/tailwind.css'
 import 'uno.css'
 
 const router = createRouter({
-  routes,
   history: createWebHistory(),
+  routes,
 })
 
 createApp(App)

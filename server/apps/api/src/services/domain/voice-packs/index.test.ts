@@ -23,15 +23,15 @@ describe('voicePackService', () => {
   it('creates a Voice Pack with provider, model, voice, params, cost multiplier, and tts model pin', async () => {
     // @example create one curated cloud voice -> row stores the resolved routing pin.
     const pack = await service.create({
-      name: 'Neuro Sama',
-      provider: 'volcengine',
-      model: 'seed-tts-2.0',
-      voiceId: 'voice-neuro',
-      upstreamVoiceId: 'voice-neuro-upstream',
-      ttsModelId: 'volcengine/neuro-pool',
-      params: { pitch: 20, volume: 5 },
       costMultiplier: 1.5,
       enabled: true,
+      model: 'seed-tts-2.0',
+      name: 'Neuro Sama',
+      params: { pitch: 20, volume: 5 },
+      provider: 'volcengine',
+      ttsModelId: 'volcengine/neuro-pool',
+      upstreamVoiceId: 'voice-neuro-upstream',
+      voiceId: 'voice-neuro',
     })
 
     expect(pack.name).toBe('Neuro Sama')
@@ -48,26 +48,26 @@ describe('voicePackService', () => {
   it('keeps parameter variants as separate packs', async () => {
     // @example same provider/model/voice with different params -> two library entries.
     await service.create({
-      name: 'Base',
-      provider: 'volcengine',
-      model: 'seed-tts-2.0',
-      voiceId: 'voice-a',
-      upstreamVoiceId: 'voice-a-upstream',
-      ttsModelId: 'volcengine/pool',
-      params: {},
       costMultiplier: 1,
       enabled: true,
+      model: 'seed-tts-2.0',
+      name: 'Base',
+      params: {},
+      provider: 'volcengine',
+      ttsModelId: 'volcengine/pool',
+      upstreamVoiceId: 'voice-a-upstream',
+      voiceId: 'voice-a',
     })
     await service.create({
-      name: 'Pitched',
-      provider: 'volcengine',
-      model: 'seed-tts-2.0',
-      voiceId: 'voice-a',
-      upstreamVoiceId: 'voice-a-upstream',
-      ttsModelId: 'volcengine/pool',
-      params: { pitch: 20 },
       costMultiplier: 1,
       enabled: true,
+      model: 'seed-tts-2.0',
+      name: 'Pitched',
+      params: { pitch: 20 },
+      provider: 'volcengine',
+      ttsModelId: 'volcengine/pool',
+      upstreamVoiceId: 'voice-a-upstream',
+      voiceId: 'voice-a',
     })
 
     const packs = await service.list()
@@ -78,21 +78,21 @@ describe('voicePackService', () => {
   it('updates mutable fields without replacing the row', async () => {
     // @example edit curation metadata/params -> same id, updated values.
     const pack = await service.create({
-      name: 'Old',
-      provider: 'azure',
-      model: 'v1',
-      voiceId: 'en-US-AvaMultilingualNeural',
-      upstreamVoiceId: 'en-US-AvaMultilingualNeural',
-      ttsModelId: 'microsoft/v1',
-      params: {},
       costMultiplier: 1,
       enabled: true,
+      model: 'v1',
+      name: 'Old',
+      params: {},
+      provider: 'azure',
+      ttsModelId: 'microsoft/v1',
+      upstreamVoiceId: 'en-US-AvaMultilingualNeural',
+      voiceId: 'en-US-AvaMultilingualNeural',
     })
 
     const updated = await service.update(pack.id, {
+      costMultiplier: 2,
       name: 'New',
       params: { rate: 1.1 },
-      costMultiplier: 2,
     })
 
     expect(updated?.id).toBe(pack.id)
@@ -104,15 +104,15 @@ describe('voicePackService', () => {
   it('soft-disables a pack and excludes it from listEnabled', async () => {
     // @example disabled packs remain in admin list but disappear from user list.
     const pack = await service.create({
-      name: 'Disable me',
-      provider: 'dashscope-cosyvoice',
-      model: 'cosyvoice-v2',
-      voiceId: 'longxiaochun_v2',
-      upstreamVoiceId: 'longxiaochun_v2',
-      ttsModelId: 'alibaba/cosyvoice-v2',
-      params: {},
       costMultiplier: 1,
       enabled: true,
+      model: 'cosyvoice-v2',
+      name: 'Disable me',
+      params: {},
+      provider: 'dashscope-cosyvoice',
+      ttsModelId: 'alibaba/cosyvoice-v2',
+      upstreamVoiceId: 'longxiaochun_v2',
+      voiceId: 'longxiaochun_v2',
     })
 
     const disabled = await service.disable(pack.id)
@@ -127,26 +127,26 @@ describe('voicePackService', () => {
   it('finds only enabled packs by product-facing voice alias', async () => {
     // @example TTS request voice="narrator" -> enabled Voice Pack row resolves server-side.
     await service.create({
-      name: 'Disabled narrator',
-      provider: 'azure',
-      model: 'v1',
-      voiceId: 'narrator',
-      upstreamVoiceId: 'disabled-upstream',
-      ttsModelId: 'microsoft/v1',
-      params: {},
       costMultiplier: 1,
       enabled: false,
+      model: 'v1',
+      name: 'Disabled narrator',
+      params: {},
+      provider: 'azure',
+      ttsModelId: 'microsoft/v1',
+      upstreamVoiceId: 'disabled-upstream',
+      voiceId: 'narrator',
     })
     const enabled = await service.create({
-      name: 'Enabled narrator',
-      provider: 'azure',
-      model: 'v1',
-      voiceId: 'narrator',
-      upstreamVoiceId: 'enabled-upstream',
-      ttsModelId: 'microsoft/v1',
-      params: {},
       costMultiplier: 1,
       enabled: true,
+      model: 'v1',
+      name: 'Enabled narrator',
+      params: {},
+      provider: 'azure',
+      ttsModelId: 'microsoft/v1',
+      upstreamVoiceId: 'enabled-upstream',
+      voiceId: 'narrator',
     })
 
     expect(await service.findEnabledByVoiceId('narrator')).toMatchObject({

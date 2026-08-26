@@ -40,8 +40,8 @@ export function useDuckDb() {
     })
 
   return {
+    closeDb,
     db,
     getDb,
-    closeDb,
   }
 }

@@ -4,7 +4,7 @@ import { defineStore } from 'pinia'
 import { computed } from 'vue'
 
 export const useWindowStore = defineStore('tamagotchi-window', () => {
-  const { width, height } = useWindowSize()
+  const { height, width } = useWindowSize()
   const centerPos = computed(() => ({ x: width.value / 2, y: height.value / 2 }))
 
   // Use window-relative mouse coordinates for Live2D focus
@@ -12,10 +12,10 @@ export const useWindowStore = defineStore('tamagotchi-window', () => {
   const { x: live2dLookAtX, y: live2dLookAtY } = useElectronRelativeMouse({ initialValue: centerPos.value })
 
   return {
-    width,
-    height,
     centerPos,
+    height,
     live2dLookAtX,
     live2dLookAtY,
+    width,
   }
 })

@@ -7,16 +7,60 @@ import { generateSpeechResponse, listVoices, UnSpeechAPIError } from 'unspeech'
 
 import { createBadGatewayError, createInternalError } from '../../../utils/error'
 
+interface ListVoicesOptions {
+  ctx: TtsVoiceCatalogContext
+  providerLabel: string
+  query: string
+}
+
 interface SendSpeechOptions {
   ctx: TtsAdapterContext
-  model: string
-  input: string
-  voice: string
-  speed?: number
-  responseFormat: string
   extraBody?: Record<string, unknown>
   fallbackContentType: string
+  input: string
+  model: string
   providerLabel: string
+  responseFormat: string
+  speed?: number
+  voice: string
+}
+
+/**
+ * Lists unspeech voices and maps SDK failures into AIRI gateway errors.
+ *
+ * Use when:
+ * - A TTS adapter needs unspeech's normalized `Voice[]` catalog.
+ *
+ * Expects:
+ * - `query` is an unspeech `/api/voices` query string such as
+ *   `provider=microsoft&region=eastasia`.
+ *
+ * Returns:
+ * - The parsed voice catalog.
+ */
+export async function listVoicesViaUnSpeech(options: ListVoicesOptions): Promise<Voice[]> {
+  const { ctx, providerLabel, query } = options
+
+  try {
+    return await listVoices({
+      abortSignal: ctx.abortSignal,
+      apiKey: ctx.keyPlaintext?.toString('utf8'),
+      baseURL: ctx.unspeechBaseURL.replace(/\/+$/, ''),
+      fetch: ctx.fetchImpl,
+      headers: { Accept: 'application/json' },
+      query,
+    })
+  }
+  catch (error) {
+    if (error instanceof UnSpeechAPIError) {
+      throw createBadGatewayError(
+        `${providerLabel} voices upstream ${error.status}: ${error.responseBody.slice(0, 256)}`,
+        { lastStatusCode: error.status },
+      )
+    }
+
+    throw createBadGatewayError(`${providerLabel} voices fetch failed: ${errorMessageFrom(error) ?? 'unknown'}`)
+  }
 }
 
 /**
@@ -48,21 +92,21 @@ export async function sendSpeechViaUnSpeech(options: SendSpeechOptions): Promise
 
   try {
     const result = await generateSpeechResponse({
+      abortSignal: ctx.abortSignal,
       apiKey: ctx.keyPlaintext.toString('utf8'),
       baseURL: `${ctx.unspeechBaseURL.replace(/\/+$/, '')}/v1/`,
+      extraBody,
       fetch: ctx.fetchImpl,
       input,
       model,
       responseFormat,
       speed,
       voice,
-      abortSignal: ctx.abortSignal,
-      extraBody,
     })
 
     return {
-      contentType: result.contentType ?? fallbackContentType,
       body: result.body,
+      contentType: result.contentType ?? fallbackContentType,
     }
   }
   catch (error) {
@@ -78,49 +122,5 @@ export async function sendSpeechViaUnSpeech(options: SendSpeechOptions): Promise
     }
 
     throw createInternalError(`${providerLabel} tts fetch failed: ${errorMessageFrom(error) ?? 'unknown'}`)
-  }
-}
-
-interface ListVoicesOptions {
-  ctx: TtsVoiceCatalogContext
-  query: string
-  providerLabel: string
-}
-
-/**
- * Lists unspeech voices and maps SDK failures into AIRI gateway errors.
- *
- * Use when:
- * - A TTS adapter needs unspeech's normalized `Voice[]` catalog.
- *
- * Expects:
- * - `query` is an unspeech `/api/voices` query string such as
- *   `provider=microsoft&region=eastasia`.
- *
- * Returns:
- * - The parsed voice catalog.
- */
-export async function listVoicesViaUnSpeech(options: ListVoicesOptions): Promise<Voice[]> {
-  const { ctx, providerLabel, query } = options
-
-  try {
-    return await listVoices({
-      apiKey: ctx.keyPlaintext?.toString('utf8'),
-      baseURL: ctx.unspeechBaseURL.replace(/\/+$/, ''),
-      fetch: ctx.fetchImpl,
-      query,
-      abortSignal: ctx.abortSignal,
-      headers: { Accept: 'application/json' },
-    })
-  }
-  catch (error) {
-    if (error instanceof UnSpeechAPIError) {
-      throw createBadGatewayError(
-        `${providerLabel} voices upstream ${error.status}: ${error.responseBody.slice(0, 256)}`,
-        { lastStatusCode: error.status },
-      )
-    }
-
-    throw createBadGatewayError(`${providerLabel} voices fetch failed: ${errorMessageFrom(error) ?? 'unknown'}`)
   }
 }

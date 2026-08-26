@@ -15,49 +15,6 @@ import {
 import { unrefElement } from '@vueuse/core'
 import { onBeforeUnmount, shallowRef, toRaw, watch } from 'vue'
 
-function toWidgetsIframePostMessageValue(value: unknown, seen = new WeakSet<object>()): unknown {
-  if (value == null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    return value
-  }
-
-  if (typeof value === 'bigint') {
-    return value
-  }
-
-  if (typeof value === 'function' || typeof value === 'symbol') {
-    return undefined
-  }
-
-  const raw = toRaw(value)
-  if (!raw || typeof raw !== 'object') {
-    return raw
-  }
-
-  if (seen.has(raw)) {
-    return undefined
-  }
-  seen.add(raw)
-
-  if (Array.isArray(raw)) {
-    const arrayValue = raw.map(item => toWidgetsIframePostMessageValue(item, seen))
-    seen.delete(raw)
-    return arrayValue
-  }
-
-  if (raw instanceof Date) {
-    seen.delete(raw)
-    return raw.toISOString()
-  }
-
-  const recordValue = Object.fromEntries(
-    Object.entries(raw as Record<string, unknown>)
-      .map(([key, entry]) => [key, toWidgetsIframePostMessageValue(entry, seen)])
-      .filter(([, entry]) => entry !== undefined),
-  )
-  seen.delete(raw)
-  return recordValue
-}
-
 /**
  * Normalizes extension iframe payload records into structured-clone-safe data.
  *
@@ -94,11 +51,11 @@ export function toWidgetsIframePostMessageRecord(value: unknown): Record<string,
 export function useIframeMessagePort(
   target: MaybeElementRef,
   options: {
+    moduleConfig: ComputedRef<Record<string, unknown>>
     moduleId: ComputedRef<string | undefined>
     moduleSnapshot: ComputedRef<PluginHostModuleSummary | undefined>
-    moduleConfig: ComputedRef<Record<string, unknown>>
+    onPublish?: (event: Record<string, unknown>) => Promise<void> | void
     propsPayload: ComputedRef<Record<string, unknown>>
-    onPublish?: (event: Record<string, unknown>) => void | Promise<void>
   },
 ) {
   const iframeLoadError = shallowRef<string>()
@@ -120,9 +77,9 @@ export function useIframeMessagePort(
   function createInitPayload(): WidgetsIframeInitPayload {
     const module = options.moduleSnapshot.value
     return {
-      moduleId: module?.moduleId,
-      module: module ? toWidgetsIframePostMessageRecord(module) : undefined,
       config: toWidgetsIframePostMessageRecord(options.moduleConfig.value),
+      module: module ? toWidgetsIframePostMessageRecord(module) : undefined,
+      moduleId: module?.moduleId,
       props: toWidgetsIframePostMessageRecord(options.propsPayload.value),
     }
   }
@@ -191,9 +148,52 @@ export function useIframeMessagePort(
 
   return {
     context: iframeRuntime.context,
-    iframeReady,
     iframeLoadError,
-    onIframeLoad,
+    iframeReady,
     onIframeError,
+    onIframeLoad,
   }
+}
+
+function toWidgetsIframePostMessageValue(value: unknown, seen = new WeakSet<object>()): unknown {
+  if (value == null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return value
+  }
+
+  if (typeof value === 'bigint') {
+    return value
+  }
+
+  if (typeof value === 'function' || typeof value === 'symbol') {
+    return undefined
+  }
+
+  const raw = toRaw(value)
+  if (!raw || typeof raw !== 'object') {
+    return raw
+  }
+
+  if (seen.has(raw)) {
+    return undefined
+  }
+  seen.add(raw)
+
+  if (Array.isArray(raw)) {
+    const arrayValue = raw.map(item => toWidgetsIframePostMessageValue(item, seen))
+    seen.delete(raw)
+    return arrayValue
+  }
+
+  if (raw instanceof Date) {
+    seen.delete(raw)
+    return raw.toISOString()
+  }
+
+  const recordValue = Object.fromEntries(
+    Object.entries(raw as Record<string, unknown>)
+      .map(([key, entry]) => [key, toWidgetsIframePostMessageValue(entry, seen)])
+      .filter(([, entry]) => entry !== undefined),
+  )
+  seen.delete(raw)
+  return recordValue
 }

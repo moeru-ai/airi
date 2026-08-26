@@ -2,7 +2,11 @@ import type { Disposable, DisposableStore } from '../extension/disposable'
 
 import { KitUnavailableError } from './errors'
 
-export type ExposePolicy = 'local-only' | 'remote-observable' | 'remote-callable'
+export type ExposePolicy = 'local-only' | 'remote-callable' | 'remote-observable'
+
+export type KitAvailability<TClient>
+  = | { available: false, error: Error, kit: KitRef<TClient>, reason: KitUnavailableReason }
+    | { available: true, client: TClient, kit: KitRef<TClient> }
 
 /**
  * Host-provided runtime values used to create a scope-aware kit client.
@@ -10,10 +14,10 @@ export type ExposePolicy = 'local-only' | 'remote-observable' | 'remote-callable
 export interface KitClientRuntime {
   /** Stable extension id. */
   extensionId: string
-  /** Host-assigned extension session id. */
-  sessionId: string
   /** Stable module id when the kit client is created for an explicit module scope. */
   moduleId?: string
+  /** Host-assigned extension session id. */
+  sessionId: string
   /** Cleanup store for the current extension or module scope. */
   subscriptions: DisposableStore
 }
@@ -29,27 +33,23 @@ export interface KitClientRuntime {
  * @param TClient Kit client type returned to extension authors.
  */
 export interface KitRef<TClient> {
+  /** Exposure policies this kit can support across host/peer boundaries. */
+  allowedExposePolicies?: ExposePolicy[]
+  /** Creates a scope-aware client for this kit. */
+  createClient: (runtime: KitClientRuntime) => TClient
+  /** Default exposure policy when module/host policy does not override it. */
+  defaultExposePolicy?: ExposePolicy
   /** Stable kit id. */
   id: string
   /** Kit API version used for compatibility checks. */
   version: string
-  /** Exposure policies this kit can support across host/peer boundaries. */
-  allowedExposePolicies?: ExposePolicy[]
-  /** Default exposure policy when module/host policy does not override it. */
-  defaultExposePolicy?: ExposePolicy
-  /** Creates a scope-aware client for this kit. */
-  createClient: (runtime: KitClientRuntime) => TClient
 }
 
-export type KitUnavailableReason = 'missing-kit' | 'permission-denied' | 'incompatible-version' | 'not-ready'
+export type KitUnavailableReason = 'incompatible-version' | 'missing-kit' | 'not-ready' | 'permission-denied'
 
 export type KitUseResult<TClient>
-  = | { ok: true, client: TClient }
-    | { ok: false, reason: KitUnavailableReason, error: Error }
-
-export type KitAvailability<TClient>
-  = | { available: true, kit: KitRef<TClient>, client: TClient }
-    | { available: false, kit: KitRef<TClient>, reason: KitUnavailableReason, error: Error }
+  = | { client: TClient, ok: true }
+    | { error: Error, ok: false, reason: KitUnavailableReason }
 
 /**
  * Defines a kit reference.
@@ -87,9 +87,9 @@ export function kitUseFailure<TClient>(
   reason: KitUnavailableReason,
 ): Extract<KitUseResult<TClient>, { ok: false }> {
   return {
+    error: new KitUnavailableError(kit.id, reason),
     ok: false,
     reason,
-    error: new KitUnavailableError(kit.id, reason),
   }
 }
 

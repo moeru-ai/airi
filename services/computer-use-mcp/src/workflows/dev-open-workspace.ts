@@ -15,17 +15,43 @@ import type { WorkflowDefinition, WorkflowStepTemplate } from './types'
 
 import { canonicalizeKnownAppName, getKnownAppLaunchNames } from '../app-aliases'
 
-function buildOpenAppCommand(app: string) {
-  const candidates = Array.from(new Set(getKnownAppLaunchNames(app)))
-  return candidates
-    .map(candidate => `open -a ${JSON.stringify(candidate)} .`)
-    .join(' || ')
+export function createDevOpenWorkspaceWorkflow(params?: {
+  fileManagerApp?: string
+  ideApp?: string
+  projectPath?: string
+}): WorkflowDefinition {
+  const projectPath = params?.projectPath ?? '{projectPath}'
+  const ideApp = canonicalizeKnownAppName(params?.ideApp ?? 'Cursor')
+  const fileManagerApp = canonicalizeKnownAppName(params?.fileManagerApp ?? 'Finder')
+
+  return {
+    description: `Reveal "${projectPath}" in ${fileManagerApp} and open the same directory in ${ideApp}.`,
+    id: 'dev_open_workspace',
+    maxRetries: 2,
+    name: `Open workspace in ${fileManagerApp} and ${ideApp}`,
+    steps: [
+      ...createOpenWorkspaceSteps({ fileManagerApp, ideApp, projectPath }),
+      {
+        description: 'Capture the current desktop window list for the workspace-opening task.',
+        kind: 'observe_windows',
+        label: 'Observe visible workspace windows',
+        params: { limit: 12 },
+        skippable: true,
+      },
+      {
+        description: 'Summarize which apps were opened and whether the workspace is ready.',
+        kind: 'summarize',
+        label: 'Summarize workspace state',
+        params: {},
+      },
+    ],
+  }
 }
 
 export function createOpenWorkspaceSteps(params?: {
-  projectPath?: string
-  ideApp?: string
   fileManagerApp?: string
+  ideApp?: string
+  projectPath?: string
 }): WorkflowStepTemplate[] {
   const projectPath = params?.projectPath ?? '{projectPath}'
   const ideApp = canonicalizeKnownAppName(params?.ideApp ?? 'Cursor')
@@ -33,73 +59,47 @@ export function createOpenWorkspaceSteps(params?: {
 
   return [
     {
-      label: `Reveal project in ${fileManagerApp}`,
-      kind: 'run_command',
+      critical: true,
       description: `Open the project directory in ${fileManagerApp}.`,
+      kind: 'run_command',
+      label: `Reveal project in ${fileManagerApp}`,
       params: {
         command: 'open .',
         cwd: projectPath,
         timeoutMs: 30_000,
       },
-      critical: true,
     },
     {
-      label: `Focus ${fileManagerApp}`,
-      kind: 'ensure_app',
       description: `Bring ${fileManagerApp} to the foreground so the project directory is visible.`,
+      kind: 'ensure_app',
+      label: `Focus ${fileManagerApp}`,
       params: { app: fileManagerApp },
       skippable: true,
     },
     {
-      label: `Open project in ${ideApp}`,
-      kind: 'run_command',
+      critical: true,
       description: `Open the same directory in ${ideApp}.`,
+      kind: 'run_command',
+      label: `Open project in ${ideApp}`,
       params: {
         command: buildOpenAppCommand(ideApp),
         cwd: projectPath,
         timeoutMs: 30_000,
       },
-      critical: true,
     },
     {
-      label: `Focus ${ideApp}`,
-      kind: 'ensure_app',
       description: `Bring ${ideApp} to the foreground after opening the workspace.`,
+      kind: 'ensure_app',
+      label: `Focus ${ideApp}`,
       params: { app: ideApp },
       skippable: true,
     },
   ]
 }
 
-export function createDevOpenWorkspaceWorkflow(params?: {
-  projectPath?: string
-  ideApp?: string
-  fileManagerApp?: string
-}): WorkflowDefinition {
-  const projectPath = params?.projectPath ?? '{projectPath}'
-  const ideApp = canonicalizeKnownAppName(params?.ideApp ?? 'Cursor')
-  const fileManagerApp = canonicalizeKnownAppName(params?.fileManagerApp ?? 'Finder')
-
-  return {
-    id: 'dev_open_workspace',
-    name: `Open workspace in ${fileManagerApp} and ${ideApp}`,
-    description: `Reveal "${projectPath}" in ${fileManagerApp} and open the same directory in ${ideApp}.`,
-    maxRetries: 2,
-    steps: [
-      ...createOpenWorkspaceSteps({ projectPath, ideApp, fileManagerApp }),
-      {
-        label: 'Observe visible workspace windows',
-        kind: 'observe_windows',
-        description: 'Capture the current desktop window list for the workspace-opening task.',
-        params: { limit: 12 },
-        skippable: true,
-      },
-      {
-        label: 'Summarize workspace state',
-        kind: 'summarize',
-        description: 'Summarize which apps were opened and whether the workspace is ready.',
-        params: {},
-      },
-    ],
-  }
+function buildOpenAppCommand(app: string) {
+  const candidates = Array.from(new Set(getKnownAppLaunchNames(app)))
+  return candidates
+    .map(candidate => `open -a ${JSON.stringify(candidate)} .`)
+    .join(' || ')
 }

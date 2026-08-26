@@ -8,18 +8,14 @@ import { extname, join, normalize } from 'node:path'
 import { cac } from 'cac'
 
 const CONTENT_TYPES: Record<string, string> = {
-  '.exe': 'application/vnd.microsoft.portable-executable',
-  '.yml': 'text/yaml; charset=utf-8',
-  '.yaml': 'text/yaml; charset=utf-8',
-  '.zip': 'application/zip',
-  '.dmg': 'application/octet-stream',
   '.deb': 'application/vnd.debian.binary-package',
+  '.dmg': 'application/octet-stream',
+  '.exe': 'application/vnd.microsoft.portable-executable',
   '.rpm': 'application/x-rpm',
   '.txt': 'text/plain; charset=utf-8',
-}
-
-function getContentType(pathname: string) {
-  return CONTENT_TYPES[extname(pathname)] ?? 'application/octet-stream'
+  '.yaml': 'text/yaml; charset=utf-8',
+  '.yml': 'text/yaml; charset=utf-8',
+  '.zip': 'application/zip',
 }
 
 export async function startUpdateTestServer(options: { port: number, rootDir: string }) {
@@ -46,6 +42,10 @@ export async function startUpdateTestServer(options: { port: number, rootDir: st
   })
 
   return server
+}
+
+function getContentType(pathname: string) {
+  return CONTENT_TYPES[extname(pathname)] ?? 'application/octet-stream'
 }
 
 async function main() {

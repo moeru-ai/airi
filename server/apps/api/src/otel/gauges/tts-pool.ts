@@ -41,8 +41,8 @@ export function registerTtsPoolGauge(
   const CACHE_TTL_MS = 10_000
 
   let cachedAt = 0
-  let cachedSnapshot: Array<{ poolId: string, inflight: number }> = []
-  let refreshInFlight: Promise<boolean> | null = null
+  let cachedSnapshot: Array<{ inflight: number, poolId: string }> = []
+  let refreshInFlight: null | Promise<boolean> = null
 
   async function refresh(): Promise<boolean> {
     try {
@@ -61,7 +61,7 @@ export function registerTtsPoolGauge(
     const now = Date.now()
 
     if (cachedAt !== 0 && now - cachedAt < CACHE_TTL_MS) {
-      for (const { poolId, inflight } of cachedSnapshot)
+      for (const { inflight, poolId } of cachedSnapshot)
         result.observe(inflight, { app_id: poolId })
       return
     }
@@ -74,7 +74,7 @@ export function registerTtsPoolGauge(
     const ok = await refreshInFlight
 
     if (ok) {
-      for (const { poolId, inflight } of cachedSnapshot)
+      for (const { inflight, poolId } of cachedSnapshot)
         result.observe(inflight, { app_id: poolId })
     }
     // else: deliberately do nothing — let Prometheus staleness expose the outage.

@@ -4,6 +4,61 @@
 
 import { calculateRoundedSquareMap } from './calculate-rounded-square-map'
 
+export function calculateDisplacementMap(props: {
+  bezelWidth: number
+  height: number
+  maximumDisplacement: number
+  pixelRatio: number
+  precomputedDisplacementMap: number[]
+  radius: number
+  width: number
+}) {
+  const { maximumDisplacement, pixelRatio, precomputedDisplacementMap } = props
+
+  const width = Math.round(props.width * pixelRatio)
+  const height = Math.round(props.height * pixelRatio)
+
+  const radius = Math.min(props.radius * pixelRatio, width / 2, height / 2)
+  const bezel = Math.min(props.bezelWidth * pixelRatio, width / 2, height / 2)
+
+  return calculateRoundedSquareMap({
+    fillColor: 0xFF008080,
+    height,
+    maximumDistanceToBorder: bezel,
+    processPixel(
+      _x,
+      _y,
+      buffer,
+      offset,
+      _distanceFromCenter,
+      distanceFromBorder,
+      distanceFromBorderRatio,
+      angle,
+      opacity,
+    ) {
+      // Viewed from top
+      const cos = Math.cos(angle)
+      const sin = Math.sin(angle)
+
+      const ratio
+        = bezel > radius ? distanceFromBorderRatio : distanceFromBorder / bezel
+
+      const bezelIndex = Math.round(ratio * precomputedDisplacementMap.length)
+      const distance = precomputedDisplacementMap[bezelIndex] ?? 0
+
+      const dX = (-cos * distance) / maximumDisplacement
+      const dY = (-sin * distance) / maximumDisplacement
+
+      buffer[offset] = 128 + dX * 127 * opacity // R
+      buffer[offset + 1] = 128 + dY * 127 * opacity // G
+      buffer[offset + 2] = 0 // B
+      buffer[offset + 3] = 255 // A
+    },
+    radius,
+    width,
+  })
+}
+
 export function calculateDisplacementMapRadius(
   glassThickness: number = 200,
   bezelWidth: number = 50,
@@ -53,60 +108,5 @@ export function calculateDisplacementMapRadius(
       // Return displacement (rest of travel on x-axis, depends on remaining height to hit bottom of glass)
       return refracted[0] * (remainingHeight / refracted[1])
     }
-  })
-}
-
-export function calculateDisplacementMap(props: {
-  width: number
-  height: number
-  radius: number
-  bezelWidth: number
-  maximumDisplacement: number
-  precomputedDisplacementMap: number[]
-  pixelRatio: number
-}) {
-  const { pixelRatio, maximumDisplacement, precomputedDisplacementMap } = props
-
-  const width = Math.round(props.width * pixelRatio)
-  const height = Math.round(props.height * pixelRatio)
-
-  const radius = Math.min(props.radius * pixelRatio, width / 2, height / 2)
-  const bezel = Math.min(props.bezelWidth * pixelRatio, width / 2, height / 2)
-
-  return calculateRoundedSquareMap({
-    width,
-    height,
-    radius,
-    maximumDistanceToBorder: bezel,
-    fillColor: 0xFF008080,
-    processPixel(
-      _x,
-      _y,
-      buffer,
-      offset,
-      _distanceFromCenter,
-      distanceFromBorder,
-      distanceFromBorderRatio,
-      angle,
-      opacity,
-    ) {
-      // Viewed from top
-      const cos = Math.cos(angle)
-      const sin = Math.sin(angle)
-
-      const ratio
-        = bezel > radius ? distanceFromBorderRatio : distanceFromBorder / bezel
-
-      const bezelIndex = Math.round(ratio * precomputedDisplacementMap.length)
-      const distance = precomputedDisplacementMap[bezelIndex] ?? 0
-
-      const dX = (-cos * distance) / maximumDisplacement
-      const dY = (-sin * distance) / maximumDisplacement
-
-      buffer[offset] = 128 + dX * 127 * opacity // R
-      buffer[offset + 1] = 128 + dY * 127 * opacity // G
-      buffer[offset + 2] = 0 // B
-      buffer[offset + 3] = 255 // A
-    },
   })
 }

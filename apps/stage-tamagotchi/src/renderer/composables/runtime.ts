@@ -18,8 +18,8 @@ export function useAppRuntime() {
   })
 
   return {
-    platform,
     isInitialized,
     isTauri,
+    platform,
   }
 }

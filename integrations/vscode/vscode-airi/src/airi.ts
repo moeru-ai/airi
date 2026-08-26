@@ -7,7 +7,12 @@ import { ContextUpdateStrategy, Client as ServerClient } from '@proj-airi/server
 import { nanoid } from 'nanoid'
 
 export class Client {
-  private client: ServerClient<Events> | null = null
+  private client: null | ServerClient<Events> = null
+
+  async appendContext(context: string): Promise<void> {
+    const id = nanoid()
+    this.send({ data: { contextId: id, id, strategy: ContextUpdateStrategy.AppendSelf, text: context }, type: 'context:update' })
+  }
 
   async connect(): Promise<boolean> {
     try {
@@ -30,6 +35,15 @@ export class Client {
     }
   }
 
+  isConnected(): boolean {
+    return !!this.client
+  }
+
+  async replaceContext(context: string): Promise<void> {
+    const id = nanoid()
+    this.send({ data: { contextId: id, id, strategy: ContextUpdateStrategy.ReplaceSelf, text: context }, type: 'context:update' })
+  }
+
   private async send(event: WebSocketEventOptionalSource<Events>): Promise<void> {
     if (!this.client) {
       useLogger().warn('Cannot send event: not connected to AIRI Server Channel')
@@ -43,19 +57,5 @@ export class Client {
     catch (error) {
       useLogger().errorWithError('Failed to send event to AIRI:', error)
     }
-  }
-
-  async replaceContext(context: string): Promise<void> {
-    const id = nanoid()
-    this.send({ type: 'context:update', data: { strategy: ContextUpdateStrategy.ReplaceSelf, text: context, id, contextId: id } })
-  }
-
-  async appendContext(context: string): Promise<void> {
-    const id = nanoid()
-    this.send({ type: 'context:update', data: { strategy: ContextUpdateStrategy.AppendSelf, text: context, id, contextId: id } })
-  }
-
-  isConnected(): boolean {
-    return !!this.client
   }
 }

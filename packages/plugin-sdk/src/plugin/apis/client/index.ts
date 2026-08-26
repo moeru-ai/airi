@@ -20,9 +20,23 @@ import { createResources } from './resources'
  * - A map of callback groups consumed by {@link createApis}
  */
 export interface PluginApiBindings {
-  kits?: KitClientBindings
   bindings?: BindingClientBindings
+  kits?: KitClientBindings
 }
+
+/**
+ * Describes the concrete API object returned by {@link createApis}.
+ *
+ * Use when:
+ * - Typing host-backed client APIs for kit runtimes
+ *
+ * Expects:
+ * - The caller uses the same shape as the runtime-created API object
+ *
+ * Returns:
+ * - The inferred plugin API client surface
+ */
+export type PluginApis = ReturnType<typeof createApis>
 
 /**
  * Creates the low-level plugin API surface exposed to plugin code.
@@ -40,24 +54,10 @@ export interface PluginApiBindings {
 export function createApis(ctx: EventContext<any, any>, bindings: PluginApiBindings = {}) {
   return {
     ...createResources(ctx),
-    kits: createKits(ctx, bindings.kits),
     bindings: createBindings(ctx, bindings.bindings),
+    kits: createKits(ctx, bindings.kits),
   }
 }
-
-/**
- * Describes the concrete API object returned by {@link createApis}.
- *
- * Use when:
- * - Typing host-backed client APIs for kit runtimes
- *
- * Expects:
- * - The caller uses the same shape as the runtime-created API object
- *
- * Returns:
- * - The inferred plugin API client surface
- */
-export type PluginApis = ReturnType<typeof createApis>
 export * from './bindings'
 export * from './kits'
 export * from './resources'

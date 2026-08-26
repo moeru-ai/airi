@@ -1,16 +1,8 @@
 import type { JsonSchema } from 'xsschema'
 
-type JsonSchemaPrimitiveType = 'string' | 'number' | 'integer' | 'boolean' | 'null'
+type JsonSchemaPrimitiveType = 'boolean' | 'integer' | 'null' | 'number' | 'string'
 
-const JSON_SCHEMA_PRIMITIVE_TYPES: ReadonlySet<string> = new Set(['string', 'number', 'integer', 'boolean', 'null'])
-
-function isJsonSchema(value: JsonSchema | boolean | JsonSchema[] | undefined): value is JsonSchema {
-  return Boolean(value && !Array.isArray(value) && typeof value === 'object')
-}
-
-function isJsonSchemaPrimitiveType(value: unknown): value is JsonSchemaPrimitiveType {
-  return typeof value === 'string' && JSON_SCHEMA_PRIMITIVE_TYPES.has(value)
-}
+const JSON_SCHEMA_PRIMITIVE_TYPES: ReadonlySet<string> = new Set(['boolean', 'integer', 'null', 'number', 'string'])
 
 /**
  * Collapses primitive `anyOf` branches into one JSON Schema type array.
@@ -87,4 +79,12 @@ export function collapseToolSchemaPrimitiveAnyOf(schema: JsonSchema): JsonSchema
   }
 
   return next
+}
+
+function isJsonSchema(value: boolean | JsonSchema | JsonSchema[] | undefined): value is JsonSchema {
+  return Boolean(value && !Array.isArray(value) && typeof value === 'object')
+}
+
+function isJsonSchemaPrimitiveType(value: unknown): value is JsonSchemaPrimitiveType {
+  return typeof value === 'string' && JSON_SCHEMA_PRIMITIVE_TYPES.has(value)
 }

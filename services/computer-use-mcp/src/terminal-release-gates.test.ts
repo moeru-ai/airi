@@ -38,11 +38,6 @@ function createMockServer() {
   const handlers = new Map<string, ToolHandler>()
 
   return {
-    server: {
-      tool(name: string, _schema: unknown, handler: ToolHandler) {
-        handlers.set(name, handler)
-      },
-    } as unknown as McpServer,
     async invoke(name: string, args: Record<string, unknown> = {}) {
       const handler = handlers.get(name)
       if (!handler) {
@@ -51,50 +46,55 @@ function createMockServer() {
 
       return await handler(args)
     },
+    server: {
+      tool(name: string, _schema: unknown, handler: ToolHandler) {
+        handlers.set(name, handler)
+      },
+    } as unknown as McpServer,
   }
 }
 
-function makeSuccessResult(text = 'ok', structuredContent?: Record<string, unknown>): CallToolResult {
-  return {
-    content: [{ type: 'text', text }],
-    ...(structuredContent ? { structuredContent } : {}),
-  }
-}
-
-function createRuntime(stateManager: RunStateManager, approvalMode: 'never' | 'actions' = 'never') {
+function createRuntime(stateManager: RunStateManager, approvalMode: 'actions' | 'never' = 'never') {
   return {
     config: createTestConfig({ approvalMode }),
-    stateManager,
     session: {
       createPendingAction: vi.fn(),
       listPendingActions: vi.fn(() => []),
       record: vi.fn().mockResolvedValue(undefined),
     },
+    stateManager,
   } as unknown as ComputerUseServerRuntime
 }
 
 function makeSingleStepTask(params: {
   id: string
-  workflowId: string
   label: string
   stepId: string
+  workflowId: string
 }): ActiveTask {
   return {
-    id: params.id,
+    currentStepIndex: 0,
+    failureCount: 0,
     goal: params.label,
-    workflowId: params.workflowId,
+    id: params.id,
+    maxConsecutiveFailures: 2,
     phase: 'executing',
+    startedAt: new Date().toISOString(),
     steps: [
       {
         index: 1,
-        stepId: params.stepId,
         label: params.label,
+        stepId: params.stepId,
       },
     ],
-    currentStepIndex: 0,
-    startedAt: new Date().toISOString(),
-    failureCount: 0,
-    maxConsecutiveFailures: 2,
+    workflowId: params.workflowId,
+  }
+}
+
+function makeSuccessResult(text = 'ok', structuredContent?: Record<string, unknown>): CallToolResult {
+  return {
+    content: [{ text, type: 'text' }],
+    ...(structuredContent ? { structuredContent } : {}),
   }
 }
 
@@ -106,11 +106,11 @@ describe('terminal release gates', () => {
   it('exec happy path: opens workspace, runs checks/tests, writes back state, and continues', async () => {
     const projectPath = '/workspace/airi'
     const workflow = createDevValidateWorkspaceWorkflow({
-      projectPath,
-      ideApp: 'Cursor',
-      fileManagerApp: 'Finder',
       changesCommand: 'git diff --stat',
       checkCommand: 'pnpm test',
+      fileManagerApp: 'Finder',
+      ideApp: 'Cursor',
+      projectPath,
     })
     const stateManager = new RunStateManager()
 
@@ -118,10 +118,10 @@ describe('terminal release gates', () => {
       if (action.kind === 'focus_app') {
         const app = action.input.app as string
         stateManager.updateForegroundContext({
-          available: true,
           appName: app,
-          windowTitle: `${app} workspace`,
+          available: true,
           platform: 'darwin',
+          windowTitle: `${app} workspace`,
         })
         if (app === 'Cursor') {
           stateManager.updateVscodeWorkspace(projectPath)
@@ -157,27 +157,27 @@ describe('terminal release gates', () => {
 
       stateManager.updateTerminalResult({
         command,
-        stdout,
-        stderr: '',
-        exitCode: 0,
-        effectiveCwd: cwd,
         durationMs: 12,
+        effectiveCwd: cwd,
+        exitCode: 0,
+        stderr: '',
+        stdout,
         timedOut: false,
       })
 
       return makeSuccessResult(stdout, {
-        status: 'ok',
-        stdout,
-        stderr: '',
-        exitCode: 0,
         effectiveCwd: cwd,
+        exitCode: 0,
+        status: 'ok',
+        stderr: '',
+        stdout,
       })
     })
 
     const result = await executeWorkflow({
-      workflow,
       executeAction,
       stateManager,
+      workflow,
     })
 
     expect(result.success).toBe(true)
@@ -186,13 +186,13 @@ describe('terminal release gates', () => {
     expect(stateManager.getState().vscode?.workspacePath).toBe(projectPath)
     expect(stateManager.getState().terminalState).toMatchObject({
       effectiveCwd: projectPath,
-      lastExitCode: 0,
       lastCommandSummary: 'pnpm test',
+      lastExitCode: 0,
     })
     expect(stateManager.getState().lastTerminalResult).toMatchObject({
       command: 'pnpm test',
-      exitCode: 0,
       effectiveCwd: projectPath,
+      exitCode: 0,
     })
 
     const execBindings = stateManager.getState().workflowStepTerminalBindings.filter(binding => binding.surface === 'exec')
@@ -209,89 +209,89 @@ describe('terminal release gates', () => {
     const runtime = createRuntime(stateManager, 'actions')
     const activeTask = makeSingleStepTask({
       id: 'task_pty_gate',
-      workflowId: 'terminal_pty_gate',
       label: 'Follow interactive task in PTY',
       stepId: 'step_pty_gate',
+      workflowId: 'terminal_pty_gate',
     })
     stateManager.startTask(activeTask)
 
     vi.mocked(isPtyAvailable).mockResolvedValue(true)
     vi.mocked(createPtySession).mockResolvedValue({
-      id: 'pty_gate_1',
       alive: true,
-      rows: 24,
       cols: 80,
-      screenContent: '',
+      id: 'pty_gate_1',
       pid: 4321,
+      rows: 24,
+      screenContent: '',
     })
     vi.mocked(readPtyScreen)
       .mockReturnValueOnce({
-        id: 'pty_gate_1',
         alive: true,
-        rows: 24,
         cols: 80,
-        screenContent: 'pnpm dev\nwatching for changes...\n',
+        id: 'pty_gate_1',
         pid: 4321,
+        rows: 24,
+        screenContent: 'pnpm dev\nwatching for changes...\n',
       })
       .mockReturnValueOnce({
-        id: 'pty_gate_1',
         alive: true,
-        rows: 24,
         cols: 80,
-        screenContent: 'pnpm dev\nwatching for changes...\n^C\n',
+        id: 'pty_gate_1',
         pid: 4321,
+        rows: 24,
+        screenContent: 'pnpm dev\nwatching for changes...\n^C\n',
       })
 
-    const { server, invoke } = createMockServer()
-    registerPtyTools({ server, runtime })
+    const { invoke, server } = createMockServer()
+    registerPtyTools({ runtime, server })
 
     const createResult = await executeApprovedPtyCreate(runtime, {
-      rows: 24,
+      approvalSessionId: 'approval_pty_gate',
       cols: 80,
       cwd: projectPathFromTask(activeTask),
+      rows: 24,
       stepId: activeTask.steps[0]!.stepId,
-      approvalSessionId: 'approval_pty_gate',
     })
     expect((createResult.structuredContent as Record<string, unknown>).status).toBe('ok')
 
     stateManager.addStepTerminalBinding({
-      taskId: activeTask.id,
+      ptySessionId: 'pty_gate_1',
       stepId: activeTask.steps[0]!.stepId,
       surface: 'pty',
-      ptySessionId: 'pty_gate_1',
+      taskId: activeTask.id,
     })
 
     const firstRead = await invoke('pty_read_screen', {
-      sessionId: 'pty_gate_1',
       approvalSessionId: 'approval_pty_gate',
+      sessionId: 'pty_gate_1',
     })
     expect((firstRead.structuredContent as Record<string, unknown>).screenContent).toBe('pnpm dev\nwatching for changes...\n')
 
     const sendInput = await invoke('pty_send_input', {
-      sessionId: 'pty_gate_1',
-      data: '\x03',
       approvalSessionId: 'approval_pty_gate',
+      data: '\x03',
+      sessionId: 'pty_gate_1',
     })
     expect((sendInput.structuredContent as Record<string, unknown>).status).toBe('ok')
     expect(writeToPty).toHaveBeenCalledWith('pty_gate_1', { data: '\x03' })
 
     const secondRead = await invoke('pty_read_screen', {
-      sessionId: 'pty_gate_1',
       approvalSessionId: 'approval_pty_gate',
+      sessionId: 'pty_gate_1',
     })
     expect((secondRead.structuredContent as Record<string, unknown>).screenContent).toContain('^C')
 
     const session = stateManager.getPtySessions()[0]
     expect(session).toMatchObject({
-      id: 'pty_gate_1',
       alive: true,
       boundStepId: 'step_pty_gate',
+      id: 'pty_gate_1',
     })
     expect(stateManager.getStepTerminalBinding(activeTask.id, 'step_pty_gate')).toEqual({
-      taskId: activeTask.id,
+      ptySessionId: 'pty_gate_1',
       stepId: 'step_pty_gate',
       surface: 'pty',
-      ptySessionId: 'pty_gate_1',
+      taskId: activeTask.id,
     })
     expect(stateManager.hasPtyApprovalGrant('approval_pty_gate', 'pty_gate_1')).toBe(true)
     expect(stateManager.getPtyAuditForSession('pty_gate_1').map(entry => entry.event)).toEqual([
@@ -307,78 +307,78 @@ describe('terminal release gates', () => {
     const stateManager = new RunStateManager()
     const runtime = createRuntime(stateManager, 'actions')
     const workflow: WorkflowDefinition = {
-      id: 'terminal_exec_to_pty_gate',
-      name: 'exec to pty gate',
       description: 'Reroute an interactive terminal step onto PTY and continue there.',
+      id: 'terminal_exec_to_pty_gate',
       maxRetries: 2,
+      name: 'exec to pty gate',
       steps: [
         {
-          label: 'Interact with vim session',
-          kind: 'run_command',
-          description: 'Attempt a terminal exec against an interactive TUI step.',
-          params: { command: 'vim src/index.ts' },
           critical: true,
+          description: 'Attempt a terminal exec against an interactive TUI step.',
+          kind: 'run_command',
+          label: 'Interact with vim session',
+          params: { command: 'vim src/index.ts' },
         },
       ],
     }
     const task = makeSingleStepTask({
       id: 'task_reroute_gate',
-      workflowId: workflow.id,
       label: workflow.steps[0]!.label,
       stepId: 'step_reroute_gate',
+      workflowId: workflow.id,
     })
     stateManager.startTask(task)
     stateManager.updateForegroundContext({
-      available: true,
       appName: 'Terminal',
-      windowTitle: 'vim src/index.ts',
+      available: true,
       platform: 'darwin',
+      windowTitle: 'vim src/index.ts',
     })
 
     vi.mocked(isPtyAvailable).mockResolvedValue(true)
     vi.mocked(createPtySession).mockResolvedValue({
-      id: 'pty_reroute_1',
       alive: true,
-      rows: 24,
       cols: 80,
-      screenContent: '',
+      id: 'pty_reroute_1',
       pid: 9876,
+      rows: 24,
+      screenContent: '',
     })
     vi.mocked(readPtyScreen)
       .mockReturnValueOnce({
-        id: 'pty_reroute_1',
         alive: true,
-        rows: 24,
         cols: 80,
-        screenContent: 'vim src/index.ts\n-- INSERT --',
+        id: 'pty_reroute_1',
         pid: 9876,
+        rows: 24,
+        screenContent: 'vim src/index.ts\n-- INSERT --',
       })
       .mockReturnValueOnce({
-        id: 'pty_reroute_1',
         alive: true,
-        rows: 24,
         cols: 80,
-        screenContent: 'src/index.ts written\n',
+        id: 'pty_reroute_1',
         pid: 9876,
+        rows: 24,
+        screenContent: 'src/index.ts written\n',
       })
 
     await executeApprovedPtyCreate(runtime, {
-      rows: 24,
-      cols: 80,
-      stepId: 'step_reroute_gate',
       approvalSessionId: 'approval_reroute_gate',
+      cols: 80,
+      rows: 24,
+      stepId: 'step_reroute_gate',
     })
 
     const executeAction: ExecuteAction = vi.fn().mockResolvedValue(makeSuccessResult('should not execute via exec'))
     const result = await executeWorkflow({
-      workflow,
+      _resume: {
+        existingTask: task,
+        previousResults: [],
+        startIndex: 0,
+      },
       executeAction,
       stateManager,
-      _resume: {
-        startIndex: 0,
-        previousResults: [],
-        existingTask: task,
-      },
+      workflow,
     })
 
     expect(result.success).toBe(false)
@@ -390,43 +390,43 @@ describe('terminal release gates', () => {
       transport: 'pty',
     })
     expect(stateManager.getStepTerminalBinding(task.id, 'step_reroute_gate')).toEqual({
-      taskId: task.id,
+      ptySessionId: 'pty_reroute_1',
       stepId: 'step_reroute_gate',
       surface: 'pty',
-      ptySessionId: 'pty_reroute_1',
+      taskId: task.id,
     })
     expect(stateManager.hasPtyApprovalGrant('approval_reroute_gate', 'pty_reroute_1')).toBe(true)
 
-    const { server, invoke } = createMockServer()
-    registerPtyTools({ server, runtime })
+    const { invoke, server } = createMockServer()
+    registerPtyTools({ runtime, server })
 
     const screenBefore = await invoke('pty_read_screen', {
-      sessionId: 'pty_reroute_1',
       approvalSessionId: 'approval_reroute_gate',
+      sessionId: 'pty_reroute_1',
     })
     expect((screenBefore.structuredContent as Record<string, unknown>).screenContent).toContain('-- INSERT --')
 
     await invoke('pty_send_input', {
-      sessionId: 'pty_reroute_1',
-      data: ':wq\r',
       approvalSessionId: 'approval_reroute_gate',
+      data: ':wq\r',
+      sessionId: 'pty_reroute_1',
     })
 
     const screenAfter = await invoke('pty_read_screen', {
-      sessionId: 'pty_reroute_1',
       approvalSessionId: 'approval_reroute_gate',
+      sessionId: 'pty_reroute_1',
     })
     expect((screenAfter.structuredContent as Record<string, unknown>).screenContent).toContain('written')
 
     const session = stateManager.getPtySessions()[0]
     expect(session).toMatchObject({
-      id: 'pty_reroute_1',
       alive: true,
       boundStepId: 'step_reroute_gate',
+      id: 'pty_reroute_1',
     })
     expect(stateManager.getStepTerminalBinding(task.id, 'step_reroute_gate')).toMatchObject({
-      surface: 'pty',
       ptySessionId: 'pty_reroute_1',
+      surface: 'pty',
     })
     expect(stateManager.hasPtyApprovalGrant('approval_reroute_gate', 'pty_reroute_1')).toBe(true)
     expect(stateManager.getPtyAuditForSession('pty_reroute_1').map(entry => entry.event)).toEqual([

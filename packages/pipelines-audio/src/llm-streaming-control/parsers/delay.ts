@@ -17,11 +17,11 @@ const markerSuffix = '|>'
  */
 export function tokenDelay(): LlmStreamingControlParser<LlmStreamingControlTokenDelay> {
   return {
-    name: 'DELAY',
     match(special) {
       const trimmed = special.trim()
       return trimmed.startsWith(delayTokenPrefix) && trimmed.endsWith(markerSuffix)
     },
+    name: 'DELAY',
     parse(special) {
       const trimmed = special.trim()
       const rawPayload = trimmed.slice(delayTokenPrefix.length, -markerSuffix.length).trim()
@@ -35,8 +35,8 @@ export function tokenDelay(): LlmStreamingControlParser<LlmStreamingControlToken
       }
 
       return {
-        type: 'delay',
         seconds,
+        type: 'delay',
       }
     },
   }

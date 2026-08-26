@@ -7,11 +7,11 @@ export const useConfiguratorByModsChannelServer = defineStore('configurator:adap
 
   function updateFor(moduleName: string, config: Record<string, unknown>) {
     send({
-      type: 'ui:configure' as const,
       data: {
-        moduleName,
         config,
+        moduleName,
       },
+      type: 'ui:configure' as const,
     })
   }
 

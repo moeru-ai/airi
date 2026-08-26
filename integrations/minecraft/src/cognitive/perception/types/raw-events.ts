@@ -1,19 +1,19 @@
 export type DamageSourceCause
-  = | 'player'
-    | 'mob'
-    | 'fall'
-    | 'lava'
-    | 'fire'
+  = | 'anvil'
     | 'drown'
-    | 'anvil'
-    | 'gravity'
     | 'explosion'
+    | 'fall'
+    | 'fire'
+    | 'gravity'
+    | 'lava'
+    | 'mob'
+    | 'player'
     | 'projectile'
     | 'unknown'
 
 export interface DamageSourceMetadata {
   cause: DamageSourceCause
-  name?: string
-  entityId?: string
   distance?: number
+  entityId?: string
+  name?: string
 }

@@ -2,13 +2,13 @@ import type { BrowserWindow, Rectangle } from 'electron'
 
 import { animate, utils } from 'animejs'
 
-type AnimatableWindow = Pick<BrowserWindow, 'getBounds' | 'isDestroyed' | 'setPosition' | 'setSize'>
-
 /** Options for one window bounds animation. */
 export interface WindowBoundsAnimationOptions {
   /** Animation duration in milliseconds. @default 350 */
   duration?: number
 }
+
+type AnimatableWindow = Pick<BrowserWindow, 'getBounds' | 'isDestroyed' | 'setPosition' | 'setSize'>
 
 /**
  * Owns the active position animation for one Electron window.
@@ -20,6 +20,12 @@ export class Animator {
   private animation?: ReturnType<typeof animate>
 
   constructor(private readonly window: AnimatableWindow) {}
+
+  /** Stops the active animation. */
+  stop(): void {
+    this.animation?.pause()
+    this.animation = undefined
+  }
 
   /** Animates the window position to the target bounds. */
   windowBoundsAnimateTo(target: Rectangle, options: WindowBoundsAnimationOptions = {}): void {
@@ -35,8 +41,6 @@ export class Animator {
 
     const state = { x: current.x, y: current.y }
     this.animation = animate(state, {
-      x: target.x,
-      y: target.y,
       duration: options.duration ?? 350,
       ease: 'outCubic',
       modifier: utils.round(0),
@@ -44,12 +48,8 @@ export class Animator {
         if (!this.window.isDestroyed())
           this.window.setPosition(Math.round(state.x), Math.round(state.y))
       },
+      x: target.x,
+      y: target.y,
     })
-  }
-
-  /** Stops the active animation. */
-  stop(): void {
-    this.animation?.pause()
-    this.animation = undefined
   }
 }

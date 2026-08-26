@@ -46,8 +46,8 @@ export function createCharacterRoutes(characterService: CharacterService) {
         ...result.output,
         character: {
           ...result.output.character,
-          ownerId: user.id,
           creatorId: user.id,
+          ownerId: user.id,
         },
       })
 

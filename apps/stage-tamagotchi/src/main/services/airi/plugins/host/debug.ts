@@ -25,13 +25,13 @@ import { buildPluginRegistrySnapshot } from './registry'
  * - A full debug snapshot with registry, sessions, kits, modules, and capabilities
  */
 export function buildPluginHostDebugSnapshot(options: {
-  host: ExtensionHost
-  extensionsRoot: string
-  entries: ManifestEntry[]
   config: ExtensionConfig
+  entries: ManifestEntry[]
+  extensionAssetService?: ExtensionAssetSnapshotService
+  extensionsRoot: string
+  host: ExtensionHost
   loaded: Set<string>
   manifestEntryByExtensionId: Map<string, ManifestEntry>
-  extensionAssetService?: ExtensionAssetSnapshotService
 }): Promise<PluginHostDebugSnapshot> {
   const extensionAssetService = options.extensionAssetService
   const modules = Promise.all(options.host
@@ -44,18 +44,18 @@ export function buildPluginHostDebugSnapshot(options: {
           extensionAssetBaseUrl: extensionAssetService?.getBaseUrl(),
           ...(extensionAssetService
             ? {
-                createAssetSession: ({ extensionId, version, sessionId, routeAssetPath, sessionPathPrefix }: {
+                createAssetSession: ({ extensionId, routeAssetPath, sessionId, sessionPathPrefix, version }: {
                   extensionId: string
-                  version: string
-                  sessionId: string
                   routeAssetPath: string
+                  sessionId: string
                   sessionPathPrefix: string
+                  version: string
                 }) => extensionAssetService.createAssetSession({
                   extensionId,
-                  version,
                   ownerSessionId: sessionId,
-                  routeAssetPath,
                   pathPrefix: sessionPathPrefix,
+                  routeAssetPath,
+                  version,
                 }),
               }
             : {}),
@@ -64,22 +64,22 @@ export function buildPluginHostDebugSnapshot(options: {
     ))
 
   return modules.then(resolvedModules => ({
+    capabilities: options.host.listCapabilities(),
+    kits: options.host.listKits(),
+    modules: resolvedModules,
+    refreshedAt: Date.now(),
     registry: buildPluginRegistrySnapshot({
-      extensionsRoot: options.extensionsRoot,
-      entries: options.entries,
       config: options.config,
+      entries: options.entries,
+      extensionsRoot: options.extensionsRoot,
       loaded: options.loaded,
     }),
     sessions: options.host.listSessions().map(session => ({
-      id: session.id,
       extensionId: session.manifest.id,
+      id: session.id,
+      moduleId: session.extension.id,
       phase: session.phase,
       runtime: session.runtime ?? 'electron',
-      moduleId: session.extension.id,
     })),
-    kits: options.host.listKits(),
-    modules: resolvedModules,
-    capabilities: options.host.listCapabilities(),
-    refreshedAt: Date.now(),
   }))
 }

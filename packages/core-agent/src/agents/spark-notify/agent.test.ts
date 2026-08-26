@@ -10,16 +10,16 @@ import { createSparkNotifyObserverPlugin, createSparkNotifyReactionPlugin } from
 
 function createEvent(): WebSocketEventOf<'spark:notify'> {
   return {
-    type: 'spark:notify',
-    source: 'plugin:airi-plugin-game-chess',
     data: {
-      id: 'spark-1',
+      destinations: ['character'],
       eventId: 'evt-1',
+      headline: 'Chess update',
+      id: 'spark-1',
       kind: 'ping',
       urgency: 'immediate',
-      headline: 'Chess update',
-      destinations: ['character'],
     },
+    source: 'plugin:airi-plugin-game-chess',
+    type: 'spark:notify',
   }
 }
 
@@ -31,25 +31,25 @@ describe('createSparkNotifyAgent', () => {
     const run = vi.fn(async (request: SparkNotifyRunRequest) => {
       expect(request.messages).toHaveLength(2)
       expect(request.tools).toHaveLength(2)
-      await request.onStreamEvent({ type: 'text-delta', text: 'Checkmate.' })
+      await request.onStreamEvent({ text: 'Checkmate.', type: 'text-delta' })
     })
     const agent = createSparkNotifyAgent({
-      runner: { run },
+      createId: () => 'generated-id',
       plugins: [
         createSparkNotifyReactionPlugin({ onDelta, onEnd }),
         createSparkNotifyObserverPlugin((event) => {
           observedEvents.push(event.type)
         }),
       ],
-      createId: () => 'generated-id',
+      runner: { run },
     })
 
     const result = await agent.handle({
       event: createEvent(),
       selectedChat: {
-        providerId: 'mock-provider',
         model: 'mock-model',
         provider: {} as ChatProvider,
+        providerId: 'mock-provider',
       },
       systemPrompt: 'You are a character.',
     })
@@ -64,19 +64,19 @@ describe('createSparkNotifyAgent', () => {
   it('does not expose tools when the host forces a text response', async () => {
     const run = vi.fn(async (request: SparkNotifyRunRequest) => {
       expect(request.tools).toEqual([])
-      await request.onStreamEvent({ type: 'text-delta', text: 'I will speak.' })
+      await request.onStreamEvent({ text: 'I will speak.', type: 'text-delta' })
     })
     const agent = createSparkNotifyAgent({ runner: { run } })
 
     await agent.handle({
+      control: { forceTextResponse: true },
       event: createEvent(),
       selectedChat: {
-        providerId: 'mock-provider',
         model: 'mock-model',
         provider: {} as ChatProvider,
+        providerId: 'mock-provider',
       },
       systemPrompt: 'You are a character.',
-      control: { forceTextResponse: true },
     })
 
     expect(run).toHaveBeenCalledTimes(1)

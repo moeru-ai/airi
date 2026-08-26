@@ -23,13 +23,13 @@ import { logger } from '../utils/logger'
  * Implements HTTP server using H3.js
  */
 export class MCPAdapter {
-  private mcpServer: McpServer
-  private app: H3
-  private server: ReturnType<typeof createServer> | null = null
-  private port: number
   private activeTransports: SSEServerTransport[] = []
-  private extraResourceInfo: string[] = []
+  private app: H3
   private ctx: Context
+  private extraResourceInfo: string[] = []
+  private mcpServer: McpServer
+  private port: number
+  private server: null | ReturnType<typeof createServer> = null
 
   private twitterServices: TwitterServices
 
@@ -60,6 +60,79 @@ export class MCPAdapter {
   }
 
   /**
+   * Start MCP server
+   */
+  start(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (this.server !== null) {
+        logger.mcp.warn('MCP server is already running')
+        resolve()
+        return
+      }
+
+      try {
+        // Create Node.js HTTP server
+        this.server = createServer(toNodeHandler(this.app))
+
+        // Add error event handlers
+        this.server.on('error', (error) => {
+          logger.mcp.errorWithError('MCP server error:', error)
+          reject(error)
+        })
+
+        // Log available resources for debugging
+        logger.mcp.debug('Registered MCP resources:')
+        logger.mcp.debug('- twitter://timeline/{count}: Get tweet timeline')
+        logger.mcp.debug('- twitter://tweet/{id}: Get single tweet details')
+        logger.mcp.debug('- twitter://user/{username}: Get user profile information')
+        if (this.extraResourceInfo?.length) {
+          this.extraResourceInfo.forEach((info) => {
+            logger.mcp.debug(`- ${info}`)
+          })
+        }
+
+        this.server.listen(this.port, '127.0.0.1', () => {
+          const serverAddress = `http://localhost:${this.port}`
+          logger.mcp.log(`MCP server started at: ${serverAddress}`)
+          logger.mcp.log(`SSE endpoint: ${serverAddress}/sse`)
+          logger.mcp.log(`Messages endpoint: ${serverAddress}/messages`)
+          resolve()
+        })
+      }
+      catch (error) {
+        logger.mcp.errorWithError('Error starting MCP server:', error)
+        reject(error)
+      }
+    })
+  }
+
+  /**
+   * Stop MCP server
+   */
+  stop(): Promise<void> {
+    return new Promise((resolve) => {
+      if (this.server === null) {
+        logger.mcp.warn('MCP server is not running')
+        resolve()
+        return
+      }
+
+      try {
+        this.server.close(() => {
+          this.server = null
+          logger.mcp.log('MCP server stopped')
+          resolve()
+        })
+      }
+      catch (error) {
+        logger.mcp.errorWithError('Error stopping MCP server:', error)
+        this.server = null
+        resolve()
+      }
+    })
+  }
+
+  /**
    * Configure MCP server resources and tools
    */
   private configureServer(): void {
@@ -73,9 +146,9 @@ export class MCPAdapter {
           logger.mcp.debug('Listing available timeline resources')
           return {
             resources: [{
+              description: 'Tweet timeline',
               name: 'timeline',
               uri: 'twitter://timeline/10', // Default number of tweets
-              description: 'Tweet timeline',
             }],
           }
         },
@@ -93,8 +166,8 @@ export class MCPAdapter {
 
           return {
             contents: tweets.map((tweet: Tweet) => ({
-              uri: `twitter://tweet/${tweet.id}`,
               text: `Tweet by @${tweet.author.username} (${tweet.author.displayName}):\n${tweet.text}`,
+              uri: `twitter://tweet/${tweet.id}`,
             })),
           }
         }
@@ -115,8 +188,8 @@ export class MCPAdapter {
 
           return {
             contents: [{
-              uri: uri.href,
               text: `Tweet by @${tweet.author.username} (${tweet.author.displayName}):\n${tweet.text}`,
+              uri: uri.href,
             }],
           }
         }
@@ -137,8 +210,8 @@ export class MCPAdapter {
 
           return {
             contents: [{
-              uri: uri.href,
               text: `Profile for @${profile.username} (${profile.displayName})\n${profile.bio || ''}`,
+              uri: uri.href,
             }],
           }
         }
@@ -159,16 +232,16 @@ export class MCPAdapter {
 
           return {
             content: [{
-              type: 'text',
               text: success
                 ? 'Successfully loaded login state from session file! If you logged in manually, auto-monitoring is set up to save your session.'
                 : 'No valid session file found. Please log in manually in the browser, the system will automatically save your session.',
+              type: 'text',
             }],
           }
         }
         catch (error) {
           return {
-            content: [{ type: 'text', text: `Failed to check login status: ${errorToMessage(error)}` }],
+            content: [{ text: `Failed to check login status: ${errorToMessage(error)}`, type: 'text' }],
             isError: true,
           }
         }
@@ -180,10 +253,10 @@ export class MCPAdapter {
       'post-tweet',
       {
         content: z.string(),
-        replyTo: z.string().optional(),
         media: z.array(z.string()).optional(),
+        replyTo: z.string().optional(),
       },
-      async ({ content, replyTo, media }) => {
+      async ({ content, media, replyTo }) => {
         try {
           const tweetId = await this.twitterServices.tweet.postTweet(content, {
             inReplyTo: replyTo,
@@ -192,14 +265,14 @@ export class MCPAdapter {
 
           return {
             content: [{
-              type: 'text',
               text: `Successfully posted tweet: ${tweetId}`,
+              type: 'text',
             }],
           }
         }
         catch (error) {
           return {
-            content: [{ type: 'text', text: `Failed to post tweet: ${errorToMessage(error)}` }],
+            content: [{ text: `Failed to post tweet: ${errorToMessage(error)}`, type: 'text' }],
             isError: true,
           }
         }
@@ -216,14 +289,14 @@ export class MCPAdapter {
 
           return {
             content: [{
-              type: 'text',
               text: success ? 'Successfully liked tweet' : 'Failed to like tweet',
+              type: 'text',
             }],
           }
         }
         catch (error) {
           return {
-            content: [{ type: 'text', text: `Failed to like tweet: ${errorToMessage(error)}` }],
+            content: [{ text: `Failed to like tweet: ${errorToMessage(error)}`, type: 'text' }],
             isError: true,
           }
         }
@@ -240,14 +313,14 @@ export class MCPAdapter {
 
           return {
             content: [{
-              type: 'text',
               text: success ? 'Successfully retweeted' : 'Failed to retweet',
+              type: 'text',
             }],
           }
         }
         catch (error) {
           return {
-            content: [{ type: 'text', text: `Failed to retweet: ${errorToMessage(error)}` }],
+            content: [{ text: `Failed to retweet: ${errorToMessage(error)}`, type: 'text' }],
             isError: true,
           }
         }
@@ -264,16 +337,16 @@ export class MCPAdapter {
 
           return {
             content: [{
-              type: 'text',
               text: success
                 ? 'Successfully saved browser session to file. This session will be loaded automatically next time.'
                 : 'Failed to save browser session',
+              type: 'text',
             }],
           }
         }
         catch (error) {
           return {
-            content: [{ type: 'text', text: `Failed to save session: ${errorToMessage(error)}` }],
+            content: [{ text: `Failed to save session: ${errorToMessage(error)}`, type: 'text' }],
             isError: true,
           }
         }
@@ -284,25 +357,25 @@ export class MCPAdapter {
     this.mcpServer.tool(
       'search',
       {
-        query: z.string(),
         count: z.number().optional(),
         filter: z.enum(['latest', 'photos', 'videos', 'top']).optional(),
+        query: z.string(),
       },
-      async ({ query, count, filter }) => {
+      async ({ count, filter, query }) => {
         try {
           const results = await this.twitterServices.tweet.searchTweets(query, { count, filter })
 
           return {
             content: [{
-              type: 'text',
               text: `Search results: ${results.length} tweets`,
+              type: 'text',
             }],
             resources: results.map((tweet: Tweet) => `twitter://tweet/${tweet.id}`),
           }
         }
         catch (error) {
           return {
-            content: [{ type: 'text', text: `Search failed: ${errorToMessage(error)}` }],
+            content: [{ text: `Search failed: ${errorToMessage(error)}`, type: 'text' }],
             isError: true,
           }
         }
@@ -327,15 +400,15 @@ export class MCPAdapter {
 
           return {
             content: [{
-              type: 'text',
               text: `Successfully refreshed timeline, retrieved ${tweets.length} tweets`,
+              type: 'text',
             }],
             resources: tweets.map((tweet: Tweet) => `twitter://tweet/${tweet.id}`),
           }
         }
         catch (error) {
           return {
-            content: [{ type: 'text', text: `Failed to refresh timeline: ${errorToMessage(error)}` }],
+            content: [{ text: `Failed to refresh timeline: ${errorToMessage(error)}`, type: 'text' }],
             isError: true,
           }
         }
@@ -362,8 +435,8 @@ export class MCPAdapter {
           if (!profileUsername) {
             return {
               content: [{
-                type: 'text',
                 text: `Failed to get profile: Please provide a username or navigate to a profile page`,
+                type: 'text',
               }],
               isError: true,
             }
@@ -373,7 +446,6 @@ export class MCPAdapter {
 
           return {
             content: [{
-              type: 'text',
               text: `Profile Information:\n`
                 + `Username: @${profile.username}\n`
                 + `Display Name: ${profile.displayName}\n`
@@ -382,13 +454,14 @@ export class MCPAdapter {
                 + `Following: ${profile.followingCount || 'N/A'}\n`
                 + `Tweets: ${profile.tweetCount || 'N/A'}\n`
                 + `Joined: ${profile.joinDate || 'N/A'}`,
+              type: 'text',
             }],
             resources: [`twitter://user/${profile.username}`],
           }
         }
         catch (error) {
           return {
-            content: [{ type: 'text', text: `Failed to get profile: ${errorToMessage(error)}` }],
+            content: [{ text: `Failed to get profile: ${errorToMessage(error)}`, type: 'text' }],
             isError: true,
           }
         }
@@ -406,7 +479,7 @@ export class MCPAdapter {
       const parsedUrl = new URL(url)
       if (parsedUrl.hostname === 'x.com') {
         const pathParts = parsedUrl.pathname.split('/').filter(Boolean)
-        if (pathParts.length > 0 && !['search', 'explore', 'home', 'notifications', 'messages'].includes(pathParts[0])) {
+        if (pathParts.length > 0 && !['explore', 'home', 'messages', 'notifications', 'search'].includes(pathParts[0])) {
           return pathParts[0]
         }
       }
@@ -499,90 +572,17 @@ export class MCPAdapter {
     // Root path - provide service info
     router.get('/', defineEventHandler(() => {
       return {
+        endpoints: {
+          messages: '/messages',
+          sse: '/sse',
+        },
         name: 'Twitter MCP Service',
         version: '1.0.0',
-        endpoints: {
-          sse: '/sse',
-          messages: '/messages',
-        },
       }
     }))
 
     // Use router
     this.app.use(router)
-  }
-
-  /**
-   * Start MCP server
-   */
-  start(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (this.server !== null) {
-        logger.mcp.warn('MCP server is already running')
-        resolve()
-        return
-      }
-
-      try {
-        // Create Node.js HTTP server
-        this.server = createServer(toNodeHandler(this.app))
-
-        // Add error event handlers
-        this.server.on('error', (error) => {
-          logger.mcp.errorWithError('MCP server error:', error)
-          reject(error)
-        })
-
-        // Log available resources for debugging
-        logger.mcp.debug('Registered MCP resources:')
-        logger.mcp.debug('- twitter://timeline/{count}: Get tweet timeline')
-        logger.mcp.debug('- twitter://tweet/{id}: Get single tweet details')
-        logger.mcp.debug('- twitter://user/{username}: Get user profile information')
-        if (this.extraResourceInfo?.length) {
-          this.extraResourceInfo.forEach((info) => {
-            logger.mcp.debug(`- ${info}`)
-          })
-        }
-
-        this.server.listen(this.port, '127.0.0.1', () => {
-          const serverAddress = `http://localhost:${this.port}`
-          logger.mcp.log(`MCP server started at: ${serverAddress}`)
-          logger.mcp.log(`SSE endpoint: ${serverAddress}/sse`)
-          logger.mcp.log(`Messages endpoint: ${serverAddress}/messages`)
-          resolve()
-        })
-      }
-      catch (error) {
-        logger.mcp.errorWithError('Error starting MCP server:', error)
-        reject(error)
-      }
-    })
-  }
-
-  /**
-   * Stop MCP server
-   */
-  stop(): Promise<void> {
-    return new Promise((resolve) => {
-      if (this.server === null) {
-        logger.mcp.warn('MCP server is not running')
-        resolve()
-        return
-      }
-
-      try {
-        this.server.close(() => {
-          this.server = null
-          logger.mcp.log('MCP server stopped')
-          resolve()
-        })
-      }
-      catch (error) {
-        logger.mcp.errorWithError('Error stopping MCP server:', error)
-        this.server = null
-        resolve()
-      }
-    })
   }
 }
 

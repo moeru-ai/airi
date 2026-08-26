@@ -1,3 +1,8 @@
+export interface AiriDebugSnapshotLike {
+  documentTitle?: string
+  route?: string
+}
+
 export interface DebugTargetLike {
   id: string
   title: string
@@ -6,13 +11,12 @@ export interface DebugTargetLike {
   webSocketDebuggerUrl?: string
 }
 
-export interface AiriDebugSnapshotLike {
-  route?: string
-  documentTitle?: string
-}
+export function isChatSurfaceTarget(target: DebugTargetLike, snapshot?: AiriDebugSnapshotLike) {
+  if (target.title === 'Chat' || target.url.includes('#/chat')) {
+    return true
+  }
 
-function containsFragment(input: string, fragments: string[]) {
-  return fragments.some(fragment => input.includes(fragment))
+  return String(snapshot?.route || '').includes('/chat')
 }
 
 // NOTICE: The remote debug endpoint exposes multiple renderer pages for Electron.
@@ -41,6 +45,10 @@ export function prioritizeInspectableAiriTargets(targets: DebugTargetLike[]) {
     .sort((left, right) => scoreInspectableAiriTarget(right) - scoreInspectableAiriTarget(left))
 }
 
+function containsFragment(input: string, fragments: string[]) {
+  return fragments.some(fragment => input.includes(fragment))
+}
+
 function scoreInspectableAiriTarget(target: DebugTargetLike) {
   let score = 0
 
@@ -59,12 +67,4 @@ function scoreInspectableAiriTarget(target: DebugTargetLike) {
   }
 
   return score
-}
-
-export function isChatSurfaceTarget(target: DebugTargetLike, snapshot?: AiriDebugSnapshotLike) {
-  if (target.title === 'Chat' || target.url.includes('#/chat')) {
-    return true
-  }
-
-  return String(snapshot?.route || '').includes('/chat')
 }

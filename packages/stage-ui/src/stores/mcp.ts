@@ -14,9 +14,9 @@ export const useMcpStore = defineStore('mcp', () => {
   }
 
   return {
-    serverCmd,
-    serverArgs,
     connected,
     resetState,
+    serverArgs,
+    serverCmd,
   }
 })

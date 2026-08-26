@@ -21,35 +21,24 @@ interface ManagedVrmCacheState {
   detachedByScope: Record<string, ManagedVrmInstance | undefined>
 }
 
-const hotData = import.meta.hot?.data as { managedVrmCacheState?: ManagedVrmCacheState } | undefined
+const hotData = import.meta.hot?.data as undefined | { managedVrmCacheState?: ManagedVrmCacheState }
 
 const managedVrmCacheState = hotData?.managedVrmCacheState ?? { detachedByScope: {} }
 
 if (import.meta.hot)
   import.meta.hot.data.managedVrmCacheState = managedVrmCacheState
 
-function emitCacheTrace(action: 'clear' | 'stash' | 'take', scopeKey: string, result: 'empty' | 'evicted' | 'hit' | 'miss' | 'stored', modelSrc?: string) {
-  if (!isStageThreeRuntimeTraceEnabled())
-    return
-  getStageThreeRuntimeTraceContext().emit(stageThreeTraceVrmCacheEvent, {
-    action,
-    modelSrc,
-    result,
-    scopeKey,
-    ts: performance.now(),
-  })
-}
-
-export function takeManagedVrmInstance(scopeKey: string, modelSrc: string) {
+export function clearManagedVrmInstance(scopeKey: string) {
   const cached = managedVrmCacheState.detachedByScope[scopeKey]
-  if (!cached || cached.modelSrc !== modelSrc) {
-    emitCacheTrace('take', scopeKey, 'miss', modelSrc)
-    return undefined
+  delete managedVrmCacheState.detachedByScope[scopeKey]
+
+  if (cached) {
+    emitCacheTrace('clear', scopeKey, 'hit', cached.modelSrc)
+    return cached
   }
 
-  delete managedVrmCacheState.detachedByScope[scopeKey]
-  emitCacheTrace('take', scopeKey, 'hit', modelSrc)
-  return cached
+  emitCacheTrace('clear', scopeKey, 'empty')
+  return undefined
 }
 
 export function stashManagedVrmInstance(instance: ManagedVrmInstance) {
@@ -70,15 +59,26 @@ export function stashManagedVrmInstance(instance: ManagedVrmInstance) {
   return undefined
 }
 
-export function clearManagedVrmInstance(scopeKey: string) {
+export function takeManagedVrmInstance(scopeKey: string, modelSrc: string) {
   const cached = managedVrmCacheState.detachedByScope[scopeKey]
-  delete managedVrmCacheState.detachedByScope[scopeKey]
-
-  if (cached) {
-    emitCacheTrace('clear', scopeKey, 'hit', cached.modelSrc)
-    return cached
+  if (!cached || cached.modelSrc !== modelSrc) {
+    emitCacheTrace('take', scopeKey, 'miss', modelSrc)
+    return undefined
   }
 
-  emitCacheTrace('clear', scopeKey, 'empty')
-  return undefined
+  delete managedVrmCacheState.detachedByScope[scopeKey]
+  emitCacheTrace('take', scopeKey, 'hit', modelSrc)
+  return cached
+}
+
+function emitCacheTrace(action: 'clear' | 'stash' | 'take', scopeKey: string, result: 'empty' | 'evicted' | 'hit' | 'miss' | 'stored', modelSrc?: string) {
+  if (!isStageThreeRuntimeTraceEnabled())
+    return
+  getStageThreeRuntimeTraceContext().emit(stageThreeTraceVrmCacheEvent, {
+    action,
+    modelSrc,
+    result,
+    scopeKey,
+    ts: performance.now(),
+  })
 }

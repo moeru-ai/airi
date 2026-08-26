@@ -4,6 +4,39 @@ import type { StreamingTtsPipelineOptions } from './streaming-pipeline'
 
 import { createStreamingTtsPipeline } from './streaming-pipeline'
 
+export interface CreateStreamingSessionOptions<TAudio = AudioBuffer> {
+  audioContext: BaseAudioContext
+  hooks?: StreamingSessionHooks
+  intentId: string
+  /**
+   * Optional override for the underlying pipeline factory. Tests inject a
+   * stub here; production wires the real `createStreamingTtsPipeline`.
+   *
+   * @default {@link createStreamingTtsPipeline}
+   */
+  pipelineFactory?: (options: StreamingTtsPipelineOptions) => ReturnType<typeof createStreamingTtsPipeline>
+  playbackManager: PlaybackManagerSubset<TAudio>
+  snapshot: StreamingSessionSnapshot
+}
+
+/**
+ * Minimal `PlaybackManager` shape the streaming adapter writes to. Same
+ * `intentId` is passed to `stopByIntent` on cancel and used as
+ * `streamId`/`intentId` on every scheduled item, so cancellation reliably
+ * stops every audio buffer this session emitted.
+ */
+export interface PlaybackManagerSubset<TAudio> {
+  schedule: (item: PlaybackItem<TAudio>) => void
+  stopByIntent: (intentId: string, reason: string) => void
+}
+
+/**
+ * Speech transport flavours the host knows how to drive. Mirrors the
+ * `capabilities.speech.transport` enum on `ProviderDefinition`. Anything
+ * the factory does not recognise is treated as `'rest'`.
+ */
+export type SpeechTransport = 'bidirectional-ws' | 'rest'
+
 /**
  * Stage-level TTS session abstraction.
  *
@@ -19,10 +52,6 @@ import { createStreamingTtsPipeline } from './streaming-pipeline'
  * {@link createStageTtsSession}.
  */
 export interface StageTtsSession {
-  /** Stable id for this session. Used by playback to scope cancellation. */
-  readonly intentId: string
-  /** Forward an LLM token. Adapter decides whether it's segmented or raw. */
-  appendText: (text: string) => void
   /**
    * Forward a special token (emotion / delay marker). Segmenter adapter
    * queues it in lockstep with audio; streaming adapter fires it
@@ -30,75 +59,55 @@ export interface StageTtsSession {
    * {@link createStageTtsSession} comments).
    */
   appendSpecial: (special: string) => void
-  /** Signal end of LLM token stream. Caller still owes an `end()`. */
-  finishInput: () => void
-  /** Tear down on normal completion. */
-  end: () => void
+  /** Forward an LLM token. Adapter decides whether it's segmented or raw. */
+  appendText: (text: string) => void
   /** Tear down on abort / new message / unmount. */
   cancel: (reason?: string) => void
+  /** Tear down on normal completion. */
+  end: () => void
+  /** Signal end of LLM token stream. Caller still owes an `end()`. */
+  finishInput: () => void
+  /** Stable id for this session. Used by playback to scope cancellation. */
+  readonly intentId: string
 }
 
 /**
- * Minimal `IntentHandle` shape the segmenter adapter needs. Quoting the
- * full `IntentHandle` would drag in extra fields (`stream`, `priority`,
- * etc.) that are not part of the session protocol; this typed subset keeps
- * the adapter honest about what it actually depends on.
+ * Build context required by {@link createStageTtsSession}. Kept as a
+ * single object so Stage.vue can construct it once per intent without
+ * threading a dozen positional args.
  */
-type IntentHandleSubset = Pick<IntentHandle, 'intentId' | 'writeLiteral' | 'writeSpecial' | 'writeFlush' | 'end' | 'cancel'>
-
-/**
- * Direct adapter from a `pipelines-audio` `IntentHandle` to
- * {@link StageTtsSession}. Pure passthrough — the segmenter pipeline already
- * owns segmentation, special-token queueing, and playback scheduling.
- */
-function fromIntent(intent: IntentHandleSubset): StageTtsSession {
-  return {
-    intentId: intent.intentId,
-    appendText: intent.writeLiteral,
-    appendSpecial: intent.writeSpecial,
-    finishInput: intent.writeFlush,
-    end: intent.end,
-    cancel: intent.cancel,
-  }
-}
-
-/**
- * Per-session knobs the streaming adapter consumes. Snapshotted once at
- * session-open time so a mid-session provider/voice swap does not corrupt
- * an in-flight session — the hot-swap watcher in Stage.vue is responsible
- * for cancelling and re-opening.
- */
-export interface StreamingSessionSnapshot {
-  model: string
-  voice: string
-  voiceType: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
-  bufferEntireSession: boolean
-  extraBody: Record<string, unknown>
+export interface StageTtsSessionContext<TAudio = AudioBuffer> {
+  /** Host audio context. Required for the streaming path. */
+  audioContext: BaseAudioContext | undefined
+  /** Lifecycle hooks shared by both paths. */
+  hooks?: StreamingSessionHooks
   /**
-   * `ownerId` to stamp on each `PlaybackItem`. Mirrors the value the
-   * segmenter-based intent uses (`activeCardId`) so playback manager
-   * owner-quota policies treat both paths identically.
+   * Default intent options for the segmenter path. Stage.vue's existing
+   * call passed `{ownerId, priority:'normal', behavior:'queue'}`; we keep
+   * the same defaults here.
    */
-  ownerId?: string
+  intentOptions: () => IntentOptions
   /**
-   * Called when the host wants a special token (emotion / delay marker)
-   * dispatched. Streaming has no in-band queue to ride; this callback
-   * fires immediately on `appendSpecial`. Without it the streaming adapter
-   * would silently drop emotion/delay tokens. The host wires this to
-   * something like `playSpecialToken` (Stage.vue's existing helper).
+   * Factory for a fresh `IntentHandle` (segmenter path). Stage wires this
+   * to `speechRuntimeStore.openIntent`.
    */
-  onImmediateSpecial: (special: string) => void
-}
-
-/**
- * Minimal `PlaybackManager` shape the streaming adapter writes to. Same
- * `intentId` is passed to `stopByIntent` on cancel and used as
- * `streamId`/`intentId` on every scheduled item, so cancellation reliably
- * stops every audio buffer this session emitted.
- */
-export interface PlaybackManagerSubset<TAudio> {
-  schedule: (item: PlaybackItem<TAudio>) => void
-  stopByIntent: (intentId: string, reason: string) => void
+  openIntent: (options: IntentOptions) => IntentHandleSubset
+  /** Playback manager Stage uses for scheduling. */
+  playbackManager: PlaybackManagerSubset<TAudio>
+  /**
+   * Snapshot of the streaming provider's settings. Used only when
+   * `transport === 'bidirectional-ws'` and the snapshot is non-null with
+   * a voice picked. Returning `null` is a graceful "not ready yet" signal
+   * and falls back to the segmenter path.
+   */
+  streaming?: () => null | StreamingSessionSnapshot
+  /**
+   * Transport flavour of the active provider, read by the host from
+   * `ProviderDefinition.capabilities.speech.transport`. `'rest'` (or any
+   * other value) routes through the segmenter; `'bidirectional-ws'`
+   * routes through the streaming WebSocket adapter.
+   */
+  transport: SpeechTransport | undefined
 }
 
 /**
@@ -108,163 +117,47 @@ export interface PlaybackManagerSubset<TAudio> {
  * null it when the underlying ws terminates on its own.
  */
 export interface StreamingSessionHooks {
-  /** Called once when the ws terminates with an error. */
-  onError?: (err: Error) => void
   /** Called once when the ws terminates (success or error follows). */
   onDone?: () => void
-}
-
-export interface CreateStreamingSessionOptions<TAudio = AudioBuffer> {
-  intentId: string
-  snapshot: StreamingSessionSnapshot
-  audioContext: BaseAudioContext
-  playbackManager: PlaybackManagerSubset<TAudio>
-  hooks?: StreamingSessionHooks
-  /**
-   * Optional override for the underlying pipeline factory. Tests inject a
-   * stub here; production wires the real `createStreamingTtsPipeline`.
-   *
-   * @default {@link createStreamingTtsPipeline}
-   */
-  pipelineFactory?: (options: StreamingTtsPipelineOptions) => ReturnType<typeof createStreamingTtsPipeline>
+  /** Called once when the ws terminates with an error. */
+  onError?: (err: Error) => void
 }
 
 /**
- * Streaming adapter: opens ONE ws session for the whole intent and
- * schedules sentences into the playback manager as they arrive. Cancel
- * tells the pipeline to send `cancel` upstream AND drains any already-queued
- * playback items that belong to this intent.
- *
- * Use when:
- * - The active provider has the streaming surface enabled and a voice picked.
- *
- * Expects:
- * - `audioContext` is the same context the playback manager's `play`
- *   callback will use to attach the buffer source. Mismatched contexts will
- *   throw on decode.
- *
- * Returns:
- * - A {@link StageTtsSession} whose `appendSpecial` is intentionally
- *   immediate (no segmenter to align with); see {@link createStageTtsSession}.
+ * Per-session knobs the streaming adapter consumes. Snapshotted once at
+ * session-open time so a mid-session provider/voice swap does not corrupt
+ * an in-flight session — the hot-swap watcher in Stage.vue is responsible
+ * for cancelling and re-opening.
  */
-export function createStreamingTtsSession<TAudio = AudioBuffer>(
-  options: CreateStreamingSessionOptions<TAudio>,
-): StageTtsSession {
-  const { intentId, snapshot, audioContext, playbackManager, hooks } = options
-  const pipelineFactory = options.pipelineFactory ?? createStreamingTtsPipeline
-
-  let sequence = 0
-  let terminated = false
-
-  const handle = pipelineFactory({
-    model: snapshot.model,
-    voice: snapshot.voice,
-    ttsVoiceType: snapshot.voiceType,
-    audioContext,
-    bufferEntireSession: snapshot.bufferEntireSession,
-    extraBody: snapshot.extraBody,
-    onSentence: ({ index, text, audio }) => {
-      if (terminated)
-        return
-      playbackManager.schedule({
-        id: `${intentId}-${index}`,
-        streamId: intentId,
-        intentId,
-        segmentId: `${intentId}-${index}`,
-        sequence: sequence++,
-        ownerId: snapshot.ownerId,
-        priority: 0,
-        text: text ?? '',
-        special: null,
-        audio: audio as unknown as TAudio,
-        createdAt: Date.now(),
-      })
-    },
-    onError: (err) => {
-      hooks?.onError?.(err)
-    },
-    onDone: () => {
-      terminated = true
-      hooks?.onDone?.()
-    },
-  })
-
-  function cancel(reason?: string) {
-    if (terminated) {
-      // Pipeline already closed itself; still drain any playback items it
-      // managed to queue before terminating.
-      playbackManager.stopByIntent(intentId, reason ?? 'session-already-terminated')
-      return
-    }
-    terminated = true
-    handle.cancel()
-    playbackManager.stopByIntent(intentId, reason ?? 'session-cancelled')
-  }
-
-  return {
-    intentId,
-    appendText: handle.appendText,
-    // Streaming has no in-band queue to align audio with; fire the host's
-    // immediate-special callback so emotion / delay tokens still reach the
-    // queues. The perceptual mis-alignment vs audio is minor — codex
-    // review and the segmenter parity comment in Stage.vue prior to the
-    // refactor both accept it.
-    appendSpecial: snapshot.onImmediateSpecial,
-    finishInput: handle.finish,
-    end: () => {
-      // `finish()` already drove session.finished → onDone; nothing extra
-      // to do here. Kept as a method for protocol symmetry with the
-      // segmenter adapter.
-    },
-    cancel,
-  }
+export interface StreamingSessionSnapshot {
+  bufferEntireSession: boolean
+  extraBody: Record<string, unknown>
+  model: string
+  /**
+   * Called when the host wants a special token (emotion / delay marker)
+   * dispatched. Streaming has no in-band queue to ride; this callback
+   * fires immediately on `appendSpecial`. Without it the streaming adapter
+   * would silently drop emotion/delay tokens. The host wires this to
+   * something like `playSpecialToken` (Stage.vue's existing helper).
+   */
+  onImmediateSpecial: (special: string) => void
+  /**
+   * `ownerId` to stamp on each `PlaybackItem`. Mirrors the value the
+   * segmenter-based intent uses (`activeCardId`) so playback manager
+   * owner-quota policies treat both paths identically.
+   */
+  ownerId?: string
+  voice: string
+  voiceType: 'custom_configured' | 'official_default' | 'official_selected' | 'unknown' | 'voice_pack'
 }
 
 /**
- * Speech transport flavours the host knows how to drive. Mirrors the
- * `capabilities.speech.transport` enum on `ProviderDefinition`. Anything
- * the factory does not recognise is treated as `'rest'`.
+ * Minimal `IntentHandle` shape the segmenter adapter needs. Quoting the
+ * full `IntentHandle` would drag in extra fields (`stream`, `priority`,
+ * etc.) that are not part of the session protocol; this typed subset keeps
+ * the adapter honest about what it actually depends on.
  */
-export type SpeechTransport = 'rest' | 'bidirectional-ws'
-
-/**
- * Build context required by {@link createStageTtsSession}. Kept as a
- * single object so Stage.vue can construct it once per intent without
- * threading a dozen positional args.
- */
-export interface StageTtsSessionContext<TAudio = AudioBuffer> {
-  /**
-   * Transport flavour of the active provider, read by the host from
-   * `ProviderDefinition.capabilities.speech.transport`. `'rest'` (or any
-   * other value) routes through the segmenter; `'bidirectional-ws'`
-   * routes through the streaming WebSocket adapter.
-   */
-  transport: SpeechTransport | undefined
-  /**
-   * Snapshot of the streaming provider's settings. Used only when
-   * `transport === 'bidirectional-ws'` and the snapshot is non-null with
-   * a voice picked. Returning `null` is a graceful "not ready yet" signal
-   * and falls back to the segmenter path.
-   */
-  streaming?: () => StreamingSessionSnapshot | null
-  /** Host audio context. Required for the streaming path. */
-  audioContext: BaseAudioContext | undefined
-  /** Playback manager Stage uses for scheduling. */
-  playbackManager: PlaybackManagerSubset<TAudio>
-  /**
-   * Factory for a fresh `IntentHandle` (segmenter path). Stage wires this
-   * to `speechRuntimeStore.openIntent`.
-   */
-  openIntent: (options: IntentOptions) => IntentHandleSubset
-  /**
-   * Default intent options for the segmenter path. Stage.vue's existing
-   * call passed `{ownerId, priority:'normal', behavior:'queue'}`; we keep
-   * the same defaults here.
-   */
-  intentOptions: () => IntentOptions
-  /** Lifecycle hooks shared by both paths. */
-  hooks?: StreamingSessionHooks
-}
+type IntentHandleSubset = Pick<IntentHandle, 'cancel' | 'end' | 'intentId' | 'writeFlush' | 'writeLiteral' | 'writeSpecial'>
 
 /**
  * One decision point: streaming path or segmenter path? Returns a fully
@@ -307,14 +200,121 @@ export function createStageTtsSession<TAudio = AudioBuffer>(
 
   const intentId = createStreamingIntentId()
   return createStreamingTtsSession<TAudio>({
-    intentId,
-    snapshot: snapshot!,
     audioContext: ctx.audioContext!,
-    playbackManager: ctx.playbackManager,
     hooks: ctx.hooks,
+    intentId,
+    playbackManager: ctx.playbackManager,
+    snapshot: snapshot!,
   })
+}
+
+/**
+ * Streaming adapter: opens ONE ws session for the whole intent and
+ * schedules sentences into the playback manager as they arrive. Cancel
+ * tells the pipeline to send `cancel` upstream AND drains any already-queued
+ * playback items that belong to this intent.
+ *
+ * Use when:
+ * - The active provider has the streaming surface enabled and a voice picked.
+ *
+ * Expects:
+ * - `audioContext` is the same context the playback manager's `play`
+ *   callback will use to attach the buffer source. Mismatched contexts will
+ *   throw on decode.
+ *
+ * Returns:
+ * - A {@link StageTtsSession} whose `appendSpecial` is intentionally
+ *   immediate (no segmenter to align with); see {@link createStageTtsSession}.
+ */
+export function createStreamingTtsSession<TAudio = AudioBuffer>(
+  options: CreateStreamingSessionOptions<TAudio>,
+): StageTtsSession {
+  const { audioContext, hooks, intentId, playbackManager, snapshot } = options
+  const pipelineFactory = options.pipelineFactory ?? createStreamingTtsPipeline
+
+  let sequence = 0
+  let terminated = false
+
+  const handle = pipelineFactory({
+    audioContext,
+    bufferEntireSession: snapshot.bufferEntireSession,
+    extraBody: snapshot.extraBody,
+    model: snapshot.model,
+    onDone: () => {
+      terminated = true
+      hooks?.onDone?.()
+    },
+    onError: (err) => {
+      hooks?.onError?.(err)
+    },
+    onSentence: ({ audio, index, text }) => {
+      if (terminated)
+        return
+      playbackManager.schedule({
+        audio: audio as unknown as TAudio,
+        createdAt: Date.now(),
+        id: `${intentId}-${index}`,
+        intentId,
+        ownerId: snapshot.ownerId,
+        priority: 0,
+        segmentId: `${intentId}-${index}`,
+        sequence: sequence++,
+        special: null,
+        streamId: intentId,
+        text: text ?? '',
+      })
+    },
+    ttsVoiceType: snapshot.voiceType,
+    voice: snapshot.voice,
+  })
+
+  function cancel(reason?: string) {
+    if (terminated) {
+      // Pipeline already closed itself; still drain any playback items it
+      // managed to queue before terminating.
+      playbackManager.stopByIntent(intentId, reason ?? 'session-already-terminated')
+      return
+    }
+    terminated = true
+    handle.cancel()
+    playbackManager.stopByIntent(intentId, reason ?? 'session-cancelled')
+  }
+
+  return {
+    // Streaming has no in-band queue to align audio with; fire the host's
+    // immediate-special callback so emotion / delay tokens still reach the
+    // queues. The perceptual mis-alignment vs audio is minor — codex
+    // review and the segmenter parity comment in Stage.vue prior to the
+    // refactor both accept it.
+    appendSpecial: snapshot.onImmediateSpecial,
+    appendText: handle.appendText,
+    cancel,
+    end: () => {
+      // `finish()` already drove session.finished → onDone; nothing extra
+      // to do here. Kept as a method for protocol symmetry with the
+      // segmenter adapter.
+    },
+    finishInput: handle.finish,
+    intentId,
+  }
 }
 
 function createStreamingIntentId(): string {
   return `stream-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+/**
+ * Direct adapter from a `pipelines-audio` `IntentHandle` to
+ * {@link StageTtsSession}. Pure passthrough — the segmenter pipeline already
+ * owns segmentation, special-token queueing, and playback scheduling.
+ */
+function fromIntent(intent: IntentHandleSubset): StageTtsSession {
+  return {
+    appendSpecial: intent.writeSpecial,
+    appendText: intent.writeLiteral,
+    cancel: intent.cancel,
+    end: intent.end,
+    finishInput: intent.writeFlush,
+    intentId: intent.intentId,
+  }
 }

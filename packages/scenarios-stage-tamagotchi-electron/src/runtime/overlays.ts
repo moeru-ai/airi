@@ -20,23 +20,6 @@ export async function dismissDialog(page: Page): Promise<void> {
   await page.waitForTimeout(overlayDismissWaitMs)
 }
 
-export async function swipeDownDrawer(page: Page): Promise<void> {
-  const dialogBox = await getVisibleDialogBox(page)
-  if (!dialogBox) {
-    return
-  }
-
-  const startX = dialogBox.x + (dialogBox.width / 2)
-  const startY = dialogBox.y + Math.min(drawerSwipeTopInsetPx, Math.max(dialogBox.height / 8, 12))
-  const endY = Math.min(dialogBox.y + dialogBox.height - 8, startY + Math.min(drawerSwipeDistancePx, dialogBox.height * 0.6))
-
-  await page.mouse.move(startX, startY)
-  await page.mouse.down()
-  await page.mouse.move(startX, endY, { steps: 12 })
-  await page.mouse.up()
-  await page.waitForTimeout(overlayDismissWaitMs)
-}
-
 export async function dismissDrawer(page: Page): Promise<void> {
   if (!await hasVisibleDialog(page)) {
     return
@@ -58,14 +41,21 @@ export async function dismissDrawer(page: Page): Promise<void> {
   await page.waitForTimeout(overlayDismissWaitMs)
 }
 
-async function hasVisibleDialog(page: Page): Promise<boolean> {
-  return page.locator('[role="dialog"]').evaluateAll((elements) => {
-    return elements.some((element) => {
-      const htmlElement = element as HTMLElement
-      const style = window.getComputedStyle(htmlElement)
-      return style.display !== 'none' && style.visibility !== 'hidden' && htmlElement.getBoundingClientRect().height > 0
-    })
-  }).catch(() => false)
+export async function swipeDownDrawer(page: Page): Promise<void> {
+  const dialogBox = await getVisibleDialogBox(page)
+  if (!dialogBox) {
+    return
+  }
+
+  const startX = dialogBox.x + (dialogBox.width / 2)
+  const startY = dialogBox.y + Math.min(drawerSwipeTopInsetPx, Math.max(dialogBox.height / 8, 12))
+  const endY = Math.min(dialogBox.y + dialogBox.height - 8, startY + Math.min(drawerSwipeDistancePx, dialogBox.height * 0.6))
+
+  await page.mouse.move(startX, startY)
+  await page.mouse.down()
+  await page.mouse.move(startX, endY, { steps: 12 })
+  await page.mouse.up()
+  await page.waitForTimeout(overlayDismissWaitMs)
 }
 
 async function clickOverlayCorner(page: Page): Promise<void> {
@@ -91,4 +81,14 @@ async function getVisibleDialogBox(page: Page) {
   }
 
   return null
+}
+
+async function hasVisibleDialog(page: Page): Promise<boolean> {
+  return page.locator('[role="dialog"]').evaluateAll((elements) => {
+    return elements.some((element) => {
+      const htmlElement = element as HTMLElement
+      const style = window.getComputedStyle(htmlElement)
+      return style.display !== 'none' && style.visibility !== 'hidden' && htmlElement.getBoundingClientRect().height > 0
+    })
+  }).catch(() => false)
 }

@@ -26,8 +26,8 @@ vi.mock('../../stores/providers/provider', () => ({
 
 vi.mock('../../stores/modules/vision', () => ({
   useVisionStore: () => reactive({
-    activeProvider: 'mock-provider',
     activeModel: 'mock-model',
+    activeProvider: 'mock-provider',
     ollamaThinkingEnabled: false,
   }),
 }))
@@ -58,7 +58,7 @@ describe('useVisionInference', () => {
   it('passes an abort signal to llmStore.stream', async () => {
     stream.mockImplementation(async (_model, _provider, _messages, options) => {
       expect(options?.abortSignal).toBeInstanceOf(AbortSignal)
-      options?.onStreamEvent?.({ type: 'text-delta', text: 'Frame summary' })
+      options?.onStreamEvent?.({ text: 'Frame summary', type: 'text-delta' })
     })
 
     const { useVisionInference } = await import('./use-vision-inference')

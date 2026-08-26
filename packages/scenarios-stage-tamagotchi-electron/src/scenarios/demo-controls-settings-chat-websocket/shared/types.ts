@@ -2,10 +2,14 @@ import type { VishotArtifact } from '@vishot/source-electron'
 
 import type { StageTamagotchiScenarioContext } from '../../../context'
 
-export type ManualSectionId = 'overview' | 'settings' | 'devtools'
-export type ManualCaptureStepKind = 'main-window' | 'controls-island' | 'chat-window' | 'settings-overview' | 'settings-route' | 'connection'
-export type StageWindowSnapshotLike = Awaited<ReturnType<StageTamagotchiScenarioContext['stageWindows']['waitFor']>>
-
+export interface CaptureExecutionResult {
+  artifacts: VishotArtifact[]
+}
+export interface ManualCaptureSection {
+  id: ManualSectionId
+  label: string
+  steps: ManualCaptureStep[]
+}
 export interface ManualCaptureStep {
   docAssetFileName: string
   id: string
@@ -16,11 +20,7 @@ export interface ManualCaptureStep {
   waitMs?: number
 }
 
-export interface ManualCaptureSection {
-  id: ManualSectionId
-  label: string
-  steps: ManualCaptureStep[]
-}
+export type ManualCaptureStepKind = 'chat-window' | 'connection' | 'controls-island' | 'main-window' | 'settings-overview' | 'settings-route'
 
 export interface ManualRuntime {
   chatWindowSnapshot?: StageWindowSnapshotLike
@@ -29,6 +29,6 @@ export interface ManualRuntime {
   settingsWindowSnapshot?: StageWindowSnapshotLike
 }
 
-export interface CaptureExecutionResult {
-  artifacts: VishotArtifact[]
-}
+export type ManualSectionId = 'devtools' | 'overview' | 'settings'
+
+export type StageWindowSnapshotLike = Awaited<ReturnType<StageTamagotchiScenarioContext['stageWindows']['waitFor']>>

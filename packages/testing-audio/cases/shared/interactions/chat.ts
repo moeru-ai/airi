@@ -9,6 +9,11 @@ export interface EnableChatMicrophoneOptions {
   readiness?: 'streaming-transcription' | 'vad'
 }
 
+/** Returns the assistant messages on the current chat page. */
+export function assistantMessages(runtime: AudioInputSession): Locator {
+  return runtime.page.locator('[data-chat-message-role="assistant"] .markdown-content')
+}
+
 /** Enables the chat microphone through the UI owned by the selected runtime. */
 export async function enableChatMicrophone(
   runtime: AudioInputSession,
@@ -79,11 +84,6 @@ export async function openChat(runtime: AudioInputSession): Promise<void> {
     window.location.hash = '/chat'
   })
   await runtime.page.locator('textarea').first().waitFor({ state: 'visible', timeout: 60_000 })
-}
-
-/** Returns the assistant messages on the current chat page. */
-export function assistantMessages(runtime: AudioInputSession): Locator {
-  return runtime.page.locator('[data-chat-message-role="assistant"] .markdown-content')
 }
 
 async function openElectronChat(

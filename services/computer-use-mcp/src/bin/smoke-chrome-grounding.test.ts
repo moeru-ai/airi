@@ -39,9 +39,9 @@ describe('smoke-chrome-grounding helpers', () => {
 
     expect(requireTextContent({
       content: [
-        { type: 'text', text: 'hello' },
-        { type: 'image', data: 'ignored' },
-        { type: 'text', text: 'world' },
+        { text: 'hello', type: 'text' },
+        { data: 'ignored', type: 'image' },
+        { text: 'world', type: 'text' },
       ],
     }, 'tool')).toBe('hello\nworld')
 
@@ -52,10 +52,10 @@ describe('smoke-chrome-grounding helpers', () => {
   it('extracts runState from desktop_get_state structured content', () => {
     expect(requireRunState({
       structuredContent: {
-        status: 'ok',
         runState: {
           lastClickedCandidateId: 't_0',
         },
+        status: 'ok',
       },
     }, 'desktop_get_state')).toEqual({
       lastClickedCandidateId: 't_0',
@@ -75,24 +75,24 @@ describe('smoke-chrome-grounding helpers', () => {
         targetCandidates: [
           {
             id: 't_0',
-            source: 'ax',
-            role: 'button',
-            label: 'Disabled',
             interactable: false,
+            label: 'Disabled',
+            role: 'button',
+            source: 'ax',
           },
           {
             id: 't_1',
-            source: 'chrome_dom',
-            role: 'AXToolbar',
-            label: 'Toolbar',
             interactable: true,
+            label: 'Toolbar',
+            role: 'AXToolbar',
+            source: 'chrome_dom',
           },
           {
             id: 't_2',
-            source: 'chrome_dom',
-            role: 'AXButton',
-            label: 'AIRI Desktop V3 Smoke Button',
             interactable: true,
+            label: 'AIRI Desktop V3 Smoke Button',
+            role: 'AXButton',
+            source: 'chrome_dom',
           },
         ],
       },
@@ -110,23 +110,23 @@ describe('smoke-chrome-grounding helpers', () => {
         targetCandidates: [
           {
             id: 't_0',
-            role: 'AXToolbar',
-            label: 'Toolbar',
             interactable: true,
+            label: 'Toolbar',
+            role: 'AXToolbar',
           },
           {
             id: 't_1',
-            source: 'ax',
-            role: 'AXButton',
-            label: 'Submit',
             interactable: true,
+            label: 'Submit',
+            role: 'AXButton',
+            source: 'ax',
           },
           {
             id: 't_2',
-            source: 'chrome_dom',
-            role: 'AXButton',
-            label: 'Submit',
             interactable: true,
+            label: 'Submit',
+            role: 'AXButton',
+            source: 'chrome_dom',
           },
         ],
       },
@@ -139,35 +139,35 @@ describe('smoke-chrome-grounding helpers', () => {
     const runState = {
       lastGroundingSnapshot: {
         snapshotId: 'dg_1',
+        staleFlags: {
+          ax: false,
+          chromeSemantic: false,
+          screenshot: false,
+        },
         targetCandidates: [
           { id: 't_0' },
         ],
-        staleFlags: {
-          screenshot: false,
-          ax: false,
-          chromeSemantic: false,
-        },
       },
     }
 
     expect(extractOverlaySmokeState(runState)).toMatchObject({
+      candidateCount: 1,
       hasSnapshot: true,
       snapshotId: 'dg_1',
-      candidateCount: 1,
     })
 
     expect(requirePostClickOverlayState({
       ...runState,
+      lastClickedCandidateId: 't_0',
       lastPointerIntent: {
         candidateId: 't_0',
         phase: 'completed',
       },
-      lastClickedCandidateId: 't_0',
     }, 't_0')).toMatchObject({
+      lastClickedCandidateId: 't_0',
       pointerIntent: {
         candidateId: 't_0',
       },
-      lastClickedCandidateId: 't_0',
     })
 
     expect(() => requirePostClickOverlayState(runState, 't_0')).toThrow('missing lastPointerIntent')
@@ -176,11 +176,11 @@ describe('smoke-chrome-grounding helpers', () => {
   it('reads chrome_dom routing evidence from desktop_click_target structured content', () => {
     const clickResult = {
       structuredContent: {
-        status: 'executed',
         backendResult: {
           executionRoute: 'browser_dom (chrome_dom candidate with selector "#login-btn" routed to browser-dom bridge)',
           routeReason: 'chrome_dom candidate with selector "#login-btn" routed to browser-dom bridge',
         },
+        status: 'executed',
       },
     }
 
@@ -191,8 +191,8 @@ describe('smoke-chrome-grounding helpers', () => {
 
   it('selects pending actions by tool name and fails with a useful message when missing', () => {
     const pendingActions = [
-      { toolName: 'desktop_open_app', id: 'p_0' },
-      { toolName: 'desktop_click_target', id: 'p_1' },
+      { id: 'p_0', toolName: 'desktop_open_app' },
+      { id: 'p_1', toolName: 'desktop_click_target' },
     ]
 
     expect(selectPendingActionForTool(pendingActions, 'desktop_click_target').id).toBe('p_1')
@@ -202,8 +202,8 @@ describe('smoke-chrome-grounding helpers', () => {
   it('requires the smoke target to come from chrome_dom', () => {
     expect(() => requireChromeDomSmokeCandidate({
       id: 't_0',
-      source: 'ax',
       label: 'Smoke',
+      source: 'ax',
     })).toThrow('smoke target button was not captured as a chrome_dom candidate')
   })
 })

@@ -18,11 +18,11 @@ describe('rayTraceBlockFromEntity', () => {
     } as any
 
     const entity = {
+      pitch: -Math.PI / 4,
+      position: new Vec3(0, 64, 0),
       type: 'player',
       username: 'tester',
-      position: new Vec3(0, 64, 0),
       yaw: 0,
-      pitch: -Math.PI / 4,
     }
 
     const result = rayTraceBlockFromEntity(bot, entity, { maxDistance: 8, step: 0.1 })
@@ -38,11 +38,11 @@ describe('rayTraceBlockFromEntity', () => {
     } as any
 
     const entity = {
+      pitch: Math.PI / 4,
+      position: new Vec3(0, 64, 0),
       type: 'player',
       username: 'tester',
-      position: new Vec3(0, 64, 0),
       yaw: 0,
-      pitch: Math.PI / 4,
     }
 
     const result = rayTraceBlockFromEntity(bot, entity, { maxDistance: 8, step: 0.1 })

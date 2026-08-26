@@ -27,23 +27,23 @@ export const speechIntentCancelEvent = defineEventa<{ intentId: string, reason?:
 
 export const speechTurnStartEvent = defineEventa<string>('proj-airi:pipelines:output:speech:turn-start')
 export const speechTurnEndEvent = defineEventa<string>('proj-airi:pipelines:output:speech:turn-end')
-export const speechTurnCancelEvent = defineEventa<{ turnId: string, reason?: string }>('proj-airi:pipelines:output:speech:turn-cancel')
+export const speechTurnCancelEvent = defineEventa<{ reason?: string, turnId: string }>('proj-airi:pipelines:output:speech:turn-cancel')
 
 export const speechPipelineEventMap = {
+  onIntentCancel: speechIntentCancelEvent,
+  onIntentEnd: speechIntentEndEvent,
+  onIntentStart: speechIntentStartEvent,
+  onPlaybackEnd: speechPlaybackEndEvent,
+  onPlaybackInterrupt: speechPlaybackInterruptEvent,
+  onPlaybackReject: speechPlaybackRejectEvent,
+  onPlaybackStart: speechPlaybackStartEvent,
   onSegment: speechSegmentEvent,
   onSpecial: speechSpecialEvent,
   onTtsRequest: speechTtsRequestEvent,
   onTtsResult: speechTtsResultEvent,
-  onPlaybackStart: speechPlaybackStartEvent,
-  onPlaybackEnd: speechPlaybackEndEvent,
-  onPlaybackInterrupt: speechPlaybackInterruptEvent,
-  onPlaybackReject: speechPlaybackRejectEvent,
-  onIntentStart: speechIntentStartEvent,
-  onIntentEnd: speechIntentEndEvent,
-  onIntentCancel: speechIntentCancelEvent,
-  onTurnStart: speechTurnStartEvent,
-  onTurnEnd: speechTurnEndEvent,
   onTurnCancel: speechTurnCancelEvent,
+  onTurnEnd: speechTurnEndEvent,
+  onTurnStart: speechTurnStartEvent,
 } as const
 
 export type SpeechPipelineEventName = keyof typeof speechPipelineEventMap

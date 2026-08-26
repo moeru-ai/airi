@@ -9,8 +9,8 @@ import { createApp, ref } from 'vue'
 
 const useTestAuthStore = defineStore('auth', () => {
   const userId = ref('local')
-  const token = ref<string | null>(null)
-  return { userId, token }
+  const token = ref<null | string>(null)
+  return { token, userId }
 }, {
   synced: { state: true },
 })
@@ -65,10 +65,6 @@ vi.mock('../../libs/server', () => ({
 
 vi.mock('../../libs/chat-sync', () => ({
   applyCreateActions: vi.fn().mockResolvedValue([]),
-  createCloudChatMapper: () => ({
-    deleteChat: vi.fn().mockResolvedValue(undefined),
-    listChats: vi.fn().mockResolvedValue([]),
-  }),
   createChatWsClient: () => ({
     connect: vi.fn(),
     destroy: vi.fn(),
@@ -79,9 +75,13 @@ vi.mock('../../libs/chat-sync', () => ({
     sendMessages: vi.fn().mockResolvedValue({ ok: true }),
     status: () => 'idle',
   }),
+  createCloudChatMapper: () => ({
+    deleteChat: vi.fn().mockResolvedValue(undefined),
+    listChats: vi.fn().mockResolvedValue([]),
+  }),
   extractMessageText: () => '',
   isCloudSyncableMessage: () => false,
-  mergeCloudMessagesIntoLocal: () => ({ dirty: false, messages: [], maxSeq: 0 }),
+  mergeCloudMessagesIntoLocal: () => ({ dirty: false, maxSeq: 0, messages: [] }),
   reconcileLocalAndRemote: () => ({ adopt: [], claim: [], create: [] }),
 }))
 
@@ -132,24 +132,24 @@ describe('chat session synchronization', () => {
     const leaderChatStore = useChatSessionStore()
 
     const session: ChatSessionMeta = {
-      sessionId: 'session-a',
-      userId: 'cloud-user',
       characterId: 'default',
       createdAt: 1,
+      sessionId: 'session-a',
       updatedAt: 1,
+      userId: 'cloud-user',
     }
     leaderChatStore.$patch({
       index: {
-        userId: 'cloud-user',
         characters: {
           default: {
             activeSessionId: 'session-a',
             sessions: { 'session-a': session },
           },
         },
+        userId: 'cloud-user',
       },
       sessionMessages: {
-        'session-a': [{ id: 'message-a', role: 'user', content: 'Keep this message' }],
+        'session-a': [{ content: 'Keep this message', id: 'message-a', role: 'user' }],
       },
       sessionMetas: { 'session-a': session },
     })

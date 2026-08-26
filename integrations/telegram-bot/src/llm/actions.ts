@@ -21,8 +21,8 @@ export async function imagineAnAction(
   messages: LLMMessage[],
   actions: { action: Action, result: unknown }[],
   globalStates: {
-    unreadMessages: Record<string, Message[]>
     incomingMessages?: Message[]
+    unreadMessages: Record<string, Message[]>
   },
 ): Promise<Action | undefined> {
   const logger = useLogg('imagineAnAction').useGlobalConfig()
@@ -58,9 +58,9 @@ export async function imagineAnAction(
       'Respond with the action and parameters you choose in JSON only, without any explanation and markups.',
     ))
     const requestMessages = message.messages(
-      { role: 'system' as const, content: systemContent },
+      { content: systemContent, role: 'system' as const },
       ...messages,
-      { role: 'user' as const, content: userContent },
+      { content: userContent, role: 'user' as const },
     )
 
     try {
@@ -70,11 +70,11 @@ export async function imagineAnAction(
         s.setAttribute('llm.provider.api_base_url', env.LLM_API_BASE_URL!)
 
         const req = {
+          abortSignal: currentAbortController?.signal,
           apiKey: env.LLM_API_KEY!,
           baseURL: env.LLM_API_BASE_URL!,
-          model: env.LLM_MODEL!,
           messages: requestMessages,
-          abortSignal: currentAbortController?.signal,
+          model: env.LLM_MODEL!,
         } satisfies GenerateTextOptions
         if (env.LLM_OLLAMA_DISABLE_THINK) {
           (req as Record<string, unknown>).think = false
@@ -96,12 +96,12 @@ export async function imagineAnAction(
       })
 
       logger.withFields({
-        response: res.text,
-        unreadMessages: Object.fromEntries(Object.entries(globalStates.unreadMessages).map(([key, value]) => [key, value.length])),
-        now: new Date().toLocaleString(),
-        totalTokens: res.usage.totalTokens,
-        promptTokens: res.usage.inputTokens,
         completion_tokens: res.usage.outputTokens,
+        now: new Date().toLocaleString(),
+        promptTokens: res.usage.inputTokens,
+        response: res.text,
+        totalTokens: res.usage.totalTokens,
+        unreadMessages: Object.fromEntries(Object.entries(globalStates.unreadMessages).map(([key, value]) => [key, value.length])),
       }).log('Generated action')
 
       const action = tracer.startActiveSpan('telegram.module.generate_agent_action.parse', (s) => {
@@ -126,13 +126,13 @@ export async function imagineAnAction(
 
         // Normalize action name aliases
         const actionAliases: Record<string, string> = {
-          read_messages: 'read_unread_messages',
-          get_unread_messages: 'read_unread_messages',
           check_messages: 'read_unread_messages',
-          reply_to_a_message_from_a_chat: 'send_message',
-          reply_message: 'send_message',
           get_messages_from_chat: 'read_unread_messages',
+          get_unread_messages: 'read_unread_messages',
+          read_messages: 'read_unread_messages',
           Read_unread_messages: 'read_unread_messages',
+          reply_message: 'send_message',
+          reply_to_a_message_from_a_chat: 'send_message',
         }
         if (typeof raw.action === 'string' && actionAliases[raw.action])
           raw.action = actionAliases[raw.action]

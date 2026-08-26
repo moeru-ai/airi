@@ -13,12 +13,12 @@ describe('v1 chat WebSocket request contracts', () => {
   // The shared protocol now owns the request schemas. The v1 handlers parse
   // every invoke body before logging or calling ChatService.
   it('rejects malformed send-messages requests', () => {
-    expect(() => parseSendMessagesRequest({ chatId: 'chat-1', messages: [{ id: 'message-1', content: 'hello' }] }))
+    expect(() => parseSendMessagesRequest({ chatId: 'chat-1', messages: [{ content: 'hello', id: 'message-1' }] }))
       .toThrow()
   })
 
   it('rejects malformed pull-messages requests', () => {
-    expect(() => parsePullMessagesRequest({ chatId: 'chat-1', afterSeq: -1 }))
+    expect(() => parsePullMessagesRequest({ afterSeq: -1, chatId: 'chat-1' }))
       .toThrow()
   })
 

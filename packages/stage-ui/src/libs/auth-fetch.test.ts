@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import { authedFetch } from './auth-fetch'
 
 const posthogMocks = vi.hoisted(() => ({
-  getAnalyticsIdentitySnapshot: vi.fn<() => { distinctId: string, sessionId: string } | null>(() => ({
+  getAnalyticsIdentitySnapshot: vi.fn<() => null | { distinctId: string, sessionId: string }>(() => ({
     distinctId: 'distinct-1',
     sessionId: 'session-1',
   })),

@@ -13,18 +13,18 @@ const GAMELET_RUNTIME_UNAVAILABLE_MESSAGE = 'gameletKit requires a host gamelet 
  * @param TInit Initial host-safe configuration passed to the mounted gamelet.
  */
 export interface CreateGameletOptions<TInit extends HostDataRecord = HostDataRecord> {
+  /** Development server URL used by hosts that can load an iframe from a live dev server. */
+  devServerUrl?: string
   /** Stable gamelet id within the extension module. Generated when omitted. */
   id?: string
-  /** Human-readable title shown by the host around the gamelet surface. */
-  title: string
   /** Plugin asset path for the iframe HTML entrypoint. */
   indexPath: string
   /** Initial host-safe configuration delivered to the iframe widget. */
   init?: TInit
   /** iframe sandbox policy. Defaults to the low-level gamelet kit sandbox. */
   sandbox?: string
-  /** Development server URL used by hosts that can load an iframe from a live dev server. */
-  devServerUrl?: string
+  /** Human-readable title shown by the host around the gamelet surface. */
+  title: string
 }
 
 /**
@@ -33,22 +33,22 @@ export interface CreateGameletOptions<TInit extends HostDataRecord = HostDataRec
  * @param TInit Initial host-safe configuration type associated with the gamelet.
  */
 export interface GameletHandle<TInit extends HostDataRecord = HostDataRecord> {
-  /** Stable gamelet id within the extension module. */
-  id: string
   /** Fully qualified host binding id, formatted as `<moduleId>:<gameletId>`. */
   bindingId: string
-  /** Initial host-safe configuration delivered to the iframe widget. */
-  init?: TInit
-  /** Opens the gamelet through the host orchestration runtime. */
-  open: (payload?: HostDataRecord) => Promise<void>
-  /** Reconfigures the gamelet through the host orchestration runtime. */
-  configure: (payload: HostDataRecord) => Promise<void>
-  /** Sends a request to the gamelet through the host orchestration runtime. */
-  request: <TResponse = HostDataRecord>(payload: HostDataRecord, options?: { timeoutMs?: number }) => Promise<TResponse>
   /** Closes the gamelet through the host orchestration runtime. */
   close: () => Promise<void>
+  /** Reconfigures the gamelet through the host orchestration runtime. */
+  configure: (payload: HostDataRecord) => Promise<void>
+  /** Stable gamelet id within the extension module. */
+  id: string
+  /** Initial host-safe configuration delivered to the iframe widget. */
+  init?: TInit
   /** Reports whether the gamelet is open through the host orchestration runtime. */
   isOpen: () => Promise<boolean>
+  /** Opens the gamelet through the host orchestration runtime. */
+  open: (payload?: HostDataRecord) => Promise<void>
+  /** Sends a request to the gamelet through the host orchestration runtime. */
+  request: <TResponse = HostDataRecord>(payload: HostDataRecord, options?: { timeoutMs?: number }) => Promise<TResponse>
 }
 
 /**
@@ -75,23 +75,27 @@ export async function createGamelet<TInit extends HostDataRecord = HostDataRecor
 
   await gamelets.mount({
     bindingId,
+    init: options.init,
     title: options.title,
     ui: gamelets.iframe({
       assetPath: options.devServerUrl === undefined ? options.indexPath : undefined,
-      src: options.devServerUrl,
       sandbox: options.sandbox,
+      src: options.devServerUrl,
     }),
-    init: options.init,
   })
 
   const handle: GameletHandle<TInit> = {
-    id,
     bindingId,
-    open: async (payload?: HostDataRecord) => {
-      await requireOrchestration(gamelets).open(bindingId, payload)
+    close: async () => {
+      await requireOrchestration(gamelets).close(bindingId)
     },
     configure: async (payload: HostDataRecord) => {
       await requireOrchestration(gamelets).configure(bindingId, payload)
+    },
+    id,
+    isOpen: async () => await requireOrchestration(gamelets).isOpen(bindingId),
+    open: async (payload?: HostDataRecord) => {
+      await requireOrchestration(gamelets).open(bindingId, payload)
     },
     request: async <TResponse = HostDataRecord>(
       payload: HostDataRecord,
@@ -99,10 +103,6 @@ export async function createGamelet<TInit extends HostDataRecord = HostDataRecor
     ): Promise<TResponse> => {
       return await requireOrchestration(gamelets).request<TResponse>(bindingId, payload, options)
     },
-    close: async () => {
-      await requireOrchestration(gamelets).close(bindingId)
-    },
-    isOpen: async () => await requireOrchestration(gamelets).isOpen(bindingId),
   }
 
   module.subscriptions.add({

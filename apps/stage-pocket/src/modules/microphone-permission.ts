@@ -1,11 +1,11 @@
 import { registerPlugin } from '@capacitor/core'
 
-interface MicrophonePermissionState {
-  granted: boolean
-}
-
 interface MicrophonePermissionPlugin {
   checkPermission: () => Promise<MicrophonePermissionState>
+}
+
+interface MicrophonePermissionState {
+  granted: boolean
 }
 
 /** Reads Android's native microphone permission state without triggering a permission request. */

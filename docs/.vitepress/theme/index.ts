@@ -23,20 +23,20 @@ import '@fontsource/dm-serif-display/index.css'
 import '@fontsource-variable/comfortaa/index.css'
 
 export default {
-  Layout,
   enhanceApp({ app, siteData }) {
     if (!import.meta.env.SSR && import.meta.env.PROD) {
       import('../modules/posthog')
     }
 
     const i18n = createI18n({
+      fallbackLocale: 'en',
       legacy: false,
       locale: siteData.value.lang || 'en',
-      fallbackLocale: 'en',
       messages,
     })
 
     app.use(i18n)
     app.component('ThemedVideo', ThemedVideo)
   },
+  Layout,
 } satisfies Theme

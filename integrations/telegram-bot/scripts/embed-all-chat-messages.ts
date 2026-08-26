@@ -25,10 +25,10 @@ async function main() {
   let messages: typeof chatMessagesTable.$inferSelect[] = []
 
   switch (env.EMBEDDING_DIMENSION) {
-    case '1536':
+    case '768':
       messages = await db.query.chatMessagesTable.findMany({
         where(fields) {
-          return isNull(fields.content_vector_1536)
+          return isNull(fields.content_vector_768)
         },
       })
       break
@@ -39,10 +39,10 @@ async function main() {
         },
       })
       break
-    case '768':
+    case '1536':
       messages = await db.query.chatMessagesTable.findMany({
         where(fields) {
-          return isNull(fields.content_vector_768)
+          return isNull(fields.content_vector_1536)
         },
       })
       break
@@ -53,24 +53,24 @@ async function main() {
   // Split messages into batches
   const batches = chunk(messages, BATCH_SIZE)
   // Process each batch with worker pool
-  const processedCount = { success: 0, error: 0 }
+  const processedCount = { error: 0, success: 0 }
 
   for (const batch of batches) {
     await limit(async () => {
       const embedPromises = batch.map(async (message) => {
         try {
           const embeddingRes = await embed({
-            baseURL: env.EMBEDDING_API_BASE_URL!,
             apiKey: env.EMBEDDING_API_KEY!,
-            model: env.EMBEDDING_MODEL!,
+            baseURL: env.EMBEDDING_API_BASE_URL!,
             input: message.content,
+            model: env.EMBEDDING_MODEL!,
           })
 
           switch (env.EMBEDDING_DIMENSION) {
-            case '1536':
+            case '768':
               await db
                 .update(chatMessagesTable)
-                .set({ content_vector_1536: embeddingRes.embedding })
+                .set({ content_vector_768: embeddingRes.embedding })
                 .where(eq(chatMessagesTable.id, message.id))
               break
             case '1024':
@@ -79,10 +79,10 @@ async function main() {
                 .set({ content_vector_1024: embeddingRes.embedding })
                 .where(eq(chatMessagesTable.id, message.id))
               break
-            case '768':
+            case '1536':
               await db
                 .update(chatMessagesTable)
-                .set({ content_vector_768: embeddingRes.embedding })
+                .set({ content_vector_1536: embeddingRes.embedding })
                 .where(eq(chatMessagesTable.id, message.id))
               break
             default:

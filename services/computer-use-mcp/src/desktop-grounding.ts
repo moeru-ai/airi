@@ -39,111 +39,6 @@ const STALENESS_THRESHOLD_MS = 2000
 let nextSnapshotId = 1
 
 /**
- * Capture a unified desktop grounding snapshot.
- *
- * Runs screenshot, window observation, and AX tree capture in parallel.
- * If Chrome browser surfaces are available (and `includeChrome` is not false),
- * also captures Chrome semantic data.
- *
- * @param params - Capture parameters.
- * @param params.config - Runtime configuration for platform-specific capture.
- * @param params.executor - Desktop executor used for screenshots and windows.
- * @param params.input - Optional capture flags from the tool request.
- * @param params.extensionBridge - Optional browser extension DOM bridge.
- * @param params.cdpBridge - Optional Chrome DevTools Protocol bridge.
- * @returns Unified desktop grounding snapshot
- */
-export async function captureDesktopGrounding(params: {
-  config: ComputerUseConfig
-  executor: DesktopExecutor
-  input?: DesktopObserveInput
-  extensionBridge?: BrowserDomExtensionBridge
-  cdpBridge?: CdpBridge
-}): Promise<DesktopGroundingSnapshot> {
-  const { config, executor, input, extensionBridge, cdpBridge } = params
-  const assemblyStart = Date.now()
-
-  // Phase 1: Parallel capture of all observation sources
-  const [screenshotResult, windowsResult, axResult] = await Promise.allSettled([
-    executor.takeScreenshot({ label: 'desktop_observe' }),
-    executor.observeWindows({ limit: 12 }),
-    captureAXTree(config),
-  ])
-
-  const screenshot = screenshotResult.status === 'fulfilled' ? screenshotResult.value : createPlaceholderScreenshot()
-  const windowObs = windowsResult.status === 'fulfilled' ? windowsResult.value : createEmptyWindowObservation()
-  const axSnapshot = axResult.status === 'fulfilled' ? axResult.value : undefined
-
-  // Determine foreground app
-  const foregroundApp = windowObs.frontmostAppName || axSnapshot?.appName || 'unknown'
-  const shouldCaptureChrome = input?.includeChrome !== false
-
-  // Ask the executor for a Chrome-filtered window list when Chrome semantics
-  // are requested. The generic top-N window snapshot is often dominated by
-  // system UI and can miss Chrome entirely, which would prevent chrome_dom
-  // candidates from being mapped to screen coordinates.
-  let chromeWindowBounds = findChromeWindowBounds(windowObs, foregroundApp)
-  let chromeWindowObservation: WindowObservation | undefined
-  if (shouldCaptureChrome && !chromeWindowBounds) {
-    try {
-      chromeWindowObservation = await executor.observeWindows({
-        app: foregroundApp.toLowerCase().includes('chrome') ? foregroundApp : 'Google Chrome',
-        limit: 12,
-      })
-      chromeWindowBounds = findChromeWindowBounds(chromeWindowObservation, foregroundApp)
-    }
-    catch {
-      // Best-effort only. Fall back to AX-only candidates if filtered window
-      // enumeration fails.
-    }
-  }
-
-  // Phase 2: Chrome semantic data (only if Chrome is foreground and allowed)
-  let chromeSemanticSnapshot: ChromeSemanticSnapshot | null = null
-  if (shouldCaptureChrome) {
-    chromeSemanticSnapshot = await captureChromeSemantics(extensionBridge, cdpBridge)
-    if (!chromeWindowBounds && chromeSemanticSnapshot?.pageTitle) {
-      chromeWindowBounds = findChromeWindowBounds(
-        chromeWindowObservation ?? windowObs,
-        chromeSemanticSnapshot.pageTitle,
-      )
-    }
-  }
-
-  // Phase 3: Build target candidates
-  const candidates = buildTargetCandidates({
-    axSnapshot,
-    chromeSnapshot: chromeSemanticSnapshot ?? undefined,
-    chromeWindowBounds,
-    foregroundApp,
-  })
-
-  // Phase 4: Compute staleness
-  const now = Date.now()
-  const staleFlags = computeStaleness({
-    screenshot,
-    axSnapshot,
-    chromeSemanticSnapshot: chromeSemanticSnapshot ?? undefined,
-    chromeSemanticEnabled: shouldCaptureChrome,
-    assemblyTimestamp: now,
-  })
-
-  const snapshotId = `dg_${nextSnapshotId++}`
-
-  return {
-    snapshotId,
-    capturedAt: new Date(assemblyStart).toISOString(),
-    foregroundApp,
-    windows: windowObs.windows,
-    screenshot,
-    axSnapshot,
-    chromeSemanticSnapshot: chromeSemanticSnapshot ?? undefined,
-    targetCandidates: candidates,
-    staleFlags,
-  }
-}
-
-/**
  * Build a merged, deduplicated list of target candidates from all sources.
  *
  * Deduplication: if a `chrome_dom` candidate's bounds overlap >70% (IoU)
@@ -191,7 +86,7 @@ export function buildTargetCandidates(params: {
   // Sort: chrome_dom first, then ax, then by confidence desc
   merged.sort((a, b) => {
     if (a.source !== b.source) {
-      const sourceOrder: Record<string, number> = { chrome_dom: 0, ax: 1, vision: 2, raw: 3 }
+      const sourceOrder: Record<string, number> = { ax: 1, chrome_dom: 0, raw: 3, vision: 2 }
       return (sourceOrder[a.source] ?? 3) - (sourceOrder[b.source] ?? 3)
     }
     return b.confidence - a.confidence
@@ -204,6 +99,111 @@ export function buildTargetCandidates(params: {
 
   // Limit to top 50 candidates
   return merged.slice(0, 50)
+}
+
+/**
+ * Capture a unified desktop grounding snapshot.
+ *
+ * Runs screenshot, window observation, and AX tree capture in parallel.
+ * If Chrome browser surfaces are available (and `includeChrome` is not false),
+ * also captures Chrome semantic data.
+ *
+ * @param params - Capture parameters.
+ * @param params.config - Runtime configuration for platform-specific capture.
+ * @param params.executor - Desktop executor used for screenshots and windows.
+ * @param params.input - Optional capture flags from the tool request.
+ * @param params.extensionBridge - Optional browser extension DOM bridge.
+ * @param params.cdpBridge - Optional Chrome DevTools Protocol bridge.
+ * @returns Unified desktop grounding snapshot
+ */
+export async function captureDesktopGrounding(params: {
+  cdpBridge?: CdpBridge
+  config: ComputerUseConfig
+  executor: DesktopExecutor
+  extensionBridge?: BrowserDomExtensionBridge
+  input?: DesktopObserveInput
+}): Promise<DesktopGroundingSnapshot> {
+  const { cdpBridge, config, executor, extensionBridge, input } = params
+  const assemblyStart = Date.now()
+
+  // Phase 1: Parallel capture of all observation sources
+  const [screenshotResult, windowsResult, axResult] = await Promise.allSettled([
+    executor.takeScreenshot({ label: 'desktop_observe' }),
+    executor.observeWindows({ limit: 12 }),
+    captureAXTree(config),
+  ])
+
+  const screenshot = screenshotResult.status === 'fulfilled' ? screenshotResult.value : createPlaceholderScreenshot()
+  const windowObs = windowsResult.status === 'fulfilled' ? windowsResult.value : createEmptyWindowObservation()
+  const axSnapshot = axResult.status === 'fulfilled' ? axResult.value : undefined
+
+  // Determine foreground app
+  const foregroundApp = windowObs.frontmostAppName || axSnapshot?.appName || 'unknown'
+  const shouldCaptureChrome = input?.includeChrome !== false
+
+  // Ask the executor for a Chrome-filtered window list when Chrome semantics
+  // are requested. The generic top-N window snapshot is often dominated by
+  // system UI and can miss Chrome entirely, which would prevent chrome_dom
+  // candidates from being mapped to screen coordinates.
+  let chromeWindowBounds = findChromeWindowBounds(windowObs, foregroundApp)
+  let chromeWindowObservation: undefined | WindowObservation
+  if (shouldCaptureChrome && !chromeWindowBounds) {
+    try {
+      chromeWindowObservation = await executor.observeWindows({
+        app: foregroundApp.toLowerCase().includes('chrome') ? foregroundApp : 'Google Chrome',
+        limit: 12,
+      })
+      chromeWindowBounds = findChromeWindowBounds(chromeWindowObservation, foregroundApp)
+    }
+    catch {
+      // Best-effort only. Fall back to AX-only candidates if filtered window
+      // enumeration fails.
+    }
+  }
+
+  // Phase 2: Chrome semantic data (only if Chrome is foreground and allowed)
+  let chromeSemanticSnapshot: ChromeSemanticSnapshot | null = null
+  if (shouldCaptureChrome) {
+    chromeSemanticSnapshot = await captureChromeSemantics(extensionBridge, cdpBridge)
+    if (!chromeWindowBounds && chromeSemanticSnapshot?.pageTitle) {
+      chromeWindowBounds = findChromeWindowBounds(
+        chromeWindowObservation ?? windowObs,
+        chromeSemanticSnapshot.pageTitle,
+      )
+    }
+  }
+
+  // Phase 3: Build target candidates
+  const candidates = buildTargetCandidates({
+    axSnapshot,
+    chromeSnapshot: chromeSemanticSnapshot ?? undefined,
+    chromeWindowBounds,
+    foregroundApp,
+  })
+
+  // Phase 4: Compute staleness
+  const now = Date.now()
+  const staleFlags = computeStaleness({
+    assemblyTimestamp: now,
+    axSnapshot,
+    chromeSemanticEnabled: shouldCaptureChrome,
+    chromeSemanticSnapshot: chromeSemanticSnapshot ?? undefined,
+    screenshot,
+  })
+
+  const snapshotId = `dg_${nextSnapshotId++}`
+
+  return {
+    axSnapshot,
+    capturedAt: new Date(assemblyStart).toISOString(),
+    chromeSemanticSnapshot: chromeSemanticSnapshot ?? undefined,
+    foregroundApp,
+    screenshot,
+    snapshotId,
+    staleFlags,
+    targetCandidates: candidates,
+    windows: windowObs.windows,
+  }
 }
 
 /**
@@ -270,22 +270,22 @@ export function formatGroundingForAgent(
 /** AX roles that are typically interactable */
 const INTERACTABLE_AX_ROLES = new Set([
   'AXButton',
-  'AXLink',
-  'AXTextField',
-  'AXTextArea',
   'AXCheckBox',
-  'AXRadioButton',
-  'AXPopUpButton',
+  'AXColorWell',
   'AXComboBox',
-  'AXSlider',
-  'AXMenuItem',
+  'AXDisclosureTriangle',
+  'AXIncrementor',
+  'AXLink',
   'AXMenuBarItem',
+  'AXMenuItem',
+  'AXPopUpButton',
+  'AXRadioButton',
+  'AXSlider',
   'AXTab',
   'AXTabGroup',
+  'AXTextArea',
+  'AXTextField',
   'AXToolbar',
-  'AXIncrementor',
-  'AXColorWell',
-  'AXDisclosureTriangle',
 ])
 
 /**
@@ -302,17 +302,17 @@ function axNodesToTargetCandidates(
     if (node.bounds && INTERACTABLE_AX_ROLES.has(node.role)) {
       const label = node.title || node.description || node.value || node.role
       candidates.push({
-        id: '', // Assigned later
-        source: 'ax',
         appName,
-        role: node.role,
-        label: label.slice(0, 80),
+        axUid: node.uid,
         bounds: node.bounds,
         confidence: 0.8,
-        interactable: node.enabled !== false,
-        axUid: node.uid,
-        focused: node.focused,
         enabled: node.enabled,
+        focused: node.focused,
+        id: '', // Assigned later
+        interactable: node.enabled !== false,
+        label: label.slice(0, 80),
+        role: node.role,
+        source: 'ax',
       })
     }
 
@@ -328,6 +328,53 @@ function axNodesToTargetCandidates(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+function computeStaleness(params: {
+  assemblyTimestamp: number
+  axSnapshot?: AXSnapshot
+  chromeSemanticEnabled: boolean
+  chromeSemanticSnapshot?: ChromeSemanticSnapshot
+  screenshot: ScreenshotArtifact
+}): GroundingStalenessFlags {
+  const { assemblyTimestamp, axSnapshot, chromeSemanticEnabled, chromeSemanticSnapshot, screenshot } = params
+
+  const screenshotStale = !screenshot.capturedAt
+    || (assemblyTimestamp - new Date(screenshot.capturedAt).getTime()) > STALENESS_THRESHOLD_MS
+    || screenshot.placeholder === true
+
+  const axStale = !axSnapshot
+    || !axSnapshot.capturedAt
+    || (assemblyTimestamp - new Date(axSnapshot.capturedAt).getTime()) > STALENESS_THRESHOLD_MS
+
+  const chromeStale = !chromeSemanticEnabled
+    || !chromeSemanticSnapshot
+    || !chromeSemanticSnapshot.capturedAt
+    || (assemblyTimestamp - new Date(chromeSemanticSnapshot.capturedAt).getTime()) > STALENESS_THRESHOLD_MS
+
+  return {
+    ax: axStale,
+    chromeSemantic: chromeStale,
+    screenshot: screenshotStale,
+  }
+}
+
+function createEmptyWindowObservation(): WindowObservation {
+  return {
+    observedAt: new Date().toISOString(),
+    windows: [],
+  }
+}
+
+function createPlaceholderScreenshot(): ScreenshotArtifact {
+  return {
+    capturedAt: new Date().toISOString(),
+    dataBase64: '',
+    mimeType: 'image/png',
+    note: 'screenshot capture failed during desktop_observe',
+    path: '',
+    placeholder: true,
+  }
+}
 
 function findChromeWindowBounds(
   observation: WindowObservation,
@@ -359,51 +406,4 @@ function findChromeWindowBounds(
     w.appName.toLowerCase().includes('chrome') && w.bounds,
   )
   return chromeWindow?.bounds
-}
-
-function computeStaleness(params: {
-  screenshot: ScreenshotArtifact
-  axSnapshot?: AXSnapshot
-  chromeSemanticSnapshot?: ChromeSemanticSnapshot
-  chromeSemanticEnabled: boolean
-  assemblyTimestamp: number
-}): GroundingStalenessFlags {
-  const { screenshot, axSnapshot, chromeSemanticSnapshot, chromeSemanticEnabled, assemblyTimestamp } = params
-
-  const screenshotStale = !screenshot.capturedAt
-    || (assemblyTimestamp - new Date(screenshot.capturedAt).getTime()) > STALENESS_THRESHOLD_MS
-    || screenshot.placeholder === true
-
-  const axStale = !axSnapshot
-    || !axSnapshot.capturedAt
-    || (assemblyTimestamp - new Date(axSnapshot.capturedAt).getTime()) > STALENESS_THRESHOLD_MS
-
-  const chromeStale = !chromeSemanticEnabled
-    || !chromeSemanticSnapshot
-    || !chromeSemanticSnapshot.capturedAt
-    || (assemblyTimestamp - new Date(chromeSemanticSnapshot.capturedAt).getTime()) > STALENESS_THRESHOLD_MS
-
-  return {
-    screenshot: screenshotStale,
-    ax: axStale,
-    chromeSemantic: chromeStale,
-  }
-}
-
-function createPlaceholderScreenshot(): ScreenshotArtifact {
-  return {
-    dataBase64: '',
-    mimeType: 'image/png',
-    path: '',
-    placeholder: true,
-    note: 'screenshot capture failed during desktop_observe',
-    capturedAt: new Date().toISOString(),
-  }
-}
-
-function createEmptyWindowObservation(): WindowObservation {
-  return {
-    windows: [],
-    observedAt: new Date().toISOString(),
-  }
 }

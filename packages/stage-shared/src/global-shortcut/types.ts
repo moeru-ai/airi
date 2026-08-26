@@ -1,50 +1,13 @@
 /**
- * Modifier key understood by accelerator parsing and serialization.
- *
- * - `cmd-or-ctrl` — platform meta key. Resolves to Cmd on macOS,
- *   Ctrl on Windows/Linux at the driver boundary.
- * - `cmd`         — literal Command key.
- * - `ctrl`        — literal Control key.
- * - `alt`         — Alt / Option.
- * - `shift`       — Shift.
- * - `super`       — Super / Win / Meta key.
- */
-export type ShortcutModifier
-  = | 'cmd-or-ctrl'
-    | 'cmd'
-    | 'ctrl'
-    | 'alt'
-    | 'shift'
-    | 'super'
-
-/**
- * Key identifier following the W3C `KeyboardEvent.code` convention.
- * Layout-independent; refers to physical key position.
- *
- * Examples: `"KeyK"`, `"Digit1"`, `"F12"`, `"ArrowUp"`, `"Space"`,
- * `"Escape"`. The accepted set is enumerated by `KEY_NAMES` in
- * `./accelerators`.
- */
-export type ShortcutKey = string
-
-/**
  * A keyboard combination: modifiers plus a single key.
  *
  * Compare two accelerators structurally; modifier array order is not
  * significant. Use `formatAccelerator` for a stable canonical string.
  */
 export interface ShortcutAccelerator {
-  modifiers: ShortcutModifier[]
   key: ShortcutKey
+  modifiers: ShortcutModifier[]
 }
-
-/**
- * When a shortcut is active.
- *
- * - `'global'` — fires regardless of which app or window is focused.
- * - (More will be added if needed)
- */
-export type ShortcutScope = 'global'
 
 /**
  * A registered shortcut entry.
@@ -53,12 +16,12 @@ export type ShortcutScope = 'global'
  * events; rebinding the accelerator must not change it.
  */
 export interface ShortcutBinding {
-  /** Stable identifier, e.g. `"toggle-main-window"`. */
-  id: string
   /** Keyboard combination that triggers this shortcut. */
   accelerator: ShortcutAccelerator
-  /** When the shortcut is active. */
-  scope: ShortcutScope
+  /** Human-readable description, surfaced in settings UI. */
+  description?: string
+  /** Stable identifier, e.g. `"toggle-main-window"`. */
+  id: string
   /**
    * Whether the driver should also emit key-release events.
    *
@@ -72,9 +35,46 @@ export interface ShortcutBinding {
    * @default false
    */
   receiveKeyUps?: boolean
-  /** Human-readable description, surfaced in settings UI. */
-  description?: string
+  /** When the shortcut is active. */
+  scope: ShortcutScope
 }
+
+/**
+ * Key identifier following the W3C `KeyboardEvent.code` convention.
+ * Layout-independent; refers to physical key position.
+ *
+ * Examples: `"KeyK"`, `"Digit1"`, `"F12"`, `"ArrowUp"`, `"Space"`,
+ * `"Escape"`. The accepted set is enumerated by `KEY_NAMES` in
+ * `./accelerators`.
+ */
+export type ShortcutKey = string
+
+/**
+ * Modifier key understood by accelerator parsing and serialization.
+ *
+ * - `cmd-or-ctrl` — platform meta key. Resolves to Cmd on macOS,
+ *   Ctrl on Windows/Linux at the driver boundary.
+ * - `cmd`         — literal Command key.
+ * - `ctrl`        — literal Control key.
+ * - `alt`         — Alt / Option.
+ * - `shift`       — Shift.
+ * - `super`       — Super / Win / Meta key.
+ */
+export type ShortcutModifier
+  = | 'alt'
+    | 'cmd'
+    | 'cmd-or-ctrl'
+    | 'ctrl'
+    | 'shift'
+    | 'super'
+
+/**
+ * When a shortcut is active.
+ *
+ * - `'global'` — fires regardless of which app or window is focused.
+ * - (More will be added if needed)
+ */
+export type ShortcutScope = 'global'
 
 /**
  * Closed set of failure reasons returned by drivers.
@@ -90,11 +90,6 @@ export const ShortcutFailureReasons = {
    */
   Conflict: 'conflict',
   /**
-   * An active binding already uses this id; callers must `unregister`
-   * first to rebind.
-   */
-  DuplicateId: 'duplicate-id',
-  /**
    * The OS or portal refused the registration (e.g. user declined a
    * Wayland portal dialog, macOS denied Accessibility for a media-key
    * combo). Drivers that can distinguish denial from conflict report
@@ -103,14 +98,29 @@ export const ShortcutFailureReasons = {
    */
   Denied: 'denied',
   /**
+   * An active binding already uses this id; callers must `unregister`
+   * first to rebind.
+   */
+  DuplicateId: 'duplicate-id',
+  /** The requested binding is well-formed but unsafe or not accepted by policy. */
+  Invalid: 'invalid',
+  /**
    * The driver cannot satisfy the request (e.g. a binding asks for
    * `receiveKeyUps: true` on a driver path that only delivers
    * presses).
    */
   Unsupported: 'unsupported',
-  /** The requested binding is well-formed but unsafe or not accepted by policy. */
-  Invalid: 'invalid',
 } as const
+
+/**
+ * In-memory shortcut config. Bump `version` on any breaking schema
+ * change; consumers refuse newer versions rather than silently
+ * dropping fields.
+ */
+export interface ShortcutConfig {
+  bindings: ShortcutBinding[]
+  version: 1
+}
 
 export type ShortcutFailureReason = typeof ShortcutFailureReasons[keyof typeof ShortcutFailureReasons]
 
@@ -122,16 +132,6 @@ export type ShortcutFailureReason = typeof ShortcutFailureReasons[keyof typeof S
  * requested accelerator (e.g. user choice via a Wayland portal dialog).
  */
 export type ShortcutRegistrationResult
-  = { id: string }
-    & ({ ok: true, actualAccelerator?: ShortcutAccelerator }
-      | { ok: false, reason: ShortcutFailureReason })
-
-/**
- * In-memory shortcut config. Bump `version` on any breaking schema
- * change; consumers refuse newer versions rather than silently
- * dropping fields.
- */
-export interface ShortcutConfig {
-  version: 1
-  bindings: ShortcutBinding[]
-}
+  = ({ actualAccelerator?: ShortcutAccelerator, ok: true }
+    | { ok: false, reason: ShortcutFailureReason })
+  & { id: string }

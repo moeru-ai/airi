@@ -60,45 +60,45 @@ export const useSettings = defineStore('settings', () => {
   const developerRefs = storeToRefs(developer)
 
   return {
-    // Core settings
-    disableTransitions: generalRefs.disableTransitions,
-    usePageSpecificTransitions: generalRefs.usePageSpecificTransitions,
-    language: generalRefs.language,
-    analyticsEnabled: analyticsRefs.analyticsEnabled,
-    websocketSecureEnabled: generalRefs.websocketSecureEnabled,
-
-    // Stage model settings
-    stageModelRenderer: stageModelRefs.stageModelRenderer,
-    stageModelSelected: stageModelRefs.stageModelSelected,
-    stageModelSelectedUrl: stageModelRefs.stageModelSelectedUrl,
-    stageModelSelectedDisplayModel: stageModelRefs.stageModelSelectedDisplayModel,
-    stageViewControlsEnabled: stageModelRefs.stageViewControlsEnabled,
-
-    // Spine settings
-    spinePremultipliedAlpha: spineRefs.spinePremultipliedAlpha,
-    spineDefaultMixDuration: spineRefs.spineDefaultMixDuration,
-    spineIdleAnimationEnabled: spineRefs.spineIdleAnimationEnabled,
-    spineMaxFps: spineRefs.spineMaxFps,
-    spineRenderScale: spineRefs.spineRenderScale,
-
-    // Theme settings
-    themeColorsHue: themeRefs.themeColorsHue,
-    themeColorsHueDynamic: themeRefs.themeColorsHueDynamic,
-
     // UI settings
     allowVisibleOnAllWorkspaces: controlsIslandRefs.allowVisibleOnAllWorkspaces,
     alwaysOnTop: controlsIslandRefs.alwaysOnTop,
-    controlsIslandIconSize: controlsIslandRefs.controlsIslandIconSize,
-    inspectUpdaterDiagnostics: developerRefs.inspectUpdaterDiagnostics,
-
-    // Methods
-    setThemeColorsHue: theme.setThemeColorsHue,
+    analyticsEnabled: analyticsRefs.analyticsEnabled,
     applyPrimaryColorFrom: theme.applyPrimaryColorFrom,
-    isColorSelectedForPrimary: theme.isColorSelectedForPrimary,
+    controlsIslandIconSize: controlsIslandRefs.controlsIslandIconSize,
+
+    // Core settings
+    disableTransitions: generalRefs.disableTransitions,
     initializeStageModel: stageModel.initializeStageModel,
+    inspectUpdaterDiagnostics: developerRefs.inspectUpdaterDiagnostics,
+    isColorSelectedForPrimary: theme.isColorSelectedForPrimary,
+    language: generalRefs.language,
+
+    resetState,
     restoreBuiltInStageModelRenderer: stageModel.restoreBuiltInStageModelRenderer,
     setStageModelRenderer: stageModel.setStageModelRenderer,
+    // Methods
+    setThemeColorsHue: theme.setThemeColorsHue,
+    spineDefaultMixDuration: spineRefs.spineDefaultMixDuration,
+
+    spineIdleAnimationEnabled: spineRefs.spineIdleAnimationEnabled,
+    spineMaxFps: spineRefs.spineMaxFps,
+
+    // Spine settings
+    spinePremultipliedAlpha: spineRefs.spinePremultipliedAlpha,
+    spineRenderScale: spineRefs.spineRenderScale,
+    // Stage model settings
+    stageModelRenderer: stageModelRefs.stageModelRenderer,
+    stageModelSelected: stageModelRefs.stageModelSelected,
+
+    stageModelSelectedDisplayModel: stageModelRefs.stageModelSelectedDisplayModel,
+    stageModelSelectedUrl: stageModelRefs.stageModelSelectedUrl,
+    stageViewControlsEnabled: stageModelRefs.stageViewControlsEnabled,
+    // Theme settings
+    themeColorsHue: themeRefs.themeColorsHue,
+    themeColorsHueDynamic: themeRefs.themeColorsHueDynamic,
     updateStageModel: stageModel.updateStageModel,
-    resetState,
+    usePageSpecificTransitions: generalRefs.usePageSpecificTransitions,
+    websocketSecureEnabled: generalRefs.websocketSecureEnabled,
   }
 })

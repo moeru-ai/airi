@@ -2,8 +2,8 @@ import { useLocalStorage } from '@vueuse/core'
 import { ref } from 'vue'
 
 export const supportedControl = ['x', 'y', 'scale'] as const
+interface ControlConfig { buttonText: string, default: number, max: number, min: number, step: number }
 type SupportedControl = typeof supportedControl[number]
-interface ControlConfig { min: number, max: number, step: number, default: number, buttonText: string }
 
 /** show or hide the control element(slider) on stage */
 const viewControlsEnabled = ref(false)
@@ -18,34 +18,34 @@ const formatPercentD1 = (val: number) => `${val.toFixed(1)}%`
 const formatToPercent = (val: number) => `${(val * 100).toFixed(0)}%`
 
 export const defaultControlConfig: Record<SupportedControl, ControlConfig> = {
+  scale: {
+    buttonText: 'Scale',
+    default: 1,
+    max: 3,
+    min: 0.01,
+    step: 0.01,
+  },
   // TODO: allow user to set preferred default
   x: {
-    min: -500,
-    max: 500,
-    step: 0.1,
-    default: 0,
     buttonText: 'X',
+    default: 0,
+    max: 500,
+    min: -500,
+    step: 0.1,
   },
   y: {
-    min: -500,
-    max: 500,
-    step: 0.1,
-    default: 0,
     buttonText: 'Y',
-  },
-  scale: {
-    min: 0.01,
-    max: 3,
-    step: 0.01,
-    default: 1,
-    buttonText: 'Scale',
+    default: 0,
+    max: 500,
+    min: -500,
+    step: 0.1,
   },
 }
 
 export const formatter: Record<SupportedControl, (val: number) => string> = {
+  scale: formatToPercent,
   x: formatPercentD1,
   y: formatPercentD1,
-  scale: formatToPercent,
 }
 const clampMinMax = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
 export function useL2dViewControl() {
@@ -57,14 +57,14 @@ export function useL2dViewControl() {
   function set(key: SupportedControl, value?: number) {
     const clamped = value !== undefined ? clampMinMax(value, defaultControlConfig[key].min, defaultControlConfig[key].max) : undefined
     switch (key) {
+      case 'scale':
+        scale.value = clamped ?? defaultControlConfig.scale.default
+        break
       case 'x':
         position.value.x = clamped ?? defaultControlConfig.x.default
         break
       case 'y':
         position.value.y = clamped ?? defaultControlConfig.y.default
-        break
-      case 'scale':
-        scale.value = clamped ?? defaultControlConfig.scale.default
         break
     }
   }
@@ -76,9 +76,9 @@ export function useL2dViewControl() {
     scale,
     /** reset the given control to its default value. */
     set,
-    /** show or hide the control element(slider) on stage */
-    viewControlsEnabled,
     /** what value to control for the control element */
     viewControlMode,
+    /** show or hide the control element(slider) on stage */
+    viewControlsEnabled,
   }
 }

@@ -89,32 +89,32 @@ const FUNCTION_KEYS: ReadonlySet<ShortcutKey> = new Set([
 ])
 
 const NAMED_KEYS: ReadonlySet<ShortcutKey> = new Set([
-  'Space',
-  'Tab',
-  'Enter',
-  'Escape',
-  'Backspace',
-  'Delete',
-  'Insert',
-  'ArrowUp',
   'ArrowDown',
   'ArrowLeft',
   'ArrowRight',
-  'Home',
-  'End',
-  'PageUp',
-  'PageDown',
+  'ArrowUp',
   'Backquote',
-  'Minus',
-  'Equal',
+  'Backslash',
+  'Backspace',
   'BracketLeft',
   'BracketRight',
-  'Backslash',
-  'Semicolon',
-  'Quote',
   'Comma',
+  'Delete',
+  'End',
+  'Enter',
+  'Equal',
+  'Escape',
+  'Home',
+  'Insert',
+  'Minus',
+  'PageDown',
+  'PageUp',
   'Period',
+  'Quote',
+  'Semicolon',
   'Slash',
+  'Space',
+  'Tab',
 ])
 
 /**
@@ -137,13 +137,13 @@ export const KEY_NAMES: ReadonlySet<ShortcutKey> = new Set<ShortcutKey>([
  * and `1` becomes `Digit1` without lookup.
  */
 const KEY_ALIASES: ReadonlyMap<string, ShortcutKey> = new Map([
-  ['Up', 'ArrowUp'],
   ['Down', 'ArrowDown'],
-  ['Left', 'ArrowLeft'],
-  ['Right', 'ArrowRight'],
   ['Esc', 'Escape'],
+  ['Left', 'ArrowLeft'],
   ['Return', 'Enter'],
+  ['Right', 'ArrowRight'],
   ['Spacebar', 'Space'],
+  ['Up', 'ArrowUp'],
 ])
 
 /**
@@ -153,14 +153,14 @@ const KEY_ALIASES: ReadonlyMap<string, ShortcutKey> = new Map([
  * style so authors can paste from existing docs without translation.
  */
 const MODIFIER_ALIASES: ReadonlyMap<string, ShortcutModifier> = new Map<string, ShortcutModifier>([
-  ['mod', 'cmd-or-ctrl'],
-  ['cmdorctrl', 'cmd-or-ctrl'],
-  ['commandorcontrol', 'cmd-or-ctrl'],
-  ['cmd', 'cmd'],
-  ['command', 'cmd'],
-  ['ctrl', 'ctrl'],
-  ['control', 'ctrl'],
   ['alt', 'alt'],
+  ['cmd', 'cmd'],
+  ['cmdorctrl', 'cmd-or-ctrl'],
+  ['command', 'cmd'],
+  ['commandorcontrol', 'cmd-or-ctrl'],
+  ['control', 'ctrl'],
+  ['ctrl', 'ctrl'],
+  ['mod', 'cmd-or-ctrl'],
   ['option', 'alt'],
   ['shift', 'shift'],
   ['super', 'super'],
@@ -187,10 +187,10 @@ const MODIFIER_CANONICAL_ORDER: readonly ShortcutModifier[] = [
  * recognizable.
  */
 const MODIFIER_TO_CANONICAL_TOKEN: Readonly<Record<ShortcutModifier, string>> = {
-  'cmd-or-ctrl': 'Mod',
-  'cmd': 'Cmd',
-  'ctrl': 'Ctrl',
   'alt': 'Alt',
+  'cmd': 'Cmd',
+  'cmd-or-ctrl': 'Mod',
+  'ctrl': 'Ctrl',
   'shift': 'Shift',
   'super': 'Super',
 }
@@ -200,10 +200,10 @@ const MODIFIER_TO_CANONICAL_TOKEN: Readonly<Record<ShortcutModifier, string>> = 
  * `CmdOrCtrl`; everything else passes through unchanged.
  */
 const MODIFIER_TO_ELECTRON_TOKEN: Readonly<Record<ShortcutModifier, string>> = {
-  'cmd-or-ctrl': 'CmdOrCtrl',
-  'cmd': 'Cmd',
-  'ctrl': 'Ctrl',
   'alt': 'Alt',
+  'cmd': 'Cmd',
+  'cmd-or-ctrl': 'CmdOrCtrl',
+  'ctrl': 'Ctrl',
   'shift': 'Shift',
   'super': 'Super',
 }
@@ -217,21 +217,21 @@ const MODIFIER_TO_ELECTRON_TOKEN: Readonly<Record<ShortcutModifier, string>> = {
  * prefix in `toElectronKey`, so they are not listed here.
  */
 const ELECTRON_KEY_OVERRIDES: Readonly<Record<string, string>> = {
-  ArrowUp: 'Up',
   ArrowDown: 'Down',
   ArrowLeft: 'Left',
   ArrowRight: 'Right',
-  Escape: 'Esc',
+  ArrowUp: 'Up',
   Backquote: '`',
-  Minus: '-',
-  Equal: '=',
+  Backslash: '\\',
   BracketLeft: '[',
   BracketRight: ']',
-  Backslash: '\\',
-  Semicolon: ';',
-  Quote: '\'',
   Comma: ',',
+  Equal: '=',
+  Escape: 'Esc',
+  Minus: '-',
   Period: '.',
+  Quote: '\'',
+  Semicolon: ';',
   Slash: '/',
 }
 
@@ -239,43 +239,68 @@ const SINGLE_LETTER_RE = /^[A-Z]$/i
 const SINGLE_DIGIT_RE = /^\d$/
 
 /**
- * Normalizes a raw key token to a canonical `ShortcutKey`.
+ * Serializes a structured accelerator back to its canonical string
+ * form.
  *
- * Before:
- * - `"K"` / `"k"` / `"KeyK"` / `"Up"` / `"Esc"`
+ * Use when:
+ * - Displaying a binding in settings UI
+ * - Round-tripping a binding through a string representation
  *
- * After:
- * - `"KeyK"` / `"KeyK"` / `"KeyK"` / `"ArrowUp"` / `"Escape"`
+ * Returns:
+ * - A `+`-joined string with modifiers in canonical order followed by
+ *   the key. The output round-trips losslessly through
+ *   `parseAccelerator`.
+ *
+ * @example
+ *   formatAccelerator({ modifiers: ['shift', 'cmd-or-ctrl'], key: 'KeyK' })
+ *   // => 'Mod+Shift+KeyK'
  */
-function normalizeKeyToken(token: string): ShortcutKey {
-  if (KEY_NAMES.has(token))
-    return token
-
-  const aliased = KEY_ALIASES.get(token)
-  if (aliased !== undefined)
-    return aliased
-
-  if (SINGLE_LETTER_RE.test(token)) {
-    const candidate = `Key${token.toUpperCase()}`
-    if (LETTER_KEYS.has(candidate))
-      return candidate
-  }
-
-  if (SINGLE_DIGIT_RE.test(token)) {
-    const candidate = `Digit${token}`
-    if (DIGIT_KEYS.has(candidate))
-      return candidate
-  }
-
-  throw new Error(`Invalid accelerator: unknown key "${token}"`)
+export function formatAccelerator(acc: ShortcutAccelerator): string {
+  const tokens = canonicalModifiers(acc).map(m => MODIFIER_TO_CANONICAL_TOKEN[m])
+  tokens.push(acc.key)
+  return tokens.join('+')
 }
 
 /**
- * Returns the canonical modifier for a token, or `undefined` if the
- * token is not a modifier (i.e. probably a key).
+ * Serializes a structured accelerator to Electron's accelerator string
+ * format, suitable for `globalShortcut.register`.
+ *
+ * Use when:
+ * - Calling Electron's `globalShortcut` API from the main-process
+ *   driver
+ *
+ * Returns:
+ * - An Electron-format string with modifiers in canonical order
+ *   (`CmdOrCtrl`, `Cmd`, `Ctrl`, `Alt`, `Shift`, `Super`) followed by
+ *   Electron's key spelling
+ *
+ * @example
+ *   formatElectronAccelerator({ modifiers: ['cmd-or-ctrl', 'shift'], key: 'KeyK' })
+ *   // => 'CmdOrCtrl+Shift+K'
  */
-function lookupModifierToken(token: string): ShortcutModifier | undefined {
-  return MODIFIER_ALIASES.get(token.toLowerCase())
+export function formatElectronAccelerator(acc: ShortcutAccelerator): string {
+  const tokens = canonicalModifiers(acc).map(m => MODIFIER_TO_ELECTRON_TOKEN[m])
+  tokens.push(toElectronKey(acc.key))
+  return tokens.join('+')
+}
+
+/**
+ * Tests whether `input` is a well-formed accelerator string.
+ *
+ * Use when:
+ * - Gating user input without needing the parsed result
+ *
+ * Returns:
+ * - `true` when `parseAccelerator` would succeed, `false` otherwise
+ */
+export function isValidAccelerator(input: string): boolean {
+  try {
+    parseAccelerator(input)
+    return true
+  }
+  catch {
+    return false
+  }
 }
 
 /**
@@ -339,26 +364,7 @@ export function parseAccelerator(input: string): ShortcutAccelerator {
   if (key === undefined)
     throw new Error(`Invalid accelerator "${input}": no key token`)
 
-  return { modifiers, key }
-}
-
-/**
- * Tests whether `input` is a well-formed accelerator string.
- *
- * Use when:
- * - Gating user input without needing the parsed result
- *
- * Returns:
- * - `true` when `parseAccelerator` would succeed, `false` otherwise
- */
-export function isValidAccelerator(input: string): boolean {
-  try {
-    parseAccelerator(input)
-    return true
-  }
-  catch {
-    return false
-  }
+  return { key, modifiers }
 }
 
 /**
@@ -369,26 +375,43 @@ function canonicalModifiers(acc: ShortcutAccelerator): ShortcutModifier[] {
 }
 
 /**
- * Serializes a structured accelerator back to its canonical string
- * form.
- *
- * Use when:
- * - Displaying a binding in settings UI
- * - Round-tripping a binding through a string representation
- *
- * Returns:
- * - A `+`-joined string with modifiers in canonical order followed by
- *   the key. The output round-trips losslessly through
- *   `parseAccelerator`.
- *
- * @example
- *   formatAccelerator({ modifiers: ['shift', 'cmd-or-ctrl'], key: 'KeyK' })
- *   // => 'Mod+Shift+KeyK'
+ * Returns the canonical modifier for a token, or `undefined` if the
+ * token is not a modifier (i.e. probably a key).
  */
-export function formatAccelerator(acc: ShortcutAccelerator): string {
-  const tokens = canonicalModifiers(acc).map(m => MODIFIER_TO_CANONICAL_TOKEN[m])
-  tokens.push(acc.key)
-  return tokens.join('+')
+function lookupModifierToken(token: string): ShortcutModifier | undefined {
+  return MODIFIER_ALIASES.get(token.toLowerCase())
+}
+
+/**
+ * Normalizes a raw key token to a canonical `ShortcutKey`.
+ *
+ * Before:
+ * - `"K"` / `"k"` / `"KeyK"` / `"Up"` / `"Esc"`
+ *
+ * After:
+ * - `"KeyK"` / `"KeyK"` / `"KeyK"` / `"ArrowUp"` / `"Escape"`
+ */
+function normalizeKeyToken(token: string): ShortcutKey {
+  if (KEY_NAMES.has(token))
+    return token
+
+  const aliased = KEY_ALIASES.get(token)
+  if (aliased !== undefined)
+    return aliased
+
+  if (SINGLE_LETTER_RE.test(token)) {
+    const candidate = `Key${token.toUpperCase()}`
+    if (LETTER_KEYS.has(candidate))
+      return candidate
+  }
+
+  if (SINGLE_DIGIT_RE.test(token)) {
+    const candidate = `Digit${token}`
+    if (DIGIT_KEYS.has(candidate))
+      return candidate
+  }
+
+  throw new Error(`Invalid accelerator: unknown key "${token}"`)
 }
 
 /**
@@ -409,27 +432,4 @@ function toElectronKey(key: ShortcutKey): string {
   if (key in ELECTRON_KEY_OVERRIDES)
     return ELECTRON_KEY_OVERRIDES[key]
   return key
-}
-
-/**
- * Serializes a structured accelerator to Electron's accelerator string
- * format, suitable for `globalShortcut.register`.
- *
- * Use when:
- * - Calling Electron's `globalShortcut` API from the main-process
- *   driver
- *
- * Returns:
- * - An Electron-format string with modifiers in canonical order
- *   (`CmdOrCtrl`, `Cmd`, `Ctrl`, `Alt`, `Shift`, `Super`) followed by
- *   Electron's key spelling
- *
- * @example
- *   formatElectronAccelerator({ modifiers: ['cmd-or-ctrl', 'shift'], key: 'KeyK' })
- *   // => 'CmdOrCtrl+Shift+K'
- */
-export function formatElectronAccelerator(acc: ShortcutAccelerator): string {
-  const tokens = canonicalModifiers(acc).map(m => MODIFIER_TO_ELECTRON_TOKEN[m])
-  tokens.push(toElectronKey(acc.key))
-  return tokens.join('+')
 }

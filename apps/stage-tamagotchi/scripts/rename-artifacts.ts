@@ -39,8 +39,8 @@ async function main() {
   const beforeProductName = productName
 
   const argOptions = args.options as {
-    release: boolean
     autoTag: boolean
+    release: boolean
     tag: string[]
   }
 

@@ -3,8 +3,8 @@ import { fallback, integer, object, optional, pipe, string, transform } from 'va
 
 interface QueryIntegerSchemaOptions {
   defaultValue: number
-  minimum?: number
   maximum?: number
+  minimum?: number
 }
 
 /**
@@ -27,8 +27,8 @@ export function createQueryIntegerSchema(options: QueryIntegerSchemaOptions) {
 export const LimitOffsetPaginationQuerySchema = object({
   limit: createQueryIntegerSchema({
     defaultValue: 20,
-    minimum: 1,
     maximum: 100,
+    minimum: 1,
   }),
   offset: createQueryIntegerSchema({
     defaultValue: 0,

@@ -22,8 +22,8 @@ import type { WidgetWindowSize } from '../../../eventa'
  * - `undefined`
  */
 export function normalizeWidgetWindowSize(
-  windowSize?: WidgetWindowSize | Record<string, unknown>,
-): WidgetWindowSize | undefined {
+  windowSize?: Record<string, unknown> | WidgetWindowSize,
+): undefined | WidgetWindowSize {
   if (!windowSize || typeof windowSize !== 'object' || Array.isArray(windowSize))
     return undefined
 
@@ -34,8 +34,8 @@ export function normalizeWidgetWindowSize(
     return undefined
 
   const normalized: WidgetWindowSize = {
-    width: Math.floor(width),
     height: Math.floor(height),
+    width: Math.floor(width),
   }
 
   for (const key of ['minWidth', 'minHeight', 'maxWidth', 'maxHeight'] as const) {

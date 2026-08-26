@@ -1,6 +1,6 @@
 export interface CancellablePromise<T> {
-  promise: Promise<T>
   cancel: () => void
+  promise: Promise<T>
 }
 
 export function cancellable<T>(promise: Promise<T>): CancellablePromise<T> {
@@ -12,7 +12,7 @@ export function cancellable<T>(promise: Promise<T>): CancellablePromise<T> {
   })
 
   return {
-    promise: wrappedPromise,
     cancel: () => cancel?.(),
+    promise: wrappedPromise,
   }
 }

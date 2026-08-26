@@ -9,46 +9,46 @@ import { createEnvelopeCrypto } from '../../utils/envelope-crypto'
 import { ApiError } from '../../utils/error'
 import { resolveOfficialAliyunNlsCredentials, resolveOfficialAliyunNlsCredentialsFromConfig } from './route'
 
-function createRouterConfig(overrides?: Partial<RouterConfig>): RouterConfig {
-  return {
-    llm: { models: {} },
-    tts: { models: {} },
-    defaults: {
-      perAttemptTimeoutMs: 30000,
-      fullChainTimeoutMs: 60000,
-      fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504],
-    },
-    ...overrides,
-  }
-}
-
 function createProviderCatalogService(routeModelId = 'auto'): ProviderCatalogService {
   return {
-    syncAliasesFromRouterConfig: vi.fn(async () => []),
     resolveEnabledAlias: vi.fn(async () => ({
-      id: 'alias-auto',
-      surface: 'asr',
       aliasId: 'auto',
-      displayName: 'Auto',
-      enabled: true,
-      displayOrder: 0,
-      fallbackEnabled: true,
-      loadBalancingEnabled: false,
       createdAt: new Date(),
-      updatedAt: new Date(),
+      displayName: 'Auto',
+      displayOrder: 0,
+      enabled: true,
+      fallbackEnabled: true,
+      id: 'alias-auto',
+      loadBalancingEnabled: false,
       routes: [{
-        id: 'route-1',
         aliasId: 'alias-auto',
-        routerModelId: routeModelId,
-        pool: 'primary',
-        enabled: true,
-        weight: 1,
-        displayOrder: 0,
         createdAt: new Date(),
+        displayOrder: 0,
+        enabled: true,
+        id: 'route-1',
+        pool: 'primary',
+        routerModelId: routeModelId,
         updatedAt: new Date(),
+        weight: 1,
       }],
+      surface: 'asr',
+      updatedAt: new Date(),
     })),
+    syncAliasesFromRouterConfig: vi.fn(async () => []),
   } as unknown as ProviderCatalogService
+}
+
+function createRouterConfig(overrides?: Partial<RouterConfig>): RouterConfig {
+  return {
+    defaults: {
+      fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504],
+      fullChainTimeoutMs: 60000,
+      perAttemptTimeoutMs: 30000,
+    },
+    llm: { models: {} },
+    tts: { models: {} },
+    ...overrides,
+  }
 }
 
 describe('resolveOfficialAliyunNlsCredentials', () => {
@@ -71,8 +71,8 @@ describe('resolveOfficialAliyunNlsCredentials', () => {
   it('decrypts Aliyun NLS credentials from LLM_ROUTER_CONFIG.asr', () => {
     const envelope = createEnvelopeCrypto({ masterKey: Buffer.alloc(32, 7) })
     const ciphertext = envelope.encryptKey(' secret ', {
-      modelName: 'auto',
       keyEntryId: 'aliyun-nls-asr-prod-1',
+      modelName: 'auto',
     })
 
     const credentials = resolveOfficialAliyunNlsCredentials(createRouterConfig({
@@ -81,12 +81,12 @@ describe('resolveOfficialAliyunNlsCredentials', () => {
           auto: {
             provider: 'aliyun-nls',
             upstreams: [{
-              keys: [{ id: 'aliyun-nls-asr-prod-1', ciphertext }],
               adapterParams: {
                 accessKeyId: ' ak ',
                 appKey: ' app ',
                 region: '',
               },
+              keys: [{ ciphertext, id: 'aliyun-nls-asr-prod-1' }],
             }],
           },
         },
@@ -104,8 +104,8 @@ describe('resolveOfficialAliyunNlsCredentials', () => {
   it('resolves official ASR alias through the catalog before decrypting credentials', async () => {
     const envelope = createEnvelopeCrypto({ masterKey: Buffer.alloc(32, 7) })
     const ciphertext = envelope.encryptKey(' secret ', {
-      modelName: 'aliyun/asr-primary',
       keyEntryId: 'aliyun-nls-asr-prod-1',
+      modelName: 'aliyun/asr-primary',
     })
     const routerConfig = createRouterConfig({
       asr: {
@@ -113,11 +113,11 @@ describe('resolveOfficialAliyunNlsCredentials', () => {
           'aliyun/asr-primary': {
             provider: 'aliyun-nls',
             upstreams: [{
-              keys: [{ id: 'aliyun-nls-asr-prod-1', ciphertext }],
               adapterParams: {
                 accessKeyId: 'ak',
                 appKey: 'app',
               },
+              keys: [{ ciphertext, id: 'aliyun-nls-asr-prod-1' }],
             }],
           },
         },
@@ -152,8 +152,8 @@ describe('resolveOfficialAliyunNlsCredentials', () => {
           auto: {
             provider: 'aliyun-nls',
             upstreams: [{
-              keys: [{ id: 'aliyun-nls-asr-prod-1', ciphertext: 'unused' }],
               adapterParams: {},
+              keys: [{ ciphertext: 'unused', id: 'aliyun-nls-asr-prod-1' }],
             }],
           },
         },
@@ -165,8 +165,8 @@ describe('resolveOfficialAliyunNlsCredentials', () => {
       envelopeCrypto: envelope,
       providerCatalogService,
     })).rejects.toMatchObject({
-      statusCode: 400,
       errorCode: 'CAPABILITY_ALIAS_DISABLED',
+      statusCode: 400,
     })
   })
 })

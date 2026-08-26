@@ -19,10 +19,10 @@ export default async function prepareElectronRuntime(context: FakemicElectronPre
   await page.evaluate(stubForBrowser, piniaActionTracingChannelName)
 
   return createSession({
+    close: context.close,
     electronApp: context.app,
     page,
     target: 'electron',
-    close: context.close,
   })
 }
 

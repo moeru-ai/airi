@@ -9,17 +9,17 @@ function makeContext(overrides: Record<string, unknown> = {}): ContextSnapshot {
   return {
     'system:minecraft-integration': [
       {
-        id: 'volatile-random-id',
         contextId: 'system:minecraft-integration',
-        strategy: ContextUpdateStrategy.ReplaceSelf,
-        text: 'Bot is online in forest biome',
         createdAt: 1743940440000,
+        id: 'volatile-random-id',
         metadata: {
           source: {
-            id: 'system:minecraft-integration',
             extension: { id: 'airi:minecraft' },
+            id: 'system:minecraft-integration',
           },
         },
+        strategy: ContextUpdateStrategy.ReplaceSelf,
+        text: 'Bot is online in forest biome',
         ...overrides,
       },
     ],
@@ -50,8 +50,8 @@ describe('formatContextPromptText', () => {
   })
 
   it('produces identical output regardless of volatile fields', () => {
-    const a = formatContextPromptText(makeContext({ id: 'aaa', createdAt: 1 }))
-    const b = formatContextPromptText(makeContext({ id: 'bbb', createdAt: 2 }))
+    const a = formatContextPromptText(makeContext({ createdAt: 1, id: 'aaa' }))
+    const b = formatContextPromptText(makeContext({ createdAt: 2, id: 'bbb' }))
 
     expect(a).toBe(b)
   })
@@ -60,20 +60,20 @@ describe('formatContextPromptText', () => {
     const snapshot: ContextSnapshot = {
       'system:minecraft-integration': [
         {
-          id: 'a',
           contextId: 'system:minecraft-integration',
+          createdAt: 0,
+          id: 'a',
           strategy: ContextUpdateStrategy.ReplaceSelf,
           text: 'Bot is online',
-          createdAt: 0,
         },
       ],
       'system:weather': [
         {
-          id: 'b',
           contextId: 'system:weather',
+          createdAt: 0,
+          id: 'b',
           strategy: ContextUpdateStrategy.ReplaceSelf,
           text: 'Sunny, 22C',
-          createdAt: 0,
         },
       ],
     }

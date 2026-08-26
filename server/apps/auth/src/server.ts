@@ -32,38 +32,15 @@ import { createAuthRoutes } from './routes'
 const EXTERNAL_DEPENDENCY_INIT_MAX_ATTEMPTS = 5
 const EXTERNAL_DEPENDENCY_INIT_BASE_DELAY_MS = 5000
 
-/** Initializes an Auth dependency using the process startup retry policy. */
-async function initializeExternalDependency<T>(
-  dependencyName: string,
-  logger: Logger,
-  initialize: (attempt: number) => Promise<T>,
-): Promise<T> {
-  let attempt = 0
-
-  return await withRetry(
-    async () => {
-      attempt += 1
-      return await initialize(attempt)
-    },
-    {
-      retry: EXTERNAL_DEPENDENCY_INIT_MAX_ATTEMPTS - 1,
-      retryDelay: EXTERNAL_DEPENDENCY_INIT_BASE_DELAY_MS,
-      retryDelayFactor: 2,
-      retryDelayMax: EXTERNAL_DEPENDENCY_INIT_BASE_DELAY_MS * 2 ** (EXTERNAL_DEPENDENCY_INIT_MAX_ATTEMPTS - 1),
-      onError: (error) => {
-        logger.withError(error).warn(`${dependencyName} initialization failed on attempt ${attempt}/${EXTERNAL_DEPENDENCY_INIT_MAX_ATTEMPTS}`)
-      },
-    },
-  )()
-}
-
 export interface AuthAppDeps {
   auth: AuthInstance
   db: AuthDatabase
-  redis: Redis
   env: AuthEnv
-  rateLimitMetrics?: RateLimitMetrics | null
+  rateLimitMetrics?: null | RateLimitMetrics
+  redis: Redis
 }
+
+export type AuthAppType = Awaited<ReturnType<typeof buildAuthApp>>['app']
 
 /** Builds the standalone Auth HTTP surface without constructing its runtime dependencies. */
 export async function buildAuthApp(deps: AuthAppDeps) {
@@ -79,24 +56,24 @@ export async function buildAuthApp(deps: AuthAppDeps) {
     .use(
       '/api/*',
       cors({
-        origin: origin => getTrustedOrigin(origin, deps.env.ADDITIONAL_TRUSTED_ORIGINS),
         credentials: true,
+        origin: origin => getTrustedOrigin(origin, deps.env.ADDITIONAL_TRUSTED_ORIGINS),
       }),
     )
     .use(honoLogger())
     .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
     .onError((err, c) => {
       if (err instanceof ApiError) {
-        const logFields = { details: err.details, cause: (err as { cause?: unknown }).cause }
+        const logFields = { cause: (err as { cause?: unknown }).cause, details: err.details }
         if (err.statusCode >= 500)
           logger.withError(err).withFields(logFields).error('Auth API error occurred')
         else if (err.statusCode !== 401)
           logger.withError(err).withFields(logFields).warn('Auth API error occurred')
 
         return c.json({
+          details: err.details,
           error: err.errorCode,
           message: err.message,
-          details: err.details,
         }, err.statusCode)
       }
 
@@ -120,14 +97,14 @@ export async function buildAuthApp(deps: AuthAppDeps) {
       const ready = dbReady && redisReady
 
       return c.json({
-        status: ready ? 'ready' : 'not_ready',
         checks: { db: dbReady ? 'ok' : 'fail', redis: redisReady ? 'ok' : 'fail' },
+        status: ready ? 'ready' : 'not_ready',
       }, ready ? 200 : 503)
     })
     .get('/', c => c.json({
-      service: 'airi-auth',
-      issuer: `${deps.env.PUBLIC_URL}/api/auth`,
       accounts: deps.env.AUTH_UI_URL,
+      issuer: `${deps.env.PUBLIC_URL}/api/auth`,
+      service: 'airi-auth',
     }))
     .route('/', await createAuthRoutes({
       auth: deps.auth,
@@ -138,8 +115,6 @@ export async function buildAuthApp(deps: AuthAppDeps) {
 
   return { app }
 }
-
-export type AuthAppType = Awaited<ReturnType<typeof buildAuthApp>>['app']
 
 /**
  * Builds the standalone auth runtime with its own dependency container.
@@ -152,16 +127,15 @@ export async function createAuthServer() {
   const container = createContainer({ logger: createLoggLogger(useLogger('injeca').useGlobalConfig()) })
 
   setGlobalHookPostLog((log) => {
-    emitOtelLog(log.level, log.context, log.message, log.fields as Record<string, string | number | boolean>)
+    emitOtelLog(log.level, log.context, log.message, log.fields as Record<string, boolean | number | string>)
   })
 
   const env = provide(container, 'env', () => parseAuthEnv(process.env))
   const otel = provide(container, 'libs:otel', {
-    dependsOn: { env },
     build: ({ dependsOn }) => initAuthOtel(dependsOn.env),
+    dependsOn: { env },
   })
   const db = provide(container, 'datastore:db', {
-    dependsOn: { env, lifecycle },
     build: async ({ dependsOn }) => {
       const connection = await initializeExternalDependency('Database', logger, async (attempt) => {
         const candidate = createAuthDrizzle(dependsOn.env)
@@ -180,9 +154,9 @@ export async function createAuthServer() {
       dependsOn.lifecycle.appHooks.onStop(() => connection.pool.end())
       return connection.db
     },
+    dependsOn: { env, lifecycle },
   })
   const redis = provide(container, 'datastore:redis', {
-    dependsOn: { env, lifecycle },
     build: async ({ dependsOn }) => {
       const instance = await initializeExternalDependency('Redis', logger, async (attempt) => {
         const candidate = new Redis(dependsOn.env.REDIS_URL, { lazyConnect: true })
@@ -201,21 +175,21 @@ export async function createAuthServer() {
       })
       return instance
     },
+    dependsOn: { env, lifecycle },
   })
   const email = provide(container, 'services:email', {
-    dependsOn: { env, otel },
     build: ({ dependsOn }) => createEmailService({
       apiKey: dependsOn.env.RESEND_API_KEY,
       fromEmail: dependsOn.env.RESEND_FROM_EMAIL,
       fromName: dependsOn.env.RESEND_FROM_NAME,
     }, undefined, dependsOn.otel?.email),
+    dependsOn: { env, otel },
   })
   const resourceApi = provide(container, 'services:resourceApi', {
-    dependsOn: { env },
     build: ({ dependsOn }) => createResourceApi(dependsOn.env.RESOURCE_SERVER_URL),
+    dependsOn: { env },
   })
   const auth = provide(container, 'services:auth', {
-    dependsOn: { db, env, email, otel, resourceApi },
     build: async ({ dependsOn }) => {
       await seedTrustedClients(dependsOn.db, dependsOn.env)
       for (const client of getTrustedClientSeedSummaries(dependsOn.env)) {
@@ -233,17 +207,18 @@ export async function createAuthServer() {
         dependsOn.resourceApi,
       )
     },
+    dependsOn: { db, email, env, otel, resourceApi },
   })
 
   await start(container)
-  const dependencies = await resolve(container, { auth, db, redis, env, otel })
+  const dependencies = await resolve(container, { auth, db, env, otel, redis })
 
   const { app } = await buildAuthApp({
     auth: dependencies.auth,
     db: dependencies.db,
-    redis: dependencies.redis,
     env: dependencies.env,
     rateLimitMetrics: dependencies.otel?.rateLimit,
+    redis: dependencies.redis,
   })
 
   return {
@@ -252,10 +227,6 @@ export async function createAuthServer() {
     port: dependencies.env.PORT,
     stop: () => stop(container),
   }
-}
-
-function handleProcessError(error: unknown, type: string) {
-  useLogger().withError(error).error(type)
 }
 
 /**
@@ -270,7 +241,7 @@ function handleProcessError(error: unknown, type: string) {
  */
 export async function runAuthServer(): Promise<void> {
   const runtime = await createAuthServer()
-  const server = serve({ fetch: runtime.app.fetch, port: runtime.port, hostname: runtime.hostname })
+  const server = serve({ fetch: runtime.app.fetch, hostname: runtime.hostname, port: runtime.port })
 
   process.on('uncaughtException', error => handleProcessError(error, 'Uncaught exception'))
   process.on('unhandledRejection', error => handleProcessError(error, 'Unhandled rejection'))
@@ -279,4 +250,33 @@ export async function runAuthServer(): Promise<void> {
     server.once('close', () => resolvePromise())
     server.once('error', error => reject(error))
   }).finally(runtime.stop)
+}
+
+function handleProcessError(error: unknown, type: string) {
+  useLogger().withError(error).error(type)
+}
+
+/** Initializes an Auth dependency using the process startup retry policy. */
+async function initializeExternalDependency<T>(
+  dependencyName: string,
+  logger: Logger,
+  initialize: (attempt: number) => Promise<T>,
+): Promise<T> {
+  let attempt = 0
+
+  return await withRetry(
+    async () => {
+      attempt += 1
+      return await initialize(attempt)
+    },
+    {
+      onError: (error) => {
+        logger.withError(error).warn(`${dependencyName} initialization failed on attempt ${attempt}/${EXTERNAL_DEPENDENCY_INIT_MAX_ATTEMPTS}`)
+      },
+      retry: EXTERNAL_DEPENDENCY_INIT_MAX_ATTEMPTS - 1,
+      retryDelay: EXTERNAL_DEPENDENCY_INIT_BASE_DELAY_MS,
+      retryDelayFactor: 2,
+      retryDelayMax: EXTERNAL_DEPENDENCY_INIT_BASE_DELAY_MS * 2 ** (EXTERNAL_DEPENDENCY_INIT_MAX_ATTEMPTS - 1),
+    },
+  )()
 }

@@ -1,29 +1,24 @@
 import { readonly, ref, shallowRef } from 'vue'
 
-/** Lifecycle state of one recorded Hearing playground segment. */
-export type HearingPlaygroundSegmentStatus = 'transcribing' | 'complete' | 'empty' | 'error'
-
 /** A recorded playground utterance and the transcription state that belongs to it. */
 export interface HearingPlaygroundSegment {
+  /** User-facing failure details when transcription throws. */
+  error?: string
   /** Stable identity used to correlate asynchronous provider results. */
   id: number
   /** Audio sent to the provider. VAD-triggered recordings include retained speech padding. */
   recording?: Blob
-  /** Final provider text. Empty while the request is pending or produced no text. */
-  text: string
-  /** User-facing failure details when transcription throws. */
-  error?: string
   /** Current transcription state for this segment. */
   status: HearingPlaygroundSegmentStatus
+  /** Final provider text. Empty while the request is pending or produced no text. */
+  text: string
 }
+
+/** Lifecycle state of one recorded Hearing playground segment. */
+export type HearingPlaygroundSegmentStatus = 'complete' | 'empty' | 'error' | 'transcribing'
 
 interface HearingPlaygroundSegmentMetadata extends Record<string, unknown> {
   playgroundSegmentId: number
-}
-
-function segmentIdFrom(metadata: Record<string, unknown> | undefined): number | undefined {
-  const id = metadata?.playgroundSegmentId
-  return typeof id === 'number' ? id : undefined
 }
 
 /**
@@ -50,7 +45,7 @@ export function useHearingPlaygroundSegments() {
     const id = ++nextSegmentId
     segments.value = [
       ...segments.value,
-      { id, recording, text: '', status: 'transcribing' },
+      { id, recording, status: 'transcribing', text: '' },
     ]
     return { playgroundSegmentId: id }
   }
@@ -62,11 +57,11 @@ export function useHearingPlaygroundSegments() {
       return
     }
 
-    updateSegment(metadata, segment => ({ ...segment, text: finalText, status: 'complete' }))
+    updateSegment(metadata, segment => ({ ...segment, status: 'complete', text: finalText }))
   }
 
   function finishEmpty(metadata: Record<string, unknown> | undefined) {
-    updateSegment(metadata, segment => ({ ...segment, text: '', status: 'empty' }))
+    updateSegment(metadata, segment => ({ ...segment, status: 'empty', text: '' }))
   }
 
   function finishError(metadata: Record<string, unknown> | undefined, error: string) {
@@ -84,7 +79,7 @@ export function useHearingPlaygroundSegments() {
       return
 
     const id = ++nextSegmentId
-    segments.value = [...segments.value, { id, text: finalText, status: 'complete' }]
+    segments.value = [...segments.value, { id, status: 'complete', text: finalText }]
   }
 
   function clear() {
@@ -93,14 +88,19 @@ export function useHearingPlaygroundSegments() {
   }
 
   return {
+    clear,
     current: readonly(current),
-    segments: readonly(segments),
-    startRecording,
-    finishRecording,
     finishEmpty,
     finishError,
-    replaceStreamingText,
+    finishRecording,
     finishStreaming,
-    clear,
+    replaceStreamingText,
+    segments: readonly(segments),
+    startRecording,
   }
+}
+
+function segmentIdFrom(metadata: Record<string, unknown> | undefined): number | undefined {
+  const id = metadata?.playgroundSegmentId
+  return typeof id === 'number' ? id : undefined
 }

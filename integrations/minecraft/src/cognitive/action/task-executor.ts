@@ -13,29 +13,14 @@ interface TaskExecutorConfig {
 }
 
 export class TaskExecutor extends EventEmitter {
-  private logger: Logger
-  private initialized = false
   private actionRegistry: ActionRegistry
+  private initialized = false
+  private logger: Logger
 
   constructor(config: TaskExecutorConfig) {
     super()
     this.logger = config.logger
     this.actionRegistry = new ActionRegistry()
-  }
-
-  public async initialize(): Promise<void> {
-    if (this.initialized)
-      return
-
-    this.logger.log('Initializing Task Executor')
-    this.initialized = true
-  }
-
-  /**
-   * Set the mineflayer instance for action execution
-   */
-  public setMineflayer(mineflayer: Mineflayer): void {
-    this.actionRegistry.setMineflayer(mineflayer)
   }
 
   public async destroy(): Promise<void> {
@@ -64,14 +49,33 @@ export class TaskExecutor extends EventEmitter {
     return this.runSingleAction(action)
   }
 
+  public getAvailableActions() {
+    return this.actionRegistry.getAvailableActions()
+  }
+
+  public async initialize(): Promise<void> {
+    if (this.initialized)
+      return
+
+    this.logger.log('Initializing Task Executor')
+    this.initialized = true
+  }
+
+  /**
+   * Set the mineflayer instance for action execution
+   */
+  public setMineflayer(mineflayer: Mineflayer): void {
+    this.actionRegistry.setMineflayer(mineflayer)
+  }
+
   private async runSingleAction(action: ActionInstruction): Promise<unknown> {
     this.emit('action:started', { action })
 
     try {
       const step = {
         description: action.tool,
-        tool: action.tool,
         params: action.params,
+        tool: action.tool,
       }
       const result = await this.actionRegistry.performAction(step)
 
@@ -89,9 +93,5 @@ export class TaskExecutor extends EventEmitter {
       this.emit('action:failed', { action, error })
       throw error
     }
-  }
-
-  public getAvailableActions() {
-    return this.actionRegistry.getAvailableActions()
   }
 }

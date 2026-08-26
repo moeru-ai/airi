@@ -8,32 +8,6 @@ import type { LlmRouterService } from './router'
 import { CONFIG_KV_INVALIDATION_CHANNEL, parseConfigKVInvalidation } from '../../adapters/config-kv/contracts'
 
 /**
- * Dependencies needed to wire the cross-instance config invalidation
- * subscriber.
- */
-export interface ConfigSyncSubscriberOptions {
-  /**
-   * Primary Redis client. The subscriber takes its own connection via
-   * `.duplicate()` because ioredis forbids non-pubsub commands on a
-   * connection in subscribe mode.
-   */
-  redis: Redis
-  /** Typed ConfigKV reader whose Redis cache is cleared after reconnects. */
-  configKV: Pick<ConfigKVService, 'invalidateCache'>
-  /** Router service whose in-memory `LLM_ROUTER_CONFIG` cache we invalidate. */
-  llmRouter: LlmRouterService
-  /**
-   * OTel gateway metric bundle. `null` when OTel is disabled — emit calls
-   * become no-ops.
-   */
-  gatewayMetrics: GatewayMetrics | null
-  /** Value attached to the `service_instance_id` label on emitted metrics. */
-  instanceId: string
-  /** Logger handle. Caller supplies a scoped logger so namespacing is theirs. */
-  logger: ReturnType<typeof useLogger>
-}
-
-/**
  * Per-call shape returned to the caller. Kept narrow so the caller can hold
  * the subscriber handle for graceful shutdown or tests without leaking the
  * internal emit closure.
@@ -41,6 +15,32 @@ export interface ConfigSyncSubscriberOptions {
 export interface ConfigSyncSubscriber {
   /** Underlying ioredis subscriber connection. */
   subscriber: Redis
+}
+
+/**
+ * Dependencies needed to wire the cross-instance config invalidation
+ * subscriber.
+ */
+export interface ConfigSyncSubscriberOptions {
+  /** Typed ConfigKV reader whose Redis cache is cleared after reconnects. */
+  configKV: Pick<ConfigKVService, 'invalidateCache'>
+  /**
+   * OTel gateway metric bundle. `null` when OTel is disabled — emit calls
+   * become no-ops.
+   */
+  gatewayMetrics: GatewayMetrics | null
+  /** Value attached to the `service_instance_id` label on emitted metrics. */
+  instanceId: string
+  /** Router service whose in-memory `LLM_ROUTER_CONFIG` cache we invalidate. */
+  llmRouter: LlmRouterService
+  /** Logger handle. Caller supplies a scoped logger so namespacing is theirs. */
+  logger: ReturnType<typeof useLogger>
+  /**
+   * Primary Redis client. The subscriber takes its own connection via
+   * `.duplicate()` because ioredis forbids non-pubsub commands on a
+   * connection in subscribe mode.
+   */
+  redis: Redis
 }
 
 /**
@@ -81,15 +81,15 @@ export function createConfigSyncSubscriber(opts: ConfigSyncSubscriberOptions): C
     opts.llmRouter.invalidateConfig()
     await opts.llmRouter.invalidateTtsVoicesCache()
     opts.gatewayMetrics?.configReload.add(1, {
-      source,
       service_instance_id: opts.instanceId,
+      source,
     })
   }
 
   function recordSubscriberState(state: 'connected' | 'error' | 'reconnecting') {
     opts.gatewayMetrics?.subscriberState.add(1, {
-      state,
       service_instance_id: opts.instanceId,
+      state,
     })
   }
 
@@ -108,8 +108,8 @@ export function createConfigSyncSubscriber(opts: ConfigSyncSubscriberOptions): C
           opts.logger.withError(err).warn('Failed to invalidate tts voices cache on LLM_ROUTER_CONFIG change')
         })
         opts.gatewayMetrics?.configReload.add(1, {
-          source: 'pubsub',
           service_instance_id: opts.instanceId,
+          source: 'pubsub',
         })
         return
       }

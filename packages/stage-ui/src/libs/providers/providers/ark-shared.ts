@@ -15,72 +15,43 @@ const arkProviderConfigSchema = z.object({
 })
 
 interface ArkModelSpec {
-  id: string
   contextLength?: number
   deprecated?: boolean
   descriptionKey?: string
+  id: string
 }
 
 interface ArkProviderDefinitionOptions {
-  id: string
-  order: number
-  name: string
-  nameKey: string
+  defaultBaseUrl: string
   description: string
   descriptionKey: string
-  modelPrefix: string
-  defaultBaseUrl: string
   icon: string
   iconColor?: string
+  id: string
+  modelPrefix: string
   models: ArkModelSpec[]
-}
-
-function stripModelPrefix(modelId: string, modelPrefix: string) {
-  return modelId.startsWith(modelPrefix)
-    ? modelId.slice(modelPrefix.length)
-    : modelId
+  name: string
+  nameKey: string
+  order: number
 }
 
 export function createArkChatProviderDefinition(options: ArkProviderDefinitionOptions) {
   const {
-    id,
-    order,
-    name,
-    nameKey,
+    defaultBaseUrl,
     description,
     descriptionKey,
-    modelPrefix,
-    defaultBaseUrl,
     icon,
     iconColor,
+    id,
+    modelPrefix,
     models,
+    name,
+    nameKey,
+    order,
   } = options
 
   return defineProvider({
-    id,
-    order,
-    name,
-    nameLocalize: ({ t }) => t(nameKey),
-    description,
-    descriptionLocalize: ({ t }) => t(descriptionKey),
-    tasks: ['chat'],
     capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
-    icon,
-    iconColor,
-
-    createProviderConfig: ({ t }) => arkProviderConfigSchema.extend({
-      apiKey: arkProviderConfigSchema.shape.apiKey.meta({
-        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
-        descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
-        placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
-        type: 'password',
-      }),
-      baseUrl: arkProviderConfigSchema.shape.baseUrl.default(defaultBaseUrl).meta({
-        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
-        descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
-        placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
-      }),
-    }),
     createProvider(config) {
       const provider = createOpenAI(config.apiKey ?? '', config.baseUrl ?? defaultBaseUrl)
       const originalChat = provider.chat.bind(provider)
@@ -96,7 +67,21 @@ export function createArkChatProviderDefinition(options: ArkProviderDefinitionOp
         },
       }
     },
-
+    createProviderConfig: ({ t }) => arkProviderConfigSchema.extend({
+      apiKey: arkProviderConfigSchema.shape.apiKey.meta({
+        descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+        placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+        type: 'password',
+      }),
+      baseUrl: arkProviderConfigSchema.shape.baseUrl.default(defaultBaseUrl).meta({
+        descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
+        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+        placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
+      }),
+    }),
+    description,
+    descriptionLocalize: ({ t }) => t(descriptionKey),
     extraMethods: {
       listModels: async (_config, _provider, contextOptions) => models.map((model) => {
         const modelInfo: ModelInfo = {
@@ -116,6 +101,15 @@ export function createArkChatProviderDefinition(options: ArkProviderDefinitionOp
         return modelInfo
       }),
     },
+    icon,
+    iconColor,
+    id,
+    name,
+
+    nameLocalize: ({ t }) => t(nameKey),
+    order,
+
+    tasks: ['chat'],
     validationRequiredWhen(config) {
       return !!config.apiKey?.trim()
     },
@@ -126,4 +120,10 @@ export function createArkChatProviderDefinition(options: ArkProviderDefinitionOp
       }),
     },
   })
+}
+
+function stripModelPrefix(modelId: string, modelPrefix: string) {
+  return modelId.startsWith(modelPrefix)
+    ? modelId.slice(modelPrefix.length)
+    : modelId
 }

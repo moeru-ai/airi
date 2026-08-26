@@ -15,33 +15,33 @@ import { protectPrivilegedWindowNavigation } from '../shared'
 import { setupChatWindowElectronInvokes } from './rpc/index.electron'
 
 export function setupChatWindowReusableFunc(params: {
-  widgetsManager: WidgetsWindowManager
-  serverChannel: ServerChannel
-  mcpStdioManager: McpStdioManager
   i18n: I18n
+  mcpStdioManager: McpStdioManager
+  serverChannel: ServerChannel
+  widgetsManager: WidgetsWindowManager
 }) {
   return createReusableWindow(async () => {
     const window = new BrowserWindow({
-      title: 'Chat',
-      width: 600.0,
       height: 800.0,
-      show: false,
       icon,
+      show: false,
+      title: 'Chat',
       webPreferences: {
         preload: join(getElectronMainDirname(), '../preload/index.mjs'),
         sandbox: false,
       },
+      width: 600.0,
     })
 
     window.on('ready-to-show', () => window.show())
     protectPrivilegedWindowNavigation(window)
 
     await setupChatWindowElectronInvokes({
-      window,
-      widgetsManager: params.widgetsManager,
-      serverChannel: params.serverChannel,
-      mcpStdioManager: params.mcpStdioManager,
       i18n: params.i18n,
+      mcpStdioManager: params.mcpStdioManager,
+      serverChannel: params.serverChannel,
+      widgetsManager: params.widgetsManager,
+      window,
     })
 
     await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/chat', {

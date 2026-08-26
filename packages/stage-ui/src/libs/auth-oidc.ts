@@ -9,20 +9,29 @@ const OIDC_TOKEN_PATH = '/api/auth/oauth2/token'
 
 export interface OIDCFlowParams {
   clientId: string
-  redirectUri: string
-  scopes?: string[]
   /**
    * Client secret — required when the OIDC client is registered as
    * confidential on the server. Omit for public clients.
    */
   clientSecret?: string
   /** Social provider hint — skips the server-side picker page. */
-  provider?: 'google' | 'github' | 'steam'
+  provider?: 'github' | 'google' | 'steam'
+  redirectUri: string
+  scopes?: string[]
 }
 
 export interface OIDCFlowState {
   codeVerifier: string
   state: string
+}
+
+export interface TokenResponse {
+  access_token: string
+  expires_in: number
+  id_token?: string
+  refresh_token?: string
+  scope?: string
+  token_type: string
 }
 
 /**
@@ -31,7 +40,7 @@ export interface OIDCFlowState {
  */
 export async function buildAuthorizationURL(
   params: OIDCFlowParams,
-): Promise<{ url: string, flowState: OIDCFlowState }> {
+): Promise<{ flowState: OIDCFlowState, url: string }> {
   const codeVerifier = generateCodeVerifier()
   const codeChallenge = await generateCodeChallenge(codeVerifier)
   const state = generateState()
@@ -52,18 +61,9 @@ export async function buildAuthorizationURL(
     url.searchParams.set('provider', params.provider)
 
   return {
-    url: url.toString(),
     flowState: { codeVerifier, state },
+    url: url.toString(),
   }
-}
-
-export interface TokenResponse {
-  access_token: string
-  token_type: string
-  expires_in: number
-  refresh_token?: string
-  id_token?: string
-  scope?: string
 }
 
 /**
@@ -81,11 +81,11 @@ export async function exchangeCodeForTokens(
     throw new Error('OIDC state mismatch — possible CSRF attack')
 
   const bodyParams: Record<string, string> = {
-    grant_type: 'authorization_code',
-    code,
-    redirect_uri: params.redirectUri,
     client_id: params.clientId,
+    code,
     code_verifier: flowState.codeVerifier,
+    grant_type: 'authorization_code',
+    redirect_uri: params.redirectUri,
     resource: SERVER_URL,
   }
 
@@ -96,9 +96,9 @@ export async function exchangeCodeForTokens(
   const body = new URLSearchParams(bodyParams)
 
   const response = await fetch(new URL(OIDC_TOKEN_PATH, SERVER_URL), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    method: 'POST',
   })
 
   if (!response.ok) {
@@ -119,9 +119,9 @@ export async function refreshAccessToken(
   clientSecret?: string,
 ): Promise<TokenResponse> {
   const params: Record<string, string> = {
+    client_id: clientId,
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
-    client_id: clientId,
     resource: SERVER_URL,
   }
 
@@ -131,9 +131,9 @@ export async function refreshAccessToken(
   const body = new URLSearchParams(params)
 
   const response = await fetch(new URL(OIDC_TOKEN_PATH, SERVER_URL), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    method: 'POST',
   })
 
   if (!response.ok)
@@ -147,17 +147,9 @@ const FLOW_STATE_KEY = 'auth/v1/oidc-flow-state'
 const FLOW_PARAMS_KEY = 'auth/v1/oidc-flow-params'
 
 /**
- * Persist OIDC flow state before navigating to the authorization server.
- */
-export function persistFlowState(flowState: OIDCFlowState, params: OIDCFlowParams): void {
-  sessionStorage.setItem(FLOW_STATE_KEY, JSON.stringify(flowState))
-  sessionStorage.setItem(FLOW_PARAMS_KEY, JSON.stringify(params))
-}
-
-/**
  * Retrieve and clear persisted OIDC flow state after callback.
  */
-export function consumeFlowState(): { flowState: OIDCFlowState, params: OIDCFlowParams } | null {
+export function consumeFlowState(): null | { flowState: OIDCFlowState, params: OIDCFlowParams } {
   const flowStateRaw = sessionStorage.getItem(FLOW_STATE_KEY)
   const paramsRaw = sessionStorage.getItem(FLOW_PARAMS_KEY)
 
@@ -171,4 +163,12 @@ export function consumeFlowState(): { flowState: OIDCFlowState, params: OIDCFlow
     flowState: JSON.parse(flowStateRaw),
     params: JSON.parse(paramsRaw),
   }
+}
+
+/**
+ * Persist OIDC flow state before navigating to the authorization server.
+ */
+export function persistFlowState(flowState: OIDCFlowState, params: OIDCFlowParams): void {
+  sessionStorage.setItem(FLOW_STATE_KEY, JSON.stringify(flowState))
+  sessionStorage.setItem(FLOW_PARAMS_KEY, JSON.stringify(params))
 }

@@ -14,10 +14,10 @@ export default defineConfig(({ mode }) => {
         {
           extends: true,
           test: {
-            name: 'node',
             environment: 'node',
-            include: ['**/*.{spec,test}.ts'],
             exclude: ['**/*.browser.{spec,test}.ts', '**/node_modules/**'],
+            include: ['**/*.{spec,test}.ts'],
+            name: 'node',
           },
         },
       ],

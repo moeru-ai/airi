@@ -12,24 +12,24 @@ export * from './notebook'
 export * from './orchestrator'
 
 export interface CharacterSparkNotifyReaction {
+  createdAt: number
   id: string
   message: string
-  createdAt: number
-  sourceEventId?: string
   metadata?: Record<string, unknown>
+  sourceEventId?: string
 }
 
 interface StreamingReactionState {
-  reaction: CharacterSparkNotifyReaction
   intent: IntentHandle
   parser: ReturnType<ParserFactory>
+  reaction: CharacterSparkNotifyReaction
 }
 
 const MAX_REACTIONS = 200
 type ParserFactory = typeof useLlmmarkerParser
 let parserFactory: ParserFactory = useLlmmarkerParser
 
-export function setCharacterLlmMarkerParserFactoryForTest(factory: ParserFactory | null) {
+export function setCharacterLlmMarkerParserFactoryForTest(factory: null | ParserFactory) {
   parserFactory = factory ?? useLlmmarkerParser
 }
 
@@ -45,9 +45,9 @@ export const useCharacterStore = defineStore('character', () => {
 
   async function emitTextOutput(text: string) {
     const intent = speechRuntimeStore.openIntent({
+      behavior: 'queue',
       ownerId: ownerId.value,
       priority: 'normal',
-      behavior: 'queue',
     })
 
     const parser = parserFactory({
@@ -71,19 +71,19 @@ export const useCharacterStore = defineStore('character', () => {
   function onSparkNotifyReactionStreamEvent(sparkEventId: string, chunk: string, options?: { metadata?: Record<string, unknown> }) {
     if (!streamingReactions.value.has(sparkEventId)) {
       const newReaction = reactive({
+        createdAt: Date.now(),
         id: nanoid(),
         message: '',
-        createdAt: Date.now(),
-        sourceEventId: sparkEventId,
         metadata: options?.metadata,
+        sourceEventId: sparkEventId,
       }) satisfies CharacterSparkNotifyReaction
 
       const intent = speechRuntimeStore.openIntent({
-        turnId: `spark:${sparkEventId}`,
+        behavior: 'interrupt',
         intentId: `spark:${sparkEventId}`,
         ownerId: ownerId.value,
         priority: 'high',
-        behavior: 'interrupt',
+        turnId: `spark:${sparkEventId}`,
       })
 
       const parser = parserFactory({
@@ -97,7 +97,7 @@ export const useCharacterStore = defineStore('character', () => {
         },
       })
 
-      streamingReactions.value.set(sparkEventId, { reaction: newReaction, intent, parser })
+      streamingReactions.value.set(sparkEventId, { intent, parser, reaction: newReaction })
     }
 
     const state = streamingReactions.value.get(sparkEventId)!
@@ -122,11 +122,11 @@ export const useCharacterStore = defineStore('character', () => {
 
   function recordSparkNotifyReaction(sparkEventId: string, message: string, options?: { metadata?: Record<string, unknown> }) {
     const newReaction = {
+      createdAt: Date.now(),
       id: nanoid(),
       message,
-      createdAt: Date.now(),
-      sourceEventId: sparkEventId,
       metadata: options?.metadata,
+      sourceEventId: sparkEventId,
     } satisfies CharacterSparkNotifyReaction
 
     reactions.value.push(newReaction)
@@ -141,15 +141,15 @@ export const useCharacterStore = defineStore('character', () => {
   }
 
   return {
-    name,
-    reactions,
-    systemPrompt,
-
-    recordSparkNotifyReaction,
-    onSparkNotifyReactionStreamEvent,
-    onSparkNotifyReactionStreamEnd,
     clearReactions,
-
     emitTextOutput,
+    name,
+
+    onSparkNotifyReactionStreamEnd,
+    onSparkNotifyReactionStreamEvent,
+    reactions,
+    recordSparkNotifyReaction,
+
+    systemPrompt,
   }
 })

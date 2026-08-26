@@ -1,78 +1,78 @@
-export type VideoSite = 'youtube' | 'bilibili' | 'unknown'
-
-export interface PageContextPayload {
-  site: VideoSite
-  url: string
-  title: string
-  description?: string
-  language?: string
-}
-
-export interface VideoContextPayload {
-  site: VideoSite
-  url: string
-  title: string
-  channel?: string
-  videoId?: string
-  durationSec?: number
-  currentTimeSec?: number
-  isPlaying?: boolean
-  isMuted?: boolean
-  volume?: number
-  playbackRate?: number
-  isLive?: boolean
-  playerSize?: { width: number, height: number }
-}
-
-export interface SubtitlePayload {
-  site: VideoSite
-  url: string
-  videoId?: string
-  title?: string
-  text: string
-  language?: string
-  startMs?: number
-  endMs?: number
-  isAuto?: boolean
-}
-
-export interface VisionFramePayload {
-  site: VideoSite
-  url: string
-  videoId?: string
-  title?: string
-  capturedAt: number
-  width: number
-  height: number
-  dataUrl: string
-}
+export type BackgroundToContentMessage
+  = | { type: 'background:request-vision-frame' }
 
 export type ContentToBackgroundMessage
-  = | { type: 'content:page', payload: PageContextPayload }
-    | { type: 'content:video', payload: VideoContextPayload }
-    | { type: 'content:subtitle', payload: SubtitlePayload }
-    | { type: 'content:vision:frame', payload: VisionFramePayload }
+  = | { payload: PageContextPayload, type: 'content:page' }
+    | { payload: SubtitlePayload, type: 'content:subtitle' }
+    | { payload: VideoContextPayload, type: 'content:video' }
+    | { payload: VisionFramePayload, type: 'content:vision:frame' }
 
 export interface ExtensionSettings {
-  wsUrl: string
-  token: string
   enabled: boolean
-  sendPageContext: boolean
-  sendVideoContext: boolean
-  sendSubtitles: boolean
-  sendSparkNotify: boolean
   enableVision: boolean
+  sendPageContext: boolean
+  sendSparkNotify: boolean
+  sendSubtitles: boolean
+  sendVideoContext: boolean
+  token: string
+  wsUrl: string
 }
 
 export interface ExtensionStatus {
   connected: boolean
   lastError?: string
-  settings: ExtensionSettings
   lastPage?: PageContextPayload
-  lastVideo?: VideoContextPayload
   lastSubtitle?: SubtitlePayload
+  lastVideo?: VideoContextPayload
   lastVisionFrameAt?: number
+  settings: ExtensionSettings
 }
 
-export type BackgroundToContentMessage
-  = | { type: 'background:request-vision-frame' }
+export interface PageContextPayload {
+  description?: string
+  language?: string
+  site: VideoSite
+  title: string
+  url: string
+}
+
+export interface SubtitlePayload {
+  endMs?: number
+  isAuto?: boolean
+  language?: string
+  site: VideoSite
+  startMs?: number
+  text: string
+  title?: string
+  url: string
+  videoId?: string
+}
+
+export interface VideoContextPayload {
+  channel?: string
+  currentTimeSec?: number
+  durationSec?: number
+  isLive?: boolean
+  isMuted?: boolean
+  isPlaying?: boolean
+  playbackRate?: number
+  playerSize?: { height: number, width: number }
+  site: VideoSite
+  title: string
+  url: string
+  videoId?: string
+  volume?: number
+}
+
+export type VideoSite = 'bilibili' | 'unknown' | 'youtube'
+
+export interface VisionFramePayload {
+  capturedAt: number
+  dataUrl: string
+  height: number
+  site: VideoSite
+  title?: string
+  url: string
+  videoId?: string
+  width: number
+}

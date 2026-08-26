@@ -38,8 +38,8 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
     if (typeof window !== 'undefined' && win.electron?.ipcRenderer) {
       const { context } = createContext(win.electron.ipcRenderer as any)
       return {
-        generate: defineInvoke(context, artistryGenerateHeadless),
         addWidget: defineInvoke(context, widgetsAdd),
+        generate: defineInvoke(context, artistryGenerateHeadless),
       }
     }
     return null
@@ -48,7 +48,7 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
   /**
    * Analyzes the context in parallel and triggers a visual if threshold is met.
    */
-  async function runArtistTask(inputText: string, history: Message[] = [], targetOverride?: 'user' | 'assistant') {
+  async function runArtistTask(inputText: string, history: Message[] = [], targetOverride?: 'assistant' | 'user') {
     if (isProcessing.value) {
       artistLog('Skipping task: Already processing another task.')
       return
@@ -59,9 +59,9 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
     const target = targetOverride || artistry?.autonomousTarget || 'user'
 
     artistLog('Triggered runArtistTask. State:', {
+      autonomousEnabled,
       cardId: cardStore.activeCardId,
       cardName: activeCard?.name,
-      autonomousEnabled,
       target,
     })
 
@@ -73,7 +73,7 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
     const cardId = cardStore.activeCardId
 
     isProcessing.value = true
-    artistLog('Starting analysis task...', { threshold, cardId, target })
+    artistLog('Starting analysis task...', { cardId, target, threshold })
 
     try {
       // 0. Guard: If the text is empty, skip analysis (Director cannot analyze silence)
@@ -135,10 +135,10 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
 "${inputText}"`
 
       const messages: Message[] = [
-        { role: 'system', content: systemPrompt },
+        { content: systemPrompt, role: 'system' },
         {
-          role: 'user',
           content: analysisPrompt,
+          role: 'user',
         },
       ]
 
@@ -146,11 +146,11 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
       const providerId = consciousnessStore.activeProvider
 
       artistLog('Sending rolled-up prompt to Director LLM...', {
+        historyCount: recentHistory.length,
         model: modelId,
         provider: providerId,
-        historyCount: recentHistory.length,
-        textSubstring: inputText.substring(0, 50),
         target,
+        textSubstring: inputText.substring(0, 50),
       })
 
       if (!modelId || !providerId) {
@@ -179,8 +179,8 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
       const chatConfig = chatProvider.chat(modelId)
       const response = await generateText({
         ...chatConfig,
-        messages,
         headers: { 'Accept-Encoding': 'identity' },
+        messages,
       })
 
       const rawContent = (response.text || '').trim()
@@ -202,9 +202,9 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
       const analysis = JSON.parse(jsonContent)
       artistLog('Parsed Analysis Result:', {
         intensity: analysis.intensity,
+        prompt: analysis.prompt,
         reasoning: analysis.reasoning,
         title: analysis.title,
-        prompt: analysis.prompt,
       })
 
       const thresholdMet = (analysis.intensity ?? 0) >= threshold
@@ -225,11 +225,11 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
 
         const artistryGlobals = artistryStore.artistryGlobals
         const generationPayload = {
-          prompt: artistry.promptPrefix ? `${artistry.promptPrefix} ${analysis.prompt}` : analysis.prompt,
-          model: artistry.model || artistryStore.activeModel,
-          provider: artistry.provider || artistryStore.activeProvider,
-          options: artistry.options || artistryStore.providerOptions,
           globals: artistryGlobals,
+          model: artistry.model || artistryStore.activeModel,
+          options: artistry.options || artistryStore.providerOptions,
+          prompt: artistry.promptPrefix ? `${artistry.promptPrefix} ${analysis.prompt}` : analysis.prompt,
+          provider: artistry.provider || artistryStore.activeProvider,
         }
 
         artistLog('Triggering Headless Generation with payload:', generationPayload)
@@ -247,7 +247,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
           throw new Error(result.error)
         }
 
-        artistLog('Headless Generation Success!', { hasUrl: !!result.imageUrl, hasBase64: !!result.base64 })
+        artistLog('Headless Generation Success!', { hasBase64: !!result.base64, hasUrl: !!result.imageUrl })
 
         // 4. Save to journal
         if (result.base64 || result.imageUrl) {
@@ -289,11 +289,11 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
               const imageUrl = result.imageUrl || result.base64
               const content = `![${analysis.title || 'Generated Image'}](${imageUrl})`
               chatSessionStore.appendSessionMessage(chatSessionStore.activeSessionId, {
-                role: 'assistant',
                 content,
-                slices: [{ type: 'text', text: content }],
-                tool_results: [],
                 createdAt: Date.now(),
+                role: 'assistant',
+                slices: [{ text: content, type: 'text' }],
+                tool_results: [],
               })
               break
             }
@@ -303,12 +303,12 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
                 await invokers.addWidget({
                   componentName: 'artistry',
                   componentProps: {
-                    status: 'done',
+                    _skipIngestion: true,
                     entryId,
                     imageUrl: result.imageUrl || result.base64,
                     prompt: analysis.prompt,
+                    status: 'done',
                     title: analysis.title || 'Autonomous Scene',
-                    _skipIngestion: true,
                   },
                   size: 'm',
                   ttlMs: 0,
@@ -339,12 +339,12 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
                 await invokers.addWidget({
                   componentName: 'artistry',
                   componentProps: {
-                    status: 'done',
+                    _skipIngestion: true,
                     entryId,
                     imageUrl: result.imageUrl || result.base64,
                     prompt: analysis.prompt,
+                    status: 'done',
                     title: analysis.title || 'Autonomous Scene',
-                    _skipIngestion: true,
                   },
                   size: 'm',
                   ttlMs: 0,

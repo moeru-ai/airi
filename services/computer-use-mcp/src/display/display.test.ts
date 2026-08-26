@@ -6,31 +6,31 @@ import { findDisplayForPoint, resolveDisplayPoint, toBackingPixelCoord, toDispla
 
 function createTestSnapshot(): MultiDisplaySnapshot {
   const mainDisplay: DisplayDescriptor = {
+    bounds: { height: 982, width: 1512, x: 0, y: 0 },
     displayId: 1,
-    isMain: true,
     isBuiltIn: true,
-    bounds: { x: 0, y: 0, width: 1512, height: 982 },
-    visibleBounds: { x: 0, y: 65, width: 1512, height: 884 },
-    scaleFactor: 2,
-    pixelWidth: 3024,
+    isMain: true,
     pixelHeight: 1964,
+    pixelWidth: 3024,
+    scaleFactor: 2,
+    visibleBounds: { height: 884, width: 1512, x: 0, y: 65 },
   }
 
   const externalDisplay: DisplayDescriptor = {
+    bounds: { height: 1080, width: 1920, x: -222, y: -1080 },
     displayId: 3,
-    isMain: false,
     isBuiltIn: false,
-    bounds: { x: -222, y: -1080, width: 1920, height: 1080 },
-    visibleBounds: { x: -222, y: -1080, width: 1920, height: 1080 },
-    scaleFactor: 1,
-    pixelWidth: 1920,
+    isMain: false,
     pixelHeight: 1080,
+    pixelWidth: 1920,
+    scaleFactor: 1,
+    visibleBounds: { height: 1080, width: 1920, x: -222, y: -1080 },
   }
 
   return {
-    displays: [mainDisplay, externalDisplay],
-    combinedBounds: { x: -222, y: -1080, width: 1920, height: 2062 },
     capturedAt: '2025-01-01T00:00:00.000Z',
+    combinedBounds: { height: 2062, width: 1920, x: -222, y: -1080 },
+    displays: [mainDisplay, externalDisplay],
   }
 }
 

@@ -6,21 +6,21 @@ import { toRef } from '@vueuse/core'
 import { computed } from 'vue'
 
 interface HitTestTarget {
-  readRenderTargetRegionAtClientPoint?: (clientX: number, clientY: number, radius: number) => RenderTargetRegionRead | null
+  readRenderTargetRegionAtClientPoint?: (clientX: number, clientY: number, radius: number) => null | RenderTargetRegionRead
 }
 
 export function useThreeSceneIsTransparentAtPoint(
   scene: MaybeRefOrGetter<HitTestTarget | undefined>,
   pointX: MaybeRefOrGetter<number>,
   pointY: MaybeRefOrGetter<number>,
-  optionsOrThreshold: number | { threshold?: number, regionRadius?: number } = 10,
+  optionsOrThreshold: number | { regionRadius?: number, threshold?: number } = 10,
 ): Ref<boolean> {
   const sceneRef = toRef(scene)
   const xRef = toRef(pointX)
   const yRef = toRef(pointY)
 
   const options = typeof optionsOrThreshold === 'number'
-    ? { threshold: optionsOrThreshold, regionRadius: 0 }
+    ? { regionRadius: 0, threshold: optionsOrThreshold }
     : optionsOrThreshold
 
   const threshold = options?.threshold ?? 10
@@ -36,15 +36,15 @@ export function useThreeSceneIsTransparentAtPoint(
       return true
 
     const {
-      data,
-      readWidth,
-      readHeight,
-      startX,
-      startY,
       centerX,
       centerY,
+      data,
+      readHeight,
+      readWidth,
       scaleX,
       scaleY,
+      startX,
+      startY,
     } = result
 
     const radiusSq = radius * radius

@@ -1,6 +1,12 @@
 import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
 import type { PiniaActionEvent } from '@proj-airi/stage-shared/types/pinia-action-event'
 
+/** Returns the completed browser spans that match the optional span name. */
+export function readCompletedSpans(name?: string) {
+  const spans = window.__airiAudioInputE2E?.spans ?? []
+  return name ? spans.filter(span => span.name === name) : spans
+}
+
 /**
  * Installs passive browser probes before the application starts.
  *
@@ -134,7 +140,16 @@ export function stubForBrowser(piniaActionChannelName: string) {
       }
     }
 
-    send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
+    close(code?: number, reason?: string): void {
+      const audioChunks = audioChunksBySocket.get(this)
+      if (capturesAliyunNlsBySocket.get(this) && audioChunks && !capturedSockets.has(this) && audioChunks.length) {
+        capturePcmAudio(this)
+      }
+
+      super.close(code, reason)
+    }
+
+    send(data: ArrayBufferLike | ArrayBufferView | Blob | string): void {
       const audioChunks = audioChunksBySocket.get(this)
       if (capturesAliyunNlsBySocket.get(this) && audioChunks && typeof data !== 'string') {
         if (data instanceof Blob) {
@@ -151,7 +166,7 @@ export function stubForBrowser(piniaActionChannelName: string) {
         capturePcmAudio(this)
       }
 
-      let outboundData: string | Blob | BufferSource
+      let outboundData: Blob | BufferSource | string
       if (typeof data === 'string' || data instanceof Blob || data instanceof ArrayBuffer) {
         outboundData = data
       }
@@ -165,15 +180,6 @@ export function stubForBrowser(piniaActionChannelName: string) {
       }
 
       super.send(outboundData)
-    }
-
-    close(code?: number, reason?: string): void {
-      const audioChunks = audioChunksBySocket.get(this)
-      if (capturesAliyunNlsBySocket.get(this) && audioChunks && !capturedSockets.has(this) && audioChunks.length) {
-        capturePcmAudio(this)
-      }
-
-      super.close(code, reason)
     }
   }
 
@@ -202,10 +208,4 @@ export function stubForBrowser(piniaActionChannelName: string) {
   }
 
   channel.addEventListener('message', captureSpan)
-}
-
-/** Returns the completed browser spans that match the optional span name. */
-export function readCompletedSpans(name?: string) {
-  const spans = window.__airiAudioInputE2E?.spans ?? []
-  return name ? spans.filter(span => span.name === name) : spans
 }

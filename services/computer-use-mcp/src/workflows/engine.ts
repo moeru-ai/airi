@@ -35,45 +35,68 @@ import { resolveStepAction, resolveTerminalConfig } from './types'
 // ---------------------------------------------------------------------------
 
 /**
- * Captures the state of a paused workflow so it can be resumed
- * after external approval or rejection.
+ * Callback the engine invokes when surface resolution determines a step
+ * needs a PTY. Implementations MUST go through the same approval / grant /
+ * audit pipeline as an external `pty_create` — no shortcuts.
  */
-export interface WorkflowSuspension {
-  workflow: WorkflowDefinition
-  pausedAtStepIndex: number
-  resumeAtStepIndex: number
-  pausedDuring: 'main_action' | 'action_prep' | 'before_pty_acquire'
-  overrides?: Record<string, unknown>
-  stepResults: WorkflowStepResult[]
-  task: ActiveTask
-  /**
-   * Tracks the terminal acquisition progress of the paused step so that
-   * on resume we don't replay already-completed work.
-   */
-  stepProgress?: StepTerminalProgress
+export type AcquirePtyForStep = (params: {
+  /** Whether the engine is running in auto-approve mode. */
+  autoApprove: boolean
+  cols?: number
+  cwd?: string
+  rows?: number
+  stepId: string
+  taskId: string
+}) => Promise<AcquirePtyResult>
+
+export interface AcquirePtyResult {
+  /** Whether the PTY was successfully created. */
+  acquired: boolean
+  /** True when approval is pending — workflow should suspend at `before_pty_acquire`. */
+  approvalPending?: boolean
+  /** Error message (only when acquisition failed non-recoverably). */
+  error?: string
+  /** The allocated session id (only when `acquired` is true). */
+  ptySessionId?: string
+}
+
+export type ExecutePrepTool = (toolName: string, options?: ExecutePrepToolOptions) => Promise<CallToolResult>
+
+export interface ExecutePrepToolOptions {
+  skipApprovalQueue?: boolean
+}
+
+/** Result of a single prep tool invocation within the engine. */
+export interface PreparatoryResult {
+  error?: string
+  /** Metadata returned by the prep handler (slimmed for workflow use). */
+  metadata?: Record<string, unknown>
+  succeeded: boolean
+  toolName: string
 }
 
 /** Terminal acquisition state for a single workflow step. */
 export interface StepTerminalProgress {
-  /** Where in the terminal acquisition lifecycle we are. */
-  terminalPhase: 'not_started' | 'acquiring' | 'acquired' | 'executing'
   /** Pre-PTY preparations that completed before the pause. */
   completedPreparations: string[]
   /** Bound PTY session id (if already acquired before the pause). */
   ptySessionId?: string
+  /** Where in the terminal acquisition lifecycle we are. */
+  terminalPhase: 'acquired' | 'acquiring' | 'executing' | 'not_started'
 }
 
-export type WorkflowStatus = 'completed' | 'failed' | 'paused' | 'reroute_required'
-
 export interface WorkflowExecutionResult {
-  /** Whether the workflow completed all steps successfully. */
-  success: boolean
+  /**
+   * When status is 'reroute_required', the advisory that triggered it
+   * so the caller knows which surface to switch to.
+   */
+  rerouteAdvisory?: StrategyAdvisory
   /** Machine-readable overall status. */
   status: WorkflowStatus
-  /** The final task state. */
-  task: ActiveTask
   /** Per-step results. */
   stepResults: WorkflowStepResult[]
+  /** Whether the workflow completed all steps successfully. */
+  success: boolean
   /** Human-readable summary of the entire workflow execution. */
   summary: string
   /**
@@ -81,93 +104,65 @@ export interface WorkflowExecutionResult {
    * the state needed to resume it later via `resumeWorkflow()`.
    */
   suspension?: WorkflowSuspension
-  /**
-   * When status is 'reroute_required', the advisory that triggered it
-   * so the caller knows which surface to switch to.
-   */
-  rerouteAdvisory?: StrategyAdvisory
+  /** The final task state. */
+  task: ActiveTask
 }
 
-export interface ExecutePrepToolOptions {
-  skipApprovalQueue?: boolean
-}
-
-export type ExecutePrepTool = (toolName: string, options?: ExecutePrepToolOptions) => Promise<CallToolResult>
-
-/** Result of a single prep tool invocation within the engine. */
-export interface PreparatoryResult {
-  toolName: string
-  succeeded: boolean
-  error?: string
-  /** Metadata returned by the prep handler (slimmed for workflow use). */
-  metadata?: Record<string, unknown>
-}
-
-export interface WorkflowStepResult {
-  step: WorkflowStepTemplate
-  /** MCP tool result (undefined for non-action steps). */
-  toolResult?: CallToolResult
-  /** Strategy advisories evaluated before execution. */
-  advisories: StrategyAdvisory[]
-  /** Whether this step succeeded. */
-  succeeded: boolean
-  /** Machine-readable step-level status. */
-  status: 'success' | 'failure' | 'reroute_required' | 'pending_approval' | 'prepared'
-  /** Explanation of what happened. */
-  explanation: string
-  /** Results of preparatory tool invocations (if any). */
-  preparatoryResults?: PreparatoryResult[]
-}
+export type WorkflowStatus = 'completed' | 'failed' | 'paused' | 'reroute_required'
 
 // ---------------------------------------------------------------------------
 // PTY acquisition callback
 // ---------------------------------------------------------------------------
 
-export interface AcquirePtyResult {
-  /** Whether the PTY was successfully created. */
-  acquired: boolean
-  /** The allocated session id (only when `acquired` is true). */
-  ptySessionId?: string
-  /** True when approval is pending — workflow should suspend at `before_pty_acquire`. */
-  approvalPending?: boolean
-  /** Error message (only when acquisition failed non-recoverably). */
-  error?: string
+export interface WorkflowStepResult {
+  /** Strategy advisories evaluated before execution. */
+  advisories: StrategyAdvisory[]
+  /** Explanation of what happened. */
+  explanation: string
+  /** Results of preparatory tool invocations (if any). */
+  preparatoryResults?: PreparatoryResult[]
+  /** Machine-readable step-level status. */
+  status: 'failure' | 'pending_approval' | 'prepared' | 'reroute_required' | 'success'
+  step: WorkflowStepTemplate
+  /** Whether this step succeeded. */
+  succeeded: boolean
+  /** MCP tool result (undefined for non-action steps). */
+  toolResult?: CallToolResult
 }
 
 /**
- * Callback the engine invokes when surface resolution determines a step
- * needs a PTY. Implementations MUST go through the same approval / grant /
- * audit pipeline as an external `pty_create` — no shortcuts.
+ * Captures the state of a paused workflow so it can be resumed
+ * after external approval or rejection.
  */
-export type AcquirePtyForStep = (params: {
-  taskId: string
-  stepId: string
-  cwd?: string
-  rows?: number
-  cols?: number
-  /** Whether the engine is running in auto-approve mode. */
-  autoApprove: boolean
-}) => Promise<AcquirePtyResult>
+export interface WorkflowSuspension {
+  overrides?: Record<string, unknown>
+  pausedAtStepIndex: number
+  pausedDuring: 'action_prep' | 'before_pty_acquire' | 'main_action'
+  resumeAtStepIndex: number
+  /**
+   * Tracks the terminal acquisition progress of the paused step so that
+   * on resume we don't replay already-completed work.
+   */
+  stepProgress?: StepTerminalProgress
+  stepResults: WorkflowStepResult[]
+  task: ActiveTask
+  workflow: WorkflowDefinition
+}
 
 // ---------------------------------------------------------------------------
 // Engine
 // ---------------------------------------------------------------------------
 
 export async function executeWorkflow(params: {
-  workflow: WorkflowDefinition
-  executeAction: ExecuteAction
-  executePrepTool?: ExecutePrepTool
-  stateManager: RunStateManager
-  refreshState?: () => Promise<void>
-  /** Override parameters to inject at runtime (e.g. project path). */
-  overrides?: Record<string, unknown>
   /**
-   * If true, all action steps within this workflow will bypass the
-   * approval queue. The user has already expressed intent by invoking
-   * the workflow tool, so individual-step confirmation is unnecessary.
-   * Default: false.
+   * Internal: resume state from a previous suspension. Use `resumeWorkflow()`
+   * instead of setting this directly.
    */
-  autoApproveSteps?: boolean
+  _resume?: {
+    existingTask: ActiveTask
+    previousResults: WorkflowStepResult[]
+    startIndex: number
+  }
   /**
    * Callback to acquire a PTY session. The engine uses this when surface
    * resolution determines a step needs a PTY. The callback MUST go through
@@ -176,36 +171,41 @@ export async function executeWorkflow(params: {
    */
   acquirePty?: AcquirePtyForStep
   /**
-   * Internal: resume state from a previous suspension. Use `resumeWorkflow()`
-   * instead of setting this directly.
+   * If true, all action steps within this workflow will bypass the
+   * approval queue. The user has already expressed intent by invoking
+   * the workflow tool, so individual-step confirmation is unnecessary.
+   * Default: false.
    */
-  _resume?: {
-    startIndex: number
-    previousResults: WorkflowStepResult[]
-    existingTask: ActiveTask
-  }
+  autoApproveSteps?: boolean
+  executeAction: ExecuteAction
+  executePrepTool?: ExecutePrepTool
+  /** Override parameters to inject at runtime (e.g. project path). */
+  overrides?: Record<string, unknown>
+  refreshState?: () => Promise<void>
+  stateManager: RunStateManager
+  workflow: WorkflowDefinition
 }): Promise<WorkflowExecutionResult> {
-  const { workflow, executeAction, executePrepTool, stateManager, refreshState, overrides, autoApproveSteps, acquirePty } = params
+  const { acquirePty, autoApproveSteps, executeAction, executePrepTool, overrides, refreshState, stateManager, workflow } = params
   const stepResults: WorkflowStepResult[] = params._resume?.previousResults ?? []
   const startIndex = params._resume?.startIndex ?? 0
 
   // Create the task in run state, or reuse existing task when resuming.
   const task: ActiveTask = params._resume?.existingTask ?? {
-    id: randomUUID(),
+    currentStepIndex: 0,
+    failureCount: 0,
     goal: workflow.name,
-    workflowId: workflow.id,
+    id: randomUUID(),
+    maxConsecutiveFailures: workflow.maxRetries,
     phase: 'executing',
+    startedAt: new Date().toISOString(),
     steps: workflow.steps.map((s, i) => ({
       index: i + 1,
-      stepId: `step_${randomUUID()}`,
       label: s.label,
-      toolName: undefined,
       outcome: undefined,
+      stepId: `step_${randomUUID()}`,
+      toolName: undefined,
     } satisfies TaskStep)),
-    currentStepIndex: 0,
-    startedAt: new Date().toISOString(),
-    failureCount: 0,
-    maxConsecutiveFailures: workflow.maxRetries,
+    workflowId: workflow.id,
   }
   if (!params._resume) {
     stateManager.startTask(task)
@@ -254,22 +254,22 @@ export async function executeWorkflow(params: {
 
     if (isPtyStepFamily) {
       const ptyResult = await executePtyStepFamily({
+        executePrepTool,
+        stateManager,
         step: resolvedStep,
         task,
         taskStep,
-        stateManager,
-        executePrepTool,
       })
 
       stateManager.completeCurrentStep(ptyResult.succeeded ? 'success' : 'failure', ptyResult.explanation)
       taskStep.outcome = ptyResult.succeeded ? 'success' : 'failure'
       taskStep.finishedAt = new Date().toISOString()
       stepResults.push({
-        step: resolvedStep,
-        advisories: [{ kind: 'proceed', reason: 'PTY step family.', category: 'informational', recommendedSurface: 'pty' }],
-        succeeded: ptyResult.succeeded,
-        status: ptyResult.succeeded ? 'success' : 'failure',
+        advisories: [{ category: 'informational', kind: 'proceed', reason: 'PTY step family.', recommendedSurface: 'pty' }],
         explanation: ptyResult.explanation,
+        status: ptyResult.succeeded ? 'success' : 'failure',
+        step: resolvedStep,
+        succeeded: ptyResult.succeeded,
       })
 
       if (!ptyResult.succeeded && resolvedStep.critical) {
@@ -289,11 +289,11 @@ export async function executeWorkflow(params: {
       taskStep.outcome = 'success'
       taskStep.finishedAt = new Date().toISOString()
       stepResults.push({
-        step: resolvedStep,
-        advisories: [{ kind: 'proceed', reason: 'Non-action step.', category: 'informational', recommendedSurface: 'none' }],
-        succeeded: true,
-        status: 'success',
+        advisories: [{ category: 'informational', kind: 'proceed', reason: 'Non-action step.', recommendedSurface: 'none' }],
         explanation,
+        status: 'success',
+        step: resolvedStep,
+        succeeded: true,
       })
       continue
     }
@@ -317,11 +317,11 @@ export async function executeWorkflow(params: {
       stateManager.completeCurrentStep('failure', abortAdvisory.reason)
       stateManager.finishTask('failed')
       stepResults.push({
-        step: resolvedStep,
         advisories,
-        succeeded: false,
-        status: 'failure',
         explanation: `Aborted: ${abortAdvisory.reason}`,
+        status: 'failure',
+        step: resolvedStep,
+        succeeded: false,
       })
       break
     }
@@ -344,11 +344,11 @@ export async function executeWorkflow(params: {
     if (isTerminalStep) {
       const terminalConfig = resolveTerminalConfig(resolvedStep)
       const surfaceResolution = resolveTerminalSurface({
-        taskId: task.id,
-        stepId: taskStep.stepId,
-        config: terminalConfig,
         command: action.input.command as string,
+        config: terminalConfig,
         state,
+        stepId: taskStep.stepId,
+        taskId: task.id,
       })
 
       if (surfaceResolution.surface === 'pty') {
@@ -360,10 +360,10 @@ export async function executeWorkflow(params: {
           if (!ptySessionId) {
             // Need to acquire a new PTY session
             const acquireResult = await acquirePty({
-              taskId: task.id,
-              stepId: taskStep.stepId,
-              cwd: action.input.cwd as string | undefined,
               autoApprove: autoApproveSteps ?? false,
+              cwd: action.input.cwd as string | undefined,
+              stepId: taskStep.stepId,
+              taskId: task.id,
             })
 
             if (acquireResult.approvalPending) {
@@ -373,36 +373,36 @@ export async function executeWorkflow(params: {
               taskStep.outcome = 'pending_approval'
               taskStep.finishedAt = new Date().toISOString()
               stepResults.push({
-                step: resolvedStep,
                 advisories,
-                succeeded: false,
-                status: 'pending_approval',
                 explanation: `PTY acquisition requires approval: ${surfaceResolution.explanation}`,
+                status: 'pending_approval',
+                step: resolvedStep,
+                succeeded: false,
               })
 
               const suspension: WorkflowSuspension = {
-                workflow,
+                overrides,
                 pausedAtStepIndex: i,
+                pausedDuring: 'before_pty_acquire',
                 // Resume at the SAME step (not i+1) — the PTY acquire logic replays
                 resumeAtStepIndex: i,
-                pausedDuring: 'before_pty_acquire',
-                overrides,
-                stepResults: [...stepResults],
-                task: { ...task },
                 stepProgress: {
-                  terminalPhase: 'acquiring',
                   completedPreparations: [],
                   ptySessionId: undefined,
+                  terminalPhase: 'acquiring',
                 },
+                stepResults: [...stepResults],
+                task: { ...task },
+                workflow,
               }
 
               return {
-                success: false,
                 status: 'paused',
-                task,
                 stepResults,
+                success: false,
                 summary: buildWorkflowSummary(workflow, task, stepResults),
                 suspension,
+                task,
               }
             }
 
@@ -412,18 +412,18 @@ export async function executeWorkflow(params: {
               stateManager.completeCurrentStep('failure', errorMsg)
               stateManager.finishTask('failed')
               stepResults.push({
-                step: resolvedStep,
                 advisories,
-                succeeded: false,
-                status: 'failure',
                 explanation: `PTY acquisition failed: ${errorMsg}`,
+                status: 'failure',
+                step: resolvedStep,
+                succeeded: false,
               })
               return {
-                success: false,
                 status: 'failed',
-                task,
                 stepResults,
+                success: false,
                 summary: buildWorkflowSummary(workflow, task, stepResults),
+                task,
               }
             }
 
@@ -432,16 +432,16 @@ export async function executeWorkflow(params: {
 
           // PTY acquired — record surface decision + binding
           stateManager.recordSurfaceDecision({
-            surface: 'pty',
-            transport: 'pty',
             reason: surfaceResolution.explanation,
             source: `surface_resolver:${surfaceResolution.reason}`,
+            surface: 'pty',
+            transport: 'pty',
           })
           stateManager.addStepTerminalBinding({
-            taskId: task.id,
+            ptySessionId,
             stepId: taskStep.stepId,
             surface: 'pty',
-            ptySessionId,
+            taskId: task.id,
           })
           if (!surfaceResolution.boundPtySessionId) {
             stateManager.bindPtySessionToStepId(ptySessionId, taskStep.stepId)
@@ -452,9 +452,9 @@ export async function executeWorkflow(params: {
           // For persistent commands we just bind — subsequent explicit PTY steps handle interaction
           if (terminalConfig.interaction === 'one_shot') {
             const ptyExecResult = await executePtyCommand({
-              ptySessionId,
               command: action.input.command as string,
               executePrepTool,
+              ptySessionId,
             })
 
             if (ptyExecResult.succeeded) {
@@ -462,22 +462,22 @@ export async function executeWorkflow(params: {
               taskStep.outcome = 'success'
               taskStep.finishedAt = new Date().toISOString()
               stepResults.push({
-                step: resolvedStep,
                 advisories,
-                succeeded: true,
-                status: 'success',
                 explanation: `Ran on PTY ${ptySessionId}: ${ptyExecResult.explanation}`,
+                status: 'success',
+                step: resolvedStep,
+                succeeded: true,
               })
               continue
             }
             else {
               stateManager.completeCurrentStep('failure', ptyExecResult.explanation)
               stepResults.push({
-                step: resolvedStep,
                 advisories,
-                succeeded: false,
-                status: 'failure',
                 explanation: `PTY command failed: ${ptyExecResult.explanation}`,
+                status: 'failure',
+                step: resolvedStep,
+                succeeded: false,
               })
               if (resolvedStep.critical) {
                 stateManager.finishTask('failed')
@@ -493,11 +493,11 @@ export async function executeWorkflow(params: {
             taskStep.outcome = 'success'
             taskStep.finishedAt = new Date().toISOString()
             stepResults.push({
-              step: resolvedStep,
               advisories,
-              succeeded: true,
-              status: 'success',
               explanation: `PTY ${ptySessionId} bound for persistent interaction.`,
+              status: 'success',
+              step: resolvedStep,
+              succeeded: true,
             })
             continue
           }
@@ -509,15 +509,15 @@ export async function executeWorkflow(params: {
         const boundPtySessionId = existingBinding?.ptySessionId ?? stateManager.getActivePtySessionId()
 
         stateManager.recordSurfaceDecision({
-          surface: 'pty',
-          transport: 'pty',
           reason: surfaceResolution.explanation,
           source: 'surface_resolver_legacy_reroute',
+          surface: 'pty',
+          transport: 'pty',
         })
         stateManager.addStepTerminalBinding({
-          taskId: task.id,
           stepId: taskStep.stepId,
           surface: 'pty',
+          taskId: task.id,
           ...(boundPtySessionId ? { ptySessionId: boundPtySessionId } : {}),
         })
 
@@ -526,40 +526,40 @@ export async function executeWorkflow(params: {
         taskStep.finishedAt = new Date().toISOString()
         stateManager.finishTask('reroute_required')
         stepResults.push({
-          step: resolvedStep,
           advisories,
-          succeeded: false,
-          status: 'reroute_required',
           explanation: `exec → pty reroute: ${surfaceResolution.explanation}`,
+          status: 'reroute_required',
+          step: resolvedStep,
+          succeeded: false,
         })
 
         return {
-          success: false,
-          status: 'reroute_required',
-          task,
-          stepResults,
-          summary: buildWorkflowSummary(workflow, task, stepResults),
           rerouteAdvisory: ptyRerouteAdvisory ?? {
-            kind: 'use_pty_surface',
             category: 'reroute',
-            recommendedSurface: 'pty',
+            kind: 'use_pty_surface',
             reason: surfaceResolution.explanation,
+            recommendedSurface: 'pty',
             suggestedToolName: 'pty_read_screen',
           },
+          status: 'reroute_required',
+          stepResults,
+          success: false,
+          summary: buildWorkflowSummary(workflow, task, stepResults),
+          task,
         }
       }
 
       // exec surface — record and continue to normal exec below
       stateManager.recordSurfaceDecision({
-        surface: 'exec',
-        transport: 'exec',
         reason: surfaceResolution.explanation,
         source: `surface_resolver:${surfaceResolution.reason}`,
+        surface: 'exec',
+        transport: 'exec',
       })
       stateManager.addStepTerminalBinding({
-        taskId: task.id,
         stepId: taskStep.stepId,
         surface: 'exec',
+        taskId: task.id,
       })
     }
 
@@ -569,17 +569,17 @@ export async function executeWorkflow(params: {
     if (actionPrepAdvisories.length > 0) {
       const prepOutcome = await executeActionPreparations({
         advisories: actionPrepAdvisories,
+        autoApproveSteps: autoApproveSteps ?? false,
         executeAction,
-        workflow,
+        existingPreparatoryResults: preparatoryResults,
+        overrides,
         resolvedStep,
+        stateManager,
         stepIndex: i,
+        stepResults,
         task,
         taskStep,
-        stepResults,
-        stateManager,
-        overrides,
-        autoApproveSteps: autoApproveSteps ?? false,
-        existingPreparatoryResults: preparatoryResults,
+        workflow,
       })
 
       if (prepOutcome) {
@@ -602,19 +602,19 @@ export async function executeWorkflow(params: {
         stateManager.completeCurrentStep('failure', postActionAbortAdvisory.reason)
         stateManager.finishTask('failed')
         stepResults.push({
-          step: resolvedStep,
           advisories,
-          succeeded: false,
-          status: 'failure',
           explanation: `Aborted: ${postActionAbortAdvisory.reason}`,
           preparatoryResults,
+          status: 'failure',
+          step: resolvedStep,
+          succeeded: false,
         })
         return {
-          success: false,
           status: 'failed',
-          task,
           stepResults,
+          success: false,
           summary: buildWorkflowSummary(workflow, task, stepResults),
+          task,
         }
       }
     }
@@ -627,7 +627,7 @@ export async function executeWorkflow(params: {
       .filter(a => PREP_TOOL_POLICY[a.kind])
       .sort((a, b) => (PREP_TOOL_POLICY[a.kind]!.priority) - (PREP_TOOL_POLICY[b.kind]!.priority))
 
-    let prepFailure: { toolName: string, message: string } | undefined
+    let prepFailure: undefined | { message: string, toolName: string }
     let rerouteTriggered = false
     let rerouteAdvisory: StrategyAdvisory | undefined
 
@@ -638,9 +638,9 @@ export async function executeWorkflow(params: {
       // advisory_only: log it but don't invoke
       if (policy.retryability === 'advisory_only') {
         preparatoryResults.push({
-          toolName: prepToolName,
-          succeeded: true,
           metadata: { advisory_only: true },
+          succeeded: true,
+          toolName: prepToolName,
         })
         continue
       }
@@ -660,22 +660,22 @@ export async function executeWorkflow(params: {
             advisory: prepAdv,
             executeAction,
             executePrepTool,
-            skipApprovalQueue: autoApproveSteps ?? false,
             retry: true,
+            skipApprovalQueue: autoApproveSteps ?? false,
           })
         }
 
         if (prepResult.isError === true) {
           const errorMessage = extractErrorMessage(prepResult)
           preparatoryResults.push({
-            toolName: prepToolName,
-            succeeded: false,
             error: errorMessage,
             metadata: extractPrepMetadata(prepToolName, prepResult),
+            succeeded: false,
+            toolName: prepToolName,
           })
           prepFailure = {
-            toolName: prepToolName,
             message: errorMessage,
+            toolName: prepToolName,
           }
           break
         }
@@ -688,9 +688,9 @@ export async function executeWorkflow(params: {
         }
 
         preparatoryResults.push({
-          toolName: prepToolName,
-          succeeded: true,
           metadata: extractPrepMetadata(prepToolName, prepResult),
+          succeeded: true,
+          toolName: prepToolName,
         })
 
         if (policy.outcomeOnSuccess === 'reroute') {
@@ -702,13 +702,13 @@ export async function executeWorkflow(params: {
       catch (error) {
         const errorMessage = errorMessageFromValue(error)
         preparatoryResults.push({
-          toolName: prepToolName,
-          succeeded: false,
           error: errorMessage,
+          succeeded: false,
+          toolName: prepToolName,
         })
         prepFailure = {
-          toolName: prepToolName,
           message: errorMessage,
+          toolName: prepToolName,
         }
         break
       }
@@ -720,20 +720,20 @@ export async function executeWorkflow(params: {
       stateManager.completeCurrentStep('failure', failureExplanation)
       stateManager.finishTask('failed')
       stepResults.push({
-        step: resolvedStep,
         advisories,
-        succeeded: false,
-        status: 'failure',
         explanation: failureExplanation,
         preparatoryResults,
+        status: 'failure',
+        step: resolvedStep,
+        succeeded: false,
       })
 
       return {
-        success: false,
         status: 'failed',
-        task,
         stepResults,
+        success: false,
         summary: buildWorkflowSummary(workflow, task, stepResults),
+        task,
       }
     }
 
@@ -744,21 +744,21 @@ export async function executeWorkflow(params: {
       taskStep.finishedAt = new Date().toISOString()
       stateManager.finishTask('reroute_required')
       stepResults.push({
-        step: resolvedStep,
         advisories,
-        succeeded: false,
-        status: 'reroute_required',
         explanation: `Reroute required: ${rerouteAdvisory.reason}`,
         preparatoryResults,
+        status: 'reroute_required',
+        step: resolvedStep,
+        succeeded: false,
       })
 
       return {
-        success: false,
-        status: 'reroute_required',
-        task,
-        stepResults,
-        summary: buildWorkflowSummary(workflow, task, stepResults),
         rerouteAdvisory,
+        status: 'reroute_required',
+        stepResults,
+        success: false,
+        summary: buildWorkflowSummary(workflow, task, stepResults),
+        task,
       }
     }
 
@@ -783,57 +783,57 @@ export async function executeWorkflow(params: {
         taskStep.outcome = 'pending_approval'
         taskStep.finishedAt = new Date().toISOString()
         stepResults.push({
-          step: resolvedStep,
-          toolResult: result,
           advisories,
-          succeeded: false,
-          status: 'pending_approval',
           explanation: `${intent} — Awaiting approval. ${explainNextStep(advisories, task)}`,
           preparatoryResults: preparatoryResults.length > 0 ? preparatoryResults : undefined,
+          status: 'pending_approval',
+          step: resolvedStep,
+          succeeded: false,
+          toolResult: result,
         })
         // Build suspension so the workflow can be resumed after approval.
         const suspension: WorkflowSuspension = {
-          workflow,
-          pausedAtStepIndex: i,
-          resumeAtStepIndex: i + 1,
-          pausedDuring: 'main_action',
           overrides,
+          pausedAtStepIndex: i,
+          pausedDuring: 'main_action',
+          resumeAtStepIndex: i + 1,
           stepResults: [...stepResults],
           task: { ...task },
+          workflow,
         }
         return {
-          success: false,
           status: 'paused' as WorkflowStatus,
-          task,
           stepResults,
+          success: false,
           summary: buildWorkflowSummary(workflow, task, stepResults),
           suspension,
+          task,
         }
       }
 
       if (isError) {
         const errorMsg = extractErrorMessage(result)
         const recovery = buildRecoveryPlan({
-          failedAction: action,
           errorMessage: errorMsg,
+          failedAction: action,
           state: stateManager.getState(),
         })
 
         stateManager.completeCurrentStep('failure', errorMsg)
         // NOTICE: completeCurrentStep already increments failureCount — do NOT double-count.
         stepResults.push({
-          step: resolvedStep,
-          toolResult: result,
           advisories: [...advisories, recovery],
-          succeeded: false,
-          status: 'failure',
           explanation: explainActionOutcome({
             action,
-            succeeded: false,
-            errorMessage: errorMsg,
             context: stateManager.getState().foregroundContext || { available: false, platform: process.platform as NodeJS.Platform },
+            errorMessage: errorMsg,
+            succeeded: false,
           }),
           preparatoryResults: preparatoryResults.length > 0 ? preparatoryResults : undefined,
+          status: 'failure',
+          step: resolvedStep,
+          succeeded: false,
+          toolResult: result,
         })
 
         // If the step is critical, abort.
@@ -850,17 +850,17 @@ export async function executeWorkflow(params: {
       taskStep.outcome = 'success'
       taskStep.finishedAt = new Date().toISOString()
       stepResults.push({
-        step: resolvedStep,
-        toolResult: result,
         advisories,
-        succeeded: true,
-        status: 'success',
         explanation: explainActionOutcome({
           action,
-          succeeded: true,
           context: stateManager.getState().foregroundContext || { available: false, platform: process.platform as NodeJS.Platform },
+          succeeded: true,
         }),
         preparatoryResults: preparatoryResults.length > 0 ? preparatoryResults : undefined,
+        status: 'success',
+        step: resolvedStep,
+        succeeded: true,
+        toolResult: result,
       })
     }
     catch (error) {
@@ -868,12 +868,12 @@ export async function executeWorkflow(params: {
       stateManager.completeCurrentStep('failure', errorMsg)
       // NOTICE: completeCurrentStep already increments failureCount — do NOT double-count.
       stepResults.push({
-        step: resolvedStep,
         advisories,
-        succeeded: false,
-        status: 'failure',
         explanation: `Unexpected error: ${errorMsg}`,
         preparatoryResults: preparatoryResults.length > 0 ? preparatoryResults : undefined,
+        status: 'failure',
+        step: resolvedStep,
+        succeeded: false,
       })
 
       if (resolvedStep.critical) {
@@ -899,11 +899,11 @@ export async function executeWorkflow(params: {
   const status: WorkflowStatus = allCompleted && !wasAborted ? 'completed' : 'failed'
 
   return {
-    success: allCompleted && !wasAborted,
     status,
-    task,
     stepResults,
+    success: allCompleted && !wasAborted,
     summary,
+    task,
   }
 }
 
@@ -919,18 +919,18 @@ export async function executeWorkflow(params: {
  * or rejected via `desktop_reject_pending_action`).
  */
 export async function resumeWorkflow(params: {
-  suspension: WorkflowSuspension
-  executeAction: ExecuteAction
-  executePrepTool?: ExecutePrepTool
-  stateManager: RunStateManager
-  refreshState?: () => Promise<void>
+  acquirePty?: AcquirePtyForStep
   /** Whether the pending step's approval was granted. Default: true. */
   approved?: boolean
   /** Skip per-step approval for remaining steps. Default: false. */
   autoApproveSteps?: boolean
-  acquirePty?: AcquirePtyForStep
+  executeAction: ExecuteAction
+  executePrepTool?: ExecutePrepTool
+  refreshState?: () => Promise<void>
+  stateManager: RunStateManager
+  suspension: WorkflowSuspension
 }): Promise<WorkflowExecutionResult> {
-  const { suspension, executeAction, executePrepTool, stateManager, refreshState, approved = true, autoApproveSteps, acquirePty } = params
+  const { acquirePty, approved = true, autoApproveSteps, executeAction, executePrepTool, refreshState, stateManager, suspension } = params
 
   // Update the paused step's outcome in the carried-over results.
   const pausedStep = suspension.task.steps[suspension.pausedAtStepIndex]
@@ -958,11 +958,11 @@ export async function resumeWorkflow(params: {
     stateManager.finishTask('failed')
     suspension.task.phase = 'failed'
     return {
-      success: false,
       status: 'failed' as WorkflowStatus,
-      task: suspension.task,
       stepResults: suspension.stepResults,
+      success: false,
       summary: buildWorkflowSummary(suspension.workflow, suspension.task, suspension.stepResults),
+      task: suspension.task,
     }
   }
 
@@ -975,342 +975,25 @@ export async function resumeWorkflow(params: {
       : suspension.stepResults
 
   return executeWorkflow({
-    workflow: suspension.workflow,
+    _resume: {
+      existingTask: suspension.task,
+      previousResults,
+      startIndex: suspension.resumeAtStepIndex,
+    },
+    acquirePty,
+    autoApproveSteps,
     executeAction,
     executePrepTool,
-    stateManager,
-    refreshState,
     overrides: suspension.overrides,
-    autoApproveSteps,
-    acquirePty,
-    _resume: {
-      startIndex: suspension.resumeAtStepIndex,
-      previousResults,
-      existingTask: suspension.task,
-    },
+    refreshState,
+    stateManager,
+    workflow: suspension.workflow,
   })
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Execute a PTY step family operation within the workflow engine.
- * Resolves the bound PTY session from state and drives the operation
- * through the standard tool pipeline.
- */
-async function executePtyStepFamily(params: {
-  step: WorkflowStepTemplate
-  task: ActiveTask
-  taskStep: TaskStep
-  stateManager: RunStateManager
-  executePrepTool?: ExecutePrepTool
-}): Promise<{ succeeded: boolean, explanation: string }> {
-  const { step, task, taskStep, stateManager, executePrepTool } = params
-
-  if (!executePrepTool) {
-    return { succeeded: false, explanation: 'No executePrepTool callback — cannot execute PTY step family.' }
-  }
-
-  // Find the PTY session bound to this step (or the most recent active session)
-  const binding = stateManager.getStepTerminalBinding(task.id, taskStep.stepId)
-  const ptySessionId = binding?.ptySessionId
-    ?? (step.params.sessionId as string | undefined)
-    ?? stateManager.getActivePtySessionId()
-
-  if (!ptySessionId && step.kind !== 'pty_destroy_session') {
-    return { succeeded: false, explanation: 'No PTY session id available for this step.' }
-  }
-
-  try {
-    switch (step.kind) {
-      case 'pty_send_input': {
-        const data = step.params.data as string
-        if (!data) {
-          return { succeeded: false, explanation: 'pty_send_input requires a "data" param.' }
-        }
-        const result = await executePrepTool(`pty_send_input:${ptySessionId}:${data}`)
-        if (result.isError === true) {
-          return { succeeded: false, explanation: `pty_send_input failed: ${extractErrorMessage(result)}` }
-        }
-        return { succeeded: true, explanation: `Sent ${data.length} bytes to PTY ${ptySessionId}.` }
-      }
-
-      case 'pty_read_screen': {
-        const result = await executePrepTool(`pty_read_screen:${ptySessionId}`)
-        if (result.isError === true) {
-          return { succeeded: false, explanation: `pty_read_screen failed: ${extractErrorMessage(result)}` }
-        }
-        return { succeeded: true, explanation: `Read screen from PTY ${ptySessionId}.` }
-      }
-
-      case 'pty_wait_for_output': {
-        const marker = step.params.marker as string
-        const timeoutMs = (step.params.timeoutMs as number) ?? 10_000
-        if (!marker) {
-          return { succeeded: false, explanation: 'pty_wait_for_output requires a "marker" param.' }
-        }
-        const deadline = Date.now() + timeoutMs
-        while (Date.now() < deadline) {
-          const result = await executePrepTool(`pty_read_screen:${ptySessionId}`)
-          if (result.isError !== true) {
-            const structured = toRecord(result.structuredContent)
-            const content = typeof structured?.screenContent === 'string' ? structured.screenContent : ''
-            if (content.includes(marker)) {
-              return { succeeded: true, explanation: `Marker "${marker}" found in PTY ${ptySessionId}.` }
-            }
-          }
-          await new Promise(resolve => setTimeout(resolve, 250))
-        }
-        return { succeeded: false, explanation: `Timeout waiting for marker "${marker}" in PTY ${ptySessionId}.` }
-      }
-
-      case 'pty_destroy_session': {
-        const targetId = ptySessionId ?? (step.params.sessionId as string)
-        if (!targetId) {
-          return { succeeded: false, explanation: 'pty_destroy_session requires a session id.' }
-        }
-        const result = await executePrepTool(`pty_destroy:${targetId}`)
-        if (result.isError === true) {
-          return { succeeded: false, explanation: `pty_destroy failed: ${extractErrorMessage(result)}` }
-        }
-        return { succeeded: true, explanation: `Destroyed PTY session ${targetId}.` }
-      }
-
-      default:
-        return { succeeded: false, explanation: `Unknown PTY step kind: ${step.kind}` }
-    }
-  }
-  catch (error) {
-    return { succeeded: false, explanation: `PTY step error: ${errorMessageFromValue(error)}` }
-  }
-}
-
-/**
- * Execute a one-shot command on a PTY session by sending the command,
- * waiting briefly, and reading the screen.
- *
- * This is the engine's internal "PTY exec" — it uses `executePrepTool`
- * to drive `pty_send_input` + `pty_read_screen` which go through the
- * same tool pipeline as external callers.
- */
-async function executePtyCommand(params: {
-  ptySessionId: string
-  command: string
-  executePrepTool?: ExecutePrepTool
-}): Promise<{ succeeded: boolean, explanation: string, screenContent?: string }> {
-  const { ptySessionId, command, executePrepTool } = params
-
-  if (!executePrepTool) {
-    return {
-      succeeded: false,
-      explanation: 'No executePrepTool callback available for PTY command execution.',
-    }
-  }
-
-  try {
-    // Send the command with a trailing carriage return
-    const sendResult = await executePrepTool(`pty_send_input:${ptySessionId}:${command}`)
-    if (sendResult.isError === true) {
-      return {
-        succeeded: false,
-        explanation: `PTY send_input failed: ${extractErrorMessage(sendResult)}`,
-      }
-    }
-
-    // Brief pause for command execution
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    // Read the screen
-    const readResult = await executePrepTool(`pty_read_screen:${ptySessionId}`)
-    if (readResult.isError === true) {
-      return {
-        succeeded: false,
-        explanation: `PTY read_screen failed: ${extractErrorMessage(readResult)}`,
-      }
-    }
-
-    const structured = toRecord(readResult.structuredContent)
-    const screenContent = typeof structured?.screenContent === 'string'
-      ? structured.screenContent
-      : undefined
-
-    return {
-      succeeded: true,
-      explanation: `Command sent to PTY ${ptySessionId}`,
-      screenContent,
-    }
-  }
-  catch (error) {
-    return {
-      succeeded: false,
-      explanation: `PTY command execution error: ${errorMessageFromValue(error)}`,
-    }
-  }
-}
-
-function extractErrorMessage(result: CallToolResult): string {
-  const textParts = (result.content ?? [])
-    .filter((c): c is { type: 'text', text: string } => c.type === 'text')
-    .map(c => c.text)
-  return textParts.join(' ') || 'Unknown error'
-}
-
-function toRecord(value: unknown): Record<string, unknown> | undefined {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return undefined
-  }
-
-  return value as Record<string, unknown>
-}
-
-function toBounds(value: unknown): DisplayInfo['combinedBounds'] {
-  const record = toRecord(value)
-
-  if (!record) {
-    return undefined
-  }
-
-  const x = typeof record.x === 'number' ? record.x : undefined
-  const y = typeof record.y === 'number' ? record.y : undefined
-  const width = typeof record.width === 'number' ? record.width : undefined
-  const height = typeof record.height === 'number' ? record.height : undefined
-
-  if (x === undefined || y === undefined || width === undefined || height === undefined) {
-    return undefined
-  }
-
-  return { x, y, width, height }
-}
-
-function extractPrepMetadata(toolName: string, result: CallToolResult): Record<string, unknown> | undefined {
-  const structured = toRecord(result.structuredContent)
-
-  if (!structured) {
-    return undefined
-  }
-
-  switch (toolName) {
-    case 'display_enumerate':
-      return {
-        status: structured.status,
-        displayCount: structured.displayCount,
-        combinedBounds: structured.combinedBounds,
-        capturedAt: structured.capturedAt,
-      }
-    case 'accessibility_snapshot':
-      return {
-        status: structured.status,
-        appName: structured.appName,
-        pid: structured.pid,
-        nodeCount: structured.nodeCount,
-        capturedAt: structured.capturedAt,
-      }
-    case 'browser_cdp_collect_elements':
-      return {
-        status: structured.status,
-        elementCount: structured.elementCount,
-        page: structured.page,
-      }
-    case 'browser_dom_read_page':
-      return {
-        status: structured.status,
-        frameCount: structured.frameCount,
-        interactiveElementCount: structured.interactiveElementCount,
-        bridge: structured.bridge,
-      }
-    case 'pty_read_screen':
-      return {
-        status: structured.status,
-        sessionId: structured.sessionId,
-        alive: structured.alive,
-        rows: structured.rows,
-        cols: structured.cols,
-        executionReason: structured.executionReason,
-      }
-    default:
-      return typeof structured.status === 'string'
-        ? { status: structured.status }
-        : undefined
-  }
-}
-
-function extractDisplayInfo(result: CallToolResult): DisplayInfo | undefined {
-  const structured = toRecord(result.structuredContent)
-
-  if (!structured || structured.status !== 'ok') {
-    return undefined
-  }
-
-  const combinedBounds = toBounds(structured.combinedBounds)
-  const rawDisplays = Array.isArray(structured.displays) ? structured.displays : []
-  const displays = rawDisplays
-    .map((entry) => {
-      const record = toRecord(entry)
-      const bounds = toBounds(record?.bounds)
-      const visibleBounds = toBounds(record?.visibleBounds)
-
-      if (!record || !bounds || !visibleBounds || typeof record.displayId !== 'number' || typeof record.isMain !== 'boolean' || typeof record.isBuiltIn !== 'boolean' || typeof record.scaleFactor !== 'number' || typeof record.pixelWidth !== 'number' || typeof record.pixelHeight !== 'number') {
-        return undefined
-      }
-
-      return {
-        displayId: record.displayId,
-        isMain: record.isMain,
-        isBuiltIn: record.isBuiltIn,
-        bounds,
-        visibleBounds,
-        scaleFactor: record.scaleFactor,
-        pixelWidth: record.pixelWidth,
-        pixelHeight: record.pixelHeight,
-      }
-    })
-    .filter((display): display is NonNullable<DisplayInfo['displays']>[number] => Boolean(display))
-
-  const primaryDisplay = displays.find(display => display.isMain) ?? displays[0]
-  const displayCount = typeof structured.displayCount === 'number' ? structured.displayCount : displays.length
-
-  return {
-    available: true,
-    platform: process.platform as NodeJS.Platform,
-    logicalWidth: combinedBounds?.width,
-    logicalHeight: combinedBounds?.height,
-    pixelWidth: primaryDisplay?.pixelWidth,
-    pixelHeight: primaryDisplay?.pixelHeight,
-    scaleFactor: primaryDisplay?.scaleFactor,
-    isRetina: typeof primaryDisplay?.scaleFactor === 'number' ? primaryDisplay.scaleFactor > 1 : undefined,
-    displayCount,
-    displays,
-    combinedBounds,
-    capturedAt: typeof structured.capturedAt === 'string' ? structured.capturedAt : undefined,
-    note: displayCount > 1 ? 'display geometry captured from workflow prep enumeration' : undefined,
-  }
-}
-
-async function invokePreparatoryExecution(params: {
-  advisory: StrategyAdvisory
-  executeAction: ExecuteAction
-  executePrepTool?: ExecutePrepTool
-  skipApprovalQueue: boolean
-  retry?: boolean
-}): Promise<CallToolResult> {
-  const { advisory, executeAction, executePrepTool, skipApprovalQueue, retry = false } = params
-
-  if (advisory.suggestedToolName && executePrepTool) {
-    return await executePrepTool(advisory.suggestedToolName, {
-      skipApprovalQueue,
-    })
-  }
-
-  if (advisory.suggestedAction) {
-    return await executeAction(advisory.suggestedAction, retry ? `prep_${advisory.kind}_retry` : `prep_${advisory.kind}`, {
-      skipApprovalQueue,
-    })
-  }
-
-  throw new Error(`No execution path available for preparatory advisory "${advisory.kind}"`)
-}
 
 function buildWorkflowSummary(
   workflow: WorkflowDefinition,
@@ -1337,51 +1020,33 @@ function buildWorkflowSummary(
   return lines.join('\n')
 }
 
-function mergeAdvisories(...batches: StrategyAdvisory[][]): StrategyAdvisory[] {
-  const seen = new Set<string>()
-  const merged: StrategyAdvisory[] = []
-
-  for (const batch of batches) {
-    for (const advisory of batch) {
-      const key = `${advisory.kind}::${advisory.reason}::${advisory.suggestedToolName || advisory.suggestedAction?.kind || ''}`
-      if (seen.has(key)) {
-        continue
-      }
-      seen.add(key)
-      merged.push(advisory)
-    }
-  }
-
-  return merged
-}
-
 async function executeActionPreparations(params: {
   advisories: StrategyAdvisory[]
+  autoApproveSteps: boolean
   executeAction: ExecuteAction
-  workflow: WorkflowDefinition
+  existingPreparatoryResults: PreparatoryResult[]
+  overrides?: Record<string, unknown>
   resolvedStep: WorkflowStepTemplate
+  stateManager: RunStateManager
   stepIndex: number
+  stepResults: WorkflowStepResult[]
   task: ActiveTask
   taskStep: TaskStep
-  stepResults: WorkflowStepResult[]
-  stateManager: RunStateManager
-  overrides?: Record<string, unknown>
-  autoApproveSteps: boolean
-  existingPreparatoryResults: PreparatoryResult[]
-}): Promise<WorkflowExecutionResult | undefined> {
+  workflow: WorkflowDefinition
+}): Promise<undefined | WorkflowExecutionResult> {
   const {
     advisories,
+    autoApproveSteps,
     executeAction,
-    workflow,
+    existingPreparatoryResults,
+    overrides,
     resolvedStep,
+    stateManager,
     stepIndex,
+    stepResults,
     task,
     taskStep,
-    stepResults,
-    stateManager,
-    overrides,
-    autoApproveSteps,
-    existingPreparatoryResults,
+    workflow,
   } = params
 
   for (const advisory of advisories) {
@@ -1402,13 +1067,13 @@ async function executeActionPreparations(params: {
 
       if (isApprovalRequired) {
         existingPreparatoryResults.push({
-          toolName: prepToolName,
-          succeeded: false,
           metadata: {
-            advisoryKind: advisory.kind,
             actionKind: action.kind,
+            advisoryKind: advisory.kind,
             status: 'approval_required',
           },
+          succeeded: false,
+          toolName: prepToolName,
         })
 
         stateManager.updateTaskPhase('awaiting_approval')
@@ -1417,112 +1082,447 @@ async function executeActionPreparations(params: {
         taskStep.finishedAt = new Date().toISOString()
 
         stepResults.push({
-          step: resolvedStep,
-          toolResult: result,
           advisories,
-          succeeded: false,
-          status: 'pending_approval',
           explanation: `Preparatory action "${action.kind}" is awaiting approval before continuing this step.`,
           preparatoryResults: [...existingPreparatoryResults],
+          status: 'pending_approval',
+          step: resolvedStep,
+          succeeded: false,
+          toolResult: result,
         })
 
         const suspension: WorkflowSuspension = {
-          workflow,
-          pausedAtStepIndex: stepIndex,
-          resumeAtStepIndex: stepIndex,
-          pausedDuring: 'action_prep',
           overrides,
+          pausedAtStepIndex: stepIndex,
+          pausedDuring: 'action_prep',
+          resumeAtStepIndex: stepIndex,
           stepResults: [...stepResults],
           task: { ...task },
+          workflow,
         }
 
         return {
-          success: false,
           status: 'paused',
-          task,
           stepResults,
+          success: false,
           summary: buildWorkflowSummary(workflow, task, stepResults),
           suspension,
+          task,
         }
       }
 
       if (result.isError === true) {
         const errorMessage = extractErrorMessage(result)
         existingPreparatoryResults.push({
-          toolName: prepToolName,
-          succeeded: false,
           error: errorMessage,
           metadata: {
-            advisoryKind: advisory.kind,
             actionKind: action.kind,
+            advisoryKind: advisory.kind,
           },
+          succeeded: false,
+          toolName: prepToolName,
         })
 
         const explanation = `Preparatory action "${action.kind}" failed: ${errorMessage}`
         stateManager.completeCurrentStep('failure', explanation)
         stateManager.finishTask('failed')
         stepResults.push({
-          step: resolvedStep,
-          toolResult: result,
           advisories,
-          succeeded: false,
-          status: 'failure',
           explanation,
           preparatoryResults: [...existingPreparatoryResults],
+          status: 'failure',
+          step: resolvedStep,
+          succeeded: false,
+          toolResult: result,
         })
 
         return {
-          success: false,
           status: 'failed',
-          task,
           stepResults,
+          success: false,
           summary: buildWorkflowSummary(workflow, task, stepResults),
+          task,
         }
       }
 
       existingPreparatoryResults.push({
-        toolName: prepToolName,
-        succeeded: true,
         metadata: {
-          advisoryKind: advisory.kind,
           actionKind: action.kind,
+          advisoryKind: advisory.kind,
           status: typeof structured?.status === 'string' ? structured.status : 'executed',
         },
+        succeeded: true,
+        toolName: prepToolName,
       })
     }
     catch (error) {
       const errorMessage = errorMessageFromValue(error)
       existingPreparatoryResults.push({
-        toolName: prepToolName,
-        succeeded: false,
         error: errorMessage,
         metadata: {
-          advisoryKind: advisory.kind,
           actionKind: action.kind,
+          advisoryKind: advisory.kind,
         },
+        succeeded: false,
+        toolName: prepToolName,
       })
 
       const explanation = `Preparatory action "${action.kind}" failed: ${errorMessage}`
       stateManager.completeCurrentStep('failure', explanation)
       stateManager.finishTask('failed')
       stepResults.push({
-        step: resolvedStep,
         advisories,
-        succeeded: false,
-        status: 'failure',
         explanation,
         preparatoryResults: [...existingPreparatoryResults],
+        status: 'failure',
+        step: resolvedStep,
+        succeeded: false,
       })
 
       return {
-        success: false,
         status: 'failed',
-        task,
         stepResults,
+        success: false,
         summary: buildWorkflowSummary(workflow, task, stepResults),
+        task,
       }
     }
   }
 
   return undefined
+}
+
+/**
+ * Execute a one-shot command on a PTY session by sending the command,
+ * waiting briefly, and reading the screen.
+ *
+ * This is the engine's internal "PTY exec" — it uses `executePrepTool`
+ * to drive `pty_send_input` + `pty_read_screen` which go through the
+ * same tool pipeline as external callers.
+ */
+async function executePtyCommand(params: {
+  command: string
+  executePrepTool?: ExecutePrepTool
+  ptySessionId: string
+}): Promise<{ explanation: string, screenContent?: string, succeeded: boolean }> {
+  const { command, executePrepTool, ptySessionId } = params
+
+  if (!executePrepTool) {
+    return {
+      explanation: 'No executePrepTool callback available for PTY command execution.',
+      succeeded: false,
+    }
+  }
+
+  try {
+    // Send the command with a trailing carriage return
+    const sendResult = await executePrepTool(`pty_send_input:${ptySessionId}:${command}`)
+    if (sendResult.isError === true) {
+      return {
+        explanation: `PTY send_input failed: ${extractErrorMessage(sendResult)}`,
+        succeeded: false,
+      }
+    }
+
+    // Brief pause for command execution
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    // Read the screen
+    const readResult = await executePrepTool(`pty_read_screen:${ptySessionId}`)
+    if (readResult.isError === true) {
+      return {
+        explanation: `PTY read_screen failed: ${extractErrorMessage(readResult)}`,
+        succeeded: false,
+      }
+    }
+
+    const structured = toRecord(readResult.structuredContent)
+    const screenContent = typeof structured?.screenContent === 'string'
+      ? structured.screenContent
+      : undefined
+
+    return {
+      explanation: `Command sent to PTY ${ptySessionId}`,
+      screenContent,
+      succeeded: true,
+    }
+  }
+  catch (error) {
+    return {
+      explanation: `PTY command execution error: ${errorMessageFromValue(error)}`,
+      succeeded: false,
+    }
+  }
+}
+
+/**
+ * Execute a PTY step family operation within the workflow engine.
+ * Resolves the bound PTY session from state and drives the operation
+ * through the standard tool pipeline.
+ */
+async function executePtyStepFamily(params: {
+  executePrepTool?: ExecutePrepTool
+  stateManager: RunStateManager
+  step: WorkflowStepTemplate
+  task: ActiveTask
+  taskStep: TaskStep
+}): Promise<{ explanation: string, succeeded: boolean }> {
+  const { executePrepTool, stateManager, step, task, taskStep } = params
+
+  if (!executePrepTool) {
+    return { explanation: 'No executePrepTool callback — cannot execute PTY step family.', succeeded: false }
+  }
+
+  // Find the PTY session bound to this step (or the most recent active session)
+  const binding = stateManager.getStepTerminalBinding(task.id, taskStep.stepId)
+  const ptySessionId = binding?.ptySessionId
+    ?? (step.params.sessionId as string | undefined)
+    ?? stateManager.getActivePtySessionId()
+
+  if (!ptySessionId && step.kind !== 'pty_destroy_session') {
+    return { explanation: 'No PTY session id available for this step.', succeeded: false }
+  }
+
+  try {
+    switch (step.kind) {
+      case 'pty_destroy_session': {
+        const targetId = ptySessionId ?? (step.params.sessionId as string)
+        if (!targetId) {
+          return { explanation: 'pty_destroy_session requires a session id.', succeeded: false }
+        }
+        const result = await executePrepTool(`pty_destroy:${targetId}`)
+        if (result.isError === true) {
+          return { explanation: `pty_destroy failed: ${extractErrorMessage(result)}`, succeeded: false }
+        }
+        return { explanation: `Destroyed PTY session ${targetId}.`, succeeded: true }
+      }
+
+      case 'pty_read_screen': {
+        const result = await executePrepTool(`pty_read_screen:${ptySessionId}`)
+        if (result.isError === true) {
+          return { explanation: `pty_read_screen failed: ${extractErrorMessage(result)}`, succeeded: false }
+        }
+        return { explanation: `Read screen from PTY ${ptySessionId}.`, succeeded: true }
+      }
+
+      case 'pty_send_input': {
+        const data = step.params.data as string
+        if (!data) {
+          return { explanation: 'pty_send_input requires a "data" param.', succeeded: false }
+        }
+        const result = await executePrepTool(`pty_send_input:${ptySessionId}:${data}`)
+        if (result.isError === true) {
+          return { explanation: `pty_send_input failed: ${extractErrorMessage(result)}`, succeeded: false }
+        }
+        return { explanation: `Sent ${data.length} bytes to PTY ${ptySessionId}.`, succeeded: true }
+      }
+
+      case 'pty_wait_for_output': {
+        const marker = step.params.marker as string
+        const timeoutMs = (step.params.timeoutMs as number) ?? 10_000
+        if (!marker) {
+          return { explanation: 'pty_wait_for_output requires a "marker" param.', succeeded: false }
+        }
+        const deadline = Date.now() + timeoutMs
+        while (Date.now() < deadline) {
+          const result = await executePrepTool(`pty_read_screen:${ptySessionId}`)
+          if (result.isError !== true) {
+            const structured = toRecord(result.structuredContent)
+            const content = typeof structured?.screenContent === 'string' ? structured.screenContent : ''
+            if (content.includes(marker)) {
+              return { explanation: `Marker "${marker}" found in PTY ${ptySessionId}.`, succeeded: true }
+            }
+          }
+          await new Promise(resolve => setTimeout(resolve, 250))
+        }
+        return { explanation: `Timeout waiting for marker "${marker}" in PTY ${ptySessionId}.`, succeeded: false }
+      }
+
+      default:
+        return { explanation: `Unknown PTY step kind: ${step.kind}`, succeeded: false }
+    }
+  }
+  catch (error) {
+    return { explanation: `PTY step error: ${errorMessageFromValue(error)}`, succeeded: false }
+  }
+}
+
+function extractDisplayInfo(result: CallToolResult): DisplayInfo | undefined {
+  const structured = toRecord(result.structuredContent)
+
+  if (!structured || structured.status !== 'ok') {
+    return undefined
+  }
+
+  const combinedBounds = toBounds(structured.combinedBounds)
+  const rawDisplays = Array.isArray(structured.displays) ? structured.displays : []
+  const displays = rawDisplays
+    .map((entry) => {
+      const record = toRecord(entry)
+      const bounds = toBounds(record?.bounds)
+      const visibleBounds = toBounds(record?.visibleBounds)
+
+      if (!record || !bounds || !visibleBounds || typeof record.displayId !== 'number' || typeof record.isMain !== 'boolean' || typeof record.isBuiltIn !== 'boolean' || typeof record.scaleFactor !== 'number' || typeof record.pixelWidth !== 'number' || typeof record.pixelHeight !== 'number') {
+        return undefined
+      }
+
+      return {
+        bounds,
+        displayId: record.displayId,
+        isBuiltIn: record.isBuiltIn,
+        isMain: record.isMain,
+        pixelHeight: record.pixelHeight,
+        pixelWidth: record.pixelWidth,
+        scaleFactor: record.scaleFactor,
+        visibleBounds,
+      }
+    })
+    .filter((display): display is NonNullable<DisplayInfo['displays']>[number] => Boolean(display))
+
+  const primaryDisplay = displays.find(display => display.isMain) ?? displays[0]
+  const displayCount = typeof structured.displayCount === 'number' ? structured.displayCount : displays.length
+
+  return {
+    available: true,
+    capturedAt: typeof structured.capturedAt === 'string' ? structured.capturedAt : undefined,
+    combinedBounds,
+    displayCount,
+    displays,
+    isRetina: typeof primaryDisplay?.scaleFactor === 'number' ? primaryDisplay.scaleFactor > 1 : undefined,
+    logicalHeight: combinedBounds?.height,
+    logicalWidth: combinedBounds?.width,
+    note: displayCount > 1 ? 'display geometry captured from workflow prep enumeration' : undefined,
+    pixelHeight: primaryDisplay?.pixelHeight,
+    pixelWidth: primaryDisplay?.pixelWidth,
+    platform: process.platform as NodeJS.Platform,
+    scaleFactor: primaryDisplay?.scaleFactor,
+  }
+}
+
+function extractErrorMessage(result: CallToolResult): string {
+  const textParts = (result.content ?? [])
+    .filter((c): c is { text: string, type: 'text' } => c.type === 'text')
+    .map(c => c.text)
+  return textParts.join(' ') || 'Unknown error'
+}
+
+function extractPrepMetadata(toolName: string, result: CallToolResult): Record<string, unknown> | undefined {
+  const structured = toRecord(result.structuredContent)
+
+  if (!structured) {
+    return undefined
+  }
+
+  switch (toolName) {
+    case 'accessibility_snapshot':
+      return {
+        appName: structured.appName,
+        capturedAt: structured.capturedAt,
+        nodeCount: structured.nodeCount,
+        pid: structured.pid,
+        status: structured.status,
+      }
+    case 'browser_cdp_collect_elements':
+      return {
+        elementCount: structured.elementCount,
+        page: structured.page,
+        status: structured.status,
+      }
+    case 'browser_dom_read_page':
+      return {
+        bridge: structured.bridge,
+        frameCount: structured.frameCount,
+        interactiveElementCount: structured.interactiveElementCount,
+        status: structured.status,
+      }
+    case 'display_enumerate':
+      return {
+        capturedAt: structured.capturedAt,
+        combinedBounds: structured.combinedBounds,
+        displayCount: structured.displayCount,
+        status: structured.status,
+      }
+    case 'pty_read_screen':
+      return {
+        alive: structured.alive,
+        cols: structured.cols,
+        executionReason: structured.executionReason,
+        rows: structured.rows,
+        sessionId: structured.sessionId,
+        status: structured.status,
+      }
+    default:
+      return typeof structured.status === 'string'
+        ? { status: structured.status }
+        : undefined
+  }
+}
+
+async function invokePreparatoryExecution(params: {
+  advisory: StrategyAdvisory
+  executeAction: ExecuteAction
+  executePrepTool?: ExecutePrepTool
+  retry?: boolean
+  skipApprovalQueue: boolean
+}): Promise<CallToolResult> {
+  const { advisory, executeAction, executePrepTool, retry = false, skipApprovalQueue } = params
+
+  if (advisory.suggestedToolName && executePrepTool) {
+    return await executePrepTool(advisory.suggestedToolName, {
+      skipApprovalQueue,
+    })
+  }
+
+  if (advisory.suggestedAction) {
+    return await executeAction(advisory.suggestedAction, retry ? `prep_${advisory.kind}_retry` : `prep_${advisory.kind}`, {
+      skipApprovalQueue,
+    })
+  }
+
+  throw new Error(`No execution path available for preparatory advisory "${advisory.kind}"`)
+}
+
+function mergeAdvisories(...batches: StrategyAdvisory[][]): StrategyAdvisory[] {
+  const seen = new Set<string>()
+  const merged: StrategyAdvisory[] = []
+
+  for (const batch of batches) {
+    for (const advisory of batch) {
+      const key = `${advisory.kind}::${advisory.reason}::${advisory.suggestedToolName || advisory.suggestedAction?.kind || ''}`
+      if (seen.has(key)) {
+        continue
+      }
+      seen.add(key)
+      merged.push(advisory)
+    }
+  }
+
+  return merged
+}
+
+function toBounds(value: unknown): DisplayInfo['combinedBounds'] {
+  const record = toRecord(value)
+
+  if (!record) {
+    return undefined
+  }
+
+  const x = typeof record.x === 'number' ? record.x : undefined
+  const y = typeof record.y === 'number' ? record.y : undefined
+  const width = typeof record.width === 'number' ? record.width : undefined
+  const height = typeof record.height === 'number' ? record.height : undefined
+
+  if (x === undefined || y === undefined || width === undefined || height === undefined) {
+    return undefined
+  }
+
+  return { height, width, x, y }
+}
+
+function toRecord(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined
+  }
+
+  return value as Record<string, unknown>
 }

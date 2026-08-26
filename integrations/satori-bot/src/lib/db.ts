@@ -27,33 +27,20 @@ export async function initDb() {
   await migrate(db, { migrationsFolder: migrationsPath })
 }
 
-export const { channels, messages, eventQueue, unreadEvents } = schema
+export const { channels, eventQueue, messages, unreadEvents } = schema
 
-export async function recordChannel(id: string, name: string, platform: string, selfId: string) {
-  await db.insert(channels)
-    .values({ id, name, platform, selfId })
-    .onConflictDoUpdate({
-      target: channels.id,
-      set: { name, platform, selfId },
-    })
+export async function clearEventQueue() {
+  await db.delete(eventQueue)
 }
 
-export async function listChannels() {
-  return await db.select().from(channels)
+export async function clearUnreadEventsForChannel(channelId: string) {
+  await db.delete(unreadEvents).where(eq(unreadEvents.channelId, channelId))
 }
 
-export async function recordMessage(channelId: string, userId: string, userName: string, content: string, timestamp?: number) {
-  const ts = timestamp || Date.now()
-  const id = nanoid()
-
-  await db.insert(messages).values({
-    id,
-    channelId,
-    userId,
-    userName,
-    content,
-    timestamp: ts,
-  })
+export async function deleteUnreadEventsByIds(channelId: string, ids: string[]) {
+  if (ids.length === 0)
+    return
+  await db.delete(unreadEvents).where(inArray(unreadEvents.id, ids))
 }
 
 /**
@@ -70,88 +57,17 @@ export async function getRecentMessages(channelId: string, limit: number = 10) {
 
 // Event Queue Persistence
 
-export async function pushToEventQueue(item: { event: SatoriEvent, status: 'pending' | 'ready' }) {
-  const id = nanoid()
-  await db.insert(eventQueue).values({
-    id,
-    event: item.event,
-    status: item.status,
-    createdAt: Date.now(),
-  })
-  return id
-}
-
-export async function removeFromEventQueue(id: string) {
-  await db.delete(eventQueue).where(eq(eventQueue.id, id))
-}
-
-export async function clearEventQueue() {
-  await db.delete(eventQueue)
-}
-
-export async function saveEventQueue(queue: { id?: string, event: SatoriEvent, status: 'pending' | 'ready' }[]) {
-  // If we have IDs, we might be able to do something smarter, but for now let's just keep it as is
-  // but optimized for the common case where we might want to just replace all.
-  // Actually, the best way to handle this is to NOT use saveEventQueue for single items.
-  await db.delete(eventQueue)
-  if (queue.length > 0) {
-    await db.insert(eventQueue).values(queue.map(item => ({
-      id: item.id || nanoid(),
-      event: item.event,
-      status: item.status,
-      createdAt: Date.now(),
-    })))
-  }
+export async function listChannels() {
+  return await db.select().from(channels)
 }
 
 export async function loadEventQueue() {
   const result = await db.select().from(eventQueue).orderBy(schema.eventQueue.createdAt)
   return result.map(r => ({
-    id: r.id,
     event: r.event as SatoriEvent,
+    id: r.id,
     status: r.status as 'pending' | 'ready',
   }))
-}
-
-// Unread Events Persistence
-
-export async function pushToUnreadEvents(channelId: string, event: SatoriEvent) {
-  const id = nanoid()
-  await db.insert(unreadEvents).values({
-    id,
-    channelId,
-    event,
-    createdAt: Date.now(),
-  })
-  return id
-}
-
-export async function deleteUnreadEventsByIds(channelId: string, ids: string[]) {
-  if (ids.length === 0)
-    return
-  await db.delete(unreadEvents).where(inArray(unreadEvents.id, ids))
-}
-
-export async function clearUnreadEventsForChannel(channelId: string) {
-  await db.delete(unreadEvents).where(eq(unreadEvents.channelId, channelId))
-}
-
-export async function saveUnreadEvents(allUnread: Record<string, StoredUnreadEvent[]>) {
-  await db.delete(unreadEvents)
-  const values = []
-  for (const [channelId, events] of Object.entries(allUnread)) {
-    for (const item of events) {
-      values.push({
-        id: item.id || nanoid(),
-        channelId,
-        event: item.event,
-        createdAt: Date.now(),
-      })
-    }
-  }
-  if (values.length > 0) {
-    await db.insert(unreadEvents).values(values)
-  }
 }
 
 export async function loadUnreadEvents() {
@@ -162,9 +78,93 @@ export async function loadUnreadEvents() {
       allUnread[r.channelId] = []
     }
     allUnread[r.channelId].push({
-      id: r.id,
       event: r.event as SatoriEvent,
+      id: r.id,
     })
   }
   return allUnread
+}
+
+export async function pushToEventQueue(item: { event: SatoriEvent, status: 'pending' | 'ready' }) {
+  const id = nanoid()
+  await db.insert(eventQueue).values({
+    createdAt: Date.now(),
+    event: item.event,
+    id,
+    status: item.status,
+  })
+  return id
+}
+
+export async function pushToUnreadEvents(channelId: string, event: SatoriEvent) {
+  const id = nanoid()
+  await db.insert(unreadEvents).values({
+    channelId,
+    createdAt: Date.now(),
+    event,
+    id,
+  })
+  return id
+}
+
+// Unread Events Persistence
+
+export async function recordChannel(id: string, name: string, platform: string, selfId: string) {
+  await db.insert(channels)
+    .values({ id, name, platform, selfId })
+    .onConflictDoUpdate({
+      set: { name, platform, selfId },
+      target: channels.id,
+    })
+}
+
+export async function recordMessage(channelId: string, userId: string, userName: string, content: string, timestamp?: number) {
+  const ts = timestamp || Date.now()
+  const id = nanoid()
+
+  await db.insert(messages).values({
+    channelId,
+    content,
+    id,
+    timestamp: ts,
+    userId,
+    userName,
+  })
+}
+
+export async function removeFromEventQueue(id: string) {
+  await db.delete(eventQueue).where(eq(eventQueue.id, id))
+}
+
+export async function saveEventQueue(queue: { event: SatoriEvent, id?: string, status: 'pending' | 'ready' }[]) {
+  // If we have IDs, we might be able to do something smarter, but for now let's just keep it as is
+  // but optimized for the common case where we might want to just replace all.
+  // Actually, the best way to handle this is to NOT use saveEventQueue for single items.
+  await db.delete(eventQueue)
+  if (queue.length > 0) {
+    await db.insert(eventQueue).values(queue.map(item => ({
+      createdAt: Date.now(),
+      event: item.event,
+      id: item.id || nanoid(),
+      status: item.status,
+    })))
+  }
+}
+
+export async function saveUnreadEvents(allUnread: Record<string, StoredUnreadEvent[]>) {
+  await db.delete(unreadEvents)
+  const values = []
+  for (const [channelId, events] of Object.entries(allUnread)) {
+    for (const item of events) {
+      values.push({
+        channelId,
+        createdAt: Date.now(),
+        event: item.event,
+        id: item.id || nanoid(),
+      })
+    }
+  }
+  if (values.length > 0) {
+    await db.insert(unreadEvents).values(values)
+  }
 }

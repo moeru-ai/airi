@@ -15,7 +15,7 @@ import { createDesktopSessionController } from './desktop-session'
 import { RunStateManager } from './state'
 
 function fg(appName: string): ForegroundContext {
-  return { available: true, appName, platform: 'darwin' }
+  return { appName, available: true, platform: 'darwin' }
 }
 function fgUnavailable(): ForegroundContext {
   return { available: false, platform: 'darwin' }
@@ -23,11 +23,11 @@ function fgUnavailable(): ForegroundContext {
 
 function mockChromeSessionManager(): ChromeSessionManager {
   return {
-    ensureAgentWindow: vi.fn(),
     bringToFront: vi.fn().mockResolvedValue(true),
-    restorePreviousForeground: vi.fn().mockResolvedValue(undefined),
-    getSessionInfo: vi.fn().mockReturnValue(null),
     endSession: vi.fn(),
+    ensureAgentWindow: vi.fn(),
+    getSessionInfo: vi.fn().mockReturnValue(null),
+    restorePreviousForeground: vi.fn().mockResolvedValue(undefined),
   }
 }
 
@@ -105,10 +105,10 @@ describe('desktopSessionController', () => {
     it('should add a window to the session', () => {
       controller.begin({ controlledApp: 'Chrome' })
       controller.addOwnedWindow({
-        appName: 'Google Chrome',
-        windowId: '1234:0:Google Chrome',
-        pid: 1234,
         agentLaunched: true,
+        appName: 'Google Chrome',
+        pid: 1234,
+        windowId: '1234:0:Google Chrome',
       })
 
       expect(controller.getSession()!.ownedWindows).toHaveLength(1)
@@ -118,10 +118,10 @@ describe('desktopSessionController', () => {
     it('should prevent duplicate windows', () => {
       controller.begin({ controlledApp: 'Chrome' })
       const window = {
-        appName: 'Google Chrome',
-        windowId: '1234:0:Google Chrome',
-        pid: 1234,
         agentLaunched: true,
+        appName: 'Google Chrome',
+        pid: 1234,
+        windowId: '1234:0:Google Chrome',
       }
 
       controller.addOwnedWindow(window)
@@ -132,10 +132,10 @@ describe('desktopSessionController', () => {
 
     it('should no-op if no session', () => {
       controller.addOwnedWindow({
-        appName: 'Chrome',
-        windowId: 'fake',
-        pid: 0,
         agentLaunched: false,
+        appName: 'Chrome',
+        pid: 0,
+        windowId: 'fake',
       })
       // No error thrown, no session created
       expect(controller.getSession()).toBeNull()
@@ -200,9 +200,9 @@ describe('desktopSessionController', () => {
       const chromeManager = mockChromeSessionManager()
 
       const result = await controller.ensureControlledAppInForeground({
-        currentForeground: fg('Google Chrome'),
-        chromeSessionManager: chromeManager,
         activateApp: vi.fn(),
+        chromeSessionManager: chromeManager,
+        currentForeground: fg('Google Chrome'),
       })
 
       expect(result).toBe(true)
@@ -214,9 +214,9 @@ describe('desktopSessionController', () => {
       const chromeManager = mockChromeSessionManager()
 
       const result = await controller.ensureControlledAppInForeground({
-        currentForeground: fg('Finder'),
-        chromeSessionManager: chromeManager,
         activateApp: vi.fn(),
+        chromeSessionManager: chromeManager,
+        currentForeground: fg('Finder'),
       })
 
       expect(result).toBe(false)
@@ -229,9 +229,9 @@ describe('desktopSessionController', () => {
       vi.mocked(chromeManager.bringToFront).mockResolvedValue(false)
 
       await expect(controller.ensureControlledAppInForeground({
-        currentForeground: fg('Finder'),
-        chromeSessionManager: chromeManager,
         activateApp: vi.fn(),
+        chromeSessionManager: chromeManager,
+        currentForeground: fg('Finder'),
       })).rejects.toThrow('Controlled Chrome session is unavailable')
     })
 
@@ -241,9 +241,9 @@ describe('desktopSessionController', () => {
       const activateApp = vi.fn().mockResolvedValue(undefined)
 
       const result = await controller.ensureControlledAppInForeground({
-        currentForeground: fg('Terminal'),
-        chromeSessionManager: chromeManager,
         activateApp,
+        chromeSessionManager: chromeManager,
+        currentForeground: fg('Terminal'),
       })
 
       expect(result).toBe(false)
@@ -256,9 +256,9 @@ describe('desktopSessionController', () => {
       const chromeManager = mockChromeSessionManager()
 
       await controller.ensureControlledAppInForeground({
-        currentForeground: fg('Terminal'),
-        chromeSessionManager: chromeManager,
         activateApp: vi.fn(),
+        chromeSessionManager: chromeManager,
+        currentForeground: fg('Terminal'),
       })
 
       expect(controller.getSession()!.userForegroundApp).toBe('Terminal')
@@ -267,9 +267,9 @@ describe('desktopSessionController', () => {
 
     it('should return true when no session exists', async () => {
       const result = await controller.ensureControlledAppInForeground({
-        currentForeground: fg('Chrome'),
-        chromeSessionManager: mockChromeSessionManager(),
         activateApp: vi.fn(),
+        chromeSessionManager: mockChromeSessionManager(),
+        currentForeground: fg('Chrome'),
       })
 
       expect(result).toBe(true)

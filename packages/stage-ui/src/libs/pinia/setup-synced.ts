@@ -22,10 +22,10 @@ export const injectKeyPiniaSynced: InjectionKey<SyncedPiniaRuntime> = Symbol('st
  */
 export function setupSynced(options: Pick<SyncedOptions, 'leadership'> = {}): { pinia: PiniaPlugin, vue: Plugin } {
   const runtime = createSyncedPiniaPlugin({
-    namespace: 'airi:stage:pinia',
     // Chat and image-generation actions can outlive the plugin's 30-second
     // default. Keep the timeout aligned with the previous Electron coordinator.
     callTimeout: 5 * 60 * 1000,
+    namespace: 'airi:stage:pinia',
     ...options,
     onError(error) {
       console.error('[stage-synced-pinia] Synchronization failed:', error)

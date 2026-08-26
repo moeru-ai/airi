@@ -20,9 +20,9 @@ async function main() {
 
   // Create Satori client
   const satoriClient = new SatoriClient({
-    url: config.satori.wsUrl,
-    token: config.satori.token,
     apiBaseUrl: config.satori.apiBaseUrl,
+    token: config.satori.token,
+    url: config.satori.wsUrl,
   })
 
   // Create bot context

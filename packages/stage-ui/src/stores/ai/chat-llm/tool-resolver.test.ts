@@ -23,18 +23,18 @@ vi.mock('../../modules/web-search', () => ({
 
 function createTool(name: string, description = `${name} description`): Tool {
   return {
-    type: 'function',
+    execute: vi.fn(),
     function: {
-      name,
       description,
+      name,
       parameters: {
-        type: 'object',
+        additionalProperties: false,
         properties: {},
         required: [],
-        additionalProperties: false,
+        type: 'object',
       },
     },
-    execute: vi.fn(),
+    type: 'function',
   } as Tool
 }
 
@@ -50,11 +50,11 @@ describe('resolveLlmTools', () => {
     const runtimeTool = createTool('duplicate_tool', 'Runtime version.')
 
     const tools = await resolveLlmTools({
+      activeTools: [runtimeTool],
       builtInTools: [builtInTool],
       debugTools: [],
       sparkCommandTools: [],
       webSearchTools: [],
-      activeTools: [runtimeTool],
     })
 
     expect(tools).toHaveLength(1)
@@ -67,12 +67,12 @@ describe('resolveLlmTools', () => {
     const runtimeTool = createTool('duplicate_tool', 'Runtime version.')
 
     const tools = await resolveLlmTools({
+      activeTools: [runtimeTool],
       builtInTools: [builtInTool],
+      customTools: [customTool],
       debugTools: [],
       sparkCommandTools: [],
       webSearchTools: [],
-      customTools: [customTool],
-      activeTools: [runtimeTool],
     })
 
     expect(tools).toEqual([builtInTool, runtimeTool])
@@ -83,11 +83,11 @@ describe('resolveLlmTools', () => {
     const webSearchTool = createTool('web_search')
 
     const tools = await resolveLlmTools({
+      activeTools: [],
       builtInTools: [builtInTool],
       debugTools: [],
       sparkCommandTools: [],
       webSearchTools: [webSearchTool],
-      activeTools: [],
     })
 
     expect(tools).toEqual([builtInTool, webSearchTool])
@@ -100,16 +100,16 @@ describe('resolveLlmTools', () => {
     })
 
     it('omits web_search when the web-search module is not configured', async () => {
-      useWebSearchStoreMock.mockReturnValue({ configured: false, apiKey: '' })
+      useWebSearchStoreMock.mockReturnValue({ apiKey: '', configured: false })
       const builtInTool = createTool('built_in_tool')
 
       // webSearchTools is intentionally omitted so resolveWebSearchTools falls
       // through to the module store instead of the injected source.
       const tools = await resolveLlmTools({
+        activeTools: [],
         builtInTools: [builtInTool],
         debugTools: [],
         sparkCommandTools: [],
-        activeTools: [],
       })
 
       expect(tools).toEqual([builtInTool])
@@ -121,14 +121,14 @@ describe('resolveLlmTools', () => {
       createWebSearchToolsMock.mockResolvedValue([webSearchTool])
       // A key pasted with surrounding whitespace still reads as configured, so
       // the resolver must trim it before handing it to the factory.
-      useWebSearchStoreMock.mockReturnValue({ configured: true, apiKey: '  tvly-key\n' })
+      useWebSearchStoreMock.mockReturnValue({ apiKey: '  tvly-key\n', configured: true })
       const builtInTool = createTool('built_in_tool')
 
       const tools = await resolveLlmTools({
+        activeTools: [],
         builtInTools: [builtInTool],
         debugTools: [],
         sparkCommandTools: [],
-        activeTools: [],
       })
 
       expect(createWebSearchToolsMock).toHaveBeenCalledWith({ apiKey: 'tvly-key' })

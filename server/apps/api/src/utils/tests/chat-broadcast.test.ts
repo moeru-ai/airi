@@ -6,80 +6,80 @@ describe('chat broadcast utils', () => {
   it('creates a normalized broadcast message from validated inputs', () => {
     expect(createChatBroadcastMessage('user-1', {
       chatId: 'chat-1',
-      messages: [{ id: 'msg-1' }],
       fromSeq: 3,
+      messages: [{ id: 'msg-1' }],
       toSeq: 4,
     }, 'instance-A')).toEqual({
-      userId: 'user-1',
+      originInstanceId: 'instance-A',
       payload: {
         chatId: 'chat-1',
-        messages: [{ id: 'msg-1' }],
         fromSeq: 3,
+        messages: [{ id: 'msg-1' }],
         toSeq: 4,
       },
-      originInstanceId: 'instance-A',
+      userId: 'user-1',
     })
   })
 
   it('rejects invalid publish-side identifiers', () => {
     expect(() => createChatBroadcastMessage('', {
       chatId: 'chat-1',
-      messages: [],
       fromSeq: 1,
+      messages: [],
       toSeq: 1,
     }, 'instance-A')).toThrow('chat broadcast userId must be a non-empty string')
 
     expect(() => createChatBroadcastMessage('user-1', {
       chatId: 'chat-1',
-      messages: [],
       fromSeq: 1,
+      messages: [],
       toSeq: 1,
     }, '')).toThrow('chat broadcast originInstanceId must be a non-empty string')
   })
 
   it('parses a valid broadcast message payload', () => {
     expect(parseChatBroadcastMessage(JSON.stringify({
-      userId: 'user-2',
+      originInstanceId: 'instance-B',
       payload: {
         chatId: 'chat-9',
-        messages: ['message'],
         fromSeq: 9,
+        messages: ['message'],
         toSeq: 12,
       },
-      originInstanceId: 'instance-B',
+      userId: 'user-2',
     }))).toEqual({
-      userId: 'user-2',
+      originInstanceId: 'instance-B',
       payload: {
         chatId: 'chat-9',
-        messages: ['message'],
         fromSeq: 9,
+        messages: ['message'],
         toSeq: 12,
       },
-      originInstanceId: 'instance-B',
+      userId: 'user-2',
     })
   })
 
   it('rejects invalid json and malformed payloads', () => {
     expect(() => parseChatBroadcastMessage('not-json')).toThrow('chat broadcast message is not valid JSON')
     expect(() => parseChatBroadcastMessage(JSON.stringify({
-      userId: {},
+      originInstanceId: 'instance-A',
       payload: {
         chatId: 'chat-1',
-        messages: [],
         fromSeq: 1,
+        messages: [],
         toSeq: 1,
       },
-      originInstanceId: 'instance-A',
+      userId: {},
     }))).toThrow('chat broadcast userId must be a non-empty string')
     expect(() => parseChatBroadcastMessage(JSON.stringify({
-      userId: 'user-1',
+      originInstanceId: 'instance-A',
       payload: {
         chatId: 'chat-1',
-        messages: {},
         fromSeq: 1,
+        messages: {},
         toSeq: 1,
       },
-      originInstanceId: 'instance-A',
+      userId: 'user-1',
     }))).toThrow('chat broadcast payload.messages must be an array')
 
     // commit 88744602f — chat broadcast loopback echoes
@@ -97,13 +97,13 @@ describe('chat broadcast utils', () => {
     // delivering. The parse step rejects messages missing it so a stale
     // publisher cannot bypass the dedup.
     expect(() => parseChatBroadcastMessage(JSON.stringify({
-      userId: 'user-1',
       payload: {
         chatId: 'chat-1',
-        messages: [],
         fromSeq: 1,
+        messages: [],
         toSeq: 1,
       },
+      userId: 'user-1',
     }))).toThrow('chat broadcast originInstanceId must be a non-empty string')
   })
 })

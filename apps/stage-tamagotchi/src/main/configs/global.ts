@@ -3,8 +3,8 @@ import { array, object, optional, picklist, string } from 'valibot'
 import { createConfig } from '../libs/electron/persistence'
 
 const shortcutAcceleratorSchema = object({
-  modifiers: array(picklist(['cmd-or-ctrl', 'cmd', 'ctrl', 'alt', 'shift', 'super'])),
   key: string(),
+  modifiers: array(picklist(['cmd-or-ctrl', 'cmd', 'ctrl', 'alt', 'shift', 'super'])),
 })
 
 export const globalAppConfigSchema = object({

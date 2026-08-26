@@ -6,12 +6,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 function executableTool(name: string): Tool {
   return {
-    type: 'function',
+    execute: vi.fn(),
     function: {
       name,
-      parameters: { type: 'object', properties: {} },
+      parameters: { properties: {}, type: 'object' },
     },
-    execute: vi.fn(),
+    type: 'function',
   }
 }
 
@@ -39,12 +39,12 @@ describe('useTamagotchiBuiltinToolsStore', async () => {
 
     expect(toolsStore.activeTools).toEqual([])
     expect(toolsStore.tools.map(tool => ({
-      id: tool.id,
       defaultActive: tool.defaultActive,
+      id: tool.id,
     }))).toEqual([
-      { id: 'tamagotchi:image_journal', defaultActive: false },
-      { id: 'tamagotchi:stage_widgets', defaultActive: false },
-      { id: 'tamagotchi:get_weather', defaultActive: false },
+      { defaultActive: false, id: 'tamagotchi:image_journal' },
+      { defaultActive: false, id: 'tamagotchi:stage_widgets' },
+      { defaultActive: false, id: 'tamagotchi:get_weather' },
     ])
     expect(toolsStore.getToolsByNames('get_weather')[0]?.function.name).toBe('get_weather')
   })

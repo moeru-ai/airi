@@ -7,18 +7,18 @@ describe('kitRegistryService', () => {
     const service = new KitRegistryService()
 
     const widgetKit = service.register({
-      kitId: 'kit.widget',
-      version: '1.0.0',
       capabilities: [
-        { key: 'kit.widget.module', actions: ['announce', 'activate'] },
+        { actions: ['announce', 'activate'], key: 'kit.widget.module' },
       ],
+      kitId: 'kit.widget',
       runtimes: ['electron', 'web'],
+      version: '1.0.0',
     })
     service.register({
+      capabilities: [{ actions: ['publish'], key: 'kit.system.channel' }],
       kitId: 'kit.system',
-      version: '1.0.0',
-      capabilities: [{ key: 'kit.system.channel', actions: ['publish'] }],
       runtimes: ['node'],
+      version: '1.0.0',
     })
 
     expect(widgetKit.kitId).toBe('kit.widget')
@@ -31,18 +31,18 @@ describe('kitRegistryService', () => {
     const service = new KitRegistryService()
 
     service.register({
+      capabilities: [{ actions: ['announce'], key: 'kit.widget.module' }],
       kitId: 'kit.widget',
-      version: '1.0.0',
-      capabilities: [{ key: 'kit.widget.module', actions: ['announce'] }],
       runtimes: ['electron'],
+      version: '1.0.0',
     })
 
     expect(() =>
       service.register({
+        capabilities: [{ actions: ['announce', 'activate'], key: 'kit.widget.module' }],
         kitId: 'kit.widget',
-        version: '1.0.1',
-        capabilities: [{ key: 'kit.widget.module', actions: ['announce', 'activate'] }],
         runtimes: ['electron', 'web'],
+        version: '1.0.1',
       }),
     ).toThrowError(/duplicate kit registration/i)
   })
@@ -51,23 +51,23 @@ describe('kitRegistryService', () => {
     const service = new KitRegistryService()
 
     const original = service.register({
-      kitId: 'kit.widget',
-      version: '1.0.0',
       capabilities: [
-        { key: 'kit.widget.module', actions: ['announce', 'activate'] },
-        { key: 'kit.widget.panel', actions: ['withdraw'] },
+        { actions: ['announce', 'activate'], key: 'kit.widget.module' },
+        { actions: ['withdraw'], key: 'kit.widget.panel' },
       ],
+      kitId: 'kit.widget',
       runtimes: ['electron', 'web'],
+      version: '1.0.0',
     })
 
     const duplicate = service.register({
-      kitId: 'kit.widget',
-      version: '1.0.0',
       capabilities: [
-        { key: 'kit.widget.panel', actions: ['withdraw'] },
-        { key: 'kit.widget.module', actions: ['activate', 'announce'] },
+        { actions: ['withdraw'], key: 'kit.widget.panel' },
+        { actions: ['activate', 'announce'], key: 'kit.widget.module' },
       ],
+      kitId: 'kit.widget',
       runtimes: ['web', 'electron'],
+      version: '1.0.0',
     })
 
     expect(duplicate).toBe(original)

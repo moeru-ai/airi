@@ -24,68 +24,6 @@ const languageParser = unified()
   .use(RemarkParse)
   .use(chatMathPreset)
 
-function extractLangs(markdown: string): BundledLanguage[] {
-  const tree = languageParser.parse(markdown)
-  const langs = new Set<BundledLanguage>()
-  langs.add('python')
-  visit(tree, 'code', (node) => {
-    if (node.lang && !isChatMathFenceLanguage(node.lang))
-      langs.add(node.lang as BundledLanguage)
-  })
-  return [...langs]
-}
-
-function measuredKatex(options?: Parameters<typeof rehypeKatex>[0]) {
-  const transform = rehypeKatex(options)
-  return (tree: any, file: any) => {
-    const start = performance.now()
-    const length = typeof file?.value === 'string' ? file.value.length : undefined
-    try {
-      return transform(tree, file)
-    }
-    finally {
-      defaultPerfTracer.emit({
-        tracerId: 'markdown',
-        name: 'process.katex',
-        ts: start,
-        duration: performance.now() - start,
-        meta: { length },
-      })
-    }
-  }
-}
-
-async function createProcessor(langs: BundledLanguage[]): Promise<MarkdownProcessor> {
-  const options: RehypeShikiOptions = {
-    themes: {
-      light: 'github-light',
-      dark: 'github-dark',
-    },
-    langs,
-    defaultLanguage: langs[0] || 'python',
-  }
-
-  return unified()
-    .use(RemarkParse)
-    .use(chatMathPreset)
-    .use(RemarkRehype)
-    .use(measuredKatex, { output: 'mathml' })
-    .use(rehypeShiki, options)
-    .use(RehypeStringify)
-}
-
-function getProcessor(langs: BundledLanguage[]): Promise<MarkdownProcessor> {
-  // The cache key should be consistent, so we sort the languages.
-  const cacheKey = [...langs].sort().join(',')
-
-  if (!processorCache.has(cacheKey)) {
-    const processorPromise = createProcessor(langs)
-    processorCache.set(cacheKey, processorPromise)
-  }
-
-  return processorCache.get(cacheKey)!
-}
-
 export function useMarkdown() {
   const fallbackProcessor = unified()
     .use(RemarkParse)
@@ -97,7 +35,7 @@ export function useMarkdown() {
   return {
     process: async (markdown: string): Promise<string> => {
       const hasCodeFence = /`{3,}/.test(markdown)
-      const meta = { length: markdown.length, hasCodeFence }
+      const meta = { hasCodeFence, length: markdown.length }
 
       return defaultPerfTracer.withMeasure('markdown', 'process', async () => {
         try {
@@ -140,14 +78,76 @@ export function useMarkdown() {
         .toString()
 
       defaultPerfTracer.emit({
-        tracerId: 'markdown',
-        name: 'process.pipeline.sync',
-        ts: start,
         duration: performance.now() - start,
         meta: { length: markdown.length },
+        name: 'process.pipeline.sync',
+        tracerId: 'markdown',
+        ts: start,
       })
 
       return output
     },
+  }
+}
+
+async function createProcessor(langs: BundledLanguage[]): Promise<MarkdownProcessor> {
+  const options: RehypeShikiOptions = {
+    defaultLanguage: langs[0] || 'python',
+    langs,
+    themes: {
+      dark: 'github-dark',
+      light: 'github-light',
+    },
+  }
+
+  return unified()
+    .use(RemarkParse)
+    .use(chatMathPreset)
+    .use(RemarkRehype)
+    .use(measuredKatex, { output: 'mathml' })
+    .use(rehypeShiki, options)
+    .use(RehypeStringify)
+}
+
+function extractLangs(markdown: string): BundledLanguage[] {
+  const tree = languageParser.parse(markdown)
+  const langs = new Set<BundledLanguage>()
+  langs.add('python')
+  visit(tree, 'code', (node) => {
+    if (node.lang && !isChatMathFenceLanguage(node.lang))
+      langs.add(node.lang as BundledLanguage)
+  })
+  return [...langs]
+}
+
+function getProcessor(langs: BundledLanguage[]): Promise<MarkdownProcessor> {
+  // The cache key should be consistent, so we sort the languages.
+  const cacheKey = [...langs].sort().join(',')
+
+  if (!processorCache.has(cacheKey)) {
+    const processorPromise = createProcessor(langs)
+    processorCache.set(cacheKey, processorPromise)
+  }
+
+  return processorCache.get(cacheKey)!
+}
+
+function measuredKatex(options?: Parameters<typeof rehypeKatex>[0]) {
+  const transform = rehypeKatex(options)
+  return (tree: any, file: any) => {
+    const start = performance.now()
+    const length = typeof file?.value === 'string' ? file.value.length : undefined
+    try {
+      return transform(tree, file)
+    }
+    finally {
+      defaultPerfTracer.emit({
+        duration: performance.now() - start,
+        meta: { length },
+        name: 'process.katex',
+        tracerId: 'markdown',
+        ts: start,
+      })
+    }
   }
 }

@@ -31,39 +31,13 @@ import { runSwiftScript } from '../utils/swift'
 
 const buttonNames = {
   left: 0,
-  right: 1,
   middle: 2,
+  right: 1,
 } as const
 
 const APP_SUFFIX_RE = /\.app$/u
 
 const keyCodeMap: Record<string, number> = {
-  a: 0,
-  b: 11,
-  c: 8,
-  d: 2,
-  e: 14,
-  f: 3,
-  g: 5,
-  h: 4,
-  i: 34,
-  j: 38,
-  k: 40,
-  l: 37,
-  m: 46,
-  n: 45,
-  o: 31,
-  p: 35,
-  q: 12,
-  r: 15,
-  s: 1,
-  t: 17,
-  u: 32,
-  v: 9,
-  w: 13,
-  x: 7,
-  y: 16,
-  z: 6,
   0: 29,
   1: 18,
   2: 19,
@@ -74,141 +48,54 @@ const keyCodeMap: Record<string, number> = {
   7: 26,
   8: 28,
   9: 25,
-  enter: 36,
-  return: 36,
-  tab: 48,
-  space: 49,
-  escape: 53,
-  esc: 53,
-  delete: 51,
+  a: 0,
+  b: 11,
   backspace: 51,
-  up: 126,
+  c: 8,
+  d: 2,
+  delete: 51,
   down: 125,
+  e: 14,
+  enter: 36,
+  esc: 53,
+  escape: 53,
+  f: 3,
+  g: 5,
+  h: 4,
+  i: 34,
+  j: 38,
+  k: 40,
+  l: 37,
   left: 123,
+  m: 46,
+  n: 45,
+  o: 31,
+  p: 35,
+  q: 12,
+  r: 15,
+  return: 36,
   right: 124,
+  s: 1,
+  space: 49,
+  t: 17,
+  tab: 48,
+  u: 32,
+  up: 126,
+  v: 9,
+  w: 13,
+  x: 7,
+  y: 16,
+  z: 6,
 }
 
 const modifierFlags: Record<string, string> = {
-  command: '.maskCommand',
+  alt: '.maskAlternate',
   cmd: '.maskCommand',
-  shift: '.maskShift',
+  command: '.maskCommand',
   control: '.maskControl',
   ctrl: '.maskControl',
   option: '.maskAlternate',
-  alt: '.maskAlternate',
-}
-
-function createExecutionTarget(config: ComputerUseConfig): ExecutionTarget {
-  return {
-    mode: 'local-windowed',
-    transport: 'local',
-    hostName: hostname(),
-    sessionTag: config.sessionTag,
-    isolated: false,
-    tainted: false,
-    note: 'local macOS window automation via Swift + Quartz',
-  }
-}
-
-function result(notes: string[], executionTarget: ExecutionTarget): ExecutorActionResult {
-  return {
-    performed: true,
-    backend: 'macos-local',
-    notes,
-    executionTarget,
-  }
-}
-
-function fallbackContext(reason: string): ForegroundContext {
-  return {
-    available: false,
-    platform,
-    unavailableReason: reason,
-  }
-}
-
-async function runMacOsJsonScript<T>(config: ComputerUseConfig, source: string, stdinPayload?: unknown): Promise<T> {
-  const { stdout } = await runSwiftScript({
-    swiftBinary: config.binaries.swift,
-    timeoutMs: config.timeoutMs,
-    source,
-    stdinPayload,
-  })
-
-  return JSON.parse(stdout.trim()) as T
-}
-
-function observeWindowsScript() {
-  return String.raw`
-import AppKit
-import CoreGraphics
-import Foundation
-
-func boundsDict(_ value: NSDictionary?) -> [String: Int]? {
-  guard let value else { return nil }
-  var rect = CGRect.zero
-  guard CGRectMakeWithDictionaryRepresentation(value, &rect) else { return nil }
-  return [
-    "x": Int(rect.origin.x.rounded()),
-    "y": Int(rect.origin.y.rounded()),
-    "width": Int(rect.size.width.rounded()),
-    "height": Int(rect.size.height.rounded())
-  ]
-}
-
-let environment = ProcessInfo.processInfo.environment
-let rawInput = environment["COMPUTER_USE_SWIFT_STDIN"] ?? "{}"
-let inputData = rawInput.data(using: .utf8) ?? Data()
-let input = (try? JSONSerialization.jsonObject(with: inputData)) as? [String: Any] ?? [:]
-let limit = (input["limit"] as? Int) ?? 12
-let appFilter = ((input["app"] as? String) ?? "").lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-let frontmostAppName = NSWorkspace.shared.frontmostApplication?.localizedName
-
-let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
-let rawWindowInfo = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] ?? []
-var windows: [[String: Any]] = []
-for window in rawWindowInfo {
-  let ownerName = (window[kCGWindowOwnerName as String] as? String) ?? "Unknown"
-  if !appFilter.isEmpty && !ownerName.lowercased().contains(appFilter) {
-    continue
-  }
-
-  let alpha = window[kCGWindowAlpha as String] as? Double ?? 1.0
-  let layer = window[kCGWindowLayer as String] as? Int ?? 0
-  let bounds = boundsDict(window[kCGWindowBounds as String] as? NSDictionary)
-  let title = (window[kCGWindowName as String] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-  let ownerPid = window[kCGWindowOwnerPID as String] as? Int ?? 0
-
-  if alpha <= 0 || (bounds?["width"] ?? 0) <= 1 || (bounds?["height"] ?? 0) <= 1 {
-    continue
-  }
-
-  windows.append([
-    "id": "\(ownerPid):\(layer):\(title ?? ownerName)",
-    "appName": ownerName,
-    "title": title as Any,
-    "bounds": bounds as Any,
-    "ownerPid": ownerPid,
-    "layer": layer,
-    "isOnScreen": true,
-  ])
-
-  if windows.count >= limit {
-    break
-  }
-}
-
-let frontmostWindowTitle = windows.first(where: { ($0["appName"] as? String) == frontmostAppName })?["title"]
-let payload: [String: Any] = [
-  "frontmostAppName": frontmostAppName as Any,
-  "frontmostWindowTitle": frontmostWindowTitle as Any,
-  "windows": windows,
-  "observedAt": ISO8601DateFormatter().string(from: Date()),
-]
-
-let data = try JSONSerialization.data(withJSONObject: payload, options: [])
-print(String(data: data, encoding: .utf8)!)
-`
+  shift: '.maskShift',
 }
 
 /**
@@ -296,74 +183,6 @@ print("{}")
 }
 
 /**
- * Builds the Swift script used for local macOS keyboard text injection.
- *
- * Use when:
- * - Executing `desktop_type_text` after any optional focus click has completed
- * - Verifying keyboard-only scripts do not warp the user's cursor
- *
- * Expects:
- * - JSON input is provided through `COMPUTER_USE_SWIFT_STDIN`
- *
- * Returns:
- * - A Swift script that posts keyboard events without moving the mouse cursor
- */
-export function buildMacOSTypeTextScript(): string {
-  return String.raw`
-import CoreGraphics
-import Foundation
-
-let environment = ProcessInfo.processInfo.environment
-let rawInput = environment["COMPUTER_USE_SWIFT_STDIN"] ?? "{}"
-let inputData = rawInput.data(using: .utf8) ?? Data()
-let input = (try? JSONSerialization.jsonObject(with: inputData)) as? [String: Any] ?? [:]
-let text = input["text"] as? String ?? ""
-let pressEnter = input["pressEnter"] as? Bool ?? false
-let characterDelayMicros: useconds_t = 12_000
-let settleDelayMicros: useconds_t = 80_000
-
-func postText(_ chunk: String) {
-  let chars = Array(chunk.utf16)
-  let length = chars.count
-  guard length > 0 else { return }
-  chars.withUnsafeBufferPointer { buffer in
-    if let keyDown = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true),
-       let keyUp = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: false) {
-      keyDown.keyboardSetUnicodeString(stringLength: length, unicodeString: buffer.baseAddress!)
-      keyUp.keyboardSetUnicodeString(stringLength: length, unicodeString: buffer.baseAddress!)
-      keyDown.post(tap: .cghidEventTap)
-      keyUp.post(tap: .cghidEventTap)
-    }
-  }
-
-  // NOTICE: Electron/Vue textareas can drop tail characters when a burst of
-  // Quartz keyboard events is posted back-to-back with no pacing. A short
-  // delay between Unicode events keeps the renderer input queue stable enough
-  // for end-to-end desktop automation.
-  usleep(characterDelayMicros)
-}
-
-for character in text {
-  postText(String(character))
-}
-
-if !text.isEmpty {
-  usleep(settleDelayMicros)
-}
-
-if pressEnter {
-  if let down = CGEvent(keyboardEventSource: nil, virtualKey: 36, keyDown: true),
-     let up = CGEvent(keyboardEventSource: nil, virtualKey: 36, keyDown: false) {
-    down.post(tap: .cghidEventTap)
-    up.post(tap: .cghidEventTap)
-  }
-}
-
-print("{}")
-`
-}
-
-/**
  * Builds the Swift script used for local macOS key chord injection.
  *
  * Use when:
@@ -439,19 +258,202 @@ print("{}")
 `
 }
 
-async function observeWindows(config: ComputerUseConfig, request: ObserveWindowsRequest): Promise<WindowObservation> {
-  return await runMacOsJsonScript<WindowObservation>(config, observeWindowsScript(), request)
+/**
+ * Builds the Swift script used for local macOS keyboard text injection.
+ *
+ * Use when:
+ * - Executing `desktop_type_text` after any optional focus click has completed
+ * - Verifying keyboard-only scripts do not warp the user's cursor
+ *
+ * Expects:
+ * - JSON input is provided through `COMPUTER_USE_SWIFT_STDIN`
+ *
+ * Returns:
+ * - A Swift script that posts keyboard events without moving the mouse cursor
+ */
+export function buildMacOSTypeTextScript(): string {
+  return String.raw`
+import CoreGraphics
+import Foundation
+
+let environment = ProcessInfo.processInfo.environment
+let rawInput = environment["COMPUTER_USE_SWIFT_STDIN"] ?? "{}"
+let inputData = rawInput.data(using: .utf8) ?? Data()
+let input = (try? JSONSerialization.jsonObject(with: inputData)) as? [String: Any] ?? [:]
+let text = input["text"] as? String ?? ""
+let pressEnter = input["pressEnter"] as? Bool ?? false
+let characterDelayMicros: useconds_t = 12_000
+let settleDelayMicros: useconds_t = 80_000
+
+func postText(_ chunk: String) {
+  let chars = Array(chunk.utf16)
+  let length = chars.count
+  guard length > 0 else { return }
+  chars.withUnsafeBufferPointer { buffer in
+    if let keyDown = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true),
+       let keyUp = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: false) {
+      keyDown.keyboardSetUnicodeString(stringLength: length, unicodeString: buffer.baseAddress!)
+      keyUp.keyboardSetUnicodeString(stringLength: length, unicodeString: buffer.baseAddress!)
+      keyDown.post(tap: .cghidEventTap)
+      keyUp.post(tap: .cghidEventTap)
+    }
+  }
+
+  // NOTICE: Electron/Vue textareas can drop tail characters when a burst of
+  // Quartz keyboard events is posted back-to-back with no pacing. A short
+  // delay between Unicode events keeps the renderer input queue stable enough
+  // for end-to-end desktop automation.
+  usleep(characterDelayMicros)
 }
 
-function observationToForegroundContext(observation: WindowObservation): ForegroundContext {
-  const frontmost = observation.windows.find(window => window.appName === observation.frontmostAppName)
+for character in text {
+  postText(String(character))
+}
+
+if !text.isEmpty {
+  usleep(settleDelayMicros)
+}
+
+if pressEnter {
+  if let down = CGEvent(keyboardEventSource: nil, virtualKey: 36, keyDown: true),
+     let up = CGEvent(keyboardEventSource: nil, virtualKey: 36, keyDown: false) {
+    down.post(tap: .cghidEventTap)
+    up.post(tap: .cghidEventTap)
+  }
+}
+
+print("{}")
+`
+}
+
+export function createMacOSLocalExecutor(config: ComputerUseConfig): DesktopExecutor {
+  const executionTarget = createExecutionTarget(config)
+
   return {
-    available: Boolean(observation.frontmostAppName),
-    appName: observation.frontmostAppName,
-    windowTitle: observation.frontmostWindowTitle,
-    windowBounds: frontmost?.bounds,
-    platform,
-    unavailableReason: observation.frontmostAppName ? undefined : 'frontmost application unavailable',
+    click: async (input: ClickActionInput & { pointerTrace: PointerTracePoint[] }) => {
+      await ensureMacOS()
+      await runMacOsJsonScript<Record<string, never>>(config, buildMacOSMoveAndClickScript(), {
+        button: buttonNames[input.button || 'left'],
+        clickCount: input.clickCount ?? 1,
+        pointerTrace: input.pointerTrace,
+      })
+      return {
+        ...result(['clicked on local macOS desktop'], executionTarget),
+        pointerTrace: input.pointerTrace,
+      }
+    },
+    describe: () => ({
+      kind: 'macos-local',
+      notes: [
+        'desktop actions run on the current macOS host',
+        'window observation uses NSWorkspace + CGWindowList',
+        'input injection uses Swift + Quartz CGEvent',
+      ],
+    }),
+    focusApp: async (input: FocusAppActionInput) => {
+      await ensureMacOS()
+      await runOpenCommand(config, input.app)
+      await activateApp(config, input.app)
+      return result([`focused app ${input.app}`], executionTarget)
+    },
+    getDisplayInfo: () => probeDisplayInfo(config),
+    getExecutionTarget: async () => executionTarget,
+    getForegroundContext: async () => {
+      try {
+        await ensureMacOS()
+        return observationToForegroundContext(await observeWindows(config, { limit: 8 }))
+      }
+      catch (error) {
+        return fallbackContext(errorMessageFromValue(error))
+      }
+    },
+    getPermissionInfo: () => probePermissionInfo(config),
+    kind: 'macos-local',
+    observeWindows: async (request) => {
+      await ensureMacOS()
+      return await observeWindows(config, request)
+    },
+    openApp: async (input: OpenAppActionInput) => {
+      await ensureMacOS()
+      await runOpenCommand(config, input.app)
+      return result([`opened app ${input.app}`], executionTarget)
+    },
+    pressKeys: async (input: PressKeysActionInput) => {
+      await ensureMacOS()
+      const normalized = input.keys.map(key => key.trim().toLowerCase()).filter(Boolean)
+      if (normalized.length === 0)
+        throw new Error('press_keys requires at least one key')
+
+      const mainKey = normalized.at(-1)!
+      const keyCode = keyCodeMap[mainKey]
+      if (typeof keyCode !== 'number') {
+        throw new TypeError(`unsupported macOS key for press_keys: ${mainKey}`)
+      }
+
+      const modifiers = normalized.slice(0, -1)
+      const modifierMaskExpr = modifiers.length > 0
+        ? modifiers.map((modifier) => {
+            const flag = modifierFlags[modifier]
+            if (!flag)
+              throw new Error(`unsupported modifier key: ${modifier}`)
+            return flag
+          }).join(' | ')
+        : '[]'
+
+      await runMacOsJsonScript<Record<string, never>>(config, buildMacOSPressKeysScript(keyCode, modifierMaskExpr), {})
+      return result([`pressed keys ${normalized.join('+')}`], executionTarget)
+    },
+    scroll: async (input: ScrollActionInput) => {
+      await ensureMacOS()
+      await runMacOsJsonScript<Record<string, never>>(config, buildMacOSScrollScript(), {
+        deltaX: input.deltaX ?? 0,
+        deltaY: input.deltaY,
+        x: input.x,
+        y: input.y,
+      })
+      return result(['scrolled on local macOS desktop'], executionTarget)
+    },
+    takeScreenshot: request => captureScreenshotArtifact({
+      executionTarget,
+      label: request.label,
+      screenshotBinary: config.binaries.screencapture,
+      screenshotsDir: config.screenshotsDir,
+      timeoutMs: config.timeoutMs,
+    }),
+    typeText: async (input: TypeTextActionInput) => {
+      await ensureMacOS()
+      await runMacOsJsonScript<Record<string, never>>(config, buildMacOSTypeTextScript(), {
+        pressEnter: input.pressEnter ?? false,
+        text: input.text,
+      })
+      return result(['typed text on local macOS desktop'], executionTarget)
+    },
+    wait: async (input: WaitActionInput) => {
+      await new Promise(resolve => setTimeout(resolve, Math.max(input.durationMs, 0)))
+      return result(['waited on local macOS desktop'], executionTarget)
+    },
+  }
+}
+
+async function activateApp(config: ComputerUseConfig, app: string) {
+  const resolvedApp = resolveInstalledMacAppName(app)
+  await runProcess(config.binaries.osascript, [
+    '-e',
+    `tell application ${JSON.stringify(resolvedApp)} to activate`,
+  ], {
+    timeoutMs: config.timeoutMs,
+  })
+}
+
+function createExecutionTarget(config: ComputerUseConfig): ExecutionTarget {
+  return {
+    hostName: hostname(),
+    isolated: false,
+    mode: 'local-windowed',
+    note: 'local macOS window automation via Swift + Quartz',
+    sessionTag: config.sessionTag,
+    tainted: false,
+    transport: 'local',
   }
 }
 
@@ -459,6 +461,103 @@ async function ensureMacOS() {
   if (platform !== 'darwin') {
     throw new Error('macos-local executor requires macOS')
   }
+}
+
+function fallbackContext(reason: string): ForegroundContext {
+  return {
+    available: false,
+    platform,
+    unavailableReason: reason,
+  }
+}
+
+function observationToForegroundContext(observation: WindowObservation): ForegroundContext {
+  const frontmost = observation.windows.find(window => window.appName === observation.frontmostAppName)
+  return {
+    appName: observation.frontmostAppName,
+    available: Boolean(observation.frontmostAppName),
+    platform,
+    unavailableReason: observation.frontmostAppName ? undefined : 'frontmost application unavailable',
+    windowBounds: frontmost?.bounds,
+    windowTitle: observation.frontmostWindowTitle,
+  }
+}
+
+async function observeWindows(config: ComputerUseConfig, request: ObserveWindowsRequest): Promise<WindowObservation> {
+  return await runMacOsJsonScript<WindowObservation>(config, observeWindowsScript(), request)
+}
+
+function observeWindowsScript() {
+  return String.raw`
+import AppKit
+import CoreGraphics
+import Foundation
+
+func boundsDict(_ value: NSDictionary?) -> [String: Int]? {
+  guard let value else { return nil }
+  var rect = CGRect.zero
+  guard CGRectMakeWithDictionaryRepresentation(value, &rect) else { return nil }
+  return [
+    "x": Int(rect.origin.x.rounded()),
+    "y": Int(rect.origin.y.rounded()),
+    "width": Int(rect.size.width.rounded()),
+    "height": Int(rect.size.height.rounded())
+  ]
+}
+
+let environment = ProcessInfo.processInfo.environment
+let rawInput = environment["COMPUTER_USE_SWIFT_STDIN"] ?? "{}"
+let inputData = rawInput.data(using: .utf8) ?? Data()
+let input = (try? JSONSerialization.jsonObject(with: inputData)) as? [String: Any] ?? [:]
+let limit = (input["limit"] as? Int) ?? 12
+let appFilter = ((input["app"] as? String) ?? "").lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+let frontmostAppName = NSWorkspace.shared.frontmostApplication?.localizedName
+
+let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+let rawWindowInfo = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] ?? []
+var windows: [[String: Any]] = []
+for window in rawWindowInfo {
+  let ownerName = (window[kCGWindowOwnerName as String] as? String) ?? "Unknown"
+  if !appFilter.isEmpty && !ownerName.lowercased().contains(appFilter) {
+    continue
+  }
+
+  let alpha = window[kCGWindowAlpha as String] as? Double ?? 1.0
+  let layer = window[kCGWindowLayer as String] as? Int ?? 0
+  let bounds = boundsDict(window[kCGWindowBounds as String] as? NSDictionary)
+  let title = (window[kCGWindowName as String] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+  let ownerPid = window[kCGWindowOwnerPID as String] as? Int ?? 0
+
+  if alpha <= 0 || (bounds?["width"] ?? 0) <= 1 || (bounds?["height"] ?? 0) <= 1 {
+    continue
+  }
+
+  windows.append([
+    "id": "\(ownerPid):\(layer):\(title ?? ownerName)",
+    "appName": ownerName,
+    "title": title as Any,
+    "bounds": bounds as Any,
+    "ownerPid": ownerPid,
+    "layer": layer,
+    "isOnScreen": true,
+  ])
+
+  if windows.count >= limit {
+    break
+  }
+}
+
+let frontmostWindowTitle = windows.first(where: { ($0["appName"] as? String) == frontmostAppName })?["title"]
+let payload: [String: Any] = [
+  "frontmostAppName": frontmostAppName as Any,
+  "frontmostWindowTitle": frontmostWindowTitle as Any,
+  "windows": windows,
+  "observedAt": ISO8601DateFormatter().string(from: Date()),
+]
+
+let data = try JSONSerialization.data(withJSONObject: payload, options: [])
+print(String(data: data, encoding: .utf8)!)
+`
 }
 
 function resolveInstalledMacAppName(app: string) {
@@ -489,127 +588,28 @@ function resolveInstalledMacAppName(app: string) {
   return app
 }
 
+function result(notes: string[], executionTarget: ExecutionTarget): ExecutorActionResult {
+  return {
+    backend: 'macos-local',
+    executionTarget,
+    notes,
+    performed: true,
+  }
+}
+
+async function runMacOsJsonScript<T>(config: ComputerUseConfig, source: string, stdinPayload?: unknown): Promise<T> {
+  const { stdout } = await runSwiftScript({
+    source,
+    stdinPayload,
+    swiftBinary: config.binaries.swift,
+    timeoutMs: config.timeoutMs,
+  })
+
+  return JSON.parse(stdout.trim()) as T
+}
+
 async function runOpenCommand(config: ComputerUseConfig, app: string) {
   await runProcess(config.binaries.open, ['-a', resolveInstalledMacAppName(app)], {
     timeoutMs: config.timeoutMs,
   })
-}
-
-async function activateApp(config: ComputerUseConfig, app: string) {
-  const resolvedApp = resolveInstalledMacAppName(app)
-  await runProcess(config.binaries.osascript, [
-    '-e',
-    `tell application ${JSON.stringify(resolvedApp)} to activate`,
-  ], {
-    timeoutMs: config.timeoutMs,
-  })
-}
-
-export function createMacOSLocalExecutor(config: ComputerUseConfig): DesktopExecutor {
-  const executionTarget = createExecutionTarget(config)
-
-  return {
-    kind: 'macos-local',
-    describe: () => ({
-      kind: 'macos-local',
-      notes: [
-        'desktop actions run on the current macOS host',
-        'window observation uses NSWorkspace + CGWindowList',
-        'input injection uses Swift + Quartz CGEvent',
-      ],
-    }),
-    getExecutionTarget: async () => executionTarget,
-    getForegroundContext: async () => {
-      try {
-        await ensureMacOS()
-        return observationToForegroundContext(await observeWindows(config, { limit: 8 }))
-      }
-      catch (error) {
-        return fallbackContext(errorMessageFromValue(error))
-      }
-    },
-    getDisplayInfo: () => probeDisplayInfo(config),
-    getPermissionInfo: () => probePermissionInfo(config),
-    observeWindows: async (request) => {
-      await ensureMacOS()
-      return await observeWindows(config, request)
-    },
-    takeScreenshot: request => captureScreenshotArtifact({
-      label: request.label,
-      screenshotsDir: config.screenshotsDir,
-      screenshotBinary: config.binaries.screencapture,
-      timeoutMs: config.timeoutMs,
-      executionTarget,
-    }),
-    openApp: async (input: OpenAppActionInput) => {
-      await ensureMacOS()
-      await runOpenCommand(config, input.app)
-      return result([`opened app ${input.app}`], executionTarget)
-    },
-    focusApp: async (input: FocusAppActionInput) => {
-      await ensureMacOS()
-      await runOpenCommand(config, input.app)
-      await activateApp(config, input.app)
-      return result([`focused app ${input.app}`], executionTarget)
-    },
-    click: async (input: ClickActionInput & { pointerTrace: PointerTracePoint[] }) => {
-      await ensureMacOS()
-      await runMacOsJsonScript<Record<string, never>>(config, buildMacOSMoveAndClickScript(), {
-        pointerTrace: input.pointerTrace,
-        button: buttonNames[input.button || 'left'],
-        clickCount: input.clickCount ?? 1,
-      })
-      return {
-        ...result(['clicked on local macOS desktop'], executionTarget),
-        pointerTrace: input.pointerTrace,
-      }
-    },
-    typeText: async (input: TypeTextActionInput) => {
-      await ensureMacOS()
-      await runMacOsJsonScript<Record<string, never>>(config, buildMacOSTypeTextScript(), {
-        text: input.text,
-        pressEnter: input.pressEnter ?? false,
-      })
-      return result(['typed text on local macOS desktop'], executionTarget)
-    },
-    pressKeys: async (input: PressKeysActionInput) => {
-      await ensureMacOS()
-      const normalized = input.keys.map(key => key.trim().toLowerCase()).filter(Boolean)
-      if (normalized.length === 0)
-        throw new Error('press_keys requires at least one key')
-
-      const mainKey = normalized.at(-1)!
-      const keyCode = keyCodeMap[mainKey]
-      if (typeof keyCode !== 'number') {
-        throw new TypeError(`unsupported macOS key for press_keys: ${mainKey}`)
-      }
-
-      const modifiers = normalized.slice(0, -1)
-      const modifierMaskExpr = modifiers.length > 0
-        ? modifiers.map((modifier) => {
-            const flag = modifierFlags[modifier]
-            if (!flag)
-              throw new Error(`unsupported modifier key: ${modifier}`)
-            return flag
-          }).join(' | ')
-        : '[]'
-
-      await runMacOsJsonScript<Record<string, never>>(config, buildMacOSPressKeysScript(keyCode, modifierMaskExpr), {})
-      return result([`pressed keys ${normalized.join('+')}`], executionTarget)
-    },
-    scroll: async (input: ScrollActionInput) => {
-      await ensureMacOS()
-      await runMacOsJsonScript<Record<string, never>>(config, buildMacOSScrollScript(), {
-        x: input.x,
-        y: input.y,
-        deltaX: input.deltaX ?? 0,
-        deltaY: input.deltaY,
-      })
-      return result(['scrolled on local macOS desktop'], executionTarget)
-    },
-    wait: async (input: WaitActionInput) => {
-      await new Promise(resolve => setTimeout(resolve, Math.max(input.durationMs, 0)))
-      return result(['waited on local macOS desktop'], executionTarget)
-    },
-  }
 }

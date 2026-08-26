@@ -5,11 +5,6 @@ import type { ContextMessage } from '../types/chat'
 const CONTEXT_UPDATE_REPLACE_SELF = 'replace-self'
 const CONTEXT_UPDATE_APPEND_SELF = 'append-self'
 
-interface EventSourcePayload {
-  source?: string
-  metadata?: { source?: MetadataEventSource }
-}
-
 /**
  * Stored context event with the registry bucket key resolved at ingest time.
  */
@@ -22,62 +17,48 @@ export interface ContextHistoryEntry extends ContextMessage {
  * Observable result emitted when a context update mutates an active bucket.
  */
 export interface ContextIngestResult {
-  /** Stable source bucket key affected by the ingest. */
-  sourceKey: string
-  /** Registry mutation applied to the active bucket. */
-  mutation: 'replace' | 'append'
   /** Number of active entries in the affected bucket after mutation. */
   entryCount: number
+  /** Registry mutation applied to the active bucket. */
+  mutation: 'append' | 'replace'
+  /** Stable source bucket key affected by the ingest. */
+  sourceKey: string
 }
 
 /**
  * Mutable runtime registry for active context buckets and bounded ingest history.
  */
 export interface ContextRegistry {
+  /** Returns cloned active context buckets for callers that prefer explicit naming. */
+  activeContexts: () => Record<string, ContextMessage[]>
+  /** Returns cloned ingest history entries in chronological order. */
+  contextHistory: () => ContextHistoryEntry[]
   /** Stores a context message and returns a mutation summary for known strategies. */
   ingest: (envelope: ContextMessage) => ContextIngestResult | undefined
   /** Clears active context buckets and ingest history. */
   reset: () => void
   /** Returns a cloned active context bucket snapshot. */
   snapshot: () => Record<string, ContextMessage[]>
-  /** Returns cloned active context buckets for callers that prefer explicit naming. */
-  activeContexts: () => Record<string, ContextMessage[]>
-  /** Returns cloned ingest history entries in chronological order. */
-  contextHistory: () => ContextHistoryEntry[]
 }
 
 interface CreateContextRegistryOptions {
-  /**
-   * Maximum number of history records retained by the registry.
-   *
-   * @default 400
-   */
-  historyLimit?: number
   /**
    * Resolves a context message into a stable source bucket key.
    *
    * @default metadata extension/module key, then event source, then "unknown"
    */
   getSourceKey?: (event: EventSourcePayload, fallback?: string) => string
+  /**
+   * Maximum number of history records retained by the registry.
+   *
+   * @default 400
+   */
+  historyLimit?: number
 }
 
-function formatMetadataSource(source?: MetadataEventSource) {
-  if (!source)
-    return undefined
-
-  if ('extension' in source) {
-    return `${source.extension.id}:${source.id}`
-  }
-
-  return source.id
-}
-
-function defaultGetSourceKey(event: EventSourcePayload, fallback = 'unknown') {
-  return (
-    formatMetadataSource(event.metadata?.source)
-    ?? event.source
-    ?? fallback
-  )
+interface EventSourcePayload {
+  metadata?: { source?: MetadataEventSource }
+  source?: string
 }
 
 /**
@@ -114,17 +95,17 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
     if (envelope.strategy === CONTEXT_UPDATE_REPLACE_SELF) {
       currentActiveContexts.set(sourceKey, [safeEnvelopeToStore])
       result = {
-        sourceKey,
-        mutation: 'replace',
         entryCount: currentActiveContexts.get(sourceKey)?.length ?? 0,
+        mutation: 'replace',
+        sourceKey,
       }
     }
     else if (envelope.strategy === CONTEXT_UPDATE_APPEND_SELF) {
       currentActiveContexts.get(sourceKey)?.push(safeEnvelopeToStore)
       result = {
-        sourceKey,
-        mutation: 'append',
         entryCount: currentActiveContexts.get(sourceKey)?.length ?? 0,
+        mutation: 'append',
+        sourceKey,
       }
     }
 
@@ -154,10 +135,29 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
   }
 
   return {
+    activeContexts: snapshot,
+    contextHistory: () => structuredClone(currentContextHistory),
     ingest,
     reset,
     snapshot,
-    activeContexts: snapshot,
-    contextHistory: () => structuredClone(currentContextHistory),
   }
+}
+
+function defaultGetSourceKey(event: EventSourcePayload, fallback = 'unknown') {
+  return (
+    formatMetadataSource(event.metadata?.source)
+    ?? event.source
+    ?? fallback
+  )
+}
+
+function formatMetadataSource(source?: MetadataEventSource) {
+  if (!source)
+    return undefined
+
+  if ('extension' in source) {
+    return `${source.extension.id}:${source.id}`
+  }
+
+  return source.id
 }

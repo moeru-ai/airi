@@ -26,40 +26,40 @@ type DisplayModelsStore = ReturnType<typeof useDisplayModelsStore>
 type ShareableAiriCard = Card & { extensions: { airi: AiriExtension } }
 
 const manifestSchema = object({
-  format: literal(FORMAT),
-  version: literal(VERSION),
   card: object({ path: literal(CARD_PATH), spec: literal('chara_card_v3') }),
+  format: literal(FORMAT),
   resources: optional(object({
     displayModel: object({
-      path: string(),
       format: picklist([DisplayModelFormat.Live2dZip, DisplayModelFormat.SpineZip, DisplayModelFormat.TachieZip, DisplayModelFormat.VRM]),
       name: string(),
+      path: string(),
     }),
   })),
+  version: literal(VERSION),
 })
 
 const characterCardV3Schema = object({
-  spec: literal('chara_card_v3'),
-  spec_version: literal('3.0'),
   data: object({
+    alternate_greetings: optional(array(string()), []),
+    character_version: optional(string(), '1.0.0'),
+    creator_notes: optional(string(), ''),
+    description: optional(string(), ''),
+    extensions: optional(record(string(), unknownSchema()), {}),
+    first_mes: optional(string(), ''),
     name: string(),
     nickname: optional(string()),
-    character_version: optional(string(), '1.0.0'),
-    description: optional(string(), ''),
     personality: optional(string(), ''),
-    scenario: optional(string(), ''),
-    first_mes: optional(string(), ''),
-    alternate_greetings: optional(array(string()), []),
-    creator_notes: optional(string(), ''),
-    system_prompt: optional(string(), ''),
     post_history_instructions: optional(string(), ''),
-    extensions: optional(record(string(), unknownSchema()), {}),
+    scenario: optional(string(), ''),
+    system_prompt: optional(string(), ''),
   }),
+  spec: literal('chara_card_v3'),
+  spec_version: literal('3.0'),
 })
 
-type CharacterCardPackageJson = InferOutput<typeof characterCardV3Schema>
+type AiriCardPackageErrorCode = 'invalid-file' | 'missing-file'
 
-type AiriCardPackageErrorCode = 'missing-file' | 'invalid-file'
+type CharacterCardPackageJson = InferOutput<typeof characterCardV3Schema>
 type Manifest = InferOutput<typeof manifestSchema>
 
 export class AiriCardPackageError extends Error {
@@ -81,10 +81,10 @@ export async function exportAiriCardPackage({ card, displayModelsStore }: { card
   const exportableCard = cardFromAiriCard(card)
   const displayModel = await exportDisplayModel(exportableCard, displayModelsStore)
   const manifest = {
+    card: { path: CARD_PATH, spec: 'chara_card_v3' },
+    createdAt: new Date().toISOString(),
     format: FORMAT,
     version: VERSION,
-    createdAt: new Date().toISOString(),
-    card: { path: CARD_PATH, spec: 'chara_card_v3' },
     ...(displayModel ? { resources: { displayModel: displayModel.manifest } } : {}),
   }
   const zip = new JSZip()
@@ -104,13 +104,66 @@ export async function exportAiriCardPackage({ card, displayModelsStore }: { card
  * path: package authors cannot smuggle custom extensions, agent prompts, or
  * machine-local references into persisted AIRI state.
  */
-export async function importAiriCardPackage({ file, displayModelsStore }: { file: File, displayModelsStore: DisplayModelsStore }): Promise<ccv3.CharacterCardV3> {
+export async function importAiriCardPackage({ displayModelsStore, file }: { displayModelsStore: DisplayModelsStore, file: File }): Promise<ccv3.CharacterCardV3> {
   const zip = await loadZip(file)
   const manifest = await readJsonFile(zip, MANIFEST_PATH, manifestSchema)
   const cardJson = await readJsonFile(zip, manifest.card.path, characterCardV3Schema)
   const displayModelId = await importDisplayModel(zip, manifest, displayModelsStore)
 
   return exportToJSON(cardFromCharacterCard(cardJson, displayModelId))
+}
+
+function cardFromAiriCard(card: AiriCard): ShareableAiriCard {
+  return {
+    description: card.description ?? '',
+    extensions: { airi: sanitizeAiri(card.extensions?.airi) },
+    greetings: card.greetings ?? [],
+    name: card.name,
+    nickname: card.nickname,
+    notes: card.notes ?? '',
+    personality: card.personality ?? '',
+    postHistoryInstructions: card.postHistoryInstructions ?? '',
+    scenario: card.scenario ?? '',
+    systemPrompt: card.systemPrompt ?? '',
+    version: card.version,
+  }
+}
+
+function cardFromCharacterCard(card: CharacterCardPackageJson, displayModelId?: string): ShareableAiriCard {
+  const data = card.data
+  return {
+    description: data.description,
+    extensions: { airi: sanitizeAiri(data.extensions?.airi, displayModelId) },
+    greetings: [data.first_mes, ...(data.alternate_greetings ?? [])],
+    name: data.name,
+    nickname: data.nickname,
+    notes: data.creator_notes,
+    personality: data.personality,
+    postHistoryInstructions: data.post_history_instructions,
+    scenario: data.scenario,
+    systemPrompt: data.system_prompt,
+    version: data.character_version,
+  }
+}
+
+async function displayModelPayload(model: DisplayModel): Promise<{ data: ArrayBuffer, file: File }> {
+  try {
+    const response = model.type === 'url' ? await fetch(model.url) : undefined
+    if (response && !response.ok)
+      throw new Error(`Failed to read display model URL: ${response.status} ${response.statusText}`)
+
+    const file = model.type === 'file' ? model.file : new File([await response!.blob()], `${model.name}.${MODEL_EXT[model.format]}`)
+    if (file.size <= 0)
+      throw new Error('Display model file is empty')
+    return { data: await file.arrayBuffer(), file }
+  }
+  catch (cause) {
+    throw error('invalid-file', 'Failed to read display model file', { cause })
+  }
+}
+
+function error(code: AiriCardPackageErrorCode, message: string, options?: { cause?: unknown }) {
+  return new AiriCardPackageError(code, message, options)
 }
 
 async function exportDisplayModel(card: ShareableAiriCard, store: DisplayModelsStore) {
@@ -159,6 +212,14 @@ async function importDisplayModel(zip: JSZip, manifest: Manifest, store: Display
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isSpawnMode(value: unknown): value is NonNullable<AiriExtension['modules']['artistry']>['spawnMode'] {
+  return value === 'bg' || value === 'widget' || value === 'inline' || value === 'bg_widget'
+}
+
 async function loadZip(file: File) {
   try {
     return await JSZip.loadAsync(await file.arrayBuffer())
@@ -166,6 +227,11 @@ async function loadZip(file: File) {
   catch (cause) {
     throw error('invalid-file', 'Invalid zip file', { cause })
   }
+}
+
+function providerModel(value: unknown) {
+  const source = isRecord(value) ? value : {}
+  return { model: stringValue(source.model), provider: stringValue(source.provider) }
 }
 
 async function readJsonFile<S extends GenericSchema>(zip: JSZip, path: string, schema: S): Promise<InferOutput<S>> {
@@ -181,39 +247,6 @@ async function readJsonFile<S extends GenericSchema>(zip: JSZip, path: string, s
   }
 }
 
-function cardFromAiriCard(card: AiriCard): ShareableAiriCard {
-  return {
-    name: card.name,
-    nickname: card.nickname,
-    version: card.version,
-    description: card.description ?? '',
-    personality: card.personality ?? '',
-    scenario: card.scenario ?? '',
-    greetings: card.greetings ?? [],
-    notes: card.notes ?? '',
-    systemPrompt: card.systemPrompt ?? '',
-    postHistoryInstructions: card.postHistoryInstructions ?? '',
-    extensions: { airi: sanitizeAiri(card.extensions?.airi) },
-  }
-}
-
-function cardFromCharacterCard(card: CharacterCardPackageJson, displayModelId?: string): ShareableAiriCard {
-  const data = card.data
-  return {
-    name: data.name,
-    nickname: data.nickname,
-    version: data.character_version,
-    description: data.description,
-    personality: data.personality,
-    scenario: data.scenario,
-    greetings: [data.first_mes, ...(data.alternate_greetings ?? [])],
-    notes: data.creator_notes,
-    systemPrompt: data.system_prompt,
-    postHistoryInstructions: data.post_history_instructions,
-    extensions: { airi: sanitizeAiri(data.extensions?.airi, displayModelId) },
-  }
-}
-
 function sanitizeAiri(value: unknown, displayModelIdOverride?: string): AiriExtension {
   const source = isRecord(value) ? value : {}
   const modules = isRecord(source.modules) ? source.modules : {}
@@ -222,13 +255,14 @@ function sanitizeAiri(value: unknown, displayModelIdOverride?: string): AiriExte
   const displayModelId = displayModelIdOverride ?? stringValue(modules.displayModelId)
 
   return {
+    agents: {},
     modules: {
       consciousness: providerModel(modules.consciousness),
-      vision: providerModel(modules.vision),
       speech: {
         ...providerModel(modules.speech),
         voice_id: stringValue(speech.voice_id),
       },
+      vision: providerModel(modules.vision),
       ...(displayModelId ? { displayModelId } : {}),
       artistry: {
         ...(typeof artistry.provider === 'string' ? { provider: artistry.provider } : {}),
@@ -241,43 +275,9 @@ function sanitizeAiri(value: unknown, displayModelIdOverride?: string): AiriExte
         ...(typeof artistry.autonomousThreshold === 'number' ? { autonomousThreshold: artistry.autonomousThreshold } : {}),
       },
     },
-    agents: {},
   }
-}
-
-function providerModel(value: unknown) {
-  const source = isRecord(value) ? value : {}
-  return { provider: stringValue(source.provider), model: stringValue(source.model) }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function stringValue(value: unknown) {
   return typeof value === 'string' ? value : ''
-}
-
-function isSpawnMode(value: unknown): value is NonNullable<AiriExtension['modules']['artistry']>['spawnMode'] {
-  return value === 'bg' || value === 'widget' || value === 'inline' || value === 'bg_widget'
-}
-
-async function displayModelPayload(model: DisplayModel): Promise<{ data: ArrayBuffer, file: File }> {
-  try {
-    const response = model.type === 'url' ? await fetch(model.url) : undefined
-    if (response && !response.ok)
-      throw new Error(`Failed to read display model URL: ${response.status} ${response.statusText}`)
-
-    const file = model.type === 'file' ? model.file : new File([await response!.blob()], `${model.name}.${MODEL_EXT[model.format]}`)
-    if (file.size <= 0)
-      throw new Error('Display model file is empty')
-    return { data: await file.arrayBuffer(), file }
-  }
-  catch (cause) {
-    throw error('invalid-file', 'Failed to read display model file', { cause })
-  }
-}
-
-function error(code: AiriCardPackageErrorCode, message: string, options?: { cause?: unknown }) {
-  return new AiriCardPackageError(code, message, options)
 }

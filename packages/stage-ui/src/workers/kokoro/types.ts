@@ -7,12 +7,12 @@
 
 import type { GenerateOptions } from 'kokoro-js'
 
-export type VoiceKey = NonNullable<GenerateOptions['voice']>
-
 export interface Voice {
+  gender: string
   language: string
   name: string
-  gender: string
 }
+
+export type VoiceKey = NonNullable<GenerateOptions['voice']>
 
 export type Voices = Record<string, Voice>

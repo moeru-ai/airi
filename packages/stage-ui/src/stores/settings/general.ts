@@ -34,11 +34,11 @@ export const useSettingsGeneral = defineStore('settings-general', () => {
   onMounted(() => language.value = getLanguage())
 
   return {
-    language,
     disableTransitions,
+    getLanguage,
+    language,
+    resetState,
     usePageSpecificTransitions,
     websocketSecureEnabled,
-    getLanguage,
-    resetState,
   }
 })

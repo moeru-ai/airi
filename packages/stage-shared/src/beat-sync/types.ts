@@ -1,10 +1,10 @@
 import type { AnalyserBeatEvent } from '@nekopaw/tempora'
 
-export interface BeatSyncDetectorState {
-  isActive: boolean
+export interface BeatSyncDetectorEventMap {
+  beat: (e: AnalyserBeatEvent) => void
+  stateChange: (state: BeatSyncDetectorState) => void
 }
 
-export interface BeatSyncDetectorEventMap {
-  stateChange: (state: BeatSyncDetectorState) => void
-  beat: (e: AnalyserBeatEvent) => void
+export interface BeatSyncDetectorState {
+  isActive: boolean
 }

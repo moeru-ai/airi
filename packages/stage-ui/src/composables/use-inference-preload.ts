@@ -37,7 +37,7 @@ export function useInferencePreload(options: UseInferencePreloadOptions = {}) {
     await detectWebGPU()
 
     const providerStore = useProviderConfigStore()
-    const tasks: { modelId: string, loader: (signal: AbortSignal) => Promise<void> }[] = []
+    const tasks: { loader: (signal: AbortSignal) => Promise<void>, modelId: string }[] = []
 
     // Check if Kokoro TTS is configured
     if (providerStore.configuredProviders['kokoro-local']) {
@@ -52,11 +52,11 @@ export function useInferencePreload(options: UseInferencePreloadOptions = {}) {
 
       if (modelDef) {
         tasks.push({
-          modelId: `kokoro-${modelDef.id}`,
           loader: async (signal) => {
             const adapter = await getKokoroAdapter()
             await adapter.loadModel(modelDef.quantization, modelDef.platform, { signal })
           },
+          modelId: `kokoro-${modelDef.id}`,
         })
       }
     }

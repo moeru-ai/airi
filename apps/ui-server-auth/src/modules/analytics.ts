@@ -16,6 +16,12 @@
 
 import type { OauthCallbackFailureStage } from '@proj-airi/stage-ui/composables'
 
+/** Adapter contract installed by an optional analytics provider chunk. */
+export interface AnalyticsAdapter {
+  capture: (event: string, properties: Record<string, unknown>, options?: CaptureOptions) => void
+  identify: (userId: string) => void
+}
+
 /** Login/signup credential kinds shown on the sign-in page. */
 export type AuthMethod = 'email' | 'github' | 'google' | 'steam'
 
@@ -27,17 +33,11 @@ interface CaptureOptions {
   beforeNavigation?: boolean
 }
 
-/** Adapter contract installed by an optional analytics provider chunk. */
-export interface AnalyticsAdapter {
-  capture: (event: string, properties: Record<string, unknown>, options?: CaptureOptions) => void
-  identify: (userId: string) => void
-}
+type LoadState = 'idle' | 'loading' | 'ready' | 'unavailable'
 
 type PendingOperation
-  = | { kind: 'capture', event: string, properties: Record<string, unknown>, options?: CaptureOptions }
+  = | { event: string, kind: 'capture', options?: CaptureOptions, properties: Record<string, unknown> }
     | { kind: 'identify', userId: string }
-
-type LoadState = 'idle' | 'loading' | 'ready' | 'unavailable'
 
 /**
  * Owns optional-adapter loading and guarantees that product-event calls never
@@ -48,6 +48,26 @@ export class AnalyticsClient {
   private loadPromise: Promise<boolean> | undefined
   private loadState: LoadState = 'idle'
   private readonly pendingOperations: PendingOperation[] = []
+
+  capture(event: string, properties: Record<string, unknown>, options?: CaptureOptions): void {
+    if (this.adapter) {
+      this.adapter.capture(event, properties, options)
+      return
+    }
+
+    if (this.loadState === 'loading')
+      this.enqueue({ event, kind: 'capture', options, properties })
+  }
+
+  identify(userId: string): void {
+    if (this.adapter) {
+      this.adapter.identify(userId)
+      return
+    }
+
+    if (this.loadState === 'loading')
+      this.enqueue({ kind: 'identify', userId })
+  }
 
   load(loader: () => Promise<AnalyticsAdapter>): Promise<boolean> {
     if (this.loadPromise)
@@ -71,26 +91,6 @@ export class AnalyticsClient {
       })
 
     return this.loadPromise
-  }
-
-  capture(event: string, properties: Record<string, unknown>, options?: CaptureOptions): void {
-    if (this.adapter) {
-      this.adapter.capture(event, properties, options)
-      return
-    }
-
-    if (this.loadState === 'loading')
-      this.enqueue({ kind: 'capture', event, properties, options })
-  }
-
-  identify(userId: string): void {
-    if (this.adapter) {
-      this.adapter.identify(userId)
-      return
-    }
-
-    if (this.loadState === 'loading')
-      this.enqueue({ kind: 'identify', userId })
   }
 
   private enqueue(operation: PendingOperation): void {
@@ -118,14 +118,6 @@ export class AnalyticsClient {
 const analytics = new AnalyticsClient()
 
 /**
- * Starts loading the optional provider adapter without exposing its SDK to
- * pages or to the application's static module graph.
- */
-export function loadAnalyticsAdapter(loader: () => Promise<AnalyticsAdapter>): Promise<boolean> {
-  return analytics.load(loader)
-}
-
-/**
  * Merge this browser's anonymous events with the Better Auth user person.
  * `userId` must be the Better Auth `user.id` — the same value the server
  * uses as `distinctId` (see `server/apps/api` product events forwarding).
@@ -134,13 +126,39 @@ export function identifyAuthUser(userId: string): void {
   analytics.identify(userId)
 }
 
-function capture(event: string, properties: Record<string, unknown>, options?: CaptureOptions): void {
-  analytics.capture(event, properties, options)
+/**
+ * Starts loading the optional provider adapter without exposing its SDK to
+ * pages or to the application's static module graph.
+ */
+export function loadAnalyticsAdapter(loader: () => Promise<AnalyticsAdapter>): Promise<boolean> {
+  return analytics.load(loader)
 }
 
-/** Anonymous email-signup UI milestone; the server owns the registration fact. */
-export function trackSignupFormCompleted(properties: { source: AuthMethod, requires_verification: boolean }): void {
-  capture('signup_form_completed', properties, { beforeNavigation: !properties.requires_verification })
+/**
+ * Deletion-confirmed landing page reached (`delete-account.vue`). The
+ * deletion request itself is raised from the stage apps' account settings.
+ */
+export function trackAccountDeletionCompleted(): void {
+  capture('account_deletion_completed', {})
+}
+
+/** Verification link landing with `?verified=true`. */
+export function trackEmailVerificationCompleted(): void {
+  capture('email_verification_completed', {})
+}
+
+/** Verification link landing with `?error=...`. */
+export function trackEmailVerificationFailed(): void {
+  capture('email_verification_failed', {})
+}
+
+/**
+ * Sign-in attempt failed. No error detail on purpose — auth error messages
+ * can embed the email address, and the count per method is what the funnel
+ * needs.
+ */
+export function trackLoginFailed(properties: { method: AuthMethod }): void {
+  capture('login_failed', properties)
 }
 
 /**
@@ -158,34 +176,13 @@ export function trackLoginSucceeded(properties: { method: AuthMethod }): void {
 }
 
 /**
- * Sign-in attempt failed. No error detail on purpose — auth error messages
- * can embed the email address, and the count per method is what the funnel
- * needs.
+ * Electron OIDC relay handoff failed. `stage` distinguishes a malformed
+ * callback (`parse`) from an unreachable local app (`relay_unreachable`);
+ * the full cross-surface vocabulary lives in stage-ui's
+ * `OauthCallbackFailureStage` so the two emitters share one schema.
  */
-export function trackLoginFailed(properties: { method: AuthMethod }): void {
-  capture('login_failed', properties)
-}
-
-/** Verification link landing with `?verified=true`. */
-export function trackEmailVerificationCompleted(): void {
-  capture('email_verification_completed', {})
-}
-
-/** Verification link landing with `?error=...`. */
-export function trackEmailVerificationFailed(): void {
-  capture('email_verification_failed', {})
-}
-
-export function trackPasswordResetRequested(): void {
-  capture('password_reset_requested', {})
-}
-
-export function trackPasswordResetCompleted(): void {
-  capture('password_reset_completed', {})
-}
-
-export function trackPasswordChanged(): void {
-  capture('password_changed', {})
+export function trackOauthCallbackFailed(properties: { stage: Extract<OauthCallbackFailureStage, 'parse' | 'relay_unreachable'> }): void {
+  capture('oauth_callback_failed', properties)
 }
 
 /**
@@ -201,24 +198,27 @@ export function trackOauthProviderUnlinked(properties: { provider: string }): vo
   capture('oauth_provider_unlinked', properties)
 }
 
-/**
- * Deletion-confirmed landing page reached (`delete-account.vue`). The
- * deletion request itself is raised from the stage apps' account settings.
- */
-export function trackAccountDeletionCompleted(): void {
-  capture('account_deletion_completed', {})
+export function trackPasswordChanged(): void {
+  capture('password_changed', {})
+}
+
+export function trackPasswordResetCompleted(): void {
+  capture('password_reset_completed', {})
+}
+
+export function trackPasswordResetRequested(): void {
+  capture('password_reset_requested', {})
 }
 
 export function trackSignedOut(): void {
   capture('signed_out', {})
 }
 
-/**
- * Electron OIDC relay handoff failed. `stage` distinguishes a malformed
- * callback (`parse`) from an unreachable local app (`relay_unreachable`);
- * the full cross-surface vocabulary lives in stage-ui's
- * `OauthCallbackFailureStage` so the two emitters share one schema.
- */
-export function trackOauthCallbackFailed(properties: { stage: Extract<OauthCallbackFailureStage, 'parse' | 'relay_unreachable'> }): void {
-  capture('oauth_callback_failed', properties)
+/** Anonymous email-signup UI milestone; the server owns the registration fact. */
+export function trackSignupFormCompleted(properties: { requires_verification: boolean, source: AuthMethod }): void {
+  capture('signup_form_completed', properties, { beforeNavigation: !properties.requires_verification })
+}
+
+function capture(event: string, properties: Record<string, unknown>, options?: CaptureOptions): void {
+  analytics.capture(event, properties, options)
 }

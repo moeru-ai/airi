@@ -12,11 +12,11 @@ import { createBillingService } from '../billing-service'
 import * as schema from '../../../../schemas'
 
 function createMockConfigKV(overrides: Record<string, number> = {}): ReturnType<typeof createConfigKVService> {
-  const defaults: Record<string, number> = { INITIAL_USER_FLUX: 100, FLUX_PER_REQUEST: 1, ...overrides }
+  const defaults: Record<string, number> = { FLUX_PER_REQUEST: 1, INITIAL_USER_FLUX: 100, ...overrides }
   return {
     get: vi.fn(async (key: string) => defaults[key]),
-    getOrThrow: vi.fn(async (key: string) => defaults[key]),
     getOptional: vi.fn(async (key: string) => defaults[key] ?? null),
+    getOrThrow: vi.fn(async (key: string) => defaults[key]),
     set: vi.fn(),
   } as any
 }
@@ -31,9 +31,9 @@ describe('billingService', () => {
     db = await mockDB(schema)
 
     await db.insert(schema.user).values({
+      email: 'billing@example.com',
       id: 'user-billing-1',
       name: 'Billing User',
-      email: 'billing@example.com',
     })
   })
 
@@ -47,26 +47,26 @@ describe('billingService', () => {
     await db.delete(schema.stripeCheckoutSession).where(eq(schema.stripeCheckoutSession.stripeSessionId, 'sess-billing-1'))
 
     await db.insert(schema.stripeCheckoutSession).values({
-      userId: 'user-billing-1',
-      stripeSessionId: 'sess-billing-1',
-      mode: 'payment',
-      status: 'complete',
-      paymentStatus: 'paid',
       amountTotal: 500,
       currency: 'usd',
       fluxCredited: false,
+      mode: 'payment',
+      paymentStatus: 'paid',
+      status: 'complete',
+      stripeSessionId: 'sess-billing-1',
+      userId: 'user-billing-1',
     })
   })
 
   describe('creditFluxFromStripeCheckout', () => {
     it('credits flux, records transaction, and enqueues outbox events in one transaction', async () => {
       const result = await billingService.creditFluxFromStripeCheckout({
-        stripeEventId: 'stripe-evt-1',
-        userId: 'user-billing-1',
-        stripeSessionId: 'sess-billing-1',
         amountTotal: 500,
         currency: 'usd',
         fluxAmount: 50,
+        stripeEventId: 'stripe-evt-1',
+        stripeSessionId: 'sess-billing-1',
+        userId: 'user-billing-1',
       })
 
       expect(result).toEqual({ applied: true, balanceAfter: 50 })
@@ -84,9 +84,9 @@ describe('billingService', () => {
 
       // Verify metadata on transaction entry
       expect(txRecords[0]?.metadata).toMatchObject({
+        source: 'stripe.checkout.completed',
         stripeEventId: 'stripe-evt-1',
         stripeSessionId: 'sess-billing-1',
-        source: 'stripe.checkout.completed',
       })
 
       // Verify stripe session marked as credited
@@ -99,21 +99,21 @@ describe('billingService', () => {
 
     it('is idempotent when the checkout session was already credited', async () => {
       await billingService.creditFluxFromStripeCheckout({
-        stripeEventId: 'stripe-evt-1',
-        userId: 'user-billing-1',
-        stripeSessionId: 'sess-billing-1',
         amountTotal: 500,
         currency: 'usd',
         fluxAmount: 50,
+        stripeEventId: 'stripe-evt-1',
+        stripeSessionId: 'sess-billing-1',
+        userId: 'user-billing-1',
       })
 
       const second = await billingService.creditFluxFromStripeCheckout({
-        stripeEventId: 'stripe-evt-1',
-        userId: 'user-billing-1',
-        stripeSessionId: 'sess-billing-1',
         amountTotal: 500,
         currency: 'usd',
         fluxAmount: 50,
+        stripeEventId: 'stripe-evt-1',
+        stripeSessionId: 'sess-billing-1',
+        userId: 'user-billing-1',
       })
 
       expect(second).toEqual({ applied: false })
@@ -127,18 +127,18 @@ describe('billingService', () => {
   describe('consumeFluxForLLM', () => {
     it('deducts balance, writes the ledger row inside the transaction, and refreshes Redis', async () => {
       // Setup: give user some flux first
-      await db.insert(schema.userFlux).values({ userId: 'user-billing-1', flux: 100 })
+      await db.insert(schema.userFlux).values({ flux: 100, userId: 'user-billing-1' })
 
       const result = await billingService.consumeFluxForLLM({
-        userId: 'user-billing-1',
         amount: 30,
-        requestId: 'req-1',
+        completionTokens: 80,
         description: 'gpt-4',
         promptTokens: 120,
-        completionTokens: 80,
+        requestId: 'req-1',
+        userId: 'user-billing-1',
       })
 
-      expect(result).toEqual({ userId: 'user-billing-1', flux: 70, charged: 30, requested: 30 })
+      expect(result).toEqual({ charged: 30, flux: 70, requested: 30, userId: 'user-billing-1' })
 
       // Verify DB balance
       const [fluxRecord] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
@@ -150,17 +150,17 @@ describe('billingService', () => {
         eq(schema.fluxTransaction.requestId, 'req-1'),
       ))
       expect(txRecord).toMatchObject({
-        userId: 'user-billing-1',
-        type: 'debit',
         amount: 30,
-        balanceBefore: 100,
         balanceAfter: 70,
-        requestId: 'req-1',
+        balanceBefore: 100,
         description: 'gpt-4',
+        requestId: 'req-1',
+        type: 'debit',
+        userId: 'user-billing-1',
       })
       expect(txRecord?.metadata).toMatchObject({
-        promptTokens: 120,
         completionTokens: 80,
+        promptTokens: 120,
         source: 'llm.request',
       })
 
@@ -184,16 +184,16 @@ describe('billingService', () => {
     // `fluxUnbilled{reason="partial_debit_drained"}`. The next request from
     // the same user is rejected at the pre-flight gate.
     it('partial-debits when balance is below the requested amount and writes unbilled metadata (Issue: unpaid-usage-exploit)', async () => {
-      await db.insert(schema.userFlux).values({ userId: 'user-billing-1', flux: 5 })
+      await db.insert(schema.userFlux).values({ flux: 5, userId: 'user-billing-1' })
 
       const result = await billingService.consumeFluxForLLM({
-        userId: 'user-billing-1',
         amount: 38,
-        requestId: 'req-partial',
         description: 'gpt-4',
+        requestId: 'req-partial',
+        userId: 'user-billing-1',
       })
 
-      expect(result).toEqual({ userId: 'user-billing-1', flux: 0, charged: 5, requested: 38 })
+      expect(result).toEqual({ charged: 5, flux: 0, requested: 38, userId: 'user-billing-1' })
 
       const [fluxRecord] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
       expect(fluxRecord?.flux).toBe(0)
@@ -203,14 +203,14 @@ describe('billingService', () => {
         eq(schema.fluxTransaction.requestId, 'req-partial'),
       ))
       expect(txRecord).toMatchObject({
-        type: 'debit',
         amount: 5,
-        balanceBefore: 5,
         balanceAfter: 0,
+        balanceBefore: 5,
+        type: 'debit',
       })
       expect(txRecord?.metadata).toMatchObject({
-        source: 'llm.request',
         requestedAmount: 38,
+        source: 'llm.request',
         unbilled: 33,
       })
 
@@ -220,11 +220,11 @@ describe('billingService', () => {
     })
 
     it('throws 402 when balance is already zero (no ledger row, no balance change)', async () => {
-      await db.insert(schema.userFlux).values({ userId: 'user-billing-1', flux: 0 })
+      await db.insert(schema.userFlux).values({ flux: 0, userId: 'user-billing-1' })
 
       await expect(billingService.consumeFluxForLLM({
-        userId: 'user-billing-1',
         amount: 10,
+        userId: 'user-billing-1',
       })).rejects.toThrow('Insufficient flux')
 
       const [fluxRecord] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
@@ -235,17 +235,17 @@ describe('billingService', () => {
     })
 
     it('idempotent replay returns the historical charge without re-debiting (partial debits stay partial on retry)', async () => {
-      await db.insert(schema.userFlux).values({ userId: 'user-billing-1', flux: 5 })
+      await db.insert(schema.userFlux).values({ flux: 5, userId: 'user-billing-1' })
 
       const first = await billingService.consumeFluxForLLM({
-        userId: 'user-billing-1',
         amount: 38,
         requestId: 'req-replay',
+        userId: 'user-billing-1',
       })
       const second = await billingService.consumeFluxForLLM({
-        userId: 'user-billing-1',
         amount: 38,
         requestId: 'req-replay',
+        userId: 'user-billing-1',
       })
 
       expect(first.charged).toBe(5)
@@ -269,10 +269,10 @@ describe('billingService', () => {
   describe('creditFlux', () => {
     it('credits balance and writes the ledger row in one transaction', async () => {
       const result = await billingService.creditFlux({
-        userId: 'user-billing-1',
         amount: 50,
         description: 'Admin grant',
         source: 'admin',
+        userId: 'user-billing-1',
       })
 
       expect(result.balanceAfter).toBe(50)
@@ -283,10 +283,10 @@ describe('billingService', () => {
       const txRecords = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-billing-1'))
       expect(txRecords).toHaveLength(1)
       expect(txRecords[0]).toMatchObject({
-        type: 'credit',
         amount: 50,
-        balanceBefore: 0,
         balanceAfter: 50,
+        balanceBefore: 0,
+        type: 'credit',
       })
     })
 
@@ -310,22 +310,22 @@ describe('billingService', () => {
       const requestId = 'campaign-replay-test'
 
       const first = await billingService.creditFlux({
-        userId: 'user-billing-1',
         amount: 100,
-        requestId,
         description: 'Replay test',
+        requestId,
         source: 'admin',
+        userId: 'user-billing-1',
       })
       expect(first.idempotent).toBe(false)
       expect(first.balanceAfter).toBe(100)
 
       // Second call with same requestId — simulates crash-recovery retry.
       const second = await billingService.creditFlux({
-        userId: 'user-billing-1',
         amount: 100,
-        requestId,
         description: 'Replay test',
+        requestId,
         source: 'admin',
+        userId: 'user-billing-1',
       })
 
       expect(second.idempotent).toBe(true)
@@ -350,13 +350,13 @@ describe('billingService', () => {
   describe('setFlux', () => {
     it('sets the balance to an absolute value and records an admin_set ledger row', async () => {
       // Start from a known balance so the delta direction is observable.
-      await billingService.creditFlux({ userId: 'user-billing-1', amount: 100, description: 'seed', source: 'test' })
+      await billingService.creditFlux({ amount: 100, description: 'seed', source: 'test', userId: 'user-billing-1' })
 
       const result = await billingService.setFlux({
-        userId: 'user-billing-1',
         balance: 250,
         description: 'admin top-up',
         issuedByUserId: 'admin-1',
+        userId: 'user-billing-1',
       })
 
       expect(result.balanceBefore).toBe(100)
@@ -370,17 +370,17 @@ describe('billingService', () => {
       expect(tx!.amount).toBe(150)
       expect(tx!.balanceBefore).toBe(100)
       expect(tx!.balanceAfter).toBe(250)
-      expect(tx!.metadata).toMatchObject({ source: 'admin_set', direction: 'credit', requestedBalance: 250, issuedByUserId: 'admin-1' })
+      expect(tx!.metadata).toMatchObject({ direction: 'credit', issuedByUserId: 'admin-1', requestedBalance: 250, source: 'admin_set' })
     })
 
     it('can zero out a balance and records the debit direction (the primary testing use case)', async () => {
-      await billingService.creditFlux({ userId: 'user-billing-1', amount: 500, description: 'seed', source: 'test' })
+      await billingService.creditFlux({ amount: 500, description: 'seed', source: 'test', userId: 'user-billing-1' })
 
       const result = await billingService.setFlux({
-        userId: 'user-billing-1',
         balance: 0,
         description: 'admin zero',
         issuedByUserId: 'admin-1',
+        userId: 'user-billing-1',
       })
 
       expect(result.balanceBefore).toBe(500)
@@ -401,10 +401,10 @@ describe('billingService', () => {
       const del = vi.spyOn(redis, 'del')
 
       const result = await billingService.setFlux({
-        userId: 'user-billing-1',
         balance: 42,
         description: 'admin set from zero',
         issuedByUserId: 'admin-1',
+        userId: 'user-billing-1',
       })
 
       expect(result.balanceBefore).toBe(0)

@@ -27,11 +27,11 @@ function waitForAnimation(): Promise<void> {
 
 describe('window bounds animator', () => {
   it('animates position after it applies the target size', async () => {
-    const window = createWindow({ x: 10, y: 20, width: 300, height: 400 })
+    const window = createWindow({ height: 400, width: 300, x: 10, y: 20 })
     const animator = new Animator(window)
 
     animator.windowBoundsAnimateTo(
-      { x: 100, y: 200, width: 450, height: 600 },
+      { height: 600, width: 450, x: 100, y: 200 },
       { duration: 1 },
     )
     await waitForAnimation()
@@ -41,15 +41,15 @@ describe('window bounds animator', () => {
   })
 
   it('stops the previous animation before it starts a new animation', async () => {
-    const window = createWindow({ x: 10, y: 20, width: 300, height: 400 })
+    const window = createWindow({ height: 400, width: 300, x: 10, y: 20 })
     const animator = new Animator(window)
 
     animator.windowBoundsAnimateTo(
-      { x: 100, y: 100, width: 300, height: 400 },
+      { height: 400, width: 300, x: 100, y: 100 },
       { duration: 100 },
     )
     animator.windowBoundsAnimateTo(
-      { x: 200, y: 200, width: 300, height: 400 },
+      { height: 400, width: 300, x: 200, y: 200 },
       { duration: 1 },
     )
     await waitForAnimation()
@@ -58,11 +58,11 @@ describe('window bounds animator', () => {
   })
 
   it('does not start an animation for a destroyed window', () => {
-    const window = createWindow({ x: 10, y: 20, width: 300, height: 400 })
+    const window = createWindow({ height: 400, width: 300, x: 10, y: 20 })
     window.isDestroyed.mockReturnValue(true)
     const animator = new Animator(window)
 
-    animator.windowBoundsAnimateTo({ x: 100, y: 200, width: 300, height: 400 })
+    animator.windowBoundsAnimateTo({ height: 400, width: 300, x: 100, y: 200 })
 
     expect(window.setPosition).not.toHaveBeenCalled()
     expect(window.setSize).not.toHaveBeenCalled()

@@ -35,28 +35,8 @@ let lastStatusSentAt = 0
 let connectionKey = ''
 let eventaContext: ReturnType<typeof createRuntimeEventaContext>['context'] | undefined
 
-async function refreshClient() {
-  const nextKey = `${settings.enabled}:${settings.wsUrl}:${settings.token}`
-  if (nextKey !== connectionKey) {
-    connectionKey = nextKey
-    if (state.client)
-      state.client.close()
-    state.client = null
-    state.connected = false
-  }
-  await ensureClient(state, settings)
-}
-
-function buildNotifyKey(payload: { url: string, title?: string, videoId?: string }) {
+function buildNotifyKey(payload: { title?: string, url: string, videoId?: string }) {
   return [payload.videoId, payload.title, payload.url].filter(Boolean).join('|')
-}
-
-function shouldNotifyVideo(payload: { url: string, title?: string, videoId?: string }) {
-  const key = buildNotifyKey(payload)
-  if (!key || key === lastVideoNotifyKey)
-    return false
-  lastVideoNotifyKey = key
-  return true
 }
 
 function emitStatus() {
@@ -66,18 +46,6 @@ function emitStatus() {
 
   lastStatusSentAt = now
   eventaContext?.emit(backgroundStatusChanged, toStatus(state, settings))
-}
-
-async function updateSettings(partial: Partial<ExtensionSettings>) {
-  settings = await saveSettings(partial)
-  await refreshClient()
-  emitStatus()
-}
-
-async function init() {
-  settings = await loadSettings()
-  await refreshClient()
-  emitStatus()
 }
 
 function handleContentMessage(message: ContentToBackgroundMessage) {
@@ -91,15 +59,6 @@ function handleContentMessage(message: ContentToBackgroundMessage) {
       emitStatus()
       break
     }
-    case 'content:video': {
-      const payload = {
-        ...message.payload,
-        site: message.payload.site === 'unknown' ? detectSiteFromUrl(message.payload.url) : message.payload.site,
-      }
-      handleVideoContext(state, settings, payload, { notify: shouldNotifyVideo(payload) })
-      emitStatus()
-      break
-    }
     case 'content:subtitle': {
       const payload = {
         ...message.payload,
@@ -109,12 +68,53 @@ function handleContentMessage(message: ContentToBackgroundMessage) {
       emitStatus()
       break
     }
+    case 'content:video': {
+      const payload = {
+        ...message.payload,
+        site: message.payload.site === 'unknown' ? detectSiteFromUrl(message.payload.url) : message.payload.site,
+      }
+      handleVideoContext(state, settings, payload, { notify: shouldNotifyVideo(payload) })
+      emitStatus()
+      break
+    }
     case 'content:vision:frame': {
       state.lastVisionFrameAt = Date.now()
       emitStatus()
       break
     }
   }
+}
+
+async function init() {
+  settings = await loadSettings()
+  await refreshClient()
+  emitStatus()
+}
+
+async function refreshClient() {
+  const nextKey = `${settings.enabled}:${settings.wsUrl}:${settings.token}`
+  if (nextKey !== connectionKey) {
+    connectionKey = nextKey
+    if (state.client)
+      state.client.close()
+    state.client = null
+    state.connected = false
+  }
+  await ensureClient(state, settings)
+}
+
+function shouldNotifyVideo(payload: { title?: string, url: string, videoId?: string }) {
+  const key = buildNotifyKey(payload)
+  if (!key || key === lastVideoNotifyKey)
+    return false
+  lastVideoNotifyKey = key
+  return true
+}
+
+async function updateSettings(partial: Partial<ExtensionSettings>) {
+  settings = await saveSettings(partial)
+  await refreshClient()
+  emitStatus()
 }
 
 export default defineBackground(() => {

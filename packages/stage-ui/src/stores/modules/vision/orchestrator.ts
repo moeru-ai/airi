@@ -16,19 +16,19 @@ import { useVisionStore } from './store'
  * Payload describing one captured frame routed through the vision orchestrator.
  */
 export interface VisionCapturePayload {
-  /** JPEG or PNG data URL captured from the selected source. */
-  imageDataUrl: string
-  /** Vision workload that describes how the frame should be interpreted. */
-  workloadId: VisionWorkloadId
-  /** Optional source identifier used to keep context updates stable per source. */
-  sourceId?: string
   /** Timestamp recorded when the frame was captured. */
   capturedAt?: number
+  /** JPEG or PNG data URL captured from the selected source. */
+  imageDataUrl: string
   /** When `true`, publish the inference result into the character context channel. */
   publishContext?: boolean
+  /** Optional source identifier used to keep context updates stable per source. */
+  sourceId?: string
+  /** Vision workload that describes how the frame should be interpreted. */
+  workloadId: VisionWorkloadId
 }
 
-function getVisionContextId(payload: Pick<VisionCapturePayload, 'workloadId' | 'sourceId'>) {
+function getVisionContextId(payload: Pick<VisionCapturePayload, 'sourceId' | 'workloadId'>) {
   return payload.sourceId
     ? `vision:${payload.workloadId}:${payload.sourceId}`
     : `vision:${payload.workloadId}`
@@ -49,13 +49,13 @@ function getVisionContextId(payload: Pick<VisionCapturePayload, 'workloadId' | '
  */
 export const useVisionOrchestratorStore = defineStore('vision-orchestrator', () => {
   const visionStore = useVisionStore()
-  const { activeProvider, activeModel } = storeToRefs(visionStore)
+  const { activeModel, activeProvider } = storeToRefs(visionStore)
   const modsServerChannelStore = useModsServerChannelStore()
-  const { runVisionInference, lastText } = useVisionInference()
+  const { lastText, runVisionInference } = useVisionInference()
 
   const lastResultText = ref('')
-  const lastResultAt = ref<number | null>(null)
-  const lastError = ref<string | null>(null)
+  const lastResultAt = ref<null | number>(null)
+  const lastError = ref<null | string>(null)
   const lastWorkloadId = ref<VisionWorkloadId>('screen:interpret')
 
   async function processCapture(payload: VisionCapturePayload) {
@@ -80,29 +80,29 @@ export const useVisionOrchestratorStore = defineStore('vision-orchestrator', () 
       if (payload.publishContext) {
         const workload = getVisionWorkload(payload.workloadId)
         const content: CommonContentPart[] = [
-          { type: 'text', text },
+          { text, type: 'text' },
           {
-            type: 'image_url',
             image_url: {
               url: payload.imageDataUrl,
             },
+            type: 'image_url',
           },
         ]
 
         modsServerChannelStore.sendContextUpdate({
-          strategy: ContextUpdateStrategy.ReplaceSelf,
-          contextId: getVisionContextId(payload),
-          text,
           content,
+          contextId: getVisionContextId(payload),
           metadata: {
+            capturedAt: payload.capturedAt,
+            model: activeModel.value,
             module: 'vision',
+            provider: activeProvider.value,
+            sourceId: payload.sourceId,
             workload: workload.id,
             workloadLabel: workload.label,
-            sourceId: payload.sourceId,
-            capturedAt: payload.capturedAt,
-            provider: activeProvider.value,
-            model: activeModel.value,
           },
+          strategy: ContextUpdateStrategy.ReplaceSelf,
+          text,
         })
         return { contextUpdates: 1, text }
       }
@@ -120,10 +120,10 @@ export const useVisionOrchestratorStore = defineStore('vision-orchestrator', () 
   }
 
   return {
-    lastText,
-    lastResultText,
-    lastResultAt,
     lastError,
+    lastResultAt,
+    lastResultText,
+    lastText,
     lastWorkloadId,
     processCapture,
     recordError,

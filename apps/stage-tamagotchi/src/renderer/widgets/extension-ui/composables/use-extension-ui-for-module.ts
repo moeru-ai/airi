@@ -41,9 +41,9 @@ const mountedPluginAssetPathPrefix = '/_airi/extensions/'
  * - The resolved module snapshot and normalized iframe configuration values
  */
 export function useExtensionUIForModule(options: {
-  moduleId: ComputedRef<string | undefined>
-  inspectPluginHost: () => Promise<{ modules: PluginHostModuleSummary[] }>
   getPluginAssetBaseUrl: () => Promise<string>
+  inspectPluginHost: () => Promise<{ modules: PluginHostModuleSummary[] }>
+  moduleId: ComputedRef<string | undefined>
 }) {
   const loading = shallowRef(false)
   const error = shallowRef<string>()
@@ -149,18 +149,18 @@ export function useExtensionUIForModule(options: {
   })
 
   return {
-    loading,
     error,
-    moduleSnapshot,
-    moduleConfig,
-    widgetConfig,
     iframeConfig,
+    iframeMountError,
     iframeSrc,
     iframeSrcdoc,
-    resolvedIframeSrc,
-    iframeMountError,
+    loading,
+    moduleConfig,
+    moduleSnapshot,
     pluginAssetBaseUrl,
-
     refreshPluginAssetBaseUrl,
+    resolvedIframeSrc,
+
+    widgetConfig,
   }
 }

@@ -2,14 +2,14 @@ import { clearClockInterval, setClockInterval } from '@moeru/std'
 import { Mutex } from 'es-toolkit/promise'
 
 export interface LoopOptions {
-  interval?: number
   autoStart?: boolean
+  interval?: number
 }
 
 export function useLoop(fn: () => Promise<void> | void, options?: LoopOptions) {
   const mutex = new Mutex()
   const interval = options?.interval ?? 1000 / 60
-  let timerId: number | null = null
+  let timerId: null | number = null
   let shouldRun = options?.autoStart ?? true
 
   const tick = async () => {
@@ -60,9 +60,9 @@ export function useLoop(fn: () => Promise<void> | void, options?: LoopOptions) {
   }
 
   return {
-    start: () => toggleRunState(true),
-    resume: () => toggleRunState(true),
     pause: () => toggleRunState(false),
+    resume: () => toggleRunState(true),
+    start: () => toggleRunState(true),
     stop: () => toggleRunState(false),
   }
 }

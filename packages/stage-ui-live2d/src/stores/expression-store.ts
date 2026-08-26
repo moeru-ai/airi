@@ -14,10 +14,6 @@ export type ExpressionBlendMode = 'Add' | 'Multiply' | 'Overwrite'
  * expression system (either via exp3 files or direct parameter access).
  */
 export interface ExpressionEntry {
-  /** Human-readable name (Expression name or raw parameter ID). */
-  name: string
-  /** Live2D parameter ID (e.g. "ParamWatermarkOFF"). */
-  parameterId: string
   /** How this value is applied on top of the base value. */
   blend: ExpressionBlendMode
   /** Runtime value that will be applied every frame. */
@@ -26,6 +22,12 @@ export interface ExpressionEntry {
   defaultValue: number
   /** Original default baked into the moc3 / exp3 file. */
   modelDefault: number
+  /** Human-readable name (Expression name or raw parameter ID). */
+  name: string
+  /** Live2D parameter ID (e.g. "ParamWatermarkOFF"). */
+  parameterId: string
+  /** Active auto-reset timer handle, if any. */
+  resetTimer?: ReturnType<typeof setTimeout>
   /**
    * The exp3-specified target value for this parameter (e.g. -1, 1, 10).
    * Used by toggle to know what value to set when activating.
@@ -33,8 +35,6 @@ export interface ExpressionEntry {
    * non-zero value encountered.
    */
   targetValue: number
-  /** Active auto-reset timer handle, if any. */
-  resetTimer?: ReturnType<typeof setTimeout>
 }
 
 /**
@@ -48,38 +48,34 @@ export interface ExpressionGroupDefinition {
   name: string
   /** Parameter entries that belong to this expression group. */
   parameters: {
-    parameterId: string
     blend: ExpressionBlendMode
+    parameterId: string
     value: number
   }[]
 }
 
 /** Serialisable snapshot returned to the LLM. */
 export interface ExpressionState {
-  name: string
-  value: number
-  default: number
   active: boolean
   autoResetAt?: number
+  default: number
+  name: string
+  value: number
 }
 
 /** Unified tool result envelope. */
 export interface ExpressionToolResult {
-  success: boolean
+  available?: string[]
   error?: string
   state?: ExpressionState | ExpressionState[]
-  available?: string[]
+  success: boolean
 }
 
 // ---------------------------------------------------------------------------
 // Persistence helpers  (localStorage – no extra dependency needed)
 // ---------------------------------------------------------------------------
 
-function persistenceKey(modelId: string): string {
-  return `expression-defaults:${modelId}`
-}
-
-function loadPersistedDefaults(modelId: string): Record<string, number> | null {
+function loadPersistedDefaults(modelId: string): null | Record<string, number> {
   try {
     const raw = localStorage.getItem(persistenceKey(modelId))
     if (!raw)
@@ -89,6 +85,10 @@ function loadPersistedDefaults(modelId: string): Record<string, number> | null {
   catch {
     return null
   }
+}
+
+function persistenceKey(modelId: string): string {
+  return `expression-defaults:${modelId}`
 }
 
 function savePersistedDefaults(modelId: string, defaults: Record<string, number>): void {
@@ -120,7 +120,7 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
   const expressionGroups = ref<Map<string, ExpressionGroupDefinition>>(new Map())
 
   /** LLM exposure mode: 'all' exposes everything, 'none' exposes nothing, 'custom' uses per-group map. */
-  const llmMode = ref<'all' | 'none' | 'custom'>('none')
+  const llmMode = ref<'all' | 'custom' | 'none'>('none')
 
   /** Per-group LLM exposure flags (only used when llmMode === 'custom'). */
   const llmExposed = ref<Map<string, boolean>>(new Map())
@@ -138,11 +138,11 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
 
   function toState(entry: ExpressionEntry): ExpressionState {
     return {
-      name: entry.name,
-      value: entry.currentValue,
-      default: entry.defaultValue,
       active: entry.currentValue !== entry.defaultValue,
       autoResetAt: entry.resetTimer != null ? Date.now() : undefined,
+      default: entry.defaultValue,
+      name: entry.name,
+      value: entry.currentValue,
     }
   }
 
@@ -193,14 +193,14 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
    * Resolve a name to either an expression group or a direct parameter entry.
    * Returns `'group'`, `'param'`, or `null`.
    */
-  function resolve(name: string): { kind: 'group', group: ExpressionGroupDefinition } | { kind: 'param', entry: ExpressionEntry } | null {
+  function resolve(name: string): null | { entry: ExpressionEntry, kind: 'param' } | { group: ExpressionGroupDefinition, kind: 'group' } {
     const group = expressionGroups.value.get(name)
     if (group)
-      return { kind: 'group', group }
+      return { group, kind: 'group' }
 
     const entry = expressions.value.get(name)
     if (entry)
-      return { kind: 'param', entry }
+      return { entry, kind: 'param' }
 
     return null
   }
@@ -213,9 +213,9 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
 
     if (!resolved) {
       return {
-        success: false,
-        error: `Expression or parameter "${name}" not found.`,
         available: allNames(),
+        error: `Expression or parameter "${name}" not found.`,
+        success: false,
       }
     }
 
@@ -230,12 +230,12 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
           states.push(toState(entry))
         }
       }
-      return { success: true, state: states }
+      return { state: states, success: true }
     }
 
     // Direct parameter
     applyValue(resolved.entry, numericValue, duration)
-    return { success: true, state: toState(resolved.entry) }
+    return { state: toState(resolved.entry), success: true }
   }
 
   /**
@@ -248,15 +248,15 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
       for (const entry of expressions.value.values()) {
         states.push(toState(entry))
       }
-      return { success: true, state: states }
+      return { state: states, success: true }
     }
 
     const resolved = resolve(name)
     if (!resolved) {
       return {
-        success: false,
-        error: `Expression or parameter "${name}" not found.`,
         available: allNames(),
+        error: `Expression or parameter "${name}" not found.`,
+        success: false,
       }
     }
 
@@ -267,10 +267,10 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
         if (entry)
           states.push(toState(entry))
       }
-      return { success: true, state: states }
+      return { state: states, success: true }
     }
 
-    return { success: true, state: toState(resolved.entry) }
+    return { state: toState(resolved.entry), success: true }
   }
 
   /**
@@ -280,9 +280,9 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
     const resolved = resolve(name)
     if (!resolved) {
       return {
-        success: false,
-        error: `Expression or parameter "${name}" not found.`,
         available: allNames(),
+        error: `Expression or parameter "${name}" not found.`,
+        success: false,
       }
     }
 
@@ -305,14 +305,14 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
           states.push(toState(entry))
         }
       }
-      return { success: true, state: states }
+      return { state: states, success: true }
     }
 
     // Direct parameter toggle: flip between modelDefault and exp3 target value
     const entry = resolved.entry
     const newValue = entry.currentValue !== entry.modelDefault ? entry.modelDefault : entry.targetValue
     applyValue(entry, newValue, duration)
-    return { success: true, state: toState(entry) }
+    return { state: toState(entry), success: true }
   }
 
   /**
@@ -320,7 +320,7 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
    */
   function saveDefaults(): ExpressionToolResult {
     if (!modelId.value) {
-      return { success: false, error: 'No model loaded.' }
+      return { error: 'No model loaded.', success: false }
     }
 
     const defaults: Record<string, number> = {}
@@ -343,7 +343,7 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
       entry.currentValue = entry.modelDefault
       states.push(toState(entry))
     }
-    return { success: true, state: states }
+    return { state: states, success: true }
   }
 
   /**
@@ -360,7 +360,7 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
 
   // ---- LLM exposure --------------------------------------------------------
 
-  function setLlmMode(mode: 'all' | 'none' | 'custom') {
+  function setLlmMode(mode: 'all' | 'custom' | 'none') {
     llmMode.value = mode
   }
 
@@ -399,24 +399,24 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
   }
 
   return {
+    dispose,
+    expressionGroups,
     // State (read-only externally, but reactive)
     expressions,
-    modelId,
-    expressionGroups,
-    llmMode,
-    llmExposed,
+    get,
+    isExposedToLlm,
 
+    llmExposed,
+    llmMode,
+    modelId,
     // Actions
     registerExpressions,
-    resolve,
-    set,
-    get,
-    toggle,
-    saveDefaults,
     resetAll,
-    dispose,
-    setLlmMode,
+    resolve,
+    saveDefaults,
+    set,
     setLlmExposed,
-    isExposedToLlm,
+    setLlmMode,
+    toggle,
   }
 })

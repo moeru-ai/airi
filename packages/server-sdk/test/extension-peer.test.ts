@@ -7,26 +7,17 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { createWebSocketExtensionPeer } from '../src/extension-peer'
 
-type Listener = (data: WebSocketBaseEvent<string, unknown>) => void | Promise<void>
+type Listener = (data: WebSocketBaseEvent<string, unknown>) => Promise<void> | void
 
 class FakeClient implements ExtensionPeerClient {
-  readonly sent: WebSocketEventOptionalSource[] = []
-  readonly connect = vi.fn(async () => {})
   readonly close = vi.fn(() => {})
+  readonly connect = vi.fn(async () => {})
   readonly listeners = new Map<keyof WebSocketEvents, Set<Listener>>()
-
-  send(data: WebSocketEventOptionalSource): boolean {
-    this.sent.push(data)
-    return true
-  }
-
-  sendOrThrow(data: WebSocketEventOptionalSource): void {
-    this.sent.push(data)
-  }
+  readonly sent: WebSocketEventOptionalSource[] = []
 
   onEvent<E extends keyof WebSocketEvents>(
     event: E,
-    callback: (data: WebSocketBaseEvent<E, WebSocketEvents[E]>) => void | Promise<void>,
+    callback: (data: WebSocketBaseEvent<E, WebSocketEvents[E]>) => Promise<void> | void,
   ) {
     let listeners = this.listeners.get(event)
     if (!listeners) {
@@ -41,21 +32,30 @@ class FakeClient implements ExtensionPeerClient {
       listeners?.delete(listener)
     }
   }
+
+  send(data: WebSocketEventOptionalSource): boolean {
+    this.sent.push(data)
+    return true
+  }
+
+  sendOrThrow(data: WebSocketEventOptionalSource): void {
+    this.sent.push(data)
+  }
 }
 
 class FakeConnector implements ClientConnector<WebSocketEvent> {
   readonly attempts: Array<{
-    events: ClientEvents<WebSocketEvent>
     connection: ClientConnection<WebSocketEvent>
+    events: ClientEvents<WebSocketEvent>
   }> = []
 
   connect(events: ClientEvents<WebSocketEvent>) {
     const connection: ClientConnection<WebSocketEvent> = {
-      send: () => true,
       close: () => events.close({ code: 1000, reason: 'closed', wasClean: true }),
+      send: () => true,
     }
 
-    this.attempts.push({ events, connection })
+    this.attempts.push({ connection, events })
     return connection
   }
 }
@@ -69,16 +69,16 @@ describe('websocket extension peer', () => {
   it('authenticates the websocket peer separately from the extension session', async () => {
     const fakeClient = new FakeClient()
     const peer = createWebSocketExtensionPeer({
+      client: fakeClient,
       extension: {
         id: 'airi-extension-chess',
-        version: '1.0.0',
         sessionId: 'session-1',
+        version: '1.0.0',
       },
-      client: fakeClient,
     })
 
     await peer.connect()
-    peer.authenticatePeer({ token: 'secret', peerId: 'peer-1' })
+    peer.authenticatePeer({ peerId: 'peer-1', token: 'secret' })
     peer.announceExtension()
 
     expect(fakeClient.connect).toHaveBeenCalled()
@@ -87,32 +87,32 @@ describe('websocket extension peer', () => {
       'extension:announce',
     ])
     expect(fakeClient.sent[0]).toMatchObject({
-      type: 'peer:authenticate',
       data: {
-        token: 'secret',
         peerId: 'peer-1',
+        token: 'secret',
       },
+      type: 'peer:authenticate',
     })
     expect(fakeClient.sent[1]).toMatchObject({
-      type: 'extension:announce',
       data: {
         identity: {
           id: 'airi-extension-chess',
-          version: '1.0.0',
           sessionId: 'session-1',
+          version: '1.0.0',
         },
       },
+      type: 'extension:announce',
     })
   })
 
   it('announces extension modules under the owning extension identity', () => {
     const fakeClient = new FakeClient()
     const peer = createWebSocketExtensionPeer({
+      client: fakeClient,
       extension: {
         id: 'airi-extension-chess',
         sessionId: 'session-1',
       },
-      client: fakeClient,
     })
 
     peer.announceModule({
@@ -122,30 +122,30 @@ describe('websocket extension peer', () => {
     })
 
     expect(fakeClient.sent[0]).toMatchObject({
-      type: 'extension:module:announce',
       data: {
-        name: 'Chess Gamelet',
         identity: {
-          id: 'chess-gamelet',
           extension: {
             id: 'airi-extension-chess',
             sessionId: 'session-1',
           },
+          id: 'chess-gamelet',
         },
+        name: 'Chess Gamelet',
         possibleEvents: [],
       },
+      type: 'extension:module:announce',
     })
   })
 
   it('creates a manual peer client without auto-connect or auto-reconnect by default', async () => {
     const connector = new FakeConnector()
     const peer = createWebSocketExtensionPeer({
+      clientOptions: {
+        connector,
+      },
       extension: {
         id: 'airi-extension-chess',
         sessionId: 'session-1',
-      },
-      clientOptions: {
-        connector,
       },
     })
 

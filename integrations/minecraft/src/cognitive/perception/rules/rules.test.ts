@@ -32,21 +32,9 @@ afterEach(() => {
   }
 })
 
-function createMockLogger() {
-  const logger = {
-    withFields: vi.fn((_fields?: Record<string, unknown>) => logger),
-    withError: vi.fn((_error?: Error) => logger),
-    log: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  }
-
-  return logger
-}
-
 function buildArmSwingRuleYaml(
   mode: 'sliding' | 'tumbling',
-  groupBy?: 'entityId' | 'sourceId' | 'global',
+  groupBy?: 'entityId' | 'global' | 'sourceId',
 ): string {
   const groupByYaml = groupBy ? `\n  groupBy: ${groupBy}` : ''
 
@@ -86,6 +74,18 @@ signal:
 `
 }
 
+function createMockLogger() {
+  const logger = {
+    error: vi.fn(),
+    log: vi.fn(),
+    warn: vi.fn(),
+    withError: vi.fn((_error?: Error) => logger),
+    withFields: vi.fn((_fields?: Record<string, unknown>) => logger),
+  }
+
+  return logger
+}
+
 function createRuleEngineForTest(ruleYaml: string): {
   engine: RuleEngine
   eventBus: EventBus
@@ -98,12 +98,12 @@ function createRuleEngineForTest(ruleYaml: string): {
   const eventBus = createEventBus()
   const logger = createMockLogger()
   const engine = new RuleEngine({
-    eventBus,
-    logger: logger as any,
     config: {
       rulesDir,
       slotMs: 20,
     },
+    eventBus,
+    logger: logger as any,
   })
   const signals: TracedEvent[] = []
   const unsubscribe = eventBus.subscribe('signal:*', (event) => {
@@ -115,34 +115,34 @@ function createRuleEngineForTest(ruleYaml: string): {
   cleanupCallbacks.push(() => {
     unsubscribe()
     engine.destroy()
-    fs.rmSync(rulesDir, { recursive: true, force: true })
+    fs.rmSync(rulesDir, { force: true, recursive: true })
   })
 
   return { engine, eventBus, logger, signals }
 }
 
 function emitArmSwingEvent(eventBus: EventBus, input: {
-  timestamp: number
+  displayName?: string
   entityId?: string
   sourceId?: string
-  displayName?: string
+  timestamp: number
 }): void {
   const displayName = input.displayName ?? input.entityId ?? input.sourceId ?? 'unknown'
   const traceLabel = input.entityId ?? input.sourceId ?? 'global'
 
   eventBus.emit({
-    type: 'raw:sighted:arm_swing',
     payload: Object.freeze({
-      timestamp: input.timestamp,
-      entityType: 'player',
-      entityId: input.entityId,
-      sourceId: input.sourceId,
       displayName,
       distance: 3,
+      entityId: input.entityId,
+      entityType: 'player',
       hasLineOfSight: true,
+      sourceId: input.sourceId,
+      timestamp: input.timestamp,
     }),
     source: { component: 'test', id: 'rule-test' },
     traceId: `trace-${traceLabel}`,
+    type: 'raw:sighted:arm_swing',
   })
 }
 
@@ -175,31 +175,31 @@ describe('detector', () => {
       let state = createDetectorState(50, 0)
 
       const [firstFired, stateAfterFirst] = processEvent(state, {
-        threshold: 2,
-        windowMs: 1000,
         mode: 'sliding',
         nowMs: 100,
         slotMs: 20,
+        threshold: 2,
+        windowMs: 1000,
       })
       expect(firstFired).toBe(false)
       state = stateAfterFirst
 
       const [secondFired, stateAfterSecond] = processEvent(state, {
-        threshold: 2,
-        windowMs: 1000,
         mode: 'sliding',
         nowMs: 200,
         slotMs: 20,
+        threshold: 2,
+        windowMs: 1000,
       })
       expect(secondFired).toBe(true)
       state = stateAfterSecond
 
       const [thirdFired, stateAfterThird] = processEvent(state, {
-        threshold: 2,
-        windowMs: 1000,
         mode: 'sliding',
         nowMs: 300,
         slotMs: 20,
+        threshold: 2,
+        windowMs: 1000,
       })
       expect(thirdFired).toBe(true)
       expect(stateAfterThird.total).toBe(3)
@@ -209,30 +209,30 @@ describe('detector', () => {
       let state = createDetectorState(10, 0)
 
       const [, stateAfterFirst] = processEvent(state, {
-        threshold: 2,
-        windowMs: 100,
         mode: 'sliding',
         nowMs: 0,
         slotMs: 10,
+        threshold: 2,
+        windowMs: 100,
       })
       state = stateAfterFirst
 
       const [firedAt99, stateAfter99] = processEvent(state, {
-        threshold: 2,
-        windowMs: 100,
         mode: 'sliding',
         nowMs: 99,
         slotMs: 10,
+        threshold: 2,
+        windowMs: 100,
       })
       expect(firedAt99).toBe(true)
       state = stateAfter99
 
       const [firedAt100] = processEvent(state, {
-        threshold: 3,
-        windowMs: 100,
         mode: 'sliding',
         nowMs: 100,
         slotMs: 10,
+        threshold: 3,
+        windowMs: 100,
       })
 
       // Event at t=0 is out of window when t=100.
@@ -243,46 +243,46 @@ describe('detector', () => {
       let state = createDetectorState(1, 0)
 
       const [firstFired, stateAfterFirst] = processEvent(state, {
-        threshold: 2,
-        windowMs: 1000,
         mode: 'tumbling',
         nowMs: 100,
+        threshold: 2,
+        windowMs: 1000,
       })
       expect(firstFired).toBe(false)
       state = stateAfterFirst
 
       const [secondFired, stateAfterSecond] = processEvent(state, {
-        threshold: 2,
-        windowMs: 1000,
         mode: 'tumbling',
         nowMs: 200,
+        threshold: 2,
+        windowMs: 1000,
       })
       expect(secondFired).toBe(true)
       state = stateAfterSecond
 
       const [thirdFired, stateAfterThird] = processEvent(state, {
-        threshold: 2,
-        windowMs: 1000,
         mode: 'tumbling',
         nowMs: 300,
+        threshold: 2,
+        windowMs: 1000,
       })
       expect(thirdFired).toBe(false)
       state = stateAfterThird
 
       const [newWindowFirst, stateInNextWindow] = processEvent(state, {
-        threshold: 2,
-        windowMs: 1000,
         mode: 'tumbling',
         nowMs: 1000,
+        threshold: 2,
+        windowMs: 1000,
       })
       expect(newWindowFirst).toBe(false)
       state = stateInNextWindow
 
       const [newWindowSecond] = processEvent(state, {
-        threshold: 2,
-        windowMs: 1000,
         mode: 'tumbling',
         nowMs: 1200,
+        threshold: 2,
+        windowMs: 1000,
       })
       expect(newWindowSecond).toBe(true)
     })
@@ -401,61 +401,61 @@ describe('engine temporal semantics', () => {
 
     expect(engine.getDetectorDecisionSnapshot()).toEqual([
       {
-        ruleName: 'test-arm-swing-sliding',
-        mode: 'sliding',
-        groupKey: 'alice',
         count: 1,
-        threshold: 2,
-        windowMs: 1000,
-        eventTs: 200,
         decision: 'matched_not_fired',
+        eventTs: 200,
+        groupKey: 'alice',
+        mode: 'sliding',
+        ruleName: 'test-arm-swing-sliding',
+        threshold: 2,
+        windowMs: 1000,
       },
       {
-        ruleName: 'test-arm-swing-sliding',
-        mode: 'sliding',
-        groupKey: 'alice',
         count: 1,
+        decision: 'ignored_out_of_order',
+        eventTs: 100,
+        groupKey: 'alice',
+        mode: 'sliding',
+        ruleName: 'test-arm-swing-sliding',
         threshold: 2,
         windowMs: 1000,
-        eventTs: 100,
-        decision: 'ignored_out_of_order',
       },
       {
-        ruleName: 'test-arm-swing-sliding',
-        mode: 'sliding',
-        groupKey: 'alice',
         count: 2,
+        decision: 'fired',
+        eventTs: 250,
+        groupKey: 'alice',
+        mode: 'sliding',
+        ruleName: 'test-arm-swing-sliding',
         threshold: 2,
         windowMs: 1000,
-        eventTs: 250,
-        decision: 'fired',
       },
     ])
 
     const decisionLogPayloads = logger.withFields.mock.calls
-      .map(([fields]) => fields as { decision?: string } | undefined)
+      .map(([fields]) => fields as undefined | { decision?: string })
       .filter((fields): fields is { decision: string } => Boolean(fields?.decision))
 
     expect(decisionLogPayloads).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        ruleName: 'test-arm-swing-sliding',
-        mode: 'sliding',
-        groupKey: 'alice',
         count: 1,
+        decision: 'ignored_out_of_order',
+        eventTs: 100,
+        groupKey: 'alice',
+        mode: 'sliding',
+        ruleName: 'test-arm-swing-sliding',
         threshold: 2,
         windowMs: 1000,
-        eventTs: 100,
-        decision: 'ignored_out_of_order',
       }),
       expect.objectContaining({
-        ruleName: 'test-arm-swing-sliding',
-        mode: 'sliding',
-        groupKey: 'alice',
         count: 2,
+        decision: 'fired',
+        eventTs: 250,
+        groupKey: 'alice',
+        mode: 'sliding',
+        ruleName: 'test-arm-swing-sliding',
         threshold: 2,
         windowMs: 1000,
-        eventTs: 250,
-        decision: 'fired',
       }),
     ]))
     expect(decisionLogPayloads.some(fields => fields.decision === 'matched_not_fired')).toBe(false)
@@ -500,15 +500,15 @@ describe('matcher', () => {
 
   describe('matchWhere', () => {
     it('should match all conditions', () => {
-      const where = { entityType: 'player', distance: { lt: 10 } }
-      const payload = { entityType: 'player', distance: 5 }
+      const where = { distance: { lt: 10 }, entityType: 'player' }
+      const payload = { distance: 5, entityType: 'player' }
 
       expect(matchWhere(where, payload)).toBe(true)
     })
 
     it('should fail if any condition fails', () => {
-      const where = { entityType: 'player', distance: { lt: 10 } }
-      const payload = { entityType: 'player', distance: 15 }
+      const where = { distance: { lt: 10 }, entityType: 'player' }
+      const payload = { distance: 15, entityType: 'player' }
 
       expect(matchWhere(where, payload)).toBe(false)
     })
@@ -529,7 +529,7 @@ describe('matcher', () => {
   describe('renderTemplate', () => {
     it('should replace placeholders', () => {
       const template = 'Player {{ name }} says {{ message }}'
-      const context = { name: 'Bob', message: 'Hello' }
+      const context = { message: 'Hello', name: 'Bob' }
 
       expect(renderTemplate(template, context)).toBe('Player Bob says Hello')
     })

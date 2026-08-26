@@ -15,8 +15,8 @@ npm i @proj-airi/server-sdk -D
 import { Client } from '@proj-airi/server-sdk'
 
 const client = new Client({
-  name: 'your airi plugin',
   autoConnect: false,
+  name: 'your airi plugin',
 })
 
 await client.connect()

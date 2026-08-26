@@ -3,34 +3,34 @@ import JSZip from 'jszip'
 import { decodeZipFileName } from './decode-zip-filename'
 
 export interface Live2DValidationReport {
-  fileName: string
-  totalFiles: number
-  status: 'VALID' | 'WARNING' | 'INVALID'
-  entryPoint: string | null
-  structureType: 'Standard (model3.json)' | 'Heuristic (Loose Files)' | 'Unknown'
-  errors: string[]
-  warnings: string[]
   checks: string[]
+  entryPoint: null | string
+  errors: string[]
+  fileName: string
   mocInfo?: {
     header: string
-    ver: number
     size: number
+    ver: number
   }
+  status: 'INVALID' | 'VALID' | 'WARNING'
+  structureType: 'Heuristic (Loose Files)' | 'Standard (model3.json)' | 'Unknown'
+  totalFiles: number
+  warnings: string[]
 }
 
-export async function validateLive2DZip(file: File | Blob): Promise<Live2DValidationReport> {
+export async function validateLive2DZip(file: Blob | File): Promise<Live2DValidationReport> {
   const zip = await JSZip.loadAsync(file, { decodeFileName: decodeZipFileName })
   const allPaths = Object.keys(zip.files)
 
   const report: Live2DValidationReport = {
-    fileName: (file as File).name || 'live2d-model.zip',
-    totalFiles: allPaths.length,
-    status: 'VALID',
-    entryPoint: null,
-    structureType: 'Unknown',
-    errors: [],
-    warnings: [],
     checks: [],
+    entryPoint: null,
+    errors: [],
+    fileName: (file as File).name || 'live2d-model.zip',
+    status: 'VALID',
+    structureType: 'Unknown',
+    totalFiles: allPaths.length,
+    warnings: [],
   }
 
   // 1. Entry Point Identification
@@ -59,7 +59,7 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
     const ver = buf[4]
     const sizeMb = buf.length / 1024 / 1024
 
-    report.mocInfo = { header, ver, size: buf.length }
+    report.mocInfo = { header, size: buf.length, ver }
 
     if (header !== 'MOC3') {
       report.errors.push(`Invalid MOC Header: "${header}" (Expected MOC3)`)

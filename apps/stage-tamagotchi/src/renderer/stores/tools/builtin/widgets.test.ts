@@ -20,19 +20,19 @@ const hasAihubmixApiKey = Boolean(aihubmixApiKey)
 const aihubmixBaseUrl = normalizeBaseUrl(process.env.AIHUBMIX_BASE_URL)
 const configuredAihubmixModel = process.env.AIHUBMIX_MODEL?.trim()
 
+interface AihubmixErrorResponse {
+  error?: {
+    code?: string
+    message?: string
+    param?: string
+    type?: string
+  }
+}
+
 interface AihubmixModelListResponse {
   data?: Array<{
     id?: string
   }>
-}
-
-interface AihubmixErrorResponse {
-  error?: {
-    message?: string
-    type?: string
-    param?: string
-    code?: string
-  }
 }
 
 interface CurlJsonResponse<T> {
@@ -52,6 +52,28 @@ function getObjectSchema(schema?: JsonSchema) {
 }
 
 /**
+ * Builds the exact `stage_widgets` tool schema AIRI sends to the provider.
+ *
+ * Use when:
+ * - The integration test needs to prove the live provider sees the same tool schema as AIRI
+ *
+ * Expects:
+ * - `widgetsTools()` resolves in the Vitest Node runtime
+ *
+ * Returns:
+ * - The `stage_widgets` tool definition
+ */
+async function getStageWidgetsTool(): Promise<Tool> {
+  const tools = await widgetsTools()
+  const stageWidgets = tools.find(tool => tool.function.name === 'stage_widgets')
+
+  if (!stageWidgets)
+    throw new Error('Unable to resolve the stage_widgets tool definition.')
+
+  return stageWidgets
+}
+
+/**
  * Normalizes the configured AIHubMix base URL to a trailing-slash form.
  *
  * Before:
@@ -65,6 +87,55 @@ function normalizeBaseUrl(value: string | undefined): string {
   if (!normalized.endsWith('/'))
     normalized += '/'
   return normalized
+}
+
+/**
+ * Picks one likely chat-capable model for the local provider repro.
+ *
+ * Use when:
+ * - The env file does not pin `AIHUBMIX_MODEL`
+ * - A live schema repro still needs a concrete chat model id
+ *
+ * Expects:
+ * - `/models` returns provider model ids
+ *
+ * Returns:
+ * - A concrete chat model id to use with `/chat/completions`
+ */
+async function resolveAihubmixModel(): Promise<string> {
+  if (configuredAihubmixModel)
+    return configuredAihubmixModel
+
+  const response = await runCurlJson<AihubmixModelListResponse>({
+    headers: [
+      `Authorization: Bearer ${aihubmixApiKey}`,
+    ],
+    url: new URL('models', aihubmixBaseUrl).toString(),
+  })
+  expect(response.status).toBe(200)
+
+  const modelIds = (response.body.data ?? [])
+    .map(entry => entry.id?.trim())
+    .filter((value): value is string => Boolean(value))
+
+  const preferredModel = [
+    'gpt-4o-mini',
+    'gpt-4.1-mini',
+    'gpt-4.1-nano',
+    'gpt-4o',
+  ].find(candidate => modelIds.includes(candidate))
+
+  if (preferredModel)
+    return preferredModel
+
+  const fallbackModel = modelIds.find(model =>
+    ['embed', 'embedding', 'tts', 'whisper', 'rerank'].every(fragment => !model.toLowerCase().includes(fragment)),
+  )
+
+  if (!fallbackModel)
+    throw new Error('Unable to resolve an AIHubMix chat model. Set AIHUBMIX_MODEL in .env.local.')
+
+  return fallbackModel
 }
 
 /**
@@ -134,77 +205,6 @@ async function runCurlJson<T>(options: {
     body: JSON.parse(rawBody) as T,
     status,
   }
-}
-
-/**
- * Picks one likely chat-capable model for the local provider repro.
- *
- * Use when:
- * - The env file does not pin `AIHUBMIX_MODEL`
- * - A live schema repro still needs a concrete chat model id
- *
- * Expects:
- * - `/models` returns provider model ids
- *
- * Returns:
- * - A concrete chat model id to use with `/chat/completions`
- */
-async function resolveAihubmixModel(): Promise<string> {
-  if (configuredAihubmixModel)
-    return configuredAihubmixModel
-
-  const response = await runCurlJson<AihubmixModelListResponse>({
-    url: new URL('models', aihubmixBaseUrl).toString(),
-    headers: [
-      `Authorization: Bearer ${aihubmixApiKey}`,
-    ],
-  })
-  expect(response.status).toBe(200)
-
-  const modelIds = (response.body.data ?? [])
-    .map(entry => entry.id?.trim())
-    .filter((value): value is string => Boolean(value))
-
-  const preferredModel = [
-    'gpt-4o-mini',
-    'gpt-4.1-mini',
-    'gpt-4.1-nano',
-    'gpt-4o',
-  ].find(candidate => modelIds.includes(candidate))
-
-  if (preferredModel)
-    return preferredModel
-
-  const fallbackModel = modelIds.find(model =>
-    ['embed', 'embedding', 'tts', 'whisper', 'rerank'].every(fragment => !model.toLowerCase().includes(fragment)),
-  )
-
-  if (!fallbackModel)
-    throw new Error('Unable to resolve an AIHubMix chat model. Set AIHUBMIX_MODEL in .env.local.')
-
-  return fallbackModel
-}
-
-/**
- * Builds the exact `stage_widgets` tool schema AIRI sends to the provider.
- *
- * Use when:
- * - The integration test needs to prove the live provider sees the same tool schema as AIRI
- *
- * Expects:
- * - `widgetsTools()` resolves in the Vitest Node runtime
- *
- * Returns:
- * - The `stage_widgets` tool definition
- */
-async function getStageWidgetsTool(): Promise<Tool> {
-  const tools = await widgetsTools()
-  const stageWidgets = tools.find(tool => tool.function.name === 'stage_widgets')
-
-  if (!stageWidgets)
-    throw new Error('Unable to resolve the stage_widgets tool definition.')
-
-  return stageWidgets
 }
 
 describe('widgets tool helpers', () => {
@@ -280,24 +280,24 @@ describe('widgets tool helpers', () => {
         // This test proves whether AIHubMix currently rejects the tool with the same provider-
         // side validation error reported in the bug report.
         const response = await runCurlJson<AihubmixErrorResponse>({
-          method: 'POST',
-          url: new URL('chat/completions', aihubmixBaseUrl).toString(),
+          body: JSON.stringify({
+            messages: [
+              {
+                content: 'Open the widgets window.',
+                role: 'user',
+              },
+            ],
+            model,
+            temperature: 0,
+            tool_choice: 'auto',
+            tools: [stageWidgetsTool],
+          }),
           headers: [
             `Authorization: Bearer ${aihubmixApiKey}`,
             'Content-Type: application/json',
           ],
-          body: JSON.stringify({
-            model,
-            messages: [
-              {
-                role: 'user',
-                content: 'Open the widgets window.',
-              },
-            ],
-            tools: [stageWidgetsTool],
-            tool_choice: 'auto',
-            temperature: 0,
-          }),
+          method: 'POST',
+          url: new URL('chat/completions', aihubmixBaseUrl).toString(),
         })
 
         const payload = response.body
@@ -331,12 +331,12 @@ describe('widgets tool helpers', () => {
   })
   describe('executeWidgetAction with mocked invokers', () => {
     const makeInvokers = (): WidgetInvokers => ({
-      prepareWindow: vi.fn(),
-      openWindow: vi.fn(),
       addWidget: vi.fn(),
-      updateWidget: vi.fn(),
-      removeWidget: vi.fn(),
       clearWidgets: vi.fn(),
+      openWindow: vi.fn(),
+      prepareWindow: vi.fn(),
+      removeWidget: vi.fn(),
+      updateWidget: vi.fn(),
     })
 
     it('spawns with ttl conversion and parsed props', async () => {
@@ -345,9 +345,9 @@ describe('widgets tool helpers', () => {
 
       const result = await executeWidgetAction({
         action: 'spawn',
-        id: ' abc123 ',
         componentName: 'weather',
         componentProps: '{"city":"Tokyo"}',
+        id: ' abc123 ',
         size: 'm',
         ttlSeconds: 2,
       }, { invokers })
@@ -355,9 +355,9 @@ describe('widgets tool helpers', () => {
       expect(result).toContain('abc123')
       expect(invokers.addWidget).toHaveBeenCalledTimes(1)
       expect(invokers.addWidget).toHaveBeenCalledWith({
-        id: 'abc123',
         componentName: 'weather',
         componentProps: { city: 'Tokyo' },
+        id: 'abc123',
         size: 'm',
         ttlMs: 2000,
       })
@@ -369,20 +369,20 @@ describe('widgets tool helpers', () => {
 
       await executeWidgetAction({
         action: 'spawn',
-        id: ' pinned-widget ',
+        alwaysOnTop: true,
         componentName: 'weather',
         componentProps: '{"city":"Tokyo"}',
+        id: ' pinned-widget ',
         size: 'm',
         ttlSeconds: 0,
-        alwaysOnTop: true,
       }, { invokers })
 
       expect(invokers.addWidget).toHaveBeenCalledWith({
-        id: 'pinned-widget',
+        alwaysOnTop: true,
         componentName: 'weather',
         componentProps: { city: 'Tokyo' },
+        id: 'pinned-widget',
         size: 'm',
-        alwaysOnTop: true,
         ttlMs: 0,
       })
     })
@@ -393,30 +393,30 @@ describe('widgets tool helpers', () => {
 
       await executeWidgetAction({
         action: 'spawn',
-        id: ' sized-widget ',
         componentName: 'weather',
         componentProps: '{"city":"Taipei"}',
+        id: ' sized-widget ',
         size: 'l',
         ttlSeconds: 0,
         windowSize: {
-          width: 620,
           height: 760,
-          minWidth: 480,
           minHeight: 320,
+          minWidth: 480,
+          width: 620,
         },
       } as any, { invokers })
 
       expect(invokers.addWidget).toHaveBeenCalledWith({
-        id: 'sized-widget',
         componentName: 'weather',
         componentProps: { city: 'Taipei' },
+        id: 'sized-widget',
         size: 'l',
         ttlMs: 0,
         windowSize: {
-          width: 620,
           height: 760,
-          minWidth: 480,
           minHeight: 320,
+          minWidth: 480,
+          width: 620,
         },
       })
     })
@@ -427,43 +427,43 @@ describe('widgets tool helpers', () => {
 
       await executeWidgetAction({
         action: 'spawn',
-        id: ' chess-main ',
         componentName: 'extension-ui',
         componentProps: JSON.stringify({
           moduleId: 'chess-main',
-          title: 'Extension UI',
-          windowSize: {
-            width: 720,
-            height: 540,
-            minWidth: 480,
-          },
           payload: {
             side: 'white',
           },
+          title: 'Extension UI',
+          windowSize: {
+            height: 540,
+            minWidth: 480,
+            width: 720,
+          },
         }),
+        id: ' chess-main ',
         size: 'm',
         ttlSeconds: 0,
       }, { invokers })
 
       expect(invokers.addWidget).toHaveBeenCalledWith(expect.objectContaining({
-        id: 'chess-main',
         componentName: 'extension-ui',
         componentProps: expect.objectContaining({
           moduleId: 'chess-main',
-          title: 'Extension UI',
-          windowSize: {
-            width: 720,
-            height: 540,
-            minWidth: 480,
-          },
           payload: {
             side: 'white',
           },
+          title: 'Extension UI',
+          windowSize: {
+            height: 540,
+            minWidth: 480,
+            width: 720,
+          },
         }),
+        id: 'chess-main',
         windowSize: {
-          width: 720,
           height: 540,
           minWidth: 480,
+          width: 720,
         },
       }))
     })
@@ -474,20 +474,20 @@ describe('widgets tool helpers', () => {
 
       await executeWidgetAction({
         action: 'spawn',
-        id: ' guarded-main ',
         componentName: 'extension-ui',
         componentProps: JSON.stringify({
-          'moduleId': 'guarded-main',
-          'title': 'Guarded Module',
+          'model-value': { injected: true },
           'modelValue': { injected: true },
           'module': { injected: true },
-          'moduleConfig': { injected: true },
-          'model-value': { injected: true },
           'module-config': { injected: true },
+          'moduleConfig': { injected: true },
+          'moduleId': 'guarded-main',
           'payload': {
             safe: true,
           },
+          'title': 'Guarded Module',
         }),
+        id: ' guarded-main ',
         size: 'm',
         ttlSeconds: 0,
       }, { invokers })
@@ -496,10 +496,10 @@ describe('widgets tool helpers', () => {
       expect(dispatched).toBeDefined()
       expect(dispatched?.componentProps).toMatchObject({
         moduleId: 'guarded-main',
-        title: 'Guarded Module',
         payload: {
           safe: true,
         },
+        title: 'Guarded Module',
       })
       expect(dispatched?.componentProps).not.toHaveProperty('modelValue')
       expect(dispatched?.componentProps).not.toHaveProperty('module')
@@ -512,24 +512,24 @@ describe('widgets tool helpers', () => {
       const invokers = makeInvokers()
       await executeWidgetAction({
         action: 'update',
-        id: ' xyz ',
+        alwaysOnTop: false,
         componentName: '',
         componentProps: '{"foo":1}',
+        id: ' xyz ',
         size: 'm',
-        alwaysOnTop: false,
         ttlSeconds: 0,
       }, { invokers })
 
-      expect(invokers.updateWidget).toHaveBeenCalledWith({ id: 'xyz', componentProps: { foo: 1 }, alwaysOnTop: false })
+      expect(invokers.updateWidget).toHaveBeenCalledWith({ alwaysOnTop: false, componentProps: { foo: 1 }, id: 'xyz' })
     })
 
     it('removes when id provided', async () => {
       const invokers = makeInvokers()
       await executeWidgetAction({
         action: 'remove',
-        id: 'rem-id',
         componentName: '',
         componentProps: '{}',
+        id: 'rem-id',
         size: 's',
         ttlSeconds: 0,
       }, { invokers })
@@ -542,9 +542,9 @@ describe('widgets tool helpers', () => {
       vi.mocked(invokers.prepareWindow).mockResolvedValue('prepared-id')
       await executeWidgetAction({
         action: 'open',
-        id: '  prepared-id ',
         componentName: '',
         componentProps: '{}',
+        id: '  prepared-id ',
         size: 'l',
         ttlSeconds: 0,
       }, { invokers })
@@ -557,9 +557,9 @@ describe('widgets tool helpers', () => {
       const invokers = makeInvokers()
       await executeWidgetAction({
         action: 'clear',
-        id: '',
         componentName: '',
         componentProps: '{}',
+        id: '',
         size: 'm',
         ttlSeconds: 0,
       }, { invokers })
@@ -571,13 +571,13 @@ describe('widgets tool helpers', () => {
   describe('extension-ui host helpers', () => {
     it('removes host-controlled render props from payload props', () => {
       expect(sanitizeExtensionUiRenderProps({
-        'title': 'Override',
+        'model-value': { injected: true },
         'modelValue': { injected: true },
         'module': { injected: true },
-        'moduleConfig': { injected: true },
-        'model-value': { injected: true },
         'module-config': { injected: true },
+        'moduleConfig': { injected: true },
         'safe': true,
+        'title': 'Override',
       })).toEqual({
         safe: true,
       })
@@ -585,27 +585,27 @@ describe('widgets tool helpers', () => {
 
     it('requires a registered module before rendering a resolved widget', () => {
       expect(canRenderExtensionUi({
+        iframeSrc: 'https://example.com',
         loading: false,
         moduleSnapshot: undefined,
-        iframeSrc: 'https://example.com',
       })).toBe(false)
 
       expect(canRenderExtensionUi({
-        loading: false,
         error: 'module missing',
+        iframeSrc: 'https://example.com',
+        loading: false,
         moduleSnapshot: {
-          moduleId: 'module-1',
-          ownerSessionId: 'session-1',
-          ownerExtensionId: 'plugin-1',
+          config: {},
           kitId: 'kit.widget',
           kitModuleType: 'window',
-          state: 'active',
-          runtime: 'electron',
+          moduleId: 'module-1',
+          ownerExtensionId: 'plugin-1',
+          ownerSessionId: 'session-1',
           revision: 1,
+          runtime: 'electron',
+          state: 'active',
           updatedAt: Date.now(),
-          config: {},
         },
-        iframeSrc: 'https://example.com',
       })).toBe(false)
     })
   })

@@ -30,15 +30,6 @@ const openAIVoices = [
   'cedar',
 ] as const
 
-function normalizeBaseUrl(baseUrl: string | undefined) {
-  const value = baseUrl?.trim() || DEFAULT_BASE_URL
-  return value.endsWith('/') ? value : `${value}/`
-}
-
-function ttsPrompt(input: string) {
-  return `Read this text aloud exactly as written, without any commentary or extra words:\n\n${input}`
-}
-
 async function collectAudioChunks(body: ReadableStream<Uint8Array>) {
   const reader = body.getReader()
   const decoder = new TextDecoder()
@@ -81,14 +72,6 @@ async function collectAudioChunks(body: ReadableStream<Uint8Array>) {
   return chunks
 }
 
-function decodeBase64Pcm(chunks: string[]) {
-  const binary = atob(chunks.join(''))
-  const bytes = new Uint8Array(binary.length)
-  for (let index = 0; index < binary.length; index++)
-    bytes[index] = binary.charCodeAt(index)
-  return bytes
-}
-
 function createAudioFetch(apiKey: string, baseUrl: string, model: string) {
   return async (_input: RequestInfo | URL, init?: RequestInit) => {
     if (!init?.body || typeof init.body !== 'string')
@@ -96,19 +79,19 @@ function createAudioFetch(apiKey: string, baseUrl: string, model: string) {
 
     const body = JSON.parse(init.body) as { input?: string, voice?: string }
     const response = await globalThis.fetch(new URL('chat/completions', baseUrl), {
-      method: 'POST',
+      body: JSON.stringify({
+        audio: { format: 'pcm16', voice: body.voice },
+        messages: [{ content: ttsPrompt(body.input ?? ''), role: 'user' }],
+        modalities: ['text', 'audio'],
+        model,
+        stream: true,
+      }),
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         ...OPENROUTER_ATTRIBUTION_HEADERS,
       },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: 'user', content: ttsPrompt(body.input ?? '') }],
-        modalities: ['text', 'audio'],
-        audio: { voice: body.voice, format: 'pcm16' },
-        stream: true,
-      }),
+      method: 'POST',
     })
     if (!response.ok)
       throw new Error(`OpenRouter audio request failed: ${response.status} ${await response.text()}`)
@@ -117,21 +100,30 @@ function createAudioFetch(apiKey: string, baseUrl: string, model: string) {
 
     const wav = toWavFromPCM16(decodeBase64Pcm(await collectAudioChunks(response.body)), 24000)
     return new Response(new Blob([wav], { type: 'audio/wav' }), {
-      status: 200,
       headers: { 'Content-Type': 'audio/wav' },
+      status: 200,
     })
   }
 }
 
+function decodeBase64Pcm(chunks: string[]) {
+  const binary = atob(chunks.join(''))
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index++)
+    bytes[index] = binary.charCodeAt(index)
+  return bytes
+}
+
+function normalizeBaseUrl(baseUrl: string | undefined) {
+  const value = baseUrl?.trim() || DEFAULT_BASE_URL
+  return value.endsWith('/') ? value : `${value}/`
+}
+
+function ttsPrompt(input: string) {
+  return `Read this text aloud exactly as written, without any commentary or extra words:\n\n${input}`
+}
+
 export const providerOpenRouterAudioSpeech = defineProvider<OpenRouterAudioConfig>({
-  id: 'openrouter-audio-speech',
-  name: 'OpenRouter',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.openrouter-audio-speech.title'),
-  description: 'openrouter.ai',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.openrouter-audio-speech.description'),
-  tasks: ['text-to-speech'],
-  icon: 'i-lobe-icons:openrouter',
-  createProviderConfig: () => openRouterAudioConfigSchema,
   createProvider(config) {
     const apiKey = config.apiKey.trim()
     const baseUrl = normalizeBaseUrl(config.baseUrl)
@@ -140,12 +132,53 @@ export const providerOpenRouterAudioSpeech = defineProvider<OpenRouterAudioConfi
         const resolvedModel = model || DEFAULT_MODEL
         return {
           baseURL: baseUrl,
-          model: resolvedModel,
           fetch: createAudioFetch(apiKey, baseUrl, resolvedModel),
+          model: resolvedModel,
         }
       },
     }
   },
+  createProviderConfig: () => openRouterAudioConfigSchema,
+  description: 'openrouter.ai',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.openrouter-audio-speech.description'),
+  extraMethods: {
+    listModels: async (config) => {
+      try {
+        const response = await fetch(new URL('models?output_modality=audio', normalizeBaseUrl(config.baseUrl)), {
+          headers: OPENROUTER_ATTRIBUTION_HEADERS,
+        })
+        if (!response.ok)
+          return []
+
+        const data = await response.json() as {
+          data?: Array<{ context_length?: number, description?: string, id: string, name?: string }>
+        }
+        return (data.data ?? []).map(model => ({
+          contextLength: model.context_length || 0,
+          deprecated: false,
+          description: model.description || '',
+          id: model.id,
+          name: model.name || model.id,
+          provider: 'openrouter-audio-speech',
+        }))
+      }
+      catch (error) {
+        console.error('Failed to fetch OpenRouter audio models:', error)
+        return []
+      }
+    },
+    listVoices: async () => openAIVoices.map(id => ({
+      id,
+      languages: [],
+      name: `${id[0].toUpperCase()}${id.slice(1)}`,
+      provider: 'openrouter-audio-speech',
+    })),
+  },
+  icon: 'i-lobe-icons:openrouter',
+  id: 'openrouter-audio-speech',
+  name: 'OpenRouter',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.openrouter-audio-speech.title'),
+  tasks: ['text-to-speech'],
   validationRequiredWhen: config => Boolean(config.apiKey?.trim()),
   validators: {
     validateConfig: [
@@ -163,38 +196,5 @@ export const providerOpenRouterAudioSpeech = defineProvider<OpenRouterAudioConfi
         },
       }),
     ],
-  },
-  extraMethods: {
-    listModels: async (config) => {
-      try {
-        const response = await fetch(new URL('models?output_modality=audio', normalizeBaseUrl(config.baseUrl)), {
-          headers: OPENROUTER_ATTRIBUTION_HEADERS,
-        })
-        if (!response.ok)
-          return []
-
-        const data = await response.json() as {
-          data?: Array<{ id: string, name?: string, description?: string, context_length?: number }>
-        }
-        return (data.data ?? []).map(model => ({
-          id: model.id,
-          name: model.name || model.id,
-          provider: 'openrouter-audio-speech',
-          description: model.description || '',
-          contextLength: model.context_length || 0,
-          deprecated: false,
-        }))
-      }
-      catch (error) {
-        console.error('Failed to fetch OpenRouter audio models:', error)
-        return []
-      }
-    },
-    listVoices: async () => openAIVoices.map(id => ({
-      id,
-      name: `${id[0].toUpperCase()}${id.slice(1)}`,
-      provider: 'openrouter-audio-speech',
-      languages: [],
-    })),
   },
 })

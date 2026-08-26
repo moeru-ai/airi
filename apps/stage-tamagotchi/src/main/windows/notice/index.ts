@@ -29,15 +29,15 @@ export function setupNoticeWindowManager(params: {
 
   function createWindow(_id: string): BrowserWindow {
     const window = new ElectronBrowserWindow({
-      title: 'Notice',
-      width: 1020,
       height: 600,
-      show: false,
       icon,
+      show: false,
+      title: 'Notice',
       webPreferences: {
         preload: join(getElectronMainDirname(), '../preload/index.mjs'),
         sandbox: false,
       },
+      width: 1020,
     })
 
     protectPrivilegedWindowNavigation(window)
@@ -53,11 +53,11 @@ export function setupNoticeWindowManager(params: {
   }
 
   const manager = createReferencedWindowManager({
+    createWindow,
     eventa: noticeWindowEventa,
     i18n: params.i18n,
-    serverChannel: params.serverChannel,
-    createWindow,
     loadRoute: loadNoticeRoute,
+    serverChannel: params.serverChannel,
   })
 
   return {

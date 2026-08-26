@@ -4,15 +4,14 @@ import { nanoid } from 'nanoid'
 
 import { getDefinedProvider } from '../libs/providers/providers'
 
-type InferenceServiceProviders = Record<string, InferenceServiceProvider>
-
-interface RequestOptions {
-  init: { signal: AbortSignal }
-}
-
-interface RemoteResponse<T> {
-  json: () => Promise<T>
-  ok: boolean
+/**
+ * Options shared by inference service provider service operations.
+ */
+export interface InferenceServiceProviderServiceOptions {
+  /**
+   * Cancels the operation before or after remote IO.
+   */
+  abortSignal?: AbortSignal
 }
 
 /**
@@ -24,10 +23,10 @@ export interface InferenceServiceProvidersRemoteClient {
       providers: {
         '$get': (params?: undefined, options?: RequestOptions) => Promise<RemoteResponse<unknown[]>>
         '$post': (params: { json: {
-          id: string
-          definitionId: string
-          name: string
           config: Record<string, unknown>
+          definitionId: string
+          id: string
+          name: string
           validated: boolean
           validationBypassed: boolean
         } }, options?: RequestOptions) => Promise<RemoteResponse<unknown>>
@@ -48,27 +47,17 @@ export interface InferenceServiceProvidersRemoteClient {
 }
 
 /**
- * Options shared by inference service provider service operations.
- */
-export interface InferenceServiceProviderServiceOptions {
-  /**
-   * Cancels the operation before or after remote IO.
-   */
-  abortSignal?: AbortSignal
-}
-
-/**
  * Inference service provider domain operations used by controller stores.
  */
 export interface InferenceServiceProvidersService {
   /** Builds an optimistic local provider config. */
   buildLocal: (definitionId: string, initialConfig?: Record<string, unknown>) => InferenceServiceProvider
-  /** Fetches and indexes remote provider configs. */
-  fetchRemote: (client: InferenceServiceProvidersRemoteClient, options?: InferenceServiceProviderServiceOptions) => Promise<InferenceServiceProviders>
   /** Creates and normalizes one remote provider config. */
   createRemote: (client: InferenceServiceProvidersRemoteClient, provider: InferenceServiceProvider, options?: InferenceServiceProviderServiceOptions) => Promise<InferenceServiceProvider>
   /** Deletes one remote provider config. */
   deleteRemote: (client: InferenceServiceProvidersRemoteClient, providerId: string, options?: InferenceServiceProviderServiceOptions) => Promise<void>
+  /** Fetches and indexes remote provider configs. */
+  fetchRemote: (client: InferenceServiceProvidersRemoteClient, options?: InferenceServiceProviderServiceOptions) => Promise<InferenceServiceProviders>
   /** Patches and normalizes one remote provider config. */
   patchConfigRemote: (
     client: InferenceServiceProvidersRemoteClient,
@@ -77,6 +66,17 @@ export interface InferenceServiceProvidersService {
     status: ProviderValidationStatus,
     options?: InferenceServiceProviderServiceOptions,
   ) => Promise<InferenceServiceProvider>
+}
+
+type InferenceServiceProviders = Record<string, InferenceServiceProvider>
+
+interface RemoteResponse<T> {
+  json: () => Promise<T>
+  ok: boolean
+}
+
+interface RequestOptions {
+  init: { signal: AbortSignal }
 }
 
 /**
@@ -103,11 +103,11 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
       throw new Error(`Provider definition with id "${definitionId}" not found.`)
 
     return {
-      id: nanoid(),
-      definitionId,
       config: initialConfig,
-      status: 'unconfigured',
       configuredBy: definition.configuredBy ?? 'user',
+      definitionId,
+      id: nanoid(),
+      status: 'unconfigured',
     }
   }
 
@@ -123,11 +123,11 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
       status = 'bypassed'
 
     return {
-      id: item.id,
-      definitionId: item.definitionId,
       config: item.config,
-      status,
       configuredBy: getDefinedProvider(item.definitionId)?.configuredBy ?? 'user',
+      definitionId: item.definitionId,
+      id: item.id,
+      status,
     }
   }
 
@@ -152,10 +152,10 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
     options?.abortSignal?.throwIfAborted()
     const res = await client.api.v1.providers.$post({
       json: {
-        id: provider.id,
-        definitionId: provider.definitionId,
-        name: getDefinedProvider(provider.definitionId)?.name ?? provider.definitionId,
         config: provider.config,
+        definitionId: provider.definitionId,
+        id: provider.id,
+        name: getDefinedProvider(provider.definitionId)?.name ?? provider.definitionId,
         validated: provider.status === 'configured',
         validationBypassed: provider.status === 'bypassed',
       },
@@ -187,12 +187,12 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
   ): Promise<InferenceServiceProvider> {
     options?.abortSignal?.throwIfAborted()
     const res = await client.api.v1.providers[':id'].$patch({
-      param: { id: providerId },
       json: {
         config,
         validated: status === 'configured',
         validationBypassed: status === 'bypassed',
       },
+      param: { id: providerId },
     }, requestOptions(options))
     if (!res.ok)
       throw new Error('Failed to update provider config')
@@ -204,9 +204,9 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
 
   return {
     buildLocal,
-    fetchRemote,
     createRemote,
     deleteRemote,
+    fetchRemote,
     patchConfigRemote,
   }
 }

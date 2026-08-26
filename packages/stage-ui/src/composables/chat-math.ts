@@ -43,9 +43,9 @@ const remarkChatMath: Plugin<[], Root> = () => (tree) => {
     const meta = node.meta?.toLowerCase().split(/\s+/).filter(Boolean) ?? []
     const values = meta.includes('block') ? [node.value.trim()] : rows
     const mathNodes: RootContent[] = values.map(value => ({
-      type: 'code',
       lang: 'math',
       meta: null,
+      type: 'code',
       value,
     }))
 

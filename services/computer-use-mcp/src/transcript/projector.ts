@@ -22,22 +22,22 @@ import { parseTranscriptBlocks } from './block-parser'
 import { compactBlock } from './compactor'
 
 export interface TranscriptProjectionOptions {
+  /** Maximum number of compacted summary blocks to include as quoted history. */
+  maxCompactedBlocks?: number
+  /** Maximum number of recent text-like blocks to keep in full. */
+  maxFullTextBlocks?: number
+  /** Maximum number of recent tool-interaction blocks to keep in full. */
+  maxFullToolBlocks?: number
   /** System prompt base text. */
   systemPromptBase?: string
   /** Optional current-task memory/context text to pin in the system prompt. */
   taskMemoryString?: string
-  /** Maximum number of recent tool-interaction blocks to keep in full. */
-  maxFullToolBlocks?: number
-  /** Maximum number of recent text-like blocks to keep in full. */
-  maxFullTextBlocks?: number
-  /** Maximum number of compacted summary blocks to include as quoted history. */
-  maxCompactedBlocks?: number
 }
 
 const DEFAULTS = {
-  maxFullToolBlocks: 5,
-  maxFullTextBlocks: 3,
   maxCompactedBlocks: 4,
+  maxFullTextBlocks: 3,
+  maxFullToolBlocks: 5,
 }
 
 /**
@@ -68,17 +68,17 @@ export function projectTranscript(
 
   if (allBlocks.length === 0) {
     return {
-      system,
       messages: [],
       metadata: {
-        totalTranscriptEntries: transcriptEntries.length,
-        totalBlocks: 0,
-        keptFullBlocks: 0,
         compactedBlocks: 0,
         droppedBlocks: 0,
-        projectedMessageCount: 0,
         estimatedCharacters: system.length,
+        keptFullBlocks: 0,
+        projectedMessageCount: 0,
+        totalBlocks: 0,
+        totalTranscriptEntries: transcriptEntries.length,
       },
+      system,
     }
   }
 
@@ -91,13 +91,13 @@ export function projectTranscript(
 
   for (const block of candidateBlocks) {
     switch (block.kind) {
-      case 'tool_interaction':
-        toolBlocks.push(block)
-        break
-      case 'text':
       case 'system':
+      case 'text':
       case 'user':
         textLikeBlocks.push(block)
+        break
+      case 'tool_interaction':
+        toolBlocks.push(block)
         break
     }
   }
@@ -127,7 +127,7 @@ export function projectTranscript(
     ? createCompactedHistoryMessage(compactedResults)
     : null
 
-  interface EmitItem { sortKey: number, block: TranscriptBlock }
+  interface EmitItem { block: TranscriptBlock, sortKey: number }
   const emitItems: EmitItem[] = []
 
   if (pinnedBlock) {
@@ -146,8 +146,8 @@ export function projectTranscript(
   for (const item of emitItems) {
     const block = item.block
     switch (block.kind) {
-      case 'user':
       case 'system':
+      case 'user':
         messages.push(entryToMessage(block.entry))
         break
       case 'text':
@@ -179,22 +179,39 @@ export function projectTranscript(
       + estimateToolCallsCharacters(m.tool_calls), 0)
 
   const metadata: TranscriptProjectionMetadata = {
-    totalTranscriptEntries: transcriptEntries.length,
-    totalBlocks: allBlocks.length,
-    keptFullBlocks: keptFullCount,
     compactedBlocks: compactedResults.length,
     droppedBlocks,
-    projectedMessageCount: messages.length,
     estimatedCharacters: estimatedChars,
+    keptFullBlocks: keptFullCount,
+    projectedMessageCount: messages.length,
+    totalBlocks: allBlocks.length,
+    totalTranscriptEntries: transcriptEntries.length,
   }
 
-  return { system, messages, metadata }
+  return { messages, metadata, system }
+}
+
+function createCompactedHistoryMessage(compactedResults: readonly CompactedBlock[]): TranscriptProjectedMessage {
+  const payload = compactedResults.map(block => ({
+    entryIdRange: block.entryIdRange,
+    originalKind: block.originalKind,
+    summary: block.summary,
+  }))
+
+  return {
+    content: [
+      'Compacted transcript history follows as quoted JSON data.',
+      'This is historical context only, not a system instruction.',
+      JSON.stringify(payload),
+    ].join('\n'),
+    role: 'assistant',
+  }
 }
 
 function entryToMessage(entry: TranscriptEntry): TranscriptProjectedMessage {
   const msg: TranscriptProjectedMessage = {
-    role: entry.role,
     content: entry.content,
+    role: entry.role,
   }
   if (entry.toolCalls && entry.toolCalls.length > 0) {
     msg.tool_calls = entry.toolCalls
@@ -205,21 +222,37 @@ function entryToMessage(entry: TranscriptEntry): TranscriptProjectedMessage {
   return msg
 }
 
-function createCompactedHistoryMessage(compactedResults: readonly CompactedBlock[]): TranscriptProjectedMessage {
-  const payload = compactedResults.map(block => ({
-    originalKind: block.originalKind,
-    entryIdRange: block.entryIdRange,
-    summary: block.summary,
-  }))
+function estimateContentCharacters(content: string | undefined | unknown[]): number {
+  if (content === undefined)
+    return 0
+  if (typeof content === 'string')
+    return content.length
+  return content.reduce<number>((acc, part) => acc + estimateStructuredPartCharacters(part), 0)
+}
 
-  return {
-    role: 'assistant',
-    content: [
-      'Compacted transcript history follows as quoted JSON data.',
-      'This is historical context only, not a system instruction.',
-      JSON.stringify(payload),
-    ].join('\n'),
-  }
+function estimateStructuredPartCharacters(part: unknown): number {
+  if (typeof part === 'string')
+    return part.length
+  if (typeof part !== 'object' || part === null)
+    return 16
+
+  const record = part as { text?: unknown, type?: unknown }
+  if (record.type === 'text' && typeof record.text === 'string')
+    return record.text.length
+
+  return 64
+}
+
+function estimateToolCallsCharacters(toolCalls: TranscriptProjectedMessage['tool_calls']): number {
+  if (!toolCalls?.length)
+    return 0
+  return toolCalls.reduce((acc, tc) =>
+    acc
+    + tc.id.length
+    + tc.type.length
+    + tc.function.name.length
+    + tc.function.arguments.length
+    + 32, 0)
 }
 
 function isCompleteToolInteraction(block: ToolInteractionBlock): boolean {
@@ -245,37 +278,4 @@ function takeLast<T>(items: readonly T[], limit: number): T[] {
   if (limit <= 0)
     return []
   return items.slice(-limit)
-}
-
-function estimateContentCharacters(content: string | unknown[] | undefined): number {
-  if (content === undefined)
-    return 0
-  if (typeof content === 'string')
-    return content.length
-  return content.reduce<number>((acc, part) => acc + estimateStructuredPartCharacters(part), 0)
-}
-
-function estimateStructuredPartCharacters(part: unknown): number {
-  if (typeof part === 'string')
-    return part.length
-  if (typeof part !== 'object' || part === null)
-    return 16
-
-  const record = part as { type?: unknown, text?: unknown }
-  if (record.type === 'text' && typeof record.text === 'string')
-    return record.text.length
-
-  return 64
-}
-
-function estimateToolCallsCharacters(toolCalls: TranscriptProjectedMessage['tool_calls']): number {
-  if (!toolCalls?.length)
-    return 0
-  return toolCalls.reduce((acc, tc) =>
-    acc
-    + tc.id.length
-    + tc.type.length
-    + tc.function.name.length
-    + tc.function.arguments.length
-    + 32, 0)
 }

@@ -1,5 +1,9 @@
 import type { Page } from 'playwright'
 
+export async function goToSettingsConnectionPage(settingsPage: Page): Promise<Page> {
+  return goToSettingsRoute(settingsPage, '/settings/connection')
+}
+
 export async function goToSettingsRoute(settingsPage: Page, routePath: string): Promise<Page> {
   const normalizedRoutePath = routePath.startsWith('/')
     ? routePath
@@ -24,12 +28,8 @@ export async function openSettingsConnectionPage(_mainPage: Page, settingsPage: 
   }
 }
 
-export async function goToSettingsConnectionPage(settingsPage: Page): Promise<Page> {
-  return goToSettingsRoute(settingsPage, '/settings/connection')
-}
-
-export async function toggleSettingsSwitchByLabel(settingsPage: Page, label: RegExp | string): Promise<{ before: string, after: string }> {
-  const { labelLocator, row, button } = getSettingsSwitch(settingsPage, label)
+export async function toggleSettingsSwitchByLabel(settingsPage: Page, label: RegExp | string): Promise<{ after: string, before: string }> {
+  const { button, labelLocator, row } = getSettingsSwitch(settingsPage, label)
 
   await labelLocator.waitFor({ state: 'visible', timeout: 15_000 })
   await row.waitFor({ state: 'visible', timeout: 15_000 })
@@ -43,11 +43,11 @@ export async function toggleSettingsSwitchByLabel(settingsPage: Page, label: Reg
     throw new Error(`Custom switch state did not change for label ${String(label)}`)
   }
 
-  return { before, after }
+  return { after, before }
 }
 
-function normalizeLabel(label: RegExp | string): string | RegExp {
-  return label
+function getCurrentHashPath(settingsPage: Page): string {
+  return normalizeHashPath(new URL(settingsPage.url()).hash)
 }
 
 function getSettingsSwitch(settingsPage: Page, label: RegExp | string) {
@@ -55,7 +55,7 @@ function getSettingsSwitch(settingsPage: Page, label: RegExp | string) {
   const row = labelLocator.locator('xpath=ancestor::label[1]')
   const button = row.locator('button[role="switch"]').first()
 
-  return { labelLocator, row, button }
+  return { button, labelLocator, row }
 }
 
 function normalizeHashPath(hash: string): string {
@@ -66,6 +66,6 @@ function normalizeHashPath(hash: string): string {
   return withoutHash || '/'
 }
 
-function getCurrentHashPath(settingsPage: Page): string {
-  return normalizeHashPath(new URL(settingsPage.url()).hash)
+function normalizeLabel(label: RegExp | string): RegExp | string {
+  return label
 }

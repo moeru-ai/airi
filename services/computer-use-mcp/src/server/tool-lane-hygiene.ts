@@ -14,10 +14,10 @@ import { textContent } from './content'
 import { globalRegistry, initializeGlobalRegistry } from './tool-descriptors'
 
 const EXEMPT_LANES: ReadonlySet<ToolLane> = new Set<ToolLane>([
-  'workflow',
+  'display',
   'internal',
   'task_memory',
-  'display',
+  'workflow',
 ])
 
 export interface ToolLaneStateManager {
@@ -25,20 +25,12 @@ export interface ToolLaneStateManager {
   updateInferredLane: (lane: ToolLane) => void
 }
 
-export function inferToolLane(toolName: string): ToolLane | undefined {
-  if (globalRegistry.size === 0) {
-    initializeGlobalRegistry()
-  }
-
-  return globalRegistry.getOptional(toolName)?.lane
-}
-
 export function buildCrossLaneAdvisory(params: {
-  toolName: string
-  toolLane: ToolLane
   inferredActiveLane: ToolLane | undefined
-}): string | null {
-  const { toolName, toolLane, inferredActiveLane } = params
+  toolLane: ToolLane
+  toolName: string
+}): null | string {
+  const { inferredActiveLane, toolLane, toolName } = params
 
   if (!inferredActiveLane) {
     return null
@@ -59,10 +51,6 @@ export function buildCrossLaneAdvisory(params: {
   )
 }
 
-export function shouldUpdateActiveLane(lane: ToolLane): boolean {
-  return !EXEMPT_LANES.has(lane)
-}
-
 export function createToolLaneHygieneServer(
   server: McpServer,
   stateManager: ToolLaneStateManager,
@@ -79,16 +67,16 @@ export function createToolLaneHygieneServer(
           return (server.tool as any)(name, ...rest)
         }
 
-        const originalHandler = rest[handlerIndex] as (...args: any[]) => Promise<CallToolResult> | CallToolResult
+        const originalHandler = rest[handlerIndex] as (...args: any[]) => CallToolResult | Promise<CallToolResult>
         const wrappedHandler = async (...args: any[]): Promise<CallToolResult> => {
           const lane = inferToolLane(name)
-          let advisory: string | null = null
+          let advisory: null | string = null
 
           if (lane) {
             advisory = buildCrossLaneAdvisory({
-              toolName: name,
-              toolLane: lane,
               inferredActiveLane: stateManager.getState().inferredActiveLane,
+              toolLane: lane,
+              toolName: name,
             })
 
             if (shouldUpdateActiveLane(lane)) {
@@ -116,6 +104,18 @@ export function createToolLaneHygieneServer(
       }
     },
   })
+}
+
+export function inferToolLane(toolName: string): ToolLane | undefined {
+  if (globalRegistry.size === 0) {
+    initializeGlobalRegistry()
+  }
+
+  return globalRegistry.getOptional(toolName)?.lane
+}
+
+export function shouldUpdateActiveLane(lane: ToolLane): boolean {
+  return !EXEMPT_LANES.has(lane)
 }
 
 function findLastHandlerIndex(args: unknown[]): number {

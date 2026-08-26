@@ -19,8 +19,8 @@ Runtime configuration contains only serializable values. A `prepare` module adap
 
 ```ts
 fakemic({
-  name: 'audio-web',
   include: ['cases/**/*.audio.test.ts', 'cases/**/*.audio.web.test.ts'],
+  name: 'audio-web',
   runtime: web({
     name: 'web',
     prepare: new URL('./prepare-web.ts', import.meta.url).href,

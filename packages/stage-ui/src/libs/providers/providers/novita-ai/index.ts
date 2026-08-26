@@ -19,29 +19,7 @@ const novitaConfigSchema = z.object({
 type NovitaConfig = z.input<typeof novitaConfigSchema>
 
 export const providerNovitaAI = defineProvider<NovitaConfig>({
-  id: 'novita-ai',
-  name: 'Novita',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.novita.title'),
-  description: 'novita.ai',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.novita.description'),
-  tasks: ['chat'],
   capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
-  icon: 'i-lobe-icons:novita',
-  iconColor: 'i-lobe-icons:novita-color',
-
-  createProviderConfig: ({ t }) => novitaConfigSchema.extend({
-    apiKey: novitaConfigSchema.shape.apiKey.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
-      type: 'password',
-    }),
-    baseUrl: novitaConfigSchema.shape.baseUrl.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
-    }),
-  }),
   createProvider(config) {
     const provider = createNovita(config.apiKey, config.baseUrl)
     return {
@@ -55,6 +33,28 @@ export const providerNovitaAI = defineProvider<NovitaConfig>({
       },
     }
   },
+  createProviderConfig: ({ t }) => novitaConfigSchema.extend({
+    apiKey: novitaConfigSchema.shape.apiKey.meta({
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+      type: 'password',
+    }),
+    baseUrl: novitaConfigSchema.shape.baseUrl.meta({
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
+    }),
+  }),
+  description: 'novita.ai',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.novita.description'),
+  icon: 'i-lobe-icons:novita',
+  iconColor: 'i-lobe-icons:novita-color',
+  id: 'novita-ai',
+  name: 'Novita',
+
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.novita.title'),
+  tasks: ['chat'],
 
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()

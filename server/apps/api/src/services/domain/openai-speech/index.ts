@@ -22,51 +22,39 @@ import {
 const tracer = trace.getTracer('v1-completions')
 
 const SAFE_RESPONSE_HEADERS = new Set([
-  'content-type',
-  'content-length',
-  'transfer-encoding',
   'cache-control',
+  'content-length',
+  'content-type',
+  'transfer-encoding',
 ])
 
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  if (typeof value !== 'object' || value == null || Array.isArray(value))
-    return undefined
-  return value as Record<string, unknown>
-}
-
-function readOptionalNumber(record: Record<string, unknown> | undefined, key: string): number | undefined {
-  const value = record?.[key]
-  return typeof value === 'number' && Number.isFinite(value)
-    ? value
-    : undefined
+export interface OpenAiSpeechRequest {
+  abortSignal?: AbortSignal
+  body: Record<string, unknown>
+  sessionId?: string
+  userId: string
 }
 
 export interface OpenAiSpeechServiceDeps {
-  fluxService: FluxService
   configKV: ConfigKVService
-  requestLogService: RequestLogService
-  ttsMeter: FluxMeter
-  llmRouter: LlmRouterService
-  voicePackService: VoicePackService
-  providerCatalogService: ProviderCatalogService
+  fluxService: FluxService
   genAi?: GenAiMetrics | null
+  llmRouter: LlmRouterService
   llmTracing: {
     startTtsGeneration: (input: Parameters<typeof startTtsGeneration>[0]) => TtsGenerationTrace
   }
+  providerCatalogService: ProviderCatalogService
+  requestLogService: RequestLogService
+  ttsMeter: FluxMeter
+  voicePackService: VoicePackService
 }
 
-export interface OpenAiSpeechRequest {
-  userId: string
-  body: Record<string, unknown>
-  sessionId?: string
-  abortSignal?: AbortSignal
+interface TtsAnalyticsContext {
+  source: 'audio.speech' | 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+  trigger: TtsTrigger
 }
 
 type TtsTrigger = 'auto' | 'manual'
-interface TtsAnalyticsContext {
-  trigger: TtsTrigger
-  source: 'audio.speech' | 'chat_auto_tts' | 'manual_preview' | 'settings_test'
-}
 
 /**
  * Runs the OpenAI-shaped text-to-speech gateway flow.
@@ -109,10 +97,10 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
     const billingUnits = Math.ceil(inputText.length * voicePackRequest.costMultiplier)
 
     logger.withFields({
+      inputChars: inputText.length,
+      model: requestModel,
       requestId,
       userId: input.userId,
-      model: requestModel,
-      inputChars: inputText.length,
       voice: requestVoice,
     }).log('tts speech request')
 
@@ -125,11 +113,11 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         throw err
 
       logger.withError(err).withFields({
-        requestId,
-        userId: input.userId,
         model: requestModel,
-        trigger: analytics.trigger,
+        requestId,
         source: analytics.source,
+        trigger: analytics.trigger,
+        userId: input.userId,
       }).warn('tts speech blocked by pre-flight balance check')
 
       if (analytics.trigger === 'auto')
@@ -139,37 +127,37 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
     }
 
     const ttsInput = {
+      extraOptions: voicePackRequest.extraOptions,
+      responseFormat: typeof input.body.response_format === 'string' ? input.body.response_format : undefined,
+      speed: voicePackRequest.speed ?? (typeof input.body.speed === 'number' ? input.body.speed : undefined),
       text: inputText,
       voice: routedVoice,
-      speed: voicePackRequest.speed ?? (typeof input.body.speed === 'number' ? input.body.speed : undefined),
-      responseFormat: typeof input.body.response_format === 'string' ? input.body.response_format : undefined,
-      extraOptions: voicePackRequest.extraOptions,
     }
 
     const generationTrace = deps.llmTracing.startTtsGeneration({
       input: ttsInput,
       model: requestModel,
       requestId,
-      userId: input.userId,
       sessionId: input.sessionId,
+      userId: input.userId,
     })
 
     const span = tracer.startSpan('llm.gateway.tts', {
       attributes: {
-        [GEN_AI_ATTR_REQUEST_MODEL]: requestModel,
         [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'text_to_speech',
+        [GEN_AI_ATTR_REQUEST_MODEL]: requestModel,
       },
     })
 
     const startedAt = Date.now()
-    const routeCtx = { provider: 'unknown', triedUpstreams: 0, triedKeys: 0, lastStatus: null }
+    const routeCtx = { lastStatus: null, provider: 'unknown', triedKeys: 0, triedUpstreams: 0 }
     let response: Response
     try {
       response = await context.with(trace.setSpan(context.active(), span), () =>
         deps.llmRouter.routeTts({
-          modelName: requestModel,
-          input: ttsInput,
           abortSignal: input.abortSignal,
+          input: ttsInput,
+          modelName: requestModel,
         }, routeCtx))
     }
     catch (err) {
@@ -194,29 +182,29 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       span.setStatus({ code: SpanStatusCode.ERROR, message: `Gateway ${response.status}` })
       span.end()
       generationTrace.fail(`Gateway ${response.status}`)
-      recordMetrics({ model: requestModel, status: response.status, provider: routeCtx.provider, durationMs, fluxConsumed: 0 })
-      logger.withFields({ requestId, userId: input.userId, model: requestModel, status: response.status, durationMs })
+      recordMetrics({ durationMs, fluxConsumed: 0, model: requestModel, provider: routeCtx.provider, status: response.status })
+      logger.withFields({ durationMs, model: requestModel, requestId, status: response.status, userId: input.userId })
         .warn('tts speech delivered with upstream error status')
       return new Response(response.body, {
-        status: response.status,
         headers: buildSafeResponseHeaders(response),
+        status: response.status,
       })
     }
 
     let fluxConsumed = 0
     try {
       const result = await deps.ttsMeter.accumulate({
-        userId: input.userId,
-        units: billingUnits,
         currentBalance: flux.flux,
+        metadata: { costMultiplier: voicePackRequest.costMultiplier, model: requestModel },
         requestId,
-        metadata: { model: requestModel, costMultiplier: voicePackRequest.costMultiplier },
+        units: billingUnits,
+        userId: input.userId,
       })
       fluxConsumed = result.fluxDebited
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
       generationTrace.succeed({
-        inputChars: inputText.length,
         fluxConsumed,
+        inputChars: inputText.length,
         output: { contentType: response.headers.get('content-type') },
       })
     }
@@ -228,41 +216,41 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       span.end()
     }
 
-    recordMetrics({ model: requestModel, status: response.status, provider: routeCtx.provider, durationMs, fluxConsumed })
+    recordMetrics({ durationMs, fluxConsumed, model: requestModel, provider: routeCtx.provider, status: response.status })
     deps.requestLogService.logRequest({
-      userId: input.userId,
-      model: requestModel,
-      status: response.status,
       durationMs,
       fluxConsumed,
+      model: requestModel,
+      status: response.status,
+      userId: input.userId,
     }).catch(err => logger.withError(err).warn('Failed to write llm_request_log row'))
 
     logger.withFields({
-      requestId,
-      userId: input.userId,
-      model: requestModel,
-      status: response.status,
       durationMs,
-      inputChars: inputText.length,
       fluxConsumed,
+      inputChars: inputText.length,
+      model: requestModel,
+      requestId,
+      status: response.status,
+      userId: input.userId,
     }).log('tts speech delivered')
 
     return new Response(response.body, {
-      status: response.status,
       headers: buildSafeResponseHeaders(response),
+      status: response.status,
     })
   }
 
   function recordMetrics(input: {
-    model: string
-    status: number
-    provider: string
     durationMs: number
     fluxConsumed: number
+    model: string
+    provider: string
+    status: number
   }): void {
     const attrs = {
-      [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
       [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'tts',
+      [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
       'http.response.status_code': input.status,
       'provider': input.provider,
     }
@@ -273,56 +261,26 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
 
   return { handleSpeechRequest }
 }
-
-function ttsAnalyticsContext(body: Record<string, unknown>): TtsAnalyticsContext {
-  const extraBody = asRecord(body.extra_body)
-  const analytics = asRecord(extraBody?.airi_analytics)
-  const trigger = analytics?.trigger === 'auto' ? 'auto' : 'manual'
-  const rawSource = analytics?.source
-  const source = rawSource === 'chat_auto_tts'
-    || rawSource === 'manual_preview'
-    || rawSource === 'settings_test'
-    ? rawSource
-    : 'audio.speech'
-  return { trigger, source }
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== 'object' || value == null || Array.isArray(value))
+    return undefined
+  return value as Record<string, unknown>
 }
 
-async function voicePackRequestOptions(
-  body: Record<string, unknown>,
-  context: {
-    requestedModel: string
-    voice?: string
-    voicePackService: VoicePackService
-  },
-): Promise<{
-  extraOptions: Record<string, unknown> | undefined
-  costMultiplier: number
-  voicePackId?: string
-  model?: string
-  voice?: string
-  speed?: number
-}> {
-  const extraBody = asRecord(body.extra_body)
-  const voicePackOptions = asRecord(extraBody?.voice_pack)
-  const pitch = readOptionalNumber(voicePackOptions, 'pitch')
-  const volume = readOptionalNumber(voicePackOptions, 'volume')
-  const voicePack = await resolveVoicePackRequest(voicePackOptions, context)
-  const extraOptions: Record<string, unknown> = {}
-  const resolvedPitch = voicePack?.params.pitch ?? pitch
-  const resolvedVolume = voicePack?.params.volume ?? volume
-  if (resolvedPitch != null)
-    extraOptions.pitch = resolvedPitch
-  if (resolvedVolume != null)
-    extraOptions.volume = resolvedVolume
+function buildSafeResponseHeaders(response: Response): Headers {
+  const headers = new Headers()
+  response.headers.forEach((value, key) => {
+    if (SAFE_RESPONSE_HEADERS.has(key.toLowerCase()))
+      headers.set(key, value)
+  })
+  return headers
+}
 
-  return {
-    extraOptions: Object.keys(extraOptions).length > 0 ? extraOptions : undefined,
-    costMultiplier: voicePack?.costMultiplier ?? 1,
-    voicePackId: voicePack?.id,
-    model: voicePack?.ttsModelId,
-    voice: voicePack?.upstreamVoiceId,
-    speed: voicePack?.params.rate,
-  }
+function readOptionalNumber(record: Record<string, unknown> | undefined, key: string): number | undefined {
+  const value = record?.[key]
+  return typeof value === 'number' && Number.isFinite(value)
+    ? value
+    : undefined
 }
 
 async function resolveVoicePackRequest(
@@ -359,27 +317,69 @@ async function resolveVoicePackRequest(
   return pack
 }
 
-function routerFailure(error: unknown): { status: number, reason: string, message: string } {
+function routerFailure(error: unknown): { message: string, reason: string, status: number } {
   if (error instanceof ApiError) {
     return {
-      status: error.statusCode,
-      reason: error.errorCode,
       message: error.message,
+      reason: error.errorCode,
+      status: error.statusCode,
     }
   }
 
   return {
-    status: 502,
-    reason: 'router_exhausted',
     message: 'TTS router exhausted or unknown model',
+    reason: 'router_exhausted',
+    status: 502,
   }
 }
 
-function buildSafeResponseHeaders(response: Response): Headers {
-  const headers = new Headers()
-  response.headers.forEach((value, key) => {
-    if (SAFE_RESPONSE_HEADERS.has(key.toLowerCase()))
-      headers.set(key, value)
-  })
-  return headers
+function ttsAnalyticsContext(body: Record<string, unknown>): TtsAnalyticsContext {
+  const extraBody = asRecord(body.extra_body)
+  const analytics = asRecord(extraBody?.airi_analytics)
+  const trigger = analytics?.trigger === 'auto' ? 'auto' : 'manual'
+  const rawSource = analytics?.source
+  const source = rawSource === 'chat_auto_tts'
+    || rawSource === 'manual_preview'
+    || rawSource === 'settings_test'
+    ? rawSource
+    : 'audio.speech'
+  return { source, trigger }
+}
+
+async function voicePackRequestOptions(
+  body: Record<string, unknown>,
+  context: {
+    requestedModel: string
+    voice?: string
+    voicePackService: VoicePackService
+  },
+): Promise<{
+  costMultiplier: number
+  extraOptions: Record<string, unknown> | undefined
+  model?: string
+  speed?: number
+  voice?: string
+  voicePackId?: string
+}> {
+  const extraBody = asRecord(body.extra_body)
+  const voicePackOptions = asRecord(extraBody?.voice_pack)
+  const pitch = readOptionalNumber(voicePackOptions, 'pitch')
+  const volume = readOptionalNumber(voicePackOptions, 'volume')
+  const voicePack = await resolveVoicePackRequest(voicePackOptions, context)
+  const extraOptions: Record<string, unknown> = {}
+  const resolvedPitch = voicePack?.params.pitch ?? pitch
+  const resolvedVolume = voicePack?.params.volume ?? volume
+  if (resolvedPitch != null)
+    extraOptions.pitch = resolvedPitch
+  if (resolvedVolume != null)
+    extraOptions.volume = resolvedVolume
+
+  return {
+    costMultiplier: voicePack?.costMultiplier ?? 1,
+    extraOptions: Object.keys(extraOptions).length > 0 ? extraOptions : undefined,
+    model: voicePack?.ttsModelId,
+    speed: voicePack?.params.rate,
+    voice: voicePack?.upstreamVoiceId,
+    voicePackId: voicePack?.id,
+  }
 }

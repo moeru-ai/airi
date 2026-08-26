@@ -3,7 +3,7 @@
  */
 export interface Disposable {
   /** Releases the resource. */
-  dispose: () => void | Promise<void>
+  dispose: () => Promise<void> | void
 }
 
 /**

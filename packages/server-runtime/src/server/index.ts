@@ -12,84 +12,26 @@ import { serve } from 'h3'
 
 import { normalizeLoggerConfig, setupApp } from '..'
 
+export interface Server {
+  getConnectionHost: () => string[]
+  restart: () => Promise<void>
+  start: () => Promise<void>
+  stop: () => Promise<void>
+  updateConfig: (newOptions: ServerOptions) => void
+}
+
 export interface ServerOptions extends AppOptions {
-  port?: number
   hostname?: string
-  tlsConfig?: {
+  port?: number
+  tlsConfig?: null | {
     cert?: string
     key?: string
     passphrase?: string
-  } | null
+  }
 }
 
 interface ServerInstance {
   close: (closeActiveConnections?: boolean) => Promise<void>
-}
-
-export interface Server {
-  getConnectionHost: () => string[]
-  start: () => Promise<void>
-  stop: () => Promise<void>
-  restart: () => Promise<void>
-  updateConfig: (newOptions: ServerOptions) => void
-}
-
-function isAddressInUseError(error: unknown) {
-  return typeof error === 'object'
-    && error !== null
-    && 'code' in error
-    && (error as NodeJS.ErrnoException).code === 'EADDRINUSE'
-}
-
-/**
- * Collects local IP addresses that can be used to reach the server from the LAN.
- *
- * Use when:
- * - Building connection hints for `0.0.0.0` listeners
- * - Showing reachable addresses in logs or UI
- *
- * Expects:
- * - Virtual interfaces should be ignored to reduce noisy or misleading addresses
- *
- * Returns:
- * - A de-duplicated list of valid IP addresses discovered from the host network interfaces
- */
-export function getLocalIPs(): string[] {
-  const interfaces = networkInterfaces()
-  const addresses = new Set<string>()
-
-  const VIRTUAL_INTERFACE_PREFIXES = [
-    'vboxnet',
-    'vmnet',
-    'docker',
-    'br-',
-    'veth',
-    'utun',
-    'wg',
-    'tap',
-    'tun',
-  ]
-  const isVirtualInterface = (name: string) =>
-    VIRTUAL_INTERFACE_PREFIXES.some(prefix => name.startsWith(prefix))
-
-  for (const [name, entries] of Object.entries(interfaces)) {
-    if (!entries)
-      continue
-    if (isVirtualInterface(name))
-      continue
-
-    for (const entry of entries) {
-      const rawAddress = entry.address
-      if (!rawAddress)
-        continue
-
-      const address = rawAddress.includes('%') ? rawAddress.split('%')[0] : rawAddress
-      if (isIP(address))
-        addresses.add(address)
-    }
-  }
-
-  return [...addresses]
 }
 
 /**
@@ -106,12 +48,12 @@ export function getLocalIPs(): string[] {
  * - Lifecycle helpers for starting, stopping, restarting, and updating server options
  */
 export function createServer(opts?: ServerOptions): Server {
-  let options = merge<ServerOptions>({ port: 6121, hostname: '127.0.0.1' }, opts)
+  let options = merge<ServerOptions>({ hostname: '127.0.0.1', port: 6121 }, opts)
 
   const { appLogFormat, appLogLevel } = normalizeLoggerConfig(options)
   const log = useLogg('@proj-airi/server-runtime/server').withLogLevelString(appLogLevel).withFormat(appLogFormat)
-  let serverInstance: ServerInstance | null = null
-  let startTask: Promise<void> | null = null
+  let serverInstance: null | ServerInstance = null
+  let startTask: null | Promise<void> = null
 
   log.withFields({ hasTlsConfig: !!options?.tlsConfig }).log('creating server channel')
 
@@ -161,17 +103,17 @@ export function createServer(opts?: ServerOptions): Server {
       const hostname = options.hostname
 
       const instance = serve(h3App.app, {
-        plugins: [createH3CrossWsPlugin(crossWsApp)],
-        port,
-        hostname,
-        tls: options?.tlsConfig || undefined,
-        reusePort: true,
-        silent: true,
-        manual: true,
         gracefulShutdown: {
           forceTimeout: 0.5,
           gracefulTimeout: 0.5,
         },
+        hostname,
+        manual: true,
+        plugins: [createH3CrossWsPlugin(crossWsApp)],
+        port,
+        reusePort: true,
+        silent: true,
+        tls: options?.tlsConfig || undefined,
       })
 
       try {
@@ -235,9 +177,67 @@ export function createServer(opts?: ServerOptions): Server {
 
       return getLocalIPs()
     },
+    restart,
     start,
     stop,
-    restart,
     updateConfig,
   }
+}
+
+/**
+ * Collects local IP addresses that can be used to reach the server from the LAN.
+ *
+ * Use when:
+ * - Building connection hints for `0.0.0.0` listeners
+ * - Showing reachable addresses in logs or UI
+ *
+ * Expects:
+ * - Virtual interfaces should be ignored to reduce noisy or misleading addresses
+ *
+ * Returns:
+ * - A de-duplicated list of valid IP addresses discovered from the host network interfaces
+ */
+export function getLocalIPs(): string[] {
+  const interfaces = networkInterfaces()
+  const addresses = new Set<string>()
+
+  const VIRTUAL_INTERFACE_PREFIXES = [
+    'vboxnet',
+    'vmnet',
+    'docker',
+    'br-',
+    'veth',
+    'utun',
+    'wg',
+    'tap',
+    'tun',
+  ]
+  const isVirtualInterface = (name: string) =>
+    VIRTUAL_INTERFACE_PREFIXES.some(prefix => name.startsWith(prefix))
+
+  for (const [name, entries] of Object.entries(interfaces)) {
+    if (!entries)
+      continue
+    if (isVirtualInterface(name))
+      continue
+
+    for (const entry of entries) {
+      const rawAddress = entry.address
+      if (!rawAddress)
+        continue
+
+      const address = rawAddress.includes('%') ? rawAddress.split('%')[0] : rawAddress
+      if (isIP(address))
+        addresses.add(address)
+    }
+  }
+
+  return [...addresses]
+}
+
+function isAddressInUseError(error: unknown) {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && (error as NodeJS.ErrnoException).code === 'EADDRINUSE'
 }

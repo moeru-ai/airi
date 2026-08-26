@@ -11,21 +11,21 @@ import { selectProviderMetadata } from './metadata'
 const t = ((key: string) => key) as ComposerTranslation
 
 const definition = {
-  id: 'test-provider',
-  tasks: ['chat'],
-  name: 'Test Provider',
-  nameLocalize: ({ t }) => t('name.key'),
-  description: 'Test provider description',
-  descriptionLocalize: ({ t }) => t('description.key'),
-  icon: 'i-test:provider',
-  createProviderConfig: async () => z.object({
-    apiKey: z.string(),
-    baseUrl: z.string().optional().default('https://example.com/v1/'),
-  }),
   createProvider: config => createChatProvider({
     apiKey: config.apiKey,
     baseURL: config.baseUrl ?? 'https://example.com/v1/',
   }),
+  createProviderConfig: async () => z.object({
+    apiKey: z.string(),
+    baseUrl: z.string().optional().default('https://example.com/v1/'),
+  }),
+  description: 'Test provider description',
+  descriptionLocalize: ({ t }) => t('description.key'),
+  icon: 'i-test:provider',
+  id: 'test-provider',
+  name: 'Test Provider',
+  nameLocalize: ({ t }) => t('name.key'),
+  tasks: ['chat'],
 } satisfies ProviderDefinition<{ apiKey: string, baseUrl?: string }>
 
 describe('provider metadata selector', () => {
@@ -33,15 +33,15 @@ describe('provider metadata selector', () => {
     const metadata = await selectProviderMetadata(definition, t)
 
     expect(metadata).toMatchObject({
-      id: 'test-provider',
       category: 'chat',
-      name: 'Test Provider',
-      nameKey: 'name.key',
-      localizedName: 'name.key',
-      descriptionKey: 'description.key',
       defaultConfig: {
         baseUrl: 'https://example.com/v1/',
       },
+      descriptionKey: 'description.key',
+      id: 'test-provider',
+      localizedName: 'name.key',
+      name: 'Test Provider',
+      nameKey: 'name.key',
     })
   })
 
@@ -57,15 +57,15 @@ describe('provider metadata selector', () => {
 
   it('supports serializable view overrides without changing the definition', async () => {
     const metadata = await selectProviderMetadata(definition, t, {
-      id: 'vision-test-provider',
       category: 'vision',
+      id: 'vision-test-provider',
       tasks: ['chat', 'vision'],
       to: '/settings/providers/vision/test-provider',
     })
 
     expect(metadata).toMatchObject({
-      id: 'vision-test-provider',
       category: 'vision',
+      id: 'vision-test-provider',
       tasks: ['chat', 'vision'],
       to: '/settings/providers/vision/test-provider',
     })

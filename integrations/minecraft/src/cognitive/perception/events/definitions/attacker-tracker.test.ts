@@ -16,13 +16,13 @@ import { damageTakenEvent } from './damage-taken'
 /** Minimal PerceptionContext stub mirroring the damage-taken harness. */
 function makeCtx(health: number, entity: Record<string, any>, nearby: Record<string, any> = {}): any {
   return {
-    bot: { health, entity, entities: nearby },
-    selfUsername: 'Airi',
-    maxDistance: 32,
+    bot: { entities: nearby, entity, health },
     distanceTo: (e: any) => (typeof e?._distance === 'number' ? e._distance : null),
     distanceToPos: () => null,
-    isSelf: (e: any) => e?.username === 'Airi',
     entityId: (e: any) => String(e?.id ?? 'unknown'),
+    isSelf: (e: any) => e?.username === 'Airi',
+    maxDistance: 32,
+    selfUsername: 'Airi',
   }
 }
 
@@ -37,13 +37,13 @@ const groundedSelf = { id: 1, isInLava: false, isInWater: false, onGround: true,
 
 describe('recentAttacker', () => {
   it('returns the recorded attacker within the recency window, null once stale', () => {
-    recordAttacker({ type: 'mob', name: 'skeleton', id: 9 }, 1000)
+    recordAttacker({ id: 9, name: 'skeleton', type: 'mob' }, 1000)
     expect(recentAttacker(1100)?.name).toBe('skeleton')
     expect(recentAttacker(2000)).toBe(null) // 1000ms elapsed > 600ms window
   })
 
   it('ignores a null source (environmental damage reports no entity)', () => {
-    recordAttacker({ type: 'mob', name: 'zombie', id: 5 }, 5000)
+    recordAttacker({ id: 5, name: 'zombie', type: 'mob' }, 5000)
     recordAttacker(null, 5001) // must not overwrite with nothing
     expect(recentAttacker(5050)?.name).toBe('zombie')
   })
@@ -51,24 +51,24 @@ describe('recentAttacker', () => {
 
 describe('damage attribution via the real attacker', () => {
   it('blames the skeleton, not the nearer master player (the crossbow bug)', () => {
-    const master = { type: 'player', username: 'dssadg', name: 'player', id: 7, _distance: 1 }
-    const skeleton = { type: 'mob', name: 'skeleton', id: 9, _distance: 20 }
+    const master = { _distance: 1, id: 7, name: 'player', type: 'player', username: 'dssadg' }
+    const skeleton = { _distance: 20, id: 9, name: 'skeleton', type: 'mob' }
     // entityHurt fired with the REAL source = the skeleton, even though the master stands closer
     recordAttacker(skeleton, Date.now())
 
     const hurt = primeDamage(groundedSelf, 18, { 7: master, 9: skeleton })
-    const extracted = damageTakenEvent.mineflayer.extract(hurt) as { damageSource: { cause: string, name?: string }, attacker: string }
+    const extracted = damageTakenEvent.mineflayer.extract(hurt) as { attacker: string, damageSource: { cause: string, name?: string } }
     expect(extracted.damageSource.cause).toBe('mob')
     expect(extracted.damageSource.name).toBe('skeleton')
     expect(extracted.attacker).toBe('skeleton')
   })
 
   it('still attributes a genuine master melee hit to the master', () => {
-    const master = { type: 'player', username: 'dssadg', name: 'player', id: 7, _distance: 1 }
+    const master = { _distance: 1, id: 7, name: 'player', type: 'player', username: 'dssadg' }
     recordAttacker(master, Date.now())
 
     const hurt = primeDamage(groundedSelf, 18, { 7: master })
-    const extracted = damageTakenEvent.mineflayer.extract(hurt) as { damageSource: { cause: string }, attacker: string }
+    const extracted = damageTakenEvent.mineflayer.extract(hurt) as { attacker: string, damageSource: { cause: string } }
     expect(extracted.damageSource.cause).toBe('player')
     expect(extracted.attacker).toBe('dssadg')
   })

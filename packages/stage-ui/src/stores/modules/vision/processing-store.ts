@@ -14,12 +14,6 @@ const DEFAULT_CAPTURE_INTERVAL_MS = 3000
 const HISTORY_MAX_AGE_MS = 5 * 60 * 1000
 const PROCESSING_HISTORY_LIMIT = 240
 
-function trimHistoryByAge(history: number[], maxAgeMs: number) {
-  const cutoff = Date.now() - maxAgeMs
-  while (history.length > 0 && history[0] < cutoff)
-    history.shift()
-}
-
 function countInWindow(history: number[], windowMs: number) {
   const cutoff = Date.now() - windowMs
   let count = 0
@@ -29,6 +23,12 @@ function countInWindow(history: number[], windowMs: number) {
     count += 1
   }
   return count
+}
+
+function trimHistoryByAge(history: number[], maxAgeMs: number) {
+  const cutoff = Date.now() - maxAgeMs
+  while (history.length > 0 && history[0] < cutoff)
+    history.shift()
 }
 
 export const useVisionProcessingStore = defineStore('vision-processing', () => {
@@ -43,18 +43,18 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
   const skippedTicks = ref(0)
   const captureCount = ref(0)
   const contextUpdateCount = ref(0)
-  const lastTickAt = ref<number | null>(null)
-  const lastCaptureAt = ref<number | null>(null)
-  const lastContextUpdateAt = ref<number | null>(null)
-  const lastProcessingDurationMs = ref<number | null>(null)
-  const lastError = ref<string | null>(null)
+  const lastTickAt = ref<null | number>(null)
+  const lastCaptureAt = ref<null | number>(null)
+  const lastContextUpdateAt = ref<null | number>(null)
+  const lastProcessingDurationMs = ref<null | number>(null)
+  const lastError = ref<null | string>(null)
 
   const processingHistoryMs = ref<number[]>([])
   const captureHistory = ref<number[]>([])
   const contextUpdateHistory = ref<number[]>([])
 
-  let intervalHandle: ReturnType<typeof setInterval> | null = null
-  const tickHandler = ref<VisionTickHandler | null>(null)
+  let intervalHandle: null | ReturnType<typeof setInterval> = null
+  const tickHandler = ref<null | VisionTickHandler>(null)
 
   const captureRatePerMinute = computed(() => countInWindow(captureHistory.value, 60_000))
   const contextUpdateRatePerMinute = computed(() => countInWindow(contextUpdateHistory.value, 60_000))
@@ -178,27 +178,27 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
   })
 
   return {
-    captureIntervalMs,
-    isRunning,
-    isProcessing,
-    tickCount,
-    skippedTicks,
+    averageProcessingMs,
     captureCount,
+    captureHistory,
+    captureIntervalMs,
+    captureRatePerMinute,
     contextUpdateCount,
-    lastTickAt,
+    contextUpdateHistory,
+    contextUpdateRatePerMinute,
+    isProcessing,
+    isRunning,
     lastCaptureAt,
     lastContextUpdateAt,
-    lastProcessingDurationMs,
     lastError,
+    lastProcessingDurationMs,
+    lastTickAt,
     processingHistoryMs,
-    captureHistory,
-    contextUpdateHistory,
-    captureRatePerMinute,
-    contextUpdateRatePerMinute,
-    averageProcessingMs,
-    startTicker,
-    stopTicker,
     resetMetrics,
     resetState,
+    skippedTicks,
+    startTicker,
+    stopTicker,
+    tickCount,
   }
 })

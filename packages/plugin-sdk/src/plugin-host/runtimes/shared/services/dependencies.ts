@@ -21,8 +21,29 @@ export class DependencyService {
     const current = this.capabilities.get(key)
     const descriptor: CapabilityDescriptor = {
       key,
-      state: 'announced',
       metadata: metadata ?? current?.metadata,
+      state: 'announced',
+      updatedAt: Date.now(),
+    }
+
+    this.capabilities.set(key, descriptor)
+    return descriptor
+  }
+
+  isReady(key: string) {
+    return this.capabilities.get(key)?.state === 'ready'
+  }
+
+  list() {
+    return [...this.capabilities.values()]
+  }
+
+  markDegraded(key: string, metadata?: Record<string, unknown>) {
+    const current = this.capabilities.get(key)
+    const descriptor: CapabilityDescriptor = {
+      key,
+      metadata: metadata ?? current?.metadata,
+      state: 'degraded',
       updatedAt: Date.now(),
     }
 
@@ -34,8 +55,8 @@ export class DependencyService {
     const current = this.capabilities.get(key)
     const descriptor: CapabilityDescriptor = {
       key,
-      state: 'ready',
       metadata: metadata ?? current?.metadata,
+      state: 'ready',
       updatedAt: Date.now(),
     }
 
@@ -49,44 +70,6 @@ export class DependencyService {
     }
 
     return descriptor
-  }
-
-  markDegraded(key: string, metadata?: Record<string, unknown>) {
-    const current = this.capabilities.get(key)
-    const descriptor: CapabilityDescriptor = {
-      key,
-      state: 'degraded',
-      metadata: metadata ?? current?.metadata,
-      updatedAt: Date.now(),
-    }
-
-    this.capabilities.set(key, descriptor)
-    return descriptor
-  }
-
-  withdraw(key: string, metadata?: Record<string, unknown>) {
-    const current = this.capabilities.get(key)
-    const descriptor: CapabilityDescriptor = {
-      key,
-      state: 'withdrawn',
-      metadata: metadata ?? current?.metadata,
-      updatedAt: Date.now(),
-    }
-
-    this.capabilities.set(key, descriptor)
-    return descriptor
-  }
-
-  list() {
-    return [...this.capabilities.values()]
-  }
-
-  isReady(key: string) {
-    return this.capabilities.get(key)?.state === 'ready'
-  }
-
-  async waitForMany(keys: string[], timeoutMs: number = 15000) {
-    await Promise.all(keys.map(async key => await this.waitFor(key, timeoutMs)))
   }
 
   async waitFor(key: string, timeoutMs: number = 15000) {
@@ -117,5 +100,22 @@ export class DependencyService {
         reject(new Error(`Capability \`${key}\` is not ready after ${timeoutMs}ms.`))
       }, timeoutMs)
     })
+  }
+
+  async waitForMany(keys: string[], timeoutMs: number = 15000) {
+    await Promise.all(keys.map(async key => await this.waitFor(key, timeoutMs)))
+  }
+
+  withdraw(key: string, metadata?: Record<string, unknown>) {
+    const current = this.capabilities.get(key)
+    const descriptor: CapabilityDescriptor = {
+      key,
+      metadata: metadata ?? current?.metadata,
+      state: 'withdrawn',
+      updatedAt: Date.now(),
+    }
+
+    this.capabilities.set(key, descriptor)
+    return descriptor
   }
 }

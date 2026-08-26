@@ -1,9 +1,5 @@
 import type { Ref } from 'vue'
 
-function joinInputAndTranscription(input: string, transcription: string) {
-  return [input.trimEnd(), transcription.trim()].filter(Boolean).join(' ')
-}
-
 /**
  * Applies replaceable streaming transcription text to an editable input.
  * Manual input changes detach the current provider-owned suffix.
@@ -85,4 +81,8 @@ export function useStreamingTranscriptionInput(input: Ref<string>) {
     replace,
     reset,
   }
+}
+
+function joinInputAndTranscription(input: string, transcription: string) {
+  return [input.trimEnd(), transcription.trim()].filter(Boolean).join(' ')
 }

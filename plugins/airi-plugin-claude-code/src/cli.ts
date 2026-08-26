@@ -16,11 +16,11 @@ import { resolveComma, toArray } from './utils/general'
 interface Options {
   config?: string
   configLoader?: 'auto' | 'native' | 'unconfig'
-  noConfig?: boolean
   debug?: boolean | string | string[]
-  logLevel?: LogLevelString.Log | LogLevelString.Warning | LogLevelString.Error
-  failOnWarn?: boolean
   env?: Record<string, string>
+  failOnWarn?: boolean
+  logLevel?: LogLevelString.Error | LogLevelString.Log | LogLevelString.Warning
+  noConfig?: boolean
   quiet?: boolean
 }
 
@@ -30,7 +30,7 @@ const cli = cac('airi-plugin-claude-code-cli')
 cli.help().version(version)
 
 cli
-  .command('send', 'Pass Claude Code hook event to Channel Server', { ignoreOptionDefaultValue: true, allowUnknownOptions: true })
+  .command('send', 'Pass Claude Code hook event to Channel Server', { allowUnknownOptions: true, ignoreOptionDefaultValue: true })
   .option('-c, --config <filename>', 'Use a custom config file')
   .option('--config-loader <loader>', 'Config loader to use: auto, native, unconfig', { default: 'auto' })
   .option('--no-config', 'Disable config file')
@@ -68,10 +68,10 @@ cli
     const hookEvent = JSON.parse(stdinInput) as HookInput
 
     if (hookEvent.hook_event_name === 'UserPromptSubmit') {
-      const channelServer = new Client({ name: 'proj-airi:plugin-claude-code', autoConnect: false })
+      const channelServer = new Client({ autoConnect: false, name: 'proj-airi:plugin-claude-code' })
       await channelServer.connect()
 
-      channelServer.send({ type: 'input:text', data: { text: hookEvent.prompt } })
+      channelServer.send({ data: { text: hookEvent.prompt }, type: 'input:text' })
     }
   })
 

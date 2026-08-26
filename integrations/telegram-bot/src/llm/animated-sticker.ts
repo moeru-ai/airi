@@ -23,30 +23,6 @@ import { toPngBase64FromFile } from './image'
 // Set path to FFmpeg binaries
 ffmpeg.setFfmpegPath(ffmpegInstaller.path)
 
-async function extractFrames(inputFilePath, outputDir, frameRate = 5) {
-  await fs.mkdir(outputDir, { recursive: true })
-  const outputPattern = path.join(outputDir, 'frame-%03d.png')
-
-  return new Promise<string[]>((resolve, reject) => {
-    ffmpeg(inputFilePath)
-      .outputOptions(`-vf fps=${frameRate}`)
-      .output(outputPattern)
-      .on('end', async () => {
-        const files = await fs.readdir(outputDir)
-        const sortedFiles = files
-          .filter(file => file.match(/frame-\d+\.png/))
-          .sort((a, b) => {
-            const numA = Number.parseInt(a.match(/frame-(\d+)\.png/)[1])
-            const numB = Number.parseInt(b.match(/frame-(\d+)\.png/)[1])
-            return numA - numB
-          })
-        resolve(sortedFiles.map(file => path.join(outputDir, file)))
-      })
-      .on('error', err => reject(err))
-      .run()
-  })
-}
-
 export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: Sticker) {
   const logger = useLogg('interpretAnimatedSticker')
     .useGlobalConfig()
@@ -89,8 +65,8 @@ export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: 
 
     // Process frames with Sharp
     const frames = await Promise.all(sampled.map(async (framePath, index) => ({
-      index,
       base64: await toPngBase64FromFile(framePath),
+      index,
     })))
     logger.withField('sampled_frames', sampled).log('Normalized the frames')
 
@@ -101,7 +77,6 @@ export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: 
         const req = {
           apiKey: env.LLM_VISION_API_KEY!,
           baseURL: env.LLM_VISION_API_BASE_URL!,
-          model: env.LLM_VISION_MODEL!,
           messages: message.messages(
             message.system(div(
               span(`
@@ -124,6 +99,7 @@ export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: 
             )),
             message.user([message.imagePart(`data:image/png;base64,${frame.base64}`)]),
           ),
+          model: env.LLM_VISION_MODEL!,
         } satisfies GenerateTextOptions
         if (env.LLM_OLLAMA_DISABLE_THINK) {
           (req as Record<string, unknown>).think = false
@@ -136,8 +112,8 @@ export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: 
         }
 
         frameDescriptions.push({
-          frameNumber: frame.index + 1,
           description: res.text,
+          frameNumber: frame.index + 1,
         })
       }
       catch (err) {
@@ -159,7 +135,6 @@ export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: 
     const req = {
       apiKey: env.LLM_API_KEY!, // Using text-only LLM API
       baseURL: env.LLM_API_BASE_URL!,
-      model: env.LLM_MODEL!,
       messages: message.messages(
         message.system(
           div(
@@ -191,6 +166,7 @@ export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: 
           ),
         ),
       ),
+      model: env.LLM_MODEL!,
     } satisfies GenerateTextOptions
     if (env.LLM_OLLAMA_DISABLE_THINK) {
       (req as Record<string, unknown>).think = false
@@ -199,7 +175,7 @@ export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: 
     const consolidatedResult = await generateText(req)
 
     // Clean up temp files
-    await fs.rm(tempDir, { recursive: true, force: true })
+    await fs.rm(tempDir, { force: true, recursive: true })
 
     logger.withField('consolidated_result', consolidatedResult.text).log('Animated sticker interpreted')
 
@@ -212,4 +188,28 @@ export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: 
   catch (err) {
     logger.withError(err).log('Error interpreting animated sticker')
   }
+}
+
+async function extractFrames(inputFilePath, outputDir, frameRate = 5) {
+  await fs.mkdir(outputDir, { recursive: true })
+  const outputPattern = path.join(outputDir, 'frame-%03d.png')
+
+  return new Promise<string[]>((resolve, reject) => {
+    ffmpeg(inputFilePath)
+      .outputOptions(`-vf fps=${frameRate}`)
+      .output(outputPattern)
+      .on('end', async () => {
+        const files = await fs.readdir(outputDir)
+        const sortedFiles = files
+          .filter(file => file.match(/frame-\d+\.png/))
+          .sort((a, b) => {
+            const numA = Number.parseInt(a.match(/frame-(\d+)\.png/)[1])
+            const numB = Number.parseInt(b.match(/frame-(\d+)\.png/)[1])
+            return numA - numB
+          })
+        resolve(sortedFiles.map(file => path.join(outputDir, file)))
+      })
+      .on('error', err => reject(err))
+      .run()
+  })
 }

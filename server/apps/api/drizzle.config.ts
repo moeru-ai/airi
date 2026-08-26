@@ -3,12 +3,12 @@ import { env } from 'node:process'
 import { defineConfig } from 'drizzle-kit'
 
 export default defineConfig({
-  schema: ['./src/schemas/**/*.ts', '../../packages/auth-shared/src/schema.ts'],
-  out: './drizzle',
-  dialect: 'postgresql',
   dbCredentials: {
     url: env.DATABASE_URL!,
   },
+  dialect: 'postgresql',
+  out: './drizzle',
+  schema: ['./src/schemas/**/*.ts', '../../packages/auth-shared/src/schema.ts'],
   // https://github.com/drizzle-team/drizzle-orm/issues/4008
   tablesFilter: ['!vchordrq_sampled_queries'],
 })

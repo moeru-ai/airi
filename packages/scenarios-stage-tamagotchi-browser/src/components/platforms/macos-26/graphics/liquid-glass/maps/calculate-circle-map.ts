@@ -9,15 +9,15 @@ import type { ProcessPixelFunction } from './process-pixel.type'
  * Used by Diplacement and Specular maps.
  */
 export function calculateCircleMap(props: {
-  width: number
-  height: number
-  radius: number
   fillColor: number
+  height: number
   /** Restricts pixel processing to a certain distance from the border. */
   maximumDistanceToBorder?: number
   processPixel: ProcessPixelFunction
+  radius: number
+  width: number
 }) {
-  const { fillColor, processPixel, maximumDistanceToBorder } = props
+  const { fillColor, maximumDistanceToBorder, processPixel } = props
 
   const width = Math.round(props.width)
   const height = Math.round(props.height)

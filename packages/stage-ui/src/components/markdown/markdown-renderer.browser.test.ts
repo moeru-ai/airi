@@ -8,14 +8,14 @@ const MarkdownMountProbe = defineComponent({
   components: {
     MarkdownRenderer,
   },
-  props: {
-    markdown: {
-      type: String,
-      required: true,
-    },
-  },
   emits: {
     mountedHtml: (html: string) => typeof html === 'string',
+  },
+  props: {
+    markdown: {
+      required: true,
+      type: String,
+    },
   },
   setup(_, { emit }) {
     const root = useTemplateRef<HTMLElement>('root')

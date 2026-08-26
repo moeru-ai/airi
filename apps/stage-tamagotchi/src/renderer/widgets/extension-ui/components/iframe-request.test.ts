@@ -24,8 +24,8 @@ describe('createExtensionUiIframeRequestHandler', () => {
 
     await expect(requestWidgetIframe({
       id: 'kit-module:board',
-      requestId: 'req-1',
       payload: { action: 'snapshot' },
+      requestId: 'req-1',
       timeoutMs: 1000,
     })).resolves.toEqual({
       fen: 'fen:snapshot',
@@ -39,8 +39,8 @@ describe('createExtensionUiIframeRequestHandler', () => {
 
     await expect(requestWidgetIframe({
       id: 'kit-module:board',
-      requestId: 'req-1',
       payload: { action: 'snapshot' },
+      requestId: 'req-1',
       timeoutMs: 1000,
     })).rejects.toThrow('Gamelet `kit-module:board` iframe context is not ready.')
   })
@@ -59,8 +59,8 @@ describe('createExtensionUiIframeRequestHandler', () => {
 
     const request = requestWidgetIframe({
       id: 'kit-module:board',
-      requestId: 'req-1',
       payload: { action: 'snapshot' },
+      requestId: 'req-1',
       timeoutMs: 5,
     })
 
@@ -78,17 +78,17 @@ describe('createExtensionUiIframeRequestQueueProcessor', () => {
       fen: `fen:${request.requestId}`,
     }))
     const input = {
-      shouldHandle: (request: { id: string }) => request.id === 'kit-module:board',
+      emitResult,
       isReady: () => iframeReady,
       requestWidgetIframe,
-      emitResult,
+      shouldHandle: (request: { id: string }) => request.id === 'kit-module:board',
     }
     const processIframeRequests = createExtensionUiIframeRequestQueueProcessor(input)
 
     const requests = [{
       id: 'kit-module:board',
-      requestId: 'req-1',
       payload: { action: 'start' },
+      requestId: 'req-1',
       timeoutMs: 1000,
     }]
 
@@ -105,8 +105,8 @@ describe('createExtensionUiIframeRequestQueueProcessor', () => {
     expect(requestWidgetIframe).toHaveBeenCalledOnce()
     expect(emitResult).toHaveBeenCalledWith({
       id: 'kit-module:board',
-      requestId: 'req-1',
       ok: true,
+      requestId: 'req-1',
       result: { fen: 'fen:req-1' },
     })
   })
@@ -114,24 +114,24 @@ describe('createExtensionUiIframeRequestQueueProcessor', () => {
   it('emits results for every queued request delivered in one Vue update', async () => {
     const emitResult = vi.fn()
     const processIframeRequests = createExtensionUiIframeRequestQueueProcessor({
-      shouldHandle: request => request.id === 'kit-module:board',
+      emitResult,
       requestWidgetIframe: async request => ({
         fen: `fen:${request.requestId}`,
       }),
-      emitResult,
+      shouldHandle: request => request.id === 'kit-module:board',
     })
 
     processIframeRequests([
       {
         id: 'kit-module:board',
-        requestId: 'req-1',
         payload: { action: 'snapshot' },
+        requestId: 'req-1',
         timeoutMs: 1000,
       },
       {
         id: 'kit-module:board',
-        requestId: 'req-2',
         payload: { action: 'snapshot' },
+        requestId: 'req-2',
         timeoutMs: 1000,
       },
     ])
@@ -139,14 +139,14 @@ describe('createExtensionUiIframeRequestQueueProcessor', () => {
 
     expect(emitResult).toHaveBeenCalledWith({
       id: 'kit-module:board',
-      requestId: 'req-1',
       ok: true,
+      requestId: 'req-1',
       result: { fen: 'fen:req-1' },
     })
     expect(emitResult).toHaveBeenCalledWith({
       id: 'kit-module:board',
-      requestId: 'req-2',
       ok: true,
+      requestId: 'req-2',
       result: { fen: 'fen:req-2' },
     })
   })
@@ -155,15 +155,15 @@ describe('createExtensionUiIframeRequestQueueProcessor', () => {
     const emitResult = vi.fn()
     const requestWidgetIframe = vi.fn(async () => ({ fen: 'fen-once' }))
     const processIframeRequests = createExtensionUiIframeRequestQueueProcessor({
-      shouldHandle: () => true,
-      requestWidgetIframe,
       emitResult,
+      requestWidgetIframe,
+      shouldHandle: () => true,
     })
 
     const requests = [{
       id: 'kit-module:board',
-      requestId: 'req-1',
       payload: { action: 'snapshot' },
+      requestId: 'req-1',
       timeoutMs: 1000,
     }]
     processIframeRequests(requests)

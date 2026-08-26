@@ -8,30 +8,6 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const WHITESPACE_SPLIT_RE = /\s+/
 
-function parseCommandArgs(raw: string | undefined, fallback: string[]) {
-  if (!raw?.trim()) {
-    return fallback
-  }
-
-  return raw
-    .split(WHITESPACE_SPLIT_RE)
-    .map(item => item.trim())
-    .filter(Boolean)
-}
-
-function requireStructuredContent(result: unknown, label: string) {
-  if (!result || typeof result !== 'object') {
-    throw new Error(`${label} did not return an object result`)
-  }
-
-  const structuredContent = (result as { structuredContent?: unknown }).structuredContent
-  if (!structuredContent || typeof structuredContent !== 'object') {
-    throw new Error(`${label} missing structuredContent`)
-  }
-
-  return structuredContent as Record<string, unknown>
-}
-
 function hasImageContent(result: unknown) {
   if (!result || typeof result !== 'object') {
     return false
@@ -60,15 +36,15 @@ async function main() {
   const cwd = env.COMPUTER_USE_SMOKE_SERVER_CWD?.trim() || packageDir
 
   const transport = new StdioClientTransport({
-    command,
     args,
+    command,
     cwd,
     env: {
       ...env,
-      COMPUTER_USE_EXECUTOR: env.COMPUTER_USE_SMOKE_EXECUTOR || 'dry-run',
-      COMPUTER_USE_APPROVAL_MODE: env.COMPUTER_USE_SMOKE_APPROVAL_MODE || 'actions',
-      COMPUTER_USE_SESSION_TAG: env.COMPUTER_USE_SMOKE_SESSION_TAG || 'smoke-standalone',
       COMPUTER_USE_ALLOWED_BOUNDS: env.COMPUTER_USE_SMOKE_ALLOWED_BOUNDS || '0,0,1280,800',
+      COMPUTER_USE_APPROVAL_MODE: env.COMPUTER_USE_SMOKE_APPROVAL_MODE || 'actions',
+      COMPUTER_USE_EXECUTOR: env.COMPUTER_USE_SMOKE_EXECUTOR || 'dry-run',
+      COMPUTER_USE_SESSION_TAG: env.COMPUTER_USE_SMOKE_SESSION_TAG || 'smoke-standalone',
     },
     stderr: 'pipe',
   })
@@ -102,8 +78,8 @@ async function main() {
     }
 
     const capabilities = await client.callTool({
-      name: 'desktop_get_capabilities',
       arguments: {},
+      name: 'desktop_get_capabilities',
     })
     const capabilitiesData = requireStructuredContent(capabilities, 'desktop_get_capabilities')
     if (typeof capabilitiesData.launchContext !== 'object' || capabilitiesData.launchContext == null) {
@@ -114,10 +90,10 @@ async function main() {
     }
 
     const screenshot = await client.callTool({
-      name: 'desktop_screenshot',
       arguments: {
         label: 'smoke-stdio',
       },
+      name: 'desktop_screenshot',
     })
     const screenshotData = requireStructuredContent(screenshot, 'desktop_screenshot')
     if (!hasImageContent(screenshot)) {
@@ -128,8 +104,8 @@ async function main() {
     }
 
     const postScreenshotCapabilities = await client.callTool({
-      name: 'desktop_get_capabilities',
       arguments: {},
+      name: 'desktop_get_capabilities',
     })
     const postScreenshotCapabilitiesData = requireStructuredContent(postScreenshotCapabilities, 'desktop_get_capabilities after screenshot')
     const sessionSnapshot = (postScreenshotCapabilitiesData.session && typeof postScreenshotCapabilitiesData.session === 'object')
@@ -140,12 +116,12 @@ async function main() {
     }
 
     const click = await client.callTool({
-      name: 'desktop_click',
       arguments: {
+        captureAfter: true,
         x: 100,
         y: 100,
-        captureAfter: true,
       },
+      name: 'desktop_click',
     })
     const clickData = requireStructuredContent(click, 'desktop_click')
     if (clickData.status !== 'approval_required') {
@@ -153,8 +129,8 @@ async function main() {
     }
 
     const pending = await client.callTool({
-      name: 'desktop_list_pending_actions',
       arguments: {},
+      name: 'desktop_list_pending_actions',
     })
     const pendingData = requireStructuredContent(pending, 'desktop_list_pending_actions')
     const pendingActions = Array.isArray(pendingData.pendingActions) ? pendingData.pendingActions : []
@@ -168,10 +144,10 @@ async function main() {
     }
 
     const approved = await client.callTool({
-      name: 'desktop_approve_pending_action',
       arguments: {
         id: pendingId,
       },
+      name: 'desktop_approve_pending_action',
     })
     const approvedData = requireStructuredContent(approved, 'desktop_approve_pending_action')
     if (approvedData.status !== 'executed') {
@@ -181,24 +157,48 @@ async function main() {
     console.info(JSON.stringify({
       ok: true,
       verified: {
-        toolCount: tools.tools.length,
-        capabilities: {
-          hostName: (capabilitiesData.launchContext as Record<string, unknown>).hostName,
-          sessionTag: (capabilitiesData.launchContext as Record<string, unknown>).sessionTag,
-          coordinateSpaceBeforeScreenshot: capabilitiesData.coordinateSpace,
-          coordinateSpaceAfterScreenshot: postScreenshotCapabilitiesData.coordinateSpace,
-        },
-        screenshot: screenshotData.screenshot,
         approvedAction: {
           id: pendingId,
           status: approvedData.status,
         },
+        capabilities: {
+          coordinateSpaceAfterScreenshot: postScreenshotCapabilitiesData.coordinateSpace,
+          coordinateSpaceBeforeScreenshot: capabilitiesData.coordinateSpace,
+          hostName: (capabilitiesData.launchContext as Record<string, unknown>).hostName,
+          sessionTag: (capabilitiesData.launchContext as Record<string, unknown>).sessionTag,
+        },
+        screenshot: screenshotData.screenshot,
+        toolCount: tools.tools.length,
       },
     }, null, 2))
   }
   finally {
     await client.close().catch(() => {})
   }
+}
+
+function parseCommandArgs(raw: string | undefined, fallback: string[]) {
+  if (!raw?.trim()) {
+    return fallback
+  }
+
+  return raw
+    .split(WHITESPACE_SPLIT_RE)
+    .map(item => item.trim())
+    .filter(Boolean)
+}
+
+function requireStructuredContent(result: unknown, label: string) {
+  if (!result || typeof result !== 'object') {
+    throw new Error(`${label} did not return an object result`)
+  }
+
+  const structuredContent = (result as { structuredContent?: unknown }).structuredContent
+  if (!structuredContent || typeof structuredContent !== 'object') {
+    throw new Error(`${label} missing structuredContent`)
+  }
+
+  return structuredContent as Record<string, unknown>
 }
 
 main().catch((error) => {

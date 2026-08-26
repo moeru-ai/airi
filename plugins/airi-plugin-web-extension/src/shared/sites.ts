@@ -38,6 +38,6 @@ export function extractVideoId(site: VideoSite, url: string): string | undefined
   return undefined
 }
 
-export function normalizeText(value: string | null | undefined) {
+export function normalizeText(value: null | string | undefined) {
   return value?.replace(/\s+/g, ' ').trim() || ''
 }

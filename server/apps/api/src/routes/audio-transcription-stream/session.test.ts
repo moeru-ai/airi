@@ -9,10 +9,24 @@ import { WebSocketServer } from 'ws'
 import { createAliyunNlsStreamResponse } from './session'
 
 interface MockAliyunUpstream {
-  url: string
-  receivedTextFrames: string[]
-  receivedBinaryFrames: Buffer[]
   close: () => Promise<void>
+  receivedBinaryFrames: Buffer[]
+  receivedTextFrames: string[]
+  url: string
+}
+
+async function readText(stream: ReadableStream<Uint8Array>) {
+  const reader = stream.getReader()
+  const decoder = new TextDecoder()
+  let text = ''
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done)
+      break
+    text += decoder.decode(value, { stream: true })
+  }
+  text += decoder.decode()
+  return text
 }
 
 async function startMockAliyunUpstream(): Promise<MockAliyunUpstream> {
@@ -56,13 +70,13 @@ async function startMockAliyunUpstream(): Promise<MockAliyunUpstream> {
   const { port } = httpServer.address() as AddressInfo
 
   return {
-    url: `ws://127.0.0.1:${port}`,
-    receivedTextFrames,
-    receivedBinaryFrames,
     async close() {
       wss.close()
       await new Promise<void>(resolve => httpServer.close(() => resolve()))
     },
+    receivedBinaryFrames,
+    receivedTextFrames,
+    url: `ws://127.0.0.1:${port}`,
   }
 }
 
@@ -74,20 +88,6 @@ function streamOf(chunks: Uint8Array[]) {
       controller.close()
     },
   })
-}
-
-async function readText(stream: ReadableStream<Uint8Array>) {
-  const reader = stream.getReader()
-  const decoder = new TextDecoder()
-  let text = ''
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done)
-      break
-    text += decoder.decode(value, { stream: true })
-  }
-  text += decoder.decode()
-  return text
 }
 
 describe('createAliyunNlsStreamResponse', () => {
@@ -107,13 +107,13 @@ describe('createAliyunNlsStreamResponse', () => {
 
     const response = createAliyunNlsStreamResponse({
       audioStream: streamOf([Buffer.from([1, 2]), Buffer.from([3, 4])]),
+      createToken: async () => ({ expiresAt: Date.now() + 3600_000, token: 'mock-token' }),
       credentials: {
         accessKeyId: 'ak',
         accessKeySecret: 'secret',
         appKey: 'app',
         region: 'cn-shanghai',
       },
-      createToken: async () => ({ token: 'mock-token', expiresAt: Date.now() + 3600_000 }),
       websocketBaseURL: upstream.url,
     })
 
@@ -128,7 +128,7 @@ describe('createAliyunNlsStreamResponse', () => {
 
     const startFrame = JSON.parse(upstream.receivedTextFrames[0]) as {
       header: { appkey: string, name: string }
-      payload: { format: string, sample_rate: number, enable_intermediate_result: boolean }
+      payload: { enable_intermediate_result: boolean, format: string, sample_rate: number }
     }
     expect(startFrame.header.appkey).toBe('app')
     expect(startFrame.header.name).toBe('StartTranscription')

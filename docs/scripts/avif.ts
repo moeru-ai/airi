@@ -7,6 +7,17 @@ import { Transformer } from '@napi-rs/image'
 
 const SOURCE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp']
 
+async function main() {
+  const files = process.argv.slice(2).map(f => path.resolve(process.cwd(), f))
+  if (files.length === 0) {
+    console.error('No files provided.')
+    process.exit(1)
+  }
+
+  await Promise.all(files.map(f => stat(f)))
+  await Promise.allSettled(files.map(file => transform(file)))
+}
+
 async function transform(filePath: string): Promise<any> {
   if ((await stat(filePath)).isDirectory()) {
     return await Promise.allSettled(
@@ -25,17 +36,6 @@ async function transform(filePath: string): Promise<any> {
   await writeFile(dist, avifBuffer)
   await rm(filePath)
   console.info(`√ ${filePath} -> ${dist}`)
-}
-
-async function main() {
-  const files = process.argv.slice(2).map(f => path.resolve(process.cwd(), f))
-  if (files.length === 0) {
-    console.error('No files provided.')
-    process.exit(1)
-  }
-
-  await Promise.all(files.map(f => stat(f)))
-  await Promise.allSettled(files.map(file => transform(file)))
 }
 
 main()

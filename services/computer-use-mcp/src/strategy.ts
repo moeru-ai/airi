@@ -22,41 +22,46 @@ import { appNamesMatch, findKnownAppMention } from './app-aliases'
 // Advisory types
 // ---------------------------------------------------------------------------
 
+/** Broad category for classifying advisories. */
+export type AdvisoryCategory = 'informational' | 'prep' | 'recovery' | 'reroute'
+
 export type AdvisoryKind
-  = | 'focus_app_first'
-    | 'take_screenshot_first'
-    | 'use_terminal_instead'
-    | 'retry_after_error'
-    | 'read_error_first'
-    | 'abort_task'
+  = | 'abort_task'
     | 'approval_rejected_replan'
-    | 'wait_and_retry'
+    | 'click_likely_duplicate'
+    | 'enumerate_displays_first'
+    | 'focus_app_first'
+    | 'grounding_stale'
+    | 'observe_first_required'
     | 'proceed'
+    | 'read_error_first'
     // Surface-routing advisories
+    | 'retry_after_error'
+    | 'take_screenshot_first'
     | 'use_accessibility_grounding'
     | 'use_browser_surface'
-    | 'use_pty_surface'
-    | 'enumerate_displays_first'
     // Desktop grounding advisories
-    | 'click_likely_duplicate'
-    | 'observe_first_required'
-    | 'grounding_stale'
-
-/** Broad category for classifying advisories. */
-export type AdvisoryCategory = 'prep' | 'reroute' | 'recovery' | 'informational'
+    | 'use_pty_surface'
+    | 'use_terminal_instead'
+    | 'wait_and_retry'
 
 /** Which surface/tool family the advisory points to. */
-export type RecommendedSurface = 'display' | 'accessibility' | 'browser_dom' | 'browser_cdp' | 'pty' | 'terminal' | 'desktop' | 'none'
+export type RecommendedSurface = 'accessibility' | 'browser_cdp' | 'browser_dom' | 'desktop' | 'display' | 'none' | 'pty' | 'terminal'
 
 export interface StrategyAdvisory {
-  /** What the strategy layer recommends. */
-  kind: AdvisoryKind
   /** Broad classification of this advisory. */
   category: AdvisoryCategory
-  /** Which surface the advisory recommends (if any). */
-  recommendedSurface: RecommendedSurface
+  /**
+   * If the advisory recommends aborting, this is the accumulated
+   * evidence (error messages, exit codes, etc.).
+   */
+  evidence?: string[]
+  /** What the strategy layer recommends. */
+  kind: AdvisoryKind
   /** Human-readable explanation of why this advisory was emitted. */
   reason: string
+  /** Which surface the advisory recommends (if any). */
+  recommendedSurface: RecommendedSurface
   /**
    * If the advisory recommends a preparatory action, this is the
    * suggested action to execute first.
@@ -67,11 +72,6 @@ export interface StrategyAdvisory {
    * (e.g. an accessibility or CDP tool outside the ActionInvocation union).
    */
   suggestedToolName?: string
-  /**
-   * If the advisory recommends aborting, this is the accumulated
-   * evidence (error messages, exit codes, etc.).
-   */
-  evidence?: string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -80,56 +80,56 @@ export interface StrategyAdvisory {
 
 /** Maps each advisory kind to its classification category. */
 export const ADVISORY_CATEGORY_MAP: Record<AdvisoryKind, AdvisoryCategory> = {
-  // Prep: actions that prepare the environment before the main action
-  enumerate_displays_first: 'prep',
-  focus_app_first: 'prep',
-  take_screenshot_first: 'prep',
-
-  // Reroute: the caller should switch to a different surface/tool
-  use_browser_surface: 'reroute',
-  use_accessibility_grounding: 'reroute',
-  use_terminal_instead: 'reroute',
-  use_pty_surface: 'reroute',
-
-  // Recovery: respond to a previous failure
-  retry_after_error: 'recovery',
-  read_error_first: 'recovery',
-  wait_and_retry: 'recovery',
   abort_task: 'recovery',
   approval_rejected_replan: 'recovery',
   click_likely_duplicate: 'recovery',
 
+  // Prep: actions that prepare the environment before the main action
+  enumerate_displays_first: 'prep',
+  focus_app_first: 'prep',
+  grounding_stale: 'prep',
   // Desktop grounding
   observe_first_required: 'prep',
-  grounding_stale: 'prep',
 
   // Informational: no action needed, safe to proceed
   proceed: 'informational',
+  read_error_first: 'recovery',
+  // Recovery: respond to a previous failure
+  retry_after_error: 'recovery',
+  take_screenshot_first: 'prep',
+  use_accessibility_grounding: 'reroute',
+  // Reroute: the caller should switch to a different surface/tool
+  use_browser_surface: 'reroute',
+
+  use_pty_surface: 'reroute',
+  use_terminal_instead: 'reroute',
+
+  wait_and_retry: 'recovery',
 }
 
 /** Maps each advisory kind to the surface it recommends. */
 export const ADVISORY_SURFACE_MAP: Record<AdvisoryKind, RecommendedSurface> = {
-  enumerate_displays_first: 'display',
-  focus_app_first: 'desktop',
-  take_screenshot_first: 'desktop',
-
-  use_browser_surface: 'browser_cdp',
-  use_accessibility_grounding: 'accessibility',
-  use_pty_surface: 'pty',
-  use_terminal_instead: 'terminal',
-
-  retry_after_error: 'none',
-  read_error_first: 'terminal',
-  wait_and_retry: 'none',
   abort_task: 'none',
   approval_rejected_replan: 'none',
   click_likely_duplicate: 'desktop',
 
+  enumerate_displays_first: 'display',
+  focus_app_first: 'desktop',
+  grounding_stale: 'desktop',
   // Desktop grounding
   observe_first_required: 'desktop',
-  grounding_stale: 'desktop',
 
   proceed: 'none',
+  read_error_first: 'terminal',
+  retry_after_error: 'none',
+  take_screenshot_first: 'desktop',
+  use_accessibility_grounding: 'accessibility',
+  use_browser_surface: 'browser_cdp',
+
+  use_pty_surface: 'pty',
+  use_terminal_instead: 'terminal',
+
+  wait_and_retry: 'none',
 }
 
 /**
@@ -138,54 +138,140 @@ export const ADVISORY_SURFACE_MAP: Record<AdvisoryKind, RecommendedSurface> = {
  * and the outcome the engine should set on the step when the prep
  * succeeds.
  */
-export type PrepRetryability = 'transient' | 'permanent' | 'advisory_only'
+export type PrepRetryability = 'advisory_only' | 'permanent' | 'transient'
 
 export interface PrepToolPolicy {
-  /** Tool invocation priority — lower values run first. */
-  priority: number
-  /** Retry classification for the prep tool. */
-  retryability: PrepRetryability
   /**
    * What the engine should record on the step when prep succeeds:
    * - 'prepared': continue to main action
    * - 'reroute': stop the workflow and return reroute signal
    */
   outcomeOnSuccess: 'prepared' | 'reroute'
+  /** Tool invocation priority — lower values run first. */
+  priority: number
+  /** Retry classification for the prep tool. */
+  retryability: PrepRetryability
 }
 
 export const PREP_TOOL_POLICY: Partial<Record<AdvisoryKind, PrepToolPolicy>> = {
   enumerate_displays_first: {
+    outcomeOnSuccess: 'prepared',
     priority: 10,
     retryability: 'transient',
-    outcomeOnSuccess: 'prepared',
   },
   use_accessibility_grounding: {
+    outcomeOnSuccess: 'reroute',
     priority: 20,
     retryability: 'permanent',
-    outcomeOnSuccess: 'reroute',
   },
   use_browser_surface: {
+    outcomeOnSuccess: 'reroute',
     priority: 20,
     retryability: 'permanent',
-    outcomeOnSuccess: 'reroute',
   },
   use_pty_surface: {
+    outcomeOnSuccess: 'reroute',
     priority: 20,
     retryability: 'permanent',
-    outcomeOnSuccess: 'reroute',
   },
 }
 
 /**
- * Helper to construct a `StrategyAdvisory` with `category` and
- * `recommendedSurface` populated from the central maps.
+ * Produce a recovery plan after an action failure, based on the current
+ * run state and the error that occurred.
  */
-function advisory(fields: Omit<StrategyAdvisory, 'category' | 'recommendedSurface'> & Partial<Pick<StrategyAdvisory, 'category' | 'recommendedSurface'>>): StrategyAdvisory {
-  return {
-    ...fields,
-    category: fields.category ?? ADVISORY_CATEGORY_MAP[fields.kind],
-    recommendedSurface: fields.recommendedSurface ?? ADVISORY_SURFACE_MAP[fields.kind],
+export function buildRecoveryPlan(params: {
+  errorMessage: string
+  failedAction: ActionInvocation
+  state: RunState
+}): StrategyAdvisory {
+  const { errorMessage, failedAction, state } = params
+
+  // Terminal failure with active TUI session -> suggest PTY surface.
+  const ptySession = selectUsablePtySession(state)
+  if (
+    failedAction.kind === 'terminal_exec'
+    && ptySession
+    && (
+      isLikelyTuiSession(state.activeWindowTitle)
+      || ptySession.boundWorkflowStepLabel === getCurrentTaskStepLabel(state)
+    )
+  ) {
+    return advisory({
+      evidence: [errorMessage],
+      kind: 'use_pty_surface',
+      reason: `Terminal command failed while PTY session "${ptySession.id}" is available: ${errorMessage}. Use PTY tools for direct terminal interaction.`,
+      suggestedToolName: 'pty_read_screen',
+    })
   }
+
+  // Terminal failure -> suggest reading stderr and optionally retrying.
+  if (failedAction.kind === 'terminal_exec') {
+    if (errorMessage.includes('timeout')) {
+      return advisory({
+        evidence: [errorMessage],
+        kind: 'wait_and_retry',
+        reason: 'The command timed out. Consider increasing the timeout or splitting the work.',
+      })
+    }
+    return advisory({
+      evidence: [
+        errorMessage,
+        ...(state.lastTerminalResult?.stderr ? [`stderr: ${state.lastTerminalResult.stderr.slice(0, 500)}`] : []),
+      ],
+      kind: 'read_error_first',
+      reason: `Terminal command failed: ${errorMessage}. Inspect stderr/stdout before deciding next step.`,
+    })
+  }
+
+  // UI action failure on wrong app -> suggest focusing.
+  if (isMutatingUiAction(failedAction) && state.foregroundContext?.available) {
+    const targetApp = inferTargetApp(state)
+    if (targetApp && !isAppFocused(state.foregroundContext, targetApp)) {
+      return advisory({
+        evidence: [errorMessage],
+        kind: 'focus_app_first',
+        reason: `UI action failed because "${state.foregroundContext.appName}" is in front instead of "${targetApp}".`,
+        suggestedAction: { input: { app: targetApp }, kind: 'focus_app' },
+      })
+    }
+  }
+
+  // UI action failure in a browser → suggest switching to browser surface.
+  if (isMutatingUiAction(failedAction) && state.foregroundContext?.available && isBrowserApp(state.foregroundContext.appName)) {
+    const browserSurface = selectBrowserSurface(state)
+
+    if (browserSurface) {
+      return advisory({
+        evidence: [errorMessage],
+        kind: 'use_browser_surface',
+        reason: `Desktop UI action failed in browser "${state.foregroundContext.appName}": ${errorMessage}. ${browserSurface.reason}`,
+        recommendedSurface: browserSurface.surface,
+        suggestedToolName: browserSurface.toolName,
+      })
+    }
+  }
+
+  // Observation failure on macOS → suggest accessibility tree as alternative.
+  if (
+    (failedAction.kind === 'screenshot' || failedAction.kind === 'observe_windows')
+    && state.foregroundContext?.platform === 'darwin'
+  ) {
+    return advisory({
+      evidence: [errorMessage],
+      kind: 'use_accessibility_grounding',
+      reason: `Observation failed: ${errorMessage}. Use the accessibility tree as an alternative structured UI data source.`,
+      suggestedToolName: 'accessibility_snapshot',
+    })
+  }
+
+  // Generic: suggest taking a screenshot to reassess.
+  return advisory({
+    evidence: [errorMessage],
+    kind: 'take_screenshot_first',
+    reason: `Action "${failedAction.kind}" failed: ${errorMessage}. Take a screenshot to reassess the current state.`,
+    suggestedAction: { input: {}, kind: 'screenshot' },
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -202,10 +288,10 @@ function advisory(fields: Omit<StrategyAdvisory, 'category' | 'recommendedSurfac
  * - Proceed as-is if the advisory is 'proceed'.
  */
 export function evaluateStrategy(params: {
-  proposedAction: ActionInvocation
-  state: RunState
   /** Foreground context from the most recent probe (may be fresher than state). */
   freshContext?: ForegroundContext
+  proposedAction: ActionInvocation
+  state: RunState
 }): StrategyAdvisory[] {
   const advisories: StrategyAdvisory[] = []
   const { proposedAction, state } = params
@@ -216,9 +302,9 @@ export function evaluateStrategy(params: {
   // -----------------------------------------------------------------------
   if (state.lastApprovalRejected) {
     advisories.push(advisory({
+      evidence: state.lastRejectionReason ? [state.lastRejectionReason] : [],
       kind: 'approval_rejected_replan',
       reason: `The last action was rejected${state.lastRejectionReason ? `: ${state.lastRejectionReason}` : ''}. Consider an alternative approach.`,
-      evidence: state.lastRejectionReason ? [state.lastRejectionReason] : [],
     }))
   }
 
@@ -226,7 +312,7 @@ export function evaluateStrategy(params: {
   // Rule 2: For UI-interaction actions, make sure the correct app is
   // focused before sending clicks / keystrokes / text.
   // -----------------------------------------------------------------------
-  const uiActions = new Set<string>(['click', 'type_text', 'press_keys', 'scroll'])
+  const uiActions = new Set<string>(['click', 'press_keys', 'scroll', 'type_text'])
   if (uiActions.has(proposedAction.kind) && ctx?.available) {
     // If there is an active task whose current step targets a specific app,
     // verify the foreground matches.
@@ -235,7 +321,7 @@ export function evaluateStrategy(params: {
       advisories.push(advisory({
         kind: 'focus_app_first',
         reason: `Expected "${targetApp}" in foreground but found "${ctx.appName || 'unknown'}". Will focus the correct app first.`,
-        suggestedAction: { kind: 'focus_app', input: { app: targetApp } },
+        suggestedAction: { input: { app: targetApp }, kind: 'focus_app' },
       }))
     }
   }
@@ -252,7 +338,7 @@ export function evaluateStrategy(params: {
     advisories.push(advisory({
       kind: 'take_screenshot_first',
       reason: 'No recent screenshot available for the remote desktop. Capture one before mutating.',
-      suggestedAction: { kind: 'screenshot', input: {} },
+      suggestedAction: { input: {}, kind: 'screenshot' },
     }))
   }
 
@@ -268,12 +354,12 @@ export function evaluateStrategy(params: {
     const hasUnreadError = state.lastTerminalResult.stderr.length > 0
     if (hasUnreadError) {
       advisories.push(advisory({
-        kind: 'read_error_first',
-        reason: `The previous command exited with code ${state.lastTerminalResult.exitCode}. Review the error output before running another command.`,
         evidence: [
           `exit_code=${state.lastTerminalResult.exitCode}`,
           `stderr_preview=${state.lastTerminalResult.stderr.slice(0, 300)}`,
         ],
+        kind: 'read_error_first',
+        reason: `The previous command exited with code ${state.lastTerminalResult.exitCode}. Review the error output before running another command.`,
       }))
     }
   }
@@ -284,11 +370,11 @@ export function evaluateStrategy(params: {
   // -----------------------------------------------------------------------
   if (state.activeTask && state.activeTask.failureCount >= state.activeTask.maxConsecutiveFailures) {
     advisories.push(advisory({
-      kind: 'abort_task',
-      reason: `Task "${state.activeTask.goal}" has accumulated ${state.activeTask.failureCount} failures (max ${state.activeTask.maxConsecutiveFailures}). Aborting to prevent damage.`,
       evidence: state.activeTask.steps
         .filter(s => s.outcome === 'failure')
         .map(s => `Step ${s.index}: ${s.label} — ${s.outcomeReason || 'unknown error'}`),
+      kind: 'abort_task',
+      reason: `Task "${state.activeTask.goal}" has accumulated ${state.activeTask.failureCount} failures (max ${state.activeTask.maxConsecutiveFailures}). Aborting to prevent damage.`,
     }))
   }
 
@@ -313,7 +399,7 @@ export function evaluateStrategy(params: {
     advisories.push(advisory({
       kind: 'take_screenshot_first',
       reason: 'The runner is tainted from a previous failure. Capture a fresh screenshot to restore it before proceeding.',
-      suggestedAction: { kind: 'screenshot', input: {} },
+      suggestedAction: { input: {}, kind: 'screenshot' },
     }))
   }
 
@@ -328,8 +414,8 @@ export function evaluateStrategy(params: {
       advisories.push(advisory({
         kind: 'use_browser_surface',
         reason: browserSurface.reason,
-        suggestedToolName: browserSurface.toolName,
         recommendedSurface: browserSurface.surface,
+        suggestedToolName: browserSurface.toolName,
       }))
     }
   }
@@ -446,115 +532,50 @@ export function evaluateStrategy(params: {
 }
 
 /**
- * Produce a recovery plan after an action failure, based on the current
- * run state and the error that occurred.
+ * Helper to construct a `StrategyAdvisory` with `category` and
+ * `recommendedSurface` populated from the central maps.
  */
-export function buildRecoveryPlan(params: {
-  failedAction: ActionInvocation
-  errorMessage: string
-  state: RunState
-}): StrategyAdvisory {
-  const { failedAction, errorMessage, state } = params
-
-  // Terminal failure with active TUI session -> suggest PTY surface.
-  const ptySession = selectUsablePtySession(state)
-  if (
-    failedAction.kind === 'terminal_exec'
-    && ptySession
-    && (
-      isLikelyTuiSession(state.activeWindowTitle)
-      || ptySession.boundWorkflowStepLabel === getCurrentTaskStepLabel(state)
-    )
-  ) {
-    return advisory({
-      kind: 'use_pty_surface',
-      reason: `Terminal command failed while PTY session "${ptySession.id}" is available: ${errorMessage}. Use PTY tools for direct terminal interaction.`,
-      suggestedToolName: 'pty_read_screen',
-      evidence: [errorMessage],
-    })
+function advisory(fields: Omit<StrategyAdvisory, 'category' | 'recommendedSurface'> & Partial<Pick<StrategyAdvisory, 'category' | 'recommendedSurface'>>): StrategyAdvisory {
+  return {
+    ...fields,
+    category: fields.category ?? ADVISORY_CATEGORY_MAP[fields.kind],
+    recommendedSurface: fields.recommendedSurface ?? ADVISORY_SURFACE_MAP[fields.kind],
   }
-
-  // Terminal failure -> suggest reading stderr and optionally retrying.
-  if (failedAction.kind === 'terminal_exec') {
-    if (errorMessage.includes('timeout')) {
-      return advisory({
-        kind: 'wait_and_retry',
-        reason: 'The command timed out. Consider increasing the timeout or splitting the work.',
-        evidence: [errorMessage],
-      })
-    }
-    return advisory({
-      kind: 'read_error_first',
-      reason: `Terminal command failed: ${errorMessage}. Inspect stderr/stdout before deciding next step.`,
-      evidence: [
-        errorMessage,
-        ...(state.lastTerminalResult?.stderr ? [`stderr: ${state.lastTerminalResult.stderr.slice(0, 500)}`] : []),
-      ],
-    })
-  }
-
-  // UI action failure on wrong app -> suggest focusing.
-  if (isMutatingUiAction(failedAction) && state.foregroundContext?.available) {
-    const targetApp = inferTargetApp(state)
-    if (targetApp && !isAppFocused(state.foregroundContext, targetApp)) {
-      return advisory({
-        kind: 'focus_app_first',
-        reason: `UI action failed because "${state.foregroundContext.appName}" is in front instead of "${targetApp}".`,
-        suggestedAction: { kind: 'focus_app', input: { app: targetApp } },
-        evidence: [errorMessage],
-      })
-    }
-  }
-
-  // UI action failure in a browser → suggest switching to browser surface.
-  if (isMutatingUiAction(failedAction) && state.foregroundContext?.available && isBrowserApp(state.foregroundContext.appName)) {
-    const browserSurface = selectBrowserSurface(state)
-
-    if (browserSurface) {
-      return advisory({
-        kind: 'use_browser_surface',
-        reason: `Desktop UI action failed in browser "${state.foregroundContext.appName}": ${errorMessage}. ${browserSurface.reason}`,
-        suggestedToolName: browserSurface.toolName,
-        recommendedSurface: browserSurface.surface,
-        evidence: [errorMessage],
-      })
-    }
-  }
-
-  // Observation failure on macOS → suggest accessibility tree as alternative.
-  if (
-    (failedAction.kind === 'screenshot' || failedAction.kind === 'observe_windows')
-    && state.foregroundContext?.platform === 'darwin'
-  ) {
-    return advisory({
-      kind: 'use_accessibility_grounding',
-      reason: `Observation failed: ${errorMessage}. Use the accessibility tree as an alternative structured UI data source.`,
-      suggestedToolName: 'accessibility_snapshot',
-      evidence: [errorMessage],
-    })
-  }
-
-  // Generic: suggest taking a screenshot to reassess.
-  return advisory({
-    kind: 'take_screenshot_first',
-    reason: `Action "${failedAction.kind}" failed: ${errorMessage}. Take a screenshot to reassess the current state.`,
-    suggestedAction: { kind: 'screenshot', input: {} },
-    evidence: [errorMessage],
-  })
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function isMutatingUiAction(action: ActionInvocation): boolean {
-  return ['click', 'type_text', 'press_keys', 'scroll', 'open_app', 'focus_app'].includes(action.kind)
+/**
+ * Heuristic: can the proposed observation be satisfied via a terminal
+ * command instead of a screenshot?
+ */
+function canUseTerminalInstead(state: RunState): boolean {
+  // If the terminal is healthy (last command succeeded or no command yet),
+  // and we have an active task that is dev-oriented, prefer terminal.
+  if (!state.activeTask)
+    return false
+
+  const devWorkflows = ['dev_run_tests', 'dev_inspect_failure']
+  return devWorkflows.includes(state.activeTask.workflowId || '')
 }
 
-function isAppFocused(ctx: ForegroundContext, targetApp: string): boolean {
-  if (!ctx.available || !ctx.appName)
-    return false
-  return appNamesMatch(ctx.appName, targetApp)
+/** Get the stable stepId for the current task step. */
+function getCurrentTaskStepId(state: RunState): string | undefined {
+  if (!state.activeTask) {
+    return undefined
+  }
+
+  return state.activeTask.steps[state.activeTask.currentStepIndex]?.stepId
+}
+
+function getCurrentTaskStepLabel(state: RunState): string | undefined {
+  if (!state.activeTask) {
+    return undefined
+  }
+
+  return state.activeTask.steps[state.activeTask.currentStepIndex]?.label
 }
 
 /**
@@ -572,21 +593,40 @@ function inferTargetApp(state: RunState): string | undefined {
   return findKnownAppMention(step.label)
 }
 
-function getCurrentTaskStepLabel(state: RunState): string | undefined {
-  if (!state.activeTask) {
-    return undefined
-  }
-
-  return state.activeTask.steps[state.activeTask.currentStepIndex]?.label
+function isAppFocused(ctx: ForegroundContext, targetApp: string): boolean {
+  if (!ctx.available || !ctx.appName)
+    return false
+  return appNamesMatch(ctx.appName, targetApp)
 }
 
-/** Get the stable stepId for the current task step. */
-function getCurrentTaskStepId(state: RunState): string | undefined {
-  if (!state.activeTask) {
+function isMutatingUiAction(action: ActionInvocation): boolean {
+  return ['click', 'focus_app', 'open_app', 'press_keys', 'scroll', 'type_text'].includes(action.kind)
+}
+
+function selectBrowserSurface(state: RunState): undefined | {
+  reason: string
+  surface: Extract<RecommendedSurface, 'browser_cdp' | 'browser_dom'>
+  toolName: 'browser_cdp_collect_elements' | 'browser_dom_read_page'
+} {
+  const availability = state.browserSurfaceAvailability
+
+  if (!availability) {
+    return {
+      reason: 'Browser CDP is selected as the default browser surface when no live availability model is present.',
+      surface: 'browser_cdp',
+      toolName: 'browser_cdp_collect_elements',
+    }
+  }
+
+  if (!availability.suitable || !availability.preferredSurface || !availability.selectedToolName) {
     return undefined
   }
 
-  return state.activeTask.steps[state.activeTask.currentStepIndex]?.stepId
+  return {
+    reason: availability.reason,
+    surface: availability.preferredSurface,
+    toolName: availability.selectedToolName,
+  }
 }
 
 function selectUsablePtySession(state: RunState) {
@@ -615,64 +655,24 @@ function selectUsablePtySession(state: RunState) {
   return state.ptySessions.find(session => session.alive && session.id === state.activePtySessionId)
 }
 
-/**
- * Heuristic: can the proposed observation be satisfied via a terminal
- * command instead of a screenshot?
- */
-function canUseTerminalInstead(state: RunState): boolean {
-  // If the terminal is healthy (last command succeeded or no command yet),
-  // and we have an active task that is dev-oriented, prefer terminal.
-  if (!state.activeTask)
-    return false
-
-  const devWorkflows = ['dev_run_tests', 'dev_inspect_failure']
-  return devWorkflows.includes(state.activeTask.workflowId || '')
-}
-
-function selectBrowserSurface(state: RunState): {
-  surface: Extract<RecommendedSurface, 'browser_cdp' | 'browser_dom'>
-  toolName: 'browser_cdp_collect_elements' | 'browser_dom_read_page'
-  reason: string
-} | undefined {
-  const availability = state.browserSurfaceAvailability
-
-  if (!availability) {
-    return {
-      surface: 'browser_cdp',
-      toolName: 'browser_cdp_collect_elements',
-      reason: 'Browser CDP is selected as the default browser surface when no live availability model is present.',
-    }
-  }
-
-  if (!availability.suitable || !availability.preferredSurface || !availability.selectedToolName) {
-    return undefined
-  }
-
-  return {
-    surface: availability.preferredSurface,
-    toolName: availability.selectedToolName,
-    reason: availability.reason,
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Surface detection helpers
 // ---------------------------------------------------------------------------
 
 const KNOWN_BROWSERS = new Set([
-  'google chrome',
-  'chrome',
-  'firefox',
-  'safari',
   'arc',
-  'microsoft edge',
-  'edge',
-  'brave browser',
   'brave',
-  'opera',
-  'vivaldi',
+  'brave browser',
+  'chrome',
   'chromium',
+  'edge',
+  'firefox',
+  'google chrome',
+  'microsoft edge',
+  'opera',
   'orion',
+  'safari',
+  'vivaldi',
 ])
 const APP_SUFFIX_RE = /\.app$/u
 
@@ -712,17 +712,6 @@ const KNOWN_TUI_PROGRAMS = [
 ]
 
 /**
- * Heuristic: does the window title suggest an interactive TUI program
- * is running (vim, htop, tmux, etc.)?
- */
-function isLikelyTuiSession(windowTitle: string | undefined): boolean {
-  if (!windowTitle)
-    return false
-  const lower = windowTitle.toLowerCase()
-  return KNOWN_TUI_PROGRAMS.some(prog => lower.includes(prog))
-}
-
-/**
  * Summarize the strategy advisory list into a classified, user-friendly
  * string for inclusion in MCP responses.
  *
@@ -742,4 +731,15 @@ export function summarizeAdvisories(advisories: StrategyAdvisory[]): string {
       return `[${a.category}/${a.kind}${surface}] ${a.reason}`
     })
     .join(' | ')
+}
+
+/**
+ * Heuristic: does the window title suggest an interactive TUI program
+ * is running (vim, htop, tmux, etc.)?
+ */
+function isLikelyTuiSession(windowTitle: string | undefined): boolean {
+  if (!windowTitle)
+    return false
+  const lower = windowTitle.toLowerCase()
+  return KNOWN_TUI_PROGRAMS.some(prog => lower.includes(prog))
 }

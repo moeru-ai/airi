@@ -15,6 +15,15 @@ interface CapacitorTarget {
 type ListCapacitorTargets = (platform: CapacitorPlatform) => Promise<readonly CapacitorTarget[]>
 
 const nativeExtensionsByPlatform: Record<CapacitorPlatform, Set<string>> = {
+  android: new Set([
+    '.gradle',
+    '.java',
+    '.json',
+    '.kt',
+    '.kts',
+    '.properties',
+    '.xml',
+  ]),
   ios: new Set([
     '.entitlements',
     '.h',
@@ -26,28 +35,14 @@ const nativeExtensionsByPlatform: Record<CapacitorPlatform, Set<string>> = {
     '.storyboard',
     '.strings',
     '.swift',
-    '.xcodeproj',
     '.xcconfig',
+    '.xcodeproj',
     '.xcscheme',
     '.xib',
-  ]),
-  android: new Set([
-    '.gradle',
-    '.java',
-    '.json',
-    '.kts',
-    '.kt',
-    '.properties',
-    '.xml',
   ]),
 }
 
 const nativeNamesByPlatform: Record<CapacitorPlatform, Set<string>> = {
-  ios: new Set([
-    'Podfile',
-    'Podfile.lock',
-    'project.pbxproj',
-  ]),
   android: new Set([
     'AndroidManifest.xml',
     'build.gradle',
@@ -55,6 +50,11 @@ const nativeNamesByPlatform: Record<CapacitorPlatform, Set<string>> = {
     'gradle.properties',
     'settings.gradle',
     'settings.gradle.kts',
+  ]),
+  ios: new Set([
+    'Podfile',
+    'Podfile.lock',
+    'project.pbxproj',
   ]),
 }
 
@@ -64,16 +64,13 @@ const ignoredNames = new Set([
 
 const ignoredPathSegments = new Set([
   '.gradle',
+  'build',
   'DerivedData',
   'Pods',
-  'build',
   'xcuserdata',
 ])
 
 const ignoredPathPrefixesByPlatform: Record<CapacitorPlatform, string[][]> = {
-  ios: [
-    ['App', 'CapApp-SPM'],
-  ],
   android: [
     ['app', 'src', 'main', 'assets', 'public'],
     ['app', 'src', 'main', 'assets', 'capacitor.plugins.json'],
@@ -82,30 +79,27 @@ const ignoredPathPrefixesByPlatform: Record<CapacitorPlatform, string[][]> = {
     ['capacitor-cordova-android-plugins'],
     ['capacitor.settings.gradle'],
   ],
-}
-
-export function parseCapacitorPlatform(value: string | undefined): CapacitorPlatform | null {
-  return value === 'android' || value === 'ios' ? value : null
+  ios: [
+    ['App', 'CapApp-SPM'],
+  ],
 }
 
 export function hasCapacitorTargetArg(capArgs: string[]): boolean {
   return capArgs.some((arg, index) => arg === '--target' || (index > 0 && arg.startsWith('--target=')))
 }
 
-function parseCapacitorTargetList(value: string): CapacitorTarget[] {
-  const parsed = JSON.parse(value)
-  if (!Array.isArray(parsed)) {
-    throw new TypeError('Expected `cap run --list --json` to return a JSON array.')
-  }
-
-  return parsed
-    .filter((target): target is CapacitorTarget => typeof target === 'object' && target !== null && typeof (target as CapacitorTarget).id === 'string')
+export function parseCapacitorPlatform(value: string | undefined): CapacitorPlatform | null {
+  return value === 'android' || value === 'ios' ? value : null
 }
 
-async function listCapacitorTargets(platform: CapacitorPlatform): Promise<CapacitorTarget[]> {
-  const output = await x('cap', ['run', platform, '--list', '--json'])
+export function pickServerUrl(server: Pick<ViteDevServer, 'resolvedUrls'>): URL {
+  const url = server.resolvedUrls?.network?.[0] ?? server.resolvedUrls?.local?.[0]
 
-  return parseCapacitorTargetList(output.stdout)
+  if (!url) {
+    throw new Error('Vite did not expose a reachable dev server URL.')
+  }
+
+  return new URL(url)
 }
 
 /**
@@ -158,16 +152,6 @@ export async function resolveCapRunArgs(
   return [platformArg, '--target', target, ...rest]
 }
 
-export function pickServerUrl(server: Pick<ViteDevServer, 'resolvedUrls'>): URL {
-  const url = server.resolvedUrls?.network?.[0] ?? server.resolvedUrls?.local?.[0]
-
-  if (!url) {
-    throw new Error('Vite did not expose a reachable dev server URL.')
-  }
-
-  return new URL(url)
-}
-
 export function shouldRestartForNativeChange(file: string, platform: CapacitorPlatform, cwd: string): boolean {
   const absoluteFile = resolve(cwd, file)
   const platformRoot = resolve(cwd, platform)
@@ -204,4 +188,20 @@ export function shouldRestartForNativeChange(file: string, platform: CapacitorPl
   }
 
   return nativeExtensionsByPlatform[platform].has(extname(fileName).toLowerCase())
+}
+
+async function listCapacitorTargets(platform: CapacitorPlatform): Promise<CapacitorTarget[]> {
+  const output = await x('cap', ['run', platform, '--list', '--json'])
+
+  return parseCapacitorTargetList(output.stdout)
+}
+
+function parseCapacitorTargetList(value: string): CapacitorTarget[] {
+  const parsed = JSON.parse(value)
+  if (!Array.isArray(parsed)) {
+    throw new TypeError('Expected `cap run --list --json` to return a JSON array.')
+  }
+
+  return parsed
+    .filter((target): target is CapacitorTarget => typeof target === 'object' && target !== null && typeof (target as CapacitorTarget).id === 'string')
 }

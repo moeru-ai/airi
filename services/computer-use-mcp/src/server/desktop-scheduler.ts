@@ -3,10 +3,91 @@ import type { ActionInvocation, BrowserSurfaceAvailability } from '../types'
 export type DesktopExecutionMode = 'background' | 'browser_surface' | 'foreground'
 
 export interface DesktopSchedulingDecision {
+  browserSurfacePreferred: boolean
   executionMode: DesktopExecutionMode
   executionReason: string
-  browserSurfacePreferred: boolean
   foregroundRequired: boolean
+}
+
+export function decideDesktopExecutionMode(params: {
+  action: ActionInvocation
+  browserDomRoute?: boolean
+  browserSurface?: BrowserSurfaceAvailability
+}): DesktopSchedulingDecision {
+  const { action, browserDomRoute, browserSurface } = params
+  const browserSurfaceAvailable = hasBrowserDomSurface(browserSurface)
+
+  if (action.kind === 'desktop_observe') {
+    if (action.input?.includeChrome === false) {
+      return {
+        browserSurfacePreferred: false,
+        executionMode: 'background',
+        executionReason: 'desktop_observe is background-only when Chrome capture is disabled',
+        foregroundRequired: false,
+      }
+    }
+
+    if (browserSurfaceAvailable) {
+      return {
+        browserSurfacePreferred: true,
+        executionMode: 'browser_surface',
+        executionReason: 'browser surface is available, so desktop_observe can collect Chrome semantics without a foreground switch',
+        foregroundRequired: false,
+      }
+    }
+
+    return {
+      browserSurfacePreferred: false,
+      executionMode: 'background',
+      executionReason: 'desktop_observe stays background-only because no browser surface is available',
+      foregroundRequired: false,
+    }
+  }
+
+  if (isBackgroundReadAction(action)) {
+    return {
+      browserSurfacePreferred: false,
+      executionMode: 'background',
+      executionReason: `${action.kind} is read-only and does not need foreground switching`,
+      foregroundRequired: false,
+    }
+  }
+
+  if (isBrowserDomCapableAction(action)) {
+    if (browserDomRoute) {
+      return {
+        browserSurfacePreferred: true,
+        executionMode: 'browser_surface',
+        executionReason: 'browser_dom route is available, so click_target can stay background-safe',
+        foregroundRequired: false,
+      }
+    }
+
+    return {
+      browserSurfacePreferred: false,
+      executionMode: 'foreground',
+      executionReason: browserSurfaceAvailable
+        ? 'desktop_click_target needs foreground because browser_dom is unavailable for this candidate'
+        : 'desktop_click_target needs foreground because no browser surface is available',
+      foregroundRequired: true,
+    }
+  }
+
+  if (isNativeForegroundAction(action)) {
+    return {
+      browserSurfacePreferred: false,
+      executionMode: 'foreground',
+      executionReason: `${action.kind} uses native input and needs foreground access`,
+      foregroundRequired: true,
+    }
+  }
+
+  return {
+    browserSurfacePreferred: false,
+    executionMode: 'foreground',
+    executionReason: `defaulting ${action.kind} to foreground execution`,
+    foregroundRequired: true,
+  }
 }
 
 function hasBrowserDomSurface(browserSurface?: BrowserSurfaceAvailability): boolean {
@@ -34,85 +115,4 @@ function isNativeForegroundAction(action: ActionInvocation): boolean {
     || action.kind === 'focus_app'
     || action.kind === 'terminal_exec'
     || action.kind === 'terminal_reset'
-}
-
-export function decideDesktopExecutionMode(params: {
-  action: ActionInvocation
-  browserSurface?: BrowserSurfaceAvailability
-  browserDomRoute?: boolean
-}): DesktopSchedulingDecision {
-  const { action, browserSurface, browserDomRoute } = params
-  const browserSurfaceAvailable = hasBrowserDomSurface(browserSurface)
-
-  if (action.kind === 'desktop_observe') {
-    if (action.input?.includeChrome === false) {
-      return {
-        executionMode: 'background',
-        executionReason: 'desktop_observe is background-only when Chrome capture is disabled',
-        browserSurfacePreferred: false,
-        foregroundRequired: false,
-      }
-    }
-
-    if (browserSurfaceAvailable) {
-      return {
-        executionMode: 'browser_surface',
-        executionReason: 'browser surface is available, so desktop_observe can collect Chrome semantics without a foreground switch',
-        browserSurfacePreferred: true,
-        foregroundRequired: false,
-      }
-    }
-
-    return {
-      executionMode: 'background',
-      executionReason: 'desktop_observe stays background-only because no browser surface is available',
-      browserSurfacePreferred: false,
-      foregroundRequired: false,
-    }
-  }
-
-  if (isBackgroundReadAction(action)) {
-    return {
-      executionMode: 'background',
-      executionReason: `${action.kind} is read-only and does not need foreground switching`,
-      browserSurfacePreferred: false,
-      foregroundRequired: false,
-    }
-  }
-
-  if (isBrowserDomCapableAction(action)) {
-    if (browserDomRoute) {
-      return {
-        executionMode: 'browser_surface',
-        executionReason: 'browser_dom route is available, so click_target can stay background-safe',
-        browserSurfacePreferred: true,
-        foregroundRequired: false,
-      }
-    }
-
-    return {
-      executionMode: 'foreground',
-      executionReason: browserSurfaceAvailable
-        ? 'desktop_click_target needs foreground because browser_dom is unavailable for this candidate'
-        : 'desktop_click_target needs foreground because no browser surface is available',
-      browserSurfacePreferred: false,
-      foregroundRequired: true,
-    }
-  }
-
-  if (isNativeForegroundAction(action)) {
-    return {
-      executionMode: 'foreground',
-      executionReason: `${action.kind} uses native input and needs foreground access`,
-      browserSurfacePreferred: false,
-      foregroundRequired: true,
-    }
-  }
-
-  return {
-    executionMode: 'foreground',
-    executionReason: `defaulting ${action.kind} to foreground execution`,
-    browserSurfacePreferred: false,
-    foregroundRequired: true,
-  }
 }

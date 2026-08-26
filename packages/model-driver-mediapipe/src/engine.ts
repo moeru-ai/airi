@@ -1,66 +1,5 @@
 import type { FrameSource, MocapBackend, MocapConfig, MocapEngine, MocapJob, PerceptionPartial, PerceptionState } from './types'
 
-export function createStats() {
-  let lastTs = 0
-  let smoothedFps = 0
-
-  function tick(nowMs: number) {
-    if (!lastTs) {
-      lastTs = nowMs
-      smoothedFps = 0
-      return 0
-    }
-
-    const dt = nowMs - lastTs
-    lastTs = nowMs
-
-    if (dt <= 0)
-      return smoothedFps
-
-    const fps = 1000 / dt
-    smoothedFps = smoothedFps ? (smoothedFps * 0.9 + fps * 0.1) : fps
-
-    return smoothedFps
-  }
-
-  return { tick }
-}
-
-export function createScheduler(initialConfig: MocapConfig) {
-  let config = initialConfig
-  const lastRun: Record<MocapJob, number> = { pose: 0, hands: 0, face: 0 }
-
-  function updateConfig(next: MocapConfig) {
-    config = next
-  }
-
-  function plan(nowMs: number): MocapJob[] {
-    const jobs: MocapJob[] = []
-
-    for (const job of ['pose', 'hands', 'face'] as const) {
-      if (!config.enabled[job])
-        continue
-
-      const hz = config.hz[job]
-      if (!hz || hz <= 0)
-        continue
-
-      if (nowMs - lastRun[job] >= (1000 / hz))
-        jobs.push(job)
-    }
-
-    for (const j of jobs)
-      lastRun[j] = nowMs
-
-    return jobs
-  }
-
-  return {
-    plan,
-    updateConfig,
-  }
-}
-
 export function createMocapEngine(backend: MocapBackend, initialConfig: MocapConfig): MocapEngine {
   let config = initialConfig
   const scheduler = createScheduler(config)
@@ -119,10 +58,10 @@ export function createMocapEngine(backend: MocapBackend, initialConfig: MocapCon
           t: now,
           ...lastPartial,
           quality: {
+            backend: 'mediapipe',
+            droppedFrames,
             fps: stats.tick(now),
             latencyMs,
-            droppedFrames,
-            backend: 'mediapipe',
             mode: 'split-tasks',
           },
         })
@@ -148,9 +87,70 @@ export function createMocapEngine(backend: MocapBackend, initialConfig: MocapCon
 
   return {
     init,
+    resetState,
     start,
     stop,
     updateConfig,
-    resetState,
   }
+}
+
+export function createScheduler(initialConfig: MocapConfig) {
+  let config = initialConfig
+  const lastRun: Record<MocapJob, number> = { face: 0, hands: 0, pose: 0 }
+
+  function updateConfig(next: MocapConfig) {
+    config = next
+  }
+
+  function plan(nowMs: number): MocapJob[] {
+    const jobs: MocapJob[] = []
+
+    for (const job of ['pose', 'hands', 'face'] as const) {
+      if (!config.enabled[job])
+        continue
+
+      const hz = config.hz[job]
+      if (!hz || hz <= 0)
+        continue
+
+      if (nowMs - lastRun[job] >= (1000 / hz))
+        jobs.push(job)
+    }
+
+    for (const j of jobs)
+      lastRun[j] = nowMs
+
+    return jobs
+  }
+
+  return {
+    plan,
+    updateConfig,
+  }
+}
+
+export function createStats() {
+  let lastTs = 0
+  let smoothedFps = 0
+
+  function tick(nowMs: number) {
+    if (!lastTs) {
+      lastTs = nowMs
+      smoothedFps = 0
+      return 0
+    }
+
+    const dt = nowMs - lastTs
+    lastTs = nowMs
+
+    if (dt <= 0)
+      return smoothedFps
+
+    const fps = 1000 / dt
+    smoothedFps = smoothedFps ? (smoothedFps * 0.9 + fps * 0.1) : fps
+
+    return smoothedFps
+  }
+
+  return { tick }
 }

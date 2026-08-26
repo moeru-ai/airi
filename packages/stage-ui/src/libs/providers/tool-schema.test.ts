@@ -7,7 +7,6 @@ import { collapseToolSchemaPrimitiveAnyOf } from './tool-schema'
 describe('collapseToolSchemaPrimitiveAnyOf', () => {
   it('collapses nested heterogeneous primitive unions without changing the input', () => {
     const schema: JsonSchema = {
-      type: 'object',
       properties: {
         value: {
           anyOf: [
@@ -18,6 +17,7 @@ describe('collapseToolSchemaPrimitiveAnyOf', () => {
           ],
         },
       },
+      type: 'object',
     }
 
     const normalized = collapseToolSchemaPrimitiveAnyOf(schema)
@@ -39,14 +39,14 @@ describe('collapseToolSchemaPrimitiveAnyOf', () => {
     const normalized = collapseToolSchemaPrimitiveAnyOf({
       anyOf: [
         {
-          type: 'object',
           properties: {
             value: { type: 'string' },
           },
+          type: 'object',
         },
         {
-          type: 'array',
           items: { type: 'string' },
+          type: 'array',
         },
         { type: 'null' },
       ],
@@ -60,18 +60,18 @@ describe('collapseToolSchemaPrimitiveAnyOf', () => {
     const normalized = collapseToolSchemaPrimitiveAnyOf({
       anyOf: [
         {
-          type: 'integer',
-          minimum: 1,
           maximum: 10,
+          minimum: 1,
+          type: 'integer',
         },
         { type: 'null' },
       ],
     })
 
     expect(normalized).toEqual({
-      type: ['integer', 'null'],
-      minimum: 1,
       maximum: 10,
+      minimum: 1,
+      type: ['integer', 'null'],
     })
   })
 })

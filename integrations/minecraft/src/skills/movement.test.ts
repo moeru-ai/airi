@@ -15,11 +15,11 @@ const mocks = vi.hoisted(() => ({
     this.z = z
     this.distance = distance
   }),
+  log: vi.fn(),
   movements: vi.fn(function MockMovements(this: { bot: unknown }, bot: unknown) {
     this.bot = bot
   }),
   patchedGoto: vi.fn(),
-  log: vi.fn(),
 }))
 
 vi.mock('mineflayer-pathfinder', () => ({
@@ -56,16 +56,16 @@ describe('movement goToPlayer', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.patchedGoto.mockResolvedValue({
-      ok: true,
-      reason: 'success',
-      message: 'Reached the goal',
-      startPos: { x: 0, y: 0, z: 0 },
-      endPos: { x: 1, y: 2, z: 3 },
-      distanceTraveled: 0,
       distanceToTarget: 0,
+      distanceTraveled: 0,
       elapsedMs: 0,
+      endPos: { x: 1, y: 2, z: 3 },
       estimatedTimeMs: 0,
+      message: 'Reached the goal',
+      ok: true,
       pathCost: 0,
+      reason: 'success',
+      startPos: { x: 0, y: 0, z: 0 },
     })
   })
 
@@ -75,11 +75,11 @@ describe('movement goToPlayer', () => {
     const mineflayer = {
       allowCheats: false,
       bot: {
-        players: {
-          Alex: { entity: player },
-        },
         pathfinder: {
           setMovements,
+        },
+        players: {
+          Alex: { entity: player },
         },
       },
     } as any
@@ -90,7 +90,7 @@ describe('movement goToPlayer', () => {
     expect(mocks.goalNear).not.toHaveBeenCalled()
     expect(mocks.patchedGoto).toHaveBeenCalledWith(
       mineflayer.bot,
-      expect.objectContaining({ kind: 'follow', entity: player, distance: 3 }),
+      expect.objectContaining({ distance: 3, entity: player, kind: 'follow' }),
       expect.any(Object),
     )
     expect(setMovements).toHaveBeenCalledTimes(1)

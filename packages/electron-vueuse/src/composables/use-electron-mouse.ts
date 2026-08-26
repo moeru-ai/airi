@@ -10,6 +10,11 @@ import { getElectronEventaContext } from './use-electron-eventa-context'
 let sharedEventTarget: EventTarget | undefined
 let startedTracking = false
 
+export function useElectronMouse(options?: UseMouseOptions) {
+  const eventTarget = useElectronMouseEventTarget()
+  return useMouse({ ...options, target: eventTarget, type: 'screen' })
+}
+
 export function useElectronMouseEventTarget() {
   const context = getElectronEventaContext()
 
@@ -28,9 +33,4 @@ export function useElectronMouseEventTarget() {
   }
 
   return ref(sharedEventTarget)
-}
-
-export function useElectronMouse(options?: UseMouseOptions) {
-  const eventTarget = useElectronMouseEventTarget()
-  return useMouse({ ...options, target: eventTarget, type: 'screen' })
 }

@@ -13,16 +13,16 @@ import {
 describe('airi websocket codec', () => {
   it('parses superjson encoded events', () => {
     const event: WebSocketEvent = {
-      type: 'module:authenticate',
       data: { token: 'secret' },
       metadata: {
+        event: { id: 'event-1' },
         source: {
-          kind: 'plugin',
           id: 'test-plugin-1',
+          kind: 'plugin',
           plugin: { id: 'test-plugin' },
         },
-        event: { id: 'event-1' },
       },
+      type: 'module:authenticate',
     }
 
     expect(parseEvent(stringifySuperJson(event))).toEqual(event)
@@ -30,16 +30,16 @@ describe('airi websocket codec', () => {
 
   it('falls back to plain JSON events', () => {
     const event: WebSocketEvent = {
-      type: 'module:authenticate',
       data: { token: 'secret' },
       metadata: {
+        event: { id: 'event-1' },
         source: {
-          kind: 'plugin',
           id: 'test-plugin-1',
+          kind: 'plugin',
           plugin: { id: 'test-plugin' },
         },
-        event: { id: 'event-1' },
       },
+      type: 'module:authenticate',
     }
 
     expect(parseEvent(JSON.stringify(event))).toEqual(event)
@@ -50,20 +50,20 @@ describe('airi websocket codec', () => {
       .toThrow(InvalidEventError)
     expect(() => parseEvent(JSON.stringify({ data: {} })))
       .toThrow(InvalidEventError)
-    expect(() => parseEvent(JSON.stringify({ type: 0, data: {} })))
+    expect(() => parseEvent(JSON.stringify({ data: {}, type: 0 })))
       .toThrow(InvalidEventError)
     expect(() => parseEvent(JSON.stringify({ type: 'module:authenticate' })))
       .toThrow(InvalidEventError)
-    expect(() => parseEvent(JSON.stringify({ type: 'module:authenticate', data: null })))
+    expect(() => parseEvent(JSON.stringify({ data: null, type: 'module:authenticate' })))
       .toThrow(InvalidEventError)
-    expect(() => parseEvent(JSON.stringify({ type: 'module:authenticate', data: 'secret' })))
+    expect(() => parseEvent(JSON.stringify({ data: 'secret', type: 'module:authenticate' })))
       .toThrow(InvalidEventError)
-    expect(() => parseEvent(JSON.stringify({ type: 'module:authenticate', data: [] })))
+    expect(() => parseEvent(JSON.stringify({ data: [], type: 'module:authenticate' })))
       .toThrow(InvalidEventError)
   })
 
   it('keeps validation cause and source on invalid event errors', () => {
-    const source = { type: 'module:authenticate', data: 'secret' }
+    const source = { data: 'secret', type: 'module:authenticate' }
 
     try {
       parseEvent(JSON.stringify(source))

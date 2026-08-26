@@ -33,10 +33,102 @@ const SNAP_PROXIMITY_THRESHOLD_PX = 20
  * Options for snap resolution.
  */
 export interface SnapResolverOptions {
-  /** Override the proximity threshold for edge-snapping (default: 20px) */
-  proximityThresholdPx?: number
   /** Only consider candidates from these sources */
   allowedSources?: TargetSource[]
+  /** Override the proximity threshold for edge-snapping (default: 20px) */
+  proximityThresholdPx?: number
+}
+
+/** Compute the area of a bounding rect. */
+export function boundsArea(bounds: Bounds): number {
+  return bounds.width * bounds.height
+}
+
+/** Compute the center point of a bounding rect. */
+export function boundsCenter(bounds: Bounds): { x: number, y: number } {
+  return {
+    x: Math.round(bounds.x + bounds.width / 2),
+    y: Math.round(bounds.y + bounds.height / 2),
+  }
+}
+
+/**
+ * Compute the intersection-over-union (IoU) between two bounding rects.
+ * Used for deduplication of candidates from different sources.
+ */
+export function boundsIoU(a: Bounds, b: Bounds): number {
+  const ax2 = a.x + a.width
+  const ay2 = a.y + a.height
+  const bx2 = b.x + b.width
+  const by2 = b.y + b.height
+
+  const interX = Math.max(0, Math.min(ax2, bx2) - Math.max(a.x, b.x))
+  const interY = Math.max(0, Math.min(ay2, by2) - Math.max(a.y, b.y))
+  const interArea = interX * interY
+
+  if (interArea === 0)
+    return 0
+
+  const aArea = a.width * a.height
+  const bArea = b.width * b.height
+  return interArea / (aArea + bArea - interArea)
+}
+
+// ---------------------------------------------------------------------------
+// Geometry helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Compute the minimum distance from a point to any edge of a bounding rect.
+ * Returns 0 if the point is inside the bounds.
+ */
+export function distanceToBounds(
+  point: { x: number, y: number },
+  bounds: Bounds,
+): number {
+  const dx = Math.max(bounds.x - point.x, 0, point.x - (bounds.x + bounds.width))
+  const dy = Math.max(bounds.y - point.y, 0, point.y - (bounds.y + bounds.height))
+  return Math.sqrt(dx * dx + dy * dy)
+}
+
+/** Check if a point is inside a bounding rect. */
+export function isPointInBounds(
+  point: { x: number, y: number },
+  bounds: Bounds,
+): boolean {
+  return (
+    point.x >= bounds.x
+    && point.x <= bounds.x + bounds.width
+    && point.y >= bounds.y
+    && point.y <= bounds.y + bounds.height
+  )
+}
+
+/**
+ * Check if a candidate's source is flagged as stale in the snapshot.
+ */
+export function isStaleCandidateSource(
+  source: TargetSource,
+  snapshot: DesktopGroundingSnapshot,
+): boolean {
+  switch (source) {
+    case 'ax':
+      return snapshot.staleFlags.ax
+    case 'chrome_dom':
+      return snapshot.staleFlags.chromeSemantic
+    case 'raw':
+      return false
+    case 'vision':
+      return snapshot.staleFlags.screenshot
+  }
+}
+
+/** Euclidean distance between two points. */
+export function pointDistance(
+  a: { x: number, y: number },
+  b: { x: number, y: number },
+): number {
+  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
 }
 
 /**
@@ -66,9 +158,9 @@ export function resolveSnap(
   if (candidates.length === 0) {
     return {
       rawPoint: point,
+      reason: 'no candidates available; using raw point',
       snappedPoint: point,
       source: 'none',
-      reason: 'no candidates available; using raw point',
     }
   }
 
@@ -92,11 +184,11 @@ export function resolveSnap(
       )
       const center = boundsCenter(best.bounds)
       return {
-        rawPoint: point,
-        snappedPoint: center,
         candidateId: best.id,
-        source,
+        rawPoint: point,
         reason: `point inside ${source} candidate "${best.label}" bounds; snapped to center`,
+        snappedPoint: center,
+        source,
       }
     }
 
@@ -105,11 +197,11 @@ export function resolveSnap(
     if (nearest) {
       const center = boundsCenter(nearest.bounds)
       return {
-        rawPoint: point,
-        snappedPoint: center,
         candidateId: nearest.id,
-        source,
+        rawPoint: point,
         reason: `point within ${threshold}px of ${source} candidate "${nearest.label}"; snapped to center`,
+        snappedPoint: center,
+        source,
       }
     }
   }
@@ -117,9 +209,9 @@ export function resolveSnap(
   // No match in any tier → raw fallback
   return {
     rawPoint: point,
+    reason: `no candidate matched within ${threshold}px; using raw point`,
     snappedPoint: point,
     source: 'none',
-    reason: `no candidate matched within ${threshold}px; using raw point`,
   }
 }
 
@@ -142,123 +234,31 @@ export function resolveSnapByCandidate(
   if (!candidate) {
     return {
       rawPoint: { x: 0, y: 0 },
+      reason: `candidate "${candidateId}" not found in snapshot`,
       snappedPoint: { x: 0, y: 0 },
       source: 'none',
-      reason: `candidate "${candidateId}" not found in snapshot`,
     }
   }
 
   if (isStaleCandidateSource(candidate.source, snapshot)) {
     const center = boundsCenter(candidate.bounds)
     return {
-      rawPoint: center,
-      snappedPoint: center,
       candidateId,
-      source: candidate.source,
+      rawPoint: center,
       reason: `WARNING: candidate "${candidateId}" source "${candidate.source}" is stale; proceeding with last-known position`,
+      snappedPoint: center,
+      source: candidate.source,
     }
   }
 
   const center = boundsCenter(candidate.bounds)
   return {
-    rawPoint: center,
-    snappedPoint: center,
     candidateId,
-    source: candidate.source,
+    rawPoint: center,
     reason: `direct candidate lookup; snapped to ${candidate.source} candidate "${candidate.label}" center`,
+    snappedPoint: center,
+    source: candidate.source,
   }
-}
-
-/**
- * Check if a candidate's source is flagged as stale in the snapshot.
- */
-export function isStaleCandidateSource(
-  source: TargetSource,
-  snapshot: DesktopGroundingSnapshot,
-): boolean {
-  switch (source) {
-    case 'chrome_dom':
-      return snapshot.staleFlags.chromeSemantic
-    case 'ax':
-      return snapshot.staleFlags.ax
-    case 'vision':
-      return snapshot.staleFlags.screenshot
-    case 'raw':
-      return false
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Geometry helpers
-// ---------------------------------------------------------------------------
-
-/** Check if a point is inside a bounding rect. */
-export function isPointInBounds(
-  point: { x: number, y: number },
-  bounds: Bounds,
-): boolean {
-  return (
-    point.x >= bounds.x
-    && point.x <= bounds.x + bounds.width
-    && point.y >= bounds.y
-    && point.y <= bounds.y + bounds.height
-  )
-}
-
-/** Compute the center point of a bounding rect. */
-export function boundsCenter(bounds: Bounds): { x: number, y: number } {
-  return {
-    x: Math.round(bounds.x + bounds.width / 2),
-    y: Math.round(bounds.y + bounds.height / 2),
-  }
-}
-
-/** Compute the area of a bounding rect. */
-export function boundsArea(bounds: Bounds): number {
-  return bounds.width * bounds.height
-}
-
-/** Euclidean distance between two points. */
-export function pointDistance(
-  a: { x: number, y: number },
-  b: { x: number, y: number },
-): number {
-  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
-}
-
-/**
- * Compute the minimum distance from a point to any edge of a bounding rect.
- * Returns 0 if the point is inside the bounds.
- */
-export function distanceToBounds(
-  point: { x: number, y: number },
-  bounds: Bounds,
-): number {
-  const dx = Math.max(bounds.x - point.x, 0, point.x - (bounds.x + bounds.width))
-  const dy = Math.max(bounds.y - point.y, 0, point.y - (bounds.y + bounds.height))
-  return Math.sqrt(dx * dx + dy * dy)
-}
-
-/**
- * Compute the intersection-over-union (IoU) between two bounding rects.
- * Used for deduplication of candidates from different sources.
- */
-export function boundsIoU(a: Bounds, b: Bounds): number {
-  const ax2 = a.x + a.width
-  const ay2 = a.y + a.height
-  const bx2 = b.x + b.width
-  const by2 = b.y + b.height
-
-  const interX = Math.max(0, Math.min(ax2, bx2) - Math.max(a.x, b.x))
-  const interY = Math.max(0, Math.min(ay2, by2) - Math.max(a.y, b.y))
-  const interArea = interX * interY
-
-  if (interArea === 0)
-    return 0
-
-  const aArea = a.width * a.height
-  const bArea = b.width * b.height
-  return interArea / (aArea + bArea - interArea)
 }
 
 // ---------------------------------------------------------------------------

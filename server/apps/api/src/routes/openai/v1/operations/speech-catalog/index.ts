@@ -9,16 +9,12 @@ import { createBadGatewayError, createBadRequestError, createServiceUnavailableE
 
 const VOICE_PACK_MODEL_ID = 'voice-pack'
 
-function voicePackCatalogVoice(pack: VoicePack) {
-  const cost = `Flux cost: ${pack.costMultiplier}x`
-  return {
-    id: pack.voiceId,
-    name: pack.name,
-    description: pack.description ? `${pack.description} · ${cost}` : cost,
-    labels: { type: 'voice_pack' },
-    tags: ['voice_pack'],
-    languages: [{ code: 'en', title: 'English' }],
-  }
+export interface ListStreamingVoicesInput {
+  model?: string
+}
+
+export interface ListVoicesInput {
+  requestedModel?: string
 }
 
 export interface SpeechCatalogOperation {
@@ -26,14 +22,6 @@ export interface SpeechCatalogOperation {
   listStreamingSpeechModels: () => Promise<Response>
   listStreamingVoices: (input: ListStreamingVoicesInput) => Promise<Response>
   listVoices: (input: ListVoicesInput) => Promise<Response>
-}
-
-export interface ListStreamingVoicesInput {
-  model?: string
-}
-
-export interface ListVoicesInput {
-  requestedModel?: string
 }
 
 export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOperation {
@@ -61,7 +49,7 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
     const voicePacks = await deps.voicePackService.listEnabled()
     if (model === VOICE_PACK_MODEL_ID) {
       logger.withFields({ model, voiceCount: voicePacks.length, voicePackCount: voicePacks.length }).debug('list tts voices')
-      return Response.json({ voices: voicePacks.map(voicePackCatalogVoice), recommended: {} })
+      return Response.json({ recommended: {}, voices: voicePacks.map(voicePackCatalogVoice) })
     }
 
     const voices = await deps.providerCatalogService.listEnabledTtsVoices(model)
@@ -70,7 +58,7 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
     // billing / user-facing side effect — useful only when debugging
     // voice-picker drift, never as a permanent audit trail line.
     logger.withFields({ model, voiceCount: voices.length, voicePackCount: voicePacks.length }).debug('list tts voices')
-    return Response.json({ voices: voices.map(catalogVoiceResponse), recommended })
+    return Response.json({ recommended, voices: voices.map(catalogVoiceResponse) })
   }
 
   /**
@@ -130,7 +118,7 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
           snippet = String(res._data)
         }
       }
-      logger.withFields({ voicesURL, status: res.status, snippet: snippet.slice(0, 256) }).warn('streaming-voices: unspeech non-2xx')
+      logger.withFields({ snippet: snippet.slice(0, 256), status: res.status, voicesURL }).warn('streaming-voices: unspeech non-2xx')
       throw createBadGatewayError(`streaming voices upstream ${res.status}`, { lastStatusCode: res.status })
     }
 
@@ -141,7 +129,7 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
     const recommended = model
       ? ((await deps.configKV.getOptional('DEFAULT_TTS_VOICES'))?.[model] ?? {})
       : {}
-    return Response.json({ voices: data.voices, recommended })
+    return Response.json({ recommended, voices: data.voices })
   }
 
   async function listSpeechModels() {
@@ -151,11 +139,11 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
       ? defaultModel
       : null
     return Response.json({
+      default: publicDefaultModel,
       models: [
-        { id: VOICE_PACK_MODEL_ID, name: 'Voice Pack', description: 'Server-curated voices' },
+        { description: 'Server-curated voices', id: VOICE_PACK_MODEL_ID, name: 'Voice Pack' },
         ...models.map(model => ({ id: model.routerModelId, name: model.displayName })),
       ],
-      default: publicDefaultModel,
     })
   }
 
@@ -169,12 +157,12 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
     // surfaces the provider rather than silently hiding it.
     return Response.json({
       available: !!unspeech?.streaming?.baseURL,
+      default: unspeech?.streaming?.defaultModel ?? null,
       models: models.map(m => ({
+        description: m.description,
         id: m.id,
         name: m.name ?? m.id,
-        description: m.description,
       })),
-      default: unspeech?.streaming?.defaultModel ?? null,
     })
   }
 
@@ -183,5 +171,17 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
     listStreamingSpeechModels,
     listStreamingVoices,
     listVoices,
+  }
+}
+
+function voicePackCatalogVoice(pack: VoicePack) {
+  const cost = `Flux cost: ${pack.costMultiplier}x`
+  return {
+    description: pack.description ? `${pack.description} · ${cost}` : cost,
+    id: pack.voiceId,
+    labels: { type: 'voice_pack' },
+    languages: [{ code: 'en', title: 'English' }],
+    name: pack.name,
+    tags: ['voice_pack'],
   }
 }

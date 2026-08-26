@@ -1,4 +1,4 @@
-export type FluxBalanceBucket = 'zero' | '1_100' | '101_1000' | '1001_10000' | '10000_plus' | 'unknown'
+export type FluxBalanceBucket = '1_100' | '101_1000' | '1001_10000' | '10000_plus' | 'unknown' | 'zero'
 
 /**
  * Normalizes exact Flux balance values into analytics-safe buckets.
@@ -13,7 +13,7 @@ export type FluxBalanceBucket = 'zero' | '1_100' | '101_1000' | '1001_10000' | '
  * - "1_100"
  * - "1001_10000"
  */
-export function fluxBalanceBucket(balance: number | null | undefined): FluxBalanceBucket {
+export function fluxBalanceBucket(balance: null | number | undefined): FluxBalanceBucket {
   if (balance == null || Number.isNaN(balance))
     return 'unknown'
   if (balance <= 0)

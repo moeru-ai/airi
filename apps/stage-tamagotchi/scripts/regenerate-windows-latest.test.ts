@@ -32,12 +32,12 @@ describe('regenerateWindowsLatest', () => {
     await writeFile(join(workspaceRoot, 'pnpm-workspace.yaml'), 'packages:\n  - apps/*\n', 'utf8')
     await writeFile(join(bundleDir, 'AIRI-1.2.3-windows-x64-setup.exe'), 'signed-binary-content', 'utf8')
     await writeFile(join(bundleDir, 'latest.yml'), yaml.stringify({
-      version: 'stale-version',
+      files: [{ sha512: 'stale-sha512', size: 10, url: 'stale.exe' }],
       path: 'stale.exe',
-      sha512: 'stale-sha512',
       releaseDate: '2026-01-02T03:04:05.000Z',
+      sha512: 'stale-sha512',
       stagingPercentage: 25,
-      files: [{ url: 'stale.exe', sha512: 'stale-sha512', size: 10 }],
+      version: 'stale-version',
     }), 'utf8')
 
     process.chdir(packageDir)
@@ -50,18 +50,18 @@ describe('regenerateWindowsLatest', () => {
 
     const expectedHashes = await hashFile(join(bundleDir, 'AIRI-1.2.3-windows-x64-setup.exe'))
     expect(nextUpdateInfo).toMatchObject({
-      version: '1.2.3',
-      path: 'AIRI-1.2.3-windows-x64-setup.exe',
-      sha512: expectedHashes.sha512,
-      sha2: expectedHashes.sha256,
-      releaseDate: '2026-01-02T03:04:05.000Z',
-      stagingPercentage: 25,
       files: [
         {
-          url: 'AIRI-1.2.3-windows-x64-setup.exe',
           sha512: expectedHashes.sha512,
+          url: 'AIRI-1.2.3-windows-x64-setup.exe',
         },
       ],
+      path: 'AIRI-1.2.3-windows-x64-setup.exe',
+      releaseDate: '2026-01-02T03:04:05.000Z',
+      sha2: expectedHashes.sha256,
+      sha512: expectedHashes.sha512,
+      stagingPercentage: 25,
+      version: '1.2.3',
     })
     expect(nextUpdateInfo.files[0]?.size).toBe(Buffer.byteLength('signed-binary-content'))
 
@@ -81,24 +81,24 @@ describe('regenerateWindowsLatest', () => {
     await regenerateWindowsLatest({
       input: 'bundle/AIRI-9.9.9-windows-x64-setup.exe',
       output: 'bundle/latest.yml',
-      version: '9.9.9',
       releaseDate: '2026-03-23T00:00:00.000Z',
+      version: '9.9.9',
     })
 
     const persisted = yaml.parse(await readFile(resolve(bundleDir, 'latest.yml'), 'utf8'))
     const expectedHashes = await hashFile(join(bundleDir, 'AIRI-9.9.9-windows-x64-setup.exe'))
     expect(persisted).toMatchObject({
-      version: '9.9.9',
-      path: 'AIRI-9.9.9-windows-x64-setup.exe',
-      sha512: expectedHashes.sha512,
-      sha2: expectedHashes.sha256,
-      releaseDate: '2026-03-23T00:00:00.000Z',
       files: [
         {
-          url: 'AIRI-9.9.9-windows-x64-setup.exe',
           sha512: expectedHashes.sha512,
+          url: 'AIRI-9.9.9-windows-x64-setup.exe',
         },
       ],
+      path: 'AIRI-9.9.9-windows-x64-setup.exe',
+      releaseDate: '2026-03-23T00:00:00.000Z',
+      sha2: expectedHashes.sha256,
+      sha512: expectedHashes.sha512,
+      version: '9.9.9',
     })
   })
 })

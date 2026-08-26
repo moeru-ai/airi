@@ -18,10 +18,10 @@ describe('runStateManager', () => {
   it('should track foreground context', () => {
     const manager = new RunStateManager()
     manager.updateForegroundContext({
-      available: true,
       appName: 'Terminal',
-      windowTitle: 'bash — 80x24',
+      available: true,
       platform: 'darwin',
+      windowTitle: 'bash — 80x24',
     })
 
     const state = manager.getState()
@@ -34,11 +34,11 @@ describe('runStateManager', () => {
     const manager = new RunStateManager()
     manager.updateTerminalResult({
       command: 'pnpm test:run',
-      stdout: 'All tests passed',
-      stderr: '',
-      exitCode: 0,
-      effectiveCwd: '/workspace/project',
       durationMs: 500,
+      effectiveCwd: '/workspace/project',
+      exitCode: 0,
+      stderr: '',
+      stdout: 'All tests passed',
       timedOut: false,
     })
 
@@ -65,18 +65,18 @@ describe('runStateManager', () => {
     const manager = new RunStateManager()
 
     const task = {
-      id: 'test-task-1',
-      goal: 'Run tests',
-      workflowId: 'dev_run_tests',
-      phase: 'executing' as const,
-      steps: [
-        { index: 1, stepId: 'step_a', label: 'cd project' },
-        { index: 2, stepId: 'step_b', label: 'pnpm test' },
-      ],
       currentStepIndex: 0,
-      startedAt: new Date().toISOString(),
       failureCount: 0,
+      goal: 'Run tests',
+      id: 'test-task-1',
       maxConsecutiveFailures: 3,
+      phase: 'executing' as const,
+      startedAt: new Date().toISOString(),
+      steps: [
+        { index: 1, label: 'cd project', stepId: 'step_a' },
+        { index: 2, label: 'pnpm test', stepId: 'step_b' },
+      ],
+      workflowId: 'dev_run_tests',
     }
 
     manager.startTask(task)
@@ -86,7 +86,7 @@ describe('runStateManager', () => {
     manager.completeCurrentStep('success')
     expect(manager.getState().activeTask?.steps[0].outcome).toBe('success')
 
-    manager.advanceTaskStep({ index: 2, stepId: 'step_b', label: 'pnpm test' })
+    manager.advanceTaskStep({ index: 2, label: 'pnpm test', stepId: 'step_b' })
     manager.completeCurrentStep('failure', 'Tests failed')
     expect(manager.getState().activeTask?.failureCount).toBe(1)
 
@@ -98,8 +98,8 @@ describe('runStateManager', () => {
   it('should detect app in foreground', () => {
     const manager = new RunStateManager()
     manager.updateForegroundContext({
-      available: true,
       appName: 'Google Chrome',
+      available: true,
       platform: 'darwin',
     })
 
@@ -110,22 +110,22 @@ describe('runStateManager', () => {
   it('should track browser surface availability', () => {
     const manager = new RunStateManager()
     manager.updateBrowserSurfaceAvailability({
-      executionMode: 'local-windowed',
-      suitable: true,
       availableSurfaces: ['browser_dom'],
-      preferredSurface: 'browser_dom',
-      selectedToolName: 'browser_dom_read_page',
-      reason: 'Browser extension bridge is connected.',
-      extension: {
-        enabled: true,
-        connected: true,
-      },
       cdp: {
-        endpoint: 'http://localhost:9222',
-        connected: false,
         connectable: false,
+        connected: false,
+        endpoint: 'http://localhost:9222',
         lastError: 'connection refused',
       },
+      executionMode: 'local-windowed',
+      extension: {
+        connected: true,
+        enabled: true,
+      },
+      preferredSurface: 'browser_dom',
+      reason: 'Browser extension bridge is connected.',
+      selectedToolName: 'browser_dom_read_page',
+      suitable: true,
     })
 
     expect(manager.getState().browserSurfaceAvailability).toMatchObject({

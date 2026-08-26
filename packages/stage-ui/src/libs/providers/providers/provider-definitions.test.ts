@@ -70,10 +70,10 @@ describe('migrated provider definitions', () => {
     expect(providerAppLocalAudioTranscription.tasks).toContain('speech-to-text')
     expect(providerBrowserLocalAudioTranscription.tasks).toContain('speech-to-text')
     expect(providerAppLocalAudioTranscription.capabilities?.transcription).toEqual({
-      protocol: 'http',
       generateOutput: true,
-      streamOutput: false,
+      protocol: 'http',
       streamInput: false,
+      streamOutput: false,
     })
   })
 
@@ -112,16 +112,16 @@ describe('migrated provider definitions', () => {
     const defaults = z.parse(await providerBrowserWebSpeechApi.createProviderConfig({ t: translate }), {})
 
     expect(defaults).toEqual({
-      language: 'en-US',
       continuous: true,
       interimResults: true,
+      language: 'en-US',
       maxAlternatives: 1,
     })
     expect(providerBrowserWebSpeechApi.capabilities?.transcription).toEqual({
-      protocol: 'http',
       generateOutput: false,
-      streamOutput: true,
+      protocol: 'http',
       streamInput: true,
+      streamOutput: true,
     })
     expect(await providerBrowserWebSpeechApi.isAvailableBy?.()).toBe(false)
   })

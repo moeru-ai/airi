@@ -24,12 +24,12 @@ import { manifestIdOf } from '../../host/registry'
  * - N/A
  */
 export interface ExtensionAutoReloadFeatureOptions {
-  log: ReturnType<typeof useLogg>
   getConfig: () => ExtensionConfig
-  listEntries: () => ManifestEntry[]
   isLoaded: (extensionId: string) => boolean
-  resolveWatchPaths: (extensionId: string) => string[]
+  listEntries: () => ManifestEntry[]
+  log: ReturnType<typeof useLogg>
   reload: (extensionId: string, changedPath: string) => Promise<void>
+  resolveWatchPaths: (extensionId: string) => string[]
 }
 
 /**
@@ -102,6 +102,21 @@ export function createExtensionAutoReloadFeature(options: ExtensionAutoReloadFea
   }
 
   return {
+    clearExtension(extensionId: string) {
+      clearTimer(extensionId)
+      closeWatchers(extensionId)
+    },
+    dispose() {
+      const managedNames = new Set([
+        ...autoReloadTimers.keys(),
+        ...autoReloadWatchers.keys(),
+      ])
+
+      for (const extensionId of managedNames) {
+        clearTimer(extensionId)
+        closeWatchers(extensionId)
+      }
+    },
     sync() {
       const enabledExtensionIds = new Set(options.getConfig().autoReload)
       const desiredExtensionIds = new Set(options.listEntries()
@@ -142,21 +157,6 @@ export function createExtensionAutoReloadFeature(options: ExtensionAutoReloadFea
         if (watchers.length > 0) {
           autoReloadWatchers.set(extensionId, watchers)
         }
-      }
-    },
-    clearExtension(extensionId: string) {
-      clearTimer(extensionId)
-      closeWatchers(extensionId)
-    },
-    dispose() {
-      const managedNames = new Set([
-        ...autoReloadTimers.keys(),
-        ...autoReloadWatchers.keys(),
-      ])
-
-      for (const extensionId of managedNames) {
-        clearTimer(extensionId)
-        closeWatchers(extensionId)
       }
     },
   }

@@ -1,46 +1,6 @@
 import type { BrowserWindow, BrowserWindowConstructorOptions, Rectangle } from 'electron'
 
 /**
- * Build BrowserWindow options for the desktop grounding overlay.
- *
- * Use when:
- * - Creating the transparent desktop overlay BrowserWindow
- * - Testing overlay input-isolation without starting Electron
- *
- * Expects:
- * - `bounds` are Electron screen logical coordinates for the display being covered
- * - `preloadPath` is an absolute path to the renderer preload script
- *
- * Returns:
- * - BrowserWindow options that keep the overlay visual-only and non-focusable
- */
-export function createDesktopOverlayWindowOptions(params: {
-  bounds: Rectangle
-  preloadPath: string
-}): BrowserWindowConstructorOptions {
-  return {
-    title: 'AIRI Desktop Overlay',
-    width: params.bounds.width,
-    height: params.bounds.height,
-    x: params.bounds.x,
-    y: params.bounds.y,
-    show: false,
-    frame: false,
-    transparent: true,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    hasShadow: false,
-    roundedCorners: false,
-    focusable: false,
-    webPreferences: {
-      preload: params.preloadPath,
-      sandbox: false,
-      backgroundThrottling: false,
-    },
-  }
-}
-
-/**
  * Apply input-isolation flags to the desktop grounding overlay.
  *
  * Use when:
@@ -60,6 +20,46 @@ export function applyDesktopOverlayInputIsolation(
   window.setAlwaysOnTop(true, 'screen-saver')
   window.setContentProtection(true)
   window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+}
+
+/**
+ * Build BrowserWindow options for the desktop grounding overlay.
+ *
+ * Use when:
+ * - Creating the transparent desktop overlay BrowserWindow
+ * - Testing overlay input-isolation without starting Electron
+ *
+ * Expects:
+ * - `bounds` are Electron screen logical coordinates for the display being covered
+ * - `preloadPath` is an absolute path to the renderer preload script
+ *
+ * Returns:
+ * - BrowserWindow options that keep the overlay visual-only and non-focusable
+ */
+export function createDesktopOverlayWindowOptions(params: {
+  bounds: Rectangle
+  preloadPath: string
+}): BrowserWindowConstructorOptions {
+  return {
+    alwaysOnTop: true,
+    focusable: false,
+    frame: false,
+    hasShadow: false,
+    height: params.bounds.height,
+    roundedCorners: false,
+    show: false,
+    skipTaskbar: true,
+    title: 'AIRI Desktop Overlay',
+    transparent: true,
+    webPreferences: {
+      backgroundThrottling: false,
+      preload: params.preloadPath,
+      sandbox: false,
+    },
+    width: params.bounds.width,
+    x: params.bounds.x,
+    y: params.bounds.y,
+  }
 }
 
 /**

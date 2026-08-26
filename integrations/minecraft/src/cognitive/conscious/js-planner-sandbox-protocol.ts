@@ -3,47 +3,9 @@ import type { BotEvent } from '../types'
 
 export interface ActionRuntimeResult {
   action: ActionInstruction
+  error?: string
   ok: boolean
   result?: unknown
-  error?: string
-}
-
-export interface QuerySeed {
-  blocks: Array<Record<string, unknown>>
-  craftable: string[]
-  entities: Array<Record<string, unknown>>
-  gaze: unknown[]
-  inventory: Array<Record<string, unknown>>
-  self: Record<string, unknown> | null
-}
-
-export interface HistorySeed {
-  conversationHistory: Array<{ role: string, content: string }>
-  currentTurn: number
-  llmLogEntries: Array<Record<string, unknown>>
-}
-
-export interface RuntimeSnapshot {
-  actionQueue: unknown
-  currentInput: unknown
-  errorBurstGuard: unknown
-  event: BotEvent
-  historySeed: HistorySeed
-  lastAction: ActionRuntimeResult | null
-  llmInput: {
-    attempt: number
-    conversationHistory: unknown[]
-    messages: unknown[]
-    systemPrompt: string
-    updatedAt: number
-    userMessage: string
-  } | null | undefined
-  llmLogEntries: Array<Record<string, unknown>>
-  mem: Record<string, unknown>
-  noActionBudget: unknown
-  prevRun: { actions: ActionRuntimeResult[], logs: string[], returnRaw?: unknown } | null
-  querySeed: QuerySeed | null
-  snapshot: Record<string, unknown>
 }
 
 export interface BridgeAvailability {
@@ -59,6 +21,49 @@ export interface BridgeAvailability {
   queryMap: boolean
   setNoActionBudget: boolean
   updateAiriContext: boolean
+}
+
+export interface HistorySeed {
+  conversationHistory: Array<{ content: string, role: string }>
+  currentTurn: number
+  llmLogEntries: Array<Record<string, unknown>>
+}
+
+export type ParentToWorkerMessage
+  = | { error: SerializedWorkerError, ok: false, requestId: number, type: 'bridge-response' }
+    | { ok: true, requestId: number, result?: unknown, type: 'bridge-response' }
+    | { payload: SandboxWorkerRequest, type: 'evaluate' }
+
+export interface QuerySeed {
+  blocks: Array<Record<string, unknown>>
+  craftable: string[]
+  entities: Array<Record<string, unknown>>
+  gaze: unknown[]
+  inventory: Array<Record<string, unknown>>
+  self: null | Record<string, unknown>
+}
+
+export interface RuntimeSnapshot {
+  actionQueue: unknown
+  currentInput: unknown
+  errorBurstGuard: unknown
+  event: BotEvent
+  historySeed: HistorySeed
+  lastAction: ActionRuntimeResult | null
+  llmInput: null | undefined | {
+    attempt: number
+    conversationHistory: unknown[]
+    messages: unknown[]
+    systemPrompt: string
+    updatedAt: number
+    userMessage: string
+  }
+  llmLogEntries: Array<Record<string, unknown>>
+  mem: Record<string, unknown>
+  noActionBudget: unknown
+  prevRun: null | { actions: ActionRuntimeResult[], logs: string[], returnRaw?: unknown }
+  querySeed: null | QuerySeed
+  snapshot: Record<string, unknown>
 }
 
 export interface SandboxWorkerRequest {
@@ -77,51 +82,36 @@ export interface SandboxWorkerResult {
   returnRaw?: unknown
 }
 
+export interface SandboxWorkerState {
+  logs: string[]
+  mem: Record<string, unknown>
+}
+
 export interface SerializedWorkerError {
   message: string
   name: string
   stack?: string
 }
 
-export interface SandboxWorkerState {
-  logs: string[]
-  mem: Record<string, unknown>
-}
-
 export type WorkerToParentMessage
-  = | { type: 'ready' }
-    | { type: 'bridge-request', requestId: number, method: string, args: unknown[] }
-    | { type: 'result', result: SandboxWorkerResult }
-    | { type: 'error', error: SerializedWorkerError, state?: SandboxWorkerState }
-    | { type: 'catastrophic-error', error: SerializedWorkerError }
+  = | { args: unknown[], method: string, requestId: number, type: 'bridge-request' }
+    | { error: SerializedWorkerError, state?: SandboxWorkerState, type: 'error' }
+    | { error: SerializedWorkerError, type: 'catastrophic-error' }
+    | { result: SandboxWorkerResult, type: 'result' }
+    | { type: 'ready' }
 
-export type ParentToWorkerMessage
-  = | { type: 'evaluate', payload: SandboxWorkerRequest }
-    | { type: 'bridge-response', requestId: number, ok: true, result?: unknown }
-    | { type: 'bridge-response', requestId: number, ok: false, error: SerializedWorkerError }
-
-function workerErrorName(error: unknown): string {
-  if (typeof error === 'object' && error !== null && 'name' in error && typeof error.name === 'string')
-    return error.name
-  if (error instanceof Error)
-    return error.name
-  return 'Error'
+export function createWorkerError(message: string, state?: SandboxWorkerState, cause?: unknown): Error & { state?: SandboxWorkerState } {
+  const error = cause instanceof Error ? cause : new Error(message)
+  error.message = message
+  return Object.assign(error, state ? { state } : {})
 }
 
-function workerErrorMessage(error: unknown): string {
-  if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string')
-    return error.message
-  if (error instanceof Error)
-    return error.message
-  return String(error)
-}
-
-function workerErrorStack(error: unknown): string | undefined {
-  if (typeof error === 'object' && error !== null && 'stack' in error && typeof error.stack === 'string')
-    return error.stack
-  if (error instanceof Error)
-    return error.stack
-  return undefined
+export function hydrateWorkerError(error: SerializedWorkerError): Error {
+  const hydrated = new Error(error.message)
+  hydrated.name = error.name
+  if (error.stack)
+    hydrated.stack = error.stack
+  return hydrated
 }
 
 export function serializeWorkerError(error: unknown): SerializedWorkerError {
@@ -138,16 +128,26 @@ export function serializeWorkerError(error: unknown): SerializedWorkerError {
       }
 }
 
-export function hydrateWorkerError(error: SerializedWorkerError): Error {
-  const hydrated = new Error(error.message)
-  hydrated.name = error.name
-  if (error.stack)
-    hydrated.stack = error.stack
-  return hydrated
+function workerErrorMessage(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string')
+    return error.message
+  if (error instanceof Error)
+    return error.message
+  return String(error)
 }
 
-export function createWorkerError(message: string, state?: SandboxWorkerState, cause?: unknown): Error & { state?: SandboxWorkerState } {
-  const error = cause instanceof Error ? cause : new Error(message)
-  error.message = message
-  return Object.assign(error, state ? { state } : {})
+function workerErrorName(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'name' in error && typeof error.name === 'string')
+    return error.name
+  if (error instanceof Error)
+    return error.name
+  return 'Error'
+}
+
+function workerErrorStack(error: unknown): string | undefined {
+  if (typeof error === 'object' && error !== null && 'stack' in error && typeof error.stack === 'string')
+    return error.stack
+  if (error instanceof Error)
+    return error.stack
+  return undefined
 }

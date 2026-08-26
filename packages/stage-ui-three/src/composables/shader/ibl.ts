@@ -58,29 +58,26 @@ if (uNprEnvMode == 2) {
 `
 
 // ===== Utility tools =====
-export type EnvMode = 'off' | 'skyBox' | 'hemisphere'
+export type EnvMode = 'hemisphere' | 'off' | 'skyBox'
 
 export const isShaderMat = (m: any): m is THREE.ShaderMaterial => !!m?.isShaderMaterial
 export const isRawShader = (m: any): m is THREE.RawShaderMaterial => !!m?.isRawShaderMaterial
 
-export function normalizeEnvMode(v?: string | null): EnvMode {
-  if (v === 'skyBox')
-    return 'skyBox'
-  if (v === 'hemisphere')
-    return 'hemisphere'
-  return 'off'
-}
+// ===== MToon LightProbe IBL =====
+export function createIblProbeController(scene: THREE.Scene) {
+  const probe = new THREE.LightProbe()
+  probe.name = 'AIRI_IBL_Probe'
+  scene.add(probe)
 
-// Turn SphericalHarmonics3 to vec3[9] uniforms
-function assignSHUniform(u: any, sh: THREE.SphericalHarmonics3 | null | undefined) {
-  if (!u?.uSHCoeffs || !u.uSHCoeffs.value || !Array.isArray(u.uSHCoeffs.value))
-    return
-  if (!sh)
-    return
-  for (let i = 0; i < 9; i++) {
-    u.uSHCoeffs.value[i] ||= new THREE.Vector3()
-    u.uSHCoeffs.value[i].copy(sh.coefficients[i])
+  function update(mode: EnvMode, intensity: number, sh?: null | THREE.SphericalHarmonics3) {
+    probe.intensity = (mode === 'skyBox') ? intensity : 0
+    if (sh)
+      probe.sh.copy(sh)
   }
+  function dispose() {
+    probe.parent?.remove(probe)
+  }
+  return { dispose, update }
 }
 
 // ===== Shader Material: IBL shader injection =====
@@ -133,10 +130,18 @@ export function injectDiffuseIBL(mat: THREE.ShaderMaterial) {
   mat.needsUpdate = true
 }
 
+export function normalizeEnvMode(v?: null | string): EnvMode {
+  if (v === 'skyBox')
+    return 'skyBox'
+  if (v === 'hemisphere')
+    return 'hemisphere'
+  return 'off'
+}
+
 // update shader settings
 export function updateNprShaderSetting(
   root: THREE.Object3D,
-  opts: { mode: EnvMode, intensity: number, sh?: THREE.SphericalHarmonics3 | null },
+  opts: { intensity: number, mode: EnvMode, sh?: null | THREE.SphericalHarmonics3 },
 ) {
   const shaderMode = opts.mode === 'skyBox' ? 2 : 0
   root.traverse((o) => {
@@ -154,19 +159,14 @@ export function updateNprShaderSetting(
   })
 }
 
-// ===== MToon LightProbe IBL =====
-export function createIblProbeController(scene: THREE.Scene) {
-  const probe = new THREE.LightProbe()
-  probe.name = 'AIRI_IBL_Probe'
-  scene.add(probe)
-
-  function update(mode: EnvMode, intensity: number, sh?: THREE.SphericalHarmonics3 | null) {
-    probe.intensity = (mode === 'skyBox') ? intensity : 0
-    if (sh)
-      probe.sh.copy(sh)
+// Turn SphericalHarmonics3 to vec3[9] uniforms
+function assignSHUniform(u: any, sh: null | THREE.SphericalHarmonics3 | undefined) {
+  if (!u?.uSHCoeffs || !u.uSHCoeffs.value || !Array.isArray(u.uSHCoeffs.value))
+    return
+  if (!sh)
+    return
+  for (let i = 0; i < 9; i++) {
+    u.uSHCoeffs.value[i] ||= new THREE.Vector3()
+    u.uSHCoeffs.value[i].copy(sh.coefficients[i])
   }
-  function dispose() {
-    probe.parent?.remove(probe)
-  }
-  return { update, dispose }
 }

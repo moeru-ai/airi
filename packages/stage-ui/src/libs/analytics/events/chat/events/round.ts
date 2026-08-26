@@ -9,21 +9,21 @@ interface ChatRoundProperties {
 export const messageRoundEvent = defineEvent<ChatRoundProperties & {
   duration_ms: number
   has_voice: boolean
-  model: string
   input_tokens?: number
+  model: string
   output_tokens?: number
   total_tokens?: number
-  usage_source?: 'reported' | 'estimated' | 'unavailable'
   trigger_method: 'text_input' | 'voice'
   trigger_type: 'user_flow_result'
+  usage_source?: 'estimated' | 'reported' | 'unavailable'
 }>('message_round')
 
 export const messageRoundFailedEvent = defineEvent<ChatRoundProperties & {
-  provider_id: string
-  model_id: string
-  source: 'text' | 'voice'
   error_code?: string
   failure_stage?: string
+  model_id: string
+  provider_id: string
+  source: 'text' | 'voice'
   trigger_method: 'text_input' | 'voice'
   trigger_type: 'user_flow_result'
 }>('message_round_failed')

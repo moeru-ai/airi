@@ -4,7 +4,7 @@ const websocketServerAddressPattern = /(?:WebSocket )?Server Address|(?:WebSocke
 
 export default defineStageTamagotchiScenario({
   id: 'settings-connection',
-  async run({ capture, stageWindows, controlsIsland, settingsWindow }) {
+  async run({ capture, controlsIsland, settingsWindow, stageWindows }) {
     const mainWindow = await stageWindows.waitFor('main')
     await controlsIsland.waitForReady(mainWindow.page)
 

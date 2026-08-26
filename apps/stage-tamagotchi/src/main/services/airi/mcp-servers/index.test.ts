@@ -48,11 +48,11 @@ vi.mock('@modelcontextprotocol/sdk/client/stdio.js', async () => {
 
   return {
     StdioClientTransport: class {
+      close = vi.fn(async () => undefined)
+
       stderr = new PassThrough()
 
       constructor(readonly server: unknown) {}
-
-      close = vi.fn(async () => undefined)
     },
   }
 })
@@ -76,10 +76,10 @@ describe('createMcpStdioManager', () => {
     })
 
     const result = await manager.testServer({
-      name: 'broken-server',
       config: {
         command: 'broken-mcp-server',
       },
+      name: 'broken-server',
     })
 
     expect(result.ok).toBe(false)

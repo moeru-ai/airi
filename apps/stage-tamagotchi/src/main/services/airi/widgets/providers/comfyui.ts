@@ -13,43 +13,37 @@ export class ComfyUIProvider implements ArtistryProvider {
   readonly id = 'comfyui'
   readonly name = 'ComfyUI (Local)'
 
-  private serverUrl = 'http://localhost:8188'
-  private savedWorkflows: any[] = []
   private activeWorkflowId = ''
-
-  private jobResults = new Map<string, ArtistryJobStatus>()
   private callbacks = new Map<string, (status: ArtistryJobStatus) => void>()
+  private jobResults = new Map<string, ArtistryJobStatus>()
 
-  private async fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 30000) {
-    const controller = new AbortController()
-    const id = setTimeout(() => controller.abort(), timeoutMs)
-    try {
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
+  private savedWorkflows: any[] = []
+  private serverUrl = 'http://localhost:8188'
+
+  async generate(request: ArtistryRequest): Promise<ArtistryJob> {
+    const jobId = request.extra?.internalJobId || Math.random().toString(36).slice(2)
+
+    // Resolve which workflow template to use --- per-request template override takes precedence over card model default
+    const templateId = request.extra?.template || request.model || this.activeWorkflowId
+    const template = this.savedWorkflows.find((w: any) => w.id === templateId)
+
+    if (!template) {
+      this.updateStatus(jobId, {
+        actionLabel: 'Error: No workflow configured',
+        error: 'No workflow template configured. Upload a workflow in Settings > Providers > ComfyUI.',
+        status: 'failed',
       })
-      clearTimeout(id)
-      return response
+      return { jobId, providerJobId: jobId }
     }
-    catch (error) {
-      clearTimeout(id)
-      throw error
-    }
+
+    // Start async generation
+    this.pollForResult(jobId, template, request)
+
+    return { jobId, providerJobId: jobId }
   }
 
-  setJobCallback(jobId: string, callback: (status: ArtistryJobStatus) => void) {
-    this.callbacks.set(jobId, callback)
-    // If we already have a result, fire it immediately
-    const result = this.jobResults.get(jobId)
-    if (result)
-      callback(result)
-  }
-
-  private updateStatus(jobId: string, status: ArtistryJobStatus) {
-    this.jobResults.set(jobId, status)
-    const callback = this.callbacks.get(jobId)
-    if (callback)
-      callback(status)
+  async getStatus(jobId: string): Promise<ArtistryJobStatus> {
+    return this.jobResults.get(jobId) || { status: 'queued' }
   }
 
   async initialize(config: any): Promise<void> {
@@ -61,195 +55,12 @@ export class ComfyUIProvider implements ArtistryProvider {
       this.activeWorkflowId = config.comfyuiActiveWorkflow
   }
 
-  async generate(request: ArtistryRequest): Promise<ArtistryJob> {
-    const jobId = request.extra?.internalJobId || Math.random().toString(36).slice(2)
-
-    // Resolve which workflow template to use --- per-request template override takes precedence over card model default
-    const templateId = request.extra?.template || request.model || this.activeWorkflowId
-    const template = this.savedWorkflows.find((w: any) => w.id === templateId)
-
-    if (!template) {
-      this.updateStatus(jobId, {
-        status: 'failed',
-        error: 'No workflow template configured. Upload a workflow in Settings > Providers > ComfyUI.',
-        actionLabel: 'Error: No workflow configured',
-      })
-      return { jobId, providerJobId: jobId }
-    }
-
-    // Start async generation
-    this.pollForResult(jobId, template, request)
-
-    return { jobId, providerJobId: jobId }
-  }
-
-  private async pollForResult(
-    jobId: string,
-    template: { workflow: Record<string, any>, exposedFields: Record<string, string[]> },
-    request: ArtistryRequest,
-  ) {
-    this.updateStatus(jobId, { status: 'running', actionLabel: 'Preparing workflow...' })
-
-    try {
-      // 0. Handle potential image and prompt upload bidirectional flow
-      const extraStr = JSON.stringify(request.extra || {})
-      const workflowStr = JSON.stringify(template.workflow || {})
-      const hasImagePlaceholder = extraStr.includes('{{IMAGE}}') || workflowStr.includes('{{IMAGE}}')
-      const hasPromptPlaceholder = extraStr.includes('{{PROMPT}}') || workflowStr.includes('{{PROMPT}}')
-
-      let uploadedImageName = ''
-      if (hasImagePlaceholder && request.extra?.image) {
-        log.log(`[ComfyUI] Bidirectional flow detected. Uploading texture for job ${jobId}...`)
-        this.updateStatus(jobId, { status: 'running', actionLabel: 'Uploading texture to ComfyUI...' })
-        try {
-          uploadedImageName = await this.uploadImage(request.extra.image)
-          log.log(`[ComfyUI] Texture uploaded as: ${uploadedImageName}`)
-        }
-        catch (e: any) {
-          log.error(`[ComfyUI] Texture upload failed: ${e.message}`)
-        }
-      }
-
-      // 1. Apply overrides to the workflow template (standard injection)
-      let resolvedPrompt = this.applyOverrides(template, request)
-
-      // 2. Perform final placeholder resolution across the ENTIRE resolved prompt
-      if (hasImagePlaceholder || hasPromptPlaceholder) {
-        log.log(`[ComfyUI] Performing final placeholder resolution for ${jobId}...`)
-        const replacements: Record<string, string> = {
-          '{{PROMPT}}': request.prompt || '',
-        }
-        if (uploadedImageName) {
-          replacements['{{IMAGE}}'] = uploadedImageName
-        }
-
-        resolvedPrompt = this.replacePlaceholders(resolvedPrompt, replacements)
-      }
-
-      log.log(`[ComfyUI] Resolved prompt for ${jobId}:`, JSON.stringify(resolvedPrompt, null, 2))
-
-      // 2. POST /prompt to queue the workflow
-      this.updateStatus(jobId, { status: 'running', actionLabel: 'Queuing in ComfyUI...' })
-
-      let queueResp: Response
-      try {
-        queueResp = await this.fetchWithTimeout(`${this.serverUrl}/prompt`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: resolvedPrompt }),
-        }, 15000)
-      }
-      catch (e: any) {
-        throw new Error(`Cannot connect to ComfyUI at ${this.serverUrl}: ${e.message}`)
-      }
-
-      if (!queueResp.ok) {
-        const errorBody = await queueResp.text()
-        throw new Error(`Workflow error: ${errorBody.slice(0, 200)}`)
-      }
-
-      const queueData = await queueResp.json()
-      const promptId = queueData.prompt_id
-      if (!promptId) {
-        throw new Error('ComfyUI returned no prompt_id')
-      }
-
-      log.log(`[ComfyUI] Queued prompt ${promptId} for job ${jobId}`)
-      this.updateStatus(jobId, { status: 'running', actionLabel: 'Generating...' })
-
-      // 3. Poll /history/{prompt_id} until completion
-      let historyDone = false
-      let attempt = 0
-      const startTime = Date.now()
-
-      while (!historyDone) {
-        await new Promise(r => setTimeout(r, POLL_INTERVAL_MS))
-        attempt++
-
-        if (Date.now() - startTime > POLL_TIMEOUT_MS) {
-          throw new Error('Generation timed out after 5 minutes')
-        }
-
-        if (attempt % 3 === 0) {
-          log.log(`[ComfyUI] Polling history for ${promptId}... attempt ${attempt}`)
-        }
-
-        let histResp: Response
-        try {
-          histResp = await this.fetchWithTimeout(`${this.serverUrl}/history/${promptId}`, {}, 10000)
-        }
-        catch (e: any) {
-          throw new Error(`ComfyUI disconnected during polling: ${e.message}`)
-        }
-
-        if (histResp.ok) {
-          const histData = await histResp.json()
-          if (histData[promptId]) {
-            let outputs = histData[promptId].outputs
-            const stats = histData[promptId].status
-
-            // 3.1. Race condition protection: If outputs are missing, wait a beat and retry once
-            if ((!outputs || Object.keys(outputs).length === 0) && !historyDone) {
-              log.warn(`[ComfyUI] Job ${jobId} finished but outputs are empty. Retrying history in 1s...`)
-              await new Promise(r => setTimeout(r, 1000))
-              const retryResp = await this.fetchWithTimeout(`${this.serverUrl}/history/${promptId}`, {}, 10000)
-              if (retryResp.ok) {
-                const retryData = await retryResp.json()
-                if (retryData[promptId] && retryData[promptId].outputs) {
-                  log.log(`[ComfyUI] Retry successful for ${jobId}. Managed to find outputs!`)
-                  outputs = retryData[promptId].outputs
-                }
-              }
-            }
-
-            // Log raw history if no images found or if there are status messages
-            if (stats?.messages && stats.messages.length > 0) {
-              log.warn(`[ComfyUI] History messages for ${promptId}:`, stats.messages)
-            }
-
-            // Find first image in any node's output
-            for (const nodeId in outputs) {
-              const nodeOutput = outputs[nodeId]
-              if (nodeOutput.images && nodeOutput.images.length > 0) {
-                const img = nodeOutput.images[0]
-                const imageUrl = `${this.serverUrl}/view?filename=${encodeURIComponent(img.filename)}&subfolder=${encodeURIComponent(img.subfolder || '')}&type=${encodeURIComponent(img.type || 'output')}`
-                log.log(`[ComfyUI] Generation complete for job ${jobId}. Image: ${imageUrl}`)
-                this.updateStatus(jobId, { status: 'succeeded', progress: 100, imageUrl })
-                historyDone = true
-                break
-              }
-            }
-
-            // Job finished but no images
-            if (!historyDone) {
-              log.error(`[ComfyUI] Job finished for ${jobId} (Prompt ${promptId}) but no output images found. Raw History:`, JSON.stringify(histData[promptId], null, 2))
-              this.updateStatus(jobId, {
-                status: 'failed',
-                error: 'Job completed but no images were generated',
-                actionLabel: 'Error: No images generated',
-              })
-              historyDone = true
-            }
-          }
-        }
-      }
-    }
-    catch (error: any) {
-      const errorMessage = error.message || String(error)
-      log.error(`[ComfyUI] Generation failed for job ${jobId}: ${errorMessage}`)
-      this.updateStatus(jobId, {
-        status: 'failed',
-        error: errorMessage,
-        actionLabel: `Error: ${errorMessage.slice(0, 50)}${errorMessage.length > 50 ? '...' : ''}`,
-      })
-    }
-    finally {
-      // Clean up callback and job result after completion to prevent memory leaks
-      setTimeout(() => {
-        this.callbacks.delete(jobId)
-        this.jobResults.delete(jobId)
-      }, 10000)
-    }
+  setJobCallback(jobId: string, callback: (status: ArtistryJobStatus) => void) {
+    this.callbacks.set(jobId, callback)
+    // If we already have a result, fire it immediately
+    const result = this.jobResults.get(jobId)
+    if (result)
+      callback(result)
   }
 
   /**
@@ -258,7 +69,7 @@ export class ComfyUIProvider implements ArtistryProvider {
    * Mirrors the logic from CUIPP's getComfyTemplate.js.
    */
   private applyOverrides(
-    template: { workflow: Record<string, any>, exposedFields: Record<string, string[]> },
+    template: { exposedFields: Record<string, string[]>, workflow: Record<string, any> },
     request: ArtistryRequest,
   ): Record<string, any> {
     // Deep clone the workflow so we don't mutate the stored template
@@ -338,36 +149,190 @@ export class ComfyUIProvider implements ArtistryProvider {
     return prompt
   }
 
-  async getStatus(jobId: string): Promise<ArtistryJobStatus> {
-    return this.jobResults.get(jobId) || { status: 'queued' }
+  private async fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 30000) {
+    const controller = new AbortController()
+    const id = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      })
+      clearTimeout(id)
+      return response
+    }
+    catch (error) {
+      clearTimeout(id)
+      throw error
+    }
   }
 
-  private async uploadImage(base64Data: string): Promise<string> {
-    // 1. Clean data URL prefix if present
-    const base64 = base64Data.replace(/^data:image\/\w+;base64,/, '')
-    const buffer = Buffer.from(base64, 'base64')
+  private async pollForResult(
+    jobId: string,
+    template: { exposedFields: Record<string, string[]>, workflow: Record<string, any> },
+    request: ArtistryRequest,
+  ) {
+    this.updateStatus(jobId, { actionLabel: 'Preparing workflow...', status: 'running' })
 
-    // 2. Prepare multipart form data
-    const formData = new FormData()
-    const fileName = `vhack_${Date.now()}.png`
+    try {
+      // 0. Handle potential image and prompt upload bidirectional flow
+      const extraStr = JSON.stringify(request.extra || {})
+      const workflowStr = JSON.stringify(template.workflow || {})
+      const hasImagePlaceholder = extraStr.includes('{{IMAGE}}') || workflowStr.includes('{{IMAGE}}')
+      const hasPromptPlaceholder = extraStr.includes('{{PROMPT}}') || workflowStr.includes('{{PROMPT}}')
 
-    // Electron/Node 18+ fetch handles Blobs in FormData
-    const blob = new Blob([buffer], { type: 'image/png' })
-    formData.append('image', blob, fileName)
-    formData.append('overwrite', 'true')
+      let uploadedImageName = ''
+      if (hasImagePlaceholder && request.extra?.image) {
+        log.log(`[ComfyUI] Bidirectional flow detected. Uploading texture for job ${jobId}...`)
+        this.updateStatus(jobId, { actionLabel: 'Uploading texture to ComfyUI...', status: 'running' })
+        try {
+          uploadedImageName = await this.uploadImage(request.extra.image)
+          log.log(`[ComfyUI] Texture uploaded as: ${uploadedImageName}`)
+        }
+        catch (e: any) {
+          log.error(`[ComfyUI] Texture upload failed: ${e.message}`)
+        }
+      }
 
-    const response = await this.fetchWithTimeout(`${this.serverUrl}/upload/image`, {
-      method: 'POST',
-      body: formData,
-    }, 60000) // 1 minute timeout for uploads
+      // 1. Apply overrides to the workflow template (standard injection)
+      let resolvedPrompt = this.applyOverrides(template, request)
 
-    if (!response.ok) {
-      const error = await response.text()
-      throw new Error(`ComfyUI upload failed: ${error}`)
+      // 2. Perform final placeholder resolution across the ENTIRE resolved prompt
+      if (hasImagePlaceholder || hasPromptPlaceholder) {
+        log.log(`[ComfyUI] Performing final placeholder resolution for ${jobId}...`)
+        const replacements: Record<string, string> = {
+          '{{PROMPT}}': request.prompt || '',
+        }
+        if (uploadedImageName) {
+          replacements['{{IMAGE}}'] = uploadedImageName
+        }
+
+        resolvedPrompt = this.replacePlaceholders(resolvedPrompt, replacements)
+      }
+
+      log.log(`[ComfyUI] Resolved prompt for ${jobId}:`, JSON.stringify(resolvedPrompt, null, 2))
+
+      // 2. POST /prompt to queue the workflow
+      this.updateStatus(jobId, { actionLabel: 'Queuing in ComfyUI...', status: 'running' })
+
+      let queueResp: Response
+      try {
+        queueResp = await this.fetchWithTimeout(`${this.serverUrl}/prompt`, {
+          body: JSON.stringify({ prompt: resolvedPrompt }),
+          headers: { 'Content-Type': 'application/json' },
+          method: 'POST',
+        }, 15000)
+      }
+      catch (e: any) {
+        throw new Error(`Cannot connect to ComfyUI at ${this.serverUrl}: ${e.message}`)
+      }
+
+      if (!queueResp.ok) {
+        const errorBody = await queueResp.text()
+        throw new Error(`Workflow error: ${errorBody.slice(0, 200)}`)
+      }
+
+      const queueData = await queueResp.json()
+      const promptId = queueData.prompt_id
+      if (!promptId) {
+        throw new Error('ComfyUI returned no prompt_id')
+      }
+
+      log.log(`[ComfyUI] Queued prompt ${promptId} for job ${jobId}`)
+      this.updateStatus(jobId, { actionLabel: 'Generating...', status: 'running' })
+
+      // 3. Poll /history/{prompt_id} until completion
+      let historyDone = false
+      let attempt = 0
+      const startTime = Date.now()
+
+      while (!historyDone) {
+        await new Promise(r => setTimeout(r, POLL_INTERVAL_MS))
+        attempt++
+
+        if (Date.now() - startTime > POLL_TIMEOUT_MS) {
+          throw new Error('Generation timed out after 5 minutes')
+        }
+
+        if (attempt % 3 === 0) {
+          log.log(`[ComfyUI] Polling history for ${promptId}... attempt ${attempt}`)
+        }
+
+        let histResp: Response
+        try {
+          histResp = await this.fetchWithTimeout(`${this.serverUrl}/history/${promptId}`, {}, 10000)
+        }
+        catch (e: any) {
+          throw new Error(`ComfyUI disconnected during polling: ${e.message}`)
+        }
+
+        if (histResp.ok) {
+          const histData = await histResp.json()
+          if (histData[promptId]) {
+            let outputs = histData[promptId].outputs
+            const stats = histData[promptId].status
+
+            // 3.1. Race condition protection: If outputs are missing, wait a beat and retry once
+            if ((!outputs || Object.keys(outputs).length === 0) && !historyDone) {
+              log.warn(`[ComfyUI] Job ${jobId} finished but outputs are empty. Retrying history in 1s...`)
+              await new Promise(r => setTimeout(r, 1000))
+              const retryResp = await this.fetchWithTimeout(`${this.serverUrl}/history/${promptId}`, {}, 10000)
+              if (retryResp.ok) {
+                const retryData = await retryResp.json()
+                if (retryData[promptId] && retryData[promptId].outputs) {
+                  log.log(`[ComfyUI] Retry successful for ${jobId}. Managed to find outputs!`)
+                  outputs = retryData[promptId].outputs
+                }
+              }
+            }
+
+            // Log raw history if no images found or if there are status messages
+            if (stats?.messages && stats.messages.length > 0) {
+              log.warn(`[ComfyUI] History messages for ${promptId}:`, stats.messages)
+            }
+
+            // Find first image in any node's output
+            for (const nodeId in outputs) {
+              const nodeOutput = outputs[nodeId]
+              if (nodeOutput.images && nodeOutput.images.length > 0) {
+                const img = nodeOutput.images[0]
+                const imageUrl = `${this.serverUrl}/view?filename=${encodeURIComponent(img.filename)}&subfolder=${encodeURIComponent(img.subfolder || '')}&type=${encodeURIComponent(img.type || 'output')}`
+                log.log(`[ComfyUI] Generation complete for job ${jobId}. Image: ${imageUrl}`)
+                this.updateStatus(jobId, { imageUrl, progress: 100, status: 'succeeded' })
+                historyDone = true
+                break
+              }
+            }
+
+            // Job finished but no images
+            if (!historyDone) {
+              log.error(`[ComfyUI] Job finished for ${jobId} (Prompt ${promptId}) but no output images found. Raw History:`, JSON.stringify(histData[promptId], null, 2))
+              this.updateStatus(jobId, {
+                actionLabel: 'Error: No images generated',
+                error: 'Job completed but no images were generated',
+                status: 'failed',
+              })
+              historyDone = true
+            }
+          }
+        }
+      }
     }
-
-    const data = await response.json()
-    return data.name // Returns the filename in ComfyUI's input folder
+    catch (error: any) {
+      const errorMessage = error.message || String(error)
+      log.error(`[ComfyUI] Generation failed for job ${jobId}: ${errorMessage}`)
+      this.updateStatus(jobId, {
+        actionLabel: `Error: ${errorMessage.slice(0, 50)}${errorMessage.length > 50 ? '...' : ''}`,
+        error: errorMessage,
+        status: 'failed',
+      })
+    }
+    finally {
+      // Clean up callback and job result after completion to prevent memory leaks
+      setTimeout(() => {
+        this.callbacks.delete(jobId)
+        this.jobResults.delete(jobId)
+      }, 10000)
+    }
   }
 
   private replacePlaceholders(obj: any, replacements: Record<string, string>): any {
@@ -390,5 +355,40 @@ export class ComfyUIProvider implements ArtistryProvider {
       return newObj
     }
     return obj
+  }
+
+  private updateStatus(jobId: string, status: ArtistryJobStatus) {
+    this.jobResults.set(jobId, status)
+    const callback = this.callbacks.get(jobId)
+    if (callback)
+      callback(status)
+  }
+
+  private async uploadImage(base64Data: string): Promise<string> {
+    // 1. Clean data URL prefix if present
+    const base64 = base64Data.replace(/^data:image\/\w+;base64,/, '')
+    const buffer = Buffer.from(base64, 'base64')
+
+    // 2. Prepare multipart form data
+    const formData = new FormData()
+    const fileName = `vhack_${Date.now()}.png`
+
+    // Electron/Node 18+ fetch handles Blobs in FormData
+    const blob = new Blob([buffer], { type: 'image/png' })
+    formData.append('image', blob, fileName)
+    formData.append('overwrite', 'true')
+
+    const response = await this.fetchWithTimeout(`${this.serverUrl}/upload/image`, {
+      body: formData,
+      method: 'POST',
+    }, 60000) // 1 minute timeout for uploads
+
+    if (!response.ok) {
+      const error = await response.text()
+      throw new Error(`ComfyUI upload failed: ${error}`)
+    }
+
+    const data = await response.json()
+    return data.name // Returns the filename in ComfyUI's input folder
   }
 }

@@ -251,7 +251,7 @@ Push an episodic alert to AIRI. Use for significant, non-routine events only.
 if (self.health <= 4) {
   // eslint-disable-next-line no-restricted-globals
   notifyAiri('Under attack and low health', `Health: ${self.health}. Retreating.`, 'immediate')
-  await goToCoordinate({ x: mem.safeSpot.x, y: mem.safeSpot.y, z: mem.safeSpot.z, closeness: 2 })
+  await goToCoordinate({ closeness: 2, x: mem.safeSpot.x, y: mem.safeSpot.y, z: mem.safeSpot.z })
 }
 
 // Example — task blocked

@@ -13,8 +13,8 @@ export const useDiscordStore = defineStore('discord', () => {
     // Data is automatically saved to localStorage via useLocalStorage
     // Also broadcast configuration to backend
     configurator.updateFor('discord', {
-      token: token.value,
       enabled: enabled.value,
+      token: token.value,
     })
   }
 
@@ -29,10 +29,10 @@ export const useDiscordStore = defineStore('discord', () => {
   }
 
   return {
-    enabled,
-    token,
     configured,
-    saveSettings,
+    enabled,
     resetState,
+    saveSettings,
+    token,
   }
 })

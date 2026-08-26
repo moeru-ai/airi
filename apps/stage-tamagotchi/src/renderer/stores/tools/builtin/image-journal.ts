@@ -12,6 +12,8 @@ import { rawTool } from '@xsai/tool'
 
 import { widgetsAdd } from '../../../../shared/eventa'
 
+type Invokers = ReturnType<typeof createInvokers>
+
 export function getArtistryConfig(): ResolvedArtistryConfig {
   return resolveArtistryConfigFromStore(useArtistryStore())
 }
@@ -19,12 +21,10 @@ export function getArtistryConfig(): ResolvedArtistryConfig {
 function createInvokers() {
   const { context } = createContext(window.electron.ipcRenderer)
   return {
-    generateHeadless: defineInvoke(context, artistryGenerateHeadless),
     addWidget: defineInvoke(context, widgetsAdd),
+    generateHeadless: defineInvoke(context, artistryGenerateHeadless),
   }
 }
-
-type Invokers = ReturnType<typeof createInvokers>
 let invokeCache: Invokers | undefined
 
 function getInvokers(): Invokers {
@@ -34,29 +34,29 @@ function getInvokers(): Invokers {
 }
 
 const imageJournalParams = {
-  type: 'object',
+  additionalProperties: false,
   properties: {
     action: {
-      type: 'string',
-      enum: ['create', 'apply'],
       description: 'Choose "create" to generate a new image, or "apply" to use an existing one.',
-    },
-    prompt: {
-      type: ['string', 'null'],
-      description: 'Description for the image (required for "create").',
-    },
-    title: {
-      type: ['string', 'null'],
-      description: 'Label for the entry (optional).',
-    },
-    query: {
-      type: ['string', 'null'],
-      description: 'Search term for existing images (required for "apply").',
+      enum: ['create', 'apply'],
+      type: 'string',
     },
     mode: {
-      type: ['string', 'null'],
-      enum: ['inline', 'widget', 'bg', 'bg_widget', null],
       description: 'Display mode: "inline" (in chat), "widget" (overlay), "bg" (environment), or "bg_widget" (both). Defaults to character preference.',
+      enum: ['inline', 'widget', 'bg', 'bg_widget', null],
+      type: ['string', 'null'],
+    },
+    prompt: {
+      description: 'Description for the image (required for "create").',
+      type: ['string', 'null'],
+    },
+    query: {
+      description: 'Search term for existing images (required for "apply").',
+      type: ['string', 'null'],
+    },
+    title: {
+      description: 'Label for the entry (optional).',
+      type: ['string', 'null'],
     },
   },
   required: [
@@ -66,10 +66,10 @@ const imageJournalParams = {
     'query',
     'mode',
   ],
-  additionalProperties: false,
+  type: 'object',
 } satisfies JsonSchema
 
-async function executeCreateImageJournalEntry(params: { prompt?: string, title?: string, mode?: 'inline' | 'widget' | 'bg' | 'bg_widget' }) {
+async function executeCreateImageJournalEntry(params: { mode?: 'bg' | 'bg_widget' | 'inline' | 'widget', prompt?: string, title?: string }) {
   if (!params.prompt?.trim())
     throw new Error('prompt is required for image_journal.create')
 
@@ -81,11 +81,11 @@ async function executeCreateImageJournalEntry(params: { prompt?: string, title?:
   const airiExt = activeCard?.extensions?.airi
   const cardArtistry = airiExt?.modules?.artistry
   const artistryConfig = {
-    provider: cardArtistry?.provider || globalArtistryConfig.provider,
-    model: cardArtistry?.model || globalArtistryConfig.model,
-    promptPrefix: cardArtistry?.promptPrefix || globalArtistryConfig.promptPrefix,
-    options: cardArtistry?.options || globalArtistryConfig.options,
     globals: globalArtistryConfig.globals,
+    model: cardArtistry?.model || globalArtistryConfig.model,
+    options: cardArtistry?.options || globalArtistryConfig.options,
+    promptPrefix: cardArtistry?.promptPrefix || globalArtistryConfig.promptPrefix,
+    provider: cardArtistry?.provider || globalArtistryConfig.provider,
   }
 
   const title = params.title || `Generation ${new Date().toLocaleString()}`
@@ -98,11 +98,11 @@ async function executeCreateImageJournalEntry(params: { prompt?: string, title?:
 
   try {
     const artistryResult = await generateHeadless({
-      prompt: artistryConfig.promptPrefix ? `${artistryConfig.promptPrefix} ${params.prompt}` : params.prompt as string,
-      model: artistryConfig.model as string,
-      provider: artistryConfig.provider as string,
-      options: JSON.parse(JSON.stringify(artistryConfig.options || {})),
       globals: JSON.parse(JSON.stringify(artistryConfig.globals || {})),
+      model: artistryConfig.model as string,
+      options: JSON.parse(JSON.stringify(artistryConfig.options || {})),
+      prompt: artistryConfig.promptPrefix ? `${artistryConfig.promptPrefix} ${params.prompt}` : params.prompt as string,
+      provider: artistryConfig.provider as string,
     })
 
     if (artistryResult.error || (!artistryResult.base64 && !artistryResult.imageUrl)) {
@@ -143,12 +143,12 @@ async function executeCreateImageJournalEntry(params: { prompt?: string, title?:
         await addWidget({
           componentName: 'artistry',
           componentProps: {
-            status: 'done',
+            _skipIngestion: true,
             entryId,
             imageUrl: artistryResult.imageUrl || artistryResult.base64,
             prompt: params.prompt as string,
+            status: 'done',
             title,
-            _skipIngestion: true,
           },
           size: 'm',
           ttlMs: 0,
@@ -161,18 +161,26 @@ async function executeCreateImageJournalEntry(params: { prompt?: string, title?:
 
     // Return structured result for UI rendering
     return JSON.stringify({
-      message: `Image created in ${mode} mode${mode === 'bg' || mode === 'bg_widget' ? ' and set as background' : ''}.`,
       entryId,
       imageUrl: artistryResult.imageUrl || artistryResult.base64,
-      title,
-      prompt: params.prompt,
+      message: `Image created in ${mode} mode${mode === 'bg' || mode === 'bg_widget' ? ' and set as background' : ''}.`,
       mode,
+      prompt: params.prompt,
+      title,
     })
   }
   catch (e) {
     console.error('[ImageJournalTool] Failed to create entry', e)
     return `Error: ${errorMessageFromValue(e)}`
   }
+}
+
+async function executeImageJournalAction(params: any) {
+  if (params.action === 'create')
+    return await executeCreateImageJournalEntry(params)
+  if (params.action === 'apply' || params.action === 'set_as_background')
+    return await executeSetAsBackground(params)
+  return 'No action performed.'
 }
 
 async function executeSetAsBackground(params: { query?: string }) {
@@ -218,19 +226,11 @@ async function executeSetAsBackground(params: { query?: string }) {
   return `No match for "${params.query}".${available.length > 0 ? ` Try: ${available.join(', ')}` : ''}`
 }
 
-async function executeImageJournalAction(params: any) {
-  if (params.action === 'create')
-    return await executeCreateImageJournalEntry(params)
-  if (params.action === 'apply' || params.action === 'set_as_background')
-    return await executeSetAsBackground(params)
-  return 'No action performed.'
-}
-
 const tools: Promise<Tool>[] = [
   Promise.resolve(rawTool({
-    name: 'image_journal',
     description: 'Manage AI-generated images. Use "create" to generate and display images. An optional "mode" (inline, widget, bg, bg_widget) can override the default character routing preference. Use "apply" to switch to an existing image from the journal.',
     execute: params => executeImageJournalAction(params),
+    name: 'image_journal',
     parameters: imageJournalParams,
   })),
 ]

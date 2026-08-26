@@ -4,14 +4,6 @@ import { dirname, resolve } from 'node:path'
 import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
-export interface BrowserAgentTaskInput {
-  instruction: string
-  agent?: 'google' | 'kimi'
-  cdpUrl?: string
-  maxTurns?: number
-  timeoutMs?: number
-}
-
 export interface BrowserAgentLaunchContext {
   cdpUrl: string
   cliCwd: string
@@ -20,44 +12,31 @@ export interface BrowserAgentLaunchContext {
   rootExists: boolean
 }
 
-export interface BrowserAgentTaskResult {
-  success: boolean
+export interface BrowserAgentTaskInput {
+  agent?: 'google' | 'kimi'
+  cdpUrl?: string
   instruction: string
+  maxTurns?: number
+  timeoutMs?: number
+}
+
+export interface BrowserAgentTaskResult {
   agent: 'google' | 'kimi'
   cdpUrl: string
   cliCwd: string
   cliModule: string
-  pythonCommand: string
-  exitCode: number | null
-  timedOut: boolean
-  stderrLines: string[]
+  exitCode: null | number
+  instruction: string
   payload?: Record<string, unknown>
+  pythonCommand: string
+  stderrLines: string[]
+  success: boolean
+  timedOut: boolean
 }
 
 const computerUseRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../bin/computer_use')
 const cliModule = 'google_computer_use.cli'
 const CRLF_SPLIT_RE = /\r?\n/u
-
-function trimNonEmptyLines(text: string) {
-  return text
-    .split(CRLF_SPLIT_RE)
-    .map(line => line.trim())
-    .filter(Boolean)
-}
-
-function resolvePythonCommand(root: string) {
-  const configured = env.COMPUTER_USE_PYTHON?.trim()
-  if (configured) {
-    return configured
-  }
-
-  const venvPython = resolve(root, '.venv', 'bin', 'python')
-  if (existsSync(venvPython)) {
-    return venvPython
-  }
-
-  return 'python3'
-}
 
 export function getBrowserAgentLaunchContext(overrides?: {
   cdpUrl?: string
@@ -164,27 +143,48 @@ export async function runBrowserAgentTask(input: BrowserAgentTaskInput): Promise
         }
 
         resolvePromise({
-          success: Boolean(payload?.success),
-          instruction,
           agent,
           cdpUrl: launchContext.cdpUrl,
           cliCwd: launchContext.cliCwd,
           cliModule: launchContext.cliModule,
-          pythonCommand: launchContext.pythonCommand,
           exitCode: code,
-          timedOut,
-          stderrLines,
+          instruction,
           payload,
+          pythonCommand: launchContext.pythonCommand,
+          stderrLines,
+          success: Boolean(payload?.success),
+          timedOut,
         })
       })
     })
 
     child.stdin.write(`${JSON.stringify({
-      instruction,
       agent,
       cdp_url: launchContext.cdpUrl,
+      instruction,
       max_turns: maxTurns,
     })}\n`)
     child.stdin.end()
   })
+}
+
+function resolvePythonCommand(root: string) {
+  const configured = env.COMPUTER_USE_PYTHON?.trim()
+  if (configured) {
+    return configured
+  }
+
+  const venvPython = resolve(root, '.venv', 'bin', 'python')
+  if (existsSync(venvPython)) {
+    return venvPython
+  }
+
+  return 'python3'
+}
+
+function trimNonEmptyLines(text: string) {
+  return text
+    .split(CRLF_SPLIT_RE)
+    .map(line => line.trim())
+    .filter(Boolean)
 }

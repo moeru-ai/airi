@@ -1,31 +1,25 @@
 export interface StreamController<T> {
-  stream: ReadableStream<T>
-  write: (value: T) => void
   close: () => void
   error: (err: unknown) => void
   isClosed: () => boolean
+  stream: ReadableStream<T>
+  write: (value: T) => void
 }
 
 export function createPushStream<T>(): StreamController<T> {
   let closed = false
-  let controller: ReadableStreamDefaultController<T> | null = null
+  let controller: null | ReadableStreamDefaultController<T> = null
 
   const stream = new ReadableStream<T>({
-    start(ctrl) {
-      controller = ctrl
-    },
     cancel() {
       closed = true
+    },
+    start(ctrl) {
+      controller = ctrl
     },
   })
 
   return {
-    stream,
-    write(value) {
-      if (!controller || closed)
-        return
-      controller.enqueue(value)
-    },
     close() {
       if (!controller || closed)
         return
@@ -41,6 +35,12 @@ export function createPushStream<T>(): StreamController<T> {
     isClosed() {
       return closed
     },
+    stream,
+    write(value) {
+      if (!controller || closed)
+        return
+      controller.enqueue(value)
+    },
   }
 }
 
@@ -48,7 +48,7 @@ export async function readStream<T>(stream: ReadableStream<T>, handler: (value: 
   const reader = stream.getReader()
   try {
     while (true) {
-      const { value, done } = await reader.read()
+      const { done, value } = await reader.read()
       if (done)
         break
 

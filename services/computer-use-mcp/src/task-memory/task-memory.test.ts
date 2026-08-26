@@ -53,7 +53,7 @@ describe('isTaskMemoryVisible', () => {
 describe('mergeTaskMemory', () => {
   it('should overwrite scalar fields when provided', () => {
     const base = createEmptyTaskMemory('t-1')
-    const ext: TaskMemoryExtraction = { goal: 'Deploy app', status: 'active', currentStep: 'building' }
+    const ext: TaskMemoryExtraction = { currentStep: 'building', goal: 'Deploy app', status: 'active' }
     const merged = mergeTaskMemory({ existing: base, extraction: ext, sourceTurnId: 't-2' })
 
     expect(merged.goal).toBe('Deploy app')
@@ -96,12 +96,12 @@ describe('mergeTaskMemory', () => {
 
   it('should deduplicate artifacts by value+kind', () => {
     const base = createEmptyTaskMemory('t-1')
-    base.artifacts = [{ label: 'config', value: '/etc/config.json', kind: 'file' }]
+    base.artifacts = [{ kind: 'file', label: 'config', value: '/etc/config.json' }]
 
     const ext: TaskMemoryExtraction = {
       artifacts: [
-        { label: 'config path', value: '/etc/config.json', kind: 'file' },
-        { label: 'docs', value: 'https://docs.com', kind: 'url' },
+        { kind: 'file', label: 'config path', value: '/etc/config.json' },
+        { kind: 'url', label: 'docs', value: 'https://docs.com' },
       ],
     }
     const merged = mergeTaskMemory({ existing: base, extraction: ext, sourceTurnId: 't-2' })
@@ -136,7 +136,7 @@ describe('mergeTaskMemory', () => {
     base.confirmedFacts = ['old fact']
     base.status = 'done'
 
-    const ext: TaskMemoryExtraction = { newTask: true, goal: 'New goal', status: 'active' }
+    const ext: TaskMemoryExtraction = { goal: 'New goal', newTask: true, status: 'active' }
     const merged = mergeTaskMemory({ existing: base, extraction: ext, sourceTurnId: 't-2' })
     expect(merged.goal).toBe('New goal')
     expect(merged.status).toBe('active')
@@ -181,7 +181,7 @@ describe('taskMemoryManager', () => {
 
   it('should accumulate facts across updates', () => {
     const mgr = new TaskMemoryManager()
-    mgr.update({ goal: 'Test', confirmedFacts: ['A'] }, { sourceTurnId: 'turn-1', sourceTurnIndex: 1 })
+    mgr.update({ confirmedFacts: ['A'], goal: 'Test' }, { sourceTurnId: 'turn-1', sourceTurnIndex: 1 })
     mgr.update({ confirmedFacts: ['B'] }, { sourceTurnId: 'turn-2', sourceTurnIndex: 2 })
     expect(mgr.get()!.confirmedFacts).toEqual(['A', 'B'])
   })
@@ -195,7 +195,7 @@ describe('taskMemoryManager', () => {
 
   it('should produce a context string with content', () => {
     const mgr = new TaskMemoryManager()
-    mgr.update({ goal: 'Deploy', status: 'active', currentStep: 'building' }, { sourceTurnId: 'turn-1', sourceTurnIndex: 1 })
+    mgr.update({ currentStep: 'building', goal: 'Deploy', status: 'active' }, { sourceTurnId: 'turn-1', sourceTurnIndex: 1 })
     const ctx = mgr.toContextString()
     expect(ctx).toContain('Deploy')
     expect(ctx).toContain('active')

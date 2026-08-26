@@ -9,24 +9,24 @@ describe('promo banner visuals', () => {
   it('defines concrete actions for every promo banner item', () => {
     expect(promoBannerVisuals).toMatchObject([
       {
-        key: 'signin',
         action: { type: 'login' },
+        key: 'signin',
       },
       {
+        action: { to: '/settings/modules/consciousness', type: 'route' },
         key: 'build',
-        action: { type: 'route', to: '/settings/modules/consciousness' },
       },
       {
+        action: { to: '/settings/flux', type: 'route' },
         key: 'spring',
-        action: { type: 'route', to: '/settings/flux' },
       },
       {
+        action: { to: '/settings/flux', type: 'route' },
         key: 'coupon',
-        action: { type: 'route', to: '/settings/flux' },
       },
       {
+        action: { to: '/settings/scene', type: 'route' },
         key: 'home',
-        action: { type: 'route', to: '/settings/scene' },
       },
     ])
   })

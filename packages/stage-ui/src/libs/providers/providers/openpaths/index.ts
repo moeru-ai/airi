@@ -17,30 +17,30 @@ const openPathsConfigSchema = z.object({
 type OpenPathsConfig = z.input<typeof openPathsConfigSchema>
 
 export const providerOpenPaths = defineProvider<OpenPathsConfig>({
-  id: 'openpaths',
-  name: 'OpenPaths',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.openpaths.title'),
-  description: 'openpaths.io',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.openpaths.description'),
-  tasks: ['chat'],
-  icon: 'i-lobe-icons:openai',
-
+  createProvider(config) {
+    return createOpenAI(config.apiKey, config.baseUrl)
+  },
   createProviderConfig: ({ t }) => openPathsConfigSchema.extend({
     apiKey: openPathsConfigSchema.shape.apiKey.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
       type: 'password',
     }),
     baseUrl: openPathsConfigSchema.shape.baseUrl.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
     }),
   }),
-  createProvider(config) {
-    return createOpenAI(config.apiKey, config.baseUrl)
-  },
+  description: 'openpaths.io',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.openpaths.description'),
+  icon: 'i-lobe-icons:openai',
+  id: 'openpaths',
+  name: 'OpenPaths',
+
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.openpaths.title'),
+  tasks: ['chat'],
 
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()

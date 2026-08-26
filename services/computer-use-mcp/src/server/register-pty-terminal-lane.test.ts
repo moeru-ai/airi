@@ -45,11 +45,9 @@ function createMockServer() {
   const handlers = new Map<string, ToolHandler>()
 
   return {
-    server: {
-      tool(name: string, _schema: unknown, handler: ToolHandler) {
-        handlers.set(name, handler)
-      },
-    } as unknown as McpServer,
+    hasHandler(name: string) {
+      return handlers.has(name)
+    },
     async invoke(name: string, args: Record<string, unknown> = {}) {
       const handler = handlers.get(name)
       if (!handler) {
@@ -58,9 +56,11 @@ function createMockServer() {
 
       return await handler(args)
     },
-    hasHandler(name: string) {
-      return handlers.has(name)
-    },
+    server: {
+      tool(name: string, _schema: unknown, handler: ToolHandler) {
+        handlers.set(name, handler)
+      },
+    } as unknown as McpServer,
   }
 }
 
@@ -72,16 +72,16 @@ describe('register-pty: terminal lane', () => {
     pendingActions = []
     runtime = {
       config: createTestConfig({ approvalMode: 'never' }),
-      stateManager: new RunStateManager(),
       session: {
         createPendingAction: vi.fn((record: Record<string, unknown>) => {
-          const pending = { ...record, id: `pending_${pendingActions.length + 1}`, createdAt: new Date().toISOString() }
+          const pending = { ...record, createdAt: new Date().toISOString(), id: `pending_${pendingActions.length + 1}` }
           pendingActions.push(pending)
           return pending
         }),
         listPendingActions: vi.fn(() => pendingActions),
         record: vi.fn().mockResolvedValue(undefined),
       },
+      stateManager: new RunStateManager(),
     } as unknown as ComputerUseServerRuntime
     vi.clearAllMocks()
   })
@@ -94,14 +94,14 @@ describe('register-pty: terminal lane', () => {
     it('pty_create returns approval_required when approvals are enabled', async () => {
       runtime.config = createTestConfig({ approvalMode: 'actions' })
       vi.mocked(isPtyAvailable).mockResolvedValue(true)
-      const { server, invoke } = createMockServer()
-      registerPtyTools({ server, runtime })
+      const { invoke, server } = createMockServer()
+      registerPtyTools({ runtime, server })
 
       const result = await invoke('pty_create', {
-        rows: 24,
+        approvalSessionId: 'approval_1',
         cols: 80,
         cwd: '/tmp',
-        approvalSessionId: 'approval_1',
+        rows: 24,
       })
       const structured = result.structuredContent as Record<string, any>
 
@@ -114,17 +114,17 @@ describe('register-pty: terminal lane', () => {
       runtime.config = createTestConfig({ approvalMode: 'actions' })
       vi.mocked(isPtyAvailable).mockResolvedValue(true)
       vi.mocked(createPtySession).mockResolvedValue({
-        id: 'pty_1',
         alive: true,
-        rows: 24,
         cols: 80,
-        screenContent: '',
+        id: 'pty_1',
         pid: 1000,
+        rows: 24,
+        screenContent: '',
       })
       const result = await executeApprovedPtyCreate(runtime, {
-        rows: 24,
-        cols: 80,
         approvalSessionId: 'approval_1',
+        cols: 80,
+        rows: 24,
       })
 
       expect((result.structuredContent as Record<string, any>).approvalSessionId).toBe('approval_1')
@@ -137,12 +137,12 @@ describe('register-pty: terminal lane', () => {
       const acquirePty = createAcquirePtyCallback(runtime)
 
       const result = await acquirePty({
-        taskId: 'task_terminal_lane',
-        stepId: 'step_terminal_lane',
+        autoApprove: false,
+        cols: 80,
         cwd: '/tmp/project',
         rows: 24,
-        cols: 80,
-        autoApprove: false,
+        stepId: 'step_terminal_lane',
+        taskId: 'task_terminal_lane',
       })
 
       expect(result).toMatchObject({
@@ -151,15 +151,15 @@ describe('register-pty: terminal lane', () => {
       })
       expect(pendingActions).toHaveLength(1)
       expect(pendingActions[0]).toMatchObject({
-        toolName: 'pty_create',
         action: {
-          kind: 'pty_create',
           input: expect.objectContaining({
+            approvalSessionId: expect.any(String),
             cwd: '/tmp/project',
             stepId: 'step_terminal_lane',
-            approvalSessionId: expect.any(String),
           }),
+          kind: 'pty_create',
         },
+        toolName: 'pty_create',
       })
     })
 
@@ -167,21 +167,21 @@ describe('register-pty: terminal lane', () => {
       runtime.config = createTestConfig({ approvalMode: 'actions' })
       vi.mocked(isPtyAvailable).mockResolvedValue(true)
       vi.mocked(createPtySession).mockResolvedValue({
-        id: 'pty_1',
         alive: true,
-        rows: 24,
         cols: 80,
-        screenContent: '',
+        id: 'pty_1',
         pid: 1000,
+        rows: 24,
+        screenContent: '',
       })
       vi.mocked(destroyPtySession).mockReturnValue(true)
-      const { server, invoke } = createMockServer()
-      registerPtyTools({ server, runtime })
+      const { invoke, server } = createMockServer()
+      registerPtyTools({ runtime, server })
 
-      await executeApprovedPtyCreate(runtime, { rows: 24, cols: 80, approvalSessionId: 'approval_1' })
+      await executeApprovedPtyCreate(runtime, { approvalSessionId: 'approval_1', cols: 80, rows: 24 })
       expect(runtime.stateManager.getActivePtyGrants()).toHaveLength(1)
 
-      await invoke('pty_destroy', { sessionId: 'pty_1', approvalSessionId: 'approval_1' })
+      await invoke('pty_destroy', { approvalSessionId: 'approval_1', sessionId: 'pty_1' })
       expect(runtime.stateManager.getActivePtyGrants()).toHaveLength(0)
     })
   })
@@ -194,17 +194,17 @@ describe('register-pty: terminal lane', () => {
     it('pty_create writes a create audit entry', async () => {
       vi.mocked(isPtyAvailable).mockResolvedValue(true)
       vi.mocked(createPtySession).mockResolvedValue({
-        id: 'pty_1',
         alive: true,
-        rows: 30,
         cols: 120,
-        screenContent: '',
+        id: 'pty_1',
         pid: 2000,
+        rows: 30,
+        screenContent: '',
       })
-      const { server, invoke } = createMockServer()
-      registerPtyTools({ server, runtime })
+      const { invoke, server } = createMockServer()
+      registerPtyTools({ runtime, server })
 
-      await invoke('pty_create', { rows: 30, cols: 120, cwd: '/home/user' })
+      await invoke('pty_create', { cols: 120, cwd: '/home/user', rows: 30 })
 
       const log = runtime.stateManager.getPtyAuditForSession('pty_1')
       expect(log).toHaveLength(1)
@@ -218,21 +218,21 @@ describe('register-pty: terminal lane', () => {
     it('pty_send_input logs byte count + truncated preview only', async () => {
       vi.mocked(isPtyAvailable).mockResolvedValue(true)
       vi.mocked(createPtySession).mockResolvedValue({
-        id: 'pty_1',
         alive: true,
-        rows: 24,
         cols: 80,
-        screenContent: '',
+        id: 'pty_1',
         pid: 3000,
+        rows: 24,
+        screenContent: '',
       })
-      const { server, invoke } = createMockServer()
-      registerPtyTools({ server, runtime })
+      const { invoke, server } = createMockServer()
+      registerPtyTools({ runtime, server })
 
-      await invoke('pty_create', { rows: 24, cols: 80 })
+      await invoke('pty_create', { cols: 80, rows: 24 })
 
       // Write a long string (> 80 chars)
       const longInput = 'a'.repeat(200)
-      await invoke('pty_send_input', { sessionId: 'pty_1', data: longInput })
+      await invoke('pty_send_input', { data: longInput, sessionId: 'pty_1' })
 
       const inputAudit = runtime.stateManager.getPtyAuditForSession('pty_1')
         .filter(e => e.event === 'send_input')
@@ -245,25 +245,25 @@ describe('register-pty: terminal lane', () => {
     it('pty_read_screen logs line count + alive state', async () => {
       vi.mocked(isPtyAvailable).mockResolvedValue(true)
       vi.mocked(createPtySession).mockResolvedValue({
-        id: 'pty_1',
         alive: true,
-        rows: 24,
         cols: 80,
-        screenContent: '',
+        id: 'pty_1',
         pid: 3000,
+        rows: 24,
+        screenContent: '',
       })
       vi.mocked(readPtyScreen).mockReturnValue({
-        id: 'pty_1',
         alive: true,
-        rows: 24,
         cols: 80,
-        screenContent: 'line1\nline2\nline3',
+        id: 'pty_1',
         pid: 3000,
+        rows: 24,
+        screenContent: 'line1\nline2\nline3',
       })
-      const { server, invoke } = createMockServer()
-      registerPtyTools({ server, runtime })
+      const { invoke, server } = createMockServer()
+      registerPtyTools({ runtime, server })
 
-      await invoke('pty_create', { rows: 24, cols: 80 })
+      await invoke('pty_create', { cols: 80, rows: 24 })
       await invoke('pty_read_screen', { sessionId: 'pty_1' })
 
       const readAudit = runtime.stateManager.getPtyAuditForSession('pty_1')
@@ -276,18 +276,18 @@ describe('register-pty: terminal lane', () => {
     it('pty_resize logs dimensions', async () => {
       vi.mocked(isPtyAvailable).mockResolvedValue(true)
       vi.mocked(createPtySession).mockResolvedValue({
-        id: 'pty_1',
         alive: true,
-        rows: 24,
         cols: 80,
-        screenContent: '',
+        id: 'pty_1',
         pid: 3000,
+        rows: 24,
+        screenContent: '',
       })
-      const { server, invoke } = createMockServer()
-      registerPtyTools({ server, runtime })
+      const { invoke, server } = createMockServer()
+      registerPtyTools({ runtime, server })
 
-      await invoke('pty_create', { rows: 24, cols: 80 })
-      await invoke('pty_resize', { sessionId: 'pty_1', rows: 40, cols: 160 })
+      await invoke('pty_create', { cols: 80, rows: 24 })
+      await invoke('pty_resize', { cols: 160, rows: 40, sessionId: 'pty_1' })
 
       const resizeAudit = runtime.stateManager.getPtyAuditForSession('pty_1')
         .filter(e => e.event === 'resize')
@@ -299,18 +299,18 @@ describe('register-pty: terminal lane', () => {
     it('pty_destroy logs actor + outcome', async () => {
       vi.mocked(isPtyAvailable).mockResolvedValue(true)
       vi.mocked(createPtySession).mockResolvedValue({
-        id: 'pty_1',
         alive: true,
-        rows: 24,
         cols: 80,
-        screenContent: '',
+        id: 'pty_1',
         pid: 3000,
+        rows: 24,
+        screenContent: '',
       })
       vi.mocked(destroyPtySession).mockReturnValue(true)
-      const { server, invoke } = createMockServer()
-      registerPtyTools({ server, runtime })
+      const { invoke, server } = createMockServer()
+      registerPtyTools({ runtime, server })
 
-      await invoke('pty_create', { rows: 24, cols: 80 })
+      await invoke('pty_create', { cols: 80, rows: 24 })
       await invoke('pty_destroy', { sessionId: 'pty_1' })
 
       const destroyAudit = runtime.stateManager.getPtyAuditLog()
@@ -329,17 +329,17 @@ describe('register-pty: terminal lane', () => {
     it('pty_create binds session to stepId when provided', async () => {
       vi.mocked(isPtyAvailable).mockResolvedValue(true)
       vi.mocked(createPtySession).mockResolvedValue({
-        id: 'pty_1',
         alive: true,
-        rows: 24,
         cols: 80,
-        screenContent: '',
+        id: 'pty_1',
         pid: 4000,
+        rows: 24,
+        screenContent: '',
       })
-      const { server, invoke } = createMockServer()
-      registerPtyTools({ server, runtime })
+      const { invoke, server } = createMockServer()
+      registerPtyTools({ runtime, server })
 
-      await invoke('pty_create', { stepId: 'step_abc', rows: 24, cols: 80 })
+      await invoke('pty_create', { cols: 80, rows: 24, stepId: 'step_abc' })
 
       const sessions = runtime.stateManager.getPtySessions()
       expect(sessions[0].boundStepId).toBe('step_abc')
@@ -348,19 +348,19 @@ describe('register-pty: terminal lane', () => {
     it('pty_get_status includes boundStepId in response', async () => {
       vi.mocked(isPtyAvailable).mockResolvedValue(true)
       vi.mocked(listPtySessions).mockReturnValue([
-        { id: 'pty_1', alive: true, rows: 24, cols: 80, screenContent: '', pid: 5000 },
+        { alive: true, cols: 80, id: 'pty_1', pid: 5000, rows: 24, screenContent: '' },
       ])
       runtime.stateManager.registerPtySession({
-        id: 'pty_1',
         alive: true,
-        rows: 24,
         cols: 80,
+        id: 'pty_1',
         pid: 5000,
+        rows: 24,
       })
       runtime.stateManager.bindPtySessionToStepId('pty_1', 'step_xyz')
 
-      const { server, invoke } = createMockServer()
-      registerPtyTools({ server, runtime })
+      const { invoke, server } = createMockServer()
+      registerPtyTools({ runtime, server })
 
       const result = await invoke('pty_get_status')
       const sessions = (result.structuredContent as Record<string, any>).sessions
@@ -374,8 +374,8 @@ describe('register-pty: terminal lane', () => {
 
   describe('pty_send_input / pty_write alias', () => {
     it('registers both pty_send_input and pty_write', () => {
-      const { server, hasHandler } = createMockServer()
-      registerPtyTools({ server, runtime })
+      const { hasHandler, server } = createMockServer()
+      registerPtyTools({ runtime, server })
 
       expect(hasHandler('pty_send_input')).toBe(true)
       expect(hasHandler('pty_write')).toBe(true)
@@ -384,18 +384,18 @@ describe('register-pty: terminal lane', () => {
     it('pty_write works identically to pty_send_input', async () => {
       vi.mocked(isPtyAvailable).mockResolvedValue(true)
       vi.mocked(createPtySession).mockResolvedValue({
-        id: 'pty_1',
         alive: true,
-        rows: 24,
         cols: 80,
-        screenContent: '',
+        id: 'pty_1',
         pid: 6000,
+        rows: 24,
+        screenContent: '',
       })
-      const { server, invoke } = createMockServer()
-      registerPtyTools({ server, runtime })
+      const { invoke, server } = createMockServer()
+      registerPtyTools({ runtime, server })
 
-      await invoke('pty_create', { rows: 24, cols: 80 })
-      const result = await invoke('pty_write', { sessionId: 'pty_1', data: 'ls\r' })
+      await invoke('pty_create', { cols: 80, rows: 24 })
+      const result = await invoke('pty_write', { data: 'ls\r', sessionId: 'pty_1' })
 
       expect(writeToPty).toHaveBeenCalledWith('pty_1', { data: 'ls\r' })
       expect((result.structuredContent as Record<string, any>).status).toBe('ok')
@@ -403,13 +403,13 @@ describe('register-pty: terminal lane', () => {
 
     it('pty_write reports its own operation name in grant errors', async () => {
       runtime.config = createTestConfig({ approvalMode: 'actions' })
-      const { server, invoke } = createMockServer()
-      registerPtyTools({ server, runtime })
+      const { invoke, server } = createMockServer()
+      registerPtyTools({ runtime, server })
 
       const result = await invoke('pty_write', {
-        sessionId: 'pty_missing',
-        data: 'ls\r',
         approvalSessionId: 'approval_1',
+        data: 'ls\r',
+        sessionId: 'pty_missing',
       })
 
       expect(result.isError).toBe(true)
@@ -426,50 +426,50 @@ describe('register-pty: terminal lane', () => {
       runtime.config = createTestConfig({ approvalMode: 'actions' })
       vi.mocked(isPtyAvailable).mockResolvedValue(true)
       vi.mocked(createPtySession).mockResolvedValue({
-        id: 'pty_1',
         alive: true,
-        rows: 24,
         cols: 80,
-        screenContent: '',
+        id: 'pty_1',
         pid: 7000,
+        rows: 24,
+        screenContent: '',
       })
       vi.mocked(readPtyScreen).mockReturnValue({
-        id: 'pty_1',
         alive: true,
-        rows: 24,
         cols: 80,
-        screenContent: '$ ls\nfile.txt',
+        id: 'pty_1',
         pid: 7000,
+        rows: 24,
+        screenContent: '$ ls\nfile.txt',
       })
       vi.mocked(destroyPtySession).mockReturnValue(true)
-      const { server, invoke } = createMockServer()
-      registerPtyTools({ server, runtime })
+      const { invoke, server } = createMockServer()
+      registerPtyTools({ runtime, server })
 
       // Create
       const createResult = await executeApprovedPtyCreate(runtime, {
-        rows: 24,
+        approvalSessionId: 'approval_1',
         cols: 80,
         cwd: '/tmp',
+        rows: 24,
         stepId: 'step_life',
-        approvalSessionId: 'approval_1',
       })
       expect((createResult.structuredContent as Record<string, any>).status).toBe('ok')
       expect(runtime.stateManager.getActivePtyGrants()).toHaveLength(1)
 
       // Send input
-      await invoke('pty_send_input', { sessionId: 'pty_1', data: 'ls\r', approvalSessionId: 'approval_1' })
+      await invoke('pty_send_input', { approvalSessionId: 'approval_1', data: 'ls\r', sessionId: 'pty_1' })
       expect(writeToPty).toHaveBeenCalledWith('pty_1', { data: 'ls\r' })
 
       // Read screen
-      const readResult = await invoke('pty_read_screen', { sessionId: 'pty_1', approvalSessionId: 'approval_1' })
+      const readResult = await invoke('pty_read_screen', { approvalSessionId: 'approval_1', sessionId: 'pty_1' })
       expect((readResult.structuredContent as Record<string, any>).screenContent).toBe('$ ls\nfile.txt')
 
       // Resize
-      await invoke('pty_resize', { sessionId: 'pty_1', rows: 48, cols: 160, approvalSessionId: 'approval_1' })
+      await invoke('pty_resize', { approvalSessionId: 'approval_1', cols: 160, rows: 48, sessionId: 'pty_1' })
       expect(resizePty).toHaveBeenCalledWith('pty_1', { cols: 160, rows: 48 })
 
       // Destroy
-      await invoke('pty_destroy', { sessionId: 'pty_1', approvalSessionId: 'approval_1' })
+      await invoke('pty_destroy', { approvalSessionId: 'approval_1', sessionId: 'pty_1' })
       expect(runtime.stateManager.getActivePtyGrants()).toHaveLength(0)
       expect(runtime.stateManager.getPtySessions()).toHaveLength(0)
 
@@ -481,13 +481,13 @@ describe('register-pty: terminal lane', () => {
 
     it('rejects PTY operations without an active grant when approvals are enabled', async () => {
       runtime.config = createTestConfig({ approvalMode: 'actions' })
-      const { server, invoke } = createMockServer()
-      registerPtyTools({ server, runtime })
+      const { invoke, server } = createMockServer()
+      registerPtyTools({ runtime, server })
 
       const sendResult = await invoke('pty_send_input', {
-        sessionId: 'pty_missing',
-        data: 'ls\r',
         approvalSessionId: 'approval_1',
+        data: 'ls\r',
+        sessionId: 'pty_missing',
       })
 
       expect(sendResult.isError).toBe(true)

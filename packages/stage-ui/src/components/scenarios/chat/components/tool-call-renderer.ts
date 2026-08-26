@@ -15,10 +15,10 @@ import type { Component } from 'vue'
  * - A prop contract that custom runtime renderers can implement
  */
 export interface ChatToolCallRendererProps {
-  toolName: string
   args: string
-  state?: 'executing' | 'done' | 'error'
   result?: unknown
+  state?: 'done' | 'error' | 'executing'
+  toolName: string
 }
 
 /**

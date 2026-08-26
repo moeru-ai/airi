@@ -28,8 +28,11 @@ export enum LoopbackAudioTypes {
   LoopbackWithMute = 'loopbackWithMute',
 }
 
+enum CoreAudioTapFeatureFlags {
+  MacCoreAudioTapSystemAudioLoopbackOverride = 'MacCatapSystemAudioLoopbackCapture',
+}
+
 enum DefaultFeatureFlags {
-  PulseaudioLoopbackForScreenShare = 'PulseaudioLoopbackForScreenShare',
   /**
    * Note(Makito): Some discussions on this flag can be found here:
    *
@@ -37,10 +40,7 @@ enum DefaultFeatureFlags {
    * - {@link https://issues.chromium.org/issues/394329567}
    */
   MacLoopbackAudioForScreenShare = 'MacLoopbackAudioForScreenShare',
-}
-
-enum CoreAudioTapFeatureFlags {
-  MacCoreAudioTapSystemAudioLoopbackOverride = 'MacCatapSystemAudioLoopbackCapture',
+  PulseaudioLoopbackForScreenShare = 'PulseaudioLoopbackForScreenShare',
 }
 
 enum ScreenCaptureKitFeatureFlags {
@@ -48,11 +48,11 @@ enum ScreenCaptureKitFeatureFlags {
 }
 
 export function buildFeatureFlags({
-  otherEnabledFeatures,
   forceCoreAudioTap,
+  otherEnabledFeatures,
 }: {
-  otherEnabledFeatures?: string[]
   forceCoreAudioTap?: boolean
+  otherEnabledFeatures?: string[]
 }): string {
   const featureFlags = [...Object.values(DefaultFeatureFlags), ...(otherEnabledFeatures ?? [])]
 
@@ -68,32 +68,48 @@ export function buildFeatureFlags({
 
 let initMainCalled = false
 
+export interface GetLoopbackAudioMediaStreamOptions {
+  removeVideo?: boolean
+}
+
 export interface InitMainOptions {
   forceCoreAudioTap?: boolean
-  mutexAcquireTimeout?: number
   loggerOptions?: {
-    logLevel?: string
     format?: 'json' | 'plain'
+    logLevel?: string
   }
+  mutexAcquireTimeout?: number
 }
 
 export interface InitWindowOptions {
-  loopbackWithMute?: boolean
-  sourcesOptions?: SourcesOptions
-  onAfterGetSources?: (sources: DesktopCapturerSource[]) => DesktopCapturerSource[]
   loggerOptions?: {
-    logLevel?: string
     format?: 'json' | 'plain'
+    logLevel?: string
   }
-}
-
-export interface GetLoopbackAudioMediaStreamOptions {
-  removeVideo?: boolean
+  loopbackWithMute?: boolean
+  onAfterGetSources?: (sources: DesktopCapturerSource[]) => DesktopCapturerSource[]
+  sourcesOptions?: SourcesOptions
 }
 
 let setSourceMutex: MutexInterface
 let screenCaptureSourceMutexHandle: string | undefined
 let setSourceMutexTimeoutHandle: NodeJS.Timeout | undefined
+
+/**
+ * Reports whether a renderer-selected capture source is currently being served.
+ *
+ * Use when:
+ * - A permission handler has to tell AIRI's own display capture flow apart from an unsolicited request
+ *
+ * Expects:
+ * - `initScreenCaptureForWindow` installed the invoke handlers that own the selection mutex
+ *
+ * Returns:
+ * - Whether `setDisplayMediaRequestHandler` is currently bound to a source picked by a renderer
+ */
+export function hasSelectedScreenCaptureSource(): boolean {
+  return screenCaptureSourceMutexHandle !== undefined
+}
 
 export function initScreenCaptureForMain(options: InitMainOptions = {}): void {
   const {
@@ -130,8 +146,8 @@ export function initScreenCaptureForMain(options: InitMainOptions = {}): void {
 
   // Add the feature flags to the command line with any other user-enabled features concatenated.
   const currentFeatureFlags = buildFeatureFlags({
-    otherEnabledFeatures,
     forceCoreAudioTap,
+    otherEnabledFeatures,
   })
 
   app.commandLine.appendSwitch(featureSwitchKey, currentFeatureFlags)
@@ -144,36 +160,7 @@ function resetScreenCaptureSource() {
   screenCaptureSourceMutexHandle = undefined
 }
 
-/**
- * Reports whether a renderer-selected capture source is currently being served.
- *
- * Use when:
- * - A permission handler has to tell AIRI's own display capture flow apart from an unsolicited request
- *
- * Expects:
- * - `initScreenCaptureForWindow` installed the invoke handlers that own the selection mutex
- *
- * Returns:
- * - Whether `setDisplayMediaRequestHandler` is currently bound to a source picked by a renderer
- */
-export function hasSelectedScreenCaptureSource(): boolean {
-  return screenCaptureSourceMutexHandle !== undefined
-}
-
 const initializedWindows = new WeakSet<BrowserWindow>()
-
-// NOTICE: use this to guard to prevent handling destroyed window
-// especially when trying to get window title,
-// but window.id is another story as window.id is stable and unique even
-// after window is destroyed
-function tryWindowTitle(window: BrowserWindow, previous?: string): string {
-  if (window.isDestroyed()) {
-    return previous || '<destroyed>'
-  }
-
-  const title = window.getTitle()
-  return title
-}
 
 export function initScreenCaptureForWindow(window: BrowserWindow, options?: InitWindowOptions): void {
   let log = useLogg('screen-capture').useGlobalConfig()
@@ -243,8 +230,8 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
         }
 
         callback({
-          video: source,
           audio: options?.loopbackWithMute ? LoopbackAudioTypes.LoopbackWithMute : LoopbackAudioTypes.Loopback,
+          video: source,
         })
       })
 
@@ -286,4 +273,17 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
 
     log.withFields({ windowId, windowTitle: tryWindowTitle(window, windowTitle) }).debug('setSourceMutex released by window')
   })
+}
+
+// NOTICE: use this to guard to prevent handling destroyed window
+// especially when trying to get window title,
+// but window.id is another story as window.id is stable and unique even
+// after window is destroyed
+function tryWindowTitle(window: BrowserWindow, previous?: string): string {
+  if (window.isDestroyed()) {
+    return previous || '<destroyed>'
+  }
+
+  const title = window.getTitle()
+  return title
 }

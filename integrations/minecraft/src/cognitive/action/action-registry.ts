@@ -16,10 +16,10 @@ export class ActionRegistry {
   }
 
   /**
-   * Set the mineflayer instance for action execution
+   * Get action by name
    */
-  public setMineflayer(mineflayer: Mineflayer): void {
-    this.mineflayer = mineflayer
+  public getAction(name: string): Action | undefined {
+    return this.actions.find(a => a.name === name)
   }
 
   /**
@@ -32,7 +32,7 @@ export class ActionRegistry {
   /**
    * Perform an action by name
    */
-  public async performAction(step: { description?: string, tool: string, params: any }): Promise<unknown> {
+  public async performAction(step: { description?: string, params: any, tool: string }): Promise<unknown> {
     if (!this.mineflayer) {
       throw new Error('Mineflayer instance not set in ActionRegistry')
     }
@@ -61,9 +61,9 @@ export class ActionRegistry {
   }
 
   /**
-   * Get action by name
+   * Set the mineflayer instance for action execution
    */
-  public getAction(name: string): Action | undefined {
-    return this.actions.find(a => a.name === name)
+  public setMineflayer(mineflayer: Mineflayer): void {
+    this.mineflayer = mineflayer
   }
 }

@@ -27,7 +27,7 @@ export function createChatWsV1Handlers(
   return function setupPeer(userId: string) {
     const { hooks } = createPeerHooks({
       onContext: (ctx) => {
-        registerChatWsPeer({ ctx, userId, chatService, runtime: chatRuntime, metrics })
+        registerChatWsPeer({ chatService, ctx, metrics, runtime: chatRuntime, userId })
       },
     })
     return hooks

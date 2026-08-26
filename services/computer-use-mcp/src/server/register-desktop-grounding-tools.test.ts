@@ -27,12 +27,6 @@ function createMockServer() {
   const handlers = new Map<string, ToolHandler>()
 
   return {
-    server: {
-      tool(name: string, _summary: string, _schema: unknown, handler: ToolHandler) {
-        handlers.set(name, handler)
-        return { disable: vi.fn() }
-      },
-    } as unknown as McpServer,
     async invoke(name: string, args: Record<string, unknown> = {}) {
       const handler = handlers.get(name)
       if (!handler) {
@@ -41,38 +35,44 @@ function createMockServer() {
 
       return await handler(args)
     },
+    server: {
+      tool(name: string, _summary: string, _schema: unknown, handler: ToolHandler) {
+        handlers.set(name, handler)
+        return { disable: vi.fn() }
+      },
+    } as unknown as McpServer,
   }
 }
 
 function createRuntime() {
   const runtime = {
-    config: createTestConfig(),
-    stateManager: new RunStateManager(),
+    browserDomBridge: {},
     cdpBridgeManager: {
-      getStatus: vi.fn().mockReturnValue({ connected: false }),
       ensureBridge: vi.fn(),
+      getStatus: vi.fn().mockReturnValue({ connected: false }),
     },
     chromeSessionManager: {
       getSessionInfo: vi.fn().mockReturnValue(undefined),
     },
-    browserDomBridge: {},
+    config: createTestConfig(),
+    desktopSessionController: {
+      ensureControlledAppInForeground: vi.fn(),
+      getSession: vi.fn().mockReturnValue(undefined),
+      getSessionInfo: vi.fn().mockReturnValue(undefined),
+      touch: vi.fn(),
+    },
     executor: {},
     session: {
       setLastScreenshot: vi.fn(),
     },
-    desktopSessionController: {
-      getSession: vi.fn().mockReturnValue(undefined),
-      getSessionInfo: vi.fn().mockReturnValue(undefined),
-      touch: vi.fn(),
-      ensureControlledAppInForeground: vi.fn(),
-    },
+    stateManager: new RunStateManager(),
   } as unknown as ComputerUseServerRuntime
 
   const executeAction = vi.fn().mockResolvedValue({
-    content: [{ type: 'text', text: 'executed' }],
+    content: [{ text: 'executed', type: 'text' }],
   })
 
-  return { runtime, executeAction }
+  return { executeAction, runtime }
 }
 
 describe('registerDesktopGroundingTools', () => {
@@ -81,35 +81,35 @@ describe('registerDesktopGroundingTools', () => {
   })
 
   it('registers desktop_click_target through the action executor', async () => {
-    const { runtime, executeAction } = createRuntime()
+    const { executeAction, runtime } = createRuntime()
 
-    const { server, invoke } = createMockServer()
+    const { invoke, server } = createMockServer()
 
-    registerDesktopGroundingTools({ server, runtime, executeAction })
+    registerDesktopGroundingTools({ executeAction, runtime, server })
 
     const result = await invoke('desktop_click_target', {
+      button: 'right',
       candidateId: 't_0',
       clickCount: 2,
-      button: 'right',
     })
 
     expect(result.isError).not.toBe(true)
     expect(executeAction).toHaveBeenCalledWith({
-      kind: 'desktop_click_target',
       input: {
+        button: 'right',
         candidateId: 't_0',
         clickCount: 2,
-        button: 'right',
       },
+      kind: 'desktop_click_target',
     }, 'desktop_click_target')
   })
 
   it('returns observe error content when captureDesktopGrounding fails', async () => {
-    const { runtime, executeAction } = createRuntime()
+    const { executeAction, runtime } = createRuntime()
     captureDesktopGroundingMock.mockRejectedValueOnce(new Error('observe boom'))
 
-    const { server, invoke } = createMockServer()
-    registerDesktopGroundingTools({ server, runtime, executeAction })
+    const { invoke, server } = createMockServer()
+    registerDesktopGroundingTools({ executeAction, runtime, server })
 
     const result = await invoke('desktop_observe', {})
 
@@ -120,70 +120,70 @@ describe('registerDesktopGroundingTools', () => {
   })
 
   it('stores grounding snapshot and returns image content', async () => {
-    const { runtime, executeAction } = createRuntime()
+    const { executeAction, runtime } = createRuntime()
     captureDesktopGroundingMock.mockResolvedValueOnce({
-      snapshotId: 'dg_new',
       capturedAt: new Date().toISOString(),
       foregroundApp: 'Google Chrome',
-      windows: [],
       screenshot: {
+        capturedAt: new Date().toISOString(),
         dataBase64: 'ZmFrZS1wbmc=',
+        executionTargetMode: 'remote',
+        height: 720,
         mimeType: 'image/png',
         path: '/tmp/shot.png',
-        capturedAt: new Date().toISOString(),
-        width: 1280,
-        height: 720,
-        executionTargetMode: 'remote',
-        sourceHostName: 'fake-remote',
         sourceDisplayId: ':99',
+        sourceHostName: 'fake-remote',
         sourceSessionTag: 'vm-local-1',
+        width: 1280,
       },
+      snapshotId: 'dg_new',
+      staleFlags: { ax: false, chromeSemantic: false, screenshot: false },
       targetCandidates: [],
-      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+      windows: [],
     } as any)
 
-    const { server, invoke } = createMockServer()
-    registerDesktopGroundingTools({ server, runtime, executeAction })
+    const { invoke, server } = createMockServer()
+    registerDesktopGroundingTools({ executeAction, runtime, server })
 
     const result = await invoke('desktop_observe', {})
     const state = runtime.stateManager.getState()
 
     expect(state.lastGroundingSnapshot?.screenshot.dataBase64).toBe('ZmFrZS1wbmc=')
     expect(runtime.session.setLastScreenshot).toHaveBeenCalledWith(expect.objectContaining({
-      path: '/tmp/shot.png',
       executionTargetMode: 'remote',
-      sourceHostName: 'fake-remote',
+      path: '/tmp/shot.png',
       sourceDisplayId: ':99',
+      sourceHostName: 'fake-remote',
       sourceSessionTag: 'vm-local-1',
     }))
     expect(result.content).toEqual([
       expect.objectContaining({ type: 'text' }),
       expect.objectContaining({
-        type: 'image',
         data: 'ZmFrZS1wbmc=',
         mimeType: 'image/png',
+        type: 'image',
       }),
     ])
   })
 
   it('does not refocus before desktop_observe', async () => {
-    const { runtime, executeAction } = createRuntime()
-    const { server, invoke } = createMockServer()
-    registerDesktopGroundingTools({ server, runtime, executeAction })
+    const { executeAction, runtime } = createRuntime()
+    const { invoke, server } = createMockServer()
+    registerDesktopGroundingTools({ executeAction, runtime, server })
 
     captureDesktopGroundingMock.mockResolvedValueOnce({
-      snapshotId: 'dg_bg',
       capturedAt: new Date().toISOString(),
       foregroundApp: 'Google Chrome',
-      windows: [],
       screenshot: {
+        capturedAt: new Date().toISOString(),
         dataBase64: '',
         mimeType: 'image/png',
         path: '/tmp/shot.png',
-        capturedAt: new Date().toISOString(),
       },
+      snapshotId: 'dg_bg',
+      staleFlags: { ax: false, chromeSemantic: false, screenshot: false },
       targetCandidates: [],
-      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+      windows: [],
     } as any)
 
     const result = await invoke('desktop_observe', { includeChrome: true })

@@ -17,11 +17,11 @@ vi.mock('../server', () => ({
 }))
 
 interface MockServer {
-  url: string
+  closeUnexpectedly: () => void
   observedTokens: string[]
   observedVoiceTypes: string[]
-  closeUnexpectedly: () => void
   stop: () => Promise<void>
+  url: string
 }
 
 async function startMockServer(handler: (ws: import('ws').WebSocket) => void): Promise<MockServer> {
@@ -49,16 +49,16 @@ async function startMockServer(handler: (ws: import('ws').WebSocket) => void): P
   const { port } = httpServer.address() as AddressInfo
 
   return {
-    url: `http://127.0.0.1:${port}`,
-    observedTokens,
-    observedVoiceTypes,
     closeUnexpectedly: () => {
       activeWs?.close(1011, 'simulated_truncation')
     },
+    observedTokens,
+    observedVoiceTypes,
     async stop() {
       wss.close()
       await new Promise<void>(r => httpServer.close(() => r()))
     },
+    url: `http://127.0.0.1:${port}`,
   }
 }
 
@@ -96,7 +96,7 @@ describe('streamingSynthesize', () => {
         await new Promise(r => setTimeout(r, 5))
         ws.send(JSON.stringify({
           event: 'sentence.end',
-          payload: { text: 'hello', words: [{ word: 'hello', startTime: 0, endTime: 0.5 }] },
+          payload: { text: 'hello', words: [{ endTime: 0.5, startTime: 0, word: 'hello' }] },
         }))
         ws.send(JSON.stringify({
           event: 'session.finished',
@@ -106,11 +106,11 @@ describe('streamingSynthesize', () => {
     })
 
     const result = await streamingSynthesize({
-      serverUrl: server.url,
-      model: 'volcengine/seed-tts-2.0',
-      voice: 'mock',
-      ttsVoiceType: 'official_selected',
       input: 'hello',
+      model: 'volcengine/seed-tts-2.0',
+      serverUrl: server.url,
+      ttsVoiceType: 'official_selected',
+      voice: 'mock',
     })
 
     expect(new Uint8Array(result.audio)).toEqual(new Uint8Array([
@@ -150,10 +150,10 @@ describe('streamingSynthesize', () => {
     })
 
     await expect(streamingSynthesize({
-      serverUrl: server.url,
-      model: 'volcengine/seed-tts-2.0',
-      voice: 'mock',
       input: 'hello',
+      model: 'volcengine/seed-tts-2.0',
+      serverUrl: server.url,
+      voice: 'mock',
     })).rejects.toThrow(/streaming_tts_closed/)
   })
 
@@ -168,18 +168,18 @@ describe('streamingSynthesize', () => {
 
         await new Promise(r => setTimeout(r, 5))
         ws.send(JSON.stringify({
-          event: 'error',
           code: 'insufficient_flux',
+          event: 'error',
           message: 'go top up',
         }))
       })
     })
 
     await expect(streamingSynthesize({
-      serverUrl: server.url,
-      model: 'volcengine/seed-tts-2.0',
-      voice: 'mock',
       input: 'hello',
+      model: 'volcengine/seed-tts-2.0',
+      serverUrl: server.url,
+      voice: 'mock',
     })).rejects.toThrow(/insufficient_flux.*go top up/)
   })
 
@@ -197,11 +197,11 @@ describe('streamingSynthesize', () => {
 
     const ctrl = new AbortController()
     const promise = streamingSynthesize({
-      serverUrl: server.url,
-      model: 'volcengine/seed-tts-2.0',
-      voice: 'mock',
       input: 'hello',
+      model: 'volcengine/seed-tts-2.0',
+      serverUrl: server.url,
       signal: ctrl.signal,
+      voice: 'mock',
     })
 
     // Fire abort after the ws is open and `start` was sent.

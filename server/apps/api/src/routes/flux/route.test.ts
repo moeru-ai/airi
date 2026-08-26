@@ -10,27 +10,27 @@ import { ApiError } from '../../utils/error'
 
 function createMockFluxService(): FluxService {
   return {
-    getFlux: vi.fn(async (userId: string) => ({ userId, flux: 42 })),
+    getFlux: vi.fn(async (userId: string) => ({ flux: 42, userId })),
     updateStripeCustomerId: vi.fn(),
   } as any
 }
 
 function createMockFluxTransactionService(): FluxTransactionService {
   return {
-    createEntry: vi.fn(),
     createEntries: vi.fn(),
+    createEntry: vi.fn(),
     getHistory: vi.fn(async (_userId: string, limit: number, offset: number) => ({
+      hasMore: limit === 100 && offset === 0,
       records: [
         {
-          id: 'tx-1',
-          type: 'credit',
           amount: 5,
-          description: 'Top up',
-          metadata: { source: 'test' },
           createdAt: new Date('2026-03-27T10:00:00.000Z'),
+          description: 'Top up',
+          id: 'tx-1',
+          metadata: { source: 'test' },
+          type: 'credit',
         },
       ],
-      hasMore: limit === 100 && offset === 0,
     })),
   } as any
 }
@@ -42,9 +42,9 @@ function createTestApp(fluxService: FluxService, fluxTransactionService: FluxTra
   app.onError((err, c) => {
     if (err instanceof ApiError) {
       return c.json({
+        details: err.details,
         error: err.errorCode,
         message: err.message,
-        details: err.details,
       }, err.statusCode)
     }
 
@@ -63,7 +63,7 @@ function createTestApp(fluxService: FluxService, fluxTransactionService: FluxTra
   return app
 }
 
-const testUser = { id: 'user-1', name: 'Test User', email: 'test@example.com' }
+const testUser = { email: 'test@example.com', id: 'user-1', name: 'Test User' }
 
 describe('fluxRoutes', () => {
   it('get /api/v1/flux should return the current user balance', async () => {
@@ -76,7 +76,7 @@ describe('fluxRoutes', () => {
     )
 
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ userId: 'user-1', flux: 42 })
+    expect(await res.json()).toEqual({ flux: 42, userId: 'user-1' })
     expect(fluxService.getFlux).toHaveBeenCalledWith('user-1')
   })
 
@@ -92,17 +92,17 @@ describe('fluxRoutes', () => {
     expect(res.status).toBe(200)
     expect(fluxTransactionService.getHistory).toHaveBeenCalledWith('user-1', 100, 0)
     expect(await res.json()).toEqual({
+      hasMore: true,
       records: [
         {
-          id: 'tx-1',
-          type: 'credit',
           amount: 5,
-          description: 'Top up',
-          metadata: { source: 'test' },
           createdAt: '2026-03-27T10:00:00.000Z',
+          description: 'Top up',
+          id: 'tx-1',
+          metadata: { source: 'test' },
+          type: 'credit',
         },
       ],
-      hasMore: true,
     })
   })
 })

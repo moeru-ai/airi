@@ -7,15 +7,15 @@ export interface CapturedTranscriptionAudioExpectation {
   minimumBytes: number
 }
 
-export interface TranscriptionExpectationOptions {
-  /** @default 'exact' */
-  match?: 'exact' | 'contains'
-}
-
 /** Sets the wait limit for a transcription action assertion. */
 export interface TranscriptionActionExpectationOptions {
   /** Maximum time to wait for a completed ASR action. @default 60000 */
   timeout?: number
+}
+
+export interface TranscriptionExpectationOptions {
+  /** @default 'exact' */
+  match?: 'contains' | 'exact'
 }
 
 declare module 'vitest' {
@@ -23,34 +23,20 @@ declare module 'vitest' {
     toHaveCapturedTranscriptionAudio: T extends AudioInputObservations
       ? (expected: CapturedTranscriptionAudioExpectation) => Promise<void>
       : never
+    toHaveCompletedTranscription: T extends AudioInputObservations
+      ? (options?: TranscriptionActionExpectationOptions) => Promise<void>
+      : never
     toHaveTranscriptions: T extends AudioInputObservations
       ? (
           expected: ReadonlyArray<ReadonlyArray<string>>,
           options?: TranscriptionExpectationOptions,
         ) => Promise<void>
       : never
-    toHaveCompletedTranscription: T extends AudioInputObservations
-      ? (options?: TranscriptionActionExpectationOptions) => Promise<void>
-      : never
   }
 }
 
 /** Vitest expect with AIRI audio-input matcher types. */
 export const expect = vitestExpect
-
-/**
- * Normalizes speech text for transcript comparison.
- *
- * @example
- * normalizeSpeechText(' Hello, AIRI! ')
- * // => 'helloairi'
- */
-function normalizeSpeechText(value: string): string {
-  return value
-    .normalize('NFKC')
-    .toLocaleLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, '')
-}
 
 /** Installs asynchronous matchers for AIRI audio-input observations. */
 export function installAudioInputMatchers(): void {
@@ -62,8 +48,8 @@ export function installAudioInputMatchers(): void {
       const format = session.transcriptionCaptureFormat
       if (!format) {
         return {
-          pass: false,
           message: () => 'The active transcription Provider does not expose uploaded audio.',
+          pass: false,
         }
       }
 
@@ -76,10 +62,22 @@ export function installAudioInputMatchers(): void {
       const pass = captures.length === expected.count && !invalidCapture
 
       return {
-        pass,
         message: () => pass
           ? 'Expected the session not to contain valid transcription audio.'
           : `Expected ${expected.count} ${format} capture(s) with at least ${expected.minimumBytes} bytes.`,
+        pass,
+      }
+    },
+    async toHaveCompletedTranscription(
+      session: AudioInputObservations,
+      options: TranscriptionActionExpectationOptions = {},
+    ) {
+      const result = await waitForTranscription(session, options.timeout ?? 60_000)
+      return {
+        message: () => result.complete
+          ? 'Expected the transcription action not to complete.'
+          : `Expected the transcription action to complete, but ${result.summary}.`,
+        pass: result.complete,
       }
     },
     async toHaveTranscriptions(
@@ -99,45 +97,33 @@ export function installAudioInputMatchers(): void {
         ))
 
       return {
-        pass,
         message: () => pass
           ? 'Expected the session not to contain the specified transcriptions.'
           : `Expected transcriptions ${JSON.stringify(expected)}, but received ${JSON.stringify(actual)}.`,
-      }
-    },
-    async toHaveCompletedTranscription(
-      session: AudioInputObservations,
-      options: TranscriptionActionExpectationOptions = {},
-    ) {
-      const result = await waitForTranscription(session, options.timeout ?? 60_000)
-      return {
-        pass: result.complete,
-        message: () => result.complete
-          ? 'Expected the transcription action not to complete.'
-          : `Expected the transcription action to complete, but ${result.summary}.`,
+        pass,
       }
     },
   })
 }
 
-const transcriptionActions = [
-  { storeId: 'modules:hearing:speech:audio-input-pipeline', actionName: 'transcribeForRecording' },
-  { storeId: 'modules:hearing:speech:audio-input-pipeline', actionName: 'transcribeForMediaStream' },
-]
-
-async function waitForTranscription(
-  session: AudioInputObservations,
-  timeout: number,
-): Promise<{ complete: boolean, failed: boolean, summary: string }> {
-  const deadline = Date.now() + timeout
-  let result = transcriptionResult(await session.piniaActionEvents())
-
-  while (!result.complete && !result.failed && Date.now() < deadline) {
-    await new Promise(resolve => setTimeout(resolve, 100))
-    result = transcriptionResult(await session.piniaActionEvents())
-  }
-  return result
+/**
+ * Normalizes speech text for transcript comparison.
+ *
+ * @example
+ * normalizeSpeechText(' Hello, AIRI! ')
+ * // => 'helloairi'
+ */
+function normalizeSpeechText(value: string): string {
+  return value
+    .normalize('NFKC')
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '')
 }
+
+const transcriptionActions = [
+  { actionName: 'transcribeForRecording', storeId: 'modules:hearing:speech:audio-input-pipeline' },
+  { actionName: 'transcribeForMediaStream', storeId: 'modules:hearing:speech:audio-input-pipeline' },
+]
 
 function transcriptionResult(
   events: Awaited<ReturnType<AudioInputObservations['piniaActionEvents']>>,
@@ -158,4 +144,18 @@ function transcriptionResult(
     failed: false,
     summary: 'ASR did not complete',
   }
+}
+
+async function waitForTranscription(
+  session: AudioInputObservations,
+  timeout: number,
+): Promise<{ complete: boolean, failed: boolean, summary: string }> {
+  const deadline = Date.now() + timeout
+  let result = transcriptionResult(await session.piniaActionEvents())
+
+  while (!result.complete && !result.failed && Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 100))
+    result = transcriptionResult(await session.piniaActionEvents())
+  }
+  return result
 }

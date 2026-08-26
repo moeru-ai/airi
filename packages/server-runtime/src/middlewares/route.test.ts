@@ -7,78 +7,78 @@ import { describe, expect, it } from 'vitest'
 import { collectDestinations, createPolicyMiddleware, isDevtoolsPeer, matchesDestinations } from './route'
 import { matchesLabelSelector, matchesLabelSelectors, matchesRouteExpression } from './route/match-expression'
 
-function createPeer(options: {
-  id: string
-  name: string
-  peerIds?: string[]
-  extensionLabels?: Record<string, string>
-  extension?: string
-  instanceId?: string
-  labels?: Record<string, string>
-  authenticated?: boolean
-}): AuthenticatedPeer {
-  return {
-    peer: {
-      id: options.id,
-      send: () => 0,
-      request: { url: 'http://localhost', headers: new Headers() },
-      remoteAddress: '127.0.0.1',
-    },
-    authenticated: options.authenticated ?? true,
-    peerIds: options.peerIds ? new Set(options.peerIds) : undefined,
-    name: options.name,
-    identity: options.extension && options.instanceId
-      ? { id: options.instanceId, extension: { id: options.extension }, labels: options.labels }
-      : undefined,
-    extensionIdentity: options.extensionLabels
-      ? { id: options.name, sessionId: `${options.id}-session`, labels: options.extensionLabels }
-      : undefined,
-  }
-}
-
 function createExtensionModulePeer(): AuthenticatedPeer {
   const peer = createPeer({
-    id: 'peer-extension',
-    name: 'airi-extension-chess',
     extension: 'airi-extension-chess',
+    id: 'peer-extension',
     instanceId: 'extension-session-1',
+    name: 'airi-extension-chess',
   })
 
   peer.extensionModules = new Map([
     ['chess-gamelet', {
-      name: 'character',
       identity: {
-        id: 'chess-gamelet',
         extension: {
           id: 'airi-extension-chess',
           sessionId: 'extension-session-1',
         },
+        id: 'chess-gamelet',
       },
+      name: 'character',
     }],
   ])
 
   return peer
 }
 
+function createPeer(options: {
+  authenticated?: boolean
+  extension?: string
+  extensionLabels?: Record<string, string>
+  id: string
+  instanceId?: string
+  labels?: Record<string, string>
+  name: string
+  peerIds?: string[]
+}): AuthenticatedPeer {
+  return {
+    authenticated: options.authenticated ?? true,
+    extensionIdentity: options.extensionLabels
+      ? { id: options.name, labels: options.extensionLabels, sessionId: `${options.id}-session` }
+      : undefined,
+    identity: options.extension && options.instanceId
+      ? { extension: { id: options.extension }, id: options.instanceId, labels: options.labels }
+      : undefined,
+    name: options.name,
+    peer: {
+      id: options.id,
+      remoteAddress: '127.0.0.1',
+      request: { headers: new Headers(), url: 'http://localhost' },
+      send: () => 0,
+    },
+    peerIds: options.peerIds ? new Set(options.peerIds) : undefined,
+  }
+}
+
 function createSparkNotifyEvent(overrides: Partial<WebSocketEventOf<'spark:notify'>> = {}): WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], any> {
   const data: WebSocketEvents['spark:notify'] = {
-    id: 'evt-1',
+    destinations: ['module:character'],
     eventId: 'spark-1',
+    headline: 'hello',
+    id: 'evt-1',
     kind: 'ping',
     urgency: 'soon',
-    headline: 'hello',
-    destinations: ['module:character'],
     ...overrides.data,
   }
 
   return {
-    type: 'spark:notify',
     data,
     metadata: overrides.metadata ?? {
-      source: { id: 'test', extension: { id: 'server-runtime' } },
       event: { id: data.id },
+      source: { extension: { id: 'server-runtime' }, id: 'test' },
     },
     route: overrides.route,
+    type: 'spark:notify',
   } as WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], any>
 }
 
@@ -98,17 +98,17 @@ describe('match-expression', () => {
 
   it('matches route expressions', () => {
     const peer = createPeer({
-      id: 'peer-1',
-      name: 'stage-ui',
       extension: 'stage-ui',
+      id: 'peer-1',
       instanceId: 'stage-ui-1',
       labels: { env: 'prod' },
+      name: 'stage-ui',
     })
 
-    const expression: RouteTargetExpression = { type: 'label', selectors: ['env=prod'] }
+    const expression: RouteTargetExpression = { selectors: ['env=prod'], type: 'label' }
     expect(matchesRouteExpression(expression, peer)).toBe(true)
 
-    const globExpression: RouteTargetExpression = { type: 'glob', glob: 'stage-*' }
+    const globExpression: RouteTargetExpression = { glob: 'stage-*', type: 'glob' }
     expect(matchesRouteExpression(globExpression, peer)).toBe(true)
   })
 })
@@ -117,12 +117,12 @@ describe('route middleware', () => {
   it('collects destinations from route before data', () => {
     const event = createSparkNotifyEvent({
       data: {
-        id: 'evt-2',
+        destinations: ['module:character'],
         eventId: 'spark-2',
+        headline: 'hello',
+        id: 'evt-2',
         kind: 'ping',
         urgency: 'soon',
-        headline: 'hello',
-        destinations: ['module:character'],
       },
       route: { destinations: ['label:env=prod'] },
     })
@@ -132,12 +132,12 @@ describe('route middleware', () => {
   it('treats an explicit empty route destination list as the override', () => {
     const event = createSparkNotifyEvent({
       data: {
-        id: 'evt-override',
+        destinations: ['module:character'],
         eventId: 'spark-override',
+        headline: 'hello',
+        id: 'evt-override',
         kind: 'ping',
         urgency: 'soon',
-        headline: 'hello',
-        destinations: ['module:character'],
       },
       route: { destinations: [] },
     })
@@ -148,12 +148,12 @@ describe('route middleware', () => {
   it('treats an explicit empty data destination list as the override', () => {
     const event = createSparkNotifyEvent({
       data: {
-        id: 'evt-data-empty',
+        destinations: [],
         eventId: 'spark-data-empty',
+        headline: 'hello',
+        id: 'evt-data-empty',
         kind: 'ping',
         urgency: 'soon',
-        headline: 'hello',
-        destinations: [],
       },
       route: undefined,
     })
@@ -163,13 +163,13 @@ describe('route middleware', () => {
 
   it('ignores primitive data payloads when checking destinations', () => {
     const event = {
-      type: 'spark:notify',
       data: 'not-an-object',
       metadata: {
-        source: { id: 'test', extension: { id: 'server-runtime' } },
         event: { id: 'evt-primitive' },
+        source: { extension: { id: 'server-runtime' }, id: 'test' },
       },
       route: undefined,
+      type: 'spark:notify',
     } as unknown as WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], any>
 
     expect(collectDestinations(event)).toBeUndefined()
@@ -177,11 +177,11 @@ describe('route middleware', () => {
 
   it('matches destinations by label selector', () => {
     const peer = createPeer({
-      id: 'peer-2',
-      name: 'telegram-bot',
       extension: 'telegram-bot',
+      id: 'peer-2',
       instanceId: 'telegram-1',
       labels: { app: 'telegram', env: 'prod' },
+      name: 'telegram-bot',
     })
 
     expect(matchesDestinations(['label:app=telegram'], peer)).toBe(true)
@@ -194,13 +194,13 @@ describe('route middleware', () => {
    */
   it('matches destinations by extension identity labels', () => {
     const peer = createPeer({
+      extensionLabels: { surface: 'websocket-extension' },
       id: 'peer-extension-labels',
       name: 'airi-extension',
-      extensionLabels: { surface: 'websocket-extension' },
     })
 
     expect(matchesDestinations(['label:surface=websocket-extension'], peer)).toBe(true)
-    expect(matchesRouteExpression({ type: 'label', selectors: ['surface=websocket-extension'] }, peer)).toBe(true)
+    expect(matchesRouteExpression({ selectors: ['surface=websocket-extension'], type: 'label' }, peer)).toBe(true)
     expect(matchesDestinations(['label:surface=legacy-plugin'], peer)).toBe(false)
   })
 
@@ -216,7 +216,7 @@ describe('route middleware', () => {
     })
 
     expect(matchesDestinations(['peer:stage-window'], peer)).toBe(true)
-    expect(matchesDestinations([{ type: 'ids', ids: ['stage-window'] }], peer)).toBe(true)
+    expect(matchesDestinations([{ ids: ['stage-window'], type: 'ids' }], peer)).toBe(true)
     expect(matchesDestinations(['peer:missing'], peer)).toBe(false)
   })
 
@@ -236,16 +236,16 @@ describe('route middleware', () => {
 
   it('policy middleware filters targets', () => {
     const peers = new Map<string, AuthenticatedPeer>([
-      ['peer-1', createPeer({ id: 'peer-1', name: 'telegram', extension: 'telegram-bot', instanceId: 'telegram-1', labels: { env: 'prod' } })],
-      ['peer-2', createPeer({ id: 'peer-2', name: 'stage-ui', extension: 'stage-ui', instanceId: 'stage-ui-1', labels: { env: 'dev' } })],
+      ['peer-1', createPeer({ extension: 'telegram-bot', id: 'peer-1', instanceId: 'telegram-1', labels: { env: 'prod' }, name: 'telegram' })],
+      ['peer-2', createPeer({ extension: 'stage-ui', id: 'peer-2', instanceId: 'stage-ui-1', labels: { env: 'dev' }, name: 'stage-ui' })],
     ])
 
     const policy = createPolicyMiddleware({ allowLabels: ['env=prod'] })
     const decision = policy({
+      destinations: undefined,
       event: createSparkNotifyEvent(),
       fromPeer: peers.get('peer-1')!,
       peers,
-      destinations: undefined,
     })
 
     expect(decision).toBeDefined()
@@ -261,16 +261,16 @@ describe('route middleware', () => {
 
   it('policy middleware excludes unauthenticated peers', () => {
     const peers = new Map<string, AuthenticatedPeer>([
-      ['peer-1', createPeer({ id: 'peer-1', name: 'telegram', extension: 'telegram-bot', instanceId: 'telegram-1', labels: { env: 'prod' } })],
-      ['peer-2', createPeer({ id: 'peer-2', name: 'stage-ui', extension: 'stage-ui', instanceId: 'stage-ui-1', labels: { env: 'prod' }, authenticated: false })],
+      ['peer-1', createPeer({ extension: 'telegram-bot', id: 'peer-1', instanceId: 'telegram-1', labels: { env: 'prod' }, name: 'telegram' })],
+      ['peer-2', createPeer({ authenticated: false, extension: 'stage-ui', id: 'peer-2', instanceId: 'stage-ui-1', labels: { env: 'prod' }, name: 'stage-ui' })],
     ])
 
     const policy = createPolicyMiddleware({ allowLabels: ['env=prod'] })
     const decision = policy({
+      destinations: undefined,
       event: createSparkNotifyEvent(),
       fromPeer: peers.get('peer-1')!,
       peers,
-      destinations: undefined,
     })
 
     expect(decision).toBeDefined()
@@ -282,16 +282,16 @@ describe('route middleware', () => {
 
   it('policy middleware does not authorize bypass by itself', () => {
     const peers = new Map<string, AuthenticatedPeer>([
-      ['peer-1', createPeer({ id: 'peer-1', name: 'telegram', extension: 'telegram-bot', instanceId: 'telegram-1', labels: { env: 'prod' } })],
-      ['peer-2', createPeer({ id: 'peer-2', name: 'stage-ui', extension: 'stage-ui', instanceId: 'stage-ui-1', labels: { env: 'dev' } })],
+      ['peer-1', createPeer({ extension: 'telegram-bot', id: 'peer-1', instanceId: 'telegram-1', labels: { env: 'prod' }, name: 'telegram' })],
+      ['peer-2', createPeer({ extension: 'stage-ui', id: 'peer-2', instanceId: 'stage-ui-1', labels: { env: 'dev' }, name: 'stage-ui' })],
     ])
 
     const policy = createPolicyMiddleware({ allowLabels: ['env=prod'] })
     const decision = policy({
+      destinations: undefined,
       event: createSparkNotifyEvent({ route: { bypass: true } }),
       fromPeer: peers.get('peer-1')!,
       peers,
-      destinations: undefined,
     })
 
     expect(decision).toBeDefined()
@@ -303,11 +303,11 @@ describe('route middleware', () => {
 
   it('devtools peer detection uses label', () => {
     const peer = createPeer({
-      id: 'peer-3',
-      name: 'debug-ui',
       extension: 'debug-ui',
+      id: 'peer-3',
       instanceId: 'debug-ui-1',
       labels: { devtools: 'true' },
+      name: 'debug-ui',
     })
 
     expect(isDevtoolsPeer(peer)).toBe(true)

@@ -32,8 +32,6 @@ export * from './privacy-policy'
 export type { AnalyticsEvent, InferAnalyticsEventPayload } from './utils/dsl'
 export { defineEvent } from './utils/dsl'
 
-type AnyAnalyticsEvent = AnalyticsEvent<object>
-
 /** Minimal analytics boundary that product event modules can depend on. */
 export interface AnalyticsRecorder {
   /** Emits one typed product event when capture is enabled. */
@@ -42,13 +40,7 @@ export interface AnalyticsRecorder {
   recordFirstMessage: () => boolean
 }
 
-function analyticsSurface(): 'web' | 'desktop' | 'mobile' {
-  return isStageTamagotchi()
-    ? 'desktop'
-    : isStageCapacitor()
-      ? 'mobile'
-      : 'web'
-}
+type AnyAnalyticsEvent = AnalyticsEvent<object>
 
 /**
  * Owns analytics lifecycle state for one JavaScript runtime.
@@ -58,9 +50,13 @@ function analyticsSurface(): 'web' | 'desktop' | 'mobile' {
  * transport boundary.
  */
 class Analytics implements AnalyticsRecorder {
-  private appStartTime: number | null = null
+  private appStartTime: null | number = null
   private firstMessageRecorded = false
   private initialized = false
+
+  emit<Event extends AnyAnalyticsEvent>(event: Event, payload: InferAnalyticsEventPayload<Event>, options?: AnalyticsCaptureOptions): boolean {
+    return captureAnalyticsEvent(event.name, payload, options)
+  }
 
   initialize(): void {
     if (this.initialized)
@@ -93,11 +89,11 @@ class Analytics implements AnalyticsRecorder {
     watch(() => settingsAnalytics.analyticsEnabled, (enabled, previousEnabled) => {
       if (previousEnabled && !enabled) {
         this.emit(analyticsSettingChangedEvent, {
-          setting_name: 'analytics_enabled',
-          previous_value: previousEnabled,
-          new_value: enabled,
-          source: 'settings',
           app_surface: analyticsSurface(),
+          new_value: enabled,
+          previous_value: previousEnabled,
+          setting_name: 'analytics_enabled',
+          source: 'settings',
         })
       }
 
@@ -111,11 +107,11 @@ class Analytics implements AnalyticsRecorder {
 
       if (!previousEnabled) {
         this.emit(analyticsSettingChangedEvent, {
-          setting_name: 'analytics_enabled',
-          previous_value: previousEnabled,
-          new_value: enabled,
-          source: 'settings',
           app_surface: analyticsSurface(),
+          new_value: enabled,
+          previous_value: previousEnabled,
+          setting_name: 'analytics_enabled',
+          source: 'settings',
         })
       }
 
@@ -143,10 +139,6 @@ class Analytics implements AnalyticsRecorder {
     this.initialized = true
   }
 
-  emit<Event extends AnyAnalyticsEvent>(event: Event, payload: InferAnalyticsEventPayload<Event>, options?: AnalyticsCaptureOptions): boolean {
-    return captureAnalyticsEvent(event.name, payload, options)
-  }
-
   recordFirstMessage(): boolean {
     if (this.firstMessageRecorded)
       return false
@@ -166,11 +158,19 @@ class Analytics implements AnalyticsRecorder {
   }
 }
 
+function analyticsSurface(): 'desktop' | 'mobile' | 'web' {
+  return isStageTamagotchi()
+    ? 'desktop'
+    : isStageCapacitor()
+      ? 'mobile'
+      : 'web'
+}
+
 const analytics = new Analytics()
 
-/** Returns the analytics singleton for this JavaScript runtime. */
-export function getAnalytics(): AnalyticsRecorder & Pick<Analytics, 'initialize'> {
-  return analytics
+/** Disables capture through the configured analytics provider. */
+export function disableAnalytics(): void {
+  disableAnalyticsCapture()
 }
 
 /** Enables capture through the configured analytics provider. */
@@ -178,9 +178,9 @@ export function enableAnalytics(): boolean {
   return enableAnalyticsCapture()
 }
 
-/** Disables capture through the configured analytics provider. */
-export function disableAnalytics(): void {
-  disableAnalyticsCapture()
+/** Returns the analytics singleton for this JavaScript runtime. */
+export function getAnalytics(): AnalyticsRecorder & Pick<Analytics, 'initialize'> {
+  return analytics
 }
 
 /** Starts analytics lifecycle observers after Pinia is available. */

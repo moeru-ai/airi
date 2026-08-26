@@ -19,13 +19,13 @@ export async function initializeExternalDependency<T>(
       return await initialize(attempt)
     },
     {
+      onError: (error) => {
+        logger.withError(error).warn(`${dependencyName} initialization failed on attempt ${attempt}/${EXTERNAL_DEPENDENCY_INIT_MAX_ATTEMPTS}`)
+      },
       retry: EXTERNAL_DEPENDENCY_INIT_MAX_ATTEMPTS - 1,
       retryDelay: EXTERNAL_DEPENDENCY_INIT_BASE_DELAY_MS,
       retryDelayFactor: 2,
       retryDelayMax: EXTERNAL_DEPENDENCY_INIT_BASE_DELAY_MS * 2 ** (EXTERNAL_DEPENDENCY_INIT_MAX_ATTEMPTS - 1),
-      onError: (error) => {
-        logger.withError(error).warn(`${dependencyName} initialization failed on attempt ${attempt}/${EXTERNAL_DEPENDENCY_INIT_MAX_ATTEMPTS}`)
-      },
     },
   )()
 }

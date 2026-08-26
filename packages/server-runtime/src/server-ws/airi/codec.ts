@@ -15,8 +15,8 @@ const eventDataSchema = pipe(
 )
 
 const eventEnvelopeSchema = objectWithRest({
-  type: string(),
   data: eventDataSchema,
+  type: string(),
 }, unknown())
 
 interface InvalidEventErrorOptions {
@@ -35,16 +35,16 @@ export class InvalidEventError extends Error {
   }
 }
 
-/** Checks whether an error came from AIRI websocket event envelope validation. */
-export function isInvalidEventError(error: unknown): error is InvalidEventError {
-  return error instanceof InvalidEventError
-}
-
 /** Detects raw ping/pong text frames that should not enter the event protocol. */
 export function heartbeatFrameFrom(text: string): MessageHeartbeatKind | undefined {
   if (text === MessageHeartbeatKind.Ping || text === MessageHeartbeatKind.Pong) {
     return text
   }
+}
+
+/** Checks whether an error came from AIRI websocket event envelope validation. */
+export function isInvalidEventError(error: unknown): error is InvalidEventError {
+  return error instanceof InvalidEventError
 }
 
 /** Parses one AIRI websocket protocol event from SuperJSON or plain JSON text. */
@@ -55,7 +55,7 @@ export function parseEvent(text: string): WebSocketEvent {
   // JSON.parse on a superjson-encoded string returns the wrapper object
   // `{ json: {...}, meta: {...} }` with no protocol `type`, which breaks routing.
   // Keep this until all AIRI websocket clients share one non-wrapper wire format.
-  let parsed: WebSocketEvent | undefined
+  let parsed: undefined | WebSocketEvent
   try {
     parsed = parse<WebSocketEvent>(text)
   }
@@ -76,6 +76,6 @@ export function parseEvent(text: string): WebSocketEvent {
 }
 
 /** Serializes one AIRI websocket protocol event with the existing SuperJSON wire format. */
-export function stringifyEvent(event: WebSocketBaseEvent<string, unknown> | string) {
+export function stringifyEvent(event: string | WebSocketBaseEvent<string, unknown>) {
   return typeof event === 'string' ? event : stringify(event)
 }

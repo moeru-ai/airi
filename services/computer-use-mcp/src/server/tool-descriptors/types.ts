@@ -7,34 +7,6 @@
  */
 
 /**
- * Tool lanes represent the domain/subsystem a tool belongs to.
- * Each lane groups related tools that operate on the same surface.
- */
-export type ToolLane
-  = | 'desktop' // Desktop automation (click, type, screenshot, etc.)
-    | 'browser_dom' // Browser DOM via extension bridge
-    | 'browser_cdp' // Browser via Chrome DevTools Protocol
-    | 'coding' // Code analysis and editing
-    | 'pty' // PTY/terminal session management
-    | 'display' // Display enumeration and identification
-    | 'accessibility' // Accessibility tree inspection
-    | 'task_memory' // Task execution state management
-    | 'vscode' // VS Code CLI automation
-    | 'workflow' // Workflow orchestration tools
-    | 'internal' // Internal/diagnostic tools
-
-/**
- * Tool kinds represent the nature of a tool's operation.
- */
-export type ToolKind
-  = | 'read' // Read-only observation (screenshot, status, enumerate)
-    | 'write' // State mutation (click, type, patch, create)
-    | 'control' // Control flow (wait, reset, connect)
-    | 'workflow' // Workflow orchestration (plan, report)
-    | 'memory' // State/memory management
-    | 'internal' // Internal diagnostics
-
-/**
  * Tool descriptor defines the canonical metadata for a single MCP tool.
  * Core fields are required (fail-closed policy). Optional fields must have
  * explicit default behavior at the registration call site.
@@ -48,32 +20,17 @@ export interface ToolDescriptor {
   canonicalName: string
 
   /**
-   * Human-readable display name.
-   * Format: Title Case, e.g., 'Accessibility Snapshot'
+   * Whether this tool is safe to run concurrently with other tools.
+   * False = should be serialized in workflow execution.
    */
-  displayName: string
+  concurrencySafe: boolean
 
   /**
-   * One-sentence description of what the tool does.
-   * This is used as the MCP tool description.
+   * Whether this tool is hidden from the default tool list to reduce context bloat.
+   * True = deferred loading (must be explicitly enabled via tool_search).
+   * Omitted = false.
    */
-  summary: string
-
-  /**
-   * The domain/subsystem this tool belongs to.
-   */
-  lane: ToolLane
-
-  /**
-   * The nature of this tool's operation.
-   */
-  kind: ToolKind
-
-  /**
-   * Whether this tool only reads state and never mutates it.
-   * True = safe to call without approval for observation.
-   */
-  readOnly: boolean
+  defaultDeferred?: boolean
 
   /**
    * Whether this tool can cause irreversible changes.
@@ -82,29 +39,72 @@ export interface ToolDescriptor {
   destructive: boolean
 
   /**
-   * Whether this tool is safe to run concurrently with other tools.
-   * False = should be serialized in workflow execution.
+   * Human-readable display name.
+   * Format: Title Case, e.g., 'Accessibility Snapshot'
    */
-  concurrencySafe: boolean
+  displayName: string
 
   /**
-   * Whether this tool requires approval by default.
-   * This is the baseline; stricter rules may still apply.
+   * The nature of this tool's operation.
    */
-  requiresApprovalByDefault: boolean
+  kind: ToolKind
+
+  /**
+   * The domain/subsystem this tool belongs to.
+   */
+  lane: ToolLane
 
   /**
    * Whether this tool is exposed to MCP clients.
    * False = internal tool not registered with MCP server.
    */
   public: boolean
+
   /**
-   * Whether this tool is hidden from the default tool list to reduce context bloat.
-   * True = deferred loading (must be explicitly enabled via tool_search).
-   * Omitted = false.
+   * Whether this tool only reads state and never mutates it.
+   * True = safe to call without approval for observation.
    */
-  defaultDeferred?: boolean
+  readOnly: boolean
+
+  /**
+   * Whether this tool requires approval by default.
+   * This is the baseline; stricter rules may still apply.
+   */
+  requiresApprovalByDefault: boolean
+  /**
+   * One-sentence description of what the tool does.
+   * This is used as the MCP tool description.
+   */
+  summary: string
 }
+
+/**
+ * Tool kinds represent the nature of a tool's operation.
+ */
+export type ToolKind
+  = | 'control' // Control flow (wait, reset, connect)
+    | 'internal' // Internal diagnostics
+    | 'memory' // State/memory management
+    | 'read' // Read-only observation (screenshot, status, enumerate)
+    | 'workflow' // Workflow orchestration (plan, report)
+    | 'write' // State mutation (click, type, patch, create)
+
+/**
+ * Tool lanes represent the domain/subsystem a tool belongs to.
+ * Each lane groups related tools that operate on the same surface.
+ */
+export type ToolLane
+  = | 'accessibility' // Accessibility tree inspection
+    | 'browser_cdp' // Browser via Chrome DevTools Protocol
+    | 'browser_dom' // Browser DOM via extension bridge
+    | 'coding' // Code analysis and editing
+    | 'desktop' // Desktop automation (click, type, screenshot, etc.)
+    | 'display' // Display enumeration and identification
+    | 'internal' // Internal/diagnostic tools
+    | 'pty' // PTY/terminal session management
+    | 'task_memory' // Task execution state management
+    | 'vscode' // VS Code CLI automation
+    | 'workflow' // Workflow orchestration tools
 
 /**
  * Type guard to check if an object is a valid ToolDescriptor.

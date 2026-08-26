@@ -13,18 +13,13 @@ import { readCompletedSpans } from './browser-probe'
 
 /** Creates the runtime session for one audio test. */
 export function createSession(options: {
+  close: () => Promise<void>
   electronApp?: ElectronApplication
   page: Page
   target: AudioInputTarget
-  close: () => Promise<void>
   transcriptionCaptureFormat?: AudioCapture['format']
 }): AudioInputSession {
   const session: AudioInputSession = {
-    electronApp: options.electronApp,
-    page: options.page,
-    runtimePage: options.page,
-    target: options.target,
-    transcriptionCaptureFormat: options.transcriptionCaptureFormat,
     activatePage(page) {
       session.page = page
     },
@@ -56,17 +51,11 @@ export function createSession(options: {
       }
       const capturedAudio = await options.page.evaluate(() => window.__airiAudioInputE2E?.transcriptionAudio ?? [])
       return capturedAudio.map(audio => ({
-        format: audio.format,
         data: Buffer.from(audio.base64, 'base64'),
+        format: audio.format,
       }))
     },
-    streamingTranscriptionUpdates: () => session.page.evaluate(() => window.__airiAudioInputE2E?.streamingTranscriptionUpdates ?? []),
-    async transcriptionResults(count) {
-      await options.page.waitForFunction(expectedCount => (
-        (window.__airiAudioInputE2E?.transcriptionResults.length ?? 0) >= expectedCount
-      ), count, { timeout: 60_000 })
-      return options.page.evaluate(() => window.__airiAudioInputE2E?.transcriptionResults ?? [])
-    },
+    close: options.close,
     async completedSpans(name) {
       const runtimeSpans = await options.page.evaluate(readCompletedSpans, name)
       if (session.page === options.page)
@@ -75,28 +64,30 @@ export function createSession(options: {
       const interactionSpans = await session.page.evaluate(readCompletedSpans, name)
       return [...runtimeSpans, ...interactionSpans]
     },
-    async waitForTurn(waitOptions = {}) {
-      const timeout = waitOptions.timeout ?? 60_000
-      const deadline = Date.now() + timeout
-      let turn = createTurnObservation(await session.completedSpans())
-
-      while (!turn && Date.now() < deadline) {
-        await new Promise(resolve => setTimeout(resolve, 100))
-        turn = createTurnObservation(await session.completedSpans())
-      }
-
-      if (!turn)
-        throw new Error('Timed out waiting for a completed LLM and speech turn.')
-
-      turn.chat.messages = await readChatMessages(session.page)
-      return turn
-    },
+    electronApp: options.electronApp,
+    page: options.page,
     piniaActionEvents: () => options.page.evaluate(() => window.__airiAudioInputE2E?.piniaActionEvents ?? []),
-    async waitForVadReady() {
-      await options.page.waitForFunction(() => window.__airiAudioInputE2E?.vadReady === true, undefined, { timeout: 30_000 })
+    runtimePage: options.page,
+    async snapshot() {
+      const runtimeState = await options.page.evaluate(() => window.__airiAudioInputE2E)
+      const interactionState = session.page === options.page
+        ? runtimeState
+        : await session.page.evaluate(() => window.__airiAudioInputE2E)
+      return {
+        piniaActionEvents: runtimeState?.piniaActionEvents ?? [],
+        spans: runtimeState?.spans ?? [],
+        streamingTranscriptionUpdates: interactionState?.streamingTranscriptionUpdates ?? [],
+        transcriptionResults: runtimeState?.transcriptionResults ?? [],
+      }
     },
-    async waitForStreamingTranscriptionReady() {
-      await options.page.waitForFunction(() => window.__airiAudioInputE2E?.streamingTranscriptionReady === true, undefined, { timeout: 30_000 })
+    streamingTranscriptionUpdates: () => session.page.evaluate(() => window.__airiAudioInputE2E?.streamingTranscriptionUpdates ?? []),
+    target: options.target,
+    transcriptionCaptureFormat: options.transcriptionCaptureFormat,
+    async transcriptionResults(count) {
+      await options.page.waitForFunction(expectedCount => (
+        (window.__airiAudioInputE2E?.transcriptionResults.length ?? 0) >= expectedCount
+      ), count, { timeout: 60_000 })
+      return options.page.evaluate(() => window.__airiAudioInputE2E?.transcriptionResults ?? [])
     },
     async waitForPiniaAction(waitOptions) {
       return options.page.evaluate(({ actionName, channelName, status, storeId, timeout }) => new Promise<PiniaActionEvent>((resolve, reject) => {
@@ -123,19 +114,28 @@ export function createSession(options: {
         timeout: waitOptions.timeout ?? 60_000,
       })
     },
-    async snapshot() {
-      const runtimeState = await options.page.evaluate(() => window.__airiAudioInputE2E)
-      const interactionState = session.page === options.page
-        ? runtimeState
-        : await session.page.evaluate(() => window.__airiAudioInputE2E)
-      return {
-        piniaActionEvents: runtimeState?.piniaActionEvents ?? [],
-        spans: runtimeState?.spans ?? [],
-        streamingTranscriptionUpdates: interactionState?.streamingTranscriptionUpdates ?? [],
-        transcriptionResults: runtimeState?.transcriptionResults ?? [],
-      }
+    async waitForStreamingTranscriptionReady() {
+      await options.page.waitForFunction(() => window.__airiAudioInputE2E?.streamingTranscriptionReady === true, undefined, { timeout: 30_000 })
     },
-    close: options.close,
+    async waitForTurn(waitOptions = {}) {
+      const timeout = waitOptions.timeout ?? 60_000
+      const deadline = Date.now() + timeout
+      let turn = createTurnObservation(await session.completedSpans())
+
+      while (!turn && Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+        turn = createTurnObservation(await session.completedSpans())
+      }
+
+      if (!turn)
+        throw new Error('Timed out waiting for a completed LLM and speech turn.')
+
+      turn.chat.messages = await readChatMessages(session.page)
+      return turn
+    },
+    async waitForVadReady() {
+      await options.page.waitForFunction(() => window.__airiAudioInputE2E?.vadReady === true, undefined, { timeout: 30_000 })
+    },
   }
 
   return session
@@ -168,8 +168,8 @@ function createTurnObservation(spans: Awaited<ReturnType<AudioInputSession['comp
     }))
 
   return {
-    id: turnId,
     chat: { messages: [] },
+    id: turnId,
     llm: {
       inputMessages: inputMessageRoles.map(role => ({ role })),
       outputCharacters: numberAttribute(llmSpan, IOAttributes.LLMTextLength),
@@ -177,6 +177,16 @@ function createTurnObservation(spans: Awaited<ReturnType<AudioInputSession['comp
     },
     tts: { audioSegments },
   }
+}
+
+function numberArrayAttribute(span: Awaited<ReturnType<AudioInputSession['completedSpans']>>[number], name: string): number[] {
+  const value = span.attributes[name]
+  return Array.isArray(value) ? value.filter(item => typeof item === 'number') : []
+}
+
+function numberAttribute(span: Awaited<ReturnType<AudioInputSession['completedSpans']>>[number], name: string): number {
+  const value = span.attributes[name]
+  return typeof value === 'number' ? value : 0
 }
 
 async function readChatMessages(page: Page): Promise<AudioInputChatMessage[]> {
@@ -189,22 +199,12 @@ async function readChatMessages(page: Page): Promise<AudioInputChatMessage[]> {
   }))
 }
 
-function numberAttribute(span: Awaited<ReturnType<AudioInputSession['completedSpans']>>[number], name: string): number {
+function stringArrayAttribute(span: Awaited<ReturnType<AudioInputSession['completedSpans']>>[number], name: string): string[] {
   const value = span.attributes[name]
-  return typeof value === 'number' ? value : 0
-}
-
-function numberArrayAttribute(span: Awaited<ReturnType<AudioInputSession['completedSpans']>>[number], name: string): number[] {
-  const value = span.attributes[name]
-  return Array.isArray(value) ? value.filter(item => typeof item === 'number') : []
+  return Array.isArray(value) ? value.filter(item => typeof item === 'string') : []
 }
 
 function stringAttribute(span: Awaited<ReturnType<AudioInputSession['completedSpans']>>[number], name: string): string {
   const value = span.attributes[name]
   return typeof value === 'string' ? value : ''
-}
-
-function stringArrayAttribute(span: Awaited<ReturnType<AudioInputSession['completedSpans']>>[number], name: string): string[] {
-  const value = span.attributes[name]
-  return Array.isArray(value) ? value.filter(item => typeof item === 'string') : []
 }

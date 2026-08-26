@@ -47,7 +47,7 @@ describe('useLive2DEyeFocusFor', () => {
     } as HTMLCanvasElement
     const focus = useLive2DEyeFocusFor({
       canvas: () => canvas,
-      model: () => ({ normalizedScale: 1, modelWidth: 1000, modelHeight: 1000 }),
+      model: () => ({ modelHeight: 1000, modelWidth: 1000, normalizedScale: 1 }),
       source: () => ({ x: 110, y: 70 }),
     })
 
@@ -68,7 +68,7 @@ describe('useLive2DEyeFocusFor', () => {
     } as HTMLCanvasElement
     const focus = useLive2DEyeFocusFor({
       canvas: () => canvas,
-      model: () => ({ normalizedScale: 1, modelWidth: 1000, modelHeight: 1000 }),
+      model: () => ({ modelHeight: 1000, modelWidth: 1000, normalizedScale: 1 }),
       source: () => null,
     })
 

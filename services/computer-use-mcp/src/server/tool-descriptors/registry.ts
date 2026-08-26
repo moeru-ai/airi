@@ -13,11 +13,11 @@ import { validateDescriptor } from './types'
  * Filter options for querying tools.
  */
 export interface ToolQueryOptions {
-  lane?: ToolLane
-  kind?: ToolKind
-  readOnlyOnly?: boolean
   approvalRequiredOnly?: boolean
+  kind?: ToolKind
+  lane?: ToolLane
   query?: string
+  readOnlyOnly?: boolean
 }
 
 /**
@@ -25,28 +25,28 @@ export interface ToolQueryOptions {
  * lookup, query, and validation capabilities.
  */
 export class ToolDescriptorRegistry {
+  /**
+   * Get the count of registered descriptors.
+   */
+  get size(): number {
+    return this.descriptors.size
+  }
+
   private readonly descriptors: Map<string, ToolDescriptor> = new Map()
 
   /**
-   * Register a single descriptor. Validates completeness and uniqueness.
+   * Clear all registered descriptors (for testing).
    */
-  register(descriptor: ToolDescriptor): void {
-    validateDescriptor(descriptor)
-
-    if (this.descriptors.has(descriptor.canonicalName)) {
-      throw new Error(`Duplicate tool descriptor: ${descriptor.canonicalName}`)
-    }
-
-    this.descriptors.set(descriptor.canonicalName, descriptor)
+  clear(): void {
+    this.descriptors.clear()
   }
 
   /**
-   * Register multiple descriptors.
+   * Find orphan descriptors (registered but not in provided tool names).
    */
-  registerAll(descriptors: ToolDescriptor[]): void {
-    for (const descriptor of descriptors) {
-      this.register(descriptor)
-    }
+  findOrphans(toolNames: string[]): string[] {
+    const toolSet = new Set(toolNames)
+    return this.getNames().filter(name => !toolSet.has(name))
   }
 
   /**
@@ -62,31 +62,10 @@ export class ToolDescriptorRegistry {
   }
 
   /**
-   * Get a descriptor by canonical name, or undefined if not found.
-   */
-  getOptional(canonicalName: string): ToolDescriptor | undefined {
-    return this.descriptors.get(canonicalName)
-  }
-
-  /**
-   * Check if a tool is registered.
-   */
-  has(canonicalName: string): boolean {
-    return this.descriptors.has(canonicalName)
-  }
-
-  /**
    * Get all registered descriptors.
    */
   getAll(): ToolDescriptor[] {
     return Array.from(this.descriptors.values())
-  }
-
-  /**
-   * Get all public descriptors (tools exposed to MCP clients).
-   */
-  getPublic(): ToolDescriptor[] {
-    return this.getAll().filter(d => d.public)
   }
 
   /**
@@ -97,10 +76,54 @@ export class ToolDescriptorRegistry {
   }
 
   /**
-   * Get the count of registered descriptors.
+   * Get a descriptor by canonical name, or undefined if not found.
    */
-  get size(): number {
-    return this.descriptors.size
+  getOptional(canonicalName: string): ToolDescriptor | undefined {
+    return this.descriptors.get(canonicalName)
+  }
+
+  /**
+   * Get all public descriptors (tools exposed to MCP clients).
+   */
+  getPublic(): ToolDescriptor[] {
+    return this.getAll().filter(d => d.public)
+  }
+
+  /**
+   * Get descriptors grouped by kind.
+   */
+  groupByKind(): Map<ToolKind, ToolDescriptor[]> {
+    const groups = new Map<ToolKind, ToolDescriptor[]>()
+
+    for (const descriptor of this.getPublic()) {
+      const existing = groups.get(descriptor.kind) || []
+      existing.push(descriptor)
+      groups.set(descriptor.kind, existing)
+    }
+
+    return groups
+  }
+
+  /**
+   * Get descriptors grouped by lane.
+   */
+  groupByLane(): Map<ToolLane, ToolDescriptor[]> {
+    const groups = new Map<ToolLane, ToolDescriptor[]>()
+
+    for (const descriptor of this.getPublic()) {
+      const existing = groups.get(descriptor.lane) || []
+      existing.push(descriptor)
+      groups.set(descriptor.lane, existing)
+    }
+
+    return groups
+  }
+
+  /**
+   * Check if a tool is registered.
+   */
+  has(canonicalName: string): boolean {
+    return this.descriptors.has(canonicalName)
   }
 
   /**
@@ -138,33 +161,25 @@ export class ToolDescriptorRegistry {
   }
 
   /**
-   * Get descriptors grouped by lane.
+   * Register a single descriptor. Validates completeness and uniqueness.
    */
-  groupByLane(): Map<ToolLane, ToolDescriptor[]> {
-    const groups = new Map<ToolLane, ToolDescriptor[]>()
+  register(descriptor: ToolDescriptor): void {
+    validateDescriptor(descriptor)
 
-    for (const descriptor of this.getPublic()) {
-      const existing = groups.get(descriptor.lane) || []
-      existing.push(descriptor)
-      groups.set(descriptor.lane, existing)
+    if (this.descriptors.has(descriptor.canonicalName)) {
+      throw new Error(`Duplicate tool descriptor: ${descriptor.canonicalName}`)
     }
 
-    return groups
+    this.descriptors.set(descriptor.canonicalName, descriptor)
   }
 
   /**
-   * Get descriptors grouped by kind.
+   * Register multiple descriptors.
    */
-  groupByKind(): Map<ToolKind, ToolDescriptor[]> {
-    const groups = new Map<ToolKind, ToolDescriptor[]>()
-
-    for (const descriptor of this.getPublic()) {
-      const existing = groups.get(descriptor.kind) || []
-      existing.push(descriptor)
-      groups.set(descriptor.kind, existing)
+  registerAll(descriptors: ToolDescriptor[]): void {
+    for (const descriptor of descriptors) {
+      this.register(descriptor)
     }
-
-    return groups
   }
 
   /**
@@ -173,21 +188,6 @@ export class ToolDescriptorRegistry {
    */
   validateCompleteness(toolNames: string[]): string[] {
     return toolNames.filter(name => !this.has(name))
-  }
-
-  /**
-   * Find orphan descriptors (registered but not in provided tool names).
-   */
-  findOrphans(toolNames: string[]): string[] {
-    const toolSet = new Set(toolNames)
-    return this.getNames().filter(name => !toolSet.has(name))
-  }
-
-  /**
-   * Clear all registered descriptors (for testing).
-   */
-  clear(): void {
-    this.descriptors.clear()
   }
 }
 

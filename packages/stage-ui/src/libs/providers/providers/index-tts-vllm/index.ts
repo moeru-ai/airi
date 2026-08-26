@@ -15,14 +15,6 @@ function voicesUrl(config: IndexTtsConfig) {
 }
 
 export const providerIndexTtsVllm = defineProvider<IndexTtsConfig>({
-  id: 'index-tts-vllm',
-  name: 'Index-TTS by Bilibili',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.index-tts-vllm.title'),
-  description: 'index-tts.github.io',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.index-tts-vllm.description'),
-  tasks: ['text-to-speech'],
-  iconColor: 'i-lobe-icons:bilibiliindex',
-  createProviderConfig: () => indexTtsConfigSchema,
   createProvider(config) {
     return {
       speech: () => ({
@@ -31,6 +23,37 @@ export const providerIndexTtsVllm = defineProvider<IndexTtsConfig>({
       }),
     }
   },
+  createProviderConfig: () => indexTtsConfigSchema,
+  description: 'index-tts.github.io',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.index-tts-vllm.description'),
+  extraMethods: {
+    listModels: async () => [{
+      contextLength: 0,
+      deprecated: false,
+      description: 'Default model for Index-TTS vLLM deployment',
+      id: 'IndexTTS-1.5',
+      name: 'IndexTTS-1.5',
+      provider: 'index-tts-vllm',
+    }],
+    listVoices: async (config) => {
+      const response = await fetch(voicesUrl(config))
+      if (!response.ok)
+        throw new Error(`Failed to fetch voices: ${response.statusText}`)
+
+      const voices = await response.json() as Record<string, unknown>
+      return Object.keys(voices).map(voice => ({
+        id: voice,
+        languages: [{ code: 'cn', title: 'Chinese' }, { code: 'en', title: 'English' }],
+        name: voice,
+        provider: 'index-tts-vllm',
+      }))
+    },
+  },
+  iconColor: 'i-lobe-icons:bilibiliindex',
+  id: 'index-tts-vllm',
+  name: 'Index-TTS by Bilibili',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.index-tts-vllm.title'),
+  tasks: ['text-to-speech'],
   validationRequiredWhen: config => Boolean(config.baseUrl?.trim()),
   validators: {
     validateConfig: [
@@ -65,28 +88,5 @@ export const providerIndexTtsVllm = defineProvider<IndexTtsConfig>({
         },
       }),
     ],
-  },
-  extraMethods: {
-    listModels: async () => [{
-      id: 'IndexTTS-1.5',
-      name: 'IndexTTS-1.5',
-      provider: 'index-tts-vllm',
-      description: 'Default model for Index-TTS vLLM deployment',
-      contextLength: 0,
-      deprecated: false,
-    }],
-    listVoices: async (config) => {
-      const response = await fetch(voicesUrl(config))
-      if (!response.ok)
-        throw new Error(`Failed to fetch voices: ${response.statusText}`)
-
-      const voices = await response.json() as Record<string, unknown>
-      return Object.keys(voices).map(voice => ({
-        id: voice,
-        name: voice,
-        provider: 'index-tts-vllm',
-        languages: [{ code: 'cn', title: 'Chinese' }, { code: 'en', title: 'English' }],
-      }))
-    },
   },
 })

@@ -34,28 +34,6 @@ export class OPFSCache {
     }
   }
 
-  private static async writeFile(
-    root: FileSystemDirectoryHandle,
-    fileName: string,
-    content: Blob | string,
-  ): Promise<void> {
-    const fileHandle = await root.getFileHandle(fileName, { create: true })
-    const writable = await fileHandle.createWritable()
-    await writable.write(content)
-    await writable.close()
-  }
-
-  private static async readMeta(dirHandle: FileSystemDirectoryHandle): Promise<OPFSCacheMeta | null> {
-    try {
-      const metaHandle = await dirHandle.getFileHandle('__meta.json', { create: false })
-      const metaFile = await metaHandle.getFile()
-      return JSON.parse(await metaFile.text()) as OPFSCacheMeta
-    }
-    catch {
-      return null
-    }
-  }
-
   /**
    * Returns the cached source for a model, or `null` when the cache is absent
    * or no longer matches the requested remote URL.
@@ -112,5 +90,27 @@ export class OPFSCache {
     catch (error) {
       console.error('[OPFS] Failed to save MMD cache:', error)
     }
+  }
+
+  private static async readMeta(dirHandle: FileSystemDirectoryHandle): Promise<null | OPFSCacheMeta> {
+    try {
+      const metaHandle = await dirHandle.getFileHandle('__meta.json', { create: false })
+      const metaFile = await metaHandle.getFile()
+      return JSON.parse(await metaFile.text()) as OPFSCacheMeta
+    }
+    catch {
+      return null
+    }
+  }
+
+  private static async writeFile(
+    root: FileSystemDirectoryHandle,
+    fileName: string,
+    content: Blob | string,
+  ): Promise<void> {
+    const fileHandle = await root.getFileHandle(fileName, { create: true })
+    const writable = await fileHandle.createWritable()
+    await writable.write(content)
+    await writable.close()
   }
 }

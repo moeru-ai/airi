@@ -8,10 +8,10 @@ import { extractMessageText, isCloudSyncableMessage, mergeCloudMessagesIntoLocal
 function makeWire(partial: Partial<WireMessage> & Pick<WireMessage, 'id' | 'seq'>): WireMessage {
   return {
     chatId: partial.chatId ?? 'chat-1',
-    senderId: partial.senderId ?? null,
-    role: partial.role ?? 'assistant',
     content: partial.content ?? '',
     createdAt: partial.createdAt ?? 0,
+    role: partial.role ?? 'assistant',
+    senderId: partial.senderId ?? null,
     updatedAt: partial.updatedAt ?? 0,
     ...partial,
   }
@@ -23,8 +23,8 @@ describe('extractMessageText', () => {
    * User message with plain string content → returns the string verbatim.
    */
   it('returns the string content of user / system messages directly', () => {
-    expect(extractMessageText({ role: 'user', content: 'hi there' })).toBe('hi there')
-    expect(extractMessageText({ role: 'system', content: 'system prompt' })).toBe('system prompt')
+    expect(extractMessageText({ content: 'hi there', role: 'user' })).toBe('hi there')
+    expect(extractMessageText({ content: 'system prompt', role: 'system' })).toBe('system prompt')
   })
 
   /**
@@ -34,11 +34,11 @@ describe('extractMessageText', () => {
    */
   it('joins assistant text slices when present', () => {
     const assistant: ChatAssistantMessage = {
-      role: 'assistant',
       content: 'old',
+      role: 'assistant',
       slices: [
-        { type: 'text', text: 'hello ' },
-        { type: 'text', text: 'world' },
+        { text: 'hello ', type: 'text' },
+        { text: 'world', type: 'text' },
       ],
       tool_results: [],
     }
@@ -51,11 +51,11 @@ describe('extractMessageText', () => {
    */
   it('flattens content arrays into their text parts only', () => {
     const userWithImage: ChatHistoryItem = {
-      role: 'user',
       content: [
-        { type: 'text', text: 'look at this:' },
-        { type: 'image_url', image_url: { url: 'data:image/png;base64,...' } } as never,
+        { text: 'look at this:', type: 'text' },
+        { image_url: { url: 'data:image/png;base64,...' }, type: 'image_url' } as never,
       ],
+      role: 'user',
     }
     expect(extractMessageText(userWithImage)).toBe('look at this:')
   })
@@ -71,11 +71,11 @@ describe('isCloudSyncableMessage', () => {
    * other devices and gets rejected by the server's role validator.
    */
   it('accepts only user / assistant; rejects tool / system / error', () => {
-    expect(isCloudSyncableMessage({ role: 'tool', content: 'x', tool_call_id: 't' } as ChatHistoryItem)).toBe(false)
-    expect(isCloudSyncableMessage({ role: 'system', content: 'x' })).toBe(false)
-    expect(isCloudSyncableMessage({ role: 'error', content: 'x' })).toBe(false)
-    expect(isCloudSyncableMessage({ role: 'user', content: 'x' })).toBe(true)
-    expect(isCloudSyncableMessage({ role: 'assistant', content: 'x', slices: [], tool_results: [] })).toBe(true)
+    expect(isCloudSyncableMessage({ content: 'x', role: 'tool', tool_call_id: 't' } as ChatHistoryItem)).toBe(false)
+    expect(isCloudSyncableMessage({ content: 'x', role: 'system' })).toBe(false)
+    expect(isCloudSyncableMessage({ content: 'x', role: 'error' })).toBe(false)
+    expect(isCloudSyncableMessage({ content: 'x', role: 'user' })).toBe(true)
+    expect(isCloudSyncableMessage({ content: 'x', role: 'assistant', slices: [], tool_results: [] })).toBe(true)
   })
 })
 
@@ -87,19 +87,19 @@ describe('wireMessageToLocal', () => {
    */
   it('synthesizes assistant slices + empty tool_results from a wire message', () => {
     const wire: WireMessage = {
-      id: 'm1',
       chatId: 'c1',
-      senderId: null,
-      role: 'assistant',
       content: 'reply',
-      seq: 7,
       createdAt: 1730000000000,
+      id: 'm1',
+      role: 'assistant',
+      senderId: null,
+      seq: 7,
       updatedAt: 1730000000000,
     }
     const local = wireMessageToLocal(wire) as ChatAssistantMessage
     expect(local.role).toBe('assistant')
     expect(local.content).toBe('reply')
-    expect(local.slices).toEqual([{ type: 'text', text: 'reply' }])
+    expect(local.slices).toEqual([{ text: 'reply', type: 'text' }])
     expect(local.tool_results).toEqual([])
     expect((local as ChatHistoryItem).id).toBe('m1')
     expect((local as ChatHistoryItem).createdAt).toBe(1730000000000)
@@ -112,13 +112,13 @@ describe('wireMessageToLocal', () => {
    */
   it('produces empty slices for assistant wire messages with empty content', () => {
     const wire: WireMessage = {
-      id: 'm-empty',
       chatId: 'c1',
-      senderId: null,
-      role: 'assistant',
       content: '',
-      seq: 1,
       createdAt: 0,
+      id: 'm-empty',
+      role: 'assistant',
+      senderId: null,
+      seq: 1,
       updatedAt: 0,
     }
     const local = wireMessageToLocal(wire) as ChatAssistantMessage
@@ -132,13 +132,13 @@ describe('wireMessageToLocal', () => {
    */
   it('downgrades tool wire messages to error placeholders', () => {
     const wire: WireMessage = {
-      id: 'm-tool',
       chatId: 'c1',
-      senderId: null,
-      role: 'tool',
       content: '',
-      seq: 1,
       createdAt: 0,
+      id: 'm-tool',
+      role: 'tool',
+      senderId: null,
+      seq: 1,
       updatedAt: 0,
     }
     const local = wireMessageToLocal(wire)
@@ -154,12 +154,12 @@ describe('mergeCloudMessagesIntoLocal', () => {
    * version is preserved (dedup by id) and only the seq cursor advances.
    */
   it('drops echoes of locally-authored messages by id, keeps cursor in sync', () => {
-    const localUser: ChatHistoryItem = { role: 'user', content: 'hi', id: 'm1', createdAt: 0 }
+    const localUser: ChatHistoryItem = { content: 'hi', createdAt: 0, id: 'm1', role: 'user' }
     const result = mergeCloudMessagesIntoLocal(
       [localUser],
       0,
       {
-        messages: [makeWire({ id: 'm1', role: 'user', content: 'hi', seq: 5 })],
+        messages: [makeWire({ content: 'hi', id: 'm1', role: 'user', seq: 5 })],
         toSeq: 5,
       },
     )
@@ -176,14 +176,14 @@ describe('mergeCloudMessagesIntoLocal', () => {
    * mark dirty, and bump cursor.
    */
   it('appends genuinely new wire messages to the end of the list', () => {
-    const localUser: ChatHistoryItem = { role: 'user', content: 'hi', id: 'm1', createdAt: 0 }
+    const localUser: ChatHistoryItem = { content: 'hi', createdAt: 0, id: 'm1', role: 'user' }
     const result = mergeCloudMessagesIntoLocal(
       [localUser],
       5,
       {
         messages: [
-          makeWire({ id: 'm2', role: 'assistant', content: 'hello', seq: 6 }),
-          makeWire({ id: 'm3', role: 'assistant', content: 'world', seq: 7 }),
+          makeWire({ content: 'hello', id: 'm2', role: 'assistant', seq: 6 }),
+          makeWire({ content: 'world', id: 'm3', role: 'assistant', seq: 7 }),
         ],
         toSeq: 7,
       },
@@ -201,7 +201,7 @@ describe('mergeCloudMessagesIntoLocal', () => {
    */
   it('honours toSeq when no new messages arrive', () => {
     const result = mergeCloudMessagesIntoLocal(
-      [{ role: 'user', content: 'hi', id: 'm1', createdAt: 0 }],
+      [{ content: 'hi', createdAt: 0, id: 'm1', role: 'user' }],
       5,
       { messages: [], toSeq: 9 },
     )
@@ -214,7 +214,7 @@ describe('mergeCloudMessagesIntoLocal', () => {
    * Idempotent re-pull. Nothing to do, return the input untouched.
    */
   it('returns the original list reference when there is nothing to do', () => {
-    const messages: ChatHistoryItem[] = [{ role: 'user', content: 'hi', id: 'm1', createdAt: 0 }]
+    const messages: ChatHistoryItem[] = [{ content: 'hi', createdAt: 0, id: 'm1', role: 'user' }]
     const result = mergeCloudMessagesIntoLocal(messages, 5, { messages: [], toSeq: 5 })
     expect(result.dirty).toBe(false)
     expect(result.messages).toBe(messages)
@@ -228,8 +228,8 @@ describe('mergeCloudMessagesIntoLocal', () => {
    * must be a no-op (same id, same seq).
    */
   it('handles overlapping pull + push without duplication', () => {
-    const initial: ChatHistoryItem[] = [{ role: 'user', content: 'hi', id: 'm1', createdAt: 0 }]
-    const wireMessages = [makeWire({ id: 'm2', role: 'assistant', content: 'reply', seq: 6 })]
+    const initial: ChatHistoryItem[] = [{ content: 'hi', createdAt: 0, id: 'm1', role: 'user' }]
+    const wireMessages = [makeWire({ content: 'reply', id: 'm2', role: 'assistant', seq: 6 })]
 
     const afterPush = mergeCloudMessagesIntoLocal(initial, 5, { messages: wireMessages, toSeq: 6 })
     expect(afterPush.messages.map(m => m.id)).toEqual(['m1', 'm2'])

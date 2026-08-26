@@ -13,14 +13,14 @@ export const usePopupStore = createGlobalState(() => {
   const initialized = ref(false)
 
   const form = reactive<ExtensionSettings>({
-    wsUrl: '',
-    token: '',
     enabled: true,
-    sendPageContext: true,
-    sendVideoContext: true,
-    sendSubtitles: true,
-    sendSparkNotify: true,
     enableVision: false,
+    sendPageContext: true,
+    sendSparkNotify: true,
+    sendSubtitles: true,
+    sendVideoContext: true,
+    token: '',
+    wsUrl: '',
   })
 
   const connected = computed(() => status.value?.connected ?? false)
@@ -111,18 +111,18 @@ export const usePopupStore = createGlobalState(() => {
   }
 
   return {
-    status,
-    syncing,
-    form,
-    connected,
-    lastVideo,
-    lastSubtitle,
-    lastError,
-    init,
-    refresh,
     applySettings,
-    toggle,
     captureFrame,
     clearLastError,
+    connected,
+    form,
+    init,
+    lastError,
+    lastSubtitle,
+    lastVideo,
+    refresh,
+    status,
+    syncing,
+    toggle,
   }
 })

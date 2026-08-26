@@ -23,9 +23,9 @@ describe('providerRoutes', () => {
 
     // Create a test user
     const [user] = await db.insert(schema.user).values({
+      email: 'test@example.com',
       id: 'user-1',
       name: 'Test User',
-      email: 'test@example.com',
     }).returning()
     testUser = user
 
@@ -35,9 +35,9 @@ describe('providerRoutes', () => {
     app.onError((err, c) => {
       if (err instanceof ApiError) {
         return c.json({
+          details: err.details,
           error: err.errorCode,
           message: err.message,
-          details: err.details,
         }, err.statusCode)
       }
       return c.json({ error: 'Internal Server Error', message: err.message }, 500)
@@ -67,15 +67,15 @@ describe('providerRoutes', () => {
 
   it('post / should create provider config', async () => {
     const payload = {
+      config: { apiKey: 'sk-123' },
       definitionId: 'openai',
       name: 'My OpenAI',
-      config: { apiKey: 'sk-123' },
     }
 
     const res = await app.fetch(new Request('http://localhost/', {
-      method: 'POST',
       body: JSON.stringify(payload),
       headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
     }), { user: testUser } as any)
 
     expect(res.status).toBe(201)
@@ -87,10 +87,10 @@ describe('providerRoutes', () => {
   it('get / should return unified list (user + system)', async () => {
     // Create a system config directly in DB
     await db.insert(schema.systemProviderConfigs).values({
-      id: 'sys-1',
-      definitionId: 'anthropic',
-      name: 'System Anthropic',
       config: { apiKey: 'sys-sk' },
+      definitionId: 'anthropic',
+      id: 'sys-1',
+      name: 'System Anthropic',
     })
 
     const res = await app.fetch(new Request('http://localhost/'), { user: testUser } as any)
@@ -124,9 +124,9 @@ describe('providerRoutes', () => {
     const providerId = providers[0].id
 
     const res = await app.fetch(new Request(`http://localhost/${providerId}`, {
-      method: 'PATCH',
       body: JSON.stringify({ name: 'Updated Name' }),
       headers: { 'Content-Type': 'application/json' },
+      method: 'PATCH',
     }), { user: testUser } as any)
 
     expect(res.status).toBe(200)
@@ -137,18 +137,18 @@ describe('providerRoutes', () => {
   it('patch /:id should return 403 if not owner', async () => {
     // Create another user
     const [otherUser] = await db.insert(schema.user).values({
+      email: 'other@example.com',
       id: 'user-2',
       name: 'Other User',
-      email: 'other@example.com',
     }).returning()
 
     const providers = await providerService.findUserConfigsByOwnerId(testUser.id)
     const providerId = providers[0].id
 
     const res = await app.fetch(new Request(`http://localhost/${providerId}`, {
-      method: 'PATCH',
       body: JSON.stringify({ name: 'Hacked Name' }),
       headers: { 'Content-Type': 'application/json' },
+      method: 'PATCH',
     }), { user: otherUser } as any)
 
     expect(res.status).toBe(403)

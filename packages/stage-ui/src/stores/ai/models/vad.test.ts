@@ -7,15 +7,15 @@ const vadMocks = vi.hoisted(() => {
   const handlers = new Map<string, (event?: unknown) => void>()
 
   return {
-    handlers,
     createVAD: vi.fn(async () => ({
       on: vi.fn((name: string, handler: (event?: unknown) => void) => handlers.set(name, handler)),
       updateConfig: vi.fn(),
     })),
+    dispose: vi.fn(),
+    handlers,
     initialize: vi.fn(async () => undefined),
     start: vi.fn(async () => undefined),
     stop: vi.fn(),
-    dispose: vi.fn(),
   }
 })
 
@@ -29,10 +29,10 @@ const startSpanMock = vi.hoisted(() => vi.fn(() => spanMock))
 vi.mock('../../../workers/vad', () => ({
   createVAD: vadMocks.createVAD,
   createVADStates: () => ({
+    dispose: vadMocks.dispose,
     initialize: vadMocks.initialize,
     start: vadMocks.start,
     stop: vadMocks.stop,
-    dispose: vadMocks.dispose,
   }),
 }))
 
@@ -43,21 +43,21 @@ vi.mock('../../../composables/use-io-tracer', () => ({
 describe('resolveVADConfig', () => {
   it('uses safer defaults for threshold and silence duration', () => {
     expect(resolveVADConfig()).toEqual({
-      speechThreshold: 0.52,
       exitThreshold: 0.156,
       minSilenceDurationMs: 1200,
-      speechPadMs: 360,
       minSpeechDurationMs: 300,
+      speechPadMs: 360,
+      speechThreshold: 0.52,
     })
   })
 
   it('preserves explicit threshold and silence duration values', () => {
     expect(resolveVADConfig(0.45, 650, 420, 500)).toEqual({
-      speechThreshold: 0.45,
       exitThreshold: 0.135,
       minSilenceDurationMs: 650,
-      speechPadMs: 420,
       minSpeechDurationMs: 500,
+      speechPadMs: 420,
+      speechThreshold: 0.45,
     })
   })
 })

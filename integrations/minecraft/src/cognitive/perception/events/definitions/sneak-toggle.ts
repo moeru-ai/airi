@@ -3,13 +3,13 @@ import type { PerceptionContext } from '../types'
 import { definePerceptionEvent } from '..'
 
 interface SneakToggleExtract {
-  entityType: 'player'
-  entityId: string
   displayName?: string
   distance: number
+  entityId: string
+  entityType: 'player'
   hasLineOfSight: boolean
-  sneaking: boolean
   pos: any
+  sneaking: boolean
 }
 
 const sneakingState = new Map<string, boolean>()
@@ -26,11 +26,18 @@ function hasSneakingStateChanged(entityId: string, isSneaking: boolean): boolean
 
 export const sneakToggleEvent = definePerceptionEvent<[any], SneakToggleExtract>({
   id: 'sneak_toggle',
-  modality: 'sighted',
   kind: 'sneak_toggle',
-
   mineflayer: {
     event: 'entityUpdate',
+    extract: (ctx: PerceptionContext, entity: any) => ({
+      displayName: entity?.username,
+      distance: ctx.distanceTo(entity)!,
+      entityId: ctx.entityId(entity),
+      entityType: 'player',
+      hasLineOfSight: true,
+      pos: entity?.position,
+      sneaking: extractSneakingState(entity),
+    }),
     filter: (ctx: PerceptionContext, entity: any) => {
       if (!entity || entity.type !== 'player')
         return false
@@ -48,15 +55,8 @@ export const sneakToggleEvent = definePerceptionEvent<[any], SneakToggleExtract>
       const dist = ctx.distanceTo(entity)
       return dist !== null && dist <= ctx.maxDistance
     },
-    extract: (ctx: PerceptionContext, entity: any) => ({
-      entityType: 'player',
-      entityId: ctx.entityId(entity),
-      displayName: entity?.username,
-      distance: ctx.distanceTo(entity)!,
-      hasLineOfSight: true,
-      sneaking: extractSneakingState(entity),
-      pos: entity?.position,
-    }),
   },
+
+  modality: 'sighted',
 
 })

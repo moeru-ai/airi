@@ -16,49 +16,49 @@ import { WebSocket } from 'ws'
 
 import { errorMessageFromValue } from '../utils/error-message'
 
+export interface CdpAXNode {
+  bounds?: { height: number, width: number, x: number, y: number }
+  children: CdpAXNode[]
+  description?: string
+  focused?: boolean
+  name?: string
+  nodeId: string
+  role: string
+  value?: string
+}
+
+export interface CdpAXSnapshot {
+  capturedAt: string
+  nodes: CdpAXNode[]
+  pageTitle: string
+  pageUrl: string
+}
+
 export interface CdpBridgeConfig {
   /** CDP endpoint URL, e.g. http://localhost:9222 */
   cdpUrl: string
-  /** Request timeout in milliseconds */
-  requestTimeoutMs: number
-  /**
-   * WebSocket heartbeat interval in milliseconds.
-   *
-   * @default 5000
-   */
-  heartbeatIntervalMs?: number
   /**
    * Consecutive missed heartbeat pongs before tearing down the bridge.
    *
    * @default 3
    */
   heartbeatFailureLimit?: number
+  /**
+   * WebSocket heartbeat interval in milliseconds.
+   *
+   * @default 5000
+   */
+  heartbeatIntervalMs?: number
+  /** Request timeout in milliseconds */
+  requestTimeoutMs: number
 }
 
 export interface CdpBridgeStatus {
   cdpUrl: string
   connected: boolean
+  lastError?: string
   pageTitle?: string
   pageUrl?: string
-  lastError?: string
-}
-
-export interface CdpAXNode {
-  nodeId: string
-  role: string
-  name?: string
-  value?: string
-  description?: string
-  bounds?: { x: number, y: number, width: number, height: number }
-  focused?: boolean
-  children: CdpAXNode[]
-}
-
-export interface CdpAXSnapshot {
-  nodes: CdpAXNode[]
-  pageUrl: string
-  pageTitle: string
-  capturedAt: string
 }
 
 interface CdpMessage {
@@ -68,32 +68,32 @@ interface CdpMessage {
 }
 
 interface CdpResponse {
+  error?: { code: number, message: string }
   id: number
   result?: any
-  error?: { code: number, message: string }
-}
-
-interface PendingCdpRequest {
-  resolve: (value: any) => void
-  reject: (error: Error) => void
-  timeoutId: NodeJS.Timeout
 }
 
 interface CdpTargetInfo {
   id: string
-  type: string
   title: string
+  type: string
   url: string
   webSocketDebuggerUrl?: string
 }
 
+interface PendingCdpRequest {
+  reject: (error: Error) => void
+  resolve: (value: any) => void
+  timeoutId: NodeJS.Timeout
+}
+
 export class CdpBridge {
-  private socket?: WebSocket
-  private heartbeatTimer?: NodeJS.Timeout
   private awaitingHeartbeatPong = false
   private consecutiveHeartbeatFailures = 0
+  private heartbeatTimer?: NodeJS.Timeout
   private nextId = 1
   private pending = new Map<number, PendingCdpRequest>()
+  private socket?: WebSocket
   private status: CdpBridgeStatus
 
   constructor(private readonly config: CdpBridgeConfig) {
@@ -103,8 +103,60 @@ export class CdpBridge {
     }
   }
 
-  getStatus(): CdpBridgeStatus {
-    return { ...this.status }
+  /**
+   * Close the CDP connection.
+   */
+  async close(): Promise<void> {
+    this.clearHeartbeat()
+    this.rejectPendingRequests('CDP bridge closed')
+    this.awaitingHeartbeatPong = false
+    this.consecutiveHeartbeatFailures = 0
+
+    if (this.socket) {
+      this.socket.close()
+      this.socket = undefined
+    }
+    this.status.connected = false
+  }
+
+  /**
+   * Get interactive DOM elements via Runtime.evaluate, similar to
+   * the extension's collectFrameDOM. Injects a small script that
+   * collects visible interactive elements.
+   */
+  async collectInteractiveElements(maxElements = 200): Promise<any[]> {
+    const expression = `
+      (() => {
+        const selectors = 'a,button,input,select,textarea,[role="button"],[role="link"],[role="checkbox"],[role="radio"],[role="tab"],[role="menuitem"],[contenteditable="true"]';
+        const elements = [...document.querySelectorAll(selectors)];
+        const results = [];
+        for (const el of elements) {
+          if (results.length >= ${maxElements}) break;
+          const rect = el.getBoundingClientRect();
+          if (rect.width === 0 && rect.height === 0) continue;
+          const visible = rect.top < window.innerHeight && rect.bottom > 0 && rect.left < window.innerWidth && rect.right > 0;
+          if (!visible) continue;
+          results.push({
+            tag: el.tagName.toLowerCase(),
+            id: el.id || undefined,
+            name: el.getAttribute('name') || undefined,
+            type: el.getAttribute('type') || undefined,
+            text: (el.innerText || '').slice(0, 120) || undefined,
+            value: el.value !== undefined ? String(el.value).slice(0, 120) : undefined,
+            href: el.href || undefined,
+            placeholder: el.placeholder || undefined,
+            disabled: el.disabled || undefined,
+            checked: el.checked || undefined,
+            role: el.getAttribute('role') || undefined,
+            rect: { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) },
+            center: { x: Math.round(rect.x + rect.width / 2), y: Math.round(rect.y + rect.height / 2) },
+          });
+        }
+        return results;
+      })()
+    `
+
+    return await this.evaluate(expression)
   }
 
   /**
@@ -198,102 +250,13 @@ export class CdpBridge {
   }
 
   /**
-   * Close the CDP connection.
-   */
-  async close(): Promise<void> {
-    this.clearHeartbeat()
-    this.rejectPendingRequests('CDP bridge closed')
-    this.awaitingHeartbeatPong = false
-    this.consecutiveHeartbeatFailures = 0
-
-    if (this.socket) {
-      this.socket.close()
-      this.socket = undefined
-    }
-    this.status.connected = false
-  }
-
-  /**
-   * Send a CDP command and wait for the response.
-   */
-  async send(method: string, params: Record<string, unknown> = {}): Promise<any> {
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-      throw new Error(`CDP bridge is not connected (status: ${this.status.lastError || 'disconnected'})`)
-    }
-
-    const id = this.nextId++
-    const message: CdpMessage = { id, method, params }
-
-    return new Promise((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        this.pending.delete(id)
-        reject(new Error(`CDP command ${method} timed out after ${this.config.requestTimeoutMs}ms`))
-      }, this.config.requestTimeoutMs)
-
-      this.pending.set(id, { resolve, reject, timeoutId })
-      this.socket!.send(JSON.stringify(message))
-    })
-  }
-
-  /**
-   * Get the full accessibility tree of the current page.
-   */
-  async getAccessibilityTree(): Promise<CdpAXSnapshot> {
-    const result = await this.send('Accessibility.getFullAXTree', {})
-    const nodes = (result.nodes ?? []) as any[]
-
-    // Build a tree from the flat CDP AX node list
-    const nodeMap = new Map<string, CdpAXNode>()
-    const rootNodes: CdpAXNode[] = []
-
-    for (const raw of nodes) {
-      const node: CdpAXNode = {
-        nodeId: raw.nodeId ?? '',
-        role: raw.role?.value ?? '',
-        name: raw.name?.value,
-        value: raw.value?.value,
-        description: raw.description?.value,
-        focused: raw.properties?.some((p: any) => p.name === 'focused' && p.value?.value === true),
-        children: [],
-      }
-      nodeMap.set(node.nodeId, node)
-    }
-
-    // Wire parent-child relationships
-    for (const raw of nodes) {
-      const parentNode = nodeMap.get(raw.nodeId ?? '')
-      if (!parentNode)
-        continue
-
-      const childIds = raw.childIds ?? []
-      for (const childId of childIds) {
-        const child = nodeMap.get(childId)
-        if (child) {
-          parentNode.children.push(child)
-        }
-      }
-
-      if (!raw.parentId && parentNode) {
-        rootNodes.push(parentNode)
-      }
-    }
-
-    return {
-      nodes: rootNodes,
-      pageUrl: this.status.pageUrl ?? '',
-      pageTitle: this.status.pageTitle ?? '',
-      capturedAt: new Date().toISOString(),
-    }
-  }
-
-  /**
    * Evaluate a JavaScript expression in the page context.
    */
   async evaluate(expression: string): Promise<any> {
     const result = await this.send('Runtime.evaluate', {
+      awaitPromise: true,
       expression,
       returnByValue: true,
-      awaitPromise: true,
     })
 
     if (result.exceptionDetails) {
@@ -302,65 +265,6 @@ export class CdpBridge {
     }
 
     return result.result?.value
-  }
-
-  /**
-   * Navigate the current page to a URL.
-   */
-  async navigate(url: string): Promise<void> {
-    await this.send('Page.navigate', { url })
-  }
-
-  /**
-   * Take a screenshot of the current page.
-   * Returns base64-encoded PNG data.
-   */
-  async screenshot(options?: { format?: 'png' | 'jpeg', quality?: number }): Promise<string> {
-    const result = await this.send('Page.captureScreenshot', {
-      format: options?.format ?? 'png',
-      quality: options?.quality,
-    })
-    return result.data
-  }
-
-  /**
-   * Get interactive DOM elements via Runtime.evaluate, similar to
-   * the extension's collectFrameDOM. Injects a small script that
-   * collects visible interactive elements.
-   */
-  async collectInteractiveElements(maxElements = 200): Promise<any[]> {
-    const expression = `
-      (() => {
-        const selectors = 'a,button,input,select,textarea,[role="button"],[role="link"],[role="checkbox"],[role="radio"],[role="tab"],[role="menuitem"],[contenteditable="true"]';
-        const elements = [...document.querySelectorAll(selectors)];
-        const results = [];
-        for (const el of elements) {
-          if (results.length >= ${maxElements}) break;
-          const rect = el.getBoundingClientRect();
-          if (rect.width === 0 && rect.height === 0) continue;
-          const visible = rect.top < window.innerHeight && rect.bottom > 0 && rect.left < window.innerWidth && rect.right > 0;
-          if (!visible) continue;
-          results.push({
-            tag: el.tagName.toLowerCase(),
-            id: el.id || undefined,
-            name: el.getAttribute('name') || undefined,
-            type: el.getAttribute('type') || undefined,
-            text: (el.innerText || '').slice(0, 120) || undefined,
-            value: el.value !== undefined ? String(el.value).slice(0, 120) : undefined,
-            href: el.href || undefined,
-            placeholder: el.placeholder || undefined,
-            disabled: el.disabled || undefined,
-            checked: el.checked || undefined,
-            role: el.getAttribute('role') || undefined,
-            rect: { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) },
-            center: { x: Math.round(rect.x + rect.width / 2), y: Math.round(rect.y + rect.height / 2) },
-          });
-        }
-        return results;
-      })()
-    `
-
-    return await this.evaluate(expression)
   }
 
   /**
@@ -399,6 +303,111 @@ export class CdpBridge {
     return lines.join('\n')
   }
 
+  /**
+   * Get the full accessibility tree of the current page.
+   */
+  async getAccessibilityTree(): Promise<CdpAXSnapshot> {
+    const result = await this.send('Accessibility.getFullAXTree', {})
+    const nodes = (result.nodes ?? []) as any[]
+
+    // Build a tree from the flat CDP AX node list
+    const nodeMap = new Map<string, CdpAXNode>()
+    const rootNodes: CdpAXNode[] = []
+
+    for (const raw of nodes) {
+      const node: CdpAXNode = {
+        children: [],
+        description: raw.description?.value,
+        focused: raw.properties?.some((p: any) => p.name === 'focused' && p.value?.value === true),
+        name: raw.name?.value,
+        nodeId: raw.nodeId ?? '',
+        role: raw.role?.value ?? '',
+        value: raw.value?.value,
+      }
+      nodeMap.set(node.nodeId, node)
+    }
+
+    // Wire parent-child relationships
+    for (const raw of nodes) {
+      const parentNode = nodeMap.get(raw.nodeId ?? '')
+      if (!parentNode)
+        continue
+
+      const childIds = raw.childIds ?? []
+      for (const childId of childIds) {
+        const child = nodeMap.get(childId)
+        if (child) {
+          parentNode.children.push(child)
+        }
+      }
+
+      if (!raw.parentId && parentNode) {
+        rootNodes.push(parentNode)
+      }
+    }
+
+    return {
+      capturedAt: new Date().toISOString(),
+      nodes: rootNodes,
+      pageTitle: this.status.pageTitle ?? '',
+      pageUrl: this.status.pageUrl ?? '',
+    }
+  }
+
+  getStatus(): CdpBridgeStatus {
+    return { ...this.status }
+  }
+
+  /**
+   * Navigate the current page to a URL.
+   */
+  async navigate(url: string): Promise<void> {
+    await this.send('Page.navigate', { url })
+  }
+
+  /**
+   * Take a screenshot of the current page.
+   * Returns base64-encoded PNG data.
+   */
+  async screenshot(options?: { format?: 'jpeg' | 'png', quality?: number }): Promise<string> {
+    const result = await this.send('Page.captureScreenshot', {
+      format: options?.format ?? 'png',
+      quality: options?.quality,
+    })
+    return result.data
+  }
+
+  /**
+   * Send a CDP command and wait for the response.
+   */
+  async send(method: string, params: Record<string, unknown> = {}): Promise<any> {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      throw new Error(`CDP bridge is not connected (status: ${this.status.lastError || 'disconnected'})`)
+    }
+
+    const id = this.nextId++
+    const message: CdpMessage = { id, method, params }
+
+    return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        this.pending.delete(id)
+        reject(new Error(`CDP command ${method} timed out after ${this.config.requestTimeoutMs}ms`))
+      }, this.config.requestTimeoutMs)
+
+      this.pending.set(id, { reject, resolve, timeoutId })
+      this.socket!.send(JSON.stringify(message))
+    })
+  }
+
+  private clearHeartbeat() {
+    if (!this.heartbeatTimer) {
+      return
+    }
+
+    clearInterval(this.heartbeatTimer)
+    this.heartbeatTimer = undefined
+  }
+
   private handleMessage(raw: any) {
     let data: CdpResponse | undefined
     try {
@@ -424,6 +433,24 @@ export class CdpBridge {
     else {
       pending.resolve(data.result)
     }
+  }
+
+  private handleSocketClosed(reason: string) {
+    this.status.lastError = reason
+    this.clearHeartbeat()
+    this.rejectPendingRequests(reason)
+    this.socket = undefined
+    this.status.connected = false
+    this.awaitingHeartbeatPong = false
+    this.consecutiveHeartbeatFailures = 0
+  }
+
+  private rejectPendingRequests(reason: string) {
+    for (const [id, pending] of this.pending.entries()) {
+      clearTimeout(pending.timeoutId)
+      pending.reject(new Error(`${reason} before completing request ${id}`))
+    }
+    this.pending.clear()
   }
 
   private startHeartbeat() {
@@ -465,15 +492,6 @@ export class CdpBridge {
     this.heartbeatTimer.unref?.()
   }
 
-  private clearHeartbeat() {
-    if (!this.heartbeatTimer) {
-      return
-    }
-
-    clearInterval(this.heartbeatTimer)
-    this.heartbeatTimer = undefined
-  }
-
   private teardownAfterHeartbeatFailure(reason?: string) {
     const failureLimit = this.config.heartbeatFailureLimit ?? 3
     this.status.lastError = reason ?? `CDP heartbeat failed after ${failureLimit} consecutive missed pongs`
@@ -486,23 +504,5 @@ export class CdpBridge {
     this.awaitingHeartbeatPong = false
     this.consecutiveHeartbeatFailures = 0
     socket?.terminate()
-  }
-
-  private handleSocketClosed(reason: string) {
-    this.status.lastError = reason
-    this.clearHeartbeat()
-    this.rejectPendingRequests(reason)
-    this.socket = undefined
-    this.status.connected = false
-    this.awaitingHeartbeatPong = false
-    this.consecutiveHeartbeatFailures = 0
-  }
-
-  private rejectPendingRequests(reason: string) {
-    for (const [id, pending] of this.pending.entries()) {
-      clearTimeout(pending.timeoutId)
-      pending.reject(new Error(`${reason} before completing request ${id}`))
-    }
-    this.pending.clear()
   }
 }

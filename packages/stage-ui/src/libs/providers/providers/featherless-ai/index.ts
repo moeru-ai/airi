@@ -19,28 +19,7 @@ const featherlessConfigSchema = z.object({
 type FeatherlessConfig = z.input<typeof featherlessConfigSchema>
 
 export const providerFeatherlessAI = defineProvider<FeatherlessConfig>({
-  id: 'featherless-ai',
-  name: 'Featherless.ai',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.featherless.title'),
-  description: 'featherless.ai',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.featherless.description'),
-  tasks: ['chat'],
   capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
-  icon: 'i-lobe-icons:featherless-color',
-
-  createProviderConfig: ({ t }) => featherlessConfigSchema.extend({
-    apiKey: featherlessConfigSchema.shape.apiKey.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
-      type: 'password',
-    }),
-    baseUrl: featherlessConfigSchema.shape.baseUrl.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
-    }),
-  }),
   createProvider(config) {
     const provider = createOpenAI(config.apiKey, config.baseUrl)
     return {
@@ -54,6 +33,27 @@ export const providerFeatherlessAI = defineProvider<FeatherlessConfig>({
       },
     }
   },
+  createProviderConfig: ({ t }) => featherlessConfigSchema.extend({
+    apiKey: featherlessConfigSchema.shape.apiKey.meta({
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+      type: 'password',
+    }),
+    baseUrl: featherlessConfigSchema.shape.baseUrl.meta({
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
+    }),
+  }),
+  description: 'featherless.ai',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.featherless.description'),
+  icon: 'i-lobe-icons:featherless-color',
+  id: 'featherless-ai',
+  name: 'Featherless.ai',
+
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.featherless.title'),
+  tasks: ['chat'],
 
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()

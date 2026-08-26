@@ -13,7 +13,7 @@ describe('generateManifestFixtures', () => {
 
   afterEach(async () => {
     await Promise.all(roots.map(async (root) => {
-      await import('node:fs/promises').then(({ rm }) => rm(root, { recursive: true, force: true }))
+      await import('node:fs/promises').then(({ rm }) => rm(root, { force: true, recursive: true }))
     }))
     roots.length = 0
   })
@@ -31,12 +31,12 @@ describe('generateManifestFixtures', () => {
     roots.push(root)
 
     const result = await generateManifestFixtures({
-      rootDir: root,
+      artifactContent: 'mock-installer-binary',
       channel: 'stable',
+      releaseNotes: 'Mock update for AIRI local updater verification.',
+      rootDir: root,
       target: 'x86_64-pc-windows-msvc',
       version: '9.9.9-test.1',
-      releaseNotes: 'Mock update for AIRI local updater verification.',
-      artifactContent: 'mock-installer-binary',
     })
 
     expect(result.channelDir).toBe(join(root, 'stable'))
@@ -45,14 +45,14 @@ describe('generateManifestFixtures', () => {
 
     const manifest = yaml.parse(await readFile(result.manifestPath, 'utf8'))
     expect(manifest).toMatchObject({
-      version: '9.9.9-test.1',
-      path: 'AIRI-9.9.9-test.1-windows-x64-setup.exe',
-      releaseNotes: 'Mock update for AIRI local updater verification.',
       files: [
         {
           url: 'AIRI-9.9.9-test.1-windows-x64-setup.exe',
         },
       ],
+      path: 'AIRI-9.9.9-test.1-windows-x64-setup.exe',
+      releaseNotes: 'Mock update for AIRI local updater verification.',
+      version: '9.9.9-test.1',
     })
 
     expect(typeof manifest.sha512).toBe('string')
@@ -66,12 +66,12 @@ describe('generateManifestFixtures', () => {
     roots.push(root)
 
     const result = await generateManifestFixtures({
-      rootDir: root,
+      artifactContent: `mock-installer-${channel}`,
       channel,
+      releaseNotes: 'Mock update lane fixture',
+      rootDir: root,
       target: 'aarch64-apple-darwin',
       version: '9.9.9-test.2',
-      releaseNotes: 'Mock update lane fixture',
-      artifactContent: `mock-installer-${channel}`,
     })
 
     expect(result.channelDir).toBe(join(root, channel))

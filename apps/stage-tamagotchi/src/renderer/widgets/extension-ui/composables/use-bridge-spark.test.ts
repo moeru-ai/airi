@@ -19,25 +19,25 @@ describe('publishWidgetSparkNotifyReaction', () => {
     const emit = vi.fn()
 
     const result = await publishWidgetSparkNotifyReaction({
-      route: {
-        namespace: 'airi.plugin.game.chess.commentary',
-        name: 'request',
-      },
       payload: {
-        requestId: 'req-1',
         fallbackResponseText: 'Fallback text.',
+        requestId: 'req-1',
         sparkNotify: {
-          kind: 'ping',
-          urgency: 'immediate',
+          destinations: ['character'],
           forceTextResponse: true,
           headline: 'AIRI move',
+          kind: 'ping',
           note: 'Explain the chess move.',
-          destinations: ['character'],
-          source: 'plugin:airi-plugin-game-chess',
           payload: {
             moveSan: 'Nf3',
           },
+          source: 'plugin:airi-plugin-game-chess',
+          urgency: 'immediate',
         },
+      },
+      route: {
+        name: 'request',
+        namespace: 'airi.plugin.game.chess.commentary',
       },
     }, {
       dispatchSparkNotifyReaction,
@@ -46,26 +46,26 @@ describe('publishWidgetSparkNotifyReaction', () => {
 
     expect(result).toBe(true)
     expect(dispatchSparkNotifyReaction).toHaveBeenCalledWith({
-      kind: 'ping',
-      urgency: 'immediate',
-      forceTextResponse: true,
-      fallbackResponseText: 'Fallback text.',
-      headline: 'AIRI move',
-      note: 'Explain the chess move.',
       destinations: ['character'],
-      source: 'plugin:airi-plugin-game-chess',
+      fallbackResponseText: 'Fallback text.',
+      forceTextResponse: true,
+      headline: 'AIRI move',
+      kind: 'ping',
+      note: 'Explain the chess move.',
       payload: {
         moveSan: 'Nf3',
       },
+      source: 'plugin:airi-plugin-game-chess',
+      urgency: 'immediate',
     })
     expect(emit).toHaveBeenCalledWith(widgetsIframeBroadcastEvent, {
-      route: {
-        namespace: 'airi.plugin.game.chess.commentary',
-        name: 'response',
-      },
       payload: {
         requestId: 'req-1',
         text: 'Nice tactic.',
+      },
+      route: {
+        name: 'response',
+        namespace: 'airi.plugin.game.chess.commentary',
       },
     })
   })
@@ -80,12 +80,12 @@ describe('publishWidgetSparkNotifyReaction', () => {
     const emit = vi.fn()
 
     const result = await publishWidgetSparkNotifyReaction({
-      route: {
-        namespace: 'airi.plugin.game.chess.gamelet',
-        name: 'response',
-      },
       payload: {
         requestId: 'req-1',
+      },
+      route: {
+        name: 'response',
+        namespace: 'airi.plugin.game.chess.gamelet',
       },
     }, {
       dispatchSparkNotifyReaction,
@@ -106,17 +106,17 @@ describe('publishWidgetSparkNotifyReaction', () => {
     const emit = vi.fn()
 
     const result = await publishWidgetSparkNotifyReaction({
-      route: {
-        namespace: 'airi.plugin.game.chess.commentary',
-        name: 'request',
-      },
       payload: {
-        requestId: 'req-quick',
         fallbackResponseText: '',
+        requestId: 'req-quick',
         sparkNotify: {
-          headline: 'Quick move',
           forceTextResponse: true,
+          headline: 'Quick move',
         },
+      },
+      route: {
+        name: 'request',
+        namespace: 'airi.plugin.game.chess.commentary',
       },
     }, {
       dispatchSparkNotifyReaction,
@@ -138,70 +138,70 @@ describe('publishWidgetSparkNotifyReaction', () => {
   it('uses awaitable performance notify when the widget declares calls', async () => {
     const dispatchSparkNotifyReaction = vi.fn(async () => 'unused')
     const dispatchSparkNotifyPerformance = vi.fn(async () => ({
-      type: 'called' as const,
       name: 'chess.play',
       reaction: 'Played.',
+      type: 'called' as const,
     }))
     const emit = vi.fn()
 
     const result = await publishWidgetSparkNotifyReaction({
-      route: {
-        namespace: 'airi.plugin.game.chess.commentary',
-        name: 'request',
-      },
       payload: {
-        requestId: 'req-call',
-        fallbackResponseText: 'fallback',
         calls: [
           {
-            name: 'chess.play',
-            prompt: 'Play the prepared chess reply.',
             examples: [
               '<|CALL ["chess.play", {"move":"Nf3"}]|>',
             ],
+            name: 'chess.play',
+            prompt: 'Play the prepared chess reply.',
           },
         ],
-        timeoutMs: 15000,
+        fallbackResponseText: 'fallback',
+        requestId: 'req-call',
         sparkNotify: {
+          destinations: ['character'],
+          headline: 'A move is ready',
           kind: 'ping',
           urgency: 'immediate',
-          headline: 'A move is ready',
-          destinations: ['character'],
         },
+        timeoutMs: 15000,
+      },
+      route: {
+        name: 'request',
+        namespace: 'airi.plugin.game.chess.commentary',
       },
     }, {
-      dispatchSparkNotifyReaction,
       dispatchSparkNotifyPerformance,
+      dispatchSparkNotifyReaction,
       emit,
     })
 
     expect(result).toBe(true)
     expect(dispatchSparkNotifyReaction).not.toHaveBeenCalled()
     expect(dispatchSparkNotifyPerformance).toHaveBeenCalledWith(expect.objectContaining({
-      headline: 'A move is ready',
-      fallbackResponseText: 'fallback',
-      timeoutMs: 15000,
       calls: [
         {
+          handler: expect.any(Function),
           manifest: {
-            name: 'chess.play',
-            prompt: 'Play the prepared chess reply.',
             examples: [
               '<|CALL ["chess.play", {"move":"Nf3"}]|>',
             ],
+            name: 'chess.play',
+            prompt: 'Play the prepared chess reply.',
           },
-          handler: expect.any(Function),
         },
       ],
+      fallbackResponseText: 'fallback',
+      headline: 'A move is ready',
+      timeoutMs: 15000,
     }))
     expect(emit).toHaveBeenCalledWith(widgetsIframeBroadcastEvent, expect.objectContaining({
       payload: expect.objectContaining({
+        performance: {
+          name: 'chess.play',
+          type: 'called',
+        },
         requestId: 'req-call',
         text: 'Played.',
-        performance: {
-          type: 'called',
-          name: 'chess.play',
-        },
       }),
     }))
   })

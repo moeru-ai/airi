@@ -25,7 +25,7 @@ export function parseMayStructuredMessage(responseText: string) {
   if (result) {
     logger.withField('text', JSON.stringify(responseText)).withField('result', result).log('Multiple messages detected')
 
-    const parsedResponse = parse(result[0]) as ({ messages?: unknown, reply_to_message_id?: unknown } | undefined)
+    const parsedResponse = parse(result[0]) as (undefined | { messages?: unknown, reply_to_message_id?: unknown })
     const hasMessagesArray = Array.isArray(parsedResponse?.messages)
     const messages = Array.isArray(parsedResponse?.messages)
       ? parsedResponse.messages.filter((message): message is string => typeof message === 'string' && message.trim() !== '')
@@ -79,15 +79,15 @@ export async function sendMessage(
 
   const systemContent = String(await messageSplit())
   const req = {
+    abortSignal: abortController.signal,
     apiKey: env.LLM_API_KEY!,
     baseURL: env.LLM_API_BASE_URL!,
-    model: env.LLM_MODEL!,
     messages: message.messages(
-      { role: 'system' as const, content: systemContent },
-      { role: 'user' as const, content: 'This is the input message:' },
-      { role: 'user' as const, content: String(responseText) },
+      { content: systemContent, role: 'system' as const },
+      { content: 'This is the input message:', role: 'user' as const },
+      { content: String(responseText), role: 'user' as const },
     ),
-    abortSignal: abortController.signal,
+    model: env.LLM_MODEL!,
   } satisfies GenerateTextOptions
   if (env.LLM_OLLAMA_DISABLE_THINK) {
     (req as Record<string, unknown>).think = false
@@ -106,12 +106,12 @@ export async function sendMessage(
   }
 
   logger.withFields({
-    messages: responseText,
-    response: res.text,
-    now: new Date().toLocaleString(),
-    totalTokens: res.usage.totalTokens,
-    promptTokens: res.usage.inputTokens,
     completion_tokens: res.usage.outputTokens,
+    messages: responseText,
+    now: new Date().toLocaleString(),
+    promptTokens: res.usage.inputTokens,
+    response: res.text,
+    totalTokens: res.usage.totalTokens,
   }).log('Message split')
 
   const structuredMessage = parseMayStructuredMessage(res.text)

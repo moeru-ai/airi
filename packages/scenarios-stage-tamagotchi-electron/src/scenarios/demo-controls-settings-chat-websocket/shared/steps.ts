@@ -4,19 +4,14 @@ import { sleep } from '@moeru/std'
 
 import { ensureControlsIslandExpanded, getChatWindowSnapshot, getSettingsWindowSnapshot, waitForRouteReadiness } from './runtime'
 
+export async function runCaptureStep(step: ManualCaptureStep, runtime: ManualRuntime): Promise<CaptureExecutionResult> {
+  return captureStepPage(step, runtime)
+}
+
 async function captureStepPage(step: ManualCaptureStep, runtime: ManualRuntime): Promise<CaptureExecutionResult> {
   let page
 
   switch (step.kind) {
-    case 'main-window': {
-      page = runtime.mainWindow.page
-      break
-    }
-    case 'controls-island': {
-      await ensureControlsIslandExpanded(runtime)
-      page = runtime.mainWindow.page
-      break
-    }
     case 'chat-window': {
       const chatWindowSnapshot = await getChatWindowSnapshot(runtime)
 
@@ -25,6 +20,26 @@ async function captureStepPage(step: ManualCaptureStep, runtime: ManualRuntime):
       }
 
       page = chatWindowSnapshot.page
+      break
+    }
+    case 'connection': {
+      const settingsWindowSnapshot = await getSettingsWindowSnapshot(runtime)
+      const websocketSettingsPage = await runtime.context.settingsWindow.goToConnection(settingsWindowSnapshot.page)
+
+      if (step.readyPattern) {
+        await websocketSettingsPage.getByText(step.readyPattern).waitFor({ state: 'visible' })
+      }
+
+      page = websocketSettingsPage
+      break
+    }
+    case 'controls-island': {
+      await ensureControlsIslandExpanded(runtime)
+      page = runtime.mainWindow.page
+      break
+    }
+    case 'main-window': {
+      page = runtime.mainWindow.page
       break
     }
     case 'settings-overview': {
@@ -46,17 +61,6 @@ async function captureStepPage(step: ManualCaptureStep, runtime: ManualRuntime):
       page = settingsWindowSnapshot.page
       break
     }
-    case 'connection': {
-      const settingsWindowSnapshot = await getSettingsWindowSnapshot(runtime)
-      const websocketSettingsPage = await runtime.context.settingsWindow.goToConnection(settingsWindowSnapshot.page)
-
-      if (step.readyPattern) {
-        await websocketSettingsPage.getByText(step.readyPattern).waitFor({ state: 'visible' })
-      }
-
-      page = websocketSettingsPage
-      break
-    }
   }
 
   if (step.waitMs) {
@@ -68,8 +72,4 @@ async function captureStepPage(step: ManualCaptureStep, runtime: ManualRuntime):
   return {
     artifacts,
   }
-}
-
-export async function runCaptureStep(step: ManualCaptureStep, runtime: ManualRuntime): Promise<CaptureExecutionResult> {
-  return captureStepPage(step, runtime)
 }

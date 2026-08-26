@@ -8,17 +8,17 @@ import { executeToolCallRerun, replaceToolCallResult } from './tool-call-rerun'
 
 function assistantMessage(overrides: Partial<ChatAssistantMessage> = {}): ChatAssistantMessage {
   return {
-    role: 'assistant',
     content: '',
+    role: 'assistant',
     slices: [
       {
-        type: 'tool-call',
         toolCall: {
+          args: JSON.stringify({ location: 'Tokyo' }),
           toolCallId: 'call-weather',
           toolCallType: 'function',
           toolName: 'weather',
-          args: JSON.stringify({ location: 'Tokyo' }),
         },
+        type: 'tool-call',
       },
     ],
     tool_results: [],
@@ -28,16 +28,16 @@ function assistantMessage(overrides: Partial<ChatAssistantMessage> = {}): ChatAs
 
 function tool(name: string, execute: Tool['execute']): Tool {
   return {
-    type: 'function',
+    execute,
     function: {
-      name,
       description: `${name} description`,
+      name,
       parameters: {
-        type: 'object',
         properties: {},
+        type: 'object',
       },
     },
-    execute,
+    type: 'function',
   }
 }
 
@@ -68,18 +68,18 @@ describe('replaceToolCallResult', () => {
     const message = assistantMessage({
       slices: [
         {
-          type: 'tool-call',
           toolCall: {
+            args: JSON.stringify({ location: 'Tokyo' }),
             toolCallId: 'call-weather',
             toolCallType: 'function',
             toolName: 'weather',
-            args: JSON.stringify({ location: 'Tokyo' }),
           },
+          type: 'tool-call',
         },
         {
-          type: 'tool-call-result',
           id: 'call-weather',
           result: 'old weather',
+          type: 'tool-call-result',
         },
       ],
     })
@@ -93,10 +93,10 @@ describe('replaceToolCallResult', () => {
     expect(next.slices).toEqual([
       message.slices[0],
       {
-        type: 'tool-call-result',
         id: 'call-weather',
         isError: true,
         result: 'new error',
+        type: 'tool-call-result',
       },
     ])
     expect(next.tool_results).toEqual([
@@ -112,24 +112,24 @@ describe('replaceToolCallResult', () => {
     const message = assistantMessage({
       providerTranscript: [
         {
-          role: 'assistant',
           content: '',
+          role: 'assistant',
           tool_calls: [
             {
+              function: { arguments: '{}', name: 'weather' },
               id: 'call-weather',
               type: 'function',
-              function: { name: 'weather', arguments: '{}' },
             },
           ],
         },
         {
+          content: 'old weather',
           role: 'tool',
           tool_call_id: 'call-weather',
-          content: 'old weather',
         },
         {
-          role: 'assistant',
           content: 'The old result was returned.',
+          role: 'assistant',
         },
       ],
     })
@@ -140,9 +140,9 @@ describe('replaceToolCallResult', () => {
     })
 
     expect(next.providerTranscript?.[1]).toEqual({
+      content: 'new weather',
       role: 'tool',
       tool_call_id: 'call-weather',
-      content: 'new weather',
     })
   })
 })
@@ -155,25 +155,25 @@ describe('executeToolCallRerun', () => {
       id: 'assistant-1',
     }
     const messages: ChatHistoryItem[] = [
-      { role: 'user', content: 'weather?', id: 'user-1' },
-      { role: 'error', content: 'previous runtime error', id: 'error-1' },
+      { content: 'weather?', id: 'user-1', role: 'user' },
+      { content: 'previous runtime error', id: 'error-1', role: 'error' },
       targetMessage,
     ]
 
     const next = await executeToolCallRerun({
       messages,
       payload: {
+        args: '{ "location": "Tokyo" }',
         messageId: 'assistant-1',
         toolCallId: 'call-weather',
         toolName: 'weather',
-        args: '{ "location": "Tokyo" }',
       },
       resolveTools: async () => [tool('weather', execute)],
     })
 
     expect(execute).toHaveBeenCalledWith({ location: 'Tokyo' }, {
-      toolCallId: 'call-weather',
       messages,
+      toolCallId: 'call-weather',
     })
     expect(next).not.toBe(messages)
     expect(next[2]).toMatchObject({
@@ -197,10 +197,10 @@ describe('executeToolCallRerun', () => {
     const next = await executeToolCallRerun({
       messages,
       payload: {
+        args: '{}',
         messageId: 'assistant-1',
         toolCallId: 'call-weather',
         toolName: 'weather',
-        args: '{}',
       },
       resolveTools: async () => [],
     })
@@ -229,10 +229,10 @@ describe('executeToolCallRerun', () => {
     const next = await executeToolCallRerun({
       messages,
       payload: {
+        args: '{ invalid',
         messageId: 'assistant-1',
         toolCallId: 'call-weather',
         toolName: 'weather',
-        args: '{ invalid',
       },
       resolveTools,
     })
@@ -261,10 +261,10 @@ describe('executeToolCallRerun', () => {
     const next = await executeToolCallRerun({
       messages,
       payload: {
+        args: '',
         messageId: 'assistant-1',
         toolCallId: 'call-weather',
         toolName: 'weather',
-        args: '',
       },
       resolveTools: async () => [tool('weather', async () => {
         throw new Error('network unavailable')

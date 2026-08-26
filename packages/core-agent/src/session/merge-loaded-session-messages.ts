@@ -1,31 +1,5 @@
 import type { ChatHistoryItem } from '../types/chat'
 
-function extractMessageContent(message: ChatHistoryItem) {
-  if (typeof message.content === 'string')
-    return message.content
-
-  if (Array.isArray(message.content)) {
-    return message.content.map((part) => {
-      if (typeof part === 'string')
-        return part
-      if (part && typeof part === 'object' && 'text' in part)
-        return String(part.text ?? '')
-      return ''
-    }).join('')
-  }
-
-  return ''
-}
-
-function getMessageFingerprint(message: ChatHistoryItem) {
-  return [
-    message.id ?? '',
-    message.role,
-    message.createdAt ?? '',
-    extractMessageContent(message),
-  ].join('\u001F')
-}
-
 export function mergeLoadedSessionMessages(storedMessages: ChatHistoryItem[], currentMessages: ChatHistoryItem[]) {
   if (currentMessages.length === 0)
     return storedMessages
@@ -56,4 +30,30 @@ export function mergeLoadedSessionMessages(storedMessages: ChatHistoryItem[], cu
     return [systemMessage, ...extraMessages]
 
   return [...storedMessages, ...extraMessages]
+}
+
+function extractMessageContent(message: ChatHistoryItem) {
+  if (typeof message.content === 'string')
+    return message.content
+
+  if (Array.isArray(message.content)) {
+    return message.content.map((part) => {
+      if (typeof part === 'string')
+        return part
+      if (part && typeof part === 'object' && 'text' in part)
+        return String(part.text ?? '')
+      return ''
+    }).join('')
+  }
+
+  return ''
+}
+
+function getMessageFingerprint(message: ChatHistoryItem) {
+  return [
+    message.id ?? '',
+    message.role,
+    message.createdAt ?? '',
+    extractMessageContent(message),
+  ].join('\u001F')
 }

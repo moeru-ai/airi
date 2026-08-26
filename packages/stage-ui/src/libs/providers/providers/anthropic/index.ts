@@ -32,70 +32,70 @@ function createAnthropic(apiKey: string, baseURL: string = 'https://api.anthropi
   }
 
   return merge(
-    createChatProvider({ apiKey, fetch: anthropicFetch, baseURL }),
-    createModelProvider({ apiKey, fetch: anthropicFetch, baseURL }),
+    createChatProvider({ apiKey, baseURL, fetch: anthropicFetch }),
+    createModelProvider({ apiKey, baseURL, fetch: anthropicFetch }),
   )
 }
 
 export const providerAnthropic = defineProvider<AnthropicConfig>({
-  id: 'anthropic',
-  order: 6,
-  name: 'Anthropic',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.anthropic.title'),
-  description: 'anthropic.com',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.anthropic.description'),
-  tasks: ['chat'],
-  icon: 'i-lobe-icons:claude',
-  iconColor: 'i-lobe-icons:claude-color',
-
+  createProvider(config) {
+    return createAnthropic(config.apiKey, config.baseUrl)
+  },
   createProviderConfig: ({ t }) => anthropicConfigSchema.extend({
     apiKey: anthropicConfigSchema.shape.apiKey.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
       type: 'password',
     }),
     baseUrl: anthropicConfigSchema.shape.baseUrl.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
     }),
   }),
-  createProvider(config) {
-    return createAnthropic(config.apiKey, config.baseUrl)
-  },
-
+  description: 'anthropic.com',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.anthropic.description'),
   extraMethods: {
     listModels: async () => ([
       {
+        description: 'Anthropic fastest model with near-frontier intelligence',
         id: 'claude-haiku-4-5-20251001',
         name: 'Claude Haiku 4.5',
         provider: 'anthropic',
-        description: 'Anthropic fastest model with near-frontier intelligence',
       },
       {
+        description: 'Anthropic smartest model for complex agents and coding',
         id: 'claude-sonnet-4-5-20250929',
         name: 'Claude Sonnet 4.5',
         provider: 'anthropic',
-        description: 'Anthropic smartest model for complex agents and coding',
       },
       {
+        description: 'Exceptional model for specialized reasoning tasks',
         id: 'claude-opus-4-1-20250805',
         name: 'Claude Opus 4.1',
         provider: 'anthropic',
-        description: 'Exceptional model for specialized reasoning tasks',
       },
     ] satisfies ModelInfo[]),
   },
+  icon: 'i-lobe-icons:claude',
+  iconColor: 'i-lobe-icons:claude-color',
+  id: 'anthropic',
+  name: 'Anthropic',
+
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.anthropic.title'),
+  order: 6,
+
+  tasks: ['chat'],
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
       additionalHeaders: {
         'anthropic-dangerous-direct-browser-access': 'true',
       },
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
     }),
   },
 })

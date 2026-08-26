@@ -20,8 +20,8 @@ export async function imagineAnAction(
   messages: LLMMessage[],
   actions: { action: Action, result: unknown }[],
   globalStates: {
-    unreadEvents: Record<string, StoredUnreadEvent[]>
     incomingEvents?: SatoriEvent[]
+    unreadEvents: Record<string, StoredUnreadEvent[]>
   },
 ): Promise<Action | undefined> {
   const logger = useLogg('imagineAnAction').useGlobalConfig()
@@ -57,11 +57,11 @@ export async function imagineAnAction(
 
   try {
     const req = {
+      abortSignal: currentAbortController?.signal,
       apiKey: config.llm.apiKey,
       baseURL: config.llm.baseUrl,
-      model: config.llm.model,
       messages: requestMessages,
-      abortSignal: currentAbortController?.signal,
+      model: config.llm.model,
     } satisfies GenerateTextOptions
 
     if (config.llm.ollamaDisableThink) {
@@ -76,12 +76,12 @@ export async function imagineAnAction(
     }
 
     logger.withFields({
-      response: res.text,
-      unreadEvents: Object.fromEntries(Object.entries(globalStates.unreadEvents).map(([key, value]) => [key, value.length])),
-      now: new Date().toLocaleString(),
-      totalTokens: res.usage.totalTokens,
-      promptTokens: res.usage.inputTokens,
       completion_tokens: res.usage.outputTokens,
+      now: new Date().toLocaleString(),
+      promptTokens: res.usage.inputTokens,
+      response: res.text,
+      totalTokens: res.usage.totalTokens,
+      unreadEvents: Object.fromEntries(Object.entries(globalStates.unreadEvents).map(([key, value]) => [key, value.length])),
     }).log('Generated action')
 
     responseText = res.text

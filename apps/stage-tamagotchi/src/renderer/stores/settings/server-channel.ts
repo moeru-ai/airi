@@ -14,10 +14,10 @@ import {
 } from '../../../shared/eventa'
 
 export const useServerChannelSettingsStore = defineStore('tamagotchi-server-channel-settings', () => {
-  const tlsConfig = useLocalStorage<{ cert?: string, key?: string, passphrase?: string } | null | undefined>('settings/server-channel/websocket-tls-config', null)
+  const tlsConfig = useLocalStorage<null | undefined | { cert?: string, key?: string, passphrase?: string }>('settings/server-channel/websocket-tls-config', null)
   const hostname = useLocalStorage<string>('settings/server-channel/hostname', '127.0.0.1')
   const authToken = useLocalStorage<string>('settings/server-channel/auth-token', '')
-  const lastApplyError = shallowRef<string | null>(null)
+  const lastApplyError = shallowRef<null | string>(null)
   const syncingWithServer = shallowRef(false)
   const appliedConfig = shallowRef<ElectronServerChannelConfig>()
 
@@ -54,9 +54,9 @@ export const useServerChannelSettingsStore = defineStore('tamagotchi-server-chan
 
     try {
       const config = await applyServerChannelConfig({
-        tlsConfig: newTls ? {} : null,
-        hostname: newHost,
         authToken: newAuth,
+        hostname: newHost,
+        tlsConfig: newTls ? {} : null,
       })
       syncConfigFromServer(config)
     }
@@ -77,11 +77,11 @@ export const useServerChannelSettingsStore = defineStore('tamagotchi-server-chan
   void refreshServerChannelConfig()
 
   return {
-    lastApplyError,
     appliedConfig,
+    authToken,
+    hostname,
+    lastApplyError,
     refreshServerChannelConfig,
     tlsConfig,
-    hostname,
-    authToken,
   }
 })

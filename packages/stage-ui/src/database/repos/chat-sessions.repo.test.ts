@@ -65,14 +65,14 @@ describe('chatSessionsRepo.tombstones', () => {
 describe('chatSessionsRepo.outbox', () => {
   function makeEntry(partial: Partial<Parameters<typeof chatSessionsRepo.enqueueOutbox>[1]> & { messageId: string }): Parameters<typeof chatSessionsRepo.enqueueOutbox>[1] {
     return {
-      messageId: partial.messageId,
-      sessionId: partial.sessionId ?? 'session-1',
-      cloudChatId: partial.cloudChatId,
-      role: partial.role ?? 'user',
-      content: partial.content ?? 'hello',
       attempts: partial.attempts ?? 0,
+      cloudChatId: partial.cloudChatId,
+      content: partial.content ?? 'hello',
       lastError: partial.lastError,
+      messageId: partial.messageId,
       queuedAt: partial.queuedAt ?? 1,
+      role: partial.role ?? 'user',
+      sessionId: partial.sessionId ?? 'session-1',
     }
   }
 
@@ -102,8 +102,8 @@ describe('chatSessionsRepo.outbox', () => {
    * message must not duplicate the row in IDB.
    */
   it('enqueueOutbox is idempotent on messageId — overwrites in place', async () => {
-    await chatSessionsRepo.enqueueOutbox('user-1', makeEntry({ messageId: 'm1', content: 'first' }))
-    await chatSessionsRepo.enqueueOutbox('user-1', makeEntry({ messageId: 'm1', content: 'second' }))
+    await chatSessionsRepo.enqueueOutbox('user-1', makeEntry({ content: 'first', messageId: 'm1' }))
+    await chatSessionsRepo.enqueueOutbox('user-1', makeEntry({ content: 'second', messageId: 'm1' }))
     const entries = await chatSessionsRepo.getOutbox('user-1')
     expect(entries.length).toBe(1)
     expect(entries[0].content).toBe('second')
@@ -129,8 +129,8 @@ describe('chatSessionsRepo.outbox', () => {
    * retry on next drain" path.
    */
   it('updateOutboxEntries patches attempts + lastError in place', async () => {
-    await chatSessionsRepo.enqueueOutbox('user-1', makeEntry({ messageId: 'm1', content: 'hello', queuedAt: 1 }))
-    await chatSessionsRepo.updateOutboxEntries('user-1', [{ messageId: 'm1', attempts: 3, lastError: 'HTTP 500' }])
+    await chatSessionsRepo.enqueueOutbox('user-1', makeEntry({ content: 'hello', messageId: 'm1', queuedAt: 1 }))
+    await chatSessionsRepo.updateOutboxEntries('user-1', [{ attempts: 3, lastError: 'HTTP 500', messageId: 'm1' }])
     const entries = await chatSessionsRepo.getOutbox('user-1')
     expect(entries[0].attempts).toBe(3)
     expect(entries[0].lastError).toBe('HTTP 500')
@@ -172,12 +172,12 @@ describe('chatSessionsRepo.clear', () => {
    */
   it('removes index + sessions + tombstones + outbox for the user', async () => {
     await chatSessionsRepo.saveIndex({
+      characters: { 'char-a': { activeSessionId: 's1', sessions: { s1: { characterId: 'char-a', createdAt: 0, sessionId: 's1', updatedAt: 0, userId: 'user-1' } } } },
       userId: 'user-1',
-      characters: { 'char-a': { activeSessionId: 's1', sessions: { s1: { sessionId: 's1', userId: 'user-1', characterId: 'char-a', createdAt: 0, updatedAt: 0 } } } },
     })
-    await chatSessionsRepo.saveSession('s1', { meta: { sessionId: 's1', userId: 'user-1', characterId: 'char-a', createdAt: 0, updatedAt: 0 }, messages: [] })
+    await chatSessionsRepo.saveSession('s1', { messages: [], meta: { characterId: 'char-a', createdAt: 0, sessionId: 's1', updatedAt: 0, userId: 'user-1' } })
     await chatSessionsRepo.addTombstone('user-1', 'cloud-a')
-    await chatSessionsRepo.enqueueOutbox('user-1', { messageId: 'm1', sessionId: 's1', role: 'user', content: 'hi', attempts: 0, queuedAt: 0 })
+    await chatSessionsRepo.enqueueOutbox('user-1', { attempts: 0, content: 'hi', messageId: 'm1', queuedAt: 0, role: 'user', sessionId: 's1' })
 
     await chatSessionsRepo.clear('user-1')
 

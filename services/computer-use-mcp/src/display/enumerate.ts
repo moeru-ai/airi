@@ -12,6 +12,105 @@ import { platform } from 'node:process'
 
 import { runSwiftScript } from '../utils/swift'
 
+interface RawDisplay {
+  bounds: { height: number, width: number, x: number, y: number }
+  displayId: number
+  isBuiltIn: boolean
+  isMain: boolean
+  pixelHeight: number
+  pixelWidth: number
+  scaleFactor: number
+  visibleBounds: { height: number, width: number, x: number, y: number }
+}
+
+/**
+ * Enumerate all connected displays on macOS.
+ */
+export async function enumerateDisplays(config: ComputerUseConfig): Promise<MultiDisplaySnapshot> {
+  if (platform !== 'darwin') {
+    throw new Error('multi-display enumeration is only supported on macOS')
+  }
+
+  const { stdout } = await runSwiftScript({
+    source: enumerateDisplaysScript(),
+    swiftBinary: config.binaries.swift,
+    timeoutMs: config.timeoutMs,
+  })
+
+  const raw = JSON.parse(stdout.trim()) as RawDisplay[]
+  const displays: DisplayDescriptor[] = raw.map(d => ({
+    bounds: d.bounds,
+    displayId: d.displayId,
+    isBuiltIn: d.isBuiltIn,
+    isMain: d.isMain,
+    pixelHeight: d.pixelHeight,
+    pixelWidth: d.pixelWidth,
+    scaleFactor: d.scaleFactor,
+    visibleBounds: d.visibleBounds,
+  }))
+
+  return {
+    capturedAt: new Date().toISOString(),
+    combinedBounds: computeCombinedBounds(displays),
+    displays,
+  }
+}
+
+/**
+ * Format the multi-display snapshot as a human/LLM-readable summary.
+ */
+export function formatDisplaySummary(snapshot: MultiDisplaySnapshot): string {
+  const lines: string[] = []
+  lines.push(`[Displays] ${snapshot.displays.length} connected`)
+
+  for (const d of snapshot.displays) {
+    const flags: string[] = []
+    if (d.isMain)
+      flags.push('main')
+    if (d.isBuiltIn)
+      flags.push('built-in')
+    if (d.scaleFactor > 1)
+      flags.push(`${d.scaleFactor}x`)
+
+    const b = d.bounds
+    lines.push(
+      `  #${d.displayId}${flags.length ? ` (${flags.join(', ')})` : ''}: `
+      + `${b.width}x${b.height} @ (${b.x},${b.y}), `
+      + `pixels ${d.pixelWidth}x${d.pixelHeight}`,
+    )
+  }
+
+  const cb = snapshot.combinedBounds
+  lines.push(`  Combined: ${cb.width}x${cb.height} @ (${cb.x},${cb.y})`)
+
+  return lines.join('\n')
+}
+
+function computeCombinedBounds(displays: DisplayDescriptor[]) {
+  if (displays.length === 0) {
+    return { height: 0, width: 0, x: 0, y: 0 }
+  }
+
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+
+  for (const d of displays) {
+    minX = Math.min(minX, d.bounds.x)
+    minY = Math.min(minY, d.bounds.y)
+    maxX = Math.max(maxX, d.bounds.x + d.bounds.width)
+    maxY = Math.max(maxY, d.bounds.y + d.bounds.height)
+  }
+
+  return {
+    height: maxY - minY,
+    width: maxX - minX,
+    x: minX,
+    y: minY,
+  }
+}
+
 /**
  * Swift source that enumerates all connected displays via NSScreen
  * and CGDisplay APIs, returning their geometry and properties.
@@ -102,103 +201,4 @@ let encoder = JSONEncoder()
 let data = try encoder.encode(displays)
 print(String(data: data, encoding: .utf8)!)
 `
-}
-
-interface RawDisplay {
-  displayId: number
-  isMain: boolean
-  isBuiltIn: boolean
-  bounds: { x: number, y: number, width: number, height: number }
-  visibleBounds: { x: number, y: number, width: number, height: number }
-  scaleFactor: number
-  pixelWidth: number
-  pixelHeight: number
-}
-
-function computeCombinedBounds(displays: DisplayDescriptor[]) {
-  if (displays.length === 0) {
-    return { x: 0, y: 0, width: 0, height: 0 }
-  }
-
-  let minX = Infinity
-  let minY = Infinity
-  let maxX = -Infinity
-  let maxY = -Infinity
-
-  for (const d of displays) {
-    minX = Math.min(minX, d.bounds.x)
-    minY = Math.min(minY, d.bounds.y)
-    maxX = Math.max(maxX, d.bounds.x + d.bounds.width)
-    maxY = Math.max(maxY, d.bounds.y + d.bounds.height)
-  }
-
-  return {
-    x: minX,
-    y: minY,
-    width: maxX - minX,
-    height: maxY - minY,
-  }
-}
-
-/**
- * Enumerate all connected displays on macOS.
- */
-export async function enumerateDisplays(config: ComputerUseConfig): Promise<MultiDisplaySnapshot> {
-  if (platform !== 'darwin') {
-    throw new Error('multi-display enumeration is only supported on macOS')
-  }
-
-  const { stdout } = await runSwiftScript({
-    swiftBinary: config.binaries.swift,
-    timeoutMs: config.timeoutMs,
-    source: enumerateDisplaysScript(),
-  })
-
-  const raw = JSON.parse(stdout.trim()) as RawDisplay[]
-  const displays: DisplayDescriptor[] = raw.map(d => ({
-    displayId: d.displayId,
-    isMain: d.isMain,
-    isBuiltIn: d.isBuiltIn,
-    bounds: d.bounds,
-    visibleBounds: d.visibleBounds,
-    scaleFactor: d.scaleFactor,
-    pixelWidth: d.pixelWidth,
-    pixelHeight: d.pixelHeight,
-  }))
-
-  return {
-    displays,
-    combinedBounds: computeCombinedBounds(displays),
-    capturedAt: new Date().toISOString(),
-  }
-}
-
-/**
- * Format the multi-display snapshot as a human/LLM-readable summary.
- */
-export function formatDisplaySummary(snapshot: MultiDisplaySnapshot): string {
-  const lines: string[] = []
-  lines.push(`[Displays] ${snapshot.displays.length} connected`)
-
-  for (const d of snapshot.displays) {
-    const flags: string[] = []
-    if (d.isMain)
-      flags.push('main')
-    if (d.isBuiltIn)
-      flags.push('built-in')
-    if (d.scaleFactor > 1)
-      flags.push(`${d.scaleFactor}x`)
-
-    const b = d.bounds
-    lines.push(
-      `  #${d.displayId}${flags.length ? ` (${flags.join(', ')})` : ''}: `
-      + `${b.width}x${b.height} @ (${b.x},${b.y}), `
-      + `pixels ${d.pixelWidth}x${d.pixelHeight}`,
-    )
-  }
-
-  const cb = snapshot.combinedBounds
-  lines.push(`  Combined: ${cb.width}x${cb.height} @ (${cb.x},${cb.y})`)
-
-  return lines.join('\n')
 }

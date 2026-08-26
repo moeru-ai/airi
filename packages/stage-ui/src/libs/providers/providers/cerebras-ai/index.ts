@@ -19,29 +19,7 @@ const cerebrasConfigSchema = z.object({
 type CerebrasConfig = z.input<typeof cerebrasConfigSchema>
 
 export const providerCerebrasAI = defineProvider<CerebrasConfig>({
-  id: 'cerebras-ai',
-  name: 'Cerebras',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.cerebras.title'),
-  description: 'cerebras.ai',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.cerebras.description'),
-  tasks: ['chat'],
   capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
-  icon: 'i-lobe-icons:cerebras',
-  iconColor: 'i-lobe-icons:cerebras-color',
-
-  createProviderConfig: ({ t }) => cerebrasConfigSchema.extend({
-    apiKey: cerebrasConfigSchema.shape.apiKey.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
-      type: 'password',
-    }),
-    baseUrl: cerebrasConfigSchema.shape.baseUrl.meta({
-      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
-      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
-    }),
-  }),
   createProvider(config) {
     const provider = createCerebras(config.apiKey, config.baseUrl)
     return {
@@ -55,6 +33,28 @@ export const providerCerebrasAI = defineProvider<CerebrasConfig>({
       },
     }
   },
+  createProviderConfig: ({ t }) => cerebrasConfigSchema.extend({
+    apiKey: cerebrasConfigSchema.shape.apiKey.meta({
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+      type: 'password',
+    }),
+    baseUrl: cerebrasConfigSchema.shape.baseUrl.meta({
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
+    }),
+  }),
+  description: 'cerebras.ai',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.cerebras.description'),
+  icon: 'i-lobe-icons:cerebras',
+  iconColor: 'i-lobe-icons:cerebras-color',
+  id: 'cerebras-ai',
+  name: 'Cerebras',
+
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.cerebras.title'),
+  tasks: ['chat'],
 
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()

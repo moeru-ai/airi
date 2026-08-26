@@ -10,17 +10,17 @@ afterEach(() => {
 })
 
 function attachHeartbeatSocket(bridge: CdpBridge, socket: EventEmitter & {
-  readyState: number
-  ping: () => void
-  terminate: () => void
   close: () => void
+  ping: () => void
+  readyState: number
+  terminate: () => void
 }) {
   const internals = bridge as unknown as {
     awaitingHeartbeatPong: boolean
     consecutiveHeartbeatFailures: number
     socket: typeof socket
-    status: { connected: boolean }
     startHeartbeat: () => void
+    status: { connected: boolean }
   }
   internals.socket = socket
   internals.status.connected = true
@@ -53,10 +53,10 @@ describe('cdpBridge', () => {
     })
 
     const text = bridge.formatAXTreeAsText({
-      nodes: [],
-      pageUrl: 'https://example.com',
-      pageTitle: 'Example',
       capturedAt: '2025-01-01T00:00:00.000Z',
+      nodes: [],
+      pageTitle: 'Example',
+      pageUrl: 'https://example.com',
     })
 
     expect(text).toContain('[Browser AXTree] Example (https://example.com)')
@@ -69,32 +69,32 @@ describe('cdpBridge', () => {
     })
 
     const text = bridge.formatAXTreeAsText({
+      capturedAt: '2025-01-01T00:00:00.000Z',
       nodes: [
         {
-          nodeId: '1',
-          role: 'RootWebArea',
-          name: 'Example Page',
           children: [
             {
+              children: [],
+              name: 'Welcome',
               nodeId: '2',
               role: 'heading',
-              name: 'Welcome',
-              children: [],
             },
             {
+              children: [],
+              focused: true,
+              name: 'Search',
               nodeId: '3',
               role: 'textbox',
-              name: 'Search',
               value: 'hello world',
-              focused: true,
-              children: [],
             },
           ],
+          name: 'Example Page',
+          nodeId: '1',
+          role: 'RootWebArea',
         },
       ],
-      pageUrl: 'https://example.com',
       pageTitle: 'Example',
-      capturedAt: '2025-01-01T00:00:00.000Z',
+      pageUrl: 'https://example.com',
     })
 
     expect(text).toContain('RootWebArea "Example Page"')
@@ -110,17 +110,17 @@ describe('cdpBridge', () => {
 
     const longValue = 'A'.repeat(200)
     const text = bridge.formatAXTreeAsText({
+      capturedAt: '2025-01-01T00:00:00.000Z',
       nodes: [
         {
+          children: [],
           nodeId: '1',
           role: 'textbox',
           value: longValue,
-          children: [],
         },
       ],
-      pageUrl: 'https://example.com',
       pageTitle: 'Example',
-      capturedAt: '2025-01-01T00:00:00.000Z',
+      pageUrl: 'https://example.com',
     })
 
     expect(text).toContain('...')
@@ -151,15 +151,15 @@ describe('cdpBridge', () => {
     vi.useFakeTimers()
     const bridge = new CdpBridge({
       cdpUrl: 'http://localhost:9222',
-      requestTimeoutMs: 10_000,
-      heartbeatIntervalMs: 10,
       heartbeatFailureLimit: 3,
+      heartbeatIntervalMs: 10,
+      requestTimeoutMs: 10_000,
     })
     const socket = Object.assign(new EventEmitter(), {
-      readyState: WebSocket.OPEN,
-      ping: vi.fn(() => socket.emit('pong')),
-      terminate: vi.fn(),
       close: vi.fn(),
+      ping: vi.fn(() => socket.emit('pong')),
+      readyState: WebSocket.OPEN,
+      terminate: vi.fn(),
     })
 
     attachHeartbeatSocket(bridge, socket)
@@ -175,15 +175,15 @@ describe('cdpBridge', () => {
     vi.useFakeTimers()
     const bridge = new CdpBridge({
       cdpUrl: 'http://localhost:9222',
-      requestTimeoutMs: 10_000,
-      heartbeatIntervalMs: 10,
       heartbeatFailureLimit: 3,
+      heartbeatIntervalMs: 10,
+      requestTimeoutMs: 10_000,
     })
     const socket = Object.assign(new EventEmitter(), {
-      readyState: WebSocket.OPEN,
-      ping: vi.fn(),
-      terminate: vi.fn(),
       close: vi.fn(),
+      ping: vi.fn(),
+      readyState: WebSocket.OPEN,
+      terminate: vi.fn(),
     })
 
     attachHeartbeatSocket(bridge, socket)
@@ -205,15 +205,15 @@ describe('cdpBridge', () => {
     vi.useFakeTimers()
     const bridge = new CdpBridge({
       cdpUrl: 'http://localhost:9222',
-      requestTimeoutMs: 10_000,
-      heartbeatIntervalMs: 10,
       heartbeatFailureLimit: 1,
+      heartbeatIntervalMs: 10,
+      requestTimeoutMs: 10_000,
     })
     const socket = Object.assign(new EventEmitter(), {
-      readyState: WebSocket.OPEN,
-      ping: vi.fn(),
-      terminate: vi.fn(),
       close: vi.fn(),
+      ping: vi.fn(),
+      readyState: WebSocket.OPEN,
+      terminate: vi.fn(),
     })
 
     attachHeartbeatSocket(bridge, socket)
@@ -235,17 +235,17 @@ describe('cdpBridge', () => {
     vi.useFakeTimers()
     const bridge = new CdpBridge({
       cdpUrl: 'http://localhost:9222',
-      requestTimeoutMs: 10_000,
-      heartbeatIntervalMs: 10,
       heartbeatFailureLimit: 3,
+      heartbeatIntervalMs: 10,
+      requestTimeoutMs: 10_000,
     })
     const socket = Object.assign(new EventEmitter(), {
-      readyState: WebSocket.OPEN,
+      close: vi.fn(),
       ping: vi.fn(() => {
         throw new Error('CDP ping write failed')
       }),
+      readyState: WebSocket.OPEN,
       terminate: vi.fn(),
-      close: vi.fn(),
     })
 
     attachHeartbeatSocket(bridge, socket)

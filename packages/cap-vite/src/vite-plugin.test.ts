@@ -23,12 +23,25 @@ type MockResult = Promise<{ exitCode: number, stderr: string, stdout: string }> 
   kill: ReturnType<typeof vi.fn>
 }
 
+class MockHttpServer extends EventEmitter {}
+
 class MockWatcher extends EventEmitter {
   add = vi.fn()
   unwatch = vi.fn(async () => {})
 }
 
-class MockHttpServer extends EventEmitter {}
+async function configurePluginServer(plugin: Plugin, server: ReturnType<typeof createMockServer>) {
+  const configureServer = plugin.configureServer
+  if (!configureServer) {
+    throw new Error('cap-vite plugin is missing configureServer().')
+  }
+
+  const handler = typeof configureServer === 'function'
+    ? configureServer
+    : configureServer.handler
+
+  await handler.call({} as any, server as any)
+}
 
 function createMockResult(): MockResult {
   const output = {
@@ -80,19 +93,6 @@ function createMockStdin() {
   })
 
   return stdin
-}
-
-async function configurePluginServer(plugin: Plugin, server: ReturnType<typeof createMockServer>) {
-  const configureServer = plugin.configureServer
-  if (!configureServer) {
-    throw new Error('cap-vite plugin is missing configureServer().')
-  }
-
-  const handler = typeof configureServer === 'function'
-    ? configureServer
-    : configureServer.handler
-
-  await handler.call({} as any, server as any)
 }
 
 const originalStdin = Object.getOwnPropertyDescriptor(process, 'stdin')

@@ -10,8 +10,8 @@ interface TestViewport extends EventTarget {
 
 function createPointerDown(): PointerEvent {
   return new PointerEvent('pointerdown', {
-    button: 0,
     bubbles: true,
+    button: 0,
     cancelable: true,
     isPrimary: true,
     pointerType: 'touch',

@@ -4,7 +4,7 @@
 export class KitUnavailableError extends Error {
   constructor(
     readonly kitId: string,
-    readonly reason: 'missing-kit' | 'permission-denied' | 'incompatible-version' | 'not-ready',
+    readonly reason: 'incompatible-version' | 'missing-kit' | 'not-ready' | 'permission-denied',
   ) {
     super(`Kit \`${kitId}\` is unavailable: ${reason}.`)
     this.name = 'KitUnavailableError'

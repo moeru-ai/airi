@@ -9,23 +9,30 @@ import { cac } from 'cac'
 
 import * as yaml from 'yaml'
 
+export interface RegenerateWindowsLatestOptions {
+  input: string
+  output: string
+  releaseDate?: string
+  version: string
+}
+
 interface UpdateFileInfo {
-  url: string
   sha512: string
   size?: number
+  url: string
 }
 
 interface WindowsUpdateInfo {
-  version: string
+  [key: string]: unknown
   files: UpdateFileInfo[]
   path: string
-  sha512: string
-  sha2?: string
   releaseDate?: string
-  [key: string]: unknown
+  sha2?: string
+  sha512: string
+  version: string
 }
 
-export async function hashFile(filePath: string): Promise<{ sha512: string, sha256: string }> {
+export async function hashFile(filePath: string): Promise<{ sha256: string, sha512: string }> {
   return await new Promise((resolveHash, reject) => {
     const sha512 = createHash('sha512')
     const sha256 = createHash('sha256')
@@ -38,8 +45,8 @@ export async function hashFile(filePath: string): Promise<{ sha512: string, sha2
     stream.on('error', reject)
     stream.on('end', () => {
       resolveHash({
-        sha512: sha512.digest('base64'),
         sha256: sha256.digest('hex'),
+        sha512: sha512.digest('base64'),
       })
     })
   })
@@ -53,30 +60,6 @@ export async function readExistingUpdateInfo(filePath: string): Promise<Partial<
   catch {
     return {}
   }
-}
-
-export async function resolveFromWorkspace(inputPath: string): Promise<string> {
-  const resolved = resolve(inputPath)
-  if (existsSync(resolved)) {
-    return resolved
-  }
-
-  const workspaceRoot = await findWorkspaceDir(cwd())
-  if (workspaceRoot) {
-    const workspaceResolved = resolve(workspaceRoot, inputPath)
-    if (existsSync(workspaceResolved)) {
-      return workspaceResolved
-    }
-  }
-
-  return resolved
-}
-
-export interface RegenerateWindowsLatestOptions {
-  input: string
-  output: string
-  version: string
-  releaseDate?: string
 }
 
 export async function regenerateWindowsLatest(options: RegenerateWindowsLatestOptions): Promise<WindowsUpdateInfo> {
@@ -98,30 +81,47 @@ export async function regenerateWindowsLatest(options: RegenerateWindowsLatestOp
   const inputPath = await resolveFromWorkspace(input)
   const outputPath = await resolveFromWorkspace(output)
   const fileStats = await stat(inputPath)
-  const { sha512, sha256 } = await hashFile(inputPath)
+  const { sha256, sha512 } = await hashFile(inputPath)
   const existing = await readExistingUpdateInfo(outputPath)
   const url = basename(inputPath)
 
   const nextUpdateInfo: WindowsUpdateInfo = {
     ...existing,
-    version,
     files: [
       {
-        url,
         sha512,
         size: fileStats.size,
+        url,
       },
     ],
     path: url,
-    sha512,
-    sha2: sha256,
     releaseDate: releaseDate || existing.releaseDate || new Date().toISOString(),
+    sha2: sha256,
+    sha512,
+    version,
   }
 
   await mkdir(dirname(outputPath), { recursive: true })
   await writeFile(outputPath, yaml.stringify(nextUpdateInfo), 'utf8')
 
   return nextUpdateInfo
+}
+
+export async function resolveFromWorkspace(inputPath: string): Promise<string> {
+  const resolved = resolve(inputPath)
+  if (existsSync(resolved)) {
+    return resolved
+  }
+
+  const workspaceRoot = await findWorkspaceDir(cwd())
+  if (workspaceRoot) {
+    const workspaceResolved = resolve(workspaceRoot, inputPath)
+    if (existsSync(workspaceResolved)) {
+      return workspaceResolved
+    }
+  }
+
+  return resolved
 }
 
 async function main() {
@@ -141,8 +141,8 @@ async function main() {
   await regenerateWindowsLatest({
     input,
     output,
-    version,
     releaseDate,
+    version,
   })
 }
 

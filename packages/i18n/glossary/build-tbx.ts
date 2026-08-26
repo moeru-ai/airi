@@ -45,30 +45,37 @@ const XML_MODELS = [
  * them.
  */
 const ADMINISTRATIVE_STATUS: Record<Term['status'], string> = {
-  preferred: 'preferredTerm-admn-sts',
   admitted: 'admittedTerm-admn-sts',
   deprecated: 'deprecatedTerm-admn-sts',
+  preferred: 'preferredTerm-admn-sts',
 }
 
 /**
- * Turns the text of a YAML folded block into paragraphs.
+ * Renders the glossary as a TBX-Basic document.
  *
- * A folded block (`>`) joins each wrapped line with a space and turns a blank line into one
- * newline character. So a newline that survives parsing is always a paragraph break, and
- * the line width of the source file never reaches the output.
+ * The result is a complete XML document with the declaration, so a caller writes it to disk
+ * unchanged. It carries the English terms only; Crowdin owns every other language, and
+ * uploading target terms would overwrite the work of a translator.
  *
- * NOTICE:
- * Splitting on two or more newlines looks correct and is wrong. YAML gives a blank line a
- * single newline, so that pattern matches nothing and every paragraph merges into one.
- *
- * Before:
- * - "One paragraph.\nA second paragraph."
- *
- * After:
- * - "One paragraph.\n\nA second paragraph."
+ * @param concepts Validated concepts, in the order they appear in `terms.yaml`.
+ * @param source A description of where the data came from, recorded in the TBX header.
  */
-function collapse(text: string): string {
-  return text.split(/\n+/).map(paragraph => paragraph.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n\n')
+export function buildTbx(concepts: Concept[], source: string): string {
+  const tree = x(
+    'tbx',
+    // The root carries all four attributes that TBX-Basic requires. `style="dca"` selects
+    // the data-category-as-attribute style, which is the one the schema values assume.
+    { 'style': 'dca', 'type': 'TBX-Basic', 'xml:lang': SOURCE_LANGUAGE, 'xmlns': TBX_NAMESPACE },
+    [
+      // The header carries a sourceDesc and nothing else, which is the shape Crowdin writes.
+      x('tbxHeader', [x('fileDesc', [x('sourceDesc', [x('p', source)])])]),
+      x('text', [x('body', concepts.map(buildConceptEntry))]),
+    ],
+  )
+
+  indent(tree, 0)
+
+  return ['<?xml version="1.0" encoding="UTF-8"?>', ...XML_MODELS, toXml(tree), ''].join('\n')
 }
 
 /**
@@ -94,7 +101,7 @@ function buildConceptEntry(concept: Concept): Element {
     conceptChildren.push(x('note', collapse(concept.note)))
 
   if (concept.url)
-    conceptChildren.push(x('xref', { type: 'externalCrossReference', target: concept.url }, concept.url))
+    conceptChildren.push(x('xref', { target: concept.url, type: 'externalCrossReference' }, concept.url))
 
   const termSections = concept.terms.map((term) => {
     const termChildren: Element[] = [
@@ -125,31 +132,24 @@ function buildConceptEntry(concept: Concept): Element {
 }
 
 /**
- * Renders the glossary as a TBX-Basic document.
+ * Turns the text of a YAML folded block into paragraphs.
  *
- * The result is a complete XML document with the declaration, so a caller writes it to disk
- * unchanged. It carries the English terms only; Crowdin owns every other language, and
- * uploading target terms would overwrite the work of a translator.
+ * A folded block (`>`) joins each wrapped line with a space and turns a blank line into one
+ * newline character. So a newline that survives parsing is always a paragraph break, and
+ * the line width of the source file never reaches the output.
  *
- * @param concepts Validated concepts, in the order they appear in `terms.yaml`.
- * @param source A description of where the data came from, recorded in the TBX header.
+ * NOTICE:
+ * Splitting on two or more newlines looks correct and is wrong. YAML gives a blank line a
+ * single newline, so that pattern matches nothing and every paragraph merges into one.
+ *
+ * Before:
+ * - "One paragraph.\nA second paragraph."
+ *
+ * After:
+ * - "One paragraph.\n\nA second paragraph."
  */
-export function buildTbx(concepts: Concept[], source: string): string {
-  const tree = x(
-    'tbx',
-    // The root carries all four attributes that TBX-Basic requires. `style="dca"` selects
-    // the data-category-as-attribute style, which is the one the schema values assume.
-    { 'type': 'TBX-Basic', 'style': 'dca', 'xml:lang': SOURCE_LANGUAGE, 'xmlns': TBX_NAMESPACE },
-    [
-      // The header carries a sourceDesc and nothing else, which is the shape Crowdin writes.
-      x('tbxHeader', [x('fileDesc', [x('sourceDesc', [x('p', source)])])]),
-      x('text', [x('body', concepts.map(buildConceptEntry))]),
-    ],
-  )
-
-  indent(tree, 0)
-
-  return ['<?xml version="1.0" encoding="UTF-8"?>', ...XML_MODELS, toXml(tree), ''].join('\n')
+function collapse(text: string): string {
+  return text.split(/\n+/).map(paragraph => paragraph.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n\n')
 }
 
 /**

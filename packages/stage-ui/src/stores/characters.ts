@@ -11,22 +11,15 @@ import { charactersModel as model } from '../models/characters'
 import { charactersService as service } from '../services/characters'
 import { useAuthStore } from './auth'
 
-interface StoreQuery<TData> {
-  error: Ref<Error | null>
-  isLoading: Ref<boolean>
-  refetch: (force?: boolean) => Promise<{ data?: TData }>
-}
-
 interface StoreMutation<TVars, TData> {
   error: Ref<Error | null>
   mutateAsync: (vars: TVars) => Promise<TData>
 }
 
-function setCharactersMap(target: Map<string, Character>, characters: Character[]) {
-  target.clear()
-  for (const character of characters) {
-    target.set(character.id, character)
-  }
+interface StoreQuery<TData> {
+  error: Ref<Error | null>
+  isLoading: Ref<boolean>
+  refetch: (force?: boolean) => Promise<{ data?: TData }>
 }
 
 export function createCharactersListQueryOptions(params: {
@@ -35,9 +28,9 @@ export function createCharactersListQueryOptions(params: {
   service: Pick<typeof service, 'fetchRemote'>
 }) {
   return {
+    enabled: false,
     key: () => ['characters', { all: params.listAll.value }],
     query: async (context: { signal: AbortSignal }) => params.service.fetchRemote(params.client, { all: params.listAll.value }, { abortSignal: context.signal }),
-    enabled: false,
   }
 }
 
@@ -52,7 +45,7 @@ export function createCharacterStoreController(params: {
   model: typeof model
   removeMutation: StoreMutation<string, void>
   service: typeof service
-  updateMutation: StoreMutation<{ id: string, data: UpdateCharacterPayload }, Character>
+  updateMutation: StoreMutation<{ data: UpdateCharacterPayload, id: string }, Character>
 }) {
   const {
     auth,
@@ -143,7 +136,7 @@ export function createCharacterStoreController(params: {
     await model.upsert(localCharacter)
 
     try {
-      const remote = await updateMutation.mutateAsync({ id, data: payload })
+      const remote = await updateMutation.mutateAsync({ data: payload, id })
       characters.value.set(remote.id, remote)
       await model.upsert(remote)
       return remote
@@ -174,7 +167,7 @@ export function createCharacterStoreController(params: {
     if (!likes.some(item => item.userId === auth.userId)) {
       const localCharacter = {
         ...character,
-        likes: [...likes, { userId: auth.userId, characterId: id }],
+        likes: [...likes, { characterId: id, userId: auth.userId }],
         likesCount: character.likesCount + 1,
         updatedAt: new Date(),
       }
@@ -201,7 +194,7 @@ export function createCharacterStoreController(params: {
     if (!bookmarks.some(item => item.userId === auth.userId)) {
       const localCharacter = {
         ...character,
-        bookmarks: [...bookmarks, { userId: auth.userId, characterId: id }],
+        bookmarks: [...bookmarks, { characterId: id, userId: auth.userId }],
         bookmarksCount: character.bookmarksCount + 1,
         updatedAt: new Date(),
       }
@@ -224,19 +217,26 @@ export function createCharacterStoreController(params: {
   }
 
   return {
-    characters,
-    isLoading: computed(() => listQuery.isLoading.value),
-    error: computed(() => listQuery.error.value),
-    mutationError,
-
-    fetchList,
-    fetchById,
-    create,
-    update,
-    remove,
-    like,
     bookmark,
+    characters,
+    create,
+    error: computed(() => listQuery.error.value),
+
+    fetchById,
+    fetchList,
     getCharacter,
+    isLoading: computed(() => listQuery.isLoading.value),
+    like,
+    mutationError,
+    remove,
+    update,
+  }
+}
+
+function setCharactersMap(target: Map<string, Character>, characters: Character[]) {
+  target.clear()
+  for (const character of characters) {
+    target.set(character.id, character)
   }
 }
 
@@ -255,7 +255,7 @@ export const useCharacterStore = defineStore('characters', () => {
   })
 
   const updateMutation = useMutation({
-    mutation: async (payload: { id: string, data: UpdateCharacterPayload }) => service.updateRemote(client, payload.id, payload.data),
+    mutation: async (payload: { data: UpdateCharacterPayload, id: string }) => service.updateRemote(client, payload.id, payload.data),
     async onSettled() {
       await queryCache.invalidateQueries({ key: ['characters'] })
     },

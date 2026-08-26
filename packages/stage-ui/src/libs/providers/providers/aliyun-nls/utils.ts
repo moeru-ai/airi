@@ -6,14 +6,14 @@ export function nlsWebSocketEndpointFromRegion(region: string = 'cn-shanghai'): 
   const websocketURL = new URL('/ws/v1', 'https://example.com')
 
   switch (region) {
-    case 'cn-shanghai':
     case 'cn-beijing':
+    case 'cn-shanghai':
     case 'cn-shenzhen':
       websocketURL.protocol = 'wss:'
       websocketURL.hostname = `nls-gateway-${region}.aliyuncs.com`
       break
-    case 'cn-shanghai-internal':
     case 'cn-beijing-internal':
+    case 'cn-shanghai-internal':
     case 'cn-shenzhen-internal':
       websocketURL.protocol = 'wss:'
       websocketURL.hostname = `nls-gateway-${region}-internal.aliyuncs.com:80`

@@ -1,14 +1,14 @@
+interface ChatTurnSnapshotLike {
+  chat?: {
+    lastTurnComplete?: ChatTurnSummaryLike | null
+  }
+}
+
 interface ChatTurnSummaryLike {
   at?: unknown
   outputText?: unknown
   toolCallCount?: unknown
   toolResultCount?: unknown
-}
-
-interface ChatTurnSnapshotLike {
-  chat?: {
-    lastTurnComplete?: ChatTurnSummaryLike | null
-  }
 }
 
 // NOTICE: AIRI can legitimately finish a turn with tool calls/results but no

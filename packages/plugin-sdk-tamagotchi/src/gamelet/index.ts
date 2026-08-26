@@ -6,13 +6,13 @@ import { defineKit } from '@proj-airi/plugin-sdk'
 export * from './events'
 
 export interface GameletKitClient {
-  iframe: (input: { assetPath?: string, src?: string, sandbox?: string }) => HostDataRecord
+  iframe: (input: { assetPath?: string, sandbox?: string, src?: string }) => HostDataRecord
   mount: (definition: {
     /** Fully qualified host binding id used as the host-side module id. */
     bindingId?: string
+    init?: HostDataRecord
     title: string
     ui: HostDataRecord
-    init?: HostDataRecord
   }) => Promise<unknown>
   orchestration?: GameletKitRuntime['gamelets']
 }
@@ -20,23 +20,23 @@ export interface GameletKitClient {
 export interface GameletKitRuntime extends KitClientRuntime {
   bindings?: {
     bind: (input: {
-      moduleId: string
+      config: HostDataRecord
       kitId: string
       kitModuleType: string
+      moduleId: string
       runtime?: string
-      config: HostDataRecord
     }) => Promise<unknown> | unknown
   }
   gamelets?: {
-    open: (bindingId: string, payload?: HostDataRecord) => Promise<void> | void
+    close: (bindingId: string) => Promise<void> | void
     configure: (bindingId: string, payload: HostDataRecord) => Promise<void> | void
+    isOpen: (bindingId: string) => boolean | Promise<boolean>
+    open: (bindingId: string, payload?: HostDataRecord) => Promise<void> | void
     request: <TResponse = HostDataRecord>(
       bindingId: string,
       payload: HostDataRecord,
       options?: { timeoutMs?: number },
     ) => Promise<TResponse> | TResponse
-    close: (bindingId: string) => Promise<void> | void
-    isOpen: (bindingId: string) => Promise<boolean> | boolean
   }
 }
 
@@ -54,20 +54,17 @@ function createGameletBindingId(runtime: KitClientRuntime): string {
 }
 
 export const gameletKit = defineKit<GameletKitClient>({
-  id: 'kit.gamelet',
-  version: '1.0.0',
   allowedExposePolicies: ['local-only', 'remote-observable'],
-  defaultExposePolicy: 'local-only',
   createClient(runtime) {
     const gameletRuntime = runtime as GameletKitRuntime
     return {
       iframe(input) {
         return {
-          mount: 'iframe',
           iframe: {
             ...input,
             sandbox: input.sandbox ?? 'allow-scripts allow-same-origin allow-forms allow-popups',
           },
+          mount: 'iframe',
         }
       },
       async mount(definition) {
@@ -76,19 +73,22 @@ export const gameletKit = defineKit<GameletKitClient>({
         }
 
         return await gameletRuntime.bindings.bind({
-          moduleId: definition.bindingId ?? createGameletBindingId(runtime),
-          kitId: 'kit.gamelet',
-          kitModuleType: 'gamelet',
           config: {
-            title: definition.title,
-            widget: definition.ui,
             config: {
               init: definition.init ?? {},
             },
+            title: definition.title,
+            widget: definition.ui,
           },
+          kitId: 'kit.gamelet',
+          kitModuleType: 'gamelet',
+          moduleId: definition.bindingId ?? createGameletBindingId(runtime),
         })
       },
       orchestration: gameletRuntime.gamelets,
     }
   },
+  defaultExposePolicy: 'local-only',
+  id: 'kit.gamelet',
+  version: '1.0.0',
 })

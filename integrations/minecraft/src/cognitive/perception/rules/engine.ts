@@ -31,68 +31,17 @@ import { isTypeScriptRule } from './types'
 const GLOBAL_GROUP_KEY = '__global__'
 const MAX_DETECTOR_DECISIONS = 200
 
-export type DetectorDecision = 'ignored_out_of_order' | 'matched_not_fired' | 'fired'
+export type DetectorDecision = 'fired' | 'ignored_out_of_order' | 'matched_not_fired'
 
 export interface DetectorDecisionSnapshot {
-  readonly ruleName: string
-  readonly mode: DetectorMode
-  readonly groupKey: string
   readonly count: number
+  readonly decision: DetectorDecision
+  readonly eventTs: number
+  readonly groupKey: string
+  readonly mode: DetectorMode
+  readonly ruleName: string
   readonly threshold: number
   readonly windowMs: number
-  readonly eventTs: number
-  readonly decision: DetectorDecision
-}
-
-function resolveEventTimeMs(event: TracedEvent): number {
-  const payload = event.payload as { timestamp?: unknown } | null
-  if (payload && typeof payload.timestamp === 'number' && Number.isFinite(payload.timestamp)) {
-    return payload.timestamp
-  }
-
-  return event.timestamp
-}
-
-function resolveDetectorGroupKey(payload: unknown, groupBy?: DetectorGroupBy): string {
-  if (groupBy === 'global') {
-    return GLOBAL_GROUP_KEY
-  }
-
-  if (payload && typeof payload === 'object') {
-    const record = payload as { entityId?: unknown, sourceId?: unknown }
-    const entityId = typeof record.entityId === 'string' && record.entityId.length > 0
-      ? record.entityId
-      : undefined
-    const sourceId = typeof record.sourceId === 'string' && record.sourceId.length > 0
-      ? record.sourceId
-      : undefined
-
-    if (groupBy === 'entityId') {
-      return entityId ?? GLOBAL_GROUP_KEY
-    }
-
-    if (groupBy === 'sourceId') {
-      return sourceId ?? GLOBAL_GROUP_KEY
-    }
-
-    // NOTICE: Keep backward compatibility when detector.groupBy is omitted.
-    return entityId ?? sourceId ?? GLOBAL_GROUP_KEY
-  }
-
-  return GLOBAL_GROUP_KEY
-}
-
-function buildDetectorStateKey(ruleName: string, groupKey: string): string {
-  return `${ruleName}::${groupKey}`
-}
-
-function toDetectorSnapshot(detectors: ReadonlyMap<string, DetectorState>): DetectorsState {
-  const snapshot: Record<string, DetectorState> = Object.create(null)
-  for (const [stateKey, detectorState] of detectors.entries()) {
-    snapshot[stateKey] = detectorState
-  }
-
-  return Object.freeze(snapshot)
 }
 
 /**
@@ -109,20 +58,59 @@ export interface RuleEngineConfig {
  * Rule Engine - subscribes to EventBus and processes events through rules
  */
 export class RuleEngine {
-  private readonly rules: Rule[] = []
+  private readonly detectorDecisions: DetectorDecisionSnapshot[] = []
   // NOTICE: Keep detector states mutable in a Map on the hot path to avoid
   // per-event object spreads/freezes; only export frozen snapshots for debug reads.
   private readonly detectors: Map<string, DetectorState> = new Map()
-  private readonly detectorDecisions: DetectorDecisionSnapshot[] = []
+  private readonly rules: Rule[] = []
   private unsubscribe: (() => void) | null = null
 
   constructor(
     private readonly deps: {
+      config: RuleEngineConfig
       eventBus: EventBus
       logger: Logg
-      config: RuleEngineConfig
     },
   ) { }
+
+  /**
+   * Destroy the engine: unsubscribe from events
+   */
+  public destroy(): void {
+    if (this.unsubscribe) {
+      this.unsubscribe()
+      this.unsubscribe = null
+    }
+    this.rules.length = 0
+    this.detectors.clear()
+    this.detectorDecisions.length = 0
+  }
+
+  /**
+   * Get recent detector decisions for debugging/devtools.
+   */
+  public getDetectorDecisionSnapshot(limit: number = 50): readonly DetectorDecisionSnapshot[] {
+    const safeLimit = Math.max(0, Math.floor(limit))
+    if (safeLimit === 0) {
+      return Object.freeze([])
+    }
+
+    return Object.freeze(this.detectorDecisions.slice(-safeLimit))
+  }
+
+  /**
+   * Get current detector states (for debugging)
+   */
+  public getDetectorStates(): DetectorsState {
+    return toDetectorSnapshot(this.detectors)
+  }
+
+  /**
+   * Get loaded rules (for debugging)
+   */
+  public getRules(): readonly Rule[] {
+    return Object.freeze([...this.rules])
+  }
 
   /**
    * Initialize the engine: load rules and subscribe to events
@@ -133,9 +121,9 @@ export class RuleEngine {
     this.rules.push(...yamlRules)
 
     this.deps.logger.withFields({
-      rulesDir: this.deps.config.rulesDir,
       ruleCount: yamlRules.length,
       rules: yamlRules.map(r => r.name),
+      rulesDir: this.deps.config.rulesDir,
     }).log('RuleEngine: loaded rules')
 
     // Subscribe to all raw events
@@ -158,42 +146,41 @@ export class RuleEngine {
   }
 
   /**
-   * Destroy the engine: unsubscribe from events
+   * Emit a signal from a YAML rule
    */
-  public destroy(): void {
-    if (this.unsubscribe) {
-      this.unsubscribe()
-      this.unsubscribe = null
-    }
-    this.rules.length = 0
-    this.detectors.clear()
-    this.detectorDecisions.length = 0
-  }
+  private emitSignal(rule: ParsedRule, sourceEvent: TracedEvent): void {
+    const payload = sourceEvent.payload as Record<string, unknown>
 
-  /**
-   * Get current detector states (for debugging)
-   */
-  public getDetectorStates(): DetectorsState {
-    return toDetectorSnapshot(this.detectors)
-  }
-
-  /**
-   * Get recent detector decisions for debugging/devtools.
-   */
-  public getDetectorDecisionSnapshot(limit: number = 50): readonly DetectorDecisionSnapshot[] {
-    const safeLimit = Math.max(0, Math.floor(limit))
-    if (safeLimit === 0) {
-      return Object.freeze([])
+    // Build context for template rendering
+    const context: Record<string, unknown> = {
+      ...payload,
+      _event: sourceEvent,
+      _rule: rule,
     }
 
-    return Object.freeze(this.detectorDecisions.slice(-safeLimit))
-  }
+    // Render description and metadata
+    const description = renderTemplate(rule.signal.description, context)
+    const metadata = renderMetadata(rule.signal.metadata, context)
 
-  /**
-   * Get loaded rules (for debugging)
-   */
-  public getRules(): readonly Rule[] {
-    return Object.freeze([...this.rules])
+    // Get sourceId from payload if available
+    const sourceId = (payload as { entityId?: string, sourceId?: string })?.entityId
+      ?? (payload as { entityId?: string, sourceId?: string })?.sourceId
+
+    const signal = Object.freeze({
+      confidence: rule.signal.confidence ?? 1.0,
+      description,
+      metadata,
+      sourceId,
+      timestamp: Date.now(),
+      type: rule.signal.type,
+    })
+
+    // Emit as child of source event
+    this.deps.eventBus.emitChild(sourceEvent, {
+      payload: signal,
+      source: { component: 'perception', id: rule.name },
+      type: `signal:${signal.type}`,
+    })
   }
 
   /**
@@ -221,10 +208,38 @@ export class RuleEngine {
     }
   }
 
-  private recordDetectorDecision(snapshot: DetectorDecisionSnapshot): void {
-    this.detectorDecisions.push(snapshot)
-    if (this.detectorDecisions.length > MAX_DETECTOR_DECISIONS) {
-      this.detectorDecisions.splice(0, this.detectorDecisions.length - MAX_DETECTOR_DECISIONS)
+  /**
+   * Process event through a TypeScript rule
+   */
+  private processTypeScriptRule(
+    rule: TypeScriptRule,
+    event: TracedEvent,
+    _nowMs: number,
+  ): void {
+    // Check event pattern match
+    if (!matchEventType(rule.eventPattern, event.type)) {
+      return
+    }
+
+    // Get detector state
+    const detectorState = this.detectors.get(rule.name)
+    if (!detectorState) {
+      return
+    }
+
+    // Call TypeScript handler
+    const result = rule.process(event.payload, detectorState)
+
+    // Update detector state
+    this.detectors.set(rule.name, result.newDetectorState)
+
+    // If fired, emit signal event
+    if (result.fired && result.signal) {
+      this.deps.eventBus.emitChild(event, {
+        payload: result.signal,
+        source: { component: 'perception', id: rule.name },
+        type: `signal:${result.signal.type}`,
+      })
     }
   }
 
@@ -259,39 +274,39 @@ export class RuleEngine {
 
     if (nowMs < detectorState.lastUpdateMs) {
       this.recordDetectorDecision(Object.freeze({
-        ruleName: rule.name,
-        mode: rule.detector.mode,
-        groupKey,
         count: detectorState.total,
+        decision: 'ignored_out_of_order',
+        eventTs: nowMs,
+        groupKey,
+        mode: rule.detector.mode,
+        ruleName: rule.name,
         threshold: rule.detector.threshold,
         windowMs: rule.detector.windowMs,
-        eventTs: nowMs,
-        decision: 'ignored_out_of_order',
       }))
       return
     }
 
     // Process through detector
     const [fired, newDetectorState] = processDetector(detectorState, {
-      threshold: rule.detector.threshold,
-      windowMs: rule.detector.windowMs,
       mode: rule.detector.mode,
       nowMs,
       slotMs,
+      threshold: rule.detector.threshold,
+      windowMs: rule.detector.windowMs,
     })
 
     // Update state
     this.detectors.set(stateKey, newDetectorState)
 
     this.recordDetectorDecision(Object.freeze({
-      ruleName: rule.name,
-      mode: rule.detector.mode,
-      groupKey,
       count: newDetectorState.total,
+      decision: fired ? 'fired' : 'matched_not_fired',
+      eventTs: nowMs,
+      groupKey,
+      mode: rule.detector.mode,
+      ruleName: rule.name,
       threshold: rule.detector.threshold,
       windowMs: rule.detector.windowMs,
-      eventTs: nowMs,
-      decision: fired ? 'fired' : 'matched_not_fired',
     }))
 
     // If fired, emit signal
@@ -300,77 +315,11 @@ export class RuleEngine {
     }
   }
 
-  /**
-   * Process event through a TypeScript rule
-   */
-  private processTypeScriptRule(
-    rule: TypeScriptRule,
-    event: TracedEvent,
-    _nowMs: number,
-  ): void {
-    // Check event pattern match
-    if (!matchEventType(rule.eventPattern, event.type)) {
-      return
+  private recordDetectorDecision(snapshot: DetectorDecisionSnapshot): void {
+    this.detectorDecisions.push(snapshot)
+    if (this.detectorDecisions.length > MAX_DETECTOR_DECISIONS) {
+      this.detectorDecisions.splice(0, this.detectorDecisions.length - MAX_DETECTOR_DECISIONS)
     }
-
-    // Get detector state
-    const detectorState = this.detectors.get(rule.name)
-    if (!detectorState) {
-      return
-    }
-
-    // Call TypeScript handler
-    const result = rule.process(event.payload, detectorState)
-
-    // Update detector state
-    this.detectors.set(rule.name, result.newDetectorState)
-
-    // If fired, emit signal event
-    if (result.fired && result.signal) {
-      this.deps.eventBus.emitChild(event, {
-        type: `signal:${result.signal.type}`,
-        payload: result.signal,
-        source: { component: 'perception', id: rule.name },
-      })
-    }
-  }
-
-  /**
-   * Emit a signal from a YAML rule
-   */
-  private emitSignal(rule: ParsedRule, sourceEvent: TracedEvent): void {
-    const payload = sourceEvent.payload as Record<string, unknown>
-
-    // Build context for template rendering
-    const context: Record<string, unknown> = {
-      ...payload,
-      _event: sourceEvent,
-      _rule: rule,
-    }
-
-    // Render description and metadata
-    const description = renderTemplate(rule.signal.description, context)
-    const metadata = renderMetadata(rule.signal.metadata, context)
-
-    // Get sourceId from payload if available
-    const sourceId = (payload as { entityId?: string, sourceId?: string })?.entityId
-      ?? (payload as { entityId?: string, sourceId?: string })?.sourceId
-
-    const signal = Object.freeze({
-      type: rule.signal.type,
-      description,
-      confidence: rule.signal.confidence ?? 1.0,
-      metadata,
-      sourceId,
-      timestamp: Date.now(),
-    })
-
-    // Emit as child of source event
-    this.deps.eventBus.emitChild(sourceEvent, {
-      type: `signal:${signal.type}`,
-      payload: signal,
-      source: { component: 'perception', id: rule.name },
-    })
   }
 }
 
@@ -378,9 +327,60 @@ export class RuleEngine {
  * Factory function to create RuleEngine
  */
 export function createRuleEngine(deps: {
+  config: RuleEngineConfig
   eventBus: EventBus
   logger: Logg
-  config: RuleEngineConfig
 }): RuleEngine {
   return new RuleEngine(deps)
+}
+
+function buildDetectorStateKey(ruleName: string, groupKey: string): string {
+  return `${ruleName}::${groupKey}`
+}
+
+function resolveDetectorGroupKey(payload: unknown, groupBy?: DetectorGroupBy): string {
+  if (groupBy === 'global') {
+    return GLOBAL_GROUP_KEY
+  }
+
+  if (payload && typeof payload === 'object') {
+    const record = payload as { entityId?: unknown, sourceId?: unknown }
+    const entityId = typeof record.entityId === 'string' && record.entityId.length > 0
+      ? record.entityId
+      : undefined
+    const sourceId = typeof record.sourceId === 'string' && record.sourceId.length > 0
+      ? record.sourceId
+      : undefined
+
+    if (groupBy === 'entityId') {
+      return entityId ?? GLOBAL_GROUP_KEY
+    }
+
+    if (groupBy === 'sourceId') {
+      return sourceId ?? GLOBAL_GROUP_KEY
+    }
+
+    // NOTICE: Keep backward compatibility when detector.groupBy is omitted.
+    return entityId ?? sourceId ?? GLOBAL_GROUP_KEY
+  }
+
+  return GLOBAL_GROUP_KEY
+}
+
+function resolveEventTimeMs(event: TracedEvent): number {
+  const payload = event.payload as null | { timestamp?: unknown }
+  if (payload && typeof payload.timestamp === 'number' && Number.isFinite(payload.timestamp)) {
+    return payload.timestamp
+  }
+
+  return event.timestamp
+}
+
+function toDetectorSnapshot(detectors: ReadonlyMap<string, DetectorState>): DetectorsState {
+  const snapshot: Record<string, DetectorState> = Object.create(null)
+  for (const [stateKey, detectorState] of detectors.entries()) {
+    snapshot[stateKey] = detectorState
+  }
+
+  return Object.freeze(snapshot)
 }

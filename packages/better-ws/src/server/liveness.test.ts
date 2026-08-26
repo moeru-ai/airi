@@ -4,28 +4,28 @@ import { createServer } from '.'
 
 describe('better-ws server liveness', () => {
   it('marks a peer unhealthy and then removes it after peer health timeouts', () => {
-    const health: Array<{ peerId: string, healthy: boolean }> = []
+    const health: Array<{ healthy: boolean, peerId: string }> = []
     const closed = vi.fn()
     const server = createServer<string>({
-      peers: {
-        unhealthyTimeout: 10,
-        closeTimeout: 20,
-      },
       heartbeat: {
         interval: 1,
-        timeout: 10,
-        message: () => 'ping',
         isResponse: message => message === 'pong',
+        message: () => 'ping',
+        timeout: 10,
+      },
+      peers: {
+        closeTimeout: 20,
+        unhealthyTimeout: 10,
       },
     })
     server.onPeerHealthChange((event) => {
-      health.push({ peerId: event.peer.id, healthy: event.healthy })
+      health.push({ healthy: event.healthy, peerId: event.peer.id })
     })
 
     const peer = server.peers.accept({
+      close: closed,
       id: 'peer-1',
       send: vi.fn(() => true),
-      close: closed,
     }).peer
     const now = Date.now()
 
@@ -33,7 +33,7 @@ describe('better-ws server liveness', () => {
     server.checkLiveness(now + 21)
 
     expect(peer.id).toBe('peer-1')
-    expect(health).toEqual([{ peerId: 'peer-1', healthy: false }])
+    expect(health).toEqual([{ healthy: false, peerId: 'peer-1' }])
     expect(closed).toHaveBeenCalledOnce()
     expect(server.peers.has('peer-1')).toBe(false)
   })
@@ -41,12 +41,12 @@ describe('better-ws server liveness', () => {
   it('marks an unhealthy peer healthy after inbound traffic', () => {
     const health: boolean[] = []
     const server = createServer<string>({
-      peers: {
-        unhealthyTimeout: 10,
-        closeTimeout: 30,
-      },
       heartbeat: {
         timeout: 10,
+      },
+      peers: {
+        closeTimeout: 30,
+        unhealthyTimeout: 10,
       },
     })
     const peer = server.peers.accept({
@@ -66,16 +66,16 @@ describe('better-ws server liveness', () => {
   it('checks peer liveness when peer timeouts are configured and heartbeat transport is disabled', () => {
     const closed = vi.fn()
     const server = createServer<string>({
-      peers: {
-        unhealthyTimeout: 10,
-        closeTimeout: 20,
-      },
       heartbeat: false,
+      peers: {
+        closeTimeout: 20,
+        unhealthyTimeout: 10,
+      },
     })
     server.peers.accept({
+      close: closed,
       id: 'peer-1',
       send: vi.fn(() => true),
-      close: closed,
     })
 
     server.checkLiveness(Date.now() + 20)
@@ -88,9 +88,9 @@ describe('better-ws server liveness', () => {
     const closed = vi.fn()
     const server = createServer<string>()
     const peer = server.accept({
+      close: closed,
       id: 'peer-1',
       send: vi.fn(() => true),
-      close: closed,
     })
 
     server.checkLiveness(Date.now() + 120_000)
@@ -103,12 +103,12 @@ describe('better-ws server liveness', () => {
   it('removes replaced peer health while keeping group membership on the new peer', () => {
     const health: boolean[] = []
     const server = createServer<string>({
-      peers: {
-        unhealthyTimeout: 10,
-        closeTimeout: 30,
-      },
       heartbeat: {
         timeout: 10,
+      },
+      peers: {
+        closeTimeout: 30,
+        unhealthyTimeout: 10,
       },
     })
     const firstPeer = server.accept({
@@ -131,7 +131,7 @@ describe('better-ws server liveness', () => {
     expect(health).toEqual([false])
     expect(secondPeer.isIn('room')).toBe(true)
     expect(server.to('room').send('hello')).toEqual([
-      { peerId: 'peer-1', ok: true },
+      { ok: true, peerId: 'peer-1' },
     ])
   })
 
@@ -139,12 +139,12 @@ describe('better-ws server liveness', () => {
     const health: Array<{ healthy: boolean, silentFor: number }> = []
     const closed = vi.fn()
     const server = createServer<string>({
-      peers: {
-        unhealthyTimeout: 10,
-        closeTimeout: 30,
-      },
       heartbeat: {
         timeout: 10,
+      },
+      peers: {
+        closeTimeout: 30,
+        unhealthyTimeout: 10,
       },
     })
     server.onPeerHealthChange((event) => {
@@ -154,9 +154,9 @@ describe('better-ws server liveness', () => {
       })
     })
     server.accept({
+      close: closed,
       id: 'peer-1',
       send: vi.fn(() => true),
-      close: closed,
     })
 
     server.checkLiveness(Date.now() + 11)
@@ -168,20 +168,20 @@ describe('better-ws server liveness', () => {
 
   it('removes the peer even when the underlying close operation throws', () => {
     const server = createServer<string>({
-      peers: {
-        unhealthyTimeout: 10,
-        closeTimeout: 10,
-      },
       heartbeat: {
         timeout: 10,
       },
+      peers: {
+        closeTimeout: 10,
+        unhealthyTimeout: 10,
+      },
     })
     server.accept({
-      id: 'peer-1',
-      send: vi.fn(() => true),
       close: () => {
         throw new Error('raw close failed')
       },
+      id: 'peer-1',
+      send: vi.fn(() => true),
     })
 
     expect(() => server.checkLiveness(Date.now() + 10)).toThrow('raw close failed')

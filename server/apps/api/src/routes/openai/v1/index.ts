@@ -45,12 +45,12 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
         const body = await c.req.json() as Record<string, unknown>
 
         return {
-          userId: user.id,
-          body,
-          sessionId: c.req.header(AIRI_CHAT_SESSION_ID_HEADER),
-          roundId: c.req.header(AIRI_CHAT_ROUND_ID_HEADER),
-          appSurface: resolveChatAnalyticsSurface(c.req.header(AIRI_CHAT_APP_SURFACE_HEADER)),
           abortSignal: c.req.raw.signal,
+          appSurface: resolveChatAnalyticsSurface(c.req.header(AIRI_CHAT_APP_SURFACE_HEADER)),
+          body,
+          roundId: c.req.header(AIRI_CHAT_ROUND_ID_HEADER),
+          sessionId: c.req.header(AIRI_CHAT_SESSION_ID_HEADER),
+          userId: user.id,
         }
       },
       chatCompletions(deps),
@@ -72,10 +72,10 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
         const body = await c.req.json() as Record<string, unknown>
 
         return {
-          userId: user.id,
+          abortSignal: c.req.raw.signal,
           body,
           sessionId: c.req.header(AIRI_CHAT_SESSION_ID_HEADER),
-          abortSignal: c.req.raw.signal,
+          userId: user.id,
         }
       },
       speechGeneration(deps),
@@ -90,5 +90,5 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
     .get('/models/streaming', () => speechCatalog.listStreamingSpeechModels())
     .route
 
-  return { openaiRoutes, audioRoutes }
+  return { audioRoutes, openaiRoutes }
 }

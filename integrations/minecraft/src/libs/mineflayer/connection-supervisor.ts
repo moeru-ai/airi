@@ -1,29 +1,29 @@
 import type { Logg } from '@guiiai/logg'
 
-export interface ReconnectOptions {
-  enabled?: boolean
-  maxRetries?: number
-}
-
-export interface ReconnectContext {
-  reason: string
-  attempt: number
-  maxRetries: number
-}
-
-export interface ConnectionSupervisorDeps {
-  logger: Logg
-  reconnect?: ReconnectOptions
-  spawnTimeoutMs?: number
-  replaceBot: (context: ReconnectContext) => Promise<void>
-}
-
-export type ConnectionState = 'idle' | 'awaiting_spawn'
+export type ConnectionState = 'awaiting_spawn' | 'idle'
 
 export interface ConnectionSupervisor {
   onDisconnect: (reason: string) => Promise<void> | void
   onSpawn: () => void
   stop: () => void
+}
+
+export interface ConnectionSupervisorDeps {
+  logger: Logg
+  reconnect?: ReconnectOptions
+  replaceBot: (context: ReconnectContext) => Promise<void>
+  spawnTimeoutMs?: number
+}
+
+export interface ReconnectContext {
+  attempt: number
+  maxRetries: number
+  reason: string
+}
+
+export interface ReconnectOptions {
+  enabled?: boolean
+  maxRetries?: number
 }
 
 const DEFAULT_RECONNECT_MAX_RETRIES = 5
@@ -33,7 +33,7 @@ export function createConnectionSupervisor(deps: ConnectionSupervisorDeps): Conn
   let state: ConnectionState = 'idle'
   let attempts = 0
   let stopping = false
-  let spawnWatchdogTimer: ReturnType<typeof setTimeout> | null = null
+  let spawnWatchdogTimer: null | ReturnType<typeof setTimeout> = null
   let transitionQueue: Promise<void> = Promise.resolve()
 
   function clearSpawnWatchdog(): void {
@@ -86,8 +86,8 @@ export function createConnectionSupervisor(deps: ConnectionSupervisorDeps): Conn
 
     deps.logger.withFields({
       from: previousState,
-      to: nextState,
       reason,
+      to: nextState,
     }).log('Reconnect state transition')
   }
 
@@ -113,16 +113,16 @@ export function createConnectionSupervisor(deps: ConnectionSupervisorDeps): Conn
     transitionState('awaiting_spawn', reason)
 
     deps.logger.withFields({
-      reason,
       attempt: attempts,
       maxRetries,
+      reason,
     }).log('Reconnecting...')
 
     try {
       await deps.replaceBot({
-        reason,
         attempt: attempts,
         maxRetries,
+        reason,
       })
 
       deps.logger.log('Reconnect initiated, waiting for spawn...')
@@ -160,8 +160,8 @@ export function createConnectionSupervisor(deps: ConnectionSupervisorDeps): Conn
       state = 'idle'
       deps.logger.withFields({
         from: previousState,
-        to: state,
         reason: 'stop',
+        to: state,
       }).log('Reconnect state transition')
     }
   }

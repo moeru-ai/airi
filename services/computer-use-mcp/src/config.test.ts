@@ -36,17 +36,17 @@ describe('resolveComputerUseConfig', () => {
     expect(config.remoteSshPort).toBe(2201)
     expect(config.remoteRunnerCommand).toBe('$HOME/.local/bin/custom-runner')
     expect(config.remoteDisplaySize).toEqual({
-      width: 1366,
       height: 768,
+      width: 1366,
     })
     expect(config.remoteObservationBaseUrl).toBe('http://20.196.212.37:8765/observations')
     expect(config.remoteObservationServePort).toBe(8765)
     expect(config.remoteObservationToken).toBe('observation-token')
     expect(config.allowedBounds).toEqual({
+      height: 768,
+      width: 1366,
       x: 0,
       y: 0,
-      width: 1366,
-      height: 768,
     })
     expect(config.permissionChainHint).toContain('ssh -> remote desktop-runner')
     expect(config.requireAllowedBoundsForMutatingActions).toBe(true)

@@ -2,11 +2,19 @@
 // eslint-disable-next-line ts/ban-ts-comment
 // @ts-nocheck
 export class LRUCache {
-  max
   cache
+  max
   constructor(max = 10) {
     this.max = max
     this.cache = new Map()
+  }
+
+  clear() {
+    this.cache.clear()
+  }
+
+  first() {
+    return this.cache.keys().next().value
   }
 
   get(key) {
@@ -27,13 +35,5 @@ export class LRUCache {
     else if (this.cache.size === this.max)
       this.cache.delete(this.first())
     this.cache.set(key, val)
-  }
-
-  first() {
-    return this.cache.keys().next().value
-  }
-
-  clear() {
-    this.cache.clear()
   }
 }

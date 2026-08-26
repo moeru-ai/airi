@@ -11,6 +11,54 @@ import { SELECTORS } from './selectors'
  */
 export class TweetParser {
   /**
+   * Extract tweet data from tweet element
+   * @param page Playwright page instance
+   * @param tweetElement Tweet element handle
+   * @returns Promise resolving to Tweet object
+   */
+  static async extractTweetData(page: Page, tweetElement: ElementHandle): Promise<null | Tweet> {
+    try {
+      // Extract tweet ID
+      const id = await this.extractTweetId(tweetElement)
+
+      // Extract tweet text
+      const textElement = await tweetElement.$(SELECTORS.TIMELINE.TWEET_TEXT)
+      const text = textElement ? await textElement.textContent() : ''
+
+      // Extract author info
+      const author = await this.extractAuthorInfo(tweetElement)
+
+      // Extract timestamp
+      const timeElement = await tweetElement.$('time')
+      const timestamp = timeElement ? await timeElement.getAttribute('datetime') : new Date().toISOString()
+
+      // Extract engagement stats
+      const stats = await this.extractTweetStats(tweetElement)
+
+      // Extract media URLs
+      const mediaUrls = await this.extractMediaUrls(tweetElement)
+
+      const tweet: Tweet = {
+        author,
+        id,
+        text: text || '',
+        timestamp: timestamp || new Date().toISOString(),
+        ...stats,
+      }
+
+      if (mediaUrls.length > 0) {
+        tweet.mediaUrls = mediaUrls
+      }
+
+      return tweet
+    }
+    catch (error) {
+      logger.parser.error('Error extracting tweet data:', (error as Error).message)
+      return null
+    }
+  }
+
+  /**
    * Parse timeline tweets directly from the page
    * @param page Playwright page instance
    * @returns Promise resolving to Tweet array
@@ -38,50 +86,71 @@ export class TweetParser {
   }
 
   /**
-   * Extract tweet data from tweet element
-   * @param page Playwright page instance
+   * Extract author info from tweet element
    * @param tweetElement Tweet element handle
-   * @returns Promise resolving to Tweet object
+   * @returns Promise resolving to author object
    */
-  static async extractTweetData(page: Page, tweetElement: ElementHandle): Promise<Tweet | null> {
+  private static async extractAuthorInfo(tweetElement: ElementHandle): Promise<Tweet['author']> {
     try {
-      // Extract tweet ID
-      const id = await this.extractTweetId(tweetElement)
-
-      // Extract tweet text
-      const textElement = await tweetElement.$(SELECTORS.TIMELINE.TWEET_TEXT)
-      const text = textElement ? await textElement.textContent() : ''
-
-      // Extract author info
-      const author = await this.extractAuthorInfo(tweetElement)
-
-      // Extract timestamp
-      const timeElement = await tweetElement.$('time')
-      const timestamp = timeElement ? await timeElement.getAttribute('datetime') : new Date().toISOString()
-
-      // Extract engagement stats
-      const stats = await this.extractTweetStats(tweetElement)
-
-      // Extract media URLs
-      const mediaUrls = await this.extractMediaUrls(tweetElement)
-
-      const tweet: Tweet = {
-        id,
-        text: text || '',
-        author,
-        timestamp: timestamp || new Date().toISOString(),
-        ...stats,
+      // Find author element
+      const authorElement = await tweetElement.$('[data-testid="User-Name"]')
+      if (!authorElement) {
+        return {
+          displayName: 'Unknown User',
+          username: 'unknown',
+        }
       }
 
-      if (mediaUrls.length > 0) {
-        tweet.mediaUrls = mediaUrls
-      }
+      // Get display name
+      const displayNameElement = await authorElement.$('span:first-child')
+      const displayName = displayNameElement ? await displayNameElement.textContent() || 'Unknown User' : 'Unknown User'
 
-      return tweet
+      // Get username
+      const usernameElement = await authorElement.$('a[href^="/"]')
+      let username = usernameElement ? await usernameElement.getAttribute('href') : 'unknown'
+      username = username?.replace('/', '') || 'unknown'
+
+      // Get avatar URL
+      const avatarElement = await tweetElement.$('img[src*="/profile_images/"]')
+      const avatarUrl = avatarElement ? await avatarElement.getAttribute('src') : undefined
+
+      return {
+        displayName,
+        username,
+        ...(avatarUrl && { avatarUrl }),
+      }
     }
     catch (error) {
-      logger.parser.error('Error extracting tweet data:', (error as Error).message)
-      return null
+      logger.parser.error('Error extracting author info:', (error as Error).message)
+      return {
+        displayName: 'Unknown User',
+        username: 'unknown',
+      }
+    }
+  }
+
+  /**
+   * Extract media URLs from tweet element
+   * @param tweetElement Tweet element handle
+   * @returns Promise resolving to array of media URLs
+   */
+  private static async extractMediaUrls(tweetElement: ElementHandle): Promise<string[]> {
+    try {
+      const mediaElements = await tweetElement.$$('img[src*="pbs.twimg.com/media/"]')
+
+      const mediaUrls: string[] = []
+      for (const mediaElement of mediaElements) {
+        const src = await mediaElement.getAttribute('src')
+        if (src) {
+          mediaUrls.push(src)
+        }
+      }
+
+      return mediaUrls
+    }
+    catch (error) {
+      logger.parser.error('Error extracting media URLs:', (error as Error).message)
+      return []
     }
   }
 
@@ -114,63 +183,19 @@ export class TweetParser {
   }
 
   /**
-   * Extract author info from tweet element
-   * @param tweetElement Tweet element handle
-   * @returns Promise resolving to author object
-   */
-  private static async extractAuthorInfo(tweetElement: ElementHandle): Promise<Tweet['author']> {
-    try {
-      // Find author element
-      const authorElement = await tweetElement.$('[data-testid="User-Name"]')
-      if (!authorElement) {
-        return {
-          username: 'unknown',
-          displayName: 'Unknown User',
-        }
-      }
-
-      // Get display name
-      const displayNameElement = await authorElement.$('span:first-child')
-      const displayName = displayNameElement ? await displayNameElement.textContent() || 'Unknown User' : 'Unknown User'
-
-      // Get username
-      const usernameElement = await authorElement.$('a[href^="/"]')
-      let username = usernameElement ? await usernameElement.getAttribute('href') : 'unknown'
-      username = username?.replace('/', '') || 'unknown'
-
-      // Get avatar URL
-      const avatarElement = await tweetElement.$('img[src*="/profile_images/"]')
-      const avatarUrl = avatarElement ? await avatarElement.getAttribute('src') : undefined
-
-      return {
-        username,
-        displayName,
-        ...(avatarUrl && { avatarUrl }),
-      }
-    }
-    catch (error) {
-      logger.parser.error('Error extracting author info:', (error as Error).message)
-      return {
-        username: 'unknown',
-        displayName: 'Unknown User',
-      }
-    }
-  }
-
-  /**
    * Extract tweet stats (likes, retweets, replies)
    * @param tweetElement Tweet element handle
    * @returns Promise resolving to stats object
    */
   private static async extractTweetStats(tweetElement: ElementHandle): Promise<{
     likeCount?: number
-    retweetCount?: number
     replyCount?: number
+    retweetCount?: number
   }> {
     const stats: {
       likeCount?: number
-      retweetCount?: number
       replyCount?: number
+      retweetCount?: number
     } = {}
 
     try {
@@ -207,36 +232,11 @@ export class TweetParser {
   }
 
   /**
-   * Extract media URLs from tweet element
-   * @param tweetElement Tweet element handle
-   * @returns Promise resolving to array of media URLs
-   */
-  private static async extractMediaUrls(tweetElement: ElementHandle): Promise<string[]> {
-    try {
-      const mediaElements = await tweetElement.$$('img[src*="pbs.twimg.com/media/"]')
-
-      const mediaUrls: string[] = []
-      for (const mediaElement of mediaElements) {
-        const src = await mediaElement.getAttribute('src')
-        if (src) {
-          mediaUrls.push(src)
-        }
-      }
-
-      return mediaUrls
-    }
-    catch (error) {
-      logger.parser.error('Error extracting media URLs:', (error as Error).message)
-      return []
-    }
-  }
-
-  /**
    * Parse count text (handles K, M suffixes)
    * @param countText Count text from tweet
    * @returns Parsed number or undefined
    */
-  private static parseCount(countText: string | null): number | undefined {
+  private static parseCount(countText: null | string): number | undefined {
     if (!countText)
       return undefined
 

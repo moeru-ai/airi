@@ -12,7 +12,7 @@ export interface SpeechModuleConfiguration {
   voice: string
 }
 
-type SpeechModuleResolver = (context: AudioInputPreflightContext) => SpeechModuleConfiguration | undefined | Promise<SpeechModuleConfiguration | undefined>
+type SpeechModuleResolver = (context: AudioInputPreflightContext) => Promise<SpeechModuleConfiguration | undefined> | SpeechModuleConfiguration | undefined
 
 /** Configures the speech module with the TTS Provider selected by one case. */
 export function configureModuleSpeech(resolve: SpeechModuleResolver): AudioInputPreflightCallback {
@@ -24,16 +24,16 @@ export function configureModuleSpeech(resolve: SpeechModuleResolver): AudioInput
     await configureProvider(context.runtime, configuration.provider)
     await configureActiveCardModules(context.runtime, {
       speech: {
-        provider: configuration.provider.id,
         model: configuration.provider.model,
+        provider: configuration.provider.id,
         voice_id: configuration.voice,
       },
     })
     await configureStorage(context.runtime, {
-      'settings/speech/active-provider': configuration.provider.id,
       'settings/speech/active-model': configuration.provider.model,
-      'settings/speech/voice': configuration.voice,
+      'settings/speech/active-provider': configuration.provider.id,
       'settings/speech/output-muted': String(configuration.muted ?? false),
+      'settings/speech/voice': configuration.voice,
     })
   }
 }

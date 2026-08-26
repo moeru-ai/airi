@@ -56,48 +56,48 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   const contextObservability = useContextObservabilityStore()
   const characterOrchestratorStore = useCharacterOrchestratorStore()
   const consciousnessStore = useConsciousnessStore()
-  const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
+  const { activeModel, activeProvider } = storeToRefs(consciousnessStore)
   const streamingControl = useLlmStreamingControlStore()
 
   type SparkNotifyBridgeMessage
     = | {
-      type: 'request'
-      requestId: string
       fromInstanceId: string
       payload: SparkNotifyReactionOptions
       performance?: {
         callManifests: LlmStreamingControlCallManifest[]
         timeoutMs?: number
       }
+      requestId: string
+      type: 'request'
     }
     | {
-      type: 'response'
+      performance?: SparkNotifyPerformanceResult
+      reaction: string
       requestId: string
       toInstanceId: string
-      reaction: string
-      performance?: SparkNotifyPerformanceResult
+      type: 'response'
     }
   const SPARK_NOTIFY_BRIDGE_CHANNEL_NAME = 'airi-spark-notify-bridge'
   const sparkNotifyBridgeInstanceId = `spark-notify-${nanoid()}`
-  const sparkNotifyHostRole = ref<'main' | 'client'>('client')
+  const sparkNotifyHostRole = ref<'client' | 'main'>('client')
   const sparkNotifyBridgeWaiters = new Map<string, {
-    resolve: (result: { reaction: string, performance?: SparkNotifyPerformanceResult }) => Promise<void> | void
+    resolve: (result: { performance?: SparkNotifyPerformanceResult, reaction: string }) => Promise<void> | void
     timeout?: ReturnType<typeof setTimeout>
   }>()
-  const { post: postSparkNotifyBridgeMessage, data: incomingSparkNotifyBridgeMessage } = useBroadcastChannel<SparkNotifyBridgeMessage, SparkNotifyBridgeMessage>({ name: SPARK_NOTIFY_BRIDGE_CHANNEL_NAME })
+  const { data: incomingSparkNotifyBridgeMessage, post: postSparkNotifyBridgeMessage } = useBroadcastChannel<SparkNotifyBridgeMessage, SparkNotifyBridgeMessage>({ name: SPARK_NOTIFY_BRIDGE_CHANNEL_NAME })
 
   const disposeHookFns = ref<Array<() => void>>([])
   // Remote stream data belongs to this renderer only. Keeping its visibility
   // outside the synchronized chat store prevents a follower from publishing
   // its local runtime state over the elected authority's snapshot.
   const remoteStreamGuard = shallowRef<{
-    sessionId: string
-    generation: number
-    turnId: string
-    started: boolean
     completed: boolean
-    refreshing: boolean
+    generation: number
     pendingLiterals: string[]
+    refreshing: boolean
+    sessionId: string
+    started: boolean
+    turnId: string
   }>()
   const isReceivingRemoteStream = computed(() => remoteStreamGuard.value?.sessionId === chatSession.activeSessionId)
   let contextChannel: ReturnType<typeof createContextChannel> | undefined
@@ -143,31 +143,31 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   }
 
   function recordContextIngestRejected(options: {
-    channel: 'server' | 'broadcast' | 'input'
+    channel: 'broadcast' | 'input' | 'server'
     contextMessage: ContextMessage
     details?: unknown
     error: unknown
     sourceLabel?: string
   }) {
     contextObservability.recordLifecycle({
-      phase: 'store-ingest-rejected',
       channel: options.channel,
-      sourceKey: getEventSourceKey(options.contextMessage),
-      strategy: options.contextMessage.strategy,
-      lane: options.contextMessage.lane,
       contextId: options.contextMessage.contextId,
-      eventId: options.contextMessage.id,
-      textPreview: options.contextMessage.text,
-      sourceLabel: options.sourceLabel,
       details: {
         errorMessage: errorMessageFrom(options.error) ?? 'Unknown context ingest error',
         event: options.details,
       },
+      eventId: options.contextMessage.id,
+      lane: options.contextMessage.lane,
+      phase: 'store-ingest-rejected',
+      sourceKey: getEventSourceKey(options.contextMessage),
+      sourceLabel: options.sourceLabel,
+      strategy: options.contextMessage.strategy,
+      textPreview: options.contextMessage.text,
     })
   }
 
   function ingestContextMessageSafely(options: {
-    channel: 'server' | 'broadcast' | 'input'
+    channel: 'broadcast' | 'input' | 'server'
     contextMessage: ContextMessage
     details?: unknown
     sourceLabel?: string
@@ -206,32 +206,32 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     }
   }
 
-  async function handleSparkNotifyReactionLocal(options: SparkNotifyReactionOptions, identity?: { id?: string, eventId?: string }) {
+  async function handleSparkNotifyReactionLocal(options: SparkNotifyReactionOptions, identity?: { eventId?: string, id?: string }) {
     const event: WebSocketEventOf<'spark:notify'> = {
-      type: 'spark:notify',
-      source: options.source ?? 'plugin-module-host',
       data: {
-        id: identity?.id ?? nanoid(),
+        destinations: options.destinations?.length ? options.destinations : ['character'],
         eventId: identity?.eventId ?? nanoid(),
-        lane: options.lane,
-        kind: options.kind ?? 'ping',
-        urgency: options.urgency ?? 'immediate',
         headline: options.headline,
+        id: identity?.id ?? nanoid(),
+        kind: options.kind ?? 'ping',
+        lane: options.lane,
+        metadata: options.metadata,
         note: options.note,
         payload: options.payload,
-        ttlMs: options.ttlMs,
         requiresAck: options.requiresAck,
-        destinations: options.destinations?.length ? options.destinations : ['character'],
-        metadata: options.metadata,
+        ttlMs: options.ttlMs,
+        urgency: options.urgency ?? 'immediate',
       },
+      source: options.source ?? 'plugin-module-host',
+      type: 'spark:notify',
     }
 
     try {
       return await characterOrchestratorStore.handleSparkNotifyWithReaction(event, {
         fallbackText: options.fallbackResponseText,
         forceResponse: options.forceResponse,
-        forceTextResponse: options.forceTextResponse,
         forceSparkCommandResponse: options.forceSparkCommandResponse,
+        forceTextResponse: options.forceTextResponse,
         messageOverride: options.messageOverride,
       })
     }
@@ -241,7 +241,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     }
   }
 
-  function setSparkNotifyHostRole(role: 'main' | 'client') {
+  function setSparkNotifyHostRole(role: 'client' | 'main') {
     sparkNotifyHostRole.value = role
   }
 
@@ -266,10 +266,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       })
 
       postSparkNotifyBridgeMessage({
-        type: 'request',
-        requestId,
         fromInstanceId: sparkNotifyBridgeInstanceId,
         payload: options,
+        requestId,
+        type: 'request',
       })
     })
   }
@@ -280,8 +280,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     if (calls.length === 0) {
       const reaction = await handleSparkNotifyReactionLocal(options)
       return {
-        type: 'completed',
         reaction,
+        type: 'completed',
       }
     }
 
@@ -297,10 +297,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         await call.handler(payload)
         const reaction = await (reactionPromise ?? Promise.resolve(latestReaction || options.fallbackResponseText))
         resolve({
-          type: 'called',
           name: call.manifest.name,
           payload,
           reaction,
+          type: 'called',
         })
       }))
       dispose = () => {
@@ -326,8 +326,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     const turnDonePromise = turn.done.then(async (result): Promise<SparkNotifyPerformanceResult> => {
       const reaction = await (reactionPromise ?? Promise.resolve(latestReaction || options.fallbackResponseText))
       return {
-        type: result.type === 'cancelled' ? 'cancelled' : 'completed',
         reaction: reaction || options.fallbackResponseText,
+        type: result.type === 'cancelled' ? 'cancelled' : 'completed',
       }
     })
 
@@ -346,8 +346,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     if (calls.length === 0) {
       const reaction = await dispatchSparkNotifyReaction(options)
       return {
-        type: 'completed',
         reaction,
+        type: 'completed',
       }
     }
 
@@ -359,7 +359,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       }, Math.max(1, options.timeoutMs ?? 5000))
 
       sparkNotifyBridgeWaiters.set(requestId, {
-        resolve: async ({ reaction, performance }) => {
+        resolve: async ({ performance, reaction }) => {
           clearTimeout(timeout)
           if (performance?.type === 'called' && performance.name) {
             await findPerformanceCall(options, performance.name)?.handler(performance.payload)
@@ -372,14 +372,14 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
       const { calls: _calls, timeoutMs: _timeoutMs, ...payload } = options
       postSparkNotifyBridgeMessage({
-        type: 'request',
-        requestId,
         fromInstanceId: sparkNotifyBridgeInstanceId,
         payload,
         performance: {
           callManifests: calls.map(call => call.manifest),
           timeoutMs: options.timeoutMs,
         },
+        requestId,
+        type: 'request',
       })
     })
   }
@@ -390,8 +390,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     reaction?: string,
   ): SparkNotifyPerformanceResult {
     return {
-      type,
       reaction: reaction || options.fallbackResponseText,
+      type,
     }
   }
 
@@ -434,12 +434,12 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       const registerConsumers = () => {
         for (const consumerEvent of consumerRegistrationEvents) {
           serverChannelStore.send({
-            type: 'module:consumer:register',
             data: {
               event: consumerEvent,
-              mode: 'consumer-group',
               group: 'chat-ingestion',
+              mode: 'consumer-group',
             },
+            type: 'module:consumer:register',
           })
         }
       }
@@ -453,39 +453,39 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
       const stopContextUpdates = contextChannel.onContext((event) => {
         contextObservability.recordLifecycle({
-          phase: 'broadcast-received',
           channel: 'broadcast',
-          sourceKey: getEventSourceKey(event),
-          strategy: event.strategy,
-          lane: event.lane,
           contextId: event.contextId,
-          eventId: event.id,
-          textPreview: event.text,
-          sourceLabel: getMetadataSourceLabel(event.metadata?.source),
           details: event,
+          eventId: event.id,
+          lane: event.lane,
+          phase: 'broadcast-received',
+          sourceKey: getEventSourceKey(event),
+          sourceLabel: getMetadataSourceLabel(event.metadata?.source),
+          strategy: event.strategy,
+          textPreview: event.text,
         })
         const ingestAttempt = ingestContextMessageSafely({
           channel: 'broadcast',
           contextMessage: event,
-          sourceLabel: getMetadataSourceLabel(event.metadata?.source),
           details: event,
+          sourceLabel: getMetadataSourceLabel(event.metadata?.source),
         })
         if (ingestAttempt.ok && ingestAttempt.result) {
           contextObservability.recordLifecycle({
-            phase: 'store-ingested',
             channel: 'broadcast',
-            sourceKey: ingestAttempt.result.sourceKey,
-            strategy: event.strategy,
-            lane: event.lane,
             contextId: event.contextId,
-            eventId: event.id,
-            mutation: ingestAttempt.result.mutation,
-            textPreview: event.text,
-            sourceLabel: getMetadataSourceLabel(event.metadata?.source),
             details: {
               entryCount: ingestAttempt.result.entryCount,
               event,
             },
+            eventId: event.id,
+            lane: event.lane,
+            mutation: ingestAttempt.result.mutation,
+            phase: 'store-ingested',
+            sourceKey: ingestAttempt.result.sourceKey,
+            sourceLabel: getMetadataSourceLabel(event.metadata?.source),
+            strategy: event.strategy,
+            textPreview: event.text,
           })
         }
       })
@@ -506,18 +506,18 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               ? await handleSparkNotifyPerformanceLocal({
                   ...event.payload,
                   calls: event.performance.callManifests.map(manifest => ({
-                    manifest,
                     handler: async () => undefined,
+                    manifest,
                   })),
                   timeoutMs: event.performance.timeoutMs,
                 })
               : undefined
             const reaction = performance?.reaction ?? await handleSparkNotifyReactionLocal(event.payload)
             postSparkNotifyBridgeMessage({
-              type: 'response',
+              reaction,
               requestId: event.requestId,
               toInstanceId: event.fromInstanceId,
-              reaction,
+              type: 'response',
               ...(performance ? { performance } : {}),
             })
           })
@@ -536,8 +536,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
           sparkNotifyBridgeWaiters.delete(event.requestId)
           await waiter.resolve({
-            reaction: event.reaction,
             performance: event.performance,
+            reaction: event.reaction,
           })
         }
       })
@@ -545,70 +545,70 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
       disposeHookFns.value.push(serverChannelStore.onContextUpdate((event) => {
         contextObservability.recordLifecycle({
-          phase: 'server-received',
           channel: 'server',
-          sourceKey: getEventSourceKey(event),
-          strategy: event.data.strategy,
-          lane: event.data.lane,
           contextId: event.data.contextId,
-          eventId: event.data.id,
-          textPreview: event.data.text,
-          sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
           details: event,
+          eventId: event.data.id,
+          lane: event.data.lane,
+          phase: 'server-received',
+          sourceKey: getEventSourceKey(event),
+          sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
+          strategy: event.data.strategy,
+          textPreview: event.data.text,
         })
         const contextMessage: ContextMessage = {
           ...event.data,
-          metadata: event.metadata,
           createdAt: Date.now(),
+          metadata: event.metadata,
         }
         const ingestAttempt = ingestContextMessageSafely({
           channel: 'server',
           contextMessage,
-          sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
           details: event,
+          sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
         })
         if (!ingestAttempt.ok)
           return
 
         if (ingestAttempt.result) {
           contextObservability.recordLifecycle({
-            phase: 'store-ingested',
             channel: 'server',
-            sourceKey: ingestAttempt.result.sourceKey,
-            strategy: contextMessage.strategy,
-            lane: contextMessage.lane,
             contextId: contextMessage.contextId,
-            eventId: contextMessage.id,
-            mutation: ingestAttempt.result.mutation,
-            textPreview: contextMessage.text,
-            sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
             details: {
               entryCount: ingestAttempt.result.entryCount,
               event,
             },
+            eventId: contextMessage.id,
+            lane: contextMessage.lane,
+            mutation: ingestAttempt.result.mutation,
+            phase: 'store-ingested',
+            sourceKey: ingestAttempt.result.sourceKey,
+            sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
+            strategy: contextMessage.strategy,
+            textPreview: contextMessage.text,
           })
         }
         void contextChannel?.emitContext(toRaw(contextMessage))
         contextObservability.recordLifecycle({
-          phase: 'broadcast-posted',
           channel: 'broadcast',
-          sourceKey: getEventSourceKey(contextMessage),
-          strategy: contextMessage.strategy,
-          lane: contextMessage.lane,
           contextId: contextMessage.contextId,
-          eventId: contextMessage.id,
-          textPreview: contextMessage.text,
-          sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
           details: contextMessage,
+          eventId: contextMessage.id,
+          lane: contextMessage.lane,
+          phase: 'broadcast-posted',
+          sourceKey: getEventSourceKey(contextMessage),
+          sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
+          strategy: contextMessage.strategy,
+          textPreview: contextMessage.text,
         })
       }))
 
       disposeHookFns.value.push(serverChannelStore.onEvent('input:text', async (event) => {
         const {
+          contextUpdates,
+          overrides,
           text,
           textRaw,
-          overrides,
-          contextUpdates,
         } = event.data
 
         const normalizedContextUpdates = contextUpdates?.map((update) => {
@@ -616,8 +616,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           const contextId = update.contextId ?? id
           return {
             ...update,
-            id,
             contextId,
+            id,
           }
         })
         const acceptedContextUpdates: typeof normalizedContextUpdates = normalizedContextUpdates ? [] : undefined
@@ -626,32 +626,32 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           const createdAt = Date.now()
           for (const update of normalizedContextUpdates) {
             contextObservability.recordLifecycle({
-              phase: 'input-context-update',
               channel: 'input',
-              strategy: update.strategy,
-              lane: update.lane,
               contextId: update.contextId,
-              eventId: update.id,
-              textPreview: update.text,
-              sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
               details: {
                 inputType: event.type,
                 update,
               },
+              eventId: update.id,
+              lane: update.lane,
+              phase: 'input-context-update',
+              sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
+              strategy: update.strategy,
+              textPreview: update.text,
             })
             const contextMessage: ContextMessage = {
               ...update,
-              metadata: event.metadata,
               createdAt,
+              metadata: event.metadata,
             }
             const ingestAttempt = ingestContextMessageSafely({
               channel: 'input',
               contextMessage,
-              sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
               details: {
                 inputType: event.type,
                 update: contextMessage,
               },
+              sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
             })
             if (!ingestAttempt.ok)
               continue
@@ -660,21 +660,21 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
             if (ingestAttempt.result) {
               contextObservability.recordLifecycle({
-                phase: 'store-ingested',
                 channel: 'input',
-                sourceKey: ingestAttempt.result.sourceKey,
-                strategy: contextMessage.strategy,
-                lane: contextMessage.lane,
                 contextId: contextMessage.contextId,
-                eventId: contextMessage.id,
-                mutation: ingestAttempt.result.mutation,
-                textPreview: contextMessage.text,
-                sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
                 details: {
                   entryCount: ingestAttempt.result.entryCount,
                   inputType: event.type,
                   update: contextMessage,
                 },
+                eventId: contextMessage.id,
+                lane: contextMessage.lane,
+                mutation: ingestAttempt.result.mutation,
+                phase: 'store-ingested',
+                sourceKey: ingestAttempt.result.sourceKey,
+                sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
+                strategy: contextMessage.strategy,
+                textPreview: contextMessage.text,
               })
             }
           }
@@ -722,18 +722,18 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           await withContextBridgeLock('context-bridge:event:input:text', async () => {
             try {
               await chatOrchestrator.ingest(messageText, {
-                model: activeModel.value,
                 chatProvider,
                 input: {
-                  type: 'input:text',
                   data: {
                     ...event.data,
+                    contextUpdates: acceptedContextUpdates,
+                    overrides,
                     text,
                     textRaw,
-                    overrides,
-                    contextUpdates: acceptedContextUpdates,
                   },
+                  type: 'input:text',
                 },
+                model: activeModel.value,
               }, targetSessionId)
             }
             catch (err) {
@@ -748,93 +748,93 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'before-compose', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ context: structuredClone(normalizeContextSnapshot(context)), message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, type: 'before-compose' })
         }),
         chatOrchestrator.onAfterMessageComposed(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'after-compose', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ context: structuredClone(normalizeContextSnapshot(context)), message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, type: 'after-compose' })
         }),
         chatOrchestrator.onBeforeSend(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'before-send', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ context: structuredClone(normalizeContextSnapshot(context)), message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, type: 'before-send' })
         }),
         chatOrchestrator.onAfterSend(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'after-send', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ context: structuredClone(normalizeContextSnapshot(context)), message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, type: 'after-send' })
         }),
         chatOrchestrator.onTokenLiteral(async (literal, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'token-literal', literal, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ context: structuredClone(normalizeContextSnapshot(context)), literal, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, type: 'token-literal' })
         }),
         chatOrchestrator.onTokenSpecial(async (special, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'token-special', special, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ context: structuredClone(normalizeContextSnapshot(context)), sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, special, type: 'token-special' })
         }),
         chatOrchestrator.onStreamEnd(async (context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'stream-end', sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ context: structuredClone(normalizeContextSnapshot(context)), sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, type: 'stream-end' })
         }),
         chatOrchestrator.onAssistantResponseEnd(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'assistant-end', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ context: structuredClone(normalizeContextSnapshot(context)), message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, type: 'assistant-end' })
         }),
 
         chatOrchestrator.onAssistantMessage(async (message, _messageText, context) => {
           serverChannelStore.send({
-            type: 'output:gen-ai:chat:message',
             data: {
               ...context.input?.data,
-              message,
-              'stage-web': isStageWeb(),
-              'stage-tamagotchi': isStageTamagotchi(),
               'gen-ai:chat': {
-                message: context.message as UserMessage,
                 composedMessage: context.composedMessage,
                 contexts: context.contexts,
                 input: context.input,
+                message: context.message as UserMessage,
               },
+              message,
+              'stage-tamagotchi': isStageTamagotchi(),
+              'stage-web': isStageWeb(),
             },
+            type: 'output:gen-ai:chat:message',
           })
         }),
 
         chatOrchestrator.onChatTurnComplete(async (chat, context) => {
           serverChannelStore.send({
-            type: 'output:gen-ai:chat:complete',
             data: {
               ...context.input?.data,
-              'message': chat.output,
-              // TODO: tool calls should be captured properly
-              'toolCalls': [],
-              'stage-web': isStageWeb(),
-              'stage-tamagotchi': isStageTamagotchi(),
-              // TODO: Properly calculate usage data
-              'usage': {
-                promptTokens: 0,
-                completionTokens: 0,
-                totalTokens: 0,
-                source: 'estimate-based',
-              },
               'gen-ai:chat': {
-                message: context.message as UserMessage,
                 composedMessage: context.composedMessage,
                 contexts: context.contexts,
                 input: context.input,
+                message: context.message as UserMessage,
+              },
+              'message': chat.output,
+              'stage-tamagotchi': isStageTamagotchi(),
+              'stage-web': isStageWeb(),
+              // TODO: tool calls should be captured properly
+              'toolCalls': [],
+              // TODO: Properly calculate usage data
+              'usage': {
+                completionTokens: 0,
+                promptTokens: 0,
+                source: 'estimate-based',
+                totalTokens: 0,
               },
             },
+            type: 'output:gen-ai:chat:complete',
           })
         }),
       )
@@ -846,77 +846,11 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           // Remote UI state is correlated by session and generation. The
           // receiver never persists these mirrored stream events.
           switch (event.type) {
-            case 'before-compose':
-              await chatOrchestrator.emitBeforeMessageComposedHooks(event.message, event.context)
-              break
             case 'after-compose':
               await chatOrchestrator.emitAfterMessageComposedHooks(event.message, event.context)
               break
-            case 'before-send':
-              await chatOrchestrator.emitBeforeSendHooks(event.message, event.context)
-              remoteStreamGuard.value = {
-                sessionId: event.sessionId,
-                generation: chatSession.getSessionGenerationValue(event.sessionId),
-                turnId: event.context.turnId,
-                started: false,
-                completed: false,
-                refreshing: false,
-                pendingLiterals: [],
-              }
-              presentRemoteStreamIfActive()
-              break
             case 'after-send':
               await chatOrchestrator.emitAfterSendHooks(event.message, event.context)
-              break
-            case 'token-literal':
-              if (!remoteStreamGuard.value)
-                return
-              if (event.sessionId !== remoteStreamGuard.value.sessionId)
-                return
-              if (chatSession.getSessionGenerationValue(remoteStreamGuard.value.sessionId) !== remoteStreamGuard.value.generation)
-                return
-              remoteStreamGuard.value.pendingLiterals.push(event.literal)
-              if (!presentRemoteStreamIfActive())
-                return
-              await chatOrchestrator.emitTokenLiteralHooks(event.literal, event.context)
-              break
-            case 'token-special':
-              if (!remoteStreamGuard.value || event.sessionId !== remoteStreamGuard.value.sessionId)
-                return
-              if (remoteStreamGuard.value.sessionId !== chatSession.activeSessionId)
-                return
-              if (chatSession.getSessionGenerationValue(remoteStreamGuard.value.sessionId) !== remoteStreamGuard.value.generation)
-                return
-              await chatOrchestrator.emitTokenSpecialHooks(event.special, event.context)
-              break
-            case 'stream-end':
-              if (!remoteStreamGuard.value)
-                break
-              {
-                const guard = remoteStreamGuard.value
-                if (event.sessionId !== guard.sessionId)
-                  break
-                if (guard.sessionId !== chatSession.activeSessionId
-                  && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
-                  break
-                }
-                try {
-                  if (guard.sessionId === chatSession.activeSessionId
-                    && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
-                    await chatOrchestrator.emitStreamEndHooks(event.context)
-                  }
-                }
-                finally {
-                  if (remoteStreamGuard.value === guard) {
-                    if (guard.started
-                      && guard.sessionId === chatSession.activeSessionId
-                      && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
-                      chatStream.resetStream()
-                    }
-                    remoteStreamGuard.value = undefined
-                  }
-                }
-              }
               break
             case 'assistant-end':
               if (!remoteStreamGuard.value)
@@ -947,6 +881,72 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                   }
                 }
               }
+              break
+            case 'before-compose':
+              await chatOrchestrator.emitBeforeMessageComposedHooks(event.message, event.context)
+              break
+            case 'before-send':
+              await chatOrchestrator.emitBeforeSendHooks(event.message, event.context)
+              remoteStreamGuard.value = {
+                completed: false,
+                generation: chatSession.getSessionGenerationValue(event.sessionId),
+                pendingLiterals: [],
+                refreshing: false,
+                sessionId: event.sessionId,
+                started: false,
+                turnId: event.context.turnId,
+              }
+              presentRemoteStreamIfActive()
+              break
+            case 'stream-end':
+              if (!remoteStreamGuard.value)
+                break
+              {
+                const guard = remoteStreamGuard.value
+                if (event.sessionId !== guard.sessionId)
+                  break
+                if (guard.sessionId !== chatSession.activeSessionId
+                  && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
+                  break
+                }
+                try {
+                  if (guard.sessionId === chatSession.activeSessionId
+                    && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
+                    await chatOrchestrator.emitStreamEndHooks(event.context)
+                  }
+                }
+                finally {
+                  if (remoteStreamGuard.value === guard) {
+                    if (guard.started
+                      && guard.sessionId === chatSession.activeSessionId
+                      && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
+                      chatStream.resetStream()
+                    }
+                    remoteStreamGuard.value = undefined
+                  }
+                }
+              }
+              break
+            case 'token-literal':
+              if (!remoteStreamGuard.value)
+                return
+              if (event.sessionId !== remoteStreamGuard.value.sessionId)
+                return
+              if (chatSession.getSessionGenerationValue(remoteStreamGuard.value.sessionId) !== remoteStreamGuard.value.generation)
+                return
+              remoteStreamGuard.value.pendingLiterals.push(event.literal)
+              if (!presentRemoteStreamIfActive())
+                return
+              await chatOrchestrator.emitTokenLiteralHooks(event.literal, event.context)
+              break
+            case 'token-special':
+              if (!remoteStreamGuard.value || event.sessionId !== remoteStreamGuard.value.sessionId)
+                return
+              if (remoteStreamGuard.value.sessionId !== chatSession.activeSessionId)
+                return
+              if (chatSession.getSessionGenerationValue(remoteStreamGuard.value.sessionId) !== remoteStreamGuard.value.generation)
+                return
+              await chatOrchestrator.emitTokenSpecialHooks(event.special, event.context)
               break
           }
         }
@@ -984,12 +984,12 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
       for (const consumerEvent of consumerRegistrationEvents) {
         serverChannelStore.send({
-          type: 'module:consumer:unregister',
           data: {
             event: consumerEvent,
-            mode: 'consumer-group',
             group: 'chat-ingestion',
+            mode: 'consumer-group',
           },
+          type: 'module:consumer:unregister',
         })
       }
 
@@ -1017,10 +1017,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   }
 
   return {
-    initialize,
-    dispose,
-    dispatchSparkNotifyReaction,
     dispatchSparkNotifyPerformance,
+    dispatchSparkNotifyReaction,
+    dispose,
+    initialize,
     isReceivingRemoteStream,
     setSparkNotifyHostRole,
   }
