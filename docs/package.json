@@ -20,6 +20,7 @@
     "@moeru/std": "catalog:",
     "@proj-airi/chromatic": "catalog:",
     "@proj-airi/i18n": "workspace:^",
+    "@proj-airi/stage-shared": "workspace:^",
     "@vueuse/core": "catalog:",
     "colorjs.io": "catalog:",
     "date-fns": "catalog:",

@@ -18,7 +18,7 @@ vi.mock('@proj-airi/stage-shared', () => ({
   isStageTamagotchi: () => false,
 }))
 
-vi.mock('../../../../../posthog.config', () => ({
+vi.mock('@proj-airi/stage-shared/analytics/posthog', () => ({
   DEFAULT_POSTHOG_CONFIG: {},
   POSTHOG_PROJECT_KEY: 'test-project-key',
 }))
