@@ -65,7 +65,9 @@ export const useSpeechStore = defineStore('speech', () => {
   const pitch = useLocalStorageManualReset<number>('settings/speech/pitch', 0, persistenceOptions)
   const rate = useLocalStorageManualReset<number>('settings/speech/rate', 1, persistenceOptions)
   const ssmlEnabled = useLocalStorageManualReset<boolean>('settings/speech/ssml-enabled', false, persistenceOptions)
-  const voiceLoadCounts = refManualReset<Record<string, number>>(() => ({}))
+  // Each provider has one current request. Older requests can finish, but they
+  // no longer own the catalog, error, or loading state for that provider.
+  const activeVoiceLoadKeys = refManualReset<Record<string, string>>(() => ({}))
   const voiceLoadPromises = new Map<string, Promise<VoiceInfo[]>>()
   const speechProviderErrorState = refManualReset<string | null>(null)
   const availableVoicesState = refManualReset<Record<string, VoiceInfo[]>>(() => ({}))
@@ -91,7 +93,7 @@ export const useSpeechStore = defineStore('speech', () => {
   })
 
   const availableSpeechProvidersMetadata = computed(() => allAudioSpeechProvidersMetadata.value)
-  const isLoadingSpeechProviderVoices = computed(() => (voiceLoadCounts.value[activeSpeechProvider.value] ?? 0) > 0)
+  const isLoadingSpeechProviderVoices = computed(() => Boolean(activeVoiceLoadKeys.value[activeSpeechProvider.value]))
 
   // Computed properties
   const supportsModelListing = computed(() => {
@@ -132,14 +134,20 @@ export const useSpeechStore = defineStore('speech', () => {
     return ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(activeSpeechProvider.value)
   })
 
-  function updateVoiceLoadCount(provider: string, change: 1 | -1) {
-    const nextCount = Math.max(0, (voiceLoadCounts.value[provider] ?? 0) + change)
-    const nextCounts = { ...voiceLoadCounts.value }
-    if (nextCount === 0)
-      delete nextCounts[provider]
-    else
-      nextCounts[provider] = nextCount
-    voiceLoadCounts.value = nextCounts
+  function setActiveVoiceLoad(provider: string, requestKey: string) {
+    activeVoiceLoadKeys.value = {
+      ...activeVoiceLoadKeys.value,
+      [provider]: requestKey,
+    }
+  }
+
+  function clearActiveVoiceLoad(provider: string, requestKey: string) {
+    if (activeVoiceLoadKeys.value[provider] !== requestKey)
+      return
+
+    const nextKeys = { ...activeVoiceLoadKeys.value }
+    delete nextKeys[provider]
+    activeVoiceLoadKeys.value = nextKeys
   }
 
   async function loadVoicesForProvider(provider: string, model?: string) {
@@ -157,15 +165,18 @@ export const useSpeechStore = defineStore('speech', () => {
     const providerConfig = providerStore.getProviderConfig(provider) ?? {}
     const requestKey = createProviderVoiceRequestKey(provider, model, providerConfig)
     const pendingRequest = voiceLoadPromises.get(requestKey)
-    if (pendingRequest)
+    if (pendingRequest) {
+      setActiveVoiceLoad(provider, requestKey)
       return await pendingRequest
+    }
 
     function isCurrentRequest() {
       const currentConfig = providerStore.getProviderConfig(provider) ?? {}
-      return requestKey === createProviderVoiceRequestKey(provider, model, currentConfig)
+      return activeVoiceLoadKeys.value[provider] === requestKey
+        && requestKey === createProviderVoiceRequestKey(provider, model, currentConfig)
     }
 
-    updateVoiceLoadCount(provider, 1)
+    setActiveVoiceLoad(provider, requestKey)
     speechProviderError.value = null
 
     const request = (async () => {
@@ -190,7 +201,7 @@ export const useSpeechStore = defineStore('speech', () => {
         return []
       }
       finally {
-        updateVoiceLoadCount(provider, -1)
+        clearActiveVoiceLoad(provider, requestKey)
         voiceLoadPromises.delete(requestKey)
       }
     })()
@@ -469,7 +480,7 @@ export const useSpeechStore = defineStore('speech', () => {
     modelSearchQueryState.reset()
     availableVoicesState.reset()
     speechProviderErrorState.reset()
-    voiceLoadCounts.reset()
+    activeVoiceLoadKeys.reset()
     voiceLoadPromises.clear()
   }
 

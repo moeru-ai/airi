@@ -409,6 +409,8 @@ watch(activeSpeechProvider, async (newProvider) => {
   // A user selection or card activation owns the complete provider/model/voice
   // tuple. This watcher only resolves provider-specific defaults; it must not
   // clear a replicated selection and publish another full-state proposal.
+  // useSpeechStore owns voice loading for every provider change, even when the
+  // active model ID does not change.
   speechStore.ensureActiveSpeechModel()
   trackOfficialTtsExposure(newProvider, currentTtsModelId())
 })

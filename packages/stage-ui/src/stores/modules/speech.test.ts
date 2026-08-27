@@ -152,6 +152,7 @@ describe('speech store helpers', () => {
     expect(listVoices).toHaveBeenCalledTimes(1)
     expect(speechStore.isLoadingSpeechProviderVoices).toBe(false)
     expect('isLoadingSpeechProviderVoices' in speechStore.$state).toBe(false)
+    expect('activeVoiceLoadKeys' in speechStore.$state).toBe(false)
     expect('availableVoices' in speechStore.$state).toBe(false)
     expect('activeSpeechVoice' in speechStore.$state).toBe(false)
 
@@ -166,15 +167,34 @@ describe('speech store helpers', () => {
     await vi.waitFor(() => expect(speechStore.isLoadingSpeechProviderVoices).toBe(false))
   })
 
+  // https://github.com/moeru-ai/airi/pull/2382#discussion_r3876471588
+  it('loads voices when the provider changes and the model ID stays the same', async () => {
+    const providersStore = useProviderStore()
+    const listVoices = vi.spyOn(providersStore, 'listProviderVoices').mockResolvedValue([])
+    const speechStore = useSpeechStore()
+    await vi.waitFor(() => expect(speechStore.isLoadingSpeechProviderVoices).toBe(false))
+    listVoices.mockClear()
+
+    speechStore.activeSpeechModel = 'shared-model'
+    speechStore.activeSpeechProvider = 'provider-a'
+    await vi.waitFor(() => expect(listVoices).toHaveBeenCalledWith('provider-a', 'shared-model'))
+    listVoices.mockClear()
+
+    speechStore.activeSpeechProvider = 'provider-b'
+    await vi.waitFor(() => expect(listVoices).toHaveBeenCalledWith('provider-b', 'shared-model'))
+  })
+
   // https://github.com/moeru-ai/airi/pull/2382#discussion_r3876290830
+  // https://github.com/moeru-ai/airi/pull/2382#discussion_r3876471599
   // ROOT CAUSE:
   //
   // The voice-load key contained only the provider and model. A request that
   // used old credentials remained reusable after the Provider configuration
   // changed. Its result could then replace the new account's voice catalog.
+  // The provider-only loading counter also kept obsolete requests visible.
   //
   // We fixed this by adding the Provider configuration to the request identity.
-  // A completed request updates the catalog only if that identity is current.
+  // The current request key now owns the catalog result and loading state.
   it('starts a new voice load after Provider configuration changes and ignores the stale result', async () => {
     const providerConfigStore = useProviderConfigStore()
     const providersStore = useProviderStore()
@@ -189,6 +209,13 @@ describe('speech store helpers', () => {
       configuredBy: 'user',
     }
 
+    const listVoices = vi.spyOn(providersStore, 'listProviderVoices').mockResolvedValue([])
+    speechStore.activeSpeechModel = 'eleven_multilingual_v2'
+    speechStore.activeSpeechProvider = 'elevenlabs'
+    await vi.waitFor(() => expect(listVoices).toHaveBeenCalledWith('elevenlabs', 'eleven_multilingual_v2'))
+    await vi.waitFor(() => expect(speechStore.isLoadingSpeechProviderVoices).toBe(false))
+    listVoices.mockReset().mockResolvedValue([])
+
     const oldVoices = [{ id: 'old-voice', name: 'Old voice', provider: 'elevenlabs', languages: [] }]
     const newVoices = [{ id: 'new-voice', name: 'New voice', provider: 'elevenlabs', languages: [] }]
     let resolveOldVoices: ((voices: typeof oldVoices) => void) | undefined
@@ -199,8 +226,7 @@ describe('speech store helpers', () => {
     const newRequest = new Promise<typeof newVoices>((resolve) => {
       resolveNewVoices = resolve
     })
-    const listVoices = vi.spyOn(providersStore, 'listProviderVoices')
-      .mockImplementationOnce(async () => await oldRequest)
+    listVoices.mockImplementationOnce(async () => await oldRequest)
       .mockImplementationOnce(async () => await newRequest)
 
     const oldLoad = speechStore.loadVoicesForProvider('elevenlabs', 'eleven_multilingual_v2')
@@ -208,10 +234,12 @@ describe('speech store helpers', () => {
     const newLoad = speechStore.loadVoicesForProvider('elevenlabs', 'eleven_multilingual_v2')
 
     expect(listVoices).toHaveBeenCalledTimes(2)
+    expect(speechStore.isLoadingSpeechProviderVoices).toBe(true)
 
     resolveNewVoices?.(newVoices)
     await newLoad
     expect(speechStore.availableVoices.elevenlabs).toEqual(newVoices)
+    await vi.waitFor(() => expect(speechStore.isLoadingSpeechProviderVoices).toBe(false))
 
     resolveOldVoices?.(oldVoices)
     await oldLoad
