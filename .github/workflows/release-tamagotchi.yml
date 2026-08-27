@@ -127,7 +127,7 @@ jobs:
       - uses: actions/setup-node@v6
         if: matrix.os == 'macos-15-intel'
         with:
-          node-version: 26
+          node-version: 26.7.0
 
       - name: Install pnpm with npm
         if: matrix.os == 'macos-15-intel'
@@ -150,7 +150,7 @@ jobs:
       - uses: pnpm/setup@v2
         if: matrix.os != 'macos-15-intel'
         with:
-          runtime: node@26
+          runtime: node@26.7.0
           cache: true
           install: false
 

@@ -43,7 +43,7 @@ jobs:
 
       - uses: pnpm/setup@v2
         with:
-          runtime: node@26
+          runtime: node@26.7.0
           cache: true
           install: false
 

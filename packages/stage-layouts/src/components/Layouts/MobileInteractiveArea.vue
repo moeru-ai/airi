@@ -16,8 +16,10 @@ import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea, useTheme } from '@proj-airi/ui'
+import { onLongPress, useEventListener, usePointerSwipe } from '@vueuse/core'
+import { animate, spring } from 'animejs'
 import { storeToRefs } from 'pinia'
-import { computed, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
@@ -92,10 +94,16 @@ function handleCleanupMessages() {
 
 const messageInput = shallowRef('')
 const isComposing = shallowRef(false)
+const inputBubbleDocked = shallowRef(false)
+const inputBubbleDragging = shallowRef(false)
+const inputBubbleAnimating = shallowRef(false)
 const backgroundDialogOpen = shallowRef(false)
 const sessionsDrawerOpen = shallowRef(false)
 const mobileInteractiveArea = useTemplateRef<HTMLElement>('mobileInteractiveArea')
 const messageComposer = useTemplateRef<HTMLElement>('messageComposer')
+const inputBubble = useTemplateRef<HTMLElement>('inputBubble')
+const inputBubbleDockTarget = useTemplateRef<HTMLElement>('inputBubbleDockTarget')
+const inputBubbleIcon = useTemplateRef<HTMLElement>('inputBubbleIcon')
 const interactionControls = useTemplateRef<HTMLElement>('interactionControls')
 const controlsIsland = useTemplateRef<HTMLElement>('controlsIsland')
 const controlsIslandContent = useTemplateRef<HTMLElement>('controlsIslandContent')
@@ -128,12 +136,14 @@ const chatHistoryClass = computed(() => [
   props.keyboardAvoidance ? undefined : 'max-h-[35dvh]',
 ])
 const controlsIslandClass = computed(() => [
-  'controls-island-scroll absolute right-0 translate-y-[-100%]',
+  'absolute right-0 translate-y-[-100%]',
   'max-w-full overflow-y-auto overscroll-contain px-3 py-3 font-sans scrollbar-none',
   'transition-[height] duration-250 ease-out',
-  controlsIslandOverflowing.value
-    ? 'controls-island-scroll--overflowing'
-    : undefined,
+  controlsIslandOverflowing.value && [
+    '[-webkit-mask-image:linear-gradient(to_bottom,transparent_0,black_1rem,black_calc(100%_-_1rem),transparent_100%)]',
+    '[mask-image:linear-gradient(to_bottom,transparent_0,black_1rem,black_calc(100%_-_1rem),transparent_100%)]',
+    '[-webkit-mask-repeat:no-repeat] [mask-repeat:no-repeat]',
+  ],
 ])
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 const { viewControlsEnabled: l2dViewCtrlEnabled } = useL2dViewControl()
@@ -158,6 +168,142 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription } =
 )
 const { showStopSpeakingButton, speechMuted, stopSpeakingFromChat, toggleSpeechMuted } = useStopSpeakingButton()
 const toggleTranscription = () => isListening.value ? stopStreamingTranscription() : startStreamingTranscription()
+
+let suppressNextInputBubbleClick = false
+
+async function resetInputBubblePosition() {
+  await animate(inputBubble.value!, {
+    transform: 'translate3d(0px, 0px, 0px) scale(1)',
+    ease: spring({ bounce: 0.3, duration: 320 }),
+  })
+}
+
+async function setInputBubbleDocked(docked: boolean) {
+  if (inputBubbleDocked.value === docked)
+    return
+
+  inputBubbleAnimating.value = true
+  const bubble = inputBubble.value!
+  const source = bubble.getBoundingClientRect()
+  bubble.style.transform = 'translate3d(0px, 0px, 0px) scale(1)'
+  if (!docked) {
+    bubble.style.removeProperty('width')
+    bubble.style.removeProperty('max-width')
+    bubble.style.removeProperty('height')
+  }
+  inputBubbleDocked.value = docked
+  await nextTick()
+
+  const destination = bubble.getBoundingClientRect()
+  const target = docked ? inputBubbleDockTarget.value!.getBoundingClientRect() : destination
+  const startX = source.left + source.width / 2 - destination.left - destination.width / 2
+  const startY = source.top - destination.top
+  const endX = target.left + target.width / 2 - destination.left - destination.width / 2
+  const endY = target.top + target.height / 2 - destination.top - destination.height / 2
+  const messageInput = bubble.querySelector<HTMLTextAreaElement>('textarea')!
+
+  await Promise.all([
+    animate(bubble, {
+      width: [`${source.width}px`, `${target.width}px`],
+      maxWidth: [`${source.width}px`, `${target.width}px`],
+      height: [`${source.height}px`, `${target.height}px`],
+      transform: [
+        `translate3d(${startX}px, ${startY}px, 0)`,
+        `translate3d(${endX}px, ${endY}px, 0)`,
+      ],
+      ease: spring({ bounce: docked ? 0.35 : 0.25, duration: 400 }),
+    }),
+    animate(messageInput, {
+      opacity: docked ? 0 : 1,
+      duration: 120,
+      ease: 'out(2)',
+    }),
+    animate(inputBubbleIcon.value!, {
+      opacity: docked ? 1 : 0,
+      duration: 120,
+      ease: 'out(2)',
+    }),
+  ])
+
+  if (!docked) {
+    bubble.style.removeProperty('width')
+    bubble.style.removeProperty('max-width')
+    bubble.style.removeProperty('height')
+  }
+  inputBubbleAnimating.value = false
+  await nextTick()
+}
+
+const {
+  distanceX: inputBubbleDistanceX,
+  distanceY: inputBubbleDistanceY,
+} = usePointerSwipe(inputBubble, {
+  threshold: 0,
+  onSwipe: handleInputBubbleSwipe,
+  onSwipeEnd: finishInputBubbleDrag,
+})
+
+async function finishInputBubbleDrag() {
+  if (!inputBubbleDragging.value)
+    return
+
+  inputBubbleDragging.value = false
+  const upwardDistance = inputBubbleDistanceY.value
+  const draggedTowardDock = upwardDistance >= 64
+    && upwardDistance > Math.abs(inputBubbleDistanceX.value)
+  if (draggedTowardDock)
+    await setInputBubbleDocked(true)
+  else
+    await resetInputBubblePosition()
+}
+
+function handleInputBubbleSwipe() {
+  if (!inputBubbleDragging.value)
+    return
+
+  inputBubble.value!.style.transform = `translate3d(${-inputBubbleDistanceX.value}px, ${-inputBubbleDistanceY.value}px, 0) scale(.98)`
+}
+
+function handleInputBubbleLongPress() {
+  if (inputBubbleDocked.value)
+    return
+
+  suppressNextInputBubbleClick = true
+  inputBubbleDragging.value = true
+  inputBubble.value!.style.transform = 'translate3d(0, 0, 0) scale(.98)'
+}
+
+onLongPress(inputBubble, handleInputBubbleLongPress, {
+  delay: 500,
+  distanceThreshold: 10,
+  modifiers: { prevent: true },
+  onMouseUp: (_duration, _distance, longPressed) => longPressed && finishInputBubbleDrag(),
+})
+
+async function handleInputBubbleClick() {
+  if (suppressNextInputBubbleClick) {
+    suppressNextInputBubbleClick = false
+    return
+  }
+
+  if (inputBubbleDocked.value) {
+    await setInputBubbleDocked(false)
+    return
+  }
+
+  inputBubble.value!.querySelector<HTMLTextAreaElement>('textarea')!.focus()
+}
+
+async function handleInputBubblePointerCancel() {
+  inputBubbleDragging.value = false
+  await resetInputBubblePosition()
+}
+
+useEventListener(inputBubble, 'pointercancel', handleInputBubblePointerCancel)
+
+onMounted(() => {
+  inputBubble.value!.style.setProperty('touch-action', 'none')
+})
 
 async function handleSubmit() {
   if (!isMobileDevice()) {
@@ -258,17 +404,8 @@ onUnmounted(() => {
       data-testid="mobile-interaction-controls"
       :class="[
         'pointer-events-auto relative w-full shrink-0 self-end',
-        'bg-white dark:bg-neutral-800',
       ]"
     >
-      <div
-        data-testid="mobile-composer-underlay"
-        aria-hidden="true"
-        :class="[
-          'pointer-events-none absolute inset-x-0 top-full h-100dvh',
-          'bg-white dark:bg-neutral-800',
-        ]"
-      />
       <div translate-y="[-100%]" absolute left-0 px-3 pb-3 font-sans>
         <div flex="~ col" gap-1>
           <slot name="status" />
@@ -286,6 +423,11 @@ onUnmounted(() => {
             'flex flex-col gap-1',
           ]"
         >
+          <div
+            ref="inputBubbleDockTarget"
+            data-testid="mobile-input-bubble-dock-target"
+            class="invisible size-10 shrink-0 self-end"
+          />
           <ActionAbout />
           <div flex="~ col" items-end gap-1>
             <button
@@ -371,26 +513,58 @@ onUnmounted(() => {
         data-testid="mobile-message-composer"
         :class="[
           'max-h-100dvh max-w-100dvw w-full',
-          'flex gap-1 overflow-auto px-3 pt-2',
-          'bg-white dark:bg-neutral-800',
+          'flex gap-1 px-3 pt-2',
         ]"
         :style="messageComposerStyle"
       >
-        <BasicTextarea
-          v-model="messageInput"
-          :placeholder="t('stage.message')"
+        <div
+          ref="inputBubble"
+          data-testid="mobile-input-bubble"
+          :data-dragging="inputBubbleDragging"
           :class="[
-            'font-cute',
-            'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full resize-none overflow-y-scroll rounded-[1lh] px-4 py-0.5 outline-none backdrop-blur-md scrollbar-none',
-            'border-2 border-solid border-neutral-200/60 bg-neutral-100/80 text-neutral-500 dark:border-neutral-700/60 dark:bg-neutral-950/80 dark:text-neutral-100',
-            'transition-all duration-250 ease-in-out hover:text-neutral-600 placeholder:text-[14px] placeholder:vertical-middle placeholder:leading-6 placeholder:text-neutral-400 placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out placeholder:hover:text-neutral-500 dark:hover:text-neutral-200 dark:placeholder:text-neutral-500 dark:placeholder:hover:text-neutral-400',
-            themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : undefined,
+            'group relative mx-auto min-h-10 flex origin-center',
+            'touch-none select-none focus-within:touch-auto focus-within:select-text',
+            inputBubbleDragging || inputBubbleAnimating
+              ? 'transition-none'
+              : 'transition-[max-width] duration-320 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]',
+            inputBubbleDocked
+              ? [
+                'h-10 max-w-10 w-10 cursor-pointer rounded-xl border-2 border-solid backdrop-blur-md',
+                'border-neutral-100/60 bg-neutral-50/70 dark:border-neutral-800/30 dark:bg-neutral-800/70',
+              ]
+              : 'max-w-[70%] w-full focus-within:max-w-full',
           ]"
-          default-height="1lh"
-          @submit="handleSubmit"
-          @compositionstart="isComposing = true"
-          @compositionend="isComposing = false"
-        />
+          @click="handleInputBubbleClick"
+          @pointerdown="suppressNextInputBubbleClick = false"
+        >
+          <BasicTextarea
+            v-model="messageInput"
+            :placeholder="t('stage.message')"
+            :class="[
+              'font-cute',
+              'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full resize-none overflow-y-scroll scrollbar-none',
+              'border-2 border-solid px-4 py-0.5 outline-none backdrop-blur-md',
+              'text-neutral-500 dark:text-neutral-100',
+              'rounded-[1lh] border-neutral-200/60 bg-neutral-100/80 dark:border-neutral-700/60 dark:bg-neutral-950/80',
+              'transition-colors duration-250 ease-in-out hover:text-neutral-600 dark:hover:text-neutral-200',
+              'placeholder:text-[14px] placeholder:vertical-middle placeholder:leading-6 placeholder:text-neutral-400',
+              'placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out placeholder:hover:text-neutral-500 dark:placeholder:text-neutral-500 dark:placeholder:hover:text-neutral-400',
+              'pointer-events-none group-focus-within:pointer-events-auto',
+              themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : undefined,
+            ]"
+            default-height="1lh"
+            @submit="handleSubmit"
+            @compositionstart="isComposing = true"
+            @compositionend="isComposing = false"
+          />
+          <div
+            ref="inputBubbleIcon"
+            aria-hidden="true"
+            class="pointer-events-none absolute inset-0 flex items-center justify-center text-neutral-500 opacity-0 dark:text-neutral-400"
+          >
+            <div class="i-solar:keyboard-bold-duotone size-5" />
+          </div>
+        </div>
         <button
           v-if="showStopSpeakingButton"
           data-testid="stop-speaking-button"
@@ -419,33 +593,3 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-@keyframes scan {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(400%);
-  }
-}
-
-.animate-scan {
-  animation: scan 2s infinite linear;
-}
-
-.controls-island-scroll--overflowing {
-  --controls-island-mask: linear-gradient(
-    to bottom,
-    transparent 0,
-    black 1rem,
-    black calc(100% - 1rem),
-    transparent 100%
-  );
-
-  -webkit-mask-image: var(--controls-island-mask);
-  mask-image: var(--controls-island-mask);
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-}
-</style>
