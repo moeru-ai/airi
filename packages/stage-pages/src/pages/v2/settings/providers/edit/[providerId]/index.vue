@@ -21,6 +21,7 @@ import {
 import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
 import { computedAsync, useCloned, useDebounceFn } from '@vueuse/core'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
@@ -35,6 +36,7 @@ const router = useRouter()
 const route = useRoute('v2/settings/providers/edit/[providerId]')
 
 const providerStore = useProviderConfigStore()
+const providersStore = useProviderStore()
 const emptyProviderConfig = Object.freeze({})
 const emptyProviderConfigValues = Object.freeze({})
 
@@ -381,6 +383,7 @@ async function commitEditedConfig(status: 'configured' | 'bypassed') {
     status,
   }
   await commitProviderConfigEdit(commit, {
+    disposeProviderInstance: id => providersStore.disposeProviderInstance(id),
     setTranscriptionModelForProvider: (id, model) => useHearingStore().setTranscriptionModelForProvider(id, model),
     updateProviderConfig: (id, config, nextStatus) => providerStore.updateProviderConfig(id, config, nextStatus),
   })

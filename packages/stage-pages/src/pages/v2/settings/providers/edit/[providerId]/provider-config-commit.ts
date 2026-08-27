@@ -5,6 +5,7 @@ export interface ProviderConfigEditCommit {
 }
 
 export interface ProviderConfigEditCommitDependencies {
+  disposeProviderInstance: (providerId: string) => Promise<unknown>
   setTranscriptionModelForProvider: (providerId: string, model: string) => Promise<unknown>
   updateProviderConfig: (
     providerId: string,
@@ -20,6 +21,7 @@ export async function commitProviderConfigEdit(
   commit: ProviderConfigEditCommit,
   dependencies: ProviderConfigEditCommitDependencies,
 ) {
+  await dependencies.disposeProviderInstance(commit.providerId)
   await dependencies.updateProviderConfig(commit.providerId, commit.config, commit.status)
   if (typeof commit.config.model === 'string') {
     await dependencies.setTranscriptionModelForProvider(commit.providerId, commit.config.model)

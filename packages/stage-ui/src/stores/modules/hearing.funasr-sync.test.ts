@@ -93,6 +93,45 @@ describe('funASR Hearing model synchronization', () => {
     expect(hearingStore.configured).toBe(true)
   })
 
+  it('configures a generated FunASR instance when selected (GitHub #2122)', async () => {
+    const providerId = 'generated-funasr-transcription'
+    const providerConfigStore = useProviderConfigStore()
+    providerConfigStore.ensureProvider(providerId, 'funasr-audio-transcription', {
+      apiKey: 'not-needed',
+      baseUrl: 'http://localhost:8000/v1/',
+      model: 'sensevoice',
+    })
+    const providersStore = useProviderStore()
+    await providersStore.initializeProvider(providerId)
+
+    const hearingStore = useHearingStore()
+    await hearingStore.setActiveTranscriptionProvider(providerId)
+
+    expect(providerConfigStore.getProvider(providerId)?.status).toBe('configured')
+    expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
+    expect(hearingStore.configured).toBe(true)
+  })
+
+  it('configures a persisted generated FunASR instance during startup (GitHub #2122)', async () => {
+    const providerId = 'generated-funasr-transcription'
+    persistedSettings.set('settings/hearing/active-provider', providerId)
+    const providerConfigStore = useProviderConfigStore()
+    providerConfigStore.ensureProvider(providerId, 'funasr-audio-transcription', {
+      apiKey: 'not-needed',
+      baseUrl: 'http://localhost:8000/v1/',
+      model: 'sensevoice',
+    })
+    const providersStore = useProviderStore()
+    await providersStore.initializeProvider(providerId)
+
+    const hearingStore = useHearingStore()
+    await hearingStore.initialize()
+
+    expect(providerConfigStore.getProvider(providerId)?.status).toBe('configured')
+    expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
+    expect(hearingStore.configured).toBe(true)
+  })
+
   it('preserves an explicitly cleared FunASR model on startup', async () => {
     persistedSettings.set('settings/hearing/active-provider', 'funasr-audio-transcription')
 

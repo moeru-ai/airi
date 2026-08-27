@@ -383,8 +383,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED, persistenceOptions)
   const verboseJsonNotSupported = ref(false)
 
-  function funASRConfiguredModel() {
-    const model = providerStore.getProviderConfig('funasr-audio-transcription')?.model
+  function funASRConfiguredModel(providerId: string) {
+    const model = providerStore.getProviderConfig(providerId)?.model
     return typeof model === 'string' ? model : 'sensevoice'
   }
 
@@ -464,14 +464,14 @@ export const useHearingStore = defineStore('hearing-store', () => {
       return
     }
 
-    if (providerId === 'funasr-audio-transcription') {
+    if (providerDefinitionId(providerId) === 'funasr-audio-transcription') {
       if (!providerStore.getProvider(providerId))
         await providersStore.initializeProvider(providerId)
       await providersStore.validateProvider(providerId)
       if (selectionRequestId !== nextDestinationModelRequestId)
         return
 
-      const model = funASRConfiguredModel()
+      const model = funASRConfiguredModel(providerId)
       commitActiveTranscriptionSelection(providerId, model)
       persistActiveTranscriptionModel(providerId, model)
       await loadModelsForProvider(providerId)
@@ -532,11 +532,11 @@ export const useHearingStore = defineStore('hearing-store', () => {
     if (!providerId)
       return
 
-    if (providerId === 'funasr-audio-transcription') {
+    if (providerDefinitionId(providerId) === 'funasr-audio-transcription') {
       if (!providerStore.getProvider(providerId))
         await providersStore.initializeProvider(providerId)
       await providersStore.validateProvider(providerId)
-      applyActiveTranscriptionModel(providerId, funASRConfiguredModel())
+      applyActiveTranscriptionModel(providerId, funASRConfiguredModel(providerId))
       await loadModelsForProvider(providerId)
       return
     }
