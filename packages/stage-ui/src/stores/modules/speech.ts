@@ -79,6 +79,24 @@ export const useSpeechStore = defineStore('speech', () => {
     get: () => activeSpeechVoiceState.value,
     set: value => activeSpeechVoiceState.value = value,
   })
+  // Catalog metadata is renderer-local. A restored card can own a valid voice
+  // ID before this renderer loads that voice, so previews use the saved ID as
+  // their source of truth and add catalog metadata only when it matches.
+  const activeSpeechPreviewVoice = computed<VoiceInfo | undefined>(() => {
+    const voiceId = activeSpeechVoiceId.value.trim()
+    if (!voiceId)
+      return undefined
+
+    if (activeSpeechVoiceState.value?.id === voiceId)
+      return activeSpeechVoiceState.value
+
+    return {
+      id: voiceId,
+      name: voiceId,
+      provider: activeSpeechProvider.value,
+      languages: [],
+    }
+  })
   const speechProviderError = computed({
     get: () => speechProviderErrorState.value,
     set: value => speechProviderErrorState.value = value,
@@ -490,6 +508,7 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechProvider,
     activeSpeechModel,
     activeSpeechVoice,
+    activeSpeechPreviewVoice,
     activeSpeechVoiceId,
     pitch,
     rate,

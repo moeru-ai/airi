@@ -93,6 +93,30 @@ describe('speech store helpers', () => {
 
   // ROOT CAUSE:
   //
+  // A restored card can own a cloned voice ID that is not in the Provider's
+  // renderer-local catalog. The module preview required catalog metadata, so
+  // it disabled a valid saved voice even though Provider sessions used it.
+  //
+  // We fixed this with a read-only preview projection. It keeps matching
+  // catalog metadata, but it builds minimal metadata from the saved voice ID.
+  // https://github.com/moeru-ai/airi/pull/2382#discussion_r3876615276
+  it('builds preview metadata from a saved voice ID that is not in the catalog', () => {
+    const speechStore = useSpeechStore()
+    speechStore.activeSpeechProvider = 'doubao-speech'
+    speechStore.activeSpeechVoiceId = 'saved-clone-voice'
+    speechStore.activeSpeechVoice = undefined
+
+    expect(speechStore.activeSpeechPreviewVoice).toEqual({
+      id: 'saved-clone-voice',
+      name: 'saved-clone-voice',
+      provider: 'doubao-speech',
+      languages: [],
+    })
+    expect('activeSpeechPreviewVoice' in speechStore.$state).toBe(false)
+  })
+
+  // ROOT CAUSE:
+  //
   // Synced stores arrive in separate snapshots. The speech store can receive
   // its selected provider before the matching provider configuration snapshot.
   // A metadata watcher treated this temporary state as provider deletion and
