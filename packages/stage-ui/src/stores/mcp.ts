@@ -1,6 +1,5 @@
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
-
-import { useLocalStorageManualReset } from '../../../stage-shared/src/composables/use-local-storage-manual-reset'
 
 export const useMcpStore = defineStore('mcp', () => {
   const serverCmd = useLocalStorageManualReset<string>('settings/mcp/server-cmd', '')
