@@ -333,8 +333,12 @@ async function selectSpeechModel(modelOptionId: string) {
   // model.
   if (nextProvider === 'doubao-speech') {
     const config = providerStore.getProviderConfig('doubao-speech')
-    if (config)
-      config.resourceId = nextModel
+    if (config && config.resourceId !== nextModel) {
+      Object.assign(config, {
+        resourceId: nextModel,
+        speaker: '',
+      })
+    }
   }
 }
 
@@ -345,14 +349,15 @@ async function syncDoubaoResourceIdFromConfig() {
   if (activeSpeechProvider.value !== 'doubao-speech')
     return
 
-  const resourceId = providerStore.getProviderConfig('doubao-speech')?.resourceId as string | undefined
+  const config = providerStore.getProviderConfig('doubao-speech')
+  const resourceId = config?.resourceId as string | undefined
   if (!resourceId || activeSpeechModel.value === resourceId)
     return
 
   await airiCardStore.selectActiveCardSpeech({
     provider: activeSpeechProvider.value,
     model: resourceId,
-    voice_id: activeSpeechVoiceId.value,
+    voice_id: typeof config.speaker === 'string' ? config.speaker : '',
   })
 }
 

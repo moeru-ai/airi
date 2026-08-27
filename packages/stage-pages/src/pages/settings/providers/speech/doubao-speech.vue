@@ -36,7 +36,16 @@ function updateConfig(patch: Record<string, unknown>) {
 
 const resourceId = computed<DoubaoResourceId>({
   get: () => getProviderConfig()?.resourceId as DoubaoResourceId | undefined ?? 'seed-tts-2.0',
-  set: value => updateConfig({ resourceId: value }),
+  set: (value) => {
+    const config = getProviderConfig()
+    if (!config || config.resourceId === value)
+      return
+
+    Object.assign(config, {
+      resourceId: value,
+      speaker: '',
+    })
+  },
 })
 
 const speaker = computed({

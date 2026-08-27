@@ -48,14 +48,19 @@ const baseConfigSchema = z.object({
   voiceInstruction: z.string().trim().max(2048).default(''),
 })
 
-function requireOpusSampleRate<TSchema extends typeof baseConfigSchema>(schema: TSchema) {
-  return schema.refine(
-    config => config.audio.format !== 'ogg_opus' || config.audio.sampleRate === 48000,
-    { message: 'The ogg_opus format requires a 48000 Hz sample rate.', path: ['audio', 'sampleRate'] },
-  )
+function withDoubaoConfigConstraints<TSchema extends typeof baseConfigSchema>(schema: TSchema) {
+  return schema
+    .refine(
+      config => config.audio.format !== 'ogg_opus' || config.audio.sampleRate === 48000,
+      { message: 'The ogg_opus format requires a 48000 Hz sample rate.', path: ['audio', 'sampleRate'] },
+    )
+    .refine(
+      config => config.resourceId !== 'seed-icl-2.0' || !findDoubaoOfficialVoice(config.speaker),
+      { message: 'The clone resource requires a cloned voice ID.', path: ['speaker'] },
+    )
 }
 
-const doubaoSpeechConfigSchema = requireOpusSampleRate(baseConfigSchema)
+const doubaoSpeechConfigSchema = withDoubaoConfigConstraints(baseConfigSchema)
 
 /** Serializable settings for the Doubao Speech Provider. */
 export type DoubaoSpeechConfig = z.input<typeof doubaoSpeechConfigSchema>
@@ -206,7 +211,7 @@ export const providerDoubaoSpeech = defineProvider<DoubaoSpeechConfig>({
     },
   },
 
-  createProviderConfig: ({ t }) => requireOpusSampleRate(baseConfigSchema.extend({
+  createProviderConfig: ({ t }) => withDoubaoConfigConstraints(baseConfigSchema.extend({
     apiKey: baseConfigSchema.shape.apiKey.meta({
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),

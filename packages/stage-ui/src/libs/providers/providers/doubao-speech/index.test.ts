@@ -146,4 +146,23 @@ describe('doubao speech Provider', () => {
 
     expect(result.success).toBe(false)
   })
+
+  // https://github.com/moeru-ai/airi/pull/2382#discussion_r3874221722
+  // ROOT CAUSE:
+  //
+  // Changing the Doubao resource kept the previous speaker. The configuration
+  // schema accepted an official voice with the clone resource, so synthesis
+  // failed only after the request reached Doubao.
+  //
+  // The settings pages now clear the speaker with the resource change. The
+  // schema also rejects known official voices for the clone resource.
+  it('rejects an official voice for the clone resource', async () => {
+    const schema = await providerDoubaoSpeech.createProviderConfig({ t: input => input }) as ZodType<DoubaoSpeechConfig>
+    const result = schema.safeParse({
+      ...config,
+      resourceId: 'seed-icl-2.0',
+    })
+
+    expect(result.success).toBe(false)
+  })
 })
