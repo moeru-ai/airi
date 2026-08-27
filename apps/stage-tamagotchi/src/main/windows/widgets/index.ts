@@ -27,7 +27,7 @@ import { normalizeWidgetWindowSize } from '../../../shared/utils/electron/window
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { protectPrivilegedWindowNavigation, spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
+import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
 import { createWidgetIframeRequestCoordinator } from './iframe-request-coordinator'
 import { setupWidgetsWindowInvokes } from './rpc/index.electron'
 
@@ -231,7 +231,7 @@ function createWidgetsWindow() {
       sandbox: false,
     },
     // Top-level overlay style like other overlay windows
-    type: 'panel',
+    type: isMacOS ? 'panel' : undefined,
     ...transparentWindowConfig(),
     ...spotlightLikeWindowConfig(),
   })
@@ -245,15 +245,6 @@ function createWidgetsWindow() {
   protectPrivilegedWindowNavigation(window)
 
   return window
-}
-
-function applyAlwaysOnTop(window: BrowserWindow, enabled: boolean) {
-  if (enabled) {
-    window.setAlwaysOnTop(true, 'screen-saver', 1)
-    return
-  }
-
-  window.setAlwaysOnTop(false)
 }
 
 interface WidgetRecord extends WidgetSnapshot {
@@ -512,7 +503,7 @@ export function setupWidgetsWindowManager(params: {
     const window = await getWindowFromContext(context)
     pendingRoute = undefined
     applyWindowLayout(window, snapshot)
-    applyAlwaysOnTop(window, snapshot?.alwaysOnTop ?? false)
+    setWindowAlwaysOnTop(window, snapshot?.alwaysOnTop ?? false)
     if (currentRoute !== route)
       await loadWithRoute(window, route)
     window.show()
@@ -623,7 +614,7 @@ export function setupWidgetsWindowManager(params: {
     const window = context?.window
     if (window && !window.isDestroyed()) {
       applyWindowLayout(window, nextSnapshot)
-      applyAlwaysOnTop(window, nextSnapshot.alwaysOnTop)
+      setWindowAlwaysOnTop(window, nextSnapshot.alwaysOnTop)
     }
 
     eventaContext?.emit(widgetsUpdateEvent, {
