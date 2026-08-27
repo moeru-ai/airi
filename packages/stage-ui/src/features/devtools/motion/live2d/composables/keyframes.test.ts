@@ -12,7 +12,7 @@ import {
   moveLive2DMotionKeyframe,
   parseLive2DMotionProject,
   stringifyLive2DMotionProject,
-} from './live2d-motion-keyframes'
+} from './keyframes'
 
 function createRecording() {
   return {

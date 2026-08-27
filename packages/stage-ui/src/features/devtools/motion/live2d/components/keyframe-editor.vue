@@ -8,8 +8,8 @@ import type {
   Live2DMotionOverlay,
   Live2DMotionOverlayBlendMode,
   Live2DMotionProject,
-} from '../../composables/live2d-motion-keyframes'
-import type { Live2DMotionRecording, ReadonlyLive2DMotionRecording } from '../../composables/live2d-motion-recording'
+} from '../composables/keyframes'
+import type { Live2DMotionRecording, ReadonlyLive2DMotionRecording } from '../composables/recording'
 
 import { errorMessageFrom } from '@moeru/std'
 import { getGamepadButtonLabel } from '@proj-airi/input-gamepad'
@@ -18,10 +18,10 @@ import { useManualRefHistory } from '@vueuse/core'
 import { computed, nextTick, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import Live2DMotionInputHints from './live2d-motion-input-hints.vue'
-import Live2DMotionPlaybackControls from './live2d-motion-playback-controls.vue'
-import Live2DMotionTimelineRuler from './live2d-motion-timeline-ruler.vue'
-import Live2DMotionTrackRow from './live2d-motion-track-row.vue'
+import InputHints from './input-hints.vue'
+import PlaybackControls from './playback-controls.vue'
+import TimelineRuler from './timeline-ruler.vue'
+import TrackRow from './track-row.vue'
 
 import {
   createDefaultLive2DMotionProject,
@@ -35,8 +35,8 @@ import {
   moveLive2DMotionKeyframe,
   parseLive2DMotionProject,
   stringifyLive2DMotionProject,
-} from '../../composables/live2d-motion-keyframes'
-import { useLive2DMotionGamepadActions } from '../../composables/use-live2d-motion-gamepad-actions'
+} from '../composables/keyframes'
+import { useLive2DMotionGamepadActions } from '../composables/use-gamepad-actions'
 
 const props = defineProps<{
   disabled?: boolean
@@ -423,7 +423,7 @@ onUnmounted(() => {
         </p>
       </div>
 
-      <Live2DMotionPlaybackControls
+      <PlaybackControls
         :current-time-ms="playheadMs"
         :duration-ms="project.durationMs"
         :playing="playing"
@@ -466,7 +466,7 @@ onUnmounted(() => {
         </BasicButton>
       </div>
 
-      <Live2DMotionInputHints
+      <InputHints
         :hints="timelineInputHints"
         :keyboard-label="t('tamagotchi.settings.devtools.pages.live2d-motion.input.keyboard')"
         :controller-label="t('tamagotchi.settings.devtools.pages.live2d-motion.input.controller')"
@@ -484,7 +484,7 @@ onUnmounted(() => {
       <div :class="['flex items-center px-3 font-mono text-xs text-neutral-500']">
         {{ currentTime }} / {{ duration }}
       </div>
-      <Live2DMotionTimelineRuler
+      <TimelineRuler
         :key="rulerKey"
         :duration-ms="project.durationMs"
         :playhead-ms="playheadMs"
@@ -496,7 +496,7 @@ onUnmounted(() => {
     </div>
 
     <div data-testid="motion-timeline-track-list" :class="['max-h-[52rem] space-y-2 overflow-y-auto p-3']">
-      <Live2DMotionTrackRow
+      <TrackRow
         v-for="trackId in live2dMotionEditableTrackIds"
         :key="trackId"
         :project="project"

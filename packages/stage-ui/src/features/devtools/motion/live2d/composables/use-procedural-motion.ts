@@ -7,12 +7,12 @@ import type { Live2DMotionArHmmModel } from '@proj-airi/model-live2d-motion/ar-h
 import type { Live2DMotionVarModel } from '@proj-airi/model-live2d-motion/var'
 import type { MaybeRefOrGetter } from 'vue'
 
-import type { ReadonlyLive2DMotionRecording } from './live2d-motion-recording'
+import type { ReadonlyLive2DMotionRecording } from './recording'
 
 import { errorMessageFrom } from '@moeru/std'
 import { computed, onScopeDispose, reactive, readonly, shallowRef, toValue, watch } from 'vue'
 
-import { createLive2DMotionTrainingSequence } from './live2d-motion-training-sequence'
+import { createLive2DMotionTrainingSequence } from './training-sequence'
 
 export type Live2DProceduralMotionKind = 'ar-hmm' | 'var'
 export type Live2DProceduralMotionStatus = 'fitting' | 'idle' | 'playing' | 'ready'

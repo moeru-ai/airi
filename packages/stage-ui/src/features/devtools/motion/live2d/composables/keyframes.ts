@@ -1,6 +1,6 @@
 import type { Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 
-import type { Live2DMotionRecording, ReadonlyLive2DMotionRecording } from './live2d-motion-recording'
+import type { Live2DMotionRecording, ReadonlyLive2DMotionRecording } from './recording'
 
 import { neutralLive2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 import { array, finite, literal, maxValue, minLength, minValue, number, object, picklist, pipe, safeParse, string } from 'valibot'

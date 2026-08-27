@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
 import { defineComponent, h, nextTick, shallowRef } from 'vue'
 
-import { useLive2DMotionPlaybackKeys } from './use-live2d-motion-playback-keys'
+import { useLive2DMotionPlaybackKeys } from './use-playback-keys'
 
 interface KeyboardCallbacks {
   goToEnd: Mock<() => void>

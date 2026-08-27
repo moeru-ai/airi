@@ -7,7 +7,7 @@ import type {
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { effectScope, shallowRef } from 'vue'
 
-import { useLive2DMotionGamepadActions } from './use-live2d-motion-gamepad-actions'
+import { useLive2DMotionGamepadActions } from './use-gamepad-actions'
 
 const buttonNames: readonly StandardGamepadButtonName[] = [
   'dpadDown',

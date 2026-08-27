@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 
-import type { Live2DEyeViewPrototypeState } from '../../composables/live2d-motion-eye-view-prototype'
+import type { Live2DEyeViewPrototypeState } from '../composables/eye-view'
 
 import { BasicButton, FieldRange } from '@proj-airi/ui'
 import { computed } from 'vue'

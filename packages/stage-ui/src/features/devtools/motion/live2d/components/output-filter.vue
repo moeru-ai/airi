@@ -2,13 +2,13 @@
 import type {
   Live2DMotionOutputFilterFrame,
   Live2DMotionOutputFilterOptions,
-} from '../../composables/live2d-motion-output-filter'
+} from '../composables/output-filter'
 
 import { BasicButton, FieldRange } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { defaultLive2DMotionOutputFilterOptions } from '../../composables/live2d-motion-output-filter'
+import { defaultLive2DMotionOutputFilterOptions } from '../composables/output-filter'
 
 const props = defineProps<{
   options: Live2DMotionOutputFilterOptions

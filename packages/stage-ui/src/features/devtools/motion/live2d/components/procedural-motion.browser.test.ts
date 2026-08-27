@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
 
-import Live2DProceduralMotion from './live2d-procedural-motion.vue'
+import ProceduralMotion from './procedural-motion.vue'
 
 function createTestI18n() {
   return createI18n({
@@ -18,7 +18,7 @@ describe('live2d procedural motion', () => {
   afterEach(() => cleanup())
 
   it('places the model selector above the model details', async () => {
-    const screen = await render(Live2DProceduralMotion, {
+    const screen = await render(ProceduralMotion, {
       global: { plugins: [createTestI18n()] },
     })
 

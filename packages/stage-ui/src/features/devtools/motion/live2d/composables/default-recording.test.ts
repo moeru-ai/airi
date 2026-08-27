@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { defaultLive2DMotionRecording } from './live2d-motion-default-recording'
+import { defaultLive2DMotionRecording } from './default-recording'
 
 describe('default Live2D motion recording', () => {
   it('loads the idle-excited trajectory', () => {

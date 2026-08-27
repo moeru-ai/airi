@@ -1,8 +1,8 @@
 import type { Live2DMotionTrainingSequence } from '@proj-airi/model-live2d-motion'
 
-import type { ReadonlyLive2DMotionRecording } from './live2d-motion-recording'
+import type { ReadonlyLive2DMotionRecording } from './recording'
 
-import { evaluateLive2DMotionRecording } from './live2d-motion-keyframes'
+import { evaluateLive2DMotionRecording } from './keyframes'
 
 /**
  * Normalizes a motion recording to a fixed-rate training sequence.

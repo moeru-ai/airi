@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
 
-import Live2DMotionWorkbench from './live2d-motion-workbench.vue'
+import Workbench from './workbench.vue'
 
 import '@proj-airi/ui/main.css'
 
@@ -24,7 +24,7 @@ describe('live2d motion workbench', () => {
     //
     // The workbench used an undefined --color-primary-400 variable. Dockview
     // created its drop target, but the browser resolved its background to transparent.
-    await render(Live2DMotionWorkbench, {
+    await render(Workbench, {
       attrs: { style: 'width: 1200px; height: 800px' },
       global: { plugins: [createTestI18n()] },
     })

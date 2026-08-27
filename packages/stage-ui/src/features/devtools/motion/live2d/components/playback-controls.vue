@@ -3,7 +3,7 @@ import { BasicButton } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useLive2DMotionPlaybackKeys } from '../../composables/use-live2d-motion-playback-keys'
+import { useLive2DMotionPlaybackKeys } from '../composables/use-playback-keys'
 
 const props = defineProps<{
   currentTimeMs: number

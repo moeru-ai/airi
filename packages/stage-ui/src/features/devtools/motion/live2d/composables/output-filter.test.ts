@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   createLive2DMotionOutputFilter,
   defaultLive2DMotionOutputFilterOptions,
-} from './live2d-motion-output-filter'
+} from './output-filter'
 
 function pose(overrides: Partial<typeof neutralLive2DMotionControlPose> = {}) {
   return { ...neutralLive2DMotionControlPose, ...overrides }

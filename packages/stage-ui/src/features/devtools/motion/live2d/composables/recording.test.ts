@@ -7,7 +7,7 @@ import {
   parseLive2DMotionRecording,
   stringifyLive2DMotionRecording,
   useLive2DMotionRecording,
-} from './live2d-motion-recording'
+} from './recording'
 
 function pose(overrides: Partial<Live2DMotionControlPose> = {}): Live2DMotionControlPose {
   return { ...neutralLive2DMotionControlPose, ...overrides }

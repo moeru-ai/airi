@@ -9,7 +9,7 @@ import { useRafFn } from '@vueuse/core'
 import { computed, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import Live2DMotionInputHints from './live2d-motion-input-hints.vue'
+import InputHints from './input-hints.vue'
 
 const props = defineProps<{
   pose: Live2DMotionControlPose
@@ -500,7 +500,7 @@ watch(() => props.gamepad, handleGamepad, { flush: 'sync' })
         </span>
       </BasicButton>
 
-      <Live2DMotionInputHints
+      <InputHints
         :hints="inputHints"
         :keyboard-label="t('tamagotchi.settings.devtools.pages.live2d-motion.input.keyboard')"
         :controller-label="t('tamagotchi.settings.devtools.pages.live2d-motion.input.controller')"

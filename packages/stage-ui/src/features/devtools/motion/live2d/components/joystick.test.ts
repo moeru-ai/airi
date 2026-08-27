@@ -7,7 +7,7 @@ import { neutralLive2DMotionControlPose } from '@proj-airi/stage-ui-live2d/store
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, h, nextTick, shallowRef } from 'vue'
 
-import Live2DMotionJoystick from './live2d-motion-joystick.vue'
+import Joystick from './joystick.vue'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -21,7 +21,7 @@ const defaultDynamics: Live2DMotionControlDynamics = {
   inertia: 0.35,
 }
 
-describe('live2DMotionJoystick', () => {
+describe('joystick', () => {
   afterEach(() => {
     vi.useRealTimers()
   })
@@ -35,7 +35,7 @@ describe('live2DMotionJoystick', () => {
     const host = document.createElement('div')
     document.body.appendChild(host)
     const app = createApp({
-      render: () => h(Live2DMotionJoystick, {
+      render: () => h(Joystick, {
         pose,
         dynamics: defaultDynamics,
         onMove: move,
@@ -232,7 +232,7 @@ describe('live2DMotionJoystick', () => {
     const host = document.createElement('div')
     document.body.appendChild(host)
     const app = createApp({
-      render: () => h(Live2DMotionJoystick, {
+      render: () => h(Joystick, {
         dynamics: defaultDynamics,
         gamepad: gamepad.value,
         pose: neutralPose,

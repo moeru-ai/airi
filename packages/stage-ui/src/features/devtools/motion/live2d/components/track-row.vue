@@ -7,7 +7,7 @@ import type {
   Live2DMotionOverlay,
   Live2DMotionOverlayBlendMode,
   Live2DMotionProject,
-} from '../../composables/live2d-motion-keyframes'
+} from '../composables/keyframes'
 
 import { BasicButton, Range, Select } from '@proj-airi/ui'
 import { curveLinear, curveStepAfter, drag, line, pointer, scaleLinear, select } from 'd3'
@@ -19,7 +19,7 @@ import {
   getLive2DMotionSourcePoints,
   getLive2DMotionTrackRange,
   isLive2DMotionViewTargetTrackId,
-} from '../../composables/live2d-motion-keyframes'
+} from '../composables/keyframes'
 
 const props = defineProps<{
   project: Live2DMotionProject

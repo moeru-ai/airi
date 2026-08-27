@@ -2,20 +2,20 @@
 
 import type { StandardGamepadButtonName, StandardGamepadButtonState, StandardGamepadSnapshot } from '@proj-airi/input-gamepad'
 
-import type { Live2DMotionEditorFrame } from '../../composables/live2d-motion-keyframes'
-import type { Live2DMotionRecording, ReadonlyLive2DMotionRecording } from '../../composables/live2d-motion-recording'
+import type { Live2DMotionEditorFrame } from '../composables/keyframes'
+import type { Live2DMotionRecording, ReadonlyLive2DMotionRecording } from '../composables/recording'
 
 import { neutralLive2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, h, nextTick, shallowRef } from 'vue'
 
-import Live2DMotionKeyframeEditor from './live2d-motion-keyframe-editor.vue'
+import KeyframeEditor from './keyframe-editor.vue'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key }),
 }))
 
-describe('live2DMotionKeyframeEditor', () => {
+describe('keyframe editor', () => {
   afterEach(() => {
     document.body.replaceChildren()
   })
@@ -35,7 +35,7 @@ describe('live2DMotionKeyframeEditor', () => {
     const recordingActive = shallowRef(options.recordingActive ?? false)
     const gamepad = shallowRef(options.gamepad)
     const app = createApp({
-      render: () => h(Live2DMotionKeyframeEditor, {
+      render: () => h(KeyframeEditor, {
         recording: recording.value,
         recordingActive: recordingActive.value,
         gamepad: gamepad.value,
@@ -50,7 +50,7 @@ describe('live2DMotionKeyframeEditor', () => {
   }
 
   function findButton(host: HTMLElement, text: string) {
-    return [...host.querySelectorAll('button')].find(button => button.textContent?.trim() === text)!
+    return Array.from(host.querySelectorAll('button')).find(button => button.textContent?.trim() === text)!
   }
 
   it('shows all tracks on one shared timeline and expands the active track', () => {

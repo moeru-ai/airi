@@ -2,14 +2,14 @@
 import type { Live2DMotionPose } from '@proj-airi/model-live2d-motion'
 import type { SelectTabOption } from '@proj-airi/ui'
 
-import type { ReadonlyLive2DMotionRecording } from '../../composables/live2d-motion-recording'
-import type { Live2DProceduralMotionKind } from '../../composables/use-live2d-procedural-motion'
+import type { ReadonlyLive2DMotionRecording } from '../composables/recording'
+import type { Live2DProceduralMotionKind } from '../composables/use-procedural-motion'
 
 import { BasicButton, FieldRange, SelectTab } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useLive2DProceduralMotion } from '../../composables/use-live2d-procedural-motion'
+import { useLive2DProceduralMotion } from '../composables/use-procedural-motion'
 
 const props = defineProps<{
   recording?: ReadonlyLive2DMotionRecording | null
