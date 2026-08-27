@@ -19,7 +19,7 @@ import { computedAsync, useAsyncState, useIntervalFn } from '@vueuse/core'
 import { listModels } from '@xsai/model'
 import { uniqBy } from 'es-toolkit'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
@@ -43,6 +43,11 @@ export interface ProviderRuntimeState {
   models: ModelInfo[]
   modelStatus: 'idle' | 'loading' | 'ready' | 'error'
   modelError: string | null
+}
+
+interface CachedProviderInstance {
+  credentialHash: string
+  instance: unknown
 }
 
 function cloneReadyModelSnapshot(runtimeState: ProviderRuntimeState | undefined): ModelInfo[] {
@@ -121,7 +126,7 @@ export const useProviderStore = defineStore('provider', () => {
   const addedProviders = computed(() => providerConfigStore.addedProviders)
   // Provider instances contain functions and transport handles. Keep this map
   // private so it never enters Pinia state.
-  const providerInstanceCache = new Map<string, unknown>()
+  const providerInstanceCache = new Map<string, CachedProviderInstance>()
   const { t } = useI18n()
 
   const VISION_PROVIDER_ID_PREFIX = 'vision-'
@@ -136,6 +141,28 @@ export const useProviderStore = defineStore('provider', () => {
 
     return providerId
   }
+
+  function providerInstanceCredentialHash(providerId: string, config: Record<string, unknown> | undefined) {
+    return modelCatalogCredentialHash(getProviderDefinitionId(providerId), config ?? {})
+  }
+
+  async function disposeLocalProviderInstance(providerId: string) {
+    const cached = providerInstanceCache.get(providerId)
+    const instance = cached?.instance as { dispose?: () => Promise<void> | void } | undefined
+    providerInstanceCache.delete(providerId)
+    if (instance?.dispose)
+      await instance.dispose()
+  }
+
+  // Executable provider instances are private to each renderer. Replicated
+  // config snapshots therefore invalidate each renderer's own cache locally;
+  // this watcher must never route another synchronized action to the leader.
+  watch(providerCredentials, async (configs) => {
+    const staleProviderIds = [...providerInstanceCache.entries()]
+      .filter(([providerId, cached]) => cached.credentialHash !== providerInstanceCredentialHash(providerId, configs[providerId]))
+      .map(([providerId]) => providerId)
+    await Promise.all(staleProviderIds.map(disposeLocalProviderInstance))
+  }, { deep: true })
 
   const definedProviders = listDefinedProviders()
   const providerDefinitions = Object.fromEntries(
@@ -751,7 +778,7 @@ export const useProviderStore = defineStore('provider', () => {
   const previousCredentialHashes = new Map<string, string>()
 
   async function refreshModelsForChangedCredentials(providerId?: string) {
-    const changedProviders: string[] = []
+    const changedProviders: Array<{ credentialHash: string, providerId: string }> = []
     const providerIds = providerId ? [providerId] : Object.keys(providerCredentials.value)
 
     for (const currentProviderId of providerIds) {
@@ -763,18 +790,24 @@ export const useProviderStore = defineStore('provider', () => {
       const previousHash = previousCredentialHashes.get(currentProviderId)
 
       if (currentHash !== previousHash) {
-        changedProviders.push(currentProviderId)
-        previousCredentialHashes.set(currentProviderId, currentHash)
+        changedProviders.push({ credentialHash: currentHash, providerId: currentProviderId })
       }
     }
 
-    for (const currentProviderId of changedProviders) {
+    for (const { credentialHash, providerId: currentProviderId } of changedProviders) {
       // Since credentials changed, dispose the cached instance so new creds take effect.
       await disposeProviderInstance(currentProviderId)
 
-      // If the provider is configured and has the capability, refetch its models
-      if (providerConfigStore.providers[currentProviderId]?.status === 'configured' && supportsModelListing(currentProviderId)) {
+      if (!supportsModelListing(currentProviderId)) {
+        previousCredentialHashes.set(currentProviderId, credentialHash)
+        continue
+      }
+
+      // An unconfigured provider must remain retryable after validation makes
+      // it configured; only a completed catalog refresh owns the new hash.
+      if (providerConfigStore.providers[currentProviderId]?.status === 'configured') {
         await fetchModelsForProvider(currentProviderId)
+        previousCredentialHashes.set(currentProviderId, credentialHash)
       }
     }
   }
@@ -849,10 +882,6 @@ export const useProviderStore = defineStore('provider', () => {
   | TranscriptionProviderWithExtraOptions,
   >(providerId: string): Promise<R> {
     await waitForProviderMetadata()
-    const cached = providerInstanceCache.get(providerId) as R | undefined
-    if (cached)
-      return cached
-
     const definition = getProviderDefinition(providerId)
 
     // Providers that don't require credentials use empty config
@@ -867,9 +896,22 @@ export const useProviderStore = defineStore('provider', () => {
     if (!config && !noCredentials)
       throw new Error(`Provider credentials for ${providerId} not found`)
 
+    const credentialHash = providerInstanceCredentialHash(providerId, config)
+    const cached = providerInstanceCache.get(providerId)
+    if (cached?.credentialHash === credentialHash)
+      return cached.instance as R
+    if (cached)
+      await disposeLocalProviderInstance(providerId)
+
     try {
       const instance = await definition.createProvider(config || {})
-      providerInstanceCache.set(providerId, instance)
+      if (providerInstanceCredentialHash(providerId, providerCredentials.value[providerId]) !== credentialHash) {
+        const disposable = instance as { dispose?: () => Promise<void> | void }
+        await disposable.dispose?.()
+        return await getProviderInstance<R>(providerId)
+      }
+
+      providerInstanceCache.set(providerId, { credentialHash, instance })
       return instance as R
     }
     catch (error) {
@@ -896,11 +938,7 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   async function disposeProviderInstance(providerId: string) {
-    const instance = providerInstanceCache.get(providerId) as { dispose?: () => Promise<void> | void } | undefined
-    if (instance?.dispose)
-      await instance.dispose()
-
-    providerInstanceCache.delete(providerId)
+    await disposeLocalProviderInstance(providerId)
   }
 
   const availableProvidersMetadata = computedAsync<ProviderMetadata[]>(async () => {

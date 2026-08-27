@@ -105,6 +105,38 @@ describe('useProviderValidation', () => {
     expect(refreshModelsForChangedCredentials).toHaveBeenCalledWith(providerId)
   })
 
+  it('refreshes a configured provider catalog before publishing validating status', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const providersStore = useProviderStore()
+    const configStore = useProviderConfigStore()
+    await providersStore.initializeProvider(providerId)
+    configStore.setProviderStatus(providerId, 'configured')
+    const statusesDuringRefresh: string[] = []
+    vi.spyOn(providersStore, 'refreshModelsForChangedCredentials').mockImplementation(async () => {
+      statusesDuringRefresh.push(configStore.getProvider(providerId)?.status ?? 'missing')
+    })
+    vi.spyOn(providersStore, 'validateProviderConfig').mockResolvedValue({
+      errors: [],
+      reason: '',
+      valid: true,
+    })
+
+    const app = createApp(defineComponent({
+      setup() {
+        useProviderValidation(providerId)
+        return () => null
+      },
+    }))
+    app.use(pinia)
+    app.mount(document.createElement('div'))
+    unmount = () => app.unmount()
+
+    await vi.waitFor(() => {
+      expect(providersStore.validateProviderConfig).toHaveBeenCalled()
+    })
+    expect(statusesDuringRefresh[0]).toBe('configured')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3834928540
   it('invalidates cached providers before validation publishes success (GitHub #2122)', async () => {
     const providerId = 'funasr-audio-transcription'

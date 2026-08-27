@@ -114,8 +114,10 @@ export function useProviderValidation(providerId: string) {
       if (config.baseUrl)
         config.baseUrl = config.baseUrl.trim()
 
-      await providerStore.setProviderStatus(providerId, 'validating')
       await providersStore.refreshModelsForChangedCredentials(providerId)
+      if (revision !== validationRevision)
+        return
+      await providerStore.setProviderStatus(providerId, 'validating')
       if (revision !== validationRevision)
         return
 
@@ -139,6 +141,9 @@ export function useProviderValidation(providerId: string) {
         // configured providers, including providers that use default config and
         // do not require an API key.
         await providersStore.forceProviderConfigured(providerId)
+        if (revision !== validationRevision)
+          return
+        await providersStore.refreshModelsForChangedCredentials(providerId)
         if (revision !== validationRevision)
           return
 

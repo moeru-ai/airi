@@ -256,7 +256,21 @@ describe('funASR Hearing model synchronization', () => {
 
     expect(fetchModels).toHaveBeenCalledWith(providerId)
     expect(hearingStore.activeTranscriptionModel).toBe('whisper-1')
-    expect(providerConfigStore.getProviderConfig(providerId)).not.toHaveProperty('model')
+    expect(providerConfigStore.getProviderConfig(providerId)?.model).toBe('whisper-1')
+  })
+
+  it('keeps a delayed custom-model input bound to the provider that emitted it', async () => {
+    const sourceProviderId = 'funasr-audio-transcription'
+    const destinationProviderId = 'openai-audio-transcription'
+    const providerConfigStore = useProviderConfigStore()
+    const hearingStore = useHearingStore()
+    await hearingStore.setActiveTranscriptionProvider(destinationProviderId, 'whisper-1')
+
+    await hearingStore.setCustomTranscriptionModelForProvider(sourceProviderId, 'custom-sensevoice')
+
+    expect(providerConfigStore.getProviderConfig(sourceProviderId)?.model).toBe('custom-sensevoice')
+    expect(providerConfigStore.getProviderConfig(destinationProviderId)?.model).toBe('whisper-1')
+    expect(hearingStore.activeTranscriptionModel).toBe('whisper-1')
   })
 
   it('loads a fresh catalog when neither persisted state owns a model (GitHub #2122)', async () => {

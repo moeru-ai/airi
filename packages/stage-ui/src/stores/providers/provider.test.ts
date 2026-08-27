@@ -248,6 +248,45 @@ describe('provider store synchronization boundary', () => {
     await new Promise(resolve => setTimeout(resolve, 0))
   })
 
+  it('retries model discovery after an unconfigured provider becomes configured', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    await store.initializeProvider(providerId)
+    const listModels = vi.spyOn(store.getProviderDefinition(providerId).extraMethods!, 'listModels')
+
+    await store.refreshModelsForChangedCredentials(providerId)
+    expect(listModels).not.toHaveBeenCalled()
+
+    configStore.setProviderStatus(providerId, 'configured')
+    await store.refreshModelsForChangedCredentials(providerId)
+
+    expect(listModels).toHaveBeenCalledOnce()
+  })
+
+  it('invalidates the renderer-local provider cache when a replicated config changes', async () => {
+    const providerId = 'openai'
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    configStore.ensureProvider(providerId, providerId, {
+      apiKey: 'first-key',
+      baseUrl: 'https://first.example/v1/',
+    })
+    const firstInstance = await store.getProviderInstance(providerId)
+
+    configStore.providers[providerId] = {
+      ...configStore.providers[providerId],
+      config: {
+        apiKey: 'second-key',
+        baseUrl: 'https://second.example/v1/',
+      },
+    }
+    await nextTick()
+    await new Promise<void>(resolve => queueMicrotask(resolve))
+
+    expect(await store.getProviderInstance(providerId)).not.toBe(firstInstance)
+  })
+
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3792335745
   it('does not refresh OpenAI models when only the selected model changes (GitHub #2122)', async () => {
     const providerId = 'openai-audio-transcription'

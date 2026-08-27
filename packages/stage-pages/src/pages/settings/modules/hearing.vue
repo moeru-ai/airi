@@ -280,7 +280,11 @@ const speakingIndicatorClass = computed(() => {
 
 function updateCustomModelName(value: string | undefined) {
   const modelValue = value || ''
-  return queueSelection(() => hearingStore.setActiveCustomTranscriptionModel(modelValue))
+  return queueProviderModelSelection({
+    getActiveProvider: () => activeTranscriptionProvider.value,
+    queue: queueSelection,
+    setModelForProvider: (providerId, model) => hearingStore.setCustomTranscriptionModelForProvider(providerId, model),
+  }, modelValue)
 }
 
 async function updateActiveProviderConfig(patch: Record<string, unknown>) {

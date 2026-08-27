@@ -507,9 +507,10 @@ export const useHearingStore = defineStore('hearing-store', () => {
       activeTranscriptionModel.value = model
   }
 
-  async function setActiveCustomTranscriptionModel(model: string) {
-    activeCustomModelName.value = model
-    applyActiveTranscriptionModel(activeTranscriptionProvider.value, model)
+  async function setCustomTranscriptionModelForProvider(providerId: string, model: string) {
+    await setTranscriptionModelForProvider(providerId, model)
+    if (activeTranscriptionProvider.value === providerId)
+      activeCustomModelName.value = model
   }
 
   async function reloadActiveTranscriptionProvider() {
@@ -554,7 +555,11 @@ export const useHearingStore = defineStore('hearing-store', () => {
       return
     }
 
-    if (activeTranscriptionModel.value.trim()) {
+    const persistedModel = activeTranscriptionModel.value.trim()
+    if (persistedModel) {
+      await setTranscriptionModelForProvider(providerId, persistedModel)
+      if (initializationRequestId !== nextDestinationModelRequestId || activeTranscriptionProvider.value !== providerId)
+        return
       await loadModelsForProvider(providerId)
       return
     }
@@ -811,7 +816,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     transcription,
     initialize,
     reloadActiveTranscriptionProvider,
-    setActiveCustomTranscriptionModel,
+    setCustomTranscriptionModelForProvider,
     setActiveTranscriptionProvider,
     setActiveTranscriptionModel,
     setTranscriptionModelForProvider,
@@ -826,7 +831,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
       'loadModelsForProvider',
       'reloadActiveTranscriptionProvider',
       'resetState',
-      'setActiveCustomTranscriptionModel',
+      'setCustomTranscriptionModelForProvider',
       'setActiveTranscriptionModel',
       'setActiveTranscriptionProvider',
       'setTranscriptionModelForProvider',
