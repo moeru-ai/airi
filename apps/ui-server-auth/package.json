@@ -20,7 +20,6 @@
     "@date-fns/utc": "catalog:",
     "@fontsource-variable/nunito": "catalog:",
     "@formkit/auto-animate": "catalog:",
-    "@huggingface/transformers": "catalog:",
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/font-chillroundm": "workspace:^",
