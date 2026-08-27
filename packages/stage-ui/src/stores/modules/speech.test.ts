@@ -66,13 +66,13 @@ describe('speech store helpers', () => {
 
   // ROOT CAUSE:
   //
-  // A synced snapshot replaced the empty voice catalog with another empty
-  // object. The voice watcher then assigned undefined to an undefined ref.
-  // refManualReset reported that no-op assignment as another Pinia mutation.
+  // A voice request replaced the empty catalog with another empty object. The
+  // catalog lived in synchronized state, so this renderer published the whole
+  // speech tuple even though no persisted selection changed.
   //
-  // We fixed this by writing the selected voice only when a matching voice
-  // exists and its identity differs from the current selection.
-  it('does not publish a second mutation for an unresolved voice', async () => {
+  // We fixed this by keeping request results renderer-local and by writing the
+  // selected voice only when a matching voice differs from the current value.
+  it('does not publish a synchronized mutation for an unresolved voice', async () => {
     const providersStore = useProviderStore()
     vi.spyOn(providersStore, 'listProviderVoices').mockResolvedValue([])
     const speechStore = useSpeechStore()
@@ -88,7 +88,7 @@ describe('speech store helpers', () => {
     speechStore.availableVoices = {}
     await nextTick()
 
-    expect(mutations).toBe(1)
+    expect(mutations).toBe(0)
   })
 
   // ROOT CAUSE:
@@ -121,6 +121,49 @@ describe('speech store helpers', () => {
 
     expect(speechStore.activeSpeechProvider).toBe(OFFICIAL_SPEECH_PROVIDER_ID)
     expect(speechStore.activeSpeechModel).toBe('auto')
+  })
+
+  // ROOT CAUSE:
+  //
+  // Provider pages and the speech module could request the same voice catalog
+  // at the same time. Every request toggled one synchronized loading boolean,
+  // so unrelated windows repeatedly replaced the voice list with a skeleton.
+  //
+  // We fixed this by coalescing equal requests and deriving loading state from
+  // this renderer's in-flight requests for the active provider only.
+  it('coalesces voice loads and scopes loading to the active provider', async () => {
+    const providersStore = useProviderStore()
+    let resolveVoices: ((voices: []) => void) | undefined
+    const voicesRequest = new Promise<[]>((resolve) => {
+      resolveVoices = resolve
+    })
+    const listVoices = vi.spyOn(providersStore, 'listProviderVoices').mockImplementation(async (provider) => {
+      if (provider === 'kokoro-local')
+        return await voicesRequest
+      return []
+    })
+    const speechStore = useSpeechStore()
+    await vi.waitFor(() => expect(speechStore.isLoadingSpeechProviderVoices).toBe(false))
+    listVoices.mockClear()
+
+    const firstLoad = speechStore.loadVoicesForProvider('kokoro-local')
+    const secondLoad = speechStore.loadVoicesForProvider('kokoro-local')
+
+    expect(listVoices).toHaveBeenCalledTimes(1)
+    expect(speechStore.isLoadingSpeechProviderVoices).toBe(false)
+    expect('isLoadingSpeechProviderVoices' in speechStore.$state).toBe(false)
+    expect('availableVoices' in speechStore.$state).toBe(false)
+    expect('activeSpeechVoice' in speechStore.$state).toBe(false)
+
+    speechStore.activeSpeechProvider = 'kokoro-local'
+    await nextTick()
+
+    expect(listVoices).toHaveBeenCalledTimes(1)
+    expect(speechStore.isLoadingSpeechProviderVoices).toBe(true)
+
+    resolveVoices?.([])
+    await Promise.all([firstLoad, secondLoad])
+    await vi.waitFor(() => expect(speechStore.isLoadingSpeechProviderVoices).toBe(false))
   })
 
   /**

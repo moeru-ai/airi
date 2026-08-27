@@ -178,6 +178,38 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   /**
+   * Applies one user-selected speech configuration to the runtime and card.
+   *
+   * This leader-owned command commits both copies together. Replicated speech
+   * snapshots must not be interpreted as new card-edit commands by a watcher.
+   */
+  async function selectActiveCardSpeech(selection: Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>) {
+    const { speech } = useRuntimeModuleStores()
+    const providerChanged = speech.activeSpeechProvider !== selection.provider
+    const modelChanged = speech.activeSpeechModel !== selection.model
+    const voiceChanged = speech.activeSpeechVoiceId !== selection.voice_id
+
+    if (providerChanged || modelChanged || voiceChanged) {
+      speech.$patch({
+        activeSpeechProvider: selection.provider,
+        activeSpeechModel: selection.model,
+        activeSpeechVoiceId: selection.voice_id,
+      })
+    }
+    if ((providerChanged || modelChanged || voiceChanged || !selection.voice_id) && speech.activeSpeechVoice !== undefined)
+      speech.activeSpeechVoice = undefined
+
+    const cardChanged = updateActiveCardModules(({ modules }) => ({
+      speech: {
+        ...modules.speech,
+        ...selection,
+      },
+    }))
+
+    return providerChanged || modelChanged || voiceChanged || cardChanged
+  }
+
+  /**
    * Persists the current inference selections in the active card.
    *
    * This command snapshots runtime state after a higher-level operation, such
@@ -482,6 +514,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     updateActiveCardConsciousness,
     updateActiveCardDisplayModel,
     persistActiveCardModuleSelections,
+    selectActiveCardSpeech,
     updateActiveCardSpeech,
     updateActiveCardVision,
     getCard,
@@ -525,6 +558,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       'initialize',
       'removeCard',
       'persistActiveCardModuleSelections',
+      'selectActiveCardSpeech',
       'updateActiveCardConsciousness',
       'updateActiveCardDisplayModel',
       'updateActiveCardSpeech',

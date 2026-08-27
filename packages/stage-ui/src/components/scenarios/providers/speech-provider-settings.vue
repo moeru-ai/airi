@@ -17,6 +17,7 @@ import {
 } from '.'
 import { useProviderValidation } from '../../../composables/use-provider-validation'
 import { selectProviderMetadata } from '../../../libs/providers/metadata'
+import { useAiriCardStore } from '../../../stores/modules/airi-card'
 import { useSpeechStore } from '../../../stores/modules/speech'
 import { useProviderConfigStore } from '../../../stores/providers/config'
 import { useProviderStore } from '../../../stores/providers/provider'
@@ -51,6 +52,7 @@ const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const speechStore = useSpeechStore()
 const { configs: providers } = storeToRefs(providerStore)
+const airiCardStore = useAiriCardStore()
 
 function getProviderConfig() {
   return providerStore.getProviderConfig(props.providerId)
@@ -87,9 +89,21 @@ const {
   resetStatusWhenValidationSkipped: providerDefinition.requiresCredentials !== false,
 })
 
-function goToModelSelection() {
-  speechStore.activeSpeechProvider = props.providerId
-  router.push('/settings/modules/speech')
+async function goToModelSelection() {
+  const config = getProviderConfig()
+  const configuredModel = props.providerId === 'doubao-speech'
+    ? config?.resourceId
+    : config?.model
+  const configuredVoice = props.providerId === 'doubao-speech'
+    ? config?.speaker
+    : config?.voice
+
+  await airiCardStore.selectActiveCardSpeech({
+    provider: props.providerId,
+    model: typeof configuredModel === 'string' ? configuredModel : props.defaultModel ?? '',
+    voice_id: typeof configuredVoice === 'string' ? configuredVoice : '',
+  })
+  await router.push('/settings/modules/speech')
 }
 
 // Common provider settings

@@ -104,15 +104,10 @@ const selectableSpeechSources = computed(() => {
   ]
 })
 
-const displayedSpeechSource = computed({
-  get: () => {
-    if (activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
-      return OFFICIAL_SPEECH_PROVIDER_ID
-    return activeSpeechProvider.value
-  },
-  set: (value: string) => {
-    selectSpeechSource(value)
-  },
+const displayedSpeechSource = computed(() => {
+  if (activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+    return OFFICIAL_SPEECH_PROVIDER_ID
+  return activeSpeechProvider.value
 })
 
 const isOfficialSpeechSourceSelected = computed(() => displayedSpeechSource.value === OFFICIAL_SPEECH_PROVIDER_ID)
@@ -144,14 +139,9 @@ const displayedProviderModels = computed(() => {
   ]
 })
 
-const displayedSpeechModel = computed({
-  get: () => activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID && activeSpeechModel.value
-    ? streamingModelOptionId(activeSpeechModel.value)
-    : activeSpeechModel.value,
-  set: (value: string) => {
-    selectSpeechModel(value)
-  },
-})
+const displayedSpeechModel = computed(() => activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID && activeSpeechModel.value
+  ? streamingModelOptionId(activeSpeechModel.value)
+  : activeSpeechModel.value)
 
 const currentSpeechModelId = computed(() => activeSpeechModel.value || '')
 
@@ -187,12 +177,7 @@ const displayedVoiceOptions = computed(() => {
     }))
 })
 
-const displayedSpeechVoiceId = computed({
-  get: () => activeSpeechVoiceId.value,
-  set: (value: string) => {
-    activeSpeechVoiceId.value = value
-  },
-})
+const displayedSpeechVoiceId = computed(() => activeSpeechVoiceId.value)
 
 const currentSpeechVoiceId = computed(() => activeSpeechVoiceId.value || '')
 
@@ -285,6 +270,18 @@ async function selectSpeechVoice(voiceId: string | undefined) {
   if (!voiceId)
     return
 
+  await airiCardStore.selectActiveCardSpeech({
+    provider: activeSpeechProvider.value,
+    model: activeSpeechModel.value,
+    voice_id: voiceId,
+  })
+
+  if (activeSpeechProvider.value === 'doubao-speech') {
+    const config = providerStore.getProviderConfig('doubao-speech')
+    if (config)
+      config.speaker = voiceId
+  }
+
   trackVoiceSelected({
     tts_provider_id: activeSpeechProvider.value || 'unknown',
     tts_model_id: currentTtsModelId(),
@@ -293,11 +290,30 @@ async function selectSpeechVoice(voiceId: string | undefined) {
   })
 }
 
-function selectSpeechSource(sourceId: string) {
-  activeSpeechProvider.value = sourceId
+async function selectSpeechSource(sourceId: string) {
+  const providerChanged = activeSpeechProvider.value !== sourceId
+  const config = providerStore.getProviderConfig(sourceId)
+  const configuredModel = sourceId === 'doubao-speech'
+    ? config?.resourceId
+    : config?.model
+  const configuredVoice = sourceId === 'doubao-speech'
+    ? config?.speaker
+    : config?.voice
+  let nextModel = activeSpeechModel.value
+  let nextVoiceId = activeSpeechVoiceId.value
+  if (providerChanged) {
+    nextModel = typeof configuredModel === 'string' ? configuredModel : ''
+    nextVoiceId = typeof configuredVoice === 'string' ? configuredVoice : ''
+  }
+
+  await airiCardStore.selectActiveCardSpeech({
+    provider: sourceId,
+    model: nextModel,
+    voice_id: nextVoiceId,
+  })
 }
 
-function selectSpeechModel(modelOptionId: string) {
+async function selectSpeechModel(modelOptionId: string) {
   const streamingModelId = modelIdFromStreamingOptionId(modelOptionId)
   const nextProvider = streamingModelId == null
     ? activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
@@ -306,13 +322,11 @@ function selectSpeechModel(modelOptionId: string) {
     : OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
   const nextModel = streamingModelId ?? modelOptionId
 
-  if (activeSpeechProvider.value !== nextProvider) {
-    activeSpeechProvider.value = nextProvider
-    activeSpeechVoiceId.value = ''
-    activeSpeechVoice.value = undefined
-  }
-
-  activeSpeechModel.value = nextModel
+  await airiCardStore.selectActiveCardSpeech({
+    provider: nextProvider,
+    model: nextModel,
+    voice_id: '',
+  })
 
   // The Doubao provider settings page reads the model from
   // `config.resourceId`; write the selection back so both pages show the same
@@ -327,13 +341,19 @@ function selectSpeechModel(modelOptionId: string) {
 // The Doubao provider settings page owns the model selection in
 // `config.resourceId`. Adopt it here so this page and the provider page
 // always show the same model.
-function syncDoubaoResourceIdFromConfig() {
+async function syncDoubaoResourceIdFromConfig() {
   if (activeSpeechProvider.value !== 'doubao-speech')
     return
 
   const resourceId = providerStore.getProviderConfig('doubao-speech')?.resourceId as string | undefined
-  if (resourceId && activeSpeechModel.value !== resourceId)
-    activeSpeechModel.value = resourceId
+  if (!resourceId || activeSpeechModel.value === resourceId)
+    return
+
+  await airiCardStore.selectActiveCardSpeech({
+    provider: activeSpeechProvider.value,
+    model: resourceId,
+    voice_id: activeSpeechVoiceId.value,
+  })
 }
 
 /**
@@ -356,86 +376,43 @@ function trackOfficialTtsExposure(providerId = activeSpeechProvider.value, model
 }
 
 // Sync OpenAI Compatible model and voice from provider config
-function syncOpenAICompatibleSettings() {
+async function syncOpenAICompatibleSettings() {
   if (activeSpeechProvider.value !== 'openai-compatible-audio-speech')
     return
 
   const providerConfig = providerStore.getProviderConfig(activeSpeechProvider.value)
-  // Sync model from provider config (override any existing value from previous provider)
-  if (providerConfig?.model) {
-    activeSpeechModel.value = providerConfig.model as string
-  }
-  else {
-    // If no model in provider config, use default
-    activeSpeechModel.value = 'tts-1'
-  }
-  // Sync voice from provider config (override any existing value from previous provider)
-  // Use updateCustomVoiceName to ensure proper reactivity
-  if (providerConfig?.voice) {
-    activeSpeechVoiceId.value = providerConfig.voice as string
-    updateCustomVoiceName(providerConfig.voice as string)
-  }
-  else {
-    // If no voice in provider config, use default
-    activeSpeechVoiceId.value = 'alloy'
-    updateCustomVoiceName('alloy')
-  }
+  await airiCardStore.selectActiveCardSpeech({
+    provider: activeSpeechProvider.value,
+    model: providerConfig?.model as string | undefined ?? 'tts-1',
+    voice_id: providerConfig?.voice as string | undefined ?? 'alloy',
+  })
 }
 
 onMounted(async () => {
   await providersStore.loadModelsForConfiguredProviders()
   speechStore.ensureActiveSpeechModel()
-  syncDoubaoResourceIdFromConfig()
+  await syncDoubaoResourceIdFromConfig()
   await speechStore.loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined)
-  syncOpenAICompatibleSettings()
+  await syncOpenAICompatibleSettings()
   trackOfficialTtsExposure()
 })
 
-watch(activeSpeechProvider, async (newProvider, oldProvider) => {
+watch(activeSpeechProvider, async (newProvider) => {
   await providersStore.loadModelsForConfiguredProviders()
 
-  // Reset model and voice when switching providers (but not on initial load)
-  const isMergedOfficialSwitch = (
-    oldProvider === OFFICIAL_SPEECH_PROVIDER_ID
-    || oldProvider === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
-  ) && (
-    newProvider === OFFICIAL_SPEECH_PROVIDER_ID
-    || newProvider === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
-  )
-  if (oldProvider !== undefined && oldProvider !== newProvider && !isMergedOfficialSwitch) {
-    activeSpeechModel.value = ''
-    activeSpeechVoiceId.value = ''
-    activeSpeechVoice.value = undefined
-  }
-
-  // Re-seed the streaming default model after the reset above so its voices
-  // load model-scoped (the server only returns recommended voices for an
-  // explicit ?model=). No-op for other providers / when a model is selected.
+  // A user selection or card activation owns the complete provider/model/voice
+  // tuple. This watcher only resolves provider-specific defaults; it must not
+  // clear a replicated selection and publish another full-state proposal.
   speechStore.ensureActiveSpeechModel()
-  syncDoubaoResourceIdFromConfig()
-  await speechStore.loadVoicesForProvider(newProvider, activeSpeechModel.value || undefined)
   trackOfficialTtsExposure(newProvider, currentTtsModelId())
-
-  syncOpenAICompatibleSettings()
 })
 
 watch(activeSpeechModel, async (model) => {
   if (!activeSpeechProvider.value)
     return
 
-  activeSpeechVoiceId.value = ''
-  activeSpeechVoice.value = undefined
-
   await speechStore.loadVoicesForProvider(activeSpeechProvider.value, model || undefined)
   trackOfficialTtsExposure(activeSpeechProvider.value, currentTtsModelId())
-})
-
-// A watcher on synchronized state must call the synchronized action with
-// await: the action is idempotent and settles after one round, while an
-// unawaited call can interleave with the applied snapshot and sustain a
-// settings <-> card feedback loop.
-watch([activeSpeechProvider, activeSpeechModel, activeSpeechVoiceId], async ([provider, model, voiceId]) => {
-  await airiCardStore.updateActiveCardSpeech({ provider, model, voice_id: voiceId })
 })
 
 // Function to generate speech
@@ -592,10 +569,15 @@ onUnmounted(() => {
   }
 })
 
-function updateCustomVoiceName(value: string | undefined) {
-  activeSpeechVoiceId.value = value || ''
+async function updateCustomVoiceName(value: string | undefined) {
+  const voiceId = value || ''
+  await airiCardStore.selectActiveCardSpeech({
+    provider: activeSpeechProvider.value,
+    model: activeSpeechModel.value,
+    voice_id: voiceId,
+  })
+
   if (!value) {
-    activeSpeechVoice.value = undefined
     return
   }
 
@@ -613,27 +595,37 @@ function updateCustomVoiceName(value: string | undefined) {
 /**
  * Tracks a manual voice after the input value is committed by the user.
  */
-function commitCustomVoiceSelection() {
-  selectSpeechVoice(activeSpeechVoiceId.value)
+async function commitCustomVoiceSelection() {
+  await selectSpeechVoice(activeSpeechVoiceId.value)
 }
 
-function updateCustomModelName(value: string | undefined) {
-  activeSpeechModel.value = value || ''
+async function updateCustomModelName(value: string | undefined) {
+  await airiCardStore.selectActiveCardSpeech({
+    provider: activeSpeechProvider.value,
+    model: value || '',
+    voice_id: '',
+  })
 }
 
-function handleDeleteProvider(providerId: string) {
+async function handleDeleteProvider(providerId: string) {
   if (providerId === 'speech-noop') {
     return
   }
 
   if (activeSpeechProvider.value === providerId) {
-    activeSpeechProvider.value = 'speech-noop'
-    activeSpeechModel.value = ''
-    activeSpeechVoiceId.value = ''
-    activeSpeechVoice.value = undefined
+    await airiCardStore.selectActiveCardSpeech({
+      provider: 'speech-noop',
+      model: '',
+      voice_id: '',
+    })
   }
 
-  providersStore.deleteProvider(providerId)
+  await providersStore.deleteProvider(providerId)
+}
+
+async function selectElevenLabsModel(event: Event) {
+  const target = event.target as HTMLSelectElement
+  await selectSpeechModel(target.value)
 }
 </script>
 
@@ -658,11 +650,12 @@ function handleDeleteProvider(providerId: string) {
               v-for="source in selectableSpeechSources"
               :id="source.id"
               :key="source.id"
-              v-model="displayedSpeechSource"
+              :model-value="displayedSpeechSource"
               name="speech-provider"
               :value="source.id"
               :title="source.title"
               :description="source.description"
+              @update:model-value="selectSpeechSource"
               @click="selectSpeechProvider(source.providerId || source.id)"
             >
               <template #topRight>
@@ -781,8 +774,8 @@ function handleDeleteProvider(providerId: string) {
             <!-- Using the new RadioCardManySelect component -->
             <template v-else-if="displayedProviderModels.length > 0">
               <RadioCardManySelect
-                v-model="displayedSpeechModel"
                 v-model:search-query="modelSearchQuery"
+                :model-value="displayedSpeechModel"
                 :items="displayedProviderModels"
                 :searchable="true"
                 :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
@@ -793,6 +786,7 @@ function handleDeleteProvider(providerId: string) {
                 :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
                 :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
                 expanded-class="mb-12"
+                @update:model-value="selectSpeechModel"
                 @update:custom-value="updateCustomModelName"
               />
             </template>
@@ -846,7 +840,7 @@ function handleDeleteProvider(providerId: string) {
           >
             <VoiceCardManySelect
               v-model:search-query="voiceSearchQuery"
-              v-model:voice-id="displayedSpeechVoiceId"
+              :voice-id="displayedSpeechVoiceId"
               :voices="displayedVoiceOptions"
               :searchable="true"
               :search-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_placeholder')"
@@ -927,8 +921,9 @@ function handleDeleteProvider(providerId: string) {
                 Model
               </label>
               <select
-                v-model="activeSpeechModel"
+                :value="activeSpeechModel"
                 class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+                @change="selectElevenLabsModel"
               >
                 <option value="eleven_monolingual_v1">
                   Monolingual v1

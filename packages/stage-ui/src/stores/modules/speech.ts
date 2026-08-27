@@ -59,18 +59,38 @@ export const useSpeechStore = defineStore('speech', () => {
   const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', 'speech-noop', persistenceOptions)
   const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', '', persistenceOptions)
   const activeSpeechVoiceId = useLocalStorageManualReset<string>('settings/speech/voice', '', persistenceOptions)
-  const activeSpeechVoice = refManualReset<VoiceInfo | undefined>(undefined)
+  const activeSpeechVoiceState = refManualReset<VoiceInfo | undefined>(undefined)
 
   const pitch = useLocalStorageManualReset<number>('settings/speech/pitch', 0, persistenceOptions)
   const rate = useLocalStorageManualReset<number>('settings/speech/rate', 1, persistenceOptions)
   const ssmlEnabled = useLocalStorageManualReset<boolean>('settings/speech/ssml-enabled', false, persistenceOptions)
-  const isLoadingSpeechProviderVoices = refManualReset<boolean>(false)
-  const speechProviderError = refManualReset<string | null>(null)
-  const availableVoices = refManualReset<Record<string, VoiceInfo[]>>(() => ({}))
-  const modelSearchQuery = refManualReset<string>('')
+  const voiceLoadCounts = refManualReset<Record<string, number>>(() => ({}))
+  const voiceLoadPromises = new Map<string, Promise<VoiceInfo[]>>()
+  const speechProviderErrorState = refManualReset<string | null>(null)
+  const availableVoicesState = refManualReset<Record<string, VoiceInfo[]>>(() => ({}))
+  const modelSearchQueryState = refManualReset<string>('')
 
-  // Computed properties
+  // Request results and UI state stay renderer-local. Returning writable
+  // computed projections keeps them out of the synchronized Pinia snapshot.
+  const activeSpeechVoice = computed({
+    get: () => activeSpeechVoiceState.value,
+    set: value => activeSpeechVoiceState.value = value,
+  })
+  const speechProviderError = computed({
+    get: () => speechProviderErrorState.value,
+    set: value => speechProviderErrorState.value = value,
+  })
+  const availableVoices = computed({
+    get: () => availableVoicesState.value,
+    set: value => availableVoicesState.value = value,
+  })
+  const modelSearchQuery = computed({
+    get: () => modelSearchQueryState.value,
+    set: value => modelSearchQueryState.value = value,
+  })
+
   const availableSpeechProvidersMetadata = computed(() => allAudioSpeechProvidersMetadata.value)
+  const isLoadingSpeechProviderVoices = computed(() => (voiceLoadCounts.value[activeSpeechProvider.value] ?? 0) > 0)
 
   // Computed properties
   const supportsModelListing = computed(() => {
@@ -111,6 +131,16 @@ export const useSpeechStore = defineStore('speech', () => {
     return ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(activeSpeechProvider.value)
   })
 
+  function updateVoiceLoadCount(provider: string, change: 1 | -1) {
+    const nextCount = Math.max(0, (voiceLoadCounts.value[provider] ?? 0) + change)
+    const nextCounts = { ...voiceLoadCounts.value }
+    if (nextCount === 0)
+      delete nextCounts[provider]
+    else
+      nextCounts[provider] = nextCount
+    voiceLoadCounts.value = nextCounts
+  }
+
   async function loadVoicesForProvider(provider: string, model?: string) {
     if (!provider) {
       return []
@@ -123,26 +153,37 @@ export const useSpeechStore = defineStore('speech', () => {
       return []
     }
 
-    isLoadingSpeechProviderVoices.value = true
+    const requestKey = `${provider}\0${model ?? ''}`
+    const pendingRequest = voiceLoadPromises.get(requestKey)
+    if (pendingRequest)
+      return await pendingRequest
+
+    updateVoiceLoadCount(provider, 1)
     speechProviderError.value = null
 
-    try {
-      const voices = await providersStore.listProviderVoices(provider, model)
-      // Reassign to trigger reactivity when adding/updating provider entries
-      availableVoices.value = {
-        ...availableVoices.value,
-        [provider]: voices,
+    const request = (async () => {
+      try {
+        const voices = await providersStore.listProviderVoices(provider, model)
+        // Reassign to trigger reactivity when adding/updating provider entries.
+        availableVoices.value = {
+          ...availableVoices.value,
+          [provider]: voices,
+        }
+        return voices
       }
-      return voices
-    }
-    catch (error) {
-      console.error(`Error fetching voices for ${provider}:`, error)
-      speechProviderError.value = errorMessageFrom(error) ?? 'Unknown error'
-      return []
-    }
-    finally {
-      isLoadingSpeechProviderVoices.value = false
-    }
+      catch (error) {
+        console.error(`Error fetching voices for ${provider}:`, error)
+        speechProviderError.value = errorMessageFrom(error) ?? 'Unknown error'
+        return []
+      }
+      finally {
+        updateVoiceLoadCount(provider, -1)
+        voiceLoadPromises.delete(requestKey)
+      }
+    })()
+
+    voiceLoadPromises.set(requestKey, request)
+    return await request
   }
 
   // Get voices for a specific provider
@@ -411,14 +452,15 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechProvider.reset()
     activeSpeechModel.reset()
     activeSpeechVoiceId.reset()
-    activeSpeechVoice.reset()
+    activeSpeechVoiceState.reset()
     pitch.reset()
     rate.reset()
     ssmlEnabled.reset()
-    modelSearchQuery.reset()
-    availableVoices.reset()
-    speechProviderError.reset()
-    isLoadingSpeechProviderVoices.reset()
+    modelSearchQueryState.reset()
+    availableVoicesState.reset()
+    speechProviderErrorState.reset()
+    voiceLoadCounts.reset()
+    voiceLoadPromises.clear()
   }
 
   return {

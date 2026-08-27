@@ -71,6 +71,7 @@ vi.mock('./speech', async () => {
       state: () => ({
         activeSpeechProvider: 'mock-speech-provider',
         activeSpeechModel: 'mock-speech-model',
+        activeSpeechVoice: undefined,
         activeSpeechVoiceId: 'mock-speech-voice',
       }),
     }),
@@ -228,6 +229,42 @@ describe('airi-card store', () => {
     // Watcher-driven updates must not apply the card back to the runtime;
     // artistry reset runs only inside applyActiveCardSettings.
     expect(resetArtistryToGlobal).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  //
+  // The settings page changed synchronized speech state first, then mirrored
+  // each replicated snapshot into the active card from a watcher. Two windows
+  // could therefore submit older provider tuples and make the provider cards
+  // alternate between Doubao and Kokoro.
+  //
+  // We fixed this by routing a user selection through one leader-owned command
+  // that commits the runtime tuple and active-card tuple together.
+  it('selects one speech tuple in the runtime and active card', async () => {
+    const speechStore = useSpeechStore()
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+
+    await expect(cardStore.selectActiveCardSpeech({
+      provider: 'doubao-speech',
+      model: 'seed-tts-2.0',
+      voice_id: 'zh_female_vv_uranus_bigtts',
+    })).resolves.toBe(true)
+
+    expect(speechStore.activeSpeechProvider).toBe('doubao-speech')
+    expect(speechStore.activeSpeechModel).toBe('seed-tts-2.0')
+    expect(speechStore.activeSpeechVoiceId).toBe('zh_female_vv_uranus_bigtts')
+    expect(cardStore.activeCard?.extensions.airi.modules.speech).toMatchObject({
+      provider: 'doubao-speech',
+      model: 'seed-tts-2.0',
+      voice_id: 'zh_female_vv_uranus_bigtts',
+    })
+
+    await expect(cardStore.selectActiveCardSpeech({
+      provider: 'doubao-speech',
+      model: 'seed-tts-2.0',
+      voice_id: 'zh_female_vv_uranus_bigtts',
+    })).resolves.toBe(false)
   })
 
   // ROOT CAUSE:
