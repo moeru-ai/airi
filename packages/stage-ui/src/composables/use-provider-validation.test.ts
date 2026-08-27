@@ -115,6 +115,66 @@ describe('useProviderValidation', () => {
     expect(() => structuredClone(passedConfig)).not.toThrow()
   })
 
+  // ROOT CAUSE:
+  //
+  // Automatic validation allowed requests for different configuration
+  // snapshots to overlap. An older request could finish last and replace the
+  // status for the current configuration.
+  //
+  // https://github.com/moeru-ai/airi/pull/2382#discussion_r3874910005
+  //
+  // We fixed this by invalidating the active request as soon as credentials
+  // change. Only the latest request can commit its result.
+  it('ignores an older validation result after the configuration changes', async () => {
+    const configStore = useProviderConfigStore()
+    const providerStore = useProviderStore()
+
+    configStore.ensureProvider('doubao-speech', 'doubao-speech', {})
+
+    type ValidationResult = Awaited<ReturnType<typeof providerStore.validateProviderConfig>>
+    let resolveOlderValidation!: (value: ValidationResult) => void
+    let resolveNewerValidation!: (value: ValidationResult) => void
+    const olderValidation = new Promise<ValidationResult>((resolve) => {
+      resolveOlderValidation = resolve
+    })
+    const newerValidation = new Promise<ValidationResult>((resolve) => {
+      resolveNewerValidation = resolve
+    })
+
+    const validateSpy = vi.spyOn(providerStore, 'validateProviderConfig')
+      .mockImplementation(async (_providerId, config) => {
+        return config.apiKey === 'older-api-key'
+          ? olderValidation
+          : newerValidation
+      })
+
+    const { isValid } = useProviderValidation('doubao-speech')
+    const config = configStore.getProviderConfig('doubao-speech')!
+    config.apiKey = 'older-api-key'
+    config.speaker = 'zh_female_cancan_mars_bigtts'
+
+    await vi.waitFor(() => {
+      expect(validateSpy).toHaveBeenCalledTimes(1)
+    }, { timeout: 5000 })
+
+    config.apiKey = 'newer-api-key'
+    await vi.waitFor(() => {
+      expect(validateSpy).toHaveBeenCalledTimes(2)
+    }, { timeout: 5000 })
+
+    resolveNewerValidation({ errors: [], reason: 'New configuration is invalid', valid: false })
+    await vi.waitFor(() => {
+      expect(configStore.getProvider('doubao-speech')?.status).toBe('invalid')
+    })
+
+    resolveOlderValidation({ errors: [], reason: '', valid: true })
+    await olderValidation
+    await Promise.resolve()
+
+    expect(configStore.getProvider('doubao-speech')?.status).toBe('invalid')
+    expect(isValid.value).toBe(false)
+  })
+
   it('resets status to unconfigured by default when validation is skipped', async () => {
     const configStore = useProviderConfigStore()
     useProviderStore()
