@@ -112,7 +112,7 @@ class DoubaoSpeechEventaSocket implements StreamingTtsWebSocket {
   }
 
   private readonly requestController: ReadableStreamDefaultController<DoubaoSpeechRequest>
-  private readonly responseReader: ReadableStreamDefaultReader<DoubaoSpeechResponse>
+  private readonly responses: ReadableStream<DoubaoSpeechResponse>
   private readonly disposeEventa: (reason?: unknown) => void
   private readonly pcmChunks: Uint8Array[] = []
   private requestClosed = false
@@ -125,7 +125,7 @@ class DoubaoSpeechEventaSocket implements StreamingTtsWebSocket {
 
     const invocation = createInvocation(requests.stream, this.abortController.signal)
     this.disposeEventa = invocation.dispose
-    this.responseReader = invocation.responses.getReader()
+    this.responses = invocation.responses
 
     void this.pumpResponses()
     queueMicrotask(() => {
@@ -200,7 +200,6 @@ class DoubaoSpeechEventaSocket implements StreamingTtsWebSocket {
     this.readyState = CLOSED
     if (abortInvocation && !this.abortController.signal.aborted)
       this.abortController.abort(reason)
-    void this.responseReader.cancel(reason).catch(() => {})
     this.disposeEventa(reason)
     this.emit('close', new CloseEvent('close', { code, reason }))
   }
@@ -212,13 +211,9 @@ class DoubaoSpeechEventaSocket implements StreamingTtsWebSocket {
 
   private async pumpResponses() {
     try {
-      for (;;) {
-        const response = await this.responseReader.read()
-        if (response.done)
-          break
-
-        if (response.value.type === 'audio') {
-          const data = Uint8Array.from(response.value.data)
+      for await (const response of this.responses) {
+        if (response.type === 'audio') {
+          const data = Uint8Array.from(response.data)
           if (this.config.audio.format === 'pcm') {
             this.pcmChunks.push(data)
           }
@@ -228,14 +223,14 @@ class DoubaoSpeechEventaSocket implements StreamingTtsWebSocket {
           continue
         }
 
-        if (response.value.event === 'session.finished') {
+        if (response.event === 'session.finished') {
           this.sessionFinished = true
           if (this.config.audio.format === 'pcm' && this.pcmChunks.length > 0) {
             const wav = toWavFromPCM16(mergeAudioChunks(this.pcmChunks), this.config.audio.sampleRate)
             this.emit('message', new MessageEvent('message', { data: wav }))
           }
         }
-        this.emit('message', new MessageEvent('message', { data: responseFrame(response.value) }))
+        this.emit('message', new MessageEvent('message', { data: responseFrame(response) }))
       }
 
       this.completeClose(
@@ -282,18 +277,14 @@ export async function synthesizeDoubaoSpeech(
   const abortInvocation = () => invocationAbort.abort(signal?.reason)
   signal?.addEventListener('abort', abortInvocation, { once: true })
   const invocation = createInvocation(requests, invocationAbort.signal)
-  const reader = invocation.responses.getReader()
   const chunks: Uint8Array[] = []
   let sessionFinished = false
 
   try {
-    for (;;) {
-      const response = await reader.read()
-      if (response.done)
-        break
-      if (response.value.type === 'audio')
-        chunks.push(Uint8Array.from(response.value.data))
-      else if (response.value.event === 'session.finished')
+    for await (const response of invocation.responses) {
+      if (response.type === 'audio')
+        chunks.push(Uint8Array.from(response.data))
+      else if (response.event === 'session.finished')
         sessionFinished = true
     }
 
@@ -310,7 +301,6 @@ export async function synthesizeDoubaoSpeech(
   }
   finally {
     signal?.removeEventListener('abort', abortInvocation)
-    await reader.cancel().catch(() => {})
     invocation.dispose()
   }
 }

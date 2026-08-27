@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { doubaoOfficialVoices, isDoubaoOfficialVoice } from '@proj-airi/stage-ui/libs/providers/providers/doubao-speech/voice-catalog'
+import { doubaoOfficialVoices, isDoubaoOfficialVoice } from '@proj-airi/stage-ui/libs/providers'
 import { FieldCombobox, FieldInput, GhostButton } from '@proj-airi/ui'
 import { computed, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'

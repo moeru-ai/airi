@@ -9,21 +9,6 @@ import { ipcMain } from 'electron'
 import { runDoubaoSpeechSession } from './session'
 import { createDoubaoSpeechWebSocketTransport } from './transport'
 
-async function* readableRequests(stream: ReadableStream<DoubaoSpeechRequest>) {
-  const reader = stream.getReader()
-  try {
-    for (;;) {
-      const next = await reader.read()
-      if (next.done)
-        return
-      yield next.value
-    }
-  }
-  finally {
-    reader.releaseLock()
-  }
-}
-
 /**
  * Registers the app-wide Doubao Speech stream bridge.
  *
@@ -40,16 +25,11 @@ async function* readableRequests(stream: ReadableStream<DoubaoSpeechRequest>) {
 export function setupDoubaoSpeechService(options: { lifecycle: Lifecycle }) {
   const eventa = createContext(ipcMain)
   const removeHandler = defineStreamInvokeHandler(eventa.context, doubaoSpeechStream, async function* (payload, invokeOptions) {
-    let requests: AsyncIterable<DoubaoSpeechRequest>
-    if (isReadableStream<DoubaoSpeechRequest>(payload))
-      requests = readableRequests(payload)
-    else if (isAsyncIterable<DoubaoSpeechRequest>(payload))
-      requests = payload
-    else
+    if (!isReadableStream<DoubaoSpeechRequest>(payload) && !isAsyncIterable<DoubaoSpeechRequest>(payload))
       throw new TypeError('Doubao speech requires a streaming request.')
 
     yield* runDoubaoSpeechSession(
-      requests,
+      payload,
       createDoubaoSpeechWebSocketTransport,
       invokeOptions?.abortController?.signal,
     )

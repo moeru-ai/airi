@@ -179,15 +179,25 @@ export const providerDoubaoSpeech = defineProvider<DoubaoSpeechConfig>({
   capabilities: {
     speech: {
       transport: 'bidirectional-ws',
-      createSession: ({ config }) => {
-        const result = doubaoSpeechConfigSchema.safeParse(config)
-        if (!result.success)
+      createSession: ({ config, model, voice }) => {
+        const configured = doubaoSpeechConfigSchema.safeParse(config)
+        if (!configured.success)
           return null
 
-        const sessionConfig = toSessionConfig(result.data)
+        const resolved = doubaoSpeechConfigSchema.safeParse({
+          ...configured.data,
+          resourceId: RESOURCE_IDS.find(resourceId => resourceId === model) ?? configured.data.resourceId,
+          speaker: voice?.id || configured.data.speaker,
+        })
+        if (!resolved.success)
+          return null
+
+        const sessionConfig = toSessionConfig(resolved.data)
         return {
           model: sessionConfig.resourceId,
           voice: sessionConfig.speaker,
+          // Seed 2.0 audio frames do not align with subtitle boundaries, and
+          // Stage currently decodes only complete encoded audio buffers.
           bufferEntireSession: true,
           extraBody: {},
           webSocketFactory: createDoubaoSpeechWebSocketFactory(sessionConfig),

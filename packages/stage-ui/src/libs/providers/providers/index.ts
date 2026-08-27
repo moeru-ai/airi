@@ -54,6 +54,11 @@ import './unspeech'
 import './voicevox'
 
 export {
+  doubaoOfficialVoices,
+  isDoubaoOfficialVoice,
+} from './doubao-speech/voice-catalog'
+
+export {
   getDefaultStreamingModel,
   getStreamingTtsAvailable,
   OFFICIAL_TRANSCRIPTION_PROVIDER_ID,

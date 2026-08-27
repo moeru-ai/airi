@@ -8,8 +8,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { providerDoubaoSpeech } from '.'
 
 const mocks = vi.hoisted(() => ({
+  createWebSocketFactory: vi.fn(() => vi.fn(() => ({ close: vi.fn() }))),
   synthesize: vi.fn(),
-  webSocketFactory: vi.fn(() => ({ close: vi.fn() })),
 }))
 
 vi.mock('@proj-airi/stage-shared', () => ({
@@ -18,7 +18,7 @@ vi.mock('@proj-airi/stage-shared', () => ({
 }))
 
 vi.mock('./runtime', () => ({
-  createDoubaoSpeechWebSocketFactory: () => mocks.webSocketFactory,
+  createDoubaoSpeechWebSocketFactory: mocks.createWebSocketFactory,
   synthesizeDoubaoSpeech: mocks.synthesize,
 }))
 
@@ -52,9 +52,41 @@ describe('doubao speech Provider', () => {
       bufferEntireSession: true,
       model: 'seed-tts-2.0',
       voice: 'zh_female_vv_uranus_bigtts',
-      webSocketFactory: mocks.webSocketFactory,
+      webSocketFactory: expect.any(Function),
     })
     expect(session?.extraBody).toEqual({})
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2382#discussion_r3865631757
+  // ROOT CAUSE:
+  //
+  // `createSession` used only the persisted Provider configuration. Stage
+  // passed the active model and voice, but the session ignored both values.
+  // This could connect with credentials for one selection and synthesize with
+  // a different model and voice.
+  //
+  // We fix this by applying the active selections before the immutable
+  // transport configuration is created.
+  it('uses the active model and voice for the streaming session', () => {
+    const session = providerDoubaoSpeech.capabilities?.speech?.createSession?.({
+      config,
+      model: 'seed-icl-2.0',
+      voice: {
+        id: 'S_test_clone_voice',
+        name: 'Test clone voice',
+        provider: 'doubao-speech',
+        languages: [],
+      },
+    })
+
+    expect(session).toMatchObject({
+      model: 'seed-icl-2.0',
+      voice: 'S_test_clone_voice',
+    })
+    expect(mocks.createWebSocketFactory).toHaveBeenCalledWith(expect.objectContaining({
+      resourceId: 'seed-icl-2.0',
+      speaker: 'S_test_clone_voice',
+    }))
   })
 
   it('uses the Eventa session for a complete speech preview', async () => {
