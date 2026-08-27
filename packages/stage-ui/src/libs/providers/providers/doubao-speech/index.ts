@@ -251,17 +251,25 @@ export const providerDoubaoSpeech = defineProvider<DoubaoSpeechConfig>({
       description: resourceId === 'seed-tts-2.0' ? 'Official Doubao TTS 2.0 voices' : 'Doubao cloned voices 2.0',
     })),
     listVoices: async (config, _provider, model) => {
-      const result = doubaoSpeechConfigSchema.safeParse({ ...config, resourceId: model ?? config.resourceId })
-      if (!result.success)
+      const resourceId = RESOURCE_IDS.find(value => value === (model ?? config.resourceId))
+      if (!resourceId)
         return []
 
-      if (result.data.resourceId === 'seed-icl-2.0')
-        return [configuredVoiceInfo(result.data.speaker, result.data.resourceId)]
+      const speaker = typeof config.speaker === 'string' ? config.speaker.trim() : ''
+      if (resourceId === 'seed-icl-2.0') {
+        if (!speaker || findDoubaoOfficialVoice(speaker))
+          return []
 
-      const selectedVoice = findDoubaoOfficialVoice(result.data.speaker)
+        return [configuredVoiceInfo(speaker, resourceId)]
+      }
+
       const voices = doubaoOfficialVoices.map(officialVoiceInfo)
+      if (!speaker)
+        return voices
+
+      const selectedVoice = findDoubaoOfficialVoice(speaker)
       if (!selectedVoice)
-        return [configuredVoiceInfo(result.data.speaker, result.data.resourceId), ...voices]
+        return [configuredVoiceInfo(speaker, resourceId), ...voices]
 
       if (voices[0]?.id === selectedVoice.id)
         return voices

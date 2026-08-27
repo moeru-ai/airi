@@ -137,6 +137,30 @@ describe('doubao speech Provider', () => {
     expect(voices?.some(voice => voice.id === 'de_male_sven_uranus_bigtts')).toBe(false)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2382#discussion_r3875415188
+  // ROOT CAUSE:
+  //
+  // A resource change clears the previous speaker before the voice catalog
+  // reloads. `listVoices` used the complete synthesis schema, so the empty
+  // speaker rejected the request and hid every official voice.
+  //
+  // We fixed this by validating only the resource and optional selected voice
+  // when the provider lists voices. Synthesis keeps the complete schema.
+  it('lists official voices before a speaker is selected', async () => {
+    const provider = await providerDoubaoSpeech.createProvider(config)
+    const voices = await providerDoubaoSpeech.extraMethods?.listVoices?.({
+      ...config,
+      speaker: '',
+    }, provider, 'seed-tts-2.0')
+
+    expect(voices).toHaveLength(429)
+    expect(voices?.[0]).toMatchObject({
+      compatibleModels: ['seed-tts-2.0'],
+      id: 'zh_female_vv_uranus_bigtts',
+      name: 'Vivi 2.0',
+    })
+  })
+
   it('requires 48000 Hz for ogg_opus output', async () => {
     const schema = await providerDoubaoSpeech.createProviderConfig({ t: input => input }) as ZodType<DoubaoSpeechConfig>
     const result = schema.safeParse({
