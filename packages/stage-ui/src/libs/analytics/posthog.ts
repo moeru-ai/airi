@@ -4,19 +4,10 @@ import type { AnalyticsAdapter, AnalyticsAdapterOptions } from './client'
 import posthog from 'posthog-js'
 
 import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
-
 import {
   DEFAULT_POSTHOG_CONFIG,
   POSTHOG_PROJECT_KEY,
-} from '../../../../../posthog.config'
-
-function currentSurface(): 'web' | 'mobile' | 'electron' {
-  if (isStageTamagotchi())
-    return 'electron'
-  if (isStageCapacitor())
-    return 'mobile'
-  return 'web'
-}
+} from '@proj-airi/stage-shared/analytics/posthog'
 
 /** Creates and initializes the default PostHog adapter. */
 export function createPosthogAdapter(options: AnalyticsAdapterOptions): AnalyticsAdapter {
@@ -56,10 +47,10 @@ export function createPosthogAdapter(options: AnalyticsAdapterOptions): Analytic
     },
     registerBuildInfo(buildInfo: AboutBuildInfo) {
       posthog.register({
-        app_version: (buildInfo.version && buildInfo.version !== '0.0.0') ? buildInfo.version : 'dev',
-        app_commit: buildInfo.commit,
         app_branch: buildInfo.branch,
         app_build_time: buildInfo.builtOn,
+        app_commit: buildInfo.commit,
+        app_version: (buildInfo.version && buildInfo.version !== '0.0.0') ? buildInfo.version : 'dev',
       })
     },
     resetIdentity() {
@@ -77,4 +68,12 @@ export function createPosthogAdapter(options: AnalyticsAdapterOptions): Analytic
       return false
     },
   }
+}
+
+function currentSurface(): 'electron' | 'mobile' | 'web' {
+  if (isStageTamagotchi())
+    return 'electron'
+  if (isStageCapacitor())
+    return 'mobile'
+  return 'web'
 }
