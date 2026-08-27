@@ -184,15 +184,25 @@ export const providerDoubaoSpeech = defineProvider<DoubaoSpeechConfig>({
   capabilities: {
     speech: {
       transport: 'bidirectional-ws',
-      createSession: ({ config, model, voice }) => {
+      createSession: ({ config, model, voiceId, voice }) => {
         const configured = doubaoSpeechConfigSchema.safeParse(config)
         if (!configured.success)
           return null
 
+        let speaker = configured.data.speaker
+        // Renderer-local metadata can select the voice before synchronized
+        // callers provide its source-of-truth ID.
+        if (voice?.id)
+          speaker = voice.id
+        // The synchronized ID belongs to the active card and takes precedence
+        // when its renderer-local catalog has not loaded the matching metadata.
+        if (voiceId)
+          speaker = voiceId
+
         const resolved = doubaoSpeechConfigSchema.safeParse({
           ...configured.data,
           resourceId: RESOURCE_IDS.find(resourceId => resourceId === model) ?? configured.data.resourceId,
-          speaker: voice?.id || configured.data.speaker,
+          speaker,
         })
         if (!resolved.success)
           return null

@@ -167,6 +167,8 @@ export interface ProviderStreamingSpeechContext {
   config: Record<string, unknown>
   /** Active model selection, when the Provider exposes models. */
   model?: string
+  /** Synchronized active voice ID. Available before renderer-local voice metadata loads. */
+  voiceId?: string
   /** Active voice selection, when the Provider exposes voices. */
   voice?: VoiceInfo
 }

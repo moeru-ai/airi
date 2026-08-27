@@ -89,6 +89,38 @@ describe('doubao speech Provider', () => {
     }))
   })
 
+  // ROOT CAUSE:
+  //
+  // A card can select a cloned voice that is not in the renderer's current
+  // voice catalog. The synchronized voice ID was available, but Stage passed
+  // only the missing renderer-local VoiceInfo to the provider session. The
+  // session then used the unrelated speaker from the Provider configuration.
+  //
+  // We pass the synchronized voice ID into the session context and give it
+  // precedence over renderer-local metadata and Provider configuration.
+  it('uses the active card voice ID before renderer-local metadata loads', () => {
+    const session = providerDoubaoSpeech.capabilities?.speech?.createSession?.({
+      config,
+      model: 'seed-icl-2.0',
+      voiceId: 'S_card_clone_voice',
+      voice: {
+        id: 'zh_female_vv_uranus_bigtts',
+        name: 'Stale local voice',
+        provider: 'doubao-speech',
+        languages: [],
+      },
+    })
+
+    expect(session).toMatchObject({
+      model: 'seed-icl-2.0',
+      voice: 'S_card_clone_voice',
+    })
+    expect(mocks.createWebSocketFactory).toHaveBeenCalledWith(expect.objectContaining({
+      resourceId: 'seed-icl-2.0',
+      speaker: 'S_card_clone_voice',
+    }))
+  })
+
   it('uses the Eventa session for a complete speech preview', async () => {
     const provider = await providerDoubaoSpeech.createProvider(config) as SpeechProviderWithExtraOptions<string, Record<string, unknown>>
     const request = provider.speech('seed-tts-2.0')

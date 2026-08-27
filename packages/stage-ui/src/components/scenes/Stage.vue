@@ -198,7 +198,7 @@ function resetAssistantSpeechSurface(source: string) {
 
 const { activeCard } = storeToRefs(useAiriCardStore())
 const speechStore = useSpeechStore()
-const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
+const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, activeSpeechVoiceId, pitch } = storeToRefs(speechStore)
 const activeCardId = computed(() => activeCard.value?.name ?? 'default')
 const speechRuntimeStore = useSpeechRuntimeStore()
 const backgroundStore = useBackgroundStore()
@@ -706,6 +706,7 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
     const providerSession = createProviderSession({
       config,
       model: activeSpeechModel.value as string | undefined,
+      voiceId: activeSpeechVoiceId.value,
       voice: activeSpeechVoice.value,
     })
     if (!providerSession)
@@ -884,7 +885,7 @@ chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
 // drop is acceptable — we don't try to fork-replay text into a new
 // adapter with potentially different voice/model).
 watch(
-  [activeSpeechProvider, () => activeSpeechVoice.value?.id, activeSpeechModel],
+  [activeSpeechProvider, activeSpeechVoiceId, activeSpeechModel],
   ([provider, voiceId, model], [prevProvider, prevVoiceId, prevModel]) => {
     if (!currentSession)
       return
