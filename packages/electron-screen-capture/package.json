@@ -35,7 +35,7 @@
   },
   "peerDependencies": {
     "@guiiai/logg": ">=1 <2",
-    "electron": ">=40 <42",
+    "electron": ">=40 <44",
     "vue": ">=3"
   },
   "dependencies": {

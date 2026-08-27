@@ -272,7 +272,7 @@ catalog:
   drizzle-kit: ^0.31.10
   drizzle-orm: ^0.45.2
   drizzle-valibot: ^0.4.2
-  electron: ^41.10.6
+  electron: ^43.4.1
   electron-builder: ^26.15.3
   electron-click-drag-plugin: ^2.0.2
   electron-updater: ^6.8.9
@@ -309,7 +309,7 @@ catalog:
   jszip: ^3.10.1
   knip: ^6.32.2
   kokoro-js: ^1.2.1
-  kysely: 0.29.4
+  kysely: 0.29.5
   less: ^4.9.0
   libsodium-wrappers: ^0.8.4
   localforage: ^1.10.0
@@ -457,6 +457,8 @@ allowBuilds:
   '@ax-llm/ax': false
   '@discordjs/opus': true
   '@ffmpeg-installer/darwin-arm64': true
+  '@ffmpeg-installer/darwin-x64': true
+  '@ffmpeg-installer/linux-arm64': true
   '@ffmpeg-installer/linux-x64': true
   '@napi-rs/image': true
   '@parcel/watcher': true
