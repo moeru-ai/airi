@@ -529,6 +529,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
     initialized = true
     const providerId = activeTranscriptionProvider.value
+    const initializationRequestId = nextDestinationModelRequestId
     if (!providerId)
       return
 
@@ -536,6 +537,9 @@ export const useHearingStore = defineStore('hearing-store', () => {
       if (!providerStore.getProvider(providerId))
         await providersStore.initializeProvider(providerId)
       await providersStore.validateProvider(providerId)
+      if (initializationRequestId !== nextDestinationModelRequestId || activeTranscriptionProvider.value !== providerId)
+        return
+
       applyActiveTranscriptionModel(providerId, funASRConfiguredModel(providerId))
       await loadModelsForProvider(providerId)
       return
@@ -639,6 +643,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
   })
 
   async function resetState() {
+    nextDestinationModelRequestId++
+    pendingDestinationModelRequest = undefined
     activeTranscriptionProvider.reset()
     activeTranscriptionModel.reset()
     activeCustomModelName.reset()

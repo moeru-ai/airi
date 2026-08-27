@@ -88,9 +88,14 @@ const {
   isValidating,
   isValid,
   validationMessage,
-  handleResetSettings,
+  handleResetSettings: resetProviderSettings,
   forceValid,
 } = useProviderValidation(providerId)
+
+async function handleResetFunASRSettings() {
+  resetProviderSettings()
+  await modelUpdateQueue.update(model.value)
+}
 
 onMounted(() => providersStore.initializeProvider(providerId))
 </script>
@@ -107,7 +112,7 @@ onMounted(() => providersStore.initializeProvider(providerId))
         <ProviderBasicSettings
           :title="t('settings.pages.providers.common.section.basic.title')"
           :description="t('settings.pages.providers.common.section.basic.description')"
-          :on-reset="handleResetSettings"
+          :on-reset="handleResetFunASRSettings"
         >
           <FieldCombobox
             :model-value="model"

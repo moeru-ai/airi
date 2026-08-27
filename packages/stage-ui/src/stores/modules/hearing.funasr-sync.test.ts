@@ -835,4 +835,72 @@ describe('funASR Hearing model synchronization', () => {
     expect(providerConfigStore.getProviderConfig(providerId)?.model).toBe('leader-model')
     stopSubscription()
   })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3873768181
+  it('does not overwrite a provider selected while startup validation is pending (GitHub #2122)', async () => {
+    persistedSettings.set('settings/hearing/active-provider', 'funasr-audio-transcription')
+    persistedSettings.set('settings/hearing/active-model', 'sensevoice')
+
+    const providersStore = useProviderStore()
+    const validateProvider = providersStore.validateProvider.bind(providersStore)
+    let releaseValidation!: () => void
+    const validationGate = new Promise<void>((resolve) => {
+      releaseValidation = resolve
+    })
+    const validationSpy = vi.spyOn(providersStore, 'validateProvider').mockImplementation(async (providerId, options) => {
+      if (providerId !== 'funasr-audio-transcription')
+        return validateProvider(providerId, options)
+
+      await validationGate
+      return true
+    })
+
+    const hearingStore = useHearingStore()
+    const initialization = hearingStore.initialize()
+    await vi.waitFor(() => expect(validationSpy).toHaveBeenCalledWith('funasr-audio-transcription'))
+
+    await hearingStore.setActiveTranscriptionProvider('openai-audio-transcription', 'whisper-1')
+    releaseValidation()
+    await initialization
+
+    expect(hearingStore.activeTranscriptionProvider).toBe('openai-audio-transcription')
+    expect(hearingStore.activeTranscriptionModel).toBe('whisper-1')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3873768199
+  it('does not restore a provider selection that finishes after module reset (GitHub #2122)', async () => {
+    const providersStore = useProviderStore()
+    const hearingStore = useHearingStore()
+    const providerId = 'browser-web-speech-api'
+    const fetchModelsForProvider = providersStore.fetchModelsForProvider.bind(providersStore)
+    type ListedModels = Awaited<ReturnType<typeof fetchModelsForProvider>>
+    let resolveModels!: (models: ListedModels) => void
+    const modelRequest = new Promise<ListedModels>((resolve) => {
+      resolveModels = resolve
+    })
+
+    vi.spyOn(providersStore, 'fetchModelsForProvider').mockImplementation(async (requestedProviderId) => {
+      if (requestedProviderId !== providerId)
+        return fetchModelsForProvider(requestedProviderId)
+      return modelRequest
+    })
+
+    await hearingStore.setActiveTranscriptionProvider('funasr-audio-transcription')
+    const selection = hearingStore.setActiveTranscriptionProvider(providerId)
+    await vi.waitFor(() => expect(providersStore.fetchModelsForProvider).toHaveBeenCalledWith(providerId))
+
+    await hearingStore.resetState()
+    resolveModels([{
+      id: 'en-US',
+      name: 'English (United States)',
+      provider: providerId,
+      description: '',
+      contextLength: 0,
+      deprecated: false,
+    }])
+    await selection
+
+    expect(hearingStore.activeTranscriptionProvider).toBe('')
+    expect(hearingStore.activeTranscriptionModel).toBe('')
+  })
 })
