@@ -220,7 +220,7 @@ export function mapForBreakpoints<
   basedOn: number,
   sizes: { [key in keyof B]?: number } | number,
   options?: { breakpoints: B },
-) {
+): number {
   if (typeof sizes === 'number') {
     return sizes
   }
@@ -244,7 +244,7 @@ export function mapForBreakpoints<
     .sort((a, b) => b.min - a.min) // Sort descending by min width
 
   const fallback = sortedSizes.find(s => s.min <= basedOn)
-  if (fallback) {
+  if (fallback?.value != null) {
     return fallback.value
   }
 
