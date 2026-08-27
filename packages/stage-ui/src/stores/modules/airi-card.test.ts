@@ -1,3 +1,4 @@
+import type { VoiceInfo } from '../providers/provider'
 import type { AiriCard } from './airi-card'
 
 import { createPinia, setActivePinia } from 'pinia'
@@ -71,7 +72,7 @@ vi.mock('./speech', async () => {
       state: () => ({
         activeSpeechProvider: 'mock-speech-provider',
         activeSpeechModel: 'mock-speech-model',
-        activeSpeechVoice: undefined,
+        activeSpeechVoice: undefined as VoiceInfo | undefined,
         activeSpeechVoiceId: 'mock-speech-voice',
       }),
     }),
@@ -265,6 +266,56 @@ describe('airi-card store', () => {
       model: 'seed-tts-2.0',
       voice_id: 'zh_female_vv_uranus_bigtts',
     })).resolves.toBe(false)
+  })
+
+  it('clears the derived voice when activating a card with another voice', async () => {
+    // ROOT CAUSE:
+    //
+    // Card activation updated the synchronized provider, model, and voice ID,
+    // but it retained the renderer-local VoiceInfo from the previous card.
+    // Session creation preferred that stale object and used the wrong voice.
+    //
+    // We fixed this by applying every card speech tuple through the same
+    // transition that invalidates incompatible renderer-local voice data.
+    // https://github.com/moeru-ai/airi/pull/2382#discussion_r3875981233
+    const speechStore = useSpeechStore()
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+
+    speechStore.$patch({
+      activeSpeechProvider: 'kokoro-local',
+      activeSpeechModel: 'kokoro-82m',
+      activeSpeechVoiceId: 'af_heart',
+    })
+    speechStore.activeSpeechVoice = {
+      id: 'af_heart',
+      name: 'Heart',
+      provider: 'kokoro-local',
+      languages: [{ code: 'en', title: 'English' }],
+    }
+
+    const cloneCardId = await cardStore.addCard({
+      name: 'Doubao clone voice',
+      version: '1.0.0',
+      description: 'Card with a cloned Doubao voice.',
+      extensions: {
+        airi: {
+          modules: {
+            consciousness: { provider: 'mock-consciousness-provider', model: 'mock-consciousness-model' },
+            vision: { provider: 'mock-vision-provider', model: 'mock-vision-model' },
+            speech: { provider: 'doubao-speech', model: 'seed-icl-2.0', voice_id: 'clone-voice' },
+          },
+          agents: {},
+        },
+      },
+    }, 'scratch')
+
+    await cardStore.activateCard(cloneCardId)
+
+    expect(speechStore.activeSpeechProvider).toBe('doubao-speech')
+    expect(speechStore.activeSpeechModel).toBe('seed-icl-2.0')
+    expect(speechStore.activeSpeechVoiceId).toBe('clone-voice')
+    expect(speechStore.activeSpeechVoice).toBeUndefined()
   })
 
   // ROOT CAUSE:

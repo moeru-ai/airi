@@ -38,6 +38,8 @@ function resolveSystemPrompt(card: AiriCard | undefined): string {
   return systemPromptParts.join('\n\n')
 }
 
+type SpeechSelection = Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>
+
 export const useAiriCardStore = defineStore('airi-card', () => {
   const { t } = useI18n()
 
@@ -57,6 +59,35 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       stageModel: useSettingsStageModel(),
       vision: useVisionStore(),
     }
+  }
+
+  function applyRuntimeSpeechSelection(speech: ReturnType<typeof useSpeechStore>, selection: SpeechSelection) {
+    const providerChanged = speech.activeSpeechProvider !== selection.provider
+    const modelChanged = speech.activeSpeechModel !== selection.model
+    const voiceChanged = speech.activeSpeechVoiceId !== selection.voice_id
+    const selectionChanged = providerChanged || modelChanged || voiceChanged
+
+    if (selectionChanged) {
+      speech.$patch({
+        activeSpeechProvider: selection.provider,
+        activeSpeechModel: selection.model,
+        activeSpeechVoiceId: selection.voice_id,
+      })
+    }
+
+    // The tuple above is synchronized source-of-truth state. VoiceInfo is a
+    // renderer-local catalog projection, so invalidate it whenever its owner
+    // or ID no longer matches and let the local voice watcher rebuild it.
+    const activeVoice = speech.activeSpeechVoice
+    const derivedVoiceIsStale = activeVoice !== undefined && (
+      selectionChanged
+      || activeVoice.provider !== selection.provider
+      || activeVoice.id !== selection.voice_id
+    )
+    if (derivedVoiceIsStale)
+      speech.activeSpeechVoice = undefined
+
+    return selectionChanged || derivedVoiceIsStale
   }
 
   /**
@@ -167,7 +198,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return updateActiveCardModules(() => ({ vision }))
   }
 
-  async function updateActiveCardSpeech(speech: Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>) {
+  async function updateActiveCardSpeech(speech: SpeechSelection) {
     // See updateActiveCardConsciousness for why the card is not re-applied here.
     return updateActiveCardModules(({ modules }) => ({
       speech: {
@@ -183,21 +214,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
    * This leader-owned command commits both copies together. Replicated speech
    * snapshots must not be interpreted as new card-edit commands by a watcher.
    */
-  async function selectActiveCardSpeech(selection: Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>) {
+  async function selectActiveCardSpeech(selection: SpeechSelection) {
     const { speech } = useRuntimeModuleStores()
-    const providerChanged = speech.activeSpeechProvider !== selection.provider
-    const modelChanged = speech.activeSpeechModel !== selection.model
-    const voiceChanged = speech.activeSpeechVoiceId !== selection.voice_id
-
-    if (providerChanged || modelChanged || voiceChanged) {
-      speech.$patch({
-        activeSpeechProvider: selection.provider,
-        activeSpeechModel: selection.model,
-        activeSpeechVoiceId: selection.voice_id,
-      })
-    }
-    if ((providerChanged || modelChanged || voiceChanged || !selection.voice_id) && speech.activeSpeechVoice !== undefined)
-      speech.activeSpeechVoice = undefined
+    const runtimeChanged = applyRuntimeSpeechSelection(speech, selection)
 
     const cardChanged = updateActiveCardModules(({ modules }) => ({
       speech: {
@@ -206,7 +225,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       },
     }))
 
-    return providerChanged || modelChanged || voiceChanged || cardChanged
+    return runtimeChanged || cardChanged
   }
 
   /**
@@ -470,12 +489,13 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       vision.activeModel = visionSettings.model
 
     const speechSettings = extension.modules?.speech
-    if (speechSettings?.provider && speech.activeSpeechProvider !== speechSettings.provider)
-      speech.activeSpeechProvider = speechSettings.provider
-    if (speechSettings?.model && speech.activeSpeechModel !== speechSettings.model)
-      speech.activeSpeechModel = speechSettings.model
-    if (speechSettings?.voice_id && speech.activeSpeechVoiceId !== speechSettings.voice_id)
-      speech.activeSpeechVoiceId = speechSettings.voice_id
+    if (speechSettings) {
+      applyRuntimeSpeechSelection(speech, {
+        provider: speechSettings.provider || speech.activeSpeechProvider,
+        model: speechSettings.model || speech.activeSpeechModel,
+        voice_id: speechSettings.voice_id || speech.activeSpeechVoiceId,
+      })
+    }
 
     // Apply body model if the card has a display model configured.
     // NOTICE: must set via store property directly (not storeToRefs .value) so Pinia's

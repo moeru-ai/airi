@@ -289,27 +289,24 @@ export const useSpeechStore = defineStore('speech', () => {
     uiLocale: locale,
   })
 
-  watch([activeSpeechVoiceId, availableVoices], ([voiceId, voices]) => {
-    if (!voiceId)
-      return
-
+  watch([activeSpeechProvider, activeSpeechVoiceId, availableVoices], ([provider, voiceId, voices]) => {
     let nextVoice: VoiceInfo | undefined
-    if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
+    if (voiceId && provider === 'openai-compatible-audio-speech') {
       nextVoice = {
         id: voiceId,
         name: voiceId,
         description: voiceId,
         previewURL: '',
         languages: [{ code: 'en', title: 'English' }],
-        provider: activeSpeechProvider.value,
+        provider,
         gender: 'neutral',
       }
     }
-    else {
-      nextVoice = voices[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
+    else if (voiceId) {
+      nextVoice = voices[provider]?.find(voice => voice.id === voiceId)
     }
 
-    if (!nextVoice || isEqual(activeSpeechVoice.value, nextVoice))
+    if (isEqual(activeSpeechVoice.value, nextVoice))
       return
 
     activeSpeechVoice.value = nextVoice
