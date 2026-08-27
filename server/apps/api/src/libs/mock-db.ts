@@ -1,7 +1,7 @@
 import type { Database } from './db'
 
 import { PGlite } from '@electric-sql/pglite'
-import { vector } from '@electric-sql/pglite/vector'
+import { vector } from '@electric-sql/pglite-pgvector'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/pglite'
 import { vi } from 'vitest'
