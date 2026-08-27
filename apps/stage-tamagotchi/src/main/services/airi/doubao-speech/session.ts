@@ -135,13 +135,43 @@ function assertSuccessfulMessage(message: ReturnType<typeof decodeDoubaoSpeechMe
   throw new Error(`Doubao speech ${code}: ${failureMessage(message.payload, 'The upstream request failed.')}${diagnostic}`)
 }
 
+// An active synthesis stream sends audio or control events continuously. This
+// deadline releases previews and sessions when the upstream socket stays open
+// without making progress.
+const upstreamEventInactivityTimeoutMs = 30_000
+
+async function readUpstreamEvent(
+  incoming: AsyncIterator<Uint8Array>,
+  cancelUpstream: () => void,
+  inputFailure?: Promise<never>,
+) {
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timeoutHandle = setTimeout(() => {
+      cancelUpstream()
+      reject(new Error('Doubao speech received no upstream event for 30 seconds.'))
+    }, upstreamEventInactivityTimeoutMs)
+  })
+
+  try {
+    return await Promise.race(inputFailure
+      ? [incoming.next(), inputFailure, timeout]
+      : [incoming.next(), timeout])
+  }
+  finally {
+    if (timeoutHandle !== undefined)
+      clearTimeout(timeoutHandle)
+  }
+}
+
 async function readExpectedEvent(
   incoming: AsyncIterator<Uint8Array>,
   expectedEvent: number,
   expectedType: number,
+  cancelUpstream: () => void,
   logId?: string,
 ) {
-  const next = await incoming.next()
+  const next = await readUpstreamEvent(incoming, cancelUpstream)
   if (next.done)
     throw new Error(`Doubao speech connection closed before event ${expectedEvent}.`)
 
@@ -251,6 +281,7 @@ export async function* runDoubaoSpeechSession(
       incoming,
       DoubaoSpeechEvent.ConnectionStarted,
       DoubaoSpeechMessageType.FullServerResponse,
+      cancelUpstream,
       transport.logId,
     )
 
@@ -263,6 +294,7 @@ export async function* runDoubaoSpeechSession(
       incoming,
       DoubaoSpeechEvent.SessionStarted,
       DoubaoSpeechMessageType.FullServerResponse,
+      cancelUpstream,
       transport.logId,
     )
     if (started.sessionId && started.sessionId !== sessionId)
@@ -282,7 +314,7 @@ export async function* runDoubaoSpeechSession(
     void inputPump.catch(() => {})
 
     for (;;) {
-      const next = await Promise.race([incoming.next(), inputFailure])
+      const next = await readUpstreamEvent(incoming, cancelUpstream, inputFailure)
       if (next.done)
         throw new Error('Doubao speech connection closed before ConnectionFinished.')
 

@@ -1,6 +1,6 @@
 import type { DoubaoSpeechRequest, DoubaoSpeechSessionConfig } from '@proj-airi/stage-shared/doubao-speech'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { DoubaoSpeechEvent, DoubaoSpeechMessageType } from './protocol'
 import { runDoubaoSpeechSession } from './session'
@@ -93,5 +93,71 @@ describe('doubao speech session flow', () => {
       { type: 'audio', data: Uint8Array.from([1, 2, 3]) },
       { type: 'control', event: 'session.finished', payload: { usage: { characters: 2 } } },
     ])
+  })
+
+  // ROOT CAUSE:
+  //
+  // The session waited forever when Doubao kept the WebSocket open but stopped
+  // sending events. Preview calls do not always provide an abort signal, so the
+  // loading state also remained active forever.
+  //
+  // https://github.com/moeru-ai/airi/pull/2382#discussion_r3875228116
+  //
+  // We fixed this by applying an inactivity deadline to each upstream event
+  // wait. The deadline cancels the session and closes its transport.
+  it('cancels and closes a session after the upstream event deadline', async () => {
+    vi.useFakeTimers()
+    try {
+      const sent: Uint8Array[] = []
+      const close = vi.fn()
+      const events = [
+        serverEvent(DoubaoSpeechEvent.ConnectionStarted, new Uint8Array()),
+        serverEvent(DoubaoSpeechEvent.SessionStarted, new Uint8Array()),
+      ]
+      const incoming: AsyncIterable<Uint8Array> = {
+        [Symbol.asyncIterator]() {
+          return {
+            next() {
+              const value = events.shift()
+              return value
+                ? Promise.resolve({ done: false as const, value })
+                : new Promise<IteratorResult<Uint8Array>>(() => {})
+            },
+          }
+        },
+      }
+
+      const session = runDoubaoSpeechSession(requestStream(), async () => ({
+        incoming,
+        close,
+        send: frame => sent.push(frame),
+      }))
+
+      await expect(session.next()).resolves.toMatchObject({
+        done: false,
+        value: { type: 'control', event: 'session.started' },
+      })
+
+      let failure: unknown
+      let settled = false
+      void session.next().then(() => {
+        settled = true
+      }).catch((error) => {
+        failure = error
+        settled = true
+      })
+      await vi.runAllTimersAsync()
+      await Promise.resolve()
+
+      expect(settled).toBe(true)
+      expect(failure).toEqual(expect.objectContaining({
+        message: expect.stringContaining('no upstream event'),
+      }))
+      expect(sent.map(clientEvent)).toContain(DoubaoSpeechEvent.CancelSession)
+      expect(close).toHaveBeenCalled()
+    }
+    finally {
+      vi.useRealTimers()
+    }
   })
 })

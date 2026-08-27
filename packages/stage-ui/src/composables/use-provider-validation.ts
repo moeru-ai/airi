@@ -108,6 +108,13 @@ export function useProviderValidation(providerId: string, options: UseProviderVa
     return automaticValidationGeneration
   }
 
+  let manualTestGeneration = 0
+
+  function invalidateManualTest() {
+    manualTestGeneration++
+    return manualTestGeneration
+  }
+
   // Manual chat ping check state (settings pages only)
   const hasManualValidators = computedAsync(
     async () => await providersStore.hasManualProviderValidators(providerId),
@@ -198,6 +205,7 @@ export function useProviderValidation(providerId: string, options: UseProviderVa
     if (!providerMetadata.value)
       return
 
+    const testGeneration = invalidateManualTest()
     isManualTesting.value = true
     manualTestMessage.value = ''
     const startedAt = performance.now()
@@ -207,6 +215,9 @@ export function useProviderValidation(providerId: string, options: UseProviderVa
       const result = await providersStore.validateProviderConfig(providerId, configToValidate(), {
         onlyChatPingCheck: true,
       })
+      if (testGeneration !== manualTestGeneration)
+        return
+
       manualTestPassed.value = result.valid
       if (result.valid) {
         trackProviderConnectionTestCompleted({
@@ -226,6 +237,9 @@ export function useProviderValidation(providerId: string, options: UseProviderVa
       }
     }
     catch (error) {
+      if (testGeneration !== manualTestGeneration)
+        return
+
       manualTestPassed.value = false
       manualTestMessage.value = errorMessageFrom(error) ?? 'Generic error (e56ae24f)'
       trackProviderConnectionTestCompleted({
@@ -236,7 +250,8 @@ export function useProviderValidation(providerId: string, options: UseProviderVa
       })
     }
     finally {
-      isManualTesting.value = false
+      if (testGeneration === manualTestGeneration)
+        isManualTesting.value = false
     }
   }
 
@@ -283,27 +298,33 @@ export function useProviderValidation(providerId: string, options: UseProviderVa
 
   watch(credentialsSignature, () => {
     const scheduledGeneration = invalidateAutomaticValidation()
+    invalidateManualTest()
     debouncedValidateConfiguration(scheduledGeneration)
     // Reset manual test state when credentials actually change
+    isManualTesting.value = false
     manualTestPassed.value = false
     manualTestMessage.value = ''
   })
 
   function handleResetSettings() {
     invalidateAutomaticValidation()
+    invalidateManualTest()
     const defaultOptions = providerMetadata.value?.defaultConfig ?? {}
     providers.value[providerId] = { ...defaultOptions }
     isValid.value = false
     validationMessage.value = ''
     isValidating.value = 0
+    isManualTesting.value = false
     manualTestPassed.value = false
     manualTestMessage.value = ''
   }
 
   function forceValid() {
     invalidateAutomaticValidation()
+    invalidateManualTest()
     isValid.value = true
     validationMessage.value = ''
+    isManualTesting.value = false
     manualTestPassed.value = true
     manualTestMessage.value = ''
     providersStore.forceProviderConfigured(providerId)

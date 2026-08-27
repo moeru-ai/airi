@@ -175,6 +175,51 @@ describe('useProviderValidation', () => {
     expect(isValid.value).toBe(false)
   })
 
+  // ROOT CAUSE:
+  //
+  // A manual connection test kept running after credentials changed. Its old
+  // result could restore the success state for credentials that it never
+  // tested.
+  //
+  // https://github.com/moeru-ai/airi/pull/2382#discussion_r3875228109
+  //
+  // We fixed this by giving manual tests a separate generation. Credential
+  // changes invalidate the pending result immediately.
+  it('ignores a manual test result after the configuration changes', async () => {
+    const configStore = useProviderConfigStore()
+    const providerStore = useProviderStore()
+
+    configStore.ensureProvider('doubao-speech', 'doubao-speech', {
+      apiKey: 'older-api-key',
+      speaker: 'zh_female_cancan_mars_bigtts',
+    })
+
+    type ValidationResult = Awaited<ReturnType<typeof providerStore.validateProviderConfig>>
+    let resolveManualValidation!: (value: ValidationResult) => void
+    const manualValidation = new Promise<ValidationResult>((resolve) => {
+      resolveManualValidation = resolve
+    })
+    const validateSpy = vi.spyOn(providerStore, 'validateProviderConfig')
+      .mockImplementation(async () => manualValidation)
+
+    const validation = useProviderValidation('doubao-speech')
+    await vi.waitFor(() => {
+      expect(validation.providerMetadata.value).toBeDefined()
+    })
+
+    const pendingTest = validation.runManualTest()
+    await vi.waitFor(() => {
+      expect(validateSpy).toHaveBeenCalledTimes(1)
+    })
+
+    const config = configStore.getProviderConfig('doubao-speech')!
+    config.apiKey = 'newer-api-key'
+    resolveManualValidation({ errors: [], reason: '', valid: true })
+    await pendingTest
+
+    expect(validation.manualTestPassed.value).toBe(false)
+  })
+
   it('resets status to unconfigured by default when validation is skipped', async () => {
     const configStore = useProviderConfigStore()
     useProviderStore()
