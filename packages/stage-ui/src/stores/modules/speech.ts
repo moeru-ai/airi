@@ -15,6 +15,7 @@ import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
 
 import { getDefaultSpeechModel, getDefaultStreamingModel, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, setupOfficialSpeechAutoPick } from '../../libs/providers/providers/official'
+import { createProviderVoiceRequestKey } from '../../libs/providers/voice-request-key'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 
@@ -153,10 +154,16 @@ export const useSpeechStore = defineStore('speech', () => {
       return []
     }
 
-    const requestKey = `${provider}\0${model ?? ''}`
+    const providerConfig = providerStore.getProviderConfig(provider) ?? {}
+    const requestKey = createProviderVoiceRequestKey(provider, model, providerConfig)
     const pendingRequest = voiceLoadPromises.get(requestKey)
     if (pendingRequest)
       return await pendingRequest
+
+    function isCurrentRequest() {
+      const currentConfig = providerStore.getProviderConfig(provider) ?? {}
+      return requestKey === createProviderVoiceRequestKey(provider, model, currentConfig)
+    }
 
     updateVoiceLoadCount(provider, 1)
     speechProviderError.value = null
@@ -164,6 +171,9 @@ export const useSpeechStore = defineStore('speech', () => {
     const request = (async () => {
       try {
         const voices = await providersStore.listProviderVoices(provider, model)
+        if (!isCurrentRequest())
+          return voices
+
         // Reassign to trigger reactivity when adding/updating provider entries.
         availableVoices.value = {
           ...availableVoices.value,
@@ -172,6 +182,9 @@ export const useSpeechStore = defineStore('speech', () => {
         return voices
       }
       catch (error) {
+        if (!isCurrentRequest())
+          return []
+
         console.error(`Error fetching voices for ${provider}:`, error)
         speechProviderError.value = errorMessageFrom(error) ?? 'Unknown error'
         return []

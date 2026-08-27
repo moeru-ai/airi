@@ -166,6 +166,58 @@ describe('speech store helpers', () => {
     await vi.waitFor(() => expect(speechStore.isLoadingSpeechProviderVoices).toBe(false))
   })
 
+  // https://github.com/moeru-ai/airi/pull/2382#discussion_r3876290830
+  // ROOT CAUSE:
+  //
+  // The voice-load key contained only the provider and model. A request that
+  // used old credentials remained reusable after the Provider configuration
+  // changed. Its result could then replace the new account's voice catalog.
+  //
+  // We fixed this by adding the Provider configuration to the request identity.
+  // A completed request updates the catalog only if that identity is current.
+  it('starts a new voice load after Provider configuration changes and ignores the stale result', async () => {
+    const providerConfigStore = useProviderConfigStore()
+    const providersStore = useProviderStore()
+    const speechStore = useSpeechStore()
+    await vi.waitFor(() => expect(speechStore.isLoadingSpeechProviderVoices).toBe(false))
+
+    providerConfigStore.providers.elevenlabs = {
+      id: 'elevenlabs',
+      definitionId: 'elevenlabs',
+      config: { apiKey: 'old-key' },
+      status: 'configured',
+      configuredBy: 'user',
+    }
+
+    const oldVoices = [{ id: 'old-voice', name: 'Old voice', provider: 'elevenlabs', languages: [] }]
+    const newVoices = [{ id: 'new-voice', name: 'New voice', provider: 'elevenlabs', languages: [] }]
+    let resolveOldVoices: ((voices: typeof oldVoices) => void) | undefined
+    let resolveNewVoices: ((voices: typeof newVoices) => void) | undefined
+    const oldRequest = new Promise<typeof oldVoices>((resolve) => {
+      resolveOldVoices = resolve
+    })
+    const newRequest = new Promise<typeof newVoices>((resolve) => {
+      resolveNewVoices = resolve
+    })
+    const listVoices = vi.spyOn(providersStore, 'listProviderVoices')
+      .mockImplementationOnce(async () => await oldRequest)
+      .mockImplementationOnce(async () => await newRequest)
+
+    const oldLoad = speechStore.loadVoicesForProvider('elevenlabs', 'eleven_multilingual_v2')
+    providerConfigStore.providers.elevenlabs.config = { apiKey: 'new-key' }
+    const newLoad = speechStore.loadVoicesForProvider('elevenlabs', 'eleven_multilingual_v2')
+
+    expect(listVoices).toHaveBeenCalledTimes(2)
+
+    resolveNewVoices?.(newVoices)
+    await newLoad
+    expect(speechStore.availableVoices.elevenlabs).toEqual(newVoices)
+
+    resolveOldVoices?.(oldVoices)
+    await oldLoad
+    expect(speechStore.availableVoices.elevenlabs).toEqual(newVoices)
+  })
+
   /**
    * @example
    * speechStore.resolveSpeechInput({ text, voice, providerConfig: { voice: 'plain' } })
