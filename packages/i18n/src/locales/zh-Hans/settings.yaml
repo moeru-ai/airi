@@ -603,6 +603,10 @@ pages:
             show_more: 收起
             subtitle: 选择一个默认模型
             title: 模型
+          model-options:
+            title: 模型选项
+            thinking:
+              label: 思考
       title: 意识
     description: 思维，视觉，言语综合，游戏等
     gaming-factorio:
@@ -897,6 +901,10 @@ pages:
               如果你想要继续，你仍然可以保存当前的配置。
             action: 仍要保存
         config:
+          loading: 正在加载服务来源设置……
+          load-error: 无法加载服务来源设置。
+          save-error: 无法保存服务来源设置。
+          retry: 重试
           common:
             fields:
               field:
@@ -1024,6 +1032,14 @@ pages:
         转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
     description: LLM，语音合成，语音识别服务来源等
     provider:
+      apple-speech-transcription:
+        title: Apple 语音识别
+        description: 使用 macOS 26 或更高版本的设备端语音识别，无需 API 密钥。
+        fields:
+          locale:
+            label: 语言区域
+            description: 使用 Apple 语音识别支持的完整语言区域代码，例如 en-US 或 zh-CN。
+            placeholder: zh-CN
       app-local-audio-transcription:
         title: 应用内（本地）
         description: https://github.com/moeru-ai/xsai-transformers
@@ -1476,7 +1492,7 @@ pages:
             section:
               performance-visualizer:
                 title: 性能可视化工具
-                description: 切换 FPS/长任务/内存叠加
+                description: 显示 FPS、帧时间、长任务和浏览器支持的内存指标
               markdown-stress:
                 title: Markdown Stress
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力

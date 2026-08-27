@@ -1,3 +1,5 @@
+import type { ChatRequestOptions } from '../../types'
+
 import { createZai } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
@@ -23,6 +25,7 @@ export const providerZai = defineProvider<ZaiConfig>({
   description: 'z.ai',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.zai.description'),
   tasks: ['chat'],
+  capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
   icon: 'i-lobe-icons:zai',
 
   createProviderConfig: ({ t }) => zaiConfigSchema.extend({
@@ -39,7 +42,17 @@ export const providerZai = defineProvider<ZaiConfig>({
     }),
   }),
   createProvider(config) {
-    return createZai(config.apiKey, config.baseUrl)
+    const provider = createZai(config.apiKey, config.baseUrl)
+    return {
+      ...provider,
+      chat(model: string, options?: ChatRequestOptions) {
+        const request = provider.chat(model)
+        if (!options?.reasoning)
+          return request
+
+        return { ...request, thinking: { type: options.reasoning } }
+      },
+    }
   },
 
   validationRequiredWhen(config) {

@@ -1,4 +1,7 @@
+import type { ChatProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { JsonSchema } from 'xsschema'
+
+import type { ChatRequestOptions } from '../../types'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -33,6 +36,19 @@ describe('providerOpenRouterAI tool schemas', () => {
     vi.unstubAllGlobals()
   })
 
+  it('maps AIRI reasoning modes to OpenRouter request fields', async () => {
+    const provider = await providerOpenRouterAI.createProvider({
+      apiKey: 'test-key',
+    }) as ChatProviderWithExtraOptions<string, ChatRequestOptions>
+
+    expect(provider.chat('openai/gpt-test', { reasoning: 'disabled' })).toMatchObject({
+      reasoning: { effort: 'none' },
+    })
+    expect(provider.chat('openai/gpt-test', { reasoning: 'enabled' })).toMatchObject({
+      reasoning: { effort: 'medium' },
+    })
+  })
+
   it('keeps the canonical nullable anyOf when it sends a chat request', async () => {
     const tools = await createSparkCommandTool({
       sendSparkCommand: () => undefined,
@@ -40,7 +56,7 @@ describe('providerOpenRouterAI tool schemas', () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response('{}'))
     vi.stubGlobal('fetch', fetchMock)
 
-    const provider = providerOpenRouterAI.createProvider({
+    const provider = await providerOpenRouterAI.createProvider({
       apiKey: 'test-key',
     })
     if (!('chat' in provider))

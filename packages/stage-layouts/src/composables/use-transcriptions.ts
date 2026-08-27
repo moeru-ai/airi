@@ -112,7 +112,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
 
       // Initialize the provider in the providers store first
       try {
-        providersStore.initializeProvider('browser-web-speech-api')
+        await providersStore.initializeProvider('browser-web-speech-api')
         hearingStore.activeTranscriptionProvider = 'browser-web-speech-api'
       }
       catch (err) {

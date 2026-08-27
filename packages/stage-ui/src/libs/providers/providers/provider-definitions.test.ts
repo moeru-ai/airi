@@ -3,6 +3,7 @@ import type { ComposerTranslation } from 'vue-i18n'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
+import { providerAliyunNlsTranscription } from './aliyun-nls'
 import { providerBrowserWebSpeechApi } from './browser-web-speech-api'
 import { providerElevenLabs } from './elevenlabs'
 import {
@@ -53,8 +54,8 @@ describe('migrated provider definitions', () => {
       expect(getDefinedProvider(providerId), providerId).toBeDefined()
   })
 
-  it('creates the no-op speech provider through ProviderDefinition', () => {
-    const provider = providerSpeechNoop.createProvider({})
+  it('creates the no-op speech provider through ProviderDefinition', async () => {
+    const provider = await providerSpeechNoop.createProvider({})
 
     expect(provider).toHaveProperty('speech')
     expect('speech' in provider && provider.speech('unused')).toMatchObject({
@@ -76,8 +77,28 @@ describe('migrated provider definitions', () => {
     })
   })
 
+  it('uses all Aliyun NLS credentials to require automatic validation', async () => {
+    // ROOT CAUSE:
+    //
+    // The settings composable used a fixed list of common credential fields.
+    // This list did not include the three Aliyun NLS credential fields.
+    // The provider definition now owns the automatic validation condition.
+    expect(await providerAliyunNlsTranscription.validationRequiredWhen?.({
+      accessKeyId: 'test-access-key-id',
+      accessKeySecret: 'test-access-key-secret',
+      appKey: '',
+      region: 'cn-shanghai',
+    })).toBe(false)
+    expect(await providerAliyunNlsTranscription.validationRequiredWhen?.({
+      accessKeyId: 'test-access-key-id',
+      accessKeySecret: 'test-access-key-secret',
+      appKey: 'test-app-key',
+      region: 'cn-shanghai',
+    })).toBe(true)
+  })
+
   it('keeps the local audio base URL validation in the definition', async () => {
-    const validator = providerAppLocalAudioSpeech.validators?.validateConfig?.[0]({ t: translate })
+    const validator = await providerAppLocalAudioSpeech.validators?.validateConfig?.[0]({ t: translate })
 
     const missing = await validator?.validator({}, { t: translate })
     const configured = await validator?.validator({ baseUrl: 'http://localhost:1234/v1/' }, { t: translate })
@@ -88,7 +109,7 @@ describe('migrated provider definitions', () => {
   })
 
   it('describes Web Speech API streaming support without runtime state', async () => {
-    const defaults = z.parse(providerBrowserWebSpeechApi.createProviderConfig({ t: translate }), {})
+    const defaults = z.parse(await providerBrowserWebSpeechApi.createProviderConfig({ t: translate }), {})
 
     expect(defaults).toEqual({
       language: 'en-US',
@@ -106,8 +127,9 @@ describe('migrated provider definitions', () => {
   })
 
   it('keeps ElevenLabs configuration and model discovery in the definition', async () => {
-    const defaults = z.parse(providerElevenLabs.createProviderConfig({ t: translate }), { apiKey: 'test' })
-    const models = await providerElevenLabs.extraMethods?.listModels?.(defaults, providerElevenLabs.createProvider(defaults))
+    const defaults = z.parse(await providerElevenLabs.createProviderConfig({ t: translate }), { apiKey: 'test' })
+    const provider = await providerElevenLabs.createProvider(defaults)
+    const models = await providerElevenLabs.extraMethods?.listModels?.(defaults, provider)
 
     expect(defaults).toMatchObject({
       baseUrl: 'https://unspeech.hyp3r.link/v1/',

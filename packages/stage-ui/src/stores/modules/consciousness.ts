@@ -6,9 +6,11 @@ import { defineStore } from 'pinia'
 import { computed, watch } from 'vue'
 
 import { useProviderStore } from '../providers/provider'
+import { useConsciousnessSettingsStore } from './consciousness-settings'
 
 export const useConsciousnessStore = defineStore('consciousness', () => {
   const providersStore = useProviderStore()
+  const settingsStore = useConsciousnessSettingsStore()
 
   // Pinia synchronization owns live cross-window state. localStorage remains
   // durable persistence, but storage events must not reflect state back into
@@ -93,6 +95,13 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     return []
   }
 
+  /** Resolves a provider with the reasoning mode shared by every Consciousness input path. */
+  async function getChatProviderInstance(provider: string) {
+    return providersStore.getChatProviderInstance(provider, {
+      reasoning: settingsStore.reasoning ? 'enabled' : 'disabled',
+    })
+  }
+
   const configured = computed(() => {
     return !!activeProvider.value && !!activeModel.value
   })
@@ -122,6 +131,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     resetModelSelection,
     loadModelsForProvider,
     getModelsForProvider,
+    getChatProviderInstance,
     resetState,
   }
 }, {

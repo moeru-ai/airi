@@ -83,4 +83,4 @@ description: Project AIRI의 개인정보 처리방침
 
 * * *
 
-이 개인정보 처리방침 페이지는 [App Privacy Policy Generator](https://app-privacy-policy-generator.nisrulz.com/) 로 생성되었습니다.
+이 개인정보 처리방침 페이지는 [App Privacy Policy Generator](https://app-privacy-policy-generator.nisrulz.com/)로 생성되었습니다.

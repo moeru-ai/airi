@@ -119,7 +119,7 @@ title: 연대기 v0.0.1
 - [ ] 리서치에 사용한 인덱스 사이트
   - [ ] [Hannibal046/Awesome-LLM: Awesome-LLM: a curated list of Large Language Model](https://github.com/Hannibal046/Awesome-LLM)
 - [ ] 리서치 중 ADHD 같은 행동
-  - [ ] 친구가 NVIDIA의 새 논문 [ConsiStory: Training-Free Consistent Text-to-Image Generation](https://research.nvidia.com/labs/par/consistory/) 를 추천해 줬는데 IPadapter보다 안정적으로 느껴짐.
+  - [ ] 친구가 NVIDIA의 새 논문 [ConsiStory: Training-Free Consistent Text-to-Image Generation](https://research.nvidia.com/labs/par/consistory/)를 추천해 줬는데 IPadapter보다 안정적으로 느껴짐.
 - [ ] 흥미로운 것은 [IDEA-Research/MotionLLM: [Arxiv-2024] MotionLLM: Understanding Human Behaviors from Human Motions and Videos](https://github.com/IDEA-Research/MotionLLM). 이 논문과 연구 방향은 영상 애니메이션 프레임 사이에 형성되는 사람의 동작을 자연어로 기술하는 것에 관한 내용. 2024년 5월 31일 공개.
 - [ ] [Ksuriuri/EasyAIVtuber: Simply animate your 2D waifu.](https://github.com/Ksuriuri/EasyAIVtuber)
 - [ ] 이건 꽤 큰 주제라서 여러 키워드를 조사해 본 결과, 현재 이 방향의 주요 연구 주제들을 찾았습니다:

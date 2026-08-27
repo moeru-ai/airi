@@ -1,6 +1,6 @@
 import posthog from 'posthog-js'
 
-import { DEFAULT_POSTHOG_CONFIG, POSTHOG_PROJECT_KEY } from '../../../posthog.config'
+import { DEFAULT_POSTHOG_CONFIG, POSTHOG_PROJECT_KEY } from '@proj-airi/stage-shared/analytics/posthog'
 
 if (!import.meta.env.DEV) {
   posthog.init(POSTHOG_PROJECT_KEY, {

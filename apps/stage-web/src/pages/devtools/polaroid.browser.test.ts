@@ -1,13 +1,12 @@
 import type { Component } from 'vue'
 
+import PolaroidPage from '@proj-airi/stage-pages/pages/devtools/polaroid.vue'
+
 import { DisplayModelFormat, useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { createPinia } from 'pinia'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createApp } from 'vue'
-
-import PocketPolaroid from '../../../../stage-pocket/src/pages/devtools/polaroid.vue'
-import WebPolaroid from './polaroid.vue'
 
 import 'virtual:uno.css'
 
@@ -110,7 +109,7 @@ async function expectImportedModelPhoto(component: Component, modelId: string) {
 }
 
 describe('polaroid imported Live2D model', () => {
-  it('loads and captures an imported model on the web page', async () => {
+  it('loads and captures an imported model on the shared page', async () => {
     // ROOT CAUSE:
     //
     // Polaroid passed only the object URL to the Live2D loader. An imported
@@ -120,10 +119,6 @@ describe('polaroid imported Live2D model', () => {
     // The loader also kept its mutex locked when the first render had no model
     // source. We fixed both paths by passing the selected ID and releasing the
     // mutex across every early return.
-    await expectImportedModelPhoto(WebPolaroid, 'display-model-polaroid-web')
-  })
-
-  it('loads and captures an imported model on the pocket page', async () => {
-    await expectImportedModelPhoto(PocketPolaroid, 'display-model-polaroid-pocket')
+    await expectImportedModelPhoto(PolaroidPage, 'display-model-polaroid')
   })
 })

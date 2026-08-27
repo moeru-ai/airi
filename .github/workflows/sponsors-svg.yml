@@ -21,13 +21,11 @@ jobs:
         with:
           ref: main
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/setup@v2
         with:
-          run_install: false
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-          cache: pnpm
+          runtime: node@26.7.0
+          cache: true
+          install: false
       - run: pnpm install --frozen-lockfile
 
       - name: Pull with rebase

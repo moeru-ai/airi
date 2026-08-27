@@ -225,7 +225,8 @@ as a first language.
 - `state: true` sends a full-store proposal after each local mutation. Keep transient and high-frequency state in an unsynchronized store.
 - State, action arguments, and action results must support `structuredClone`.
 - Keep computed values, query status, runtime clients, controllers, pending promises, and component state outside synchronized state.
-- Remote snapshots run local Vue watchers. Never let a watcher on synchronized state write synchronized state or call a synchronized action.
+- Remote snapshots run local Vue watchers. A watcher on synchronized state must not write synchronized state directly.
+- A watcher can call a synchronized action to enforce a leader-owned invariant. The watcher must await the action. The action must be idempotent because each renderer can observe the same snapshot.
 - Enforce cross-field invariants inside explicit actions before the state commit. Do not repair replicated state with a watcher.
 - Every returned function in a setup store is a Pinia action. Use computed values or pure helpers for read-only projections.
 - List only leader-owned side-effecting actions under `synced.actions`. These actions must be asynchronous, and callers must await them.
@@ -233,7 +234,7 @@ as a first language.
 - Keep synchronization and persistence as separate boundaries. Give persisted synchronized state one explicit persistence owner.
 - Do not add bidirectional persistence composables or storage-event listeners to synchronized state. Use explicit persistence commands.
 - Set the leadership mode explicitly for every Electron renderer. Utility and minimal windows must use `follower-only`.
-- Add a multi-window regression test for synchronization changes. One remote snapshot must not produce another mutation or action.
+- Add a multi-window regression test for synchronization changes. A remote snapshot must not produce a local synchronized-state proposal. If a watcher calls a synchronized action, verify that repeated calls converge without repeated side effects.
 
 ### Readability Refactors
 

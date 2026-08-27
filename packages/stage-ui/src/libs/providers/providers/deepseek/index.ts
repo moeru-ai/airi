@@ -1,3 +1,5 @@
+import type { ChatRequestOptions } from '../../types'
+
 import { createDeepSeek } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
@@ -54,6 +56,7 @@ export const providerDeepSeek = defineProvider<DeepSeekConfig>({
   description: 'deepseek.com',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.deepseek.description'),
   tasks: ['chat'],
+  capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
   icon: 'i-lobe-icons:deepseek',
   iconColor: 'i-lobe-icons:deepseek-color',
 
@@ -95,8 +98,11 @@ export const providerDeepSeek = defineProvider<DeepSeekConfig>({
 
     return {
       ...baseProvider,
-      chat(model: string) {
+      chat(model: string, options?: ChatRequestOptions) {
         const chatOptions = baseProvider.chat(model)
+        if (options?.reasoning)
+          return { ...chatOptions, thinking: { type: options.reasoning } }
+
         const thinking = resolveDeepSeekThinking(config.thinkingMode)
 
         if (thinking === undefined)
