@@ -64,7 +64,7 @@ const menu = computed(() => [
   {
     title: t('tamagotchi.settings.devtools.pages.live2d-motion.title'),
     description: t('tamagotchi.settings.devtools.pages.live2d-motion.description'),
-    icon: 'i-solar:gamepad-bold-duotone',
+    icon: 'i-mingcute:game-2-fill',
     to: '/devtools/live2d-motion',
   },
   {

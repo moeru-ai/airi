@@ -31,7 +31,7 @@ const props = defineProps<{
           :title="props.keyboardLabel"
           :class="['inline-flex items-center gap-1 rounded-md bg-white/75 px-1.5 py-1 font-mono text-[10px] text-neutral-600 dark:bg-neutral-800/80 dark:text-neutral-300']"
         >
-          <span :class="['i-solar:keyboard-linear size-3.5']" />
+          <span :class="['i-mingcute:keyboard-line size-3.5']" />
           {{ hint.keyboard }}
         </span>
         <span
@@ -39,7 +39,7 @@ const props = defineProps<{
           :title="props.controllerLabel"
           :class="['inline-flex items-center gap-1 rounded-md bg-primary-100/80 px-1.5 py-1 font-mono text-[10px] text-primary-800 dark:bg-primary-900/45 dark:text-primary-200']"
         >
-          <span :class="['i-solar:gamepad-minimalistic-linear size-3.5']" />
+          <span :class="['i-mingcute:game-2-line size-3.5']" />
           {{ hint.controller }}
         </span>
       </dd>

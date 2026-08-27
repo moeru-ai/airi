@@ -202,15 +202,15 @@ onMounted(installDragBehaviors)
       <div v-if="active" :class="['grid grid-cols-2 gap-1']">
         <template v-if="viewTargetTrack">
           <BasicButton size="sm" :disabled="disabled || overlays.length > 0" :class="['col-span-2 min-w-0 px-1!']" @click.stop="emit('addOverlay', 'replace')">
-            <span :class="['i-solar:add-circle-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.create-keyframes') }}
+            <span :class="['i-mingcute:add-circle-line']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.create-keyframes') }}
           </BasicButton>
         </template>
         <template v-else>
           <BasicButton size="sm" :disabled="disabled" :class="['min-w-0 px-1!']" @click.stop="emit('addOverlay', 'add')">
-            <span :class="['i-solar:add-circle-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.add') }}
+            <span :class="['i-mingcute:add-circle-line']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.add') }}
           </BasicButton>
           <BasicButton size="sm" :disabled="disabled" :class="['min-w-0 px-1!']" @click.stop="emit('addOverlay', 'replace')">
-            <span :class="['i-solar:add-circle-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.replace') }}
+            <span :class="['i-mingcute:add-circle-line']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.replace') }}
           </BasicButton>
         </template>
       </div>
@@ -240,7 +240,7 @@ onMounted(installDragBehaviors)
           </span>
         </template>
         <BasicButton size="sm" :disabled="disabled" :class="['w-full']" @click="emit('removeOverlay', selectedOverlay.id)">
-          <span :class="['i-solar:trash-bin-trash-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.remove') }}
+          <span :class="['i-mingcute:delete-2-line']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.controls.remove') }}
         </BasicButton>
       </div>
     </header>

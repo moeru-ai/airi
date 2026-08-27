@@ -14,7 +14,6 @@ import Live2DMotionInputHints from './live2d-motion-input-hints.vue'
 const props = defineProps<{
   pose: Live2DMotionControlPose
   dynamics: Live2DMotionControlDynamics
-  active: boolean
   disabled?: boolean
   gamepad?: StandardGamepadSnapshot
 }>()
@@ -468,7 +467,6 @@ watch(() => props.gamepad, handleGamepad, { flush: 'sync' })
         type="button"
         size="unset"
         :aria-label="t('tamagotchi.settings.devtools.pages.live2d-motion.joystick-label')"
-        :aria-pressed="props.active"
         :disabled="props.disabled"
         :class="[
           'relative aspect-square w-full max-w-64 touch-none select-none overflow-hidden rounded-full',
@@ -498,7 +496,7 @@ watch(() => props.gamepad, handleGamepad, { flush: 'sync' })
             'transition-transform duration-75 ease-out',
           ]"
         >
-          <span :class="['i-solar:gamepad-minimalistic-bold-duotone', 'absolute inset-4 text-white']" />
+          <span :class="['i-mingcute:game-2-fill', 'absolute inset-4 text-white']" />
         </span>
       </BasicButton>
 
@@ -510,57 +508,41 @@ watch(() => props.gamepad, handleGamepad, { flush: 'sync' })
       />
     </div>
 
-    <div :class="['flex flex-col gap-3']">
-      <div
-        :class="[
-          'flex items-center gap-2 rounded-xl px-3 py-2 text-sm',
-          props.active
-            ? 'bg-primary-100 text-primary-800 dark:bg-primary-900/40 dark:text-primary-200'
-            : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-900/60 dark:text-neutral-300',
-        ]"
+    <div :class="['grid gap-4 rounded-xl bg-neutral-100/70 p-4 dark:bg-neutral-900/50']">
+      <Button
+        type="button"
+        color="cyan"
+        :variant="waveEnabled ? 'primary' : 'secondary'"
+        :aria-label="t('tamagotchi.settings.devtools.pages.live2d-motion.wave.toggle')"
+        :aria-pressed="waveEnabled"
+        :disabled="props.disabled"
+        @click="toggleWave"
       >
-        <span :class="[props.active ? 'i-solar:gamepad-bold-duotone' : 'i-solar:pause-circle-bold-duotone', 'size-5']" />
-        {{ props.active
-          ? t('tamagotchi.settings.devtools.pages.live2d-motion.status.active')
-          : t('tamagotchi.settings.devtools.pages.live2d-motion.status.released') }}
-      </div>
-
-      <div :class="['grid gap-4 rounded-xl bg-neutral-100/70 p-4 dark:bg-neutral-900/50']">
-        <Button
-          type="button"
-          color="cyan"
-          :variant="waveEnabled ? 'primary' : 'secondary'"
-          :aria-label="t('tamagotchi.settings.devtools.pages.live2d-motion.wave.toggle')"
-          :aria-pressed="waveEnabled"
-          :disabled="props.disabled"
-          @click="toggleWave"
-        >
-          <span :class="[waveEnabled ? 'i-solar:water-bold-duotone' : 'i-solar:water-linear', 'size-4']" />
-          {{ t('tamagotchi.settings.devtools.pages.live2d-motion.wave.toggle') }}
-        </Button>
-        <FieldRange
-          v-model="follow"
-          :label="t('tamagotchi.settings.devtools.pages.live2d-motion.spring.follow.label')"
-          :description="t('tamagotchi.settings.devtools.pages.live2d-motion.spring.follow.description')"
-          :min="0"
-          :max="2"
-          :step="0.01"
-          :default-value="defaultLive2DMotionControlDynamics.follow"
-          :format-value="formatPercent"
-          as="div"
-        />
-        <FieldRange
-          v-model="inertia"
-          :label="t('tamagotchi.settings.devtools.pages.live2d-motion.spring.inertia.label')"
-          :description="t('tamagotchi.settings.devtools.pages.live2d-motion.spring.inertia.description')"
-          :min="0"
-          :max="1"
-          :step="0.01"
-          :default-value="defaultLive2DMotionControlDynamics.inertia"
-          :format-value="formatPercent"
-          as="div"
-        />
-      </div>
+        <span :class="[waveEnabled ? 'i-mingcute:wave-fill' : 'i-mingcute:wave-line', 'size-4']" />
+        {{ t('tamagotchi.settings.devtools.pages.live2d-motion.wave.toggle') }}
+      </Button>
+      <FieldRange
+        v-model="follow"
+        :label="t('tamagotchi.settings.devtools.pages.live2d-motion.spring.follow.label')"
+        :description="t('tamagotchi.settings.devtools.pages.live2d-motion.spring.follow.description')"
+        :min="0"
+        :max="2"
+        :step="0.01"
+        :default-value="defaultLive2DMotionControlDynamics.follow"
+        :format-value="formatPercent"
+        as="div"
+      />
+      <FieldRange
+        v-model="inertia"
+        :label="t('tamagotchi.settings.devtools.pages.live2d-motion.spring.inertia.label')"
+        :description="t('tamagotchi.settings.devtools.pages.live2d-motion.spring.inertia.description')"
+        :min="0"
+        :max="1"
+        :step="0.01"
+        :default-value="defaultLive2DMotionControlDynamics.inertia"
+        :format-value="formatPercent"
+        as="div"
+      />
     </div>
   </div>
 </template>

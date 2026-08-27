@@ -1,9 +1,16 @@
-import type { Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
+import type {
+  Live2DMotionPrediction,
+  Live2DMotionPredictOptions,
+  Live2DMotionPredictor,
+  Live2DMotionPredictorOptions,
+  Live2DMotionTrainingSequence,
+} from './index'
+import type { Live2DMotionVarModel } from './var'
 
-import type { ReadonlyLive2DMotionRecording } from './live2d-motion-recording'
-import type { Live2DMotionVarChannel, Live2DMotionVarModel } from './live2d-motion-var-prototype'
-
-import { fitLive2DMotionVar } from './live2d-motion-var-prototype'
+import { cholesky, clamp, createAutoregressiveFeature, predictAutoregressiveValues, solvePositiveDefinite } from './internal/numeric'
+import { poseFromChannels } from './internal/pose-channels'
+import { createNormalRandom, createSeededRandom, sampleCategorical } from './internal/random'
+import { fitVarMotionModel } from './var'
 
 /** Fit controls for the experimental autoregressive hidden Markov model. */
 export interface Live2DMotionArHmmOptions {
@@ -11,8 +18,6 @@ export interface Live2DMotionArHmmOptions {
   stateCount: number
   /** Number of fixed-rate history frames in each state-specific prediction. */
   order: number
-  /** Training and generation cadence in frames per second. */
-  sampleRate: number
   /** Ridge penalty relative to each state's effective sample count. */
   ridge: number
   /** Number of expectation-maximization updates. */
@@ -48,27 +53,12 @@ export interface Live2DMotionArHmmModel {
 }
 
 /** One generated pose plus the hidden regime that produced it. */
-export interface Live2DMotionArHmmFrame {
-  /** Generated normalized Live2D control pose. */
-  pose: Live2DMotionControlPose
-  /** Zero-based hidden-state index. */
-  state: number
-}
-
-/** A seeded AR-HMM generator that advances one fixed-rate frame at a time. */
-export interface Live2DMotionArHmmGenerator {
-  /** Samples one transition and one state-specific autoregressive pose. */
-  nextFrame: (residualStrength: number) => Live2DMotionArHmmFrame
-}
+export type Live2DMotionArHmmFrame = Live2DMotionPrediction<number>
 
 interface ExpectationResult {
   gamma: number[][]
   transitionCounts: number[][]
   logLikelihood: number
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(maximum, Math.max(minimum, value))
 }
 
 function logSumExp(values: readonly number[]): number {
@@ -82,74 +72,6 @@ function logSumExp(values: readonly number[]): number {
 function normalizeProbabilities(values: readonly number[]): number[] {
   const sum = values.reduce((total, value) => total + value, 0)
   return values.map(value => value / sum)
-}
-
-function createFeature(frames: readonly number[][], order: number, channelCount: number, endIndex = frames.length): number[] {
-  const feature = [1]
-  for (let lag = 1; lag <= order; lag++) {
-    const frame = frames[endIndex - lag]
-    for (let channel = 0; channel < channelCount; channel++)
-      feature.push(frame[channel])
-  }
-  return feature
-}
-
-function predict(coefficients: readonly number[][], feature: readonly number[]): number[] {
-  const outputCount = coefficients[0].length
-  const prediction = Array.from<number>({ length: outputCount }).fill(0)
-  for (let featureIndex = 0; featureIndex < feature.length; featureIndex++) {
-    for (let outputIndex = 0; outputIndex < outputCount; outputIndex++)
-      prediction[outputIndex] += feature[featureIndex] * coefficients[featureIndex][outputIndex]
-  }
-  return prediction
-}
-
-function cholesky(matrix: readonly number[][]): number[][] {
-  const size = matrix.length
-  const lower = Array.from({ length: size }, () => Array.from<number>({ length: size }).fill(0))
-  for (let row = 0; row < size; row++) {
-    for (let column = 0; column <= row; column++) {
-      let value = matrix[row][column]
-      for (let index = 0; index < column; index++)
-        value -= lower[row][index] * lower[column][index]
-
-      if (row === column) {
-        if (value <= 1e-12)
-          throw new Error('The AR-HMM fit produced a singular covariance.')
-        lower[row][column] = Math.sqrt(value)
-      }
-      else {
-        lower[row][column] = value / lower[column][column]
-      }
-    }
-  }
-  return lower
-}
-
-function solvePositiveDefinite(matrix: readonly number[][], targets: readonly number[][]): number[][] {
-  const lower = cholesky(matrix)
-  const size = matrix.length
-  const outputCount = targets[0].length
-  const intermediate = Array.from({ length: size }, () => Array.from<number>({ length: outputCount }).fill(0))
-  for (let row = 0; row < size; row++) {
-    for (let output = 0; output < outputCount; output++) {
-      let value = targets[row][output]
-      for (let column = 0; column < row; column++)
-        value -= lower[row][column] * intermediate[column][output]
-      intermediate[row][output] = value / lower[row][row]
-    }
-  }
-
-  const solution = Array.from({ length: size }, () => Array.from<number>({ length: outputCount }).fill(0))
-  for (let row = size - 1; row >= 0; row--) {
-    for (let output = 0; output < outputCount; output++) {
-      let value = intermediate[row][output]
-      for (let column = row + 1; column < size; column++)
-        value -= lower[column][row] * solution[column][output]
-      solution[row][output] = value / lower[row][row]
-    }
-  }
-  return solution
 }
 
 function squaredDistance(left: readonly number[], right: readonly number[]): number {
@@ -263,7 +185,7 @@ function fitStateCoefficients(
   for (let row = 0; row < gamma.length; row++) {
     const weight = gamma[row][state]
     const frameIndex = row + options.order
-    const feature = createFeature(frames, options.order, channelCount, frameIndex)
+    const feature = createAutoregressiveFeature(frames, options.order, channelCount, frameIndex)
     const target = frames[frameIndex]
     stateWeight += weight
     for (let featureRow = 0; featureRow < featureCount; featureRow++) {
@@ -283,7 +205,7 @@ function fitStateCoefficients(
   }
   for (let index = 1; index < featureCount; index++)
     gram[index][index] += options.ridge * stateWeight
-  return solvePositiveDefinite(gram, cross)
+  return solvePositiveDefinite(gram, cross, 'The AR-HMM fit produced a singular covariance.')
 }
 
 function fitStateCovariance(
@@ -299,8 +221,8 @@ function fitStateCovariance(
   for (let row = 0; row < gamma.length; row++) {
     const weight = gamma[row][state]
     const frameIndex = row + options.order
-    const feature = createFeature(frames, options.order, channelCount, frameIndex)
-    const prediction = predict(coefficients, feature)
+    const feature = createAutoregressiveFeature(frames, options.order, channelCount, frameIndex)
+    const prediction = predictAutoregressiveValues(coefficients, feature)
     const residual = frames[frameIndex].map((value, channel) => value - prediction[channel])
     stateWeight += weight
     for (let left = 0; left < channelCount; left++) {
@@ -334,7 +256,7 @@ function maximizeParameters(
     return {
       coefficients,
       covariance,
-      covarianceCholesky: cholesky(covariance),
+      covarianceCholesky: cholesky(covariance, 'The AR-HMM fit produced a singular covariance.'),
     }
   })
   return { initialProbabilities, transitionProbabilities, states }
@@ -345,7 +267,7 @@ function emissionLogProbability(
   feature: readonly number[],
   observation: readonly number[],
 ): number {
-  const prediction = predict(state.coefficients, feature)
+  const prediction = predictAutoregressiveValues(state.coefficients, feature)
   const solved = Array.from<number>({ length: observation.length }).fill(0)
   for (let row = 0; row < observation.length; row++) {
     let value = observation[row] - prediction[row]
@@ -367,7 +289,7 @@ function expectationStep(
   const rowCount = frames.length - options.order
   const emissions = Array.from({ length: rowCount }, (_, row) => {
     const frameIndex = row + options.order
-    const feature = createFeature(frames, options.order, sourceModel.channelCount, frameIndex)
+    const feature = createAutoregressiveFeature(frames, options.order, sourceModel.channelCount, frameIndex)
     return parameters.states.map(state => emissionLogProbability(state, feature, frames[frameIndex]))
   })
   const logTransitions = parameters.transitionProbabilities.map(row => row.map(Math.log))
@@ -417,70 +339,18 @@ function expectationStep(
   return { gamma, transitionCounts, logLikelihood }
 }
 
-function createRandom(seed: number): () => number {
-  let state = seed >>> 0
-  return () => {
-    state += 0x6D2B79F5
-    let value = state
-    value = Math.imul(value ^ value >>> 15, value | 1)
-    value ^= value + Math.imul(value ^ value >>> 7, value | 61)
-    return ((value ^ value >>> 14) >>> 0) / 4294967296
-  }
-}
-
-function sampleCategorical(probabilities: readonly number[], random: () => number): number {
-  const target = random()
-  let cumulative = 0
-  for (let index = 0; index < probabilities.length; index++) {
-    cumulative += probabilities[index]
-    if (target <= cumulative)
-      return index
-  }
-  return probabilities.length - 1
-}
-
-function createNormalRandom(random: () => number): () => number {
-  let spare: number | undefined
-  return () => {
-    if (spare !== undefined) {
-      const value = spare
-      spare = undefined
-      return value
-    }
-    const radius = Math.sqrt(-2 * Math.log(Math.max(Number.EPSILON, random())))
-    const angle = 2 * Math.PI * random()
-    spare = radius * Math.sin(angle)
-    return radius * Math.cos(angle)
-  }
-}
-
-function poseFromChannels(
-  baselinePose: Live2DMotionControlPose,
-  channels: readonly Live2DMotionVarChannel[],
-  values: readonly number[],
-): Live2DMotionControlPose {
-  const pose = { ...baselinePose }
-  for (let channelIndex = 0; channelIndex < channels.length; channelIndex++) {
-    const channel = channels[channelIndex]
-    const rawValue = clamp(
-      channel.mean + values[channelIndex] * channel.scale,
-      channel.minimum,
-      channel.maximum,
-    )
-    for (const trackId of channel.trackIds)
-      pose[trackId] = rawValue
-  }
-  return pose
-}
-
 /** Fits a linear Gaussian AR-HMM with deterministic clustering and EM updates. */
-export function fitLive2DMotionArHmm(
-  recording: ReadonlyLive2DMotionRecording,
+export function fitArHmmMotionModel(
+  sequence: Live2DMotionTrainingSequence,
   options: Live2DMotionArHmmOptions,
 ): Live2DMotionArHmmModel {
-  const sourceModel = fitLive2DMotionVar(recording, {
+  if (options.stateCount < 2 || !Number.isInteger(options.stateCount))
+    throw new Error('The AR-HMM state count must be an integer greater than one.')
+  if (options.iterations < 1 || !Number.isInteger(options.iterations))
+    throw new Error('The AR-HMM iteration count must be a positive integer.')
+
+  const sourceModel = fitVarMotionModel(sequence, {
     order: options.order,
-    sampleRate: options.sampleRate,
     ridge: options.ridge,
   })
   const rowCount = sourceModel.trainingFrames.length - options.order
@@ -521,9 +391,12 @@ export function fitLive2DMotionArHmm(
   }
 }
 
-/** Creates a seeded pose stream from a fitted AR-HMM. */
-export function createLive2DMotionArHmmGenerator(model: Live2DMotionArHmmModel, seed: number): Live2DMotionArHmmGenerator {
-  const random = createRandom(seed)
+/** Creates a seeded pose predictor from a fitted AR-HMM. */
+export function createArHmmMotionPredictor(
+  model: Live2DMotionArHmmModel,
+  options: Live2DMotionPredictorOptions,
+): Live2DMotionPredictor<number> {
+  const random = createSeededRandom(options.seed)
   const normalRandom = createNormalRandom(random)
   const maximumStart = model.sourceModel.trainingFrames.length - model.options.order
   const start = Math.floor(random() * maximumStart)
@@ -532,18 +405,19 @@ export function createLive2DMotionArHmmGenerator(model: Live2DMotionArHmmModel, 
     .map(frame => [...frame])
   let state = sampleCategorical(model.posteriorProbabilities[start], random)
 
-  function nextFrame(residualStrength: number): Live2DMotionArHmmFrame {
+  function next(predictOptions?: Live2DMotionPredictOptions): Live2DMotionArHmmFrame {
+    const noiseScale = predictOptions?.noiseScale ?? 1
     state = sampleCategorical(model.transitionProbabilities[state], random)
     const stateModel = model.states[state]
-    const feature = createFeature(history, model.options.order, model.sourceModel.channelCount)
-    const prediction = predict(stateModel.coefficients, feature)
+    const feature = createAutoregressiveFeature(history, model.options.order, model.sourceModel.channelCount)
+    const prediction = predictAutoregressiveValues(stateModel.coefficients, feature)
     const gaussian = Array.from({ length: model.sourceModel.channelCount }, normalRandom)
     const nextValues = prediction.map((value, channel) => {
       let noise = 0
       for (let source = 0; source <= channel; source++)
         noise += stateModel.covarianceCholesky[channel][source] * gaussian[source]
       const sourceChannel = model.sourceModel.channels[channel]
-      const rawValue = sourceChannel.mean + (value + noise * residualStrength) * sourceChannel.scale
+      const rawValue = sourceChannel.mean + (value + noise * noiseScale) * sourceChannel.scale
       const clampedValue = clamp(rawValue, sourceChannel.minimum, sourceChannel.maximum)
       return (clampedValue - sourceChannel.mean) / sourceChannel.scale
     })
@@ -555,5 +429,5 @@ export function createLive2DMotionArHmmGenerator(model: Live2DMotionArHmmModel, 
     }
   }
 
-  return { nextFrame }
+  return { sampleRateHz: model.sourceModel.sampleRateHz, next }
 }

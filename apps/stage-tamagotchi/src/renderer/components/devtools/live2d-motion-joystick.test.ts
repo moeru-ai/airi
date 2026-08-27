@@ -38,7 +38,6 @@ describe('live2DMotionJoystick', () => {
       render: () => h(Live2DMotionJoystick, {
         pose,
         dynamics: defaultDynamics,
-        active: false,
         onMove: move,
         onRelease: release,
         onUpdateDynamics: updateDynamics,
@@ -234,7 +233,6 @@ describe('live2DMotionJoystick', () => {
     document.body.appendChild(host)
     const app = createApp({
       render: () => h(Live2DMotionJoystick, {
-        active: false,
         dynamics: defaultDynamics,
         gamepad: gamepad.value,
         pose: neutralPose,

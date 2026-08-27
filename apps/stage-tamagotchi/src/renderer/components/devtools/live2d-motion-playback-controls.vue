@@ -73,7 +73,7 @@ function togglePlayback() {
       :aria-label="t('tamagotchi.settings.devtools.pages.live2d-motion.editor.playback.start')"
       @click="emit('start')"
     >
-      <span :class="['i-solar:skip-previous-bold-duotone size-4']" />
+      <span :class="['i-mingcute:skip-previous-fill size-4']" />
     </BasicButton>
     <BasicButton
       size="sm"
@@ -82,7 +82,7 @@ function togglePlayback() {
       :aria-label="t('tamagotchi.settings.devtools.pages.live2d-motion.editor.playback.step-backward')"
       @click="emit('stepBackward', 1)"
     >
-      <span :class="['i-solar:rewind-back-bold-duotone size-4']" />
+      <span :class="['i-mingcute:rewind-backward-5-fill size-4']" />
     </BasicButton>
     <BasicButton
       size="sm"
@@ -95,7 +95,7 @@ function togglePlayback() {
         : t('tamagotchi.settings.devtools.pages.live2d-motion.editor.play')"
       @click="togglePlayback"
     >
-      <span :class="[props.playing ? 'i-solar:pause-bold' : 'i-solar:play-bold', 'size-4']" />
+      <span :class="[props.playing ? 'i-mingcute:pause-fill' : 'i-mingcute:play-fill', 'size-4']" />
     </BasicButton>
 
     <output
@@ -112,7 +112,7 @@ function togglePlayback() {
       :aria-label="t('tamagotchi.settings.devtools.pages.live2d-motion.editor.playback.step-forward')"
       @click="emit('stepForward', 1)"
     >
-      <span :class="['i-solar:rewind-forward-bold-duotone size-4']" />
+      <span :class="['i-mingcute:rewind-forward-5-fill size-4']" />
     </BasicButton>
     <BasicButton
       size="sm"
@@ -121,7 +121,7 @@ function togglePlayback() {
       :aria-label="t('tamagotchi.settings.devtools.pages.live2d-motion.editor.playback.end')"
       @click="emit('end')"
     >
-      <span :class="['i-solar:skip-next-bold-duotone size-4']" />
+      <span :class="['i-mingcute:skip-forward-fill size-4']" />
     </BasicButton>
   </section>
 </template>

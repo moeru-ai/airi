@@ -1,20 +1,6 @@
 import type { Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 
-const poseTrackIds = [
-  'eyeX',
-  'eyeY',
-  'eyeSquint',
-  'headX',
-  'headY',
-  'headZ',
-  'bodyX',
-  'bodyY',
-  'bodyZ',
-  'mouthForm',
-  'mouthOpen',
-  'offsetX',
-  'offsetY',
-] as const satisfies readonly (keyof Live2DMotionControlPose)[]
+import { live2dMotionPoseAxes } from '@proj-airi/model-live2d-motion'
 
 /** Controls the experimental generator output filter. */
 export interface Live2DMotionOutputFilterOptions {
@@ -69,8 +55,8 @@ function normalizeOptions(options: Live2DMotionOutputFilterOptions): Live2DMotio
 }
 
 function meanAbsoluteDifference(left: Live2DMotionControlPose, right: Live2DMotionControlPose): number {
-  const total = poseTrackIds.reduce((sum, trackId) => sum + Math.abs(left[trackId] - right[trackId]), 0)
-  return total / poseTrackIds.length
+  const total = live2dMotionPoseAxes.reduce((sum, trackId) => sum + Math.abs(left[trackId] - right[trackId]), 0)
+  return total / live2dMotionPoseAxes.length
 }
 
 /** Creates the experimental generator output filter used by the motion devtool. */
@@ -130,7 +116,7 @@ export function createLive2DMotionOutputFilter(
     const nextOutputPose = { ...outputPose }
     let cutoffTrackCount = 0
 
-    for (const trackId of poseTrackIds) {
+    for (const trackId of live2dMotionPoseAxes) {
       const changeFromAccepted = Math.abs(inputPose[trackId] - acceptedPose[trackId])
       if (changeFromAccepted >= options.cutoff)
         nextAcceptedPose[trackId] = inputPose[trackId]

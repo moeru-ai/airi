@@ -74,31 +74,26 @@ function formatRatio(value: number): string {
 </script>
 
 <template>
-  <section :class="['rounded-xl border border-primary-200/80 p-4 dark:border-primary-900/70', 'bg-primary-50/40 dark:bg-primary-950/15']">
+  <section :class="['rounded-xl bg-primary-50/65 p-4 dark:bg-primary-950/25']">
     <div :class="['flex flex-wrap items-start justify-between gap-3']">
       <div>
-        <div :class="['mb-1 flex items-center gap-2']">
-          <span :class="['rounded bg-primary-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-700', 'dark:bg-primary-900/50 dark:text-primary-200']">
-            {{ t('tamagotchi.settings.devtools.pages.live2d-motion.breath.prototype') }}
-          </span>
-          <h3 :class="['font-medium text-neutral-900 dark:text-neutral-100']">
-            {{ t('tamagotchi.settings.devtools.pages.live2d-motion.breath.title') }}
-          </h3>
-        </div>
+        <h3 :class="['mb-1 font-medium text-neutral-900 dark:text-neutral-100']">
+          {{ t('tamagotchi.settings.devtools.pages.live2d-motion.breath.title') }}
+        </h3>
         <p :class="['max-w-3xl text-xs text-neutral-500 dark:text-neutral-400']">
-          {{ t('tamagotchi.settings.devtools.pages.live2d-motion.breath.question') }}
+          {{ t('tamagotchi.settings.devtools.pages.live2d-motion.breath.description') }}
         </p>
       </div>
 
       <div :class="['flex flex-wrap items-center gap-1']">
         <BasicButton @click="emit('updateEnabled', !props.enabled)">
-          <span :class="[props.enabled ? 'i-solar:wind-bold-duotone' : 'i-solar:wind-linear']" />
+          <span :class="[props.enabled ? 'i-mingcute:wind-fill' : 'i-mingcute:wind-line']" />
           {{ props.enabled
             ? t('tamagotchi.settings.devtools.pages.live2d-motion.breath.actions.disable')
             : t('tamagotchi.settings.devtools.pages.live2d-motion.breath.actions.enable') }}
         </BasicButton>
         <BasicButton @click="emit('reset')">
-          <span :class="['i-solar:restart-bold']" />
+          <span :class="['i-mingcute:refresh-anticlockwise-1-line']" />
           {{ t('tamagotchi.settings.devtools.pages.live2d-motion.breath.actions.reset') }}
         </BasicButton>
       </div>
@@ -163,16 +158,6 @@ function formatRatio(value: number): string {
     </div>
 
     <div :class="['mt-4 grid gap-2 text-xs', 'sm:grid-cols-2 xl:grid-cols-4']">
-      <div :class="['rounded-lg bg-white/70 px-3 py-2 dark:bg-neutral-950/40']">
-        <div :class="['text-neutral-400 dark:text-neutral-500']">
-          {{ t('tamagotchi.settings.devtools.pages.live2d-motion.breath.diagnostics.status') }}
-        </div>
-        <div :class="['mt-1 font-mono text-neutral-700 dark:text-neutral-200']">
-          {{ props.enabled
-            ? t('tamagotchi.settings.devtools.pages.live2d-motion.breath.status.active')
-            : t('tamagotchi.settings.devtools.pages.live2d-motion.breath.status.disabled') }}
-        </div>
-      </div>
       <div :class="['rounded-lg bg-white/70 px-3 py-2 dark:bg-neutral-950/40']">
         <div :class="['text-neutral-400 dark:text-neutral-500']">
           {{ t('tamagotchi.settings.devtools.pages.live2d-motion.breath.diagnostics.stage') }}

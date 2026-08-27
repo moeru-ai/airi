@@ -2,6 +2,7 @@ import type { ShallowRef } from 'vue'
 
 import type { Live2DMotionControlPose, Live2DMotionControlState } from '../../stores/motion-control'
 
+import { live2dMotionPoseAxes } from '@proj-airi/model-live2d-motion'
 import { shallowRef } from 'vue'
 
 import { neutralLive2DMotionControlPose } from '../../stores/motion-control'
@@ -22,8 +23,6 @@ export interface Live2DMotionSpringController {
 const settledPositionThreshold = 0.001
 const settledVelocityThreshold = 0.001
 const maximumStepSeconds = 1 / 120
-const poseAxes = ['eyeX', 'eyeY', 'eyeSquint', 'headX', 'headY', 'headZ', 'bodyX', 'bodyY', 'bodyZ', 'mouthForm', 'mouthOpen', 'offsetX', 'offsetY'] as const
-
 function stepAxis(options: {
   current: number
   target: number
@@ -42,7 +41,7 @@ function stepAxis(options: {
 }
 
 function poseIsSettled(pose: Live2DMotionControlPose, velocity: Live2DMotionControlPose, target: Live2DMotionControlPose): boolean {
-  return poseAxes.every(axis => (
+  return live2dMotionPoseAxes.every(axis => (
     Math.abs(target[axis] - pose[axis]) < settledPositionThreshold
     && Math.abs(velocity[axis]) < settledVelocityThreshold
   ))
@@ -73,7 +72,7 @@ export function createLive2DMotionSpring(initialPose: Live2DMotionControlPose = 
     const stepSeconds = boundedElapsedSeconds / stepCount
 
     for (let stepIndex = 0; stepIndex < stepCount; stepIndex += 1) {
-      for (const axis of poseAxes) {
+      for (const axis of live2dMotionPoseAxes) {
         const next = stepAxis({
           current: pose[axis],
           target: target[axis],

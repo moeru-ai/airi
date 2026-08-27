@@ -12,7 +12,7 @@ const { t } = useI18n()
 
 const parameterGroups = computed(() => [
   {
-    icon: 'i-solar:eye-bold-duotone',
+    icon: 'i-mingcute:eye-fill',
     label: t('tamagotchi.settings.devtools.pages.live2d-motion.groups.eyes'),
     values: [
       { axis: 'X', value: props.pose.eyeX },
@@ -21,7 +21,7 @@ const parameterGroups = computed(() => [
     ],
   },
   {
-    icon: 'i-solar:face-scan-circle-bold-duotone',
+    icon: 'i-mingcute:faceid-fill',
     label: t('tamagotchi.settings.devtools.pages.live2d-motion.groups.head'),
     values: [
       { axis: 'X', value: props.pose.headX * 30 },
@@ -30,7 +30,7 @@ const parameterGroups = computed(() => [
     ],
   },
   {
-    icon: 'i-solar:accessibility-bold-duotone',
+    icon: 'i-mingcute:body-fill',
     label: t('tamagotchi.settings.devtools.pages.live2d-motion.groups.body'),
     values: [
       { axis: 'X', value: props.pose.bodyX * 10 },
@@ -39,7 +39,7 @@ const parameterGroups = computed(() => [
     ],
   },
   {
-    icon: 'i-solar:emoji-funny-circle-bold-duotone',
+    icon: 'i-mingcute:happy-fill',
     label: t('tamagotchi.settings.devtools.pages.live2d-motion.preview.groups.expression'),
     values: [
       { axis: t('tamagotchi.settings.devtools.pages.live2d-motion.preview.values.mouth-form'), value: props.pose.mouthForm },
@@ -47,7 +47,7 @@ const parameterGroups = computed(() => [
     ],
   },
   {
-    icon: 'i-solar:move-to-folder-bold-duotone',
+    icon: 'i-mingcute:move-fill',
     label: t('tamagotchi.settings.devtools.pages.live2d-motion.preview.groups.offset'),
     values: [
       { axis: 'X', value: props.pose.offsetX },

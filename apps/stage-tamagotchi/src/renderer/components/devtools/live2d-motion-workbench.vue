@@ -96,7 +96,6 @@ function handleReady({ api }: DockviewReadyEvent) {
     :theme="theme"
     :components="components"
     :disable-floating-groups="true"
-    :show-dnd-overlay="true"
     :class="['h-full w-full']"
     @ready="handleReady"
   />
@@ -106,6 +105,7 @@ function handleReady({ api }: DockviewReadyEvent) {
 @import 'dockview-vue/dist/styles/dockview.css';
 
 .dockview-theme-airi {
+  --motion-workbench-accent: oklch(clamp(0%, calc(74% * var(--chromatic-bri, 1)), 100%) calc(var(--chromatic-chroma-400) * var(--chromatic-sat, 1)) calc(var(--chromatic-hue) + 0));
   --dv-tabs-and-actions-container-height: 2.25rem;
   --dv-tabs-and-actions-container-background-color: rgb(250 250 250 / 0.92);
   --dv-group-view-background-color: rgb(255 255 255 / 0.68);
@@ -120,10 +120,10 @@ function handleReady({ api }: DockviewReadyEvent) {
   --dv-tab-divider-color: rgb(229 229 229 / 0.8);
   --dv-separator-border: rgb(229 229 229 / 0.72);
   --dv-sash-color: transparent;
-  --dv-active-sash-color: rgb(var(--color-primary-400) / 0.6);
+  --dv-active-sash-color: color-mix(in oklch, var(--motion-workbench-accent) 60%, transparent);
   --dv-icon-hover-background-color: rgb(229 229 229 / 0.8);
-  --dv-drag-over-background-color: rgb(var(--color-primary-400) / 0.12);
-  --dv-drag-over-border-color: rgb(var(--color-primary-400) / 0.65);
+  --dv-drag-over-background-color: color-mix(in oklch, var(--motion-workbench-accent) 12%, transparent);
+  --dv-drag-over-border-color: color-mix(in oklch, var(--motion-workbench-accent) 65%, transparent);
   --dv-border-radius: 0.75rem;
   --dv-tab-border-radius: 0.625rem;
   --dv-spacing-padding: 0.5rem;
@@ -151,7 +151,6 @@ function handleReady({ api }: DockviewReadyEvent) {
 }
 
 .dockview-theme-airi .dv-tabs-and-actions-container {
-  border-bottom: 1px solid var(--dv-separator-border);
   backdrop-filter: blur(16px);
 }
 
@@ -166,7 +165,7 @@ function handleReady({ api }: DockviewReadyEvent) {
 }
 
 .dockview-theme-airi .dv-content-container {
-  background-image: radial-gradient(circle at 50% 0%, rgb(var(--color-primary-400) / 0.04), transparent 38%);
+  background-image: radial-gradient(circle at 50% 0%, color-mix(in oklch, var(--motion-workbench-accent) 4%, transparent), transparent 38%);
 }
 
 .dockview-theme-airi .dv-split-view-container.dv-horizontal > .dv-view-container > .dv-view::before {

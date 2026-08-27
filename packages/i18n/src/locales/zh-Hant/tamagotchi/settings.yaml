@@ -82,7 +82,6 @@ devtools:
         open-mouth: 張開嘴巴
         mouth-shape: 改變嘴型
       eye-view:
-        prototype: 原型
         title: 固定視線
         description: 選擇目標後，眼睛會抵銷頭部動作並持續注視目標。
         pad-label: 固定視線目標
@@ -150,9 +149,8 @@ devtools:
           mouthForm: 嘴型
           mouthOpen: 嘴巴張開
       var:
-        prototype: 原型
         title: VAR 待機動作產生器
-        question: 擬合已錄製動作，再產生新的待機動作序列。
+        description: 擬合已錄製動作，再產生新的待機動作序列。
         actions:
           fit: 擬合目前動作
           refit: 重新擬合目前動作
@@ -180,9 +178,8 @@ devtools:
           fit: '{frames} 個影格 · RMSE {error} · {duration}ms'
           run: '種子 {seed} · {duration}'
       ar-hmm:
-        prototype: 比較
         title: AR-HMM 待機動作產生器
-        question: 學習動作狀態與轉換，以產生更多變化的待機動作。
+        description: 學習動作狀態與轉換，以產生更多變化的待機動作。
         actions:
           fit: 擬合動作
           refit: 重新擬合
@@ -216,9 +213,8 @@ devtools:
           states: '{occupancy} · 停留 {dwell}s'
           run: '狀態 {state} · 種子 {seed} · {duration}'
       output-filter:
-        prototype: 原型
         title: 產生器輸出濾波器
-        question: EMA 平滑與變化截止值能否在既有彈簧接收姿勢前，移除產生器的抖動？
+        description: 在彈簧接收每個姿勢前，平滑產生器輸出並抑制微小變化。
         actions:
           enable: 啟用濾波器
           disable: 停用濾波器
@@ -239,9 +235,8 @@ devtools:
           filtering: 正在濾波產生器輸出
           bypassed: 正在傳遞原始產生器輸出
       breath:
-        prototype: 原型
         title: 手動呼吸
-        question: 可調整的類正弦吸氣與呼氣曲線，能否取代 Cubism 呼吸，且不寫入動作錄製？
+        description: 使用可調整的吸氣、呼氣與停留時間控制 ParamBreath，且不將呼吸資料加入錄製內容。
         actions:
           enable: 啟用呼吸
           disable: 停用呼吸
@@ -262,13 +257,9 @@ devtools:
           label: 最大值
           description: 設定寫入 ParamBreath 的最高值。
         diagnostics:
-          status: 狀態
           stage: 階段
           phase: 週期進度
           output: ParamBreath 輸出
-        status:
-          active: 手動呼吸運作中
-          disabled: 手動呼吸已停用
         stage:
           inhale: 吸氣
           exhale: 呼氣
@@ -284,9 +275,6 @@ devtools:
         eyes: 眼睛
         head: 頭部
         body: 身體
-      status:
-        active: 手動控制已啟用
-        released: 模型一般動作已啟用
       recording:
         actions:
           record: 錄製

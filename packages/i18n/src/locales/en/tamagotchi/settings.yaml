@@ -99,7 +99,6 @@ devtools:
         open-mouth: Open mouth
         mouth-shape: Change mouth shape
       eye-view:
-        prototype: Prototype
         title: Latched eye view
         description: Choose a target. The eyes counter head movement to keep looking at it.
         pad-label: Latched eye view target
@@ -167,9 +166,8 @@ devtools:
           mouthForm: Mouth shape
           mouthOpen: Mouth open
       var:
-        prototype: Prototype
         title: VAR idle-motion generator
-        question: Fits recorded motion, then generates a new idle sequence.
+        description: Fits recorded motion, then generates a new idle sequence.
         actions:
           fit: Fit current motion
           refit: Refit current motion
@@ -197,9 +195,8 @@ devtools:
           fit: '{frames} frames · RMSE {error} · {duration}ms'
           run: 'seed {seed} · {duration}'
       ar-hmm:
-        prototype: Comparison
         title: AR-HMM idle-motion generator
-        question: Learns motion states and transitions for varied idle motion.
+        description: Learns motion states and transitions for varied idle motion.
         actions:
           fit: Fit motion
           refit: Refit
@@ -233,9 +230,8 @@ devtools:
           states: '{occupancy} · dwell {dwell}s'
           run: 'state {state} · seed {seed} · {duration}'
       output-filter:
-        prototype: Prototype
         title: Generator output filter
-        question: Can EMA smoothing and a change cutoff remove generator jitter before the existing spring receives the pose?
+        description: Smooths generator output and holds small changes before the spring receives each pose.
         actions:
           enable: Enable filter
           disable: Disable filter
@@ -256,9 +252,8 @@ devtools:
           filtering: Filtering generator output
           bypassed: Passing raw generator output
       breath:
-        prototype: Prototype
         title: Manual breath
-        question: Can a tunable sine-like inhale and exhale curve replace Cubism breath without entering motion recordings?
+        description: Controls ParamBreath with adjustable inhale, exhale, and dwell timing, without adding breath data to recordings.
         actions:
           enable: Enable breath
           disable: Disable breath
@@ -279,13 +274,9 @@ devtools:
           label: Maximum
           description: Sets the highest value written to ParamBreath.
         diagnostics:
-          status: Status
           stage: Stage
           phase: Cycle progress
           output: ParamBreath output
-        status:
-          active: Manual breath is active
-          disabled: Manual breath is disabled
         stage:
           inhale: Inhale
           exhale: Exhale
@@ -301,9 +292,6 @@ devtools:
         eyes: Eyes
         head: Head
         body: Body
-      status:
-        active: Manual control is active
-        released: Normal model motion is active
       recording:
         actions:
           record: Record

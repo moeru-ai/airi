@@ -5,29 +5,28 @@ import type { Live2DMotionEditorFrame } from '../../composables/live2d-motion-ke
 import type {
   Live2DMotionOutputFilterFrame,
   Live2DMotionOutputFilterOptions,
-} from '../../composables/live2d-motion-output-filter-prototype'
+} from '../../composables/live2d-motion-output-filter'
 
 import { defaultLive2DBreathControlOptions, defaultLive2DMotionControlDynamics, neutralLive2DMotionControlPose, useLive2DMotionControl } from '@proj-airi/stage-ui-live2d/stores'
 import { useSystemAudioInputStore } from '@proj-airi/stage-ui/stores'
-import { BasicButton } from '@proj-airi/ui'
+import { BasicButton, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import Live2DMotionArHmmPrototype from '../../components/devtools/live2d-motion-ar-hmm-prototype.vue'
 import Live2DMotionBreathPrototype from '../../components/devtools/live2d-motion-breath-prototype.vue'
 import Live2DMotionEyeViewPrototype from '../../components/devtools/live2d-motion-eye-view-prototype.vue'
 import Live2DMotionJoystick from '../../components/devtools/live2d-motion-joystick.vue'
 import Live2DMotionKeyframeEditor from '../../components/devtools/live2d-motion-keyframe-editor.vue'
-import Live2DMotionOutputFilterPrototype from '../../components/devtools/live2d-motion-output-filter-prototype.vue'
+import Live2DMotionOutputFilter from '../../components/devtools/live2d-motion-output-filter.vue'
 import Live2DMotionPreview from '../../components/devtools/live2d-motion-preview.vue'
-import Live2DMotionVarPrototype from '../../components/devtools/live2d-motion-var-prototype.vue'
 import Live2DMotionWorkbench from '../../components/devtools/live2d-motion-workbench.vue'
+import Live2DProceduralMotion from '../../components/devtools/live2d-procedural-motion.vue'
 
 import { defaultLive2DMotionRecording } from '../../composables/live2d-motion-default-recording'
 import { applyLive2DEyeViewPrototype, defaultLive2DEyeViewPrototypeState } from '../../composables/live2d-motion-eye-view-prototype'
-import { createLive2DMotionOutputFilter, defaultLive2DMotionOutputFilterOptions } from '../../composables/live2d-motion-output-filter-prototype'
+import { createLive2DMotionOutputFilter, defaultLive2DMotionOutputFilterOptions } from '../../composables/live2d-motion-output-filter'
 import { useLive2DMotionRecording } from '../../composables/live2d-motion-recording'
 import { useStandardGamepad } from '../../composables/use-standard-gamepad'
 
@@ -54,8 +53,7 @@ const eyeView = shallowRef(defaultLive2DEyeViewPrototypeState)
 const sourceActive = shallowRef(false)
 const active = shallowRef(false)
 const editorPlaying = shallowRef(false)
-const varPlaying = shallowRef(false)
-const arHmmPlaying = shallowRef(false)
+const proceduralMotionPlaying = shallowRef(false)
 const outputFilterOptions = shallowRef<Live2DMotionOutputFilterOptions>({ ...defaultLive2DMotionOutputFilterOptions })
 const outputFilterFrame = shallowRef<Live2DMotionOutputFilterFrame>()
 const outputFilter = createLive2DMotionOutputFilter(outputFilterOptions.value)
@@ -99,6 +97,18 @@ async function startSystemAudioLipSync() {
 function stopSystemAudioLipSync() {
   systemAudio.stop()
   publishRelease()
+}
+
+function formatSystemAudioThreshold(value: number): string {
+  return value.toFixed(2)
+}
+
+function formatSystemAudioDelay(value: number): string {
+  return `${value} ms`
+}
+
+function formatSystemAudioProbability(value: number): string {
+  return `${Math.round(value * 100)}%`
 }
 
 async function toggleSystemAudioLipSync() {
@@ -161,7 +171,7 @@ function updateOutputFilterOptions(nextOptions: Live2DMotionOutputFilterOptions)
 function resetOutputFilter() {
   const inputPose = outputFilterFrame.value?.inputPose
   clearOutputFilter()
-  if (inputPose && (varPlaying.value || arHmmPlaying.value))
+  if (inputPose && proceduralMotionPlaying.value)
     publishGeneratedPose(inputPose)
 }
 
@@ -192,14 +202,8 @@ function resetBreath() {
     motionControl.setBreath(ownerId, breathOptions.value, breathStartedAtMs.value)
 }
 
-function updateVarPlayback(playing: boolean) {
-  varPlaying.value = playing
-  if (playing)
-    clearOutputFilter()
-}
-
-function updateArHmmPlayback(playing: boolean) {
-  arHmmPlaying.value = playing
+function updateProceduralMotionPlayback(playing: boolean) {
+  proceduralMotionPlaying.value = playing
   if (playing)
     clearOutputFilter()
 }
@@ -284,7 +288,7 @@ onUnmounted(() => {
         :class="['[-webkit-app-region:no-drag]']"
         @click="router.back()"
       >
-        <span :class="['i-solar:alt-arrow-left-linear size-4']" />
+        <span :class="['i-mingcute:arrow-left-line size-4']" />
       </BasicButton>
       <div :class="['min-w-0']">
         <h1 :class="['truncate text-sm font-semibold text-neutral-900 dark:text-neutral-100']">
@@ -302,8 +306,8 @@ onUnmounted(() => {
           <div :class="['flex flex-col gap-4']">
             <section
               :class="[
-                'rounded-xl border p-3',
-                'border-neutral-200/80 bg-white/70 dark:border-neutral-800 dark:bg-neutral-900/65',
+                'rounded-xl bg-neutral-100/70 p-3',
+                'dark:bg-neutral-900/55',
               ]"
             >
               <div :class="['flex items-start justify-between gap-3']">
@@ -327,48 +331,30 @@ onUnmounted(() => {
               </div>
 
               <div :class="['mt-3 grid gap-3 rounded-lg bg-neutral-100/80 p-3 text-xs dark:bg-neutral-800/70']">
-                <label :class="['grid gap-1.5']">
-                  <span :class="['flex items-center justify-between gap-3 text-neutral-600 dark:text-neutral-300']">
-                    <span>{{ t('tamagotchi.settings.devtools.pages.live2d-motion.system-audio.input-volume-threshold') }}</span>
-                    <span :class="['font-mono tabular-nums']">{{ systemAudioVolumeThreshold.toFixed(2) }}</span>
-                  </span>
-                  <input
-                    v-model.number="systemAudioVolumeThreshold"
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    :class="['w-full accent-primary-500']"
-                  >
-                </label>
-                <label :class="['grid gap-1.5']">
-                  <span :class="['flex items-center justify-between gap-3 text-neutral-600 dark:text-neutral-300']">
-                    <span>{{ t('tamagotchi.settings.devtools.pages.live2d-motion.system-audio.random-close-delay') }}</span>
-                    <span :class="['font-mono tabular-nums']">{{ systemAudioRandomCloseDelayMs }} ms</span>
-                  </span>
-                  <input
-                    v-model.number="systemAudioRandomCloseDelayMs"
-                    type="range"
-                    min="100"
-                    max="1000"
-                    step="10"
-                    :class="['w-full accent-primary-500']"
-                  >
-                </label>
-                <label :class="['grid gap-1.5']">
-                  <span :class="['flex items-center justify-between gap-3 text-neutral-600 dark:text-neutral-300']">
-                    <span>{{ t('tamagotchi.settings.devtools.pages.live2d-motion.system-audio.random-close-probability') }}</span>
-                    <span :class="['font-mono tabular-nums']">{{ Math.round(systemAudioRandomCloseProbability * 100) }}%</span>
-                  </span>
-                  <input
-                    v-model.number="systemAudioRandomCloseProbability"
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    :class="['w-full accent-primary-500']"
-                  >
-                </label>
+                <FieldRange
+                  v-model="systemAudioVolumeThreshold"
+                  :label="t('tamagotchi.settings.devtools.pages.live2d-motion.system-audio.input-volume-threshold')"
+                  :min="0"
+                  :max="1"
+                  :step="0.01"
+                  :format-value="formatSystemAudioThreshold"
+                />
+                <FieldRange
+                  v-model="systemAudioRandomCloseDelayMs"
+                  :label="t('tamagotchi.settings.devtools.pages.live2d-motion.system-audio.random-close-delay')"
+                  :min="100"
+                  :max="1000"
+                  :step="10"
+                  :format-value="formatSystemAudioDelay"
+                />
+                <FieldRange
+                  v-model="systemAudioRandomCloseProbability"
+                  :label="t('tamagotchi.settings.devtools.pages.live2d-motion.system-audio.random-close-probability')"
+                  :min="0"
+                  :max="1"
+                  :step="0.01"
+                  :format-value="formatSystemAudioProbability"
+                />
               </div>
 
               <div :class="['mt-3 grid grid-cols-2 gap-2 text-xs']">
@@ -404,8 +390,7 @@ onUnmounted(() => {
             <Live2DMotionJoystick
               :pose="pose"
               :dynamics="dynamics"
-              :active="active"
-              :disabled="editorPlaying || varPlaying || arHmmPlaying"
+              :disabled="editorPlaying || proceduralMotionPlaying"
               :gamepad="gamepad"
               @move="setPose"
               @release="release"
@@ -437,7 +422,7 @@ onUnmounted(() => {
           <Live2DMotionKeyframeEditor
             :recording="recordingController.recording.value"
             :recording-active="recordingController.status.value.type === 'armed' || recordingController.status.value.type === 'recording'"
-            :disabled="varPlaying || arHmmPlaying"
+            :disabled="proceduralMotionPlaying"
             :gamepad="gamepad"
             @frame="publishEditorFrame"
             @playback="editorPlaying = $event"
@@ -449,26 +434,18 @@ onUnmounted(() => {
 
         <template #inference>
           <div :class="['flex flex-col gap-4']">
-            <Live2DMotionVarPrototype
+            <Live2DProceduralMotion
               :recording="recordingController.recording.value"
-              :disabled="arHmmPlaying || editorPlaying || recordingController.status.value.type === 'armed' || recordingController.status.value.type === 'recording'"
+              :disabled="editorPlaying || recordingController.status.value.type === 'armed' || recordingController.status.value.type === 'recording'"
               @pose="publishGeneratedPose"
               @release="publishGeneratedRelease"
-              @playback="updateVarPlayback"
+              @playback="updateProceduralMotionPlayback"
             />
 
-            <Live2DMotionArHmmPrototype
-              :recording="recordingController.recording.value"
-              :disabled="varPlaying || editorPlaying || recordingController.status.value.type === 'armed' || recordingController.status.value.type === 'recording'"
-              @pose="publishGeneratedPose"
-              @release="publishGeneratedRelease"
-              @playback="updateArHmmPlayback"
-            />
-
-            <Live2DMotionOutputFilterPrototype
+            <Live2DMotionOutputFilter
               :options="outputFilterOptions"
               :frame="outputFilterFrame"
-              :generator-active="varPlaying || arHmmPlaying"
+              :generator-active="proceduralMotionPlaying"
               @update-options="updateOutputFilterOptions"
               @reset="resetOutputFilter"
             />

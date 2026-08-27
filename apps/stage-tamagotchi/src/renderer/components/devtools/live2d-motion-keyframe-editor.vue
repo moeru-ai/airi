@@ -441,28 +441,28 @@ onUnmounted(() => {
           :disabled="props.disabled || playing"
           @click="emit('toggleRecording')"
         >
-          <span :class="props.recordingActive ? 'i-solar:stop-circle-bold' : 'i-solar:record-circle-bold'" />
+          <span :class="props.recordingActive ? 'i-mingcute:stop-circle-fill' : 'i-mingcute:dot-circle-fill'" />
           {{ props.recordingActive
             ? t('tamagotchi.settings.devtools.pages.live2d-motion.recording.actions.stop-recording')
             : t('tamagotchi.settings.devtools.pages.live2d-motion.recording.actions.record') }}
         </BasicButton>
         <BasicButton size="sm" :disabled="editingDisabled || !canUndo" :title="t('tamagotchi.settings.devtools.pages.live2d-motion.editor.undo')" @click="runHistoryAction(undo)">
-          <span :class="['i-solar:undo-left-round-linear']" />
+          <span :class="['i-mingcute:anticlockwise-line']" />
         </BasicButton>
         <BasicButton size="sm" :disabled="editingDisabled || !canRedo" :title="t('tamagotchi.settings.devtools.pages.live2d-motion.editor.redo')" @click="runHistoryAction(redo)">
-          <span :class="['i-solar:undo-right-round-linear']" />
+          <span :class="['i-mingcute:clockwise-line']" />
         </BasicButton>
         <BasicButton size="sm" :disabled="editingDisabled || playing || !canCrop" @click="cropToViewport">
-          <span :class="['i-solar:scissors-bold-duotone']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.crop-to-view') }}
+          <span :class="['i-mingcute:scissors-line']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.crop-to-view') }}
         </BasicButton>
         <BasicButton size="sm" :disabled="editingDisabled" @click="resetViewport">
-          <span :class="['i-solar:magnifer-zoom-out-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.reset-view') }}
+          <span :class="['i-mingcute:zoom-out-line']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.reset-view') }}
         </BasicButton>
         <BasicButton size="sm" :disabled="editingDisabled" @click="exportProject">
-          <span :class="['i-solar:download-minimalistic-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.export-project') }}
+          <span :class="['i-mingcute:download-2-line']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.export-project') }}
         </BasicButton>
         <BasicButton size="sm" :disabled="editingDisabled" @click="openImportPicker">
-          <span :class="['i-solar:upload-minimalistic-linear']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.import-project') }}
+          <span :class="['i-mingcute:upload-2-line']" /> {{ t('tamagotchi.settings.devtools.pages.live2d-motion.editor.import-project') }}
         </BasicButton>
       </div>
 

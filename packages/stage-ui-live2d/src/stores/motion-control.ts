@@ -1,30 +1,12 @@
+import type { Live2DMotionPose } from '@proj-airi/model-live2d-motion'
+
+import { neutralLive2DMotionPose } from '@proj-airi/model-live2d-motion'
 import { useBroadcastChannel } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { shallowRef, watch } from 'vue'
 
 /** A normalized pose for manual Live2D motion control. */
-export interface Live2DMotionControlPose {
-  eyeX: number
-  eyeY: number
-  /** Squint amount from 0 (open) to 1 (closed). */
-  eyeSquint: number
-  headX: number
-  headY: number
-  /** Head roll from -1 (left) to 1 (right). */
-  headZ: number
-  bodyX: number
-  bodyY: number
-  /** Body roll from -1 (left) to 1 (right). */
-  bodyZ: number
-  /** Mouth shape from -1 to 1. */
-  mouthForm: number
-  /** Mouth opening from 0 (closed) to 1 (open). */
-  mouthOpen: number
-  /** Joystick-only horizontal model translation. */
-  offsetX: number
-  /** Joystick-only vertical model translation. */
-  offsetY: number
-}
+export type Live2DMotionControlPose = Live2DMotionPose
 
 /** Spring settings for manual Live2D motion. */
 export interface Live2DMotionControlDynamics {
@@ -93,21 +75,7 @@ type Live2DMotionControlEvent
     ownerId: string
   }
 
-export const neutralLive2DMotionControlPose: Live2DMotionControlPose = Object.freeze({
-  eyeX: 0,
-  eyeY: 0,
-  eyeSquint: 0,
-  headX: 0,
-  headY: 0,
-  headZ: 0,
-  bodyX: 0,
-  bodyY: 0,
-  bodyZ: 0,
-  mouthForm: 0,
-  mouthOpen: 0,
-  offsetX: 0,
-  offsetY: 0,
-})
+export const neutralLive2DMotionControlPose: Live2DMotionControlPose = neutralLive2DMotionPose
 /** Default settings for the manual Live2D breath curve. */
 export const defaultLive2DBreathControlOptions: Live2DBreathControlOptions = Object.freeze({
   cycleSeconds: 2,

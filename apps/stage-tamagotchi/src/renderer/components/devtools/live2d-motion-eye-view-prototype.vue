@@ -73,14 +73,9 @@ function handlePointerEnd(event: PointerEvent) {
   <section :class="['rounded-xl bg-primary-50/55 p-4 dark:bg-primary-950/20']">
     <div :class="['flex flex-wrap items-start justify-between gap-3']">
       <div>
-        <div :class="['flex items-center gap-2']">
-          <span :class="['rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700 dark:bg-primary-900/50 dark:text-primary-200']">
-            {{ t('tamagotchi.settings.devtools.pages.live2d-motion.eye-view.prototype') }}
-          </span>
-          <h3 :class="['font-semibold text-neutral-900 dark:text-neutral-100']">
-            {{ t('tamagotchi.settings.devtools.pages.live2d-motion.eye-view.title') }}
-          </h3>
-        </div>
+        <h3 :class="['font-semibold text-neutral-900 dark:text-neutral-100']">
+          {{ t('tamagotchi.settings.devtools.pages.live2d-motion.eye-view.title') }}
+        </h3>
         <p :class="['mt-1 max-w-2xl text-sm text-neutral-500 dark:text-neutral-400']">
           {{ t('tamagotchi.settings.devtools.pages.live2d-motion.eye-view.description') }}
         </p>
@@ -88,7 +83,7 @@ function handlePointerEnd(event: PointerEvent) {
 
       <div :class="['flex flex-wrap gap-2']">
         <BasicButton @click="updateView({ enabled: !props.view.enabled })">
-          <span :class="[props.view.enabled ? 'i-solar:eye-bold-duotone' : 'i-solar:eye-closed-bold-duotone', 'mr-1.5 size-4']" />
+          <span :class="[props.view.enabled ? 'i-mingcute:eye-fill' : 'i-mingcute:eye-close-line', 'mr-1.5 size-4']" />
           {{ props.view.enabled
             ? t('tamagotchi.settings.devtools.pages.live2d-motion.eye-view.actions.disable')
             : t('tamagotchi.settings.devtools.pages.live2d-motion.eye-view.actions.enable') }}
@@ -127,7 +122,7 @@ function handlePointerEnd(event: PointerEvent) {
             'shadow-lg shadow-primary-500/20',
           ]"
         >
-          <span :class="['i-solar:target-bold-duotone', 'absolute inset-2']" />
+          <span :class="['i-mingcute:target-fill', 'absolute inset-2']" />
         </span>
       </BasicButton>
 
