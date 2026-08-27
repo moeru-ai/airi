@@ -4,7 +4,8 @@ import type { Live2DMotionControlDynamics, Live2DMotionControlPose } from '@proj
 
 import { getGamepadButtonLabel } from '@proj-airi/input-gamepad'
 import { defaultLive2DMotionControlDynamics, neutralLive2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
-import { BasicButton, FieldRange } from '@proj-airi/ui'
+import { BasicButton, Button, FieldRange } from '@proj-airi/ui'
+import { useRafFn } from '@vueuse/core'
 import { computed, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -26,6 +27,12 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const inputActive = shallowRef(false)
+const waveEnabled = shallowRef(false)
+let wavePhase = 0
+let wavePeriodMs = 1500
+let waveTargetPeriodMs = 1500
+let waveTargetAtMs = 0
+
 const pressedKeys = new Set<string>()
 const positionKeys = new Set([
   'ArrowDown',
@@ -106,6 +113,41 @@ const inputHints = computed(() => [
     keyboard: 'W / S',
   },
 ])
+
+useRafFn(({ delta, timestamp }) => {
+  if (!waveEnabled.value)
+    return
+
+  if (timestamp >= waveTargetAtMs) {
+    waveTargetPeriodMs = 1500 + Math.random() * 3500
+    waveTargetAtMs = timestamp + wavePeriodMs
+  }
+
+  wavePeriodMs += (waveTargetPeriodMs - wavePeriodMs) * (1 - Math.exp(-delta / 2000))
+  wavePhase += delta / wavePeriodMs * Math.PI * 2
+  const vertical = Math.sin(wavePhase)
+  const easedVertical = vertical * (1.5 - 0.5 * vertical * vertical)
+  inputActive.value = true
+  emit('move', {
+    ...props.pose,
+    headZ: -Math.cos(wavePhase),
+    offsetY: easedVertical * 0.64,
+  })
+})
+
+function toggleWave() {
+  waveEnabled.value = !waveEnabled.value
+  if (waveEnabled.value) {
+    wavePhase = 0
+    wavePeriodMs = 1500
+    waveTargetPeriodMs = 1500
+    waveTargetAtMs = 0
+    return
+  }
+
+  inputActive.value = false
+  emit('release')
+}
 
 function setPosition(x: number, y: number) {
   const magnitude = Math.hypot(x, y)
@@ -400,6 +442,7 @@ watch(() => props.disabled, (disabled) => {
   if (!disabled)
     return
 
+  waveEnabled.value = false
   pressedKeys.clear()
   gamepadOwnsInput = false
   keyboardOwnsInput = false
@@ -483,6 +526,18 @@ watch(() => props.gamepad, handleGamepad, { flush: 'sync' })
       </div>
 
       <div :class="['grid gap-4 rounded-xl bg-neutral-100/70 p-4 dark:bg-neutral-900/50']">
+        <Button
+          type="button"
+          color="cyan"
+          :variant="waveEnabled ? 'primary' : 'secondary'"
+          :aria-label="t('tamagotchi.settings.devtools.pages.live2d-motion.wave.toggle')"
+          :aria-pressed="waveEnabled"
+          :disabled="props.disabled"
+          @click="toggleWave"
+        >
+          <span :class="[waveEnabled ? 'i-solar:water-bold-duotone' : 'i-solar:water-linear', 'size-4']" />
+          {{ t('tamagotchi.settings.devtools.pages.live2d-motion.wave.toggle') }}
+        </Button>
         <FieldRange
           v-model="follow"
           :label="t('tamagotchi.settings.devtools.pages.live2d-motion.spring.follow.label')"

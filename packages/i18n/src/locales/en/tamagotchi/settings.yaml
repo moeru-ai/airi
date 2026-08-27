@@ -85,6 +85,8 @@ devtools:
           mouth-form: Form
           mouth-open: Open
       joystick-label: Live2D motion joystick
+      wave:
+        toggle: Boat mode
       instructions: Drag the joystick, or use the arrow keys for X/Y. R adds a slight squint. F adds a stronger squint. C closes the eyes. W/S changes the mouth shape. Space opens the mouth. A/D moves the body on X. Q/E tilts the head. Released keys return smoothly to center.
       parameter-note: The joystick controls X/Y. R maps to 1/3 squint. F maps to 2/3 squint. C maps to fully closed eyes. W/S maps to mouth form ±1. Space maps to mouth open 1. A/D maps to body X ±10°. Q/E maps to head Z ±30°.
       input:
