@@ -73,6 +73,26 @@ describe('funASR Hearing model synchronization', () => {
     })
   })
 
+  it('configures FunASR when selected before its settings page is opened (GitHub #2122)', async () => {
+    const providersStore = useProviderStore()
+    await providersStore.resetProviderSettings()
+
+    const providerConfigStore = useProviderConfigStore()
+    const hearingStore = useHearingStore()
+    expect(providerConfigStore.getProvider('funasr-audio-transcription')).toBeUndefined()
+
+    await hearingStore.setActiveTranscriptionProvider('funasr-audio-transcription')
+
+    expect(providerConfigStore.getProvider('funasr-audio-transcription')).toMatchObject({
+      status: 'configured',
+      config: {
+        baseUrl: 'http://localhost:8000/v1/',
+        model: 'sensevoice',
+      },
+    })
+    expect(hearingStore.configured).toBe(true)
+  })
+
   it('preserves an explicitly cleared FunASR model on startup', async () => {
     persistedSettings.set('settings/hearing/active-provider', 'funasr-audio-transcription')
 
@@ -198,6 +218,31 @@ describe('funASR Hearing model synchronization', () => {
     expect(fetchModels).toHaveBeenCalledWith(providerId)
     expect(hearingStore.activeTranscriptionModel).toBe('whisper-1')
     expect(providerConfigStore.getProviderConfig(providerId)).not.toHaveProperty('model')
+  })
+
+  it('loads a fresh catalog when neither persisted state owns a model (GitHub #2122)', async () => {
+    const providerId = 'comet-api-transcription'
+    persistedSettings.set('settings/hearing/active-provider', providerId)
+    persistedSettings.set('settings/hearing/active-model', '')
+
+    const providerConfigStore = useProviderConfigStore()
+    providerConfigStore.ensureProvider(providerId, providerId, {
+      apiKey: 'test-key',
+      baseUrl: 'https://api.cometapi.com/v1/',
+    })
+    const providersStore = useProviderStore()
+    await providersStore.initializeProvider(providerId)
+    const fetchModels = vi.spyOn(providersStore, 'fetchModelsForProvider').mockResolvedValue([{
+      id: 'whisper-1',
+      name: 'Whisper',
+      provider: providerId,
+    }])
+
+    const hearingStore = useHearingStore()
+    await hearingStore.initialize()
+
+    expect(fetchModels).toHaveBeenCalledWith(providerId)
+    expect(hearingStore.activeTranscriptionModel).toBe('whisper-1')
   })
 
   it('restores the FunASR configured model when the provider is selected', async () => {

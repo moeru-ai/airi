@@ -454,6 +454,9 @@ export const useHearingStore = defineStore('hearing-store', () => {
     }
 
     if (providerId === 'funasr-audio-transcription') {
+      if (!providerStore.getProvider(providerId))
+        await providersStore.initializeProvider(providerId)
+      await providersStore.validateProvider(providerId)
       applyActiveTranscriptionModel(providerId, activeFunASRConfiguredModel.value)
       await loadModelsForProvider(providerId)
     }
@@ -506,6 +509,9 @@ export const useHearingStore = defineStore('hearing-store', () => {
       return
 
     if (providerId === 'funasr-audio-transcription') {
+      if (!providerStore.getProvider(providerId))
+        await providersStore.initializeProvider(providerId)
+      await providersStore.validateProvider(providerId)
       applyActiveTranscriptionModel(providerId, activeFunASRConfiguredModel.value)
       await loadModelsForProvider(providerId)
       return
@@ -528,6 +534,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     pendingDestinationModelRequest = { providerId }
     if (syncDestinationModel(providerId))
       pendingDestinationModelRequest = undefined
+    await loadModelsForProvider(providerId)
   }
 
   // Computed properties
