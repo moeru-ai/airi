@@ -12,6 +12,7 @@ import type {
 } from '@xsai-ext/providers/utils'
 import type { ProgressInfo } from '@xsai-transformers/shared/types'
 import type { MaybePromise } from 'clustr'
+import type { Component } from 'vue'
 import type { ComposerTranslation } from 'vue-i18n'
 import type { $ZodType } from 'zod/v4/core'
 
@@ -61,6 +62,16 @@ export interface ProviderOnboardingField {
   placeholder?: string
   required?: boolean
   defaultValue?: string
+}
+
+/** Inputs available while a Provider builds its configuration schema. */
+export interface ProviderConfigContext<TConfig> {
+  /** Cancels runtime discovery that contributes schema metadata. */
+  abortSignal?: AbortSignal
+  /** Current draft values. Providers can use them to resolve dependent fields. */
+  config?: Partial<TConfig>
+  /** Translates labels and descriptions for the active interface locale. */
+  t: ComposerTranslation
 }
 
 export interface ProviderExtraMethods<TConfig> {
@@ -189,7 +200,7 @@ export interface ProviderDefinition<TConfig extends any = any> {
    * - may requires significant amount of memory to run, especially for those
    *   non-WebGPU supported environments.
    */
-  isAvailableBy?: () => Promise<boolean> | boolean
+  isAvailableBy?: () => MaybePromise<boolean>
 
   /**
    * If false, the provider does not require user-provided credentials (e.g. API keys).
@@ -204,9 +215,16 @@ export interface ProviderDefinition<TConfig extends any = any> {
    */
   configuredBy?: ProviderConfiguredBy
 
-  createProviderConfig: (contextOptions: { t: ComposerTranslation }) => $ZodType<TConfig>
-  onboardingFields?: (ctx: { t: ComposerTranslation }) => ProviderOnboardingField[]
-  createProvider: (config: TConfig) => ProviderInstance
+  /** Provider-owned controls for module settings pages. */
+  views?: {
+    /** Lazily loads additional controls shown for this Provider in the Hearing module. */
+    hearing?: () => Promise<{ default: Component }>
+  }
+
+  /** Builds the validation schema and its UI metadata for the current draft. */
+  createProviderConfig: (contextOptions: ProviderConfigContext<TConfig>) => MaybePromise<$ZodType<TConfig>>
+  onboardingFields?: (ctx: { t: ComposerTranslation }) => MaybePromise<ProviderOnboardingField[]>
+  createProvider: (config: TConfig) => MaybePromise<ProviderInstance>
   extraMethods?: ProviderExtraMethods<TConfig>
   /**
    * Returns true when the configuration has enough input for automatic validation.
@@ -214,17 +232,17 @@ export interface ProviderDefinition<TConfig extends any = any> {
    *
    * @default false
    */
-  validationRequiredWhen?: (config: TConfig) => boolean
+  validationRequiredWhen?: (config: TConfig) => MaybePromise<boolean>
   validators?: {
-    validateConfig?: Array<(contextOptions: { t: ComposerTranslation }) => ProviderConfigValidator<TConfig>>
-    validateProvider?: Array<(contextOptions: { t: ComposerTranslation }) => ProviderRuntimeValidator<TConfig>>
+    validateConfig?: Array<(contextOptions: { t: ComposerTranslation }) => MaybePromise<ProviderConfigValidator<TConfig>>>
+    validateProvider?: Array<(contextOptions: { t: ComposerTranslation }) => MaybePromise<ProviderRuntimeValidator<TConfig>>>
   }
   capabilities?: {
     chat?: {
       reasoning?: ChatReasoningCapability
     }
     transcription?: {
-      protocol: 'websocket' | 'http'
+      protocol: 'websocket' | 'http' | 'native'
       generateOutput: boolean
       streamOutput: boolean
       streamInput: boolean

@@ -11,6 +11,7 @@ import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Callout, ComboboxSelect } from '@proj-airi/ui'
+import { computedAsync } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -25,7 +26,7 @@ const speechStore = useSpeechStore()
 const { isAuthenticated, credits, needsLogin } = storeToRefs(authStore)
 
 const providerId = 'official-provider-speech-streaming'
-const providerMetadata = computed(() => selectProviderMetadata(
+const providerMetadata = computedAsync(() => selectProviderMetadata(
   providersStore.getProviderDefinition(providerId),
   t,
   { id: providerId },

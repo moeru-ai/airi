@@ -13,7 +13,10 @@ const externalVisualStores = vi.hoisted(() => ({
   models: { resetModelStore: vi.fn() },
 }))
 
-vi.mock('@proj-airi/stage-shared', () => ({ isStageTamagotchi: () => false }))
+vi.mock('@proj-airi/stage-shared', () => ({
+  isStageCapacitor: () => false,
+  isStageTamagotchi: () => false,
+}))
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -73,7 +76,7 @@ describe('useDataMaintenance', () => {
       baseUrl: 'http://localhost:8000/v1/',
       model: 'whisper-1',
     })
-    providersStore.initializeProvider(providerId)
+    await providersStore.initializeProvider(providerId)
 
     const hearingStore = useHearingStore()
     await hearingStore.setActiveTranscriptionProvider(providerId, 'whisper-1')

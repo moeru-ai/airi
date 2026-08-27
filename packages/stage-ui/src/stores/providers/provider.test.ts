@@ -234,7 +234,7 @@ describe('provider store synchronization boundary', () => {
     const providerId = 'funasr-audio-transcription'
     const store = useProviderStore()
     const configStore = useProviderConfigStore()
-    store.initializeProvider(providerId)
+    await store.initializeProvider(providerId)
     await new Promise(resolve => setTimeout(resolve, 0))
     configStore.setProviderStatus(providerId, 'configured')
     await store.refreshModelsForChangedCredentials()
@@ -253,7 +253,7 @@ describe('provider store synchronization boundary', () => {
     const providerId = 'openai-audio-transcription'
     const store = useProviderStore()
     const configStore = useProviderConfigStore()
-    store.initializeProvider(providerId)
+    await store.initializeProvider(providerId)
     configStore.getProviderConfig(providerId)!.apiKey = 'test-key'
     await new Promise(resolve => setTimeout(resolve, 0))
     configStore.setProviderStatus(providerId, 'configured')
@@ -278,7 +278,7 @@ describe('provider store synchronization boundary', () => {
       baseUrl: 'http://localhost:8000/v1/',
       model: 'sensevoice',
     })
-    store.initializeProvider(providerId)
+    await store.initializeProvider(providerId)
     await new Promise(resolve => setTimeout(resolve, 0))
     configStore.setProviderStatus(providerId, 'configured')
     await store.refreshModelsForChangedCredentials()
@@ -301,7 +301,7 @@ describe('provider store synchronization boundary', () => {
     })
     const store = useProviderStore()
     await new Promise(resolve => setTimeout(resolve, 0))
-    store.initializeProvider(providerId)
+    await store.initializeProvider(providerId)
     expect(store.getDefaultProviderConfig(providerId)).toEqual({
       baseUrl: 'https://api.openai.com/v1/',
       model: 'gpt-4o-transcribe',
@@ -325,7 +325,7 @@ describe('provider store synchronization boundary', () => {
     const providerId = 'funasr-audio-transcription'
     const store = useProviderStore()
     const configStore = useProviderConfigStore()
-    store.initializeProvider(providerId)
+    await store.initializeProvider(providerId)
     Object.assign(configStore.getProviderConfig(providerId)!, {
       apiKey: 'not-needed',
       baseUrl: 'http://localhost:8000/v1/',
@@ -389,7 +389,7 @@ describe('provider store synchronization boundary', () => {
     const providerId = 'funasr-audio-transcription'
     const store = useProviderStore()
     const configStore = useProviderConfigStore()
-    store.initializeProvider(providerId)
+    await store.initializeProvider(providerId)
     Object.assign(configStore.getProviderConfig(providerId)!, {
       apiKey: 'not-needed',
       baseUrl: 'http://localhost:8000/v1/',
@@ -469,7 +469,7 @@ describe('provider store synchronization boundary', () => {
     const providerId = 'funasr-audio-transcription'
     const store = useProviderStore()
     const configStore = useProviderConfigStore()
-    store.initializeProvider(providerId)
+    await store.initializeProvider(providerId)
     Object.assign(configStore.getProviderConfig(providerId)!, {
       apiKey: 'not-needed',
       baseUrl: 'http://localhost:8000/v1/',

@@ -41,7 +41,7 @@ describe('providerAzureOpenAI tool schemas', () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response('{}'))
     vi.stubGlobal('fetch', fetchMock)
 
-    const provider = providerAzureOpenAI.createProvider({
+    const provider = await providerAzureOpenAI.createProvider({
       apiKey: 'test-key',
       baseUrl: 'https://example.openai.azure.com/openai/',
     })

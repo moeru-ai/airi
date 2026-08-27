@@ -1,4 +1,5 @@
 export * from './attributes'
+export * from './hearing-view'
 export * from './metadata'
 export * from './model-update-queue'
 export * from './providers'

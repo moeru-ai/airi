@@ -47,13 +47,13 @@ vi.mock('../../composables/use-analytics', () => ({
 }))
 
 describe('funASR Hearing model synchronization', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     persistedSettings.clear()
     setActivePinia(createPinia())
 
     const providersStore = useProviderStore()
     for (const providerId of TRANSCRIPTION_PROVIDER_IDS)
-      providersStore.initializeProvider(providerId)
+      await providersStore.initializeProvider(providerId)
   })
 
   it('hydrates FunASR models when Hearing starts with the provider persisted', async () => {
@@ -155,7 +155,7 @@ describe('funASR Hearing model synchronization', () => {
       model: 'gpt-4o-transcribe',
     })
     const providersStore = useProviderStore()
-    providersStore.initializeProvider(providerId)
+    await providersStore.initializeProvider(providerId)
     const fetchModels = vi.spyOn(providersStore, 'fetchModelsForProvider').mockResolvedValue([{
       id: 'gpt-4o-transcribe',
       name: 'GPT-4o Transcribe',
@@ -185,7 +185,7 @@ describe('funASR Hearing model synchronization', () => {
       baseUrl: 'https://api.cometapi.com/v1/',
     })
     const providersStore = useProviderStore()
-    providersStore.initializeProvider(providerId)
+    await providersStore.initializeProvider(providerId)
     const fetchModels = vi.spyOn(providersStore, 'fetchModelsForProvider').mockResolvedValue([{
       id: 'whisper-1',
       name: 'Whisper',
@@ -225,7 +225,7 @@ describe('funASR Hearing model synchronization', () => {
       apiKey: 'test-key',
       baseUrl: 'http://localhost:8000/v1/',
     })
-    providersStore.initializeProvider(providerId)
+    await providersStore.initializeProvider(providerId)
 
     const hearingStore = useHearingStore()
     await hearingStore.setActiveTranscriptionProvider(providerId)
@@ -264,7 +264,7 @@ describe('funASR Hearing model synchronization', () => {
       baseUrl: 'http://localhost:8000/v1/',
       model: 'sensevoice',
     })
-    providersStore.initializeProvider(providerId)
+    await providersStore.initializeProvider(providerId)
 
     const hearingStore = useHearingStore()
     await hearingStore.setActiveTranscriptionProvider(providerId)
@@ -352,8 +352,8 @@ describe('funASR Hearing model synchronization', () => {
     let resolveInitialization!: () => void
     vi.spyOn(providersStore, 'initializeProvider').mockImplementation(((providerId: string) => {
       return new Promise<void>((resolve) => {
-        resolveInitialization = () => {
-          initializeProvider(providerId)
+        resolveInitialization = async () => {
+          await initializeProvider(providerId)
           resolve()
         }
       })

@@ -1,4 +1,5 @@
 import './amazon-bedrock'
+import './apple-speech'
 import './openai'
 import './openai-audio'
 import './aihubmix'

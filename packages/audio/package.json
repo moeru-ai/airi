@@ -58,6 +58,7 @@
     "@moeru/std": "catalog:"
   },
   "devDependencies": {
-    "@types/audioworklet": "catalog:"
+    "@types/audioworklet": "catalog:",
+    "vue": "catalog:"
   }
 }

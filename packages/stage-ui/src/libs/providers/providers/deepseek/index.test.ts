@@ -14,10 +14,10 @@ function isDeepSeekChatProvider(provider: ProviderInstance): provider is DeepSee
   return 'chat' in provider && typeof provider.chat === 'function'
 }
 
-function createDeepSeekChatProvider(
+async function createDeepSeekChatProvider(
   thinkingMode: 'auto' | 'disable' | 'enable',
-): DeepSeekChatProvider {
-  const provider = providerDeepSeek.createProvider({
+): Promise<DeepSeekChatProvider> {
+  const provider = await providerDeepSeek.createProvider({
     apiKey: 'sk-test',
     baseUrl: 'https://api.deepseek.com/',
     thinkingMode,
@@ -30,30 +30,30 @@ function createDeepSeekChatProvider(
 }
 
 describe('providerDeepSeek.createProvider chat options', () => {
-  it('should not set thinking when thinkingMode is auto', () => {
-    const provider = createDeepSeekChatProvider('auto')
+  it('should not set thinking when thinkingMode is auto', async () => {
+    const provider = await createDeepSeekChatProvider('auto')
 
     expect(provider.chat('deepseek-chat')).not.toHaveProperty('thinking')
   })
 
-  it('should set thinking disabled when thinkingMode is disable', () => {
-    const provider = createDeepSeekChatProvider('disable')
+  it('should set thinking disabled when thinkingMode is disable', async () => {
+    const provider = await createDeepSeekChatProvider('disable')
 
     expect(provider.chat('deepseek-chat')).toMatchObject({
       thinking: { type: 'disabled' },
     })
   })
 
-  it('should set thinking enabled when thinkingMode is enable', () => {
-    const provider = createDeepSeekChatProvider('enable')
+  it('should set thinking enabled when thinkingMode is enable', async () => {
+    const provider = await createDeepSeekChatProvider('enable')
 
     expect(provider.chat('deepseek-chat')).toMatchObject({
       thinking: { type: 'enabled' },
     })
   })
 
-  it('should prioritize request reasoning over the provider setting', () => {
-    const provider = createDeepSeekChatProvider('enable')
+  it('should prioritize request reasoning over the provider setting', async () => {
+    const provider = await createDeepSeekChatProvider('enable')
 
     expect(provider.chat('deepseek-chat', { reasoning: 'disabled' })).toMatchObject({
       thinking: { type: 'disabled' },

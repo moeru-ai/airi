@@ -15,7 +15,7 @@ import type { ChatRequestOptions, ModelInfo, ProviderDefinition, ProviderInstanc
 
 import { errorMessageFrom } from '@moeru/std'
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
-import { computedAsync, useIntervalFn } from '@vueuse/core'
+import { computedAsync, useAsyncState, useIntervalFn } from '@vueuse/core'
 import { listModels } from '@xsai/model'
 import { uniqBy } from 'es-toolkit'
 import { defineStore } from 'pinia'
@@ -141,28 +141,42 @@ export const useProviderStore = defineStore('provider', () => {
   const providerDefinitions = Object.fromEntries(
     definedProviders.map(definition => [definition.id, definition]),
   ) as Record<string, ProviderDefinition>
-  const providerMetadata = selectProvidersMetadata(definedProviders, t)
-
   const providerValidationIntervalMsById = new Map<string, number>()
-  for (const definition of definedProviders) {
-    const intervalMs = getProviderValidationIntervalMs({
-      definition,
-      contextOptions: { t },
-    })
-    if (intervalMs && intervalMs > 0) {
+  const providerMetadataState = useAsyncState(async () => {
+    const metadata = await selectProvidersMetadata(definedProviders, t)
+
+    await Promise.all(definedProviders.map(async (definition) => {
+      const intervalMs = await getProviderValidationIntervalMs({
+        definition,
+        contextOptions: { t },
+      })
+      if (!intervalMs || intervalMs <= 0)
+        return
+
       providerValidationIntervalMsById.set(definition.id, intervalMs)
       providerValidationIntervalMsById.set(`${VISION_PROVIDER_ID_PREFIX}${definition.id}`, intervalMs)
-    }
-  }
+    }))
 
-  for (const definition of definedProviders.filter(definition => providerMetadata[definition.id]?.category === 'chat')) {
-    const id = `${VISION_PROVIDER_ID_PREFIX}${definition.id}`
-    providerMetadata[id] = selectProviderMetadata(definition, t, {
-      id,
-      to: `/settings/providers/vision/${definition.id}`,
-      category: 'vision',
-      tasks: Array.from(new Set([...definition.tasks, 'vision', 'image-understanding'])),
-    })
+    await Promise.all(definedProviders
+      .filter(definition => metadata[definition.id]?.category === 'chat')
+      .map(async (definition) => {
+        const id = `${VISION_PROVIDER_ID_PREFIX}${definition.id}`
+        metadata[id] = await selectProviderMetadata(definition, t, {
+          id,
+          to: `/settings/providers/vision/${definition.id}`,
+          category: 'vision',
+          tasks: Array.from(new Set([...definition.tasks, 'vision', 'image-understanding'])),
+        })
+      }))
+
+    return metadata
+  }, {})
+  const providerMetadata = providerMetadataState.state
+
+  async function waitForProviderMetadata() {
+    await providerMetadataState
+    if (providerMetadataState.error.value)
+      throw providerMetadataState.error.value
   }
 
   const providerRuntimeState = computed({
@@ -234,9 +248,10 @@ export const useProviderStore = defineStore('provider', () => {
     config: Record<string, unknown>,
     options: { onlyChatPingCheck?: boolean, skipChatPingCheck?: boolean } = {},
   ) {
+    await waitForProviderMetadata()
     const definition = getProviderDefinition(providerId)
     const schemaDefaults = getDefaultProviderConfig(providerId)
-    const plan = getValidatorsOfProvider({
+    const plan = await getValidatorsOfProvider({
       definition,
       config,
       schemaDefaults,
@@ -277,12 +292,13 @@ export const useProviderStore = defineStore('provider', () => {
     }
   }
 
-  function hasManualProviderValidators(providerId: string) {
+  async function hasManualProviderValidators(providerId: string) {
     const definition = findProviderDefinition(providerId)
     if (!definition || definition.disableChatPingCheckUI)
       return false
-    return (definition.validators?.validateProvider ?? [])
-      .some(createValidator => createValidator({ t }).id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
+    const validators = await Promise.all((definition.validators?.validateProvider ?? [])
+      .map(createValidator => createValidator({ t })))
+    return validators.some(validator => validator.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
   }
 
   function supportsModelListing(providerId: string) {
@@ -291,6 +307,7 @@ export const useProviderStore = defineStore('provider', () => {
 
   // Configuration validation functions
   async function validateProvider(providerId: string, options: { force?: boolean } = {}): Promise<boolean> {
+    await waitForProviderMetadata()
     const definition = findProviderDefinition(providerId)
     if (!definition)
       return false
@@ -367,8 +384,8 @@ export const useProviderStore = defineStore('provider', () => {
 
   function getDefaultProviderConfig(providerId: string) {
     const definitionId = getProviderDefinitionId(providerId)
-    const defaultOptions = providerMetadata[providerId]?.defaultConfig
-      ?? providerMetadata[definitionId]?.defaultConfig
+    const defaultOptions = providerMetadata.value[providerId]?.defaultConfig
+      ?? providerMetadata.value[definitionId]?.defaultConfig
       ?? {}
     return {
       ...defaultOptions,
@@ -387,7 +404,8 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   // Initialize provider configurations
-  function initializeProvider(providerId: string) {
+  async function initializeProvider(providerId: string) {
+    await waitForProviderMetadata()
     if (!providerCredentials.value[providerId]) {
       const definitionId = getProviderDefinitionId(providerId)
       providerConfigStore.ensureProvider(providerId, definitionId, getDefaultProviderConfig(providerId))
@@ -404,7 +422,7 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   function reconcileUnlistedProviders() {
-    for (const providerId of Object.keys(providerMetadata)) {
+    for (const providerId of Object.keys(providerMetadata.value)) {
       if (shouldListProvider(providerId))
         continue
       stopRevalidationLoop(providerId)
@@ -418,7 +436,7 @@ export const useProviderStore = defineStore('provider', () => {
 
   function startPeriodicRuntimeValidation() {
     for (const [providerId, intervalMs] of providerValidationIntervalMsById.entries()) {
-      if (!providerMetadata[providerId] || intervalMs <= 0)
+      if (!providerMetadata.value[providerId] || intervalMs <= 0)
         continue
 
       if (!shouldListProvider(providerId))
@@ -438,7 +456,8 @@ export const useProviderStore = defineStore('provider', () => {
 
   // Update configuration status for listed providers only.
   async function updateConfigurationStatus() {
-    await Promise.all(Object.entries(providerMetadata)
+    await waitForProviderMetadata()
+    await Promise.all(Object.entries(providerMetadata.value)
       .filter(([providerId]) => shouldListProvider(providerId) || providerId === 'browser-web-speech-api')
       .map(async ([providerId]) => {
         try {
@@ -762,8 +781,8 @@ export const useProviderStore = defineStore('provider', () => {
 
   function projectProvider(providerId: string): ProviderMetadata | undefined {
     const configuredProvider = providerConfigStore.providers[providerId]
-    const metadata = providerMetadata[providerId]
-      ?? providerMetadata[configuredProvider?.definitionId ?? '']
+    const metadata = providerMetadata.value[providerId]
+      ?? providerMetadata.value[configuredProvider?.definitionId ?? '']
 
     if (!metadata)
       return undefined
@@ -784,13 +803,13 @@ export const useProviderStore = defineStore('provider', () => {
   // Get all provider metadata in registry order for the settings page.
   const allProvidersMetadata = computed(() => {
     const definitions = definedProviders
-      .filter(d => providerMetadata[d.id])
+      .filter(d => providerMetadata.value[d.id])
       .map(d => projectProvider(d.id))
       .filter(metadata => metadata !== undefined)
     // Vision providers reuse chat definitions under separate instance ids.
     // Include these generated definitions before configured custom instances.
     const visionDefinitions = definedProviders
-      .filter(definition => providerMetadata[definition.id]?.category === 'chat')
+      .filter(definition => providerMetadata.value[definition.id]?.category === 'chat')
       .map(definition => projectProvider(`${VISION_PROVIDER_ID_PREFIX}${definition.id}`))
       .filter(metadata => metadata !== undefined)
     const definitionIds = new Set([...definitions, ...visionDefinitions].map(metadata => metadata.id))
@@ -829,6 +848,7 @@ export const useProviderStore = defineStore('provider', () => {
   | TranscriptionProvider
   | TranscriptionProviderWithExtraOptions,
   >(providerId: string): Promise<R> {
+    await waitForProviderMetadata()
     const cached = providerInstanceCache.get(providerId) as R | undefined
     if (cached)
       return cached

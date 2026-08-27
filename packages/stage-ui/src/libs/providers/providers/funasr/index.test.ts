@@ -16,9 +16,9 @@ function expectTranscriptionProvider(
 
 describe('providerFunASRAudioTranscription', () => {
   it('registers credential-optional local defaults and the fixed model catalog', async () => {
-    const schema = providerFunASRAudioTranscription.createProviderConfig({ t })
+    const schema = await providerFunASRAudioTranscription.createProviderConfig({ t })
     const config = z.parse(schema, {})
-    const provider = providerFunASRAudioTranscription.createProvider(config)
+    const provider = await providerFunASRAudioTranscription.createProvider(config)
 
     expect(providerFunASRAudioTranscription).toMatchObject({
       id: 'funasr-audio-transcription',
@@ -40,7 +40,7 @@ describe('providerFunASRAudioTranscription', () => {
 
   it('accepts local HTTP endpoints without credentials and rejects invalid settings', async () => {
     const createValidator = providerFunASRAudioTranscription.validators?.validateConfig?.[0]
-    const validator = createValidator?.({ t })
+    const validator = await createValidator?.({ t })
     expect(validator).toBeDefined()
 
     await expect(validator?.validator({

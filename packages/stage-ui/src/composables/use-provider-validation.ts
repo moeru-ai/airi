@@ -3,7 +3,7 @@ import type { RemovableRef } from '@vueuse/core'
 import type { ProviderMode } from './use-analytics'
 
 import { errorMessageFrom } from '@moeru/std'
-import { useDebounceFn } from '@vueuse/core'
+import { computedAsync, useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -37,13 +37,13 @@ export function useProviderValidation(providerId: string) {
   } = useAnalytics()
   const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
 
-  const providerMetadata = computed(() => {
+  const providerMetadata = computedAsync(async () => {
     const definition = providersStore.getProviderDefinition(providerId)
-    return selectProviderMetadata(definition, t, {
+    return await selectProviderMetadata(definition, t, {
       id: providerId,
       configured: providerStore.getProvider(providerId)?.status === 'configured',
     })
-  })
+  }, undefined)
 
   // --- Internal Computed Properties for Credentials ---
   const credentials = computed(() => providers.value[providerId] || {})
@@ -83,7 +83,10 @@ export function useProviderValidation(providerId: string) {
   let validationRevision = 0
 
   // Manual chat ping check state (settings pages only)
-  const hasManualValidators = computed(() => providersStore.hasManualProviderValidators(providerId))
+  const hasManualValidators = computedAsync(
+    async () => await providersStore.hasManualProviderValidators(providerId),
+    false,
+  )
   const isManualTesting = ref(false)
   const manualTestPassed = ref(false)
   const manualTestMessage = ref('')
@@ -215,16 +218,16 @@ export function useProviderValidation(providerId: string) {
     }
   }
 
-  function shouldValidateConfiguration() {
+  async function shouldValidateConfiguration() {
     const definition = providersStore.getProviderDefinition(providerId)
-    return definition.validationRequiredWhen?.(credentials.value) ?? false
+    return await definition.validationRequiredWhen?.(credentials.value) ?? false
   }
 
   const debouncedValidateConfiguration = useDebounceFn(async (revision: number) => {
     if (revision !== validationRevision)
       return
 
-    if (!shouldValidateConfiguration()) {
+    if (!await shouldValidateConfiguration()) {
       isValid.value = false
       isValidating.value = 1
       await providerStore.setProviderStatus(providerId, 'validating')
@@ -243,11 +246,11 @@ export function useProviderValidation(providerId: string) {
     await validateConfiguration(revision)
   }, debounceTime)
 
-  onMounted(() => {
-    providersStore.initializeProvider(providerId)
+  onMounted(async () => {
+    await providersStore.initializeProvider(providerId)
     const revision = ++validationRevision
-    if (shouldValidateConfiguration()) {
-      debouncedValidateConfiguration(revision)
+    if (await shouldValidateConfiguration()) {
+      await validateConfiguration(revision)
     }
   })
 
