@@ -117,6 +117,7 @@ watch([apiKeyConfigured, resourceId, speaker], async () => {
         :generate-speech="handleGenerateSpeech"
         :api-key-configured="apiKeyConfigured"
         :fixed-voice="speaker"
+        :ssml-supported="false"
         default-text="你好！这是一段豆包语音合成的测试。"
       />
     </template>
