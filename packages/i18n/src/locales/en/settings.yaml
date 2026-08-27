@@ -939,6 +939,10 @@ pages:
               proceed.
             action: Save anyway
         config:
+          loading: Loading provider settings...
+          load-error: Failed to load provider settings.
+          save-error: Failed to save provider settings.
+          retry: Retry
           common:
             fields:
               field:
@@ -1079,6 +1083,14 @@ pages:
         OpenAI, Azure Speech
     description: LLMs, speech providers, etc.
     provider:
+      apple-speech-transcription:
+        title: Apple Speech
+        description: On-device speech recognition on macOS 26 or later. No API key is required.
+        fields:
+          locale:
+            label: Locale
+            description: Use an exact Apple Speech locale, such as en-US or zh-CN.
+            placeholder: en-US
       app-local-audio-transcription:
         title: App (Local)
         description: https://github.com/moeru-ai/xsai-transformers

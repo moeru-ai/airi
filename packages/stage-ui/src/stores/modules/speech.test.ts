@@ -105,7 +105,7 @@ describe('speech store helpers', () => {
     const providerConfigStore = useProviderConfigStore()
     vi.spyOn(providersStore, 'listProviderVoices').mockResolvedValue([])
     const speechStore = useSpeechStore()
-    providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+    await providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
     providersStore.forceProviderConfigured(OFFICIAL_SPEECH_PROVIDER_ID)
     speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
     speechStore.activeSpeechModel = 'auto'
@@ -223,13 +223,13 @@ describe('speech store helpers', () => {
    * @example
    * speechStore.ensureActiveSpeechModel()
    */
-  it('keeps a real Voice Pack TTS model selected for the regular official provider', () => {
+  it('keeps a real Voice Pack TTS model selected for the regular official provider', async () => {
     const providersStore = useProviderStore()
     const speechStore = useSpeechStore()
     speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
     speechStore.activeSpeechModel = 'volcengine/pool-a'
     speechStore.activeSpeechVoiceId = 'voice-a'
-    providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+    await providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
     providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = [
       { id: 'volcengine/pool-a', name: 'volcengine/pool-a', provider: OFFICIAL_SPEECH_PROVIDER_ID },
       { id: 'microsoft/v1', name: 'microsoft/v1', provider: OFFICIAL_SPEECH_PROVIDER_ID },
@@ -280,10 +280,11 @@ describe('speech store helpers', () => {
       languages: [],
     }
     try {
-      providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+      await providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+      const provider = await providerOfficialSpeech.createProvider({})
       providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
         {},
-        providerOfficialSpeech.createProvider({}),
+        provider,
       )
 
       speechStore.ensureActiveSpeechModel()
@@ -339,10 +340,11 @@ describe('speech store helpers', () => {
     speechStore.activeSpeechVoiceId = 'old-model-voice'
 
     try {
-      providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+      await providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+      const provider = await providerOfficialSpeech.createProvider({})
       providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
         {},
-        providerOfficialSpeech.createProvider({}),
+        provider,
       )
 
       speechStore.ensureActiveSpeechModel()
@@ -397,10 +399,11 @@ describe('speech store helpers', () => {
     speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
 
     try {
-      providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+      await providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+      const provider = await providerOfficialSpeech.createProvider({})
       providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
         {},
-        providerOfficialSpeech.createProvider({}),
+        provider,
       )
 
       speechStore.ensureActiveSpeechModel()

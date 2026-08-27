@@ -18,7 +18,7 @@ const airiCardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
 const consciousnessSettingsStore = useConsciousnessSettingsStore()
 const { configuredProviders } = storeToRefs(providerStore)
-const { persistedChatProvidersMetadata } = storeToRefs(providersStore)
+const { moduleChatProvidersMetadata } = storeToRefs(providersStore)
 const { reasoning } = storeToRefs(consciousnessSettingsStore)
 const {
   activeProvider,
@@ -88,13 +88,13 @@ async function updateReasoning(value: boolean) {
           See also: https://stackoverflow.com/a/33737340
         -->
           <fieldset
-            v-if="persistedChatProvidersMetadata.length > 0"
+            v-if="moduleChatProvidersMetadata.length > 0"
             flex="~ row gap-4"
             min-w-0 overflow-x-auto scroll-smooth
             role="radiogroup"
           >
             <RadioCardSimple
-              v-for="metadata in persistedChatProvidersMetadata"
+              v-for="metadata in moduleChatProvidersMetadata"
               :id="metadata.id"
               :key="metadata.id"
               v-model="activeProvider"

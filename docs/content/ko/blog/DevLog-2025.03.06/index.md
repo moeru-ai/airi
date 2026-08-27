@@ -9,15 +9,15 @@ date: 2025-03-06
 전날에는 DevStream에서 AIRI의 기본 애니메이션과 전환 효과를 만드는 진행 상황을
 보여 드렸습니다.
 
-목표는 [@yui540](https://yui540.com/) 의 멋진 작업을 어떤 Vue 프로젝트에서도 쓸 수 있는
+목표는 [@yui540](https://yui540.com/)의 멋진 작업을 어떤 Vue 프로젝트에서도 쓸 수 있는
 재사용 가능한 Vue 컴포넌트로 이식하고 다듬는 것입니다.
 
 > yui540과 참고한 라이브러리·작업물에 대한 상세 내용은 새로 배포한 문서 사이트
-> [https://airi.build/references/design-guidelines/resources/](../references/design-guidelines/resources/)
-> 에 이미 정리해 두었습니다.
+> [https://airi.build/references/design-guidelines/resources/](../references/design-guidelines/resources/)에
+> 이미 정리해 두었습니다.
 
 결과는 꽤 좋고, 이미
-[https://proj-airi-packages-ui-transitions.netlify.app/#/](https://proj-airi-packages-ui-transitions.netlify.app/#/) 에 배포되어 있습니다.
+[https://proj-airi-packages-ui-transitions.netlify.app/#/](https://proj-airi-packages-ui-transitions.netlify.app/#/)에 배포되어 있습니다.
 
 ![](/en/blog/DevLog-2025.03.06/assets/animation-transitions.gif)
 
@@ -34,9 +34,9 @@ date: 2025-03-06
 [`definePage`](https://uvr.esm.is/guide/extending-routes.html#definepage) 매크로 훅을 실험해 봤는데,
 제 상황에 꽤 잘 맞아서 이 방향으로 가기로 했습니다.
 
-그리고 [https://cowardly-witch.netlify.app/](https://cowardly-witch.netlify.app/) 에서
+그리고 [https://cowardly-witch.netlify.app/](https://cowardly-witch.netlify.app/)에서
 새 애니메이션 전환 3개를 추가로 포팅했고, 이미
-[https://proj-airi-packages-ui-transitions.netlify.app/#/](https://proj-airi-packages-ui-transitions.netlify.app/#/) 에서 볼 수 있습니다.
+[https://proj-airi-packages-ui-transitions.netlify.app/#/](https://proj-airi-packages-ui-transitions.netlify.app/#/)에서 볼 수 있습니다.
 
 어제 공식 문서 사이트를 [https://airi.build](https://airi.build)에 배포했더니
 [@kwaa](https://github.com/kwaa)가 대신 `https://airi.more.ai/docs` 방식을 써 보라고 제안했습니다.
@@ -50,8 +50,8 @@ CI/CD 파이프라인과 싸우며(네, 또 싸웠습니다) 커밋 열 개쯤 �
 [오픈소스 저장소](https://github.com/deepseek-ai/open-infra-index)들, 그리고 ByteDance가 공개했다는
 [LLM 게이트웨이 AIBrix](https://github.com/vllm-project/aibrix)를 살펴봤습니다.
 새로 발표된 Phi-4-mini를 AIRI에 이식해 쓸 수 있을지도 조사했는데, 좋은 소식은
-[Phi-4-mini](https://techcommunity.microsoft.com/blog/educatordeveloperblog/welcome-to-the-new-phi-4-models---microsoft-phi-4-mini--phi-4-multimodal/4386037)
-가 함수 호출 능력을 포함하고 있다는 것입니다. 즉 사전 학습된 지원을 바탕으로 에이전트를
+[Phi-4-mini](https://techcommunity.microsoft.com/blog/educatordeveloperblog/welcome-to-the-new-phi-4-models---microsoft-phi-4-mini--phi-4-multimodal/4386037)가
+함수 호출 능력을 포함하고 있다는 것입니다. 즉 사전 학습된 지원을 바탕으로 에이전트를
 만들 수 있다는 뜻이죠.
 
 ## DevStream

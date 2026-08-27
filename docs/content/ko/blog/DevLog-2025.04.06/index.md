@@ -77,7 +77,7 @@ RAG 시스템에는 벡터 유사도 검색이 가능한 데이터베이스가 �
 [pgvector](https://github.com/pgvector/pgvector), [sqlite-vec](https://github.com/asg017/sqlite-vec)를
 쓰는 [SQLite](https://www.sqlite.org/),
 [VSS 플러그인](https://duckdb.org/docs/stable/extensions/vss.html)을 쓰는 [DuckDB](https://duckdb.org/).
-[Redis Stack](https://redis.io/about/about-stack/) 도 잘 활용할 수 있고,
+[Redis Stack](https://redis.io/about/about-stack/)도 잘 활용할 수 있고,
 [Supabase](https://supabase.com/), [Pinecone](https://www.pinecone.io/) 같은 클라우드 서비스도 있습니다).
 그리고 벡터가 관여하므로, 텍스트 입력을 고정 길이 배열로 변환해 줄 임베딩 모델
 (특징 추출 태스크 모델이라고도 합니다)도 필요합니다.
@@ -157,8 +157,8 @@ export const chatMessagesTable = pgTable('chat_messages', {
 ERROR: access method "hnsw" does not exist
 ```
 
-다행히 [ERROR: access method "hnsw" does not exist](https://github.com/tensorchord/pgvecto.rs/issues/504)
-에 따라 `vectors.pgvector_compatibility` 시스템 옵션을 `on`으로 두면 해결할 수 있습니다.
+다행히 [ERROR: access method "hnsw" does not exist](https://github.com/tensorchord/pgvecto.rs/issues/504)에
+따라 `vectors.pgvector_compatibility` 시스템 옵션을 `on`으로 두면 해결할 수 있습니다.
 
 당연히 컨테이너를 띄울 때 벡터 공간 관련 옵션이 자동으로 설정되길 원하므로,
 `docker-compose.yml` 옆 적당한 곳에 `init.sql`을 만듭니다:

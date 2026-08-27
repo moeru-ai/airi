@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-tamagotchi",
   "type": "module",
-  "version": "0.12.0-beta.1",
+  "version": "0.12.0-beta.2",
   "private": true,
   "description": "LLM powered virtual character",
   "author": {
@@ -81,6 +81,9 @@
     "@vueuse/core": "catalog:",
     "@vueuse/motion": "catalog:",
     "@vueuse/shared": "catalog:",
+    "@xsai-apple-speech/transcription": "catalog:",
+    "@xsai-apple-speech/transcription-electron-plugin": "catalog:",
+    "@xsai-apple-speech/transcription-native": "catalog:",
     "@xsai-ext/providers": "catalog:",
     "@xsai-transformers/embed": "catalog:",
     "@xsai-transformers/transcription": "catalog:",
@@ -142,6 +145,10 @@
     "whatwg-mimetype": "catalog:",
     "xsschema": "catalog:",
     "zod": "catalog:"
+  },
+  "optionalDependencies": {
+    "@xsai-apple-speech/transcription-native-darwin-arm64": "catalog:",
+    "@xsai-apple-speech/transcription-native-darwin-x64": "catalog:"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "catalog:",

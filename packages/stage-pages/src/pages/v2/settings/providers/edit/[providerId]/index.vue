@@ -6,7 +6,7 @@ import type { $ZodType } from 'zod/v4/core'
 // TODO: https://developer.mozilla.org/en-US/docs/Web/API/HTML_Sanitizer_API
 import DOMPurify from 'dompurify'
 
-import { merge } from '@moeru/std'
+import { errorMessageFrom, merge } from '@moeru/std'
 import {
   Alert,
   ProviderAccountIdInput,
@@ -21,9 +21,9 @@ import {
 import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
-import { useCloned, useDebounceFn } from '@vueuse/core'
+import { computedAsync, useCloned, useDebounceFn } from '@vueuse/core'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -32,16 +32,54 @@ const router = useRouter()
 const route = useRoute('v2/settings/providers/edit/[providerId]')
 
 const providerStore = useProviderConfigStore()
+const emptyProviderConfig = Object.freeze({})
+const emptyProviderConfigValues = Object.freeze({})
 
 const providerId = computed(() => route.params.providerId as string)
-const providerConfig = computed(() => providerStore.getProvider(providerId.value) || {})
+const providerConfig = computed(() => providerStore.getProvider(providerId.value) ?? emptyProviderConfig)
 const providerDefinition = computed(() => getDefinedProvider(providerConfig.value.definitionId))
-const providerSchema = computed(() => providerDefinition.value?.createProviderConfig({ t }) as $ZodType | undefined)
-const providerSchemaDefault = computed(() => getSchemaDefault(providerSchema.value))
 
 // NOTICE: useCloned handles deep cloning and state isolation for the draft.
 // It provides a 'cloned' ref that we use for editing without affecting the original store state.
 const { cloned: providerConfigEdit, sync: syncProviderConfigEdit } = useCloned(providerConfig, { manual: true })
+
+const isProviderSchemaLoading = ref(false)
+const providerSchemaError = ref<string | undefined>()
+const providerSchemaLoadAttempt = ref(0)
+const providerSchemaRequest = computed(() => {
+  const currentConfig = providerConfigEdit.value?.config
+  return {
+    config: currentConfig ? merge({}, currentConfig) : undefined,
+    definition: providerDefinition.value,
+    loadAttempt: providerSchemaLoadAttempt.value,
+  }
+})
+const providerSchema = computedAsync<$ZodType | undefined>(async (onCancel) => {
+  // Read the complete request before the first await. computedAsync only tracks
+  // dependencies accessed during this synchronous part of the evaluation.
+  const { config, definition } = providerSchemaRequest.value
+
+  if (!definition)
+    return undefined
+
+  const abortController = new AbortController()
+  onCancel(() => abortController.abort())
+  providerSchemaError.value = undefined
+
+  try {
+    return await definition.createProviderConfig({
+      t,
+      config,
+      abortSignal: abortController.signal,
+    })
+  }
+  catch (error) {
+    if (!abortController.signal.aborted)
+      providerSchemaError.value = errorMessageFrom(error) ?? t('settings.pages.providers.catalog.edit.config.load-error')
+    return undefined
+  }
+}, undefined, { evaluating: isProviderSchemaLoading })
+const providerSchemaDefault = computed(() => getSchemaDefault(providerSchema.value))
 
 watch(providerConfig, (newVal, oldVal) => {
   if (newVal && Object.keys(newVal).length > 0) {
@@ -53,8 +91,8 @@ watch(providerConfig, (newVal, oldVal) => {
 }, { immediate: true })
 
 const isEdited = computed(() => {
-  const currentConfig = providerConfigEdit.value?.config || {}
-  const savedConfig = providerConfig.value?.config || {}
+  const currentConfig = providerConfigEdit.value?.config ?? emptyProviderConfigValues
+  const savedConfig = providerConfig.value?.config ?? emptyProviderConfigValues
   return JSON.stringify(currentConfig) !== JSON.stringify(savedConfig)
 })
 
@@ -223,7 +261,7 @@ async function runValidation() {
   if (!providerDefinition.value)
     return
 
-  const validationPlan = getValidationPlan()
+  const validationPlan = await getValidationPlan()
   if (!validationPlan)
     return
 
@@ -273,12 +311,14 @@ async function runValidation() {
 const debouncedValidation = useDebounceFn(runValidation, 1500)
 let didInitValidation = false
 
-watch([providerConfigEdit, providerDefinition], () => {
+watch([providerConfigEdit, providerDefinition, providerSchema], async () => {
   if (!providerConfig.value || !providerConfigEdit.value) {
     return
   }
 
-  getValidationPlan()
+  const validationPlan = await getValidationPlan()
+  if (!validationPlan)
+    return
 
   if (canSkipValidation.value)
     return
@@ -287,30 +327,41 @@ watch([providerConfigEdit, providerDefinition], () => {
     didInitValidation = true
     return
   }
-  debouncedValidation()
+  void debouncedValidation()
 }, { deep: true, immediate: true })
 
-onMounted(() => {
-  if (providerConfig.value.status !== 'configured') {
-    providerConfigEdit.value.config = merge(providerSchemaDefault.value, providerConfigEdit.value?.config || {})
-  }
-})
+let initializedSchemaProviderId: string | undefined
+watch([providerId, providerSchema], ([nextProviderId, schema]) => {
+  if (!schema || initializedSchemaProviderId === nextProviderId)
+    return
 
-function getValidationPlan() {
-  if (!providerDefinition.value)
+  initializedSchemaProviderId = nextProviderId
+  if (providerConfig.value.status !== 'configured')
+    providerConfigEdit.value.config = merge(providerSchemaDefault.value, providerConfigEdit.value.config)
+}, { immediate: true })
+
+let validationPlanRequestId = 0
+async function getValidationPlan() {
+  const requestId = ++validationPlanRequestId
+  const definition = providerDefinition.value
+  if (!definition || !providerSchema.value || isProviderSchemaLoading.value)
     return undefined
 
-  const validationPlan = getValidatorsOfProvider({
-    definition: providerDefinition.value,
-    config: (providerConfigEdit.value?.config || {}) as Record<string, unknown>,
+  const validationPlan = await getValidatorsOfProvider({
+    definition,
+    config: (providerConfigEdit.value?.config ?? emptyProviderConfigValues) as Record<string, unknown>,
     schemaDefaults: providerSchemaDefault.value as Record<string, unknown>,
     contextOptions: { t },
   })
-  if (!validationPlan)
+  if (requestId !== validationPlanRequestId)
     return undefined
 
   validationSteps.value = validationPlan.steps
   return validationPlan
+}
+
+function retryProviderSchema() {
+  providerSchemaLoadAttempt.value++
 }
 
 function syncValidationSteps() {
@@ -417,7 +468,30 @@ function handleDeleteProvider() {
           <div>{{ t('settings.pages.providers.catalog.edit.definition-id-not-found') }}</div>
         </div>
 
-        <template v-else>
+        <div v-if="isProviderSchemaLoading" :class="['flex', 'flex-col', 'items-center', 'gap-3', 'py-12', 'text-neutral-500']">
+          <div :class="['i-svg-spinners:ring-resize', 'text-3xl']" />
+          <div :class="['text-sm']">
+            {{ t('settings.pages.providers.catalog.edit.config.loading') }}
+          </div>
+        </div>
+
+        <Alert v-else-if="providerSchemaError" type="error">
+          <template #title>
+            {{ t('settings.pages.providers.catalog.edit.config.load-error') }}
+          </template>
+          <template #content>
+            <div :class="['flex', 'flex-col', 'items-start', 'gap-3']">
+              <span :class="['text-xs', 'text-neutral-600', 'dark:text-neutral-300']">
+                {{ providerSchemaError }}
+              </span>
+              <Button size="sm" @click="retryProviderSchema">
+                {{ t('settings.pages.providers.catalog.edit.config.retry') }}
+              </Button>
+            </div>
+          </template>
+        </Alert>
+
+        <template v-else-if="providerSchema">
           <ProviderBasicSettings
             :title="t('settings.pages.providers.common.section.basic.title')"
             :description="t('settings.pages.providers.common.section.basic.description')"
@@ -450,6 +524,15 @@ function handleDeleteProvider() {
                   :description="field.description"
                   :placeholder="field.placeholder"
                   :required="field.required"
+                  @update:model-value="setFieldValue(field.key, $event)"
+                />
+                <FieldCombobox
+                  v-else-if="field.type === 'select'"
+                  :model-value="getStringField(field.key)"
+                  :label="field.label"
+                  :description="field.description"
+                  :placeholder="field.placeholder"
+                  :options="field.options"
                   @update:model-value="setFieldValue(field.key, $event)"
                 />
                 <FieldInput

@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-ui",
   "type": "module",
-  "version": "0.12.0-beta.1",
+  "version": "0.12.0-beta.2",
   "private": true,
   "description": "Shared core for stage",
   "author": {
@@ -105,6 +105,8 @@
     "@vueuse/core": "catalog:",
     "@vueuse/motion": "catalog:",
     "@vueuse/shared": "catalog:",
+    "@xsai-apple-speech/transcription": "catalog:",
+    "@xsai-apple-speech/transcription-electron-plugin": "catalog:",
     "@xsai-ext/providers": "catalog:",
     "@xsai-transformers/embed": "catalog:",
     "@xsai-transformers/shared": "catalog:",

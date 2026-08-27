@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { parse } from 'zod/v4/core'
 
 const createOpenAIMock = vi.fn((apiKey: string, baseURL: string) => ({
   apiKey,
@@ -27,14 +28,16 @@ describe('ark chat provider definitions', () => {
     const provider = getDefinedProvider('volcengine-coding-plan')
     expect(provider).toBeDefined()
 
-    const schema = provider!.createProviderConfig({ t: input => input }) as any
-    const parsedConfig = schema.parse({
+    const schema = await provider!.createProviderConfig({ t: input => input })
+    const parsedConfig = parse(schema, {
       apiKey: 'test-key',
     })
 
     expect(parsedConfig.baseUrl).toBe('https://ark.cn-beijing.volces.com/api/coding/v3')
 
-    const providerInstance = provider!.createProvider(parsedConfig) as any
+    const providerInstance = await provider!.createProvider(parsedConfig)
+    if (!('chat' in providerInstance))
+      throw new Error('Volcengine coding plan provider must support chat')
     const chatConfig = providerInstance.chat('volcengine-coding-plan/doubao-seed-2.1-turbo')
     expect(chatConfig.model).toBe('doubao-seed-2.1-turbo')
 
@@ -95,14 +98,16 @@ describe('ark chat provider definitions', () => {
     expect(byteplus).toBeDefined()
     expect(byteplusCodingPlan).toBeDefined()
 
-    const byteplusConfig = (byteplus!.createProviderConfig({ t: input => input }) as any).parse({ apiKey: 'test-key' })
-    const byteplusCodingPlanConfig = (byteplusCodingPlan!.createProviderConfig({ t: input => input }) as any).parse({ apiKey: 'test-key' })
+    const byteplusConfig = parse(await byteplus!.createProviderConfig({ t: input => input }), { apiKey: 'test-key' })
+    const byteplusCodingPlanConfig = parse(await byteplusCodingPlan!.createProviderConfig({ t: input => input }), { apiKey: 'test-key' })
 
     expect(byteplusConfig.baseUrl).toBe('https://ark.ap-southeast.bytepluses.com/api/v3')
     expect(byteplusCodingPlanConfig.baseUrl).toBe('https://ark.ap-southeast.bytepluses.com/api/coding/v3')
 
-    const byteplusModels = await byteplus!.extraMethods!.listModels!(byteplusConfig, byteplus!.createProvider(byteplusConfig))
-    const byteplusCodingPlanModels = await byteplusCodingPlan!.extraMethods!.listModels!(byteplusCodingPlanConfig, byteplusCodingPlan!.createProvider(byteplusCodingPlanConfig))
+    const byteplusProvider = await byteplus!.createProvider(byteplusConfig)
+    const byteplusCodingPlanProvider = await byteplusCodingPlan!.createProvider(byteplusCodingPlanConfig)
+    const byteplusModels = await byteplus!.extraMethods!.listModels!(byteplusConfig, byteplusProvider)
+    const byteplusCodingPlanModels = await byteplusCodingPlan!.extraMethods!.listModels!(byteplusCodingPlanConfig, byteplusCodingPlanProvider)
 
     expect(byteplusModels.map(model => model.id)).toEqual([
       'byteplus/seed-2-0-pro-260328',

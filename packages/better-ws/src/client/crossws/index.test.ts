@@ -1,29 +1,39 @@
+import type { CrossWsConstructor } from '.'
+
 import { describe, expect, it, vi } from 'vitest'
 
 import { createCrossWsConnector } from '.'
 import { createClient } from '../..'
 
+// ROOT CAUSE:
+//
+// The mock narrowed message data to two types, but CrossWS exposes unknown data.
+// This made the mock constructor incompatible with the production connector contract.
+//
+// The mock now derives its message event from the public constructor contract.
+type CrossWsMessageEvent = Parameters<NonNullable<InstanceType<CrossWsConstructor>['onmessage']>>[0]
+
 const { MockWebSocket } = vi.hoisted(() => {
   class MockWebSocket {
-    static readonly CONNECTING = 0
-    static readonly OPEN = 1
-    static readonly CLOSING = 2
     static readonly CLOSED = 3
+    static readonly CLOSING = 2
+    static readonly CONNECTING = 0
     static readonly instances: MockWebSocket[] = []
+    static readonly OPEN = 1
+
+    onclose?: (event: { code?: number, reason?: string, wasClean?: boolean }) => void
+    onerror?: (event: unknown | { error?: Error }) => void
+    onmessage?: (event: CrossWsMessageEvent) => void
+    onopen?: () => void
+    ping = vi.fn()
+    pong = vi.fn()
+
+    readyState = MockWebSocket.CONNECTING
 
     readonly sent: string[] = []
-    readyState = MockWebSocket.CONNECTING
-    onclose?: (event: { code?: number, reason?: string, wasClean?: boolean }) => void
-    onerror?: (event: { error?: Error } | unknown) => void
-    onmessage?: (event: { data: string | ArrayBuffer }) => void
-    onopen?: () => void
 
     constructor(readonly url: string | URL, readonly protocols?: string | string[]) {
       MockWebSocket.instances.push(this)
-    }
-
-    send(message: string) {
-      this.sent.push(message)
     }
 
     close() {
@@ -31,8 +41,9 @@ const { MockWebSocket } = vi.hoisted(() => {
       this.onclose?.({ code: 1000, reason: 'closed', wasClean: true })
     }
 
-    ping = vi.fn()
-    pong = vi.fn()
+    send(message: string) {
+      this.sent.push(message)
+    }
   }
 
   return { MockWebSocket }
@@ -84,8 +95,8 @@ describe('createCrossWsConnector', () => {
         wsConstructor: MockWebSocket,
       }),
       reconnect: {
-        retries: 0,
         onFailed,
+        retries: 0,
       },
     })
 
