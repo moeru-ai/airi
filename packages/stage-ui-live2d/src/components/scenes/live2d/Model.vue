@@ -93,7 +93,7 @@ const offset = computed(() => ({
 const pixiApp = toRef(() => props.app)
 const paused = toRef(() => props.paused)
 const focusAt = toRef(() => props.focusAt)
-const model = ref<Live2DModel<PixiLive2DInternalModel>>()
+const model = shallowRef<Live2DModel<PixiLive2DInternalModel>>()
 const initialModelWidth = ref<number>(0)
 const initialModelHeight = ref<number>(0)
 const mouthOpenSize = computed(() => Math.max(0, Math.min(100, props.mouthOpenSize)))
@@ -176,7 +176,7 @@ const live2dExpressionEnabled = toRef(() => props.live2dExpressionEnabled)
 const live2dShadowEnabled = toRef(() => props.live2dShadowEnabled)
 
 // --- Expression controller
-const internalModelRef = ref<PixiLive2DInternalModel>()
+const internalModelRef = shallowRef<PixiLive2DInternalModel>()
 const expressionController = useExpressionController({
   internalModel: internalModelRef,
   modelId: props.modelId,

@@ -3,7 +3,7 @@ import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
 import { Live2DModel } from 'pixi-live2d-display/cubism4'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
   width: number
@@ -23,7 +23,7 @@ const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', {
 
 const containerRef = ref<HTMLDivElement>()
 const isPixiCanvasReady = ref(false)
-const pixiApp = ref<Application>()
+const pixiApp = shallowRef<Application>()
 const pixiAppCanvas = ref<HTMLCanvasElement>()
 
 function resolveMaxFps(limit?: number) {
