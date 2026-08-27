@@ -7,18 +7,16 @@ import { isLinux } from 'std-env'
 
 import { electron } from '../../../shared/eventa'
 
-const isSystemPreferencesAvailable = !isLinux
-
 export function createSystemPreferencesService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
   defineInvokeHandler(params.context, electron.systemPreferences.getMediaAccessStatus, (type) => {
-    if (!type || !isSystemPreferencesAvailable) {
+    if (!type || !isLinux) {
       return 'not-determined'
     }
 
     return systemPreferences.getMediaAccessStatus(type[0])
   })
   defineInvokeHandler(params.context, electron.systemPreferences.askForMediaAccess, (type) => {
-    if (!type || !isSystemPreferencesAvailable) {
+    if (!type || !isLinux) {
       return Promise.resolve(false)
     }
 
