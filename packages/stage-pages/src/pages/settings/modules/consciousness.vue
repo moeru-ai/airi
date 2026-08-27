@@ -40,8 +40,8 @@ watch(activeProvider, async (provider) => {
   await consciousnessStore.loadModelsForProvider(provider)
 }, { immediate: true })
 
-watch([activeProvider, activeModel], ([provider, model]) => {
-  void airiCardStore.updateActiveCardConsciousness({ provider, model })
+watch([activeProvider, activeModel], async ([provider, model]) => {
+  await airiCardStore.updateActiveCardConsciousness({ provider, model })
 })
 
 function updateCustomModelName(value: string) {
