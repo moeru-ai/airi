@@ -54,6 +54,7 @@
     "@electric-sql/pglite": "catalog:",
     "@types/pg": "catalog:",
     "drizzle-kit": "catalog:",
+    "kysely": "catalog:",
     "typescript": "catalog:"
   }
 }
