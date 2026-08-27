@@ -430,8 +430,12 @@ watch(activeSpeechModel, async (model) => {
   trackOfficialTtsExposure(activeSpeechProvider.value, currentTtsModelId())
 })
 
-watch([activeSpeechProvider, activeSpeechModel, activeSpeechVoiceId], ([provider, model, voiceId]) => {
-  void airiCardStore.updateActiveCardSpeech({ provider, model, voice_id: voiceId })
+// A watcher on synchronized state must call the synchronized action with
+// await: the action is idempotent and settles after one round, while an
+// unawaited call can interleave with the applied snapshot and sustain a
+// settings <-> card feedback loop.
+watch([activeSpeechProvider, activeSpeechModel, activeSpeechVoiceId], async ([provider, model, voiceId]) => {
+  await airiCardStore.updateActiveCardSpeech({ provider, model, voice_id: voiceId })
 })
 
 // Function to generate speech

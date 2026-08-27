@@ -52,8 +52,8 @@ watch(activeProvider, async (provider, oldProvider) => {
   await visionStore.loadModelsForProvider(provider)
 }, { immediate: true })
 
-watch([activeProvider, activeModel], ([provider, model]) => {
-  void airiCardStore.updateActiveCardVision({ provider, model })
+watch([activeProvider, activeModel], async ([provider, model]) => {
+  await airiCardStore.updateActiveCardVision({ provider, model })
 })
 
 function updateCustomModelName(value: string) {
