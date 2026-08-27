@@ -68,6 +68,7 @@ const {
 
 const voiceSearchQuery = ref('')
 const useSSML = ref(false)
+const isUsingSSML = computed(() => supportsSSML.value && useSSML.value)
 const testText = ref(t('settings.pages.modules.speech.sections.section.playground.default-text'))
 const ssmlText = ref('')
 const isGenerating = ref(false)
@@ -422,10 +423,10 @@ watch(activeSpeechModel, async (model) => {
 
 // Function to generate speech
 async function generateTestSpeech() {
-  if (!testText.value.trim() && !useSSML.value)
+  if (!testText.value.trim() && !isUsingSSML.value)
     return
 
-  if (useSSML.value && !ssmlText.value.trim())
+  if (isUsingSSML.value && !ssmlText.value.trim())
     return
 
   const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, any>
@@ -482,7 +483,7 @@ async function generateTestSpeech() {
       stopTestAudio()
     }
 
-    const speechRequest = useSSML.value
+    const speechRequest = isUsingSSML.value
       ? {
           input: ssmlText.value,
           providerConfig,
@@ -958,12 +959,13 @@ async function selectElevenLabsModel(event: Event) {
         </h2>
         <div flex="~ col gap-4">
           <FieldCheckbox
+            v-if="supportsSSML"
             v-model="useSSML"
             :label="t('settings.pages.modules.speech.sections.section.voice-settings.use-ssml.label')"
             :description="t('settings.pages.modules.speech.sections.section.voice-settings.use-ssml.description')"
           />
 
-          <template v-if="!useSSML">
+          <template v-if="!isUsingSSML">
             <Textarea
               v-model="testText" h-24
               w-full
@@ -985,8 +987,8 @@ async function selectElevenLabsModel(event: Event) {
             <button
               border="neutral-800 dark:neutral-200 solid 2" transition="border duration-250 ease-in-out"
               rounded-lg px-4 text="neutral-100 dark:neutral-900" py-2 text-sm
-              :disabled="isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !activeSpeechVoice"
-              :class="{ 'opacity-50 cursor-not-allowed': isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !activeSpeechVoice }"
+              :disabled="isGenerating || (!testText.trim() && !isUsingSSML) || (isUsingSSML && !ssmlText.trim()) || !activeSpeechVoice"
+              :class="{ 'opacity-50 cursor-not-allowed': isGenerating || (!testText.trim() && !isUsingSSML) || (isUsingSSML && !ssmlText.trim()) || !activeSpeechVoice }"
               bg="neutral-700 dark:neutral-300" @click="generateTestSpeech"
             >
               <div flex="~ row" items-center gap-2>
