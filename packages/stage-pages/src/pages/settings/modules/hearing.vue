@@ -15,6 +15,7 @@ import { useI18n } from 'vue-i18n'
 
 import HearingPlaygroundTranscripts from './components/hearing-playground-transcripts.vue'
 
+import { queueProviderModelSelection } from './composables/provider-model-selection'
 import { createProviderTransitionController } from './composables/provider-transition'
 
 const { t } = useI18n()
@@ -75,7 +76,11 @@ function selectTranscriptionProvider(provider: string) {
 }
 
 function selectTranscriptionModel(model: string) {
-  return queueSelection(() => hearingStore.setActiveTranscriptionModel(model))
+  return queueProviderModelSelection({
+    getActiveProvider: () => activeTranscriptionProvider.value,
+    queue: queueSelection,
+    setModelForProvider: (providerId, selectedModel) => hearingStore.setTranscriptionModelForProvider(providerId, selectedModel),
+  }, model)
 }
 
 const activeProviderConfig = computed(() => {

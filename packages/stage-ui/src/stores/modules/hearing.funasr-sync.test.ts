@@ -608,6 +608,44 @@ describe('funASR Hearing model synchronization', () => {
     expect(providerConfigStore.getProviderConfig(providerId)).not.toHaveProperty('model')
   })
 
+  it('publishes a list-backed provider and its resolved model together (GitHub #2122)', async () => {
+    const providersStore = useProviderStore()
+    const hearingStore = useHearingStore()
+    const providerId = 'browser-web-speech-api'
+    const fetchModelsForProvider = providersStore.fetchModelsForProvider.bind(providersStore)
+    type ListedModels = Awaited<ReturnType<typeof fetchModelsForProvider>>
+    let resolveModels!: (models: ListedModels) => void
+    const modelRequest = new Promise<ListedModels>((resolve) => {
+      resolveModels = resolve
+    })
+
+    vi.spyOn(providersStore, 'fetchModelsForProvider').mockImplementation(async (requestedProviderId) => {
+      if (requestedProviderId !== providerId)
+        return fetchModelsForProvider(requestedProviderId)
+      return modelRequest
+    })
+
+    await hearingStore.setActiveTranscriptionProvider('funasr-audio-transcription')
+    const selection = hearingStore.setActiveTranscriptionProvider(providerId)
+    await vi.waitFor(() => expect(providersStore.fetchModelsForProvider).toHaveBeenCalledWith(providerId))
+
+    expect(hearingStore.activeTranscriptionProvider).toBe('funasr-audio-transcription')
+    expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
+
+    resolveModels([{
+      id: 'fresh-model',
+      name: 'Fresh model',
+      provider: providerId,
+      description: '',
+      contextLength: 0,
+      deprecated: false,
+    }])
+    await selection
+
+    expect(hearingStore.activeTranscriptionProvider).toBe(providerId)
+    expect(hearingStore.activeTranscriptionModel).toBe('fresh-model')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3757074253
   it('ignores an earlier model response after the same provider is selected again (GitHub #2122)', async () => {
     const providersStore = useProviderStore()
@@ -653,7 +691,8 @@ describe('funASR Hearing model synchronization', () => {
       deprecated: false,
     }])
     await firstLoad
-    expect(hearingStore.activeTranscriptionModel).toBe('')
+    expect(hearingStore.activeTranscriptionProvider).toBe('openai-compatible-audio-transcription')
+    expect(hearingStore.activeTranscriptionModel).toBe('whisper-1')
 
     resolveSecondRequest([{
       id: 'fresh-model',
