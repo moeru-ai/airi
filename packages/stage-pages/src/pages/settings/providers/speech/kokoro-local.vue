@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SpeechProvider } from '@xsai-ext/providers/utils'
 
-import { getCachedWebGPUCapabilities } from '@proj-airi/stage-shared/webgpu'
+import { detectWebGPU } from '@proj-airi/stage-shared/webgpu'
 import {
   SpeechPlayground,
   SpeechProviderSettings,
@@ -20,6 +20,21 @@ const speechStore = useSpeechStore()
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const { t } = useI18n()
+
+// Whether a provider config already existed before this mount (i.e. before
+// the child SpeechProviderSettings can seed one). A persisted config is
+// user-owned and must never be replaced — on a reload with an empty WebGPU
+// cache, a manually chosen model can be value-identical to the stale default
+// seed. Configs created during this mount are passive seeds that
+// refreshProviderDefaultConfig() may refresh when they still hold the stale
+// default.
+const hadConfigBeforeMount = !!providerStore.getProviderConfig(providerId)
+
+// Gates the model watcher while onMounted performs initial seeding. Without
+// it, the child SpeechProviderSettings seeding the stale default (or this
+// refresh swapping in the capability-aware one) would fire the watcher and
+// queue a stale model load ahead of the correct one.
+const initialSeeding = ref(true)
 
 // Get available voices for Kokoro
 const availableVoices = computed(() => {
@@ -58,8 +73,22 @@ const model = computed({
     return getDefaultKokoroModel(hasWebGPU.value, fp16Supported.value)
   },
   set(val: string) {
+    // NOTICE:
+    // Why this workaround is needed: the combobox can write back the v-model
+    // before onMounted runs, when the provider may not be registered yet and
+    // synced actions are still async. Skipping the write in that window is
+    // safe because onMounted persists the default model right after
+    // registration, and later user selections always hit a config.
+    // Root cause: direct navigation registers the provider inside onMounted
+    // (ensureProvider), so a pre-mount combobox write would hit
+    // getProviderConfig() === undefined and throw.
+    // Source: PR #2273 review (codex bot), kokoro-local direct navigation path.
+    // Removal condition: when the settings page guarantees the provider is
+    // registered before the combobox can write (e.g. provider pre-registered
+    // at app init), this guard can be deleted.
     const config = providerStore.getProviderConfig(providerId)
-    config.model = val
+    if (config)
+      config.model = val
   },
 })
 
@@ -80,7 +109,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
       throw new Error('Failed to initialize speech provider')
     }
 
-    const config = providerStore.getProviderConfig(providerId)
+    const config = providerStore.getProviderConfig(providerId) ?? {}
     const selectedModel = config.model as string | undefined || defaultModel
 
     const result = await speechStore.speech(
@@ -103,11 +132,33 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 
 onMounted(async () => {
   // Check WebGPU support
-  // NOTICE: Uses synchronous check for initial render. The cached result from
-  // detectWebGPU() is populated by the providers store during initialization.
-  const capabilities = getCachedWebGPUCapabilities()
-  hasWebGPU.value = capabilities?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
-  fp16Supported.value = capabilities?.fp16Supported ?? false
+  // NOTICE: Await the real detection instead of reading the sync cache.
+  // Why: direct navigation can mount this page before the app-level preload
+  // (useInferencePreload -> detectWebGPU, called from App.vue onMounted) has
+  // populated the cache, so getCachedWebGPUCapabilities() would return null
+  // and fp16Supported would wrongly fall back to false - seeding fp32-webgpu
+  // on fp16-capable hardware until a reload.
+  // Root cause: capability detection is async and app-level, while this
+  // page's capability-dependent seeding runs in its own onMounted.
+  // Source: PR #2273 review (codex bot), round 3.
+  // Removal condition: when the app guarantees WebGPU capability detection
+  // completes before any settings page mounts (e.g. preload awaited before
+  // router mount), this can revert to getCachedWebGPUCapabilities().
+  // Note: detectWebGPU() deduplicates concurrent calls (pendingDetection),
+  // so this awaits the same promise as the app preload when both race.
+  const capabilities = await detectWebGPU()
+  hasWebGPU.value = capabilities.supported
+  fp16Supported.value = capabilities.fp16Supported
+
+  // Refresh the provider's default config: metadata is selected at store
+  // setup (before capability detection), so Kokoro's default model was
+  // computed from an empty cache. Seeding a capability-accurate default
+  // while the dirty comparison still uses the stale one would make
+  // shouldListProvider() treat this passive seed as user-modified and
+  // list Kokoro as dirty/unconfigured.
+  providersStore.refreshProviderDefaultConfig(providerId, {
+    replaceUntouchedSeed: !hadConfigBeforeMount,
+  })
 
   try {
     voicesLoading.value = true
@@ -115,11 +166,36 @@ onMounted(async () => {
     // Fetch available models first
     await providersStore.fetchModelsForProvider(providerId)
 
-    const config = providerStore.getProviderConfig(providerId)
+    // Direct navigation to this page can happen before the provider is added from
+    // the catalog, in which case getProviderConfig() returns undefined and reading
+    // `config.model` throws. ensureProvider is a synced (async) action: it returns
+    // a Promise, not the provider, so await it and re-read the config afterwards.
+    // NOTICE: Seed with the provider's own default config - the same source the
+    // dirty comparison (isProviderConfigDirty -> shouldListProvider) uses - so
+    // this passive seed is not flagged as user-modified. refreshProviderDefaultConfig()
+    // above recomputed that default after capability detection, so it also keeps
+    // fp16-capable hardware on its fp16-webgpu default.
+    // Why: seeding a hand-built object here would drift from providerMetadata's
+    // defaultConfig whenever their capability sources disagree, marking a
+    // programmatic seed as a user edit.
+    // Root cause: provider registration is lazy (only triggered by navigation
+    // or catalog add), and capability-dependent defaults are selected at store
+    // setup time.
+    // Source: PR #2273 review (codex bot), rounds 1 & 4.
+    // Removal condition: when the provider is guaranteed to be registered with
+    // capability-accurate defaults before this page can mount.
+    if (!providerStore.getProviderConfig(providerId)) {
+      await providerStore.ensureProvider(
+        providerId,
+        providerId,
+        providersStore.getDefaultProviderConfig(providerId),
+      )
+    }
+    const config = providerStore.getProviderConfig(providerId) ?? {}
 
     // Persist the default model if none is saved yet so validation passes on first visit
     if (!config.model) {
-      config.model = getDefaultKokoroModel(hasWebGPU.value)
+      config.model = getDefaultKokoroModel(hasWebGPU.value, fp16Supported.value)
     }
 
     const validationResult = await providersStore.validateProviderConfig(providerId, config)
@@ -135,16 +211,22 @@ onMounted(async () => {
   }
   finally {
     voicesLoading.value = false
+    // Initial seeding is done (or failed - either way the watcher is safe
+    // to resume; a failed seed just means validation errors were logged).
+    initialSeeding.value = false
   }
 })
 
 // Watch for model changes and reload model + voices
 watch(model, async (newValue) => {
-  if (newValue) {
+  if (newValue && !initialSeeding.value) {
     try {
       voicesLoading.value = true
 
       const config = providerStore.getProviderConfig(providerId)
+      if (!config)
+        return
+
       const validationResult = await providersStore.validateProviderConfig(providerId, config)
 
       if (validationResult.valid) {
