@@ -46,10 +46,6 @@ Do not use this package for a generic gamepad. Use the Gamepad API when standard
 
 WebHID requires a secure context. The host browser must support WebHID.
 
-## Protocol source
+## Reference
 
-The report layout follows the [DualSense Explorer](https://github.com/nondebug/dualsense/blob/main/dualsense-explorer.html) implementation supplied for this package. The package replaces its DOM state with typed reports and lifecycle methods.
-
-The project confirmed that an AIRI contributor authored the supplied implementation. This confirmation permits inclusion in the AIRI repository.
-
-The source repository does not declare a software license. External users must follow the license of this package, not infer permission from the source repository.
+- https://github.com/nondebug/dualsense
