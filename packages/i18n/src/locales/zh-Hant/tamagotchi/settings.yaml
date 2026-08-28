@@ -99,6 +99,9 @@ devtools:
           description: 設定低飽和色彩的最低權重。
       shader:
         title: 著色器反應
+        base-brightness:
+          title: 基礎亮度
+          description: 設定加入取樣光線前的模型亮度。
         tint-coverage:
           title: 色調覆蓋範圍
           description: 設定柔和色調從面向螢幕中心的一側延伸多遠。
