@@ -165,7 +165,7 @@ export function createServer(opts?: ServerOptions): Server {
         port,
         hostname,
         tls: options?.tlsConfig || undefined,
-        reusePort: true,
+        reusePort: false,
         silent: true,
         manual: true,
         gracefulShutdown: {
