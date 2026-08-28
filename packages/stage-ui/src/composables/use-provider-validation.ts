@@ -95,16 +95,18 @@ export function useProviderValidation(providerId: string, options: UseProviderVa
   // --- End of Internal Computed Properties ---
 
   const debounceTime = 500
-  const isValidating = ref(0)
   const isValid = ref(false)
   const validationMessage = ref('')
   // Each configuration change advances this generation immediately. Async
   // results can update UI and provider status only while they own the latest
   // generation.
   let automaticValidationGeneration = 0
+  const currentValidationGeneration = ref<number>()
+  const isValidating = computed(() => currentValidationGeneration.value === undefined ? 0 : 1)
 
   function invalidateAutomaticValidation() {
     automaticValidationGeneration++
+    currentValidationGeneration.value = undefined
     return automaticValidationGeneration
   }
 
@@ -153,7 +155,7 @@ export function useProviderValidation(providerId: string, options: UseProviderVa
       return
 
     const validationGeneration = invalidateAutomaticValidation()
-    isValidating.value++
+    currentValidationGeneration.value = validationGeneration
     validationMessage.value = ''
     const startValidationTimestamp = performance.now()
     let finalValidationMessage = ''
@@ -194,9 +196,11 @@ export function useProviderValidation(providerId: string, options: UseProviderVa
     }
     finally {
       setTimeout(() => {
-        isValidating.value = Math.max(0, isValidating.value - 1)
-        if (validationGeneration === automaticValidationGeneration)
-          validationMessage.value = finalValidationMessage
+        if (validationGeneration !== automaticValidationGeneration)
+          return
+
+        currentValidationGeneration.value = undefined
+        validationMessage.value = finalValidationMessage
       }, Math.max(0, debounceTime - (performance.now() - startValidationTimestamp)))
     }
   }
@@ -270,7 +274,7 @@ export function useProviderValidation(providerId: string, options: UseProviderVa
       if (resetStatusWhenValidationSkipped)
         providerStore.setProviderStatus(providerId, 'unconfigured')
       validationMessage.value = ''
-      isValidating.value = 0
+      currentValidationGeneration.value = undefined
       return
     }
     validateConfiguration()
@@ -313,7 +317,7 @@ export function useProviderValidation(providerId: string, options: UseProviderVa
     providers.value[providerId] = { ...defaultOptions }
     isValid.value = false
     validationMessage.value = ''
-    isValidating.value = 0
+    currentValidationGeneration.value = undefined
     isManualTesting.value = false
     manualTestPassed.value = false
     manualTestMessage.value = ''
@@ -324,6 +328,7 @@ export function useProviderValidation(providerId: string, options: UseProviderVa
     invalidateManualTest()
     isValid.value = true
     validationMessage.value = ''
+    currentValidationGeneration.value = undefined
     isManualTesting.value = false
     manualTestPassed.value = true
     manualTestMessage.value = ''

@@ -177,6 +177,62 @@ describe('useProviderValidation', () => {
 
   // ROOT CAUSE:
   //
+  // Every validation generation incremented one shared loading counter. A
+  // stalled obsolete request kept the counter above zero after the current
+  // request finished, so the page continued to show its loading state.
+  //
+  // We fixed this by assigning loading ownership to the current generation.
+  // An obsolete request cannot retain or clear the current loading state.
+  // https://github.com/moeru-ai/airi/pull/2382#discussion_r3876749650
+  it('clears PR #2382 validation loading when the current generation finishes', async () => {
+    const configStore = useProviderConfigStore()
+    const providerStore = useProviderStore()
+
+    configStore.ensureProvider('doubao-speech', 'doubao-speech', {})
+
+    type ValidationResult = Awaited<ReturnType<typeof providerStore.validateProviderConfig>>
+    let resolveOlderValidation!: (value: ValidationResult) => void
+    let resolveNewerValidation!: (value: ValidationResult) => void
+    const olderValidation = new Promise<ValidationResult>((resolve) => {
+      resolveOlderValidation = resolve
+    })
+    const newerValidation = new Promise<ValidationResult>((resolve) => {
+      resolveNewerValidation = resolve
+    })
+    const validateSpy = vi.spyOn(providerStore, 'validateProviderConfig')
+      .mockImplementation(async (_providerId, config) => {
+        return config.apiKey === 'older-api-key'
+          ? olderValidation
+          : newerValidation
+      })
+
+    const validation = useProviderValidation('doubao-speech')
+    const config = configStore.getProviderConfig('doubao-speech')!
+    config.apiKey = 'older-api-key'
+    config.speaker = 'zh_female_cancan_mars_bigtts'
+
+    await vi.waitFor(() => {
+      expect(validateSpy).toHaveBeenCalledTimes(1)
+      expect(validation.isValidating.value).toBeGreaterThan(0)
+    }, { timeout: 5000 })
+
+    config.apiKey = 'newer-api-key'
+    await vi.waitFor(() => {
+      expect(validateSpy).toHaveBeenCalledTimes(2)
+    }, { timeout: 5000 })
+
+    resolveNewerValidation({ errors: [], reason: 'New configuration is invalid', valid: false })
+    await vi.waitFor(() => {
+      expect(configStore.getProvider('doubao-speech')?.status).toBe('invalid')
+      expect(validation.isValidating.value).toBe(0)
+    }, { timeout: 5000 })
+
+    resolveOlderValidation({ errors: [], reason: '', valid: true })
+    await olderValidation
+  })
+
+  // ROOT CAUSE:
+  //
   // A manual connection test kept running after credentials changed. Its old
   // result could restore the success state for credentials that it never
   // tested.

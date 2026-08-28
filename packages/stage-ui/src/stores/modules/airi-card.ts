@@ -491,9 +491,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     const speechSettings = extension.modules?.speech
     if (speechSettings) {
       applyRuntimeSpeechSelection(speech, {
-        provider: speechSettings.provider || speech.activeSpeechProvider,
-        model: speechSettings.model || speech.activeSpeechModel,
-        voice_id: speechSettings.voice_id || speech.activeSpeechVoiceId,
+        provider: speechSettings.provider,
+        model: speechSettings.model,
+        voice_id: speechSettings.voice_id,
       })
     }
 

@@ -320,6 +320,54 @@ describe('airi-card store', () => {
 
   // ROOT CAUSE:
   //
+  // Card activation used truthy fallbacks for each speech field. A card with
+  // an empty model or voice ID therefore inherited the previous card's value.
+  // The runtime tuple no longer represented the active card's saved tuple.
+  //
+  // We fixed this by applying every stored speech field verbatim. The card
+  // owns empty strings because they represent an unconfigured selection.
+  // https://github.com/moeru-ai/airi/pull/2382#discussion_r3876749646
+  it('applies empty speech selections from the active card verbatim', async () => {
+    const speechStore = useSpeechStore()
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+
+    speechStore.activeSpeechProvider = 'kokoro-local'
+    speechStore.activeSpeechModel = 'kokoro-v1'
+    speechStore.activeSpeechVoiceId = 'af_heart'
+    speechStore.activeSpeechVoice = {
+      id: 'af_heart',
+      name: 'Heart',
+      provider: 'kokoro-local',
+      languages: [{ code: 'en', title: 'English' }],
+    }
+
+    const emptySpeechCardId = await cardStore.addCard({
+      name: 'Unconfigured speech card',
+      version: '1.0.0',
+      description: 'Card with an intentionally empty speech selection.',
+      extensions: {
+        airi: {
+          modules: {
+            consciousness: { provider: 'mock-consciousness-provider', model: 'mock-consciousness-model' },
+            vision: { provider: 'mock-vision-provider', model: 'mock-vision-model' },
+            speech: { provider: 'doubao-speech', model: '', voice_id: '' },
+          },
+          agents: {},
+        },
+      },
+    }, 'scratch')
+
+    await cardStore.activateCard(emptySpeechCardId)
+
+    expect(speechStore.activeSpeechProvider).toBe('doubao-speech')
+    expect(speechStore.activeSpeechModel).toBe('')
+    expect(speechStore.activeSpeechVoiceId).toBe('')
+    expect(speechStore.activeSpeechVoice).toBeUndefined()
+  })
+
+  // ROOT CAUSE:
+  //
   // A synchronized state snapshot replaced `activeCardId`. The old watcher
   // interpreted that replicated state as a user command and applied module
   // settings, which produced another synchronized snapshot.
