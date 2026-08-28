@@ -467,8 +467,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
     if (providerDefinitionId(providerId) === 'funasr-audio-transcription') {
       if (!providerStore.getProvider(providerId))
         await providersStore.initializeProvider(providerId)
-      await providersStore.validateProvider(providerId)
-      if (selectionRequestId !== nextDestinationModelRequestId)
+      const valid = await providersStore.validateProvider(providerId)
+      if (!valid || selectionRequestId !== nextDestinationModelRequestId)
         return
 
       const model = funASRConfiguredModel(providerId)

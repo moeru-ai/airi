@@ -93,6 +93,19 @@ describe('funASR Hearing model synchronization', () => {
     expect(hearingStore.configured).toBe(true)
   })
 
+  it('keeps the active provider when FunASR validation fails (GitHub #2122)', async () => {
+    const providersStore = useProviderStore()
+    const hearingStore = useHearingStore()
+    await hearingStore.setActiveTranscriptionProvider('openai-audio-transcription', 'whisper-1')
+    vi.spyOn(providersStore, 'validateProvider').mockResolvedValue(false)
+
+    await hearingStore.setActiveTranscriptionProvider('funasr-audio-transcription')
+
+    expect(providersStore.validateProvider).toHaveBeenCalledWith('funasr-audio-transcription')
+    expect(hearingStore.activeTranscriptionProvider).toBe('openai-audio-transcription')
+    expect(hearingStore.activeTranscriptionModel).toBe('whisper-1')
+  })
+
   it('configures a generated FunASR instance when selected (GitHub #2122)', async () => {
     const providerId = 'generated-funasr-transcription'
     const providerConfigStore = useProviderConfigStore()
