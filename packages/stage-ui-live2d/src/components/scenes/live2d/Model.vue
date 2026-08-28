@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import type { Application } from '@pixi/app'
+import type { Filter } from '@pixi/core'
 
 import type { PixiLive2DInternalModel } from '../../../composables/live2d'
+import type {
+  Live2DAmbientLightDirection,
+  Live2DAmbientLightFilterOptions,
+  Live2DAmbientLightSample,
+  Live2DScreenAmbientLightMode,
+} from '../../../stores'
 
 import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
 import { useTheme } from '@proj-airi/ui'
@@ -31,7 +38,8 @@ import {
 } from '../../../composables/live2d'
 import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
-import { getLive2DMotionControlModelOffset, useL2dViewControl, useLive2DMotionControl, useLive2dParams } from '../../../stores'
+import { ScreenAmbientLightFilter } from '../../../filters/screen-ambient-light'
+import { getLive2DMotionControlModelOffset, live2dAmbientLightDefaults, useL2dViewControl, useLive2DMotionControl, useLive2dParams } from '../../../stores'
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
@@ -54,6 +62,12 @@ const props = withDefaults(defineProps<{
   live2dForceAutoBlinkEnabled?: boolean
   live2dExpressionEnabled?: boolean
   live2dShadowEnabled?: boolean
+  live2dScreenAmbientLightActive?: boolean
+  live2dScreenAmbientLightFilterOptions?: Live2DAmbientLightFilterOptions
+  live2dScreenAmbientLightDirection?: Live2DAmbientLightDirection
+  live2dScreenAmbientLightMode?: Live2DScreenAmbientLightMode
+  live2dScreenAmbientLightSample?: Live2DAmbientLightSample
+  live2dScreenAmbientLightStrength?: number
 }>(), {
   mouthOpenSize: 0,
   nowSpeaking: false,
@@ -71,6 +85,12 @@ const props = withDefaults(defineProps<{
   live2dForceAutoBlinkEnabled: false,
   live2dExpressionEnabled: true,
   live2dShadowEnabled: true,
+  live2dScreenAmbientLightActive: false,
+  live2dScreenAmbientLightFilterOptions: () => ({ ...live2dAmbientLightDefaults.filter }),
+  live2dScreenAmbientLightDirection: () => ({ x: 0, y: 0 }),
+  live2dScreenAmbientLightMode: 'window-gradient',
+  live2dScreenAmbientLightSample: () => ({ red: 1, green: 1, blue: 1, luminance: 0.5 }),
+  live2dScreenAmbientLightStrength: 0.55,
 })
 
 const emits = defineEmits<{
@@ -117,6 +137,7 @@ const dropShadowFilter = shallowRef(new DropShadowFilter({
   distance: 20,
   rotation: 45,
 }))
+const screenAmbientLightFilter = shallowRef(new ScreenAmbientLightFilter())
 
 let resizeAnimation: ReturnType<typeof animate> | undefined
 
@@ -184,6 +205,12 @@ const live2dAutoBlinkEnabled = toRef(() => props.live2dAutoBlinkEnabled)
 const live2dForceAutoBlinkEnabled = toRef(() => props.live2dForceAutoBlinkEnabled)
 const live2dExpressionEnabled = toRef(() => props.live2dExpressionEnabled)
 const live2dShadowEnabled = toRef(() => props.live2dShadowEnabled)
+const live2dScreenAmbientLightActive = toRef(() => props.live2dScreenAmbientLightActive)
+const live2dScreenAmbientLightFilterOptions = toRef(() => props.live2dScreenAmbientLightFilterOptions)
+const live2dScreenAmbientLightDirection = toRef(() => props.live2dScreenAmbientLightDirection)
+const live2dScreenAmbientLightMode = toRef(() => props.live2dScreenAmbientLightMode)
+const live2dScreenAmbientLightSample = toRef(() => props.live2dScreenAmbientLightSample)
+const live2dScreenAmbientLightStrength = toRef(() => props.live2dScreenAmbientLightStrength)
 
 // --- Expression controller
 const internalModelRef = shallowRef<PixiLive2DInternalModel>()
@@ -525,31 +552,55 @@ async function setMotion(motionName: string, index?: number) {
 const dropShadowColorComputer = ref<HTMLDivElement>()
 const dropShadowAnimationId = ref(0)
 
-function updateDropShadowFilter() {
+function updateModelFilters() {
   if (!model.value)
     return
 
-  if (!live2dShadowEnabled.value) {
-    model.value.filters = []
-    return
+  const filters: Filter[] = []
+  if (live2dScreenAmbientLightActive.value) {
+    screenAmbientLightFilter.value.update(
+      live2dScreenAmbientLightSample.value,
+      live2dScreenAmbientLightDirection.value,
+      live2dScreenAmbientLightMode.value,
+      live2dScreenAmbientLightStrength.value,
+      live2dScreenAmbientLightFilterOptions.value,
+      props.width / Math.max(1, props.height),
+    )
+    filters.push(screenAmbientLightFilter.value)
   }
 
-  if (!dropShadowColorComputer.value)
-    return
+  if (live2dShadowEnabled.value) {
+    if (dropShadowColorComputer.value) {
+      const color = getComputedStyle(dropShadowColorComputer.value).backgroundColor
+      dropShadowFilter.value.color = Number(formatHex(color)!.replace('#', '0x'))
+    }
+    filters.push(dropShadowFilter.value)
+  }
 
-  const color = getComputedStyle(dropShadowColorComputer.value).backgroundColor
-  dropShadowFilter.value.color = Number(formatHex(color)!.replace('#', '0x'))
-  model.value.filters = [dropShadowFilter.value]
+  model.value.filters = filters
 }
 
 watch(modelSrcRef, async () => await loadModel(), { immediate: true })
-watch(dark, updateDropShadowFilter, { immediate: true })
-watch([model, themeColorsHue], updateDropShadowFilter)
-watch(live2dShadowEnabled, updateDropShadowFilter)
+watch(dark, updateModelFilters, { immediate: true })
+watch([model, themeColorsHue], updateModelFilters)
+watch(live2dShadowEnabled, updateModelFilters)
+watch(
+  [
+    live2dScreenAmbientLightActive,
+    live2dScreenAmbientLightFilterOptions,
+    live2dScreenAmbientLightDirection,
+    live2dScreenAmbientLightMode,
+    live2dScreenAmbientLightSample,
+    live2dScreenAmbientLightStrength,
+    () => props.width,
+    () => props.height,
+  ],
+  updateModelFilters,
+)
 
 // TODO: This is hacky!
 function updateDropShadowFilterLoop() {
-  updateDropShadowFilter()
+  updateModelFilters()
   if (!live2dShadowEnabled.value) {
     dropShadowAnimationId.value = 0
     return
@@ -765,7 +816,7 @@ onMounted(() => {
 })
 
 onMounted(async () => {
-  updateDropShadowFilter()
+  updateModelFilters()
 })
 
 onUnmounted(() => {

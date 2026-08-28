@@ -49,6 +49,68 @@ devtools:
   pages:
     context-flow:
       title: 上下文流程
+    live2d-ambient-light:
+      title: Live2D 環境光
+      description: 調整螢幕取樣與 Live2D 彩色光照著色器
+      controls:
+        title: 光源與輸出
+      enabled:
+        title: 環境光
+        description: 將環境光濾鏡套用至目前的 Live2D 模型。
+      source:
+        title: 光源
+        options:
+          screen-capture: 螢幕擷取
+          forced-color: 強制色彩
+      mode:
+        title: 光照模式
+        options:
+          window-gradient: 視窗漸層
+          global: 全域環境光
+      forced-color:
+        title: 測試色彩
+        description: 不擷取螢幕，直接套用此色彩。
+      strength:
+        title: 光照強度
+        description: 將環境光結果與原始模型色彩混合。
+      main-window-note: 變更會顯示在 AIRI 主視窗中。
+      sampling:
+        title: 螢幕取樣
+        capture-interval:
+          title: 擷取間隔
+          description: 設定螢幕取樣之間的時間。
+        response-time:
+          title: 反應時間
+          description: 設定取樣色彩適應螢幕變化的速度。
+        sample-width:
+          title: 取樣寬度
+          description: 設定縮小後擷取畫面的寬度。
+        sample-height:
+          title: 取樣高度
+          description: 設定縮小後擷取畫面的高度。
+        black-cutoff:
+          title: 黑色截止值
+          description: 忽略最亮色彩通道小於此值的像素。
+        white-cutoff:
+          title: 白色截止值
+          description: 忽略最暗色彩通道大於此值的像素。
+        neutral-color-weight:
+          title: 中性色權重
+          description: 設定低飽和色彩的最低權重。
+      shader:
+        title: 著色器反應
+        tint-coverage:
+          title: 色調覆蓋範圍
+          description: 設定柔和色調從面向螢幕中心的一側延伸多遠。
+        highlight-coverage:
+          title: 高光覆蓋範圍
+          description: 設定面向螢幕中心的一側有多少區域接收明顯光線。
+        tint-strength:
+          title: 色調強度
+          description: 設定大範圍加法色調的強度。
+        highlight-strength:
+          title: 高光強度
+          description: 設定窄範圍加法光線的強度。
     lag-visualizer:
       title: 卡頓可視化
     live2d-motion:
