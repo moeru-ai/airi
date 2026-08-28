@@ -8,6 +8,7 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 const {
   live2dScreenAmbientLightBaseBrightness,
+  live2dScreenAmbientLightBaseContrast,
   live2dScreenAmbientLightHighlightCoverage,
   live2dScreenAmbientLightHighlightStrength,
   live2dScreenAmbientLightTintCoverage,
@@ -16,6 +17,10 @@ const {
 
 function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`
+}
+
+function formatMultiplier(value: number) {
+  return `${value.toFixed(2)}×`
 }
 </script>
 
@@ -36,6 +41,17 @@ function formatPercent(value: number) {
         :format-value="formatPercent"
         :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.base-brightness.title')"
         :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.base-brightness.description')"
+      />
+      <FieldRange
+        v-model="live2dScreenAmbientLightBaseContrast"
+        as="div"
+        :min="0.5"
+        :max="2"
+        :step="0.01"
+        :default-value="live2dAmbientLightDefaults.filter.baseContrast"
+        :format-value="formatMultiplier"
+        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.base-contrast.title')"
+        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.base-contrast.description')"
       />
       <FieldRange
         v-model="live2dScreenAmbientLightTintCoverage"
