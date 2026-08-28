@@ -1,0 +1,40 @@
+{
+  "name": "@proj-airi/input-playstation-dualsense-5",
+  "type": "module",
+  "version": "0.12.0-beta.1",
+  "private": true,
+  "description": "WebHID input and output support for the PlayStation 5 DualSense controller",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/input-playstation-dualsense-5"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@types/w3c-web-hid": "catalog:"
+  },
+  "devDependencies": {}
+}

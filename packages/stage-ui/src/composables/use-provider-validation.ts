@@ -4,6 +4,7 @@ import type { ProviderMode } from './use-analytics'
 
 import { errorMessageFrom } from '@moeru/std'
 import { computedAsync, useDebounceFn } from '@vueuse/core'
+import { cloneDeep } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -98,6 +99,23 @@ export function useProviderValidation(providerId: string) {
     }
   }
 
+  /**
+   * `validateProviderConfig` is a synchronized action. A follower renderer posts
+   * its arguments over a BroadcastChannel.
+   *
+   * `structuredClone` rejects a Vue reactive proxy. A shallow copy keeps the
+   * nested values as proxies, so this copy must be deep.
+   */
+  function configToValidate(): Record<string, any> {
+    const config = cloneDeep(credentials.value)
+    if (config.apiKey)
+      config.apiKey = config.apiKey.trim()
+    if (config.baseUrl)
+      config.baseUrl = config.baseUrl.trim()
+
+    return config
+  }
+
   async function validateConfiguration(revision: number) {
     if (revision !== validationRevision || !providerMetadata.value)
       return
@@ -108,12 +126,6 @@ export function useProviderValidation(providerId: string) {
     let finalValidationMessage = ''
 
     try {
-      const config = { ...credentials.value }
-      if (config.apiKey)
-        config.apiKey = config.apiKey.trim()
-      if (config.baseUrl)
-        config.baseUrl = config.baseUrl.trim()
-
       await providersStore.refreshModelsForChangedCredentials(providerId)
       if (revision !== validationRevision)
         return
@@ -123,7 +135,7 @@ export function useProviderValidation(providerId: string) {
 
       // Settings pages always skip chat ping check during automatic validation
       // to avoid unexpected API billing. Users can trigger it manually.
-      const validationResult = await providersStore.validateProviderConfig(providerId, config, {
+      const validationResult = await providersStore.validateProviderConfig(providerId, configToValidate(), {
         skipChatPingCheck: true,
       })
 
@@ -181,13 +193,7 @@ export function useProviderValidation(providerId: string) {
     trackProviderConnectionTestStarted(providerConnectionTestAnalyticsBase())
 
     try {
-      const config = { ...credentials.value }
-      if (config.apiKey)
-        config.apiKey = config.apiKey.trim()
-      if (config.baseUrl)
-        config.baseUrl = config.baseUrl.trim()
-
-      const result = await providersStore.validateProviderConfig(providerId, config, {
+      const result = await providersStore.validateProviderConfig(providerId, configToValidate(), {
         onlyChatPingCheck: true,
       })
       manualTestPassed.value = result.valid
