@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Live2DAmbientLightSample } from '@proj-airi/stage-ui-live2d'
+import type { Live2DAmbientLightLobe, Live2DAmbientLightSample } from '@proj-airi/stage-ui-live2d'
 
 import type { ScreenAmbientLightDiagnosticsSnapshot } from '../../../../shared/screen-ambient-light-diagnostics'
 
@@ -16,20 +16,30 @@ const colors = computed(() => [
     id: 'unweighted',
     label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.colors.unweighted.title'),
     description: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.colors.unweighted.description'),
+    lobe: undefined,
     sample: props.sampling?.unweightedSample,
   },
   {
     id: 'target',
     label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.colors.target.title'),
     description: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.colors.target.description'),
+    lobe: undefined,
     sample: props.sampling?.targetSample,
   },
   {
     id: 'applied',
     label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.colors.applied.title'),
     description: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.colors.applied.description'),
+    lobe: undefined,
     sample: props.sampling?.appliedSample,
   },
+  ...(props.sampling?.appliedLobes ?? []).map((lobe, index) => ({
+    id: `lobe-${index}`,
+    label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.colors.lobe.title', { index: index + 1 }),
+    description: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.colors.lobe.description'),
+    sample: lobe.sample,
+    lobe,
+  })),
 ])
 
 function colorStyle(sample?: Live2DAmbientLightSample) {
@@ -46,6 +56,10 @@ function colorRgb(sample: Live2DAmbientLightSample) {
   return [sample.red, sample.green, sample.blue]
     .map(channel => Math.round(channel * 255))
     .join(', ')
+}
+
+function lobeDirection(lobe: Live2DAmbientLightLobe) {
+  return `${lobe.direction.x.toFixed(2)}, ${lobe.direction.y.toFixed(2)}`
 }
 </script>
 
@@ -78,6 +92,11 @@ function colorRgb(sample: Live2DAmbientLightSample) {
           <div>{{ colorHex(color.sample) }}</div>
           <div>RGB {{ colorRgb(color.sample) }}</div>
           <div>L {{ color.sample.luminance.toFixed(3) }}</div>
+          <template v-if="color.lobe">
+            <div>I {{ color.lobe.intensity.toFixed(3) }}</div>
+            <div>D {{ lobeDirection(color.lobe) }}</div>
+            <div>C {{ color.lobe.coverage.toFixed(3) }}</div>
+          </template>
         </div>
         <div v-else :class="['text-xs text-neutral-500 dark:text-neutral-400']">
           {{ t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.colors.unavailable') }}

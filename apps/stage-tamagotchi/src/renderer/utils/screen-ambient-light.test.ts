@@ -6,6 +6,7 @@ import {
   calculateWindowLightDirection,
   sampleScreenAmbientLight,
   smoothAmbientLight,
+  smoothAmbientLightLobes,
 } from './screen-ambient-light'
 
 const samplingOptions = live2dAmbientLightDefaults.sampling
@@ -78,6 +79,41 @@ describe('screen ambient light sampling', () => {
     expect(oneStep.red).toBeLessThan(1)
   })
 
+  it('keeps separate bright regions as separate light lobes', () => {
+    const frame = createFrame(12, 6, [110, 35, 85, 255])
+    setRectangle(frame, 1, 1, 2, 2, [255, 210, 20, 255])
+    setRectangle(frame, 9, 3, 2, 2, [20, 210, 255, 255])
+
+    const result = sampleScreenAmbientLight(frame, {
+      exclude: { x: 0.45, y: 0.35, width: 0.1, height: 0.3 },
+    }, samplingOptions)
+
+    expect(result.lobes).toHaveLength(2)
+    expect(result.lobes.some(lobe => lobe.sample.red > lobe.sample.blue)).toBe(true)
+    expect(result.lobes.some(lobe => lobe.sample.blue > lobe.sample.red)).toBe(true)
+    expect(result.lobes.some(lobe => lobe.direction.x < 0)).toBe(true)
+    expect(result.lobes.some(lobe => lobe.direction.x > 0)).toBe(true)
+  })
+
+  it('fades unmatched light lobes without changing matched identities', () => {
+    const previous = [
+      createLobe({ x: -1, y: 0 }, { x: 0.2, y: 0.5 }, [1, 0, 0], 0.8),
+      createLobe({ x: 1, y: 0 }, { x: 0.8, y: 0.5 }, [0, 0, 1], 0.6),
+    ]
+    const next = [
+      createLobe({ x: 0.9, y: 0.1 }, { x: 0.78, y: 0.52 }, [0, 0.2, 1], 0.9),
+    ]
+
+    const smoothed = smoothAmbientLightLobes(previous, next, 250, 500)
+
+    expect(smoothed).toHaveLength(2)
+    expect(smoothed[0].direction.x).toBe(-1)
+    expect(smoothed[0].intensity).toBeLessThan(previous[0].intensity)
+    expect(smoothed[1].direction.x).toBeGreaterThan(0.9)
+    expect(smoothed[1].sample.blue).toBe(1)
+    expect(smoothed[1].intensity).toBeGreaterThan(previous[1].intensity)
+  })
+
   it('points directional light from the AIRI window toward the display center', () => {
     const direction = calculateWindowLightDirection(
       { x: 0, y: 0, width: 1000, height: 800 },
@@ -124,4 +160,38 @@ function setPixel(
   color: [number, number, number, number],
 ) {
   frame.data.set(color, (y * frame.width + x) * 4)
+}
+
+function setRectangle(
+  frame: ReturnType<typeof createFrame>,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  color: [number, number, number, number],
+) {
+  for (let currentY = y; currentY < y + height; currentY += 1) {
+    for (let currentX = x; currentX < x + width; currentX += 1)
+      setPixel(frame, currentX, currentY, color)
+  }
+}
+
+function createLobe(
+  direction: { x: number, y: number },
+  position: { x: number, y: number },
+  [red, green, blue]: [number, number, number],
+  intensity: number,
+) {
+  return {
+    coverage: 0.2,
+    direction,
+    intensity,
+    position,
+    sample: {
+      red,
+      green,
+      blue,
+      luminance: red * 0.2126 + green * 0.7152 + blue * 0.0722,
+    },
+  }
 }

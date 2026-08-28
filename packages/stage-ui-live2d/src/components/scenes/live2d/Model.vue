@@ -6,6 +6,7 @@ import type { PixiLive2DInternalModel } from '../../../composables/live2d'
 import type {
   Live2DAmbientLightDirection,
   Live2DAmbientLightFilterOptions,
+  Live2DAmbientLightLobe,
   Live2DAmbientLightSample,
   Live2DScreenAmbientLightMode,
 } from '../../../stores'
@@ -65,6 +66,7 @@ const props = withDefaults(defineProps<{
   live2dScreenAmbientLightActive?: boolean
   live2dScreenAmbientLightFilterOptions?: Live2DAmbientLightFilterOptions
   live2dScreenAmbientLightDirection?: Live2DAmbientLightDirection
+  live2dScreenAmbientLightLobes?: readonly Live2DAmbientLightLobe[]
   live2dScreenAmbientLightMode?: Live2DScreenAmbientLightMode
   live2dScreenAmbientLightSample?: Live2DAmbientLightSample
   live2dScreenAmbientLightStrength?: number
@@ -88,6 +90,7 @@ const props = withDefaults(defineProps<{
   live2dScreenAmbientLightActive: false,
   live2dScreenAmbientLightFilterOptions: () => ({ ...live2dAmbientLightDefaults.filter }),
   live2dScreenAmbientLightDirection: () => ({ x: 0, y: 0 }),
+  live2dScreenAmbientLightLobes: () => [],
   live2dScreenAmbientLightMode: 'window-gradient',
   live2dScreenAmbientLightSample: () => ({ red: 1, green: 1, blue: 1, luminance: 0.5 }),
   live2dScreenAmbientLightStrength: 0.55,
@@ -208,6 +211,7 @@ const live2dShadowEnabled = toRef(() => props.live2dShadowEnabled)
 const live2dScreenAmbientLightActive = toRef(() => props.live2dScreenAmbientLightActive)
 const live2dScreenAmbientLightFilterOptions = toRef(() => props.live2dScreenAmbientLightFilterOptions)
 const live2dScreenAmbientLightDirection = toRef(() => props.live2dScreenAmbientLightDirection)
+const live2dScreenAmbientLightLobes = toRef(() => props.live2dScreenAmbientLightLobes)
 const live2dScreenAmbientLightMode = toRef(() => props.live2dScreenAmbientLightMode)
 const live2dScreenAmbientLightSample = toRef(() => props.live2dScreenAmbientLightSample)
 const live2dScreenAmbientLightStrength = toRef(() => props.live2dScreenAmbientLightStrength)
@@ -561,6 +565,7 @@ function updateModelFilters() {
     screenAmbientLightFilter.value.update(
       live2dScreenAmbientLightSample.value,
       live2dScreenAmbientLightDirection.value,
+      live2dScreenAmbientLightLobes.value,
       live2dScreenAmbientLightMode.value,
       live2dScreenAmbientLightStrength.value,
       live2dScreenAmbientLightFilterOptions.value,
@@ -589,6 +594,7 @@ watch(
     live2dScreenAmbientLightActive,
     live2dScreenAmbientLightFilterOptions,
     live2dScreenAmbientLightDirection,
+    live2dScreenAmbientLightLobes,
     live2dScreenAmbientLightMode,
     live2dScreenAmbientLightSample,
     live2dScreenAmbientLightStrength,

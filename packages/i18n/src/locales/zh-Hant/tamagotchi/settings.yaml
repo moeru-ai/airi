@@ -72,7 +72,7 @@ devtools:
         description: 不擷取螢幕，直接套用此色彩。
       strength:
         title: 光照強度
-        description: 將環境光結果與原始模型色彩混合。
+        description: 設定總光照強度，最高可達標準反應的三倍。
       main-window-note: 變更會顯示在 AIRI 主視窗中。
       diagnostics:
         title: 擷取診斷
@@ -95,7 +95,7 @@ devtools:
           updated: 最後更新
         preview:
           title: 縮小後擷取畫面
-          description: 紅色矩形標示因 AIRI 視窗而排除的像素。
+          description: 紅色矩形標示排除像素。彩色圓圈標示擷取出的光源。
           unavailable: 沒有可用的擷取畫面。
         pixels:
           title: 像素判定
@@ -114,11 +114,14 @@ devtools:
             title: 已接受平均值
             description: 套用截止值後、飽和度加權前的平均色彩。
           target:
-            title: 加權目標
-            description: 套用飽和度加權後的色彩。
+            title: 剩餘補光
+            description: 移除明亮光源後的大範圍色彩。
           applied:
             title: 套用輸出
             description: 套用時間平滑後的色彩。
+          lobe:
+            title: 光源 {index}
+            description: 套用時間平滑後持續存在的明亮區域。
       sampling:
         title: 螢幕取樣
         capture-interval:
@@ -156,6 +159,9 @@ devtools:
         highlight-coverage:
           title: 高光覆蓋範圍
           description: 設定面向螢幕中心的一側有多少區域接收明顯光線。
+        source-balance:
+          title: 光源平衡
+          description: 減少大範圍環境補光，並加強偵測到的明亮區域光源。
         tint-strength:
           title: 色調強度
           description: 設定大範圍加法色調的強度。

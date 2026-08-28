@@ -11,6 +11,7 @@ const {
   live2dScreenAmbientLightBaseContrast,
   live2dScreenAmbientLightHighlightCoverage,
   live2dScreenAmbientLightHighlightStrength,
+  live2dScreenAmbientLightSourceBalance,
   live2dScreenAmbientLightTintCoverage,
   live2dScreenAmbientLightTintStrength,
 } = storeToRefs(useSettingsLive2d())
@@ -74,6 +75,17 @@ function formatMultiplier(value: number) {
         :format-value="formatPercent"
         :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.highlight-coverage.title')"
         :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.highlight-coverage.description')"
+      />
+      <FieldRange
+        v-model="live2dScreenAmbientLightSourceBalance"
+        as="div"
+        :min="0"
+        :max="1"
+        :step="0.01"
+        :default-value="live2dAmbientLightDefaults.filter.sourceBalance"
+        :format-value="formatPercent"
+        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.source-balance.title')"
+        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.source-balance.description')"
       />
       <FieldRange
         v-model="live2dScreenAmbientLightTintStrength"
