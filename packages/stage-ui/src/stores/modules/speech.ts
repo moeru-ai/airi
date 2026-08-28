@@ -183,11 +183,32 @@ export const useSpeechStore = defineStore('speech', () => {
     clearVoiceSelection()
   }
 
+  // A provider that publishes one model publishes no choice. An empty selection
+  // keeps `configured` false until the user opens the dropdown and picks that
+  // one entry, and the provider looks broken until then. This applies to every
+  // single-model speech provider, not only to the VOICEVOX family.
+  //
+  // The voice selection stays as it is. Voices belong to the provider, not to
+  // this model, and a provider switch clears both before this runs.
+  function ensureSingleOptionSpeechModel() {
+    const models = providersStore.getModelsForProvider(activeSpeechProvider.value)
+    if (models.length !== 1)
+      return
+
+    const onlyModelId = models[0]?.id ?? ''
+    if (!onlyModelId || activeSpeechModel.value === onlyModelId)
+      return
+
+    activeSpeechModel.value = onlyModelId
+  }
+
   function ensureActiveSpeechModel() {
     ensureStreamingDefaultModel()
 
-    if (activeSpeechProvider.value !== OFFICIAL_SPEECH_PROVIDER_ID)
+    if (activeSpeechProvider.value !== OFFICIAL_SPEECH_PROVIDER_ID) {
+      ensureSingleOptionSpeechModel()
       return
+    }
 
     const models = providersStore.getModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
     if (!models.length)

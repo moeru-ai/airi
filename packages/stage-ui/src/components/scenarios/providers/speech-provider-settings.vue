@@ -26,12 +26,20 @@ const props = defineProps<{
   // Additional provider-specific settings
   additionalSettings?: Record<string, any>
   placeholder?: string
+  // Hides the API key field for a provider that takes no credentials, such as a
+  // local speech engine. The page otherwise shows a credential box with no effect.
+  hideApiKey?: boolean
 }>()
 
 // Expose slots and emit events to allow customization
 defineSlots<{
   'basic-settings': (props: any) => any
-  'voice-settings': (props: any) => any
+  /**
+   * Receives the settings object this component owns and persists. Bind the
+   * controls to its fields. Controls bound to local refs move on screen and
+   * never reach the provider configuration.
+   */
+  'voice-settings': (props: { voiceSettings: Record<string, any> }) => any
   'advanced-settings': (props: any) => any
   'playground': (props: any) => any
 }>()
@@ -71,28 +79,42 @@ const baseUrl = computed({
 // Voice settings as reactive objects to allow for different provider settings
 const voiceSettings = ref<Record<string, any>>({})
 
+/**
+ * Resolves the voice settings a provider starts from.
+ *
+ * Three sources contribute, each overriding the one before it: the values most
+ * speech providers share, the defaults the provider schema declares, and the
+ * page-level overrides. A provider schema declares a different key set from the
+ * shared values, so any source read alone drops keys.
+ *
+ * First load and Reset both resolve through here, so the two cannot disagree.
+ */
+function resolveDefaultVoiceSettings(): Record<string, any> {
+  return {
+    pitch: 0,
+    speed: 1.0,
+    volume: 0,
+    ...(providerMetadata.value?.defaultConfig.voiceSettings as Record<string, unknown> | undefined),
+    ...props.additionalSettings,
+  }
+}
+
 // Initialize voice settings with defaults or from provider
 function initializeVoiceSettings() {
-  if (providers.value[props.providerId]?.voiceSettings) {
-    voiceSettings.value = { ...(providers.value[props.providerId].voiceSettings as Record<string, any> | undefined) }
-  }
-  else {
-    // Default values that most providers use
-    voiceSettings.value = {
-      pitch: 0,
-      speed: 1.0,
-      volume: 0,
-      // Provider-specific defaults can be set in the onMounted lifecycle
-      ...props.additionalSettings,
-    }
-  }
+  const stored = providers.value[props.providerId]?.voiceSettings as Record<string, any> | undefined
+  voiceSettings.value = stored ? { ...stored } : resolveDefaultVoiceSettings()
 }
 
 onMounted(async () => {
   await providersStore.initializeProvider(props.providerId)
 
-  // Initialize refs with current values
-  apiKey.value = providers.value[props.providerId]?.apiKey as string | undefined || ''
+  // Skip the API key write when the field is hidden. Its setter mutates the
+  // stored configuration, and an empty string makes that configuration differ
+  // from the schema defaults. `shouldListProvider` reads any such difference as
+  // the user having configured the provider.
+  if (!props.hideApiKey)
+    apiKey.value = providers.value[props.providerId]?.apiKey as string | undefined || ''
+
   baseUrl.value = providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || ''
 
   // Initialize voice settings
@@ -107,7 +129,9 @@ onMounted(async () => {
 const debouncedUpdate = useDebounceFn(() => {
   providers.value[props.providerId] = {
     ...providers.value[props.providerId],
-    apiKey: apiKey.value,
+    // A provider without a credential field keeps no `apiKey` key. The guard in
+    // `onMounted` stops the same key arriving by the other path.
+    ...(props.hideApiKey ? {} : { apiKey: apiKey.value }),
     baseUrl: baseUrl.value || providerMetadata.value?.defaultConfig.baseUrl || '',
     voiceSettings: { ...voiceSettings.value },
   }
@@ -120,7 +144,7 @@ watch([apiKey, baseUrl], debouncedUpdate)
 watch(voiceSettings, debouncedUpdate, { deep: true })
 
 function handleResetVoiceSettings() {
-  voiceSettings.value = { ...(providerMetadata.value?.defaultConfig.voiceSettings as Record<string, unknown>) }
+  voiceSettings.value = resolveDefaultVoiceSettings()
   debouncedUpdate()
 }
 </script>
@@ -140,7 +164,7 @@ function handleResetVoiceSettings() {
           :description="t('settings.pages.providers.common.section.basic.description')"
           :on-reset="handleResetVoiceSettings"
         >
-          <ProviderApiKeyInput v-model="apiKey" :provider-name="providerMetadata?.localizedName ?? ''" :placeholder="props.placeholder || 'API Key'" />
+          <ProviderApiKeyInput v-if="!props.hideApiKey" v-model="apiKey" :provider-name="providerMetadata?.localizedName ?? ''" :placeholder="props.placeholder || 'API Key'" />
           <!-- Slot for provider-specific basic settings -->
           <slot name="basic-settings" />
         </ProviderBasicSettings>
@@ -152,7 +176,7 @@ function handleResetVoiceSettings() {
           </h2>
           <div flex="~ col gap-4">
             <!-- Common voice settings with ranges -->
-            <slot name="voice-settings" />
+            <slot name="voice-settings" :voice-settings="voiceSettings" />
           </div>
         </div>
 
