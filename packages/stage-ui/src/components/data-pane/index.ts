@@ -1,3 +1,4 @@
+export { default as ColorPicker } from './color-picker.vue'
 export { default as Container } from './container.vue'
 export { default as Pane } from './pane.vue'
 export { default as PropertyColor } from './property-color.vue'
