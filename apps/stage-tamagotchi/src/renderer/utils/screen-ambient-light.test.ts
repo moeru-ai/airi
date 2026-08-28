@@ -11,6 +11,32 @@ import {
 const samplingOptions = live2dAmbientLightDefaults.sampling
 
 describe('screen ambient light sampling', () => {
+  it('reports why each captured pixel was accepted or rejected', () => {
+    const frame = createFrame(5, 1, [100, 50, 200, 255])
+    setPixel(frame, 1, 0, [100, 50, 200, 0])
+    setPixel(frame, 2, 0, [0, 0, 0, 255])
+    setPixel(frame, 3, 0, [255, 255, 255, 255])
+
+    const result = sampleScreenAmbientLight(frame, {
+      exclude: { x: 0, y: 0, width: 0.2, height: 1 },
+    }, samplingOptions)
+
+    expect(result).toEqual(expect.objectContaining({
+      diagnostics: {
+        acceptedPixelCount: 1,
+        averageSaturation: expect.any(Number),
+        blackPixelCount: 1,
+        excludedPixelCount: 1,
+        totalPixelCount: 5,
+        transparentPixelCount: 1,
+        unweightedSample: expect.any(Object),
+        weightTotal: expect.any(Number),
+        whitePixelCount: 1,
+      },
+      sample: expect.any(Object),
+    }))
+  })
+
   it('samples the display and excludes the AIRI window itself', () => {
     const frame = createFrame(4, 2, [20, 40, 80, 255])
     setPixel(frame, 1, 0, [255, 0, 0, 255])
@@ -18,25 +44,25 @@ describe('screen ambient light sampling', () => {
     setPixel(frame, 1, 1, [120, 210, 255, 255])
     setPixel(frame, 2, 1, [120, 210, 255, 255])
 
-    const sample = sampleScreenAmbientLight(frame, {
+    const result = sampleScreenAmbientLight(frame, {
       exclude: { x: 0.25, y: 0, width: 0.5, height: 0.5 },
     }, samplingOptions)
 
-    expect(sample).toBeDefined()
-    expect(sample!.blue).toBeGreaterThan(sample!.red)
-    expect(sample!.green).toBeGreaterThan(sample!.red)
+    expect(result.sample).toBeDefined()
+    expect(result.sample!.blue).toBeGreaterThan(result.sample!.red)
+    expect(result.sample!.green).toBeGreaterThan(result.sample!.red)
   })
 
   it('ignores black letterboxing while sampling the rest of the display', () => {
     const frame = createFrame(3, 1, [0, 0, 0, 255])
     setPixel(frame, 0, 0, [190, 80, 220, 255])
 
-    const sample = sampleScreenAmbientLight(frame, {
+    const result = sampleScreenAmbientLight(frame, {
       exclude: { x: 0.33, y: 0, width: 0.34, height: 1 },
     }, samplingOptions)
 
-    expect(sample).toBeDefined()
-    expect(sample!.blue).toBeGreaterThan(sample!.green)
+    expect(result.sample).toBeDefined()
+    expect(result.sample!.blue).toBeGreaterThan(result.sample!.green)
   })
 
   it('uses elapsed time for stable smoothing', () => {
