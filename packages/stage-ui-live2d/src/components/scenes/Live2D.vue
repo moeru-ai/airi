@@ -9,6 +9,7 @@ import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
 
 import { useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
+import { useLive2DAmbientLight } from '../../stores'
 
 import '../../utils/live2d-zip-loader'
 import '../../utils/live2d-opfs-registration'
@@ -55,8 +56,26 @@ const {
   live2dMaxFps,
   live2dRenderScale,
   live2dShadowEnabled,
+  live2dScreenAmbientLightEnabled,
+  live2dScreenAmbientLightHighlightCoverage,
+  live2dScreenAmbientLightHighlightStrength,
+  live2dScreenAmbientLightMode,
+  live2dScreenAmbientLightStrength,
+  live2dScreenAmbientLightTintCoverage,
+  live2dScreenAmbientLightTintStrength,
 } = storeToRefs(useSettingsLive2d())
 const universalMotionEnabled = computed(() => live2dMotionDriver.value === 'universal')
+const {
+  active: live2dScreenAmbientLightActive,
+  direction: live2dScreenAmbientLightDirection,
+  sample: live2dScreenAmbientLightSample,
+} = storeToRefs(useLive2DAmbientLight())
+const live2dScreenAmbientLightFilterOptions = computed(() => ({
+  tintCoverage: live2dScreenAmbientLightTintCoverage.value,
+  highlightCoverage: live2dScreenAmbientLightHighlightCoverage.value,
+  tintStrength: live2dScreenAmbientLightTintStrength.value,
+  highlightStrength: live2dScreenAmbientLightHighlightStrength.value,
+}))
 const mouseFocus = useLive2DEyeFocusFor({
   canvas: () => live2dCanvasRef.value?.canvasElement(),
   model: () => ({
@@ -130,6 +149,12 @@ defineExpose({
         :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
         :live2d-expression-enabled="live2dExpressionEnabled"
         :live2d-shadow-enabled="live2dShadowEnabled"
+        :live2d-screen-ambient-light-active="live2dScreenAmbientLightEnabled && live2dScreenAmbientLightActive"
+        :live2d-screen-ambient-light-filter-options="live2dScreenAmbientLightFilterOptions"
+        :live2d-screen-ambient-light-direction="live2dScreenAmbientLightDirection"
+        :live2d-screen-ambient-light-mode="live2dScreenAmbientLightMode"
+        :live2d-screen-ambient-light-sample="live2dScreenAmbientLightSample"
+        :live2d-screen-ambient-light-strength="live2dScreenAmbientLightStrength"
         @error="emit('error', $event)"
       />
     </Live2DCanvas>
