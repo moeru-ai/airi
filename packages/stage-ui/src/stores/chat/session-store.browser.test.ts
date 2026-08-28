@@ -231,6 +231,41 @@ describe('chat session synchronization', () => {
     expect(leaderMutations).toBe(0)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2394#discussion_r3883360315
+  it('keeps synchronized state unchanged when a follower disposes local consumers', async () => {
+    // ROOT CAUSE:
+    //
+    // Follower disposal used the cloud teardown path, which changed the
+    // synchronized cloudSyncReady ref. The synchronization plugin then sent
+    // the follower's full, potentially stale snapshot to the leader.
+    //
+    // Follower disposal now destroys only its window-local cloud runtime.
+    // Leader-owned actions remain responsible for synchronized state changes.
+    const namespace = `chat-session:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+
+    setActivePinia(leaderContext.pinia)
+    const leaderChatStore = useChatSessionStore()
+    leaderChatStore.$patch({ cloudSyncReady: true })
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerChatStore = useChatSessionStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    await vi.waitFor(() => expect(followerChatStore.cloudSyncReady).toBe(true))
+
+    let leaderMutations = 0
+    leaderChatStore.$subscribe(() => leaderMutations++)
+
+    followerChatStore.dispose()
+    await Promise.resolve()
+
+    expect(followerChatStore.cloudSyncReady).toBe(true)
+    expect(leaderChatStore.cloudSyncReady).toBe(true)
+    expect(leaderMutations).toBe(0)
+  })
+
   // https://github.com/moeru-ai/airi/pull/2394#discussion_r3883162024
   it('starts a new cloud consumer after leader failover', async () => {
     // ROOT CAUSE:

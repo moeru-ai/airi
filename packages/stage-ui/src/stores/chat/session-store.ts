@@ -1013,8 +1013,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     wsClient.connect()
   }
 
-  function teardownCloudWsClient() {
-    cloudSyncReady.value = false
+  function disposeCloudWsClient() {
     cloudReconcileTask = undefined
     pendingReconcile = false
     // Invalidate any in-flight reconcile IIFE so its post-await mutations
@@ -1025,6 +1024,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       wsClient = undefined
     }
     cloudMapper = undefined
+  }
+
+  function teardownCloudWsClient() {
+    cloudSyncReady.value = false
+    disposeCloudWsClient()
   }
 
   /**
@@ -1343,7 +1347,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   /** Stops local runtime consumers without changing synchronized session data. */
   function dispose() {
-    teardownCloudWsClient()
+    disposeCloudWsClient()
   }
 
   const messages = computed<ChatHistoryItem[]>({
