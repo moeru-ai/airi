@@ -54,6 +54,7 @@ const live2dScreenAmbientLightTintCoverage = useLocalStorageManualReset<number>(
 const live2dScreenAmbientLightHighlightCoverage = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-highlight-coverage', live2dAmbientLightDefaults.filter.highlightCoverage)
 const live2dScreenAmbientLightTintStrength = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-tint-strength', live2dAmbientLightDefaults.filter.tintStrength)
 const live2dScreenAmbientLightHighlightStrength = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-highlight-strength', live2dAmbientLightDefaults.filter.highlightStrength)
+const live2dScreenAmbientLightSourceBalance = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-source-balance', live2dAmbientLightDefaults.filter.sourceBalance)
 const live2dMaxFps = useLocalStorageManualReset<number>('settings/live2d/max-fps', 0)
 const live2dRenderScale = useLocalStorageManualReset<number>('settings/live2d/render-scale', 2)
 
@@ -85,6 +86,7 @@ function resetState() {
   live2dScreenAmbientLightHighlightCoverage.reset()
   live2dScreenAmbientLightTintStrength.reset()
   live2dScreenAmbientLightHighlightStrength.reset()
+  live2dScreenAmbientLightSourceBalance.reset()
   live2dMaxFps.reset()
   live2dRenderScale.reset()
 }
@@ -118,6 +120,7 @@ export const useSettingsLive2d = defineStore('settings-live2d', () => {
     live2dScreenAmbientLightHighlightCoverage,
     live2dScreenAmbientLightTintStrength,
     live2dScreenAmbientLightHighlightStrength,
+    live2dScreenAmbientLightSourceBalance,
     live2dMaxFps,
     live2dRenderScale,
     resetState,
