@@ -344,25 +344,6 @@ async function selectSpeechModel(modelOptionId: string) {
   }
 }
 
-// The Doubao provider settings page owns the model selection in
-// `config.resourceId`. Adopt it here so this page and the provider page
-// always show the same model.
-async function syncDoubaoResourceIdFromConfig() {
-  if (activeSpeechProvider.value !== 'doubao-speech')
-    return
-
-  const config = providerStore.getProviderConfig('doubao-speech')
-  const resourceId = config?.resourceId as string | undefined
-  if (!resourceId || activeSpeechModel.value === resourceId)
-    return
-
-  await airiCardStore.selectActiveCardSpeech({
-    provider: activeSpeechProvider.value,
-    model: resourceId,
-    voice_id: typeof config.speaker === 'string' ? config.speaker : '',
-  })
-}
-
 /**
  * Tracks that the settings page has shown an official TTS route to the user.
  */
@@ -382,25 +363,12 @@ function trackOfficialTtsExposure(providerId = activeSpeechProvider.value, model
   })
 }
 
-// Sync OpenAI Compatible model and voice from provider config
-async function syncOpenAICompatibleSettings() {
-  if (activeSpeechProvider.value !== 'openai-compatible-audio-speech')
-    return
-
-  const providerConfig = providerStore.getProviderConfig(activeSpeechProvider.value)
-  await airiCardStore.selectActiveCardSpeech({
-    provider: activeSpeechProvider.value,
-    model: providerConfig?.model as string | undefined ?? 'tts-1',
-    voice_id: providerConfig?.voice as string | undefined ?? 'alloy',
-  })
-}
-
 onMounted(async () => {
   await providersStore.loadModelsForConfiguredProviders()
   speechStore.ensureActiveSpeechModel()
-  await syncDoubaoResourceIdFromConfig()
+  // Provider configuration and the active-card tuple have separate ownership.
+  // Only explicit source, model, and voice controls copy values between them.
   await speechStore.loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined)
-  await syncOpenAICompatibleSettings()
   trackOfficialTtsExposure()
 })
 
