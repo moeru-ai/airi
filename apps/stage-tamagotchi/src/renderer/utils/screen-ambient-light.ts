@@ -4,6 +4,12 @@ import type {
   Live2DAmbientLightSamplingOptions,
 } from '@proj-airi/stage-ui-live2d'
 
+import type {
+  ScreenAmbientLightSamplingDiagnostics,
+} from '../../shared/screen-ambient-light-diagnostics'
+
+export type { ScreenAmbientLightSamplingDiagnostics } from '../../shared/screen-ambient-light-diagnostics'
+
 export interface PixelFrame {
   data: Uint8ClampedArray
   width: number
@@ -21,6 +27,12 @@ interface SampleRegion {
   exclude: NormalizedRectangle
 }
 
+/** Contains the weighted light color and the pixel decisions that produced it. */
+export interface ScreenAmbientLightSamplingResult {
+  sample?: Live2DAmbientLightSample
+  diagnostics: ScreenAmbientLightSamplingDiagnostics
+}
+
 /**
  * Extracts one representative light color from a coarse screen frame.
  *
@@ -31,7 +43,7 @@ export function sampleScreenAmbientLight(
   frame: PixelFrame,
   region: SampleRegion,
   options: Live2DAmbientLightSamplingOptions,
-): Live2DAmbientLightSample | undefined {
+): ScreenAmbientLightSamplingResult {
   return collectWeightedColor(frame, region, options)
 }
 
@@ -56,21 +68,34 @@ function collectWeightedColor(
   frame: PixelFrame,
   region: SampleRegion,
   options: Live2DAmbientLightSamplingOptions,
-): Live2DAmbientLightSample | undefined {
-  let red = 0
-  let green = 0
-  let blue = 0
+): ScreenAmbientLightSamplingResult {
+  let weightedRed = 0
+  let weightedGreen = 0
+  let weightedBlue = 0
+  let unweightedRed = 0
+  let unweightedGreen = 0
+  let unweightedBlue = 0
   let weightTotal = 0
+  let saturationTotal = 0
+  let excludedPixelCount = 0
+  let transparentPixelCount = 0
+  let blackPixelCount = 0
+  let whitePixelCount = 0
+  let acceptedPixelCount = 0
 
   for (let y = 0; y < frame.height; y += 1) {
     for (let x = 0; x < frame.width; x += 1) {
       const normalizedX = (x + 0.5) / frame.width
       const normalizedY = (y + 0.5) / frame.height
-      if (contains(region.exclude, normalizedX, normalizedY))
+      if (contains(region.exclude, normalizedX, normalizedY)) {
+        excludedPixelCount += 1
         continue
+      }
       const offset = (y * frame.width + x) * 4
-      if (frame.data[offset + 3] === 0)
+      if (frame.data[offset + 3] === 0) {
+        transparentPixelCount += 1
         continue
+      }
 
       const currentRed = frame.data[offset] / 255
       const currentGreen = frame.data[offset + 1] / 255
@@ -80,25 +105,61 @@ function collectWeightedColor(
 
       // Near-black and near-white pixels usually come from window chrome,
       // letterboxing, or text. They carry little useful color information.
-      if (maximum < options.blackCutoff || minimum > options.whiteCutoff)
+      if (maximum < options.blackCutoff) {
+        blackPixelCount += 1
         continue
+      }
+      if (minimum > options.whiteCutoff) {
+        whitePixelCount += 1
+        continue
+      }
 
       const saturation = maximum === 0 ? 0 : (maximum - minimum) / maximum
       const colorWeight = options.neutralColorWeight + saturation * (1 - options.neutralColorWeight)
-      const weight = colorWeight
-      red += srgbToLinear(currentRed) * weight
-      green += srgbToLinear(currentGreen) * weight
-      blue += srgbToLinear(currentBlue) * weight
-      weightTotal += weight
+      const linearRed = srgbToLinear(currentRed)
+      const linearGreen = srgbToLinear(currentGreen)
+      const linearBlue = srgbToLinear(currentBlue)
+      weightedRed += linearRed * colorWeight
+      weightedGreen += linearGreen * colorWeight
+      weightedBlue += linearBlue * colorWeight
+      unweightedRed += linearRed
+      unweightedGreen += linearGreen
+      unweightedBlue += linearBlue
+      weightTotal += colorWeight
+      saturationTotal += saturation
+      acceptedPixelCount += 1
     }
   }
 
-  if (weightTotal === 0)
-    return undefined
+  return {
+    sample: weightTotal === 0
+      ? undefined
+      : sampleFromLinearSums(weightedRed, weightedGreen, weightedBlue, weightTotal),
+    diagnostics: {
+      totalPixelCount: frame.width * frame.height,
+      excludedPixelCount,
+      transparentPixelCount,
+      blackPixelCount,
+      whitePixelCount,
+      acceptedPixelCount,
+      weightTotal,
+      averageSaturation: acceptedPixelCount === 0 ? 0 : saturationTotal / acceptedPixelCount,
+      unweightedSample: acceptedPixelCount === 0
+        ? undefined
+        : sampleFromLinearSums(unweightedRed, unweightedGreen, unweightedBlue, acceptedPixelCount),
+    },
+  }
+}
 
-  const sampledRed = linearToSrgb(red / weightTotal)
-  const sampledGreen = linearToSrgb(green / weightTotal)
-  const sampledBlue = linearToSrgb(blue / weightTotal)
+function sampleFromLinearSums(
+  red: number,
+  green: number,
+  blue: number,
+  divisor: number,
+): Live2DAmbientLightSample {
+  const sampledRed = linearToSrgb(red / divisor)
+  const sampledGreen = linearToSrgb(green / divisor)
+  const sampledBlue = linearToSrgb(blue / divisor)
 
   return {
     red: sampledRed,
