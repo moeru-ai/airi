@@ -264,7 +264,7 @@ function createFullStageRuntime() {
       await authStore.initialize()
       await displayModelsStore.initialize()
       await cardStore.initialize()
-      await hearingStore.initialize()
+      hearingStore.initializeInBackground()
       registerAuthenticatedSetup()
       if (!authStore.isAuthenticated)
         await removeAuthenticationProviderConfiguration()

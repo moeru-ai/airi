@@ -863,6 +863,42 @@ describe('funASR Hearing model synchronization', () => {
     stopSubscription()
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3880972981
+  it('does not block app startup while Hearing validation is pending (GitHub #2122)', async () => {
+    persistedSettings.set('settings/hearing/active-provider', 'funasr-audio-transcription')
+    persistedSettings.set('settings/hearing/active-model', 'sensevoice')
+
+    const providersStore = useProviderStore()
+    let releaseValidation!: () => void
+    const validationGate = new Promise<void>((resolve) => {
+      releaseValidation = resolve
+    })
+    const validationSpy = vi.spyOn(providersStore, 'validateProvider').mockImplementation(async () => {
+      await validationGate
+      return true
+    })
+
+    const hearingStore = useHearingStore()
+    expect(hearingStore.initializeInBackground()).toBeUndefined()
+    await vi.waitFor(() => expect(validationSpy).toHaveBeenCalledWith('funasr-audio-transcription'))
+
+    releaseValidation()
+    await vi.waitFor(() => expect(hearingStore.activeTranscriptionModel).toBe('sensevoice'))
+  })
+
+  it('handles a rejected background Hearing initialization (GitHub #2122)', async () => {
+    persistedSettings.set('settings/hearing/active-provider', 'funasr-audio-transcription')
+    const failure = new Error('model discovery failed')
+    vi.spyOn(useProviderStore(), 'validateProvider').mockRejectedValue(failure)
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    useHearingStore().initializeInBackground()
+
+    await vi.waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith('[Hearing] Failed to initialize:', failure)
+    })
+  })
+
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3873768181
   it('does not overwrite a provider selected while startup validation is pending (GitHub #2122)', async () => {
     persistedSettings.set('settings/hearing/active-provider', 'funasr-audio-transcription')

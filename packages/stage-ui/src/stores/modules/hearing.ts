@@ -570,6 +570,12 @@ export const useHearingStore = defineStore('hearing-store', () => {
     await loadModelsForProvider(providerId)
   }
 
+  function initializeInBackground() {
+    void useHearingStore().initialize().catch((error) => {
+      console.error('[Hearing] Failed to initialize:', error)
+    })
+  }
+
   // Computed properties
   const availableProvidersMetadata = computed(() => allAudioTranscriptionProvidersMetadata.value)
 
@@ -815,6 +821,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
     transcription,
     initialize,
+    initializeInBackground,
     reloadActiveTranscriptionProvider,
     setCustomTranscriptionModelForProvider,
     setActiveTranscriptionProvider,
