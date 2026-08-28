@@ -1,13 +1,20 @@
 import type { SourcesOptions } from 'electron'
 
+import type {
+  ScreenAmbientLightCaptureStatus,
+  ScreenAmbientLightDiagnosticsChannelEvent,
+  ScreenAmbientLightDiagnosticsSnapshot,
+} from '../../shared/screen-ambient-light-diagnostics'
+
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronScreenCapture } from '@proj-airi/electron-screen-capture/vue'
 import { useElectronAllDisplays, useElectronWindowBounds } from '@proj-airi/electron-vueuse'
 import { useLive2DAmbientLight, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
-import { until, useIntervalFn } from '@vueuse/core'
+import { until, useBroadcastChannel, useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, shallowRef, watch } from 'vue'
 
+import { screenAmbientLightDiagnosticsChannelName } from '../../shared/screen-ambient-light-diagnostics'
 import { findDominantDisplayArea } from '../../shared/utils/electron/display'
 import {
   ambientLightSampleFromHex,
@@ -44,8 +51,16 @@ export function useScreenAmbientLight() {
   const video = document.createElement('video')
   const canvas = document.createElement('canvas')
   const context = canvas.getContext('2d', { willReadFrequently: true })
+  const {
+    data: diagnosticsChannelEvent,
+    post: postDiagnosticsChannelEvent,
+  } = useBroadcastChannel<ScreenAmbientLightDiagnosticsChannelEvent, ScreenAmbientLightDiagnosticsChannelEvent>({
+    name: screenAmbientLightDiagnosticsChannelName,
+  })
   let startVersion = 0
   let lastSampleTime = 0
+  let lastCaptureError: string | undefined
+  let lastDiagnostics: ScreenAmbientLightDiagnosticsSnapshot | undefined
 
   video.muted = true
   video.playsInline = true
@@ -77,14 +92,19 @@ export function useScreenAmbientLight() {
   watch([live2dScreenAmbientLightEnabled, live2dScreenAmbientLightSource], async ([enabled, source]) => {
     const version = ++startVersion
     stop()
-    if (!enabled)
+    if (!enabled) {
+      publishDiagnostics(lastCaptureError ? 'error' : 'disabled')
       return
+    }
+
+    lastCaptureError = undefined
 
     if (source === 'forced-color') {
       applyForcedColor()
       return
     }
 
+    publishDiagnostics('starting')
     try {
       await start(version)
     }
@@ -92,10 +112,22 @@ export function useScreenAmbientLight() {
       if (version !== startVersion)
         return
 
-      console.error(`Failed to start Live2D screen ambient light: ${errorMessageFrom(error) ?? 'Unknown error'}`)
+      lastCaptureError = errorMessageFrom(error) ?? 'Unknown error'
+      console.error(`Failed to start Live2D screen ambient light: ${lastCaptureError}`)
+      publishDiagnostics('error')
       live2dScreenAmbientLightEnabled.value = false
     }
   }, { immediate: true })
+
+  watch(diagnosticsChannelEvent, (event) => {
+    if (event?.type !== 'request-current')
+      return
+
+    if (lastDiagnostics)
+      postDiagnosticsChannelEvent({ type: 'snapshot', snapshot: lastDiagnostics })
+    else
+      publishDiagnostics('disabled')
+  })
 
   watch([live2dScreenAmbientLightForcedColor, lightDirection], () => {
     if (live2dScreenAmbientLightEnabled.value && live2dScreenAmbientLightSource.value === 'forced-color')
@@ -148,8 +180,10 @@ export function useScreenAmbientLight() {
     activeStream.value = stream
     stream.getVideoTracks().forEach((track) => {
       track.addEventListener('ended', () => {
-        if (activeStream.value === stream)
+        if (activeStream.value === stream) {
+          lastCaptureError = 'The screen-capture stream ended.'
           live2dScreenAmbientLightEnabled.value = false
+        }
       }, { once: true })
     })
 
@@ -184,29 +218,61 @@ export function useScreenAmbientLight() {
     context.drawImage(video, 0, 0, canvas.width, canvas.height)
     const frame = context.getImageData(0, 0, canvas.width, canvas.height)
     const excludedWindow = normalizeWindowBounds(display.bounds, currentWindowBounds())
-    const target = sampleScreenAmbientLight(frame, {
+    const result = sampleScreenAmbientLight(frame, {
       exclude: excludedWindow,
     }, samplingOptions.value)
-    if (!target)
-      return
+    const target = result.sample
+    let nextSample = ambientLight.active ? { ...ambientLight.sample } : undefined
+    if (target) {
+      const now = performance.now()
+      nextSample = ambientLight.active
+        ? smoothAmbientLight(ambientLight.sample, target, now - lastSampleTime, live2dScreenAmbientLightResponseMs.value)
+        : target
+      lastSampleTime = now
+      ambientLight.setSample(nextSample, calculateWindowLightDirection(display.bounds, currentWindowBounds()))
+    }
 
-    const now = performance.now()
-    const nextSample = ambientLight.active
-      ? smoothAmbientLight(ambientLight.sample, target, now - lastSampleTime, live2dScreenAmbientLightResponseMs.value)
-      : target
-    lastSampleTime = now
-    ambientLight.setSample(nextSample, calculateWindowLightDirection(display.bounds, currentWindowBounds()))
+    publishDiagnostics('capturing', {
+      frame: {
+        width: frame.width,
+        height: frame.height,
+        data: frame.data.slice(),
+      },
+      excludedRegion: excludedWindow,
+      sampling: {
+        ...result.diagnostics,
+        targetSample: target,
+        appliedSample: nextSample,
+      },
+    })
   }
 
   function applyForcedColor() {
     const sample = ambientLightSampleFromHex(live2dScreenAmbientLightForcedColor.value)
     if (!sample) {
-      console.error('Failed to apply forced Live2D ambient light: the color must use #RRGGBB or #RRGGBBAA format')
+      lastCaptureError = 'The forced color must use #RRGGBB or #RRGGBBAA format.'
+      console.error(`Failed to apply forced Live2D ambient light: ${lastCaptureError}`)
       ambientLight.reset()
+      publishDiagnostics('error')
       return
     }
 
+    lastCaptureError = undefined
     ambientLight.setSample(sample, lightDirection.value)
+    publishDiagnostics('forced-color', {
+      sampling: {
+        totalPixelCount: 0,
+        excludedPixelCount: 0,
+        transparentPixelCount: 0,
+        blackPixelCount: 0,
+        whitePixelCount: 0,
+        acceptedPixelCount: 0,
+        weightTotal: 0,
+        averageSaturation: 0,
+        targetSample: sample,
+        appliedSample: sample,
+      },
+    })
   }
 
   function currentWindowBounds() {
@@ -216,6 +282,35 @@ export function useScreenAmbientLight() {
       width: windowBounds.width.value,
       height: windowBounds.height.value,
     }
+  }
+
+  function publishDiagnostics(
+    status: ScreenAmbientLightCaptureStatus,
+    details: Partial<Pick<ScreenAmbientLightDiagnosticsSnapshot, 'frame' | 'excludedRegion' | 'sampling'>> = {},
+  ) {
+    const display = capturedDisplay.value
+    const snapshot: ScreenAmbientLightDiagnosticsSnapshot = {
+      publishedAt: Date.now(),
+      status,
+      source: live2dScreenAmbientLightSource.value,
+      error: lastCaptureError,
+      display: display
+        ? {
+            id: display.id,
+            bounds: { ...display.bounds },
+          }
+        : undefined,
+      windowBounds: currentWindowBounds(),
+      videoSize: video.videoWidth > 0 && video.videoHeight > 0
+        ? { width: video.videoWidth, height: video.videoHeight }
+        : undefined,
+      direction: display
+        ? calculateWindowLightDirection(display.bounds, currentWindowBounds())
+        : lightDirection.value,
+      ...details,
+    }
+    lastDiagnostics = snapshot
+    postDiagnosticsChannelEvent({ type: 'snapshot', snapshot })
   }
 }
 
