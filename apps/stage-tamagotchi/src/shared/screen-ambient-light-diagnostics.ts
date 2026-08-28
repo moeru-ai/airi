@@ -1,5 +1,6 @@
 import type {
   Live2DAmbientLightDirection,
+  Live2DAmbientLightLobe,
   Live2DAmbientLightSample,
   Live2DScreenAmbientLightSource,
 } from '@proj-airi/stage-ui-live2d'
@@ -60,6 +61,8 @@ export interface ScreenAmbientLightDiagnosticsSnapshot {
   sampling?: ScreenAmbientLightSamplingDiagnostics & {
     targetSample?: Live2DAmbientLightSample
     appliedSample?: Live2DAmbientLightSample
+    targetLobes?: Live2DAmbientLightLobe[]
+    appliedLobes?: Live2DAmbientLightLobe[]
   }
   direction: Live2DAmbientLightDirection
 }

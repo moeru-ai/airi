@@ -64,6 +64,7 @@ const {
   live2dScreenAmbientLightHighlightCoverage,
   live2dScreenAmbientLightHighlightStrength,
   live2dScreenAmbientLightMode,
+  live2dScreenAmbientLightSourceBalance,
   live2dScreenAmbientLightStrength,
   live2dScreenAmbientLightTintCoverage,
   live2dScreenAmbientLightTintStrength,
@@ -72,6 +73,7 @@ const universalMotionEnabled = computed(() => live2dMotionDriver.value === 'univ
 const {
   active: live2dScreenAmbientLightActive,
   direction: live2dScreenAmbientLightDirection,
+  lobes: live2dScreenAmbientLightLobes,
   sample: live2dScreenAmbientLightSample,
 } = storeToRefs(useLive2DAmbientLight())
 const live2dScreenAmbientLightFilterOptions = computed(() => ({
@@ -81,6 +83,7 @@ const live2dScreenAmbientLightFilterOptions = computed(() => ({
   highlightCoverage: live2dScreenAmbientLightHighlightCoverage.value,
   tintStrength: live2dScreenAmbientLightTintStrength.value,
   highlightStrength: live2dScreenAmbientLightHighlightStrength.value,
+  sourceBalance: live2dScreenAmbientLightSourceBalance.value,
 }))
 const mouseFocus = useLive2DEyeFocusFor({
   canvas: () => live2dCanvasRef.value?.canvasElement(),
@@ -159,6 +162,7 @@ defineExpose({
         :live2d-screen-ambient-light-active="live2dScreenAmbientLightEnabled && live2dScreenAmbientLightActive"
         :live2d-screen-ambient-light-filter-options="live2dScreenAmbientLightFilterOptions"
         :live2d-screen-ambient-light-direction="live2dScreenAmbientLightDirection"
+        :live2d-screen-ambient-light-lobes="live2dScreenAmbientLightLobes"
         :live2d-screen-ambient-light-mode="live2dScreenAmbientLightMode"
         :live2d-screen-ambient-light-sample="live2dScreenAmbientLightSample"
         :live2d-screen-ambient-light-strength="live2dScreenAmbientLightStrength"

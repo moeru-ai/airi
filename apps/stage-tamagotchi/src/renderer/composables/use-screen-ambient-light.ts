@@ -21,6 +21,7 @@ import {
   calculateWindowLightDirection,
   sampleScreenAmbientLight,
   smoothAmbientLight,
+  smoothAmbientLightLobes,
 } from '../utils/screen-ambient-light'
 
 const sourcesOptions: SourcesOptions = {
@@ -223,13 +224,22 @@ export function useScreenAmbientLight() {
     }, samplingOptions.value)
     const target = result.sample
     let nextSample = ambientLight.active ? { ...ambientLight.sample } : undefined
+    let nextLobes = ambientLight.active ? [...ambientLight.lobes] : []
     if (target) {
       const now = performance.now()
+      const elapsedMs = now - lastSampleTime
       nextSample = ambientLight.active
-        ? smoothAmbientLight(ambientLight.sample, target, now - lastSampleTime, live2dScreenAmbientLightResponseMs.value)
+        ? smoothAmbientLight(ambientLight.sample, target, elapsedMs, live2dScreenAmbientLightResponseMs.value)
         : target
+      nextLobes = ambientLight.active
+        ? smoothAmbientLightLobes(ambientLight.lobes, result.lobes, elapsedMs, live2dScreenAmbientLightResponseMs.value)
+        : result.lobes
       lastSampleTime = now
-      ambientLight.setSample(nextSample, calculateWindowLightDirection(display.bounds, currentWindowBounds()))
+      ambientLight.setSample(
+        nextSample,
+        calculateWindowLightDirection(display.bounds, currentWindowBounds()),
+        nextLobes,
+      )
     }
 
     publishDiagnostics('capturing', {
@@ -243,6 +253,8 @@ export function useScreenAmbientLight() {
         ...result.diagnostics,
         targetSample: target,
         appliedSample: nextSample,
+        targetLobes: result.lobes,
+        appliedLobes: nextLobes,
       },
     })
   }
@@ -271,6 +283,8 @@ export function useScreenAmbientLight() {
         averageSaturation: 0,
         targetSample: sample,
         appliedSample: sample,
+        targetLobes: [],
+        appliedLobes: [],
       },
     })
   }
