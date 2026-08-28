@@ -1,12 +1,12 @@
-import type { Live2DMotionPose } from '@proj-airi/model-live2d-motion'
+import type { Pose } from '@proj-airi/model-driver-magic-live2d'
 
-import { neutralLive2DMotionPose } from '@proj-airi/model-live2d-motion'
+import { neutralPose } from '@proj-airi/model-driver-magic-live2d'
 import { useBroadcastChannel } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { shallowRef, watch } from 'vue'
 
 /** A normalized pose for manual Live2D motion control. */
-export type Live2DMotionControlPose = Live2DMotionPose
+export type Live2DMotionControlPose = Pose
 
 /** Spring settings for manual Live2D motion. */
 export interface Live2DMotionControlDynamics {
@@ -75,7 +75,7 @@ type Live2DMotionControlEvent
     ownerId: string
   }
 
-export const neutralLive2DMotionControlPose: Live2DMotionControlPose = neutralLive2DMotionPose
+export const neutralLive2DMotionControlPose: Live2DMotionControlPose = neutralPose
 /** Default settings for the manual Live2D breath curve. */
 export const defaultLive2DBreathControlOptions: Live2DBreathControlOptions = Object.freeze({
   cycleSeconds: 2,

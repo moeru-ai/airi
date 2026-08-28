@@ -1,56 +1,34 @@
-import type {
-  Live2DMotionPose,
-  Live2DMotionPredictOptions,
-  Live2DMotionPredictor,
-  Live2DMotionPredictorOptions,
-  Live2DMotionTrainingSequence,
-} from './index'
-import type { Live2DMotionChannel } from './internal/pose-channels'
+import type { GenerateOptions, Generator, GeneratorOptions, TrainingSequence } from '../types'
+import type { Channel } from './channels'
 
-import { createAutoregressiveFeature, predictAutoregressiveValues, solvePositiveDefinite } from './internal/numeric'
-import { createBaselinePose, createMotionChannels, poseFromChannels } from './internal/pose-channels'
-import { createSeededRandom } from './internal/random'
+import { createBaselineFrame, createMotionChannels, frameFromChannels } from './channels'
+import { createAutoregressiveFeature, predictAutoregressiveValues, solvePositiveDefinite } from './numeric'
+import { createSeededRandom } from './random'
 
-/** One varying motion channel and every exact duplicate track that shares it. */
-export type Live2DMotionVarChannel = Live2DMotionChannel
-
-/** The fit controls for the experimental Live2D VAR generator. */
-export interface Live2DMotionVarOptions {
-  /** Number of fixed-rate history frames in each prediction. */
+/** Fit controls shared by the VAR and AR-HMM implementations. */
+export interface VarFitOptions {
+  /** Number of fixed-rate history frames in each generation step. */
   order: number
   /** Ridge penalty relative to the number of training rows. */
   ridge: number
 }
 
-/** A fitted experimental VAR model and the diagnostics shown by the devtool. */
-export interface Live2DMotionVarModel {
-  /** Controls that produced this fit. */
-  options: Live2DMotionVarOptions
-  /** Training and generation cadence in frames per second. */
+/** Internal VAR parameters shared by the VAR and AR-HMM implementations. */
+export interface VarParameters {
+  options: VarFitOptions
   sampleRateHz: number
-  /** Duration of the source motion before fixed-rate resampling. */
-  sourceDurationMs: number
-  /** Number of fixed-rate source frames used by the fit. */
   sourceFrameCount: number
-  /** Number of varying, non-duplicate pose channels. */
   channelCount: number
-  /** Number of intercept and lag terms in each channel equation. */
   featureCount: number
-  /** Root mean square of the normalized one-step fit residuals. */
   residualRootMeanSquare: number
-  /** Channel mappings and source scale statistics. */
-  channels: Live2DMotionVarChannel[]
-  /** Ridge-regularized coefficients, indexed by feature and output channel. */
+  channels: Channel[]
   coefficients: number[][]
-  /** Correlated one-step errors available for generation-time sampling. */
   residuals: number[][]
-  /** Normalized source frames available for seeded history selection. */
   trainingFrames: number[][]
-  /** Mean source pose, including constant tracks. */
-  baselinePose: Live2DMotionPose
+  baselineFrame: number[]
 }
 
-function fitCoefficients(frames: readonly number[][], options: Live2DMotionVarOptions): number[][] {
+function fitCoefficients(frames: readonly number[][], options: VarFitOptions): number[][] {
   const channelCount = frames[0].length
   const featureCount = 1 + options.order * channelCount
   const gram = Array.from({ length: featureCount }, () => Array.from<number>({ length: featureCount }).fill(0))
@@ -89,29 +67,29 @@ function createResiduals(frames: readonly number[][], coefficients: readonly num
   return residuals
 }
 
-/**
- * Fits a ridge-regularized VAR to a fixed-rate motion sequence.
- *
- * Exact duplicate tracks share one channel. Constant tracks keep their source mean.
- */
-export function fitVarMotionModel(
-  sequence: Live2DMotionTrainingSequence,
-  options: Live2DMotionVarOptions,
-): Live2DMotionVarModel {
+/** Fits the VAR parameters that both public methods use. */
+export function fitVarParameters(sequence: TrainingSequence, options: VarFitOptions): VarParameters {
   if (!Number.isFinite(sequence.sampleRateHz) || sequence.sampleRateHz <= 0)
     throw new Error('The motion sample rate must be positive.')
   if (options.order < 1 || !Number.isInteger(options.order))
     throw new Error('The VAR order must be a positive integer.')
 
-  const poses = sequence.poses
-  const channels = createMotionChannels(poses)
+  const frames = sequence.frames
+  if (frames.length === 0 || frames[0].length === 0)
+    throw new Error('The motion sequence must contain at least one value.')
+  if (frames.some(frame => frame.length !== frames[0].length))
+    throw new Error('Every motion frame must have the same number of values.')
+
+  const channels = createMotionChannels(frames)
   if (channels.length === 0)
     throw new Error('The current motion has no changing channels.')
-  if (poses.length <= options.order + 1)
+  if (frames.length <= options.order + 1)
     throw new Error('The current motion is too short for this VAR order.')
 
-  const baselinePose = createBaselinePose(poses)
-  const trainingFrames = poses.map(pose => channels.map(channel => (pose[channel.trackIds[0]] - channel.mean) / channel.scale))
+  const baselineFrame = createBaselineFrame(frames)
+  const trainingFrames = frames.map(frame => channels.map(
+    channel => (frame[channel.valueIndices[0]] - channel.mean) / channel.scale,
+  ))
   const coefficients = fitCoefficients(trainingFrames, options)
   const residuals = createResiduals(trainingFrames, coefficients, options.order)
   const squaredResidualSum = residuals.reduce(
@@ -122,8 +100,7 @@ export function fitVarMotionModel(
   return {
     options,
     sampleRateHz: sequence.sampleRateHz,
-    sourceDurationMs: sequence.sourceDurationMs,
-    sourceFrameCount: poses.length,
+    sourceFrameCount: frames.length,
     channelCount: channels.length,
     featureCount: coefficients.length,
     residualRootMeanSquare: Math.sqrt(squaredResidualSum / (residuals.length * channels.length)),
@@ -131,29 +108,26 @@ export function fitVarMotionModel(
     coefficients,
     residuals,
     trainingFrames,
-    baselinePose,
+    baselineFrame,
   }
 }
 
-/** Creates a seeded, residual-driven predictor from a fitted VAR model. */
-export function createVarMotionPredictor(
-  model: Live2DMotionVarModel,
-  options: Live2DMotionPredictorOptions,
-): Live2DMotionPredictor {
+/** Creates one independent VAR generator from internal model parameters. */
+export function toVarGenerator(parameters: VarParameters, options: GeneratorOptions): Generator {
   const random = createSeededRandom(options.seed)
-  const maximumStart = model.trainingFrames.length - model.options.order
+  const maximumStart = parameters.trainingFrames.length - parameters.options.order
   const start = Math.floor(random() * maximumStart)
-  const history = model.trainingFrames
-    .slice(start, start + model.options.order)
+  const history = parameters.trainingFrames
+    .slice(start, start + parameters.options.order)
     .map(frame => [...frame])
 
-  function next(predictOptions?: Live2DMotionPredictOptions) {
-    const noiseScale = predictOptions?.noiseScale ?? 1
-    const feature = createAutoregressiveFeature(history, model.options.order, model.channelCount)
-    const prediction = predictAutoregressiveValues(model.coefficients, feature)
-    const residual = model.residuals[Math.floor(random() * model.residuals.length)]
+  function next(generateOptions?: GenerateOptions) {
+    const noiseScale = generateOptions?.noiseScale ?? 1
+    const feature = createAutoregressiveFeature(history, parameters.options.order, parameters.channelCount)
+    const prediction = predictAutoregressiveValues(parameters.coefficients, feature)
+    const residual = parameters.residuals[Math.floor(random() * parameters.residuals.length)]
     const nextFrame = prediction.map((value, channelIndex) => {
-      const channel = model.channels[channelIndex]
+      const channel = parameters.channels[channelIndex]
       const rawValue = channel.mean + (value + residual[channelIndex] * noiseScale) * channel.scale
       const clampedValue = Math.min(channel.maximum, Math.max(channel.minimum, rawValue))
       return (clampedValue - channel.mean) / channel.scale
@@ -161,10 +135,10 @@ export function createVarMotionPredictor(
     history.shift()
     history.push(nextFrame)
     return {
-      pose: poseFromChannels(model.baselinePose, model.channels, nextFrame),
+      values: frameFromChannels(parameters.baselineFrame, parameters.channels, nextFrame),
       state: undefined,
     }
   }
 
-  return { sampleRateHz: model.sampleRateHz, next }
+  return { sampleRateHz: parameters.sampleRateHz, next }
 }

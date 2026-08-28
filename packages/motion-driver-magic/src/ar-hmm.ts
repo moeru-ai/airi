@@ -1,19 +1,22 @@
+import type { VarParameters } from './shared/var'
 import type {
-  Live2DMotionPrediction,
-  Live2DMotionPredictOptions,
-  Live2DMotionPredictor,
-  Live2DMotionPredictorOptions,
-  Live2DMotionTrainingSequence,
-} from './index'
-import type { Live2DMotionVarModel } from './var'
+  Frame,
+  GenerateOptions,
+  Generator,
+  GeneratorOptions,
+  Model as MotionModel,
+  TrainingSequence,
+} from './types'
 
-import { cholesky, clamp, createAutoregressiveFeature, predictAutoregressiveValues, solvePositiveDefinite } from './internal/numeric'
-import { poseFromChannels } from './internal/pose-channels'
-import { createNormalRandom, createSeededRandom, sampleCategorical } from './internal/random'
-import { fitVarMotionModel } from './var'
+import { clamp } from 'es-toolkit/math'
+
+import { frameFromChannels } from './shared/channels'
+import { cholesky, createAutoregressiveFeature, predictAutoregressiveValues, solvePositiveDefinite } from './shared/numeric'
+import { createNormalRandom, createSeededRandom, sampleCategorical } from './shared/random'
+import { fitVarParameters } from './shared/var'
 
 /** Fit controls for the experimental autoregressive hidden Markov model. */
-export interface Live2DMotionArHmmOptions {
+export interface FitOptions {
   /** Number of hidden motion regimes. */
   stateCount: number
   /** Number of fixed-rate history frames in each state-specific prediction. */
@@ -24,36 +27,46 @@ export interface Live2DMotionArHmmOptions {
   iterations: number
 }
 
-interface Live2DMotionArHmmState {
+interface StateParameters {
   coefficients: number[][]
   covariance: number[][]
   covarianceCholesky: number[][]
 }
 
-/** A fitted AR-HMM and the diagnostics shown by the comparison devtool. */
-export interface Live2DMotionArHmmModel {
-  /** Controls that produced this fit. */
-  options: Live2DMotionArHmmOptions
+interface Parameters {
+  options: FitOptions
   /** Shared fixed-rate frames, channel mapping, and source statistics. */
-  sourceModel: Live2DMotionVarModel
+  sourceModel: VarParameters
   /** Initial hidden-state probabilities. */
   initialProbabilities: number[]
   /** Probability of each next state, indexed by current state and next state. */
   transitionProbabilities: number[][]
   /** State-specific autoregressive coefficients and Gaussian noise. */
-  states: Live2DMotionArHmmState[]
+  states: StateParameters[]
   /** Smoothed hidden-state probabilities for each fitted source frame. */
   posteriorProbabilities: number[][]
-  /** Marginal log likelihood after each expectation step. */
-  logLikelihoods: number[]
-  /** Fraction of fitted source frames assigned to each hidden state. */
-  stateOccupancy: number[]
-  /** Occupancy-weighted geometric state duration in frames. */
-  meanDwellFrames: number
 }
 
-/** One generated pose plus the hidden regime that produced it. */
-export type Live2DMotionArHmmFrame = Live2DMotionPrediction<number>
+/** Stable measurements from one AR-HMM fit. */
+export interface Diagnostics {
+  /** Number of fixed-rate source frames used by the fit. */
+  sourceFrameCount: number
+  /** Number of varying, non-duplicate motion channels. */
+  channelCount: number
+  /** Number of intercept and lag terms in each state equation. */
+  featureCount: number
+  /** Number of hidden motion regimes. */
+  stateCount: number
+  /** Final marginal log likelihood divided by the fitted frame count. */
+  meanLogLikelihoodPerFrame: number
+  /** Fraction of fitted source frames assigned to each hidden state. */
+  stateOccupancy: readonly number[]
+  /** Occupancy-weighted geometric state duration in seconds. */
+  meanDwellSeconds: number
+}
+
+/** A reusable AR-HMM model. */
+export type ArHmmModel = MotionModel<'ar-hmm', number, Diagnostics>
 
 interface ExpectationResult {
   gamma: number[][]
@@ -173,8 +186,8 @@ function fitStateCoefficients(
   frames: readonly number[][],
   gamma: readonly number[][],
   state: number,
-  sourceModel: Live2DMotionVarModel,
-  options: Live2DMotionArHmmOptions,
+  sourceModel: VarParameters,
+  options: FitOptions,
 ): number[][] {
   const channelCount = sourceModel.channelCount
   const featureCount = 1 + options.order * channelCount
@@ -213,7 +226,7 @@ function fitStateCovariance(
   gamma: readonly number[][],
   state: number,
   coefficients: readonly number[][],
-  options: Live2DMotionArHmmOptions,
+  options: FitOptions,
 ): number[][] {
   const channelCount = frames[0].length
   const covariance = Array.from({ length: channelCount }, () => Array.from<number>({ length: channelCount }).fill(0))
@@ -242,10 +255,10 @@ function fitStateCovariance(
 }
 
 function maximizeParameters(
-  sourceModel: Live2DMotionVarModel,
+  sourceModel: VarParameters,
   expectation: ExpectationResult,
-  options: Live2DMotionArHmmOptions,
-): Pick<Live2DMotionArHmmModel, 'initialProbabilities' | 'transitionProbabilities' | 'states'> {
+  options: FitOptions,
+): Pick<Parameters, 'initialProbabilities' | 'transitionProbabilities' | 'states'> {
   const initialProbabilities = normalizeProbabilities(expectation.gamma[0].map(value => value + 0.1))
   const transitionProbabilities = expectation.transitionCounts.map((row, state) => normalizeProbabilities(
     row.map((value, nextState) => value + (state === nextState ? 2 : 0.1)),
@@ -263,7 +276,7 @@ function maximizeParameters(
 }
 
 function emissionLogProbability(
-  state: Live2DMotionArHmmState,
+  state: StateParameters,
   feature: readonly number[],
   observation: readonly number[],
 ): number {
@@ -281,9 +294,9 @@ function emissionLogProbability(
 }
 
 function expectationStep(
-  sourceModel: Live2DMotionVarModel,
-  parameters: Pick<Live2DMotionArHmmModel, 'initialProbabilities' | 'transitionProbabilities' | 'states'>,
-  options: Live2DMotionArHmmOptions,
+  sourceModel: VarParameters,
+  parameters: Pick<Parameters, 'initialProbabilities' | 'transitionProbabilities' | 'states'>,
+  options: FitOptions,
 ): ExpectationResult {
   const frames = sourceModel.trainingFrames
   const rowCount = frames.length - options.order
@@ -339,17 +352,14 @@ function expectationStep(
   return { gamma, transitionCounts, logLikelihood }
 }
 
-/** Fits a linear Gaussian AR-HMM with deterministic clustering and EM updates. */
-export function fitArHmmMotionModel(
-  sequence: Live2DMotionTrainingSequence,
-  options: Live2DMotionArHmmOptions,
-): Live2DMotionArHmmModel {
+/** Creates a linear Gaussian AR-HMM model with deterministic clustering and EM updates. */
+export function createArHmmModel(sequence: TrainingSequence, options: FitOptions): ArHmmModel {
   if (options.stateCount < 2 || !Number.isInteger(options.stateCount))
     throw new Error('The AR-HMM state count must be an integer greater than one.')
   if (options.iterations < 1 || !Number.isInteger(options.iterations))
     throw new Error('The AR-HMM iteration count must be a positive integer.')
 
-  const sourceModel = fitVarMotionModel(sequence, {
+  const sourceModel = fitVarParameters(sequence, {
     order: options.order,
     ridge: options.ridge,
   })
@@ -360,14 +370,14 @@ export function fitArHmmMotionModel(
   const clusterFeatures = createClusterFeatures(sourceModel.trainingFrames, options.order)
   const assignments = initializeAssignments(clusterFeatures, options.stateCount)
   let expectation = createInitialExpectations(assignments, options.stateCount)
-  let parameters = maximizeParameters(sourceModel, expectation, options)
+  let stateParameters = maximizeParameters(sourceModel, expectation, options)
   const logLikelihoods: number[] = []
   for (let iteration = 0; iteration < options.iterations; iteration++) {
-    expectation = expectationStep(sourceModel, parameters, options)
+    expectation = expectationStep(sourceModel, stateParameters, options)
     logLikelihoods.push(expectation.logLikelihood)
-    parameters = maximizeParameters(sourceModel, expectation, options)
+    stateParameters = maximizeParameters(sourceModel, expectation, options)
   }
-  expectation = expectationStep(sourceModel, parameters, options)
+  expectation = expectationStep(sourceModel, stateParameters, options)
   logLikelihoods.push(expectation.logLikelihood)
 
   const stateWeights = Array.from({ length: options.stateCount }, (_, state) => expectation.gamma.reduce(
@@ -376,26 +386,36 @@ export function fitArHmmMotionModel(
   ))
   const stateOccupancy = normalizeProbabilities(stateWeights)
   const meanDwellFrames = stateOccupancy.reduce((sum, occupancy, state) => {
-    const leaveProbability = Math.max(1 / rowCount, 1 - parameters.transitionProbabilities[state][state])
+    const leaveProbability = Math.max(1 / rowCount, 1 - stateParameters.transitionProbabilities[state][state])
     return sum + occupancy / leaveProbability
   }, 0)
 
-  return {
+  const modelParameters: Parameters = {
     options,
     sourceModel,
-    ...parameters,
+    ...stateParameters,
     posteriorProbabilities: expectation.gamma,
-    logLikelihoods,
-    stateOccupancy,
-    meanDwellFrames,
   }
+
+  const diagnostics: Diagnostics = Object.freeze({
+    sourceFrameCount: sourceModel.sourceFrameCount,
+    channelCount: sourceModel.channelCount,
+    featureCount: sourceModel.featureCount,
+    stateCount: options.stateCount,
+    meanLogLikelihoodPerFrame: logLikelihoods.at(-1)! / expectation.gamma.length,
+    stateOccupancy: Object.freeze([...stateOccupancy]),
+    meanDwellSeconds: meanDwellFrames / sourceModel.sampleRateHz,
+  })
+
+  return Object.freeze({
+    method: 'ar-hmm',
+    sampleRateHz: sourceModel.sampleRateHz,
+    diagnostics,
+    toGenerator: (generatorOptions: GeneratorOptions) => toGenerator(modelParameters, generatorOptions),
+  })
 }
 
-/** Creates a seeded pose predictor from a fitted AR-HMM. */
-export function createArHmmMotionPredictor(
-  model: Live2DMotionArHmmModel,
-  options: Live2DMotionPredictorOptions,
-): Live2DMotionPredictor<number> {
+function toGenerator(model: Parameters, options: GeneratorOptions): Generator<number> {
   const random = createSeededRandom(options.seed)
   const normalRandom = createNormalRandom(random)
   const maximumStart = model.sourceModel.trainingFrames.length - model.options.order
@@ -405,8 +425,8 @@ export function createArHmmMotionPredictor(
     .map(frame => [...frame])
   let state = sampleCategorical(model.posteriorProbabilities[start], random)
 
-  function next(predictOptions?: Live2DMotionPredictOptions): Live2DMotionArHmmFrame {
-    const noiseScale = predictOptions?.noiseScale ?? 1
+  function next(generateOptions?: GenerateOptions): Frame<number> {
+    const noiseScale = generateOptions?.noiseScale ?? 1
     state = sampleCategorical(model.transitionProbabilities[state], random)
     const stateModel = model.states[state]
     const feature = createAutoregressiveFeature(history, model.options.order, model.sourceModel.channelCount)
@@ -424,7 +444,7 @@ export function createArHmmMotionPredictor(
     history.shift()
     history.push(nextValues)
     return {
-      pose: poseFromChannels(model.sourceModel.baselinePose, model.sourceModel.channels, nextValues),
+      values: frameFromChannels(model.sourceModel.baselineFrame, model.sourceModel.channels, nextValues),
       state,
     }
   }

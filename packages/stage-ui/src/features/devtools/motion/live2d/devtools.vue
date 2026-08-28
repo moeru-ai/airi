@@ -3,10 +3,6 @@ import type { StandardGamepadSnapshot } from '@proj-airi/input-gamepad'
 import type { Live2DBreathControlOptions, Live2DMotionControlDynamics, Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 
 import type { Live2DMotionEditorFrame } from './composables/keyframes'
-import type {
-  Live2DMotionOutputFilterFrame,
-  Live2DMotionOutputFilterOptions,
-} from './composables/output-filter'
 
 import { defaultLive2DBreathControlOptions, defaultLive2DMotionControlDynamics, neutralLive2DMotionControlPose, useLive2DMotionControl } from '@proj-airi/stage-ui-live2d/stores'
 import { BasicButton, FieldRange } from '@proj-airi/ui'
@@ -18,7 +14,6 @@ import BreathControl from './components/breath-control.vue'
 import EyeViewControl from './components/eye-view-control.vue'
 import Joystick from './components/joystick.vue'
 import KeyframeEditor from './components/keyframe-editor.vue'
-import OutputFilter from './components/output-filter.vue'
 import Preview from './components/preview.vue'
 import ProceduralMotion from './components/procedural-motion.vue'
 import Workbench from './components/workbench.vue'
@@ -26,7 +21,7 @@ import Workbench from './components/workbench.vue'
 import { useSystemAudioInputStore } from '../../../../stores/system-audio'
 import { defaultLive2DMotionRecording } from './composables/default-recording'
 import { applyLive2DEyeViewPrototype, defaultLive2DEyeViewPrototypeState } from './composables/eye-view'
-import { createLive2DMotionOutputFilter, defaultLive2DMotionOutputFilterOptions } from './composables/output-filter'
+import { createLive2DMotionId } from './composables/keyframes'
 import { useLive2DMotionRecording } from './composables/recording'
 
 interface Props {
@@ -48,7 +43,7 @@ const {
   randomCloseDelayMs: systemAudioRandomCloseDelayMs,
   randomCloseProbability: systemAudioRandomCloseProbability,
 } = storeToRefs(systemAudio)
-const ownerId = crypto.randomUUID()
+const ownerId = createLive2DMotionId()
 const neutralPose = neutralLive2DMotionControlPose
 const sourcePose = shallowRef<Live2DMotionControlPose>(neutralPose)
 const pose = shallowRef<Live2DMotionControlPose>(neutralPose)
@@ -58,9 +53,6 @@ const sourceActive = shallowRef(false)
 const active = shallowRef(false)
 const editorPlaying = shallowRef(false)
 const proceduralMotionPlaying = shallowRef(false)
-const outputFilterOptions = shallowRef<Live2DMotionOutputFilterOptions>({ ...defaultLive2DMotionOutputFilterOptions })
-const outputFilterFrame = shallowRef<Live2DMotionOutputFilterFrame>()
-const outputFilter = createLive2DMotionOutputFilter(outputFilterOptions.value)
 const breathEnabled = shallowRef(true)
 const breathOptions = shallowRef<Live2DBreathControlOptions>({ ...defaultLive2DBreathControlOptions })
 const breathStartedAtMs = shallowRef(Date.now())
@@ -78,12 +70,6 @@ function publishComposedPose(nextPose: Live2DMotionControlPose, nextEyeView = ey
 
 function publishPose(nextPose: Live2DMotionControlPose) {
   publishComposedPose(nextPose)
-}
-
-function publishGeneratedPose(nextPose: Live2DMotionControlPose) {
-  const frame = outputFilter.process(nextPose)
-  outputFilterFrame.value = frame
-  publishPose(frame.pose)
 }
 
 function publishSystemAudioMouth(mouthOpen: number) {
@@ -156,28 +142,6 @@ function publishRelease() {
   motionControl.release(ownerId)
 }
 
-function clearOutputFilter() {
-  outputFilter.reset()
-  outputFilterFrame.value = undefined
-}
-
-function publishGeneratedRelease() {
-  clearOutputFilter()
-  publishRelease()
-}
-
-function updateOutputFilterOptions(nextOptions: Live2DMotionOutputFilterOptions) {
-  outputFilterOptions.value = nextOptions
-  outputFilter.setOptions(nextOptions)
-}
-
-function resetOutputFilter() {
-  const inputPose = outputFilterFrame.value?.inputPose
-  clearOutputFilter()
-  if (inputPose && proceduralMotionPlaying.value)
-    publishGeneratedPose(inputPose)
-}
-
 function updateBreathEnabled(enabled: boolean) {
   breathEnabled.value = enabled
   if (!enabled) {
@@ -207,8 +171,6 @@ function resetBreath() {
 
 function updateProceduralMotionPlayback(playing: boolean) {
   proceduralMotionPlaying.value = playing
-  if (playing)
-    clearOutputFilter()
 }
 
 function updateEyeView(nextView: typeof eyeView.value) {
@@ -414,17 +376,9 @@ onUnmounted(() => {
           <ProceduralMotion
             :recording="recordingController.recording.value"
             :disabled="editorPlaying || recordingController.status.value.type === 'armed' || recordingController.status.value.type === 'recording'"
-            @pose="publishGeneratedPose"
-            @release="publishGeneratedRelease"
+            @pose="publishPose"
+            @release="publishRelease"
             @playback="updateProceduralMotionPlayback"
-          />
-
-          <OutputFilter
-            :options="outputFilterOptions"
-            :frame="outputFilterFrame"
-            :generator-active="proceduralMotionPlaying"
-            @update-options="updateOutputFilterOptions"
-            @reset="resetOutputFilter"
           />
         </div>
       </template>

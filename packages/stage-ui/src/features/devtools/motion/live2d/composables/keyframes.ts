@@ -110,6 +110,13 @@ const motionProjectSchema = object({
 
 const unitValueTracks = new Set<Live2DMotionEditableTrackId | Live2DMotionTrackId>(['eyeOpen', 'mouthOpen'])
 const viewTargetTracks = new Set<Live2DMotionEditableTrackId>(live2dMotionViewTargetTrackIds)
+let motionIdSequence = 0
+
+/** Creates a motion-editor ID without requiring a secure browser context. */
+export function createLive2DMotionId(): string {
+  motionIdSequence++
+  return `motion-${Date.now().toString(36)}-${motionIdSequence.toString(36)}-${Math.random().toString(36).slice(2)}`
+}
 
 export function isLive2DMotionViewTargetTrackId(trackId: Live2DMotionEditableTrackId): trackId is Live2DMotionViewTargetTrackId {
   return viewTargetTracks.has(trackId)
@@ -271,7 +278,7 @@ export function cropLive2DMotionProject(
         startMs: croppedStartMs - startMs,
         endMs: croppedEndMs - startMs,
         points: pointTimes.map(atMs => ({
-          id: overlay.points.find(point => point.atMs === atMs)?.id ?? crypto.randomUUID(),
+          id: overlay.points.find(point => point.atMs === atMs)?.id ?? createLive2DMotionId(),
           atMs: atMs - startMs,
           value: evaluateOverlay(overlay, atMs),
         })),
@@ -294,7 +301,7 @@ export function createLive2DMotionOverlay(
 ): Live2DMotionOverlay {
   if (isLive2DMotionViewTargetTrackId(trackId)) {
     return {
-      id: crypto.randomUUID(),
+      id: createLive2DMotionId(),
       name: `L${Date.now().toString(36).slice(-4).toUpperCase()}`,
       trackId,
       blendMode: 'replace',
@@ -302,8 +309,8 @@ export function createLive2DMotionOverlay(
       startMs: 0,
       endMs: durationMs,
       points: [
-        { id: crypto.randomUUID(), atMs: 0, value: 0 },
-        { id: crypto.randomUUID(), atMs: durationMs, value: 0 },
+        { id: createLive2DMotionId(), atMs: 0, value: 0 },
+        { id: createLive2DMotionId(), atMs: durationMs, value: 0 },
       ],
     }
   }
@@ -313,7 +320,7 @@ export function createLive2DMotionOverlay(
   const endMs = Math.min(durationMs, startMs + defaultSpan)
   const defaultValue = blendMode === 'add' ? 0 : getLive2DMotionTrackValue(neutralLive2DMotionControlPose, trackId)
   return {
-    id: crypto.randomUUID(),
+    id: createLive2DMotionId(),
     name: `L${Date.now().toString(36).slice(-4).toUpperCase()}`,
     trackId,
     blendMode,
@@ -321,8 +328,8 @@ export function createLive2DMotionOverlay(
     startMs,
     endMs,
     points: [
-      { id: crypto.randomUUID(), atMs: startMs, value: defaultValue },
-      { id: crypto.randomUUID(), atMs: endMs, value: defaultValue },
+      { id: createLive2DMotionId(), atMs: startMs, value: defaultValue },
+      { id: createLive2DMotionId(), atMs: endMs, value: defaultValue },
     ],
   }
 }

@@ -15,6 +15,7 @@ import { computed, nextTick, onMounted, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
+  createLive2DMotionId,
   getLive2DMotionCompositePoints,
   getLive2DMotionSourcePoints,
   getLive2DMotionTrackRange,
@@ -91,7 +92,7 @@ function addPoint(event: MouseEvent) {
   const point = clientToPoint(event)
   if (point.atMs < selectedOverlay.value.startMs || point.atMs > selectedOverlay.value.endMs)
     return
-  emit('addPoint', selectedOverlay.value.id, { id: crypto.randomUUID(), ...point })
+  emit('addPoint', selectedOverlay.value.id, { id: createLive2DMotionId(), ...point })
 }
 
 function scrub(event: PointerEvent) {

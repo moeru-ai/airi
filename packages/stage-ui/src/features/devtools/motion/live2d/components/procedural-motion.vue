@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import type { Live2DMotionPose } from '@proj-airi/model-live2d-motion'
+import type { Pose } from '@proj-airi/model-driver-magic-live2d'
 import type { SelectTabOption } from '@proj-airi/ui'
 
+import type { Live2DMotionMagicMethod } from '../../../../motions/live2d'
 import type { ReadonlyLive2DMotionRecording } from '../composables/recording'
-import type { Live2DProceduralMotionKind } from '../composables/use-procedural-motion'
 
 import { BasicButton, FieldRange, SelectTab } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useLive2DProceduralMotion } from '../composables/use-procedural-motion'
+import OutputFilter from './output-filter.vue'
+
+import { useLive2DMotionMagic } from '../../../../motions/live2d'
 
 const props = defineProps<{
   recording?: ReadonlyLive2DMotionRecording | null
@@ -17,21 +19,21 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  pose: [pose: Live2DMotionPose]
+  pose: [pose: Pose]
   release: []
   playback: [playing: boolean]
 }>()
 
 const { t } = useI18n()
-const motion = useLive2DProceduralMotion({
-  recording: () => props.recording,
+const motion = useLive2DMotionMagic({
+  dataset: () => props.recording,
   disabled: () => props.disabled ?? false,
   publishPose: pose => emit('pose', pose),
   releasePose: () => emit('release'),
   setPlaying: playing => emit('playback', playing),
 })
 
-const modelOptions = computed<SelectTabOption<Live2DProceduralMotionKind>[]>(() => [
+const modelOptions = computed<SelectTabOption<Live2DMotionMagicMethod>[]>(() => [
   {
     label: t('tamagotchi.settings.devtools.pages.live2d-motion.var.title'),
     value: 'var',
@@ -44,7 +46,7 @@ const modelOptions = computed<SelectTabOption<Live2DProceduralMotionKind>[]>(() 
   },
 ])
 
-const translationPrefix = computed(() => motion.kind.value === 'var'
+const translationPrefix = computed(() => motion.method.value === 'var'
   ? 'tamagotchi.settings.devtools.pages.live2d-motion.var'
   : 'tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm')
 
@@ -58,7 +60,7 @@ const recordingSummary = computed(() => {
 })
 
 const diagnostics = computed(() => {
-  const fitted = motion.fitted.value
+  const model = motion.model.value
   const items = [
     {
       id: 'source',
@@ -67,29 +69,29 @@ const diagnostics = computed(() => {
     },
   ]
 
-  if (fitted?.kind === 'var') {
+  if (model?.method === 'var') {
     items.push(
       {
         id: 'model',
         label: t(`${translationPrefix.value}.diagnostics.model`),
         value: t(`${translationPrefix.value}.values.model`, {
-          channels: fitted.model.channelCount,
-          features: fitted.model.featureCount,
+          channels: model.diagnostics.channelCount,
+          features: model.diagnostics.featureCount,
         }),
       },
       {
         id: 'fit',
         label: t(`${translationPrefix.value}.diagnostics.fit`),
         value: t(`${translationPrefix.value}.values.fit`, {
-          frames: fitted.model.sourceFrameCount,
-          error: fitted.model.residualRootMeanSquare.toFixed(3),
+          frames: model.diagnostics.sourceFrameCount,
+          error: model.diagnostics.residualRootMeanSquare.toFixed(3),
           duration: motion.fitDurationMs.value.toFixed(0),
         }),
       },
     )
   }
-  else if (fitted?.kind === 'ar-hmm') {
-    const occupancy = fitted.model.stateOccupancy
+  else if (model?.method === 'ar-hmm') {
+    const occupancy = model.diagnostics.stateOccupancy
       .map(value => `${Math.round(value * 100)}%`)
       .join(' / ')
     items.push(
@@ -97,16 +99,16 @@ const diagnostics = computed(() => {
         id: 'model',
         label: t(`${translationPrefix.value}.diagnostics.model`),
         value: t(`${translationPrefix.value}.values.model`, {
-          states: fitted.model.options.stateCount,
-          channels: fitted.model.sourceModel.channelCount,
-          features: fitted.model.sourceModel.featureCount,
+          states: model.diagnostics.stateCount,
+          channels: model.diagnostics.channelCount,
+          features: model.diagnostics.featureCount,
         }),
       },
       {
         id: 'fit',
         label: t(`${translationPrefix.value}.diagnostics.fit`),
         value: t(`${translationPrefix.value}.values.fit`, {
-          likelihood: (fitted.model.logLikelihoods.at(-1)! / fitted.model.posteriorProbabilities.length).toFixed(2),
+          likelihood: model.diagnostics.meanLogLikelihoodPerFrame.toFixed(2),
           duration: motion.fitDurationMs.value.toFixed(0),
         }),
       },
@@ -115,7 +117,7 @@ const diagnostics = computed(() => {
         label: t(`${translationPrefix.value}.diagnostics.states`),
         value: t(`${translationPrefix.value}.values.states`, {
           occupancy,
-          dwell: (fitted.model.meanDwellFrames / fitted.model.sourceModel.sampleRateHz).toFixed(1),
+          dwell: model.diagnostics.meanDwellSeconds.toFixed(1),
         }),
       },
     )
@@ -138,7 +140,7 @@ const diagnostics = computed(() => {
   items.push({
     id: 'run',
     label: t(`${translationPrefix.value}.diagnostics.run`),
-    value: motion.kind.value === 'var'
+    value: motion.method.value === 'var'
       ? t(`${translationPrefix.value}.values.run`, {
           seed: motion.seed.value,
           duration: `${motion.generatedDurationSeconds.value.toFixed(1)}s`,
@@ -173,9 +175,9 @@ function formatStrength(value: number): string {
     ]"
   >
     <SelectTab
-      v-model="motion.kind.value"
+      v-model="motion.method.value"
       :options="modelOptions"
-      :disabled="motion.playing.value || motion.status.value === 'fitting'"
+      :disabled="motion.playing.value || motion.status.value === 'initializing'"
       size="sm"
       :class="['mb-4 w-full']"
     />
@@ -192,18 +194,18 @@ function formatStrength(value: number): string {
 
       <div :class="['flex flex-wrap items-center gap-1']">
         <BasicButton
-          :disabled="props.disabled || !props.recording || motion.playing.value || motion.status.value === 'fitting'"
-          :loading="motion.status.value === 'fitting'"
-          @click="motion.fit"
+          :disabled="props.disabled || !props.recording || motion.playing.value || motion.status.value === 'initializing'"
+          :loading="motion.status.value === 'initializing'"
+          @click="motion.initialize()"
         >
           <span :class="['i-mingcute:chart-line-line']" />
-          {{ motion.fitted.value
+          {{ motion.model.value
             ? t(`${translationPrefix}.actions.refit`)
             : t(`${translationPrefix}.actions.fit`) }}
         </BasicButton>
         <BasicButton
           v-if="!motion.playing.value"
-          :disabled="props.disabled || !motion.fitted.value"
+          :disabled="props.disabled || !motion.model.value"
           @click="motion.start"
         >
           <span :class="['i-mingcute:play-line']" />
@@ -213,7 +215,7 @@ function formatStrength(value: number): string {
           <span :class="['i-mingcute:stop-circle-line']" />
           {{ t(`${translationPrefix}.actions.stop`) }}
         </BasicButton>
-        <BasicButton :disabled="props.disabled" @click="motion.useNewSeed">
+        <BasicButton :disabled="props.disabled" @click="motion.randomizeSeed">
           <span :class="['i-mingcute:shuffle-line']" />
           {{ t(`${translationPrefix}.actions.new-seed`) }}
         </BasicButton>
@@ -222,7 +224,7 @@ function formatStrength(value: number): string {
 
     <div :class="['procedural-motion-fields mt-4 grid gap-4']">
       <FieldRange
-        v-if="motion.kind.value === 'ar-hmm'"
+        v-if="motion.method.value === 'ar-hmm'"
         v-model="motion.arHmmSettings.stateCount"
         :label="t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.states.label')"
         :description="t('tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.states.description')"
@@ -234,7 +236,7 @@ function formatStrength(value: number): string {
         as="div"
       />
       <FieldRange
-        v-if="motion.kind.value === 'var'"
+        v-if="motion.method.value === 'var'"
         v-model="motion.varSettings.order"
         :label="t('tamagotchi.settings.devtools.pages.live2d-motion.var.order.label')"
         :description="t('tamagotchi.settings.devtools.pages.live2d-motion.var.order.description')"
@@ -258,7 +260,7 @@ function formatStrength(value: number): string {
         as="div"
       />
       <FieldRange
-        v-if="motion.kind.value === 'var'"
+        v-if="motion.method.value === 'var'"
         v-model="motion.varSettings.noiseScale"
         :label="t('tamagotchi.settings.devtools.pages.live2d-motion.var.residual.label')"
         :description="t('tamagotchi.settings.devtools.pages.live2d-motion.var.residual.description')"
@@ -298,10 +300,18 @@ function formatStrength(value: number): string {
       </div>
     </dl>
 
-    <p v-if="motion.fitError.value" :class="['mt-3 text-sm text-red-500 dark:text-red-400']">
-      {{ motion.fitError.value }}
+    <p v-if="motion.error.value" :class="['mt-3 text-sm text-red-500 dark:text-red-400']">
+      {{ motion.error.value }}
     </p>
   </section>
+
+  <OutputFilter
+    :options="motion.outputFilterOptions.value"
+    :frame="motion.outputFilterFrame.value"
+    :generator-active="motion.playing.value"
+    @update-options="motion.setOutputFilterOptions"
+    @reset="motion.resetOutputFilter"
+  />
 </template>
 
 <style scoped>

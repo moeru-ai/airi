@@ -1,9 +1,9 @@
 {
-  "name": "@proj-airi/model-live2d-motion",
+  "name": "@proj-airi/model-driver-magic-live2d",
   "type": "module",
   "version": "0.12.0-beta.1",
   "private": true,
-  "description": "Procedural Live2D motion models for Project AIRI",
+  "description": "Live2D model driver for MAGIC motion",
   "author": {
     "name": "Moeru AI Project AIRI Team",
     "email": "airi@moeru.ai",
@@ -13,20 +13,12 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/moeru-ai/airi.git",
-    "directory": "packages/model-live2d-motion"
+    "directory": "packages/model-driver-magic-live2d"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    },
-    "./var": {
-      "types": "./dist/var.d.ts",
-      "default": "./dist/var.js"
-    },
-    "./ar-hmm": {
-      "types": "./dist/ar-hmm.d.ts",
-      "default": "./dist/ar-hmm.js"
     }
   },
   "main": "./dist/index.js",
@@ -41,6 +33,9 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@proj-airi/motion-driver-magic": "workspace:^",
+    "es-toolkit": "catalog:"
+  },
   "devDependencies": {}
 }

@@ -2,7 +2,7 @@ import type { ShallowRef } from 'vue'
 
 import type { Live2DMotionControlPose, Live2DMotionControlState } from '../../stores/motion-control'
 
-import { live2dMotionPoseAxes } from '@proj-airi/model-live2d-motion'
+import { poseAxes } from '@proj-airi/model-driver-magic-live2d'
 import { shallowRef } from 'vue'
 
 import { neutralLive2DMotionControlPose } from '../../stores/motion-control'
@@ -41,7 +41,7 @@ function stepAxis(options: {
 }
 
 function poseIsSettled(pose: Live2DMotionControlPose, velocity: Live2DMotionControlPose, target: Live2DMotionControlPose): boolean {
-  return live2dMotionPoseAxes.every(axis => (
+  return poseAxes.every(axis => (
     Math.abs(target[axis] - pose[axis]) < settledPositionThreshold
     && Math.abs(velocity[axis]) < settledVelocityThreshold
   ))
@@ -72,7 +72,7 @@ export function createLive2DMotionSpring(initialPose: Live2DMotionControlPose = 
     const stepSeconds = boundedElapsedSeconds / stepCount
 
     for (let stepIndex = 0; stepIndex < stepCount; stepIndex += 1) {
-      for (const axis of live2dMotionPoseAxes) {
+      for (const axis of poseAxes) {
         const next = stepAxis({
           current: pose[axis],
           target: target[axis],

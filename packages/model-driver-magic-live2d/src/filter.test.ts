@@ -1,18 +1,15 @@
-import { neutralLive2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 import { describe, expect, it } from 'vitest'
 
-import {
-  createLive2DMotionOutputFilter,
-  defaultLive2DMotionOutputFilterOptions,
-} from './output-filter'
+import { createOutputFilter, defaultOutputFilterOptions } from './filter'
+import { neutralPose } from './pose'
 
-function pose(overrides: Partial<typeof neutralLive2DMotionControlPose> = {}) {
-  return { ...neutralLive2DMotionControlPose, ...overrides }
+function pose(overrides: Partial<typeof neutralPose> = {}) {
+  return { ...neutralPose, ...overrides }
 }
 
-describe('live2DMotionOutputFilterPrototype', () => {
+describe('output filter', () => {
   it('uses the tuned generator cutoff by default', () => {
-    expect(defaultLive2DMotionOutputFilterOptions).toEqual({
+    expect(defaultOutputFilterOptions).toEqual({
       enabled: true,
       smoothing: 0.8,
       cutoff: 0.0575,
@@ -20,7 +17,7 @@ describe('live2DMotionOutputFilterPrototype', () => {
   })
 
   it('holds cumulative changes below the cutoff', () => {
-    const filter = createLive2DMotionOutputFilter({ enabled: true, smoothing: 0, cutoff: 0.05 })
+    const filter = createOutputFilter({ enabled: true, smoothing: 0, cutoff: 0.05 })
 
     filter.process(pose())
     const firstNoise = filter.process(pose({ headX: 0.01 }))
@@ -35,7 +32,7 @@ describe('live2DMotionOutputFilterPrototype', () => {
   })
 
   it('applies EMA smoothing after the cutoff stage', () => {
-    const filter = createLive2DMotionOutputFilter({ enabled: true, smoothing: 0.75, cutoff: 0 })
+    const filter = createOutputFilter({ enabled: true, smoothing: 0.75, cutoff: 0 })
 
     filter.process(pose())
     const firstStep = filter.process(pose({ headX: 1 }))
@@ -47,7 +44,7 @@ describe('live2DMotionOutputFilterPrototype', () => {
   })
 
   it('bypasses the filter when disabled', () => {
-    const filter = createLive2DMotionOutputFilter({ enabled: false, smoothing: 0.99, cutoff: 1 })
+    const filter = createOutputFilter({ enabled: false, smoothing: 0.99, cutoff: 1 })
 
     filter.process(pose())
     const frame = filter.process(pose({ headX: 0.4, mouthOpen: 0.7 }))
@@ -58,7 +55,7 @@ describe('live2DMotionOutputFilterPrototype', () => {
   })
 
   it('passes the first pose through after reset', () => {
-    const filter = createLive2DMotionOutputFilter(defaultLive2DMotionOutputFilterOptions)
+    const filter = createOutputFilter(defaultOutputFilterOptions)
 
     filter.process(pose())
     filter.process(pose({ headX: 1 }))
@@ -71,7 +68,7 @@ describe('live2DMotionOutputFilterPrototype', () => {
   })
 
   it('resets stale history when the enabled state changes', () => {
-    const filter = createLive2DMotionOutputFilter({ enabled: true, smoothing: 0.9, cutoff: 0 })
+    const filter = createOutputFilter({ enabled: true, smoothing: 0.9, cutoff: 0 })
 
     filter.process(pose())
     filter.process(pose({ headX: 1 }))

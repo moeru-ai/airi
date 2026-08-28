@@ -1,8 +1,3 @@
-/** Clamps a value to an inclusive range. */
-export function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(maximum, Math.max(minimum, value))
-}
-
 /** Creates one intercept-and-lag feature vector from autoregressive history. */
 export function createAutoregressiveFeature(
   frames: readonly number[][],

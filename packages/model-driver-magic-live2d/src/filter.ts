@@ -1,9 +1,11 @@
-import type { Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
+import type { Pose } from './pose'
 
-import { live2dMotionPoseAxes } from '@proj-airi/model-live2d-motion'
+import { clamp } from 'es-toolkit/math'
 
-/** Controls the experimental generator output filter. */
-export interface Live2DMotionOutputFilterOptions {
+import { poseAxes } from './pose'
+
+/** Controls the generated-pose output filter. */
+export interface OutputFilterOptions {
   /** Applies the cutoff and EMA stages to generated poses. @default true */
   enabled: boolean
   /** Weight of the previous output from 0 (raw) to 0.999 (slow). @default 0.8 */
@@ -12,12 +14,12 @@ export interface Live2DMotionOutputFilterOptions {
   cutoff: number
 }
 
-/** One processed generator frame and the diagnostics shown by the devtool. */
-export interface Live2DMotionOutputFilterFrame {
+/** One processed generator frame and its filter diagnostics. */
+export interface OutputFilterFrame {
   /** Raw pose emitted by VAR or AR-HMM. */
-  inputPose: Live2DMotionControlPose
-  /** Pose sent to eye fixation and then the shared spring. */
-  pose: Live2DMotionControlPose
+  inputPose: Pose
+  /** Pose sent to the Live2D target. */
+  pose: Pose
   /** Mean absolute channel change in the raw generator output. */
   inputChangeMeanAbsolute: number
   /** Mean absolute channel change after cutoff and EMA smoothing. */
@@ -27,26 +29,23 @@ export interface Live2DMotionOutputFilterFrame {
 }
 
 /** A stateful cutoff and EMA processor for fixed-rate generator poses. */
-export interface Live2DMotionOutputFilterController {
+export interface OutputFilter {
   /** Processes one generated pose and advances the filter state. */
-  process: (pose: Live2DMotionControlPose) => Live2DMotionOutputFilterFrame
+  process: (pose: Pose) => OutputFilterFrame
   /** Clears accepted targets and EMA history before another generated run. */
   reset: () => void
   /** Changes filter controls without replacing the active processor. */
-  setOptions: (options: Live2DMotionOutputFilterOptions) => void
+  setOptions: (options: OutputFilterOptions) => void
 }
 
-export const defaultLive2DMotionOutputFilterOptions: Readonly<Live2DMotionOutputFilterOptions> = Object.freeze({
+/** Tuned controls used when a driver does not supply filter options. */
+export const defaultOutputFilterOptions: Readonly<OutputFilterOptions> = Object.freeze({
   enabled: true,
   smoothing: 0.8,
   cutoff: 0.0575,
 })
 
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(maximum, Math.max(minimum, value))
-}
-
-function normalizeOptions(options: Live2DMotionOutputFilterOptions): Live2DMotionOutputFilterOptions {
+function normalizeOptions(options: OutputFilterOptions): OutputFilterOptions {
   return {
     enabled: options.enabled,
     smoothing: clamp(options.smoothing, 0, 0.999),
@@ -54,19 +53,19 @@ function normalizeOptions(options: Live2DMotionOutputFilterOptions): Live2DMotio
   }
 }
 
-function meanAbsoluteDifference(left: Live2DMotionControlPose, right: Live2DMotionControlPose): number {
-  const total = live2dMotionPoseAxes.reduce((sum, trackId) => sum + Math.abs(left[trackId] - right[trackId]), 0)
-  return total / live2dMotionPoseAxes.length
+function meanAbsoluteDifference(left: Pose, right: Pose): number {
+  const total = poseAxes.reduce((sum, axis) => sum + Math.abs(left[axis] - right[axis]), 0)
+  return total / poseAxes.length
 }
 
-/** Creates the experimental generator output filter used by the motion devtool. */
-export function createLive2DMotionOutputFilter(
-  initialOptions: Live2DMotionOutputFilterOptions = defaultLive2DMotionOutputFilterOptions,
-): Live2DMotionOutputFilterController {
+/** Creates one generated-pose output filter. */
+export function createOutputFilter(
+  initialOptions: OutputFilterOptions = defaultOutputFilterOptions,
+): OutputFilter {
   let options = normalizeOptions(initialOptions)
-  let previousInput: Live2DMotionControlPose | undefined
-  let acceptedPose: Live2DMotionControlPose | undefined
-  let outputPose: Live2DMotionControlPose | undefined
+  let previousInput: Pose | undefined
+  let acceptedPose: Pose | undefined
+  let outputPose: Pose | undefined
 
   function reset() {
     previousInput = undefined
@@ -74,14 +73,14 @@ export function createLive2DMotionOutputFilter(
     outputPose = undefined
   }
 
-  function setOptions(nextOptions: Live2DMotionOutputFilterOptions) {
+  function setOptions(nextOptions: OutputFilterOptions) {
     const normalizedOptions = normalizeOptions(nextOptions)
     if (normalizedOptions.enabled !== options.enabled)
       reset()
     options = normalizedOptions
   }
 
-  function process(input: Live2DMotionControlPose): Live2DMotionOutputFilterFrame {
+  function process(input: Pose): OutputFilterFrame {
     const inputPose = { ...input }
     if (!previousInput || !acceptedPose || !outputPose) {
       previousInput = inputPose
@@ -116,16 +115,16 @@ export function createLive2DMotionOutputFilter(
     const nextOutputPose = { ...outputPose }
     let cutoffTrackCount = 0
 
-    for (const trackId of live2dMotionPoseAxes) {
-      const changeFromAccepted = Math.abs(inputPose[trackId] - acceptedPose[trackId])
+    for (const axis of poseAxes) {
+      const changeFromAccepted = Math.abs(inputPose[axis] - acceptedPose[axis])
       if (changeFromAccepted >= options.cutoff)
-        nextAcceptedPose[trackId] = inputPose[trackId]
+        nextAcceptedPose[axis] = inputPose[axis]
       else if (changeFromAccepted > 0)
         cutoffTrackCount++
 
-      nextOutputPose[trackId]
-        = outputPose[trackId] * options.smoothing
-          + nextAcceptedPose[trackId] * (1 - options.smoothing)
+      nextOutputPose[axis]
+        = outputPose[axis] * options.smoothing
+          + nextAcceptedPose[axis] * (1 - options.smoothing)
     }
 
     acceptedPose = nextAcceptedPose

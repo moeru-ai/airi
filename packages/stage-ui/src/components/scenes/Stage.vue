@@ -14,7 +14,7 @@ import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
-import { Live2DScene, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
+import { defaultLive2DMotionControlDynamics, Live2DScene, useLive2DMotionControl, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { TachieScene } from '@proj-airi/stage-ui-tachie'
@@ -35,6 +35,7 @@ import { useDuckDb } from '../../composables/use-duck-db'
 import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
+import { useLive2DMotionMagic } from '../../features/motions/live2d'
 import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
@@ -83,10 +84,43 @@ const {
 
 } = storeToRefs(settingsStore)
 const {
+  live2dMotionDriver,
   live2dShadowEnabled,
   live2dMaxFps,
   live2dRenderScale,
 } = storeToRefs(useSettingsLive2d())
+const live2dMotionControl = useLive2DMotionControl()
+const live2dMagicMotion = useLive2DMotionMagic({
+  publishPose: pose => live2dMotionControl.setPose('stage:live2d-motion-magic', pose, defaultLive2DMotionControlDynamics),
+  releasePose: () => live2dMotionControl.release('stage:live2d-motion-magic'),
+})
+let live2dMagicActivationRequest = 0
+
+watch(
+  [stageModelRenderer, live2dMotionDriver, () => props.paused],
+  async ([renderer, driver, paused]) => {
+    const request = ++live2dMagicActivationRequest
+    if (renderer !== 'live2d' || driver !== 'magic' || paused) {
+      live2dMagicMotion.stop()
+      return
+    }
+
+    if (live2dMagicMotion.status.value === 'idle')
+      await live2dMagicMotion.initialize()
+
+    if (
+      request !== live2dMagicActivationRequest
+      || stageModelRenderer.value !== 'live2d'
+      || live2dMotionDriver.value !== 'magic'
+      || props.paused
+    ) {
+      return
+    }
+
+    live2dMagicMotion.start()
+  },
+  { immediate: true },
+)
 const {
   spinePremultipliedAlpha,
   spineDefaultMixDuration,

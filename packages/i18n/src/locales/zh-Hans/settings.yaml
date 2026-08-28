@@ -147,6 +147,16 @@ live2d:
       title: 提取
   animation:
     title: 动画
+    motion-driver:
+      title: 动作驱动器
+      description: 选择 AIRI 如何生成空闲身体和眼部动作。
+      options:
+        universal:
+          title: 通用
+          description: 使用模型动作、空闲眼部动作和鼠标跟踪。
+        magic:
+          title: MAGIC
+          description: 使用内置 MAGIC 数据集生成动作。
     focus:
       title: 启用鼠标跟踪
       description: 鼠标移动时注视光标；光标停止后恢复空闲眼部动作。

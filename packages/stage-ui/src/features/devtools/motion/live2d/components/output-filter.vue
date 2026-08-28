@@ -1,23 +1,22 @@
 <script setup lang="ts">
 import type {
-  Live2DMotionOutputFilterFrame,
-  Live2DMotionOutputFilterOptions,
-} from '../composables/output-filter'
+  OutputFilterFrame,
+  OutputFilterOptions,
+} from '@proj-airi/model-driver-magic-live2d'
 
+import { defaultOutputFilterOptions } from '@proj-airi/model-driver-magic-live2d'
 import { BasicButton, FieldRange } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { defaultLive2DMotionOutputFilterOptions } from '../composables/output-filter'
-
 const props = defineProps<{
-  options: Live2DMotionOutputFilterOptions
-  frame?: Live2DMotionOutputFilterFrame
+  options: OutputFilterOptions
+  frame?: OutputFilterFrame
   generatorActive: boolean
 }>()
 
 const emit = defineEmits<{
-  updateOptions: [options: Live2DMotionOutputFilterOptions]
+  updateOptions: [options: OutputFilterOptions]
   reset: []
 }>()
 
@@ -41,7 +40,7 @@ const status = computed(() => {
   return t('tamagotchi.settings.devtools.pages.live2d-motion.output-filter.status.waiting')
 })
 
-function updateOptions(patch: Partial<Live2DMotionOutputFilterOptions>) {
+function updateOptions(patch: Partial<OutputFilterOptions>) {
   emit('updateOptions', { ...props.options, ...patch })
 }
 
@@ -92,7 +91,7 @@ function formatChange(value: number | undefined): string {
         :min="0"
         :max="0.99"
         :step="0.01"
-        :default-value="defaultLive2DMotionOutputFilterOptions.smoothing"
+        :default-value="defaultOutputFilterOptions.smoothing"
         :format-value="formatSmoothing"
         as="div"
       />
@@ -103,7 +102,7 @@ function formatChange(value: number | undefined): string {
         :min="0"
         :max="0.2"
         :step="0.0025"
-        :default-value="defaultLive2DMotionOutputFilterOptions.cutoff"
+        :default-value="defaultOutputFilterOptions.cutoff"
         :format-value="formatCutoff"
         as="div"
       />
