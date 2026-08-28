@@ -150,6 +150,78 @@ describe('screen ambient light filter', () => {
 
     expect(redAt(pixels, 5)).toBeCloseTo(redAt(pixels, 95), 0)
   })
+
+  it('applies separate light colors from opposite screen directions', () => {
+    const pixels = renderLight({
+      ambient: { red: 0, green: 0, blue: 0, luminance: 0 },
+      direction: { x: 0, y: 0 },
+      lobes: [
+        {
+          coverage: 0.25,
+          direction: { x: -1, y: 0 },
+          intensity: 1,
+          position: { x: 0.1, y: 0.5 },
+          sample: { red: 1, green: 0, blue: 0, luminance: 0.2126 },
+        },
+        {
+          coverage: 0.25,
+          direction: { x: 1, y: 0 },
+          intensity: 1,
+          position: { x: 0.9, y: 0.5 },
+          sample: { red: 0, green: 0, blue: 1, luminance: 0.0722 },
+        },
+      ],
+      mode: 'window-gradient',
+    })
+
+    expect(redAt(pixels, 5)).toBeGreaterThan(blueAt(pixels, 5))
+    expect(blueAt(pixels, 95)).toBeGreaterThan(redAt(pixels, 95))
+  })
+
+  it('allows global strength above one for a more dramatic light response', () => {
+    const regular = renderLight({
+      ambient: { red: 1, green: 0.2, blue: 0, luminance: 0.356 },
+      direction: { x: 1, y: 0 },
+      mode: 'window-gradient',
+      strength: 1,
+    })
+    const dramatic = renderLight({
+      ambient: { red: 1, green: 0.2, blue: 0, luminance: 0.356 },
+      direction: { x: 1, y: 0 },
+      mode: 'window-gradient',
+      strength: 3,
+    })
+
+    expect(redAt(dramatic, 95)).toBeGreaterThan(redAt(regular, 95))
+    expect(redAt(dramatic, 5)).toBeCloseTo(redAt(regular, 5), 0)
+  })
+
+  it('trades residual ambient fill for detected light-source energy', () => {
+    const lobe = {
+      coverage: 0.5,
+      direction: { x: 1, y: 0 },
+      intensity: 1,
+      position: { x: 0.9, y: 0.5 },
+      sample: { red: 0, green: 0, blue: 1, luminance: 0.0722 },
+    }
+    const ambientWeighted = renderLight({
+      ambient: { red: 1, green: 0, blue: 0, luminance: 0.2126 },
+      direction: { x: 1, y: 0 },
+      filterOptions: { sourceBalance: 0 },
+      lobes: [lobe],
+      mode: 'window-gradient',
+    })
+    const sourceWeighted = renderLight({
+      ambient: { red: 1, green: 0, blue: 0, luminance: 0.2126 },
+      direction: { x: 1, y: 0 },
+      filterOptions: { sourceBalance: 1 },
+      lobes: [lobe],
+      mode: 'window-gradient',
+    })
+
+    expect(redAt(ambientWeighted, 95)).toBeGreaterThan(blueAt(ambientWeighted, 95))
+    expect(blueAt(sourceWeighted, 95)).toBeGreaterThan(redAt(sourceWeighted, 95))
+  })
 })
 
 afterAll(() => document.querySelectorAll('canvas[data-ambient-light-test]').forEach(canvas => canvas.remove()))
@@ -159,6 +231,7 @@ function renderLight({
   direction,
   filterOptions,
   height = 1,
+  lobes = [],
   mode,
   sourceValue = 64,
   strength = 1,
@@ -167,6 +240,7 @@ function renderLight({
   direction: { x: number, y: number }
   filterOptions?: Partial<Live2DAmbientLightFilterOptions>
   height?: number
+  lobes?: Parameters<ScreenAmbientLightFilter['update']>[2]
   mode: 'window-gradient' | 'global'
   sourceValue?: number
   strength?: number
@@ -193,6 +267,7 @@ function renderLight({
   filter.update(
     ambient,
     direction,
+    lobes,
     mode,
     strength,
     { ...live2dAmbientLightDefaults.filter, ...filterOptions },
@@ -215,4 +290,8 @@ function renderLight({
 
 function redAt(pixels: Uint8Array, x: number) {
   return pixels[x * 4]
+}
+
+function blueAt(pixels: Uint8Array, x: number) {
+  return pixels[x * 4 + 2]
 }
