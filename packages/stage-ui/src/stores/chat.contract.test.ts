@@ -1,6 +1,7 @@
 import type { StreamOptions } from '@proj-airi/core-agent'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message, Tool } from '@xsai/shared-chat'
+import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import { errorMessageFrom } from '@moeru/std'
 import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
@@ -67,6 +68,9 @@ const forkSessionMock = vi.fn()
 const ensureSessionMock = vi.fn()
 const loadSessionMock = vi.fn()
 const deleteSessionMock = vi.fn()
+const initializeSessionMock = vi.fn()
+const disposeSessionMock = vi.fn()
+const ensureCurrentSessionMock = vi.fn()
 const getChatProviderInstanceMock = vi.fn()
 const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
 
@@ -150,6 +154,9 @@ vi.mock('./chat/session-store', () => ({
     getSessionMessagesIfLoaded: (sessionId: string) => sessionMessages[sessionId],
     loadSession: loadSessionMock,
     deleteSession: deleteSessionMock,
+    initialize: initializeSessionMock,
+    dispose: disposeSessionMock,
+    ensureCurrentSession: ensureCurrentSessionMock,
     persistSessionMessages: persistSessionMessagesMock,
     getSessionGeneration: () => currentGeneration,
     setSessionMessages: (sessionId: string, messages: any[]) => {
@@ -240,6 +247,9 @@ describe('chat store contract', () => {
     ensureSessionMock.mockReset()
     loadSessionMock.mockReset().mockResolvedValue(true)
     deleteSessionMock.mockReset().mockResolvedValue(undefined)
+    initializeSessionMock.mockReset().mockResolvedValue(undefined)
+    disposeSessionMock.mockReset()
+    ensureCurrentSessionMock.mockReset().mockResolvedValue('session-1')
     getChatProviderInstanceMock.mockReset().mockResolvedValue(provider)
     getToolsByNamesMock.mockReset().mockImplementation(names => names.map(name => ({
       type: 'function',
@@ -291,6 +301,52 @@ describe('chat store contract', () => {
       ['stage_widgets'],
       ['stage_widgets'],
     ])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2394#discussion_r3883162024
+  it('restarts chat consumers when this renderer becomes the leader', async () => {
+    // ROOT CAUSE:
+    //
+    // The application stopped observing chat leadership changes. If the Web
+    // leader closed, the promoted renderer kept the replicated session state
+    // but did not start a new cloud WebSocket.
+    //
+    // The chat store now owns the leadership subscription. It starts the
+    // session consumers after promotion and stops local consumers after
+    // demotion or disposal.
+    let leadershipListener: ((isLeader: boolean) => void) | undefined
+    const stopLeadershipListener = vi.fn()
+    const syncedPinia: SyncedPiniaRuntime = {
+      dispose: vi.fn(),
+      getLeaderId: vi.fn(),
+      getParticipantCount: vi.fn(() => 1),
+      isLeader: vi.fn(() => false),
+      onCoordinationChange: vi.fn(() => vi.fn()),
+      onLeadershipChange: vi.fn((listener) => {
+        leadershipListener = listener
+        listener(false)
+        return stopLeadershipListener
+      }),
+      participantId: 'chat-test',
+      plugin: vi.fn(),
+    }
+    const store = useChatStore()
+
+    await store.initialize(syncedPinia)
+
+    expect(initializeSessionMock).toHaveBeenCalledOnce()
+    expect(disposeSessionMock).toHaveBeenCalledOnce()
+    expect(ensureCurrentSessionMock).not.toHaveBeenCalled()
+
+    leadershipListener?.(true)
+    await vi.waitFor(() => expect(ensureCurrentSessionMock).toHaveBeenCalledOnce())
+
+    leadershipListener?.(false)
+    expect(disposeSessionMock).toHaveBeenCalledTimes(2)
+
+    store.dispose()
+    expect(stopLeadershipListener).toHaveBeenCalledOnce()
+    expect(disposeSessionMock).toHaveBeenCalledTimes(3)
   })
 
   it('passes the current consciousness reasoning option to the chat provider', async () => {

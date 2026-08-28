@@ -12,7 +12,6 @@ import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
-import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
@@ -79,18 +78,16 @@ const settingsStore = useSettings()
 const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settingsStore)
 const router = useRouter()
 const route = useRoute()
-const chatSessionStore = useChatSessionStore()
 const context = useElectronEventaContext()
 const getMainLocale = useElectronEventaInvoke(i18nGetLocale)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
 const windowContext = resolveRendererWindowContext()
 const initialRoutePath = resolveInitialRendererRoutePath(route.path)
-useChatStore()
+const chatStore = useChatStore()
 const builtinToolsStore = useTamagotchiBuiltinToolsStore()
 const mcpToolsStore = useTamagotchiMcpToolsStore()
 const pluginToolsStore = useTamagotchiPluginToolsStore()
 const syncedPinia = usePiniaSynced()
-chatSessionStore.setCloudSyncOwnership(syncedPinia.isLeader())
 const isSpotlightWindow = initialRoutePath === '/spotlight'
 const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/')
 
@@ -106,7 +103,6 @@ async function refreshPluginRuntimeTools() {
 // Every renderer creates the runtime tool stores for synchronized state. Only
 // the main Stage renderer discovers tools and keeps executors.
 const stopLeadershipListener = syncedPinia.onLeadershipChange((isLeader) => {
-  chatSessionStore.setCloudSyncOwnership(isLeader)
   if (!isLeader)
     return
 
@@ -351,7 +347,7 @@ onMounted(async () => {
   // https://github.com/moeru-ai/airi/issues/1658
   await restoreLocale()
 
-  await chatSessionStore.initialize()
+  await chatStore.initialize(syncedPinia)
 
   await fullStageRuntime?.initialize()
 })
@@ -366,6 +362,7 @@ watch(themeColorsHueDynamic, () => {
 
 onUnmounted(() => {
   stopLeadershipListener?.()
+  chatStore.dispose()
   fullStageRuntime?.dispose()
 })
 </script>

@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-tamagotchi",
   "type": "module",
-  "version": "0.12.0-beta.2",
+  "version": "0.12.0-beta.4",
   "private": true,
   "description": "LLM powered virtual character",
   "author": {
@@ -16,10 +16,10 @@
     "typecheck": "vue-tsc --noEmit",
     "app:dev": "pnpm run dev",
     "app:build": "pnpm run build",
-    "start": "electron-vite preview",
-    "start:xwayland": "electron-vite preview -- --ozone-platform=x11",
-    "dev": "electron-vite dev",
-    "dev:xwayland": "electron-vite dev -- --ozone-platform=x11",
+    "start": "install-electron && electron-vite preview",
+    "start:xwayland": "install-electron && electron-vite preview -- --ozone-platform=x11",
+    "dev": "install-electron && electron-vite dev",
+    "dev:xwayland": "install-electron && electron-vite dev -- --ozone-platform=x11",
     "build": "electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "pnpm run build && electron-builder --dir",

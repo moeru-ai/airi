@@ -13,3 +13,5 @@ export { default as SpeechProviderSettings } from './speech-provider-settings.vu
 
 export { default as TranscriptionPlayground } from './transcription-playground.vue'
 export { default as TranscriptionProviderSettings } from './transcription-provider-settings.vue'
+
+export { default as VoicevoxFamilySettings } from './voicevox-family-settings.vue'

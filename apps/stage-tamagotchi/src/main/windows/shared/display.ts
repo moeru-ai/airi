@@ -220,7 +220,7 @@ export function mapForBreakpoints<
   basedOn: number,
   sizes: { [key in keyof B]?: number } | number,
   options?: { breakpoints: B },
-) {
+): number {
   if (typeof sizes === 'number') {
     return sizes
   }
@@ -244,8 +244,16 @@ export function mapForBreakpoints<
     .sort((a, b) => b.min - a.min) // Sort descending by min width
 
   const fallback = sortedSizes.find(s => s.min <= basedOn)
+  if (fallback?.value != null) {
+    return fallback.value
+  }
 
-  return fallback?.value ?? Object.values(sizes)?.[0] ?? 0
+  // `basedOn` is below every supplied breakpoint (e.g. height < 640 with sm/md/lg
+  // sizes): use the breakpoint with the smallest minimum width. Selecting by min
+  // instead of `Object.values(sizes)[0]` keeps the result stable when the sizes
+  // object keys are reordered (e.g. by lint sorting rules).
+  const smallest = sortedSizes[sortedSizes.length - 1]
+  return smallest?.value ?? 0
 }
 
 /**

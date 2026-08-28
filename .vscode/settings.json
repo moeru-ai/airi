@@ -58,5 +58,9 @@
     "localforage"
   ],
   "vitest.disableWorkspaceWarning": true,
-  "editor.quickSuggestions": false
+  "editor.quickSuggestions": {
+    "comments": "off",
+    "strings": "off",
+    "other": "off"
+  }
 }
