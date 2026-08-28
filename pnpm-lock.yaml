@@ -1919,9 +1919,9 @@ importers:
       '@proj-airi/i18n':
         specifier: workspace:^
         version: link:../../packages/i18n
-      '@proj-airi/input-gamepad':
+      '@proj-airi/input-gamepad-vueuse':
         specifier: workspace:^
-        version: link:../../packages/input-gamepad
+        version: link:../../packages/input-gamepad-vueuse
       '@proj-airi/model-driver-lipsync':
         specifier: workspace:^
         version: link:../../packages/model-driver-lipsync

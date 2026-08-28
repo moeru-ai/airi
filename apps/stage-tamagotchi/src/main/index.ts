@@ -220,7 +220,7 @@ app.whenReady().then(async () => {
 
   const globalShortcut = injeca.provide('services:global-shortcut', () => setupGlobalShortcutService())
 
-  // BeatSync will create a background window to capture and process audio.
+  // Beat Sync uses a background renderer because Web Audio processing needs a DOM runtime.
   const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
 
   const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())

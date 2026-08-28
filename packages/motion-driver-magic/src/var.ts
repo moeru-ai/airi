@@ -1,5 +1,5 @@
 import type { VarFitOptions } from './shared/var'
-import type { Model as MotionModel, TrainingSequence } from './types'
+import type { GeneratorOptions, Model as MotionModel, TrainingSequence } from './types'
 
 import { fitVarParameters, toVarGenerator } from './shared/var'
 
@@ -35,6 +35,6 @@ export function createVarModel(sequence: TrainingSequence, options: FitOptions):
     method: 'var',
     sampleRateHz: parameters.sampleRateHz,
     diagnostics,
-    toGenerator: generatorOptions => toVarGenerator(parameters, generatorOptions),
+    toGenerator: (generatorOptions: GeneratorOptions) => toVarGenerator(parameters, generatorOptions),
   })
 }

@@ -18,7 +18,7 @@ import Preview from './components/preview.vue'
 import ProceduralMotion from './components/procedural-motion.vue'
 import Workbench from './components/workbench.vue'
 
-import { useSystemAudioInputStore } from '../../../../stores/system-audio'
+import { useSystemAudioLipSyncStore } from '../../../../stores/system-audio-lipsync'
 import { defaultLive2DMotionRecording } from './composables/default-recording'
 import { applyLive2DEyeViewPrototype, defaultLive2DEyeViewPrototypeState } from './composables/eye-view'
 import { createLive2DMotionId } from './composables/keyframes'
@@ -32,8 +32,9 @@ const props = defineProps<Props>()
 
 const { t } = useI18n()
 const motionControl = useLive2DMotionControl()
-const systemAudio = useSystemAudioInputStore()
+const systemAudio = useSystemAudioLipSyncStore()
 const {
+  available: systemAudioAvailable,
   isRequested: systemAudioRequested,
   isStarting: systemAudioStarting,
   error: systemAudioError,
@@ -83,8 +84,8 @@ async function startSystemAudioLipSync() {
   await systemAudio.start()
 }
 
-function stopSystemAudioLipSync() {
-  systemAudio.stop()
+async function stopSystemAudioLipSync() {
+  await systemAudio.stop()
   publishRelease()
 }
 
@@ -102,7 +103,7 @@ function formatSystemAudioProbability(value: number): string {
 
 async function toggleSystemAudioLipSync() {
   if (systemAudioRequested.value) {
-    stopSystemAudioLipSync()
+    await stopSystemAudioLipSync()
     return
   }
 
@@ -116,7 +117,7 @@ watch(systemAudioMouthOpen, (value) => {
 
 watch(
   [systemAudioVolumeThreshold, systemAudioRandomCloseDelayMs, systemAudioRandomCloseProbability],
-  () => void systemAudio.updateLipSyncOptions(),
+  () => systemAudio.updateOptions(),
   { immediate: true },
 )
 
@@ -231,7 +232,7 @@ function restartRecording() {
 }
 
 onUnmounted(() => {
-  stopSystemAudioLipSync()
+  void systemAudio.stop()
   recordingController.dispose()
   motionControl.releaseBreath(ownerId)
   motionControl.release(ownerId)
@@ -244,6 +245,7 @@ onUnmounted(() => {
       <template #direct-control>
         <div :class="['flex flex-col gap-4']">
           <section
+            v-if="systemAudioAvailable"
             :class="[
               'rounded-xl bg-neutral-100/70 p-3',
               'dark:bg-neutral-900/55',
