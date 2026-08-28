@@ -121,6 +121,53 @@ describe('doubao speech Provider', () => {
     }))
   })
 
+  // https://github.com/moeru-ai/airi/pull/2382#discussion_r3877038028
+  // ROOT CAUSE:
+  //
+  // The session parsed the complete Provider configuration before it applied
+  // the active card model and voice. A resource change can clear the Provider
+  // speaker, so the first parse returned null before the card selection was
+  // available.
+  //
+  // We fix this by validating shared credentials and audio first. The complete
+  // validation runs after the card selection is merged.
+  it('uses the active card selection when the Provider speaker is empty', () => {
+    const session = providerDoubaoSpeech.capabilities?.speech?.createSession?.({
+      config: { ...config, speaker: '' },
+      model: 'seed-icl-2.0',
+      voiceId: 'S_card_clone_voice',
+    })
+
+    expect(session).toMatchObject({
+      model: 'seed-icl-2.0',
+      voice: 'S_card_clone_voice',
+    })
+    expect(mocks.createWebSocketFactory).toHaveBeenCalledWith(expect.objectContaining({
+      resourceId: 'seed-icl-2.0',
+      speaker: 'S_card_clone_voice',
+    }))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2382#discussion_r3877038028
+  it('uses the REST request voice when the Provider speaker is empty', async () => {
+    const provider = await providerDoubaoSpeech.createProvider({ ...config, speaker: '' }) as SpeechProviderWithExtraOptions<string, Record<string, unknown>>
+    const request = provider.speech('seed-icl-2.0')
+    const response = await request.fetch?.(new URL('https://doubao-speech.invalid/v1/audio/speech'), {
+      body: JSON.stringify({ input: '你好', voice: 'S_card_clone_voice' }),
+      method: 'POST',
+    })
+
+    expect(mocks.synthesize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resourceId: 'seed-icl-2.0',
+        speaker: 'S_card_clone_voice',
+      }),
+      '你好',
+      undefined,
+    )
+    expect(response?.status).toBe(200)
+  })
+
   it('uses the Eventa session for a complete speech preview', async () => {
     const provider = await providerDoubaoSpeech.createProvider(config) as SpeechProviderWithExtraOptions<string, Record<string, unknown>>
     const request = provider.speech('seed-tts-2.0')

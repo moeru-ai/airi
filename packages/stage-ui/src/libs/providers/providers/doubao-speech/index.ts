@@ -61,6 +61,12 @@ function withDoubaoConfigConstraints<TSchema extends typeof baseConfigSchema>(sc
 }
 
 const doubaoSpeechConfigSchema = withDoubaoConfigConstraints(baseConfigSchema)
+const doubaoSpeechSharedConfigSchema = baseConfigSchema
+  .omit({ resourceId: true, speaker: true })
+  .refine(
+    config => config.audio.format !== 'ogg_opus' || config.audio.sampleRate === 48000,
+    { message: 'The ogg_opus format requires a 48000 Hz sample rate.', path: ['audio', 'sampleRate'] },
+  )
 
 /** Serializable settings for the Doubao Speech Provider. */
 export type DoubaoSpeechConfig = z.input<typeof doubaoSpeechConfigSchema>
@@ -74,20 +80,25 @@ function normalizeConfig(
   config: DoubaoSpeechConfig,
   overrides?: Record<string, unknown>,
   requestedModel?: string,
-): NormalizedDoubaoSpeechConfig {
-  const configured = doubaoSpeechConfigSchema.parse(config)
+): Record<string, unknown> {
+  const configured = doubaoSpeechSharedConfigSchema.parse(config)
   const audioOverrides = isRecord(overrides?.audio) ? overrides.audio : undefined
   const resourceId = RESOURCE_IDS.find(value => value === requestedModel)
-
-  return doubaoSpeechConfigSchema.parse({
+  const shared = doubaoSpeechSharedConfigSchema.parse({
     ...configured,
     ...overrides,
     audio: {
       ...configured.audio,
       ...audioOverrides,
     },
-    resourceId: resourceId ?? overrides?.resourceId ?? configured.resourceId,
   })
+
+  return {
+    ...config,
+    ...overrides,
+    ...shared,
+    resourceId: resourceId ?? overrides?.resourceId ?? config.resourceId,
+  }
 }
 
 function toSessionConfig(config: NormalizedDoubaoSpeechConfig): DoubaoSpeechSessionConfig {
@@ -132,7 +143,7 @@ function createDoubaoSpeechProvider(config: DoubaoSpeechConfig): SpeechProviderW
       const resolved = normalizeConfig(config, extraOptions, model)
       const fetch: typeof globalThis.fetch = async (_input, init) => {
         const request = parseSpeechBody(init?.body)
-        const sessionConfig = toSessionConfig({ ...resolved, speaker: request.voice })
+        const sessionConfig = toSessionConfig(doubaoSpeechConfigSchema.parse({ ...resolved, speaker: request.voice }))
         const audio = await synthesizeDoubaoSpeech(sessionConfig, request.input, init?.signal ?? undefined)
         return new Response(audio, {
           headers: { 'Content-Type': audioContentType(sessionConfig.audio.format) },
@@ -185,11 +196,11 @@ export const providerDoubaoSpeech = defineProvider<DoubaoSpeechConfig>({
     speech: {
       transport: 'bidirectional-ws',
       createSession: ({ config, model, voiceId, voice }) => {
-        const configured = doubaoSpeechConfigSchema.safeParse(config)
+        const configured = doubaoSpeechSharedConfigSchema.safeParse(config)
         if (!configured.success)
           return null
 
-        let speaker = configured.data.speaker
+        let speaker = config.speaker
         // Renderer-local metadata can select the voice before synchronized
         // callers provide its source-of-truth ID.
         if (voice?.id)
@@ -200,8 +211,9 @@ export const providerDoubaoSpeech = defineProvider<DoubaoSpeechConfig>({
           speaker = voiceId
 
         const resolved = doubaoSpeechConfigSchema.safeParse({
+          ...config,
           ...configured.data,
-          resourceId: RESOURCE_IDS.find(resourceId => resourceId === model) ?? configured.data.resourceId,
+          resourceId: RESOURCE_IDS.find(resourceId => resourceId === model) ?? config.resourceId,
           speaker,
         })
         if (!resolved.success)
