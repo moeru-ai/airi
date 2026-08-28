@@ -15,7 +15,7 @@ import ChatUserItem from './user-item.vue'
 
 import { useChatHistoryScroll } from '../composables/use-chat-history-scroll'
 import { useChatHistoryTopFade } from '../composables/use-chat-history-top-fade'
-import { useVirtualizerScroll } from '../composables/use-virtualizer-scroll'
+import { useVirtualizerBottomAlignment, useVirtualizerScroll } from '../composables/use-virtualizer-scroll'
 import { getChatHistoryItemKey } from '../utils'
 
 const props = withDefaults(defineProps<{
@@ -75,7 +75,14 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
 
   return [...props.messages, streaming.value]
 })
+const renderMessageCount = computed(() => renderMessages.value.length)
 const topFadeRatio = computed(() => props.variant === 'mobile' ? 0.2 : 0)
+
+const { itemProps } = useVirtualizerBottomAlignment({
+  container: chatHistoryRef,
+  itemCount: renderMessageCount,
+  virtualizer: virtualizerRef,
+})
 
 useChatHistoryScroll({
   container: chatHistoryRef,
@@ -140,6 +147,7 @@ function emitToolCallRerun(
       ref="virtualizer"
       :data="renderMessages"
       :buffer-size="CHAT_HISTORY_OVERSCAN"
+      :item-props="itemProps"
     >
       <template #default="{ item: message, index }">
         <ChatHistoryMessageFrame

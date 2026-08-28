@@ -142,7 +142,7 @@ export function useChatHistoryScroll<TMessage>({
       }
 
       if (previousKey != null)
-        scrollToIndex(lastIndex, 'start')
+        scrollToIndex(lastIndex, 'end')
     },
     { flush: 'post', immediate: true },
   )

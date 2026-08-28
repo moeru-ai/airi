@@ -21,6 +21,50 @@ function createEnglishI18n() {
 describe('chat history', () => {
   // ROOT CAUSE:
   //
+  // Virtua keeps its internal content root at least as tall as the viewport, but
+  // absolutely positioned messages still start at the top. A short mobile history
+  // therefore leaves most of the chat area empty below a newly sent message.
+  //
+  // We fixed this by bottom-aligning short virtualized content while preserving
+  // the existing overflow direction for longer history.
+  it('bottom-aligns a newly sent mobile message and its streaming placeholder', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ id: 'user-1', role: 'user', content: 'hello' }],
+        sending: true,
+        streamingMessage: {
+          id: 'assistant-1',
+          role: 'assistant',
+          content: '',
+          slices: [],
+          tool_results: [],
+        },
+        variant: 'mobile',
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('.chat-message-item-visible')).not.toBeNull()
+    })
+
+    const history = screen.container.querySelector<HTMLElement>('.chat-history-list')
+    const messages = screen.container.querySelectorAll<HTMLElement>('.chat-message-item')
+    expect(history).not.toBeNull()
+    expect(messages).toHaveLength(2)
+    if (!history || messages.length !== 2)
+      throw new Error('Expected a sent message and its streaming placeholder.')
+
+    const historyBottom = history.getBoundingClientRect().bottom
+    expect(historyBottom - messages[1].getBoundingClientRect().bottom).toBeLessThanOrEqual(16)
+    expect(historyBottom - messages[0].getBoundingClientRect().bottom).toBeLessThanOrEqual(64)
+  })
+
+  // ROOT CAUSE:
+  //
   // Rendering every message keeps every backdrop-filter surface alive, even when
   // most of the history is outside the viewport. Long histories then cost more to
   // lay out and composite during fast mobile scrolling.
