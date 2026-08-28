@@ -74,6 +74,51 @@ devtools:
         title: Light strength
         description: Mix the ambient-light result with the original model color.
       main-window-note: Changes appear in the main AIRI window.
+      diagnostics:
+        title: Capture diagnostics
+        waiting: Waiting for diagnostics from the main AIRI window.
+        status:
+          disabled: Disabled
+          starting: Starting
+          capturing: Capturing
+          forced-color: Forced color
+          error: Error
+        capture:
+          title: Capture state
+          description: Inspect the selected display, capture dimensions, and exclusion coordinates.
+          display: Display and bounds
+          video-size: Source video
+          sample-size: Sample frame
+          window-bounds: AIRI window bounds
+          excluded-region: Excluded region
+          direction: Light direction
+          updated: Last update
+        preview:
+          title: Downscaled capture
+          description: The red rectangle marks pixels excluded for the AIRI window.
+          unavailable: No captured frame is available.
+        pixels:
+          title: Pixel decisions
+          total: Total
+          accepted: Accepted
+          excluded: AIRI window
+          transparent: Transparent
+          black: Below black cutoff
+          white: Above white cutoff
+          average-saturation: Average saturation
+          weight-total: Weight total
+        colors:
+          title: Color stages
+          unavailable: No color is available.
+          unweighted:
+            title: Accepted average
+            description: Average color after cutoffs and before saturation weighting.
+          target:
+            title: Weighted target
+            description: Color after saturation weighting.
+          applied:
+            title: Applied output
+            description: Color after temporal smoothing.
       sampling:
         title: Screen sampling
         capture-interval:

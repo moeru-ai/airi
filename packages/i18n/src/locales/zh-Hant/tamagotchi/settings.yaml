@@ -74,6 +74,51 @@ devtools:
         title: 光照強度
         description: 將環境光結果與原始模型色彩混合。
       main-window-note: 變更會顯示在 AIRI 主視窗中。
+      diagnostics:
+        title: 擷取診斷
+        waiting: 正在等待 AIRI 主視窗傳送診斷資料。
+        status:
+          disabled: 已停用
+          starting: 啟動中
+          capturing: 擷取中
+          forced-color: 強制色彩
+          error: 錯誤
+        capture:
+          title: 擷取狀態
+          description: 檢查所選顯示器、擷取尺寸與排除區域座標。
+          display: 顯示器與邊界
+          video-size: 來源影片
+          sample-size: 取樣畫面
+          window-bounds: AIRI 視窗邊界
+          excluded-region: 排除區域
+          direction: 光線方向
+          updated: 最後更新
+        preview:
+          title: 縮小後擷取畫面
+          description: 紅色矩形標示因 AIRI 視窗而排除的像素。
+          unavailable: 沒有可用的擷取畫面。
+        pixels:
+          title: 像素判定
+          total: 總計
+          accepted: 已接受
+          excluded: AIRI 視窗
+          transparent: 透明
+          black: 低於黑色截止值
+          white: 高於白色截止值
+          average-saturation: 平均飽和度
+          weight-total: 權重總和
+        colors:
+          title: 色彩階段
+          unavailable: 沒有可用的色彩。
+          unweighted:
+            title: 已接受平均值
+            description: 套用截止值後、飽和度加權前的平均色彩。
+          target:
+            title: 加權目標
+            description: 套用飽和度加權後的色彩。
+          applied:
+            title: 套用輸出
+            description: 套用時間平滑後的色彩。
       sampling:
         title: 螢幕取樣
         capture-interval:
