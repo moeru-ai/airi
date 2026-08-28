@@ -1,3 +1,5 @@
+import type { Live2DAmbientLightFilterOptions } from '../stores/ambient-light'
+
 import { Application } from '@pixi/app'
 import { BatchRenderer, Renderer, Texture } from '@pixi/core'
 import { extensions } from '@pixi/extensions'
@@ -20,6 +22,7 @@ describe('screen ambient light filter', () => {
     const pixels = renderLight({
       ambient: { red: 0, green: 0, blue: 0, luminance: 0 },
       direction: { x: 1, y: 0 },
+      filterOptions: { baseBrightness: 1 },
       mode: 'window-gradient',
     })
 
@@ -46,6 +49,42 @@ describe('screen ambient light filter', () => {
     expect(facingSide).toBeGreaterThan(middle + 20)
   })
 
+  it('keeps the shadow side below the unlit exposure', () => {
+    // ROOT CAUSE:
+    //
+    // Pure additive light leaves the shadow side at the source exposure. Strong
+    // light then raises the facing side and compresses the visible contrast.
+    const pixels = renderLight({
+      ambient: { red: 0.62, green: 0.17, blue: 0.99, luminance: 0.325 },
+      direction: { x: 1, y: 0 },
+      mode: 'window-gradient',
+    })
+
+    expect(redAt(pixels, 5)).toBeLessThan(64)
+  })
+
+  it('preserves highlight headroom under strong light', () => {
+    // ROOT CAUSE:
+    //
+    // The hard clamp flattened bright source pixels after additive light pushed
+    // them above one. A soft headroom curve keeps those differences visible.
+    const pixels = renderLight({
+      ambient: { red: 1, green: 0.17, blue: 0.99, luminance: 0.407 },
+      direction: { x: 1, y: 0 },
+      filterOptions: {
+        tintCoverage: 0.62,
+        highlightCoverage: 0.8,
+        tintStrength: 0.37,
+        highlightStrength: 0.72,
+      },
+      mode: 'window-gradient',
+      sourceValue: 220,
+      strength: 0.74,
+    })
+
+    expect(redAt(pixels, 95)).toBeLessThan(255)
+  })
+
   it('keeps global ambient light spatially uniform', () => {
     const pixels = renderLight({
       ambient: { red: 1, green: 0, blue: 0, luminance: 0.2126 },
@@ -62,17 +101,23 @@ afterAll(() => document.querySelectorAll('canvas[data-ambient-light-test]').forE
 function renderLight({
   ambient,
   direction,
+  filterOptions,
   mode,
+  sourceValue = 64,
+  strength = 1,
 }: {
   ambient: { red: number, green: number, blue: number, luminance: number }
   direction: { x: number, y: number }
+  filterOptions?: Partial<Live2DAmbientLightFilterOptions>
   mode: 'window-gradient' | 'global'
+  sourceValue?: number
+  strength?: number
 }) {
   const source = document.createElement('canvas')
   source.width = 100
   source.height = 1
   const sourceContext = source.getContext('2d')!
-  sourceContext.fillStyle = 'rgb(64, 64, 64)'
+  sourceContext.fillStyle = `rgb(${sourceValue}, ${sourceValue}, ${sourceValue})`
   sourceContext.fillRect(0, 0, source.width, source.height)
 
   const app = new Application({
@@ -87,7 +132,14 @@ function renderLight({
   const texture = Texture.from(source)
   const sprite = new Sprite(texture)
   const filter = new ScreenAmbientLightFilter()
-  filter.update(ambient, direction, mode, 1, live2dAmbientLightDefaults.filter, source.width / source.height)
+  filter.update(
+    ambient,
+    direction,
+    mode,
+    strength,
+    { ...live2dAmbientLightDefaults.filter, ...filterOptions },
+    source.width / source.height,
+  )
   sprite.filters = [filter]
   app.stage.addChild(sprite)
   app.render()
