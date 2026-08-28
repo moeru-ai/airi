@@ -164,6 +164,16 @@ export const useChatStore = defineStore('chat', () => {
     getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId),
   })
 
+  /** Initializes the canonical session and this window's local selection. */
+  async function initialize() {
+    await chatSession.initialize()
+  }
+
+  /** Stops chat consumers that belong to this window. */
+  function dispose() {
+    chatSession.dispose()
+  }
+
   async function streamWithStageAdapters(
     model: string,
     chatProvider: ChatProvider,
@@ -493,6 +503,8 @@ export const useChatStore = defineStore('chat', () => {
     activeStreamingMessage,
     pendingQueuedSendCount,
 
+    initialize,
+    dispose,
     cleanup,
     deleteSession,
     ingest,

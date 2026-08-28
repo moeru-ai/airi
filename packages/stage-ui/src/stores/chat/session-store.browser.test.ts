@@ -113,6 +113,37 @@ afterEach(() => {
 })
 
 describe('chat session synchronization', () => {
+  it('initializes a follower through the canonical session action', async () => {
+    // ROOT CAUSE:
+    //
+    // Chat initialization used the local leadership value before the Web Lock
+    // election finished. A renderer that started as a follower skipped both
+    // session loading and session creation. A later leadership update only
+    // started cloud sync, so anonymous chat kept an empty session id.
+    //
+    // Initialization now calls a synchronized action. The plugin routes the
+    // stateful work to the leader and returns the canonical session id. Each
+    // window stores that id as its local selection.
+    const namespace = `chat-session:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+
+    setActivePinia(leaderContext.pinia)
+    const leaderChatStore = useChatSessionStore()
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerChatStore = useChatSessionStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    await followerChatStore.initialize()
+
+    expect(followerChatStore.activeSessionId).not.toBe('')
+    expect(followerChatStore.activeSessionId).toBe(leaderChatStore.index?.characters.default?.activeSessionId)
+    expect(followerChatStore.sessionMetas[followerChatStore.activeSessionId]).toBeDefined()
+    expect(Object.keys(leaderChatStore.index?.characters.default?.sessions ?? {})).toHaveLength(1)
+  })
+
   it('keeps the leader chat snapshot when new followers receive the auth identity', async () => {
     // ROOT CAUSE:
     //
