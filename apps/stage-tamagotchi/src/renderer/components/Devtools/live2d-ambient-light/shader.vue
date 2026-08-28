@@ -7,6 +7,7 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const {
+  live2dScreenAmbientLightBaseBrightness,
   live2dScreenAmbientLightHighlightCoverage,
   live2dScreenAmbientLightHighlightStrength,
   live2dScreenAmbientLightTintCoverage,
@@ -25,6 +26,17 @@ function formatPercent(value: number) {
     inner-class="gap-5"
   >
     <div :class="['grid gap-5', 'md:grid-cols-2']">
+      <FieldRange
+        v-model="live2dScreenAmbientLightBaseBrightness"
+        as="div"
+        :min="0.5"
+        :max="1"
+        :step="0.01"
+        :default-value="live2dAmbientLightDefaults.filter.baseBrightness"
+        :format-value="formatPercent"
+        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.base-brightness.title')"
+        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.base-brightness.description')"
+      />
       <FieldRange
         v-model="live2dScreenAmbientLightTintCoverage"
         as="div"

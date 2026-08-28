@@ -99,6 +99,9 @@ devtools:
           description: Set the minimum weight for colors with low saturation.
       shader:
         title: Shader response
+        base-brightness:
+          title: Base brightness
+          description: Set the model brightness before sampled light is added.
         tint-coverage:
           title: Tint coverage
           description: Set how far the subtle tint extends from the display-facing side.

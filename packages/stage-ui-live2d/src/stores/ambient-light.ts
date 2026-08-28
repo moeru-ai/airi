@@ -22,6 +22,8 @@ export interface Live2DAmbientLightSamplingOptions {
 }
 
 export interface Live2DAmbientLightFilterOptions {
+  /** Model brightness before light is added. @default 0.7 */
+  baseBrightness: number
   tintCoverage: number
   highlightCoverage: number
   tintStrength: number
@@ -52,6 +54,7 @@ export const live2dAmbientLightDefaults = Object.freeze({
     neutralColorWeight: 0.35,
   }),
   filter: Object.freeze<Live2DAmbientLightFilterOptions>({
+    baseBrightness: 0.7,
     tintCoverage: 0.8,
     highlightCoverage: 0.3,
     tintStrength: 0.18,
