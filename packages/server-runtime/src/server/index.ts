@@ -4,6 +4,7 @@ import type { AppOptions } from '..'
 
 import { isIP } from 'node:net'
 import { networkInterfaces } from 'node:os'
+import { platform } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { merge } from '@moeru/std'
@@ -165,7 +166,7 @@ export function createServer(opts?: ServerOptions): Server {
         port,
         hostname,
         tls: options?.tlsConfig || undefined,
-        reusePort: true,
+        reusePort: platform !== 'win32',
         silent: true,
         manual: true,
         gracefulShutdown: {
