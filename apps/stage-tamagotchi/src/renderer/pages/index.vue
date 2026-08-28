@@ -39,6 +39,7 @@ import ResourceStatusIsland from '../components/stage-islands/resource-status-is
 
 import { electronOpenOnboarding } from '../../shared/eventa'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
+import { useScreenAmbientLight } from '../composables/use-screen-ambient-light'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
@@ -51,6 +52,7 @@ import {
 } from '../utils/voice-input-suppression'
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
+useScreenAmbientLight()
 const controlsIslandInteractionActive = shallowRef(false)
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())

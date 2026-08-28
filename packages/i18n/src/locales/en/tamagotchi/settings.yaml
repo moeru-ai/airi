@@ -49,6 +49,68 @@ devtools:
   pages:
     context-flow:
       title: Context Flow
+    live2d-ambient-light:
+      title: Live2D Ambient Light
+      description: Tune screen sampling and the Live2D color-light shader
+      controls:
+        title: Light source and output
+      enabled:
+        title: Ambient light
+        description: Apply the ambient-light filter to the active Live2D model.
+      source:
+        title: Light source
+        options:
+          screen-capture: Screen capture
+          forced-color: Forced color
+      mode:
+        title: Lighting mode
+        options:
+          window-gradient: Window gradient
+          global: Global ambient
+      forced-color:
+        title: Test color
+        description: Apply this color without screen capture.
+      strength:
+        title: Light strength
+        description: Mix the ambient-light result with the original model color.
+      main-window-note: Changes appear in the main AIRI window.
+      sampling:
+        title: Screen sampling
+        capture-interval:
+          title: Capture interval
+          description: Set the time between screen samples.
+        response-time:
+          title: Response time
+          description: Set how quickly sampled colors adapt to a screen change.
+        sample-width:
+          title: Sample width
+          description: Set the width of the downscaled capture frame.
+        sample-height:
+          title: Sample height
+          description: Set the height of the downscaled capture frame.
+        black-cutoff:
+          title: Black cutoff
+          description: Ignore pixels whose brightest channel is less than this value.
+        white-cutoff:
+          title: White cutoff
+          description: Ignore pixels whose darkest channel is more than this value.
+        neutral-color-weight:
+          title: Neutral-color weight
+          description: Set the minimum weight for colors with low saturation.
+      shader:
+        title: Shader response
+        tint-coverage:
+          title: Tint coverage
+          description: Set how far the subtle tint extends from the display-facing side.
+        highlight-coverage:
+          title: Highlight coverage
+          description: Set how much of the display-facing side receives prominent light.
+        tint-strength:
+          title: Tint strength
+          description: Set the strength of the broad additive tint.
+        highlight-strength:
+          title: Highlight strength
+          description: Set the strength of the narrow additive light.
     editor:
       title: AIRI Editor
       description: Open the standalone AIRI Editor window
