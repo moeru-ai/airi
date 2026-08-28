@@ -22,7 +22,7 @@ describe('screen ambient light filter', () => {
     const pixels = renderLight({
       ambient: { red: 0, green: 0, blue: 0, luminance: 0 },
       direction: { x: 1, y: 0 },
-      filterOptions: { baseBrightness: 1 },
+      filterOptions: { baseBrightness: 1, baseContrast: 1 },
       mode: 'window-gradient',
     })
 
@@ -49,6 +49,28 @@ describe('screen ambient light filter', () => {
     expect(facingSide).toBeGreaterThan(middle + 20)
   })
 
+  it('keeps diagonal highlight coverage consistent with its configured area', () => {
+    const pixels = renderLight({
+      ambient: { red: 1, green: 0, blue: 0, luminance: 0.2126 },
+      direction: { x: 1, y: 1 },
+      filterOptions: {
+        baseBrightness: 1,
+        baseContrast: 1,
+        highlightCoverage: 0.3,
+        highlightStrength: 1,
+        tintStrength: 0,
+      },
+      height: 100,
+      mode: 'window-gradient',
+    })
+
+    const highlightedPixels = Array.from({ length: 100 * 100 }, (_, index) => pixels[index * 4])
+      .filter(red => red > 64)
+
+    expect(highlightedPixels.length / (100 * 100)).toBeGreaterThan(0.25)
+    expect(highlightedPixels.length / (100 * 100)).toBeLessThan(0.35)
+  })
+
   it('keeps the shadow side below the unlit exposure', () => {
     // ROOT CAUSE:
     //
@@ -61,6 +83,40 @@ describe('screen ambient light filter', () => {
     })
 
     expect(redAt(pixels, 5)).toBeLessThan(64)
+  })
+
+  it('does not replace dark details with the light color', () => {
+    // ROOT CAUSE:
+    //
+    // The highlight fill was strongest where the model texture approached
+    // black. Colored light then replaced eyelashes, line art, and deep hair
+    // shadows instead of preserving their local contrast.
+    const pixels = renderLight({
+      ambient: { red: 1, green: 0, blue: 0, luminance: 0.2126 },
+      direction: { x: 1, y: 0 },
+      filterOptions: {
+        baseBrightness: 1,
+        highlightCoverage: 1,
+        highlightStrength: 1,
+        tintStrength: 0,
+      },
+      mode: 'window-gradient',
+      sourceValue: 8,
+    })
+
+    expect(redAt(pixels, 95)).toBeLessThan(32)
+  })
+
+  it('deepens midtones with base contrast before adding light', () => {
+    const pixels = renderLight({
+      ambient: { red: 0, green: 0, blue: 0, luminance: 0 },
+      direction: { x: 1, y: 0 },
+      filterOptions: { baseBrightness: 1, baseContrast: 1.2 },
+      mode: 'window-gradient',
+      sourceValue: 128,
+    })
+
+    expect(redAt(pixels, 50)).toBeLessThan(128)
   })
 
   it('preserves highlight headroom under strong light', () => {
@@ -102,6 +158,7 @@ function renderLight({
   ambient,
   direction,
   filterOptions,
+  height = 1,
   mode,
   sourceValue = 64,
   strength = 1,
@@ -109,13 +166,14 @@ function renderLight({
   ambient: { red: number, green: number, blue: number, luminance: number }
   direction: { x: number, y: number }
   filterOptions?: Partial<Live2DAmbientLightFilterOptions>
+  height?: number
   mode: 'window-gradient' | 'global'
   sourceValue?: number
   strength?: number
 }) {
   const source = document.createElement('canvas')
   source.width = 100
-  source.height = 1
+  source.height = height
   const sourceContext = source.getContext('2d')!
   sourceContext.fillStyle = `rgb(${sourceValue}, ${sourceValue}, ${sourceValue})`
   sourceContext.fillRect(0, 0, source.width, source.height)

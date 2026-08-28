@@ -102,6 +102,9 @@ devtools:
         base-brightness:
           title: 基礎亮度
           description: 設定加入取樣光線前的模型亮度。
+        base-contrast:
+          title: 基礎對比
+          description: 設定加入取樣光線前模型明暗值的區分程度。
         tint-coverage:
           title: 色調覆蓋範圍
           description: 設定柔和色調從面向螢幕中心的一側延伸多遠。

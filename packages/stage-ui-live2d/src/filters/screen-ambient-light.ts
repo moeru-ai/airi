@@ -19,6 +19,7 @@ uniform float uDirectional;
 uniform float uSurfaceAspect;
 uniform float uStrength;
 uniform float uBaseBrightness;
+uniform float uBaseContrast;
 uniform float uTintCoverage;
 uniform float uHighlightCoverage;
 uniform float uTintStrength;
@@ -39,6 +40,32 @@ vec3 linearToSrgb(vec3 color) {
 float facingBand(float projection, float coverage) {
   float distanceFromFacingEdge = (1.0 - projection) * 0.5;
   return 1.0 - smoothstep(0.0, max(coverage, 0.001), distanceFromFacingEdge);
+}
+
+float coverageDistance(vec2 direction, float aspect, float coverage) {
+  float horizontalWeight = abs(direction.x) * aspect;
+  float verticalWeight = abs(direction.y);
+  float weightTotal = max(horizontalWeight + verticalWeight, 0.0001);
+  float largerWeight = max(horizontalWeight, verticalWeight) / weightTotal;
+  float smallerWeight = min(horizontalWeight, verticalWeight) / weightTotal;
+  float normalizedCoverage = clamp(coverage, 0.0, 1.0);
+
+  if (smallerWeight < 0.0001) {
+    return normalizedCoverage;
+  }
+
+  // The projection of a rectangle forms a weighted triangular distribution.
+  // This inverse CDF keeps the illuminated area stable as the angle changes.
+  float transitionCoverage = smallerWeight / (2.0 * largerWeight);
+  if (normalizedCoverage < transitionCoverage) {
+    return sqrt(2.0 * largerWeight * smallerWeight * normalizedCoverage);
+  }
+  if (normalizedCoverage <= 1.0 - transitionCoverage) {
+    return largerWeight * normalizedCoverage + smallerWeight * 0.5;
+  }
+  return 1.0 - sqrt(
+    2.0 * largerWeight * smallerWeight * (1.0 - normalizedCoverage)
+  );
 }
 
 void main(void) {
@@ -66,16 +93,21 @@ void main(void) {
     1.0
   );
 
-  float tintMask = mix(1.0, facingBand(projection, uTintCoverage), directional);
-  float highlightMask = mix(1.0, facingBand(projection, uHighlightCoverage), directional);
+  float tintDistance = coverageDistance(direction, uSurfaceAspect, uTintCoverage);
+  float highlightDistance = coverageDistance(direction, uSurfaceAspect, uHighlightCoverage);
+  float tintMask = mix(1.0, facingBand(projection, tintDistance), directional);
+  float highlightMask = mix(1.0, facingBand(projection, highlightDistance), directional);
 
   vec3 base = source.rgb / source.a;
   vec3 baseLinear = srgbToLinear(base);
   vec3 ambientLinear = srgbToLinear(uAmbientColor);
   float baseBrightness = mix(1.0, uBaseBrightness, uStrength);
-  vec3 exposedBaseLinear = baseLinear * baseBrightness;
+  float baseContrast = mix(1.0, uBaseContrast, uStrength);
+  vec3 exposedBaseLinear = pow(baseLinear, vec3(baseContrast)) * baseBrightness;
   vec3 diffuseLight = baseLinear * ambientLinear * uTintStrength * tintMask;
-  vec3 fillLight = ambientLinear * (1.0 - baseLinear) * uHighlightStrength * highlightMask;
+  float baseLuminance = dot(baseLinear, vec3(0.2126, 0.7152, 0.0722));
+  float midtoneResponse = 4.0 * baseLuminance * (1.0 - baseLuminance);
+  vec3 fillLight = ambientLinear * midtoneResponse * uHighlightStrength * highlightMask;
   vec3 addedLight = (diffuseLight + fillLight) * uStrength;
   vec3 headroom = max(vec3(0.0), vec3(1.0) - exposedBaseLinear);
   vec3 compressedLight = headroom * (
@@ -101,6 +133,7 @@ export class ScreenAmbientLightFilter extends Filter {
       uSurfaceAspect: 1,
       uStrength: 0,
       uBaseBrightness: live2dAmbientLightDefaults.filter.baseBrightness,
+      uBaseContrast: live2dAmbientLightDefaults.filter.baseContrast,
       uTintCoverage: live2dAmbientLightDefaults.filter.tintCoverage,
       uHighlightCoverage: live2dAmbientLightDefaults.filter.highlightCoverage,
       uTintStrength: live2dAmbientLightDefaults.filter.tintStrength,
@@ -126,6 +159,7 @@ export class ScreenAmbientLightFilter extends Filter {
     this.uniforms.uSurfaceAspect = Math.max(0.001, surfaceAspect)
     this.uniforms.uStrength = Math.min(1, Math.max(0, strength))
     this.uniforms.uBaseBrightness = Math.min(1, Math.max(0, options.baseBrightness))
+    this.uniforms.uBaseContrast = Math.min(2, Math.max(0.5, options.baseContrast))
     this.uniforms.uTintCoverage = options.tintCoverage
     this.uniforms.uHighlightCoverage = options.highlightCoverage
     this.uniforms.uTintStrength = options.tintStrength

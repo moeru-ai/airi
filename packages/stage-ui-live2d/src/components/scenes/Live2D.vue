@@ -57,6 +57,7 @@ const {
   live2dRenderScale,
   live2dShadowEnabled,
   live2dScreenAmbientLightBaseBrightness,
+  live2dScreenAmbientLightBaseContrast,
   live2dScreenAmbientLightEnabled,
   live2dScreenAmbientLightHighlightCoverage,
   live2dScreenAmbientLightHighlightStrength,
@@ -73,6 +74,7 @@ const {
 } = storeToRefs(useLive2DAmbientLight())
 const live2dScreenAmbientLightFilterOptions = computed(() => ({
   baseBrightness: live2dScreenAmbientLightBaseBrightness.value,
+  baseContrast: live2dScreenAmbientLightBaseContrast.value,
   tintCoverage: live2dScreenAmbientLightTintCoverage.value,
   highlightCoverage: live2dScreenAmbientLightHighlightCoverage.value,
   tintStrength: live2dScreenAmbientLightTintStrength.value,
