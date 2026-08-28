@@ -49,6 +49,7 @@ const live2dScreenAmbientLightBlackCutoff = useLocalStorageManualReset<number>('
 const live2dScreenAmbientLightWhiteCutoff = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-white-cutoff', live2dAmbientLightDefaults.sampling.whiteCutoff)
 const live2dScreenAmbientLightNeutralColorWeight = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-neutral-color-weight', live2dAmbientLightDefaults.sampling.neutralColorWeight)
 const live2dScreenAmbientLightBaseBrightness = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-base-brightness', live2dAmbientLightDefaults.filter.baseBrightness)
+const live2dScreenAmbientLightBaseContrast = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-base-contrast', live2dAmbientLightDefaults.filter.baseContrast)
 const live2dScreenAmbientLightTintCoverage = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-tint-coverage', live2dAmbientLightDefaults.filter.tintCoverage)
 const live2dScreenAmbientLightHighlightCoverage = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-highlight-coverage', live2dAmbientLightDefaults.filter.highlightCoverage)
 const live2dScreenAmbientLightTintStrength = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-tint-strength', live2dAmbientLightDefaults.filter.tintStrength)
@@ -79,6 +80,7 @@ function resetState() {
   live2dScreenAmbientLightWhiteCutoff.reset()
   live2dScreenAmbientLightNeutralColorWeight.reset()
   live2dScreenAmbientLightBaseBrightness.reset()
+  live2dScreenAmbientLightBaseContrast.reset()
   live2dScreenAmbientLightTintCoverage.reset()
   live2dScreenAmbientLightHighlightCoverage.reset()
   live2dScreenAmbientLightTintStrength.reset()
@@ -111,6 +113,7 @@ export const useSettingsLive2d = defineStore('settings-live2d', () => {
     live2dScreenAmbientLightWhiteCutoff,
     live2dScreenAmbientLightNeutralColorWeight,
     live2dScreenAmbientLightBaseBrightness,
+    live2dScreenAmbientLightBaseContrast,
     live2dScreenAmbientLightTintCoverage,
     live2dScreenAmbientLightHighlightCoverage,
     live2dScreenAmbientLightTintStrength,

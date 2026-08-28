@@ -102,6 +102,9 @@ devtools:
         base-brightness:
           title: Base brightness
           description: Set the model brightness before sampled light is added.
+        base-contrast:
+          title: Base contrast
+          description: Set how strongly the model separates light and dark values before sampled light is added.
         tint-coverage:
           title: Tint coverage
           description: Set how far the subtle tint extends from the display-facing side.
