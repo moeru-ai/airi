@@ -63,22 +63,33 @@ vi.mock('../../libs/server', () => ({
   SERVER_URL: 'http://test',
 }))
 
+const chatSyncMocks = vi.hoisted(() => ({
+  clients: [] as Array<{
+    connect: ReturnType<typeof vi.fn>
+    destroy: ReturnType<typeof vi.fn>
+  }>,
+}))
+
 vi.mock('../../libs/chat-sync', () => ({
   applyCreateActions: vi.fn().mockResolvedValue([]),
   createCloudChatMapper: () => ({
     deleteChat: vi.fn().mockResolvedValue(undefined),
     listChats: vi.fn().mockResolvedValue([]),
   }),
-  createChatWsClient: () => ({
-    connect: vi.fn(),
-    destroy: vi.fn(),
-    disconnect: vi.fn(),
-    onNewMessages: () => () => {},
-    onStatusChange: () => () => {},
-    pullMessages: vi.fn().mockResolvedValue({ messages: [], seq: 0 }),
-    sendMessages: vi.fn().mockResolvedValue({ ok: true }),
-    status: () => 'idle',
-  }),
+  createChatWsClient: () => {
+    const client = {
+      connect: vi.fn(),
+      destroy: vi.fn(),
+      disconnect: vi.fn(),
+      onNewMessages: () => () => {},
+      onStatusChange: () => () => {},
+      pullMessages: vi.fn().mockResolvedValue({ messages: [], seq: 0 }),
+      sendMessages: vi.fn().mockResolvedValue({ ok: true }),
+      status: () => 'idle',
+    }
+    chatSyncMocks.clients.push(client)
+    return client
+  },
   extractMessageText: () => '',
   isCloudSyncableMessage: () => false,
   mergeCloudMessagesIntoLocal: () => ({ dirty: false, messages: [], maxSeq: 0 }),
@@ -110,6 +121,7 @@ afterEach(() => {
     context.runtime.dispose()
     disposePinia(context.pinia)
   }
+  chatSyncMocks.clients.length = 0
 })
 
 describe('chat session synchronization', () => {
@@ -217,5 +229,54 @@ describe('chat session synchronization', () => {
     expect(secondFollowerChatStore.sessionMessages['session-a']?.[0]?.id).toBe('message-a')
     expect(leaderIdentityActions).toBe(2)
     expect(leaderMutations).toBe(0)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2394#discussion_r3883162024
+  it('starts a new cloud consumer after leader failover', async () => {
+    // ROOT CAUSE:
+    //
+    // The cloud WebSocket belongs to the elected renderer. If that renderer
+    // closed, the next leader received the synchronized state but no action
+    // restarted its local WebSocket.
+    //
+    // The chat lifecycle now observes leader promotion and calls the routed
+    // session action. The new leader then starts its local cloud consumer.
+    const namespace = `chat-session:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'follower-preferred')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+
+    setActivePinia(leaderContext.pinia)
+    const leaderAuthStore = useTestAuthStore()
+    leaderAuthStore.userId = 'cloud-user'
+    leaderAuthStore.token = 'cloud-token'
+    const leaderChatStore = useChatSessionStore()
+    await leaderChatStore.initialize()
+    expect(chatSyncMocks.clients).toHaveLength(1)
+
+    const followerContext = createSyncedContext(namespace, 'follower-preferred')
+    setActivePinia(followerContext.pinia)
+    const followerAuthStore = useTestAuthStore()
+    const followerChatStore = useChatSessionStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    await vi.waitFor(() => expect(followerAuthStore.userId).toBe('cloud-user'))
+    await followerChatStore.initialize()
+
+    const stopLeadershipListener = followerContext.runtime.onLeadershipChange((isLeader) => {
+      if (isLeader)
+        void followerChatStore.ensureCurrentSession()
+      else
+        followerChatStore.dispose()
+    })
+
+    leaderChatStore.dispose()
+    leaderContext.runtime.dispose()
+    disposePinia(leaderContext.pinia)
+
+    await vi.waitFor(() => expect(followerContext.runtime.isLeader()).toBe(true))
+    await vi.waitFor(() => expect(chatSyncMocks.clients).toHaveLength(2))
+
+    expect(chatSyncMocks.clients[0]?.destroy).toHaveBeenCalledOnce()
+    expect(chatSyncMocks.clients[1]?.connect).toHaveBeenCalledOnce()
+    stopLeadershipListener()
   })
 })

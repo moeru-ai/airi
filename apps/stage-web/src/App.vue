@@ -134,7 +134,7 @@ onMounted(async () => {
     onboardingStore.showingSetup = true
   }
 
-  await chatStore.initialize()
+  await chatStore.initialize(syncedPinia)
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   contextBridgeStore.initialize()
   characterOrchestratorStore.initialize()
