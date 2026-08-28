@@ -38,6 +38,10 @@ const modeOptions = computed<SelectTabOption<Live2DScreenAmbientLightMode>[]>(()
     label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.mode.options.global'),
   },
 ])
+
+function formatMultiplier(value: number) {
+  return `${value.toFixed(2)}×`
+}
 </script>
 
 <template>
@@ -97,9 +101,10 @@ const modeOptions = computed<SelectTabOption<Live2DScreenAmbientLightMode>[]>(()
       v-model="live2dScreenAmbientLightStrength"
       as="div"
       :min="0"
-      :max="1"
+      :max="3"
       :step="0.01"
       :default-value="live2dAmbientLightDefaults.strength"
+      :format-value="formatMultiplier"
       :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.strength.title')"
       :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.strength.description')"
     />

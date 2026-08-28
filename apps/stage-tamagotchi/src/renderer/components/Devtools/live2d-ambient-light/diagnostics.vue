@@ -23,6 +23,7 @@ const { diagnostics } = useScreenAmbientLightDiagnostics()
       <DiagnosticsPreview
         :frame="diagnostics.frame"
         :excluded-region="diagnostics.excludedRegion"
+        :lobes="diagnostics.sampling?.appliedLobes"
       />
       <DiagnosticsColors :sampling="diagnostics.sampling" />
     </template>

@@ -72,7 +72,7 @@ devtools:
         description: Apply this color without screen capture.
       strength:
         title: Light strength
-        description: Mix the ambient-light result with the original model color.
+        description: Set the total light intensity, up to three times the standard response.
       main-window-note: Changes appear in the main AIRI window.
       diagnostics:
         title: Capture diagnostics
@@ -95,7 +95,7 @@ devtools:
           updated: Last update
         preview:
           title: Downscaled capture
-          description: The red rectangle marks pixels excluded for the AIRI window.
+          description: The red rectangle marks excluded pixels. Colored circles mark extracted light sources.
           unavailable: No captured frame is available.
         pixels:
           title: Pixel decisions
@@ -114,11 +114,14 @@ devtools:
             title: Accepted average
             description: Average color after cutoffs and before saturation weighting.
           target:
-            title: Weighted target
-            description: Color after saturation weighting.
+            title: Residual fill
+            description: Broad color after bright light sources are removed.
           applied:
             title: Applied output
             description: Color after temporal smoothing.
+          lobe:
+            title: Light source {index}
+            description: A persistent bright region after temporal smoothing.
       sampling:
         title: Screen sampling
         capture-interval:
@@ -156,6 +159,9 @@ devtools:
         highlight-coverage:
           title: Highlight coverage
           description: Set how much of the display-facing side receives prominent light.
+        source-balance:
+          title: Light-source balance
+          description: Trade broad ambient fill for stronger light from detected bright regions.
         tint-strength:
           title: Tint strength
           description: Set the strength of the broad additive tint.
