@@ -18,6 +18,7 @@ uniform vec2 uLightDirection;
 uniform float uDirectional;
 uniform float uSurfaceAspect;
 uniform float uStrength;
+uniform float uBaseBrightness;
 uniform float uTintCoverage;
 uniform float uHighlightCoverage;
 uniform float uTintStrength;
@@ -71,13 +72,16 @@ void main(void) {
   vec3 base = source.rgb / source.a;
   vec3 baseLinear = srgbToLinear(base);
   vec3 ambientLinear = srgbToLinear(uAmbientColor);
+  float baseBrightness = mix(1.0, uBaseBrightness, uStrength);
+  vec3 exposedBaseLinear = baseLinear * baseBrightness;
   vec3 diffuseLight = baseLinear * ambientLinear * uTintStrength * tintMask;
   vec3 fillLight = ambientLinear * (1.0 - baseLinear) * uHighlightStrength * highlightMask;
-  vec3 litLinear = clamp(
-    baseLinear + (diffuseLight + fillLight) * uStrength,
-    0.0,
-    1.0
+  vec3 addedLight = (diffuseLight + fillLight) * uStrength;
+  vec3 headroom = max(vec3(0.0), vec3(1.0) - exposedBaseLinear);
+  vec3 compressedLight = headroom * (
+    vec3(1.0) - exp(-addedLight / max(headroom, vec3(0.0001)))
   );
+  vec3 litLinear = clamp(exposedBaseLinear + compressedLight, 0.0, 1.0);
   vec3 lit = linearToSrgb(litLinear);
 
   gl_FragColor = vec4(lit * source.a, source.a);
@@ -96,6 +100,7 @@ export class ScreenAmbientLightFilter extends Filter {
       uDirectional: 0,
       uSurfaceAspect: 1,
       uStrength: 0,
+      uBaseBrightness: live2dAmbientLightDefaults.filter.baseBrightness,
       uTintCoverage: live2dAmbientLightDefaults.filter.tintCoverage,
       uHighlightCoverage: live2dAmbientLightDefaults.filter.highlightCoverage,
       uTintStrength: live2dAmbientLightDefaults.filter.tintStrength,
@@ -120,6 +125,7 @@ export class ScreenAmbientLightFilter extends Filter {
     this.uniforms.uDirectional = mode === 'window-gradient' ? 1 : 0
     this.uniforms.uSurfaceAspect = Math.max(0.001, surfaceAspect)
     this.uniforms.uStrength = Math.min(1, Math.max(0, strength))
+    this.uniforms.uBaseBrightness = Math.min(1, Math.max(0, options.baseBrightness))
     this.uniforms.uTintCoverage = options.tintCoverage
     this.uniforms.uHighlightCoverage = options.highlightCoverage
     this.uniforms.uTintStrength = options.tintStrength
