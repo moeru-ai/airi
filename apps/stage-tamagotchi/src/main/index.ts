@@ -38,7 +38,7 @@ import { setupExtensionHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
-import { setupMediaPermissionHandlers } from './services/electron/media-permissions'
+import { setupPermissionHandlers } from './services/electron/media-permissions'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -149,7 +149,7 @@ app.whenReady().then(async () => {
     return
   }
 
-  setupMediaPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
+  setupPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
 
   // Initialize file logger and register the hook
   fileLogger = await setupFileLogger()
@@ -220,7 +220,7 @@ app.whenReady().then(async () => {
 
   const globalShortcut = injeca.provide('services:global-shortcut', () => setupGlobalShortcutService())
 
-  // BeatSync will create a background window to capture and process audio.
+  // Beat Sync uses a background renderer because Web Audio processing needs a DOM runtime.
   const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
 
   const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
