@@ -42,7 +42,10 @@
 .chat-composer-layer {
   position: relative;
   z-index: 20;
+  min-height: 0;
+  max-height: calc(100% - 1rem);
   margin: 0 1rem 1rem;
+  overflow: hidden;
 }
 
 .chat-viewport-layout :deep(.chat-history-list) {

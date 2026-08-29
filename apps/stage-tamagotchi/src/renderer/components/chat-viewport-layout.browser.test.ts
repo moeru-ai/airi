@@ -1,8 +1,12 @@
+import { ScrollableArea } from '@proj-airi/ui'
 import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { defineComponent } from 'vue'
 
 import ChatViewportLayout from './chat-viewport-layout.vue'
+
+import '@unocss/reset/tailwind.css'
+import 'virtual:uno.css'
 
 describe('desktop chat viewport layout', () => {
   // ROOT CAUSE:
@@ -11,18 +15,17 @@ describe('desktop chat viewport layout', () => {
   // belongs to messages only instead of extending beside the input controls.
   it('keeps the message viewport above a fixed composer', async () => {
     const TestHost = defineComponent({
-      components: { ChatViewportLayout },
+      components: { ChatViewportLayout, ScrollableArea },
       template: `
         <ChatViewportLayout style="height: 320px; width: 240px">
           <template #history>
-            <div class="chat-history-list" style="height: 100%; overflow-y: auto; border-radius: 12px; scrollbar-width: none">
+            <ScrollableArea
+              type="always"
+              viewport-class="chat-history-list"
+              style="height: 100%; width: 100%"
+            >
               <div style="height: 640px">Long chat history</div>
-            </div>
-            <div
-              class="scrollable-area-scrollbar--vertical"
-              data-state="visible"
-              style="position: absolute; top: 0; right: 0; bottom: 0; width: 10px"
-            />
+            </ScrollableArea>
           </template>
           <template #composer>
             <div style="height: 80px">Fixed composer</div>
@@ -45,6 +48,7 @@ describe('desktop chat viewport layout', () => {
 
     await vi.waitFor(() => {
       expect(getComputedStyle(history).paddingBottom).toBe('16px')
+      expect(history.scrollHeight).toBeGreaterThan(history.clientHeight)
     })
 
     const layoutRect = layout.getBoundingClientRect()
@@ -65,6 +69,5 @@ describe('desktop chat viewport layout', () => {
     history.scrollTop = 120
     history.dispatchEvent(new Event('scroll'))
     expect(composer.getBoundingClientRect().top).toBe(composerTop)
-    expect(history.scrollHeight).toBeGreaterThan(history.clientHeight)
   })
 })

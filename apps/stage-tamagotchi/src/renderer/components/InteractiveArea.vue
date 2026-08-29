@@ -282,57 +282,68 @@ async function handleCleanupMessages() {
     </template>
 
     <template #composer>
-      <div flex="~ col gap-1">
-        <!-- Journal Preview Chips -->
-        <div v-if="latestImageEntries.length > 0" class="flex gap-2 overflow-x-auto px-2 py-1 scrollbar-none">
-          <div
-            v-for="entry in latestImageEntries"
-            :key="entry.id"
-            :class="[
-              'group relative h-14 w-14 shrink-0 cursor-pointer of-hidden rounded-lg',
-              'border border-primary-200/30 transition-all hover:border-primary-500',
-              'dark:border-primary-800/30 dark:hover:border-primary-400',
-            ]"
-            @click="openImagePreview(entry)"
-          >
-            <img :src="entry.url || ''" class="h-full w-full object-cover">
-            <div :class="['absolute inset-0 flex items-end p-1', 'bg-gradient-to-t from-black/60 to-transparent']">
-              <span class="truncate text-[8px] text-white font-medium">{{ entry.title }}</span>
-            </div>
-
-            <!-- Save Button (Top Right, Hover Only) -->
-            <button
-              :class="[
-                'absolute right-1 top-1 z-10 p-1 rounded-md bg-black/40 text-white backdrop-blur-sm',
-                'opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/60',
-              ]"
-              title="Save to computer"
-              @click.stop="journalPreviewStore.downloadImage(entry.url || '', entry.title)"
-            >
-              <div class="i-solar:download-minimalistic-bold-duotone text-[10px]" />
-            </button>
-          </div>
-        </div>
+      <div
+        :class="[
+          'min-h-0 max-h-full flex flex-col gap-1 overflow-hidden',
+        ]"
+      >
         <div
-          v-if="attachments.length > 0"
+          data-testid="chat-composer-previews"
           :class="[
-            'flex flex-wrap gap-2 border-t border-primary-100 p-2',
+            'min-h-0 overflow-y-auto scrollbar-none',
           ]"
         >
-          <div v-for="(attachment, index) in attachments" :key="index" class="relative">
-            <img :src="attachment.url" :class="['h-20 w-20 rounded-md object-cover']">
-            <button
+          <!-- Journal Preview Chips -->
+          <div v-if="latestImageEntries.length > 0" class="flex gap-2 overflow-x-auto px-2 py-1 scrollbar-none">
+            <div
+              v-for="entry in latestImageEntries"
+              :key="entry.id"
               :class="[
-                'absolute right-1 top-1 h-5 w-5 flex items-center justify-center rounded-full',
-                'bg-red-500 text-xs text-white',
+                'group relative h-14 w-14 shrink-0 cursor-pointer of-hidden rounded-lg',
+                'border border-primary-200/30 transition-all hover:border-primary-500',
+                'dark:border-primary-800/30 dark:hover:border-primary-400',
               ]"
-              @click="removeAttachment(index)"
+              @click="openImagePreview(entry)"
             >
-              &times;
-            </button>
+              <img :src="entry.url || ''" class="h-full w-full object-cover">
+              <div :class="['absolute inset-0 flex items-end p-1', 'bg-gradient-to-t from-black/60 to-transparent']">
+                <span class="truncate text-[8px] text-white font-medium">{{ entry.title }}</span>
+              </div>
+
+              <!-- Save Button (Top Right, Hover Only) -->
+              <button
+                :class="[
+                  'absolute right-1 top-1 z-10 p-1 rounded-md bg-black/40 text-white backdrop-blur-sm',
+                  'opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/60',
+                ]"
+                title="Save to computer"
+                @click.stop="journalPreviewStore.downloadImage(entry.url || '', entry.title)"
+              >
+                <div class="i-solar:download-minimalistic-bold-duotone text-[10px]" />
+              </button>
+            </div>
+          </div>
+          <div
+            v-if="attachments.length > 0"
+            :class="[
+              'flex flex-nowrap gap-2 overflow-x-auto border-t border-primary-100 p-2 scrollbar-none',
+            ]"
+          >
+            <div v-for="(attachment, index) in attachments" :key="index" class="relative shrink-0">
+              <img :src="attachment.url" :class="['h-20 w-20 rounded-md object-cover']">
+              <button
+                :class="[
+                  'absolute right-1 top-1 h-5 w-5 flex items-center justify-center rounded-full',
+                  'bg-red-500 text-xs text-white',
+                ]"
+                @click="removeAttachment(index)"
+              >
+                &times;
+              </button>
+            </div>
           </div>
         </div>
-        <div :class="['flex items-center justify-end gap-2 py-1']">
+        <div :class="['flex shrink-0 items-center justify-end gap-2 py-1']">
           <DropdownMenuRoot>
             <DropdownMenuTrigger as-child>
               <button

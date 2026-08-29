@@ -8,7 +8,7 @@ import type {
 import type { DisplayModel } from '../../../../stores/display-models'
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
-import { Button, Callout } from '@proj-airi/ui'
+import { Button, Callout, ScrollableArea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -16,7 +16,6 @@ import { useI18n } from 'vue-i18n'
 import Godot from './godot.vue'
 import Live2D from './live2d.vue'
 import MMD from './mmd.vue'
-import ModelSettingsScrollArea from './scroll-area.vue'
 import Spine from './spine.vue'
 import Tachie from './tachie.vue'
 import VRM from './vrm.vue'
@@ -68,7 +67,12 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
 </script>
 
 <template>
-  <ModelSettingsScrollArea :settings-class="settingsClass">
+  <ScrollableArea
+    :class="[
+      'z-10',
+      settingsClass,
+    ]"
+  >
     <div :class="['flex flex-col gap-2 p-2']">
       <Callout :label="t('settings.model-select.panel-callout.support-status-header')">
         <i18n-t keypath="settings.model-select.panel-callout.support-status" tag="p">
@@ -144,5 +148,5 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
         @patch-view-state="emit('patchGodotViewState', $event)"
       />
     </div>
-  </ModelSettingsScrollArea>
+  </ScrollableArea>
 </template>

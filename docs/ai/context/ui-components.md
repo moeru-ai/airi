@@ -86,13 +86,13 @@ The component forwards HTML attributes to the scroll-area root.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `contentAsChild` | `boolean?` | `false` | Render the viewport through the default slot child |
+| `contentAsChild` | `boolean?` | `false` | Render the viewport content wrapper through the single default slot child |
 | `orientation` | `'vertical' \| 'horizontal' \| 'both'` | `'vertical'` | Scrollbar orientations to render |
 | `type` | `ScrollAreaRootProps['type']?` | `'auto'` | Reka UI scrollbar visibility behavior |
 | `viewportClass` | `string \| string[]?` | — | Classes for the Reka UI viewport |
 
 **Slots**: `default`
-**Exposed**: `viewport` (the Reka UI viewport element)
+**Exposed**: `viewport` (the native scroll owner. Reka UI hides its native scrollbar and renders the configured custom track.)
 
 ### Skeleton
 
