@@ -5,7 +5,7 @@ import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/sta
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
-import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
@@ -40,10 +40,8 @@ const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const settings = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
-const chatSessionStore = useChatSessionStore()
+const chatStore = useChatStore()
 const syncedPinia = usePiniaSynced()
-chatSessionStore.setCloudSyncOwnership(syncedPinia.isLeader())
-const stopLeadershipListener = syncedPinia.onLeadershipChange(isLeader => chatSessionStore.setCloudSyncOwnership(isLeader))
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
@@ -136,7 +134,7 @@ onMounted(async () => {
     onboardingStore.showingSetup = true
   }
 
-  await chatSessionStore.initialize()
+  await chatStore.initialize(syncedPinia)
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   contextBridgeStore.initialize()
   characterOrchestratorStore.initialize()
@@ -152,7 +150,7 @@ onMounted(async () => {
 onUnmounted(() => {
   stopAuthenticatedSetup?.()
   stopLoggedOutSetup?.()
-  stopLeadershipListener()
+  chatStore.dispose()
   contextBridgeStore.dispose()
 })
 

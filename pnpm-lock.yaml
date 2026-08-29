@@ -477,6 +477,9 @@ catalogs:
     '@types/vscode':
       specifier: ^1.134.0
       version: 1.134.0
+    '@types/w3c-web-hid':
+      specifier: ^1.0.7
+      version: 1.0.7
     '@types/whatwg-mimetype':
       specifier: ^5.0.0
       version: 5.0.0
@@ -678,6 +681,9 @@ catalogs:
     discord.js:
       specifier: ^14.27.0
       version: 14.27.0
+    dockview-vue:
+      specifier: ^8.2.0
+      version: 8.2.0
     dompurify:
       specifier: ^3.4.14
       version: 3.4.14
@@ -1913,6 +1919,12 @@ importers:
       '@proj-airi/i18n':
         specifier: workspace:^
         version: link:../../packages/i18n
+      '@proj-airi/input-gamepad-vueuse':
+        specifier: workspace:^
+        version: link:../../packages/input-gamepad-vueuse
+      '@proj-airi/model-driver-lipsync':
+        specifier: workspace:^
+        version: link:../../packages/model-driver-lipsync
       '@proj-airi/pipelines-audio':
         specifier: workspace:^
         version: link:../../packages/pipelines-audio
@@ -2030,9 +2042,6 @@ importers:
       culori:
         specifier: 'catalog:'
         version: 4.0.2
-      d3:
-        specifier: 'catalog:'
-        version: 7.9.0
       date-fns:
         specifier: 'catalog:'
         version: 4.4.0
@@ -3491,18 +3500,6 @@ importers:
         specifier: 'catalog:'
         version: 3.5.41(typescript@6.0.3)
 
-  packages/audio-pipelines-transcribe:
-    dependencies:
-      '@moeru/std':
-        specifier: 'catalog:'
-        version: 0.1.0-beta.17
-      '@proj-airi/audio':
-        specifier: workspace:^
-        version: link:../audio
-      uncrypto:
-        specifier: 'catalog:'
-        version: 0.1.3
-
   packages/better-ws:
     dependencies:
       '@moeru/eventa':
@@ -3742,6 +3739,27 @@ importers:
         specifier: 'catalog:'
         version: 2.9.0
 
+  packages/input-gamepad: {}
+
+  packages/input-gamepad-vueuse:
+    dependencies:
+      '@proj-airi/input-gamepad':
+        specifier: workspace:^
+        version: link:../input-gamepad
+      '@vueuse/core':
+        specifier: 'catalog:'
+        version: 14.4.0(vue@3.5.41(typescript@6.0.3))
+    devDependencies:
+      vue:
+        specifier: 'catalog:'
+        version: 3.5.41(typescript@6.0.3)
+
+  packages/input-playstation-dualsense-5:
+    dependencies:
+      '@types/w3c-web-hid':
+        specifier: 'catalog:'
+        version: 1.0.7
+
   packages/memory-pgvector:
     dependencies:
       '@guiiai/logg':
@@ -3766,6 +3784,15 @@ importers:
       wlipsync:
         specifier: 'catalog:'
         version: 1.3.1
+
+  packages/model-driver-magic-live2d:
+    dependencies:
+      '@proj-airi/motion-driver-magic':
+        specifier: workspace:^
+        version: link:../motion-driver-magic
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.51.0
 
   packages/model-driver-mediapipe:
     dependencies:
@@ -3794,6 +3821,12 @@ importers:
       tsx:
         specifier: 'catalog:'
         version: 4.23.12
+
+  packages/motion-driver-magic:
+    dependencies:
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.51.0
 
   packages/pipelines-audio:
     dependencies:
@@ -4327,9 +4360,18 @@ importers:
       '@proj-airi/i18n':
         specifier: workspace:^
         version: link:../i18n
+      '@proj-airi/input-gamepad':
+        specifier: workspace:^
+        version: link:../input-gamepad
       '@proj-airi/model-driver-lipsync':
         specifier: workspace:^
         version: link:../model-driver-lipsync
+      '@proj-airi/model-driver-magic-live2d':
+        specifier: workspace:^
+        version: link:../model-driver-magic-live2d
+      '@proj-airi/motion-driver-magic':
+        specifier: workspace:^
+        version: link:../motion-driver-magic
       '@proj-airi/pipelines-audio':
         specifier: workspace:^
         version: link:../pipelines-audio
@@ -4444,6 +4486,9 @@ importers:
       date-fns:
         specifier: 'catalog:'
         version: 4.4.0
+      dockview-vue:
+        specifier: 'catalog:'
+        version: 8.2.0(vue@3.5.41(typescript@6.0.3))
       dompurify:
         specifier: 'catalog:'
         version: 3.4.14
@@ -4769,6 +4814,9 @@ importers:
       '@pixi/utils':
         specifier: 'catalog:'
         version: 6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))
+      '@proj-airi/model-driver-magic-live2d':
+        specifier: workspace:^
+        version: link:../model-driver-magic-live2d
       '@proj-airi/stage-shared':
         specifier: workspace:^
         version: link:../stage-shared
@@ -11445,6 +11493,9 @@ packages:
   '@types/vscode@1.134.0':
     resolution: {integrity: sha512-NDEu0hg4sF7+vvFsADsktqUJ6f80LHSZvVK2Ovo1XiQ0/VHck1O3zst+ZZyVA/uvz6vo6LcuoqU2q48YMqOwWw==}
 
+  '@types/w3c-web-hid@1.0.7':
+    resolution: {integrity: sha512-/y97wBH7fYB5vKoDIn11O1ZDMNFLCAVqZ9af0OWDN7VSO2ClErEN2HlGbBuPgHBTUmZOVx1og2ZHX1U2gEJM4Q==}
+
   '@types/web-bluetooth@0.0.20':
     resolution: {integrity: sha512-g9gZnnXVq7gM7v3tJCWV/qw7w+KeOlSHAhgF9RytFyifW6AF61hdT2ucrYhPq9hLs5JIryeupHV3qGk95dH9ow==}
 
@@ -13761,6 +13812,17 @@ packages:
 
   dmg-builder@26.15.3:
     resolution: {integrity: sha512-O3zJUFUYHJKgzPqioHxfxzBzlSC1eXCSr79gMSBKBP5AgjjpmrydMsMLotEg9fAJF36vdUncb+4ndRNxoPdlSQ==}
+
+  dockview-core@8.2.0:
+    resolution: {integrity: sha512-+L+xdvmO1b4in8rVkFtQM13IkPDKqDLoHJvq5HtAIsMxsPptSVveKeViYBqquaoHF+t0xb9f6692gTeKnjCKGw==}
+
+  dockview-vue@8.2.0:
+    resolution: {integrity: sha512-Mr5lFrDJ4cD6IoDz7fPo7TE/lQ8h7ed2gP6Cb0Ii460nw1ES94iEx/HBIYO1HlM0vdU052/d5aCzlky4jauF1Q==}
+    peerDependencies:
+      vue: ^3.4.0
+
+  dockview@8.2.0:
+    resolution: {integrity: sha512-Jj+fnFWSrdEhF+1DmpGNYjEvyqf7J0FHkDqsD98wL4WOYB2CSKavDCL49B3LHIGYvWNN7Q1O1j4p7Pts38CM5A==}
 
   dom-serializer@1.4.1:
     resolution: {integrity: sha512-VHwB3KfrcOOkelEG2ZOfxqLZdfkil8PtJi4P8N2MMXucZq2yLp75ClViUlOVwyoHEDjYU433Aq+5zWP61+RGag==}
@@ -25427,6 +25489,8 @@ snapshots:
 
   '@types/vscode@1.134.0': {}
 
+  '@types/w3c-web-hid@1.0.7': {}
+
   '@types/web-bluetooth@0.0.20': {}
 
   '@types/web-bluetooth@0.0.21': {}
@@ -28078,6 +28142,17 @@ snapshots:
     transitivePeerDependencies:
       - electron-builder-squirrel-windows
       - supports-color
+
+  dockview-core@8.2.0: {}
+
+  dockview-vue@8.2.0(vue@3.5.41(typescript@6.0.3)):
+    dependencies:
+      dockview: 8.2.0
+      vue: 3.5.41(typescript@6.0.3)
+
+  dockview@8.2.0:
+    dependencies:
+      dockview-core: 8.2.0
 
   dom-serializer@1.4.1:
     dependencies:

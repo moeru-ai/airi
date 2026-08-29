@@ -4,6 +4,7 @@ import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { useModelStore } from '@proj-airi/stage-ui-three'
 
+import { useLive2DMotionMagicSettings } from '../features/motions/live2d'
 import { useChatStore } from '../stores/chat'
 import { useChatSessionStore } from '../stores/chat/session-store'
 import { useDisplayModelsStore } from '../stores/display-models'
@@ -31,6 +32,7 @@ export function useDataMaintenance() {
   const audioSettingsStore = useSettingsAudioDevice()
   const live2dParamsStore = useLive2dParams()
   const live2dSettingsStore = useSettingsLive2d()
+  const live2dMagicSettingsStore = useLive2DMotionMagicSettings()
   const threeStore = useModelStore()
   const hearingStore = useHearingStore()
   const speechStore = useSpeechStore()
@@ -95,6 +97,7 @@ export function useDataMaintenance() {
     audioSettingsStore.resetState()
     live2dParamsStore.resetState()
     live2dSettingsStore.resetState()
+    live2dMagicSettingsStore.resetState()
     threeStore.resetModelStore()
     mcpStore.resetState()
     onboardingStore.resetSetupState()

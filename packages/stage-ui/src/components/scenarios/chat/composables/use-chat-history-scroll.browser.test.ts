@@ -91,7 +91,7 @@ describe('useChatHistoryScroll', () => {
     expect(scrollToIndex).toHaveBeenCalledWith(1, 'end')
   })
 
-  it('aligns a new tail message to the viewport start', async () => {
+  it('aligns a new tail message to the viewport end', async () => {
     const currentContainer = createScrollContainer(2)
     currentContainer.scrollTop = currentContainer.scrollHeight
     const container = shallowRef<HTMLElement | null>(currentContainer)
@@ -106,7 +106,7 @@ describe('useChatHistoryScroll', () => {
     await flushReactivity()
 
     expect(scrollToIndex).toHaveBeenCalledTimes(1)
-    expect(scrollToIndex).toHaveBeenCalledWith(2, 'start')
+    expect(scrollToIndex).toHaveBeenCalledWith(2, 'end')
   })
 
   it('blocks a new-message scroll while the reader points at an older message', async () => {
@@ -143,7 +143,7 @@ describe('useChatHistoryScroll', () => {
     messages.value = [...messages.value, { id: 'assistant-2' }]
     await flushReactivity()
 
-    expect(scrollToIndex).toHaveBeenCalledWith(2, 'start')
+    expect(scrollToIndex).toHaveBeenCalledWith(2, 'end')
   })
 
   it('stops following after a user scroll moves the viewport from the tail', async () => {

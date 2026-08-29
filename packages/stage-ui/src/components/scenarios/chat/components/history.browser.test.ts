@@ -21,6 +21,125 @@ function createEnglishI18n() {
 describe('chat history', () => {
   // ROOT CAUSE:
   //
+  // The desktop chat needs the styled Reka viewport, but forcing its track to
+  // stay mounted leaves an inert scrollbar visible when short content cannot scroll.
+  // Reka's automatic visibility must own the track without changing the viewport.
+  it('uses a Reka viewport without showing a scrollbar for a short desktop chat', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ id: 'user-1', role: 'user', content: 'Hello' }],
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('.chat-history-list')).not.toBeNull()
+    })
+
+    const history = screen.container.querySelector<HTMLElement>('.chat-history-list')
+    expect(history).not.toBeNull()
+    if (!history)
+      throw new Error('Expected a chat history viewport.')
+
+    const track = screen.container.querySelector<HTMLElement>('.scrollable-area-scrollbar--vertical')
+    expect(history.matches('[data-reka-scroll-area-viewport]')).toBe(true)
+    expect(track === null || track.dataset.state === 'hidden').toBe(true)
+  })
+
+  it('virtualizes long desktop history inside one Reka viewport', async () => {
+    const messages: ChatHistoryItem[] = Array.from({ length: 100 }, (_, index) => ({
+      id: `desktop-user-${index}`,
+      role: 'user',
+      content: `Desktop message ${index} `.repeat(index % 6 + 1),
+      createdAt: index,
+    }))
+
+    const screen = await render(ChatHistory, {
+      props: {
+        messages,
+        style: 'height: 240px; width: 320px;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      const renderedMessages = screen.container.querySelectorAll('.chat-message-item')
+      expect(renderedMessages.length).toBeGreaterThan(0)
+      expect(renderedMessages.length).toBeLessThan(messages.length)
+    })
+
+    const history = screen.container.querySelector<HTMLElement>('.chat-history-list')
+    expect(history).not.toBeNull()
+    if (!history)
+      throw new Error('Expected a desktop chat history viewport.')
+
+    expect(history.matches('[data-reka-scroll-area-viewport]')).toBe(true)
+    expect(screen.container.querySelectorAll('.chat-history-list')).toHaveLength(1)
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('.scrollable-area-scrollbar--vertical')).not.toBeNull()
+      expect(history.scrollHeight).toBeGreaterThan(history.clientHeight)
+      expect(screen.container.textContent).toContain('Desktop message 99')
+    })
+
+    history.scrollTop = 0
+    history.dispatchEvent(new Event('scroll'))
+
+    await vi.waitFor(() => {
+      expect(screen.container.textContent).toContain('Desktop message 0')
+    })
+  })
+
+  // ROOT CAUSE:
+  //
+  // Virtua keeps its internal content root at least as tall as the viewport, but
+  // absolutely positioned messages still start at the top. A short mobile history
+  // therefore leaves most of the chat area empty below a newly sent message.
+  //
+  // We fixed this by bottom-aligning short virtualized content while preserving
+  // the existing overflow direction for longer history.
+  it('bottom-aligns a newly sent mobile message and its streaming placeholder', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ id: 'user-1', role: 'user', content: 'hello' }],
+        sending: true,
+        streamingMessage: {
+          id: 'assistant-1',
+          role: 'assistant',
+          content: '',
+          slices: [],
+          tool_results: [],
+        },
+        variant: 'mobile',
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('.chat-message-item-visible')).not.toBeNull()
+    })
+
+    const history = screen.container.querySelector<HTMLElement>('.chat-history-list')
+    const messages = screen.container.querySelectorAll<HTMLElement>('.chat-message-item')
+    expect(history).not.toBeNull()
+    expect(messages).toHaveLength(2)
+    if (!history || messages.length !== 2)
+      throw new Error('Expected a sent message and its streaming placeholder.')
+
+    const historyBottom = history.getBoundingClientRect().bottom
+    expect(historyBottom - messages[1].getBoundingClientRect().bottom).toBeLessThanOrEqual(16)
+    expect(historyBottom - messages[0].getBoundingClientRect().bottom).toBeLessThanOrEqual(64)
+  })
+
+  // ROOT CAUSE:
+  //
   // Rendering every message keeps every backdrop-filter surface alive, even when
   // most of the history is outside the viewport. Long histories then cost more to
   // lay out and composite during fast mobile scrolling.
@@ -67,6 +186,14 @@ describe('chat history', () => {
     expect(history).not.toBeNull()
     if (!history)
       throw new Error('Expected a chat history viewport.')
+
+    expect(history.matches('[data-reka-scroll-area-viewport]')).toBe(false)
+    expect(screen.container.querySelectorAll('.chat-history-list')).toHaveLength(1)
+    await vi.waitFor(() => {
+      expect(history.scrollHeight).toBeGreaterThan(history.clientHeight)
+    })
+    expect(getComputedStyle(history).overflowY).toBe('auto')
+    expect(screen.container.querySelector('.scrollable-area-scrollbar--vertical')).toBeNull()
 
     history.scrollTop = 0
     history.dispatchEvent(new Event('scroll'))

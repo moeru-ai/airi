@@ -273,10 +273,23 @@ function handleInputBubbleLongPress() {
   inputBubble.value!.style.transform = 'translate3d(0, 0, 0) scale(.98)'
 }
 
+function handleInputBubblePointerDown(event: PointerEvent) {
+  suppressNextInputBubbleClick = false
+
+  const messageInput = inputBubble.value!.querySelector<HTMLTextAreaElement>('textarea')!
+
+  // NOTICE:
+  // The focused textarea must suppress native text selection before a dock drag starts.
+  // A blurred textarea must keep native activation so Safari can cancel an active keyboard dismissal.
+  // See the closing-focus regression in adaptive-input.test.ts.
+  // Remove this branch when Safari exposes a keyboard lifecycle that can cancel an active dismissal.
+  if (document.activeElement === messageInput)
+    event.preventDefault()
+}
+
 onLongPress(inputBubble, handleInputBubbleLongPress, {
   delay: 500,
   distanceThreshold: 10,
-  modifiers: { prevent: true },
   onMouseUp: (_duration, _distance, longPressed) => longPressed && finishInputBubbleDrag(),
 })
 
@@ -535,7 +548,7 @@ onUnmounted(() => {
               : 'max-w-[70%] w-full focus-within:max-w-full',
           ]"
           @click="handleInputBubbleClick"
-          @pointerdown="suppressNextInputBubbleClick = false"
+          @pointerdown="handleInputBubblePointerDown"
         >
           <BasicTextarea
             v-model="messageInput"
@@ -549,7 +562,7 @@ onUnmounted(() => {
               'transition-colors duration-250 ease-in-out hover:text-neutral-600 dark:hover:text-neutral-200',
               'placeholder:text-[14px] placeholder:vertical-middle placeholder:leading-6 placeholder:text-neutral-400',
               'placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out placeholder:hover:text-neutral-500 dark:placeholder:text-neutral-500 dark:placeholder:hover:text-neutral-400',
-              'pointer-events-none group-focus-within:pointer-events-auto',
+              inputBubbleDocked ? 'pointer-events-none' : 'pointer-events-auto',
               themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : undefined,
             ]"
             default-height="1lh"

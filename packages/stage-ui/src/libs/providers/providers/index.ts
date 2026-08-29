@@ -50,6 +50,7 @@ import './azure-ai-foundry'
 import './official'
 import './speech-noop'
 import './unspeech'
+import './voicevox'
 
 export {
   getDefaultStreamingModel,
