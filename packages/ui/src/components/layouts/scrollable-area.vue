@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { ScrollAreaRootProps } from 'reka-ui'
+import type { PropType } from 'vue'
 
-import { ScrollAreaCorner, ScrollAreaRoot, ScrollAreaScrollbar, ScrollAreaThumb, ScrollAreaViewport } from 'reka-ui'
-import { computed, useTemplateRef } from 'vue'
+import { injectScrollAreaRootContext, ScrollAreaCorner, ScrollAreaRoot, ScrollAreaScrollbar, ScrollAreaThumb, ScrollAreaViewport } from 'reka-ui'
+import { computed, defineComponent, nextTick, useTemplateRef, watch } from 'vue'
 
 defineOptions({
   inheritAttrs: false,
@@ -16,6 +17,35 @@ const props = withDefaults(defineProps<ScrollableAreaProps>(), {
 })
 
 type ScrollableAreaOrientation = 'vertical' | 'horizontal' | 'both'
+
+// NOTICE:
+// Reka UI 2.10.3 clears both axis flags when either scrollbar unmounts.
+// Restore the requested flags after the scrollbar DOM update.
+// Source: https://github.com/moeru-ai/airi/pull/2399#discussion_r3886316598
+// Remove this controller when Reka only clears the axis owned by its scrollbar.
+const ScrollAreaAxisController = defineComponent({
+  props: {
+    orientation: {
+      type: String as PropType<ScrollableAreaOrientation>,
+      required: true,
+    },
+  },
+  setup(controllerProps) {
+    const rootContext = injectScrollAreaRootContext()
+
+    watch(
+      () => controllerProps.orientation,
+      async (orientation) => {
+        await nextTick()
+        rootContext.onScrollbarXEnabledChange(orientation === 'horizontal' || orientation === 'both')
+        rootContext.onScrollbarYEnabledChange(orientation === 'vertical' || orientation === 'both')
+      },
+      { flush: 'post', immediate: true },
+    )
+
+    return () => null
+  },
+})
 
 interface ScrollableAreaProps {
   contentAsChild?: boolean
@@ -41,6 +71,8 @@ defineExpose({
       'relative min-h-0 min-w-0 overflow-hidden',
     ]"
   >
+    <ScrollAreaAxisController :orientation="props.orientation" />
+
     <ScrollAreaViewport
       :as-child="props.contentAsChild"
       :style="{
