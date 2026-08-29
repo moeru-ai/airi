@@ -35,7 +35,8 @@ const { t } = useI18n()
 const cardStore = useAiriCardStore()
 const { cards, activeCardId, activeCard } = storeToRefs(cardStore)
 
-const creatingNew = ref(false)
+/** Keeps host surfaces open while the user enters a name for a new profile. */
+const creatingNew = defineModel<boolean>('creating', { default: false })
 const newProfileName = ref('')
 const nameInputRef = ref<HTMLInputElement>()
 const containerRef = ref<HTMLElement>()
