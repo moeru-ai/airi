@@ -268,6 +268,7 @@ catalog:
   defu: ^6.1.7
   destr: ^2.0.5
   discord.js: ^14.27.0
+  dockview-vue: ^8.2.0
   dompurify: ^3.4.14
   driver.js: ^1.8.0
   drizzle-kit: ^0.31.10
