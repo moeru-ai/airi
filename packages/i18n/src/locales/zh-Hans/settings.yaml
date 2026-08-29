@@ -147,6 +147,33 @@ live2d:
       title: 提取
   animation:
     title: 动画
+    motion-driver:
+      title: 动作驱动器
+      description: 选择 AIRI 如何生成空闲身体和眼部动作。
+      options:
+        universal:
+          title: 通用
+          description: 使用模型动作、空闲眼部动作和鼠标跟踪。
+        magic:
+          title: MAGIC
+          description: 使用内置 MAGIC 数据集生成动作。
+      magic:
+        profile:
+          title: MAGIC 配置
+          description: 选择用于拟合 MAGIC 驱动器的内置动作数据集。
+          options:
+            idle-calm:
+              title: 空闲 / 平静
+              description: 使用内置的空闲和平静动作录制数据。
+            speaking-excited:
+              title: 说话 / 兴奋
+              description: 使用内置的说话和兴奋动作录制数据。
+        skip-mouth-open:
+          title: 忽略生成的嘴部开合
+          description: 让语音口型控制嘴部开合。关闭此选项后将使用配置中的嘴部开合。
+        force-view-target:
+          title: 强制视线朝前
+          description: MAGIC 转动头部时，让眼睛持续看向正前方。
     focus:
       title: 启用鼠标跟踪
       description: 鼠标移动时注视光标；光标停止后恢复空闲眼部动作。
@@ -603,6 +630,10 @@ pages:
             show_more: 收起
             subtitle: 选择一个默认模型
             title: 模型
+          model-options:
+            title: 模型选项
+            thinking:
+              label: 思考
       title: 意识
     description: 思维，视觉，言语综合，游戏等
     gaming-factorio:
@@ -897,6 +928,10 @@ pages:
               如果你想要继续，你仍然可以保存当前的配置。
             action: 仍要保存
         config:
+          loading: 正在加载服务来源设置……
+          load-error: 无法加载服务来源设置。
+          save-error: 无法保存服务来源设置。
+          retry: 重试
           common:
             fields:
               field:
@@ -1024,6 +1059,14 @@ pages:
         转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
     description: LLM，语音合成，语音识别服务来源等
     provider:
+      apple-speech-transcription:
+        title: Apple 语音识别
+        description: 使用 macOS 26 或更高版本的设备端语音识别，无需 API 密钥。
+        fields:
+          locale:
+            label: 语言区域
+            description: 使用 Apple 语音识别支持的完整语言区域代码，例如 en-US 或 zh-CN。
+            placeholder: zh-CN
       app-local-audio-transcription:
         title: 应用内（本地）
         description: https://github.com/moeru-ai/xsai-transformers
@@ -1191,6 +1234,10 @@ pages:
             nano_banana: Nano Banana（Gemini 2.5 Flash Image）
       deepseek:
         description: DeepSeek.com
+        fields:
+          field:
+            thinking-mode:
+              description: 控制 DeepSeek 推理模型是否在聊天请求中启用深度思考。
         title: 深度求索 DeepSeek
       elevenlabs:
         description: Elevenlabs.io
@@ -1411,34 +1458,23 @@ pages:
     description: 配置 WebSocket 服务器连接
     title: 连接
     websocket-url:
-      description: WebSocket 服务器的完整地址(例如，ws://localhost:6121/ws)
-      label: WebSocket 服务器地址
+      description: 此应用连接本地服务器时使用的地址。
+      label: 服务器地址
       placeholder: ws://localhost:6121/ws
     server-hostname:
-      label: 是否暴露在连接的网络下（WiFi，有线）
-      description: >-
-        选择是否只允许此设备与 AIRI 进行配对，或是也允许来自其他本地网络的设备进行配对
-      advanced-label: 会监听的 hostname
-      advanced-description: >-
-        当您需要手动绑定时，使用指定的主机名或 IP 地址。
-      options:
-        this-device: 仅此设备
-        all: 本地网络所有人
-        advanced: 高级配置
+      label: 向所有设备开放
+      description: 允许本地网络中的其他设备连接此服务器。
     server-auth-token:
-      label: 认证凭据
-      description: >-
-        连接和配对需要安全令牌。如果留空，AIRI 自动生成一个新的令牌。
+      label: 配对令牌
+      description: 其他设备使用此令牌与服务器配对。如果此字段为空，AIRI 会生成一个令牌。
       placeholder: 自动生成
     qr:
-      title: 从 Pocket（口袋）版配对
-      description: >-
-        从 Pocket（口袋）版扫描此二维码以进行配对
+      title: 配对
+      description: 使用移动应用扫描此二维码。应用会尝试每个本地地址，并保存第一个可用地址。
       refresh: 刷新
-      image-alt: AIRI 配对码
+      image-alt: AIRI 配对二维码
       candidates: 备选连接地址
-      token-hint: >-
-        二维码包含了认证凭据，所以 Pocket（口袋）版可以自动配对，请不要公开分享此二维码。
+      token-hint: 二维码包含配对令牌。请勿公开分享此二维码。
       errors:
         title: 二维码暂不可用
         unavailable: 无法生成配对二维码
@@ -1483,7 +1519,7 @@ pages:
             section:
               performance-visualizer:
                 title: 性能可视化工具
-                description: 切换 FPS/长任务/内存叠加
+                description: 显示 FPS、帧时间、长任务和浏览器支持的内存指标
               markdown-stress:
                 title: Markdown Stress
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
@@ -1769,9 +1805,8 @@ tachie:
     render-scale: 渲染缩放
     shadow: 主题色动态阴影
 websocket-secure-enabled:
-  title: 启用安全WebSocket (WSS)
-  description: >-
-    启用 WSS (WebSocket Secure) 以便在开发模式下允许移动设备(Pocket) 连接HTTPS 。这将自动生成一个自签名证书。
+  title: 作为安全 WebSocket (WSS) 提供服务
+  description: 使用 WSS 建立安全的移动端连接。AIRI 会创建一个自签名证书。
 wip:
   title: 正在开发中
   description: >-

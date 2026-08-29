@@ -42,12 +42,30 @@ function createDeferred<T>() {
   return { promise, resolve, reject }
 }
 
-function resolveAudioStream(options: StreamTranscriptionOptions): ReadableStream<AudioChunk> {
+/**
+ * Normalizes an audio chunk for a streaming fetch body.
+ *
+ * @example
+ * normalizeAudioChunk(new Uint8Array([1, 2]).buffer)
+ * // => Uint8Array([1, 2])
+ */
+function normalizeAudioChunk(chunk: AudioChunk): Uint8Array {
+  if (ArrayBuffer.isView(chunk))
+    return new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+
+  return new Uint8Array(chunk)
+}
+
+function resolveAudioStream(options: StreamTranscriptionOptions): ReadableStream<Uint8Array> {
   const stream = options.inputAudioStream ?? options.inputStream ?? options.file?.stream()
   if (!stream)
     throw new TypeError('Audio stream or file is required for streaming transcription.')
 
-  return stream as ReadableStream<AudioChunk>
+  return (stream as ReadableStream<AudioChunk>).pipeThrough(new TransformStream<AudioChunk, Uint8Array>({
+    transform(chunk, controller) {
+      controller.enqueue(normalizeAudioChunk(chunk))
+    },
+  }))
 }
 
 function parseSSELine(line: string): AIRIStreamTranscriptionDelta | undefined {
@@ -123,10 +141,14 @@ export function streamTranscription(options: StreamTranscriptionOptions): AIRISt
         : new URL(typeof options.baseURL === 'string' ? options.baseURL : 'http://localhost')
       const response = await fetcher(requestTarget, {
         body: audioStream,
+        // Browser fetch requires half-duplex mode for a ReadableStream body.
+        // Keep this at the transport boundary so every SSE transcription
+        // provider receives the required request option.
+        duplex: 'half',
         headers: options.headers,
         method: 'POST',
         signal: options.abortSignal,
-      })
+      } as RequestInit & { duplex: 'half' })
 
       if (!response.ok)
         throw new Error(`Streaming transcription request failed with status ${response.status}`)

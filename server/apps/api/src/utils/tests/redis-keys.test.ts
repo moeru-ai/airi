@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  configRedisKey,
   lockRedisKey,
   redisKeyFrom,
   userChatBroadcastRedisKey,
@@ -20,8 +19,7 @@ describe('redis key utils', () => {
     expect(() => redisKeyFrom('user', '   ', 'flux')).toThrow('Redis key segments must not be empty')
   })
 
-  it('exposes stable helpers for config, user, and lock namespaces', () => {
-    expect(configRedisKey('FLUX_PER_REQUEST')).toBe('config:FLUX_PER_REQUEST')
+  it('exposes stable helpers for user and lock namespaces', () => {
     expect(userFluxRedisKey('user-1')).toBe('user:user-1:flux')
     expect(userChatBroadcastRedisKey('user-1')).toBe('user:user-1:chat:broadcast')
     expect(userChatBroadcastRedisPattern()).toBe('user:*:chat:broadcast')

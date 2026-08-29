@@ -45,53 +45,27 @@ function optionalNumberFromString(defaultValue: number, envKey: string, minimum:
 }
 
 const EnvSchema = object({
-  HOST: optional(string(), '0.0.0.0'),
-  PORT: optionalIntegerFromString(3000, 'PORT', 1),
-
-  API_SERVER_URL: optional(string(), 'http://localhost:3000'),
-  AUTH_SERVER_URL: optional(string(), 'http://localhost:3000'),
-  AUTH_SERVER_INTERNAL_URL: optional(string()),
-
-  // Standalone admin UI base URL. The server keeps `/admin/*` as the historical
-  // entrypoint and redirects those requests here after the admin UI moved to
-  // the standalone proj-airi repository.
-  ADMIN_UI_URL: optional(string(), 'https://admin.airi.build'),
-
-  // Canonical user-facing web app origin. Used as the Stripe redirect base
-  // (success_url / cancel_url / portal return_url) when a request has no trusted
-  // browser origin — notably the Electron desktop renderer, which loads from
-  // file:// and sends no usable web origin. Web/mobile requests keep returning to
-  // their own origin; only origin-less clients fall back to this.
-  WEB_APP_URL: optional(string(), 'https://airi.moeru.ai'),
-
   // Comma-separated exact origins (e.g. Capacitor dev server `https://10.x:5273`).
   // Prefer this over broad private-IP regex heuristics in production-like configs.
   ADDITIONAL_TRUSTED_ORIGINS: optional(
     AdditionalTrustedOriginsSchema,
     '',
   ),
+  API_SERVER_URL: optional(string(), 'http://localhost:3000'),
 
+  AUTH_SERVER_INTERNAL_URL: optional(string()),
+  AUTH_SERVER_URL: optional(string(), 'http://localhost:3000'),
   DATABASE_URL: pipe(string(), nonEmpty('DATABASE_URL is required')),
-  REDIS_URL: pipe(string(), nonEmpty('REDIS_URL is required')),
 
-  // Testing-only bearer token bypass. Keep unset in production. When set,
-  // Authorization: Bearer $TEST_AUTH_TOKEN resolves to the virtual user below
-  // through resolveRequestAuth without creating an Auth session row.
-  TEST_AUTH_TOKEN: optional(string(), ''),
-  TEST_AUTH_USER_ID: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_ID must not be empty when set')), 'test-user'),
-  TEST_AUTH_USER_EMAIL: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_EMAIL must not be empty when set')), 'test@example.com'),
-  TEST_AUTH_USER_NAME: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_NAME must not be empty when set')), 'Test User'),
-  TEST_AUTH_USER_ROLE: optional(string(), ''),
+  DB_POOL_CONNECTION_TIMEOUT_MS: optionalIntegerFromString(5000, 'DB_POOL_CONNECTION_TIMEOUT_MS', 1),
 
-  STRIPE_SECRET_KEY: optional(string()),
-  STRIPE_WEBHOOK_SECRET: optional(string()),
+  DB_POOL_IDLE_TIMEOUT_MS: optionalIntegerFromString(30000, 'DB_POOL_IDLE_TIMEOUT_MS', 1),
 
-  // LLM/TTS gateway is fully internalised by the in-process router; provider
-  // baseURLs live per-upstream inside LLM_ROUTER_CONFIG, and the default chat /
-  // tts model aliases moved to configKV (DEFAULT_CHAT_MODEL / DEFAULT_TTS_MODEL)
-  // so they're hot-swappable via Pub/Sub invalidation. No env entries needed
-  // here.
+  DB_POOL_KEEPALIVE_INITIAL_DELAY_MS: optionalIntegerFromString(10000, 'DB_POOL_KEEPALIVE_INITIAL_DELAY_MS', 1),
+  // Database pool
+  DB_POOL_MAX: optionalIntegerFromString(20, 'DB_POOL_MAX', 1),
 
+  HOST: optional(string(), '0.0.0.0'),
   // Envelope-encryption master key for in-process LLM/TTS router (KTD-5).
   // Stored as base64-encoded 32 random bytes. Validator decodes + asserts the
   // 32-byte length at parse time so a misconfigured key fails the deploy
@@ -113,35 +87,47 @@ const EnvSchema = object({
     transform(b64 => Buffer.from(b64, 'base64')),
     check(buf => buf.length === 32, 'LLM_ROUTER_MASTER_KEY_PREVIOUS must decode to exactly 32 bytes when set'),
   )),
+  OTEL_DEBUG: optional(string()),
 
-  // Database pool
-  DB_POOL_MAX: optionalIntegerFromString(20, 'DB_POOL_MAX', 1),
-  DB_POOL_IDLE_TIMEOUT_MS: optionalIntegerFromString(30000, 'DB_POOL_IDLE_TIMEOUT_MS', 1),
-  DB_POOL_CONNECTION_TIMEOUT_MS: optionalIntegerFromString(5000, 'DB_POOL_CONNECTION_TIMEOUT_MS', 1),
-  DB_POOL_KEEPALIVE_INITIAL_DELAY_MS: optionalIntegerFromString(10000, 'DB_POOL_KEEPALIVE_INITIAL_DELAY_MS', 1),
-
-  // PostHog product-event forwarding (signup / payment / subscription facts).
-  // Defaults to the shared AIRI project key (same browser-safe phc_* key the
-  // client surfaces embed in posthog.config.ts), so forwarding is on out of
-  // the box. Set to an empty string to disable; Postgres `product_events`
-  // stays the source of truth either way.
-  POSTHOG_PROJECT_KEY: optional(string(), 'phc_pzjziJjrVZpa9SqnQqq0QEKvkmuCPH7GDTA6TbRTEf9'), // cspell:disable-line
-  POSTHOG_API_HOST: optional(string(), 'https://t.airi.build'),
-
-  // OpenTelemetry
-  OTEL_SERVICE_NAMESPACE: optional(string(), 'airi'),
-  OTEL_SERVICE_NAME: optional(string(), 'server'),
-  OTEL_TRACES_SAMPLING_RATIO: optionalNumberFromString(1, 'OTEL_TRACES_SAMPLING_RATIO', 0, 1),
   OTEL_EXPORTER_OTLP_ENDPOINT: optional(string()),
   OTEL_EXPORTER_OTLP_HEADERS: optional(string()),
-  OTEL_DEBUG: optional(string()),
-  // Admin allowlist for /api/admin/* routes. Comma-separated email addresses.
-  // Match is case-insensitive, but the user must also have `email_verified = true`
-  // — otherwise an attacker could register a fresh account with the admin email
-  // before verification and slip past the check.
-  // Empty (default) = no one is admin — production safe by default.
-  // Example: ADMIN_EMAILS=alice@example.com,bob@example.com
-  ADMIN_EMAILS: optional(string(), ''),
+
+  // LLM/TTS gateway is fully internalised by the in-process router; provider
+  // baseURLs live per-upstream inside LLM_ROUTER_CONFIG, and the default chat /
+  // tts model aliases moved to configKV (DEFAULT_CHAT_MODEL / DEFAULT_TTS_MODEL)
+  // so they're hot-swappable via Pub/Sub invalidation. No env entries needed
+  // here.
+
+  OTEL_SERVICE_NAME: optional(string(), 'server'),
+  // OpenTelemetry
+  OTEL_SERVICE_NAMESPACE: optional(string(), 'airi'),
+
+  OTEL_TRACES_SAMPLING_RATIO: optionalNumberFromString(1, 'OTEL_TRACES_SAMPLING_RATIO', 0, 1),
+  PORT: optionalIntegerFromString(3000, 'PORT', 1),
+  POSTHOG_API_HOST: optional(string(), 'https://t.airi.build'),
+  // PostHog product-event forwarding for server-confirmed funnel facts.
+  // Defaults to the shared AIRI project key (same browser-safe phc_* key the
+  // client surfaces embed in stage-shared/analytics/posthog), so forwarding is on out of
+  // the box. Set to an empty string to disable server-side product analytics.
+  POSTHOG_PROJECT_KEY: optional(string(), 'phc_pzjziJjrVZpa9SqnQqq0QEKvkmuCPH7GDTA6TbRTEf9'), // cspell:disable-line
+
+  REDIS_URL: pipe(string(), nonEmpty('REDIS_URL is required')),
+  STRIPE_SECRET_KEY: optional(string()),
+
+  STRIPE_WEBHOOK_SECRET: optional(string()),
+  // Testing-only bearer token bypass. Keep unset in production. When set,
+  // Authorization: Bearer $TEST_AUTH_TOKEN resolves to the virtual user below
+  // through resolveRequestAuth without creating an Auth session row.
+  TEST_AUTH_TOKEN: optional(string(), ''),
+  TEST_AUTH_USER_EMAIL: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_EMAIL must not be empty when set')), 'test@example.com'),
+  TEST_AUTH_USER_ID: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_ID must not be empty when set')), 'test-user'),
+  TEST_AUTH_USER_NAME: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_NAME must not be empty when set')), 'Test User'),
+  // Canonical user-facing web app origin. Used as the Stripe redirect base
+  // (success_url / cancel_url / portal return_url) when a request has no trusted
+  // browser origin — notably the Electron desktop renderer, which loads from
+  // file:// and sends no usable web origin. Web/mobile requests keep returning to
+  // their own origin; only origin-less clients fall back to this.
+  WEB_APP_URL: optional(string(), 'https://airi.moeru.ai'),
 })
 
 export type Env = InferOutput<typeof EnvSchema>

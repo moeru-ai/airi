@@ -1,7 +1,10 @@
+import type { JsonSchema } from 'xsschema'
+
 import { errorMessageFrom } from '@moeru/std'
 import { createOpenAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
+import { collapseToolSchemaPrimitiveAnyOf } from '../../tool-schema'
 import { defineProvider } from '../registry'
 
 const AZURE_OPENAI_PROVIDER_ID = 'azure-openai' as const
@@ -94,11 +97,51 @@ function resolveConfiguredDeployments(config: AzureOpenAIConfig): string[] {
   return endpointHints.completionsDeployment ? [endpointHints.completionsDeployment] : []
 }
 
-function mapChatBodyToCompletions(body: any): Record<string, unknown> {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+}
+
+function isJsonSchema(value: unknown): value is JsonSchema {
+  return isRecord(value)
+}
+
+/**
+ * Converts primitive tool unions to the form that Azure OpenAI accepts.
+ *
+ * @example
+ * normalizeAzureOpenAIChatTools([{
+ *   function: { parameters: { anyOf: [{ type: 'string' }, { type: 'null' }] } },
+ * }])
+ * // => [{ function: { parameters: { type: ['string', 'null'] } } }]
+ */
+function normalizeAzureOpenAIChatTools(tools: unknown): unknown {
+  if (!Array.isArray(tools))
+    return tools
+
+  return tools.map((tool) => {
+    if (!isRecord(tool) || !isRecord(tool.function))
+      return tool
+
+    const parameters = tool.function.parameters
+    if (!isJsonSchema(parameters))
+      return tool
+
+    return {
+      ...tool,
+      function: {
+        ...tool.function,
+        parameters: collapseToolSchemaPrimitiveAnyOf(parameters),
+      },
+    }
+  })
+}
+
+function mapChatBodyToCompletions(body: Record<string, unknown>): Record<string, unknown> {
   const mappedBody: Record<string, unknown> = {
     ...body,
-    messages: body?.messages,
-    max_completion_tokens: body?.max_completion_tokens ?? body?.max_output_tokens ?? body?.max_tokens,
+    messages: body.messages,
+    max_completion_tokens: body.max_completion_tokens ?? body.max_output_tokens ?? body.max_tokens,
+    tools: normalizeAzureOpenAIChatTools(body.tools),
   }
 
   delete mappedBody.input
@@ -121,12 +164,12 @@ function createAzureOpenAIFetch(config: AzureOpenAIConfig) {
       return fetch(request)
     }
 
-    const requestBody = await request.clone().json().catch(() => null)
-    if (!requestBody) {
+    const requestBody: unknown = await request.clone().json().catch(() => null)
+    if (!isRecord(requestBody)) {
       return fetch(request)
     }
 
-    const deployment = endpointHints.completionsDeployment || (typeof requestBody?.model === 'string' ? requestBody.model.trim() : '')
+    const deployment = endpointHints.completionsDeployment || (typeof requestBody.model === 'string' ? requestBody.model.trim() : '')
     if (!deployment) {
       return fetch(request)
     }

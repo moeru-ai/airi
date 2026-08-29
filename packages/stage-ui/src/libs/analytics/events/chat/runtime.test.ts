@@ -2,7 +2,7 @@ import type { AnalyticsRecorder } from '../../index'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { aiGenerationEvent, messageSentEvent, secondTurnStartedEvent } from './events'
+import { aiGenerationEvent, messageSentEvent } from './events'
 import { createChatAnalyticsHooks } from './runtime'
 
 function createRecorder(): AnalyticsRecorder {
@@ -43,16 +43,37 @@ describe('createChatAnalyticsHooks', () => {
       message_length: 5,
       has_attachment: false,
       mode: 'voice',
+      trigger_method: 'voice',
+      trigger_type: 'user_action',
     })
-    expect(analytics.emit).toHaveBeenCalledWith(secondTurnStartedEvent, {
-      conversation_id: 'session-1',
-      provider_mode: 'official',
-      provider_id: 'official-provider-chat',
-      model_id: 'selected-model',
-      round_id: 'round-1',
-      source: 'voice',
-      turn_index: 2,
+    expect(analytics.emit).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not expose intermediate chat lifecycle hooks as product events', () => {
+    const hooks = createChatAnalyticsHooks({
+      analytics: createRecorder(),
+      getSessionMessages: () => [],
     })
+
+    expect(hooks).not.toHaveProperty('onMessageSendStarted')
+    expect(hooks).not.toHaveProperty('onLlmRequestStarted')
+    expect(hooks).not.toHaveProperty('onLlmFirstToken')
+    expect(hooks).not.toHaveProperty('onAssistantResponseRendered')
+    expect(hooks).not.toHaveProperty('onChatActivationStarted')
+    expect(hooks).not.toHaveProperty('onChatActivationSucceeded')
+    expect(hooks).not.toHaveProperty('onChatActivationFailed')
+  })
+
+  it('keeps the first-message activation signal', () => {
+    const analytics = createRecorder()
+    const hooks = createChatAnalyticsHooks({
+      analytics,
+      getSessionMessages: () => [],
+    })
+
+    hooks.onTrackFirstMessage?.()
+
+    expect(analytics.recordFirstMessage).toHaveBeenCalledOnce()
   })
 
   it('records generation usage only for custom providers', () => {

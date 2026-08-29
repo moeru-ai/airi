@@ -23,14 +23,22 @@ function createTestDeps() {
       AUTH_UI_URL: 'https://accounts.airi.build/ui',
       ADDITIONAL_TRUSTED_ORIGINS: [],
     } as any,
-    authConfig: {
-      getRateLimit: vi.fn(async () => ({ max: 20, windowSec: 60 })),
-    } as any,
     rateLimitMetrics: null,
   }
 }
 
 describe('standalone auth app', () => {
+  it('does not expose Better Auth management routes', async () => {
+    const deps = createTestDeps()
+    const { app } = await buildAuthApp(deps)
+
+    expect((await app.request('/api/auth/admin')).status).toBe(404)
+    expect((await app.request('/api/auth/admin/list-users')).status).toBe(404)
+    expect((await app.request('/api/auth/admin/ban-user', { method: 'POST' })).status).toBe(404)
+    expect((await app.request('/api/auth/admin/future-endpoint', { method: 'DELETE' })).status).toBe(404)
+    expect(deps.auth.handler).not.toHaveBeenCalled()
+  })
+
   it('identifies its public issuer at the root', async () => {
     const { app } = await buildAuthApp(createTestDeps())
     const response = await app.request('/')

@@ -4,7 +4,6 @@ import type { AuthInstance } from './auth'
 import type { AuthDatabase } from './db'
 import type { AuthEnv } from './env'
 import type { RateLimitMetrics } from './otel'
-import type { AuthConfigService } from './rate-limit'
 
 import { createHash } from 'node:crypto'
 
@@ -30,6 +29,8 @@ export const AUTH_UI_PUBLIC_URL_QUERY_PARAM = 'api_server_url'
 export const DEFAULT_AUTH_UI_URL = 'https://accounts.airi.build/ui'
 export const SERVER_DEV_PUBLIC_URL = 'https://airi-server-dev.up.railway.app'
 export const SERVER_DEV_AUTH_UI_URL = 'https://server-dev.airi-server-auth.pages.dev/ui'
+
+const FORWARDED_AUTH_UI_PROVIDERS = new Set(['google', 'github', 'steam'])
 
 /** Builds a route URL below the configured standalone Auth UI base. */
 export function buildAuthUiUrl(authUiUrl: string, path: string, search = ''): string {
@@ -70,6 +71,30 @@ export function buildAuthUiRedirectUrl(authUiUrl: string, requestUrl: string, ap
   if (apiServerUrl)
     target.searchParams.set(AUTH_UI_PUBLIC_URL_QUERY_PARAM, new URL(apiServerUrl).origin)
   return target.toString()
+}
+
+/** Restores a trusted mobile provider hint after the OIDC plugin builds its sign-in redirect. */
+function forwardAuthUiProviderHint(requestUrl: string, response: Response): Response {
+  const request = new URL(requestUrl)
+  const provider = request.searchParams.get('provider')
+  const location = response.headers.get('location')
+
+  if (response.status < 300 || response.status >= 400 || !provider || !FORWARDED_AUTH_UI_PROVIDERS.has(provider) || !location)
+    return response
+
+  const target = new URL(location, request)
+  if (target.origin !== request.origin || target.pathname !== `${SERVER_AUTH_UI_BASE_PATH}/sign-in`)
+    return response
+
+  target.searchParams.set('provider', provider)
+
+  const headers = new Headers(response.headers)
+  headers.set('location', location.startsWith('/') ? `${target.pathname}${target.search}${target.hash}` : target.toString())
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
 }
 
 const remoteJwksByUrl = new Map<string, ReturnType<typeof createRemoteJWKSet>>()
@@ -233,7 +258,6 @@ export interface AuthRoutesDeps {
   auth: AuthInstance
   db: AuthDatabase
   env: AuthEnv
-  authConfig: AuthConfigService
   rateLimitMetrics?: RateLimitMetrics | null
 }
 
@@ -246,15 +270,13 @@ export interface AuthRoutesDeps {
  * (`/auth/*`, `/api/auth/*`, `/.well-known/*`).
  */
 export async function createAuthRoutes(deps: AuthRoutesDeps) {
-  const rateLimitConfig = await deps.authConfig.getRateLimit()
-
   async function handleAuthRequest(request: Request): Promise<Response> {
     const response = await deps.auth.handler(request)
 
     if (!(response instanceof Response))
       throw new TypeError('Expected auth handler to return a Response')
 
-    return response
+    return forwardAuthUiProviderHint(request.url, response)
   }
 
   return new Hono<HonoEnv>()
@@ -265,14 +287,16 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      * Rate limited by the Auth-owned runtime configuration.
      */
     .use('/api/auth/*', rateLimiter({
-      max: rateLimitConfig.max,
-      windowSec: rateLimitConfig.windowSec,
+      max: 20,
+      windowSec: 60,
       // Proxy trust is a deployment boundary, not a property of the public
       // API URL. Custom domains and private gateways must opt in explicitly.
       trustedProxy: deps.env.RATE_LIMIT_TRUSTED_PROXY,
       metrics: deps.rateLimitMetrics,
       routeLabel: 'auth.api',
     }))
+    .all('/api/auth/admin', c => c.notFound())
+    .all('/api/auth/admin/*', c => c.notFound())
     .use('/api/auth/oauth2/authorize', async (c, next) => {
       await ensureDynamicFirstPartyRedirectUri(deps.db, c.req.raw, deps.env.ADDITIONAL_TRUSTED_ORIGINS)
       await next()
@@ -333,9 +357,8 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      *
      * Account-enumeration tradeoff: this confirms whether an email is
      * registered, mirroring the standard set by Google/Linear/Notion. We
-     * accept the disclosure since the existing rate limiter applied to
-     * `/api/auth/*` (`AUTH_RATE_LIMIT_MAX` per IP per window) already throttles
-     * enumeration attempts.
+     * accept the disclosure since the existing rate limiter applies a fixed
+     * per-IP request limit to `/api/auth/*` and throttles enumeration attempts.
      */
     .on('POST', '/api/auth/check-email', async (c) => {
       const body = await c.req.json().catch(() => null) as { email?: unknown } | null

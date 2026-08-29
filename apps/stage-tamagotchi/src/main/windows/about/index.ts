@@ -44,7 +44,9 @@ export function setupAboutWindowReusable(params: {
       serverChannel: params.serverChannel,
     })
 
-    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/about'))
+    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/about', {
+      query: { 'synced-leader': 'false' },
+    }))
 
     return window
   }).getWindow

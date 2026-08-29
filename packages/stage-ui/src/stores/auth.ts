@@ -3,7 +3,7 @@ import type {} from 'pinia-plugin-synced'
 
 import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { StorageSerializers, useLocalStorage, useTimeoutFn, whenever } from '@vueuse/core'
+import { useTimeoutFn, whenever } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
@@ -13,6 +13,45 @@ import { triggerSignIn } from '../libs/auth'
 import { authClient, requestAuthSession } from '../libs/auth-client'
 import { refreshAccessToken } from '../libs/auth-oidc'
 import { SERVER_URL } from '../libs/server'
+
+function createLocalStorageForAuth() {
+  const keys = {
+    accessToken: 'auth/v1/token',
+    refreshToken: 'auth/v1/refresh-token',
+    idToken: 'auth/v1/oidc-id-token',
+    oidcClientId: 'auth/v1/oidc-client-id',
+    tokenExpiry: 'auth/v1/oidc-token-expiry',
+  } as const
+
+  function setOptional(key: string, value: string | null): void {
+    if (value === null) {
+      localStorage.removeItem(key)
+      return
+    }
+
+    localStorage.setItem(key, value)
+  }
+
+  return {
+    clear() {
+      for (const key of Object.values(keys))
+        localStorage.removeItem(key)
+    },
+    getAccessToken: () => localStorage.getItem(keys.accessToken),
+    getRefreshToken: () => localStorage.getItem(keys.refreshToken),
+    getIdToken: () => localStorage.getItem(keys.idToken),
+    getOidcClientId: () => localStorage.getItem(keys.oidcClientId),
+    getTokenExpiry() {
+      const expiry = Number.parseInt(localStorage.getItem(keys.tokenExpiry) ?? '', 10)
+      return Number.isFinite(expiry) ? expiry : null
+    },
+    setAccessToken: (value: string | null) => setOptional(keys.accessToken, value),
+    setRefreshToken: (value: string | null) => setOptional(keys.refreshToken, value),
+    setIdToken: (value: string | null) => setOptional(keys.idToken, value),
+    setOidcClientId: (value: string | null) => setOptional(keys.oidcClientId, value),
+    setTokenExpiry: (value: number | null) => setOptional(keys.tokenExpiry, value?.toString() ?? null),
+  }
+}
 
 /** Tokens that complete one OIDC sign-in flow. */
 export interface AuthTokenSet {
@@ -30,29 +69,29 @@ export interface AuthTokenSet {
  * `providers` to safely depend on it without creating a circular import.
  */
 export const useAuthStore = defineStore('auth', () => {
-  const user = useLocalStorage<User | null>('auth/v1/user', null, {
-    // Why: https://github.com/vueuse/vueuse/pull/614#issuecomment-875450160
-    serializer: StorageSerializers.object,
-  })
-  const session = useLocalStorage<Session | null>('auth/v1/session', null, { serializer: StorageSerializers.object })
-  const token = useLocalStorage<string | null>('auth/v1/token', null)
-  const refreshToken = useLocalStorage<string | null>('auth/v1/refresh-token', null)
+  const storage = createLocalStorageForAuth()
+
+  // Pinia owns live auth state. Persistence is command-driven so a state patch
+  // received from another window cannot write back into the transport.
+  const user = ref<User | null>(null)
+  const session = ref<Session | null>(null)
+  const token = ref<string | null>(null)
+  const refreshToken = ref<string | null>(null)
   // NOTICE:
   // Persisted to drive `id_token_hint` on RP-Initiated Logout
   // (`/api/auth/oauth2/end-session`). The `sid` claim inside the ID token is
   // what lets the OIDC provider locate the server-side session row to delete
   // — without this we'd be back to relying on cross-site session cookies.
-  const idToken = useLocalStorage<string | null>('auth/v1/oidc-id-token', null)
+  const idToken = ref<string | null>(null)
   const isAuthenticated = computed(() => !!user.value && !!session.value)
   const userId = computed(() => user.value?.id ?? 'local')
 
   // --- OIDC token refresh state ---
-  // Persisted so refresh scheduling survives page reloads.
-  const oidcClientId = useLocalStorage<string | null>('auth/v1/oidc-client-id', null)
-  const tokenExpiry = useLocalStorage<number | null>('auth/v1/oidc-token-expiry', null)
+  const oidcClientId = ref<string | null>(null)
+  const tokenExpiry = ref<number | null>(null)
   const initialized = ref(false)
 
-  const credits = useLocalStorage<number>('user/v1/flux', 0)
+  const credits = ref(0)
 
   // Cross-app "user must log in" flag. Setting this to true triggers an
   // immediate OIDC redirect on web (mobile + desktop). Electron skips this
@@ -104,30 +143,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Dispatch hooks when auth state changes
-  watch(isAuthenticated, async (val, oldVal) => {
-    if (val && !oldVal) {
-      for (const hook of authenticatedHooks) {
-        try {
-          await hook()
-        }
-        catch (e) {
-          console.error('auth hook error', e)
-        }
-      }
-    }
-    if (!val && oldVal) {
-      for (const hook of logoutHooks) {
-        try {
-          await hook()
-        }
-        catch (e) {
-          console.error('logout hook error', e)
-        }
-      }
-    }
-  })
-
   // --- OIDC token refresh scheduling ---
   // Uses useTimeoutFn for automatic cleanup on store teardown.
   // The delay ref is updated by scheduleTokenRefresh before calling start().
@@ -148,10 +163,14 @@ export const useAuthStore = defineStore('auth', () => {
       try {
         const tokens = await refreshAccessToken(oidcClientId.value!, refreshToken.value!)
         token.value = tokens.access_token
-        if (tokens.refresh_token)
+        storage.setAccessToken(tokens.access_token)
+        if (tokens.refresh_token) {
           refreshToken.value = tokens.refresh_token
+          storage.setRefreshToken(tokens.refresh_token)
+        }
         if (tokens.expires_in) {
           tokenExpiry.value = Date.now() + tokens.expires_in * 1000
+          storage.setTokenExpiry(tokenExpiry.value)
           scheduleTokenRefresh(tokens.expires_in)
         }
 
@@ -217,6 +236,12 @@ export const useAuthStore = defineStore('auth', () => {
 
     initialized.value = true
 
+    token.value = storage.getAccessToken()
+    refreshToken.value = storage.getRefreshToken()
+    idToken.value = storage.getIdToken()
+    oidcClientId.value = storage.getOidcClientId()
+    tokenExpiry.value = storage.getTokenExpiry()
+
     const hasRefreshToken = !!refreshToken.value
     const hasClientId = !!oidcClientId.value
     if (hasRefreshToken !== hasClientId) {
@@ -238,6 +263,11 @@ export const useAuthStore = defineStore('auth', () => {
       ? Date.now() + tokens.expiresIn * 1000
       : null
     scheduleTokenRefresh(tokens.expiresIn)
+    storage.setAccessToken(token.value)
+    storage.setRefreshToken(refreshToken.value)
+    storage.setIdToken(idToken.value)
+    storage.setOidcClientId(oidcClientId.value)
+    storage.setTokenExpiry(tokenExpiry.value)
 
     return await fetchSession(tokens.accessToken)
   }
@@ -316,6 +346,7 @@ export const useAuthStore = defineStore('auth', () => {
     oidcClientId.value = null
     tokenExpiry.value = null
     idToken.value = null
+    storage.clear()
   }
 
   async function clearAllAuthState(): Promise<void> {
@@ -332,16 +363,35 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  watch(isAuthenticated, async (val) => {
-    if (val) {
-      updateCredits()
-
+  // This is the only watcher that reacts to an auth-state transition. Each
+  // window runs its own lifecycle hooks, while persistence remains owned by
+  // the auth commands above.
+  watch(isAuthenticated, async (authenticated, wasAuthenticated) => {
+    if (authenticated) {
+      void updateCredits()
       needsLogin.value = false
+
+      if (!wasAuthenticated)
+        await dispatchHooks(authenticatedHooks, 'auth hook error')
     }
     else {
       credits.value = 0
+
+      if (wasAuthenticated)
+        await dispatchHooks(logoutHooks, 'logout hook error')
     }
   }, { immediate: true })
+
+  async function dispatchHooks(hooks: AuthHook[], errorLabel: string): Promise<void> {
+    for (const hook of hooks) {
+      try {
+        await hook()
+      }
+      catch (error) {
+        console.error(errorLabel, error)
+      }
+    }
+  }
 
   return {
     user,

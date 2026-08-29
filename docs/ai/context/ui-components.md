@@ -258,6 +258,7 @@ Basic text/number input.
 | `type` | `InputType?` | — | HTML input type |
 | `variant` | `'primary' \| 'secondary' \| 'primary-dimmed'` | `'primary'` | Visual variant |
 | `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Size |
+| `disabled` | `boolean?` | — | Disable editing and focus |
 
 **v-model**: `modelValue: string | number`
 
@@ -420,6 +421,8 @@ Dropdown select using reka-ui with grouping and custom rendering.
 | `by` | `string \| ((a: T, b: T) => boolean)?` | — | Custom comparison |
 | `contentMinWidth` | `string \| number?` | `160` | Dropdown min width |
 | `contentWidth` | `string \| number?` | — | Dropdown width |
+| `contentSide` | `'top' \| 'right' \| 'bottom' \| 'left'` | `'bottom'` | Preferred dropdown side before collision handling |
+| `contentAlign` | `'start' \| 'center' \| 'end'` | `'start'` | Preferred dropdown alignment before collision handling |
 | `shape` | `'rounded' \| 'default'` | `'default'` | Shape |
 | `variant` | `'blurry' \| 'default'` | `'default'` | Variant |
 
@@ -517,6 +520,7 @@ All Field components wrap a base input with `label`, `description`, and consiste
 | `description` | `string?` | — | Helper text |
 | `placeholder` | `string?` | — | Placeholder |
 | `required` | `boolean?` | — | Required indicator |
+| `disabled` | `boolean?` | — | Disable editing and focus |
 | `type` | `InputType?` | — | Input type |
 | `autocomplete` | `string?` | — | Native autocomplete hint |
 | `inputClass` | `string?` | — | Custom input class |

@@ -3,7 +3,7 @@ import type Stripe from 'stripe'
 import type { RevenueMetrics } from '../../../otel'
 import type { BillingService } from '../../../services/domain/billing/billing-service'
 import type { FluxService } from '../../../services/domain/flux'
-import type { ProductAction, ProductEventService } from '../../../services/domain/product-events'
+import type { ProductEventService } from '../../../services/domain/product-events'
 import type { StripeService } from '../../../services/domain/stripe'
 
 import { useLogger } from '@guiiai/logg'
@@ -96,6 +96,7 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
               feature: 'billing',
               action: 'payment_completed',
               status: 'succeeded',
+              eventId: event.data.object.id,
               source: 'stripe.webhook',
               metadata: {
                 amount_total: event.data.object.amount_total,
@@ -119,29 +120,15 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
-        const result = await handleSubscriptionEvent(event.data.object, deps.stripeService)
+        await handleSubscriptionEvent(event.data.object, deps.stripeService)
         deps.metrics?.stripeSubscriptionEvent.add(1, { event_type: event.type.replace('customer.subscription.', '') })
-        const action = subscriptionActionForWebhookEvent(event.type)
-        if (result && action) {
-          void deps.productEventService?.track({
-            userId: result.userId,
-            feature: 'billing',
-            action,
-            status: 'succeeded',
-            source: 'stripe.webhook',
-            metadata: {
-              stripe_price_id: result.stripePriceId ?? null,
-              stripe_subscription_status: result.subscriptionStatus ?? null,
-            },
-          })
-        }
         break
       }
       case 'invoice.created':
       case 'invoice.updated':
       case 'invoice.paid':
       case 'invoice.payment_failed': {
-        const result = await handleInvoiceEvent(event.data.object, deps.stripeService)
+        await handleInvoiceEvent(event.data.object, deps.stripeService)
         if (event.type === 'invoice.payment_failed')
           deps.metrics?.stripePaymentFailed.add(1)
         if (event.type === 'invoice.paid' && event.data.object.amount_paid && event.data.object.currency) {
@@ -150,34 +137,12 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
             source: 'invoice',
           })
         }
-        if (event.type === 'invoice.paid' && event.data.object.billing_reason === 'subscription_cycle' && result?.stripeSubscriptionId) {
-          void deps.productEventService?.track({
-            userId: result.userId,
-            feature: 'billing',
-            action: 'subscription_renewed',
-            status: 'succeeded',
-            source: 'stripe.webhook',
-            metadata: {
-              amount_paid: result.amountPaid ?? null,
-              currency: result.currency ?? null,
-              stripe_price_id: result.stripePriceId ?? null,
-            },
-          })
-        }
         break
       }
     }
 
     return { received: true }
   }
-}
-
-function subscriptionActionForWebhookEvent(eventType: Stripe.Event.Type): ProductAction | null {
-  if (eventType === 'customer.subscription.created')
-    return 'subscription_started'
-  if (eventType === 'customer.subscription.deleted')
-    return 'subscription_cancelled'
-  return null
 }
 
 async function handleCheckoutSessionCompleted(

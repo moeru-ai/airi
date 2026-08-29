@@ -11,8 +11,10 @@ import { getChatHistoryItemCopyText } from '../utils'
 const props = withDefaults(defineProps<{
   message: Extract<ChatMessage, { role: 'user' }>
   label: string
+  scrollContainer?: HTMLElement | null
   variant?: 'desktop' | 'mobile'
 }>(), {
+  scrollContainer: null,
   variant: 'desktop',
 })
 
@@ -43,16 +45,19 @@ const containerClasses = computed(() => [
 ])
 
 const boxClasses = computed(() => [
-  props.variant === 'mobile' ? 'px-2 pt-2 pb-1 text-sm bg-neutral-100/90 dark:bg-neutral-800/90' : 'px-3 pt-3 pb-2 bg-neutral-100/80 dark:bg-neutral-800/80',
+  props.variant === 'mobile'
+    ? ['px-2 pt-2 pb-1 text-sm', 'bg-neutral-100/60 backdrop-blur-xl dark:bg-neutral-800/60']
+    : ['px-3 pt-3 pb-2', 'bg-neutral-100/80 dark:bg-neutral-800/80'],
 ])
 const copyText = computed(() => getChatHistoryItemCopyText(props.message as ChatHistoryItem))
 </script>
 
 <template>
-  <div v-if="message.role === 'user'" :class="containerClasses" class="ph-no-capture">
+  <div v-if="message.role === 'user'" :class="['font-cute', containerClasses]" class="ph-no-capture">
     <ChatActionMenu
       :copy-text="copyText"
       placement="left"
+      :scroll-container="scrollContainer"
       @copy="emit('copy')"
       @delete="emit('delete')"
     >
@@ -62,6 +67,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
           flex="~ col" shadow="sm neutral-200/50 dark:none"
           min-w-20 rounded-xl h="unset <sm:fit"
           :class="[
+            'chat-message-item-container',
             boxClasses,
             (isStageWeb() || isStageCapacitor()) && props.variant === 'mobile' ? 'select-none sm:select-auto' : '',
           ]"

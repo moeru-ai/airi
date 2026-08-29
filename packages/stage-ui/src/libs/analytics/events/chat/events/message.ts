@@ -12,14 +12,6 @@ export const messageSentEvent = defineEvent<{
   message_length: number
   has_attachment: boolean
   mode: 'text' | 'voice'
+  trigger_method: 'text_input' | 'voice'
+  trigger_type: 'user_action'
 }>('message_sent')
-
-export const secondTurnStartedEvent = defineEvent<{
-  conversation_id: string
-  provider_mode: 'official' | 'custom' | 'unknown'
-  provider_id: string
-  model_id: string
-  round_id: string
-  source: 'text' | 'voice'
-  turn_index: number
-}>('second_turn_started')

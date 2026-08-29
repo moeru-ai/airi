@@ -2,6 +2,7 @@
 import type { ChatToolCallRendererRegistry } from '@proj-airi/stage-ui/components'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
+import { errorMessageFrom } from '@moeru/std'
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
@@ -37,9 +38,9 @@ const backgroundStore = useBackgroundStore()
 const journalPreviewStore = useJournalPreviewStore()
 const airiCardStore = useAiriCardStore()
 
-const { messages } = storeToRefs(chatSession)
+const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { sending } = storeToRefs(chatStore)
+const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 const { t } = useI18n()
 const { openImagePreview } = journalPreviewStore
@@ -88,6 +89,9 @@ async function handleSend() {
 
   const textToSend = messageInput.value
   const attachmentsToSend = attachments.value.map(att => ({ ...att }))
+  // The active session can change while the cross-window request is pending.
+  // Keep one correlation key for both the send and its failure recovery.
+  const targetSessionId = chatSession.activeSessionId
 
   // optimistic clear
   messageInput.value = ''
@@ -95,7 +99,7 @@ async function handleSend() {
 
   try {
     await chatStore.send({
-      sessionId: chatSession.activeSessionId,
+      sessionId: targetSessionId,
       text: textToSend,
       attachments: attachmentsToSend,
       tools: artistryToolReferences,
@@ -103,10 +107,21 @@ async function handleSend() {
 
     attachmentsToSend.forEach(att => URL.revokeObjectURL(att.url))
   }
-  catch {
-    // restore on failure
-    messageInput.value = textToSend
-    attachments.value = attachmentsToSend
+  catch (error) {
+    const errorMessage = errorMessageFrom(error) ?? String(error)
+    const wasCancelledForDeletedSession
+      = errorMessage.includes('Chat session was reset before send could start')
+        || errorMessage.includes('Chat session was removed before send completed')
+    if (!wasCancelledForDeletedSession && chatSession.activeSessionId === targetSessionId) {
+      const currentDraft = messageInput.value
+      messageInput.value = currentDraft ? `${textToSend}\n${currentDraft}` : textToSend
+      attachments.value = [...attachmentsToSend, ...attachments.value]
+    }
+    else {
+      // This window no longer owns a visible attachment preview, so its Blob
+      // URLs must be released instead of surviving until the window closes.
+      attachmentsToSend.forEach(attachment => URL.revokeObjectURL(attachment.url))
+    }
   }
 }
 
@@ -197,6 +212,10 @@ watch(sendMode, () => {
 
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 const assistantLabel = computed(() => activeCard.value?.name?.trim() || undefined)
+const isActiveSessionSending = computed(() => sending.value && activeSendSessionId.value === activeSessionId.value)
+const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
+  ? activeStreamingMessage.value
+  : streamingMessage.value)
 
 async function handleDeleteMessage(index: number) {
   const message = messages.value[index]
@@ -252,8 +271,8 @@ async function handleCleanupMessages() {
       <ChatHistory
         :messages="historyMessages"
         :assistant-label="assistantLabel"
-        :sending="sending"
-        :streaming-message="streamingMessage"
+        :sending="isActiveSessionSending"
+        :streaming-message="visibleStreamingMessage"
         :tool-call-renderers="toolCallRenderers"
         @delete-message="handleDeleteMessage($event.index)"
         @retry-message="handleRetryMessage($event.index)"

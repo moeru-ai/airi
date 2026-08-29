@@ -24,6 +24,7 @@
   "dependencies": {
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
+    "@proj-airi/audio": "workspace:^",
     "@proj-airi/ccc": "workspace:*",
     "@proj-airi/i18n": "workspace:*",
     "@proj-airi/server-sdk": "workspace:*",

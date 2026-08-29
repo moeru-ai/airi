@@ -6,32 +6,17 @@ import type { AnalyticsRecorder } from '../../index'
 import { getAnalytics } from '../../index'
 import {
   aiGenerationEvent,
-  assistantResponseRenderedEvent,
-  chatActivationFailedEvent,
-  chatActivationStartedEvent,
-  chatActivationSucceededEvent,
-  llmFirstTokenEvent,
-  llmRequestStartedEvent,
   messageRoundEvent,
   messageRoundFailedEvent,
-  messageSendStartedEvent,
   messageSentEvent,
-  secondTurnStartedEvent,
 } from './events'
 import { getProviderMode } from './types'
 
 type ChatAnalyticsCallbacks = Pick<
   ChatOrchestratorRuntimeDeps,
-  | 'onAssistantResponseRendered'
-  | 'onChatActivationFailed'
-  | 'onChatActivationStarted'
-  | 'onChatActivationSucceeded'
-  | 'onLlmFirstToken'
   | 'onLlmGeneration'
-  | 'onLlmRequestStarted'
   | 'onMessageRound'
   | 'onMessageRoundFailed'
-  | 'onMessageSendStarted'
   | 'onTrackFirstMessage'
   | 'onUserMessageAppended'
 >
@@ -55,43 +40,6 @@ export function createChatAnalyticsHooks(options: CreateChatAnalyticsHooksOption
 
   return {
     onTrackFirstMessage: () => analytics.recordFirstMessage(),
-    onMessageSendStarted: ({ conversationId, roundId, turnIndex, source, model }) => {
-      analytics.emit(messageSendStartedEvent, {
-        conversation_id: conversationId,
-        round_id: roundId,
-        turn_index: turnIndex,
-        source,
-        model,
-      })
-    },
-    onLlmRequestStarted: ({ conversationId, roundId, turnIndex, model, provider, hasVoice }) => {
-      analytics.emit(llmRequestStartedEvent, {
-        conversation_id: conversationId,
-        round_id: roundId,
-        turn_index: turnIndex,
-        model,
-        provider,
-        has_voice: hasVoice,
-      })
-    },
-    onLlmFirstToken: ({ conversationId, roundId, turnIndex, model, ttfbMs }) => {
-      analytics.emit(llmFirstTokenEvent, {
-        conversation_id: conversationId,
-        round_id: roundId,
-        turn_index: turnIndex,
-        model,
-        ttfb_ms: ttfbMs,
-      })
-    },
-    onAssistantResponseRendered: ({ conversationId, roundId, turnIndex, model, latencyMs }) => {
-      analytics.emit(assistantResponseRenderedEvent, {
-        conversation_id: conversationId,
-        round_id: roundId,
-        turn_index: turnIndex,
-        model,
-        latency_ms: latencyMs,
-      })
-    },
     onLlmGeneration: ({ conversationId, roundId, model, provider, inputTokens, outputTokens, totalTokens, usageSource }) => {
       const providerType = getProviderMode(provider)
       if (providerType !== 'custom')
@@ -121,6 +69,8 @@ export function createChatAnalyticsHooks(options: CreateChatAnalyticsHooksOption
         output_tokens: outputTokens,
         total_tokens: totalTokens,
         usage_source: usageSource,
+        trigger_method: hasVoice ? 'voice' : 'text_input',
+        trigger_type: 'user_flow_result',
       })
     },
     onMessageRoundFailed: ({ conversationId, roundId, turnIndex, model, provider, errorCode, failureStage, source }) => {
@@ -133,42 +83,8 @@ export function createChatAnalyticsHooks(options: CreateChatAnalyticsHooksOption
         source,
         error_code: errorCode,
         failure_stage: failureStage,
-      })
-    },
-    onChatActivationStarted: ({ conversationId, roundId, turnIndex, model, provider, source }) => {
-      analytics.emit(chatActivationStartedEvent, {
-        conversation_id: conversationId,
-        provider_mode: getProviderMode(provider),
-        provider_id: provider || 'unknown',
-        model_id: model || 'unknown',
-        round_id: roundId,
-        source,
-        turn_index: turnIndex,
-      })
-    },
-    onChatActivationSucceeded: ({ conversationId, roundId, turnIndex, model, provider, durationMs, source }) => {
-      analytics.emit(chatActivationSucceededEvent, {
-        conversation_id: conversationId,
-        provider_mode: getProviderMode(provider),
-        provider_id: provider || 'unknown',
-        model_id: model || 'unknown',
-        round_id: roundId,
-        time_to_first_message_ms: durationMs,
-        source,
-        turn_index: turnIndex,
-      })
-    },
-    onChatActivationFailed: ({ conversationId, roundId, turnIndex, model, provider, errorCode, failureStage, source }) => {
-      analytics.emit(chatActivationFailedEvent, {
-        conversation_id: conversationId,
-        provider_mode: getProviderMode(provider),
-        provider_id: provider || 'unknown',
-        model_id: model || 'unknown',
-        round_id: roundId,
-        error_code: errorCode,
-        failure_stage: failureStage,
-        source,
-        turn_index: turnIndex,
+        trigger_method: source === 'voice' ? 'voice' : 'text_input',
+        trigger_type: 'user_flow_result',
       })
     },
     onUserMessageAppended: ({ sessionId, message, messageText, source, model, provider, roundId, turnIndex }) => {
@@ -185,18 +101,8 @@ export function createChatAnalyticsHooks(options: CreateChatAnalyticsHooksOption
         message_length: messageText.length,
         has_attachment: false,
         mode: source,
-      })
-      if (turnIndex !== 2)
-        return
-
-      analytics.emit(secondTurnStartedEvent, {
-        conversation_id: sessionId,
-        provider_mode: providerType,
-        provider_id: provider || 'unknown',
-        model_id: model || 'unknown',
-        round_id: roundId,
-        source,
-        turn_index: turnIndex,
+        trigger_method: source === 'voice' ? 'voice' : 'text_input',
+        trigger_type: 'user_action',
       })
     },
   }

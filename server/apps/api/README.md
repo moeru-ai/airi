@@ -8,7 +8,7 @@ auth/OIDC routes.
 
 - Hono business APIs and WebSocket endpoints.
 - Characters, chats, providers, Flux, Stripe, model routing, and billing.
-- PostgreSQL migration ownership for the currently shared database.
+- PostgreSQL migration ownership for the currently shared database. Drizzle reads the checked-in `drizzle/` journal and SQL files at startup.
 - Redis cache, configuration KV, and cross-instance Pub/Sub.
 - Local verification of Auth-issued OIDC JWTs through public JWKS.
 
@@ -44,8 +44,6 @@ the API and Auth container ports private.
   the private network while issuer and audience remain `AUTH_SERVER_URL`.
 - Auth tables and principal types come from `@proj-airi/auth-shared`; no module
   under `server/apps/auth` is imported.
-- `ADMIN_UI_URL` controls the standalone admin UI redirect and defaults to
-  `https://admin.airi.build`.
 
 ## Railway
 

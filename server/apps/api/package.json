@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/api-server",
   "type": "module",
-  "version": "0.11.3",
+  "version": "0.12.0-beta.4",
   "private": true,
   "exports": {
     "./app-type": "./src/app-type.ts"
@@ -18,6 +18,7 @@
   "dependencies": {
     "@dotenvx/dotenvx": "catalog:",
     "@electric-sql/pglite": "catalog:",
+    "@electric-sql/pglite-pgvector": "catalog:",
     "@guiiai/logg": "catalog:",
     "@hono/node-server": "catalog:",
     "@hono/node-ws": "catalog:",
@@ -44,8 +45,6 @@
     "@opentelemetry/sdk-trace-node": "catalog:",
     "@opentelemetry/semantic-conventions": "catalog:",
     "@proj-airi/auth-shared": "workspace:*",
-    "@proj-airi/drizzle-migration": "workspace:*",
-    "@proj-airi/drizzle-orm-browser-migrator": "catalog:",
     "@proj-airi/server-sdk-shared": "workspace:*",
     "drizzle-orm": "catalog:",
     "drizzle-valibot": "catalog:",
@@ -66,8 +65,10 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@types/ioredis-mock": "catalog:",
     "@types/pg": "catalog:",
     "@types/ws": "catalog:",
-    "drizzle-kit": "catalog:"
+    "drizzle-kit": "catalog:",
+    "ioredis-mock": "catalog:"
   }
 }

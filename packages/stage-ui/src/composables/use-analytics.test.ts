@@ -217,80 +217,6 @@ describe('useAnalytics conversation product events', () => {
 
   /**
    * @example
-   * analytics.trackChatActivationStarted({ conversation_id: 'session-1', round_id: 'round-1', turn_index: 1, provider_mode: 'official', provider_id: 'official-provider', model_id: 'gpt-test', source: 'text' })
-   * expect(posthog.capture).toHaveBeenCalledWith('chat_activation_started', expect.objectContaining({ app_surface: 'web' }))
-   */
-  it('emits chat activation milestones with inferred surface and normalized fields', () => {
-    const analytics = useAnalytics()
-
-    analytics.trackChatActivationStarted({
-      conversation_id: 'session-1',
-      round_id: 'round-1',
-      turn_index: 1,
-      provider_mode: 'official',
-      provider_id: 'official-provider',
-      model_id: 'gpt-test',
-      source: 'text',
-    })
-    analytics.trackChatActivationSucceeded({
-      conversation_id: 'session-1',
-      round_id: 'round-1',
-      turn_index: 1,
-      provider_mode: 'official',
-      provider_id: 'official-provider',
-      model_id: 'gpt-test',
-      time_to_first_message_ms: 1200,
-      source: 'voice',
-    })
-    analytics.trackChatActivationFailed({
-      conversation_id: 'session-1',
-      round_id: 'round-1',
-      turn_index: 1,
-      provider_mode: 'custom',
-      provider_id: 'openai-compatible',
-      model_id: 'custom',
-      error_code: 'provider_error',
-      failure_stage: 'llm_response',
-      source: 'voice',
-    })
-
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'chat_activation_started', {
-      app_surface: 'web',
-      conversation_id: 'session-1',
-      round_id: 'round-1',
-      turn_index: 1,
-      provider_mode: 'official',
-      provider_id: 'official-provider',
-      model_id: 'gpt-test',
-      source: 'text',
-    })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'chat_activation_succeeded', {
-      app_surface: 'web',
-      conversation_id: 'session-1',
-      round_id: 'round-1',
-      turn_index: 1,
-      provider_mode: 'official',
-      provider_id: 'official-provider',
-      model_id: 'gpt-test',
-      time_to_first_message_ms: 1200,
-      source: 'voice',
-    })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'chat_activation_failed', {
-      app_surface: 'web',
-      conversation_id: 'session-1',
-      round_id: 'round-1',
-      turn_index: 1,
-      provider_mode: 'custom',
-      provider_id: 'openai-compatible',
-      model_id: 'custom',
-      error_code: 'provider_error',
-      failure_stage: 'llm_response',
-      source: 'voice',
-    })
-  })
-
-  /**
-   * @example
    * analytics.trackVoiceSelected({ tts_provider_id: 'official-provider', tts_model_id: 'stepfun/tts', voice_id: 'voice-1', voice_type: 'official_selected', source: 'settings' })
    * expect(posthog.capture).toHaveBeenCalledWith('voice_selected', expect.objectContaining({ voice_id: 'voice-1' }))
    */
@@ -329,6 +255,8 @@ describe('useAnalytics conversation product events', () => {
       tts_provider_id: 'official-provider',
       tts_model_id: 'stepfun/tts',
       source: 'settings',
+      trigger_method: 'selection',
+      trigger_type: 'user_action',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'voice_selected', {
       app_surface: 'web',
@@ -353,51 +281,6 @@ describe('useAnalytics conversation product events', () => {
       voice_id: 'longxiaochun_v2',
       voice_pack_id: 'pack-1',
       source: 'settings',
-    })
-  })
-
-  /**
-   * @example
-   * analytics.trackOfficialProviderSelected({ provider_id: 'official-provider', provider_mode: 'official', source: 'default_auto', auto_selected: true })
-   * expect(posthog.capture).toHaveBeenCalledWith('official_provider_selected', expect.objectContaining({ auto_selected: true }))
-   */
-  it('emits official provider and second-turn operating events with bounded fields', () => {
-    const analytics = useAnalytics()
-
-    analytics.trackOfficialProviderSelected({
-      provider_id: 'official-provider',
-      provider_mode: 'official',
-      source: 'default_auto',
-      auto_selected: true,
-      model_id: 'chat-auto',
-    })
-    analytics.trackSecondTurnStarted({
-      conversation_id: 'session-1',
-      provider_id: 'official-provider',
-      provider_mode: 'official',
-      model_id: 'chat-auto',
-      round_id: 'round-2',
-      source: 'text',
-      turn_index: 2,
-    })
-
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'official_provider_selected', {
-      app_surface: 'web',
-      provider_id: 'official-provider',
-      provider_mode: 'official',
-      source: 'default_auto',
-      auto_selected: true,
-      model_id: 'chat-auto',
-    })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'second_turn_started', {
-      app_surface: 'web',
-      conversation_id: 'session-1',
-      provider_id: 'official-provider',
-      provider_mode: 'official',
-      model_id: 'chat-auto',
-      round_id: 'round-2',
-      source: 'text',
-      turn_index: 2,
     })
   })
 
@@ -429,13 +312,6 @@ describe('useAnalytics conversation product events', () => {
       source: 'manual_preview',
       duration_ms: 320,
     })
-    analytics.trackOfficialTtsAutoEnabled({
-      tts_provider_id: 'official-provider-speech',
-      tts_model_id: 'stepfun/tts',
-      source: 'settings',
-      enabled: true,
-    })
-
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'official_tts_exposed', {
       app_surface: 'web',
       tts_provider_id: 'official-provider-speech',
@@ -458,13 +334,6 @@ describe('useAnalytics conversation product events', () => {
       voice_type: 'official_selected',
       source: 'manual_preview',
       duration_ms: 320,
-    })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'official_tts_auto_enabled', {
-      app_surface: 'web',
-      tts_provider_id: 'official-provider-speech',
-      tts_model_id: 'stepfun/tts',
-      source: 'settings',
-      enabled: true,
     })
   })
 
@@ -519,22 +388,15 @@ describe('useAnalytics conversation product events', () => {
    * analytics.trackMicrophonePermissionDenied({ stt_provider_id: 'browser-web-speech-api' })
    * expect(posthog.capture).toHaveBeenCalledWith('microphone_permission_denied', expect.objectContaining({ app_surface: 'web' }))
    */
-  it('emits voice input friction events with low-cardinality error fields', () => {
+  it('emits one voice action and only user-relevant outcome events', () => {
     const analytics = useAnalytics()
 
     analytics.trackVoiceInputStarted({
       stt_provider_id: 'browser-web-speech-api',
     })
-    analytics.trackMicrophonePermissionRequested({
-      stt_provider_id: 'browser-web-speech-api',
-    })
     analytics.trackMicrophonePermissionDenied({
       stt_provider_id: 'browser-web-speech-api',
       error_code: 'permission_denied',
-    })
-    analytics.trackAudioDeviceUnavailable({
-      stt_provider_id: 'browser-web-speech-api',
-      error_code: 'device_unavailable',
     })
     analytics.trackVoiceInputCancelled({
       stt_provider_id: 'browser-web-speech-api',
@@ -544,132 +406,84 @@ describe('useAnalytics conversation product events', () => {
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'voice_input_started', {
       app_surface: 'web',
       stt_provider_id: 'browser-web-speech-api',
+      trigger_method: 'voice',
+      trigger_type: 'user_action',
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'voice_input_used', {
-      app_surface: 'web',
-      stt_provider_id: 'browser-web-speech-api',
-    })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'microphone_permission_requested', {
-      app_surface: 'web',
-      stt_provider_id: 'browser-web-speech-api',
-    })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'microphone_permission_denied', {
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'microphone_permission_denied', {
       app_surface: 'web',
       stt_provider_id: 'browser-web-speech-api',
       error_code: 'permission_denied',
+      trigger_method: 'voice',
+      trigger_type: 'user_flow_result',
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(5, 'audio_device_unavailable', {
-      app_surface: 'web',
-      stt_provider_id: 'browser-web-speech-api',
-      error_code: 'device_unavailable',
-    })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(6, 'voice_input_cancelled', {
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'voice_input_cancelled', {
       app_surface: 'web',
       stt_provider_id: 'browser-web-speech-api',
       duration_ms: 420,
+      trigger_method: 'voice',
+      trigger_type: 'user_flow_result',
     })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenCalledTimes(3)
   })
 
   /**
    * @example
-   * analytics.trackModelListLoaded({ provider_id: 'official-provider', provider_mode: 'official', model_count: 3, duration_ms: 25 })
-   * expect(posthog.capture).toHaveBeenCalledWith('model_list_loaded', expect.objectContaining({ provider_id: 'official-provider' }))
+   * analytics.trackProviderConnectionTestCompleted({ provider_id: 'openai-compatible', provider_mode: 'custom', success: false, error_code: 'validation_failed', duration_ms: 32 })
+   * expect(posthog.capture).toHaveBeenCalledWith('provider_connection_test_completed', expect.objectContaining({ error_code: 'validation_failed' }))
    */
-  it('emits provider model-list health events', () => {
+  it('emits one manual provider test action and one result', () => {
     const analytics = useAnalytics()
 
-    analytics.trackModelListLoaded({
+    analytics.trackProviderConnectionTestStarted({
       provider_id: 'official-provider',
       provider_mode: 'official',
-      model_count: 3,
-      duration_ms: 25,
     })
-    analytics.trackModelListFailed({
-      provider_id: 'openai-compatible',
-      provider_mode: 'custom',
-      error_code: 'provider_error',
-      duration_ms: 40,
-    })
-
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'model_list_loaded', {
-      app_surface: 'web',
+    analytics.trackProviderConnectionTestCompleted({
       provider_id: 'official-provider',
       provider_mode: 'official',
-      model_count: 3,
-      duration_ms: 25,
-    })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'model_list_failed', {
-      app_surface: 'web',
-      provider_id: 'openai-compatible',
-      provider_mode: 'custom',
-      error_code: 'provider_error',
-      duration_ms: 40,
-    })
-  })
-
-  /**
-   * @example
-   * analytics.trackProviderConfigFailed({ provider_id: 'openai-compatible', provider_mode: 'custom', step: 'settings_auto_validate', error_code: 'validation_failed', duration_ms: 32 })
-   * expect(posthog.capture).toHaveBeenCalledWith('provider_config_failed', expect.objectContaining({ error_code: 'validation_failed' }))
-   */
-  it('emits provider configuration health events with bounded fields', () => {
-    const analytics = useAnalytics()
-
-    analytics.trackProviderConfigStarted({
-      provider_id: 'openai-compatible',
-      provider_mode: 'custom',
-      step: 'settings_auto_validate',
-    })
-    analytics.trackProviderConfigSucceeded({
-      provider_id: 'official-provider',
-      provider_mode: 'official',
-      step: 'manual_chat_ping',
-      duration_ms: 18,
-    })
-    analytics.trackProviderConfigFailed({
-      provider_id: 'openai-compatible',
-      provider_mode: 'custom',
-      step: 'settings_auto_validate',
-      error_code: 'validation_failed',
-      duration_ms: 32,
-    })
-
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'provider_config_started', {
-      app_surface: 'web',
-      provider_id: 'openai-compatible',
-      provider_mode: 'custom',
-      step: 'settings_auto_validate',
-    })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'provider_config_succeeded', {
-      app_surface: 'web',
-      provider_id: 'official-provider',
-      provider_mode: 'official',
-      step: 'manual_chat_ping',
-      duration_ms: 18,
-    })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'provider_config_completed', {
-      app_surface: 'web',
-      provider_id: 'official-provider',
-      provider_mode: 'official',
-      provider_type: 'official',
-      provider_name: 'official-provider',
-      entry_page: 'manual_chat_ping',
-      step: 'manual_chat_ping',
       duration_ms: 18,
       success: true,
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'official_provider_enabled', {
+
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'provider_connection_test_started', {
       app_surface: 'web',
-      provider_name: 'official-provider',
-      entry: 'settings',
+      provider_id: 'official-provider',
+      provider_mode: 'official',
+      trigger_method: 'button',
+      trigger_type: 'user_action',
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(5, 'provider_config_failed', {
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'provider_connection_test_completed', {
       app_surface: 'web',
-      provider_id: 'openai-compatible',
-      provider_mode: 'custom',
-      step: 'settings_auto_validate',
-      error_code: 'validation_failed',
-      duration_ms: 32,
+      provider_id: 'official-provider',
+      provider_mode: 'official',
+      duration_ms: 18,
+      success: true,
+      trigger_method: 'button',
+      trigger_type: 'user_flow_result',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('marks provider and model selections as explicit user actions', () => {
+    const analytics = useAnalytics()
+
+    analytics.trackProviderClick('official-provider', 'consciousness')
+    analytics.trackModelSwitched('none', 'model-b')
+
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'provider_card_clicked', {
+      app_surface: 'web',
+      provider_id: 'official-provider',
+      module: 'consciousness',
+      trigger_method: 'provider_card',
+      trigger_type: 'user_action',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'model_switched', {
+      app_surface: 'web',
+      from_model: 'none',
+      to_model: 'model-b',
+      reason: 'manual',
+      trigger_method: 'selection',
+      trigger_type: 'user_action',
     })
   })
 
@@ -738,6 +552,8 @@ describe('useAnalytics conversation product events', () => {
       message_length: 24,
       has_attachment: false,
       mode: 'text',
+      trigger_method: 'text_input',
+      trigger_type: 'user_action',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'quota_limit_reached', {
       limit_type: 'flux',
@@ -792,13 +608,6 @@ describe('useAnalytics conversation product events', () => {
       preset_type: 'stage_model',
       source: 'settings',
     })
-    analytics.trackProviderSwitched({
-      from_provider: 'openai-compatible',
-      to_provider: 'official-provider',
-      from_provider_type: 'custom',
-      to_provider_type: 'official',
-      reason: 'manual',
-    })
     analytics.trackSettingsChanged({
       setting_name: 'analytics_enabled',
       previous_value: false,
@@ -847,22 +656,14 @@ describe('useAnalytics conversation product events', () => {
       preset_type: 'stage_model',
       source: 'settings',
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(7, 'provider_switched', {
-      app_surface: 'web',
-      from_provider: 'openai-compatible',
-      to_provider: 'official-provider',
-      from_provider_type: 'custom',
-      to_provider_type: 'official',
-      reason: 'manual',
-    })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(8, 'settings_changed', {
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(7, 'settings_changed', {
       app_surface: 'web',
       setting_name: 'analytics_enabled',
       previous_value: false,
       new_value: true,
       source: 'settings',
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(9, 'support_contacted', {
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(8, 'support_contacted', {
       app_surface: 'web',
       channel: 'discord',
       source: 'settings',

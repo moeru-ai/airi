@@ -46,12 +46,12 @@ export const UpdateVoicePackInputSchema = object({
 })
 
 /**
- * Voice Pack creation input accepted by the admin service.
+ * Voice Pack creation input accepted by catalog management callers.
  */
 export type CreateVoicePackInput = InferOutput<typeof CreateVoicePackInputSchema>
 
 /**
- * Voice Pack update input accepted by the admin service.
+ * Voice Pack update input accepted by catalog management callers.
  */
 export type UpdateVoicePackInput = InferOutput<typeof UpdateVoicePackInputSchema>
 
@@ -59,7 +59,7 @@ export type UpdateVoicePackInput = InferOutput<typeof UpdateVoicePackInputSchema
  * Handles the curated server-side Voice Pack library.
  *
  * Use when:
- * - Admin routes create, update, disable, or list curated cloud-provider voices.
+ * - Catalog management callers create, update, disable, or list curated voices.
  * - Client routes need the enabled-only market list for binding.
  *
  * Expects:

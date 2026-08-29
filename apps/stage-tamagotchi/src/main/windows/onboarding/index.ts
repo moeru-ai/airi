@@ -74,7 +74,9 @@ export function setupOnboardingWindowManager(params: {
     await setupBaseWindowElectronInvokes({ context, window: newWindow, i18n: params.i18n, serverChannel: params.serverChannel })
     createAuthService({ context, window: newWindow })
 
-    await load(newWindow, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/onboarding'))
+    await load(newWindow, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/onboarding', {
+      query: { 'synced-leader': 'false' },
+    }))
 
     newWindow.on('closed', () => {
       for (const cb of closeCallbacks) {

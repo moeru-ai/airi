@@ -4,7 +4,6 @@ import type { AuthInstance } from './auth'
 import type { AuthDatabase } from './db'
 import type { AuthEnv } from './env'
 import type { RateLimitMetrics } from './otel'
-import type { AuthConfigService } from './rate-limit'
 import type { HonoEnv } from './routes'
 
 import process from 'node:process'
@@ -27,7 +26,6 @@ import { parseAuthEnv } from './env'
 import { ApiError, createInternalError } from './error'
 import { getTrustedOrigin } from './origin'
 import { emitOtelLog, initAuthOtel } from './otel'
-import { createAuthConfigService } from './rate-limit'
 import { createResourceApi } from './resource-api'
 import { createAuthRoutes } from './routes'
 
@@ -64,7 +62,6 @@ export interface AuthAppDeps {
   db: AuthDatabase
   redis: Redis
   env: AuthEnv
-  authConfig: AuthConfigService
   rateLimitMetrics?: RateLimitMetrics | null
 }
 
@@ -136,7 +133,6 @@ export async function buildAuthApp(deps: AuthAppDeps) {
       auth: deps.auth,
       db: deps.db,
       env: deps.env,
-      authConfig: deps.authConfig,
       rateLimitMetrics: deps.rateLimitMetrics,
     }))
 
@@ -172,8 +168,8 @@ export async function createAuthServer() {
         try {
           await candidate.db.execute('SELECT 1')
           logger.log(`Connected to database on attempt ${attempt}`)
-          // The drizzle-migration build owns the shared database history.
-          // Auth startup only checks connectivity and never races migrations.
+          // The API loads the shared migration history during its startup.
+          // Auth only checks connectivity and never races migrations.
           return candidate
         }
         catch (error) {
@@ -205,10 +201,6 @@ export async function createAuthServer() {
       })
       return instance
     },
-  })
-  const authConfig = provide(container, 'services:authConfig', {
-    dependsOn: { redis },
-    build: ({ dependsOn }) => createAuthConfigService(dependsOn.redis),
   })
   const email = provide(container, 'services:email', {
     dependsOn: { env, otel },
@@ -244,14 +236,13 @@ export async function createAuthServer() {
   })
 
   await start(container)
-  const dependencies = await resolve(container, { auth, authConfig, db, redis, env, otel })
+  const dependencies = await resolve(container, { auth, db, redis, env, otel })
 
   const { app } = await buildAuthApp({
     auth: dependencies.auth,
     db: dependencies.db,
     redis: dependencies.redis,
     env: dependencies.env,
-    authConfig: dependencies.authConfig,
     rateLimitMetrics: dependencies.otel?.rateLimit,
   })
 

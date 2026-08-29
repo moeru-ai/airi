@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T extends AcceptableValue">
-import type { AcceptableValue } from 'reka-ui'
+import type { AcceptableValue, SelectContentProps } from 'reka-ui'
 
 import type { SelectOptionGroupItem, SelectOptionItem } from './types'
 
@@ -27,6 +27,8 @@ const props = withDefaults(defineProps<{
   by?: string | ((a: T, b: T) => boolean)
   contentMinWidth?: string | number
   contentWidth?: string | number
+  contentSide?: SelectContentProps['side']
+  contentAlign?: SelectContentProps['align']
   shape?: 'rounded' | 'default'
   variant?: 'blurry' | 'default'
   class?: string | string[]
@@ -36,6 +38,8 @@ const props = withDefaults(defineProps<{
   by: undefined,
   contentMinWidth: 160,
   contentWidth: undefined,
+  contentSide: 'bottom',
+  contentAlign: 'start',
   shape: 'default',
   variant: 'default',
 })
@@ -153,8 +157,8 @@ function toCssSize(value?: string | number): string | undefined {
     <SelectPortal>
       <SelectContent
         position="popper"
-        side="bottom"
-        align="start"
+        :side="props.contentSide"
+        :align="props.contentAlign"
         :side-offset="4"
         :avoid-collisions="true"
         :class="[

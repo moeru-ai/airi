@@ -47,13 +47,6 @@ export const METRIC_AUTH_ATTEMPTS = 'auth.attempts'
 export const METRIC_AUTH_FAILURES = 'auth.failures'
 export const METRIC_USER_REGISTERED = 'user.registered'
 export const METRIC_USER_LOGIN = 'user.login'
-export const METRIC_USER_TOTAL = 'user.total'
-export const METRIC_USER_ACTIVE_SESSIONS = 'user.active_sessions'
-// Distinct users with at least one non-expired session row. Pair with
-// USER_ACTIVE_SESSIONS to detect "session row inflation" (Better Auth
-// creates a new row per sign-in / per OIDC token refresh and never GCs)
-// vs real user growth.
-export const METRIC_USER_DISTINCT_ACTIVE = 'user.distinct_active'
 
 // Engagement (AIRI custom)
 export const METRIC_CHAT_MESSAGES = 'chat.messages'
@@ -92,10 +85,8 @@ export const METRIC_AIRI_TTS_PREFLIGHT_REJECTIONS = 'airi.billing.tts.preflight_
 // AIRI observability — self-monitoring for the metric pipeline
 export const METRIC_AIRI_OBSERVABILITY_READ_ERRORS = 'airi.observability.read_errors'
 
-// Product analytics — low-cardinality event volume only. User-level product
-// analytics live in Postgres `product_events`; never add user identifiers to
-// this metric's labels.
-export const METRIC_AIRI_PRODUCT_EVENTS = 'airi.product.events'
+// AIRI database — local pg pool capacity and queue state
+export const METRIC_AIRI_DB_POOL_CONNECTIONS = 'airi.db.pool.connections'
 
 // AIRI revenue — actual money in (smallest currency unit, e.g. cents)
 export const METRIC_AIRI_STRIPE_REVENUE = 'airi.stripe.revenue'
@@ -131,8 +122,6 @@ export const METRIC_GEN_AI_CLIENT_FIRST_TOKEN_DURATION = 'gen_ai.client.first_to
 //                     misstep.
 // subscriber_state — Pub/Sub subscriber lifecycle transitions. Labels: state
 //                     (`subscribed` | `reconnecting` | `error` | `closed`).
-// config_write     — admin endpoint write events. Labels: result
-//                     (`success` | `4xx` | `5xx`), actor_email.
 // config_invalid_hmac
 //                  — Pub/Sub invalidation messages dropped due to HMAC mismatch
 //                     (forged or replayed). >0 = investigate Redis access.
@@ -143,7 +132,6 @@ export const METRIC_AIRI_GEN_AI_GATEWAY_SAME_STATUS_EXHAUSTION = 'airi.gen_ai.ga
 export const METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_RELOAD = 'airi.gen_ai.gateway.config.reload'
 export const METRIC_AIRI_GEN_AI_GATEWAY_DECRYPT_FAILURES = 'airi.gen_ai.gateway.decrypt.failures'
 export const METRIC_AIRI_GEN_AI_GATEWAY_SUBSCRIBER_STATE = 'airi.gen_ai.gateway.subscriber_state'
-export const METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_WRITE = 'airi.gen_ai.gateway.config.write'
 export const METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_INVALID_HMAC = 'airi.gen_ai.gateway.config.invalid_hmac'
 // TTSpool (per app_id concurrency pool) load-balancer signals.
 // pool_slot_rejected — capacity-aware routing skipped a pool because its app_id

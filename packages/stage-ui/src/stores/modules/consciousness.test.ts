@@ -1,9 +1,13 @@
+// @vitest-environment jsdom
+
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { useConsciousnessStore } from './consciousness'
+import { useConsciousnessSettingsStore } from './consciousness-settings'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -14,6 +18,7 @@ vi.mock('vue-i18n', () => ({
 
 describe('consciousness store provider selection', () => {
   beforeEach(() => {
+    localStorage.clear()
     setActivePinia(createPinia())
   })
 
@@ -72,6 +77,21 @@ describe('consciousness store provider selection', () => {
     expect(definition?.name).toBe('OpenAI')
   })
 
+  it('resolves chat providers with the current reasoning mode', async () => {
+    const providerConfigStore = useProviderConfigStore()
+    providerConfigStore.ensureProvider('openai', 'openai', { apiKey: 'sk-test' })
+    const consciousnessStore = useConsciousnessStore()
+    const settingsStore = useConsciousnessSettingsStore()
+
+    const disabledProvider = await consciousnessStore.getChatProviderInstance('openai')
+    expect(disabledProvider.chat('test-model')).toMatchObject({ reasoningEffort: 'none' })
+
+    await settingsStore.setReasoning(true)
+
+    const enabledProvider = await consciousnessStore.getChatProviderInstance('openai')
+    expect(enabledProvider.chat('test-model')).toMatchObject({ reasoningEffort: 'medium' })
+  })
+
   // ROOT CAUSE:
   //
   // The model selection was only cleared on provider switches by a watcher in
@@ -120,5 +140,32 @@ describe('consciousness store provider selection', () => {
     store.activeProvider = 'openai'
 
     expect(store.activeModel).toBe('gpt-4o-mini')
+  })
+
+  // ROOT CAUSE:
+  //
+  // The store used Pinia synchronization and storage event synchronization
+  // for the same state. An incoming Pinia snapshot changed the provider and
+  // reset the model. A stale storage event then restored the previous model.
+  // Both windows published each reflected change and created an endless loop.
+  //
+  // We fixed this by keeping localStorage as one-way persistence. Pinia is the
+  // only channel that can update live state across windows.
+  it('does not apply storage events as a second cross-window state channel', async () => {
+    const store = useConsciousnessStore()
+
+    store.activeProvider = 'official-provider'
+    store.activeModel = 'auto'
+    await nextTick()
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'settings/consciousness/active-model',
+      newValue: '',
+      storageArea: localStorage,
+    }))
+    await nextTick()
+    await nextTick()
+
+    expect(store.activeModel).toBe('auto')
   })
 })

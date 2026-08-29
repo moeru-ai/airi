@@ -29,6 +29,7 @@ const localProvider = {
   definitionId: 'openai-compatible',
   config: {},
   status: 'unconfigured',
+  configuredBy: 'user',
 } satisfies InferenceServiceProvider
 
 const remoteProvider = {

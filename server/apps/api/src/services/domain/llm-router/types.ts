@@ -1,11 +1,11 @@
 import type { InferOutput } from 'valibot'
 
 // NOTICE:
-// The Valibot schemas in `services/config-kv.ts` are the single source of
+// The Valibot schemas in `services/adapters/config-kv/definitions.ts` are the single source of
 // truth for the router config tree. We re-export inferred types so downstream
-// modules don't redeclare the shape. New fields belong in config-kv.ts, not
+// modules don't redeclare the shape. New fields belong in that file, not
 // here.
-// Source: server/apps/api/src/services/config-kv.ts (llmRouterConfigSchema).
+// Source: server/apps/api/src/services/adapters/config-kv/definitions.ts (llmRouterConfigSchema).
 import type {
   asrModelSchema,
   asrUpstreamSchema,

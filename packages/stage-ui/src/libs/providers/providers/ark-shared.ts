@@ -1,4 +1,4 @@
-import type { ModelInfo } from '../types'
+import type { ChatRequestOptions, ModelInfo } from '../types'
 
 import { createOpenAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
@@ -17,6 +17,8 @@ const arkProviderConfigSchema = z.object({
 interface ArkModelSpec {
   id: string
   contextLength?: number
+  deprecated?: boolean
+  descriptionKey?: string
 }
 
 interface ArkProviderDefinitionOptions {
@@ -62,6 +64,7 @@ export function createArkChatProviderDefinition(options: ArkProviderDefinitionOp
     description,
     descriptionLocalize: ({ t }) => t(descriptionKey),
     tasks: ['chat'],
+    capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
     icon,
     iconColor,
 
@@ -84,14 +87,18 @@ export function createArkChatProviderDefinition(options: ArkProviderDefinitionOp
 
       return {
         ...provider,
-        chat(model: string) {
-          return originalChat(stripModelPrefix(model, modelPrefix))
+        chat(model: string, requestOptions?: ChatRequestOptions) {
+          const request = originalChat(stripModelPrefix(model, modelPrefix))
+          if (!requestOptions?.reasoning)
+            return request
+
+          return { ...request, thinking: { type: requestOptions.reasoning } }
         },
       }
     },
 
     extraMethods: {
-      listModels: async () => models.map((model) => {
+      listModels: async (_config, _provider, contextOptions) => models.map((model) => {
         const modelInfo: ModelInfo = {
           id: `${modelPrefix}${model.id}`,
           name: model.id,
@@ -99,6 +106,12 @@ export function createArkChatProviderDefinition(options: ArkProviderDefinitionOp
         }
         if (model.contextLength !== undefined) {
           modelInfo.contextLength = model.contextLength
+        }
+        if (model.deprecated !== undefined) {
+          modelInfo.deprecated = model.deprecated
+        }
+        if (model.descriptionKey !== undefined && contextOptions) {
+          modelInfo.description = contextOptions.t(model.descriptionKey)
         }
         return modelInfo
       }),
