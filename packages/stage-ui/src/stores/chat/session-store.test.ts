@@ -730,7 +730,6 @@ describe('chat-session-store · synchronized data actions', () => {
       updatedAt: 1,
     }
     const store = useChatSessionStore()
-    store.setCloudSyncOwnership(false)
     store.applyRemoteSnapshot({
       activeSessionId: 'session-a',
       sessionMessages: {
@@ -762,24 +761,6 @@ describe('chat-session-store · synchronized data actions', () => {
     expect(store.index?.userId).toBe('cloud-user')
   })
 
-  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3755711151
-  it('keeps cloud synchronization in the elected leader for Issue #2085', async () => {
-    // ROOT CAUSE:
-    //
-    // Window-local initialization opened a cloud WebSocket in every window.
-    // Follower callbacks then proposed direct full-state mutations.
-    const store = useChatSessionStore()
-    store.setCloudSyncOwnership(false)
-    await store.initialize()
-
-    userIdRef.value = 'cloud-user'
-    await nextTick()
-    expect(connectCloudWsMock).not.toHaveBeenCalled()
-
-    store.setCloudSyncOwnership(true)
-    await vi.waitFor(() => expect(connectCloudWsMock).toHaveBeenCalledTimes(1))
-  })
-
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743242525
   it('initializes a new window selection from the synchronized index for Issue #2085', async () => {
     // ROOT CAUSE:
@@ -795,7 +776,6 @@ describe('chat-session-store · synchronized data actions', () => {
       updatedAt: 1,
     }
     const store = useChatSessionStore()
-    store.setCloudSyncOwnership(false)
     store.$patch({
       sessionMessages: { 'session-b': [{ id: 'system', role: 'system', content: 'prompt' }] },
       sessionMetas: { 'session-b': session },

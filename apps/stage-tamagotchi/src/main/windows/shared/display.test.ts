@@ -41,6 +41,22 @@ describe('mapForBreakpoints', () => {
     const val2 = mapForBreakpoints(2000, { 'sm': 100, 'md': 200, '2xl': 500 }) // expected to be lg
     expect(val2).toBe(500)
   })
+
+  it('should fall back to the breakpoint with the smallest minimum width when below all breakpoints', () => {
+    // ROOT CAUSE:
+    //
+    // When `basedOn` is below every supplied breakpoint (e.g. display height 500
+    // with sm/md/lg sizes), no breakpoint matches and the previous fallback was
+    // `Object.values(sizes)[0]`, which depends on object key insertion order.
+    // Sorting the sizes map (e.g. sm/md/lg -> lg/md/sm by a lint rule) changed
+    // the fallback from the sm formula to the lg formula and moved the inlay on
+    // small displays.
+    //
+    // We fixed this by selecting the breakpoint with the smallest minimum width
+    // explicitly, so the result is stable regardless of key order.
+    expect(mapForBreakpoints(500, { sm: 100, md: 200, lg: 300 })).toBe(100)
+    expect(mapForBreakpoints(500, { lg: 300, md: 200, sm: 100 })).toBe(100)
+  })
 })
 
 describe('widthFrom', () => {
