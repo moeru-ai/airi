@@ -1,0 +1,67 @@
+import { describe, expect, it, vi } from 'vitest'
+import { render } from 'vitest-browser-vue'
+import { defineComponent, shallowRef } from 'vue'
+
+import ChatHistoryScrollContainer from './chat-history-scroll-container.vue'
+
+describe('chat history scroll container', () => {
+  // ROOT CAUSE:
+  //
+  // Chat behavior needs one stable viewport element, even though desktop uses
+  // a custom Reka scrollbar while mobile keeps native overflow scrolling.
+  it('exposes the Reka viewport for desktop chat', async () => {
+    const container = shallowRef<InstanceType<typeof ChatHistoryScrollContainer>>()
+    const TestHost = defineComponent({
+      components: { ChatHistoryScrollContainer },
+      setup: () => ({ container }),
+      template: `
+        <ChatHistoryScrollContainer
+          ref="container"
+          variant="desktop"
+          style="height: 120px; width: 240px"
+        >
+          <div style="height: 240px">Long desktop history</div>
+        </ChatHistoryScrollContainer>
+      `,
+    })
+
+    const screen = await render(TestHost)
+    const viewport = screen.container.querySelector<HTMLElement>('.chat-history-list')
+
+    expect(viewport?.matches('[data-reka-scroll-area-viewport]')).toBe(true)
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('.scrollable-area-scrollbar--vertical')).not.toBeNull()
+    })
+    expect(container.value?.viewport).toBe(viewport)
+    expect(screen.container.querySelectorAll('.chat-history-list')).toHaveLength(1)
+  })
+
+  it('exposes a native overflow viewport for mobile chat', async () => {
+    const container = shallowRef<InstanceType<typeof ChatHistoryScrollContainer>>()
+    const TestHost = defineComponent({
+      components: { ChatHistoryScrollContainer },
+      setup: () => ({ container }),
+      template: `
+        <ChatHistoryScrollContainer
+          ref="container"
+          variant="mobile"
+          style="height: 120px; width: 240px"
+        >
+          <div style="height: 240px">Long mobile history</div>
+        </ChatHistoryScrollContainer>
+      `,
+    })
+
+    const screen = await render(TestHost)
+    const viewport = screen.container.querySelector<HTMLElement>('.chat-history-list')
+
+    expect(viewport).not.toBeNull()
+    if (!viewport)
+      throw new Error('Expected a mobile chat history viewport.')
+
+    expect(viewport.matches('[data-reka-scroll-area-viewport]')).toBe(false)
+    expect(screen.container.querySelector('.scrollable-area-scrollbar--vertical')).toBeNull()
+    expect(getComputedStyle(viewport).overflowY).toBe('auto')
+    expect(container.value?.viewport).toBe(viewport)
+  })
+})
