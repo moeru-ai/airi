@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/motion-driver-magic",
   "type": "module",
-  "version": "0.12.0-beta.1",
+  "version": "0.12.0-beta.5",
   "private": true,
   "description": "Markovian Animation Generator with Illusory Conditioning for Project AIRI",
   "author": {

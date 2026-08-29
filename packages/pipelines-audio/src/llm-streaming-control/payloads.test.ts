@@ -45,4 +45,12 @@ describe('normalizeActPayload', () => {
       emotion: { name: 'happy', intensity: 1 },
     })
   })
+
+  it('normalizes an expression name from an ACT payload', () => {
+    expect(normalizeActPayload({
+      expression: ' smile ',
+    })).toEqual({
+      expression: 'smile',
+    })
+  })
 })
