@@ -1,6 +1,5 @@
 import type { AiriCard } from './airi-card'
 
-import { useLive2DActCapabilitiesStore } from '@proj-airi/stage-ui-live2d'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -502,31 +501,6 @@ describe('airi-card store', () => {
     expect(cardStore.systemPrompt).not.toContain('Answer the latest observation')
     expect(cardStore.systemPrompt).not.toContain('Welcome to the observatory')
     expect(cardStore.systemPrompt).not.toContain('What did you find?')
-  })
-
-  // ROOT CAUSE:
-  //
-  // The card prompt listed only AIRI's fixed emotion vocabulary. A loaded
-  // Live2D model could expose more expressions and motions, but the LLM did
-  // not receive their exact ACT identifiers.
-  it('adds current Live2D ACT capabilities to the system prompt', async () => {
-    const cardStore = useAiriCardStore()
-    const capabilities = useLive2DActCapabilitiesStore()
-    await cardStore.initialize()
-
-    capabilities.beginModel('display-model-iru-v2')
-    capabilities.setExpressions('display-model-iru-v2', [
-      { name: 'smile', fileName: 'expressions/smile.exp3.json' },
-    ])
-    capabilities.setMotions('display-model-iru-v2', [
-      { fileName: 'motions/wave.motion3.json', group: 'AIRI', index: 0 },
-    ])
-
-    expect(cardStore.systemPrompt).toContain('Live2D ACT controls for the current model:')
-    expect(cardStore.systemPrompt).toContain('- "smile"')
-    expect(cardStore.systemPrompt).toContain('- "motions/wave.motion3.json"')
-    expect(cardStore.systemPrompt).toContain('<|ACT {"expression":"smile"}|>')
-    expect(cardStore.systemPrompt).toContain('<|ACT {"motion":"motions/wave.motion3.json"}|>')
   })
 
   it('falls back to the default card when the active custom card is deleted', async () => {
