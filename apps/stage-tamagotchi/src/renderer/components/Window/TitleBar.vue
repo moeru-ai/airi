@@ -40,6 +40,12 @@ const { platform } = useAppRuntime()
       >
         <slot name="actions" />
       </div>
+      <!--
+        NOTICE:
+        The planned collapse feature was not implemented. Keep this icon hidden until the feature exists.
+        https://github.com/moeru-ai/airi/issues/1835#issuecomment-4487178613
+      -->
+      <!--
       <div
         bg="hover:neutral-200 hover:dark:neutral-800"
         transition="all duration-200 ease-in-out"
@@ -47,6 +53,7 @@ const { platform } = useAppRuntime()
       >
         <div i-solar:info-circle-bold text="neutral-400 dark:neutral-500" whitespace-nowrap />
       </div>
+      -->
     </div>
   </div>
 </template>
