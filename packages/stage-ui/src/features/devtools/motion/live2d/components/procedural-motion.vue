@@ -28,6 +28,7 @@ const { t } = useI18n()
 const motion = useLive2DMotionMagic({
   dataset: () => props.recording,
   disabled: () => props.disabled ?? false,
+  forceViewTarget: false,
   publishPose: pose => emit('pose', pose),
   releasePose: () => emit('release'),
   setPlaying: playing => emit('playback', playing),

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Live2DMotionControlPose } from '@proj-airi/stage-ui-live2d/stores'
 
-import type { Live2DEyeViewPrototypeState } from '../composables/eye-view'
+import type { Live2DMotionViewTargetState } from '../../../../motions/live2d'
 
 import { BasicButton, FieldRange } from '@proj-airi/ui'
 import { computed } from 'vue'
@@ -9,11 +9,11 @@ import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   pose: Live2DMotionControlPose
-  view: Live2DEyeViewPrototypeState
+  view: Live2DMotionViewTargetState
 }>()
 
 const emit = defineEmits<{
-  updateView: [view: Live2DEyeViewPrototypeState]
+  updateView: [view: Live2DMotionViewTargetState]
 }>()
 
 const { t } = useI18n()
@@ -30,7 +30,7 @@ const counterStrength = computed({
 
 const formatStrength = (value: number) => `${value.toFixed(2)}×`
 
-function updateView(patch: Partial<Live2DEyeViewPrototypeState>) {
+function updateView(patch: Partial<Live2DMotionViewTargetState>) {
   emit('updateView', { ...props.view, ...patch })
 }
 

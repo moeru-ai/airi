@@ -177,12 +177,18 @@ live2d:
           title: MAGIC profile
           description: Select the bundled motion dataset that fits the MAGIC driver.
           options:
+            idle-calm:
+              title: Idle / calm
+              description: Use the bundled idle and calm motion recording.
             speaking-excited:
               title: Speaking / excited
               description: Use the bundled speaking and excited motion recording.
         skip-mouth-open:
           title: Skip generated mouth opening
           description: Keep speech lip sync in control. Disable this option to use mouth opening from the profile.
+        force-view-target:
+          title: Force forward view target
+          description: Keep the eyes aimed forward while MAGIC moves the head.
     focus:
       title: Enable mouse tracking
       description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.

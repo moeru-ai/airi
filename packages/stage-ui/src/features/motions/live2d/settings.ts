@@ -8,6 +8,7 @@ import { defaultLive2DMotionMagicProfileId, live2dMotionMagicProfiles } from './
 
 const profileId = useLocalStorageManualReset('settings/live2d/magic/profile', defaultLive2DMotionMagicProfileId)
 const skipMouthOpen = useLocalStorageManualReset('settings/live2d/magic/skip-mouth-open', true)
+const forceViewTarget = useLocalStorageManualReset('settings/live2d/magic/force-view-target', true)
 
 function isKnownProfileId(value: unknown): value is Live2DMotionMagicProfileId {
   return typeof value === 'string' && Object.hasOwn(live2dMotionMagicProfiles, value)
@@ -25,11 +26,13 @@ export const useLive2DMotionMagicSettings = defineStore('settings-live2d-motion-
   function resetState() {
     profileId.value = defaultLive2DMotionMagicProfileId
     skipMouthOpen.value = true
+    forceViewTarget.value = true
   }
 
   return {
     profileId,
     skipMouthOpen,
+    forceViewTarget,
     resetState,
   }
 })

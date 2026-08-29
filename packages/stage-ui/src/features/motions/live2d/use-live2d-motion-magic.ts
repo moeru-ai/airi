@@ -20,6 +20,7 @@ import { fit } from '@proj-airi/motion-driver-magic'
 import { computed, onScopeDispose, reactive, readonly, shallowRef, toValue, watch } from 'vue'
 
 import { defaultLive2DMotionMagicDataset } from './profiles'
+import { applyLive2DMotionViewTarget, defaultLive2DMotionViewTargetState } from './view-target'
 
 export type Live2DMotionMagicMethod = 'ar-hmm' | 'var'
 export type Live2DMotionMagicStatus = 'idle' | 'initializing' | 'playing' | 'ready'
@@ -30,6 +31,8 @@ export interface UseLive2DMotionMagicOptions {
   dataset?: MaybeRefOrGetter<Live2DMotionMagicDataset | null | undefined>
   /** Prevents generated motion from controlling mouth opening. @default true */
   skipMouthOpen?: MaybeRefOrGetter<boolean>
+  /** Keeps the generated eyes aimed at the forward view target. @default true */
+  forceViewTarget?: MaybeRefOrGetter<boolean>
   /** Stops playback and initialization while another motion source owns the target. */
   disabled?: MaybeRefOrGetter<boolean>
   /** Receives the newest generated pose after filtering. */
@@ -101,7 +104,9 @@ export function useLive2DMotionMagic(options: UseLive2DMotionMagicOptions) {
 
   const driver = createDriver<number | undefined>({
     target: {
-      apply: options.publishPose,
+      apply: pose => options.publishPose(toValue(options.forceViewTarget ?? true)
+        ? applyLive2DMotionViewTarget(pose, defaultLive2DMotionViewTargetState)
+        : pose),
       release: options.releasePose,
     },
     generateOptions: () => ({ noiseScale: getNoiseScale() }),

@@ -92,11 +92,13 @@ const {
 const live2dMotionControl = useLive2DMotionControl()
 const { exclusiveOwnerId: live2dMotionControlOwnerId } = storeToRefs(live2dMotionControl)
 const {
+  forceViewTarget: live2dMagicForceViewTarget,
   profileId: live2dMagicProfileId,
   skipMouthOpen: live2dMagicSkipMouthOpen,
 } = storeToRefs(useLive2DMotionMagicSettings())
 const live2dMagicMotion = useLive2DMotionMagic({
   dataset: () => live2dMotionMagicProfiles[live2dMagicProfileId.value].dataset,
+  forceViewTarget: live2dMagicForceViewTarget,
   skipMouthOpen: live2dMagicSkipMouthOpen,
   disabled: () => live2dMotionControlOwnerId.value !== null,
   publishPose: pose => live2dMotionControl.setPose('stage:live2d-motion-magic', pose, defaultLive2DMotionControlDynamics),

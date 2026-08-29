@@ -19,8 +19,8 @@ import ProceduralMotion from './components/procedural-motion.vue'
 import Workbench from './components/workbench.vue'
 
 import { useSystemAudioLipSyncStore } from '../../../../stores/system-audio-lipsync'
+import { applyLive2DMotionViewTarget, defaultLive2DMotionViewTargetState } from '../../../motions/live2d'
 import { defaultLive2DMotionRecording } from './composables/default-recording'
-import { applyLive2DEyeViewPrototype, defaultLive2DEyeViewPrototypeState } from './composables/eye-view'
 import { createLive2DMotionId } from './composables/keyframes'
 import { useLive2DMotionRecording } from './composables/recording'
 
@@ -49,7 +49,7 @@ const neutralPose = neutralLive2DMotionControlPose
 const sourcePose = shallowRef<Live2DMotionControlPose>(neutralPose)
 const pose = shallowRef<Live2DMotionControlPose>(neutralPose)
 const dynamics = shallowRef<Live2DMotionControlDynamics>(defaultLive2DMotionControlDynamics)
-const eyeView = shallowRef(defaultLive2DEyeViewPrototypeState)
+const eyeView = shallowRef(defaultLive2DMotionViewTargetState)
 const sourceActive = shallowRef(false)
 const active = shallowRef(false)
 const editorPlaying = shallowRef(false)
@@ -64,7 +64,7 @@ function publishComposedPose(nextPose: Live2DMotionControlPose, nextEyeView = ey
     : nextPose
   sourcePose.value = resolvedPose
   sourceActive.value = true
-  pose.value = applyLive2DEyeViewPrototype(resolvedPose, nextEyeView)
+  pose.value = applyLive2DMotionViewTarget(resolvedPose, nextEyeView)
   active.value = true
   motionControl.setPose(ownerId, pose.value, dynamics.value)
 }
@@ -75,7 +75,7 @@ function publishPose(nextPose: Live2DMotionControlPose) {
 
 function publishSystemAudioMouth(mouthOpen: number) {
   const nextPose = { ...sourcePose.value, mouthOpen }
-  pose.value = applyLive2DEyeViewPrototype(nextPose, eyeView.value)
+  pose.value = applyLive2DMotionViewTarget(nextPose, eyeView.value)
   active.value = true
   motionControl.setPose(ownerId, pose.value, dynamics.value)
 }
@@ -132,7 +132,7 @@ function publishRelease() {
   sourceActive.value = false
 
   if (eyeView.value.enabled) {
-    pose.value = applyLive2DEyeViewPrototype(neutralPose, eyeView.value)
+    pose.value = applyLive2DMotionViewTarget(neutralPose, eyeView.value)
     active.value = true
     motionControl.setPose(ownerId, pose.value, dynamics.value)
     return
@@ -184,7 +184,7 @@ function updateEyeView(nextView: typeof eyeView.value) {
     return
   }
 
-  pose.value = applyLive2DEyeViewPrototype(sourcePose.value, nextView)
+  pose.value = applyLive2DMotionViewTarget(sourcePose.value, nextView)
   active.value = true
   motionControl.setPose(ownerId, pose.value, dynamics.value)
 }

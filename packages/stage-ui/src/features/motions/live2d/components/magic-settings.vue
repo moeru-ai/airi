@@ -10,9 +10,13 @@ import { live2dMotionMagicProfiles } from '../profiles'
 import { useLive2DMotionMagicSettings } from '../settings'
 
 const { t } = useI18n()
-const { profileId, skipMouthOpen } = storeToRefs(useLive2DMotionMagicSettings())
+const { forceViewTarget, profileId, skipMouthOpen } = storeToRefs(useLive2DMotionMagicSettings())
 
 const profileCopyKeys = {
+  'idle-calm': {
+    title: 'settings.live2d.animation.motion-driver.magic.profile.options.idle-calm.title',
+    description: 'settings.live2d.animation.motion-driver.magic.profile.options.idle-calm.description',
+  },
   'speaking-excited': {
     title: 'settings.live2d.animation.motion-driver.magic.profile.options.speaking-excited.title',
     description: 'settings.live2d.animation.motion-driver.magic.profile.options.speaking-excited.description',
@@ -42,6 +46,12 @@ const profileOptions = computed(() => Object.values(live2dMotionMagicProfiles).m
       v-model="skipMouthOpen"
       :label="t('settings.live2d.animation.motion-driver.magic.skip-mouth-open.title')"
       :description="t('settings.live2d.animation.motion-driver.magic.skip-mouth-open.description')"
+      placement="right"
+    />
+    <FieldCheckbox
+      v-model="forceViewTarget"
+      :label="t('settings.live2d.animation.motion-driver.magic.force-view-target.title')"
+      :description="t('settings.live2d.animation.motion-driver.magic.force-view-target.description')"
       placement="right"
     />
   </div>

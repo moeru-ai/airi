@@ -1,5 +1,6 @@
 import type { Pose } from '@proj-airi/model-driver-magic-live2d'
 
+import idleCalmProject from './assets/idle-calm.json'
 import speakingExcitedProject from './assets/speaking-excited.json'
 
 /** One normalized Live2D pose in a MAGIC dataset. */
@@ -28,6 +29,14 @@ export interface Live2DMotionMagicProfile {
 
 /** Bundled MAGIC profiles available to Live2D settings. */
 export const live2dMotionMagicProfiles = {
+  'idle-calm': {
+    id: 'idle-calm',
+    dataset: {
+      format: idleCalmProject.source.format as 'airi-live2d-motion/v6',
+      durationMs: idleCalmProject.source.durationMs,
+      samples: idleCalmProject.source.samples,
+    },
+  },
   'speaking-excited': {
     id: 'speaking-excited',
     dataset: {
