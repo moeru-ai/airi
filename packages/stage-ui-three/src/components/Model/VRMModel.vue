@@ -194,7 +194,10 @@ type UpdatableMaterial = Material & {
 // Expressions
 const blink = useBlink()
 const idleEyeSaccades = useIdleEyeSaccades()
-const vrmEmote = ref<ReturnType<typeof useVRMEmote>>()
+// shallowRef: the composable object must stay non-reactive, otherwise Vue
+// deep-unwraps nested refs/computed (e.g. isEmoteActive) and breaks reads
+// like vrmEmote.value.isEmoteActive.value in the render loop.
+const vrmEmote = shallowRef<ReturnType<typeof useVRMEmote>>()
 const vrmLipSync = useVRMLipSync(currentAudioSource)
 
 // For sky box update
@@ -460,10 +463,10 @@ function bindManagedVrmInstanceRenderLoop() {
       }
     })
     const emoteMs = measureFrameStep(tracingEnabled, () => {
-      // Suppress emotional expression updates if lip-sync is actively driving the mouth/face
-      if (!isLipSyncActive) {
-        vrmEmote.value?.update(delta)
-      }
+      // Keep the emote state machine advancing during speech so emotion
+      // transitions and their reset timeout stay in sync; only the viseme
+      // mouth morphs yield to lip sync to avoid blendshape superposition.
+      vrmEmote.value?.update(delta, { skipVisemes: isLipSyncActive })
     })
     const lipSyncMs = measureFrameStep(tracingEnabled, () => {
       vrmLipSync.update(activeVrm, delta)

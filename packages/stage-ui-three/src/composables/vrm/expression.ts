@@ -86,6 +86,25 @@ export function useVRMEmote(vrm: VRMCore) {
     }],
   ])
 
+  // Morphs the emote owns: only expressions referenced by emotion states.
+  // Blink and animation-driven expressions stay under their own controllers,
+  // so the emote must never assert values (including 0) for them.
+  const ownedExpressionNames = (modelNames: string[]): string[] => {
+    const owned = new Set<string>()
+    for (const state of emotionStates.values()) {
+      for (const expr of state.expression || []) {
+        const match = modelNames.find(n => n.toLowerCase() === expr.name.toLowerCase())
+        if (match)
+          owned.add(match)
+      }
+    }
+    return [...owned]
+  }
+
+  // Viseme mouth morphs driven by lip sync; the emote yields these while
+  // speech is active so phoneme weights are not overwritten.
+  const VISEME_NAMES = new Set(['aa', 'ee', 'ih', 'oh', 'ou'])
+
   const clearResetTimeout = () => {
     if (resetTimeout.value) {
       clearTimeout(resetTimeout.value)
@@ -115,12 +134,15 @@ export function useVRMEmote(vrm: VRMCore) {
     const normalizedIntensity = clampIntensity(intensity)
 
     if (vrm.expressionManager) {
-      // Capture current values for all expressions we'll be transitioning
+      // Capture current values only for morphs the emote owns, so the lerp
+      // transition starts from the actual displayed values instead of
+      // snapping to 0 first (fixes #590). Unrelated expressions (blink,
+      // animation-driven morphs) are left to their own controllers.
       const expressionNames = Object.keys(vrm.expressionManager.expressionMap)
-      for (const name of expressionNames) {
+      for (const name of ownedExpressionNames(expressionNames)) {
         const currentValue = vrm.expressionManager.getValue(name) || 0
         currentExpressionValues.value.set(name, currentValue)
-        // Default target is 0 for expressions not in the target emotion
+        // Default target is 0 for owned expressions not in the target emotion
         targetExpressionValues.value.set(name, 0)
       }
     }
@@ -154,9 +176,16 @@ export function useVRMEmote(vrm: VRMCore) {
     return currentEmotion.value !== null && currentEmotion.value !== 'neutral'
   })
 
-  const update = (deltaTime: number) => {
+  const update = (deltaTime: number, options?: { skipVisemes?: boolean }) => {
     if (!currentEmotion.value)
       return
+
+    // While lip sync owns the mouth, viseme writes are skipped but the
+    // transition and reset lifecycle keep advancing, so emotions triggered
+    // during speech are not lost.
+    const skip = options?.skipVisemes
+      ? (name: string) => VISEME_NAMES.has(name.toLowerCase())
+      : () => false
 
     if (isTransitioning.value) {
       const emotionState = emotionStates.get(currentEmotion.value)!
@@ -170,6 +199,8 @@ export function useVRMEmote(vrm: VRMCore) {
 
       // Update all expressions with lerp
       for (const [exprName, targetValue] of targetExpressionValues.value) {
+        if (skip(exprName))
+          continue
         const startValue = currentExpressionValues.value.get(exprName) || 0
         const currentValue = lerp(
           startValue,
@@ -182,6 +213,8 @@ export function useVRMEmote(vrm: VRMCore) {
     else {
       // Hold target expression values across render frames so other updates don't clear them
       for (const [exprName, targetValue] of targetExpressionValues.value) {
+        if (skip(exprName))
+          continue
         vrm.expressionManager?.setValue(exprName, targetValue)
       }
     }
