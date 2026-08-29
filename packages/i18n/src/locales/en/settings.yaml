@@ -129,6 +129,38 @@ model-select:
     import: Import
     remove: Remove
     confirm: Confirm
+  live2d-report:
+    title: Before import
+    description: Review the model data and any issues found in the archive.
+    description-short: Review the model data and issues.
+    close: Close
+    model:
+      title: Model
+      files: '{count} files'
+      types:
+        cubism: 'Cubism {version} ({format})'
+        cubism-compatible: 'Cubism 3+ ({format})'
+        unknown: Unknown
+    resources:
+      title: Resources
+      motions: Motions
+      expressions: Expressions
+      parameters: Parameters
+      textures: Textures
+      referenced-and-found: '{referenced} referenced · {found} found'
+      referenced: '{count} referenced'
+      found: '{count} found'
+    issues:
+      title: Issues
+      errors: '{count} errors'
+      warnings: '{count} warnings'
+      none: No issues found.
+      how-to-fix: How to fix
+      resolve-before-import: Resolve the errors before import.
+    actions:
+      cancel: Cancel
+      confirm: Confirm Import
+      import-anyway: Import Anyway
 live2d:
   change-model:
     from-file: Load from File
