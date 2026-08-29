@@ -9,7 +9,7 @@ describe('chat history scroll container', () => {
   //
   // Chat behavior needs one stable viewport element, even though desktop uses
   // a custom Reka scrollbar while mobile keeps native overflow scrolling.
-  it('exposes the Reka viewport for desktop chat', async () => {
+  it('shows the desktop scrollbar only while the message viewport scrolls', async () => {
     const container = shallowRef<InstanceType<typeof ChatHistoryScrollContainer>>()
     const TestHost = defineComponent({
       components: { ChatHistoryScrollContainer },
@@ -29,6 +29,14 @@ describe('chat history scroll container', () => {
     const viewport = screen.container.querySelector<HTMLElement>('.chat-history-list')
 
     expect(viewport?.matches('[data-reka-scroll-area-viewport]')).toBe(true)
+    await new Promise(resolve => setTimeout(resolve, 150))
+    expect(screen.container.querySelector('.scrollable-area-scrollbar--vertical')).toBeNull()
+
+    if (!viewport)
+      throw new Error('Expected a desktop chat history viewport.')
+
+    viewport.scrollTop = 40
+    viewport.dispatchEvent(new Event('scroll'))
     await vi.waitFor(() => {
       expect(screen.container.querySelector('.scrollable-area-scrollbar--vertical')).not.toBeNull()
     })

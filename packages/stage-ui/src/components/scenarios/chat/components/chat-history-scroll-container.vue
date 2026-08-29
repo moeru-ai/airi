@@ -26,7 +26,7 @@ defineExpose({
     v-if="props.variant === 'desktop'"
     ref="desktop-area"
     v-bind="$attrs"
-    type="auto"
+    type="scroll"
     :viewport-class="[
       'chat-history-list',
     ]"

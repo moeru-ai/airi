@@ -7,10 +7,9 @@ import ChatViewportLayout from './chat-viewport-layout.vue'
 describe('desktop chat viewport layout', () => {
   // ROOT CAUSE:
   //
-  // Padding around the whole interactive area also inset the native history
-  // scrollbar, while placing the composer after history shortened its track.
-  // History needs a full-size layer and the composer needs a fixed sibling layer.
-  it('keeps an edge-to-edge history viewport behind a fixed composer', async () => {
+  // The history viewport must stop above the fixed composer so the scrollbar
+  // belongs to messages only instead of extending beside the input controls.
+  it('keeps the message viewport above a fixed composer', async () => {
     const TestHost = defineComponent({
       components: { ChatViewportLayout },
       template: `
@@ -45,21 +44,22 @@ describe('desktop chat viewport layout', () => {
       throw new Error('Expected the chat history viewport and its custom scrollbar.')
 
     await vi.waitFor(() => {
-      expect(getComputedStyle(history).paddingBottom).toBe('112px')
+      expect(getComputedStyle(history).paddingBottom).toBe('16px')
     })
 
     const layoutRect = layout.getBoundingClientRect()
     const historyRect = historyLayer.getBoundingClientRect()
+    const composerRect = composer.getBoundingClientRect()
     expect(historyRect.top).toBe(layoutRect.top)
     expect(historyRect.right).toBe(layoutRect.right)
-    expect(historyRect.bottom).toBe(layoutRect.bottom)
+    expect(historyRect.bottom).toBe(composerRect.top)
     expect(getComputedStyle(history).borderRadius).toBe('0px')
 
     const scrollbarRect = scrollbar.getBoundingClientRect()
     expect(scrollbarRect.top).toBe(historyRect.top)
     expect(scrollbarRect.right).toBe(historyRect.right)
     expect(scrollbarRect.bottom).toBe(historyRect.bottom)
-    expect(layoutRect.right - composer.getBoundingClientRect().right).toBe(26)
+    expect(layoutRect.right - composerRect.right).toBe(16)
 
     const composerTop = composer.getBoundingClientRect().top
     history.scrollTop = 120
