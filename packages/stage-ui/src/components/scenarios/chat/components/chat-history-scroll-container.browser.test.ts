@@ -7,8 +7,11 @@ import ChatHistoryScrollContainer from './chat-history-scroll-container.vue'
 describe('chat history scroll container', () => {
   // ROOT CAUSE:
   //
-  // Chat behavior needs one stable viewport element, even though desktop uses
-  // a custom Reka scrollbar while mobile keeps native overflow scrolling.
+  // Reka mounts the desktop scrollbar only while the viewport scrolls, but it
+  // appears and disappears without the overlay fade used by the reference UI.
+  // We add the animation only to desktop chat so other scroll areas keep their
+  // existing presentation.
+  // Reference: https://kingsora.github.io/OverlayScrollbars/example/vue/
   it('shows the desktop scrollbar only while the message viewport scrolls', async () => {
     const container = shallowRef<InstanceType<typeof ChatHistoryScrollContainer>>()
     const TestHost = defineComponent({
@@ -40,6 +43,23 @@ describe('chat history scroll container', () => {
     await vi.waitFor(() => {
       expect(screen.container.querySelector('.scrollable-area-scrollbar--vertical')).not.toBeNull()
     })
+
+    const visibleScrollbar = screen.container.querySelector<HTMLElement>('.scrollable-area-scrollbar--vertical')
+    if (!visibleScrollbar)
+      throw new Error('Expected the desktop chat scrollbar while scrolling.')
+
+    expect(visibleScrollbar.dataset.state).toBe('visible')
+    expect(getComputedStyle(visibleScrollbar).animationName).toContain('chat-history-scrollbar-fade-in')
+
+    await vi.waitFor(() => {
+      const hidingScrollbar = screen.container.querySelector<HTMLElement>('.scrollable-area-scrollbar--vertical')
+      expect(hidingScrollbar?.dataset.state).toBe('hidden')
+      expect(getComputedStyle(hidingScrollbar!).animationName).toContain('chat-history-scrollbar-fade-out')
+    }, { interval: 20, timeout: 1200 })
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('.scrollable-area-scrollbar--vertical')).toBeNull()
+    }, { timeout: 1200 })
+
     expect(container.value?.viewport).toBe(viewport)
     expect(screen.container.querySelectorAll('.chat-history-list')).toHaveLength(1)
   })

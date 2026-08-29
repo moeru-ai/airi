@@ -64,6 +64,44 @@ defineExpose({
   border-radius: 0.75rem;
 }
 
+.chat-history-scroll-area :deep(.scrollable-area-scrollbar--vertical) {
+  will-change: opacity;
+}
+
+.chat-history-scroll-area :deep(.scrollable-area-scrollbar--vertical[data-state='visible']) {
+  animation: chat-history-scrollbar-fade-in 150ms ease-out both;
+}
+
+.chat-history-scroll-area :deep(.scrollable-area-scrollbar--vertical[data-state='hidden']) {
+  animation: chat-history-scrollbar-fade-out 180ms ease-in both;
+}
+
+@keyframes chat-history-scrollbar-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes chat-history-scrollbar-fade-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-history-scroll-area :deep(.scrollable-area-scrollbar--vertical) {
+    animation-duration: 1ms;
+  }
+}
+
 .chat-history-list--mobile {
   position: relative;
   width: 100%;
