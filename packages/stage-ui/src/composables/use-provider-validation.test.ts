@@ -223,6 +223,46 @@ describe('useProviderValidation', () => {
     })
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3885308453
+  it('configures a continued provider before refreshing its catalog', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const providersStore = useProviderStore()
+    const configStore = useProviderConfigStore()
+    configStore.resetProviders()
+    vi.spyOn(providersStore, 'validateProviderConfig').mockResolvedValue({
+      errors: [new Error('offline')],
+      reason: 'offline',
+      valid: false,
+    })
+    const statusesDuringRefresh: string[] = []
+    const refreshModelsForChangedCredentials = vi.spyOn(providersStore, 'refreshModelsForChangedCredentials')
+      .mockImplementation(async () => {
+        statusesDuringRefresh.push(configStore.getProvider(providerId)?.status ?? 'missing')
+      })
+    let validation!: ReturnType<typeof useProviderValidation>
+
+    const app = createApp(defineComponent({
+      setup() {
+        validation = useProviderValidation(providerId)
+        return () => null
+      },
+    }))
+    app.use(pinia)
+    app.mount(document.createElement('div'))
+    unmount = () => app.unmount()
+
+    await vi.waitFor(() => {
+      expect(configStore.getProvider(providerId)?.status).toBe('invalid')
+    }, { timeout: 2000 })
+    statusesDuringRefresh.length = 0
+    refreshModelsForChangedCredentials.mockClear()
+
+    await validation.forceValid()
+
+    expect(statusesDuringRefresh).toEqual(['configured'])
+    expect(configStore.getProvider(providerId)?.status).toBe('configured')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3819332616
   it('automatically validates providers with provider-specific credential fields', async () => {
     const providerId = 'aliyun-nls-transcription'

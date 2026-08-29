@@ -356,6 +356,8 @@ export const useProviderStore = defineStore('provider', () => {
     const configuredProvider = providerConfigStore.providers[providerId]
     const cacheKey = `${providerId}:${configString}`
     const forceValidation = options.force === true
+    // Only the validation for the current serialized credential snapshot may publish status.
+    const ownsCurrentConfig = () => JSON.stringify(providerCredentials.value[providerId]) === configString
 
     if (!forceValidation && runtimeState?.validatedCredentialHash === configString && configuredProvider?.status !== 'validating')
       return configuredProvider?.status === 'configured'
@@ -380,9 +382,13 @@ export const useProviderStore = defineStore('provider', () => {
         })
       }
       catch (error) {
-        providerConfigStore.setProviderStatus(providerId, 'invalid')
+        if (ownsCurrentConfig())
+          providerConfigStore.setProviderStatus(providerId, 'invalid')
         throw error
       }
+
+      if (!ownsCurrentConfig())
+        return false
 
       if (providerRuntimeState.value[providerId]) {
         providerRuntimeState.value[providerId].validatedCredentialHash = configString
@@ -807,7 +813,8 @@ export const useProviderStore = defineStore('provider', () => {
       // it configured; only a completed catalog refresh owns the new hash.
       if (providerConfigStore.providers[currentProviderId]?.status === 'configured') {
         await fetchModelsForProvider(currentProviderId)
-        previousCredentialHashes.set(currentProviderId, credentialHash)
+        if (providerRuntimeState.value[currentProviderId]?.modelStatus === 'ready')
+          previousCredentialHashes.set(currentProviderId, credentialHash)
       }
     }
   }

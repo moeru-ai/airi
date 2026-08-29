@@ -264,6 +264,27 @@ describe('provider store synchronization boundary', () => {
     expect(listModels).toHaveBeenCalledOnce()
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3885308457
+  it('retries model discovery after a transient catalog failure', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    await store.initializeProvider(providerId)
+    configStore.setProviderStatus(providerId, 'configured')
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const listModels = vi.spyOn(store.getProviderDefinition(providerId).extraMethods!, 'listModels')
+      .mockRejectedValueOnce(new Error('temporary catalog outage'))
+      .mockResolvedValueOnce([])
+
+    await store.refreshModelsForChangedCredentials(providerId)
+    expect(store.providerRuntimeState[providerId]?.modelStatus).toBe('error')
+
+    await store.refreshModelsForChangedCredentials(providerId)
+
+    expect(listModels).toHaveBeenCalledTimes(2)
+    expect(store.providerRuntimeState[providerId]?.modelStatus).toBe('ready')
+  })
+
   it('invalidates the renderer-local provider cache when a replicated config changes', async () => {
     const providerId = 'openai'
     const store = useProviderStore()
@@ -356,6 +377,39 @@ describe('provider store synchronization boundary', () => {
     config.apiKey = 'changed'
     await store.refreshListedProviderValidation()
     expect(configStore.getProvider(providerId)?.status).toBe('configured')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3885308449
+  it('does not publish validation status for a stale credential snapshot', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    await store.initializeProvider(providerId)
+    const validateConfig = store.getProviderDefinition(providerId).validators?.validateConfig
+    if (!validateConfig?.[0])
+      throw new Error('Expected FunASR config validation')
+    const originalValidatorFactory = validateConfig[0]
+    const validation = Promise.withResolvers<{ errors: never[], reason: string, reasonKey: string, valid: boolean }>()
+    validateConfig[0] = () => ({
+      id: 'test:delayed-config-validation',
+      name: 'Delayed config validation',
+      validator: async () => validation.promise,
+    })
+
+    try {
+      const staleValidation = store.validateProvider(providerId, { force: true })
+      await vi.waitFor(() => expect(configStore.getProvider(providerId)?.status).toBe('validating'))
+      configStore.getProviderConfig(providerId)!.baseUrl = 'http://new-endpoint.example/v1/'
+      configStore.setProviderStatus(providerId, 'invalid')
+      validation.resolve({ errors: [], reason: '', reasonKey: '', valid: true })
+
+      await staleValidation
+
+      expect(configStore.getProvider(providerId)?.status).toBe('invalid')
+    }
+    finally {
+      validateConfig[0] = originalValidatorFactory
+    }
   })
 
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3757361703

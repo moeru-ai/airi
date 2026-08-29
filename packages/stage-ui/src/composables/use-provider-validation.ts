@@ -301,10 +301,10 @@ export function useProviderValidation(providerId: string) {
     validationMessage.value = ''
     manualTestPassed.value = true
     manualTestMessage.value = ''
-    await providersStore.refreshModelsForChangedCredentials(providerId)
+    await providersStore.forceProviderConfigured(providerId)
     if (revision !== validationRevision)
       return
-    await providersStore.forceProviderConfigured(providerId)
+    await providersStore.refreshModelsForChangedCredentials(providerId)
     if (revision !== validationRevision)
       return
 
