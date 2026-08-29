@@ -3500,18 +3500,6 @@ importers:
         specifier: 'catalog:'
         version: 3.5.41(typescript@6.0.3)
 
-  packages/audio-pipelines-transcribe:
-    dependencies:
-      '@moeru/std':
-        specifier: 'catalog:'
-        version: 0.1.0-beta.17
-      '@proj-airi/audio':
-        specifier: workspace:^
-        version: link:../audio
-      uncrypto:
-        specifier: 'catalog:'
-        version: 0.1.3
-
   packages/better-ws:
     dependencies:
       '@moeru/eventa':
