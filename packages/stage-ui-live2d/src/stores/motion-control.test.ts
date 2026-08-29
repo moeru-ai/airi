@@ -1,3 +1,4 @@
+import { createPinia, setActivePinia } from 'pinia'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -6,12 +7,39 @@ import {
   getLive2DMotionControlModelOffset,
   neutralLive2DMotionControlPose,
   sampleLive2DBreath,
+  useLive2DMotionControl,
 } from './motion-control'
 
 describe('manual motion defaults', () => {
   it('uses the tuned joystick spring and breath duration', () => {
     expect(defaultLive2DMotionControlDynamics).toEqual({ follow: 1, inertia: 0.6 })
     expect(defaultLive2DBreathControlOptions.cycleSeconds).toBe(2)
+  })
+})
+
+describe('exclusive motion control', () => {
+  it('keeps the newest devtools owner when an older owner releases control', () => {
+    // ROOT CAUSE:
+    //
+    // The Stage MAGIC driver did not know when the motion devtools window was open.
+    // Both drivers published poses until a devtools control started playback.
+    //
+    // We fixed this with an owner-scoped exclusive control claim. An old window
+    // cannot resume the Stage driver after a newer window takes control.
+    setActivePinia(createPinia())
+    const motionControl = useLive2DMotionControl()
+
+    motionControl.claimExclusiveControl('devtools-a')
+    expect(motionControl.exclusiveOwnerId).toBe('devtools-a')
+
+    motionControl.claimExclusiveControl('devtools-b')
+    expect(motionControl.exclusiveOwnerId).toBe('devtools-b')
+
+    motionControl.releaseExclusiveControl('devtools-a')
+    expect(motionControl.exclusiveOwnerId).toBe('devtools-b')
+
+    motionControl.releaseExclusiveControl('devtools-b')
+    expect(motionControl.exclusiveOwnerId).toBeNull()
   })
 })
 

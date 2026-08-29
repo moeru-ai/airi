@@ -3,7 +3,7 @@ import type { Pose } from '@proj-airi/model-driver-magic-live2d'
 import { neutralPose } from '@proj-airi/model-driver-magic-live2d'
 import { useBroadcastChannel } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { shallowRef, watch } from 'vue'
+import { nextTick, shallowRef, watch } from 'vue'
 
 /** A normalized pose for manual Live2D motion control. */
 export type Live2DMotionControlPose = Pose
@@ -72,6 +72,14 @@ type Live2DMotionControlEvent
   }
   | {
     type: 'live2d-breath-control-release'
+    ownerId: string
+  }
+  | {
+    type: 'live2d-motion-control-claim-exclusive'
+    ownerId: string
+  }
+  | {
+    type: 'live2d-motion-control-release-exclusive'
     ownerId: string
   }
 
@@ -217,14 +225,16 @@ export function getLive2DMotionControlModelOffset(control: Pick<Live2DMotionCont
 }
 
 /**
- * Shares transient manual Live2D motion between Electron renderer windows.
+ * Shares transient manual Live2D motion and exclusive control between renderer windows.
  *
  * The latest set event owns the control. A release event only clears the same
- * owner, so a stale window cannot release a newer controller. This store uses
- * a direct channel because joystick updates are transient and high frequency.
+ * owner, so a stale window cannot release a newer controller. An exclusive
+ * claim pauses the production motion driver while a devtools window controls
+ * the model. This store uses a direct channel because joystick updates are
+ * transient and high frequency.
  */
 export const useLive2DMotionControl = defineStore('live2d-motion-control', () => {
-  const { data, post } = useBroadcastChannel<Live2DMotionControlEvent, Live2DMotionControlEvent>({
+  const { channel, data, post } = useBroadcastChannel<Live2DMotionControlEvent, Live2DMotionControlEvent>({
     name: 'airi-stores-stage-ui-live2d-motion-control',
   })
   const control = shallowRef<Live2DMotionControlState>({
@@ -239,6 +249,7 @@ export const useLive2DMotionControl = defineStore('live2d-motion-control', () =>
     startedAtMs: 0,
     options: defaultLive2DBreathControlOptions,
   })
+  const exclusiveOwnerId = shallowRef<string | null>(null)
 
   function applyEvent(event: Live2DMotionControlEvent) {
     if (event.type === 'live2d-motion-control-set') {
@@ -274,15 +285,26 @@ export const useLive2DMotionControl = defineStore('live2d-motion-control', () =>
       return
     }
 
-    if (breathControl.value.ownerId !== event.ownerId)
-      return
+    if (event.type === 'live2d-breath-control-release') {
+      if (breathControl.value.ownerId !== event.ownerId)
+        return
 
-    breathControl.value = {
-      active: false,
-      ownerId: null,
-      startedAtMs: 0,
-      options: breathControl.value.options,
+      breathControl.value = {
+        active: false,
+        ownerId: null,
+        startedAtMs: 0,
+        options: breathControl.value.options,
+      }
+      return
     }
+
+    if (event.type === 'live2d-motion-control-claim-exclusive') {
+      exclusiveOwnerId.value = event.ownerId
+      return
+    }
+
+    if (exclusiveOwnerId.value === event.ownerId)
+      exclusiveOwnerId.value = null
   }
 
   function setPose(ownerId: string, pose: Live2DMotionControlPose, dynamics: Live2DMotionControlDynamics) {
@@ -325,6 +347,32 @@ export const useLive2DMotionControl = defineStore('live2d-motion-control', () =>
     post(event)
   }
 
+  function claimExclusiveControl(ownerId: string) {
+    const event: Live2DMotionControlEvent = {
+      type: 'live2d-motion-control-claim-exclusive',
+      ownerId,
+    }
+    applyEvent(event)
+    if (channel.value) {
+      post(event)
+      return
+    }
+
+    void nextTick(() => {
+      if (exclusiveOwnerId.value === ownerId)
+        post(event)
+    })
+  }
+
+  function releaseExclusiveControl(ownerId: string) {
+    const event: Live2DMotionControlEvent = {
+      type: 'live2d-motion-control-release-exclusive',
+      ownerId,
+    }
+    applyEvent(event)
+    post(event)
+  }
+
   watch(data, (event) => {
     if (event)
       applyEvent(event)
@@ -333,9 +381,12 @@ export const useLive2DMotionControl = defineStore('live2d-motion-control', () =>
   return {
     control,
     breathControl,
+    exclusiveOwnerId,
     setPose,
     release,
     setBreath,
     releaseBreath,
+    claimExclusiveControl,
+    releaseExclusiveControl,
   }
 })

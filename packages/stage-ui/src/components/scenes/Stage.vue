@@ -90,6 +90,7 @@ const {
   live2dRenderScale,
 } = storeToRefs(useSettingsLive2d())
 const live2dMotionControl = useLive2DMotionControl()
+const { exclusiveOwnerId: live2dMotionControlOwnerId } = storeToRefs(live2dMotionControl)
 const {
   profileId: live2dMagicProfileId,
   skipMouthOpen: live2dMagicSkipMouthOpen,
@@ -97,16 +98,17 @@ const {
 const live2dMagicMotion = useLive2DMotionMagic({
   dataset: () => live2dMotionMagicProfiles[live2dMagicProfileId.value].dataset,
   skipMouthOpen: live2dMagicSkipMouthOpen,
+  disabled: () => live2dMotionControlOwnerId.value !== null,
   publishPose: pose => live2dMotionControl.setPose('stage:live2d-motion-magic', pose, defaultLive2DMotionControlDynamics),
   releasePose: () => live2dMotionControl.release('stage:live2d-motion-magic'),
 })
 let live2dMagicActivationRequest = 0
 
 watch(
-  [stageModelRenderer, live2dMotionDriver, live2dMagicProfileId, () => props.paused],
-  async ([renderer, driver, , paused]) => {
+  [stageModelRenderer, live2dMotionDriver, live2dMagicProfileId, () => props.paused, live2dMotionControlOwnerId],
+  async ([renderer, driver, , paused, controlOwnerId]) => {
     const request = ++live2dMagicActivationRequest
-    if (renderer !== 'live2d' || driver !== 'magic' || paused) {
+    if (renderer !== 'live2d' || driver !== 'magic' || paused || controlOwnerId !== null) {
       live2dMagicMotion.stop()
       return
     }
@@ -119,6 +121,7 @@ watch(
       || stageModelRenderer.value !== 'live2d'
       || live2dMotionDriver.value !== 'magic'
       || props.paused
+      || live2dMotionControlOwnerId.value !== null
     ) {
       return
     }

@@ -195,6 +195,26 @@ const recordingController = useLive2DMotionRecording({
   initialRecording: defaultLive2DMotionRecording,
 })
 
+/**
+ * Releases the exclusive claim before the Electron renderer exits.
+ *
+ * Triggering workflow:
+ *
+ * Electron BrowserWindow
+ *   -> window.addEventListener
+ *     -> `pagehide`
+ *       -> handlePageHide
+ *
+ * Upstream:
+ * - The Electron renderer page lifecycle.
+ *
+ * Downstream:
+ * - The `releaseExclusiveControl` action from {@link useLive2DMotionControl}.
+ */
+function handlePageHide() {
+  motionControl.releaseExclusiveControl(ownerId)
+}
+
 function setPose(nextPose: Live2DMotionControlPose) {
   publishPose(nextPose)
   recordingController.recordPose(nextPose)
@@ -222,6 +242,8 @@ function toggleRecording() {
 }
 
 onMounted(() => {
+  window.addEventListener('pagehide', handlePageHide)
+  motionControl.claimExclusiveControl(ownerId)
   motionControl.setBreath(ownerId, breathOptions.value, breathStartedAtMs.value)
 })
 
@@ -232,10 +254,12 @@ function restartRecording() {
 }
 
 onUnmounted(() => {
+  window.removeEventListener('pagehide', handlePageHide)
   void systemAudio.stop()
   recordingController.dispose()
   motionControl.releaseBreath(ownerId)
   motionControl.release(ownerId)
+  motionControl.releaseExclusiveControl(ownerId)
 })
 </script>
 
