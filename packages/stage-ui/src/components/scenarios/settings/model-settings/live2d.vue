@@ -11,6 +11,8 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import MagicMotionSettings from '../../../../features/motions/live2d/components/magic-settings.vue'
+
 import { PropertyPoint } from '../../../data-pane'
 import { Section } from '../../../layouts'
 import { ColorPalette } from '../../../widgets'
@@ -371,6 +373,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
         :class="['shrink-0']"
       />
     </label>
+    <MagicMotionSettings v-if="live2dMotionDriver === 'magic'" />
     <FieldCheckbox
       v-model="live2dEyeTracking"
       :label="t('settings.live2d.animation.focus.title')"

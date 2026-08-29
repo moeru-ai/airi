@@ -172,6 +172,17 @@ live2d:
         magic:
           title: MAGIC
           description: Generate motion from the bundled MAGIC dataset.
+      magic:
+        profile:
+          title: MAGIC profile
+          description: Select the bundled motion dataset that fits the MAGIC driver.
+          options:
+            speaking-excited:
+              title: Speaking / excited
+              description: Use the bundled speaking and excited motion recording.
+        skip-mouth-open:
+          title: Skip generated mouth opening
+          description: Keep speech lip sync in control. Disable this option to use mouth opening from the profile.
     focus:
       title: Enable mouse tracking
       description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.

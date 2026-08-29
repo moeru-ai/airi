@@ -4,7 +4,7 @@ import type { OutputFilterFrame, OutputFilterOptions } from './filter'
 import type { Pose } from './pose'
 
 import { createOutputFilter, defaultOutputFilterOptions } from './filter'
-import { poseFromValues } from './pose'
+import { neutralPose, poseFromValues } from './pose'
 
 /** Receives generated poses and releases ownership when playback stops. */
 export interface Target {
@@ -21,6 +21,8 @@ export interface DriverOptions<TState> {
   onGenerate?: (state: TState) => void
   /** Receives the newest processed output, or `undefined` after reset. */
   onOutput?: (frame: OutputFilterFrame | undefined) => void
+  /** Sets generated mouth opening to neutral before output. @default true */
+  skipMouthOpen?: () => boolean
   /** Supplies a monotonic timestamp in milliseconds. @default performance.now */
   now?: () => number
   /** Schedules the next display update. @default requestAnimationFrame */
@@ -68,7 +70,16 @@ export function createDriver<TState>(options: DriverOptions<TState>): Driver<TSt
   }
 
   function applyPose(pose: Pose) {
-    outputFrame = filter.process(pose)
+    const filteredFrame = filter.process(pose)
+    outputFrame = (options.skipMouthOpen?.() ?? true)
+      ? {
+          ...filteredFrame,
+          pose: {
+            ...filteredFrame.pose,
+            mouthOpen: neutralPose.mouthOpen,
+          },
+        }
+      : filteredFrame
     options.onOutput?.(outputFrame)
     options.target.apply(outputFrame.pose)
   }

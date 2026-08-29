@@ -6,6 +6,8 @@ import type {
 import type { FitOptions, MagicModel } from '@proj-airi/motion-driver-magic'
 import type { MaybeRefOrGetter } from 'vue'
 
+import type { Live2DMotionMagicDataset } from './profiles'
+
 import { errorMessageFrom } from '@moeru/std'
 import {
   createDriver,
@@ -17,39 +19,17 @@ import {
 import { fit } from '@proj-airi/motion-driver-magic'
 import { computed, onScopeDispose, reactive, readonly, shallowRef, toValue, watch } from 'vue'
 
-import idleExcitedProject from './assets/idle-excited.json'
+import { defaultLive2DMotionMagicDataset } from './profiles'
 
 export type Live2DMotionMagicMethod = 'ar-hmm' | 'var'
 export type Live2DMotionMagicStatus = 'idle' | 'initializing' | 'playing' | 'ready'
-
-/** One normalized Live2D pose in a MAGIC dataset. */
-export interface Live2DMotionMagicSample extends Pose {
-  /** Elapsed time from the start of the dataset, in milliseconds. */
-  atMs: number
-}
-
-/** Timestamped Live2D poses that MAGIC can sample and fit. */
-export interface Live2DMotionMagicDataset {
-  /** Duration of the source dataset, in milliseconds. */
-  durationMs: number
-  /** Source poses in ascending timestamp order. */
-  samples: readonly Live2DMotionMagicSample[]
-}
-
-/** The bundled idle-to-excited dataset used when initialize receives no dataset. */
-export const defaultLive2DMotionMagicDataset: Live2DMotionMagicDataset & {
-  format: 'airi-live2d-motion/v6'
-  samples: Live2DMotionMagicSample[]
-} = {
-  format: 'airi-live2d-motion/v6' as const,
-  durationMs: idleExcitedProject.source.durationMs,
-  samples: idleExcitedProject.source.samples,
-}
 
 /** Runtime boundaries for one MAGIC Live2D motion controller. */
 export interface UseLive2DMotionMagicOptions {
   /** Supplies a dataset that replaces the bundled dataset. */
   dataset?: MaybeRefOrGetter<Live2DMotionMagicDataset | null | undefined>
+  /** Prevents generated motion from controlling mouth opening. @default true */
+  skipMouthOpen?: MaybeRefOrGetter<boolean>
   /** Stops playback and initialization while another motion source owns the target. */
   disabled?: MaybeRefOrGetter<boolean>
   /** Receives the newest generated pose after filtering. */
@@ -132,6 +112,7 @@ export function useLive2DMotionMagic(options: UseLive2DMotionMagicOptions) {
     onOutput: (frame) => {
       outputFilterFrame.value = frame
     },
+    skipMouthOpen: () => toValue(options.skipMouthOpen ?? true),
     filterOptions: outputFilterOptions.value,
   })
 

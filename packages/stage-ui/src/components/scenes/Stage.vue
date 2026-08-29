@@ -35,7 +35,7 @@ import { useDuckDb } from '../../composables/use-duck-db'
 import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
-import { useLive2DMotionMagic } from '../../features/motions/live2d'
+import { live2dMotionMagicProfiles, useLive2DMotionMagic, useLive2DMotionMagicSettings } from '../../features/motions/live2d'
 import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
@@ -90,15 +90,21 @@ const {
   live2dRenderScale,
 } = storeToRefs(useSettingsLive2d())
 const live2dMotionControl = useLive2DMotionControl()
+const {
+  profileId: live2dMagicProfileId,
+  skipMouthOpen: live2dMagicSkipMouthOpen,
+} = storeToRefs(useLive2DMotionMagicSettings())
 const live2dMagicMotion = useLive2DMotionMagic({
+  dataset: () => live2dMotionMagicProfiles[live2dMagicProfileId.value].dataset,
+  skipMouthOpen: live2dMagicSkipMouthOpen,
   publishPose: pose => live2dMotionControl.setPose('stage:live2d-motion-magic', pose, defaultLive2DMotionControlDynamics),
   releasePose: () => live2dMotionControl.release('stage:live2d-motion-magic'),
 })
 let live2dMagicActivationRequest = 0
 
 watch(
-  [stageModelRenderer, live2dMotionDriver, () => props.paused],
-  async ([renderer, driver, paused]) => {
+  [stageModelRenderer, live2dMotionDriver, live2dMagicProfileId, () => props.paused],
+  async ([renderer, driver, , paused]) => {
     const request = ++live2dMagicActivationRequest
     if (renderer !== 'live2d' || driver !== 'magic' || paused) {
       live2dMagicMotion.stop()
