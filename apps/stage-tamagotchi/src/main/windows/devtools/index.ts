@@ -1,5 +1,6 @@
 import { join, resolve } from 'node:path'
 
+import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { BrowserWindow } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -49,6 +50,7 @@ export function setupDevtoolsWindow(): DevtoolsWindowManager {
           reusableWindows.delete(key)
       })
       protectPrivilegedWindowNavigation(window)
+      initScreenCaptureForWindow(window)
 
       await load(window, withHashRoute(rendererBase, route, {
         query: { 'synced-leader': 'false' },
