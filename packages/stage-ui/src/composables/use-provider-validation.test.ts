@@ -2,7 +2,7 @@
 
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createApp, defineComponent } from 'vue'
+import { createApp, defineComponent, nextTick } from 'vue'
 
 import { useProviderConfigStore } from '../stores/providers/config'
 import { useProviderStore } from '../stores/providers/provider'
@@ -348,6 +348,41 @@ describe('useProviderValidation', () => {
       expect(configStore.getProvider(providerId)?.status).toBe('unconfigured')
       expect(validation.isValidating.value).toBe(0)
     })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3876639054
+  // ROOT CAUSE: Credential edits left the synchronized provider status configured
+  // until the 500 ms validation debounce expired.
+  it('publishes non-ready status before debouncing edited credentials (GitHub #2122)', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const providersStore = useProviderStore()
+    const configStore = useProviderConfigStore()
+    configStore.resetProviders()
+    vi.spyOn(providersStore, 'validateProviderConfig').mockResolvedValue({
+      errors: [],
+      reason: '',
+      valid: true,
+    })
+
+    const app = createApp(defineComponent({
+      setup() {
+        useProviderValidation(providerId)
+        return () => null
+      },
+    }))
+    app.use(pinia)
+    app.mount(document.createElement('div'))
+    unmount = () => app.unmount()
+
+    await vi.waitFor(() => {
+      expect(configStore.getProvider(providerId)?.status).toBe('configured')
+    })
+
+    const setProviderStatus = vi.spyOn(configStore, 'setProviderStatus')
+    configStore.getProviderConfig(providerId)!.baseUrl = 'http://edited.example/v1/'
+    await nextTick()
+
+    expect(setProviderStatus).toHaveBeenCalledWith(providerId, 'validating')
   })
 
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3809925335

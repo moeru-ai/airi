@@ -123,6 +123,14 @@ describe('supportsVerboseJsonResponse', () => {
     expect(supportsVerboseJsonResponse('funasr-audio-transcription', 'sensevoice')).toBe(true)
     expect(supportsVerboseJsonResponse('openai-compatible-audio-transcription', 'custom-model')).toBe(true)
   })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3876639047
+  // ROOT CAUSE: OpenAI-compatible providers were treated as supporting verbose JSON
+  // even when their selected GPT transcription model only accepts JSON responses.
+  it('rejects verbose JSON for GPT models on compatible providers (GitHub #2122)', () => {
+    expect(supportsVerboseJsonResponse('openai-compatible-audio-transcription', 'gpt-4o-transcribe')).toBe(false)
+    expect(supportsVerboseJsonResponse('openai-compatible-audio-transcription', 'gpt-4o-mini-transcribe')).toBe(false)
+  })
 })
 
 describe('resolveTranscriptionProviderOptions', () => {

@@ -271,14 +271,17 @@ export function useProviderValidation(providerId: string) {
   // validation, which would otherwise loop with markProviderAdded().
   const credentialsSignature = computed(() => JSON.stringify(credentials.value))
 
-  watch(credentialsSignature, () => {
+  watch(credentialsSignature, async () => {
     const revision = ++validationRevision
     isValid.value = false
-    isValidating.value = 0
-    debouncedValidateConfiguration(revision)
+    isValidating.value = 1
     // Reset manual test state when credentials actually change
     manualTestPassed.value = false
     manualTestMessage.value = ''
+    await providerStore.setProviderStatus(providerId, 'validating')
+    if (revision !== validationRevision)
+      return
+    debouncedValidateConfiguration(revision)
   })
 
   function handleResetSettings() {

@@ -136,7 +136,9 @@ export function filterTranscriptionByConfidence(
 export function supportsVerboseJsonResponse(providerDefinitionId: string, model: string): boolean {
   // OpenAI's GPT transcription models only accept JSON responses. Whisper-1
   // remains the official OpenAI model that supports verbose_json segments.
-  return providerDefinitionId !== 'openai-audio-transcription' || model === 'whisper-1'
+  const isGPTTranscriptionModel = /^gpt-.*transcribe(?:-|$)/i.test(model)
+  return !isGPTTranscriptionModel
+    && (providerDefinitionId !== 'openai-audio-transcription' || model === 'whisper-1')
 }
 
 /**
@@ -467,8 +469,10 @@ export const useHearingStore = defineStore('hearing-store', () => {
     if (providerDefinitionId(providerId) === 'funasr-audio-transcription') {
       if (!providerStore.getProvider(providerId))
         await providersStore.initializeProvider(providerId)
+      const configSignature = JSON.stringify(providerStore.getProviderConfig(providerId) ?? {})
       const valid = await providersStore.validateProvider(providerId)
-      if (!valid || selectionRequestId !== nextDestinationModelRequestId)
+      const currentConfigSignature = JSON.stringify(providerStore.getProviderConfig(providerId) ?? {})
+      if (!valid || selectionRequestId !== nextDestinationModelRequestId || configSignature !== currentConfigSignature)
         return
 
       const model = funASRConfiguredModel(providerId)

@@ -106,6 +106,34 @@ describe('funASR Hearing model synchronization', () => {
     expect(hearingStore.activeTranscriptionModel).toBe('whisper-1')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3883901637
+  // ROOT CAUSE: A successful validation was correlated only with the selection request,
+  // so it could commit after another renderer replaced the provider configuration.
+  it('ignores FunASR validation after its configuration changes (GitHub #2122)', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const providersStore = useProviderStore()
+    const providerConfigStore = useProviderConfigStore()
+    const hearingStore = useHearingStore()
+    await hearingStore.setActiveTranscriptionProvider('openai-audio-transcription', 'whisper-1')
+
+    let resolveValidation!: (valid: boolean) => void
+    const validation = new Promise<boolean>((resolve) => {
+      resolveValidation = resolve
+    })
+    vi.spyOn(providersStore, 'validateProvider').mockReturnValue(validation)
+
+    const selection = hearingStore.setActiveTranscriptionProvider(providerId)
+    await vi.waitFor(() => {
+      expect(providersStore.validateProvider).toHaveBeenCalledWith(providerId)
+    })
+    providerConfigStore.getProviderConfig(providerId)!.baseUrl = 'http://edited.example/v1/'
+    resolveValidation(true)
+    await selection
+
+    expect(hearingStore.activeTranscriptionProvider).toBe('openai-audio-transcription')
+    expect(hearingStore.activeTranscriptionModel).toBe('whisper-1')
+  })
+
   it('configures a generated FunASR instance when selected (GitHub #2122)', async () => {
     const providerId = 'generated-funasr-transcription'
     const providerConfigStore = useProviderConfigStore()
