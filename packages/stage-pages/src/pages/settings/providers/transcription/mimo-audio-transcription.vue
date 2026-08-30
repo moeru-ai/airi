@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { MimoAsrLanguage } from '@proj-airi/stage-ui/libs/providers/providers/mimo-audio'
 import type { RemovableRef } from '@vueuse/core'
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
@@ -13,6 +14,7 @@ import {
   TranscriptionPlayground,
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
+import { MIMO_ASR_LANGUAGES, MIMO_ASR_MODEL } from '@proj-airi/stage-ui/libs/providers/providers/mimo-audio'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
@@ -45,13 +47,28 @@ const baseUrl = computed({
 })
 
 const model = computed({
-  get: () => providers.value[providerId]?.model || 'mimo-v2-omni',
+  get: () => MIMO_ASR_MODEL,
+  set: (_value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].model = MIMO_ASR_MODEL
+  },
+})
+
+const language = computed<MimoAsrLanguage>({
+  get: () => providers.value[providerId]?.language || 'auto',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-    providers.value[providerId].model = value
+    providers.value[providerId].language = MIMO_ASR_LANGUAGES.includes(value) ? value : 'auto'
   },
 })
+
+const languageOptions = [
+  { value: 'auto', label: 'Auto-detect' },
+  { value: 'zh', label: 'Chinese' },
+  { value: 'en', label: 'English' },
+]
 
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
@@ -60,6 +77,10 @@ const providerModels = computed(() => providersStore.getModelsForProvider(provid
 const isLoadingModels = computed(() => providersStore.isLoadingModels[providerId] || false)
 
 onMounted(async () => {
+  providersStore.initializeProvider(providerId)
+  model.value = MIMO_ASR_MODEL
+  if (!MIMO_ASR_LANGUAGES.includes(language.value))
+    language.value = 'auto'
   await providersStore.loadModelsForConfiguredProviders()
   await providersStore.fetchModelsForProvider(providerId)
 })
@@ -114,6 +135,12 @@ const {
           :disabled="isLoadingModels || providerModels.length === 0"
           placeholder="Select a model..."
         />
+        <FieldCombobox
+          v-model="language"
+          label="ASR language"
+          description="MiMo uses automatic language detection unless you choose Chinese or English."
+          :options="languageOptions"
+        />
       </ProviderBasicSettings>
 
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
@@ -144,7 +171,10 @@ const {
       </Alert>
       <Alert v-if="isValid && isValidating === 0" type="success">
         <template #title>
-          {{ t('settings.dialogs.onboarding.validationSuccess') }}
+          Local configuration is complete
+        </template>
+        <template #content>
+          API key and Base URL are present. This local check does not prove Xiaomi MiMo ASR runtime availability; use the transcription test below for an actual request.
         </template>
       </Alert>
     </ProviderSettingsContainer>
