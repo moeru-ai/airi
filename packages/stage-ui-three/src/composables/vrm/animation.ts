@@ -100,7 +100,7 @@ export function useBlink() {
   const nextBlinkTime = ref(Math.random() * (MAX_BLINK_INTERVAL - MIN_BLINK_INTERVAL) + MIN_BLINK_INTERVAL)
 
   // Function to handle blinking animation
-  function update(vrm: VRMCore | undefined, delta: number) {
+  function update(vrm: VRMCore | undefined, delta: number, options?: { suppress?: boolean }) {
     if (!vrm?.expressionManager)
       return
 
@@ -116,8 +116,11 @@ export function useBlink() {
     if (isBlinking.value) {
       blinkProgress.value += delta / BLINK_DURATION
 
-      // Calculate blink value using sine curve for smooth animation
-      const blinkValue = Math.sin(Math.PI * blinkProgress.value)
+      // Calculate blink value using sine curve for smooth animation.
+      // While an emote owns the eye area, the controller keeps advancing so a
+      // blink interrupted mid-cycle cannot leave the lid stuck closed; the
+      // morph is held at 0 instead of the sine value.
+      const blinkValue = options?.suppress ? 0 : Math.sin(Math.PI * blinkProgress.value)
 
       // Apply blink expression
       vrm.expressionManager.setValue('blink', blinkValue)
@@ -129,6 +132,10 @@ export function useBlink() {
         vrm.expressionManager.setValue('blink', 0) // Reset blink value to 0
         nextBlinkTime.value = Math.random() * (MAX_BLINK_INTERVAL - MIN_BLINK_INTERVAL) + MIN_BLINK_INTERVAL
       }
+    }
+    else if (options?.suppress) {
+      // Release the lid when an emote begins between blinks.
+      vrm.expressionManager.setValue('blink', 0)
     }
   }
 

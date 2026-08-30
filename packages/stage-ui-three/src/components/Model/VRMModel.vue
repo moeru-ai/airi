@@ -457,19 +457,21 @@ function bindManagedVrmInstanceRenderLoop() {
     const isLipSyncActive = vrmLipSync.isLipSyncActive?.value ?? false
 
     const blinkAndSaccadeMs = measureFrameStep(tracingEnabled, () => {
-      // Exclude automatic blinking when an emotional expression is actively being applied
-      if (!isEmoteActive) {
-        blink.update(activeVrm, delta)
-      }
-    })
-    const emoteMs = measureFrameStep(tracingEnabled, () => {
-      // Keep the emote state machine advancing during speech so emotion
-      // transitions and their reset timeout stay in sync; only the viseme
-      // mouth morphs yield to lip sync to avoid blendshape superposition.
-      vrmEmote.value?.update(delta, { skipVisemes: isLipSyncActive })
+      // The blink controller always advances so an emote starting mid-blink
+      // cannot leave the eyelid stuck; during an emote it only holds the
+      // blink morph at 0 instead of driving the sine curve.
+      blink.update(activeVrm, delta, { suppress: isEmoteActive })
     })
     const lipSyncMs = measureFrameStep(tracingEnabled, () => {
       vrmLipSync.update(activeVrm, delta)
+    })
+    const emoteMs = measureFrameStep(tracingEnabled, () => {
+      // Runs after lip sync: while speech is active the emote yields viseme
+      // mouth morphs (skipVisemes), and once lip sync falls silent the emote
+      // re-asserts its mouth targets over lip sync's zeroed weights. The
+      // state machine keeps advancing either way, so emotion transitions and
+      // the reset timeout stay in sync during long utterances.
+      vrmEmote.value?.update(delta, { skipVisemes: isLipSyncActive })
     })
     const expressionMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.expressionManager?.update()
