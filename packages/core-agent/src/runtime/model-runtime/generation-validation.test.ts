@@ -1,7 +1,7 @@
 import type { FetchTransportPort, FetchTransportRequest, FetchTransportResponse } from '../../contracts/fetch-transport-port'
 import type { ModelRuntimeConnection } from '../../contracts/model-runtime-port'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { discoverModelsWithTransport } from './discovery'
 import { createCustomModelRuntime } from './runtime'
@@ -166,5 +166,40 @@ describe('generation validation', () => {
     expect(transport.requests.some(request => request.protocol !== 'openai-chat-completions')).toBe(false)
     expect(transport.requests.some(request => request.url.includes('/responses'))).toBe(false)
     expect(transport.requests.some(request => request.url.endsWith('/messages'))).toBe(false)
+  })
+
+  it('sends an arbitrary API Key and reports unauthorized when the remote rejects it', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const transport = createRecordingTransport(request => ({
+      requestId: request.requestId,
+      status: 401,
+      headers: { 'content-type': 'application/json' },
+      body: utf8Stream(JSON.stringify({
+        error: { message: 'Incorrect API key provided: local-gateway-token' },
+      })),
+    }))
+    const runtime = createCustomModelRuntime({
+      ...chatConnection(),
+      headers: {
+        ...chatConnection().headers,
+        authorization: 'Bearer local-gateway-token',
+      },
+    }, transport)
+
+    try {
+      const validation = await runtime.validateGeneration({ model: 'hand-filled-model' })
+
+      expect(transport.requests[0]?.headers.authorization).toBe('Bearer local-gateway-token')
+      expect(validation.success).toBe(false)
+      if (!('error' in validation))
+        throw new Error('expected generation validation to fail')
+      expect(validation.error.code).toBe('unauthorized')
+      expect(validation.error.status).toBe(401)
+      expect(validation.error.message).not.toContain('local-gateway-token')
+      expect(consoleError.mock.calls.flat().map(String).join(' ')).not.toContain('local-gateway-token')
+    }
+    finally {
+      consoleError.mockRestore()
+    }
   })
 })

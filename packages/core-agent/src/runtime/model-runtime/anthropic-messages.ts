@@ -9,7 +9,7 @@ import { Anthropic } from '@anthropic-ai/sdk'
 import { executeTool } from '@xsai/shared-chat'
 
 import { sanitizeMessages } from '../llm-service'
-import { ModelConnectionError, toModelConnectionError } from './errors'
+import { ModelConnectionError, secretValuesFromHeaders, toModelConnectionError } from './errors'
 import { createTransportFetch } from './fetch-transport'
 import {
   modelRuntimeKey,
@@ -48,12 +48,11 @@ export async function streamAnthropicMessages(
     signal: input.options?.abortSignal,
   })
   const client = new Anthropic({
-    apiKey: readAnthropicApiKey(connection.headers),
+    ...anthropicClientAuth(connection.headers),
     baseURL: new URL(connection.generationUrl).origin,
     fetch: fetchImpl,
     maxRetries: 0,
     dangerouslyAllowBrowser: true,
-    defaultHeaders: connection.headers,
   })
 
   let usage: LlmUsage = { source: 'unavailable' }
@@ -93,7 +92,7 @@ export async function streamAnthropicMessages(
       if (pendingAssistant.stopReason !== 'tool_use' || toolCalls.length === 0)
         break
 
-      const toolResults: ToolMessage[] = []
+      const toolResults: Array<{ message: ToolMessage, isError: boolean }> = []
       for (const call of toolCalls) {
         await input.options?.onStreamEvent?.({
           type: 'tool-call',
@@ -129,12 +128,13 @@ export async function streamAnthropicMessages(
             }
         await input.options?.onStreamEvent?.(streamEvent)
 
+        const isError = executed.completionToolResult.isError === true
         const toolMessage: ToolMessage = {
           role: 'tool',
           tool_call_id: call.id,
           content: resultText,
         }
-        toolResults.push(toolMessage)
+        toolResults.push({ message: toolMessage, isError })
         transcript.push(toolMessage)
       }
 
@@ -142,9 +142,11 @@ export async function streamAnthropicMessages(
         role: 'user',
         content: toolResults.map(result => ({
           type: 'tool_result' as const,
-          tool_use_id: result.tool_call_id,
-          content: typeof result.content === 'string' ? result.content : JSON.stringify(result.content),
-          is_error: false,
+          tool_use_id: result.message.tool_call_id,
+          content: typeof result.message.content === 'string'
+            ? result.message.content
+            : JSON.stringify(result.message.content),
+          is_error: result.isError,
         })),
       })
     }
@@ -156,7 +158,7 @@ export async function streamAnthropicMessages(
   catch (error) {
     if (error instanceof ModelConnectionError)
       throw error
-    throw toModelConnectionError(error, 'generation')
+    throw toModelConnectionError(error, 'generation', secretValuesFromHeaders(connection.headers))
   }
 }
 
@@ -481,12 +483,35 @@ function textFromContent(content: unknown): string {
     .join('')
 }
 
-function readAnthropicApiKey(headers: Record<string, string>): string {
+function anthropicClientAuth(headers: Record<string, string>): {
+  apiKey: string | null
+  authToken: string | null
+  defaultHeaders: Record<string, string | null>
+} {
+  let apiKey: string | null = null
+  let authToken: string | null = null
   for (const [name, value] of Object.entries(headers)) {
-    if (name.toLowerCase() === 'x-api-key' && value)
-      return value
-    if (name.toLowerCase() === 'authorization')
-      return value.replace(/^Bearer\s+/i, '') || 'unused'
+    const key = name.toLowerCase()
+    if (key === 'x-api-key' && value)
+      apiKey = value
+    if (key === 'authorization') {
+      const bearer = value.match(/^Bearer\s+(\S+)/i)
+      if (bearer?.[1])
+        authToken = bearer[1]
+    }
   }
-  return 'unused'
+
+  if (apiKey)
+    return { apiKey, authToken: null, defaultHeaders: headers }
+  if (authToken)
+    return { apiKey: null, authToken, defaultHeaders: headers }
+  return {
+    apiKey: null,
+    authToken: null,
+    defaultHeaders: {
+      ...headers,
+      'X-Api-Key': null,
+      'Authorization': null,
+    },
+  }
 }

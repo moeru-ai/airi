@@ -5,7 +5,7 @@ import type { InferenceServiceProvider } from '../libs/providers/types'
 import { PiniaColada } from '@pinia/colada'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createApp, effectScope } from 'vue'
+import { createApp, effectScope, nextTick, ref } from 'vue'
 
 import { useProviderConfigStore } from '../stores/providers/config'
 import { useCustomModelEditor } from './use-custom-model-editor'
@@ -240,5 +240,51 @@ describe('use custom model editor', () => {
     await editor.runGenerationTest()
     expect(editor.browserBlocked?.causes).toEqual(['cors', 'network', 'tls'])
     expect(editor.generationError?.message).toBe('Failed to fetch')
+  })
+
+  it('does not mark connection B verified from a pending test of connection A (PR #2411)', async () => {
+    // ROOT CAUSE:
+    //
+    // Vue reuses the Custom Model editor when the chat provider route
+    // changes. The provider watcher reloads B and does not abort A's
+    // generation test. A's success then fingerprints B's live draft.
+    //
+    // Capture the provider id before the request. Ignore results that
+    // no longer match that id.
+    // https://github.com/moeru-ai/airi/pull/2411
+    const store = installEditor()
+    const first = await store.addProvider('custom-model', validConfig, { name: 'OpenCode Go' })
+    const second = await store.addProvider('custom-model', {
+      ...validConfig,
+      baseUrl: 'https://b.example/v1',
+      auth: { type: 'bearer', secret: 'sk-b' },
+    }, { name: 'Private Gateway' })
+
+    let resolveFirst!: (value: ModelGenerationValidationResult) => void
+    const firstResult = new Promise<ModelGenerationValidationResult>((resolve) => {
+      resolveFirst = resolve
+    })
+    const validateGeneration = vi.fn()
+      .mockImplementationOnce(() => firstResult)
+
+    const activeId = ref(first.id)
+    const scope = effectScope()
+    const editor = scope.run(() => useCustomModelEditor(activeId, {
+      discover: async () => ({ status: 'unsupported' }),
+      validateGeneration,
+    }))
+    if (!editor)
+      throw new Error('Custom Model editor was not created.')
+
+    const pending = editor.runGenerationTest()
+    activeId.value = second.id
+    await nextTick()
+    resolveFirst({ success: true })
+    await pending
+
+    expect(editor.generationSuccess).toBe(false)
+    expect(editor.canSaveVerified).toBe(false)
+    expect(store.getProvider(second.id)?.status).not.toBe('configured')
+    scope.stop()
   })
 })

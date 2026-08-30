@@ -87,6 +87,8 @@ export function useCustomModelEditor(
   const confirmUnverifiedSave = ref(false)
   let discoveryAbort: AbortController | undefined
   let generationAbort: AbortController | undefined
+  let discoveryRequestId = 0
+  let generationRequestId = 0
 
   const configError = computed(() => customModelConfigErrorFromDraft(draft.value))
   const urlPreview = computed(() => previewCustomModelUrls(draft.value))
@@ -125,6 +127,12 @@ export function useCustomModelEditor(
   }
 
   watch(providerId, () => {
+    discoveryRequestId += 1
+    generationRequestId += 1
+    discoveryAbort?.abort()
+    generationAbort?.abort()
+    discoveryAbort = undefined
+    generationAbort = undefined
     loadDraft()
   }, { immediate: true })
 
@@ -182,18 +190,22 @@ export function useCustomModelEditor(
 
     discoveryAbort?.abort()
     discoveryAbort = new AbortController()
+    const requestId = ++discoveryRequestId
+    const requestProviderId = providerId.value
     isDiscovering.value = true
     discoveryStatus.value = 'loading'
     discoveryError.value = undefined
     try {
       const result = await discover(validated.output, {
-        connectionId: providerId.value,
+        connectionId: requestProviderId,
         transport: options.transport,
         abortSignal: discoveryAbort.signal,
       })
+      if (requestId !== discoveryRequestId || providerId.value !== requestProviderId)
+        return result
       discoveryStatus.value = result.status
       if (result.status === 'failed') {
-        discoveryError.value = presentCustomModelConnectionError(result.error)
+        discoveryError.value = presentCustomModelConnectionError(result.error, draft.value)
         discoveredNewModels.value = []
         return result
       }
@@ -208,17 +220,29 @@ export function useCustomModelEditor(
       return result
     }
     catch (error) {
+      if (requestId !== discoveryRequestId || providerId.value !== requestProviderId) {
+        return {
+          status: 'failed',
+          error: {
+            stage: 'discovery',
+            code: 'unknown',
+            message: 'The request was aborted.',
+            retryable: false,
+          },
+        }
+      }
       discoveryStatus.value = 'failed'
       discoveryError.value = presentCustomModelConnectionError({
         stage: 'discovery',
         code: 'unknown',
-        message: redactCustomModelErrorText(errorMessageFrom(error) ?? String(error)),
+        message: redactCustomModelErrorText(errorMessageFrom(error) ?? String(error), draft.value),
         retryable: false,
-      })
+      }, draft.value)
       return { status: 'failed' as const, error: discoveryError.value }
     }
     finally {
-      isDiscovering.value = false
+      if (requestId === discoveryRequestId)
+        isDiscovering.value = false
     }
   }
 
@@ -251,15 +275,19 @@ export function useCustomModelEditor(
 
     generationAbort?.abort()
     generationAbort = new AbortController()
+    const requestId = ++generationRequestId
+    const requestProviderId = providerId.value
     isTestingGeneration.value = true
     generationError.value = undefined
     try {
       const result = await validateGeneration(validated.output, {
-        connectionId: providerId.value,
+        connectionId: requestProviderId,
         model,
         transport: options.transport,
         abortSignal: generationAbort.signal,
       })
+      if (requestId !== generationRequestId || providerId.value !== requestProviderId)
+        return
       if (result.success) {
         generationSuccess.value = true
         generationFingerprint.value = customModelDraftFingerprint(draft.value)
@@ -268,19 +296,22 @@ export function useCustomModelEditor(
       }
 
       generationSuccess.value = false
-      generationError.value = presentCustomModelConnectionError(result.error)
+      generationError.value = presentCustomModelConnectionError(result.error, draft.value)
     }
     catch (error) {
+      if (requestId !== generationRequestId || providerId.value !== requestProviderId)
+        return
       generationSuccess.value = false
       generationError.value = presentCustomModelConnectionError({
         stage: 'generation',
         code: 'unknown',
-        message: redactCustomModelErrorText(errorMessageFrom(error) ?? String(error)),
+        message: redactCustomModelErrorText(errorMessageFrom(error) ?? String(error), draft.value),
         retryable: false,
-      })
+      }, draft.value)
     }
     finally {
-      isTestingGeneration.value = false
+      if (requestId === generationRequestId)
+        isTestingGeneration.value = false
     }
   }
 
@@ -313,7 +344,7 @@ export function useCustomModelEditor(
       return true
     }
     catch (error) {
-      saveError.value = redactCustomModelErrorText(errorMessageFrom(error) ?? String(error))
+      saveError.value = redactCustomModelErrorText(errorMessageFrom(error) ?? String(error), draft.value)
       return false
     }
     finally {

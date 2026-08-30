@@ -1503,8 +1503,8 @@ pages:
               none: No authentication
           auth-secret:
             label: API Key
-            description: The API Key stays hidden. AIRI stores it on this device only.
-            placeholder: sk-...
+            description: The API Key stays hidden. AIRI stores it on this device only. Any non-empty string is valid.
+            placeholder: API Key
           headers:
             label: Custom headers
             description: Header values stay hidden. Do not use reserved header names.

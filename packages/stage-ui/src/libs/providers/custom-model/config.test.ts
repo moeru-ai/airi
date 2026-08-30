@@ -178,6 +178,28 @@ describe('custom model connection config', () => {
     })
   })
 
+  it('accepts an arbitrary API Key string and sends it as-is', () => {
+    const validated = validateCustomModelConnection({
+      ...validConnection(),
+      auth: { type: 'bearer', secret: ' local-gateway-token ' },
+    })
+    expect(validated.success).toBe(true)
+    if (!validated.success)
+      return
+
+    expect(validated.output.auth.secret).toBe('local-gateway-token')
+    expect(mergeCustomModelHeaders({
+      protocol: 'openai-chat-completions',
+      auth: validated.output.auth,
+      user: {},
+    })).toMatchObject({
+      success: true,
+      headers: {
+        authorization: 'Bearer local-gateway-token',
+      },
+    })
+  })
+
   it('rejects a user header that collides with a protocol or auth header', () => {
     expect(mergeCustomModelHeaders({
       protocol: 'anthropic-messages',

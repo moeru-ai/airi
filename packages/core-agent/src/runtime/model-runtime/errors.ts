@@ -25,8 +25,8 @@ export class ModelConnectionError extends Error implements ModelConnectionErrorF
   readonly status?: number
   readonly retryable: boolean
 
-  constructor(fields: ModelConnectionErrorFields) {
-    super(redactSecretText(fields.message))
+  constructor(fields: ModelConnectionErrorFields, secrets: readonly string[] = EMPTY_SECRETS) {
+    super(redactSecretText(fields.message, secrets))
     this.name = 'ModelConnectionError'
     this.stage = fields.stage
     this.code = fields.code
@@ -53,18 +53,78 @@ export function isModelConnectionError(error: unknown): error is ModelConnection
   return error instanceof ModelConnectionError
 }
 
+const EMPTY_SECRETS: readonly string[] = Object.freeze([])
+const NON_SECRET_HEADER_NAMES = new Set([
+  'accept',
+  'content-type',
+  'anthropic-version',
+])
+
 /**
- * Removes secret-like tokens from an error or log string.
+ * Collects configured auth and secret-header values for diagnostic redaction.
+ *
+ * Custom Model keys are arbitrary strings. The helper keeps the header value
+ * and, for Bearer, the token after `Bearer`.
  *
  * @example
- * redactSecretText('Remote sent 401: Bearer sk-live')
- * // => 'Remote sent 401: Bearer [redacted]'
+ * secretValuesFromHeaders({ authorization: 'Bearer gateway-token', 'X-Token': 'secret-header' })
+ * // => ['Bearer gateway-token', 'gateway-token', 'secret-header']
  */
-export function redactSecretText(value: string): string {
-  return value
+export function secretValuesFromHeaders(headers: Record<string, string>): string[] {
+  const secrets: string[] = []
+  for (const [name, value] of Object.entries(headers)) {
+    if (NON_SECRET_HEADER_NAMES.has(name.toLowerCase()))
+      continue
+    const token = value.trim()
+    if (!token)
+      continue
+    pushUniqueSecret(secrets, token)
+    const bearerToken = token.match(/^Bearer\s+(.+)$/i)?.[1]?.trim()
+    if (bearerToken)
+      pushUniqueSecret(secrets, bearerToken)
+  }
+  return secrets
+}
+
+/**
+ * Removes secret tokens from an error or log string.
+ *
+ * Keys are arbitrary strings. Do not treat `sk-*` as a secret shape.
+ * A model ID can use that shape. Redact labeled Bearer / API Key values
+ * and the configured secrets.
+ *
+ * @example
+ * redactSecretText('Remote sent 401: Bearer gateway-token')
+ * // => 'Remote sent 401: Bearer [redacted]'
+ *
+ * @example
+ * redactSecretText('gateway echoed X-Token: secret-header', ['secret-header'])
+ * // => 'gateway echoed X-Token: [redacted]'
+ *
+ * @example
+ * redactSecretText('model sk-abc failed')
+ * // => 'model sk-abc failed'
+ */
+export function redactSecretText(value: string, secrets: readonly string[] = EMPTY_SECRETS): string {
+  let redacted = value
+  for (const token of configuredSecretTokens(secrets))
+    redacted = redacted.split(token).join('[redacted]')
+
+  return redacted
     .replace(/(Bearer)\s+\S+/gi, '$1 [redacted]')
-    .replace(/((?:x-api-key|api[_-]?key|authorization)\s*[:=]\s*)\S+/gi, '$1[redacted]')
-    .replace(/\bsk-[\w-]+\b/g, '[redacted]')
+    .replace(/((?:x-api-key|api[\s_-]?key|authorization)\s*[:=]\s*)\S+/gi, '$1[redacted]')
+}
+
+function pushUniqueSecret(secrets: string[], token: string): void {
+  if (!secrets.includes(token))
+    secrets.push(token)
+}
+
+function configuredSecretTokens(secrets: readonly string[]): string[] {
+  return secrets
+    .map(secret => secret.trim())
+    .filter(token => token.length > 0)
+    .sort((left, right) => right.length - left.length)
 }
 
 /**
@@ -95,6 +155,7 @@ export function modelConnectionErrorFromStatus(
   status: number,
   message: string,
   stage: ModelConnectionErrorFields['stage'],
+  secrets: readonly string[] = EMPTY_SECRETS,
 ): ModelConnectionError {
   const code = modelConnectionCodeFromStatus(status)
   return new ModelConnectionError({
@@ -103,7 +164,7 @@ export function modelConnectionErrorFromStatus(
     message: message || `Remote sent ${status} response.`,
     status,
     retryable: RETRYABLE_CODES.has(code),
-  })
+  }, secrets)
 }
 
 /**
@@ -114,9 +175,10 @@ export function modelConnectionErrorFromStatus(
 export function toModelConnectionError(
   error: unknown,
   stage: ModelConnectionErrorFields['stage'],
+  secrets: readonly string[] = EMPTY_SECRETS,
 ): ModelConnectionError {
   if (error instanceof ModelConnectionError) {
-    if (error.stage === stage)
+    if (error.stage === stage && secrets.length === 0)
       return error
     return new ModelConnectionError({
       stage,
@@ -124,7 +186,7 @@ export function toModelConnectionError(
       message: error.message,
       ...(error.status != null ? { status: error.status } : {}),
       retryable: error.retryable,
-    })
+    }, secrets)
   }
 
   if (isAbortError(error)) {
@@ -140,8 +202,9 @@ export function toModelConnectionError(
   if (APICallError.isInstance(error)) {
     return modelConnectionErrorFromStatus(
       error.statusCode,
-      redactSecretText(error.message),
+      error.message,
       stage,
+      secrets,
     )
   }
 
@@ -149,22 +212,21 @@ export function toModelConnectionError(
   if (status != null) {
     return modelConnectionErrorFromStatus(
       status,
-      redactSecretText(errorMessageFromValue(error)),
+      errorMessageFromValue(error),
       stage,
+      secrets,
     )
   }
 
   const code = classifyNetworkFailure(error)
-  const message = redactSecretText(
-    errorMessageFrom(error) ?? errorMessageFromValue(error),
-  )
+  const message = errorMessageFrom(error) ?? errorMessageFromValue(error)
 
   return new ModelConnectionError({
     stage,
     code,
     message: message || 'The request failed.',
     retryable: RETRYABLE_CODES.has(code),
-  })
+  }, secrets)
 }
 
 /**

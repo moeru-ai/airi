@@ -76,6 +76,7 @@ export {
   parseDiscoveredModels,
   parseFetchTransportRequest,
   redactSecretText,
+  secretValuesFromHeaders,
   streamOptionsContentArrayOkByKey,
   streamOptionsToolsOkByKey,
   toAiriStreamEvent,

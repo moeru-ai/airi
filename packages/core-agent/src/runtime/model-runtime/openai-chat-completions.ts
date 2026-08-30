@@ -5,7 +5,7 @@ import { stepCountAtLeast } from '@xsai/shared-chat'
 import { streamText } from '@xsai/stream-text'
 
 import { sanitizeMessages } from '../llm-service'
-import { toModelConnectionError } from './errors'
+import { secretValuesFromHeaders, toModelConnectionError } from './errors'
 import { createTransportFetch } from './fetch-transport'
 import {
   modelRuntimeKey,
@@ -57,9 +57,9 @@ export async function streamOpenAIChatCompletions(
           : {}),
         onEvent,
       })
-    }, input.options)
+    }, input.options, secretValuesFromHeaders(connection.headers))
   }
   catch (error) {
-    throw toModelConnectionError(error, 'generation')
+    throw toModelConnectionError(error, 'generation', secretValuesFromHeaders(connection.headers))
   }
 }

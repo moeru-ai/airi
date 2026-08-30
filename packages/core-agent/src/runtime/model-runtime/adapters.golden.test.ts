@@ -79,7 +79,9 @@ function openaiResponsesConnection(): ModelRuntimeConnection {
   }
 }
 
-function anthropicConnection(): ModelRuntimeConnection {
+function anthropicConnection(headers: Record<string, string> = {
+  'x-api-key': 'sk-ant-test',
+}): ModelRuntimeConnection {
   return {
     connectionId: 'conn-anthropic',
     protocol: 'anthropic-messages',
@@ -87,10 +89,52 @@ function anthropicConnection(): ModelRuntimeConnection {
     headers: {
       'accept': 'application/json',
       'content-type': 'application/json',
-      'x-api-key': 'sk-ant-test',
       'anthropic-version': '2023-06-01',
+      ...headers,
     },
   }
+}
+
+function headerValue(headers: Record<string, string> | undefined, name: string): string | undefined {
+  if (!headers)
+    return undefined
+  const match = Object.entries(headers).find(([key]) => key.toLowerCase() === name.toLowerCase())
+  return match?.[1]
+}
+
+function anthropicTextReply(): string {
+  return [
+    anthropicEvent('message_start', {
+      type: 'message_start',
+      message: {
+        id: 'msg_1',
+        type: 'message',
+        role: 'assistant',
+        content: [],
+        model: 'claude-test',
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 8, output_tokens: 0 },
+      },
+    }),
+    anthropicEvent('content_block_start', {
+      type: 'content_block_start',
+      index: 0,
+      content_block: { type: 'text', text: '' },
+    }),
+    anthropicEvent('content_block_delta', {
+      type: 'content_block_delta',
+      index: 0,
+      delta: { type: 'text_delta', text: 'ok' },
+    }),
+    anthropicEvent('content_block_stop', { type: 'content_block_stop', index: 0 }),
+    anthropicEvent('message_delta', {
+      type: 'message_delta',
+      delta: { stop_reason: 'end_turn', stop_sequence: null },
+      usage: { output_tokens: 1 },
+    }),
+    anthropicEvent('message_stop', { type: 'message_stop' }),
+  ].join('')
 }
 
 function chatCompletionChunk(delta: Record<string, unknown>, finishReason: string | null = null, usage?: Record<string, number>) {
@@ -435,5 +479,121 @@ describe('protocol adapter golden streams', () => {
       totalTokens: 14,
       source: 'reported',
     }])
+  })
+
+  it('sends only Authorization for Anthropic Bearer auth (PR #2411)', async () => {
+    // ROOT CAUSE:
+    //
+    // readAnthropicApiKey always returned a string apiKey, including the
+    // Bearer secret and 'unused'. The SDK then added X-Api-Key. Merge kept
+    // that header because Bearer connections only set Authorization.
+    // https://github.com/moeru-ai/airi/pull/2411
+    const transport = createScriptedTransport([
+      request => responseOf(request, anthropicTextReply()),
+    ])
+    const runtime = createCustomModelRuntime(
+      anthropicConnection({ authorization: 'Bearer sk-ant-bearer' }),
+      transport,
+    )
+
+    await runtime.stream({
+      model: 'claude-test',
+      messages: [{ role: 'user', content: 'ping' }],
+    })
+
+    expect(headerValue(transport.requests[0]?.headers, 'authorization')).toBe('Bearer sk-ant-bearer')
+    expect(headerValue(transport.requests[0]?.headers, 'x-api-key')).toBeUndefined()
+  })
+
+  it('does not send Anthropic auth headers when auth is none (PR #2411)', async () => {
+    const transport = createScriptedTransport([
+      request => responseOf(request, anthropicTextReply()),
+    ])
+    const runtime = createCustomModelRuntime(anthropicConnection({}), transport)
+
+    await runtime.stream({
+      model: 'claude-test',
+      messages: [{ role: 'user', content: 'ping' }],
+    })
+
+    expect(headerValue(transport.requests[0]?.headers, 'authorization')).toBeUndefined()
+    expect(headerValue(transport.requests[0]?.headers, 'x-api-key')).toBeUndefined()
+    expect(Object.values(transport.requests[0]?.headers ?? {})).not.toContain('unused')
+  })
+
+  it('forwards Anthropic tool failures with is_error true (PR #2411)', async () => {
+    // ROOT CAUSE:
+    //
+    // executeTool set isError on the stream event, but the follow-up
+    // Anthropic user message hardcoded is_error: false.
+    // https://github.com/moeru-ai/airi/pull/2411
+    const failingTool = {
+      type: 'function',
+      function: {
+        name: 'weather',
+        description: 'Get weather',
+        parameters: {
+          type: 'object',
+          properties: { city: { type: 'string' } },
+          required: ['city'],
+        },
+      },
+      execute: vi.fn(async () => {
+        throw new Error('weather down')
+      }),
+    } satisfies Tool
+
+    const transport = createScriptedTransport([
+      request => responseOf(request, [
+        anthropicEvent('message_start', {
+          type: 'message_start',
+          message: {
+            id: 'msg_1',
+            type: 'message',
+            role: 'assistant',
+            content: [],
+            model: 'claude-test',
+            stop_reason: null,
+            stop_sequence: null,
+            usage: { input_tokens: 8, output_tokens: 0 },
+          },
+        }),
+        anthropicEvent('content_block_start', {
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'tool_use', id: 'call_weather', name: 'weather', input: {} },
+        }),
+        anthropicEvent('content_block_delta', {
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'input_json_delta', partial_json: '{"city":"paris"}' },
+        }),
+        anthropicEvent('content_block_stop', { type: 'content_block_stop', index: 0 }),
+        anthropicEvent('message_delta', {
+          type: 'message_delta',
+          delta: { stop_reason: 'tool_use', stop_sequence: null },
+          usage: { output_tokens: 4 },
+        }),
+        anthropicEvent('message_stop', { type: 'message_stop' }),
+      ].join('')),
+      request => responseOf(request, anthropicTextReply()),
+    ])
+    const runtime = createCustomModelRuntime(anthropicConnection(), transport)
+
+    await runtime.stream({
+      model: 'claude-test',
+      messages: [{ role: 'user', content: 'weather?' }],
+      tools: [failingTool],
+    })
+
+    const followUp = JSON.parse(transport.requests[1]?.body ?? '{}') as {
+      messages: Array<{ role: string, content: Array<{ type: string, is_error?: boolean }> }>
+    }
+    const toolResult = followUp.messages
+      .flatMap(message => Array.isArray(message.content) ? message.content : [])
+      .find(part => part.type === 'tool_result')
+
+    expect(failingTool.execute).toHaveBeenCalledTimes(1)
+    expect(toolResult?.is_error).toBe(true)
   })
 })

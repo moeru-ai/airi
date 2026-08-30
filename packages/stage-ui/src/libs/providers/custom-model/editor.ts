@@ -362,15 +362,24 @@ export function ensureTrailingHeaderRow(headers: CustomModelHeaderDraft[]): Cust
   return rows
 }
 
+function secretsFromDraft(draft?: CustomModelEditorDraft): string[] {
+  if (!draft)
+    return []
+  return [
+    draft.authSecret,
+    ...draft.headers.map(header => header.value),
+  ].filter(value => value.trim().length > 0)
+}
+
 /**
  * Redacts a diagnostic string before the UI shows it.
  *
  * @example
- * redactCustomModelErrorText('Unauthorized Bearer sk-live')
+ * redactCustomModelErrorText('Unauthorized Bearer gateway-token')
  * // => 'Unauthorized Bearer [redacted]'
  */
-export function redactCustomModelErrorText(value: string): string {
-  return redactSecretText(value)
+export function redactCustomModelErrorText(value: string, draft?: CustomModelEditorDraft): string {
+  return redactSecretText(value, secretsFromDraft(draft))
 }
 
 /**
@@ -453,10 +462,13 @@ export function resolveCustomModelTestModelId(draft: CustomModelEditorDraft): st
 /**
  * Returns a redacted diagnostic from a generation or discovery failure.
  */
-export function presentCustomModelConnectionError(error: ModelConnectionErrorFields): ModelConnectionErrorFields {
+export function presentCustomModelConnectionError(
+  error: ModelConnectionErrorFields,
+  draft?: CustomModelEditorDraft,
+): ModelConnectionErrorFields {
   return {
     ...error,
-    message: redactCustomModelErrorText(error.message),
+    message: redactCustomModelErrorText(error.message, draft),
   }
 }
 

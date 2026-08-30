@@ -186,6 +186,33 @@ describe('custom model editor helpers', () => {
   it('redacts secrets in error text and lists CORS, network, and TLS causes', () => {
     expect(redactCustomModelErrorText('Bearer sk-live failed')).toContain('[redacted]')
     expect(redactCustomModelErrorText('Bearer sk-live failed')).not.toContain('sk-live')
+    expect(redactCustomModelErrorText('model sk-abc failed')).toBe('model sk-abc failed')
+    expect(redactCustomModelErrorText('Incorrect API key provided: local-gateway-token', {
+      name: 'Custom Model',
+      protocol: 'openai-chat-completions',
+      baseUrl: 'https://example.com/v1',
+      generationPath: 'chat/completions',
+      modelListPath: 'models',
+      authType: 'bearer',
+      authSecret: 'local-gateway-token',
+      headers: [{ key: 'X-Token', value: 'secret-header' }],
+      models: [{ id: 'gpt-test', name: '' }],
+      anthropicVersion: '2023-06-01',
+      selectedModelId: 'gpt-test',
+    })).not.toContain('local-gateway-token')
+    expect(redactCustomModelErrorText('gateway echoed X-Token: secret-header', {
+      name: 'Custom Model',
+      protocol: 'openai-chat-completions',
+      baseUrl: 'https://example.com/v1',
+      generationPath: 'chat/completions',
+      modelListPath: 'models',
+      authType: 'bearer',
+      authSecret: 'sk-live',
+      headers: [{ key: 'X-Token', value: 'secret-header' }],
+      models: [{ id: 'gpt-test', name: '' }],
+      anthropicVersion: '2023-06-01',
+      selectedModelId: 'gpt-test',
+    })).not.toContain('secret-header')
     expect(customModelBrowserBlockedPresentation().causes).toEqual(['cors', 'network', 'tls'])
   })
 

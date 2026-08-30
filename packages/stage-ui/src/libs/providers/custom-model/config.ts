@@ -26,6 +26,12 @@ export type CustomModelProtocol = typeof CUSTOM_MODEL_PROTOCOLS[number]
 /** Authentication configuration for one custom model connection. */
 export interface CustomModelAuth {
   type: 'bearer' | 'x-api-key' | 'none'
+  /**
+   * Auth secret sent to the upstream service.
+   *
+   * Any non-empty string is valid after trim. AIRI does not check the key
+   * format. If the remote rejects the key, the request error is reported.
+   */
   secret?: string
 }
 
@@ -265,6 +271,7 @@ export function validateCustomModelConnection(
       return { success: false, code: 'invalid-path', field: 'modelListPath' }
   }
 
+  // Any non-empty trimmed secret is valid. Key format is not checked.
   const secret = parsed.output.auth.secret?.trim()
   const requireAuth = options.requireAuth !== false
   if (requireAuth && parsed.output.auth.type !== 'none' && !secret)

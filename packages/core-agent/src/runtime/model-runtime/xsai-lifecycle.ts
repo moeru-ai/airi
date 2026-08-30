@@ -5,8 +5,10 @@ import type { StreamEvent, StreamOptions } from '../../types/llm'
 import { errorMessageFromValue } from '../../utils/error-message'
 import { redactSecretText } from './errors'
 
-function logStreamDiagnostic(label: string, error: unknown): void {
-  console.error(label, redactSecretText(errorMessageFromValue(error)))
+const EMPTY_SECRETS: readonly string[] = Object.freeze([])
+
+function logStreamDiagnostic(label: string, error: unknown, secrets: readonly string[] = EMPTY_SECRETS): void {
+  console.error(label, redactSecretText(errorMessageFromValue(error), secrets))
 }
 
 /**
@@ -68,14 +70,18 @@ export interface XsAiLifecycleResult {
  *
  * `steps` is the authoritative completion signal, including tool-call rounds.
  * Late provider error events after `steps` resolve are ignored.
+ *
+ * Pass configured secrets so diagnostic `console.error` lines do not leak keys.
  */
 export function runXsAiGeneration(
   start: (onEvent: (event: Event) => Promise<void>) => XsAiLifecycleResult,
   options?: StreamOptions,
+  secrets: readonly string[] = EMPTY_SECRETS,
 ): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     let settled = false
     let stepsSettled = false
+    const log = (label: string, error: unknown) => logStreamDiagnostic(label, error, secrets)
     const resolveOnce = () => {
       if (settled)
         return
@@ -156,7 +162,7 @@ export function runXsAiGeneration(
           usage = await streamResult.totalUsage
         }
         catch (error) {
-          logStreamDiagnostic('Stream totalUsage error:', error)
+          log('Stream totalUsage error:', error)
         }
         try {
           const normalizedUsage = !usage
@@ -168,28 +174,28 @@ export function runXsAiGeneration(
         catch (error) {
           // Usage observers are telemetry-only and must not turn a completed
           // provider response into a failed user message.
-          logStreamDiagnostic('Stream usage callback error:', error)
+          log('Stream usage callback error:', error)
         }
         resolveOnce()
       }).catch((error) => {
         // A failure after `steps` resolved belongs to optional usage
         // observation and cannot invalidate the completed response.
         if (stepsSettled) {
-          logStreamDiagnostic('Stream usage observation error:', error)
+          log('Stream usage observation error:', error)
           resolveOnce()
           return
         }
         rejectOnce(error)
-        logStreamDiagnostic('Stream steps error:', error)
+        log('Stream steps error:', error)
       })
       // `steps` can reject before the success path awaits `messages`.
       // Keep this rejection sink so xsAI cannot create an unhandled rejection.
-      void streamResult.messages?.catch(error => logStreamDiagnostic('Stream messages error:', error))
-      void streamResult.usage.catch(error => logStreamDiagnostic('Stream usage error:', error))
+      void streamResult.messages?.catch(error => log('Stream messages error:', error))
+      void streamResult.usage.catch(error => log('Stream usage error:', error))
       // `steps` and `totalUsage` reject independently when xsAI fails a
       // stream. The success path awaits `totalUsage`, but if `steps` rejects
       // first that await never runs, so keep this unconditional rejection sink.
-      void streamResult.totalUsage.catch(error => logStreamDiagnostic('Stream totalUsage error:', error))
+      void streamResult.totalUsage.catch(error => log('Stream totalUsage error:', error))
     }
     catch (error) {
       rejectOnce(error)

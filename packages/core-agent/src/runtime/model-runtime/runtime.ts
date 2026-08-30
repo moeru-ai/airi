@@ -9,7 +9,7 @@ import type {
 
 import { streamAnthropicMessages } from './anthropic-messages'
 import { discoverModelsWithTransport } from './discovery'
-import { toModelConnectionError } from './errors'
+import { secretValuesFromHeaders, toModelConnectionError } from './errors'
 import { streamOpenAIChatCompletions } from './openai-chat-completions'
 import { streamOpenAIResponses } from './openai-responses'
 
@@ -82,7 +82,11 @@ async function validateGenerationWithRuntime(
   catch (error) {
     return {
       success: false,
-      error: toModelConnectionError(error, 'generation').toJSON(),
+      error: toModelConnectionError(
+        error,
+        'generation',
+        secretValuesFromHeaders(connection.headers),
+      ).toJSON(),
     }
   }
 }

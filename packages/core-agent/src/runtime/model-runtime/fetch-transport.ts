@@ -9,7 +9,7 @@ import type {
 import { nanoid } from 'nanoid'
 
 import { CUSTOM_MODEL_RUNTIME_PROTOCOLS } from '../../contracts/fetch-transport-port'
-import { ModelConnectionError, toModelConnectionError } from './errors'
+import { ModelConnectionError, secretValuesFromHeaders, toModelConnectionError } from './errors'
 
 /** Maximum UTF-8 JSON body size for one custom-model transport request. */
 export const FETCH_TRANSPORT_MAX_BODY_BYTES = 1_048_576
@@ -90,7 +90,7 @@ export function createDirectFetchTransport(
       catch (error) {
         if (input.signal?.aborted)
           throw input.signal.reason ?? error
-        throw toModelConnectionError(error, 'transport')
+        throw toModelConnectionError(error, 'transport', secretValuesFromHeaders(headers))
       }
       finally {
         input.signal?.removeEventListener('abort', abort)

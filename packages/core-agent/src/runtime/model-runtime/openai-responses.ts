@@ -8,7 +8,7 @@ import { responses } from '@xsai-ext/responses'
 import { stepCountAtLeast } from '@xsai/shared-chat'
 
 import { sanitizeMessages } from '../llm-service'
-import { toModelConnectionError } from './errors'
+import { secretValuesFromHeaders, toModelConnectionError } from './errors'
 import { createTransportFetch } from './fetch-transport'
 import {
   modelRuntimeKey,
@@ -68,10 +68,10 @@ export async function streamOpenAIResponses(
         usage: result.usage,
         totalUsage: result.totalUsage,
       }
-    }, input.options)
+    }, input.options, secretValuesFromHeaders(connection.headers))
   }
   catch (error) {
-    throw toModelConnectionError(error, 'generation')
+    throw toModelConnectionError(error, 'generation', secretValuesFromHeaders(connection.headers))
   }
 }
 

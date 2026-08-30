@@ -1428,8 +1428,8 @@ pages:
               none: 无认证
           auth-secret:
             label: API 密钥
-            description: API 密钥默认隐藏。AIRI 只把密钥保存在本机。
-            placeholder: sk-...
+            description: API 密钥默认隐藏。AIRI 只把密钥保存在本机。任意非空字符串都有效。
+            placeholder: API 密钥
           headers:
             label: 自定义请求头
             description: 请求头的值默认隐藏。请勿使用保留名称。

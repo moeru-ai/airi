@@ -34,6 +34,7 @@ export {
   ModelConnectionError,
   modelConnectionErrorFromStatus,
   redactSecretText,
+  secretValuesFromHeaders,
   toModelConnectionError,
 } from './errors'
 export type {

@@ -7,7 +7,12 @@ import type {
 
 import { nanoid } from 'nanoid'
 
-import { ModelConnectionError, modelConnectionErrorFromStatus, toModelConnectionError } from './errors'
+import {
+  ModelConnectionError,
+  modelConnectionErrorFromStatus,
+  secretValuesFromHeaders,
+  toModelConnectionError,
+} from './errors'
 
 /**
  * Mutable discovery session used by configuration UI.
@@ -96,6 +101,7 @@ export async function discoverModelsWithTransport(
         response.status,
         bodyText || `Remote sent ${response.status} response.`,
         'discovery',
+        secretValuesFromHeaders(connection.headers),
       )
     }
 
@@ -112,7 +118,11 @@ export async function discoverModelsWithTransport(
 
     return {
       status: 'failed',
-      error: toModelConnectionError(error, 'discovery').toJSON(),
+      error: toModelConnectionError(
+        error,
+        'discovery',
+        secretValuesFromHeaders(connection.headers),
+      ).toJSON(),
     }
   }
 }
