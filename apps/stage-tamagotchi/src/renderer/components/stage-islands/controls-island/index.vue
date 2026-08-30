@@ -4,7 +4,7 @@ import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInEl
 import { IS_DEV } from '@proj-airi/stage-shared'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
-import { refDebounced, useIntervalFn } from '@vueuse/core'
+import { refDebounced, useIntervalFn, useWindowSize } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, reactive, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -40,6 +40,12 @@ const emit = defineEmits<Emits>()
 const { isDark, toggleDark } = useTheme()
 const { t } = useI18n()
 const { dock, isLeft, isTop, motionPhase } = useControlsIslandPlacement()
+const { height: windowHeight } = useWindowSize()
+
+// Below this window height, `auto` icon sizing switches to the smaller icons so
+// the controls column (and the expanded drawer next to it) still fit; above it,
+// the larger, more legible icons are used.
+const AUTO_LARGE_MIN_HEIGHT = 420
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()
@@ -128,9 +134,9 @@ const adjustStyleClasses = computed(() => {
       break
     case 'auto':
     default:
-      // Fixed to large for better visibility in the new layout,
-      // can be changed to windowHeight based check if absolutely needed.
-      isLarge = true
+      // Use the more legible large icons when there's vertical room, and shrink
+      // to the smaller ones on short windows so the controls stay reachable.
+      isLarge = windowHeight.value >= AUTO_LARGE_MIN_HEIGHT
       break
   }
 
