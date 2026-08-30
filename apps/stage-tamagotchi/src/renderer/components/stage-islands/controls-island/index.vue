@@ -226,6 +226,10 @@ function resetMainWindowPosition() {
           :class="[
             'flex flex-col gap-1 rounded-2xl border border-neutral-200 p-2 dark:border-neutral-800',
             'bg-neutral-100/80 shadow-2xl shadow-black/20 backdrop-blur-xl dark:bg-neutral-900/80',
+            // Keep the drawer reachable on small windows: cap its height to the
+            // viewport (leaving room for the main controls docked next to it)
+            // and scroll internally instead of clipping controls out of reach.
+            'max-h-[calc(100dvh_-_5rem)] overflow-y-auto overscroll-contain',
             panelPositionClasses,
           ]"
         >
