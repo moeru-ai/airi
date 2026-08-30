@@ -1,12 +1,21 @@
 import type { ProviderContext } from '../../../types'
 
+import { encodeBase64 } from '@moeru/std/base64'
+import { literal, object, picklist, safeParse, string, tupleWithRest, unknown } from 'valibot'
 import { z } from 'zod'
 
 import { defineProvider } from '../../registry'
 
+export const MIMO_ASR_MODEL = 'mimo-v2.5-asr'
+export const MIMO_ASR_LANGUAGES = ['auto', 'zh', 'en'] as const
+export type MimoAsrLanguage = typeof MIMO_ASR_LANGUAGES[number]
+
+const MIMO_DEFAULT_BASE_URL = 'https://api.xiaomimimo.com/v1/'
+const MIMO_MAX_AUDIO_BASE64_LENGTH = 10 * 1024 * 1024
+
 const mimoSpeechConfigSchema = z.object({
   apiKey: z.string(),
-  baseUrl: z.string().default('https://api.xiaomimimo.com/v1/'),
+  baseUrl: z.string().default(MIMO_DEFAULT_BASE_URL),
   model: z.string().default('mimo-v2.5-tts'),
   voice: z.string().default('mimo_default'),
   format: z.string().default('wav'),
@@ -16,8 +25,9 @@ const mimoSpeechConfigSchema = z.object({
 
 const mimoTranscriptionConfigSchema = z.object({
   apiKey: z.string(),
-  baseUrl: z.string().default('https://api.xiaomimimo.com/v1/'),
-  model: z.string().default('mimo-v2-omni'),
+  baseUrl: z.string().default(MIMO_DEFAULT_BASE_URL),
+  model: z.literal(MIMO_ASR_MODEL).default(MIMO_ASR_MODEL),
+  language: z.enum(MIMO_ASR_LANGUAGES).default('auto'),
 })
 
 type MimoSpeechConfig = z.input<typeof mimoSpeechConfigSchema>
@@ -25,7 +35,7 @@ type MimoTranscriptionConfig = z.input<typeof mimoTranscriptionConfigSchema>
 type MimoConfig = MimoSpeechConfig | MimoTranscriptionConfig
 
 function normalizeBaseUrl(baseUrl: string | undefined) {
-  return `${(baseUrl || 'https://api.xiaomimimo.com/v1/').replace(/\/+$/, '')}/`
+  return `${(baseUrl || MIMO_DEFAULT_BASE_URL).replace(/\/+$/, '')}/`
 }
 
 function createMimoValidators<TConfig extends MimoConfig>(id: string) {
@@ -139,35 +149,85 @@ function createMimoSpeechProvider(config: MimoSpeechConfig) {
   }
 }
 
-function audioFormatFromDataUri(dataUri: string) {
-  const mimeType = dataUri.split(';')[0]?.split(':')[1] || 'audio/wav'
-  const format = mimeType.split('/')[1] || 'wav'
-  if (format === 'webm' || format === 'mp4')
-    return format
-  if (format === 'mpeg' || format === 'mp3')
-    return 'mp3'
-  return 'wav'
+function hasFourCc(bytes: Uint8Array, offset: number, value: string) {
+  if (bytes.byteLength < offset + value.length)
+    return false
+  return value.split('').every((character, index) => bytes[offset + index] === character.charCodeAt(0))
 }
 
-async function readBlobAsDataUri(file: Blob): Promise<string> {
-  const bytes = new Uint8Array(await file.arrayBuffer())
-  let binary = ''
+function isWavAudio(buffer: ArrayBuffer) {
+  const bytes = new Uint8Array(buffer)
+  return bytes.byteLength >= 44 && hasFourCc(bytes, 0, 'RIFF') && hasFourCc(bytes, 8, 'WAVE')
+}
 
-  for (const byte of bytes)
-    binary += String.fromCharCode(byte)
+function isLikelyMp3Audio(buffer: ArrayBuffer) {
+  const bytes = new Uint8Array(buffer)
+  if (bytes.byteLength < 2)
+    return false
+  if (hasFourCc(bytes, 0, 'ID3'))
+    return true
+  return bytes[0] === 0xFF && (bytes[1] & 0xE0) === 0xE0
+}
 
-  return `data:${file.type || 'audio/wav'};base64,${btoa(binary)}`
+function createMimoAudioData(buffer: ArrayBuffer, format: 'wav' | 'mp3') {
+  const mimeType = format === 'wav' ? 'audio/wav' : 'audio/mpeg'
+  const base64 = encodeBase64(buffer)
+  if (base64.length > MIMO_MAX_AUDIO_BASE64_LENGTH)
+    throw new Error('MiMo ASR audio exceeds the 10 MB Base64 limit.')
+
+  return {
+    data: `data:${mimeType};base64,${base64}`,
+    format,
+  }
+}
+
+/** Identifies supported MiMo upload containers from their bytes, independent of the declared MIME type. */
+export function mimoAsrAudioFormat(buffer: ArrayBuffer): 'wav' | 'mp3' | undefined {
+  if (isWavAudio(buffer))
+    return 'wav'
+  if (isLikelyMp3Audio(buffer))
+    return 'mp3'
+}
+
+async function prepareMimoAsrAudio(file: Blob) {
+  const buffer = await file.arrayBuffer()
+  const format = mimoAsrAudioFormat(buffer)
+  if (!format)
+    throw new Error('MiMo ASR accepts only WAV or MP3 audio.')
+  return createMimoAudioData(buffer, format)
+}
+
+/** Unsupported language values use MiMo automatic language detection. */
+function normalizeMimoAsrLanguage(value: unknown): MimoAsrLanguage {
+  const parsed = safeParse(picklist(MIMO_ASR_LANGUAGES), value)
+  return parsed.success ? parsed.output : 'auto'
+}
+
+/** Validates the dedicated ASR model and first transcript before returning its trimmed text. */
+export function parseMimoAsrResponse(value: unknown) {
+  if (!safeParse(object({ model: literal(MIMO_ASR_MODEL) }), value).success)
+    throw new Error('MiMo ASR response did not identify the dedicated mimo-v2.5-asr model.')
+  const parsed = safeParse(object({
+    choices: tupleWithRest([object({ message: object({ content: string() }) })], unknown()),
+  }), value)
+  if (!parsed.success)
+    throw new Error('MiMo ASR response is missing a string transcript.')
+  return parsed.output.choices[0].message.content.trim()
+}
+
+export interface MimoTranscriptionOptions {
+  language?: string
 }
 
 function createMimoTranscriptionProvider(config: MimoTranscriptionConfig) {
   const apiKey = config.apiKey?.trim() ?? ''
   const baseUrl = normalizeBaseUrl(config.baseUrl)
-  const defaultModel = config.model || 'mimo-v2-omni'
+  const configuredLanguage = config.language
 
   return {
-    transcription: (model: string) => ({
+    transcription: (_model: string, extraOptions?: MimoTranscriptionOptions) => ({
       baseURL: baseUrl,
-      model: model || defaultModel,
+      model: MIMO_ASR_MODEL,
       headers: {},
       fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
         if (!(init?.body instanceof FormData))
@@ -177,30 +237,38 @@ function createMimoTranscriptionProvider(config: MimoTranscriptionConfig) {
         if (!(file instanceof Blob))
           throw new Error('No audio file provided for transcription.')
 
-        const modelName = String(init.body.get('model') || defaultModel)
-        const dataUri = await readBlobAsDataUri(file)
-        const base64Data = dataUri.split(',')[1]
-        const response = await fetch(new URL('chat/completions', baseUrl), {
+        const audio = await prepareMimoAsrAudio(file)
+        const response = await globalThis.fetch(new URL('chat/completions', baseUrl), {
           method: 'POST',
+          signal: init.signal,
           headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
           body: JSON.stringify({
-            model: modelName,
+            model: MIMO_ASR_MODEL,
             messages: [{
               role: 'user',
               content: [
-                { type: 'text', text: 'Transcribe the audio content.' },
-                { type: 'input_audio', input_audio: { data: base64Data, format: audioFormatFromDataUri(dataUri) } },
+                { type: 'input_audio', input_audio: audio },
               ],
             }],
+            asr_options: {
+              language: normalizeMimoAsrLanguage(configuredLanguage ?? extraOptions?.language),
+            },
           }),
         })
         if (!response.ok) {
-          const errorBody = await response.text().catch(() => '')
-          throw new Error(`MiMo transcription failed: ${response.status} ${response.statusText}${errorBody ? ` — ${errorBody}` : ''}`)
+          throw new Error(`MiMo ASR request failed: ${response.status} ${response.statusText}`)
         }
 
-        const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> }
-        return new Response(JSON.stringify({ text: data.choices?.[0]?.message?.content || '' }), {
+        let data: unknown
+        try {
+          data = await response.json()
+        }
+        catch {
+          throw new Error('MiMo ASR response was not valid JSON.')
+        }
+
+        const text = parseMimoAsrResponse(data)
+        return new Response(JSON.stringify({ text }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         })
@@ -259,8 +327,7 @@ export const providerMimoAudioTranscription = defineProvider<MimoTranscriptionCo
   validators: createMimoValidators<MimoTranscriptionConfig>('mimo-audio-transcription'),
   extraMethods: {
     listModels: async () => [
-      { id: 'mimo-v2-omni', name: 'MiMo V2 Omni', provider: 'mimo-audio-transcription', description: 'Omni-modal model with native audio understanding and speech-to-text', contextLength: 256000, deprecated: false },
-      { id: 'mimo-v2.5', name: 'MiMo V2.5', provider: 'mimo-audio-transcription', description: 'Latest omni-modal model with audio understanding, 1M context', contextLength: 1_000_000, deprecated: false },
+      { id: MIMO_ASR_MODEL, name: 'MiMo v2.5 ASR', provider: 'mimo-audio-transcription', description: 'Dedicated Xiaomi MiMo Speech Recognition model', contextLength: 8_000, deprecated: false },
     ],
   },
 })

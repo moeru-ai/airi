@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { RemovableRef } from '@vueuse/core'
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
+import { MIMO_ASR_LANGUAGES, MIMO_ASR_MODEL } from '@proj-airi/provider-inference'
 import {
   ProviderAdvancedSettings,
   ProviderApiKeyInput,
@@ -12,70 +12,30 @@ import {
   TranscriptionPlayground,
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
+import { prepareMimoAsrUpload } from '@proj-airi/stage-ui/libs/audio/mimo-asr-upload'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Alert, Button, FieldCombobox } from '@proj-airi/ui'
-import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 
 const providerId = 'mimo-audio-transcription'
 const hearingStore = useHearingStore()
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
-const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
-
-const apiKey = computed({
-  get: () => providers.value[providerId]?.apiKey || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].apiKey = value
-  },
-})
-
-const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].baseUrl = value
-  },
-})
-
-const model = computed({
-  get: () => providers.value[providerId]?.model || 'mimo-v2-omni',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].model = value
-  },
-})
-
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
-
+const config = computed(() => providerStore.getProviderConfig(providerId))
+const apiKey = computed(() => typeof config.value?.apiKey === 'string' ? config.value.apiKey : '')
+const baseUrl = computed(() => typeof config.value?.baseUrl === 'string' ? config.value.baseUrl : '')
+const model = MIMO_ASR_MODEL
+const language = computed(() => MIMO_ASR_LANGUAGES.find(value => value === config.value?.language) ?? 'auto')
+const languageOptions = [
+  { value: 'auto', label: 'Auto-detect' },
+  { value: 'zh', label: 'Chinese' },
+  { value: 'en', label: 'English' },
+]
+const apiKeyConfigured = computed(() => !!apiKey.value)
 const providerModels = computed(() => providersStore.getModelsForProvider(providerId))
-
 const isLoadingModels = computed(() => providersStore.isLoadingModels[providerId] || false)
-
-onMounted(async () => {
-  await providersStore.loadModelsForConfiguredProviders()
-  await providersStore.fetchModelsForProvider(providerId)
-})
-
-async function handleGenerateTranscription(file: File) {
-  const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
-  if (!provider)
-    throw new Error('Failed to initialize transcription provider')
-
-  return await hearingStore.transcription(
-    providerId,
-    provider,
-    model.value,
-    file,
-    'json',
-  )
-}
 
 const {
   t,
@@ -87,6 +47,29 @@ const {
   handleResetSettings,
   forceValid,
 } = useProviderValidation(providerId)
+
+onMounted(async () => {
+  await providersStore.initializeProvider(providerId)
+  await providerStore.patchProviderConfig(providerId, { model, language: language.value })
+  await providersStore.loadModelsForConfiguredProviders()
+  await providersStore.fetchModelsForProvider(providerId)
+})
+
+/** Field updates reach the provider owner through patchProviderConfig, including edits from follower windows. */
+async function setField(key: 'apiKey' | 'baseUrl' | 'language', value: string | undefined) {
+  if (value === undefined)
+    return
+  await providerStore.patchProviderConfig(providerId, { [key]: value })
+}
+
+/** TranscriptionPlayground uploads pass browser-decoded audio to Hearing and the portable MiMo request adapter. */
+async function handleGenerateTranscription(file: File) {
+  const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, Record<string, unknown>>>(providerId)
+  if (!provider)
+    throw new Error('Failed to initialize transcription provider')
+  const upload = await prepareMimoAsrUpload(file)
+  return hearingStore.transcription(providerId, provider, model, upload, 'json', { providerOptions: { language: language.value } })
+}
 </script>
 
 <template>
@@ -102,22 +85,31 @@ const {
         :on-reset="handleResetSettings"
       >
         <ProviderApiKeyInput
-          v-model="apiKey"
+          :model-value="apiKey"
+          @update:model-value="setField('apiKey', $event)"
           :provider-name="providerMetadata?.localizedName"
           placeholder="mimo_... (MiMo API key)"
         />
         <FieldCombobox
-          v-model="model"
+          :model-value="model"
           :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name')"
           :options="providerModels.map(m => ({ value: m.id, label: m.name }))"
           :disabled="isLoadingModels || providerModels.length === 0"
           placeholder="Select a model..."
         />
+        <FieldCombobox
+          :model-value="language"
+          label="ASR language"
+          description="MiMo uses automatic language detection unless you choose Chinese or English."
+          :options="languageOptions"
+          @update:model-value="setField('language', $event)"
+        />
       </ProviderBasicSettings>
 
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
-          v-model="baseUrl"
+          :model-value="baseUrl"
+          @update:model-value="setField('baseUrl', $event)"
           :placeholder="providerMetadata?.defaultConfig.baseUrl as string || 'https://api.xiaomimimo.com/v1/'"
         />
       </ProviderAdvancedSettings>
@@ -132,7 +124,9 @@ const {
           </Button>
         </template>
       </Alert>
-      <Alert v-if="isValid && isValidating === 0" tone="success" :title="t('settings.dialogs.onboarding.validationSuccess')" />
+      <Alert v-if="isValid && isValidating === 0" tone="success" title="Local configuration is complete">
+        API key and Base URL are present. This local check does not prove Xiaomi MiMo ASR runtime availability. Use the transcription test below for an actual request.
+      </Alert>
     </ProviderSettingsContainer>
 
     <TranscriptionPlayground

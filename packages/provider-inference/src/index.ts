@@ -26,3 +26,6 @@ export { joinTranscriptSegments } from './providers/local/sherpaw-transcription/
 export * from './providers/registry'
 export * from './types'
 export * from './validators'
+
+export { MIMO_ASR_LANGUAGES, MIMO_ASR_MODEL, mimoAsrAudioFormat } from './providers/cloud/mimo-audio'
+export type { MimoAsrLanguage } from './providers/cloud/mimo-audio'
