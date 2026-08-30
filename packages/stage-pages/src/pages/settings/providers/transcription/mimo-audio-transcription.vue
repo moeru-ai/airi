@@ -64,11 +64,22 @@ const language = computed<MimoAsrLanguage>({
   },
 })
 
-const languageOptions = [
-  { value: 'auto', label: 'Auto-detect' },
-  { value: 'zh', label: 'Chinese' },
-  { value: 'en', label: 'English' },
-]
+const {
+  t,
+  router,
+  providerMetadata,
+  isValidating,
+  isValid,
+  validationMessage,
+  handleResetSettings,
+  forceValid,
+} = useProviderValidation(providerId)
+
+const languageOptions = computed(() => [
+  { value: 'auto', label: t('settings.pages.providers.provider.mimo.transcription.language.options.auto') },
+  { value: 'zh', label: t('settings.pages.providers.provider.mimo.transcription.language.options.zh') },
+  { value: 'en', label: t('settings.pages.providers.provider.mimo.transcription.language.options.en') },
+])
 
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
@@ -98,17 +109,6 @@ async function handleGenerateTranscription(file: File) {
     'json',
   )
 }
-
-const {
-  t,
-  router,
-  providerMetadata,
-  isValidating,
-  isValid,
-  validationMessage,
-  handleResetSettings,
-  forceValid,
-} = useProviderValidation(providerId)
 </script>
 
 <template>
@@ -137,8 +137,8 @@ const {
         />
         <FieldCombobox
           v-model="language"
-          label="ASR language"
-          description="MiMo uses automatic language detection unless you choose Chinese or English."
+          :label="t('settings.pages.providers.provider.mimo.transcription.language.label')"
+          :description="t('settings.pages.providers.provider.mimo.transcription.language.description')"
           :options="languageOptions"
         />
       </ProviderBasicSettings>
@@ -171,10 +171,10 @@ const {
       </Alert>
       <Alert v-if="isValid && isValidating === 0" type="success">
         <template #title>
-          Local configuration is complete
+          {{ t('settings.pages.providers.provider.mimo.transcription.validation.local-complete') }}
         </template>
         <template #content>
-          API key and Base URL are present. This local check does not prove Xiaomi MiMo ASR runtime availability; use the transcription test below for an actual request.
+          {{ t('settings.pages.providers.provider.mimo.transcription.validation.local-complete-description') }}
         </template>
       </Alert>
     </ProviderSettingsContainer>

@@ -34,8 +34,8 @@ function createProvider(config: Record<string, unknown> = {}) {
   }
 }
 
-async function callProvider(file = createWavFile(), config: Record<string, unknown> = {}, model = 'mimo-v2.5') {
-  const request = createProvider(config).transcription(model)
+async function callProvider(file = createWavFile(), config: Record<string, unknown> = {}, model = 'mimo-v2.5', options?: { language?: string }) {
+  const request = createProvider(config).transcription(model, options)
   const form = new FormData()
   form.set('file', file)
   return await request.fetch('https://unused.invalid/v1/audio/transcriptions', { method: 'POST', body: form })
@@ -108,6 +108,18 @@ describe('xiaomi MiMo ASR transcription provider', () => {
       await callProvider(createWavFile(), { language })
       expect(lastPayload(fetchMock).asr_options).toEqual({ language })
     }
+  })
+
+  it('prefers the current request language over cached provider configuration', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      model: MIMO_ASR_MODEL,
+      choices: [{ message: { content: 'ok' } }],
+    }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await callProvider(createWavFile(), { language: 'auto' }, 'mimo-v2.5', { language: 'zh' })
+
+    expect(lastPayload(fetchMock).asr_options).toEqual({ language: 'zh' })
   })
 
   it('preserves the actual WAV bytes in a matching data URL and format field', async () => {
