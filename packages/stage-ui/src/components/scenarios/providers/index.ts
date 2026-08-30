@@ -1,3 +1,5 @@
+export { default as CustomModelConnectionEditor } from './custom-model-connection-editor.vue'
+export { default as CustomModelWebLimitCallout } from './custom-model-web-limit-callout.vue'
 export { default as ProviderAccountIdInput } from './provider-account-id-input.vue'
 export { default as ProviderAdvancedSettings } from './provider-advanced-settings.vue'
 export { default as ProviderApiKeyInput } from './provider-api-key-input.vue'

@@ -58,6 +58,7 @@
     "@pinia/colada": "catalog:",
     "@proj-airi/audio": "workspace:^",
     "@proj-airi/ccc": "workspace:^",
+    "@proj-airi/core-agent": "workspace:^",
     "@proj-airi/drizzle-duckdb-wasm": "catalog:",
     "@proj-airi/font-chillroundm": "workspace:^",
     "@proj-airi/font-cjkfonts-allseto": "workspace:^",

@@ -56,6 +56,15 @@ describe('migrated provider definitions', () => {
       expect(getDefinedProvider(providerId), providerId).toBeDefined()
   })
 
+  it('registers custom-model as a local-only chat definition', () => {
+    const definition = getDefinedProvider('custom-model')
+
+    expect(definition?.id).toBe('custom-model')
+    expect(definition?.configStorage).toBe('local')
+    expect(definition?.tasks).toContain('chat')
+    expect(() => definition?.createProvider({})).toThrow('Custom Model generation uses the protocol runtime.')
+  })
+
   it('creates the no-op speech provider through ProviderDefinition', async () => {
     const provider = await providerSpeechNoop.createProvider({})
 

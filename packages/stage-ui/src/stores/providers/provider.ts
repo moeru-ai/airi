@@ -30,6 +30,10 @@ import {
   listProviders as listDefinedProviders,
   validateProvider as runProviderValidation,
 } from '../../libs/providers'
+import {
+  customModelModelsFromConfig,
+  isCustomModelDefinitionId,
+} from '../../libs/providers/custom-model/editor'
 import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
 import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from './config'
@@ -528,6 +532,10 @@ export const useProviderStore = defineStore('provider', () => {
 
   async function listProviderModels(providerId: string, config: Record<string, unknown>) {
     const definition = getProviderDefinition(providerId)
+    if (isCustomModelDefinitionId(definition.id)) {
+      return normalizeProviderModels(providerId, customModelModelsFromConfig(config))
+    }
+
     const provider = await definition.createProvider(config)
     try {
       if (definition.extraMethods?.listModels) {
@@ -671,6 +679,14 @@ export const useProviderStore = defineStore('provider', () => {
 
   // Get models for a specific provider
   function getModelsForProvider(providerId: string) {
+    const definitionId = getProviderDefinitionId(providerId)
+    if (isCustomModelDefinitionId(definitionId)) {
+      const saved = customModelModelsFromConfig(providerCredentials.value[providerId])
+      if (saved.length === 0)
+        return emptyProviderModels
+      return normalizeProviderModels(providerId, saved)
+    }
+
     return providerRuntimeState.value[providerId]?.models ?? emptyProviderModels
   }
 
@@ -716,12 +732,15 @@ export const useProviderStore = defineStore('provider', () => {
     if (!metadata)
       return undefined
 
+    const definitionName = metadata.nameKey === metadata.name
+      ? metadata.name
+      : t(metadata.nameKey, metadata.name)
+    const instanceName = configuredProvider?.name?.trim()
+
     return {
       ...metadata,
       id: providerId,
-      localizedName: metadata.nameKey === metadata.name
-        ? metadata.name
-        : t(metadata.nameKey, metadata.name),
+      localizedName: instanceName || definitionName,
       localizedDescription: metadata.descriptionKey === metadata.description
         ? metadata.description
         : t(metadata.descriptionKey, metadata.description),

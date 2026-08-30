@@ -102,6 +102,7 @@ function handleItemClick(item: TItem, globalIndex: number) {
           v-for="(item, iIndex) in sectionMeta[sIndex].items"
           :key="props.getKey(item)"
           v-motion
+          :class="['h-full']"
           :initial="animationInitial"
           :enter="{
             ...animationEnter,

@@ -1,4 +1,5 @@
 export * from './attributes'
+export * from './custom-model'
 export * from './hearing-view'
 export * from './metadata'
 export * from './providers'

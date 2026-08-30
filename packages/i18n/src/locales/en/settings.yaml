@@ -669,6 +669,7 @@ pages:
             description: Select the suitable LLM provider for consciousness
             error: Error loading models
             health_check_failed: Health check failed
+            unverified: Not verified
             no_providers_configured_title: No Providers Configured
             no_providers_configured_description: Click here to set up your LLM providers
             expand: Expand
@@ -1468,6 +1469,130 @@ pages:
       openai-compatible:
         description: OpenAI Compatible
         title: OpenAI Compatible
+      custom-model:
+        description: User-managed model service connection.
+        title: Custom Model
+        instance-name:
+          label: Connection name
+          placeholder: OpenCode Go
+        platform-limit:
+          catalog-hint: Browser CORS required
+          title: Browser request limit
+          web: The browser can reach a service only when that service allows CORS. If the request fails, CORS, the network, or TLS can be the cause. Use the desktop app when the service blocks the browser.
+          electron: The desktop app sends Custom Model requests from the Main Process.
+        fields:
+          protocol:
+            label: Protocol
+            options:
+              openai-chat-completions: OpenAI Chat Completions
+              openai-responses: OpenAI Responses
+              anthropic-messages: Anthropic Messages
+          generation-path:
+            label: Generation path
+            description: Relative path that is added to the Base URL.
+            placeholder: chat/completions
+          model-list-path:
+            label: Model list path
+            description: Leave this empty when the service does not list models.
+            placeholder: models
+          auth-type:
+            label: Authentication
+            options:
+              bearer: Bearer Token
+              x-api-key: x-api-key
+              none: No authentication
+          auth-secret:
+            label: API Key
+            description: The API Key stays hidden. AIRI stores it on this device only.
+            placeholder: sk-...
+          headers:
+            label: Custom headers
+            description: Header values stay hidden. Do not use reserved header names.
+            key-placeholder: Header name
+            value-placeholder: Header value
+          models:
+            label: Model IDs
+            description: Discover models from the Base URL, or enter a model ID.
+            id-placeholder: Model ID
+            name-placeholder: Display name
+            add: Add model ID
+          anthropic-version:
+            label: Anthropic version
+            description: Protocol version header for Anthropic Messages.
+            placeholder: '2023-06-01'
+        url-preview:
+          generation: Generation URL
+          models: Model list URL
+          invalid: Enter a valid Base URL and a relative path to preview the request URL.
+        discovery:
+          title: Model discovery
+          action: Discover models
+          add: Add
+          status:
+            idle: Enter a Base URL, then discover models. AIRI fills the model list.
+            loading: Discovery is running.
+            success: Discovery filled the model list. You can run a generation test.
+            empty: Discovery returned no models. You can still enter a model ID.
+            unsupported: This connection does not list models. Enter a model ID.
+            failed: Discovery failed. You can still enter a model ID and run a generation test.
+        generation:
+          title: Generation test
+          action: Run generation test
+          model: Model for the generation test
+          success: Generation test passed.
+          failed: Generation test failed.
+          need-model: Select a model ID before you run the generation test.
+        stages:
+          config: Configuration
+          discovery: Model discovery
+          generation: Generation test
+          transport: Transport
+        save:
+          verified: Save verified connection
+          unverified: Save without generation test
+          unverified-confirm: Confirm save without generation test
+          unverified-hint: This connection is not verified. Chat can still use it.
+          verified-required: Run a generation test for the current connection before you save it as verified.
+          cancel: Cancel
+        status:
+          configured: Verified
+          bypassed: Not verified
+          unconfigured: Not verified
+          invalid: Invalid
+          validating: Validating
+        errors:
+          config:
+            invalid-structure: The connection fields are not complete.
+            invalid-url: Enter a valid http or https Base URL.
+            invalid-path: Enter a relative path. Do not include a host.
+            invalid-header: A custom header name or value is not valid.
+            reserved-header: A custom header uses a reserved name.
+            auth-secret-required: Enter an API Key for this authentication type.
+            duplicate-model: Each model ID must be unique.
+            model-required: Enter at least one model ID, or discover models from the Base URL.
+          connection:
+            invalid-config: The connection configuration is not valid.
+            network-unreachable: The service could not be reached.
+            dns-failed: DNS lookup failed.
+            tls-failed: TLS verification failed.
+            timeout: The request timed out.
+            unauthorized: Authentication failed.
+            forbidden: The service refused the request.
+            not-found: The request path was not found.
+            rate-limited: The service rate-limited the request.
+            unsupported-response: The service returned an unsupported response.
+            upstream-error: The service returned an error.
+            browser-request-blocked: The browser could not complete the request.
+            unknown: The request failed for an unknown reason.
+          causes:
+            cors: CORS
+            network: Network
+            tls: TLS
+          next-steps:
+            cors: Check that the service allows browser CORS.
+            network: Check the network path and DNS.
+            tls: Check the TLS certificate.
+            electron: Use the desktop app when the browser cannot reach the service.
       nvidia:
         description: build.nvidia.com
         title: NVIDIA NIM

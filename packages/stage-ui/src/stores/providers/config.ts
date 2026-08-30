@@ -1,5 +1,6 @@
 import type {} from 'pinia-plugin-synced'
 
+import type { CustomModelConnectionConfig } from '../../libs/providers/custom-model/config'
 import type { InferenceServiceProvider, ProviderValidationStatus } from '../../libs/providers/types'
 
 import { useMutation, useQuery } from '@pinia/colada'
@@ -9,7 +10,14 @@ import { computed } from 'vue'
 
 import { client } from '../../composables/api'
 import { getDefinedProvider } from '../../libs/providers'
+import {
+  CUSTOM_MODEL_DEFINITION_ID,
+  CustomModelConfigError,
+  resolveCustomModelValidationStatus,
+  validateCustomModelConnection,
+} from '../../libs/providers/custom-model/config'
 import { inferenceServiceProvidersService as service } from '../../services/inference-service-providers'
+import { useAuthStore } from '../auth'
 
 const PROVIDERS_QUERY_KEY = ['inference-service-providers']
 const providerStorageOptions = {
@@ -63,6 +71,8 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     providers.value[providerId] = {
       id: providerId,
       definitionId,
+      name: definition.name,
+      persistence: definition.configStorage ?? 'remote',
       config,
       status: 'unconfigured',
       configuredBy: definition.configuredBy ?? 'user',
@@ -131,6 +141,8 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     const provider = {
       id: providerId,
       definitionId,
+      name: definition.name,
+      persistence: definition.configStorage ?? 'remote',
       config,
       status: 'unconfigured' as const,
       configuredBy: definition.configuredBy ?? 'user',
@@ -154,30 +166,84 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   function mergeProviderSnapshot(snapshot: Record<string, InferenceServiceProvider>) {
-    providers.value = { ...providers.value, ...snapshot }
-    for (const providerId of Object.keys(snapshot))
+    const next = { ...providers.value }
+    for (const [providerId, remoteProvider] of Object.entries(snapshot)) {
+      // Local-only connections never cross the remote provider API. A remote
+      // id collision must not replace their secrets or persistence boundary.
+      if (next[providerId]?.persistence === 'local')
+        continue
+
+      next[providerId] = remoteProvider
       markProviderAdded(providerId)
+    }
+    providers.value = next
+  }
+
+  function storedCustomModelConfig(config: CustomModelConnectionConfig): Record<string, unknown> {
+    return Object.fromEntries(Object.entries(config))
+  }
+
+  function nextInstanceName(definitionId: string, baseName: string) {
+    const usedNames = new Set(
+      Object.values(providers.value)
+        .filter(provider => provider.definitionId === definitionId)
+        .map(provider => provider.name),
+    )
+    if (!usedNames.has(baseName))
+      return baseName
+
+    let index = 2
+    while (usedNames.has(`${baseName} ${index}`))
+      index += 1
+    return `${baseName} ${index}`
+  }
+
+  function snapshotProviders(): Record<string, InferenceServiceProvider> {
+    return JSON.parse(JSON.stringify(providers.value)) as Record<string, InferenceServiceProvider>
   }
 
   async function fetchProviders() {
+    const authStore = useAuthStore()
+    if (!authStore.token) {
+      // A 401 on the provider API starts a full-page sign-in. Anonymous users
+      // still need the local custom-model snapshot without that redirect.
+      return snapshotProviders()
+    }
+
     try {
       const state = await providersQuery.refetch(true)
       if (state.data) {
         // The server snapshot has the highest priority for ids that exist remotely.
         mergeProviderSnapshot(state.data)
       }
-      return providers.value
+      return snapshotProviders()
     }
     catch {
       // The merged local snapshot is authoritative while the remote endpoint is unavailable.
-      return providers.value
+      return snapshotProviders()
     }
   }
 
-  async function addProvider(definitionId: string, initialConfig: Record<string, unknown> = {}) {
+  async function addProvider(definitionId: string, initialConfig: Record<string, unknown> = {}, options: { name?: string } = {}) {
     const provider = service.buildLocal(definitionId, initialConfig)
+
+    if (provider.definitionId === CUSTOM_MODEL_DEFINITION_ID) {
+      const name = options.name?.trim()
+      provider.name = name || nextInstanceName(provider.definitionId, provider.name)
+
+      if (Object.keys(initialConfig).length > 0) {
+        const result = validateCustomModelConnection(initialConfig)
+        if (!result.success)
+          throw new CustomModelConfigError(result.code, result.field)
+        provider.config = storedCustomModelConfig(result.output)
+      }
+    }
+
     providers.value[provider.id] = provider
     markProviderAdded(provider.id)
+
+    if (provider.persistence === 'local')
+      return provider
 
     try {
       const remote = await addProviderMutation.mutateAsync(provider)
@@ -197,8 +263,12 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     if (!providers.value[providerId])
       return
 
+    const provider = providers.value[providerId]
     delete providers.value[providerId]
     unmarkProviderAdded(providerId)
+
+    if (provider.persistence === 'local')
+      return
 
     try {
       await removeProviderMutation.mutateAsync(providerId)
@@ -208,17 +278,59 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     }
   }
 
-  async function updateProviderConfig(providerId: string, config: Record<string, unknown>, status: ProviderValidationStatus) {
+  async function updateProviderName(providerId: string, name: string) {
     const provider = providers.value[providerId]
     if (!provider)
       return
 
+    const nextName = name.trim()
+    if (!nextName)
+      throw new Error('Provider name is required.')
+
     const localProvider = {
       ...provider,
-      config: { ...config },
-      status,
+      name: nextName,
     }
     providers.value[providerId] = localProvider
+    return localProvider
+  }
+
+  async function updateProviderConfig(
+    providerId: string,
+    config: Record<string, unknown>,
+    status: ProviderValidationStatus,
+    options: { validationResult?: boolean } = {},
+  ) {
+    const provider = providers.value[providerId]
+    if (!provider)
+      return
+
+    let nextConfig = { ...config }
+    let nextStatus = status
+
+    if (provider.definitionId === CUSTOM_MODEL_DEFINITION_ID) {
+      const result = validateCustomModelConnection(config)
+      if (!result.success)
+        throw new CustomModelConfigError(result.code, result.field)
+
+      nextConfig = storedCustomModelConfig(result.output)
+      nextStatus = resolveCustomModelValidationStatus(
+        provider.config,
+        result.output,
+        status,
+        options,
+      )
+    }
+
+    const localProvider = {
+      ...provider,
+      config: nextConfig,
+      status: nextStatus,
+    }
+    providers.value[providerId] = localProvider
+
+    if (localProvider.persistence === 'local')
+      return localProvider
 
     try {
       const remote = await updateProviderMutation.mutateAsync({ providerId, config, status })
@@ -255,6 +367,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     fetchProviders,
     addProvider,
     removeProvider,
+    updateProviderName,
     updateProviderConfig,
     resetProviders,
   }
@@ -268,6 +381,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       'setProviderStatus',
       'addProvider',
       'removeProvider',
+      'updateProviderName',
       'updateProviderConfig',
       'resetProviders',
     ],

@@ -2,6 +2,7 @@
 import type { RemovableRef } from '@vueuse/core'
 
 import {
+  CustomModelConnectionEditor,
   ProviderAdvancedSettings,
   ProviderApiKeyInput,
   ProviderBaseUrlInput,
@@ -11,50 +12,67 @@ import {
   ProviderValidationAlerts,
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
-import { getDefinedProvider } from '@proj-airi/stage-ui/libs'
+import { CUSTOM_MODEL_DEFINITION_ID, getDefinedProvider } from '@proj-airi/stage-ui/libs'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldCombobox } from '@proj-airi/ui'
 import { computedAsync } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
-const providerId = route.params.providerId as string
+const router = useRouter()
+const providerId = computed(() => route.params.providerId as string)
 const providerConfigStore = useProviderConfigStore()
 const providersStore = useProviderStore()
 const consciousnessStore = useConsciousnessStore()
 const { configs: providers } = storeToRefs(providerConfigStore) as { configs: RemovableRef<Record<string, any>> }
 const { activeProvider } = storeToRefs(consciousnessStore)
-const providerDefinition = computed(() => providersStore.findProviderDefinition(providerId))
+const providerRecord = computed(() => providerConfigStore.getProvider(providerId.value))
+const providerDefinition = computed(() => providersStore.findProviderDefinition(providerId.value))
+const isCustomModelProvider = computed(() =>
+  providerId.value === CUSTOM_MODEL_DEFINITION_ID
+  || providerRecord.value?.definitionId === CUSTOM_MODEL_DEFINITION_ID
+  || providerDefinition.value?.id === CUSTOM_MODEL_DEFINITION_ID,
+)
+
+onMounted(async () => {
+  if (providerId.value !== CUSTOM_MODEL_DEFINITION_ID)
+    return
+  if (providerRecord.value)
+    return
+
+  const created = await providerConfigStore.addProvider(CUSTOM_MODEL_DEFINITION_ID)
+  await router.replace(`/settings/providers/chat/${created.id}`)
+})
 
 // Define computed properties for credentials
 const apiKey = computed({
-  get: () => providers.value[providerId]?.apiKey || '',
+  get: () => providers.value[providerId.value]?.apiKey || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].apiKey = value
+    if (!providers.value[providerId.value])
+      providers.value[providerId.value] = {}
+    providers.value[providerId.value].apiKey = value
   },
 })
 
 const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || '',
+  get: () => providers.value[providerId.value]?.baseUrl || '',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].baseUrl = value
+    if (!providers.value[providerId.value])
+      providers.value[providerId.value] = {}
+    providers.value[providerId.value].baseUrl = value
   },
 })
 
 const thinkingMode = computed({
-  get: () => providers.value[providerId]?.thinkingMode || 'auto',
+  get: () => providers.value[providerId.value]?.thinkingMode || 'auto',
   set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].thinkingMode = value
+    if (!providers.value[providerId.value])
+      providers.value[providerId.value] = {}
+    providers.value[providerId.value].thinkingMode = value
   },
 })
 
@@ -63,7 +81,6 @@ const supportsDeepSeekThinkingMode = computed(() => providerDefinition.value?.id
 // Use the composable to get validation logic and state
 const {
   t,
-  router,
   providerMetadata,
   isValidating,
   isValid,
@@ -75,10 +92,10 @@ const {
   manualTestPassed,
   manualTestMessage,
   runManualTest,
-} = useProviderValidation(providerId)
+} = useProviderValidation(providerId.value)
 
 const apiKeyPlaceholder = computedAsync(async () => {
-  const definition = providerDefinition.value ?? getDefinedProvider(providerId)
+  const definition = providerDefinition.value ?? getDefinedProvider(providerId.value)
   if (!definition?.createProviderConfig)
     return 'sk-...'
 
@@ -93,19 +110,21 @@ const apiKeyPlaceholder = computedAsync(async () => {
 }, 'sk-...')
 
 function goToModelSelection() {
-  activeProvider.value = providerId
+  activeProvider.value = providerId.value
   router.push('/settings/modules/consciousness')
 }
 </script>
 
 <template>
   <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName"
+    :provider-name="providerRecord?.name || providerMetadata?.localizedName"
     :provider-icon="providerMetadata?.icon"
     :provider-icon-color="providerMetadata?.iconColor"
     :on-back="() => router.back()"
   >
-    <ProviderSettingsContainer>
+    <CustomModelConnectionEditor v-if="isCustomModelProvider && providerRecord" :provider-id="providerId" />
+
+    <ProviderSettingsContainer v-else>
       <ProviderBasicSettings
         :title="t('settings.pages.providers.common.section.basic.title')"
         :description="t('settings.pages.providers.common.section.basic.description')"
@@ -113,7 +132,7 @@ function goToModelSelection() {
       >
         <ProviderApiKeyInput
           v-model="apiKey"
-          :provider-name="providerMetadata?.localizedName"
+          :provider-name="providerRecord?.name || providerMetadata?.localizedName"
           :placeholder="apiKeyPlaceholder"
         />
       </ProviderBasicSettings>

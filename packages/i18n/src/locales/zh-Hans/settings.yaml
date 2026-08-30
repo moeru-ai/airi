@@ -644,6 +644,7 @@ pages:
             description: 为意识选择合适的 LLM 服务来源
             error: 获取出错啦
             health_check_failed: 健康检查失败
+            unverified: 未验证
             no_providers_configured_title: 没有配置服务来源
             no_providers_configured_description: 点击这里设置您的 LLM 服务来源
             expand: 展开
@@ -1393,6 +1394,130 @@ pages:
       openai-compatible:
         description: OpenAI 兼容 API
         title: OpenAI 兼容 API
+      custom-model:
+        description: 用户自行配置的模型服务连接。
+        title: 自定义模型
+        instance-name:
+          label: 连接名称
+          placeholder: OpenCode Go
+        platform-limit:
+          catalog-hint: 需要浏览器 CORS
+          title: 浏览器请求限制
+          web: 浏览器只能访问允许 CORS 的服务。如果请求失败，原因可能是 CORS、网络或 TLS。如果服务阻止浏览器访问，请使用桌面应用。
+          electron: 桌面应用通过主进程发送自定义模型请求。
+        fields:
+          protocol:
+            label: 协议
+            options:
+              openai-chat-completions: OpenAI Chat Completions
+              openai-responses: OpenAI Responses
+              anthropic-messages: Anthropic Messages
+          generation-path:
+            label: 生成路径
+            description: 会追加到 Base URL 后的相对路径。
+            placeholder: chat/completions
+          model-list-path:
+            label: 模型列表路径
+            description: 如果服务不提供模型列表，请留空。
+            placeholder: models
+          auth-type:
+            label: 认证方式
+            options:
+              bearer: Bearer Token
+              x-api-key: x-api-key
+              none: 无认证
+          auth-secret:
+            label: API 密钥
+            description: API 密钥默认隐藏。AIRI 只把密钥保存在本机。
+            placeholder: sk-...
+          headers:
+            label: 自定义请求头
+            description: 请求头的值默认隐藏。请勿使用保留名称。
+            key-placeholder: 请求头名称
+            value-placeholder: 请求头值
+          models:
+            label: 模型 ID
+            description: 可以从 Base URL 发现模型，也可以手填模型 ID。
+            id-placeholder: 模型 ID
+            name-placeholder: 显示名称
+            add: 添加模型 ID
+          anthropic-version:
+            label: Anthropic 版本
+            description: Anthropic Messages 的协议版本请求头。
+            placeholder: '2023-06-01'
+        url-preview:
+          generation: 生成请求地址
+          models: 模型列表请求地址
+          invalid: 请输入有效的 Base URL 和相对路径以预览最终请求地址。
+        discovery:
+          title: 模型发现
+          action: 发现模型
+          add: 添加
+          status:
+            idle: 填写 Base URL 后即可发现模型。AIRI 会把结果填入模型清单。
+            loading: 正在发现模型。
+            success: 已把发现的模型填入清单。你可以执行生成测试。
+            empty: 发现结果为空。你仍然可以填写模型 ID。
+            unsupported: 此连接不支持模型列表。请填写模型 ID。
+            failed: 模型发现失败。你仍然可以填写模型 ID 并执行生成测试。
+        generation:
+          title: 生成测试
+          action: 执行生成测试
+          model: 用于生成测试的模型
+          success: 生成测试通过。
+          failed: 生成测试失败。
+          need-model: 请先选择模型 ID，再执行生成测试。
+        stages:
+          config: 配置检查
+          discovery: 模型发现
+          generation: 生成测试
+          transport: 传输
+        save:
+          verified: 保存已验证连接
+          unverified: 不验证并保存
+          unverified-confirm: 确认不验证并保存
+          unverified-hint: 此连接尚未验证。聊天仍可使用它。
+          verified-required: 请先对当前连接执行生成测试，再保存为已验证。
+          cancel: 取消
+        status:
+          configured: 已验证
+          bypassed: 未验证
+          unconfigured: 未验证
+          invalid: 无效
+          validating: 正在验证
+        errors:
+          config:
+            invalid-structure: 连接字段不完整。
+            invalid-url: 请输入有效的 http 或 https Base URL。
+            invalid-path: 请输入相对路径，不要包含主机名。
+            invalid-header: 自定义请求头的名称或值无效。
+            reserved-header: 自定义请求头使用了保留名称。
+            auth-secret-required: 此认证方式需要 API 密钥。
+            duplicate-model: 每个模型 ID 必须唯一。
+            model-required: 填写至少一个模型 ID，或从 Base URL 发现模型。
+          connection:
+            invalid-config: 连接配置无效。
+            network-unreachable: 无法访问该服务。
+            dns-failed: DNS 查询失败。
+            tls-failed: TLS 校验失败。
+            timeout: 请求超时。
+            unauthorized: 认证失败。
+            forbidden: 服务拒绝了该请求。
+            not-found: 请求路径不存在。
+            rate-limited: 服务限制了请求频率。
+            unsupported-response: 服务返回了不支持的响应。
+            upstream-error: 服务返回了错误。
+            browser-request-blocked: 浏览器无法完成该请求。
+            unknown: 请求因未知原因失败。
+          causes:
+            cors: CORS
+            network: 网络
+            tls: TLS
+          next-steps:
+            cors: 请确认该服务允许浏览器 CORS。
+            network: 请检查网络路径和 DNS。
+            tls: 请检查 TLS 证书。
+            electron: 如果浏览器无法访问该服务，请使用桌面应用。
       nvidia:
         description: build.nvidia.com
         title: NVIDIA NIM

@@ -13,6 +13,7 @@ import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/s
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -50,6 +51,7 @@ const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 const chatStore = useChatStore()
+const chatSession = useChatSessionStore()
 
 /** Identifies this page in the shared streaming transcription session. */
 const transcriptionConsumerId = 'stage-pocket:voice-input'
@@ -75,14 +77,13 @@ async function sendVoiceInputTextToChat(text: string | undefined) {
     return
 
   try {
-    const providerId = activeChatProvider.value
-    const model = activeChatModel.value
-    if (!providerId || !model)
+    if (!activeChatProvider.value || !activeChatModel.value)
       return
 
-    const provider = await consciousnessStore.getChatProviderInstance(providerId)
-
-    await chatStore.ingest(text, { model, chatProvider: provider })
+    await chatStore.send({
+      sessionId: chatSession.activeSessionId,
+      text,
+    })
   }
   catch (error) {
     console.error('Failed to send chat from voice:', error)

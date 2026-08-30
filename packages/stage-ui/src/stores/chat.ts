@@ -1,6 +1,5 @@
-import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, ModelRuntimePort, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
@@ -8,7 +7,7 @@ import type { ChatHistoryItem, ChatToolReference, StreamingAssistantMessage } fr
 import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
-import { createChatOrchestratorRuntime } from '@proj-airi/core-agent'
+import { createChatOrchestratorRuntime, redactSecretText } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -23,6 +22,8 @@ import {
 } from '../libs/analytics-headers'
 import { createChatAnalyticsHooks, getProviderMode } from '../libs/analytics/events/chat'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
+import { isCustomModelDefinitionId, snapshotCustomModelConnection } from '../libs/providers/custom-model/editor'
+import { createCustomModelRuntimeFromConfig } from '../libs/providers/custom-model/runtime'
 import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
@@ -36,6 +37,7 @@ import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
 import { useWebSearchStore } from './modules/web-search'
+import { useProviderConfigStore } from './providers/config'
 import { executeToolCallRerun } from './tool-call-rerun'
 
 interface ForkOptions {
@@ -146,6 +148,7 @@ export const useChatStore = defineStore('chat', () => {
   useWebSearchStore()
   const consciousnessStore = useConsciousnessStore()
   const artistryAutonomousStore = useAutonomousArtistryStore()
+  const providerConfigStore = useProviderConfigStore()
   const { activeModel, activeProvider } = storeToRefs(consciousnessStore)
   const chatSession = useChatSessionStore()
   const chatStream = useChatStreamStore()
@@ -193,9 +196,9 @@ export const useChatStore = defineStore('chat', () => {
 
   async function streamWithStageAdapters(
     model: string,
-    chatProvider: ChatProvider,
     messages: Message[],
-    options?: StreamOptions,
+    options: StreamOptions | undefined,
+    run: (next: StreamOptions) => Promise<void>,
   ) {
     let llmTextLength = 0
     let llmOutputChunkCount = 0
@@ -226,7 +229,7 @@ export const useChatStore = defineStore('chat', () => {
     let llmFirstTokenEmitted = false
 
     try {
-      await llmStore.stream(model, chatProvider, messages, {
+      await run({
         ...options,
         headers,
         onStreamEvent: async (event: StreamEvent) => {
@@ -291,7 +294,18 @@ export const useChatStore = defineStore('chat', () => {
       },
     },
     llm: {
-      stream: streamWithStageAdapters,
+      stream: (model, chatProvider, messages, options) => streamWithStageAdapters(
+        model,
+        messages,
+        options,
+        next => llmStore.stream(model, chatProvider, messages, next),
+      ),
+      streamRuntime: (runtime, connectionId, model, messages, options) => streamWithStageAdapters(
+        model,
+        messages,
+        options,
+        next => llmStore.streamRuntime(runtime, connectionId, model, messages, next),
+      ),
     },
     getActiveSessionId: () => activeSessionId.value,
     getActiveProvider: () => activeProvider.value,
@@ -374,8 +388,23 @@ export const useChatStore = defineStore('chat', () => {
 
     chatSession.appendSessionMessage(sessionId, {
       role: 'error',
-      content: errorMessageFrom(error) ?? 'Unknown chat operation failure',
+      content: redactSecretText(errorMessageFrom(error) ?? 'Unknown chat operation failure'),
     })
+  }
+
+  function createCustomModelSendRuntime(providerId: string): {
+    port: ModelRuntimePort
+    connectionId: string
+  } {
+    const provider = providerConfigStore.getProvider(providerId)
+    if (!provider || !isCustomModelDefinitionId(provider.definitionId))
+      throw new Error(`Failed to resolve Custom Model connection "${providerId}"`)
+
+    const snapshot = snapshotCustomModelConnection(toRaw(provider.config))
+    return {
+      connectionId: provider.id,
+      port: createCustomModelRuntimeFromConfig(snapshot, { connectionId: provider.id }),
+    }
   }
 
   async function executeSend(payload: ChatSendPayload): Promise<ChatSendResult> {
@@ -388,13 +417,19 @@ export const useChatStore = defineStore('chat', () => {
       throw new Error('Failed to load the target chat session')
 
     const messageCount = chatSession.getSessionMessages(payload.sessionId).length
-    const chatProvider = await consciousnessStore.getChatProviderInstance(providerId)
-    if (!chatProvider)
+    const providerRecord = providerConfigStore.getProvider(providerId)
+    const modelRuntime = providerRecord && isCustomModelDefinitionId(providerRecord.definitionId)
+      ? createCustomModelSendRuntime(providerId)
+      : undefined
+    const chatProvider = modelRuntime
+      ? undefined
+      : await consciousnessStore.getChatProviderInstance(providerId)
+    if (!modelRuntime && !chatProvider)
       throw new Error(`Failed to resolve chat provider "${providerId}"`)
 
     await runtime.ingest(payload.text, {
       model: modelId,
-      chatProvider,
+      ...(modelRuntime ? { modelRuntime } : { chatProvider }),
       attachments: payload.attachments,
       input: payload.input,
       toolReferences: payload.tools,

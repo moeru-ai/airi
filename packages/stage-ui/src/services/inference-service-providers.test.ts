@@ -1,26 +1,21 @@
 import { describe, expect, it, vi } from 'vitest'
 import { parse as parseSchema } from 'zod/v4/core'
 
+import { CUSTOM_MODEL_DEFINITION_ID } from '../libs/providers/custom-model/config'
 import { ATLASCLOUD_DEFAULT_BASE_URL, providerAtlasCloud } from '../libs/providers/providers/atlascloud'
 import { OFFICIAL_CHAT_PROVIDER_ID } from '../libs/providers/providers/official'
 import { providerOpenAICompatible } from '../libs/providers/providers/openai-compatible'
-import { inferenceServiceProvidersService } from './inference-service-providers'
+import { createInferenceServiceProvidersService, inferenceServiceProvidersService } from './inference-service-providers'
 
-/**
- * @example
- * describe('services inference-service-providers', () => {})
- */
-describe('services inference-service-providers', () => {
-  /**
-   * @example
-   * const provider = inferenceServiceProvidersService.buildLocal('openai-compatible')
-   */
-  it('builds a local provider from a known definition', () => {
-    const provider = inferenceServiceProvidersService.buildLocal(providerOpenAICompatible.id, {})
+import '../libs/providers/providers/custom-model'
 
-    expect(provider.id).toBeDefined()
-    expect(provider.definitionId).toBe(providerOpenAICompatible.id)
-    expect(provider.config).toEqual({})
+describe('inference service providers', () => {
+  it('builds custom model instances as local persistence', () => {
+    const service = createInferenceServiceProvidersService()
+    const provider = service.buildLocal(CUSTOM_MODEL_DEFINITION_ID)
+
+    expect(provider.definitionId).toBe(CUSTOM_MODEL_DEFINITION_ID)
+    expect(provider.persistence).toBe('local')
     expect(provider.status).toBe('unconfigured')
     expect(provider.configuredBy).toBe('user')
   })

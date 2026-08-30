@@ -23,7 +23,7 @@ const props = defineProps<{
     drop-shadow="none hover:[0px_4px_4px_rgba(220,220,220,0.4)] active:[0px_0px_0px_rgba(220,220,220,0.25)] dark:hover:none"
     class="menu-icon-status-item"
     transition="all ease-in-out duration-400"
-    w-full cursor-pointer of-hidden rounded-xl
+    h-full w-full cursor-pointer of-hidden rounded-xl
   >
     <RouterLink
       flex="~ row"
@@ -46,10 +46,10 @@ const props = defineProps<{
           class="menu-icon-status-item-description"
           transition="all ease-in-out duration-400"
         >
-          <span>{{ props.description || '' }}</span>
+          <span :class="['line-clamp-2', 'min-h-10']">{{ props.description || '\u00A0' }}</span>
         </div>
 
-        <div v-if="props.pricing || props.deployment || props.beginnerRecommended" mt-2 flex flex-wrap gap-1.5>
+        <div :class="['mt-2', 'flex', 'min-h-5', 'flex-wrap', 'gap-1.5']">
           <div
             v-if="props.beginnerRecommended"
             text="[10px] white" rounded-md bg-green-500 px-1.5 py-0.5 font-bold tracking-wider uppercase

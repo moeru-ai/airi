@@ -11,6 +11,9 @@
     ],
     "useDefineForClassFields": true,
     "paths": {
+      "@proj-airi/core-agent": [
+        "../../packages/core-agent/src/index.ts"
+      ],
       "@proj-airi/stage-pages/*.vue": [
         "../../packages/stage-pages/src/*.vue"
       ],

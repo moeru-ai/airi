@@ -9,6 +9,7 @@ import DOMPurify from 'dompurify'
 import { errorMessageFrom, merge } from '@moeru/std'
 import {
   Alert,
+  CustomModelConnectionEditor,
   ProviderAccountIdInput,
   ProviderAdvancedSettings,
   ProviderApiKeyInput,
@@ -18,7 +19,7 @@ import {
   ProviderSettingsLayout,
   ProviderValidationDetailsDialog,
 } from '@proj-airi/stage-ui/components'
-import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
+import { CUSTOM_MODEL_DEFINITION_ID, getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
 import { computedAsync, useCloned, useDebounceFn } from '@vueuse/core'
@@ -106,6 +107,7 @@ const activeValidationStepId = ref<string | undefined>(undefined)
 const validationSteps = ref<ProviderValidationStep[]>([])
 const hasValidationFailures = computed(() => validationSteps.value.some(step => step.status === 'invalid'))
 
+const isCustomModelProvider = computed(() => providerDefinition.value?.id === CUSTOM_MODEL_DEFINITION_ID)
 const isOllamaProvider = computed(() => providerDefinition.value?.id === 'ollama')
 const shouldShowTroubleshootingOllamaConnectivity = computed(() => {
   return isOllamaProvider.value && validationSteps.value.some(step => step.id === 'openai-compatible:check-connectivity' && step.status === 'invalid')
@@ -312,6 +314,9 @@ const debouncedValidation = useDebounceFn(runValidation, 1500)
 let didInitValidation = false
 
 watch([providerConfigEdit, providerDefinition, providerSchema], async () => {
+  if (isCustomModelProvider.value)
+    return
+
   if (!providerConfig.value || !providerConfigEdit.value) {
     return
   }
@@ -332,8 +337,11 @@ watch([providerConfigEdit, providerDefinition, providerSchema], async () => {
 
 let initializedSchemaProviderId: string | undefined
 watch([providerId, providerSchema], ([nextProviderId, schema]) => {
+  if (isCustomModelProvider.value)
+    return
   if (!schema || initializedSchemaProviderId === nextProviderId)
     return
+
 
   initializedSchemaProviderId = nextProviderId
   if (providerConfig.value.status !== 'configured')
@@ -404,7 +412,7 @@ function handleDeleteProvider() {
   </div>
   <ProviderSettingsLayout
     v-else
-    :provider-name="providerDefinition?.nameLocalize({ t }) || providerDefinition?.name || ''"
+    :provider-name="providerConfigEdit?.name || providerDefinition?.nameLocalize({ t }) || providerDefinition?.name || ''"
     :provider-icon="providerDefinition?.icon"
     :provider-icon-color="providerDefinition?.iconColor"
     :on-back="() => router.back()"
@@ -417,7 +425,7 @@ function handleDeleteProvider() {
               <div :class="[providerDefinition?.iconColor || providerDefinition?.icon, 'absolute', 'left-50%', 'top-50%', '-translate-x-1/2', '-translate-y-1/2', 'text-2xl']" />
             </div>
             <h2 :class="['text-lg', 'text-neutral-900', 'font-semibold', 'dark:text-neutral-100']">
-              {{ providerDefinition?.nameLocalize({ t }) || providerDefinition?.name || providerId }}
+              {{ providerConfigEdit?.name || providerDefinition?.nameLocalize({ t }) || providerDefinition?.name || providerId }}
             </h2>
           </div>
           <div :class="['text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
@@ -462,7 +470,9 @@ function handleDeleteProvider() {
         </div>
       </div>
 
-      <ProviderSettingsContainer>
+      <CustomModelConnectionEditor v-if="isCustomModelProvider" :provider-id="providerId" />
+
+      <ProviderSettingsContainer v-else>
         <div v-if="!providerDefinition" :class="['flex', 'flex-col', 'items-center', 'gap-2', 'py-10', 'text-neutral-500']">
           <div :class="['i-ph:warning-circle-light', 'text-3xl']" />
           <div>{{ t('settings.pages.providers.catalog.edit.definition-id-not-found') }}</div>

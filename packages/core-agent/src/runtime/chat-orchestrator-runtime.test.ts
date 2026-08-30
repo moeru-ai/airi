@@ -50,6 +50,10 @@ function createHarness() {
     await options?.onStreamEvent?.({ type: 'text-delta', text: 'assistant reply' })
     await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
   })
+  const streamRuntime = vi.fn(async (_runtime, _connectionId: string, _model: string, _messages: Message[], options?: StreamOptions) => {
+    await options?.onStreamEvent?.({ type: 'text-delta', text: 'assistant reply' })
+    await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+  })
   const ids = ['stream-context', 'assistant-id', 'user-id', 'fallback-id']
   let systemPromptSupplement: string | undefined
   let nowValue = new Date(2026, 3, 25, 18, 47).getTime()
@@ -78,6 +82,7 @@ function createHarness() {
     },
     llm: {
       stream,
+      streamRuntime,
     },
     getActiveSessionId: () => 'session-1',
     getActiveProvider: () => 'mock-provider',
@@ -131,6 +136,7 @@ function createHarness() {
     sessionMessages,
     stateChanges,
     stream,
+    streamRuntime,
     systemPromptSupplement: {
       set: (next: string | undefined) => {
         systemPromptSupplement = next
@@ -1018,5 +1024,28 @@ describe('createChatOrchestratorRuntime', () => {
     ])
     expect(harness.assistantAppended).toHaveLength(1)
     expect(harness.foregroundResets).toHaveLength(1)
+  })
+
+  it('streams a Custom Model send through streamRuntime instead of ChatProvider', async () => {
+    const harness = createHarness()
+    const runtimePort = {
+      protocol: 'openai-responses',
+      stream: vi.fn(),
+      discover: vi.fn(),
+      validateGeneration: vi.fn(),
+    }
+
+    await harness.runtime.ingest('hello custom model', {
+      model: 'model-b',
+      modelRuntime: {
+        port: runtimePort as never,
+        connectionId: 'custom-b',
+      },
+    })
+
+    expect(harness.stream).not.toHaveBeenCalled()
+    expect(harness.streamRuntime).toHaveBeenCalledTimes(1)
+    expect(harness.streamRuntime.mock.calls[0]?.[1]).toBe('custom-b')
+    expect(harness.streamRuntime.mock.calls[0]?.[2]).toBe('model-b')
   })
 })

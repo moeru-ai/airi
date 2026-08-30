@@ -38,6 +38,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/pipelines-audio": "workspace:^",
     "@proj-airi/plugin-protocol": "workspace:^",
@@ -45,6 +46,7 @@
     "@proj-airi/server-shared": "workspace:^",
     "@proj-airi/stream-kit": "workspace:^",
     "@xsai-ext/providers": "catalog:",
+    "@xsai-ext/responses": "catalog:",
     "@xsai/generate-speech": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/model": "catalog:",

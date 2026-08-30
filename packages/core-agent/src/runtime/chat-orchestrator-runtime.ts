@@ -2,6 +2,7 @@ import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 
 import type { AgentContextPort } from '../contracts/context-port'
+import type { ModelRuntimePort } from '../contracts/model-runtime-port'
 import type { AgentForegroundStreamPort } from '../contracts/stream-port'
 import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatStreamEventContext, ChatToolReference, ContextMessage, ErrorMessage, StreamingAssistantMessage } from '../types/chat'
 import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
@@ -45,13 +46,31 @@ function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAss
 }
 
 /**
+ * Custom Model runtime used by one chat send.
+ *
+ * The port must be created from an immutable connection snapshot. Later
+ * edits to the saved connection must not change this send.
+ */
+export interface ChatOrchestratorModelRuntime {
+  /** Protocol-neutral runtime created from the connection snapshot. */
+  port: ModelRuntimePort
+  /** Stable connection instance id used as the isolation key. */
+  connectionId: string
+}
+
+/**
  * Options accepted by the chat orchestrator runtime for one user send.
  */
 export interface ChatOrchestratorSendOptions {
   /** Provider model identifier used for the outbound LLM request. */
   model: string
   /** Concrete chat provider implementation selected by the caller. */
-  chatProvider: ChatProvider
+  chatProvider?: ChatProvider
+  /**
+   * Custom Model protocol runtime. When set, the send uses this runtime
+   * instead of {@link chatProvider}.
+   */
+  modelRuntime?: ChatOrchestratorModelRuntime
   /** Provider-specific request options, currently used for headers. */
   providerConfig?: Record<string, unknown>
   /** Image attachments appended to the user message content parts. */
@@ -114,6 +133,18 @@ export interface ChatOrchestratorSessionPort {
 export interface ChatOrchestratorLLMPort {
   /** Streams one composed chat request and emits normalized stream events. */
   stream: (model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) => Promise<void>
+  /**
+   * Streams one Custom Model generation through the protocol-neutral runtime.
+   *
+   * Required when a send uses {@link ChatOrchestratorSendOptions.modelRuntime}.
+   */
+  streamRuntime?: (
+    runtime: ModelRuntimePort,
+    connectionId: string,
+    model: string,
+    messages: Message[],
+    options?: StreamOptions,
+  ) => Promise<void>
 }
 
 /**
@@ -759,7 +790,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         hasVoice,
       })
 
-      await deps.llm.stream(options.model, options.chatProvider, newMessages as Message[], {
+      const streamOptions: StreamOptions = {
         headers,
         requestCorrelation: {
           conversationId: correlation.conversationId,
@@ -856,7 +887,31 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               throw event.error ?? new Error('Stream error')
           }
         },
-      })
+      }
+
+      if (options.modelRuntime) {
+        if (!deps.llm.streamRuntime)
+          throw new Error('Custom Model chat requires streamRuntime.')
+
+        await deps.llm.streamRuntime(
+          options.modelRuntime.port,
+          options.modelRuntime.connectionId,
+          options.model,
+          newMessages as Message[],
+          streamOptions,
+        )
+      }
+      else if (options.chatProvider) {
+        await deps.llm.stream(
+          options.model,
+          options.chatProvider,
+          newMessages as Message[],
+          streamOptions,
+        )
+      }
+      else {
+        throw new Error('Chat send requires a chat provider or a Custom Model runtime.')
+      }
 
       // Session generation is the lifecycle correlation key. Re-check it
       // after every awaited completion boundary so deleting a session while a

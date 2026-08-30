@@ -105,6 +105,8 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
     return {
       id: nanoid(),
       definitionId,
+      name: definition.name,
+      persistence: definition.configStorage ?? 'remote',
       config: initialConfig,
       status: 'unconfigured',
       configuredBy: definition.configuredBy ?? 'user',
@@ -125,6 +127,8 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
     return {
       id: item.id,
       definitionId: item.definitionId,
+      name: item.name,
+      persistence: 'remote',
       config: item.config,
       status,
       configuredBy: getDefinedProvider(item.definitionId)?.configuredBy ?? 'user',
@@ -154,7 +158,7 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
       json: {
         id: provider.id,
         definitionId: provider.definitionId,
-        name: getDefinedProvider(provider.definitionId)?.name ?? provider.definitionId,
+        name: provider.name,
         config: provider.config,
         validated: provider.status === 'configured',
         validationBypassed: provider.status === 'bypassed',

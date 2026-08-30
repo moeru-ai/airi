@@ -151,6 +151,26 @@ describe('consciousness store provider selection', () => {
   //
   // We fixed this by keeping localStorage as one-way persistence. Pinia is the
   // only channel that can update live state across windows.
+  it('reads Custom Model ids from the saved connection instead of live discovery', () => {
+    const providerStore = useProviderConfigStore()
+    const providersStore = useProviderStore()
+    const store = useConsciousnessStore()
+
+    providerStore.ensureProvider('custom-1', 'custom-model', {
+      models: [{ id: 'hand-filled', name: 'Hand filled' }],
+    })
+    store.activeProvider = 'custom-1'
+
+    expect(providersStore.getModelsForProvider('custom-1')).toEqual([
+      expect.objectContaining({
+        id: 'hand-filled',
+        name: 'Hand filled',
+        provider: 'custom-1',
+      }),
+    ])
+    expect(store.providerModels.map(model => model.id)).toEqual(['hand-filled'])
+  })
+
   it('does not apply storage events as a second cross-window state channel', async () => {
     const store = useConsciousnessStore()
 

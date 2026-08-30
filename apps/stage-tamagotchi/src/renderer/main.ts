@@ -5,10 +5,12 @@ import Tres from '@tresjs/core'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { PiniaColada } from '@pinia/colada'
+import { getElectronEventaContext } from '@proj-airi/electron-vueuse'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
 import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/libs/analytics'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import { piniaPluginTracing, setupSynced } from '@proj-airi/stage-ui/libs/pinia'
+import { registerCustomModelElectronTransport } from '@proj-airi/stage-ui/libs/providers'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -18,6 +20,7 @@ import { handleHotUpdate, routes } from 'vue-router/auto-routes'
 
 import App from './App.vue'
 
+import { createElectronCustomModelFetchTransport } from './libs/custom-model-fetch-transport'
 import { i18n } from './modules/i18n'
 import { resolveRendererWindowContext } from './window-context'
 
@@ -46,6 +49,8 @@ configureAnalyticsAdapter(async (options) => {
   return createPosthogAdapter(options)
 })
 registerAuthorizationHandler(browserAuthorizationHandler)
+
+registerCustomModelElectronTransport(createElectronCustomModelFetchTransport(getElectronEventaContext()))
 
 const pinia = createPinia()
 const synced = setupSynced({

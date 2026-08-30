@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
+import { CUSTOM_MODEL_DEFINITION_ID } from '@proj-airi/stage-ui/libs'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useConsciousnessSettingsStore } from '@proj-airi/stage-ui/stores/modules/consciousness-settings'
@@ -33,6 +34,14 @@ const {
 
 const { t } = useI18n()
 const { trackModelSwitched, trackProviderClick } = useAnalytics()
+
+function isUnverifiedCustomModel(providerId: string) {
+  const provider = providerStore.providers[providerId]
+  if (!provider || provider.definitionId !== CUSTOM_MODEL_DEFINITION_ID)
+    return false
+  return provider.status === 'bypassed' || provider.status === 'unconfigured'
+}
+
 watch(activeProvider, async (provider) => {
   if (!provider)
     return
@@ -114,7 +123,18 @@ async function updateReasoning(value: boolean) {
                 </button>
               </template>
 
-              <template v-if="configuredProviders[metadata.id] === false" #bottomRight>
+              <template v-if="isUnverifiedCustomModel(metadata.id)" #bottomRight>
+                <div
+                  data-testid="custom-model-unverified-badge"
+                  :class="[
+                    'rounded', 'bg-amber-100', 'px-2', 'py-0.5', 'text-xs', 'text-amber-700', 'font-medium',
+                    'dark:bg-amber-900/30', 'dark:text-amber-300',
+                  ]"
+                >
+                  {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.unverified') }}
+                </div>
+              </template>
+              <template v-else-if="configuredProviders[metadata.id] === false" #bottomRight>
                 <div class="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-700 font-medium dark:bg-amber-900/30 dark:text-amber-300">
                   {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.health_check_failed') }}
                 </div>

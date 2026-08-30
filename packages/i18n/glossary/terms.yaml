@@ -318,6 +318,17 @@
       status: preferred
       context: Select a model
 
+- id: custom-model
+  subject: providers
+  translatable: true
+  definition: A user-managed connection to a model service that is not a built-in vendor Provider.
+  note: This names the connection, not a model id and not a vendor Provider.
+  terms:
+    - text: Custom Model
+      part-of-speech: noun
+      status: preferred
+      context: Add a Custom Model connection
+
 # ---------------------------------------------------------------------------------------
 # The modules
 #

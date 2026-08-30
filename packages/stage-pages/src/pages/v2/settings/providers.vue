@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { PaneArea } from '@proj-airi/stage-ui/components'
-import { getDefinedProvider, listProviders } from '@proj-airi/stage-ui/libs'
+import { CUSTOM_MODEL_DEFINITION_ID, getDefinedProvider, listProviders } from '@proj-airi/stage-ui/libs'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { Button, Input } from '@proj-airi/ui'
 import { breakpointsTailwind, refDebounced, useBreakpoints } from '@vueuse/core'
@@ -44,13 +45,17 @@ const isSmallerThan2XL = breakpoints.smaller('2xl')
 const paneDatasourceListSize = computed(() => isSmallerThan2XL.value ? 30 : 20)
 const paneDatasourceEditSize = computed(() => isSmallerThan2XL.value ? 80 : 70)
 
-function handleAdd(providerId: string) {
-  providerStore.addProvider(providerId)
+async function handleAdd(definitionId: string) {
+  const provider = await providerStore.addProvider(definitionId)
+  if (provider.definitionId === CUSTOM_MODEL_DEFINITION_ID)
+    await router.push(`/v2/settings/providers/edit/${provider.id}`)
 }
 
 function handleClick(providerId: string) {
   router.push(`/v2/settings/providers/edit/${providerId}`)
 }
+
+const showCustomModelWebHint = !isStageTamagotchi()
 </script>
 
 <template>
@@ -94,14 +99,24 @@ function handleClick(providerId: string) {
                       <div class="max-h-50dvh flex flex-col gap-1 overflow-y-auto">
                         <div v-for="(provider) in availableProvidersFiltered" :key="provider.id" @click="() => handleAdd(provider.id)">
                           <div
-                            bg="hover:neutral-200/80 dark:hover:neutral-700/80"
-                            transition="all duration-100 ease-out"
-                            flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1 text-sm
+                            :class="[
+                              'flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1 text-sm',
+                              'hover:bg-neutral-200/80 dark:hover:bg-neutral-700/80',
+                              'transition-all duration-100 ease-out',
+                            ]"
                           >
-                            <div class="relative w-4">
+                            <div :class="['relative', 'w-4']">
                               <div :class="[provider.iconColor || provider.icon, 'absolute left-50% top-50% -translate-x-1/2 -translate-y-1/2']" />
                             </div>
-                            <div>{{ provider?.nameLocalized || provider.name }}</div>
+                            <div :class="['flex', 'min-w-0', 'flex-col']">
+                              <div>{{ provider?.nameLocalized || provider.name }}</div>
+                              <div
+                                v-if="showCustomModelWebHint && provider.id === CUSTOM_MODEL_DEFINITION_ID"
+                                :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']"
+                              >
+                                {{ t('settings.pages.providers.provider.custom-model.platform-limit.catalog-hint') }}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -119,19 +134,32 @@ function handleClick(providerId: string) {
 
               <div v-auto-animate gap="0.5" h-fit max-h="[calc(100dvh-12.5rem)]" flex flex-col overflow-y-scroll>
                 <div
-                  v-for="(providerEntry, index) in Object.entries(providerStore.listedProviders)"
-                  :key="index"
+                  v-for="(providerEntry) in Object.entries(providerStore.listedProviders)"
+                  :key="providerEntry[0]"
                   @click="() => handleClick(providerEntry[0])"
                 >
                   <div
-                    bg="hover:neutral-200/80 dark:hover:neutral-700/80"
-                    transition="all duration-100 ease-out"
-                    flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1 text-sm
+                    :class="[
+                      'flex', 'cursor-pointer', 'select-none', 'items-center', 'gap-2',
+                      'rounded-md', 'px-2', 'py-1', 'text-sm',
+                      'hover:bg-neutral-200/80', 'dark:hover:bg-neutral-700/80',
+                      'transition-all', 'duration-100', 'ease-out',
+                    ]"
                   >
-                    <div class="relative w-4">
+                    <div :class="['relative', 'w-4']">
                       <div :class="[getDefinedProvider(providerEntry[1].definitionId)?.iconColor || getDefinedProvider(providerEntry[1].definitionId)?.icon, 'absolute left-50% top-50% -translate-x-1/2 -translate-y-1/2']" />
                     </div>
-                    <div>{{ getDefinedProvider(providerEntry[1].definitionId)?.name || providerEntry[1].definitionId }}</div>
+                    <div :class="['flex', 'min-w-0', 'flex-col']">
+                      <div data-testid="provider-instance-name">
+                        {{ providerEntry[1].name || getDefinedProvider(providerEntry[1].definitionId)?.name || providerEntry[1].definitionId }}
+                      </div>
+                      <div
+                        v-if="providerEntry[1].name && getDefinedProvider(providerEntry[1].definitionId)?.name && providerEntry[1].name !== getDefinedProvider(providerEntry[1].definitionId)?.name"
+                        :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']"
+                      >
+                        {{ getDefinedProvider(providerEntry[1].definitionId)?.name }}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

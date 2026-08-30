@@ -41,7 +41,7 @@ const selectedProviderIdModel = computed({
       <div class="h-5 w-5" />
     </div>
     <ScrollableArea :class="['min-h-0 flex-1']">
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div :class="['grid grid-cols-1 gap-3 sm:grid-cols-2', 'items-stretch']">
         <RadioCardDetail
           v-for="provider in props.popularProviders"
           :id="provider.id"
@@ -51,6 +51,7 @@ const selectedProviderIdModel = computed({
           :value="provider.id"
           :title="provider.localizedName || provider.id"
           :description="provider.localizedDescription || ''"
+          :show-expand-collapse="false"
           @click="props.onSelectProvider(provider)"
         />
       </div>

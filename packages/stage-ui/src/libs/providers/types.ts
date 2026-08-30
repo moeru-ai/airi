@@ -32,12 +32,19 @@ export type ProviderInstance
 export type ProviderValidationStatus = 'unconfigured' | 'validating' | 'configured' | 'invalid' | 'bypassed'
 export type ProviderConfiguredBy = 'user' | 'authentication'
 
+/** Storage boundary for one provider instance. */
+export type ProviderConfigStorage = 'local' | 'remote'
+
 /** Serializable configuration for one provider instance. */
 export interface InferenceServiceProvider {
   /** Stable provider instance id. */
   id: string
   /** Provider definition id from the built-in provider registry. */
   definitionId: string
+  /** User-facing instance name. */
+  name: string
+  /** Decides whether configuration can cross the local device boundary. */
+  persistence: ProviderConfigStorage
   /** Provider-specific configuration values. */
   config: Record<string, unknown>
   /** Current validation state for this provider configuration. */
@@ -166,6 +173,12 @@ export interface ProviderDefinition<TConfig extends any = any> {
   tasks: string[]
   nameLocalize: (ctx: { t: (input: string) => string }) => string // i18n key for provider name
   name: string // Default name (fallback)
+  /**
+   * Storage boundary for instances created from this definition.
+   *
+   * @default 'remote'
+   */
+  configStorage?: ProviderConfigStorage
   descriptionLocalize: (ctx: { t: (input: string) => string }) => string // i18n key for provider description
   description: string // Default description (fallback)
   /**

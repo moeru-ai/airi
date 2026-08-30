@@ -1,8 +1,8 @@
-import type { StreamOptions } from '@proj-airi/core-agent'
+import type { ModelRuntimePort, StreamOptions } from '@proj-airi/core-agent'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 
-import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isToolRelatedError, modelKey } from '@proj-airi/core-agent'
+import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isToolRelatedError, modelKey, modelRuntimeKey } from '@proj-airi/core-agent'
 import { listModels } from '@xsai/model'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
@@ -57,6 +57,52 @@ export const useLLM = defineStore('llm', () => {
     }
   }
 
+  /**
+   * Streams one Custom Model generation through the protocol-neutral runtime.
+   *
+   * Tool and content-array auto-degrade use the connection id plus model as
+   * the cache key. ChatProvider call sites keep {@link stream}.
+   */
+  async function streamRuntime(
+    runtime: ModelRuntimePort,
+    connectionId: string,
+    model: string,
+    messages: Message[],
+    options?: StreamOptions,
+  ) {
+    const key = modelRuntimeKey(connectionId, model)
+    const { tools: customTools, ...streamOptions } = options ?? {}
+    const builtinTools = await resolveLlmTools({ customTools })
+
+    const runStream = () => runtime.stream({
+      model,
+      messages,
+      tools: builtinTools,
+      options: {
+        ...streamOptions,
+        toolsCompatibility: toolsCompatibility.value,
+        contentArrayCompatibility: contentArrayCompatibility.value,
+      },
+    })
+
+    try {
+      await runStream()
+    }
+    catch (err) {
+      if (isToolRelatedError(err)) {
+        console.warn(`[llm] Auto-disabling tools for "${key}" due to tool-related error`)
+        toolsCompatibility.value.set(key, false)
+      }
+      if (isContentArrayRelatedError(err) && contentArrayCompatibility.value.get(key) !== false) {
+        console.warn(`[llm] Auto-disabling content-part arrays for "${key}" and retrying once`)
+        contentArrayCompatibility.value.set(key, false)
+        await runStream()
+        return
+      }
+      throw err
+    }
+  }
+
   async function models(apiUrl: string, apiKey: string) {
     if (apiUrl === '')
       return []
@@ -77,5 +123,6 @@ export const useLLM = defineStore('llm', () => {
   return {
     models,
     stream,
+    streamRuntime,
   }
 })

@@ -162,6 +162,27 @@ describe('provider store synchronization boundary', () => {
   // Reactive consumers observed a false list change after each synced patch.
   //
   // We fixed this by returning one frozen fallback until a catalog exists.
+  it('uses the Custom Model instance name in catalog metadata', async () => {
+    const configStore = useProviderConfigStore()
+    const store = useProviderStore()
+
+    configStore.ensureProvider('custom-1', 'custom-model', {
+      models: [{ id: 'hand-filled' }],
+    })
+    configStore.markProviderAdded('custom-1')
+    await configStore.updateProviderName('custom-1', 'OpenCode Go')
+    await nextTick()
+
+    expect(configStore.getProvider('custom-1')?.name).toBe('OpenCode Go')
+    expect(store.getModelsForProvider('custom-1').map(model => model.id)).toEqual(['hand-filled'])
+
+    await vi.waitFor(() => {
+      const metadata = store.allChatProvidersMetadata.find(item => item.id === 'custom-1')
+        ?? store.persistedChatProvidersMetadata.find(item => item.id === 'custom-1')
+      expect(metadata?.localizedName).toBe('OpenCode Go')
+    })
+  })
+
   it('reuses the empty model-list fallback', () => {
     const store = useProviderStore()
 

@@ -47,6 +47,11 @@ const ioTracerMocks = vi.hoisted(() => {
 })
 
 const llmStreamMock = vi.fn()
+const llmStreamRuntimeMock = vi.fn()
+const getProviderMock = vi.fn()
+const { runtimeFactoryMock } = vi.hoisted(() => ({
+  runtimeFactoryMock: vi.fn(),
+}))
 const trackFirstMessageMock = vi.fn()
 const chatAnalyticsMocks = vi.hoisted(() => ({
   trackAiGeneration: vi.fn(),
@@ -178,6 +183,7 @@ vi.mock('./chat/stream-store', () => ({
 vi.mock('./ai/chat-llm/llm', () => ({
   useLLM: () => ({
     stream: llmStreamMock,
+    streamRuntime: llmStreamRuntimeMock,
   }),
 }))
 
@@ -185,6 +191,16 @@ vi.mock('./ai/chat-llm/tools', () => ({
   useLlmToolsStore: () => ({
     getToolsByNames: (...names: string[]) => getToolsByNamesMock(names),
   }),
+}))
+
+vi.mock('./providers/config', () => ({
+  useProviderConfigStore: () => ({
+    getProvider: getProviderMock,
+  }),
+}))
+
+vi.mock('../libs/providers/custom-model/runtime', () => ({
+  createCustomModelRuntimeFromConfig: runtimeFactoryMock,
 }))
 
 vi.mock('./ai/chat-llm/toolset-prompts', () => ({
@@ -230,6 +246,17 @@ describe('chat store contract', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     llmStreamMock.mockReset()
+    llmStreamRuntimeMock.mockReset()
+    getProviderMock.mockReset()
+    runtimeFactoryMock.mockReset()
+    runtimeFactoryMock.mockImplementation((config: unknown, options: { connectionId: string }) => ({
+      protocol: (config as { protocol?: string }).protocol,
+      connectionId: options.connectionId,
+      snapshot: structuredClone(config),
+      stream: vi.fn(),
+      discover: vi.fn(),
+      validateGeneration: vi.fn(),
+    }))
     trackFirstMessageMock.mockReset()
     for (const analyticsMock of Object.values(chatAnalyticsMocks))
       analyticsMock.mockReset()
@@ -1024,5 +1051,70 @@ describe('chat store contract', () => {
       hidden: true,
     })
     expect(ensureSessionMock).toHaveBeenCalledWith('session-forked')
+  })
+
+  it('uses only the new Custom Model snapshot after the connection changes', async () => {
+    llmStreamRuntimeMock.mockImplementation(async (_runtime, _connectionId, _model, _messages, options: any) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const first = {
+      id: 'custom-a',
+      definitionId: 'custom-model',
+      name: 'OpenCode Go',
+      persistence: 'local' as const,
+      status: 'configured' as const,
+      configuredBy: 'user' as const,
+      config: {
+        protocol: 'openai-chat-completions',
+        baseUrl: 'https://a.example/v1',
+        generationPath: 'chat/completions',
+        auth: { type: 'bearer', secret: 'secret-a' },
+        headers: { 'X-A': 'a' },
+        models: [{ id: 'model-a' }],
+      },
+    }
+    const second = {
+      ...first,
+      id: 'custom-b',
+      name: 'Private Gateway',
+      config: {
+        protocol: 'openai-responses',
+        baseUrl: 'https://b.example/v1',
+        generationPath: 'responses',
+        auth: { type: 'bearer', secret: 'secret-b' },
+        headers: { 'X-B': 'b' },
+        models: [{ id: 'model-b' }],
+      },
+    }
+
+    getProviderMock.mockImplementation((id: string) => id === 'custom-a' ? first : second)
+    activeProviderRef.value = 'custom-a'
+    activeModelRef.value = 'model-a'
+
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'first' })
+
+    activeProviderRef.value = 'custom-b'
+    activeModelRef.value = 'model-b'
+    await store.send({ sessionId: 'session-1', text: 'second' })
+
+    expect(getChatProviderInstanceMock).not.toHaveBeenCalled()
+    expect(llmStreamMock).not.toHaveBeenCalled()
+    expect(runtimeFactoryMock).toHaveBeenCalledTimes(2)
+    expect(runtimeFactoryMock.mock.calls[0]?.[0]).toMatchObject({
+      baseUrl: 'https://a.example/v1/',
+      generationPath: 'chat/completions',
+      auth: { secret: 'secret-a' },
+    })
+    expect(runtimeFactoryMock.mock.calls[1]?.[0]).toMatchObject({
+      baseUrl: 'https://b.example/v1/',
+      generationPath: 'responses',
+      auth: { secret: 'secret-b' },
+    })
+    expect(llmStreamRuntimeMock.mock.calls[0]?.[1]).toBe('custom-a')
+    expect(llmStreamRuntimeMock.mock.calls[1]?.[1]).toBe('custom-b')
+    expect(llmStreamRuntimeMock.mock.calls[1]?.[0]).not.toBe(llmStreamRuntimeMock.mock.calls[0]?.[0])
   })
 })

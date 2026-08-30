@@ -41,6 +41,7 @@ function toggleExpansion() {
     transition="all duration-200 ease-in-out"
     border="2 solid"
     :class="[
+      'h-full',
       modelValue === value
         ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-100 dark:border-primary-900 hover:border-primary-500/30 dark:hover:border-primary-400/30'
         : 'bg-white dark:bg-neutral-900/20 border-neutral-100 dark:border-neutral-900 hover:border-primary-500/30 dark:hover:border-primary-400/30',
@@ -92,12 +93,12 @@ function toggleExpansion() {
       </div>
 
       <!-- Truncated description with expand/collapse functionality -->
-      <div v-if="description" class="relative">
+      <div class="relative min-h-8">
         <!-- Description with ellipsis (limited to 2 lines) -->
         <TransitionVertical>
           <div
             v-if="!isExpanded || !showExpandCollapse"
-            class="line-clamp-2 cursor-pointer text-xs"
+            class="line-clamp-2 min-h-8 cursor-pointer text-xs"
             :class="[
               modelValue === value
                 ? 'text-neutral-600 dark:text-neutral-400'
@@ -106,7 +107,7 @@ function toggleExpansion() {
             :title="description"
             @click.prevent="toggleExpansion"
           >
-            {{ description }}
+            {{ description || '\u00A0' }}
           </div>
 
           <!-- Expanded description -->
@@ -126,7 +127,7 @@ function toggleExpansion() {
 
         <!-- Expand/collapse button for long descriptions -->
         <button
-          v-if="showExpandCollapse && description.length > expandCollapseThreshold"
+          v-if="showExpandCollapse && (description?.length ?? 0) > expandCollapseThreshold"
           class="mt-0.5 inline-flex items-center text-xs text-primary-500 dark:text-primary-600"
           @click.prevent="toggleExpansion"
         >

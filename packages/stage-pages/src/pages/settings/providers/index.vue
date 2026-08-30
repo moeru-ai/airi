@@ -287,6 +287,8 @@ const providerBlocks = computed(() => {
 
       <template #item="{ item: provider }">
         <IconStatusItem
+          data-testid="provider-instance-name"
+          :data-provider-id="provider.id"
           :title="provider.localizedName || 'Unknown'"
           :description="provider.localizedDescription"
           :icon="provider.icon"
