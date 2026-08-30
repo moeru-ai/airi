@@ -123,8 +123,9 @@ export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, 
       vrm.expressionManager.setValue(BLENDSHAPE_MAP[key], weight)
     }
 
-    // Update silent flag for external components to check if lip sync is currently active
-    isLipSyncActive.value = !silent
+    // Update active flag: active while audio is present OR visemes are still decaying during release
+    const hasActiveVisemes = Object.values(smoothState).some(val => val > 0.01)
+    isLipSyncActive.value = !silent || hasActiveVisemes
   }
 
   return {

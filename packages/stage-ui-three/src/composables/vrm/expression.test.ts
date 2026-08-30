@@ -88,14 +88,35 @@ describe('useVRMEmote', () => {
     expect(vrm.expressionManager?.setValue).toHaveBeenCalledWith('aa', 0.2)
   })
 
-  it('resets emote active flag when emotion returns to neutral', () => {
+  it('maintains emote active flag during neutral transition and resets when blend completes', () => {
     const vrm = createMockVRMCore()
     const emote = useVRMEmote(vrm)
 
     emote.setEmotion('sad', 1)
     expect(emote.isEmoteActive.value).toBe(true)
 
+    // Settle the 'sad' transition so values exist in expressionManager
+    emote.update(0.4)
+    expect(emote.isTransitioning.value).toBe(false)
+    expect(emote.isEmoteActive.value).toBe(true)
+
+    // Resetting to neutral starts a transition (blendDuration: 0.6s)
     emote.setEmotion('neutral')
+    expect(emote.isTransitioning.value).toBe(true)
+    // Emote should remain active while previous emotion weights fade out
+    expect(emote.isEmoteActive.value).toBe(true)
+
+    // Complete the neutral transition
+    emote.update(0.6)
+    expect(emote.isTransitioning.value).toBe(false)
+    expect(emote.isEmoteActive.value).toBe(false)
+  })
+
+  it('does not activate emote flag for no-op intensity or empty targets', () => {
+    const vrm = createMockVRMCore()
+    const emote = useVRMEmote(vrm)
+
+    emote.setEmotion('happy', 0)
     expect(emote.isEmoteActive.value).toBe(false)
   })
 })

@@ -173,7 +173,21 @@ export function useVRMEmote(vrm: VRMCore) {
   }
 
   const isEmoteActive = computed(() => {
-    return currentEmotion.value !== null && currentEmotion.value !== 'neutral'
+    // Check if the current emotion targets any supported morph with a non-zero weight
+    const hasActiveTarget = currentEmotion.value !== null
+      && currentEmotion.value !== 'neutral'
+      && Array.from(targetExpressionValues.value.values()).some(val => val > 0.001)
+
+    if (hasActiveTarget)
+      return true
+
+    // When transitioning (e.g. returning to neutral), remain active while non-zero
+    // expression weights are still fading out to prevent procedural blink conflicts.
+    if (isTransitioning.value) {
+      return Array.from(currentExpressionValues.value.values()).some(val => val > 0.001)
+    }
+
+    return false
   })
 
   const update = (deltaTime: number, options?: { skipVisemes?: boolean }) => {
