@@ -114,13 +114,12 @@ describe('provider transition controller', () => {
 
     harness.setActiveProvider('C')
     harness.controller.requestTransition('B')
-    harness.readinessTasks.get('B')!.resolve()
     await vi.waitFor(() => expect(harness.waitForProviderReady).toHaveBeenCalledWith('C'))
     harness.readinessTasks.get('C')!.resolve()
     await transition
 
-    // ROOT CAUSE: Each watcher invocation owned a local restart flag, so the
-    // latest transition could forget that an older transition stopped monitoring.
+    // ROOT CAUSE: Each watcher invocation owned a local restart flag, and the
+    // transition could not leave an older readiness wait until that provider resolved.
     expect(harness.stopMonitoring).toHaveBeenCalledTimes(1)
     expect(harness.applyProviderState).toHaveBeenCalledTimes(1)
     expect(harness.applyProviderState).toHaveBeenCalledWith('C')

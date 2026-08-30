@@ -15,7 +15,7 @@ import { useI18n } from 'vue-i18n'
 
 import HearingPlaygroundTranscripts from './components/hearing-playground-transcripts.vue'
 
-import { queueProviderModelSelection } from './composables/provider-model-selection'
+import { createProviderModelSelectionController } from './composables/provider-model-selection'
 import { createProviderTransitionController } from './composables/provider-transition'
 
 const { t } = useI18n()
@@ -63,24 +63,21 @@ let volumeSpeechEndTimer: ReturnType<typeof setTimeout> | undefined
 
 const error = shallowRef('')
 const isMonitoring = shallowRef(false)
-let selectionTask = Promise.resolve()
-
-function queueSelection(action: () => Promise<void>) {
-  const nextTask = selectionTask.then(action)
-  selectionTask = nextTask.catch(cause => console.warn('[Hearing Module] Failed to update transcription selection:', cause))
-  return nextTask
-}
+const providerModelSelection = createProviderModelSelectionController({
+  getActiveProvider: () => activeTranscriptionProvider.value,
+  onSelectionError: cause => console.warn('[Hearing Module] Failed to update transcription selection:', cause),
+  setProvider: provider => hearingStore.setActiveTranscriptionProvider(provider),
+})
 
 function selectTranscriptionProvider(provider: string) {
-  return queueSelection(() => hearingStore.setActiveTranscriptionProvider(provider))
+  return providerModelSelection.selectProvider(provider)
 }
 
 function selectTranscriptionModel(model: string) {
-  return queueProviderModelSelection({
-    getActiveProvider: () => activeTranscriptionProvider.value,
-    queue: queueSelection,
-    setModelForProvider: (providerId, selectedModel) => hearingStore.setTranscriptionModelForProvider(providerId, selectedModel),
-  }, model)
+  return providerModelSelection.selectModel(
+    model,
+    (providerId, selectedModel) => hearingStore.setTranscriptionModelForProvider(providerId, selectedModel),
+  )
 }
 
 const activeProviderConfig = computed(() => {
@@ -280,11 +277,10 @@ const speakingIndicatorClass = computed(() => {
 
 function updateCustomModelName(value: string | undefined) {
   const modelValue = value || ''
-  return queueProviderModelSelection({
-    getActiveProvider: () => activeTranscriptionProvider.value,
-    queue: queueSelection,
-    setModelForProvider: (providerId, model) => hearingStore.setCustomTranscriptionModelForProvider(providerId, model),
-  }, modelValue)
+  return providerModelSelection.selectModel(
+    modelValue,
+    (providerId, model) => hearingStore.setCustomTranscriptionModelForProvider(providerId, model),
+  )
 }
 
 async function updateActiveProviderConfig(patch: Record<string, unknown>) {
@@ -367,9 +363,7 @@ const providerTransitionController = createProviderTransitionController({
   setMonitoring: monitoring => isMonitoring.value = monitoring,
   startMonitoring: setupAudioMonitoring,
   stopMonitoring: stopAudioMonitoring,
-  waitForProviderReady: async () => {
-    await selectionTask
-  },
+  waitForProviderReady: provider => providerModelSelection.waitForProviderReady(provider),
 })
 
 watch(activeTranscriptionProvider, (_provider, previousProvider) => {

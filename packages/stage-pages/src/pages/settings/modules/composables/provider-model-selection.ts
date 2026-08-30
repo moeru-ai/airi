@@ -1,13 +1,40 @@
-export interface ProviderModelSelectionDependencies {
+export interface ProviderModelSelectionControllerDependencies {
   getActiveProvider: () => string
-  queue: (action: () => Promise<void>) => Promise<void>
-  setModelForProvider: (providerId: string, model: string) => Promise<void>
+  onSelectionError: (cause: unknown) => void
+  setProvider: (providerId: string) => Promise<void>
 }
 
-export function queueProviderModelSelection(
-  dependencies: ProviderModelSelectionDependencies,
-  model: string,
+export type SetModelForProvider = (providerId: string, model: string) => Promise<void>
+
+/**
+ * Starts provider changes immediately and serializes provider-bound model writes.
+ */
+export function createProviderModelSelectionController(
+  dependencies: ProviderModelSelectionControllerDependencies,
 ) {
-  const providerId = dependencies.getActiveProvider()
-  return dependencies.queue(() => dependencies.setModelForProvider(providerId, model))
+  let modelSelectionTask = Promise.resolve()
+  let providerSelectionTask = Promise.resolve()
+  let providerSelectionId = ''
+
+  function selectProvider(providerId: string) {
+    providerSelectionId = providerId
+    const nextTask = dependencies.setProvider(providerId)
+    providerSelectionTask = nextTask.catch(dependencies.onSelectionError)
+    return nextTask
+  }
+
+  function selectModel(model: string, setModelForProvider: SetModelForProvider) {
+    const providerId = dependencies.getActiveProvider()
+    const nextTask = modelSelectionTask.then(() => setModelForProvider(providerId, model))
+    modelSelectionTask = nextTask.catch(dependencies.onSelectionError)
+    return nextTask
+  }
+
+  return {
+    selectModel,
+    selectProvider,
+    waitForProviderReady: (providerId: string) => {
+      return providerId === providerSelectionId ? providerSelectionTask : Promise.resolve()
+    },
+  }
 }

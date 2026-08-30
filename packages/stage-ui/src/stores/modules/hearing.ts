@@ -1327,12 +1327,12 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           // Try to get models for the provider and select the first one
           const models = await providersStore.getModelsForProvider(providerId)
           if (models.length > 0) {
-            await hearingStore.setActiveTranscriptionModel(models[0].id)
+            await hearingStore.setTranscriptionModelForProvider(providerId, models[0].id)
             console.info('Auto-selected Web Speech API model:', models[0].id)
           }
           else {
             // Fallback to default model ID
-            await hearingStore.setActiveTranscriptionModel('web-speech-api')
+            await hearingStore.setTranscriptionModelForProvider(providerId, 'web-speech-api')
             console.info('Auto-selected Web Speech API default model')
           }
         }

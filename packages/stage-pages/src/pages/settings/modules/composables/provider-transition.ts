@@ -15,6 +15,7 @@ export function createProviderTransitionController(dependencies: ProviderTransit
   let restartMonitoring = false
   let needsMonitoringStop = false
   let providerToDispose: string | undefined
+  let wakeReadinessWait: (() => void) | undefined
   let disposed = false
 
   async function reconcileLatestTransition() {
@@ -43,7 +44,21 @@ export function createProviderTransitionController(dependencies: ProviderTransit
         return
       }
 
-      await dependencies.waitForProviderReady(provider)
+      let wakeCurrentReadinessWait!: () => void
+      const transitionSuperseded = new Promise<void>((resolve) => {
+        wakeCurrentReadinessWait = resolve
+      })
+      wakeReadinessWait = wakeCurrentReadinessWait
+      try {
+        await Promise.race([
+          dependencies.waitForProviderReady(provider),
+          transitionSuperseded,
+        ])
+      }
+      finally {
+        if (wakeReadinessWait === wakeCurrentReadinessWait)
+          wakeReadinessWait = undefined
+      }
       if (disposed)
         return
       if (transitionRevision !== revision)
@@ -85,6 +100,7 @@ export function createProviderTransitionController(dependencies: ProviderTransit
       return Promise.resolve()
 
     revision++
+    wakeReadinessWait?.()
     if (dependencies.getMonitoring()) {
       restartMonitoring = true
       needsMonitoringStop = true
@@ -108,6 +124,8 @@ export function createProviderTransitionController(dependencies: ProviderTransit
 
     disposed = true
     revision++
+    wakeReadinessWait?.()
+    wakeReadinessWait = undefined
     restartMonitoring = false
     needsMonitoringStop = false
     providerToDispose = undefined
