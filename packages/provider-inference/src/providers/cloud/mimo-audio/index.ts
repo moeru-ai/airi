@@ -251,7 +251,7 @@ function createMimoTranscriptionProvider(config: MimoTranscriptionConfig) {
               ],
             }],
             asr_options: {
-              language: normalizeMimoAsrLanguage(configuredLanguage ?? extraOptions?.language),
+              language: normalizeMimoAsrLanguage(extraOptions?.language ?? configuredLanguage),
             },
           }),
         })

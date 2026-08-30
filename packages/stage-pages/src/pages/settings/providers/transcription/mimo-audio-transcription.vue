@@ -28,11 +28,6 @@ const apiKey = computed(() => typeof config.value?.apiKey === 'string' ? config.
 const baseUrl = computed(() => typeof config.value?.baseUrl === 'string' ? config.value.baseUrl : '')
 const model = MIMO_ASR_MODEL
 const language = computed(() => MIMO_ASR_LANGUAGES.find(value => value === config.value?.language) ?? 'auto')
-const languageOptions = [
-  { value: 'auto', label: 'Auto-detect' },
-  { value: 'zh', label: 'Chinese' },
-  { value: 'en', label: 'English' },
-]
 const apiKeyConfigured = computed(() => !!apiKey.value)
 const providerModels = computed(() => providersStore.getModelsForProvider(providerId))
 const isLoadingModels = computed(() => providersStore.isLoadingModels[providerId] || false)
@@ -47,6 +42,12 @@ const {
   handleResetSettings,
   forceValid,
 } = useProviderValidation(providerId)
+
+const languageOptions = computed(() => [
+  { value: 'auto', label: t('settings.pages.providers.provider.mimo.transcription.language.options.auto') },
+  { value: 'zh', label: t('settings.pages.providers.provider.mimo.transcription.language.options.zh') },
+  { value: 'en', label: t('settings.pages.providers.provider.mimo.transcription.language.options.en') },
+])
 
 onMounted(async () => {
   await providersStore.initializeProvider(providerId)
@@ -99,8 +100,8 @@ async function handleGenerateTranscription(file: File) {
         />
         <FieldCombobox
           :model-value="language"
-          label="ASR language"
-          description="MiMo uses automatic language detection unless you choose Chinese or English."
+          :label="t('settings.pages.providers.provider.mimo.transcription.language.label')"
+          :description="t('settings.pages.providers.provider.mimo.transcription.language.description')"
           :options="languageOptions"
           @update:model-value="setField('language', $event)"
         />
@@ -124,8 +125,11 @@ async function handleGenerateTranscription(file: File) {
           </Button>
         </template>
       </Alert>
-      <Alert v-if="isValid && isValidating === 0" tone="success" title="Local configuration is complete">
-        API key and Base URL are present. This local check does not prove Xiaomi MiMo ASR runtime availability. Use the transcription test below for an actual request.
+      <Alert
+        v-if="isValid && isValidating === 0" tone="success"
+        :title="t('settings.pages.providers.provider.mimo.transcription.validation.local-complete')"
+      >
+        {{ t('settings.pages.providers.provider.mimo.transcription.validation.local-complete-description') }}
       </Alert>
     </ProviderSettingsContainer>
 
