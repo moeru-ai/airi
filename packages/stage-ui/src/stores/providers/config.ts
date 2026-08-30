@@ -122,7 +122,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   function ensureProvider(providerId: string, definitionId: string, config: Record<string, unknown> = {}) {
     const current = providers.value[providerId]
     if (current)
-      return current
+      return
 
     const definition = getDefinedProvider(definitionId)
     if (!definition)
@@ -136,7 +136,6 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       configuredBy: definition.configuredBy ?? 'user',
     }
     providers.value[providerId] = provider
-    return provider
   }
 
   function markProviderAdded(providerId: string) {

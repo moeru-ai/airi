@@ -75,9 +75,12 @@ export async function configureAsDefaultsIfEmpty(): Promise<boolean> {
     changed = true
   }
   else if (usesOfficialHearing && !hearingStore.activeTranscriptionModel) {
-    hearingStore.activeCustomModelName = ''
-    await hearingStore.setActiveTranscriptionModel(officialModuleDefaults.hearing.model)
-    changed = true
+    const providerId = officialModuleDefaults.hearing.provider
+    if (hearingStore.activeTranscriptionProvider === providerId) {
+      hearingStore.activeCustomModelName = ''
+      await hearingStore.setTranscriptionModelForProvider(providerId, officialModuleDefaults.hearing.model)
+      changed = true
+    }
   }
 
   if (needsSpeechDefault) {

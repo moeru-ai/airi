@@ -204,6 +204,106 @@ describe('official provider module defaults', () => {
     expect(providerConfigStore.providers['vision-official-provider']?.status).toBe('configured')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888391477
+  // ROOT CAUSE:
+  //
+  // Auth setup captured official Hearing ownership before awaiting provider
+  // initialization. A later user selection could therefore receive the
+  // official model. Rechecking ownership keeps the newer selection intact.
+  it('does not apply the official model after Hearing switches providers (GitHub #2122)', async () => {
+    const consciousnessStore = useConsciousnessStore()
+    const hearingStore = useHearingStore()
+    const speechStore = useSpeechStore()
+    const visionStore = useVisionStore()
+    const providerStore = useProviderStore()
+    const providerConfigStore = useProviderConfigStore()
+    const customProviderId = 'funasr-audio-transcription'
+
+    consciousnessStore.activeProvider = 'custom-chat'
+    consciousnessStore.activeModel = 'custom-chat-model'
+    hearingStore.activeTranscriptionProvider = OFFICIAL_TRANSCRIPTION_PROVIDER_ID
+    hearingStore.activeTranscriptionModel = ''
+    speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
+    speechStore.activeSpeechModel = 'auto'
+    visionStore.activeProvider = 'vision-official-provider'
+    visionStore.activeModel = 'auto'
+    providerConfigStore.ensureProvider(customProviderId, customProviderId, {
+      baseUrl: 'http://localhost:8000/v1/',
+      model: '',
+    })
+
+    const initializeProviderImplementation = providerStore.initializeProvider.bind(providerStore)
+    let switchedProvider = false
+    vi.spyOn(providerStore, 'initializeProvider').mockImplementation(async (providerId) => {
+      await initializeProviderImplementation(providerId)
+      if (switchedProvider)
+        return
+
+      switchedProvider = true
+      hearingStore.activeTranscriptionProvider = customProviderId
+      hearingStore.activeTranscriptionModel = ''
+      hearingStore.activeCustomModelName = ''
+    })
+
+    await expect(configureAsDefaultsIfEmpty()).resolves.toBe(true)
+
+    expect(hearingStore.activeTranscriptionProvider).toBe(customProviderId)
+    expect(hearingStore.activeTranscriptionModel).toBe('')
+    expect(hearingStore.activeCustomModelName).toBe('')
+    expect(providerConfigStore.getProviderConfig(customProviderId)?.model).toBe('')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888391477
+  // ROOT CAUSE:
+  //
+  // A model-only action resolved its destination from mutable active state.
+  // Passing the official provider ID preserves ownership even when the user
+  // switches providers as the synchronized setter starts.
+  it('keeps a provider switch made while the official model setter starts (GitHub #2122)', async () => {
+    const consciousnessStore = useConsciousnessStore()
+    const hearingStore = useHearingStore()
+    const speechStore = useSpeechStore()
+    const visionStore = useVisionStore()
+    const providerStore = useProviderStore()
+    const providerConfigStore = useProviderConfigStore()
+    const customProviderId = 'funasr-audio-transcription'
+
+    consciousnessStore.activeProvider = 'official-provider'
+    consciousnessStore.activeModel = 'auto'
+    hearingStore.activeTranscriptionProvider = OFFICIAL_TRANSCRIPTION_PROVIDER_ID
+    hearingStore.activeTranscriptionModel = ''
+    speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
+    speechStore.activeSpeechModel = 'auto'
+    visionStore.activeProvider = 'vision-official-provider'
+    visionStore.activeModel = 'auto'
+    providerConfigStore.ensureProvider(customProviderId, customProviderId, {
+      baseUrl: 'http://localhost:8000/v1/',
+      model: '',
+    })
+
+    for (const providerId of ['official-provider', OFFICIAL_TRANSCRIPTION_PROVIDER_ID, OFFICIAL_SPEECH_PROVIDER_ID, 'vision-official-provider']) {
+      await providerStore.initializeProvider(providerId)
+      await providerStore.forceProviderConfigured(providerId)
+    }
+
+    const setModelImplementation = hearingStore.setTranscriptionModelForProvider.bind(hearingStore)
+    let switchedProvider = false
+    vi.spyOn(hearingStore, 'setTranscriptionModelForProvider').mockImplementation(async (providerId, model) => {
+      switchedProvider = true
+      hearingStore.activeTranscriptionProvider = customProviderId
+      hearingStore.activeTranscriptionModel = ''
+      await setModelImplementation(providerId, model)
+    })
+
+    await expect(configureAsDefaultsIfEmpty()).resolves.toBe(true)
+
+    expect(switchedProvider).toBe(true)
+    expect(hearingStore.activeTranscriptionProvider).toBe(customProviderId)
+    expect(hearingStore.activeTranscriptionModel).toBe('')
+    expect(providerConfigStore.getProviderConfig(customProviderId)?.model).toBe('')
+    expect(providerConfigStore.getProviderConfig(OFFICIAL_TRANSCRIPTION_PROVIDER_ID)?.model).toBe('auto')
+  })
+
   it('adds a configured official provider to the visible provider list', async () => {
     const consciousnessStore = useConsciousnessStore()
     const hearingStore = useHearingStore()

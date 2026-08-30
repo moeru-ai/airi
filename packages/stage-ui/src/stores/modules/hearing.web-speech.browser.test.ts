@@ -80,6 +80,91 @@ describe('web speech model ownership', () => {
     localStorage.clear()
     Reflect.deleteProperty(window, 'SpeechRecognition')
     webSpeechMocks.stream.mockClear()
+    vi.restoreAllMocks()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888326499
+  // ROOT CAUSE:
+  //
+  // A follower started provider creation before its leader-routed ensure action
+  // replicated configuration locally. The factory then recursed on a false
+  // credential mismatch. Awaiting the action establishes the snapshot boundary.
+  it('awaits follower provider configuration before creating a local instance (GitHub #2122)', async () => {
+    const providerId = 'browser-web-speech-api'
+    const namespace = `provider-first-use:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    setActivePinia(leaderContext.pinia)
+    useProviderStore()
+    const leaderConfigStore = useProviderConfigStore()
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerProviderStore = useProviderStore()
+    const followerConfigStore = useProviderConfigStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    const definition = followerProviderStore.getProviderDefinition(providerId)
+    const createProviderImplementation = definition.createProvider.bind(definition)
+    const createProvider = vi.spyOn(definition, 'createProvider').mockImplementation(async (config) => {
+      if (createProvider.mock.calls.length > 1)
+        throw new Error('provider creation repeated before configuration replication')
+      return createProviderImplementation(config)
+    })
+
+    await expect(followerProviderStore.getProviderInstance(providerId)).resolves.toBeDefined()
+
+    expect(createProvider).toHaveBeenCalledOnce()
+    expect(followerConfigStore.getProvider(providerId)).toBeDefined()
+    expect(leaderConfigStore.getProvider(providerId)).toBeDefined()
+    const repeatedEnsureResult = await followerConfigStore.ensureProvider(providerId, providerId)
+    expect(repeatedEnsureResult).toBeUndefined()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888326499
+  // ROOT CAUSE:
+  //
+  // The follower captured defaults before awaiting an existing leader config.
+  // Rereading after replication makes cache identity and factory input use the
+  // authoritative leader-owned configuration.
+  it('creates a follower instance with the leader configuration (GitHub #2122)', async () => {
+    const providerId = 'browser-web-speech-api'
+    const namespace = `provider-existing-config:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    setActivePinia(leaderContext.pinia)
+    useProviderStore()
+    const leaderConfigStore = useProviderConfigStore()
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerProviderStore = useProviderStore()
+    const followerConfigStore = useProviderConfigStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    const leaderConfig = {
+      continuous: false,
+      interimResults: false,
+      language: 'ja-JP',
+      maxAlternatives: 2,
+    }
+    setActivePinia(leaderContext.pinia)
+    leaderConfigStore.ensureProvider(providerId, providerId, leaderConfig)
+
+    setActivePinia(followerContext.pinia)
+    const definition = followerProviderStore.getProviderDefinition(providerId)
+    const createProviderImplementation = definition.createProvider.bind(definition)
+    const createdConfigs: Record<string, unknown>[] = []
+    const createProvider = vi.spyOn(definition, 'createProvider').mockImplementation(async (config) => {
+      createdConfigs.push({ ...config })
+      return createProviderImplementation(config)
+    })
+
+    await expect(followerProviderStore.getProviderInstance(providerId)).resolves.toBeDefined()
+
+    expect(createProvider).toHaveBeenCalledOnce()
+    expect(createdConfigs).toEqual([leaderConfig])
+    expect(followerConfigStore.getProviderConfig(providerId)).toEqual(leaderConfig)
   })
 
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3887591819

@@ -346,7 +346,7 @@ export const useProviderStore = defineStore('provider', () => {
     // Web Speech API doesn't require credentials - use empty config if not present
     if (providerId === 'browser-web-speech-api') {
       if (!providerCredentials.value[providerId]) {
-        providerConfigStore.ensureProvider(providerId, providerId, getDefaultProviderConfig(providerId))
+        await providerConfigStore.ensureProvider(providerId, providerId, getDefaultProviderConfig(providerId))
       }
     }
 
@@ -445,7 +445,7 @@ export const useProviderStore = defineStore('provider', () => {
     await waitForProviderMetadata()
     if (!providerCredentials.value[providerId]) {
       const definitionId = getProviderDefinitionId(providerId)
-      providerConfigStore.ensureProvider(providerId, definitionId, getDefaultProviderConfig(providerId))
+      await providerConfigStore.ensureProvider(providerId, definitionId, getDefaultProviderConfig(providerId))
     }
     initializeProviderRuntimeState(providerId)
   }
@@ -940,7 +940,8 @@ export const useProviderStore = defineStore('provider', () => {
     if (!config && noCredentials) {
       config = getDefaultProviderConfig(providerId) || {}
       const definitionId = getProviderDefinitionId(providerId)
-      providerConfigStore.ensureProvider(providerId, definitionId, config)
+      await providerConfigStore.ensureProvider(providerId, definitionId, config)
+      config = providerCredentials.value[providerId] ?? config
     }
 
     if (!config && !noCredentials)
