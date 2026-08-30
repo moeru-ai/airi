@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/model-driver-magic-live2d",
   "type": "module",
-  "version": "0.12.0-beta.1",
+  "version": "0.12.0-beta.5",
   "private": true,
   "description": "Live2D model driver for MAGIC motion",
   "author": {

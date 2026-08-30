@@ -13,7 +13,7 @@ import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenu
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import Live2DReportModal from './Live2DReportModal.vue'
+import Live2DReportModal from './reports/live2d/modal.vue'
 import TachieReportModal from './tachieReportModal.vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
@@ -64,7 +64,7 @@ async function handleAddLive2DModel(file: FileList | null) {
   validationReport.value = report
   pendingFile.value = file[0]
 
-  if (report.status === 'VALID' && report.errors.length === 0) {
+  if (report.status === 'VALID') {
     await confirmImport()
     return
   }
@@ -115,10 +115,6 @@ async function confirmTachieImport() {
   highlightDisplayModelCard.value = displayModel.id
   pendingTachieFile.value = null
   tachieValidationReport.value = null
-}
-
-function handleFixError(error: string) {
-  void error
 }
 
 function handlePick(m: DisplayModel) {
@@ -223,7 +219,6 @@ mmdDialog.onChange(handleAddMMDModel)
       v-model:open="showReportModal"
       :report="validationReport"
       @confirm="confirmImport"
-      @fix-error="handleFixError"
     />
     <TachieReportModal
       v-model:open="showTachieReportModal"
