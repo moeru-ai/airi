@@ -126,10 +126,10 @@ export function useProviderValidation(providerId: string) {
     let finalValidationMessage = ''
 
     try {
-      await providersStore.refreshModelsForChangedCredentials(providerId)
+      await providerStore.setProviderStatus(providerId, 'validating')
       if (revision !== validationRevision)
         return
-      await providerStore.setProviderStatus(providerId, 'validating')
+      await providersStore.refreshModelsForChangedCredentials(providerId, { waitForModelCatalog: false })
       if (revision !== validationRevision)
         return
 
@@ -155,7 +155,7 @@ export function useProviderValidation(providerId: string) {
         await providersStore.forceProviderConfigured(providerId)
         if (revision !== validationRevision)
           return
-        await providersStore.refreshModelsForChangedCredentials(providerId)
+        await providersStore.refreshModelsForChangedCredentials(providerId, { waitForModelCatalog: false })
         if (revision !== validationRevision)
           return
 
@@ -244,7 +244,7 @@ export function useProviderValidation(providerId: string) {
       await providerStore.setProviderStatus(providerId, 'validating')
       if (revision !== validationRevision)
         return
-      await providersStore.refreshModelsForChangedCredentials(providerId)
+      await providersStore.refreshModelsForChangedCredentials(providerId, { waitForModelCatalog: false })
       if (revision !== validationRevision)
         return
       await providerStore.setProviderStatus(providerId, 'unconfigured')
@@ -304,7 +304,7 @@ export function useProviderValidation(providerId: string) {
     await providersStore.forceProviderConfigured(providerId)
     if (revision !== validationRevision)
       return
-    await providersStore.refreshModelsForChangedCredentials(providerId)
+    await providersStore.refreshModelsForChangedCredentials(providerId, { waitForModelCatalog: false })
     if (revision !== validationRevision)
       return
 

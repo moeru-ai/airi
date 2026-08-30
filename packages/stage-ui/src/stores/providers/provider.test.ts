@@ -264,6 +264,45 @@ describe('provider store synchronization boundary', () => {
     expect(listModels).toHaveBeenCalledOnce()
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888321624
+  it('deduplicates background model discovery while it is pending (GitHub #2122)', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    await store.initializeProvider(providerId)
+    configStore.setProviderStatus(providerId, 'configured')
+    let resolveCatalog!: (models: []) => void
+    const catalogRequest = new Promise<[]>((resolve) => {
+      resolveCatalog = resolve
+    })
+    const listModels = vi.spyOn(store.getProviderDefinition(providerId).extraMethods!, 'listModels')
+      .mockReturnValue(catalogRequest)
+    const initiallyCachedProvider = await store.getProviderInstance(providerId) as { dispose?: () => void }
+    const disposeInitiallyCachedProvider = vi.fn()
+    initiallyCachedProvider.dispose = disposeInitiallyCachedProvider
+
+    const firstRefresh = store.refreshModelsForChangedCredentials(providerId, { waitForModelCatalog: false })
+    await expect(firstRefresh).resolves.toBeUndefined()
+    const activeInferenceProvider = await store.getProviderInstance(providerId) as { dispose?: () => void }
+    const disposeActiveInferenceProvider = vi.fn()
+    activeInferenceProvider.dispose = disposeActiveInferenceProvider
+    const secondRefresh = store.refreshModelsForChangedCredentials(providerId, { waitForModelCatalog: false })
+    await expect(secondRefresh).resolves.toBeUndefined()
+
+    // ROOT CAUSE:
+    //
+    // Non-waiting refreshes did not record the credential hash until the request completed.
+    // A second validation therefore started a new request and superseded the first owner.
+    expect(listModels).toHaveBeenCalledOnce()
+    expect(disposeInitiallyCachedProvider).toHaveBeenCalledOnce()
+    expect(disposeActiveInferenceProvider).not.toHaveBeenCalled()
+    expect(await store.getProviderInstance(providerId)).toBe(activeInferenceProvider)
+    expect(store.providerRuntimeState[providerId]?.modelStatus).toBe('loading')
+
+    resolveCatalog([])
+    await vi.waitFor(() => expect(store.providerRuntimeState[providerId]?.modelStatus).toBe('ready'))
+  })
+
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3885308457
   it('retries model discovery after a transient catalog failure', async () => {
     const providerId = 'funasr-audio-transcription'

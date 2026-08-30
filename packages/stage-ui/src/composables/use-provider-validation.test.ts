@@ -102,10 +102,11 @@ describe('useProviderValidation', () => {
     await vi.waitFor(() => {
       expect(providersStore.validateProviderConfig).toHaveBeenCalled()
     })
-    expect(refreshModelsForChangedCredentials).toHaveBeenCalledWith(providerId)
+    expect(refreshModelsForChangedCredentials).toHaveBeenCalledWith(providerId, { waitForModelCatalog: false })
   })
 
-  it('refreshes a configured provider catalog before publishing validating status', async () => {
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888321624
+  it('publishes validating status before refreshing a configured provider catalog (GitHub #2122)', async () => {
     const providerId = 'funasr-audio-transcription'
     const providersStore = useProviderStore()
     const configStore = useProviderConfigStore()
@@ -134,7 +135,50 @@ describe('useProviderValidation', () => {
     await vi.waitFor(() => {
       expect(providersStore.validateProviderConfig).toHaveBeenCalled()
     })
-    expect(statusesDuringRefresh[0]).toBe('configured')
+    // ROOT CAUSE:
+    //
+    // A configured status made cache refresh wait for the remote model catalog before validation.
+    expect(statusesDuringRefresh[0]).toBe('validating')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888321624
+  it('does not block configuration validation on model discovery (GitHub #2122)', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const modelCatalogRequest = new Promise<void>(() => {})
+    const providersStore = useProviderStore()
+    const configStore = useProviderConfigStore()
+    await providersStore.initializeProvider(providerId)
+    configStore.setProviderStatus(providerId, 'configured')
+    vi.spyOn(providersStore, 'refreshModelsForChangedCredentials').mockImplementation((...args) => {
+      const options = Reflect.get(args, 1) as { waitForModelCatalog?: boolean } | undefined
+      return options?.waitForModelCatalog === false ? Promise.resolve() : modelCatalogRequest
+    })
+    const validateProviderConfig = vi.spyOn(providersStore, 'validateProviderConfig').mockResolvedValue({
+      errors: [],
+      reason: '',
+      valid: true,
+    })
+    let validation!: ReturnType<typeof useProviderValidation>
+
+    const app = createApp(defineComponent({
+      setup() {
+        validation = useProviderValidation(providerId)
+        return () => null
+      },
+    }))
+    app.use(pinia)
+    app.mount(document.createElement('div'))
+    unmount = () => app.unmount()
+
+    await vi.waitFor(() => expect(validateProviderConfig).toHaveBeenCalled(), { timeout: 2000 })
+
+    // ROOT CAUSE:
+    //
+    // Automatic validation awaited an unbounded model-list request before it checked the configuration.
+    await vi.waitFor(() => {
+      expect(validation.isValid.value).toBe(true)
+      expect(validation.isValidating.value).toBe(0)
+    }, { timeout: 2000 })
   })
 
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3834928540

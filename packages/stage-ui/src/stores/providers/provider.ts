@@ -213,6 +213,10 @@ export const useProviderStore = defineStore('provider', () => {
   const providerValidationInFlight = new Map<string, Promise<boolean>>()
   const providerVoiceListInFlight = new Map<string, Promise<VoiceInfo[]>>()
   const providerRevalidationLoops = new Map<string, { pause: () => void, resume: () => void }>()
+  const credentialModelRefreshes = new Map<string, {
+    credentialHash: string
+    request: Promise<void>
+  }>()
   // Model discovery is isolated per provider. Only the newest request may publish
   // cache or status state; older responses retain no ownership after a new load starts.
   let nextModelListRequestId = 0
@@ -538,6 +542,7 @@ export const useProviderStore = defineStore('provider', () => {
     void providerConfigStore.removeProvider(providerId)
     latestModelListRequestIds.delete(providerId)
     latestModelListRequests.delete(providerId)
+    credentialModelRefreshes.delete(providerId)
     delete providerRuntimeState.value[providerId]
   }
 
@@ -565,6 +570,7 @@ export const useProviderStore = defineStore('provider', () => {
     await providerConfigStore.resetProviders()
     latestModelListRequestIds.clear()
     latestModelListRequests.clear()
+    credentialModelRefreshes.clear()
     providerRuntimeState.value = {}
 
     providerRevalidationLoops.forEach(loop => loop.pause())
@@ -783,7 +789,21 @@ export const useProviderStore = defineStore('provider', () => {
   }
   const previousCredentialHashes = new Map<string, string>()
 
-  async function refreshModelsForChangedCredentials(providerId?: string) {
+  async function refreshModelsForChangedCredentials(
+    providerId?: string,
+    options: { waitForModelCatalog?: boolean } = {},
+  ) {
+    async function finishModelRefresh(currentProviderId: string, request: Promise<void>) {
+      if (options.waitForModelCatalog === false) {
+        void request.catch((error) => {
+          console.error(`Background model refresh failed for ${currentProviderId}:`, error)
+        })
+        return
+      }
+
+      await request
+    }
+
     const changedProviders: Array<{ credentialHash: string, providerId: string }> = []
     const providerIds = providerId ? [providerId] : Object.keys(providerCredentials.value)
 
@@ -801,6 +821,12 @@ export const useProviderStore = defineStore('provider', () => {
     }
 
     for (const { credentialHash, providerId: currentProviderId } of changedProviders) {
+      const activeRefresh = credentialModelRefreshes.get(currentProviderId)
+      if (activeRefresh?.credentialHash === credentialHash) {
+        await finishModelRefresh(currentProviderId, activeRefresh.request)
+        continue
+      }
+
       // Since credentials changed, dispose the cached instance so new creds take effect.
       await disposeProviderInstance(currentProviderId)
 
@@ -812,9 +838,26 @@ export const useProviderStore = defineStore('provider', () => {
       // An unconfigured provider must remain retryable after validation makes
       // it configured; only a completed catalog refresh owns the new hash.
       if (providerConfigStore.providers[currentProviderId]?.status === 'configured') {
-        await fetchModelsForProvider(currentProviderId)
-        if (providerRuntimeState.value[currentProviderId]?.modelStatus === 'ready')
-          previousCredentialHashes.set(currentProviderId, credentialHash)
+        const recordCompletedRefresh = () => {
+          const currentConfig = providerCredentials.value[currentProviderId]
+          const currentHash = currentConfig
+            ? modelCatalogCredentialHash(getProviderDefinitionId(currentProviderId), currentConfig)
+            : undefined
+          if (currentHash === credentialHash && providerRuntimeState.value[currentProviderId]?.modelStatus === 'ready')
+            previousCredentialHashes.set(currentProviderId, credentialHash)
+        }
+        const trackedRequest = fetchModelsForProvider(currentProviderId)
+          .then(recordCompletedRefresh)
+          .finally(() => {
+            if (credentialModelRefreshes.get(currentProviderId)?.request === trackedRequest)
+              credentialModelRefreshes.delete(currentProviderId)
+          })
+        credentialModelRefreshes.set(currentProviderId, {
+          credentialHash,
+          request: trackedRequest,
+        })
+
+        await finishModelRefresh(currentProviderId, trackedRequest)
       }
     }
   }
