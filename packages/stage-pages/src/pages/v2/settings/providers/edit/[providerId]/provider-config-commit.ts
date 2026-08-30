@@ -5,13 +5,19 @@ export interface ProviderConfigEditCommit {
 }
 
 export interface ProviderConfigEditCommitDependencies {
-  disposeProviderInstance: (providerId: string) => Promise<unknown>
-  setTranscriptionModelForProvider: (providerId: string, model: string) => Promise<unknown>
-  updateProviderConfig: (
+  stageTranscriptionProviderConfig: (
     providerId: string,
     config: Record<string, unknown>,
     status: 'configured' | 'bypassed',
+    commitId: string,
+  ) => Promise<boolean | undefined>
+  persistProviderConfigIfCurrent: (
+    providerId: string,
+    config: Record<string, unknown>,
+    status: 'configured' | 'bypassed',
+    commitId: string,
   ) => Promise<unknown>
+  disposeProviderInstance: (providerId: string) => Promise<unknown>
 }
 
 /**
@@ -21,9 +27,8 @@ export async function commitProviderConfigEdit(
   commit: ProviderConfigEditCommit,
   dependencies: ProviderConfigEditCommitDependencies,
 ) {
+  const commitId = crypto.randomUUID()
   await dependencies.disposeProviderInstance(commit.providerId)
-  await dependencies.updateProviderConfig(commit.providerId, commit.config, commit.status)
-  if (typeof commit.config.model === 'string') {
-    await dependencies.setTranscriptionModelForProvider(commit.providerId, commit.config.model)
-  }
+  await dependencies.stageTranscriptionProviderConfig(commit.providerId, commit.config, commit.status, commitId)
+  await dependencies.persistProviderConfigIfCurrent(commit.providerId, commit.config, commit.status, commitId)
 }

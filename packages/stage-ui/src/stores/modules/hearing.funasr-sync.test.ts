@@ -2,7 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
-import { useProviderConfigStore } from '../providers/config'
+import { PROVIDER_CONFIG_REPLAY_RETENTION_MS, useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { hasExplicitlyClearedTranscriptionModel, useHearingStore } from './hearing'
 
@@ -91,6 +91,77 @@ describe('funASR Hearing model synchronization', () => {
       },
     })
     expect(hearingStore.configured).toBe(true)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888398390
+  it('publishes a provider config and model before remote persistence finishes (GitHub #2122)', async () => {
+    const providerId = 'openai-audio-transcription'
+    const providerConfigStore = useProviderConfigStore()
+    const hearingStore = useHearingStore()
+    await hearingStore.setActiveTranscriptionProvider(providerId, 'old-model')
+    const commitId = 'funasr-config-save'
+    hearingStore.stageTranscriptionProviderConfig(providerId, {
+      baseUrl: 'https://new.example/v1/',
+      model: 'new-model',
+    }, 'configured', commitId)
+    await vi.waitFor(() => expect(providerConfigStore.getProviderConfig(providerId)?.baseUrl).toBe('https://new.example/v1/'))
+
+    // ROOT CAUSE:
+    //
+    // Waiting for remote config persistence before publishing the Hearing model lets another
+    // renderer observe a new endpoint with the previous model.
+    expect(hearingStore.activeTranscriptionModel).toBe('new-model')
+
+    expect(providerConfigStore.providerConfigCommitOwnership[providerId]?.currentCommitId).toBe(commitId)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888398390
+  it('retains replay ownership through the synchronized RPC timeout window (GitHub #2122)', async () => {
+    const providerId = 'openai-audio-transcription'
+    const providerConfigStore = useProviderConfigStore()
+    const hearingStore = useHearingStore()
+    await hearingStore.setActiveTranscriptionProvider(providerId, 'initial-model')
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-30T00:00:00Z'))
+    try {
+      await hearingStore.stageTranscriptionProviderConfig(
+        providerId,
+        { model: 'original-model' },
+        'configured',
+        'original-commit',
+      )
+      for (let index = 0; index < 128; index++) {
+        await hearingStore.stageTranscriptionProviderConfig(
+          providerId,
+          { model: `model-${index}` },
+          'configured',
+          `commit-${index}`,
+        )
+      }
+
+      vi.advanceTimersByTime(PROVIDER_CONFIG_REPLAY_RETENTION_MS - 1)
+      await expect(hearingStore.stageTranscriptionProviderConfig(
+        providerId,
+        { model: 'model-replayed' },
+        'configured',
+        'original-commit',
+      )).resolves.toBe(false)
+      expect(providerConfigStore.getProviderConfig(providerId)?.model).toBe('model-127')
+
+      vi.advanceTimersByTime(2)
+      await hearingStore.stageTranscriptionProviderConfig(
+        providerId,
+        { model: 'after-expiry' },
+        'configured',
+        'after-expiry',
+      )
+      expect(providerConfigStore.providerConfigCommitOwnership[providerId]?.appliedCommits).toEqual([
+        { commitId: 'after-expiry', expiresAt: Date.now() + PROVIDER_CONFIG_REPLAY_RETENTION_MS },
+      ])
+    }
+    finally {
+      vi.useRealTimers()
+    }
   })
 
   it('keeps the active provider when FunASR validation fails (GitHub #2122)', async () => {

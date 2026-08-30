@@ -1,4 +1,5 @@
 export interface TranscriptionModelUpdateQueue {
+  enqueue: (action: () => Promise<void>) => Promise<void>
   runAfterLatest: <Result>(action: () => Promise<Result>) => Promise<Result>
   update: (model: string) => Promise<void>
 }
@@ -13,11 +14,15 @@ export function createTranscriptionModelUpdateQueue(
   let settledTask = Promise.resolve()
   let latestTask = settledTask
 
-  function update(model: string) {
-    const nextTask = settledTask.then(() => updateModel(model))
+  function enqueue(action: () => Promise<void>) {
+    const nextTask = settledTask.then(action)
     latestTask = nextTask
     settledTask = nextTask.catch(onError)
     return nextTask
+  }
+
+  function update(model: string) {
+    return enqueue(() => updateModel(model))
   }
 
   async function runAfterLatest<Result>(action: () => Promise<Result>) {
@@ -25,5 +30,5 @@ export function createTranscriptionModelUpdateQueue(
     return await action()
   }
 
-  return { runAfterLatest, update }
+  return { enqueue, runAfterLatest, update }
 }

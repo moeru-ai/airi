@@ -5,6 +5,7 @@ import type { StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } fro
 import type {} from 'pinia-plugin-synced'
 
 import type { AIRIStreamTranscriptionResult } from '../../libs/providers/stream-transcription'
+import type { ProviderValidationStatus } from '../../libs/providers/types'
 import type { StreamingTranscriptionCallbacks, StreamingTranscriptionConsumer } from './streaming-transcription-consumers'
 
 import { errorMessageFrom, tryCatch } from '@moeru/std'
@@ -27,7 +28,7 @@ import { streamWebSpeechAPITranscription } from '../../libs/providers/providers/
 import { OPENAI_TRANSCRIPTION_DEFAULT_MODEL } from '../../libs/providers/providers/openai-audio'
 import { streamTranscription } from '../../libs/providers/stream-transcription'
 import { useVAD } from '../ai/models/vad'
-import { useProviderConfigStore } from '../providers/config'
+import { PROVIDER_CONFIG_REPLAY_RETENTION_MS, useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { StreamingTranscriptionConsumers } from './streaming-transcription-consumers'
 
@@ -511,6 +512,41 @@ export const useHearingStore = defineStore('hearing-store', () => {
       activeTranscriptionModel.value = model
   }
 
+  async function stageTranscriptionProviderConfig(
+    providerId: string,
+    config: Record<string, unknown>,
+    status: ProviderValidationStatus,
+    commitId: string,
+  ) {
+    const provider = providerStore.getProvider(providerId)
+    if (!provider)
+      throw new Error(`Provider with id "${providerId}" is not initialized.`)
+
+    const ownership = providerStore.providerConfigCommitOwnership[providerId]
+    const now = Date.now()
+    const retainedCommits = ownership?.appliedCommits.filter(commit => commit.expiresAt > now) ?? []
+    if (retainedCommits.some(commit => commit.commitId === commitId))
+      return false
+
+    // This is the only coordinator that stages transcription provider config and Hearing
+    // model. Both mutations happen before the first await, so followers receive one frame.
+    providerStore.providerConfigCommitOwnership[providerId] = {
+      currentCommitId: commitId,
+      appliedCommits: [
+        ...retainedCommits,
+        { commitId, expiresAt: now + PROVIDER_CONFIG_REPLAY_RETENTION_MS },
+      ],
+    }
+    providerStore.providers[providerId] = { ...provider, config: { ...config }, status }
+
+    if (typeof config.model === 'string'
+      && activeTranscriptionProvider.value === providerId
+      && activeTranscriptionModel.value !== config.model) {
+      activeTranscriptionModel.value = config.model
+    }
+    return true
+  }
+
   async function setCustomTranscriptionModelForProvider(providerId: string, model: string) {
     await setTranscriptionModelForProvider(providerId, model)
     if (activeTranscriptionProvider.value === providerId)
@@ -824,6 +860,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     configured,
 
     transcription,
+    stageTranscriptionProviderConfig,
     initialize,
     initializeInBackground,
     reloadActiveTranscriptionProvider,
@@ -839,6 +876,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
   synced: {
     actions: [
       'initialize',
+      'stageTranscriptionProviderConfig',
       'loadModelsForProvider',
       'reloadActiveTranscriptionProvider',
       'resetState',

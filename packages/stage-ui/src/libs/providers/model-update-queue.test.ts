@@ -53,4 +53,27 @@ describe('transcription model update queue', () => {
     await expect(queue.runAfterLatest(request)).resolves.toBe('transcript')
     expect(request).toHaveBeenCalledTimes(1)
   })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888398387
+  it('keeps a combined provider reset in the playground queue (GitHub #2122)', async () => {
+    let resolveReset!: () => void
+    const resetGate = new Promise<void>((resolve) => {
+      resolveReset = resolve
+    })
+    const queue = createTranscriptionModelUpdateQueue(vi.fn().mockResolvedValue(undefined), vi.fn())
+    const reset = queue.enqueue(async () => resetGate)
+    const request = vi.fn().mockResolvedValue('transcript')
+    const transcription = queue.runAfterLatest(request)
+
+    // ROOT CAUSE:
+    //
+    // A combined reset that is not recorded as the latest queue task lets the playground
+    // start while its provider config and Hearing model are still being published.
+    await Promise.resolve()
+    expect(request).not.toHaveBeenCalled()
+
+    resolveReset()
+    await reset
+    await expect(transcription).resolves.toBe('transcript')
+  })
 })

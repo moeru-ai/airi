@@ -13,7 +13,15 @@ describe('funASR transcription settings reset', () => {
   it('routes provider reset through the synchronized Hearing model action (GitHub #2122)', () => {
     expect(source).toContain('async function handleResetFunASRSettings()')
     expect(source).toContain('resetProviderSettings()')
-    expect(source).toContain('await modelUpdateQueue.update(model.value)')
+    // ROOT CAUSE:
+    //
+    // Replacing an entry on the derived configs projection does not update the provider record,
+    // and awaiting persistence before the model write exposes mismatched state. The reset must
+    // queue a short atomic stage before separately awaiting guarded persistence.
+    expect(source).toContain('await modelUpdateQueue.enqueue(async () =>')
+    expect(source).toContain('await hearingStore.stageTranscriptionProviderConfig(')
+    expect(source).toContain('await providerConfigStore.persistProviderConfigIfCurrent(')
+    expect(source).toMatch(/'unconfigured'/)
     expect(source).toContain(':on-reset="handleResetFunASRSettings"')
   })
 })

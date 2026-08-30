@@ -7,6 +7,8 @@ import { inject } from 'vue'
 
 export type { LeadershipMode } from 'pinia-plugin-synced'
 
+export const PINIA_SYNC_CALL_TIMEOUT_MS = 5 * 60 * 1000
+
 /** Provides the synchronization runtime installed by {@link setupSynced}. */
 export const injectKeyPiniaSynced: InjectionKey<SyncedPiniaRuntime> = Symbol('stage-synced-pinia-runtime')
 
@@ -25,7 +27,7 @@ export function setupSynced(options: Pick<SyncedOptions, 'leadership'> = {}): { 
     namespace: 'airi:stage:pinia',
     // Chat and image-generation actions can outlive the plugin's 30-second
     // default. Keep the timeout aligned with the previous Electron coordinator.
-    callTimeout: 5 * 60 * 1000,
+    callTimeout: PINIA_SYNC_CALL_TIMEOUT_MS,
     ...options,
     onError(error) {
       console.error('[stage-synced-pinia] Synchronization failed:', error)

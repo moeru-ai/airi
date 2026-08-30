@@ -383,9 +383,9 @@ async function commitEditedConfig(status: 'configured' | 'bypassed') {
     status,
   }
   await commitProviderConfigEdit(commit, {
+    stageTranscriptionProviderConfig: (id, config, nextStatus, commitId) => useHearingStore().stageTranscriptionProviderConfig(id, config, nextStatus, commitId),
+    persistProviderConfigIfCurrent: (id, config, nextStatus, commitId) => providerStore.persistProviderConfigIfCurrent(id, config, nextStatus, commitId),
     disposeProviderInstance: id => providersStore.disposeProviderInstance(id),
-    setTranscriptionModelForProvider: (id, model) => useHearingStore().setTranscriptionModelForProvider(id, model),
-    updateProviderConfig: (id, config, nextStatus) => providerStore.updateProviderConfig(id, config, nextStatus),
   })
 }
 

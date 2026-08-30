@@ -94,7 +94,12 @@ const {
 
 async function handleResetFunASRSettings() {
   resetProviderSettings()
-  await modelUpdateQueue.update(model.value)
+  const defaultOptions = providersStore.getDefaultProviderConfig(providerId) as Record<string, unknown>
+  const commitId = crypto.randomUUID()
+  await modelUpdateQueue.enqueue(async () => {
+    await hearingStore.stageTranscriptionProviderConfig(providerId, { ...defaultOptions }, 'unconfigured', commitId)
+    await providerConfigStore.persistProviderConfigIfCurrent(providerId, { ...defaultOptions }, 'unconfigured', commitId)
+  })
 }
 
 onMounted(() => providersStore.initializeProvider(providerId))

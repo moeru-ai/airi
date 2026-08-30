@@ -296,11 +296,10 @@ async function updateActiveProviderConfig(patch: Record<string, unknown>) {
     if (!provider)
       throw new Error('The transcription Provider configuration is unavailable.')
 
-    const update = providerStore.updateProviderConfig(
-      providerId,
-      { ...provider.config, ...patch },
-      'configured',
-    )
+    const config = { ...provider.config, ...patch }
+    const commitId = crypto.randomUUID()
+    await hearingStore.stageTranscriptionProviderConfig(providerId, config, 'configured', commitId)
+    const update = providerStore.persistProviderConfigIfCurrent(providerId, config, 'configured', commitId)
 
     if (shouldRestartMonitoring) {
       isMonitoring.value = false

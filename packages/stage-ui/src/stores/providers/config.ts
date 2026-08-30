@@ -4,14 +4,18 @@ import type { InferenceServiceProvider, ProviderValidationStatus } from '../../l
 
 import { useMutation, useQuery } from '@pinia/colada'
 import { useLocalStorage } from '@vueuse/core'
+import { isEqual } from 'es-toolkit'
 import { defineStore } from 'pinia'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 import { client } from '../../composables/api'
+import { PINIA_SYNC_CALL_TIMEOUT_MS } from '../../libs/pinia/setup-synced'
 import { getDefinedProvider } from '../../libs/providers'
 import { inferenceServiceProvidersService as service } from '../../services/inference-service-providers'
 
 const PROVIDERS_QUERY_KEY = ['inference-service-providers']
+const PROVIDER_CONFIG_REPLAY_RETENTION_GRACE_MS = 30 * 1000
+export const PROVIDER_CONFIG_REPLAY_RETENTION_MS = PINIA_SYNC_CALL_TIMEOUT_MS + PROVIDER_CONFIG_REPLAY_RETENTION_GRACE_MS
 const providerStorageOptions = {
   // pinia-plugin-synced is the only cross-window propagation channel for this
   // store. Listening to storage events would feed replicated state back into
@@ -46,6 +50,10 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   const providers = useLocalStorage<Record<string, InferenceServiceProvider>>('settings/providers/configured', {}, providerStorageOptions)
   const addedProviders = useLocalStorage<Record<string, boolean>>('settings/providers/added', {}, providerStorageOptions)
   const legacyConfigs = useLocalStorage<Record<string, Record<string, unknown>>>('settings/credentials/providers', {}, providerStorageOptions)
+  const providerConfigCommitOwnership = ref<Record<string, {
+    appliedCommits: Array<{ commitId: string, expiresAt: number }>
+    currentCommitId: string
+  }>>({})
 
   // Import the previous provider configuration shape once. Provider ids remain
   // stable, so existing model selections keep pointing at the same provider.
@@ -207,36 +215,47 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     }
   }
 
-  async function updateProviderConfig(providerId: string, config: Record<string, unknown>, status: ProviderValidationStatus) {
-    const provider = providers.value[providerId]
-    if (!provider)
-      return
+  function ownsProviderConfigCommit(
+    providerId: string,
+    config: Record<string, unknown>,
+    status: ProviderValidationStatus,
+    commitId: string,
+  ) {
+    const current = providers.value[providerId]
+    return providerConfigCommitOwnership.value[providerId]?.currentCommitId === commitId
+      && current?.status === status
+      && isEqual(current.config, config)
+  }
 
-    const localProvider = {
-      ...provider,
-      config: { ...config },
-      status,
-    }
-    providers.value[providerId] = localProvider
+  async function persistProviderConfigIfCurrent(
+    providerId: string,
+    config: Record<string, unknown>,
+    status: ProviderValidationStatus,
+    commitId: string,
+  ) {
+    if (!ownsProviderConfigCommit(providerId, config, status, commitId))
+      return
 
     try {
       const remote = await updateProviderMutation.mutateAsync({ providerId, config, status })
+      if (!ownsProviderConfigCommit(providerId, config, status, commitId))
+        return
       providers.value[remote.id] = remote
-      return remote
     }
     catch {
       // A failed remote update keeps the local provider configuration.
-      return localProvider
     }
   }
 
   async function resetProviders() {
     providers.value = {}
     addedProviders.value = {}
+    providerConfigCommitOwnership.value = {}
   }
 
   return {
     providers,
+    providerConfigCommitOwnership,
     configs,
     addedProviders,
     listedProviders,
@@ -254,7 +273,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     fetchProviders,
     addProvider,
     removeProvider,
-    updateProviderConfig,
+    persistProviderConfigIfCurrent,
     resetProviders,
   }
 }, {
@@ -267,7 +286,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       'setProviderStatus',
       'addProvider',
       'removeProvider',
-      'updateProviderConfig',
+      'persistProviderConfigIfCurrent',
       'resetProviders',
     ],
     state: true,
