@@ -39,6 +39,7 @@ import { live2dMotionMagicProfiles, useLive2DMotionMagic, useLive2DMotionMagicSe
 import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
+import { createRubyProjector } from '../../libs/speech/ruby-annotation'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
 import { getSpeechBusContext, speechOutputGetPlaybackState } from '../../services/speech/bus'
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
@@ -716,6 +717,14 @@ function setupAnalyser() {
 // decision point. See `packages/stage-ui/src/libs/speech/tts-session.ts`.
 let currentSession: StageTtsSession | null = null
 
+// Projects ruby-annotated assistant tokens (`｜base《reading》`) into speech
+// text (reading substituted for the base) before they reach TTS, so the model
+// can control pronunciation without the markup being spoken. Streaming-safe and
+// reset per message so a partial annotation never leaks across turns.
+// ponytail: speech side only; rendering the `displayText` in chat is the #2255
+// follow-up (it lives in the message renderer, not this TTS side-channel).
+let rubyProjector = createRubyProjector()
+
 function stopSpeechOutput(reason: string) {
   currentSession?.cancel(reason)
   currentSession = null
@@ -845,6 +854,7 @@ watch(speechMuted, (muted) => {
 chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   playbackManager.stopAll('new-message')
   resetAssistantSpeechSurface('new-message')
+  rubyProjector = createRubyProjector()
 
   currentSession?.cancel('new-message')
   currentSession = null
@@ -862,7 +872,11 @@ chatHookCleanups.push(onBeforeSend(async () => {
 }))
 
 chatHookCleanups.push(onTokenLiteral(async (literal) => {
-  currentSession?.appendText(literal)
+  // Withhold text buffered inside an unclosed annotation; it surfaces once the
+  // reading closes (or on flush at stream end), so TTS never speaks the markup.
+  const { speechText } = rubyProjector.push(literal)
+  if (speechText)
+    currentSession?.appendText(speechText)
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special, context) => {
@@ -877,6 +891,10 @@ chatHookCleanups.push(onTokenSpecial(async (special, context) => {
 }))
 
 chatHookCleanups.push(onStreamEnd(async () => {
+  // Emit any text left inside an unterminated annotation so nothing is dropped.
+  const { speechText } = rubyProjector.flush()
+  if (speechText)
+    currentSession?.appendText(speechText)
   currentSession?.finishInput()
 }))
 
