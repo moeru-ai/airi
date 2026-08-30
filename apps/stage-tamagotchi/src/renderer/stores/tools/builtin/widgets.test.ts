@@ -520,7 +520,7 @@ describe('widgets tool helpers', () => {
         ttlSeconds: 0,
       }, { invokers })
 
-      expect(invokers.updateWidget).toHaveBeenCalledWith({ id: 'xyz', componentProps: { foo: 1 }, alwaysOnTop: false })
+      expect(invokers.updateWidget).toHaveBeenCalledWith({ id: 'xyz', componentProps: { foo: 1 }, alwaysOnTop: false, ttlMs: 0 })
     })
 
     it('removes when id provided', async () => {
