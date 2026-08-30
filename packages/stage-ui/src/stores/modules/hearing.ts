@@ -267,15 +267,26 @@ export function resolveStreamTranscriptionExecutor(providerId: string): StreamTr
  *
  * Expects:
  * - `providerId` is the current `settings/hearing/active-provider` value.
+ * - `providerStatus` is the selected provider's current validation state, when one exists.
+ * - `providerDefinitionId` distinguishes validation-backed FunASR from providers such as Web Speech.
  *
  * Returns:
- * - A setup error when no provider is selected, otherwise `undefined`.
+ * - A setup error when no provider is selected or its configuration isn't ready.
+ * - `bypassed` providers remain runnable because validation was intentionally skipped.
  */
-export function resolveActiveTranscriptionProviderError(providerId: string): string | undefined {
-  if (providerId)
-    return undefined
+export function resolveActiveTranscriptionProviderError(
+  providerId: string,
+  providerStatus?: ProviderValidationStatus,
+  providerDefinitionId = providerId,
+): string | undefined {
+  if (!providerId)
+    return 'No active transcription provider selected. Select a provider in Settings > Hearing.'
 
-  return 'No active transcription provider selected. Select a provider in Settings > Hearing.'
+  const blocksRequest = providerStatus === 'invalid'
+    || providerStatus === 'validating'
+    || (providerDefinitionId === 'funasr-audio-transcription' && providerStatus === 'unconfigured')
+  if (blocksRequest)
+    return 'Transcription provider is not configured. Check its settings before starting speech recognition.'
 }
 
 /**
@@ -945,6 +956,11 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     })
   }
 
+  function activeProviderRequestError(providerId: string) {
+    const provider = providerStore.getProvider(providerId)
+    return resolveActiveTranscriptionProviderError(providerId, provider?.status, provider?.definitionId)
+  }
+
   function endStreamingAsrSpan() {
     if (!asrSpan)
       return
@@ -1215,9 +1231,17 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     if (!segment)
       return
 
+    const providerError = activeProviderRequestError(providerId)
+    if (providerError)
+      throw new Error(providerError)
+
     const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
     if (!provider)
       throw new Error('Failed to initialize speech provider')
+
+    const currentProviderError = activeProviderRequestError(providerId)
+    if (currentProviderError)
+      throw new Error(currentProviderError)
 
     const abortController = new AbortController()
     const session: NonNullable<typeof streamingSession.value> = {
@@ -1307,20 +1331,20 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       hasCallbacks: !!(options.onSentenceEnd || options.onSpeechEnd || options.onTranscriptionUpdate),
     })
 
-    if (!supportsStreamInput.value) {
-      console.warn('[Hearing Pipeline] Stream input not supported')
-      return
-    }
-
     error.value = undefined
     let consumerRegistered = false
 
     try {
       const providerId = activeTranscriptionProvider.value
-      const providerError = resolveActiveTranscriptionProviderError(providerId)
+      const providerError = activeProviderRequestError(providerId)
       if (providerError) {
         error.value = providerError
         console.error('[Hearing Pipeline]', providerError)
+        return
+      }
+
+      if (!supportsStreamInput.value) {
+        console.warn('[Hearing Pipeline] Stream input not supported')
         return
       }
 
@@ -1396,6 +1420,10 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
             }, idleTimeout)
           }
         }
+
+        const currentProviderError = activeProviderRequestError(providerId)
+        if (currentProviderError)
+          throw new Error(currentProviderError)
 
         const result = streamWebSpeechAPITranscription(stream, {
           language,
@@ -1511,7 +1539,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
     try {
       const providerId = activeTranscriptionProvider.value
-      const providerError = resolveActiveTranscriptionProviderError(providerId)
+      const providerError = activeProviderRequestError(providerId)
       if (providerError) {
         error.value = providerError
         console.error('[Hearing Pipeline]', providerError)
@@ -1522,6 +1550,10 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       if (!provider) {
         throw new Error('Failed to initialize speech provider')
       }
+
+      const currentProviderError = activeProviderRequestError(providerId)
+      if (currentProviderError)
+        throw new Error(currentProviderError)
 
       const providerConfig = providerStore.getProviderConfig(providerId)
       const model = resolveActiveTranscriptionModel(activeTranscriptionModel.value, providerConfig)

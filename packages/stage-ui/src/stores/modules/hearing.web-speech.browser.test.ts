@@ -94,6 +94,29 @@ describe('web speech model ownership', () => {
     vi.restoreAllMocks()
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888628875
+  it('rejects streaming when the selected provider is not configured (GitHub #2122)', async () => {
+    const providerId = 'browser-web-speech-api'
+    const context = createSyncedContext(`provider-readiness:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+    setActivePinia(context.pinia)
+    const providersStore = useProviderStore()
+    const providerConfigStore = useProviderConfigStore()
+    const hearingStore = useHearingStore()
+    await providersStore.initializeProvider(providerId)
+    await hearingStore.setActiveTranscriptionProvider(providerId, 'web-speech-api')
+    await providerConfigStore.setProviderStatus(providerId, 'invalid')
+    await vi.waitFor(() => expect(providerConfigStore.getProvider(providerId)?.status).toBe('invalid'))
+
+    const pipeline = useHearingSpeechInputPipeline()
+    await pipeline.transcribeForMediaStream({} as MediaStream, {
+      consumerId: 'invalid-provider',
+    })
+
+    expect(webSpeechMocks.stream).not.toHaveBeenCalled()
+    expect(pipeline.error).toBe('Transcription provider is not configured. Check its settings before starting speech recognition.')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888326499
   // ROOT CAUSE:
   //

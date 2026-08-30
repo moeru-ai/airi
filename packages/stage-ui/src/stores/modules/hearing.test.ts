@@ -70,6 +70,39 @@ describe('resolveActiveTranscriptionProviderError', () => {
   it('allows a selected transcription provider', () => {
     expect(resolveActiveTranscriptionProviderError('openai-compatible-audio-transcription')).toBeUndefined()
   })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888628875
+  it('rejects a provider whose configuration is not ready (GitHub #2122)', () => {
+    expect(resolveActiveTranscriptionProviderError('funasr-audio-transcription', 'invalid'))
+      .toBe('Transcription provider is not configured. Check its settings before starting speech recognition.')
+    expect(resolveActiveTranscriptionProviderError('funasr-audio-transcription', 'validating'))
+      .toBe('Transcription provider is not configured. Check its settings before starting speech recognition.')
+    expect(resolveActiveTranscriptionProviderError('funasr-audio-transcription', 'unconfigured'))
+      .toBe('Transcription provider is not configured. Check its settings before starting speech recognition.')
+  })
+
+  it('allows configured and deliberately bypassed providers', () => {
+    expect(resolveActiveTranscriptionProviderError('funasr-audio-transcription', 'configured')).toBeUndefined()
+    expect(resolveActiveTranscriptionProviderError('funasr-audio-transcription', 'bypassed')).toBeUndefined()
+  })
+
+  it('allows an unconfigured provider that does not require validation', () => {
+    expect(resolveActiveTranscriptionProviderError('browser-web-speech-api', 'unconfigured')).toBeUndefined()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888628875
+  it('uses the generated provider definition when deciding readiness (GitHub #2122)', () => {
+    expect(resolveActiveTranscriptionProviderError(
+      'generated-funasr-transcription',
+      'unconfigured',
+      'funasr-audio-transcription',
+    )).toBe('Transcription provider is not configured. Check its settings before starting speech recognition.')
+    expect(resolveActiveTranscriptionProviderError(
+      'generated-funasr-transcription',
+      'bypassed',
+      'funasr-audio-transcription',
+    )).toBeUndefined()
+  })
 })
 
 describe('resolveActiveTranscriptionModel', () => {

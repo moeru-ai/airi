@@ -4,7 +4,35 @@ import { nextTick } from 'vue'
 
 import { PROVIDER_CONFIG_REPLAY_RETENTION_MS, useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
-import { hasExplicitlyClearedTranscriptionModel, useHearingStore } from './hearing'
+import { hasExplicitlyClearedTranscriptionModel, useHearingSpeechInputPipeline, useHearingStore } from './hearing'
+
+const vadMocks = vi.hoisted(() => ({
+  init: vi.fn<() => Promise<void>>(),
+  options: undefined as {
+    onSpeechStart?: () => void
+    onSpeechAudio?: (event: { buffer: Float32Array }) => void
+    onSpeechEnd?: () => void
+    onSpeechCancel?: () => void
+  } | undefined,
+  start: vi.fn<() => Promise<void>>(),
+}))
+
+vi.mock('../ai/models/vad', async () => {
+  const vue = await vi.importActual<typeof import('vue')>('vue')
+
+  return {
+    useVAD: (_workerUrl: string, options: typeof vadMocks.options) => {
+      vadMocks.options = options
+      return {
+        init: vadMocks.init,
+        dispose: vi.fn(),
+        start: vadMocks.start,
+        loaded: vue.ref(true),
+        inferenceError: vue.ref(),
+      }
+    },
+  }
+})
 
 const TRANSCRIPTION_PROVIDER_IDS = [
   'funasr-audio-transcription',
@@ -49,6 +77,9 @@ vi.mock('../../composables/use-analytics', () => ({
 describe('funASR Hearing model synchronization', () => {
   beforeEach(async () => {
     persistedSettings.clear()
+    vadMocks.options = undefined
+    vadMocks.init.mockReset().mockResolvedValue(undefined)
+    vadMocks.start.mockReset().mockResolvedValue(undefined)
     setActivePinia(createPinia())
 
     const providersStore = useProviderStore()
@@ -482,6 +513,61 @@ describe('funASR Hearing model synchronization', () => {
 
     expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
     expect(hearingStore.configured).toBe(false)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888628875
+  it('rejects a recording request after FunASR becomes invalid (GitHub #2122)', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const providerConfigStore = useProviderConfigStore()
+    const providersStore = useProviderStore()
+    const hearingStore = useHearingStore()
+    await hearingStore.setActiveTranscriptionProvider(providerId)
+    providerConfigStore.setProviderStatus(providerId, 'invalid')
+
+    const getProviderInstance = vi.spyOn(providersStore, 'getProviderInstance')
+      .mockRejectedValue(new Error('invalid provider must not be instantiated'))
+    const pipeline = useHearingSpeechInputPipeline()
+
+    await expect(pipeline.transcribeForRecording(new Blob(['audio']))).resolves.toBeUndefined()
+
+    expect(getProviderInstance).not.toHaveBeenCalled()
+    expect(pipeline.error).toBe('Transcription provider is not configured. Check its settings before starting speech recognition.')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888628875
+  it('rejects a VAD request invalidated during provider creation (GitHub #2122)', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const providerConfigStore = useProviderConfigStore()
+    const providersStore = useProviderStore()
+    const hearingStore = useHearingStore()
+    await hearingStore.setActiveTranscriptionProvider(providerId)
+    vi.spyOn(providersStore, 'getTranscriptionFeatures').mockReturnValue({
+      supportsGenerate: true,
+      supportsStreamInput: true,
+      supportsStreamOutput: false,
+    })
+
+    let resolveProvider!: (provider: Awaited<ReturnType<typeof providersStore.getProviderInstance>>) => void
+    const providerInstance = new Promise<Awaited<ReturnType<typeof providersStore.getProviderInstance>>>((resolve) => {
+      resolveProvider = resolve
+    })
+    const getProviderInstance = vi.spyOn(providersStore, 'getProviderInstance').mockReturnValue(providerInstance)
+    const transcription = vi.spyOn(hearingStore, 'transcription').mockResolvedValue({
+      mode: 'generate',
+      text: 'must not be requested',
+    } as Awaited<ReturnType<typeof hearingStore.transcription>>)
+    const pipeline = useHearingSpeechInputPipeline()
+    await pipeline.transcribeForMediaStream({} as MediaStream, { consumerId: 'invalid-during-provider-creation' })
+
+    vadMocks.options?.onSpeechStart?.()
+    await vi.waitFor(() => expect(getProviderInstance).toHaveBeenCalledWith(providerId))
+    providerConfigStore.setProviderStatus(providerId, 'invalid')
+    resolveProvider({} as Awaited<ReturnType<typeof providersStore.getProviderInstance>>)
+
+    await vi.waitFor(() => {
+      expect(pipeline.error).toBe('Transcription provider is not configured. Check its settings before starting speech recognition.')
+    })
+    expect(transcription).not.toHaveBeenCalled()
   })
 
   it('persists the active Hearing model into the FunASR provider config', async () => {
