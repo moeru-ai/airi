@@ -210,7 +210,9 @@ function resetMainWindowPosition() {
   >
     <div
       :class="[
-        'flex gap-1',
+        // Bound the island to the viewport so the drawer can size from the
+        // remaining flex space next to the (fixed-height) main controls.
+        'flex gap-1 max-h-[calc(100dvh_-_1rem)]',
         islandLayoutClasses,
       ]"
     >
@@ -226,10 +228,10 @@ function resetMainWindowPosition() {
           :class="[
             'flex flex-col gap-1 rounded-2xl border border-neutral-200 p-2 dark:border-neutral-800',
             'bg-neutral-100/80 shadow-2xl shadow-black/20 backdrop-blur-xl dark:bg-neutral-900/80',
-            // Keep the drawer reachable on small windows: cap its height to the
-            // viewport (leaving room for the main controls docked next to it)
-            // and scroll internally instead of clipping controls out of reach.
-            'max-h-[calc(100dvh_-_5rem)] overflow-y-auto overscroll-contain',
+            // Keep the drawer reachable on small windows: let it shrink within
+            // the island's bounded height and scroll internally instead of
+            // clipping controls out of reach.
+            'min-h-0 overflow-y-auto overscroll-contain',
             panelPositionClasses,
           ]"
         >
@@ -359,7 +361,7 @@ function resetMainWindowPosition() {
       </Transition>
 
       <!-- Main Controls -->
-      <div :class="mainControlsLayoutClasses">
+      <div :class="['shrink-0', mainControlsLayoutClasses]">
         <ControlButtonTooltip side="inward">
           <ControlButton
             v-track-button="{
