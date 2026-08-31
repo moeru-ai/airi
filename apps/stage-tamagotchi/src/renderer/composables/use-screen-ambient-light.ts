@@ -9,31 +9,69 @@ import type {
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronScreenCapture } from '@proj-airi/electron-screen-capture/vue'
 import { useElectronAllDisplays, useElectronWindowBounds } from '@proj-airi/electron-vueuse'
+import {
+  ambientLightSampleFromHex,
+  sampleScreenAmbientLight,
+  smoothAmbientLightEnvironment,
+  uniformAmbientLightEnvironment,
+} from '@proj-airi/stage-shared/screen-ambient-light'
 import { useLive2DAmbientLight, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
-import { until, useBroadcastChannel, useIntervalFn } from '@vueuse/core'
+import { until, useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, shallowRef, watch } from 'vue'
 
 import { screenAmbientLightDiagnosticsChannelName } from '../../shared/screen-ambient-light-diagnostics'
 import { findDominantDisplayArea } from '../../shared/utils/electron/display'
-import {
-  ambientLightSampleFromHex,
-  calculateWindowLightDirection,
-  sampleScreenAmbientLight,
-  smoothAmbientLight,
-  smoothAmbientLightLobes,
-} from '../utils/screen-ambient-light'
+import { useStagePaintedMask } from './use-stage-painted-mask'
 
 const sourcesOptions: SourcesOptions = {
   types: ['screen'],
   thumbnailSize: { width: 0, height: 0 },
 }
 
-/** Captures and samples the display behind the Desktop window for Live2D lighting. */
-export function useScreenAmbientLight() {
+/**
+ * Oversampling of the capture stream relative to the sample canvas.
+ *
+ * The stream is requested at this multiple of the sample width, so that the
+ * canvas downscale averages a few source pixels per sample instead of picking
+ * one. 4 keeps a 128-pixel sample at 512 pixels, which is small enough that the
+ * per-frame readback costs well under a millisecond.
+ */
+const captureOversampling = 4
+/**
+ * Widest stream the capture asks for, in pixels.
+ *
+ * Above this width the oversampling drops below 4, which a large sample frame
+ * does not need. The renderer pays for every stream pixel twice, once in the
+ * decode and once in the draw into the sample canvas: at 1024 x 576 and 20
+ * frames per second the draw alone took 4.4 ms per frame.
+ */
+const maximumCaptureWidth = 512
+
+/**
+ * Captures and samples the display behind the Desktop window for Live2D lighting.
+ *
+ * Capture state lives in this composable. The store receives only the smoothed
+ * environment. The lifecycle is:
+ *
+ * - `enabled` or `source` changes stop the current capture and start the next.
+ * - The capture stream is constrained to a small frame at the sample rate, so
+ *   the renderer never receives full-resolution frames it does not use.
+ * - Each delivered frame samples once through `requestVideoFrameCallback`, so
+ *   the sample rate equals the stream rate and no timer samples a stale frame.
+ * - A stream that ends outside this composable disables the feature and reports
+ *   the reason through diagnostics.
+ */
+export function useScreenAmbientLight(sources: {
+  /**
+   * The canvas the character renders into. Its alpha says which pixels of the
+   * window AIRI paints, which is what separates the character from the desktop
+   * showing through behind it. Without it the backlight stays off.
+   */
+  stageCanvas?: () => HTMLCanvasElement | undefined
+} = {}) {
   const settings = useSettingsLive2d()
   const {
-    live2dScreenAmbientLightBlackCutoff,
     live2dScreenAmbientLightCaptureIntervalMs,
     live2dScreenAmbientLightEnabled,
     live2dScreenAmbientLightForcedColor,
@@ -42,7 +80,6 @@ export function useScreenAmbientLight() {
     live2dScreenAmbientLightSampleHeight,
     live2dScreenAmbientLightSampleWidth,
     live2dScreenAmbientLightSource,
-    live2dScreenAmbientLightWhiteCutoff,
   } = storeToRefs(settings)
   const ambientLight = useLive2DAmbientLight()
   const displays = useElectronAllDisplays()
@@ -51,7 +88,15 @@ export function useScreenAmbientLight() {
   const activeStream = shallowRef<MediaStream>()
   const video = document.createElement('video')
   const canvas = document.createElement('canvas')
+  // The canvas exists only to read pixels back. A software canvas makes
+  // getImageData cheap, and the draw into it is a downscale of a frame that is
+  // already small, so the software path costs nothing measurable.
   const context = canvas.getContext('2d', { willReadFrequently: true })
+  const paintedMask = useStagePaintedMask({
+    stageCanvas: sources.stageCanvas,
+    sampleGrid: () => ({ width: canvas.width, height: canvas.height }),
+    windowSize: () => ({ width: windowBounds.width.value, height: windowBounds.height.value }),
+  })
   const {
     data: diagnosticsChannelEvent,
     post: postDiagnosticsChannelEvent,
@@ -59,6 +104,7 @@ export function useScreenAmbientLight() {
     name: screenAmbientLightDiagnosticsChannelName,
   })
   let startVersion = 0
+  let frameCallbackHandle = 0
   let lastSampleTime = 0
   let lastCaptureError: string | undefined
   let lastDiagnostics: ScreenAmbientLightDiagnosticsSnapshot | undefined
@@ -68,27 +114,14 @@ export function useScreenAmbientLight() {
 
   const hasWindowBounds = computed(() => windowBounds.width.value > 0 && windowBounds.height.value > 0)
   const samplingOptions = computed(() => ({
-    blackCutoff: live2dScreenAmbientLightBlackCutoff.value,
-    whiteCutoff: live2dScreenAmbientLightWhiteCutoff.value,
     neutralColorWeight: live2dScreenAmbientLightNeutralColorWeight.value,
   }))
-  const lightDirection = computed(() => {
-    const bounds = currentWindowBounds()
-    const display = findDominantDisplayArea(bounds, displays.value)
-    return display
-      ? calculateWindowLightDirection(display.bounds, bounds)
-      : { x: 0, y: 0 }
-  })
+  const captureFrameRate = computed(() => clamp(1000 / Math.max(1, live2dScreenAmbientLightCaptureIntervalMs.value), 1, 30))
   const {
     selectWithSource,
     checkMacOSPermission,
     requestMacOSPermission,
   } = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
-
-  const { pause: pauseSampling, resume: resumeSampling } = useIntervalFn(sample, live2dScreenAmbientLightCaptureIntervalMs, {
-    immediate: false,
-    immediateCallback: true,
-  })
 
   watch([live2dScreenAmbientLightEnabled, live2dScreenAmbientLightSource], async ([enabled, source]) => {
     const version = ++startVersion
@@ -130,7 +163,7 @@ export function useScreenAmbientLight() {
       publishDiagnostics('disabled')
   })
 
-  watch([live2dScreenAmbientLightForcedColor, lightDirection], () => {
+  watch(live2dScreenAmbientLightForcedColor, () => {
     if (live2dScreenAmbientLightEnabled.value && live2dScreenAmbientLightSource.value === 'forced-color')
       applyForcedColor()
   })
@@ -139,6 +172,22 @@ export function useScreenAmbientLight() {
     canvas.width = Math.max(1, Math.round(width))
     canvas.height = Math.max(1, Math.round(height))
   }, { immediate: true })
+
+  // The stream rate is the sample rate, so a new interval must reach the track.
+  // A rejected constraint keeps the old rate, which is slower but still correct.
+  watch([captureFrameRate, live2dScreenAmbientLightSampleWidth], async ([frameRate]) => {
+    const track = activeStream.value?.getVideoTracks()[0]
+    const display = capturedDisplay.value
+    if (!track || !display)
+      return
+
+    try {
+      await track.applyConstraints(captureConstraints(display.bounds, frameRate))
+    }
+    catch (error) {
+      console.warn(`Failed to update the screen ambient light capture constraints: ${errorMessageFrom(error)}`)
+    }
+  })
 
   onScopeDispose(() => {
     startVersion += 1
@@ -166,10 +215,20 @@ export function useScreenAmbientLight() {
       throw new Error('No display is available for screen ambient light')
 
     const stream = await selectWithSource(
-      sources => sources.find(source => source.display_id === String(display.id))?.id
-        ?? sources.find(source => source.id.startsWith('screen:'))?.id
-        ?? '',
-      async () => await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }),
+      (sources) => {
+        const source = sources.find(candidate => candidate.display_id === String(display.id))
+          ?? sources.find(candidate => candidate.id.startsWith('screen:'))
+        // An empty source list is what a missing macOS screen-recording
+        // permission looks like from here. Passing an empty id on would fail
+        // later inside the main process with a message that names no cause.
+        if (!source)
+          throw new Error('No screen-capture source is available. Check the screen-recording permission for AIRI.')
+        return source.id
+      },
+      async () => await navigator.mediaDevices.getDisplayMedia({
+        video: captureConstraints(display.bounds, captureFrameRate.value),
+        audio: false,
+      }),
     )
 
     if (version !== startVersion) {
@@ -194,17 +253,50 @@ export function useScreenAmbientLight() {
       return
 
     lastSampleTime = performance.now()
-    resumeSampling()
+    scheduleFrameSample(version)
+  }
+
+  /**
+   * Width and height are maximums in the display aspect, so Chromium scales the
+   * frame down without cropping it. The frame rate matches the sample interval.
+   * Both were verified against Electron 43: a request for 320x180 at 5 fps
+   * delivered 320x180 frames at about 6 fps, while an unconstrained request
+   * delivered the full 5120x2880 display at 30 fps.
+   */
+  function captureConstraints(
+    display: { width: number, height: number },
+    frameRate: number,
+  ): MediaTrackConstraints {
+    const aspect = display.width / Math.max(1, display.height)
+    const width = Math.min(display.width, maximumCaptureWidth, Math.round(live2dScreenAmbientLightSampleWidth.value * captureOversampling))
+    return {
+      width: { max: width },
+      height: { max: Math.max(1, Math.round(width / aspect)) },
+      frameRate: { max: frameRate },
+    }
+  }
+
+  function scheduleFrameSample(version: number) {
+    frameCallbackHandle = video.requestVideoFrameCallback(() => {
+      if (version !== startVersion)
+        return
+      sample()
+      scheduleFrameSample(version)
+    })
   }
 
   function stop() {
-    pauseSampling()
+    if (frameCallbackHandle !== 0) {
+      video.cancelVideoFrameCallback(frameCallbackHandle)
+      frameCallbackHandle = 0
+    }
     const stream = activeStream.value
     activeStream.value = undefined
     capturedDisplay.value = undefined
     video.pause()
     video.srcObject = null
     stream?.getTracks().forEach(track => track.stop())
+    paintedMask.reset()
     ambientLight.reset()
   }
 
@@ -218,29 +310,19 @@ export function useScreenAmbientLight() {
 
     context.drawImage(video, 0, 0, canvas.width, canvas.height)
     const frame = context.getImageData(0, 0, canvas.width, canvas.height)
+    const now = performance.now()
     const excludedWindow = normalizeWindowBounds(display.bounds, currentWindowBounds())
     const result = sampleScreenAmbientLight(frame, {
       exclude: excludedWindow,
+      displayAspect: display.bounds.width / Math.max(1, display.bounds.height),
+      paintedAlpha: paintedMask.maskFor(excludedWindow, now),
     }, samplingOptions.value)
-    const target = result.sample
-    let nextSample = ambientLight.active ? { ...ambientLight.sample } : undefined
-    let nextLobes = ambientLight.active ? [...ambientLight.lobes] : []
-    if (target) {
-      const now = performance.now()
-      const elapsedMs = now - lastSampleTime
-      nextSample = ambientLight.active
-        ? smoothAmbientLight(ambientLight.sample, target, elapsedMs, live2dScreenAmbientLightResponseMs.value)
-        : target
-      nextLobes = ambientLight.active
-        ? smoothAmbientLightLobes(ambientLight.lobes, result.lobes, elapsedMs, live2dScreenAmbientLightResponseMs.value)
-        : result.lobes
-      lastSampleTime = now
-      ambientLight.setSample(
-        nextSample,
-        calculateWindowLightDirection(display.bounds, currentWindowBounds()),
-        nextLobes,
-      )
-    }
+
+    const nextEnvironment = ambientLight.active
+      ? smoothAmbientLightEnvironment(ambientLight.environment, result.environment, now - lastSampleTime, live2dScreenAmbientLightResponseMs.value)
+      : result.environment
+    lastSampleTime = now
+    ambientLight.setEnvironment(nextEnvironment)
 
     publishDiagnostics('capturing', {
       frame: {
@@ -251,10 +333,8 @@ export function useScreenAmbientLight() {
       excludedRegion: excludedWindow,
       sampling: {
         ...result.diagnostics,
-        targetSample: target,
-        appliedSample: nextSample,
-        targetLobes: result.lobes,
-        appliedLobes: nextLobes,
+        targetEnvironment: result.environment,
+        appliedEnvironment: nextEnvironment,
       },
     })
   }
@@ -270,21 +350,17 @@ export function useScreenAmbientLight() {
     }
 
     lastCaptureError = undefined
-    ambientLight.setSample(sample, lightDirection.value)
+    const environment = uniformAmbientLightEnvironment(sample)
+    ambientLight.setEnvironment(environment)
     publishDiagnostics('forced-color', {
       sampling: {
         totalPixelCount: 0,
         excludedPixelCount: 0,
         transparentPixelCount: 0,
-        blackPixelCount: 0,
-        whitePixelCount: 0,
         acceptedPixelCount: 0,
-        weightTotal: 0,
-        averageSaturation: 0,
-        targetSample: sample,
-        appliedSample: sample,
-        targetLobes: [],
-        appliedLobes: [],
+        seeThroughPixelCount: 0,
+        targetEnvironment: environment,
+        appliedEnvironment: environment,
       },
     })
   }
@@ -318,9 +394,6 @@ export function useScreenAmbientLight() {
       videoSize: video.videoWidth > 0 && video.videoHeight > 0
         ? { width: video.videoWidth, height: video.videoHeight }
         : undefined,
-      direction: display
-        ? calculateWindowLightDirection(display.bounds, currentWindowBounds())
-        : lightDirection.value,
       ...details,
     }
     lastDiagnostics = snapshot
@@ -349,4 +422,8 @@ async function waitForVideo(video: HTMLVideoElement) {
   }
 
   await video.play()
+}
+
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(maximum, Math.max(minimum, value))
 }
