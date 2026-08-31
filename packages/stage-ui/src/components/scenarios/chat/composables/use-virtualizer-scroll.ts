@@ -10,7 +10,7 @@ interface VirtualScrollRequest {
 }
 
 interface VirtualizerBottomAlignmentOptions {
-  container: Readonly<ShallowRef<HTMLElement | null>>
+  container: Readonly<Ref<HTMLElement | null>>
   itemCount: Readonly<Ref<number>>
   virtualizer: Readonly<ShallowRef<VirtualizerHandle | null>>
 }
