@@ -69,6 +69,7 @@
   "devDependencies": {
     "@types/culori": "catalog:",
     "@types/three": "catalog:",
+    "@vitest/browser-playwright": "catalog:vitest",
     "vitest": "catalog:vitest",
     "vue-tsc": "catalog:"
   }
