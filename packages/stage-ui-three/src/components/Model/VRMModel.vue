@@ -98,6 +98,7 @@ import {
 
 /*
   * Props:
+  * - modelId: stable display model identity
   * - modelSrc: model src string to load model asset
   * - idleAnimation: animation src for model
   * - loadAnimations: TBC
@@ -112,7 +113,10 @@ const props = withDefaults(defineProps<{
   audioContext?: AudioContext
   currentAudioSource?: AudioBufferSourceNode
   cursorPosition?: { x: number, y: number }
-  lastCommittedModelSrc?: string
+  /** The stable identity of the last model that completed scene binding. */
+  lastCommittedModelId?: string
+  /** Stable display model identity. Runtime resource URLs can change across reloads. */
+  modelId: string
   modelSrc?: string
   idleAnimation: string
   // loadAnimations?: string[]
@@ -152,7 +156,8 @@ const emit = defineEmits<{
 const {
   audioContext,
   currentAudioSource,
-  lastCommittedModelSrc,
+  lastCommittedModelId,
+  modelId,
   modelSrc,
   idleAnimation,
   // loadAnimations, // TBC
@@ -640,10 +645,10 @@ function buildSceneBootstrap(activeVrm: VRM, cacheHit: boolean): SceneBootstrap 
 }
 
 function resolveVrmLoadReason(): 'initial-load' | 'model-reload' | 'model-switch' {
-  if (!lastCommittedModelSrc.value)
+  if (!lastCommittedModelId.value)
     return 'initial-load'
 
-  if (lastCommittedModelSrc.value !== modelSrc.value)
+  if (lastCommittedModelId.value !== modelId.value)
     return 'model-switch'
 
   return 'model-reload'

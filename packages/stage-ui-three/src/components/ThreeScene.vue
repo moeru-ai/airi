@@ -56,6 +56,8 @@ const props = withDefaults(defineProps<{
   audioContext?: AudioContext
   currentAudioSource?: AudioBufferSourceNode
   cursorPosition?: { x: number, y: number }
+  /** Stable display model identity. Runtime resource URLs can change across reloads. */
+  modelId: string
   modelSrc?: string
   skyBoxSrc?: string
   /**
@@ -118,7 +120,7 @@ const {
   scenePhase,
   sceneTransactionDepth,
 
-  lastCommittedModelSrc,
+  lastCommittedModelId,
   modelSize,
   modelOrigin,
   modelOffset,
@@ -372,7 +374,7 @@ function setScenePhaseWithTrace(phase: ScenePhase, cause: SceneTracePhaseCause) 
   setScenePhase(phase)
 }
 
-function commitLastCommittedModelSrc(expectedRevision: number, nextPhase: ScenePhase) {
+function commitLastCommittedModelId(expectedRevision: number, nextPhase: ScenePhase) {
   if (nextPhase !== 'mounted')
     return
 
@@ -388,7 +390,7 @@ function commitLastCommittedModelSrc(expectedRevision: number, nextPhase: SceneP
   if (props.modelSrc !== activeModelSrc.value)
     return
 
-  lastCommittedModelSrc.value = pendingCommittedModelSrc.value
+  lastCommittedModelId.value = props.modelId
   clearPendingCommittedModel()
 }
 
@@ -446,7 +448,7 @@ async function completeSceneBinding(expectedRevision = bindingRevision.value) {
 
     const nextPhase = resolveScenePhaseAfterBinding()
     setScenePhaseWithTrace(nextPhase, 'binding:complete')
-    commitLastCommittedModelSrc(expectedRevision, nextPhase)
+    commitLastCommittedModelId(expectedRevision, nextPhase)
   }
   finally {
     isCompletingBinding.value = false
@@ -848,7 +850,8 @@ defineExpose({
         :audio-context="props.audioContext"
         :current-audio-source="props.currentAudioSource"
         :cursor-position="props.cursorPosition"
-        :last-committed-model-src="lastCommittedModelSrc"
+        :last-committed-model-id="lastCommittedModelId"
+        :model-id="props.modelId"
         :model-src="props.modelSrc"
         :idle-animation="props.idleAnimation"
         :paused="props.paused"

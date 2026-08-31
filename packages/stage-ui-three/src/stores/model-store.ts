@@ -138,8 +138,9 @@ export const useModelStore = defineStore('modelStore', () => {
     sceneTransactionDepth.value = 0
   }
 
-  // === Legacy / shared controls ===
-  const lastCommittedModelSrc = useLocalStorage('settings/stage-ui-three/lastModelSrc', '')
+  // === Model identity ===
+  // The display model ID is stable across application restarts. Runtime URLs are not.
+  const lastCommittedModelId = useLocalStorage('settings/stage-ui-three/lastModelId', '')
 
   // === Model lifecycle / bootstrap ===
   // These values are recalculated from the currently bound model instance whenever
@@ -156,7 +157,7 @@ export const useModelStore = defineStore('modelStore', () => {
     scenePhase.value = 'pending'
     sceneTransactionDepth.value = 0
 
-    lastCommittedModelSrc.value = ''
+    lastCommittedModelId.value = ''
     modelSize.value = { x: 0, y: 0, z: 0 }
     modelOrigin.value = { x: 0, y: 0, z: 0 }
     modelRotationY.value = 0
@@ -210,7 +211,7 @@ export const useModelStore = defineStore('modelStore', () => {
     sceneTransactionDepth,
     sceneMutationLocked,
 
-    lastCommittedModelSrc,
+    lastCommittedModelId,
 
     modelSize,
     modelOrigin,
