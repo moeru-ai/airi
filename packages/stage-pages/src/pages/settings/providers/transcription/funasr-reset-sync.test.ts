@@ -21,7 +21,22 @@ describe('funASR transcription settings reset', () => {
     expect(source).toContain('await modelUpdateQueue.enqueue(async () =>')
     expect(source).toContain('await hearingStore.stageTranscriptionProviderConfig(')
     expect(source).toContain('await providerConfigStore.persistProviderConfigIfCurrent(')
-    expect(source).toMatch(/'unconfigured'/)
     expect(source).toContain(':on-reset="handleResetFunASRSettings"')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888703149
+  it('keeps an unchanged default FunASR reset ready (GitHub #2122)', () => {
+    const resetHandler = source.slice(
+      source.indexOf('async function handleResetFunASRSettings()'),
+      source.indexOf('\nonMounted('),
+    )
+
+    // ROOT CAUSE:
+    //
+    // A reset stored an identical default config with an unconfigured status. The serialized
+    // config watcher did not run because the config content did not change. The provider then
+    // stayed blocked until the user changed a field or reloaded the page.
+    expect(resetHandler).toContain('{ ...defaultOptions }, \'configured\', commitId)')
+    expect(resetHandler).not.toContain('{ ...defaultOptions }, \'unconfigured\', commitId)')
   })
 })

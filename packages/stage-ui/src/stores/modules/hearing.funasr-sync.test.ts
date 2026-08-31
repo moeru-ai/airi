@@ -534,6 +534,39 @@ describe('funASR Hearing model synchronization', () => {
     expect(pipeline.error).toBe('Transcription provider is not configured. Check its settings before starting speech recognition.')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888985193
+  it('rejects a recording request when the provider changes during instance creation (GitHub #2122)', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const providersStore = useProviderStore()
+    const hearingStore = useHearingStore()
+    await hearingStore.setActiveTranscriptionProvider(providerId)
+
+    let resolveProvider!: (provider: Awaited<ReturnType<typeof providersStore.getProviderInstance>>) => void
+    const providerInstance = new Promise<Awaited<ReturnType<typeof providersStore.getProviderInstance>>>((resolve) => {
+      resolveProvider = resolve
+    })
+    const getProviderInstance = vi.spyOn(providersStore, 'getProviderInstance').mockReturnValue(providerInstance)
+    const transcription = vi.spyOn(hearingStore, 'transcription').mockResolvedValue({
+      mode: 'generate',
+      text: 'must not be requested',
+    } as Awaited<ReturnType<typeof hearingStore.transcription>>)
+    const pipeline = useHearingSpeechInputPipeline()
+    const request = pipeline.transcribeForRecording(new Blob(['audio']))
+
+    await vi.waitFor(() => expect(getProviderInstance).toHaveBeenCalledWith(providerId))
+    hearingStore.activeTranscriptionProvider = 'openai-audio-transcription'
+    hearingStore.activeTranscriptionModel = 'whisper-1'
+    resolveProvider({} as Awaited<ReturnType<typeof providersStore.getProviderInstance>>)
+
+    // ROOT CAUSE:
+    //
+    // The request checked the captured provider status after instance creation. It did not check
+    // that Hearing still owned that provider. The old instance then used the new provider's model.
+    await expect(request).resolves.toBeUndefined()
+    expect(transcription).not.toHaveBeenCalled()
+    expect(pipeline.error).toBe('Transcription provider changed before the request started.')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888628875
   it('rejects a VAD request invalidated during provider creation (GitHub #2122)', async () => {
     const providerId = 'funasr-audio-transcription'
@@ -566,6 +599,46 @@ describe('funASR Hearing model synchronization', () => {
 
     await vi.waitFor(() => {
       expect(pipeline.error).toBe('Transcription provider is not configured. Check its settings before starting speech recognition.')
+    })
+    expect(transcription).not.toHaveBeenCalled()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888985193
+  it('rejects a VAD request when the provider changes during instance creation (GitHub #2122)', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const providersStore = useProviderStore()
+    const hearingStore = useHearingStore()
+    await hearingStore.setActiveTranscriptionProvider(providerId)
+    vi.spyOn(providersStore, 'getTranscriptionFeatures').mockReturnValue({
+      supportsGenerate: true,
+      supportsStreamInput: true,
+      supportsStreamOutput: false,
+    })
+
+    let resolveProvider!: (provider: Awaited<ReturnType<typeof providersStore.getProviderInstance>>) => void
+    const providerInstance = new Promise<Awaited<ReturnType<typeof providersStore.getProviderInstance>>>((resolve) => {
+      resolveProvider = resolve
+    })
+    const getProviderInstance = vi.spyOn(providersStore, 'getProviderInstance').mockReturnValue(providerInstance)
+    const transcription = vi.spyOn(hearingStore, 'transcription').mockResolvedValue({
+      mode: 'generate',
+      text: 'must not be requested',
+    } as Awaited<ReturnType<typeof hearingStore.transcription>>)
+    const pipeline = useHearingSpeechInputPipeline()
+    await pipeline.transcribeForMediaStream({} as MediaStream, { consumerId: 'provider-changed-during-creation' })
+
+    vadMocks.options?.onSpeechStart?.()
+    await vi.waitFor(() => expect(getProviderInstance).toHaveBeenCalledWith(providerId))
+    hearingStore.activeTranscriptionProvider = 'openai-audio-transcription'
+    hearingStore.activeTranscriptionModel = 'whisper-1'
+    resolveProvider({} as Awaited<ReturnType<typeof providersStore.getProviderInstance>>)
+
+    // ROOT CAUSE:
+    //
+    // VAD retained the old provider instance while Hearing moved to a new provider. The request
+    // could send audio to the old endpoint with the model from the new provider.
+    await vi.waitFor(() => {
+      expect(pipeline.error).toBe('Transcription provider changed before the request started.')
     })
     expect(transcription).not.toHaveBeenCalled()
   })

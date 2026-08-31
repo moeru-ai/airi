@@ -961,6 +961,11 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     return resolveActiveTranscriptionProviderError(providerId, provider?.status, provider?.definitionId)
   }
 
+  function activeProviderOwnershipError(providerId: string) {
+    if (activeTranscriptionProvider.value !== providerId)
+      return 'Transcription provider changed before the request started.'
+  }
+
   function endStreamingAsrSpan() {
     if (!asrSpan)
       return
@@ -1238,6 +1243,10 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
     if (!provider)
       throw new Error('Failed to initialize speech provider')
+
+    const providerOwnershipError = activeProviderOwnershipError(providerId)
+    if (providerOwnershipError)
+      throw new Error(providerOwnershipError)
 
     const currentProviderError = activeProviderRequestError(providerId)
     if (currentProviderError)
@@ -1550,6 +1559,10 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       if (!provider) {
         throw new Error('Failed to initialize speech provider')
       }
+
+      const providerOwnershipError = activeProviderOwnershipError(providerId)
+      if (providerOwnershipError)
+        throw new Error(providerOwnershipError)
 
       const currentProviderError = activeProviderRequestError(providerId)
       if (currentProviderError)
