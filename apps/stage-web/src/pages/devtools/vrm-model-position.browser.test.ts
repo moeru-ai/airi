@@ -44,6 +44,7 @@ describe('imported VRM view settings', () => {
     modelStore.modelOffset = { x: 0.25, y: 0.25, z: 0 }
     const modelId = shallowRef('display-model-issue-1806')
     const modelSrc = shallowRef(vrmModelUrl)
+    modelStore.migrateLastCommittedModelId(modelId.value)
     const container = document.createElement('div')
     container.style.height = '600px'
     container.style.width = '800px'
@@ -115,4 +116,39 @@ describe('imported VRM view settings', () => {
     expect(modelStore.lastCommittedModelId).toBe('display-model-incoming')
     expect(modelStore.modelOffset).toEqual({ x: 0, y: 0, z: 0 })
   }, 45_000)
+
+  // https://github.com/moeru-ai/airi/issues/1806
+  it('resets the legacy view for Issue #1806 when startup selection is not VRM', async () => {
+    // ROOT CAUSE:
+    //
+    // The old URL identity can remain when AIRI starts with a non-VRM model.
+    // A later VRM selection must not claim that identity or preserve its view settings.
+    const pinia = createPinia()
+    const modelStore = useModelStore(pinia)
+    modelStore.resetModelStore()
+    localStorage.setItem('settings/stage-ui-three/lastModelSrc', vrmModelUrl)
+    modelStore.modelOffset = { x: 0.25, y: 0.25, z: 0 }
+    modelStore.migrateLastCommittedModelId()
+    const container = document.createElement('div')
+    container.style.height = '600px'
+    container.style.width = '800px'
+    document.body.appendChild(container)
+
+    const app = createApp(defineComponent(() => () => h(ThreeScene, {
+      modelId: 'display-model-selected-after-startup',
+      modelSrc: vrmModelUrl,
+    })))
+    app.use(pinia)
+    app.mount(container)
+
+    // NOTICE:
+    // Keep the app mounted until Vitest closes the browser page.
+    // Vue DevTools schedules inspector work after app.unmount(), which rejects after teardown.
+    // Source/context: the Stage Web Vite configuration used by this browser test.
+    // Removal condition: Vue DevTools supports component-test app teardown.
+
+    await expect.poll(() => modelStore.scenePhase, { timeout: 20_000 }).toBe('mounted')
+    expect(modelStore.modelOffset).toEqual({ x: 0, y: 0, z: 0 })
+    expect(modelStore.lastCommittedModelId).toBe('display-model-selected-after-startup')
+  }, 30_000)
 })

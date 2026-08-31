@@ -145,20 +145,19 @@ export const useModelStore = defineStore('modelStore', () => {
   const legacyLastCommittedModelSrcStorageKey = 'settings/stage-ui-three/lastModelSrc'
 
   /**
-   * Migrates the old VRM identity marker to the selected display model ID.
+   * Resolves the old VRM identity marker for the model selected at startup.
    *
-   * Runtime URLs cannot identify imported models after a restart. The selected model ID
-   * is the authoritative identity when the first VRM scene mounts after an upgrade.
+   * A VRM startup selection receives the marker. A non-VRM startup selection discards it,
+   * so a later VRM selection uses the model-switch bootstrap path.
    */
-  function migrateLastCommittedModelId(modelId: string) {
-    if (!modelId || lastCommittedModelId.value)
-      return
-
+  function migrateLastCommittedModelId(modelId?: string) {
     const legacyModelSrc = window.localStorage.getItem(legacyLastCommittedModelSrcStorageKey)
     if (!legacyModelSrc)
       return
 
-    lastCommittedModelId.value = modelId
+    if (modelId && !lastCommittedModelId.value)
+      lastCommittedModelId.value = modelId
+
     window.localStorage.removeItem(legacyLastCommittedModelSrcStorageKey)
   }
 
