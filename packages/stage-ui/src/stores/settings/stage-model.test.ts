@@ -6,11 +6,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 import { useSettingsStageModel } from './stage-model'
 
+const { initialStageModelId, migrateLastCommittedModelId } = vi.hoisted(() => ({
+  initialStageModelId: { value: 'preset-live2d-1' },
+  migrateLastCommittedModelId: vi.fn(),
+}))
+
+vi.mock('@proj-airi/stage-ui-three', () => ({
+  useModelStore: () => ({ migrateLastCommittedModelId }),
+}))
+
 vi.mock('@proj-airi/stage-shared/composables', async () => {
   const { refManualReset } = await import('@vueuse/core')
 
   return {
-    useLocalStorageManualReset: (_key: string, value: string) => refManualReset(value),
+    useLocalStorageManualReset: (key: string, value: string) => refManualReset(
+      key === 'settings/stage/model' ? initialStageModelId.value : value,
+    ),
   }
 })
 
@@ -26,6 +37,8 @@ vi.mock('@vueuse/core', async (importOriginal) => {
 describe('settings stage model store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    initialStageModelId.value = 'preset-live2d-1'
+    migrateLastCommittedModelId.mockReset()
   })
 
   // https://github.com/moeru-ai/airi/issues/1984
@@ -73,13 +86,45 @@ describe('settings stage model store', () => {
     const displayModelsStore = useDisplayModelsStore()
     vi.spyOn(displayModelsStore, 'getDisplayModel').mockResolvedValue(tachieModel)
 
+    initialStageModelId.value = tachieModel.id
     const store = useSettingsStageModel()
-    store.stageModelSelected = tachieModel.id
 
     await store.initializeStageModel()
 
     expect(store.stageModelSelectedDisplayModel).toEqual(tachieModel)
     expect(store.stageModelSelectedUrl).toBe(tachieModel.url)
     expect(store.stageModelRenderer).toBe('tachie')
+    expect(migrateLastCommittedModelId).toHaveBeenCalledOnce()
+    expect(migrateLastCommittedModelId).toHaveBeenCalledWith(undefined)
+  })
+
+  it('resolves the legacy VRM identity before publishing the startup model', async () => {
+    const vrmModel: DisplayModelURL = {
+      id: 'vrm-model',
+      format: DisplayModelFormat.VRM,
+      type: 'url',
+      url: 'https://example.com/character.vrm',
+      name: 'VRM character',
+      importedAt: 1,
+    }
+    const displayModelsStore = useDisplayModelsStore()
+    vi.spyOn(displayModelsStore, 'getDisplayModel').mockResolvedValue(vrmModel)
+
+    initialStageModelId.value = vrmModel.id
+    const store = useSettingsStageModel()
+
+    migrateLastCommittedModelId.mockImplementationOnce(() => {
+      expect(store.stageModelRenderer).toBeUndefined()
+      expect(store.stageModelSelectedUrl).toBeUndefined()
+    })
+
+    await store.initializeStageModel()
+
+    expect(migrateLastCommittedModelId).toHaveBeenCalledWith({
+      modelId: vrmModel.id,
+      modelSrc: vrmModel.url,
+    })
+    expect(store.stageModelRenderer).toBe('vrm')
+    expect(store.stageModelSelectedUrl).toBe(vrmModel.url)
   })
 })

@@ -44,7 +44,7 @@ describe('imported VRM view settings', () => {
     modelStore.modelOffset = { x: 0.25, y: 0.25, z: 0 }
     const modelId = shallowRef('display-model-issue-1806')
     const modelSrc = shallowRef(vrmModelUrl)
-    modelStore.migrateLastCommittedModelId(modelId.value)
+    modelStore.migrateLastCommittedModelId({ modelId: modelId.value, modelSrc: modelSrc.value })
     const container = document.createElement('div')
     container.style.height = '600px'
     container.style.width = '800px'
@@ -118,17 +118,20 @@ describe('imported VRM view settings', () => {
   }, 45_000)
 
   // https://github.com/moeru-ai/airi/issues/1806
-  it('resets the legacy view for Issue #1806 when startup selection is not VRM', async () => {
+  it('resets the legacy view for Issue #1806 when startup ownership cannot be verified', async () => {
     // ROOT CAUSE:
     //
-    // The old URL identity can remain when AIRI starts with a non-VRM model.
-    // A later VRM selection must not claim that identity or preserve its view settings.
+    // The selected model can change before the previous model finishes loading.
+    // A startup VRM must not claim legacy view settings from a different source URL.
     const pinia = createPinia()
     const modelStore = useModelStore(pinia)
     modelStore.resetModelStore()
-    localStorage.setItem('settings/stage-ui-three/lastModelSrc', vrmModelUrl)
+    localStorage.setItem('settings/stage-ui-three/lastModelSrc', 'https://example.com/previous.vrm')
     modelStore.modelOffset = { x: 0.25, y: 0.25, z: 0 }
-    modelStore.migrateLastCommittedModelId()
+    modelStore.migrateLastCommittedModelId({
+      modelId: 'display-model-selected-at-startup',
+      modelSrc: vrmModelUrl,
+    })
     const container = document.createElement('div')
     container.style.height = '600px'
     container.style.width = '800px'

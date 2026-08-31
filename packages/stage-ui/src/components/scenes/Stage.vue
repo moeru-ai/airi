@@ -18,7 +18,7 @@ import { defaultLive2DMotionControlDynamics, Live2DScene, useLive2DMotionControl
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { TachieScene } from '@proj-airi/stage-ui-tachie'
-import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
+import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { createQueue } from '@proj-airi/stream-kit'
 import { Callout } from '@proj-airi/ui'
@@ -83,27 +83,6 @@ const {
   themeColorsHueDynamic,
 
 } = storeToRefs(settingsStore)
-const vrmModelStore = useModelStore()
-
-function migrateLegacyVrmIdentityForStartup() {
-  const startupVrmModelId = stageModelRenderer.value === 'vrm'
-    ? stageModelSelected.value
-    : undefined
-  vrmModelStore.migrateLastCommittedModelId(startupVrmModelId)
-}
-
-if (stageModelRenderer.value !== undefined) {
-  migrateLegacyVrmIdentityForStartup()
-}
-else {
-  const stopStartupModelIdentityMigration = watch(stageModelRenderer, (renderer) => {
-    if (renderer === undefined)
-      return
-
-    migrateLegacyVrmIdentityForStartup()
-    stopStartupModelIdentityMigration()
-  })
-}
 const {
   live2dMotionDriver,
   live2dShadowEnabled,

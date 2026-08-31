@@ -3,6 +3,7 @@ import type {} from 'pinia-plugin-synced'
 import type { DisplayModel } from '../display-models'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { useModelStore } from '@proj-airi/stage-ui-three'
 import { refManualReset, useEventListener } from '@vueuse/core'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, watch } from 'vue'
@@ -35,9 +36,11 @@ const useStageModelSelectionStore = defineStore('settings-stage-model-selection'
 
 export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const displayModelsStore = useDisplayModelsStore()
+  const modelStore = useModelStore()
   const stageModelSelectionStore = useStageModelSelectionStore()
   const { selected: stageModelSelectedState } = storeToRefs(stageModelSelectionStore)
   let stageModelUpdateSequence = 0
+  let legacyVrmIdentityPending = true
   const defaultStageModelId = 'preset-live2d-1'
   const stageModelSelected = computed<string>({
     get: () => stageModelSelectedState.value,
@@ -88,11 +91,21 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     }
   }
 
+  function resolveLegacyVrmIdentity(startupModel?: { modelId: string, modelSrc: string }) {
+    if (!legacyVrmIdentityPending)
+      return
+
+    modelStore.migrateLastCommittedModelId(startupModel)
+    legacyVrmIdentityPending = false
+  }
+
   async function updateStageModel() {
     const requestId = ++stageModelUpdateSequence
     const selectedModelId = stageModelSelectedState.value
 
     if (!selectedModelId) {
+      resolveLegacyVrmIdentity()
+
       replaceStageModelUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
       stageModelBuiltInRenderer.value = 'disabled'
@@ -112,6 +125,8 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
         return
       }
 
+      resolveLegacyVrmIdentity()
+
       replaceStageModelUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
       stageModelBuiltInRenderer.value = 'disabled'
@@ -120,24 +135,30 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
       return
     }
 
-    const builtInRenderer = resolveBuiltInStageModelRenderer(model)
-    stageModelBuiltInRenderer.value = builtInRenderer
-    if (stageModelRenderer.value !== 'godot')
-      stageModelRenderer.value = builtInRenderer
-
+    let nextUrl: string
     if (model.type === 'file') {
-      const nextUrl = URL.createObjectURL(model.file)
+      nextUrl = URL.createObjectURL(model.file)
       if (requestId !== stageModelUpdateSequence) {
         URL.revokeObjectURL(nextUrl)
         return
       }
-
-      replaceStageModelUrl(nextUrl)
     }
     else {
-      replaceStageModelUrl(model.url)
+      nextUrl = model.url
     }
 
+    const builtInRenderer = resolveBuiltInStageModelRenderer(model)
+    const startupVrm = builtInRenderer === 'vrm'
+      ? { modelId: selectedModelId, modelSrc: nextUrl }
+      : undefined
+    resolveLegacyVrmIdentity(startupVrm)
+
+    // The first resolved selection consumes the one-time migration before these refs publish.
+    // Direct ThreeScene routes mount from the refs and cannot start with stale identity state.
+    stageModelBuiltInRenderer.value = builtInRenderer
+    if (stageModelRenderer.value !== 'godot')
+      stageModelRenderer.value = builtInRenderer
+    replaceStageModelUrl(nextUrl)
     stageModelSelectedDisplayModel.value = model
   }
 

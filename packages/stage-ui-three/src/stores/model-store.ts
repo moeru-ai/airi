@@ -147,16 +147,17 @@ export const useModelStore = defineStore('modelStore', () => {
   /**
    * Resolves the old VRM identity marker for the model selected at startup.
    *
-   * A VRM startup selection receives the marker. A non-VRM startup selection discards it,
-   * so a later VRM selection uses the model-switch bootstrap path.
+   * The startup VRM receives the marker only when its source URL matches the legacy source.
+   * A non-VRM startup or an ownership mismatch discards the marker, so the next VRM uses
+   * the reset bootstrap path instead of inheriting another model's view settings.
    */
-  function migrateLastCommittedModelId(modelId?: string) {
+  function migrateLastCommittedModelId(startupModel?: { modelId: string, modelSrc: string }) {
     const legacyModelSrc = window.localStorage.getItem(legacyLastCommittedModelSrcStorageKey)
     if (!legacyModelSrc)
       return
 
-    if (modelId && !lastCommittedModelId.value)
-      lastCommittedModelId.value = modelId
+    if (startupModel?.modelSrc === legacyModelSrc && !lastCommittedModelId.value)
+      lastCommittedModelId.value = startupModel.modelId
 
     window.localStorage.removeItem(legacyLastCommittedModelSrcStorageKey)
   }
