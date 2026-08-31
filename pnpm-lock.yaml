@@ -253,11 +253,11 @@ catalogs:
       specifier: 0.1.0-beta.17
       version: 0.1.0-beta.17
     '@moeru/three-mmd':
-      specifier: 0.1.0-beta.7
-      version: 0.1.0-beta.7
+      specifier: 0.1.2
+      version: 0.1.2
     '@moeru/three-mmd-physics-ammo':
-      specifier: 0.1.0-beta.7
-      version: 0.1.0-beta.7
+      specifier: 0.1.2
+      version: 0.1.2
     '@napi-rs/image':
       specifier: ^1.14.0
       version: 1.14.0
@@ -4884,10 +4884,10 @@ importers:
         version: 0.1.0-beta.17
       '@moeru/three-mmd':
         specifier: 'catalog:'
-        version: 0.1.0-beta.7(@types/three@0.185.4)(three@0.185.1)
+        version: 0.1.2(@types/three@0.185.4)(three@0.185.1)
       '@moeru/three-mmd-physics-ammo':
         specifier: 'catalog:'
-        version: 0.1.0-beta.7(@moeru/three-mmd@0.1.0-beta.7(@types/three@0.185.4)(three@0.185.1))(@types/three@0.185.4)(three@0.185.1)
+        version: 0.1.2(@moeru/three-mmd@0.1.2(@types/three@0.185.4)(three@0.185.1))(@types/three@0.185.4)(three@0.185.1)
       '@proj-airi/model-driver-lipsync':
         specifier: workspace:^
         version: link:../model-driver-lipsync
@@ -8391,15 +8391,15 @@ packages:
   '@moeru/std@0.1.0-beta.20':
     resolution: {integrity: sha512-09Nunc5dLT0+oAaLV18nIGHLkQO3LOUGOpGcQ2VIFTqWybJojT9geawhTVtuclYcJtIApgIt+3BLWI1K9dYpFw==}
 
-  '@moeru/three-mmd-physics-ammo@0.1.0-beta.7':
-    resolution: {integrity: sha512-2YrUWsRH5HM/0PYTcOzCTfXWevPGF/5wP+xMs+r9FjJMxW/IcXsAO2Jm6be6dEkyoJUoh72Hz8EAy+csv5bMGw==}
+  '@moeru/three-mmd-physics-ammo@0.1.2':
+    resolution: {integrity: sha512-XDtmMuoPmqIzJUdM4r7/PpsDQhYFxjuePuvZxIICkekX3L5sAJnHfIrVMVpDgUFtQtulji6d0HK6iHovE6rnWg==}
     peerDependencies:
-      '@moeru/three-mmd': ^0.1.0-beta.7
-      '@types/three': ^0.184.0
-      three: ^0.184.0
+      '@moeru/three-mmd': ^0.1.2
+      '@types/three': '>=0.184.0'
+      three: '>=0.184.0'
 
-  '@moeru/three-mmd@0.1.0-beta.7':
-    resolution: {integrity: sha512-FRXXY65zWZBwhQqne+FZQzeFSokupmdShetNv6csXxFnvBhFCHaAf1fleInKlC9jIK5RX1ph/tWN7VFTbdj0rg==}
+  '@moeru/three-mmd@0.1.2':
+    resolution: {integrity: sha512-VHqVrZQVbzIjJaUe1DEtu8oN8sA3k7JZTvHnZ5BAeGEw1ZFi8UmEorb/A99VPKMmWQdqk92DtYH0SwwQG4OSpA==}
     peerDependencies:
       '@types/three': '>=0.184.0'
       three: '>=0.184.0'
@@ -22802,14 +22802,14 @@ snapshots:
 
   '@moeru/std@0.1.0-beta.20': {}
 
-  '@moeru/three-mmd-physics-ammo@0.1.0-beta.7(@moeru/three-mmd@0.1.0-beta.7(@types/three@0.185.4)(three@0.185.1))(@types/three@0.185.4)(three@0.185.1)':
+  '@moeru/three-mmd-physics-ammo@0.1.2(@moeru/three-mmd@0.1.2(@types/three@0.185.4)(three@0.185.1))(@types/three@0.185.4)(three@0.185.1)':
     dependencies:
-      '@moeru/three-mmd': 0.1.0-beta.7(@types/three@0.185.4)(three@0.185.1)
+      '@moeru/three-mmd': 0.1.2(@types/three@0.185.4)(three@0.185.1)
       '@types/three': 0.185.4
       ammojs-typed: 1.0.6
       three: 0.185.1
 
-  '@moeru/three-mmd@0.1.0-beta.7(@types/three@0.185.4)(three@0.185.1)':
+  '@moeru/three-mmd@0.1.2(@types/three@0.185.4)(three@0.185.1)':
     dependencies:
       '@types/three': 0.185.4
       three: 0.185.1
