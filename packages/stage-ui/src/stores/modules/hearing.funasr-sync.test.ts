@@ -970,6 +970,52 @@ describe('funASR Hearing model synchronization', () => {
     expect(hearingStore.activeTranscriptionModel).toBe('fresh-model')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3891562047
+  it('ignores a model catalog loaded for replaced provider credentials (GitHub #2122)', async () => {
+    const providersStore = useProviderStore()
+    const providerConfigStore = useProviderConfigStore()
+    const hearingStore = useHearingStore()
+    const providerId = 'comet-api-transcription'
+    const fetchModelsForProvider = providersStore.fetchModelsForProvider.bind(providersStore)
+    type ListedModels = Awaited<ReturnType<typeof fetchModelsForProvider>>
+    let resolveModels!: (models: ListedModels) => void
+    const modelRequest = new Promise<ListedModels>((resolve) => {
+      resolveModels = resolve
+    })
+
+    providerConfigStore.ensureProvider(providerId, providerId, {
+      apiKey: 'old-key',
+      baseUrl: 'https://old.example/v1/',
+    })
+    await providersStore.initializeProvider(providerId)
+    vi.spyOn(providersStore, 'fetchModelsForProvider').mockImplementation(async (requestedProviderId) => {
+      if (requestedProviderId !== providerId)
+        return fetchModelsForProvider(requestedProviderId)
+      return modelRequest
+    })
+
+    await hearingStore.setActiveTranscriptionProvider('funasr-audio-transcription')
+    const selection = hearingStore.setActiveTranscriptionProvider(providerId)
+    await vi.waitFor(() => expect(providersStore.fetchModelsForProvider).toHaveBeenCalledWith(providerId))
+
+    const providerConfig = providerConfigStore.getProviderConfig(providerId)!
+    providerConfig.apiKey = 'new-key'
+    providerConfig.baseUrl = 'https://new.example/v1/'
+    resolveModels([{
+      id: 'stale-model',
+      name: 'Stale model',
+      provider: providerId,
+      description: '',
+      contextLength: 0,
+      deprecated: false,
+    }])
+    await selection
+
+    expect(hearingStore.activeTranscriptionProvider).toBe('funasr-audio-transcription')
+    expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
+    expect(providerConfig).not.toHaveProperty('model')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3757074253
   it('ignores an earlier model response after the same provider is selected again (GitHub #2122)', async () => {
     const providersStore = useProviderStore()

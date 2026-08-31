@@ -493,10 +493,12 @@ export const useHearingStore = defineStore('hearing-store', () => {
       await loadModelsForProvider(providerId)
     }
     else if (providerId) {
+      const configSignature = JSON.stringify(providerStore.getProviderConfig(providerId) ?? {})
       const freshlyListedModels = providersStore.supportsModelListing(providerId)
         ? await providersStore.fetchModelsForProvider(providerId)
         : []
-      if (selectionRequestId !== nextDestinationModelRequestId)
+      const currentConfigSignature = JSON.stringify(providerStore.getProviderConfig(providerId) ?? {})
+      if (selectionRequestId !== nextDestinationModelRequestId || configSignature !== currentConfigSignature)
         return
 
       const model = resolveDestinationModel(providerId, freshlyListedModels)
