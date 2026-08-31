@@ -1,9 +1,8 @@
-import type { Live2DScreenAmbientLightMode, Live2DScreenAmbientLightSource } from '../../stores/ambient-light'
+import type { ScreenAmbientLightMode, ScreenAmbientLightSource } from '@proj-airi/stage-shared/screen-ambient-light'
 
 import { useLocalStorageManualReset, useVersionedLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { ambientLightDefaults } from '@proj-airi/stage-shared/screen-ambient-light'
 import { defineStore } from 'pinia'
-
-import { live2dAmbientLightDefaults } from '../../stores/ambient-light'
 
 export type Live2DMotionDriver = 'magic' | 'universal'
 
@@ -36,25 +35,24 @@ const live2dForceAutoBlinkEnabled = useVersionedLocalStorageManualReset<boolean>
 })
 const live2dExpressionEnabled = useLocalStorageManualReset<boolean>('settings/live2d/expression-enabled', false)
 const live2dShadowEnabled = useLocalStorageManualReset<boolean>('settings/live2d/shadow-enabled', true)
-const live2dScreenAmbientLightEnabled = useLocalStorageManualReset<boolean>('settings/live2d/screen-ambient-light-enabled', live2dAmbientLightDefaults.enabled)
-const live2dScreenAmbientLightSource = useLocalStorageManualReset<Live2DScreenAmbientLightSource>('settings/live2d/screen-ambient-light-source', live2dAmbientLightDefaults.source)
-const live2dScreenAmbientLightForcedColor = useLocalStorageManualReset<string>('settings/live2d/screen-ambient-light-forced-color', live2dAmbientLightDefaults.forcedColor)
-const live2dScreenAmbientLightMode = useLocalStorageManualReset<Live2DScreenAmbientLightMode>('settings/live2d/screen-ambient-light-mode', live2dAmbientLightDefaults.mode)
-const live2dScreenAmbientLightStrength = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-strength', live2dAmbientLightDefaults.strength)
-const live2dScreenAmbientLightCaptureIntervalMs = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-capture-interval-ms', live2dAmbientLightDefaults.captureIntervalMs)
-const live2dScreenAmbientLightSampleWidth = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-sample-width', live2dAmbientLightDefaults.sampleWidth)
-const live2dScreenAmbientLightSampleHeight = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-sample-height', live2dAmbientLightDefaults.sampleHeight)
-const live2dScreenAmbientLightResponseMs = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-response-ms', live2dAmbientLightDefaults.responseMs)
-const live2dScreenAmbientLightBlackCutoff = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-black-cutoff', live2dAmbientLightDefaults.sampling.blackCutoff)
-const live2dScreenAmbientLightWhiteCutoff = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-white-cutoff', live2dAmbientLightDefaults.sampling.whiteCutoff)
-const live2dScreenAmbientLightNeutralColorWeight = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-neutral-color-weight', live2dAmbientLightDefaults.sampling.neutralColorWeight)
-const live2dScreenAmbientLightBaseBrightness = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-base-brightness', live2dAmbientLightDefaults.filter.baseBrightness)
-const live2dScreenAmbientLightBaseContrast = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-base-contrast', live2dAmbientLightDefaults.filter.baseContrast)
-const live2dScreenAmbientLightTintCoverage = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-tint-coverage', live2dAmbientLightDefaults.filter.tintCoverage)
-const live2dScreenAmbientLightHighlightCoverage = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-highlight-coverage', live2dAmbientLightDefaults.filter.highlightCoverage)
-const live2dScreenAmbientLightTintStrength = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-tint-strength', live2dAmbientLightDefaults.filter.tintStrength)
-const live2dScreenAmbientLightHighlightStrength = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-highlight-strength', live2dAmbientLightDefaults.filter.highlightStrength)
-const live2dScreenAmbientLightSourceBalance = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-source-balance', live2dAmbientLightDefaults.filter.sourceBalance)
+const live2dScreenAmbientLightEnabled = useLocalStorageManualReset<boolean>('settings/live2d/screen-ambient-light-enabled', ambientLightDefaults.enabled)
+const live2dScreenAmbientLightSource = useLocalStorageManualReset<ScreenAmbientLightSource>('settings/live2d/screen-ambient-light-source', ambientLightDefaults.source)
+const live2dScreenAmbientLightForcedColor = useLocalStorageManualReset<string>('settings/live2d/screen-ambient-light-forced-color', ambientLightDefaults.forcedColor)
+const live2dScreenAmbientLightMode = useLocalStorageManualReset<ScreenAmbientLightMode>('settings/live2d/screen-ambient-light-mode', ambientLightDefaults.mode)
+const live2dScreenAmbientLightStrength = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-strength', ambientLightDefaults.strength)
+const live2dScreenAmbientLightCaptureIntervalMs = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-capture-interval-ms', ambientLightDefaults.captureIntervalMs)
+const live2dScreenAmbientLightSampleWidth = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-sample-width', ambientLightDefaults.sampleWidth)
+const live2dScreenAmbientLightSampleHeight = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-sample-height', ambientLightDefaults.sampleHeight)
+const live2dScreenAmbientLightResponseMs = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-response-ms', ambientLightDefaults.responseMs)
+const live2dScreenAmbientLightNeutralColorWeight = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-neutral-color-weight', ambientLightDefaults.sampling.neutralColorWeight)
+const live2dScreenAmbientLightBaseBrightness = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-base-brightness', ambientLightDefaults.filter.baseBrightness)
+const live2dScreenAmbientLightBaseContrast = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-base-contrast', ambientLightDefaults.filter.baseContrast)
+const live2dScreenAmbientLightExposureRange = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-exposure-range', ambientLightDefaults.filter.exposureRange)
+const live2dScreenAmbientLightWrapIntensity = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-wrap-intensity', ambientLightDefaults.filter.wrapIntensity)
+const live2dScreenAmbientLightWrapDiffuse = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-wrap-diffuse', ambientLightDefaults.filter.wrapDiffuse)
+const live2dScreenAmbientLightChroma = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-chroma', ambientLightDefaults.filter.chroma)
+const live2dScreenAmbientLightBacklight = useLocalStorageManualReset<number>('settings/live2d/screen-ambient-light-backlight', ambientLightDefaults.filter.backlight)
+const live2dScreenAmbientLightTranslucentWrap = useLocalStorageManualReset<boolean>('settings/live2d/screen-ambient-light-translucent-wrap', ambientLightDefaults.filter.translucentWrap)
 const live2dMaxFps = useLocalStorageManualReset<number>('settings/live2d/max-fps', 0)
 const live2dRenderScale = useLocalStorageManualReset<number>('settings/live2d/render-scale', 2)
 
@@ -77,16 +75,15 @@ function resetState() {
   live2dScreenAmbientLightSampleWidth.reset()
   live2dScreenAmbientLightSampleHeight.reset()
   live2dScreenAmbientLightResponseMs.reset()
-  live2dScreenAmbientLightBlackCutoff.reset()
-  live2dScreenAmbientLightWhiteCutoff.reset()
   live2dScreenAmbientLightNeutralColorWeight.reset()
   live2dScreenAmbientLightBaseBrightness.reset()
   live2dScreenAmbientLightBaseContrast.reset()
-  live2dScreenAmbientLightTintCoverage.reset()
-  live2dScreenAmbientLightHighlightCoverage.reset()
-  live2dScreenAmbientLightTintStrength.reset()
-  live2dScreenAmbientLightHighlightStrength.reset()
-  live2dScreenAmbientLightSourceBalance.reset()
+  live2dScreenAmbientLightExposureRange.reset()
+  live2dScreenAmbientLightWrapIntensity.reset()
+  live2dScreenAmbientLightWrapDiffuse.reset()
+  live2dScreenAmbientLightChroma.reset()
+  live2dScreenAmbientLightBacklight.reset()
+  live2dScreenAmbientLightTranslucentWrap.reset()
   live2dMaxFps.reset()
   live2dRenderScale.reset()
 }
@@ -111,16 +108,15 @@ export const useSettingsLive2d = defineStore('settings-live2d', () => {
     live2dScreenAmbientLightSampleWidth,
     live2dScreenAmbientLightSampleHeight,
     live2dScreenAmbientLightResponseMs,
-    live2dScreenAmbientLightBlackCutoff,
-    live2dScreenAmbientLightWhiteCutoff,
     live2dScreenAmbientLightNeutralColorWeight,
     live2dScreenAmbientLightBaseBrightness,
     live2dScreenAmbientLightBaseContrast,
-    live2dScreenAmbientLightTintCoverage,
-    live2dScreenAmbientLightHighlightCoverage,
-    live2dScreenAmbientLightTintStrength,
-    live2dScreenAmbientLightHighlightStrength,
-    live2dScreenAmbientLightSourceBalance,
+    live2dScreenAmbientLightExposureRange,
+    live2dScreenAmbientLightWrapIntensity,
+    live2dScreenAmbientLightWrapDiffuse,
+    live2dScreenAmbientLightChroma,
+    live2dScreenAmbientLightBacklight,
+    live2dScreenAmbientLightTranslucentWrap,
     live2dMaxFps,
     live2dRenderScale,
     resetState,
