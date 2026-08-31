@@ -7,6 +7,13 @@ export default defineConfig({
     projects: [
       {
         test: {
+          name: 'node',
+          include: ['src/**/*.test.ts'],
+          exclude: ['src/**/*.browser.test.ts'],
+        },
+      },
+      {
+        test: {
           name: 'browser',
           include: ['src/**/*.browser.test.ts'],
           browser: {
