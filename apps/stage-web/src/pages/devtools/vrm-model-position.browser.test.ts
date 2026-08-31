@@ -7,6 +7,7 @@ import { createApp, defineComponent, h, nextTick, shallowRef } from 'vue'
 import 'virtual:uno.css'
 
 let vrmModel: Blob
+let vrmModelUrl: string
 
 beforeAll(async () => {
   const pinia = createPinia()
@@ -15,6 +16,7 @@ beforeAll(async () => {
   if (preset?.type !== 'url')
     throw new Error('The VRM test preset is unavailable.')
 
+  vrmModelUrl = preset.url
   const response = await fetch(preset.url)
   if (!response.ok)
     throw new Error(`Failed to load the VRM test preset: ${response.status}`)
@@ -33,11 +35,15 @@ describe('imported VRM view settings', () => {
     // The selected display model ID is stable across reloads. The scene must use that ID
     // for model identity and keep the Blob URL only for resource loading.
     // A new model ID can arrive before its URL. The old load must not commit the new ID.
+    // Existing installations only have the old URL identity key. The first load after an
+    // upgrade must migrate that marker before it applies the scene bootstrap.
     const pinia = createPinia()
     const modelStore = useModelStore(pinia)
     modelStore.resetModelStore()
+    localStorage.setItem('settings/stage-ui-three/lastModelSrc', vrmModelUrl)
+    modelStore.modelOffset = { x: 0.25, y: 0.25, z: 0 }
     const modelId = shallowRef('display-model-issue-1806')
-    const modelSrc = shallowRef(URL.createObjectURL(vrmModel))
+    const modelSrc = shallowRef(vrmModelUrl)
     const container = document.createElement('div')
     container.style.height = '600px'
     container.style.width = '800px'
@@ -61,6 +67,8 @@ describe('imported VRM view settings', () => {
     await expect.poll(() => modelStore.scenePhase, { timeout: 20_000 }).toBe('mounted')
     expect(modelStore.lastCommittedModelId).toBe('display-model-issue-1806')
     expect(localStorage.getItem('settings/stage-ui-three/lastModelId')).toBe('display-model-issue-1806')
+    expect(modelStore.modelOffset).toEqual({ x: 0.25, y: 0.25, z: 0 })
+    expect(localStorage.getItem('settings/stage-ui-three/lastModelSrc')).toBeNull()
 
     modelStore.modelOffset = { x: 0.35, y: 0.35, z: 0 }
     modelStore.cameraDistance = 1.75

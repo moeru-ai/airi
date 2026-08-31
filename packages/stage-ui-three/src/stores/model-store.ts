@@ -141,6 +141,26 @@ export const useModelStore = defineStore('modelStore', () => {
   // === Model identity ===
   // The display model ID is stable across application restarts. Runtime URLs are not.
   const lastCommittedModelId = useLocalStorage('settings/stage-ui-three/lastModelId', '')
+  /** The storage key from releases that used runtime URLs as model identity. */
+  const legacyLastCommittedModelSrcStorageKey = 'settings/stage-ui-three/lastModelSrc'
+
+  /**
+   * Migrates the old VRM identity marker to the selected display model ID.
+   *
+   * Runtime URLs cannot identify imported models after a restart. The selected model ID
+   * is the authoritative identity when the first VRM scene mounts after an upgrade.
+   */
+  function migrateLastCommittedModelId(modelId: string) {
+    if (!modelId || lastCommittedModelId.value)
+      return
+
+    const legacyModelSrc = window.localStorage.getItem(legacyLastCommittedModelSrcStorageKey)
+    if (!legacyModelSrc)
+      return
+
+    lastCommittedModelId.value = modelId
+    window.localStorage.removeItem(legacyLastCommittedModelSrcStorageKey)
+  }
 
   // === Model lifecycle / bootstrap ===
   // These values are recalculated from the currently bound model instance whenever
@@ -158,6 +178,7 @@ export const useModelStore = defineStore('modelStore', () => {
     sceneTransactionDepth.value = 0
 
     lastCommittedModelId.value = ''
+    window.localStorage.removeItem(legacyLastCommittedModelSrcStorageKey)
     modelSize.value = { x: 0, y: 0, z: 0 }
     modelOrigin.value = { x: 0, y: 0, z: 0 }
     modelRotationY.value = 0
@@ -251,6 +272,7 @@ export const useModelStore = defineStore('modelStore', () => {
     beginSceneBindingTransaction,
     endSceneBindingTransaction,
     resetSceneBindingTransactions,
+    migrateLastCommittedModelId,
 
     resetModelStore,
   }

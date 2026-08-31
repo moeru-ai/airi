@@ -113,6 +113,7 @@ type SceneTraceTransactionReason = 'component-unmount' | 'initial-load' | 'model
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
 const modelStore = useModelStore()
+modelStore.migrateLastCommittedModelId(props.modelId)
 const {
   beginSceneBindingTransaction,
   endSceneBindingTransaction,
