@@ -1,5 +1,17 @@
 import type { Rectangle } from 'electron'
 
+import { clamp } from 'es-toolkit'
+
+/**
+ * The parts of an Electron `Display` this module needs: the full physical
+ * `bounds` (used to decide which monitor a window belongs to) and the
+ * `workArea` (excludes the taskbar/dock, used to place the window).
+ */
+export interface DisplayLike {
+  bounds: Rectangle
+  workArea: Rectangle
+}
+
 /** Area of the overlap between two rectangles (0 when they do not intersect). */
 function intersectionArea(a: Rectangle, b: Rectangle): number {
   const left = Math.max(a.x, b.x)
@@ -15,9 +27,12 @@ function intersectionArea(a: Rectangle, b: Rectangle): number {
 function clampWithin(bounds: Rectangle, rect: Rectangle): Rectangle {
   const width = Math.min(bounds.width, rect.width)
   const height = Math.min(bounds.height, rect.height)
-  const x = Math.min(Math.max(bounds.x, rect.x), rect.x + rect.width - width)
-  const y = Math.min(Math.max(bounds.y, rect.y), rect.y + rect.height - height)
-  return { x, y, width, height }
+  return {
+    x: clamp(bounds.x, rect.x, rect.x + rect.width - width),
+    y: clamp(bounds.y, rect.y, rect.y + rect.height - height),
+    width,
+    height,
+  }
 }
 
 /** Center a window of the given size within `rect`. */
@@ -33,8 +48,8 @@ function centerWithin(size: { width: number, height: number }, rect: Rectangle):
 }
 
 /**
- * Validate persisted window bounds against the currently available display work
- * areas so a reachable portion of the window always stays on-screen.
+ * Validate persisted window bounds against the currently available displays so a
+ * reachable portion of the window always stays on-screen.
  *
  * Use when:
  * - Restoring a window position saved in a previous session, which may now be
@@ -42,35 +57,37 @@ function centerWithin(size: { width: number, height: number }, rect: Rectangle):
  *   is no longer connected.
  *
  * Behavior:
- * - If the bounds still overlap a display, clamp them fully into that display's
- *   work area (best-overlapping display wins).
- * - If they no longer intersect any display, fall back to centering on the
+ * - Pick the display physically containing most of the window, measured against
+ *   full display `bounds` (not `workArea`) so a window over a taskbar/dock strip
+ *   still counts toward the monitor it visually sits on, then clamp it into that
+ *   display's `workArea`.
+ * - If the window no longer intersects any display, fall back to centering on the
  *   primary work area.
  *
  * Pure and Electron-free (takes plain rectangles) so it can be unit-tested; the
- * caller passes work areas from `screen.getAllDisplays()` and the primary one.
+ * caller passes `screen.getAllDisplays()` and `screen.getPrimaryDisplay()`.
  */
 export function sanitizePersistedWindowBounds(
   bounds: Rectangle,
-  workAreas: Rectangle[],
-  primaryWorkArea: Rectangle,
+  displays: DisplayLike[],
+  primary: DisplayLike,
 ): Rectangle {
-  if (workAreas.length === 0)
-    return centerWithin(bounds, primaryWorkArea)
+  if (displays.length === 0)
+    return centerWithin(bounds, primary.workArea)
 
-  let best = workAreas[0]
+  let best = displays[0]
   let bestArea = -1
-  for (const workArea of workAreas) {
-    const area = intersectionArea(bounds, workArea)
+  for (const display of displays) {
+    const area = intersectionArea(bounds, display.bounds)
     if (area > bestArea) {
       bestArea = area
-      best = workArea
+      best = display
     }
   }
 
-  // No visible intersection with any display → restore to a safe position.
+  // No overlap with any physical display → restore to a safe position.
   if (bestArea <= 0)
-    return centerWithin(bounds, primaryWorkArea)
+    return centerWithin(bounds, primary.workArea)
 
-  return clampWithin(bounds, best)
+  return clampWithin(bounds, best.workArea)
 }

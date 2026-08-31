@@ -54,9 +54,9 @@ function resolveMainWindowBounds(
   if (saved?.x == null || saved?.y == null)
     return { width, height }
 
-  const workAreas = screen.getAllDisplays().map(display => display.workArea)
-  const primaryWorkArea = screen.getPrimaryDisplay().workArea
-  return sanitizePersistedWindowBounds({ x: saved.x, y: saved.y, width, height }, workAreas, primaryWorkArea)
+  const displays = screen.getAllDisplays()
+  const primary = screen.getPrimaryDisplay()
+  return sanitizePersistedWindowBounds({ x: saved.x, y: saved.y, width, height }, displays, primary)
 }
 
 const appConfigSchema = object({
