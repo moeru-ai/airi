@@ -117,6 +117,38 @@ model-select:
     import: 导入
     remove: 移除
     confirm: 确认
+  live2d-report:
+    title: 导入前检查
+    description: 检查模型数据以及压缩包中发现的问题。
+    description-short: 检查模型数据和问题。
+    close: 关闭
+    model:
+      title: 模型
+      files: '{count} 个文件'
+      types:
+        cubism: 'Cubism {version} ({format})'
+        cubism-compatible: 'Cubism 3+ ({format})'
+        unknown: 未知
+    resources:
+      title: 资源
+      motions: 动作
+      expressions: 表情
+      parameters: 参数
+      textures: 纹理
+      referenced-and-found: '引用 {referenced} 个 · 找到 {found} 个'
+      referenced: '引用 {count} 个'
+      found: '找到 {count} 个'
+    issues:
+      title: 问题
+      errors: '{count} 个错误'
+      warnings: '{count} 个警告'
+      none: 未发现问题。
+      how-to-fix: 如何解决
+      resolve-before-import: 请先解决错误再导入。
+    actions:
+      cancel: 取消
+      confirm: 确认导入
+      import-anyway: 仍然导入
 live2d:
   change-model:
     from-file: 从文件加载
@@ -147,6 +179,33 @@ live2d:
       title: 提取
   animation:
     title: 动画
+    motion-driver:
+      title: 动作驱动器
+      description: 选择 AIRI 如何生成空闲身体和眼部动作。
+      options:
+        universal:
+          title: 通用
+          description: 使用模型动作、空闲眼部动作和鼠标跟踪。
+        magic:
+          title: MAGIC
+          description: 使用内置 MAGIC 数据集生成动作。
+      magic:
+        profile:
+          title: MAGIC 配置
+          description: 选择用于拟合 MAGIC 驱动器的内置动作数据集。
+          options:
+            idle-calm:
+              title: 空闲 / 平静
+              description: 使用内置的空闲和平静动作录制数据。
+            speaking-excited:
+              title: 说话 / 兴奋
+              description: 使用内置的说话和兴奋动作录制数据。
+        skip-mouth-open:
+          title: 忽略生成的嘴部开合
+          description: 让语音口型控制嘴部开合。关闭此选项后将使用配置中的嘴部开合。
+        force-view-target:
+          title: 强制视线朝前
+          description: MAGIC 转动头部时，让眼睛持续看向正前方。
     focus:
       title: 启用鼠标跟踪
       description: 鼠标移动时注视光标；光标停止后恢复空闲眼部动作。

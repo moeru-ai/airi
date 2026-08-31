@@ -76,14 +76,14 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   const sessionMessages = ref<Record<string, ChatHistoryItem[]>>({})
   const sessionMetas = ref<Record<string, ChatSessionMeta>>({})
   const sessionGenerations = ref<Record<string, number>>({})
-  /** Authority-owned session index replicated so each window can derive its local selection. */
+  /** Canonical session index replicated so each window can derive its local selection. */
   const index = ref<ChatSessionsIndex | null>(null)
 
   const ready = ref(false)
   const isReady = computed(() => ready.value)
   const initializing = ref(false)
   let initializePromise: Promise<void> | null = null
-  let ensureActivePromise: Promise<void> | null = null
+  let ensureActivePromise: Promise<string> | null = null
   // Bumped by `clearInMemoryState` (user swap / teardown). The
   // `ensureActiveSessionForCharacter` IIFE captures this at call time and
   // bails after every await once it changes, so a stale hydrate from the
@@ -113,7 +113,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   let cloudMapper: CloudChatMapper | undefined
   let cloudReconcileTask: Promise<void> | undefined
   let pendingReconcile = false
-  let ownsCloudSync = true
   // Incremented on every teardown / user swap. Long-running reconcile IIFEs
   // capture the epoch at start and bail after every await once it changes,
   // so account-A mutations cannot land on account-B state after a sign-out.
@@ -380,7 +379,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (loadedSessions.has(sessionId) && !staleSessions.has(sessionId) && !needsCloudHydration()) {
       return true
     }
-    // A synchronized snapshot already carries the authority's hydrated
+    // A synchronized snapshot already carries the canonical hydrated
     // messages. Trust it instead of letting this follower merge an older IDB
     // record and publish that stale full-store proposal back to the leader.
     if (Object.hasOwn(sessionMessages.value, sessionId) && hasKnownSession(sessionId) && !staleSessions.has(sessionId) && !needsCloudHydration()) {
@@ -661,7 +660,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    * callers share a single in-flight promise so a rapid `[userId, characterId]`
    * change burst does not produce duplicate sessions.
    */
-  async function ensureActiveSessionForCharacter(): Promise<void> {
+  async function ensureActiveSessionForCharacter(): Promise<string> {
     if (ensureActivePromise)
       return ensureActivePromise
     const myEpoch = ensureActiveEpoch
@@ -673,26 +672,23 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       if (!index.value || index.value.userId !== currentUserId)
         await loadIndexForUser(currentUserId)
       if (isStaleEpoch())
-        return
+        return ''
 
       const characterIndex = getCharacterIndex(characterId)
-      if (!characterIndex) {
-        await createSession(characterId)
-        return
-      }
+      if (!characterIndex)
+        return createSession(characterId)
 
-      if (!characterIndex.activeSessionId) {
-        await createSession(characterId)
-        return
-      }
+      if (!characterIndex.activeSessionId)
+        return createSession(characterId)
 
       activeSessionId.value = characterIndex.activeSessionId
       // Use the public action so follower hydration is routed to the elected
       // leader instead of becoming a stale full-state proposal.
       await useChatSessionStore().loadSession(characterIndex.activeSessionId)
+      return characterIndex.activeSessionId
     })()
     try {
-      await ensureActivePromise
+      return await ensureActivePromise
     }
     finally {
       // Only release the slot if we still own it. A user swap mid-flight
@@ -785,8 +781,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    * pass is scheduled in `finally` so catch-up pulls do not get lost.
    */
   async function reconcileCloudSessions(): Promise<void> {
-    if (!ownsCloudSync)
-      return
     if (cloudReconcileTask) {
       pendingReconcile = true
       return cloudReconcileTask
@@ -977,8 +971,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    * from the auth `watch`.
    */
   function ensureCloudWsClient() {
-    if (!ownsCloudSync)
-      return
     if (getCurrentUserId() === 'local') {
       console.info('[chat-sync] WS skipped: anonymous user')
       return
@@ -1021,8 +1013,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     wsClient.connect()
   }
 
-  function teardownCloudWsClient() {
-    cloudSyncReady.value = false
+  function disposeCloudWsClient() {
     cloudReconcileTask = undefined
     pendingReconcile = false
     // Invalidate any in-flight reconcile IIFE so its post-await mutations
@@ -1035,18 +1026,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     cloudMapper = undefined
   }
 
-  /** Starts or stops cloud synchronization when this window gains or loses synchronized-store leadership. */
-  function setCloudSyncOwnership(owns: boolean) {
-    if (ownsCloudSync === owns)
-      return
-
-    ownsCloudSync = owns
-    if (!ready.value)
-      return
-    if (owns)
-      ensureCloudWsClient()
-    else if (wsClient)
-      teardownCloudWsClient()
+  function teardownCloudWsClient() {
+    cloudSyncReady.value = false
+    disposeCloudWsClient()
   }
 
   /**
@@ -1089,19 +1071,23 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    * The synchronization plugin routes this action to the elected renderer.
    */
   async function activateCurrentUser() {
-    if (sessionStateMatchesCurrentUser()) {
-      ensureCloudWsClient()
-      return
+    if (!sessionStateMatchesCurrentUser()) {
+      teardownCloudWsClient()
+      clearInMemoryState()
     }
 
-    teardownCloudWsClient()
-    clearInMemoryState()
-    if (!ready.value && !initializing.value)
-      return
+    await ensureCurrentSession()
+  }
 
-    await ensureActiveSessionForCharacter()
+  /**
+   * Resolves the canonical session and starts its persistence consumers.
+   * The synchronization plugin routes this action to one renderer.
+   */
+  async function ensureCurrentSession(): Promise<string> {
+    const sessionId = await ensureActiveSessionForCharacter()
     await refreshOutboxPendingCount()
     ensureCloudWsClient()
+    return sessionId
   }
 
   /**
@@ -1318,19 +1304,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
     initializing.value = true
     initializePromise = (async () => {
-      if (ownsCloudSync)
-        await ensureActiveSessionForCharacter()
+      const sessionId = await useChatSessionStore().ensureCurrentSession()
+      if (sessionId)
+        activeSessionId.value = sessionId
       else
         selectWindowSessionFromIndex()
 
       ready.value = true
-      // Surface any outbox left over from a previous session (closed tab
-      // mid-send) before the WS even opens. The drain itself runs after
-      // reconcile completes, but the count is observable immediately.
-      if (ownsCloudSync)
-        await refreshOutboxPendingCount()
-      if (ownsCloudSync)
-        ensureCloudWsClient()
     })()
 
     try {
@@ -1363,6 +1343,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
 
     activeSessionId.value = getCharacterIndex(getCurrentCharacterId())?.activeSessionId ?? ''
+  }
+
+  /** Stops local runtime consumers without changing synchronized session data. */
+  function dispose() {
+    disposeCloudWsClient()
   }
 
   const messages = computed<ChatHistoryItem[]>({
@@ -1595,16 +1580,25 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     // every follower would fan one deletion out into several empty chats.
   })
 
-  watch([activeCardId, index], () => {
+  watch(index, () => {
     if (!ready.value)
       return
 
-    if (!ownsCloudSync) {
-      selectWindowSessionFromIndex()
-      return
-    }
+    selectWindowSessionFromIndex()
+  })
 
-    void ensureActiveSessionForCharacter()
+  watch(activeCardId, async () => {
+    if (!ready.value)
+      return
+
+    try {
+      const sessionId = await useChatSessionStore().ensureCurrentSession()
+      if (sessionId)
+        activeSessionId.value = sessionId
+    }
+    catch (error) {
+      console.error('[chat-session] Failed to select a session for the current character:', error)
+    }
   })
 
   // Each renderer observes the synchronized identity. Route the transition to
@@ -1626,6 +1620,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   return {
     isReady,
     initialize,
+    dispose,
 
     activeSessionId,
     messages,
@@ -1660,8 +1655,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     refreshSession,
     deleteSession,
     activateCurrentUser,
-
-    setCloudSyncOwnership,
+    ensureCurrentSession,
 
     cloudSyncReady,
     outboxPendingCount,
@@ -1669,7 +1663,20 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 }, {
   synced: {
-    actions: ['activateCurrentUser', 'createSession', 'deleteMessage', 'importSessions', 'loadSession', 'refreshSession'],
+    actions: [
+      'activateCurrentUser',
+      'createSession',
+      'deleteMessage',
+      'deleteSession',
+      'ensureCurrentSession',
+      'exportSessions',
+      'forkSession',
+      'importSessions',
+      'loadSession',
+      'pushMessageToCloud',
+      'refreshSession',
+      'resetAllSessions',
+    ],
     state: true,
   },
 })

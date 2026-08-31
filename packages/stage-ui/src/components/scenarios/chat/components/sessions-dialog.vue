@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ChatSessionMeta } from '../../../../types/chat-session'
 
+import { ScrollableArea } from '@proj-airi/ui'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { useI18n } from 'vue-i18n'
 
@@ -75,7 +76,15 @@ const { t } = useI18n()
               {{ t('stage.chat.sessions.new') }}
             </button>
           </div>
-          <div :class="['flex-1 overflow-y-auto px-2 pb-4']">
+          <ScrollableArea
+            :class="['min-h-0 flex-1']"
+            :style="{
+              maxHeight: isDesktop
+                ? 'calc(80dvh - 4rem)'
+                : `calc(85dvh - ${mobilePaddingBottom} - 5rem)`,
+            }"
+            :viewport-class="['px-2 pb-4']"
+          >
             <div v-if="rows.length === 0" :class="['p-6 text-center text-sm text-neutral-500 dark:text-neutral-400']">
               {{ t('stage.chat.sessions.empty') }}
             </div>
@@ -124,7 +133,7 @@ const { t } = useI18n()
                 <div class="i-solar:trash-bin-trash-bold-duotone h-4 w-4" />
               </button>
             </div>
-          </div>
+          </ScrollableArea>
         </div>
       </DialogContent>
     </DialogPortal>

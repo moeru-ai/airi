@@ -1,12 +1,18 @@
 import type { VirtualizerHandle } from 'virtua/vue'
-import type { ShallowRef } from 'vue'
+import type { Ref, ShallowRef } from 'vue'
 
-import { useRafFn } from '@vueuse/core'
-import { shallowRef } from 'vue'
+import { useMutationObserver, useRafFn, useResizeObserver } from '@vueuse/core'
+import { shallowRef, watch } from 'vue'
 
 interface VirtualScrollRequest {
   align: 'start' | 'end'
   index: number
+}
+
+interface VirtualizerBottomAlignmentOptions {
+  container: Readonly<Ref<HTMLElement | null>>
+  itemCount: Readonly<Ref<number>>
+  virtualizer: Readonly<ShallowRef<VirtualizerHandle | null>>
 }
 
 /**
@@ -52,5 +58,56 @@ export function useVirtualizerScroll(
       didObserveReadyFrame = false
       resume()
     },
+  }
+}
+
+/**
+ * Bottom-aligns a virtualized list while its measured content is shorter than its viewport.
+ *
+ * The returned item props translate every mounted item by the same amount, so Virtua keeps
+ * ownership of item measurement, absolute positioning, and overflow behavior.
+ */
+export function useVirtualizerBottomAlignment({
+  container,
+  itemCount,
+  virtualizer,
+}: VirtualizerBottomAlignmentOptions) {
+  const bottomOffset = shallowRef(0)
+  const renderedItems = shallowRef<HTMLElement[]>([])
+
+  const { pause, resume } = useRafFn(() => {
+    const currentVirtualizer = virtualizer.value
+    const lastIndex = itemCount.value - 1
+    if (!currentVirtualizer || lastIndex < 0 || currentVirtualizer.viewportSize <= 0) {
+      bottomOffset.value = 0
+      pause()
+      return
+    }
+
+    const contentSize = currentVirtualizer.getItemOffset(lastIndex) + currentVirtualizer.getItemSize(lastIndex)
+
+    // NOTICE:
+    // Virtua keeps its content root at least as tall as the viewport, even for a short list.
+    // Its absolute item offsets therefore remain top-aligned after scrollToIndex(..., { align: 'end' }).
+    // Source: node_modules/virtua/src/core/store.ts getScrollSize and src/vue/Virtualizer.ts.
+    // Remove this translation when Virtua provides native short-list bottom alignment.
+    bottomOffset.value = Math.max(0, currentVirtualizer.viewportSize - contentSize)
+    pause()
+  }, { immediate: false })
+
+  useMutationObserver(container, () => {
+    renderedItems.value = Array.from(container.value?.querySelectorAll<HTMLElement>('.chat-message-item') ?? [])
+    resume()
+  }, { childList: true, subtree: true })
+  useResizeObserver(container, resume)
+  useResizeObserver(renderedItems, resume)
+  watch([container, itemCount], resume, { flush: 'post', immediate: true })
+
+  return {
+    itemProps: () => ({
+      style: {
+        transform: bottomOffset.value > 0 ? `translateY(${bottomOffset.value}px)` : undefined,
+      },
+    }),
   }
 }

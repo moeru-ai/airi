@@ -9,14 +9,19 @@ import { computed, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChatAssistantItem from './assistant-item.vue'
+import ChatHistoryScrollContainer from './chat-history-scroll-container.vue'
 import ChatErrorItem from './error-item.vue'
 import ChatHistoryMessageFrame from './history-message-frame.vue'
 import ChatUserItem from './user-item.vue'
 
 import { useChatHistoryScroll } from '../composables/use-chat-history-scroll'
 import { useChatHistoryTopFade } from '../composables/use-chat-history-top-fade'
-import { useVirtualizerScroll } from '../composables/use-virtualizer-scroll'
+import { useVirtualizerBottomAlignment, useVirtualizerScroll } from '../composables/use-virtualizer-scroll'
 import { getChatHistoryItemKey } from '../utils'
+
+defineOptions({
+  inheritAttrs: false,
+})
 
 const props = withDefaults(defineProps<{
   messages: ChatHistoryItem[]
@@ -44,7 +49,8 @@ const emit = defineEmits<{
 /** Keeps about two mobile viewports ready so fast flicks do not expose an unmounted gap. */
 const CHAT_HISTORY_OVERSCAN = 600
 
-const chatHistoryRef = useTemplateRef<HTMLDivElement>('chatHistory')
+const scrollContainerRef = useTemplateRef<InstanceType<typeof ChatHistoryScrollContainer>>('scroll-container')
+const chatHistoryRef = computed<HTMLElement | null>(() => scrollContainerRef.value?.viewport ?? null)
 const virtualizerRef = useTemplateRef<VirtualizerHandle>('virtualizer')
 const { scrollToIndex } = useVirtualizerScroll(virtualizerRef)
 
@@ -75,7 +81,14 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
 
   return [...props.messages, streaming.value]
 })
+const renderMessageCount = computed(() => renderMessages.value.length)
 const topFadeRatio = computed(() => props.variant === 'mobile' ? 0.2 : 0)
+
+const { itemProps } = useVirtualizerBottomAlignment({
+  container: chatHistoryRef,
+  itemCount: renderMessageCount,
+  virtualizer: virtualizerRef,
+})
 
 useChatHistoryScroll({
   container: chatHistoryRef,
@@ -127,19 +140,17 @@ function emitToolCallRerun(
 </script>
 
 <template>
-  <div
-    ref="chatHistory"
-    :class="[
-      'chat-history-list',
-      'relative h-full w-full overflow-y-auto rounded-xl',
-      '<sm:px-2 <sm:py-2',
-      variant === 'mobile' ? 'chat-history-list--mobile' : '',
-    ]"
+  <ChatHistoryScrollContainer
+    ref="scroll-container"
+    v-bind="$attrs"
+    :variant="variant"
   >
     <Virtualizer
       ref="virtualizer"
       :data="renderMessages"
       :buffer-size="CHAT_HISTORY_OVERSCAN"
+      :item-props="itemProps"
+      :scroll-ref="chatHistoryRef ?? undefined"
     >
       <template #default="{ item: message, index }">
         <ChatHistoryMessageFrame
@@ -184,25 +195,5 @@ function emitToolCallRerun(
         </ChatHistoryMessageFrame>
       </template>
     </Virtualizer>
-  </div>
+  </ChatHistoryScrollContainer>
 </template>
-
-<style scoped>
-.chat-history-list--mobile :deep(.chat-message-item-container) {
-  --chat-top-fade-transparent-stop: -1px;
-  --chat-top-fade-opaque-stop: 0px;
-
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent var(--chat-top-fade-transparent-stop),
-    black var(--chat-top-fade-opaque-stop)
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    transparent var(--chat-top-fade-transparent-stop),
-    black var(--chat-top-fade-opaque-stop)
-  );
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-}
-</style>

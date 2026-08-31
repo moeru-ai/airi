@@ -1,10 +1,10 @@
-import type { Ref, ShallowRef } from 'vue'
+import type { Ref } from 'vue'
 
 import { useEventListener } from '@vueuse/core'
 import { computed, watch } from 'vue'
 
 interface ChatHistoryScrollOptions<TMessage> {
-  container: Readonly<ShallowRef<HTMLElement | null>>
+  container: Readonly<Ref<HTMLElement | null>>
   messages: Readonly<Ref<TMessage[]>>
   getKey: (message: TMessage, index: number) => string | number
   scrollToIndex: (index: number, align: 'start' | 'end') => void
@@ -142,7 +142,7 @@ export function useChatHistoryScroll<TMessage>({
       }
 
       if (previousKey != null)
-        scrollToIndex(lastIndex, 'start')
+        scrollToIndex(lastIndex, 'end')
     },
     { flush: 'post', immediate: true },
   )
