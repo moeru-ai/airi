@@ -3,7 +3,6 @@ import type {} from 'pinia-plugin-synced'
 import type { DisplayModel } from '../display-models'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
-import { useModelStore } from '@proj-airi/stage-ui-three'
 import { refManualReset, useEventListener } from '@vueuse/core'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, watch } from 'vue'
@@ -36,11 +35,10 @@ const useStageModelSelectionStore = defineStore('settings-stage-model-selection'
 
 export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const displayModelsStore = useDisplayModelsStore()
-  const modelStore = useModelStore()
   const stageModelSelectionStore = useStageModelSelectionStore()
   const { selected: stageModelSelectedState } = storeToRefs(stageModelSelectionStore)
   let stageModelUpdateSequence = 0
-  let legacyModelIdentityResetPending = true
+  let legacyModelIdentityResetPromise: Promise<void> | undefined
   const defaultStageModelId = 'preset-live2d-1'
   const stageModelSelected = computed<string>({
     get: () => stageModelSelectedState.value,
@@ -92,20 +90,30 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   }
 
   function resetLegacyModelIdentity() {
-    if (!legacyModelIdentityResetPending)
-      return
+    if (typeof window === 'undefined')
+      return undefined
 
-    modelStore.resetLegacyModelIdentity()
-    legacyModelIdentityResetPending = false
+    // The Three.js store is browser-only. Load it only during browser startup so
+    // Node consumers of the shared settings store do not evaluate rendering APIs.
+    legacyModelIdentityResetPromise ??= import('@proj-airi/stage-ui-three').then(({ useModelStore }) => {
+      useModelStore().resetLegacyModelIdentity()
+    })
+
+    return legacyModelIdentityResetPromise
   }
 
   async function updateStageModel() {
     const requestId = ++stageModelUpdateSequence
     const selectedModelId = stageModelSelectedState.value
 
-    if (!selectedModelId) {
-      resetLegacyModelIdentity()
+    const legacyModelIdentityReset = resetLegacyModelIdentity()
+    if (legacyModelIdentityReset) {
+      await legacyModelIdentityReset
+      if (requestId !== stageModelUpdateSequence)
+        return
+    }
 
+    if (!selectedModelId) {
       replaceStageModelUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
       stageModelBuiltInRenderer.value = 'disabled'
@@ -124,8 +132,6 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
         await updateStageModel()
         return
       }
-
-      resetLegacyModelIdentity()
 
       replaceStageModelUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
@@ -148,9 +154,8 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     }
 
     const builtInRenderer = resolveBuiltInStageModelRenderer(model)
-    resetLegacyModelIdentity()
 
-    // The first resolved selection consumes the one-time legacy reset before these refs publish.
+    // Browser startup consumes the one-time legacy reset before these refs publish.
     // Direct ThreeScene routes mount from the refs and cannot start with stale identity state.
     stageModelBuiltInRenderer.value = builtInRenderer
     if (stageModelRenderer.value !== 'godot')

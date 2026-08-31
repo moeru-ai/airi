@@ -1,7 +1,7 @@
 import type { DisplayModelURL } from '../display-models'
 
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 import { useSettingsStageModel } from './stage-model'
@@ -41,6 +41,10 @@ describe('settings stage model store', () => {
     resetLegacyModelIdentity.mockReset()
   })
 
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   // https://github.com/moeru-ai/airi/issues/1984
   it('issue #1984: falls back to the default preset when a custom stage model is missing', async () => {
     const fallbackModel: DisplayModelURL = {
@@ -72,6 +76,7 @@ describe('settings stage model store', () => {
     expect(store.stageModelRenderer).toBe('live2d')
     expect(getDisplayModelSpy).toHaveBeenCalledWith('display-model-missing')
     expect(getDisplayModelSpy).toHaveBeenCalledWith(fallbackModel.id)
+    expect(resetLegacyModelIdentity).not.toHaveBeenCalled()
   })
 
   it('routes Tachie archives to the Tachie renderer', async () => {
@@ -86,6 +91,7 @@ describe('settings stage model store', () => {
     const displayModelsStore = useDisplayModelsStore()
     vi.spyOn(displayModelsStore, 'getDisplayModel').mockResolvedValue(tachieModel)
 
+    vi.stubGlobal('window', {})
     initialStageModelId.value = tachieModel.id
     const store = useSettingsStageModel()
 
@@ -110,6 +116,7 @@ describe('settings stage model store', () => {
     const displayModelsStore = useDisplayModelsStore()
     vi.spyOn(displayModelsStore, 'getDisplayModel').mockResolvedValue(vrmModel)
 
+    vi.stubGlobal('window', {})
     initialStageModelId.value = vrmModel.id
     const store = useSettingsStageModel()
 
