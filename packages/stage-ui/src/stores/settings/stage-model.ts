@@ -40,7 +40,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const stageModelSelectionStore = useStageModelSelectionStore()
   const { selected: stageModelSelectedState } = storeToRefs(stageModelSelectionStore)
   let stageModelUpdateSequence = 0
-  let legacyVrmIdentityPending = true
+  let legacyModelIdentityResetPending = true
   const defaultStageModelId = 'preset-live2d-1'
   const stageModelSelected = computed<string>({
     get: () => stageModelSelectedState.value,
@@ -91,12 +91,12 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     }
   }
 
-  function resolveLegacyVrmIdentity(startupModel?: { modelId: string, modelSrc: string }) {
-    if (!legacyVrmIdentityPending)
+  function resetLegacyModelIdentity() {
+    if (!legacyModelIdentityResetPending)
       return
 
-    modelStore.migrateLastCommittedModelId(startupModel)
-    legacyVrmIdentityPending = false
+    modelStore.resetLegacyModelIdentity()
+    legacyModelIdentityResetPending = false
   }
 
   async function updateStageModel() {
@@ -104,7 +104,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     const selectedModelId = stageModelSelectedState.value
 
     if (!selectedModelId) {
-      resolveLegacyVrmIdentity()
+      resetLegacyModelIdentity()
 
       replaceStageModelUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
@@ -125,7 +125,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
         return
       }
 
-      resolveLegacyVrmIdentity()
+      resetLegacyModelIdentity()
 
       replaceStageModelUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
@@ -148,12 +148,9 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     }
 
     const builtInRenderer = resolveBuiltInStageModelRenderer(model)
-    const startupVrm = builtInRenderer === 'vrm'
-      ? { modelId: selectedModelId, modelSrc: nextUrl }
-      : undefined
-    resolveLegacyVrmIdentity(startupVrm)
+    resetLegacyModelIdentity()
 
-    // The first resolved selection consumes the one-time migration before these refs publish.
+    // The first resolved selection consumes the one-time legacy reset before these refs publish.
     // Direct ThreeScene routes mount from the refs and cannot start with stale identity state.
     stageModelBuiltInRenderer.value = builtInRenderer
     if (stageModelRenderer.value !== 'godot')

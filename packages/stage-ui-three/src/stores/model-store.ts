@@ -145,20 +145,17 @@ export const useModelStore = defineStore('modelStore', () => {
   const legacyLastCommittedModelSrcStorageKey = 'settings/stage-ui-three/lastModelSrc'
 
   /**
-   * Resolves the old VRM identity marker for the model selected at startup.
+   * Clears model identity from releases that stored only a runtime URL.
    *
-   * The startup VRM receives the marker only when its source URL matches the legacy source.
-   * A non-VRM startup or an ownership mismatch discards the marker, so the next VRM uses
-   * the reset bootstrap path instead of inheriting another model's view settings.
+   * A regenerated Blob URL cannot identify the persisted file that owns the saved view.
+   * The first VRM load after this reset establishes the stable model ID for later starts.
    */
-  function migrateLastCommittedModelId(startupModel?: { modelId: string, modelSrc: string }) {
+  function resetLegacyModelIdentity() {
     const legacyModelSrc = window.localStorage.getItem(legacyLastCommittedModelSrcStorageKey)
     if (!legacyModelSrc)
       return
 
-    if (startupModel?.modelSrc === legacyModelSrc && !lastCommittedModelId.value)
-      lastCommittedModelId.value = startupModel.modelId
-
+    lastCommittedModelId.value = ''
     window.localStorage.removeItem(legacyLastCommittedModelSrcStorageKey)
   }
 
@@ -272,7 +269,7 @@ export const useModelStore = defineStore('modelStore', () => {
     beginSceneBindingTransaction,
     endSceneBindingTransaction,
     resetSceneBindingTransactions,
-    migrateLastCommittedModelId,
+    resetLegacyModelIdentity,
 
     resetModelStore,
   }

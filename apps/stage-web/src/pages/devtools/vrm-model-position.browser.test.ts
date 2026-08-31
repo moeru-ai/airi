@@ -26,7 +26,7 @@ beforeAll(async () => {
 
 describe('imported VRM view settings', () => {
   // https://github.com/moeru-ai/airi/issues/1806
-  it('preserves the model position for Issue #1806 when the runtime URL changes', async () => {
+  it('resets the legacy view once and preserves later reloads for Issue #1806', async () => {
     // ROOT CAUSE:
     //
     // An imported VRM receives a new Blob URL when AIRI reloads the selected model.
@@ -35,8 +35,9 @@ describe('imported VRM view settings', () => {
     // The selected display model ID is stable across reloads. The scene must use that ID
     // for model identity and keep the Blob URL only for resource loading.
     // A new model ID can arrive before its URL. The old load must not commit the new ID.
-    // Existing installations only have the old URL identity key. The first load after an
-    // upgrade must migrate that marker before it applies the scene bootstrap.
+    // Existing installations only have the old runtime URL identity key. AIRI cannot
+    // safely map that URL back to a persisted file after restart. The first new-version
+    // load must reset once and establish a stable model ID for later reloads.
     const pinia = createPinia()
     const modelStore = useModelStore(pinia)
     modelStore.resetModelStore()
@@ -44,7 +45,7 @@ describe('imported VRM view settings', () => {
     modelStore.modelOffset = { x: 0.25, y: 0.25, z: 0 }
     const modelId = shallowRef('display-model-issue-1806')
     const modelSrc = shallowRef(vrmModelUrl)
-    modelStore.migrateLastCommittedModelId({ modelId: modelId.value, modelSrc: modelSrc.value })
+    modelStore.resetLegacyModelIdentity()
     const container = document.createElement('div')
     container.style.height = '600px'
     container.style.width = '800px'
@@ -68,7 +69,7 @@ describe('imported VRM view settings', () => {
     await expect.poll(() => modelStore.scenePhase, { timeout: 20_000 }).toBe('mounted')
     expect(modelStore.lastCommittedModelId).toBe('display-model-issue-1806')
     expect(localStorage.getItem('settings/stage-ui-three/lastModelId')).toBe('display-model-issue-1806')
-    expect(modelStore.modelOffset).toEqual({ x: 0.25, y: 0.25, z: 0 })
+    expect(modelStore.modelOffset).toEqual({ x: 0, y: 0, z: 0 })
     expect(localStorage.getItem('settings/stage-ui-three/lastModelSrc')).toBeNull()
 
     modelStore.modelOffset = { x: 0.35, y: 0.35, z: 0 }
@@ -116,42 +117,4 @@ describe('imported VRM view settings', () => {
     expect(modelStore.lastCommittedModelId).toBe('display-model-incoming')
     expect(modelStore.modelOffset).toEqual({ x: 0, y: 0, z: 0 })
   }, 45_000)
-
-  // https://github.com/moeru-ai/airi/issues/1806
-  it('resets the legacy view for Issue #1806 when startup ownership cannot be verified', async () => {
-    // ROOT CAUSE:
-    //
-    // The selected model can change before the previous model finishes loading.
-    // A startup VRM must not claim legacy view settings from a different source URL.
-    const pinia = createPinia()
-    const modelStore = useModelStore(pinia)
-    modelStore.resetModelStore()
-    localStorage.setItem('settings/stage-ui-three/lastModelSrc', 'https://example.com/previous.vrm')
-    modelStore.modelOffset = { x: 0.25, y: 0.25, z: 0 }
-    modelStore.migrateLastCommittedModelId({
-      modelId: 'display-model-selected-at-startup',
-      modelSrc: vrmModelUrl,
-    })
-    const container = document.createElement('div')
-    container.style.height = '600px'
-    container.style.width = '800px'
-    document.body.appendChild(container)
-
-    const app = createApp(defineComponent(() => () => h(ThreeScene, {
-      modelId: 'display-model-selected-after-startup',
-      modelSrc: vrmModelUrl,
-    })))
-    app.use(pinia)
-    app.mount(container)
-
-    // NOTICE:
-    // Keep the app mounted until Vitest closes the browser page.
-    // Vue DevTools schedules inspector work after app.unmount(), which rejects after teardown.
-    // Source/context: the Stage Web Vite configuration used by this browser test.
-    // Removal condition: Vue DevTools supports component-test app teardown.
-
-    await expect.poll(() => modelStore.scenePhase, { timeout: 20_000 }).toBe('mounted')
-    expect(modelStore.modelOffset).toEqual({ x: 0, y: 0, z: 0 })
-    expect(modelStore.lastCommittedModelId).toBe('display-model-selected-after-startup')
-  }, 30_000)
 })
