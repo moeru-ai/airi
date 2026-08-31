@@ -1981,13 +1981,13 @@ importers:
         version: 14.4.0(vue@3.5.41(typescript@6.0.3))
       '@xsai-apple-speech/transcription':
         specifier: 'catalog:'
-        version: 0.1.3(@xsai/generate-transcription@0.5.0-beta.8)
+        version: 0.1.3(@xsai/generate-transcription@0.5.0)
       '@xsai-apple-speech/transcription-electron-plugin':
         specifier: 'catalog:'
         version: 0.1.3(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
       '@xsai-apple-speech/transcription-native':
         specifier: 'catalog:'
-        version: 0.1.3(@xsai/generate-transcription@0.5.0-beta.8)
+        version: 0.1.3(@xsai/generate-transcription@0.5.0)
       '@xsai-ext/providers':
         specifier: 'catalog:'
         version: 0.5.0
@@ -12295,9 +12295,6 @@ packages:
   '@xsai/generate-text@0.5.0-beta.6':
     resolution: {integrity: sha512-UVxruh9192qcYdkR4dxiWefBM2+Tp4+5fw3eR2DHTgXohnPKRZ5sJwQBNvJpZOUE648KsyvbU42Dwhwnacb/Pg==}
 
-  '@xsai/generate-text@0.5.0-beta.8':
-    resolution: {integrity: sha512-uG3L8IA1U9yRyXHX5vVLQrYj8e5LlMtqhnZxTTMSaFbX4CrCurk9ojcUDPs+ulkCh/lwYgWXnX4/hxC6QCby8g==}
-
   '@xsai/generate-transcription@0.4.4':
     resolution: {integrity: sha512-4xAOSHLSV0yAFo0YHxL1F31NbcUj/vIVEUsi+7FSvL/HuKicAvHyEnFoew9+vB0B0e9u9lvgJt8bd5rM0dxgbg==}
 
@@ -12339,9 +12336,6 @@ packages:
 
   '@xsai/stream-text@0.5.0':
     resolution: {integrity: sha512-JmWQl9kiobGyWEjU3N68aFsiN6u+0okm6eT/G6n4/C/XznF0nAgj8BhEAxfFE+Jq+YA9Gl4iukUdbt/JzBGtmw==}
-
-  '@xsai/stream-text@0.5.0-beta.8':
-    resolution: {integrity: sha512-nn59+Q5h9gI2KzLp8v61Ku+os4dGDcKhhQV45RX1vhTIZJRzHe7NAVISM6ieCxDCiSj+CxHlPA/0qe1jBHJMsg==}
 
   '@xsai/stream-transcription@0.5.0':
     resolution: {integrity: sha512-M7P3ilN6A2QF1dY3XW7S/Wk+ezaF/kc5zAVRlh8k3E35NV1SfwtoJunm+cZ2E2uc66RFFZXWldq+BjjPLuOhWQ==}
@@ -20004,10 +19998,10 @@ snapshots:
       '@alint-js/utils': 0.6.0
       '@moeru/std': 0.1.0-beta.20
       '@valibot/to-json-schema': 1.7.1(valibot@1.4.2(typescript@6.0.3))
-      '@xsai/generate-text': 0.5.0-beta.8
-      '@xsai/shared-chat': 0.5.0-beta.8
-      '@xsai/stream-text': 0.5.0-beta.8
-      '@xsai/tool': 0.5.0-beta.8(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@xsai/generate-text': 0.5.0
+      '@xsai/shared-chat': 0.5.0
+      '@xsai/stream-text': 0.5.0
+      '@xsai/tool': 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       es-toolkit: 1.51.0
       minimatch: 10.2.6
       oxc-parser: 0.142.0
@@ -20148,10 +20142,10 @@ snapshots:
   '@apeira/core@0.0.7(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
     dependencies:
       '@xsai-ext/responses': 0.5.0-beta.8(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
-      '@xsai/shared': 0.5.0-beta.8
-      '@xsai/shared-chat': 0.5.0-beta.8
-      '@xsai/stream-text': 0.5.0-beta.8
-      '@xsai/tool': 0.5.0-beta.8(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@xsai/shared': 0.5.0
+      '@xsai/shared-chat': 0.5.0
+      '@xsai/stream-text': 0.5.0
+      '@xsai/tool': 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       yocto-queue: 1.2.2
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
@@ -26635,10 +26629,10 @@ snapshots:
   '@xsai-apple-speech/transcription-native-darwin-x64@0.1.3':
     optional: true
 
-  '@xsai-apple-speech/transcription-native@0.1.3(@xsai/generate-transcription@0.5.0-beta.8)':
+  '@xsai-apple-speech/transcription-native@0.1.3(@xsai/generate-transcription@0.5.0)':
     dependencies:
       '@moeru/std': 0.1.0-beta.17
-      '@xsai-apple-speech/transcription': 0.1.3(@xsai/generate-transcription@0.5.0-beta.8)
+      '@xsai-apple-speech/transcription': 0.1.3(@xsai/generate-transcription@0.5.0)
     optionalDependencies:
       '@xsai-apple-speech/transcription-native-darwin-arm64': 0.1.3
       '@xsai-apple-speech/transcription-native-darwin-x64': 0.1.3
@@ -26749,11 +26743,6 @@ snapshots:
       '@xsai/shared': 0.5.0-beta.6
       '@xsai/shared-chat': 0.5.0-beta.6
 
-  '@xsai/generate-text@0.5.0-beta.8':
-    dependencies:
-      '@xsai/shared': 0.5.0-beta.8
-      '@xsai/shared-chat': 0.5.0-beta.8
-
   '@xsai/generate-transcription@0.4.4':
     dependencies:
       '@xsai/shared': 0.4.4
@@ -26803,12 +26792,6 @@ snapshots:
       '@xsai/shared': 0.5.0
       '@xsai/shared-chat': 0.5.0
       '@xsai/shared-stream': 0.5.0
-
-  '@xsai/stream-text@0.5.0-beta.8':
-    dependencies:
-      '@xsai/shared': 0.5.0-beta.8
-      '@xsai/shared-chat': 0.5.0-beta.8
-      '@xsai/shared-stream': 0.5.0-beta.8
 
   '@xsai/stream-transcription@0.5.0':
     dependencies:
