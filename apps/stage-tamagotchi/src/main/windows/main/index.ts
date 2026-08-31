@@ -21,18 +21,43 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { defu } from 'defu'
-import { BrowserWindow, ipcMain } from 'electron'
+import { BrowserWindow, ipcMain, screen } from 'electron'
 import { isLinux, isMacOS } from 'std-env'
 import { array, number, object, optional, string } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
 
 import { electronStartDraggingWindow } from '../../../shared/eventa'
+import { sanitizePersistedWindowBounds } from '../../../shared/utils/electron/windows/window-bounds'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
+
+const DEFAULT_MAIN_WINDOW_WIDTH = 450
+const DEFAULT_MAIN_WINDOW_HEIGHT = 600
+
+/**
+ * Resolve the bounds to open the main window with. A persisted position is
+ * clamped back onto an available display so a window saved off-screen — dragged
+ * past a display edge, or on a monitor that is no longer connected — is always
+ * reachable (#2181). Returns undefined x/y when there is no saved position, so
+ * Electron centers the window as before.
+ */
+function resolveMainWindowBounds(
+  saved?: { x?: number, y?: number, width?: number, height?: number },
+): { x?: number, y?: number, width: number, height: number } {
+  const width = saved?.width ?? DEFAULT_MAIN_WINDOW_WIDTH
+  const height = saved?.height ?? DEFAULT_MAIN_WINDOW_HEIGHT
+
+  if (saved?.x == null || saved?.y == null)
+    return { width, height }
+
+  const workAreas = screen.getAllDisplays().map(display => display.workArea)
+  const primaryWorkArea = screen.getPrimaryDisplay().workArea
+  return sanitizePersistedWindowBounds({ x: saved.x, y: saved.y, width, height }, workAreas, primaryWorkArea)
+}
 
 const appConfigSchema = object({
   windows: optional(array(object({
@@ -74,13 +99,14 @@ export async function setupMainWindow(params: {
   setupConfig()
 
   const mainWindowConfig = getConfig().windows?.find(w => w.title === 'AIRI' && w.tag === 'main')
+  const restoredBounds = resolveMainWindowBounds(mainWindowConfig)
 
   const window = new BrowserWindow({
     title: 'AIRI',
-    width: mainWindowConfig?.width ?? 450.0,
-    height: mainWindowConfig?.height ?? 600.0,
-    x: mainWindowConfig?.x,
-    y: mainWindowConfig?.y,
+    width: restoredBounds.width,
+    height: restoredBounds.height,
+    x: restoredBounds.x,
+    y: restoredBounds.y,
     show: false,
     icon,
     webPreferences: {
