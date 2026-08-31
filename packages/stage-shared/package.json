@@ -22,6 +22,7 @@
     "./global-shortcut": "./src/global-shortcut/index.ts",
     "./godot-stage": "./src/godot-stage/index.ts",
     "./perf/io-trace": "./src/perf/io-trace.ts",
+    "./screen-ambient-light": "./src/screen-ambient-light/index.ts",
     "./server-channel-qr": "./src/server-channel-qr.ts",
     "./types/io-trace": "./src/types/io-trace.ts",
     "./types/pinia-action-event": "./src/types/pinia-action-event.ts",
