@@ -52,6 +52,8 @@ import { SkyBox } from './Environment'
 import { VRMModel } from './Model'
 
 const props = withDefaults(defineProps<{
+  /** The context that owns `currentAudioSource`. */
+  audioContext?: AudioContext
   currentAudioSource?: AudioBufferSourceNode
   cursorPosition?: { x: number, y: number }
   modelSrc?: string
@@ -843,6 +845,7 @@ defineExpose({
       </Suspense>
       <VRMModel
         ref="modelRef"
+        :audio-context="props.audioContext"
         :current-audio-source="props.currentAudioSource"
         :cursor-position="props.cursorPosition"
         :last-committed-model-src="lastCommittedModelSrc"
