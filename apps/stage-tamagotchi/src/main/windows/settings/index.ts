@@ -78,7 +78,9 @@ export function setupSettingsWindowReusableFunc(params: {
       spotlightWindow: params.spotlightWindow,
     })
 
-    await load(window, withHashRoute(rendererBase, currentRoute))
+    await load(window, withHashRoute(rendererBase, currentRoute, {
+      query: { 'synced-leader': 'false' },
+    }))
 
     window.on('closed', () => {
       if (settingsContext)

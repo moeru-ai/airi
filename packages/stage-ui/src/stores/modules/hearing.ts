@@ -2,11 +2,13 @@ import type { Span } from '@opentelemetry/api'
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { WithUnknown } from '@xsai/shared'
 import type { StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
+import type {} from 'pinia-plugin-synced'
 
 import type { AIRIStreamTranscriptionResult } from '../../libs/providers/stream-transcription'
 import type { StreamingTranscriptionCallbacks, StreamingTranscriptionConsumer } from './streaming-transcription-consumers'
 
 import { errorMessageFrom, tryCatch } from '@moeru/std'
+import { toPCM16FromFloat32 } from '@proj-airi/audio/encoding'
 import { errorMessageFromValue, IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
@@ -20,6 +22,7 @@ import { useAnalytics } from '../../composables/use-analytics'
 import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
 import { createVadStreamingSession } from '../../libs/audio/vad-streaming-session'
 import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers'
+import { APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID, executeAppleSpeechStream } from '../../libs/providers/providers/apple-speech'
 import { streamWebSpeechAPITranscription } from '../../libs/providers/providers/browser-web-speech-api'
 import { streamTranscription } from '../../libs/providers/stream-transcription'
 import { useVAD } from '../ai/models/vad'
@@ -234,6 +237,7 @@ export function resolveTranscriptionFileName(file: File, explicitFileName?: stri
 
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   'aliyun-nls-transcription': streamTranscription,
+  [APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID]: executeAppleSpeechStream,
   [OFFICIAL_TRANSCRIPTION_PROVIDER_ID]: streamTranscription,
   // Web Speech API is handled specially in transcribeForMediaStream since it works directly with MediaStream
 }
@@ -315,22 +319,24 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const providerStore = useProviderConfigStore()
   const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
   const {
-    trackAudioDeviceUnavailable,
     trackMicrophonePermissionDenied,
     trackSttFailed,
-    trackSttStarted,
     trackSttSucceeded,
     trackVoiceInputStarted,
   } = useAnalytics()
 
+  // Pinia synchronization owns live cross-window state. localStorage only
+  // loads and saves durable values for this synchronized store.
+  const persistenceOptions = { listenToStorageChanges: false }
+
   // State
-  const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', '')
-  const activeTranscriptionModel = useLocalStorageManualReset('settings/hearing/active-model', '')
-  const activeCustomModelName = useLocalStorageManualReset('settings/hearing/active-custom-model', '')
+  const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', '', persistenceOptions)
+  const activeTranscriptionModel = useLocalStorageManualReset('settings/hearing/active-model', '', persistenceOptions)
+  const activeCustomModelName = useLocalStorageManualReset('settings/hearing/active-custom-model', '', persistenceOptions)
   const transcriptionModelSearchQuery = refManualReset<string>('')
-  const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false)
-  const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000) // Default 2 seconds
-  const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED)
+  const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false, persistenceOptions)
+  const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000, persistenceOptions) // Default 2 seconds
+  const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED, persistenceOptions)
   const verboseJsonNotSupported = ref(false)
 
   watch(activeTranscriptionProvider, () => {
@@ -419,7 +425,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
     const sttStartedAt = performance.now()
     trackVoiceInputStarted({ stt_provider_id: providerId })
-    trackSttStarted(providerId)
 
     function emitSucceeded(charCount: number, stream: boolean) {
       trackSttSucceeded({
@@ -434,12 +439,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
       trackSttFailed({ provider: providerId, error_code: errorCode })
       if (errorCode === 'permission_denied') {
         trackMicrophonePermissionDenied({
-          stt_provider_id: providerId,
-          error_code: errorCode,
-        })
-      }
-      if (errorCode === 'device_unavailable') {
-        trackAudioDeviceUnavailable({
           stt_provider_id: providerId,
           error_code: errorCode,
         })
@@ -561,6 +560,10 @@ export const useHearingStore = defineStore('hearing-store', () => {
     getModelsForProvider,
     resetState,
   }
+}, {
+  synced: {
+    state: true,
+  },
 })
 
 export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech:audio-input-pipeline', () => {
@@ -577,7 +580,6 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     onTranscriptionUpdate: (text: string) => streamingConsumers.emitTranscriptionUpdate(text),
   }
   const {
-    trackAudioDeviceUnavailable,
     trackVoiceInputCancelled,
     trackVoiceInputStarted,
   } = useAnalytics()
@@ -797,21 +799,11 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     return await stopRealtimeTranscription(abort, disposeProviderId)
   }
 
-  function float32ToInt16(buffer: Float32Array) {
-    const output = new Int16Array(buffer.length)
-    for (let i = 0; i < buffer.length; i++) {
-      const value = Math.max(-1, Math.min(1, buffer[i]))
-      output[i] = value < 0 ? value * 0x8000 : value * 0x7FFF
-    }
-
-    return output
-  }
-
   function enqueueVadAudio(segment: NonNullable<typeof streamingVadSession.value>['activeSegment'], buffer: Float32Array) {
     if (!segment)
       return
 
-    const pcm16 = float32ToInt16(buffer)
+    const pcm16 = toPCM16FromFloat32(buffer)
     const chunk = pcm16.buffer.slice(0)
     if (segment.audioStreamController) {
       segment.audioStreamController.enqueue(chunk)
@@ -1191,10 +1183,6 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
     if (recording.size <= 0) {
       error.value = 'Recording captured from microphone is empty'
-      trackAudioDeviceUnavailable({
-        stt_provider_id: activeTranscriptionProvider.value || 'unknown',
-        error_code: 'device_unavailable',
-      })
       return
     }
 

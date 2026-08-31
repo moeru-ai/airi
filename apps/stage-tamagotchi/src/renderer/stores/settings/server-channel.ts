@@ -4,7 +4,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { shallowRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
 import {
@@ -17,8 +17,9 @@ export const useServerChannelSettingsStore = defineStore('tamagotchi-server-chan
   const tlsConfig = useLocalStorage<{ cert?: string, key?: string, passphrase?: string } | null | undefined>('settings/server-channel/websocket-tls-config', null)
   const hostname = useLocalStorage<string>('settings/server-channel/hostname', '127.0.0.1')
   const authToken = useLocalStorage<string>('settings/server-channel/auth-token', '')
-  const lastApplyError = ref<string | null>(null)
-  const syncingWithServer = ref(false)
+  const lastApplyError = shallowRef<string | null>(null)
+  const syncingWithServer = shallowRef(false)
+  const appliedConfig = shallowRef<ElectronServerChannelConfig>()
 
   const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
   const applyServerChannelConfig = useElectronEventaInvoke(electronApplyServerChannelConfig)
@@ -32,6 +33,9 @@ export const useServerChannelSettingsStore = defineStore('tamagotchi-server-chan
     if (config.authToken !== undefined) {
       authToken.value = config.authToken
     }
+    // This snapshot changes only after the main process accepts the config.
+    // Consumers that read runtime state must not react to the optimistic fields above.
+    appliedConfig.value = config
     syncingWithServer.value = false
   }
 
@@ -74,6 +78,7 @@ export const useServerChannelSettingsStore = defineStore('tamagotchi-server-chan
 
   return {
     lastApplyError,
+    appliedConfig,
     refreshServerChannelConfig,
     tlsConfig,
     hostname,

@@ -65,6 +65,20 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       definitionId,
       config,
       status: 'unconfigured',
+      configuredBy: definition.configuredBy ?? 'user',
+    }
+  }
+
+  // Provider definitions own configuration lifecycle policy. Apply that
+  // policy to persisted snapshots before module pages consume them. Providers
+  // without an owner declaration remain user-configured.
+  for (const provider of Object.values(providers.value)) {
+    const configuredByDefinition = getDefinedProvider(provider.definitionId)?.configuredBy
+    if (configuredByDefinition) {
+      provider.configuredBy = configuredByDefinition
+    }
+    else if (!provider.configuredBy) {
+      provider.configuredBy = 'user'
     }
   }
 
@@ -102,7 +116,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   function getProviderConfig(providerId: string) {
-    return getProvider(providerId)?.config
+    return providers.value[providerId]?.config
   }
 
   function ensureProvider(providerId: string, definitionId: string, config: Record<string, unknown> = {}) {
@@ -119,6 +133,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       definitionId,
       config,
       status: 'unconfigured' as const,
+      configuredBy: definition.configuredBy ?? 'user',
     }
     providers.value[providerId] = provider
     return provider
@@ -133,7 +148,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   function setProviderStatus(providerId: string, status: ProviderValidationStatus) {
-    const provider = getProvider(providerId)
+    const provider = providers.value[providerId]
     if (provider)
       provider.status = status
   }

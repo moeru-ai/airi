@@ -24,6 +24,10 @@ details::details-content {
   overflow: clip;
 }
 
+details[open]::details-content {
+  height: auto;
+}
+
 summary {
   cursor: pointer;
   transition: transform 200ms ease-in-out;

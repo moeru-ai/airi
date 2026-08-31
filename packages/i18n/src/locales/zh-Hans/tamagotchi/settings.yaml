@@ -57,7 +57,41 @@ devtools:
       title: Lag 可视化
     performance-visualizer:
       title: 性能可视化
-      description: 切换 FPS/长任务/内存叠加
+      description: 检查实时性能指标和运行时诊断数据
+      controls:
+        enable-all:
+          label: 启用所有可用指标
+          description: 启用当前浏览器支持的所有指标。
+        start-recording: 开始录制
+        stop-recording: 停止录制（{seconds} 秒）
+        export-last-recording: 导出上次录制
+      metrics:
+        fps:
+          label: FPS
+          description: 最近 10 秒内的每秒帧数。
+        frame-duration:
+          label: 帧时间（毫秒）
+          description: 最近 10 秒内动画帧之间的时间。
+        long-task:
+          label: 长任务
+          description: 耗时至少 50 毫秒的主线程任务。
+          unsupported: 当前浏览器不提供长任务计时。
+        memory:
+          label: JS 堆（MB）
+          description: Chromium performance.memory API 提供的 JavaScript 堆用量。
+          unsupported: 当前浏览器不提供 JavaScript 堆用量。
+      recording:
+        title: 上次录制
+        duration: 时长 {duration} 毫秒
+        limit: 录制会在 60 秒后停止。
+      overlay:
+        title: 性能
+        move: 移动性能浮窗
+        reset-position: 重置浮窗位置
+        record: 录制
+        stop: 停止
+        export: 导出上次录制
+        average: 平均
     markdown-stress:
       title: Markdown 压力测试
       description: 用大量聊天负载来测试 Markdown 的解析和渲染能力

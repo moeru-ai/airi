@@ -22,12 +22,14 @@ import icon from '../../resources/icon.png?asset'
 
 import { openDebugger, setupDebugger } from './app/debugger'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
+import { resolveIsWayland } from './app/ozone'
 import { installSingleInstanceGuard } from './app/single-instance'
 import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
+import { setupAppleSpeechTranscriptionService } from './services/airi/apple-speech-transcription'
 import { setupServerChannel } from './services/airi/channel-server'
 import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupBuiltInServer } from './services/airi/http-server'
@@ -36,7 +38,7 @@ import { setupExtensionHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
-import { setupMediaPermissionHandlers } from './services/electron/media-permissions'
+import { setupPermissionHandlers } from './services/electron/media-permissions'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -78,21 +80,53 @@ if (appUserDataPath) {
 // https://github.com/electron/electron/issues/41763#issuecomment-2051725363
 // https://github.com/electron/electron/issues/41763#issuecomment-3143338995
 if (isLinux) {
-  app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer')
+  // NOTICE:
+  // All enabled features must be joined into a single comma-separated string
+  // instead of calling appendSwitch('enable-features', ...) once per feature.
+  // Root cause: Chromium's commandLine stores switches by key, so each
+  // appendSwitch('enable-features', ...) call overwrites the previous value and
+  // only the last feature survives.
+  // Source: Chromium base::CommandLine behavior; see
+  // https://github.com/electron/electron/issues/41763 for the WebGPU setup this supports.
+  // Removal condition: never for the join itself; this block can be deleted once
+  // WebGPU works on Linux Electron without manual feature switches.
+  const enabledFeatures = [
+    'SharedArrayBuffer',
+  ]
+
   app.commandLine.appendSwitch('enable-unsafe-webgpu')
-  app.commandLine.appendSwitch('enable-features', 'Vulkan')
 
-  // NOTICE: we need UseOzonePlatform, WaylandWindowDecorations for working on Wayland.
-  // Partially related to https://github.com/electron/electron/issues/41551, since X11 is deprecating now,
-  // we can safely remove the feature flags for Electron once they made it default supported.
-  // Fixes: https://github.com/moeru-ai/airi/issues/757
-  // Ref: https://github.com/mmaura/poe2linuxcompanion/blob/90664607a147ea5ccea28df6139bd95fb0ebab0e/electron/main/index.ts#L28-L46
-  if (env.XDG_SESSION_TYPE === 'wayland') {
-    app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal')
+  // Check explicit command-line switches before falling back to session environment variables.
+  // When running with XWayland (e.g. '--ozone-platform=x11'), session variables like WAYLAND_DISPLAY
+  // are still inherited from the Wayland desktop, but Chromium uses the explicitly specified Ozone backend.
+  // Treat explicit 'auto' as an unresolved platform selection and resolve using session environment variables.
+  const isWayland = resolveIsWayland({
+    explicitOzonePlatform: app.commandLine.getSwitchValue('ozone-platform'),
+    ozonePlatformHint: app.commandLine.getSwitchValue('ozone-platform-hint'),
+    env,
+  })
 
-    app.commandLine.appendSwitch('enable-features', 'UseOzonePlatform')
-    app.commandLine.appendSwitch('enable-features', 'WaylandWindowDecorations')
+  if (isWayland) {
+    enabledFeatures.push('GlobalShortcutsPortal', 'UseOzonePlatform', 'WaylandWindowDecorations')
+    if (!app.commandLine.hasSwitch('ozone-platform-hint')) {
+      app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
+    }
   }
+  else {
+    // NOTICE:
+    // Vulkan must only be enabled on non-Wayland sessions, otherwise GPU
+    // initialization fails or rendering glitches appear.
+    // Root cause: Vulkan is incompatible with '--ozone-platform=wayland' in
+    // Chromium's surface factory; the Wayland Ozone backend cannot present
+    // Vulkan surfaces.
+    // Source: Chromium Ozone/Wayland surface factory; workaround tracked via
+    // https://github.com/electron/electron/issues/41763 (WebGPU on Linux).
+    // Removal condition: when Chromium/Electron supports Vulkan with the Wayland
+    // Ozone backend, drop the isWayland guard and always push 'Vulkan'.
+    enabledFeatures.push('Vulkan')
+  }
+
+  app.commandLine.appendSwitch('enable-features', enabledFeatures.join(','))
 }
 
 app.dock?.setIcon(icon)
@@ -115,7 +149,7 @@ app.whenReady().then(async () => {
     return
   }
 
-  setupMediaPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
+  setupPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
 
   // Initialize file logger and register the hook
   fileLogger = await setupFileLogger()
@@ -165,6 +199,11 @@ app.whenReady().then(async () => {
     build: async () => setupGodotStageManager(),
   })
 
+  const appleSpeechTranscription = injeca.provide('modules:apple-speech-transcription', {
+    dependsOn: { lifecycle },
+    build: ({ dependsOn }) => setupAppleSpeechTranscriptionService(dependsOn),
+  })
+
   const mcpStdioManager = injeca.provide('modules:mcp-stdio-manager', {
     build: async () => setupMcpStdioManager(),
   })
@@ -181,7 +220,7 @@ app.whenReady().then(async () => {
 
   const globalShortcut = injeca.provide('services:global-shortcut', () => setupGlobalShortcutService())
 
-  // BeatSync will create a background window to capture and process audio.
+  // Beat Sync uses a background renderer because Web Audio processing needs a DOM runtime.
   const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
 
   const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
@@ -226,7 +265,7 @@ app.whenReady().then(async () => {
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { editorWindow, settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager },
+    dependsOn: { editorWindow, settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, appleSpeechTranscription },
     build: async ({ dependsOn }) => setupMainWindow({
       ...dependsOn,
       onWindowCreated: (window) => {

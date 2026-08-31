@@ -7,7 +7,8 @@ import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { PiniaColada } from '@pinia/colada'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
 import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/libs/analytics'
-import { setupSynced } from '@proj-airi/stage-ui/libs/pinia'
+import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
+import { piniaPluginTracing, setupSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -18,6 +19,7 @@ import { handleHotUpdate, routes } from 'vue-router/auto-routes'
 import App from './App.vue'
 
 import { i18n } from './modules/i18n'
+import { resolveRendererWindowContext } from './window-context'
 
 import '@unocss/reset/tailwind.css'
 import 'splitpanes/dist/splitpanes.css'
@@ -43,10 +45,15 @@ configureAnalyticsAdapter(async (options) => {
   const { createPosthogAdapter } = await import('@proj-airi/stage-ui/libs/analytics/posthog')
   return createPosthogAdapter(options)
 })
+registerAuthorizationHandler(browserAuthorizationHandler)
 
 const pinia = createPinia()
-const synced = setupSynced()
+const synced = setupSynced({
+  leadership: resolveRendererWindowContext().leadership,
+})
 pinia.use(synced.pinia)
+if (import.meta.env.DEV)
+  pinia.use(piniaPluginTracing)
 
 const router = createRouter({
   history: createWebHashHistory(),

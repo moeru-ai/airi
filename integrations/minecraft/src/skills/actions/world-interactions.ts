@@ -98,6 +98,13 @@ export async function placeBlock(
     west: new Vec3(-1, 0, 0),
   }
 
+  // Fallback search priority when the requested face is unavailable. Kept as an
+  // explicit array because the first fallback decides which face the bot attaches
+  // to, which can change the placed block's orientation; relying on
+  // `Object.values(dirMap)` would silently change this priority if the dirMap
+  // keys are ever reordered (e.g. by sorting).
+  const fallbackDirs = [dirMap.top, dirMap.bottom, dirMap.north, dirMap.south, dirMap.east, dirMap.west]
+
   const dirs: Vec3[] = []
   if (placeOn === 'side') {
     dirs.push(dirMap.north, dirMap.south, dirMap.east, dirMap.west)
@@ -111,7 +118,7 @@ export async function placeBlock(
   }
 
   // Add remaining directions
-  dirs.push(...Object.values(dirMap).filter(d => !dirs.includes(d)))
+  dirs.push(...fallbackDirs.filter(d => !dirs.includes(d)))
 
   let buildOffBlock: Block | null = null
   let faceVec: Vec3 | null = null

@@ -1,4 +1,4 @@
-import type { ModelInfo } from '../../types'
+import type { ChatRequestOptions, ModelInfo, ProviderInstance } from '../../types'
 
 import { createAzure } from '@xsai-ext/providers/special/create'
 import { z } from 'zod'
@@ -22,6 +22,7 @@ export const providerAzureAIFoundry = defineProvider<AzureAIFoundryConfig>({
   description: 'azure.com',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.azure-ai-foundry.description'),
   tasks: ['chat'],
+  capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
   icon: 'i-lobe-icons:microsoft',
 
   createProviderConfig: ({ t }) => azureAIFoundryConfigSchema.extend({
@@ -49,11 +50,27 @@ export const providerAzureAIFoundry = defineProvider<AzureAIFoundryConfig>({
     }),
   }),
   createProvider(config) {
-    return createAzure({
+    const provider = createAzure({
       apiKey: async () => config.apiKey.trim(),
       resourceName: config.resourceName.trim(),
       apiVersion: config.apiVersion?.trim(),
-    }) as any
+    }).then(baseProvider => ({
+      ...baseProvider,
+      chat(model: string, options?: ChatRequestOptions) {
+        const request = baseProvider.chat(model)
+        if (!options?.reasoning)
+          return request
+
+        return { ...request, reasoningEffort: options.reasoning === 'enabled' ? 'medium' : 'none' }
+      },
+    }))
+
+    // NOTICE:
+    // Azure provider creation resolves its authentication-aware client asynchronously.
+    // ProviderDefinition still declares a synchronous result, while the runtime awaits it.
+    // Source: @xsai-ext/providers special/create and stores/providers/provider.ts.
+    // Remove this cast when ProviderDefinition accepts MaybePromise<ProviderInstance>.
+    return provider as unknown as ProviderInstance
   },
 
   extraMethods: {

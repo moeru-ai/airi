@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/docs",
   "type": "module",
-  "version": "0.11.3",
+  "version": "0.12.0-beta.5",
   "private": true,
   "scripts": {
     "build": "vitepress build",
@@ -20,6 +20,7 @@
     "@moeru/std": "catalog:",
     "@proj-airi/chromatic": "catalog:",
     "@proj-airi/i18n": "workspace:^",
+    "@proj-airi/stage-shared": "workspace:^",
     "@vueuse/core": "catalog:",
     "colorjs.io": "catalog:",
     "date-fns": "catalog:",

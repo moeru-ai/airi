@@ -52,6 +52,8 @@ import { SkyBox } from './Environment'
 import { VRMModel } from './Model'
 
 const props = withDefaults(defineProps<{
+  /** The context that owns `currentAudioSource`. */
+  audioContext?: AudioContext
   currentAudioSource?: AudioBufferSourceNode
   cursorPosition?: { x: number, y: number }
   modelSrc?: string
@@ -244,6 +246,9 @@ function emitSceneComponentStateTrace(
 function toVector3(value: Vec3) {
   return new Vector3(value.x, value.y, value.z)
 }
+
+const hemisphereLightPosition = new Vector3(0, 1, 0)
+const directionalLightPositionVector = computed(() => toVector3(directionalLightPosition.value))
 
 function toVec3(value: Vector3): Vec3 {
   return { x: value.x, y: value.y, z: value.z }
@@ -817,7 +822,7 @@ defineExpose({
         v-else
         :color="formatHex(hemisphereSkyColor)"
         :ground-color="formatHex(hemisphereGroundColor)"
-        :position="[0, 1, 0]"
+        :position="hemisphereLightPosition"
         :intensity="hemisphereLightIntensity"
         cast-shadow
       />
@@ -829,7 +834,7 @@ defineExpose({
       <TresDirectionalLight
         ref="dirLightRef"
         :color="formatHex(directionalLightColor)"
-        :position="[directionalLightPosition.x, directionalLightPosition.y, directionalLightPosition.z]"
+        :position="directionalLightPositionVector"
         :intensity="directionalLightIntensity"
         cast-shadow
       />
@@ -840,6 +845,7 @@ defineExpose({
       </Suspense>
       <VRMModel
         ref="modelRef"
+        :audio-context="props.audioContext"
         :current-audio-source="props.currentAudioSource"
         :cursor-position="props.cursorPosition"
         :last-committed-model-src="lastCommittedModelSrc"

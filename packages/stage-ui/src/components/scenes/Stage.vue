@@ -14,7 +14,7 @@ import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
-import { Live2DScene, useLive2dParams } from '@proj-airi/stage-ui-live2d'
+import { defaultLive2DMotionControlDynamics, Live2DScene, useLive2DMotionControl, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { TachieScene } from '@proj-airi/stage-ui-tachie'
@@ -26,19 +26,16 @@ import { useBroadcastChannel } from '@vueuse/core'
 // import { createTransformers } from '@xsai-transformers/embed'
 // import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
 // import { embed } from '@xsai/embed'
-import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
 import StageRenderError from './stage-render-error.vue'
 
-import { useSettingsLive2d } from '../../../../stage-ui-live2d/src/composables/live2d/live2d'
-import { useAnalytics } from '../../composables/use-analytics'
 import { useDuckDb } from '../../composables/use-duck-db'
 import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
-import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
+import { live2dMotionMagicProfiles, useLive2DMotionMagic, useLive2DMotionMagicSettings } from '../../features/motions/live2d'
 import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
@@ -87,10 +84,54 @@ const {
 
 } = storeToRefs(settingsStore)
 const {
+  live2dMotionDriver,
   live2dShadowEnabled,
   live2dMaxFps,
   live2dRenderScale,
 } = storeToRefs(useSettingsLive2d())
+const live2dMotionControl = useLive2DMotionControl()
+const { exclusiveOwnerId: live2dMotionControlOwnerId } = storeToRefs(live2dMotionControl)
+const {
+  forceViewTarget: live2dMagicForceViewTarget,
+  profileId: live2dMagicProfileId,
+  skipMouthOpen: live2dMagicSkipMouthOpen,
+} = storeToRefs(useLive2DMotionMagicSettings())
+const live2dMagicMotion = useLive2DMotionMagic({
+  dataset: () => live2dMotionMagicProfiles[live2dMagicProfileId.value].dataset,
+  forceViewTarget: live2dMagicForceViewTarget,
+  skipMouthOpen: live2dMagicSkipMouthOpen,
+  disabled: () => live2dMotionControlOwnerId.value !== null,
+  publishPose: pose => live2dMotionControl.setPose('stage:live2d-motion-magic', pose, defaultLive2DMotionControlDynamics),
+  releasePose: () => live2dMotionControl.release('stage:live2d-motion-magic'),
+})
+let live2dMagicActivationRequest = 0
+
+watch(
+  [stageModelRenderer, live2dMotionDriver, live2dMagicProfileId, () => props.paused, live2dMotionControlOwnerId],
+  async ([renderer, driver, , paused, controlOwnerId]) => {
+    const request = ++live2dMagicActivationRequest
+    if (renderer !== 'live2d' || driver !== 'magic' || paused || controlOwnerId !== null) {
+      live2dMagicMotion.stop()
+      return
+    }
+
+    if (live2dMagicMotion.status.value === 'idle')
+      await live2dMagicMotion.initialize()
+
+    if (
+      request !== live2dMagicActivationRequest
+      || stageModelRenderer.value !== 'live2d'
+      || live2dMotionDriver.value !== 'magic'
+      || props.paused
+      || live2dMotionControlOwnerId.value !== null
+    ) {
+      return
+    }
+
+    live2dMagicMotion.start()
+  },
+  { immediate: true },
+)
 const {
   spinePremultipliedAlpha,
   spineDefaultMixDuration,
@@ -205,8 +246,6 @@ const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
 const activeCardId = computed(() => activeCard.value?.name ?? 'default')
 const speechRuntimeStore = useSpeechRuntimeStore()
-const { trackOfficialTtsAutoEnabled } = useAnalytics()
-let officialAutoTtsTrackedForTurn = false
 const backgroundStore = useBackgroundStore()
 const { activeBackgroundUrl } = storeToRefs(backgroundStore)
 
@@ -373,11 +412,6 @@ async function playFunction(item: Parameters<Parameters<typeof createPlaybackMan
 
     try {
       source.start(0)
-      if (item.intentId.startsWith('stream-')) {
-        const model = resolveStreamingSessionModel()
-        if (model)
-          trackOfficialAutoTtsForTurn(model)
-      }
     }
     catch {
       stopPlayback()
@@ -398,24 +432,6 @@ const playbackManager = createPlaybackManager<AudioBuffer>({
  */
 function resolveStageVoiceType(): 'official_selected' | 'custom_configured' {
   return activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID || activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID ? 'official_selected' : 'custom_configured'
-}
-
-/**
- * Tracks official auto-TTS once per assistant turn when chat audio is actually used.
- */
-function trackOfficialAutoTtsForTurn(modelId: string) {
-  if (officialAutoTtsTrackedForTurn)
-    return
-  if (activeSpeechProvider.value !== OFFICIAL_SPEECH_PROVIDER_ID && activeSpeechProvider.value !== OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
-    return
-
-  officialAutoTtsTrackedForTurn = true
-  trackOfficialTtsAutoEnabled({
-    tts_provider_id: activeSpeechProvider.value,
-    tts_model_id: modelId,
-    source: 'chat_auto_tts',
-    enabled: true,
-  })
 }
 
 const speechPipeline = createSpeechPipeline<AudioBuffer>({
@@ -520,30 +536,23 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       // Non-streaming providers only: synth via REST. Streaming provider
       // was already early-returned above; it owns its own ws path opened
       // in `onBeforeMessageComposed`.
-      const providerConfigWithAnalytics = activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID
-        ? {
-            ...speechRequest.providerConfig,
-            extraBody: {
-              ...(speechRequest.providerConfig.extraBody as Record<string, unknown> | undefined),
-              airi_analytics: {
-                trigger: 'auto',
-                source: 'chat_auto_tts',
-                voice_type: resolveStageVoiceType(),
-              },
-            },
-          }
-        : speechRequest.providerConfig
-      const res = await generateSpeech({
-        ...provider.speech(model, providerConfigWithAnalytics),
-        input: speechRequest.input,
-        voice: voice.id,
-      })
+      const res = await speechStore.speech(
+        provider,
+        model,
+        speechRequest.input,
+        voice.id,
+        speechRequest.providerConfig,
+        {
+          trigger: 'auto',
+          source: 'chat_auto_tts',
+          voice_type: resolveStageVoiceType(),
+        },
+      )
 
       if (signal.aborted || !res || res.byteLength === 0)
         return null
 
       const audioBuffer = await audioContext.decodeAudioData(res)
-      trackOfficialAutoTtsForTurn(model)
       return audioBuffer
     }
     catch (err) {
@@ -568,7 +577,6 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
 
 initIOTracer()
 useIOTraceBridge(speechPipeline)
-useSpeechPipelineAnalytics()
 void speechRuntimeStore.registerHost(speechPipeline)
 
 speechPipeline.on('onSpecial', (segment) => {
@@ -835,7 +843,6 @@ watch(speechMuted, (muted) => {
 }, { immediate: true })
 
 chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
-  officialAutoTtsTrackedForTurn = false
   playbackManager.stopAll('new-message')
   resetAssistantSpeechSurface('new-message')
 
@@ -1107,6 +1114,7 @@ defineExpose({
         :paused="paused"
         :show-axes="stageViewControlsEnabled"
         :enable-orbit-controls="props.enableOrbitControls"
+        :audio-context="audioContext"
         :current-audio-source="currentAudioSource"
         @error="console.error"
         @vrm-interact="onVRMInteract"
@@ -1150,6 +1158,7 @@ defineExpose({
         :paused="paused"
         :cursor-position="cursorPosition"
         :enable-orbit-controls="props.enableOrbitControls"
+        :audio-context="audioContext"
         :current-audio-source="currentAudioSource"
         @error="console.error"
       />

@@ -19,6 +19,12 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 
 ## Structure & Responsibilities
 
+- **Hosted backend** (`server/`)
+  - `server/apps/api`: Hono resource API and business domains.
+  - `server/apps/auth`: standalone Better Auth and OIDC service.
+  - `server/packages`: backend-private schema and Node infrastructure packages.
+  - `server/dev/caddy`: local-only Auth/API edge routing.
+  - `server/docker-compose.yaml`: complete local backend stack.
 - **Apps**
   - `apps/stage-web`: Web app; composables/stores in `src/composables`, `src/stores`; pages in `src/pages`; devtools in `src/pages/devtools`; router config via `vite.config.ts`.
   - `apps/stage-tamagotchi`: Electron app; renderer pages in `src/renderer/pages`; devtools in `src/renderer/pages/devtools`; settings layout at `src/renderer/layouts/settings.vue`; router config via `electron.vite.config.ts`.
@@ -49,6 +55,7 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - `packages/stage-shared`: Shared logic across stage-ui, stage-ui-three, stage-web, stage-tamagotchi.
 - `packages/ui`: Standardized primitives (inputs/textarea/buttons/layout) built on reka-ui.
 - `packages/i18n`: All translations.
+- Hosted backend: `server/apps/api`, `server/apps/auth`, `server/packages`, and local tooling under `server/dev`.
 - Server channel: `packages/server-runtime`, `packages/server-sdk`, `packages/server-shared` (power `services/` and `plugins/`).
 - Legacy desktop: `crates/` (old Tauri; Electron is current).
 - Pages: `packages/stage-pages` (shared bases); `apps/stage-web/src/pages` and `apps/stage-tamagotchi/src/renderer/pages` for app-specific pages; devtools live in each app’s `.../pages/devtools`.
@@ -168,6 +175,14 @@ as a first language.
 
 - Comments should explain information the code cannot express clearly: intent, constraints, ownership, invariants, precedence, lifecycle, ordering, side effects, protocol shape, or non-obvious fallbacks.
 - Do not add comments that only restate names, types, or visible operations.
+- Treat a contract comment as an explanation of the relationship between a producer and its consumers.
+- Explain why a value exists in the system before you explain how the code represents it.
+- Describe the decision, behavior, or invariant that a value controls.
+- If different values select different control-flow or UI paths, describe each observable outcome.
+- When a value crosses a module or component boundary, identify the consumer and how it applies the value.
+- Put representation details after behavior: units, coordinate systems, thresholds, clamps, and source API fields.
+- Put background evidence after the contract: browser behavior, issue links, investigation history, and removal conditions.
+- If the name, type, and surrounding code express the full contract, omit the comment.
 - Place implementation comments next to the branch, calculation, transition, or side effect they explain.
 - For calculation-heavy code, explain non-obvious coordinate systems, units, conversions, clamps, rounding, aggregation, and precedence beside the relevant intermediate values or branches.
 - Prefer clearer names, types, and structured state over comments that compensate for hidden or encoded concepts.
@@ -183,6 +198,10 @@ as a first language.
 - Any fallback chain with more than two sources must make precedence explicit.
 - If fallback sources represent different schema versions, compatibility behavior, specificity levels, or user/system overrides, each non-primary branch must explain why that case exists and why it has that priority.
 - Avoid nested ternaries for fallback chains when any branch is non-obvious. Use named intermediate variables or `if` / `else if` blocks so comments can live next to the relevant branch.
+- Do not use a new object or array as a casual fallback. Expressions such as `value ?? {}`, `value ?? []`, `value || {}`, and `value || []` create a new reference each time.
+- Never use an inline object or array fallback in a reactive getter, computed value, watcher source, or Pinia state projection. New references can cause false changes, watcher loops, and state broadcasts.
+- If an immutable empty fallback is valid, reuse a stable module-level value. Freeze the value when consumers must not mutate it.
+- Use `??` only when `null` and `undefined` mean that a value is missing. Use `||` only when `false`, `0`, and an empty string must also select the fallback.
 - Do not keep backward-compatibility fallbacks silently. If a fallback is temporary, mark it with `// NOTICE:` and include the removal condition. If it is permanent, document it as supported policy instead of calling it legacy.
 - If a fallback returns an empty string, stale value, cached value, default value, or ignored result in non-trivial domain/protocol code, explain why that fallback is safe at the return or branch site.
 
@@ -198,6 +217,24 @@ as a first language.
 - When cleanup spans multiple owners, keep the ordering visible and explain why the order matters.
 - When returning a snapshot, fallback value, stale value, or cached value, document freshness semantics at the return site.
 - For watchers, event listeners, and async background work, make ownership and shutdown behavior explicit: what starts and stops the work, whether duplicate starts are allowed, and what happens to in-flight work during unload or dispose.
+
+### Pinia Cross-Window Synchronization
+
+- Treat `pinia-plugin-synced` as snapshot replication and leader-routed RPC. It does not share Vue refs between renderers.
+- Add `synced` only to stores that need cross-window ownership. Synchronize the smallest serializable source-of-truth state.
+- `state: true` sends a full-store proposal after each local mutation. Keep transient and high-frequency state in an unsynchronized store.
+- State, action arguments, and action results must support `structuredClone`.
+- Keep computed values, query status, runtime clients, controllers, pending promises, and component state outside synchronized state.
+- Remote snapshots run local Vue watchers. A watcher on synchronized state must not write synchronized state directly.
+- A watcher can call a synchronized action to enforce a leader-owned invariant. The watcher must await the action. The action must be idempotent because each renderer can observe the same snapshot.
+- Enforce cross-field invariants inside explicit actions before the state commit. Do not repair replicated state with a watcher.
+- Every returned function in a setup store is a Pinia action. Use computed values or pure helpers for read-only projections.
+- List only leader-owned side-effecting actions under `synced.actions`. These actions must be asynchronous, and callers must await them.
+- Unlisted actions run in the caller renderer. Their mutations become full-state proposals when `state: true`.
+- Keep synchronization and persistence as separate boundaries. Give persisted synchronized state one explicit persistence owner.
+- Do not add bidirectional persistence composables or storage-event listeners to synchronized state. Use explicit persistence commands.
+- Set the leadership mode explicitly for every Electron renderer. Utility and minimal windows must use `follower-only`.
+- Add a multi-window regression test for synchronization changes. A remote snapshot must not produce a local synchronized-state proposal. If a watcher calls a synchronized action, verify that repeated calls converge without repeated side effects.
 
 ### Readability Refactors
 
@@ -224,7 +261,7 @@ as a first language.
 - Improve legacy you touch; avoid one-off patterns.
 - Keep changes scoped; use workspace filters (`pnpm -F <package> <script>`).
 - Maintain structured `README.md` documentation for each `packages/` and `apps/` entry, covering what it does, how to use it, when to use it, and when not to use it.
-- Always run `pnpm type-check` and `pnpm lint` after finishing a task.
+- Always run `pnpm typecheck` and `pnpm lint` after finishing a task.
 - Use Conventional Commits for commit messages (e.g., `feat(<package name>): add runner reconnect backoff`).
 - Before planning or writing new utilities/functions, always search for existing internal implementations first. If the logic could become shared utilities, proactively propose that shared approach to users and developers.
 

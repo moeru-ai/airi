@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
+import { IS_DEV } from '@proj-airi/stage-shared'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { refDebounced, useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import StatusIsland from '../status-island/index.vue'
 import ControlButtonTooltip from './control-button-tooltip.vue'
 import ControlButton from './control-button.vue'
 import ControlsIslandAuthButton from './controls-island-auth-button.vue'
@@ -26,9 +28,18 @@ import {
   electronStartDraggingWindow,
   electronWindowSetAlwaysOnTop,
 } from '../../../../shared/eventa'
+import { useControlsIslandPlacement } from './use-controls-island-placement'
+
+interface Emits {
+  /** Reports whether an active interaction must delay placement changes. */
+  interactionChange: [active: boolean]
+}
+
+const emit = defineEmits<Emits>()
 
 const { isDark, toggleDark } = useTheme()
 const { t } = useI18n()
+const { dock, isLeft, isTop, motionPhase } = useControlsIslandPlacement()
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()
@@ -43,7 +54,7 @@ const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 const centerMainWindow = useElectronEventaInvoke(electronCenterMainWindow)
 
 const expanded = ref(false)
-const islandRef = ref<HTMLElement>()
+const islandElement = useTemplateRef<HTMLElement>('island')
 
 // Tracks open overlays/dialogs that should prevent auto-collapse (e.g. 'hearing', 'profile-picker')
 const blockingOverlays = reactive(new Set<string>())
@@ -58,13 +69,14 @@ function setOverlay(key: string, active: boolean) {
   blockingOverlays.delete(key)
 }
 
-// Expose for parent (e.g. to disable click-through when a dialog is open)
+// The stage page observes this element for cursor hit testing.
 defineExpose({
+  get element() { return islandElement.value },
   get hearingDialogOpen() { return blockingOverlays.has('hearing') },
   set hearingDialogOpen(v: boolean) { setOverlay('hearing', v) },
 })
 
-const { isOutside } = useElectronMouseInElement(islandRef)
+const { isOutside } = useElectronMouseInElement(islandElement)
 const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
 watch(isOutsideAfter2seconds, (outside) => {
@@ -78,6 +90,10 @@ watch(expanded, (isExpanded) => {
     blockingOverlays.clear()
   }
 })
+
+watch([expanded, isBlocked], ([isExpanded, isInteractionBlocked]) => {
+  emit('interactionChange', isExpanded || isInteractionBlocked)
+}, { immediate: true })
 
 useIntervalFn(() => {
   if (expanded.value && isOutside.value && !isBlocked.value) {
@@ -124,6 +140,45 @@ const adjustStyleClasses = computed(() => {
   return { icon, border, padding, button: `${border} ${padding}` }
 })
 
+const islandPositionClasses = computed(() => [
+  isTop.value ? 'top-2' : 'bottom-2',
+  isLeft.value ? 'left-2' : 'right-2',
+])
+const islandMotionClasses = computed(() => {
+  const isHidden = motionPhase.value === 'leaving' || motionPhase.value === 'entering'
+
+  return [
+    motionPhase.value === 'entering'
+      ? 'transition-none'
+      : 'transition-[opacity,transform] duration-200 ease-out',
+    motionPhase.value === 'idle' ? '' : 'will-change-[opacity,transform] pointer-events-none',
+    isHidden ? 'opacity-0 scale-95' : 'opacity-100 scale-100',
+    isHidden && isLeft.value ? '-translate-x-3' : '',
+    isHidden && !isLeft.value ? 'translate-x-3' : '',
+    isHidden && isTop.value ? '-translate-y-2' : '',
+    isHidden && !isTop.value ? 'translate-y-2' : '',
+  ]
+})
+const islandLayoutClasses = computed(() => [
+  isTop.value ? 'flex-col-reverse' : 'flex-col',
+  isLeft.value ? 'items-start' : 'items-end',
+])
+const mainControlsLayoutClasses = computed(() => [
+  'flex gap-1',
+  isTop.value ? 'flex-col-reverse' : 'flex-col',
+])
+const panelPositionClasses = computed(() => {
+  if (dock.value === 'top-left')
+    return ['mt-2', 'origin-top-left']
+  if (dock.value === 'top-right')
+    return ['mt-2', 'origin-top-right']
+  if (dock.value === 'bottom-left')
+    return ['mb-2', 'origin-bottom-left']
+
+  return ['mb-2', 'origin-bottom-right']
+})
+const panelHiddenTransformClass = computed(() => isTop.value ? '-translate-y-8' : 'translate-y-8')
+
 /**
  * This is a know issue (or expected behavior maybe) to Electron.
  * We don't use this approach on Linux because it's not working.
@@ -145,16 +200,35 @@ function resetMainWindowPosition() {
 </script>
 
 <template>
-  <div ref="islandRef" fixed bottom-2 right-2>
-    <div flex flex-col items-end gap-1>
+  <div
+    ref="island"
+    :class="[
+      'fixed',
+      islandPositionClasses,
+      islandMotionClasses,
+    ]"
+  >
+    <div
+      :class="[
+        'flex gap-1',
+        islandLayoutClasses,
+      ]"
+    >
       <!-- iOS Style Drawer Panel -->
       <Transition
         enter-active-class="transition-all duration-500 cubic-bezier(0.32, 0.72, 0, 1)"
         leave-active-class="transition-all duration-400 cubic-bezier(0.32, 0.72, 0, 1)"
-        enter-from-class="opacity-0 translate-y-8 scale-90 blur-sm"
-        leave-to-class="opacity-0 translate-y-8 scale-90 blur-sm"
+        :enter-from-class="`opacity-0 ${panelHiddenTransformClass} scale-90 blur-sm`"
+        :leave-to-class="`opacity-0 ${panelHiddenTransformClass} scale-90 blur-sm`"
       >
-        <div v-if="expanded" border="1 neutral-200 dark:neutral-800" mb-2 flex flex-col gap-1 rounded-2xl p-2 backdrop-blur-xl class="bg-neutral-100/80 shadow-2xl shadow-black/20 dark:bg-neutral-900/80">
+        <div
+          v-if="expanded"
+          :class="[
+            'flex flex-col gap-1 rounded-2xl border border-neutral-200 p-2 dark:border-neutral-800',
+            'bg-neutral-100/80 shadow-2xl shadow-black/20 backdrop-blur-xl dark:bg-neutral-900/80',
+            panelPositionClasses,
+          ]"
+        >
           <ControlsIslandAuthButton
             :button-style="adjustStyleClasses.button"
             :icon-class="adjustStyleClasses.icon"
@@ -176,7 +250,7 @@ function resetMainWindowPosition() {
             </ControlButtonTooltip>
 
             <ControlButtonTooltip disable-hoverable-content>
-              <ControlsIslandProfilePicker placement="up" :open="blockingOverlays.has('profile-picker')" @update:open="setOverlay('profile-picker', $event)">
+              <ControlsIslandProfilePicker :open="blockingOverlays.has('profile-picker')" @update:open="setOverlay('profile-picker', $event)">
                 <template #default="{ toggle }">
                   <ControlButton
                     v-track-button="{ name: 'controls_island_action', action: 'toggle_profile_picker' }"
@@ -281,8 +355,8 @@ function resetMainWindowPosition() {
       </Transition>
 
       <!-- Main Controls -->
-      <div flex flex-col gap-1>
-        <ControlButtonTooltip side="left">
+      <div :class="mainControlsLayoutClasses">
+        <ControlButtonTooltip side="inward">
           <ControlButton
             v-track-button="{
               name: 'controls_island_action',
@@ -293,7 +367,7 @@ function resetMainWindowPosition() {
             @click="toggleControls"
           >
             <div
-              :class="[adjustStyleClasses.icon, expanded ? 'rotate-180' : 'rotate-0']"
+              :class="[adjustStyleClasses.icon, isTop !== expanded ? 'rotate-180' : 'rotate-0']"
               i-solar:alt-arrow-up-line-duotone scale-110 transition-all duration-300
               text="neutral-800 dark:neutral-300"
             />
@@ -303,7 +377,13 @@ function resetMainWindowPosition() {
           </template>
         </ControlButtonTooltip>
 
-        <ControlButtonTooltip side="left">
+        <StatusIsland
+          v-if="IS_DEV"
+          :button-style="adjustStyleClasses.button"
+          :icon-class="adjustStyleClasses.icon"
+        />
+
+        <ControlButtonTooltip side="inward">
           <ControlButton
             v-track-button="{ name: 'controls_island_action', action: 'toggle_chat' }"
             :button-style="adjustStyleClasses.button"
@@ -317,7 +397,7 @@ function resetMainWindowPosition() {
           </template>
         </ControlButtonTooltip>
 
-        <ControlButtonTooltip side="left">
+        <ControlButtonTooltip side="inward">
           <ControlsIslandHearingConfig :show="blockingOverlays.has('hearing')" @update:show="setOverlay('hearing', $event)">
             <div class="relative">
               <ControlButton :button-style="adjustStyleClasses.button">
@@ -338,7 +418,7 @@ function resetMainWindowPosition() {
           :icon-class="adjustStyleClasses.icon"
         />
 
-        <ControlButtonTooltip side="left">
+        <ControlButtonTooltip side="inward">
           <ControlButton :button-style="adjustStyleClasses.button" cursor-move :class="{ 'drag-region': isLinux }" @mousedown="startDraggingWindow?.()">
             <div i-ph:arrows-out-cardinal :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
           </ControlButton>

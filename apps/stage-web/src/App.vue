@@ -1,16 +1,24 @@
 <script setup lang="ts">
 import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
-import { useAuthProviderSync } from '@proj-airi/stage-ui/composables/use-auth-provider-sync'
 import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/analytics'
+import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
-import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
+import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { configureAsDefaultsIfEmpty, unconfigureAuthenticationProviders } from '@proj-airi/stage-ui/stores/modules/default'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
+import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { ErrorBoundary, useTheme } from '@proj-airi/ui'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { storeToRefs } from 'pinia'
@@ -24,21 +32,52 @@ import PerformanceOverlay from './components/Devtools/PerformanceOverlay.vue'
 import { usePWAStore } from './stores/pwa'
 
 usePWAStore()
-useAuthProviderSync()
 
 const contextBridgeStore = useContextBridgeStore()
+const authStore = useAuthStore()
 const i18n = useI18n()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const settings = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
-const chatSessionStore = useChatSessionStore()
+const chatStore = useChatStore()
+const syncedPinia = usePiniaSynced()
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { showingSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
+useArtistryStore()
+useConsciousnessStore()
+useHearingStore()
+useSpeechStore()
+useSettingsStageModel()
+useVisionStore()
+
+let stopAuthenticatedSetup: (() => void) | undefined
+let stopLoggedOutSetup: (() => void) | undefined
+
+async function removeAuthenticationProviderConfiguration() {
+  if (!syncedPinia.isLeader())
+    return
+
+  if (await unconfigureAuthenticationProviders())
+    await cardStore.persistActiveCardModuleSelections()
+}
+
+function registerAuthenticatedSetup() {
+  stopAuthenticatedSetup ??= authStore.onAuthenticated(async () => {
+    if (!syncedPinia.isLeader())
+      return
+
+    if (await configureAsDefaultsIfEmpty())
+      await cardStore.persistActiveCardModuleSelections()
+    await onboardingStore.closeAfterAuthentication()
+  })
+  stopLoggedOutSetup ??= authStore.onLogout(removeAuthenticationProviderConfiguration)
+}
+
 const inferencePreload = useInferencePreload()
 
 const primaryColor = computed(() => {
@@ -84,14 +123,18 @@ watch(settings.themeColorsHueDynamic, () => {
 // Initialize first-time setup check when app mounts
 onMounted(async () => {
   initializeAnalytics()
+  await authStore.initialize()
   await displayModelsStore.initialize()
-  cardStore.initialize()
+  await cardStore.initialize()
+  registerAuthenticatedSetup()
+  if (!authStore.isAuthenticated)
+    await removeAuthenticationProviderConfiguration()
 
   if (onboardingStore.needsOnboarding) {
     onboardingStore.showingSetup = true
   }
 
-  await chatSessionStore.initialize()
+  await chatStore.initialize(syncedPinia)
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   contextBridgeStore.initialize()
   characterOrchestratorStore.initialize()
@@ -105,6 +148,9 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  stopAuthenticatedSetup?.()
+  stopLoggedOutSetup?.()
+  chatStore.dispose()
   contextBridgeStore.dispose()
 })
 

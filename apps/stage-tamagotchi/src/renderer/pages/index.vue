@@ -14,7 +14,7 @@ import {
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
 import { createTranscriptBuffer } from '@proj-airi/pipelines-audio'
-import { hearingInputChannelName, IS_DEV } from '@proj-airi/stage-shared'
+import { hearingInputChannelName } from '@proj-airi/stage-shared'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
 import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
@@ -35,9 +35,9 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
+import ControlsIslandRoot from '../components/stage-islands/controls-island/controls-island-root.vue'
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
-import StatusIsland from '../components/stage-islands/status-island/index.vue'
 
 import { electronOpenOnboarding } from '../../shared/eventa'
 import { modelSettingsRuntimeSnapshotChannelName } from '../../shared/model-settings-runtime'
@@ -53,7 +53,8 @@ import {
 } from '../utils/voice-input-suppression'
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
-const statusIslandRef = ref<InstanceType<typeof StatusIsland>>()
+const controlsIslandInteractionActive = shallowRef(false)
+const controlsIslandElement = toRef(() => controlsIslandRef.value?.element)
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
@@ -67,10 +68,8 @@ const onboardingStore = useOnboardingStore()
 const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
 
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
-const { isOutside } = useElectronMouseInElement(controlsIslandRef)
-const { isOutside: isOutsideStatusIsland } = useElectronMouseInElement(statusIslandRef)
+const { isOutside } = useElectronMouseInElement(controlsIslandElement)
 const isOutsideFor250Ms = refDebounced(isOutside, 250)
-const isOutsideStatusIslandFor250Ms = refDebounced(isOutsideStatusIsland, 250)
 const { x: relativeMouseX, y: relativeMouseY } = useElectronRelativeMouse()
 // NOTICE: In real-world use cases of Fade on Hover feature, the cursor may move around the edge of the
 // model rapidly, causing flickering effects when checking pixel transparency strictly.
@@ -245,7 +244,7 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
  *     -> {@link handleFadeOnHoverInteractionChange}
  *
  * Upstream:
- * - {@link isOutsideFor250Ms}, {@link isOutsideStatusIslandFor250Ms}, and {@link isAroundWindowBorderFor250Ms}
+ * - {@link isOutsideFor250Ms} and {@link isAroundWindowBorderFor250Ms}
  * - {@link isOutsideWindow}, {@link isTransparent}, and {@link isTransparentForMouseEvents}
  * - {@link hearingDialogOpen}, {@link fadeOnHoverEnabled}, and {@link stagePaused}
  *
@@ -269,7 +268,7 @@ function handleFadeOnHoverInteractionChange() {
     return
   }
 
-  const insideControls = !isOutsideFor250Ms.value || !isOutsideStatusIslandFor250Ms.value
+  const insideControls = !isOutsideFor250Ms.value
   const nearBorder = isAroundWindowBorderFor250Ms.value
 
   if (insideControls || nearBorder) {
@@ -293,7 +292,7 @@ function handleFadeOnHoverInteractionChange() {
 }
 
 watch(
-  [isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, hearingDialogOpen, fadeOnHoverEnabled, stagePaused],
+  [isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, hearingDialogOpen, fadeOnHoverEnabled, stagePaused],
   handleFadeOnHoverInteractionChange,
   { immediate: true },
 )
@@ -328,11 +327,10 @@ const { activeTranscriptionModel, activeTranscriptionProvider } = storeToRefs(he
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { removeStreamingTranscriptionConsumer, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { error: transcriptionError, supportsStreamInput } = storeToRefs(hearingPipeline)
+const transcriptionConsumerId = 'stage-tamagotchi:voice-input'
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
 const streamingTranscriptionUnavailable = ref(false)
-/** Identifies this page in the shared streaming transcription session. */
-const transcriptionConsumerId = 'stage-tamagotchi:voice-input'
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value && !streamingTranscriptionUnavailable.value)
 const voiceTranscriptBuffer = createTranscriptBuffer({
   flushDelayMs: 1200,
@@ -575,7 +573,7 @@ function handleStreamingSentenceEnd(delta: string) {
   void sendVoiceInputTextToChat(finalText)
 }
 
-/** Replaces the speaker caption with the provider's current volatile transcript. */
+/** Replaces the caption with the provider's current volatile transcript. */
 function handleStreamingTranscriptionUpdate(text: string) {
   if (isVoiceInputSuppressed())
     return
@@ -599,6 +597,18 @@ function getVoiceInputGeneration(metadata?: Record<string, unknown>) {
 
 const voiceInputSession = useVoiceInputSession(stream, {
   shouldUseStreamInput,
+  onLog(level, event, message, details) {
+    const output = `[Voice Input] ${event}: ${message}`
+    if (level === 'error') {
+      console.error(output, details ?? {})
+      return
+    }
+    if (level === 'warn') {
+      console.warn(output, details ?? {})
+      return
+    }
+    console.info(output, details ?? {})
+  },
   canStartSegment: () => enabled.value && !isVoiceInputSuppressed(),
   inspectBeforeTranscription: ({ metadata }) => inspectVoiceInputProviderRequestGate(getVoiceInputGeneration(metadata)),
   inspectAfterTranscription: ({ metadata }) => inspectVoiceInputProviderRequestGate(getVoiceInputGeneration(metadata)),
@@ -648,14 +658,12 @@ async function startAudioInteractionConsumers() {
     })
 
     if (inspectVoiceInputStreamingRequestGate().skip) {
-      removeStreamingTranscriptionConsumer(transcriptionConsumerId)
       await stopStreamingTranscription(true)
       return
     }
 
     if (transcriptionError.value) {
       streamingTranscriptionUnavailable.value = true
-      removeStreamingTranscriptionConsumer(transcriptionConsumerId)
       await stopStreamingTranscription(true)
       console.warn('[Main Page] Streaming transcription unavailable; using recorder-backed fallback:', transcriptionError.value)
     }
@@ -674,7 +682,6 @@ async function stopAudioInteractionConsumers(options: StopAudioInteractionOption
   clearAssistantSpeechResumeTimer()
   clearHearingInput()
   voiceInputGeneration += 1
-  removeStreamingTranscriptionConsumer(transcriptionConsumerId)
 
   await Promise.all([
     stopStreamingTranscription(true),
@@ -742,6 +749,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  removeStreamingTranscriptionConsumer(transcriptionConsumerId)
   for (const [timer, sourceId] of hearingInputClearTimers) {
     clearTimeout(timer)
     clearHearingInput(sourceId)
@@ -807,7 +815,6 @@ const cursorPosition = computed(() => ({
           'transition-opacity duration-250 ease-in-out',
         ]"
       >
-        <StatusIsland v-if="IS_DEV" ref="statusIslandRef" />
         <ResourceStatusIsland />
         <WidgetStage
           ref="widgetStageRef"
@@ -818,7 +825,12 @@ const cursorPosition = computed(() => ({
           :paused="stagePaused"
         />
         <HoloCoupon />
-        <ControlsIsland ref="controlsIslandRef" />
+        <ControlsIslandRoot :frozen="controlsIslandInteractionActive">
+          <ControlsIsland
+            ref="controlsIslandRef"
+            @interaction-change="controlsIslandInteractionActive = $event"
+          />
+        </ControlsIslandRoot>
       </div>
     </div>
     <!-- Loading overlay sits on top, does not hide the stage -->

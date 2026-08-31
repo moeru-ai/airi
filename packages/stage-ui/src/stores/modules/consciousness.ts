@@ -1,17 +1,26 @@
+import type {} from 'pinia-plugin-synced'
+
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, watch } from 'vue'
 
 import { useProviderStore } from '../providers/provider'
+import { useConsciousnessSettingsStore } from './consciousness-settings'
 
 export const useConsciousnessStore = defineStore('consciousness', () => {
   const providersStore = useProviderStore()
+  const settingsStore = useConsciousnessSettingsStore()
+
+  // Pinia synchronization owns live cross-window state. localStorage remains
+  // durable persistence, but storage events must not reflect state back into
+  // the store and publish another synchronized snapshot.
+  const persistenceOptions = { listenToStorageChanges: false }
 
   // State
-  const activeProvider = useLocalStorageManualReset<string>('settings/consciousness/active-provider', '')
-  const activeModel = useLocalStorageManualReset<string>('settings/consciousness/active-model', '')
-  const activeCustomModelName = useLocalStorageManualReset<string>('settings/consciousness/active-custom-model', '')
+  const activeProvider = useLocalStorageManualReset<string>('settings/consciousness/active-provider', '', persistenceOptions)
+  const activeModel = useLocalStorageManualReset<string>('settings/consciousness/active-model', '', persistenceOptions)
+  const activeCustomModelName = useLocalStorageManualReset<string>('settings/consciousness/active-custom-model', '', persistenceOptions)
   const expandedDescriptions = refManualReset<Record<string, boolean>>(() => ({}))
   const modelSearchQuery = refManualReset<string>('')
 
@@ -59,7 +68,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   // provider's model and chat requests failed upstream with model_not_found.
   //
   // The watcher is synchronous on purpose: call sites assign the provider
-  // first and a new model right after (e.g. use-auth-provider-sync), so a
+  // first and a new model right after, so a
   // deferred reset would wipe the model they just chose. Synchronous flush
   // makes "set provider, then set model" a safe, ordered operation.
   //
@@ -84,6 +93,13 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     }
 
     return []
+  }
+
+  /** Resolves a provider with the reasoning mode shared by every Consciousness input path. */
+  async function getChatProviderInstance(provider: string) {
+    return providersStore.getChatProviderInstance(provider, {
+      reasoning: settingsStore.reasoning ? 'enabled' : 'disabled',
+    })
   }
 
   const configured = computed(() => {
@@ -115,6 +131,11 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     resetModelSelection,
     loadModelsForProvider,
     getModelsForProvider,
+    getChatProviderInstance,
     resetState,
   }
+}, {
+  synced: {
+    state: true,
+  },
 })

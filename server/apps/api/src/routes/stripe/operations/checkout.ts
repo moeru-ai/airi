@@ -136,6 +136,7 @@ export function createCheckoutOperation(deps: CheckoutOperationDeps) {
       feature: 'billing',
       action: 'checkout_started',
       status: 'succeeded',
+      eventId: session.id,
       source: 'stripe.checkout',
       metadata: {
         flux_amount: fluxAmount,

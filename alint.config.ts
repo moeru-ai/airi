@@ -9,5 +9,6 @@ export default defineConfig([
     plugins: {
       js: jsPlugin,
     },
+    ignores: ['**/node_modules/**'],
   },
 ])

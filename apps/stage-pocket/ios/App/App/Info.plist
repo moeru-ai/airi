@@ -20,6 +20,17 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>ai.moeru.airi-pocket</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>ai.moeru.airi-pocket</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
@@ -28,6 +39,8 @@
 	<string>AIRI needs access to your local network to connect to your Tamagotchi host.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>AIRI uses the camera to scan Tamagotchi connection QR codes.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>AIRI uses the microphone for voice interaction.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

@@ -14,16 +14,21 @@ import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provi
 import { getDefinedProvider } from '@proj-airi/stage-ui/libs'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
+import { FieldCombobox } from '@proj-airi/ui'
+import { computedAsync } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
 const providerId = route.params.providerId as string
-const providerStore = useProviderConfigStore()
+const providerConfigStore = useProviderConfigStore()
+const providersStore = useProviderStore()
 const consciousnessStore = useConsciousnessStore()
-const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
+const { configs: providers } = storeToRefs(providerConfigStore) as { configs: RemovableRef<Record<string, any>> }
 const { activeProvider } = storeToRefs(consciousnessStore)
+const providerDefinition = computed(() => providersStore.findProviderDefinition(providerId))
 
 // Define computed properties for credentials
 const apiKey = computed({
@@ -44,6 +49,17 @@ const baseUrl = computed({
   },
 })
 
+const thinkingMode = computed({
+  get: () => providers.value[providerId]?.thinkingMode || 'auto',
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].thinkingMode = value
+  },
+})
+
+const supportsDeepSeekThinkingMode = computed(() => providerDefinition.value?.id === 'deepseek')
+
 // Use the composable to get validation logic and state
 const {
   t,
@@ -61,12 +77,12 @@ const {
   runManualTest,
 } = useProviderValidation(providerId)
 
-const apiKeyPlaceholder = computed(() => {
-  const definition = getDefinedProvider(providerId)
+const apiKeyPlaceholder = computedAsync(async () => {
+  const definition = providerDefinition.value ?? getDefinedProvider(providerId)
   if (!definition?.createProviderConfig)
     return 'sk-...'
 
-  const schema = definition.createProviderConfig({ t }) as any
+  const schema = await definition.createProviderConfig({ t }) as any
   const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
   const apiKeySchema = shape?.apiKey
   if (!apiKeySchema)
@@ -74,7 +90,7 @@ const apiKeyPlaceholder = computed(() => {
 
   const meta = typeof apiKeySchema.meta === 'function' ? apiKeySchema.meta() : undefined
   return typeof meta?.placeholderLocalized === 'string' ? meta.placeholderLocalized : 'sk-...'
-})
+}, 'sk-...')
 
 function goToModelSelection() {
   activeProvider.value = providerId
@@ -106,6 +122,18 @@ function goToModelSelection() {
         <ProviderBaseUrlInput
           v-model="baseUrl"
           :placeholder="providerMetadata?.defaultConfig.baseUrl as string || 'Base URL of your provider'"
+        />
+
+        <FieldCombobox
+          v-if="supportsDeepSeekThinkingMode"
+          v-model="thinkingMode"
+          :label="t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.label')"
+          :description="t('settings.pages.providers.provider.deepseek.fields.field.thinking-mode.description')"
+          :options="[
+            { label: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.options.auto'), value: 'auto' },
+            { label: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.options.disable'), value: 'disable' },
+            { label: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.options.enable'), value: 'enable' },
+          ]"
         />
       </ProviderAdvancedSettings>
 

@@ -4,28 +4,13 @@ import { eq } from 'drizzle-orm'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../../../libs/mock-db'
+import { createTestRedis } from '../../../../libs/tests/redis'
 import { createCharacterService } from '../../characters'
 import { createChatService } from '../../chats'
 import { createFluxService } from '../../flux'
 import { createProviderService } from '../../providers'
 
 import * as schema from '../../../../schemas'
-
-function fakeRedis() {
-  const map = new Map<string, string>()
-  return {
-    get: vi.fn(async (k: string) => map.get(k) ?? null),
-    set: vi.fn(async (k: string, v: string) => {
-      map.set(k, v)
-      return 'OK'
-    }),
-    del: vi.fn(async (k: string) => {
-      const had = map.has(k)
-      map.delete(k)
-      return had ? 1 : 0
-    }),
-  } as any
-}
 
 function fakeConfigKV() {
   return {
@@ -46,21 +31,22 @@ describe('fluxService.deleteAllForUser', () => {
     await db.insert(schema.user).values({ id: 'u-flux-1', name: 'A', email: 'a@example.com' })
     await db.insert(schema.userFlux).values({ userId: 'u-flux-1', flux: 100 })
 
-    const redis = fakeRedis()
+    const redis = createTestRedis()
+    const del = vi.spyOn(redis, 'del')
     const service = createFluxService(db, redis, fakeConfigKV())
     await service.deleteAllForUser('u-flux-1')
 
     const row = await db.query.userFlux.findFirst({ where: eq(schema.userFlux.userId, 'u-flux-1') })
     expect(row?.deletedAt).toBeInstanceOf(Date)
-    expect(redis.del).toHaveBeenCalledTimes(1)
-    expect(redis.del).toHaveBeenCalledWith(expect.stringContaining('u-flux-1'))
+    expect(del).toHaveBeenCalledTimes(1)
+    expect(del).toHaveBeenCalledWith(expect.stringContaining('u-flux-1'))
   })
 
   it('is idempotent on retry — already-soft-deleted rows stay unchanged', async () => {
     await db.insert(schema.user).values({ id: 'u-flux-2', name: 'B', email: 'b@example.com' })
     await db.insert(schema.userFlux).values({ userId: 'u-flux-2', flux: 50 })
 
-    const redis = fakeRedis()
+    const redis = createTestRedis()
     const service = createFluxService(db, redis, fakeConfigKV())
 
     await service.deleteAllForUser('u-flux-2')

@@ -1,7 +1,10 @@
+import type { StreamOptions } from '@proj-airi/core-agent'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message, Tool } from '@xsai/shared-chat'
+import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
-import { IOSpanNames } from '@proj-airi/stage-shared'
+import { errorMessageFrom } from '@moeru/std'
+import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
@@ -12,6 +15,7 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/analytics-headers'
 import { useChatStore } from './chat'
+import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
 
 vi.hoisted(() => {
   ;(globalThis as any).window = {
@@ -46,19 +50,10 @@ const llmStreamMock = vi.fn()
 const trackFirstMessageMock = vi.fn()
 const chatAnalyticsMocks = vi.hoisted(() => ({
   trackAiGeneration: vi.fn(),
-  trackAssistantResponseRendered: vi.fn(),
-  trackChatActivationFailed: vi.fn(),
-  trackChatActivationStarted: vi.fn(),
-  trackChatActivationSucceeded: vi.fn(),
-  trackLlmFirstToken: vi.fn(),
-  trackLlmRequestStarted: vi.fn(),
   trackMessageRound: vi.fn(),
   trackMessageRoundFailed: vi.fn(),
-  trackMessageSendStarted: vi.fn(),
   trackMessageSent: vi.fn(),
-  trackSecondTurnStarted: vi.fn(),
 }))
-const trackSecondTurnStartedMock = chatAnalyticsMocks.trackSecondTurnStarted
 const redundantChatAnalyticsMocks = vi.hoisted(() => ({
   trackAssistantResponseCompleted: vi.fn(),
   trackChatFailed: vi.fn(),
@@ -71,7 +66,12 @@ const createMinecraftContextMock = vi.fn()
 const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
 const ensureSessionMock = vi.fn()
-const getProviderInstanceMock = vi.fn()
+const loadSessionMock = vi.fn()
+const deleteSessionMock = vi.fn()
+const initializeSessionMock = vi.fn()
+const disposeSessionMock = vi.fn()
+const ensureCurrentSessionMock = vi.fn()
+const getChatProviderInstanceMock = vi.fn()
 const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
 
 const activeSessionIdRef = ref('session-1')
@@ -91,25 +91,6 @@ vi.mock('pinia', async () => {
 
 vi.mock('../composables', () => ({
   getConversationAnalyticsSurface: () => 'web',
-  useAnalytics: () => ({
-    trackFirstMessage: trackFirstMessageMock,
-    trackChatFailed: redundantChatAnalyticsMocks.trackChatFailed,
-    trackChatStarted: redundantChatAnalyticsMocks.trackChatStarted,
-    trackMessageSendStarted: chatAnalyticsMocks.trackMessageSendStarted,
-    trackMessageSent: chatAnalyticsMocks.trackMessageSent,
-    trackLlmRequestStarted: chatAnalyticsMocks.trackLlmRequestStarted,
-    trackLlmFirstToken: chatAnalyticsMocks.trackLlmFirstToken,
-    trackAiGeneration: chatAnalyticsMocks.trackAiGeneration,
-    trackAssistantResponseRendered: chatAnalyticsMocks.trackAssistantResponseRendered,
-    trackAssistantResponseCompleted: redundantChatAnalyticsMocks.trackAssistantResponseCompleted,
-    trackMessageRound: chatAnalyticsMocks.trackMessageRound,
-    trackMessageRoundFailed: chatAnalyticsMocks.trackMessageRoundFailed,
-    trackFeatureUsed: redundantChatAnalyticsMocks.trackFeatureUsed,
-    trackChatActivationStarted: chatAnalyticsMocks.trackChatActivationStarted,
-    trackChatActivationSucceeded: chatAnalyticsMocks.trackChatActivationSucceeded,
-    trackChatActivationFailed: chatAnalyticsMocks.trackChatActivationFailed,
-    trackSecondTurnStarted: trackSecondTurnStartedMock,
-  }),
 }))
 
 vi.mock('../libs/analytics', () => ({
@@ -119,38 +100,14 @@ vi.mock('../libs/analytics', () => ({
         case '$ai_generation':
           chatAnalyticsMocks.trackAiGeneration(properties)
           break
-        case 'assistant_response_rendered':
-          chatAnalyticsMocks.trackAssistantResponseRendered(properties)
-          break
-        case 'chat_activation_failed':
-          chatAnalyticsMocks.trackChatActivationFailed(properties)
-          break
-        case 'chat_activation_started':
-          chatAnalyticsMocks.trackChatActivationStarted(properties)
-          break
-        case 'chat_activation_succeeded':
-          chatAnalyticsMocks.trackChatActivationSucceeded(properties)
-          break
-        case 'llm_first_token':
-          chatAnalyticsMocks.trackLlmFirstToken(properties)
-          break
-        case 'llm_request_started':
-          chatAnalyticsMocks.trackLlmRequestStarted(properties)
-          break
         case 'message_round':
           chatAnalyticsMocks.trackMessageRound(properties)
           break
         case 'message_round_failed':
           chatAnalyticsMocks.trackMessageRoundFailed(properties)
           break
-        case 'message_send_started':
-          chatAnalyticsMocks.trackMessageSendStarted(properties)
-          break
         case 'message_sent':
           chatAnalyticsMocks.trackMessageSent(properties)
-          break
-        case 'second_turn_started':
-          chatAnalyticsMocks.trackSecondTurnStarted(properties)
           break
         default:
           return false
@@ -194,6 +151,12 @@ vi.mock('./chat/session-store', () => ({
       sessionMessages[sessionId] = []
     },
     getSessionMessages: (sessionId: string) => sessionMessages[sessionId] ?? [],
+    getSessionMessagesIfLoaded: (sessionId: string) => sessionMessages[sessionId],
+    loadSession: loadSessionMock,
+    deleteSession: deleteSessionMock,
+    initialize: initializeSessionMock,
+    dispose: disposeSessionMock,
+    ensureCurrentSession: ensureCurrentSessionMock,
     persistSessionMessages: persistSessionMessagesMock,
     getSessionGeneration: () => currentGeneration,
     setSessionMessages: (sessionId: string, messages: any[]) => {
@@ -224,12 +187,6 @@ vi.mock('./ai/chat-llm/tools', () => ({
   }),
 }))
 
-vi.mock('./providers/provider', () => ({
-  useProviderStore: () => ({
-    getProviderInstance: getProviderInstanceMock,
-  }),
-}))
-
 vi.mock('./ai/chat-llm/toolset-prompts', () => ({
   useLlmToolsetPromptsStore: () => ({
     activeToolsetPrompt: 'Plugin toolset guidance.',
@@ -240,6 +197,9 @@ vi.mock('./modules/consciousness', () => ({
   useConsciousnessStore: () => ({
     activeModel: activeModelRef,
     activeProvider: activeProviderRef,
+    getChatProviderInstance: (providerId: string) => getChatProviderInstanceMock(providerId, {
+      reasoning: useConsciousnessSettingsStore().reasoning ? 'enabled' : 'disabled',
+    }),
   }),
 }))
 
@@ -285,7 +245,12 @@ describe('chat store contract', () => {
     persistSessionMessagesMock.mockReset()
     forkSessionMock.mockReset()
     ensureSessionMock.mockReset()
-    getProviderInstanceMock.mockReset().mockResolvedValue(provider)
+    loadSessionMock.mockReset().mockResolvedValue(true)
+    deleteSessionMock.mockReset().mockResolvedValue(undefined)
+    initializeSessionMock.mockReset().mockResolvedValue(undefined)
+    disposeSessionMock.mockReset()
+    ensureCurrentSessionMock.mockReset().mockResolvedValue('session-1')
+    getChatProviderInstanceMock.mockReset().mockResolvedValue(provider)
     getToolsByNamesMock.mockReset().mockImplementation(names => names.map(name => ({
       type: 'function',
       function: {
@@ -329,8 +294,8 @@ describe('chat store contract', () => {
       text: 'continue',
     })
 
-    expect(getProviderInstanceMock).toHaveBeenCalledTimes(2)
-    expect(getProviderInstanceMock).toHaveBeenCalledWith('mock-provider')
+    expect(getChatProviderInstanceMock).toHaveBeenCalledTimes(2)
+    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider', { reasoning: 'disabled' })
     expect(() => structuredClone(result)).not.toThrow()
     expect(resolvedToolNames).toEqual([
       ['stage_widgets'],
@@ -338,7 +303,112 @@ describe('chat store contract', () => {
     ])
   })
 
-  it('forwards one correlation identity across every PostHog chat milestone', async () => {
+  // https://github.com/moeru-ai/airi/pull/2394#discussion_r3883162024
+  it('restarts chat consumers when this renderer becomes the leader', async () => {
+    // ROOT CAUSE:
+    //
+    // The application stopped observing chat leadership changes. If the Web
+    // leader closed, the promoted renderer kept the replicated session state
+    // but did not start a new cloud WebSocket.
+    //
+    // The chat store now owns the leadership subscription. It starts the
+    // session consumers after promotion and stops local consumers after
+    // demotion or disposal.
+    let leadershipListener: ((isLeader: boolean) => void) | undefined
+    const stopLeadershipListener = vi.fn()
+    const syncedPinia: SyncedPiniaRuntime = {
+      dispose: vi.fn(),
+      getLeaderId: vi.fn(),
+      getParticipantCount: vi.fn(() => 1),
+      isLeader: vi.fn(() => false),
+      onCoordinationChange: vi.fn(() => vi.fn()),
+      onLeadershipChange: vi.fn((listener) => {
+        leadershipListener = listener
+        listener(false)
+        return stopLeadershipListener
+      }),
+      participantId: 'chat-test',
+      plugin: vi.fn(),
+    }
+    const store = useChatStore()
+
+    await store.initialize(syncedPinia)
+
+    expect(initializeSessionMock).toHaveBeenCalledOnce()
+    expect(disposeSessionMock).toHaveBeenCalledOnce()
+    expect(ensureCurrentSessionMock).not.toHaveBeenCalled()
+
+    leadershipListener?.(true)
+    await vi.waitFor(() => expect(ensureCurrentSessionMock).toHaveBeenCalledOnce())
+
+    leadershipListener?.(false)
+    expect(disposeSessionMock).toHaveBeenCalledTimes(2)
+
+    store.dispose()
+    expect(stopLeadershipListener).toHaveBeenCalledOnce()
+    expect(disposeSessionMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('passes the current consciousness reasoning option to the chat provider', async () => {
+    const settings = useConsciousnessSettingsStore()
+    await settings.setReasoning(true)
+    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'reply without changing provider defaults' })
+
+    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider', { reasoning: 'enabled' })
+    await settings.setReasoning(false)
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('hydrates the target session before sending for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // A synchronized follower could target a session known only by metadata.
+    // Reading through getSessionMessages before hydration created a fresh
+    // system-only history that could overwrite the persisted conversation.
+    delete sessionMessages['session-2']
+    loadSessionMock.mockImplementationOnce(async () => {
+      sessionMessages['session-2'] = [
+        { role: 'system', content: 'persisted system prompt', createdAt: 1, id: 'system-2' },
+      ]
+      return true
+    })
+    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-2', text: 'continue persisted chat' })
+
+    expect(loadSessionMock).toHaveBeenCalledWith('session-2')
+    expect(loadSessionMock.mock.invocationCallOrder[0]).toBeLessThan(ensureSessionMock.mock.invocationCallOrder[0])
+    expect(sessionMessages['session-2']?.[0]).toMatchObject({
+      content: 'persisted system prompt',
+      id: 'system-2',
+    })
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('does not create fallback history when target hydration fails for Issue #2085', async () => {
+    delete sessionMessages['session-2']
+    loadSessionMock.mockResolvedValueOnce(false)
+
+    const store = useChatStore()
+    await expect(
+      store.send({ sessionId: 'session-2', text: 'do not overwrite history' }),
+    )
+      .rejects
+      .toThrow('Failed to load the target chat session')
+
+    expect(ensureSessionMock).not.toHaveBeenCalledWith('session-2')
+    expect(sessionMessages['session-2']).toBeUndefined()
+  })
+
+  it('forwards one correlation identity across the action and result events', async () => {
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
       await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
@@ -362,13 +432,7 @@ describe('chat store contract', () => {
       round_id: messageProperties.round_id,
       turn_index: 1,
     }
-    expect(chatAnalyticsMocks.trackMessageSendStarted).toHaveBeenCalledWith(expect.objectContaining(correlation))
-    expect(chatAnalyticsMocks.trackLlmRequestStarted).toHaveBeenCalledWith(expect.objectContaining(correlation))
-    expect(chatAnalyticsMocks.trackLlmFirstToken).toHaveBeenCalledWith(expect.objectContaining(correlation))
-    expect(chatAnalyticsMocks.trackAssistantResponseRendered).toHaveBeenCalledWith(expect.objectContaining(correlation))
     expect(chatAnalyticsMocks.trackMessageRound).toHaveBeenCalledWith(expect.objectContaining(correlation))
-    expect(chatAnalyticsMocks.trackChatActivationStarted).toHaveBeenCalledWith(expect.objectContaining(correlation))
-    expect(chatAnalyticsMocks.trackChatActivationSucceeded).toHaveBeenCalledWith(expect.objectContaining(correlation))
   })
 
   it('captures custom-provider usage once and leaves official generation capture to the server', async () => {
@@ -416,7 +480,7 @@ describe('chat store contract', () => {
     })
   })
 
-  it('emits second turn analytics from chat sends', async () => {
+  it('uses turn_index on message_sent instead of a second-turn alias', async () => {
     activeProviderRef.value = 'official-provider'
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
@@ -434,16 +498,13 @@ describe('chat store contract', () => {
       chatProvider: provider,
     })
 
-    expect(trackSecondTurnStartedMock).toHaveBeenCalledTimes(1)
-    expect(trackSecondTurnStartedMock).toHaveBeenCalledWith({
+    expect(chatAnalyticsMocks.trackMessageSent).toHaveBeenLastCalledWith(expect.objectContaining({
       conversation_id: 'session-1',
-      provider_id: 'official-provider',
-      provider_mode: 'official',
-      model_id: 'chat-auto',
       round_id: expect.any(String),
-      source: 'text',
       turn_index: 2,
-    })
+      trigger_method: 'text_input',
+      trigger_type: 'user_action',
+    }))
   })
 
   // ROOT CAUSE:
@@ -486,7 +547,6 @@ describe('chat store contract', () => {
       chatProvider: provider,
     })).rejects.toThrow('later turn rejected')
 
-    expect(chatAnalyticsMocks.trackChatActivationFailed).not.toHaveBeenCalled()
     expect(chatAnalyticsMocks.trackMessageRoundFailed).toHaveBeenCalledWith({
       conversation_id: 'session-1',
       error_code: 'llm_response_failed',
@@ -496,6 +556,8 @@ describe('chat store contract', () => {
       round_id: expect.any(String),
       source: 'text',
       turn_index: 2,
+      trigger_method: 'text_input',
+      trigger_type: 'user_flow_result',
     })
   })
 
@@ -561,7 +623,7 @@ describe('chat store contract', () => {
     })
 
     expect(store.sending).toBe(false)
-    expect(trackFirstMessageMock).toHaveBeenCalledTimes(1)
+    expect(trackFirstMessageMock).toHaveBeenCalledOnce()
     // Datetime is no longer pushed through ingestContextMessage; it is now
     // applied at message-assembly time as a system-prompt anchor + per-message
     // [HH:MM] prefix. ingestContextMessage should still be called for other
@@ -584,6 +646,20 @@ describe('chat store contract', () => {
     expect(composedMessages).toHaveLength(2)
     expect(composedMessages[0]).toMatchObject({ role: 'system' })
     expect(composedMessages[1]).toMatchObject({ role: 'user' })
+    expect(ioTracerMocks.startSpanMock).toHaveBeenCalledWith(
+      IOSpanNames.LLMInference,
+      expect.anything(),
+      expect.objectContaining({
+        [IOAttributes.LLMInputMessageCount]: 2,
+        [IOAttributes.LLMInputUserMessageCount]: 1,
+        [IOAttributes.TurnId]: expect.any(String),
+      }),
+    )
+    const llmSpan = ioTracerMocks.spans.find(span => span.name === IOSpanNames.LLMInference)
+    expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMInputMessageRoles, ['system', 'user'])
+    expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMOutputChunkCount, 1)
+    expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMOutputChunkLengths, [5])
+    expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMTextLength, 5)
 
     // System message stays untouched: keeping it 100% static is what makes
     // the prefix permanently KV-cache friendly across turns and across day
@@ -636,30 +712,31 @@ describe('chat store contract', () => {
     expect(specialHook.mock.calls[0]?.[1].turnId.length).toBeGreaterThan(0)
   })
 
-  /**
-   * @example
-   * store.sending = true
-   * await nextTick()
-   * expect(store.sending).toBe(true)
-   */
-  it('keeps sending writable for context bridge and chat sync consumers', async () => {
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743261505
+  it('preserves a synchronized sending snapshot without replaying it through the follower runtime for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Applying `sending: true` invoked the follower's idle runtime, whose
+    // derived state cleared the synchronized stream payload and could target
+    // that follower's unrelated local selection.
     const store = useChatStore()
-
-    expect(store.sending).toBe(false)
-
-    store.sending = true
+    store.$patch({
+      sending: true,
+      activeSendSessionId: 'session-b',
+      activeStreamingMessage: {
+        role: 'assistant',
+        content: 'authority stream',
+        slices: [],
+        tool_results: [],
+      },
+    })
     await nextTick()
+
     expect(store.sending).toBe(true)
-
-    store.sending = false
-    await nextTick()
-    expect(store.sending).toBe(false)
+    expect(store.activeSendSessionId).toBe('session-b')
+    expect(store.activeStreamingMessage?.content).toBe('authority stream')
   })
 
-  /**
-   * @example
-   * store.sending = false while a local runtime send is still streaming.
-   */
   it('does not end the owned IO turn span when external sending mirror is cleared mid-send', async () => {
     let releaseStream: (() => void) | undefined
     llmStreamMock.mockImplementationOnce(async () => {
@@ -697,11 +774,6 @@ describe('chat store contract', () => {
     expect(ioTracerMocks.activeTurnSpan.value).toBeUndefined()
   })
 
-  /**
-   * @example
-   * createMinecraftContext() returns a runtime context update.
-   * The facade passes it into the core runtime before prompt snapshots are read.
-   */
   it('ingests runtime context providers before composing prompt snapshots', async () => {
     const minecraftContext = {
       id: 'minecraft-context',
@@ -774,11 +846,60 @@ describe('chat store contract', () => {
     await firstSend
   })
 
-  /**
-   * @example
-   * store.getPendingQueuedSendSnapshot()
-   * // => [{ sessionId, generation, cancelled, messagePreview, hasAttachments, inputType }]
-   */
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3742939573
+  it('does not recreate a deleted session when queued work is cancelled for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Cancelling queued work rejects the public send action. Its generic error
+    // handler used to recreate a system-plus-error history after deletion,
+    // leaving a ghost conversation that no longer had session metadata.
+    let releaseFirstSend: (() => void) | undefined
+    llmStreamMock.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseFirstSend = resolve
+      })
+    })
+    deleteSessionMock.mockImplementationOnce(async () => {
+      currentGeneration += 1
+      delete sessionMessages['session-1']
+    })
+
+    const store = useChatStore()
+    const firstSend = store.send({
+      sessionId: 'session-1',
+      text: 'active turn',
+    })
+    const activeOutcome = firstSend.then(
+      () => 'resolved',
+      error => errorMessageFrom(error) ?? 'unknown error',
+    )
+    const queuedSend = store.send({
+      sessionId: 'session-1',
+      text: 'must be cancelled',
+    })
+    const queuedOutcome = queuedSend.then(
+      () => 'resolved',
+      error => errorMessageFrom(error) ?? 'unknown error',
+    )
+
+    await vi.waitFor(() => {
+      expect(llmStreamMock).toHaveBeenCalledTimes(1)
+    })
+    await vi.waitFor(() => {
+      expect(store.pendingQueuedSendCount).toBe(1)
+    })
+    await store.deleteSession('session-1')
+
+    expect(deleteSessionMock).toHaveBeenCalledWith('session-1')
+    expect(await queuedOutcome).toBe('Chat session was reset before send could start')
+    expect(sessionMessages['session-1']).toBeUndefined()
+
+    releaseFirstSend?.()
+    expect(await activeOutcome).toBe('Chat session was removed before send completed')
+    expect(llmStreamMock).toHaveBeenCalledTimes(1)
+    expect(sessionMessages['session-1']).toBeUndefined()
+  })
+
   it('mirrors pending queued send snapshots from the core runtime', async () => {
     let releaseFirstSend: (() => void) | undefined
     llmStreamMock.mockImplementationOnce(async () => {

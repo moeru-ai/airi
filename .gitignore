@@ -33,6 +33,7 @@ lerna-debug.log*
 # Audio binaries
 *.pcm
 *.wav
+!*.test.wav
 *.ogg
 *.mp3
 
@@ -50,6 +51,8 @@ coverage/
 # Build
 out/
 bundle/
+flatpak/
+flatpak-repo/
 .flatpak-builder/
 .flatpak-repo/
 *.flatpak
@@ -133,7 +136,8 @@ plugins-development
 apps/stage-pocket/ios/buildServer.json
 apps/stage-pocket/airi-pocket.jks
 apps/stage-tamagotchi/electron.vite.config.*.mjs
-.docs/superpowers
+docs/superpowers
+docs/research
 
 # Tools - ghfs
 .ghfs/
@@ -143,6 +147,8 @@ apps/stage-tamagotchi/electron.vite.config.*.mjs
 
 docs/ai/context/verifications/
 .playwright-mcp/
+.vitest-attachments
+__screenshots__
 .vishot/
 .alint/
 .alintcache
@@ -150,3 +156,5 @@ docs/ai/context/verifications/
 # Generated from packages/i18n/glossary/terms.yaml at upload time. Never committed, so it
 # cannot drift from its source.
 packages/i18n/glossary/glossary.tbx
+
+/airi-docs/

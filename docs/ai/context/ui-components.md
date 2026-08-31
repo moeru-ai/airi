@@ -79,6 +79,21 @@ Responsive screen component that calculates canvas dimensions based on breakpoin
 
 **Props**: None | **Slots**: `default({ width, height })`
 
+### ScrollableArea
+
+Reka UI scroll area with shared light-mode and dark-mode scrollbar styles.
+The component forwards HTML attributes to the scroll-area root.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `contentAsChild` | `boolean?` | `false` | Render the viewport content wrapper through the single default slot child |
+| `orientation` | `'vertical' \| 'horizontal' \| 'both'` | `'vertical'` | Scrollbar orientations to render |
+| `type` | `ScrollAreaRootProps['type']?` | `'auto'` | Reka UI scrollbar visibility behavior |
+| `viewportClass` | `string \| string[]?` | — | Classes for the Reka UI viewport |
+
+**Slots**: `default`
+**Exposed**: `viewport` (the native scroll owner. Reka UI hides its native scrollbar and renders the configured custom track.)
+
 ### Skeleton
 
 Loading placeholder with animation.
@@ -258,6 +273,7 @@ Basic text/number input.
 | `type` | `InputType?` | — | HTML input type |
 | `variant` | `'primary' \| 'secondary' \| 'primary-dimmed'` | `'primary'` | Visual variant |
 | `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Size |
+| `disabled` | `boolean?` | — | Disable editing and focus |
 
 **v-model**: `modelValue: string | number`
 
@@ -420,6 +436,8 @@ Dropdown select using reka-ui with grouping and custom rendering.
 | `by` | `string \| ((a: T, b: T) => boolean)?` | — | Custom comparison |
 | `contentMinWidth` | `string \| number?` | `160` | Dropdown min width |
 | `contentWidth` | `string \| number?` | — | Dropdown width |
+| `contentSide` | `'top' \| 'right' \| 'bottom' \| 'left'` | `'bottom'` | Preferred dropdown side before collision handling |
+| `contentAlign` | `'start' \| 'center' \| 'end'` | `'start'` | Preferred dropdown alignment before collision handling |
 | `shape` | `'rounded' \| 'default'` | `'default'` | Shape |
 | `variant` | `'blurry' \| 'default'` | `'default'` | Variant |
 
@@ -517,6 +535,7 @@ All Field components wrap a base input with `label`, `description`, and consiste
 | `description` | `string?` | — | Helper text |
 | `placeholder` | `string?` | — | Placeholder |
 | `required` | `boolean?` | — | Required indicator |
+| `disabled` | `boolean?` | — | Disable editing and focus |
 | `type` | `InputType?` | — | Input type |
 | `autocomplete` | `string?` | — | Native autocomplete hint |
 | `inputClass` | `string?` | — | Custom input class |

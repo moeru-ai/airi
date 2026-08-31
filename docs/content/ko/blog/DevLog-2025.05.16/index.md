@@ -103,7 +103,7 @@ LLM 기반 롤플레잉 캐릭터를 저장하고 공유하는 수단이 캐릭�
 (Tauri 개발자와 사용자에게 유용할 것 같습니다.) 여기서 읽어 보세요:
 
 - [Android 조작하기](../DevLog-2025.04.22/)
-- [Tauri 에서의 MCP](../DevLog-2025.04.28/)
+- [Tauri에서의 MCP](../DevLog-2025.04.28/)
 
 ## Project AIRI 주요 퀘스트
 
@@ -113,7 +113,7 @@ LLM 기반 롤플레잉 캐릭터를 저장하고 공유하는 수단이 캐릭�
 [ASR(자동 음성 인식)](https://huggingface.co/tasks/automatic-speech-recognition),
 [TTS(텍스트 음성 변환)](https://huggingface.co/tasks/text-to-speech)이 모두 매우 복잡하고
 쓰기도 이해하기도 어렵다는 걸 느꼈습니다. 그 무렵 저는 [@himself65](https://github.com/himself65)와
-협업해, [Llama Index](https://www.llamaindex.ai/) 의 새 프로젝트인
+협업해, [Llama Index](https://www.llamaindex.ai/)의 새 프로젝트인
 [`llama-flow`](https://github.com/run-llama/llama-flow)의 사용 사례를 개선하고 테스트하고 있었습니다.
 LLM 스트리밍 토큰과 오디오 바이트의 이벤트 기반 스트림을 처리하도록 돕는 라이브러리입니다.
 
@@ -146,7 +146,7 @@ macOS, Windows, Linux, Android, iOS 등에서 12개 이상 언어에 걸쳐 18�
 
 #### xsAI 🤗 Transformers.js의 탄생
 
-VAD, ASR, Chat, TTS 데모 작업 덕분에 [xsAI 🤗 Transformers.js](https://github.com/proj-airi/xsai-transformers)
+VAD, ASR, Chat, TTS 데모 작업 덕분에 [xsAI 🤗 Transformers.js](https://github.com/moeru-ai/xsai-transformers)
 라는 새 사이드 프로젝트가 태어났습니다. WebGPU 기반 모델 추론과 워커를 통한 서빙을 간단히 호출할 수 있게 하면서도,
 앞서 성공한 프로젝트 [xsAI](https://github.com/moeru-ai/xsai)와 API 호환성을 유지합니다.
 

@@ -31,7 +31,6 @@ function makeMetrics(): { metrics: GatewayMetrics, decryptFailures: Counter } {
     configReload: makeCounter(),
     decryptFailures,
     subscriberState: makeCounter(),
-    configWrite: makeCounter(),
     configInvalidHmac: makeCounter(),
   } as GatewayMetrics
   return { metrics, decryptFailures }

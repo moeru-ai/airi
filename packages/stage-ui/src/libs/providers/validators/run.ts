@@ -56,12 +56,12 @@ export function createProviderValidationSteps(providerValidators: ProviderRuntim
   }))
 }
 
-export function getProviderValidationIntervalMs(options: {
+export async function getProviderValidationIntervalMs(options: {
   definition: ProviderDefinition
   contextOptions: { t: ComposerTranslation }
   defaultIntervalMs?: number
 }) {
-  const validators = (options.definition.validators?.validateProvider || []).map(creator => creator(options.contextOptions))
+  const validators = await Promise.all((options.definition.validators?.validateProvider || []).map(creator => creator(options.contextOptions)))
   const defaultIntervalMs = options.defaultIntervalMs ?? 15_000
   const intervals = validators
     .filter(validator => validator.schedule?.mode === 'interval')
@@ -74,16 +74,16 @@ export function getProviderValidationIntervalMs(options: {
   return Math.min(...intervals)
 }
 
-export function getValidatorsOfProvider(options: {
+export async function getValidatorsOfProvider(options: {
   definition: ProviderDefinition
   config: Record<string, unknown>
   schemaDefaults: Record<string, unknown>
   contextOptions: { t: ComposerTranslation }
-}): ProviderValidationPlan {
+}): Promise<ProviderValidationPlan> {
   const { definition } = options
 
-  const configValidators = (definition.validators?.validateConfig || []).map(creator => creator(options.contextOptions))
-  const allProviderValidators = (definition.validators?.validateProvider || []).map(creator => creator(options.contextOptions))
+  const configValidators = await Promise.all((definition.validators?.validateConfig || []).map(creator => creator(options.contextOptions)))
+  const allProviderValidators = await Promise.all((definition.validators?.validateProvider || []).map(creator => creator(options.contextOptions)))
 
   const providerValidators = allProviderValidators
 
@@ -94,7 +94,7 @@ export function getValidatorsOfProvider(options: {
 
   const normalizedConfig = merge(options.schemaDefaults, options.config)
   const validationRequired = definition.validationRequiredWhen || (<TConfig extends Record<string, any>>(_: TConfig) => false)
-  const shouldValidate = validationRequired(normalizedConfig)
+  const shouldValidate = await validationRequired(normalizedConfig)
 
   return {
     steps,

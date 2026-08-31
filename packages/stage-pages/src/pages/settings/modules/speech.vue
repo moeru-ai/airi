@@ -35,7 +35,7 @@ const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const speechStore = useSpeechStore()
 const airiCardStore = useAiriCardStore()
-const { allAudioSpeechProvidersMetadata, configuredSpeechProvidersMetadata } = storeToRefs(providersStore)
+const { allAudioSpeechProvidersMetadata, moduleSpeechProvidersMetadata } = storeToRefs(providersStore)
 const {
   activeSpeechProvider,
   activeSpeechModel,
@@ -76,7 +76,7 @@ let lastOfficialTtsExposureKey = ''
 const STREAMING_MODEL_OPTION_PREFIX = 'streaming:'
 
 const selectableSpeechSources = computed(() => {
-  const configuredSources = configuredSpeechProvidersMetadata.value
+  const configuredSources = moduleSpeechProvidersMetadata.value
     .filter(metadata =>
       metadata.id !== 'speech-noop'
       && metadata.id !== OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
@@ -405,7 +405,7 @@ watch(activeSpeechModel, async (model) => {
 })
 
 watch([activeSpeechProvider, activeSpeechModel, activeSpeechVoiceId], ([provider, model, voiceId]) => {
-  airiCardStore.updateActiveCardSpeech({ provider, model, voice_id: voiceId })
+  void airiCardStore.updateActiveCardSpeech({ provider, model, voice_id: voiceId })
 })
 
 // Function to generate speech

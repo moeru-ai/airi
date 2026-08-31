@@ -9,6 +9,7 @@ const audioRecorderMock = vi.hoisted(() => ({
 }))
 
 const vadMock = vi.hoisted(() => ({
+  init: vi.fn<() => Promise<void>>(),
   options: undefined as {
     onSpeechStart?: () => void
     onSpeechEnd?: () => void
@@ -16,6 +17,7 @@ const vadMock = vi.hoisted(() => ({
     onSpeechReady?: (event: { buffer: Float32Array, duration: number }) => void
     minSilenceDurationMs?: number
   } | undefined,
+  start: vi.fn<() => Promise<void>>(),
 }))
 
 const hearingPipelineMock = vi.hoisted(() => ({
@@ -33,9 +35,9 @@ vi.mock('../../stores/ai/models/vad', async () => {
     useVAD: (_workerUrl: string, options: typeof vadMock.options) => {
       vadMock.options = options
       return {
-        init: vi.fn(),
+        init: vadMock.init,
         dispose: vi.fn(),
-        start: vi.fn(),
+        start: vadMock.start,
         loaded: vue.ref(true),
         isSpeech: vue.ref(false),
         isSpeechProb: vue.ref(0),
@@ -82,6 +84,8 @@ describe('useVoiceInputSession', () => {
     audioRecorderMock.isRecording.value = false
     audioRecorderMock.onStopRecordHook = undefined
     vadMock.options = undefined
+    vadMock.init.mockReset().mockResolvedValue(undefined)
+    vadMock.start.mockReset().mockResolvedValue(undefined)
     vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.clearAllMocks()

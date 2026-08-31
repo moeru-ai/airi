@@ -1,18 +1,14 @@
+import type { Logger } from '@guiiai/logg'
+
 import { withRetry } from '@moeru/std'
 
 const EXTERNAL_DEPENDENCY_INIT_MAX_ATTEMPTS = 5
 const EXTERNAL_DEPENDENCY_INIT_BASE_DELAY_MS = 5000
 
-interface ExternalDependencyLogger {
-  log: (message: string) => unknown
-  withError: (error: unknown) => {
-    warn: (message: string) => unknown
-  }
-}
-
+/** Initializes an API dependency using the process startup retry policy. */
 export async function initializeExternalDependency<T>(
   dependencyName: string,
-  logger: ExternalDependencyLogger,
+  logger: Logger,
   initialize: (attempt: number) => Promise<T>,
 ): Promise<T> {
   let attempt = 0

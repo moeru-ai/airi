@@ -2,7 +2,7 @@ import type { UserDeletionHandler, UserDeletionReason, UserDeletionService } fro
 
 import { useLogger } from '@guiiai/logg'
 
-export type { UserDeletionContext, UserDeletionHandler, UserDeletionReason, UserDeletionService } from './types'
+export type { UserDeletionContext, UserDeletionExecutor, UserDeletionHandler, UserDeletionReason, UserDeletionService } from './types'
 
 /**
  * Build an empty deletion-service registry.
@@ -19,9 +19,11 @@ export type { UserDeletionContext, UserDeletionHandler, UserDeletionReason, User
  * Call stack:
  *
  * better-auth `/delete-user/callback`
- *   -> `user.deleteUser.beforeDelete` (libs/auth.ts)
- *     -> {@link UserDeletionService.softDeleteAll}
- *       -> handler.softDelete (per registered module)
+ *   -> `user.deleteUser.beforeDelete` (`server/apps/auth/src/auth.ts`)
+ *     -> Auth `RemoteUserDeletionService`
+ *       -> `POST /internal/auth/user-deletion`
+ *         -> {@link UserDeletionService.softDeleteAll}
+ *           -> handler.softDelete (per registered module)
  *
  * Failure model: a thrown error from any handler aborts before
  * `internalAdapter.deleteUser`, leaving the user row intact. The next retry

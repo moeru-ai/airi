@@ -11,7 +11,24 @@ export function useIOTraceBridge(pipeline: ReturnType<typeof createSpeechPipelin
 
   const synthesisSpans = new Map<string, Span>()
   const playbackSpans = new Map<string, Span>()
+  const speechTurnSpans = new Map<string, Span>()
   const segmentReasons = new Map<string, string>()
+
+  cleanupFns.push(pipeline.on('onTurnStart', (turnId) => {
+    speechTurnSpans.set(turnId, startSpan(IOSpanNames.SpeechTurn, activeTurnSpan.value, {
+      [IOAttributes.TurnId]: turnId,
+    }))
+  }))
+
+  cleanupFns.push(pipeline.on('onTurnEnd', (turnId) => {
+    speechTurnSpans.get(turnId)?.end()
+    speechTurnSpans.delete(turnId)
+  }))
+
+  cleanupFns.push(pipeline.on('onTurnCancel', ({ turnId }) => {
+    speechTurnSpans.get(turnId)?.end()
+    speechTurnSpans.delete(turnId)
+  }))
 
   cleanupFns.push(pipeline.on('onSegment', (segment) => {
     segmentReasons.set(segment.segmentId, segment.reason)
@@ -23,6 +40,7 @@ export function useIOTraceBridge(pipeline: ReturnType<typeof createSpeechPipelin
       [IOAttributes.TTSSegmentId]: request.segmentId,
       [IOAttributes.TTSText]: request.text,
       [IOAttributes.TTSChunkReason]: segmentReasons.get(request.segmentId) ?? '',
+      [IOAttributes.TurnId]: request.turnId ?? '',
     })
     segmentReasons.delete(request.segmentId)
     synthesisSpans.set(request.segmentId, ttsSynthesisSpan)
@@ -31,6 +49,8 @@ export function useIOTraceBridge(pipeline: ReturnType<typeof createSpeechPipelin
   cleanupFns.push(pipeline.on('onTtsResult', (result) => {
     const span = synthesisSpans.get(result.segmentId)
     if (span) {
+      if (result.audio instanceof AudioBuffer)
+        span.setAttribute(IOAttributes.TTSAudioDurationMs, result.audio.duration * 1000)
       span.end()
       synthesisSpans.delete(result.segmentId)
     }
@@ -77,6 +97,8 @@ export function useIOTraceBridge(pipeline: ReturnType<typeof createSpeechPipelin
   }))
 
   onScopeDispose(() => {
+    for (const span of speechTurnSpans.values())
+      span.end()
     for (const cleanup of cleanupFns)
       cleanup()
   })
