@@ -38,6 +38,8 @@ describe('imported VRM view settings', () => {
     // Existing installations only have the old runtime URL identity key. AIRI cannot
     // safely map that URL back to a persisted file after restart. The first new-version
     // load must reset once and establish a stable model ID for later reloads.
+    // A reload also creates a new VRM group. The saved offset must be applied to that
+    // group even when the store value does not change and its watcher does not run.
     const pinia = createPinia()
     const modelStore = useModelStore(pinia)
     modelStore.resetModelStore()
@@ -45,6 +47,7 @@ describe('imported VRM view settings', () => {
     modelStore.modelOffset = { x: 0.25, y: 0.25, z: 0 }
     const modelId = shallowRef('display-model-issue-1806')
     const modelSrc = shallowRef(vrmModelUrl)
+    const sceneComponent = shallowRef<InstanceType<typeof ThreeScene>>()
     modelStore.resetLegacyModelIdentity()
     const container = document.createElement('div')
     container.style.height = '600px'
@@ -52,9 +55,18 @@ describe('imported VRM view settings', () => {
     document.body.appendChild(container)
 
     const TestHarness = defineComponent(() => () => h(ThreeScene, {
+      ref: sceneComponent,
       modelId: modelId.value,
       modelSrc: modelSrc.value,
     }))
+
+    function renderedModelOffset() {
+      const position = sceneComponent.value?.scene()?.parent?.position
+      if (!position)
+        return undefined
+
+      return { x: position.x, y: position.y, z: position.z }
+    }
 
     const app = createApp(TestHarness)
     app.use(pinia)
@@ -74,6 +86,7 @@ describe('imported VRM view settings', () => {
 
     modelStore.modelOffset = { x: 0.35, y: 0.35, z: 0 }
     modelStore.cameraDistance = 1.75
+    await expect.poll(renderedModelOffset).toEqual({ x: 0.35, y: 0.35, z: 0 })
     const previousModelSrc = modelSrc.value
     modelSrc.value = URL.createObjectURL(vrmModel)
     await nextTick()
@@ -83,6 +96,7 @@ describe('imported VRM view settings', () => {
 
     expect(modelSrc.value).not.toBe(previousModelSrc)
     expect(modelStore.modelOffset).toEqual({ x: 0.35, y: 0.35, z: 0 })
+    expect(renderedModelOffset()).toEqual({ x: 0.35, y: 0.35, z: 0 })
     expect(modelStore.cameraDistance).toBe(1.75)
 
     modelId.value = 'display-model-other'

@@ -308,7 +308,19 @@ function clearActiveManagedVrmRefs() {
   interactionColliders.value = undefined
 }
 
+function applyModelTransform(group: Group) {
+  group.position.set(
+    modelOffset.value.x,
+    modelOffset.value.y,
+    modelOffset.value.z,
+  )
+  group.rotation.y = MathUtils.degToRad(modelRotationY.value)
+}
+
 function applyManagedVrmInstance(instance: ManagedVrmInstance) {
+  // A reload creates a new group while the saved transform can stay unchanged.
+  // Apply it during every commit because the value watchers will not run again.
+  applyModelTransform(instance.group)
   vrm.value = instance.vrm
   vrmGroup.value = instance.group
   vrmAnimationMixer.value = instance.mixer
@@ -956,19 +968,13 @@ onMounted(async () => {
   }, { immediate: true })
   // update model position
   watch(modelOffset, () => {
-    if (vrmGroup.value) {
-      vrmGroup.value.position.set(
-        modelOffset.value.x,
-        modelOffset.value.y,
-        modelOffset.value.z,
-      )
-    }
+    if (vrmGroup.value)
+      applyModelTransform(vrmGroup.value)
   }, { immediate: true, deep: true })
   // update model rotation
-  watch(modelRotationY, (newRotationY) => {
-    if (vrmGroup.value) {
-      vrmGroup.value.rotation.y = MathUtils.degToRad(newRotationY)
-    }
+  watch(modelRotationY, () => {
+    if (vrmGroup.value)
+      applyModelTransform(vrmGroup.value)
   }, { immediate: true })
   // update NPR sky box
   watch([envSelect, skyBoxIntensity, nprIrrSH], async () => {
