@@ -173,8 +173,9 @@ const latestScenePhaseTraceCause = ref<SceneTracePhaseCause>('props:model-src')
 const latestSceneTransactionReason = ref<SceneTraceTransactionReason>('unknown')
 const activeModelSrc = ref<string>()
 const bindingRevision = ref(0)
-// A model ID can change before its async URL lookup finishes. Keep the ID and URL
-// from each load-start event together so a completed load cannot claim the next ID.
+// A selection ID can change while its URL is still resolving. The URL change owns
+// the request snapshot, so an in-flight load keeps the ID that requested its URL.
+const requestedModelIdentity = shallowRef<ModelLoadIdentity>()
 const loadingModelIdentity = shallowRef<ModelLoadIdentity>()
 const pendingCommittedModelIdentity = shallowRef<ModelLoadIdentity>()
 const pendingCommittedModelRevision = ref<number>()
@@ -396,7 +397,8 @@ function commitLastCommittedModelId(expectedRevision: number, nextPhase: ScenePh
   if (!activeModelSrc.value || completedModel.modelSrc !== activeModelSrc.value)
     return
 
-  if (props.modelId !== completedModel.modelId || props.modelSrc !== completedModel.modelSrc)
+  const activeRequest = requestedModelIdentity.value
+  if (activeRequest?.modelId !== completedModel.modelId || activeRequest.modelSrc !== completedModel.modelSrc)
     return
 
   lastCommittedModelId.value = completedModel.modelId
@@ -481,12 +483,7 @@ function onVRMModelLoadStart(reason: VrmLifecycleReason) {
   modelPhase.value = 'loading'
   pendingSceneBootstrap.value = undefined
   beginSceneBindingCycle(toSceneLoadTransactionReason(reason))
-  if (props.modelSrc) {
-    loadingModelIdentity.value = {
-      modelId: props.modelId,
-      modelSrc: props.modelSrc,
-    }
-  }
+  loadingModelIdentity.value = requestedModelIdentity.value
 }
 
 function onVRMSceneBootstrap(value: SceneBootstrap) {
@@ -640,6 +637,12 @@ const effectProps = {
 function applyVrmFrameRuntimeHook() {
   modelRef.value?.setVrmFrameHook(vrmFrameRuntimeHook.value)
 }
+
+watch(() => props.modelSrc, (modelSrc) => {
+  requestedModelIdentity.value = modelSrc
+    ? { modelId: props.modelId, modelSrc }
+    : undefined
+}, { flush: 'sync', immediate: true })
 
 watch(() => props.modelSrc, (modelSrc) => {
   modelPhase.value = modelSrc ? 'loading' : 'no-model'
@@ -870,8 +873,8 @@ defineExpose({
         :current-audio-source="props.currentAudioSource"
         :cursor-position="props.cursorPosition"
         :last-committed-model-id="lastCommittedModelId"
-        :model-id="props.modelId"
-        :model-src="props.modelSrc"
+        :model-id="requestedModelIdentity?.modelId ?? props.modelId"
+        :model-src="requestedModelIdentity?.modelSrc"
         :idle-animation="props.idleAnimation"
         :paused="props.paused"
         :env-select="envSelect"
