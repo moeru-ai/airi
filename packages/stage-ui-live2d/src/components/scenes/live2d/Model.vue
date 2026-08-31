@@ -1,17 +1,16 @@
 <script setup lang="ts">
 import type { Application } from '@pixi/app'
 import type { Filter } from '@pixi/core'
+import type {
+  AmbientLightEnvironment,
+  AmbientLightFilterOptions,
+  ScreenAmbientLightMode,
+} from '@proj-airi/stage-shared/screen-ambient-light'
 
 import type { PixiLive2DInternalModel } from '../../../composables/live2d'
-import type {
-  Live2DAmbientLightDirection,
-  Live2DAmbientLightFilterOptions,
-  Live2DAmbientLightLobe,
-  Live2DAmbientLightSample,
-  Live2DScreenAmbientLightMode,
-} from '../../../stores'
 
 import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
+import { ambientLightDefaults, ambientLightNeutralEnvironment } from '@proj-airi/stage-shared/screen-ambient-light'
 import { useTheme } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
 import { animate } from 'animejs'
@@ -40,7 +39,7 @@ import {
 import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
 import { ScreenAmbientLightFilter } from '../../../filters/screen-ambient-light'
-import { getLive2DMotionControlModelOffset, live2dAmbientLightDefaults, useL2dViewControl, useLive2DMotionControl, useLive2dParams } from '../../../stores'
+import { getLive2DMotionControlModelOffset, useL2dViewControl, useLive2DMotionControl, useLive2dParams } from '../../../stores'
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
@@ -64,11 +63,9 @@ const props = withDefaults(defineProps<{
   live2dExpressionEnabled?: boolean
   live2dShadowEnabled?: boolean
   live2dScreenAmbientLightActive?: boolean
-  live2dScreenAmbientLightFilterOptions?: Live2DAmbientLightFilterOptions
-  live2dScreenAmbientLightDirection?: Live2DAmbientLightDirection
-  live2dScreenAmbientLightLobes?: readonly Live2DAmbientLightLobe[]
-  live2dScreenAmbientLightMode?: Live2DScreenAmbientLightMode
-  live2dScreenAmbientLightSample?: Live2DAmbientLightSample
+  live2dScreenAmbientLightFilterOptions?: AmbientLightFilterOptions
+  live2dScreenAmbientLightEnvironment?: AmbientLightEnvironment
+  live2dScreenAmbientLightMode?: ScreenAmbientLightMode
   live2dScreenAmbientLightStrength?: number
 }>(), {
   mouthOpenSize: 0,
@@ -88,12 +85,10 @@ const props = withDefaults(defineProps<{
   live2dExpressionEnabled: true,
   live2dShadowEnabled: true,
   live2dScreenAmbientLightActive: false,
-  live2dScreenAmbientLightFilterOptions: () => ({ ...live2dAmbientLightDefaults.filter }),
-  live2dScreenAmbientLightDirection: () => ({ x: 0, y: 0 }),
-  live2dScreenAmbientLightLobes: () => [],
-  live2dScreenAmbientLightMode: 'window-gradient',
-  live2dScreenAmbientLightSample: () => ({ red: 1, green: 1, blue: 1, luminance: 0.5 }),
-  live2dScreenAmbientLightStrength: 0.55,
+  live2dScreenAmbientLightFilterOptions: () => ({ ...ambientLightDefaults.filter }),
+  live2dScreenAmbientLightEnvironment: () => ambientLightNeutralEnvironment,
+  live2dScreenAmbientLightMode: ambientLightDefaults.mode,
+  live2dScreenAmbientLightStrength: ambientLightDefaults.strength,
 })
 
 const emits = defineEmits<{
@@ -134,9 +129,33 @@ const nowSpeaking = toRef(() => props.nowSpeaking)
 const lastUpdateTime = ref(0)
 
 const { isDark: dark } = useTheme()
+
+/** Shadow opacity over a black screen, before the exposure fades it. */
+const dropShadowBaseAlpha = 0.2
+
+/**
+ * Softness of the drop shadow, in pixels.
+ *
+ * At 0 the shadow is a hard copy of the silhouette, offset by its distance. A
+ * dark desktop hides that copy at this opacity, but over a white window it
+ * reads as a second character. It also carries the theme hue: measured over
+ * white, the hard shadow took the band beside the character to red 242.3 while
+ * blue stayed at 252.7, which shows as a cyan edge.
+ */
+const dropShadowBlur = 10
+
+/**
+ * How much a bright screen fades the drop shadow out.
+ *
+ * The shadow separates the character from the desktop, and the light wrap
+ * blends the same edge. A bright desktop is where the shadow is most visible,
+ * so it recedes there and keeps full strength over a dark desktop.
+ */
+const dropShadowExposureFalloff = 0.75
+
 const dropShadowFilter = shallowRef(new DropShadowFilter({
-  alpha: 0.2,
-  blur: 0,
+  alpha: dropShadowBaseAlpha,
+  blur: dropShadowBlur,
   distance: 20,
   rotation: 45,
 }))
@@ -210,10 +229,8 @@ const live2dExpressionEnabled = toRef(() => props.live2dExpressionEnabled)
 const live2dShadowEnabled = toRef(() => props.live2dShadowEnabled)
 const live2dScreenAmbientLightActive = toRef(() => props.live2dScreenAmbientLightActive)
 const live2dScreenAmbientLightFilterOptions = toRef(() => props.live2dScreenAmbientLightFilterOptions)
-const live2dScreenAmbientLightDirection = toRef(() => props.live2dScreenAmbientLightDirection)
-const live2dScreenAmbientLightLobes = toRef(() => props.live2dScreenAmbientLightLobes)
+const live2dScreenAmbientLightEnvironment = toRef(() => props.live2dScreenAmbientLightEnvironment)
 const live2dScreenAmbientLightMode = toRef(() => props.live2dScreenAmbientLightMode)
-const live2dScreenAmbientLightSample = toRef(() => props.live2dScreenAmbientLightSample)
 const live2dScreenAmbientLightStrength = toRef(() => props.live2dScreenAmbientLightStrength)
 
 // --- Expression controller
@@ -556,57 +573,81 @@ async function setMotion(motionName: string, index?: number) {
 const dropShadowColorComputer = ref<HTMLDivElement>()
 const dropShadowAnimationId = ref(0)
 
-function updateModelFilters() {
+function updateAmbientLightFilter() {
+  if (!live2dScreenAmbientLightActive.value)
+    return
+
+  screenAmbientLightFilter.value.update({
+    environment: live2dScreenAmbientLightEnvironment.value,
+    mode: live2dScreenAmbientLightMode.value,
+    strength: live2dScreenAmbientLightStrength.value,
+    options: live2dScreenAmbientLightFilterOptions.value,
+  })
+}
+
+function updateDropShadow() {
+  // The measured screen level only applies while the ambient light is running.
+  // Without it the shadow keeps one strength, which is the behavior for a stage
+  // that never samples the screen.
+  const exposure = live2dScreenAmbientLightActive.value
+    ? live2dScreenAmbientLightEnvironment.value.exposure
+    : 0
+  dropShadowFilter.value.alpha = dropShadowBaseAlpha * (1 - dropShadowExposureFalloff * exposure)
+
+  if (!dropShadowColorComputer.value)
+    return
+
+  const color = getComputedStyle(dropShadowColorComputer.value).backgroundColor
+  dropShadowFilter.value.color = Number(formatHex(color)!.replace('#', '0x'))
+}
+
+// The filter array is replaced only when the set of filters changes. The
+// shadow loop below runs every frame, and a fresh array per frame would make
+// Pixi re-evaluate the filter stack for nothing.
+function updateFilterStack() {
   if (!model.value)
     return
 
   const filters: Filter[] = []
-  if (live2dScreenAmbientLightActive.value) {
-    screenAmbientLightFilter.value.update(
-      live2dScreenAmbientLightSample.value,
-      live2dScreenAmbientLightDirection.value,
-      live2dScreenAmbientLightLobes.value,
-      live2dScreenAmbientLightMode.value,
-      live2dScreenAmbientLightStrength.value,
-      live2dScreenAmbientLightFilterOptions.value,
-      props.width / Math.max(1, props.height),
-    )
+  if (live2dScreenAmbientLightActive.value)
     filters.push(screenAmbientLightFilter.value)
-  }
-
-  if (live2dShadowEnabled.value) {
-    if (dropShadowColorComputer.value) {
-      const color = getComputedStyle(dropShadowColorComputer.value).backgroundColor
-      dropShadowFilter.value.color = Number(formatHex(color)!.replace('#', '0x'))
-    }
+  if (live2dShadowEnabled.value)
     filters.push(dropShadowFilter.value)
-  }
 
-  model.value.filters = filters
+  const current = model.value.filters ?? []
+  const unchanged = current.length === filters.length
+    && current.every((filter, index) => filter === filters[index])
+  if (!unchanged)
+    model.value.filters = filters
+}
+
+function updateModelFilters() {
+  updateAmbientLightFilter()
+  updateDropShadow()
+  updateFilterStack()
 }
 
 watch(modelSrcRef, async () => await loadModel(), { immediate: true })
 watch(dark, updateModelFilters, { immediate: true })
 watch([model, themeColorsHue], updateModelFilters)
-watch(live2dShadowEnabled, updateModelFilters)
+watch([live2dShadowEnabled, live2dScreenAmbientLightActive], updateFilterStack)
 watch(
   [
     live2dScreenAmbientLightActive,
     live2dScreenAmbientLightFilterOptions,
-    live2dScreenAmbientLightDirection,
-    live2dScreenAmbientLightLobes,
+    live2dScreenAmbientLightEnvironment,
     live2dScreenAmbientLightMode,
-    live2dScreenAmbientLightSample,
     live2dScreenAmbientLightStrength,
-    () => props.width,
-    () => props.height,
   ],
   updateModelFilters,
 )
 
 // TODO: This is hacky!
+// The theme hue animates, so the shadow color follows it once per frame. Only
+// the shadow color belongs here. The ambient-light uniforms update on change,
+// and the light maps would otherwise upload on every frame.
 function updateDropShadowFilterLoop() {
-  updateModelFilters()
+  updateDropShadow()
   if (!live2dShadowEnabled.value) {
     dropShadowAnimationId.value = 0
     return
