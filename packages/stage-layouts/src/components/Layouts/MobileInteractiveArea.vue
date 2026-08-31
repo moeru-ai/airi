@@ -33,21 +33,9 @@ import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
 import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 import { BackgroundDialogPicker } from '../Backgrounds'
 
-interface Props {
-  /**
-   * Enables keyboard measurement and limits the chat layer to the visible viewport.
-   *
-   * @default false
-   */
-  keyboardAvoidance?: boolean
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  keyboardAvoidance: false,
-})
 const emit = defineEmits<{
-  /** Sends visualViewport.offsetTop so the parent can keep the Stage at the same screen position. */
-  viewportOffsetChange: [offsetTop: number]
+  /** Reports the stable height and offset that keep the Stage in the same screen position. */
+  stageViewportChange: [viewport: { height: number, offsetTop: number }]
 }>()
 
 const { isDark, toggleDark } = useTheme()
@@ -112,29 +100,31 @@ const {
   controlsIslandOverflowing,
   controlsIslandStyle,
   messageComposerStyle,
+  stableViewportHeight,
   viewportOffsetTop,
   viewportStyle: mobileInteractiveAreaStyle,
 } = useMobileInteractiveAreaLayout({
   area: interactionControls,
   controlsIsland,
   controlsIslandContent,
-  enabled: () => props.keyboardAvoidance,
   messageComposer,
   viewport: mobileInteractiveArea,
 })
 
-watch(viewportOffsetTop, offsetTop => emit('viewportOffsetChange', offsetTop), { immediate: true })
+watch(
+  [stableViewportHeight, viewportOffsetTop],
+  ([height, offsetTop]) => emit('stageViewportChange', { height, offsetTop }),
+  { immediate: true },
+)
 
-const mobileInteractiveAreaClass = computed(() => [
-  'pointer-events-none fixed inset-x-0 z-20 w-full',
+const mobileInteractiveAreaClass = [
+  'pointer-events-none fixed inset-x-0 top-0 z-20 w-full',
   'flex flex-col',
-  props.keyboardAvoidance ? 'top-0' : 'bottom-0',
-])
-const chatHistoryClass = computed(() => [
+]
+const chatHistoryClass = [
   'pointer-events-auto relative z-20',
   'max-w-[calc(100%_-_3.5rem)] w-full self-start pb-3 pl-3',
-  props.keyboardAvoidance ? undefined : 'max-h-[35dvh]',
-])
+]
 const controlsIslandClass = computed(() => [
   'absolute right-0 translate-y-[-100%]',
   'max-w-full overflow-y-auto overscroll-contain px-3 py-3 font-sans scrollbar-none',

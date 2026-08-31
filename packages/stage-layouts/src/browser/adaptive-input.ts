@@ -19,6 +19,8 @@ export interface AdaptiveInputLayout {
    * If false, the input region can use the normal viewport layout.
    */
   keyboardVisible: boolean
+  /** The layout viewport height before the software keyboard changes the visible area. */
+  stableViewportHeight: number
   /** The height that remains visible above the keyboard, in CSS pixels. */
   visibleHeight: number
   /** The bottom edge to assign to the adaptive viewport, in document coordinates and CSS pixels. */
@@ -31,6 +33,12 @@ export interface AdaptiveInputLayout {
 export interface AdaptiveInputOptions {
   /** The region that contains editable controls and moves above the keyboard. */
   area: HTMLElement
+  /**
+   * Lets the virtual keyboard cover page content so this controller can position the input area.
+   *
+   * @default true
+   */
+  overlayVirtualKeyboard?: boolean
   /** The region whose height follows the available viewport. */
   viewport: HTMLElement
   /**
@@ -102,7 +110,7 @@ export class AdaptiveInput extends EventTarget {
   private synchronousHeightValue: string | undefined
   private viewportSample: ViewportSample | undefined
 
-  private readonly overlaysContentBeforeStart: boolean | undefined
+  private readonly overlaysContentBeforeStart?: boolean
 
   constructor(options: AdaptiveInputOptions) {
     super()
@@ -117,6 +125,7 @@ export class AdaptiveInput extends EventTarget {
     this.referenceLayoutHeight = initialHeight
     this.layoutValue = {
       keyboardVisible: false,
+      stableViewportHeight: initialHeight,
       visibleHeight: initialHeight,
       viewportBottom: initialHeight,
       viewportOffsetTop: 0,
@@ -124,9 +133,10 @@ export class AdaptiveInput extends EventTarget {
 
     // TypeScript 5.9 does not include this experimental browser API in lib.dom.d.ts.
     this.virtualKeyboard = Reflect.get(targetWindow.navigator, 'virtualKeyboard')
-    this.overlaysContentBeforeStart = this.virtualKeyboard?.overlaysContent
-    if (this.virtualKeyboard)
+    if (this.virtualKeyboard && options.overlayVirtualKeyboard !== false) {
+      this.overlaysContentBeforeStart = this.virtualKeyboard.overlaysContent
       this.virtualKeyboard.overlaysContent = true
+    }
 
     const activeElement = targetWindow.document.activeElement
     this.focusPhase = activeElement !== null
@@ -287,6 +297,7 @@ export class AdaptiveInput extends EventTarget {
 
     this.layoutValue = {
       keyboardVisible,
+      stableViewportHeight: stableLayoutHeight,
       visibleHeight,
       viewportBottom,
       viewportOffsetTop,
@@ -334,6 +345,7 @@ export class AdaptiveInput extends EventTarget {
     const normalHeight = this.referenceLayoutHeight || readViewportProfile(this.targetWindow).height
     this.layoutValue = {
       keyboardVisible: false,
+      stableViewportHeight: normalHeight,
       visibleHeight: normalHeight,
       viewportBottom: normalHeight,
       viewportOffsetTop: this.visualViewport?.offsetTop ?? 0,
@@ -403,6 +415,7 @@ export class AdaptiveInput extends EventTarget {
     this.predictedViewportHeight = cachedHeight
     this.layoutValue = {
       keyboardVisible: true,
+      stableViewportHeight: currentProfile.height,
       visibleHeight: cachedHeight,
       viewportBottom: cachedHeight,
       viewportOffsetTop: 0,
@@ -438,6 +451,7 @@ export class AdaptiveInput extends EventTarget {
     this.predictedViewportHeight = undefined
     this.layoutValue = {
       keyboardVisible: false,
+      stableViewportHeight: currentProfile.height,
       visibleHeight: currentProfile.height,
       viewportBottom: currentProfile.height,
       viewportOffsetTop: 0,
