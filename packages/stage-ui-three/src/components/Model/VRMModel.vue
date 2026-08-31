@@ -226,6 +226,13 @@ function getRendererInstance() {
   return renderer?.instance as WebGLRenderer | undefined
 }
 
+function updateIblProbe(mode = normalizeEnvMode(envSelect.value)) {
+  if (!airiIblProbe && scene.value)
+    airiIblProbe = createIblProbeController(scene.value)
+
+  airiIblProbe?.update(mode, skyBoxIntensity.value, nprIrrSH.value ?? null)
+}
+
 function toErrorMessage(error: unknown) {
   if (error instanceof Error)
     return error.message
@@ -510,7 +517,16 @@ function bindManagedVrmInstanceRenderLoop() {
   }).off
 }
 
-function commitManagedVrmInstance(instance: ManagedVrmInstance) {
+function commitManagedVrmInstance(
+  instance: ManagedVrmInstance,
+  reason: 'initial-load' | 'model-reload' | 'model-switch',
+) {
+  // Keep the active model visible until its replacement is ready. No asynchronous
+  // work occurs between this cleanup and the replacement scene commit.
+  if (reason !== 'initial-load')
+    componentCleanUp(reason, { invalidate: false })
+
+  updateIblProbe()
   scene.value?.add(instance.group)
   applyManagedVrmInstance(instance)
   bindManagedVrmInstanceRenderLoop()
@@ -716,13 +732,6 @@ async function loadModel() {
         nextVrmAnimationMixer = reusableInstance.mixer
         nextVrmEmote = reusableInstance.emote
 
-        if (!airiIblProbe && scene.value)
-          airiIblProbe = createIblProbeController(scene.value)
-
-        if (currentLoadReason === 'model-switch') {
-          componentCleanUp('model-switch', { invalidate: false })
-        }
-
         runVrmLoadHooks({
           cacheHit: true,
           camera: camera.value,
@@ -731,7 +740,7 @@ async function loadModel() {
           vrmGroup: reusableInstance.group,
         })
         emit('sceneBootstrap', buildSceneBootstrap(reusableInstance.vrm, true))
-        commitManagedVrmInstance(reusableInstance)
+        commitManagedVrmInstance(reusableInstance, currentLoadReason)
         didCommitLoad = true
 
         if (isStageThreeRuntimeTraceEnabled()) {
@@ -834,10 +843,6 @@ async function loadModel() {
       injectDiffuseIBL(mat)
     }
 
-    // MToon material sky box lightProbe setting
-    if (!airiIblProbe && scene.value)
-      airiIblProbe = createIblProbeController(scene.value)
-
     // Material traverse setting
     _vrm.scene.traverse((child) => {
       if (child instanceof Mesh && child.material) {
@@ -875,10 +880,6 @@ async function loadModel() {
       }
     })
 
-    if (currentLoadReason === 'model-switch') {
-      componentCleanUp('model-switch', { invalidate: false })
-    }
-
     emit('sceneBootstrap', buildSceneBootstrap(_vrm, false))
 
     const nextInteractionColliders = createVrmInteractionColliders(_vrm)
@@ -889,7 +890,7 @@ async function loadModel() {
       interactionColliders: nextInteractionColliders,
       mixer: nextVrmAnimationMixer,
       vrm: _vrm,
-    }))
+    }), currentLoadReason)
     didCommitLoad = true
 
     if (isStageThreeRuntimeTraceEnabled()) {
@@ -1014,7 +1015,7 @@ onMounted(async () => {
       intensity: skyBoxIntensity.value,
       sh: nprIrrSH.value ?? null,
     })
-    airiIblProbe?.update(mode, skyBoxIntensity.value, nprIrrSH.value ?? null)
+    updateIblProbe(mode)
   }, { immediate: true })
   watch(focusPos, (newPos) => {
     idleEyeSaccades.instantUpdate(vrm.value, newPos)

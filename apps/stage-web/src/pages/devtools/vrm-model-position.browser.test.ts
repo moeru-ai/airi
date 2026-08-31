@@ -40,6 +40,7 @@ describe('imported VRM view settings', () => {
     // load must reset once and establish a stable model ID for later reloads.
     // A reload also creates a new VRM group. The saved offset must be applied to that
     // group even when the store value does not change and its watcher does not run.
+    // The old group must leave the scene before AIRI commits the replacement group.
     const pinia = createPinia()
     const modelStore = useModelStore(pinia)
     modelStore.resetModelStore()
@@ -58,6 +59,7 @@ describe('imported VRM view settings', () => {
       ref: sceneComponent,
       modelId: modelId.value,
       modelSrc: modelSrc.value,
+      style: { height: '600px', width: '800px' },
     }))
 
     function renderedModelOffset() {
@@ -71,6 +73,11 @@ describe('imported VRM view settings', () => {
     const app = createApp(TestHarness)
     app.use(pinia)
     app.mount(container)
+
+    await expect.poll(() => {
+      const bounds = container.firstElementChild?.getBoundingClientRect()
+      return { height: bounds?.height, width: bounds?.width }
+    }).toEqual({ height: 600, width: 800 })
 
     // NOTICE:
     // Keep the app mounted until Vitest closes the browser page.
@@ -87,6 +94,8 @@ describe('imported VRM view settings', () => {
     modelStore.modelOffset = { x: 0.35, y: 0.35, z: 0 }
     modelStore.cameraDistance = 1.75
     await expect.poll(renderedModelOffset).toEqual({ x: 0.35, y: 0.35, z: 0 })
+    const previousModelGroup = sceneComponent.value?.scene()?.parent
+    expect(previousModelGroup).toBeTruthy()
     const previousModelSrc = modelSrc.value
     modelSrc.value = URL.createObjectURL(vrmModel)
     await nextTick()
@@ -98,6 +107,8 @@ describe('imported VRM view settings', () => {
     expect(modelStore.modelOffset).toEqual({ x: 0.35, y: 0.35, z: 0 })
     expect(renderedModelOffset()).toEqual({ x: 0.35, y: 0.35, z: 0 })
     expect(modelStore.cameraDistance).toBe(1.75)
+    expect(sceneComponent.value?.scene()?.parent === previousModelGroup).toBe(false)
+    expect(previousModelGroup?.parent === null).toBe(true)
 
     modelId.value = 'display-model-other'
     modelSrc.value = URL.createObjectURL(vrmModel)
