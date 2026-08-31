@@ -1,9 +1,8 @@
 import type {
-  Live2DAmbientLightDirection,
-  Live2DAmbientLightLobe,
-  Live2DAmbientLightSample,
-  Live2DScreenAmbientLightSource,
-} from '@proj-airi/stage-ui-live2d'
+  AmbientLightEnvironment,
+  ScreenAmbientLightSamplingDiagnostics,
+  ScreenAmbientLightSource,
+} from '@proj-airi/stage-shared/screen-ambient-light'
 
 export const screenAmbientLightDiagnosticsChannelName = 'airi::screen-ambient-light-diagnostics'
 
@@ -12,20 +11,6 @@ export interface ScreenAmbientLightRectangle {
   y: number
   width: number
   height: number
-}
-
-/** Describes how one captured frame contributed to its sampled light color. */
-export interface ScreenAmbientLightSamplingDiagnostics {
-  totalPixelCount: number
-  excludedPixelCount: number
-  transparentPixelCount: number
-  blackPixelCount: number
-  whitePixelCount: number
-  acceptedPixelCount: number
-  weightTotal: number
-  averageSaturation: number
-  /** Average accepted color before saturation weighting. */
-  unweightedSample?: Live2DAmbientLightSample
 }
 
 export interface ScreenAmbientLightCaptureFrame {
@@ -45,13 +30,14 @@ export type ScreenAmbientLightCaptureStatus
 export interface ScreenAmbientLightDiagnosticsSnapshot {
   publishedAt: number
   status: ScreenAmbientLightCaptureStatus
-  source: Live2DScreenAmbientLightSource
+  source: ScreenAmbientLightSource
   error?: string
   display?: {
     id: number
     bounds: ScreenAmbientLightRectangle
   }
   windowBounds?: ScreenAmbientLightRectangle
+  /** Size of the frames that the capture stream delivers, after constraints. */
   videoSize?: {
     width: number
     height: number
@@ -59,12 +45,11 @@ export interface ScreenAmbientLightDiagnosticsSnapshot {
   frame?: ScreenAmbientLightCaptureFrame
   excludedRegion?: ScreenAmbientLightRectangle
   sampling?: ScreenAmbientLightSamplingDiagnostics & {
-    targetSample?: Live2DAmbientLightSample
-    appliedSample?: Live2DAmbientLightSample
-    targetLobes?: Live2DAmbientLightLobe[]
-    appliedLobes?: Live2DAmbientLightLobe[]
+    /** Environment measured from this frame, before temporal smoothing. */
+    targetEnvironment?: AmbientLightEnvironment
+    /** Environment the renderer applies, after temporal smoothing. */
+    appliedEnvironment?: AmbientLightEnvironment
   }
-  direction: Live2DAmbientLightDirection
 }
 
 export type ScreenAmbientLightDiagnosticsChannelEvent
