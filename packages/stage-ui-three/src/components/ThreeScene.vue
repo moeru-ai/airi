@@ -92,6 +92,10 @@ const emit = defineEmits<{
 }>()
 
 type ModelPhase = 'no-model' | 'loading' | 'ready' | 'error'
+interface ModelLoadIdentity {
+  modelId: string
+  modelSrc: string
+}
 type SceneTracePhaseCause
   = | 'binding:complete'
     | 'binding:start'
@@ -169,7 +173,10 @@ const latestScenePhaseTraceCause = ref<SceneTracePhaseCause>('props:model-src')
 const latestSceneTransactionReason = ref<SceneTraceTransactionReason>('unknown')
 const activeModelSrc = ref<string>()
 const bindingRevision = ref(0)
-const pendingCommittedModelSrc = ref<string>()
+// A model ID can change before its async URL lookup finishes. Keep the ID and URL
+// from each load-start event together so a completed load cannot claim the next ID.
+const loadingModelIdentity = shallowRef<ModelLoadIdentity>()
+const pendingCommittedModelIdentity = shallowRef<ModelLoadIdentity>()
 const pendingCommittedModelRevision = ref<number>()
 const pendingSceneBootstrap = shallowRef<SceneBootstrap>()
 
@@ -257,12 +264,13 @@ function toVec3(value: Vector3): Vec3 {
 }
 
 function clearPendingCommittedModel() {
-  pendingCommittedModelSrc.value = undefined
+  pendingCommittedModelIdentity.value = undefined
   pendingCommittedModelRevision.value = undefined
 }
 
 function invalidateBindingRevision() {
   bindingRevision.value += 1
+  loadingModelIdentity.value = undefined
   clearPendingCommittedModel()
 }
 
@@ -381,16 +389,17 @@ function commitLastCommittedModelId(expectedRevision: number, nextPhase: ScenePh
   if (expectedRevision !== bindingRevision.value)
     return
 
-  if (!pendingCommittedModelSrc.value || pendingCommittedModelRevision.value !== expectedRevision)
+  const completedModel = pendingCommittedModelIdentity.value
+  if (!completedModel || pendingCommittedModelRevision.value !== expectedRevision)
     return
 
-  if (!activeModelSrc.value || pendingCommittedModelSrc.value !== activeModelSrc.value)
+  if (!activeModelSrc.value || completedModel.modelSrc !== activeModelSrc.value)
     return
 
-  if (props.modelSrc !== activeModelSrc.value)
+  if (props.modelId !== completedModel.modelId || props.modelSrc !== completedModel.modelSrc)
     return
 
-  lastCommittedModelId.value = props.modelId
+  lastCommittedModelId.value = completedModel.modelId
   clearPendingCommittedModel()
 }
 
@@ -472,6 +481,12 @@ function onVRMModelLoadStart(reason: VrmLifecycleReason) {
   modelPhase.value = 'loading'
   pendingSceneBootstrap.value = undefined
   beginSceneBindingCycle(toSceneLoadTransactionReason(reason))
+  if (props.modelSrc) {
+    loadingModelIdentity.value = {
+      modelId: props.modelId,
+      modelSrc: props.modelSrc,
+    }
+  }
 }
 
 function onVRMSceneBootstrap(value: SceneBootstrap) {
@@ -480,8 +495,12 @@ function onVRMSceneBootstrap(value: SceneBootstrap) {
 
 function onVRMModelLoaded(value: string) {
   activeModelSrc.value = value
-  pendingCommittedModelSrc.value = value
+  const completedModel = loadingModelIdentity.value
+  pendingCommittedModelIdentity.value = completedModel?.modelSrc === value
+    ? completedModel
+    : undefined
   pendingCommittedModelRevision.value = bindingRevision.value
+  loadingModelIdentity.value = undefined
   modelPhase.value = 'ready'
   void completeSceneBinding(bindingRevision.value)
 }

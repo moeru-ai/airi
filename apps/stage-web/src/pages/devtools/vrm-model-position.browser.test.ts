@@ -32,6 +32,7 @@ describe('imported VRM view settings', () => {
     //
     // The selected display model ID is stable across reloads. The scene must use that ID
     // for model identity and keep the Blob URL only for resource loading.
+    // A new model ID can arrive before its URL. The old load must not commit the new ID.
     const pinia = createPinia()
     const modelStore = useModelStore(pinia)
     modelStore.resetModelStore()
@@ -83,5 +84,27 @@ describe('imported VRM view settings', () => {
 
     expect(modelStore.lastCommittedModelId).toBe('display-model-other')
     expect(modelStore.modelOffset).toEqual({ x: 0, y: 0, z: 0 })
-  }, 30_000)
+
+    modelStore.modelOffset = { x: 0.45, y: 0.45, z: 0 }
+    const outgoingModelId = modelId.value
+    modelSrc.value = URL.createObjectURL(vrmModel)
+    await nextTick()
+
+    await expect.poll(() => modelStore.scenePhase, { timeout: 20_000 }).toBe('loading')
+    modelId.value = 'display-model-incoming'
+    await nextTick()
+
+    await expect.poll(() => modelStore.scenePhase, { timeout: 20_000 }).toBe('mounted')
+    expect(modelStore.lastCommittedModelId).toBe(outgoingModelId)
+    expect(modelStore.modelOffset).toEqual({ x: 0.45, y: 0.45, z: 0 })
+
+    modelSrc.value = URL.createObjectURL(vrmModel)
+    await nextTick()
+
+    await expect.poll(() => modelStore.scenePhase, { timeout: 20_000 }).toBe('loading')
+    await expect.poll(() => modelStore.scenePhase, { timeout: 20_000 }).toBe('mounted')
+
+    expect(modelStore.lastCommittedModelId).toBe('display-model-incoming')
+    expect(modelStore.modelOffset).toEqual({ x: 0, y: 0, z: 0 })
+  }, 45_000)
 })
