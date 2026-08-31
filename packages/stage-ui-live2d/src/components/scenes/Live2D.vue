@@ -56,32 +56,32 @@ const {
   live2dMaxFps,
   live2dRenderScale,
   live2dShadowEnabled,
+  live2dScreenAmbientLightBacklight,
   live2dScreenAmbientLightBaseBrightness,
   live2dScreenAmbientLightBaseContrast,
+  live2dScreenAmbientLightChroma,
   live2dScreenAmbientLightEnabled,
-  live2dScreenAmbientLightHighlightCoverage,
-  live2dScreenAmbientLightHighlightStrength,
+  live2dScreenAmbientLightExposureRange,
   live2dScreenAmbientLightMode,
-  live2dScreenAmbientLightSourceBalance,
   live2dScreenAmbientLightStrength,
-  live2dScreenAmbientLightTintCoverage,
-  live2dScreenAmbientLightTintStrength,
+  live2dScreenAmbientLightTranslucentWrap,
+  live2dScreenAmbientLightWrapDiffuse,
+  live2dScreenAmbientLightWrapIntensity,
 } = storeToRefs(useSettingsLive2d())
 const universalMotionEnabled = computed(() => live2dMotionDriver.value === 'universal')
 const {
   active: live2dScreenAmbientLightActive,
-  direction: live2dScreenAmbientLightDirection,
-  lobes: live2dScreenAmbientLightLobes,
-  sample: live2dScreenAmbientLightSample,
+  environment: live2dScreenAmbientLightEnvironment,
 } = storeToRefs(useLive2DAmbientLight())
 const live2dScreenAmbientLightFilterOptions = computed(() => ({
   baseBrightness: live2dScreenAmbientLightBaseBrightness.value,
+  exposureRange: live2dScreenAmbientLightExposureRange.value,
   baseContrast: live2dScreenAmbientLightBaseContrast.value,
-  tintCoverage: live2dScreenAmbientLightTintCoverage.value,
-  highlightCoverage: live2dScreenAmbientLightHighlightCoverage.value,
-  tintStrength: live2dScreenAmbientLightTintStrength.value,
-  highlightStrength: live2dScreenAmbientLightHighlightStrength.value,
-  sourceBalance: live2dScreenAmbientLightSourceBalance.value,
+  chroma: live2dScreenAmbientLightChroma.value,
+  wrapIntensity: live2dScreenAmbientLightWrapIntensity.value,
+  wrapDiffuse: live2dScreenAmbientLightWrapDiffuse.value,
+  backlight: live2dScreenAmbientLightBacklight.value,
+  translucentWrap: live2dScreenAmbientLightTranslucentWrap.value,
 }))
 const mouseFocus = useLive2DEyeFocusFor({
   canvas: () => live2dCanvasRef.value?.canvasElement(),
@@ -158,10 +158,8 @@ defineExpose({
         :live2d-shadow-enabled="live2dShadowEnabled"
         :live2d-screen-ambient-light-active="live2dScreenAmbientLightEnabled && live2dScreenAmbientLightActive"
         :live2d-screen-ambient-light-filter-options="live2dScreenAmbientLightFilterOptions"
-        :live2d-screen-ambient-light-direction="live2dScreenAmbientLightDirection"
-        :live2d-screen-ambient-light-lobes="live2dScreenAmbientLightLobes"
+        :live2d-screen-ambient-light-environment="live2dScreenAmbientLightEnvironment"
         :live2d-screen-ambient-light-mode="live2dScreenAmbientLightMode"
-        :live2d-screen-ambient-light-sample="live2dScreenAmbientLightSample"
         :live2d-screen-ambient-light-strength="live2dScreenAmbientLightStrength"
         @error="emit('error', $event)"
       />
