@@ -33,7 +33,7 @@ import {
   WebGLRenderer,
 } from 'three'
 import { OrbitControls } from 'three-stdlib'
-import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 
 import {
   createGazeController,
@@ -57,6 +57,8 @@ import {
 } from '../../utils/mmd-materials'
 
 const props = withDefaults(defineProps<{
+  /** The context that owns `currentAudioSource`. */
+  audioContext?: AudioContext
   modelSrc?: string
   modelId?: string
   paused?: boolean
@@ -120,11 +122,11 @@ const registeredMotions = new Set<string>()
 const clock = new Clock()
 let rafHandle = 0
 
-// Lip-sync owns Vue lifecycle hooks, so it must be created during setup. It
-// is fed the live audio source and applied to whichever morphs are mounted.
-const audioRef = shallowRef<AudioBufferSourceNode | undefined>(props.currentAudioSource)
-watch(() => props.currentAudioSource, v => audioRef.value = v)
-const lipSync = useMMDLipSync(audioRef)
+// Lip-sync owns Vue lifecycle hooks, so it must be created during setup.
+const lipSync = useMMDLipSync(
+  toRef(props, 'audioContext'),
+  toRef(props, 'currentAudioSource'),
+)
 const blink = useMMDBlink()
 let gaze: ReturnType<typeof createGazeController> | undefined
 

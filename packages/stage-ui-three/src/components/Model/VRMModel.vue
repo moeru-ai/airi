@@ -108,6 +108,8 @@ import {
   * - modelRotationY: The rotation of the model (y-axis)
 */
 const props = withDefaults(defineProps<{
+  /** The context that owns `currentAudioSource`. */
+  audioContext?: AudioContext
   currentAudioSource?: AudioBufferSourceNode
   cursorPosition?: { x: number, y: number }
   lastCommittedModelSrc?: string
@@ -148,6 +150,7 @@ const emit = defineEmits<{
 }>()
 
 const {
+  audioContext,
   currentAudioSource,
   lastCommittedModelSrc,
   modelSrc,
@@ -195,7 +198,7 @@ type UpdatableMaterial = Material & {
 const blink = useBlink()
 const idleEyeSaccades = useIdleEyeSaccades()
 const vrmEmote = ref<ReturnType<typeof useVRMEmote>>()
-const vrmLipSync = useVRMLipSync(currentAudioSource)
+const vrmLipSync = useVRMLipSync(audioContext, currentAudioSource)
 
 // For sky box update
 const nprProgramVersion = ref(0)

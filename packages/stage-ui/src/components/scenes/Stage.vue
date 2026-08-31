@@ -1114,6 +1114,7 @@ defineExpose({
         :paused="paused"
         :show-axes="stageViewControlsEnabled"
         :enable-orbit-controls="props.enableOrbitControls"
+        :audio-context="audioContext"
         :current-audio-source="currentAudioSource"
         @error="console.error"
         @vrm-interact="onVRMInteract"
@@ -1157,6 +1158,7 @@ defineExpose({
         :paused="paused"
         :cursor-position="cursorPosition"
         :enable-orbit-controls="props.enableOrbitControls"
+        :audio-context="audioContext"
         :current-audio-source="currentAudioSource"
         @error="console.error"
       />
