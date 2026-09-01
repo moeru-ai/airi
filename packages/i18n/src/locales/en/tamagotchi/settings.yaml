@@ -72,7 +72,7 @@ devtools:
         description: Apply this color without screen capture.
       strength:
         title: Light strength
-        description: Set the total light intensity, up to three times the standard response.
+        description: Set the overall effect amount. 1 is the designed look, and up to 3 makes the color cast and the light wrap stronger.
       main-window-note: Changes appear in the main AIRI window.
       diagnostics:
         title: Capture diagnostics
@@ -91,83 +91,75 @@ devtools:
           sample-size: Sample frame
           window-bounds: AIRI window bounds
           excluded-region: Excluded region
-          direction: Light direction
+          exposure: Screen exposure
+          behind-luminance: Light behind the character
           updated: Last update
         preview:
           title: Downscaled capture
-          description: The red rectangle marks excluded pixels. Colored circles mark extracted light sources.
+          description: The red rectangle marks the AIRI window. The dashed rectangle marks the area that the light maps cover.
           unavailable: No captured frame is available.
         pixels:
           title: Pixel decisions
           total: Total
           accepted: Accepted
-          excluded: AIRI window
+          excluded: Painted
           transparent: Transparent
-          black: Below black cutoff
-          white: Above white cutoff
-          average-saturation: Average saturation
-          weight-total: Weight total
-        colors:
-          title: Color stages
-          unavailable: No color is available.
-          unweighted:
-            title: Accepted average
-            description: Average color after cutoffs and before saturation weighting.
-          target:
-            title: Residual fill
-            description: Broad color after bright light sources are removed.
-          applied:
-            title: Applied output
-            description: Color after temporal smoothing.
-          lobe:
-            title: Light source {index}
-            description: A persistent bright region after temporal smoothing.
+          see-through: See-through
+        maps:
+          title: Light maps
+          window: Each map covers the AIRI window and half a window on every side. The outline marks the window.
+          unavailable: No environment is available.
+          target: Measured
+          applied: Applied after smoothing
+          surround:
+            title: Surround map
+            description: Wide blur of the screen around and behind the window. This map drives the color cast over the model.
+          contact:
+            title: Contact map
+            description: Narrow blur of the same content. This map drives the light wrap and the backlight rim.
       sampling:
         title: Screen sampling
         capture-interval:
           title: Capture interval
-          description: Set the time between screen samples.
+          description: Set the time between screen samples. The capture stream runs at this rate.
         response-time:
           title: Response time
           description: Set how quickly sampled colors adapt to a screen change.
         sample-width:
           title: Sample width
-          description: Set the width of the downscaled capture frame.
+          description: Set the width of the downscaled capture frame. A wider frame puts more detail in the light maps.
         sample-height:
           title: Sample height
-          description: Set the height of the downscaled capture frame.
-        black-cutoff:
-          title: Black cutoff
-          description: Ignore pixels whose brightest channel is less than this value.
-        white-cutoff:
-          title: White cutoff
-          description: Ignore pixels whose darkest channel is more than this value.
+          description: Set the height of the downscaled capture frame. A taller frame puts more detail in the light maps.
         neutral-color-weight:
           title: Neutral-color weight
-          description: Set the minimum weight for colors with low saturation.
+          description: Set the minimum weight for colors with low saturation. Colored content counts for more than gray.
       shader:
         title: Shader response
         base-brightness:
           title: Base brightness
-          description: Set the model brightness before sampled light is added.
+          description: Set the model brightness over a black screen. The measured screen level raises it.
+        exposure-range:
+          title: Exposure range
+          description: Set how far the measured screen level raises the base brightness.
+        wrap-intensity:
+          title: Light wrap intensity
+          description: Set how strongly the background color bleeds onto the edge of the model.
+        backlight:
+          title: Backlight
+          description: Set how strongly light from behind the character darkens its interior and lights its whole edge.
+        wrap-diffuse:
+          title: Light wrap width
+          description: Set how far the wrapped background color reaches inside the edge of the model.
+        translucent-wrap:
+          title: Reduce wrap on translucent parts
+          description: Scale the light wrap and rim by the square of the model alpha. Parts drawn with partial alpha already show the desktop through themselves.
         base-contrast:
           title: Base contrast
           description: Set how strongly the model separates light and dark values before sampled light is added.
-        tint-coverage:
-          title: Tint coverage
-          description: Set how far the subtle tint extends from the display-facing side.
-        highlight-coverage:
-          title: Highlight coverage
-          description: Set how much of the display-facing side receives prominent light.
-        source-balance:
-          title: Light-source balance
-          description: Trade broad ambient fill for stronger light from detected bright regions.
-        tint-strength:
-          title: Tint strength
-          description: Set the strength of the broad additive tint.
-        highlight-strength:
-          title: Highlight strength
-          description: Set the strength of the narrow additive light.
+        chroma:
+          title: Color cast chroma
+          description: Set how much of the surrounding hue the cast keeps. 0 keeps the model colors. 1 applies the full screen color.
     editor:
       title: AIRI Editor
       description: Open the standalone AIRI Editor window
