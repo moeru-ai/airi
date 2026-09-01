@@ -11,7 +11,9 @@ import {
   providerAppLocalAudioTranscription,
   providerBrowserLocalAudioSpeech,
   providerBrowserLocalAudioTranscription,
+  providerFunASRAudioTranscription,
 } from './local-audio'
+import { selectProviderMetadata } from '../metadata'
 import { getDefinedProvider } from './registry'
 
 import './index'
@@ -44,6 +46,7 @@ describe('migrated provider definitions', () => {
       'app-local-audio-transcription',
       'browser-local-audio-speech',
       'browser-local-audio-transcription',
+      'funasr-audio-transcription',
       'openai-audio-speech',
       'openai-compatible-audio-speech',
       'openai-audio-transcription',
@@ -126,6 +129,38 @@ describe('migrated provider definitions', () => {
     expect(missing?.valid).toBe(false)
     expect(missing?.reason).toContain('Base URL is required.')
     expect(configured?.valid).toBe(true)
+  })
+
+  it('registers FunASR as a credential-free local transcription provider', async () => {
+    const defaults = z.parse(
+      await providerFunASRAudioTranscription.createProviderConfig({ t: translate }),
+      {},
+    )
+    const provider = await providerFunASRAudioTranscription.createProvider(defaults)
+    const models = await providerFunASRAudioTranscription.extraMethods?.listModels?.(
+      defaults,
+      provider,
+    )
+
+    expect(defaults).toEqual({ baseUrl: 'http://localhost:8000/v1/' })
+    expect(providerFunASRAudioTranscription.validationRequiredWhen?.(defaults)).toBe(false)
+    expect(providerFunASRAudioTranscription.requiresCredentials).toBe(false)
+    expect(providerFunASRAudioTranscription.capabilities?.transcription).toEqual({
+      protocol: 'http',
+      generateOutput: true,
+      streamOutput: false,
+      streamInput: false,
+    })
+    expect(models?.map(model => model.id)).toEqual([
+      'SenseVoiceSmall',
+      'fun-asr-nano',
+      'paraformer-zh',
+    ])
+
+    const metadata = await selectProviderMetadata(providerFunASRAudioTranscription, translate)
+    expect(metadata.to).toBe('/v2/settings/providers/edit/funasr-audio-transcription')
+    expect(metadata.pricing).toBe('free')
+    expect(metadata.deployment).toBe('local')
   })
 
   it('describes Web Speech API streaming support without runtime state', async () => {
