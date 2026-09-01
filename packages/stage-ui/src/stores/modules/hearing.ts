@@ -1436,6 +1436,10 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         if (currentProviderError)
           throw new Error(currentProviderError)
 
+        const providerOwnershipError = activeProviderOwnershipError(providerId)
+        if (providerOwnershipError)
+          throw new Error(providerOwnershipError)
+
         const result = streamWebSpeechAPITranscription(stream, {
           language,
           continuous: (options?.providerOptions?.continuous as boolean) ?? (providerConfig.continuous as boolean) ?? true,

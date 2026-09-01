@@ -385,4 +385,40 @@ describe('web speech model ownership', () => {
 
     await followerPipeline.stopStreamingTranscription(false, providerId)
   })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3891641792
+  it('does not start Web Speech after the active provider changes (GitHub #2122)', async () => {
+    const providerId = 'browser-web-speech-api'
+    const context = createSyncedContext(`web-speech-provider-switch:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+    setActivePinia(context.pinia)
+    const providersStore = useProviderStore()
+    const hearingStore = useHearingStore()
+    await providersStore.initializeProvider(providerId)
+    await providersStore.initializeProvider('openai-audio-transcription')
+    await hearingStore.setActiveTranscriptionProvider(providerId, '')
+
+    const modelSelection = deferred<void>()
+    const selectModel = vi.spyOn(hearingStore, 'setTranscriptionModelForProvider')
+      .mockImplementation(async () => modelSelection.promise)
+    const pipeline = useHearingSpeechInputPipeline()
+    const streaming = pipeline.transcribeForMediaStream({} as MediaStream, {
+      consumerId: 'provider-switch-before-web-speech-start',
+    })
+    await vi.waitFor(() => expect(selectModel).toHaveBeenCalledWith(providerId, 'web-speech-api'))
+
+    hearingStore.$patch({
+      activeTranscriptionModel: 'whisper-1',
+      activeTranscriptionProvider: 'openai-audio-transcription',
+    })
+    modelSelection.resolve()
+    await streaming
+
+    // ROOT CAUSE:
+    //
+    // Default-model selection is asynchronous. The active provider can change while it is
+    // pending, so Web Speech must recheck ownership before starting browser recognition.
+    expect(webSpeechMocks.stream).not.toHaveBeenCalled()
+    expect(pipeline.error).toBe('Transcription provider changed before the request started.')
+  })
 })

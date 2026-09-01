@@ -18,6 +18,7 @@ export interface ProviderConfigEditCommitDependencies {
     commitId: string,
   ) => Promise<unknown>
   disposeProviderInstance: (providerId: string) => Promise<unknown>
+  loadModelsForProvider: (providerId: string) => Promise<unknown>
 }
 
 /**
@@ -30,5 +31,6 @@ export async function commitProviderConfigEdit(
   const commitId = crypto.randomUUID()
   await dependencies.disposeProviderInstance(commit.providerId)
   await dependencies.stageTranscriptionProviderConfig(commit.providerId, commit.config, commit.status, commitId)
+  await dependencies.loadModelsForProvider(commit.providerId)
   await dependencies.persistProviderConfigIfCurrent(commit.providerId, commit.config, commit.status, commitId)
 }

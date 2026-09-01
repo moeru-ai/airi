@@ -14,6 +14,7 @@ describe('provider config commit', () => {
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3888398390
   it('stages config and model before separately awaiting guarded persistence (GitHub #2122)', async () => {
     const disposeProviderInstance = vi.fn().mockResolvedValue(undefined)
+    const loadModelsForProvider = vi.fn().mockResolvedValue([])
     const stageTranscriptionProviderConfig = vi.fn().mockResolvedValue(undefined)
     const persistProviderConfigIfCurrent = vi.fn().mockResolvedValue(undefined)
     await commitProviderConfigEdit({
@@ -24,6 +25,7 @@ describe('provider config commit', () => {
       stageTranscriptionProviderConfig,
       persistProviderConfigIfCurrent,
       disposeProviderInstance,
+      loadModelsForProvider,
     })
 
     // ROOT CAUSE:
@@ -49,6 +51,7 @@ describe('provider config commit', () => {
     let routeProviderId = 'provider-a'
     const configWrite = deferred()
     const disposeProviderInstance = vi.fn().mockResolvedValue(undefined)
+    const loadModelsForProvider = vi.fn().mockResolvedValue([])
     const stageTranscriptionProviderConfig = vi.fn().mockResolvedValue(undefined)
     const persistProviderConfigIfCurrent = vi.fn(async () => configWrite.promise)
     const commit = commitProviderConfigEdit({
@@ -59,6 +62,7 @@ describe('provider config commit', () => {
       stageTranscriptionProviderConfig,
       persistProviderConfigIfCurrent,
       disposeProviderInstance,
+      loadModelsForProvider,
     })
 
     routeProviderId = 'provider-b'
@@ -79,5 +83,48 @@ describe('provider config commit', () => {
       'configured',
       stageTranscriptionProviderConfig.mock.calls[0]?.[3],
     )
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3891641795
+  it('refreshes the saved provider model catalog after staging config (GitHub #2122)', async () => {
+    const configStage = deferred()
+    const modelRefresh = deferred()
+    const disposeProviderInstance = vi.fn().mockResolvedValue(undefined)
+    const loadModelsForProvider = vi.fn(async () => modelRefresh.promise)
+    const stageTranscriptionProviderConfig = vi.fn(async () => {
+      await configStage.promise
+      return undefined
+    })
+    const persistProviderConfigIfCurrent = vi.fn().mockResolvedValue(undefined)
+    const dependencies = {
+      disposeProviderInstance,
+      loadModelsForProvider,
+      persistProviderConfigIfCurrent,
+      stageTranscriptionProviderConfig,
+    }
+
+    const commit = commitProviderConfigEdit({
+      config: { baseUrl: 'http://localhost:8000/v1/', model: 'sensevoice' },
+      providerId: 'provider-a',
+      status: 'configured',
+    }, dependencies)
+
+    await vi.waitFor(() => expect(stageTranscriptionProviderConfig).toHaveBeenCalledOnce())
+    expect(loadModelsForProvider).not.toHaveBeenCalled()
+    configStage.resolve()
+    await vi.waitFor(() => expect(loadModelsForProvider).toHaveBeenCalledWith('provider-a'))
+    expect(persistProviderConfigIfCurrent).not.toHaveBeenCalled()
+    modelRefresh.resolve()
+    await commit
+
+    // ROOT CAUSE:
+    //
+    // Saving staged new credentials but left the old model-list request as the latest owner.
+    // A refresh started after staging gives the saved configuration a newer request ID.
+    expect(loadModelsForProvider).toHaveBeenCalledWith('provider-a')
+    expect(stageTranscriptionProviderConfig.mock.invocationCallOrder[0])
+      .toBeLessThan(loadModelsForProvider.mock.invocationCallOrder[0])
+    expect(loadModelsForProvider.mock.invocationCallOrder[0])
+      .toBeLessThan(persistProviderConfigIfCurrent.mock.invocationCallOrder[0])
   })
 })
