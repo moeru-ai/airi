@@ -145,13 +145,6 @@ export async function setupMainWindow(params: {
     }
   }
 
-  // NOTICE:
-  // Bounds recovery is delayed until Electron move/resize events settle so intermediate drag bounds are only persisted.
-  // Immediate recovery during every move event clamps the window into the current display before it can cross monitor boundaries.
-  // Source/context: apps/stage-tamagotchi window recovery for #2181 and Codex review on moeru-ai/airi#2203.
-  // Can be safely deleted if Electron exposes and this code uses a reliable drag-completed event instead.
-  const windowBoundsRecoveryDelayMs = 250
-
   function persistWindowBounds(bounds: Rectangle) {
     const config = getConfig()
     if (!config.windows || !Array.isArray(config.windows)) {
@@ -184,48 +177,10 @@ export async function setupMainWindow(params: {
     updateConfig(config)
   }
 
-  function recoverMainWindowBounds() {
-    const currentBounds = window.getBounds()
-    const safeBounds = restoreMainWindowBounds(currentBounds)
-    if (
-      safeBounds.x !== currentBounds.x
-      || safeBounds.y !== currentBounds.y
-      || safeBounds.width !== currentBounds.width
-      || safeBounds.height !== currentBounds.height
-    ) {
-      window.setBounds(safeBounds)
-    }
-
-    persistWindowBounds(safeBounds)
-  }
-
-  let moveRecoveryTimer: ReturnType<typeof setTimeout> | undefined
-  function scheduleMainWindowBoundsRecovery() {
-    if (moveRecoveryTimer)
-      clearTimeout(moveRecoveryTimer)
-
-    moveRecoveryTimer = setTimeout(() => {
-      moveRecoveryTimer = undefined
-      recoverMainWindowBounds()
-    }, windowBoundsRecoveryDelayMs)
-  }
-
-  window.on('resize', () => {
-    persistWindowBounds(window.getBounds())
-    scheduleMainWindowBoundsRecovery()
-  })
-  window.on('move', () => {
-    persistWindowBounds(window.getBounds())
-    scheduleMainWindowBoundsRecovery()
-  })
+  window.on('resize', () => persistWindowBounds(window.getBounds()))
+  window.on('move', () => persistWindowBounds(window.getBounds()))
   if (savedMainWindowBounds)
     persistWindowBounds(window.getBounds())
-  window.on('closed', () => {
-    if (moveRecoveryTimer) {
-      clearTimeout(moveRecoveryTimer)
-      moveRecoveryTimer = undefined
-    }
-  })
   window.on('close', (event) => {
     if (allowClose) {
       return
