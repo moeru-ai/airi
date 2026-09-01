@@ -84,15 +84,15 @@
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/QR%20code%20button/section.cards.qrcode.dark.zh-Hans.png"
+        srcset="./content/public/assets/QR%20code%20button/section.cards.qrcode.dark.zh-Hans.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/QR%20code%20button/section.cards.qrcode.light.zh-Hans.png"
+        srcset="./content/public/assets/QR%20code%20button/section.cards.qrcode.light.zh-Hans.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/QR%20code%20button/section.cards.qrcode.light.zh-Hans.png" />
+      <img width="33%" src="./content/public/assets/QR%20code%20button/section.cards.qrcode.light.zh-Hans.avif" />
     </picture>
   </a>
   <a href="https://airi.moeru.ai">
@@ -114,15 +114,15 @@
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.browser.dark.zh-Hans.png"
+        srcset="./content/public/assets/download-buttons/download-buttons.browser.dark.zh-Hans.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.browser.light.zh-Hans.png"
+        srcset="./content/public/assets/download-buttons/download-buttons.browser.light.zh-Hans.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.browser.light.zh-Hans.png" />
+      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.browser.light.zh-Hans.avif" />
     </picture>
   </a>
 </p>

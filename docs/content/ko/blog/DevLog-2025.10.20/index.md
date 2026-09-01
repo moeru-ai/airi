@@ -18,13 +18,13 @@ preview-cover:
 
 ...결국 더는 못 버티고, 국경절 연휴에 Electron으로 완전히 갈아탔습니다!
 
-<img src="/en/blog/DevLog-2025.10.20/assets/electron.png" alt="electron.png" />
+<img src="/en/blog/DevLog-2025.10.20/assets/electron.avif" alt="electron.avif" />
 
 이제 기존 Electron 기반 위에 Linux 지원을 추가했고, 저희가 Controls Island라고 부르는 것을 도입했으며, macOS 전체 화면 모드에서도 인터페이스 위에 겹쳐 띄울 수 있게 됐습니다.
 
 호환성이 훌륭해서 정말 마음에 듭니다. 어제는 마침내 자막 오버레이가 동작하게 되어서, 이제 Neuro-sama처럼 자막으로 AI가 무엇을 출력하는지 볼 수 있습니다!
 
-<img src="/en/blog/DevLog-2025.10.20/assets/control-island.png" alt="control-island.png" />
+<img src="/en/blog/DevLog-2025.10.20/assets/control-island.avif" alt="control-island.avif" />
 
 <div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
 Controls Island
@@ -54,7 +54,7 @@ Controls Island
 
 5월에 저희 프롬프트 라이브러리를 소개했던 걸 기억하시나요? RainbowBird의 노력과 기여 덕분에 Velin이 이제 정식으로 Moeru AI의 일부가 됐습니다! AIRI의 거의 모든 프롬프트가 Velin으로 돌아가는데, 크로스 플랫폼 걱정은 마세요. Velin은 Node.js 환경에서도 잘 동작합니다!
 
-<img src="/en/blog/DevLog-2025.10.20/assets/velin.png" alt="velin.png" />
+<img src="/en/blog/DevLog-2025.10.20/assets/velin.avif" alt="velin.avif" />
 
 ## Eventa: 이벤트 기반 IPC/RPC
 
@@ -70,12 +70,12 @@ Vercel AI SDK와 비슷한 방식으로 브라우저에서 순수 로컬 추론�
 
 전체 팔로워 수는 800명을 넘었습니다. 1년 전 처음 시작할 때는 상상도 못 했던 일입니다. 정말로, 성원해 주셔서 진심으로 감사합니다!
 
-<img src="/en/blog/DevLog-2025.10.20/assets/moeru.png" alt="moeru.png" />
+<img src="/en/blog/DevLog-2025.10.20/assets/moeru.avif" alt="moeru.avif" />
 <div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
 Moeru AI
 </div>
 
-<img src="/en/blog/DevLog-2025.10.20/assets/project-airi.png" alt="project-airi.png" />
+<img src="/en/blog/DevLog-2025.10.20/assets/project-airi.avif" alt="project-airi.avif" />
 <div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
 Project AIRI
 </div>
@@ -88,7 +88,7 @@ Project AIRI
 
 Python 모델 아키텍처를 사실상 1:1로 Rust에 재현했고, 다른 SOTA TTS 모델까지 활용하는 아주 간결한 로컬 TTS 추론 엔진으로 발전시키고 싶습니다.
 
-<img src="/en/blog/DevLog-2025.10.20/assets/rust-tts.png" alt="rust-tts.png" />
+<img src="/en/blog/DevLog-2025.10.20/assets/rust-tts.avif" alt="rust-tts.avif" />
 
 ## 마치며
 

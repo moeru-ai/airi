@@ -5,14 +5,14 @@ date: 2026-01-01
 excerpt: |
   和大家分享 AIRI 在 iOS 平台上的进展，遇到的问题与解决方案，以及柠猫在 FlowChat 实验记忆层的一些成果和一点点实现细节。
 preview-cover:
-  light: "@assets('./assets/cover-light.png')"
-  dark: "@assets('./assets/cover-dark.png')"
+  light: "@assets('./assets/cover-light.avif')"
+  dark: "@assets('./assets/cover-dark.avif')"
 ---
 
 新年快乐！这里是 [@LemonNekoGH](https://github.com/LemonNekoGH)，AIRI 的维护者之一，新年的第一篇 DevLog 是我的了，（按下 B 键选择了大笑表情）啊哈哈哈哈哈哈！
 
 <p style="display: flex; justify-content: center;">
-    <img src="./assets/helldiver-laughing.png" alt="Helldiver Laughing Emotion" />
+    <img src="./assets/helldiver-laughing.avif" alt="Helldiver Laughing Emotion" />
 </p>
 
 好的我们来到正题。
