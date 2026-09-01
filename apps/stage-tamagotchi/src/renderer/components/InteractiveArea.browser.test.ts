@@ -19,6 +19,9 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 
 import InteractiveArea from './InteractiveArea.vue'
 
+import '@unocss/reset/tailwind.css'
+import 'virtual:uno.css'
+
 function createTestI18n() {
   return createI18n({
     legacy: false,
@@ -80,7 +83,94 @@ async function submitDraft(screen: Awaited<ReturnType<typeof renderArea>>['scree
   return input
 }
 
+async function attachImages(screen: Awaited<ReturnType<typeof renderArea>>['screen'], count: number) {
+  const input = screen.container.querySelector<HTMLInputElement>('input[type="file"]')
+  if (!input)
+    throw new Error('Expected the chat image input.')
+
+  const transfer = new DataTransfer()
+  for (let index = 0; index < count; index++) {
+    transfer.items.add(new File([`image-${index}`], `image-${index}.png`, { type: 'image/png' }))
+  }
+
+  input.files = transfer.files
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+
+  await vi.waitFor(() => {
+    expect(screen.container.querySelectorAll('img[src^="blob:"]')).toHaveLength(count)
+  })
+}
+
 describe('interactive area synchronized state', () => {
+  // https://github.com/moeru-ai/airi/pull/2399
+  it('keeps the input visible when a short window contains many attachments', async () => {
+    // ROOT CAUSE:
+    //
+    // The composer used its full intrinsic height in the fixed chat grid.
+    // Multiple attachment rows could exceed the window height, which moved
+    // the input below the clipped grid boundary.
+    const { screen } = await renderArea()
+    const layout = screen.getByTestId('chat-viewport-layout').element() as HTMLElement
+    layout.style.height = '240px'
+    layout.style.width = '320px'
+
+    await attachImages(screen, 12)
+
+    const input = screen.getByRole('textbox').element() as HTMLTextAreaElement
+    const layoutRect = layout.getBoundingClientRect()
+    const inputRect = input.getBoundingClientRect()
+
+    expect(inputRect.top).toBeGreaterThanOrEqual(layoutRect.top)
+    expect(inputRect.bottom).toBeLessThanOrEqual(layoutRect.bottom)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2399
+  it('connects the production history viewport to the fixed composer', async () => {
+    // ROOT CAUSE:
+    //
+    // Isolated layout tests used hand-built history and scrollbar elements.
+    // Those tests could pass after the production history stopped using the
+    // Reka viewport or moved the composer into the scroll owner.
+    const { chatSession, screen } = await renderArea()
+    const layout = screen.getByTestId('chat-viewport-layout').element() as HTMLElement
+    layout.style.height = '320px'
+    layout.style.width = '320px'
+
+    chatSession.$patch((state) => {
+      state.sessionMessages['session-b'] = Array.from({ length: 100 }, (_, index) => ({
+        id: `message-${index}`,
+        role: 'user',
+        content: `Message ${index}`,
+        createdAt: index,
+      }))
+    })
+
+    const viewport = screen.container.querySelector<HTMLElement>('.chat-history-list')
+    const composer = screen.getByTestId('chat-composer-layer').element() as HTMLElement
+    const input = screen.getByRole('textbox').element() as HTMLTextAreaElement
+    expect(viewport).not.toBeNull()
+    if (!viewport)
+      throw new Error('Expected the production chat history viewport.')
+
+    await vi.waitFor(() => {
+      expect(viewport.matches('[data-reka-scroll-area-viewport]')).toBe(true)
+      expect(viewport.scrollHeight).toBeGreaterThan(viewport.clientHeight)
+    })
+
+    expect(composer.contains(input)).toBe(true)
+    const composerTop = composer.getBoundingClientRect().top
+    viewport.scrollTop = 120
+    viewport.dispatchEvent(new Event('scroll'))
+    expect(composer.getBoundingClientRect().top).toBe(composerTop)
+
+    const scrollOwners = [...layout.querySelectorAll<HTMLElement>('*')]
+      .filter((element) => {
+        return ['auto', 'scroll'].includes(getComputedStyle(element).overflowY)
+          && element.scrollHeight > element.clientHeight
+      })
+    expect(scrollOwners).toEqual([viewport])
+  })
+
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743121861
   it('renders the active synchronized stream through the real chat history for Issue #2085', async () => {
     // ROOT CAUSE:

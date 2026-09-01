@@ -7,7 +7,7 @@ import { timingSafeEqual } from 'node:crypto'
 
 import { isUserBannedNow } from '@proj-airi/auth-shared'
 import { eq } from 'drizzle-orm'
-import { createRemoteJWKSet, jwtVerify } from 'jose'
+import { createRemoteJWKSet, errors, jwtVerify } from 'jose'
 
 import * as authSchema from '@proj-airi/auth-shared'
 
@@ -98,43 +98,49 @@ async function resolveJWTAccessToken(
   env: TokenIssuerEnv,
   accessToken: string,
 ): Promise<AuthSession | null> {
+  const jwks = getJWKS(env)
+  let payload: Awaited<ReturnType<typeof jwtVerify>>['payload']
   try {
-    const jwks = getJWKS(env)
     // NOTICE: better-auth's jwt() plugin sets issuer to the full baseURL
     // including the path prefix (e.g. "http://localhost:3000/api/auth"),
     // not just the server origin.
-    const { payload } = await jwtVerify(accessToken, jwks, {
+    const verified = await jwtVerify(accessToken, jwks, {
       issuer: `${env.AUTH_SERVER_URL}/api/auth`,
       audience: env.AUTH_SERVER_URL,
     })
-
-    if (!payload.sub)
-      return null
-
-    // The resource server deliberately reads only its authorization projection.
-    // It does not instantiate Better Auth or depend on its internal adapter.
-    const user = await db.query.user.findFirst({
-      where: eq(authSchema.user.id, payload.sub),
-    })
-    if (!user)
-      return null
-
-    return {
-      user,
-      session: {
-        id: payload.jti ?? payload.sub,
-        token: accessToken,
-        userId: payload.sub,
-        createdAt: payload.iat ? new Date(payload.iat * 1000) : new Date(),
-        updatedAt: payload.iat ? new Date(payload.iat * 1000) : new Date(),
-        expiresAt: payload.exp ? new Date(payload.exp * 1000) : new Date(),
-        ipAddress: null,
-        userAgent: null,
-      },
-    }
+    payload = verified.payload
   }
-  catch {
+  catch (error) {
+    // A fetch failure while resolving JWKS is temporary. Let WebSocket auth
+    // return its retryable close code instead of treating a valid token as bad.
+    if (error instanceof TypeError || error instanceof errors.JWKSTimeout)
+      throw error
     return null
+  }
+
+  if (!payload.sub)
+    return null
+
+  // The resource server deliberately reads only its authorization projection.
+  // It does not instantiate Better Auth or depend on its internal adapter.
+  const user = await db.query.user.findFirst({
+    where: eq(authSchema.user.id, payload.sub),
+  })
+  if (!user)
+    return null
+
+  return {
+    user,
+    session: {
+      id: payload.jti ?? payload.sub,
+      token: accessToken,
+      userId: payload.sub,
+      createdAt: payload.iat ? new Date(payload.iat * 1000) : new Date(),
+      updatedAt: payload.iat ? new Date(payload.iat * 1000) : new Date(),
+      expiresAt: payload.exp ? new Date(payload.exp * 1000) : new Date(),
+      ipAddress: null,
+      userAgent: null,
+    },
   }
 }
 

@@ -1,3 +1,5 @@
+import type { ChatRequestOptions } from '../../types'
+
 import { createOllama } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
@@ -5,7 +7,7 @@ import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
-type OllamaThinkValue = boolean | 'high' | 'low' | 'medium'
+type OllamaReasoningEffort = 'high' | 'low' | 'medium' | 'none'
 type OllamaThinkingMode = 'auto' | 'disable' | 'enable' | 'high' | 'low' | 'medium'
 
 const ollamaConfigSchema = z.object({
@@ -18,10 +20,6 @@ const ollamaConfigSchema = z.object({
 })
 
 type OllamaConfig = z.input<typeof ollamaConfigSchema>
-
-function isGptOssModel(model: string): boolean {
-  return model.toLowerCase().includes('gpt-oss')
-}
 
 function normalizeOllamaThinkingMode(value: unknown): OllamaThinkingMode {
   switch (value) {
@@ -37,19 +35,23 @@ function normalizeOllamaThinkingMode(value: unknown): OllamaThinkingMode {
   }
 }
 
-export function resolveOllamaThink(model: string, modeRaw: unknown): OllamaThinkValue | undefined {
+/**
+ * Maps the persisted Ollama setting to its OpenAI-compatible effort value.
+ *
+ * @example
+ * resolveOllamaReasoningEffort('disable')
+ * // => 'none'
+ */
+export function resolveOllamaReasoningEffort(modeRaw: unknown): OllamaReasoningEffort | undefined {
   const mode = normalizeOllamaThinkingMode(modeRaw)
-  const isGptOss = isGptOssModel(model)
 
   switch (mode) {
     case 'auto':
       return undefined
     case 'disable':
-      // NOTICE: GPT-OSS ignores boolean `think`, so "disable" degrades to `low`.
-      return isGptOss ? 'low' : false
+      return 'none'
     case 'enable':
-      // NOTICE: GPT-OSS requires levels; map generic "enable" to medium effort.
-      return isGptOss ? 'medium' : true
+      return 'medium'
     case 'low':
     case 'medium':
     case 'high':
@@ -67,6 +69,7 @@ export const providerOllama = defineProvider<OllamaConfig>({
   description: 'Local Ollama server for fast model iteration.',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.ollama.description'),
   tasks: ['chat'],
+  capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
   icon: 'i-lobe-icons:ollama',
 
   createProviderConfig: ({ t }) => ollamaConfigSchema.extend({
@@ -122,14 +125,21 @@ export const providerOllama = defineProvider<OllamaConfig>({
 
     return {
       ...baseProvider,
-      chat(model: string) {
+      chat(model: string, options?: ChatRequestOptions) {
         const chatOptions = baseProvider.chat(model)
-        const think = resolveOllamaThink(model, config.thinkingMode)
+        if (options?.reasoning) {
+          return {
+            ...chatOptions,
+            reasoningEffort: options.reasoning === 'enabled' ? 'medium' : 'none',
+          }
+        }
 
-        if (think === undefined)
+        const reasoningEffort = resolveOllamaReasoningEffort(config.thinkingMode)
+
+        if (reasoningEffort === undefined)
           return chatOptions
 
-        return { ...chatOptions, think }
+        return { ...chatOptions, reasoningEffort }
       },
     }
   },

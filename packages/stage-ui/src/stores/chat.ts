@@ -2,7 +2,7 @@ import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, StreamE
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
-import type {} from 'pinia-plugin-synced'
+import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import type { ChatHistoryItem, ChatToolReference, StreamingAssistantMessage } from '../types/chat'
 import type { ToolCallRerunPayload } from './tool-call-rerun'
@@ -36,7 +36,6 @@ import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
 import { useWebSearchStore } from './modules/web-search'
-import { useProviderStore } from './providers/provider'
 import { executeToolCallRerun } from './tool-call-rerun'
 
 interface ForkOptions {
@@ -146,7 +145,6 @@ export const useChatStore = defineStore('chat', () => {
   // without its paired prompt-injection defense.
   useWebSearchStore()
   const consciousnessStore = useConsciousnessStore()
-  const providerStore = useProviderStore()
   const artistryAutonomousStore = useAutonomousArtistryStore()
   const { activeModel, activeProvider } = storeToRefs(consciousnessStore)
   const chatSession = useChatSessionStore()
@@ -162,9 +160,36 @@ export const useChatStore = defineStore('chat', () => {
   const activeStreamingMessage = shallowRef<StreamingAssistantMessage>()
   const pendingQueuedSendCount = shallowRef(0)
   let ownedActiveTurnSpan: typeof activeTurnSpan.value
+  let stopLeadershipListener: (() => void) | undefined
   const analyticsHooks = createChatAnalyticsHooks({
     getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId),
   })
+
+  /**
+   * Initializes chat state and binds local consumers to synchronized leadership.
+   * A promoted renderer restarts the leader-owned cloud consumer.
+   */
+  async function initialize(syncedPinia: SyncedPiniaRuntime) {
+    stopLeadershipListener ??= syncedPinia.onLeadershipChange((isLeader) => {
+      if (!isLeader) {
+        chatSession.dispose()
+        return
+      }
+
+      void chatSession.ensureCurrentSession().catch((error) => {
+        console.error('[chat] Failed to start chat consumers after leader promotion:', error)
+      })
+    })
+
+    await chatSession.initialize()
+  }
+
+  /** Stops chat consumers that belong to this window. */
+  function dispose() {
+    stopLeadershipListener?.()
+    stopLeadershipListener = undefined
+    chatSession.dispose()
+  }
 
   async function streamWithStageAdapters(
     model: string,
@@ -363,7 +388,7 @@ export const useChatStore = defineStore('chat', () => {
       throw new Error('Failed to load the target chat session')
 
     const messageCount = chatSession.getSessionMessages(payload.sessionId).length
-    const chatProvider = await providerStore.getProviderInstance<ChatProvider>(providerId)
+    const chatProvider = await consciousnessStore.getChatProviderInstance(providerId)
     if (!chatProvider)
       throw new Error(`Failed to resolve chat provider "${providerId}"`)
 
@@ -495,6 +520,8 @@ export const useChatStore = defineStore('chat', () => {
     activeStreamingMessage,
     pendingQueuedSendCount,
 
+    initialize,
+    dispose,
     cleanup,
     deleteSession,
     ingest,

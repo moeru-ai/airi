@@ -175,6 +175,14 @@ as a first language.
 
 - Comments should explain information the code cannot express clearly: intent, constraints, ownership, invariants, precedence, lifecycle, ordering, side effects, protocol shape, or non-obvious fallbacks.
 - Do not add comments that only restate names, types, or visible operations.
+- Treat a contract comment as an explanation of the relationship between a producer and its consumers.
+- Explain why a value exists in the system before you explain how the code represents it.
+- Describe the decision, behavior, or invariant that a value controls.
+- If different values select different control-flow or UI paths, describe each observable outcome.
+- When a value crosses a module or component boundary, identify the consumer and how it applies the value.
+- Put representation details after behavior: units, coordinate systems, thresholds, clamps, and source API fields.
+- Put background evidence after the contract: browser behavior, issue links, investigation history, and removal conditions.
+- If the name, type, and surrounding code express the full contract, omit the comment.
 - Place implementation comments next to the branch, calculation, transition, or side effect they explain.
 - For calculation-heavy code, explain non-obvious coordinate systems, units, conversions, clamps, rounding, aggregation, and precedence beside the relevant intermediate values or branches.
 - Prefer clearer names, types, and structured state over comments that compensate for hidden or encoded concepts.
@@ -217,7 +225,8 @@ as a first language.
 - `state: true` sends a full-store proposal after each local mutation. Keep transient and high-frequency state in an unsynchronized store.
 - State, action arguments, and action results must support `structuredClone`.
 - Keep computed values, query status, runtime clients, controllers, pending promises, and component state outside synchronized state.
-- Remote snapshots run local Vue watchers. Never let a watcher on synchronized state write synchronized state or call a synchronized action.
+- Remote snapshots run local Vue watchers. A watcher on synchronized state must not write synchronized state directly.
+- A watcher can call a synchronized action to enforce a leader-owned invariant. The watcher must await the action. The action must be idempotent because each renderer can observe the same snapshot.
 - Enforce cross-field invariants inside explicit actions before the state commit. Do not repair replicated state with a watcher.
 - Every returned function in a setup store is a Pinia action. Use computed values or pure helpers for read-only projections.
 - List only leader-owned side-effecting actions under `synced.actions`. These actions must be asynchronous, and callers must await them.
@@ -225,7 +234,7 @@ as a first language.
 - Keep synchronization and persistence as separate boundaries. Give persisted synchronized state one explicit persistence owner.
 - Do not add bidirectional persistence composables or storage-event listeners to synchronized state. Use explicit persistence commands.
 - Set the leadership mode explicitly for every Electron renderer. Utility and minimal windows must use `follower-only`.
-- Add a multi-window regression test for synchronization changes. One remote snapshot must not produce another mutation or action.
+- Add a multi-window regression test for synchronization changes. A remote snapshot must not produce a local synchronized-state proposal. If a watcher calls a synchronized action, verify that repeated calls converge without repeated side effects.
 
 ### Readability Refactors
 
@@ -252,7 +261,7 @@ as a first language.
 - Improve legacy you touch; avoid one-off patterns.
 - Keep changes scoped; use workspace filters (`pnpm -F <package> <script>`).
 - Maintain structured `README.md` documentation for each `packages/` and `apps/` entry, covering what it does, how to use it, when to use it, and when not to use it.
-- Always run `pnpm type-check` and `pnpm lint` after finishing a task.
+- Always run `pnpm typecheck` and `pnpm lint` after finishing a task.
 - Use Conventional Commits for commit messages (e.g., `feat(<package name>): add runner reconnect backoff`).
 - Before planning or writing new utilities/functions, always search for existing internal implementations first. If the logic could become shared utilities, proactively propose that shared approach to users and developers.
 

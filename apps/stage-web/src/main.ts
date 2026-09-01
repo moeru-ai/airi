@@ -9,6 +9,7 @@ import { PiniaColada } from '@pinia/colada'
 import { isEnvTruthy } from '@proj-airi/stage-shared'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
 import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/libs/analytics'
+import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import { piniaPluginTracing, setupSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
@@ -33,6 +34,7 @@ configureAnalyticsAdapter(async (options) => {
   const { createPosthogAdapter } = await import('@proj-airi/stage-ui/libs/analytics/posthog')
   return createPosthogAdapter(options)
 })
+registerAuthorizationHandler(browserAuthorizationHandler)
 
 const pinia = createPinia()
 const synced = setupSynced()

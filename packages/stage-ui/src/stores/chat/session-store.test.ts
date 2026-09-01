@@ -147,15 +147,8 @@ describe('chat-session-store · user swap during in-flight ensureActiveSessionFo
   // ROOT CAUSE:
   //
   // ensureActiveSessionForCharacter caches `ensureActivePromise` for singleflight
-  // and the IIFE captures `currentUserId` at start. When `userId` flips A → B
-  // mid-flight:
-  //   1. The userId watcher calls clearInMemoryState (resets sessionMetas /
-  //      index / activeSessionId), but does NOT reset `ensureActivePromise`.
-  //   2. A's IIFE eventually resumes after its awaited IDB read completes and
-  //      writes A's session record back into the now-empty B state — leak.
-  //   3. Any subsequent ensureActiveSessionForCharacter call (e.g. from the
-  //      [userId, activeCardId] watcher) returns A's stale promise instead of
-  //      starting a fresh hydrate for B — B silently sees no sessions.
+  // and the IIFE captures `currentUserId` at start. An explicit A → B identity
+  // transition must invalidate A's in-flight read before it hydrates B.
   //
   // We fix this by:
   //   - bumping an `ensureActiveEpoch` and nulling `ensureActivePromise` in
@@ -163,8 +156,7 @@ describe('chat-session-store · user swap during in-flight ensureActiveSessionFo
   //   - re-checking the captured epoch after each await inside the IIFE,
   //   - re-checking `sessionMetas[sessionId]` inside `loadSession` so the
   //     post-IDB write does not resurrect cleared state,
-  //   - triggering a fresh hydrate from the userId watcher itself so the new
-  //     user actually loads.
+  //   - hydrating the new identity only through `activateCurrentUser`.
   it('runs a fresh hydrate for the new user and discards the stale write from the old user', async () => {
     const aSessionMeta: ChatSessionMeta = {
       sessionId: 'sess-A',
@@ -232,7 +224,7 @@ describe('chat-session-store · user swap during in-flight ensureActiveSessionFo
     expect(getSessionMock).toHaveBeenCalledWith('sess-A')
     expect(resolveASessionGet).toBeDefined()
 
-    // Auth swap mid-flight.
+    // The synchronized auth state changes while A's session read is in flight.
     userIdRef.value = 'B'
     await nextTick()
     await flushMicrotasks()
@@ -243,8 +235,8 @@ describe('chat-session-store · user swap during in-flight ensureActiveSessionFo
     await initPromise.catch(() => {})
     await flushMicrotasks()
 
-    // B's hydrate must have fired — without the fix, the [userId, activeCardId]
-    // watcher returned the stale A promise and B never loaded.
+    // B's hydrate must have fired. Without the fix, the stale A promise blocks
+    // the identity action and B never loads.
     expect(getIndexMock).toHaveBeenCalledWith('B')
     expect(store.sessionMetas['sess-B']).toBeDefined()
 
@@ -606,6 +598,21 @@ describe('chat-session-store · cloud deletion', () => {
 })
 
 describe('chat-session-store · active card prompt edits', () => {
+  // https://github.com/moeru-ai/airi/discussions/2239
+  it('adds the AIRI chat math syntax to the system message for Issue #2239', async () => {
+    const store = useChatSessionStore()
+    await store.initialize()
+
+    const content = store.messages[0]?.content
+
+    expect(content).toContain('Use $$...$$ for inline math.')
+    expect(content).toContain('Use a separate multiline $$ block for each display equation.')
+    expect(content).toContain('Use a latex fence for a list of independent one-line equations.')
+    expect(content).toContain('Use a math fence for one multiline equation or LaTeX environment.')
+    expect(content).toContain('Do not use single dollar signs as math delimiters.')
+    expect(content).not.toContain('eg: $ x^3 $')
+  })
+
   // ROOT CAUSE:
   //
   // Editing the active card updates `systemPrompt`, but the session store only
@@ -704,22 +711,54 @@ describe('chat-session-store · active card prompt edits', () => {
 })
 
 describe('chat-session-store · synchronized data actions', () => {
-  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3755711151
-  it('keeps cloud synchronization in the elected leader for Issue #2085', async () => {
+  it('keeps synchronized session data when a follower receives authenticated user state', async () => {
     // ROOT CAUSE:
     //
-    // Window-local initialization opened a cloud WebSocket in every window.
-    // Follower callbacks then proposed direct full-state mutations.
+    // A new settings window received the synchronized auth user after its
+    // chat-session store was created. The userId watcher then cleared the
+    // synchronized session state in that follower. pinia-plugin-synced sent
+    // the empty full-state proposal to the leader and removed chat messages
+    // from every window.
+    //
+    // The watcher routes the identity transition to an idempotent synchronized
+    // action. The action keeps state that already belongs to the current user.
+    const session: ChatSessionMeta = {
+      sessionId: 'session-a',
+      userId: 'cloud-user',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+    }
     const store = useChatSessionStore()
-    store.setCloudSyncOwnership(false)
-    await store.initialize()
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-a',
+      sessionMessages: {
+        'session-a': [{ id: 'message-a', role: 'user', content: 'Keep this message' }],
+      },
+      sessionMetas: { 'session-a': session },
+      index: {
+        userId: 'cloud-user',
+        characters: {
+          default: {
+            activeSessionId: 'session-a',
+            sessions: { 'session-a': session },
+          },
+        },
+      },
+    })
+    await nextTick()
+    await flushMicrotasks()
+    const messageIdsBeforeAuthHydration = store.sessionMessages['session-a'].map(message => message.id)
+    const metaBeforeAuthHydration = { ...store.sessionMetas['session-a'] }
 
     userIdRef.value = 'cloud-user'
     await nextTick()
-    expect(connectCloudWsMock).not.toHaveBeenCalled()
+    await flushMicrotasks()
 
-    store.setCloudSyncOwnership(true)
-    expect(connectCloudWsMock).toHaveBeenCalledTimes(1)
+    expect(store.sessionMessages['session-a'].map(message => message.id)).toEqual(messageIdsBeforeAuthHydration)
+    expect(store.sessionMetas['session-a']).toEqual(metaBeforeAuthHydration)
+    expect(store.activeSessionId).toBe('session-a')
+    expect(store.index?.userId).toBe('cloud-user')
   })
 
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743242525
@@ -758,6 +797,7 @@ describe('chat-session-store · synchronized data actions', () => {
 
     expect(store.activeSessionId).toBe('session-b')
     expect(store.isReady).toBe(true)
+    expect(getSessionMock).not.toHaveBeenCalled()
   })
 
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743242529

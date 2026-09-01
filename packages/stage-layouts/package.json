@@ -16,7 +16,9 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./browser/adaptive-input": "./src/browser/adaptive-input.ts",
     "./layouts/*": "./src/layouts/*.vue",
+    "./components/AdaptiveInput": "./src/components/AdaptiveInput/index.ts",
     "./components/Layouts/*": "./src/components/Layouts/*.vue",
     "./components/Layouts/InteractiveArea/Actions/*": "./src/components/Layouts/InteractiveArea/Actions/*.vue",
     "./components/Layouts/ViewControls/*": "./src/components/Layouts/ViewControls/*.vue",

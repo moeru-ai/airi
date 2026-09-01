@@ -1,4 +1,5 @@
 import './amazon-bedrock'
+import './apple-speech'
 import './openai'
 import './openai-audio'
 import './aihubmix'
@@ -49,6 +50,7 @@ import './azure-ai-foundry'
 import './official'
 import './speech-noop'
 import './unspeech'
+import './voicevox'
 
 export {
   getDefaultStreamingModel,

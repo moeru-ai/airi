@@ -52,8 +52,12 @@ import { SkyBox } from './Environment'
 import { VRMModel } from './Model'
 
 const props = withDefaults(defineProps<{
+  /** The context that owns `currentAudioSource`. */
+  audioContext?: AudioContext
   currentAudioSource?: AudioBufferSourceNode
   cursorPosition?: { x: number, y: number }
+  /** Stable display model identity. Runtime resource URLs can change across reloads. */
+  modelId: string
   modelSrc?: string
   skyBoxSrc?: string
   /**
@@ -88,6 +92,10 @@ const emit = defineEmits<{
 }>()
 
 type ModelPhase = 'no-model' | 'loading' | 'ready' | 'error'
+interface ModelLoadIdentity {
+  modelId: string
+  modelSrc: string
+}
 type SceneTracePhaseCause
   = | 'binding:complete'
     | 'binding:start'
@@ -116,7 +124,7 @@ const {
   scenePhase,
   sceneTransactionDepth,
 
-  lastCommittedModelSrc,
+  lastCommittedModelId,
   modelSize,
   modelOrigin,
   modelOffset,
@@ -165,7 +173,11 @@ const latestScenePhaseTraceCause = ref<SceneTracePhaseCause>('props:model-src')
 const latestSceneTransactionReason = ref<SceneTraceTransactionReason>('unknown')
 const activeModelSrc = ref<string>()
 const bindingRevision = ref(0)
-const pendingCommittedModelSrc = ref<string>()
+// A selection ID can change while its URL is still resolving. The URL change owns
+// the request snapshot, so an in-flight load keeps the ID that requested its URL.
+const requestedModelIdentity = shallowRef<ModelLoadIdentity>()
+const loadingModelIdentity = shallowRef<ModelLoadIdentity>()
+const pendingCommittedModelIdentity = shallowRef<ModelLoadIdentity>()
 const pendingCommittedModelRevision = ref<number>()
 const pendingSceneBootstrap = shallowRef<SceneBootstrap>()
 
@@ -245,17 +257,21 @@ function toVector3(value: Vec3) {
   return new Vector3(value.x, value.y, value.z)
 }
 
+const hemisphereLightPosition = new Vector3(0, 1, 0)
+const directionalLightPositionVector = computed(() => toVector3(directionalLightPosition.value))
+
 function toVec3(value: Vector3): Vec3 {
   return { x: value.x, y: value.y, z: value.z }
 }
 
 function clearPendingCommittedModel() {
-  pendingCommittedModelSrc.value = undefined
+  pendingCommittedModelIdentity.value = undefined
   pendingCommittedModelRevision.value = undefined
 }
 
 function invalidateBindingRevision() {
   bindingRevision.value += 1
+  loadingModelIdentity.value = undefined
   clearPendingCommittedModel()
 }
 
@@ -367,23 +383,25 @@ function setScenePhaseWithTrace(phase: ScenePhase, cause: SceneTracePhaseCause) 
   setScenePhase(phase)
 }
 
-function commitLastCommittedModelSrc(expectedRevision: number, nextPhase: ScenePhase) {
+function commitLastCommittedModelId(expectedRevision: number, nextPhase: ScenePhase) {
   if (nextPhase !== 'mounted')
     return
 
   if (expectedRevision !== bindingRevision.value)
     return
 
-  if (!pendingCommittedModelSrc.value || pendingCommittedModelRevision.value !== expectedRevision)
+  const completedModel = pendingCommittedModelIdentity.value
+  if (!completedModel || pendingCommittedModelRevision.value !== expectedRevision)
     return
 
-  if (!activeModelSrc.value || pendingCommittedModelSrc.value !== activeModelSrc.value)
+  if (!activeModelSrc.value || completedModel.modelSrc !== activeModelSrc.value)
     return
 
-  if (props.modelSrc !== activeModelSrc.value)
+  const activeRequest = requestedModelIdentity.value
+  if (activeRequest?.modelId !== completedModel.modelId || activeRequest.modelSrc !== completedModel.modelSrc)
     return
 
-  lastCommittedModelSrc.value = pendingCommittedModelSrc.value
+  lastCommittedModelId.value = completedModel.modelId
   clearPendingCommittedModel()
 }
 
@@ -441,7 +459,7 @@ async function completeSceneBinding(expectedRevision = bindingRevision.value) {
 
     const nextPhase = resolveScenePhaseAfterBinding()
     setScenePhaseWithTrace(nextPhase, 'binding:complete')
-    commitLastCommittedModelSrc(expectedRevision, nextPhase)
+    commitLastCommittedModelId(expectedRevision, nextPhase)
   }
   finally {
     isCompletingBinding.value = false
@@ -465,6 +483,7 @@ function onVRMModelLoadStart(reason: VrmLifecycleReason) {
   modelPhase.value = 'loading'
   pendingSceneBootstrap.value = undefined
   beginSceneBindingCycle(toSceneLoadTransactionReason(reason))
+  loadingModelIdentity.value = requestedModelIdentity.value
 }
 
 function onVRMSceneBootstrap(value: SceneBootstrap) {
@@ -473,8 +492,12 @@ function onVRMSceneBootstrap(value: SceneBootstrap) {
 
 function onVRMModelLoaded(value: string) {
   activeModelSrc.value = value
-  pendingCommittedModelSrc.value = value
+  const completedModel = loadingModelIdentity.value
+  pendingCommittedModelIdentity.value = completedModel?.modelSrc === value
+    ? completedModel
+    : undefined
   pendingCommittedModelRevision.value = bindingRevision.value
+  loadingModelIdentity.value = undefined
   modelPhase.value = 'ready'
   void completeSceneBinding(bindingRevision.value)
 }
@@ -614,6 +637,12 @@ const effectProps = {
 function applyVrmFrameRuntimeHook() {
   modelRef.value?.setVrmFrameHook(vrmFrameRuntimeHook.value)
 }
+
+watch(() => props.modelSrc, (modelSrc) => {
+  requestedModelIdentity.value = modelSrc
+    ? { modelId: props.modelId, modelSrc }
+    : undefined
+}, { flush: 'sync', immediate: true })
 
 watch(() => props.modelSrc, (modelSrc) => {
   modelPhase.value = modelSrc ? 'loading' : 'no-model'
@@ -817,7 +846,7 @@ defineExpose({
         v-else
         :color="formatHex(hemisphereSkyColor)"
         :ground-color="formatHex(hemisphereGroundColor)"
-        :position="[0, 1, 0]"
+        :position="hemisphereLightPosition"
         :intensity="hemisphereLightIntensity"
         cast-shadow
       />
@@ -829,7 +858,7 @@ defineExpose({
       <TresDirectionalLight
         ref="dirLightRef"
         :color="formatHex(directionalLightColor)"
-        :position="[directionalLightPosition.x, directionalLightPosition.y, directionalLightPosition.z]"
+        :position="directionalLightPositionVector"
         :intensity="directionalLightIntensity"
         cast-shadow
       />
@@ -840,10 +869,12 @@ defineExpose({
       </Suspense>
       <VRMModel
         ref="modelRef"
+        :audio-context="props.audioContext"
         :current-audio-source="props.currentAudioSource"
         :cursor-position="props.cursorPosition"
-        :last-committed-model-src="lastCommittedModelSrc"
-        :model-src="props.modelSrc"
+        :last-committed-model-id="lastCommittedModelId"
+        :model-id="requestedModelIdentity?.modelId ?? props.modelId"
+        :model-src="requestedModelIdentity?.modelSrc"
         :idle-animation="props.idleAnimation"
         :paused="props.paused"
         :env-select="envSelect"

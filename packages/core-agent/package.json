@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/core-agent",
   "type": "module",
-  "version": "0.11.3",
+  "version": "0.12.0-beta.5",
   "private": true,
   "description": "Core agent runtime orchestration for AIRI",
   "author": {
@@ -63,6 +63,7 @@
   },
   "devDependencies": {
     "@types/hast": "catalog:",
+    "@types/node": "catalog:",
     "@types/unist": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:"

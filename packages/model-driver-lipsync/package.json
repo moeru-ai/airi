@@ -1,15 +1,23 @@
 {
   "name": "@proj-airi/model-driver-lipsync",
   "type": "module",
-  "version": "0.11.3",
+  "version": "0.12.0-beta.5",
   "private": true,
   "exports": {
     ".": "./src/index.ts",
     "./live2d": "./src/live2d/index.ts",
+    "./runtime/wlipsync": "./src/runtime/wlipsync/index.ts",
     "./shared/wlipsync": "./src/shared/wlipsync/index.ts",
     "./shared/wlipsync/profile.json": "./src/shared/wlipsync/profile.json"
   },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
   "dependencies": {
     "wlipsync": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "catalog:vitest"
   }
 }

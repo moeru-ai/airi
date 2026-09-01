@@ -33,11 +33,11 @@ jobs:
           key: ${{ runner.os }}-turbo-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-turbo-
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v6
+      - uses: pnpm/setup@v2
         with:
-          node-version: lts/*
-          cache: pnpm
+          runtime: node@26.7.0
+          cache: true
+          install: false
       - run: pnpm i -g wrangler@4
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build:packages
@@ -61,7 +61,7 @@ jobs:
 
       - name: Wrangler Upload
         id: wrangler-versions-upload
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -106,11 +106,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-auth-
             ${{ runner.os }}-turbo-
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v6
+      - uses: pnpm/setup@v2
         with:
-          node-version: lts/*
-          cache: pnpm
+          runtime: node@26.7.0
+          cache: true
+          install: false
       - run: pnpm i -g wrangler@4
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build:packages
@@ -120,7 +120,7 @@ jobs:
           VITE_SERVER_URL: 'https://airi-server-dev.up.railway.app'
 
       - name: Wrangler Pages Deploy
-        uses: cloudflare/wrangler-action@v3.14.1
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

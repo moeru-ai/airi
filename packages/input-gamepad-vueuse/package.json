@@ -1,0 +1,46 @@
+{
+  "name": "@proj-airi/input-gamepad-vueuse",
+  "type": "module",
+  "version": "0.12.0-beta.5",
+  "private": true,
+  "description": "Vue composables for AIRI gamepad input",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/input-gamepad-vueuse"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "vue": ">=3.5"
+  },
+  "dependencies": {
+    "@proj-airi/input-gamepad": "workspace:^",
+    "@vueuse/core": "catalog:"
+  },
+  "devDependencies": {
+    "vue": "catalog:"
+  }
+}

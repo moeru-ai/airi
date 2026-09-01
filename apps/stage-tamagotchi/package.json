@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-tamagotchi",
   "type": "module",
-  "version": "0.11.3",
+  "version": "0.12.0-beta.5",
   "private": true,
   "description": "LLM powered virtual character",
   "author": {
@@ -16,10 +16,10 @@
     "typecheck": "vue-tsc --noEmit",
     "app:dev": "pnpm run dev",
     "app:build": "pnpm run build",
-    "start": "electron-vite preview",
-    "start:xwayland": "electron-vite preview -- --ozone-platform=x11",
-    "dev": "electron-vite dev",
-    "dev:xwayland": "electron-vite dev -- --ozone-platform=x11",
+    "start": "install-electron && electron-vite preview",
+    "start:xwayland": "install-electron && electron-vite preview -- --ozone-platform=x11",
+    "dev": "install-electron && electron-vite dev",
+    "dev:xwayland": "install-electron && electron-vite dev -- --ozone-platform=x11",
     "build": "electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "pnpm run build && electron-builder --dir",
@@ -63,6 +63,8 @@
     "@proj-airi/font-cjkfonts-allseto": "workspace:^",
     "@proj-airi/font-xiaolai": "workspace:^",
     "@proj-airi/i18n": "workspace:^",
+    "@proj-airi/input-gamepad-vueuse": "workspace:^",
+    "@proj-airi/model-driver-lipsync": "workspace:^",
     "@proj-airi/pipelines-audio": "workspace:^",
     "@proj-airi/plugin-sdk-tamagotchi": "workspace:^",
     "@proj-airi/server-sdk": "workspace:*",
@@ -81,6 +83,9 @@
     "@vueuse/core": "catalog:",
     "@vueuse/motion": "catalog:",
     "@vueuse/shared": "catalog:",
+    "@xsai-apple-speech/transcription": "catalog:",
+    "@xsai-apple-speech/transcription-electron-plugin": "catalog:",
+    "@xsai-apple-speech/transcription-native": "catalog:",
     "@xsai-ext/providers": "catalog:",
     "@xsai-transformers/embed": "catalog:",
     "@xsai-transformers/transcription": "catalog:",
@@ -99,7 +104,6 @@
     "chess.js": "catalog:",
     "colorjs.io": "catalog:",
     "culori": "catalog:",
-    "d3": "catalog:",
     "date-fns": "catalog:",
     "defu": "catalog:",
     "destr": "catalog:",
@@ -142,6 +146,10 @@
     "whatwg-mimetype": "catalog:",
     "xsschema": "catalog:",
     "zod": "catalog:"
+  },
+  "optionalDependencies": {
+    "@xsai-apple-speech/transcription-native-darwin-arm64": "catalog:",
+    "@xsai-apple-speech/transcription-native-darwin-x64": "catalog:"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "catalog:",

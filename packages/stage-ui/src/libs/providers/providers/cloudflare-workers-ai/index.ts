@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 import { defineProvider } from '../registry'
 
-export const providerCloudflareWorkersAI = defineProvider({
+export const providerCloudflareWorkersAI = defineProvider<{ accountId: string, apiKey: string }>({
   id: 'cloudflare-workers-ai',
   name: 'Cloudflare Workers AI',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.cloudflare-workers-ai.title'),
