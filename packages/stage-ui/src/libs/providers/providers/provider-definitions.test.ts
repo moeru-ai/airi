@@ -5,6 +5,7 @@ import type { StageProviderId } from './registry'
 import { describe, expect, expectTypeOf, it } from 'vitest'
 import { z } from 'zod'
 
+import { selectProviderMetadata } from '../metadata'
 import { providerAliyunNlsTranscription } from './aliyun-nls'
 import {
   providerAppLocalAudioSpeech,
@@ -13,7 +14,6 @@ import {
   providerBrowserLocalAudioTranscription,
   providerFunASRAudioTranscription,
 } from './local-audio'
-import { selectProviderMetadata } from '../metadata'
 import { getDefinedProvider } from './registry'
 
 import './index'
