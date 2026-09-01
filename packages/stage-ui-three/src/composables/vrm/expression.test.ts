@@ -110,6 +110,13 @@ describe('useVRMEmote', () => {
     emote.update(0.6)
     expect(emote.isTransitioning.value).toBe(false)
     expect(emote.isEmoteActive.value).toBe(false)
+    expect(emote.currentEmotion.value).toBeNull()
+
+    vi.mocked(vrm.expressionManager!.setValue).mockClear()
+
+    // Subsequent frames should not assert zero over expressions, releasing ownership
+    emote.update(0.016)
+    expect(vrm.expressionManager?.setValue).not.toHaveBeenCalled()
   })
 
   it('does not activate emote flag for no-op intensity or empty targets', () => {

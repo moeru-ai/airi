@@ -209,6 +209,14 @@ export function useVRMEmote(vrm: VRMCore) {
       if (transitionProgress.value >= 1.0) {
         transitionProgress.value = 1.0
         isTransitioning.value = false
+
+        // Once the neutral transition completes, clear targets and reset currentEmotion
+        // so we release morph ownership and stop overriding external animation/tracking.
+        if (currentEmotion.value === 'neutral') {
+          currentEmotion.value = null
+          currentExpressionValues.value.clear()
+          targetExpressionValues.value.clear()
+        }
       }
 
       // Update all expressions with lerp
