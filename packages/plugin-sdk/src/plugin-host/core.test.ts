@@ -41,7 +41,7 @@ describe('extension manifest schema', () => {
 
 describe('for ExtensionHost', () => {
   it('runs extension setup and registers multiple module sessions', async () => {
-    const host = new ExtensionHost()
+    const host = new ExtensionHost({ loader: new FileSystemLoader() })
     const extension = defineExtension({
       id: 'airi-extension-test',
       async setup(ctx) {
@@ -65,7 +65,7 @@ describe('for ExtensionHost', () => {
   })
 
   it('rejects defineExtension entrypoint ids that do not match the manifest id', async () => {
-    const host = new ExtensionHost()
+    const host = new ExtensionHost({ loader: new FileSystemLoader() })
     const extension = defineExtension({
       id: 'airi-extension-entrypoint-id',
       async setup() {},
@@ -86,7 +86,7 @@ describe('for ExtensionHost', () => {
 
   it('disposes modules registered before setup failure', async () => {
     const disposed: string[] = []
-    const host = new ExtensionHost()
+    const host = new ExtensionHost({ loader: new FileSystemLoader() })
     const extension = defineExtension({
       id: 'airi-extension-failing',
       async setup(ctx) {
@@ -773,7 +773,7 @@ describe('for FileSystemLoader', () => {
    * expect(host.listModules().map(module => module.id)).toEqual(['defined-extension-module'])
    */
   it('loads defineExtension entrypoints from extension manifests', async () => {
-    const host = new ExtensionHost()
+    const host = new ExtensionHost({ loader: new FileSystemLoader() })
 
     await host.start({
       apiVersion: 'v1',
@@ -793,7 +793,7 @@ describe('for FileSystemLoader', () => {
    * expect(host.listModules()).toEqual([])
    */
   it('stops defineExtension entrypoint sessions loaded through host.start', async () => {
-    const host = new ExtensionHost()
+    const host = new ExtensionHost({ loader: new FileSystemLoader() })
     const entrypointPath = join(import.meta.dirname, 'testdata', 'test-stoppable-extension-entrypoint.ts')
     const testEntrypoint = await import('./testdata/test-stoppable-extension-entrypoint')
     testEntrypoint.disposedSessionIds.splice(0)
@@ -823,7 +823,7 @@ describe('for FileSystemLoader', () => {
    * expect(reloaded.phase).toBe('ready')
    */
   it('reloads defineExtension entrypoint sessions loaded through host.start', async () => {
-    const host = new ExtensionHost()
+    const host = new ExtensionHost({ loader: new FileSystemLoader() })
     const entrypointPath = join(import.meta.dirname, 'testdata', 'test-stoppable-extension-entrypoint.ts')
     const testEntrypoint = await import('./testdata/test-stoppable-extension-entrypoint')
     testEntrypoint.disposedSessionIds.splice(0)
@@ -956,7 +956,7 @@ describe('for FileSystemLoader', () => {
 
 describe('for migrated extension testdata', () => {
   it('starts the normal defineExtension fixture', async () => {
-    const host = new ExtensionHost()
+    const host = new ExtensionHost({ loader: new FileSystemLoader() })
 
     const session = await host.start({
       apiVersion: 'v1',
@@ -973,7 +973,7 @@ describe('for migrated extension testdata', () => {
   })
 
   it('surfaces setup failures from migrated defineExtension fixtures', async () => {
-    const host = new ExtensionHost()
+    const host = new ExtensionHost({ loader: new FileSystemLoader() })
 
     await expect(host.start({
       apiVersion: 'v1',
@@ -989,7 +989,7 @@ describe('for migrated extension testdata', () => {
   })
 
   it('runs the migrated injected kit fixture through ctx.modules and module.kits', async () => {
-    const host = new ExtensionHost()
+    const host = new ExtensionHost({ loader: new FileSystemLoader() })
     const { testWidgetKit } = await import('./testdata/test-injected-host-apis-plugin')
     host.registerKitApi(testWidgetKit)
 
