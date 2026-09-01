@@ -1,4 +1,5 @@
 import type { Extension } from '../../../../extension'
+import type { ExtensionLoader } from '../../../shared/loader'
 import type { ExtensionLoadOptions, ExtensionManifestV1 } from '../../../shared/types'
 
 import { isAbsolute, join } from 'node:path'
@@ -41,7 +42,7 @@ function coerceExtensionFromModule(moduleValue: unknown): Extension {
  * Returns:
  * - Filesystem-backed helpers for resolving and loading extension entrypoints
  */
-export class FileSystemLoader {
+export class FileSystemLoader implements ExtensionLoader {
   /**
    * Resolve a manifest entrypoint for the requested runtime.
    *

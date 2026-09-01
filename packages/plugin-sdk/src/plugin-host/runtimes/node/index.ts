@@ -7,6 +7,8 @@ import { createContext } from '@moeru/eventa'
 export * from '../../core'
 export * from '../../shared'
 export * from '../../transports'
+export * from '../shared/loaders'
+export * from '../web/loaders/bundled'
 export * from './loaders'
 
 /**

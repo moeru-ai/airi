@@ -8,6 +8,7 @@ import type {
 import type { KitAvailability, KitRef, KitUseResult } from '../kit'
 import type { AnnounceBindingInput, UpdateBindingInput } from '../plugin/apis/client/bindings'
 import type { BindingRecord, KitCapabilityDescriptor, KitDescriptor } from './shared'
+import type { ExtensionLoader } from './shared/loader'
 import type {
   ExtensionHostContribution,
   ExtensionHostInstallContext,
@@ -34,7 +35,6 @@ import {
 import {
   protocolListProvidersEventName,
 } from '../plugin/apis/protocol/resources/providers'
-import { FileSystemLoader } from './runtimes/node/loaders'
 import {
   DependencyService,
   ExtensionSessionService,
@@ -43,6 +43,12 @@ import {
   PermissionService,
   ResourceService,
 } from './runtimes/shared'
+
+class MissingExtensionLoader implements ExtensionLoader {
+  async loadExtensionFor(manifest: ExtensionManifestV1): Promise<Extension> {
+    throw new Error(`Extension loader is required to start \`${manifest.id}\`.`)
+  }
+}
 
 /**
  * Extension host lifecycle overview.
@@ -188,7 +194,7 @@ function cloneBindingRecord<C extends HostDataRecord>(module: BindingRecord<C>):
  * - Tests or applications need one place to start, stop, reload, and query extension sessions
  *
  * Expects:
- * - Extensions are loaded from manifest entrypoints through {@link FileSystemLoader}
+ * - The configured loader resolves each manifest entrypoint for the active runtime
  * - Each session gets its own permission scope, module registry, and cleanup store
  *
  * Returns:
@@ -198,12 +204,11 @@ function cloneBindingRecord<C extends HostDataRecord>(module: BindingRecord<C>):
  *
  * caller
  *   -> {@link ExtensionHost.start}
- *     -> {@link FileSystemLoader.resolveEntrypointFor}
- *     -> {@link FileSystemLoader.loadExtensionFor}
+ *     -> configured extension loader
  *     -> {@link ExtensionHost.startExtension}
  */
 export class ExtensionHost {
-  private readonly loader: FileSystemLoader
+  private readonly loader: ExtensionLoader
   private readonly extensionSessionService = new ExtensionSessionService<ExtensionSession>()
   private readonly runtime: PluginRuntime
   private readonly dependencies = new DependencyService()
@@ -220,7 +225,7 @@ export class ExtensionHost {
   private readonly installContext: ExtensionHostInstallContext
 
   constructor(options: ExtensionHostOptions = {}) {
-    this.loader = new FileSystemLoader()
+    this.loader = options.loader ?? new MissingExtensionLoader()
     this.runtime = options.runtime ?? 'electron'
     this.permissionResolver = options.permissionResolver
     this.resources.setValue(protocolListProvidersEventName, [] as Array<{ name: string }>)
