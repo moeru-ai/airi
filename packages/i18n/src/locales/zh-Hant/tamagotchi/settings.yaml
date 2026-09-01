@@ -72,7 +72,7 @@ devtools:
         description: 不擷取螢幕，直接套用此色彩。
       strength:
         title: 光照強度
-        description: 設定總光照強度，最高可達標準反應的三倍。
+        description: 設定整體效果量。1 是設計值，最高 3 會加強色偏與光線包覆。
       main-window-note: 變更會顯示在 AIRI 主視窗中。
       diagnostics:
         title: 擷取診斷
@@ -91,83 +91,75 @@ devtools:
           sample-size: 取樣畫面
           window-bounds: AIRI 視窗邊界
           excluded-region: 排除區域
-          direction: 光線方向
+          exposure: 螢幕曝光
+          behind-luminance: 角色背後的光線
           updated: 最後更新
         preview:
           title: 縮小後擷取畫面
-          description: 紅色矩形標示排除像素。彩色圓圈標示擷取出的光源。
+          description: 紅色矩形標示 AIRI 視窗。虛線矩形標示光照圖涵蓋的範圍。
           unavailable: 沒有可用的擷取畫面。
         pixels:
           title: 像素判定
           total: 總計
           accepted: 已接受
-          excluded: AIRI 視窗
+          excluded: 已繪製
           transparent: 透明
-          black: 低於黑色截止值
-          white: 高於白色截止值
-          average-saturation: 平均飽和度
-          weight-total: 權重總和
-        colors:
-          title: 色彩階段
-          unavailable: 沒有可用的色彩。
-          unweighted:
-            title: 已接受平均值
-            description: 套用截止值後、飽和度加權前的平均色彩。
-          target:
-            title: 剩餘補光
-            description: 移除明亮光源後的大範圍色彩。
-          applied:
-            title: 套用輸出
-            description: 套用時間平滑後的色彩。
-          lobe:
-            title: 光源 {index}
-            description: 套用時間平滑後持續存在的明亮區域。
+          see-through: 穿透
+        maps:
+          title: 光照圖
+          window: 每張光照圖涵蓋 AIRI 視窗，以及四邊各半個視窗的範圍。外框標示視窗位置。
+          unavailable: 沒有可用的環境資料。
+          target: 實測值
+          applied: 平滑後套用值
+          surround:
+            title: 環繞光照圖
+            description: 視窗周圍與背後畫面的大範圍模糊。此圖驅動模型整體的色偏。
+          contact:
+            title: 接觸光照圖
+            description: 同一畫面的小範圍模糊。此圖驅動光線包覆與逆光邊緣。
       sampling:
         title: 螢幕取樣
         capture-interval:
           title: 擷取間隔
-          description: 設定螢幕取樣之間的時間。
+          description: 設定螢幕取樣之間的時間。擷取串流以此速率執行。
         response-time:
           title: 反應時間
           description: 設定取樣色彩適應螢幕變化的速度。
         sample-width:
           title: 取樣寬度
-          description: 設定縮小後擷取畫面的寬度。
+          description: 設定縮小後擷取畫面的寬度。畫面越寬，光照圖的細節越多。
         sample-height:
           title: 取樣高度
-          description: 設定縮小後擷取畫面的高度。
-        black-cutoff:
-          title: 黑色截止值
-          description: 忽略最亮色彩通道小於此值的像素。
-        white-cutoff:
-          title: 白色截止值
-          description: 忽略最暗色彩通道大於此值的像素。
+          description: 設定縮小後擷取畫面的高度。畫面越高，光照圖的細節越多。
         neutral-color-weight:
           title: 中性色權重
-          description: 設定低飽和色彩的最低權重。
+          description: 設定低飽和色彩的最低權重。彩色內容的權重高於灰色。
       shader:
         title: 著色器反應
         base-brightness:
           title: 基礎亮度
-          description: 設定加入取樣光線前的模型亮度。
+          description: 設定螢幕全黑時的模型亮度，實測螢幕亮度會在此之上提高它。
+        exposure-range:
+          title: 曝光範圍
+          description: 設定實測螢幕亮度能把基礎亮度提高多少。
+        wrap-intensity:
+          title: 光線包覆強度
+          description: 設定背景顏色滲入模型邊緣的強度。
+        backlight:
+          title: 逆光
+          description: 設定來自角色背後的光線壓暗內部、並點亮整圈邊緣的強度。
+        wrap-diffuse:
+          title: 光線包覆寬度
+          description: 設定被包覆的背景顏色向模型邊緣內延伸多遠。
+        translucent-wrap:
+          title: 減少半透明部件的包覆
+          description: 以模型 alpha 的平方縮放光線包覆與邊緣光。以部分 alpha 繪製的部件本身已經透出桌面。
         base-contrast:
           title: 基礎對比
           description: 設定加入取樣光線前模型明暗值的區分程度。
-        tint-coverage:
-          title: 色調覆蓋範圍
-          description: 設定柔和色調從面向螢幕中心的一側延伸多遠。
-        highlight-coverage:
-          title: 高光覆蓋範圍
-          description: 設定面向螢幕中心的一側有多少區域接收明顯光線。
-        source-balance:
-          title: 光源平衡
-          description: 減少大範圍環境補光，並加強偵測到的明亮區域光源。
-        tint-strength:
-          title: 色調強度
-          description: 設定大範圍加法色調的強度。
-        highlight-strength:
-          title: 高光強度
-          description: 設定窄範圍加法光線的強度。
+        chroma:
+          title: 色偏彩度
+          description: 設定色偏保留多少環境色相。0 保留模型原色，1 套用完整螢幕色。
     lag-visualizer:
       title: 卡頓可視化
     live2d-motion:

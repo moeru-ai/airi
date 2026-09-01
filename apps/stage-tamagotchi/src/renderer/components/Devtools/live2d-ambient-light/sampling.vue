@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { live2dAmbientLightDefaults, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
+import { ambientLightDefaults } from '@proj-airi/stage-shared/screen-ambient-light'
+import { useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { Section } from '@proj-airi/stage-ui/components'
 import { FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -7,13 +8,11 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const {
-  live2dScreenAmbientLightBlackCutoff,
   live2dScreenAmbientLightCaptureIntervalMs,
   live2dScreenAmbientLightNeutralColorWeight,
   live2dScreenAmbientLightResponseMs,
   live2dScreenAmbientLightSampleHeight,
   live2dScreenAmbientLightSampleWidth,
-  live2dScreenAmbientLightWhiteCutoff,
 } = storeToRefs(useSettingsLive2d())
 
 function formatMilliseconds(value: number) {
@@ -22,6 +21,10 @@ function formatMilliseconds(value: number) {
 
 function formatPixels(value: number) {
   return `${Math.round(value)} px`
+}
+
+function formatPercent(value: number) {
+  return `${Math.round(value * 100)}%`
 }
 </script>
 
@@ -38,7 +41,7 @@ function formatPixels(value: number) {
         :min="50"
         :max="2000"
         :step="50"
-        :default-value="live2dAmbientLightDefaults.captureIntervalMs"
+        :default-value="ambientLightDefaults.captureIntervalMs"
         :format-value="formatMilliseconds"
         :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.capture-interval.title')"
         :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.capture-interval.description')"
@@ -49,7 +52,7 @@ function formatPixels(value: number) {
         :min="50"
         :max="3000"
         :step="50"
-        :default-value="live2dAmbientLightDefaults.responseMs"
+        :default-value="ambientLightDefaults.responseMs"
         :format-value="formatMilliseconds"
         :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.response-time.title')"
         :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.response-time.description')"
@@ -57,10 +60,10 @@ function formatPixels(value: number) {
       <FieldRange
         v-model="live2dScreenAmbientLightSampleWidth"
         as="div"
-        :min="4"
-        :max="64"
-        :step="1"
-        :default-value="live2dAmbientLightDefaults.sampleWidth"
+        :min="32"
+        :max="256"
+        :step="8"
+        :default-value="ambientLightDefaults.sampleWidth"
         :format-value="formatPixels"
         :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.sample-width.title')"
         :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.sample-width.description')"
@@ -68,33 +71,13 @@ function formatPixels(value: number) {
       <FieldRange
         v-model="live2dScreenAmbientLightSampleHeight"
         as="div"
-        :min="4"
-        :max="48"
-        :step="1"
-        :default-value="live2dAmbientLightDefaults.sampleHeight"
+        :min="24"
+        :max="192"
+        :step="8"
+        :default-value="ambientLightDefaults.sampleHeight"
         :format-value="formatPixels"
         :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.sample-height.title')"
         :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.sample-height.description')"
-      />
-      <FieldRange
-        v-model="live2dScreenAmbientLightBlackCutoff"
-        as="div"
-        :min="0"
-        :max="0.3"
-        :step="0.01"
-        :default-value="live2dAmbientLightDefaults.sampling.blackCutoff"
-        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.black-cutoff.title')"
-        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.black-cutoff.description')"
-      />
-      <FieldRange
-        v-model="live2dScreenAmbientLightWhiteCutoff"
-        as="div"
-        :min="0.7"
-        :max="1"
-        :step="0.01"
-        :default-value="live2dAmbientLightDefaults.sampling.whiteCutoff"
-        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.white-cutoff.title')"
-        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.white-cutoff.description')"
       />
       <FieldRange
         v-model="live2dScreenAmbientLightNeutralColorWeight"
@@ -102,7 +85,8 @@ function formatPixels(value: number) {
         :min="0"
         :max="1"
         :step="0.01"
-        :default-value="live2dAmbientLightDefaults.sampling.neutralColorWeight"
+        :default-value="ambientLightDefaults.sampling.neutralColorWeight"
+        :format-value="formatPercent"
         :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.neutral-color-weight.title')"
         :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.neutral-color-weight.description')"
       />
