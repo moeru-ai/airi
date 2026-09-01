@@ -143,7 +143,8 @@ describe('migrated provider definitions', () => {
     )
 
     expect(defaults).toEqual({ baseUrl: 'http://localhost:8000/v1/' })
-    expect(providerFunASRAudioTranscription.validationRequiredWhen?.(defaults)).toBe(false)
+    expect(providerFunASRAudioTranscription.validationRequiredWhen?.(defaults)).toBe(true)
+    expect(providerFunASRAudioTranscription.validationRequiredWhen?.({ baseUrl: '   ' })).toBe(false)
     expect(providerFunASRAudioTranscription.requiresCredentials).toBe(false)
     expect(providerFunASRAudioTranscription.capabilities?.transcription).toEqual({
       protocol: 'http',
@@ -161,6 +162,8 @@ describe('migrated provider definitions', () => {
     expect(metadata.to).toBe('/v2/settings/providers/edit/funasr-audio-transcription')
     expect(metadata.pricing).toBe('free')
     expect(metadata.deployment).toBe('local')
+    expect(providerFunASRAudioTranscription.descriptionLocalize({ t: translate }))
+      .toBe('settings.pages.providers.provider.funasr-audio-transcription.description')
   })
 
   it('describes Web Speech API streaming support without runtime state', async () => {
