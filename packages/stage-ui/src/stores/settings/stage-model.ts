@@ -38,6 +38,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const stageModelSelectionStore = useStageModelSelectionStore()
   const { selected: stageModelSelectedState } = storeToRefs(stageModelSelectionStore)
   let stageModelUpdateSequence = 0
+  let legacyModelIdentityResetPromise: Promise<void> | undefined
   const defaultStageModelId = 'preset-live2d-1'
   const stageModelSelected = computed<string>({
     get: () => stageModelSelectedState.value,
@@ -88,9 +89,29 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     }
   }
 
+  function resetLegacyModelIdentity() {
+    if (typeof window === 'undefined')
+      return undefined
+
+    // The Three.js store is browser-only. Load it only during browser startup so
+    // Node consumers of the shared settings store do not evaluate rendering APIs.
+    legacyModelIdentityResetPromise ??= import('@proj-airi/stage-ui-three').then(({ useModelStore }) => {
+      useModelStore().resetLegacyModelIdentity()
+    })
+
+    return legacyModelIdentityResetPromise
+  }
+
   async function updateStageModel() {
     const requestId = ++stageModelUpdateSequence
     const selectedModelId = stageModelSelectedState.value
+
+    const legacyModelIdentityReset = resetLegacyModelIdentity()
+    if (legacyModelIdentityReset) {
+      await legacyModelIdentityReset
+      if (requestId !== stageModelUpdateSequence)
+        return
+    }
 
     if (!selectedModelId) {
       replaceStageModelUrl(undefined)
@@ -120,24 +141,26 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
       return
     }
 
-    const builtInRenderer = resolveBuiltInStageModelRenderer(model)
-    stageModelBuiltInRenderer.value = builtInRenderer
-    if (stageModelRenderer.value !== 'godot')
-      stageModelRenderer.value = builtInRenderer
-
+    let nextUrl: string
     if (model.type === 'file') {
-      const nextUrl = URL.createObjectURL(model.file)
+      nextUrl = URL.createObjectURL(model.file)
       if (requestId !== stageModelUpdateSequence) {
         URL.revokeObjectURL(nextUrl)
         return
       }
-
-      replaceStageModelUrl(nextUrl)
     }
     else {
-      replaceStageModelUrl(model.url)
+      nextUrl = model.url
     }
 
+    const builtInRenderer = resolveBuiltInStageModelRenderer(model)
+
+    // Browser startup consumes the one-time legacy reset before these refs publish.
+    // Direct ThreeScene routes mount from the refs and cannot start with stale identity state.
+    stageModelBuiltInRenderer.value = builtInRenderer
+    if (stageModelRenderer.value !== 'godot')
+      stageModelRenderer.value = builtInRenderer
+    replaceStageModelUrl(nextUrl)
     stageModelSelectedDisplayModel.value = model
   }
 
