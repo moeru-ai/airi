@@ -160,6 +160,20 @@ devtools:
         chroma:
           title: 色偏彩度
           description: 設定色偏保留多少環境色相。0 保留模型原色，1 套用完整螢幕色。
+      preview-shader:
+        title: 著色器預覽
+        description: 以測試卡執行實際著色器，使用實時環境與上方的設定。
+        window-mapping: 濾鏡把此畫布當成整個舞台視窗，因此預覽不是舞台的像素級複製。
+        filtered: 著色器輸出
+        unavailable: 預覽需要 WebGL，但此視窗無法建立繪圖環境。
+        environment:
+          live: 光線來自 AIRI 主視窗發布的最新快照。
+          neutral: 尚未收到快照，因此預覽使用中性環境。
+        regions:
+          title: 測試卡區域
+          body: 寬大的主體帶有從 sRGB {low} 到 {high} 的明暗漸層。亮度、對比、彩度與高光餘裕都會沿著它顯示。
+          bars: 長條寬度分別為 {first}、{second}、{third}、{fourth} 與 {fifth} 像素，用來顯示光線包覆延伸進細窄形狀的距離。
+          patches: 兩個色塊以 {strong} 與 {weak} alpha 繪製，正是半透明包覆選項作用的對象。
     lag-visualizer:
       title: 卡頓可視化
     live2d-motion:

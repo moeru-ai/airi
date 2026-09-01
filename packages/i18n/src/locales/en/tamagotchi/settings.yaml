@@ -160,6 +160,20 @@ devtools:
         chroma:
           title: Color cast chroma
           description: Set how much of the surrounding hue the cast keeps. 0 keeps the model colors. 1 applies the full screen color.
+      preview-shader:
+        title: Shader preview
+        description: Run the real shader over a test card, with the live environment and the settings above.
+        window-mapping: The filter takes this canvas as the whole stage window, so the preview is not a pixel-accurate copy of the stage.
+        filtered: Shader output
+        unavailable: The preview needs WebGL, and this window could not create a context.
+        environment:
+          live: Light comes from the latest snapshot that the main AIRI window published.
+          neutral: No snapshot has arrived yet, so the preview uses the neutral environment.
+        regions:
+          title: Test card regions
+          body: The wide body carries a tone ramp from sRGB {low} to {high}. Brightness, contrast, chroma, and headroom show along it.
+          bars: The bars are {first}, {second}, {third}, {fourth}, and {fifth} pixels wide. They show how far the light wrap reaches into a thin shape.
+          patches: The two patches are drawn at {strong} and {weak} alpha, which is what the translucent-wrap option acts on.
     editor:
       title: AIRI Editor
       description: Open the standalone AIRI Editor window
