@@ -192,7 +192,7 @@ export const providerFunASRAudioTranscription = defineProvider<FunASRAudioConfig
   name: 'FunASR',
   nameLocalize: () => 'FunASR',
   description: 'Local FunASR transcription through its OpenAI-compatible API.',
-  descriptionLocalize: () => 'Local FunASR transcription through its OpenAI-compatible API.',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.funasr-audio-transcription.description'),
   tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
   icon: 'i-lobe-icons:openai',
   requiresCredentials: false,
@@ -207,7 +207,7 @@ export const providerFunASRAudioTranscription = defineProvider<FunASRAudioConfig
   },
   createProviderConfig: ({ t }) => createFunASRAudioConfigSchema(t),
   createProvider: createLocalTranscriptionProvider,
-  validationRequiredWhen: () => false,
+  validationRequiredWhen: config => Boolean(config.baseUrl?.trim()),
   validators: createLocalAudioValidators(),
   extraMethods: {
     listModels: async () => [

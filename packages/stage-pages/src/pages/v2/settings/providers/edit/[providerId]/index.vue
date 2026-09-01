@@ -43,7 +43,8 @@ onMounted(async () => {
   if (providerStore.getProvider(providerId.value) || !getDefinedProvider(providerId.value))
     return
 
-  await providerStore.addProvider(providerId.value)
+  const provider = await providerStore.addProvider(providerId.value)
+  await router.replace(`/v2/settings/providers/edit/${provider.id}`)
 })
 
 // NOTICE: useCloned handles deep cloning and state isolation for the draft.
