@@ -1,5 +1,5 @@
 import { createContext, defineInvokeHandler } from '@moeru/eventa'
-import { gameletIframeRequest } from '@proj-airi/plugin-sdk-tamagotchi/gamelet'
+import { gameletRequest } from '@proj-airi/plugin-sdk-stage/gamelet'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
@@ -14,7 +14,7 @@ describe('createExtensionUiIframeRequestHandler', () => {
 
   it('invokes the mounted iframe context and returns the gamelet response', async () => {
     const iframeContext = createContext()
-    defineInvokeHandler(iframeContext, gameletIframeRequest, ({ payload }) => ({
+    defineInvokeHandler(iframeContext, gameletRequest, ({ payload }) => ({
       fen: `fen:${payload.action}`,
     }))
 
@@ -48,7 +48,7 @@ describe('createExtensionUiIframeRequestHandler', () => {
   it('aborts the iframe invoke when the request timeout elapses', async () => {
     vi.useFakeTimers()
     const iframeContext = createContext()
-    defineInvokeHandler(iframeContext, gameletIframeRequest, async () => {
+    defineInvokeHandler(iframeContext, gameletRequest, async () => {
       await new Promise(() => {})
       return {}
     })
