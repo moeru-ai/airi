@@ -1,8 +1,8 @@
 import type { Locale } from '@intlify/core'
 import type {
-  GameletIframeRequestPayload as GameletIframeInvokePayload,
-  GameletIframeResponsePayload,
-} from '@proj-airi/plugin-sdk-tamagotchi/gamelet'
+  GameletRequestPayload as GameletIframeInvokePayload,
+  GameletResponsePayload as GameletIframeResponsePayload,
+} from '@proj-airi/plugin-sdk-stage/gamelet'
 import type { ServerOptions } from '@proj-airi/server-runtime/server'
 import type {
   ShortcutAccelerator,

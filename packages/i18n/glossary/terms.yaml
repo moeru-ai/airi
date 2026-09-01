@@ -133,6 +133,18 @@
       type: variant
       note: Neither the codename nor the name a user sees.
 
+- id: whiteboard
+  subject: feature
+  translatable: true
+  definition: A local drawing surface where a person or AIRI can add freehand paths and text.
+  note: Use this term for the drawing feature, not for a physical board.
+  terms:
+    - text: Whiteboard
+      part-of-speech: noun
+      status: preferred
+      type: fullForm
+      context: Open Whiteboard
+
 # ---------------------------------------------------------------------------------------
 # Payment
 # ---------------------------------------------------------------------------------------

@@ -107,3 +107,16 @@ websocket-status:
   connected: 연결됨
   disconnected: 연결 없음
   open-settings: 연결 설정 열기
+whiteboard:
+  title: 화이트보드
+  add-text: 텍스트 추가
+  close: 화이트보드 닫기
+  delete-canvas: 캔버스 삭제
+  empty: 캔버스를 만들어 그림을 시작하세요.
+  new-canvas: 새 캔버스
+  open: 화이트보드 열기
+  redo: 다시 실행
+  select-canvas: 캔버스 선택
+  stroke-color: 선 색상
+  text-placeholder: 캔버스에 넣을 텍스트
+  undo: 실행 취소

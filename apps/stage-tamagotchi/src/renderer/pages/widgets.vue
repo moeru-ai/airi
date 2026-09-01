@@ -194,6 +194,7 @@ onBeforeUnmount(() => {
 
 const Registry: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'extension-ui': defineAsyncComponent(async () => (await import('../widgets/extension-ui')).ExtensionUi),
+  'whiteboard-gamelet': defineAsyncComponent(async () => (await import('@proj-airi/airi-extension-whiteboard/ui')).WhiteboardGamelet),
   'map': defineAsyncComponent(async () => (await import('../widgets/map')).Map),
   'weather': defineAsyncComponent(async () => (await import('../widgets/weather')).Weather),
   'artistry': defineAsyncComponent(async () => (await import('../widgets/artistry')).Artistry),

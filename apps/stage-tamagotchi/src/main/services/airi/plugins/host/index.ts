@@ -1,4 +1,4 @@
-import type { TamagotchiToolRegistry } from '@proj-airi/plugin-sdk-tamagotchi/tools'
+import type { StageToolRegistry } from '@proj-airi/plugin-sdk-stage/tools'
 
 import type {
   PluginHostDebugSnapshot,
@@ -14,7 +14,8 @@ import type { ExtensionHostService, SetupExtensionHostOptions } from '../types'
 import { dirname, join } from 'node:path'
 
 import { useLogg } from '@guiiai/logg'
-import { ExtensionHost } from '@proj-airi/plugin-sdk/plugin-host'
+import { whiteboardExtension, whiteboardManifest } from '@proj-airi/airi-extension-whiteboard'
+import { BundledExtensionLoader, ExtensionHost, FallbackExtensionLoader, FileSystemLoader } from '@proj-airi/plugin-sdk/plugin-host'
 import { app, session as electronSession } from 'electron'
 
 import { createExtensionAutoReloadFeature } from '../features/auto-reload'
@@ -68,7 +69,7 @@ function createElectronExtensionAssetCookieAdapter() {
  */
 export interface ExtensionHostServiceInternal extends ExtensionHostService {
   /** Tamagotchi-owned extension tool registry used by IPC tool bridges. */
-  tools: TamagotchiToolRegistry
+  tools: StageToolRegistry
 
   /**
    * Lists the current extension registry snapshot.
@@ -233,7 +234,13 @@ export async function setupExtensionHostServiceInternal(
 
   // Kit API, Host
   const builtInKitRuntime = createBuiltInExtensionKitRuntime(options)
-  const host = new ExtensionHost({ runtime: 'electron' })
+  const host = new ExtensionHost({
+    loader: new FallbackExtensionLoader([
+      new BundledExtensionLoader([{ extension: whiteboardExtension, manifest: whiteboardManifest }]),
+      new FileSystemLoader(),
+    ]),
+    runtime: 'electron',
+  })
   log.withFields({ extensionsRoot }).log('loading extension manifests')
   builtInKitRuntime.registerHostKits(host)
 
@@ -428,8 +435,20 @@ export async function setupExtensionHostServiceInternal(
     autoReloadFeature.sync()
   }
 
+  const loadOfficialExtensions = async () => {
+    if (loaded.has(whiteboardManifest.id)) {
+      return
+    }
+
+    const session = await host.start(whiteboardManifest)
+    loaded.add(whiteboardManifest.id)
+    loadedSessionIds.set(whiteboardManifest.id, session.id)
+    log.withFields({ extensionId: whiteboardManifest.id, sessionId: session.id }).log('official extension loaded')
+  }
+
   await refreshManifests()
   await loadEnabledExtensions()
+  await loadOfficialExtensions()
   autoReloadFeature.sync()
 
   return {

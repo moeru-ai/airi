@@ -25,8 +25,10 @@ import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
+import OfficialGameletHost from './components/OfficialGameletHost.vue'
 import OnboardingPermissionsStep from './components/onboarding/step-permissions.vue'
 
+import { startOfficialExtensions, stopOfficialExtensions } from './extensions/official'
 import { getHostWebSocketConnector } from './modules/websocket-bridge'
 
 const contextBridgeStore = useContextBridgeStore()
@@ -131,12 +133,14 @@ onMounted(async () => {
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
   await settingsAudioDeviceStore.initialize()
+  await startOfficialExtensions()
 })
 
 onUnmounted(() => {
   stopAuthenticatedSetup?.()
   stopLoggedOutSetup?.()
   contextBridgeStore.dispose()
+  void stopOfficialExtensions()
 })
 
 // Handle first-time setup events
@@ -189,6 +193,8 @@ const extraSteps = computed(() => [
     @configured="handleSetupConfigured"
     @skipped="handleSetupSkipped"
   />
+
+  <OfficialGameletHost />
 </template>
 
 <style>

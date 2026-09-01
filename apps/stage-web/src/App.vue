@@ -28,7 +28,9 @@ import { RouterView } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
 import PerformanceOverlay from './components/Devtools/PerformanceOverlay.vue'
+import OfficialGameletHost from './components/OfficialGameletHost.vue'
 
+import { startOfficialExtensions, stopOfficialExtensions } from './extensions/official'
 import { usePWAStore } from './stores/pwa'
 
 usePWAStore()
@@ -142,6 +144,7 @@ onMounted(async () => {
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
   await settingsAudioDeviceStore.initialize()
+  await startOfficialExtensions()
 
   // Preload local inference models (Kokoro TTS, etc.) in background after a delay
   inferencePreload.triggerPreload()
@@ -152,6 +155,7 @@ onUnmounted(() => {
   stopLoggedOutSetup?.()
   chatStore.dispose()
   contextBridgeStore.dispose()
+  void stopOfficialExtensions()
 })
 
 // Handle first-time setup events
@@ -197,6 +201,7 @@ function handleSetupSkipped() {
   />
 
   <PerformanceOverlay />
+  <OfficialGameletHost />
 </template>
 
 <style>
