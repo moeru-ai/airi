@@ -1,0 +1,58 @@
+{
+  "name": "@proj-airi/plugin-sdk-stage",
+  "type": "module",
+  "version": "0.12.0-beta.4",
+  "private": true,
+  "description": "Cross-platform gamelet and tool kits for AIRI extensions",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/plugin-sdk-stage"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./gamelet": {
+      "types": "./dist/gamelet/index.d.mts",
+      "default": "./dist/gamelet/index.mjs"
+    },
+    "./gamelet/controller": {
+      "types": "./dist/gamelet/controller.d.mts",
+      "default": "./dist/gamelet/controller.mjs"
+    },
+    "./kits/gamelet": {
+      "types": "./dist/kits/gamelet/index.d.mts",
+      "default": "./dist/kits/gamelet/index.mjs"
+    },
+    "./kits/tool": {
+      "types": "./dist/kits/tool/index.d.mts",
+      "default": "./dist/kits/tool/index.mjs"
+    },
+    "./tools": {
+      "types": "./dist/tools/index.d.mts",
+      "default": "./dist/tools/index.mjs"
+    },
+    "./host": {
+      "types": "./dist/host/index.d.mts",
+      "default": "./dist/host/index.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": ["README.md", "dist", "package.json"],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@moeru/eventa": "catalog:",
+    "@proj-airi/plugin-sdk": "workspace:*",
+    "nanoid": "catalog:",
+    "valibot": "catalog:",
+    "xsschema": "catalog:"
+  }
+}
