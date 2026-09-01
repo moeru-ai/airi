@@ -44,8 +44,16 @@ const captureRows = computed(() => [
     value: props.diagnostics.excludedRegion ? formatNormalizedRectangle(props.diagnostics.excludedRegion) : '—',
   },
   {
-    label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.capture.direction'),
-    value: `${props.diagnostics.direction.x.toFixed(3)}, ${props.diagnostics.direction.y.toFixed(3)}`,
+    label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.capture.exposure'),
+    value: props.diagnostics.sampling?.appliedEnvironment
+      ? formatPercent(props.diagnostics.sampling.appliedEnvironment.exposure)
+      : '—',
+  },
+  {
+    label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.capture.behind-luminance'),
+    value: props.diagnostics.sampling?.appliedEnvironment
+      ? formatPercent(props.diagnostics.sampling.appliedEnvironment.behindLuminance)
+      : '—',
   },
   {
     label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.capture.updated'),
@@ -75,12 +83,8 @@ const pixelRows = computed(() => {
       value: sampling.transparentPixelCount,
     },
     {
-      label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.pixels.black'),
-      value: sampling.blackPixelCount,
-    },
-    {
-      label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.pixels.white'),
-      value: sampling.whitePixelCount,
+      label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.pixels.see-through'),
+      value: sampling.seeThroughPixelCount,
     },
   ]
 })
@@ -140,7 +144,7 @@ function formatPercent(value: number) {
       <div :class="['text-sm font-medium']">
         {{ t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.pixels.title') }}
       </div>
-      <div :class="['grid grid-cols-2 gap-2', 'md:grid-cols-3 xl:grid-cols-6']">
+      <div :class="['grid grid-cols-2 gap-2', 'md:grid-cols-5']">
         <div
           v-for="row in pixelRows"
           :key="row.label"
@@ -151,24 +155,6 @@ function formatPercent(value: number) {
           </div>
           <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
             {{ row.label }}
-          </div>
-        </div>
-      </div>
-      <div :class="['grid grid-cols-2 gap-2']">
-        <div :class="['rounded-lg bg-neutral-100/70 px-3 py-2 dark:bg-neutral-800/70']">
-          <div :class="['font-mono text-sm tabular-nums']">
-            {{ formatPercent(diagnostics.sampling.averageSaturation) }}
-          </div>
-          <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
-            {{ t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.pixels.average-saturation') }}
-          </div>
-        </div>
-        <div :class="['rounded-lg bg-neutral-100/70 px-3 py-2 dark:bg-neutral-800/70']">
-          <div :class="['font-mono text-sm tabular-nums']">
-            {{ diagnostics.sampling.weightTotal.toFixed(2) }}
-          </div>
-          <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
-            {{ t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.pixels.weight-total') }}
           </div>
         </div>
       </div>
