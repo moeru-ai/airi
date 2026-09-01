@@ -293,6 +293,15 @@ export function setupWidgetsWindowManager(params: {
   let iframeRelayReady = false
   let resolveIframeRelayReady: (() => void) | undefined
   let iframeRelayReadyPromise: Promise<void> | undefined
+
+  function resetIframeRelayReadiness() {
+    iframeRelayReady = false
+    resolveIframeRelayReady?.()
+    iframeRelayReadyPromise = new Promise<void>((resolve) => {
+      resolveIframeRelayReady = resolve
+    })
+  }
+
   const widgetRecords = new Map<string, WidgetRecord>()
   const widgetEventListeners = new Set<(event: { id: string, event: Record<string, unknown> }) => void>()
   const windowContexts = new Map<string, WidgetWindowContext>()
@@ -321,10 +330,7 @@ export function setupWidgetsWindowManager(params: {
 
     const window = createWidgetsWindow()
     activeWidgetsWindow = window
-    iframeRelayReady = false
-    iframeRelayReadyPromise = new Promise<void>((resolve) => {
-      resolveIframeRelayReady = resolve
-    })
+    resetIframeRelayReadiness()
     const { context } = createContext(ipcMain, window)
     eventaContext = context
     context.on(widgetsIframeReadyEvent, () => {
@@ -521,8 +527,12 @@ export function setupWidgetsWindowManager(params: {
     pendingRoute = undefined
     applyWindowLayout(window, snapshot)
     setWindowAlwaysOnTop(window, snapshot?.alwaysOnTop ?? false)
-    if (currentRoute !== route)
+    if (currentRoute !== route) {
+      // A route reload replaces the renderer that owns the request listener.
+      // Do not let the previous renderer's readiness authorize one-shot events.
+      resetIframeRelayReadiness()
       await loadWithRoute(window, route)
+    }
     window.show()
     if (context)
       context.window = window
