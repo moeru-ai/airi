@@ -11,7 +11,7 @@ import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldRange } from '@proj-airi/ui'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const providerId = 'player2-speech'
@@ -49,7 +49,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 const hasPlayer2 = ref(true)
 onMounted(async () => {
   const providerConfig = providerStore.getProviderConfig(providerId)
-  if ((await providersStore.validateProviderConfig(providerId, providerConfig)).valid) {
+  if ((await providersStore.validateProviderConfig(providerId, structuredClone(toRaw(providerConfig)))).valid) {
     await speechStore.loadVoicesForProvider(providerId)
   }
   else {

@@ -31,6 +31,7 @@ import {
   validateProvider as runProviderValidation,
 } from '../../libs/providers'
 import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
+import { createProviderVoiceRequestKey } from '../../libs/providers/voice-request-key'
 import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from './config'
 import { normalizeProviderConfigDefaults } from './config-defaults'
@@ -560,7 +561,7 @@ export const useProviderStore = defineStore('provider', () => {
       return []
 
     const config = providerConfigStore.getProviderConfig(providerId) ?? {}
-    const requestKey = JSON.stringify([providerId, model ?? null, config])
+    const requestKey = createProviderVoiceRequestKey(providerId, model, config)
     const pending = providerVoiceListInFlight.get(requestKey)
     if (pending)
       return pending

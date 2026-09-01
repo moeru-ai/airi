@@ -13,8 +13,11 @@ import {
   ProviderBaseUrlInput,
   ProviderBasicSettings,
   ProviderSettingsContainer,
+  ProviderValidationAlerts,
 } from '.'
+import { useProviderValidation } from '../../../composables/use-provider-validation'
 import { selectProviderMetadata } from '../../../libs/providers/metadata'
+import { useAiriCardStore } from '../../../stores/modules/airi-card'
 import { useSpeechStore } from '../../../stores/modules/speech'
 import { useProviderConfigStore } from '../../../stores/providers/config'
 import { useProviderStore } from '../../../stores/providers/provider'
@@ -49,31 +52,69 @@ const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const speechStore = useSpeechStore()
 const { configs: providers } = storeToRefs(providerStore)
+const airiCardStore = useAiriCardStore()
+
+function getProviderConfig() {
+  return providerStore.getProviderConfig(props.providerId)
+}
+
+function updateProviderConfig(patch: Record<string, unknown>) {
+  const config = getProviderConfig()
+  if (config)
+    Object.assign(config, patch)
+}
 
 const providerMetadata = computedAsync(async () => {
   const definition = providersStore.getProviderDefinition(props.providerId)
   return await selectProviderMetadata(definition, t, { id: props.providerId })
 }, undefined)
 
+// Credential-based providers must be validated here so their status reaches
+// 'configured'; module pages (e.g. settings/modules/speech) only list
+// configured providers. Providers with `requiresCredentials: false` (local or
+// browser runtimes) keep their existing availability path and must not have
+// their status reset when validation is skipped.
+const providerDefinition = providersStore.getProviderDefinition(props.providerId)
+const {
+  isValidating,
+  isValid,
+  validationMessage,
+  forceValid,
+  hasManualValidators,
+  isManualTesting,
+  manualTestPassed,
+  manualTestMessage,
+  runManualTest,
+} = useProviderValidation(props.providerId, {
+  resetStatusWhenValidationSkipped: providerDefinition.requiresCredentials !== false,
+})
+
+async function goToModelSelection() {
+  const config = getProviderConfig()
+  const configuredModel = props.providerId === 'doubao-speech'
+    ? config?.resourceId
+    : config?.model
+  const configuredVoice = props.providerId === 'doubao-speech'
+    ? config?.speaker
+    : config?.voice
+
+  await airiCardStore.selectActiveCardSpeech({
+    provider: props.providerId,
+    model: typeof configuredModel === 'string' ? configuredModel : props.defaultModel ?? '',
+    voice_id: typeof configuredVoice === 'string' ? configuredVoice : '',
+  })
+  await router.push('/settings/modules/speech')
+}
+
 // Common provider settings
 const apiKey = computed({
-  get: () => providers.value[props.providerId]?.apiKey as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[props.providerId])
-      providers.value[props.providerId] = {}
-
-    providers.value[props.providerId].apiKey = value
-  },
+  get: () => getProviderConfig()?.apiKey as string | undefined || '',
+  set: value => updateProviderConfig({ apiKey: value }),
 })
 
 const baseUrl = computed({
-  get: () => providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[props.providerId])
-      providers.value[props.providerId] = {}
-
-    providers.value[props.providerId].baseUrl = value
-  },
+  get: () => getProviderConfig()?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || '',
+  set: value => updateProviderConfig({ baseUrl: value }),
 })
 
 // Voice settings as reactive objects to allow for different provider settings
@@ -189,6 +230,19 @@ function handleResetVoiceSettings() {
           <!-- Slot for provider-specific advanced settings -->
           <slot name="advanced-settings" />
         </ProviderAdvancedSettings>
+
+        <ProviderValidationAlerts
+          :is-valid="isValid"
+          :is-validating="isValidating"
+          :validation-message="validationMessage"
+          :has-manual-validators="hasManualValidators"
+          :is-manual-testing="isManualTesting"
+          :manual-test-passed="manualTestPassed"
+          :manual-test-message="manualTestMessage"
+          :on-run-test="runManualTest"
+          :on-force-valid="forceValid"
+          :on-go-to-model-selection="goToModelSelection"
+        />
       </ProviderSettingsContainer>
 
       <!-- Playground section -->

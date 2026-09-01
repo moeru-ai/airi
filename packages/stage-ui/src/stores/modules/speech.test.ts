@@ -66,13 +66,13 @@ describe('speech store helpers', () => {
 
   // ROOT CAUSE:
   //
-  // A synced snapshot replaced the empty voice catalog with another empty
-  // object. The voice watcher then assigned undefined to an undefined ref.
-  // refManualReset reported that no-op assignment as another Pinia mutation.
+  // A voice request replaced the empty catalog with another empty object. The
+  // catalog lived in synchronized state, so this renderer published the whole
+  // speech tuple even though no persisted selection changed.
   //
-  // We fixed this by writing the selected voice only when a matching voice
-  // exists and its identity differs from the current selection.
-  it('does not publish a second mutation for an unresolved voice', async () => {
+  // We fixed this by keeping request results renderer-local and by writing the
+  // selected voice only when a matching voice differs from the current value.
+  it('does not publish a synchronized mutation for an unresolved voice', async () => {
     const providersStore = useProviderStore()
     vi.spyOn(providersStore, 'listProviderVoices').mockResolvedValue([])
     const speechStore = useSpeechStore()
@@ -88,7 +88,31 @@ describe('speech store helpers', () => {
     speechStore.availableVoices = {}
     await nextTick()
 
-    expect(mutations).toBe(1)
+    expect(mutations).toBe(0)
+  })
+
+  // ROOT CAUSE:
+  //
+  // A restored card can own a cloned voice ID that is not in the Provider's
+  // renderer-local catalog. The module preview required catalog metadata, so
+  // it disabled a valid saved voice even though Provider sessions used it.
+  //
+  // We fixed this with a read-only preview projection. It keeps matching
+  // catalog metadata, but it builds minimal metadata from the saved voice ID.
+  // https://github.com/moeru-ai/airi/pull/2382#discussion_r3876615276
+  it('builds preview metadata from a saved voice ID that is not in the catalog', () => {
+    const speechStore = useSpeechStore()
+    speechStore.activeSpeechProvider = 'doubao-speech'
+    speechStore.activeSpeechVoiceId = 'saved-clone-voice'
+    speechStore.activeSpeechVoice = undefined
+
+    expect(speechStore.activeSpeechPreviewVoice).toEqual({
+      id: 'saved-clone-voice',
+      name: 'saved-clone-voice',
+      provider: 'doubao-speech',
+      languages: [],
+    })
+    expect('activeSpeechPreviewVoice' in speechStore.$state).toBe(false)
   })
 
   // ROOT CAUSE:
@@ -121,6 +145,129 @@ describe('speech store helpers', () => {
 
     expect(speechStore.activeSpeechProvider).toBe(OFFICIAL_SPEECH_PROVIDER_ID)
     expect(speechStore.activeSpeechModel).toBe('auto')
+  })
+
+  // ROOT CAUSE:
+  //
+  // Provider pages and the speech module could request the same voice catalog
+  // at the same time. Every request toggled one synchronized loading boolean,
+  // so unrelated windows repeatedly replaced the voice list with a skeleton.
+  //
+  // We fixed this by coalescing equal requests and deriving loading state from
+  // this renderer's in-flight requests for the active provider only.
+  it('coalesces voice loads and scopes loading to the active provider', async () => {
+    const providersStore = useProviderStore()
+    let resolveVoices: ((voices: []) => void) | undefined
+    const voicesRequest = new Promise<[]>((resolve) => {
+      resolveVoices = resolve
+    })
+    const listVoices = vi.spyOn(providersStore, 'listProviderVoices').mockImplementation(async (provider) => {
+      if (provider === 'kokoro-local')
+        return await voicesRequest
+      return []
+    })
+    const speechStore = useSpeechStore()
+    await vi.waitFor(() => expect(speechStore.isLoadingSpeechProviderVoices).toBe(false))
+    listVoices.mockClear()
+
+    const firstLoad = speechStore.loadVoicesForProvider('kokoro-local')
+    const secondLoad = speechStore.loadVoicesForProvider('kokoro-local')
+
+    expect(listVoices).toHaveBeenCalledTimes(1)
+    expect(speechStore.isLoadingSpeechProviderVoices).toBe(false)
+    expect('isLoadingSpeechProviderVoices' in speechStore.$state).toBe(false)
+    expect('activeVoiceLoadKeys' in speechStore.$state).toBe(false)
+    expect('availableVoices' in speechStore.$state).toBe(false)
+    expect('activeSpeechVoice' in speechStore.$state).toBe(false)
+
+    speechStore.activeSpeechProvider = 'kokoro-local'
+    await nextTick()
+
+    expect(listVoices).toHaveBeenCalledTimes(1)
+    expect(speechStore.isLoadingSpeechProviderVoices).toBe(true)
+
+    resolveVoices?.([])
+    await Promise.all([firstLoad, secondLoad])
+    await vi.waitFor(() => expect(speechStore.isLoadingSpeechProviderVoices).toBe(false))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2382#discussion_r3876471588
+  it('loads voices when the provider changes and the model ID stays the same', async () => {
+    const providersStore = useProviderStore()
+    const listVoices = vi.spyOn(providersStore, 'listProviderVoices').mockResolvedValue([])
+    const speechStore = useSpeechStore()
+    await vi.waitFor(() => expect(speechStore.isLoadingSpeechProviderVoices).toBe(false))
+    listVoices.mockClear()
+
+    speechStore.activeSpeechModel = 'shared-model'
+    speechStore.activeSpeechProvider = 'provider-a'
+    await vi.waitFor(() => expect(listVoices).toHaveBeenCalledWith('provider-a', 'shared-model'))
+    listVoices.mockClear()
+
+    speechStore.activeSpeechProvider = 'provider-b'
+    await vi.waitFor(() => expect(listVoices).toHaveBeenCalledWith('provider-b', 'shared-model'))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2382#discussion_r3876290830
+  // https://github.com/moeru-ai/airi/pull/2382#discussion_r3876471599
+  // ROOT CAUSE:
+  //
+  // The voice-load key contained only the provider and model. A request that
+  // used old credentials remained reusable after the Provider configuration
+  // changed. Its result could then replace the new account's voice catalog.
+  // The provider-only loading counter also kept obsolete requests visible.
+  //
+  // We fixed this by adding the Provider configuration to the request identity.
+  // The current request key now owns the catalog result and loading state.
+  it('starts a new voice load after Provider configuration changes and ignores the stale result', async () => {
+    const providerConfigStore = useProviderConfigStore()
+    const providersStore = useProviderStore()
+    const speechStore = useSpeechStore()
+    await vi.waitFor(() => expect(speechStore.isLoadingSpeechProviderVoices).toBe(false))
+
+    providerConfigStore.providers.elevenlabs = {
+      id: 'elevenlabs',
+      definitionId: 'elevenlabs',
+      config: { apiKey: 'old-key' },
+      status: 'configured',
+      configuredBy: 'user',
+    }
+
+    const listVoices = vi.spyOn(providersStore, 'listProviderVoices').mockResolvedValue([])
+    speechStore.activeSpeechModel = 'eleven_multilingual_v2'
+    speechStore.activeSpeechProvider = 'elevenlabs'
+    await vi.waitFor(() => expect(listVoices).toHaveBeenCalledWith('elevenlabs', 'eleven_multilingual_v2'))
+    await vi.waitFor(() => expect(speechStore.isLoadingSpeechProviderVoices).toBe(false))
+    listVoices.mockReset().mockResolvedValue([])
+
+    const oldVoices = [{ id: 'old-voice', name: 'Old voice', provider: 'elevenlabs', languages: [] }]
+    const newVoices = [{ id: 'new-voice', name: 'New voice', provider: 'elevenlabs', languages: [] }]
+    let resolveOldVoices: ((voices: typeof oldVoices) => void) | undefined
+    let resolveNewVoices: ((voices: typeof newVoices) => void) | undefined
+    const oldRequest = new Promise<typeof oldVoices>((resolve) => {
+      resolveOldVoices = resolve
+    })
+    const newRequest = new Promise<typeof newVoices>((resolve) => {
+      resolveNewVoices = resolve
+    })
+    listVoices.mockImplementationOnce(async () => await oldRequest)
+      .mockImplementationOnce(async () => await newRequest)
+
+    const oldLoad = speechStore.loadVoicesForProvider('elevenlabs', 'eleven_multilingual_v2')
+    providerConfigStore.providers.elevenlabs.config = { apiKey: 'new-key' }
+    const newLoad = speechStore.loadVoicesForProvider('elevenlabs', 'eleven_multilingual_v2')
+
+    expect(listVoices).toHaveBeenCalledTimes(2)
+    expect(speechStore.isLoadingSpeechProviderVoices).toBe(true)
+
+    resolveNewVoices?.(newVoices)
+    await newLoad
+    expect(speechStore.availableVoices.elevenlabs).toEqual(newVoices)
+    await vi.waitFor(() => expect(speechStore.isLoadingSpeechProviderVoices).toBe(false))
+
+    resolveOldVoices?.(oldVoices)
+    await oldLoad
+    expect(speechStore.availableVoices.elevenlabs).toEqual(newVoices)
   })
 
   /**

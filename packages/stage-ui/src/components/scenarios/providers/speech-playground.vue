@@ -8,7 +8,7 @@ import { useI18n } from 'vue-i18n'
 
 import { TestDummyMarker } from '../../gadgets'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   // Input fields
   defaultText?: string
   availableVoices: VoiceInfo[]
@@ -19,7 +19,20 @@ const props = defineProps<{
   // Current state
   apiKeyConfigured?: boolean
   voicesLoading?: boolean
-}>()
+
+  /** Whether the provider accepts raw SSML input. @default true */
+  ssmlSupported?: boolean
+
+  /**
+   * Pin the test voice to a configured value and hide the voice combobox.
+   * For providers whose voice is part of the persisted provider config
+   * (e.g. Doubao's required `speaker`), the test should exercise the voice
+   * that real synthesis will use instead of a separate playground-only pick.
+   */
+  fixedVoice?: string
+}>(), {
+  ssmlSupported: true,
+})
 
 const { t } = useI18n()
 
@@ -32,11 +45,24 @@ const audioPlayer = ref<HTMLAudioElement | null>(null)
 const useSSML = ref(false)
 const ssmlText = ref('')
 const selectedVoice = ref('')
+const isUsingSSML = computed(() => props.ssmlSupported && useSSML.value)
+
+// A pinned voice always wins over the catalogue-derived default.
+watch(
+  () => props.fixedVoice,
+  (voice) => {
+    if (voice !== undefined)
+      selectedVoice.value = voice
+  },
+  { immediate: true },
+)
 
 // Watch for changes in available voices
 watch(
   () => props.availableVoices,
   (newVoices) => {
+    if (props.fixedVoice !== undefined)
+      return
     if (newVoices.length > 0 && !selectedVoice.value) {
       selectedVoice.value = newVoices[0]?.id || ''
     }
@@ -53,7 +79,7 @@ const voiceOptions = computed(() => {
 
 // Function to generate speech
 async function handleGenerateTestSpeech() {
-  if ((!testText.value.trim() && !useSSML.value) || (useSSML.value && !ssmlText.value.trim()) || !selectedVoice.value)
+  if ((!testText.value.trim() && !isUsingSSML.value) || (isUsingSSML.value && !ssmlText.value.trim()) || !selectedVoice.value)
     return
 
   isGenerating.value = true
@@ -65,9 +91,9 @@ async function handleGenerateTestSpeech() {
       stopTestAudio()
     }
 
-    const input = useSSML.value ? ssmlText.value : testText.value
+    const input = isUsingSSML.value ? ssmlText.value : testText.value
 
-    const response = await props.generateSpeech(input, selectedVoice.value, useSSML.value)
+    const response = await props.generateSpeech(input, selectedVoice.value, isUsingSSML.value)
 
     // Convert the response to a blob and create an object URL
     audioUrl.value = URL.createObjectURL(new Blob([response]))
@@ -136,12 +162,13 @@ defineExpose({
     </h2>
     <div flex="~ col gap-4">
       <FieldCheckbox
+        v-if="ssmlSupported"
         v-model="useSSML"
         :label="t('settings.pages.modules.speech.sections.section.voice-settings.use-ssml.label')"
         :description="t('settings.pages.modules.speech.sections.section.voice-settings.use-ssml.description')"
       />
 
-      <template v-if="!useSSML">
+      <template v-if="!isUsingSSML">
         <textarea
           v-model="testText"
           :placeholder="t('settings.pages.providers.provider.elevenlabs.playground.fields.field.input.placeholder')"
@@ -163,6 +190,7 @@ defineExpose({
       </template>
 
       <FieldCombobox
+        v-if="fixedVoice === undefined"
         v-model="selectedVoice"
         :options="voiceOptions"
         :label="t('settings.pages.providers.provider.elevenlabs.playground.fields.field.voice.label')"
@@ -174,8 +202,8 @@ defineExpose({
       <button
         border="neutral-800 dark:neutral-200 solid 2" transition="border duration-250 ease-in-out"
         rounded-lg px-3 text="neutral-100 dark:neutral-900" py-1.5 text-sm
-        :disabled="isGenerating || voicesLoading || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !selectedVoice || !apiKeyConfigured"
-        :class="{ 'opacity-50 cursor-not-allowed': isGenerating || voicesLoading || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !selectedVoice || !apiKeyConfigured }"
+        :disabled="isGenerating || voicesLoading || (!testText.trim() && !isUsingSSML) || (isUsingSSML && !ssmlText.trim()) || !selectedVoice || !apiKeyConfigured"
+        :class="{ 'opacity-50 cursor-not-allowed': isGenerating || voicesLoading || (!testText.trim() && !isUsingSSML) || (isUsingSSML && !ssmlText.trim()) || !selectedVoice || !apiKeyConfigured }"
         bg="neutral-700 dark:neutral-300" @click="handleGenerateTestSpeech"
       >
         <div flex="~ row" items-center gap-2>

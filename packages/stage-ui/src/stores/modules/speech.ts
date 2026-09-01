@@ -15,6 +15,7 @@ import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
 
 import { getDefaultSpeechModel, getDefaultStreamingModel, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, setupOfficialSpeechAutoPick } from '../../libs/providers/providers/official'
+import { createProviderVoiceRequestKey } from '../../libs/providers/voice-request-key'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 
@@ -59,18 +60,58 @@ export const useSpeechStore = defineStore('speech', () => {
   const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', 'speech-noop', persistenceOptions)
   const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', '', persistenceOptions)
   const activeSpeechVoiceId = useLocalStorageManualReset<string>('settings/speech/voice', '', persistenceOptions)
-  const activeSpeechVoice = refManualReset<VoiceInfo | undefined>(undefined)
+  const activeSpeechVoiceState = refManualReset<VoiceInfo | undefined>(undefined)
 
   const pitch = useLocalStorageManualReset<number>('settings/speech/pitch', 0, persistenceOptions)
   const rate = useLocalStorageManualReset<number>('settings/speech/rate', 1, persistenceOptions)
   const ssmlEnabled = useLocalStorageManualReset<boolean>('settings/speech/ssml-enabled', false, persistenceOptions)
-  const isLoadingSpeechProviderVoices = refManualReset<boolean>(false)
-  const speechProviderError = refManualReset<string | null>(null)
-  const availableVoices = refManualReset<Record<string, VoiceInfo[]>>(() => ({}))
-  const modelSearchQuery = refManualReset<string>('')
+  // Each provider has one current request. Older requests can finish, but they
+  // no longer own the catalog, error, or loading state for that provider.
+  const activeVoiceLoadKeys = refManualReset<Record<string, string>>(() => ({}))
+  const voiceLoadPromises = new Map<string, Promise<VoiceInfo[]>>()
+  const speechProviderErrorState = refManualReset<string | null>(null)
+  const availableVoicesState = refManualReset<Record<string, VoiceInfo[]>>(() => ({}))
+  const modelSearchQueryState = refManualReset<string>('')
 
-  // Computed properties
+  // Request results and UI state stay renderer-local. Returning writable
+  // computed projections keeps them out of the synchronized Pinia snapshot.
+  const activeSpeechVoice = computed({
+    get: () => activeSpeechVoiceState.value,
+    set: value => activeSpeechVoiceState.value = value,
+  })
+  // Catalog metadata is renderer-local. A restored card can own a valid voice
+  // ID before this renderer loads that voice, so previews use the saved ID as
+  // their source of truth and add catalog metadata only when it matches.
+  const activeSpeechPreviewVoice = computed<VoiceInfo | undefined>(() => {
+    const voiceId = activeSpeechVoiceId.value.trim()
+    if (!voiceId)
+      return undefined
+
+    if (activeSpeechVoiceState.value?.id === voiceId)
+      return activeSpeechVoiceState.value
+
+    return {
+      id: voiceId,
+      name: voiceId,
+      provider: activeSpeechProvider.value,
+      languages: [],
+    }
+  })
+  const speechProviderError = computed({
+    get: () => speechProviderErrorState.value,
+    set: value => speechProviderErrorState.value = value,
+  })
+  const availableVoices = computed({
+    get: () => availableVoicesState.value,
+    set: value => availableVoicesState.value = value,
+  })
+  const modelSearchQuery = computed({
+    get: () => modelSearchQueryState.value,
+    set: value => modelSearchQueryState.value = value,
+  })
+
   const availableSpeechProvidersMetadata = computed(() => allAudioSpeechProvidersMetadata.value)
+  const isLoadingSpeechProviderVoices = computed(() => Boolean(activeVoiceLoadKeys.value[activeSpeechProvider.value]))
 
   // Computed properties
   const supportsModelListing = computed(() => {
@@ -111,6 +152,22 @@ export const useSpeechStore = defineStore('speech', () => {
     return ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(activeSpeechProvider.value)
   })
 
+  function setActiveVoiceLoad(provider: string, requestKey: string) {
+    activeVoiceLoadKeys.value = {
+      ...activeVoiceLoadKeys.value,
+      [provider]: requestKey,
+    }
+  }
+
+  function clearActiveVoiceLoad(provider: string, requestKey: string) {
+    if (activeVoiceLoadKeys.value[provider] !== requestKey)
+      return
+
+    const nextKeys = { ...activeVoiceLoadKeys.value }
+    delete nextKeys[provider]
+    activeVoiceLoadKeys.value = nextKeys
+  }
+
   async function loadVoicesForProvider(provider: string, model?: string) {
     if (!provider) {
       return []
@@ -123,26 +180,52 @@ export const useSpeechStore = defineStore('speech', () => {
       return []
     }
 
-    isLoadingSpeechProviderVoices.value = true
+    const providerConfig = providerStore.getProviderConfig(provider) ?? {}
+    const requestKey = createProviderVoiceRequestKey(provider, model, providerConfig)
+    const pendingRequest = voiceLoadPromises.get(requestKey)
+    if (pendingRequest) {
+      setActiveVoiceLoad(provider, requestKey)
+      return await pendingRequest
+    }
+
+    function isCurrentRequest() {
+      const currentConfig = providerStore.getProviderConfig(provider) ?? {}
+      return activeVoiceLoadKeys.value[provider] === requestKey
+        && requestKey === createProviderVoiceRequestKey(provider, model, currentConfig)
+    }
+
+    setActiveVoiceLoad(provider, requestKey)
     speechProviderError.value = null
 
-    try {
-      const voices = await providersStore.listProviderVoices(provider, model)
-      // Reassign to trigger reactivity when adding/updating provider entries
-      availableVoices.value = {
-        ...availableVoices.value,
-        [provider]: voices,
+    const request = (async () => {
+      try {
+        const voices = await providersStore.listProviderVoices(provider, model)
+        if (!isCurrentRequest())
+          return voices
+
+        // Reassign to trigger reactivity when adding/updating provider entries.
+        availableVoices.value = {
+          ...availableVoices.value,
+          [provider]: voices,
+        }
+        return voices
       }
-      return voices
-    }
-    catch (error) {
-      console.error(`Error fetching voices for ${provider}:`, error)
-      speechProviderError.value = errorMessageFrom(error) ?? 'Unknown error'
-      return []
-    }
-    finally {
-      isLoadingSpeechProviderVoices.value = false
-    }
+      catch (error) {
+        if (!isCurrentRequest())
+          return []
+
+        console.error(`Error fetching voices for ${provider}:`, error)
+        speechProviderError.value = errorMessageFrom(error) ?? 'Unknown error'
+        return []
+      }
+      finally {
+        clearActiveVoiceLoad(provider, requestKey)
+        voiceLoadPromises.delete(requestKey)
+      }
+    })()
+
+    voiceLoadPromises.set(requestKey, request)
+    return await request
   }
 
   // Get voices for a specific provider
@@ -248,27 +331,24 @@ export const useSpeechStore = defineStore('speech', () => {
     uiLocale: locale,
   })
 
-  watch([activeSpeechVoiceId, availableVoices], ([voiceId, voices]) => {
-    if (!voiceId)
-      return
-
+  watch([activeSpeechProvider, activeSpeechVoiceId, availableVoices], ([provider, voiceId, voices]) => {
     let nextVoice: VoiceInfo | undefined
-    if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
+    if (voiceId && provider === 'openai-compatible-audio-speech') {
       nextVoice = {
         id: voiceId,
         name: voiceId,
         description: voiceId,
         previewURL: '',
         languages: [{ code: 'en', title: 'English' }],
-        provider: activeSpeechProvider.value,
+        provider,
         gender: 'neutral',
       }
     }
-    else {
-      nextVoice = voices[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
+    else if (voiceId) {
+      nextVoice = voices[provider]?.find(voice => voice.id === voiceId)
     }
 
-    if (!nextVoice || isEqual(activeSpeechVoice.value, nextVoice))
+    if (isEqual(activeSpeechVoice.value, nextVoice))
       return
 
     activeSpeechVoice.value = nextVoice
@@ -411,14 +491,15 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechProvider.reset()
     activeSpeechModel.reset()
     activeSpeechVoiceId.reset()
-    activeSpeechVoice.reset()
+    activeSpeechVoiceState.reset()
     pitch.reset()
     rate.reset()
     ssmlEnabled.reset()
-    modelSearchQuery.reset()
-    availableVoices.reset()
-    speechProviderError.reset()
-    isLoadingSpeechProviderVoices.reset()
+    modelSearchQueryState.reset()
+    availableVoicesState.reset()
+    speechProviderErrorState.reset()
+    activeVoiceLoadKeys.reset()
+    voiceLoadPromises.clear()
   }
 
   return {
@@ -427,6 +508,7 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechProvider,
     activeSpeechModel,
     activeSpeechVoice,
+    activeSpeechPreviewVoice,
     activeSpeechVoiceId,
     pitch,
     rate,

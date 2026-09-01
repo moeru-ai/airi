@@ -35,6 +35,23 @@ export interface StreamingTtsPipelineEvents {
   onDone?: () => void
 }
 
+/** Socket subset required by the provider-neutral streaming speech pipeline. */
+export interface StreamingTtsWebSocket {
+  binaryType: BinaryType
+  readonly readyState: number
+  addEventListener: {
+    (type: 'open', listener: (event: Event) => void): void
+    (type: 'message', listener: (event: MessageEvent<string | ArrayBuffer>) => void): void
+    (type: 'close', listener: (event: CloseEvent) => void): void
+    (type: 'error', listener: (event: Event) => void): void
+  }
+  close: () => void
+  send: (data: string) => void
+}
+
+/** Creates a renderer-side socket for one streaming speech session. */
+export type StreamingTtsWebSocketFactory = () => StreamingTtsWebSocket
+
 export interface StreamingTtsPipelineOptions extends StreamingTtsPipelineEvents {
   /** Server URL override. Defaults to {@link SERVER_URL}. */
   serverUrl?: string
@@ -70,6 +87,11 @@ export interface StreamingTtsPipelineOptions extends StreamingTtsPipelineEvents 
    * Seed-TTS 1.0 / ICL 1.0 where `sentence.end` arrives in-band with audio).
    */
   bufferEntireSession?: boolean
+  /**
+   * Provider-owned transport override. When set, the Provider handles its own
+   * authentication and the official AIRI server token is not required.
+   */
+  webSocketFactory?: StreamingTtsWebSocketFactory
 }
 
 export interface StreamingTtsPipelineHandle {
@@ -111,22 +133,28 @@ export interface StreamingTtsPipelineHandle {
  *   AudioBuffers are emitted via `options.onSentence` in arrival order.
  */
 export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions): StreamingTtsPipelineHandle {
-  const token = options.token ?? getAuthToken()
-  if (!token) {
-    const err = new Error('streaming-pipeline: not authenticated')
-    queueMicrotask(() => {
-      options.onError?.(err)
-      options.onDone?.()
-    })
-    return noopHandle()
+  let ws: StreamingTtsWebSocket
+  if (options.webSocketFactory) {
+    ws = options.webSocketFactory()
   }
+  else {
+    const token = options.token ?? getAuthToken()
+    if (!token) {
+      const err = new Error('streaming-pipeline: not authenticated')
+      queueMicrotask(() => {
+        options.onError?.(err)
+        options.onDone?.()
+      })
+      return noopHandle()
+    }
 
-  const wsUrl = toWebSocketUrl(options.serverUrl ?? SERVER_URL, '/api/v1/audio/speech/ws', token, {
-    ttsTrigger: options.ttsTrigger ?? 'auto',
-    ttsSource: options.ttsSource ?? 'chat_auto_tts',
-    ttsVoiceType: options.ttsVoiceType ?? 'unknown',
-  })
-  const ws = new WebSocket(wsUrl)
+    const wsUrl = toWebSocketUrl(options.serverUrl ?? SERVER_URL, '/api/v1/audio/speech/ws', token, {
+      ttsTrigger: options.ttsTrigger ?? 'auto',
+      ttsSource: options.ttsSource ?? 'chat_auto_tts',
+      ttsVoiceType: options.ttsVoiceType ?? 'unknown',
+    })
+    ws = new WebSocket(wsUrl)
+  }
   ws.binaryType = 'arraybuffer'
 
   let closed = false

@@ -30,6 +30,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
+import DoubaoVoiceSettingsPanel from '../providers/speech/doubao-speech/voice-settings-panel.vue'
+
 const { t } = useI18n()
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
@@ -40,10 +42,12 @@ const {
   activeSpeechProvider,
   activeSpeechModel,
   activeSpeechVoice,
+  activeSpeechPreviewVoice,
   activeSpeechVoiceId,
   pitch,
   isLoadingSpeechProviderVoices,
   supportsModelListing,
+  supportsSSML,
   providerModels,
   isLoadingActiveProviderModels,
   activeProviderModelError,
@@ -65,7 +69,8 @@ const {
 
 const voiceSearchQuery = ref('')
 const useSSML = ref(false)
-const testText = ref('Hello, my name is AI Assistant')
+const isUsingSSML = computed(() => supportsSSML.value && useSSML.value)
+const testText = ref(t('settings.pages.modules.speech.sections.section.playground.default-text'))
 const ssmlText = ref('')
 const isGenerating = ref(false)
 const audioUrl = ref('')
@@ -101,15 +106,10 @@ const selectableSpeechSources = computed(() => {
   ]
 })
 
-const displayedSpeechSource = computed({
-  get: () => {
-    if (activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
-      return OFFICIAL_SPEECH_PROVIDER_ID
-    return activeSpeechProvider.value
-  },
-  set: (value: string) => {
-    selectSpeechSource(value)
-  },
+const displayedSpeechSource = computed(() => {
+  if (activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+    return OFFICIAL_SPEECH_PROVIDER_ID
+  return activeSpeechProvider.value
 })
 
 const isOfficialSpeechSourceSelected = computed(() => displayedSpeechSource.value === OFFICIAL_SPEECH_PROVIDER_ID)
@@ -141,14 +141,9 @@ const displayedProviderModels = computed(() => {
   ]
 })
 
-const displayedSpeechModel = computed({
-  get: () => activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID && activeSpeechModel.value
-    ? streamingModelOptionId(activeSpeechModel.value)
-    : activeSpeechModel.value,
-  set: (value: string) => {
-    selectSpeechModel(value)
-  },
-})
+const displayedSpeechModel = computed(() => activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID && activeSpeechModel.value
+  ? streamingModelOptionId(activeSpeechModel.value)
+  : activeSpeechModel.value)
 
 const currentSpeechModelId = computed(() => activeSpeechModel.value || '')
 
@@ -184,12 +179,7 @@ const displayedVoiceOptions = computed(() => {
     }))
 })
 
-const displayedSpeechVoiceId = computed({
-  get: () => activeSpeechVoiceId.value,
-  set: (value: string) => {
-    activeSpeechVoiceId.value = value
-  },
-})
+const displayedSpeechVoiceId = computed(() => activeSpeechVoiceId.value)
 
 const currentSpeechVoiceId = computed(() => activeSpeechVoiceId.value || '')
 
@@ -282,6 +272,18 @@ async function selectSpeechVoice(voiceId: string | undefined) {
   if (!voiceId)
     return
 
+  await airiCardStore.selectActiveCardSpeech({
+    provider: activeSpeechProvider.value,
+    model: activeSpeechModel.value,
+    voice_id: voiceId,
+  })
+
+  if (activeSpeechProvider.value === 'doubao-speech') {
+    const config = providerStore.getProviderConfig('doubao-speech')
+    if (config)
+      config.speaker = voiceId
+  }
+
   trackVoiceSelected({
     tts_provider_id: activeSpeechProvider.value || 'unknown',
     tts_model_id: currentTtsModelId(),
@@ -290,11 +292,30 @@ async function selectSpeechVoice(voiceId: string | undefined) {
   })
 }
 
-function selectSpeechSource(sourceId: string) {
-  activeSpeechProvider.value = sourceId
+async function selectSpeechSource(sourceId: string) {
+  const providerChanged = activeSpeechProvider.value !== sourceId
+  const config = providerStore.getProviderConfig(sourceId)
+  const configuredModel = sourceId === 'doubao-speech'
+    ? config?.resourceId
+    : config?.model
+  const configuredVoice = sourceId === 'doubao-speech'
+    ? config?.speaker
+    : config?.voice
+  let nextModel = activeSpeechModel.value
+  let nextVoiceId = activeSpeechVoiceId.value
+  if (providerChanged) {
+    nextModel = typeof configuredModel === 'string' ? configuredModel : ''
+    nextVoiceId = typeof configuredVoice === 'string' ? configuredVoice : ''
+  }
+
+  await airiCardStore.selectActiveCardSpeech({
+    provider: sourceId,
+    model: nextModel,
+    voice_id: nextVoiceId,
+  })
 }
 
-function selectSpeechModel(modelOptionId: string) {
+async function selectSpeechModel(modelOptionId: string) {
   const streamingModelId = modelIdFromStreamingOptionId(modelOptionId)
   const nextProvider = streamingModelId == null
     ? activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
@@ -303,13 +324,24 @@ function selectSpeechModel(modelOptionId: string) {
     : OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
   const nextModel = streamingModelId ?? modelOptionId
 
-  if (activeSpeechProvider.value !== nextProvider) {
-    activeSpeechProvider.value = nextProvider
-    activeSpeechVoiceId.value = ''
-    activeSpeechVoice.value = undefined
-  }
+  await airiCardStore.selectActiveCardSpeech({
+    provider: nextProvider,
+    model: nextModel,
+    voice_id: '',
+  })
 
-  activeSpeechModel.value = nextModel
+  // The Doubao provider settings page reads the model from
+  // `config.resourceId`; write the selection back so both pages show the same
+  // model.
+  if (nextProvider === 'doubao-speech') {
+    const config = providerStore.getProviderConfig('doubao-speech')
+    if (config && config.resourceId !== nextModel) {
+      Object.assign(config, {
+        resourceId: nextModel,
+        speaker: '',
+      })
+    }
+  }
 }
 
 /**
@@ -331,89 +363,41 @@ function trackOfficialTtsExposure(providerId = activeSpeechProvider.value, model
   })
 }
 
-// Sync OpenAI Compatible model and voice from provider config
-function syncOpenAICompatibleSettings() {
-  if (activeSpeechProvider.value !== 'openai-compatible-audio-speech')
-    return
-
-  const providerConfig = providerStore.getProviderConfig(activeSpeechProvider.value)
-  // Sync model from provider config (override any existing value from previous provider)
-  if (providerConfig?.model) {
-    activeSpeechModel.value = providerConfig.model as string
-  }
-  else {
-    // If no model in provider config, use default
-    activeSpeechModel.value = 'tts-1'
-  }
-  // Sync voice from provider config (override any existing value from previous provider)
-  // Use updateCustomVoiceName to ensure proper reactivity
-  if (providerConfig?.voice) {
-    activeSpeechVoiceId.value = providerConfig.voice as string
-    updateCustomVoiceName(providerConfig.voice as string)
-  }
-  else {
-    // If no voice in provider config, use default
-    activeSpeechVoiceId.value = 'alloy'
-    updateCustomVoiceName('alloy')
-  }
-}
-
 onMounted(async () => {
   await providersStore.loadModelsForConfiguredProviders()
   speechStore.ensureActiveSpeechModel()
+  // Provider configuration and the active-card tuple have separate ownership.
+  // Only explicit source, model, and voice controls copy values between them.
   await speechStore.loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined)
-  syncOpenAICompatibleSettings()
   trackOfficialTtsExposure()
 })
 
-watch(activeSpeechProvider, async (newProvider, oldProvider) => {
+watch(activeSpeechProvider, async (newProvider) => {
   await providersStore.loadModelsForConfiguredProviders()
 
-  // Reset model and voice when switching providers (but not on initial load)
-  const isMergedOfficialSwitch = (
-    oldProvider === OFFICIAL_SPEECH_PROVIDER_ID
-    || oldProvider === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
-  ) && (
-    newProvider === OFFICIAL_SPEECH_PROVIDER_ID
-    || newProvider === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
-  )
-  if (oldProvider !== undefined && oldProvider !== newProvider && !isMergedOfficialSwitch) {
-    activeSpeechModel.value = ''
-    activeSpeechVoiceId.value = ''
-    activeSpeechVoice.value = undefined
-  }
-
-  // Re-seed the streaming default model after the reset above so its voices
-  // load model-scoped (the server only returns recommended voices for an
-  // explicit ?model=). No-op for other providers / when a model is selected.
+  // A user selection or card activation owns the complete provider/model/voice
+  // tuple. This watcher only resolves provider-specific defaults; it must not
+  // clear a replicated selection and publish another full-state proposal.
+  // useSpeechStore owns voice loading for every provider change, even when the
+  // active model ID does not change.
   speechStore.ensureActiveSpeechModel()
-  await speechStore.loadVoicesForProvider(newProvider, activeSpeechModel.value || undefined)
   trackOfficialTtsExposure(newProvider, currentTtsModelId())
-
-  syncOpenAICompatibleSettings()
 })
 
 watch(activeSpeechModel, async (model) => {
   if (!activeSpeechProvider.value)
     return
 
-  activeSpeechVoiceId.value = ''
-  activeSpeechVoice.value = undefined
-
   await speechStore.loadVoicesForProvider(activeSpeechProvider.value, model || undefined)
   trackOfficialTtsExposure(activeSpeechProvider.value, currentTtsModelId())
 })
 
-watch([activeSpeechProvider, activeSpeechModel, activeSpeechVoiceId], ([provider, model, voiceId]) => {
-  void airiCardStore.updateActiveCardSpeech({ provider, model, voice_id: voiceId })
-})
-
 // Function to generate speech
 async function generateTestSpeech() {
-  if (!testText.value.trim() && !useSSML.value)
+  if (!testText.value.trim() && !isUsingSSML.value)
     return
 
-  if (useSSML.value && !ssmlText.value.trim())
+  if (isUsingSSML.value && !ssmlText.value.trim())
     return
 
   const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, any>
@@ -426,7 +410,7 @@ async function generateTestSpeech() {
 
   // For OpenAI Compatible providers, fall back to provider config for model and voice
   let model = activeSpeechModel.value
-  let voice = activeSpeechVoice.value
+  let voice = activeSpeechPreviewVoice.value
 
   if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
     if (!model && providerConfig?.model) {
@@ -470,7 +454,7 @@ async function generateTestSpeech() {
       stopTestAudio()
     }
 
-    const speechRequest = useSSML.value
+    const speechRequest = isUsingSSML.value
       ? {
           input: ssmlText.value,
           providerConfig,
@@ -562,10 +546,15 @@ onUnmounted(() => {
   }
 })
 
-function updateCustomVoiceName(value: string | undefined) {
-  activeSpeechVoiceId.value = value || ''
+async function updateCustomVoiceName(value: string | undefined) {
+  const voiceId = value || ''
+  await airiCardStore.selectActiveCardSpeech({
+    provider: activeSpeechProvider.value,
+    model: activeSpeechModel.value,
+    voice_id: voiceId,
+  })
+
   if (!value) {
-    activeSpeechVoice.value = undefined
     return
   }
 
@@ -583,27 +572,37 @@ function updateCustomVoiceName(value: string | undefined) {
 /**
  * Tracks a manual voice after the input value is committed by the user.
  */
-function commitCustomVoiceSelection() {
-  selectSpeechVoice(activeSpeechVoiceId.value)
+async function commitCustomVoiceSelection() {
+  await selectSpeechVoice(activeSpeechVoiceId.value)
 }
 
-function updateCustomModelName(value: string | undefined) {
-  activeSpeechModel.value = value || ''
+async function updateCustomModelName(value: string | undefined) {
+  await airiCardStore.selectActiveCardSpeech({
+    provider: activeSpeechProvider.value,
+    model: value || '',
+    voice_id: '',
+  })
 }
 
-function handleDeleteProvider(providerId: string) {
+async function handleDeleteProvider(providerId: string) {
   if (providerId === 'speech-noop') {
     return
   }
 
   if (activeSpeechProvider.value === providerId) {
-    activeSpeechProvider.value = 'speech-noop'
-    activeSpeechModel.value = ''
-    activeSpeechVoiceId.value = ''
-    activeSpeechVoice.value = undefined
+    await airiCardStore.selectActiveCardSpeech({
+      provider: 'speech-noop',
+      model: '',
+      voice_id: '',
+    })
   }
 
-  providersStore.deleteProvider(providerId)
+  await providersStore.deleteProvider(providerId)
+}
+
+async function selectElevenLabsModel(event: Event) {
+  const target = event.target as HTMLSelectElement
+  await selectSpeechModel(target.value)
 }
 </script>
 
@@ -628,11 +627,12 @@ function handleDeleteProvider(providerId: string) {
               v-for="source in selectableSpeechSources"
               :id="source.id"
               :key="source.id"
-              v-model="displayedSpeechSource"
+              :model-value="displayedSpeechSource"
               name="speech-provider"
               :value="source.id"
               :title="source.title"
               :description="source.description"
+              @update:model-value="selectSpeechSource"
               @click="selectSpeechProvider(source.providerId || source.id)"
             >
               <template #topRight>
@@ -669,9 +669,8 @@ function handleDeleteProvider(providerId: string) {
             >
               <div i-solar:warning-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
               <div class="flex flex-col">
-                <span class="font-medium">No Speech Providers Configured</span>
-                <span class="text-sm text-neutral-400 dark:text-neutral-500">Click here to set up your speech
-                  providers</span>
+                <span class="font-medium">{{ t('settings.pages.modules.speech.sections.section.voice-configuration.no-providers.title') }}</span>
+                <span class="text-sm text-neutral-400 dark:text-neutral-500">{{ t('settings.pages.modules.speech.sections.section.voice-configuration.no-providers.description') }}</span>
               </div>
               <div i-solar:arrow-right-line-duotone class="ml-auto text-xl text-neutral-400 dark:text-neutral-500" />
             </RouterLink>
@@ -752,8 +751,8 @@ function handleDeleteProvider(providerId: string) {
             <!-- Using the new RadioCardManySelect component -->
             <template v-else-if="displayedProviderModels.length > 0">
               <RadioCardManySelect
-                v-model="displayedSpeechModel"
                 v-model:search-query="modelSearchQuery"
+                :model-value="displayedSpeechModel"
                 :items="displayedProviderModels"
                 :searchable="true"
                 :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
@@ -764,6 +763,7 @@ function handleDeleteProvider(providerId: string) {
                 :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
                 :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
                 expanded-class="mb-12"
+                @update:model-value="selectSpeechModel"
                 @update:custom-value="updateCustomModelName"
               />
             </template>
@@ -776,12 +776,12 @@ function handleDeleteProvider(providerId: string) {
         <div flex="~ col gap-4">
           <div>
             <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-              Voice Configuration
+              {{ t('settings.pages.modules.speech.sections.section.voice-configuration.title') }}
             </h2>
             <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-500">
-              <span>Customize how your AI assistant speaks</span>
+              <span>{{ t('settings.pages.modules.speech.sections.section.voice-configuration.description') }}</span>
               <span v-if="currentSpeechVoiceId" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">
-                Current voice: {{ currentSpeechVoiceId }}
+                {{ t('settings.pages.modules.speech.sections.section.voice-configuration.current-voice', { voice: currentSpeechVoiceId }) }}
               </span>
             </div>
           </div>
@@ -817,7 +817,7 @@ function handleDeleteProvider(providerId: string) {
           >
             <VoiceCardManySelect
               v-model:search-query="voiceSearchQuery"
-              v-model:voice-id="displayedSpeechVoiceId"
+              :voice-id="displayedSpeechVoiceId"
               :voices="displayedVoiceOptions"
               :searchable="true"
               :search-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_placeholder')"
@@ -860,19 +860,20 @@ function handleDeleteProvider(providerId: string) {
           </Alert>
 
           <!-- Voice parameters -->
-          <div flex="~ col gap-4">
+          <DoubaoVoiceSettingsPanel v-if="activeSpeechProvider === 'doubao-speech'" />
+          <div v-else-if="supportsSSML" flex="~ col gap-4">
             <FieldRange
               v-model="pitch"
-              label="Pitch"
-              description="Tune the pitch of the voice"
+              :label="t('settings.pages.modules.speech.sections.section.voice-configuration.pitch.label')"
+              :description="t('settings.pages.modules.speech.sections.section.voice-configuration.pitch.description')"
               :min="-100" :max="100" :step="1"
               :format-value="value => `${value}%`"
             />
             <!-- SSML Support -->
             <FieldCheckbox
               v-model="ssmlEnabled"
-              label="Enable SSML"
-              description="Enable Speech Synthesis Markup Language for more control over speech output"
+              :label="t('settings.pages.modules.speech.sections.section.voice-configuration.enable-ssml.label')"
+              :description="t('settings.pages.modules.speech.sections.section.voice-configuration.enable-ssml.description')"
             />
           </div>
 
@@ -897,8 +898,9 @@ function handleDeleteProvider(providerId: string) {
                 Model
               </label>
               <select
-                v-model="activeSpeechModel"
+                :value="activeSpeechModel"
                 class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+                @change="selectElevenLabsModel"
               >
                 <option value="eleven_monolingual_v1">
                   Monolingual v1
@@ -928,12 +930,13 @@ function handleDeleteProvider(providerId: string) {
         </h2>
         <div flex="~ col gap-4">
           <FieldCheckbox
+            v-if="supportsSSML"
             v-model="useSSML"
-            label="Use Custom SSML"
-            description="Enable to input raw SSML instead of plain text"
+            :label="t('settings.pages.modules.speech.sections.section.voice-settings.use-ssml.label')"
+            :description="t('settings.pages.modules.speech.sections.section.voice-settings.use-ssml.description')"
           />
 
-          <template v-if="!useSSML">
+          <template v-if="!isUsingSSML">
             <Textarea
               v-model="testText" h-24
               w-full
@@ -943,7 +946,7 @@ function handleDeleteProvider(providerId: string) {
           <template v-else>
             <textarea
               v-model="ssmlText"
-              placeholder="Enter SSML text..."
+              :placeholder="t('settings.pages.modules.speech.sections.section.voice-settings.input-ssml.placeholder')"
               border="neutral-100 dark:neutral-800 solid 2 focus:neutral-200 dark:focus:neutral-700"
               transition="all duration-250 ease-in-out"
               bg="neutral-100 dark:neutral-800 focus:neutral-50 dark:focus:neutral-900"
@@ -955,8 +958,8 @@ function handleDeleteProvider(providerId: string) {
             <button
               border="neutral-800 dark:neutral-200 solid 2" transition="border duration-250 ease-in-out"
               rounded-lg px-4 text="neutral-100 dark:neutral-900" py-2 text-sm
-              :disabled="isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !activeSpeechVoice"
-              :class="{ 'opacity-50 cursor-not-allowed': isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !activeSpeechVoice }"
+              :disabled="isGenerating || (!testText.trim() && !isUsingSSML) || (isUsingSSML && !ssmlText.trim()) || !activeSpeechPreviewVoice"
+              :class="{ 'opacity-50 cursor-not-allowed': isGenerating || (!testText.trim() && !isUsingSSML) || (isUsingSSML && !ssmlText.trim()) || !activeSpeechPreviewVoice }"
               bg="neutral-700 dark:neutral-300" @click="generateTestSpeech"
             >
               <div flex="~ row" items-center gap-2>
@@ -970,7 +973,7 @@ function handleDeleteProvider(providerId: string) {
             >
               <div flex="~ row" items-center gap-2>
                 <div i-solar:stop-circle-bold-duotone />
-                <span>Stop</span>
+                <span>{{ t('settings.pages.modules.speech.sections.section.playground.buttons.stop.label') }}</span>
               </div>
             </button>
           </div>

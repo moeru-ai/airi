@@ -3,6 +3,7 @@ import type { Card, ccv3 } from '@proj-airi/ccc'
 import type { AiriCard, AiriExtension } from '../../types/airiCard'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
@@ -37,6 +38,8 @@ function resolveSystemPrompt(card: AiriCard | undefined): string {
   return systemPromptParts.join('\n\n')
 }
 
+type SpeechSelection = Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>
+
 export const useAiriCardStore = defineStore('airi-card', () => {
   const { t } = useI18n()
 
@@ -56,6 +59,35 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       stageModel: useSettingsStageModel(),
       vision: useVisionStore(),
     }
+  }
+
+  function applyRuntimeSpeechSelection(speech: ReturnType<typeof useSpeechStore>, selection: SpeechSelection) {
+    const providerChanged = speech.activeSpeechProvider !== selection.provider
+    const modelChanged = speech.activeSpeechModel !== selection.model
+    const voiceChanged = speech.activeSpeechVoiceId !== selection.voice_id
+    const selectionChanged = providerChanged || modelChanged || voiceChanged
+
+    if (selectionChanged) {
+      speech.$patch({
+        activeSpeechProvider: selection.provider,
+        activeSpeechModel: selection.model,
+        activeSpeechVoiceId: selection.voice_id,
+      })
+    }
+
+    // The tuple above is synchronized source-of-truth state. VoiceInfo is a
+    // renderer-local catalog projection, so invalidate it whenever its owner
+    // or ID no longer matches and let the local voice watcher rebuild it.
+    const activeVoice = speech.activeSpeechVoice
+    const derivedVoiceIsStale = activeVoice !== undefined && (
+      selectionChanged
+      || activeVoice.provider !== selection.provider
+      || activeVoice.id !== selection.voice_id
+    )
+    if (derivedVoiceIsStale)
+      speech.activeSpeechVoice = undefined
+
+    return selectionChanged || derivedVoiceIsStale
   }
 
   /**
@@ -120,16 +152,25 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       return false
 
     const extension = resolveAiriExtension(card)
+    const nextModules = {
+      ...extension.modules,
+      ...patch(extension),
+    }
+
+    // Synced card state crosses the BroadcastChannel boundary on every write,
+    // and applying a snapshot re-runs watchers in every window. Skipping
+    // no-op writes keeps the update actions idempotent: a watcher that reacts
+    // to a remote snapshot must not propose identical content again.
+    if (isEqual(nextModules, extension.modules))
+      return false
+
     cards.value.set(cardId, {
       ...card,
       extensions: {
         ...card.extensions,
         airi: {
           ...extension,
-          modules: {
-            ...extension.modules,
-            ...patch(extension),
-          },
+          modules: nextModules,
         },
       },
     })
@@ -145,29 +186,46 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   async function updateActiveCardConsciousness(consciousness: AiriExtension['modules']['consciousness']) {
-    const updated = updateActiveCardModules(() => ({ consciousness }))
-    if (updated)
-      applyActiveCardSettings()
-    return updated
+    // Persist-only: callers pass current runtime selections. Applying the card
+    // back here feeds the runtime watchers that triggered this update, which
+    // sustained a settings <-> card feedback loop across windows.
+    // Card-originated changes still apply through activateCard/initialize.
+    return updateActiveCardModules(() => ({ consciousness }))
   }
 
   async function updateActiveCardVision(vision: AiriExtension['modules']['vision']) {
-    const updated = updateActiveCardModules(() => ({ vision }))
-    if (updated)
-      applyActiveCardSettings()
-    return updated
+    // See updateActiveCardConsciousness for why the card is not re-applied here.
+    return updateActiveCardModules(() => ({ vision }))
   }
 
-  async function updateActiveCardSpeech(speech: Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>) {
-    const updated = updateActiveCardModules(({ modules }) => ({
+  async function updateActiveCardSpeech(speech: SpeechSelection) {
+    // See updateActiveCardConsciousness for why the card is not re-applied here.
+    return updateActiveCardModules(({ modules }) => ({
       speech: {
         ...modules.speech,
         ...speech,
       },
     }))
-    if (updated)
-      applyActiveCardSettings()
-    return updated
+  }
+
+  /**
+   * Applies one user-selected speech configuration to the runtime and card.
+   *
+   * This leader-owned command commits both copies together. Replicated speech
+   * snapshots must not be interpreted as new card-edit commands by a watcher.
+   */
+  async function selectActiveCardSpeech(selection: SpeechSelection) {
+    const { speech } = useRuntimeModuleStores()
+    const runtimeChanged = applyRuntimeSpeechSelection(speech, selection)
+
+    const cardChanged = updateActiveCardModules(({ modules }) => ({
+      speech: {
+        ...modules.speech,
+        ...selection,
+      },
+    }))
+
+    return runtimeChanged || cardChanged
   }
 
   /**
@@ -419,29 +477,32 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       return
 
     const consciousnessSettings = extension.modules?.consciousness
-    if (consciousnessSettings?.provider)
+    if (consciousnessSettings?.provider && consciousness.activeProvider !== consciousnessSettings.provider)
       consciousness.activeProvider = consciousnessSettings.provider
-    if (consciousnessSettings?.model)
+    if (consciousnessSettings?.model && consciousness.activeModel !== consciousnessSettings.model)
       consciousness.activeModel = consciousnessSettings.model
 
     const visionSettings = extension.modules?.vision
-    if (visionSettings?.provider)
+    if (visionSettings?.provider && vision.activeProvider !== visionSettings.provider)
       vision.activeProvider = visionSettings.provider
-    if (visionSettings?.model)
+    if (visionSettings?.model && vision.activeModel !== visionSettings.model)
       vision.activeModel = visionSettings.model
 
     const speechSettings = extension.modules?.speech
-    if (speechSettings?.provider)
-      speech.activeSpeechProvider = speechSettings.provider
-    if (speechSettings?.model)
-      speech.activeSpeechModel = speechSettings.model
-    if (speechSettings?.voice_id)
-      speech.activeSpeechVoiceId = speechSettings.voice_id
+    if (speechSettings) {
+      applyRuntimeSpeechSelection(speech, {
+        provider: speechSettings.provider,
+        model: speechSettings.model,
+        voice_id: speechSettings.voice_id,
+      })
+    }
 
     // Apply body model if the card has a display model configured.
     // NOTICE: must set via store property directly (not storeToRefs .value) so Pinia's
     // proxy correctly calls the writable computed setter → stageModelSelectedState → updateStageModel().
-    if (extension.modules?.displayModelId) {
+    // The setter runs updateStageModel() even for an identical value, so guard
+    // the write to keep repeated applies side-effect free.
+    if (extension.modules?.displayModelId && stageModel.stageModelSelected !== extension.modules.displayModelId) {
       stageModel.stageModelSelected = extension.modules.displayModelId
     }
 
@@ -473,6 +534,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     updateActiveCardConsciousness,
     updateActiveCardDisplayModel,
     persistActiveCardModuleSelections,
+    selectActiveCardSpeech,
     updateActiveCardSpeech,
     updateActiveCardVision,
     getCard,
@@ -516,6 +578,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       'initialize',
       'removeCard',
       'persistActiveCardModuleSelections',
+      'selectActiveCardSpeech',
       'updateActiveCardConsciousness',
       'updateActiveCardDisplayModel',
       'updateActiveCardSpeech',

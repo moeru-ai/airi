@@ -27,7 +27,24 @@ function providerModeForAnalytics(providerId: string): ProviderMode {
     : 'custom'
 }
 
-export function useProviderValidation(providerId: string) {
+export interface UseProviderValidationOptions {
+  /**
+   * Whether skipping validation (when the provider definition's
+   * `validationRequiredWhen` returns false) resets the provider status to
+   * `unconfigured`.
+   *
+   * Set to false for providers that never require credentials
+   * (`requiresCredentials: false`): their module availability is decided by
+   * credential-free availability instead of validation status, and resetting
+   * the status here would fight the lifecycle that owns it.
+   *
+   * @default true
+   */
+  resetStatusWhenValidationSkipped?: boolean
+}
+
+export function useProviderValidation(providerId: string, options: UseProviderValidationOptions = {}) {
+  const { resetStatusWhenValidationSkipped = true } = options
   const { t } = useI18n()
   const router = useRouter()
   const providersStore = useProviderStore()
@@ -78,9 +95,27 @@ export function useProviderValidation(providerId: string) {
   // --- End of Internal Computed Properties ---
 
   const debounceTime = 500
-  const isValidating = ref(0)
   const isValid = ref(false)
   const validationMessage = ref('')
+  // Each configuration change advances this generation immediately. Async
+  // results can update UI and provider status only while they own the latest
+  // generation.
+  let automaticValidationGeneration = 0
+  const currentValidationGeneration = ref<number>()
+  const isValidating = computed(() => currentValidationGeneration.value === undefined ? 0 : 1)
+
+  function invalidateAutomaticValidation() {
+    automaticValidationGeneration++
+    currentValidationGeneration.value = undefined
+    return automaticValidationGeneration
+  }
+
+  let manualTestGeneration = 0
+
+  function invalidateManualTest() {
+    manualTestGeneration++
+    return manualTestGeneration
+  }
 
   // Manual chat ping check state (settings pages only)
   const hasManualValidators = computedAsync(
@@ -119,7 +154,8 @@ export function useProviderValidation(providerId: string) {
     if (!providerMetadata.value)
       return
 
-    isValidating.value++
+    const validationGeneration = invalidateAutomaticValidation()
+    currentValidationGeneration.value = validationGeneration
     validationMessage.value = ''
     const startValidationTimestamp = performance.now()
     let finalValidationMessage = ''
@@ -130,6 +166,9 @@ export function useProviderValidation(providerId: string) {
       const validationResult = await providersStore.validateProviderConfig(providerId, configToValidate(), {
         skipChatPingCheck: true,
       })
+      if (validationGeneration !== automaticValidationGeneration)
+        return
+
       isValid.value = validationResult.valid
       providerStore.setProviderStatus(providerId, isValid.value ? 'configured' : 'invalid')
 
@@ -146,6 +185,9 @@ export function useProviderValidation(providerId: string) {
       }
     }
     catch (error) {
+      if (validationGeneration !== automaticValidationGeneration)
+        return
+
       isValid.value = false
       providerStore.setProviderStatus(providerId, 'invalid')
       finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
@@ -154,7 +196,10 @@ export function useProviderValidation(providerId: string) {
     }
     finally {
       setTimeout(() => {
-        isValidating.value--
+        if (validationGeneration !== automaticValidationGeneration)
+          return
+
+        currentValidationGeneration.value = undefined
         validationMessage.value = finalValidationMessage
       }, Math.max(0, debounceTime - (performance.now() - startValidationTimestamp)))
     }
@@ -164,6 +209,7 @@ export function useProviderValidation(providerId: string) {
     if (!providerMetadata.value)
       return
 
+    const testGeneration = invalidateManualTest()
     isManualTesting.value = true
     manualTestMessage.value = ''
     const startedAt = performance.now()
@@ -173,6 +219,9 @@ export function useProviderValidation(providerId: string) {
       const result = await providersStore.validateProviderConfig(providerId, configToValidate(), {
         onlyChatPingCheck: true,
       })
+      if (testGeneration !== manualTestGeneration)
+        return
+
       manualTestPassed.value = result.valid
       if (result.valid) {
         trackProviderConnectionTestCompleted({
@@ -192,6 +241,9 @@ export function useProviderValidation(providerId: string) {
       }
     }
     catch (error) {
+      if (testGeneration !== manualTestGeneration)
+        return
+
       manualTestPassed.value = false
       manualTestMessage.value = errorMessageFrom(error) ?? 'Generic error (e56ae24f)'
       trackProviderConnectionTestCompleted({
@@ -202,7 +254,8 @@ export function useProviderValidation(providerId: string) {
       })
     }
     finally {
-      isManualTesting.value = false
+      if (testGeneration === manualTestGeneration)
+        isManualTesting.value = false
     }
   }
 
@@ -211,20 +264,32 @@ export function useProviderValidation(providerId: string) {
     return await definition.validationRequiredWhen?.(credentials.value) ?? false
   }
 
-  const debouncedValidateConfiguration = useDebounceFn(async () => {
-    if (!await shouldValidateConfiguration()) {
+  const debouncedValidateConfiguration = useDebounceFn(async (scheduledGeneration: number) => {
+    const shouldValidate = await shouldValidateConfiguration()
+    if (scheduledGeneration !== automaticValidationGeneration)
+      return
+
+    if (!shouldValidate) {
       isValid.value = false
-      providerStore.setProviderStatus(providerId, 'unconfigured')
+      if (resetStatusWhenValidationSkipped)
+        providerStore.setProviderStatus(providerId, 'unconfigured')
       validationMessage.value = ''
-      isValidating.value = 0
+      currentValidationGeneration.value = undefined
       return
     }
     validateConfiguration()
   }, debounceTime)
 
   onMounted(async () => {
+    const mountedGeneration = automaticValidationGeneration
     await providersStore.initializeProvider(providerId)
+    if (mountedGeneration !== automaticValidationGeneration)
+      return
+
     if (await shouldValidateConfiguration()) {
+      if (mountedGeneration !== automaticValidationGeneration)
+        return
+
       await validateConfiguration()
     }
   })
@@ -236,25 +301,35 @@ export function useProviderValidation(providerId: string) {
   const credentialsSignature = computed(() => JSON.stringify(credentials.value))
 
   watch(credentialsSignature, () => {
-    debouncedValidateConfiguration()
+    const scheduledGeneration = invalidateAutomaticValidation()
+    invalidateManualTest()
+    debouncedValidateConfiguration(scheduledGeneration)
     // Reset manual test state when credentials actually change
+    isManualTesting.value = false
     manualTestPassed.value = false
     manualTestMessage.value = ''
   })
 
   function handleResetSettings() {
+    invalidateAutomaticValidation()
+    invalidateManualTest()
     const defaultOptions = providerMetadata.value?.defaultConfig ?? {}
     providers.value[providerId] = { ...defaultOptions }
     isValid.value = false
     validationMessage.value = ''
-    isValidating.value = 0
+    currentValidationGeneration.value = undefined
+    isManualTesting.value = false
     manualTestPassed.value = false
     manualTestMessage.value = ''
   }
 
   function forceValid() {
+    invalidateAutomaticValidation()
+    invalidateManualTest()
     isValid.value = true
     validationMessage.value = ''
+    currentValidationGeneration.value = undefined
+    isManualTesting.value = false
     manualTestPassed.value = true
     manualTestMessage.value = ''
     providersStore.forceProviderConfigured(providerId)

@@ -11,7 +11,7 @@ import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/con
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldInput, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const providerId = 'volcengine'
@@ -73,7 +73,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 
 onMounted(async () => {
   const providerConfig = providerStore.getProviderConfig(providerId)
-  if ((await providersStore.validateProviderConfig(providerId, providerConfig)).valid) {
+  if ((await providersStore.validateProviderConfig(providerId, structuredClone(toRaw(providerConfig)))).valid) {
     await speechStore.loadVoicesForProvider(providerId)
   }
   else {
@@ -92,7 +92,7 @@ watch(speedRatio, async () => {
 
 watch([providers, appId], async () => {
   const providerConfig = providerStore.getProviderConfig(providerId)
-  if ((await providersStore.validateProviderConfig(providerId, providerConfig)).valid) {
+  if ((await providersStore.validateProviderConfig(providerId, structuredClone(toRaw(providerConfig)))).valid) {
     await speechStore.loadVoicesForProvider(providerId)
   }
   else {

@@ -25,6 +25,7 @@ import './anthropic'
 import './google-generative-ai'
 import './google-gemini-audio-speech'
 import './deepseek'
+import './doubao-speech'
 import './elevenlabs'
 import './302-ai'
 import './cerebras-ai'
@@ -51,6 +52,11 @@ import './official'
 import './speech-noop'
 import './unspeech'
 import './voicevox'
+
+export {
+  doubaoOfficialVoices,
+  isDoubaoOfficialVoice,
+} from './doubao-speech/voice-catalog'
 
 export {
   getDefaultStreamingModel,

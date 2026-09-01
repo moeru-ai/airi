@@ -27,12 +27,14 @@
     "./types/pinia-action-event": "./src/types/pinia-action-event.ts",
     "./electron-renderer": "./src/electron-renderer.d.ts",
     "./composables": "./src/composables/index.ts",
+    "./doubao-speech": "./src/doubao-speech.ts",
     "./webgpu": "./src/webgpu/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
     "@vueuse/core": "catalog:",
     "gpuu": "catalog:",
@@ -43,7 +45,6 @@
   },
   "devDependencies": {
     "@electron-toolkit/preload": "catalog:",
-    "@moeru/eventa": "catalog:",
     "@nekopaw/tempora": "catalog:",
     "@proj-airi/electron-screen-capture": "workspace:^",
     "@types/audioworklet": "catalog:"

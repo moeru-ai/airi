@@ -11,7 +11,7 @@ import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/con
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { getDefaultKokoroModel } from '@proj-airi/stage-ui/workers/kokoro/constants'
 import { Callout, ComboboxSelect } from '@proj-airi/ui'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const providerId = 'kokoro-local'
@@ -122,10 +122,14 @@ onMounted(async () => {
       config.model = getDefaultKokoroModel(hasWebGPU.value)
     }
 
-    const validationResult = await providersStore.validateProviderConfig(providerId, config)
+    // Synced action arguments cross the BroadcastChannel boundary with
+    // structuredClone, so pass a plain snapshot instead of the reactive store
+    // object.
+    const plainConfig = structuredClone(toRaw(config))
+    const validationResult = await providersStore.validateProviderConfig(providerId, plainConfig)
     if (validationResult.valid) {
       // Load the initial model
-      await providersStore.loadProviderModel(providerId, config)
+      await providersStore.loadProviderModel(providerId, plainConfig)
 
       await speechStore.loadVoicesForProvider(providerId)
     }
@@ -145,11 +149,12 @@ watch(model, async (newValue) => {
       voicesLoading.value = true
 
       const config = providerStore.getProviderConfig(providerId)
-      const validationResult = await providersStore.validateProviderConfig(providerId, config)
+      const plainConfig = structuredClone(toRaw(config))
+      const validationResult = await providersStore.validateProviderConfig(providerId, plainConfig)
 
       if (validationResult.valid) {
         // Load the model using the capability with progress tracking
-        await providersStore.loadProviderModel(providerId, config)
+        await providersStore.loadProviderModel(providerId, plainConfig)
 
         // Then reload voices
         await speechStore.loadVoicesForProvider(providerId)

@@ -10,7 +10,7 @@ import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, defineAsyncComponent, onMounted, onUnmounted, provide, shallowRef, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, provide, shallowRef, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import HearingPlaygroundTranscripts from './components/hearing-playground-transcripts.vue'
@@ -276,7 +276,7 @@ async function updateActiveProviderConfig(patch: Record<string, unknown>) {
 
     const update = providerStore.updateProviderConfig(
       providerId,
-      { ...provider.config, ...patch },
+      { ...structuredClone(toRaw(provider.config)), ...patch },
       'configured',
     )
 

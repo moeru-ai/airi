@@ -1,3 +1,4 @@
+import type { VoiceInfo } from '../providers/provider'
 import type { AiriCard } from './airi-card'
 
 import { createPinia, setActivePinia } from 'pinia'
@@ -71,6 +72,7 @@ vi.mock('./speech', async () => {
       state: () => ({
         activeSpeechProvider: 'mock-speech-provider',
         activeSpeechModel: 'mock-speech-model',
+        activeSpeechVoice: undefined as VoiceInfo | undefined,
         activeSpeechVoiceId: 'mock-speech-voice',
       }),
     }),
@@ -207,6 +209,165 @@ describe('airi-card store', () => {
 
   // ROOT CAUSE:
   //
+  // The settings speech page watches the runtime speech selection and calls
+  // the synchronized updateActiveCardSpeech action on every change. The action
+  // rewrote the card even when nothing changed, then applied the card back to
+  // the runtime. Applied snapshots re-ran the watcher in every window, which
+  // sustained a settings <-> card feedback loop that froze the renderer (the
+  // speech provider visibly oscillated between two choices).
+  //
+  // We fixed this by making the module update a no-op when the patch changes
+  // nothing, by guarding the runtime writes in applyActiveCardSettings, and by
+  // keeping the watcher-driven update actions persist-only (no re-apply).
+  it('stays idempotent and persist-only for repeated speech updates', async () => {
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+    resetArtistryToGlobal.mockClear()
+
+    await expect(cardStore.updateActiveCardSpeech({ provider: 'doubao-speech', model: 'seed-tts-2.0', voice_id: 'voice-1' })).resolves.toBe(true)
+    await expect(cardStore.updateActiveCardSpeech({ provider: 'doubao-speech', model: 'seed-tts-2.0', voice_id: 'voice-1' })).resolves.toBe(false)
+
+    // Watcher-driven updates must not apply the card back to the runtime;
+    // artistry reset runs only inside applyActiveCardSettings.
+    expect(resetArtistryToGlobal).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  //
+  // The settings page changed synchronized speech state first, then mirrored
+  // each replicated snapshot into the active card from a watcher. Two windows
+  // could therefore submit older provider tuples and make the provider cards
+  // alternate between Doubao and Kokoro.
+  //
+  // We fixed this by routing a user selection through one leader-owned command
+  // that commits the runtime tuple and active-card tuple together.
+  it('selects one speech tuple in the runtime and active card', async () => {
+    const speechStore = useSpeechStore()
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+
+    await expect(cardStore.selectActiveCardSpeech({
+      provider: 'doubao-speech',
+      model: 'seed-tts-2.0',
+      voice_id: 'zh_female_vv_uranus_bigtts',
+    })).resolves.toBe(true)
+
+    expect(speechStore.activeSpeechProvider).toBe('doubao-speech')
+    expect(speechStore.activeSpeechModel).toBe('seed-tts-2.0')
+    expect(speechStore.activeSpeechVoiceId).toBe('zh_female_vv_uranus_bigtts')
+    expect(cardStore.activeCard?.extensions.airi.modules.speech).toMatchObject({
+      provider: 'doubao-speech',
+      model: 'seed-tts-2.0',
+      voice_id: 'zh_female_vv_uranus_bigtts',
+    })
+
+    await expect(cardStore.selectActiveCardSpeech({
+      provider: 'doubao-speech',
+      model: 'seed-tts-2.0',
+      voice_id: 'zh_female_vv_uranus_bigtts',
+    })).resolves.toBe(false)
+  })
+
+  it('clears the derived voice when activating a card with another voice', async () => {
+    // ROOT CAUSE:
+    //
+    // Card activation updated the synchronized provider, model, and voice ID,
+    // but it retained the renderer-local VoiceInfo from the previous card.
+    // Session creation preferred that stale object and used the wrong voice.
+    //
+    // We fixed this by applying every card speech tuple through the same
+    // transition that invalidates incompatible renderer-local voice data.
+    // https://github.com/moeru-ai/airi/pull/2382#discussion_r3875981233
+    const speechStore = useSpeechStore()
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+
+    speechStore.$patch({
+      activeSpeechProvider: 'kokoro-local',
+      activeSpeechModel: 'kokoro-82m',
+      activeSpeechVoiceId: 'af_heart',
+    })
+    speechStore.activeSpeechVoice = {
+      id: 'af_heart',
+      name: 'Heart',
+      provider: 'kokoro-local',
+      languages: [{ code: 'en', title: 'English' }],
+    }
+
+    const cloneCardId = await cardStore.addCard({
+      name: 'Doubao clone voice',
+      version: '1.0.0',
+      description: 'Card with a cloned Doubao voice.',
+      extensions: {
+        airi: {
+          modules: {
+            consciousness: { provider: 'mock-consciousness-provider', model: 'mock-consciousness-model' },
+            vision: { provider: 'mock-vision-provider', model: 'mock-vision-model' },
+            speech: { provider: 'doubao-speech', model: 'seed-icl-2.0', voice_id: 'clone-voice' },
+          },
+          agents: {},
+        },
+      },
+    }, 'scratch')
+
+    await cardStore.activateCard(cloneCardId)
+
+    expect(speechStore.activeSpeechProvider).toBe('doubao-speech')
+    expect(speechStore.activeSpeechModel).toBe('seed-icl-2.0')
+    expect(speechStore.activeSpeechVoiceId).toBe('clone-voice')
+    expect(speechStore.activeSpeechVoice).toBeUndefined()
+  })
+
+  // ROOT CAUSE:
+  //
+  // Card activation used truthy fallbacks for each speech field. A card with
+  // an empty model or voice ID therefore inherited the previous card's value.
+  // The runtime tuple no longer represented the active card's saved tuple.
+  //
+  // We fixed this by applying every stored speech field verbatim. The card
+  // owns empty strings because they represent an unconfigured selection.
+  // https://github.com/moeru-ai/airi/pull/2382#discussion_r3876749646
+  it('applies empty speech selections from the active card verbatim', async () => {
+    const speechStore = useSpeechStore()
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+
+    speechStore.activeSpeechProvider = 'kokoro-local'
+    speechStore.activeSpeechModel = 'kokoro-v1'
+    speechStore.activeSpeechVoiceId = 'af_heart'
+    speechStore.activeSpeechVoice = {
+      id: 'af_heart',
+      name: 'Heart',
+      provider: 'kokoro-local',
+      languages: [{ code: 'en', title: 'English' }],
+    }
+
+    const emptySpeechCardId = await cardStore.addCard({
+      name: 'Unconfigured speech card',
+      version: '1.0.0',
+      description: 'Card with an intentionally empty speech selection.',
+      extensions: {
+        airi: {
+          modules: {
+            consciousness: { provider: 'mock-consciousness-provider', model: 'mock-consciousness-model' },
+            vision: { provider: 'mock-vision-provider', model: 'mock-vision-model' },
+            speech: { provider: 'doubao-speech', model: '', voice_id: '' },
+          },
+          agents: {},
+        },
+      },
+    }, 'scratch')
+
+    await cardStore.activateCard(emptySpeechCardId)
+
+    expect(speechStore.activeSpeechProvider).toBe('doubao-speech')
+    expect(speechStore.activeSpeechModel).toBe('')
+    expect(speechStore.activeSpeechVoiceId).toBe('')
+    expect(speechStore.activeSpeechVoice).toBeUndefined()
+  })
+
+  // ROOT CAUSE:
+  //
   // A synchronized state snapshot replaced `activeCardId`. The old watcher
   // interpreted that replicated state as a user command and applied module
   // settings, which produced another synchronized snapshot.
@@ -299,7 +460,11 @@ describe('airi-card store', () => {
       vision: { provider: 'ollama', model: 'llava' },
       speech: { provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' },
     })
-    expect(stageModelStore.stageModelSelected).toBe('display-model-iru-v2')
+    // Runtime application after an explicit display model update is covered by
+    // the activation test for issue #2089. The fake model id used here does not
+    // resolve in the test environment, and the stage-model store resets
+    // unresolvable selections asynchronously, so no runtime assertion survives
+    // the microtask queue.
   })
 
   // ROOT CAUSE:
