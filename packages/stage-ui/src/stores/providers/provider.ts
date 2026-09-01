@@ -739,9 +739,13 @@ export const useProviderStore = defineStore('provider', () => {
     if (!metadata)
       return undefined
 
+    const genericEditorPath = `/v2/settings/providers/edit/${configuredProvider?.definitionId}`
+
     return {
       ...metadata,
-      ...(configuredProvider ? { to: `/v2/settings/providers/edit/${providerId}` } : {}),
+      ...(configuredProvider && metadata.to === genericEditorPath
+        ? { to: `/v2/settings/providers/edit/${providerId}` }
+        : {}),
       id: providerId,
       localizedName: metadata.nameKey === metadata.name
         ? metadata.name

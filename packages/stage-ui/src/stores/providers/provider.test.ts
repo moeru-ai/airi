@@ -2,7 +2,7 @@ import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Session, User } from 'better-auth'
 
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers/providers/official'
@@ -19,6 +19,10 @@ vi.mock('vue-i18n', () => ({
 describe('provider store synchronization boundary', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   // ROOT CAUSE:
@@ -105,6 +109,21 @@ describe('provider store synchronization boundary', () => {
     await vi.waitFor(() => {
       expect(store.availableProvidersMetadata.find(provider => provider.id === providerId)?.to)
         .toBe(`/v2/settings/providers/edit/${providerId}`)
+    })
+  })
+
+  it('preserves the dedicated Web Speech API settings route after configuration', async () => {
+    vi.stubGlobal('window', { SpeechRecognition: class {} })
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    const providerId = 'browser-web-speech-api'
+    configStore.ensureProvider(providerId, providerId, {})
+    configStore.setProviderStatus(providerId, 'configured')
+
+    await vi.waitFor(() => {
+      const provider = store.allAudioTranscriptionProvidersMetadata.find(provider => provider.id === providerId)
+      expect(provider).toBeDefined()
+      expect(provider?.to).toBeUndefined()
     })
   })
 
