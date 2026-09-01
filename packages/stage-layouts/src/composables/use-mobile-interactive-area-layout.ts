@@ -39,12 +39,14 @@ export function useMobileInteractiveAreaLayout(options: UseMobileInteractiveArea
   const { height: messageComposerHeight } = useElementSize(options.messageComposer, undefined, { box: 'border-box' })
   const {
     keyboardVisible,
+    stableViewportHeight,
     visibleHeight,
     viewportBottom,
     viewportOffsetTop,
   } = useAdaptiveInput({
     area: options.area,
     enabled,
+    overlayVirtualKeyboard: false,
     viewport: options.viewport,
   })
 
@@ -135,6 +137,7 @@ export function useMobileInteractiveAreaLayout(options: UseMobileInteractiveArea
     controlsIslandStyle,
     keyboardVisible,
     messageComposerStyle,
+    stableViewportHeight,
     viewportOffsetTop,
     viewportStyle,
   }
