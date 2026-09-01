@@ -64,3 +64,9 @@ const gamelets = {
 ```
 
 The shared artifact is the Eventa API contract, not the implementation function. Local clients may call `gameletKitService` directly; remote clients call the same API through Eventa. Both should expose the same authoring shape.
+
+## Extension host loaders
+
+`ExtensionHost` does not select a loader when you construct it. Pass a loader when you call `host.start(manifest)`. Use `BundledExtensionLoader` for Web or Pocket and `FileSystemLoader` for Desktop extension files.
+
+`host.startExtension(extension, options)` accepts an extension object directly. It does not need a loader. This split is intentional and applies to every internal consumer of the private SDK package.
