@@ -14,6 +14,13 @@ const localAudioConfigSchema = z.object({
 
 type LocalAudioConfig = z.input<typeof localAudioConfigSchema>
 
+const funASRAudioConfigSchema = z.object({
+  apiKey: z.string().optional(),
+  baseUrl: z.string().optional().default('http://localhost:8000/v1/'),
+})
+
+type FunASRAudioConfig = z.input<typeof funASRAudioConfigSchema>
+
 function createLocalAudioConfigSchema(t: ComposerTranslation) {
   return localAudioConfigSchema.extend({
     apiKey: localAudioConfigSchema.shape.apiKey.meta({
@@ -23,6 +30,22 @@ function createLocalAudioConfigSchema(t: ComposerTranslation) {
       type: 'password',
     }),
     baseUrl: localAudioConfigSchema.shape.baseUrl.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
+    }),
+  })
+}
+
+function createFunASRAudioConfigSchema(t: ComposerTranslation) {
+  return funASRAudioConfigSchema.extend({
+    apiKey: funASRAudioConfigSchema.shape.apiKey.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+      type: 'password',
+    }),
+    baseUrl: funASRAudioConfigSchema.shape.baseUrl.meta({
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
@@ -157,4 +180,56 @@ export const providerBrowserLocalAudioTranscription = defineProvider<LocalAudioC
   createProviderConfig: ({ t }) => createLocalAudioConfigSchema(t),
   createProvider: createLocalTranscriptionProvider,
   validators: createLocalAudioValidators(),
+})
+
+export const providerFunASRAudioTranscription = defineProvider<FunASRAudioConfig>({
+  id: 'funasr-audio-transcription',
+  name: 'FunASR',
+  nameLocalize: () => 'FunASR',
+  description: 'Local FunASR transcription through its OpenAI-compatible API.',
+  descriptionLocalize: () => 'Local FunASR transcription through its OpenAI-compatible API.',
+  tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+  icon: 'i-lobe-icons:openai',
+  requiresCredentials: false,
+  settingsPath: '/v2/settings/providers/edit/funasr-audio-transcription',
+  capabilities: {
+    transcription: {
+      protocol: 'http',
+      generateOutput: true,
+      streamOutput: false,
+      streamInput: false,
+    },
+  },
+  createProviderConfig: ({ t }) => createFunASRAudioConfigSchema(t),
+  createProvider: createLocalTranscriptionProvider,
+  validationRequiredWhen: () => false,
+  validators: createLocalAudioValidators(),
+  extraMethods: {
+    listModels: async () => [
+      {
+        id: 'SenseVoiceSmall',
+        name: 'SenseVoice Small',
+        provider: 'funasr-audio-transcription',
+        description: 'Multilingual speech recognition, language identification, and emotion recognition.',
+        contextLength: 0,
+        deprecated: false,
+      },
+      {
+        id: 'fun-asr-nano',
+        name: 'Fun-ASR-Nano',
+        provider: 'funasr-audio-transcription',
+        description: 'OpenAI-compatible speech recognition served by FunASR.',
+        contextLength: 0,
+        deprecated: false,
+      },
+      {
+        id: 'paraformer-zh',
+        name: 'Paraformer Chinese',
+        provider: 'funasr-audio-transcription',
+        description: 'Chinese speech recognition served by FunASR.',
+        contextLength: 0,
+        deprecated: false,
+      },
+    ],
+  },
 })
