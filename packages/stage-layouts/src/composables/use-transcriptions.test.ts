@@ -29,9 +29,14 @@ function createMockPipeline() {
     removeStreamingTranscriptionConsumer: vi.fn(),
     transcribeForMediaStream: vi.fn().mockImplementation((_stream, options: MockStreamingCallbacks) => {
       options.onSentenceEnd(mockTranscribedContent)
+      return { started: true }
     }),
     stopStreamingTranscription: vi.fn().mockResolvedValue(undefined),
+    // Defaults to no remaining owners, so teardown stops the shared session.
+    hasStreamingTranscriptionConsumers: vi.fn().mockReturnValue(false),
     supportsStreamInput: ref(true),
+    // The pipeline reports startup failures here instead of throwing.
+    error: ref<string | undefined>(undefined),
   }
 }
 
@@ -49,6 +54,19 @@ let mockHearingStore: ReturnType<typeof createMockStore>
 let mockHearingPipeline: ReturnType<typeof createMockPipeline>
 let mockAudioDevice: ReturnType<typeof createMockAudioDevice>
 let mockProvidersStore: ReturnType<typeof createMockStore>
+
+/**
+ * Drains queued microtasks so multi-await composable work can settle.
+ *
+ * These tests run with fake timers, so `flushPromises` from `@vue/test-utils`
+ * would block on a `setTimeout` that never fires. The iteration count is
+ * generous because start and stop are queued, which adds a microtask hop per
+ * chained operation on top of each `await` inside them.
+ */
+async function settleAsyncWork() {
+  for (let index = 0; index < 40; index += 1)
+    await nextTick()
+}
 
 // Mock the modules
 vi.mock('@proj-airi/stage-ui/stores/modules/hearing', () => ({
@@ -193,7 +211,7 @@ describe('useTranscriptions', () => {
 
       await startStreamingTranscription()
 
-      await nextTick()
+      await settleAsyncWork()
       expect(isListening.value).toBe(true)
       expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalledWith(
         expect.objectContaining({ id: 'stream-1' }),
@@ -210,7 +228,7 @@ describe('useTranscriptions', () => {
       const { startStreamingTranscription } = useTranscriptions(createOptions())
 
       await startStreamingTranscription()
-      await nextTick()
+      await settleAsyncWork()
 
       expect(mockAudioDevice.askPermission).toHaveBeenCalled()
       expect(mockAudioDevice.startStream).toHaveBeenCalled()
@@ -230,13 +248,15 @@ describe('useTranscriptions', () => {
       const { isListening, startStreamingTranscription } = useTranscriptions(createOptions())
 
       await startStreamingTranscription()
-      await nextTick()
+      await settleAsyncWork()
 
       expect(isListening.value).toBe(false)
     })
   })
 
   describe('transcription & Input', () => {
+    // Microphone input is already enabled in these tests, so creating the
+    // composable auto-starts the streaming session; no manual start exists.
     it('should append transcribed text to messageInputRef', async () => {
       const mockInput = ref('')
       mockHearingStore.configured.value = true
@@ -244,11 +264,8 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { startStreamingTranscription }
-        = useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
-
-      await startStreamingTranscription()
-      await nextTick()
+      useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
+      await settleAsyncWork()
 
       expect(mockInput.value).toBe(mockTranscribedContent)
     })
@@ -261,11 +278,8 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { startStreamingTranscription }
-        = useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
-
-      await startStreamingTranscription()
-      await nextTick()
+      useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
+      await settleAsyncWork()
 
       expect(mockInput.value).toBe(`${prependText} ${mockTranscribedContent}`)
     })
@@ -287,12 +301,11 @@ describe('useTranscriptions', () => {
         options.onTranscriptionUpdate?.('今天天气很好')
         observedInputs.push(mockInput.value)
         options.onSentenceEnd('今天天气很好')
+        return { started: true }
       })
 
-      const { startStreamingTranscription }
-        = useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
-
-      await startStreamingTranscription()
+      useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
+      await settleAsyncWork()
 
       expect(observedInputs).toEqual(['prefix 今天天气很号', 'prefix 今天天气很好'])
       expect(mockInput.value).toBe('prefix 今天天气很好')
@@ -309,12 +322,11 @@ describe('useTranscriptions', () => {
         mockInput.value = 'manual edit'
         options.onTranscriptionUpdate?.('provider correction')
         options.onSentenceEnd('provider final')
+        return { started: true }
       })
 
-      const { startStreamingTranscription }
-        = useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
-
-      await startStreamingTranscription()
+      useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
+      await settleAsyncWork()
 
       expect(mockInput.value).toBe('manual edit')
     })
@@ -330,11 +342,8 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { startStreamingTranscription }
-        = useTranscriptions({ ...createOptions(), messageInputRef: mockInput, sendMessage: mockSendMessage })
-
-      await startStreamingTranscription()
-      await nextTick()
+      useTranscriptions({ ...createOptions(), messageInputRef: mockInput, sendMessage: mockSendMessage })
+      await settleAsyncWork()
 
       expect(mockSendMessage).not.toHaveBeenCalled()
 
@@ -354,11 +363,8 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { startStreamingTranscription }
-        = useTranscriptions({ ...createOptions(), messageInputRef: mockInput, sendMessage: mockSendMessage })
-
-      await startStreamingTranscription()
-      await nextTick()
+      useTranscriptions({ ...createOptions(), messageInputRef: mockInput, sendMessage: mockSendMessage })
+      await settleAsyncWork()
 
       // Disable auto-send before timeout
       mockHearingStore.autoSendEnabled.value = false
@@ -379,14 +385,288 @@ describe('useTranscriptions', () => {
       const { isListening, startStreamingTranscription, stopStreamingTranscription } = useTranscriptions(createOptions())
 
       await startStreamingTranscription()
-      await nextTick()
+      await settleAsyncWork()
       expect(isListening.value).toBe(true)
 
       await stopStreamingTranscription()
-      await nextTick()
+      await settleAsyncWork()
       expect(isListening.value).toBe(false)
       expect(mockHearingPipeline.stopStreamingTranscription).toHaveBeenCalledWith(true)
       expect(mockHearingPipeline.removeStreamingTranscriptionConsumer).toHaveBeenCalledOnce()
+    })
+
+    // ROOT CAUSE:
+    //
+    // If the microphone is turned off while startStreaming() is still awaiting
+    // permission, provider setup, or session creation, the session survives
+    // teardown and keeps transcribing in the background.
+    // This happens because stopStreaming() guards on isListening, which is only
+    // set after the final await in startStreaming():
+    //
+    //   removeStreamingTranscriptionConsumer(id)
+    //   if (!isListening.value) return   // <- pending start is not listening yet
+    //
+    // So the stop removed a consumer that the pending start had not registered
+    // yet, returned early, and the start then registered its consumer and set
+    // isListening = true after teardown had already finished.
+    //
+    // We fixed this by rechecking ownership at every resume point in
+    // startStreaming() and discarding a session that was created after the
+    // surface stopped wanting one.
+    it('discards a session created after the microphone was turned off mid-startup', async () => {
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = false
+      mockHearingPipeline.supportsStreamInput.value = true
+
+      let releaseSession: (() => void) | undefined
+      const sessionPending = new Promise<void>((resolve) => {
+        releaseSession = resolve
+      })
+      mockHearingPipeline.transcribeForMediaStream.mockImplementation(async () => {
+        await sessionPending
+        return { started: true }
+      })
+
+      const { isListening } = useTranscriptions(createOptions())
+
+      // Enabling suspends startStreaming inside session creation.
+      mockAudioDevice.enabled.value = true
+      await settleAsyncWork()
+      expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalled()
+      expect(isListening.value).toBe(false)
+
+      // Turn the microphone off while that session is still coming up.
+      mockAudioDevice.enabled.value = false
+      await settleAsyncWork()
+
+      // The session finishes starting only after teardown already ran.
+      releaseSession?.()
+      await settleAsyncWork()
+
+      expect(isListening.value).toBe(false)
+      expect(mockHearingPipeline.stopStreamingTranscription).toHaveBeenCalledWith(true)
+    })
+
+    it('discards a session created after the scope was disposed mid-startup', async () => {
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = true
+      mockHearingPipeline.supportsStreamInput.value = true
+
+      let releaseSession: (() => void) | undefined
+      const sessionPending = new Promise<void>((resolve) => {
+        releaseSession = resolve
+      })
+      mockHearingPipeline.transcribeForMediaStream.mockImplementation(async () => {
+        await sessionPending
+        return { started: true }
+      })
+
+      const app = mount({
+        setup() {
+          useTranscriptions(createOptions())
+          return () => null
+        },
+      })
+      await settleAsyncWork()
+      expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalled()
+
+      app.unmount()
+      await settleAsyncWork()
+
+      releaseSession?.()
+      await settleAsyncWork()
+
+      expect(mockHearingPipeline.stopStreamingTranscription).toHaveBeenCalledWith(true)
+      expect(mockHearingPipeline.removeStreamingTranscriptionConsumer).toHaveBeenCalled()
+    })
+
+    // ROOT CAUSE:
+    //
+    // If the microphone is toggled off and on again before startup settles, the
+    // superseded start resumes and continues, so two starts reach
+    // transcribeForMediaStream. On the Web Speech path each can create a
+    // recognition session while the pipeline tracks only the last one, leaving
+    // the first running untracked and unstoppable.
+    // This happened because the cancellation predicate read only current state:
+    //
+    //   return disposed || !hearingEnabled.value
+    //
+    // Once the microphone was switched back on, `hearingEnabled` was true again
+    // and the old start read as valid.
+    //
+    // We fixed this by stamping each start with a generation and invalidating
+    // superseded starts permanently, independent of the current flag.
+    it('never runs two startups concurrently across rapid microphone toggles', async () => {
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = false
+      mockHearingPipeline.supportsStreamInput.value = true
+
+      // Probe concurrency directly: the invariant is that no two startups are
+      // ever inside session creation at the same time, whichever guard enforces
+      // it. Asserting a call count would instead pin the test to one mechanism.
+      let activeStartups = 0
+      let peakConcurrentStartups = 0
+      let openSession: (() => void) | undefined
+      const sessionPending = new Promise<void>((resolve) => {
+        openSession = resolve
+      })
+      mockHearingPipeline.transcribeForMediaStream.mockImplementation(async () => {
+        activeStartups += 1
+        peakConcurrentStartups = Math.max(peakConcurrentStartups, activeStartups)
+        await sessionPending
+        activeStartups -= 1
+        return { started: true }
+      })
+
+      useTranscriptions(createOptions())
+
+      // First startup suspends inside session creation.
+      mockAudioDevice.enabled.value = true
+      await settleAsyncWork()
+      expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalled()
+
+      // Toggle off and on again while that startup is still settling.
+      mockAudioDevice.enabled.value = false
+      await settleAsyncWork()
+      mockAudioDevice.enabled.value = true
+      await settleAsyncWork()
+
+      openSession?.()
+      await settleAsyncWork()
+
+      expect(peakConcurrentStartups).toBe(1)
+    })
+
+    // ROOT CAUSE:
+    //
+    // A breakpoint change swaps InteractiveArea for MobileInteractiveArea while
+    // the microphone stays enabled. The replacement registers its own consumer
+    // on the shared pipeline, and the disposed surface then called the global
+    // stopStreamingTranscription(true), tearing down the replacement's session.
+    // That surface stayed marked as listening with nothing running behind it
+    // until the user toggled the microphone again.
+    //
+    // We fixed this by removing the outgoing consumer first and stopping the
+    // shared session only when no owner remains.
+    it('leaves the shared session running when another surface still owns it', async () => {
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = true
+      mockHearingPipeline.supportsStreamInput.value = true
+
+      let openSession: (() => void) | undefined
+      const sessionPending = new Promise<void>((resolve) => {
+        openSession = resolve
+      })
+      mockHearingPipeline.transcribeForMediaStream.mockImplementation(async () => {
+        await sessionPending
+        return { started: true }
+      })
+
+      const app = mount({
+        setup() {
+          useTranscriptions(createOptions())
+          return () => null
+        },
+      })
+      await settleAsyncWork()
+
+      // The breakpoint swap disposes this surface, and the replacement surface
+      // registers its own consumer against the same pipeline.
+      app.unmount()
+      mockHearingPipeline.hasStreamingTranscriptionConsumers.mockReturnValue(true)
+      await settleAsyncWork()
+
+      openSession?.()
+      await settleAsyncWork()
+
+      expect(mockHearingPipeline.removeStreamingTranscriptionConsumer).toHaveBeenCalled()
+      expect(mockHearingPipeline.stopStreamingTranscription).not.toHaveBeenCalled()
+    })
+
+    // ROOT CAUSE:
+    //
+    // If the pipeline fails to start a session, the surface still showed itself
+    // as listening with nothing running behind it, and never retried.
+    // transcribeForMediaStream catches provider-configuration and construction
+    // failures, records them on its error ref, and resolves normally rather
+    // than rethrowing, so this caller's catch block never ran:
+    //
+    //   await transcribeForMediaStream(...)
+    //   isListening.value = true   // <- reached even though setup failed
+    //
+    // Startup is driven only by the microphone flag, so nothing recovered until
+    // the user toggled it off and on again.
+    //
+    // We fixed this by checking the pipeline error before accepting startup.
+    it('does not report listening when the pipeline records a startup failure', async () => {
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = true
+      mockHearingPipeline.supportsStreamInput.value = true
+
+      // Resolves normally while reporting failure, exactly as the pipeline does.
+      mockHearingPipeline.transcribeForMediaStream.mockImplementation(async () => {
+        mockHearingPipeline.error.value = 'Provider is not configured correctly'
+        return { started: false, error: 'Provider is not configured correctly' }
+      })
+
+      const { isListening } = useTranscriptions(createOptions())
+      await settleAsyncWork()
+
+      expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalled()
+      expect(isListening.value).toBe(false)
+      expect(mockHearingPipeline.removeStreamingTranscriptionConsumer).toHaveBeenCalled()
+    })
+
+    // ROOT CAUSE:
+    //
+    // Re-enabling the microphone before a stop settled let the stop finish
+    // after the replacement start, aborting the session that start had just
+    // created and clearing its listening state.
+    // Vue does not serialize watcher runs, so both ran concurrently:
+    //
+    //   await stopStreamingTranscription(true)
+    //   isListening.value = false   // <- lands after the replacement started
+    //
+    // For VAD providers the stop also disposes the old session and awaits its
+    // lifecycle before stopping the current realtime session, so the abort hits
+    // the replacement's session rather than the one being torn down.
+    //
+    // We fixed this by queueing start and stop so each observes the previous
+    // operation's finished state.
+    it('does not let a settling stop clear a replacement start', async () => {
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = true
+      mockHearingPipeline.supportsStreamInput.value = true
+
+      let finishStop: (() => void) | undefined
+      const stopPending = new Promise<void>((resolve) => {
+        finishStop = resolve
+      })
+      mockHearingPipeline.stopStreamingTranscription.mockImplementation(async () => {
+        await stopPending
+      })
+
+      const { isListening } = useTranscriptions(createOptions())
+      await settleAsyncWork()
+      expect(isListening.value).toBe(true)
+
+      // Disable, then re-enable before the stop settles.
+      mockAudioDevice.enabled.value = false
+      await settleAsyncWork()
+      mockAudioDevice.enabled.value = true
+      await settleAsyncWork()
+
+      finishStop?.()
+      await settleAsyncWork()
+
+      // The replacement start owns the session, so its state must survive.
+      expect(isListening.value).toBe(true)
     })
 
     it('should stop streaming on unmount', async () => {
@@ -402,17 +682,78 @@ describe('useTranscriptions', () => {
         },
         template: '<div></div>',
       })
-      await nextTick()
+      await settleAsyncWork()
       expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalled()
 
       app.unmount()
-      await nextTick()
+      await settleAsyncWork()
       expect(mockHearingPipeline.stopStreamingTranscription).toHaveBeenCalled()
       expect(mockHearingPipeline.removeStreamingTranscriptionConsumer).toHaveBeenCalled()
     })
   })
 
   describe('reactive watchers', () => {
+    // ROOT CAUSE:
+    //
+    // If nothing calls startStreamingTranscription, live speech input can
+    // never start and the Web Speech API fallback is unreachable.
+    // This happened because PR #2014 removed the transcription toggle button
+    // and its `toggleTranscription` emit from HearingConfig, while ChatArea
+    // and MobileInteractiveArea kept binding `@toggle-transcription` to it.
+    // Vue drops listeners for events a component never emits, so the binding
+    // was silently dead and `isListening` could never become true.
+    //
+    // We fixed this by starting streaming transcription from a watcher on the
+    // microphone `enabled` state inside useTranscriptions, so enabling the
+    // microphone is the single entry point for live speech input.
+    it('starts streaming when microphone input becomes enabled', async () => {
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = false
+      mockHearingPipeline.supportsStreamInput.value = true
+
+      const { isListening } = useTranscriptions(createOptions())
+
+      expect(mockHearingPipeline.transcribeForMediaStream).not.toHaveBeenCalled()
+
+      mockAudioDevice.enabled.value = true
+      await settleAsyncWork()
+      await settleAsyncWork()
+
+      expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalled()
+      expect(isListening.value).toBe(true)
+    })
+
+    it('starts streaming on setup when microphone input is already enabled', async () => {
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = true
+      mockHearingPipeline.supportsStreamInput.value = true
+
+      const { isListening } = useTranscriptions(createOptions())
+      await settleAsyncWork()
+
+      expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalled()
+      expect(isListening.value).toBe(true)
+    })
+
+    it('falls back to Web Speech API when the microphone is enabled with no provider configured', async () => {
+      mockHearingStore.configured.value = false
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = false
+
+      useTranscriptions(createOptions())
+
+      mockAudioDevice.enabled.value = true
+      await settleAsyncWork()
+      await settleAsyncWork()
+      await settleAsyncWork()
+
+      expect(mockProvidersStore.initializeProvider).toHaveBeenCalledWith('browser-web-speech-api')
+      expect(mockHearingStore.activeTranscriptionProvider).toBe('browser-web-speech-api')
+      expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalled()
+    })
+
     it('should stop listening if microphone is disabled', async () => {
       mockHearingStore.configured.value = true
       mockAudioDevice.stream.value = { id: 'stream-1' } as any
@@ -423,12 +764,12 @@ describe('useTranscriptions', () => {
 
       await startStreamingTranscription()
 
-      await nextTick()
+      await settleAsyncWork()
       expect(isListening.value).toBe(true)
 
       mockAudioDevice.enabled.value = false
 
-      await nextTick()
+      await settleAsyncWork()
       expect(isListening.value).toBe(false)
     })
   })

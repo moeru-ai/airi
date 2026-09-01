@@ -20,7 +20,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
   const hearingStore = useHearingStore()
   const audioDeviceSettingsStore = useSettingsAudioDevice()
   const hearingPipeline = useHearingSpeechInputPipeline()
-  const { removeStreamingTranscriptionConsumer, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
+  const { removeStreamingTranscriptionConsumer, hasStreamingTranscriptionConsumers, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
   const { supportsStreamInput } = storeToRefs(hearingPipeline)
   const { configured: hearingConfigured, autoSendEnabled, autoSendDelay } = storeToRefs(hearingStore)
   const { enabled: hearingEnabled, stream } = storeToRefs(audioDeviceSettingsStore)
@@ -60,6 +60,77 @@ export function useTranscriptions(options: TranscriptionOptions) {
     }, autoSendDelay.value)
   }
 
+  // Startup is asynchronous: it can await a permission prompt, provider
+  // initialization, a stream that takes seconds to arrive, and session setup.
+  // Teardown cannot cancel that work through `isListening`, which stays false
+  // until the last step, so `stopStreaming` would return early and the pending
+  // start would then register its consumer and activate a session after the
+  // surface stopped wanting one. Every resume point therefore revalidates the
+  // start, and the two ways a start goes stale need opposite handling.
+  let disposed = false
+  let latestStartGeneration = 0
+
+  /**
+   * Serializes start and stop so neither observes the other mid-flight.
+   *
+   * Vue does not serialize watcher runs, so a rapid off/on can begin a
+   * replacement start while the previous stop is still settling. For VAD
+   * providers `stopStreamingTranscription` disposes the old session and awaits
+   * its lifecycle before stopping the current realtime session, so a stop that
+   * overlaps a start aborts the session that start just created, and its
+   * trailing `isListening = false` clears the replacement's state. Queueing
+   * makes each operation observe the previous one's finished state.
+   */
+  let pendingOperation: Promise<unknown> = Promise.resolve()
+
+  function enqueueOperation<T>(operation: () => Promise<T>) {
+    // Chain off settlement, not success, so one failure cannot wedge the queue.
+    const result = pendingOperation.then(operation, operation)
+    pendingOperation = result.catch(() => undefined)
+    return result
+  }
+
+  /**
+   * A newer start replaced this one, which happens when the microphone is
+   * toggled off and on again before startup settles. Both starts share this
+   * composable's single consumer id, so the superseded one must not touch the
+   * registration or the session: the newer start owns both. The generation is
+   * what keeps the old start invalidated, because `hearingEnabled` alone reads
+   * as valid again the moment the flag flips back to true.
+   */
+  function startSuperseded(generation: number) {
+    return generation !== latestStartGeneration
+  }
+
+  /** True once the surface no longer wants an active transcription session. */
+  function startCancelled() {
+    return disposed || !hearingEnabled.value
+  }
+
+  /** Releases a session created by a start that was cancelled mid-flight. */
+  const discardCancelledSession = async () => {
+    removeStreamingTranscriptionConsumer(transcriptionConsumerId)
+    streamingInput.clear()
+    clearPendingAutoSend()
+
+    // A different chat surface can own the shared session: a breakpoint change
+    // swaps InteractiveArea for MobileInteractiveArea, and the replacement
+    // registers its own consumer while this start is still settling. Stopping
+    // is global, so doing it here would tear down that surface's session and
+    // leave it marked listening with nothing running behind it.
+    if (hasStreamingTranscriptionConsumers()) {
+      console.info('Leaving the streaming session to its remaining consumers', { source: 'useTranscriptions' })
+      return
+    }
+
+    try {
+      await stopStreamingTranscription(true)
+    }
+    catch (err) {
+      console.error('Error discarding cancelled transcription session:', err, { source: 'useTranscriptions' })
+    }
+  }
+
   const stopStreaming = async () => {
     removeStreamingTranscriptionConsumer(transcriptionConsumerId)
     streamingInput.clear()
@@ -70,6 +141,15 @@ export function useTranscriptions(options: TranscriptionOptions) {
     try {
       console.info('Stopping transcription...', { source: 'useTranscriptions' })
       clearPendingAutoSend()
+
+      // Same global-stop hazard as discardCancelledSession: a replacement
+      // surface may already have registered against this session.
+      if (hasStreamingTranscriptionConsumers()) {
+        isListening.value = false
+        console.info('Released the streaming session to its remaining consumers', { source: 'useTranscriptions' })
+        return
+      }
+
       await stopStreamingTranscription(true)
       isListening.value = false
       console.info('Transcription stopped', { source: 'useTranscriptions' })
@@ -81,6 +161,8 @@ export function useTranscriptions(options: TranscriptionOptions) {
   }
 
   const startStreaming = async () => {
+    const generation = ++latestStartGeneration
+
     console.info('Starting streaming transcription', {
       enabled: hearingEnabled.value,
       hasStream: !!stream.value,
@@ -130,6 +212,13 @@ export function useTranscriptions(options: TranscriptionOptions) {
       console.info('Web Speech API configured as default provider', { source: 'useTranscriptions' })
     }
 
+    // Provider setup awaited above. Leave `isListening` untouched when the
+    // start is cancelled: a newer start may already own the session.
+    if (startSuperseded(generation) || startCancelled()) {
+      console.info('Abandoning transcription start: it was superseded or the microphone is no longer active', { source: 'useTranscriptions' })
+      return
+    }
+
     // Check if streaming input is supported
     // TODO: implement non-streaming transcription
     if (!supportsStreamInput.value) {
@@ -168,6 +257,13 @@ export function useTranscriptions(options: TranscriptionOptions) {
       isListening.value = false
     }
 
+    // The permission prompt and the stream wait above can span seconds, which
+    // is the widest window for the microphone to be turned off again.
+    if (startSuperseded(generation) || startCancelled()) {
+      console.info('Abandoning transcription start: it was superseded or the microphone is no longer active', { source: 'useTranscriptions' })
+      return
+    }
+
     if (!stream.value) {
       const errorMsg = 'Failed to get audio stream for transcription. Please check microphone permissions and ensure a device is selected.'
       console.error(errorMsg, { source: 'useTranscriptions' })
@@ -181,7 +277,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
     // Call transcribeForMediaStream - it's async so we await it
     // Set listening state AFTER successful call
     try {
-      await transcribeForMediaStream(stream.value, {
+      const startResult = await transcribeForMediaStream(stream.value, {
         consumerId: transcriptionConsumerId,
         onSentenceEnd: (delta) => {
           if (streamingInput.commit(delta)) {
@@ -192,6 +288,36 @@ export function useTranscriptions(options: TranscriptionOptions) {
         onSpeechEnd: streamingInput.clear,
         onTranscriptionUpdate: streamingInput.replace,
       })
+
+      // A newer start owns the shared consumer registration and the session it
+      // established, so this one exits without disturbing either.
+      if (startSuperseded(generation)) {
+        console.info('Abandoning transcription start: a newer start owns the session', { source: 'useTranscriptions' })
+        return
+      }
+
+      // The consumer is registered and the session is live at this point, so a
+      // cancellation observed now has to be undone rather than returned from.
+      if (startCancelled()) {
+        console.info('Discarding transcription session: microphone input was turned off during startup', { source: 'useTranscriptions' })
+        await discardCancelledSession()
+        return
+      }
+
+      // transcribeForMediaStream reports provider-configuration and session
+      // construction failures in its result and resolves normally, so the catch
+      // below never sees them. Without this check a failed startup would be
+      // marked as listening with no session behind it, and because startup is
+      // driven only by the microphone flag nothing would retry until the user
+      // toggled it. The result is read instead of the store's shared `error`
+      // ref, which a concurrent call can overwrite while this one waits.
+      if (!startResult.started) {
+        console.error('Transcription pipeline reported a startup failure:', startResult.error, { source: 'useTranscriptions' })
+        streamingInput.clear()
+        removeStreamingTranscriptionConsumer(transcriptionConsumerId)
+        isListening.value = false
+        return
+      }
 
       // Only set listening to true if transcription started successfully
       // (transcribeForMediaStream might return early if session already exists)
@@ -214,22 +340,42 @@ export function useTranscriptions(options: TranscriptionOptions) {
     }
   })
 
-  // Watch for auto-send setting changes and clear pending sends if disabled
-  watch(hearingEnabled, async (enabled) => {
-    if (!enabled) {
-      await stopStreaming()
+  // The chat surface owns streaming transcription: the microphone `enabled`
+  // state is the only entry point. The manual transcription toggle was removed
+  // from HearingConfig in #2014, so without this watcher live speech input can
+  // never start. Page-level audio pipelines (stage-web/stage-pocket index
+  // pages) keep the recorder-based path for providers without stream input and
+  // must not register their own streaming consumers.
+  watch(hearingEnabled, async (enabled, wasEnabled) => {
+    if (enabled) {
+      try {
+        await enqueueOperation(startStreaming)
+      }
+      catch (err) {
+        console.error('Failed to start streaming transcription on microphone enable:', err, { source: 'useTranscriptions' })
+      }
+      return
+    }
+
+    // Skip the initial run: there is no session to stop yet.
+    if (wasEnabled !== undefined) {
+      await enqueueOperation(stopStreaming)
       console.info('Stopping streaming transcription because hearing is disabled.', { source: 'useTranscriptions' })
     }
-  })
+  }, { immediate: true })
 
   onScopeDispose(() => {
+    // Set before stopping so a start still in flight sees the disposal and
+    // releases whatever session it goes on to create.
+    disposed = true
     clearPendingAutoSend()
-    stopStreaming()
+    void enqueueOperation(stopStreaming)
   })
 
   return {
-    startStreamingTranscription: startStreaming,
-    stopStreamingTranscription: stopStreaming,
+    // Queued so external callers cannot interleave with the watcher either.
+    startStreamingTranscription: () => enqueueOperation(startStreaming),
+    stopStreamingTranscription: () => enqueueOperation(stopStreaming),
     isListening,
     autoSendEnabled,
   }
