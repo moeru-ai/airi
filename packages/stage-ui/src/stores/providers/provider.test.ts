@@ -92,6 +92,22 @@ describe('provider store synchronization boundary', () => {
     expect(getProviderCalls).toBe(0)
   })
 
+  it('routes a configured FunASR instance to its own editor', async () => {
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    const providerId = 'funasr-instance'
+    configStore.ensureProvider(providerId, 'funasr-audio-transcription', {
+      baseUrl: 'http://localhost:8000/v1/',
+      model: 'sensevoice',
+    })
+    configStore.setProviderStatus(providerId, 'configured')
+
+    await vi.waitFor(() => {
+      expect(store.availableProvidersMetadata.find(provider => provider.id === providerId)?.to)
+        .toBe(`/v2/settings/providers/edit/${providerId}`)
+    })
+  })
+
   // ROOT CAUSE:
   //
   // Module pages treated every credential-free provider as available before

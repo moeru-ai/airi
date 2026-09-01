@@ -741,6 +741,7 @@ export const useProviderStore = defineStore('provider', () => {
 
     return {
       ...metadata,
+      ...(configuredProvider ? { to: `/v2/settings/providers/edit/${providerId}` } : {}),
       id: providerId,
       localizedName: metadata.nameKey === metadata.name
         ? metadata.name
