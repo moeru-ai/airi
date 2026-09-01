@@ -1113,12 +1113,14 @@ defineExpose({
         ref="vrmViewerRef"
         v-model:state="componentState"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
+        :model-id="stageModelSelected"
         :model-src="stageModelSelectedUrl"
         :cursor-position="cursorPosition"
         :idle-animation="animations.idleLoop.toString()"
         :paused="paused"
         :show-axes="stageViewControlsEnabled"
         :enable-orbit-controls="props.enableOrbitControls"
+        :audio-context="audioContext"
         :current-audio-source="currentAudioSource"
         @error="console.error"
         @vrm-interact="onVRMInteract"
@@ -1162,6 +1164,7 @@ defineExpose({
         :paused="paused"
         :cursor-position="cursorPosition"
         :enable-orbit-controls="props.enableOrbitControls"
+        :audio-context="audioContext"
         :current-audio-source="currentAudioSource"
         @error="console.error"
       />
