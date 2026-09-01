@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import type { Live2DScreenAmbientLightMode, Live2DScreenAmbientLightSource } from '@proj-airi/stage-ui-live2d'
+import type { ScreenAmbientLightMode, ScreenAmbientLightSource } from '@proj-airi/stage-shared/screen-ambient-light'
 import type { SelectTabOption } from '@proj-airi/ui'
 
-import { live2dAmbientLightDefaults, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
+import { ambientLightDefaults } from '@proj-airi/stage-shared/screen-ambient-light'
+import { useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { ColorPicker, Section } from '@proj-airi/stage-ui/components'
 import { FieldCheckbox, FieldRange, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -18,7 +19,7 @@ const {
   live2dScreenAmbientLightStrength,
 } = storeToRefs(useSettingsLive2d())
 
-const sourceOptions = computed<SelectTabOption<Live2DScreenAmbientLightSource>[]>(() => [
+const sourceOptions = computed<SelectTabOption<ScreenAmbientLightSource>[]>(() => [
   {
     value: 'screen-capture',
     label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.source.options.screen-capture'),
@@ -28,7 +29,7 @@ const sourceOptions = computed<SelectTabOption<Live2DScreenAmbientLightSource>[]
     label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.source.options.forced-color'),
   },
 ])
-const modeOptions = computed<SelectTabOption<Live2DScreenAmbientLightMode>[]>(() => [
+const modeOptions = computed<SelectTabOption<ScreenAmbientLightMode>[]>(() => [
   {
     value: 'window-gradient',
     label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.mode.options.window-gradient'),
@@ -103,7 +104,7 @@ function formatMultiplier(value: number) {
       :min="0"
       :max="3"
       :step="0.01"
-      :default-value="live2dAmbientLightDefaults.strength"
+      :default-value="ambientLightDefaults.strength"
       :format-value="formatMultiplier"
       :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.strength.title')"
       :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.strength.description')"
