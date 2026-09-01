@@ -1,105 +1,150 @@
 <script setup lang="ts">
-import type { Live2DAmbientLightLobe, Live2DAmbientLightSample } from '@proj-airi/stage-ui-live2d'
+import type { AmbientLightMap } from '@proj-airi/stage-shared/screen-ambient-light'
+import type { ComponentPublicInstance } from 'vue'
 
 import type { ScreenAmbientLightDiagnosticsSnapshot } from '../../../../shared/screen-ambient-light-diagnostics'
 
-import { computed } from 'vue'
+import { ambientLightMapMargin } from '@proj-airi/stage-shared/screen-ambient-light'
+import { computed, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   sampling?: ScreenAmbientLightDiagnosticsSnapshot['sampling']
 }>()
 
+/**
+ * Part of a map that the AIRI window covers, as a fraction of the map.
+ *
+ * The map reaches half a window past every edge, so the window sits in the
+ * middle half of it. The outline marks that part, which is what the character
+ * stands in front of.
+ */
+const windowInsetStyle = {
+  left: `${(ambientLightMapMargin / (1 + 2 * ambientLightMapMargin)) * 100}%`,
+  top: `${(ambientLightMapMargin / (1 + 2 * ambientLightMapMargin)) * 100}%`,
+  width: `${(1 / (1 + 2 * ambientLightMapMargin)) * 100}%`,
+  height: `${(1 / (1 + 2 * ambientLightMapMargin)) * 100}%`,
+}
+
 const { t } = useI18n()
-const colors = computed(() => [
-  {
-    id: 'unweighted',
-    label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.colors.unweighted.title'),
-    description: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.colors.unweighted.description'),
-    lobe: undefined,
-    sample: props.sampling?.unweightedSample,
-  },
-  {
-    id: 'target',
-    label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.colors.target.title'),
-    description: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.colors.target.description'),
-    lobe: undefined,
-    sample: props.sampling?.targetSample,
-  },
-  {
-    id: 'applied',
-    label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.colors.applied.title'),
-    description: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.colors.applied.description'),
-    lobe: undefined,
-    sample: props.sampling?.appliedSample,
-  },
-  ...(props.sampling?.appliedLobes ?? []).map((lobe, index) => ({
-    id: `lobe-${index}`,
-    label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.colors.lobe.title', { index: index + 1 }),
-    description: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.colors.lobe.description'),
-    sample: lobe.sample,
-    lobe,
-  })),
-])
+// The canvases sit inside two nested v-for loops, so a keyed map is what
+// connects one drawing target to the row that owns it.
+const canvases = new Map<string, HTMLCanvasElement>()
+const maps = computed(() => (['surround', 'contact'] as const).map(kind => ({
+  id: kind,
+  label: t(`tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.maps.${kind}.title`),
+  description: t(`tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.maps.${kind}.description`),
+  rows: [
+    {
+      id: `${kind}-target`,
+      label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.maps.target'),
+      map: props.sampling?.targetEnvironment?.[kind],
+    },
+    {
+      id: `${kind}-applied`,
+      label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.maps.applied'),
+      map: props.sampling?.appliedEnvironment?.[kind],
+    },
+  ],
+})))
 
-function colorStyle(sample?: Live2DAmbientLightSample) {
-  return sample ? { backgroundColor: colorHex(sample) } : undefined
+watch(maps, async (current) => {
+  await nextTick()
+  for (const entry of current) {
+    for (const row of entry.rows) {
+      const canvas = canvases.get(row.id)
+      if (canvas && row.map)
+        drawMap(canvas, row.map)
+    }
+  }
+}, { immediate: true })
+
+function setCanvas(id: string, element: Element | ComponentPublicInstance | null) {
+  if (element instanceof HTMLCanvasElement)
+    canvases.set(id, element)
+  else
+    canvases.delete(id)
 }
 
-function colorHex(sample: Live2DAmbientLightSample) {
-  const channels = [sample.red, sample.green, sample.blue]
-    .map(channel => Math.round(channel * 255).toString(16).padStart(2, '0'))
-  return `#${channels.join('')}`
+/** Draws one map texel per canvas pixel. CSS scales it up without smoothing. */
+function drawMap(canvas: HTMLCanvasElement, map: AmbientLightMap) {
+  const context = canvas.getContext('2d')
+  if (!context)
+    return
+
+  const image = context.createImageData(map.width, map.height)
+  for (let texel = 0; texel < map.width * map.height; texel += 1) {
+    image.data[texel * 4] = toByte(map.data[texel * 3])
+    image.data[texel * 4 + 1] = toByte(map.data[texel * 3 + 1])
+    image.data[texel * 4 + 2] = toByte(map.data[texel * 3 + 2])
+    image.data[texel * 4 + 3] = 255
+  }
+  context.putImageData(image, 0, 0)
 }
 
-function colorRgb(sample: Live2DAmbientLightSample) {
-  return [sample.red, sample.green, sample.blue]
-    .map(channel => Math.round(channel * 255))
-    .join(', ')
-}
-
-function lobeDirection(lobe: Live2DAmbientLightLobe) {
-  return `${lobe.direction.x.toFixed(2)}, ${lobe.direction.y.toFixed(2)}`
+/** The map holds linear light, and a canvas expects the sRGB encoding. */
+function toByte(linear: number) {
+  const clamped = Math.min(1, Math.max(0, linear))
+  const encoded = clamped <= 0.0031308 ? clamped * 12.92 : 1.055 * clamped ** (1 / 2.4) - 0.055
+  return Math.round(encoded * 255)
 }
 </script>
 
 <template>
   <div :class="['grid gap-2']">
-    <div :class="['text-sm font-medium']">
-      {{ t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.colors.title') }}
+    <div>
+      <div :class="['text-sm font-medium']">
+        {{ t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.maps.title') }}
+      </div>
+      <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
+        {{ t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.maps.window') }}
+      </div>
     </div>
-    <div :class="['grid gap-2', 'md:grid-cols-3']">
+    <div :class="['grid gap-2', 'md:grid-cols-2']">
       <div
-        v-for="color in colors"
-        :key="color.id"
+        v-for="entry in maps"
+        :key="entry.id"
         :class="['grid gap-3 rounded-xl bg-neutral-100/70 p-3 dark:bg-neutral-800/70']"
       >
-        <div :class="['flex items-start gap-3']">
-          <div
-            :class="['size-10 shrink-0 rounded-lg border border-neutral-300 bg-transparent dark:border-neutral-700']"
-            :style="colorStyle(color.sample)"
-          />
-          <div :class="['min-w-0']">
-            <div :class="['text-sm font-medium']">
-              {{ color.label }}
-            </div>
-            <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
-              {{ color.description }}
-            </div>
+        <div>
+          <div :class="['text-sm font-medium']">
+            {{ entry.label }}
+          </div>
+          <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
+            {{ entry.description }}
           </div>
         </div>
-        <div v-if="color.sample" :class="['grid gap-1 font-mono text-xs tabular-nums']">
-          <div>{{ colorHex(color.sample) }}</div>
-          <div>RGB {{ colorRgb(color.sample) }}</div>
-          <div>L {{ color.sample.luminance.toFixed(3) }}</div>
-          <template v-if="color.lobe">
-            <div>I {{ color.lobe.intensity.toFixed(3) }}</div>
-            <div>D {{ lobeDirection(color.lobe) }}</div>
-            <div>C {{ color.lobe.coverage.toFixed(3) }}</div>
-          </template>
-        </div>
-        <div v-else :class="['text-xs text-neutral-500 dark:text-neutral-400']">
-          {{ t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.colors.unavailable') }}
+        <div :class="['grid grid-cols-2 gap-2']">
+          <div
+            v-for="row in entry.rows"
+            :key="row.id"
+            :class="['grid gap-1']"
+          >
+            <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
+              {{ row.label }}
+            </div>
+            <div
+              v-if="row.map"
+              :class="[
+                'relative overflow-hidden rounded-lg border border-neutral-300',
+                'dark:border-neutral-700',
+              ]"
+            >
+              <canvas
+                :ref="element => setCanvas(row.id, element)"
+                :width="row.map.width"
+                :height="row.map.height"
+                :class="['block h-auto w-full [image-rendering:pixelated]']"
+              />
+              <div
+                :class="['pointer-events-none absolute border border-white/70 mix-blend-difference']"
+                :style="windowInsetStyle"
+              />
+            </div>
+            <div v-else :class="['text-xs text-neutral-500 dark:text-neutral-400']">
+              {{ t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.maps.unavailable') }}
+            </div>
+          </div>
         </div>
       </div>
     </div>

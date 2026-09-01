@@ -4,7 +4,7 @@ import type {
 } from '../../shared/screen-ambient-light-diagnostics'
 
 import { useBroadcastChannel } from '@vueuse/core'
-import { onMounted, onUnmounted, readonly, shallowRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, shallowRef, watch } from 'vue'
 
 import { screenAmbientLightDiagnosticsChannelName } from '../../shared/screen-ambient-light-diagnostics'
 
@@ -41,7 +41,10 @@ export function useScreenAmbientLightDiagnostics() {
   })
 
   return {
-    diagnostics: readonly(diagnostics),
+    // A computed keeps the value read-only without wrapping the snapshot in a
+    // deep proxy. The snapshot carries a raw pixel buffer that the preview
+    // reads every pixel of, so a proxy would cost real time.
+    diagnostics: computed(() => diagnostics.value),
     requestCurrent,
   }
 }
