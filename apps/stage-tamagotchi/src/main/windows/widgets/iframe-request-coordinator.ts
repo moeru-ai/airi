@@ -5,6 +5,8 @@ import type {
 
 import { randomUUID } from 'node:crypto'
 
+import { errorMessageFrom } from '@moeru/std'
+
 const DEFAULT_WIDGET_IFRAME_REQUEST_TIMEOUT_MS = 30000
 const WIDGET_IFRAME_REQUEST_CLOSED_MESSAGE = 'Gamelet was closed before the request completed.'
 
@@ -25,6 +27,8 @@ export interface WidgetIframeRequestCoordinatorOptions {
   hasWidget: (id: string) => boolean
   /** Returns whether a renderer relay is available to receive iframe request events. */
   hasRelay: () => boolean
+  /** Waits until the widgets renderer has installed its request listener. */
+  waitForRelay?: () => Promise<void>
 }
 
 /**
@@ -48,16 +52,13 @@ export function createWidgetIframeRequestCoordinator(options: WidgetIframeReques
     return pending
   }
 
-  function requestWidgetIframe<TResponse extends Record<string, unknown> = Record<string, unknown>>(
+  async function requestWidgetIframe<TResponse extends Record<string, unknown> = Record<string, unknown>>(
     id: string,
     payload: Record<string, unknown>,
     requestOptions?: { timeoutMs?: number },
   ): Promise<TResponse> {
     if (!options.hasWidget(id))
       return Promise.reject(new Error(`Gamelet \`${id}\` is not open.`))
-    if (!options.hasRelay())
-      return Promise.reject(new Error('Gamelet iframe relay is not available.'))
-
     const requestId = randomUUID()
     const timeoutMs = requestOptions?.timeoutMs ?? DEFAULT_WIDGET_IFRAME_REQUEST_TIMEOUT_MS
 
@@ -75,12 +76,30 @@ export function createWidgetIframeRequestCoordinator(options: WidgetIframeReques
       })
     })
 
-    options.emitRequest({
-      id,
-      requestId,
-      payload: payload as WidgetsIframeRequestPayload['payload'],
-      timeoutMs,
-    })
+    try {
+      if (!options.hasRelay()) {
+        if (!options.waitForRelay) {
+          throw new Error('Gamelet iframe relay is not available.')
+        }
+        await options.waitForRelay()
+      }
+      if (!pendingRequests.has(requestId)) {
+        return response
+      }
+      if (!options.hasRelay()) {
+        throw new Error('Gamelet iframe relay is not available.')
+      }
+
+      options.emitRequest({
+        id,
+        requestId,
+        payload: payload as WidgetsIframeRequestPayload['payload'],
+        timeoutMs,
+      })
+    }
+    catch (error) {
+      settlePendingRequest(requestId, pending => pending.reject(new Error(errorMessageFrom(error) ?? String(error))))
+    }
 
     return response
   }

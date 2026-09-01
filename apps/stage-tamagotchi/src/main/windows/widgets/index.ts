@@ -22,7 +22,7 @@ import { number, object, optional } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { widgetsClearEvent, widgetsIframeRequestEvent, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdateEvent } from '../../../shared/eventa'
+import { widgetsClearEvent, widgetsIframeReadyEvent, widgetsIframeRequestEvent, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdateEvent } from '../../../shared/eventa'
 import { normalizeWidgetWindowSize } from '../../../shared/utils/electron/windows/window-size'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
@@ -290,12 +290,16 @@ export function setupWidgetsWindowManager(params: {
   setup()
 
   let eventaContext: ReturnType<typeof createContext>['context'] | undefined
+  let iframeRelayReady = false
+  let resolveIframeRelayReady: (() => void) | undefined
+  let iframeRelayReadyPromise: Promise<void> | undefined
   const widgetRecords = new Map<string, WidgetRecord>()
   const widgetEventListeners = new Set<(event: { id: string, event: Record<string, unknown> }) => void>()
   const windowContexts = new Map<string, WidgetWindowContext>()
   const iframeRequests = createWidgetIframeRequestCoordinator({
     hasWidget: id => widgetRecords.has(id),
-    hasRelay: () => Boolean(eventaContext),
+    hasRelay: () => Boolean(eventaContext && iframeRelayReady),
+    waitForRelay: () => iframeRelayReadyPromise ?? Promise.reject(new Error('Gamelet iframe relay is not available.')),
     emitRequest: payload => eventaContext?.emit(widgetsIframeRequestEvent, payload),
   })
 
@@ -317,8 +321,17 @@ export function setupWidgetsWindowManager(params: {
 
     const window = createWidgetsWindow()
     activeWidgetsWindow = window
+    iframeRelayReady = false
+    iframeRelayReadyPromise = new Promise<void>((resolve) => {
+      resolveIframeRelayReady = resolve
+    })
     const { context } = createContext(ipcMain, window)
     eventaContext = context
+    context.on(widgetsIframeReadyEvent, () => {
+      iframeRelayReady = true
+      resolveIframeRelayReady?.()
+      resolveIframeRelayReady = undefined
+    })
 
     const saved = getConfig().bounds
     if (saved) {
@@ -357,6 +370,10 @@ export function setupWidgetsWindowManager(params: {
 
     window.on('closed', () => {
       iframeRequests.rejectAllPendingWidgetIframeRequests()
+      iframeRelayReady = false
+      resolveIframeRelayReady?.()
+      resolveIframeRelayReady = undefined
+      iframeRelayReadyPromise = undefined
       eventaContext = undefined
       currentRoute = undefined
       if (activeWidgetsWindow === window)

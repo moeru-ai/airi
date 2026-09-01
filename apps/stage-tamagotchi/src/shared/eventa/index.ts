@@ -475,6 +475,8 @@ export const widgetsClearEvent = defineEventa('eventa:event:electron:windows:wid
 export const widgetsUpdateEvent = defineEventa<WidgetsUpdatePayload>('eventa:event:electron:windows:widgets:update')
 /** Main-to-renderer event requesting work from a mounted widget iframe. */
 export const widgetsIframeRequestEvent = defineEventa<WidgetsIframeRequestPayload>('eventa:event:electron:windows:widgets:iframe-request')
+/** Renderer-to-main event confirming that the widget request listener is mounted. */
+export const widgetsIframeReadyEvent = defineEventa<undefined>('eventa:event:electron:windows:widgets:iframe-ready')
 /** Renderer-to-main event carrying the correlated result for a widget iframe request. */
 export const widgetsIframeRequestResultEvent = defineEventa<WidgetsIframeRequestResultPayload>('eventa:event:electron:windows:widgets:iframe-request-result')
 

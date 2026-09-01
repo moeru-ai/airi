@@ -182,6 +182,45 @@ describe('createWidgetIframeRequestCoordinator', () => {
     expect(emitRequest).not.toHaveBeenCalled()
   })
 
+  it('waits for the renderer-ready event before emitting a one-shot request', async () => {
+    // ROOT CAUSE:
+    //
+    // Issue #1469 timed out when a newly opened widget received the request
+    // before widgets.vue mounted its request listener. The event was lost.
+    //
+    // We fixed this by waiting for the renderer-ready handshake before the
+    // coordinator emits the correlated request event.
+    const emitRequest = vi.fn()
+    let resolveRelayReady!: () => void
+    const relayReady = new Promise<void>((resolve) => {
+      resolveRelayReady = resolve
+    })
+    let relayIsReady = false
+    const coordinator = createWidgetIframeRequestCoordinator({
+      emitRequest,
+      hasWidget: () => true,
+      hasRelay: () => relayIsReady,
+      waitForRelay: () => relayReady,
+    })
+
+    const request = coordinator.requestWidgetIframe('whiteboard:main', { type: 'create_canvas' }, { timeoutMs: 1000 })
+    await Promise.resolve()
+    expect(emitRequest).not.toHaveBeenCalled()
+
+    relayIsReady = true
+    resolveRelayReady()
+    await vi.waitFor(() => expect(emitRequest).toHaveBeenCalledOnce())
+    const emitted = emitRequest.mock.calls[0]?.[0]
+    coordinator.publishWidgetIframeRequestResult({
+      id: 'whiteboard:main',
+      requestId: emitted.requestId,
+      ok: true,
+      result: { type: 'create_canvas', handled: true },
+    })
+
+    await expect(request).resolves.toEqual({ type: 'create_canvas', handled: true })
+  })
+
   it('rejects all pending requests when the widgets window closes', async () => {
     const emitRequest = vi.fn()
     const coordinator = createWidgetIframeRequestCoordinator({

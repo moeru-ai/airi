@@ -9,7 +9,7 @@ import { useRoute } from 'vue-router'
 
 import WidgetContent from '../components/widget-content.vue'
 
-import { widgetsClearEvent, widgetsFetch, widgetsIframeRequestEvent, widgetsIframeRequestResultEvent, widgetsRemove, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdate, widgetsUpdateEvent } from '../../shared/eventa'
+import { widgetsClearEvent, widgetsFetch, widgetsIframeReadyEvent, widgetsIframeRequestEvent, widgetsIframeRequestResultEvent, widgetsRemove, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdate, widgetsUpdateEvent } from '../../shared/eventa'
 
 const { t } = useI18n()
 
@@ -173,6 +173,10 @@ onMounted(() => {
     }))
   }
   catch {}
+
+  // Main-process requests are one-shot events. Announce readiness only after
+  // this renderer has installed its request listener and snapshot lifecycle.
+  context.value.emit(widgetsIframeReadyEvent, undefined)
 })
 
 onBeforeUnmount(() => {
