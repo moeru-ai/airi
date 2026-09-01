@@ -29,8 +29,15 @@ export async function commitProviderConfigEdit(
   dependencies: ProviderConfigEditCommitDependencies,
 ) {
   const commitId = crypto.randomUUID()
-  await dependencies.disposeProviderInstance(commit.providerId)
   await dependencies.stageTranscriptionProviderConfig(commit.providerId, commit.config, commit.status, commitId)
-  await dependencies.loadModelsForProvider(commit.providerId)
+  try {
+    await dependencies.disposeProviderInstance(commit.providerId)
+  }
+  catch (error) {
+    console.error('Failed to dispose provider instance after saving provider config:', error)
+  }
+  void dependencies.loadModelsForProvider(commit.providerId).catch((error) => {
+    console.error('Failed to refresh models after saving provider config:', error)
+  })
   await dependencies.persistProviderConfigIfCurrent(commit.providerId, commit.config, commit.status, commitId)
 }
