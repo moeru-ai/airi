@@ -16,7 +16,7 @@
     "@moeru/std": "catalog:",
     "@proj-airi/plugin-protocol": "workspace:*",
     "@proj-airi/plugin-sdk": "workspace:*",
-    "@proj-airi/plugin-sdk-tamagotchi": "workspace:*",
+    "@proj-airi/plugin-sdk-stage": "workspace:*",
     "@proj-airi/ui": "workspace:^",
     "animejs": "catalog:",
     "chess.js": "catalog:",
