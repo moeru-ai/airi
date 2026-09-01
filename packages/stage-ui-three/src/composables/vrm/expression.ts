@@ -206,30 +206,33 @@ export function useVRMEmote(vrm: VRMCore) {
       const blendDuration = emotionState.blendDuration || 0.3
 
       transitionProgress.value += deltaTime / blendDuration
-      if (transitionProgress.value >= 1.0) {
+      const isSettling = transitionProgress.value >= 1.0
+      if (isSettling) {
         transitionProgress.value = 1.0
         isTransitioning.value = false
-
-        // Once the neutral transition completes, clear targets and reset currentEmotion
-        // so we release morph ownership and stop overriding external animation/tracking.
-        if (currentEmotion.value === 'neutral') {
-          currentEmotion.value = null
-          currentExpressionValues.value.clear()
-          targetExpressionValues.value.clear()
-        }
       }
 
-      // Update all expressions with lerp
+      // Update all expressions with lerp (or terminal targets if isSettling)
       for (const [exprName, targetValue] of targetExpressionValues.value) {
         if (skip(exprName))
           continue
         const startValue = currentExpressionValues.value.get(exprName) || 0
-        const currentValue = lerp(
-          startValue,
-          targetValue,
-          easeInOutCubic(transitionProgress.value),
-        )
+        const currentValue = isSettling
+          ? targetValue
+          : lerp(
+              startValue,
+              targetValue,
+              easeInOutCubic(transitionProgress.value),
+            )
         vrm.expressionManager?.setValue(exprName, currentValue)
+      }
+
+      // Once the neutral transition completes and terminal weights are written,
+      // clear targets and reset currentEmotion to release morph ownership.
+      if (isSettling && currentEmotion.value === 'neutral') {
+        currentEmotion.value = null
+        currentExpressionValues.value.clear()
+        targetExpressionValues.value.clear()
       }
     }
     else {

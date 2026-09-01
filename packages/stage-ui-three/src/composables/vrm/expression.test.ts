@@ -11,6 +11,10 @@ function createMockVRMCore() {
       expressionMap: {
         happy: {},
         aa: {},
+        ee: {},
+        ih: {},
+        oh: {},
+        ou: {},
         sad: {},
         angry: {},
         surprised: {},
@@ -112,9 +116,37 @@ describe('useVRMEmote', () => {
     expect(emote.isEmoteActive.value).toBe(false)
     expect(emote.currentEmotion.value).toBeNull()
 
+    // Terminal neutral weights should have been written
+    expect(vrm.expressionManager?.setValue).toHaveBeenCalledWith('sad', 0)
+    expect(vrm.expressionManager?.setValue).toHaveBeenCalledWith('oh', 0)
+    expect(vrm.expressionManager?.setValue).toHaveBeenCalledWith('neutral', 1)
+
     vi.mocked(vrm.expressionManager!.setValue).mockClear()
 
     // Subsequent frames should not assert zero over expressions, releasing ownership
+    emote.update(0.016)
+    expect(vrm.expressionManager?.setValue).not.toHaveBeenCalled()
+  })
+
+  it('applies terminal neutral weights when transition completes in a single delta jump after pause', () => {
+    const vrm = createMockVRMCore()
+    const emote = useVRMEmote(vrm)
+
+    emote.setEmotion('happy', 1)
+    emote.update(0.4) // Settle happy
+
+    emote.setEmotion('neutral')
+    vi.mocked(vrm.expressionManager!.setValue).mockClear()
+
+    // Delta jump of 1.0s (> 0.6s blend duration)
+    emote.update(1.0)
+    expect(emote.isTransitioning.value).toBe(false)
+    expect(emote.currentEmotion.value).toBeNull()
+    expect(vrm.expressionManager?.setValue).toHaveBeenCalledWith('happy', 0)
+    expect(vrm.expressionManager?.setValue).toHaveBeenCalledWith('aa', 0)
+    expect(vrm.expressionManager?.setValue).toHaveBeenCalledWith('neutral', 1)
+
+    vi.mocked(vrm.expressionManager!.setValue).mockClear()
     emote.update(0.016)
     expect(vrm.expressionManager?.setValue).not.toHaveBeenCalled()
   })
