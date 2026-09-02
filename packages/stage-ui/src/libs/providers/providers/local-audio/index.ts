@@ -104,8 +104,17 @@ function createFunASRAudioValidators() {
         id: 'funasr-audio:check-connectivity',
         name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-connectivity.title'),
         validator: async (config: FunASRAudioConfig) => {
-          const baseUrl = normalizeBaseUrl(config.baseUrl)
-          const modelsUrl = `${baseUrl}models`
+          let modelsUrl: string
+          try {
+            const baseUrl = new URL(normalizeBaseUrl(config.baseUrl))
+            if (baseUrl.protocol !== 'http:' && baseUrl.protocol !== 'https:')
+              throw new Error('Unsupported protocol')
+            modelsUrl = new URL('models', baseUrl).toString()
+          }
+          catch (error) {
+            const reason = 'FunASR base URL must be an absolute HTTP(S) URL.'
+            return { errors: [{ error }], reason, reasonKey: '', valid: false }
+          }
           const controller = new AbortController()
           const timeout = setTimeout(() => controller.abort(), 10_000)
 

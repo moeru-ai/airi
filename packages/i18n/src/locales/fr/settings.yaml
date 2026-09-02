@@ -1023,9 +1023,6 @@ pages:
       browser-local-audio-speech:
         title: Navigateur (Local)
         description: https://github.com/moeru-ai/xsai-transformers
-      funasr-audio-transcription:
-        title: FunASR
-        description: Transcription locale par FunASR via son API compatible avec OpenAI.
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
         title: Studio de modèles Alibaba Cloud

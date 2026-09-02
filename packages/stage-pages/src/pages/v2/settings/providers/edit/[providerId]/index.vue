@@ -18,10 +18,10 @@ import {
   ProviderSettingsLayout,
   ProviderValidationDetailsDialog,
 } from '@proj-airi/stage-ui/components'
-import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
+import { createDebouncedValidationRunner, createLatestValidationGuard, getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
-import { computedAsync, useCloned, useDebounceFn } from '@vueuse/core'
+import { computedAsync, useCloned } from '@vueuse/core'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -39,26 +39,29 @@ const providerId = computed(() => route.params.providerId as string)
 const providerConfig = computed(() => providerStore.getProvider(providerId.value) ?? emptyProviderConfig)
 const providerDefinition = computed(() => getDefinedProvider(providerConfig.value.definitionId))
 let isActive = true
-
-onUnmounted(() => {
-  isActive = false
-})
+const validationRunGuard = createLatestValidationGuard()
 
 onMounted(async () => {
   const initialProviderId = providerId.value
   if (providerStore.getProvider(initialProviderId) || !getDefinedProvider(initialProviderId))
     return
 
-  const provider = await providerStore.addProvider(initialProviderId)
-  if (!isActive || providerId.value !== initialProviderId)
-    return
-
+  const provider = providerStore.prepareProviderAddition(initialProviderId)
+  const synchronized = providerStore.synchronizeAddedProvider(provider)
   await router.replace(`/v2/settings/providers/edit/${provider.id}`)
+
+  void synchronized.then(async (synchronizedProvider) => {
+    if (!isActive || providerId.value !== provider.id || synchronizedProvider.id === provider.id)
+      return
+
+    await router.replace(`/v2/settings/providers/edit/${synchronizedProvider.id}`)
+  })
 })
 
 // NOTICE: useCloned handles deep cloning and state isolation for the draft.
 // It provides a 'cloned' ref that we use for editing without affecting the original store state.
 const { cloned: providerConfigEdit, sync: syncProviderConfigEdit } = useCloned(providerConfig, { manual: true })
+const providerConfigDraftKey = computed(() => JSON.stringify(providerConfigEdit.value?.config ?? emptyProviderConfigValues))
 
 const isProviderSchemaLoading = ref(false)
 const providerSchemaError = ref<string | undefined>()
@@ -275,11 +278,12 @@ function removeHeaderRow(index: number) {
 }
 
 async function runValidation() {
-  if (!providerDefinition.value)
+  if (!isActive || !providerDefinition.value)
     return
 
+  const isCurrentRun = validationRunGuard.begin()
   const validationPlan = await getValidationPlan()
-  if (!validationPlan)
+  if (!isActive || !isCurrentRun() || !validationPlan)
     return
 
   if (canSkipValidation.value)
@@ -294,18 +298,27 @@ async function runValidation() {
   try {
     const results = await validateProvider(validationPlan, { t }, {
       onValidatorStart: ({ step }) => {
+        if (!isCurrentRun())
+          return
         validatorEventStates.value = { ...validatorEventStates.value, [step.id]: 'running' }
         syncValidationSteps()
       },
       onValidatorSuccess: ({ step }) => {
+        if (!isCurrentRun())
+          return
         validatorEventStates.value = { ...validatorEventStates.value, [step.id]: 'success' }
         syncValidationSteps()
       },
       onValidatorError: ({ step }) => {
+        if (!isCurrentRun())
+          return
         validatorEventStates.value = { ...validatorEventStates.value, [step.id]: 'error' }
         syncValidationSteps()
       },
     })
+    if (!isCurrentRun())
+      return
+
     if (results.some(step => step.status === 'invalid')) {
       providerStore.setProviderStatus(providerId.value, 'invalid')
       return
@@ -317,18 +330,30 @@ async function runValidation() {
       providerStore.setProviderStatus(providerId.value, 'configured')
   }
   catch (error) {
+    if (!isCurrentRun())
+      return
     providerStore.setProviderStatus(providerId.value, 'invalid')
     throw error
   }
   finally {
-    isValidating.value = false
+    if (isCurrentRun())
+      isValidating.value = false
   }
 }
 
-const debouncedValidation = useDebounceFn(runValidation, 1500)
+const debouncedValidation = createDebouncedValidationRunner(runValidation, 1500)
 let didInitValidation = false
 
-watch([providerConfigEdit, providerDefinition, providerSchema], async () => {
+onUnmounted(() => {
+  isActive = false
+  validationRunGuard.invalidate()
+  debouncedValidation.cancel()
+})
+
+watch([providerConfigDraftKey, providerDefinition, providerSchema], async () => {
+  validationRunGuard.invalidate()
+  isValidating.value = false
+
   if (!providerConfig.value || !providerConfigEdit.value) {
     return
   }
@@ -344,7 +369,7 @@ watch([providerConfigEdit, providerDefinition, providerSchema], async () => {
     didInitValidation = true
     return
   }
-  void debouncedValidation()
+  void debouncedValidation.run()
 }, { deep: true, immediate: true })
 
 let initializedSchemaProviderId: string | undefined

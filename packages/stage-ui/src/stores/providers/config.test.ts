@@ -94,6 +94,24 @@ describe('provider config store', () => {
     expect(store.providers[localProvider.id]).toEqual(localProvider)
   })
 
+  it('exposes a new provider before remote creation finishes', async () => {
+    let resolveRemote!: (provider: InferenceServiceProvider) => void
+    mocks.service.createRemote.mockReturnValue(new Promise<InferenceServiceProvider>((resolve) => {
+      resolveRemote = resolve
+    }))
+    const store = installStore()
+
+    const provider = store.prepareProviderAddition(localProvider.definitionId)
+
+    expect(provider).toEqual(localProvider)
+    expect(store.providers[localProvider.id]).toBeUndefined()
+
+    const synchronized = store.synchronizeAddedProvider(provider)
+    expect(store.providers[localProvider.id]).toEqual(localProvider)
+    resolveRemote(remoteProvider)
+    await expect(synchronized).resolves.toEqual(remoteProvider)
+  })
+
   it('replaces the optimistic id and keeps the remote provider listed', async () => {
     const store = installStore()
 

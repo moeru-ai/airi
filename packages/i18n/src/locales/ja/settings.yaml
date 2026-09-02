@@ -1023,9 +1023,6 @@ pages:
       browser-local-audio-speech:
         title: ブラウザ (ローカル)
         description: https://github.com/moeru-ai/xsai-transformers
-      funasr-audio-transcription:
-        title: FunASR
-        description: OpenAI 互換 API によるローカル FunASR 音声文字起こし。
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
         title: Alibaba Cloud Model Studio

@@ -210,8 +210,11 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     }
   }
 
-  async function addProvider(definitionId: string, initialConfig: Record<string, unknown> = {}) {
-    const provider = service.buildLocal(definitionId, initialConfig)
+  function prepareProviderAddition(definitionId: string, initialConfig: Record<string, unknown> = {}) {
+    return service.buildLocal(definitionId, initialConfig)
+  }
+
+  async function synchronizeAddedProvider(provider: InferenceServiceProvider) {
     providers.value[provider.id] = provider
     markProviderAdded(provider.id)
 
@@ -227,6 +230,11 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       // A failed remote create does not discard the local provider.
       return provider
     }
+  }
+
+  async function addProvider(definitionId: string, initialConfig: Record<string, unknown> = {}) {
+    const provider = prepareProviderAddition(definitionId, initialConfig)
+    return synchronizeAddedProvider(provider)
   }
 
   async function removeProvider(providerId: string) {
@@ -291,6 +299,8 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     setProviderModel,
     setProviderModelIfUnset,
     fetchProviders,
+    prepareProviderAddition,
+    synchronizeAddedProvider,
     addProvider,
     removeProvider,
     updateProviderConfig,
@@ -306,6 +316,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       'setProviderStatus',
       'setProviderModel',
       'setProviderModelIfUnset',
+      'synchronizeAddedProvider',
       'addProvider',
       'removeProvider',
       'updateProviderConfig',
