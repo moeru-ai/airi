@@ -328,6 +328,7 @@ async function runValidation() {
     return
 
   const validationProviderId = providerId.value
+  const validatedDraftKey = providerConfigDraftKey.value
   const validationLease = await providerStore.beginProviderValidation(validationProviderId)
   if (!validationLease)
     return
@@ -369,6 +370,11 @@ async function runValidation() {
     if (results.some(step => step.status === 'invalid')) {
       await providerStore.finishProviderValidation(validationProviderId, validationLease.token, 'invalid')
       validationStatusRestorer.clear(validationLease.token)
+      return
+    }
+
+    if (providerConfigDraftKey.value !== validatedDraftKey) {
+      await validationStatusRestorer.restore(validationLease.token)
       return
     }
 

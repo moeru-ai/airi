@@ -423,17 +423,16 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     try {
       const remote = await addProviderMutation.mutateAsync(provider)
 
-      // The optimistic entry can be edited or removed while the create request
-      // is in flight. Do not let the stale create response undo either action.
-      let current = providers.value[provider.id]
-      if (!current) {
-        if (await discardRemovedProviderCreation(provider.id, remote.id))
-          return remote
+      // A delete tombstone always wins. Otherwise, owner-captured state is newer
+      // than a replicated full snapshot that can still contain a stale provider.
+      if (await discardRemovedProviderCreation(provider.id, remote.id))
+        return remote
 
-        // A replicated snapshot can briefly replace the optimistic entry while
-        // the leader owns the remote create. Retain owner-local mutations that
-        // the stale snapshot did not contain.
-        const pendingState = pendingProviderCreationStates.get(provider.id)
+      const pendingState = pendingProviderCreationStates.get(provider.id)
+      let current = pendingState?.provider ?? providers.value[provider.id]
+      if (pendingState?.validationLease)
+        providerValidationLeases.value[provider.id] = pendingState.validationLease
+      if (!current) {
         if (!pendingState) {
           providers.value[remote.id] = remote
           markProviderAdded(remote.id)
@@ -442,8 +441,6 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
           return remote
         }
         current = pendingState.provider
-        if (pendingState.validationLease)
-          providerValidationLeases.value[provider.id] = pendingState.validationLease
       }
 
       delete providers.value[provider.id]

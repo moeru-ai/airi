@@ -130,6 +130,15 @@ function createFunASRAudioValidators() {
             if (!response.ok)
               throw new Error(`HTTP ${response.status}`)
 
+            const payload: unknown = await response.json()
+            if (
+              typeof payload !== 'object'
+              || payload === null
+              || !Array.isArray((payload as { data?: unknown }).data)
+            ) {
+              throw new Error('Unexpected /models response')
+            }
+
             return { errors: [], reason: '', reasonKey: '', valid: true }
           }
           catch (error) {
