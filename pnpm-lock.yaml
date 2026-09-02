@@ -3917,6 +3917,12 @@ importers:
         specifier: 'catalog:'
         version: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
 
+  packages/plugin-sdk-tamagotchi:
+    dependencies:
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+
   packages/provider-inference:
     dependencies:
       '@moeru/std':
@@ -3983,12 +3989,6 @@ importers:
       vitest:
         specifier: catalog:vitest
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
-
-  packages/plugin-sdk-tamagotchi:
-    dependencies:
-      '@moeru/eventa':
-        specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
 
   packages/scenarios-stage-tamagotchi-browser:
     dependencies:
