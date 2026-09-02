@@ -118,7 +118,8 @@ describe('provider store synchronization boundary', () => {
     const providerId = 'funasr-instance'
 
     expect(store.moduleTranscriptionProvidersMetadata.map(provider => provider.id))
-      .not.toContain('funasr-audio-transcription')
+      .not
+      .toContain('funasr-audio-transcription')
 
     configStore.ensureProvider(providerId, 'funasr-audio-transcription', {
       baseUrl: 'http://localhost:8000/v1/',
