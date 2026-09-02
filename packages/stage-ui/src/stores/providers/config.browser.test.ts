@@ -3,10 +3,11 @@ import type { LeadershipMode, SyncedPiniaRuntime } from 'pinia-plugin-synced'
 import type { InferenceServiceProvider } from '../../libs/providers/types'
 
 import { PiniaColada } from '@pinia/colada'
+import { useCloned } from '@vueuse/core'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { computed, createApp, defineComponent, h, watch } from 'vue'
+import { computed, createApp, defineComponent, h, ref, watch } from 'vue'
 
 import { createLatestValidationGuard, createProviderDraftSourceKey, createValidationStatusRestorer } from '../../libs/providers/validation-run'
 import { useProviderConfigStore } from './config'
@@ -294,6 +295,7 @@ describe('provider config synchronization', () => {
     resolveRemote(remoteProvider)
     await creation
 
+    expect(mocks.service.patchConfigRemote).not.toHaveBeenCalled()
     expect(store.resolveProviderId(localProvider.id)).toBe(remoteProvider.id)
     expect(store.providerValidationLeases[localProvider.id]).toBeUndefined()
     expect(store.providerValidationLeases[remoteProvider.id]?.token).toBe(validationLease?.token)
@@ -305,6 +307,40 @@ describe('provider config synchronization', () => {
     expect(store.providers[remoteProvider.id]).toBeUndefined()
     expect(store.resolveProviderId(localProvider.id)).toBe(localProvider.id)
     expect(mocks.service.deleteRemote).toHaveBeenCalledWith(mocks.client, remoteProvider.id)
+  })
+
+  it('preserves an unsaved editor draft when creation resolves to a different id', async () => {
+    let resolveRemote!: (provider: InferenceServiceProvider) => void
+    mocks.service.createRemote.mockReturnValue(new Promise<InferenceServiceProvider>((resolve) => {
+      resolveRemote = resolve
+    }))
+
+    const context = createSyncedContext(`provider-config-draft-id-resolution:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+    setActivePinia(context.pinia)
+    const store = useProviderConfigStore()
+    const creation = store.synchronizeAddedProvider({
+      ...localProvider,
+      config: { baseUrl: 'https://saved.example' },
+    })
+    await vi.waitFor(() => expect(store.providers[localProvider.id]).toBeDefined())
+
+    const routeProviderId = ref(localProvider.id)
+    const providerConfig = computed(() => store.getProvider(routeProviderId.value)!)
+    const { cloned: draft, sync } = useCloned(providerConfig, { manual: true })
+    const sourceKey = computed(() => createProviderDraftSourceKey(providerConfig.value))
+    watch(sourceKey, sync, { immediate: true })
+    draft.value.config.baseUrl = 'https://unsaved.example'
+
+    resolveRemote({
+      ...remoteProvider,
+      config: { baseUrl: 'https://saved.example' },
+    })
+    await creation
+    routeProviderId.value = remoteProvider.id
+    await vi.waitFor(() => expect(store.resolveProviderId(localProvider.id)).toBe(remoteProvider.id))
+
+    expect(draft.value.config.baseUrl).toBe('https://unsaved.example')
   })
 
   it('keeps an active validation authoritative when same-id creation resolves', async () => {
@@ -352,8 +388,9 @@ describe('provider config synchronization', () => {
     await creation
 
     await vi.waitFor(() => {
-      expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce()
+      expect(mocks.service.patchConfigRemote).not.toHaveBeenCalled()
       expect(leaderStore.providerValidationLeases[localProvider.id]?.token).toBe(validationLease?.token)
+      expect(leaderStore.providers[localProvider.id]?.config).toEqual({ serverDefault: true })
       expect(leaderStore.providers[localProvider.id]?.status).toBe('validating')
       expect(followerStore.providers[localProvider.id]?.status).toBe('validating')
     })

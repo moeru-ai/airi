@@ -123,6 +123,13 @@ watch(providerDraftSourceKey, () => {
     syncProviderConfigEdit()
 }, { immediate: true })
 
+watch(providerId, (nextProviderId, previousProviderId) => {
+  if (!previousProviderId || providerStore.resolveProviderId(previousProviderId) === nextProviderId)
+    return
+
+  syncProviderConfigEdit()
+})
+
 const isEdited = computed(() => {
   const currentConfig = providerConfigEdit.value?.config ?? emptyProviderConfigValues
   const savedConfig = providerConfig.value?.config ?? emptyProviderConfigValues
