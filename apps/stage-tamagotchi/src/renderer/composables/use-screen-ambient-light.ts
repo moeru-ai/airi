@@ -15,7 +15,7 @@ import {
   smoothAmbientLightEnvironment,
   uniformAmbientLightEnvironment,
 } from '@proj-airi/stage-shared/screen-ambient-light'
-import { useLive2DAmbientLight, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
+import { useScreenAmbientLightEnvironment, useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
 import { until, useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, shallowRef, watch } from 'vue'
@@ -70,18 +70,18 @@ export function useScreenAmbientLight(sources: {
    */
   stageCanvas?: () => HTMLCanvasElement | undefined
 } = {}) {
-  const settings = useSettingsLive2d()
+  const settings = useSettingsScreenAmbientLight()
   const {
-    live2dScreenAmbientLightCaptureIntervalMs,
-    live2dScreenAmbientLightEnabled,
-    live2dScreenAmbientLightForcedColor,
-    live2dScreenAmbientLightNeutralColorWeight,
-    live2dScreenAmbientLightResponseMs,
-    live2dScreenAmbientLightSampleHeight,
-    live2dScreenAmbientLightSampleWidth,
-    live2dScreenAmbientLightSource,
+    screenAmbientLightCaptureIntervalMs,
+    screenAmbientLightEnabled,
+    screenAmbientLightForcedColor,
+    screenAmbientLightNeutralColorWeight,
+    screenAmbientLightResponseMs,
+    screenAmbientLightSampleHeight,
+    screenAmbientLightSampleWidth,
+    screenAmbientLightSource,
   } = storeToRefs(settings)
-  const ambientLight = useLive2DAmbientLight()
+  const ambientLight = useScreenAmbientLightEnvironment()
   const displays = useElectronAllDisplays()
   const windowBounds = useElectronWindowBounds()
   const capturedDisplay = shallowRef<(typeof displays.value)[number]>()
@@ -114,16 +114,16 @@ export function useScreenAmbientLight(sources: {
 
   const hasWindowBounds = computed(() => windowBounds.width.value > 0 && windowBounds.height.value > 0)
   const samplingOptions = computed(() => ({
-    neutralColorWeight: live2dScreenAmbientLightNeutralColorWeight.value,
+    neutralColorWeight: screenAmbientLightNeutralColorWeight.value,
   }))
-  const captureFrameRate = computed(() => clamp(1000 / Math.max(1, live2dScreenAmbientLightCaptureIntervalMs.value), 1, 30))
+  const captureFrameRate = computed(() => clamp(1000 / Math.max(1, screenAmbientLightCaptureIntervalMs.value), 1, 30))
   const {
     selectWithSource,
     checkMacOSPermission,
     requestMacOSPermission,
   } = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
 
-  watch([live2dScreenAmbientLightEnabled, live2dScreenAmbientLightSource], async ([enabled, source]) => {
+  watch([screenAmbientLightEnabled, screenAmbientLightSource], async ([enabled, source]) => {
     const version = ++startVersion
     stop()
     if (!enabled) {
@@ -149,7 +149,7 @@ export function useScreenAmbientLight(sources: {
       lastCaptureError = errorMessageFrom(error) ?? 'Unknown error'
       console.error(`Failed to start Live2D screen ambient light: ${lastCaptureError}`)
       publishDiagnostics('error')
-      live2dScreenAmbientLightEnabled.value = false
+      screenAmbientLightEnabled.value = false
     }
   }, { immediate: true })
 
@@ -163,19 +163,19 @@ export function useScreenAmbientLight(sources: {
       publishDiagnostics('disabled')
   })
 
-  watch(live2dScreenAmbientLightForcedColor, () => {
-    if (live2dScreenAmbientLightEnabled.value && live2dScreenAmbientLightSource.value === 'forced-color')
+  watch(screenAmbientLightForcedColor, () => {
+    if (screenAmbientLightEnabled.value && screenAmbientLightSource.value === 'forced-color')
       applyForcedColor()
   })
 
-  watch([live2dScreenAmbientLightSampleWidth, live2dScreenAmbientLightSampleHeight], ([width, height]) => {
+  watch([screenAmbientLightSampleWidth, screenAmbientLightSampleHeight], ([width, height]) => {
     canvas.width = Math.max(1, Math.round(width))
     canvas.height = Math.max(1, Math.round(height))
   }, { immediate: true })
 
   // The stream rate is the sample rate, so a new interval must reach the track.
   // A rejected constraint keeps the old rate, which is slower but still correct.
-  watch([captureFrameRate, live2dScreenAmbientLightSampleWidth], async ([frameRate]) => {
+  watch([captureFrameRate, screenAmbientLightSampleWidth], async ([frameRate]) => {
     const track = activeStream.value?.getVideoTracks()[0]
     const display = capturedDisplay.value
     if (!track || !display)
@@ -242,7 +242,7 @@ export function useScreenAmbientLight(sources: {
       track.addEventListener('ended', () => {
         if (activeStream.value === stream) {
           lastCaptureError = 'The screen-capture stream ended.'
-          live2dScreenAmbientLightEnabled.value = false
+          screenAmbientLightEnabled.value = false
         }
       }, { once: true })
     })
@@ -268,7 +268,7 @@ export function useScreenAmbientLight(sources: {
     frameRate: number,
   ): MediaTrackConstraints {
     const aspect = display.width / Math.max(1, display.height)
-    const width = Math.min(display.width, maximumCaptureWidth, Math.round(live2dScreenAmbientLightSampleWidth.value * captureOversampling))
+    const width = Math.min(display.width, maximumCaptureWidth, Math.round(screenAmbientLightSampleWidth.value * captureOversampling))
     return {
       width: { max: width },
       height: { max: Math.max(1, Math.round(width / aspect)) },
@@ -319,7 +319,7 @@ export function useScreenAmbientLight(sources: {
     }, samplingOptions.value)
 
     const nextEnvironment = ambientLight.active
-      ? smoothAmbientLightEnvironment(ambientLight.environment, result.environment, now - lastSampleTime, live2dScreenAmbientLightResponseMs.value)
+      ? smoothAmbientLightEnvironment(ambientLight.environment, result.environment, now - lastSampleTime, screenAmbientLightResponseMs.value)
       : result.environment
     lastSampleTime = now
     ambientLight.setEnvironment(nextEnvironment)
@@ -340,7 +340,7 @@ export function useScreenAmbientLight(sources: {
   }
 
   function applyForcedColor() {
-    const sample = ambientLightSampleFromHex(live2dScreenAmbientLightForcedColor.value)
+    const sample = ambientLightSampleFromHex(screenAmbientLightForcedColor.value)
     if (!sample) {
       lastCaptureError = 'The forced color must use #RRGGBB or #RRGGBBAA format.'
       console.error(`Failed to apply forced Live2D ambient light: ${lastCaptureError}`)
@@ -382,7 +382,7 @@ export function useScreenAmbientLight(sources: {
     const snapshot: ScreenAmbientLightDiagnosticsSnapshot = {
       publishedAt: Date.now(),
       status,
-      source: live2dScreenAmbientLightSource.value,
+      source: screenAmbientLightSource.value,
       error: lastCaptureError,
       display: display
         ? {
