@@ -34,22 +34,15 @@ export function getDefaultSpeechModel(): string | null {
 }
 
 const officialConfigSchema = z.object({})
-const streamingModelIdSchema = z.string().regex(
-  /^[^/]+\/[^/]+$/,
-  'streaming model id must use the <backend>/<api_resource_id> format',
-)
 const streamingModelCatalogSchema = z.object({
   available: z.boolean(),
   models: z.array(z.object({
-    id: streamingModelIdSchema,
+    id: z.string(),
     name: z.string().optional(),
     description: z.string().optional(),
   })),
-  default: streamingModelIdSchema.nullable().optional(),
-}).refine(
-  data => data.default == null || data.models.some(model => model.id === data.default),
-  { message: 'streaming default model must exist in models[]', path: ['default'] },
-)
+  default: z.string().nullable().optional(),
+})
 
 function authHeaders(): Record<string, string> {
   const headers: Record<string, string> = { Accept: 'application/json' }
