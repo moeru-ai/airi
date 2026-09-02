@@ -1,8 +1,8 @@
 import type { Ref, WatchSource } from 'vue'
 
-import type { ModelInfo, VoiceInfo } from '../../types'
+import type { ModelInfo, ProviderModelCatalog, VoiceInfo } from '../../types'
 
-import { ref, watch } from 'vue'
+import { watch } from 'vue'
 import { z } from 'zod'
 
 import { getAuthToken } from '../../../../libs/auth'
@@ -42,18 +42,6 @@ export function getDefaultStreamingModel(): string | null {
   return defaultStreamingModelId
 }
 
-// Operator-controlled visibility switch for the streaming provider. The server
-// reports it via `/api/v1/audio/models/streaming` (`available`), and the
-// auth-activation glue gates `forceProviderConfigured` on this so the provider
-// only surfaces when `UNSPEECH_UPSTREAM.streaming` is configured server-side.
-// Reactive so the providers store re-derives configured speech providers when
-// the probe resolves after sign-in.
-const streamingTtsAvailable = ref(false)
-
-export function getStreamingTtsAvailable(): boolean {
-  return streamingTtsAvailable.value
-}
-
 const officialConfigSchema = z.object({})
 
 function authHeaders(): Record<string, string> {
@@ -62,6 +50,36 @@ function authHeaders(): Record<string, string> {
   if (token)
     headers.Authorization = `Bearer ${token}`
   return headers
+}
+
+async function listStreamingModelCatalog(): Promise<ProviderModelCatalog> {
+  // Streaming TTS catalog is operator-controlled via configKV
+  // (`UNSPEECH_UPSTREAM.streaming`). Wire shape uses `<backend>/<api_resource_id>`
+  // (see `unspeech/docs/wire-protocols/audio-speech-stream-v1.md`); the
+  // server returns whatever the operator put there, no client-side defaults.
+  // Reset the default up front so a failed probe cannot retain stale data.
+  defaultStreamingModelId = null
+
+  const res = await globalThis.fetch(`${SERVER_URL}/api/v1/audio/models/streaming`, { headers: authHeaders() })
+  if (!res.ok)
+    throw new Error(`streaming models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
+
+  const data = await res.json() as { available?: boolean, models: { id: string, name?: string, description?: string }[], default?: string | null }
+  if (!Array.isArray(data.models))
+    throw new Error('streaming models upstream missing models[]')
+
+  defaultStreamingModelId = typeof data.default === 'string' && data.default.length > 0 ? data.default : null
+
+  return {
+    available: data.available === true,
+    defaultModel: defaultStreamingModelId,
+    models: data.models.map(m => ({
+      id: m.id,
+      name: m.name ?? m.id,
+      provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+      description: m.description,
+    })),
+  }
 }
 
 export const providerOfficialChat = defineProvider({
@@ -257,36 +275,8 @@ export const providerOfficialSpeechStreaming = defineProvider({
   },
   validationRequiredWhen: () => false,
   extraMethods: {
-    listModels: async (): Promise<ModelInfo[]> => {
-      // Streaming TTS catalog is operator-controlled via configKV
-      // (`UNSPEECH_UPSTREAM.streaming`). Wire shape uses `<backend>/<api_resource_id>`
-      // (see `unspeech/docs/wire-protocols/audio-speech-stream-v1.md`); the
-      // server returns whatever the operator put there, no client-side
-      // defaults. `default` (when set) seeds initial model selection via
-      // {@link getDefaultStreamingModel}.
-      // Reset the operator-driven signals up front so a failed/aborted probe
-      // leaves the provider hidden rather than stuck on a stale "available".
-      streamingTtsAvailable.value = false
-      defaultStreamingModelId = null
-
-      const res = await globalThis.fetch(`${SERVER_URL}/api/v1/audio/models/streaming`, { headers: authHeaders() })
-      if (!res.ok)
-        throw new Error(`streaming models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
-
-      const data = await res.json() as { available?: boolean, models: { id: string, name?: string, description?: string }[], default?: string | null }
-      if (!Array.isArray(data.models))
-        throw new Error('streaming models upstream missing models[]')
-
-      streamingTtsAvailable.value = data.available === true
-      defaultStreamingModelId = typeof data.default === 'string' && data.default.length > 0 ? data.default : null
-
-      return data.models.map(m => ({
-        id: m.id,
-        name: m.name ?? m.id,
-        provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
-        description: m.description,
-      }))
-    },
+    listModelCatalog: listStreamingModelCatalog,
+    listModels: async () => (await listStreamingModelCatalog()).models,
     listVoices: async (_config, _provider, model): Promise<VoiceInfo[]> => {
       // Streaming voices live behind a dedicated endpoint
       // (`/audio/voices/streaming`) because they come from the
