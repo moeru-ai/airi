@@ -48,6 +48,21 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   const legacyConfigs = useLocalStorage<Record<string, Record<string, unknown>>>('settings/credentials/providers', {}, providerStorageOptions)
   const pendingProviderCreations = new Set<string>()
   const removedDuringCreation = new Set<string>()
+  const providerValidationLeases = useLocalStorage<Record<string, {
+    token: string
+    previousStatus: ProviderValidationStatus
+  }>>('settings/providers/validation-leases', {}, providerStorageOptions)
+
+  // A fresh synchronization domain has no editor instance left to finish or
+  // cancel persisted validation work. Recover its last stable status before
+  // this store publishes initial state. A joining tab will subsequently apply
+  // the still-live domain snapshot instead.
+  for (const [providerId, lease] of Object.entries(providerValidationLeases.value)) {
+    const provider = providers.value[providerId]
+    if (provider?.status === 'validating')
+      provider.status = lease.previousStatus
+    delete providerValidationLeases.value[providerId]
+  }
 
   // Import the previous provider configuration shape once. Provider ids remain
   // stable, so existing model selections keep pointing at the same provider.
@@ -191,6 +206,44 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     }
   }
 
+  async function beginProviderValidation(providerId: string) {
+    const provider = providers.value[providerId]
+    if (!provider)
+      return
+
+    const previousStatus = providerValidationLeases.value[providerId]?.previousStatus ?? provider.status
+    const token = crypto.randomUUID()
+    providerValidationLeases.value[providerId] = { token, previousStatus }
+    provider.status = 'validating'
+    return { token, previousStatus }
+  }
+
+  async function finishProviderValidation(providerId: string, token: string, status: ProviderValidationStatus) {
+    const activeValidation = providerValidationLeases.value[providerId]
+    if (activeValidation?.token !== token)
+      return false
+
+    const provider = providers.value[providerId]
+    const didTransition = provider?.status === 'validating'
+    if (didTransition)
+      provider.status = status
+    delete providerValidationLeases.value[providerId]
+    return didTransition
+  }
+
+  async function restoreProviderStatus(providerId: string, token: string) {
+    const activeValidation = providerValidationLeases.value[providerId]
+    if (activeValidation?.token !== token)
+      return false
+
+    const provider = providers.value[providerId]
+    const didTransition = provider?.status === 'validating'
+    if (didTransition)
+      provider.status = activeValidation.previousStatus
+    delete providerValidationLeases.value[providerId]
+    return didTransition
+  }
+
   function mergeProviderSnapshot(snapshot: Record<string, InferenceServiceProvider>) {
     providers.value = { ...providers.value, ...snapshot }
     for (const providerId of Object.keys(snapshot))
@@ -302,6 +355,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       removedDuringCreation.add(providerId)
     delete providers.value[providerId]
     unmarkProviderAdded(providerId)
+    delete providerValidationLeases.value[providerId]
 
     try {
       await removeProviderMutation.mutateAsync(providerId)
@@ -337,6 +391,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   async function resetProviders() {
     providers.value = {}
     addedProviders.value = {}
+    providerValidationLeases.value = {}
   }
 
   return {
@@ -345,6 +400,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     addedProviders,
     listedProviders,
     configuredProviders,
+    providerValidationLeases,
     isLoading: computed(() => providersQuery.isLoading.value),
     error: computed(() => providersQuery.error.value),
     mutationError,
@@ -357,6 +413,9 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     setProviderStatus,
     setProviderModel,
     setProviderModelIfUnset,
+    beginProviderValidation,
+    finishProviderValidation,
+    restoreProviderStatus,
     fetchProviders,
     prepareProviderAddition,
     synchronizeAddedProvider,
@@ -375,6 +434,9 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       'setProviderStatus',
       'setProviderModel',
       'setProviderModelIfUnset',
+      'beginProviderValidation',
+      'finishProviderValidation',
+      'restoreProviderStatus',
       'synchronizeAddedProvider',
       'addProvider',
       'removeProvider',
