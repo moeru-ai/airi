@@ -5,7 +5,7 @@ import type { InferenceServiceProvider, ProviderValidationStatus } from '../../l
 import { useMutation, useQuery } from '@pinia/colada'
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 import { client } from '../../composables/api'
 import { getDefinedProvider } from '../../libs/providers'
@@ -18,6 +18,10 @@ const providerStorageOptions = {
   // the leader as a new state proposal.
   listenToStorageChanges: false,
 } as const
+
+function createProviderMutationKey(provider: InferenceServiceProvider) {
+  return JSON.stringify({ config: provider.config, status: provider.status })
+}
 
 /**
  * Creates the remote provider-list query.
@@ -48,6 +52,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   const legacyConfigs = useLocalStorage<Record<string, Record<string, unknown>>>('settings/credentials/providers', {}, providerStorageOptions)
   const pendingProviderCreations = new Set<string>()
   const removedDuringCreation = new Set<string>()
+  const providerCreationResolutions = ref<Record<string, string>>({})
   const providerValidationLeases = useLocalStorage<Record<string, {
     token: string
     previousStatus: ProviderValidationStatus
@@ -128,12 +133,22 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     ?? removeProviderMutation.error.value
     ?? updateProviderMutation.error.value)
 
+  function resolveProviderId(providerId: string) {
+    const visited = new Set<string>()
+    let resolvedId = providerId
+    while (providerCreationResolutions.value[resolvedId] && !visited.has(resolvedId)) {
+      visited.add(resolvedId)
+      resolvedId = providerCreationResolutions.value[resolvedId]
+    }
+    return resolvedId
+  }
+
   function getProvider(providerId: string) {
-    return providers.value[providerId]
+    return providers.value[resolveProviderId(providerId)]
   }
 
   function getProviderConfig(providerId: string) {
-    return providers.value[providerId]?.config
+    return providers.value[resolveProviderId(providerId)]?.config
   }
 
   function ensureProvider(providerId: string, definitionId: string, config: Record<string, unknown> = {}) {
@@ -165,7 +180,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   function setProviderStatus(providerId: string, status: ProviderValidationStatus) {
-    const provider = providers.value[providerId]
+    const provider = providers.value[resolveProviderId(providerId)]
     if (provider)
       provider.status = status
   }
@@ -207,40 +222,43 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   async function beginProviderValidation(providerId: string) {
-    const provider = providers.value[providerId]
+    const resolvedProviderId = resolveProviderId(providerId)
+    const provider = providers.value[resolvedProviderId]
     if (!provider)
       return
 
-    const previousStatus = providerValidationLeases.value[providerId]?.previousStatus ?? provider.status
+    const previousStatus = providerValidationLeases.value[resolvedProviderId]?.previousStatus ?? provider.status
     const token = crypto.randomUUID()
-    providerValidationLeases.value[providerId] = { token, previousStatus }
+    providerValidationLeases.value[resolvedProviderId] = { token, previousStatus }
     provider.status = 'validating'
     return { token, previousStatus }
   }
 
   async function finishProviderValidation(providerId: string, token: string, status: ProviderValidationStatus) {
-    const activeValidation = providerValidationLeases.value[providerId]
+    const resolvedProviderId = resolveProviderId(providerId)
+    const activeValidation = providerValidationLeases.value[resolvedProviderId]
     if (activeValidation?.token !== token)
       return false
 
-    const provider = providers.value[providerId]
+    const provider = providers.value[resolvedProviderId]
     const didTransition = provider?.status === 'validating'
     if (didTransition)
       provider.status = status
-    delete providerValidationLeases.value[providerId]
+    delete providerValidationLeases.value[resolvedProviderId]
     return didTransition
   }
 
   async function restoreProviderStatus(providerId: string, token: string) {
-    const activeValidation = providerValidationLeases.value[providerId]
+    const resolvedProviderId = resolveProviderId(providerId)
+    const activeValidation = providerValidationLeases.value[resolvedProviderId]
     if (activeValidation?.token !== token)
       return false
 
-    const provider = providers.value[providerId]
+    const provider = providers.value[resolvedProviderId]
     const didTransition = provider?.status === 'validating'
     if (didTransition)
       provider.status = activeValidation.previousStatus
-    delete providerValidationLeases.value[providerId]
+    delete providerValidationLeases.value[resolvedProviderId]
     return didTransition
   }
 
@@ -269,9 +287,44 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     return service.buildLocal(definitionId, initialConfig)
   }
 
+  function recordProviderCreationResolution(requestedId: string, resolvedId: string) {
+    if (requestedId === resolvedId)
+      return
+
+    providerCreationResolutions.value[requestedId] = resolvedId
+    const validationLease = providerValidationLeases.value[requestedId]
+    if (validationLease) {
+      providerValidationLeases.value[resolvedId] = validationLease
+      delete providerValidationLeases.value[requestedId]
+    }
+  }
+
+  async function discardRemovedProviderCreation(requestedId: string, resolvedId: string) {
+    if (!removedDuringCreation.delete(requestedId))
+      return false
+
+    delete providers.value[requestedId]
+    delete providers.value[resolvedId]
+    unmarkProviderAdded(requestedId)
+    unmarkProviderAdded(resolvedId)
+    delete providerValidationLeases.value[requestedId]
+    delete providerValidationLeases.value[resolvedId]
+    delete providerCreationResolutions.value[requestedId]
+    try {
+      await removeProviderMutation.mutateAsync(resolvedId)
+    }
+    catch {
+      // Keep the local deletion authoritative if cleanup cannot reach the server.
+    }
+    pendingProviderCreations.delete(requestedId)
+    return true
+  }
+
   async function synchronizeAddedProvider(provider: InferenceServiceProvider) {
+    const initialMutationKey = createProviderMutationKey(provider)
     pendingProviderCreations.add(provider.id)
     removedDuringCreation.delete(provider.id)
+    delete providerCreationResolutions.value[provider.id]
     providers.value[provider.id] = provider
     markProviderAdded(provider.id)
 
@@ -282,38 +335,33 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       // is in flight. Do not let the stale create response undo either action.
       const current = providers.value[provider.id]
       if (!current) {
-        if (removedDuringCreation.delete(provider.id)) {
-          try {
-            await removeProviderMutation.mutateAsync(remote.id)
-          }
-          catch {
-            // Keep the local deletion authoritative if cleanup cannot reach the server.
-          }
-          pendingProviderCreations.delete(provider.id)
+        if (await discardRemovedProviderCreation(provider.id, remote.id))
           return remote
-        }
 
         // A replicated snapshot can briefly replace the optimistic entry while
         // the leader owns the remote create. It is not a user deletion.
         providers.value[remote.id] = remote
         markProviderAdded(remote.id)
+        recordProviderCreationResolution(provider.id, remote.id)
         pendingProviderCreations.delete(provider.id)
         return remote
       }
 
       delete providers.value[provider.id]
       unmarkProviderAdded(provider.id)
-      const reconciled = current === provider
-        ? remote
-        : {
+      const wasModified = createProviderMutationKey(current) !== initialMutationKey
+      const reconciled = wasModified
+        ? {
             ...remote,
             config: current.config,
             status: current.status,
           }
+        : remote
       providers.value[remote.id] = reconciled
       markProviderAdded(remote.id)
+      recordProviderCreationResolution(provider.id, remote.id)
 
-      if (current === provider) {
+      if (!wasModified) {
         pendingProviderCreations.delete(provider.id)
         return remote
       }
@@ -324,12 +372,16 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
           config: reconciled.config,
           status: reconciled.status,
         })
+        if (await discardRemovedProviderCreation(provider.id, remote.id))
+          return saved
         if (providers.value[remote.id] === reconciled)
           providers.value[remote.id] = saved
         pendingProviderCreations.delete(provider.id)
         return saved
       }
       catch {
+        if (await discardRemovedProviderCreation(provider.id, remote.id))
+          return remote
         // Preserve the user's newer configuration when the reconciliation fails.
         pendingProviderCreations.delete(provider.id)
         return reconciled
@@ -348,14 +400,21 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   async function removeProvider(providerId: string) {
-    if (!providers.value[providerId])
+    const requestedProviderId = providerId
+    providerId = resolveProviderId(providerId)
+    if (!providers.value[providerId] && !pendingProviderCreations.has(requestedProviderId))
       return
 
-    if (pendingProviderCreations.has(providerId))
-      removedDuringCreation.add(providerId)
+    if (pendingProviderCreations.has(requestedProviderId))
+      removedDuringCreation.add(requestedProviderId)
     delete providers.value[providerId]
     unmarkProviderAdded(providerId)
     delete providerValidationLeases.value[providerId]
+    delete providerCreationResolutions.value[providerId]
+    for (const [requestedId, resolvedId] of Object.entries(providerCreationResolutions.value)) {
+      if (resolvedId === providerId)
+        delete providerCreationResolutions.value[requestedId]
+    }
 
     try {
       await removeProviderMutation.mutateAsync(providerId)
@@ -366,6 +425,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   async function updateProviderConfig(providerId: string, config: Record<string, unknown>, status: ProviderValidationStatus) {
+    providerId = resolveProviderId(providerId)
     const provider = providers.value[providerId]
     if (!provider)
       return
@@ -389,9 +449,12 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   async function resetProviders() {
+    for (const providerId of pendingProviderCreations)
+      removedDuringCreation.add(providerId)
     providers.value = {}
     addedProviders.value = {}
     providerValidationLeases.value = {}
+    providerCreationResolutions.value = {}
   }
 
   return {
@@ -401,12 +464,14 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     listedProviders,
     configuredProviders,
     providerValidationLeases,
+    providerCreationResolutions,
     isLoading: computed(() => providersQuery.isLoading.value),
     error: computed(() => providersQuery.error.value),
     mutationError,
 
     getProvider,
     getProviderConfig,
+    resolveProviderId,
     ensureProvider,
     markProviderAdded,
     unmarkProviderAdded,

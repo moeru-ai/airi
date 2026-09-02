@@ -42,23 +42,36 @@ const providerId = computed(() => route.params.providerId as string)
 const providerConfig = computed(() => providerStore.getProvider(providerId.value) ?? emptyProviderConfig)
 const providerDefinition = computed(() => getDefinedProvider(providerConfig.value.definitionId))
 let isActive = true
+let stopProviderResolutionWatch: (() => void) | undefined
 const validationRunGuard = createLatestValidationGuard()
 
 onMounted(async () => {
   const initialProviderId = providerId.value
+  const resolvedInitialProviderId = providerStore.resolveProviderId(initialProviderId)
+  if (resolvedInitialProviderId !== initialProviderId && providerStore.getProvider(resolvedInitialProviderId)) {
+    await router.replace(`/v2/settings/providers/edit/${resolvedInitialProviderId}`)
+    return
+  }
   if (providerStore.getProvider(initialProviderId) || !getDefinedProvider(initialProviderId))
     return
 
   const provider = providerStore.prepareProviderAddition(initialProviderId)
-  const synchronized = providerStore.synchronizeAddedProvider(provider)
+  void providerStore.synchronizeAddedProvider(provider)
   await router.replace(`/v2/settings/providers/edit/${provider.id}`)
 
-  void synchronized.then(async (synchronizedProvider) => {
-    if (!isActive || providerId.value !== provider.id || synchronizedProvider.id === provider.id)
+  const redirectToResolvedProvider = async (resolvedProviderId?: string) => {
+    if (!isActive || providerId.value !== provider.id || !resolvedProviderId || resolvedProviderId === provider.id)
       return
 
-    await router.replace(`/v2/settings/providers/edit/${synchronizedProvider.id}`)
-  })
+    stopProviderResolutionWatch?.()
+    stopProviderResolutionWatch = undefined
+    await router.replace(`/v2/settings/providers/edit/${resolvedProviderId}`)
+  }
+  stopProviderResolutionWatch = watch(
+    () => providerStore.providerCreationResolutions[provider.id],
+    resolvedProviderId => void redirectToResolvedProvider(resolvedProviderId),
+  )
+  await redirectToResolvedProvider(providerStore.providerCreationResolutions[provider.id])
 })
 
 // NOTICE: useCloned handles deep cloning and state isolation for the draft.
@@ -368,6 +381,7 @@ let didInitValidation = false
 
 onUnmounted(() => {
   isActive = false
+  stopProviderResolutionWatch?.()
   validationRunGuard.invalidate()
   debouncedValidation.cancel()
   void validationStatusRestorer.restore()
