@@ -220,11 +220,49 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
 
     try {
       const remote = await addProviderMutation.mutateAsync(provider)
+
+      // The optimistic entry can be edited or removed while the create request
+      // is in flight. Do not let the stale create response undo either action.
+      const current = providers.value[provider.id]
+      if (!current) {
+        try {
+          await removeProviderMutation.mutateAsync(remote.id)
+        }
+        catch {
+          // Keep the local deletion authoritative if cleanup cannot reach the server.
+        }
+        return remote
+      }
+
       delete providers.value[provider.id]
       unmarkProviderAdded(provider.id)
-      providers.value[remote.id] = remote
+      const reconciled = current === provider
+        ? remote
+        : {
+            ...remote,
+            config: current.config,
+            status: current.status,
+          }
+      providers.value[remote.id] = reconciled
       markProviderAdded(remote.id)
-      return remote
+
+      if (current === provider)
+        return remote
+
+      try {
+        const saved = await updateProviderMutation.mutateAsync({
+          providerId: remote.id,
+          config: reconciled.config,
+          status: reconciled.status,
+        })
+        if (providers.value[remote.id] === reconciled)
+          providers.value[remote.id] = saved
+        return saved
+      }
+      catch {
+        // Preserve the user's newer configuration when the reconciliation fails.
+        return reconciled
+      }
     }
     catch {
       // A failed remote create does not discard the local provider.
