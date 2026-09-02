@@ -6,7 +6,7 @@ import { providerFunASRAudioTranscription } from './local-audio'
 
 const translate = ((key: string) => key) as unknown as ComposerTranslation
 
-describe('FunASR local audio provider', () => {
+describe('funasr local audio provider', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
   })
