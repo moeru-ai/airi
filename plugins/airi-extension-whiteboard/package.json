@@ -6,13 +6,13 @@
   "description": "Official local whiteboard extension for AIRI stages",
   "exports": {
     ".": {
-      "types": "./dist/index.d.mts",
-      "default": "./dist/index.mjs"
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
     },
     "./ui": "./src/ui/index.ts"
   },
   "main": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
+  "types": "./src/index.ts",
   "files": ["README.md", "dist", "package.json", "src/ui"],
   "scripts": {
     "build": "tsdown",
