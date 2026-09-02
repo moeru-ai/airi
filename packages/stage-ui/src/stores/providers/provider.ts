@@ -693,9 +693,9 @@ export const useProviderStore = defineStore('provider', () => {
     return providerRuntimeState.value[providerId]?.models ?? emptyProviderModels
   }
 
-  function getDefaultModelForProvider(providerId: string) {
+  const getDefaultModelForProvider = computed(() => (providerId: string) => {
     return providerRuntimeState.value[providerId]?.defaultModel ?? null
-  }
+  })
 
   // Load models for all configured providers
   async function loadModelsForConfiguredProviders() {

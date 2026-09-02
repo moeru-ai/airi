@@ -106,6 +106,21 @@ describe('provider model catalog synchronization', () => {
       ],
     })
     await vi.waitFor(() => expect(followerContext.providerStore.getDefaultModelForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)).toBe('volcengine/seed-tts-2.0'))
+
+    // https://github.com/moeru-ai/airi/pull/2445#discussion_r3913843853
+    // ROOT CAUSE:
+    //
+    // A function returned from a Pinia setup store becomes an action. The
+    // default-model lookup was a pure read, but it still ran action hooks.
+    //
+    // Before: getDefaultModelForProvider was a returned store function.
+    //
+    // We fixed this by exposing the parameterized lookup as a computed getter.
+    const actionNames: string[] = []
+    followerContext.providerStore.$onAction(({ name }) => actionNames.push(name))
+
+    expect(followerContext.providerStore.getDefaultModelForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)).toBe('volcengine/seed-tts-2.0')
+    expect(actionNames).not.toContain('getDefaultModelForProvider')
   })
 
   // https://github.com/moeru-ai/airi/pull/2440#discussion_r3912911639
