@@ -5,7 +5,7 @@ import {
   ProviderSettingsLayout,
   SpeechPlayground,
 } from '@proj-airi/stage-ui/components'
-import { getDefaultStreamingModel, selectProviderMetadata, streamingSynthesize } from '@proj-airi/stage-ui/libs'
+import { selectProviderMetadata, streamingSynthesize } from '@proj-airi/stage-ui/libs'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
@@ -13,7 +13,7 @@ import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Callout, ComboboxSelect } from '@proj-airi/ui'
 import { computedAsync } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -42,12 +42,15 @@ const providerConfig = computed(() => providerStore.getProviderConfig(providerId
 const providerModels = computed(() => providersStore.getModelsForProvider(providerId))
 const modelsLoading = computed(() => providersStore.isLoadingModels[providerId] || false)
 const serverDefaultModel = ref<string | null>(null)
+const streamingAvailable = ref(false)
 const model = computed({
   get(): string {
     return (providerConfig.value?.model as string | undefined) ?? serverDefaultModel.value ?? ''
   },
   set(val: string) {
-    providerConfig.value.model = val
+    const config = providerConfig.value
+    if (config)
+      config.model = val
   },
 })
 const modelOptions = computed(() => providerModels.value.map(m => ({ label: m.name, value: m.id })))
@@ -65,24 +68,61 @@ async function loadVoices() {
   }
 }
 
-onMounted(async () => {
-  await providersStore.fetchModelsForProvider(providerId)
-  // `getDefaultStreamingModel()` is populated by the provider's listModels()
-  // (just ran via fetchModelsForProvider). If the operator hasn't curated a
-  // default server-side, fall back to the first model the server returned
-  // so the picker always has something selected.
-  serverDefaultModel.value = getDefaultStreamingModel() ?? providerModels.value[0]?.id ?? null
-  if (!providerConfig.value.model && serverDefaultModel.value)
-    providerConfig.value.model = serverDefaultModel.value
-  await loadVoices()
-})
+watch(isAuthenticated, async (authenticated, _, onCleanup) => {
+  let active = true
+  onCleanup(() => active = false)
+  streamingAvailable.value = false
+  serverDefaultModel.value = null
+  if (!authenticated)
+    return
+
+  await providersStore.initializeProvider(providerId)
+  if (!active)
+    return
+
+  const catalog = await providersStore.fetchModelsForProvider(providerId)
+  if (!active)
+    return
+
+  // An absent value means that discovery failed before the server returned an
+  // authoritative state. Keep the last configured state and availability
+  // override so a transient request failure cannot hide the provider.
+  if (catalog.available === undefined)
+    return
+
+  const available = catalog.available
+  await providersStore.setProviderAvailabilityOverride(providerId, available)
+  if (!active)
+    return
+
+  if (!available) {
+    await providersStore.setProviderUnconfigured(providerId)
+    return
+  }
+
+  await providersStore.forceProviderConfigured(providerId)
+  if (!active)
+    return
+
+  streamingAvailable.value = true
+
+  // If the operator did not curate a default server-side, fall back to the
+  // first model in the same catalog response. Do not read synchronized model
+  // state here because its follower snapshot can arrive after the action.
+  serverDefaultModel.value = catalog.defaultModel ?? catalog.models[0]?.id ?? null
+  const config = providerConfig.value
+  if (config && !config.model && serverDefaultModel.value)
+    config.model = serverDefaultModel.value
+}, { immediate: true })
 
 // Volcengine TTS 1.0 and 2.0 ship different voice catalogues (mars/moon/ICL
 // vs uranus/saturn; see unspeech voices.go). Re-fetch on model change so the
 // list switches accordingly.
-watch(model, async () => {
+watch([isAuthenticated, streamingAvailable, model], async ([authenticated, available, selectedModel]) => {
+  if (!authenticated || !available || !selectedModel)
+    return
   await loadVoices()
-})
+}, { immediate: true })
 
 // Synthesize via the streaming session helper. The page uses the SAME
 // transport the runtime pipeline uses (ws → API proxy → unspeech
@@ -184,7 +224,7 @@ function handleLogin() {
           <ComboboxSelect
             v-model="model"
             :options="modelOptions"
-            :disabled="modelsLoading"
+            :disabled="modelsLoading || !providerConfig"
             placeholder="Choose a model..."
           />
         </div>

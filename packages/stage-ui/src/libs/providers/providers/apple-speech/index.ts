@@ -22,6 +22,7 @@ export type { AppleSpeechConfig } from './provider'
 export { listAppleSpeechLocaleOptions } from './provider'
 
 export const APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID = 'apple-speech-transcription'
+type AppleSpeechTranscriptionProviderId = typeof APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID
 
 /** Request options applied by AIRI before Apple Speech creates a batch or live session. */
 export interface AppleSpeechProviderOptions {
@@ -214,7 +215,7 @@ export function executeAppleSpeechStream(options: StreamTranscriptionOptions): A
   }
 }
 
-export const providerAppleSpeechTranscription = defineProvider<AppleSpeechConfig>({
+export const providerAppleSpeechTranscription = defineProvider<AppleSpeechConfig, AppleSpeechTranscriptionProviderId>({
   id: APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID,
   name: 'Apple Speech',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.apple-speech-transcription.title'),

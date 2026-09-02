@@ -25,10 +25,10 @@ export interface WidgetIframeRequestCoordinatorOptions {
   emitRequest: (payload: WidgetsIframeRequestPayload) => void
   /** Returns whether the widget id currently has a mounted main-process record. */
   hasWidget: (id: string) => boolean
-  /** Returns whether a renderer relay is available to receive iframe request events. */
-  hasRelay: () => boolean
-  /** Waits until the widgets renderer has installed its request listener. */
-  waitForRelay?: () => Promise<void>
+  /** Returns whether the widget id has a renderer relay for iframe request events. */
+  hasRelay: (id: string) => boolean
+  /** Waits until the widget renderer has installed its request listener. */
+  waitForRelay?: (id: string) => Promise<void>
 }
 
 /**
@@ -77,16 +77,16 @@ export function createWidgetIframeRequestCoordinator(options: WidgetIframeReques
     })
 
     try {
-      if (!options.hasRelay()) {
+      if (!options.hasRelay(id)) {
         if (!options.waitForRelay) {
           throw new Error('Gamelet iframe relay is not available.')
         }
-        await options.waitForRelay()
+        await options.waitForRelay(id)
       }
       if (!pendingRequests.has(requestId)) {
         return response
       }
-      if (!options.hasRelay()) {
+      if (!options.hasRelay(id)) {
         throw new Error('Gamelet iframe relay is not available.')
       }
 

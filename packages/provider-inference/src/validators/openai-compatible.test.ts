@@ -1,0 +1,212 @@
+import type { ProviderExtraMethods, ProviderInstance, ProviderTranslator } from '../types'
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { providerOpenAI } from '../providers/cloud/openai'
+import { ProviderValidationCheck } from '../types'
+import { createOpenAICompatibleValidators } from './openai-compatible'
+
+const {
+  generateTextMock,
+  listModelsMock,
+} = vi.hoisted(() => ({
+  generateTextMock: vi.fn(),
+  listModelsMock: vi.fn(),
+}))
+
+vi.mock('@xsai/generate-text', () => ({
+  generateText: generateTextMock,
+}))
+
+vi.mock('@xsai/model', () => ({
+  listModels: listModelsMock,
+}))
+
+const mockT = vi.fn((key: string) => key) as ProviderTranslator
+
+async function getProviderValidators(options?: Parameters<typeof createOpenAICompatibleValidators>[0]) {
+  const validators = createOpenAICompatibleValidators(options)
+
+  return await Promise.all((validators?.validateProvider || []).map(create => create({ t: mockT })))
+}
+
+interface TestConfig { apiKey?: string, baseUrl?: string }
+
+describe('createOpenAICompatibleValidators', () => {
+  const config = {
+    apiKey: 'test-key',
+    baseUrl: 'https://example.com/v1/',
+  } satisfies TestConfig
+  const provider: ProviderInstance = {
+    model: () => ({
+      apiKey: config.apiKey,
+      baseURL: config.baseUrl,
+    }),
+  } as ProviderInstance
+  const providerExtra: ProviderExtraMethods<TestConfig> = {}
+
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('connectivity check uses lightweight fetch instead of generateText', async () => {
+    const [connectivityValidator] = await getProviderValidators({
+      checks: [ProviderValidationCheck.Connectivity],
+    })
+
+    const result = await connectivityValidator.validator(config, provider, providerExtra, { t: mockT })
+
+    expect(result.valid).toBe(true)
+    expect(generateTextMock).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://example.com/v1/models',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('connectivity check fails on network error', async () => {
+    fetchMock.mockRejectedValue(new TypeError('fetch failed'))
+
+    const [connectivityValidator] = await getProviderValidators({
+      checks: [ProviderValidationCheck.Connectivity],
+    })
+
+    const result = await connectivityValidator.validator(config, provider, providerExtra, { t: mockT })
+
+    expect(result.valid).toBe(false)
+    expect(result.reason).toContain('Connectivity check failed')
+    expect(generateTextMock).not.toHaveBeenCalled()
+  })
+
+  it('does not probe chat completions with a synthetic fallback model', async () => {
+    listModelsMock.mockResolvedValue([])
+
+    const [connectivityValidator, chatValidator] = await getProviderValidators({
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
+    })
+
+    const connectivityResult = await connectivityValidator.validator(config, provider, providerExtra, { t: mockT })
+    const chatResult = await chatValidator.validator(config, provider, providerExtra, { t: mockT })
+
+    expect(connectivityResult.valid).toBe(true)
+    expect(chatResult.valid).toBe(false)
+    expect(chatResult.reason).toContain('No model available for validation.')
+    expect(generateTextMock).not.toHaveBeenCalled()
+  })
+
+  it('allows providers to skip chat probing when they do not expose model listing', async () => {
+    listModelsMock.mockResolvedValue([])
+
+    const [connectivityValidator, chatValidator] = await getProviderValidators({
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
+      allowValidationWithoutModel: true,
+    })
+
+    const connectivityResult = await connectivityValidator.validator(config, provider, providerExtra, { t: mockT })
+    const chatResult = await chatValidator.validator(config, provider, providerExtra, { t: mockT })
+
+    expect(connectivityResult.valid).toBe(true)
+    expect(chatResult.valid).toBe(true)
+    expect(generateTextMock).not.toHaveBeenCalled()
+  })
+
+  it('default checks do not include chat_completions', async () => {
+    const validators = await getProviderValidators()
+    const ids = validators.map(v => v.id)
+
+    expect(ids).toContain('openai-compatible:check-connectivity')
+    expect(ids).toContain('openai-compatible:check-model-list')
+    expect(ids).not.toContain('openai-compatible:check-chat-completions')
+  })
+
+  it('normalizes the selected model id before chat probing', async () => {
+    listModelsMock.mockResolvedValue([
+      { id: 'byteplus/seed-2-0-pro-260328' },
+    ])
+
+    const [, chatValidator] = await getProviderValidators({
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
+      normalizeModelId: modelId => modelId.replace(/^byteplus\//, ''),
+    })
+
+    const result = await chatValidator.validator(config, provider, providerExtra, { t: mockT })
+
+    expect(result.valid).toBe(true)
+    expect(generateTextMock).toHaveBeenCalledWith(expect.objectContaining({
+      model: 'seed-2-0-pro-260328',
+      max_tokens: 16,
+    }))
+  })
+
+  it('uses a provider-compatible output limit for chat probing', async () => {
+    listModelsMock.mockResolvedValue([
+      { id: 'meta-llama/test-model' },
+    ])
+
+    const [chatValidator] = await getProviderValidators({
+      checks: [ProviderValidationCheck.ChatCompletions],
+    })
+
+    const result = await chatValidator.validator(config, provider, providerExtra, { t: mockT })
+
+    // ROOT CAUSE:
+    //
+    // The chat probe requested one output token. Some providers reject requests
+    // with fewer than 16 output tokens.
+    //
+    // max_tokens: 1
+    //
+    // The probe now uses the minimum that these providers accept.
+    // max_tokens: 16
+    expect(result.valid).toBe(true)
+    expect(generateTextMock).toHaveBeenCalledWith(expect.objectContaining({
+      max_tokens: 16,
+    }))
+  })
+
+  it('uses max_completion_tokens when the provider requires the newer parameter', async () => {
+    listModelsMock.mockResolvedValue([
+      { id: 'gpt-5' },
+    ])
+
+    const [, chatValidator] = await getProviderValidators({
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
+      chatCompletionTokenParameter: 'max_completion_tokens',
+    })
+
+    const result = await chatValidator.validator(config, provider, providerExtra, { t: mockT })
+
+    expect(result.valid).toBe(true)
+    expect(generateTextMock).toHaveBeenCalledWith(expect.objectContaining({
+      model: 'gpt-5',
+      max_completion_tokens: 16,
+    }))
+    expect(generateTextMock.mock.calls[0][0]).not.toHaveProperty('max_tokens')
+  })
+
+  it('configures the OpenAI provider validation with max_completion_tokens', async () => {
+    listModelsMock.mockResolvedValue([
+      { id: 'gpt-5' },
+    ])
+
+    const validators = await Promise.all((providerOpenAI.validators?.validateProvider || []).map(create => create({ t: mockT })))
+    const chatValidator = validators.find(validator => validator.id === 'openai-compatible:check-chat-completions')
+
+    expect(chatValidator).toBeDefined()
+    const result = await chatValidator!.validator(config, provider, providerExtra, { t: mockT })
+
+    expect(result.valid).toBe(true)
+    expect(generateTextMock).toHaveBeenCalledWith(expect.objectContaining({
+      max_completion_tokens: 16,
+    }))
+    expect(generateTextMock.mock.calls[0][0]).not.toHaveProperty('max_tokens')
+  })
+})

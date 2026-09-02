@@ -1,5 +1,7 @@
 import { defineConfig } from 'vitest/config'
 
+import { providerInferenceProjects } from './packages/provider-inference/vitest.config'
+
 export default defineConfig({
   test: {
     projects: [
@@ -14,11 +16,13 @@ export default defineConfig({
       'packages/input-gamepad',
       'packages/input-gamepad-vueuse',
       'packages/input-playstation-dualsense-5',
+      'packages/model-driver-lipsync',
       'packages/better-ws',
       'packages/plugin-sdk',
       'packages/plugin-sdk-stage',
       'packages/plugin-sdk-tamagotchi',
       'plugins/airi-extension-whiteboard',
+      ...providerInferenceProjects.map(project => ({ ...project, root: 'packages/provider-inference' })),
       'packages/scenarios-stage-tamagotchi-browser',
       'packages/scenarios-stage-tamagotchi-electron',
       'packages/server-runtime',

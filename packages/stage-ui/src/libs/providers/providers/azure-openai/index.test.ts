@@ -1,9 +1,9 @@
 import type { JsonSchema } from 'xsschema'
 
+import { getDefinedProvider } from '@proj-airi/provider-inference'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createSparkCommandTool } from '../../../../tools/character/orchestrator/spark-command'
-import { providerAzureOpenAI } from './index'
 
 interface ChatRequestBody {
   tools: Array<{
@@ -41,7 +41,11 @@ describe('providerAzureOpenAI tool schemas', () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response('{}'))
     vi.stubGlobal('fetch', fetchMock)
 
-    const provider = await providerAzureOpenAI.createProvider({
+    const providerDefinition = getDefinedProvider('azure-openai')
+    if (!providerDefinition)
+      throw new Error('Azure OpenAI provider definition is not registered.')
+
+    const provider = await providerDefinition.createProvider({
       apiKey: 'test-key',
       baseUrl: 'https://example.openai.azure.com/openai/',
     })

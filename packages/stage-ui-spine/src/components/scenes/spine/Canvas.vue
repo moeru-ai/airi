@@ -78,7 +78,11 @@ import.meta.hot?.dispose(() => {
 </script>
 
 <template>
-  <div ref="containerRef" h-full w-full>
+  <div
+    ref="containerRef"
+    class="w-full"
+    :style="{ height: `${props.height}px` }"
+  >
     <slot v-if="isCanvasReady" :canvas="canvasRef" />
   </div>
 </template>

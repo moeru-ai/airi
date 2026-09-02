@@ -1,9 +1,8 @@
-import type { ViewportProfile, ViewportRectangle, ViewportSample } from './adaptive-input-geometry'
+import type { ViewportRectangle } from './adaptive-input-geometry'
 
 import { describe, expect, it } from 'vitest'
 
 import {
-  calculateCachedViewportHeight,
   calculateKeyboardShift,
   calculateVisualViewportLayout,
 } from './adaptive-input-geometry'
@@ -24,24 +23,6 @@ function createRectangle(options: {
     right,
     top: options.top,
     width: right - left,
-  }
-}
-
-function createViewportProfile(options: Partial<ViewportProfile> = {}): ViewportProfile {
-  return {
-    displayMode: 'browser',
-    height: 714,
-    width: 390,
-    ...options,
-  }
-}
-
-function createViewportSample(options: Partial<ViewportSample> = {}): ViewportSample {
-  return {
-    bottomHiddenByKeyboard: 310,
-    measuredAt: 1_000,
-    profile: createViewportProfile(),
-    ...options,
   }
 }
 
@@ -149,95 +130,5 @@ describe('adaptive input geometry', () => {
     }, 714, 'closing')
 
     expect(layout.offsetTop).toBe(310)
-  })
-
-  // https://craft.rkm.mx/b/1FD194A1-0DDD-4F79-B0FD-ABEC08F88A3F/iOS-%E9%94%AE%E7%9B%98%E9%9A%BE%E9%A2%98%E4%B8%8E%E5%8F%AF%E8%A7%81%E8%A7%86%E5%8F%A3%EF%BC%88VisualViewport%EF%BC%89API
-  it('calculates the pre-focus height from a previous keyboard measurement', () => {
-    // ROOT CAUSE:
-    //
-    // Safari starts its native page pan before it reports stable Visual Viewport geometry.
-    // A correction after focus cannot remove the compositor frames that move the Stage.
-    //
-    // Before the fix, AIRI waited for a Visual Viewport event before it changed the chat height.
-    //
-    // We fixed this by applying a recent height hidden by the keyboard before focus.
-    // The focused control is inside the predicted visible area when Safari starts its focus policy.
-    const cachedHeight = calculateCachedViewportHeight(
-      createViewportSample(),
-      createViewportProfile(),
-      2_000,
-    )
-
-    expect(cachedHeight).toBe(404)
-  })
-
-  it('applies a recent height hidden by the keyboard to a small layout-height change', () => {
-    const cachedHeight = calculateCachedViewportHeight(
-      createViewportSample(),
-      createViewportProfile({ height: 734 }),
-      2_000,
-    )
-
-    expect(cachedHeight).toBe(424)
-  })
-
-  it('rejects a cached measurement after an orientation change', () => {
-    const cachedHeight = calculateCachedViewportHeight(
-      createViewportSample(),
-      createViewportProfile({ height: 390, width: 844 }),
-      2_000,
-    )
-
-    expect(cachedHeight).toBeUndefined()
-  })
-
-  it('rejects a cached measurement from another display mode', () => {
-    const cachedHeight = calculateCachedViewportHeight(
-      createViewportSample(),
-      createViewportProfile({ displayMode: 'standalone' }),
-      2_000,
-    )
-
-    expect(cachedHeight).toBeUndefined()
-  })
-
-  it('rejects a cached measurement after a large layout-height change', () => {
-    const cachedHeight = calculateCachedViewportHeight(
-      createViewportSample(),
-      createViewportProfile({ height: 834 }),
-      2_000,
-    )
-
-    expect(cachedHeight).toBeUndefined()
-  })
-
-  it('rejects a cached measurement from another layout width', () => {
-    const cachedHeight = calculateCachedViewportHeight(
-      createViewportSample(),
-      createViewportProfile({ width: 430 }),
-      2_000,
-    )
-
-    expect(cachedHeight).toBeUndefined()
-  })
-
-  it('rejects a cached measurement without a keyboard-sized hidden height', () => {
-    const cachedHeight = calculateCachedViewportHeight(
-      createViewportSample({ bottomHiddenByKeyboard: 60 }),
-      createViewportProfile(),
-      2_000,
-    )
-
-    expect(cachedHeight).toBeUndefined()
-  })
-
-  it('rejects an old cached measurement', () => {
-    const cachedHeight = calculateCachedViewportHeight(
-      createViewportSample(),
-      createViewportProfile(),
-      3_601_000,
-    )
-
-    expect(cachedHeight).toBeUndefined()
   })
 })

@@ -16,6 +16,12 @@ export interface UseAdaptiveInputOptions extends ConfigurableWindow {
    * @default true
    */
   enabled?: MaybeRefOrGetter<boolean>
+  /**
+   * Lets the virtual keyboard cover page content so the controller can position the input area.
+   *
+   * @default true
+   */
+  overlayVirtualKeyboard?: boolean
   /** The region that contains editable controls and moves above the keyboard. */
   area: MaybeComputedElementRef<HTMLElement | null>
   /** The region whose height follows the available viewport. */
@@ -41,41 +47,44 @@ export function useAdaptiveInput(options: UseAdaptiveInputOptions) {
   })
   const layout = shallowReactive<AdaptiveInputLayout>({
     keyboardVisible: false,
+    stableViewportHeight: layoutViewportHeight.value,
     visibleHeight: layoutViewportHeight.value,
     viewportBottom: layoutViewportHeight.value,
     viewportOffsetTop: 0,
   })
+
+  function resetLayout(height: number) {
+    Object.assign(layout, {
+      keyboardVisible: false,
+      stableViewportHeight: height,
+      visibleHeight: height,
+      viewportBottom: height,
+      viewportOffsetTop: 0,
+    })
+  }
 
   useEventListener(controller, ADAPTIVE_INPUT_LAYOUT_EVENT, () => {
     const currentLayout = controller.value?.layout
     if (!currentLayout)
       return
 
-    layout.keyboardVisible = currentLayout.keyboardVisible
-    layout.visibleHeight = currentLayout.visibleHeight
-    layout.viewportBottom = currentLayout.viewportBottom
-    layout.viewportOffsetTop = currentLayout.viewportOffsetTop
+    Object.assign(layout, currentLayout)
   })
 
   watch([viewport, area, enabled], ([viewportElement, areaElement, keyboardEnabled], _, onCleanup) => {
     if (!viewportElement || !areaElement || !keyboardEnabled) {
-      layout.keyboardVisible = false
-      layout.visibleHeight = layoutViewportHeight.value
-      layout.viewportBottom = layoutViewportHeight.value
-      layout.viewportOffsetTop = 0
+      resetLayout(layoutViewportHeight.value)
       return
     }
 
     const currentController = new AdaptiveInput({
       area: areaElement,
+      overlayVirtualKeyboard: options.overlayVirtualKeyboard,
       viewport: viewportElement,
       window: targetWindow,
     })
     controller.value = currentController
-    layout.keyboardVisible = currentController.layout.keyboardVisible
-    layout.visibleHeight = currentController.layout.visibleHeight
-    layout.viewportBottom = currentController.layout.viewportBottom
-    layout.viewportOffsetTop = currentController.layout.viewportOffsetTop
+    Object.assign(layout, currentController.layout)
 
     onCleanup(() => {
       controller.value = undefined
@@ -87,10 +96,7 @@ export function useAdaptiveInput(options: UseAdaptiveInputOptions) {
     if (controller.value)
       return
 
-    layout.keyboardVisible = false
-    layout.visibleHeight = height
-    layout.viewportBottom = height
-    layout.viewportOffsetTop = 0
+    resetLayout(height)
   }, { flush: 'sync' })
 
   return toRefs(readonly(layout))
