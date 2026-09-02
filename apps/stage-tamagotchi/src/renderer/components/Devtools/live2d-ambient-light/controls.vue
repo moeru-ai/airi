@@ -3,7 +3,7 @@ import type { ScreenAmbientLightMode, ScreenAmbientLightSource } from '@proj-air
 import type { SelectTabOption } from '@proj-airi/ui'
 
 import { ambientLightDefaults } from '@proj-airi/stage-shared/screen-ambient-light'
-import { useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
+import { useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
 import { ColorPicker, Section } from '@proj-airi/stage-ui/components'
 import { FieldCheckbox, FieldRange, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -12,12 +12,12 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const {
-  live2dScreenAmbientLightEnabled,
-  live2dScreenAmbientLightForcedColor,
-  live2dScreenAmbientLightMode,
-  live2dScreenAmbientLightSource,
-  live2dScreenAmbientLightStrength,
-} = storeToRefs(useSettingsLive2d())
+  screenAmbientLightEnabled,
+  screenAmbientLightForcedColor,
+  screenAmbientLightMode,
+  screenAmbientLightSource,
+  screenAmbientLightStrength,
+} = storeToRefs(useSettingsScreenAmbientLight())
 
 const sourceOptions = computed<SelectTabOption<ScreenAmbientLightSource>[]>(() => [
   {
@@ -52,7 +52,7 @@ function formatMultiplier(value: number) {
     inner-class="gap-4"
   >
     <FieldCheckbox
-      v-model="live2dScreenAmbientLightEnabled"
+      v-model="screenAmbientLightEnabled"
       :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.enabled.title')"
       :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.enabled.description')"
     />
@@ -62,19 +62,19 @@ function formatMultiplier(value: number) {
         <span :class="['text-sm font-medium']">
           {{ t('tamagotchi.settings.devtools.pages.live2d-ambient-light.source.title') }}
         </span>
-        <SelectTab v-model="live2dScreenAmbientLightSource" :options="sourceOptions" size="sm" />
+        <SelectTab v-model="screenAmbientLightSource" :options="sourceOptions" size="sm" />
       </label>
 
       <label :class="['flex flex-col gap-2']">
         <span :class="['text-sm font-medium']">
           {{ t('tamagotchi.settings.devtools.pages.live2d-ambient-light.mode.title') }}
         </span>
-        <SelectTab v-model="live2dScreenAmbientLightMode" :options="modeOptions" size="sm" />
+        <SelectTab v-model="screenAmbientLightMode" :options="modeOptions" size="sm" />
       </label>
     </div>
 
     <div
-      v-if="live2dScreenAmbientLightSource === 'forced-color'"
+      v-if="screenAmbientLightSource === 'forced-color'"
       :class="[
         'grid items-center gap-3', 'sm:grid-cols-[1fr_auto]',
         'rounded-xl px-3 py-3',
@@ -92,14 +92,14 @@ function formatMultiplier(value: number) {
       <div :class="['flex items-center justify-end gap-3']">
         <div
           :class="['size-9 rounded-lg border border-neutral-300 dark:border-neutral-700']"
-          :style="{ backgroundColor: live2dScreenAmbientLightForcedColor }"
+          :style="{ backgroundColor: screenAmbientLightForcedColor }"
         />
-        <ColorPicker v-model="live2dScreenAmbientLightForcedColor" :alpha="false" />
+        <ColorPicker v-model="screenAmbientLightForcedColor" :alpha="false" />
       </div>
     </div>
 
     <FieldRange
-      v-model="live2dScreenAmbientLightStrength"
+      v-model="screenAmbientLightStrength"
       as="div"
       :min="0"
       :max="3"
