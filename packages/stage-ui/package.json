@@ -36,7 +36,6 @@
     "./libs/pinia": "./src/libs/pinia/index.ts",
     "./libs/providers/stream-transcription": "./src/libs/providers/stream-transcription/index.ts",
     "./libs/providers/providers/aliyun-nls": "./src/libs/providers/providers/aliyun-nls/index.ts",
-    "./libs/providers/providers/browser-web-speech-api": "./src/libs/providers/providers/browser-web-speech-api/index.ts",
     "./libs/*": "./src/libs/*.ts",
     "./libs": "./src/libs/index.ts",
     "./models/*": "./src/models/*.ts",

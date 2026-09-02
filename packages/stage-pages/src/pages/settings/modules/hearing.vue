@@ -2,7 +2,7 @@
 import { errorMessageFrom } from '@moeru/std'
 import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useAudioAnalyzer, useHearingPlaygroundSegments, useVoiceInputSession } from '@proj-airi/stage-ui/composables'
-import { getDefinedProvider, hearingProviderViewContextKey } from '@proj-airi/stage-ui/libs'
+import { hearingProviderViewContextKey } from '@proj-airi/stage-ui/libs'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { CONFIDENCE_THRESHOLD_DISABLED, useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
@@ -66,9 +66,7 @@ const activeProviderConfig = computed(() => {
   return providerStore.providers[activeTranscriptionProvider.value]?.config
 })
 const activeProviderHearingView = computed(() => {
-  const providerId = activeTranscriptionProvider.value
-  const provider = providerId ? getDefinedProvider(providerId) : undefined
-  const loadView = provider?.views?.hearing
+  const loadView = providersStore.findProviderDefinition(activeTranscriptionProvider.value)?.views?.hearing
   return loadView ? defineAsyncComponent(loadView) : undefined
 })
 
