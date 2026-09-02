@@ -62,11 +62,11 @@ const props = withDefaults(defineProps<{
   live2dForceAutoBlinkEnabled?: boolean
   live2dExpressionEnabled?: boolean
   live2dShadowEnabled?: boolean
-  live2dScreenAmbientLightActive?: boolean
-  live2dScreenAmbientLightFilterOptions?: AmbientLightFilterOptions
-  live2dScreenAmbientLightEnvironment?: AmbientLightEnvironment
-  live2dScreenAmbientLightMode?: ScreenAmbientLightMode
-  live2dScreenAmbientLightStrength?: number
+  screenAmbientLightActive?: boolean
+  screenAmbientLightFilterOptions?: AmbientLightFilterOptions
+  screenAmbientLightEnvironment?: AmbientLightEnvironment
+  screenAmbientLightMode?: ScreenAmbientLightMode
+  screenAmbientLightStrength?: number
 }>(), {
   mouthOpenSize: 0,
   nowSpeaking: false,
@@ -84,11 +84,11 @@ const props = withDefaults(defineProps<{
   live2dForceAutoBlinkEnabled: false,
   live2dExpressionEnabled: true,
   live2dShadowEnabled: true,
-  live2dScreenAmbientLightActive: false,
-  live2dScreenAmbientLightFilterOptions: () => ({ ...ambientLightDefaults.filter }),
-  live2dScreenAmbientLightEnvironment: () => ambientLightNeutralEnvironment,
-  live2dScreenAmbientLightMode: ambientLightDefaults.mode,
-  live2dScreenAmbientLightStrength: ambientLightDefaults.strength,
+  screenAmbientLightActive: false,
+  screenAmbientLightFilterOptions: () => ({ ...ambientLightDefaults.filter }),
+  screenAmbientLightEnvironment: () => ambientLightNeutralEnvironment,
+  screenAmbientLightMode: ambientLightDefaults.mode,
+  screenAmbientLightStrength: ambientLightDefaults.strength,
 })
 
 const emits = defineEmits<{
@@ -227,11 +227,11 @@ const live2dAutoBlinkEnabled = toRef(() => props.live2dAutoBlinkEnabled)
 const live2dForceAutoBlinkEnabled = toRef(() => props.live2dForceAutoBlinkEnabled)
 const live2dExpressionEnabled = toRef(() => props.live2dExpressionEnabled)
 const live2dShadowEnabled = toRef(() => props.live2dShadowEnabled)
-const live2dScreenAmbientLightActive = toRef(() => props.live2dScreenAmbientLightActive)
-const live2dScreenAmbientLightFilterOptions = toRef(() => props.live2dScreenAmbientLightFilterOptions)
-const live2dScreenAmbientLightEnvironment = toRef(() => props.live2dScreenAmbientLightEnvironment)
-const live2dScreenAmbientLightMode = toRef(() => props.live2dScreenAmbientLightMode)
-const live2dScreenAmbientLightStrength = toRef(() => props.live2dScreenAmbientLightStrength)
+const screenAmbientLightActive = toRef(() => props.screenAmbientLightActive)
+const screenAmbientLightFilterOptions = toRef(() => props.screenAmbientLightFilterOptions)
+const screenAmbientLightEnvironment = toRef(() => props.screenAmbientLightEnvironment)
+const screenAmbientLightMode = toRef(() => props.screenAmbientLightMode)
+const screenAmbientLightStrength = toRef(() => props.screenAmbientLightStrength)
 
 // --- Expression controller
 const internalModelRef = shallowRef<PixiLive2DInternalModel>()
@@ -574,14 +574,14 @@ const dropShadowColorComputer = ref<HTMLDivElement>()
 const dropShadowAnimationId = ref(0)
 
 function updateAmbientLightFilter() {
-  if (!live2dScreenAmbientLightActive.value)
+  if (!screenAmbientLightActive.value)
     return
 
   screenAmbientLightFilter.value.update({
-    environment: live2dScreenAmbientLightEnvironment.value,
-    mode: live2dScreenAmbientLightMode.value,
-    strength: live2dScreenAmbientLightStrength.value,
-    options: live2dScreenAmbientLightFilterOptions.value,
+    environment: screenAmbientLightEnvironment.value,
+    mode: screenAmbientLightMode.value,
+    strength: screenAmbientLightStrength.value,
+    options: screenAmbientLightFilterOptions.value,
   })
 }
 
@@ -589,8 +589,8 @@ function updateDropShadow() {
   // The measured screen level only applies while the ambient light is running.
   // Without it the shadow keeps one strength, which is the behavior for a stage
   // that never samples the screen.
-  const exposure = live2dScreenAmbientLightActive.value
-    ? live2dScreenAmbientLightEnvironment.value.exposure
+  const exposure = screenAmbientLightActive.value
+    ? screenAmbientLightEnvironment.value.exposure
     : 0
   dropShadowFilter.value.alpha = dropShadowBaseAlpha * (1 - dropShadowExposureFalloff * exposure)
 
@@ -609,7 +609,7 @@ function updateFilterStack() {
     return
 
   const filters: Filter[] = []
-  if (live2dScreenAmbientLightActive.value)
+  if (screenAmbientLightActive.value)
     filters.push(screenAmbientLightFilter.value)
   if (live2dShadowEnabled.value)
     filters.push(dropShadowFilter.value)
@@ -630,14 +630,14 @@ function updateModelFilters() {
 watch(modelSrcRef, async () => await loadModel(), { immediate: true })
 watch(dark, updateModelFilters, { immediate: true })
 watch([model, themeColorsHue], updateModelFilters)
-watch([live2dShadowEnabled, live2dScreenAmbientLightActive], updateFilterStack)
+watch([live2dShadowEnabled, screenAmbientLightActive], updateFilterStack)
 watch(
   [
-    live2dScreenAmbientLightActive,
-    live2dScreenAmbientLightFilterOptions,
-    live2dScreenAmbientLightEnvironment,
-    live2dScreenAmbientLightMode,
-    live2dScreenAmbientLightStrength,
+    screenAmbientLightActive,
+    screenAmbientLightFilterOptions,
+    screenAmbientLightEnvironment,
+    screenAmbientLightMode,
+    screenAmbientLightStrength,
   ],
   updateModelFilters,
 )

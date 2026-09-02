@@ -4,7 +4,7 @@ import type { AmbientLightEnvironment, AmbientLightFilterOptions } from '@proj-a
 import ScreenAmbientLightPreview from '@proj-airi/stage-ui-live2d/components/diagnostics/screen-ambient-light-preview.vue'
 
 import { ambientLightNeutralEnvironment } from '@proj-airi/stage-shared/screen-ambient-light'
-import { useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
+import { useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
 import { ambientLightTestCard } from '@proj-airi/stage-ui-live2d/utils/ambient-light-test-card'
 import { Section } from '@proj-airi/stage-ui/components'
 import { storeToRefs } from 'pinia'
@@ -25,30 +25,30 @@ const plateColor = '#2c2c33'
 const { t } = useI18n()
 const { diagnostics } = useScreenAmbientLightDiagnostics()
 const {
-  live2dScreenAmbientLightBacklight,
-  live2dScreenAmbientLightBaseBrightness,
-  live2dScreenAmbientLightBaseContrast,
-  live2dScreenAmbientLightChroma,
-  live2dScreenAmbientLightExposureRange,
-  live2dScreenAmbientLightMode,
-  live2dScreenAmbientLightStrength,
-  live2dScreenAmbientLightTranslucentWrap,
-  live2dScreenAmbientLightWrapDiffuse,
-  live2dScreenAmbientLightWrapIntensity,
-} = storeToRefs(useSettingsLive2d())
+  screenAmbientLightBacklight,
+  screenAmbientLightBaseBrightness,
+  screenAmbientLightBaseContrast,
+  screenAmbientLightChroma,
+  screenAmbientLightExposureRange,
+  screenAmbientLightMode,
+  screenAmbientLightStrength,
+  screenAmbientLightTranslucentWrap,
+  screenAmbientLightWrapDiffuse,
+  screenAmbientLightWrapIntensity,
+} = storeToRefs(useSettingsScreenAmbientLight())
 
 /** Message shown in place of the preview when the renderer cannot start. */
 const failure = shallowRef<string>()
 
 const filterOptions = computed<AmbientLightFilterOptions>(() => ({
-  baseBrightness: live2dScreenAmbientLightBaseBrightness.value,
-  exposureRange: live2dScreenAmbientLightExposureRange.value,
-  baseContrast: live2dScreenAmbientLightBaseContrast.value,
-  chroma: live2dScreenAmbientLightChroma.value,
-  wrapIntensity: live2dScreenAmbientLightWrapIntensity.value,
-  wrapDiffuse: live2dScreenAmbientLightWrapDiffuse.value,
-  backlight: live2dScreenAmbientLightBacklight.value,
-  translucentWrap: live2dScreenAmbientLightTranslucentWrap.value,
+  baseBrightness: screenAmbientLightBaseBrightness.value,
+  exposureRange: screenAmbientLightExposureRange.value,
+  baseContrast: screenAmbientLightBaseContrast.value,
+  chroma: screenAmbientLightChroma.value,
+  wrapIntensity: screenAmbientLightWrapIntensity.value,
+  wrapDiffuse: screenAmbientLightWrapDiffuse.value,
+  backlight: screenAmbientLightBacklight.value,
+  translucentWrap: screenAmbientLightTranslucentWrap.value,
 }))
 
 /**
@@ -120,8 +120,8 @@ function formatAlpha(alpha: number) {
           <ScreenAmbientLightPreview
             :environment="previewEnvironment"
             :options="filterOptions"
-            :mode="live2dScreenAmbientLightMode"
-            :strength="live2dScreenAmbientLightStrength"
+            :mode="screenAmbientLightMode"
+            :strength="screenAmbientLightStrength"
             @failed="message => failure = message"
           />
         </div>

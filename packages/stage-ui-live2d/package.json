@@ -25,7 +25,6 @@
     "./constants/emotions": "./src/constants/emotions.ts",
     "./filters/screen-ambient-light": "./src/filters/screen-ambient-light.ts",
     "./stores": "./src/stores/index.ts",
-    "./stores/ambient-light": "./src/stores/ambient-light.ts",
     "./stores/model-parameters": "./src/stores/model-parameters.ts",
     "./stores/expression-store": "./src/stores/expression-store.ts",
     "./tools/expression-tools": "./src/tools/expression-tools.ts",

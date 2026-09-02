@@ -24,6 +24,7 @@
     "./perf/io-trace": "./src/perf/io-trace.ts",
     "./screen-ambient-light": "./src/screen-ambient-light/index.ts",
     "./server-channel-qr": "./src/server-channel-qr.ts",
+    "./stores/screen-ambient-light": "./src/stores/screen-ambient-light.ts",
     "./types/io-trace": "./src/types/io-trace.ts",
     "./types/pinia-action-event": "./src/types/pinia-action-event.ts",
     "./electron-renderer": "./src/electron-renderer.d.ts",

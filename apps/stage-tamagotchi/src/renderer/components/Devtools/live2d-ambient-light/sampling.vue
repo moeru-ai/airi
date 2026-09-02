@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ambientLightDefaults } from '@proj-airi/stage-shared/screen-ambient-light'
-import { useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
+import { useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
 import { Section } from '@proj-airi/stage-ui/components'
 import { FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -8,12 +8,12 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const {
-  live2dScreenAmbientLightCaptureIntervalMs,
-  live2dScreenAmbientLightNeutralColorWeight,
-  live2dScreenAmbientLightResponseMs,
-  live2dScreenAmbientLightSampleHeight,
-  live2dScreenAmbientLightSampleWidth,
-} = storeToRefs(useSettingsLive2d())
+  screenAmbientLightCaptureIntervalMs,
+  screenAmbientLightNeutralColorWeight,
+  screenAmbientLightResponseMs,
+  screenAmbientLightSampleHeight,
+  screenAmbientLightSampleWidth,
+} = storeToRefs(useSettingsScreenAmbientLight())
 
 function formatMilliseconds(value: number) {
   return `${Math.round(value)} ms`
@@ -36,7 +36,7 @@ function formatPercent(value: number) {
   >
     <div :class="['grid gap-5', 'md:grid-cols-2']">
       <FieldRange
-        v-model="live2dScreenAmbientLightCaptureIntervalMs"
+        v-model="screenAmbientLightCaptureIntervalMs"
         as="div"
         :min="50"
         :max="2000"
@@ -47,7 +47,7 @@ function formatPercent(value: number) {
         :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.capture-interval.description')"
       />
       <FieldRange
-        v-model="live2dScreenAmbientLightResponseMs"
+        v-model="screenAmbientLightResponseMs"
         as="div"
         :min="50"
         :max="3000"
@@ -58,7 +58,7 @@ function formatPercent(value: number) {
         :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.response-time.description')"
       />
       <FieldRange
-        v-model="live2dScreenAmbientLightSampleWidth"
+        v-model="screenAmbientLightSampleWidth"
         as="div"
         :min="32"
         :max="256"
@@ -69,7 +69,7 @@ function formatPercent(value: number) {
         :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.sample-width.description')"
       />
       <FieldRange
-        v-model="live2dScreenAmbientLightSampleHeight"
+        v-model="screenAmbientLightSampleHeight"
         as="div"
         :min="24"
         :max="192"
@@ -80,7 +80,7 @@ function formatPercent(value: number) {
         :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.sample-height.description')"
       />
       <FieldRange
-        v-model="live2dScreenAmbientLightNeutralColorWeight"
+        v-model="screenAmbientLightNeutralColorWeight"
         as="div"
         :min="0"
         :max="1"
