@@ -102,10 +102,10 @@ export function useMobileInteractiveAreaLayout(options: UseMobileInteractiveArea
 
     // WORKAROUND:
     // NOTICE:
-    // Why: A CSS height transition leaves the input at its old position during Safari's focus check.
-    // Root cause: The keyboard workaround must apply the new layout before it calls focus().
-    // Code context: AdaptiveInput updates the viewport element synchronously before focus.
-    // Removal condition: Safari provides keyboard geometry before it applies the focus scroll.
+    // Why: Prevent a visible jump when delayed keyboard geometry changes the input layout.
+    // Root cause: Safari starts its viewport pan before Visual Viewport reports the final geometry.
+    // Source: https://bugs.webkit.org/show_bug.cgi?id=265578
+    // Removal condition: Safari reports keyboard geometry before its viewport pan starts.
     areaAnimation = target.animate([
       { transform: `translate3d(0, ${offset}px, 0)` },
       { transform: 'translate3d(0, 0, 0)' },
