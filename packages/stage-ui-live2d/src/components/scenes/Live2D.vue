@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Live2DEyeFocusSource } from '../../composables/live2d'
 
+import { useScreenAmbientLightEnvironment, useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
 import { Screen } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onUnmounted, ref, watch } from 'vue'
@@ -9,7 +10,6 @@ import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
 
 import { useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
-import { useLive2DAmbientLight } from '../../stores'
 
 import '../../utils/live2d-zip-loader'
 import '../../utils/live2d-opfs-registration'
@@ -56,32 +56,34 @@ const {
   live2dMaxFps,
   live2dRenderScale,
   live2dShadowEnabled,
-  live2dScreenAmbientLightBacklight,
-  live2dScreenAmbientLightBaseBrightness,
-  live2dScreenAmbientLightBaseContrast,
-  live2dScreenAmbientLightChroma,
-  live2dScreenAmbientLightEnabled,
-  live2dScreenAmbientLightExposureRange,
-  live2dScreenAmbientLightMode,
-  live2dScreenAmbientLightStrength,
-  live2dScreenAmbientLightTranslucentWrap,
-  live2dScreenAmbientLightWrapDiffuse,
-  live2dScreenAmbientLightWrapIntensity,
 } = storeToRefs(useSettingsLive2d())
 const universalMotionEnabled = computed(() => live2dMotionDriver.value === 'universal')
 const {
-  active: live2dScreenAmbientLightActive,
-  environment: live2dScreenAmbientLightEnvironment,
-} = storeToRefs(useLive2DAmbientLight())
-const live2dScreenAmbientLightFilterOptions = computed(() => ({
-  baseBrightness: live2dScreenAmbientLightBaseBrightness.value,
-  exposureRange: live2dScreenAmbientLightExposureRange.value,
-  baseContrast: live2dScreenAmbientLightBaseContrast.value,
-  chroma: live2dScreenAmbientLightChroma.value,
-  wrapIntensity: live2dScreenAmbientLightWrapIntensity.value,
-  wrapDiffuse: live2dScreenAmbientLightWrapDiffuse.value,
-  backlight: live2dScreenAmbientLightBacklight.value,
-  translucentWrap: live2dScreenAmbientLightTranslucentWrap.value,
+  screenAmbientLightBacklight,
+  screenAmbientLightBaseBrightness,
+  screenAmbientLightBaseContrast,
+  screenAmbientLightChroma,
+  screenAmbientLightEnabled,
+  screenAmbientLightExposureRange,
+  screenAmbientLightMode,
+  screenAmbientLightStrength,
+  screenAmbientLightTranslucentWrap,
+  screenAmbientLightWrapDiffuse,
+  screenAmbientLightWrapIntensity,
+} = storeToRefs(useSettingsScreenAmbientLight())
+const {
+  active: screenAmbientLightActive,
+  environment: screenAmbientLightEnvironment,
+} = storeToRefs(useScreenAmbientLightEnvironment())
+const screenAmbientLightFilterOptions = computed(() => ({
+  baseBrightness: screenAmbientLightBaseBrightness.value,
+  exposureRange: screenAmbientLightExposureRange.value,
+  baseContrast: screenAmbientLightBaseContrast.value,
+  chroma: screenAmbientLightChroma.value,
+  wrapIntensity: screenAmbientLightWrapIntensity.value,
+  wrapDiffuse: screenAmbientLightWrapDiffuse.value,
+  backlight: screenAmbientLightBacklight.value,
+  translucentWrap: screenAmbientLightTranslucentWrap.value,
 }))
 const mouseFocus = useLive2DEyeFocusFor({
   canvas: () => live2dCanvasRef.value?.canvasElement(),
@@ -156,11 +158,11 @@ defineExpose({
         :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
         :live2d-expression-enabled="live2dExpressionEnabled"
         :live2d-shadow-enabled="live2dShadowEnabled"
-        :live2d-screen-ambient-light-active="live2dScreenAmbientLightEnabled && live2dScreenAmbientLightActive"
-        :live2d-screen-ambient-light-filter-options="live2dScreenAmbientLightFilterOptions"
-        :live2d-screen-ambient-light-environment="live2dScreenAmbientLightEnvironment"
-        :live2d-screen-ambient-light-mode="live2dScreenAmbientLightMode"
-        :live2d-screen-ambient-light-strength="live2dScreenAmbientLightStrength"
+        :screen-ambient-light-active="screenAmbientLightEnabled && screenAmbientLightActive"
+        :screen-ambient-light-filter-options="screenAmbientLightFilterOptions"
+        :screen-ambient-light-environment="screenAmbientLightEnvironment"
+        :screen-ambient-light-mode="screenAmbientLightMode"
+        :screen-ambient-light-strength="screenAmbientLightStrength"
         @error="emit('error', $event)"
       />
     </Live2DCanvas>
