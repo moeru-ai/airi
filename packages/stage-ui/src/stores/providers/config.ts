@@ -46,6 +46,8 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   const providers = useLocalStorage<Record<string, InferenceServiceProvider>>('settings/providers/configured', {}, providerStorageOptions)
   const addedProviders = useLocalStorage<Record<string, boolean>>('settings/providers/added', {}, providerStorageOptions)
   const legacyConfigs = useLocalStorage<Record<string, Record<string, unknown>>>('settings/credentials/providers', {}, providerStorageOptions)
+  const pendingProviderCreations = new Set<string>()
+  const removedDuringCreation = new Set<string>()
 
   // Import the previous provider configuration shape once. Provider ids remain
   // stable, so existing model selections keep pointing at the same provider.
@@ -215,6 +217,8 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   async function synchronizeAddedProvider(provider: InferenceServiceProvider) {
+    pendingProviderCreations.add(provider.id)
+    removedDuringCreation.delete(provider.id)
     providers.value[provider.id] = provider
     markProviderAdded(provider.id)
 
@@ -225,12 +229,22 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       // is in flight. Do not let the stale create response undo either action.
       const current = providers.value[provider.id]
       if (!current) {
-        try {
-          await removeProviderMutation.mutateAsync(remote.id)
+        if (removedDuringCreation.delete(provider.id)) {
+          try {
+            await removeProviderMutation.mutateAsync(remote.id)
+          }
+          catch {
+            // Keep the local deletion authoritative if cleanup cannot reach the server.
+          }
+          pendingProviderCreations.delete(provider.id)
+          return remote
         }
-        catch {
-          // Keep the local deletion authoritative if cleanup cannot reach the server.
-        }
+
+        // A replicated snapshot can briefly replace the optimistic entry while
+        // the leader owns the remote create. It is not a user deletion.
+        providers.value[remote.id] = remote
+        markProviderAdded(remote.id)
+        pendingProviderCreations.delete(provider.id)
         return remote
       }
 
@@ -246,8 +260,10 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       providers.value[remote.id] = reconciled
       markProviderAdded(remote.id)
 
-      if (current === provider)
+      if (current === provider) {
+        pendingProviderCreations.delete(provider.id)
         return remote
+      }
 
       try {
         const saved = await updateProviderMutation.mutateAsync({
@@ -257,15 +273,18 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
         })
         if (providers.value[remote.id] === reconciled)
           providers.value[remote.id] = saved
+        pendingProviderCreations.delete(provider.id)
         return saved
       }
       catch {
         // Preserve the user's newer configuration when the reconciliation fails.
+        pendingProviderCreations.delete(provider.id)
         return reconciled
       }
     }
     catch {
       // A failed remote create does not discard the local provider.
+      pendingProviderCreations.delete(provider.id)
       return provider
     }
   }
@@ -279,6 +298,8 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     if (!providers.value[providerId])
       return
 
+    if (pendingProviderCreations.has(providerId))
+      removedDuringCreation.add(providerId)
     delete providers.value[providerId]
     unmarkProviderAdded(providerId)
 

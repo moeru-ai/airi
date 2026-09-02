@@ -164,6 +164,23 @@ describe('provider config store', () => {
     expect(mocks.service.deleteRemote).toHaveBeenLastCalledWith(mocks.client, remoteProvider.id)
   })
 
+  it('restores a created provider after a replicated snapshot temporarily removes it', async () => {
+    let resolveCreate!: (provider: InferenceServiceProvider) => void
+    mocks.service.createRemote.mockImplementation(() => new Promise((resolve) => {
+      resolveCreate = resolve
+    }))
+    const store = installStore()
+
+    const creating = store.addProvider(localProvider.definitionId)
+    await vi.waitFor(() => expect(resolveCreate).toBeTypeOf('function'))
+    delete store.providers[localProvider.id]
+    resolveCreate(remoteProvider)
+
+    await expect(creating).resolves.toEqual(remoteProvider)
+    expect(store.providers).toEqual({ [remoteProvider.id]: remoteProvider })
+    expect(mocks.service.deleteRemote).not.toHaveBeenCalled()
+  })
+
   it('updates and removes a provider through the store interface', async () => {
     const store = installStore()
     store.providers[localProvider.id] = localProvider
