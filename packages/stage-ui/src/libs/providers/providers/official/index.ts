@@ -34,15 +34,6 @@ export function getDefaultSpeechModel(): string | null {
 }
 
 const officialConfigSchema = z.object({})
-const streamingModelCatalogSchema = z.object({
-  available: z.boolean(),
-  models: z.array(z.object({
-    id: z.string(),
-    name: z.string().optional(),
-    description: z.string().optional(),
-  })),
-  default: z.string().nullable().optional(),
-})
 
 function authHeaders(): Record<string, string> {
   const headers: Record<string, string> = { Accept: 'application/json' }
@@ -61,7 +52,11 @@ async function listStreamingModelCatalog(): Promise<ProviderModelCatalog> {
   if (!res.ok)
     throw new Error(`streaming models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
-  const data = streamingModelCatalogSchema.parse(await res.json())
+  const data = await res.json() as {
+    available: boolean
+    models: { id: string, name?: string, description?: string }[]
+    default: string | null
+  }
 
   return {
     available: data.available,

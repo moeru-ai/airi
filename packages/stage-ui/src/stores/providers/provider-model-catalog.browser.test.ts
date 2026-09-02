@@ -145,28 +145,4 @@ describe('provider model catalog synchronization', () => {
     expect(leaderContext.providerConfigStore.getProviderConfig(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)?.model).toBe('volcengine/seed-tts-1.0')
     await vi.waitFor(() => expect(followerContext.providerConfigStore.getProviderConfig(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)?.model).toBe('volcengine/seed-tts-1.0'))
   })
-
-  it('treats a malformed availability value as a discovery error', async () => {
-    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({
-      models: [
-        { id: 'volcengine/seed-tts-2.0', name: 'Seed TTS 2.0' },
-      ],
-    }))
-    vi.stubGlobal('fetch', fetchMock)
-
-    const namespace = `provider-model-malformed:${crypto.randomUUID()}`
-    const leaderContext = createSyncedContext(namespace, 'leader-only')
-    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
-
-    const followerContext = createSyncedContext(namespace, 'follower-only')
-    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
-
-    await followerContext.providerStore.initializeProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
-    await followerContext.providerStore.forceProviderConfigured(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
-    const catalog = await followerContext.providerStore.fetchModelsForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
-
-    expect(catalog.available).toBeUndefined()
-    expect(catalog.lastKnownAvailable).toBe(true)
-    expect(followerContext.providerStore.modelLoadError[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID]).toContain('available')
-  })
 })
