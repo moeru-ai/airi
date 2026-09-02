@@ -1,3 +1,4 @@
+export { default as FieldButton } from './field-button.vue'
 export { default as FieldCheckbox } from './field-checkbox.vue'
 export { default as FieldCombobox } from './field-combobox-select.vue'
 export { default as FieldInputFile } from './field-input-file.vue'
