@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 const analyticsMock = vi.hoisted(() => ({
   allowComposableCall: true,
@@ -51,6 +52,24 @@ describe('useHearingStore analytics lifecycle', () => {
     analyticsMock.trackVoiceInputStarted.mockReset()
     transcriptionMock.generateTranscription.mockReset()
     transcriptionMock.generateTranscription.mockResolvedValue({ text: 'hello' })
+  })
+
+  it('persists the canonical provider id after creation reconciliation', async () => {
+    const { useHearingStore } = await import('./hearing')
+    const { useProviderConfigStore } = await import('../providers/config')
+    const hearingStore = useHearingStore()
+    const providerStore = useProviderConfigStore()
+
+    hearingStore.activeTranscriptionProvider = 'local-provider'
+    providerStore.providerCreationResolutions['local-provider'] = 'remote-provider'
+    await nextTick()
+
+    expect(hearingStore.activeTranscriptionProvider).toBe('remote-provider')
+
+    hearingStore.activeTranscriptionProvider = 'local-provider'
+    await nextTick()
+
+    expect(hearingStore.activeTranscriptionProvider).toBe('remote-provider')
   })
 
   /**
