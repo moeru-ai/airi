@@ -234,6 +234,9 @@ export interface ProviderDefinition<TConfig = Record<string, unknown>, TId exten
    */
   configuredBy?: ProviderConfiguredBy
 
+  /** Optional settings route used by provider catalogues. */
+  settingsPath?: string
+
   /** Builds the validation schema and its UI metadata for the current draft. */
   createProviderConfig: (contextOptions: ProviderConfigContext<TConfig>) => MaybePromise<$ZodType<TConfig>>
   onboardingFields?: (ctx: ProviderContext) => MaybePromise<ProviderOnboardingField[]>
