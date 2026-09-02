@@ -224,9 +224,14 @@ describe('provider config store', () => {
     await expect(store.finishProviderValidation(remoteProvider.id, validationLease!.token, 'configured')).resolves.toBe(true)
   })
 
-  it.each(['success', 'failure'] as const)(
-    'restores pending mutations after a replicated snapshot during reconciliation patch %s',
-    async (outcome) => {
+  it.each([
+    { outcome: 'success', snapshot: 'removal' },
+    { outcome: 'failure', snapshot: 'removal' },
+    { outcome: 'success', snapshot: 'replacement' },
+    { outcome: 'failure', snapshot: 'replacement' },
+  ] as const)(
+    'restores pending mutations after a replicated $snapshot during reconciliation patch $outcome',
+    async ({ outcome, snapshot }) => {
       let resolveCreate!: (provider: InferenceServiceProvider) => void
       let resolvePatch!: (provider: InferenceServiceProvider) => void
       let rejectPatch!: (error: Error) => void
@@ -247,7 +252,15 @@ describe('provider config store', () => {
       const validationLease = await store.beginProviderValidation(localProvider.id)
       resolveCreate(remoteProvider)
       await vi.waitFor(() => expect(resolvePatch).toBeTypeOf('function'))
-      delete store.providers[remoteProvider.id]
+      if (snapshot === 'removal') {
+        delete store.providers[remoteProvider.id]
+      }
+      else {
+        store.providers[remoteProvider.id] = {
+          ...remoteProvider,
+          config: { apiKey: 'sk-stale' },
+        }
+      }
       delete store.providerValidationLeases[remoteProvider.id]
 
       if (outcome === 'success') {
@@ -271,6 +284,39 @@ describe('provider config store', () => {
       await expect(store.finishProviderValidation(remoteProvider.id, validationLease!.token, 'configured')).resolves.toBe(true)
     },
   )
+
+  it('removes a stale replicated validation lease while reconciliation is pending', async () => {
+    let resolveCreate!: (provider: InferenceServiceProvider) => void
+    let resolvePatch!: (provider: InferenceServiceProvider) => void
+    mocks.service.createRemote.mockImplementation(() => new Promise((resolve) => {
+      resolveCreate = resolve
+    }))
+    mocks.service.patchConfigRemote.mockImplementationOnce(() => new Promise((resolve) => {
+      resolvePatch = resolve
+    }))
+    mocks.service.buildLocal.mockReturnValue({
+      ...localProvider,
+      config: { ...localProvider.config },
+    })
+    const store = installStore()
+
+    const creating = store.addProvider(localProvider.definitionId)
+    const validationLease = await store.beginProviderValidation(localProvider.id)
+    await store.finishProviderValidation(localProvider.id, validationLease!.token, 'configured')
+    resolveCreate(remoteProvider)
+    await vi.waitFor(() => expect(resolvePatch).toBeTypeOf('function'))
+    store.providers[remoteProvider.id] = {
+      ...remoteProvider,
+      status: 'validating',
+    }
+    store.providerValidationLeases[remoteProvider.id] = validationLease!
+    resolvePatch({ ...remoteProvider, status: 'configured' })
+
+    await creating
+    expect(store.providers[remoteProvider.id]?.status).toBe('configured')
+    expect(store.providerValidationLeases[remoteProvider.id]).toBeUndefined()
+    await store.resetProviders()
+  })
 
   it('restores pending mutations when remote creation fails after a replicated removal', async () => {
     let rejectCreate!: (error: Error) => void
