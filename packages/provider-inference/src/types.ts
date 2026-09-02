@@ -79,8 +79,19 @@ export interface ProviderConfigContext<TConfig> extends ProviderContext {
   config?: Partial<TConfig>
 }
 
+/** Serializable model discovery result returned across renderer boundaries. */
+export interface ProviderModelCatalog {
+  /** Models discovered for this provider. */
+  models: ModelInfo[]
+  /** Whether the server exposes this catalog. Absent when discovery did not return an authoritative state. */
+  available?: boolean
+  /** Server-selected model id, or null when the server has no default. */
+  defaultModel?: string | null
+}
+
 export interface ProviderExtraMethods<TConfig> {
-  listModels?: (config: TConfig, provider: ProviderInstance, contextOptions?: { t: (input: string) => string }) => Promise<ModelInfo[]>
+  listModelCatalog?: (config: TConfig, provider: ProviderInstance, contextOptions?: ProviderContext) => Promise<ProviderModelCatalog>
+  listModels?: (config: TConfig, provider: ProviderInstance, contextOptions?: ProviderContext) => Promise<ModelInfo[]>
   /**
    * Returns the voice catalogue. `model` lets providers whose voices vary by
    * model variant (Volcengine streaming TTS 1.0 vs 2.0 differ in catalogue)
@@ -170,9 +181,9 @@ export interface ProviderDefinition<TConfig = Record<string, unknown>, TId exten
   id: TId
   order?: number
   tasks: string[]
-  nameLocalize: (ctx: { t: (input: string) => string }) => string // i18n key for provider name
+  nameLocalize: (ctx: ProviderContext) => string // i18n key for provider name
   name: string // Default name (fallback)
-  descriptionLocalize: (ctx: { t: (input: string) => string }) => string // i18n key for provider description
+  descriptionLocalize: (ctx: ProviderContext) => string // i18n key for provider description
   description: string // Default description (fallback)
   /**
    * Iconify JSON icon name for the provider.

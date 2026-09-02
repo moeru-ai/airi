@@ -1,3 +1,5 @@
+import type { ProviderContext } from '../../../types'
+
 import { z } from 'zod'
 
 import { defineProvider } from '../../registry'
@@ -29,7 +31,7 @@ function normalizeBaseUrl(baseUrl: string | undefined) {
 function createMimoValidators<TConfig extends MimoConfig>(id: string) {
   return {
     validateConfig: [
-      ({ t }: { t: (key: string) => string }) => ({
+      ({ t }: ProviderContext) => ({
         id: `${id}:check-config`,
         name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-config.title'),
         validator: async (config: TConfig) => {

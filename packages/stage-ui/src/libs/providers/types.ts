@@ -29,6 +29,7 @@ export type {
   ProviderConfigValidator,
   ProviderExtraMethods,
   ProviderInstance,
+  ProviderModelCatalog,
   ProviderOnboardingField,
   ProviderRuntimeValidator,
   ProviderTranslator,
