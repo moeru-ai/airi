@@ -77,4 +77,45 @@ describe('provider validation run guard', () => {
     await restorer.restore()
     expect(statuses.get('funasr')).toBe('invalid')
   })
+
+  it('does not let a stale run restore the latest validation lease', async () => {
+    const restoreStatus = vi.fn()
+    const restorer = createValidationStatusRestorer(restoreStatus)
+
+    restorer.begin('funasr', 'validation-a')
+    restorer.begin('funasr', 'validation-b')
+    restorer.clear('validation-a')
+    await restorer.restore('validation-a')
+
+    expect(restoreStatus).not.toHaveBeenCalled()
+    await restorer.restore('validation-b')
+    expect(restoreStatus).toHaveBeenCalledOnce()
+    expect(restoreStatus).toHaveBeenCalledWith('funasr', 'validation-b')
+  })
+
+  it('serializes multiple restores waiting behind an active operation', async () => {
+    let resolveFirst!: () => void
+    const firstRestore = new Promise<void>((resolve) => {
+      resolveFirst = resolve
+    })
+    const restoreStatus = vi.fn((_providerId: string, token: string) => {
+      if (token === 'validation-a')
+        return firstRestore
+    })
+    const restorer = createValidationStatusRestorer(restoreStatus)
+
+    restorer.begin('funasr', 'validation-a')
+    const restoringA = restorer.restore('validation-a')
+    await Promise.resolve()
+    restorer.begin('funasr', 'validation-b')
+    const restoringB1 = restorer.restore('validation-b')
+    const restoringB2 = restorer.restore('validation-b')
+    expect(restoreStatus).toHaveBeenCalledTimes(1)
+
+    resolveFirst()
+    await Promise.all([restoringA, restoringB1, restoringB2])
+
+    expect(restoreStatus).toHaveBeenCalledTimes(2)
+    expect(restoreStatus).toHaveBeenLastCalledWith('funasr', 'validation-b')
+  })
 })

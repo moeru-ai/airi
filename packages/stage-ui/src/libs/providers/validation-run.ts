@@ -40,36 +40,32 @@ export function createValidationStatusRestorer<TStatus>(
   restoreStatus: (providerId: string, restoreValue: TStatus) => void | Promise<void>,
 ) {
   let active: { providerId: string, restoreValue: TStatus } | undefined
-  let restoring: Promise<void> | undefined
+  let restorationQueue = Promise.resolve()
 
   return {
     begin(providerId: string, restoreValue: TStatus) {
       active = { providerId, restoreValue }
     },
-    clear() {
-      active = undefined
+    clear(expectedRestoreValue?: TStatus) {
+      if (expectedRestoreValue === undefined || Object.is(active?.restoreValue, expectedRestoreValue))
+        active = undefined
     },
-    async restore() {
-      if (restoring) {
-        await restoring
-        return
-      }
+    async restore(expectedRestoreValue?: TStatus) {
+      const operation = restorationQueue.then(async () => {
+        const pending = active
+        if (!pending || (expectedRestoreValue !== undefined && !Object.is(pending.restoreValue, expectedRestoreValue)))
+          return
 
-      const pending = active
-      if (!pending)
-        return
-
-      const operation = Promise.resolve(restoreStatus(pending.providerId, pending.restoreValue))
-      restoring = operation
-      try {
-        await operation
-      }
-      finally {
-        if (active === pending)
-          active = undefined
-        if (restoring === operation)
-          restoring = undefined
-      }
+        try {
+          await restoreStatus(pending.providerId, pending.restoreValue)
+        }
+        finally {
+          if (active === pending)
+            active = undefined
+        }
+      })
+      restorationQueue = operation.catch(() => {})
+      await operation
     },
   }
 }
