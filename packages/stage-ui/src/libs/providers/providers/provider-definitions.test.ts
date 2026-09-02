@@ -18,7 +18,8 @@ import { getDefinedProvider } from './registry'
 
 import './index'
 
-const translate = ((key: string) => key) as ProviderTranslator
+const translate = ((key: string, parameters?: Record<string, unknown>) =>
+  parameters?.error ? `${key}: ${parameters.error}` : key) as unknown as ProviderTranslator
 
 function getRequiredProvider(id: string) {
   const provider = getDefinedProvider(id)
