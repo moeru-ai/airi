@@ -14,7 +14,7 @@ import { errorMessageFromValue, IOAttributes, IOEvents, IOSpanNames, IOSubsystem
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
-import { defineStore, storeToRefs } from 'pinia'
+import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { computed, ref, shallowRef, watch } from 'vue'
 
 import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
@@ -339,17 +339,34 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED, persistenceOptions)
   const verboseJsonNotSupported = ref(false)
 
+  async function reconcileActiveTranscriptionProviderId(selectedProviderId: string, resolvedProviderId: string) {
+    if (!selectedProviderId || selectedProviderId === resolvedProviderId || activeTranscriptionProvider.value !== selectedProviderId)
+      return false
+
+    activeTranscriptionProvider.value = resolvedProviderId
+    return true
+  }
+
   // Provider creation can replace an optimistic id with a server-assigned id.
   // Persist the canonical id so the selected provider survives reconciliation
   // and future application restarts without depending on an in-memory alias.
+  // Route the write through a synchronized action because this watcher can run
+  // in a follower after provider config state is replicated.
+  const pinia = getActivePinia()
   watch(
     () => [
       activeTranscriptionProvider.value,
       providerStore.resolveProviderId(activeTranscriptionProvider.value),
     ] as const,
-    ([selectedProviderId, resolvedProviderId]) => {
-      if (selectedProviderId && resolvedProviderId !== selectedProviderId)
-        activeTranscriptionProvider.value = resolvedProviderId
+    async ([selectedProviderId, resolvedProviderId]) => {
+      if (!selectedProviderId || resolvedProviderId === selectedProviderId)
+        return
+
+      // The immediate callback runs before defineStore has returned its store.
+      // Continue in a microtask, then call the installed store action so the
+      // synchronization plugin can delegate follower writes to the leader.
+      await Promise.resolve()
+      await useHearingStore(pinia).reconcileActiveTranscriptionProviderId(selectedProviderId, resolvedProviderId)
     },
     { immediate: true },
   )
@@ -571,12 +588,16 @@ export const useHearingStore = defineStore('hearing-store', () => {
     configured,
 
     transcription,
+    reconcileActiveTranscriptionProviderId,
     loadModelsForProvider,
     getModelsForProvider,
     resetState,
   }
 }, {
   synced: {
+    actions: [
+      'reconcileActiveTranscriptionProviderId',
+    ],
     state: true,
   },
 })

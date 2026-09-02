@@ -27,6 +27,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
+import { continueProviderCreationNavigation } from './provider-creation-navigation'
+
 const { t } = useI18n()
 const router = useRouter()
 const route = useRoute('v2/settings/providers/edit/[providerId]')
@@ -57,7 +59,6 @@ onMounted(async () => {
 
   const provider = providerStore.prepareProviderAddition(initialProviderId)
   void providerStore.synchronizeAddedProvider(provider)
-  await router.replace(`/v2/settings/providers/edit/${provider.id}`)
 
   const redirectToResolvedProvider = async (resolvedProviderId?: string) => {
     if (!isActive || providerId.value !== provider.id || !resolvedProviderId || resolvedProviderId === provider.id)
@@ -67,10 +68,20 @@ onMounted(async () => {
     stopProviderResolutionWatch = undefined
     await router.replace(`/v2/settings/providers/edit/${resolvedProviderId}`)
   }
-  stopProviderResolutionWatch = watch(
-    () => providerStore.providerCreationResolutions[provider.id],
-    resolvedProviderId => void redirectToResolvedProvider(resolvedProviderId),
+
+  const continued = await continueProviderCreationNavigation(
+    () => router.replace(`/v2/settings/providers/edit/${provider.id}`),
+    () => isActive,
+    () => {
+      stopProviderResolutionWatch = watch(
+        () => providerStore.providerCreationResolutions[provider.id],
+        resolvedProviderId => void redirectToResolvedProvider(resolvedProviderId),
+      )
+    },
   )
+  if (!continued)
+    return
+
   await redirectToResolvedProvider(providerStore.providerCreationResolutions[provider.id])
 })
 
