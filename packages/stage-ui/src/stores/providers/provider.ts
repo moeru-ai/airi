@@ -41,6 +41,7 @@ export type { ModelInfo, VoiceInfo } from '../../libs/providers/types'
 export interface ProviderRuntimeState {
   validatedCredentialHash?: string
   models: ModelInfo[]
+  defaultModel: string | null
   modelStatus: 'idle' | 'loading' | 'ready' | 'error'
   modelError: string | null
 }
@@ -365,6 +366,7 @@ export const useProviderStore = defineStore('provider', () => {
     if (!providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId] = {
         models: [],
+        defaultModel: null,
         modelStatus: 'idle',
         modelError: null,
       }
@@ -652,6 +654,7 @@ export const useProviderStore = defineStore('provider', () => {
           [providerId]: {
             ...currentRuntimeState,
             models: normalizedModels,
+            defaultModel: catalog.defaultModel ?? null,
             modelStatus: 'ready',
             modelError: null,
           },
@@ -679,13 +682,19 @@ export const useProviderStore = defineStore('provider', () => {
           },
         }
       }
-      return { models: [] }
+      const lastKnownAvailable = providerAvailabilityOverrides.value[providerId]
+        ?? (providerConfigStore.configuredProviders[providerId] ? true : undefined)
+      return { models: [], lastKnownAvailable }
     }
   }
 
   // Get models for a specific provider
   function getModelsForProvider(providerId: string) {
     return providerRuntimeState.value[providerId]?.models ?? emptyProviderModels
+  }
+
+  function getDefaultModelForProvider(providerId: string) {
+    return providerRuntimeState.value[providerId]?.defaultModel ?? null
   }
 
   // Load models for all configured providers
@@ -1000,6 +1009,7 @@ export const useProviderStore = defineStore('provider', () => {
     modelLoadError,
     fetchModelsForProvider,
     getModelsForProvider,
+    getDefaultModelForProvider,
     listProviderVoices,
     loadProviderModel,
     loadModelsForConfiguredProviders,

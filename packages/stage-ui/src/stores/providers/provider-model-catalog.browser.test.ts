@@ -105,5 +105,68 @@ describe('provider model catalog synchronization', () => {
         }),
       ],
     })
+    await vi.waitFor(() => expect(followerContext.providerStore.getDefaultModelForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)).toBe('volcengine/seed-tts-2.0'))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2440#discussion_r3912911639
+  // ROOT CAUSE:
+  //
+  // The settings renderer wrote the discovered default into its follower
+  // snapshot. The resulting full-state proposal could overwrite newer leader
+  // state, and the write was skipped when that snapshot arrived late.
+  //
+  // Before: mutate providerConfig.model in the follower page.
+  //
+  // We fixed this by routing model updates to awaited leader-owned actions.
+  it('applies defaults through the leader without replacing a user selection', async () => {
+    const namespace = `provider-model-default:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    await followerContext.providerStore.initializeProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+    await followerContext.providerConfigStore.setProviderModelIfUnset(
+      OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+      'volcengine/seed-tts-2.0',
+    )
+    await vi.waitFor(() => expect(followerContext.providerConfigStore.getProviderConfig(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)?.model).toBe('volcengine/seed-tts-2.0'))
+
+    await leaderContext.providerConfigStore.setProviderModel(
+      OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+      'volcengine/seed-tts-1.0',
+    )
+    await followerContext.providerConfigStore.setProviderModelIfUnset(
+      OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+      'volcengine/seed-tts-2.0',
+    )
+
+    expect(leaderContext.providerConfigStore.getProviderConfig(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)?.model).toBe('volcengine/seed-tts-1.0')
+    await vi.waitFor(() => expect(followerContext.providerConfigStore.getProviderConfig(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)?.model).toBe('volcengine/seed-tts-1.0'))
+  })
+
+  it('treats a malformed availability value as a discovery error', async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({
+      models: [
+        { id: 'volcengine/seed-tts-2.0', name: 'Seed TTS 2.0' },
+      ],
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const namespace = `provider-model-malformed:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    await followerContext.providerStore.initializeProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+    await followerContext.providerStore.forceProviderConfigured(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+    const catalog = await followerContext.providerStore.fetchModelsForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+
+    expect(catalog.available).toBeUndefined()
+    expect(catalog.lastKnownAvailable).toBe(true)
+    expect(followerContext.providerStore.modelLoadError[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID]).toContain('available')
   })
 })

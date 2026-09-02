@@ -85,6 +85,8 @@ export interface ProviderModelCatalog {
   models: ModelInfo[]
   /** Whether the server exposes this catalog. Absent when discovery did not return an authoritative state. */
   available?: boolean
+  /** Last authoritative availability retained by the action owner after discovery fails. */
+  lastKnownAvailable?: boolean
   /** Server-selected model id, or null when the server has no default. */
   defaultModel?: string | null
 }

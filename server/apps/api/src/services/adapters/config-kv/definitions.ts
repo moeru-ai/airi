@@ -144,20 +144,29 @@ export const ttsRoutingSchema = object({
   ),
 })
 
-export const streamingTtsUpstreamSchema = object({
-  baseURL: pipe(string(), nonEmpty('UNSPEECH_UPSTREAM.streaming.baseURL must not be empty')),
-  keys: pipe(array(keyEntrySchema), check(v => v.length >= 1, 'UNSPEECH_UPSTREAM.streaming.keys must contain at least 1 entry')),
-  adapterParams: optional(record(string(), any()), {}),
-  models: optional(
-    array(object({
-      id: pipe(string(), nonEmpty('UNSPEECH_UPSTREAM.streaming.models[].id must not be empty')),
-      name: optional(string()),
-      description: optional(string()),
-    })),
-    [],
+export const streamingTtsUpstreamSchema = pipe(
+  object({
+    baseURL: pipe(string(), nonEmpty('UNSPEECH_UPSTREAM.streaming.baseURL must not be empty')),
+    keys: pipe(array(keyEntrySchema), check(v => v.length >= 1, 'UNSPEECH_UPSTREAM.streaming.keys must contain at least 1 entry')),
+    adapterParams: optional(record(string(), any()), {}),
+    models: optional(
+      array(object({
+        id: pipe(
+          string(),
+          regex(/^[^/]+\/[^/]+$/, 'UNSPEECH_UPSTREAM.streaming.models[].id must use the <backend>/<api_resource_id> format'),
+        ),
+        name: optional(string()),
+        description: optional(string()),
+      })),
+      [],
+    ),
+    defaultModel: optional(string()),
+  }),
+  check(
+    config => config.defaultModel == null || config.models.some(model => model.id === config.defaultModel),
+    'UNSPEECH_UPSTREAM.streaming.defaultModel must exist in models[]',
   ),
-  defaultModel: optional(string()),
-})
+)
 
 export const unspeechUpstreamSchema = object({
   restBaseURL: pipe(string(), nonEmpty('UNSPEECH_UPSTREAM.restBaseURL must not be empty')),

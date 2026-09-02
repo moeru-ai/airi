@@ -14,7 +14,7 @@ import { useI18n } from 'vue-i18n'
 import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
 
-import { getDefaultSpeechModel, getDefaultStreamingModel, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, setupOfficialSpeechAutoPick } from '../../libs/providers/providers/official'
+import { getDefaultSpeechModel, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, setupOfficialSpeechAutoPick } from '../../libs/providers/providers/official'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 
@@ -174,7 +174,7 @@ export const useSpeechStore = defineStore('speech', () => {
     // When no default can be resolved yet (catalog not loaded), clear it to ''
     // so callers pass `undefined` (server returns the full streaming catalog)
     // rather than forwarding a stale non-streaming model id as `?model=`.
-    const nextModel = getDefaultStreamingModel() ?? streamingModels[0]?.id ?? ''
+    const nextModel = providersStore.getDefaultModelForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID) ?? streamingModels[0]?.id ?? ''
     if (activeSpeechModel.value === nextModel)
       return
     activeSpeechModel.value = nextModel

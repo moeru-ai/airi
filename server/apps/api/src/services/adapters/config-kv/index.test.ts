@@ -92,6 +92,37 @@ describe('configKVService', () => {
       })
   })
 
+  it('rejects a streaming model id that cannot be routed to an upstream resource', async () => {
+    store._store.set('UNSPEECH_UPSTREAM', JSON.stringify({
+      restBaseURL: 'http://unspeech.local:5933',
+      streaming: {
+        baseURL: 'wss://unspeech.local',
+        keys: [{ id: 'k1', ciphertext: 'enc' }],
+        models: [{ id: 'seed-tts-2.0' }],
+      },
+    }))
+
+    await expect(service.getOptional('UNSPEECH_UPSTREAM'))
+      .rejects
+      .toMatchObject({ errorCode: 'CONFIG_INVALID' })
+  })
+
+  it('rejects a streaming default that is absent from the model catalog', async () => {
+    store._store.set('UNSPEECH_UPSTREAM', JSON.stringify({
+      restBaseURL: 'http://unspeech.local:5933',
+      streaming: {
+        baseURL: 'wss://unspeech.local',
+        keys: [{ id: 'k1', ciphertext: 'enc' }],
+        models: [{ id: 'volcengine/seed-tts-2.0' }],
+        defaultModel: 'volcengine/seed-tts-1.0',
+      },
+    }))
+
+    await expect(service.getOptional('UNSPEECH_UPSTREAM'))
+      .rejects
+      .toMatchObject({ errorCode: 'CONFIG_INVALID' })
+  })
+
   it('wraps database failures as CONFIG_UNAVAILABLE', async () => {
     store.getRaw.mockRejectedValueOnce(new Error('database offline'))
 
