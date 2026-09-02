@@ -2,7 +2,7 @@ import type { ProviderTranslator } from '@proj-airi/provider-inference'
 
 import type { StageProviderId } from './registry'
 
-import { describe, expect, expectTypeOf, it } from 'vitest'
+import { describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { z } from 'zod'
 
 import { selectProviderMetadata } from '../metadata'
@@ -131,7 +131,7 @@ describe('migrated provider definitions', () => {
     expect(configured?.valid).toBe(true)
   })
 
-  it('registers FunASR as a credential-free local transcription provider', async () => {
+  it('registers FunASR as a local transcription provider with a saved endpoint configuration', async () => {
     const defaults = z.parse(
       await providerFunASRAudioTranscription.createProviderConfig({ t: translate }),
       {},
@@ -145,7 +145,7 @@ describe('migrated provider definitions', () => {
     expect(defaults).toEqual({ baseUrl: 'http://localhost:8000/v1/' })
     expect(providerFunASRAudioTranscription.validationRequiredWhen?.(defaults)).toBe(true)
     expect(providerFunASRAudioTranscription.validationRequiredWhen?.({ baseUrl: '   ' })).toBe(false)
-    expect(providerFunASRAudioTranscription.requiresCredentials).toBe(false)
+    expect(providerFunASRAudioTranscription.requiresCredentials).toBeUndefined()
     expect(providerFunASRAudioTranscription.capabilities?.transcription).toEqual({
       protocol: 'http',
       generateOutput: true,
@@ -164,6 +164,36 @@ describe('migrated provider definitions', () => {
     expect(metadata.deployment).toBe('local')
     expect(providerFunASRAudioTranscription.descriptionLocalize({ t: translate }))
       .toBe('settings.pages.providers.provider.funasr-audio-transcription.description')
+  })
+
+  it('validates the configured FunASR OpenAI-compatible endpoint', async () => {
+    const validator = await providerFunASRAudioTranscription.validators?.validateProvider?.[0]({ t: translate })
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200 })
+    const reachable = await validator?.validator(
+      { baseUrl: 'http://localhost:8000/v1/' },
+      await providerFunASRAudioTranscription.createProvider({ baseUrl: 'http://localhost:8000/v1/' }),
+      {},
+      { t: translate },
+    )
+
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 404 })
+    const wrongPath = await validator?.validator(
+      { baseUrl: 'http://localhost:8000/wrong/' },
+      await providerFunASRAudioTranscription.createProvider({ baseUrl: 'http://localhost:8000/wrong/' }),
+      {},
+      { t: translate },
+    )
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://localhost:8000/v1/models', expect.any(Object))
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:8000/wrong/models', expect.any(Object))
+    expect(reachable?.valid).toBe(true)
+    expect(wrongPath?.valid).toBe(false)
+    expect(wrongPath?.reason).toContain('HTTP 404')
+
+    vi.unstubAllGlobals()
   })
 
   it('describes Web Speech API streaming support without runtime state', async () => {

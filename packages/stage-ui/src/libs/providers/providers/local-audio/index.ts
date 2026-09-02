@@ -95,6 +95,43 @@ function createLocalAudioValidators() {
   }
 }
 
+function createFunASRAudioValidators() {
+  return {
+    ...createLocalAudioValidators(),
+    validateProvider: [
+      ({ t }: { t: ComposerTranslation }) => ({
+        id: 'funasr-audio:check-connectivity',
+        name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-connectivity.title'),
+        validator: async (config: FunASRAudioConfig) => {
+          const baseUrl = normalizeBaseUrl(config.baseUrl)
+          const modelsUrl = `${baseUrl}models`
+          const controller = new AbortController()
+          const timeout = setTimeout(() => controller.abort(), 10_000)
+
+          try {
+            const response = await fetch(modelsUrl, {
+              headers: config.apiKey?.trim() ? { Authorization: `Bearer ${config.apiKey.trim()}` } : {},
+              method: 'GET',
+              signal: controller.signal,
+            })
+            if (!response.ok)
+              throw new Error(`HTTP ${response.status}`)
+
+            return { errors: [], reason: '', reasonKey: '', valid: true }
+          }
+          catch (error) {
+            const reason = `Cannot reach the FunASR OpenAI-compatible endpoint: ${error instanceof Error ? error.message : 'Unknown error'}`
+            return { errors: [{ error }], reason, reasonKey: '', valid: false }
+          }
+          finally {
+            clearTimeout(timeout)
+          }
+        },
+      }),
+    ],
+  }
+}
+
 async function isBrowserAndMemoryEnough() {
   if (isStageTamagotchi())
     return false
@@ -190,7 +227,6 @@ export const providerFunASRAudioTranscription = defineProvider<FunASRAudioConfig
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.funasr-audio-transcription.description'),
   tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
   icon: 'i-lobe-icons:openai',
-  requiresCredentials: false,
   settingsPath: '/v2/settings/providers/edit/funasr-audio-transcription',
   capabilities: {
     transcription: {
@@ -203,7 +239,7 @@ export const providerFunASRAudioTranscription = defineProvider<FunASRAudioConfig
   createProviderConfig: ({ t }) => createFunASRAudioConfigSchema(t),
   createProvider: createLocalTranscriptionProvider,
   validationRequiredWhen: config => Boolean(config.baseUrl?.trim()),
-  validators: createLocalAudioValidators(),
+  validators: createFunASRAudioValidators(),
   extraMethods: {
     listModels: async () => [
       {

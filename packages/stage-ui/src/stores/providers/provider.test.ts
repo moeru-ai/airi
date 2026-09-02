@@ -112,6 +112,26 @@ describe('provider store synchronization boundary', () => {
     })
   })
 
+  it('lists a configured FunASR instance without its unconfigured catalog definition', async () => {
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    const providerId = 'funasr-instance'
+
+    expect(store.moduleTranscriptionProvidersMetadata.map(provider => provider.id))
+      .not.toContain('funasr-audio-transcription')
+
+    configStore.ensureProvider(providerId, 'funasr-audio-transcription', {
+      baseUrl: 'http://localhost:8000/v1/',
+    })
+    configStore.setProviderStatus(providerId, 'configured')
+
+    await vi.waitFor(() => {
+      const providerIds = store.moduleTranscriptionProvidersMetadata.map(provider => provider.id)
+      expect(providerIds).toContain(providerId)
+      expect(providerIds).not.toContain('funasr-audio-transcription')
+    })
+  })
+
   it('preserves the dedicated Web Speech API settings route after configuration', async () => {
     vi.stubGlobal('window', { SpeechRecognition: class {} })
     const store = useProviderStore()
