@@ -28,6 +28,28 @@ export function createLatestValidationGuard() {
   }
 }
 
+/** Skips the initial watcher pass while still arming later draft validation. */
+export function createProviderValidationScheduleGate() {
+  let initialized = false
+
+  return (canSkipValidation: boolean) => {
+    if (!initialized) {
+      initialized = true
+      return false
+    }
+    return !canSkipValidation
+  }
+}
+
+/** Prevents a completed validation from committing a newer draft. */
+export function shouldCommitValidatedDraft(
+  didFinish: boolean,
+  isCurrentRun: () => boolean,
+  isEdited: boolean,
+) {
+  return didFinish && isCurrentRun() && isEdited
+}
+
 /** Creates lifecycle-aware debounced validation work for a provider editor. */
 export function createDebouncedValidationRunner(validate: () => void | Promise<void>, delay: number) {
   const run = useDebounceFn(validate, delay)

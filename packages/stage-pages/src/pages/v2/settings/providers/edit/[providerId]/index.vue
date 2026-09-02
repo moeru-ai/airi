@@ -18,7 +18,7 @@ import {
   ProviderSettingsLayout,
   ProviderValidationDetailsDialog,
 } from '@proj-airi/stage-ui/components'
-import { createDebouncedValidationRunner, createLatestValidationGuard, createProviderDraftSourceKey, createValidationStatusRestorer, getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
+import { createDebouncedValidationRunner, createLatestValidationGuard, createProviderDraftSourceKey, createProviderValidationScheduleGate, createValidationStatusRestorer, getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, shouldCommitValidatedDraft, validateProvider } from '@proj-airi/stage-ui/libs'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
 import { computedAsync, useCloned } from '@vueuse/core'
@@ -362,7 +362,7 @@ async function runValidation() {
     }
 
     const didFinish = await providerStore.finishProviderValidation(validationProviderId, validationLease.token, 'configured')
-    if (didFinish && isEdited.value)
+    if (shouldCommitValidatedDraft(didFinish, isCurrentRun, isEdited.value))
       await commitEditedConfig('configured')
     validationStatusRestorer.clear(validationLease.token)
   }
@@ -384,7 +384,7 @@ async function runValidation() {
 }
 
 const debouncedValidation = createDebouncedValidationRunner(runValidation, 1500)
-let didInitValidation = false
+const shouldScheduleValidation = createProviderValidationScheduleGate()
 
 onUnmounted(() => {
   isActive = false
@@ -407,13 +407,8 @@ watch([providerConfigDraftKey, providerDefinition, providerSchema], async () => 
   if (!validationPlan)
     return
 
-  if (canSkipValidation.value)
+  if (!shouldScheduleValidation(canSkipValidation.value))
     return
-
-  if (!didInitValidation) {
-    didInitValidation = true
-    return
-  }
   void debouncedValidation.run()
 }, { deep: true, immediate: true })
 

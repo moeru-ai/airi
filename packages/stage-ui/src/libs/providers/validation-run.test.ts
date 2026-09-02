@@ -1,12 +1,24 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createDebouncedValidationRunner, createLatestValidationGuard, createValidationStatusRestorer } from './validation-run'
+import { createDebouncedValidationRunner, createLatestValidationGuard, createProviderValidationScheduleGate, createValidationStatusRestorer, shouldCommitValidatedDraft } from './validation-run'
 
 afterEach(() => {
   vi.useRealTimers()
 })
 
 describe('provider validation run guard', () => {
+  it('initializes the validation watcher even when the saved draft can skip validation', () => {
+    const shouldSchedule = createProviderValidationScheduleGate()
+
+    expect(shouldSchedule(true)).toBe(false)
+    expect(shouldSchedule(false)).toBe(true)
+  })
+
+  it('does not commit a draft after its validation run becomes stale', () => {
+    expect(shouldCommitValidatedDraft(true, () => false, true)).toBe(false)
+    expect(shouldCommitValidatedDraft(true, () => true, true)).toBe(true)
+  })
+
   it('invalidates an older validation when the draft changes', () => {
     const guard = createLatestValidationGuard()
     const isFirstRunCurrent = guard.begin()
