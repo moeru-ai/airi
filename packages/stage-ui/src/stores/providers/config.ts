@@ -101,16 +101,16 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     if (!pendingState)
       return
 
-    if (!providers.value[resolvedId]) {
-      providers.value[resolvedId] = {
-        ...pendingState.provider,
-        id: resolvedId,
-        config: { ...pendingState.provider.config },
-      }
-      markProviderAdded(resolvedId)
+    providers.value[resolvedId] = {
+      ...pendingState.provider,
+      id: resolvedId,
+      config: { ...pendingState.provider.config },
     }
-    if (pendingState.validationLease && !providerValidationLeases.value[resolvedId])
+    markProviderAdded(resolvedId)
+    if (pendingState.validationLease)
       providerValidationLeases.value[resolvedId] = { ...pendingState.validationLease }
+    else
+      delete providerValidationLeases.value[resolvedId]
     return providers.value[resolvedId]
   }
 
