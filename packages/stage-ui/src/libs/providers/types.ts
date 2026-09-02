@@ -74,7 +74,18 @@ export interface ProviderConfigContext<TConfig> {
   t: ComposerTranslation
 }
 
+/** Serializable model discovery result returned across renderer boundaries. */
+export interface ProviderModelCatalog {
+  /** Models discovered for this provider. */
+  models: ModelInfo[]
+  /** Whether the server currently exposes this catalog. */
+  available?: boolean
+  /** Server-selected model id, or null when the server has no default. */
+  defaultModel?: string | null
+}
+
 export interface ProviderExtraMethods<TConfig> {
+  listModelCatalog?: (config: TConfig, provider: ProviderInstance, contextOptions?: { t: (input: string) => string }) => Promise<ProviderModelCatalog>
   listModels?: (config: TConfig, provider: ProviderInstance, contextOptions?: { t: (input: string) => string }) => Promise<ModelInfo[]>
   /**
    * Returns the voice catalogue. `model` lets providers whose voices vary by

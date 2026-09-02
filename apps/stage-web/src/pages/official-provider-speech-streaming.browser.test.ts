@@ -6,6 +6,7 @@ import OfficialProviderSpeechStreamingPage from '@proj-airi/stage-pages/pages/se
 import { errorMessageFrom } from '@moeru/std'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
@@ -145,6 +146,44 @@ describe('official streaming speech provider settings', () => {
     expect(errors.map(error => errorMessageFrom(error))).toEqual([])
     expect(fetchMock.mock.calls.some(([input]) => responseUrl(input).includes('/api/v1/audio/models/streaming'))).toBe(true)
     expect(fetchMock.mock.calls.some(([input]) => responseUrl(input).includes('/api/v1/audio/voices/streaming'))).toBe(true)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2440#discussion_r3912226728
+  // ROOT CAUSE:
+  //
+  // The Electron settings renderer routes forceProviderConfigured to its
+  // leader. The page enabled its voice watcher without awaiting that action,
+  // so the public voice loader still saw an unconfigured provider and stopped.
+  // The later configuration snapshot did not change any watcher dependency.
+  //
+  // Before: start voice loading while forceProviderConfigured is pending.
+  //
+  // We fixed this by awaiting the configuration action before publishing the
+  // local availability state that enables model-specific voice loading.
+  it('waits for provider configuration before it loads streaming voices', async () => {
+    const fetchMock = vi.fn<typeof fetch>(async input => responseFor(input))
+    vi.stubGlobal('fetch', fetchMock)
+    const pinia = createPinia()
+
+    const { errors } = await renderPage(pinia)
+    const providerStore = useProviderStore(pinia)
+    const forceProviderConfigured = providerStore.forceProviderConfigured
+    let finishConfiguration: (() => void) | undefined
+    const configurationPending = new Promise<void>((resolve) => {
+      finishConfiguration = resolve
+    })
+    vi.spyOn(providerStore, 'forceProviderConfigured').mockImplementation(async (requestedProviderId) => {
+      await configurationPending
+      forceProviderConfigured(requestedProviderId)
+    })
+
+    useAuthStore(pinia).$patch({ user, session })
+    await expect.poll(() => fetchMock.mock.calls.some(([input]) => responseUrl(input).includes('/api/v1/audio/models/streaming'))).toBe(true)
+    expect(fetchMock.mock.calls.some(([input]) => responseUrl(input).includes('/api/v1/audio/voices/streaming'))).toBe(false)
+
+    finishConfiguration?.()
+    await expect.poll(() => fetchMock.mock.calls.some(([input]) => responseUrl(input).includes('/api/v1/audio/voices/streaming'))).toBe(true)
+    expect(errors.map(error => errorMessageFrom(error))).toEqual([])
   })
 })
 

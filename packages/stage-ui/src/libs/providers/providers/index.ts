@@ -54,7 +54,6 @@ import './voicevox'
 
 export {
   getDefaultStreamingModel,
-  getStreamingTtsAvailable,
   OFFICIAL_TRANSCRIPTION_PROVIDER_ID,
 } from './official'
 

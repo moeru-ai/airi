@@ -530,23 +530,33 @@ export const useProviderStore = defineStore('provider', () => {
     const definition = getProviderDefinition(providerId)
     const provider = await definition.createProvider(config)
     try {
+      if (definition.extraMethods?.listModelCatalog) {
+        const catalog = await definition.extraMethods.listModelCatalog(config, provider, { t })
+        return {
+          ...catalog,
+          models: normalizeProviderModels(providerId, catalog.models),
+        }
+      }
+
       if (definition.extraMethods?.listModels) {
         const models = await definition.extraMethods.listModels(config, provider, { t })
-        return normalizeProviderModels(providerId, models)
+        return { models: normalizeProviderModels(providerId, models) }
       }
 
       if (isModelProvider(provider))
-        return normalizeProviderModels(providerId, await listModels(provider.model()))
+        return { models: normalizeProviderModels(providerId, await listModels(provider.model())) }
 
       const baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
       const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
       if (!baseUrl)
-        return []
+        return { models: [] }
 
-      return normalizeProviderModels(providerId, await listModels({
-        baseURL: baseUrl,
-        ...(apiKey ? { apiKey } : {}),
-      }))
+      return {
+        models: normalizeProviderModels(providerId, await listModels({
+          baseURL: baseUrl,
+          ...(apiKey ? { apiKey } : {}),
+        })),
+      }
     }
     finally {
       await disposeTemporaryProvider(provider)
@@ -603,11 +613,11 @@ export const useProviderStore = defineStore('provider', () => {
   async function fetchModelsForProvider(providerId: string) {
     const definition = findProviderDefinition(providerId)
     if (!definition)
-      return []
+      return { models: [] }
 
     const config = providerCredentials.value[providerId]
     if (!config && definition.requiresCredentials !== false)
-      return []
+      return { models: [] }
 
     initializeProviderRuntimeState(providerId)
     providerRuntimeState.value = {
@@ -620,8 +630,8 @@ export const useProviderStore = defineStore('provider', () => {
     }
 
     try {
-      const models = await listProviderModels(providerId, config || {})
-      const normalizedModels = uniqBy(models.filter(model => !!model.id), m => m.id)
+      const catalog = await listProviderModels(providerId, config || {})
+      const normalizedModels = uniqBy(catalog.models.filter(model => !!model.id), m => m.id)
         .map(model => ({
           id: model.id,
           name: model.name,
@@ -646,11 +656,15 @@ export const useProviderStore = defineStore('provider', () => {
             modelError: null,
           },
         }
-        // Synced action results pass through structuredClone. Return the local
-        // array because reading the same array from state returns a Vue proxy.
-        return normalizedModels
+        // Synced action results pass through structuredClone. Return local
+        // catalog values because reading models back from state returns a Vue
+        // proxy and provider-specific metadata is not part of synced state.
+        return {
+          ...catalog,
+          models: normalizedModels,
+        }
       }
-      return []
+      return { models: [] }
     }
     catch (error) {
       console.error(`Error fetching models for ${providerId}:`, error)
@@ -665,7 +679,7 @@ export const useProviderStore = defineStore('provider', () => {
           },
         }
       }
-      return []
+      return { models: [] }
     }
   }
 

@@ -5,7 +5,7 @@ import {
   ProviderSettingsLayout,
   SpeechPlayground,
 } from '@proj-airi/stage-ui/components'
-import { getDefaultStreamingModel, getStreamingTtsAvailable, selectProviderMetadata, streamingSynthesize } from '@proj-airi/stage-ui/libs'
+import { selectProviderMetadata, streamingSynthesize } from '@proj-airi/stage-ui/libs'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
@@ -80,25 +80,30 @@ watch(isAuthenticated, async (authenticated, _, onCleanup) => {
   if (!active)
     return
 
-  await providersStore.fetchModelsForProvider(providerId)
+  const catalog = await providersStore.fetchModelsForProvider(providerId)
   if (!active)
     return
 
-  const available = getStreamingTtsAvailable()
-  providersStore.setProviderAvailabilityOverride(providerId, available)
+  const available = catalog.available === true
+  await providersStore.setProviderAvailabilityOverride(providerId, available)
+  if (!active)
+    return
+
   if (!available) {
-    providersStore.setProviderUnconfigured(providerId)
+    await providersStore.setProviderUnconfigured(providerId)
     return
   }
 
-  providersStore.forceProviderConfigured(providerId)
+  await providersStore.forceProviderConfigured(providerId)
+  if (!active)
+    return
+
   streamingAvailable.value = true
 
-  // `getDefaultStreamingModel()` is populated by the provider's listModels()
-  // (just ran via fetchModelsForProvider). If the operator hasn't curated a
-  // default server-side, fall back to the first model the server returned
-  // so the picker always has something selected.
-  serverDefaultModel.value = getDefaultStreamingModel() ?? providerModels.value[0]?.id ?? null
+  // If the operator did not curate a default server-side, fall back to the
+  // first model in the same catalog response. Do not read synchronized model
+  // state here because its follower snapshot can arrive after the action.
+  serverDefaultModel.value = catalog.defaultModel ?? catalog.models[0]?.id ?? null
   const config = providerConfig.value
   if (config && !config.model && serverDefaultModel.value)
     config.model = serverDefaultModel.value
