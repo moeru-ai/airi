@@ -45,4 +45,22 @@ describe('funasr local audio provider', () => {
     expect(providerFunASRAudioTranscription.validationRequiredWhen?.({ baseUrl: 'http://localhost:8000/v1/' }))
       .toBe(true)
   })
+
+  it('rejects relative endpoint URLs before fetching models', async () => {
+    const validator = await providerFunASRAudioTranscription.validators?.validateProvider?.[0]({ t: translate })
+    const provider = await providerFunASRAudioTranscription.createProvider({ baseUrl: 'localhost:8000/v1/' })
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await validator?.validator(
+      { baseUrl: 'localhost:8000/v1/' },
+      provider,
+      {},
+      { t: translate },
+    )
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(result?.valid).toBe(false)
+    expect(result?.reason).toContain('absolute HTTP(S) URL')
+  })
 })
