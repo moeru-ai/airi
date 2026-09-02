@@ -112,7 +112,7 @@ function createFunASRAudioValidators() {
             modelsUrl = new URL('models', baseUrl).toString()
           }
           catch (error) {
-            const reason = 'FunASR base URL must be an absolute HTTP(S) URL.'
+            const reason = t('settings.pages.providers.catalog.edit.validators.funasr.invalid-base-url')
             return { errors: [{ error }], reason, reasonKey: '', valid: false }
           }
           const controller = new AbortController()
@@ -133,7 +133,9 @@ function createFunASRAudioValidators() {
             return { errors: [], reason: '', reasonKey: '', valid: true }
           }
           catch (error) {
-            const reason = `Cannot reach the FunASR OpenAI-compatible endpoint: ${errorMessageFrom(error) ?? 'Unknown error'}`
+            const message = errorMessageFrom(error)
+              ?? t('settings.pages.providers.catalog.edit.validators.funasr.unknown-error')
+            const reason = t('settings.pages.providers.catalog.edit.validators.funasr.connectivity-failed', { error: message })
             return { errors: [{ error }], reason, reasonKey: '', valid: false }
           }
           finally {

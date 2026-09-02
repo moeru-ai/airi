@@ -4,7 +4,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { providerFunASRAudioTranscription } from './local-audio'
 
-const translate = ((key: string) => key) as unknown as ComposerTranslation
+const translate = ((key: string, parameters?: Record<string, unknown>) => {
+  if (key === 'settings.pages.providers.catalog.edit.validators.funasr.invalid-base-url')
+    return 'FunASR 地址必须是绝对 HTTP(S) URL。'
+  if (key === 'settings.pages.providers.catalog.edit.validators.funasr.connectivity-failed')
+    return `无法连接 FunASR OpenAI 兼容端点：${parameters?.error}`
+  return key
+}) as unknown as ComposerTranslation
 
 describe('funasr local audio provider', () => {
   afterEach(() => {
@@ -37,7 +43,7 @@ describe('funasr local audio provider', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:8000/wrong/models', expect.any(Object))
     expect(reachable?.valid).toBe(true)
     expect(wrongPath?.valid).toBe(false)
-    expect(wrongPath?.reason).toContain('HTTP 404')
+    expect(wrongPath?.reason).toBe('无法连接 FunASR OpenAI 兼容端点：HTTP 404')
   })
 
   it('requires saved endpoint configuration without requiring an API key', () => {
@@ -61,6 +67,6 @@ describe('funasr local audio provider', () => {
 
     expect(fetchMock).not.toHaveBeenCalled()
     expect(result?.valid).toBe(false)
-    expect(result?.reason).toContain('absolute HTTP(S) URL')
+    expect(result?.reason).toBe('FunASR 地址必须是绝对 HTTP(S) URL。')
   })
 })

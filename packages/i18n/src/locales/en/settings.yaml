@@ -1047,6 +1047,10 @@ pages:
               title: List Models
             check-supports-chat-completion:
               title: Chat Completion
+          funasr:
+            invalid-base-url: FunASR base URL must be an absolute HTTP(S) URL.
+            connectivity-failed: 'Cannot reach the FunASR OpenAI-compatible endpoint: {error}'
+            unknown-error: Unknown error
           status:
             validating: Validating...
             valid: Passed
