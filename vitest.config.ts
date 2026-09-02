@@ -18,6 +18,7 @@ export default defineConfig({
       'packages/better-ws',
       'packages/plugin-sdk',
       'packages/plugin-sdk-tamagotchi',
+      'packages/provider-inference',
       'packages/scenarios-stage-tamagotchi-browser',
       'packages/scenarios-stage-tamagotchi-electron',
       'packages/server-runtime',
