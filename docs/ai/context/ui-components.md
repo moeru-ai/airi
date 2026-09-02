@@ -527,6 +527,23 @@ Tab-like selection using radio buttons with animated indicator.
 
 All Field components wrap a base input with `label`, `description`, and consistent layout. Common slots: `label`, `description`.
 
+### FieldButton
+
+Displays field information on the left and a compact action button on the right.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | *(required)* | Field label |
+| `description` | `string?` | — | Helper text |
+| `buttonLabel` | `string` | *(required)* | Action button label |
+| `buttonIcon` | `string?` | — | UnoCSS/Iconify class for the action button |
+| `disabled` | `boolean?` | — | Prevents the action |
+| `loading` | `boolean?` | — | Shows a spinner and prevents the action |
+
+**Slots**: `label`, `description`
+
+**Emits**: `click(event: MouseEvent)`
+
 ### FieldInput
 
 | Prop | Type | Default | Description |
