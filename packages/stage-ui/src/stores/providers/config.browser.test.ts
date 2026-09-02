@@ -6,8 +6,9 @@ import { PiniaColada } from '@pinia/colada'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createApp } from 'vue'
+import { computed, createApp, defineComponent, h, watch } from 'vue'
 
+import { createLatestValidationGuard, createProviderDraftSourceKey, createValidationStatusRestorer } from '../../libs/providers/validation-run'
 import { useProviderConfigStore } from './config'
 
 const mocks = vi.hoisted(() => ({
@@ -104,5 +105,180 @@ describe('provider config synchronization', () => {
         follower: { [remoteProvider.id]: remoteProvider },
       })
     }, { timeout: 3000 })
+
+    await followerStore.setProviderStatus(remoteProvider.id, 'configured')
+    await vi.waitFor(() => expect(leaderStore.providers[remoteProvider.id]?.status).toBe('configured'))
+
+    let runMountedValidation!: () => Promise<void>
+    let mountedValidationStayedCurrent = false
+    const mountedEditor = createApp(defineComponent({
+      setup() {
+        const store = useProviderConfigStore()
+        const guard = createLatestValidationGuard()
+        const draftSourceKey = computed(() => createProviderDraftSourceKey(store.getProvider(remoteProvider.id)))
+        watch(draftSourceKey, () => guard.invalidate(), { immediate: true })
+        runMountedValidation = async () => {
+          const isCurrentRun = guard.begin()
+          const validationLease = await store.beginProviderValidation(remoteProvider.id)
+          mountedValidationStayedCurrent = isCurrentRun()
+          if (validationLease)
+            await store.restoreProviderStatus(remoteProvider.id, validationLease.token)
+        }
+        return () => h('div')
+      },
+    }))
+    const mountedEditorHost = document.createElement('div')
+    document.body.appendChild(mountedEditorHost)
+    mountedEditor.use(followerContext.pinia)
+    mountedEditor.mount(mountedEditorHost)
+
+    await runMountedValidation()
+    expect(mountedValidationStayedCurrent).toBe(true)
+    mountedEditor.unmount()
+    mountedEditorHost.remove()
+
+    const restorer = createValidationStatusRestorer<string>(async (providerId, token) => {
+      await followerStore.restoreProviderStatus(providerId, token)
+    })
+    let canceled = false
+    const validationStart = (async () => {
+      const validationLease = await followerStore.beginProviderValidation(remoteProvider.id)
+      if (!validationLease)
+        return
+      restorer.begin(remoteProvider.id, validationLease.token)
+      if (canceled)
+        await restorer.restore()
+    })()
+
+    canceled = true
+    await validationStart
+    await vi.waitFor(() => {
+      expect(leaderStore.providers[remoteProvider.id]?.status).toBe('configured')
+      expect(followerStore.providers[remoteProvider.id]?.status).toBe('configured')
+    })
+
+    const followerValidation = await followerStore.beginProviderValidation(remoteProvider.id)
+    const leaderValidation = await leaderStore.beginProviderValidation(remoteProvider.id)
+    expect(followerValidation?.token).not.toBe(leaderValidation?.token)
+    expect(followerValidation?.previousStatus).toBe('configured')
+    expect(leaderValidation?.previousStatus).toBe('configured')
+
+    await followerStore.restoreProviderStatus(remoteProvider.id, followerValidation!.token)
+    await leaderStore.finishProviderValidation(remoteProvider.id, leaderValidation!.token, 'invalid')
+    await vi.waitFor(() => {
+      expect(leaderStore.providers[remoteProvider.id]?.status).toBe('invalid')
+      expect(followerStore.providers[remoteProvider.id]?.status).toBe('invalid')
+    })
+
+    await leaderStore.setProviderStatus(remoteProvider.id, 'configured')
+    const staleValidation = await followerStore.beginProviderValidation(remoteProvider.id)
+    await leaderStore.setProviderStatus(remoteProvider.id, 'bypassed')
+    await expect(followerStore.finishProviderValidation(remoteProvider.id, staleValidation!.token, 'invalid')).resolves.toBe(false)
+    const nextValidation = await followerStore.beginProviderValidation(remoteProvider.id)
+    expect(nextValidation?.previousStatus).toBe('bypassed')
+    await followerStore.restoreProviderStatus(remoteProvider.id, nextValidation!.token)
+  })
+
+  it('restores an active validation after leader failover', async () => {
+    mocks.service.buildLocal.mockReturnValue(localProvider)
+    const namespace = `provider-config-failover:${crypto.randomUUID()}`
+    const firstContext = createSyncedContext(namespace, 'follower-preferred')
+    await vi.waitFor(() => expect(firstContext.runtime.isLeader()).toBe(true))
+    setActivePinia(firstContext.pinia)
+    const firstStore = useProviderConfigStore()
+    await firstStore.ensureProvider(localProvider.id, localProvider.definitionId)
+    await firstStore.setProviderStatus(localProvider.id, 'configured')
+
+    const secondContext = createSyncedContext(namespace, 'follower-preferred')
+    setActivePinia(secondContext.pinia)
+    const secondStore = useProviderConfigStore()
+    await vi.waitFor(() => expect(secondContext.runtime.getLeaderId()).toBe(firstContext.runtime.participantId))
+
+    const validationLease = await secondStore.beginProviderValidation(localProvider.id)
+    await vi.waitFor(() => {
+      expect(secondStore.providerValidationLeases[localProvider.id]?.token).toBe(validationLease?.token)
+      expect(secondStore.providers[localProvider.id]?.status).toBe('validating')
+    })
+
+    firstContext.runtime.dispose()
+    await vi.waitFor(() => expect(secondContext.runtime.isLeader()).toBe(true))
+    await secondStore.restoreProviderStatus(localProvider.id, validationLease!.token)
+    expect(secondStore.providers[localProvider.id]?.status).toBe('configured')
+  })
+
+  it('keeps an active validation authoritative when same-id creation resolves', async () => {
+    let resolveRemote!: (provider: InferenceServiceProvider) => void
+    mocks.service.createRemote.mockReturnValue(new Promise<InferenceServiceProvider>((resolve) => {
+      resolveRemote = resolve
+    }))
+    mocks.service.patchConfigRemote.mockImplementation(async (
+      _client: unknown,
+      providerId: string,
+      config: Record<string, unknown>,
+    ) => ({
+      ...localProvider,
+      id: providerId,
+      config: { ...config },
+      status: 'unconfigured',
+    }))
+
+    const namespace = `provider-config-creation-validation:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    setActivePinia(leaderContext.pinia)
+    const leaderStore = useProviderConfigStore()
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerStore = useProviderConfigStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    const creation = followerStore.synchronizeAddedProvider({ ...localProvider })
+    await vi.waitFor(() => {
+      expect(leaderStore.providers[localProvider.id]).toBeDefined()
+      expect(followerStore.providers[localProvider.id]).toBeDefined()
+    })
+    const validationLease = await followerStore.beginProviderValidation(localProvider.id)
+    await vi.waitFor(() => {
+      expect(leaderStore.providers[localProvider.id]?.status).toBe('validating')
+      expect(followerStore.providers[localProvider.id]?.status).toBe('validating')
+    })
+
+    resolveRemote({
+      ...localProvider,
+      config: { serverDefault: true },
+    })
+    await creation
+
+    await vi.waitFor(() => {
+      expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce()
+      expect(leaderStore.providerValidationLeases[localProvider.id]?.token).toBe(validationLease?.token)
+      expect(leaderStore.providers[localProvider.id]?.status).toBe('validating')
+      expect(followerStore.providers[localProvider.id]?.status).toBe('validating')
+    })
+    await expect(followerStore.finishProviderValidation(localProvider.id, validationLease!.token, 'configured')).resolves.toBe(true)
+    await vi.waitFor(() => {
+      expect(leaderStore.providers[localProvider.id]?.status).toBe('configured')
+      expect(followerStore.providers[localProvider.id]?.status).toBe('configured')
+    })
+  })
+
+  it('restores an active validation after the synchronization domain restarts', async () => {
+    const firstContext = createSyncedContext(`provider-config-restart-before:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(firstContext.runtime.isLeader()).toBe(true))
+    setActivePinia(firstContext.pinia)
+    const firstStore = useProviderConfigStore()
+    await firstStore.ensureProvider(localProvider.id, localProvider.definitionId)
+    await firstStore.setProviderStatus(localProvider.id, 'configured')
+    await firstStore.beginProviderValidation(localProvider.id)
+    firstContext.runtime.dispose()
+    disposePinia(firstContext.pinia)
+
+    const restartedContext = createSyncedContext(`provider-config-restart-after:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(restartedContext.runtime.isLeader()).toBe(true))
+    setActivePinia(restartedContext.pinia)
+    const restartedStore = useProviderConfigStore()
+    expect(restartedStore.providers[localProvider.id]?.status).toBe('configured')
+    expect(restartedStore.providerValidationLeases[localProvider.id]).toBeUndefined()
   })
 })

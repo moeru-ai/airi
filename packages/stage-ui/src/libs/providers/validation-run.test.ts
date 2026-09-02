@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createDebouncedValidationRunner, createLatestValidationGuard } from './validation-run'
+import { createDebouncedValidationRunner, createLatestValidationGuard, createValidationStatusRestorer } from './validation-run'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -56,5 +56,25 @@ describe('provider validation run guard', () => {
     await validation
 
     expect(committed).toBe(false)
+  })
+
+  it('awaits conditional status restoration before clearing the active run', async () => {
+    const statuses = new Map<string, string>([['funasr', 'configured']])
+    const restoreStatus = vi.fn(async (providerId: string, status: string) => {
+      if (statuses.get(providerId) === 'validating')
+        statuses.set(providerId, status)
+    })
+    const restorer = createValidationStatusRestorer(restoreStatus)
+
+    restorer.begin('funasr', 'configured')
+    statuses.set('funasr', 'validating')
+    await restorer.restore()
+    expect(statuses.get('funasr')).toBe('configured')
+    expect(restoreStatus).toHaveBeenCalledTimes(1)
+
+    restorer.begin('funasr', 'configured')
+    statuses.set('funasr', 'invalid')
+    await restorer.restore()
+    expect(statuses.get('funasr')).toBe('invalid')
   })
 })
