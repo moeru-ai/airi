@@ -19,8 +19,11 @@ const providerStorageOptions = {
   listenToStorageChanges: false,
 } as const
 
-function createProviderMutationKey(provider: InferenceServiceProvider) {
-  return JSON.stringify({ config: provider.config, status: provider.status })
+function createProviderMutationKey(
+  provider: InferenceServiceProvider,
+  stableStatus: ProviderValidationStatus = provider.status,
+) {
+  return JSON.stringify({ config: provider.config, status: stableStatus })
 }
 
 /**
@@ -349,14 +352,20 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
 
       delete providers.value[provider.id]
       unmarkProviderAdded(provider.id)
-      const wasModified = createProviderMutationKey(current) !== initialMutationKey
+      const validationLease = providerValidationLeases.value[provider.id]
+      const wasModified = createProviderMutationKey(current, validationLease?.previousStatus) !== initialMutationKey
       const reconciled = wasModified
         ? {
             ...remote,
             config: current.config,
             status: current.status,
           }
-        : remote
+        : validationLease
+          ? {
+              ...remote,
+              status: current.status,
+            }
+          : remote
       providers.value[remote.id] = reconciled
       markProviderAdded(remote.id)
       recordProviderCreationResolution(provider.id, remote.id)
@@ -370,7 +379,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
         const saved = await updateProviderMutation.mutateAsync({
           providerId: remote.id,
           config: reconciled.config,
-          status: reconciled.status,
+          status: validationLease?.previousStatus ?? reconciled.status,
         })
         if (await discardRemovedProviderCreation(provider.id, remote.id))
           return saved

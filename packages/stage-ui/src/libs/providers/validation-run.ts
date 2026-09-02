@@ -2,12 +2,11 @@ import type { InferenceServiceProvider } from './types'
 
 import { useDebounceFn } from '@vueuse/core'
 
-type ProviderDraftSource = Partial<Pick<InferenceServiceProvider, 'id' | 'definitionId' | 'config' | 'configuredBy'>>
+type ProviderDraftSource = Partial<Pick<InferenceServiceProvider, 'definitionId' | 'config' | 'configuredBy'>>
 
 /** Tracks only provider fields that can change the editable draft. */
 export function createProviderDraftSourceKey(provider: ProviderDraftSource | undefined) {
   return JSON.stringify({
-    id: provider?.id,
     definitionId: provider?.definitionId,
     config: provider?.config,
     configuredBy: provider?.configuredBy,
