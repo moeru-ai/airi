@@ -12,6 +12,7 @@ import { useI18n } from 'vue-i18n'
 import { executeWhiteboardCommand } from '../commands'
 import { WhiteboardStore } from '../model'
 import { loadWhiteboardDocument, saveWhiteboardDocument } from '../storage'
+import { pointFromPointerEvent } from './pointer'
 
 const props = defineProps<{
   bindingId: string
@@ -88,14 +89,7 @@ function pointFromEvent(event: PointerEvent): WhiteboardPoint | undefined {
   if (!canvas || !svg) {
     return undefined
   }
-  const rect = svg.getBoundingClientRect()
-  if (!rect.width || !rect.height) {
-    return undefined
-  }
-  return {
-    x: (event.clientX - rect.left) * canvas.width / rect.width,
-    y: (event.clientY - rect.top) * canvas.height / rect.height,
-  }
+  return pointFromPointerEvent(event, svg)
 }
 
 function startPath(event: PointerEvent) {
