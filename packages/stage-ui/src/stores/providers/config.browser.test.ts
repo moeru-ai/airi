@@ -105,6 +105,9 @@ describe('provider config synchronization', () => {
         follower: { [remoteProvider.id]: remoteProvider },
       })
     }, { timeout: 3000 })
+    expect(mocks.service.patchConfigRemote).not.toHaveBeenCalled()
+    expect(leaderStore.providerCreationResolutions[localProvider.id]).toBe(remoteProvider.id)
+    expect(followerStore.providerCreationResolutions[localProvider.id]).toBe(remoteProvider.id)
 
     await followerStore.setProviderStatus(remoteProvider.id, 'configured')
     await vi.waitFor(() => expect(leaderStore.providers[remoteProvider.id]?.status).toBe('configured'))
@@ -204,6 +207,104 @@ describe('provider config synchronization', () => {
     await vi.waitFor(() => expect(secondContext.runtime.isLeader()).toBe(true))
     await secondStore.restoreProviderStatus(localProvider.id, validationLease!.token)
     expect(secondStore.providers[localProvider.id]?.status).toBe('configured')
+  })
+
+  it('does not restore a provider when reset runs during creation', async () => {
+    let resolveRemote!: (provider: InferenceServiceProvider) => void
+    mocks.service.createRemote.mockReturnValue(new Promise<InferenceServiceProvider>((resolve) => {
+      resolveRemote = resolve
+    }))
+    mocks.service.deleteRemote.mockResolvedValue(undefined)
+
+    const context = createSyncedContext(`provider-config-reset-creation:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+    setActivePinia(context.pinia)
+    const store = useProviderConfigStore()
+
+    const creation = store.synchronizeAddedProvider({ ...localProvider })
+    await vi.waitFor(() => expect(store.providers[localProvider.id]).toBeDefined())
+    await store.resetProviders()
+    resolveRemote(remoteProvider)
+    await creation
+
+    expect(store.providers[localProvider.id]).toBeUndefined()
+    expect(store.providers[remoteProvider.id]).toBeUndefined()
+    expect(store.addedProviders[localProvider.id]).toBeUndefined()
+    expect(store.addedProviders[remoteProvider.id]).toBeUndefined()
+    expect(store.providerCreationResolutions[localProvider.id]).toBeUndefined()
+    expect(mocks.service.deleteRemote).toHaveBeenCalledWith(mocks.client, remoteProvider.id)
+  })
+
+  it('removes a remote provider when reset runs during creation reconciliation', async () => {
+    let resolveRemote!: (provider: InferenceServiceProvider) => void
+    let resolvePatch!: (provider: InferenceServiceProvider) => void
+    mocks.service.createRemote.mockReturnValue(new Promise<InferenceServiceProvider>((resolve) => {
+      resolveRemote = resolve
+    }))
+    mocks.service.patchConfigRemote.mockReturnValue(new Promise<InferenceServiceProvider>((resolve) => {
+      resolvePatch = resolve
+    }))
+    mocks.service.deleteRemote.mockResolvedValue(undefined)
+
+    const context = createSyncedContext(`provider-config-reset-reconciliation:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+    setActivePinia(context.pinia)
+    const store = useProviderConfigStore()
+
+    const creation = store.synchronizeAddedProvider({ ...localProvider })
+    await vi.waitFor(() => expect(store.providers[localProvider.id]).toBeDefined())
+    await store.setProviderStatus(localProvider.id, 'configured')
+    resolveRemote({ ...localProvider, status: 'unconfigured' })
+    await vi.waitFor(() => expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce())
+
+    await store.resetProviders()
+    resolvePatch({ ...localProvider, status: 'configured' })
+    await creation
+
+    expect(store.providers[localProvider.id]).toBeUndefined()
+    expect(store.addedProviders[localProvider.id]).toBeUndefined()
+    expect(mocks.service.deleteRemote).toHaveBeenCalledWith(mocks.client, localProvider.id)
+  })
+
+  it('migrates active validation and deletion across a resolved provider id', async () => {
+    let resolveRemote!: (provider: InferenceServiceProvider) => void
+    mocks.service.createRemote.mockReturnValue(new Promise<InferenceServiceProvider>((resolve) => {
+      resolveRemote = resolve
+    }))
+    mocks.service.patchConfigRemote.mockImplementation(async (
+      _client: unknown,
+      providerId: string,
+      config: Record<string, unknown>,
+    ) => ({
+      ...remoteProvider,
+      id: providerId,
+      config: { ...config },
+      status: 'unconfigured',
+    }))
+    mocks.service.deleteRemote.mockResolvedValue(undefined)
+
+    const context = createSyncedContext(`provider-config-id-resolution:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+    setActivePinia(context.pinia)
+    const store = useProviderConfigStore()
+
+    const creation = store.synchronizeAddedProvider({ ...localProvider })
+    await vi.waitFor(() => expect(store.providers[localProvider.id]).toBeDefined())
+    const validationLease = await store.beginProviderValidation(localProvider.id)
+    resolveRemote(remoteProvider)
+    await creation
+
+    expect(store.resolveProviderId(localProvider.id)).toBe(remoteProvider.id)
+    expect(store.providerValidationLeases[localProvider.id]).toBeUndefined()
+    expect(store.providerValidationLeases[remoteProvider.id]?.token).toBe(validationLease?.token)
+    expect(store.providers[remoteProvider.id]?.status).toBe('validating')
+    await expect(store.finishProviderValidation(localProvider.id, validationLease!.token, 'configured')).resolves.toBe(true)
+    expect(store.providers[remoteProvider.id]?.status).toBe('configured')
+
+    await store.removeProvider(localProvider.id)
+    expect(store.providers[remoteProvider.id]).toBeUndefined()
+    expect(store.resolveProviderId(localProvider.id)).toBe(localProvider.id)
+    expect(mocks.service.deleteRemote).toHaveBeenCalledWith(mocks.client, remoteProvider.id)
   })
 
   it('keeps an active validation authoritative when same-id creation resolves', async () => {
