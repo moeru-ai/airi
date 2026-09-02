@@ -1444,6 +1444,20 @@ pages:
       mimo:
         description: api.xiaomimimo.com
         title: Xiaomi MiMo
+        transcription:
+          language:
+            label: ASR language
+            description: MiMo uses automatic language detection unless you choose Chinese or English.
+            options:
+              auto: Auto-detect
+              zh: Chinese
+              en: English
+          validation:
+            local-complete: Local configuration is complete
+            local-complete-description: >-
+              API key and Base URL are present. This local check does not prove
+              Xiaomi MiMo ASR runtime availability; use the transcription test
+              below for an actual request.
       mistral:
         description: mistral.ai
         title: Mistral

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { MimoAsrLanguage } from '@proj-airi/stage-ui/libs/providers/providers/mimo-audio'
 import type { RemovableRef } from '@vueuse/core'
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
@@ -13,6 +14,7 @@ import {
   TranscriptionPlayground,
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
+import { MIMO_ASR_LANGUAGES, MIMO_ASR_MODEL } from '@proj-airi/stage-ui/libs/providers/providers/mimo-audio'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
@@ -45,13 +47,39 @@ const baseUrl = computed({
 })
 
 const model = computed({
-  get: () => providers.value[providerId]?.model || 'mimo-v2-omni',
+  get: () => MIMO_ASR_MODEL,
+  set: (_value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].model = MIMO_ASR_MODEL
+  },
+})
+
+const language = computed<MimoAsrLanguage>({
+  get: () => providers.value[providerId]?.language || 'auto',
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
-    providers.value[providerId].model = value
+    providers.value[providerId].language = MIMO_ASR_LANGUAGES.includes(value) ? value : 'auto'
   },
 })
+
+const {
+  t,
+  router,
+  providerMetadata,
+  isValidating,
+  isValid,
+  validationMessage,
+  handleResetSettings,
+  forceValid,
+} = useProviderValidation(providerId)
+
+const languageOptions = computed(() => [
+  { value: 'auto', label: t('settings.pages.providers.provider.mimo.transcription.language.options.auto') },
+  { value: 'zh', label: t('settings.pages.providers.provider.mimo.transcription.language.options.zh') },
+  { value: 'en', label: t('settings.pages.providers.provider.mimo.transcription.language.options.en') },
+])
 
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
@@ -60,6 +88,10 @@ const providerModels = computed(() => providersStore.getModelsForProvider(provid
 const isLoadingModels = computed(() => providersStore.isLoadingModels[providerId] || false)
 
 onMounted(async () => {
+  providersStore.initializeProvider(providerId)
+  model.value = MIMO_ASR_MODEL
+  if (!MIMO_ASR_LANGUAGES.includes(language.value))
+    language.value = 'auto'
   await providersStore.loadModelsForConfiguredProviders()
   await providersStore.fetchModelsForProvider(providerId)
 })
@@ -77,17 +109,6 @@ async function handleGenerateTranscription(file: File) {
     'json',
   )
 }
-
-const {
-  t,
-  router,
-  providerMetadata,
-  isValidating,
-  isValid,
-  validationMessage,
-  handleResetSettings,
-  forceValid,
-} = useProviderValidation(providerId)
 </script>
 
 <template>
@@ -113,6 +134,12 @@ const {
           :options="providerModels.map(m => ({ value: m.id, label: m.name }))"
           :disabled="isLoadingModels || providerModels.length === 0"
           placeholder="Select a model..."
+        />
+        <FieldCombobox
+          v-model="language"
+          :label="t('settings.pages.providers.provider.mimo.transcription.language.label')"
+          :description="t('settings.pages.providers.provider.mimo.transcription.language.description')"
+          :options="languageOptions"
         />
       </ProviderBasicSettings>
 
@@ -144,7 +171,10 @@ const {
       </Alert>
       <Alert v-if="isValid && isValidating === 0" type="success">
         <template #title>
-          {{ t('settings.dialogs.onboarding.validationSuccess') }}
+          {{ t('settings.pages.providers.provider.mimo.transcription.validation.local-complete') }}
+        </template>
+        <template #content>
+          {{ t('settings.pages.providers.provider.mimo.transcription.validation.local-complete-description') }}
         </template>
       </Alert>
     </ProviderSettingsContainer>

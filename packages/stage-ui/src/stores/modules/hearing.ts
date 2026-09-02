@@ -1202,7 +1202,12 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
       const providerConfig = providerStore.getProviderConfig(providerId)
       const model = resolveActiveTranscriptionModel(activeTranscriptionModel.value, providerConfig)
-      const providerOptions = resolveTranscriptionProviderOptions(providerConfig)
+      // MiMo ASR has its own language contract and defaults to auto-detect. Do
+      // not infer a language from the browser locale when the provider config
+      // has not explicitly selected zh/en.
+      const providerOptions = providerId === 'mimo-audio-transcription'
+        ? resolveTranscriptionProviderOptions(providerConfig, '')
+        : resolveTranscriptionProviderOptions(providerConfig)
       console.info('[Hearing Pipeline] Transcribing recording', {
         providerId,
         language: providerOptions.language,
