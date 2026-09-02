@@ -224,6 +224,44 @@ describe('provider config store', () => {
     await expect(store.finishProviderValidation(remoteProvider.id, validationLease!.token, 'configured')).resolves.toBe(true)
   })
 
+  it('prefers owner-captured mutations over a stale replicated optimistic provider', async () => {
+    let resolveCreate!: (provider: InferenceServiceProvider) => void
+    mocks.service.createRemote.mockImplementation(() => new Promise((resolve) => {
+      resolveCreate = resolve
+    }))
+    mocks.service.patchConfigRemote
+      .mockRejectedValueOnce(new Error('provider is not created yet'))
+      .mockImplementation(async (
+        _client: unknown,
+        providerId: string,
+        config: Record<string, unknown>,
+        status: InferenceServiceProvider['status'],
+      ) => ({ ...remoteProvider, id: providerId, config: { ...config }, status }))
+    const store = installStore()
+    const savedConfig = { apiKey: 'sk-saved' }
+
+    const creating = store.addProvider(localProvider.definitionId)
+    await store.updateProviderConfig(localProvider.id, savedConfig, 'configured')
+    const validationLease = await store.beginProviderValidation(localProvider.id)
+    store.providers[localProvider.id] = { ...localProvider }
+    delete store.providerValidationLeases[localProvider.id]
+    resolveCreate(remoteProvider)
+
+    await creating
+    expect(mocks.service.patchConfigRemote).toHaveBeenLastCalledWith(
+      mocks.client,
+      remoteProvider.id,
+      savedConfig,
+      'configured',
+    )
+    expect(store.providers[remoteProvider.id]).toEqual({
+      ...remoteProvider,
+      config: savedConfig,
+      status: 'validating',
+    })
+    expect(store.providerValidationLeases[remoteProvider.id]?.token).toBe(validationLease?.token)
+  })
+
   it.each([
     { outcome: 'success', snapshot: 'removal' },
     { outcome: 'failure', snapshot: 'removal' },
