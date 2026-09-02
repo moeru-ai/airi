@@ -78,7 +78,7 @@ export interface ProviderConfigContext<TConfig> {
 export interface ProviderModelCatalog {
   /** Models discovered for this provider. */
   models: ModelInfo[]
-  /** Whether the server currently exposes this catalog. */
+  /** Whether the server exposes this catalog. Absent when discovery did not return an authoritative state. */
   available?: boolean
   /** Server-selected model id, or null when the server has no default. */
   defaultModel?: string | null

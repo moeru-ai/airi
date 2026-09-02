@@ -84,7 +84,13 @@ watch(isAuthenticated, async (authenticated, _, onCleanup) => {
   if (!active)
     return
 
-  const available = catalog.available === true
+  // An absent value means that discovery failed before the server returned an
+  // authoritative state. Keep the last configured state and availability
+  // override so a transient request failure cannot hide the provider.
+  if (catalog.available === undefined)
+    return
+
+  const available = catalog.available
   await providersStore.setProviderAvailabilityOverride(providerId, available)
   if (!active)
     return

@@ -185,6 +185,44 @@ describe('official streaming speech provider settings', () => {
     await expect.poll(() => fetchMock.mock.calls.some(([input]) => responseUrl(input).includes('/api/v1/audio/voices/streaming'))).toBe(true)
     expect(errors.map(error => errorMessageFrom(error))).toEqual([])
   })
+
+  // https://github.com/moeru-ai/airi/pull/2440#discussion_r3912777731
+  // ROOT CAUSE:
+  //
+  // Model discovery returns no availability field when its request fails.
+  // The page treated that unknown state as an authoritative unavailable state,
+  // which hid the provider and marked its existing configuration as unconfigured.
+  //
+  // Before: catalog.available === true converted a discovery failure to false.
+  //
+  // We fixed this by changing provider state only when discovery returns an
+  // explicit availability value.
+  it('preserves configured provider state when catalog discovery fails', async () => {
+    const fetchMock = vi.fn<typeof fetch>(async (input) => {
+      if (responseUrl(input).includes('/api/v1/audio/models/streaming'))
+        return new Response('upstream unavailable', { status: 502 })
+      return responseFor(input)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const pinia = createPinia()
+
+    const { errors } = await renderPage(pinia)
+    const providerStore = useProviderStore(pinia)
+    const providerConfigStore = useProviderConfigStore(pinia)
+    providerConfigStore.ensureProvider(providerId, providerId, { model: 'volcengine/seed-tts-2.0' })
+    providerConfigStore.setProviderStatus(providerId, 'configured')
+    providerConfigStore.markProviderAdded(providerId)
+    const setProviderUnconfigured = vi.spyOn(providerStore, 'setProviderUnconfigured')
+    const setProviderAvailabilityOverride = vi.spyOn(providerStore, 'setProviderAvailabilityOverride')
+
+    useAuthStore(pinia).$patch({ user, session })
+    await expect.poll(() => providerStore.modelLoadError[providerId]).toContain('streaming models upstream 502')
+
+    expect(setProviderAvailabilityOverride).not.toHaveBeenCalledWith(providerId, false)
+    expect(setProviderUnconfigured).not.toHaveBeenCalledWith(providerId)
+    expect(providerConfigStore.providers[providerId]?.status).toBe('configured')
+    expect(errors.map(error => errorMessageFrom(error))).toEqual([])
+  })
 })
 
 function responseUrl(input: RequestInfo | URL): string {
