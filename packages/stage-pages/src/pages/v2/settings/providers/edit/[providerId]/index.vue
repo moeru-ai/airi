@@ -316,7 +316,7 @@ async function runValidation() {
 
   validationStatusRestorer.begin(validationProviderId, validationLease.token)
   if (!isActive || !isCurrentRun()) {
-    await validationStatusRestorer.restore()
+    await validationStatusRestorer.restore(validationLease.token)
     return
   }
 
@@ -344,34 +344,34 @@ async function runValidation() {
       },
     })
     if (!isCurrentRun()) {
-      await validationStatusRestorer.restore()
+      await validationStatusRestorer.restore(validationLease.token)
       return
     }
 
     if (results.some(step => step.status === 'invalid')) {
       await providerStore.finishProviderValidation(validationProviderId, validationLease.token, 'invalid')
-      validationStatusRestorer.clear()
+      validationStatusRestorer.clear(validationLease.token)
       return
     }
 
     const didFinish = await providerStore.finishProviderValidation(validationProviderId, validationLease.token, 'configured')
     if (didFinish && isEdited.value)
       await commitEditedConfig('configured')
-    validationStatusRestorer.clear()
+    validationStatusRestorer.clear(validationLease.token)
   }
   catch (error) {
     if (!isCurrentRun()) {
-      await validationStatusRestorer.restore()
+      await validationStatusRestorer.restore(validationLease.token)
       return
     }
     await providerStore.finishProviderValidation(validationProviderId, validationLease.token, 'invalid')
-    validationStatusRestorer.clear()
+    validationStatusRestorer.clear(validationLease.token)
     throw error
   }
   finally {
     if (isCurrentRun()) {
       isValidating.value = false
-      validationStatusRestorer.clear()
+      validationStatusRestorer.clear(validationLease.token)
     }
   }
 }
