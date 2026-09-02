@@ -1,4 +1,3 @@
-export * from './ambient-light'
 export * from './expression-store'
 export * from './model-parameters'
 export * from './motion-control'
