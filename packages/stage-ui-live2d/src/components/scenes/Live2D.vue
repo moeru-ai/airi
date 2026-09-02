@@ -106,7 +106,6 @@ defineExpose({
       :height="height"
       :resolution="live2dRenderScale"
       :max-fps="live2dMaxFps"
-      max-h="100dvh"
       @error="emit('error', $event)"
     >
       <Live2DModel

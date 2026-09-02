@@ -14,26 +14,6 @@ export interface ViewportRectangle {
   width: number
 }
 
-/** The viewport properties that determine whether a keyboard sample can be reused. */
-export interface ViewportProfile {
-  /** The browser or installed-app mode that owns the viewport policy. */
-  displayMode: 'browser' | 'standalone'
-  /** The layout viewport height in CSS pixels. */
-  height: number
-  /** The layout viewport width in CSS pixels. */
-  width: number
-}
-
-/** A measured keyboard overlap that can prepare a later focus operation. */
-export interface ViewportSample {
-  /** The layout viewport height hidden by the keyboard, in CSS pixels. */
-  bottomHiddenByKeyboard: number
-  /** The Unix timestamp in milliseconds when the sample was recorded. */
-  measuredAt: number
-  /** The viewport profile that produced the sample. */
-  profile: ViewportProfile
-}
-
 /** The Visual Viewport values used by the fallback layout policy. */
 export interface VisualViewportMeasurement {
   /** The current visual viewport height in CSS pixels. */
@@ -68,50 +48,6 @@ export interface VisualViewportLayout {
 
 /** Changes below this threshold can come from browser controls instead of a software keyboard. */
 const KEYBOARD_HEIGHT_LOSS_THRESHOLD = 100
-
-/** A sample expires before a long-lived tab can reuse geometry from an earlier keyboard mode. */
-const KEYBOARD_SAMPLE_MAX_AGE = 30 * 60 * 1000
-
-/** A larger height change invalidates the sample because the browser layout is no longer comparable. */
-const LAYOUT_HEIGHT_CHANGE_LIMIT = 80
-
-/** A width change larger than rounding noise identifies a different layout viewport. */
-const LAYOUT_WIDTH_CHANGE_LIMIT = 2
-
-/**
- * Calculates a pre-focus viewport height from a recent compatible sample.
- *
- * The result is undefined when the sample is too old or its viewport profile is not compatible.
- */
-export function calculateCachedViewportHeight(
-  sample: ViewportSample,
-  currentProfile: ViewportProfile,
-  now: number,
-): number | undefined {
-  const sampleAge = now - sample.measuredAt
-  if (sampleAge < 0 || sampleAge > KEYBOARD_SAMPLE_MAX_AGE)
-    return undefined
-
-  if (sample.profile.displayMode !== currentProfile.displayMode)
-    return undefined
-
-  const sampleIsLandscape = sample.profile.width > sample.profile.height
-  const currentIsLandscape = currentProfile.width > currentProfile.height
-  if (sampleIsLandscape !== currentIsLandscape)
-    return undefined
-
-  if (Math.abs(sample.profile.width - currentProfile.width) > LAYOUT_WIDTH_CHANGE_LIMIT)
-    return undefined
-
-  if (Math.abs(sample.profile.height - currentProfile.height) > LAYOUT_HEIGHT_CHANGE_LIMIT)
-    return undefined
-
-  if (sample.bottomHiddenByKeyboard <= KEYBOARD_HEIGHT_LOSS_THRESHOLD)
-    return undefined
-
-  const predictedHeight = currentProfile.height - sample.bottomHiddenByKeyboard
-  return predictedHeight > 0 ? predictedHeight : undefined
-}
 
 /**
  * Resolves keyboard visibility and available edges from one Visual Viewport measurement.
