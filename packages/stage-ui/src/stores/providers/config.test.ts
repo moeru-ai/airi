@@ -123,7 +123,7 @@ describe('provider config store', () => {
 
   it('preserves a configuration saved while provider creation is pending', async () => {
     let resolveCreate!: (provider: InferenceServiceProvider) => void
-    mocks.service.createRemote.mockImplementation(() => new Promise(resolve => {
+    mocks.service.createRemote.mockImplementation(() => new Promise((resolve) => {
       resolveCreate = resolve
     }))
     const savedProvider = {
@@ -150,7 +150,7 @@ describe('provider config store', () => {
 
   it('does not restore a provider deleted while creation is pending', async () => {
     let resolveCreate!: (provider: InferenceServiceProvider) => void
-    mocks.service.createRemote.mockImplementation(() => new Promise(resolve => {
+    mocks.service.createRemote.mockImplementation(() => new Promise((resolve) => {
       resolveCreate = resolve
     }))
     const store = installStore()
