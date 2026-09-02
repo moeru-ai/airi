@@ -113,12 +113,16 @@ export function useVRMEmote(vrm: VRMCore) {
   }
 
   const setEmotion = (emotionName: string, intensity = 1) => {
-    clearResetTimeout()
+    const normalizedIntensity = clampIntensity(intensity)
+    if (normalizedIntensity <= 0)
+      return
 
     if (!emotionStates.has(emotionName)) {
       console.warn(`Emotion ${emotionName} not found`)
       return
     }
+
+    clearResetTimeout()
 
     const emotionState = emotionStates.get(emotionName)!
     currentEmotion.value = emotionName
@@ -130,8 +134,6 @@ export function useVRMEmote(vrm: VRMCore) {
     // instead of snapping to 0 first (fixes #590).
     currentExpressionValues.value.clear()
     targetExpressionValues.value.clear()
-
-    const normalizedIntensity = clampIntensity(intensity)
 
     if (vrm.expressionManager) {
       // Capture current values only for morphs the emote owns, so the lerp
@@ -162,6 +164,9 @@ export function useVRMEmote(vrm: VRMCore) {
   }
 
   const setEmotionWithResetAfter = (emotionName: string, ms: number, intensity = 1) => {
+    if (clampIntensity(intensity) <= 0)
+      return
+
     clearResetTimeout()
     setEmotion(emotionName, intensity)
 

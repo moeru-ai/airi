@@ -151,11 +151,25 @@ describe('useVRMEmote', () => {
     expect(vrm.expressionManager?.setValue).not.toHaveBeenCalled()
   })
 
-  it('does not activate emote flag for no-op intensity or empty targets', () => {
+  it('does not activate emote flag for no-op intensity or empty targets and avoids holding zero weights', () => {
     const vrm = createMockVRMCore()
     const emote = useVRMEmote(vrm)
 
     emote.setEmotion('happy', 0)
     expect(emote.isEmoteActive.value).toBe(false)
+    expect(emote.currentEmotion.value).toBeNull()
+    expect(emote.isTransitioning.value).toBe(false)
+
+    // Ensure update on subsequent frames is a no-op and does not overwrite mixer or other controllers with 0
+    emote.update(0.016)
+    emote.update(0.5)
+    expect(vrm.expressionManager?.setValue).not.toHaveBeenCalled()
+
+    // Test with setEmotionWithResetAfter as well
+    emote.setEmotionWithResetAfter('happy', 3000, 0)
+    expect(emote.isEmoteActive.value).toBe(false)
+    expect(emote.currentEmotion.value).toBeNull()
+    emote.update(0.016)
+    expect(vrm.expressionManager?.setValue).not.toHaveBeenCalled()
   })
 })
