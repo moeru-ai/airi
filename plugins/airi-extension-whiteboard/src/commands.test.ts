@@ -36,6 +36,39 @@ describe('executeWhiteboardCommand', () => {
     expect(() => executeWhiteboardCommand(store, { type: 'add_path', points: [{ x: 1, y: 2 }, { x: 3, y: 4 }] })).toThrow('A canvas must be selected first.')
     expect(() => executeWhiteboardCommand(store, { type: 'missing_command' })).toThrow('Unsupported whiteboard command')
   })
+
+  // https://github.com/moeru-ai/airi/pull/2441#discussion_r3912253467
+  it('treats nullable optional numeric arguments as missing', () => {
+    const store = new WhiteboardStore()
+    const created = executeWhiteboardCommand(store, {
+      type: 'create_canvas',
+      name: 'Nullable defaults',
+      width: null,
+      height: null,
+    }).canvas as HostDataRecord
+    const canvasId = created.id as string
+
+    expect(created.width).toBe(1200)
+    expect(created.height).toBe(800)
+
+    const path = executeWhiteboardCommand(store, {
+      type: 'add_path',
+      canvasId,
+      points: [{ x: 1, y: 2 }, { x: 3, y: 4 }],
+      width: null,
+    }).path as HostDataRecord
+    expect(path.width).toBe(4)
+
+    const text = executeWhiteboardCommand(store, {
+      type: 'add_text',
+      canvasId,
+      value: 'Default size',
+      x: 10,
+      y: 20,
+      fontSize: null,
+    }).text as HostDataRecord
+    expect(text.fontSize).toBe(28)
+  })
 })
 
 describe('createWhiteboardTools', () => {

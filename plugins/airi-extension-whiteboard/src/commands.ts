@@ -29,7 +29,7 @@ function getString(input: HostDataRecord, key: string, required = false) {
 
 function getNumber(input: HostDataRecord, key: string) {
   const value = input[key]
-  if (value === undefined) {
+  if (value === undefined || value === null) {
     return undefined
   }
   if (typeof value !== 'number' || !Number.isFinite(value)) {
