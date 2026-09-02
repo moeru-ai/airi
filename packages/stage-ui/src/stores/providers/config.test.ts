@@ -121,6 +121,49 @@ describe('provider config store', () => {
     expect(store.listedProviders[remoteProvider.id]).toEqual(remoteProvider)
   })
 
+  it('preserves a configuration saved while provider creation is pending', async () => {
+    let resolveCreate!: (provider: InferenceServiceProvider) => void
+    mocks.service.createRemote.mockImplementation(() => new Promise(resolve => {
+      resolveCreate = resolve
+    }))
+    const savedProvider = {
+      ...remoteProvider,
+      config: { apiKey: 'sk-saved' },
+      status: 'configured',
+    } satisfies InferenceServiceProvider
+    mocks.service.patchConfigRemote.mockResolvedValue(savedProvider)
+    const store = installStore()
+
+    const creating = store.addProvider(localProvider.definitionId)
+    await store.updateProviderConfig(localProvider.id, savedProvider.config, savedProvider.status)
+    resolveCreate(remoteProvider)
+
+    await expect(creating).resolves.toEqual(savedProvider)
+    expect(store.providers).toEqual({ [remoteProvider.id]: savedProvider })
+    expect(mocks.service.patchConfigRemote).toHaveBeenLastCalledWith(
+      mocks.client,
+      remoteProvider.id,
+      savedProvider.config,
+      savedProvider.status,
+    )
+  })
+
+  it('does not restore a provider deleted while creation is pending', async () => {
+    let resolveCreate!: (provider: InferenceServiceProvider) => void
+    mocks.service.createRemote.mockImplementation(() => new Promise(resolve => {
+      resolveCreate = resolve
+    }))
+    const store = installStore()
+
+    const creating = store.addProvider(localProvider.definitionId)
+    await store.removeProvider(localProvider.id)
+    resolveCreate(remoteProvider)
+
+    await expect(creating).resolves.toEqual(remoteProvider)
+    expect(store.providers).toEqual({})
+    expect(mocks.service.deleteRemote).toHaveBeenLastCalledWith(mocks.client, remoteProvider.id)
+  })
+
   it('updates and removes a provider through the store interface', async () => {
     const store = installStore()
     store.providers[localProvider.id] = localProvider
