@@ -172,7 +172,11 @@ describe('migrated provider definitions', () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
 
-    fetchMock.mockResolvedValueOnce({ ok: true, status: 200 })
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: [] }),
+    })
     const reachable = await validator?.validator(
       { baseUrl: 'http://localhost:8000/v1/' },
       await providerFunASRAudioTranscription.createProvider({ baseUrl: 'http://localhost:8000/v1/' }),
