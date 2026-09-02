@@ -149,6 +149,20 @@ function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
 
+function isAndroidDevice() {
+  return /Android/i.test(navigator.userAgent)
+}
+
+const messageInputPointerEventsClass = computed(() => {
+  if (inputBubbleDocked.value)
+    return 'pointer-events-none'
+
+  if (isAndroidDevice())
+    return 'pointer-events-none group-focus-within:pointer-events-auto'
+
+  return 'pointer-events-auto'
+})
+
 const { isListening, startStreamingTranscription, stopStreamingTranscription } = useTranscriptions(
   {
     messageInputRef: messageInput,
@@ -260,6 +274,7 @@ function handleInputBubbleLongPress() {
 
   suppressNextInputBubbleClick = true
   inputBubbleDragging.value = true
+  inputBubble.value!.querySelector<HTMLTextAreaElement>('textarea')!.blur()
   inputBubble.value!.style.transform = 'translate3d(0, 0, 0) scale(.98)'
 }
 
@@ -274,6 +289,11 @@ function handleInputBubblePointerDown(event: PointerEvent) {
   // See the closing-focus regression in adaptive-input.test.ts.
   // Remove this branch when Safari exposes a keyboard lifecycle that can cancel an active dismissal.
   if (document.activeElement === messageInput)
+    event.preventDefault()
+}
+
+function handleInputBubbleContextMenu(event: MouseEvent) {
+  if (isAndroidDevice())
     event.preventDefault()
 }
 
@@ -538,21 +558,23 @@ onUnmounted(() => {
               : 'max-w-[70%] w-full focus-within:max-w-full',
           ]"
           @click="handleInputBubbleClick"
+          @contextmenu="handleInputBubbleContextMenu"
           @pointerdown="handleInputBubblePointerDown"
         >
+          <!-- Android handles touch from the scrollable textarea, so it needs touch-none to keep the bubble drag active. -->
           <BasicTextarea
             v-model="messageInput"
             :placeholder="t('stage.message')"
             :class="[
               'font-cute',
-              'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full resize-none overflow-y-scroll scrollbar-none',
+              'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full touch-none resize-none overflow-y-scroll scrollbar-none',
               'border-2 border-solid px-4 py-0.5 outline-none backdrop-blur-md',
               'text-neutral-500 dark:text-neutral-100',
               'rounded-[1lh] border-neutral-200/60 bg-neutral-100/80 dark:border-neutral-700/60 dark:bg-neutral-950/80',
               'transition-colors duration-250 ease-in-out hover:text-neutral-600 dark:hover:text-neutral-200',
               'placeholder:text-[14px] placeholder:vertical-middle placeholder:leading-6 placeholder:text-neutral-400',
               'placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out placeholder:hover:text-neutral-500 dark:placeholder:text-neutral-500 dark:placeholder:hover:text-neutral-400',
-              inputBubbleDocked ? 'pointer-events-none' : 'pointer-events-auto',
+              messageInputPointerEventsClass,
               themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : undefined,
             ]"
             default-height="1lh"
