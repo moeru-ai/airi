@@ -1,5 +1,6 @@
 import type { ComposerTranslation } from 'vue-i18n'
 
+import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { isWebGPUSupported } from '@proj-airi/stage-shared/webgpu'
 import { createOpenAI } from '@xsai-ext/providers/create'
@@ -109,18 +110,21 @@ function createFunASRAudioValidators() {
           const timeout = setTimeout(() => controller.abort(), 10_000)
 
           try {
-            const response = await fetch(modelsUrl, {
-              headers: config.apiKey?.trim() ? { Authorization: `Bearer ${config.apiKey.trim()}` } : {},
-              method: 'GET',
-              signal: controller.signal,
-            })
+            const response = await fetch(
+              modelsUrl,
+              {
+                headers: config.apiKey?.trim() ? { Authorization: `Bearer ${config.apiKey.trim()}` } : {},
+                method: 'GET',
+                signal: controller.signal,
+              },
+            )
             if (!response.ok)
               throw new Error(`HTTP ${response.status}`)
 
             return { errors: [], reason: '', reasonKey: '', valid: true }
           }
           catch (error) {
-            const reason = `Cannot reach the FunASR OpenAI-compatible endpoint: ${error instanceof Error ? error.message : 'Unknown error'}`
+            const reason = `Cannot reach the FunASR OpenAI-compatible endpoint: ${errorMessageFrom(error) ?? 'Unknown error'}`
             return { errors: [{ error }], reason, reasonKey: '', valid: false }
           }
           finally {
