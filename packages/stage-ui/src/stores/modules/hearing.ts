@@ -339,6 +339,21 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED, persistenceOptions)
   const verboseJsonNotSupported = ref(false)
 
+  // Provider creation can replace an optimistic id with a server-assigned id.
+  // Persist the canonical id so the selected provider survives reconciliation
+  // and future application restarts without depending on an in-memory alias.
+  watch(
+    () => [
+      activeTranscriptionProvider.value,
+      providerStore.resolveProviderId(activeTranscriptionProvider.value),
+    ] as const,
+    ([selectedProviderId, resolvedProviderId]) => {
+      if (selectedProviderId && resolvedProviderId !== selectedProviderId)
+        activeTranscriptionProvider.value = resolvedProviderId
+    },
+    { immediate: true },
+  )
+
   watch(activeTranscriptionProvider, () => {
     verboseJsonNotSupported.value = false
   })
