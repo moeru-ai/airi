@@ -87,7 +87,7 @@ async function isBrowserAndMemoryEnough() {
   return false
 }
 
-export const providerAppLocalAudioSpeech = defineProvider<LocalAudioConfig>({
+export const providerAppLocalAudioSpeech = defineProvider<LocalAudioConfig, 'app-local-audio-speech'>({
   id: 'app-local-audio-speech',
   name: 'App (Local)',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.app-local-audio-speech.title'),
@@ -101,7 +101,7 @@ export const providerAppLocalAudioSpeech = defineProvider<LocalAudioConfig>({
   validators: createLocalAudioValidators(),
 })
 
-export const providerAppLocalAudioTranscription = defineProvider<LocalAudioConfig>({
+export const providerAppLocalAudioTranscription = defineProvider<LocalAudioConfig, 'app-local-audio-transcription'>({
   id: 'app-local-audio-transcription',
   name: 'App (Local)',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.app-local-audio-transcription.title'),
@@ -123,7 +123,7 @@ export const providerAppLocalAudioTranscription = defineProvider<LocalAudioConfi
   validators: createLocalAudioValidators(),
 })
 
-export const providerBrowserLocalAudioSpeech = defineProvider<LocalAudioConfig>({
+export const providerBrowserLocalAudioSpeech = defineProvider<LocalAudioConfig, 'browser-local-audio-speech'>({
   id: 'browser-local-audio-speech',
   name: 'Browser (Local)',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.browser-local-audio-speech.title'),
@@ -137,7 +137,7 @@ export const providerBrowserLocalAudioSpeech = defineProvider<LocalAudioConfig>(
   validators: createLocalAudioValidators(),
 })
 
-export const providerBrowserLocalAudioTranscription = defineProvider<LocalAudioConfig>({
+export const providerBrowserLocalAudioTranscription = defineProvider<LocalAudioConfig, 'browser-local-audio-transcription'>({
   id: 'browser-local-audio-transcription',
   name: 'Browser (Local)',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.browser-local-audio-transcription.title'),

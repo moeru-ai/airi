@@ -21,6 +21,7 @@
   "dependencies": {
     "@moeru/std": "catalog:",
     "@pnpm/find-workspace-dir": "catalog:",
+    "@proj-airi/provider-inference": "workspace:^",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/stage-ui": "workspace:^",
     "@proj-airi/vitest-plugin-fakemic": "workspace:^",

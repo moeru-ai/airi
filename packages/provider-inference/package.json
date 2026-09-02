@@ -1,0 +1,64 @@
+{
+  "name": "@proj-airi/provider-inference",
+  "type": "module",
+  "version": "0.12.0-beta.5",
+  "private": true,
+  "description": "Runtime-neutral provider definitions for AIRI inference",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/provider-inference"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "dev": "pnpm run build",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test:run": "vitest run",
+    "test:node": "vitest run --project node",
+    "test:browser": "vitest run --project browser"
+  },
+  "dependencies": {
+    "@moeru/std": "catalog:",
+    "@proj-airi/audio": "workspace:^",
+    "@xsai-ext/providers": "catalog:",
+    "@xsai-transformers/shared": "catalog:",
+    "@xsai/generate-text": "catalog:",
+    "@xsai/model": "catalog:",
+    "@xsai/stream-transcription": "catalog:",
+    "@xsai/utils-chat": "catalog:",
+    "clustr": "catalog:",
+    "es-toolkit": "catalog:",
+    "is-network-error": "catalog:",
+    "unspeech": "catalog:xsai",
+    "xsschema": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@vitest/browser-playwright": "catalog:vitest",
+    "@xsai/generate-speech": "catalog:",
+    "playwright": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:vitest"
+  }
+}
