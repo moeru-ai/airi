@@ -2,7 +2,7 @@ import type { PortableProviderId } from '../index'
 
 import { describe, expect, expectTypeOf, it } from 'vitest'
 
-import { getDefinedProvider, listProviders, portableProviderDefinitions } from '../index'
+import { createProviderRegistry, getDefinedProvider, listProviders, portableProviderDefinitions } from '../index'
 
 describe('portable provider registry', () => {
   it('exports the portable provider id union', () => {
@@ -19,6 +19,21 @@ describe('portable provider registry', () => {
 
   it('lists definitions in deterministic display order', () => {
     expect(listProviders()).toEqual(listProviders())
+  })
+
+  it('places definitions without an order after all ordered definitions', () => {
+    const [template] = portableProviderDefinitions
+    const registry = createProviderRegistry([
+      { ...template, id: 'unordered-z', name: 'Zeta', order: undefined },
+      { ...template, id: 'high-order', name: 'High order', order: 100_000 },
+      { ...template, id: 'unordered-a', name: 'Alpha', order: undefined },
+    ])
+
+    expect(registry.list().map(provider => provider.id)).toEqual([
+      'high-order',
+      'unordered-a',
+      'unordered-z',
+    ])
   })
 
   it('does not include providers that require application runtime adapters', () => {

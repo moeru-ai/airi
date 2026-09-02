@@ -29,10 +29,42 @@ export interface ProviderValidationPlan {
   shouldValidate: boolean
 }
 
+interface ProviderValidationValidatorInfo {
+  kind: ProviderValidationStepKind
+  index: number
+  step: ProviderValidationStep
+}
+
+interface ProviderValidationValidatorResult {
+  reason: string
+  valid: boolean
+}
+
+interface ProviderValidationValidatorSuccessInfo extends ProviderValidationValidatorInfo {
+  result: ProviderValidationValidatorResult
+}
+
+interface ProviderValidationValidatorErrorInfo extends ProviderValidationValidatorInfo {
+  error: unknown
+}
+
 export interface ProviderValidationCallbacks {
-  onValidatorStart?: (info: { kind: ProviderValidationStepKind, index: number, step: ProviderValidationStep }) => void
-  onValidatorSuccess?: (info: { kind: ProviderValidationStepKind, index: number, step: ProviderValidationStep, result: { reason: string, valid: boolean } }) => void
-  onValidatorError?: (info: { kind: ProviderValidationStepKind, index: number, step: ProviderValidationStep, error: unknown }) => void
+  onValidatorStart?: (info: ProviderValidationValidatorInfo) => void
+  onValidatorSuccess?: (info: ProviderValidationValidatorSuccessInfo) => void
+  onValidatorError?: (info: ProviderValidationValidatorErrorInfo) => void
+}
+
+interface GetProviderValidationIntervalOptions {
+  definition: ProviderDefinition
+  contextOptions: ProviderContext
+  defaultIntervalMs?: number
+}
+
+interface GetValidatorsOfProviderOptions {
+  definition: ProviderDefinition
+  config: Record<string, unknown>
+  schemaDefaults: Record<string, unknown>
+  contextOptions: ProviderContext
 }
 
 export function createConfigValidationSteps(configValidators: ProviderConfigValidator<Record<string, unknown>>[]): ProviderValidationStep[] {
@@ -55,11 +87,7 @@ export function createProviderValidationSteps(providerValidators: ProviderRuntim
   }))
 }
 
-export async function getProviderValidationIntervalMs(options: {
-  definition: ProviderDefinition
-  contextOptions: ProviderContext
-  defaultIntervalMs?: number
-}) {
+export async function getProviderValidationIntervalMs(options: GetProviderValidationIntervalOptions) {
   const validators = await Promise.all((options.definition.validators?.validateProvider || []).map(creator => creator(options.contextOptions)))
   const defaultIntervalMs = options.defaultIntervalMs ?? 15_000
   const intervals = validators
@@ -73,12 +101,7 @@ export async function getProviderValidationIntervalMs(options: {
   return Math.min(...intervals)
 }
 
-export async function getValidatorsOfProvider(options: {
-  definition: ProviderDefinition
-  config: Record<string, unknown>
-  schemaDefaults: Record<string, unknown>
-  contextOptions: ProviderContext
-}): Promise<ProviderValidationPlan> {
+export async function getValidatorsOfProvider(options: GetValidatorsOfProviderOptions): Promise<ProviderValidationPlan> {
   const { definition } = options
 
   const configValidators = await Promise.all((definition.validators?.validateConfig || []).map(creator => creator(options.contextOptions)))

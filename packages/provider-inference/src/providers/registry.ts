@@ -38,10 +38,12 @@ export function createProviderRegistry(definitions: readonly ProviderDefinition[
   }
 
   const sortedDefinitions = [...definitionsById.values()].toSorted((left, right) => {
-    const orderDifference = (left.order ?? 99_999) - (right.order ?? 99_999)
-    if (orderDifference !== 0)
-      return orderDifference
-
+    if (left.order === undefined && right.order !== undefined)
+      return 1
+    if (left.order !== undefined && right.order === undefined)
+      return -1
+    if (left.order !== undefined && right.order !== undefined && left.order !== right.order)
+      return left.order - right.order
     if (left.name < right.name)
       return -1
     if (left.name > right.name)
