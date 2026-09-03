@@ -227,9 +227,11 @@ void main(void) {
   vec3 baseLinear = srgbToLinear(source.rgb / source.a);
   float effect = min(uStrength, 1.0);
 
-  // The measured screen level moves the base exposure, because a model that
-  // holds one brightness over a dark desktop reads as pasted on. At
-  // uExposureRange = 0 the model keeps a constant exposure.
+  // The measured screen level moves the base exposure. A positive range
+  // brightens the model with the screen, which is the light the screen throws
+  // on it. A negative range darkens it instead, which keeps the unlit side
+  // dark so that the wrap and the rim read against it. At 0 the model keeps a
+  // constant exposure.
   float measuredBase = clamp(uBaseBrightness + uExposureRange * uExposure, 0.0, 1.0);
   float brightness = mix(1.0, measuredBase, effect);
   float contrast = mix(1.0, uBaseContrast, effect);
@@ -409,7 +411,7 @@ export class ScreenAmbientLightFilter extends Filter {
     this.uniforms.uBaseBrightness = clamp(options.baseBrightness, 0, 1)
     this.uniforms.uBaseContrast = clamp(options.baseContrast, 0.5, 2)
     this.uniforms.uExposure = clamp(environment.exposure, 0, 1)
-    this.uniforms.uExposureRange = clamp(options.exposureRange, 0, 1)
+    this.uniforms.uExposureRange = clamp(options.exposureRange, -1, 1)
     this.uniforms.uChroma = clamp(options.chroma, 0, 1)
     this.uniforms.uWrapIntensity = Math.max(0, options.wrapIntensity)
     this.uniforms.uBacklight = clamp(options.backlight, 0, 2)
