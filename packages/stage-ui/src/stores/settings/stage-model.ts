@@ -2,10 +2,9 @@ import type {} from 'pinia-plugin-synced'
 
 import type { DisplayModel } from '../display-models'
 
-import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset, useEventListener } from '@vueuse/core'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, watch } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 
@@ -13,14 +12,12 @@ export type StageModelRenderer = 'live2d' | 'vrm' | 'spine' | 'tachie' | 'mmd' |
 type BuiltInStageModelRenderer = Exclude<StageModelRenderer, 'godot'>
 
 const useStageModelSelectionStore = defineStore('settings-stage-model-selection', () => {
-  // Pinia synchronization owns live cross-window state. localStorage only
-  // loads and saves the durable model selection.
-  const selected = useLocalStorageManualReset<string>('settings/stage/model', 'preset-live2d-1', {
-    listenToStorageChanges: false,
-  })
+  // The active Character owns the durable Avatar Model references. This store
+  // only replicates the current runtime selection between renderer windows.
+  const selected = shallowRef('')
 
   function resetState() {
-    selected.reset()
+    selected.value = ''
   }
 
   return {
@@ -39,7 +36,6 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const { selected: stageModelSelectedState } = storeToRefs(stageModelSelectionStore)
   let stageModelUpdateSequence = 0
   let legacyModelIdentityResetPromise: Promise<void> | undefined
-  const defaultStageModelId = 'preset-live2d-1'
   const stageModelSelected = computed<string>({
     get: () => stageModelSelectedState.value,
     set: (value) => {
@@ -127,12 +123,6 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
       return
 
     if (!model) {
-      if (selectedModelId !== defaultStageModelId) {
-        stageModelSelectedState.value = defaultStageModelId
-        await updateStageModel()
-        return
-      }
-
       replaceStageModelUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
       stageModelBuiltInRenderer.value = 'disabled'

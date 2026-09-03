@@ -14,7 +14,9 @@ export async function configureActiveCardModules(
     if (!serializedCards)
       throw new Error('The AIRI Card store is not initialized.')
 
-    const activeCardId = localStorage.getItem('airi-card-active-id') ?? 'default'
+    // The active Character is runtime state. Audio test sessions configure the
+    // built-in startup Character before the application creates its stores.
+    const activeCardId = 'default'
     const cards = JSON.parse(serializedCards) as Array<[string, AiriCard]>
     const activeCard = cards.find(([cardId]) => cardId === activeCardId)?.[1]
     if (!activeCard)

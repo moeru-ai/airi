@@ -1,6 +1,5 @@
 export * from './animation'
 export * from './beat-sync'
-export * from './expression-controller'
 export * from './eye-tracking'
 export * from './live2d'
 export * from './motion-control-spring'

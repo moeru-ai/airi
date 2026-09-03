@@ -2,6 +2,7 @@ import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/component
 
 export const modelSettingsRuntimeSnapshotChannelName = 'airi-model-settings-runtime-snapshot'
 
+/** Shares the current stage runtime status with settings windows. */
 export type ModelSettingsRuntimeChannelEvent
   = | { type: 'request-current' }
     | { type: 'snapshot', snapshot: ModelSettingsRuntimeSnapshot }

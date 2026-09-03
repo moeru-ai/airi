@@ -81,6 +81,7 @@ describe('airi card editor validation', () => {
     // We fix this by applying the editor-owned fields as a structured patch
     // over the existing extension.
     const existing: AiriExtension = {
+      avatarModels: [],
       modules: {
         consciousness: { provider: 'old-chat', model: 'old-chat-model' },
         vision: { provider: 'old-vision', model: 'old-vision-model' },

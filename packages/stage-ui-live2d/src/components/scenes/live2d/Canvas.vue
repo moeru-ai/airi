@@ -5,6 +5,8 @@ import { Ticker, TickerPlugin } from '@pixi/ticker'
 import { Live2DModel } from 'pixi-live2d-display/cubism4'
 import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
+import { useLive2D } from '../../../contexts/live2d'
+
 const props = withDefaults(defineProps<{
   width: number
   height: number
@@ -20,6 +22,14 @@ const emit = defineEmits<{
 }>()
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
+const live2d = useLive2D()
+
+function reportError(phase: 'renderer' | 'render', error: unknown) {
+  live2d.reportError(phase, error)
+  const reportedError = live2d.error.value?.cause
+  if (reportedError)
+    emit('error', reportedError)
+}
 
 const containerRef = ref<HTMLDivElement>()
 const isPixiCanvasReady = ref(false)
@@ -41,7 +51,7 @@ function installRenderGuard(app: Application) {
     catch (error) {
       console.error('[Live2D] Pixi render error.', error)
       app.ticker.stop()
-      emit('error', error instanceof Error ? error : new Error(String(error)))
+      reportError('render', error)
     }
   }
 
@@ -81,6 +91,7 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   pixiAppCanvas.value.style.display = 'block'
 
   parent.appendChild(pixiApp.value.view)
+  live2d.setRenderer(pixiApp.value, pixiAppCanvas.value)
 
   isPixiCanvasReady.value = true
   componentState.value = 'mounted'
@@ -111,10 +122,17 @@ onMounted(async () => {
   }
   catch (error) {
     console.error('[Live2D] Failed to initialize Pixi stage.', error)
-    emit('error', error instanceof Error ? error : new Error(String(error)))
+    reportError('renderer', error)
   }
 })
-onUnmounted(() => pixiApp.value?.destroy())
+onUnmounted(() => {
+  const app = pixiApp.value
+  if (!app)
+    return
+
+  live2d.clearRenderer(app)
+  app.destroy()
+})
 
 async function captureFrame() {
   const frame = new Promise<Blob | null>((resolve) => {
@@ -126,7 +144,7 @@ async function captureFrame() {
     }
     catch (error) {
       console.error('[Live2D] Pixi render error during capture.', error)
-      emit('error', error instanceof Error ? error : new Error(String(error)))
+      reportError('render', error)
       return resolve(null)
     }
 

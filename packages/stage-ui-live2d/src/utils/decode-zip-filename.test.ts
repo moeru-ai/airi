@@ -21,6 +21,12 @@ describe('decodeZipFileName', () => {
     expect(decodeZipFileName(bytes)).toBe('高光.exp3.json')
   })
 
+  it('preserves UTF-8 CJK names when the ZIP entry omits the UTF-8 flag', () => {
+    const bytes = new TextEncoder().encode('motions/哭哭.motion3.json')
+
+    expect(decodeZipFileName(bytes)).toBe('motions/哭哭.motion3.json')
+  })
+
   it('passes a string[] through unchanged (JSZip option-signature branch)', () => {
     expect(decodeZipFileName(['a', 'b', 'c'])).toBe('abc')
   })

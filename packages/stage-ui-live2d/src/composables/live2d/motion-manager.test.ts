@@ -56,12 +56,12 @@ function createContext(overrides: Partial<MotionManagerPluginContext> = {}): Mot
       leftEyeOpen: 1,
       rightEyeOpen: 1,
     }),
-    live2dEyeTrackingEnabled: ref(false),
-    live2dEyeFocusSourceActive: ref(false),
-    live2dIdleAnimationEnabled: ref(true),
-    live2dForceIdleEyeAnimation: ref(false),
-    live2dAutoBlinkEnabled: ref(true),
-    live2dForceAutoBlinkEnabled: ref(false),
+    enabledEyeTracking: ref(false),
+    activeEyeFocusSource: ref(false),
+    enabledIdleAnimation: ref(true),
+    enabledForceIdleEyeAnimation: ref(false),
+    enabledAutoBlink: ref(true),
+    enabledForceAutoBlink: ref(false),
     isIdleMotion: true,
     handled: false as boolean,
     markHandled: vi.fn(() => {
@@ -136,8 +136,8 @@ describe('live2d motion manager plugins', () => {
   it('keeps idle eye focus alive when idle motion is disabled', () => {
     const idleEyeFocus = { update: vi.fn() }
     const context = createContext({
-      live2dIdleAnimationEnabled: ref(false),
-      live2dForceIdleEyeAnimation: ref(true),
+      enabledIdleAnimation: ref(false),
+      enabledForceIdleEyeAnimation: ref(true),
     })
 
     useMotionUpdatePluginIdleDisable(idleEyeFocus)(context)
@@ -152,10 +152,10 @@ describe('live2d motion manager plugins', () => {
   it('lets mouse tracking own focus while a tracking source is active', () => {
     const idleEyeFocus = { update: vi.fn() }
     const context = createContext({
-      live2dEyeTrackingEnabled: ref(true),
-      live2dEyeFocusSourceActive: ref(true),
-      live2dIdleAnimationEnabled: ref(false),
-      live2dForceIdleEyeAnimation: ref(true),
+      enabledEyeTracking: ref(true),
+      activeEyeFocusSource: ref(true),
+      enabledIdleAnimation: ref(false),
+      enabledForceIdleEyeAnimation: ref(true),
     })
 
     useMotionUpdatePluginIdleDisable(idleEyeFocus)(context)
@@ -169,8 +169,8 @@ describe('live2d motion manager plugins', () => {
    */
   it('uses the model built-in blink when auto blink is enabled and force blink is disabled', () => {
     const context = createContext({
-      live2dAutoBlinkEnabled: ref(true),
-      live2dForceAutoBlinkEnabled: ref(false),
+      enabledAutoBlink: ref(true),
+      enabledForceAutoBlink: ref(false),
     })
 
     useMotionUpdatePluginAutoEyeBlink(ref(false))(context)
@@ -187,8 +187,8 @@ describe('live2d motion manager plugins', () => {
    */
   it('does not call the model built-in blink when force blink is enabled', () => {
     const context = createContext({
-      live2dAutoBlinkEnabled: ref(true),
-      live2dForceAutoBlinkEnabled: ref(true),
+      enabledAutoBlink: ref(true),
+      enabledForceAutoBlink: ref(true),
       timeDelta: 4000,
     })
 
@@ -201,8 +201,8 @@ describe('live2d motion manager plugins', () => {
   it('applies force blink after the SDK handles an idle-motion frame', () => {
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0)
     const context = createContext({
-      live2dAutoBlinkEnabled: ref(true),
-      live2dForceAutoBlinkEnabled: ref(true),
+      enabledAutoBlink: ref(true),
+      enabledForceAutoBlink: ref(true),
       timeDelta: 4,
       handled: true,
     })
@@ -234,8 +234,8 @@ describe('live2d motion manager plugins', () => {
       .mockReturnValueOnce(0.5)
 
     const context = createContext({
-      live2dAutoBlinkEnabled: ref(true),
-      live2dForceAutoBlinkEnabled: ref(true),
+      enabledAutoBlink: ref(true),
+      enabledForceAutoBlink: ref(true),
       timeDelta: 3,
     })
     const plugin = useMotionUpdatePluginAutoEyeBlink(ref(false))

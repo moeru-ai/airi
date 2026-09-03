@@ -135,6 +135,7 @@ export function applyAiriCardEditorModules(
       ...card.extensions,
       airi: {
         ...existing,
+        avatarModels: existing?.avatarModels ?? [],
         modules: {
           ...existing?.modules,
           ...edited,
