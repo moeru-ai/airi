@@ -12,7 +12,6 @@ import './official'
 registerProviders(portableProviderDefinitions)
 
 export {
-  getDefaultStreamingModel,
   OFFICIAL_TRANSCRIPTION_PROVIDER_ID,
 } from './official'
 
