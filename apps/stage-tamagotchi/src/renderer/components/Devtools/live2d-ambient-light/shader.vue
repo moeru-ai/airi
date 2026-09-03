@@ -48,7 +48,7 @@ function formatMultiplier(value: number) {
       <FieldRange
         v-model="screenAmbientLightExposureRange"
         as="div"
-        :min="0"
+        :min="-1"
         :max="1"
         :step="0.01"
         :default-value="ambientLightDefaults.filter.exposureRange"
