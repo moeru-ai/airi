@@ -63,7 +63,7 @@ export function createExtensionUiIframeRequestHandler(input: ExtensionUiIframeRe
     }
 
     const invokeGameletRequest = defineInvoke(context, gameletRequest)
-    const timeoutSignal = createTimeoutSignal(request.timeoutMs)
+    const timeoutSignal = createTimeoutSignal(Math.max(0, request.expiresAt - Date.now()))
 
     try {
       return await invokeGameletRequest({
@@ -101,6 +101,9 @@ export function createExtensionUiIframeRequestQueueProcessor(input: ExtensionUiI
       }
 
       handledRequestIds.add(request.requestId)
+      if (Date.now() >= request.expiresAt) {
+        continue
+      }
       void input.requestWidgetIframe(request)
         .then((result) => {
           input.emitResult({

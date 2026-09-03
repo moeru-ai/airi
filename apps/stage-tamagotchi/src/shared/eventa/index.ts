@@ -164,6 +164,8 @@ export interface WidgetsIframeRequestPayload {
   payload: GameletIframeInvokePayload['payload']
   /** Request timeout budget in milliseconds. */
   timeoutMs: number
+  /** Absolute request deadline in Unix milliseconds, shared by main and renderer. */
+  expiresAt: number
 }
 
 /**

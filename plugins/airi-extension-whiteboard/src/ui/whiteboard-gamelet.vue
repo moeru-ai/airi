@@ -17,7 +17,7 @@ import { pointFromPointerEvent } from './pointer'
 const props = defineProps<{
   bindingId: string
   controller?: StageGameletController
-  pendingRequests?: Array<{ requestId: string, payload: HostDataRecord }>
+  pendingRequests?: Array<{ requestId: string, payload: HostDataRecord, expiresAt: number }>
 }>()
 const emit = defineEmits<{
   iframeRequestResult: [result: {
@@ -177,6 +177,9 @@ function processPendingRequests() {
       continue
     }
     handledRequestIds.add(request.requestId)
+    if (Date.now() >= request.expiresAt) {
+      continue
+    }
     try {
       emit('iframeRequestResult', {
         id: props.bindingId,

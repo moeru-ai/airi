@@ -85,6 +85,7 @@ const request: WidgetsIframeRequestPayload = {
   requestId: 'request-1',
   payload: { type: 'create_canvas', name: 'Agent canvas' },
   timeoutMs: 30000,
+  expiresAt: Date.now() + 30000,
 }
 
 const mountedApps: Array<{ app: ReturnType<typeof createApp>, host: HTMLElement }> = []
