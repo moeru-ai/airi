@@ -69,9 +69,37 @@ describe('executeWhiteboardCommand', () => {
     }).text as HostDataRecord
     expect(text.fontSize).toBe(28)
   })
+
+  // https://github.com/moeru-ai/airi/pull/2441#discussion_r3914212204
+  it('rejects non-positive canvas dimensions before saving the canvas', () => {
+    const store = new WhiteboardStore()
+
+    expect(() => executeWhiteboardCommand(store, { type: 'create_canvas', width: 0 })).toThrow('`width` must be a finite positive number.')
+    expect(() => executeWhiteboardCommand(store, { type: 'create_canvas', width: -1 })).toThrow('`width` must be a finite positive number.')
+    expect(() => executeWhiteboardCommand(store, { type: 'create_canvas', height: 0 })).toThrow('`height` must be a finite positive number.')
+    expect(() => executeWhiteboardCommand(store, { type: 'create_canvas', height: -1 })).toThrow('`height` must be a finite positive number.')
+    expect(store.document.canvases).toHaveLength(0)
+  })
 })
 
 describe('createWhiteboardTools', () => {
+  it('declares positive canvas dimensions in the tool schema', () => {
+    const gamelet = {
+      id: 'main',
+      bindingId: 'whiteboard:main',
+      open: async () => {},
+      configure: async () => {},
+      request: async <TResponse = HostDataRecord>() => ({}) as TResponse,
+      close: async () => {},
+      isOpen: async () => false,
+    } satisfies GameletHandle
+    const schema = createWhiteboardTools(gamelet)[0]!.inputSchema as HostDataRecord
+    const properties = schema.properties as HostDataRecord
+
+    expect(properties.width).toEqual({ type: 'number', exclusiveMinimum: 0 })
+    expect(properties.height).toEqual({ type: 'number', exclusiveMinimum: 0 })
+  })
+
   it('keeps the nine tool names and delegates each invocation through the gamelet', async () => {
     const open = vi.fn(async () => {})
     const request = vi.fn(async (payload: HostDataRecord) => payload)

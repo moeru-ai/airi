@@ -40,8 +40,8 @@ export function createWhiteboardTools(gamelet: GameletHandle): Array<PluginToolD
       type: 'object',
       properties: {
         name: { type: 'string' },
-        width: { type: 'number' },
-        height: { type: 'number' },
+        width: { type: 'number', exclusiveMinimum: 0 },
+        height: { type: 'number', exclusiveMinimum: 0 },
         background: { type: 'string' },
       },
       required: [],

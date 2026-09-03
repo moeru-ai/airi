@@ -60,11 +60,19 @@ export function createCanvas(input: {
   now?: number
 } = {}): WhiteboardCanvas {
   const now = input.now ?? Date.now()
+  const width = input.width ?? 1200
+  const height = input.height ?? 800
+  if (!Number.isFinite(width) || width <= 0) {
+    throw new TypeError('`width` must be a finite positive number.')
+  }
+  if (!Number.isFinite(height) || height <= 0) {
+    throw new TypeError('`height` must be a finite positive number.')
+  }
   return {
     id: nanoid(),
     name: input.name?.trim() || 'Untitled canvas',
-    width: input.width ?? 1200,
-    height: input.height ?? 800,
+    width,
+    height,
     background: input.background ?? '#ffffff',
     paths: [],
     texts: [],
