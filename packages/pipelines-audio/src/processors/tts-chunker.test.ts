@@ -2,7 +2,16 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { isProbablyAngleTag, processNarrative } from './tts-chunker'
+import { chunkTtsInput, isProbablyAngleTag, processNarrative } from './tts-chunker'
+
+async function collectChunkText(input: string) {
+  const chunks: string[] = []
+
+  for await (const chunk of chunkTtsInput(input))
+    chunks.push(chunk.text)
+
+  return chunks
+}
 
 describe('tTS Chunker Logic Cleanup', () => {
   describe('isProbablyAngleTag Heuristics', () => {
@@ -87,6 +96,33 @@ describe('tTS Chunker Logic Cleanup', () => {
     it('should support non-CJK Unicode letters as tag context', () => {
       expect(isProbablyAngleTag(4, 'café<laugh>')).toBe(true)
       expect(isProbablyAngleTag(6, 'привет<sigh>')).toBe(true)
+    })
+  })
+
+  describe('chunkTtsInput grapheme preservation', () => {
+    // ROOT CAUSE:
+    //
+    // `readGraphemeClusters` returns multi-code-unit grapheme strings.
+    // The old `value.length > 1` guard discarded them.
+    //
+    // We fixed this by preserving each returned cluster.
+    // This keeps Thai combining marks intact.
+    //
+    // https://github.com/moeru-ai/airi/issues/2366
+    it('preserves Thai combining clusters while chunking (Issue #2366)', async () => {
+      const input = 'ดึกป่านนี้แล้วยังจะหาเรื่องกินอีกนะคะเนี่ย!'
+
+      const chunks = await collectChunkText(input)
+
+      expect(chunks.join('')).toBe(input)
+    })
+
+    it('preserves emoji grapheme clusters while chunking', async () => {
+      const input = '👩‍💻👍🏽!'
+
+      const chunks = await collectChunkText(input)
+
+      expect(chunks.join('')).toBe(input)
     })
   })
 })
