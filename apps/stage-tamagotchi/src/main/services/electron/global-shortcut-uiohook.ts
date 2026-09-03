@@ -126,24 +126,38 @@ function buildPredicate(acc: ShortcutAccelerator, platform: NodeJS.Platform): { 
   return { predicate, expectedKeycode }
 }
 
-function hasSwitchValue(args: readonly string[], flag: string, value: string): boolean {
-  return args.some((arg, index) =>
-    arg === `${flag}=${value}`
-    || (arg === flag && args[index + 1] === value),
-  )
+function getArgSwitchValue(args: readonly string[], flag: string): string | undefined {
+  const prefix = `${flag}=`
+  for (let index = 0; index < args.length; index++) {
+    if (args[index] === flag)
+      return args[index + 1]
+    if (args[index].startsWith(prefix))
+      return args[index].slice(prefix.length)
+  }
+  return undefined
 }
 
 // NOTICE:
 // `--ozone-platform` forces a backend outright; `--ozone-platform-hint` only
-// selects one when `--ozone-platform` is absent (Chromium falls back to
-// auto-detection from the session otherwise). AIRI's own `main/app/ozone.ts`
-// resolver already treats both switches as selecting X11, so the uiohook
-// driver must recognize both too or it misreads the same XWayland launch
-// its own startup path already resolved to X11.
+// selects one when `--ozone-platform` is absent or 'auto' (Chromium falls
+// back to session auto-detection otherwise). AIRI's own `main/app/ozone.ts`
+// resolver (`resolveIsWayland`) applies that same precedence — an explicit
+// non-auto platform always wins over the hint — so the uiohook driver must
+// mirror it exactly. Treating the two switches as an OR (as an earlier
+// version of this function did) would misread `--ozone-platform=wayland
+// --ozone-platform-hint=x11` as X11, permitting registration for a shortcut
+// that then silently never fires.
 // Removal condition: never, unless the two switches are unified upstream.
 function usesX11OzoneBackend(args: readonly string[]): boolean {
-  return hasSwitchValue(args, '--ozone-platform', 'x11')
-    || hasSwitchValue(args, '--ozone-platform-hint', 'x11')
+  const explicitPlatform = getArgSwitchValue(args, '--ozone-platform')
+  if (explicitPlatform && explicitPlatform !== 'auto')
+    return explicitPlatform === 'x11'
+
+  const platformHint = getArgSwitchValue(args, '--ozone-platform-hint')
+  if (platformHint && platformHint !== 'auto')
+    return platformHint === 'x11'
+
+  return false
 }
 
 function isNativeWayland(

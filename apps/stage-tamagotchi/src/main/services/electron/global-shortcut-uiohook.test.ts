@@ -115,7 +115,14 @@ async function setupMocks() {
     const driver = createUiohookDriver({
       broadcastTriggered,
       logger: logger as unknown as Parameters<typeof createUiohookDriver>[0]['logger'],
-      sessionType: overrides.sessionType,
+      // NOTICE:
+      // Default to a neutral 'x11' session instead of leaving this undefined
+      // (which falls through to the driver's own `process.env.XDG_SESSION_TYPE`
+      // default). On a Linux host actually running Wayland, that env var is
+      // 'wayland', which made generic registration/key-event tests spuriously
+      // hit the Linux Wayland-refusal path. Tests that specifically exercise
+      // session-type behavior still pass their own `sessionType` override.
+      sessionType: overrides.sessionType ?? 'x11',
     })
     return { driver, broadcastTriggered, logger }
   }
@@ -342,6 +349,31 @@ describe('createUiohookDriver', () => {
 
       expect(driver.tryRegister(exampleBinding('ptt'))).toEqual({ id: 'ptt', ok: true })
       expect(m.startMock).toHaveBeenCalledTimes(1)
+    }
+    finally {
+      process.argv.splice(originalArgvLength)
+    }
+  })
+
+  it.runIf(process.platform === 'linux')('gives an explicit --ozone-platform precedence over a conflicting hint', async () => {
+    // ROOT CAUSE:
+    //
+    // `--ozone-platform` forces a backend outright; `--ozone-platform-hint`
+    // only applies when `--ozone-platform` is absent or 'auto'. The first fix
+    // for this file treated the two switches as an OR, so
+    // `--ozone-platform=wayland --ozone-platform-hint=x11` was misread as
+    // X11 even though the explicit platform selects Wayland. That let a
+    // shortcut register successfully in a session where it would never
+    // receive events.
+    const originalArgvLength = process.argv.length
+    process.argv.push('--ozone-platform=wayland', '--ozone-platform-hint=x11')
+
+    try {
+      const m = await setupMocks()
+      const { driver } = m.createDriver({ sessionType: 'wayland' })
+
+      expect(driver.tryRegister(exampleBinding('ptt'))).toEqual({ id: 'ptt', ok: false, reason: ShortcutFailureReasons.Unsupported })
+      expect(m.startMock).not.toHaveBeenCalled()
     }
     finally {
       process.argv.splice(originalArgvLength)
