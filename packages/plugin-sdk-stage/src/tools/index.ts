@@ -91,8 +91,9 @@ function withNullableValue(schema: JsonSchema): JsonSchema {
   if (Array.isArray(next.enum)) {
     return next
   }
-  next.anyOf = [...(next.anyOf ?? []), { type: 'null' }]
-  return next
+  return {
+    anyOf: [next, { type: 'null' }],
+  }
 }
 
 function normalizeStrictToolParameterSchema(schema: JsonSchema): JsonSchema {

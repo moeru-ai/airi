@@ -765,6 +765,68 @@ describe('plugin-sdk-stage', () => {
     expect(parameters.properties.airiSide.enum).toEqual(['white', 'black', null])
   })
 
+  // https://github.com/moeru-ai/airi/pull/2441#discussion_r3922208881
+  it('wraps optional composite tool fields with a nullable union', async () => {
+    // ROOT CAUSE:
+    //
+    // The normalizer added `anyOf: null` beside a `oneOf` constraint.
+    // JSON Schema required values to match both constraints, so no value matched.
+    //
+    // We fixed this by making the original composite schema one nullable union branch.
+    const registerTool = vi.fn()
+    const tools = toolKit.createClient(createToolRuntime({
+      extensionId: 'airi-extension-chess',
+      sessionId: 'session-1',
+      moduleId: 'chess',
+      register: registerTool,
+      registerToolsetPrompt: vi.fn(),
+    }))
+
+    await tools.registerTool({
+      id: 'play_chess',
+      title: 'Play Chess',
+      description: 'Open chess.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          opening: {
+            oneOf: [{ type: 'string' }, { type: 'number' }],
+          },
+          board: {
+            $ref: '#/$defs/board',
+          },
+          mode: {
+            const: 'new',
+          },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+      execute: async () => ({ ok: true }),
+    })
+
+    const parameters = registerTool.mock.calls[0]?.[0].tool.parameters
+
+    expect(parameters.properties.opening).toEqual({
+      anyOf: [
+        { oneOf: [{ type: 'string' }, { type: 'number' }] },
+        { type: 'null' },
+      ],
+    })
+    expect(parameters.properties.board).toEqual({
+      anyOf: [
+        { $ref: '#/$defs/board' },
+        { type: 'null' },
+      ],
+    })
+    expect(parameters.properties.mode).toEqual({
+      anyOf: [
+        { const: 'new' },
+        { type: 'null' },
+      ],
+    })
+  })
+
   /**
    * @example
    * expect(registerBinding).toHaveBeenCalledWith(expect.objectContaining({ moduleId: 'chess:board' }))
