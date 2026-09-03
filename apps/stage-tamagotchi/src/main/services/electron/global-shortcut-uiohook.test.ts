@@ -106,7 +106,7 @@ async function setupMocks() {
       listener(e)
   }
 
-  function createDriver(overrides: { platform?: NodeJS.Platform, sessionType?: string } = {}) {
+  function createDriver(overrides: { sessionType?: string } = {}) {
     const broadcastTriggered = vi.fn<(id: string, phase: 'down' | 'up') => void>()
     const logger = {
       warn: vi.fn(),
@@ -115,7 +115,6 @@ async function setupMocks() {
     const driver = createUiohookDriver({
       broadcastTriggered,
       logger: logger as unknown as Parameters<typeof createUiohookDriver>[0]['logger'],
-      platform: overrides.platform ?? 'darwin',
       sessionType: overrides.sessionType,
     })
     return { driver, broadcastTriggered, logger }
@@ -225,7 +224,11 @@ describe('createUiohookDriver', () => {
     const { driver, broadcastTriggered } = m.createDriver()
     driver.tryRegister(exampleBinding('ptt', ['cmd-or-ctrl'], 'KeyK'))
 
-    m.fire('keydown', event({ keycode: 37, metaKey: true }))
+    const hostModifier = process.platform === 'darwin'
+      ? { metaKey: true }
+      : { ctrlKey: true }
+
+    m.fire('keydown', event({ keycode: 37, ...hostModifier }))
     m.fire('keyup', event({ keycode: 37, metaKey: false }))
 
     expect(broadcastTriggered).toHaveBeenCalledWith('ptt', 'down')
@@ -254,28 +257,21 @@ describe('createUiohookDriver', () => {
     expect(broadcastTriggered).not.toHaveBeenCalled()
   })
 
-  it('maps cmd-or-ctrl to metaKey on darwin', async () => {
+  it('maps cmd-or-ctrl from the real host platform', async () => {
     const m = await setupMocks()
-    const { driver, broadcastTriggered } = m.createDriver({ platform: 'darwin' })
+    const { driver, broadcastTriggered } = m.createDriver()
     driver.tryRegister(exampleBinding('ptt', ['cmd-or-ctrl'], 'KeyK'))
 
-    m.fire('keydown', event({ keycode: 37, metaKey: true }))
-    m.fire('keydown', event({ keycode: 37, ctrlKey: true }))
+    const expectedModifier = process.platform === 'darwin'
+      ? { metaKey: true }
+      : { ctrlKey: true }
+    const otherModifier = process.platform === 'darwin'
+      ? { ctrlKey: true }
+      : { metaKey: true }
 
-    expect(broadcastTriggered).toHaveBeenCalledTimes(1)
-    expect(broadcastTriggered).toHaveBeenCalledWith('ptt', 'down')
-  })
+    m.fire('keydown', event({ keycode: 37, ...expectedModifier }))
+    m.fire('keydown', event({ keycode: 37, ...otherModifier }))
 
-  it('maps cmd-or-ctrl to ctrlKey on non-darwin platforms', async () => {
-    const m = await setupMocks()
-    const { driver, broadcastTriggered } = m.createDriver({ platform: 'win32' })
-    driver.tryRegister(exampleBinding('ptt', ['cmd-or-ctrl'], 'KeyK'))
-
-    m.fire('keydown', event({ keycode: 37, ctrlKey: true }))
-    m.fire('keydown', event({ keycode: 37, metaKey: true }))
-
-    // First (ctrl) matches; second (meta) does not — the pressed
-    // state stays cleared and produces no extra broadcast.
     expect(broadcastTriggered).toHaveBeenCalledTimes(1)
     expect(broadcastTriggered).toHaveBeenCalledWith('ptt', 'down')
   })
@@ -290,27 +286,49 @@ describe('createUiohookDriver', () => {
     expect(m.startMock).toHaveBeenCalledTimes(1)
   })
 
-  it('returns Unsupported under a native Wayland session', async () => {
+  it.runIf(process.platform === 'linux')('returns Unsupported under a native Wayland session on Linux', async () => {
     const m = await setupMocks()
-    const { driver } = m.createDriver({ platform: 'linux', sessionType: 'wayland' })
+    const { driver } = m.createDriver({ sessionType: 'wayland' })
 
     const result = driver.tryRegister(exampleBinding('ptt'))
     expect(result).toEqual({ id: 'ptt', ok: false, reason: ShortcutFailureReasons.Unsupported })
     expect(m.startMock).not.toHaveBeenCalled()
   })
 
-  it('permits registration on Linux under X11 / XWayland', async () => {
+  it.runIf(process.platform === 'linux')('permits registration under an X11 session on Linux', async () => {
     const m = await setupMocks()
-    const { driver } = m.createDriver({ platform: 'linux', sessionType: 'x11' })
+    const { driver } = m.createDriver({ sessionType: 'x11' })
 
     expect(driver.tryRegister(exampleBinding('ptt'))).toEqual({ id: 'ptt', ok: true })
     expect(m.startMock).toHaveBeenCalledTimes(1)
   })
 
-  it('returns Denied when macOS Accessibility permission is not granted', async () => {
+  it.runIf(process.platform === 'linux')('permits XWayland when the Linux login session is Wayland', async () => {
+    // ROOT CAUSE:
+    //
+    // XDG_SESSION_TYPE describes the login session. It remains `wayland` when
+    // AIRI selects its X11 backend with `--ozone-platform=x11`. The current
+    // driver treats that login value as the application backend and rejects
+    // a usable XWayland uiohook connection.
+    const originalArgvLength = process.argv.length
+    process.argv.push('--ozone-platform=x11')
+
+    try {
+      const m = await setupMocks()
+      const { driver } = m.createDriver({ sessionType: 'wayland' })
+
+      expect(driver.tryRegister(exampleBinding('ptt'))).toEqual({ id: 'ptt', ok: true })
+      expect(m.startMock).toHaveBeenCalledTimes(1)
+    }
+    finally {
+      process.argv.splice(originalArgvLength)
+    }
+  })
+
+  it.runIf(process.platform === 'darwin')('returns Denied when the host denies macOS Accessibility permission', async () => {
     const m = await setupMocks()
     m.isTrustedAccessibilityClientMock.mockReturnValue(false)
-    const { driver } = m.createDriver({ platform: 'darwin' })
+    const { driver } = m.createDriver()
 
     const result = driver.tryRegister(exampleBinding('ptt'))
     expect(result).toEqual({ id: 'ptt', ok: false, reason: ShortcutFailureReasons.Denied })
@@ -318,9 +336,9 @@ describe('createUiohookDriver', () => {
     expect(m.startMock).not.toHaveBeenCalled()
   })
 
-  it('skips the Accessibility check entirely on non-darwin', async () => {
+  it.runIf(process.platform !== 'darwin')('skips the macOS Accessibility check on the real non-darwin host', async () => {
     const m = await setupMocks()
-    const { driver } = m.createDriver({ platform: 'win32' })
+    const { driver } = m.createDriver()
     driver.tryRegister(exampleBinding('ptt'))
     expect(m.isTrustedAccessibilityClientMock).not.toHaveBeenCalled()
   })
