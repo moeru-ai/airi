@@ -1,6 +1,13 @@
 import { useIntervalFn } from '@vueuse/core'
 import { onUnmounted } from 'vue'
 
+// NOTICE:
+// This interval and the main process's `mouseInputLeaseDuration` (in
+// `services/electron/window.ts`) form one cross-process timing contract:
+// renewal here must happen strictly more often than the main process's
+// lease expires, or click-through can lapse between renewals and the window
+// starts intercepting clicks it should be passing through. Keep this value
+// at most half the main process's lease duration when changing either one.
 const mouseInputLeaseRenewInterval = 1000
 
 /**

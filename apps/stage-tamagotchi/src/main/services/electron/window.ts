@@ -18,6 +18,13 @@ import {
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
 import { resizeWindowByDelta, setWindowAlwaysOnTop } from '../../windows/shared/window'
 
+// NOTICE:
+// This duration and the renderer's `mouseInputLeaseRenewInterval` (in
+// `use-window-interactivity-lease.ts`) form one cross-process timing
+// contract: the renderer must renew strictly more often than this window
+// expires, or click-through can lapse between renewals and the window
+// starts intercepting clicks it should be passing through. Keep this value
+// at least double the renderer's renew interval when changing either one.
 const mouseInputLeaseDuration = 2000
 
 export function createWindowService(params: {
