@@ -66,7 +66,7 @@ export function createWhiteboardTools(gamelet: GameletHandle): Array<PluginToolD
         canvasId: canvasIdProperty,
         points: { type: 'array', items: pointSchema },
         color: { type: 'string' },
-        width: { type: 'number' },
+        width: { type: 'number', exclusiveMinimum: 0 },
       },
       required: ['points'],
       additionalProperties: false,

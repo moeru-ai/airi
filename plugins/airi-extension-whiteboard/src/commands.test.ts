@@ -80,6 +80,27 @@ describe('executeWhiteboardCommand', () => {
     expect(() => executeWhiteboardCommand(store, { type: 'create_canvas', height: -1 })).toThrow('`height` must be a finite positive number.')
     expect(store.document.canvases).toHaveLength(0)
   })
+
+  // https://github.com/moeru-ai/airi/pull/2441#discussion_r3922208896
+  it('rejects non-positive path widths before saving the path', () => {
+    // ROOT CAUSE:
+    //
+    // The path command accepted zero and negative widths.
+    // SVG then rendered an invisible or invalid path after reporting success.
+    //
+    // We fixed this by validating widths in the tool schema and state store.
+    const store = new WhiteboardStore()
+    const canvas = store.createCanvas()
+    const command: HostDataRecord = {
+      type: 'add_path',
+      canvasId: canvas.id,
+      points: [{ x: 1, y: 2 }, { x: 3, y: 4 }],
+    }
+
+    expect(() => executeWhiteboardCommand(store, { ...command, width: 0 })).toThrow('`width` must be a finite positive number.')
+    expect(() => executeWhiteboardCommand(store, { ...command, width: -1 })).toThrow('`width` must be a finite positive number.')
+    expect(store.document.canvases[0]?.paths).toEqual([])
+  })
 })
 
 describe('createWhiteboardTools', () => {
@@ -98,6 +119,22 @@ describe('createWhiteboardTools', () => {
 
     expect(properties.width).toEqual({ type: 'number', exclusiveMinimum: 0 })
     expect(properties.height).toEqual({ type: 'number', exclusiveMinimum: 0 })
+  })
+
+  it('declares positive path widths in the tool schema', () => {
+    const gamelet = {
+      id: 'main',
+      bindingId: 'whiteboard:main',
+      open: async () => {},
+      configure: async () => {},
+      request: async <TResponse = HostDataRecord>() => ({}) as TResponse,
+      close: async () => {},
+      isOpen: async () => false,
+    } satisfies GameletHandle
+    const schema = createWhiteboardTools(gamelet).find(tool => tool.id === 'add_path')!.inputSchema as HostDataRecord
+    const properties = schema.properties as HostDataRecord
+
+    expect(properties.width).toEqual({ type: 'number', exclusiveMinimum: 0 })
   })
 
   it('keeps the nine tool names and delegates each invocation through the gamelet', async () => {

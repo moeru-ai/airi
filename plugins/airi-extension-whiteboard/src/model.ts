@@ -175,10 +175,14 @@ export class WhiteboardStore {
     if (input.points.length < 2) {
       throw new Error('A path needs at least two points.')
     }
+    const width = input.width ?? 4
+    if (!Number.isFinite(width) || width <= 0) {
+      throw new TypeError('`width` must be a finite positive number.')
+    }
     const path: WhiteboardPath = {
       id: nanoid(),
       color: input.color ?? '#1f2937',
-      width: input.width ?? 4,
+      width,
       points: structuredClone(input.points),
     }
     this.commit((document) => {
