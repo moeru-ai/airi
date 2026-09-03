@@ -1,3 +1,4 @@
+import type { Live2DExpressionSettingsCommand } from '@proj-airi/stage-ui-live2d/stores/expression-store'
 import type {
   ModelSettingsRuntimeSnapshot,
 } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
@@ -22,6 +23,14 @@ export function useModelSettingsRuntimeSnapshot() {
 
   const requestCurrent = () => {
     post({ type: 'request-current' })
+  }
+
+  const sendLive2DExpressionCommand = (command: Live2DExpressionSettingsCommand) => {
+    const ownerInstanceId = runtimeSnapshot.value.ownerInstanceId
+    if (!ownerInstanceId || runtimeSnapshot.value.renderer !== 'live2d')
+      return
+
+    post({ type: 'live2d-expression-command', ownerInstanceId, command })
   }
 
   const syncFromOwner = () => {
@@ -63,5 +72,6 @@ export function useModelSettingsRuntimeSnapshot() {
   return {
     runtimeSnapshot,
     requestCurrent,
+    sendLive2DExpressionCommand,
   }
 }

@@ -1,4 +1,5 @@
 import type { StageAvatarBoundsPayload, StageViewState } from '@proj-airi/stage-shared/godot-stage'
+import type { Live2DExpressionSettingsSnapshot } from '@proj-airi/stage-ui-live2d/stores/expression-store'
 
 import type { StageModelRenderer } from '../../../../stores/settings/stage-model'
 
@@ -12,6 +13,7 @@ export interface ModelSettingsRuntimeSnapshot {
   controlsLocked: boolean
   previewAvailable: boolean
   canCapturePreview: boolean
+  live2dExpressions?: Live2DExpressionSettingsSnapshot
   lastError?: string
   updatedAt: number
 }

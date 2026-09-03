@@ -15,6 +15,7 @@ import {
 } from '@proj-airi/electron-vueuse'
 import { createTranscriptBuffer } from '@proj-airi/pipelines-audio'
 import { hearingInputChannelName } from '@proj-airi/stage-shared'
+import { useExpressionStore } from '@proj-airi/stage-ui-live2d/stores/expression-store'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
 import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
@@ -100,6 +101,7 @@ const isTransparentByThreeExact = useThreeSceneIsTransparentAtPoint(
 const settingsStore = useSettings()
 const { stageModelRenderer, stageModelSelectedUrl } = storeToRefs(settingsStore)
 const modelStore = useModelStore()
+const expressionStore = useExpressionStore()
 const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
 const { stagePaused } = storeToRefs(useStageWindowLifecycleStore())
 const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
@@ -156,6 +158,7 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
       controlsLocked: hasModel ? phase !== 'mounted' : false,
       previewAvailable: hasModel,
       canCapturePreview: false,
+      live2dExpressions: expressionStore.settingsSnapshot,
       updatedAt: Date.now(),
     })
   }
@@ -312,10 +315,21 @@ watch(modelSettingsRuntimeSnapshot, (snapshot) => {
 }, { immediate: true })
 
 watch(modelSettingsRuntimeChannelEvent, (event) => {
-  if (event?.type !== 'request-current')
+  if (!event)
     return
 
-  postModelSettingsRuntimeEvent({ type: 'snapshot', snapshot: modelSettingsRuntimeSnapshot.value })
+  if (event.type === 'request-current') {
+    postModelSettingsRuntimeEvent({ type: 'snapshot', snapshot: modelSettingsRuntimeSnapshot.value })
+    return
+  }
+
+  if (event.type !== 'live2d-expression-command')
+    return
+
+  if (event.ownerInstanceId !== modelSettingsRuntimeOwnerInstanceId || stageModelRenderer.value !== 'live2d')
+    return
+
+  expressionStore.applySettingsCommand(event.command)
 })
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
