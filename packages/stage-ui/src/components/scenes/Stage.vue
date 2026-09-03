@@ -15,7 +15,7 @@ import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
 import { presenceBubbleIdle, presenceBubbleThinking } from '@proj-airi/stage-shared'
-import { defaultLive2DMotionControlDynamics, Live2DScene, useLive2DMotionControl, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
+import { createLive2D, defaultLive2DMotionControlDynamics, Live2DScene, useLive2DMotionControl, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { TachieScene } from '@proj-airi/stage-ui-tachie'
@@ -46,6 +46,7 @@ import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
 import { useChatStore } from '../../stores/chat'
+import { useSharedLive2DExpressionPreview } from '../../stores/live2d'
 import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useSettingsPresenceBubble } from '../../stores/presence-bubble'
@@ -87,6 +88,13 @@ const {
 } = storeToRefs(settingsStore)
 const {
   live2dMotionDriver,
+  live2dEyeTracking,
+  live2dModelEyeOffset,
+  live2dIdleAnimationEnabled,
+  live2dForceIdleEyeAnimation,
+  live2dAutoBlinkEnabled,
+  live2dForceAutoBlinkEnabled,
+  live2dExpressionEnabled,
   live2dShadowEnabled,
   live2dMaxFps,
   live2dRenderScale,
@@ -181,6 +189,7 @@ const providersStore = useProviderStore()
 
 const providerStore = useProviderConfigStore()
 const live2dStore = useLive2dParams()
+const { scale: live2dModelScale } = storeToRefs(live2dStore)
 const showStage = ref(true)
 const stageRenderError = shallowRef<Error>()
 const viewUpdateCleanups: Array<() => void> = []
@@ -243,17 +252,11 @@ function resetAssistantSpeechSurface(source: string) {
   }
 }
 
+const { activeCard, selectedAvatarModel } = storeToRefs(useAiriCardStore())
 const { sending: chatSending } = storeToRefs(useChatStore())
 const { presenceOverride } = storeToRefs(useSettingsPresenceBubble())
-
-// `sending` is raised before the request leaves and cleared once the send
-// settles, which is the span the character has nothing to say yet.
-//
-// Unread stays at zero: nothing reports whether the chat window is showing, so
-// there is no read cursor to count against.
 const chatPresence = computed<PresenceBubbleState>(() => chatSending.value ? presenceBubbleThinking : presenceBubbleIdle)
 const presenceBubble = computed<PresenceBubbleState>(() => presenceOverride.value ?? chatPresence.value)
-const { activeCard } = storeToRefs(useAiriCardStore())
 const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
 const activeCardId = computed(() => activeCard.value?.name ?? 'default')
@@ -262,6 +265,12 @@ const backgroundStore = useBackgroundStore()
 const { activeBackgroundUrl } = storeToRefs(backgroundStore)
 
 const { currentMotion } = storeToRefs(useLive2dParams())
+const live2d = createLive2D({
+  controlPolicy: () => selectedAvatarModel.value?.type === 'live2d'
+    ? selectedAvatarModel.value.config.controls
+    : undefined,
+})
+useSharedLive2DExpressionPreview(live2d, () => selectedAvatarModel.value?.id)
 
 const emotionsQueue = createQueue<EmotionPayload>({
   handlers: [
@@ -320,11 +329,23 @@ function toStageEmotionPayload(payload: { name: string, intensity: number }): Em
 chatHookCleanups.push(streamingControl.onSignal(async (signal) => {
   if (signal.type === 'act') {
     const act = normalizeActPayload(signal.payload)
-    if (act.motion && stageModelRenderer.value === 'live2d') {
-      currentMotion.value = { group: act.motion }
-      return
+    let explicitLive2DMotion = false
+
+    if (stageModelRenderer.value === 'live2d') {
+      if (act.motion) {
+        if (await live2d.motions.execute(act.motion))
+          explicitLive2DMotion = true
+      }
+
+      if (act.expression === null) {
+        await live2d.expressions.resetExecution()
+      }
+      else if (act.expression) {
+        await live2d.expressions.execute(act.expression)
+      }
     }
-    if (act.emotion) {
+
+    if (act.emotion && !explicitLive2DMotion) {
       const emotion = toStageEmotionPayload(act.emotion)
       if (!emotion)
         return
@@ -1013,6 +1034,7 @@ async function captureCharacterFrame() {
 }
 
 onUnmounted(() => {
+  live2d.dispose()
   disposePlaybackStateHandler()
   resetLive2dLipSync()
   chatHookCleanups.forEach(dispose => dispose?.())
@@ -1050,8 +1072,9 @@ defineExpose({
         v-if="stageModelRenderer === 'live2d' && showStage"
         ref="live2dSceneRef"
         v-model:state="componentState"
+        :context="live2d"
         :presence="presenceBubble"
-        min-w="50% <lg:full"
+        min-w="50% <lg:full" min-h="100 sm:100"
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
@@ -1062,9 +1085,18 @@ defineExpose({
         :paused="paused"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
-        :live2d-shadow-enabled="live2dShadowEnabled"
-        :live2d-max-fps="live2dMaxFps"
-        :live2d-render-scale="live2dRenderScale"
+        :motion-driver="live2dMotionDriver"
+        :eye-tracking="live2dEyeTracking"
+        :model-eye-offset="live2dModelEyeOffset"
+        :model-scale="live2dModelScale"
+        :idle-animation-enabled="live2dIdleAnimationEnabled"
+        :force-idle-eye-animation="live2dForceIdleEyeAnimation"
+        :auto-blink-enabled="live2dAutoBlinkEnabled"
+        :force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
+        :expression-enabled="live2dExpressionEnabled"
+        :shadow-enabled="live2dShadowEnabled"
+        :max-fps="live2dMaxFps"
+        :render-scale="live2dRenderScale"
         @error="handleStageRenderError"
       />
       <ThreeScene

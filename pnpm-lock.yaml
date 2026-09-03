@@ -4982,6 +4982,9 @@ importers:
       '@pixi/utils':
         specifier: 'catalog:'
         version: 6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))
+      '@proj-airi/core-character':
+        specifier: workspace:^
+        version: link:../core-character
       '@proj-airi/model-driver-magic-live2d':
         specifier: workspace:^
         version: link:../model-driver-magic-live2d

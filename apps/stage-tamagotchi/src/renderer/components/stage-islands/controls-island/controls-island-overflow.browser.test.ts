@@ -88,6 +88,7 @@ function mountControlsIsland(dock: ControlsIslandDock, size: typeof sizes[number
             version: '1.0.0',
             extensions: {
               airi: {
+                avatarModels: [],
                 modules: {
                   consciousness: { provider: '', model: '' },
                   vision: { provider: '', model: '' },

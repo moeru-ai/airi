@@ -222,6 +222,7 @@ function sanitizeAiri(value: unknown, displayModelIdOverride?: string): AiriExte
   const displayModelId = displayModelIdOverride ?? stringValue(modules.displayModelId)
 
   return {
+    avatarModels: [],
     modules: {
       consciousness: providerModel(modules.consciousness),
       vision: providerModel(modules.vision),

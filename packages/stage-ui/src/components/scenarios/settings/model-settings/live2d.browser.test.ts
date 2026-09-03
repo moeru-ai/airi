@@ -1,7 +1,7 @@
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
 import { createPinia } from 'pinia'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
 
@@ -22,22 +22,20 @@ describe('live2D model settings', () => {
   })
 
   // https://github.com/moeru-ai/airi/issues/2450
-  it('renders a remote expression snapshot and emits a command without changing the local store', async () => {
-    // ROOT CAUSE:
-    //
-    // The Electron stage renderer loaded the model and registered its expressions.
-    // The separate settings renderer read a different Pinia store, so the list stayed empty.
-    //
-    // We fixed this by sending a serializable expression snapshot from the stage owner.
+  // ROOT CAUSE:
+  // The settings window and stage window do not share a local expression store.
+  // Character controls live in the card store. Preview selection uses synchronized state.
+  it('shows character expressions and updates their policy and preview state', async () => {
     Object.assign(window, { Live2DCubismCore: {} })
-    const [{ useExpressionStore, useSettingsLive2d }, { default: Live2DSettings }] = await Promise.all([
+    const [{ useSettingsLive2d }, { useAiriCardStore }, { useSharedLive2D }, { default: Live2DSettings }] = await Promise.all([
       import('@proj-airi/stage-ui-live2d'),
+      import('../../../../stores/modules/airi-card'),
+      import('../../../../stores/live2d'),
       import('./live2d.vue'),
     ])
 
     const pinia = createPinia()
-    const live2dSettings = useSettingsLive2d(pinia)
-    live2dSettings.live2dExpressionEnabled = true
+    useSettingsLive2d(pinia).live2dExpressionEnabled = true
 
     const runtimeSnapshot = {
       ownerInstanceId: 'stage-owner',
@@ -48,36 +46,57 @@ describe('live2D model settings', () => {
       previewAvailable: true,
       canCapturePreview: false,
       updatedAt: 1,
-      live2dExpressions: {
-        groups: [
-          { name: 'happy', active: false, exposedToLlm: false },
-          { name: 'surprised', active: true, exposedToLlm: false },
-        ],
-        llmMode: 'none',
-      },
     } satisfies ModelSettingsRuntimeSnapshot
 
-    const onLive2dExpressionCommand = vi.fn()
-
     const screen = await render(Live2DSettings, {
-      props: {
-        palette: [],
-        runtimeSnapshot,
-        onLive2dExpressionCommand,
-      },
-      global: {
-        plugins: [pinia, createTestI18n()],
+      props: { palette: [], runtimeSnapshot },
+      global: { plugins: [pinia, createTestI18n()] },
+    })
+
+    const cards = useAiriCardStore(pinia)
+    cards.cards.set('default', {
+      name: 'ReLU',
+      version: '1.0.0',
+      extensions: {
+        airi: {
+          avatarModels: [{
+            id: 'test-avatar',
+            displayModelId: 'test-model',
+            type: 'live2d',
+            config: { controls: { disabledExpressions: [], disabledMotions: [] } },
+          }],
+          defaultAvatarModelId: 'test-avatar',
+          modules: {
+            consciousness: { provider: '', model: '' },
+            speech: { provider: '', model: '', voice_id: '' },
+            vision: { provider: '', model: '' },
+          },
+          agents: {},
+        },
       },
     })
+    cards.selectedAvatarModelId = 'test-avatar'
+    cards.activeLive2DModelControls = {
+      expressions: [
+        { name: 'happy', fileName: 'happy.exp3.json' },
+        { name: 'surprised', fileName: 'surprised.exp3.json' },
+      ],
+      motions: [],
+    }
 
     await screen.getByText('settings.live2d.expressions.title', { exact: true }).click()
     await expect.element(screen.getByText('happy', { exact: true })).toBeVisible()
     await expect.element(screen.getByText('surprised', { exact: true })).toBeVisible()
 
-    const expressionSwitches = screen.getByRole('switch').all()
-    await expressionSwitches[1].click()
+    await screen.getByRole('switch', { name: 'settings.live2d.expressions.actions.hide-from-airi' }).first().click()
+    await expect.poll(() => cards.selectedAvatarModel?.type === 'live2d'
+      ? cards.selectedAvatarModel.config.controls.disabledExpressions
+      : []).toContain('happy')
 
-    expect(onLive2dExpressionCommand).toHaveBeenCalledWith({ type: 'toggle', name: 'happy' })
-    expect(useExpressionStore(pinia).expressionGroups.size).toBe(0)
+    await screen.getByRole('button', { name: 'settings.live2d.expressions.actions.activate' }).first().click()
+    await expect.poll(() => useSharedLive2D(pinia).expressionPreview).toEqual({
+      avatarModelId: 'test-avatar',
+      names: ['happy'],
+    })
   })
 })

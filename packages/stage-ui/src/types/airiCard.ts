@@ -1,5 +1,7 @@
 import type { Card } from '@proj-airi/ccc'
 
+import type { CharacterAvatarModelReference } from './avatar-model'
+
 /**
  * AIRI-specific runtime configuration embedded in a character card.
  *
@@ -8,6 +10,12 @@ import type { Card } from '@proj-airi/ccc'
  * losing each other's configuration.
  */
 export interface AiriExtension {
+  /** Character-owned references to stored display-model resources. */
+  avatarModels: CharacterAvatarModelReference[]
+
+  /** Avatar Model that the Character selects when it becomes active. */
+  defaultAvatarModelId?: string
+
   modules: {
     consciousness: {
       provider: string
