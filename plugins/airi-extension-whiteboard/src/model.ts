@@ -123,6 +123,24 @@ export class WhiteboardStore {
     this.historyIndex = 0
   }
 
+  /**
+   * Runs one change and restores the prior history if it throws.
+   *
+   * Use this method when storage must save a change before the UI reports success.
+   */
+  transact<T>(operation: () => T): T {
+    const history = this.history
+    const historyIndex = this.historyIndex
+    try {
+      return operation()
+    }
+    catch (error) {
+      this.history = history
+      this.historyIndex = historyIndex
+      throw error
+    }
+  }
+
   createCanvas(input: Parameters<typeof createCanvas>[0] = {}) {
     const canvas = createCanvas(input)
     this.commit((document) => {

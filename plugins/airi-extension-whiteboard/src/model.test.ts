@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { executeWhiteboardCommand } from './commands'
 import { WhiteboardStore } from './model'
 import { createCanvasSvg } from './svg'
 
@@ -37,5 +38,30 @@ describe('whiteboardStore', () => {
 
     expect(svg).toContain('points="10,20 30,40"')
     expect(svg).toContain('A &amp; &lt;B&gt;')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2441#discussion_r3922208885
+  it('restores the document and undo history when persistence fails', () => {
+    // ROOT CAUSE:
+    //
+    // A command changed the store before localStorage saved the document.
+    // A storage error reported failure but retained the changed state.
+    //
+    // We fixed this by restoring the document history when the storage operation throws.
+    const store = new WhiteboardStore()
+    const canvas = store.createCanvas({ name: 'Plan' })
+
+    expect(() => store.transact(() => {
+      executeWhiteboardCommand(store, {
+        type: 'add_path',
+        canvasId: canvas.id,
+        points: [{ x: 1, y: 2 }, { x: 3, y: 4 }],
+      })
+      throw new Error('Storage quota exceeded.')
+    })).toThrow('Storage quota exceeded.')
+
+    expect(store.document.canvases[0]?.paths).toEqual([])
+    expect(store.undo()).toBe(true)
+    expect(store.document.canvases).toEqual([])
   })
 })

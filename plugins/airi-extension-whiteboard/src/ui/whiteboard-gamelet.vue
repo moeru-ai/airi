@@ -46,14 +46,18 @@ const canvasOptions = computed(() => document.value.canvases.map(canvas => ({ la
 const draftPointsValue = computed(() => draftPoints.value.map(point => `${point.x},${point.y}`).join(' '))
 
 function synchronize() {
-  document.value = store.document
-  saveWhiteboardDocument(window.localStorage, document.value)
+  const nextDocument = store.document
+  saveWhiteboardDocument(window.localStorage, nextDocument)
+  document.value = nextDocument
 }
 
 function runCommand(input: HostDataRecord) {
   try {
-    const result = executeWhiteboardCommand(store, input)
-    synchronize()
+    const result = store.transact(() => {
+      const result = executeWhiteboardCommand(store, input)
+      synchronize()
+      return result
+    })
     error.value = undefined
     return result
   }
@@ -72,8 +76,10 @@ function selectCanvas(canvasId: string | undefined) {
   if (!canvasId || canvasId === document.value.activeCanvasId) {
     return
   }
-  store.selectCanvas(canvasId)
-  synchronize()
+  store.transact(() => {
+    store.selectCanvas(canvasId)
+    synchronize()
+  })
 }
 
 function deleteCanvas() {
@@ -142,15 +148,19 @@ function addText() {
 }
 
 function undo() {
-  if (store.undo()) {
-    synchronize()
-  }
+  store.transact(() => {
+    if (store.undo()) {
+      synchronize()
+    }
+  })
 }
 
 function redo() {
-  if (store.redo()) {
-    synchronize()
-  }
+  store.transact(() => {
+    if (store.redo()) {
+      synchronize()
+    }
+  })
 }
 
 function onKeydown(event: KeyboardEvent) {
