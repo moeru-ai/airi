@@ -147,6 +147,23 @@ function cardRequestsOf(fetchCards: { mock: { calls: unknown[][] } }) {
   return fetchCards.mock.calls.filter(call => String(call[0]).includes('/character-cards'))
 }
 
+const nativeFetch = globalThis.fetch
+
+// The built-in card selects the preset Live2D model. While these tests run, a
+// background loader then compiles inline WASM (wlipsync) from a data URL. A
+// broad fetch stub answers that request with card JSON, and the compile fails
+// as an unhandled rejection. Keep WASM requests on the browser fetch, as
+// speech.browser.test.ts does.
+function stubServerFetch(fetchCards: typeof fetch) {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>((input, init) => {
+    const url = input instanceof Request ? input.url : String(input)
+    if (url.startsWith('data:application/wasm') || url.split('?')[0].endsWith('.wasm'))
+      return nativeFetch(input, init)
+
+    return fetchCards(input, init)
+  }))
+}
+
 const accountId = () => `account-${crypto.randomUUID()}`
 
 function signIn(auth: ReturnType<typeof useAuthStore>, id: string) {
@@ -161,7 +178,7 @@ describe('card synchronization across windows', () => {
   beforeEach(() => {
     localStorage.clear()
     server = createFakeCardServer()
-    vi.stubGlobal('fetch', server.fetchCards)
+    stubServerFetch(server.fetchCards)
   })
 
   afterEach(() => {

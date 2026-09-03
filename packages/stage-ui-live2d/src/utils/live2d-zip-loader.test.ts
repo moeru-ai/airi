@@ -241,6 +241,56 @@ describe('live2d zip loader settings sanitization', () => {
     ])
   })
 
+  // ROOT CAUSE:
+  //
+  // Some valid Live2D archives contain expression and motion files that are
+  // absent from model3.json. The ZIP loader discovered these files for its
+  // report, but it did not add them to the runtime model settings. Pixi then
+  // omitted them from extraction and AIRI could not register them for ACT.
+  it('adds unreferenced expressions and motions to runtime model settings', async () => {
+    await import('./live2d-zip-loader')
+    const { ZipLoader } = await import('pixi-live2d-display/cubism4')
+
+    const settingsText = JSON.stringify({
+      Version: 3,
+      FileReferences: {
+        Moc: 'avatar.moc3',
+        Textures: ['textures/avatar.png'],
+      },
+      Groups: [],
+    })
+    const zip = new JSZip()
+    zip.file('avatar/avatar.model3.json', settingsText)
+    zip.file('avatar/avatar.moc3', new Uint8Array([77, 79, 67, 51]))
+    zip.file('avatar/textures/avatar.png', new Uint8Array([1, 2, 3]))
+    zip.file('avatar/expressions/smile.exp3.json', JSON.stringify({
+      Type: 'Live2D Expression',
+      Parameters: [{ Id: 'ParamMouthForm', Value: 1, Blend: 'Add' }],
+    }))
+    zip.file('avatar/motions/wave.motion3.json', JSON.stringify({ Version: 3, Curves: [] }))
+
+    const zipBytes = await zip.generateAsync({ type: 'uint8array' })
+    const reader = await JSZip.loadAsync(await blobFromBytes(zipBytes).arrayBuffer())
+    const settings = await ZipLoader.createSettings(reader)
+    const files = await ZipLoader.unzip(reader, settings)
+
+    expect(settings).toMatchObject({
+      expressions: [
+        { Name: 'smile', File: 'expressions/smile.exp3.json' },
+      ],
+      motions: {
+        AIRI: [{ File: 'motions/wave.motion3.json' }],
+      },
+    })
+    expect(files.map(file => file.webkitRelativePath).sort()).toEqual([
+      'avatar/avatar.moc3',
+      'avatar/expressions/smile.exp3.json',
+      'avatar/motions/wave.motion3.json',
+      'avatar/textures/avatar.png',
+    ])
+    expect(await reader.file('avatar/avatar.model3.json')!.async('string')).toBe(settingsText)
+  })
+
   it('loads an OPFS-restored file directory when model3.json contains Physics: null', async () => {
     await import('./live2d-zip-loader')
     const { FileLoader } = await import('pixi-live2d-display/cubism4')
