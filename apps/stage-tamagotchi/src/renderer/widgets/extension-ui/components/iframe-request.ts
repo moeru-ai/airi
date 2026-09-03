@@ -67,6 +67,7 @@ export function createExtensionUiIframeRequestHandler(input: ExtensionUiIframeRe
 
     try {
       return await invokeGameletRequest({
+        bindingId: request.id,
         requestId: request.requestId,
         payload: request.payload,
       }, {

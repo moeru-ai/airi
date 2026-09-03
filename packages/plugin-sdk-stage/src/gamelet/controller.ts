@@ -35,10 +35,7 @@ export class StageGameletController implements StageGameletOrchestration {
 
   constructor() {
     defineInvokeHandler(this.context, gameletRequest, async (request) => {
-      const bindingId = this.state.bindingId
-      if (!bindingId) {
-        throw new Error('No gamelet is open.')
-      }
+      const bindingId = request.bindingId
       const handler = this.handlers.get(bindingId)
       if (!handler) {
         throw new Error(`Gamelet \`${bindingId}\` is not ready.`)
@@ -82,7 +79,7 @@ export class StageGameletController implements StageGameletOrchestration {
     await this.open(bindingId)
     await this.waitForConnection(bindingId, options?.timeoutMs ?? defaultRequestTimeoutMs)
     const invoke = defineInvoke(this.context, gameletRequest)
-    return await invoke({ requestId: nanoid(), payload }) as TResponse
+    return await invoke({ bindingId, requestId: nanoid(), payload }) as TResponse
   }
 
   async close(bindingId: string) {

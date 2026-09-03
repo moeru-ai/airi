@@ -6,6 +6,8 @@ import { defineInvokeEventa } from '@moeru/eventa'
 export interface GameletRequestPayload {
   /** Host-generated id used by platform relay queues to isolate one request. */
   requestId: string
+  /** Binding id that owns the request and selects the response handler. */
+  bindingId: string
   /** JSON-compatible command data supplied by the extension. */
   payload: HostDataRecord
 }

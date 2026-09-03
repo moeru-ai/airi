@@ -157,6 +157,7 @@ describe('createContext', () => {
 
     const invokeGameletRequest = defineInvoke(host.context, gameletRequest)
     await expect(invokeGameletRequest({
+      bindingId: 'kit-module:board',
       requestId: 'req-1',
       payload: {
         action: 'snapshot',
