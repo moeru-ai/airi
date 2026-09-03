@@ -22,7 +22,7 @@ describe('live2D model settings', () => {
   })
 
   // https://github.com/moeru-ai/airi/issues/2450
-  it('shows expressions discovered by the desktop runtime in another renderer', async () => {
+  it('renders a remote expression snapshot and emits a command without changing the local store', async () => {
     // ROOT CAUSE:
     //
     // The Electron stage renderer loaded the model and registered its expressions.

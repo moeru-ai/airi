@@ -2,8 +2,6 @@
 import type { CaptionChannelEvent, HearingInputChannelEvent } from '@proj-airi/stage-shared'
 import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 
-import type { ModelSettingsRuntimeChannelEvent } from '../../shared/model-settings-runtime'
-
 import { errorMessageFrom, tryCatch } from '@moeru/std'
 import { electron } from '@proj-airi/electron-eventa'
 import {
@@ -41,7 +39,7 @@ import ControlsIsland from '../components/stage-islands/controls-island/index.vu
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
 import { electronOpenOnboarding } from '../../shared/eventa'
-import { modelSettingsRuntimeSnapshotChannelName } from '../../shared/model-settings-runtime'
+import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
@@ -106,7 +104,6 @@ const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
 const { stagePaused } = storeToRefs(useStageWindowLifecycleStore())
 const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
 const modelSettingsRuntimeOwnerInstanceId = `tamagotchi-main-stage:${Math.random().toString(36).slice(2, 10)}`
-const { data: modelSettingsRuntimeChannelEvent, post: postModelSettingsRuntimeChannelEvent } = useBroadcastChannel<ModelSettingsRuntimeChannelEvent, ModelSettingsRuntimeChannelEvent>({ name: modelSettingsRuntimeSnapshotChannelName })
 const shouldUseThreeTransparencyHitTest = computed(() => shouldSampleStageTransparency({
   componentState: componentStateStage.value,
   fadeOnHoverEnabled: fadeOnHoverEnabled.value,
@@ -300,36 +297,13 @@ watch(
   { immediate: true },
 )
 
-// Emit runtime snapshot on change and on request from settings panel
-/**
- * Sends model-settings runtime events without letting closed HMR channels break the stage.
- */
-function postModelSettingsRuntimeEvent(event: ModelSettingsRuntimeChannelEvent) {
-  const { error } = tryCatch(() => postModelSettingsRuntimeChannelEvent(event))
-  if (error)
-    console.warn('[Main Page] Failed to post model settings runtime event:', error)
-}
-
-watch(modelSettingsRuntimeSnapshot, (snapshot) => {
-  postModelSettingsRuntimeEvent({ type: 'snapshot', snapshot })
-}, { immediate: true })
-
-watch(modelSettingsRuntimeChannelEvent, (event) => {
-  if (!event)
-    return
-
-  if (event.type === 'request-current') {
-    postModelSettingsRuntimeEvent({ type: 'snapshot', snapshot: modelSettingsRuntimeSnapshot.value })
-    return
-  }
-
-  if (event.type !== 'live2d-expression-command')
-    return
-
-  if (event.ownerInstanceId !== modelSettingsRuntimeOwnerInstanceId || stageModelRenderer.value !== 'live2d')
-    return
-
-  expressionStore.applySettingsCommand(event.command)
+useModelSettingsRuntimeOwner({
+  ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
+  renderer: () => stageModelRenderer.value,
+  runtimeSnapshot: modelSettingsRuntimeSnapshot,
+  applyLive2DExpressionCommand: (command) => {
+    expressionStore.applySettingsCommand(command)
+  },
 })
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
@@ -770,10 +744,6 @@ onUnmounted(() => {
   }
   hearingInputClearTimers.clear()
   clearHearingInput()
-  postModelSettingsRuntimeEvent({
-    type: 'owner-gone',
-    ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
-  })
   clearAssistantSpeechResumeTimer()
   void voiceInputInteractionLifecycle.stop().catch(error => reportVoiceInputFailure('stop listening', error))
 })
