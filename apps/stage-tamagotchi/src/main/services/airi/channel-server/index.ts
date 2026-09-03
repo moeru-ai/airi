@@ -331,6 +331,16 @@ async function getOrCreateCertificate() {
     const key = readFileSync(keyPath, 'utf-8')
     if (certHasAllDomains(cert, expectedDomains)) {
       const caCert = existsSync(caCertPath) ? readFileSync(caCertPath, 'utf-8') : undefined
+      // NOTICE:
+      // A cached cert/key pair skips generateCertificate(), so it would also skip
+      // installCACertificate() forever once issued. A host affected by the old
+      // silent-fallback bug (CA written to an inactive user directory) would then
+      // never see the retry or the warning this PR added. Retry installation on
+      // every start using the cached CA so that gap can't reopen.
+      // Removal condition: never — this call belongs here for as long as
+      // installCACertificate() can fail without changing certPath/keyPath.
+      if (caCert)
+        await installCACertificate(caCert)
       return { cert: withCertificateChain(cert, caCert), key }
     }
   }
