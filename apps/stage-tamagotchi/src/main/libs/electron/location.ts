@@ -86,9 +86,6 @@ export async function load(window: BrowserWindow, url: string | { url: string, o
 
     throw error
   }
-  finally {
-    window.webContents.removeAllListeners('did-start-navigation')
-  }
 }
 
 /**
