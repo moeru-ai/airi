@@ -41,6 +41,7 @@ describe('live2D model settings', () => {
 
     const runtimeSnapshot = {
       ownerInstanceId: 'stage-owner',
+      modelId: 'test-model',
       renderer: 'live2d',
       phase: 'mounted',
       controlsLocked: false,

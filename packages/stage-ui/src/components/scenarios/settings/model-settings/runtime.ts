@@ -8,6 +8,8 @@ export type ModelSettingsRuntimePhase = 'pending' | 'loading' | 'binding' | 'mou
 
 export interface ModelSettingsRuntimeSnapshot {
   ownerInstanceId: string
+  /** Identifies the loaded model state that produced the runtime controls. */
+  modelId: string
   renderer: ModelSettingsRuntimeRenderer
   phase: ModelSettingsRuntimePhase
   controlsLocked: boolean
@@ -23,6 +25,7 @@ export function createEmptyModelSettingsRuntimeSnapshot(
 ): ModelSettingsRuntimeSnapshot {
   return {
     ownerInstanceId: '',
+    modelId: '',
     renderer: 'disabled',
     phase: 'pending',
     controlsLocked: false,

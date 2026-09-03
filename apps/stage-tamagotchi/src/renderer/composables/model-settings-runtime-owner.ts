@@ -2,19 +2,25 @@ import type { Live2DExpressionSettingsCommand } from '@proj-airi/stage-ui-live2d
 import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 import type { MaybeRefOrGetter } from 'vue'
 
-import type { ModelSettingsRuntimeChannelEvent } from '../../shared/model-settings-runtime'
+import type { ModelSettingsRuntimeContext } from '../../shared/model-settings-runtime'
 
-import { tryCatch } from '@moeru/std'
-import { useBroadcastChannel } from '@vueuse/core'
+import { defineInvokeHandler } from '@moeru/eventa'
 import { onBeforeUnmount, toValue, watch } from 'vue'
 
-import { modelSettingsRuntimeSnapshotChannelName } from '../../shared/model-settings-runtime'
+import {
+  applyLive2DExpressionSettingsCommand,
+  getModelSettingsRuntimeContext,
+  modelSettingsRuntimeOwnerGone,
+  modelSettingsRuntimeSnapshotChanged,
+  modelSettingsRuntimeSnapshotRequested,
+} from '../../shared/model-settings-runtime'
 
 interface UseModelSettingsRuntimeOwnerOptions {
   ownerInstanceId: string
   renderer: MaybeRefOrGetter<ModelSettingsRuntimeSnapshot['renderer'] | undefined>
   runtimeSnapshot: MaybeRefOrGetter<ModelSettingsRuntimeSnapshot>
   applyLive2DExpressionCommand: (command: Live2DExpressionSettingsCommand) => void
+  context?: ModelSettingsRuntimeContext
 }
 
 /**
@@ -24,42 +30,61 @@ interface UseModelSettingsRuntimeOwnerOptions {
  * Commands for stale owners or non-Live2D renderers do not change the expression store.
  */
 export function useModelSettingsRuntimeOwner(options: UseModelSettingsRuntimeOwnerOptions) {
-  const { data, post } = useBroadcastChannel<ModelSettingsRuntimeChannelEvent, ModelSettingsRuntimeChannelEvent>({
-    name: modelSettingsRuntimeSnapshotChannelName,
-  })
+  const context = options.context ?? getModelSettingsRuntimeContext()
 
-  function postEvent(event: ModelSettingsRuntimeChannelEvent) {
-    const { error } = tryCatch(() => post(event))
-    if (error)
-      console.warn('[Model Settings Runtime] Failed to post channel event:', error)
+  function postSnapshot(snapshot: ModelSettingsRuntimeSnapshot) {
+    void context.emit(modelSettingsRuntimeSnapshotChanged, snapshot).catch((error) => {
+      console.warn('[Model Settings Runtime] Failed to publish the runtime snapshot:', error)
+    })
   }
 
   watch(() => toValue(options.runtimeSnapshot), (snapshot) => {
-    postEvent({ type: 'snapshot', snapshot })
+    postSnapshot(snapshot)
   }, { immediate: true })
 
-  watch(data, (event) => {
-    if (!event)
-      return
-
-    if (event.type === 'request-current') {
-      postEvent({ type: 'snapshot', snapshot: toValue(options.runtimeSnapshot) })
-      return
+  const stopSnapshotRequests = context.on(modelSettingsRuntimeSnapshotRequested, () => {
+    postSnapshot(toValue(options.runtimeSnapshot))
+  })
+  const stopExpressionCommands = defineInvokeHandler(context, applyLive2DExpressionSettingsCommand, (request) => {
+    const currentSnapshot = toValue(options.runtimeSnapshot)
+    if (request.ownerInstanceId !== options.ownerInstanceId) {
+      return {
+        applied: false,
+        snapshot: currentSnapshot,
+        rejectionReason: 'owner-changed',
+      }
     }
 
-    if (event.type !== 'live2d-expression-command')
-      return
+    if (!request.modelId || request.modelId !== currentSnapshot.modelId) {
+      return {
+        applied: false,
+        snapshot: currentSnapshot,
+        rejectionReason: 'model-changed',
+      }
+    }
 
-    if (event.ownerInstanceId !== options.ownerInstanceId || toValue(options.renderer) !== 'live2d')
-      return
+    if (toValue(options.renderer) !== 'live2d' || currentSnapshot.controlsLocked) {
+      return {
+        applied: false,
+        snapshot: currentSnapshot,
+        rejectionReason: 'runtime-unavailable',
+      }
+    }
 
-    options.applyLive2DExpressionCommand(event.command)
+    options.applyLive2DExpressionCommand(request.command)
+    return {
+      applied: true,
+      snapshot: toValue(options.runtimeSnapshot),
+    }
   })
 
   onBeforeUnmount(() => {
-    postEvent({
-      type: 'owner-gone',
+    stopSnapshotRequests()
+    stopExpressionCommands()
+    void context.emit(modelSettingsRuntimeOwnerGone, {
       ownerInstanceId: options.ownerInstanceId,
+    }).catch((error) => {
+      console.warn('[Model Settings Runtime] Failed to publish owner shutdown:', error)
     })
   })
 }
