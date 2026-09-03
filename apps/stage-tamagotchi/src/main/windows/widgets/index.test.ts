@@ -86,6 +86,7 @@ describe('createWidgetIframeRequestCoordinator', () => {
       requestId: expect.any(String),
       payload: { action: 'snapshot' },
       timeoutMs: 30000,
+      expiresAt: expect.any(Number),
     })
 
     coordinator.publishWidgetIframeRequestResult({
@@ -211,6 +212,7 @@ describe('createWidgetIframeRequestCoordinator', () => {
     resolveRelayReady()
     await vi.waitFor(() => expect(emitRequest).toHaveBeenCalledOnce())
     const emitted = emitRequest.mock.calls[0]?.[0]
+    expect(emitted.expiresAt).toBeGreaterThan(Date.now())
     coordinator.publishWidgetIframeRequestResult({
       id: 'whiteboard:main',
       requestId: emitted.requestId,
@@ -219,6 +221,31 @@ describe('createWidgetIframeRequestCoordinator', () => {
     })
 
     await expect(request).resolves.toEqual({ type: 'create_canvas', handled: true })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2441#discussion_r3914009087
+  it('rejects within the timeout when the renderer relay never becomes ready', async () => {
+    vi.useFakeTimers()
+    const emitRequest = vi.fn()
+    let resolveRelayReady!: () => void
+    const relayReady = new Promise<void>((resolve) => {
+      resolveRelayReady = resolve
+    })
+    const coordinator = createWidgetIframeRequestCoordinator({
+      emitRequest,
+      hasWidget: () => true,
+      hasRelay: () => false,
+      waitForRelay: () => relayReady,
+    })
+
+    const request = coordinator.requestWidgetIframe('whiteboard:main', { type: 'create_canvas' }, { timeoutMs: 25 })
+    const rejection = expect(request).rejects.toThrow('Gamelet request timed out after 25ms.')
+    await vi.advanceTimersByTimeAsync(25)
+    await rejection
+
+    resolveRelayReady()
+    await Promise.resolve()
+    expect(emitRequest).not.toHaveBeenCalled()
   })
 
   it('rejects all pending requests when the widgets window closes', async () => {

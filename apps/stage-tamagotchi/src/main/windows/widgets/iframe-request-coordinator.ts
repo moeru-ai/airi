@@ -15,6 +15,7 @@ interface PendingWidgetIframeRequest {
   resolve: (result: Record<string, unknown>) => void
   reject: (error: Error) => void
   timeout: ReturnType<typeof setTimeout>
+  releaseWait: () => void
 }
 
 /**
@@ -48,8 +49,13 @@ export function createWidgetIframeRequestCoordinator(options: WidgetIframeReques
 
     pendingRequests.delete(requestId)
     clearTimeout(pending.timeout)
+    pending.releaseWait()
     settle(pending)
     return pending
+  }
+
+  function createTimeoutError(timeoutMs: number) {
+    return new Error(`Gamelet request timed out after ${timeoutMs}ms.`)
   }
 
   async function requestWidgetIframe<TResponse extends Record<string, unknown> = Record<string, unknown>>(
@@ -61,18 +67,23 @@ export function createWidgetIframeRequestCoordinator(options: WidgetIframeReques
       return Promise.reject(new Error(`Gamelet \`${id}\` is not open.`))
     const requestId = randomUUID()
     const timeoutMs = requestOptions?.timeoutMs ?? DEFAULT_WIDGET_IFRAME_REQUEST_TIMEOUT_MS
+    const expiresAt = Date.now() + timeoutMs
+    let releaseWait!: () => void
+    const deadlineReached = new Promise<void>((resolve) => {
+      releaseWait = resolve
+    })
 
     const response = new Promise<TResponse>((resolve, reject) => {
       const timeout = setTimeout(() => {
-        pendingRequests.delete(requestId)
-        reject(new Error(`Gamelet request timed out after ${timeoutMs}ms.`))
-      }, timeoutMs)
+        settlePendingRequest(requestId, pending => pending.reject(createTimeoutError(timeoutMs)))
+      }, Math.max(0, expiresAt - Date.now()))
 
       pendingRequests.set(requestId, {
         id,
         resolve: result => resolve(result as TResponse),
         reject,
         timeout,
+        releaseWait,
       })
     })
 
@@ -81,7 +92,10 @@ export function createWidgetIframeRequestCoordinator(options: WidgetIframeReques
         if (!options.waitForRelay) {
           throw new Error('Gamelet iframe relay is not available.')
         }
-        await options.waitForRelay(id)
+        await Promise.race([
+          options.waitForRelay(id),
+          deadlineReached,
+        ])
       }
       if (!pendingRequests.has(requestId)) {
         return response
@@ -95,6 +109,7 @@ export function createWidgetIframeRequestCoordinator(options: WidgetIframeReques
         requestId,
         payload: payload as WidgetsIframeRequestPayload['payload'],
         timeoutMs,
+        expiresAt,
       })
     }
     catch (error) {
