@@ -244,5 +244,10 @@ export class WhiteboardStore {
     this.history = this.history.slice(0, this.historyIndex + 1)
     this.history.push(next)
     this.historyIndex = this.history.length - 1
+    // Each snapshot contains the complete document. Keep recent edits to bound renderer memory.
+    if (this.history.length > 100) {
+      this.history = this.history.slice(-100)
+      this.historyIndex = this.history.length - 1
+    }
   }
 }

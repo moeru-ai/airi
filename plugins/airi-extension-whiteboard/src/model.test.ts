@@ -64,4 +64,26 @@ describe('whiteboardStore', () => {
     expect(store.undo()).toBe(true)
     expect(store.document.canvases).toEqual([])
   })
+
+  // https://github.com/moeru-ai/airi/pull/2441#discussion_r3922208889
+  it('keeps a bounded number of undo snapshots', () => {
+    // ROOT CAUSE:
+    //
+    // Each edit kept a complete document snapshot without a size limit.
+    // Long drawing sessions retained all previous canvas content in memory.
+    //
+    // We fixed this by retaining the most recent 100 snapshots.
+    const store = new WhiteboardStore()
+    for (let index = 0; index <= 100; index += 1) {
+      store.createCanvas({ name: `Canvas ${index}` })
+    }
+
+    let undoCount = 0
+    while (store.undo()) {
+      undoCount += 1
+    }
+
+    expect(undoCount).toBe(99)
+    expect(store.document.canvases).toHaveLength(2)
+  })
 })
