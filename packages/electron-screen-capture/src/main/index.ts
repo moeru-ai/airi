@@ -150,10 +150,16 @@ function releaseScreenCaptureSource(params: { handle?: string, ownerWindowId?: n
   if (!screenCaptureSourceMutexHandle)
     return false
 
-  if (params.handle && params.handle !== screenCaptureSourceMutexHandle)
+  // NOTICE:
+  // Compare with `!== undefined`, not truthiness. A caller can legitimately
+  // pass an empty-string handle (e.g. a renderer that lost its stored mutex
+  // handle) or a window id of 0; a truthiness check would then skip the
+  // ownership comparison entirely and let that caller release a source it
+  // does not own.
+  if (params.handle !== undefined && params.handle !== screenCaptureSourceMutexHandle)
     return false
 
-  if (params.ownerWindowId && params.ownerWindowId !== screenCaptureSourceOwnerWindowId)
+  if (params.ownerWindowId !== undefined && params.ownerWindowId !== screenCaptureSourceOwnerWindowId)
     return false
 
   resetScreenCaptureSource()

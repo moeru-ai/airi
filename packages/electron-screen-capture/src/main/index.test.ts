@@ -248,4 +248,38 @@ describe('electron screen capture', () => {
     expect(service.screenCapture.hasSelectedScreenCaptureSource()).toBe(false)
     expect(service.getDisplayMediaHandler()).toBeNull()
   })
+
+  it('rejects an empty-string handle instead of releasing an unrelated source', async () => {
+    // ROOT CAUSE:
+    //
+    // The release guard used `params.handle && params.handle !== screenCaptureSourceMutexHandle`.
+    // A truthy check treats an empty-string handle as "no handle supplied" and skips the
+    // ownership comparison entirely, so any renderer calling resetSource('') released a
+    // source it did not select, racing whichever window actually owns it.
+    //
+    // Before the fix, resetSource('') always returned true and cleared the source.
+    // We fixed this by comparing with `!== undefined` instead of truthiness, so an empty
+    // string is still compared against the current mutex handle and rejected on mismatch.
+    const service = await setupScreenCapture()
+    const setSource = service.context.invokeHandlers.get('eventa:invoke:electron:screen-capture:set-source')
+    const resetSource = service.context.invokeHandlers.get('eventa:invoke:electron:screen-capture:reset-source')
+
+    expect(setSource).toBeDefined()
+    expect(resetSource).toBeDefined()
+
+    await setSource!({
+      options: { types: ['screen'] },
+      sourceId: 'screen:1:0',
+      timeout: 5000,
+    } as never, {
+      raw: { ipcMainEvent: { sender: { id: 42 } } },
+    } as never)
+
+    expect(service.screenCapture.hasSelectedScreenCaptureSource()).toBe(true)
+
+    await resetSource!('' as never)
+
+    expect(service.screenCapture.hasSelectedScreenCaptureSource()).toBe(true)
+    expect(service.getDisplayMediaHandler()).not.toBeNull()
+  })
 })
