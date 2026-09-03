@@ -138,10 +138,10 @@ devtools:
         title: Shader response
         base-brightness:
           title: Base brightness
-          description: Set the model brightness over a black screen. The measured screen level raises it.
+          description: Set the model brightness over a black screen. The measured screen level moves it from here.
         exposure-range:
-          title: Exposure range
-          description: Set how far the measured screen level raises the base brightness.
+          title: Exposure response
+          description: Set how far the measured screen level moves the base brightness. Above 0 a brighter screen brightens the model. Below 0 a brighter screen darkens it, so the light wrap stands out.
         wrap-intensity:
           title: Light wrap intensity
           description: Set how strongly the background color bleeds onto the edge of the model.

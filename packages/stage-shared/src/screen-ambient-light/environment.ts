@@ -24,17 +24,22 @@ export interface AmbientLightSamplingOptions {
 
 export interface AmbientLightFilterOptions {
   /**
-   * Model brightness over a black screen. The measured screen level raises it
-   * by up to `exposureRange`.
+   * Model brightness when the screen is black. The measured screen level moves
+   * it from here by `exposureRange`, in either direction.
    *
-   * @default 0.5
+   * @default 1
    */
   baseBrightness: number
   /**
-   * How much the measured screen level raises the base brightness. At 0 the
-   * model holds one exposure whatever the screen shows.
+   * How far the measured screen level moves the base brightness, and in which
+   * direction.
    *
-   * @default 0.5
+   * Positive brightens the model as the screen brightens, which is the light
+   * the screen throws on it. Negative darkens it instead, which holds the
+   * unlit side dark so that the light wrap keeps its contrast against it. At 0
+   * the model holds one exposure whatever the screen shows.
+   *
+   * @default -0.3
    */
   exposureRange: number
   /** Base model contrast before light is applied. @default 1.2 */
@@ -241,8 +246,8 @@ export const ambientLightDefaults = Object.freeze({
     neutralColorWeight: 0.35,
   }),
   filter: Object.freeze<AmbientLightFilterOptions>({
-    baseBrightness: 0.5,
-    exposureRange: 0.5,
+    baseBrightness: 1,
+    exposureRange: -0.3,
     baseContrast: 1.2,
     chroma: 0.5,
     wrapIntensity: 0.85,

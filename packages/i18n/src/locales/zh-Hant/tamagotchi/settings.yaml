@@ -138,10 +138,10 @@ devtools:
         title: 著色器反應
         base-brightness:
           title: 基礎亮度
-          description: 設定螢幕全黑時的模型亮度，實測螢幕亮度會在此之上提高它。
+          description: 設定螢幕全黑時的模型亮度，實測螢幕亮度會以此為起點調整它。
         exposure-range:
-          title: 曝光範圍
-          description: 設定實測螢幕亮度能把基礎亮度提高多少。
+          title: 曝光反應
+          description: 設定實測螢幕亮度調整基礎亮度的幅度與方向。大於 0 時螢幕越亮模型越亮；小於 0 時螢幕越亮模型越暗，讓光線包覆更明顯。
         wrap-intensity:
           title: 光線包覆強度
           description: 設定背景顏色滲入模型邊緣的強度。
