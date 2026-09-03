@@ -858,6 +858,9 @@ catalogs:
     mineflayer-tool:
       specifier: ^1.2.0
       version: 1.2.0
+    minimatch:
+      specifier: ^10.2.6
+      version: 10.2.6
     minisearch:
       specifier: ^7.2.0
       version: 7.2.0
@@ -2322,6 +2325,9 @@ importers:
       less:
         specifier: 'catalog:'
         version: 4.9.0(supports-color@10.2.2)
+      minimatch:
+        specifier: 'catalog:'
+        version: 10.2.6
       mkcert:
         specifier: 'catalog:'
         version: 3.2.0
