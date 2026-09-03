@@ -202,8 +202,17 @@ export interface UiohookDriver {
  * Constraints:
  * - macOS: requires the Accessibility permission. First registration
  *   triggers the system prompt; subsequent failures return `Denied`.
- * - Linux: requires X11 or XWayland. Native Wayland sessions return
- *   `Unsupported` because XRecord cannot observe Wayland clients.
+ * - Linux: requires X11 or XWayland (an explicit `--ozone-platform=x11` or
+ *   `--ozone-platform-hint=x11` launch). A native Wayland session with
+ *   neither switch returns `Unsupported` because XRecord cannot observe
+ *   Wayland clients at all.
+ * - Linux/XWayland: registration succeeds, but XRecord only observes X11
+ *   (XWayland) clients — a bound shortcut fires only while an XWayland
+ *   window has focus. It silently does not fire while focus is on a
+ *   native Wayland application, since that application's input never
+ *   passes through the X11 protocol XRecord hooks into. There is no
+ *   partial-refusal state for this case: Electron cannot tell the driver
+ *   which application currently holds focus.
  */
 export function createUiohookDriver(options: UiohookDriverOptions): UiohookDriver {
   const {
