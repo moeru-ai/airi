@@ -84,6 +84,41 @@ describe('screen ambient light filter', () => {
     expect(redAt(overBrightScreen, 50)).toBeGreaterThan(redAt(overDarkScreen, 50) + 20)
   })
 
+  it('darkens the model as the screen brightens when the exposure range is negative', () => {
+    // ROOT CAUSE:
+    //
+    // A base that only rises with the screen level is brightest exactly where
+    // the added light is brightest, so the model sat near one brightness and
+    // the wrap had nothing to read against. Lowering baseBrightness to make
+    // the wrap visible then left the model dark over a black desktop, which is
+    // the case that needs it least.
+    //
+    // The range carries a sign, so the base can move the other way: the unlit
+    // side darkens only as the screen brightens, and the light that arrives
+    // with it lands on the lit side. This is the shipped default.
+    const adaptiveOptions = { baseBrightness: 1, exposureRange: -0.3, chroma: 0 }
+    const overDarkScreen = renderLight({
+      environment: environmentWith({ exposure: 0 }),
+      filterOptions: adaptiveOptions,
+      sourceValue: 200,
+    })
+    const overBrightScreen = renderLight({
+      environment: environmentWith({ exposure: 1 }),
+      filterOptions: adaptiveOptions,
+      sourceValue: 200,
+    })
+
+    expect(redAt(overBrightScreen, 50)).toBeLessThan(redAt(overDarkScreen, 50) - 10)
+    // A black desktop must leave the base alone, which is what keeps the model
+    // from going dark exactly where no light can compensate.
+    const unmodified = renderLight({
+      environment: environmentWith({ exposure: 0 }),
+      filterOptions: { baseBrightness: 1, exposureRange: 0, chroma: 0 },
+      sourceValue: 200,
+    })
+    expect(redAt(overDarkScreen, 50)).toBe(redAt(unmodified, 50))
+  })
+
   it('holds one exposure when the exposure range is closed', () => {
     const fixedOptions = { baseBrightness: 0.7, exposureRange: 0, chroma: 0 }
     const overDarkScreen = renderLight({
