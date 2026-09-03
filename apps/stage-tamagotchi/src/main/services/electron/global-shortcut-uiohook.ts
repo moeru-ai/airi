@@ -126,11 +126,24 @@ function buildPredicate(acc: ShortcutAccelerator, platform: NodeJS.Platform): { 
   return { predicate, expectedKeycode }
 }
 
-function usesX11OzoneBackend(args: readonly string[]): boolean {
+function hasSwitchValue(args: readonly string[], flag: string, value: string): boolean {
   return args.some((arg, index) =>
-    arg === '--ozone-platform=x11'
-    || (arg === '--ozone-platform' && args[index + 1] === 'x11'),
+    arg === `${flag}=${value}`
+    || (arg === flag && args[index + 1] === value),
   )
+}
+
+// NOTICE:
+// `--ozone-platform` forces a backend outright; `--ozone-platform-hint` only
+// selects one when `--ozone-platform` is absent (Chromium falls back to
+// auto-detection from the session otherwise). AIRI's own `main/app/ozone.ts`
+// resolver already treats both switches as selecting X11, so the uiohook
+// driver must recognize both too or it misreads the same XWayland launch
+// its own startup path already resolved to X11.
+// Removal condition: never, unless the two switches are unified upstream.
+function usesX11OzoneBackend(args: readonly string[]): boolean {
+  return hasSwitchValue(args, '--ozone-platform', 'x11')
+    || hasSwitchValue(args, '--ozone-platform-hint', 'x11')
 }
 
 function isNativeWayland(

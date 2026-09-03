@@ -325,6 +325,29 @@ describe('createUiohookDriver', () => {
     }
   })
 
+  it.runIf(process.platform === 'linux')('permits XWayland selected via --ozone-platform-hint', async () => {
+    // ROOT CAUSE:
+    //
+    // `main/app/ozone.ts` resolves the X11 backend from either an explicit
+    // `--ozone-platform` switch or an `--ozone-platform-hint` switch (Chromium
+    // only consults the hint when `--ozone-platform` is absent). The uiohook
+    // driver only recognized `--ozone-platform`, so a launch that selects X11
+    // through the hint alone was still misread as native Wayland and refused.
+    const originalArgvLength = process.argv.length
+    process.argv.push('--ozone-platform-hint=x11')
+
+    try {
+      const m = await setupMocks()
+      const { driver } = m.createDriver({ sessionType: 'wayland' })
+
+      expect(driver.tryRegister(exampleBinding('ptt'))).toEqual({ id: 'ptt', ok: true })
+      expect(m.startMock).toHaveBeenCalledTimes(1)
+    }
+    finally {
+      process.argv.splice(originalArgvLength)
+    }
+  })
+
   it.runIf(process.platform === 'darwin')('returns Denied when the host denies macOS Accessibility permission', async () => {
     const m = await setupMocks()
     m.isTrustedAccessibilityClientMock.mockReturnValue(false)
