@@ -33,15 +33,6 @@ export function getDefaultSpeechModel(): string | null {
   return defaultSpeechModelId
 }
 
-// Server-curated default streaming model id, populated by the streaming
-// provider's listModels(). Pages that need to seed an initial model selection
-// read this via getDefaultStreamingModel() instead of hardcoding an id.
-let defaultStreamingModelId: string | null = null
-
-export function getDefaultStreamingModel(): string | null {
-  return defaultStreamingModelId
-}
-
 const officialConfigSchema = z.object({})
 
 function authHeaders(): Record<string, string> {
@@ -57,22 +48,19 @@ async function listStreamingModelCatalog(): Promise<ProviderModelCatalog> {
   // (`UNSPEECH_UPSTREAM.streaming`). Wire shape uses `<backend>/<api_resource_id>`
   // (see `unspeech/docs/wire-protocols/audio-speech-stream-v1.md`); the
   // server returns whatever the operator put there, no client-side defaults.
-  // Reset the default up front so a failed probe cannot retain stale data.
-  defaultStreamingModelId = null
-
   const res = await globalThis.fetch(`${SERVER_URL}/api/v1/audio/models/streaming`, { headers: authHeaders() })
   if (!res.ok)
     throw new Error(`streaming models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
-  const data = await res.json() as { available?: boolean, models: { id: string, name?: string, description?: string }[], default?: string | null }
-  if (!Array.isArray(data.models))
-    throw new Error('streaming models upstream missing models[]')
-
-  defaultStreamingModelId = typeof data.default === 'string' && data.default.length > 0 ? data.default : null
+  const data = await res.json() as {
+    available: boolean
+    models: { id: string, name?: string, description?: string }[]
+    default: string | null
+  }
 
   return {
-    available: data.available === true,
-    defaultModel: defaultStreamingModelId,
+    available: data.available,
+    defaultModel: data.default ?? null,
     models: data.models.map(m => ({
       id: m.id,
       name: m.name ?? m.id,

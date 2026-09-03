@@ -34,6 +34,7 @@ describe('provider store synchronization boundary', () => {
     const store = useProviderStore()
     const runtimeState = {
       models: [],
+      defaultModel: null,
       modelStatus: 'ready' as const,
       modelError: null,
     }
@@ -205,6 +206,7 @@ describe('provider store synchronization boundary', () => {
 
     store.providerRuntimeState['official-provider'] = {
       models: [],
+      defaultModel: null,
       modelStatus: 'loading',
       modelError: null,
     }
