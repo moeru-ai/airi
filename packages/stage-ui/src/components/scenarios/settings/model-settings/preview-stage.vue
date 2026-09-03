@@ -1,15 +1,19 @@
 <script setup lang="ts">
+import type { Live2DContext } from '@proj-airi/stage-ui-live2d'
+
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
-import { Live2DScene } from '@proj-airi/stage-ui-live2d'
+import { createLive2D, Live2DScene, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { TachieScene } from '@proj-airi/stage-ui-tachie'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 
+import { useSharedLive2DExpressionPreview } from '../../../../stores/live2d'
+import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useSettings } from '../../../../stores/settings'
 import {
   createEmptyModelSettingsRuntimeSnapshot,
@@ -18,6 +22,7 @@ import {
 
 const props = defineProps<{
   live2dSceneClass?: string | string[]
+  live2dContext?: Live2DContext
   vrmSceneClass?: string | string[]
   spineSceneClass?: string | string[]
   tachieSceneClass?: string | string[]
@@ -28,8 +33,20 @@ const emit = defineEmits<{
   (e: 'runtimeSnapshotChanged', value: ModelSettingsRuntimeSnapshot): void
 }>()
 
+const ownsLive2D = !props.live2dContext
+const live2d = props.live2dContext ?? createLive2D()
+
+onUnmounted(() => {
+  if (ownsLive2D)
+    live2d.dispose()
+})
+
 const settingsStore = useSettings()
 const modelStore = useModelStore()
+const live2dSettingsStore = useSettingsLive2d()
+const live2dParametersStore = useLive2dParams()
+const { selectedAvatarModelId } = storeToRefs(useAiriCardStore())
+useSharedLive2DExpressionPreview(live2d, selectedAvatarModelId)
 const live2dSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
 const vrmSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
 const spineSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
@@ -49,6 +66,20 @@ const {
   themeColorsHueDynamic,
 
 } = storeToRefs(settingsStore)
+const {
+  live2dMotionDriver,
+  live2dEyeTracking,
+  live2dModelEyeOffset,
+  live2dIdleAnimationEnabled,
+  live2dForceIdleEyeAnimation,
+  live2dAutoBlinkEnabled,
+  live2dForceAutoBlinkEnabled,
+  live2dExpressionEnabled,
+  live2dShadowEnabled,
+  live2dMaxFps,
+  live2dRenderScale,
+} = storeToRefs(live2dSettingsStore)
+const { scale: live2dModelScale } = storeToRefs(live2dParametersStore)
 const {
   spinePremultipliedAlpha,
   spineDefaultMixDuration,
@@ -207,11 +238,24 @@ const cursorPosition = computed(() => ({
       <Live2DScene
         ref="live2dSceneRef"
         v-model:state="live2dComponentState"
+        :context="live2d"
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
         :cursor-position="cursorPosition"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
+        :motion-driver="live2dMotionDriver"
+        :eye-tracking="live2dEyeTracking"
+        :model-eye-offset="live2dModelEyeOffset"
+        :model-scale="live2dModelScale"
+        :idle-animation-enabled="live2dIdleAnimationEnabled"
+        :force-idle-eye-animation="live2dForceIdleEyeAnimation"
+        :auto-blink-enabled="live2dAutoBlinkEnabled"
+        :force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
+        :expression-enabled="live2dExpressionEnabled"
+        :shadow-enabled="live2dShadowEnabled"
+        :max-fps="live2dMaxFps"
+        :render-scale="live2dRenderScale"
       />
     </div>
   </template>

@@ -224,6 +224,7 @@ function sanitizeAiri(value: unknown, displayModelIdOverride?: string): AiriExte
 
   return {
     ...(source.wakeWords === undefined ? {} : { wakeWords: parse(array(wakeWordSchema), source.wakeWords) }),
+    avatarModels: [],
     modules: {
       consciousness: providerModel(modules.consciousness),
       vision: providerModel(modules.vision),
