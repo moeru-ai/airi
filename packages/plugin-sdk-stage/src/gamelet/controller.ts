@@ -10,6 +10,15 @@ import { gameletRequest } from './events'
 
 const defaultRequestTimeoutMs = 30000
 
+function createTimeoutSignal(timeoutMs: number) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+  return {
+    signal: controller.signal,
+    dispose: () => clearTimeout(timeout),
+  }
+}
+
 /** Current platform view state for the active gamelet. */
 export interface GameletViewState {
   bindingId?: string
@@ -76,10 +85,17 @@ export class StageGameletController implements StageGameletOrchestration {
   }
 
   async request<TResponse = HostDataRecord>(bindingId: string, payload: HostDataRecord, options?: { timeoutMs?: number }): Promise<TResponse> {
-    await this.open(bindingId)
-    await this.waitForConnection(bindingId, options?.timeoutMs ?? defaultRequestTimeoutMs)
-    const invoke = defineInvoke(this.context, gameletRequest)
-    return await invoke({ bindingId, requestId: nanoid(), payload }) as TResponse
+    const timeoutMs = options?.timeoutMs ?? defaultRequestTimeoutMs
+    const timeout = createTimeoutSignal(timeoutMs)
+    try {
+      await this.open(bindingId)
+      await this.waitForConnection(bindingId, timeout.signal, timeoutMs)
+      const invoke = defineInvoke(this.context, gameletRequest)
+      return await invoke({ bindingId, requestId: nanoid(), payload }, { signal: timeout.signal }) as TResponse
+    }
+    finally {
+      timeout.dispose()
+    }
   }
 
   async close(bindingId: string) {
@@ -114,11 +130,10 @@ export class StageGameletController implements StageGameletOrchestration {
     return ready
   }
 
-  private async waitForConnection(bindingId: string, timeoutMs: number) {
+  private async waitForConnection(bindingId: string, signal: AbortSignal, timeoutMs: number) {
     if (this.handlers.has(bindingId)) {
       return
     }
-    const signal = AbortSignal.timeout(timeoutMs)
     await Promise.race([
       this.getReady(bindingId).promise,
       new Promise<never>((_, reject) => {

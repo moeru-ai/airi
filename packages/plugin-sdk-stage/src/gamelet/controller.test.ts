@@ -62,4 +62,29 @@ describe('stageGameletController', () => {
     disconnectSecond()
     controller.dispose()
   })
+
+  // https://github.com/moeru-ai/airi/pull/2441#discussion_r3922208877
+  it('applies the request timeout after the gamelet connects', async () => {
+    // ROOT CAUSE:
+    //
+    // The timeout only applied while the request waited for a handler.
+    // After a handler connected, an unresolved invocation never rejected.
+    //
+    // We fixed this by sharing one timeout signal with the connection wait and invocation.
+    vi.useFakeTimers()
+    const controller = new StageGameletController()
+    let rejected = false
+    controller.connect('whiteboard:main', async () => await new Promise(() => {}))
+
+    void controller.request('whiteboard:main', { type: 'create_canvas' }, { timeoutMs: 10 })
+      .catch(() => {
+        rejected = true
+      })
+
+    await vi.advanceTimersByTimeAsync(10)
+
+    expect(rejected).toBe(true)
+    controller.dispose()
+    vi.useRealTimers()
+  })
 })
