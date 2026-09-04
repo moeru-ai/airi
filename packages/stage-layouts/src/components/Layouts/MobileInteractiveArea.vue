@@ -577,7 +577,6 @@ onUnmounted(() => {
               messageInputPointerEventsClass,
               themeColorsHueDynamic ? 'transition-colors-none empty:before:transition-colors-none' : undefined,
             ]"
-            default-height="1lh"
             @submit="handleSubmit"
             @compositionstart="isComposing = true"
             @compositionend="isComposing = false"
