@@ -26,7 +26,7 @@ import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers'
 import { APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID, executeAppleSpeechStream } from '../../libs/providers/providers/apple-speech'
 import { streamTranscription } from '../../libs/providers/stream-transcription'
 import { useVAD } from '../ai/models/vad'
-import { useProviderConfigStore } from '../providers/config'
+import { resolveProviderCreationId, useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { StreamingTranscriptionConsumers } from './streaming-transcription-consumers'
 
@@ -356,7 +356,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
   watch(
     () => [
       activeTranscriptionProvider.value,
-      providerStore.resolveProviderId(activeTranscriptionProvider.value),
+      resolveProviderCreationId(providerStore.providerCreationResolutions, activeTranscriptionProvider.value),
     ] as const,
     async ([selectedProviderId, resolvedProviderId]) => {
       if (!selectedProviderId || resolvedProviderId === selectedProviderId)

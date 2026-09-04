@@ -5,7 +5,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from 'vue'
 
-import { useProviderConfigStore } from './config'
+import { resolveProviderCreationId, useProviderConfigStore } from './config'
 
 const mocks = vi.hoisted(() => ({
   client: {},
@@ -57,6 +57,15 @@ describe('provider config store', () => {
 
   afterEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('resolves provider creation aliases as a pure projection', () => {
+    expect(resolveProviderCreationId({ local: 'intermediate', intermediate: 'remote' }, 'local')).toBe('remote')
+    expect(resolveProviderCreationId({ first: 'second', second: 'first' }, 'first')).toBe('first')
+    expect(resolveProviderCreationId({}, 'unchanged')).toBe('unchanged')
+
+    const store = installStore()
+    expect('resolveProviderId' in store).toBe(false)
   })
 
   it('loads the local snapshot before it applies the remote snapshot', async () => {
