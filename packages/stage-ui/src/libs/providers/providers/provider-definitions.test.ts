@@ -2,7 +2,7 @@ import type { ProviderTranslator } from '@proj-airi/provider-inference'
 
 import type { StageProviderId } from './registry'
 
-import { describe, expect, expectTypeOf, it, vi } from 'vitest'
+import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { z } from 'zod'
 
 import { selectProviderMetadata } from '../metadata'
@@ -30,6 +30,10 @@ function getRequiredProvider(id: string) {
 }
 
 describe('migrated provider definitions', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   it('exposes a closed provider id union to stage-ui consumers', () => {
     expectTypeOf<'openai'>().toExtend<StageProviderId>()
     expectTypeOf<'official-provider'>().toExtend<StageProviderId>()
@@ -133,6 +137,18 @@ describe('migrated provider definitions', () => {
   })
 
   it('registers FunASR as a local transcription provider with a saved endpoint configuration', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [
+        { created: 0, id: 'SenseVoiceSmall', object: 'model', owned_by: 'funasr' },
+        { created: 0, id: 'fun-asr-nano', object: 'model', owned_by: 'funasr' },
+        { created: 0, id: 'paraformer-zh', object: 'model', owned_by: 'funasr' },
+      ],
+      object: 'list',
+    }), {
+      headers: { 'Content-Type': 'application/json' },
+      status: 200,
+    }))
+    vi.stubGlobal('fetch', fetchMock)
     const defaults = z.parse(
       await providerFunASRAudioTranscription.createProviderConfig({ t: translate }),
       {},

@@ -66,6 +66,12 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   const pendingProviderCreations = new Set<string>()
   const pendingProviderCreationStates = new Map<string, PendingProviderCreationState>()
   const removedDuringCreation = new Set<string>()
+  // The leader owns remote writes. Keep one queue for each resolved provider
+  // so an older response cannot overwrite a newer server configuration.
+  const providerWriteQueues = new Map<string, Promise<void>>()
+  const providerWriteVersions = new Map<string, number>()
+  const providerWriteAliases = new Map<string, string>()
+  let providerWriteGeneration = 0
   const providerCreationResolutions = ref<Record<string, string>>({})
   const providerValidationLeases = useLocalStorage<Record<string, ProviderValidationLease>>('settings/providers/validation-leases', {}, providerStorageOptions)
 
@@ -194,6 +200,23 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     ?? removeProviderMutation.error.value
     ?? updateProviderMutation.error.value)
 
+  function enqueueProviderWrite<T>(providerId: string, write: () => Promise<T>) {
+    const queueId = resolveProviderWriteId(providerId)
+    const previous = providerWriteQueues.get(queueId) ?? Promise.resolve()
+    const result = previous.then(write)
+    const queueTail = result.then(
+      () => undefined,
+      () => undefined,
+    )
+    providerWriteQueues.set(queueId, queueTail)
+    return result.finally(() => {
+      for (const [queuedProviderId, tail] of providerWriteQueues) {
+        if (tail === queueTail)
+          providerWriteQueues.delete(queuedProviderId)
+      }
+    })
+  }
+
   function resolveProviderId(providerId: string) {
     const visited = new Set<string>()
     let resolvedId = providerId
@@ -202,6 +225,31 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       resolvedId = providerCreationResolutions.value[resolvedId]
     }
     return resolvedId
+  }
+
+  function resolveProviderWriteId(providerId: string) {
+    const visited = new Set<string>()
+    let resolvedId = resolveProviderId(providerId)
+    while (providerWriteAliases.has(resolvedId) && !visited.has(resolvedId)) {
+      visited.add(resolvedId)
+      resolvedId = providerWriteAliases.get(resolvedId)!
+    }
+    return resolvedId
+  }
+
+  function migrateProviderWriteId(previousId: string, canonicalId: string) {
+    if (previousId === canonicalId)
+      return
+
+    providerWriteAliases.set(previousId, canonicalId)
+    const queueTail = providerWriteQueues.get(previousId)
+    if (queueTail)
+      providerWriteQueues.set(canonicalId, queueTail)
+    const currentWriteVersion = providerWriteVersions.get(previousId)
+    if (currentWriteVersion !== undefined) {
+      providerWriteVersions.set(canonicalId, currentWriteVersion)
+      providerWriteVersions.delete(previousId)
+    }
   }
 
   function getProvider(providerId: string) {
@@ -285,21 +333,20 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     }
   }
 
-  async function beginProviderValidation(providerId: string) {
+  async function beginProviderValidation(providerId: string, token = crypto.randomUUID()) {
     const resolvedProviderId = resolveProviderId(providerId)
     const provider = providers.value[resolvedProviderId]
     if (!provider)
       return
 
     const previousStatus = providerValidationLeases.value[resolvedProviderId]?.previousStatus ?? provider.status
-    const token = crypto.randomUUID()
     providerValidationLeases.value[resolvedProviderId] = { token, previousStatus }
     provider.status = 'validating'
     capturePendingProviderCreationState(resolvedProviderId)
     return { token, previousStatus }
   }
 
-  async function finishProviderValidation(providerId: string, token: string, status: ProviderValidationStatus) {
+  function finishProviderValidationState(providerId: string, token: string, status: ProviderValidationStatus) {
     const resolvedProviderId = resolveProviderId(providerId)
     const requestedProviderId = getPendingProviderCreationRequestedId(resolvedProviderId)
     const pendingState = requestedProviderId
@@ -324,6 +371,25 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     if (provider)
       capturePendingProviderCreationState(resolvedProviderId)
     return didTransition
+  }
+
+  async function finishProviderValidation(providerId: string, token: string, status: ProviderValidationStatus) {
+    return finishProviderValidationState(providerId, token, status)
+  }
+
+  async function finishProviderValidationAndUpdateConfig(
+    providerId: string,
+    token: string,
+    config?: Record<string, unknown>,
+  ) {
+    if (!finishProviderValidationState(providerId, token, 'configured'))
+      return false
+
+    // updateProviderConfig applies its optimistic state before its first await.
+    // Keeping both calls in this leader action closes the token-check/commit gap.
+    if (config)
+      await updateProviderConfig(providerId, config, 'configured')
+    return true
   }
 
   async function restoreProviderStatus(providerId: string, token: string) {
@@ -382,12 +448,52 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     if (requestedId === resolvedId)
       return
 
+    migrateProviderWriteId(resolveProviderWriteId(requestedId), resolvedId)
     providerCreationResolutions.value[requestedId] = resolvedId
     const validationLease = providerValidationLeases.value[requestedId]
     if (validationLease) {
       providerValidationLeases.value[resolvedId] = validationLease
       delete providerValidationLeases.value[requestedId]
     }
+  }
+
+  function applyProviderWriteResponse(
+    requestedProviderId: string,
+    remote: InferenceServiceProvider,
+    writeVersion: number,
+    writeGeneration: number,
+  ) {
+    if (providerWriteGeneration !== writeGeneration)
+      return
+
+    let resolvedProviderId = resolveProviderId(requestedProviderId)
+    const previousWriteId = resolveProviderWriteId(requestedProviderId)
+    if (remote.id !== previousWriteId)
+      migrateProviderWriteId(previousWriteId, remote.id)
+
+    const currentProvider = providers.value[resolvedProviderId]
+    if (!currentProvider)
+      return
+
+    if (remote.id !== resolvedProviderId) {
+      const wasAdded = addedProviders.value[resolvedProviderId]
+      recordProviderCreationResolution(resolvedProviderId, remote.id)
+      delete providers.value[resolvedProviderId]
+      unmarkProviderAdded(resolvedProviderId)
+      providers.value[remote.id] = { ...currentProvider, id: remote.id }
+      if (wasAdded)
+        markProviderAdded(remote.id)
+      resolvedProviderId = remote.id
+    }
+
+    if (providerWriteVersions.get(resolvedProviderId) !== writeVersion)
+      return
+
+    const latestProvider = providers.value[resolvedProviderId]
+    const activeValidation = providerValidationLeases.value[resolvedProviderId]
+    providers.value[resolvedProviderId] = activeValidation && latestProvider?.status === 'validating'
+      ? { ...remote, id: resolvedProviderId, status: 'validating' }
+      : { ...remote, id: resolvedProviderId }
   }
 
   async function discardRemovedProviderCreation(requestedId: string, resolvedId: string) {
@@ -470,11 +576,11 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       }
 
       try {
-        const saved = await updateProviderMutation.mutateAsync({
+        const saved = await enqueueProviderWrite(remote.id, () => updateProviderMutation.mutateAsync({
           providerId: remote.id,
           config: reconciled.config,
           status: validationLease?.previousStatus ?? reconciled.status,
-        })
+        }))
         if (await discardRemovedProviderCreation(provider.id, remote.id))
           return saved
         const shouldApplySaved = providers.value[remote.id] === reconciled
@@ -518,6 +624,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     if (!providers.value[providerId] && !pendingProviderCreations.has(requestedProviderId))
       return
 
+    providerWriteVersions.set(providerId, (providerWriteVersions.get(providerId) ?? 0) + 1)
     if (pendingProviderCreations.has(requestedProviderId))
       removedDuringCreation.add(requestedProviderId)
     delete providers.value[providerId]
@@ -530,7 +637,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     }
 
     try {
-      await removeProviderMutation.mutateAsync(providerId)
+      await enqueueProviderWrite(providerId, () => removeProviderMutation.mutateAsync(resolveProviderWriteId(providerId)))
     }
     catch {
       // A failed remote delete does not restore a provider that the user removed locally.
@@ -543,6 +650,9 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     if (!provider)
       return
 
+    const writeVersion = (providerWriteVersions.get(providerId) ?? 0) + 1
+    providerWriteVersions.set(providerId, writeVersion)
+    const writeGeneration = providerWriteGeneration
     const localProvider = {
       ...provider,
       config: { ...config },
@@ -552,8 +662,22 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     capturePendingProviderCreationState(providerId)
 
     try {
-      const remote = await updateProviderMutation.mutateAsync({ providerId, config, status })
-      providers.value[remote.id] = remote
+      const remote = await enqueueProviderWrite(providerId, async () => {
+        const resolvedWriteProviderId = resolveProviderWriteId(providerId)
+        if (providerWriteGeneration !== writeGeneration
+          || providerWriteVersions.get(resolvedWriteProviderId) !== writeVersion
+          || !providers.value[resolveProviderId(providerId)]) {
+          return providers.value[resolveProviderId(providerId)] ?? localProvider
+        }
+        const saved = await updateProviderMutation.mutateAsync({
+          providerId: resolvedWriteProviderId,
+          config,
+          status,
+        })
+        // Apply canonical id changes before the queue releases its next write.
+        applyProviderWriteResponse(providerId, saved, writeVersion, writeGeneration)
+        return saved
+      })
       return remote
     }
     catch {
@@ -563,6 +687,9 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   async function resetProviders() {
+    providerWriteGeneration += 1
+    providerWriteVersions.clear()
+    providerWriteAliases.clear()
     for (const providerId of pendingProviderCreations)
       removedDuringCreation.add(providerId)
     providers.value = {}
@@ -594,6 +721,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     setProviderModelIfUnset,
     beginProviderValidation,
     finishProviderValidation,
+    finishProviderValidationAndUpdateConfig,
     restoreProviderStatus,
     fetchProviders,
     prepareProviderAddition,
@@ -615,6 +743,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       'setProviderModelIfUnset',
       'beginProviderValidation',
       'finishProviderValidation',
+      'finishProviderValidationAndUpdateConfig',
       'restoreProviderStatus',
       'synchronizeAddedProvider',
       'addProvider',

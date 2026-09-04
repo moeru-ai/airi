@@ -18,7 +18,7 @@ import {
   ProviderSettingsLayout,
   ProviderValidationDetailsDialog,
 } from '@proj-airi/stage-ui/components'
-import { createDebouncedValidationRunner, createLatestValidationGuard, createProviderDraftSourceKey, createProviderValidationScheduleGate, createValidationStatusRestorer, getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, shouldCommitValidatedDraft, validateProvider } from '@proj-airi/stage-ui/libs'
+import { createDebouncedValidationRunner, createLatestValidationGuard, createProviderDraftSourceKey, createProviderValidationScheduleGate, createValidationStatusRestorer, getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
 import { computedAsync, useCloned } from '@vueuse/core'
@@ -329,13 +329,15 @@ async function runValidation() {
 
   const validationProviderId = providerId.value
   const validatedDraftKey = providerConfigDraftKey.value
-  const validationLease = await providerStore.beginProviderValidation(validationProviderId)
-  if (!validationLease)
+  const validationToken = crypto.randomUUID()
+  await providerStore.beginProviderValidation(validationProviderId, validationToken)
+  const resolvedValidationProviderId = providerStore.resolveProviderId(validationProviderId)
+  if (providerStore.providerValidationLeases[resolvedValidationProviderId]?.token !== validationToken)
     return
 
-  validationStatusRestorer.begin(validationProviderId, validationLease.token)
+  validationStatusRestorer.begin(validationProviderId, validationToken)
   if (!isActive || !isCurrentRun()) {
-    await validationStatusRestorer.restore(validationLease.token)
+    await validationStatusRestorer.restore(validationToken)
     return
   }
 
@@ -363,39 +365,40 @@ async function runValidation() {
       },
     })
     if (!isCurrentRun()) {
-      await validationStatusRestorer.restore(validationLease.token)
+      await validationStatusRestorer.restore(validationToken)
       return
     }
 
     if (results.some(step => step.status === 'invalid')) {
-      await providerStore.finishProviderValidation(validationProviderId, validationLease.token, 'invalid')
-      validationStatusRestorer.clear(validationLease.token)
+      await providerStore.finishProviderValidation(validationProviderId, validationToken, 'invalid')
+      validationStatusRestorer.clear(validationToken)
       return
     }
 
     if (providerConfigDraftKey.value !== validatedDraftKey) {
-      await validationStatusRestorer.restore(validationLease.token)
+      await validationStatusRestorer.restore(validationToken)
       return
     }
 
-    const didFinish = await providerStore.finishProviderValidation(validationProviderId, validationLease.token, 'configured')
-    if (shouldCommitValidatedDraft(didFinish, isCurrentRun, isEdited.value))
-      await commitEditedConfig('configured')
-    validationStatusRestorer.clear(validationLease.token)
+    const validatedConfig = isEdited.value && providerConfigEdit.value
+      ? { ...providerConfigEdit.value.config }
+      : undefined
+    await providerStore.finishProviderValidationAndUpdateConfig(validationProviderId, validationToken, validatedConfig)
+    validationStatusRestorer.clear(validationToken)
   }
   catch (error) {
     if (!isCurrentRun()) {
-      await validationStatusRestorer.restore(validationLease.token)
+      await validationStatusRestorer.restore(validationToken)
       return
     }
-    await providerStore.finishProviderValidation(validationProviderId, validationLease.token, 'invalid')
-    validationStatusRestorer.clear(validationLease.token)
+    await providerStore.finishProviderValidation(validationProviderId, validationToken, 'invalid')
+    validationStatusRestorer.clear(validationToken)
     throw error
   }
   finally {
     if (isCurrentRun()) {
       isValidating.value = false
-      validationStatusRestorer.clear(validationLease.token)
+      validationStatusRestorer.clear(validationToken)
     }
   }
 }
