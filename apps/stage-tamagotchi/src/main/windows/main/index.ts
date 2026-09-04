@@ -21,13 +21,14 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { defu } from 'defu'
-import { BrowserWindow, ipcMain, screen } from 'electron'
+import { app, BrowserWindow, ipcMain, screen } from 'electron'
 import { isLinux, isMacOS } from 'std-env'
 import { array, number, object, optional, string } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
 
 import { electronStartDraggingWindow } from '../../../shared/eventa'
+import { resolveIsWayland } from '../../app/ozone'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
@@ -179,7 +180,12 @@ export async function setupMainWindow(params: {
 
   window.on('resize', () => persistWindowBounds(window.getBounds()))
   window.on('move', () => persistWindowBounds(window.getBounds()))
-  if (savedMainWindowBounds)
+  const isNativeWayland = isLinux && resolveIsWayland({
+    explicitOzonePlatform: app.commandLine.getSwitchValue('ozone-platform'),
+    ozonePlatformHint: app.commandLine.getSwitchValue('ozone-platform-hint'),
+    env,
+  })
+  if (savedMainWindowBounds && !isNativeWayland)
     persistWindowBounds(window.getBounds())
   window.on('close', (event) => {
     if (allowClose) {
