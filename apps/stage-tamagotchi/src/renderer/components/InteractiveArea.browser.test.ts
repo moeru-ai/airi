@@ -381,6 +381,17 @@ describe('interactive area synchronized state', () => {
     await vi.waitFor(() => expect(input.style.height).toBe('48px'))
   })
 
+  // https://github.com/moeru-ai/airi/pull/2461#discussion_r3935363246
+  it('does not serialize the Shift+Enter caret filler as another line', async () => {
+    const screen = await render(ContentEditableHarness)
+    const input = screen.getByRole('textbox').element()
+
+    input.innerHTML = 'draft<br><br>'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+
+    await vi.waitFor(() => expect(input.textContent).toBe('draft\n'))
+  })
+
   it('keeps a one-line mobile draft at the composer height', async () => {
     // ROOT CAUSE:
     //
