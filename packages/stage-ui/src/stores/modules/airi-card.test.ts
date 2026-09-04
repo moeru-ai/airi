@@ -2,6 +2,7 @@ import type { AiriCard } from './airi-card'
 
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
 
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useAiriCardStore } from './airi-card'
@@ -92,7 +93,9 @@ vi.mock('./vision', async () => {
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
+    locale: ref('en'),
     t: (key: string) => key,
+    te: () => true,
   }),
 }))
 

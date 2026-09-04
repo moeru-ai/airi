@@ -13,11 +13,10 @@ import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/st
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { shallowRef, toRaw } from 'vue'
-import { useI18n } from 'vue-i18n'
 
 import { getConversationAnalyticsSurface } from '../composables'
+import { useAiriRuntimeRules } from '../composables/use-airi-runtime-rules'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
-import { createEmotionRuleSet } from '../constants/prompts/emotion-rules'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
@@ -137,7 +136,7 @@ function retrySourceIndexFrom(messages: ChatHistoryItem[], index: number): numbe
 export type { QueuedSendSnapshot } from '@proj-airi/core-agent'
 
 export const useChatStore = defineStore('chat', () => {
-  const { t } = useI18n()
+  const { runtimeRuleSet } = useAiriRuntimeRules()
   const llmStore = useLLM()
   const llmToolsStore = useLlmToolsStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
@@ -300,13 +299,9 @@ export const useChatStore = defineStore('chat', () => {
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     runtimeContextProviders: [
-      () => createAiriRuntimeRulesContext({
-        emotion: createEmotionRuleSet(
-          t('base.prompt.emotion'),
-          t('base.prompt.suffix'),
-        ),
-        emoji: t('base.prompt.emoji'),
-      }),
+      () => runtimeRuleSet.value
+        ? createAiriRuntimeRulesContext(runtimeRuleSet.value)
+        : undefined,
       createMinecraftContext,
     ],
     createId: nanoid,

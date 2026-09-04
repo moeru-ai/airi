@@ -13,6 +13,9 @@ describe('createAiriRuntimeRulesContext', () => {
     expect(context).toMatchObject({
       contextId: 'system:airi-runtime-rules',
       strategy: ContextUpdateStrategy.ReplaceSelf,
+      metadata: {
+        source: { id: 'system:airi-runtime-rules' },
+      },
       text: 'Start every reply with an ACT token.\n\nDo not use emojis.',
     })
     expect(context.id).toEqual(expect.any(String))

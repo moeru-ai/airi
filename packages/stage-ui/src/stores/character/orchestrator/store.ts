@@ -6,6 +6,7 @@ import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
 import { useCharacterNotebookStore, useCharacterStore } from '../'
+import { useAiriRuntimeRules } from '../../../composables/use-airi-runtime-rules'
 import { useLLM } from '../../ai/chat-llm/llm'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useConsciousnessStore } from '../../modules/consciousness'
@@ -19,6 +20,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const characterStore = useCharacterStore()
   const notebookStore = useCharacterNotebookStore()
   const { systemPrompt } = storeToRefs(characterStore)
+  const { runtimeRulesText } = useAiriRuntimeRules()
   const modsServerChannelStore = useModsServerChannelStore()
 
   const processing = ref(false)
@@ -122,6 +124,19 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     }
 
     const provider = await consciousnessStore.getChatProviderInstance(providerId)
+    const runtimeRules = runtimeRulesText.value
+    const requestControl = runtimeRules
+      ? {
+          ...control,
+          messageOverride: {
+            ...control?.messageOverride,
+            appendUserSections: [
+              ...(control?.messageOverride?.appendUserSections ?? []),
+              runtimeRules,
+            ],
+          },
+        }
+      : control
     processing.value = true
 
     try {
@@ -133,7 +148,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
           provider,
         },
         systemPrompt: systemPrompt.value,
-        control,
+        control: requestControl,
       })
       if (!result.commands.length)
         return result

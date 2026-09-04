@@ -132,7 +132,9 @@ vi.mock('./chat/context-providers', () => ({
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
+    locale: ref('en'),
     t: (key: string) => key,
+    te: () => true,
   }),
 }))
 

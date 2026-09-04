@@ -5,6 +5,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { isReadonly, reactive } from 'vue'
 
+import { createAiriRuntimeRulesContext } from './context-providers/airi-runtime-rules'
 import { useChatContextStore } from './context-store'
 
 type TestContextMessage = ContextMessage & { source?: string }
@@ -41,6 +42,26 @@ function createContextMessage(overrides: Partial<TestContextMessage> = {}): Test
 describe('useChatContextStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2464#discussion_r3933126137
+  it('keeps runtime rules when another replace-self context is active', () => {
+    const store = useChatContextStore()
+    const runtimeRules = createAiriRuntimeRulesContext({
+      emotion: 'Start every reply with an ACT token.',
+      emoji: 'Do not use emojis.',
+    })
+    const minecraftContext = createContextMessage({
+      contextId: 'system:minecraft-integration',
+      strategy: ContextUpdateStrategy.ReplaceSelf,
+      text: 'Minecraft is online.',
+    })
+
+    store.ingestContextMessage(runtimeRules)
+    store.ingestContextMessage(minecraftContext)
+
+    expect(store.getContextsSnapshot()['system:airi-runtime-rules']).toEqual([runtimeRules])
+    expect(store.getContextsSnapshot().unknown).toEqual([minecraftContext])
   })
 
   /**

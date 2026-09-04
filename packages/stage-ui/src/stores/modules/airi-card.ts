@@ -6,8 +6,8 @@ import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
 
+import { useAiriRuntimeRules } from '../../composables/use-airi-runtime-rules'
 import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
 import { captureAnalyticsEvent } from '../../libs/analytics'
 import { useSettingsStageModel } from '../settings/stage-model'
@@ -36,7 +36,7 @@ function resolveSystemPrompt(card: AiriCard | undefined): string {
 }
 
 export const useAiriCardStore = defineStore('airi-card', () => {
-  const { t } = useI18n()
+  const { defaultCharacterPrompt } = useAiriRuntimeRules()
 
   // Pinia synchronization owns cross-window updates. Local storage only loads
   // and saves this renderer's durable copy; listening to storage events here
@@ -365,12 +365,11 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       return
 
     initialized = true
-    const defaultCharacterPrompt = t('base.prompt.character')
     if (!cards.value.has('default')) {
       cards.value.set('default', newAiriCard({
         name: 'ReLU',
         version: '1.0.0',
-        description: defaultCharacterPrompt,
+        description: defaultCharacterPrompt.value,
       }))
     }
     // The active id and card map are persisted separately. Older versions

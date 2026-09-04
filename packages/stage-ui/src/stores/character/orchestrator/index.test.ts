@@ -14,6 +14,7 @@ import { tool } from '@xsai/tool'
 import { nanoid } from 'nanoid'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
 
 import { sparkNotifyCommandSchema, useCharacterOrchestratorStore } from '.'
 import { useCharacterStore } from '..'
@@ -24,7 +25,9 @@ import { useProviderStore } from '../../providers/provider'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
+    locale: ref('en'),
     t: (key: string) => key,
+    te: () => true,
   }),
 }))
 
@@ -343,5 +346,7 @@ describe('store character-orchestrator', () => {
     const renderedMessages = mockStream.mock.lastCall?.[2] as Array<{ role: string, content: string }> | undefined
     expect(String(renderedMessages?.[0]?.content)).toContain('Plugin-specific hint')
     expect(String(renderedMessages?.[1]?.content)).toContain('Rendered board snapshot')
+    expect(String(renderedMessages?.[1]?.content)).toContain('base.prompt.emotion')
+    expect(String(renderedMessages?.[1]?.content)).toContain('base.prompt.emoji')
   })
 })
