@@ -112,6 +112,317 @@ describe('provider config store', () => {
     await expect(synchronized).resolves.toEqual(remoteProvider)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2435#discussion_r3920910268
+  it('stores the caller validation token for PR #2435', async () => {
+    const store = installStore()
+    await store.ensureProvider(localProvider.id, localProvider.definitionId)
+    await store.setProviderStatus(localProvider.id, 'configured')
+    const validationToken = crypto.randomUUID()
+
+    await store.beginProviderValidation(localProvider.id, validationToken)
+
+    expect(store.providerValidationLeases[localProvider.id]).toEqual({
+      previousStatus: 'configured',
+      token: validationToken,
+    })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2435#discussion_r3920910268
+  it('commits validated config only while the caller token owns the lease for PR #2435', async () => {
+    // ROOT CAUSE:
+    //
+    // Checking a completion and saving in separate actions leaves a window for
+    // a newer validation to start before the older draft reaches the leader.
+    mocks.service.patchConfigRemote.mockImplementation(async (
+      _client: unknown,
+      providerId: string,
+      config: Record<string, unknown>,
+      status: InferenceServiceProvider['status'],
+    ) => ({ ...remoteProvider, id: providerId, config: { ...config }, status }))
+    const store = installStore()
+    await store.ensureProvider(localProvider.id, localProvider.definitionId)
+    await store.setProviderStatus(localProvider.id, 'configured')
+    const staleToken = crypto.randomUUID()
+    const latestToken = crypto.randomUUID()
+    const staleConfig = { apiKey: 'sk-stale' }
+    const latestConfig = { apiKey: 'sk-latest' }
+
+    await store.beginProviderValidation(localProvider.id, staleToken)
+    await store.beginProviderValidation(localProvider.id, latestToken)
+    await store.finishProviderValidationAndUpdateConfig(localProvider.id, staleToken, staleConfig)
+
+    expect(mocks.service.patchConfigRemote).not.toHaveBeenCalled()
+    expect(store.providerValidationLeases[localProvider.id]?.token).toBe(latestToken)
+    expect(store.providers[localProvider.id]?.status).toBe('validating')
+
+    await store.finishProviderValidationAndUpdateConfig(localProvider.id, latestToken, latestConfig)
+
+    expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce()
+    expect(store.providers[localProvider.id]?.config).toEqual(latestConfig)
+    expect(store.providers[localProvider.id]?.status).toBe('configured')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2435#discussion_r3914588970
+  it('starts a later save after the creation reconciliation patch for PR #2435', async () => {
+    let resolveCreate!: (provider: InferenceServiceProvider) => void
+    let resolveReconciliation!: (provider: InferenceServiceProvider) => void
+    mocks.service.createRemote.mockReturnValue(new Promise<InferenceServiceProvider>((resolve) => {
+      resolveCreate = resolve
+    }))
+    mocks.service.patchConfigRemote.mockImplementation(async (
+      _client: unknown,
+      providerId: string,
+      config: Record<string, unknown>,
+      status: InferenceServiceProvider['status'],
+    ) => {
+      if (mocks.service.patchConfigRemote.mock.calls.length === 1) {
+        return await new Promise<InferenceServiceProvider>((resolve) => {
+          resolveReconciliation = resolve
+        })
+      }
+      return { ...remoteProvider, id: providerId, config: { ...config }, status }
+    })
+    const store = installStore()
+
+    const creation = store.synchronizeAddedProvider({ ...localProvider })
+    await store.setProviderStatus(localProvider.id, 'configured')
+    resolveCreate(remoteProvider)
+    await vi.waitFor(() => expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce())
+
+    const latestConfig = { apiKey: 'sk-latest' }
+    const laterSave = store.updateProviderConfig(localProvider.id, latestConfig, 'configured')
+    await vi.waitFor(() => expect(store.providers[remoteProvider.id]?.config).toEqual(latestConfig))
+    const callsBeforeReconciliationFinished = mocks.service.patchConfigRemote.mock.calls.length
+
+    resolveReconciliation({ ...remoteProvider, status: 'configured' })
+    await creation
+    await laterSave
+
+    expect(callsBeforeReconciliationFinished).toBe(1)
+    expect(mocks.service.patchConfigRemote).toHaveBeenCalledTimes(2)
+    expect(mocks.service.patchConfigRemote).toHaveBeenNthCalledWith(
+      2,
+      mocks.client,
+      remoteProvider.id,
+      latestConfig,
+      'configured',
+    )
+    expect(store.providers[remoteProvider.id]?.config).toEqual(latestConfig)
+  })
+
+  it('keeps creation reconciliation behind a pending optimistic-id write', async () => {
+    let resolveCreate!: (provider: InferenceServiceProvider) => void
+    let rejectOptimisticSave!: (error: Error) => void
+    mocks.service.createRemote.mockReturnValue(new Promise<InferenceServiceProvider>((resolve) => {
+      resolveCreate = resolve
+    }))
+    mocks.service.patchConfigRemote
+      .mockReturnValueOnce(new Promise<InferenceServiceProvider>((_resolve, reject) => {
+        rejectOptimisticSave = reject
+      }))
+      .mockImplementationOnce(async (
+        _client: unknown,
+        providerId: string,
+        config: Record<string, unknown>,
+        status: InferenceServiceProvider['status'],
+      ) => ({ ...remoteProvider, id: providerId, config: { ...config }, status }))
+    const store = installStore()
+    const savedConfig = { apiKey: 'sk-pending' }
+
+    const creation = store.addProvider(localProvider.definitionId)
+    const optimisticSave = store.updateProviderConfig(localProvider.id, savedConfig, 'configured')
+    await vi.waitFor(() => expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce())
+    resolveCreate(remoteProvider)
+
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce()
+
+    rejectOptimisticSave(new Error('optimistic id is not created'))
+    await optimisticSave
+    await creation
+
+    expect(mocks.service.patchConfigRemote).toHaveBeenNthCalledWith(
+      2,
+      mocks.client,
+      remoteProvider.id,
+      savedConfig,
+      'configured',
+    )
+    expect(store.providers[remoteProvider.id]?.config).toEqual(savedConfig)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2435#discussion_r3914588970
+  it('keeps the latest optimistic config when its queued save fails for PR #2435', async () => {
+    // ROOT CAUSE:
+    //
+    // Serial execution alone does not stop an older successful response from
+    // replacing a newer optimistic object before the newer request fails.
+    let resolveFirstSave!: (provider: InferenceServiceProvider) => void
+    mocks.service.patchConfigRemote
+      .mockReturnValueOnce(new Promise<InferenceServiceProvider>((resolve) => {
+        resolveFirstSave = resolve
+      }))
+      .mockRejectedValueOnce(new Error('latest save failed'))
+    const store = installStore()
+    await store.ensureProvider(localProvider.id, localProvider.definitionId)
+
+    const firstConfig = { apiKey: 'sk-first' }
+    const latestConfig = { apiKey: 'sk-latest' }
+    const firstSave = store.updateProviderConfig(localProvider.id, firstConfig, 'configured')
+    await vi.waitFor(() => expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce())
+    const latestSave = store.updateProviderConfig(localProvider.id, latestConfig, 'configured')
+
+    expect(store.providers[localProvider.id]?.config).toEqual(latestConfig)
+    resolveFirstSave({ ...localProvider, config: firstConfig, status: 'configured' })
+    await firstSave
+    await latestSave
+
+    expect(mocks.service.patchConfigRemote).toHaveBeenCalledTimes(2)
+    expect(store.providers[localProvider.id]?.config).toEqual(latestConfig)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2435#discussion_r3914588970
+  it('moves a newer queued save to the canonical id returned by an older save for PR #2435', async () => {
+    // ROOT CAUSE:
+    //
+    // A stale response can still carry the canonical server id. Ignoring the
+    // whole response leaves later queued writes targeting an obsolete id.
+    let resolveFirstSave!: (provider: InferenceServiceProvider) => void
+    mocks.service.patchConfigRemote
+      .mockReturnValueOnce(new Promise<InferenceServiceProvider>((resolve) => {
+        resolveFirstSave = resolve
+      }))
+      .mockRejectedValueOnce(new Error('latest save failed'))
+    const store = installStore()
+    await store.ensureProvider(localProvider.id, localProvider.definitionId)
+
+    const firstConfig = { apiKey: 'sk-first' }
+    const latestConfig = { apiKey: 'sk-latest' }
+    const firstSave = store.updateProviderConfig(localProvider.id, firstConfig, 'configured')
+    await vi.waitFor(() => expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce())
+    const latestSave = store.updateProviderConfig(localProvider.id, latestConfig, 'configured')
+
+    resolveFirstSave({ ...remoteProvider, config: firstConfig, status: 'configured' })
+    await firstSave
+    await latestSave
+
+    expect(mocks.service.patchConfigRemote).toHaveBeenNthCalledWith(
+      2,
+      mocks.client,
+      remoteProvider.id,
+      latestConfig,
+      'configured',
+    )
+    expect(store.providers[localProvider.id]).toBeUndefined()
+    expect(store.providers[remoteProvider.id]?.config).toEqual(latestConfig)
+  })
+
+  it('keeps post-remap saves in the original provider write queue', async () => {
+    let resolveFirstSave!: (provider: InferenceServiceProvider) => void
+    let resolveSecondSave!: (provider: InferenceServiceProvider) => void
+    mocks.service.patchConfigRemote
+      .mockReturnValueOnce(new Promise<InferenceServiceProvider>((resolve) => {
+        resolveFirstSave = resolve
+      }))
+      .mockReturnValueOnce(new Promise<InferenceServiceProvider>((resolve) => {
+        resolveSecondSave = resolve
+      }))
+      .mockImplementationOnce(async (
+        _client: unknown,
+        providerId: string,
+        config: Record<string, unknown>,
+        status: InferenceServiceProvider['status'],
+      ) => ({ ...remoteProvider, id: providerId, config: { ...config }, status }))
+    const store = installStore()
+    await store.ensureProvider(localProvider.id, localProvider.definitionId)
+
+    const firstSave = store.updateProviderConfig(localProvider.id, { revision: 1 }, 'configured')
+    await vi.waitFor(() => expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce())
+    const secondSave = store.updateProviderConfig(localProvider.id, { revision: 2 }, 'configured')
+    resolveFirstSave({ ...remoteProvider, config: { revision: 1 }, status: 'configured' })
+    await firstSave
+    await vi.waitFor(() => expect(mocks.service.patchConfigRemote).toHaveBeenCalledTimes(2))
+
+    const thirdSave = store.updateProviderConfig(remoteProvider.id, { revision: 3 }, 'configured')
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(mocks.service.patchConfigRemote).toHaveBeenCalledTimes(2)
+
+    resolveSecondSave({ ...remoteProvider, config: { revision: 2 }, status: 'configured' })
+    await secondSave
+    await thirdSave
+
+    expect(mocks.service.patchConfigRemote).toHaveBeenNthCalledWith(
+      3,
+      mocks.client,
+      remoteProvider.id,
+      { revision: 3 },
+      'configured',
+    )
+    expect(store.providers[remoteProvider.id]?.config).toEqual({ revision: 3 })
+  })
+
+  it('does not restore an ordinary update after the provider store resets', async () => {
+    let resolveSave!: (provider: InferenceServiceProvider) => void
+    mocks.service.patchConfigRemote.mockReturnValue(new Promise<InferenceServiceProvider>((resolve) => {
+      resolveSave = resolve
+    }))
+    const store = installStore()
+    await store.ensureProvider(localProvider.id, localProvider.definitionId)
+
+    const save = store.updateProviderConfig(localProvider.id, { apiKey: 'sk-reset' }, 'configured')
+    await vi.waitFor(() => expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce())
+    await store.resetProviders()
+    resolveSave(remoteProvider)
+    await save
+
+    expect(store.providers).toEqual({})
+    expect(store.providerCreationResolutions).toEqual({})
+  })
+
+  it('does not send a queued update after the provider store resets', async () => {
+    let resolveFirstSave!: (provider: InferenceServiceProvider) => void
+    mocks.service.patchConfigRemote.mockReturnValueOnce(new Promise<InferenceServiceProvider>((resolve) => {
+      resolveFirstSave = resolve
+    }))
+    const store = installStore()
+    await store.ensureProvider(localProvider.id, localProvider.definitionId)
+
+    const firstSave = store.updateProviderConfig(localProvider.id, { revision: 1 }, 'configured')
+    await vi.waitFor(() => expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce())
+    const queuedSave = store.updateProviderConfig(localProvider.id, { revision: 2 }, 'configured')
+    await store.resetProviders()
+    resolveFirstSave({ ...localProvider, config: { revision: 1 }, status: 'configured' })
+    await firstSave
+    await queuedSave
+
+    expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce()
+    expect(store.providers).toEqual({})
+  })
+
+  it('orders deletion after an in-flight write and skips queued updates', async () => {
+    let resolveFirstSave!: (provider: InferenceServiceProvider) => void
+    mocks.service.patchConfigRemote.mockReturnValueOnce(new Promise<InferenceServiceProvider>((resolve) => {
+      resolveFirstSave = resolve
+    }))
+    const store = installStore()
+    await store.ensureProvider(localProvider.id, localProvider.definitionId)
+
+    const firstSave = store.updateProviderConfig(localProvider.id, { revision: 1 }, 'configured')
+    await vi.waitFor(() => expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce())
+    const queuedSave = store.updateProviderConfig(localProvider.id, { revision: 2 }, 'configured')
+    const removal = store.removeProvider(localProvider.id)
+
+    expect(mocks.service.deleteRemote).not.toHaveBeenCalled()
+    resolveFirstSave({ ...remoteProvider, config: { revision: 1 }, status: 'configured' })
+    await firstSave
+    await queuedSave
+    await removal
+
+    expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce()
+    expect(mocks.service.deleteRemote).toHaveBeenCalledWith(mocks.client, remoteProvider.id)
+    expect(store.providers).toEqual({})
+  })
+
   it('replaces the optimistic id and keeps the remote provider listed', async () => {
     const store = installStore()
 
@@ -400,8 +711,10 @@ describe('provider config store', () => {
     await store.updateProviderConfig(localProvider.id, savedConfig, 'configured')
     resolveCreate(remoteProvider)
     await vi.waitFor(() => expect(resolvePatch).toBeTypeOf('function'))
-    await store.removeProvider(remoteProvider.id)
+    const removal = store.removeProvider(remoteProvider.id)
+    expect(mocks.service.deleteRemote).not.toHaveBeenCalled()
     resolvePatch({ ...remoteProvider, config: savedConfig, status: 'configured' })
+    await removal
     await creating
 
     expect(store.providers).toEqual({})

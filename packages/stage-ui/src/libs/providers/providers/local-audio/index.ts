@@ -4,6 +4,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { isWebGPUSupported } from '@proj-airi/stage-shared/webgpu'
 import { createOpenAI } from '@xsai-ext/providers/create'
+import { listModels } from '@xsai/model'
 import { z } from 'zod'
 
 import { defineProvider } from '../registry'
@@ -265,31 +266,19 @@ export const providerFunASRAudioTranscription = defineProvider<FunASRAudioConfig
   validationRequiredWhen: config => Boolean(config.baseUrl?.trim()),
   validators: createFunASRAudioValidators(),
   extraMethods: {
-    listModels: async () => [
-      {
-        id: 'SenseVoiceSmall',
-        name: 'SenseVoice Small',
+    listModels: async (config) => {
+      const apiKey = config.apiKey?.trim() ?? ''
+      const models = await listModels({
+        baseURL: normalizeBaseUrl(config.baseUrl),
+        ...(apiKey ? { apiKey } : {}),
+      })
+      return models.map(model => ({
+        id: model.id,
+        name: model.id,
         provider: 'funasr-audio-transcription',
-        description: 'Multilingual speech recognition, language identification, and emotion recognition.',
         contextLength: 0,
         deprecated: false,
-      },
-      {
-        id: 'fun-asr-nano',
-        name: 'Fun-ASR-Nano',
-        provider: 'funasr-audio-transcription',
-        description: 'OpenAI-compatible speech recognition served by FunASR.',
-        contextLength: 0,
-        deprecated: false,
-      },
-      {
-        id: 'paraformer-zh',
-        name: 'Paraformer Chinese',
-        provider: 'funasr-audio-transcription',
-        description: 'Chinese speech recognition served by FunASR.',
-        contextLength: 0,
-        deprecated: false,
-      },
-    ],
+      }))
+    },
   },
 })
