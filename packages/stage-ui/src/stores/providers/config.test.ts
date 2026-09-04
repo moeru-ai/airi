@@ -803,6 +803,33 @@ describe('provider config store', () => {
     expect(store.providerValidationLeases[remoteProvider.id]).toBeUndefined()
   })
 
+  // https://github.com/moeru-ai/airi/pull/2435#discussion_r3931296201
+  it('finishes a token-owned validation after a stale replicated snapshot keeps the provider', async () => {
+    let resolveCreate!: (provider: InferenceServiceProvider) => void
+    mocks.service.createRemote.mockImplementation(() => new Promise((resolve) => {
+      resolveCreate = resolve
+    }))
+    mocks.service.patchConfigRemote.mockImplementation(async (
+      _client: unknown,
+      providerId: string,
+      config: Record<string, unknown>,
+      status: InferenceServiceProvider['status'],
+    ) => ({ ...remoteProvider, id: providerId, config: { ...config }, status }))
+    const store = installStore()
+
+    const creating = store.addProvider(localProvider.definitionId)
+    const validationLease = await store.beginProviderValidation(localProvider.id)
+    store.providers[localProvider.id] = { ...localProvider, status: 'unconfigured' }
+    delete store.providerValidationLeases[localProvider.id]
+
+    await expect(store.finishProviderValidation(localProvider.id, validationLease!.token, 'configured')).resolves.toBe(true)
+    expect(store.providers[localProvider.id]?.status).toBe('configured')
+
+    resolveCreate(remoteProvider)
+    await creating
+    expect(store.providers[remoteProvider.id]?.status).toBe('configured')
+  })
+
   it('updates and removes a provider through the store interface', async () => {
     const store = installStore()
     store.providers[localProvider.id] = localProvider
