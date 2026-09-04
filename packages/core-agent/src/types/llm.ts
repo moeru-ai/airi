@@ -140,7 +140,7 @@ export interface StreamOptions {
   /** Model output cap reported for the initial model, when available. */
   modelMaxOutputTokens?: number
   toolsCompatibility?: Map<string, boolean>
-  /** Request-level gate. `false` disables tools; cached incompatibility also wins. */
+  /** Request-level gate. `false` disables tools; otherwise cached incompatibility wins unless the tool choice requires tools. */
   supportsTools?: boolean
   waitForTools?: boolean
   /**
