@@ -15,7 +15,7 @@ import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store
 import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { BasicTextarea, useTheme } from '@proj-airi/ui'
+import { BasicContentEditable, useTheme } from '@proj-airi/ui'
 import { onLongPress, useEventListener, usePointerSwipe } from '@vueuse/core'
 import { animate, spring } from 'animejs'
 import { storeToRefs } from 'pinia'
@@ -204,7 +204,7 @@ async function setInputBubbleDocked(docked: boolean) {
   const startY = source.top - destination.top
   const endX = target.left + target.width / 2 - destination.left - destination.width / 2
   const endY = target.top + target.height / 2 - destination.top - destination.height / 2
-  const messageInput = bubble.querySelector<HTMLTextAreaElement>('textarea')!
+  const messageInput = bubble.querySelector<HTMLElement>('[contenteditable]')!
 
   await Promise.all([
     animate(bubble, {
@@ -274,18 +274,18 @@ function handleInputBubbleLongPress() {
 
   suppressNextInputBubbleClick = true
   inputBubbleDragging.value = true
-  inputBubble.value!.querySelector<HTMLTextAreaElement>('textarea')!.blur()
+  inputBubble.value!.querySelector<HTMLElement>('[contenteditable]')!.blur()
   inputBubble.value!.style.transform = 'translate3d(0, 0, 0) scale(.98)'
 }
 
 function handleInputBubblePointerDown(event: PointerEvent) {
   suppressNextInputBubbleClick = false
 
-  const messageInput = inputBubble.value!.querySelector<HTMLTextAreaElement>('textarea')!
+  const messageInput = inputBubble.value!.querySelector<HTMLElement>('[contenteditable]')!
 
   // NOTICE:
-  // The focused textarea must suppress native text selection before a dock drag starts.
-  // A blurred textarea must keep native activation so Safari can cancel an active keyboard dismissal.
+  // The focused editor must suppress native text selection before a dock drag starts.
+  // A blurred editor must keep native activation so Safari can cancel an active keyboard dismissal.
   // See the closing-focus regression in adaptive-input.test.ts.
   // Remove this branch when Safari exposes a keyboard lifecycle that can cancel an active dismissal.
   if (document.activeElement === messageInput)
@@ -314,7 +314,7 @@ async function handleInputBubbleClick() {
     return
   }
 
-  inputBubble.value!.querySelector<HTMLTextAreaElement>('textarea')!.focus()
+  inputBubble.value!.querySelector<HTMLElement>('[contenteditable]')!.focus()
 }
 
 async function handleInputBubblePointerCancel() {
@@ -561,25 +561,21 @@ onUnmounted(() => {
           @contextmenu="handleInputBubbleContextMenu"
           @pointerdown="handleInputBubblePointerDown"
         >
-          <!-- Android handles touch from the scrollable textarea, so it needs touch-none to keep the bubble drag active. -->
-          <BasicTextarea
+          <!-- Android handles touch from the scrollable editor, so it needs touch-none to keep the bubble drag active. -->
+          <BasicContentEditable
             v-model="messageInput"
-            autocomplete="off"
-            autocapitalize="off"
-            autocorrect="off"
-            :spellcheck="false"
             :placeholder="t('stage.message')"
             :class="[
               'font-cute',
-              'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full touch-none resize-none overflow-y-scroll scrollbar-none',
+              'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full touch-none overflow-y-scroll whitespace-pre-wrap break-words scrollbar-none',
               'border-2 border-solid px-4 py-0.5 outline-none backdrop-blur-md',
               'text-neutral-500 dark:text-neutral-100',
               'rounded-[1lh] border-neutral-200/60 bg-neutral-100/80 dark:border-neutral-700/60 dark:bg-neutral-950/80',
               'transition-colors duration-250 ease-in-out hover:text-neutral-600 dark:hover:text-neutral-200',
-              'placeholder:text-[14px] placeholder:vertical-middle placeholder:leading-6 placeholder:text-neutral-400',
-              'placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out placeholder:hover:text-neutral-500 dark:placeholder:text-neutral-500 dark:placeholder:hover:text-neutral-400',
+              'empty:before:text-[14px] empty:before:leading-6 empty:before:text-neutral-400',
+              'empty:before:transition-all empty:before:duration-250 empty:before:ease-in-out empty:hover:before:text-neutral-500 dark:empty:before:text-neutral-500 dark:empty:hover:before:text-neutral-400',
               messageInputPointerEventsClass,
-              themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : undefined,
+              themeColorsHueDynamic ? 'transition-colors-none empty:before:transition-colors-none' : undefined,
             ]"
             default-height="1lh"
             @submit="handleSubmit"

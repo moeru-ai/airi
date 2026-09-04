@@ -315,14 +315,20 @@ describe('interactive area synchronized state', () => {
     }))
   })
 
-  it('opts the mobile composer out of browser form assistance', async () => {
+  it('keeps the mobile composer outside Safari form controls', async () => {
+    // ROOT CAUSE:
+    //
+    // Safari displays Form Assistant above its keyboard for a textarea, even
+    // when autocomplete and text-correction attributes are disabled.
+    //
+    // The mobile chat composer uses a plain-text contenteditable element.
+    // It remains a keyboard target without becoming a Safari form control.
     const { screen } = await renderArea(MobileInteractiveArea)
-    const input = screen.getByRole('textbox').element() as HTMLTextAreaElement
+    const input = screen.getByRole('textbox').element()
 
-    expect(input.getAttribute('autocomplete')).toBe('off')
-    expect(input.getAttribute('autocapitalize')).toBe('off')
-    expect(input.getAttribute('autocorrect')).toBe('off')
-    expect(input.spellcheck).toBe(false)
+    expect(input.tagName).toBe('DIV')
+    expect(input.getAttribute('contenteditable')).toBe('true')
+    expect(input.getAttribute('aria-multiline')).toBe('true')
   })
 
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3755530944
@@ -341,7 +347,7 @@ describe('interactive area synchronized state', () => {
     chatSession.activeSessionId = 'session-a'
     rejectSend?.(new Error('send failed'))
 
-    await expect.element(input).toHaveValue('')
+    await expect.element(input).toHaveTextContent('')
   })
 
   it('does not restore a deleted-session draft in the shared chat widget', async () => {
