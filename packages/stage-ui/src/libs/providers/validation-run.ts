@@ -41,15 +41,6 @@ export function createProviderValidationScheduleGate() {
   }
 }
 
-/** Prevents a completed validation from committing a newer draft. */
-export function shouldCommitValidatedDraft(
-  didFinish: boolean,
-  isCurrentRun: () => boolean,
-  isEdited: boolean,
-) {
-  return didFinish && isCurrentRun() && isEdited
-}
-
 /** Creates lifecycle-aware debounced validation work for a provider editor. */
 export function createDebouncedValidationRunner(validate: () => void | Promise<void>, delay: number) {
   const run = useDebounceFn(validate, delay)
