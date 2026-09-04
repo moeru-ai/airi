@@ -336,6 +336,53 @@ describe('provider config synchronization', () => {
     })
   })
 
+  // https://github.com/moeru-ai/airi/pull/2435#discussion_r3933619806
+  it('preserves a pending saved config when a stale snapshot starts validation for PR #2435', async () => {
+    let resolveCreate!: (provider: InferenceServiceProvider) => void
+    let resolveReconciliation!: (provider: InferenceServiceProvider) => void
+    mocks.service.createRemote.mockReturnValue(new Promise<InferenceServiceProvider>((resolve) => {
+      resolveCreate = resolve
+    }))
+    mocks.service.patchConfigRemote.mockReturnValue(new Promise<InferenceServiceProvider>((resolve) => {
+      resolveReconciliation = resolve
+    }))
+
+    const context = createSyncedContext(`provider-config-pending-validation-snapshot:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+    setActivePinia(context.pinia)
+    const store = useProviderConfigStore()
+
+    const creation = store.synchronizeAddedProvider({ ...localProvider })
+    await vi.waitFor(() => expect(store.providers[localProvider.id]).toBeDefined())
+
+    const savedConfig = { apiKey: 'sk-saved' }
+    store.providers[localProvider.id] = {
+      ...store.providers[localProvider.id]!,
+      config: savedConfig,
+      status: 'configured',
+    }
+    await store.setProviderStatus(localProvider.id, 'configured')
+
+    resolveCreate({ ...localProvider, status: 'unconfigured' })
+    await vi.waitFor(() => expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce())
+
+    store.providers[localProvider.id] = {
+      ...localProvider,
+      config: { apiKey: 'sk-stale' },
+      status: 'configured',
+    }
+    const validation = await store.beginProviderValidation(localProvider.id, crypto.randomUUID())
+    await store.finishProviderValidation(localProvider.id, validation!.token, 'invalid')
+
+    resolveReconciliation({ ...localProvider, config: savedConfig, status: 'configured' })
+    await creation
+
+    expect(store.providers[localProvider.id]).toMatchObject({
+      config: savedConfig,
+      status: 'invalid',
+    })
+  })
+
   // https://github.com/moeru-ai/airi/pull/2435#discussion_r3930758343
   it.each([
     { expectedStatus: 'validating', responseStatus: 'configured', validationState: 'active' },
