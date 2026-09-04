@@ -73,9 +73,28 @@ export function modelKey(model: string, chatProvider: ChatProvider): string {
   return `${chatProvider.chat(model).baseURL}-${model}`
 }
 
+function toolChoiceRequiresTools(toolChoice: StreamOptions['toolChoice']): boolean {
+  if (toolChoice === 'required')
+    return true
+  if (typeof toolChoice !== 'object' || toolChoice === null)
+    return false
+
+  return toolChoice.type === 'function'
+    || (toolChoice.type === 'allowed_tools' && toolChoice.mode === 'required')
+}
+
+/**
+ * Resolve whether tools may be attached to the provider request.
+ *
+ * An explicit `supportsTools: false` always wins. A required tool choice takes
+ * precedence over the runtime incompatibility cache so a mandatory tool call
+ * is retried with its tools instead of being silently downgraded to text.
+ */
 export function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, options?: StreamOptions): boolean {
   if (options?.supportsTools === false)
     return false
+  if (toolChoiceRequiresTools(options?.toolChoice))
+    return true
   const key = modelKey(model, chatProvider)
   return options?.toolsCompatibility?.get(key) !== false
 }
@@ -208,6 +227,8 @@ export async function streamFrom({
   const customTools = supportedTools ? await resolveTools(options) : []
   const mergedTools = supportedTools ? [...builtinTools, ...customTools] : []
   const tools = mergedTools.length > 0 ? mergedTools : undefined
+  if (!tools && toolChoiceRequiresTools(options?.toolChoice))
+    throw new Error('Cannot satisfy a required tool choice because no tools are available for this request.')
   const toolNames = new Set(mergedTools.flatMap(tool => toolNameFrom(tool) ?? []))
 
   return new Promise<void>((resolve, reject) => {
@@ -487,6 +508,15 @@ export function isToolRelatedError(error: unknown): boolean {
   return TOOLS_RELATED_ERROR_PATTERNS.some(pattern => pattern.test(message))
 }
 
+/**
+ * Return whether an error is the internal sentinel emitted when this module's
+ * leak guard catches a complete plain-text call to a tool offered in the same
+ * model step. Message text alone never matches.
+ *
+ * A `true` result does not make replay safe by itself. Callers must separately
+ * verify that no output or tool side effects were committed and that the tool
+ * choice does not require a tool before retrying without tools.
+ */
 export function isPlainTextToolCallError(error: unknown): boolean {
   return typeof error === 'object'
     && error !== null

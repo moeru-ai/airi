@@ -80,6 +80,23 @@ describe('streamFrom tool errors', () => {
     expect(onMessages).toHaveBeenCalledWith(finalMessages)
   })
 
+  it('rejects a required tool choice before the provider when tools are explicitly disabled', async () => {
+    await expect(streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'Play the game.' }] as Message[],
+      options: {
+        supportsTools: false,
+        toolChoice: {
+          type: 'function',
+          function: { name: 'builtIn_emitSparkCommand' },
+        },
+      },
+    })).rejects.toThrow('Cannot satisfy a required tool choice because no tools are available')
+
+    expect(streamTextMock).not.toHaveBeenCalled()
+  })
+
   it('ignores provider errors after steps resolve while final messages are pending', async () => {
     let onEvent: ((event: unknown) => Promise<void>) | undefined
     let resolveMessages: ((messages: Message[]) => void) | undefined

@@ -1,3 +1,4 @@
+import type { StreamOptions } from '@proj-airi/core-agent'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message, Tool } from '@xsai/shared-chat'
 
@@ -356,7 +357,7 @@ describe('isToolRelatedError', () => {
   })
 
   // https://github.com/moeru-ai/airi/issues/2161
-  it('does not retry a forced tool choice without tools for Issue #2161', async () => {
+  it('does not downgrade a forced tool choice after a plain-text leak for Issue #2161', async () => {
     const rawToolCall = JSON.stringify({
       name: 'builtIn_emitSparkCommand',
       parameters: { destinations: [] },
@@ -366,19 +367,30 @@ describe('isToolRelatedError', () => {
     mockStreamEvents([
       { type: 'text.delta', delta: rawToolCall },
     ])
-    streamTextMock.mockImplementationOnce(() => createMockStreamResult())
 
     const store = useLLM()
-    await expect(store.stream('model-a', provider, [{ role: 'user', content: 'You must play a game.' }] as Message[], {
+    const options = {
       supportsTools: true,
       toolChoice: {
         type: 'function',
         function: { name: 'builtIn_emitSparkCommand' },
       },
       tools: [customTool],
-    })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
+    } satisfies StreamOptions
+
+    await expect(store.stream('model-a', provider, [{ role: 'user', content: 'You must play a game.' }] as Message[], options)).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
 
     expect(streamTextMock).toHaveBeenCalledTimes(1)
+
+    mockStreamEvents([
+      { type: 'text.delta', delta: rawToolCall },
+    ])
+
+    await expect(store.stream('model-a', provider, [{ role: 'user', content: 'You still must play a game.' }] as Message[], options)).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
+
+    expect(streamTextMock).toHaveBeenCalledTimes(2)
+    expect(streamTextMock.mock.calls[1]?.[0]?.tools?.map(toolNameFrom)).toContain('builtIn_emitSparkCommand')
+    expect(streamTextMock.mock.calls[1]?.[0]?.toolChoice).toEqual(options.toolChoice)
   })
 
   it('merges runtime-registered tools from the llm-tools store into the builtin tool resolver', async () => {
