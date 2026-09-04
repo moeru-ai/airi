@@ -105,7 +105,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     return [...pendingProviderCreations].find(requestedId => resolveProviderId(requestedId) === providerId)
   }
 
-  function capturePendingProviderCreationState(providerId: string) {
+  function capturePendingProviderCreationState(providerId: string, preservePendingConfig = false) {
     const requestedId = getPendingProviderCreationRequestedId(providerId)
     if (!requestedId)
       return
@@ -115,11 +115,16 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     if (!provider)
       return
 
+    const pendingProvider = pendingProviderCreationStates.get(requestedId)?.provider
     const validationLease = providerValidationLeases.value[resolvedId]
     pendingProviderCreationStates.set(requestedId, {
       provider: {
-        ...provider,
-        config: { ...provider.config },
+        ...(preservePendingConfig && pendingProvider ? pendingProvider : provider),
+        id: resolvedId,
+        status: provider.status,
+        config: {
+          ...(preservePendingConfig && pendingProvider ? pendingProvider.config : provider.config),
+        },
       },
       ...(validationLease ? { validationLease: { ...validationLease } } : {}),
     })
@@ -359,7 +364,9 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     const previousStatus = providerValidationLeases.value[resolvedProviderId]?.previousStatus ?? provider.status
     providerValidationLeases.value[resolvedProviderId] = { token, previousStatus }
     provider.status = 'validating'
-    capturePendingProviderCreationState(resolvedProviderId)
+    // A replicated visible entry can be older than the pending local save.
+    // Starting validation changes only lifecycle state, never its config.
+    capturePendingProviderCreationState(resolvedProviderId, true)
     return { token, previousStatus }
   }
 
@@ -394,7 +401,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     }
     delete providerValidationLeases.value[resolvedProviderId]
     if (provider)
-      capturePendingProviderCreationState(resolvedProviderId)
+      capturePendingProviderCreationState(resolvedProviderId, pendingValidationOwnsProvider)
     return didTransition
   }
 
@@ -442,7 +449,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     }
     delete providerValidationLeases.value[resolvedProviderId]
     if (provider)
-      capturePendingProviderCreationState(resolvedProviderId)
+      capturePendingProviderCreationState(resolvedProviderId, pendingValidationOwnsProvider)
     return didTransition
   }
 
