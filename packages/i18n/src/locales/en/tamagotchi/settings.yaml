@@ -73,6 +73,9 @@ devtools:
       strength:
         title: Light strength
         description: Set the overall effect amount. 1 is the designed look, and up to 3 makes the color cast and the light wrap stronger.
+      squint:
+        title: Squint at bright changes
+        description: Narrow the eyes when the screen brightens faster than the character has adapted to it. A screen that stays bright leaves the eyes open. 0 turns this off.
       main-window-note: Changes appear in the main AIRI window.
       diagnostics:
         title: Capture diagnostics

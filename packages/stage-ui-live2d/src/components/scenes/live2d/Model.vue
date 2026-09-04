@@ -10,7 +10,7 @@ import type {
 import type { PixiLive2DInternalModel } from '../../../composables/live2d'
 
 import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
-import { ambientLightDefaults, ambientLightNeutralEnvironment } from '@proj-airi/stage-shared/screen-ambient-light'
+import { ambientLightDefaults, ambientLightNeutralEnvironment, ambientLightPerceptualLevel } from '@proj-airi/stage-shared/screen-ambient-light'
 import { useTheme } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
 import { animate } from 'animejs'
@@ -33,6 +33,7 @@ import {
   useMotionUpdatePluginExpression,
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginIdleFocus,
+  useMotionUpdatePluginLightSquint,
   useMotionUpdatePluginLipSync,
   useMotionUpdatePluginManualControl,
 } from '../../../composables/live2d'
@@ -67,6 +68,7 @@ const props = withDefaults(defineProps<{
   screenAmbientLightEnvironment?: AmbientLightEnvironment
   screenAmbientLightMode?: ScreenAmbientLightMode
   screenAmbientLightStrength?: number
+  screenAmbientLightSquint?: number
 }>(), {
   mouthOpenSize: 0,
   nowSpeaking: false,
@@ -89,6 +91,7 @@ const props = withDefaults(defineProps<{
   screenAmbientLightEnvironment: () => ambientLightNeutralEnvironment,
   screenAmbientLightMode: ambientLightDefaults.mode,
   screenAmbientLightStrength: ambientLightDefaults.strength,
+  screenAmbientLightSquint: ambientLightDefaults.squint,
 })
 
 const emits = defineEmits<{
@@ -232,6 +235,7 @@ const screenAmbientLightFilterOptions = toRef(() => props.screenAmbientLightFilt
 const screenAmbientLightEnvironment = toRef(() => props.screenAmbientLightEnvironment)
 const screenAmbientLightMode = toRef(() => props.screenAmbientLightMode)
 const screenAmbientLightStrength = toRef(() => props.screenAmbientLightStrength)
+const screenAmbientLightSquint = toRef(() => props.screenAmbientLightSquint)
 
 // --- Expression controller
 const internalModelRef = shallowRef<PixiLive2DInternalModel>()
@@ -433,6 +437,17 @@ async function performModelLoad() {
     // This ensures blink respects expression state (0 × blinkFactor = 0).
     motionManagerUpdate.register(useMotionUpdatePluginExpression(expressionController), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
+    // After the blink plugin, so that it only narrows the value a blink returns to.
+    // The signal is the light behind the character rather than the screen level,
+    // which is a mean over the whole capture: a bright window opening in a far
+    // corner of the display would otherwise reach the eyes.
+    motionManagerUpdate.register(
+      useMotionUpdatePluginLightSquint(
+        () => ambientLightPerceptualLevel(screenAmbientLightEnvironment.value.behindLuminance),
+        () => (screenAmbientLightActive.value ? screenAmbientLightSquint.value : 0),
+      ),
+      'final',
+    )
     motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginManualControl(manualMotionControl, manualMotionSpring), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginBreathControl(manualBreathControl), 'final')

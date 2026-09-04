@@ -73,6 +73,9 @@ devtools:
       strength:
         title: 光照強度
         description: 設定整體效果量。1 是設計值，最高 3 會加強色偏與光線包覆。
+      squint:
+        title: 對亮度變化眯眼
+        description: 當螢幕變亮的速度快於角色的適應速度時收窄眼睛。持續明亮的螢幕不會讓眼睛保持眯著。設為 0 可關閉。
       main-window-note: 變更會顯示在 AIRI 主視窗中。
       diagnostics:
         title: 擷取診斷
