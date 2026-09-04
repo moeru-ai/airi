@@ -170,54 +170,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return updated
   }
 
-  /**
-   * Persists the current inference selections in the active card.
-   *
-   * This command snapshots runtime state after a higher-level operation, such
-   * as authenticated default setup. It deliberately does not apply the card
-   * back to the runtime, so one persistence write cannot start another module
-   * transition.
-   */
-  async function persistActiveCardModuleSelections() {
-    const card = cards.value.get(activeCardId.value)
-    if (!card)
-      return false
-
-    const {
-      consciousness,
-      speech,
-      vision,
-    } = useRuntimeModuleStores()
-    const modules = card.extensions?.airi?.modules
-    const alreadyPersisted = modules?.consciousness?.provider === consciousness.activeProvider
-      && modules.consciousness.model === consciousness.activeModel
-      && modules?.speech?.provider === speech.activeSpeechProvider
-      && modules.speech.model === speech.activeSpeechModel
-      && modules.speech.voice_id === speech.activeSpeechVoiceId
-      && modules?.vision?.provider === vision.activeProvider
-      && modules.vision.model === vision.activeModel
-
-    if (alreadyPersisted)
-      return false
-
-    return updateActiveCardModules(({ modules }) => ({
-      consciousness: {
-        provider: consciousness.activeProvider,
-        model: consciousness.activeModel,
-      },
-      speech: {
-        ...modules.speech,
-        provider: speech.activeSpeechProvider,
-        model: speech.activeSpeechModel,
-        voice_id: speech.activeSpeechVoiceId,
-      },
-      vision: {
-        provider: vision.activeProvider,
-        model: vision.activeModel,
-      },
-    }))
-  }
-
   function resolveAiriExtension(card: Card | ccv3.CharacterCardV3): AiriExtension {
     const {
       artistry,
@@ -368,14 +320,57 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
     initialized = true
     if (!cards.value.has('default')) {
-      cards.value.set('default', newAiriCard({
+      const defaultCard: AiriCard = {
         name: 'ReLU',
         version: '1.0.0',
         description: SystemPromptV2(
           t('base.prompt.prefix'),
           t('base.prompt.suffix'),
         ).content,
-      }))
+        extensions: {
+          airi: {
+            modules: {
+              consciousness: { provider: '', model: '' },
+              speech: { provider: '', model: '', voice_id: '' },
+              vision: { provider: '', model: '' },
+            },
+            agents: {},
+          },
+        },
+      }
+      cards.value.set('default', newAiriCard(defaultCard))
+    }
+
+    const defaultCard = cards.value.get('default')
+    const defaultModules = defaultCard?.extensions.airi.modules
+    // Old built-in cards stored the pre-auth speech state as `speech-noop`.
+    // This exact empty module shape never represents a user override.
+    if (
+      defaultCard
+      && defaultModules?.consciousness.provider === ''
+      && defaultModules.consciousness.model === ''
+      && defaultModules.vision.provider === ''
+      && defaultModules.vision.model === ''
+      && defaultModules.speech.provider === 'speech-noop'
+      && defaultModules.speech.model === ''
+      && defaultModules.speech.voice_id === ''
+    ) {
+      cards.value.set('default', {
+        ...defaultCard,
+        extensions: {
+          ...defaultCard.extensions,
+          airi: {
+            ...defaultCard.extensions.airi,
+            modules: {
+              ...defaultModules,
+              speech: {
+                ...defaultModules.speech,
+                provider: '',
+              },
+            },
+          },
+        },
+      })
     }
 
     // The active id and card map are persisted separately. Older versions
@@ -418,6 +413,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (!extension)
       return
 
+    // Empty card fields inherit the current global module settings.
     const consciousnessSettings = extension.modules?.consciousness
     if (consciousnessSettings?.provider)
       consciousness.activeProvider = consciousnessSettings.provider
@@ -472,7 +468,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     updateCard,
     updateActiveCardConsciousness,
     updateActiveCardDisplayModel,
-    persistActiveCardModuleSelections,
     updateActiveCardSpeech,
     updateActiveCardVision,
     getCard,
@@ -515,7 +510,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       'addCard',
       'initialize',
       'removeCard',
-      'persistActiveCardModuleSelections',
       'updateActiveCardConsciousness',
       'updateActiveCardDisplayModel',
       'updateActiveCardSpeech',

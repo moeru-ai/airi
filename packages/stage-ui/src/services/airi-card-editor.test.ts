@@ -4,7 +4,7 @@ import type { AiriExtension } from '../types/airiCard'
 
 import { describe, expect, it } from 'vitest'
 
-import { applyAiriCardEditorModules, safeParseAiriCardDraft } from './airi-card-editor'
+import { applyAiriCardEditorModules, getAiriCardEditorModuleSettings, safeParseAiriCardDraft } from './airi-card-editor'
 
 describe('airi card editor validation', () => {
   // https://github.com/moeru-ai/airi/issues/2108
@@ -68,6 +68,56 @@ describe('airi card editor validation', () => {
       return
 
     expect(result.output.artistryOptions).toBeUndefined()
+  })
+
+  it('keeps empty uploaded-card module fields inherited when saved', () => {
+    // ROOT CAUSE:
+    //
+    // The editor replaced empty uploaded-card fields with the current global
+    // settings during initialization. Saving an unrelated change then stored
+    // these values as card overrides.
+    //
+    // We fixed this by keeping empty module fields in the editor state. The
+    // saved card keeps these fields empty, so they inherit global settings.
+    const uploadedCard: Card = {
+      ...createCard(),
+      description: 'Imported card',
+      extensions: {
+        airi: {
+          modules: {
+            consciousness: { provider: '', model: '' },
+            vision: { provider: '', model: '' },
+            speech: { provider: '', model: '', voice_id: '' },
+            displayModelId: '',
+          },
+          agents: {},
+        },
+      },
+    }
+
+    const moduleSettings = getAiriCardEditorModuleSettings(uploadedCard)
+    const savedCard = applyAiriCardEditorModules({
+      ...uploadedCard,
+      description: 'Edited imported card',
+    }, {
+      ...moduleSettings,
+      artistry: {
+        provider: '',
+        model: '',
+        promptPrefix: '',
+        widgetInstruction: '',
+        spawnMode: 'bg_widget',
+        options: undefined,
+        autonomousEnabled: false,
+        autonomousThreshold: 70,
+      },
+    })
+
+    expect(savedCard.description).toBe('Edited imported card')
+    expect(savedCard.extensions.airi.modules.consciousness).toEqual({ provider: '', model: '' })
+    expect(savedCard.extensions.airi.modules.vision).toEqual({ provider: '', model: '' })
+    expect(savedCard.extensions.airi.modules.speech).toMatchObject({ provider: '', model: '', voice_id: '' })
+    expect(savedCard.extensions.airi.modules.displayModelId).toBe('')
   })
 
   it('preserves AIRI extension fields that are not editable in the form', () => {
