@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { nextTick, onUnmounted, ref, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
   defaultHeight?: string
@@ -19,6 +19,8 @@ const input = defineModel<string>({
 })
 
 const editableRef = ref<HTMLDivElement>()
+const editableHeight = ref('auto')
+let resizeFrame: number | undefined
 
 function readEditableText(element: HTMLDivElement) {
   // Browsers add block elements for Enter. textContent drops their line breaks.
@@ -32,6 +34,27 @@ function syncEditableValue() {
     return
 
   editable.textContent = input.value
+}
+
+function resizeEditable() {
+  if (resizeFrame !== undefined)
+    cancelAnimationFrame(resizeFrame)
+
+  const defaultHeight = props.defaultHeight ?? 'fit-content'
+  editableHeight.value = defaultHeight
+  resizeFrame = requestAnimationFrame(() => {
+    resizeFrame = undefined
+    const editable = editableRef.value
+    if (!editable)
+      return
+
+    if (input.value === '') {
+      return
+    }
+
+    const defaultBoxHeight = editable.getBoundingClientRect().height
+    editableHeight.value = `${Math.max(defaultBoxHeight, editable.scrollHeight + 4)}px`
+  })
 }
 
 function onInput(event: Event) {
@@ -89,8 +112,16 @@ function insertPlainText(editable: HTMLDivElement, text: string) {
 }
 
 watch(input, () => {
-  void nextTick(syncEditableValue)
+  void nextTick(() => {
+    syncEditableValue()
+    resizeEditable()
+  })
 }, { immediate: true })
+
+onUnmounted(() => {
+  if (resizeFrame !== undefined)
+    cancelAnimationFrame(resizeFrame)
+})
 </script>
 
 <template>
@@ -101,7 +132,7 @@ watch(input, () => {
     aria-multiline="true"
     :aria-label="props.placeholder"
     :data-placeholder="props.placeholder"
-    :style="{ minHeight: props.defaultHeight }"
+    :style="{ height: editableHeight }"
     class="empty:before:pointer-events-none empty:before:content-[attr(data-placeholder)]"
     @input="onInput"
     @keydown="onKeyDown"
