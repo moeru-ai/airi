@@ -564,6 +564,10 @@ onUnmounted(() => {
           <!-- Android handles touch from the scrollable textarea, so it needs touch-none to keep the bubble drag active. -->
           <BasicTextarea
             v-model="messageInput"
+            autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
+            :spellcheck="false"
             :placeholder="t('stage.message')"
             :class="[
               'font-cute',
