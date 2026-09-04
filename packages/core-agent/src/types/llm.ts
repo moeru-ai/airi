@@ -73,6 +73,7 @@ export interface StreamOptions {
    */
   topP?: number
   toolsCompatibility?: Map<string, boolean>
+  /** Request-level gate. `false` disables tools; cached incompatibility also wins. */
   supportsTools?: boolean
   waitForTools?: boolean
   /** Provider tool-selection directive for one request. */

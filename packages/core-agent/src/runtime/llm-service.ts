@@ -64,6 +64,31 @@ function waitBeforeRetry(delayMs: number, signal?: AbortSignal) {
   })
 }
 
+export function modelKey(model: string, chatProvider: ChatProvider): string {
+  return `${chatProvider.chat(model).baseURL}-${model}`
+}
+
+export function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, options?: StreamOptions): boolean {
+  if (options?.supportsTools === false)
+    return false
+  const key = modelKey(model, chatProvider)
+  return options?.toolsCompatibility?.get(key) !== false
+}
+
+/**
+ * Resolve whether the active model+provider currently supports content-part
+ * arrays. Defaults to `true` so first-time calls keep multimodal payloads;
+ * flips to `false` once {@link isContentArrayRelatedError} has fired on this
+ * model key and the caller has cached the degrade in
+ * {@link StreamOptions.contentArrayCompatibility}.
+ */
+export function streamOptionsContentArrayCompatibilityOk(model: string, chatProvider: ChatProvider, options?: StreamOptions): boolean {
+  if (options?.supportsContentArray !== undefined)
+    return options.supportsContentArray
+  const key = modelKey(model, chatProvider)
+  return options?.contentArrayCompatibility?.get(key) !== false
+}
+
 async function resolveTools(options?: StreamOptions) {
   const tools = typeof options?.tools === 'function'
     ? await options.tools()
@@ -71,8 +96,96 @@ async function resolveTools(options?: StreamOptions) {
   return tools ?? []
 }
 
-/** Runs the selected protocol adapter and waits for its generated turn and event consumers. */
-async function streamOnce({
+const PLAIN_TEXT_TOOL_CALL_ERROR_CODE = 'AIRI_PLAIN_TEXT_TOOL_CALL'
+
+type BufferedOutputEvent
+  = | { type: 'text-delta', text: string }
+    | { type: 'reasoning-delta', text: string }
+
+function plainTextToolCallError(toolName: string): Error {
+  return Object.assign(
+    new Error(`Model returned tool call "${toolName}" as plain text instead of native tool calling.`),
+    { code: PLAIN_TEXT_TOOL_CALL_ERROR_CODE },
+  )
+}
+
+function leakedToolCallName(text: string, toolNames: Set<string>): string | undefined {
+  const candidate = text.trim()
+  if (!candidate.startsWith('{') || !candidate.endsWith('}'))
+    return undefined
+
+  try {
+    const parsed = JSON.parse(candidate) as unknown
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))
+      return undefined
+
+    const record = parsed as Record<string, unknown>
+    if (typeof record.name !== 'string' || !toolNames.has(record.name))
+      return undefined
+    if (!Object.hasOwn(record, 'parameters') && !Object.hasOwn(record, 'arguments'))
+      return undefined
+
+    return record.name
+  }
+  catch {
+    return undefined
+  }
+}
+
+function toolNameFrom(tool: unknown): string | undefined {
+  if (typeof tool !== 'object' || tool === null)
+    return undefined
+
+  const candidate = tool as {
+    name?: string
+    function?: { name?: string }
+  }
+  return candidate.function?.name ?? candidate.name
+}
+
+/**
+ * Maps xsAI stream events onto the AIRI {@link StreamEvent} contract.
+ *
+ * xsAI 0.5.0-beta.8 marks failed tool executions with `isError: true` on
+ * `tool-result.done` instead of aborting the stream, so AIRI can distinguish
+ * `tool-error` from `tool-result` directly from the event payload.
+ */
+function toAiriStreamEvent(event: Event): StreamEvent | null {
+  switch (event.type) {
+    case 'text.delta':
+      return { type: 'text-delta', text: event.delta }
+    case 'reasoning.delta':
+      return { type: 'reasoning-delta', text: event.delta }
+    case 'tool-call.done':
+      return { ...event, type: 'tool-call' }
+    case 'tool-result.done':
+      if (event.isError === true)
+        return { ...event, type: 'tool-error', isError: true }
+      return {
+        type: 'tool-result',
+        toolCallId: event.toolCallId,
+        result: typeof event.result === 'string' || Array.isArray(event.result)
+          ? event.result
+          : JSON.stringify(event.result),
+      }
+    case 'error':
+      return {
+        type: 'error',
+        error: event.cause ?? new Error(event.message),
+      }
+    case 'text.start':
+    case 'text.done':
+    case 'reasoning.start':
+    case 'reasoning.done':
+    case 'step.start':
+    case 'step.done':
+    case 'tool-call.start':
+    case 'tool-call.delta':
+      return null
+  }
+}
+
+export async function streamFrom({
   model,
   chatProvider,
   conversation,
@@ -97,12 +210,16 @@ async function streamOnce({
     : []
   const mergedTools = supportedTools ? [...builtinTools, ...customTools] : []
   const tools = mergedTools.length > 0 ? mergedTools : undefined
+  const toolNames = new Set(mergedTools.flatMap(tool => toolNameFrom(tool) ?? []))
 
   const scope = createContinuationScope(request.config, { ...options, providerId: initialStep?.providerId ?? options?.providerId })
 
   return new Promise<void>((resolve, reject) => {
     let settled = false
     let stepsSettled = false
+    let bufferPossibleToolCall = toolNames.size > 0
+    let bufferedOutputEvents: BufferedOutputEvent[] = []
+    let bufferedText = ''
     const resolveOnce = () => {
       if (settled)
         return
@@ -116,24 +233,138 @@ async function streamOnce({
       reject(error)
     }
 
-    const onEvent = async (streamEvent: StreamEvent) => {
-      try {
-        if (streamEvent != null)
-          await options?.onStreamEvent?.(streamEvent)
-        if (streamEvent?.type === 'error')
-          rejectOnce(streamEvent.error)
+    const emitOutputEvent = async (event: BufferedOutputEvent) => {
+      if (event.text)
+        await options?.onStreamEvent?.(event)
+    }
+
+    const bufferOutputEvent = (event: BufferedOutputEvent) => {
+      const previous = bufferedOutputEvents.at(-1)
+      if (previous?.type === event.type)
+        previous.text += event.text
+      else
+        bufferedOutputEvents.push(event)
+    }
+
+    const takeBufferedOutput = () => {
+      const events = bufferedOutputEvents
+      bufferedOutputEvents = []
+      bufferedText = ''
+      return events
+    }
+
+    const flushBufferedOutput = async () => {
+      const events = takeBufferedOutput()
+      for (const event of events)
+        await emitOutputEvent(event)
+    }
+
+    const passThroughBufferedOutput = async () => {
+      bufferPossibleToolCall = false
+      await flushBufferedOutput()
+    }
+
+    const finishPossibleToolCall = async () => {
+      if (!bufferPossibleToolCall)
+        return
+
+      bufferPossibleToolCall = false
+      const toolName = leakedToolCallName(bufferedText, toolNames)
+      if (toolName) {
+        takeBufferedOutput()
+        throw plainTextToolCallError(toolName)
       }
-      catch (error) {
-        rejectOnce(error)
-        if (request.protocol === 'responses')
-          throw error
+
+      await flushBufferedOutput()
+    }
+
+    const startToolCallGuardStep = async () => {
+      await finishPossibleToolCall()
+      bufferPossibleToolCall = toolNames.size > 0
+    }
+
+    const consumeTextDelta = async (text: string) => {
+      if (!bufferPossibleToolCall) {
+        await emitOutputEvent({ type: 'text-delta', text })
+        return
+      }
+
+      bufferOutputEvent({ type: 'text-delta', text })
+      bufferedText += text
+      const firstNonWhitespace = bufferedText.trimStart().at(0)
+      // xsAI already retains the full step text. Keep any JSON-shaped candidate
+      // until the step ends; releasing a large candidate would expose the leak.
+      if (firstNonWhitespace !== undefined && firstNonWhitespace !== '{') {
+        await passThroughBufferedOutput()
       }
     }
 
+    const consumeReasoningDelta = async (text: string) => {
+      if (!bufferPossibleToolCall) {
+        await emitOutputEvent({ type: 'reasoning-delta', text })
+        return
+      }
+
+      bufferOutputEvent({ type: 'reasoning-delta', text })
+    }
+
+    const processEvent = async (event: Event) => {
+      if (event.type === 'step.start') {
+        await startToolCallGuardStep()
+        return
+      }
+      if (event.type === 'step.done') {
+        await finishPossibleToolCall()
+        return
+      }
+      if (event.type === 'text.delta') {
+        await consumeTextDelta(event.delta)
+        return
+      }
+      if (event.type === 'reasoning.delta') {
+        await consumeReasoningDelta(event.delta)
+        return
+      }
+      if (
+        event.type === 'tool-call.start'
+        || event.type === 'tool-call.delta'
+        || event.type === 'tool-call.done'
+      ) {
+        // A native tool-call event proves this step used the provider protocol.
+        // Release any reasoning that arrived before it.
+        await passThroughBufferedOutput()
+      }
+
+      const streamEvent = toAiriStreamEvent(event)
+      if (streamEvent != null)
+        await options?.onStreamEvent?.(streamEvent)
+      if (streamEvent?.type === 'error')
+        rejectOnce(streamEvent.error)
+    }
+
+    // xsAI intentionally does not await onEvent. Keep our own chain so output
+    // events retain provider order and completion waits for accepted deltas.
+    let eventQueue = Promise.resolve()
+    const onEvent = (event: Event) => {
+      if (settled || stepsSettled)
+        return
+
+      eventQueue = eventQueue.then(() => processEvent(event))
+      void eventQueue.catch(error => rejectOnce(error))
+    }
+
     try {
-      const streamResult = request.protocol === 'responses'
-        ? streamResponses({ config: request.config, webSearch: supportedTools && request.webSearch, conversation, scope, options, tools, initialStep, onEvent })
-        : streamChatCompletions({ config: request.config, conversation, scope, options, tools, initialStep, onEvent, supportsContentArray: contentArraySupported })
+      const streamResult = streamText({
+        ...chatConfig,
+        abortSignal: options?.abortSignal,
+        messages: sanitized,
+        headers: options?.headers,
+        streamOptions: { includeUsage: true },
+        stopWhen: stepCountAtLeast(10),
+        tools,
+        toolChoice: tools ? options?.toolChoice : undefined,
+        onEvent,
+      })
 
       // NOTICE:
       // `steps` settles after all tool rounds, while provider finish events can arrive earlier.
@@ -141,17 +372,25 @@ async function streamOnce({
       // Source: @xsai/stream-text 0.5 steps and AIRI eval runners.
       // Remove this path when xsAI emits one terminal event after all tool rounds.
       void streamResult.steps.then(async () => {
-        if (settled)
-          return
-        // Ignore any late provider error event emitted after xsAI has already
-        // resolved the authoritative full-step lifecycle.
+        const acceptedEvents = eventQueue
+        // Mark the provider lifecycle settled before awaiting accepted events.
+        // Late provider errors must not invalidate an already completed stream.
         stepsSettled = true
         try {
-          const generatedTurn = await streamResult.generatedTurn
-          await options?.onStreamEvent?.({ type: 'finish' })
-          if (options?.abortSignal?.aborted)
-            throw options.abortSignal.reason
-          await options?.onGeneratedTurn?.(generatedTurn)
+          await acceptedEvents
+          await finishPossibleToolCall()
+        }
+        catch (error) {
+          if (!settled) {
+            settled = true
+            reject(error)
+          }
+          return
+        }
+
+        try {
+          const finalMessages = await streamResult.messages
+          await options?.onMessages?.(finalMessages)
         }
         catch (error) {
           // Terminal consumers and generated turn persistence belong to generation
@@ -334,8 +573,17 @@ const TOOLS_RELATED_ERROR_PATTERNS: RegExp[] = [
 ]
 
 export function isToolRelatedError(error: unknown): boolean {
+  if (isPlainTextToolCallError(error))
+    return true
+
   const message = String(error)
   return TOOLS_RELATED_ERROR_PATTERNS.some(pattern => pattern.test(message))
+}
+
+export function isPlainTextToolCallError(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && (error as { code?: unknown }).code === PLAIN_TEXT_TOOL_CALL_ERROR_CODE
 }
 
 // Runtime auto-degrade: patterns that indicate the provider rejected
