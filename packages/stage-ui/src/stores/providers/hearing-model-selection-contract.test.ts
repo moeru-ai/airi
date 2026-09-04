@@ -1,15 +1,23 @@
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-
 import { describe, expect, it } from 'vitest'
 
-const source = readFileSync(fileURLToPath(new URL('../../../../stage-pages/src/pages/settings/modules/hearing.vue', import.meta.url)), 'utf8')
+import { allowsManualModelInput } from '../../../../stage-pages/src/pages/settings/modules/hearing-model-selection'
 
 describe('hearing model selection', () => {
-  it('allows a bypassed FunASR provider with an empty catalog to accept a manual model', () => {
-    expect(source).toContain('const allowsManualModelInput = computed(() =>')
-    expect(source).toContain('providerId === \'funasr-audio-transcription\'')
-    expect(source).toContain('providerStore.providers[providerId]?.status === \'bypassed\'')
-    expect(source).toContain('v-else-if="allowsManualModelInput"')
+  it('allows a bypassed FunASR instance with an empty failed catalog to accept a manual model', () => {
+    expect(allowsManualModelInput({
+      supportsModelListing: true,
+      modelCount: 0,
+      isLoading: false,
+      provider: { definitionId: 'funasr-audio-transcription', status: 'bypassed' },
+    })).toBe(true)
+  })
+
+  it('does not expose manual input for a configured FunASR instance with a failed catalog', () => {
+    expect(allowsManualModelInput({
+      supportsModelListing: true,
+      modelCount: 0,
+      isLoading: false,
+      provider: { definitionId: 'funasr-audio-transcription', status: 'configured' },
+    })).toBe(false)
   })
 })
