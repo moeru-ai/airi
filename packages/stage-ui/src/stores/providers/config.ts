@@ -384,11 +384,13 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
 
     const provider = providers.value[resolvedProviderId]
     const pendingProvider = pendingState?.provider
-    const didTransition = provider?.status === 'validating' || (!provider && pendingProvider?.status === 'validating')
-    if (provider?.status === 'validating') {
+    const pendingValidationOwnsProvider = pendingProvider?.status === 'validating'
+      && pendingState?.validationLease?.token === token
+    const didTransition = provider?.status === 'validating' || pendingValidationOwnsProvider
+    if (provider && didTransition) {
       provider.status = status
     }
-    else if (!provider && pendingProvider?.status === 'validating' && requestedProviderId) {
+    else if (pendingValidationOwnsProvider && requestedProviderId) {
       pendingProviderCreationStates.set(requestedProviderId, {
         provider: { ...pendingProvider, status },
       })
@@ -430,11 +432,13 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
 
     const provider = providers.value[resolvedProviderId]
     const pendingProvider = pendingState?.provider
-    const didTransition = provider?.status === 'validating' || (!provider && pendingProvider?.status === 'validating')
-    if (provider?.status === 'validating') {
+    const pendingValidationOwnsProvider = pendingProvider?.status === 'validating'
+      && pendingState?.validationLease?.token === token
+    const didTransition = provider?.status === 'validating' || pendingValidationOwnsProvider
+    if (provider && didTransition) {
       provider.status = activeValidation.previousStatus
     }
-    else if (!provider && pendingProvider?.status === 'validating' && requestedProviderId) {
+    else if (pendingValidationOwnsProvider && requestedProviderId) {
       pendingProviderCreationStates.set(requestedProviderId, {
         provider: { ...pendingProvider, status: activeValidation.previousStatus },
       })
