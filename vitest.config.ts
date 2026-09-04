@@ -13,6 +13,7 @@ export default defineConfig({
       'packages/ccc',
       'packages/core-agent',
       'packages/i18n',
+      'packages/pipelines-audio',
       'packages/input-gamepad',
       'packages/input-gamepad-vueuse',
       'packages/input-playstation-dualsense-5',
