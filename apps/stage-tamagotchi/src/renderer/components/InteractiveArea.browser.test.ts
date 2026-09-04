@@ -315,6 +315,16 @@ describe('interactive area synchronized state', () => {
     }))
   })
 
+  it('opts the mobile composer out of browser form assistance', async () => {
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const input = screen.getByRole('textbox').element() as HTMLTextAreaElement
+
+    expect(input.getAttribute('autocomplete')).toBe('off')
+    expect(input.getAttribute('autocapitalize')).toBe('off')
+    expect(input.getAttribute('autocorrect')).toBe('off')
+    expect(input.spellcheck).toBe(false)
+  })
+
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3755530944
   it('keeps a failed mobile draft out of a newly selected session for Issue #2085', async () => {
     // ROOT CAUSE:
