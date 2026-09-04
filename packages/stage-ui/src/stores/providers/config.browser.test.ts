@@ -290,6 +290,75 @@ describe('provider config synchronization', () => {
     })
   })
 
+  // https://github.com/moeru-ai/airi/pull/2435#discussion_r3930758343
+  it.each([
+    { expectedStatus: 'validating', responseStatus: 'configured', validationState: 'active' },
+    { expectedStatus: 'invalid', responseStatus: 'configured', validationState: 'completed' },
+    { expectedStatus: 'bypassed', responseStatus: 'bypassed', validationState: 'none' },
+  ] as const)('preserves $validationState validation state during creation reconciliation for PR #2435', async ({ expectedStatus, responseStatus, validationState }) => {
+    let resolveCreate!: (provider: InferenceServiceProvider) => void
+    let resolveReconciliation!: (provider: InferenceServiceProvider) => void
+    mocks.service.createRemote.mockReturnValue(new Promise<InferenceServiceProvider>((resolve) => {
+      resolveCreate = resolve
+    }))
+    mocks.service.patchConfigRemote.mockReturnValue(new Promise<InferenceServiceProvider>((resolve) => {
+      resolveReconciliation = resolve
+    }))
+
+    const namespace = `provider-config-reconciliation-validation:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    setActivePinia(leaderContext.pinia)
+    const leaderStore = useProviderConfigStore()
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerStore = useProviderConfigStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    const creation = followerStore.synchronizeAddedProvider({ ...localProvider })
+    await vi.waitFor(() => expect(leaderStore.providers[localProvider.id]).toBeDefined())
+    await followerStore.setProviderStatus(localProvider.id, 'configured')
+    resolveCreate(remoteProvider)
+    await vi.waitFor(() => expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce())
+
+    const validationToken = validationState === 'none' ? undefined : crypto.randomUUID()
+    if (validationToken) {
+      await followerStore.beginProviderValidation(remoteProvider.id, validationToken)
+      await vi.waitFor(() => {
+        expect(leaderStore.providerValidationLeases[remoteProvider.id]?.token).toBe(validationToken)
+        expect(leaderStore.providers[remoteProvider.id]?.status).toBe('validating')
+      })
+    }
+
+    if (validationState === 'completed' && validationToken) {
+      await followerStore.finishProviderValidation(remoteProvider.id, validationToken, 'invalid')
+      await vi.waitFor(() => {
+        expect(leaderStore.providerValidationLeases[remoteProvider.id]).toBeUndefined()
+        expect(leaderStore.providers[remoteProvider.id]?.status).toBe('invalid')
+      })
+    }
+
+    resolveReconciliation({ ...remoteProvider, status: responseStatus })
+    await creation
+
+    await vi.waitFor(() => {
+      expect(leaderStore.providers[remoteProvider.id]?.status).toBe(expectedStatus)
+      expect(followerStore.providers[remoteProvider.id]?.status).toBe(expectedStatus)
+    })
+
+    if (validationState !== 'active' || !validationToken)
+      return
+
+    expect(leaderStore.providerValidationLeases[remoteProvider.id]?.token).toBe(validationToken)
+    await followerStore.finishProviderValidation(remoteProvider.id, validationToken, 'configured')
+    await vi.waitFor(() => {
+      expect(leaderStore.providerValidationLeases[remoteProvider.id]).toBeUndefined()
+      expect(leaderStore.providers[remoteProvider.id]?.status).toBe('configured')
+      expect(followerStore.providers[remoteProvider.id]?.status).toBe('configured')
+    })
+  })
+
   it('restores an active validation after leader failover', async () => {
     mocks.service.buildLocal.mockReturnValue(localProvider)
     const namespace = `provider-config-failover:${crypto.randomUUID()}`

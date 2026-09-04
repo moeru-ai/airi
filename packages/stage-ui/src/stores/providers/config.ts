@@ -569,6 +569,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       markProviderAdded(remote.id)
       recordProviderCreationResolution(provider.id, remote.id)
       capturePendingProviderCreationState(remote.id)
+      const stateBeforeReconciliation = pendingProviderCreationStates.get(provider.id)
 
       if (!wasModified) {
         completeProviderCreation(provider.id)
@@ -584,10 +585,18 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
         if (await discardRemovedProviderCreation(provider.id, remote.id))
           return saved
         const shouldApplySaved = providers.value[remote.id] === reconciled
-        restorePendingProviderCreationState(provider.id, remote.id)
+        const stateChangedDuringReconciliation
+          = pendingProviderCreationStates.get(provider.id) !== stateBeforeReconciliation
+        const restored = restorePendingProviderCreationState(provider.id, remote.id)
         if (shouldApplySaved) {
-          providers.value[remote.id] = validationLease
-            ? { ...saved, status: reconciled.status }
+          const activeValidation = providerValidationLeases.value[remote.id]
+          const statusToPreserve = stateChangedDuringReconciliation
+            ? restored?.status ?? (activeValidation ? reconciled.status : undefined)
+            : validationLease
+              ? reconciled.status
+              : undefined
+          providers.value[remote.id] = statusToPreserve
+            ? { ...saved, status: statusToPreserve }
             : saved
         }
         completeProviderCreation(provider.id)
