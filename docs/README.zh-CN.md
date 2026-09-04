@@ -293,6 +293,15 @@ pnpm dev:tamagotchi
 nix run github:moeru-ai/airi
 ```
 
+#### NixOS
+
+在 NixOS 上，Electron 需要一些不在标准路径下的共享库。请使用 `flake.nix` 中定义的 FHS shell：
+
+```shell
+nix develop .#fhs
+pnpm dev:tamagotchi
+```
+
 ### Stage Pocket（移动版）
 
 启动 Capacitor Web 版本的开发服务器：
