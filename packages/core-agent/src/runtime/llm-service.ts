@@ -247,6 +247,7 @@ export async function streamFrom({
     let stepsSettled = false
     let bufferPossibleToolCall = toolNames.size > 0
     let bufferedOutputEvents: BufferedOutputEvent[] = []
+    let bufferedReasoningText = ''
     let bufferedText = ''
     const resolveOnce = () => {
       if (settled)
@@ -281,6 +282,7 @@ export async function streamFrom({
     const takeBufferedOutput = () => {
       const events = bufferedOutputEvents
       bufferedOutputEvents = []
+      bufferedReasoningText = ''
       bufferedText = ''
       return events
     }
@@ -302,6 +304,7 @@ export async function streamFrom({
 
       bufferPossibleToolCall = false
       const toolName = leakedToolCallName(bufferedText, toolNames)
+        ?? leakedToolCallName(bufferedReasoningText, toolNames)
       if (toolName) {
         takeBufferedOutput()
         throw plainTextToolCallError(toolName)
@@ -327,7 +330,7 @@ export async function streamFrom({
       // xsAI already retains the full step text. Keep any JSON-shaped candidate
       // until the step ends; releasing a large candidate would expose the leak.
       if (firstNonWhitespace !== undefined && firstNonWhitespace !== '{') {
-        await passThroughBufferedOutput()
+        await finishPossibleToolCall()
       }
     }
 
@@ -338,6 +341,7 @@ export async function streamFrom({
       }
 
       bufferOutputEvent({ type: 'reasoning-delta', text })
+      bufferedReasoningText += text
     }
 
     const processEvent = async (event: Event) => {
