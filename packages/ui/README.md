@@ -65,6 +65,30 @@ import { Button } from '@proj-airi/ui'
     * [Range](src/components/Form/Range)
     * [ComboboxSelect](src/components/Form/Select)
     * [Textarea](src/components/Form/Textarea)
+    * [ContentEditable](src/components/form/content-editable)
+
+### BasicContentEditable
+
+Use `BasicContentEditable` for a plain-text multiline keyboard target that must not be a browser form control. It submits on Enter and adds a line on Shift+Enter.
+
+Do not use it for a standard form field. Use `Textarea` when browser form behavior is required.
+
+```vue
+<script setup lang="ts">
+import { BasicContentEditable } from '@proj-airi/ui'
+import { ref } from 'vue'
+
+const message = ref('')
+
+function sendMessage(value: string) {
+  console.info(value)
+}
+</script>
+
+<template>
+  <BasicContentEditable v-model="message" placeholder="Write a message" @submit="sendMessage" />
+</template>
+```
 
 ## License
 

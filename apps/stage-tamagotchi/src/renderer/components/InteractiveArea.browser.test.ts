@@ -13,11 +13,12 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
+import { BasicContentEditable } from '@proj-airi/ui'
 import { createPinia, disposePinia } from 'pinia'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { page, userEvent } from 'vitest/browser'
-import { nextTick } from 'vue'
+import { defineComponent, nextTick, ref } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
@@ -35,6 +36,24 @@ function createTestI18n() {
     messages: { en: {} },
   })
 }
+
+const ContentEditableHarness = defineComponent({
+  components: { BasicContentEditable },
+  setup() {
+    const defaultHeight = ref('32px')
+    const message = ref('')
+
+    return { defaultHeight, message }
+  },
+  template: `
+    <button type="button" @click="defaultHeight = '48px'">Expand editor</button>
+    <BasicContentEditable
+      v-model="message"
+      :default-height="defaultHeight"
+      placeholder="Write a message"
+    />
+  `,
+})
 
 async function renderArea(component: Component = InteractiveArea) {
   useL2dViewControl().viewControlsEnabled.value = false
@@ -954,8 +973,39 @@ describe('interactive area synchronized state', () => {
     const input = screen.getByRole('textbox').element()
 
     expect(input.tagName).toBe('DIV')
-    expect(input.getAttribute('contenteditable')).toBe('true')
+    expect(input.getAttribute('contenteditable')).toBe('plaintext-only')
     expect(input.getAttribute('aria-multiline')).toBe('true')
+    expect(input.getAttribute('autocapitalize')).toBe('off')
+    expect(input.getAttribute('autocorrect')).toBe('off')
+    expect(input.getAttribute('spellcheck')).toBe('false')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2461#discussion_r3932375161
+  it('restores the mobile placeholder after a draft is cleared', async () => {
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const input = screen.getByRole('textbox').element()
+
+    await userEvent.fill(input, 'draft')
+    await userEvent.clear(input)
+
+    await vi.waitFor(() => expect(input.getAttribute('data-empty')).toBe(''))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2461#discussion_r3932701283
+  // https://github.com/moeru-ai/airi/pull/2461#discussion_r3932882973
+  it('normalizes rich input and reacts to default height changes', async () => {
+    const screen = await render(ContentEditableHarness)
+    const input = screen.getByRole('textbox').element()
+
+    input.innerHTML = '<strong>formatted</strong>'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+
+    await vi.waitFor(() => expect(input.innerHTML).toBe('formatted'))
+    await vi.waitFor(() => expect(input.style.height).toBe('32px'))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Expand editor' }))
+
+    await vi.waitFor(() => expect(input.style.height).toBe('48px'))
   })
 
   it('keeps a one-line mobile draft at the composer height', async () => {
