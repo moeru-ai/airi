@@ -96,6 +96,16 @@ const sortedProviderModels = computed(() => {
     return 0
   })
 })
+const allowsManualModelInput = computed(() => {
+  if (!supportsModelListing.value)
+    return true
+  if (providerModels.value.length > 0 || isLoadingActiveProviderModels.value)
+    return false
+
+  const providerId = activeTranscriptionProvider.value
+  return providerId === 'openai-compatible-audio-transcription'
+    || (providerId === 'funasr-audio-transcription' && providerStore.providers[providerId]?.status === 'bypassed')
+})
 
 function formatVADThreshold(value: number) {
   return value.toFixed(2)
@@ -511,7 +521,7 @@ onUnmounted(() => {
 
             <!-- Manual input for providers without model listing or when no models are available -->
             <div
-              v-else-if="!supportsModelListing || (activeTranscriptionProvider === 'openai-compatible-audio-transcription' && providerModels.length === 0 && !isLoadingActiveProviderModels)"
+              v-else-if="allowsManualModelInput"
               class="mt-2"
             >
               <FieldInput
