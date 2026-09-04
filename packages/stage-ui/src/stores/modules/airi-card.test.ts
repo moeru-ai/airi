@@ -96,10 +96,6 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
-/**
- * @example
- * describe('airi-card store', () => {})
- */
 describe('airi-card store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -224,6 +220,12 @@ describe('airi-card store', () => {
       description: 'Card for the promoted leader.',
       extensions: {
         airi: {
+          avatarModels: [{
+            id: 'vrm-avatar-model',
+            displayModelId: 'preset-vrm-1',
+            type: 'vrm',
+            config: {},
+          }],
           modules: {
             consciousness: { provider: 'mock-consciousness-provider', model: 'mock-consciousness-model' },
             vision: { provider: 'mock-vision-provider', model: 'mock-vision-model' },
@@ -240,6 +242,17 @@ describe('airi-card store', () => {
       description: 'Card for the active leader.',
       extensions: {
         airi: {
+          avatarModels: [{
+            id: 'live2d-avatar-model',
+            displayModelId: 'preset-live2d-1',
+            type: 'live2d',
+            config: {
+              controls: {
+                disabledExpressions: [],
+                disabledMotions: [],
+              },
+            },
+          }],
           modules: {
             consciousness: { provider: 'mock-consciousness-provider', model: 'mock-consciousness-model' },
             vision: { provider: 'mock-vision-provider', model: 'mock-vision-model' },
@@ -289,17 +302,150 @@ describe('airi-card store', () => {
     const cardStore = useAiriCardStore()
     await cardStore.initialize()
 
-    expect(await cardStore.updateActiveCardDisplayModel('display-model-iru-v2')).toBe(true)
+    expect(await cardStore.setActiveCardDefaultAvatarModel('preset-vrm-1')).toBe(true)
     expect(await cardStore.updateActiveCardConsciousness({ provider: 'openrouter-ai', model: 'anthropic/claude-sonnet' })).toBe(true)
     expect(await cardStore.updateActiveCardVision({ provider: 'ollama', model: 'llava' })).toBe(true)
     expect(await cardStore.updateActiveCardSpeech({ provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' })).toBe(true)
     expect(cardStore.activeCard?.extensions.airi.modules).toMatchObject({
-      displayModelId: 'display-model-iru-v2',
       consciousness: { provider: 'openrouter-ai', model: 'anthropic/claude-sonnet' },
       vision: { provider: 'ollama', model: 'llava' },
       speech: { provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' },
     })
-    expect(stageModelStore.stageModelSelected).toBe('display-model-iru-v2')
+    expect(cardStore.selectedAvatarModel).toMatchObject({
+      displayModelId: 'preset-vrm-1',
+      type: 'vrm',
+    })
+    expect(cardStore.activeCard?.extensions.airi.defaultAvatarModelId).toBe(cardStore.selectedAvatarModelId)
+    expect(stageModelStore.stageModelSelected).toBe('preset-vrm-1')
+  })
+
+  // ROOT CAUSE:
+  //
+  // The Character stored the selected Display Model and its Avatar Model
+  // reference. The runtime Avatar Model ID was not durable. A new runtime
+  // selected the first Avatar Model instead of the Character default.
+  //
+  // We fixed this by storing the default Avatar Model ID on the Character.
+  // Initialization now restores that ID into the runtime selection.
+  it('restores the Character default Avatar Model after a runtime restart', async () => {
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+    await cardStore.setActiveCardDefaultAvatarModel('preset-vrm-1')
+
+    const expectedAvatarModelId = cardStore.selectedAvatarModelId
+    const persistedCards = new Map(cardStore.cards)
+
+    setActivePinia(createPinia())
+
+    const restartedStageModelStore = useSettingsStageModel()
+    const restartedCardStore = useAiriCardStore()
+    restartedCardStore.$patch({ cards: persistedCards })
+    await restartedCardStore.initialize()
+
+    expect(restartedCardStore.selectedAvatarModelId).toBe(expectedAvatarModelId)
+    expect(restartedStageModelStore.stageModelSelected).toBe('preset-vrm-1')
+  })
+
+  it('promotes the configured Display Model when stored Character data has no default Avatar Model ID', async () => {
+    const cardStore = useAiriCardStore()
+    cardStore.$patch({
+      cards: new Map([['default', {
+        name: 'ReLU',
+        version: '1.0.0',
+        description: 'Stored before the default Avatar Model field existed.',
+        extensions: {
+          airi: {
+            avatarModels: [{
+              id: 'default-live2d-avatar-model',
+              displayModelId: 'preset-live2d-1',
+              type: 'live2d',
+              config: {
+                controls: {
+                  disabledExpressions: [],
+                  disabledMotions: [],
+                },
+              },
+            }, {
+              id: 'configured-vrm-avatar-model',
+              displayModelId: 'preset-vrm-1',
+              type: 'vrm',
+              config: {},
+            }],
+            modules: {
+              consciousness: { provider: '', model: '' },
+              vision: { provider: '', model: '' },
+              speech: { provider: '', model: '', voice_id: '' },
+              displayModelId: 'preset-vrm-1',
+            },
+            agents: {},
+          },
+        },
+      } satisfies AiriCard]]),
+    })
+
+    await cardStore.initialize()
+
+    expect(cardStore.activeCard?.extensions.airi.defaultAvatarModelId).toBe('configured-vrm-avatar-model')
+    expect(cardStore.selectedAvatarModelId).toBe('configured-vrm-avatar-model')
+    expect(useSettingsStageModel().stageModelSelected).toBe('preset-vrm-1')
+  })
+
+  it('keeps the runtime model empty when a Character has no default Avatar Model', async () => {
+    const cardStore = useAiriCardStore()
+    const cardId = await cardStore.addCard({
+      name: 'Model optional',
+      version: '1.0.0',
+      description: 'This Character does not select a default Avatar Model.',
+      extensions: {
+        airi: {
+          avatarModels: [{
+            id: 'available-vrm-avatar-model',
+            displayModelId: 'preset-vrm-1',
+            type: 'vrm',
+            config: {},
+          }],
+          modules: {
+            consciousness: { provider: '', model: '' },
+            vision: { provider: '', model: '' },
+            speech: { provider: '', model: '', voice_id: '' },
+          },
+          agents: {},
+        },
+      },
+    }, 'scratch')
+    cardStore.activeCardId = cardId
+
+    await cardStore.initialize()
+
+    expect(cardStore.activeCard?.extensions.airi.defaultAvatarModelId).toBeUndefined()
+    expect(cardStore.selectedAvatarModelId).toBeUndefined()
+    expect(useSettingsStageModel().stageModelSelected).toBe('')
+  })
+
+  it('stores Live2D control policy on the selected Avatar Model', async () => {
+    const stageModelStore = useSettingsStageModel()
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+
+    const avatarModelId = cardStore.selectedAvatarModelId
+    expect(avatarModelId).toBe('default-live2d-avatar-model')
+
+    await expect(cardStore.updateLive2DControlPolicy('default', avatarModelId!, {
+      disabledExpressions: ['05_Angry'],
+      disabledMotions: ['motions/哭哭.motion3.json'],
+    })).resolves.toBe(true)
+
+    expect(cardStore.selectedAvatarModel).toMatchObject({
+      config: {
+        controls: {
+          disabledExpressions: ['05_Angry'],
+          disabledMotions: ['motions/哭哭.motion3.json'],
+        },
+      },
+    })
+    await cardStore.selectAvatarModel(undefined)
+    expect(cardStore.selectedAvatarModelId).toBeUndefined()
+    expect(stageModelStore.stageModelSelected).toBe('')
   })
 
   // ROOT CAUSE:
@@ -324,6 +470,12 @@ describe('airi-card store', () => {
       description: 'Card with a VRM display model',
       extensions: {
         airi: {
+          avatarModels: [{
+            id: 'vrm-avatar-model',
+            displayModelId: 'preset-vrm-1',
+            type: 'vrm',
+            config: {},
+          }],
           modules: {
             consciousness: { provider: 'mock-consciousness-provider', model: 'mock-consciousness-model' },
             vision: { provider: 'mock-vision-provider', model: 'mock-vision-model' },
@@ -354,6 +506,17 @@ describe('airi-card store', () => {
       description: 'Card whose model can be edited',
       extensions: {
         airi: {
+          avatarModels: [{
+            id: 'editable-avatar-model',
+            displayModelId: 'preset-live2d-1',
+            type: 'live2d',
+            config: {
+              controls: {
+                disabledExpressions: [],
+                disabledMotions: [],
+              },
+            },
+          }],
           modules: {
             consciousness: { provider: 'mock-consciousness-provider', model: 'mock-consciousness-model' },
             vision: { provider: 'mock-vision-provider', model: 'mock-vision-model' },
@@ -374,10 +537,12 @@ describe('airi-card store', () => {
         ...card!.extensions,
         airi: {
           ...card!.extensions.airi,
-          modules: {
-            ...card!.extensions.airi.modules,
+          avatarModels: [{
+            id: 'editable-avatar-model',
             displayModelId: 'preset-vrm-1',
-          },
+            type: 'vrm',
+            config: {},
+          }],
         },
       },
     })
@@ -436,7 +601,7 @@ describe('airi-card store', () => {
 
     const cardStore = useAiriCardStore()
     await cardStore.initialize()
-    await cardStore.updateActiveCardDisplayModel('preset-vrm-1')
+    await cardStore.setActiveCardDefaultAvatarModel('preset-vrm-1')
     stageModelStore.stageModelSelected = 'preset-live2d-1'
 
     cardStore.resetState()
@@ -444,10 +609,6 @@ describe('airi-card store', () => {
     expect(stageModelStore.stageModelSelected).toBe('preset-live2d-1')
   })
 
-  /**
-   * @example
-   * it('updates speech config on the active card', () => {})
-   */
   it('updates speech config on the active card', async () => {
     const cardStore = useAiriCardStore()
     await cardStore.initialize()
@@ -503,6 +664,33 @@ describe('airi-card store', () => {
     expect(cardStore.systemPrompt).not.toContain('What did you find?')
   })
 
+  it('adds only enabled Live2D controls to the ACT prompt', async () => {
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+
+    cardStore.activeLive2DModelControls = {
+      expressions: [
+        { name: '05_Angry', fileName: 'expressions/05_Angry.exp3.json' },
+        { name: '08_EyeCheerful', fileName: 'expressions/08_EyeCheerful.exp3.json' },
+      ],
+      motions: [
+        { fileName: 'motions/哭哭.motion3.json', group: 'AIRI', index: 0 },
+        { fileName: 'motions/疑惑.motion3.json', group: 'AIRI', index: 1 },
+      ],
+    }
+    await cardStore.updateLive2DControlPolicy('default', cardStore.selectedAvatarModelId!, {
+      disabledExpressions: ['05_Angry'],
+      disabledMotions: ['motions/哭哭.motion3.json'],
+    })
+
+    expect(cardStore.systemPrompt).toContain('"08_EyeCheerful"')
+    expect(cardStore.systemPrompt).toContain('"motions/疑惑.motion3.json"')
+    expect(cardStore.systemPrompt).toContain('<|ACT {"expression":{"name":"08_EyeCheerful","duration":3}}|>')
+    expect(cardStore.systemPrompt).toContain('<|ACT {"expression":null}|>')
+    expect(cardStore.systemPrompt).not.toContain('"05_Angry"')
+    expect(cardStore.systemPrompt).not.toContain('"motions/哭哭.motion3.json"')
+  })
+
   it('falls back to the default card when the active custom card is deleted', async () => {
     const cardStore = useAiriCardStore()
     await cardStore.initialize()
@@ -530,10 +718,10 @@ describe('airi-card store', () => {
     expect(cardStore.activeCardId).toBe('default')
   })
 
-  it('preserves a valid persisted active card during initialization', async () => {
+  it('preserves a valid runtime Character selection during initialization', async () => {
     const cardStore = useAiriCardStore()
     const cardId = await cardStore.addCard({
-      name: 'Persisted active card',
+      name: 'Selected Character',
       version: '1.0.0',
       description: 'Keep this selection.',
     }, 'scratch')
@@ -542,10 +730,10 @@ describe('airi-card store', () => {
     await cardStore.initialize()
 
     expect(cardStore.activeCardId).toBe(cardId)
-    expect(cardStore.activeCard?.name).toBe('Persisted active card')
+    expect(cardStore.activeCard?.name).toBe('Selected Character')
   })
 
-  it('repairs a dangling persisted active card during initialization', async () => {
+  it('repairs a dangling runtime Character selection during initialization', async () => {
     const cardStore = useAiriCardStore()
     cardStore.activeCardId = 'missing-card'
 

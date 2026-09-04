@@ -4,6 +4,7 @@ import type {
   StageViewPatch,
   StageViewSnapshotPayload,
 } from '@proj-airi/stage-shared/godot-stage'
+import type { Live2DContext } from '@proj-airi/stage-ui-live2d'
 
 import type { DisplayModel } from '../../../../stores/display-models'
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
@@ -30,6 +31,7 @@ interface ModelSettingsPanelProps {
   settingsClass?: string | string[]
   allowExtractColors?: boolean
   runtimeSnapshot: ModelSettingsRuntimeSnapshot
+  live2dContext?: Live2DContext
   godotViewSnapshot?: StageViewSnapshotPayload | null
   godotViewError?: StageViewErrorPayload
   godotViewControlsLocked?: boolean
@@ -61,7 +63,7 @@ const effectiveRenderer = computed(() => resolveModelSettingsPanelRenderer({
 
 async function handleModelPick(selectedModel: DisplayModel | undefined) {
   stageModelSelected.value = selectedModel?.id ?? ''
-  await airiCardStore.updateActiveCardDisplayModel(selectedModel?.id)
+  await airiCardStore.setActiveCardDefaultAvatarModel(selectedModel?.id)
   await settingsStore.updateStageModel()
 }
 </script>
@@ -109,6 +111,7 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
         :allow-extract-colors="allowExtractColors"
         :palette="palette"
         :runtime-snapshot="runtimeSnapshot"
+        :live2d-context="live2dContext"
         @extract-colors-from-model="emit('extractColorsFromModel')"
       />
       <VRM

@@ -6,24 +6,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 import { useSettingsStageModel } from './stage-model'
 
-const { initialStageModelId, resetLegacyModelIdentity } = vi.hoisted(() => ({
-  initialStageModelId: { value: 'preset-live2d-1' },
+const { resetLegacyModelIdentity } = vi.hoisted(() => ({
   resetLegacyModelIdentity: vi.fn(),
 }))
 
 vi.mock('@proj-airi/stage-ui-three', () => ({
   useModelStore: () => ({ resetLegacyModelIdentity }),
 }))
-
-vi.mock('@proj-airi/stage-shared/composables', async () => {
-  const { refManualReset } = await import('@vueuse/core')
-
-  return {
-    useLocalStorageManualReset: (key: string, value: string) => refManualReset(
-      key === 'settings/stage/model' ? initialStageModelId.value : value,
-    ),
-  }
-})
 
 vi.mock('@vueuse/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@vueuse/core')>()
@@ -37,7 +26,6 @@ vi.mock('@vueuse/core', async (importOriginal) => {
 describe('settings stage model store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    initialStageModelId.value = 'preset-live2d-1'
     resetLegacyModelIdentity.mockReset()
   })
 
@@ -45,37 +33,27 @@ describe('settings stage model store', () => {
     vi.unstubAllGlobals()
   })
 
-  // https://github.com/moeru-ai/airi/issues/1984
-  it('issue #1984: falls back to the default preset when a custom stage model is missing', async () => {
-    const fallbackModel: DisplayModelURL = {
-      id: 'preset-live2d-1',
-      format: DisplayModelFormat.Live2dZip,
-      type: 'url',
-      url: 'https://example.com/preset-live2d.zip',
-      name: 'Preset Live2D',
-      importedAt: 1,
-    }
-
+  // ROOT CAUSE:
+  //
+  // The runtime replaced a missing Display Model with a preset. The selected
+  // Avatar Model still referenced the missing resource, so Character state and
+  // renderer state described different models.
+  //
+  // We fixed this by keeping the resource identity and disabling the renderer.
+  it('disables the renderer when the selected Avatar Model resource is missing', async () => {
     const displayModelsStore = useDisplayModelsStore()
-    const getDisplayModelSpy = vi.spyOn(displayModelsStore, 'getDisplayModel').mockImplementation(async (id) => {
-      if (id === 'display-model-missing')
-        return undefined
-      if (id === fallbackModel.id)
-        return fallbackModel
-      return undefined
-    })
+    const getDisplayModelSpy = vi.spyOn(displayModelsStore, 'getDisplayModel').mockResolvedValue(undefined)
 
     const store = useSettingsStageModel()
     store.stageModelSelected = 'display-model-missing'
 
     await store.initializeStageModel()
 
-    expect(store.stageModelSelected).toBe(fallbackModel.id)
-    expect(store.stageModelSelectedDisplayModel).toEqual(fallbackModel)
-    expect(store.stageModelSelectedUrl).toBe(fallbackModel.url)
-    expect(store.stageModelRenderer).toBe('live2d')
+    expect(store.stageModelSelected).toBe('display-model-missing')
+    expect(store.stageModelSelectedDisplayModel).toBeUndefined()
+    expect(store.stageModelSelectedUrl).toBeUndefined()
+    expect(store.stageModelRenderer).toBe('disabled')
     expect(getDisplayModelSpy).toHaveBeenCalledWith('display-model-missing')
-    expect(getDisplayModelSpy).toHaveBeenCalledWith(fallbackModel.id)
     expect(resetLegacyModelIdentity).not.toHaveBeenCalled()
   })
 
@@ -92,8 +70,8 @@ describe('settings stage model store', () => {
     vi.spyOn(displayModelsStore, 'getDisplayModel').mockResolvedValue(tachieModel)
 
     vi.stubGlobal('window', {})
-    initialStageModelId.value = tachieModel.id
     const store = useSettingsStageModel()
+    store.stageModelSelected = tachieModel.id
 
     await store.initializeStageModel()
 
@@ -117,13 +95,13 @@ describe('settings stage model store', () => {
     vi.spyOn(displayModelsStore, 'getDisplayModel').mockResolvedValue(vrmModel)
 
     vi.stubGlobal('window', {})
-    initialStageModelId.value = vrmModel.id
     const store = useSettingsStageModel()
 
     resetLegacyModelIdentity.mockImplementationOnce(() => {
       expect(store.stageModelRenderer).toBeUndefined()
       expect(store.stageModelSelectedUrl).toBeUndefined()
     })
+    store.stageModelSelected = vrmModel.id
 
     await store.initializeStageModel()
 

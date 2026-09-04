@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { Application } from '@pixi/app'
+import type { Cubism4ModelSettings } from 'pixi-live2d-display/cubism4'
 
 import type { PixiLive2DInternalModel } from '../../../composables/live2d'
+import type { Live2DExpressionControl } from '../../../controls/manifest'
 
 import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
 import { useTheme } from '@proj-airi/ui'
@@ -14,11 +16,12 @@ import { DropShadowFilter } from 'pixi-filters'
 import { Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/cubism4'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 
+import Live2DExpression from '../../live2d/expression.vue'
+
 import {
   createBeatSyncController,
   createLive2DMotionSpring,
   disableLive2DSdkBreath,
-  useExpressionController,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
   useMotionUpdatePluginBeatSync,
@@ -31,11 +34,13 @@ import {
 } from '../../../composables/live2d'
 import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
+import { useLive2D } from '../../../contexts/live2d'
 import { getLive2DMotionControlModelOffset, useL2dViewControl, useLive2DMotionControl, useLive2dParams } from '../../../stores'
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
   modelId?: string
+  revision?: number
 
   app?: Application
   mouthOpenSize?: number
@@ -48,14 +53,15 @@ const props = withDefaults(defineProps<{
   eyeFocusSourceActive?: boolean
   themeColorsHue?: number
   themeColorsHueDynamic?: boolean
-  live2dIdleAnimationEnabled?: boolean
-  live2dForceIdleEyeAnimation?: boolean
-  live2dAutoBlinkEnabled?: boolean
-  live2dForceAutoBlinkEnabled?: boolean
-  live2dExpressionEnabled?: boolean
-  live2dShadowEnabled?: boolean
+  enabledIdleAnimation?: boolean
+  enabledForceIdleEyeAnimation?: boolean
+  enabledAutoBlink?: boolean
+  enabledForceAutoBlink?: boolean
+  enabledExpression?: boolean
+  enabledShadow?: boolean
 }>(), {
   mouthOpenSize: 0,
+  revision: 0,
   nowSpeaking: false,
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
@@ -65,12 +71,12 @@ const props = withDefaults(defineProps<{
   scale: 1,
   themeColorsHue: 220.44,
   themeColorsHueDynamic: false,
-  live2dIdleAnimationEnabled: true,
-  live2dForceIdleEyeAnimation: true,
-  live2dAutoBlinkEnabled: true,
-  live2dForceAutoBlinkEnabled: false,
-  live2dExpressionEnabled: true,
-  live2dShadowEnabled: true,
+  enabledIdleAnimation: true,
+  enabledForceIdleEyeAnimation: true,
+  enabledAutoBlink: true,
+  enabledForceAutoBlink: false,
+  enabledExpression: true,
+  enabledShadow: true,
 })
 
 const emits = defineEmits<{
@@ -166,7 +172,25 @@ function setScaleAndPosition(animated = false) {
   })
 }
 
+function destroyRenderedModel() {
+  const renderedModel = model.value
+  if (!renderedModel)
+    return
+
+  try {
+    pixiApp.value?.stage?.removeChild(renderedModel)
+    renderedModel.destroy()
+  }
+  catch (error) {
+    console.warn('Failed to destroy the rendered Live2D model:', error)
+  }
+  finally {
+    model.value = undefined
+  }
+}
+
 const live2dStore = useLive2dParams()
+const live2d = useLive2D()
 const {
   currentMotion,
   availableMotions,
@@ -176,21 +200,18 @@ const {
 
 const themeColorsHue = toRef(() => props.themeColorsHue)
 const themeColorsHueDynamic = toRef(() => props.themeColorsHueDynamic)
-const live2dIdleAnimationEnabled = toRef(() => props.live2dIdleAnimationEnabled)
-const live2dEyeTrackingEnabled = toRef(() => props.eyeTracking)
-const live2dEyeFocusSourceActive = toRef(() => props.eyeFocusSourceActive)
-const live2dForceIdleEyeAnimation = toRef(() => props.live2dForceIdleEyeAnimation)
-const live2dAutoBlinkEnabled = toRef(() => props.live2dAutoBlinkEnabled)
-const live2dForceAutoBlinkEnabled = toRef(() => props.live2dForceAutoBlinkEnabled)
-const live2dExpressionEnabled = toRef(() => props.live2dExpressionEnabled)
-const live2dShadowEnabled = toRef(() => props.live2dShadowEnabled)
+const enabledIdleAnimation = toRef(() => props.enabledIdleAnimation)
+const enabledEyeTracking = toRef(() => props.eyeTracking)
+const activeEyeFocusSource = toRef(() => props.eyeFocusSourceActive)
+const enabledForceIdleEyeAnimation = toRef(() => props.enabledForceIdleEyeAnimation)
+const enabledAutoBlink = toRef(() => props.enabledAutoBlink)
+const enabledForceAutoBlink = toRef(() => props.enabledForceAutoBlink)
+const enabledExpression = toRef(() => props.enabledExpression)
+const enabledShadow = toRef(() => props.enabledShadow)
 
-// --- Expression controller
 const internalModelRef = shallowRef<PixiLive2DInternalModel>()
-const expressionController = useExpressionController({
-  internalModel: internalModelRef,
-  modelId: props.modelId,
-})
+const expressionReferences = shallowRef<Live2DExpressionControl[]>([])
+const expressionLoader = shallowRef<(fileName: string) => Promise<string>>()
 // Saved SDK manager references for runtime expression toggle (restore on disable)
 const savedEyeBlink = shallowRef<any>(null)
 const savedExpressionManager = shallowRef<any>(null)
@@ -225,6 +246,10 @@ async function loadModel() {
 async function performModelLoad() {
   modelLoading.value = true
   componentState.value = 'loading'
+  const modelSource = modelSrcRef.value
+  const modelId = props.modelId
+  const runtimeModelId = modelId ?? modelSource ?? 'unknown'
+  live2d.beginModelLoad(runtimeModelId)
 
   if (!pixiApp.value || !pixiApp.value.stage) {
     try {
@@ -240,21 +265,13 @@ async function performModelLoad() {
   }
 
   // REVIEW: here as await until(...) guarded the pixiApp and stage to be valid.
-  if (model.value && pixiApp.value?.stage) {
-    // Dispose expression controller before destroying the old model
-    expressionController.dispose()
+  if (model.value) {
+    expressionReferences.value = []
+    expressionLoader.value = undefined
     internalModelRef.value = undefined
-
-    try {
-      pixiApp.value.stage.removeChild(model.value)
-      model.value.destroy()
-    }
-    catch (error) {
-      console.warn('Error removing old model:', error)
-    }
-    model.value = undefined
+    destroyRenderedModel()
   }
-  if (!modelSrcRef.value) {
+  if (!modelSource) {
     console.warn('No Live2D model source provided.')
     modelLoading.value = false
     componentState.value = 'mounted'
@@ -269,7 +286,11 @@ async function performModelLoad() {
     }
 
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
-    await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSrcRef.value, id: props.modelId }, { autoInteract: false })
+    await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSource, id: modelId }, { autoInteract: false })
+    if (isUnmounted || modelSource !== modelSrcRef.value || modelId !== props.modelId) {
+      live2DModel.destroy()
+      return
+    }
     availableMotions.value.forEach((motion) => {
       if (motion.motionName in Emotion) {
         motionMap.value[motion.fileName] = motion.motionName
@@ -312,6 +333,31 @@ async function performModelLoad() {
         fileName: motion.File,
       })) || []))
       .filter(Boolean)
+    live2d.motions.register(availableMotions.value.map(motion => ({
+      fileName: motion.fileName,
+      group: motion.motionName,
+      index: motion.motionIndex,
+    })))
+    live2d.motions.setExecutor({
+      play: motion => setMotion(motion.group, motion.index),
+    })
+
+    const expressionRefs = (internalModel.settings as Cubism4ModelSettings).expressions ?? []
+    expressionReferences.value = expressionRefs.map(expression => ({
+      name: expression.Name,
+      fileName: expression.File,
+    }))
+    const sdkExpressionManager = motionManager.expressionManager
+    live2d.expressions.setExecutor({
+      activate: name => sdkExpressionManager?.setExpression(name) ?? false,
+      reset: () => {
+        if (!sdkExpressionManager)
+          return false
+
+        sdkExpressionManager.resetExpression()
+        return true
+      },
+    })
 
     // Check if user has selected a runtime motion to play as idle
     const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
@@ -331,7 +377,7 @@ async function performModelLoad() {
       }
     }
 
-    if (selectedMotionGroup !== null && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
+    if (selectedMotionGroup !== null && selectedMotionIndex && enabledIdleAnimation.value) {
       setTimeout(() => {
         console.info('Playing selected runtime motion:', selectedMotionGroup, selectedMotionIndex)
         currentMotion.value = {
@@ -360,12 +406,12 @@ async function performModelLoad() {
       internalModel,
       motionManager,
       modelParameters,
-      live2dEyeTrackingEnabled,
-      live2dEyeFocusSourceActive,
-      live2dIdleAnimationEnabled,
-      live2dForceIdleEyeAnimation,
-      live2dAutoBlinkEnabled,
-      live2dForceAutoBlinkEnabled,
+      enabledEyeTracking,
+      activeEyeFocusSource,
+      enabledIdleAnimation,
+      enabledForceIdleEyeAnimation,
+      enabledAutoBlink,
+      enabledForceAutoBlink,
       lastUpdateTime,
     })
 
@@ -376,8 +422,8 @@ async function performModelLoad() {
     // Expression first: sets desired parameter values (e.g. closed eyes = 0).
     // Blink second: reads post-expression eye values, Multiply-modulates on top.
     // This ensures blink respects expression state (0 × blinkFactor = 0).
-    motionManagerUpdate.register(useMotionUpdatePluginExpression(expressionController), 'final')
-    motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginExpression(live2d.expressions), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(enabledExpression), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginManualControl(manualMotionControl, manualMotionSpring), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginBreathControl(manualBreathControl), 'final')
@@ -396,7 +442,7 @@ async function performModelLoad() {
       const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
       const selectedMotionIndex = localStorage.getItem('selected-runtime-motion-index')
 
-      if (selectedMotionGroup !== null && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
+      if (selectedMotionGroup !== null && selectedMotionIndex && enabledIdleAnimation.value) {
         // Restart the selected runtime motion immediately for seamless looping
         console.info('Motion finished, restarting runtime motion:', selectedMotionGroup, selectedMotionIndex)
         // Use requestAnimationFrame to restart on the next frame for smooth transition
@@ -437,9 +483,9 @@ async function performModelLoad() {
     savedEyeBlink.value = internalModel.eyeBlink
     savedExpressionManager.value = motionManager.expressionManager
 
-    // --- Expression controller initialisation (conditional)
-    if (live2dExpressionEnabled.value) {
-      // Disable built-in Cubism expression manager — our expression-controller
+    // --- Expression context initialisation (conditional)
+    if (enabledExpression.value) {
+      // Disable built-in Cubism expression manager — the Root expression context
       // replaces it. The SDK's manager runs after motionManager.update() and
       // would overwrite our final-plugin values every frame.
       if (motionManager.expressionManager) {
@@ -456,45 +502,39 @@ async function performModelLoad() {
       internalModelRef.value = internalModel
     }
 
+    live2d.setModel(live2DModel, internalModel)
     emits('modelLoaded')
   }
   catch (error) {
+    if (isUnmounted || modelSource !== modelSrcRef.value || modelId !== props.modelId)
+      return
+
     console.error('[Live2D] Failed to load model:', error)
-    emits('error', error instanceof Error ? error : new Error(String(error)))
+    live2d.reportError('model', error)
+    const reportedError = live2d.error.value?.cause
+    if (reportedError)
+      emits('error', reportedError)
   }
   finally {
     modelLoading.value = false
     componentState.value = 'mounted'
-    await initExpressionController(internalModelRef.value).catch((err) => {
-      console.warn('[Model.vue] Expression controller initialization failed:', err)
-    })
+    configureExpressions(internalModelRef.value)
   }
 }
 
-/**
- * Initialise the expression controller by reading expression definitions from
- * the model settings (model3.json) and parsing each referenced exp3.json file.
- *
- * This is intentionally fire-and-forget from loadModel so that a failure in
- * expression loading does not prevent the model itself from rendering.
- */
-async function initExpressionController(internalModel?: PixiLive2DInternalModel) {
-  // Dispose any previous state (handles model reloads)
-  expressionController.dispose()
-
-  const settings = internalModel?.settings as any
-  if (!settings)
+function configureExpressions(internalModel?: PixiLive2DInternalModel) {
+  const settings = internalModel?.settings as Cubism4ModelSettings | undefined
+  if (!settings) {
+    expressionReferences.value = []
+    expressionLoader.value = undefined
     return
+  }
 
-  // model3.json stores expressions as { Name, File }[] under settings.expressions
-  const expressionRefs: { Name: string, File: string }[] = settings.expressions ?? []
-  if (expressionRefs.length === 0)
-    return
-
-  // Build a function that can read exp3 files relative to the model root.
-  // For URL-loaded models, resolveURL gives us the full URL. For ZIP-loaded
-  // models the resolved URL points to an in-memory blob/object URL.
-  const readExpFile = async (filePath: string): Promise<string> => {
+  expressionReferences.value = (settings.expressions ?? []).map(expression => ({
+    name: expression.Name,
+    fileName: expression.File,
+  }))
+  expressionLoader.value = async (filePath: string) => {
     const resolvedUrl: string = settings.resolveURL?.(filePath) ?? filePath
     const response = await fetch(resolvedUrl)
     if (!response.ok)
@@ -502,23 +542,34 @@ async function initExpressionController(internalModel?: PixiLive2DInternalModel)
     return response.text()
   }
 
-  await expressionController.initialise(expressionRefs, readExpFile)
+  if (enabledExpression.value) {
+    live2d.expressions.setExecutor({
+      activate: (name) => {
+        live2d.expressions.reset()
+        return live2d.expressions.activate(name).success
+      },
+      reset: () => live2d.expressions.reset().success,
+    })
+  }
 }
 
 async function setMotion(motionName: string, index?: number) {
   // TODO: motion? Not every Live2D model has motion, we do need to help users to set motion
   if (!model.value) {
     console.warn('Cannot set motion: model not loaded')
-    return
+    return false
   }
 
   console.info('Setting motion:', motionName, 'index:', index)
   try {
     await model.value.motion(motionName, index, MotionPriority.FORCE)
     console.info('Motion started successfully:', motionName)
+    return true
   }
   catch (error) {
     console.error('Failed to start motion:', motionName, error)
+    live2d.reportError('motion', error)
+    return false
   }
 }
 
@@ -529,7 +580,7 @@ function updateDropShadowFilter() {
   if (!model.value)
     return
 
-  if (!live2dShadowEnabled.value) {
+  if (!enabledShadow.value) {
     model.value.filters = []
     return
   }
@@ -542,15 +593,15 @@ function updateDropShadowFilter() {
   model.value.filters = [dropShadowFilter.value]
 }
 
-watch(modelSrcRef, async () => await loadModel(), { immediate: true })
+watch([modelSrcRef, () => props.revision], async () => await loadModel(), { immediate: true })
 watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
-watch(live2dShadowEnabled, updateDropShadowFilter)
+watch(enabledShadow, updateDropShadowFilter)
 
 // TODO: This is hacky!
 function updateDropShadowFilterLoop() {
   updateDropShadowFilter()
-  if (!live2dShadowEnabled.value) {
+  if (!enabledShadow.value) {
     dropShadowAnimationId.value = 0
     return
   }
@@ -558,7 +609,7 @@ function updateDropShadowFilterLoop() {
   dropShadowAnimationId.value = requestAnimationFrame(updateDropShadowFilterLoop)
 }
 
-watch([themeColorsHueDynamic, live2dShadowEnabled], ([dynamic, shadowEnabled]) => {
+watch([themeColorsHueDynamic, enabledShadow], ([dynamic, shadowEnabled]) => {
   if (dynamic && shadowEnabled) {
     dropShadowAnimationId.value = requestAnimationFrame(updateDropShadowFilterLoop)
   }
@@ -714,7 +765,7 @@ watch(() => modelParameters.value.rightEyebrowForm, (value) => {
 })
 
 // Watch for idle animation setting changes and stop motions if disabled
-watch(live2dIdleAnimationEnabled, (enabled) => {
+watch(enabledIdleAnimation, (enabled) => {
   if (!enabled && model.value) {
     const internalModel = model.value.internalModel
     if (internalModel?.motionManager) {
@@ -724,7 +775,7 @@ watch(live2dIdleAnimationEnabled, (enabled) => {
 })
 
 // Watch for expression system toggle — nullify/restore SDK managers at runtime
-watch(live2dExpressionEnabled, (enabled) => {
+watch(enabledExpression, (enabled) => {
   if (!model.value)
     return
   const im = model.value.internalModel
@@ -738,15 +789,23 @@ watch(live2dExpressionEnabled, (enabled) => {
     }
 
     internalModelRef.value = im
-    initExpressionController(im).catch((err) => {
-      console.warn('[Model.vue] Expression controller initialisation failed:', err)
-    })
+    configureExpressions(im)
   }
   else {
     mm.expressionManager = savedExpressionManager.value
     im.eyeBlink = savedEyeBlink.value
-    expressionController.dispose()
+    live2d.expressions.reset()
     internalModelRef.value = undefined
+    live2d.expressions.setExecutor({
+      activate: name => savedExpressionManager.value?.setExpression(name) ?? false,
+      reset: () => {
+        if (!savedExpressionManager.value)
+          return false
+
+        savedExpressionManager.value.resetExpression()
+        return true
+      },
+    })
   }
 })
 
@@ -772,7 +831,9 @@ onUnmounted(() => {
   isUnmounted = true
   resizeAnimation?.pause()
   disposeShouldUpdateView?.()
-  expressionController.dispose()
+  expressionReferences.value = []
+  expressionLoader.value = undefined
+  destroyRenderedModel()
 })
 
 function listMotionGroups() {
@@ -794,6 +855,13 @@ import.meta.hot?.dispose(() => {
 </script>
 
 <template>
+  <Live2DExpression
+    v-for="expression in expressionReferences"
+    :key="expression.name"
+    :name="expression.name"
+    :file-name="expression.fileName"
+    :load="expressionLoader!"
+  />
   <div ref="dropShadowColorComputer" hidden bg="primary-400 dark:primary-500" />
   <slot />
 </template>

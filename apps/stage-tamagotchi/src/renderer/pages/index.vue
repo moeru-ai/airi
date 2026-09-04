@@ -297,7 +297,6 @@ watch(
   { immediate: true },
 )
 
-// Emit runtime snapshot on change and on request from settings panel
 /**
  * Sends model-settings runtime events without letting closed HMR channels break the stage.
  */

@@ -153,6 +153,7 @@ function createCard(displayModelId = 'preset-vrm-1'): AiriCard {
     tags: ['hidden'],
     extensions: {
       airi: {
+        avatarModels: [],
         modules: {
           consciousness: { provider: 'openai', model: 'gpt-4o' },
           vision: { provider: 'ollama', model: 'llava' },
