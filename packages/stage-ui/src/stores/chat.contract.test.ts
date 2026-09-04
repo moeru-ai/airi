@@ -62,7 +62,7 @@ const redundantChatAnalyticsMocks = vi.hoisted(() => ({
 }))
 const ingestContextMessageMock = vi.fn()
 const getContextsSnapshotMock = vi.fn()
-const createAiriRuntimeRulesContextMock = vi.fn()
+const createRuntimePromptContextMock = vi.fn()
 const createMinecraftContextMock = vi.fn()
 const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
@@ -126,8 +126,8 @@ vi.mock('../composables/use-io-tracer', () => ({
 }))
 
 vi.mock('./chat/context-providers', () => ({
-  createAiriRuntimeRulesContext: (ruleSet: unknown) => createAiriRuntimeRulesContextMock(ruleSet),
   createMinecraftContext: () => createMinecraftContextMock(),
+  createRuntimePromptContext: (prompt: string) => createRuntimePromptContextMock(prompt),
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -250,8 +250,8 @@ describe('chat store contract', () => {
     ingestContextMessageMock.mockReset()
     getContextsSnapshotMock.mockReset()
     getContextsSnapshotMock.mockReturnValue({})
-    createAiriRuntimeRulesContextMock.mockReset()
-    createAiriRuntimeRulesContextMock.mockReturnValue(undefined)
+    createRuntimePromptContextMock.mockReset()
+    createRuntimePromptContextMock.mockReturnValue(undefined)
     createMinecraftContextMock.mockReset()
     createMinecraftContextMock.mockReturnValue(undefined)
     persistSessionMessagesMock.mockReset()
@@ -782,10 +782,10 @@ describe('chat store contract', () => {
     expect(ioTracerMocks.activeTurnSpan.value).toBeUndefined()
   })
 
-  it('ingests runtime rule sets before composing prompt snapshots', async () => {
-    const runtimeRulesContext = {
-      id: 'airi-runtime-rules-context',
-      contextId: 'system:airi-runtime-rules',
+  it('ingests the runtime prompt before composing prompt snapshots', async () => {
+    const runtimePromptContext = {
+      id: 'airi-runtime-prompt-context',
+      contextId: 'system:airi-runtime-prompt',
       strategy: 'replace-self',
       text: 'Start every reply with an ACT token.\n\nDo not use emojis.',
       createdAt: 123,
@@ -800,10 +800,10 @@ describe('chat store contract', () => {
     }
     let composedMessages: Message[] = []
 
-    createAiriRuntimeRulesContextMock.mockReturnValue(runtimeRulesContext)
+    createRuntimePromptContextMock.mockReturnValue(runtimePromptContext)
     createMinecraftContextMock.mockReturnValue(minecraftContext)
     getContextsSnapshotMock.mockReturnValue({
-      'system:airi-runtime-rules': [runtimeRulesContext],
+      'system:airi-runtime-prompt': [runtimePromptContext],
       'system:minecraft': [minecraftContext],
     })
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: any) => {
@@ -819,12 +819,10 @@ describe('chat store contract', () => {
       chatProvider: provider,
     })
 
-    expect(createAiriRuntimeRulesContextMock).toHaveBeenCalledWith({
-      emotion: expect.stringContaining('base.prompt.emotion'),
-      emoji: 'base.prompt.emoji',
-    })
+    expect(createRuntimePromptContextMock).toHaveBeenCalledWith(expect.stringContaining('base.prompt.emotion'))
+    expect(createRuntimePromptContextMock).toHaveBeenCalledWith(expect.stringContaining('base.prompt.emoji'))
     expect(ingestContextMessageMock).toHaveBeenCalledTimes(2)
-    expect(ingestContextMessageMock).toHaveBeenNthCalledWith(1, runtimeRulesContext)
+    expect(ingestContextMessageMock).toHaveBeenNthCalledWith(1, runtimePromptContext)
     expect(ingestContextMessageMock).toHaveBeenNthCalledWith(2, minecraftContext)
     expect(ingestContextMessageMock.mock.invocationCallOrder[0]).toBeLessThan(
       getContextsSnapshotMock.mock.invocationCallOrder[0],
@@ -833,7 +831,7 @@ describe('chat store contract', () => {
     if (!Array.isArray(contextMessageContent))
       throw new TypeError('Expected composed user message content to be an array')
     expect(contextMessageContent[1]).toMatchObject({
-      text: expect.stringContaining('- system:airi-runtime-rules: Start every reply with an ACT token.'),
+      text: expect.stringContaining('- system:airi-runtime-prompt: Start every reply with an ACT token.'),
     })
     expect(contextMessageContent[1]).toMatchObject({
       text: expect.stringContaining('- system:minecraft: player is near spawn'),

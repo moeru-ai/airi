@@ -1,2 +1,2 @@
-export { createAiriRuntimeRulesContext } from './airi-runtime-rules'
 export { createMinecraftContext } from './minecraft'
+export { createRuntimePromptContext } from './runtime-prompt'

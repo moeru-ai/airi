@@ -47,6 +47,8 @@ export interface SparkNotifyHandleRequest {
   event: WebSocketEventOf<'spark:notify'>
   selectedChat: SparkNotifySelectedChat
   systemPrompt: string
+  /** Runtime instructions appended to the user message for this request. */
+  runtimePrompt?: string
   control?: SparkNotifyResponseControl
 }
 
@@ -75,6 +77,7 @@ function renderSparkNotifyUserMessage(input: SparkNotifyHandleRequest, userSecti
   return [
     messageOverride?.replaceUserMessage ?? defaultUserMessage,
     ...(messageOverride?.appendUserSections ?? []),
+    input.runtimePrompt ?? '',
     ...userSections,
   ].filter(section => section.trim().length > 0).join('\n\n')
 }

@@ -6,35 +6,12 @@ import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
 import { useCharacterNotebookStore, useCharacterStore } from '../'
-import { useAiriRuntimeRules } from '../../../composables/use-airi-runtime-rules'
+import { useAiriRuntimePrompt } from '../../../composables/use-airi-runtime-prompt'
 import { useLLM } from '../../ai/chat-llm/llm'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useConsciousnessStore } from '../../modules/consciousness'
 
 export { sparkNotifyCommandSchema } from '@proj-airi/core-agent/agents/spark-notify'
-
-/**
- * Adds response rules after caller-provided user sections.
- *
- * Spark Notify preserves these sections when a caller replaces its base user
- * payload, so all notification paths receive the same runtime rules.
- */
-function appendRuntimeRules(control: SparkNotifyResponseControl | undefined, runtimeRules: string) {
-  if (!runtimeRules)
-    return control
-
-  const messageOverride = control?.messageOverride
-  return {
-    ...control,
-    messageOverride: {
-      ...messageOverride,
-      appendUserSections: [
-        ...(messageOverride?.appendUserSections ?? []),
-        runtimeRules,
-      ],
-    },
-  }
-}
 
 export const useCharacterOrchestratorStore = defineStore('character-orchestrator', () => {
   const { stream } = useLLM()
@@ -43,7 +20,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const characterStore = useCharacterStore()
   const notebookStore = useCharacterNotebookStore()
   const { systemPrompt } = storeToRefs(characterStore)
-  const { runtimeRulesText } = useAiriRuntimeRules()
+  const runtimePrompt = useAiriRuntimePrompt()
   const modsServerChannelStore = useModsServerChannelStore()
 
   const processing = ref(false)
@@ -158,7 +135,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
           provider,
         },
         systemPrompt: systemPrompt.value,
-        control: appendRuntimeRules(control, runtimeRulesText.value),
+        runtimePrompt: runtimePrompt.value,
+        control,
       })
       if (!result.commands.length)
         return result

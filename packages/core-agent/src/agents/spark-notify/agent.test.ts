@@ -85,7 +85,7 @@ describe('createSparkNotifyAgent', () => {
   // https://github.com/moeru-ai/airi/pull/2464#discussion_r3933609456
   it('keeps appended sections when the host replaces the user payload', async () => {
     const run = vi.fn(async (request: SparkNotifyRunRequest) => {
-      expect(request.messages[1]?.content).toBe('Rendered board snapshot\n\nRuntime response rules')
+      expect(request.messages[1]?.content).toBe('Rendered board snapshot\n\nCaller context\n\nRuntime prompt')
     })
     const agent = createSparkNotifyAgent({ runner: { run } })
 
@@ -97,10 +97,11 @@ describe('createSparkNotifyAgent', () => {
         provider: {} as ChatProvider,
       },
       systemPrompt: 'You are a character.',
+      runtimePrompt: 'Runtime prompt',
       control: {
         messageOverride: {
           replaceUserMessage: 'Rendered board snapshot',
-          appendUserSections: ['Runtime response rules'],
+          appendUserSections: ['Caller context'],
         },
       },
     })

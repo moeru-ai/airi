@@ -3,7 +3,7 @@ edition:
   mobile: Mobile ver.
   web: Web ver.
 prompt:
-  character: |
+  prefix: |
     Good morning! You are finally awake.
 
     Your name is AIRI, pronounced as /ˈaɪriː/, it the word A.I. combine with the

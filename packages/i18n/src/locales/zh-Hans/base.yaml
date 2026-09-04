@@ -3,7 +3,7 @@ edition:
   mobile: 移动端版本
   web: 网页版本
 prompt:
-  character: |
+  prefix: |
     早上好！你终于醒啦。
 
     你的名字是 AIRI，发音为 /ˈaɪriː/。它是 A.I. 和日语中意为“茉莉”的“Ri”组合而成。

@@ -5,7 +5,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { isReadonly, reactive } from 'vue'
 
-import { createAiriRuntimeRulesContext } from './context-providers/airi-runtime-rules'
+import { createRuntimePromptContext } from './context-providers/runtime-prompt'
 import { useChatContextStore } from './context-store'
 
 type TestContextMessage = ContextMessage & { source?: string }
@@ -45,22 +45,22 @@ describe('useChatContextStore', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2464#discussion_r3933126137
-  it('keeps runtime rules when another replace-self context is active', () => {
+  it('keeps the runtime prompt when another replace-self context is active', () => {
     const store = useChatContextStore()
-    const runtimeRules = createAiriRuntimeRulesContext({
-      emotion: 'Start every reply with an ACT token.',
-      emoji: 'Do not use emojis.',
-    })
+    const runtimePrompt = createRuntimePromptContext('Start every reply with an ACT token.\n\nDo not use emojis.')
     const minecraftContext = createContextMessage({
       contextId: 'system:minecraft-integration',
       strategy: ContextUpdateStrategy.ReplaceSelf,
       text: 'Minecraft is online.',
     })
 
-    store.ingestContextMessage(runtimeRules)
+    if (!runtimePrompt)
+      throw new Error('Expected a runtime prompt context')
+
+    store.ingestContextMessage(runtimePrompt)
     store.ingestContextMessage(minecraftContext)
 
-    expect(store.getContextsSnapshot()['system:airi-runtime-rules']).toEqual([runtimeRules])
+    expect(store.getContextsSnapshot()['system:airi-runtime-prompt']).toEqual([runtimePrompt])
     expect(store.getContextsSnapshot().unknown).toEqual([minecraftContext])
   })
 
