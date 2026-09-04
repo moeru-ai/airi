@@ -206,6 +206,7 @@ vi.mock('./modules/consciousness', () => ({
 vi.mock('./modules/airi-card', () => ({
   useAiriCardStore: () => ({
     activeCard: undefined,
+    emotionPrompt: 'Start every reply with an ACT token.',
   }),
 }))
 
@@ -661,13 +662,13 @@ describe('chat store contract', () => {
     expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMOutputChunkLengths, [5])
     expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMTextLength, 5)
 
-    // System message stays untouched: keeping it 100% static is what makes
-    // the prefix permanently KV-cache friendly across turns and across day
-    // boundaries (the date now lives inside per-message timestamp prefixes
-    // instead of a system anchor).
+    // The persisted system message stays unchanged. Runtime instructions are
+    // appended only while the provider request is composed. Per-message time
+    // prefixes keep the static card prompt cacheable across day boundaries.
     const systemContent = (composedMessages[0] as any).content
     const systemText = typeof systemContent === 'string' ? systemContent : systemContent.map((p: any) => p.text).join('')
     expect(systemText).toContain('system prompt')
+    expect(systemText).toContain('Start every reply with an ACT token.')
     expect(systemText).toContain('Plugin toolset guidance.')
 
     // The user turn is prefixed with [YYYY-MM-DD HH:MM]. Both historic and

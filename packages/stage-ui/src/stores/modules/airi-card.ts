@@ -37,8 +37,20 @@ function resolveSystemPrompt(card: AiriCard | undefined): string {
   return systemPromptParts.join('\n\n')
 }
 
+function hasEmbeddedEmotionPrompt(card: AiriCard | undefined): boolean {
+  const prompt = resolveSystemPrompt(card)
+  return prompt.includes('ACT') && prompt.includes('DELAY')
+}
+
 export const useAiriCardStore = defineStore('airi-card', () => {
   const { t } = useI18n()
+
+  function defaultEmotionPrompt() {
+    return SystemPromptV2(
+      t('base.prompt.emotion'),
+      t('base.prompt.suffix'),
+    ).content
+  }
 
   // Pinia synchronization owns cross-window updates. Local storage only loads
   // and saves this renderer's durable copy; listening to storage events here
@@ -367,15 +379,25 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       return
 
     initialized = true
+    const defaultCharacterPrompt = t('base.prompt.character')
     if (!cards.value.has('default')) {
       cards.value.set('default', newAiriCard({
         name: 'ReLU',
         version: '1.0.0',
-        description: SystemPromptV2(
-          t('base.prompt.prefix'),
-          t('base.prompt.suffix'),
-        ).content,
+        description: defaultCharacterPrompt,
       }))
+    }
+    else {
+      const defaultCard = cards.value.get('default')
+      // Replace only the generated legacy default. A user-edited default
+      // card remains unchanged.
+      const legacyDefaultPrompt = [defaultCharacterPrompt, defaultEmotionPrompt()].join('\n\n')
+      if (defaultCard?.description === legacyDefaultPrompt) {
+        cards.value.set('default', {
+          ...defaultCard,
+          description: defaultCharacterPrompt,
+        })
+      }
     }
 
     // The active id and card map are persisted separately. Older versions
@@ -507,6 +529,17 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       } satisfies AiriExtension['modules']
     }),
     systemPrompt: computed(() => resolveSystemPrompt(activeCard.value)),
+    emotionPrompt: computed(() => {
+      if (activeCardId.value !== 'default')
+        return ''
+
+      // Older default cards can retain a translated emotion prompt until the
+      // next Crowdin sync. Do not inject the same control tokens twice.
+      if (hasEmbeddedEmotionPrompt(activeCard.value))
+        return ''
+
+      return defaultEmotionPrompt()
+    }),
   }
 }, {
   synced: {

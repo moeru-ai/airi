@@ -295,7 +295,10 @@ export const useChatStore = defineStore('chat', () => {
     },
     getActiveSessionId: () => activeSessionId.value,
     getActiveProvider: () => activeProvider.value,
-    getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
+    getSystemPromptSupplement: () => [
+      cardStore.emotionPrompt,
+      llmToolsetPromptsStore.activeToolsetPrompt,
+    ].filter(prompt => prompt.trim().length > 0).join('\n\n'),
     runtimeContextProviders: [
       createMinecraftContext,
     ],
