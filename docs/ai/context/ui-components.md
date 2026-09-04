@@ -345,11 +345,11 @@ Auto-resizing textarea with submit and paste-file events.
 
 ### BasicContentEditable
 
-Plain-text contenteditable control with submit and paste-file events. It is for text entry that must not use browser form controls.
+Plain-text multiline contenteditable control with submit and paste-file events. It preserves browser undo for plain-text paste and is for text entry that must not use browser form controls.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `defaultHeight` | `string?` | — | Height when empty |
+| `defaultHeight` | `string?` | — | Reactive height when empty |
 | `placeholder` | `string?` | — | Placeholder text |
 | `submitOnEnter` | `boolean?` | `true` | Submit on Enter (Shift+Enter for newline) |
 

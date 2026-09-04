@@ -564,19 +564,23 @@ onUnmounted(() => {
           <!-- Android handles touch from the scrollable editor, so it needs touch-none to keep the bubble drag active. -->
           <BasicContentEditable
             v-model="messageInput"
+            autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
+            :spellcheck="false"
             default-height="calc(1lh + 4px + 4px)"
             :placeholder="t('stage.message')"
             :class="[
               'font-cute',
-              'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full touch-none overflow-y-scroll whitespace-pre-wrap break-words scrollbar-none',
+              'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full touch-none overflow-y-scroll scrollbar-none',
               'border-2 border-solid px-4 py-0.5 outline-none backdrop-blur-md',
               'text-neutral-500 dark:text-neutral-100',
               'rounded-[1lh] border-neutral-200/60 bg-neutral-100/80 dark:border-neutral-700/60 dark:bg-neutral-950/80',
               'transition-colors duration-250 ease-in-out hover:text-neutral-600 dark:hover:text-neutral-200',
-              'empty:before:text-[14px] empty:before:leading-6 empty:before:text-neutral-400',
-              'empty:before:transition-all empty:before:duration-250 empty:before:ease-in-out empty:hover:before:text-neutral-500 dark:empty:before:text-neutral-500 dark:empty:hover:before:text-neutral-400',
+              'data-[empty]:before:text-[14px] data-[empty]:before:leading-6 data-[empty]:before:text-neutral-400',
+              'data-[empty]:before:transition-all data-[empty]:before:duration-250 data-[empty]:before:ease-in-out data-[empty]:hover:before:text-neutral-500 dark:data-[empty]:before:text-neutral-500 dark:data-[empty]:hover:before:text-neutral-400',
               messageInputPointerEventsClass,
-              themeColorsHueDynamic ? 'transition-colors-none empty:before:transition-colors-none' : undefined,
+              themeColorsHueDynamic ? 'transition-colors-none data-[empty]:before:transition-colors-none' : undefined,
             ]"
             @submit="handleSubmit"
             @compositionstart="isComposing = true"
