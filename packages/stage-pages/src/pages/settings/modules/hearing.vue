@@ -15,6 +15,8 @@ import { useI18n } from 'vue-i18n'
 
 import HearingPlaygroundTranscripts from './components/hearing-playground-transcripts.vue'
 
+import { allowsManualModelInput as allowsManualModelInputForProvider } from './hearing-model-selection'
+
 const { t } = useI18n()
 
 const hearingStore = useHearingStore()
@@ -97,14 +99,12 @@ const sortedProviderModels = computed(() => {
   })
 })
 const allowsManualModelInput = computed(() => {
-  if (!supportsModelListing.value)
-    return true
-  if (providerModels.value.length > 0 || isLoadingActiveProviderModels.value)
-    return false
-
-  const providerId = activeTranscriptionProvider.value
-  return providerId === 'openai-compatible-audio-transcription'
-    || (providerId === 'funasr-audio-transcription' && providerStore.providers[providerId]?.status === 'bypassed')
+  return allowsManualModelInputForProvider({
+    supportsModelListing: supportsModelListing.value,
+    modelCount: providerModels.value.length,
+    isLoading: isLoadingActiveProviderModels.value,
+    provider: providerStore.providers[activeTranscriptionProvider.value],
+  })
 })
 
 function formatVADThreshold(value: number) {
@@ -512,13 +512,6 @@ onUnmounted(() => {
               <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.loading') }}</span>
             </div>
 
-            <!-- Error state -->
-            <ErrorContainer
-              v-else-if="activeProviderModelError && supportsModelListing"
-              :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-              :error="activeProviderModelError"
-            />
-
             <!-- Manual input for providers without model listing or when no models are available -->
             <div
               v-else-if="allowsManualModelInput"
@@ -530,6 +523,13 @@ onUnmounted(() => {
                 @update:model-value="updateCustomModelName"
               />
             </div>
+
+            <!-- Error state -->
+            <ErrorContainer
+              v-else-if="activeProviderModelError && supportsModelListing"
+              :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
+              :error="activeProviderModelError"
+            />
 
             <!-- No models available (for other providers with model listing but no models) -->
             <Alert
