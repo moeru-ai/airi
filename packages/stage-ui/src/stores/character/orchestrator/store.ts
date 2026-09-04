@@ -13,6 +13,29 @@ import { useConsciousnessStore } from '../../modules/consciousness'
 
 export { sparkNotifyCommandSchema } from '@proj-airi/core-agent/agents/spark-notify'
 
+/**
+ * Adds response rules after caller-provided user sections.
+ *
+ * Spark Notify preserves these sections when a caller replaces its base user
+ * payload, so all notification paths receive the same runtime rules.
+ */
+function appendRuntimeRules(control: SparkNotifyResponseControl | undefined, runtimeRules: string) {
+  if (!runtimeRules)
+    return control
+
+  const messageOverride = control?.messageOverride
+  return {
+    ...control,
+    messageOverride: {
+      ...messageOverride,
+      appendUserSections: [
+        ...(messageOverride?.appendUserSections ?? []),
+        runtimeRules,
+      ],
+    },
+  }
+}
+
 export const useCharacterOrchestratorStore = defineStore('character-orchestrator', () => {
   const { stream } = useLLM()
   const consciousnessStore = useConsciousnessStore()
@@ -124,19 +147,6 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     }
 
     const provider = await consciousnessStore.getChatProviderInstance(providerId)
-    const runtimeRules = runtimeRulesText.value
-    const requestControl = runtimeRules
-      ? {
-          ...control,
-          messageOverride: {
-            ...control?.messageOverride,
-            appendUserSections: [
-              ...(control?.messageOverride?.appendUserSections ?? []),
-              runtimeRules,
-            ],
-          },
-        }
-      : control
     processing.value = true
 
     try {
@@ -148,7 +158,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
           provider,
         },
         systemPrompt: systemPrompt.value,
-        control: requestControl,
+        control: appendRuntimeRules(control, runtimeRulesText.value),
       })
       if (!result.commands.length)
         return result

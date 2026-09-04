@@ -313,7 +313,8 @@ describe('store character-orchestrator', () => {
     expect(onEnd).toHaveBeenCalledWith(event.data.id, '')
   })
 
-  it('forwards runtime-only message overrides into the rendered spark prompt', async () => {
+  // https://github.com/moeru-ai/airi/pull/2464#discussion_r3933609456
+  it('preserves runtime rules when a Spark caller replaces the user payload', async () => {
     const mockStream = vi.fn()
     mockedStore(useLLM, pinia).stream = mockStream
     mockedStore(useLLM, pinia).stream.mockImplementation(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
@@ -340,11 +341,13 @@ describe('store character-orchestrator', () => {
       messageOverride: {
         appendSystemInstructions: ['Plugin-specific hint'],
         appendUserSections: ['Rendered board snapshot'],
+        replaceUserMessage: 'Replacement user payload',
       },
     })
 
     const renderedMessages = mockStream.mock.lastCall?.[2] as Array<{ role: string, content: string }> | undefined
     expect(String(renderedMessages?.[0]?.content)).toContain('Plugin-specific hint')
+    expect(String(renderedMessages?.[1]?.content)).toContain('Replacement user payload')
     expect(String(renderedMessages?.[1]?.content)).toContain('Rendered board snapshot')
     expect(String(renderedMessages?.[1]?.content)).toContain('base.prompt.emotion')
     expect(String(renderedMessages?.[1]?.content)).toContain('base.prompt.emoji')

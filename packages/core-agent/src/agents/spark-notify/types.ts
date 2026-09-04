@@ -19,7 +19,7 @@ export interface SparkNotifyMessageOverride {
    */
   appendSystemInstructions?: string[]
   /**
-   * Additional serialized sections appended after the default user payload serialization.
+   * Additional serialized sections appended after the base or replacement user payload.
    *
    * Use when:
    * - A host wants to inject a pre-rendered message fragment for one run
@@ -32,7 +32,7 @@ export interface SparkNotifyMessageOverride {
    */
   appendUserSections?: string[]
   /**
-   * Replaces the default JSON user payload serialization entirely for one run.
+   * Replaces the default JSON user payload for one run while preserving appended sections.
    *
    * @default undefined
    */

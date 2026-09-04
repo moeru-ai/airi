@@ -66,15 +66,15 @@ export interface CreateSparkNotifyAgentOptions {
 }
 
 function renderSparkNotifyUserMessage(input: SparkNotifyHandleRequest, userSections: string[]) {
-  if (input.control?.messageOverride?.replaceUserMessage)
-    return input.control.messageOverride.replaceUserMessage
+  const messageOverride = input.control?.messageOverride
+  const defaultUserMessage = JSON.stringify({
+    notify: input.event.data,
+    source: input.event.metadata?.source,
+  }, null, 2)
 
   return [
-    JSON.stringify({
-      notify: input.event.data,
-      source: input.event.metadata?.source,
-    }, null, 2),
-    ...(input.control?.messageOverride?.appendUserSections ?? []),
+    messageOverride?.replaceUserMessage ?? defaultUserMessage,
+    ...(messageOverride?.appendUserSections ?? []),
     ...userSections,
   ].filter(section => section.trim().length > 0).join('\n\n')
 }
