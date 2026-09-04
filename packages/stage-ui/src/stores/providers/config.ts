@@ -154,6 +154,23 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   /**
+   * Replaces a provider configuration through the synchronized store action.
+   *
+   * Components must not replace entries in `configs`, because it is a derived
+   * snapshot and does not write to the persisted provider state.
+   */
+  async function setProviderConfig(providerId: string, config: Record<string, unknown>) {
+    const provider = providers.value[providerId]
+    if (!provider)
+      return
+
+    providers.value[providerId] = {
+      ...provider,
+      config: { ...config },
+    }
+  }
+
+  /**
    * Updates the selected model in the leader-owned provider snapshot.
    *
    * Follower renderers must await this action instead of mutating replicated
@@ -288,6 +305,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     markProviderAdded,
     unmarkProviderAdded,
     setProviderStatus,
+    setProviderConfig,
     setProviderModel,
     setProviderModelIfUnset,
     fetchProviders,
@@ -304,6 +322,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       'markProviderAdded',
       'unmarkProviderAdded',
       'setProviderStatus',
+      'setProviderConfig',
       'setProviderModel',
       'setProviderModelIfUnset',
       'addProvider',
