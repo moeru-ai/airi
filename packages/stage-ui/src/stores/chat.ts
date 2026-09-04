@@ -17,13 +17,13 @@ import { shallowRef, toRaw } from 'vue'
 import { getConversationAnalyticsSurface } from '../composables'
 import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
+import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
+import { createChatAnalyticsHooks, getProviderMode } from '../libs/product-signals/events/chat'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
-} from '../libs/analytics-headers'
-import { createChatAnalyticsHooks, getProviderMode } from '../libs/analytics/events/chat'
-import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
+} from '../libs/product-signals/headers'
 import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'

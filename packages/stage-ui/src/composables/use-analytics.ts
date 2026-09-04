@@ -1,12 +1,12 @@
-import type { ControlsIslandAction } from '../libs/analytics/events/controls-island'
+import type { ControlsIslandAction } from '../libs/product-signals/events/controls-island'
 import type { SpeechOutputStopReason } from '../stores/speech-output-control'
 
 import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { captureAnalyticsEvent, enableAnalytics, getAnalytics, getAnalyticsPrivacyPolicyUrl, isAnalyticsAvailableInBuild } from '../libs/analytics'
-import { captureTrackButtonEvent } from '../libs/analytics/events/interaction'
+import { captureAnalyticsEvent, enableAnalytics, getAnalytics, getAnalyticsPrivacyPolicyUrl, isAnalyticsAvailableInBuild } from '../libs/product-signals'
+import { captureTrackButtonEvent } from '../libs/product-signals/events/interaction'
 import { useSettingsAnalytics } from '../stores/settings/analytics'
 import { useSettingsGeneral } from '../stores/settings/general'
 
@@ -36,7 +36,7 @@ export type MessageInputMode = 'text' | 'voice'
 export type ConversationEventSource = 'new_session' | 'fork' | 'history' | 'share_button' | 'unknown'
 export type AiUsageSource = 'reported' | 'estimated' | 'unavailable'
 /** Stable, low-cardinality actions emitted by the Electron controls island. */
-export type { ControlsIslandAction } from '../libs/analytics/events/controls-island'
+export type { ControlsIslandAction } from '../libs/product-signals/events/controls-island'
 
 /**
  * Full stage vocabulary of the cross-surface `oauth_callback_failed` event.
