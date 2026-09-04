@@ -2,9 +2,7 @@ import type { Conversation, StreamOptions } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Tool } from '@xsai/shared-chat'
 
-import type { DescribeToolImage } from './tool-images'
-
-import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isToolRelatedError, modelKey } from '@proj-airi/core-agent'
+import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isPlainTextToolCallError, isToolRelatedError, modelKey } from '@proj-airi/core-agent'
 import { listModels } from '@xsai/model'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
@@ -12,7 +10,17 @@ import { ref } from 'vue'
 import { resolveLlmTools } from './tool-resolver'
 
 export type { StreamEvent, StreamOptions } from '@proj-airi/core-agent'
-export { isContentArrayRelatedError, isToolRelatedError } from '@proj-airi/core-agent'
+export { isContentArrayRelatedError, isPlainTextToolCallError, isToolRelatedError } from '@proj-airi/core-agent'
+
+function toolChoiceRequiresTools(toolChoice: StreamOptions['toolChoice']): boolean {
+  if (toolChoice === 'required')
+    return true
+  if (typeof toolChoice !== 'object' || toolChoice === null)
+    return false
+
+  return toolChoice.type === 'function'
+    || (toolChoice.type === 'allowed_tools' && toolChoice.mode === 'required')
+}
 
 /** Core stream options plus the stage-ui reader of images in tool results. */
 export interface LlmStreamOptions extends StreamOptions {
@@ -61,6 +69,11 @@ export const useLLM = defineStore('llm', () => {
         },
         toolsCompatibility: toolsCompatibility.value,
         contentArrayCompatibility: contentArrayCompatibility.value,
+        onStreamEvent: async (event: StreamEvent) => {
+          if (event.type !== 'error' && event.type !== 'finish')
+            hasCommittedAttemptOutput = true
+          await streamOptions.onStreamEvent?.(event)
+        },
       },
       builtinToolsResolver,
     })
@@ -69,9 +82,19 @@ export const useLLM = defineStore('llm', () => {
       await runStream()
     }
     catch (err) {
+      const shouldRetryWithoutTools = isPlainTextToolCallError(err)
+        && !hasCommittedAttemptOutput
+        && !toolChoiceRequiresTools(streamOptions.toolChoice)
       if (isToolRelatedError(err)) {
-        console.warn(`[llm] Auto-disabling tools for "${key}" due to tool-related error`)
+        const retryMessage = shouldRetryWithoutTools ? ' and retrying once' : ''
+        console.warn(`[llm] Auto-disabling tools for "${key}" due to tool-related error${retryMessage}`)
         toolsCompatibility.value.set(key, false)
+      }
+      // The leak guard buffers this failure before any text reaches the UI, so
+      // retrying cannot duplicate partial output from the failed attempt.
+      if (shouldRetryWithoutTools) {
+        await runStream()
+        return
       }
       // NOTICE:
       // Auto-degrade content-part arrays to plain strings on the next attempt
