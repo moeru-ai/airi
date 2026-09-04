@@ -602,11 +602,14 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
         const restored = restorePendingProviderCreationState(provider.id, remote.id)
         if (shouldApplySaved) {
           const activeValidation = providerValidationLeases.value[remote.id]
+          const completedInvalidStatus = !validationLease && reconciled.status === 'invalid'
+            ? reconciled.status
+            : undefined
           const statusToPreserve = stateChangedDuringReconciliation
             ? restored?.status ?? (activeValidation ? reconciled.status : undefined)
             : validationLease
               ? reconciled.status
-              : undefined
+              : completedInvalidStatus
           providers.value[remote.id] = statusToPreserve
             ? { ...saved, status: statusToPreserve }
             : saved
