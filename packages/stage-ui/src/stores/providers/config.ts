@@ -427,9 +427,14 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   function mergeProviderSnapshot(snapshot: Record<string, InferenceServiceProvider>) {
-    providers.value = { ...providers.value, ...snapshot }
-    for (const providerId of Object.keys(snapshot))
+    const mergedProviders = { ...providers.value }
+    for (const [providerId, remoteProvider] of Object.entries(snapshot)) {
+      mergedProviders[providerId] = providerValidationLeases.value[providerId]
+        ? { ...remoteProvider, status: 'validating' }
+        : remoteProvider
       markProviderAdded(providerId)
+    }
+    providers.value = mergedProviders
   }
 
   async function fetchProviders() {
