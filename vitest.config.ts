@@ -1,5 +1,7 @@
 import { defineConfig } from 'vitest/config'
 
+import { providerInferenceProjects } from './packages/provider-inference/vitest.config'
+
 export default defineConfig({
   test: {
     projects: [
@@ -18,6 +20,7 @@ export default defineConfig({
       'packages/better-ws',
       'packages/plugin-sdk',
       'packages/plugin-sdk-tamagotchi',
+      ...providerInferenceProjects.map(project => ({ ...project, root: 'packages/provider-inference' })),
       'packages/scenarios-stage-tamagotchi-browser',
       'packages/scenarios-stage-tamagotchi-electron',
       'packages/server-runtime',

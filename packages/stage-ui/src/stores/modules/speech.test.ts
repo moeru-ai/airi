@@ -219,6 +219,37 @@ describe('speech store helpers', () => {
     expect(listVoices).not.toHaveBeenCalled()
   })
 
+  // ROOT CAUSE:
+  //
+  // Streaming discovery kept its default model in one renderer's module
+  // variable. Another renderer received the synchronized models but selected
+  // the first entry instead of the operator default.
+  //
+  // Before: read getDefaultStreamingModel() from renderer-local memory.
+  //
+  // We fixed this by storing the default beside the synchronized model catalog.
+  it('selects the synchronized streaming default instead of the first model', async () => {
+    const providersStore = useProviderStore()
+    vi.spyOn(providersStore, 'listProviderVoices').mockResolvedValue([])
+    const speechStore = useSpeechStore()
+    await providersStore.initializeProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+    providersStore.providerRuntimeState[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID] = {
+      models: [
+        { id: 'volcengine/seed-tts-1.0', name: 'Seed TTS 1.0', provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID },
+        { id: 'volcengine/seed-tts-2.0', name: 'Seed TTS 2.0', provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID },
+      ],
+      defaultModel: 'volcengine/seed-tts-2.0',
+      modelStatus: 'ready',
+      modelError: null,
+    }
+    speechStore.activeSpeechProvider = OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
+    speechStore.activeSpeechModel = ''
+
+    speechStore.ensureActiveSpeechModel()
+
+    expect(speechStore.activeSpeechModel).toBe('volcengine/seed-tts-2.0')
+  })
+
   /**
    * @example
    * speechStore.ensureActiveSpeechModel()

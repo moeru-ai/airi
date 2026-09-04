@@ -1,0 +1,319 @@
+import type {
+  ChatProvider,
+  ChatProviderWithExtraOptions,
+  EmbedProvider,
+  EmbedProviderWithExtraOptions,
+  ModelProvider,
+  ModelProviderWithExtraOptions,
+  SpeechProvider,
+  SpeechProviderWithExtraOptions,
+  TranscriptionProvider,
+  TranscriptionProviderWithExtraOptions,
+} from '@xsai-ext/providers/utils'
+import type { ProgressInfo } from '@xsai-transformers/shared/types'
+import type { MaybePromise } from 'clustr'
+import type { $ZodType } from 'zod/v4/core'
+
+/** Translates a provider label or description for the active interface locale. */
+export type ProviderTranslator = (input: string) => string
+
+/** Context shared by provider callbacks that need interface translation. */
+export interface ProviderContext {
+  /** Translates labels and descriptions for the active interface locale. */
+  t: ProviderTranslator
+}
+
+export type ProviderInstance
+  = | ChatProvider
+    | ChatProviderWithExtraOptions
+    | EmbedProvider
+    | EmbedProviderWithExtraOptions
+    | SpeechProvider
+    | SpeechProviderWithExtraOptions
+    | TranscriptionProvider
+    | TranscriptionProviderWithExtraOptions
+    | ModelProvider
+    | ModelProviderWithExtraOptions
+
+/** Validation lifecycle for one serializable provider configuration. */
+export type ProviderValidationStatus = 'unconfigured' | 'validating' | 'configured' | 'invalid' | 'bypassed'
+export type ProviderConfiguredBy = 'user' | 'authentication'
+
+/** Serializable configuration for one provider instance. */
+export interface InferenceServiceProvider {
+  /** Stable provider instance id. */
+  id: string
+  /** Provider definition id from the built-in provider registry. */
+  definitionId: string
+  /** Provider-specific configuration values. */
+  config: Record<string, unknown>
+  /** Current validation state for this provider configuration. */
+  status: ProviderValidationStatus
+  /** Lifecycle owner that creates and revokes this provider configuration. */
+  configuredBy: ProviderConfiguredBy
+}
+
+export function isModelProvider(providerInstance: ProviderInstance): providerInstance is ModelProvider | ModelProviderWithExtraOptions {
+  if ('model' in providerInstance && typeof providerInstance.model === 'function') {
+    return true
+  }
+
+  return false
+}
+
+export interface ProviderOnboardingField {
+  key: string
+  type: 'text' | 'password'
+  label: string
+  description?: string
+  placeholder?: string
+  required?: boolean
+  defaultValue?: string
+}
+
+/** Inputs available while a Provider builds its configuration schema. */
+export interface ProviderConfigContext<TConfig> extends ProviderContext {
+  /** Cancels runtime discovery that contributes schema metadata. */
+  abortSignal?: AbortSignal
+  /** Current draft values. Providers can use them to resolve dependent fields. */
+  config?: Partial<TConfig>
+}
+
+/** Serializable model discovery result returned across renderer boundaries. */
+export interface ProviderModelCatalog {
+  /** Models discovered for this provider. */
+  models: ModelInfo[]
+  /** Whether the server exposes this catalog. Absent when discovery did not return an authoritative state. */
+  available?: boolean
+  /** Last authoritative availability retained by the action owner after discovery fails. */
+  lastKnownAvailable?: boolean
+  /** Server-selected model id, or null when the server has no default. */
+  defaultModel?: string | null
+}
+
+export interface ProviderExtraMethods<TConfig> {
+  listModelCatalog?: (config: TConfig, provider: ProviderInstance, contextOptions?: ProviderContext) => Promise<ProviderModelCatalog>
+  listModels?: (config: TConfig, provider: ProviderInstance, contextOptions?: ProviderContext) => Promise<ModelInfo[]>
+  /**
+   * Returns the voice catalogue. `model` lets providers whose voices vary by
+   * model variant (Volcengine streaming TTS 1.0 vs 2.0 differ in catalogue)
+   * narrow the result. Providers with a single catalogue ignore it.
+   */
+  listVoices?: (config: TConfig, provider: ProviderInstance, model?: string) => Promise<VoiceInfo[]>
+  loadModel?: (config: TConfig, provider: ProviderInstance, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
+}
+
+export interface ProviderValidationResult {
+  errors: Array<{ error: unknown, errorKey?: string }>
+  reason: string
+  reasonKey: string
+  valid: boolean
+}
+
+/**
+ * Validator ID fragment for the chat completions probe.
+ * Matched via `.includes()` against validator instance ids
+ * (e.g. `openai-compatible:check-chat-completions`).
+ */
+export const CHAT_COMPLETIONS_VALIDATOR_ID = 'check-chat-completions'
+
+export enum ProviderValidationCheck {
+  /** Lightweight GET to /models endpoint to check reachability (definition system) */
+  Connectivity = 'connectivity',
+  /** Fetch model list and verify non-empty */
+  ModelList = 'model_list',
+  /** Send generateText ping with fine-grained error handling and caching (definition system) */
+  ChatCompletions = 'chat_completions',
+  /**
+   * @deprecated
+   * Being used in builder system (a deprecated provider creation protocol),
+   * currently used by only OpenAI TTS && OpenAI Transcription.
+   * Send generateText ping with simple pass/fail, fallback to 'test' model (builder system)
+   */
+  Health = 'health',
+}
+
+export interface ProviderValidatorSchedule {
+  mode: 'once' | 'interval'
+  intervalMs?: number
+}
+
+export interface ProviderConfigValidator<TConfig> {
+  id: string
+  name: string
+  validator: (config: TConfig, contextOptions: ProviderContext) => MaybePromise<ProviderValidationResult>
+  schedule?: ProviderValidatorSchedule
+}
+
+export interface ProviderRuntimeValidator<TConfig> {
+  id: string
+  name: string
+  validator: (config: TConfig, provider: ProviderInstance, providerExtra: ProviderExtraMethods<TConfig>, contextOptions: ProviderContext) => MaybePromise<ProviderValidationResult>
+  schedule?: ProviderValidatorSchedule
+}
+
+export interface ModelInfo {
+  id: string
+  name: string
+  provider: string
+  description?: string
+  capabilities?: string[]
+  contextLength?: number
+  deprecated?: boolean
+}
+
+export interface VoiceInfo {
+  id: string
+  name: string
+  provider: string
+  compatibleModels?: string[]
+  description?: string
+  gender?: string
+  deprecated?: boolean
+  previewURL?: string
+  languages: {
+    code: string
+    title: string
+  }[]
+}
+
+/** A provider definition and its configuration contract. */
+export interface ProviderDefinition<TConfig = Record<string, unknown>, TId extends string = string> {
+  /** Stable provider definition id. */
+  id: TId
+  order?: number
+  tasks: string[]
+  nameLocalize: (ctx: ProviderContext) => string // i18n key for provider name
+  name: string // Default name (fallback)
+  descriptionLocalize: (ctx: ProviderContext) => string // i18n key for provider description
+  description: string // Default description (fallback)
+  /**
+   * Iconify JSON icon name for the provider.
+   *
+   * Icons are available for most of the AI provides under @proj-airi/lobe-icons.
+   */
+  icon?: string
+  iconColor?: string
+  /**
+   * In case of having image instead of icon, you can specify the image URL here.
+   */
+  iconImage?: string
+
+  /**
+   * Indicates whether the provider is available.
+   * If not specified, the provider is always available.
+   *
+   * May be specified when any of the following criteria is required:
+   *
+   * Platform requirements:
+   *
+   * - app-* providers are only available on desktop, this is responsible for Tauri runtime checks
+   * - web-* providers are only available on web, this means Node.js and Tauri should not be imported or used
+   *
+   * System spec requirements:
+   *
+   * - may requires WebGPU / NVIDIA / other types of GPU,
+   *   on Web, WebGPU will automatically compiled to use targeting GPU hardware
+   * - may requires significant amount of GPU memory to run, especially for
+   *   using of small language models within browser or Tauri app
+   * - may requires significant amount of memory to run, especially for those
+   *   non-WebGPU supported environments.
+   */
+  isAvailableBy?: () => MaybePromise<boolean>
+
+  /**
+   * If false, the provider does not require user-provided credentials (e.g. API keys).
+   * Used for built-in providers that authenticate via JWT Bearer tokens.
+   */
+  requiresCredentials?: boolean
+
+  /**
+   * Lifecycle owner for provider configurations created from this definition.
+   *
+   * @default 'user'
+   */
+  configuredBy?: ProviderConfiguredBy
+
+  /** Builds the validation schema and its UI metadata for the current draft. */
+  createProviderConfig: (contextOptions: ProviderConfigContext<TConfig>) => MaybePromise<$ZodType<TConfig>>
+  onboardingFields?: (ctx: ProviderContext) => MaybePromise<ProviderOnboardingField[]>
+  createProvider: (config: TConfig) => MaybePromise<ProviderInstance>
+  extraMethods?: ProviderExtraMethods<TConfig>
+  /**
+   * Returns true when the configuration has enough input for automatic validation.
+   * Provider settings keep the status unconfigured while this function returns false.
+   *
+   * @default false
+   */
+  validationRequiredWhen?: (config: TConfig) => MaybePromise<boolean>
+  validators?: {
+    validateConfig?: Array<(contextOptions: ProviderContext) => MaybePromise<ProviderConfigValidator<TConfig>>>
+    validateProvider?: Array<(contextOptions: ProviderContext) => MaybePromise<ProviderRuntimeValidator<TConfig>>>
+  }
+  capabilities?: {
+    chat?: {
+      reasoning?: ChatReasoningCapability
+    }
+    transcription?: {
+      protocol: 'websocket' | 'http' | 'native'
+      generateOutput: boolean
+      streamOutput: boolean
+      streamInput: boolean
+    }
+    /**
+     * Declares the TTS transport this provider speaks. The host uses it to
+     * select its TTS session adapter:
+     *
+     * - `rest` (default when this whole block is absent): the host opens
+     *   a `pipelines-audio` IntentHandle and the provider's `speech()` is
+     *   called per-segment by the speech-pipeline `tts()` callback. This
+     *   matches every OpenAI-shaped HTTP TTS provider.
+     * - `bidirectional-ws`: the host opens one streaming TTS WebSocket
+     *   for the whole LLM intent and forwards raw token chunks without
+     *   client-side segmentation. The provider's `speech()` is unused
+     *   for synthesis on this path (kept only for legacy fallback).
+     *
+     * Designed so a future provider (ElevenLabs streaming, OpenAI Realtime
+     * Voice, etc.) only needs to set this flag — Stage and the session
+     * factory do not need to know each provider's id.
+     */
+    speech?: {
+      transport: 'rest' | 'bidirectional-ws'
+    }
+  }
+  /**
+   * When true, hides the "skip chat ping check" checkbox in the UI even
+   * when the provider defines a ChatCompletions validator.
+   *
+   * By default, the checkbox is shown automatically whenever a provider
+   * includes a ChatCompletions runtime validator. Set this to `true` for
+   * providers where skipping that check is not meaningful or has not been
+   * verified yet.
+   */
+  disableChatPingCheckUI?: boolean
+  business?: (contextOptions: ProviderContext) => {
+    troubleshooting?: {
+      validators?: {
+        openaiCompatibleCheckConnectivity?: {
+          label?: string
+          content?: string
+        }
+      }
+    }
+  }
+}
+
+/** Reasoning modes that AIRI can request from a chat provider. */
+export type ChatReasoningMode = 'disabled' | 'enabled'
+
+/** User-selected options that a provider applies to one chat request. */
+export interface ChatRequestOptions {
+  /** Requested reasoning mode. */
+  reasoning: ChatReasoningMode
+}
+
+/** Describes the reasoning controls that AIRI implements for a provider. */
+export interface ChatReasoningCapability {
+  /** Modes that AIRI can pass to the provider. */
+  modes: readonly ChatReasoningMode[]
+}

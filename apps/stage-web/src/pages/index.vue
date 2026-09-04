@@ -28,20 +28,18 @@ function handleSettingsOpen(open: boolean) {
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = breakpoints.smaller('md')
-const stageViewportOffset = shallowRef(0)
-// WORKAROUND:
+const stageViewport = shallowRef({ height: 0, offsetTop: 0 })
 // NOTICE:
 // Why: A fixed Stage follows Safari's input pan and moves Live2D with the keyboard.
 // Root cause: Safari moves the Visual Viewport before the page receives the new offsetTop value.
 // Source: https://bugs.webkit.org/show_bug.cgi?id=265578
-// Context: packages/stage-layouts/src/browser/adaptive-input.ts
 // Removal condition: Safari keeps fixed content stable during the input pan.
 const stageSurfaceStyle = computed(() => isMobile.value
   ? {
       position: 'fixed' as const,
       inset: '0',
-      height: '100dvh',
-      transform: `translate3d(0, ${stageViewportOffset.value}px, 0)`,
+      height: stageViewport.value.height > 0 ? `${stageViewport.value.height}px` : '100dvh',
+      transform: `translate3d(0, ${stageViewport.value.offsetTop}px, 0)`,
       willChange: 'transform',
     }
   : undefined)
@@ -205,7 +203,7 @@ const cursorPosition = computed(() => ({
     <div
       data-testid="mobile-stage-content"
       :class="[
-        'relative z-2 h-100dvh w-100vw overflow-hidden',
+        'relative z-2 h-full w-100vw overflow-hidden md:h-100dvh',
         'flex flex-col',
       ]"
     >
@@ -239,9 +237,8 @@ const cursorPosition = computed(() => ({
     <Teleport to="body">
       <MobileInteractiveArea
         v-if="isMobile"
-        keyboard-avoidance
         @settings-open="handleSettingsOpen"
-        @viewport-offset-change="stageViewportOffset = $event"
+        @stage-viewport-change="stageViewport = $event"
       />
     </Teleport>
   </BackgroundProvider>
