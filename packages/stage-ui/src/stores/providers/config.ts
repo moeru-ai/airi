@@ -359,7 +359,13 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     const pendingState = requestedProviderId
       ? pendingProviderCreationStates.get(requestedProviderId)
       : undefined
-    const activeValidation = providerValidationLeases.value[resolvedProviderId] ?? pendingState?.validationLease
+    const replicatedValidation = providerValidationLeases.value[resolvedProviderId]
+    const pendingValidation = pendingState?.validationLease
+    const activeValidation = replicatedValidation?.token === token
+      ? replicatedValidation
+      : pendingValidation?.token === token
+        ? pendingValidation
+        : replicatedValidation ?? pendingValidation
     if (activeValidation?.token !== token)
       return false
 
