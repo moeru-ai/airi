@@ -233,6 +233,15 @@ export const ambientLightDefaults = Object.freeze({
    * color cast and the light wrap for a more dramatic response.
    */
   strength: 1,
+  /**
+   * How far a rise in the measured screen level narrows the eyes, from 0 to 1.
+   * At 0 the eyes never react.
+   *
+   * The renderer drives this from the gap between a fast and a slow follower of
+   * the screen level, not from the level itself, so a desktop that stays bright
+   * leaves the eyes open. See `useMotionUpdatePluginLightSquint`.
+   */
+  squint: 1,
   captureIntervalMs: 250,
   /**
    * Size of the downscaled capture frame, in pixels. It decides how much detail

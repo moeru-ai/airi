@@ -9,6 +9,7 @@ import {
   averageAmbientLightMap,
 } from './environment'
 import {
+  ambientLightPerceptualLevel,
   ambientLightSampleFromHex,
   sampleScreenAmbientLight,
   smoothAmbientLightEnvironment,
@@ -408,3 +409,24 @@ function fillMask(
       mask[currentY * frameWidth + currentX] = alpha
   }
 }
+
+describe('ambientLightPerceptualLevel', () => {
+  it('puts a linear luminance on the same scale as the measured exposure', () => {
+    // ROOT CAUSE:
+    //
+    // behindLuminance is linear and exposure is perceptual, so a consumer that
+    // compared one against the other measured a far smaller change than the
+    // viewer sees: a mid-gray desktop is 0.2 in linear light and about 0.5 to
+    // the eye. Anything tuned on the exposure scale has to convert first.
+    expect(ambientLightPerceptualLevel(0.2)).toBeCloseTo(0.485, 3)
+    expect(ambientLightPerceptualLevel(0)).toBe(0)
+    // The transfer function lands a hair under 1 in floating point, and the
+    // clamp only guards the ends, so full white is close rather than exact.
+    expect(ambientLightPerceptualLevel(1)).toBeCloseTo(1, 12)
+  })
+
+  it('holds the result inside the reported range', () => {
+    expect(ambientLightPerceptualLevel(-1)).toBe(0)
+    expect(ambientLightPerceptualLevel(4)).toBe(1)
+  })
+})
