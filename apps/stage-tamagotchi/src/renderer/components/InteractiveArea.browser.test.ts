@@ -331,6 +331,20 @@ describe('interactive area synchronized state', () => {
     expect(input.getAttribute('aria-multiline')).toBe('true')
   })
 
+  it('keeps a one-line mobile draft at the composer height', async () => {
+    // ROOT CAUSE:
+    //
+    // The contenteditable element received an inline minimum height. It
+    // replaced the composer minimum height after text replaced the placeholder.
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const input = screen.getByRole('textbox').element()
+    const emptyHeight = input.getBoundingClientRect().height
+
+    await userEvent.fill(input, 'hi')
+
+    expect(input.getBoundingClientRect().height).toBe(emptyHeight)
+  })
+
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3755530944
   it('keeps a failed mobile draft out of a newly selected session for Issue #2085', async () => {
     // ROOT CAUSE:
