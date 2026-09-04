@@ -1,10 +1,10 @@
 import { createOpenAI } from '@xsai-ext/providers/create'
 import { getActivePinia } from 'pinia'
 
-import { AIRI_CHAT_SESSION_ID_HEADER } from '../../../../libs/analytics-headers'
 import { getAuthToken } from '../../../../libs/auth'
 import { SERVER_URL } from '../../../../libs/server'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
+import { AIRI_CHAT_SESSION_ID_HEADER } from '../../../product-signals/headers'
 
 export const OFFICIAL_ICON = 'i-solar:star-bold-duotone'
 

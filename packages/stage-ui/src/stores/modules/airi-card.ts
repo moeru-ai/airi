@@ -9,7 +9,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
-import { captureAnalyticsEvent } from '../../libs/analytics'
+import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'

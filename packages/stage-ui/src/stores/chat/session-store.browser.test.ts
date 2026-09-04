@@ -51,7 +51,7 @@ vi.mock('../../database/repos/chat-sessions.repo', () => ({
   },
 }))
 
-vi.mock('../../libs/analytics', () => ({
+vi.mock('../../libs/product-signals', () => ({
   captureAnalyticsEvent: vi.fn(),
 }))
 

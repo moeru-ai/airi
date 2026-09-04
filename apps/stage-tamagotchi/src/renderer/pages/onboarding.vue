@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { OnboardingScreen, OnboardingStepAnalyticsNotice } from '@proj-airi/stage-ui/components'
-import { isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/analytics'
+import { isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useTheme } from '@proj-airi/ui'
