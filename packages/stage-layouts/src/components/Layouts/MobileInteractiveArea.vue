@@ -555,7 +555,7 @@ onUnmounted(() => {
                 'h-10 max-w-10 w-10 cursor-pointer rounded-xl border-2 border-solid backdrop-blur-md',
                 'border-neutral-100/60 bg-neutral-50/70 dark:border-neutral-800/30 dark:bg-neutral-800/70',
               ]
-              : 'max-w-[70%] w-full focus-within:max-w-full',
+              : 'max-w-[70%] w-full',
           ]"
           @click="handleInputBubbleClick"
           @contextmenu="handleInputBubbleContextMenu"

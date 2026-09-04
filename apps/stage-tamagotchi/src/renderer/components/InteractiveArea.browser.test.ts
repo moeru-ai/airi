@@ -345,6 +345,24 @@ describe('interactive area synchronized state', () => {
     expect(input.getBoundingClientRect().height).toBe(emptyHeight)
   })
 
+  it('keeps a one-line mobile draft at the composer width', async () => {
+    // ROOT CAUSE:
+    //
+    // The mobile composer expanded when its editor received focus. A one-line
+    // draft must keep the resting composer width.
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const inputBubble = screen.getByTestId('mobile-input-bubble').element()
+    const input = screen.getByRole('textbox')
+    const emptyWidth = inputBubble.getBoundingClientRect().width
+
+    expect(emptyWidth).toBeGreaterThan(0)
+
+    await userEvent.fill(input, 'hi')
+    await new Promise(resolve => setTimeout(resolve, 400))
+
+    expect(inputBubble.getBoundingClientRect().width).toBe(emptyWidth)
+  })
+
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3755530944
   it('keeps a failed mobile draft out of a newly selected session for Issue #2085', async () => {
     // ROOT CAUSE:
