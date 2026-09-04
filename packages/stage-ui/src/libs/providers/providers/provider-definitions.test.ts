@@ -37,6 +37,7 @@ describe('migrated provider definitions', () => {
   it('exposes a closed provider id union to stage-ui consumers', () => {
     expectTypeOf<'openai'>().toExtend<StageProviderId>()
     expectTypeOf<'official-provider'>().toExtend<StageProviderId>()
+    expectTypeOf<'funasr-audio-transcription'>().toExtend<StageProviderId>()
     expectTypeOf<string>().not.toExtend<StageProviderId>()
   })
 
@@ -191,7 +192,7 @@ describe('migrated provider definitions', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => ({ data: [] }),
+      json: async () => ({ data: [{ id: 'SenseVoiceSmall' }] }),
     })
     const reachable = await validator?.validator(
       { baseUrl: 'http://localhost:8000/v1/' },
