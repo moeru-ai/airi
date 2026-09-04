@@ -3,7 +3,7 @@ import type { Message, Tool } from '@xsai/shared-chat'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { isContentArrayRelatedError, sanitizeMessages, streamFrom } from './llm-service'
+import { isContentArrayRelatedError, isPlainTextToolCallError, sanitizeMessages, streamFrom } from './llm-service'
 
 const { streamTextMock } = vi.hoisted(() => ({
   streamTextMock: vi.fn(),
@@ -279,6 +279,124 @@ describe('streamFrom tool errors', () => {
       toolName: 'play_chess',
     })
     expect(events).toContainEqual({ type: 'text-delta', text: 'ok' })
+    expect(events).toContainEqual({ type: 'finish' })
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2161
+  it('rejects reasoning and a known plain-text tool call before emitting them for Issue #2161', async () => {
+    let resolveSteps: ((steps: unknown[]) => void) | undefined
+    const events: unknown[] = []
+    const rawToolCall = JSON.stringify({
+      name: 'builtIn_emitSparkCommand',
+      parameters: {
+        destinations: [],
+        guidance: 'x'.repeat(70 * 1024),
+      },
+    })
+    const sparkTool = {
+      type: 'function',
+      function: {
+        name: 'builtIn_emitSparkCommand',
+        description: 'Send a command to a connected game module.',
+        parameters: { type: 'object', properties: {} },
+      },
+      execute: vi.fn(async () => 'ok'),
+    } satisfies Tool
+
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void> }) => {
+      const steps = new Promise<unknown[]>((resolve) => {
+        resolveSteps = resolve
+      })
+
+      queueMicrotask(async () => {
+        await options.onEvent({ type: 'step.start' })
+        await options.onEvent({ type: 'reasoning.delta', delta: 'I should call the game tool.' })
+        await options.onEvent({ type: 'text.delta', delta: rawToolCall })
+        await options.onEvent({ type: 'step.done', usage: {} })
+        resolveSteps?.([])
+      })
+
+      return createMockStreamResult(steps)
+    })
+
+    const error = await streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'Can you play games?' }] as Message[],
+      options: {
+        tools: [sparkTool],
+        onStreamEvent: (event) => {
+          events.push(event)
+        },
+      },
+    }).then(
+      () => undefined,
+      error => error,
+    )
+
+    expect(error).toBeInstanceOf(Error)
+    expect(String(error)).toContain('tool call "builtIn_emitSparkCommand" as plain text')
+    expect(isPlainTextToolCallError(error)).toBe(true)
+    expect(isPlainTextToolCallError(new Error('A provider mentioned a tool call as plain text.'))).toBe(false)
+    expect(events).not.toContainEqual({ type: 'reasoning-delta', text: 'I should call the game tool.' })
+    expect(events).not.toContainEqual({ type: 'text-delta', text: rawToolCall })
+    expect(events).not.toContainEqual({ type: 'finish' })
+  })
+
+  it('preserves a JSON answer that does not name an available tool', async () => {
+    let resolveSteps: ((steps: unknown[]) => void) | undefined
+    const events: unknown[] = []
+    const jsonAnswer = JSON.stringify({
+      name: 'Airi',
+      parameters: { likes: 'games' },
+    })
+    const sparkTool = {
+      type: 'function',
+      function: {
+        name: 'builtIn_emitSparkCommand',
+        description: 'Send a command to a connected game module.',
+        parameters: { type: 'object', properties: {} },
+      },
+      execute: vi.fn(async () => 'ok'),
+    } satisfies Tool
+
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void> }) => {
+      const steps = new Promise<unknown[]>((resolve) => {
+        resolveSteps = resolve
+      })
+
+      queueMicrotask(async () => {
+        await options.onEvent({ type: 'step.start' })
+        await options.onEvent({ type: 'reasoning.delta', delta: 'I should answer with ordinary JSON.' })
+        await options.onEvent({ type: 'text.delta', delta: jsonAnswer.slice(0, 10) })
+        await options.onEvent({ type: 'text.delta', delta: jsonAnswer.slice(10) })
+        await options.onEvent({ type: 'step.done', usage: {} })
+        resolveSteps?.([])
+      })
+
+      return createMockStreamResult(steps)
+    })
+
+    await streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'Answer as JSON.' }] as Message[],
+      options: {
+        tools: [sparkTool],
+        onStreamEvent: (event) => {
+          events.push(event)
+        },
+      },
+    })
+
+    expect(events).toContainEqual({ type: 'reasoning-delta', text: 'I should answer with ordinary JSON.' })
+    expect(events
+      .filter((event): event is { type: 'text-delta', text: string } => (
+        typeof event === 'object' && event !== null && (event as { type?: unknown }).type === 'text-delta'
+      ))
+      .map(event => event.text)
+      .join(''))
+      .toBe(jsonAnswer)
     expect(events).toContainEqual({ type: 'finish' })
   })
 
