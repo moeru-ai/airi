@@ -52,6 +52,51 @@ describe('funasr local audio provider', () => {
       .toBe(true)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2435#discussion_r3920910278
+  it('lists the models from the configured FunASR endpoint for PR #2435', async () => {
+    // ROOT CAUSE:
+    //
+    // The provider returned a fixed model list and ignored the server response.
+    // A custom endpoint can require model ids that are not in that fixed list.
+    const config = {
+      apiKey: 'funasr-secret',
+      baseUrl: 'http://localhost:9000/custom/v1/',
+    }
+    const provider = await providerFunASRAudioTranscription.createProvider(config)
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [
+        { created: 0, id: 'custom-sensevoice', object: 'model', owned_by: 'funasr' },
+        { created: 0, id: 'custom-paraformer', object: 'model', owned_by: 'funasr' },
+      ],
+      object: 'list',
+    }), {
+      headers: { 'Content-Type': 'application/json' },
+      status: 200,
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const models = await providerFunASRAudioTranscription.extraMethods?.listModels?.(config, provider)
+
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('http://localhost:9000/custom/v1/models')
+    expect(models).toEqual([
+      {
+        contextLength: 0,
+        deprecated: false,
+        id: 'custom-sensevoice',
+        name: 'custom-sensevoice',
+        provider: 'funasr-audio-transcription',
+      },
+      {
+        contextLength: 0,
+        deprecated: false,
+        id: 'custom-paraformer',
+        name: 'custom-paraformer',
+        provider: 'funasr-audio-transcription',
+      },
+    ])
+  })
+
   it('rejects relative endpoint URLs before fetching models', async () => {
     const validator = await providerFunASRAudioTranscription.validators?.validateProvider?.[0]({ t: translate })
     const provider = await providerFunASRAudioTranscription.createProvider({ baseUrl: 'localhost:8000/v1/' })

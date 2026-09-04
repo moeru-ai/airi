@@ -183,6 +183,113 @@ describe('provider config synchronization', () => {
     await followerStore.restoreProviderStatus(remoteProvider.id, nextValidation!.token)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2435#discussion_r3920910268
+  it('keeps a caller validation token across follower delegation for PR #2435', async () => {
+    // ROOT CAUSE:
+    //
+    // A synchronized follower action does not return the leader action value.
+    // The settings page needs a caller-owned token that survives delegation.
+    const namespace = `provider-config-validation-token:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    setActivePinia(leaderContext.pinia)
+    const leaderStore = useProviderConfigStore()
+    await leaderStore.ensureProvider(localProvider.id, localProvider.definitionId)
+    await leaderStore.setProviderStatus(localProvider.id, 'configured')
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerStore = useProviderConfigStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    const validationToken = crypto.randomUUID()
+    await followerStore.beginProviderValidation(localProvider.id, validationToken)
+
+    await vi.waitFor(() => {
+      expect(leaderStore.providerValidationLeases[localProvider.id]?.token).toBe(validationToken)
+      expect(followerStore.providerValidationLeases[localProvider.id]?.token).toBe(validationToken)
+      expect(followerStore.providers[localProvider.id]?.status).toBe('validating')
+    })
+
+    const validatedConfig = { apiKey: 'sk-follower' }
+    await followerStore.finishProviderValidationAndUpdateConfig(localProvider.id, validationToken, validatedConfig)
+    await vi.waitFor(() => {
+      expect(leaderStore.providerValidationLeases[localProvider.id]).toBeUndefined()
+      expect(followerStore.providerValidationLeases[localProvider.id]).toBeUndefined()
+      expect(followerStore.providers[localProvider.id]?.status).toBe('configured')
+      expect(leaderStore.providers[localProvider.id]?.config).toEqual(validatedConfig)
+      expect(followerStore.providers[localProvider.id]?.config).toEqual(validatedConfig)
+    })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2435#discussion_r3914588970
+  it('serializes a creation reconciliation patch before a later follower save for PR #2435', async () => {
+    // ROOT CAUSE:
+    //
+    // The creation reconciliation PATCH and a later settings PATCH can run at
+    // the same time. The older response can then replace the newer remote data.
+    let resolveCreate!: (provider: InferenceServiceProvider) => void
+    let resolveReconciliation!: (provider: InferenceServiceProvider) => void
+    mocks.service.createRemote.mockReturnValue(new Promise<InferenceServiceProvider>((resolve) => {
+      resolveCreate = resolve
+    }))
+    mocks.service.patchConfigRemote.mockImplementation(async (
+      _client: unknown,
+      providerId: string,
+      config: Record<string, unknown>,
+      status: InferenceServiceProvider['status'],
+    ) => {
+      if (mocks.service.patchConfigRemote.mock.calls.length === 1) {
+        return await new Promise<InferenceServiceProvider>((resolve) => {
+          resolveReconciliation = resolve
+        })
+      }
+      return { ...remoteProvider, id: providerId, config: { ...config }, status }
+    })
+
+    const namespace = `provider-config-write-order:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    setActivePinia(leaderContext.pinia)
+    const leaderStore = useProviderConfigStore()
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerStore = useProviderConfigStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    const creation = followerStore.synchronizeAddedProvider({ ...localProvider })
+    await vi.waitFor(() => expect(leaderStore.providers[localProvider.id]).toBeDefined())
+    await followerStore.setProviderStatus(localProvider.id, 'configured')
+    resolveCreate(remoteProvider)
+    await vi.waitFor(() => expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce())
+
+    const latestConfig = { apiKey: 'sk-latest' }
+    const laterSave = followerStore.updateProviderConfig(localProvider.id, latestConfig, 'configured')
+    await vi.waitFor(() => {
+      expect(leaderStore.providers[remoteProvider.id]?.config).toEqual(latestConfig)
+      expect(followerStore.providers[remoteProvider.id]?.config).toEqual(latestConfig)
+    })
+    expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce()
+
+    resolveReconciliation({ ...remoteProvider, status: 'configured' })
+    await creation
+    await laterSave
+
+    expect(mocks.service.patchConfigRemote).toHaveBeenCalledTimes(2)
+    expect(mocks.service.patchConfigRemote).toHaveBeenNthCalledWith(
+      2,
+      mocks.client,
+      remoteProvider.id,
+      latestConfig,
+      'configured',
+    )
+    await vi.waitFor(() => {
+      expect(leaderStore.providers[remoteProvider.id]?.config).toEqual(latestConfig)
+      expect(followerStore.providers[remoteProvider.id]?.config).toEqual(latestConfig)
+    })
+  })
+
   it('restores an active validation after leader failover', async () => {
     mocks.service.buildLocal.mockReturnValue(localProvider)
     const namespace = `provider-config-failover:${crypto.randomUUID()}`
