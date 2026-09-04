@@ -564,6 +564,7 @@ onUnmounted(() => {
           <!-- Android handles touch from the scrollable editor, so it needs touch-none to keep the bubble drag active. -->
           <BasicContentEditable
             v-model="messageInput"
+            default-height="calc(1lh + 4px + 4px)"
             :placeholder="t('stage.message')"
             :class="[
               'font-cute',

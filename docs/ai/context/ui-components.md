@@ -349,7 +349,7 @@ Plain-text contenteditable control with submit and paste-file events. It is for 
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `defaultHeight` | `string?` | — | Minimum height when empty |
+| `defaultHeight` | `string?` | — | Height when empty |
 | `placeholder` | `string?` | — | Placeholder text |
 | `submitOnEnter` | `boolean?` | `true` | Submit on Enter (Shift+Enter for newline) |
 

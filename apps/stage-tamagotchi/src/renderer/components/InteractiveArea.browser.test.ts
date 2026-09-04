@@ -334,14 +334,19 @@ describe('interactive area synchronized state', () => {
   it('keeps a one-line mobile draft at the composer height', async () => {
     // ROOT CAUSE:
     //
-    // The contenteditable element received an inline minimum height. It
-    // replaced the composer minimum height after text replaced the placeholder.
+    // An empty contenteditable has different intrinsic sizing from a typed
+    // contenteditable. On a phone, that made the composer visibly taller after
+    // the first character.
+    //
+    // The shared editor measures overflow against its explicit empty height. A
+    // one-line draft must retain the empty composer height.
     const { screen } = await renderArea(MobileInteractiveArea)
     const input = screen.getByRole('textbox').element()
     const emptyHeight = input.getBoundingClientRect().height
 
     await userEvent.fill(input, 'hi')
 
+    await vi.waitFor(() => expect(input.style.height).toMatch(/px$/))
     expect(input.getBoundingClientRect().height).toBe(emptyHeight)
   })
 
