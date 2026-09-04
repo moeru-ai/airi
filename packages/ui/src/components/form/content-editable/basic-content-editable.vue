@@ -31,6 +31,14 @@ function readEditableText(element: HTMLDivElement) {
   return element.innerText.replaceAll('\r\n', '\n')
 }
 
+function removeTrailingFillerBreak(editable: HTMLDivElement) {
+  const filler = editable.lastChild
+  if (!(filler instanceof HTMLBRElement) || !(filler.previousSibling instanceof HTMLBRElement))
+    return
+
+  filler.remove()
+}
+
 function getSelectionOffsets(editable: HTMLDivElement) {
   const selection = window.getSelection()
   const range = selection?.rangeCount ? selection.getRangeAt(0) : undefined
@@ -131,6 +139,7 @@ function onInput(event: Event) {
   if (!(editable instanceof HTMLDivElement))
     return
 
+  removeTrailingFillerBreak(editable)
   input.value = readEditableText(editable)
   if (editable.children.length > 0)
     syncEditableValue(true)
