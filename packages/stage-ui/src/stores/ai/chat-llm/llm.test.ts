@@ -250,6 +250,16 @@ describe('isToolRelatedError', () => {
     expect(secondCallTools?.map(toolNameFrom)).toContain('runtime_play_chess_match')
   })
 
+  // ROOT CAUSE:
+  //
+  // Some providers emit a registered tool call as assistant text instead of
+  // using the native tool protocol.
+  //
+  // Before the fix, that raw JSON reached the chat UI and later requests kept
+  // sending the same incompatible tool payload.
+  //
+  // We fixed this by retrying once without tools only before any output or tool
+  // work is committed, then caching the model's incompatibility.
   // https://github.com/moeru-ai/airi/issues/2161
   it('retries without tools when a model emits a plain-text tool call for Issue #2161', async () => {
     const rawToolCall = JSON.stringify({
@@ -304,6 +314,16 @@ describe('isToolRelatedError', () => {
     expect(streamTextMock.mock.calls[2]?.[0]?.toolChoice).toBeUndefined()
   })
 
+  // ROOT CAUSE:
+  //
+  // A later plain-text tool-call failure could occur after an earlier native
+  // tool event had already committed work in the same request.
+  //
+  // Before the fix, automatically replaying that request could execute the
+  // earlier tool work a second time.
+  //
+  // We fixed this by caching the incompatibility without replaying any attempt
+  // that has already emitted output or native tool activity.
   // https://github.com/moeru-ai/airi/issues/2161
   it('does not replay earlier native tool work after a later plain-text tool call for Issue #2161', async () => {
     const rawToolCall = JSON.stringify({
@@ -356,6 +376,16 @@ describe('isToolRelatedError', () => {
     expect(streamTextMock.mock.calls[1]?.[0]?.toolChoice).toBeUndefined()
   })
 
+  // ROOT CAUSE:
+  //
+  // A forced request that leaked a text tool call marked the model as tool-
+  // incompatible, so the cache stripped tools from the next forced request.
+  //
+  // Before the fix, that later request could resolve without ever performing
+  // the required Spark command.
+  //
+  // We fixed this by letting required choices bypass the compatibility cache
+  // while still rejecting them when no tools are actually available.
   // https://github.com/moeru-ai/airi/issues/2161
   it('does not downgrade a forced tool choice after a plain-text leak for Issue #2161', async () => {
     const rawToolCall = JSON.stringify({
