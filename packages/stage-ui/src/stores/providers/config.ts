@@ -29,6 +29,16 @@ interface PendingProviderCreationState {
   validationLease?: ProviderValidationLease
 }
 
+function createPendingProviderCreationStateKey(state?: PendingProviderCreationState) {
+  if (!state)
+    return undefined
+
+  return JSON.stringify({
+    provider: state.provider,
+    validationLease: state.validationLease,
+  })
+}
+
 function createProviderMutationKey(
   provider: InferenceServiceProvider,
   stableStatus: ProviderValidationStatus = provider.status,
@@ -608,21 +618,39 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
           return saved
         const shouldApplySaved = providers.value[remote.id] === reconciled
         const stateChangedDuringReconciliation
-          = pendingProviderCreationStates.get(provider.id) !== stateBeforeReconciliation
+          = createPendingProviderCreationStateKey(pendingProviderCreationStates.get(provider.id))
+            !== createPendingProviderCreationStateKey(stateBeforeReconciliation)
         const restored = restorePendingProviderCreationState(provider.id, remote.id)
         if (shouldApplySaved) {
           const activeValidation = providerValidationLeases.value[remote.id]
-          const completedInvalidStatus = !validationLease && reconciled.status === 'invalid'
-            ? reconciled.status
+          const completedInvalidStatus = !activeValidation
+            && (reconciled.status === 'invalid' || restored?.status === 'invalid')
+            ? 'invalid'
             : undefined
-          const statusToPreserve = stateChangedDuringReconciliation
-            ? restored?.status ?? (activeValidation ? reconciled.status : undefined)
-            : validationLease
-              ? reconciled.status
-              : completedInvalidStatus
+          // A replicated plain `configured` state can arrive after the leader
+          // starts reconciliation. Only validation-owned state is authoritative
+          // over the server response; otherwise preserve a completed invalid
+          // validation and let lifecycle policy such as `bypassed` win.
+          const statusToPreserve = activeValidation
+            ? stateChangedDuringReconciliation
+              ? restored?.status ?? reconciled.status
+              : reconciled.status
+            : completedInvalidStatus
           providers.value[remote.id] = statusToPreserve
             ? { ...saved, status: statusToPreserve }
             : saved
+        }
+        else {
+          const activeValidation = providerValidationLeases.value[remote.id]
+          const latestProvider = providers.value[remote.id]
+          const completedInvalidStatus = !activeValidation
+            && (reconciled.status === 'invalid' || restored?.status === 'invalid')
+          // A stale replicated snapshot may arrive while the reconciliation
+          // request is pending. Retain its newer configuration, but never let
+          // an ordinary local status replace the service lifecycle policy.
+          if (latestProvider && !activeValidation && !completedInvalidStatus) {
+            providers.value[remote.id] = { ...latestProvider, status: saved.status }
+          }
         }
         completeProviderCreation(provider.id)
         return saved
