@@ -283,6 +283,59 @@ describe('provider config synchronization', () => {
     })
   })
 
+  // https://github.com/moeru-ai/airi/pull/2435#discussion_r3932274312
+  it('keeps a newer validated status when its queued save fails after reconciliation for PR #2435', async () => {
+    let resolveCreate!: (provider: InferenceServiceProvider) => void
+    let resolveReconciliation!: (provider: InferenceServiceProvider) => void
+    mocks.service.createRemote.mockReturnValue(new Promise<InferenceServiceProvider>((resolve) => {
+      resolveCreate = resolve
+    }))
+    mocks.service.patchConfigRemote.mockImplementation(async () => {
+      if (mocks.service.patchConfigRemote.mock.calls.length === 1) {
+        return await new Promise<InferenceServiceProvider>((resolve) => {
+          resolveReconciliation = resolve
+        })
+      }
+      throw new Error('validated save failed')
+    })
+
+    const namespace = `provider-config-reconciliation-failed-validation-save:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    setActivePinia(leaderContext.pinia)
+    const leaderStore = useProviderConfigStore()
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerStore = useProviderConfigStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    const creation = followerStore.synchronizeAddedProvider({ ...localProvider })
+    await vi.waitFor(() => expect(leaderStore.providers[localProvider.id]).toBeDefined())
+    await followerStore.setProviderStatus(localProvider.id, 'configured')
+    resolveCreate(remoteProvider)
+    await vi.waitFor(() => expect(mocks.service.patchConfigRemote).toHaveBeenCalledOnce())
+
+    const validationToken = crypto.randomUUID()
+    await followerStore.beginProviderValidation(remoteProvider.id, validationToken)
+    const validation = followerStore.finishProviderValidationAndUpdateConfig(
+      remoteProvider.id,
+      validationToken,
+      { apiKey: 'sk-validated' },
+    )
+    await vi.waitFor(() => expect(leaderStore.providers[remoteProvider.id]?.status).toBe('configured'))
+
+    resolveReconciliation({ ...remoteProvider, status: 'bypassed' })
+    await creation
+    await validation
+
+    expect(mocks.service.patchConfigRemote).toHaveBeenCalledTimes(2)
+    await vi.waitFor(() => {
+      expect(leaderStore.providers[remoteProvider.id]?.status).toBe('configured')
+      expect(followerStore.providers[remoteProvider.id]?.status).toBe('configured')
+    })
+  })
+
   // https://github.com/moeru-ai/airi/pull/2435#discussion_r3930758343
   it.each([
     { expectedStatus: 'validating', responseStatus: 'configured', validationState: 'active' },

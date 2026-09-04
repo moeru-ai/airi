@@ -649,7 +649,10 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
           // request is pending. Retain its newer configuration, but never let
           // an ordinary local status replace the service lifecycle policy.
           if (latestProvider && !activeValidation && !completedInvalidStatus) {
-            providers.value[remote.id] = { ...latestProvider, status: saved.status }
+            providers.value[remote.id] = {
+              ...latestProvider,
+              status: stateChangedDuringReconciliation ? latestProvider.status : saved.status,
+            }
           }
         }
         completeProviderCreation(provider.id)
