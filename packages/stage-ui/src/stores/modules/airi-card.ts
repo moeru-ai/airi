@@ -8,8 +8,6 @@ import { defineStore } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import SystemPromptV2 from '../../constants/prompts/system-v2'
-
 import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
 import { captureAnalyticsEvent } from '../../libs/analytics'
 import { useSettingsStageModel } from '../settings/stage-model'
@@ -37,20 +35,8 @@ function resolveSystemPrompt(card: AiriCard | undefined): string {
   return systemPromptParts.join('\n\n')
 }
 
-function hasEmbeddedEmotionPrompt(card: AiriCard | undefined): boolean {
-  const prompt = resolveSystemPrompt(card)
-  return prompt.includes('ACT') && prompt.includes('DELAY')
-}
-
 export const useAiriCardStore = defineStore('airi-card', () => {
   const { t } = useI18n()
-
-  function defaultEmotionPrompt() {
-    return SystemPromptV2(
-      t('base.prompt.emotion'),
-      t('base.prompt.suffix'),
-    ).content
-  }
 
   // Pinia synchronization owns cross-window updates. Local storage only loads
   // and saves this renderer's durable copy; listening to storage events here
@@ -387,19 +373,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         description: defaultCharacterPrompt,
       }))
     }
-    else {
-      const defaultCard = cards.value.get('default')
-      // Replace only the generated legacy default. A user-edited default
-      // card remains unchanged.
-      const legacyDefaultPrompt = [defaultCharacterPrompt, defaultEmotionPrompt()].join('\n\n')
-      if (defaultCard?.description === legacyDefaultPrompt) {
-        cards.value.set('default', {
-          ...defaultCard,
-          description: defaultCharacterPrompt,
-        })
-      }
-    }
-
     // The active id and card map are persisted separately. Older versions
     // could delete the selected card without repairing its stored id.
     if (!cards.value.has(activeCardId.value))
@@ -529,17 +502,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       } satisfies AiriExtension['modules']
     }),
     systemPrompt: computed(() => resolveSystemPrompt(activeCard.value)),
-    emotionPrompt: computed(() => {
-      if (activeCardId.value !== 'default')
-        return ''
-
-      // Older default cards can retain a translated emotion prompt until the
-      // next Crowdin sync. Do not inject the same control tokens twice.
-      if (hasEmbeddedEmotionPrompt(activeCard.value))
-        return ''
-
-      return defaultEmotionPrompt()
-    }),
   }
 }, {
   synced: {

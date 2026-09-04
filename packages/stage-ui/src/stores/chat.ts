@@ -13,9 +13,11 @@ import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/st
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { shallowRef, toRaw } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { getConversationAnalyticsSurface } from '../composables'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
+import { createEmotionRuleSet } from '../constants/prompts/emotion-rules'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
@@ -27,7 +29,7 @@ import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
-import { createMinecraftContext } from './chat/context-providers'
+import { createAiriRuntimeRulesContext, createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
@@ -135,6 +137,7 @@ function retrySourceIndexFrom(messages: ChatHistoryItem[], index: number): numbe
 export type { QueuedSendSnapshot } from '@proj-airi/core-agent'
 
 export const useChatStore = defineStore('chat', () => {
+  const { t } = useI18n()
   const llmStore = useLLM()
   const llmToolsStore = useLlmToolsStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
@@ -295,11 +298,15 @@ export const useChatStore = defineStore('chat', () => {
     },
     getActiveSessionId: () => activeSessionId.value,
     getActiveProvider: () => activeProvider.value,
-    getSystemPromptSupplement: () => [
-      cardStore.emotionPrompt,
-      llmToolsetPromptsStore.activeToolsetPrompt,
-    ].filter(prompt => prompt.trim().length > 0).join('\n\n'),
+    getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     runtimeContextProviders: [
+      () => createAiriRuntimeRulesContext({
+        emotion: createEmotionRuleSet(
+          t('base.prompt.emotion'),
+          t('base.prompt.suffix'),
+        ),
+        emoji: t('base.prompt.emoji'),
+      }),
       createMinecraftContext,
     ],
     createId: nanoid,

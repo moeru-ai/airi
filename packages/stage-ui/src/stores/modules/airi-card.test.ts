@@ -460,7 +460,7 @@ describe('airi-card store', () => {
     })
   })
 
-  it('keeps custom card instructions in the stable system prompt', async () => {
+  it('keeps position-sensitive CCv3 fields separate from the stable system prompt', async () => {
     const cardStore = useAiriCardStore()
     await cardStore.initialize()
 
@@ -498,37 +498,9 @@ describe('airi-card store', () => {
       'The conversation takes place in an observatory.',
       'Use the image widget for star charts.',
     ].join('\n\n'))
-    expect(cardStore.emotionPrompt).toBe('')
     expect(cardStore.systemPrompt).not.toContain('Answer the latest observation')
     expect(cardStore.systemPrompt).not.toContain('Welcome to the observatory')
     expect(cardStore.systemPrompt).not.toContain('What did you find?')
-  })
-
-  it('keeps the default emotion prompt out of the stable character prompt', async () => {
-    const cardStore = useAiriCardStore()
-    await cardStore.initialize()
-
-    expect(cardStore.systemPrompt).toContain('base.prompt.character')
-    expect(cardStore.systemPrompt).not.toContain('base.prompt.emotion')
-    expect(cardStore.systemPrompt).not.toContain('base.prompt.suffix')
-    expect(cardStore.emotionPrompt).toContain('base.prompt.emotion')
-    expect(cardStore.emotionPrompt).toContain('base.prompt.suffix')
-  })
-
-  it('does not duplicate emotion instructions embedded in a legacy default card', async () => {
-    const cardStore = useAiriCardStore()
-    await cardStore.initialize()
-
-    const defaultCard = cardStore.activeCard
-    if (!defaultCard)
-      throw new Error('The default card must exist after initialization.')
-
-    await cardStore.updateCard('default', {
-      ...defaultCard,
-      description: 'Legacy prompt: ACT and DELAY tokens are already available.',
-    })
-
-    expect(cardStore.emotionPrompt).toBe('')
   })
 
   it('falls back to the default card when the active custom card is deleted', async () => {
