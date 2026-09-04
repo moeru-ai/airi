@@ -1,5 +1,5 @@
 import { createContext, defineInvokeHandler } from '@moeru/eventa'
-import { gameletIframeRequest } from '@proj-airi/plugin-sdk-tamagotchi/gamelet'
+import { gameletRequest } from '@proj-airi/plugin-sdk-stage/gamelet'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
@@ -14,7 +14,7 @@ describe('createExtensionUiIframeRequestHandler', () => {
 
   it('invokes the mounted iframe context and returns the gamelet response', async () => {
     const iframeContext = createContext()
-    defineInvokeHandler(iframeContext, gameletIframeRequest, ({ payload }) => ({
+    defineInvokeHandler(iframeContext, gameletRequest, ({ payload }) => ({
       fen: `fen:${payload.action}`,
     }))
 
@@ -27,6 +27,7 @@ describe('createExtensionUiIframeRequestHandler', () => {
       requestId: 'req-1',
       payload: { action: 'snapshot' },
       timeoutMs: 1000,
+      expiresAt: Date.now() + 1000,
     })).resolves.toEqual({
       fen: 'fen:snapshot',
     })
@@ -42,13 +43,14 @@ describe('createExtensionUiIframeRequestHandler', () => {
       requestId: 'req-1',
       payload: { action: 'snapshot' },
       timeoutMs: 1000,
+      expiresAt: Date.now() + 1000,
     })).rejects.toThrow('Gamelet `kit-module:board` iframe context is not ready.')
   })
 
   it('aborts the iframe invoke when the request timeout elapses', async () => {
     vi.useFakeTimers()
     const iframeContext = createContext()
-    defineInvokeHandler(iframeContext, gameletIframeRequest, async () => {
+    defineInvokeHandler(iframeContext, gameletRequest, async () => {
       await new Promise(() => {})
       return {}
     })
@@ -61,7 +63,8 @@ describe('createExtensionUiIframeRequestHandler', () => {
       id: 'kit-module:board',
       requestId: 'req-1',
       payload: { action: 'snapshot' },
-      timeoutMs: 5,
+      timeoutMs: 1000,
+      expiresAt: Date.now() + 5,
     })
 
     await vi.advanceTimersByTimeAsync(5)
@@ -71,6 +74,10 @@ describe('createExtensionUiIframeRequestHandler', () => {
 })
 
 describe('createExtensionUiIframeRequestQueueProcessor', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('keeps iframe requests pending until the iframe ready handshake arrives', async () => {
     let iframeReady = false
     const emitResult = vi.fn()
@@ -90,6 +97,7 @@ describe('createExtensionUiIframeRequestQueueProcessor', () => {
       requestId: 'req-1',
       payload: { action: 'start' },
       timeoutMs: 1000,
+      expiresAt: Date.now() + 1000,
     }]
 
     processIframeRequests(requests)
@@ -127,12 +135,14 @@ describe('createExtensionUiIframeRequestQueueProcessor', () => {
         requestId: 'req-1',
         payload: { action: 'snapshot' },
         timeoutMs: 1000,
+        expiresAt: Date.now() + 1000,
       },
       {
         id: 'kit-module:board',
         requestId: 'req-2',
         payload: { action: 'snapshot' },
         timeoutMs: 1000,
+        expiresAt: Date.now() + 1000,
       },
     ])
     await Promise.resolve()
@@ -165,6 +175,7 @@ describe('createExtensionUiIframeRequestQueueProcessor', () => {
       requestId: 'req-1',
       payload: { action: 'snapshot' },
       timeoutMs: 1000,
+      expiresAt: Date.now() + 1000,
     }]
     processIframeRequests(requests)
     processIframeRequests(requests)
@@ -172,5 +183,29 @@ describe('createExtensionUiIframeRequestQueueProcessor', () => {
 
     expect(requestWidgetIframe).toHaveBeenCalledOnce()
     expect(emitResult).toHaveBeenCalledOnce()
+  })
+
+  it('drops requests that expired before the iframe became ready', async () => {
+    vi.useFakeTimers()
+    const emitResult = vi.fn()
+    const requestWidgetIframe = vi.fn(async () => ({ fen: 'late' }))
+    const processIframeRequests = createExtensionUiIframeRequestQueueProcessor({
+      shouldHandle: () => true,
+      isReady: () => true,
+      requestWidgetIframe,
+      emitResult,
+    })
+
+    processIframeRequests([{
+      id: 'kit-module:board',
+      requestId: 'expired-request',
+      payload: { action: 'snapshot' },
+      timeoutMs: 10,
+      expiresAt: Date.now() - 1,
+    }])
+    await Promise.resolve()
+
+    expect(requestWidgetIframe).not.toHaveBeenCalled()
+    expect(emitResult).not.toHaveBeenCalled()
   })
 })

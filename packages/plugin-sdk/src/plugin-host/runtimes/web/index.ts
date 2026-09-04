@@ -7,6 +7,7 @@ import { createContext } from '@moeru/eventa'
 export * from '../../core'
 export * from '../../shared'
 export * from '../../transports'
+export * from './loaders/bundled'
 
 /**
  * Creates the Eventa context used by web-side extension host sessions.

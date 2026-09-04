@@ -6,6 +6,7 @@ import type {
 import type { GenericSchema } from 'valibot'
 
 import type { KitDescriptor } from './kits'
+import type { ExtensionLoader } from './loader'
 
 import { isPlainObject } from 'es-toolkit'
 import {
@@ -388,6 +389,11 @@ export interface ExtensionHostInstallContext {
 export interface ExtensionHostOptions {
   /** Installable host features that can register kits, resources, and capabilities. @default [] */
   contributions?: ExtensionHostContribution[]
+  /**
+   * Resolves extension definitions for this host. `start(manifest)` requires
+   * an explicit loader. `startExtension(...)` can run without one. @default an erroring loader
+   */
+  loader?: ExtensionLoader
   /** Callback that decides the granted permission set for one extension session. */
   permissionResolver?: (payload: {
     identity: ExtensionIdentity

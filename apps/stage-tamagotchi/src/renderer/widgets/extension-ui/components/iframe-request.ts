@@ -1,5 +1,5 @@
 import type { EventContext } from '@moeru/eventa'
-import type { GameletIframeResponsePayload } from '@proj-airi/plugin-sdk-tamagotchi/gamelet'
+import type { GameletResponsePayload } from '@proj-airi/plugin-sdk-stage/gamelet'
 
 import type {
   WidgetsIframeRequestPayload,
@@ -8,7 +8,7 @@ import type {
 
 import { defineInvoke } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
-import { gameletIframeRequest } from '@proj-airi/plugin-sdk-tamagotchi/gamelet'
+import { gameletRequest } from '@proj-airi/plugin-sdk-stage/gamelet'
 
 export interface ExtensionUiIframeRequestHandlerInput {
   getContext: () => EventContext<any, any> | undefined
@@ -20,7 +20,7 @@ export interface ExtensionUiIframeRequestQueueProcessorInput {
   /** Returns whether the iframe has announced its invoke handlers are ready. */
   isReady?: () => boolean
   /** Invokes the mounted iframe and returns its response record. */
-  requestWidgetIframe: (request: WidgetsIframeRequestPayload) => Promise<GameletIframeResponsePayload>
+  requestWidgetIframe: (request: WidgetsIframeRequestPayload) => Promise<GameletResponsePayload>
   /** Emits one correlated request result back to the widget host. */
   emitResult: (result: WidgetsIframeRequestResultPayload) => void
 }
@@ -62,11 +62,12 @@ export function createExtensionUiIframeRequestHandler(input: ExtensionUiIframeRe
       throw new Error(`Gamelet \`${request.id}\` iframe context is not ready.`)
     }
 
-    const invokeGameletIframeRequest = defineInvoke(context, gameletIframeRequest)
-    const timeoutSignal = createTimeoutSignal(request.timeoutMs)
+    const invokeGameletRequest = defineInvoke(context, gameletRequest)
+    const timeoutSignal = createTimeoutSignal(Math.max(0, request.expiresAt - Date.now()))
 
     try {
-      return await invokeGameletIframeRequest({
+      return await invokeGameletRequest({
+        bindingId: request.id,
         requestId: request.requestId,
         payload: request.payload,
       }, {
@@ -100,6 +101,9 @@ export function createExtensionUiIframeRequestQueueProcessor(input: ExtensionUiI
       }
 
       handledRequestIds.add(request.requestId)
+      if (Date.now() >= request.expiresAt) {
+        continue
+      }
       void input.requestWidgetIframe(request)
         .then((result) => {
           input.emitResult({

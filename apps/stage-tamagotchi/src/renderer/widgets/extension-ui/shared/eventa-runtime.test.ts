@@ -1,6 +1,6 @@
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/window-message'
-import { gameletIframeRequest } from '@proj-airi/plugin-sdk-tamagotchi/gamelet'
+import { gameletRequest } from '@proj-airi/plugin-sdk-stage/gamelet'
 import { widgetsIframeInitEvent, widgetsIframePublishEvent } from '@proj-airi/plugin-sdk-tamagotchi/widgets'
 import { describe, expect, it } from 'vitest'
 
@@ -149,14 +149,15 @@ describe('createContext', () => {
       targetWindow: () => parentWindow as unknown as Window,
     })
 
-    defineInvokeHandler(iframe.context, gameletIframeRequest, ({ payload }) => {
+    defineInvokeHandler(iframe.context, gameletRequest, ({ payload }) => {
       return {
         fen: payload.action === 'snapshot' ? 'fen-after-request' : 'unknown',
       }
     })
 
-    const invokeGameletIframeRequest = defineInvoke(host.context, gameletIframeRequest)
-    await expect(invokeGameletIframeRequest({
+    const invokeGameletRequest = defineInvoke(host.context, gameletRequest)
+    await expect(invokeGameletRequest({
+      bindingId: 'kit-module:board',
       requestId: 'req-1',
       payload: {
         action: 'snapshot',

@@ -149,7 +149,7 @@ async function writeEntrypoint(params: { dir: string, name: string, contents: st
   return destination
 }
 
-async function linkWorkspacePackageForPlugin(pluginDir: string, packageName: '@proj-airi/plugin-sdk' | '@proj-airi/plugin-sdk-tamagotchi') {
+async function linkWorkspacePackageForPlugin(pluginDir: string, packageName: '@proj-airi/plugin-sdk' | '@proj-airi/plugin-sdk-stage') {
   const packageDirName = packageName.replace('@proj-airi/', '')
   const packageDir = join(pluginDir, 'node_modules', '@proj-airi', packageDirName)
   await mkdir(packageDir, { recursive: true })
@@ -162,7 +162,6 @@ async function linkWorkspacePackageForPlugin(pluginDir: string, packageName: '@p
       }
     : {
         '.': './src/index.ts',
-        './widgets': './src/widgets/index.ts',
         './gamelet': './src/gamelet/index.ts',
         './kits/gamelet': './src/kits/gamelet/index.ts',
         './kits/tool': './src/kits/tool/index.ts',
@@ -776,7 +775,7 @@ describe('setupExtensionHost', () => {
     )
     await writeFile(join(pluginDir, 'airi-plugin-game-chess.mjs'), [
       `import { defineExtension } from ${JSON.stringify(pathToFileURL(resolve(repoRoot, 'packages/plugin-sdk/src/index.ts')).href)}`,
-      `import { gameletKit } from ${JSON.stringify(pathToFileURL(resolve(repoRoot, 'packages/plugin-sdk-tamagotchi/src/index.ts')).href)}`,
+      `import { gameletKit } from ${JSON.stringify(pathToFileURL(resolve(repoRoot, 'packages/plugin-sdk-stage/src/index.ts')).href)}`,
       '',
       'export default defineExtension({',
       '  id: "airi-plugin-game-chess",',
@@ -1135,13 +1134,13 @@ describe('setupExtensionHost', () => {
     const pluginDir = join(pluginsDir, 'test-extension-gamelet-kit')
     await mkdir(pluginDir, { recursive: true })
     const pluginSdkUrl = pathToFileURL(resolve(repoRoot, 'packages/plugin-sdk/src/index.ts')).href
-    const tamagotchiSdkUrl = pathToFileURL(resolve(repoRoot, 'packages/plugin-sdk-tamagotchi/src/index.ts')).href
+    const stageSdkUrl = pathToFileURL(resolve(repoRoot, 'packages/plugin-sdk-stage/src/index.ts')).href
     const entrypointPath = await writeEntrypoint({
       dir: pluginDir,
       name: 'test-extension-gamelet-kit.ts',
       contents: [
         `import { defineExtension } from '${pluginSdkUrl}'`,
-        `import { gameletKit } from '${tamagotchiSdkUrl}'`,
+        `import { gameletKit } from '${stageSdkUrl}'`,
         '',
         'export default defineExtension({',
         '  id: \'test-extension-gamelet-kit\',',
@@ -1198,13 +1197,13 @@ describe('setupExtensionHost', () => {
     const pluginDir = join(pluginsDir, 'test-extension-gamelet-orchestration')
     await mkdir(pluginDir, { recursive: true })
     await linkWorkspacePackageForPlugin(pluginDir, '@proj-airi/plugin-sdk')
-    await linkWorkspacePackageForPlugin(pluginDir, '@proj-airi/plugin-sdk-tamagotchi')
+    await linkWorkspacePackageForPlugin(pluginDir, '@proj-airi/plugin-sdk-stage')
     const entrypointPath = await writeEntrypoint({
       dir: pluginDir,
       name: 'test-extension-gamelet-orchestration.ts',
       contents: [
         'import { defineExtension } from \'@proj-airi/plugin-sdk\'',
-        'import { gameletKit } from \'@proj-airi/plugin-sdk-tamagotchi\'',
+        'import { gameletKit } from \'@proj-airi/plugin-sdk-stage\'',
         '',
         'export default defineExtension({',
         '  id: \'test-extension-gamelet-orchestration\',',
@@ -1283,13 +1282,13 @@ describe('setupExtensionHost', () => {
     const pluginDir = join(pluginsDir, 'test-extension-gamelet-session-cleanup')
     await mkdir(pluginDir, { recursive: true })
     await linkWorkspacePackageForPlugin(pluginDir, '@proj-airi/plugin-sdk')
-    await linkWorkspacePackageForPlugin(pluginDir, '@proj-airi/plugin-sdk-tamagotchi')
+    await linkWorkspacePackageForPlugin(pluginDir, '@proj-airi/plugin-sdk-stage')
     const entrypointPath = await writeEntrypoint({
       dir: pluginDir,
       name: 'test-extension-gamelet-session-cleanup.ts',
       contents: [
         'import { createModule, defineExtension } from \'@proj-airi/plugin-sdk\'',
-        'import { createGamelet } from \'@proj-airi/plugin-sdk-tamagotchi/kits/gamelet\'',
+        'import { createGamelet } from \'@proj-airi/plugin-sdk-stage/kits/gamelet\'',
         '',
         'export default defineExtension({',
         '  id: \'test-extension-gamelet-session-cleanup\',',

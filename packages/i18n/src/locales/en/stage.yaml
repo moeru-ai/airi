@@ -107,3 +107,16 @@ websocket-status:
   connected: Connected
   disconnected: No connection
   open-settings: Open connection settings
+whiteboard:
+  title: Whiteboard
+  add-text: Add text
+  close: Close whiteboard
+  delete-canvas: Delete canvas
+  empty: Create a canvas to start drawing.
+  new-canvas: New canvas
+  open: Open whiteboard
+  redo: Redo
+  select-canvas: Select a canvas
+  stroke-color: Stroke color
+  text-placeholder: Text for the canvas
+  undo: Undo

@@ -14,10 +14,10 @@ import { object, optional, picklist, string } from 'valibot'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
-  gameletIframeRequest,
-  gameletIframeRequestEventName,
   gameletKit,
-  TamagotchiToolRegistry,
+  gameletRequest,
+  gameletRequestEventName,
+  StageToolRegistry,
   toolKit,
 } from './index'
 import { createGamelet } from './kits/gamelet'
@@ -163,12 +163,12 @@ function createToolModuleRef(input: {
   return { module, useKit }
 }
 
-describe('plugin-sdk-tamagotchi', () => {
+describe('plugin-sdk-stage', () => {
   it('exports shared gamelet iframe request contracts', () => {
-    expect(gameletIframeRequestEventName).toBe('eventa:invoke:gamelet:iframe:request')
-    expect(gameletIframeRequest).toEqual(expect.objectContaining({
+    expect(gameletRequestEventName).toBe('eventa:invoke:stage:gamelet:request')
+    expect(gameletRequest).toEqual(expect.objectContaining({
       sendEvent: expect.objectContaining({
-        id: expect.stringContaining('eventa:invoke:gamelet:iframe:request'),
+        id: expect.stringContaining('eventa:invoke:stage:gamelet:request'),
       }),
     }))
   })
@@ -281,7 +281,7 @@ describe('plugin-sdk-tamagotchi', () => {
 
   /**
    * @example
-   * await expect(handle.open()).rejects.toThrow('gameletKit requires a host gamelet orchestration runtime.')
+   * await expect(createGamelet(module, options)).rejects.toThrow('gameletKit requires a host gamelet orchestration runtime.')
    */
   it('reports a clear error when createGamelet orchestration methods run without a host runtime', async () => {
     const { module } = createGameletModuleRef({
@@ -291,17 +291,11 @@ describe('plugin-sdk-tamagotchi', () => {
       bind: async () => ({ moduleId: 'chess:board', state: 'active' }),
     })
 
-    const handle = await createGamelet(module, {
+    await expect(createGamelet(module, {
       id: 'board',
       title: 'Chess Board',
       indexPath: 'ui/index.html',
-    })
-
-    await expect(handle.open()).rejects.toThrow('gameletKit requires a host gamelet orchestration runtime.')
-    await expect(handle.configure({ airiSide: 'black' })).rejects.toThrow('gameletKit requires a host gamelet orchestration runtime.')
-    await expect(handle.request({ action: 'snapshot' })).rejects.toThrow('gameletKit requires a host gamelet orchestration runtime.')
-    await expect(handle.close()).rejects.toThrow('gameletKit requires a host gamelet orchestration runtime.')
-    await expect(handle.isOpen()).rejects.toThrow('gameletKit requires a host gamelet orchestration runtime.')
+    })).rejects.toThrow('gameletKit requires a host gamelet orchestration runtime.')
     await expect(module.subscriptions.dispose()).resolves.toBeUndefined()
   })
 
@@ -370,11 +364,13 @@ describe('plugin-sdk-tamagotchi', () => {
     })
 
     expect(registerPrompt).toHaveBeenCalledWith({
-      id: 'chess-toolset',
-      prompt: {
-        id: 'airi-plugin-game-chess.prompt',
-        title: 'Chess Plugin Guidance',
-        content: 'Do not pass fen or pgn when mode is "new".',
+      toolset: {
+        id: 'chess-toolset',
+        prompt: {
+          id: 'airi-plugin-game-chess.prompt',
+          title: 'Chess Plugin Guidance',
+          content: 'Do not pass fen or pgn when mode is "new".',
+        },
       },
     })
     expect(registerTool).toHaveBeenCalledWith(expect.objectContaining({
@@ -424,11 +420,13 @@ describe('plugin-sdk-tamagotchi', () => {
 
     expect(useKit).toHaveBeenCalledWith(toolKit)
     expect(registerToolsetPrompt).toHaveBeenCalledWith({
-      id: 'chess-tools',
-      prompt: {
-        id: 'airi-plugin-game-chess.prompt',
-        title: 'Chess Plugin Guidance',
-        content: 'Do not pass fen or pgn when mode is "new".',
+      toolset: {
+        id: 'chess-tools',
+        prompt: {
+          id: 'airi-plugin-game-chess.prompt',
+          title: 'Chess Plugin Guidance',
+          content: 'Do not pass fen or pgn when mode is "new".',
+        },
       },
     })
     expect(registerTool).toHaveBeenCalledWith(expect.objectContaining({
@@ -466,18 +464,20 @@ describe('plugin-sdk-tamagotchi', () => {
     })
 
     expect(registerToolsetPrompt).toHaveBeenCalledWith({
-      id: 'airi-plugin-game-chess.prompt',
-      prompt: {
+      toolset: {
         id: 'airi-plugin-game-chess.prompt',
-        title: 'Chess Plugin Guidance',
-        content: 'Start chess directly.',
+        prompt: {
+          id: 'airi-plugin-game-chess.prompt',
+          title: 'Chess Plugin Guidance',
+          content: 'Start chess directly.',
+        },
       },
     })
     expect(registerTool).not.toHaveBeenCalled()
   })
 
   it('stores, invokes, and removes module-scoped Tamagotchi tools', async () => {
-    const registry = new TamagotchiToolRegistry()
+    const registry = new StageToolRegistry()
     const execute = vi.fn(async () => ({ ok: true }))
 
     registry.register({
@@ -550,7 +550,7 @@ describe('plugin-sdk-tamagotchi', () => {
       tools: [],
     })
     await expect(registry.invoke('airi-extension-chess', 'play_chess', {})).rejects.toThrow(
-      'Tamagotchi extension tool not found: airi-extension-chess:play_chess',
+      'Stage extension tool not found: airi-extension-chess:play_chess',
     )
   })
 
@@ -601,11 +601,13 @@ describe('plugin-sdk-tamagotchi', () => {
     })
 
     expect(registerToolsetPrompt).toHaveBeenCalledWith({
-      id: 'chess-tools',
-      prompt: {
-        id: 'airi-plugin-game-chess.prompt',
-        title: 'Chess Plugin Guidance',
-        content: 'Do not pass fen or pgn when mode is "new".',
+      toolset: {
+        id: 'chess-tools',
+        prompt: {
+          id: 'airi-plugin-game-chess.prompt',
+          title: 'Chess Plugin Guidance',
+          content: 'Do not pass fen or pgn when mode is "new".',
+        },
       },
     })
     expect(registerBinding).toHaveBeenCalledWith({
@@ -763,6 +765,68 @@ describe('plugin-sdk-tamagotchi', () => {
     expect(parameters.properties.airiSide.enum).toEqual(['white', 'black', null])
   })
 
+  // https://github.com/moeru-ai/airi/pull/2441#discussion_r3922208881
+  it('wraps optional composite tool fields with a nullable union', async () => {
+    // ROOT CAUSE:
+    //
+    // The normalizer added `anyOf: null` beside a `oneOf` constraint.
+    // JSON Schema required values to match both constraints, so no value matched.
+    //
+    // We fixed this by making the original composite schema one nullable union branch.
+    const registerTool = vi.fn()
+    const tools = toolKit.createClient(createToolRuntime({
+      extensionId: 'airi-extension-chess',
+      sessionId: 'session-1',
+      moduleId: 'chess',
+      register: registerTool,
+      registerToolsetPrompt: vi.fn(),
+    }))
+
+    await tools.registerTool({
+      id: 'play_chess',
+      title: 'Play Chess',
+      description: 'Open chess.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          opening: {
+            oneOf: [{ type: 'string' }, { type: 'number' }],
+          },
+          board: {
+            $ref: '#/$defs/board',
+          },
+          mode: {
+            const: 'new',
+          },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+      execute: async () => ({ ok: true }),
+    })
+
+    const parameters = registerTool.mock.calls[0]?.[0].tool.parameters
+
+    expect(parameters.properties.opening).toEqual({
+      anyOf: [
+        { oneOf: [{ type: 'string' }, { type: 'number' }] },
+        { type: 'null' },
+      ],
+    })
+    expect(parameters.properties.board).toEqual({
+      anyOf: [
+        { $ref: '#/$defs/board' },
+        { type: 'null' },
+      ],
+    })
+    expect(parameters.properties.mode).toEqual({
+      anyOf: [
+        { const: 'new' },
+        { type: 'null' },
+      ],
+    })
+  })
+
   /**
    * @example
    * expect(registerBinding).toHaveBeenCalledWith(expect.objectContaining({ moduleId: 'chess:board' }))
@@ -775,6 +839,13 @@ describe('plugin-sdk-tamagotchi', () => {
       extensionId: 'airi-extension-chess',
       sessionId: 'session-1',
       bind: registerBinding,
+      gamelets: {
+        open: vi.fn(),
+        configure: vi.fn(),
+        request: vi.fn(),
+        close: vi.fn(),
+        isOpen: vi.fn(),
+      },
     })
 
     const gamelet = await createGamelet(module, {
@@ -818,6 +889,13 @@ describe('plugin-sdk-tamagotchi', () => {
       extensionId: 'airi-extension-feature',
       sessionId: 'session-1',
       bind: registerBinding,
+      gamelets: {
+        open: vi.fn(),
+        configure: vi.fn(),
+        request: vi.fn(),
+        close: vi.fn(),
+        isOpen: vi.fn(),
+      },
     })
 
     const gamelet = await createGamelet(module, {

@@ -1,4 +1,4 @@
-import type { GameletKitRuntime } from '@proj-airi/plugin-sdk-tamagotchi/gamelet'
+import type { GameletKitRuntime } from '@proj-airi/plugin-sdk-stage/gamelet'
 import type { HostDataRecord } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type { ExtensionHostGameletWidgetsManager } from '../../types'
@@ -40,7 +40,7 @@ export function createGameletOrchestrationRuntime(
       else {
         await widgetsManager.pushWidget({
           id: bindingId,
-          componentName: 'extension-ui',
+          componentName: bindingId === 'whiteboard:main' ? 'whiteboard-gamelet' : 'extension-ui',
           componentProps,
           size: 'l',
         })
@@ -78,8 +78,12 @@ export function createGameletOrchestrationRuntime(
 }
 
 function createComponentProps(bindingId: string, payload: HostDataRecord): HostDataRecord {
-  return {
+  const componentProps: HostDataRecord = {
     moduleId: bindingId,
     payload,
   }
+  if (bindingId === 'whiteboard:main') {
+    componentProps.bindingId = bindingId
+  }
+  return componentProps
 }

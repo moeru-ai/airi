@@ -22,7 +22,7 @@ import { number, object, optional } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { widgetsClearEvent, widgetsIframeRequestEvent, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdateEvent } from '../../../shared/eventa'
+import { widgetsClearEvent, widgetsIframeReadyEvent, widgetsIframeRequestEvent, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdateEvent } from '../../../shared/eventa'
 import { normalizeWidgetWindowSize } from '../../../shared/utils/electron/windows/window-size'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
@@ -254,6 +254,9 @@ interface WidgetWindowContext {
   currentRoute?: string
   disposeInvokes?: () => void
   eventa?: ReturnType<typeof createContext>
+  iframeRelayReady?: boolean
+  resolveIframeRelayReady?: () => void
+  iframeRelayReadyPromise?: Promise<void>
   persistBounds: boolean
   window?: BrowserWindow
   windowSetupPromise?: Promise<BrowserWindow>
@@ -300,7 +303,8 @@ export function setupWidgetsWindowManager(params: {
   }
   const iframeRequests = createWidgetIframeRequestCoordinator({
     hasWidget: id => widgetRecords.has(id),
-    hasRelay: id => Boolean(windowContexts.get(id)?.eventa),
+    hasRelay: id => Boolean(windowContexts.get(id)?.eventa && windowContexts.get(id)?.iframeRelayReady),
+    waitForRelay: id => windowContexts.get(id)?.iframeRelayReadyPromise ?? Promise.reject(new Error('Gamelet iframe relay is not available.')),
     emitRequest: payload => windowContexts.get(payload.id)?.eventa?.context.emit(widgetsIframeRequestEvent, payload),
   })
 
@@ -441,6 +445,12 @@ export function setupWidgetsWindowManager(params: {
     const window = createWidgetsWindow()
     windowContext.window = window
     windowContext.eventa = createContext(ipcMain, window)
+    resetIframeRelayReadiness(windowContext)
+    windowContext.eventa.context.on(widgetsIframeReadyEvent, () => {
+      windowContext.iframeRelayReady = true
+      windowContext.resolveIframeRelayReady?.()
+      windowContext.resolveIframeRelayReady = undefined
+    })
 
     /**
      * Releases the state owned by one closed widget window.
@@ -464,6 +474,10 @@ export function setupWidgetsWindowManager(params: {
       windowContext.disposeInvokes = undefined
       windowContext.eventa?.dispose()
       windowContext.eventa = undefined
+      windowContext.iframeRelayReady = false
+      windowContext.resolveIframeRelayReady?.()
+      windowContext.resolveIframeRelayReady = undefined
+      windowContext.iframeRelayReadyPromise = undefined
       windowContext.currentRoute = undefined
       windowContext.window = undefined
 
@@ -504,6 +518,14 @@ export function setupWidgetsWindowManager(params: {
     }
   }
 
+  function resetIframeRelayReadiness(windowContext: WidgetWindowContext) {
+    windowContext.iframeRelayReady = false
+    windowContext.resolveIframeRelayReady?.()
+    windowContext.iframeRelayReadyPromise = new Promise<void>((resolve) => {
+      windowContext.resolveIframeRelayReady = resolve
+    })
+  }
+
   async function getWindowFromContext(windowContext: WidgetWindowContext, initialRoute: string): Promise<BrowserWindow> {
     if (windowContext.window && !windowContext.window.isDestroyed())
       return windowContext.window
@@ -521,8 +543,12 @@ export function setupWidgetsWindowManager(params: {
     const window = await getWindowFromContext(windowContext, route)
     applyWindowLayout(windowContext, window, snapshot)
     setWindowAlwaysOnTop(window, snapshot?.alwaysOnTop ?? false)
-    if (windowContext.currentRoute !== route)
+    if (windowContext.currentRoute !== route) {
+      // A route reload replaces the renderer that owns the request listener.
+      // Do not let the previous renderer's readiness authorize one-shot events.
+      resetIframeRelayReadiness(windowContext)
       await loadWithRoute(windowContext, window, route)
+    }
     window.show()
     return window
   }

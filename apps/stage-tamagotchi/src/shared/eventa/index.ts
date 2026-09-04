@@ -1,8 +1,8 @@
 import type { Locale } from '@intlify/core'
 import type {
-  GameletIframeRequestPayload as GameletIframeInvokePayload,
-  GameletIframeResponsePayload,
-} from '@proj-airi/plugin-sdk-tamagotchi/gamelet'
+  GameletRequestPayload as GameletIframeInvokePayload,
+  GameletResponsePayload as GameletIframeResponsePayload,
+} from '@proj-airi/plugin-sdk-stage/gamelet'
 import type { ServerOptions } from '@proj-airi/server-runtime/server'
 import type {
   ShortcutAccelerator,
@@ -164,6 +164,8 @@ export interface WidgetsIframeRequestPayload {
   payload: GameletIframeInvokePayload['payload']
   /** Request timeout budget in milliseconds. */
   timeoutMs: number
+  /** Absolute request deadline in Unix milliseconds, shared by main and renderer. */
+  expiresAt: number
 }
 
 /**
@@ -476,6 +478,8 @@ export const widgetsClearEvent = defineEventa('eventa:event:electron:windows:wid
 export const widgetsUpdateEvent = defineEventa<WidgetsUpdatePayload>('eventa:event:electron:windows:widgets:update')
 /** Main-to-renderer event requesting work from a mounted widget iframe. */
 export const widgetsIframeRequestEvent = defineEventa<WidgetsIframeRequestPayload>('eventa:event:electron:windows:widgets:iframe-request')
+/** Renderer-to-main event confirming that the widget request listener is mounted. */
+export const widgetsIframeReadyEvent = defineEventa<undefined>('eventa:event:electron:windows:widgets:iframe-ready')
 /** Renderer-to-main event carrying the correlated result for a widget iframe request. */
 export const widgetsIframeRequestResultEvent = defineEventa<WidgetsIframeRequestResultPayload>('eventa:event:electron:windows:widgets:iframe-request-result')
 

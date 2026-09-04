@@ -3,12 +3,13 @@ import type { HostDataRecord } from '@proj-airi/plugin-sdk/plugin-host'
 
 import { defineKit } from '@proj-airi/plugin-sdk'
 
+export * from './controller'
 export * from './events'
 
+/** Client methods exposed by the platform-neutral gamelet kit. */
 export interface GameletKitClient {
   iframe: (input: { assetPath?: string, src?: string, sandbox?: string }) => HostDataRecord
   mount: (definition: {
-    /** Fully qualified host binding id used as the host-side module id. */
     bindingId?: string
     title: string
     ui: HostDataRecord
@@ -17,6 +18,7 @@ export interface GameletKitClient {
   orchestration?: GameletKitRuntime['gamelets']
 }
 
+/** Host runtime services required by {@link gameletKit}. */
 export interface GameletKitRuntime extends KitClientRuntime {
   bindings?: {
     bind: (input: {
@@ -30,29 +32,17 @@ export interface GameletKitRuntime extends KitClientRuntime {
   gamelets?: {
     open: (bindingId: string, payload?: HostDataRecord) => Promise<void> | void
     configure: (bindingId: string, payload: HostDataRecord) => Promise<void> | void
-    request: <TResponse = HostDataRecord>(
-      bindingId: string,
-      payload: HostDataRecord,
-      options?: { timeoutMs?: number },
-    ) => Promise<TResponse> | TResponse
+    request: <TResponse = HostDataRecord>(bindingId: string, payload: HostDataRecord, options?: { timeoutMs?: number }) => Promise<TResponse> | TResponse
     close: (bindingId: string) => Promise<void> | void
     isOpen: (bindingId: string) => Promise<boolean> | boolean
   }
 }
 
-/**
- * Derives the host binding id used by the gamelet kit client.
- *
- * Before:
- * - `{ sessionId: "session-1", moduleId: undefined }`
- *
- * After:
- * - `"session-1:gamelet"`
- */
-function createGameletBindingId(runtime: KitClientRuntime): string {
+function createBindingId(runtime: KitClientRuntime): string {
   return `${runtime.moduleId ?? runtime.sessionId}:gamelet`
 }
 
+/** The gamelet kit shared by every AIRI stage host. */
 export const gameletKit = defineKit<GameletKitClient>({
   id: 'kit.gamelet',
   version: '1.0.0',
@@ -76,15 +66,13 @@ export const gameletKit = defineKit<GameletKitClient>({
         }
 
         return await gameletRuntime.bindings.bind({
-          moduleId: definition.bindingId ?? createGameletBindingId(runtime),
+          moduleId: definition.bindingId ?? createBindingId(runtime),
           kitId: 'kit.gamelet',
           kitModuleType: 'gamelet',
           config: {
             title: definition.title,
             widget: definition.ui,
-            config: {
-              init: definition.init ?? {},
-            },
+            config: { init: definition.init ?? {} },
           },
         })
       },

@@ -1,0 +1,37 @@
+{
+  "name": "@proj-airi/airi-extension-whiteboard",
+  "type": "module",
+  "version": "0.12.0-beta.4",
+  "private": true,
+  "description": "Official local whiteboard extension for AIRI stages",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./ui": "./src/ui/index.ts"
+  },
+  "main": "./dist/index.mjs",
+  "types": "./src/index.ts",
+  "files": ["README.md", "dist", "package.json", "src/ui"],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@moeru/std": "catalog:",
+    "@proj-airi/plugin-sdk": "workspace:^",
+    "@proj-airi/plugin-sdk-stage": "workspace:^",
+    "@proj-airi/ui": "workspace:^",
+    "nanoid": "catalog:",
+    "vue": "catalog:",
+    "vue-i18n": "catalog:"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "catalog:",
+    "tsdown": "catalog:",
+    "vitest": "catalog:vitest",
+    "vue-tsc": "catalog:"
+  }
+}
