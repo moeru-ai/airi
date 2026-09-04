@@ -370,6 +370,19 @@ so flex layouts do not stretch the empty measurement box.
 **v-model**: `input: string`
 **Emits**: `submit(message: string)`, `pasteFile(files: File[])`
 
+### BasicContentEditable
+
+Plain-text contenteditable control with submit and paste-file events. It is for text entry that must not use browser form controls.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `defaultHeight` | `string?` | — | Minimum height when empty |
+| `placeholder` | `string?` | — | Placeholder text |
+| `submitOnEnter` | `boolean?` | `true` | Submit on Enter (Shift+Enter for newline) |
+
+**v-model**: `input: string`
+**Emits**: `submit(message: string)`, `pasteFile(files: File[])`
+
 ### Textarea
 
 Styled textarea wrapping `BasicTextarea`.
