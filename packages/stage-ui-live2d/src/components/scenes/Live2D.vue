@@ -66,6 +66,7 @@ const {
   screenAmbientLightEnabled,
   screenAmbientLightExposureRange,
   screenAmbientLightMode,
+  screenAmbientLightSquint,
   screenAmbientLightStrength,
   screenAmbientLightTranslucentWrap,
   screenAmbientLightWrapDiffuse,
@@ -163,6 +164,7 @@ defineExpose({
         :screen-ambient-light-environment="screenAmbientLightEnvironment"
         :screen-ambient-light-mode="screenAmbientLightMode"
         :screen-ambient-light-strength="screenAmbientLightStrength"
+        :screen-ambient-light-squint="screenAmbientLightSquint"
         @error="emit('error', $event)"
       />
     </Live2DCanvas>

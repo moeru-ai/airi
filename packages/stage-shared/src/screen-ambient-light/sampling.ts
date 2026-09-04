@@ -688,6 +688,22 @@ function srgbToLinear(value: number): number {
   return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
 }
 
+/**
+ * Converts a linear luminance into the perceptual level that `exposure` already
+ * travels on, so that the two can be compared and tuned against one scale.
+ *
+ * `behindLuminance` is linear, and light near the low end reads far darker in
+ * linear light than the eye reports it, so a consumer that treats it as a level
+ * measures a much smaller change than the viewer sees.
+ *
+ * @example
+ * ambientLightPerceptualLevel(0.2)
+ * // => 0.485
+ */
+export function ambientLightPerceptualLevel(linearLuminance: number): number {
+  return clamp(linearToSrgb(linearLuminance), 0, 1)
+}
+
 function linearToSrgb(value: number): number {
   return value <= 0.0031308 ? value * 12.92 : 1.055 * value ** (1 / 2.4) - 0.055
 }
