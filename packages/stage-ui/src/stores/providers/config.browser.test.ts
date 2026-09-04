@@ -184,7 +184,7 @@ describe('provider config synchronization', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2435#discussion_r3920910268
-  it('keeps a caller validation token across follower delegation for PR #2435', async () => {
+  it('finishes a caller-owned validation token without waiting for follower replication for PR #2435', async () => {
     // ROOT CAUSE:
     //
     // A synchronized follower action does not return the leader action value.
@@ -204,13 +204,6 @@ describe('provider config synchronization', () => {
 
     const validationToken = crypto.randomUUID()
     await followerStore.beginProviderValidation(localProvider.id, validationToken)
-
-    await vi.waitFor(() => {
-      expect(leaderStore.providerValidationLeases[localProvider.id]?.token).toBe(validationToken)
-      expect(followerStore.providerValidationLeases[localProvider.id]?.token).toBe(validationToken)
-      expect(followerStore.providers[localProvider.id]?.status).toBe('validating')
-    })
-
     const validatedConfig = { apiKey: 'sk-follower' }
     await followerStore.finishProviderValidationAndUpdateConfig(localProvider.id, validationToken, validatedConfig)
     await vi.waitFor(() => {

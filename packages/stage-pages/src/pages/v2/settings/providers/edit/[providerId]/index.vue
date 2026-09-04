@@ -331,9 +331,6 @@ async function runValidation() {
   const validatedDraftKey = providerConfigDraftKey.value
   const validationToken = crypto.randomUUID()
   await providerStore.beginProviderValidation(validationProviderId, validationToken)
-  const resolvedValidationProviderId = resolveProviderCreationId(providerStore.providerCreationResolutions, validationProviderId)
-  if (providerStore.providerValidationLeases[resolvedValidationProviderId]?.token !== validationToken)
-    return
 
   validationStatusRestorer.begin(validationProviderId, validationToken)
   if (!isActive || !isCurrentRun()) {
