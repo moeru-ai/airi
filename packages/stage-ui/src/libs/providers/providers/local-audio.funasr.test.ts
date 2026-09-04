@@ -23,7 +23,11 @@ describe('funasr local audio provider', () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
 
-    fetchMock.mockResolvedValueOnce({ json: async () => ({ data: [] }), ok: true, status: 200 })
+    fetchMock.mockResolvedValueOnce({
+      json: async () => ({ data: [{ id: 'SenseVoiceSmall' }] }),
+      ok: true,
+      status: 200,
+    })
     const reachable = await validator?.validator(
       { baseUrl: 'http://localhost:8000/v1/' },
       provider,
@@ -119,6 +123,26 @@ describe('funasr local audio provider', () => {
     const validator = await providerFunASRAudioTranscription.validators?.validateProvider?.[0]({ t: translate })
     const provider = await providerFunASRAudioTranscription.createProvider({ baseUrl: 'http://localhost:8000/v1/' })
     const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ ok: true }), ok: true, status: 200 })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await validator?.validator(
+      { baseUrl: 'http://localhost:8000/v1/' },
+      provider,
+      {},
+      { t: translate },
+    )
+
+    expect(result?.valid).toBe(false)
+    expect(result?.reason).toBe('无法连接 FunASR OpenAI 兼容端点：Unexpected /models response')
+  })
+
+  it.each([
+    { data: [] },
+    { data: [{}, { id: '' }, { id: '   ' }] },
+  ])('rejects model lists without a usable model id: %o', async (payload) => {
+    const validator = await providerFunASRAudioTranscription.validators?.validateProvider?.[0]({ t: translate })
+    const provider = await providerFunASRAudioTranscription.createProvider({ baseUrl: 'http://localhost:8000/v1/' })
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => payload, ok: true, status: 200 })
     vi.stubGlobal('fetch', fetchMock)
 
     const result = await validator?.validator(

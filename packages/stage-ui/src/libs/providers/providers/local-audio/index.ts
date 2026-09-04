@@ -132,10 +132,18 @@ function createFunASRAudioValidators() {
               throw new Error(`HTTP ${response.status}`)
 
             const payload: unknown = await response.json()
+            const models = typeof payload === 'object' && payload !== null
+              ? (payload as { data?: unknown }).data
+              : undefined
             if (
-              typeof payload !== 'object'
-              || payload === null
-              || !Array.isArray((payload as { data?: unknown }).data)
+              !Array.isArray(models)
+              || !models.some(model => (
+                typeof model === 'object'
+                && model !== null
+                && 'id' in model
+                && typeof model.id === 'string'
+                && model.id.trim().length > 0
+              ))
             ) {
               throw new Error('Unexpected /models response')
             }
@@ -244,7 +252,7 @@ export const providerBrowserLocalAudioTranscription = defineProvider<LocalAudioC
   validators: createLocalAudioValidators(),
 })
 
-export const providerFunASRAudioTranscription = defineProvider<FunASRAudioConfig>({
+export const providerFunASRAudioTranscription = defineProvider<FunASRAudioConfig, 'funasr-audio-transcription'>({
   id: 'funasr-audio-transcription',
   name: 'FunASR',
   nameLocalize: () => 'FunASR',
