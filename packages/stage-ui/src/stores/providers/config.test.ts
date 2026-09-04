@@ -94,6 +94,24 @@ describe('provider config store', () => {
     expect(store.providers).toEqual({ [localProvider.id]: localProvider })
   })
 
+  // https://github.com/moeru-ai/airi/pull/2435#discussion_r3931007017
+  it('preserves token-owned validation across a remote snapshot refresh for PR #2435', async () => {
+    mocks.service.fetchRemote.mockResolvedValue({
+      [localProvider.id]: { ...localProvider, status: 'unconfigured' },
+    })
+    const store = installStore()
+    await store.ensureProvider(localProvider.id, localProvider.definitionId)
+    await store.setProviderStatus(localProvider.id, 'configured')
+    const validationToken = crypto.randomUUID()
+
+    await store.beginProviderValidation(localProvider.id, validationToken)
+    await store.fetchProviders()
+
+    expect(store.providers[localProvider.id]?.status).toBe('validating')
+    await expect(store.finishProviderValidation(localProvider.id, validationToken, 'configured')).resolves.toBe(true)
+    expect(store.providers[localProvider.id]?.status).toBe('configured')
+  })
+
   it('keeps a new local provider when the remote create fails', async () => {
     mocks.service.createRemote.mockRejectedValue(new Error('remote unavailable'))
     const store = installStore()
