@@ -600,6 +600,24 @@ describe('provider config store', () => {
     expect(store.providerValidationLeases[remoteProvider.id]?.token).toBe(validationLease?.token)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2435#discussion_r3931156683
+  it('preserves an early invalid result through pending-create reconciliation for PR #2435', async () => {
+    let resolveCreate!: (provider: InferenceServiceProvider) => void
+    mocks.service.createRemote.mockReturnValue(new Promise((resolve) => {
+      resolveCreate = resolve
+    }))
+    mocks.service.patchConfigRemote.mockResolvedValue({ ...remoteProvider, status: 'unconfigured' })
+    const store = installStore()
+
+    const creating = store.addProvider(localProvider.definitionId)
+    const lease = await store.beginProviderValidation(localProvider.id)
+    await store.finishProviderValidation(localProvider.id, lease!.token, 'invalid')
+    resolveCreate(remoteProvider)
+    await creating
+
+    expect(store.providers[remoteProvider.id]?.status).toBe('invalid')
+  })
+
   it.each([
     { outcome: 'success', snapshot: 'removal' },
     { outcome: 'failure', snapshot: 'removal' },
