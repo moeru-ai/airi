@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { computed, createApp, defineComponent, h, ref, watch } from 'vue'
 
 import { createLatestValidationGuard, createProviderDraftSourceKey, createValidationStatusRestorer } from '../../libs/providers/validation-run'
-import { useProviderConfigStore } from './config'
+import { resolveProviderCreationId, useProviderConfigStore } from './config'
 
 const mocks = vi.hoisted(() => ({
   client: {},
@@ -472,7 +472,7 @@ describe('provider config synchronization', () => {
     await creation
 
     expect(mocks.service.patchConfigRemote).not.toHaveBeenCalled()
-    expect(store.resolveProviderId(localProvider.id)).toBe(remoteProvider.id)
+    expect(resolveProviderCreationId(store.providerCreationResolutions, localProvider.id)).toBe(remoteProvider.id)
     expect(store.providerValidationLeases[localProvider.id]).toBeUndefined()
     expect(store.providerValidationLeases[remoteProvider.id]?.token).toBe(validationLease?.token)
     expect(store.providers[remoteProvider.id]?.status).toBe('validating')
@@ -481,7 +481,7 @@ describe('provider config synchronization', () => {
 
     await store.removeProvider(localProvider.id)
     expect(store.providers[remoteProvider.id]).toBeUndefined()
-    expect(store.resolveProviderId(localProvider.id)).toBe(localProvider.id)
+    expect(resolveProviderCreationId(store.providerCreationResolutions, localProvider.id)).toBe(localProvider.id)
     expect(mocks.service.deleteRemote).toHaveBeenCalledWith(mocks.client, remoteProvider.id)
   })
 
@@ -514,7 +514,7 @@ describe('provider config synchronization', () => {
     })
     await creation
     routeProviderId.value = remoteProvider.id
-    await vi.waitFor(() => expect(store.resolveProviderId(localProvider.id)).toBe(remoteProvider.id))
+    await vi.waitFor(() => expect(resolveProviderCreationId(store.providerCreationResolutions, localProvider.id)).toBe(remoteProvider.id))
 
     expect(draft.value.config.baseUrl).toBe('https://unsaved.example')
   })

@@ -19,7 +19,7 @@ import {
   ProviderValidationDetailsDialog,
 } from '@proj-airi/stage-ui/components'
 import { createDebouncedValidationRunner, createLatestValidationGuard, createProviderDraftSourceKey, createProviderValidationScheduleGate, createValidationStatusRestorer, getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
-import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { resolveProviderCreationId, useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
 import { computedAsync, useCloned } from '@vueuse/core'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
@@ -49,7 +49,7 @@ const validationRunGuard = createLatestValidationGuard()
 
 onMounted(async () => {
   const initialProviderId = providerId.value
-  const resolvedInitialProviderId = providerStore.resolveProviderId(initialProviderId)
+  const resolvedInitialProviderId = resolveProviderCreationId(providerStore.providerCreationResolutions, initialProviderId)
   if (resolvedInitialProviderId !== initialProviderId && providerStore.getProvider(resolvedInitialProviderId)) {
     await router.replace(`/v2/settings/providers/edit/${resolvedInitialProviderId}`)
     return
@@ -135,7 +135,7 @@ watch(providerDraftSourceKey, () => {
 }, { immediate: true })
 
 watch(providerId, (nextProviderId, previousProviderId) => {
-  if (!previousProviderId || providerStore.resolveProviderId(previousProviderId) === nextProviderId)
+  if (!previousProviderId || resolveProviderCreationId(providerStore.providerCreationResolutions, previousProviderId) === nextProviderId)
     return
 
   syncProviderConfigEdit()
@@ -331,7 +331,7 @@ async function runValidation() {
   const validatedDraftKey = providerConfigDraftKey.value
   const validationToken = crypto.randomUUID()
   await providerStore.beginProviderValidation(validationProviderId, validationToken)
-  const resolvedValidationProviderId = providerStore.resolveProviderId(validationProviderId)
+  const resolvedValidationProviderId = resolveProviderCreationId(providerStore.providerCreationResolutions, validationProviderId)
   if (providerStore.providerValidationLeases[resolvedValidationProviderId]?.token !== validationToken)
     return
 

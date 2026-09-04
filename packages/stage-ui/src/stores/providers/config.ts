@@ -36,6 +36,19 @@ function createProviderMutationKey(
   return JSON.stringify({ config: provider.config, status: stableStatus })
 }
 
+export function resolveProviderCreationId(
+  resolutions: Readonly<Record<string, string>>,
+  providerId: string,
+) {
+  const visited = new Set<string>()
+  let resolvedId = providerId
+  while (resolutions[resolvedId] && !visited.has(resolvedId)) {
+    visited.add(resolvedId)
+    resolvedId = resolutions[resolvedId]
+  }
+  return resolvedId
+}
+
 /**
  * Creates the remote provider-list query.
  *
@@ -218,13 +231,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   function resolveProviderId(providerId: string) {
-    const visited = new Set<string>()
-    let resolvedId = providerId
-    while (providerCreationResolutions.value[resolvedId] && !visited.has(resolvedId)) {
-      visited.add(resolvedId)
-      resolvedId = providerCreationResolutions.value[resolvedId]
-    }
-    return resolvedId
+    return resolveProviderCreationId(providerCreationResolutions.value, providerId)
   }
 
   function resolveProviderWriteId(providerId: string) {
@@ -721,7 +728,6 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
 
     getProvider,
     getProviderConfig,
-    resolveProviderId,
     ensureProvider,
     markProviderAdded,
     unmarkProviderAdded,
