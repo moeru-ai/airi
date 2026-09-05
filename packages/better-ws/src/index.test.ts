@@ -1162,6 +1162,92 @@ describe('better-ws client runtime', () => {
     expect(closed[0]).toHaveBeenCalledOnce()
   })
 
+  it('preserves the active handshake when an older connector resolves late', async () => {
+    const firstConnection = Promise.withResolvers<betterWs.ClientConnection<string>>()
+    const preparing = Promise.withResolvers<void>()
+    const staleClose = vi.fn()
+    const activeClose = vi.fn()
+    const activeSend = vi.fn(() => true)
+    let serverMessage: ((message: string) => void) | undefined
+    const connect = vi.fn<betterWs.ClientConnector<string>['connect']>()
+      .mockReturnValueOnce(firstConnection.promise)
+      .mockImplementationOnce((events) => {
+        serverMessage = events.message
+        return { send: activeSend, close: activeClose }
+      })
+    const client = betterWs.createClient<string>({
+      reconnect: false,
+      connector: { connect },
+      async prepare(ctx) {
+        preparing.resolve()
+        await ctx.waitFor(message => message === 'authenticated')
+      },
+    })
+
+    // ROOT CAUSE:
+    //
+    // An older connector can resolve after its replacement starts preparation.
+    // The stale branch aborted and cleared the shared prepare controller,
+    // which already belonged to the replacement connection.
+    // Stale completion must close only the connection it received.
+    const firstConnect = client.connect()
+    const secondConnect = client.connect()
+    const results = Promise.allSettled([firstConnect, secondConnect])
+    await preparing.promise
+
+    firstConnection.resolve({ send: vi.fn(() => true), close: staleClose })
+    await firstConnect
+    serverMessage?.('authenticated')
+
+    expect(await results).toEqual([
+      { status: 'fulfilled', value: undefined },
+      { status: 'fulfilled', value: undefined },
+    ])
+    expect(staleClose).toHaveBeenCalledOnce()
+    expect(activeClose).not.toHaveBeenCalled()
+    expect(client.state).toBe('ready')
+    expect(client.send('hello')).toEqual({ ok: true })
+    expect(activeSend).toHaveBeenCalledExactlyOnceWith('hello')
+    client.close()
+  })
+
+  it('retains active prepare cancellation after an older connector resolves late', async () => {
+    const firstConnection = Promise.withResolvers<betterWs.ClientConnection<string>>()
+    const preparing = Promise.withResolvers<AbortSignal>()
+    const finishPrepare = Promise.withResolvers<void>()
+    const activeClose = vi.fn()
+    const connect = vi.fn<betterWs.ClientConnector<string>['connect']>()
+      .mockReturnValueOnce(firstConnection.promise)
+      .mockReturnValueOnce({ send: vi.fn(() => true), close: activeClose })
+    const client = betterWs.createClient<string>({
+      reconnect: false,
+      connector: { connect },
+      async prepare(ctx) {
+        preparing.resolve(ctx.signal)
+        await finishPrepare.promise
+      },
+    })
+
+    const firstConnect = client.connect()
+    const secondConnect = client.connect()
+    const signal = await preparing.promise
+    firstConnection.resolve({ send: vi.fn(() => true), close: vi.fn() })
+    await firstConnect
+
+    try {
+      expect(signal.aborted).toBe(false)
+      client.close()
+      expect(signal.aborted).toBe(true)
+      expect(activeClose).toHaveBeenCalledOnce()
+      expect(client.state).toBe('closed')
+    }
+    finally {
+      client.close()
+      finishPrepare.resolve()
+      await secondConnect
+    }
+  })
+
   it('keeps stale prepare waitFor bound to its aborted prepare context', async () => {
     const closed = [vi.fn(), vi.fn()]
     let connectCount = 0

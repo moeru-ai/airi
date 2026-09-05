@@ -491,10 +491,9 @@ function createClientWithConnector<TMessage>(
       throw error
     }
 
-    if ((currentConnectionEpoch !== connectionEpoch || manuallyClosed)) {
-      (prepareController as AbortController | undefined)?.abort()
-      prepareController = undefined
-
+    if (currentConnectionEpoch !== connectionEpoch || manuallyClosed) {
+      // This attempt has not started preparation. The shared controller can
+      // belong to a newer connection, so only close this stale transport.
       nextConnection.close?.()
       return
     }
