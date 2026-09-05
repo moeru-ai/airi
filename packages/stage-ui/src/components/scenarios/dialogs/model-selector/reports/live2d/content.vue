@@ -39,9 +39,12 @@ const modelTypeLabel = computed(() => {
   if (props.report.model.type === 'unknown')
     return t('settings.model-select.live2d-report.model.types.unknown')
 
+  if (props.report.model.type === 'model2')
+    return t('settings.model-select.live2d-report.model.types.cubism', { version: '2', format: '.model.json' })
+
   const format = props.report.model.type === 'model3' ? '.model3.json' : '.moc3'
   const mocVersion = props.report.model.moc?.version
-  const cubismVersion = mocVersion === undefined ? undefined : cubismVersionByMocVersion[mocVersion]
+  const cubismVersion = mocVersion == null ? undefined : cubismVersionByMocVersion[mocVersion]
 
   if (cubismVersion !== undefined)
     return t('settings.model-select.live2d-report.model.types.cubism', { version: cubismVersion, format })

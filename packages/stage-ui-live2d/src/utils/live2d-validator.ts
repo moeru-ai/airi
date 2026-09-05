@@ -1,6 +1,15 @@
+import type { JSONObject } from 'pixi-live2d-display'
+
+import type { Live2DAssetReference } from '../generations/loader'
+
 import JSZip from 'jszip'
 
+import { errorMessageFrom } from '@moeru/std'
+
+import { isCubism4MocFile, isCubism4TextureFile } from '../generations/cubism4/loose-files'
+import { isLive2DSettingsFile, selectLive2DSettings, shouldIgnoreLive2DArchiveEntry } from '../generations/loader'
 import { decodeZipFileName } from './decode-zip-filename'
+import { resolveLive2DRuntime } from './live2d-runtime'
 
 /** Whether the inspected archive can be imported without review, with warnings, or not at all. */
 export type Live2DValidationStatus = 'VALID' | 'WARNING' | 'INVALID'
@@ -9,13 +18,14 @@ export type Live2DValidationStatus = 'VALID' | 'WARNING' | 'INVALID'
 export type Live2DValidationIssueSeverity = 'error' | 'warning'
 
 /** The file type that AIRI uses as the model target. */
-export type Live2DModelType = 'model3' | 'moc3' | 'unknown'
+export type Live2DModelType = 'model2' | 'model3' | 'moc3' | 'unknown'
 
 /** A stable identifier for a validation rule that produced an issue. */
 export type Live2DValidationIssueCode
   = | 'multiple-settings-files'
     | 'missing-settings-file'
     | 'invalid-settings-json'
+    | 'runtime-unavailable'
     | 'missing-moc-reference'
     | 'invalid-moc-header'
     | 'moc-too-large'
@@ -43,7 +53,8 @@ export interface Live2DModelSummary {
   archiveFileCount: number
   moc: {
     path: string
-    version: number
+    /** Cubism 2 has no MOC3 format version. */
+    version: number | null
     size: number
   } | null
 }
@@ -87,12 +98,6 @@ interface ReferenceCheckOptions {
   severity: Live2DValidationIssueSeverity
 }
 
-function isIgnoredArchivePath(filePath: string): boolean {
-  return filePath
-    .split('/')
-    .some(segment => segment === '__MACOSX' || segment.startsWith('._'))
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -124,57 +129,6 @@ function resolveArchivePath(settingsPath: string, reference: string): string {
   }
 
   return resolved.join('/')
-}
-
-function readString(value: unknown): string | undefined {
-  return typeof value === 'string' && value.length > 0 ? value : undefined
-}
-
-function readStringArray(value: unknown): string[] {
-  if (!Array.isArray(value))
-    return []
-  return value.filter((item): item is string => typeof item === 'string' && item.length > 0)
-}
-
-function readExpressionReferences(value: unknown): string[] {
-  if (!Array.isArray(value))
-    return []
-
-  const references: string[] = []
-  for (const item of value) {
-    if (typeof item === 'string') {
-      references.push(item)
-      continue
-    }
-    if (!isRecord(item))
-      continue
-
-    const file = readString(item.File)
-    if (file)
-      references.push(file)
-  }
-  return references
-}
-
-function readMotionReferences(value: unknown): string[] {
-  if (!isRecord(value))
-    return []
-
-  const references: string[] = []
-  for (const definitions of Object.values(value)) {
-    if (!Array.isArray(definitions))
-      continue
-
-    for (const definition of definitions) {
-      if (!isRecord(definition))
-        continue
-
-      const file = readString(definition.File)
-      if (file)
-        references.push(file)
-    }
-  }
-  return references
 }
 
 async function readJsonObject(zip: JSZip, filePath: string): Promise<Record<string, unknown>> {
@@ -299,10 +253,13 @@ function updateStatus(report: Live2DValidationReport): void {
  * Errors identify missing core resources that block loading. Warnings identify optional
  * resources that AIRI can skip while it loads the model.
  */
-export async function validateLive2DZip(file: File | Blob): Promise<Live2DValidationReport> {
+export async function validateLive2DZip(
+  file: File | Blob,
+  resolveRuntime: () => Promise<{ supportsCubism2: boolean }> = resolveLive2DRuntime,
+): Promise<Live2DValidationReport> {
   const zip = await JSZip.loadAsync(await file.arrayBuffer(), { decodeFileName: decodeZipFileName })
   const archivePaths = Object.entries(zip.files)
-    .filter(([filePath, entry]) => !entry.dir && !isIgnoredArchivePath(filePath))
+    .filter(([filePath, entry]) => !entry.dir && !shouldIgnoreLive2DArchiveEntry(filePath))
     .map(([filePath]) => filePath)
 
   let fileName = 'live2d-model.zip'
@@ -327,51 +284,39 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
     issues: [],
   }
 
-  const settingsPaths = archivePaths.filter(path => path.toLowerCase().endsWith('.model3.json'))
-  const mocPaths = archivePaths.filter(path => path.toLowerCase().endsWith('.moc3'))
-  const texturePaths = archivePaths.filter(path => path.toLowerCase().endsWith('.png'))
-  const expressionPaths = archivePaths.filter(path => path.toLowerCase().endsWith('.exp3.json'))
-  const motionPaths = archivePaths.filter(path => path.toLowerCase().endsWith('.motion3.json'))
+  const settingsPaths = archivePaths.filter(isLive2DSettingsFile)
+  const mocPaths = archivePaths.filter(isCubism4MocFile)
+  const texturePaths = archivePaths.filter(isCubism4TextureFile)
+  const expressionPaths = archivePaths.filter(path => /\.exp3?\.json$/i.test(path))
+  const motionPaths = archivePaths.filter(path => /\.(?:motion3\.json|mtn)$/i.test(path))
   const displayInfoPaths = archivePaths.filter(path => path.toLowerCase().endsWith('.cdi3.json'))
 
   report.resources.textures.discovered = texturePaths.length
   report.resources.expressions.discovered = expressionPaths.length
   report.resources.motions.discovered = motionPaths.length
   report.resources.expressions.parsed = await countParsedJsonResources(zip, expressionPaths, 'expression', report)
-  report.resources.motions.parsed = await countParsedJsonResources(zip, motionPaths, 'motion', report)
+  // Cubism 2 motions contain text curves, so the JSON audit does not parse them.
+  report.resources.motions.parsed = await countParsedJsonResources(zip, motionPaths.filter(path => !/\.mtn$/i.test(path)), 'motion', report)
 
-  let settings: Record<string, unknown> | undefined
-  let references: Record<string, unknown> | undefined
+  let references: Live2DAssetReference[] | undefined
   let settingsFileName = 'model3.json'
 
   if (settingsPaths.length > 0) {
-    const entryPoint = settingsPaths[0]
-    report.model.type = 'model3'
-    report.model.entryPoint = entryPoint
-    settingsFileName = basename(entryPoint)
-
-    if (settingsPaths.length > 1) {
-      addIssue(
-        report,
-        'multiple-settings-files',
-        'warning',
-        `The archive contains ${settingsPaths.length} model settings files. AIRI will use ${settingsFileName}.`,
-        'Keep one model3.json file in each archive, or import each model as a separate ZIP.',
-      )
-    }
-
     try {
-      settings = await readJsonObject(zip, entryPoint)
-      if (isRecord(settings.FileReferences))
-        references = settings.FileReferences
+      const candidates = await Promise.all(settingsPaths.map(async path => ({ path, json: await readJsonObject(zip, path) as JSONObject })))
+      const selected = selectLive2DSettings(candidates)
+      report.model.type = selected.loader.generation === 'cubism2' ? 'model2' : 'model3'
+      report.model.entryPoint = selected.path
+      settingsFileName = basename(selected.path)
+      references = selected.loader.assetReferences(selected.json)
     }
-    catch {
+    catch (error) {
       addIssue(
         report,
-        'invalid-settings-json',
+        settingsPaths.length > 1 ? 'multiple-settings-files' : 'invalid-settings-json',
         'error',
-        `The model settings file "${entryPoint}" is not valid JSON.`,
-        'Export the model settings again, or repair the JSON before import.',
+        `The archive has no unambiguous supported model settings: ${errorMessageFrom(error) ?? 'invalid settings'}`,
+        'Keep one supported model settings file and its resources in each archive.',
       )
     }
   }
@@ -388,9 +333,24 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
     )
   }
 
+  if (report.model.type === 'model2') {
+    // Validation uses the resolved runtime because a configured Core can fail
+    // to load. Such models must stay outside storage until the runtime works.
+    let supportsCubism2 = false
+    try {
+      supportsCubism2 = (await resolveRuntime()).supportsCubism2
+    }
+    catch {
+      // A failed runtime cannot load the model even if provisioning succeeded.
+    }
+    if (!supportsCubism2) {
+      addIssue(report, 'runtime-unavailable', 'error', 'The Cubism 2 runtime is unavailable.', 'Use an AIRI build with Cubism 2 support, or import a Cubism 3 or later model.')
+    }
+  }
+
   let mocPath: string | undefined
   if (report.model.entryPoint && references) {
-    const mocReference = readString(references.Moc)
+    const mocReference = references.find(reference => reference.kind === 'MOC')?.path
     if (mocReference) {
       const expectedPath = resolveArchivePath(report.model.entryPoint, mocReference)
       if (checkReference(report, archivePaths, {
@@ -409,29 +369,30 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
         'missing-moc-reference',
         'error',
         `${settingsFileName} does not define a MOC file.`,
-        `Add FileReferences.Moc to ${settingsFileName}.`,
+        `Add a MOC reference to ${settingsFileName}.`,
       )
     }
   }
-  else if (!report.model.entryPoint && mocPaths.length === 1) {
+  else if (settingsPaths.length === 0 && mocPaths.length === 1) {
     mocPath = mocPaths[0]
   }
 
   if (mocPath) {
     const moc = await zip.file(mocPath)!.async('uint8array')
-    const header = String.fromCharCode(...moc.slice(0, 4))
-    const version = moc[4] ?? 0
+    const expectedHeader = report.model.type === 'model2' ? 'moc' : 'MOC3'
+    const header = String.fromCharCode(...moc.slice(0, expectedHeader.length))
+    const version = report.model.type === 'model2' ? null : moc[4] ?? 0
     const sizeMb = moc.length / 1024 / 1024
 
     report.model.moc = { path: mocPath, version, size: moc.length }
 
-    if (header !== 'MOC3') {
+    if (header !== expectedHeader) {
       addIssue(
         report,
         'invalid-moc-header',
         'error',
-        `The MOC file "${mocPath}" does not have a valid MOC3 header.`,
-        'Export the MOC3 file again with the Live2D Cubism Editor.',
+        `The MOC file "${mocPath}" does not have a valid ${expectedHeader} header.`,
+        'Export the model again with the Live2D Cubism Editor.',
       )
     }
     if (sizeMb > 100) {
@@ -456,9 +417,9 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
 
   if (report.model.entryPoint && references) {
     const entryPoint = report.model.entryPoint
-    const textureReferences = readStringArray(references.Textures)
-    const expressionReferences = readExpressionReferences(references.Expressions)
-    const motionReferences = readMotionReferences(references.Motions)
+    const textureReferences = references.filter(reference => reference.kind === 'Texture').map(reference => reference.path)
+    const expressionReferences = references.filter(reference => reference.kind === 'Expression').map(reference => reference.path)
+    const motionReferences = references.filter(reference => reference.kind === 'Motion').map(reference => reference.path)
 
     report.resources.textures.referenced = textureReferences.length
     report.resources.expressions.referenced = expressionReferences.length
@@ -470,7 +431,7 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
         'missing-reference',
         'error',
         `${settingsFileName} does not define any textures.`,
-        `Add at least one texture path to FileReferences.Textures in ${settingsFileName}.`,
+        `Add at least one texture reference to ${settingsFileName}.`,
       )
     }
 
@@ -484,13 +445,9 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
       })
     }
 
-    const optionalReferences: Array<{ label: string, reference: string }> = []
-    const physicsReference = readString(references.Physics)
-    const poseReference = readString(references.Pose)
-    if (physicsReference)
-      optionalReferences.push({ label: 'physics', reference: physicsReference })
-    if (poseReference)
-      optionalReferences.push({ label: 'pose', reference: poseReference })
+    const optionalReferences = references
+      .filter(reference => reference.kind === 'Physics' || reference.kind === 'Pose')
+      .map(reference => ({ label: reference.kind.toLowerCase(), reference: reference.path }))
     for (const optionalReference of optionalReferences) {
       checkReference(report, archivePaths, {
         ...optionalReference,
@@ -531,7 +488,7 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
         'unreferenced-expressions',
         'warning',
         `${unreferencedExpressionCount} ${noun} not referenced by ${settingsFileName}.`,
-        `Add the files to FileReferences.Expressions in ${settingsFileName}, or remove the unused files.`,
+        `Add expression references to ${settingsFileName}, or remove the unused files.`,
       )
     }
     if (unreferencedMotionCount > 0) {
@@ -541,11 +498,11 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
         'unreferenced-motions',
         'warning',
         `${unreferencedMotionCount} ${noun} not referenced by ${settingsFileName}.`,
-        `Add the files to FileReferences.Motions in ${settingsFileName}, or remove the unused files.`,
+        `Add motion references to ${settingsFileName}, or remove the unused files.`,
       )
     }
 
-    const displayInfoReference = readString(references.DisplayInfo)
+    const displayInfoReference = references.find(reference => reference.kind === 'DisplayInfo')?.path
     let displayInfoPath: string | undefined = displayInfoPaths[0]
     if (displayInfoReference) {
       const expectedPath = resolveArchivePath(entryPoint, displayInfoReference)
