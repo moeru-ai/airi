@@ -1,200 +1,203 @@
 electronCallback:
   title:
-    loading: Completing sign-in
-    openingAiri: Opening AIRI
-    signedIn: You are signed in
-    signInFailed: Sign-in failed
-    finishSignInInAiri: Finish sign-in in AIRI
-    openAiriToContinue: Open AIRI to continue
+    loading: サインインを完了しています
+    openingAiri: AIRIを開く
+    signedIn: サインインしています
+    signInFailed: ログインに失敗しました
+    finishSignInInAiri: AIRIへのサインインを完了してください
+    openAiriToContinue: AIRIを開いて続行してください
   message:
-    checkingResponse: Checking your sign-in response and preparing the handoff to AIRI.
-    passingToAiri: Passing your sign-in back to AIRI now. This page should close in a moment.
-    syncedAndSafeToClose: We notified AIRI client you signed from.
-    invalidResponse: We could not use this sign-in response.
-    loopbackUnreachable: The browser could not reach AIRI through the local callback port.
-    tryOpenDirectly: We will try opening the local handoff directly. If that still fails, use the button below.
-    automaticHandoffFailed: Automatic handoff did not finish in this browser session.
+    checkingResponse: サインイン応答を確認し、AIRIへの引き継ぎを準備しています。
+    passingToAiri: サインイン情報をAIRIに転送しています。まもなくこのページは閉じます。
+    syncedAndSafeToClose: 当社は、お客様がAIRIから署名したクライアントに通知しました。
+    invalidResponse: このサインイン応答を使用できませんでした。
+    loopbackUnreachable: ブラウザーはローカルコールバックポートからAIRIに到達できませんでした。
+    tryOpenDirectly: 私たちは直接ローカルハンドオフを開いてみます。それでも失敗する場合は、下のボタンを使用してください。
+    automaticHandoffFailed: このブラウザセッションで自動ハンドオフは終了しませんでした。
   label:
-    signIn: Sign in
-    safeToClose: It is safe to close this tab now.
-    whyStillHere: Why this tab still here?
+    signIn: サインイン
+    safeToClose: このタブを閉じても安全です。
+    whyStillHere: なぜこのタブはまだここにありますか？
   action:
-    openAiriManually: Open AIRI manually
+    openAiriManually: 手動でAIRIを開く
   hint:
-    closeTabManually: Some browsers do not allow this page to close itself automatically. You can close it manually.
+    closeTabManually: 一部のブラウザではこのページを自動的に閉じることができません。手動で閉じることができます。
 signIn:
-  title: Sign in
+  title: サインイン
   step:
     identify:
-      heading: Sign in
-      description: Enter your email to sign in or create an account.
+      heading: サインイン
+      description: サインインまたはアカウントを作成するには、メールアドレスを入力してください。
     password:
-      heading: Welcome back
-      description: Continue as {email}.
+      heading: お帰りなさい
+      description: '{email} として続行します。'
     create:
-      heading: Create your account
-      description: We will create a new account for {email}.
+      heading: アカウントを作成
+      description: '{email} の新しいアカウントを作成します。'
   email:
     label: Email
     placeholder: you{'@'}example.com
   password:
-    label: Password
-    placeholder: Your password
+    label: パスワード
+    placeholder: パスワード
   newPassword:
-    label: Create password
-    placeholder: At least 8 characters
+    label: パスワードを設定する
+    placeholder: 8文字以上で設定してください
   confirmPassword:
-    label: Confirm password
-    placeholder: Repeat your password
+    label: パスワードを確認
+    placeholder: パスワードを再度入力
   name:
-    label: Display name
-    placeholder: Optional, defaults to your email handle
+    label: 表示名
+    placeholder: 省略可能、既定でメールハンドルに
   action:
-    continue: Continue
-    signIn: Sign in
-    createAccount: Create account
-    forgotPassword: Forgot password?
-    useDifferentEmail: Use a different email
+    continue: 続行
+    signIn: サインイン
+    createAccount: アカウントの作成
+    forgotPassword: パスワードをお忘れですか?
+    useDifferentEmail: 別のメールアドレスを使用
   divider:
-    or: or
+    or: や
+  message:
+    redirecting: '{provider}… にリダイレクトしている'
   error:
-    fallback: Sign in failed
-    unknown: An unknown error occurred
-    socialOnlyNoPassword: This email was registered with Google or GitHub. Sign in with a button below; you can add a password in account settings after signing in.
-    passwordMismatch: Password and confirmation do not match.
-    invalidEmail: Please enter a valid email address.
+    fallback: サインインに失敗
+    providerTimeout: プロバイダのサインインがタイムアウトしました。もう一度やり直してください。
+    unknown: 不明なエラーが発生しました
+    socialOnlyNoPassword: このメールアドレスはGoogleまたはGitHubに登録されています。下のボタンでサインインします。ログイン後、アカウント設定にパスワードを追加できます。
+    passwordMismatch: パスワードと確認用パスワードが一致しません。
+    invalidEmail: 有効なメールアドレスを入力してください
   footer:
-    prefix: By continuing, you agree to our
-    terms: Terms
-    and: and
-    privacy: Privacy Policy
+    prefix: 続行することで、当社の
+    terms: 規約
+    and: と
+    privacy: プライバシーポリシー
 verifyEmail:
   title:
-    pending: Check your inbox
-    success: Email verified
-    failed: Verification failed
+    pending: 受信箱の確認を
+    success: メールを確認しました
+    failed: 認証失敗
   message:
-    pending: We sent a verification link to your email. Open it to finish creating your account — this page will continue automatically once you click the link.
-    pendingWithAddress: We sent a verification link to {email}. Open it to finish creating your account — this page will continue automatically once you click the link.
-    success: Your email has been verified and you are signed in. You can close this tab.
-    failed: We could not verify your email ({error}). Try requesting a new link.
+    pending: あなたのメールアドレスに確認リンクを送信しました。 アカウントの作成を完了するために開きます — リンクをクリックすると、このページは自動的に続行されます。
+    pendingWithAddress: '{email}に確認リンクを送信しました。 アカウントの作成を完了するために開きます — リンクをクリックすると、このページは自動的に続行されます。'
+    success: あなたのメールアドレスが認証され、サインインしています。このタブを閉じることができます。
+    failed: メールアドレスの確認ができませんでした（{error}）。新しいリンクをリクエストしてください。
   action:
-    backToSignIn: Back to sign in
+    backToSignIn: サインインに戻る
 forgotPassword:
-  title: Reset your password
-  description: Enter the email address associated with your account and we will send you a reset link.
+  title: パスワードをリセットする
+  description: あなたのアカウントに関連付けられているメールアドレスを入力すると、リセットリンクが送信されます。
   email:
     label: Email
     placeholder: you{'@'}example.com
   action:
-    send: Send reset link
-    backToSignIn: Back to sign in
+    send: リセットリンクを送信
+    backToSignIn: サインインに戻る
   message:
-    sent: If {email} matches an account, a reset link is on the way.
+    sent: '{email} がアカウントに一致した場合、リセットリンクが進行中です。'
   error:
-    fallback: We could not send the reset email.
+    fallback: リセットメールを送信できませんでした
 deleteAccount:
   title:
-    success: Account deleted
-    failed: Could not delete account
+    success: アカウントが削除されました
+    failed: アカウントを削除できませんでした
   message:
-    success: Your account has been deleted.
+    success: このアカウントは削除されました
   action:
-    closeTab: You can close this tab.
+    closeTab: このタブを閉じることができます。
 resetPassword:
   title:
-    default: Set a new password
-    success: Password updated
+    default: 新しいパスワードを設定します。
+    success: パスワードを更新しました
   password:
-    label: New password
-    placeholder: At least 8 characters
+    label: 新しいパスワード
+    placeholder: 8文字以上で設定してください
   confirmPassword:
-    label: Confirm new password
-    placeholder: Repeat your new password
+    label: 新しいパスワードを確認
+    placeholder: 新しいパスワードをもう一度入力してください
   action:
-    reset: Update password
-    goSignIn: Go to sign in
+    reset: パスワードを更新
+    goSignIn: ログインに行く
   message:
-    success: Your password has been updated. Sign in with your new password.
+    success: パスワードが更新されました。新しいパスワードでサインインしてください。
   error:
-    fallback: We could not update your password.
-    missingToken: Reset link is invalid or has expired.
-    passwordMismatch: Password and confirmation do not match.
+    fallback: パスワードを更新できませんでした。
+    missingToken: リセットリンクが無効または期限切れです。
+    passwordMismatch: パスワードと確認用パスワードが一致しません。
 profile:
-  title: Account profile
-  description: Manage your avatar, display name, and connected accounts.
+  title: アカウントプロフィール
+  description: アバター、名前、接続されたアカウントを管理します。
   section:
-    profile: Profile
-    avatar: Avatar
-    password: Password
-    linkedAccounts: Connected accounts
+    profile: プロフィール
+    avatar: アバター
+    password: パスワード
+    linkedAccounts: 接続済みアカウント
   field:
-    email: Email
-    emailVerified: Email status
-    createdAt: Joined
+    email: Eメール
+    emailVerified: メールアドレスの状態
+    createdAt: 登録済み
   label:
-    verified: Verified
-    unverified: Unverified
+    verified: 認証済み
+    unverified: 未確認
   name:
-    label: Display name
-    placeholder: How others see you
+    label: 表示名
+    placeholder: 他人があなたをどう見ているか
   avatar:
-    altText: Profile avatar
-    gravatarNotice: Avatar from Gravatar.
-    gravatarLink: Manage on gravatar.com
+    altText: プロフィール写真
+    gravatarNotice: Gravatarのアバター。
+    gravatarLink: gravatar.com で管理する
   password:
-    currentLabel: Current password
-    currentPlaceholder: Enter your current password
-    newLabel: New password
-    newPlaceholder: At least 8 characters
-    confirmLabel: Confirm new password
-    confirmPlaceholder: Repeat your new password
-    setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
-    setLinkSent: Check {email} for the link to set your password.
-    setLinkFailed: We could not send the password setup link.
+    currentLabel: 現在のパスワード
+    currentPlaceholder: 現在のパスワードを入力してください
+    newLabel: 新しいパスワード
+    newPlaceholder: 8文字以上で設定してください
+    confirmLabel: 新しいパスワードを確認
+    confirmPlaceholder: 新しいパスワードをもう一度入力してください
+    setDescription: ソーシャルプロバイダ経由でサインインしました。現在のパスワードはまだありません。設定するために安全なリンクをメールします。
+    setLinkSent: パスワードを設定するには、 {email} を確認してください。
+    setLinkFailed: パスワード設定リンクを送信できませんでした。
   linkedAccounts:
-    description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
+    description: これらのプロバイダを通じてAIRIにサインインします。リンクを解除してアクセスを取り消し、もう一度リンクして別のアカウントに切り替えます。
     status:
-      linked: Linked
-      notLinked: Not linked
-      linkedSince: Linked on {date}
+      linked: リンク済
+      notLinked: リンクされていません
+      linkedSince: '{date} にリンクされました'
     action:
-      link: Link
-      unlink: Unlink
+      link: リンク
+      unlink: リンク解除
     message:
-      loading: Loading connected accounts...
-      unlinked: '{provider} disconnected.'
-      linkStarted: Redirecting to {provider}…
+      loading: 接続されたアカウントを読み込んでいます...
+      unlinked: '{provider} は切断されました。'
+      linkStarted: '{provider}… にリダイレクトしている'
     error:
-      listFailed: Could not load connected accounts.
-      unlinkFailed: Could not unlink this account.
-      linkFailed: Could not start the link flow.
-      lastAccount: This is your only sign-in method. Set a password first before unlinking it.
+      listFailed: 接続されたアカウントを読み込めませんでした。
+      unlinkFailed: このアカウントのリンクを解除できませんでした。
+      linkFailed: リンクフローを開始できませんでした。
+      lastAccount: "これはあなたの唯一のサインイン方法です。\nリンクを解除する前にパスワードを設定してください。"
   action:
-    saveProfile: Save changes
-    changePassword: Change password
-    sendSetPasswordLink: Email me a link to set my password
-    signOut: Sign out
+    saveProfile: 変更を保存
+    changePassword: パスワードを変更
+    sendSetPasswordLink: パスワードを設定するためのリンクを電子メールで送る
+    signOut: サインアウト
   message:
-    loading: Loading your profile...
-    profileSaved: Profile updated.
-    passwordChanged: Password changed. Other sessions have been signed out.
+    loading: プロフィールを読み込み中...
+    profileSaved: プロファイル更新済み。
+    passwordChanged: パスワードが変更されました。他のセッションはサインアウトされています。
   error:
-    loadFailed: We could not load your profile.
-    saveFailed: We could not save your changes.
-    changePasswordFailed: We could not change your password.
-    signOutFailed: We could not sign you out.
-    passwordMismatch: New password and confirmation do not match.
-    passwordSameAsCurrent: New password must differ from the current one.
+    loadFailed: プロフィールを読み込めませんでした。
+    saveFailed: 変更を保存できませんでした。
+    changePasswordFailed: パスワードを変更できませんでした。
+    signOutFailed: サインアウトできませんでした。
+    passwordMismatch: 新しいパスワードと確認が一致しません。
+    passwordSameAsCurrent: 新しいパスワードは現在のパスワードと異なる必要があります。
 webCallback:
   title:
-    signIn: Sign in
-    errorLabel: We encountered an error while signing you in
-    loading: Signing in...
+    signIn: サインイン
+    errorLabel: ログイン中にエラーが発生しました
+    loading: サインイン中…
   message:
-    missingCodeOrState: Missing authorization code or state
-    missingFlowState: Missing OIDC flow state - please try logging in again
-    tokenExchangeFailed: Token exchange failed
-    finalizing: Finalizing authentication with AIRI.
+    missingCodeOrState: 認証コードまたは状態がありません
+    missingFlowState: OIDCフロー状態がありません。もう一度ログインしてください
+    tokenExchangeFailed: トークンの交換に失敗しました
+    finalizing: AIRIで認証を完了しています。
   action:
-    tryAgain: Try again
+    tryAgain: もう一度やり直してください

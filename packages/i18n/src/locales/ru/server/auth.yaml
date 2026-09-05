@@ -57,8 +57,11 @@ signIn:
     useDifferentEmail: Использовать другой email
   divider:
     or: или
+  message:
+    redirecting: Redirecting to {provider}…
   error:
     fallback: Войти не удалось
+    providerTimeout: Provider sign-in timed out. Please try again.
     unknown: Произошла неизвестная ошибка
     socialOnlyNoPassword: Этот адрес электронной почты был зарегистрирован через Google или GitHub. Войдите с помощью кнопки ниже; вы можете добавить пароль в настройках учетной записи после входа.
     passwordMismatch: Пароли не совпадают.

@@ -51,14 +51,14 @@ dialogs:
     no-models-help: >-
       이전 단계로 돌아가서 API 키를 확인하거나 네트워크 연결을 확인해 주세요.
     permissions:
-      title: 권한 관리
-      description: 지금 필요한 권한을 허용하거나 계속 진행한 뒤 나중에 설정할 수 있어요.
+      title: Permission management
+      description: You can grant the required permissions now or continue and configure them later.
       notificationsTitle: 알림
-      notificationsDescription: 미리 알림과 중요한 상태 업데이트를 허용합니다.
-      microphoneTitle: 마이크
-      microphoneDescription: AIRI가 음성 입력 및 텍스트 변환에 마이크를 사용하도록 허용합니다.
-      requestAction: 액세스 요청
-      optionalHint: 이 권한을 허용하지 않아도 계속할 수 있어요.
+      notificationsDescription: Allow reminders and important status updates.
+      microphoneTitle: Microphone
+      microphoneDescription: Allow AIRI to use your microphone for voice input and transcription.
+      requestAction: Request access
+      optionalHint: You can continue even if these permissions are not granted.
       stateGranted: 허용됨
       stateNotGranted: 허용되지 않음
   bug-report:
@@ -107,7 +107,7 @@ model-select:
   panel-callout:
     support-status-header: We support both 2D and 3D models
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models), {vrm} (for VRM models), and {mmd} (for MMD models, zipped with their textures) are supported.
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
     model-type-example: >
       Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
   select-model:
@@ -117,6 +117,38 @@ model-select:
     import: Import
     remove: Remove
     confirm: Confirm
+  live2d-report:
+    title: Before import
+    description: Review the model data and any issues found in the archive.
+    description-short: Review the model data and issues.
+    close: Close
+    model:
+      title: Model
+      files: '{count} files'
+      types:
+        cubism: 'Cubism {version} ({format})'
+        cubism-compatible: 'Cubism 3+ ({format})'
+        unknown: Unknown
+    resources:
+      title: Resources
+      motions: Motions
+      expressions: Expressions
+      parameters: Parameters
+      textures: Textures
+      referenced-and-found: '{referenced} referenced · {found} found'
+      referenced: '{count} referenced'
+      found: '{count} found'
+    issues:
+      title: Issues
+      errors: '{count} errors'
+      warnings: '{count} warnings'
+      none: No issues found.
+      how-to-fix: How to fix
+      resolve-before-import: Resolve the errors before import.
+    actions:
+      cancel: Cancel
+      confirm: Confirm Import
+      import-anyway: Import Anyway
 live2d:
   change-model:
     from-file: 파일로부터 불러오기
@@ -147,6 +179,33 @@ live2d:
       title: 추출
   animation:
     title: Animation
+    motion-driver:
+      title: Motion driver
+      description: Select how AIRI creates idle body and eye motion.
+      options:
+        universal:
+          title: Universal
+          description: Use model motions, idle eye movement, and mouse tracking.
+        magic:
+          title: MAGIC
+          description: Generate motion from the bundled MAGIC dataset.
+      magic:
+        profile:
+          title: MAGIC profile
+          description: Select the bundled motion dataset that fits the MAGIC driver.
+          options:
+            idle-calm:
+              title: Idle / calm
+              description: Use the bundled idle and calm motion recording.
+            speaking-excited:
+              title: Speaking / excited
+              description: Use the bundled speaking and excited motion recording.
+        skip-mouth-open:
+          title: Skip generated mouth opening
+          description: Keep speech lip sync in control. Disable this option to use mouth opening from the profile.
+        force-view-target:
+          title: Force forward view target
+          description: Keep the eyes aimed forward while MAGIC moves the head.
     focus:
       title: Enable mouse tracking
       description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
@@ -299,10 +358,10 @@ pages:
     activate: 활성화
     active: 활성
     active_badge: 현재 활성 상태
-    activation_notice: '{name}(으)로 전환했습니다. 현재 대화에서 이 캐릭터를 사용합니다.'
+    activation_notice: Switched to {name}. The current conversation now uses this character.
     cancel: 작업 취소
     save: 변경 사항 저장
-    save_and_activate: 저장 및 활성화
+    save_and_activate: Save and activate
     card_not_found: 카드를 찾을 수 없음
     character: 캐릭터
     close: 닫기
@@ -413,7 +472,7 @@ pages:
         delete: 모든 채팅 세션 삭제
       models:
         title: 모델
-        description: Remove imported Live2D, VRM, Spine, and MMD models.
+        description: 가져온 Live2D/VRM 모델을 삭제합니다.
         delete: 모든 모델 삭제
       modules:
         title: 모듈
@@ -454,7 +513,7 @@ pages:
       desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: 데스크탑 데이터가 초기화되었습니다.
   models:
-    description: Live2D, VRM, Spine, MMD, etc.
+    description: Live2D, VRM, Spine, 기타 등등.
     title: 모델
     sections:
       section:
@@ -603,6 +662,10 @@ pages:
             show_more: 더 보기
             subtitle: 공급자에서 기본 모델 선택
             title: 모델
+          model-options:
+            title: Model options
+            thinking:
+              label: Thinking
       title: 의식
     description: 사고, 시각, 음성 합성, 게임 등.
     gaming-factorio:
@@ -657,6 +720,19 @@ pages:
         section:
           provider-selection:
             description: 적절한 음성 인식 제공자 선택
+          playground:
+            current: Current transcript
+            description: Listen through the active Hearing pipeline and keep each completed speech segment below.
+            empty: Start monitoring and speak into the selected microphone.
+            error-title: Transcription error
+            listening: Listening for speech…
+            no-transcription: No speech was recognized in this audio.
+            segment: 'Speech segment {number}'
+            start: Start monitoring
+            stop: Stop monitoring
+            title: Hearing playground
+            transcribing: Transcribing…
+            transcription-failed: Transcription failed.
           confidence-threshold:
             title: Confidence Threshold
             description: >-
@@ -884,6 +960,10 @@ pages:
               계속 진행하려면 현재 구성을 저장할 수 있습니다.
             action: 무시하고 저장
         config:
+          loading: Loading provider settings...
+          load-error: Failed to load provider settings.
+          save-error: Failed to save provider settings.
+          retry: Retry
           common:
             fields:
               field:
@@ -1011,6 +1091,14 @@ pages:
         전사(speech에서 텍스트로) 모델 제공자를 구성합니다. (예시: Whisper.cpp, OpenAI, Azure Speech)
     description: LLM, 음성 합성 제공자 등.
     provider:
+      apple-speech-transcription:
+        title: Apple Speech
+        description: On-device speech recognition on macOS 26 or later. No API key is required.
+        fields:
+          locale:
+            label: Locale
+            description: Use an exact Apple Speech locale, such as en-US or zh-CN.
+            placeholder: en-US
       app-local-audio-transcription:
         title: 앱 (로컬)
         description: https://github.com/moeru-ai/xsai-transformers
@@ -1078,6 +1166,26 @@ pages:
             volume:
               description: 음성의 음량 조절
               label: 음량
+      voicevox:
+        description: voicevox.hiroshiba.jp
+        title: VOICEVOX
+        fields:
+          field:
+            intonation:
+              description: Adjust how much the intonation of the reading varies
+              label: Intonation
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set with --cors_policy_mode all, or with --allow_origin and this address.
+      aivis-speech:
+        description: aivis-project.com
+        title: AivisSpeech
+        fields:
+          field:
+            intonation:
+              description: Adjust how strongly the speaking style is expressed
+              label: Emotion expression strength
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set on its settings page on port 10101.
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
@@ -1178,6 +1286,10 @@ pages:
             nano_banana: Nano Banana (Gemini 2.5 Flash Image)
       deepseek:
         description: deepseek.com
+        fields:
+          field:
+            thinking-mode:
+              description: Controls whether DeepSeek reasoning models use thinking in chat requests.
         title: DeepSeek
       elevenlabs:
         description: elevenlabs.io
@@ -1350,6 +1462,11 @@ pages:
         title: Volcano 엔진
       volcengine-coding-plan:
         description: Volcengine Coding Plan
+        models:
+          ark-code-latest:
+            description: Uses the model selected in the Coding Plan console, including Auto; changes apply in 3–5 minutes.
+          legacy:
+            description: Legacy Coding Plan model scheduled for retirement. Switch to a currently supported model.
         title: Volcengine Coding Plan
       byteplus:
         description: byteplus.com
@@ -1398,34 +1515,26 @@ pages:
     description: 웹소켓 서버 연결 구성
     title: 연결
     websocket-url:
-      description: '웹소켓 서버의 전체 주소(예: ws://localhost:6121/ws)'
-      label: 웹소켓 서버 주소
+      description: The address that this app uses to connect to the local server.
+      label: Server Address
       placeholder: ws://localhost:6121/ws
     server-hostname:
-      label: Expose On Network
-      description: >-
-        Choose whether the AIRI gateway only listens on this device or can be reached from your local network.
-      advanced-label: Bind Hostname
-      advanced-description: >-
-        Use a specific hostname or IP address when you need manual network binding.
-      options:
-        this-device: This device
-        all: All
-        advanced: Advanced
+      label: Expose To All
+      description: Allow other devices on the local network to connect to this server.
     server-auth-token:
-      label: Auth Token
+      label: Pairing Token
       description: >-
-        Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
+        Other devices use this token to pair with this server. AIRI generates a token when this field is empty.
       placeholder: Auto-generate
     qr:
-      title: Connect from Stage Pocket
+      title: Pairing
       description: >-
-        Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
+        Scan this QR code with the mobile app. The app tries each local address and saves the first working address.
       refresh: Refresh
-      image-alt: AIRI server channel connection QR code
+      image-alt: AIRI pairing QR code
       candidates: Candidate addresses
       token-hint: >-
-        The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
+        The QR code includes the pairing token. Do not share the QR code publicly.
       errors:
         title: QR code unavailable
         unavailable: Failed to prepare the connection QR code.
@@ -1451,8 +1560,8 @@ pages:
       description: 어두운 테마, 언어 등.
       title: 일반
     permissions:
-      description: 현재 권한 상태를 확인합니다.
-      title: 권한 관리
+      description: View current permission status.
+      title: Permission Management
     description: 무대를 커스터마이징하세요!
     sections:
       section:
@@ -1470,7 +1579,7 @@ pages:
             section:
               performance-visualizer:
                 title: 성능 비주얼라이저
-                description: FPS/긴 작업/메모리 오버레이 전환
+                description: Show FPS, frame time, long tasks, and supported browser memory metrics
               markdown-stress:
                 title: 마크다운 스트레스
                 description: 스트레스 마크다운 구문 분석 및 대량 채팅 페이로드 렌더링
@@ -1756,9 +1865,9 @@ tachie:
     render-scale: Render Scale
     shadow: Theme-colored drop shadow
 websocket-secure-enabled:
-  title: 보안 웹소켓 (WSS) 활성화
+  title: Serve as Secure WebSocket (WSS)
   description: >-
-    개발 모드에서 모바일(pocket)의 HTTPS 연결을 허용하기 위해 WSS(WebSocket Secure)를 활성화합니다. 자체 서명 인증서가 자동으로 생성됩니다.
+    Use WSS for secure mobile connections. AIRI creates a self-signed certificate.
 wip:
   title: 개발 중
   description: >-

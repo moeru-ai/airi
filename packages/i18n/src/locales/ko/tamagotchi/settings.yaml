@@ -49,11 +49,300 @@ devtools:
   pages:
     context-flow:
       title: 컨텍스트 흐름
+    editor:
+      title: AIRI Editor
+      description: Open the standalone AIRI Editor window
+      button: Open Editor
     lag-visualizer:
       title: 로그 비주얼라이저
+    live2d-motion:
+      title: Live2D Motion Control
+      description: Control Live2D eye, head, and body motion.
+      actions:
+        back: Back
+      system-audio:
+        title: System audio lip sync
+        description: Capture audio from other players. The same input drives Beat Sync and Live2D mouth movement.
+        signal: Input signal
+        mouth-open: Mouth open
+        input-volume-threshold: Input volume threshold
+        random-close-delay: Random close delay
+        random-close-probability: Random close probability
+        actions:
+          start: Start input
+          stop: Stop input
+      panels:
+        direct-control: Direct control
+        preview: Model preview
+        timeline: Timeline
+        inference: Model inference
+      preview:
+        groups:
+          expression: Expression
+          offset: Position offset
+        values:
+          squint: Squint
+          mouth-form: Form
+          mouth-open: Open
+      joystick-label: Live2D motion joystick
+      wave:
+        toggle: Boat mode
+      instructions: Drag the joystick, or use the arrow keys for X/Y. R adds a slight squint. F adds a stronger squint. C closes the eyes. W/S changes the mouth shape. Space opens the mouth. A/D moves the body on X. Q/E tilts the head. Released keys return smoothly to center.
+      parameter-note: The joystick controls X/Y. R maps to 1/3 squint. F maps to 2/3 squint. C maps to fully closed eyes. W/S maps to mouth form ±1. Space maps to mouth open 1. A/D maps to body X ±10°. Q/E maps to head Z ±30°.
+      input:
+        keyboard: Keyboard
+        controller: Controller
+      input-actions:
+        move-body-head: Move body and head
+        tilt-head: Tilt head
+        blink: Blink
+        open-mouth: Open mouth
+        mouth-shape: Change mouth shape
+      eye-view:
+        title: Latched eye view
+        description: Choose a target. The eyes counter head movement to keep looking at it.
+        pad-label: Latched eye view target
+        actions:
+          enable: Enable fixation
+          disable: Disable fixation
+          center: Center target
+        counter:
+          label: Head counter strength
+          description: How strongly the eyes offset head X/Y movement.
+        values:
+          target: Target
+          output: Eye output
+      editor:
+        title: Motion editor
+        instructions: The gray curve is the source. Add motion overlays or view-target keyframes. Select a track, then drag its points.
+        play: Play timeline
+        pause: Pause timeline
+        undo: Undo
+        redo: Redo
+        crop-to-view: Crop to view
+        reset-view: Reset view
+        export-project: Export project
+        import-project: Import project
+        import-error: This file is not a valid AIRI Live2D motion project.
+        playback:
+          label: Timeline playback controls
+          start: Go to start
+          step-backward: Step backward
+          step-forward: Step forward
+          end: Go to end
+          timecode: Current and total timecode
+        input-actions:
+          play: Play
+          stop: Stop
+          start: Go to start
+          end: Go to end
+          step-backward: Step backward
+          step-forward: Step forward
+          restart-recording: Record again
+          clear-timeline: Clear timeline
+          previous-track: Select previous track
+          next-track: Select next track
+        timeline-label: Motion timeline
+        timeline-help: Drag the ruler to scrub. Use the wheel to zoom. Hold Shift and drag to pan. Double-click a selected curve to add a point. Each view-target key holds until the next key.
+        overlay-count: '{count} overlays'
+        controls:
+          add: Add
+          replace: Replace
+          create-keyframes: Create keyframes
+          weight: Weight
+          remove: Remove
+        tracks:
+          viewTargetX: View target X
+          viewTargetY: View target Y
+          eyeX: Eye X
+          eyeY: Eye Y
+          eyeOpen: Eye open
+          headX: Head X
+          headY: Head Y
+          headZ: Head Z
+          bodyX: Body X
+          bodyY: Body Y
+          bodyZ: Body Z
+          mouthForm: Mouth shape
+          mouthOpen: Mouth open
+      var:
+        title: VAR idle-motion generator
+        description: Fits recorded motion, then generates a new idle sequence.
+        actions:
+          fit: Fit current motion
+          refit: Refit current motion
+          generate: Generate motion
+          stop: Stop generation
+          new-seed: New seed
+        order:
+          label: VAR order
+          description: Past frames used for each prediction.
+        residual:
+          label: Residual strength
+          description: Generated variation. Zero is deterministic.
+        diagnostics:
+          source: Source
+          model: Model
+          fit: Fit
+          run: Generated run
+        status:
+          no-source: Import or record a motion first
+          source-ready: '{count} samples · {duration}s'
+          fit-failed: The VAR fit failed.
+        values:
+          frames: '{count} frames'
+          model: '{channels} channels · {features} terms'
+          fit: '{frames} frames · RMSE {error} · {duration}ms'
+          run: 'seed {seed} · {duration}'
+      ar-hmm:
+        title: AR-HMM idle-motion generator
+        description: Learns motion states and transitions for varied idle motion.
+        actions:
+          fit: Fit motion
+          refit: Refit
+          generate: Generate
+          stop: Stop
+          new-seed: New seed
+        states:
+          label: Hidden states
+          description: Motion patterns the model can learn.
+        order:
+          label: AR order
+          description: Past frames used within each state.
+        residual:
+          label: Innovation strength
+          description: Variation within each state.
+        diagnostics:
+          source: Source
+          model: Model
+          fit: Fit
+          states: State occupancy
+          run: Generated run
+        status:
+          no-source: Import or record a motion first
+          source-ready: '{count} samples · {duration}s'
+          fit-failed: The AR-HMM fit failed.
+        values:
+          count: '{count} states'
+          frames: '{count} frames'
+          model: '{states} states · {channels} channels · {features} terms'
+          fit: 'log p/frame {likelihood} · {duration}ms'
+          states: '{occupancy} · dwell {dwell}s'
+          run: 'state {state} · seed {seed} · {duration}'
+      output-filter:
+        title: Generator output filter
+        description: Smooths generator output and holds small changes before the spring receives each pose.
+        actions:
+          enable: Enable filter
+          disable: Disable filter
+          reset: Reset state
+        smoothing:
+          label: EMA smoothing
+          description: Blends each accepted target with the previous output. Higher values remove more jitter but add more delay.
+        cutoff:
+          label: Change cutoff
+          description: Holds a channel until its cumulative normalized change reaches this value.
+        diagnostics:
+          status: Status
+          input-change: Raw change MAE
+          output-change: Filtered change MAE
+          cutoff-tracks: Held channels
+        status:
+          waiting: Waiting for a generator
+          filtering: Filtering generator output
+          bypassed: Passing raw generator output
+      breath:
+        title: Manual breath
+        description: Controls ParamBreath with adjustable inhale, exhale, and dwell timing, without adding breath data to recordings.
+        actions:
+          enable: Enable breath
+          disable: Disable breath
+          reset: Reset cycle
+        cycle:
+          label: Breath duration
+          description: Sets the time for one inhale and exhale, before the exhaled dwell.
+        inhale:
+          label: Inhale share
+          description: Sets the part of the breath duration used to inhale. The remaining time is the exhale.
+        dwell:
+          label: Exhaled dwell
+          description: Holds ParamBreath at the minimum before the next inhale.
+        minimum:
+          label: Minimum
+          description: Sets the lowest value written to ParamBreath.
+        maximum:
+          label: Maximum
+          description: Sets the highest value written to ParamBreath.
+        diagnostics:
+          stage: Stage
+          phase: Cycle progress
+          output: ParamBreath output
+        stage:
+          inhale: Inhale
+          exhale: Exhale
+          dwell: Exhaled dwell
+      spring:
+        follow:
+          label: Follow
+          description: How quickly motion follows the joystick.
+        inertia:
+          label: Inertia
+          description: How much momentum the motion keeps.
+      groups:
+        eyes: Eyes
+        head: Head
+        body: Body
+      recording:
+        actions:
+          record: Record
+          stop-recording: Stop recording
+          play: Play
+          stop-playback: Stop playback
+          export: Export
+          import: Import
+        status:
+          empty: No motion recording
+          recording: Recording motion
+          playing: Playing motion
+          ready: '{count} samples · {duration}'
+        import-error: This file is not a valid AIRI Live2D motion recording.
     performance-visualizer:
       title: 성능 비주얼라이저
-      description: FPS/긴 작업/메모리 오버레이 전환
+      description: Inspect live performance metrics and runtime diagnostics
+      controls:
+        enable-all:
+          label: Enable all available metrics
+          description: Enable each metric that this browser supports.
+        start-recording: Start recording
+        stop-recording: Stop recording ({seconds}s)
+        export-last-recording: Export last recording
+      metrics:
+        fps:
+          label: FPS
+          description: Frames per second during the last 10 seconds.
+        frame-duration:
+          label: Frame time (ms)
+          description: Time between animation frames during the last 10 seconds.
+        long-task:
+          label: Long tasks
+          description: Main-thread tasks that take at least 50 ms.
+          unsupported: This browser does not expose long-task timing.
+        memory:
+          label: JS heap (MB)
+          description: JavaScript heap usage from Chromium's performance.memory API.
+          unsupported: This browser does not expose JavaScript heap usage.
+      recording:
+        title: Last recording
+        duration: Duration {duration} ms
+        limit: Recording stops after 60 seconds.
+      overlay:
+        title: Performance
+        move: Move performance overlay
+        reset-position: Reset overlay position
+        record: Record
+        stop: Stop
+        export: Export last recording
+        average: avg
     markdown-stress:
       title: 마크다운 스트레스
       description: 스트레스 마크다운 구문 분석 및 대량 채팅 페이로드 렌더링

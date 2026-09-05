@@ -91,7 +91,7 @@ about:
       checking: Checking...
       latest-version: Latest version
       disabled-dev: Updates disabled in Dev
-      managed-by-store: 更新由應用程式商店管理
+      managed-by-store: Updates managed by your app store
       retry-check: Retry Check
       restart-silent: Restart to update silently
       restart-install: Restart to install update

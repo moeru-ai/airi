@@ -51,14 +51,14 @@ dialogs:
     no-models-help: >-
       Por favor, vuelva al paso anterior y compruebe su clave API, o compruebe la conexión de red.
     permissions:
-      title: Gestión de permisos
-      description: Puedes conceder los permisos necesarios ahora o continuar y configurarlos más tarde.
+      title: Permission management
+      description: You can grant the required permissions now or continue and configure them later.
       notificationsTitle: Notificaciones
       notificationsDescription: Permitir recordatorios y actualizaciones importantes de estado.
-      microphoneTitle: Micrófono
-      microphoneDescription: Permite que AIRI use el micrófono para la entrada de voz y la transcripción.
-      requestAction: Solicitar acceso
-      optionalHint: Puedes continuar aunque no se concedan estos permisos.
+      microphoneTitle: Microphone
+      microphoneDescription: Allow AIRI to use your microphone for voice input and transcription.
+      requestAction: Request access
+      optionalHint: You can continue even if these permissions are not granted.
       stateGranted: Concedido
       stateNotGranted: No concedido
   bug-report:
@@ -107,7 +107,7 @@ model-select:
   panel-callout:
     support-status-header: Soportamos tanto modelos 2D como 3D
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models), {vrm} (for VRM models), and {mmd} (for MMD models, zipped with their textures) are supported.
+      Haz clic en {select-button} para seleccionar o importar modelos. Actualmente, se admiten los formatos {zip} (para modelos Live2D y Spine) y {vrm} (para modelos VRM).
     model-type-example: >
       Neuro-sama utiliza un modelo 2D basado en el marco de trabajo desarrollado por Live2D Inc, mientras que Grok Ani (en Grok Companion) utiliza un modelo 3D basado en los formatos abiertos VRM y MMD.
   select-model:
@@ -117,6 +117,38 @@ model-select:
     import: Importar
     remove: Eliminar
     confirm: Confirmar
+  live2d-report:
+    title: Before import
+    description: Review the model data and any issues found in the archive.
+    description-short: Review the model data and issues.
+    close: Close
+    model:
+      title: Model
+      files: '{count} files'
+      types:
+        cubism: 'Cubism {version} ({format})'
+        cubism-compatible: 'Cubism 3+ ({format})'
+        unknown: Unknown
+    resources:
+      title: Resources
+      motions: Motions
+      expressions: Expressions
+      parameters: Parameters
+      textures: Textures
+      referenced-and-found: '{referenced} referenced · {found} found'
+      referenced: '{count} referenced'
+      found: '{count} found'
+    issues:
+      title: Issues
+      errors: '{count} errors'
+      warnings: '{count} warnings'
+      none: No issues found.
+      how-to-fix: How to fix
+      resolve-before-import: Resolve the errors before import.
+    actions:
+      cancel: Cancel
+      confirm: Confirm Import
+      import-anyway: Import Anyway
 live2d:
   change-model:
     from-file: Cargar desde Archivo
@@ -147,6 +179,33 @@ live2d:
       title: Extraer
   animation:
     title: Animación
+    motion-driver:
+      title: Motion driver
+      description: Select how AIRI creates idle body and eye motion.
+      options:
+        universal:
+          title: Universal
+          description: Use model motions, idle eye movement, and mouse tracking.
+        magic:
+          title: MAGIC
+          description: Generate motion from the bundled MAGIC dataset.
+      magic:
+        profile:
+          title: MAGIC profile
+          description: Select the bundled motion dataset that fits the MAGIC driver.
+          options:
+            idle-calm:
+              title: Idle / calm
+              description: Use the bundled idle and calm motion recording.
+            speaking-excited:
+              title: Speaking / excited
+              description: Use the bundled speaking and excited motion recording.
+        skip-mouth-open:
+          title: Skip generated mouth opening
+          description: Keep speech lip sync in control. Disable this option to use mouth opening from the profile.
+        force-view-target:
+          title: Force forward view target
+          description: Keep the eyes aimed forward while MAGIC moves the head.
     focus:
       title: Habilitar Seguimiento del Ratón
       description: Fíjate en el cursor mientras se mueve. El movimiento ocular espontáneo se reanuda cuando el cursor se detiene.
@@ -390,14 +449,14 @@ pages:
     systemprompt: Prompt del Sistema
     title: Tarjeta AIRI
     try_different_search: Prueba un término de búsqueda diferente
-    export: Export
-    exported: Card package exported
-    export_failed: Failed to export card package
-    imported: Card package imported
-    import_missing_file: Card package is missing required files
-    import_invalid_file: Card package file is invalid
+    export: Exportar
+    exported: Paquete de tarjeta exportado
+    export_failed: Error al exportar el paquete de tarjeta
+    imported: Paquete de tarjeta importado
+    import_missing_file: Al paquete de tarjeta le faltan archivos necesarios
+    import_invalid_file: El archivo del paquete de la tarjeta no es válido
     upload: Subir
-    upload_desc: Click or drag an AIRI card package to import
+    upload_desc: Haz clic o arrastra un paquete de tarjeta de AIRI para importarlo
   memory:
     description: Donde se almacenan y organizan las memorias
     title: Memoria
@@ -413,7 +472,7 @@ pages:
         delete: Borrar todas las conversaciones
       models:
         title: Modelos
-        description: Remove imported Live2D, VRM, Spine, and MMD models.
+        description: Borrar modelos Live2D/VRM importados.
         delete: Borrar todos los modelos
       modules:
         title: Módulos
@@ -437,7 +496,7 @@ pages:
       desktop:
         title: Restablecer ajustes de escritorio y estados
         description: Limpiar ajustes de escritorio y estado de ejecución de AIRI.
-        center: Move desktop window to center
+        center: Mover la ventana del escritorio al centro
         reset: Restablecer datos de escritorio
     confirmations:
       tooltip: '¿Estás seguro?'
@@ -451,10 +510,10 @@ pages:
       modules_reset: Ajustes del módulo restablecidos.
       providers_reset: Ajustes del proveedor restablecidos.
       all_deleted: Todos los datos locales eliminados.
-      desktop_window_centered: Desktop window moved to screen center.
+      desktop_window_centered: La ventana del escritorio se movió al centro de la pantalla.
       desktop_reset: Datos de escritorio restablecidos.
   models:
-    description: Live2D, VRM, Spine, MMD, etc.
+    description: Live2D, VRM, Spine, etc.
     title: Modelos
     sections:
       section:
@@ -549,26 +608,26 @@ pages:
         options:
           bg: Entorno de fondo
           inline: Chat en línea
-          widget: Overlay Widget
-          bg_widget: Dual (Background + Widget)
+          widget: Widget superpuesto
+          bg_widget: Dual (Fondo + Widget)
       autonomous:
         title: Autonomía cinemática (Artista Autonómico)
-        description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
+        description: Cuando está activado, el "Productor" se ejecuta en paralelo al personaje para decidir si se necesita un elemento visual. Esto evita que el personaje olvide manifestar escenas.
         threshold: Umbral de Manifestación
-        threshold_description: Use {min} for aggressive scene creation or {max} to require stronger evidence before generating.
+        threshold_description: Usa {min} para una creación de escenas más agresiva o {max} para exigir pruebas más sólidas antes de generar.
         threshold_min: Generar siempre (0%)
         threshold_max: Estricto (100%)
       model:
         label: Modelo de Artistry (Anulación opcional)
-        description: Model identifier if needed by provider
+        description: Identificador del modelo si el proveedor lo requiere
       prompt-prefix:
-        label: Artistry Prompt Default Prefix
-        description: Pre-pended to every prompt sent to the image generator.
+        label: Prefijo predeterminado del prompt artístico
+        description: Se añade al principio de cada prompt enviado al generador de imágenes.
       options:
         label: Opciones de Proveedor de Artistry (JSON)
       widget-instructions:
-        label: Widget System Prompt
-        description: Custom instructions for the AI on how to use the generation capabilities.
+        label: Prompt del sistema del widget
+        description: Instrucciones personalizadas para la IA sobre cómo usar las capacidades de generación.
     categories:
       essential: Esencial
       messaging: Mensajería
@@ -603,6 +662,10 @@ pages:
             show_more: Mostrar más
             subtitle: Seleccionar un modelo por defecto del proveedor
             title: Modelo
+          model-options:
+            title: Model options
+            thinking:
+              label: Thinking
       title: Consciencia
     description: Pensamiento, visión, síntesis de voz, juegos, etc.
     gaming-factorio:
@@ -624,12 +687,12 @@ pages:
       title: Minecraft
       enable: Habilitar integración con Minecraft
       enable-description: >-
-        Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
+        Incluir el conocimiento propio de Minecraft en los turnos de chat del escenario y mantener activada la visibilidad pasiva durante la ejecución.
       configured: '¡Minecraft está configurado correctamente!'
       read-only:
         title: Consola de solo lectura
         description: >-
-          Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
+          Actualmente, el escenario expone Minecraft como un entorno pasivo. El estado de ejecución y el tráfico son visibles aquí, pero la configuración del servicio permanece en los archivos del servicio de Minecraft.
       setup:
         title: Configurar
         description: >-
@@ -638,7 +701,7 @@ pages:
         title:
         connection: Conexión
         latest-context: Último contexto del bot
-        waiting: Waiting for a fresh bot-originated context push.
+        waiting: Esperando una nueva actualización de contexto originada por el bot.
         unknown: Desconocido
       debug:
         title: Tráfico de Minecraft
@@ -649,7 +712,7 @@ pages:
         service-offline: Servicio offline
         no-runtime-context: Ningún contexto de bot observado aún
         last-context-seconds: 'Último contexto del bot: Hace {seconds}s'
-        last-context-stale: 'Last bot context: Stale'
+        last-context-stale: 'Último contexto del bot: obsoleto'
     hearing:
       description: Configurar cómo funciona el reconocimiento de voz
       title: Audición
@@ -657,15 +720,28 @@ pages:
         section:
           provider-selection:
             description: Selecciona el proveedor de reconocimiento de voz adecuado
+          playground:
+            current: Current transcript
+            description: Listen through the active Hearing pipeline and keep each completed speech segment below.
+            empty: Start monitoring and speak into the selected microphone.
+            error-title: Transcription error
+            listening: Listening for speech…
+            no-transcription: No speech was recognized in this audio.
+            segment: 'Speech segment {number}'
+            start: Start monitoring
+            stop: Stop monitoring
+            title: Hearing playground
+            transcribing: Transcribing…
+            transcription-failed: Transcription failed.
           confidence-threshold:
             title: Umbral de confianza
             description: >-
-              Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
+              Filtra las transcripciones de baja confianza para reducir las alucinaciones de Whisper. Los valores más cercanos a 0 son más estrictos; arrastra hasta el extremo izquierdo para desactivar. Solo tiene efecto en proveedores compatibles con la API de Whisper (por ejemplo, OpenAI, Groq).
             disabled: Desactivado
             verbose-json-note: >-
-              Note: If your provider does not support verbose_json responses, this setting will have no effect.
+              Nota: Si tu proveedor no admite respuestas en formato verbose_json, esta configuración no tendrá efecto.
             verbose-json-unsupported: >-
-              Your provider did not return verbose_json segments. Confidence filtering had no effect on the last transcription.
+              Tu proveedor no devolvió segmentos verbose_json. El filtrado de confianza no tuvo efecto en la última transcripción.
     memory-long-term:
       description: Configuraciones específicas y gestión de memoria a largo plazo
       title: Memoria a Largo Plazo
@@ -693,11 +769,11 @@ pages:
               loading: Cargando modelo...
               required: Por favor selecciona una voz
           voice-pack:
-            description: Select a curated voice for the active character
-            empty: No Voice Packs available
-            error: Error loading Voice Packs
-            loading: Loading Voice Packs...
-            title: Voice Pack
+            description: Selecciona una voz seleccionada para el personaje activo
+            empty: No hay paquetes de voz disponibles
+            error: Error al cargar los paquetes de voz
+            loading: Cargando paquetes de voz...
+            title: Paquete de voz
           provider-voice-selection:
             custom_model_placeholder: Ingresa el nombre del modelo personalizado...
             custom_voice_placeholder: Ingresa el ID de voz personalizado...
@@ -749,20 +825,20 @@ pages:
       access-token-secret-placeholder: Ingrese su secreto de token de acceso de X / Twitter
       configured: '¡X / Twitter está configurado correctamente!'
     web-search:
-      title: Web Search
-      description: Let AIRI search the web for current information
-      enable: Enable Web Search
-      enable-description: Allow AIRI to search the web during chat
-      api-key: Tavily API Key
-      api-key-description: Web search is powered by Tavily. Get a free API key at tavily.com.
-      api-key-placeholder: Enter your Tavily API key
-      configured: Web search is ready to use!
+      title: Búsqueda web
+      description: Permitir que AIRI busque información actual en la web
+      enable: Activar la búsqueda web
+      enable-description: Permitir que AIRI busque en la web durante el chat
+      api-key: Clave API de Tavily
+      api-key-description: La búsqueda web funciona con Tavily. Obtén una clave API gratuita en tavily.com.
+      api-key-placeholder: Introduce tu clave API de Tavily
+      configured: '¡La búsqueda web está lista para usar!'
     mcp-server:
       title: Servidores MCP
       description: Configure los servidores MCP y traiga sus herramientas a AIRI.
       config-path: Archivo de configuración
       runtime-title: Estado de ejecución
-      empty: No MCP servers yet — click "Add server" below to create one, or paste a config via "Edit JSON".
+      empty: Aún no hay servidores MCP; haz clic en "Añadir servidor" a continuación para crear uno, o pega una configuración mediante "Editar JSON".
       error-title: Ups
       success-title: '¡Hecho!'
       existing:
@@ -771,7 +847,7 @@ pages:
         empty: No hay nada aquí todavía. ¡Añade una abajo!
       add:
         title: Nuevo
-        description: "Fill in a new server, then click \"Save and restart\" — it'll move into \"Configured\" above."
+        description: "Completa un nuevo servidor y luego haz clic en \"Guardar y reiniciar\"; pasará a \"Configurados\" arriba."
         pending-badge: Sin guardar
       status:
         unknown: no se ha cargado
@@ -798,7 +874,7 @@ pages:
           placeholder: ej. sistema de archivos
         command:
           label: Comando
-          description: Executable spawned over stdio.
+          description: Ejecutable iniciado mediante stdio.
           placeholder: ej. npx
         args:
           label: Argumentos
@@ -806,7 +882,7 @@ pages:
           placeholder: "-y\nalgun-nombre-de-paquete\n/tmp"
         cwd:
           label: Directorio de trabajo
-          description: Optional directory used as the process working directory.
+          description: Directorio opcional utilizado como directorio de trabajo del proceso.
           placeholder: ej. /Users/you/project
         env:
           label: Entorno
@@ -817,11 +893,11 @@ pages:
           label: Habilitado
       json:
         title: Editar mcp.json
-        description: 'Edit the raw JSON directly. Click "Apply" to load it into the form, then "Save and restart" to write it to disk.'
+        description: 'Edita el JSON sin procesar directamente. Haz clic en "Aplicar" para cargarlo en el formulario y luego en "Guardar y reiniciar" para escribirlo en el disco.'
         placeholder: Pegar mcp.json aquí…
       test:
         title: Probar conexión
-        description: We'll spawn the server briefly to check the command works and see what tools it exposes.
+        description: Iniciaremos el servidor brevemente para comprobar que el comando funciona y ver qué herramientas expone.
         pick-server-label: Servidor
         no-servers: Nada para probar aún
         no-server-selected: Escoge un servidor primero.
@@ -835,10 +911,10 @@ pages:
         empty-identifier: Servidor # {index} is missing an identifier.
         duplicate-identifier: El identificador "{name}" se utiliza más de una vez — los nombres deben ser únicos.
         empty-command: '"{name}" no tiene un comando.'
-        invalid-shape: That doesn't look like a valid mcp.json — the root needs an "mcpServers" field.
+        invalid-shape: Eso no parece un mcp.json válido; la raíz necesita un campo "mcpServers".
       messages:
         opened: Abierto {path} en tu gestor de archivos
-        json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
+        json-applied: JSON aplicado al formulario. Haz clic en "Guardar y reiniciar" para guardarlo en el disco.
         restarted: '¡Todo reiniciado! {started} iniciado, {failed} falló, {skipped} omitido.'
   flux:
     title: Flujo
@@ -884,6 +960,10 @@ pages:
               Todavía puede guardar la configuración actual si quiere continuar.
             action: Guardar de todas formas
         config:
+          loading: Loading provider settings...
+          load-error: Failed to load provider settings.
+          save-error: Failed to save provider settings.
+          retry: Retry
           common:
             fields:
               field:
@@ -981,8 +1061,8 @@ pages:
         title: Chat
         description: Proveedores de modelos de generación de texto. ej. OpenRouter, OpenAI, Ollama.
       vision:
-        title: Vision
-        description: Vision model providers for image understanding.
+        title: Visión
+        description: Proveedores de modelos de visión para la comprensión de imágenes.
       speech:
         title: Habla
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
@@ -1011,6 +1091,14 @@ pages:
         Proveedores de modelos de transcripción (voz a texto). ej. Whisper.cpp, OpenAI, Azure Speech
     description: LLMs, proveedores de voz, etc.
     provider:
+      apple-speech-transcription:
+        title: Apple Speech
+        description: On-device speech recognition on macOS 26 or later. No API key is required.
+        fields:
+          locale:
+            label: Locale
+            description: Use an exact Apple Speech locale, such as en-US or zh-CN.
+            placeholder: en-US
       app-local-audio-transcription:
         title: App (Local)
         description: https://github.com/moeru-ai/xsai-transformers
@@ -1078,6 +1166,26 @@ pages:
             volume:
               description: Ajustar el volumen del habla
               label: Volumen
+      voicevox:
+        description: voicevox.hiroshiba.jp
+        title: VOICEVOX
+        fields:
+          field:
+            intonation:
+              description: Adjust how much the intonation of the reading varies
+              label: Intonation
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set with --cors_policy_mode all, or with --allow_origin and this address.
+      aivis-speech:
+        description: aivis-project.com
+        title: AivisSpeech
+        fields:
+          field:
+            intonation:
+              description: Adjust how strongly the speaking style is expressed
+              label: Emotion expression strength
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set on its settings page on port 10101.
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
@@ -1178,6 +1286,10 @@ pages:
             nano_banana: Nano Banana (Imagen Flash Gemini 2.5)
       deepseek:
         description: deepseek.com
+        fields:
+          field:
+            thinking-mode:
+              description: Controls whether DeepSeek reasoning models use thinking in chat requests.
         title: DeepSeek
       elevenlabs:
         description: elevenlabs.io
@@ -1350,6 +1462,11 @@ pages:
         title: Volcano Engine
       volcengine-coding-plan:
         description: Plan de Codificación Volcengine
+        models:
+          ark-code-latest:
+            description: Uses the model selected in the Coding Plan console, including Auto; changes apply in 3–5 minutes.
+          legacy:
+            description: Legacy Coding Plan model scheduled for retirement. Switch to a currently supported model.
         title: Plan de Codificación Volcengine
       byteplus:
         description: byteplus.com
@@ -1398,34 +1515,26 @@ pages:
     description: Configurar la conexión del servidor WebSocket
     title: Conexión
     websocket-url:
-      description: Dirección completa del servidor WebSocket (por ejemplo, ws://localhost:6121/ws)
-      label: Dirección del servidor WebSocket
+      description: The address that this app uses to connect to the local server.
+      label: Server Address
       placeholder: ws://localhost:6121/ws
     server-hostname:
-      label: Exponer en red
-      description: >-
-        Choose whether the AIRI gateway only listens on this device or can be reached from your local network.
-      advanced-label: Bind Hostname
-      advanced-description: >-
-        Utilice un nombre de host específico o dirección IP cuando necesite un enlace manual de red.
-      options:
-        this-device: Este dispositivo
-        all: Todo
-        advanced: Avanzado
+      label: Expose To All
+      description: Allow other devices on the local network to connect to this server.
     server-auth-token:
-      label: Token de autenticación
+      label: Pairing Token
       description: >-
-        Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
+        Other devices use this token to pair with this server. AIRI generates a token when this field is empty.
       placeholder: Autogenerar
     qr:
-      title: Connect from Stage Pocket
+      title: Pairing
       description: >-
-        Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
+        Scan this QR code with the mobile app. The app tries each local address and saves the first working address.
       refresh: Actualizar
-      image-alt: Código QR de conexión de canal del servidor AIRI
+      image-alt: AIRI pairing QR code
       candidates: Candidate addresses
       token-hint: >-
-        The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
+        The QR code includes the pairing token. Do not share the QR code publicly.
       errors:
         title: Código QR no disponible
         unavailable: Error al preparar el código QR de conexión.
@@ -1451,8 +1560,8 @@ pages:
       description: Tema oscuro, idiomas, etc.
       title: General
     permissions:
-      description: Consulta el estado actual de los permisos.
-      title: Gestión de permisos
+      description: View current permission status.
+      title: Permission Management
     description: '¡Personaliza tu escenario!'
     sections:
       section:
@@ -1470,7 +1579,7 @@ pages:
             section:
               performance-visualizer:
                 title: Visualizador de rendimiento
-                description: Cambiar FPS/tareas largas/superposición de memoria
+                description: Show FPS, frame time, long tasks, and supported browser memory metrics
               markdown-stress:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads
@@ -1664,7 +1773,7 @@ vrm:
     skybox-intensity: Intensidad del SkyBox
     skybox-specular-mix: Mezcla especular
 spine:
-  title: Spine Settings
+  title: Configuración de Spine
   scale-and-position:
     title: Escala y Posición
     scale: Escala
@@ -1695,19 +1804,19 @@ spine:
     options:
       unlimited: Ilimitado
 mmd:
-  title: MMD Settings
+  title: Configuración de MMD
   scale-and-position:
-    title: Scale And Position
-    scale: Scale
+    title: Escala y Posición
+    scale: Escala
     x: X
     'y': 'Y'
-    rotation: Rotation
+    rotation: Rotación
   theme-color-from-model:
-    title: Extract colors from model
+    title: Extraer colores del modelo
     button-extract:
-      title: Extract
+      title: Extraer
   physics:
-    title: Physics & Rig
+    title: Física y Rig
     enabled: Enable physics (hair, skirt, accessories)
     ik: Enable IK (inverse kinematics)
     grant: Enable append-bone propagation
@@ -1717,48 +1826,48 @@ mmd:
     tracking: Looking at
     options:
       cursor: Mouse
-      camera: Camera
+      camera: Cámara
       none: Disabled
   animation:
-    title: Animation
-    idle-motion: Idle Motion
-    import-motion: Import Motion (.vmd)
-    play-once: Preview Animation
-    remove: Remove motion
+    title: Animación
+    idle-motion: Movimiento inactivo
+    import-motion: Importar Movimiento (.vmd)
+    play-once: Vista Previa de Animación
+    remove: Eliminar movimiento
     description: >-
-      Import VMD motion files, set one as the looping idle, or play any as a one-shot gesture. Map emotions to motions to play gestures alongside facial expressions.
+      Importa archivos de movimiento VMD, establece uno como animación inactiva en bucle o reproduce cualquiera como un gesto de una sola vez. Asigna emociones a movimientos para reproducir gestos junto con expresiones faciales.
   morphs:
     title: Morphs
     auto: (auto)
-    revert: Revert to auto
-    no-morphs: This model exposes no morphs.
+    revert: Revertir a auto
+    no-morphs: Este modelo no expone ningún Morph.
     description: >-
-      The renderer auto-detects standard Japanese morph names (あいうえお, まばたき). Override a slot here if your model uses non-standard names.
+      El renderizador detecta automáticamente los nombres de Morph estándar japoneses (あいうえお, まばたき). Sobrescribe una asignación aquí si tu modelo usa nombres no estándar.
   materials:
-    title: Materials
-    no-materials: This model exposes no materials.
+    title: Materiales
+    no-materials: Este modelo no expone ningún material.
     description: >-
-      Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
+      Ajusta la opacidad de las partes individuales del modelo (rostro, cabello, ropa, accesorios). Establece una parte en 0 para ocultarla.
 tachie:
-  title: Tachie Settings
-  archive-description: Tachie models use .tachie.zip archives containing emotion-named images.
+  title: Configuración de Tachie
+  archive-description: Los modelos Tachie utilizan archivos .tachie.zip que contienen imágenes con nombres de emociones.
   scale-and-position:
-    title: Scale And Position
-    scale: Scale
+    title: Escala y Posición
+    scale: Escala
     x: X
     'y': 'Y'
   theme-color-from-model:
-    title: Extract colors from model
+    title: Extraer colores del modelo
     button-extract:
-      title: Extract
+      title: Extraer
   rendering:
-    title: Rendering
-    render-scale: Render Scale
-    shadow: Theme-colored drop shadow
+    title: Renderizado
+    render-scale: Escala de renderizado
+    shadow: Sombra paralela del color del tema
 websocket-secure-enabled:
-  title: Habilitar WebSocket Seguro (WSS)
+  title: Serve as Secure WebSocket (WSS)
   description: >-
-    Habilite WSS (WebSocket Secure) para permitir conexiones HTTPS para móvil (pocket) en modo de desarrollo. Esto generará automáticamente un certificado autofirmado.
+    Use WSS for secure mobile connections. AIRI creates a self-signed certificate.
 wip:
   title: Trabajo en Proceso
   description: >-

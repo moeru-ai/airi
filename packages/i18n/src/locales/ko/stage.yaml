@@ -1,6 +1,6 @@
 chat:
   actions:
-    retry: Retry
+    retry: 다시 시도
   message:
     character-name:
       airi: AIRI
@@ -8,19 +8,19 @@ chat:
       you: 당신
   reasoning: 추론
   sessions:
-    title: Conversations
+    title: 대화
     new: + New
     empty: No conversations yet
     cloud-badge: Synced to cloud
     new-chat-fallback: New chat
-    delete: Delete conversation
+    delete: 대화 삭제
 render-error:
-  title: '{renderer}에서 이 모델을 렌더링할 수 없습니다'
-  description: 모델이 선택되었지만 스테이지에 표시할 수 없습니다.
+  title: '{renderer} could not render this model'
+  description: The model is selected, but the Stage could not display it.
   report-description: |-
-    {renderer}에서 선택한 모델을 렌더링하지 못했습니다.
-    모델 ID: {modelId}
-    오류: {error}
+    {renderer} failed to render the selected model.
+    Model ID: {modelId}
+    Error: {error}
 message: 듣고 있어요...
 send-mode:
   title: Send key
@@ -28,8 +28,8 @@ send-mode:
   ctrl-enter: Ctrl + Enter
   double-enter: Double Enter
 speech-output:
-  mute: 음성 음소거
-  unmute: 음소거 해제
+  mute: Mute voice
+  unmute: Unmute voice
 operations:
   load-models: 모델 불러오기
   load-models-status:

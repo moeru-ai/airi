@@ -8,7 +8,7 @@ electronCallback:
     openAiriToContinue: Abrir AIRI para continuar
   message:
     checkingResponse: Comprobando su respuesta de inicio de sesión y preparando el handoff para AIRI.
-    passingToAiri: Passing your sign-in back to AIRI now. This page should close in a moment.
+    passingToAiri: Estamos transfiriendo tu inicio de sesión a AIRI. Esta página se cerrará en unos instantes.
     syncedAndSafeToClose: Hemos notificado al cliente de AIRI del que firmó.
     invalidResponse: No pudimos utilizar esta respuesta de inicio de sesión.
     loopbackUnreachable: El navegador no pudo acceder a AIRI a través del puerto de devolución de llamada local.
@@ -57,16 +57,19 @@ signIn:
     useDifferentEmail: Usar un correo electrónico diferente
   divider:
     or: o
+  message:
+    redirecting: Redirecting to {provider}…
   error:
     fallback: Error en el inicio de sesión
+    providerTimeout: Provider sign-in timed out. Please try again.
     unknown: S produjo un error inesperado
-    socialOnlyNoPassword: This email was registered with Google or GitHub. Sign in with a button below; you can add a password in account settings after signing in.
+    socialOnlyNoPassword: Este correo electrónico se registró con Google o GitHub. Inicia sesión con uno de los botones de abajo. Después de iniciar sesión, podrás agregar una contraseña en la configuración de tu cuenta.
     passwordMismatch: Las contraseñas no coinciden.
     invalidEmail: Por favor, introduzca una dirección de correo electrónico válida.
   footer:
     prefix: Al continuar, aceptas nuestros
     terms: Términos
-    and: 'y'
+    and: "y"
     privacy: Política de Privacidad
 verifyEmail:
   title:

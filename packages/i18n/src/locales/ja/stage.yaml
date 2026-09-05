@@ -1,6 +1,6 @@
 chat:
   actions:
-    retry: Retry
+    retry: 再試行
   message:
     character-name:
       airi: AIRI
@@ -8,19 +8,19 @@ chat:
       you: あなた
   reasoning: 推論
   sessions:
-    title: Conversations
-    new: + New
-    empty: No conversations yet
-    cloud-badge: Synced to cloud
-    new-chat-fallback: New chat
-    delete: Delete conversation
+    title: 会話
+    new: + 新規
+    empty: 会話はまだありません
+    cloud-badge: クラウドに同期しました
+    new-chat-fallback: 新しいチャット
+    delete: 会話を削除
 render-error:
-  title: '{renderer} でこのモデルを描画できませんでした'
-  description: モデルは選択されていますが、ステージに表示できませんでした。
+  title: '{renderer} はこのモデルをレンダリングできませんでした'
+  description: モデルが選択されていますが、ステージが表示されませんでした。
   report-description: |-
-    {renderer} で選択したモデルを描画できませんでした。
-    モデル ID: {modelId}
-    エラー: {error}
+    {renderer} は選択したモデルのレンダリングに失敗しました。
+    Model ID: {modelId}
+    Error: {error}
 message: 何か話しかけてみましょう…
 send-mode:
   title: キーを送信
@@ -28,8 +28,8 @@ send-mode:
   ctrl-enter: Ctrl + Enter
   double-enter: Enter二回
 speech-output:
-  mute: 音声をミュート
-  unmute: ミュートを解除
+  mute: 音声ミュート
+  unmute: ボイスミュート解除
 operations:
   load-models: モデルの読み込み
   load-models-status:
@@ -100,7 +100,7 @@ promo-banner:
       title: 春のテーマアップデート
       eventName: 窓・机・ナイトランプのテーマをアンロックして、部屋を刷新しましょう。
       date: 04/05 - 04/22
-      reward: Free Theme Draw Ticket on Sign-in
+      reward: ログイン時の無料テーマ抽選チケット
       cta: テーマを表示
 waiting: 待機中
 websocket-status:
