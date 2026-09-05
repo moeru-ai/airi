@@ -1,6 +1,7 @@
 import type {
   AmbientLightEnvironment,
   AmbientLightMap,
+  AmbientLightMapMargin,
   AmbientLightSample,
   AmbientLightSamplingOptions,
 } from './environment'
@@ -8,8 +9,10 @@ import type {
 import {
   ambientLightMapInteriorLuminance,
   ambientLightMapMargin,
+  ambientLightMapMarginFor,
   ambientLightMapSize,
   ambientLightNeutralEnvironment,
+  ambientLightNeutralMapMargin,
   averageAmbientLightMap,
   createAmbientLightMap,
 } from './environment'
@@ -242,21 +245,24 @@ export function sampleScreenAmbientLight(
   const windowHeightCells = Math.max(1, region.exclude.height * frame.height / grid.scale)
   const scratchA = new Float32Array(field.length)
   const scratchB = new Float32Array(field.length)
+  const mapMargin = ambientLightMapMarginFor(windowAspectOf(frame, region.exclude))
   const contact = readMapTexels(
     blurField(field, scratchA, scratchB, grid.width, grid.height, contactSigmaWindowHeights * windowHeightCells),
     grid,
     frame,
     region.exclude,
+    mapMargin,
   )
   const surround = readMapTexels(
     blurField(field, scratchA, scratchB, grid.width, grid.height, surroundSigmaWindowHeights * windowHeightCells),
     grid,
     frame,
     region.exclude,
+    mapMargin,
   )
 
   return {
-    environment: buildEnvironment(surround, contact) ?? ambientLightNeutralEnvironment,
+    environment: buildEnvironment(surround, contact, mapMargin) ?? ambientLightNeutralEnvironment,
     diagnostics,
   }
 }
@@ -287,15 +293,27 @@ interface WorkingGrid {
   height: number
 }
 
+/** Width over height of the window, in frame pixels. */
+function windowAspectOf(frame: PixelFrame, windowRectangle: NormalizedRectangle) {
+  const width = Math.max(1, windowRectangle.width * frame.width)
+  const height = Math.max(1, windowRectangle.height * frame.height)
+  return width / height
+}
+
 function workingGridFor(frame: PixelFrame, windowRectangle: NormalizedRectangle): WorkingGrid {
   const windowHeightPixels = Math.max(1, windowRectangle.height * frame.height)
   const scale = Math.max(1, Math.round(windowHeightPixels / workingWindowHeight))
+  // The grid has to hold the map and the blur that fills it, and both reach the
+  // same distance on every side, so the fraction differs between the axes.
   const reach = ambientLightMapMargin + 3 * surroundSigmaWindowHeights
+  const aspect = windowAspectOf(frame, windowRectangle)
+  const reachX = reach / aspect
+  const reachY = reach
 
-  const left = clamp(Math.floor((windowRectangle.x - reach * windowRectangle.width) * frame.width), 0, frame.width)
-  const top = clamp(Math.floor((windowRectangle.y - reach * windowRectangle.height) * frame.height), 0, frame.height)
-  const right = clamp(Math.ceil((windowRectangle.x + (1 + reach) * windowRectangle.width) * frame.width), left, frame.width)
-  const bottom = clamp(Math.ceil((windowRectangle.y + (1 + reach) * windowRectangle.height) * frame.height), top, frame.height)
+  const left = clamp(Math.floor((windowRectangle.x - reachX * windowRectangle.width) * frame.width), 0, frame.width)
+  const top = clamp(Math.floor((windowRectangle.y - reachY * windowRectangle.height) * frame.height), 0, frame.height)
+  const right = clamp(Math.ceil((windowRectangle.x + (1 + reachX) * windowRectangle.width) * frame.width), left, frame.width)
+  const bottom = clamp(Math.ceil((windowRectangle.y + (1 + reachY) * windowRectangle.height) * frame.height), top, frame.height)
 
   return {
     left,
@@ -327,6 +345,7 @@ export function uniformAmbientLightEnvironment(
     exposure: clamp(linearToSrgb(sample.luminance), 0, 1),
     surround: createAmbientLightMap(linear),
     contact: createAmbientLightMap(linear),
+    mapMargin: ambientLightNeutralMapMargin,
     // The forced color stands in for the whole screen, behind the character
     // included, so this mode exercises the backlight path too.
     behindLuminance: sample.luminance,
@@ -354,6 +373,9 @@ export function smoothAmbientLightEnvironment(
     exposure: mix(previous.exposure, next.exposure, alpha),
     surround: smoothMap(previous.surround, next.surround, alpha),
     contact: smoothMap(previous.contact, next.contact, alpha),
+    // The window may have been resized between the two, and a mixed reach would
+    // place every texel of the result at a position neither map was read at.
+    mapMargin: next.mapMargin,
     behindLuminance: mix(previous.behindLuminance, next.behindLuminance, alpha),
   }
 }
@@ -400,6 +422,7 @@ export function ambientLightSampleFromHex(color: string): AmbientLightSample | u
 function buildEnvironment(
   surround: ResampledField,
   contact: ResampledField,
+  mapMargin: AmbientLightMapMargin,
 ): AmbientLightEnvironment | undefined {
   const texelCount = ambientLightMapSize * ambientLightMapSize
   let meanRed = 0
@@ -458,7 +481,8 @@ function buildEnvironment(
     exposure: clamp(linearToSrgb(relativeLuminance(surroundRed, surroundGreen, surroundBlue)), 0, 1),
     surround: surroundMap,
     contact: contactMap,
-    behindLuminance: ambientLightMapInteriorLuminance(contactMap),
+    mapMargin,
+    behindLuminance: ambientLightMapInteriorLuminance(contactMap, mapMargin),
   }
 }
 
@@ -598,8 +622,8 @@ function blurAlongColumns(
 }
 
 /**
- * The map covers the window grown by {@link ambientLightMapMargin} on
- * each side. A texel whose center lies off the display reports no support, so
+ * The map covers the window grown by `margin`, which is the same distance on
+ * every side. A texel whose center lies off the display reports no support, so
  * that the fallback chain fills it instead of the repeated border color. Light
  * that was never captured must not decide a color.
  */
@@ -608,14 +632,15 @@ function readMapTexels(
   grid: WorkingGrid,
   frame: PixelFrame,
   windowRectangle: NormalizedRectangle,
+  margin: AmbientLightMapMargin,
 ): ResampledField {
   const texelCount = ambientLightMapSize * ambientLightMapSize
   const colors = new Float32Array(texelCount * 3)
   const support = new Float32Array(texelCount)
-  const originX = windowRectangle.x - ambientLightMapMargin * windowRectangle.width
-  const originY = windowRectangle.y - ambientLightMapMargin * windowRectangle.height
-  const spanX = windowRectangle.width * (1 + 2 * ambientLightMapMargin)
-  const spanY = windowRectangle.height * (1 + 2 * ambientLightMapMargin)
+  const originX = windowRectangle.x - margin.x * windowRectangle.width
+  const originY = windowRectangle.y - margin.y * windowRectangle.height
+  const spanX = windowRectangle.width * (1 + 2 * margin.x)
+  const spanY = windowRectangle.height * (1 + 2 * margin.y)
 
   for (let row = 0; row < ambientLightMapSize; row += 1) {
     const normalizedY = originY + ((row + 0.5) / ambientLightMapSize) * spanY

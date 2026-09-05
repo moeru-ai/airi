@@ -107,15 +107,49 @@ export interface AmbientLightFilterOptions {
 export const ambientLightMapSize = 24
 
 /**
- * Screen area a light map covers outside the stage window, as a fraction of the
- * window size on each side. Map uv 0 to 1 spans window uv -0.5 to 1.5.
+ * How far a light map reaches past the stage window on every side, in window
+ * heights.
  *
  * The maps reach past the window because the light that wraps onto the
- * silhouette comes from beside it. The extraction places the texels with this
- * constant and the shader reads them back with it, so the two disagree about
+ * silhouette comes from beside it. One figure covers both axes because the
+ * reach is a distance on screen, not a fraction of each side: a tall window
+ * that reached half its height above and half its width to the left would
+ * gather more light from above than from beside, and the mean of the map would
+ * report a light that had only moved.
+ *
+ * The extraction places the texels with {@link ambientLightMapMarginFor} and
+ * the shader reads them back with the same pair, so the two disagree about
  * every position if they differ.
  */
 export const ambientLightMapMargin = 0.5
+
+/**
+ * The reach of a light map on each axis, in units of that axis of the window.
+ *
+ * The two differ whenever the window is not square, and they describe the same
+ * distance on screen. Consumers need both: map uv 0 to 1 spans window uv
+ * `-x` to `1 + x` across and `-y` to `1 + y` down.
+ */
+export interface AmbientLightMapMargin {
+  x: number
+  y: number
+}
+
+/**
+ * Reach for one window, from its width divided by its height.
+ *
+ * @example
+ * ambientLightMapMarginFor(430 / 526)
+ * // => { x: 0.6116..., y: 0.5 }
+ */
+export function ambientLightMapMarginFor(windowAspect: number): AmbientLightMapMargin {
+  return { x: ambientLightMapMargin / Math.max(windowAspect, 0.0001), y: ambientLightMapMargin }
+}
+
+/** The reach for a square window, which is what a map with no measurement behind it assumes. */
+export const ambientLightNeutralMapMargin: Readonly<AmbientLightMapMargin> = Object.freeze(
+  ambientLightMapMarginFor(1),
+)
 
 /** Screen light over the stage window and its margin, as a small color grid. */
 export interface AmbientLightMap {
@@ -167,21 +201,27 @@ export function averageAmbientLightMap(map: AmbientLightMap): [number, number, n
  * Those texels sit behind the character, so the value says how much light the
  * character stands in front of. The backlight darkens the interior by it.
  */
-export function ambientLightMapInteriorLuminance(map: AmbientLightMap): number {
-  const span = 1 + 2 * ambientLightMapMargin
-  const start = ambientLightMapMargin / span
-  const end = (1 + ambientLightMapMargin) / span
+export function ambientLightMapInteriorLuminance(
+  map: AmbientLightMap,
+  margin: AmbientLightMapMargin = ambientLightNeutralMapMargin,
+): number {
+  const spanX = 1 + 2 * margin.x
+  const spanY = 1 + 2 * margin.y
+  const startX = margin.x / spanX
+  const endX = (1 + margin.x) / spanX
+  const startY = margin.y / spanY
+  const endY = (1 + margin.y) / spanY
 
   let total = 0
   let count = 0
   for (let row = 0; row < map.height; row += 1) {
     const v = (row + 0.5) / map.height
-    if (v < start || v > end)
+    if (v < startY || v > endY)
       continue
 
     for (let column = 0; column < map.width; column += 1) {
       const u = (column + 0.5) / map.width
-      if (u < start || u > end)
+      if (u < startX || u > endX)
         continue
 
       const offset = (row * map.width + column) * 3
@@ -220,6 +260,12 @@ export interface AmbientLightEnvironment {
    * an outline of its own. Zero switches the darkening off.
    */
   behindLuminance: number
+  /**
+   * The reach the two maps were placed with, which every reader needs to turn a
+   * window position into a map position. It travels with the maps because it
+   * depends on the shape of the window they were measured around.
+   */
+  mapMargin: AmbientLightMapMargin
 }
 
 /** Default values for the screen ambient-light sampler, renderer, and devtool. */
@@ -244,12 +290,15 @@ export const ambientLightDefaults = Object.freeze({
   squint: 1,
   captureIntervalMs: 250,
   /**
-   * Size of the downscaled capture frame, in pixels. It decides how much detail
-   * a map texel can hold. At 128 x 96 a normal stage window covers about
-   * 36 x 46 pixels, a few pixels per map texel.
+   * Width of the downscaled capture frame, in pixels. It decides how much
+   * detail a map texel can hold. The height follows the display, so that a
+   * frame pixel is square on screen: a frame stretched into a fixed aspect
+   * makes the blur oval and weighs one direction more than the other.
+   *
+   * At 128 across, a normal stage window covers about 22 x 27 frame pixels on
+   * a 2560 x 1440 display, a few pixels per map texel.
    */
   sampleWidth: 128,
-  sampleHeight: 96,
   responseMs: 650,
   sampling: Object.freeze<AmbientLightSamplingOptions>({
     neutralColorWeight: 0.35,
@@ -282,6 +331,7 @@ const neutralAmbientLightLevel = 0.5
  */
 export const ambientLightNeutralEnvironment: Readonly<AmbientLightEnvironment> = Object.freeze({
   exposure: 0.5,
+  mapMargin: ambientLightNeutralMapMargin,
   surround: createAmbientLightMap([neutralAmbientLightLevel, neutralAmbientLightLevel, neutralAmbientLightLevel]),
   contact: createAmbientLightMap([neutralAmbientLightLevel, neutralAmbientLightLevel, neutralAmbientLightLevel]),
   behindLuminance: 0,
