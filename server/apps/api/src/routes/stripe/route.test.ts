@@ -1,153 +1,89 @@
-import type { StripeCheckoutSession, StripeInvoice } from '../../schemas/stripe'
+import type { Database } from '../../libs/db'
 import type { ConfigKVService } from '../../services/adapters/config-kv'
-import type { BillingService } from '../../services/domain/billing/billing-service'
-import type { FluxService } from '../../services/domain/flux'
-import type { StripeService } from '../../services/domain/stripe'
+import type { PaymentService } from '../../services/domain/payment'
 import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 
-import { createStripeRoutes, formatPrice } from '.'
+import { createStripeRoutes } from '.'
 import { createTestRedis } from '../../libs/tests/redis'
 import { ApiError } from '../../utils/error'
-import { createCheckoutOperation } from './operations/checkout'
 import { createWebhookOperation } from './operations/webhook'
 
-// --- Mock helpers ---
-
-function createMockFluxService(): FluxService {
+function unusedWebhookDb(): Database {
   return {
-    getFlux: vi.fn(async () => ({ userId: 'user-1', flux: 100 })),
-    updateStripeCustomerId: vi.fn(),
-  } as any
+    select: () => {
+      throw new Error('db should not be queried for new Sessions')
+    },
+  } as unknown as Database
 }
 
-function createMockStripeService(overrides: Partial<StripeService> = {}): StripeService {
+function createMockPayment(overrides: Partial<PaymentService> = {}): PaymentService {
   return {
-    upsertCustomer: vi.fn(async data => ({ id: 'id-1', createdAt: new Date(), updatedAt: new Date(), ...data })),
-    getCustomerByUserId: vi.fn(async () => undefined),
-    getCustomerByStripeId: vi.fn(async () => undefined),
-    upsertCheckoutSession: vi.fn(async data => ({ id: 'id-1', fluxCredited: false, createdAt: new Date(), updatedAt: new Date(), ...data })),
-    getCheckoutSessionsByUserId: vi.fn(async () => []),
-    upsertSubscription: vi.fn(async data => ({ id: 'id-1', createdAt: new Date(), updatedAt: new Date(), ...data })),
-    getActiveSubscription: vi.fn(async () => undefined),
-    upsertInvoice: vi.fn(async data => ({ id: 'id-1', fluxCredited: false, createdAt: new Date(), updatedAt: new Date(), ...data })),
-    getInvoicesByUserId: vi.fn(async () => []),
-    ...overrides,
-  } as any
-}
-
-function createMockStripeCustomer(
-  overrides: Partial<NonNullable<Awaited<ReturnType<StripeService['getCustomerByStripeId']>>>> = {},
-): NonNullable<Awaited<ReturnType<StripeService['getCustomerByStripeId']>>> {
-  const now = new Date()
-  return {
-    id: 'stripe-customer-1',
-    name: null,
-    email: null,
-    createdAt: now,
-    updatedAt: now,
-    userId: 'user-1',
-    deletedAt: null,
-    stripeCustomerId: 'cus_1',
+    openPending: vi.fn(async () => ({ id: 'po_mock' })),
+    bindProcessorOrder: vi.fn(async () => {}),
+    abandon: vi.fn(async () => {}),
+    settle: vi.fn(async () => ({ applied: true, userId: 'user-1', fluxAmount: 500, balanceAfter: 500 })),
+    deleteAllForUser: vi.fn(),
     ...overrides,
   }
 }
 
-function createMockBillingService(): BillingService {
+function createMockConfigKV(overrides: Partial<ConfigKVService> = {}): ConfigKVService {
   return {
-    debitFlux: vi.fn(),
-    creditFlux: vi.fn(),
-    creditFluxFromStripeCheckout: vi.fn(async () => ({ applied: true, balanceAfter: 500 })),
-    creditFluxFromInvoice: vi.fn(async () => ({ applied: true, balanceAfter: 500 })),
-  } as any
-}
-
-function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVService {
-  const defaults: Record<string, any> = {
-    STRIPE_FLUX_PRODUCT_ID: 'prod_test_flux',
-    STRIPE_PAYMENT_METHODS: ['card'],
-    ...overrides,
-  }
-  return {
-    getOrThrow: vi.fn(async (key: string) => {
-      if (defaults[key] === undefined)
-        throw new Error(`Config key "${key}" is not set`)
-      return defaults[key]
+    getOptional: vi.fn(async (key: string) => {
+      if (key === 'FLUX_PACKS') {
+        return [{
+          key: 'starter',
+          name: '500 Flux',
+          fluxAmount: 500,
+          recommended: false,
+          processors: { stripe: { priceId: 'price_test_500' } },
+        }]
+      }
+      return null
     }),
-    getOptional: vi.fn(async (key: string) => defaults[key] ?? null),
-    get: vi.fn(async (key: string) => defaults[key]),
-    set: vi.fn(),
-  } as any
+    getOrThrow: vi.fn(),
+    get: vi.fn(),
+    refresh: vi.fn(),
+    invalidateCache: vi.fn(),
+    ...overrides,
+  } as ConfigKVService
 }
 
 const testEnv = {
   STRIPE_SECRET_KEY: 'sk_test_fake',
   STRIPE_WEBHOOK_SECRET: 'whsec_test_fake',
   API_SERVER_URL: 'http://localhost:8787',
+  WEB_APP_URL: 'https://airi.moeru.ai',
+  ADDITIONAL_TRUSTED_ORIGINS: [],
 } as any
 
 const testUser = { id: 'user-1', name: 'Test User', email: 'test@example.com' }
 
-function createCheckoutSession(overrides: Partial<StripeCheckoutSession> = {}): StripeCheckoutSession {
-  return {
-    id: 'checkout-1',
-    userId: 'user-1',
-    stripeSessionId: 'cs_1',
-    stripeCustomerId: null,
-    mode: 'payment',
-    status: 'open',
-    paymentStatus: null,
-    amountTotal: 500,
-    currency: 'usd',
-    successUrl: 'http://localhost/success',
-    cancelUrl: 'http://localhost/cancel',
-    stripePaymentIntentId: null,
-    stripeSubscriptionId: null,
-    fluxCredited: false,
-    metadata: null,
-    expiresAt: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    deletedAt: null,
-    ...overrides,
-  }
-}
-
-function createInvoice(overrides: Partial<StripeInvoice> = {}): StripeInvoice {
-  return {
-    id: 'invoice-1',
-    userId: 'user-1',
-    stripeInvoiceId: 'inv_1',
-    stripeCustomerId: null,
-    stripeSubscriptionId: null,
-    status: 'paid',
-    amountDue: 500,
-    amountPaid: 500,
-    currency: 'usd',
-    invoiceUrl: null,
-    invoicePdf: null,
-    periodStart: null,
-    periodEnd: null,
-    paidAt: null,
-    fluxCredited: false,
-    metadata: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    deletedAt: null,
-    ...overrides,
-  }
-}
-
 function createTestApp(
-  fluxService: FluxService,
-  stripeService: StripeService,
-  billingService: BillingService,
-  configKV: ConfigKVService,
+  payment: PaymentService,
   envOverrides: Record<string, any> = {},
+  stripe: any = {
+    prices: { retrieve: vi.fn() },
+    checkout: { sessions: { create: vi.fn() } },
+    webhooks: { constructEvent: vi.fn() },
+  },
+  configKV: ConfigKVService = createMockConfigKV(),
 ) {
-  const routes = createStripeRoutes(fluxService, stripeService, billingService, configKV, { ...testEnv, ...envOverrides }, createTestRedis())
+  const stripeClient = envOverrides.STRIPE_SECRET_KEY === '' ? null : stripe
+  const routes = createStripeRoutes(
+    payment,
+    {} as never,
+    stripeClient,
+    createTestRedis(),
+    configKV,
+    { ...testEnv, ...envOverrides },
+    null,
+    null,
+    null,
+  )
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -161,12 +97,10 @@ function createTestApp(
     return c.json({ error: 'Internal Server Error', message: err.message }, 500)
   })
 
-  // Inject user from env (simulates sessionMiddleware)
   app.use('*', async (c, next) => {
     const user = (c.env as any)?.user
-    if (user) {
+    if (user)
       c.set('user', user)
-    }
     await next()
   })
 
@@ -174,97 +108,47 @@ function createTestApp(
   return app
 }
 
-// --- Tests ---
-
-describe('formatPrice', () => {
-  it('formats USD cents correctly', () => {
-    expect(formatPrice(300, 'usd')).toBe('$3.00')
-    expect(formatPrice(1200, 'usd')).toBe('$12.00')
-    expect(formatPrice(2500, 'usd')).toBe('$25.00')
-  })
-
-  it('formats CNY cents correctly', () => {
-    expect(formatPrice(2100, 'cny')).toBe('CN¥21.00')
-  })
-
-  it('formats JPY (zero-decimal currency) correctly', () => {
-    expect(formatPrice(500, 'jpy')).toBe('¥500')
-  })
-
-  it('formats GBP correctly', () => {
-    expect(formatPrice(1599, 'gbp')).toBe('£15.99')
-  })
-
-  it('returns currency code for null amount', () => {
-    expect(formatPrice(null, 'usd')).toBe('USD')
-  })
-
-  it('handles zero amount', () => {
-    expect(formatPrice(0, 'usd')).toBe('$0.00')
-  })
-})
-
 describe('stripeRoutes', () => {
   describe('gET /api/v1/stripe/packages', () => {
-    it('returns empty array when Stripe is not configured', async () => {
-      const app = createTestApp(
-        createMockFluxService(),
-        createMockStripeService(),
-        createMockBillingService(),
-        createMockConfigKV({ STRIPE_FLUX_PRODUCT_ID: undefined }),
-        { STRIPE_SECRET_KEY: '' },
-      )
+    it('returns ConfigKV packs with Stripe display prices', async () => {
+      const stripe = {
+        prices: {
+          retrieve: vi.fn(async () => ({
+            id: 'price_test_500',
+            currency: 'usd',
+            unit_amount: 500,
+            currency_options: {},
+          })),
+        },
+        webhooks: { constructEvent: vi.fn() },
+      }
+      const app = createTestApp(createMockPayment(), {}, stripe)
 
       const res = await app.request('/api/v1/stripe/packages')
       expect(res.status).toBe(200)
-      expect(await res.json()).toEqual([])
+      expect(await res.json()).toEqual([{
+        packKey: 'starter',
+        label: '500 Flux',
+        defaultCurrency: 'usd',
+        currencies: { usd: '$5.00' },
+        recommended: false,
+      }])
     })
   })
 
   describe('pOST /api/v1/stripe/checkout', () => {
     it('returns 401 when unauthenticated', async () => {
-      const app = createTestApp(
-        createMockFluxService(),
-        createMockStripeService(),
-        createMockBillingService(),
-        createMockConfigKV(),
-      )
-
+      const app = createTestApp(createMockPayment())
       const res = await app.request('/api/v1/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stripePriceId: 'price_test_500' }),
+        body: JSON.stringify({ packKey: 'starter' }),
       })
       expect(res.status).toBe(401)
     })
 
-    it('returns 400 for empty stripePriceId', async () => {
-      const app = createTestApp(
-        createMockFluxService(),
-        createMockStripeService(),
-        createMockBillingService(),
-        createMockConfigKV(),
-      )
-
-      const res = await app.fetch(
-        new Request('http://localhost/api/v1/stripe/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ stripePriceId: '' }),
-        }),
-        { user: testUser } as any,
-      )
-      expect(res.status).toBe(400)
-    })
-
-    it('returns 400 for missing stripePriceId', async () => {
-      const app = createTestApp(
-        createMockFluxService(),
-        createMockStripeService(),
-        createMockBillingService(),
-        createMockConfigKV(),
-      )
-
+    it('returns 400 for an empty body', async () => {
+      const app = createTestApp(createMockPayment())
       const res = await app.fetch(
         new Request('http://localhost/api/v1/stripe/checkout', {
           method: 'POST',
@@ -275,258 +159,41 @@ describe('stripeRoutes', () => {
       )
       expect(res.status).toBe(400)
     })
-
-    it('returns 503 when Stripe is not configured', async () => {
-      const app = createTestApp(
-        createMockFluxService(),
-        createMockStripeService(),
-        createMockBillingService(),
-        createMockConfigKV({ STRIPE_FLUX_PRODUCT_ID: undefined }),
-        { STRIPE_SECRET_KEY: '' },
-      )
-
-      const res = await app.fetch(
-        new Request('http://localhost/api/v1/stripe/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ stripePriceId: 'price_test_500' }),
-        }),
-        { user: testUser } as any,
-      )
-      expect(res.status).toBe(503)
-    })
-
-    it('stores browser PostHog identity in Stripe checkout metadata', async () => {
-      const createSession = vi.fn(async input => ({
-        id: 'cs_1',
-        url: 'https://checkout.stripe.com/cs_1',
-        customer: null,
-        mode: 'payment',
-        status: 'open',
-        payment_status: 'unpaid',
-        amount_total: 500,
-        currency: 'usd',
-        success_url: 'http://localhost/settings/flux?success=true',
-        cancel_url: 'http://localhost/settings/flux?canceled=true',
-        payment_intent: null,
-        subscription: null,
-        metadata: input.metadata,
-        expires_at: null,
-      }))
-      const productEventService = { track: vi.fn() }
-      const operation = createCheckoutOperation({
-        stripe: {
-          checkout: {
-            sessions: {
-              create: createSession,
-            },
-          },
-        } as any,
-        priceCatalog: {
-          findActivePrice: vi.fn(async () => ({
-            id: 'price_test_500',
-            currency: 'usd',
-            unitAmount: 500,
-            currencyOptions: {},
-            metadata: { fluxAmount: '500' },
-          })),
-          getActivePrices: vi.fn(),
-        } as any,
-        stripeService: createMockStripeService(),
-        configKV: createMockConfigKV({ STRIPE_PAYMENT_METHODS: undefined }),
-        env: testEnv,
-        productEventService: productEventService as any,
-      })
-
-      await operation({
-        user: testUser as any,
-        body: { stripePriceId: 'price_test_500' },
-        request: new Request('http://localhost/api/v1/stripe/checkout', {
-          headers: {
-            'x-posthog-distinct-id': 'anon-browser-1',
-            'x-posthog-session-id': 'ph-session-1',
-          },
-        }),
-      })
-
-      expect(createSession).toHaveBeenCalledWith(expect.objectContaining({
-        metadata: {
-          userId: 'user-1',
-          fluxAmount: '500',
-          posthogDistinctId: 'anon-browser-1',
-          posthogSessionId: 'ph-session-1',
-        },
-      }))
-      expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
-        userId: 'user-1',
-        action: 'checkout_started',
-        metadata: expect.objectContaining({
-          posthog_distinct_id: 'anon-browser-1',
-          posthog_session_id: 'ph-session-1',
-        }),
-      }))
-    })
-  })
-
-  describe('gET /api/v1/stripe/orders', () => {
-    it('returns 401 when unauthenticated', async () => {
-      const app = createTestApp(
-        createMockFluxService(),
-        createMockStripeService(),
-        createMockBillingService(),
-        createMockConfigKV(),
-      )
-
-      const res = await app.request('/api/v1/stripe/orders')
-      expect(res.status).toBe(401)
-    })
-
-    it('returns checkout sessions for the authenticated user', async () => {
-      const mockSessions = [
-        createCheckoutSession({ id: '1', stripeSessionId: 'cs_1', status: 'complete' }),
-        createCheckoutSession({ id: '2', stripeSessionId: 'cs_2', status: 'open' }),
-      ]
-      const stripeService = createMockStripeService({
-        getCheckoutSessionsByUserId: vi.fn(async () => mockSessions),
-      })
-      const app = createTestApp(
-        createMockFluxService(),
-        stripeService,
-        createMockBillingService(),
-        createMockConfigKV(),
-      )
-
-      const res = await app.fetch(
-        new Request('http://localhost/api/v1/stripe/orders'),
-        { user: testUser } as any,
-      )
-      expect(res.status).toBe(200)
-
-      const data = await res.json()
-      expect(data).toHaveLength(2)
-      expect(stripeService.getCheckoutSessionsByUserId).toHaveBeenCalledWith('user-1')
-    })
-  })
-
-  describe('gET /api/v1/stripe/invoices', () => {
-    it('returns 401 when unauthenticated', async () => {
-      const app = createTestApp(
-        createMockFluxService(),
-        createMockStripeService(),
-        createMockBillingService(),
-        createMockConfigKV(),
-      )
-
-      const res = await app.request('/api/v1/stripe/invoices')
-      expect(res.status).toBe(401)
-    })
-
-    it('returns invoices for the authenticated user', async () => {
-      const mockInvoices = [createInvoice({ id: '1', stripeInvoiceId: 'inv_1', status: 'paid' })]
-      const stripeService = createMockStripeService({
-        getInvoicesByUserId: vi.fn(async () => mockInvoices),
-      })
-      const app = createTestApp(
-        createMockFluxService(),
-        stripeService,
-        createMockBillingService(),
-        createMockConfigKV(),
-      )
-
-      const res = await app.fetch(
-        new Request('http://localhost/api/v1/stripe/invoices'),
-        { user: testUser } as any,
-      )
-      expect(res.status).toBe(200)
-
-      const data = await res.json()
-      expect(data).toHaveLength(1)
-      expect(stripeService.getInvoicesByUserId).toHaveBeenCalledWith('user-1')
-    })
-  })
-
-  describe('pOST /api/v1/stripe/portal', () => {
-    it('returns 401 when unauthenticated', async () => {
-      const app = createTestApp(
-        createMockFluxService(),
-        createMockStripeService(),
-        createMockBillingService(),
-        createMockConfigKV(),
-      )
-
-      const res = await app.request('/api/v1/stripe/portal', { method: 'POST' })
-      expect(res.status).toBe(401)
-    })
-
-    it('returns 400 when user has no billing account', async () => {
-      const stripeService = createMockStripeService({
-        getCustomerByUserId: vi.fn(async () => undefined),
-      })
-      const app = createTestApp(
-        createMockFluxService(),
-        stripeService,
-        createMockBillingService(),
-        createMockConfigKV(),
-      )
-
-      const res = await app.fetch(
-        new Request('http://localhost/api/v1/stripe/portal', { method: 'POST' }),
-        { user: testUser } as any,
-      )
-      expect(res.status).toBe(400)
-
-      const data = await res.json() as any
-      expect(data.error).toBe('NO_CUSTOMER')
-    })
   })
 
   describe('pOST /api/v1/stripe/webhook', () => {
     it('returns 400 when signature is missing', async () => {
-      const app = createTestApp(
-        createMockFluxService(),
-        createMockStripeService(),
-        createMockBillingService(),
-        createMockConfigKV(),
-      )
-
+      const app = createTestApp(createMockPayment())
       const res = await app.request('/api/v1/stripe/webhook', {
         method: 'POST',
         body: '{}',
       })
       expect(res.status).toBe(400)
-
       const data = await res.json() as any
       expect(data.error).toBe('MISSING_SIGNATURE')
     })
 
     it('returns 400 when signature is invalid', async () => {
-      const app = createTestApp(
-        createMockFluxService(),
-        createMockStripeService(),
-        createMockBillingService(),
-        createMockConfigKV(),
-      )
-
+      const stripe = {
+        webhooks: {
+          constructEvent: vi.fn(() => {
+            throw new Error('bad sig')
+          }),
+        },
+      }
+      const app = createTestApp(createMockPayment(), {}, stripe)
       const res = await app.request('/api/v1/stripe/webhook', {
         method: 'POST',
         headers: { 'stripe-signature': 'invalid_sig' },
         body: '{}',
       })
       expect(res.status).toBe(400)
-
       const data = await res.json() as any
       expect(data.error).toBe('WEBHOOK_ERROR')
     })
 
     it('returns 503 when Stripe is not configured', async () => {
-      const app = createTestApp(
-        createMockFluxService(),
-        createMockStripeService(),
-        createMockBillingService(),
-        createMockConfigKV(),
-        { STRIPE_SECRET_KEY: '', STRIPE_WEBHOOK_SECRET: '' },
-      )
-
+      const app = createTestApp(createMockPayment(), { STRIPE_SECRET_KEY: '', STRIPE_WEBHOOK_SECRET: '' })
       const res = await app.request('/api/v1/stripe/webhook', {
         method: 'POST',
         headers: { 'stripe-signature': 'test_sig' },
@@ -535,7 +202,7 @@ describe('stripeRoutes', () => {
       expect(res.status).toBe(503)
     })
 
-    it('records payment completion with Stripe and PostHog identity from checkout metadata', async () => {
+    it('settles a paid checkout session', async () => {
       const checkoutEvent = {
         id: 'evt_checkout_completed',
         type: 'checkout.session.completed',
@@ -543,179 +210,74 @@ describe('stripeRoutes', () => {
           object: {
             id: 'cs_1',
             customer: 'cus_1',
-            customer_email: 'test@example.com',
             mode: 'payment',
             status: 'complete',
             payment_status: 'paid',
             amount_total: 500,
             currency: 'usd',
-            success_url: 'http://localhost/settings/flux?success=true',
-            cancel_url: 'http://localhost/settings/flux?canceled=true',
-            payment_intent: 'pi_1',
-            subscription: null,
             metadata: {
-              userId: 'user-1',
-              fluxAmount: '500',
+              payment_order_id: 'po_1',
+              packKey: 'starter',
               posthogDistinctId: 'anon-browser-1',
               posthogSessionId: 'ph-session-1',
             },
-            expires_at: null,
           },
         },
       }
+      const payment = createMockPayment()
       const productEventService = { track: vi.fn() }
-      const billingService = createMockBillingService()
-      const webhook = createWebhookOperation({
-        stripe: {
+      const webhook = createWebhookOperation(
+        {
           webhooks: {
             constructEvent: vi.fn(() => checkoutEvent),
           },
         } as any,
-        webhookSecret: 'whsec_test',
-        fluxService: createMockFluxService(),
-        stripeService: createMockStripeService(),
-        billingService,
-        productEventService: productEventService as any,
-      })
+        'whsec_test',
+        payment,
+        unusedWebhookDb(),
+        null,
+        productEventService as any,
+      )
 
-      await webhook({ signature: 'test_sig', body: '{}' })
+      await webhook('test_sig', '{}')
 
-      expect(billingService.creditFluxFromStripeCheckout).toHaveBeenCalledWith(expect.objectContaining({
-        stripeEventId: 'evt_checkout_completed',
-        userId: 'user-1',
-        stripeSessionId: 'cs_1',
-        fluxAmount: 500,
-      }))
-      expect(productEventService.track).toHaveBeenCalledWith({
-        userId: 'user-1',
-        feature: 'billing',
-        action: 'payment_completed',
-        status: 'succeeded',
-        eventId: 'cs_1',
-        source: 'stripe.webhook',
-        metadata: {
-          amount_total: 500,
-          currency: 'usd',
-          flux_amount: 500,
-          stripe_checkout_session_id: 'cs_1',
-          stripe_customer_id: 'cus_1',
-          posthog_distinct_id: 'anon-browser-1',
-          posthog_session_id: 'ph-session-1',
-        },
-      })
-    })
-
-    it('processes subscription lifecycle webhooks without product events', async () => {
-      const subscriptionEvent = {
-        id: 'evt_sub_created',
-        type: 'customer.subscription.created',
-        data: {
-          object: {
-            id: 'sub_1',
-            customer: 'cus_1',
-            status: 'active',
-            items: {
-              data: [{
-                price: { id: 'price_1' },
-                current_period_start: 1_000,
-                current_period_end: 2_000,
-              }],
-            },
-            cancel_at_period_end: false,
-            canceled_at: null,
-            ended_at: null,
-            metadata: {},
-          },
-        },
-      }
-      const stripeService = createMockStripeService({
-        getCustomerByStripeId: vi.fn(async () => createMockStripeCustomer()),
-      })
-      const productEventService = { track: vi.fn(async () => undefined) }
-      const webhook = createWebhookOperation({
-        stripe: {
-          webhooks: {
-            constructEvent: vi.fn(() => subscriptionEvent),
-          },
-        } as any,
-        webhookSecret: 'whsec_test',
-        fluxService: createMockFluxService(),
-        stripeService,
-        billingService: createMockBillingService(),
-        productEventService: productEventService as any,
-      })
-
-      await webhook({ signature: 'test_sig', body: '{}' })
-
-      expect(stripeService.upsertSubscription).toHaveBeenCalledWith(expect.objectContaining({
-        userId: 'user-1',
-        stripeSubscriptionId: 'sub_1',
-        stripeCustomerId: 'cus_1',
-        stripePriceId: 'price_1',
-        status: 'active',
-        cancelAtPeriodEnd: false,
-      }))
-      expect(productEventService.track).not.toHaveBeenCalled()
-    })
-
-    it('records subscription renewals only for subscription-cycle paid invoices', async () => {
-      const invoiceEvent = {
-        id: 'evt_invoice_paid',
-        type: 'invoice.paid',
-        data: {
-          object: {
-            id: 'inv_1',
-            customer: 'cus_1',
-            parent: {
-              subscription_details: {
-                subscription: 'sub_1',
-              },
-            },
-            billing_reason: 'subscription_cycle',
-            status: 'paid',
-            amount_due: 1_200,
-            amount_paid: 1_200,
-            currency: 'usd',
-            hosted_invoice_url: null,
-            invoice_pdf: null,
-            period_start: 1_000,
-            period_end: 2_000,
-            status_transitions: {
-              paid_at: 1_500,
-            },
-            metadata: {},
-          },
-        },
-      }
-      const stripeService = createMockStripeService({
-        getCustomerByStripeId: vi.fn(async () => createMockStripeCustomer()),
-      })
-      const productEventService = { track: vi.fn(async () => undefined) }
-      const webhook = createWebhookOperation({
-        stripe: {
-          webhooks: {
-            constructEvent: vi.fn(() => invoiceEvent),
-          },
-        } as any,
-        webhookSecret: 'whsec_test',
-        fluxService: createMockFluxService(),
-        stripeService,
-        billingService: createMockBillingService(),
-        productEventService: productEventService as any,
-      })
-
-      await webhook({ signature: 'test_sig', body: '{}' })
-
-      expect(stripeService.upsertInvoice).toHaveBeenCalledWith(expect.objectContaining({
-        userId: 'user-1',
-        stripeInvoiceId: 'inv_1',
-        stripeCustomerId: 'cus_1',
-        stripeSubscriptionId: 'sub_1',
+      expect(payment.settle).toHaveBeenCalledWith(expect.objectContaining({
+        kind: 'claim',
+        processor: 'stripe',
+        paymentOrderId: 'po_1',
+        processorOrderId: 'cs_1',
         status: 'paid',
-        amountDue: 1_200,
-        amountPaid: 1_200,
       }))
-      expect(productEventService.track).not.toHaveBeenCalled()
+      expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'payment_completed',
+        metadata: expect.objectContaining({
+          posthog_distinct_id: 'anon-browser-1',
+          pack_key: 'starter',
+        }),
+      }))
+    })
+
+    it('ignores unknown events and does not settle', async () => {
+      const payment = createMockPayment()
+      const webhook = createWebhookOperation(
+        {
+          webhooks: {
+            constructEvent: vi.fn(() => ({
+              id: 'evt_charge',
+              type: 'charge.succeeded',
+              data: { object: { id: 'ch_1' } },
+            })),
+          },
+        } as any,
+        'whsec_test',
+        payment,
+        unusedWebhookDb(),
+        null,
+        null,
+      )
+
+      await webhook('test_sig', '{}')
+      expect(payment.settle).not.toHaveBeenCalled()
     })
   })
 })
