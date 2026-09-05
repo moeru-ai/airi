@@ -1120,6 +1120,82 @@ describe('better-ws client runtime', () => {
     expect(states).not.toContain('ready')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2468
+  it.each(['open', 'preparing'] as const)('skips prepare when the %s handler closes the client (PR #2468)', async (closeState) => {
+    const close = vi.fn()
+    const prepare = vi.fn<NonNullable<betterWs.ClientBaseOptions<string>['prepare']>>()
+    const client = betterWs.createClient<string>({
+      reconnect: false,
+      connector: { connect: () => ({ send: vi.fn(() => true), close }) },
+      prepare,
+    })
+    client.onStateChange(({ state }) => {
+      if (state === closeState) {
+        client.close()
+      }
+    })
+
+    // ROOT CAUSE:
+    //
+    // State handlers run before transition() returns. The open or preparing
+    // handler can close the transport before its prepare controller exists.
+    // Without another epoch check, prepare still starts and can replace closed
+    // state with preparing. Recheck ownership before the next lifecycle step.
+    try {
+      await client.connect()
+
+      expect(client.state).toBe('closed')
+      expect(prepare).not.toHaveBeenCalled()
+      expect(close).toHaveBeenCalledOnce()
+    }
+    finally {
+      client.close()
+    }
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2468
+  it.each(['open', 'preparing'] as const)('prepares only the newest connection when the %s handler restarts it (PR #2468)', async (restartState) => {
+    const firstClose = vi.fn()
+    const activeClose = vi.fn()
+    const activeSend = vi.fn(() => true)
+    const reconnected = Promise.withResolvers<void>()
+    const prepare = vi.fn<NonNullable<betterWs.ClientBaseOptions<string>['prepare']>>()
+    const connect = vi.fn<betterWs.ClientConnector<string>['connect']>()
+      .mockReturnValueOnce({ send: vi.fn(() => true), close: firstClose })
+      .mockReturnValueOnce({ send: activeSend, close: activeClose })
+    const client = betterWs.createClient<string>({
+      reconnect: false,
+      connector: { connect },
+      prepare,
+    })
+    let restarted = false
+    client.onStateChange(({ state }) => {
+      if (state === restartState && !restarted) {
+        restarted = true
+        reconnected.resolve(client.connect())
+      }
+    })
+
+    // ROOT CAUSE:
+    //
+    // A state handler can start a replacement before the old attempt enters
+    // prepare. The old attempt then creates a controller after cancellation.
+    // Recheck the epoch after each notification so only the replacement prepares.
+    try {
+      await Promise.all([client.connect(), reconnected.promise])
+
+      expect(prepare).toHaveBeenCalledOnce()
+      expect(firstClose).toHaveBeenCalledOnce()
+      expect(activeClose).not.toHaveBeenCalled()
+      expect(client.state).toBe('ready')
+      expect(client.send('hello')).toEqual({ ok: true })
+      expect(activeSend).toHaveBeenCalledExactlyOnceWith('hello')
+    }
+    finally {
+      client.close()
+    }
+  })
+
   it('aborts stale prepare when a newer connect starts', async () => {
     const closed = [vi.fn(), vi.fn()]
     const prepareErrors: unknown[] = []
@@ -1297,6 +1373,75 @@ describe('better-ws client runtime', () => {
     expect(firstWaitError).toBeInstanceOf(Error)
     expect((firstWaitError as Error).message).toBe('Wait for message aborted.')
     expect(closed[0]).toHaveBeenCalledOnce()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2468
+  it('blocks delayed prepare sends through a replacement connection (PR #2468)', async () => {
+    const firstPreparing = Promise.withResolvers<betterWs.PrepareContext<string>>()
+    const secondPreparing = Promise.withResolvers<betterWs.PrepareContext<string>>()
+    const resumeFirstPrepare = Promise.withResolvers<void>()
+    const activeEvents = Promise.withResolvers<betterWs.ClientEvents<string>>()
+    const firstSend = vi.fn(() => true)
+    const activeSend = vi.fn(() => true)
+    let staleSendResult: betterWs.WsSendResult | undefined
+    const connect = vi.fn<betterWs.ClientConnector<string>['connect']>()
+      .mockReturnValueOnce({ send: firstSend, close: vi.fn() })
+      .mockImplementationOnce((events) => {
+        activeEvents.resolve(events)
+        return { send: activeSend, close: vi.fn() }
+      })
+    const prepare = vi.fn<NonNullable<betterWs.ClientBaseOptions<string>['prepare']>>()
+      .mockImplementationOnce(async (ctx) => {
+        firstPreparing.resolve(ctx)
+        await resumeFirstPrepare.promise
+        staleSendResult = ctx.send('stale-auth')
+      })
+      .mockImplementationOnce(async (ctx) => {
+        secondPreparing.resolve(ctx)
+        await ctx.waitFor(message => message === 'authenticated')
+      })
+    const client = betterWs.createClient<string>({
+      reconnect: false,
+      connector: { connect },
+      prepare,
+    })
+
+    // ROOT CAUSE:
+    //
+    // Aborting a prepare signal does not stop a caller's pending promise.
+    // Its delayed continuation used client.send(), which selects the current
+    // transport. Bind prepare sends to their epoch so stale work cannot send
+    // authentication messages through the replacement connection.
+    const firstConnect = client.connect()
+    const firstContext = await firstPreparing.promise
+    const secondConnect = client.connect()
+    const secondContext = await secondPreparing.promise
+    try {
+      resumeFirstPrepare.resolve()
+      await firstConnect
+
+      expect(firstContext.signal.aborted).toBe(true)
+      expect(staleSendResult).toEqual({ ok: false, reason: 'closed' })
+      expect(firstSend).not.toHaveBeenCalled()
+      expect(activeSend).not.toHaveBeenCalled()
+      expect(client.state).toBe('preparing')
+      expect(secondContext.send('auth')).toEqual({ ok: true })
+
+      const events = await activeEvents.promise
+      events.message('authenticated')
+      await secondConnect
+
+      expect(client.state).toBe('ready')
+      expect(firstContext.send('stale-announce')).toEqual({ ok: false, reason: 'closed' })
+      expect(activeSend).toHaveBeenCalledExactlyOnceWith('auth')
+      expect(client.send('hello')).toEqual({ ok: true })
+      expect(activeSend).toHaveBeenLastCalledWith('hello')
+    }
+    finally {
+      client.close()
+      resumeFirstPrepare.resolve()
+      await Promise.allSettled([firstConnect, secondConnect])
+    }
   })
 
   it('does not stay preparing when prepare fails and reconnect is enabled', async () => {
