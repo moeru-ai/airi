@@ -2,7 +2,7 @@ import type { InferenceServiceProvider } from '../../libs/providers/types'
 
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createApp } from 'vue'
+import { createApp, nextTick } from 'vue'
 
 import { useProviderConfigStore } from './config'
 
@@ -117,6 +117,7 @@ describe('provider config store', () => {
   afterEach(() => {
     vi.clearAllMocks()
     vi.unstubAllGlobals()
+    vi.useRealTimers()
   })
 
   it('merges a remote list into the local snapshot', async () => {
@@ -187,6 +188,43 @@ describe('provider config store', () => {
 
     await store.updateProviderConfig(localProvider.id, { apiKey: 'sk-edited' }, 'unconfigured')
     await store.pushProviders()
+
+    expect(mocks.service.upsertRemote).toHaveBeenCalledWith(
+      mocks.client,
+      expect.objectContaining({
+        id: localProvider.id,
+        config: { apiKey: 'sk-edited' },
+      }),
+    )
+  })
+
+  it('uploads a nested Pinia config mutation after sync', async () => {
+    // ROOT CAUSE:
+    //
+    // Settings pages write provider.config fields in place, which is normal
+    // Pinia state. Cloud replica used to push only from named actions, so
+    // those edits never uploaded.
+    //
+    // The store now watches the replica payload and debounce-pushes it.
+    vi.useFakeTimers()
+    const store = installStore()
+    store.providers[localProvider.id] = { ...localProvider, replicaUpdatedAt: '2026-01-01T00:00:00.000Z' }
+    mocks.service.listRemote.mockResolvedValue([{
+      id: localProvider.id,
+      definitionId: localProvider.definitionId,
+      config: { apiKey: 'sk-local' },
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      deletedAt: null,
+    }])
+    authState.isAuthenticated = true
+
+    await store.syncProviders()
+    await vi.advanceTimersByTimeAsync(1000)
+    mocks.service.upsertRemote.mockClear()
+
+    store.providers[localProvider.id].config.apiKey = 'sk-edited'
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(1000)
 
     expect(mocks.service.upsertRemote).toHaveBeenCalledWith(
       mocks.client,
