@@ -1,27 +1,28 @@
 import type { Database } from '../../libs/db'
 import type { HonoEnv } from '../../types/hono'
 
+import { Buffer } from 'node:buffer'
+
 import { Hono } from 'hono'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import { createProviderRoutes } from '.'
 import { mockDB } from '../../libs/mock-db'
 import { createProviderService } from '../../services/domain/providers'
+import { createEnvelopeCrypto } from '../../utils/envelope-crypto'
 import { ApiError } from '../../utils/error'
 
 import * as schema from '../../schemas'
 
 describe('providerRoutes', () => {
   let db: Database
-  let providerService: any
   let app: Hono<HonoEnv>
-  let testUser: any
+  let testUser: { id: string }
 
   beforeAll(async () => {
     db = await mockDB(schema)
-    providerService = createProviderService(db)
+    const providerService = createProviderService(db, createEnvelopeCrypto({ masterKey: Buffer.alloc(32, 7) }))
 
-    // Create a test user
     const [user] = await db.insert(schema.user).values({
       id: 'user-1',
       name: 'Test User',
@@ -44,10 +45,9 @@ describe('providerRoutes', () => {
     })
 
     app.use('*', async (c, next) => {
-      const user = (c.env as any)?.user
-      if (user) {
-        c.set('user', user)
-      }
+      const user = (c.env as { user?: { id: string } })?.user
+      if (user)
+        c.set('user', user as never)
       await next()
     })
 
@@ -59,111 +59,84 @@ describe('providerRoutes', () => {
     expect(res.status).toBe(401)
   })
 
-  it('get / should return empty list initially (only user configs, system configs tested later)', async () => {
-    const res = await app.fetch(new Request('http://localhost/'), { user: testUser } as any)
+  it('get / should return an empty list', async () => {
+    const res = await app.fetch(new Request('http://localhost/'), { user: testUser } as never)
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual([])
   })
 
-  it('post / should create provider config', async () => {
-    const payload = {
-      definitionId: 'openai',
-      name: 'My OpenAI',
-      config: { apiKey: 'sk-123' },
-    }
-
-    const res = await app.fetch(new Request('http://localhost/', {
-      method: 'POST',
-      body: JSON.stringify(payload),
+  it('put /:id should create a row with the client id', async () => {
+    const res = await app.fetch(new Request('http://localhost/prov-1', {
+      method: 'PUT',
+      body: JSON.stringify({
+        definitionId: 'openai',
+        config: { apiKey: 'sk-123' },
+      }),
       headers: { 'Content-Type': 'application/json' },
-    }), { user: testUser } as any)
+    }), { user: testUser } as never)
 
-    expect(res.status).toBe(201)
-    const data = await res.json() as any
-    expect(data.id).toBeDefined()
-    expect(data.name).toBe('My OpenAI')
-  })
-
-  it('get / should return unified list (user + system)', async () => {
-    // Create a system config directly in DB
-    await db.insert(schema.systemProviderConfigs).values({
-      id: 'sys-1',
-      definitionId: 'anthropic',
-      name: 'System Anthropic',
-      config: { apiKey: 'sys-sk' },
-    })
-
-    const res = await app.fetch(new Request('http://localhost/'), { user: testUser } as any)
     expect(res.status).toBe(200)
-    const data = await res.json() as any
-    expect(data.length).toBe(2)
-    expect(data.some((p: any) => p.isSystem === true)).toBe(true)
-    expect(data.some((p: any) => p.isSystem === false)).toBe(true)
+    const data = await res.json() as { id: string, config: Record<string, unknown> }
+    expect(data.id).toBe('prov-1')
+    expect(data.config).toEqual({ apiKey: 'sk-123' })
   })
 
-  it('get /:id should return specific provider (user or system)', async () => {
-    const providers = await providerService.findUserConfigsByOwnerId(testUser.id)
-    const providerId = providers[0].id
-
-    const res = await app.fetch(new Request(`http://localhost/${providerId}`), { user: testUser } as any)
-    expect(res.status).toBe(200)
-    const data = await res.json() as any
-    expect(data.id).toBe(providerId)
-    expect(data.isSystem).toBe(false)
-
-    // Test system config access
-    const resSys = await app.fetch(new Request('http://localhost/sys-1'), { user: testUser } as any)
-    expect(resSys.status).toBe(200)
-    const dataSys = await resSys.json() as any
-    expect(dataSys.id).toBe('sys-1')
-    expect(dataSys.isSystem).toBe(true)
-  })
-
-  it('patch /:id should update provider config', async () => {
-    const providers = await providerService.findUserConfigsByOwnerId(testUser.id)
-    const providerId = providers[0].id
-
-    const res = await app.fetch(new Request(`http://localhost/${providerId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ name: 'Updated Name' }),
+  it('put /:id should overwrite the stored replica', async () => {
+    const res = await app.fetch(new Request('http://localhost/prov-1', {
+      method: 'PUT',
+      body: JSON.stringify({
+        definitionId: 'openai',
+        config: { apiKey: 'sk-overwritten' },
+      }),
       headers: { 'Content-Type': 'application/json' },
-    }), { user: testUser } as any)
+    }), { user: testUser } as never)
 
     expect(res.status).toBe(200)
-    const updated = await providerService.findUserConfigById(providerId)
-    expect(updated?.name).toBe('Updated Name')
+    const data = await res.json() as { config: Record<string, unknown> }
+    expect(data.config).toEqual({ apiKey: 'sk-overwritten' })
   })
 
-  it('patch /:id should return 403 if not owner', async () => {
-    // Create another user
+  it('put /:id should let another owner use the same instance id', async () => {
     const [otherUser] = await db.insert(schema.user).values({
       id: 'user-2',
       name: 'Other User',
       email: 'other@example.com',
     }).returning()
 
-    const providers = await providerService.findUserConfigsByOwnerId(testUser.id)
-    const providerId = providers[0].id
-
-    const res = await app.fetch(new Request(`http://localhost/${providerId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ name: 'Hacked Name' }),
+    const res = await app.fetch(new Request('http://localhost/prov-1', {
+      method: 'PUT',
+      body: JSON.stringify({
+        definitionId: 'openai',
+        config: { apiKey: 'sk-other' },
+      }),
       headers: { 'Content-Type': 'application/json' },
-    }), { user: otherUser } as any)
+    }), { user: otherUser } as never)
 
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
+    const data = await res.json() as { id: string, config: Record<string, unknown> }
+    expect(data.id).toBe('prov-1')
+    expect(data.config).toEqual({ apiKey: 'sk-other' })
+
+    const ownerList = await app.fetch(new Request('http://localhost/'), { user: testUser } as never)
+    const ownerRows = await ownerList.json() as { id: string, config: Record<string, unknown> }[]
+    expect(ownerRows).toHaveLength(1)
+    expect(ownerRows[0]?.id).toBe('prov-1')
+    expect(ownerRows[0]?.config).toEqual({ apiKey: 'sk-overwritten' })
   })
 
-  it('delete /:id should soft delete provider', async () => {
-    const providers = await providerService.findUserConfigsByOwnerId(testUser.id)
-    const providerId = providers[0].id
+  it('delete /:id should tombstone and get / should still return the row', async () => {
+    const listed = await app.fetch(new Request('http://localhost/'), { user: testUser } as never)
+    const [current] = await listed.json() as { id: string, updatedAt: string }[]
 
-    const res = await app.fetch(new Request(`http://localhost/${providerId}`, {
+    const res = await app.fetch(new Request(`http://localhost/${current.id}`, {
       method: 'DELETE',
-    }), { user: testUser } as any)
+    }), { user: testUser } as never)
 
     expect(res.status).toBe(204)
-    const deleted = await providerService.findUserConfigById(providerId)
-    expect(deleted).toBeUndefined()
+
+    const after = await app.fetch(new Request('http://localhost/'), { user: testUser } as never)
+    const rows = await after.json() as { id: string, deletedAt: string | null }[]
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.deletedAt).toEqual(expect.any(String))
   })
 })
