@@ -88,7 +88,8 @@ export const useProviderStore = defineStore('provider', () => {
   const addedProviders = computed(() => providerConfigStore.addedProviders)
   // Provider instances contain functions and transport handles. Keep this map
   // private so it never enters Pinia state.
-  const providerInstanceCache = new Map<string, { configKey: string | undefined, instance: unknown }>()
+  const providerInstanceCache = new Map<string, { instance: unknown, configHash: string }>()
+  const providerInstanceRequests = new Map<string, { promise: Promise<unknown>, configHash: string }>()
   const { t } = useI18n()
 
   const VISION_PROVIDER_ID_PREFIX = 'vision-'
@@ -902,21 +903,41 @@ export const useProviderStore = defineStore('provider', () => {
 
     // Configuration snapshots can arrive after a follower creates an instance.
     // Compare serialized values so an equivalent snapshot preserves its transport.
-    const configKey = JSON.stringify(config)
+    const configHash = JSON.stringify(config || {})
     const cached = providerInstanceCache.get(providerId)
-    if (cached && cached.configKey === configKey)
+    if (cached?.configHash === configHash)
       return cached.instance as R
-    if (cached)
-      await disposeProviderInstance(providerId)
+
+    const pending = providerInstanceRequests.get(providerId)
+    if (pending?.configHash === configHash)
+      return pending.promise as Promise<R>
+    if (pending) {
+      await pending.promise.catch(() => undefined)
+      return getProviderInstance<R>(providerId)
+    }
+
+    const request = (async () => {
+      if (cached)
+        await disposeProviderInstance(providerId)
+
+      try {
+        const instance = await definition.createProvider(config || {})
+        providerInstanceCache.set(providerId, { instance, configHash })
+        return instance as R
+      }
+      catch (error) {
+        console.error(`Error creating provider instance for ${providerId}:`, error)
+        throw error
+      }
+    })()
+    providerInstanceRequests.set(providerId, { promise: request, configHash })
 
     try {
-      const instance = await definition.createProvider(config || {})
-      providerInstanceCache.set(providerId, { configKey, instance })
-      return instance as R
+      return await request
     }
-    catch (error) {
-      console.error(`Error creating provider instance for ${providerId}:`, error)
-      throw error
+    finally {
+      if (providerInstanceRequests.get(providerId)?.promise === request)
+        providerInstanceRequests.delete(providerId)
     }
   }
 
@@ -938,9 +959,13 @@ export const useProviderStore = defineStore('provider', () => {
 
   /** Releases this renderer's transport; each window owns its own instance cache. */
   async function disposeProviderInstance(providerId: string) {
-    const instance = providerInstanceCache.get(providerId)?.instance as { dispose?: () => Promise<void> | void } | undefined
+    const cached = providerInstanceCache.get(providerId)
+    if (!cached)
+      return
+
     // Remove ownership before awaiting cleanup so a concurrent request cannot reuse it.
     providerInstanceCache.delete(providerId)
+    const instance = cached.instance as { dispose?: () => Promise<void> | void }
     if (instance?.dispose)
       await instance.dispose()
   }

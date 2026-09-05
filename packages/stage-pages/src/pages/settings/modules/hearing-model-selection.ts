@@ -16,9 +16,14 @@ export function allowsManualModelInput({
 }) {
   if (!supportsModelListing)
     return true
-  if (modelCount > 0 || isLoading)
+  if (isLoading)
+    return false
+
+  const isBypassedFunASR = provider?.definitionId === 'funasr-audio-transcription' && provider.status === 'bypassed'
+  if (isBypassedFunASR)
+    return true
+  if (modelCount > 0)
     return false
 
   return provider?.definitionId === 'openai-compatible-audio-transcription'
-    || (provider?.definitionId === 'funasr-audio-transcription' && provider.status === 'bypassed')
 }
