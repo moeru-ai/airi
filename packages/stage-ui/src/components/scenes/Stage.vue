@@ -1065,6 +1065,11 @@ defineExpose({
   canvasElement,
   captureFrame,
   readRenderTargetRegionAtClientPoint,
+  setExpression: async (expression: string, intensity = 1) => {
+    if (stageModelRenderer.value === 'vrm') {
+      await vrmViewerRef.value?.setExpression(expression, intensity)
+    }
+  },
 })
 </script>
 

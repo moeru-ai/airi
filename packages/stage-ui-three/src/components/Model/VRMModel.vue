@@ -202,7 +202,10 @@ type UpdatableMaterial = Material & {
 // Expressions
 const blink = useBlink()
 const idleEyeSaccades = useIdleEyeSaccades()
-const vrmEmote = ref<ReturnType<typeof useVRMEmote>>()
+// shallowRef: the composable object must stay non-reactive, otherwise Vue
+// deep-unwraps nested refs/computed (e.g. isEmoteActive) and breaks reads
+// like vrmEmote.value.isEmoteActive.value in the render loop.
+const vrmEmote = shallowRef<ReturnType<typeof useVRMEmote>>()
 const vrmLipSync = useVRMLipSync(audioContext, currentAudioSource)
 
 // For sky box update
@@ -477,14 +480,25 @@ function bindManagedVrmInstanceRenderLoop() {
     const lookAtMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.lookAt?.update?.(delta)
     })
+    const isEmoteActive = vrmEmote.value?.isEmoteActive?.value ?? false
+    const isLipSyncActive = vrmLipSync.isLipSyncActive?.value ?? false
+
     const blinkAndSaccadeMs = measureFrameStep(tracingEnabled, () => {
-      blink.update(activeVrm, delta)
-    })
-    const emoteMs = measureFrameStep(tracingEnabled, () => {
-      vrmEmote.value?.update(delta)
+      // The blink controller always advances so an emote starting mid-blink
+      // cannot leave the eyelid stuck; during an emote it only holds the
+      // blink morph at 0 instead of driving the sine curve.
+      blink.update(activeVrm, delta, { suppress: isEmoteActive })
     })
     const lipSyncMs = measureFrameStep(tracingEnabled, () => {
       vrmLipSync.update(activeVrm, delta)
+    })
+    const emoteMs = measureFrameStep(tracingEnabled, () => {
+      // Runs after lip sync: while speech is active the emote yields viseme
+      // mouth morphs (skipVisemes), and once lip sync falls silent the emote
+      // re-asserts its mouth targets over lip sync's zeroed weights. The
+      // state machine keeps advancing either way, so emotion transitions and
+      // the reset timeout stay in sync during long utterances.
+      vrmEmote.value?.update(delta, { skipVisemes: isLipSyncActive })
     })
     const expressionMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.expressionManager?.update()
